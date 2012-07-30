@@ -1,0 +1,1267 @@
+\documentclass{article}
+
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{url}
+\usepackage[a4paper,hmargin=1in,vmargin=1.25in]{geometry}  
+
+\newcommand{\tttimes}{\mathop{\texttt{*}}}
+
+\newcommand{\nonterm}[1]{\langle\textrm{#1}\rangle}
+\newcommand{\seq}[1]{\textrm{seq}\nonterm{#1}}
+\newcommand{\neseq}[1]{\textrm{seq}^+\nonterm{#1}}
+
+% --------------------------------------------------------------------- %
+% Typesetting definitions:              Sample output:                  %
+%                                                                       %
+% \begin{defn}                                                          %
+% \categ{M,N}{terms}\\          M, N ::=        terms           %
+% \entry{x}{variable}\\                   x               variable      %
+% \entry{M\ N}{application}\\             M N             application   %
+% \entry{\lambda x.\ M}{abstraction}      \x.M            abstraction   %
+% \end{defn}                                                            %
+%                                                                       %
+% This is a tabbing environment; the last entry should have no \\.      %
+% --------------------------------------------------------------------- %
+
+\newenvironment{defn}{\begin{tabbing}
+  \hspace{1.5em} \= \hspace{.27\linewidth - 1.5em} \= \hspace{1.5em} \= \kill
+%  \hbra\\[-.8ex]
+  }{
+%\\[-.8ex]\hket
+  \end{tabbing}}
+\newcommand{\entry}[2]{\>$#1$\>\>#2}
+\newcommand{\clause}[2]{$#1$\>\>#2}
+\newcommand{\categ}[2]{\clause{#1::=}{#2}}
+\newcommand{\subclause}[1]{\>\>\>#1}
+
+\begin{document}
+
+\title{CryptoVerif\\
+Computationally Sound, Automatic\\
+Cryptographic Protocol Verifier\\
+User Manual}
+
+\author{Bruno Blanchet and David Cad{\'e}\\
+{\'E}cole Normale Supérieure, CNRS, INRIA, Paris}
+
+\maketitle
+
+\section{Introduction}
+
+This manual describes the input syntax and output of our cryptographic
+protocol verifier. It does not describe the internal algorithms used
+in the system. These algorithms have been described in research
+papers~\cite{Blanchet06,BlanchetEPrint05,Blanchet06b,BlanchetPointchevalEPrint06}
+that can be downloaded at
+
+\centerline{{\tt
+http://www.di.ens.fr/\string~blanchet/publications.html}.}
+
+The goal of our protocol verifier is to prove security properties
+of protocols in the computational model. The input file describes
+the considered security protocol, the hypotheses on the cryptographic
+primitives used in the protocol, and security properties to prove.
+
+\section{Command Line}
+
+The syntax of the command line is as follows:
+\begin{quote}
+$\texttt{./cryptoverif }[options]\ \nonterm{filename}$
+\end{quote}
+where $\nonterm{filename}$ is the name of the input file.
+The options can be:
+\begin{itemize}
+
+\item $\texttt{-in }\nonterm{frontend}$: Chooses the frontend to use
+by CryptoVerif. $\nonterm{frontend}$ can be either \texttt{channels}
+(the default) or \texttt{oracles}. The \texttt{channels} frontend
+uses a calculus inspired by the pi calculus, described 
+in Section~\ref{sec:channels} and in~\cite{Blanchet06,BlanchetEPrint05}.
+The \texttt{oracles} frontend uses a calculus closer to cryptographic
+games, described in Section~\ref{sec:oracles} and 
+in~\cite{Blanchet06b,BlanchetPointchevalEPrint06}.
+By default, CryptoVerif uses the \texttt{oracles} frontend when the input
+$\nonterm{filename}$ ends with \texttt{.ocv}, and otherwise it uses the
+\texttt{channels} frontend.
+
+\item $\texttt{-lib }\nonterm{filename}$: Sets the name of the library
+  file (by default $\texttt{default}$) which is loaded by the system
+  before reading the input file. In the \texttt{channels} front-end,
+  the loaded file is $\nonterm{filename}\texttt{.cvl}$; in the
+  \texttt{oracles} front-end, it is
+  $\nonterm{filename}\texttt{.ocvl}$. The library file typically
+  contains default declarations useful for all protocols.
+
+\item $\texttt{-tex }\nonterm{filename}$: Activates TeX output, and sets
+the output file name. In this mode, CryptoVerif outputs a TeX version
+of the proof, in the given file.
+
+\item $\texttt{-impl}$: Instead of proving the protocol, generate an
+  implementation in OCaml corresponding to the modules defined in the input
+  file.
+
+\item $\texttt{-o }\nonterm{directory}$: If the $\texttt{-impl}$ option
+  is given, outputs the implementation files in the given directory.
+
+\end{itemize}
+
+\newif\ifchannels
+
+\section{\texttt{channels} Front-end}\label{sec:channels}
+
+\channelstrue
+\input{frontend}
+
+\section{\texttt{oracles} Front-end}\label{sec:oracles}
+
+\channelsfalse
+\input{frontend}
+
+\section{Summary of the Main Differences between the two Front-ends}
+
+The main difference between the two front-ends is that the \texttt{oracles}
+front-end uses oracles while the \texttt{channels} front-end uses channels.
+So we have essentially the following correspondence:
+\begin{center}
+\begin{tabular}{l|l}
+\texttt{channels}&\texttt{oracles}\\
+\hline
+input process& oracle definition\\
+output process& oracle body\\
+$\texttt{newChannel }c$& $\texttt{newOracle }O$\\
+$\texttt{in(}c\texttt{, (}x_1:T_1, \ldots, x_l:T_l\texttt{));}P$&$O\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) := }P$\\
+$\texttt{out(}c\texttt{, (}M_1, \ldots, M_l\texttt{));}Q$&$\texttt{return(}M_1, \ldots, M_l\texttt{);}Q$\\
+$\texttt{yield}$&$\texttt{end}$\\
+\end{tabular}
+\end{center}
+The \texttt{newChannel} or \texttt{newOracle} instruction does not appear
+in processes, but appears in the evaluation time of contexts.
+In the \texttt{channels} front-end, channels must be declared by a
+\texttt{channel} declaration. There is no such declaration in the 
+\texttt{oracles} front-end.
+
+In equivalences that define security assumptions, functions of the 
+\texttt{channels} front-end are also replaced with oracle definitions
+in the \texttt{oracles} front-end:
+\begin{center}
+\begin{tabular}{l|l}
+\texttt{channels}&\texttt{oracles}\\
+\hline
+function& oracle definition\\
+$\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) -> }M$&$O\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) := return(}M\texttt{)}$\\
+$\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) }N\texttt{ -> }M$&$\texttt{foreach }i\texttt{<=}N\texttt{ do }O\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) := return(}M\texttt{)}$\\
+\end{tabular}
+\end{center}
+
+Finally, some constructs use a different syntax in the \texttt{oracles} 
+front-end, to be closer to the syntax of cryptographic games:
+\begin{center}
+\begin{tabular}{l|l}
+\texttt{channels}&\texttt{oracles}\\
+\hline
+$\texttt{!}i\texttt{<=}N\ Q$& $\texttt{foreach }i\texttt{<=}N\texttt{ do }Q$\\
+$\texttt{new }x\texttt{:}T\texttt{; }P$&$x\texttt{ <-R }T\texttt{; }P$\\
+$\texttt{let }x\texttt{:}T\texttt{ = }M\texttt{ in }P$&$x\texttt{:}T\texttt{ <- }M\texttt{; }P$\\
+\end{tabular}
+\end{center}
+The \texttt{let} instruction is still available in the \texttt{oracles}
+front-end. Indeed, the assignment $x\texttt{:}T\texttt{ <- }M$ can be
+used only for directly assigning a variable; when a pattern occurs instead
+of the variable $x$, one has to use the \texttt{let} instruction.
+
+\section{Predefined cryptographic primitives}\label{sect:prim}
+
+\newcommand{\vn}[1]{\mathit{#1}}
+\newcommand{\ab}{\allowbreak}
+
+A number of standard cryptographic primitives are predefined in
+CryptoVerif.  The definitions of these primitives are given as macros
+in the library file \texttt{default.cvl} (or \texttt{default.ocvl} for
+the \texttt{oracles} front-end) that is automatically loaded at
+startup.  The user does not need to redefine these primitives, he can
+just expand the corresponding macro. The examples contained in the library
+can be used as a basis in order to build definitions of new primitives, by copying
+and modifying them as desired. Here is a list of the predefined primitives.
+\begin{itemize}
+
+\item $\texttt{expand IND\_CPA\_sym\_enc(}\vn{keyseed}, \vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ defines a
+  IND-CPA (indistinguishable under chosen plaintext attacks)
+  probabilistic symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
+
+  $\vn{Penc}(t, N, l)$ is the probability of breaking the IND-CPA
+  property in time $t$ for one key and $N$ encryption queries with
+  cleartexts of length at most $l$.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{seed}$ and the probability $\vn{Penc}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{ind\_cpa}(\vn{enc})$
+   for use in the \texttt{crypto} command in interactive proofs
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ defines a
+  IND-CPA (indistinguishable under chosen plaintext attacks) and INT-CTXT (ciphertext integrity)
+  probabilistic symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
+
+  $\vn{Penc}(t, N, l)$ is the probability of breaking the IND-CPA
+  property in time $t$ for one key and $N$ encryption queries with
+  cleartexts of length at most $l$.
+
+  $\vn{Pencctxt}(t, N, N', l, l')$ is the probability of breaking the
+  INT-CTXT property in time $t$ for one key, $N$ encryption queries,
+  $N'$ decryption queries with cleartexts of length at most $l$ and
+  ciphertexts of length at most $l'$.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{seed}$ and the probabilities $\vn{Penc}$ and $\vn{Pencctxt}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
+   and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
+   IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencptxt}\texttt{).}$ defines a
+  IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks) and INT-PTXT (plaintext integrity)
+  probabilistic symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
+
+  $\vn{Penc}(t, N, N', l, l')$ is the probability of breaking the
+  IND-CCA2 property in time $t$ for one key, $N$ encryption queries, $N'$
+  decryption queries with cleartexts of length at most $l$ and
+  ciphertexts of length at most $l'$.
+
+  $\vn{Pencptxt}(t, N, N', l, l')$ is the probability of breaking the
+  INT-PTXT property in time $t$ for one key, $N$ encryption queries, $N'$
+  decryption queries with cleartexts of length at most $l$ and
+  ciphertexts of length at most $l'$.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{seed}$ and the probabilities $\vn{Penc}$ and $\vn{Pencptxt}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named $\texttt{ind\_cca2}(\vn{enc})$
+   and $\texttt{int\_ptxt}(\vn{enc})$ corresponding respectively to the
+   IND-CCA2 and INT-PTXT properties, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand SPRP\_cipher(}\vn{keyseed}, \vn{key},
+  \vn{blocksize}, \vn{kgen}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
+  defines a SPRP (super-pseudo-random permutation) deterministic
+  symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{blocksize}$ is the type of cleartexts and ciphertexts, 
+   must be \texttt{fixed} and \texttt{large}.
+   (The modeling of SPRP block ciphers is not perfect in that, in
+   order to encrypt a new message, one chooses a fresh random number,
+   not necessarily different from previously generated random
+   numbers. Then CryptoVerif needs to eliminate collisions between
+   those random numbers, so $\vn{blocksize}$ must really be
+   \texttt{large}.)
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
+
+   $\vn{dec}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the
+  decryption function.
+
+  $\vn{Penc}(t, N, N')$ is the probability of breaking the SPRP
+  property in time $t$ for one key, $N$ encryption queries, and $N'$
+  decryption queries.
+
+  The types $\vn{keyseed}$, $\vn{key}$, $\vn{blocksize}$ and the
+  probability $\vn{Penc}$ must be declared before this macro is
+  expanded. The functions $\vn{kgen}$, $\vn{enc}$, and $\vn{dec}$ are
+  declared by this macro. They must not be declared elsewhere, and
+  they can be used only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{sprp}(\vn{enc})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand PRP\_cipher(}\vn{keyseed}, \vn{key},
+  \vn{blocksize}, \vn{kgen}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
+  defines a PRP (pseudo-random permutation) deterministic
+  symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{blocksize}$ is the type of cleartexts and ciphertexts, must be
+   \texttt{fixed} and \texttt{large}.
+   (The modeling of PRP block ciphers is not perfect in that, in order
+   to encrypt a new message, one chooses a fresh random number, not
+   necessarily different from previously generated random numbers. In
+   other words, we model a PRF rather than a PRP, and apply the
+   PRF/PRP switching lemma to make sure that this is sound. Then
+   CryptoVerif needs to eliminate collisions between those random
+   numbers, so $\vn{blocksize}$ must really be \texttt{large}.)
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
+
+   $\vn{dec}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the
+  decryption function.
+
+   $\vn{Penc}(t, N)$ is the probability of breaking the PRP property
+   in time $t$ for one key and $N$ encryption queries.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{blocksize}$ and the probability $\vn{Penc}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{kgen}$, $\vn{enc}$, and $\vn{dec}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{prp}(\vn{enc})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand ICM\_cipher(}\vn{cipherkey}, \vn{key}, \vn{blocksize}, \vn{enc},
+   \vn{dec}%, \vn{enc\_dec\_oracle}, \vn{qE}, \vn{qD}
+\texttt{).}$
+   defines a block cipher in the ideal cipher model.
+
+   $\vn{cipherkey}$ is the type of keys that correspond to the choice of the scheme, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{key}$ is the type of keys (typically \texttt{large}).
+
+   $\vn{blocksize}$ is type of the input and output of the cipher, 
+   must be \texttt{fixed} and \texttt{large}.
+   (The modeling of the ideal cipher model is not perfect in that, in
+   order to encrypt a new message, one chooses a fresh random number,
+   not necessarily different from previously generated random
+   numbers. Then CryptoVerif needs to eliminate collisions between
+   those random numbers, so blocksize must really be \texttt{large}.)
+
+   $\vn{enc}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
+
+   $\vn{dec}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the decryption function.
+
+   WARNING: the encryption and decryption functions take 2 keys as
+   input: the key of type cipherkey that corresponds to the choice of
+   the scheme, and the normal encryption/decryption key. The cipherkey
+   must be chosen once and for all at the beginning of the game and
+   the encryption and decryption oracles must be made available to the
+   adversary, by including a process such as
+\begin{verbatim}
+       (! qE in(c1, (x:blocksize, ke:key)); out(c2, enc(ck,x,ke)))
+     | (! qD in(c3, (m:blocksize, kd:key)); out(c4, dec(ck,m,kd)))
+\end{verbatim}
+   where \texttt{c1}, \texttt{c2}, \texttt{c3}, \texttt{c4} are channels, 
+   \texttt{qE} the number of requests to the encryption oracle,
+   \texttt{qD} the number of requests to the decryption oracle,
+   \texttt{ck} the cipherkey (or similar oracles if you use the oracles
+   front-end).
+ 
+%    $\vn{enc\_dec\_oracle}$ is a process that allows the adversary to
+%    call the encryption and decryption functions.
+%    WARNING: the encryption and decryption oracles must be made
+%    available to the adversary, by including $\vn{enc\_dec\_oracle}$ in
+%    the executed process.
+
+%    $\vn{qE}$ is the number of requests to the encryption oracle.
+
+%    $\vn{qD}$ is the number of requests to the decryption oracle.
+   
+   The types $\vn{cipherkey}$, $\vn{key}$, $\vn{blocksize}$ must be
+   declared before this macro is expanded. The functions $\vn{enc}$,
+   $\vn{dec}$ are declared by this macro. They must not be declared
+   elsewhere, and they can be used only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{icm}(\vn{enc})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand UF\_CMA\_mac(}\vn{mkeyseed}, \vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mkgen}, \vn{mac}, \vn{check},
+  \vn{Pmac}\texttt{).}$ defines a UF-CMA (unforgeable under chosen
+  message attacks) MAC (message authentication code).
+
+   $\vn{mkeyseed}$ is the type of key seeds, must be \texttt{bounded} (to
+  be able to generate random numbers from it), typically
+  \texttt{fixed} and \texttt{large}.
+
+   $\vn{mkey}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{macinput}$ is the type of inputs of MACs
+
+   $\vn{macres}$ is the type of MACs.
+
+   $\vn{mkgen}(\vn{mkeyseed}): \vn{mkey}$ is the key generation function.
+
+   $\vn{mac}(\vn{macinput}, \vn{mkey}): \vn{macres}$ is the MAC function.
+
+   $\vn{check}(\vn{macinput}, \vn{mkey}, \vn{macres}): \texttt{bool}$ is the verification function.
+
+   $\vn{Pmac}(t, N, N', l)$ is the probability of breaking the UF-CMA
+   property in time $t$ for one key, $N$ MAC queries, $N'$ verification
+   queries for messages of length at most $l$.
+
+   The types $\vn{mkeyseed}$, $\vn{mkey}$, $\vn{macinput}$,
+   $\vn{macres}$ and the probability $\vn{Pmac}$ must be declared
+   before this macro is expanded. The functions $\vn{mkgen}$,
+   $\vn{mac}$, $\vn{check}$ are declared by this macro. They must not
+   be declared elsewhere, and they can be used only after expanding
+   the macro.
+
+   This macro defines the equivalences named
+   $\texttt{uf\_cma}(\vn{mac})$ and
+   $\texttt{uf\_cma\_corrupt}(\vn{mac})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+   Both equivalences correspond to the UF-CMA property, but the former 
+   does not allow corruption of the secret keys while latter allows it.
+   The latter equivalence is applied only manually, because its automatic
+   application can sometimes be done too early, when other transformations
+   should first be done in order to eliminate uses of the secret keys.
+
+\item $\texttt{expand SUF\_CMA\_mac(}\vn{mkeyseed}, \vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mkgen}, \vn{mac}, \vn{check},
+  \vn{Pmac}\texttt{).}$ defines a SUF-CMA (strongly unforgeable under
+  chosen message attacks) MAC (message authentication code).  The
+  difference between a UF-CMA MAC and a SUF-CMA MAC is that, for a
+  UF-CMA MAC, the adversary may easily forge a new MAC for a message
+  for which he has already seen a MAC. Such a forgery is guaranteed to
+  be hard for a SUF-CMA MAC. The arguments are the same as for the
+  previous macro. This macro defines the equivalences named
+   $\texttt{suf\_cma}(\vn{mac})$ and
+   $\texttt{suf\_cma\_corrupt}(\vn{mac})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand IND\_CCA2\_public\_key\_enc(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{enc}, \ab
+  \vn{dec}, \ab \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab\vn{Penccoll}\texttt{).}$ defines a
+  IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks)
+  probabilistic public-key encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
+
+   $\vn{skey}$ is the type of secret keys, must be \texttt{bounded}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{skgen}(\vn{keyseed}): \vn{skey}$ is the secret key generation function.
+
+   $\vn{pkgen}(\vn{keyseed}): \vn{pkey}$ is the public key generation function.
+
+   $\vn{enc}(\vn{cleartext}, \vn{pkey}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{skey}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}: \vn{cleartext}$ is a constant cleartext. The encryption scheme is assumed to
+   encrypt a block, so that the length of the cleartext is not leaked.
+
+   $\vn{Penc}(t, N)$ is the probability of breaking the IND-CCA2 property
+   in time $t$ for one key and $N$ decryption queries.
+
+   $\vn{Penccoll}$ is the probability of collision between independently generated keys.
+
+   The types $\vn{keyseed}$, $\vn{pkey}$, $\vn{skey}$,
+   $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{seed}$ and the
+   probabilities $\vn{Penc}$, $\vn{Penccoll}$ must be declared before
+   this macro is expanded. The functions $\vn{skgen}$, $\vn{pkgen}$,
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by
+   this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{ind\_cca2}(\vn{enc})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand UF\_CMA\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
+  UF-CMA (unforgeable under chosen message attacks)
+  probabilistic signature scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
+
+   $\vn{skey}$ is the type of secret keys, must be \texttt{bounded}.
+
+  $\vn{signinput}$ is the type of signature inputs.
+
+   $\vn{signature}$ is the type of signatures.
+
+   $\vn{seed}$ is the type of random seeds for signatures, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{skgen}(\vn{keyseed}): \vn{skey}$ is the secret key generation function.
+
+   $\vn{pkgen}(\vn{keyseed}): \vn{pkey}$ is the public key generation function.
+
+   $\vn{sign}(\vn{signinput}, \vn{skey}, \vn{seed}): \vn{signature}$ is the signature function.
+
+   $\vn{check}(\vn{signinput}, \vn{pkey}, \vn{signature}): \texttt{bool}$ is the
+  verification function.
+
+   $\vn{Psign}(t, N, l)$ is the probability of breaking the UF-CMA property
+   in time $t$, for one key, $N$ signature queries with messages of length
+   at most $l$.
+
+   $\vn{Psigncoll}$ is the probability of collision between independently generated keys.
+
+   The types $\vn{keyseed}$, $\vn{pkey}$, $\vn{skey}$, $\vn{signinput}$,
+   $\vn{signature}$, $\vn{seed}$ and the probabilities $\vn{Psign}$, $\vn{Psigncoll}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{skgen}$, $\vn{pkgen}$, $\vn{sign}$, and $\vn{check}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named
+   $\texttt{uf\_cma}(\vn{sign})$ and
+   $\texttt{uf\_cma\_corrupt}(\vn{sign})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+   Both equivalences correspond to the UF-CMA property, but the former 
+   does not allow corruption of the secret keys while latter allows it.
+   The latter equivalence is applied only manually, because its automatic
+   application can sometimes be done too early, when other transformations
+   should first be done in order to eliminate uses of the secret keys.
+
+\item $\texttt{expand SUF\_CMA\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
+  SUF-CMA (strongly unforgeable under chosen message attacks)
+  probabilistic signature scheme.
+  The difference between a UF-CMA signature and a SUF-CMA MAsignature
+  is that, for a UF-CMA signature, the adversary may easily forge a
+  new signature for a message for which he has already seen a
+  signature. Such a forgery is guaranteed to be hard for a SUF-CMA
+  signature. The arguments are the same as for the previous macro.
+   This macro defines the equivalences named
+   $\texttt{suf\_cma}(\vn{sign})$ and
+   $\texttt{suf\_cma\_corrupt}(\vn{sign})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand ROM\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}
+\texttt{).}$
+defines a hash function in the random oracle model.
+
+$\vn{key}$ is the type of the key of the hash function, which models
+the choice of the hash function, must be \texttt{bounded}, typically 
+\texttt{fixed}.
+
+   $\vn{hashinput}$ is the type of the input of the hash function.
+
+   $\vn{hashoutput}$ is the type of the output of the hash function, must be \texttt{bounded} and \texttt{large}, typically \texttt{fixed}.
+
+   $\vn{hash}(\vn{hashinput}): \vn{hashoutput}$ is the hash function.
+
+   WARNING: $\vn{hash}$ is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game 
+   and the hash oracle must be made available to the adversary,
+   by including a process such as
+      \texttt{!qH in(c1, x:hashinput); out(c2, hash(k,x))}
+   where \texttt{k} is the key, \texttt{qH} the number of requests to the hash oracle,
+   \texttt{c1} and \texttt{c2} channels (or a similar oracle if you use the oracles front-end).
+%    $\vn{hashoracle}$ is a process that allows the adversary to call the hash function.
+%    WARNING: the hash oracle must be made available to the adversary,
+%    by including "hashoracle" in the executed process.
+
+%    $\vn{qH}$ is the number of requests to the hash oracle
+
+   The types $\vn{key}$, $\vn{hashinput}$, and $\vn{hashoutput}$ must
+   be declared before this macro.  The function $\vn{hash}$ is defined
+   by this macro. It must not be declared elsewhere, and it can be
+   used only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{rom}(\vn{hash})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand CollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{Phash}\texttt{).}$
+defines a collision-resistant hash function.
+
+   $\vn{key}$ is the type of the key of the hash function, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{hashinput}$ is the type of the input of the hash function.
+
+   $\vn{hashoutput}$ is the type of the output of the hash function.
+
+   $\vn{hash}(\vn{key}, \vn{hashinput}): \vn{hashoutput}$ is the hash function.
+
+   $\vn{Phash}$ is the probability of breaking collision resistance.
+   WARNING: A collision resistant hash function is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game,
+   and immediately made available to the adversary.
+
+   The types $\vn{key}$, $\vn{hashinput}$, and $\vn{hashoutput}$ and
+   the probability $\vn{Phash}$ must be declared before this macro.
+   The function $\vn{hash}$ is defined by this macro. It must not be
+   declared elsewhere, and it can be used only after expanding the
+   macro.
+
+\item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.
+
+   $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
+
+   $\vn{skey}$ is the type of secret keys, must be \texttt{bounded}.
+
+   $\vn{D}$ is the type of the input and output of the permutation, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{pkgen}(\vn{seed}): \vn{pkey}$ is the public key generation function.
+
+   $\vn{skgen}(\vn{seed}): \vn{skey}$ is the secret key generation function.
+
+   $\vn{f}(\vn{pkey}, \vn{D}):\vn{D}$ is the permutation (taking as argument the public key)
+
+   $\vn{invf}(\vn{skey}, \vn{D}):\vn{D}$ is the inverse permutation of f (taking as argument the secret key,
+         i.e. the trapdoor)
+
+   $\vn{POW}(t)$ is the probability of breaking the one-wayness property
+   in time $t$, for one key and one permuted value.
+
+   The types $\vn{seed}$, $\vn{pkey}$, $\vn{skey}$, $\vn{D}$, and the probability $\vn{POW}$ must be
+   declared before this macro. The functions $\vn{pkgen}$, $\vn{skgen}$, $\vn{f}$, $\vn{invf}$
+   are defined by this macro. They must not be declared elsewhere, and
+   they can be used only after expanding the macro. 
+
+   This macro defines the equivalences $\texttt{remove\_invf}(f)$,
+   which expresses that, for $y$ chosen randomly in $D$, $y$ and
+   $\vn{invf}(\vn{skey}, y)$ are distributed like for $x$ chosen
+   randomly in $D$, $\vn{f}(\vn{pkey}, x)$ and $x$, and
+   $\texttt{ow}(f)$, which corresponds to one-wayness, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand OW\_trapdoor\_perm\_RSR(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation, with random self-reducibility. The arguments are the same as above, but the probability of breaking one-wayness is bound more precisely. This macro defines the equivalences $\texttt{remove\_invf}(f)$ as above and $\texttt{ow\_rsr}(f)$.
+
+\item $\texttt{expand PRF(}\vn{keyseed}, \vn{key}, \vn{input}, \vn{output}, \vn{kgen}, \vn{f}, \vn{Pprf}\texttt{).}$ 
+defines a pseudo-random function.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{input}$ is the type of the input of the PRF.
+
+   $\vn{output}$ is the type of the output of the PRF, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{f}(\vn{key}, \vn{input}):\vn{output}$ is the PRF function.
+
+   $\vn{Pprf}(t, N, l)$ is the probability of breaking the PRF property
+   in time $t$, for one key, $N$ queries to the PRF of length at most $l$.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{input}$, $\vn{output}$
+   and the probability $\vn{Pprf}$ must be declared before this macro
+   is expanded. The functions $\vn{kgen}$ and $\vn{f}$ are declared by
+   this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{prf}(\vn{f})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand\ CDH(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{PCDH}\texttt{).}$ defines a group that satisfies the computational
+  Diffie-Hellman assumption.
+
+   $G$: type of group elements (must be \texttt{bounded} and \texttt{large}, of cardinal a prime $q$).
+
+   $Z$: type of exponents (must be \texttt{bounded} and \texttt{large}, 
+   supposed to be $\{1, \ldots, q-1\}$).
+
+   $g$: a generator of the group.
+
+   $\vn{exp}$: the exponentiation function.
+
+   $\vn{mult}$: the multiplication function for exponents, product modulo $q$ in
+   $\{1, \ldots, q-1\}$, i.e. in the group $(\mathbb{Z}/q\mathbb{Z})^*$.
+
+   $\vn{PCDH}$: the probability of breaking the CDH assumption for one pair of
+   exponents.
+
+   The types $G$ and $Z$ and the probability $\vn{PCDH}$ must be
+   declared before this macro.  The functions $g$, $\vn{exp}$, and
+   $\vn{mult}$ are defined by this macro. They must not be declared
+   elsewhere, and they can be used only after expanding the macro.
+
+   This macro defines the following equivalences for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}):
+\begin{itemize}
+\item $\texttt{cdh}(\vn{exp})$ whichs corresponds to the CDH property
+\item $\texttt{group\_to\_exp\_strict}(\vn{exp})$ which allows to replace
+a random $X \in G$ with $\vn{exp}(g,x)$ for a random $x \in Z$, provided
+$\vn{exp}(X,\_)$ occurs in the game.
+\item $\texttt{group\_to\_exp}(\vn{exp})$ which allows to replace
+a random $X \in G$ with $\vn{exp}(g,x)$ for a random $x \in Z$ in any case.
+(This transformation is applied only manually.)
+\item $\texttt{exp\_to\_group}(\vn{exp})$ which allows to replace
+$\vn{exp}(g,x)$ for a random $x \in Z$ with a random $X \in G$.
+\item $\texttt{exp'\_to\_group}(\vn{exp})$ which allows to replace
+$\vn{exp'}(g,x)$ for a random $x \in Z$ with a random $X \in G$.
+($\vn{exp'}$ is a symbol equal to $\vn{exp}$ introduced by the
+$\texttt{cdh}(\vn{exp})$ equivalence.)
+\end{itemize}
+
+\item $\texttt{expand\ DDH(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{PDDH}\texttt{).}$ defines a group that satisfies the decisional
+  Diffie-Hellman assumption. The arguments are the same as for
+  \texttt{CDH} above, except that the probability $\vn{PCDH}$ is
+  replaced with $\vn{PDDH}$. This macro defines the same equivalences
+as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
+with $\texttt{ddh}(\vn{exp})$.
+
+\item $\texttt{expand\ Xor(}D, \vn{xor}\texttt{).}$ defines the
+  function symbol $\vn{xor}$ to be exclusive or on the set of
+  bitstrings $D$.
+
+   The type $D$ must be declared before this macro is expanded. The
+   function $\vn{xor}$ is declared by this macro. It must not be
+   declared elsewhere, and it can be used only after expanding the
+   macro.
+
+   This macro defines the equivalence named $\texttt{remove\_xor}(\vn{xor})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+   This model of xor is not fully satisfactory. In particular,
+   associativity is missing (but it is obviously still sound).
+
+\end{itemize}
+
+
+\section{Interactive Mode}\label{sec:interact}
+
+In interactive mode, the user specifies transformations to perform.
+Here is a list of available instructions:
+\begin{itemize}
+
+\item \texttt{help} or \texttt{?}: display a list of available commands.
+
+\item \texttt{remove\string_assign useless}: remove useless assignments,
+that is, assignments to $x$ when $x$ is unused and assignments
+between variables.
+
+\item \texttt{remove\string_assign all}: remove all assignments,
+by replacing variables with their values. This is not recommended:
+you should try to specify which assignments to remove more precisely.
+
+\item $\texttt{remove\string_assign binder}\ x$: remove assignments
+to $x$ by replacing $x$ with its value. When $x$ becomes unused,
+its definition is removed. When $x$ is used only in \texttt{defined} 
+tests after transformation, its definition is replaced with 
+a constant.
+
+\item $\texttt{move }m$: Try to move instructions as follows:
+\begin{itemize}
+
+\item Move random number generations down in the syntax tree as much
+  as possible, in order to delay the choice of random numbers. This is
+  especially useful when the random number generations can be moved
+  under a test {\tt if}, {\tt let}, or {\tt find}, so that we can
+  distinguish in which branch of the test the random number is created
+  by a subsequent \texttt{SArename} instruction.
+
+\item Move assignments down in the syntax tree but without duplicating
+  them. This is especially useful when the assignment can be moved
+  under a test, in which the assigned variable is used only in one
+  branch. In this case, the assigned term is computed in fewer cases
+  thanks to this transformation.
+  (Note that only assignments without array accesses can be moved,
+  because in the presence of array accesses, the computation would have
+  to be kept in all branches of the test, yielding a duplication that 
+  we want to avoid.)
+
+\end{itemize}
+The argument $m$ specifies which instructions should be moved:
+\begin{itemize}
+\item \texttt{all}: move random number generations and assignments,
+when this is beneficial, that is, when they can be moved under a test.
+\item \texttt{noarrayref}: move random number generations and assignments
+without array accesses, when this is beneficial.
+\item \texttt{random}: move random number generations, when this is beneficial.
+\item \texttt{random\string_noarrayref}: move random number generations 
+without array accesses, when this is beneficial.
+\item \texttt{assign}: move assignments, when this is beneficial.
+\item $\texttt{binder }x$: move random number generations and assignments
+that define $x$ (even when this is not beneficial).
+\item $\texttt{array }x$: move random number generations that define $x$
+when $x$ is of a {\tt large} and {\tt bounded} type and $x$ is not used in
+the process that defines it, until the next output after the definition of $x$.
+$x$ is then chosen at the point where it is really first used. 
+(Since this point may depend on the trace, the uses of $x$ are often
+transformed into {\tt find} instructions that test whether $x$ has been 
+chosen before, and reuse the previously chosen value if this is true.)
+%Internally, this is implemented by calling a cryptographic transformation
+%defined in the library by the macro "move_array_internal_macro".
+\end{itemize}
+
+\item \texttt{simplify}: simplify the game.
+
+\item $\texttt{simplify coll\string_elim }x_1 \ldots x_n$: simplify the game,
+additionally allowing elimination of collisions on data of types with
+option \texttt{password} at the program points defined by $x_1, \ldots, x_n$.
+%
+The arguments $x_1, \ldots, x_n$ can be occurrence numbers in
+the program, variable names (meaning all occurrences of these
+variables), or types (meaning all data of those types).
+If one wants to specify occurrence numbers, one should use the command 
+\texttt{show\string_game occ} to determine which occurrence numbers
+correspond to the desired program points.
+
+\item $\texttt{global\_dep\_anal}\ x$ performs global dependency
+  analysis on $x$: it computes all variables that depend on $x$, and
+  when possible, shows that all output messages are independent of $x$
+  and that all tests are independent of $x$ after eliminating
+  collisions. The tests are then simplified by eliminating these
+  collisions, so that all dependencies on $x$ can be removed.
+
+$\texttt{global\_dep\_anal}\ x\ \texttt{coll\_elim}\ x_1 \ldots x_n$ 
+performs global dependency analysis on $x$, 
+additionally allowing elimination of collisions on data of types with
+option \texttt{password} at the program points defined by $x_1, \ldots, x_n$.
+The arguments $x_1, \ldots, x_n$ can be occurrence numbers in
+the program, variable names (meaning all 
+occurrences of these variables), or types (meaning all data of those types).
+One must allow elimination on $x$ independently of the occurrences, 
+so if $x$ is not large, $x$ or its type must be mentioned in $x_1, \ldots, x_n$;
+mentioning the occurrences of $x$ is not sufficient.
+
+\item $\texttt{SArename }x$: When $x$ is defined at several places,
+rename $x$ to a different name for each definition. This is useful for
+distinguishing cases depending on which definition of $x$ is used.
+
+\item \texttt{all\string_simplify}: perform several simplifications 
+on the game, as if \texttt{simplify}, \texttt{move all}
+if \texttt{autoMove = true}, and \texttt{remove\string_assign useless}
+had been called.
+
+\item \texttt{crypto} \ldots: applies a cryptographic transformation
+that comes from a statement \texttt{equiv}. This command can
+have several forms:
+\begin{itemize}
+
+\item \texttt{crypto}: list all available \texttt{equiv} statements,
+and ask the user to choose which one should be applied, 
+with which variables of the game corresponding to random number generations
+of the left-hand side of the equivalence.
+
+\item $\texttt{crypto }\nonterm{name}\ \texttt{*}$: apply a cryptographic
+transformation determined by the name $\nonterm{name}$. 
+This name can be either an identifier $\mathit{id}$ or $\mathit{id}(f)$, 
+and corresponds to the name given at the declaration of the 
+cryptographic transformation by \texttt{equiv}.
+In case the name is not found, CryptoVerif reverts to the
+old way of designating cryptographic transformations, in which
+$\nonterm{name}$ can be either a
+function symbol that occurs in the terms in the left-hand side of the
+\texttt{equiv} statement, or a probability function that occurs in the
+probability formula of the \texttt{equiv} statement.
+When several equivalences correspond, the user is prompted for choice.
+The transformation is applied as many times as possible. (In this
+case, the advised transformations are applied automatically even when
+\texttt{set autoAdvice = false}.)
+
+\item $\texttt{crypto }\nonterm{name}\ x_1\ \ldots\ x_n$: apply a cryptographic
+transformation chosen as above, where $x_1, \ldots, x_n$ are variable
+names of the game corresponding to random number generations 
+in the left-hand side of the
+equivalence. (CryptoVerif may automatically add variables to the list
+$x_1, \ldots, x_n$ if needed, except when a dot is added at the end of
+the list $x_1, \ldots, x_n$. The transformation is applied only once.
+If several disjoint lists $x_1, \ldots, x_n$ are possible and no variable
+name is mentioned, CryptoVerif makes a choice. It is better to mention
+at least one variable name when the left-hand side of the equivalence
+contains a random number generation, to make explicit which transformation 
+should be applied.)
+
+In case the command ends with a dot ($\texttt{.}$), CryptoVerif never adds 
+other variable names to those already listed. If the dot is absent,
+CryptoVerif may add other variable names if that seems necessary to perform
+the transformation.
+
+\end{itemize}
+
+
+\item $\texttt{insert\string_event }e\ occ$ replaces the subprocess at
+occurrence $occ$ with the event $\texttt{event }e$. The games may
+be distinguished if and only if the event $e$ is executed, and CryptoVerif
+then tries to bound the probability of executing that event.
+One should use the command \texttt{show\string_game occ} to determine
+which occurrence number $occ$ corresponds to the program point where
+one wants to insert the event. The occurrence number $occ$ must
+correspond to an output process (resp. oracle body in the oracles
+front-end).
+
+\item $\texttt{insert}\ occ\ ins$ inserts instruction $ins$ at
+occurrence $occ$. The instruction $ins$ can be 
+\begin{align*}
+&\texttt{new\ }\nonterm{vartype}\\
+&\texttt{if }\nonterm{cond}\texttt{ then}\\
+&\texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
+&\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\\
+&\texttt{find }\nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
+\end{align*}
+or in the oracles front-end
+\begin{align*}
+&\nonterm{ident}\texttt{ <-R }\nonterm{ident}\\
+&\texttt{if }\nonterm{cond}\texttt{ then}\\
+&\texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
+&\nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}\\
+&\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\\
+&\texttt{find }\nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
+\end{align*}
+where $\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then}$
+
+In contrast to the initial game, the terms {\tt new}, {\tt if}, {\tt
+  find}, or {\tt let} are not expanded, so {\tt if}, {\tt find}, {\tt
+  let} can occur only in conditions of {\tt find} and {\tt new} must
+not occur as a term.
+%
+The variables of the inserted instruction are not renamed, so one must
+be careful when redefining variables with the same name. In
+particular, one is not allowed to add a new definition for a variable
+on which array accesses are done (because it could change the result
+of these array accesses).
+%
+The obtained game must satisfy the required invariants (each variable
+is defined at most once in each branch of {\tt if}, {\tt find}, or {\tt let};
+each usage of a variable $x$ must be either $x$ without array index syntactically
+under its definition, inside a {\tt defined} condition of a find, or
+$x[M_1, ..., M_n]$ under a {\tt defined} condition that contains $x[M_1, ..., M_n]$ 
+as a subterm). 
+%
+In case the inserted instruction is not appropriate, an error
+message explaining the problem is displayed.
+
+The obtained game is indistinguishable from the initial game.
+The main practical usage of this command is to introduce case
+distinctions ({\tt if}, {\tt find}, or {\tt let} with a pattern that
+is not a variable). In this situation, the process that follows the
+insertion point is duplicated in each branch of {\tt if}, {\tt find},
+or {\tt let}, and can subsequently be transformed in different ways in
+each branch. 
+%
+It may be useful to disable the merging of branches in simplification
+by \texttt{set mergeBranches = false} when a case distinction is
+inserted, so that the operation is not immediately undone at the next
+simplification.
+
+One should use the command \texttt{show\string_game occ} to determine
+which occurrence number $occ$ corresponds to the program point where
+one wants to insert the instruction. The occurrence number $occ$ must
+correspond to an output process (resp. oracle body in the oracles
+front-end).
+
+\item $\texttt{replace}\ occ\ term$ replaces the term at occurrence
+  $occ$ with the term $term$. Obviously, CryptoVerif must be able to
+  prove that these two terms are equal.
+  These terms must not contain \texttt{if}, \texttt{let},
+  \texttt{find}, \texttt{new}.
+One should use the command \texttt{show\string_game occ} to determine
+which occurrence number $occ$ corresponds to the program point where
+one wants to replace the term. The occurrence number $occ$ must
+correspond to a term.
+
+\item \texttt{merge\_branches} merges the branches of {\tt if}, {\tt
+    find}, and {\tt let} when they execute equivalent code. Such a
+  merging is already done in simplification, but
+  \texttt{merge\_branches} goes further. It performs several merges
+  simultaneously and takes into account that merges may remove array
+  accesses in conditions of {\tt find} and thus allow further
+  merges. Moreover, it advises {\tt merge\_arrays} when variables with
+  different names and with array accesses are used in the branches
+  that we may want to merge.
+
+\item $\texttt{merge\_arrays } x_{11}\ \ldots\ x_{1n} \texttt{ , }
+  \ldots \texttt{ , } x_{k1}\ \ldots\ x_{kn}$ takes as argument $k$
+  lists of $n$ variables separated by commas. It merges the variables
+  $x_{i1}, \ldots, x_{in}$ into $x_{i1}$. This is useful when these
+  variables play the same role in different branches of {\tt if}, {\tt
+    find}, {\tt let}: merging them into a single variable may allow to
+  merge the branches of {\tt if}, {\tt find}, {\tt let} by
+  \texttt{merge\_branches}. 
+
+  The $k$ lists to merge must contain the same number of variables $n$
+  (at least 2). Variables $x_{ij}$ and $x_{i'j'}$ for $i \neq i'$ must
+  never be simultaneously defined for the same value of their array
+  indices.  Variables $x_{ij}$ must have the same type and the same
+  array indices for all $j$. Each variable $x_{ij}$ must have a single
+  definition, and must not be used in queries.
+
+  In general, the variables $x_{i1}$ should preferably belong to the
+  \texttt{else} branch of the {\tt if}, {\tt find}, {\tt let} that we
+  want to merge later. Indeed, the code of the {\tt else} branch is
+  often more general than the code of the other branches (which may
+  exploit the conditions that are tested), so merging towards the code
+  of the {\tt else} branch works more often.
+
+  The variables $x_{1j}$ should preferably be defined above the
+  variables $x_{ij}$ for any $i > 1$. If this is true, we can
+  introduce special variables $y_j$ at the definition site of $x_{1j}$
+  which are used only for testing that branch $j$ has been executed.
+  This allows the merge to succeed more often.
+
+\item \texttt{quit}: terminate execution.
+
+\item \texttt{success}: test whether the desired properties are
+proved in the current game. If yes, display the proof and stop.
+Otherwise, wait for further instructions.
+
+\item \texttt{show\string_game}: display the current game.
+
+\item \texttt{show\string_game occ}: display the current game with
+  occurrences. Useful for some commands that require specifying a
+  program point; one can use the displayed numbers to specify program
+  points.
+
+\item \texttt{show\string_state}: display the whole sequence
+of games until the current game.
+
+\item \texttt{auto}: switch to automatic mode; try to
+terminate the proof automatically from the current game.
+
+\item $\texttt{set }\nonterm{parameter}\texttt{ = }\nonterm{value}$:
+sets parameters, as the \texttt{set} instruction in input files.
+
+\item \texttt{allowed\string_collisions} $\nonterm{formulas}$: 
+determine when to eliminate collisions. $\nonterm{formulas}$ is 
+a list of comma separated formulas of the form
+$\nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k} / \nonterm{tsize}$,
+where the exponents $n_i$ can be omitted when equal to 1;
+$\nonterm{psize}_i$ is an identifier that determines the size of a
+parameter: \texttt{size$n$} for parameters of size $n$,
+\texttt{small} for size 0, \texttt{passive} for size 10,
+\texttt{noninteractive} for size 20;
+$\nonterm{tsize}$ is an identifier that determines the size of a type:
+\texttt{size$n$} for types of size $n$,
+\texttt{small} for size 0, \texttt{password} for size 10,
+\texttt{large} for size 20. (See also the declarations \texttt{param}
+and \texttt{type} for explanations of sizes.)
+
+Collisions are eliminated when the probability that they generate
+is at most of the form  $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k} \times \texttt{Pcoll1rand}(T)$,
+where $p_i$ is a parameter of size at most $\nonterm{psize}_i$
+and $T$ is a type of size at least $\nonterm{tsize}$.
+By default, collisions are eliminated for $\textit{anything} \times \texttt{Pcoll1rand}(T)$ when $T$ is a \texttt{large} type,
+and for $p \times \texttt{Pcoll1rand}(T)$ when $p$ is \texttt{small} and $T$ is a \texttt{password} type.
+
+Additionally, $\nonterm{formulas}$ may also contain elements of the form
+$ \texttt{collision} \tttimes \nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k}$.
+These formulas allow the transformation of terms by \texttt{collision} statements, provided 
+the number of times the collision statement is applied is at most 
+$\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k}$
+where $p_i$ is a parameter of size at most $\nonterm{psize}_i$.
+By default, \texttt{collision} statements can always be applied.
+
+\item $\texttt{undo}$: undo the last transformation.
+
+\item $\texttt{undo}\ n$: undo the last $n$ transformations.
+
+\item \texttt{restart}: restart the proof from the beginning.
+(Still simplify automatically the first game.)
+
+\item \texttt{interactive}: starts interactive mode.
+Allowed in \texttt{proof} environments, but not when one is
+already in interactive mode. Useful to start interactive mode
+after some proof steps.
+
+\end{itemize}
+The following indications can help finding a proof:
+\begin{itemize}
+
+\item When a message contains several nested cryptographic primitives,
+it is in general better to apply first the security definition of the
+outermost primitive.
+
+\item In order to distinguish more cases, one can start by applying
+the security of primitives used in the first messages, before applying
+the security of primitives used in later messages.
+
+\end{itemize}
+Running CryptoVerif inside a text editor such as \texttt{emacs} can be
+helpful, in order to use the search function to look for definitions
+or usages of variables in large games.  For example, when trying to
+prove secrecy of $x$, one may look for usages of $x$, for
+definitions of $x$, and for usages of other variables used in those
+definitions.
+
+\section{Output of the system}
+
+The system outputs the executed transformations when it performs
+them. At the end, it outputs the sequence of games that leads to the
+proof of the desired properties. Between consecutive games, it prints
+the name of the performed transformation and details of what it
+actually did, and the formula giving the difference of probability
+between these games (if it is not 0).
+The description of the transformation between game may refer to 
+program points in the previous game. These program points may not be
+completely accurate for the following reasons:
+\begin{itemize}
+\item When a step of the transformations transforms the same part of 
+the game as a previous step, the occurrence in the second step actually
+refers to the code generated by the previous step, so it is not found
+in the previously displayed game.
+\item When a step transforms part of the game that was duplicated by
+a previous step of the transformation, the displayed program point
+is in fact ambiguous: one does not know which of the copies is actually
+transformed.
+\end{itemize}
+One can usually clarify the ambiguities by looking at the previous and
+next games. 
+
+Lines that begin with \texttt{RESULT} give the proved results.
+They may indicate that a property is proved and give 
+an upper bound of the probability that the adversary breaks
+the property. 
+%
+In the end, they may also list the properties that could not be
+proved, if any.
+
+When the \texttt{-tex} command-line option is specified,
+CryptoVerif also outputs a {\LaTeX} file containing the 
+sequence of games and the proved properties.
+
+\paragraph{Correspondence between ACSII and {\LaTeX} outputs}
+
+To use nicer and more conventional notations, the {\LaTeX} output sometimes
+differs from the ASCII output. Here is a table of correspondence:
+\begin{center}
+\begin{tabular}{l|l}
+ASCII&{\LaTeX}\\
+\hline
+$\texttt{<=(}p\texttt{)=>}$& $\approx_p$\\
+\texttt{\&\&}&$\wedge$\\
+\texttt{||}&$\vee$\\
+\texttt{<>}&$\neq$\\
+\texttt{<=}&$\leq$\\
+\texttt{orfind}&$\oplus$\\
+\texttt{==>}&$\Longrightarrow$\\
+\hline
+\multicolumn{2}{l}{\textbf{For the \texttt{channels} front-end}}\\
+\hline
+$\texttt{in(}c\texttt{,}p\texttt{)}$& $c(p)$\\
+$\texttt{in(}c\texttt{,(}p_1, \ldots, p_n\texttt{))}$& $c(p_1, \ldots, p_n)$\\
+$\texttt{out(}c\texttt{,}M\texttt{)}$& $\overline{c}\langle M\rangle$\\
+$\texttt{out(}c\texttt{,(}M_1, \ldots, M_n\texttt{))}$& $\overline{c}\langle M_1, \ldots, M_n\rangle$\\
+$\texttt{!}N$&$!^N$\\
+\texttt{yield}& $\overline{0}$\\
+\texttt{->}& $\rightarrow$\\
+\hline
+\multicolumn{2}{l}{\textbf{For the \texttt{oracles} front-end}}\\
+\hline
+\texttt{<-}&$\leftarrow$\\
+\texttt{<-R}&$\stackrel{R}{\leftarrow}$\\
+\end{tabular}
+\end{center}
+
+\section{Implementation}
+\input {impl.tex}
+
+\bibliography{../../allbib/biblio}
+\bibliographystyle{abbrv} %alpha
+
+\end{document}

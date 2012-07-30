@@ -1,0 +1,1882 @@
+\ifchannels
+
+\def\iprocess{\nonterm{iprocess}}
+\def\oprocess{\nonterm{oprocess}}
+\def\fungroup{\nonterm{fungroup}}
+\def\funmode{\nonterm{funmode}}
+\def\yield{\texttt{yield}}
+\def\Resvt{\texttt{new\ }\nonterm{vartype}}
+\def\Res#1#2{\texttt{new\ }{#1}\texttt{:}{#2}}
+
+\else
+
+\def\iprocess{\nonterm{odef}}
+\def\oprocess{\nonterm{obody}}
+\def\fungroup{\nonterm{ogroup}}
+\def\funmode{\nonterm{omode}}
+\def\yield{\texttt{end}}
+\def\Resvt{\nonterm{ident}\texttt{ <-R }\nonterm{ident}}
+\def\Res#1#2{{#1}\texttt{ <-R }{#2}}
+
+\fi
+
+\def\epsrand#1{\texttt{eps\_rand(}#1\texttt{)}}
+
+Comments can be included in input files. Comments are surrounded by
+{\tt (*} and {\tt *)}. Nested comments are not supported.
+
+Identifiers begin with a letter (uppercase or lowercase) and contain
+any number of letters, digits, the underscore character (\_),
+the quote character ('), as well as accented letters of the ISO Latin 1
+character set. Case is significant. 
+Keywords cannot be used as ordinary identifiers. The keywords are:
+\ifchannels
+{\tt abort}, {\tt channel}, 
+{\tt collision}, {\tt const}, {\tt define}, 
+{\tt defined}, {\tt else}, {\tt eps\_find}, {\tt eps\_rand}, {\tt equiv}, 
+{\tt event}, {\tt expand}, {\tt find}, {\tt forall}, {\tt fun}, 
+{\tt get}, {\tt if}, {\tt implementation}, {\tt in}, {\tt inj}, 
+{\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
+{\tt new}, {\tt newChannel}, {\tt orfind}, {\tt otheruses},
+{\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
+{\tt proba}, {\tt process}, 
+{\tt proof}, {\tt query}, 
+{\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
+{\tt then}, {\tt time}, {\tt type}, {\tt yield}%
+\else
+{\tt abort}, {\tt collision}, {\tt const}, {\tt define}, 
+{\tt defined}, {\tt do}, {\tt else}, {\tt end}, {\tt eps\_find}, 
+{\tt eps\_rand}, 
+{\tt equiv}, {\tt event}, {\tt expand}, 
+{\tt find}, {\tt forall}, {\tt foreach}, 
+{\tt fun}, {\tt get}, {\tt if}, {\tt implementation},
+{\tt in}, {\tt inj}, {\tt insert}, 
+{\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
+{\tt newOracle}, {\tt orfind}, {\tt otheruses},
+{\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, {\tt proba}, {\tt process}, 
+{\tt proof}, {\tt query}, {\tt return},
+{\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
+{\tt then}, {\tt time}, {\tt type}%
+\fi.
+
+In case of syntax error, the system indicates the character position
+of the error (line and column numbers). Please use your text editor to
+find the position of the error. (The error messages can be interpreted
+by \texttt{emacs}.)
+
+\begin{figure}
+\def\phst{\phantom{\nonterm{simpleterm} = }\mid}
+\def\pht{\phantom{\nonterm{term} = }\mid}
+\def\phpat{\phantom{\nonterm{pattern} = }\mid}
+\def\phq{\phantom{\nonterm{query} = }\mid}
+\def\phqt{\phantom{\nonterm{queryterm} = }\mid}
+\begin{align*}
+&\nonterm{identbound} ::= \nonterm{ident} \texttt{ <= }\nonterm{ident}\\
+&\nonterm{vartype} ::= \nonterm{ident} \texttt{:}\nonterm{ident}\\
+&\nonterm{simpleterm} ::= \nonterm{ident}\\
+&\phst \nonterm{ident}\texttt{(}\seq{simpleterm}\texttt{)}\\
+&\phst \texttt{(}\seq{simpleterm}\texttt{)}\\
+&\phst \nonterm{ident}\texttt{[}\seq{simpleterm}\texttt{]}\\
+&\phst \nonterm{simpleterm} \texttt{ = } \nonterm{simpleterm} \\
+&\phst \nonterm{simpleterm} \texttt{ <> } \nonterm{simpleterm} \\
+&\phst \nonterm{simpleterm} \texttt{ || } \nonterm{simpleterm} \\
+&\phst \nonterm{simpleterm} \texttt{ \&\& } \nonterm{simpleterm} \\
+&\nonterm{term} ::= \ldots \text{(as in $\nonterm{simpleterm}$ with 
+$\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
+&\pht \Resvt\texttt{;}\nonterm{term}\\
+\ifchannels\else
+&\pht \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- } \nonterm{term}\\
+\fi
+&\pht \texttt{let } \nonterm{pattern} \texttt{ = }\nonterm{term}\texttt{ in }\nonterm{term}\ [\texttt{else }\nonterm{term}]\\
+&\pht \texttt{if }\nonterm{cond}\texttt{ then } \nonterm{term} \texttt{ else }\nonterm{term}\\
+&\pht \texttt{find }\nonterm{tfindbranch}\ (\texttt{orfind }\nonterm{tfindbranch})^*\texttt{ else }\nonterm{term}\\
+&\pht \texttt{event }\nonterm{ident}\\
+&\nonterm{varref} ::= \nonterm{ident}\texttt{[}\seq{simpleterm}\texttt{]}\\
+&\phantom{\nonterm{varref} =}\mid \nonterm{ident}\\
+&\nonterm{cond} ::= \texttt{defined(} \neseq{varref} \texttt{) }\ [\texttt{\&\& }\nonterm{term}]\\
+&\phantom{\nonterm{cond} = }\mid \nonterm{term}\\
+&\nonterm{tfindbranch} ::= \seq{identbound} \texttt{ suchthat } \nonterm{cond} \texttt{ then }\nonterm{term}\\
+&\nonterm{pattern} ::= \nonterm{ident}\\
+&\phpat \nonterm{vartype}\\
+&\phpat \nonterm{ident}\texttt{(} \seq{pattern}\texttt{)}\\
+&\phpat \texttt{(} \seq{pattern}\texttt{)}\\
+&\phpat \texttt{=} \nonterm{term}\\
+&\nonterm{event} ::= [\texttt{inj:}]\nonterm{ident}[\texttt{(}\seq{simpleterm}\texttt{)}]\\
+&\nonterm{queryterm} ::= \nonterm{queryterm}\texttt{ \&\& }\nonterm{queryterm}\\
+&\phqt \nonterm{queryterm}\texttt{ || }\nonterm{queryterm}\\
+&\phqt \nonterm{event}\\
+&\phqt \nonterm{simpleterm}\\
+&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\\
+&\phq \texttt{secret1 } \nonterm{ident}\\
+&\phq [\seq{vartype}\texttt{;}]\texttt{ event }\nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \texttt{ ==> }\nonterm{queryterm}
+\end{align*}
+where 
+\begin{itemize}
+
+\item $[M]$ means that $M$ is optional; $(M)^*$ means that $M$ occurs 0 or
+any number of times.
+
+\item
+$\seq{X}$ is a sequence of $X$: $\seq{X} = [(\nonterm{X}\texttt{,})^*\nonterm{X}] = \nonterm{X}\texttt{,}\ldots\texttt{,}\nonterm{X}$. (The sequence can be empty, it can be one element $\nonterm{X}$, or it can be several elements $\nonterm{X}$ separated by commas.)
+
+\item
+$\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})^*\nonterm{X} = \nonterm{X}\texttt{,}\ldots\texttt{,}\nonterm{X}$.
+(It can be one or several elements of $\nonterm{X}$ separated by commas.)
+
+\end{itemize}
+\caption{Grammar for terms, patterns, and queries}
+\ifchannels\label{fig:syntax1ch}\else\label{fig:syntax1or}\fi
+\end{figure}
+
+\begin{figure}
+\def\phf{\phantom{\fungroup = }\mid}
+\def\phfm{\phantom{\funmode = }\mid}
+\def\phpr{\phantom{\nonterm{proba} = }\mid}
+\def\phop{\phantom{\oprocess = }\mid}
+\def\phip{\phantom{\iprocess = }\mid}
+\begin{xxalignat}{2}
+&\nonterm{proba} ::= \texttt{(} \nonterm{proba} \texttt{)}
+&&\mid \texttt{time}\\
+&\phpr \nonterm{proba} \texttt{ + } \nonterm{proba}
+&&\mid \texttt{time(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&\phpr \nonterm{proba} \texttt{ - } \nonterm{proba}
+&&\mid\texttt{time(let }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&\phpr \nonterm{proba} \texttt{ * } \nonterm{proba}
+&&\mid \texttt{time((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&\phpr \nonterm{proba} \texttt{ / } \nonterm{proba}
+&&\mid \texttt{time(let (}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&\phpr \texttt{max(}\neseq{proba}\texttt{)}
+&&\mid \texttt{time(= }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&\phpr \nonterm{ident}[\texttt{(}\seq{proba}\texttt{)}]
+&&\mid \texttt{time(!)}\\
+&\phpr \texttt{|}\nonterm{ident}\texttt{|}
+&&\mid \texttt{time([}n\texttt{])}\\
+&\phpr \texttt{maxlength(}\nonterm{simpleterm}\texttt{)}
+&&\mid \texttt{time(\&\&)}\\
+&\phpr \texttt{length(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}
+&&\mid \texttt{time(\string|\string|)}\\
+&\phpr \texttt{length((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}
+&&\mid \ifchannels\texttt{time(new }\else \texttt{time(<-R }\fi \nonterm{ident}\texttt{)}\\
+&\phpr n
+&&\mid  \ifchannels\texttt{time(newChannel)}\else\texttt{time(newOracle)}\fi\qquad\qquad\qquad\qquad\\
+&\phpr \#\nonterm{ident}
+&&\mid  \texttt{time(if)}\\
+&\phpr \texttt{eps\_find}
+&&\mid \texttt{time(find }n\texttt{)}\\
+&\phpr \texttt{eps\_rand(}T\texttt{)}
+&&\ifchannels\mid \texttt{time(out }[\texttt{[}\neseq{ident}\texttt{]}]\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\fi\\
+&\phpr \texttt{Pcoll1rand(}T\texttt{)}
+&&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi\\
+&\phpr \texttt{Pcoll2rand(}T\texttt{)}&&
+\end{xxalignat}
+\begin{align*}
+\ifchannels
+&\fungroup ::= \nonterm{ident}\texttt{(}\seq{vartype}\texttt{) }[\texttt{[}n\texttt{]}]\ [\texttt{[useful\_change]}] \texttt{ := }\nonterm{term}\\
+&\phf \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident} (\Resvt\texttt{;})^*
+\fungroup\\
+&\phf \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident} (\Resvt\texttt{;})^*
+\texttt{(}\neseq{fungroup}\texttt{)}\\
+\else
+&\fungroup ::= \nonterm{ident}\texttt{(}\seq{vartype}\texttt{) }[\texttt{[}n\texttt{]}]\ [\texttt{[useful\_change]}]\texttt{ := }\oprocess\\
+&\phf \texttt{foreach } \nonterm{ident}\texttt{ <= }\nonterm{ident}\texttt{ do }(\Resvt\texttt{;})^*
+\fungroup\\
+&\phf \texttt{foreach } \nonterm{ident}\texttt{ <= }\nonterm{ident}\texttt{ do }(\Resvt\texttt{;})^*
+\texttt{(}\fungroup \texttt{ | }\ldots\texttt{ | }\fungroup\texttt{)}\\
+\fi
+&\funmode ::= \fungroup\ [\texttt{[exist]}]\\
+&\phfm \fungroup \texttt{ [all]}\\[2mm]
+&\nonterm{channel} ::= \nonterm{ident}[\texttt{[}\seq{term}\texttt{]}]\\
+&\oprocess ::= \nonterm{ident}\\
+&\phop \texttt{(} \oprocess \texttt{)}\\
+&\phop \yield\\
+&\phop \texttt{abort}\\
+&\phop \texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\ [\texttt{; }\oprocess]\\
+&\phop \Resvt[\texttt{; }\oprocess]\\
+\ifchannels\else
+&\phop \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}[\texttt{; }\oprocess]\\
+\fi
+&\phop \texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ 
+[\texttt{in }\oprocess\ [\texttt{else }\oprocess]]\\
+&\phop \texttt{if }\nonterm{cond}\texttt{ then }\oprocess\ [\texttt{else }\oprocess]\\
+&\phop \texttt{find }\nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^* \ [\texttt{else }\oprocess]\\
+&\phop \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\ [\texttt{; }\oprocess]\\
+&\phop \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\oprocess\ [\texttt{else }\oprocess]\\
+&\phop \ifchannels\texttt{out(}\nonterm{channel}\texttt{, }\nonterm{term}\texttt{)}\else \texttt{return(}\seq{term}\texttt{)}\fi[\texttt{; }\iprocess]\\
+&\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\oprocess\\
+&\iprocess ::= \nonterm{ident}\\
+&\phip \texttt{(} \iprocess \texttt{)}\\
+&\phip \texttt{0}\\
+&\phip \iprocess \texttt{ | } \iprocess\\
+&\phip \ifchannels \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident}\ \iprocess\else \texttt{foreach }\nonterm{ident}\texttt{ <= } \nonterm{ident}\texttt{ do }\iprocess\fi\\
+&\phip \ifchannels \texttt{in(}\nonterm{channel}\texttt{,}\nonterm{pattern}\texttt{)}[\texttt{; }\oprocess]\else \nonterm{ident}\texttt{(}\seq{pattern}\texttt{) := }\oprocess\fi
+\end{align*}
+\caption{Grammar for probabilities, equivalences, and processes}
+\ifchannels\label{fig:syntax2ch}\else\label{fig:syntax2or}\fi
+\end{figure}
+
+The input file consists of a list of declarations followed by  
+\ifchannels a process\else an oracle definition\fi:
+\[\nonterm{declaration}^*\ {\tt process}\ \iprocess\]
+A library file (specified on the command-line by the
+{\tt -lib} option) consists of a list of declarations.
+Various syntactic elements are described in Figures~\ifchannels
+\ref{fig:syntax1ch} and~\ref{fig:syntax2ch}\else
+\ref{fig:syntax1or} and~\ref{fig:syntax2or}\fi. 
+The \ifchannels process \else oracle definition \fi 
+describes the considered security 
+protocol; the declarations specify in particular hypotheses on the 
+cryptographic primitives and the security properties to prove.
+
+\ifchannels Processes \else Oracle definitions \fi are described in a process calculus.
+In this calculus, terms represent computations on bitstrings. 
+Simple terms consist
+of the following constructs:
+\begin{itemize}
+
+\item A term between parentheses $\texttt{(}M\texttt{)}$
+allows to disambiguate syntactic expressions.
+
+\item An identifier can be either a constant symbol $f$
+(declared by \texttt{const} or \texttt{fun} without argument)
+or a variable identifier.
+
+\item The function application $f\texttt{(}M_1, \ldots, M_n\texttt{)}$
+applies function $f$ to the result of $M_1, \ldots, M_n$.
+
+\item The tuple application $\texttt{(}M_1, \ldots, M_n\texttt{)}$
+builds a tuple from $M_1, \ldots, M_n$ (corresponds to the concatenation
+of $M_1, \ldots, M_n$ with length and type indications so that 
+$M_1, \ldots, M_n$ can be recovered without ambiguity).
+This is allowed only for $n \neq 1$, so that it is distinguished
+from parenthesing.
+
+\item The array access $x\texttt{[}M_1, \ldots, M_n\texttt{]}$
+returns the cell of indexes $M_1, \ldots, M_n$ of array $x$.
+
+\item \texttt{=}, \texttt{<>}, \texttt{||}, \texttt{\&\&}
+are function symbols that represent equality and inequality tests, 
+disjunction and conjunction. They use the infix notation, but
+are otherwise considered as ordinary function symbols.
+
+\end{itemize}
+\ifchannels
+Terms contain further constructs \texttt{new}, \texttt{if}, \texttt{find},
+\texttt{let} which are similar to the corresponding
+constructs of output processes but return a bitstring instead of
+executing a process. 
+They are not allowed to occur in \texttt{defined} conditions of \texttt{find} and in input channels.
+The construct \texttt{new} is not allowed to occur in
+conditions of \texttt{find}.
+We refer the reader to the description of 
+processes below for a fully detailed explanation.
+\else
+Terms contain further constructs \texttt{<-R}, \texttt{<-},
+\texttt{let}, \texttt{if}, and \texttt{find} which are similar to the 
+corresponding constructs of oracle bodies.
+They are not allowed to occur in \texttt{defined} conditions of \texttt{find} and in input channels.
+The construct \texttt{<-R} is not allowed to occur in
+conditions of \texttt{find}.
+We refer the reader to the description of 
+oracle bodies below for a fully detailed explanation.
+\fi
+\begin{itemize}
+
+\item $\Res{x}{T}\texttt{;}M$ chooses a new
+random number in type $T$, stores it in $x$, and returns the result 
+of $M$.
+
+\ifchannels\else
+\item $x[:T] \texttt{ <- }M\texttt{;}M'$
+stores the result of $M$  in $x$
+and returns the result of $M'$. This is equivalent
+to the construct 
+$\texttt{let }x[:T] \texttt{ = }M\texttt{ in }M'$ below.
+\fi
+
+\item $\texttt{let }p \texttt{ = }M\texttt{ in }M'\texttt{ else }M''$
+tries to decompose the term $M$ according to pattern $p$.
+In case of success, returns the result of $M'$, otherwise 
+the result of $M''$. 
+
+The pattern $p$ can be:
+\begin{itemize}
+
+\item $x[\texttt{:}T]$ variable, possibly with its type. Matches any bitstring
+(in type $T$), and stores it in $x$.
+
+\item $f\texttt{(}p_1, \ldots, p_n\texttt{)}$ 
+where the function symbol $f$ is declared 
+\texttt{[compos]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
+for some $M_1, \ldots, M_n$ that match $p_1, \ldots, p_n$.
+(The poly-injectivity of $f$ allows us to compute possible
+values $M_1, \ldots, M_n$ of its arguments from the value of $M$, and to check
+whether $M$ is equal to the resulting value of $f(M_1, \ldots, M_n)$.) 
+
+\item $\texttt{(}p_1, \ldots, p_n\texttt{)}$ tuples, which are particular \texttt{[compos]}
+functions encoding unambiguously the values of $p_1, \ldots, p_n$
+and their type.
+
+\item $\texttt{=}M'$ matches a bitstring equal to $M'$.
+
+\end{itemize}
+When $p$ is a variable, the \texttt{else}
+branch can be omitted (it cannot be executed).
+
+\item \texttt{if} $\mathit{cond}$ \texttt{then} $M$ \texttt{else} $M'$ is 
+syntactic sugar for $\texttt{find suchthat }\mathit{cond}$ \texttt{then} $M$ \texttt{else} $M'$.
+It returns the result of $M$ if the condition $\mathit{cond}$ evaluates to \texttt{true} and of $M'$ if $\mathit{cond}$ evaluates to \texttt{false}.
+
+\item 
+$\texttt{find}\ FB_1 \texttt{ orfind }\ldots\texttt{ orfind }FB_m \texttt{ else } M$ where $FB_j = u_{j1} \texttt{<=} n_{j1}, \ldots, u_{jm_j} \texttt{<=} n_{jm_j}$ $\texttt{suchthat}$ $cond_j$ $\texttt{then}$ $M_j$
+evaluates the conditions
+$cond_j$ for each $j$ and
+each value of $u_{j1}, \ldots, u_{jm_j}$ in $[1, n_{j1}] 
+\times \ldots \times [1, n_{jm_j}]$.
+If none of these conditions is \texttt{true}, it returns the result of $M$.
+Otherwise, it chooses randomly with uniform probability
+one $j$ and one value of $u_{j1}, \ldots, u_{jm_j}$
+such that the corresponding condition is \texttt{true}, and returns 
+the result of $M_j$.
+See the explanation of the {\tt find} process below for more details.
+
+\end{itemize}
+The construct \texttt{event} in terms is also similar to the one for
+processes, except that it is restricted to events without arguments
+\texttt{event $f$} and that it aborts the process immediately after
+the event. It is not allowed to occur in conditions of \texttt{find}
+or in input channels. It is intended to be used in the right-hand side
+of the definitions of some cryptographic primitives. (See also
+the \texttt{equiv} declaration; events in the right-hand side can be
+used when the simulation of left-hand side by the right-hand side
+fails. CryptoVerif is going bound the probability that the event is
+executed and include it in the probability of success of an attack.)
+
+\ifchannels
+The calculus distinguishes two kinds of processes: input processes
+$\iprocess$ are ready to receive a message on a channel; 
+output processes $\oprocess$ 
+output a message on a channel after executing some internal computations.
+When an input or output process is an identifier, it is substituted with 
+its value defined by a \texttt{let} declaration.
+\else
+The calculus distinguishes two kinds of processes: oracle definitions
+$\iprocess$ define new oracles; oracle bodies $\oprocess$ return a
+result after executing some internal computations.  When a process
+(oracle definition or oracle body) is an identifier, it is substituted
+with its value defined by a \texttt{let} declaration.
+\fi
+Processes allow parenthesing for disambiguation.
+
+Let us first describe \ifchannels input processes\else oracle definitions\fi:
+\begin{itemize}
+
+\item \texttt{0} does nothing.
+
+\item $Q \texttt{ | } Q'$ is the parallel composition of $Q$ and $Q'$.
+
+\ifchannels
+\item $\texttt{!}i\texttt{<=}N\ Q$ represents $N$ copies of $Q$ in
+parallel each with a different value of $i \in [1,N]$.  The identifier
+$N$ must have been declared by $\texttt{param }N$.  The identifier $i$
+cannot be referred to explicitly in the process; it is used only
+implicitly as array index of variables defined under the replication
+$\texttt{!}i\texttt{<=}N$. The replication $\texttt{!}i\texttt{<=}N$ can be 
+abbreviated $\texttt{!} N$.
+
+When a program point is under replications $\texttt{!}i_1\texttt{<=}N_1$,
+\ldots, $\texttt{!}i_n\texttt{<=}N_n$, the \emph{current replication
+indexes} at that point are $i_1, \ldots, i_n$.
+
+\item The semantics of the input 
+%$\cinput{c[M_1, \ldots, M_l]}{x_1[i_1, \ldots, i_m]:T_1, \ldots, x_k[i_1, \ldots, i_m]:T_k};P$ 
+$\texttt{in(}\nonterm{channel}\texttt{,}\nonterm{pattern}\texttt{);}\oprocess$
+will be explained below together with the
+semantics of the output. 
+
+\else
+
+\item $\texttt{foreach }i\texttt{<=}N\texttt{ do }Q$ represents 
+$N$ copies of $Q$ in
+parallel each with a different value of $i \in [1,N]$; it means that the
+oracles defined in $Q$ are available $N$ times.  The identifier
+$N$ must have been declared by $\texttt{param }N$.  The identifier $i$
+cannot be referred to explicitly in the process; it is used only
+implicitly as array index of variables defined under the replication
+$\texttt{foreach }i\texttt{<=}N$. 
+
+When a program point is under replications $\texttt{foreach
+}i_1\texttt{<=}N_1$, \ldots, $\texttt{foreach }i_n\texttt{<=}N_n$, the
+\emph{current replication indexes} at that point are $i_1, \ldots,
+i_n$.
+
+\item $O\texttt{(}p_1, \ldots, p_n\texttt{) := }P$ defines an oracle
+$O$ taking arguments $p_1, \ldots, p_n$, and returning the result of
+the oracle body $P$. The patterns $p_1, \ldots, p_n$ are as in the
+\texttt{let} construct above, except that variables in $p$ that are
+not under a function symbol $f(\ldots)$ must be declared with their
+type.
+
+\fi
+
+\end{itemize}
+Note that the construct \ifchannels $\textbf{newChannel }c;Q$ \else
+$\textbf{newOracle }c;Q$ \fi used in research papers
+is absent from the implementation: this construct is useful in the proof
+of soundness of CryptoVerif, but not essential for encoding games
+that CryptoVerif manipulates.
+
+Let us now describe output processes:
+\begin{itemize}
+
+\ifchannels
+\item {\yield} yields control to another process, by outputting
+an empty message on channel \textit{yield}. It can be understood
+as an abbreviation for $\texttt{out(}\textit{yield}\texttt{,());0}$.
+\else
+\item {\yield} terminates the oracle, returning control to the caller.
+\fi
+
+\item {\tt abort} terminates the game. (Nothing can be executed after
+this instruction, neither by the protocol nor by the adversary.)
+
+\item $\texttt{event }e\texttt{(}M_1, \ldots, M_n\texttt{);}P$ executes the
+event $e\texttt{(}M_1, \ldots, M_n\texttt{)}$, then executes $P$.
+Events serve in recording the execution of certain parts of the program
+for using them in queries. The symbol $e$ must have been declared
+by an \texttt{event} declaration.
+
+\item $\Res{x}{T}\texttt{;}P$ chooses a new
+random number in type $T$, stores it in $x$, and executes $P$.
+$T$ must be declared with option {\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
+Each such type $T$ comes with an associated standard probability distribution $D_T$;
+the random number is chosen according to that distribution.
+The time for generated random numbers in that distribution
+is bounded by $\ifchannels\texttt{time(new }\else\texttt{time(<-R }\fi T\texttt{)}$.
+\begin{itemize}
+
+\item When the type $T$ is {\tt nonuniform}, the standard probability 
+distribution $D_T$ for type $T$ may be non-uniform. It is left unspecified.
+(Notice that random bitstrings with non-uniform distributions can also
+be obtained by applying a function to a random bitstring choosen 
+uniformly among a finite set of bitstrings, chosen in another type.)
+
+\item When the type $T$ is {\tt fixed}, it consists of the set of all 
+bitstrings of a certain length $n$.  Probabilistic Turing machines can
+return uniformly distributed random numbers in such types, in bounded
+time.
+If $T$ is not marked {\tt nonuniform}, the standard probability 
+distribution $D_T$ for $T$ is the uniform distribution.
+
+\item For other {\tt bounded} types $T$, probabilistic bounded-time Turing 
+machines can choose random numbers with a distribution as close as we
+wish to uniform, but may not be able to produce exactly a uniform
+distribution. If $T$ is not marked {\tt nonuniform}, 
+the standard probability distribution $D_T$ is such that its distance
+to the uniform distribution is at most $\epsrand{T}$. The distance between
+two probability distributions $D_1$ and $D_2$ for type $T$ is
+\[d(D_1, D_2) = \sum_{a \in T} | \Pr[X_1 = a] - \Pr[X_2 = a] |\]
+where $X_i$ ($i = 1, 2$) is a random variable of distribution $D_i$.
+
+For example, a possible algorithm to obtain a random integer in $[0,
+m-1]$ is to choose a random integer $x'$ uniformly among $[0, 2^k-1]$
+for a certain $k$ large enough and return $x' \bmod m$. 
+By euclidian division, we have $2^k = qm+r$ with $r \in [0,m-1]$.
+With this algorithm
+\[\Pr[x = a] = \begin{cases}
+\frac{q+1}{2^k} &\text{if }a \in [0,r-1]\\
+\frac{q}{2^k} &\text{if }a \in [r,m-1]
+\end{cases}\]
+so
+\[\left|\Pr[x = a] -\frac{1}{m}\right| = \begin{cases}
+\frac{q+1}{2^k} - \frac{1}{m}&\text{if }a \in [0,r-1]\\
+\frac{1}{m} - \frac{q}{2^k}&\text{if }a \in [r,m-1]
+\end{cases}\]
+Therefore
+\[\begin{split}
+d(D_T, \mathit{uniform}) 
+&=  \sum_{a \in T} \left| \Pr[x = a] - \frac{1}{m} \right|
+= r\left(\frac{q+1}{2^k} - \frac{1}{m}\right) - (m-r)\left(\frac{1}{m} - \frac{q}{2^k}\right)\\
+&=\frac{2r(m-r)}{m.2^k} \leq \frac{m}{2^k}
+\end{split}\]
+%If r <= m/2, we upper bound r(m-r) by m/2.m
+%If r >= m/2, m-r <= m/2, so we upper bound r(m-r) by m.m/2 
+so we can take $\epsrand{T} = \frac{m}{2^k}$. A given precision of $\epsrand{T} = \frac{1}{2^{k'}}$ can be obtained by choosing $k = k' + \text{number of bits of }m$ random bits.
+
+When \texttt{ignoreSmallTimes} is set to a value greater than 0
+(which is the default),
+the time for random number generations and the probability
+$\epsrand{T}$ are ignored, to make probability formulas 
+more readable.
+
+\end{itemize}
+
+\ifchannels\else
+\item $x[\texttt{:}T] \texttt{ <- }M\texttt{;}P$
+stores the result of term $M$ in $x$ and executes $P$.
+$M$ must be of type $T$ when $T$ is mentioned.
+This is equivalent to the construct $\texttt{let } x[\texttt{:}T] 
+\texttt{ = }M\texttt{ in }P$ below.
+
+\fi
+
+\item $\texttt{let }p \texttt{ = }M\texttt{ in }P\texttt{ else }P'$
+tries to decompose the term $M$ according to pattern $p$.
+In case of success, executes $P$, otherwise executes $P'$.
+
+The pattern $p$ can be:
+\begin{itemize}
+
+\item $x[\texttt{:}T]$ variable, possibly with its type. Matches any bitstring
+(in type $T$), and stores it in $x$.
+
+\item $f\texttt{(}p_1, \ldots, p_n\texttt{)}$ 
+where the function symbol $f$ is declared 
+\texttt{[compos]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
+for some $M_1, \ldots, M_n$ that match $p_1, \ldots, p_n$.
+(The poly-injectivity of $f$ allows us to compute possible
+values $M_1, \ldots, M_n$ of its arguments from the value of $M$, and to check
+whether $M$ is equal to the resulting value of $f(M_1, \ldots, M_n)$.) 
+
+\item $\texttt{(}p_1, \ldots, p_n\texttt{)}$ tuples, which are particular \texttt{[compos]}
+functions encoding unambiguously the values of $p_1, \ldots, p_n$
+and their type.
+
+\item $\texttt{=}M'$ matches a bitstring equal to $M'$.
+
+\end{itemize}
+The \texttt{else} clause is never executed when the pattern
+is simply a variable.
+When $\texttt{else }P'$ is omitted, it is equivalent to \texttt{else} \yield.
+Similarly, when $\texttt{in }P$ is omitted, it is equivalent to 
+\texttt{in} \yield.
+
+\item \texttt{if} $\mathit{cond}$ \texttt{then} $P$ \texttt{else} $P'$ is 
+syntactic sugar for $\texttt{find suchthat }\mathit{cond}$ \texttt{then} $P$ \texttt{else} $P'$.
+It executes $P$ if the condition $\mathit{cond}$ evaluates to \texttt{true} and $P'$ if $\mathit{cond}$ evaluates to \texttt{false}.
+When the \texttt{else} clause is omitted, it is implicitly \texttt{else} \yield.
+\ifchannels (\texttt{else 0} would not be syntactically correct.) \fi
+
+\item 
+Next, we explain the process 
+$\texttt{find}\ FB_1 \texttt{ orfind }\ldots\texttt{ orfind }FB_m \texttt{ else } P$ where each branch $FB_j$ is $FB_j = u_{j1} \texttt{<=} n_{j1}, \ldots, u_{jm_j} \texttt{<=} n_{jm_j}$ $\texttt{suchthat}$ $cond_j$ $\texttt{then}$ $P_j$.
+
+A simple example is the following:
+$\texttt{find }u \texttt{<=} n$ \texttt{suchthat} $\texttt{defined(}x[u]\texttt{) \&\& }x[u] = a$ \texttt{then} $P'$ \texttt{else} $P$
+tries to find an index $u$ such that $x[u]$ is defined and
+$x[u] = a$, and when such a $u$ is found,
+it executes $P'$ with that value of $u$;
+otherwise, it executes $P$.
+In other words, this $\texttt{find}$ construct looks for the value
+$a$ in the array $x$, and when $a$ is found, it stores in
+$u$ an index such that $x[u] = a$. Therefore, the $\texttt{find}$ construct
+allows us to access arrays, which is key for our purpose.
+
+More generally, $\texttt{find}\ u_{1} \texttt{<=} n_{1}, \ldots, u_{m} \texttt{<=} n_{m}$ $\texttt{suchthat}$ $\texttt{defined(}M_{1}, \ldots, M_{l}\texttt{) \&\& } M$ \texttt{then} $P'$ \texttt{else} $P$ tries to find values of $u_1, \ldots, u_m$ for which
+$M_1, \ldots, M_l$ are defined and $M$ is true. In case of success, it 
+executes $P'$. In case of failure, it executes $P$.
+
+This is further generalized to $m$ branches: 
+$\texttt{find}\ FB_1 \texttt{ orfind }\ldots\texttt{ orfind }FB_m \texttt{ else } P$
+where $FB_j = u_{j1} \texttt{<=} n_{j1}, \ldots, u_{jm_j} \texttt{<=} n_{jm_j}$ $\texttt{suchthat}$ $\texttt{defined(}M_{j1}, \ldots, M_{jl_j}\texttt{) \&\& }M_j\texttt{ then }P_j$
+tries to find a branch $j$ in $[1,m]$ such that there are 
+values of $u_{j1}, \ldots, u_{jm_j}$ for which 
+$M_{j1}, \ldots, M_{jl_j}$ are defined and $M_j$ is true. In case of 
+success, it executes $P_j$.
+In case of failure for all branches, it executes $P$. 
+More formally, it evaluates the conditions
+$cond_j = \texttt{defined(}M_{j1}, \ldots, M_{jl_j}\texttt{) \&\& }M_j$ for each $j$ and
+each value of $u_{j1}, \ldots, u_{jm_j}$ in $[1, n_{j1}] 
+\times \ldots \times [1, n_{jm_j}]$.
+If none of these conditions is \texttt{true}, it executes $P$.
+Otherwise, it chooses randomly with almost uniform 
+probability\footnote{Precisely, the distance between the distribution actually
+used for choosing $j, u_{j1}, \ldots, u_{jm_j}$ and the uniform
+distribution is at most \texttt{eps\_find}. See the explanation of $\Res{x}{T}$
+for details on how to achieve this.}
+one $j$ and one value of $u_{j1}, \ldots, u_{jm_j}$
+such that the corresponding condition is \texttt{true}, and executes $P_j$.
+
+In the general case, the conditions $cond_j$ are of the form
+$\texttt{defined(}M_1, \ldots, M_l\texttt{)}\ [\texttt{\&\& }M]$ or simply $M$.
+The condition $\texttt{defined(}M_1, \ldots, M_l\texttt{)}$ means that
+$M_1, \ldots, M_l$ are defined.
+At least one of the two conditions $\texttt{defined}$ or $M$ must be
+present. Omitted $\texttt{defined}$ conditions are considered empty;
+when $M$ is omitted, it is considered \texttt{true}. 
+
+Internally, CryptoVerif distinguishes two variables for each index
+of ${\tt find}$, so that the syntax of a {\tt find} branch becomes
+$FB_j = u_{j1} = u'_{j1} \texttt{<=} n_{j1}, \ldots, u_{jm_j} = u'_{jm_j} \texttt{<=} n_{jm_j}$ $\texttt{suchthat}$ $\texttt{defined(}M_{j1}, \allowbreak\ldots,\allowbreak M_{jl_j}\texttt{)}$ $\&\&$ $M_j$ $\texttt{then}$ $P_j$. The variables $u'_{j1}, \ldots, u'_{jm_j}$ are considered as replication indices, and are used in the $\texttt{defined}$ condition and in $M_j$: they are temporary variables that are used as loop indices to look for indices that satisfy the desired conditions. Once suitable indices are found, their value is stored in $u_{j1}, \ldots, u_{jm_j}$ and the \texttt{then} branch is executed using these variables. It is possible to make array accesses to $u_{j1}, \ldots, u_{jm_j}$ (such as $u_{j1}[M_1, \ldots, M_k]$) elsewhere in the game, which is not possible for $u'_{j1}, \ldots, u'_{jm_j}$.
+
+\item \texttt{insert} $\mathit{tbl}\texttt{(}M_1, \ldots, M_n\texttt{)}; P$
+inserts the tuples $(M_1, \ldots, M_n)$ in the table $\mathit{tbl}$, 
+then executes $P$.
+The table $\mathit{tbl}$ must have been declared with the appropriate
+types using the $\texttt{table}$ declaration.
+
+\item \texttt{get} $\mathit{tbl}\texttt{(}p_1, \ldots, p_n\texttt{)}$ \texttt{suchthat} $M$ \texttt{in} $P$ \texttt{else} $P'$ tries to find an element of the table $\mathit{tbl}$ that matches the patterns $p_1, \ldots, p_n$ and such that $M$ is true. If it succeeds, it executes $P$ with the variables of $p_1, \ldots, p_n$ bound to that element of the table. If several elements match, one of them is chosen randomly with uniform probability. If no element matches, it executes $P'$. 
+
+When \texttt{else} $P'$ is omitted, it is equivalent to \texttt{else} \yield. When \texttt{suchthat} $M$ is omitted, it is equivalent to \texttt{suchthat} $\mathit{true}$. Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
+
+\ifchannels
+\item
+Finally, let us explain the output $\texttt{out(}c\texttt{[}M_1,
+\ldots, M_l\texttt{],}N\texttt{);}Q$.  A channel $c\texttt{[}M_1,
+\ldots, M_l\texttt{]}$ consists of both a channel name $c$ (declared
+by $\texttt{channel }c$) and a tuple of terms $M_1, \ldots, M_l$.  Terms
+$M_1, \ldots, M_l$ are intuitively analogous to IP addresses and ports
+which are numbers that the adversary may guess.  Two channels are
+equal when they have the same channel name and terms that evaluate to
+the same bitstrings.
+%
+A semantic configuration always consists of a single output process
+(the process currently being executed) and several input processes.
+When the output process executes $\texttt{out(}c\texttt{[}M_1, \ldots,
+M_l\texttt{],}N\texttt{);}Q$, one looks for an input on the same
+channel in the available input processes. If no such input process is
+found, the process blocks.  Otherwise, one such input process
+$\texttt{in(}c\texttt{[}M'_1, \ldots, M'_l\texttt{],}p\texttt{);}P $
+is chosen randomly with uniform probability. The communication is then
+executed: the output message $N$ is evaluated, its result is truncated
+to the maximum length of bitstrings on channel $c$, the obtained
+bitstring is matched against pattern $p$.  Finally, the output process
+$P$ that follows the input is executed. The input process $Q$ that
+follows the output is stored in the available input processes for
+future execution.
+
+Patterns $p$ are as in the \texttt{let} process, except that
+variables in $p$ that are not under a function symbol $f(\ldots)$
+must be declared with their type.
+
+When a channel is just a channel name $c$, it is an abbreviation for
+$c[i_1, \ldots, i_n]$ where $i_1, \ldots, i_n$ are the current
+replication indexes at the considered input or output.  It is
+recommended to use as channel a different channel name for each input
+and output. Then the adversary has full control over the network: it
+can decide precisely from which copy of which input it receives a
+message and to which copy of which output it sends a message, by using
+the appropriate channel name and value of the replication indexes.
+
+Note that the syntax requires an output
+to be followed by an input process, as in~\cite{Laud05}. If one
+needs to output several messages consecutively, one can simply
+insert fictitious inputs between the outputs. The adversary can
+then schedule the outputs by sending messages to these inputs.
+
+\else
+
+\item 
+$\texttt{return(}N_1, \ldots, N_l\texttt{);}Q$ terminates the oracle,
+returning the result of the terms $N_1, \ldots, N_l$. Then, it makes
+available the oracles defined in $Q$.
+
+\fi
+
+\end{itemize}
+
+In this calculus, all variables are implicitly arrays.  When a
+variable $x$ is defined (by \ifchannels \texttt{new}, \else
+\texttt{<-R}, \texttt{<-}, \fi
+\texttt{let}, \texttt{find},
+\ifchannels \texttt{in} \else and oracle definitions\fi) 
+under replications 
+\ifchannels
+$\texttt{!}i_1\texttt{<=}N_1$, \ldots, $\texttt{!}i_n\texttt{<=}N_n$, 
+\else
+$\texttt{foreach }i_1\texttt{<=}N_1$, \ldots, $\texttt{foreach }i_n\texttt{<=}N_n$, 
+\fi
+$x$ has implicitly indexes $i_1,
+\ldots, i_n$: $x$ stands for $x[i_1, \ldots, i_n]$. Arrays allow us to
+have full access to the state of the process. Arrays can be read using
+\texttt{find}.
+%
+Similarly, when $x$ is used with $k < n$ indexes the missing $n-k$ indexes are
+implicit: $x[u_1, \ldots, u_k]$ stands for $x[i_1, \ldots, i_{n-k},
+u_1, \ldots, u_k]$ where $i_1, \ldots, i_{n-k}$ must be the $n-k$
+first replication indexes both at the creation of $x$ and at the usage
+$x[u_1, \ldots, u_k]$. (So the usage and creation of $x$ must
+be under the same $n-k$ top-most replications.)
+%
+\ifchannels\else
+When an oracle $O$ is defined under $\texttt{foreach }i_1\texttt{<=}N_1$, 
+\ldots, $\texttt{foreach }i_n\texttt{<=}N_n$, it also implicitly
+defines $O[i_1, \ldots, i_n]$.
+\fi
+
+In the initial game, several variables may be defined with the same
+name, but they are immediately renamed to different names, so that
+after renaming, each variable is defined once.  When several variables
+are defined with the same name, they can be referenced only under
+their definition without explicit array indexes, because for other
+references, we would not know which variable to reference after
+renaming.
+
+In subsequent games created by CryptoVerif, a variable may be defined
+at several occurrences, but these occurrences must be in different
+branches of \texttt{if}, \texttt{find}, or \texttt{let}, so that
+they cannot be executed with the same value of the array indexes.
+This constraint guarantees that each array cell is defined at most once.
+
+Each usage of $x$ must be either:
+\begin{itemize}
+
+\item $x$ without array index syntactically under its definition.
+(Then $x$ is implicitly considered to have as indexes the current
+replication indexes at its definition.)
+
+\item $x$ possibly with array indexes inside the \texttt{defined}
+condition of a find.
+
+\item $x[M_1, \ldots, M_n]$ in $M$ or $P$ in a find branch
+$\ldots\texttt{ suchthat defined(}M'_1, \ldots, M'_l\texttt{) \&\& }M
+\texttt{ then }P$, such that $x[M_1, \ldots, M_n]$
+is a subterm of $M'_1, \ldots, M'_l$. 
+
+\item $x[M_1, \ldots, M_n]$ in $M$ or $M''$ in a find branch
+$\ldots\texttt{ suchthat defined(}M'_1, \ldots, M'_l\texttt{) \&\& }M
+\texttt{ then }M''$, such that $x[M_1, \ldots, M_n]$
+is a subterm of $M'_1, \ldots, M'_l$. 
+
+\end{itemize}
+These syntactic constraints guarantee that a variable is accessed
+only when it is defined.
+
+Finally, the calculus is equipped with a type system.
+To be able to use variables outside their scope (by \texttt{find}),
+the type checking algorithm works in two passes. 
+
+In the first pass, 
+it collects the type of each variable: when a variable $x$ is
+defined with type $T$ under 
+\ifchannels
+replications $\texttt{!}N_1$, \ldots, $\texttt{!}N_n$,
+\else
+$\texttt{foreach }i_1\texttt{<=}N_1$, \ldots, $\texttt{foreach }i_n\texttt{<=}N_n$,
+\fi
+$x$ has type $[1, N_1] \times \ldots \times [1, N_n] \rightarrow T$.
+When the type of $x$ is not explicitly given in its declaration
+(\ifchannels in patterns in \texttt{let} or \texttt{in}\else in \texttt{<-} or 
+in patterns in \texttt{let} or oracle definitions\fi), its type is left undefined
+in this pass, and $x$ cannot be used outside its scope.
+
+In the second pass, the type system checks the following requirements:
+%
+In $x\texttt{[}M_1, \ldots, M_m\texttt{]}$, $M_1, \ldots, M_m$ must be of the suitable 
+interval type, that is, a suffix of the types of replication indexes
+at the definition of $x$.
+%
+In $f\texttt{(}M_1, \ldots, M_m\texttt{)}$, if $f$ has been declared
+by $\texttt{fun }f\texttt{(}T_1, \ldots, T_m\texttt{):}T$, $M_j$ must
+be of type $T_j$, and $f(M_1, \ldots, M_m)$ is then of type $T$.
+%$T_1, \ldots, T_m$ must be bitstring types.
+%
+In $\texttt{(}M_1, \ldots, M_n\texttt{)}$, $M_j$ can be of any
+bitstring type (that is, not an index type $[1, N]$), 
+and the result is of type \texttt{bitstring}.
+%
+In $M_1 \texttt{ = }M_2$ and $M_1 \texttt{ <> }M_2$, $M_1$ and $M_2$
+must be of the same type, and the result is of type
+$\texttt{bool}$. In $M_1 \texttt{ || }M_2$ and $M_1 \texttt{ \&\&
+}M_2$, $M_1$ and $M_2$ must be of type $\texttt{bool}$ and the result
+is of type $\texttt{bool}$.
+%
+The type system requires each subterm to be well-typed. 
+%Event
+Furthermore, in $\texttt{event }e\texttt{(}M_1, \ldots,
+M_n\texttt{)}$, if $e$ has been declared by $\texttt{event
+}e\texttt{(}T_1, \ldots, T_n\texttt{)}$, $M_j$ must be of type $T_j$.
+%New
+In $\Res{x}{T}$, $T$ must be declared with option {\tt bounded} (or {\tt fixed}).
+%If
+In $\texttt{if }M\texttt{ then }\ldots\texttt{ else }\ldots$, 
+$M$ must be of type $\texttt{bool}$.
+%Find
+Similarly, for
+\[\texttt{find }\ldots\texttt{ orfind } \ldots \texttt{ suchthat defined(}
+\ldots\texttt{) \&\& }M\texttt{ then }\ldots\]
+$M$ must be of type $\texttt{bool}$.
+%Let
+In $\texttt{let }p\texttt{ = }M\texttt{ in }\ldots$, $M$ and $p$ must
+be of the same type. For function application and tuple patterns, the
+typing rule is the same as for the corresponding terms.  The pattern
+$x:T$ is of type $T$; the pattern $x$ can be of any bitstring type,
+determined by the usage of $x$ (when the pattern $x$ is used as
+argument of a tuple pattern, its type is \texttt{bitstring}); the
+pattern $\texttt{=}M$ is of the type of $M$.
+%Out
+\ifchannels
+In $\texttt{out(}c\texttt{[}M_1, \ldots, M_n\texttt{],}M\texttt{)}$,
+$M$ must be of a bitstring type.
+\else
+In $\texttt{return(}M_1, \ldots, M_n\texttt{)}$,
+$M_j$ must be of a bitstring type $T_j$ for all $j \leq n$
+and that return instruction is said to be of type $T_1 \times \ldots 
+\times T_n$.
+All return instructions in an oracle body $P$ (excluding return
+instructions that occur in oracle definitions $Q$ in processes of the form 
+$\texttt{return(}M_1, \ldots, M_n\texttt{);}Q$) must be of the same
+type, and that type is said to be the type of the oracle body $P$.
+%
+For each oracle definition $O\texttt{(}p_1, \ldots, p_m\texttt{) :=
+}P$ under $\texttt{foreach }i_1\texttt{<=}N_1$, \ldots,
+$\texttt{foreach }i_n\texttt{<=}N_n$, the oracle $O$ is said to be of
+type $[1, N_1] \times \ldots \times [1, N_n] \rightarrow T'_1 \times
+\ldots \times T'_m \rightarrow T_1 \times \ldots \times T_n$ where
+$p_j$ is of type $T'_j$ for all $j \leq m$ and $P$ is of type $T_1
+\times \ldots \times T_n$. When an oracle has several definitions,
+it must be of the same type for all its definitions. Furthermore,
+definitions of the same oracle $O$ must not occur on both sides
+of a parallel composition $Q \texttt{|} Q'$ (so that several definitions
+of the same oracle cannot be simultaneously available).
+\fi
+
+
+A declaration can be:
+\begin{itemize}
+
+\item ${\tt set\ } \nonterm{parameter} \texttt{ = } \nonterm{value}{\tt .}$
+
+This declaration sets the value of configuration parameters.
+The following parameters and values are supported:
+
+\begin{itemize}
+
+\item \texttt{set diffConstants = true.}\\
+\texttt{set diffConstants = false.}
+
+When {\tt true}, different constant symbols are assumed to have a
+different value. When {\tt false}, CryptoVerif does not make this
+assumption.
+
+\item \texttt{set constantsNotTuple = true.}\\
+\texttt{set constantsNotTuple = false.}
+
+When {\tt true}, constant symbols are assumed to be different from the
+result of applying a tuple function to any argument. When {\tt false},
+CryptoVerif does not make this assumption.
+
+\item \texttt{set expandAssignXY = true.}\\
+\texttt{set expandAssignXY = false.}
+
+When {\tt true}, CryptoVerif automatically removes assignments 
+\ifchannels {\tt let x = y} \else {\tt x <- y} \fi
+where {\tt x} and {\tt y} are variables by substituting {\tt y} for {\tt x}
+(in the transformation {\tt remove\string_assign useless})
+When {\tt false}, this transformation is not performed as part of
+{\tt remove\string_assign useless}.
+
+\item \texttt{set minimalSimplifications = true.}\\
+\texttt{set minimalSimplifications = false.}
+
+When {\tt true}, simplification replaces a term with a rewritten term
+only when the rewriting has used at least one rewriting rule given
+by the user, not when only equalities that come from {\tt let} definitions
+and other instructions in the game have been used.
+When {\tt false}, a term is replaced with its rewritten form in
+all cases. The latter configuration often leads to replacing
+a term with a more complex one, in particular expanding {\tt let}
+definitions, thus duplicating their contents.
+
+\item \texttt{set mergeBranches = true.}\\
+\texttt{set mergeBranches = false.}
+
+When {\tt true}, simplification tries to merge branches of {\tt if}, {\tt let},
+and {\tt find} when all branches execute the same code.
+This is useful in order to remove the test, which can remove
+a use of a secret.
+When {\tt false}, this transformation is not performed. 
+This is useful in particular when the test has been
+manually introduced in order to force CryptoVerif to
+distinguish cases.
+
+\item \texttt{set mergeArrays = false.}\\
+\texttt{set mergeArrays = true.}
+
+When {\tt true}, simplification advises {\tt merge\_arrays} commands
+to make the merging of branches of {\tt if}, {\tt find}, {\tt let}
+succeed more often. When {\tt false}, this advice is not
+automatically given and the user should use the manual commands
+{\tt merge\_branches} and/or {\tt merge\_arrays} (defined in 
+Section~\ref{sec:interact}) to perform the merging.
+
+When it is set to {\tt true}, simplification often undoes
+{\tt SArename}. That is why it is not set to {\tt true} by default.
+
+\item \texttt{set uniqueBranch = true.}\\
+\texttt{set uniqueBranch = false.}
+
+We say that a {\tt find} is \emph{unique} when there is at most
+one branch and one value of the indices that we look up,
+for which the conditions are true.
+When {\tt uniqueBranch = true} and some {\tt find}s are proved to be unique,
+several transformations are enabled as part of {\tt simplify}:
+\begin{itemize}
+\item 
+If a branch of a {\tt find} is proved to succeed and that {\tt find}
+is unique, then simplification removes all other branches of that {\tt
+find}.
+
+\item
+If a {\tt find} occurs in the {\tt then} branch of a {\tt find} 
+and both {\tt find}s are unique, we reorganize them.
+
+\item 
+If a {\tt find} occurs in the condition of a {\tt find} and the
+inner {\tt find} is unique, we reorganize them.
+
+\end{itemize}
+When {\tt uniqueBranch = false}, these transformations are not performed. 
+
+\item \texttt{set autoSARename = true.}\\
+\texttt{set autoSARename = false.}
+
+When {\tt true}, and a variable is defined several times and
+used only in the scope of its definition with the current
+replication indexes at that definition, each definition of
+this variable is renamed to a different name, and the uses
+are renamed accordingly, by the transformation {\tt remove\string_assign}.
+When {\tt false}, such a renaming is not done automatically,
+but in manual proofs, it can be requested specifically for each 
+variable by {\tt SArename x}, where {\tt x} is the name of the variable.
+
+\item \texttt{set autoMove = true.}\\
+\texttt{set autoMove = false.}
+
+When {\tt true}, the transformation {\tt move all} is automatically
+executed after each cryptographic transformation. This transformation
+moves random number generations \ifchannels {\tt new} \else {\tt
+<-R} \fi downwards as much as possible, duplicating them when crossing
+a {\tt if}, {\tt let}, or {\tt find}.  (A future {\tt SArename}
+transformation may then enable us to distinguish cases depending on
+which of the duplicated random number generations a variable comes
+from.)  It also moves assignments down in the syntax tree but without
+duplicating them, when the assignment can be moved under a {\tt if},
+{\tt let}, or {\tt find}, in which the assigned variable is used
+only in one branch. (In this case, the assigned term is computed in
+fewer cases thanks to this transformation.)
+
+When {\tt false}, the transformation {\tt move all} is never
+automatically executed.
+
+\item \texttt{set optimizeVars = false.}\\
+\texttt{set optimizeVars = true.}
+
+When {\tt true}, CryptoVerif tries to reduce the number of different
+intermediate variables introduced in cryptographic
+transformations. This can lead to distinguishing fewer cases,
+which unfortunately often leads to a failure of the proof.
+When {\tt false}, different intermediate varaibles are used for
+each occurrence of the transformed expression.
+
+\item \texttt{set interactiveMode = false.}\\
+\texttt{set interactiveMode = true.}
+
+When {\tt false}, CryptoVerif runs automatically.
+When {\tt true}, CryptoVerif waits for instructions of the user
+on how to perform the proof. (See Section~\ref{sec:interact}
+for details on these instructions.)
+%
+This setting is ignored when proof instructions are included
+in the input file using the \texttt{proof} command.
+In this case, the instructions given in the \texttt{proof} command
+are executed, without user interaction.
+
+\item \texttt{set autoAdvice = true.}\\
+\texttt{set autoAdvice = false.}
+
+In interactive mode, when \texttt{autoAdvice = true}, execute the
+advised transformations automatically. When \texttt{autoAdvice = false},
+display the advised transformations, but do not execute them.
+The user may then give them as instructions if he wishes.
+
+\item \texttt{set noAdviceCrypto = false.}\\
+\texttt{set noAdviceCrypto = true.}
+
+When \texttt{noAdviceCrypto = true}, prevents the cryptographic 
+transformations from generating advice. Useful mainly for debugging
+the proof strategy.
+
+\item \texttt{set noAdviceGlobalDepAnal = false.}\\
+\texttt{set noAdviceGlobalDepAnal = true.}
+
+When \texttt{noAdviceGlobalDepAnal = true}, prevents the global
+dependency analysis from generating advice. Useful when the global
+dependency analysis generates bad advice.
+
+\item \texttt{set simplifyAfterSARename = true.}\\
+\texttt{set simplifyAfterSARename = false.}
+
+When \texttt{simplifyAfterSARename = true}, apply simplification after
+each execution of the SArename transformation. This slows down
+the system, but enables it to succeed more often.
+
+\item \texttt{set backtrackOnCrypto = false.}\\
+\texttt{set backtrackOnCrypto = true.}
+
+When \texttt{backtrackOnCrypto = true}, use backtracking when the proof
+fails, to try other cryptographic transformations. This slows down
+the system considerably (so it is false by default), but enables
+it to succeed more often, in particular for public-key protocols
+that mix several primitives. One usage is to try first with the default
+setting and, if the proof fails although the property
+is believed to hold, try again with backtracking.
+
+% \item \texttt{set detectIncompatibleDefined = true.}\\
+% \texttt{set detectIncompatibleDefined = false.}
+% 
+% When true, the simplification detects when two \texttt{defined}
+% conditions of \texttt{find} are incompatible because they require two
+% variables to be simultaneously defined at the same indices, while
+% this is in fact impossible in the considered game. Detecting this
+% is rather costly, so it can be turned off.
+%BB: made this setting undocumented, since now checking that is not so costly.
+
+\item $\texttt{set ignoreSmallTimes = }\nonterm{n}{\tt .}$ (default 3)
+
+When {\tt 0}, the evaluation of the runtime is very precise,
+but the formulas are often too complicated to read.
+
+When {\tt 1}, the system ignores many small values when computing
+the runtime of the games. It considers only function applications
+and pattern matching.
+
+When {\tt 2}, the system ignores even more details, including
+application of boolean operations (\texttt{\&\&},
+\texttt{\string|\string|}, \texttt{not}), constants generated by the
+system, \texttt{()} and matching on \texttt{()}. It ignores the
+creation and decomposition of tuples in \ifchannels
+inputs and outputs\else oracle calls and returns\fi.
+
+When {\tt 3}, the system additionally ignores the time of equality
+tests between values of bounded length, as well as the time of
+all constants.
+
+\item $\texttt{set maxIterSimplif = }\nonterm{n}{\tt .}$ (default 2)
+
+Sets the maximum number of repetitions of the simplification transformation
+for each {\tt simplify} instruction.
+A greater value slows down the system but may enable it to obtain
+simpler games, and therefore increase its chances of success.
+When $n \leq 0$, repeats simplification until a fixpoint is reached.
+
+\item $\texttt{set maxIterRemoveUselessAssign = }\nonterm{n}{\tt .}$ (default 10)
+
+Sets the maximum number of repetitions of the removal of useless assignments 
+for each {\tt remove\string_assign useless} instruction.
+A greater value slows down the system but may enable it to obtain
+simpler games, and therefore increase its chances of success.
+When $n \leq 0$, repeats removal of useless assignments until a fixpoint 
+is reached.
+
+\item $\texttt{set minAutoCollElim = }\nonterm{s}{\tt .}$ (default \texttt{size15})
+
+Sets the minimum size of a type for which elimination of collisions is
+possible automatically. The size argument $\nonterm{s}$ can be \texttt{large}, \texttt{password}, or \texttt{size}$n$ (see the \texttt{type} declaration for their meaning).
+
+\item $\texttt{set maxAdvicePossibilitiesBeginning = }n_1{\tt .}$ (default \texttt{50})\\
+$\texttt{set maxAdvicePossibilitiesEnd = }n_2{\tt .}$ (default \texttt{10})
+
+In cryptographic transformations, when CryptoVerif can transform many terms in several ways of different priority, these various ways combine, yielding a very large number of advice possibilities. These two options allow to limit the number of considered advice possibilities by keeping the $n_1$ first possibilities (with highest priority) and the $n_2$ last possibilities (with lowest priority but fewer advised transformations). When $n_1$ or $n_2$ are not positive, all advice possibilities are kept, but that may yield a very slow execution. 
+
+\item \texttt{set elsefindFactsInReplace = true.}\\
+\texttt{set elsefindFactsInReplace = false.}
+
+When \texttt{elsefindFactsInReplace = true}, CryptoVerif will try to
+infer more facts when doing a \texttt{replace} operation: when it
+encounters a \texttt{find} branch in the process, it considers a
+variable $x[M_1, \ldots, M_l]$, which is guaranteed to be defined by this \texttt{find}.
+If $x$ is defined in the \texttt{else} part of another \texttt{find}
+construct, then at the definition of $x$, we know that the conditions
+of the \texttt{then} branches of this \texttt{find} are not satisfied:
+\[\forall u_1, \ldots, u_k, \texttt{not}(\texttt{defined}(y_1[M_{11}, \ldots, M_{1l_1}], \ldots, y_k[M_{k1}, \ldots, M_{kl_k}]) \wedge t)\]
+We try to infer $\texttt{not}(t)$ from this fact.
+\begin{itemize}
+\item if each variable $y_j[M_{j1}, \ldots, M_{jl_j}]$ is defined before $x[M_1, \ldots, M_l]$,
+then $\texttt{not}(t)$ indeed holds by the fact above;
+\item for each $y_j[M_{j1}, \ldots, M_{jl_j}]$, 
+we assume that $y_j[M_{j1}, \ldots, M_{jl_j}]$ is defined after $x[M_1, \ldots, M_l]$
+and try to prove $\texttt{not}(t)$.
+
+It this proof succeeds, we can infer that $\texttt{not}(t)$ holds
+at the current program point.
+\end{itemize}
+
+\item \texttt{set elsefindFactsInSimplify = true.}\\
+\texttt{set elsefindFactsInSimplify = false.}
+
+Similar to \texttt{elsefindFactsInReplace}, but applies in
+\texttt{simplify} operations. 
+
+\end{itemize}
+The default value is the first mentioned, except when explicitly specified.
+In most cases, the default values should be left as they are, except
+for {\tt interactiveMode}, which allows to perform 
+interactive proofs.
+
+\item $\texttt{param}\ \neseq{ident}\ [\texttt{[noninteractive]}\mid \texttt{[passive]} \mid \texttt{[size$n$]}]\texttt{.}$
+
+$\texttt{param}\ n_1, \ldots, n_m\texttt{.}$ declares parameters $n_1, \ldots, n_m$.
+Parameters are used to represent the number of copies of replicated processes
+(that is, the maximum number of calls to each query).
+In asymptotic analyses, they are polynomial in the security parameter.
+In exact security analyses, they appear in the formulas that express the
+probability of an attack.
+
+The options \texttt{[noninteractive]}, \texttt{[passive]}, or \texttt{[size$n$]}
+indicate to CryptoVerif an order of magnitude of the size of the parameter.
+%
+The option \texttt{[size$n$]} (where $n$ is a constant integer) indicates
+that the considered parameter has ``size $n$'': the larger the $n$, the
+larger the parameter is likely to be.
+CryptoVerif uses this
+information to optimize the computed probability bounds: when several
+bounds are correct, it chooses the smallest one.
+
+The option \texttt{[noninteractive]} means that
+the queries bounded by the considered parameters can be made by the
+adversary without interacting with the tested protocol, so the number
+of such queries is likely to be large.
+Parameters with option \texttt{[noninteractive]} are typically 
+used for bounding the number of calls to random oracles.
+\texttt{[noninteractive]} is equivalent to \texttt{[size20]}.
+
+The option \texttt{[passive]} means that the queries bounded by the
+considered parameters correspond to the adversary passively listening
+to sessions of the protocol that run as expected. Therefore, for such
+runs, the adversary is undetected. This number of runs is therefore
+likely to be larger than runs in which the adversary actively 
+interacts with the honest participants, when these participants stop 
+after a certain number of failed attempts.
+\texttt{[passive]} is equivalent to \texttt{[size10]}.
+
+\item $\texttt{proba}\ \nonterm{ident}\texttt{.}$
+
+$\texttt{proba}\ p\texttt{.}$ declares a probability $p$.
+(Probabilities may be used as functions of other arguments,
+without explicit checking of these arguments.)
+
+\item $\texttt{type}\ \nonterm{ident}\ [\texttt{[}\neseq{option}\texttt{]}]\texttt{.}$
+
+$\texttt{type}\ T\texttt{.}$ declares a type $T$. Types correspond to sets
+of bitstrings or a special symbol $\bot$ (used for failed decryptions, 
+for instance). Optionally, the declaration of a type may be followed by options
+between brackets. These options can be:
+\begin{itemize}
+
+\item \texttt{bounded} means that the type is a set of bitstrings of
+bounded length or perhaps $\bot$. In other words, the type is a finite
+subset of bitstrings plus $\bot$.
+
+\item \texttt{fixed} means that the type is the set of all bitstrings of 
+a certain length $n$. In particular, the type is a finite set,
+so \texttt{fixed} implies \texttt{bounded}. 
+
+\item \texttt{nonuniform} means that random numbers may be chosen in the
+type with a non-uniform distribution. (When \texttt{nonuniform} is absent,
+random numbers are chosen using a uniform distribution for {\tt fixed} types,
+an almost uniform distribution for \texttt{bounded} types, and random values
+cannot be chosen among other types.)
+
+\item \texttt{large}, \texttt{password}, and \texttt{size$n$} indicate 
+the order of magnitude of the probability of collision $\texttt{Pcoll1rand}(T)$
+between a random element
+chosen according to the standard probability distribution $D_T$ for the considered type $T$,
+and an independent element of type $T$. When the standard distribution is uniform
+or almost uniform ({\tt fixed} and {\tt bounded} types), $\texttt{Pcoll1rand}(T) = \frac{1}{|T|}$,
+so these parameters give an order of magnitude of the cardinal of the type.
+
+The option \texttt{size$n$} (where $n$ is a constant integer) indicates
+that the considered type has ``size $n$'': the larger the $n$, the
+smaller the probability of collision $\texttt{Pcoll1rand}(T)$.
+When no size option is present, the type has size 0.
+CryptoVerif uses this information to determine whether collisions 
+with random elements of the considered type $T$ should be eliminated.
+For collisions to be eliminated, two conditions must be satisfied:
+\begin{enumerate}
+
+\item the size of the type must be at least \texttt{minAutoCollElim}
+(which is set by $\texttt{set minAutoCollElim = }n$; the default is 15),
+or the size of the type must be at least 1 and elimination of collisions
+on this data has been manually requested by the command 
+$\texttt{simplify coll\string_elim }\ldots$.
+
+\item the probability of collision is at most one of the formulas
+specified by the command $\texttt{allowed\_collisions}$
+(used inside a {\tt proof} environment).
+By default, all collisions are eliminated for types of size at least 20,
+and collisions are eliminated for types of size at least 10 when
+the collision is repeated at most $N$ times, where $N$ is a parameter of size 0.
+See the command $\texttt{allowed\_collisions}$ for more details.
+
+\end{enumerate}
+
+\texttt{large} means that the type $T$ is large enough so that
+all collisions with random elements of $T$ can be eliminated. 
+(In asymptotic analyses, $\texttt{Pcoll1rand}(T)$ is negligible. 
+In exact security analyses, the
+probability of a collision is correctly expressed by the system.)
+\texttt{large} is equivalent to \texttt{size20}.
+
+\texttt{password} is intended for passwords in password-based
+security protocols. These passwords are taken in a dictionary whose
+size is much smaller than the size of a nonce for instance,
+so the probability of collisions among passwords is larger 
+than among data of \texttt{large} types.
+\texttt{password} is equivalent to \texttt{size10}.
+
+\end{itemize}
+
+\item $\texttt{fun}\ \nonterm{ident}\texttt{(}\seq{ident}\texttt{):}\nonterm{ident}\ [\texttt{[}\neseq{option}\texttt{]}]\texttt{.}$
+
+$\texttt{fun}\ f\texttt{(}T_1, \ldots, T_n\texttt{):}T\texttt{.}$ 
+declares a function that takes $n$ arguments, of types $T_1, \ldots, T_n$, 
+and returns a result of type $T$.
+Optionally, the declaration of a function may be followed by options
+between brackets. These options can be:
+\begin{itemize}
+
+\item \texttt{compos} means that $f$ is injective and that its
+inverses can be computed in polynomial time: $f(x_1, \ldots, x_m) = y$
+implies for $i \in \{1, \ldots, m\}$, $x_i = f_i^{-1}(y)$ for some 
+functions $f_i^{-1}$. (In the vocabulary of~\cite{BlanchetEPrint05},
+$f$ is poly-injective.) $f$ can then be used for pattern matching.
+
+\item \texttt{decompos} means that $f$ is an inverse of a poly-injective
+function. $f$ must be unary. (Thanks to the pattern matching construct, one can
+in general avoid completely the declaration of \texttt{decompos} functions,
+by just declaring the corresponding poly-injective function \texttt{compos}.)
+
+\item \texttt{uniform} means that $f$ maps the standard distribution
+of its argument into the standard distribution of its result. $f$ must be unary;
+the argument and the result of $f$ must be of types marked 
+{\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
+
+\item \texttt{commut} indicates that the function $f$ is commutative,
+that is, $f(x,y) = f(y,x)$ for all $x,y$. In this case, the function
+$f$ must be a binary function with both arguments of the same type.
+(The equation $f(x,y) = f(y,x)$ cannot be given by the {\tt forall}
+declaration because CryptoVerif interprets such declarations as rewrite rules,
+and the rewrite rule $f(x,y) \rightarrow f(y,x)$ does not terminate.)
+
+\end{itemize}
+
+\item $\texttt{letfun}\
+  \nonterm{ident}[\texttt{(}\seq{vartype}\texttt{)}]\texttt{=}\nonterm{term}\texttt{.}$ 
+
+  $\texttt{letfun}\
+  f\texttt{(} x_1\texttt{:} T_1, \ldots,
+  x_n\texttt{:}T_n\texttt{)=} M\texttt{.}$ declares a function $f$ that
+  takes $n$ arguments named $x_1, \ldots, x_n$ of types $T_1, \ldots, T_n$,
+  respectively. The subsequent calls to this function are replaced by the
+  term $M$ in which we replace $x_1, \ldots, x_n$ with the arguments given
+  by the caller. 
+
+  The term $M$ must not contain $\texttt{find}$ constructs.
+
+\item $\texttt{const}\ \neseq{ident}\texttt{:}\nonterm{ident}\texttt{.}$
+
+$\texttt{const}\ c_1, \ldots, c_n\texttt{:}T\texttt{.}$ declares constants
+$c_1, \ldots, c_n$ of type $T$.
+Different constants are assumed to correspond to different bitstrings
+(except when the instruction \texttt{set diffConstants = false.} is
+given).
+
+\item $\texttt{table}\ \nonterm{ident}\texttt{(}\neseq{ident}\texttt{).}$
+
+$\texttt{table}\ \mathit{tbl}\texttt{(}T_1, \ldots, T_n\texttt{).}$
+declares the table $\mathit{tbl}$, whose elements are tuples of
+type $T_1, \ldots, T_n$. Elements can be inserted in the table
+by $\texttt{insert}\ \mathit{tbl}\texttt{(}M_1, \ldots, M_n\texttt{)}$
+and the table can be read using $\texttt{get}$.
+
+\ifchannels
+\item $\texttt{channel}\ \neseq{ident}\texttt{.}$
+
+$\texttt{channel}\ c_1, \ldots, c_n\texttt{.}$ declares communication channels
+$c_1, \ldots, c_n$.
+\fi
+
+\item $\texttt{event}\ \nonterm{ident}[\texttt{(}\seq{ident}\texttt{)}]\texttt{.}$
+
+$\texttt{event}\ e\texttt{(}T_1, \ldots, T_n\texttt{)}\texttt{.}$
+declares an event $e$ that takes arguments of types $T_1, \ldots, T_n$.
+When there are no arguments, we can simply declare 
+$\texttt{event}\ e\texttt{.}$
+
+\item $\texttt{let}\ \nonterm{ident}\texttt{ = }\oprocess\texttt{.}$\\
+$\texttt{let}\ \nonterm{ident}\texttt{ = }\iprocess\texttt{.}$
+
+$\texttt{let}\ x\texttt{ = }P\texttt{.}$ says that $x$ represents the process
+$P$. When parsing a process, $x$ will be replaced with $P$.
+
+\item $\texttt{forall }\seq{vartype}\texttt{;}\nonterm{simpleterm}\texttt{.}$
+
+$\texttt{forall }x_1:T_1, \ldots, x_n:T_n\texttt{;}M\texttt{.}$ says
+that for all values of $x_1, \ldots, x_n$ in types $T_1, \ldots, T_n$
+respectively,
+$M$ is true. The term $M$ must be a simple term without array accesses.
+%
+When $M$ is an equality $M_1 \texttt{=} M_2$, CryptoVerif uses this information
+for rewriting $M_1$ into $M_2$, so one must be careful of the orientation
+of the equality, in particular for termination.
+%
+When $M$ is an inequality, $M_1 \texttt{<>} M_2$, CryptoVerif rewrites
+$M_1 \texttt{=} M_2$ to false and $M_1 \texttt{<>} M_2$ to true.
+%
+Otherwise, it rewrites $M$ to true.
+
+\item 
+\ifchannels
+$\texttt{collision }(\Resvt\texttt{;})^*
+[\texttt{forall }\seq{vartype}\texttt{;}]
+\nonterm{simpleterm}\texttt{ <=(}\nonterm{proba}\texttt{)=> }\nonterm{simpleterm}\texttt{.}$
+
+$\texttt{collision }\Res{x_1}{T_1}\texttt{;}\ldots 
+\Res{x_n}{T_n}\texttt{;}
+\texttt{forall }y_1:T'_1, \ldots, y_m:T'_m\texttt{;}
+M_1\texttt{ <=(}p\texttt{)=> }M_2\texttt{.}$ 
+\else
+$\texttt{collision }(\Resvt\texttt{;})^*
+[\texttt{forall }\seq{vartype}\texttt{;}]$\\
+\null\qquad $\texttt{return(}\nonterm{simpleterm}\texttt{) <=(}\nonterm{proba}\texttt{)=> return(}\nonterm{simpleterm}\texttt{).}$
+
+$\texttt{collision }\Res{x_1}{T_1}\texttt{;}\ldots 
+\Res{x_n}{T_n}\texttt{;}
+\texttt{forall }y_1:T'_1, \ldots, y_m:T'_m\texttt{; return(}
+M_1\texttt{) <=(}p\texttt{)=> return(}M_2\texttt{).}$ 
+\fi
+means that when
+$x_1, \ldots, x_n$ are chosen randomly with uniform probability
+and independently in $T_1, \ldots, T_n$ respectively, a Turing machine running in
+time $\texttt{time}$ has probability at most $p$ of finding
+$y_1, \ldots, y_m$ in $T'_1, \ldots, T'_m$ such that $M_1 \neq M_2$.
+%
+The terms $M_1$ and $M_2$ must be simple terms without array accesses.
+See below for the syntax of probability formulas.
+
+This allows CryptoVerif to rewrite $M_1$ into $M_2$ with probability
+loss $p$, when $x_1, \ldots, x_n$ are created by independent random
+number generations of types $T_1, \ldots, T_n$ respectively. One
+should be careful of the orientation of the equivalence, in particular
+for termination.
+
+\ifchannels
+\item $\texttt{equiv }\nonterm{name}\ \neseq{funmode}\texttt{ <=(}\nonterm{proba}\texttt{)=> }
+[\texttt{[manual]}| \texttt{[computational]}]\ \neseq{fungroup}\texttt{.}$
+
+$\texttt{equiv }\mathit{name}\ L\texttt{ <=(}p\texttt{)=> }R\texttt{.}$ means that the
+probability that a probabilistic Turing machine that runs in time
+{\tt time} distinguishes $L$ from $R$ is at most $p$. The name $\mathit{name}$
+is used to designate the equivalence in the \texttt{crypto} command used in manual proofs (see Section~\ref{sec:interact}). This name can be either an identifier $\mathit{id}$, or $\mathit{id}(f)$, where $\mathit{id}$ is an identifier and $f$ a second identifier. Names of the form $\mathit{id}(f)$ are most useful when the equivalence is defined inside a macro definition ($\texttt{define}$). In this case, the identifier $\mathit{id}$ is kept unchanged and the identifier $f$ is renamed during macro expansion; if $f$ is a parameter of the macro, it is then replaced with its value at macro expansion, so that one can always designate precisely the desired equivalence even when a macro is expanded several times.
+
+$L$ and $R$ define sets of functions. (They can be translated into
+processes as explained in~\cite{BlanchetEPrint05}.)
+\begin{itemize}
+
+\item $O\texttt{(}x_1:T_1, \ldots, x_n:T_n\texttt{) := }M$ represents
+a function $O$ that takes arguments $x_1, \ldots, x_n$ of types
+$T_1, \ldots, T_n$ respectively, and returns the result $M$.
+
+\item Optionally, in the left-hand side,
+an integer between brackets $\texttt{[}n\texttt{]}$ ($n \geq 0$)
+can be added in the previous functions, which become 
+$\texttt{O(}x_1:T_1, \ldots, x_n:T_n\texttt{) [}n\texttt{] := }M$
+This integer does not change the semantics of the function, but is
+used for the proof strategy: CryptoVerif uses preferably the functions
+with the smallest integers $n$ when several functions can be used
+for representing the same expression. When no integer is mentioned,
+$n = 0$ is assumed, so the function has the highest priority.
+
+\item Optionally, in the left-hand side, 
+the indication \texttt{[useful\_change]} can also
+be added in the previous functions, which become 
+$\texttt{O(}x_1:T_1, \ldots, x_n:T_n\texttt{) [useful\_change] := }M$
+This indication is also used for the proof strategy: 
+if at least one \texttt{[useful\_change]} indication is present,
+CryptoVerif applies the transformation defined by the equivalence
+only when at least one \texttt{[useful\_change]} function is called in the game.
+
+\item $\texttt{!} i \texttt{<=} N\ \Res{y_1}{T'_1}\texttt{;}
+\ldots \Res{y_m}{T'_m} \texttt{;} \texttt{(}FG_1, \ldots,
+FG_n\texttt{)}$ represents $N$ copies of a process that picks fresh
+random numbers $y_1$, \ldots, $y_m$ of types $T'_1, \ldots, T'_m$
+respectively, and makes available the functions described in $FG_1,
+\ldots, FG_n$. Each copy has a different value of $i \in [1, N]$. The
+identifier $i$ cannot be referred to explicitly in the process; it is
+used only implicitly as array index of variables defined under
+$\texttt{!} i \texttt{<=} N$.  The replication $\texttt{!} i
+\texttt{<=} N$ can be abbreviated $\texttt{!} N$.
+
+\end{itemize}
+CryptoVerif uses such equivalences to transform processes that call
+functions of $L$ into processes that call functions of $R$.
+
+$L$ may contain mode indications to guide the rewriting: the mode
+\texttt{[all]} means that all occurrences of the root function symbol
+of functions in the considered group must be transformed;
+the mode \texttt{[exist]} means that at least one occurrence of a
+function in this group must be transformed. (\texttt{[exist]} is the default;
+when a function group contains no random number generation, it must be in mode 
+\texttt{[all]}.)
+
+The \texttt{[manual]} indication, when it is present in the equivalence,
+prevents the automatic application of the transformation. The transformation
+is then applied only using the manual \texttt{crypto} command.
+
+The \texttt{[computational]} indication, when it is present in the 
+equivalence, means that the transformation relies on a computational assumption
+(by opposition to decisional assumptions). This indication allows one to mark
+some random number generations of the right-hand side of the equivalence with
+\texttt{[unchanged]}, which means that the random value is preserved by 
+the transformation. The transformation is then allowed even if the random 
+value occurs as argument of events. (This argument will be unchanged.)
+The mark \texttt{[unchanged]} is forbidden when the equivalence is
+not marked \texttt{[computational]}. Indeed, decisional assumptions may
+alter any random values.
+
+$L$ and $R$ must satisfy certain syntactic constraints:
+\begin{itemize}
+
+\item %H0
+$L$ and $R$ must be well-typed, satisfy the constraints on
+array accesses (see the description of processes above), 
+and the type of the results of 
+corresponding functions in $L$ and $R$ must be the same.
+
+\item $L$ cannot contain \texttt{find}, \texttt{let}, \texttt{if}.
+%or array accesses with explicit indexes.
+
+\item $L$ and $R$ must have the same structure: same replications,
+same number of functions, same function names in the same order, same
+number of arguments with the same types for each function.
+
+\item Under a replication with no random number generation in $L$, one can have only
+a single function.
+
+\item Replications in $L$ (resp. $R$) must have pairwise distinct
+bounds. Functions in $L$ (resp. $R$) must have pairwise distinct names.
+
+\item %H7
+\newcommand{\tup}[1]{\widetilde{#1}}
+
+Finds in $R$ are of the form
+\[\begin{split}
+&\texttt{find }\ldots\texttt{ orfind }u_1 \texttt{ <= } N_1, \ldots, 
+u_m \texttt{ <= }N_m
+\texttt{ suchthat defined(}z_1[\tup{u_1}], \ldots, z_l[\tup{u_l}]\texttt{) \&\& }M\\
+&\texttt{then }FP \ldots \texttt{ else }FP'
+\end{split}\]
+where $\tup{u_k}$ is a non-empty
+prefix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
+k \leq l$ is the whole sequence $u_1, \ldots, u_m$,
+and the implicit prefix of the current array indexes is the same
+for all $z_1, \ldots, z_l$.
+%
+(When $z$ is defined under replications $\texttt{!}N_1$, \ldots,
+$\texttt{!}N_n$, $z$ is always an array with $n$ dimensions, so it
+expects $n$ indexes, but the first $n'<n$ indexes are left implicit
+when they are equal to the current indexes of the top-most $n'$ replications
+above the usage of $z$---which must also be the top-most $n'$
+replications above the definition of $z$. We require the implicit
+indexes to be the same for all variables $z_1, \ldots, z_l$.)
+%TO DO is that clear?
+Furthermore, there must exist $k \in \{ 1, \ldots, l_j\}$ such that
+for all $k' \neq k$, $z_{k'}$ is defined syntactically above all
+definitions of $z_k$ and $\tup{u_{k'}}$ is a prefix of $\tup{u_k}$. 
+%
+Finally, variables $z_k$ must not be defined by a $\texttt{find}$ in $R$.
+
+
+\end{itemize}
+\else
+\item $\texttt{equiv }\nonterm{omode}\ [\texttt{|}\ \ldots\ \texttt{|}\nonterm{omode}]\texttt{ <=(}\nonterm{proba}\texttt{)=> }
+[\texttt{[manual]}]\ \nonterm{ogroup}\ [\texttt{|}\ \ldots\ \texttt{|}\nonterm{ogroup}]\texttt{.}$
+
+$\texttt{equiv }L\texttt{ <=(}p\texttt{)=> }R\texttt{.}$ means that the
+probability that a probabilistic Turing machine that runs in time
+{\tt time} distinguishes $L$ from $R$ is at most $p$.
+
+$L$ and $R$ define sets of oracles. (In these definitions, 
+$\texttt{foreach }i\texttt{<=}N\texttt{ do }\Res{x_1}{T_1}; \ldots
+\Res{x_m}{T_m};Q$ in fact stands for $\texttt{foreach }i\texttt{<=}N
+\texttt{ do }O\texttt{() := } \Res{x_1}{T_1}; \ldots \Res{x_m}{T_m};
+\texttt{return}; Q$, where $O$ is a fresh oracle name. The same oracle
+names are used in both sides of the equivalence.)
+
+In the left-hand side, an optional integer between brackets
+$\texttt{[}n\texttt{]}$ ($n \geq 0$) can be added in the
+definition of an oracle, which becomes 
+$O\texttt{(}x_1:T_1, \ldots x_n:T_n\texttt{) [}n\texttt{] := }P$.
+This integer does not change the semantics of the oracle, but is
+used for the proof strategy: CryptoVerif uses preferably the oracles
+with the smallest integers $n$ when several oracles can be used
+for representing the same expression. When no integer is mentioned,
+$n = 0$ is assumed, so the oracle has the highest priority.
+
+In the left-hand side, the optional indication \texttt{[useful\_change]} can also
+be added in the definition of an oracle, which becomes 
+$O\texttt{(}x_1:T_1, \ldots x_n:T_n\texttt{) [useful\_change] := }P$.
+This indication is also used for the proof strategy: 
+if at least one \texttt{[useful\_change]} indication is present,
+CryptoVerif applies the transformation defined by the equivalence
+only when at least one \texttt{[useful\_change]} function is called in the game.
+
+CryptoVerif uses such equivalences to transform processes that call
+oracles of $L$ into processes that call oracles of $R$.
+
+$L$ may contain mode indications to guide the rewriting: the mode
+\texttt{[all]} means that all occurrences of the root function symbol
+of oracles in the considered group must be transformed;
+the mode \texttt{[exist]} means that at least one occurrence of an
+oracle in this group must be transformed. (\texttt{[exist]} is the default;
+there must be at most one oracle group with mode \texttt{[exist]};
+when an oracle group contains no random number generation, it must be in mode 
+\texttt{[all]}.)
+
+The \texttt{[manual]} indication, when it is present in the equivalence,
+prevents the automatic application of the transformation. The transformation
+is then applied only using the manual \texttt{crypto} command.
+
+$L$ and $R$ must satisfy certain syntactic constraints:
+\begin{itemize}
+
+\item %H0
+$L$ and $R$ must be well-typed, satisfy the constraints on
+array accesses (see the description of processes above), 
+and the type of the results of 
+corresponding oracles in $L$ and $R$ must be the same.
+
+\item All oracle definitions in $L$ are of the form 
+$O\texttt{(}\ldots\texttt{) := return(}M\texttt{)}$
+where $M$ is a simple term. % without explicit array accesses.
+Oracle definitions in $R$ cannot contain $\texttt{end}$, $\texttt{event}$,
+and their return instructions must be of the form $\texttt{return(}M\texttt{)}$.
+(They return a single term and they have no further oracle definitions under 
+the return.)
+
+\item $L$ and $R$ must have the same structure: same replications,
+same number of oracles, same oracle names in the same order,
+same number of arguments with the same types for each oracle.
+
+\item Under a replication with no random number generation in $L$, 
+one can have only a single oracle.
+
+\item Replications in $L$ (resp. $R$) must have pairwise distinct
+bounds. Oracles in $L$ (resp. $R$) must have pairwise distinct names.
+
+\item %H7
+\newcommand{\tup}[1]{\widetilde{#1}}
+
+Finds in $R$ are of the form
+\[\begin{split}
+&\texttt{find }\ldots\texttt{ orfind }u_1 \texttt{ <= } N_1, \ldots, 
+u_m \texttt{ <= }N_m
+\texttt{ suchthat defined(}z_1[\tup{u_1}], \ldots, z_l[\tup{u_l}]\texttt{) \&\& }M\\
+&\texttt{then }FP \ldots \texttt{ else }FP'
+\end{split}\]
+where $\tup{u_k}$ is a non-empty
+prefix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
+k \leq l$ is the whole sequence $u_1, \ldots, u_m$,
+and the implicit prefix of the current array indexes is the same
+for all $z_1, \ldots, z_l$.
+%
+(When $z$ is defined under replications $\texttt{!}N_1$, \ldots,
+$\texttt{!}N_n$, $z$ is always an array with $n$ dimensions, so it
+expects $n$ indexes, but the first $n'<n$ indexes are left implicit
+when they are equal to the current indexes of the top-most $n'$ replications
+above the usage of $z$---which must also be the top-most $n'$
+replications above the definition of $z$. We require the implicit
+indexes to be the same for all variables $z_1, \ldots, z_l$.)
+%TO DO is that clear?
+Furthermore, there must exist $k \in \{ 1, \ldots, l_j\}$ such that
+for all $k' \neq k$, $z_{k'}$ is defined syntactically above all
+definitions of $z_k$ and $\tup{u_{k'}}$ is a prefix of $\tup{u_k}$. 
+%
+Finally, variables $z_k$ must not be defined by a $\texttt{find}$ in $R$.
+
+
+\end{itemize}
+
+
+\fi
+
+
+This is the key declaration for defining the security properties of
+cryptographic primitives. Since such declarations are delicate to
+design, we recommend using predefined primitives listed in
+Section~\ref{sect:prim}, or copy-pasting declarations from examples.
+
+\item $\texttt{query }\neseq{query}\texttt{.}$
+
+The {\tt query} declaration indicates which security properties we 
+would like to prove. The available queries are as follows:
+\begin{itemize}
+
+\item ${\tt secret1}\ x$: show that any element of the array $x$ 
+cannot be distinguished from a random number (by a single test query).
+In the vocabulary of~\cite{BlanchetEPrint05}, this is one-session
+secrecy.
+
+\item ${\tt secret}\ x$: show that the array $x$ is indistinguishable
+from an array of independent random numbers (by several test queries).
+In the vocabulary of~\cite{BlanchetEPrint05}, this is secrecy.
+
+\item $x_1:T_1, \ldots, x_n:T_n; {\tt event}\ M \texttt{ ==> } M'$.
+First, we declare the types of all variables $x_1, \ldots, x_n$
+that occur in $M$ or $M'$.
+The system shows that, for all values of variables that occur in $M$,
+if $M$ is true then there exist values of variables of $M'$ that do not
+occur in $M$ such that $M'$ is true.
+
+$M$ must be a conjunction of terms $[\texttt{inj:}]e$ or 
+$[\texttt{inj:}]e(M_1, \ldots, M_n)$
+where $e$ is an event declared by ${\tt event}$ and
+the $M_i$ are simple terms without array accesses (not containing
+events). 
+
+$M'$ must be formed by conjunctions and disjunctions of terms 
+$[\texttt{inj:}]e$, $[\texttt{inj:}]e(M_1, \ldots, M_n)$, or 
+simple terms without array accesses
+(not containing events).
+
+When $\texttt{inj:}$ is present, the system proves an injective
+correspondence, that is, it shows that several different events marked
+$\texttt{inj:}$ before $\texttt{==>}$ imply the execution of several
+different events marked $\texttt{inj:}$ after $\texttt{==>}$.
+%
+More precisely, $\texttt{inj:}e_1(M_{11}, \ldots, M_{1m_1})\texttt{
+\&\& }\ldots \texttt{ \&\& inj:}e_n(M_{n1}, \ldots, \allowbreak
+M_{nm_n}) \texttt{ \&\& }\ldots \texttt{ ==> } M'$ means that for each
+tuple of executed events $e_1(M_{11}, \allowbreak \ldots, M_{1m_1})$
+(executed $N_1$ times), \ldots, $e_n(M_{n1}, \ldots, M_{nm_n})$
+(executed $N_n$ times), $M'$ holds, considering that an event
+$\texttt{inj:}e'(M_1, \ldots, M_m)$ in $M'$ holds when it has been
+executed at least $N_1 \times \ldots \times N_n$ times.
+%
+When $e$ is preceded by $\texttt{inj:}$ in a query, $e$ must occur at
+most once in each branch of $\texttt{if}$, $\texttt{find}$,
+$\texttt{let}$, and all occurrences of the same $e$ must be under
+replications of the same types.
+%
+The $\texttt{inj:}$ marker must
+occur either both before and after $\texttt{==>}$ or not at all. (Otherwise,
+the query would be equivalent to a non-injective correspondence.)
+
+\end{itemize}
+
+\item $\texttt{proof \{}\nonterm{command}\texttt{;}\ldots \texttt{;}\nonterm{command} \texttt{\}}$
+
+Allows the user to include in the CryptoVerif input file the commands
+that must be executed by CryptoVerif in order to prove the protocol.
+The allowed commands are those described in Section~\ref{sec:interact},
+except that \texttt{help} and \texttt{?} are not allowed and that
+the \texttt{crypto} command must be fully specified (so that no user 
+interaction is required). If the command contains a string that
+is not a valid identifier, \texttt{*}, or \texttt{.}, then this string
+must be put between quotes \texttt{"}. This is useful in particular for
+variable names introduced internally by CryptoVerif and that contain
+\texttt{\string@} (so that they cannot be confused with variables introduced
+by the user), for example \texttt{"\string@2\_r1"}.
+
+\item ${\tt define\ }\nonterm{ident}\texttt{(}\seq{ident}\texttt{) \{}
+\seq{decl}\texttt{\}}$ 
+
+${\tt define\ }m\texttt{(}x_1, \ldots, x_n\texttt{) \{}
+d_1, \ldots, d_k\texttt{\}}$ defines a macro named $m$, with arguments
+$x_1, \ldots, x_n$. This macro expands to the declarations
+$d_1, \ldots, d_k$, which can be any of the declarations listed in
+this manual, except $\texttt{define}$ itself.
+The macro is expanded by the \texttt{expand} declaration described below.
+When the \texttt{expand} declaration appears inside a \texttt{define}
+declaration, the expanded macro must have been defined before the
+\texttt{define} declaration (which prevents recursive macros, whose
+expansion would loop).
+Macros are used in particular to define a library of standard
+cryptographic primitives that can be reused by the user without
+entering their full definition. These primitives are presented
+in Section~\ref{sect:prim}.
+
+\item ${\tt expand\ }\nonterm{ident}\texttt{(}\seq{ident}\texttt{).}$
+
+${\tt expand\ }m\texttt{(}y_1, \ldots, y_n\texttt{).}$ expands the macro
+$m$ by applying it to the arguments $y_1, \ldots, y_n$. If the definition
+of the macro $m$ is ${\tt define\ }m\texttt{(}x_1, \ldots, x_n\texttt{) \{}
+d_1, \ldots, d_k\texttt{\}}$, then it generates $d_1, \ldots, d_k$ in which
+$y_1, \ldots, y_n$ are substituted for $x_1, \ldots, x_n$ and the other
+identifiers that were not already defined at the $\texttt{define}$ declaration
+are renamed to fresh identifiers.
+
+\end{itemize}
+
+The following identifiers are predefined:
+\begin{itemize}
+
+\item The type {\tt bitstring} is the type of all bitstrings.
+It is large.
+
+\item The type {\tt bitstringbot} is the type that contains
+all bitstrings and $\bot$. It is also large.
+
+\item The type {\tt bool} is the type of boolean values, which consists
+of two constant bitstrings {\tt true} and {\tt false}.
+It is declared {\tt fixed}.
+
+\item The function {\tt not} is the boolean negation, from
+{\tt bool} to {\tt bool}.
+
+\item The constant {\tt bottom} represents $\bot$. (The special
+element of {\tt bitstringbot} that is not a bitstring.)
+
+\end{itemize}
+
+The syntax of probability formulas allows parenthesing and the usual
+algebraic operations \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}.
+(\texttt{*} and \texttt{/} have higher priority than \texttt{+} and
+\texttt{-}, as usual.), as well as the maximum, denoted 
+$\texttt{max(}p_1\texttt{,}\ldots\texttt{,}p_n\texttt{)}$. 
+They may also contain 
+\begin{itemize}
+
+\item $P$ or $P(p_1, \ldots,
+p_n)$ where $P$ has been declared by $\texttt{proba }P$ and $p_1,
+\ldots, p_n$ are probability formulas; this formula represents an
+unspecified probability depending on $p_1, \ldots, p_n$. 
+
+\item $N$, where $N$ has been declared by $\texttt{param }N$,
+designates the number of copies of a replication.
+
+\item $\#O$, where $O$ is \ifchannels a function\else an oracle\fi,
+designates the number of different calls to the \ifchannels 
+function \else oracle \fi $O$. 
+
+\item $|T|$, where
+$T$ has been declared by $\texttt{type }T$ and is \texttt{fixed}
+or \texttt{bounded}, designates the cardinal of $T$.
+
+\item $\texttt{maxlength(}M\texttt{)}$ is the maximum
+length of term $M$ ($M$ must be a simple term without array access, 
+and must be of a non-bounded type).
+
+\item $\texttt{length(}f, p_1, \ldots, p_n\texttt{)}$ designates the maximal
+length of the result of a call to $f$, where $p_1, \ldots, p_n$
+represent the maximum length of the non-bounded arguments of $f$
+($p_i$ must be built from $\texttt{max}$,
+$\texttt{maxlength(}M\texttt{)}$, and $\texttt{length(}f', \ldots
+\texttt{)}$, where $M$ is a term of the type of the corresponding
+argument of $f$ and the result of $f'$ is of the type of the
+corresponding argument of $f$).
+
+\item $\texttt{length((}T_1, \ldots, T_n\texttt{)}, p_1, \ldots,
+p_n\texttt{)}$ designates the maximal length of the result of the
+tuple function from $T_1 \times \ldots \times T_m$ to
+\texttt{bitstring}, where $p_1, \ldots, p_n$ represent the maximum
+length of the non-bounded arguments of this function.
+
+\item $n$ is an integer constant.
+
+\item \texttt{eps\_find} is the maximum distance between the uniform probability
+distribution and the probability distribution used for choosing elements
+in {\tt find}.
+
+\item $\texttt{eps\_rand(}T\texttt{)}$ is the maximum distance between the 
+uniform probability distribution and the standard probability distribution 
+$D_T$ for type $T$ (when $T$ is \texttt{bounded}).
+
+\item 
+$\texttt{Pcoll1rand(}T\texttt{)}$ is the maximum probability of
+collision between a random value $X$ of type $T$ chosen according
+to the standard distribution $D_T$ for type $T$ and an element of type $T$
+that does not depend on it (when $T$ is \texttt{nonuniform}).
+This is also the maximum probability of choosing any given element of 
+$T$ in the standard distribution for that type:
+\[\texttt{Pcoll1rand(}T\texttt{)} = \max_{a \in T} \Pr[X = a]\]
+where $X$ is chosen according to distribution $D_T$.
+
+\item $\texttt{Pcoll2rand(}T\texttt{)}$ is the maximum probability of
+collision between two independent random values of type $T$  
+chosen according to the standard distribution $D_T$ for type $T$
+(when $T$ is \texttt{nonuniform}). We have
+\[\texttt{Pcoll2rand(}T\texttt{)} = \sum_{a \in T} \Pr[X = a]^2 \leq \texttt{Pcoll1rand(}T\texttt{)}\]
+where $X$ is chosen according to the standard distribution $D_T$.
+
+\item $\texttt{time}$ designates the runtime of the environment (attacker).
+
+\end{itemize}
+Finally, $\texttt{time(}\ldots\texttt{)}$ designates the runtime time of each
+elementary action of a game:
+\begin{itemize}
+\item
+$\texttt{time(}f, p_1, \ldots, p_n\texttt{)}$ designates the maximal runtime of
+one call to function symbol $f$, where $p_1, \ldots, \allowbreak p_n$ represent
+the maximum length of the non-bounded arguments of $f$.
+\item
+$\texttt{time(let }f, p_1, \ldots, p_n\texttt{)}$ designates the
+maximal runtime of one pattern matching operation with function symbol
+$f$, where $p_1, \ldots, p_n$ represent the maximum length of the
+non-bounded arguments of $f$.
+\item
+$\texttt{time((}T_1, \ldots, T_m\texttt{)}, p_1, \ldots, p_n\texttt{)}$ designates the
+maximal runtime of one call to the tuple function from $T_1 \times
+\ldots \times T_m$ to \texttt{bitstring}, where $p_1, \ldots, p_n$
+represent the maximum length of the non-bounded arguments of this
+function.
+\item
+$\texttt{time(let(}T_1, \ldots, T_m\texttt{)}, p_1, \ldots, p_n\texttt{)}$ designates the
+maximal runtime of one pattern matching with the tuple function from
+$T_1 \times \ldots \times T_m$ to \texttt{bitstring}, where $p_1, \ldots, p_n$
+represent the maximum length of the non-bounded arguments of this function.
+\item
+$\texttt{time(=}T[, p_1, p_2]\texttt{)}$ designates the
+maximal runtime of one call to bitstring comparison function
+for bitstrings of type $T$, where $p_1, p_2$ represent the
+maximum length of the arguments of this function when $T$ is non-bounded.
+\item
+\ifchannels
+$\texttt{time(!)}$ is the maximum time of an access to a replication index.
+\else
+$\texttt{time(foreach)}$ is the maximum time of an access to an index $i$
+of an instruction $\texttt{foreach }i\texttt{<=}N$.
+\fi
+\item
+$\texttt{time([}n\texttt{])}$ is the maximum time of an array access 
+with $n$ indexes.
+\item
+$\texttt{time(\&\&)}$ is the maximum time of a boolean and.
+\item
+$\texttt{time(\string|\string|)}$ is the maximum time of a boolean or.
+\item
+$\ifchannels\texttt{time(new }\else\texttt{time(<-R }\fi T\texttt{)}$ is the maximum time needed to choose
+a random number of type $T$ uniformly.
+\item
+\ifchannels
+$\texttt{time(newChannel)}$ is the maximum time to create a new
+private channel.
+\else
+$\texttt{time(newOracle)}$ is the maximum time to create a new
+private oracle.
+\fi
+\item
+$\texttt{time(if)}$ is the maximum time to perform a boolean test.
+\item
+$\texttt{time(find }n\texttt{)}$ is the maximum time to perform 
+one condition test of a find with $n$ indexes to choose.
+(Essentially, the time to store the values of the indexes in a 
+list and part of the time needed to randomly choose an element
+of that list.)
+\ifchannels
+\item
+$\texttt{time(out [}T_1, \ldots, T_m\texttt{]}T, p_1, \ldots, p_n\texttt{)}$
+represents the time of an output in which the channel indexes are
+of types $T_1, \ldots, T_m$, the output bitstring is of type $T$,
+and the maximum length of the channel indexes and the output bitstring
+is represented by $p_1, \ldots, p_n$ when they are non-bounded.
+\item
+$\texttt{time(in }n\texttt{)}$ is the maximum time to store an
+input in which the channel has $n$ indexes in the list of
+available inputs.
+\fi
+\end{itemize}
+CryptoVerif checks the dimension of probability formulas.
+%Actually, the check is stricter than usual dimension checking,
+%since it distinguishes probabilities from other data without dimension.
+

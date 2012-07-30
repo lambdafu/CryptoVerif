@@ -1,0 +1,122 @@
+(* Signed Diffie-Hellman protocol *)
+
+param N, N2.
+
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize [bounded].
+type signature [bounded].
+
+type Z [large,bounded].
+type G [large,bounded].
+type D [fixed].
+
+(* the CDH assumption *) 
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* h in the random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, G, D, h).
+
+param nH [noninteractive].
+let processH = foreach iH <= nH do OH(x:G) := return(h(hk,x)).
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [compos].
+fun concatB(host, host, G, G):blocksize [compos].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+query secret keyB.
+
+event endA(host, host, G, G).
+event beginB(host, host, G, G).
+event endB(host, host, G, G).
+
+query x:G, y:G; event inj:endA(A, B, x, y) ==> inj:beginB(A, B, x, y).
+query x:G, y:G; event inj:endB(A, B, x, y) ==> inj:endA(A, B, x, y).
+
+let processA = 
+  OA1(hostB: host) :=
+  a <-R Z;
+  ga <- exp(g,a);
+  return(A, hostB, ga);
+  OA2(=A, =hostB, gb:G, s:signature) :=
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  pkhostB <- Rkey[j2];
+  if check(concatB(A, hostB, ga, gb), pkhostB, s) then
+  r2 <-R seed;
+  gab <- exp(gb, a);
+  kA <- h(hk, gab);
+  event endA(A, hostB, ga, gb);
+  return(sign(concatA(A, hostB, ga, gb), skA, r2));
+  (* OK *)
+  OA3() :=
+  if hostB = B then 
+  (keyA:D <- kA)
+  else
+   return(kA).
+
+let processB =
+  OB1(hostA:host, =B, ga:G) :=
+  b <-R Z;
+  gb <- exp(g,b);
+  r1 <-R seed;
+  event beginB(hostA, B, ga, gb);
+  return(hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB, r1));
+  OB2(s:signature) :=
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
+  pkhostA <- Rkey[j2];
+  if check(concatA(hostA, B, ga, gb), pkhostA, s) then
+  gab <- exp(ga, b);
+  kB <- h(hk, gab);
+  event endB(hostA, B, ga, gb);
+  (* OK *)
+  if hostA = A then
+  (keyB:D <- kB)
+  else
+   return(kB).
+
+let processK =
+  foreach iK <= N2 do
+  OK(Khost: host, Kkey: pkey) :=
+  Rkey:pkey <-
+		if Khost = B then pkB else
+		if Khost = A then pkA else
+		Kkey.
+
+process
+	Ostart() :=
+	hk <-R hashkey;
+	rkA <-R keyseed;
+	skA <- skgen(rkA);
+	pkA <- pkgen(rkA);
+	rkB <-R keyseed;
+	skB <- skgen(rkB);
+	pkB <- pkgen(rkB);
+	return(pkA, pkB);
+	((foreach iA <= N do processA) | (foreach iB <= N do processB) | processH | processK)
+
+
+(* EXPECTED
+All queries proved.
+1.070s (user 1.060s + system 0.010s), max rss 71392K
+END *)

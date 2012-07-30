@@ -1,0 +1,82 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.1: E(x) = f(r) || H(r) xor x (CPA) *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto rom(hash);
+remove_assign binder pk;
+crypto ow(f) r;
+crypto remove_xor(xor) *;
+success
+}
+
+param nx.
+
+type key [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, key, key, seed, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+let hashoracle = foreach iH <= qH do OH(x:seed) := return(hash(hk,x)).
+
+(* Xor *)
+
+expand Xor(hasht, xor).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret1 b1.
+
+let processT = 
+	OT(m1:hasht, m2:hasht) :=
+	b1 <-R bool;
+	(* The next line is equivalent to an "if" that will not be
+	expanded. This is necessary for the system to succeed in
+	proving the protocol. *)
+	menc <- test(b1, m1, m2);
+	x <-R seed;
+	a <- f(pk,x);
+	b <- xor(hash(hk,x), menc);
+	return(a,b).
+
+process 
+	Ohkgen() :=
+	hk <-R hashkey;
+	return;
+	(hashoracle |
+	Ogen() :=
+	r <-R keyseed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	processT)
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 18096K
+END *)

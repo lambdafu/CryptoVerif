@@ -1,0 +1,169 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.2: 
+	E(x) = f(r) || H(r) xor x || H2(r || x) 
+(CCA2) -- in progress *)
+
+set interactiveMode = true.
+
+(* The proof is as follows:
+
+show_game occ
+insert 21 let concat(xh2',xh2'') = xh2 in
+crypto rom(hash2)
+crypto rom(hash)
+remove_assign binder pk
+crypto ow(f) r x_74
+crypto remove_xor(xor) @7_r_95
+
+      in(hstart, ());
+      out(hret, ());
+      (
+        ! !_69 <= qH
+        in(hc1[!_69], x_72: seed);
+        find [unique] @i_102 <= qH suchthat defined(x_72[@i_102], @7_r_91[@i_102]) && (x_72 = x_72[@i_102]) then
+          out(hc2[!_69], @7_r_91[@i_102])
+        orfind @i_101 <= qD suchthat defined(r, a[@i_101], @7_r_93[@i_101]) && (f(@5_pkgen'(r), x_72) = a[@i_101]) then
+          out(hc2[!_69], @7_r_93[@i_101])
+        else
+          new @7_r_91: hasht;
+          out(hc2[!_69], @7_r_91)
+      ) | (
+        ! !_70 <= qH2
+        in(hc3[!_70], xh2: bitstring);
+        let concat(xh2': seed, xh2'': hasht) = xh2 in
+        (
+          find [unique] @i_90 <= qH2 suchthat defined(xh2'[@i_90], xh2''[@i_90], @8_r_77[@i_90]) && ((xh2' = xh2'[@i_90]) && (xh2'' = xh2''[@i_90])) then
+            out(hc4[!_70], @8_r_77[@i_90])
+          else
+            new @8_r_77: hasht2;
+            out(hc4[!_70], @8_r_77)
+        )
+        else
+          find [unique] @i_87 <= qH2 suchthat defined(xh2[@i_87], @8_r_79[@i_87]) && (xh2 = xh2[@i_87]) then
+            out(hc4[!_70], @8_r_79[@i_87])
+          else
+            new @8_r_79: hasht2;
+            out(hc4[!_70], @8_r_79)
+      ) | (
+        in(start, ());
+        new r: keyseed;
+        out(c9, @5_pkgen'(r));
+        (
+          ! !_71 <= qD
+          in(c5[!_71], (a: seed, b: hasht, c: hasht2));
+          if defined(@7_r_103, x_74, aT, @8_r_81) && ((a = aT) && ((b = @7_r_103) && (c = @8_r_81))) then
+            yield
+          else
+            find [unique] @i_100 <= qH suchthat defined(x_72[@i_100], @7_r_91[@i_100]) && (f(@5_pkgen'(r), x_72[@i_100]) = a) then
+            (
+              let m: hasht = xor(@7_r_91[@i_100], b) in
+              find [unique] @i_86 <= qH2 suchthat defined(xh2'[@i_86], xh2''[@i_86], @8_r_77[@i_86]) && ((xh2'[@i_86] = x_72[@i_100]) && (m = xh2''[@i_86])) then
+              if (c = @8_r_77[@i_86]) then
+              out(c6[!_71], m)
+            )
+            orfind @i_99 <= qD suchthat defined(a[@i_99], @7_r_93[@i_99]) && (a = a[@i_99]) then
+            (
+              let m: hasht = xor(@7_r_93[@i_99], b) in
+              find [unique] @i_86 <= qH2 suchthat defined(xh2'[@i_86], xh2''[@i_86], @8_r_77[@i_86]) && ((f(@5_pkgen'(r), xh2'[@i_86]) = a) && (m = xh2''[@i_86])) then
+              if (c = @8_r_77[@i_86]) then
+              out(c6[!_71], m)
+            )
+            orfind  suchthat defined(x_74, x_74) && (@5_f'(@5_pkgen'(r), x_74) = a) then
+              yield
+            else
+              new @7_r_93: hasht
+        ) | (
+          in(c7, menc: hasht);
+          new x_74: seed;
+          let aT: seed = @5_f'(@5_pkgen'(r), x_74) in
+          new @7_r_103: hasht;
+          new @8_r_81: hasht2;
+          out(c8, (aT, @7_r_103, @8_r_81))
+        )
+      )
+
+The game does not depend on menc.
+
+We can then easily show that if menc is defined by 
+"in(c, (m1,m2)); new b1:bool; let menc = if b1 then m1 else m2"
+then the secrecy of b1 is preserved.
+(The system fails to show that directly; see encryptBR93-2.)
+*)
+
+param nx, qD.
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type hasht2 [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, pkey, skey, seed, pkgen, skgen, f, mf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle = ! qH in(hc1, x: seed); out(hc2, hash(hk,x)).
+
+(* Another hash function, random oracle model *)
+
+expand ROM_hash(hashkey, bitstring, hasht2, hash2).
+
+fun concat(seed,hasht):bitstring [compos].
+
+param qH2 [noninteractive].
+channel hc3, hc4.
+let hashoracle2 = ! qH2 in(hc3, xh2:bitstring); out(hc4, hash2(hk2,xh2)).
+
+(* Xor *)
+
+expand Xor(hasht, xor).
+
+(* Queries *)
+
+query secret1 menc.
+
+channel c5, c6, c7, c8, c9, hstart, hret, start.
+
+let processD =
+	! qD
+	in(c5, (a:seed, b: hasht, c:hasht2));
+        (* The attacker cannot call the decryption oracle on the test ciphertext *)
+	find suchthat defined(aT,bT,cT) && a = aT && b = bT && c = cT then yield else
+	let x = mf(sk,a) in
+	let m = xor(hash(hk,x), b) in
+	if c = hash2(hk2,concat(x,m)) then
+	out(c6, m).
+
+let processT = 
+	in(c7, menc:hasht);
+	new x:seed;
+	let aT:seed = f(pk,x) in
+	let bT:hasht = xor(hash(hk,x), menc) in
+	let cT:hasht2 = hash2(hk2,concat(x,menc)) in
+	out(c8, (aT,bT,cT)).
+
+process 
+	in(hstart, ());
+	new hk: hashkey;
+	new hk2: hashkey;
+	out(hret, ());	
+	(hashoracle | hashoracle2 | 
+	(in(start, ());
+	new r:keyseed; 
+	let sk = skgen(r) in
+	let pk = pkgen(r) in
+	out(c9, pk);
+	(processD | processT)))
+

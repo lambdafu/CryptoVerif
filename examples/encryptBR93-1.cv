@@ -1,0 +1,76 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.1: E(x) = f(r) || H(r) xor x (CPA) *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto rom(hash);
+remove_assign binder pk;
+crypto ow(f) r;
+crypto remove_xor(xor) *;
+simplify;
+success
+}
+
+param nx.
+
+type key [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, key, key, seed, pkgen, skgen, f, mf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle = ! qH in(hc1, x: seed); out(hc2, hash(hk,x)).
+
+(* Xor *)
+
+expand Xor(hasht, xor).
+
+(* Queries *)
+
+query secret1 b1.
+
+channel c1, c2, c3, c4, c5, hstart, hret, start.
+
+let processT = 
+	in(c3, (m1:hasht, m2:hasht));
+	new b1:bool;
+	let menc = if b1 then m1 else m2 in
+	new x:seed;
+	let a = f(pk,x) in
+	let b = xor(hash(hk, x), menc) in
+	out(c4, (a,b)).
+
+process 
+	in(hstart, ());
+	new hk: hashkey;
+	out(hret, ());
+	(hashoracle |
+	(in(start, ());
+	new r:keyseed; 
+	let sk = skgen(r) in
+	let pk = pkgen(r) in
+	out(c5, pk);
+	processT))
+
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 18752K
+END *)
