@@ -175,7 +175,7 @@ let check_secrecy b =
     else
       begin
 	List.iter (fun i -> 
-	  Transform.advise := Terms.add_eq i (!Transform.advise)) (!advise);
+	  Settings.advise := Terms.add_eq i (!Settings.advise)) (!advise);
 	advise := [];
 	false
       end
@@ -231,8 +231,8 @@ let is_success g =
   whole_game := g;
   let vcounter = !Terms.vcounter in
   Terms.build_def_process None g.proc;
-  let (proved_queries, rem_queries) = check_query_list (!Transform.queries) in
-  Transform.queries := rem_queries; (* Queries still to prove *)
+  let (proved_queries, rem_queries) = check_query_list (!Settings.queries) in
+  Settings.queries := rem_queries; (* Queries still to prove *)
   Terms.vcounter := vcounter; (* Forget created variables *)
   proved_queries, (rem_queries == [])
 

@@ -135,3 +135,23 @@ val t_interv : typet
 val f_plus : funsymb
 val f_mul : funsymb
 val get_inverse : funsymb -> int -> funsymb
+
+(* Queries and assumptions given in the input file *)
+val queries : (query * game) list ref
+val statements : statement list ref
+val collisions : collision list ref
+val equivs : equiv_nm list ref
+val move_new_eq : (typet * equiv_nm) list ref
+
+val collect_public_vars : unit -> unit
+val occurs_in_queries : binder -> bool
+val event_occurs_in_queries : funsymb -> bool
+
+(* Set when a game is modified *)
+val changed : bool ref
+
+(* Instructions are added in advise when an instruction I cannot be fully
+   performed. The added instructions correspond to suggestions of instructions
+   to apply before I so that instruction I can be better performed. *)
+val advise : instruct list ref
+

@@ -48,16 +48,16 @@ let anal_file s =
       else
         begin
           let g = { proc = Terms.move_occ_process p; game_number = 1 } in
-            Transform.queries := 
+            Settings.queries := 
               if queries == [] then 
 	        [AbsentQuery,g]
               else
 	        List.map (fun q -> (q,g)) queries;
-            Transform.statements := statements;
-            Transform.collisions := collisions;
-            Transform.equivs := equivs;
-            Transform.move_new_eq := new_new_eq;
-            Transform.collect_public_vars();
+            Settings.statements := statements;
+            Settings.collisions := collisions;
+            Settings.equivs := equivs;
+            Settings.move_new_eq := new_new_eq;
+            Settings.collect_public_vars();
             
             (*
               List.iter Display.display_statement statements;

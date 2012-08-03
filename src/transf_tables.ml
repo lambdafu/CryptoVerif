@@ -47,7 +47,7 @@ and transform_insert_oprocess cur_array p =
         let p',l=transform_insert_oprocess cur_array p in
           (Terms.oproc_from_desc (EventP(t,p')),l)
     | Insert(tbl,tl,p) ->
-        Transform.changed := true;
+        Settings.changed := true;
         let p',l=transform_insert_oprocess cur_array p in
         let bl = List.map (fun ty -> Terms.create_binder tbl.tblname (Terms.new_vname()) ty cur_array) tbl.tbltype in
         let p'' = List.fold_right2 (fun b t p ->
@@ -96,7 +96,7 @@ let rec get_find_branch_process brl patl p =
     | br::brl',pat::patl' ->
         let t1=Terms.term_from_binderref br in
         (match pat with
-           | PatVar (b) when not (Transform.has_array_ref b) ->
+           | PatVar (b) when not (Terms.has_array_ref_q b) ->
 	       let subst = Terms.OneSubst(b,t1,ref false) in
 	       let patl'' = List.map (Terms.copy_pat subst) patl' in
 	       let p' = Terms.copy_oprocess subst p in
@@ -118,7 +118,8 @@ let get_find_branch patl topt p cur_array bl =
   let t = get_find_branch_term brl patl (match topt with None -> Terms.make_true () | Some t -> t) in
   let brl' = List.map (fun b -> (b,vars_t)) bl in
   let p' = get_find_branch_process brl' patl p in
-  (List.combine vars repl_indices,brl,t,p')
+  (List.combine vars repl_indices,brl,
+   Terms.update_args_at_creation (repl_indices @ (List.map Terms.repl_index_from_term cur_array)) t,p')
 
 let rec transform_get_iprocess l cur_array p =
   Terms.iproc_from_desc (
@@ -169,7 +170,7 @@ and transform_get_oprocess l cur_array p =
           let p'=transform_get_oprocess l cur_array p in
             Insert(tbl,tl,p')
       | Get(tbl,patl,topt,p1,p2) ->
-          Transform.changed := true;
+          Settings.changed := true;
           let p1'=transform_get_oprocess l cur_array p1 in
           let p2'=transform_get_oprocess l cur_array p2 in
           Find (List.map (get_find_branch patl topt p1' cur_array) (get_info_for tbl l), p2', Nothing)
@@ -186,7 +187,7 @@ let reduce_tables g =
     if not (List.memq tbl (!tables)) then tables := tbl :: (!tables)) l;
   let g1 = { proc = transform_get p l; game_number = -1 } in
   Terms.cleanup_array_ref();
-  let (g', proba, renames) = Transform.auto_sa_rename g1 in
+  let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename g1 in
   (g', proba, renames @ (List.map (fun tbl -> DExpandGetInsert tbl) (!tables)))
 
 

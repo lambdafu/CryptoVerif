@@ -158,7 +158,7 @@ definition
 *)
 
 let no_array_ref b =
-  if Transform.has_array_ref b then
+  if Terms.has_array_ref_q b then
     Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have no array reference.");
   match b.def with
     [] -> Parsing_helper.internal_error ("No definition for " ^ (Display.binder_to_string b))

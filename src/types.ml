@@ -145,8 +145,12 @@ and def_node = { above_node : def_node;
                     (* The variables that are guaranteed to be defined at 
 		       this node, due to defined conditions above this node *)
 		 elsefind_facts_at_def : elsefind_fact list;
-		    (* The elsefind_facts that are guaranteed to be true at 
-		       this node *)
+		    (* The elsefind_facts that are guaranteed to be true just 
+		       before this node. (If this node defines b, and the
+                       elsefind_fact is forall bl, not (defined(b[...]) && t),
+                       the elsefind_fact may no longer hold after the definition
+                       of b, but it is still present in elsefind_facts_at_def.) 
+		       *)
 		 mutable future_binders : binder list;
 		    (* The variables that are guaranteed to be defined
 		       before we reach the end of the current input...output block.

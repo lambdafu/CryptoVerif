@@ -361,8 +361,14 @@ let rec check_process1 cur_array = function
       check_term1 false cur_array t;
       check_process1 cur_array p
   | PGet(tbl, patlist, topt, p1, p2), _ ->
-      List.iter (fun pat -> check_pattern1 false cur_array false pat) patlist;
-      (match topt with Some t -> check_term1 false cur_array t | None -> ());
+      (* After conversion of get into find, patlist and topt will
+	 appear in conditions of find. 
+	 We must appropriately forbid array accesses to the variables they define. *)
+      List.iter (fun pat -> 
+	match pat with
+	  (PPatVar _,_) -> check_pattern1 false cur_array false pat
+	| _ -> check_pattern1 true cur_array false pat) patlist;
+      (match topt with Some t -> check_term1 true cur_array t | None -> ());
       check_process1 cur_array p1;
       check_process1 cur_array p2
   | PInsert(tbl,tlist,p),_ ->
@@ -560,7 +566,7 @@ let rec check_term cur_array env = function
 	    let tl'' = check_array_type_list ext2 [] [] cur_array b.args_at_creation in 
 	    { t_desc = Var(b,tl''); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| Ambiguous | UniqNoType | FindCond ->
-	    input_error (s ^ " is referenced outside its scope and is either\ndefined without type, defined several times, defined in a condition of find, or defined in find in an equivalence") ext
+	    input_error (s ^ " is referenced outside its scope and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
       end
@@ -573,7 +579,7 @@ let rec check_term cur_array env = function
 	    let tl'' = check_array_type_list ext2 tl tl' cur_array b.args_at_creation in 
 	    { t_desc = Var(b,tl''); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| Ambiguous | UniqNoType | FindCond ->
-	    input_error (s ^ " is referenced in an array reference and is either\ndefined without type, defined several times, defined in a condition of find, or defined in find in an equivalence") ext
+	    input_error (s ^ " is referenced in an array reference and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
       end
@@ -727,7 +733,7 @@ and check_br cur_array env ((s,ext), tl) =
 	  let tl'' = check_array_type_list ext tl tl' cur_array b.args_at_creation in
 	  (b,tl'')
       | Ambiguous | UniqNoType | FindCond ->
-	  input_error (s ^ " is referenced in an array reference and is either\ndefined without type, defined several times, defined in a condition of find, or defined in find in an equivalence") ext
+	  input_error (s ^ " is referenced in an array reference and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
     with Not_found ->
       input_error (s ^ " not defined") ext
   end
@@ -1207,7 +1213,7 @@ let rec check_term_proba env = function
 	    let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in 
 	    { t_desc = Var(b,tl''); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| Ambiguous | UniqNoType | FindCond ->
-	    input_error (s ^ " is referenced outside its scope and is either\ndefined without type, defined several times, defined in a condition of find, or defined in find in an equivalence") ext
+	    input_error (s ^ " is referenced outside its scope and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
       end
@@ -2696,7 +2702,7 @@ let get_qbinder (i,ext) =
     match Hashtbl.find binder_env i with
       Uniq b -> b
     | Ambiguous | UniqNoType | FindCond -> 
-	input_error (i ^ " is either defined without type, defined several times, or defined in a condition of find") ext
+	input_error (i ^ " is either defined without type, defined several times, or defined in a condition of find or get") ext
   with Not_found ->
     input_error (i ^ " not bound") ext
 

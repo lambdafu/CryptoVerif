@@ -518,7 +518,7 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
                           (* check that b' is of the right type *)
 			  if b'.btype != b.btype then raise SurelyNot; 
 		          (* check that b' is not used in a query *)
-			  if Transform.occurs_in_queries b' then raise SurelyNot;
+			  if Settings.occurs_in_queries b' then raise SurelyNot;
 
 			  let state' = { state with lhs_array_ref_map = ((b,l), t):: state.lhs_array_ref_map } in
                           (* Note: when I catch SurelyNot, backtrack on names_to_discharge *)
@@ -594,7 +594,7 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
                           (* check that b' is of the right type *)
 			  if b'.btype != b.btype then raise SurelyNot; 
 		          (* check that b' is not used in a query *)
-			  if Transform.occurs_in_queries b' then raise SurelyNot;
+			  if Settings.occurs_in_queries b' then raise SurelyNot;
 
 			  let state' = { state with lhs_array_ref_map = ((b,l), t)::state.lhs_array_ref_map } in
                           (* Note: when I catch SurelyNot, backtrack on names_to_discharge *)
@@ -3305,7 +3305,7 @@ type trans_res =
 | TFailurePrio of to_do_t
 
 let transfo_expand p =
-  Transform.expand_process { proc = do_crypto_transform p; game_number = -1 }
+  Transf_expand.expand_process { proc = do_crypto_transform p; game_number = -1 }
 	
 let rec try_with_restr_list apply_equiv = function
     [] -> TFailurePrio []
@@ -3332,6 +3332,18 @@ let rec try_with_restr_list apply_equiv = function
 		  print_string "Nothing transformed\n";
 		raise SurelyNot
 	      end;
+	    begin
+	      match b with
+		[] -> ()
+	      |	[bn, bopt] -> if (!bopt) == DontKnow then
+		  begin
+		    (* The suggested name has not been used at all, fail*)
+		    if (!Settings.debug_cryptotransf) > 0 then
+		      print_string ("Nothing transformed using the suggested name " ^ (Display.binder_to_string bn) ^ "\n");
+		    raise SurelyNot
+		  end
+	      |	_ -> Parsing_helper.internal_error "Unexpected name list in try_with_restr_list"
+	    end;
 	    (* When (!map) == [], nothing done; in fact, b is never used in the game; try another name *)
             if is_success_no_advice to_do then
 	      begin
@@ -3400,12 +3412,12 @@ let events_proba events =
       ) events
 
 let events_queries events =
-  Transform.queries := 
+  Settings.queries := 
      (List.map (fun f ->
        let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
        let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
        (QEventQ([false, t], QTerm (Terms.make_false())), !whole_game_next)
-	 ) events) @ (!Transform.queries)
+	 ) events) @ (!Settings.queries)
 
 let crypto_transform stop no_advice (((_,lm,_,_,_,opt2),_) as apply_equiv) names ({ proc = p } as g) = 
   stop_mode := stop;

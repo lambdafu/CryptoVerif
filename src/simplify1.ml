@@ -603,7 +603,7 @@ let rec apply_all_red2 t = function
 
 let rec apply_statements t =
   reduced := false;
-  let t' = apply_all_red2 t (!Transform.statements) in
+  let t' = apply_all_red2 t (!Settings.statements) in
   if !reduced then 
     apply_statements t' 
   else
@@ -1146,7 +1146,7 @@ let final_next3 bl def_list t result () =
    - the variable b[tl] is known to be defined at the current program point (due to some defined condition of find)
    - the variable b is defined in the else branch of a find, so that 
      [elsefind_fact = (bl,def_list,t1)], which means [forall bl, not (defined(def_list) && t1)] 
-     holds at the definition of b
+     holds just before the definition of b
    - [all_indices] corresponds to the current [cur_array] plus possibly find indices when we are in a condition of find.
    - [def_vars] are variables known to be defined at the current program point.
    - [simp_facts] are facts known to be true at the current program point.
@@ -1158,7 +1158,7 @@ let final_next3 bl def_list t result () =
    [get_fact_of_elsefind_fact] uses the following reasoning:
    * we substitute tl for b.args_at_creation in the [elsefind_fact], and choose the variables bl such that
    the elements of def_list are defined at the current program point.
-   * then, we know that not (defined(def_list) && t1) holds at the definition of b[tl].
+   * then, we know that not (defined(def_list) && t1) holds just before the definition of b[tl].
    * if the elements of def_list are defined before b[tl], we obtain not(t1).
    * otherwise, we try to show that, if an element of def_list is defined after b[tl], then
    t1 leads to a contradiction.
@@ -1237,8 +1237,11 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
           print_newline ()
         end;
 
-      (* If \forall br \in def_list', br is defined strictly before (b,tl), then it is defined before the find that gives the elsefind_fact, and so (not t') is true, since the "else" branch of that find has been taken.
-         In the other case, we must prove that \forall br \in def_list', if br is defined after or at (b,tl), t' => Contradiction. *)
+      (* If \forall br \in def_list', br is defined strictly before (b,tl), 
+	 then it is defined before the find that gives the elsefind_fact, and 
+	 so (not t') is true, since the "else" branch of that find has been taken.
+         In the other case, we must prove that \forall br \in def_list', 
+	 if br is defined after or at (b,tl), t' => Contradiction. *)
 
     (* Variables defined before (b,tl) *)
     let def_vars = 

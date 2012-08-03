@@ -420,3 +420,61 @@ let get_inverse f n =
     FunIntHashtbl.add inverse_table (f,n) finv;
     finv
 
+(***************************************************************************)
+
+let queries = ref []
+
+let public_vars = ref []
+
+let collect_public_vars() =
+  List.iter (function 
+      (QSecret b',_) | (QSecret1 b',_) -> 
+         if not (List.memq b' (!public_vars)) then
+           public_vars := b' :: (!public_vars)
+    | (QEventQ _,_) -> ()
+    | (AbsentQuery,_) -> ()) (!queries)
+
+let occurs_in_queries b = List.memq b (!public_vars)
+
+let event_occurs_in_term f t = 
+  match t.t_desc with
+    FunApp(f',_) -> f == f'
+  | _ -> false
+
+let rec event_occurs_in_qterm f = function
+    QEvent(_,t) -> event_occurs_in_term f t
+  | QTerm _ -> false
+  | QAnd(t1,t2) | QOr(t1,t2) -> 
+      (event_occurs_in_qterm f t1) || (event_occurs_in_qterm f t2)
+
+let event_occurs_in_queries f =
+  List.exists (function
+      ((QSecret _|QSecret1 _), _) -> false
+    | (AbsentQuery, _) -> true
+    | (QEventQ (l,r),_) -> 
+	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||
+	(event_occurs_in_qterm f r)
+	  ) (!queries)
+
+(***************************************************************************)
+
+let statements = ref []
+
+let collisions = ref []
+
+let equivs = ref []
+
+let move_new_eq = ref []
+
+(****************************************************************************)
+
+(* Set when a game is modified *)
+
+let changed = ref false
+
+(* Instructions are added in advise when an instruction I cannot be fully
+   performed. The added instructions correspond to suggestions of instructions
+   to apply before I so that instruction I can be better performed. *)
+
+let advise = ref ([] : instruct list)
+

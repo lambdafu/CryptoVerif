@@ -15,12 +15,12 @@ let var_no_array_ref = ref []
     (* Variables that must not have array references in the final game *)
 
 let has_array_ref b =
-  Terms.has_array_ref_non_exclude b || Transform.occurs_in_queries b
+  Terms.has_array_ref_non_exclude b || Settings.occurs_in_queries b
 
 let merge_var next_f map b b' =
   if b == b' then
     next_f map
-  else if (b.btype != b'.btype) || (Transform.occurs_in_queries b) || (Transform.occurs_in_queries b') then
+  else if (b.btype != b'.btype) || (Settings.occurs_in_queries b) || (Settings.occurs_in_queries b') then
     false
   else 
     let ar_b = Terms.has_array_ref_non_exclude b in
@@ -388,9 +388,9 @@ let rec apply_all_coll t = function
       if !reduced then t' else apply_all_coll t l
 
 let apply_statements_and_collisions t =
-  let t' = apply_all_red t (!Transform.statements) in
+  let t' = apply_all_red t (!Settings.statements) in
   if !reduced then t' else
-  apply_all_coll t (!Transform.collisions) 
+  apply_all_coll t (!Settings.collisions) 
 
 let rec apply_reds simp_facts t =
   let t = reduce simp_facts t in
@@ -584,7 +584,7 @@ let store_arrays_to_normal f =
 	 modify the process afterwards, so that the term/process references might no longer
 	 be correct. I should use mode MCreateBranchVarAtTerm/AtProc in the specialized
 	 MergeBranches transformation. *)
-      Transform.advise := Terms.add_eq (MergeArrays(List.rev (form_advise (!all_branches_var_list)), MCreateBranchVar)) (!Transform.advise);
+      Settings.advise := Terms.add_eq (MergeArrays(List.rev (form_advise (!all_branches_var_list)), MCreateBranchVar)) (!Settings.advise);
       var_no_array_ref := [];
       all_branches_var_list := [];
       Terms.cleanup_exclude_array_ref();
@@ -1216,7 +1216,7 @@ let merge_arrays bll mode g =
 			(Display.binder_to_string b1), ext))
 	      ) br;
 	List.iter (fun (b, ext) -> 
-	  if Transform.occurs_in_queries b then
+	  if Settings.occurs_in_queries b then
 	    raise(Error("For merging arrays, variable " ^
 			(Display.binder_to_string b) ^ 
 			" should not occur in queries", ext));
@@ -1270,7 +1270,7 @@ let merge_arrays bll mode g =
 	  List.exists (fun (b,_) -> b.array_ref) bl
 	    ) bll) then
 	  begin
-	    Transform.changed := true;
+	    Settings.changed := true;
 	    Terms.empty_comp_process g.proc;
 	    (* Display.display_process p'; *)
 	    let proba = Proba.final_add_proba [] in
@@ -1347,7 +1347,7 @@ let add_advice (merge_type, cur_array, all_branches_var_list, _, _) =
      less often, but when MergeArrays succeeds, it has really simplified the game.
   *)
   if not (List.for_all (fun l -> l == []) all_branches_var_list) then
-    Transform.advise := Terms.add_eq (MergeArrays(List.rev (form_advise all_branches_var_list), MNoBranchVar)) (!Transform.advise)
+    Settings.advise := Terms.add_eq (MergeArrays(List.rev (form_advise all_branches_var_list), MNoBranchVar)) (!Settings.advise)
 
 
 (* First step *) 
@@ -1759,7 +1759,7 @@ let merge_branches g =
       if (!merges_to_do) != [] then
         (* Perform the possible merges *)
 	let p' = do_merges_i g.proc in
-	Transform.changed := true;
+	Settings.changed := true;
         (* TO DO if (!merges_cannot_be_done) != [], I should iterate to get up-to-date advice *)
 	Settings.merge_arrays := old_merge_arrays;
 	let done_transfos = 

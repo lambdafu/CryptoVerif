@@ -77,21 +77,21 @@ let execute g ins =
   let (g', proba, done_ins) = 
     match ins with
       ExpandIfFindGetInsert -> 
-	compos_transf Transform.expand_process (Reduce_tables.reduce_tables g)
-    | Simplify l -> Simplify.simplify_main l g
-    | GlobalDepAnal (b,l) -> Globaldepanal.main b l g
-    | MoveNewLet s -> Transform.move_new_let s g
-    | RemoveAssign r -> Transform.remove_assignments r g
-    | SArenaming b -> Transform.sa_rename b g
-    | InsertEvent(s,occ) -> Transform.insert_event occ s g
+	compos_transf Transf_expand.expand_process (Transf_tables.reduce_tables g)
+    | Simplify l -> Transf_simplify.simplify_main l g
+    | GlobalDepAnal (b,l) -> Transf_globaldepanal.main b l g
+    | MoveNewLet s -> Transf_move.move_new_let s g
+    | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
+    | SArenaming b -> Transf_sarename.sa_rename b g
+    | InsertEvent(s,occ) -> Transf_insert_event.insert_event occ s g
     | InsertInstruct(s,ext_s,occ,ext_o) -> 
-	Insertinstruct.insert_instruct occ ext_o s ext_s g
+	Transf_insert_replace.insert_instruct occ ext_o s ext_s g
     | ReplaceTerm(s,ext_s,occ,ext_o) ->
-	Insertinstruct.replace_term occ ext_o s ext_s g 
+	Transf_insert_replace.replace_term occ ext_o s ext_s g 
     | MergeArrays(bll, m) ->
-	Mergebranches.merge_arrays bll m g
+	Transf_merge.merge_arrays bll m g
     | MergeBranches ->
-	Mergebranches.merge_branches g
+	Transf_merge.merge_branches g
     | CryptoTransf _ | Proof _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof unexpected in execute"
   in
@@ -99,13 +99,13 @@ let execute g ins =
 
 
 let execute_state state i =
-  let tmp_changed = !Transform.changed in
-  Transform.changed := false;
+  let tmp_changed = !Settings.changed in
+  Settings.changed := false;
   print_string "Doing ";
   Display.display_instruct i;
   print_string "... "; flush stdout;
   let (g', proba, done_ins, ins_update) = execute state.game i in
-  if !Transform.changed then
+  if !Settings.changed then
     begin
       print_string "Done.";
       print_newline()
@@ -120,7 +120,7 @@ let execute_state state i =
       print_string " Resulting game:\n";
       Display.display_process g'.proc
     end;
-  if !Transform.changed then
+  if !Settings.changed then
     begin
       Invariants.global_inv g'.proc;
       g'.proc <- Terms.move_occ_process g'.proc;
@@ -129,17 +129,17 @@ let execute_state state i =
     end
   else
     begin
-      Transform.changed := tmp_changed;
+      Settings.changed := tmp_changed;
       (state, None)
     end
       
 let execute_state state = function
     SArenaming b ->
       (* Adding simplification after SArenaming *)
-      let tmp_changed = !Transform.changed in
-      Transform.changed := false;
+      let tmp_changed = !Settings.changed in
+      Settings.changed := false;
       let (state', ins_updater) = execute_state state (SArenaming b) in
-      if !Transform.changed then 
+      if !Settings.changed then 
 	if !Settings.simplify_after_sarename then 
 	  let (state'', ins_updater') = execute_state state' (RemoveAssign Minimal) in
 	  let (state''', ins_updater'') = execute_state state'' (Simplify []) in
@@ -148,38 +148,38 @@ let execute_state state = function
 	  (state', ins_updater)
       else
 	begin
-	  Transform.changed := tmp_changed;
+	  Settings.changed := tmp_changed;
 	  (state', ins_updater)
 	end
   | i -> execute_state state i
 
 let rec execute_with_advise state i = 
-  let tmp_changed0 = !Transform.changed in
-  Transform.changed := false;
-  Transform.advise := [];
+  let tmp_changed0 = !Settings.changed in
+  Settings.changed := false;
+  Settings.advise := [];
   let (state', ins_update) = execute_state state i in
-  if (!Transform.advise) != [] then
+  if (!Settings.advise) != [] then
     (* Retry after executing the advise *)
-    let tmp_changed = !Transform.changed in
-    Transform.changed := false;
+    let tmp_changed = !Settings.changed in
+    Settings.changed := false;
     if !Settings.debug_instruct then
       begin
 	print_string "Trying advice ";
-	Display.display_list Display.display_instruct (!Transform.advise);
+	Display.display_list Display.display_instruct (!Settings.advise);
 	print_newline()
       end;
-    let (state'', ins_update') = execute_list_with_advise state' (!Transform.advise) in
-    if !Transform.changed then
+    let (state'', ins_update') = execute_list_with_advise state' (!Settings.advise) in
+    if !Settings.changed then
       let (state3, ins_update'') = execute_list_with_advise state'' (apply_ins_updater ins_update' i) in
       (state3, compos_ins_updater ins_update (compos_ins_updater ins_update' ins_update''))
     else
       begin
-	Transform.changed := tmp_changed0 || tmp_changed;
+	Settings.changed := tmp_changed0 || tmp_changed;
 	(state', ins_update)
       end
   else
     begin
-      Transform.changed := tmp_changed0 || (!Transform.changed);
+      Settings.changed := tmp_changed0 || (!Settings.changed);
       (state', ins_update)
     end
 
@@ -200,17 +200,17 @@ let execute_display_advise state i =
   if !Settings.auto_advice then
     execute_with_advise_last state i 
   else
-    let tmp_changed0 = !Transform.changed in
-    Transform.changed := false;
-    Transform.advise := [];
+    let tmp_changed0 = !Settings.changed in
+    Settings.changed := false;
+    Settings.advise := [];
     let (state', _) = execute_state state i in
-    if (!Transform.advise) != [] then
+    if (!Settings.advise) != [] then
       begin
 	print_string "Advised transformations ";
-	Display.display_list Display.display_instruct (!Transform.advise);
+	Display.display_list Display.display_instruct (!Settings.advise);
 	print_newline()
       end;
-    Transform.changed := tmp_changed0 || (!Transform.changed);
+    Settings.changed := tmp_changed0 || (!Settings.changed);
     state'
 
 type trans_res =
@@ -236,7 +236,7 @@ let expand_simplify state = simplify (execute_with_advise_last state ExpandIfFin
 
 let crypto_transform stop no_advice equiv bl_assoc state =
   print_string "Trying "; Display.display_instruct (CryptoTransf(equiv, bl_assoc)); print_string "... ";
-  let res = Cryptotransf.crypto_transform stop no_advice equiv bl_assoc state.game in
+  let res = Transf_crypto.crypto_transform stop no_advice equiv bl_assoc state.game in
   match res with
     TSuccess (proba,ins,g'') -> 
       if !Settings.debug_instruct then
@@ -287,7 +287,7 @@ let rec execute_crypto_list continue = function
     [] -> continue (CFailure [])
   | ((equiv, bl_assoc, to_do), state, first_try, stop)::l ->
       (* Try after executing the advice *)
-      Transform.changed := false;
+      Settings.changed := false;
       if to_do == [] then
         (* When no advice is given and it's not the first time the transfo is tried, apply the crypto transformation without advice *)
 	match crypto_transform stop ((not first_try) || (!Settings.no_advice_crypto)) equiv bl_assoc state with
@@ -316,7 +316,7 @@ let rec execute_crypto_list continue = function
 	| CFailure l' -> execute_crypto_list continue ((List.map (fun x -> (x, state, false, stop)) l') @ l) 
       else
 	let (state', ins_updater) = execute_list_with_advise state to_do in
-	if !Transform.changed then
+	if !Settings.changed then
 	  let l_crypto_transf = apply_ins_updater ins_updater (CryptoTransf(equiv, bl_assoc)) in
 	  execute_crypto_list continue ((List.map (function
 	      CryptoTransf(equiv, bl_assoc) -> ((equiv, bl_assoc, []), state', true, stop)
@@ -359,7 +359,7 @@ let rec execute_any_crypto_rec continue state = function
 	    | CFailure l' -> continue (CFailure (l @ l'))) state equivs
 
 let rec issuccess_with_advise state = 
-  Transform.advise := [];
+  Settings.advise := [];
   let (proved_queries, is_done) = Success.is_success state.game in
   let state' = 
     if proved_queries != [] then
@@ -372,18 +372,18 @@ let rec issuccess_with_advise state =
     (state', true)
   else 
     let (state'', is_done'') = 
-      if (!Transform.advise) != [] then
+      if (!Settings.advise) != [] then
         (* Retry after executing the advise *)
-	let tmp_changed = !Transform.changed in
-	Transform.changed := false;
+	let tmp_changed = !Settings.changed in
+	Settings.changed := false;
 	if !Settings.debug_instruct then
 	  begin
 	    print_string "Trying advice ";
-	    Display.display_list Display.display_instruct (!Transform.advise);
+	    Display.display_list Display.display_instruct (!Settings.advise);
 	    print_newline()
 	  end;
-	let (state'',_) = execute_list_with_advise state' (!Transform.advise) in
-	if !Transform.changed then
+	let (state'',_) = execute_list_with_advise state' (!Settings.advise) in
+	if !Settings.changed then
 	  let (state_after_success, _) as result = issuccess_with_advise state'' in
 	  if state_after_success == state'' then
 	    (* Nothing was proved by the call to issuccess_with_advise,
@@ -394,7 +394,7 @@ let rec issuccess_with_advise state =
 	    result
 	else
 	  begin
-	    Transform.changed := tmp_changed;
+	    Settings.changed := tmp_changed;
 	    (state', false)
 	  end
       else
@@ -407,7 +407,7 @@ let rec issuccess_with_advise state =
 
 let display_state tex state = 
   let state' = 
-    let eq_queries = List.filter (function (AbsentQuery, _) -> true | _ -> false) (!Transform.queries) in
+    let eq_queries = List.filter (function (AbsentQuery, _) -> true | _ -> false) (!Settings.queries) in
     if eq_queries == [] then
       state
     else
@@ -496,7 +496,7 @@ let rec execute_any_crypto_rec1 state =
       (CSuccess state', state)
     end
   else
-    let equiv_list = insert_sort [] (!Transform.equivs) in
+    let equiv_list = insert_sort [] (!Settings.equivs) in
     let rec apply_equivs = function
 	[] -> 
 	  if !Settings.backtrack_on_crypto then
@@ -513,7 +513,7 @@ let rec execute_any_crypto_rec1 state =
 	    begin
 	      print_string "===================== Proof starts =======================\n";
 	      display_state true state';
-	      final_display (!Transform.queries);
+	      final_display (!Settings.queries);
 	      (CFailure [], state')
 	    end
       |	lequiv::rest_equivs ->
@@ -533,7 +533,7 @@ let execute_any_crypto state =
     let (res, state') = execute_any_crypto_rec1 (expand_simplify state) in
     res
   with Backtrack ->
-    final_display (!Transform.queries);
+    final_display (!Settings.queries);
     CFailure []
 	    
 (* Interactive prover *)
@@ -847,7 +847,7 @@ let rec interpret_command interactive state = function
  	      if (b.btype.toptions land Settings.tyopt_CHOOSABLE) == 0 then
 		raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
 	      try
-		let equiv = List.assq b.btype (!Transform.move_new_eq) in
+		let equiv = List.assq b.btype (!Settings.move_new_eq) in
 		match crypto_transform true (!Settings.no_advice_crypto) equiv [b] state with
 		  CSuccess state' -> state'
 		| CFailure l -> 
@@ -959,23 +959,23 @@ let rec interpret_command interactive state = function
       begin
 	let (eq_name_opt, possible_equivs, binders) =
 	  match r with
-	    [] -> (None, !Transform.equivs, [])
+	    [] -> (None, !Settings.equivs, [])
 	  | ((n1, _) :: ("(",_) :: (n2,_) :: (")", _) :: lb) -> 
 	      let s = n1 ^ "(" ^ n2 ^ ")" in
-	      let eq_list = List.filter (find_equiv_by_name s) (!Transform.equivs) in
+	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
 	      (Some s, eq_list, lb)
 	  | (s, s_ext)::lb ->
 	      try 
-		(Some s, [List.nth (!Transform.equivs) (int_of_string s - 1)], lb)
+		(Some s, [List.nth (!Settings.equivs) (int_of_string s - 1)], lb)
 	      with 
 		Failure "nth" | Invalid_argument "List.nth" ->
 		  raise (Error("Equivalence number " ^ s ^ " does not exist", s_ext))
 	      |	Failure _ -> 
-		  let eq_list = List.filter (find_equiv_by_name s) (!Transform.equivs) in
+		  let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
 		  if eq_list = [] then
 		    (* if the equivalence is not found by its name, try the old way of finding it,
 		       by function symbol or probability name *)
-		    (Some s, List.filter (find_equiv s) (!Transform.equivs), lb)
+		    (Some s, List.filter (find_equiv s) (!Settings.equivs), lb)
 		  else
 		    (Some s, eq_list, lb)
 	in

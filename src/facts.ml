@@ -1,15 +1,7 @@
 open Types
 
-let rec check_no_ifletfindres t =
-  match t.t_desc with
-    Var(_,l) | FunApp(_,l) ->
-      List.for_all check_no_ifletfindres l
-  | ReplIndex _ -> true
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
-      false
-
 let filter_ifletfindres l =
-  List.filter check_no_ifletfindres l
+  List.filter Terms.check_no_ifletfindres l
 
 (* Display facts; for debugging *)
 
@@ -328,7 +320,7 @@ let rec apply_red simp_facts t (restr,proba,redl,redr) =
 		      let reduced_tmp = !reduced in
 		      reduced := false;
 		      let t1 = Terms.auto_cleanup (fun () ->
-			apply_all_red (simplif_add no_dependency_anal simp_facts f) t (!Transform.statements))
+			apply_all_red (simplif_add no_dependency_anal simp_facts f) t (!Settings.statements))
 		      in
 		      if not (!reduced) then 
 			begin 
@@ -389,9 +381,9 @@ and apply_all_coll simp_facts t = function
       if !reduced then t' else apply_all_coll simp_facts t l
 
 and apply_statements_and_collisions simp_facts t =
-  let t' = apply_all_red simp_facts t (!Transform.statements) in
+  let t' = apply_all_red simp_facts t (!Settings.statements) in
   if !reduced then t' else
-  apply_all_coll simp_facts t (!Transform.collisions) 
+  apply_all_coll simp_facts t (!Settings.collisions) 
 
 (* [apply_reds simp_facts t] applies all equalities and collisions given in the 
    input file to the term [t], taking into account the equalities in 

@@ -194,7 +194,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
   try 
     match StringMap.find s_b env with
       EVar b -> 
-	if Transform.has_array_ref b then
+	if Terms.has_array_ref_q b then
 	  raise (Error(s_b ^ " already defined and has array references or is used in queries", ext_b));
 	begin
 	  match ty_opt with
@@ -213,7 +213,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
 	FindCond -> raise (Error(s_b ^ " already defined in a find condition, so cannot have several definitions", ext_b))
       | NoDef -> raise (Error(s_b ^ " already exists and the fact that it is defined is tested", ext_b))
       | Std b ->
-	  if Transform.has_array_ref b then
+	  if Terms.has_array_ref_q b then
 	    raise (Error(s_b ^ " already defined and has array references or is used in queries", ext_b));
 	  begin
 	    match ty_opt with
@@ -768,8 +768,8 @@ let insert_instruct occ ext_o s ext_s g =
     raise (Error("Occurrence " ^ (string_of_int occ) ^ " ambiguous. You should use the command show_game occ to determine the desired occurrence.", ext_o))
   else
     begin
-      Transform.changed := true;
-      let (g', proba, done_transfos) = Transform.auto_sa_rename { proc = p'; game_number = -1 } in
+      Settings.changed := true;
+      let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1 } in
       (g', proba, done_transfos @ [DInsertInstruct(s, occ)])
     end
      
@@ -1007,5 +1007,5 @@ let replace_term occ ext_o s ext_s g =
     RepToDo _ ->
       raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
   | RepDone(sets,_,t,t',_) ->
-      Transform.changed := true;
+      Settings.changed := true;
       ({ proc = p'; game_number = -1 }, sets, [DReplaceTerm(t,t',occ)])

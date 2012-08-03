@@ -250,6 +250,10 @@ val close_def_term : binderref list ref -> term -> unit
 val defined_refs_find : (binder * repl_index) list -> binderref list -> 
   binderref list -> binderref list * binderref list
 
+(* [check_no_ifletfindres t] returns true if [t] is a basic term:
+   it contains no if/let/find/new/event. *)
+val check_no_ifletfindres : term -> bool
+
 val def_term : def_node -> term list -> binderref list -> term -> def_node
 val build_def_process : (term * fact_info) list ref option -> inputprocess -> unit
 val add_def_vars_node : binder list -> def_node -> binder list
@@ -258,6 +262,7 @@ val cleanup_array_ref : unit -> unit
 val array_ref_eqside : eqmember -> unit
 val array_ref_process : inputprocess -> unit
 val has_array_ref : binder -> bool
+val has_array_ref_q : binder -> bool
 
 val exclude_array_ref_term : binder list -> term -> unit
 val exclude_array_ref_def_list : binder list -> binderref list -> unit
@@ -272,3 +277,12 @@ val compatible_empty : binderset
 val empty_comp_process : inputprocess -> unit
 val build_compatible_defs : inputprocess -> unit
 val is_compatible : binderref -> binderref -> bool
+
+(* Update args_at_creation: since variables in conditions of find have
+as args_at_creation the indices of the find, transformations of the
+find may lead to changes in these indices.  This function updates
+these indices. It relies on the invariant that variables in conditions
+of find have no array accesses, and that new/event do not occur in
+conditions of find. It creates fresh variables for all variables
+defined in the condition of the find. *)
+val update_args_at_creation : repl_index list -> term -> term

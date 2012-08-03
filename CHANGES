@@ -9,14 +9,18 @@ the lookup.
 and non-uniform distributions for all typs (all random elements chosen by 
 "new" in the same type are chosen using the same distribution, called
 standard distribution for that type). 
+- simplify terms while expanding games, to reduce the size of the
+expanded game
+- removed bad advice sometimes given by the crypto transformation
 - removed setting "set minManualCollElim"
 - added a warning when identifiers are rebound in the input file.
-- fixed bug that caused an internal error when a "new" occurred in the condition
-of a "get"; this construct is now rejected with a correct error message. 
+- fixed bug that caused an internal error when a "new" occurred in the 
+condition of a "get"; this construct is now rejected with a correct error 
+message. 
 - fixed bug that could cause an internal error with option
 "set optimizeVars = true".
-- fixed bug that could lead to a wrong transformed game when there were 
-array accesses to variables bound by "get".
+- fixed bugs that could lead to a wrong transformed game or to an internal
+error when there were array accesses to variables bound by "get".
 - fixed bug that could cause useless renamings of variables defined
 in conditions of find and not used.
 - fixed bug that could cause an internal error when referring to 

@@ -27,41 +27,43 @@ computeruntime.ml: computes the runtime of a game (useful for computing
   probabilities in cryptotransf.ml and proba.ml) 
 proba.ml: helper functions on probabilities
 facts.ml: helper functions on facts 
+simplify1.ml: helper functions for transf_simplify, transf_merge, transf_crypto.
 
 invariants.ml: checks invariants on games after each game transformation
 (useful to detect bugs in game transformations)
 
 Game transformations:
-- transform.ml: implements the following syntactic transformations:
-  - auto_sa_rename: renames variables that are defined in find
+- transf_auto_sa_rename.ml: renames variables that are defined in find
    conditions, defined several times, and have no array references
    (for internal use only; applied after transformations that copy
    code, and could therefore break the invariant that variables in
    conditions of find have a single definition)
-  - expand: expands the expressions If, Let, and Find 
+- transf_expand.ml: expands the expressions If, Let, and Find 
    into processes If, Let, and Find; expressions If, Let, Find
    may be left in conditions of Find, when they cannot be expanded.
    (also for internal use; applied on the first game and after
    cryptographic transformations)
-  - sa_rename: renames all occurrences of a variable b with distinct names,
+- transf_sarename.ml: renames all occurrences of a variable b with distinct names,
    expanding code with array references to b if necessary
-  - remove_assignments: replaces variables with their values
-  - move_new_let: moves new/lets downwards as much as possible
-  - insert_event: replaces a subprocess with an event
-- cryptotransf.ml: implements cryptographic transformations:
+- transf_remove_assignments.ml: replaces variables with their values
+- transf_move.ml: moves new/lets downwards as much as possible
+- transf_insert_event.ml: replaces a subprocess with an event
+- transf_crypto.ml: implements cryptographic transformations:
   From an equivalence L ~ R, detects that a game can be written G ~ C[L],
   and transform it into C[R] ~ G'.
-- simplify1.ml
-  simplify.ml simplifies games after cryptographic transformations
+- transf_globaldepanal.ml: implements global dependency analysis. Called from
+  transf_simplify.ml or by an independent manual game transformation.
+- transf_simplify.ml simplifies games after cryptographic transformations
 - insertinstruct.ml: implements the following manual game transformations:
   - insert_instruct: inserts an instruction at a certain program point
   - replace_term: replaces a term with an equal term
-- mergebranches.ml: implements the following game transformations:
+- transf_merge.ml: implements the following game transformations:
   - merge_arrays: merges several variables (arrays) into a single array
   - merge_branches: merges find/if/let branches as much as possible
-  This module also provides helper functions for simplify.ml, which are
+  This module also provides helper functions for transf_simplify.ml, which are
   used to merge branches of if/let/find in simplify (in a less powerful
   way than merge_branches).
+- reduce_tables.ml: transforms get/insert in tables into find.
 - success.ml: Tests if a game satisfies the desired security properties
 
 display.ml: display games
@@ -69,5 +71,8 @@ displaytex.ml: display games in TeX
 
 instruct.ml: organizes the game transformations (automatic proof
 strategy as well as manually guided proofs)
+
+implementation.ml: generates OCaml implementations from CryptoVerif
+specifications.
 
 main.ml: main program

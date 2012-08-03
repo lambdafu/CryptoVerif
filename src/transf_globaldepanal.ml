@@ -447,7 +447,7 @@ and check_depend_oprocess cur_array seen_list p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
       
 let rec check_depend_iter seen_list =
-  if List.exists (fun (b0, _) -> Transform.occurs_in_queries b0) (!seen_list) then
+  if List.exists (fun (b0, _) -> Settings.occurs_in_queries b0) (!seen_list) then
     raise BadDep;
   collisions_for_current_check_dependency := [];
   local_changed := false;
@@ -515,8 +515,8 @@ let main b0 coll_elim g =
     begin
     advise := [];
     let res = check_all_deps b0 g in
-    (* Transfer the local advice to the global advice in Transform.advise *)
-    List.iter (fun x -> Transform.advise := Terms.add_eq x (!Transform.advise)) (!advise);
+    (* Transfer the local advice to the global advice in Settings.advise *)
+    List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!advise);
     advise := [];
     match res with
       None -> (g, [], []) 
@@ -526,7 +526,7 @@ let main b0 coll_elim g =
 	  (g, [], [])
 	else
 	  begin
-	    Transform.changed := true;
+	    Settings.changed := true;
 	    let proba = final_add_proba() in
 	    (res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
 	  end

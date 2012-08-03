@@ -1447,20 +1447,28 @@ let not_deflist b (_, def_list, _) =
 let not_deflist_l bl elsefind =
   List.for_all (fun b -> not_deflist b elsefind) bl
 
+(* Check that a term is a basic term (no if/let/find/new/event) *)
+
+let rec check_no_ifletfindres t =
+  match t.t_desc with
+    Var(_,l) | FunApp(_,l) ->
+      List.for_all check_no_ifletfindres l
+  | ReplIndex _ -> true
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+      false
+
 (* Build tree of definition dependences
    The treatment of TestE/FindE/LetE/ResE is necessary: build_def_process
    is called in check.ml.
 
-   The value of elsefind_facts is correct only if the game has been expanded:
-   the complex terms may appear only in conditions of find, and the
-   variables defined there have no array accesses, so the variables defined
-   in terms never have defined conditions in elsefind facts, so there is no need
-   to discard elsefind facts when analyzing a term.
-   Because the variables defined in terms never have array accesses,
-   I won't use their elsefind facts computed here: the goal here is to know
-   the elsefind facts at definition points of variables for use when
-   they have array accesses, so we compute them only for processes.
-   One MUST NOT use the value of elsefind_facts in check.ml.
+   The value of elsefind_facts is correct even if the game has not been expanded:
+   we correctly discard elsefind_facts when their defined condition refers
+   to a variable defined in a term.
+   We compute elsefind_facts only for processes. For terms, they
+   would be useful only for non-expanded games, in which variables
+   defined in terms may have array accesses. (In expanded games,
+   variables can be defined in terms only in find conditions, and
+   such variables cannot have array accesses.)
    *)
 
 let rec close_def_subterm accu (b,l) =
@@ -1488,6 +1496,62 @@ let defined_refs_find bl def_list defined_refs =
   let defined_refs_branch = !accu in
   (defined_refs_cond, defined_refs_branch)
 
+let add_var accu b =
+  if List.memq b accu then accu else b::accu
+
+let rec unionq l1 = function
+    [] -> l1
+  | (a::l) -> 
+      if List.memq a l1 then unionq l1 l else
+      a::(unionq l1 l)
+
+let rec add_vars_from_pat accu = function
+    PatVar b -> add_var accu b
+  | PatEqual t -> accu
+  | PatTuple (f,l) -> add_vars_from_pat_list accu l
+
+and add_vars_from_pat_list accu = function
+    [] -> accu
+  | (a::l) -> add_vars_from_pat_list (add_vars_from_pat accu a) l
+
+let rec def_vars_term accu t = 
+  match t.t_desc with
+    Var(_,l) | FunApp(_,l) -> def_vars_term_list accu l
+  | ReplIndex i -> accu
+  | TestE(t1,t2,t3) -> 
+      def_vars_term (def_vars_term (def_vars_term accu t1) t2) t3
+  | FindE(l0, t3, _) ->
+      let accu = ref (def_vars_term accu t3) in
+      List.iter (fun (bl, def_list, t1, t2) ->
+	(*Nothing to for def_list: it contains only
+          Var and Fun*)
+	accu := unionq (List.map fst bl) (def_vars_term (def_vars_term (!accu) t1) t2)
+	     ) l0;
+      !accu
+  | LetE(pat, t1, t2, topt) ->
+      let accu' = match topt with
+	None -> accu
+      |	Some t3 -> def_vars_term accu t3 
+      in
+      def_vars_term (def_vars_pat (add_vars_from_pat (def_vars_term accu' t2) pat) pat) t1
+  | ResE(b,t) ->
+      add_var (def_vars_term accu t) b
+  | EventE(t) ->
+      def_vars_term accu t
+
+and def_vars_term_list accu = function
+    [] -> accu
+  | (a::l) -> def_vars_term (def_vars_term_list accu l) a
+
+and def_vars_pat accu = function
+    PatVar b -> accu 
+  | PatTuple (f,l) -> def_vars_pat_list accu l
+  | PatEqual t -> def_vars_term accu t
+
+and def_vars_pat_list accu = function
+    [] -> accu
+  | (a::l) -> def_vars_pat (def_vars_pat_list accu l) a
+
 (* def_term is always called with  above_node.def_vars_at_def \subseteq def_vars
 def_term returns a node n'. In this node n', we always have n'.def_vars_at_def \subseteq def_vars
 Same property for def_term_list, def_term_def_list, def_pattern, def_pattern_list.
@@ -1498,11 +1562,9 @@ In the other cases, we use the induction hypothesis. *)
 let rec def_term above_node true_facts def_vars t =
   t.t_facts <- Some (true_facts, def_vars, above_node);
   match t.t_desc with
-    Var(b,l) ->
+    Var(_,l) | FunApp(_,l) ->
       def_term_list above_node true_facts def_vars l
   | ReplIndex i -> above_node
-  | FunApp(_,l) ->
-      def_term_list above_node true_facts def_vars l
   | TestE(t1,t2,t3) ->
       let true_facts' = t1 :: true_facts in
       let true_facts'' = (make_not t1) :: true_facts in
@@ -1661,17 +1723,19 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
       let above_node' = def_term above_node true_facts def_vars t in
       let true_facts' = t :: true_facts in
       let true_facts'' = (make_not t) :: true_facts in
+      let vars_t = def_vars_term [] t in
+      let elsefind_facts' = List.filter (not_deflist_l vars_t) elsefind_facts in
       let (fut_binders1, fut_true_facts1) = 
-	def_oprocess event_accu above_node' true_facts' def_vars elsefind_facts p1
+	def_oprocess event_accu above_node' true_facts' def_vars elsefind_facts' p1
       in
       let (fut_binders2, fut_true_facts2) = 
-	def_oprocess event_accu above_node' true_facts'' def_vars elsefind_facts p2
+	def_oprocess event_accu above_node' true_facts'' def_vars elsefind_facts' p2
       in
       (intersect (==) fut_binders1 fut_binders2, 
        intersect equal_terms fut_true_facts1 fut_true_facts2)
   | Find(l0,p2,_) ->
       let l0_conds = List.map (fun (bl,def_list,t1,_) -> (List.map snd bl,def_list,t1)) l0 in
-      let l0_elsefind = List.filter (function (_,_,{ t_desc = Var _ | FunApp _}) -> true | _ -> false) l0_conds in 
+      let l0_elsefind = List.filter (function (_,_,t) -> check_no_ifletfindres t) l0_conds in 
       let elsefind_facts' = l0_elsefind @ elsefind_facts in
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu above_node true_facts def_vars elsefind_facts' p2
@@ -1682,6 +1746,10 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
 	    let (fut_bindersl, fut_true_factsl) = find_l l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
+            (* The variables defined in t are variables defined in conditions of find,
+	       one cannot make array accesses to them, nor test their definition,
+	       so they will not appear in defined conditions of elsefind_facts.
+	       We need not take them into account to update elsefind_facts. *)
 	    let elsefind_facts'' = List.filter (not_deflist_l vars) elsefind_facts in
 	    let t' = subst repl_indices (List.map term_from_binder vars) t in
 	    let true_facts' = t' :: true_facts in
@@ -1721,11 +1789,13 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
       let above_node'' = def_pattern accu above_node' true_facts def_vars pat in
       let new_fact = (match pat with PatVar _ -> make_let_equal | _ -> make_equal) (term_from_pat pat) t in
       let true_facts' = new_fact :: true_facts in
-      let elsefind_facts' = List.filter (not_deflist_l (!accu)) elsefind_facts in
+      let vars_t_pat = def_vars_term (def_vars_pat [] pat) t in
+      let elsefind_facts'' = List.filter (not_deflist_l vars_t_pat) elsefind_facts in
+      let elsefind_facts' = List.filter (not_deflist_l (!accu)) elsefind_facts'' in
       let above_node''' = { above_node = above_node''; binders = !accu; 
 			    true_facts_at_def = true_facts'; 
 			    def_vars_at_def = def_vars;
-			    elsefind_facts_at_def = elsefind_facts;
+			    elsefind_facts_at_def = elsefind_facts'';
 			    future_binders = []; future_true_facts = [];
 			    definition = DProcess p' } 
       in
@@ -1746,7 +1816,7 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
 	      with NonLinearPattern -> true_facts
 	    in
 	    let (fut_binders2, fut_true_facts2) = 
-	      def_oprocess event_accu above_node' true_facts' def_vars elsefind_facts p2
+	      def_oprocess event_accu above_node' true_facts' def_vars elsefind_facts'' p2
 	    in
 	    (intersect (==) ((!accu) @ fut_binders1) fut_binders2,
 	     intersect equal_terms (new_fact :: fut_true_facts1) fut_true_facts2)
@@ -1758,8 +1828,10 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
 	| Some accu -> accu := (t, Some (true_facts, def_vars, above_node)) :: (!accu)
       end;
       let above_node' = def_term above_node true_facts def_vars t in
+      let vars_t = def_vars_term [] t in
+      let elsefind_facts' = List.filter (not_deflist_l vars_t) elsefind_facts in
       let (fut_binders, fut_true_facts) = 
-	def_oprocess event_accu above_node' (t :: true_facts) def_vars elsefind_facts p
+	def_oprocess event_accu above_node' (t :: true_facts) def_vars elsefind_facts' p
       in
       (fut_binders, t::fut_true_facts)
   | Get(tbl,patl,topt,p1,p2) ->
@@ -1770,8 +1842,13 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
           Some t -> def_term above_node' true_facts def_vars t
         | None -> above_node'
       in
+      (* The variables defined in patl, topt are variables defined in conditions of find,
+	 one cannot make array accesses to them, nor test their definition,
+	 so they will not appear in defined conditions of elsefind_facts.
+	 We need not update elsefind_facts. *)
+      let elsefind_facts' = List.filter (not_deflist_l (!accu)) elsefind_facts in
       let (fut_binders1, fut_true_facts1) = 
-	def_oprocess event_accu above_node'' true_facts def_vars elsefind_facts p1
+	def_oprocess event_accu above_node'' true_facts def_vars elsefind_facts' p1
       in
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu above_node true_facts def_vars elsefind_facts p2
@@ -1780,8 +1857,10 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
        intersect equal_terms fut_true_facts1 fut_true_facts2)
         
   | Insert(tbl,tl,p) ->
+      let vars_tl = def_vars_term_list [] tl in
+      let elsefind_facts' = List.filter (not_deflist_l vars_tl) elsefind_facts in
       let above_node' = def_term_list above_node true_facts def_vars tl in
-      def_oprocess event_accu above_node' true_facts def_vars elsefind_facts p
+      def_oprocess event_accu above_node' true_facts def_vars elsefind_facts' p
 
 let build_def_process event_accu p =
   empty_def_process p;
@@ -1980,6 +2059,9 @@ let array_ref_eqside rm =
 let has_array_ref b =
   b.root_def_array_ref || b.array_ref
 
+let has_array_ref_q b =
+  (has_array_ref b) || (Settings.occurs_in_queries b)
+
 (* Functions that compute count_exclude_array_ref.
    The goal is to be able to easily determine if a variable has array
    references in the game outside a certain expression.
@@ -2059,8 +2141,7 @@ let has_array_ref_non_exclude b =
 (* Build list of compatible binder definitions
    i.e. pairs of binders that can be simultaneously defined with
    the same array indexes 
-   Assumes that LetE/FindE/ResE/TestE occur only in conditions of find
-   (which is guaranteed after expansion).
+   Supports LetE/FindE/ResE/TestE everywhere
 *)
 
 (* Empty the "compatible" field of all variables. *)
@@ -2068,14 +2149,14 @@ let has_array_ref_non_exclude b =
 let rec empty_comp_pattern = function
     PatVar b -> b.compatible <- compatible_empty
   | PatTuple (f,l) -> List.iter empty_comp_pattern l
-  | PatEqual t -> ()
+  | PatEqual t -> empty_comp_term t
 
-let rec empty_comp_term t =
+and empty_comp_term t =
   match t.t_desc with
-    Var _ -> ()
+    Var (_,l) | FunApp(_,l)-> List.iter empty_comp_term l
   | ReplIndex _ -> ()
-  | FunApp _ -> ()
-  | TestE(_,t2,t3) -> 
+  | TestE(t1,t2,t3) -> 
+      empty_comp_term t1;
       empty_comp_term t2;
       empty_comp_term t3
   | FindE(l0,t3,_) ->
@@ -2086,6 +2167,7 @@ let rec empty_comp_term t =
       empty_comp_term t3
   | LetE(pat,t1,t2,topt) ->
       empty_comp_pattern pat;
+      empty_comp_term t1;
       empty_comp_term t2;
       begin
 	match topt with
@@ -2107,6 +2189,7 @@ let rec empty_comp_process p =
   | Repl(b,p) ->
       empty_comp_process p
   | Input((c,tl),pat,p) ->
+      List.iter empty_comp_term tl;
       empty_comp_pattern pat;
       empty_comp_oprocess p
 
@@ -2117,6 +2200,7 @@ and empty_comp_oprocess p =
       b.compatible <- compatible_empty;
       empty_comp_oprocess p
   | Test(t,p1,p2) ->
+      empty_comp_term t;
       empty_comp_oprocess p1;
       empty_comp_oprocess p2
   | Find(l0,p2,_) ->
@@ -2126,25 +2210,29 @@ and empty_comp_oprocess p =
 	empty_comp_oprocess p1) l0;
       empty_comp_oprocess p2
   | Output((c,tl),t',p) ->
+      List.iter empty_comp_term tl;
+      empty_comp_term t';
       empty_comp_process p
   | Let(pat,t,p1,p2) ->
       empty_comp_pattern pat;
+      empty_comp_term t;
       empty_comp_oprocess p1;
       empty_comp_oprocess p2
   | EventP(t,p) ->
+      empty_comp_term t;
       empty_comp_oprocess p
   | Get(tbl,patl,topt,p1,p2) -> 
       List.iter empty_comp_pattern patl;
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> empty_comp_term t
+      end;
       empty_comp_oprocess p1;
       empty_comp_oprocess p2
   | Insert(tbl,tl,p) ->
+      List.iter empty_comp_term tl;
       empty_comp_oprocess p
-
-let rec unionq l1 = function
-    [] -> l1
-  | (a::l) -> 
-      if List.memq a l1 then unionq l1 l else
-      a::(unionq l1 l)
 
 let add_compatible l1 l2 =
   List.iter (fun a ->
@@ -2159,13 +2247,15 @@ let rec add_self_compatible = function
 
 let rec compatible_def_term t = 
   match t.t_desc with
-    Var(b,l) -> []
+    Var(_,l) | FunApp(_,l) -> compatible_def_term_list l
   | ReplIndex i -> []
-  | FunApp(f,l) -> []
   | TestE(t1,t2,t3) -> 
+      let def1 = compatible_def_term t1 in
       let def2 = compatible_def_term t2 in
       let def3 = compatible_def_term t3 in
-      unionq def2 def3
+      add_compatible def1 def2;
+      add_compatible def1 def3;
+      unionq def1 (unionq def2 def3)
   | FindE(l0, t3, _) ->
       let def3 = compatible_def_term t3 in
       let accu = ref def3 in
@@ -2183,20 +2273,50 @@ let rec compatible_def_term t =
       !accu
   | LetE(pat, t1, t2, topt) ->
       let accu = vars_from_pat [] pat in
+      let def1 = compatible_def_term t1 in
+      let def2 = compatible_def_pat pat in
       let def3 = compatible_def_term t2 in
       let def4 = match topt with
 	None -> []
       |	Some t3 -> compatible_def_term t3 
       in
       add_self_compatible accu;
+      add_compatible accu def1;
+      add_compatible accu def2;
       add_compatible accu def3;
-      unionq accu (unionq def3 def4)
+      add_compatible def1 def2;
+      add_compatible def1 def3;
+      add_compatible def2 def3;
+      add_compatible def1 def4;
+      add_compatible def2 def4;
+      unionq accu (unionq def1 (unionq def2 (unionq def3 def4)))
   | ResE(b,t) ->
       let def = compatible_def_term t in
       add_compatible def [b];
       unionq def [b]
   | EventE(t) ->
       compatible_def_term t
+
+and compatible_def_term_list = function
+    [] -> []
+  | (a::l) -> 
+      let defl = compatible_def_term_list l in
+      let defa = compatible_def_term a in
+      add_compatible defl defa;
+      unionq defa defl
+
+and compatible_def_pat = function
+    PatVar b -> []
+  | PatTuple (f,l) -> compatible_def_pat_list l
+  | PatEqual t -> compatible_def_term t
+
+and compatible_def_pat_list = function
+    [] -> []
+  | (a::l) -> 
+      let defl = compatible_def_pat_list l in
+      let defa = compatible_def_pat a in
+      add_compatible defl defa;
+      unionq defa defl
 
 let rec compatible_def_process p =
   match p.i_desc with
@@ -2210,10 +2330,17 @@ let rec compatible_def_process p =
       compatible_def_process p
   | Input((c,tl),pat,p) ->
       let accu = vars_from_pat [] pat in
+      let def1 = compatible_def_term_list tl in
+      let def2 = compatible_def_pat pat in
       let def3 = compatible_def_oprocess p in
       add_self_compatible accu;
+      add_compatible accu def1;
+      add_compatible accu def2;
       add_compatible accu def3;
-      unionq accu def3
+      add_compatible def1 def2;
+      add_compatible def1 def3;
+      add_compatible def2 def3;
+      unionq accu (unionq def1 (unionq def2 def3))
 
 and compatible_def_oprocess p =
   match p.p_desc with
@@ -2223,9 +2350,12 @@ and compatible_def_oprocess p =
       add_compatible def [b];
       unionq def [b]
   | Test(t,p1,p2) ->
+      let def1 = compatible_def_term t in
       let def2 = compatible_def_oprocess p1 in
       let def3 = compatible_def_oprocess p2 in
-      unionq def2 def3
+      add_compatible def1 def2;
+      add_compatible def1 def3;
+      unionq def1 (unionq def2 def3)
   | Find(l0, p2, _) ->
       let def3 = compatible_def_oprocess p2 in
       let accu = ref def3 in
@@ -2238,19 +2368,38 @@ and compatible_def_oprocess p =
 	add_self_compatible vars;
 	add_compatible vars def1;
 	add_compatible vars def2;
+	add_compatible def1 def2;
 	accu := unionq vars (unionq def1 (unionq def2 (!accu)))) l0;
       !accu
   | Output((c,tl),t2,p) ->
-      compatible_def_process p
+      let def1 = compatible_def_term_list tl in
+      let def2 = compatible_def_term t2 in
+      let def3 = compatible_def_process p in
+      add_compatible def1 def2;
+      add_compatible def1 def3;
+      add_compatible def2 def3;
+      unionq def1 (unionq def2 def3)      
   | Let(pat,t,p1,p2) ->
       let accu = vars_from_pat [] pat in
+      let def1 = compatible_def_term t in
+      let def2 = compatible_def_pat pat in
       let def3 = compatible_def_oprocess p1 in
       let def4 = compatible_def_oprocess p2 in
       add_self_compatible accu;
+      add_compatible accu def1;
+      add_compatible accu def2;
       add_compatible accu def3;
-      unionq accu (unionq def3 def4)
+      add_compatible def1 def2;
+      add_compatible def1 def3;
+      add_compatible def2 def3;
+      add_compatible def1 def4;
+      add_compatible def2 def4;
+      unionq accu (unionq def1 (unionq def2 (unionq def3 def4)))
   | EventP(t,p) ->
-      compatible_def_oprocess p 
+      let def1 = compatible_def_term t in
+      let def2 = compatible_def_oprocess p in
+      add_compatible def1 def2;
+      unionq def1 def2
   | Get(_,_,_,_,_) | Insert (_,_,_) -> internal_error "Get/Insert should have been reduced at this point"
 
 
@@ -2271,3 +2420,84 @@ let is_compatible (b,args) (b',args') =
   (Binderset.mem b.compatible b')
       )
 
+(* Update args_at_creation: since variables in conditions of find have
+as args_at_creation the indices of the find, transformations of the
+find may lead to changes in these indices.  This function updates
+these indices. It relies on the invariant that variables in conditions
+of find have no array accesses, and that new/event do not occur in
+conditions of find. It creates fresh variables for all variables
+defined in the condition of the find. *)
+
+let rec update_args_at_creation cur_array t =
+  match t.t_desc with
+    Var(b,l) ->
+      begin
+      match b.link with
+	NoLink -> build_term2 t (Var(b, List.map (update_args_at_creation cur_array) l))
+      |	TLink t' -> 
+	  (* Variable b is defined in the current find condition, 
+             it has no array accesses *)
+	  t'
+      end
+  | ReplIndex b -> t
+  | FunApp(f,l) -> build_term2 t (FunApp(f, List.map (update_args_at_creation cur_array) l))
+  | ResE _ | EventE _ ->
+      Parsing_helper.internal_error "new/event should not occur as term in find condition" 
+  | TestE(t1,t2,t3) ->
+       build_term2 t (TestE(update_args_at_creation cur_array t1,
+			    update_args_at_creation cur_array t2,
+			    update_args_at_creation cur_array t3))
+  | FindE(l0,t3,find_info) ->
+      let l0' = 
+	List.map (fun (bl, def_list, t1, t2) ->
+	  let repl_indices = List.map snd bl in
+	  let cur_array_cond = repl_indices @ cur_array in
+	  let def_list' = List.map (update_args_at_creation_br cur_array_cond) def_list in
+	  let t1' = update_args_at_creation cur_array_cond t1 in
+	  let bl' = List.map (fun (b,b') ->
+	    let b1 = create_binder b.sname (new_vname()) b.btype (List.map term_from_repl_index cur_array) in
+	    link b (TLink (term_from_binder b1));
+	    (b1, b')) bl 
+	  in
+	  let t2' = update_args_at_creation cur_array t2 in
+	  (bl', def_list', t1', t2')
+	  ) l0
+      in
+      build_term2 t (FindE(l0',
+				 update_args_at_creation cur_array t3,
+				 find_info))
+  | LetE(pat, t1, t2, topt) ->
+      let t1' = update_args_at_creation cur_array t1 in
+      let pat' = update_args_at_creation_pat cur_array pat in
+      let t2' = update_args_at_creation cur_array t2 in
+      let topt' = 
+	match topt with
+	  None -> None
+	| Some t3 -> Some (update_args_at_creation cur_array t3)
+      in
+      build_term2 t (LetE(pat', t1', t2', topt'))
+
+and update_args_at_creation_br cur_array (b,l) =
+  begin
+    match b.link with
+      NoLink -> (b, List.map (update_args_at_creation cur_array) l)
+    | TLink t' -> 
+        (* Variable b is defined in the current find condition, 
+           it has no array accesses *)
+	binderref_from_term t'
+  end
+
+and update_args_at_creation_pat cur_array = function
+    PatVar b ->
+      let b' = create_binder b.sname (new_vname()) b.btype (List.map term_from_repl_index cur_array) in
+      link b (TLink (term_from_binder b'));
+      PatVar b'
+  | PatTuple(f,l) ->
+      PatTuple(f, List.map (update_args_at_creation_pat cur_array) l)
+  | PatEqual t ->
+      PatEqual (update_args_at_creation cur_array t)
+      
+
+let update_args_at_creation cur_array t =
+  auto_cleanup (fun () ->
+    update_args_at_creation cur_array t)
