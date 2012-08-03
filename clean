@@ -2,7 +2,11 @@ rm */*.cmi
 rm */*.cmo
 rm */*.cmx
 rm */*.o
-rm */*.annot
+rm */*/*.cmi
+rm */*/*.cmo
+rm */*/*.cmx
+rm */*/*.o
+rm */*/*.annot
 rm xtime
 rm cryptoverif
 rm *~
