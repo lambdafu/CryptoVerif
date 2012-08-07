@@ -16,6 +16,187 @@ expand_term_list returns either
 After expansion, if/let/find/res may occur in terms only in conditions of find.
 *)
 
+(* Try to simplify a bit before expanding, to reduce the size of the expanded game *)
+
+let current_pass_transfos = ref []
+
+let simplify_term t = 
+  if (Terms.check_no_ifletfindres t) && (not (Terms.is_true t || Terms.is_false t)) then
+    begin
+      try
+	let facts = Facts.get_facts_at t.t_facts in
+	let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
+	let t' = Facts.simplify_term Facts.no_dependency_anal simp_facts t in
+	(* When the obtained term is a complex term, using array accesses, I may
+	   need to update defined conditions above the current program point.
+	   To avoid the burden of doing that, I keep the result only when it is 
+	   true or false. This is the only useful case for obtaining a smaller game in
+	   expand, and the full simplification will be done later. *)
+	if Terms.is_true t' || Terms.is_false t' then
+	  begin
+	    Settings.changed := true;
+	    current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos);
+	    t'
+	  end
+	else
+          (* The change is not really useful, don't do it *)
+	  t
+      with Contradiction ->
+	(* The current program point is unreachable, I can return any term.
+	   Returning false seems to be the best to get a smaller game.
+	   Notice that simplify_term is called only for boolean terms
+	   (conditions of if/find) so false is of the correct type. *)
+	Settings.changed := true;
+	let t' = Terms.make_false() in
+	current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos);
+	t'
+    end
+  else
+    t
+
+let rec filter_find tfind = function
+    [] -> []
+  | ((bl, def_list, t, p) as findbranch)::r ->
+      let r' = filter_find tfind r in
+      let t' = simplify_term t in
+      if Terms.is_false t' then 
+	begin
+	  current_pass_transfos := (SFindEBranchRemoved(tfind,findbranch)) :: (!current_pass_transfos);
+	  r' 
+	end
+      else 
+	(bl, def_list, t', p)::r'
+
+
+let rec simplify_cterm t = 
+  match t.t_desc with
+    Var(b,l) -> Terms.build_term2 t (Var(b, List.map simplify_cterm l))
+  | ReplIndex i -> Terms.build_term2 t (ReplIndex i)
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map simplify_cterm l))
+  | TestE(t1,t2,t3) -> 
+      (* Some trivial simplifications *)
+      let t1' = simplify_term t1 in
+      if Terms.is_true t1' then 
+	begin
+	  current_pass_transfos := (STestETrue t) :: (!current_pass_transfos);
+	  simplify_cterm t2
+	end
+      else if Terms.is_false t1' then 
+	begin
+	  current_pass_transfos := (STestEFalse t) :: (!current_pass_transfos);
+	  simplify_cterm t3
+	end
+      else
+      Terms.build_term2 t (TestE(simplify_cterm t1', simplify_cterm t2, simplify_cterm t3))
+  | FindE(l0,t3, find_info) -> 
+      (* Remove useless branches if possible *)
+      let l0 = filter_find t l0 in
+      let l0' = List.map (fun (bl,def_list,t1,t2) ->
+	let t1' = simplify_cterm t1 in
+	let t2' = simplify_cterm t2 in
+	(bl, def_list, t1', t2')) l0
+      in
+      let t3' = simplify_cterm t3 in
+      Terms.build_term2 t (FindE(l0', t3', find_info))
+  | LetE(pat, t1, t2, topt) ->
+      let pat' = simplify_pat pat in
+      let t1' = simplify_cterm t1 in
+      let t2' = simplify_cterm t2 in
+      let topt' = match topt with
+	None -> None
+      | Some t3 -> Some (simplify_cterm t3)
+      in
+      Terms.build_term2 t (LetE(pat', t1', t2', topt'))
+  | ResE(b,t) ->
+      Terms.build_term2 t (ResE(b, simplify_cterm t))
+  | EventE(t) ->
+      Terms.build_term2 t (EventE(simplify_cterm t))
+
+and simplify_pat = function
+    PatVar b -> PatVar b
+  | PatTuple (f,l) -> PatTuple(f,List.map simplify_pat l)
+  | PatEqual t -> PatEqual(simplify_cterm t)
+
+let rec simplify_process p = 
+  Terms.iproc_from_desc 
+      (match p.i_desc with
+	Nil -> Nil
+      | Par(p1,p2) -> 
+	  let p1' = simplify_process p1 in
+	  let p2' = simplify_process p2 in
+	  Par(p1', p2')
+      | Repl(b,p) -> Repl(b, simplify_process p)
+      | Input((c,tl),pat,p) ->
+	  let tl' = List.map simplify_cterm tl in
+	  let pat' = simplify_pat pat in
+	  let p' = simplify_oprocess p in
+	  Input((c, tl'), pat', p'))
+
+and simplify_oprocess p =
+  Terms.oproc_from_desc 
+      (match p.p_desc with
+	Yield -> Yield
+      |	Abort -> Abort
+      | Restr(b,p) -> Restr(b, simplify_oprocess p)
+      | Test(t,p1,p2) -> 
+	  let t' = simplify_cterm t in
+	  let p1' = simplify_oprocess p1 in
+	  let p2' = simplify_oprocess p2 in
+	  Test(t', p1', p2')
+      | Find(l0, p2, find_info) -> 
+	  let l0' = List.map (fun (bl, def_list, t, p1) -> 
+	    let t' = simplify_cterm t in
+	    let p1' = simplify_oprocess p1 in
+	    (bl, def_list, t', p1')) l0
+	  in
+	  let p2' = simplify_oprocess p2 in
+	  Find(l0', p2', find_info)
+      | Let(pat,t,p1,p2) ->
+	  let pat' = simplify_pat pat in
+	  let t' = simplify_cterm t in
+	  let p1' = simplify_oprocess p1 in
+	  let p2' = simplify_oprocess p2 in	  
+	  Let(pat', t', p1', p2')
+      | Output((c,tl),t2,p) ->
+	  let tl' = List.map simplify_cterm tl in
+	  let t2' = simplify_cterm t2 in
+	  let p' = simplify_process p in
+	  Output((c, tl'), t2', p')
+      | EventP(t,p) ->
+	  let t' = simplify_cterm t in
+	  let p' = simplify_oprocess p in
+	  EventP(t', p')
+      | Get(tbl,patl,topt,p1,p2) -> 
+	  let patl' = List.map simplify_pat patl in
+	  let topt' = 
+	    match topt with 
+	      Some t -> Some (simplify_cterm t) 
+	    | None -> None
+	  in
+	  let p1' = simplify_oprocess p1 in
+	  let p2' = simplify_oprocess p2 in	  
+          Get(tbl,patl',topt',p1', p2')
+      | Insert (tbl,tl,p) -> 
+	  let tl' = List.map simplify_cterm tl in
+	  let p' = simplify_oprocess p in
+          Insert(tbl, tl', p'))
+
+let simplify_process g =
+  current_pass_transfos := [];
+  Proba.reset [] g;
+  Terms.build_def_process None g.proc;
+  let p' = simplify_process g.proc in
+  let simplif_transfos = 
+    if (!current_pass_transfos) != [] then
+      [DSimplify(!current_pass_transfos)]
+    else
+      []
+  in
+  current_pass_transfos := [];
+  let proba = Proba.final_add_proba [] in
+  (p', proba, simplif_transfos)
+
+
 let rec cross_product l1 = function
     [] -> []
   | (a::l) -> (List.map (fun l1i -> (l1i,a)) l1) @ (cross_product l1 l)
@@ -51,47 +232,6 @@ let always_some t = function
     None -> (extract_elem, [t])
   | Some(f,l) -> (f,l)
 
-(* Try to simplify a bit before expanding, to reduce the size of the expanded game *)
-
-let simplify_term t = 
-  if (Terms.check_no_ifletfindres t) && (not (Terms.is_true t || Terms.is_false t)) then
-    begin
-      try
-	let facts = Facts.get_facts_at t.t_facts in
-	let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
-	let t' = Facts.simplify_term Facts.no_dependency_anal simp_facts t in
-	(* When the obtained term is a complex term, using array accesses, I may
-	   need to update defined conditions above the current program point.
-	   To avoid the burden of doing that, I keep the result only when it is 
-	   true or false. This is the only useful case for obtaining a smaller game in
-	   expand, and the full simplification will be done later. *)
-	if Terms.is_true t' || Terms.is_false t' then
-	  begin
-	    Settings.changed := true;
-	    (*current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos);*)
-	    t'
-	  end
-	else
-          (* The change is not really useful, don't do it *)
-	  t
-      with Contradiction ->
-	(* The current program point is unreachable, I can return any term.
-	   Returning false seems to be the best to get a smaller game.
-	   Notice that simplify_term is called only for boolean terms
-	   (conditions of if/find) so false is of the correct type. *)
-	Settings.changed := true;
-	Terms.make_false()
-    end
-  else
-    t
-
-let rec filter_find = function
-    [] -> []
-  | (bl, def_list, t, p)::r ->
-      let r' = filter_find r in
-      let t' = simplify_term t in
-      if Terms.is_false t' then r' else (bl, def_list, t', p)::r'
-
 (* Expand term to term. Useful for conditions of find when they cannot be expanded to processes.
    Guarantees the invariant that if/let/find/res terms occur only in
    - conditions of find
@@ -116,22 +256,17 @@ let rec pseudo_expand_term t =
         | Some(f',l') -> Some(f', List.map (fun li -> Terms.build_term t (FunApp(f,li))) l')
       end
   | TestE(t1,t2,t3) ->
-      (* Some trivial simplifications *)
-      let t1' = simplify_term t1 in
-      if Terms.is_true t1' then 
-	Some(always_some t2 (pseudo_expand_term t2)) 
-        (* I really need to do that: if I just returned (pseudo_expand_term t2), 
-	   in case it returns None, we might get the unexpanded TestE(t1,t2,t3). *) 
-      else
-      if Terms.is_false t1' then Some(always_some t3 (pseudo_expand_term t3)) else
       (* I always expand this test *)
       let (f2, l2) = always_some t2 (pseudo_expand_term t2) in
       let (f3, l3) = always_some t3 (pseudo_expand_term t3) in
-      let (f1, l1) = always_some t1' (pseudo_expand_term t1') in
+      let (f1, l1) = always_some t1 (pseudo_expand_term t1) in
       let len2 = List.length l2 in
       Some((fun l -> 
 	let (l2part, l3part) = Terms.split len2 l in
 	f1 (List.map (fun t1i -> 
+          (* Some trivial simplifications *)
+          if Terms.is_true t1i then f2 l2part else
+          if Terms.is_false t1i then f3 l3part else
           let t2' = f2 l2part in Terms.build_term t2' (TestE(t1i, t2', f3 l3part))) l1)), l2 @ l3)
   | LetE(pat, t1, t2, topt) ->
       let (fpat,lpat) = always_some pat (pseudo_expand_pat pat) in
@@ -156,8 +291,6 @@ let rec pseudo_expand_term t =
 		  Terms.build_term t2' (LetE(pati, t1i, t2', Some (f3 l3part)))) lpat)) l1)), l2 @ l3)
       end
   | FindE(l0, t3, find_info) ->
-      (* Remove useless branches if possible *)
-      let l0 = filter_find l0 in
       let rec expand_cond_find_list = function
 	  [] -> None
 	| ((bl, def_list, t1, t2)::restl) ->
@@ -280,18 +413,17 @@ let rec expand_term t =
         | Some(f',l') -> Some(f', List.map (fun li -> Terms.build_term t (FunApp(f,li))) l')
       end
   | TestE(t1,t2,t3) ->
-      (* Some trivial simplifications *)
-      let t1' = simplify_term t1 in
-      if Terms.is_true t1' then Some(always_some t2 (expand_term t2)) else
-      if Terms.is_false t1' then Some(always_some t3 (expand_term t3)) else
       (* I always expand this test *)
       let (f2, l2) = always_some t2 (expand_term t2) in
       let (f3, l3) = always_some t3 (expand_term t3) in
-      let (f1, l1) = always_some t1' (expand_term t1') in
+      let (f1, l1) = always_some t1 (expand_term t1) in
       let len2 = List.length l2 in
       Some((fun l -> 
 	let (l2part, l3part) = Terms.split len2 l in
 	f1 (List.map (fun t1i -> 
+          (* Some trivial simplifications *)
+          if Terms.is_true t1i then f2 l2part else
+          if Terms.is_false t1i then f3 l3part else
           Terms.oproc_from_desc (Test(t1i, f2 l2part, f3 l3part))) l1)), l2 @ l3)
   | LetE(pat, t1, t2, topt) ->
       let (fpat,lpat) = always_some pat (expand_pat pat) in
@@ -314,8 +446,6 @@ let rec expand_term t =
 		  Terms.oproc_from_desc (Let(pati, t1i, f2 l2part, f3 l3part))) lpat)) l1)), l2 @ l3)
       end
   | FindE(l0, t3, find_info) ->
-      (* Remove useless branches if possible *)
-      let l0 = filter_find l0 in
       let rec expand_cond_find_list = function
 	  [] -> None
 	| ((bl, def_list, t1, t2)::restl) ->
@@ -524,11 +654,11 @@ and expand_oprocess cur_array p =
 
 let expand_process g =
   let tmp_changed = !Settings.changed in
-  Terms.build_def_process None g.proc;
-  let p' = expand_process [] g.proc in
+  let (p', proba, simplif_transfos) = simplify_process g in
+  let p'' = expand_process [] p' in
   if !Settings.changed then 
-    let (g', proba, ins) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1 } in
-    (g', proba, ins @ [DExpandIfFind])
+    let (g', proba', ins) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1 } in
+    (g', proba' @ proba, ins @ (DExpandIfFind :: simplif_transfos))
   else
     begin
       Settings.changed := tmp_changed;
