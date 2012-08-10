@@ -429,7 +429,7 @@ let rec display_proba level = function
 let display_one_set = function
     SetProba r ->
       display_proba 0 r
-  | SetEvent(f, g) ->
+  | SetEvent(f, g, _) ->
       print_id "\\Pr[\\kw{event}\\ \\kwf{" f.f_name "}\\textrm{ in game }";
       print_string (string_of_int g.game_number);
       print_string "]"
@@ -1167,6 +1167,143 @@ let display_instruct = function
 	    print_string "$"
 	  end) ql
 
+(* Explain probability formulas *)
+
+let display_qevent = function
+    Display.QEvent f,_ -> print_id "\\kwf{" f.f_name "}"
+  | _ -> Parsing_helper.internal_error "QEvent expected"
+
+let rec display_or_list = function
+    [] -> ()
+  | [a] -> display_qevent a
+  | (a::l) -> display_qevent a; print_string " \\vee ";
+      display_or_list l
+
+let display_adv ql game = 
+  let (ql_no_initq, ql_initq) = List.partition (function Display.InitQuery _,_ -> false | _ -> true) ql in
+  match ql_initq with
+    [Display.InitQuery q0,g0] ->
+      print_string "\\mathsf{Adv}[\\mathrm{Game}\\ ";
+      print_int game.game_number;
+      print_string ": $";
+      display_query (q0,g0);
+      print_string "$";
+      if ql_no_initq != [] then
+	begin
+	  print_string ", ";
+	  display_or_list ql_no_initq
+	end;
+      print_string "]"
+  | [] ->
+      print_string "\\Pr[\\mathrm{Game}\\ ";
+      print_int game.game_number;
+      print_string ": ";
+      display_or_list ql_no_initq;
+      print_string "]"
+  | _ -> Parsing_helper.internal_error "Bad query list in display_adv"
+
+let rec evaluate_proba start_queries start_game above_proba ql pt =
+  (* Sanity check: all elements of ql must occur in some edge in pt *)
+  List.iter (fun qs -> 
+    if not (List.exists (fun (_,_,_,ql_ref) -> 
+      List.exists (Display.equal_qs qs) (!ql_ref)
+	) pt.Display.pt_sons) then
+      Parsing_helper.internal_error "Missing property in evaluate_proba"
+	) ql;
+  (* Sanity check: the ql_ref are disjoint *)
+  let check_disjoint (_,_,_,ql_ref1) (_,_,_,ql_ref2) =
+    if List.exists (fun qs1 -> List.exists (Display.equal_qs qs1) (!ql_ref2)) (!ql_ref1) then
+      Parsing_helper.internal_error "ql_ref not disjoint"
+  in
+  let rec check_disjoint_l pt1 = function
+      [] -> ()
+    | (pt2::r) -> check_disjoint pt1 pt2; check_disjoint_l pt1 r
+  in
+  let rec check_disjoint_ll = function
+      [] -> ()
+    | (pt1::ptl) -> check_disjoint_l pt1 ptl; check_disjoint_ll ptl
+  in
+  check_disjoint_ll pt.Display.pt_sons;
+  (* Take into account tree branching (several sons): split ql according to what
+     each son proves *)
+  match pt.Display.pt_sons with
+    [(i,p,pt_son,ql_ref)] when (match i with Proof _ -> false | _ -> true) &&
+       (List.for_all (function SetProba _ -> true | SetEvent _ -> false) p) ->
+	 evaluate_proba start_queries start_game ((Display.double_if_needed ql p) @ above_proba) ql pt_son
+  | _ -> 
+      let ql_list = 
+	List.map (fun (i,p,pt_son,ql_ref) ->
+	  List.filter (fun qs -> List.exists (Display.equal_qs qs) ql) (!ql_ref)) pt.Display.pt_sons
+      in
+      print_string "$";
+      display_adv start_queries start_game;
+      print_string " \\leq ";
+      display_proba 0 (Display.proba_from_set above_proba);
+      List.iter (fun ql_i ->
+	print_string " + ";
+	display_adv ql_i pt.Display.pt_game) ql_list;
+      print_string "$\\\\\n";
+      above_proba @ 
+  (List.concat (List.map (fun (i,p,pt_son,ql_ref) ->
+    let ql' = List.filter (fun qs -> List.exists (Display.equal_qs qs) ql) (!ql_ref) in
+    let rec compute_full_query_list = function
+	[] -> ql'
+      |	(SetProba _)::l -> compute_full_query_list l
+      |	(SetEvent(f,g,_))::l -> (Display.QEvent f, g) :: (compute_full_query_list l)
+    in
+    (* One transformation can consist of an arbitrary syntactic or cryptographic
+       transformation, that follows a series of event insertions (Shoup lemma).
+       In practice, the transformation is either:
+       - an event insertion alone
+       - or a cryptographic transformation with an event insertion (DDH).
+         The event insertion is indeed done before DDH.
+       - or a transformation without event insertion. *)
+    let ql'' = compute_full_query_list p in
+    let proba_p = List.filter (function SetProba _ -> true | SetEvent _ -> false) p in
+    match i with
+      Proof pl ->
+	(* The desired property is proved *)
+	begin
+	  match pl,ql' with
+	    [q,_],[q'] -> 
+	      let p = Display.double_if_needed ql' proba_p in
+	      print_string "$";
+	      display_adv ql' pt.Display.pt_game;
+	      print_string " \\leq ";
+	      display_proba 0 (Display.proba_from_set p);
+	      print_string "$\\\\\n";
+	      p
+	  | _ -> Parsing_helper.internal_error "unexpected Proof element in proof tree"
+	end
+    | _ -> 
+	(* We consider the whole set of queries ql' at once, 
+	   and avoid counting several times the same events. *)
+	let p = Display.double_if_needed ql' proba_p in
+	if ql'' == ql' then
+	  (* No event introduced *)
+	  evaluate_proba ql' pt.Display.pt_game p ql'' pt_son
+	else
+	  begin
+	    (* An event has been introduced, display its probability separately *)
+	    print_string "$";
+	    display_adv ql' pt.Display.pt_game;
+	    print_string " \\leq ";
+	    display_proba 0 (Display.proba_from_set p);
+	    print_string " + ";
+	    display_adv ql'' pt_son.Display.pt_game;
+	    print_string "$\\\\\n";
+	    p @ (evaluate_proba ql'' pt_son.Display.pt_game [] ql'' pt_son)
+	  end
+    ) pt.Display.pt_sons))
+
+let compute_proba ((q0,g) as q) p s =
+  let pt = Display.build_proof_tree q p s in
+  (* display_proof_tree "" pt; *)
+  let start_queries = [Display.InitQuery q0, g] in
+  evaluate_proba start_queries g [] start_queries pt  
+
+
+
 let display_pat_simp t =
   print_string (match t with 
     DEqTest -> " (equality test)\\\\\n"
@@ -1539,89 +1676,115 @@ let display_detailed_ins = function
       end;
       print_string "\\\\\n"      
 
-let rec display_state ins_next s =
-  match s.prev_state with
-    None -> 
-      print_string "Initial state\\\\\n";
-      print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
-      Display.mark_occs ins_next;
-      display_process s.game.proc;
-      Display.useful_occs := []
-  | Some (Proof ql, p, _, s') ->
-      display_state ins_next s';
-      print_string "\\\\\n";
-      List.iter (fun ((_,g) as q, _) -> 
-	let (p, s') = List.assq q (!Display.proba_table) in
-	let p' = (Display.proba_since g s') @ p in
-	if p' != [] then
-	  let has_event = List.exists (function SetEvent _ -> true | SetProba _ -> false) p' in
-	  if has_event then
-	    begin
-	      print_string "RESULT The probability of distinguishing the initial game from a game that\\\\\nsatisfies ";
-	      display_query q;
-	      print_string " is $";
-	      display_set p';
-	      print_string "$\\\\\n";
-	      try
-		let p'' = Display.compute_proba q p s' in
-		print_string "RESULT Proved ";
-		display_query q;
-		print_string " up to probability $";
-		display_proba 0 (Display.proba_from_set p'');
-		print_string "$\\\\\n"
-	      with Display.NotBoundEvent(f,g) ->
-		print_string "RESULT However, I could not bound the probability $";
-		display_one_set (SetEvent(f,g));
-		print_string "$\\\\\n"
-	    end
-	  else
-	    begin
-	      print_string "RESULT Proved ";
-	      display_query q;
-	      print_string " up to probability $";
-	      display_proba 0 (Display.proba_from_set_may_double q p');
-	      print_string "$\\\\\n"
-	    end
-	else
-	  begin
-	    print_string "RESULT Proved ";
-	    display_query q;
-	    print_string "\\\\\n"
-	  end
-	) ql;
-      if p != [] then
-	Parsing_helper.internal_error "Proof step should have empty set of excluded traces"
-  | Some (i,p,ins,s') ->
-      display_state ins s';
-      print_string "\\\\\nApplying ";
-      display_instruct i;
-      if p != [] then
-	begin
-	  print_string " {}[probability $";
-	  display_set p;
-	  print_string "${}]{}"
-	end;
-      print_string "\\\\\n";
-      List.iter display_detailed_ins (List.rev ins);
-      print_string "yields\\\\\n\\\\\n";
-      print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
-      Display.mark_occs ins_next;
-      display_process s.game.proc;
-      Display.useful_occs := []
+let already_displayed = ref []
 
+let rec display_state ins_next s =
+  if List.memq s (!already_displayed) then
+    begin
+      print_string "===================== New branch =====================\n";
+      print_string "Game "; 
+      print_int s.game.game_number;
+      print_string " [Already displayed]\n";
+    end
+  else
+    begin
+      already_displayed := s :: (!already_displayed);
+      match s.prev_state with
+	None -> 
+	  print_string "Initial state\\\\\n";
+	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
+	  Display.mark_occs ins_next;
+	  display_process s.game.proc;
+	  Display.useful_occs := []
+      | Some (Proof ql, p, _, s') ->
+	  display_state ins_next s';
+	  print_string "\\\\\n";
+	  List.iter (fun ((q,g), p') -> 
+	    if p' != [] then
+	      begin
+		print_string "Proved ";
+		display_query (q, s'.game);
+		print_string " up to probability $";
+		display_proba 0 (Display.proba_from_set_may_double (q, s'.game) p');
+		print_string "$\\\\\n"
+	      end
+	    else
+	      begin
+		print_string "Proved ";
+		display_query (q, s'.game);
+		print_string "\\\\\n"
+	      end
+		) ql;
+	  if p != [] then
+	    Parsing_helper.internal_error "Proof step should have empty set of excluded traces"
+      | Some (i,p,ins,s') ->
+	  display_state ins s';
+	  print_string "\\\\\nApplying ";
+	  display_instruct i;
+	  if p != [] then
+	    begin
+	      print_string " {}[probability $";
+	      display_set p;
+	      print_string "${}]{}"
+	    end;
+	  print_string "\\\\\n";
+	  List.iter display_detailed_ins (List.rev ins);
+	  print_string "yields\\\\\n\\\\\n";
+	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
+	  Display.mark_occs ins_next;
+	  display_process s.game.proc;
+	  Display.useful_occs := []
+    end
 
 let display_state s =
+  (* Display the proof tree *)
   times_to_display := [];
+  already_displayed := [];
+  let initial_queries = Display.get_initial_queries s in
+  let states_needed_in_queries = Display.get_all_states_from_queries initial_queries in
+  let states_to_display = Display.remove_duplicate_states [] (s::states_needed_in_queries) in
   (* Set a tab stop after the occurrence display *)
   print_string (String.make (Display.len_num (!Terms.max_occ) + 2) '0');
   print_string "\\=\\kill\n";
-  display_state [] s;  
+  List.iter (fun s -> display_state [] s) states_to_display;  
+
+  (* Display the probabilities of proved queries *)
+  List.iter (fun (q,poptref,_) ->
+    match !poptref with
+      None -> ()
+    | Some(p,s') -> 
+        let p'' = compute_proba q p s' in
+        print_string "RESULT Proved ";
+        display_query q;
+	if p'' != [] then
+	  begin
+            print_string " up to probability $";
+            display_proba 0 (Display.proba_from_set p'');
+	    print_string "$"
+	  end;
+	print_string "\\\\\n"
+    ) initial_queries;
+
+  (* Display the runtimes *)
   List.iter (fun (g,t) ->
     print_string ("RESULT $\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (string_of_int g.game_number) ^ ") = ");
     display_proba 0 t;
     print_string "$\\\\\n"
     ) (List.rev (!times_to_display));
-  times_to_display := []
+  times_to_display := [];
+
+  (* List the unproved queries *)
+  let rest = List.filter (function (q, poptref,_) -> (!poptref) == None) initial_queries in
+  let rest' = List.filter (function (AbsentQuery, _),_,_ -> false | _ -> true) rest in
+  if rest = [] then
+    print_string "All queries proved.\\\\\n"
+  else if rest' != [] then
+    begin
+      print_string "RESULT Could not prove ";
+      display_list (fun (q, _,_) -> display_query q) rest;
+      print_string ".\\\\\n"
+    end
+
 
 let preamble = "
 \\documentclass{article}

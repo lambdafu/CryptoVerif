@@ -47,17 +47,18 @@ let anal_file s =
         do_implementation impl
       else
         begin
-          let g = { proc = Terms.move_occ_process p; game_number = 1 } in
-            Settings.queries := 
+          let g = { proc = Terms.move_occ_process p; game_number = 1; current_queries = [] } in
+            let queries =
               if queries == [] then 
-	        [AbsentQuery,g]
+	        [(AbsentQuery,g), ref None, None]
               else
-	        List.map (fun q -> (q,g)) queries;
+	        List.map (fun q -> ((q,g), ref None, None)) queries in
+	    g.current_queries <- queries;
             Settings.statements := statements;
             Settings.collisions := collisions;
             Settings.equivs := equivs;
             Settings.move_new_eq := new_new_eq;
-            Settings.collect_public_vars();
+            Settings.collect_public_vars queries;
             
             (*
               List.iter Display.display_statement statements;

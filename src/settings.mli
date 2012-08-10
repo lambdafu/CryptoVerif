@@ -136,16 +136,15 @@ val f_plus : funsymb
 val f_mul : funsymb
 val get_inverse : funsymb -> int -> funsymb
 
-(* Queries and assumptions given in the input file *)
-val queries : (query * game) list ref
+(* Assumptions given in the input file *)
 val statements : statement list ref
 val collisions : collision list ref
 val equivs : equiv_nm list ref
 val move_new_eq : (typet * equiv_nm) list ref
 
-val collect_public_vars : unit -> unit
+val collect_public_vars : ((query * game) * proof_t ref * proof_t) list -> unit
 val occurs_in_queries : binder -> bool
-val event_occurs_in_queries : funsymb -> bool
+val event_occurs_in_queries : funsymb -> ((query * game) * proof_t ref * proof_t) list -> bool
 
 (* Set when a game is modified *)
 val changed : bool ref

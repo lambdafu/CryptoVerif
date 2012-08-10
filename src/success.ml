@@ -12,7 +12,7 @@ open Types
 
 let advise = ref []
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
+let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 
 let rec check_usage_term seen_accu b t =
   match t.t_desc with
@@ -220,21 +220,79 @@ let check_query = function
       else (false, [])
   | (AbsentQuery,_) -> (false, [])	
 
-let rec check_query_list = function
-    [] -> ([],[])
-  | (a::l) ->
-      let (l',l'') = check_query_list l in
-      let (res, proba) = check_query a in
-      if res then ((a,proba)::l', l'') else (l', a::l'')
+(* Check query list takes a list of queries, tries to prove
+   those that are not proved yet, and returns
+    - the list of queries it proved
+    - the updated list of all queries with their proofs
+    - a boolean which is true when all queries have been proved *)
 
-let is_success g = 
+let rec check_query_list state = function
+    [] -> ([],[],true)
+  | ((a, poptref, popt)::l) ->
+      let (l',l'',b) = check_query_list state l in
+      match popt with
+	Some _ -> (* The query was already proved before *)
+	  (l', (a, poptref, popt)::l'', b)
+      |	None -> (* We need to prove the query *)
+	  let (res, proba) = check_query a in
+	  if res then 
+	    (* The query is proved *)
+	    ((a,proba)::l', (a,poptref,Some(proba, state))::l'', b) 
+	  else 
+	    (* The query is not proved *)
+	    (l', (a, poptref,popt)::l'', false)
+
+let is_event_query f g = function
+    ((QEventQ([false, { t_desc = FunApp(f',[{ t_desc = FunApp(f_tuple, []) }]) }], QTerm t_false),g'), _,_) -> 
+      g == g' && f == f' && Terms.is_false t_false
+  | _ -> false 
+
+let rec update_full_proof query_list ((_,g), poptref, popt) =
+  match popt, !poptref with
+    Some(proba, state), None ->
+      if is_full_proof query_list g proba state then
+	poptref := Some(proba, state)
+  | _ -> ()
+
+and is_full_proof query_list g proba state =
+  (List.for_all (is_full_proba query_list) proba) &&
+  (is_full_state query_list g state)
+
+and is_full_state query_list g state =
+  if state.game == g then
+    true
+  else
+    match state.prev_state with
+      None -> Parsing_helper.internal_error "Game not found"
+    | Some(_, proba, _, s') ->
+        (List.for_all (is_full_proba query_list) proba) &&
+	(is_full_state query_list g s')
+
+and is_full_proba query_list = function
+    SetProba _ -> true
+  | SetEvent(f,g,poptref) ->
+      match !poptref with
+	Some _ -> true
+      |	None ->
+	  try
+	    let query = List.find (is_event_query f g) query_list in
+	    update_full_proof query_list query;
+	    match !poptref with
+	      Some _ -> true
+	    | None -> false
+	  with Not_found -> false
+    
+
+let is_success state =
+  let g = state.game in
   whole_game := g;
   let vcounter = !Terms.vcounter in
   Terms.build_def_process None g.proc;
-  let (proved_queries, rem_queries) = check_query_list (!Settings.queries) in
-  Settings.queries := rem_queries; (* Queries still to prove *)
+  let (proved_queries, all_queries, all_proved) = check_query_list state g.current_queries in
+  g.current_queries <- all_queries; (* Updated queries *)
+  List.iter (update_full_proof all_queries) all_queries;
   Terms.vcounter := vcounter; (* Forget created variables *)
-  proved_queries, (rem_queries == [])
+  proved_queries, all_proved
 
 
       

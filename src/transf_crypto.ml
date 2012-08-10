@@ -820,8 +820,8 @@ let display_mapping () =
 
 let equiv = ref (((NoName,[],[],[],StdEqopt,Decisional),[]) : equiv_nm)
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
-let whole_game_next = ref { proc = Terms.nil_proc; game_number = -1 }
+let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game_next = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 
 let incompatible_terms = ref []
 
@@ -3127,8 +3127,8 @@ let compute_proba ((_,_,_,set,_,_),_) =
 	  SetProba r -> 
 	    let probaf' =  map_probaf (ref [], ref []) r in
 	    SetProba (Polynom.polynom_to_probaf probaf')
-	| SetEvent(f,_) -> 
-	    SetEvent(f,!whole_game_next)) set)
+	| SetEvent _ -> 
+	    Parsing_helper.internal_error "Event should not occur in probability formula") set)
   in
   (* Add the probabilities of the collisions eliminated to optimize the counts *)
   let proba_coll = Simplify1.final_add_proba() in
@@ -3304,8 +3304,8 @@ type trans_res =
   TSuccessPrio of setf list * detailed_instruct list * game
 | TFailurePrio of to_do_t
 
-let transfo_expand p =
-  Transf_expand.expand_process { proc = do_crypto_transform p; game_number = -1 }
+let transfo_expand p q =
+  Transf_expand.expand_process { proc = do_crypto_transform p; game_number = -1; current_queries = q }
 	
 let rec try_with_restr_list apply_equiv = function
     [] -> TFailurePrio []
@@ -3356,7 +3356,7 @@ let rec try_with_restr_list apply_equiv = function
 			Display.display_list Display.display_binder (List.map fst (!names_to_discharge));
 			print_newline()
 		      end;
-		    let (g',proba',ins) = transfo_expand (!whole_game).proc in
+		    let (g',proba',ins) = transfo_expand (!whole_game).proc (!whole_game).current_queries in
 		    whole_game_next := g';
 		    TSuccessPrio ((compute_proba apply_equiv) @ proba', ins @ [DCryptoTransf(apply_equiv, List.map fst discharge_names)], g')
 		  end
@@ -3406,18 +3406,15 @@ let rec build_symbols_to_discharge = function
   | Fun(_,_,t,_) ->
       build_symbols_to_discharge_term t
       
-let events_proba events = 
-  List.map (fun f ->
-    SetEvent(f, !whole_game_next)
-      ) events
-
-let events_queries events =
-  Settings.queries := 
-     (List.map (fun f ->
-       let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
-       let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-       (QEventQ([false, t], QTerm (Terms.make_false())), !whole_game_next)
-	 ) events) @ (!Settings.queries)
+let events_proba_queries events = 
+  List.split (List.map (fun f ->
+    let q_proof = ref None in
+    let proba = SetEvent(f, !whole_game_next, q_proof) in
+    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
+    let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
+    let query = ((QEventQ([false, t], QTerm (Terms.make_false())), !whole_game_next), q_proof, None) in
+    (proba, query)
+      ) events)
 
 let crypto_transform stop no_advice (((_,lm,_,_,_,opt2),_) as apply_equiv) names ({ proc = p } as g) = 
   stop_mode := stop;
@@ -3439,9 +3436,10 @@ let crypto_transform stop no_advice (((_,lm,_,_,_,opt2),_) as apply_equiv) names
       let restr = ref [] in
       find_restr restr p;
       match try_with_restr_list apply_equiv (!restr) with
-	TSuccessPrio(prob, ins, p') -> 
-	  events_queries (!introduced_events);
-	  TSuccess(prob @ (events_proba (!introduced_events)), ins, p')
+	TSuccessPrio(prob, ins, g') -> 
+	  let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
+	  g'.current_queries <- ev_q @ g'.current_queries;
+	  TSuccess(prob @ ev_proba, ins, g')
       |	TFailurePrio l -> 
 	  if ((!Settings.debug_cryptotransf) > 0) && (l != []) then 
 	    print_string "Advice given\n";
@@ -3464,10 +3462,11 @@ let crypto_transform stop no_advice (((_,lm,_,_,_,opt2),_) as apply_equiv) names
 		    Display.display_list Display.display_binder (List.map fst discharge_names);
 		    print_newline()
 		  end;
-		let (g',proba',ins) = transfo_expand p in
+		let (g',proba',ins) = transfo_expand p g.current_queries in
 		whole_game_next := g';
-		events_queries (!introduced_events);
-		TSuccess ((compute_proba apply_equiv) @ (events_proba (!introduced_events)) @ proba', ins @ [DCryptoTransf(apply_equiv, List.map fst discharge_names)], g')
+		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
+		g'.current_queries <- ev_q @ g'.current_queries;
+		TSuccess ((compute_proba apply_equiv) @ ev_proba @ proba', ins @ [DCryptoTransf(apply_equiv, List.map fst discharge_names)], g')
 	      end
 	    else
 	      begin

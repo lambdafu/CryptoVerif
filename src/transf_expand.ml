@@ -657,7 +657,7 @@ let expand_process g =
   let (p', proba, simplif_transfos) = simplify_process g in
   let p'' = expand_process [] p' in
   if !Settings.changed then 
-    let (g', proba', ins) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1 } in
+    let (g', proba', ins) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1; current_queries = g.current_queries } in
     (g', proba' @ proba, ins @ (DExpandIfFind :: simplif_transfos))
   else
     begin

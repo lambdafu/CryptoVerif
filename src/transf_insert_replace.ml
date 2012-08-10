@@ -769,7 +769,7 @@ let insert_instruct occ ext_o s ext_s g =
   else
     begin
       Settings.changed := true;
-      let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1 } in
+      let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1; current_queries = g.current_queries } in
       (g', proba, done_transfos @ [DInsertInstruct(s, occ)])
     end
      
@@ -779,7 +779,7 @@ type state_ty =
     RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent 
   | RepDone of setf list * int * term * term * Parsing_helper.extent 
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
+let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 
 let rec replace_tt count env defined_refs facts proba cur_array t =
   match !count with
@@ -1008,4 +1008,4 @@ let replace_term occ ext_o s ext_s g =
       raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
   | RepDone(sets,_,t,t',_) ->
       Settings.changed := true;
-      ({ proc = p'; game_number = -1 }, sets, [DReplaceTerm(t,t',occ)])
+      ({ proc = p'; game_number = -1; current_queries = g.current_queries  }, sets, [DReplaceTerm(t,t',occ)])

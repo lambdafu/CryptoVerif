@@ -360,7 +360,7 @@ let rec execute_any_crypto_rec continue state = function
 
 let rec issuccess_with_advise state = 
   Settings.advise := [];
-  let (proved_queries, is_done) = Success.is_success state.game in
+  let (proved_queries, is_done) = Success.is_success state in
   let state' = 
     if proved_queries != [] then
       { game = state.game;
@@ -405,48 +405,53 @@ let rec issuccess_with_advise state =
     else
       (state'', is_done'')
 
-let display_state tex state = 
+let rec is_full_state query_list g state =
+  if state.game == g then
+    true
+  else
+    match state.prev_state with
+      None -> Parsing_helper.internal_error "Game not found"
+    | Some(_, proba, _, s') ->
+        (List.for_all (is_full_proba query_list) proba) &&
+	(is_full_state query_list g s')
+
+and is_full_proba query_list = function
+    SetProba _ -> true
+  | SetEvent(f,g,poptref) ->
+      match !poptref with
+	Some _ -> true
+      |	None -> false
+
+let display_state tex state =
+  (* AbsentQuery is proved in the current state, if present *)
+  let old_queries = state.game.current_queries in
   let state' = 
-    let eq_queries = List.filter (function (AbsentQuery, _) -> true | _ -> false) (!Settings.queries) in
+    let eq_queries = List.filter (function (AbsentQuery, _),_,_ -> true | _ -> false) state.game.current_queries in
     if eq_queries == [] then
       state
     else
-      { game = state.game;
-	prev_state = Some (Proof (List.map (fun q -> (q, [])) eq_queries), [], [], state) }
+      begin
+	state.game.current_queries <-
+	   List.map (function 
+	       (AbsentQuery, g), poptref, popt -> 
+		 let proof = Some([], state) in
+		 if is_full_state old_queries g state then 
+		   poptref := proof;
+		 (AbsentQuery, g), poptref, proof
+	     | q -> q) old_queries;
+	{ game = state.game;
+	  prev_state = Some (Proof (List.map (fun (q, _, _) -> (q, [])) eq_queries), [], [], state) }
+      end
   in
+  (* Display the state *)
   Display.display_state state';
   if tex && ((!Settings.tex_output) <> "") then
-    Displaytex.display_state state'
-
-let final_display rest =
-  let rest' = List.filter (function (AbsentQuery, _) -> false | _ -> true) rest in
-  if rest = [] then 
-    print_string "All queries proved.\n"
-  else if rest' != [] then
-    begin
-      print_string "RESULT Could not prove ";
-      Display.display_list Display.display_query rest;
-      print_string ".\n"
-    end;
-  if (!Settings.tex_output) <> "" then
-    begin
-      if rest = [] then
-	Displaytex.print_string "All queries proved.\\\\\n"
-      else if rest' != [] then
-	begin
-	  Displaytex.print_string "Could not prove ";
-	  Displaytex.display_list Displaytex.display_query rest;
-	  Displaytex.print_string ".\\\\\n"
-	end
-    end
-  
-
-let rec display_state_until_proof state =
-  match state.prev_state with
-    None -> ()
-  | Some(Proof _,_,_,_) -> 
-      display_state true state
-  | Some(_,_,_,s) -> display_state_until_proof s 
+    Displaytex.display_state state';
+  (* Undo the proof of AbsentQuery *)
+  state.game.current_queries <- old_queries;
+  List.iter (function 
+      (AbsentQuery, g), poptref, popt -> poptref := None
+    | _ -> ()) old_queries
 
 let rec display_short_state state =
   match state.prev_state with
@@ -492,7 +497,6 @@ let rec execute_any_crypto_rec1 state =
     begin
       print_string "===================== Proof starts =======================\n";
       display_state true state';
-      final_display [];
       (CSuccess state', state)
     end
   else
@@ -501,21 +505,13 @@ let rec execute_any_crypto_rec1 state =
 	[] -> 
 	  if !Settings.backtrack_on_crypto then
 	    begin
-	      print_string "===================== Proof starts =======================\n";
-	      display_state_until_proof state';
-	      print_string "====================== Proof ends ========================\n";
 	      print_string "Examined sequence:\n";
 	      display_short_state state';
 	      print_string "Backtracking...\n";
 	      raise Backtrack
 	    end
 	  else
-	    begin
-	      print_string "===================== Proof starts =======================\n";
-	      display_state true state';
-	      final_display (!Settings.queries);
-	      (CFailure [], state')
-	    end
+	    (CFailure [], state')
       |	lequiv::rest_equivs ->
 	  execute_any_crypto_rec (function
 	      CSuccess state'' -> execute_any_crypto_rec1 state''
@@ -531,9 +527,16 @@ let execute_any_crypto state =
   (* Always begin with find/if/let expansion *)
   try
     let (res, state') = execute_any_crypto_rec1 (expand_simplify state) in
+    begin
+      match res with
+	CFailure _ -> 
+	  print_string "===================== Proof starts =======================\n";
+	  display_state true state'
+      |	CSuccess _ -> ()
+    end;
     res
   with Backtrack ->
-    final_display (!Settings.queries);
+    display_state true state;
     CFailure []
 	    
 (* Interactive prover *)
@@ -668,7 +671,7 @@ let find_equiv f ((n,lm,_,set,_,_),_) =
   (List.exists (fun (fg, _) -> find_funsymb_fg f fg) lm) ||
   (List.exists (function 
       SetProba r -> find_proba f r
-    | SetEvent(e,_) -> f = e.f_name) set)
+    | SetEvent(e,_,_) -> f = e.f_name) set)
 
 let find_equiv_by_name f ((n,_,_,_,_,_),_) =
   match n with
@@ -725,7 +728,9 @@ let do_equiv ext equiv lb state =
 
 
 let rec undo ext state n =
-  if n <= 0 then state else
+  if n <= 0 then 
+    state
+  else
   match state.prev_state with
     None -> 
       raise (Error("Could not undo more steps than those already done", ext))
@@ -1028,9 +1033,6 @@ let rec interpret_command interactive state = function
 	begin
 	  print_string "===================== Proof starts =======================\n";
 	  display_state true state';
-	  print_string "All queries proved.\n";
-	  if (!Settings.tex_output) <> "" then
-	    Displaytex.print_string "All queries proved.\\\\\n";
 	  raise (End state')
 	end
       else
@@ -1164,7 +1166,10 @@ and interactive_loop state =
 
 let rec execute_proofinfo proof state =
   match proof with
-    [] -> CSuccess state
+    [] -> 
+      print_string "===================== Proof starts =======================\n";
+      display_state true state;
+      CSuccess state
   | com::rest -> 
       try
 	execute_proofinfo rest (interpret_command false state com)

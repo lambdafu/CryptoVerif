@@ -444,5 +444,5 @@ let remove_assignments remove_set g =
   let transfos = !done_transfos in
   done_transfos := [];
   done_sa_rename := [];
-  ({ proc = r; game_number = -1 }, [], (do_sa_rename sa_rename) @ transfos)
+  ({ proc = r; game_number = -1; current_queries = g.current_queries }, [], (do_sa_rename sa_rename) @ transfos)
 

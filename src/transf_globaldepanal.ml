@@ -23,7 +23,7 @@ yields a bad dependency (comparison with the small type A).
 
 open FindCompos
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
+let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 let collisions_for_current_check_dependency = ref []
 let local_changed = ref false
 let advise = ref []
@@ -471,7 +471,7 @@ let check_all_deps b0 g =
     let b0st = (b0, (Decompos, ref [dummy_term, dummy_term, CharacType b0.btype])) in
     let seen_vars = ref [b0st] in
     let proc' = check_depend_iter seen_vars in
-    let res_game = { proc = proc'; game_number = -1 } in
+    let res_game = { proc = proc'; game_number = -1; current_queries = g.current_queries } in
     if not (!local_changed) then 
       raise BadDep;
     let vars_charac_type = 

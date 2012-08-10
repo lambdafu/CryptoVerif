@@ -132,14 +132,6 @@ let equal_instruct i1 i2 =
 let add_eq a l =
   if List.exists (equal_instruct a) l then l else a::l
 
-(* Equality of sets of excluded traces *)
-
-let eq_set a b =
-  match a,b with
-    SetProba r, SetProba r' -> r == r'
-  | SetEvent(f,g), SetEvent(f',g') -> (f == f') && (g == g')
-  | _ -> false
-
 (* Create an interval type from a parameter *)
 
 let type_for_param_table = Hashtbl.create 7

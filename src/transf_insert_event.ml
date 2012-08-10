@@ -50,7 +50,7 @@ and replace_oprocess count occ premp p =
       p_occ = p.p_occ;
       p_facts = None  }
 
-let insert_event occ s { proc = p } =
+let insert_event occ s g =
   let f = { f_name = s;
 	    f_type = [Settings.t_bitstring],Settings.t_bool;
 	    f_cat = Event;
@@ -62,7 +62,7 @@ let insert_event occ s { proc = p } =
   let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
   let premp = Terms.oproc_from_desc(EventP(t,Terms.abort_proc)) in
   let count = ref 0 in
-  let p' = replace_process count occ premp p in
+  let p' = replace_process count occ premp g.proc in
   if (!count) = 0 then 
     raise (Parsing_helper.Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", Parsing_helper.dummy_ext))
   else if (!count > 1) then
@@ -70,7 +70,8 @@ let insert_event occ s { proc = p } =
   else
     begin
       Settings.changed := true;
-      let g' = { proc = p'; game_number = -1 } in
-      Settings.queries := (QEventQ([false, t], QTerm (Terms.make_false())), g') :: (!Settings.queries);
-      (g', [SetEvent(f, g')], [DInsertEvent(f,occ)])
+      let g' = { proc = p'; game_number = -1; current_queries = [] } in
+      let q_proof = ref None in
+      g'.current_queries <- ((QEventQ([false, t], QTerm (Terms.make_false())), g'), q_proof, None) :: g.current_queries;
+      (g', [SetEvent(f, g', q_proof)], [DInsertEvent(f,occ)])
     end

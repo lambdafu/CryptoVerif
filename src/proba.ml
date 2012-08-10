@@ -67,7 +67,7 @@ let is_small_enough_collision proba_l =
   List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
   
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
+let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 
 (* Probability of collision between a random value of type [t],
    and an independent value. The collision occurs [num] times. *)

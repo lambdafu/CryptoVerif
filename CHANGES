@@ -3,6 +3,7 @@ of the cryptographic protocol verifier.
 
 Version
 
+- improved explanation of probability computations
 - cleaned up the semantics of "find", by using temporary variables for
 the lookup.
 - allow approximately uniform distributions for finite sets (bounded types),
@@ -12,8 +13,13 @@ standard distribution for that type).
 - simplify terms while expanding games, to reduce the size of the
 expanded game
 - removed bad advice sometimes given by the crypto transformation
+- when the instruction "success" fails to prove a correspondence,
+it may display user advice "SArename b", when it thinks that this
+instruction may help doing the proof.
 - removed setting "set minManualCollElim"
 - added a warning when identifiers are rebound in the input file.
+- fixed internal error "Game not found", which sometimes occurred
+when backtracking in the proof.
 - fixed bug that caused an internal error when a "new" occurred in the 
 condition of a "get"; this construct is now rejected with a correct error 
 message. 
@@ -165,7 +171,7 @@ probability formulae for primitives defined in default.cvl/default.ocvl.
 - fixed bug that prevented the use of "set" commands in proof environments.
 - fixed two bugs in removal of assignments, one that could lead to removing
 the definition of a variable while keeping a "defined" condition on it,
-one that could to incorrectly changing the meaning of "defined" conditions.
+one that could lead to incorrectly changing the meaning of "defined" conditions.
 - renamed the executable program to cryptoverif
 
 Version 1.09

@@ -163,7 +163,6 @@ process
 	 enc_dec_oracle | hashoracle0 | hashoracle1)
 
 (* EXPECTED
-RESULT Could not prove event Encrypt ==> false in game 17, event Auth ==> false in game 11.
 All queries proved.
 2.510s (user 2.500s + system 0.010s), max rss 173520K
 END *)

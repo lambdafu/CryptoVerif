@@ -297,11 +297,44 @@ type action =
   | AOut of typet list * typet (* Output with channel indexes of types tl and output bitstring of type t *)
   | AIn of int                 (* Record input with n channel indexes in input list *)
 
+type mode =
+    ExistEquiv | AllEquiv
+
+type options =
+    StdOpt | UsefulChange
+
+type restropt =
+    NoOpt | Unchanged | DontKnow
+
+type name_to_discharge_t = (binder * restropt ref) list
+    
+type fungroup =
+    ReplRestr of repl_index(*replication*) * (binder * restropt) list(*restrictions*) * fungroup list
+  | Fun of channel * binder list(*inputs*) * term * (int(*priority*) * options)
+
+type eqmember = 
+    (fungroup * mode) list
+
+type eqopt =
+    StdEqopt | ManualEqopt | PrioEqopt of int
+
+type eqopt2 =
+    Decisional | Computational
+
+type eqname = 
+    CstName of ident
+  | ParName of ident * ident
+  | NoName
+
+
 type game = 
     { mutable proc : inputprocess;
-      mutable game_number : int }
+      mutable game_number : int;
+      mutable current_queries : ((query * game) * proof_t ref * proof_t) list }
 
-type probaf = 
+and proof_t = (setf list * state) option
+
+and probaf = 
     Proba of proba * probaf list
   | Count of param
   | OCount of channel
@@ -331,64 +364,35 @@ type probaf =
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
 
-type mode =
-    ExistEquiv | AllEquiv
-
-type options =
-    StdOpt | UsefulChange
-
-type restropt =
-    NoOpt | Unchanged | DontKnow
-
-type name_to_discharge_t = (binder * restropt ref) list
-    
-type fungroup =
-    ReplRestr of repl_index(*replication*) * (binder * restropt) list(*restrictions*) * fungroup list
-  | Fun of channel * binder list(*inputs*) * term * (int(*priority*) * options)
-
-type eqmember = 
-    (fungroup * mode) list
-
-type setf =
+and setf =
     SetProba of probaf
-  | SetEvent of funsymb * game
+  | SetEvent of funsymb * game * proof_t ref
 
-type eqopt =
-    StdEqopt | ManualEqopt | PrioEqopt of int
+and equiv = eqname * eqmember * eqmember * setf list * eqopt * eqopt2
 
-type eqopt2 =
-    Decisional | Computational
+and def_check = term list
 
-type eqname = 
-    CstName of ident
-  | ParName of ident * ident
-  | NoName
-
-type equiv = eqname * eqmember * eqmember * setf list * eqopt * eqopt2
-
-type def_check = term list
-
-type equiv_nm = equiv * (binder * binder * def_check) list 
+and equiv_nm = equiv * (binder * binder * def_check) list 
         (* equivalence with name mapping *)
 
 (* Logical statements *)
 
-type statement = binder list * term
+and statement = binder list * term
 
 (* Collision statements *)
 
-type collision = binder list(*restrictions*) * binder list(*forall*) *
+and collision = binder list(*restrictions*) * binder list(*forall*) *
       term * probaf * term
 
 (* Queries *)
 
-type qterm =
+and qterm =
     QEvent of bool(*true when injective*) * term
   | QTerm of term
   | QAnd of qterm * qterm
   | QOr of qterm * qterm
 
-type query = 
+and query = 
     QSecret1 of binder
   | QSecret of binder
   | QEventQ of (bool(*true when injective*) * term) list * qterm
@@ -397,12 +401,12 @@ type query =
 (* Instructions for modifying games *)
 
 (* For removal of assignments *)
-type rem_set =
+and rem_set =
     All
   | OneBinder of binder
   | Minimal
 
-type move_set =
+and move_set =
     MAll
   | MNoArrayRef
   | MLet
@@ -410,13 +414,13 @@ type move_set =
   | MNewNoArrayRef
   | MOneBinder of binder
 
-type merge_mode =
+and merge_mode =
     MNoBranchVar
   | MCreateBranchVar
   | MCreateBranchVarAtProc of process list * repl_index list
   | MCreateBranchVarAtTerm of term list * repl_index list
 
-type instruct =
+and instruct =
     ExpandIfFindGetInsert
   | Simplify of string list(*occurrences, variables, or types for collision elimination of password types*)
   | GlobalDepAnal of binder * string list (* same as for Simplify *)
@@ -431,22 +435,22 @@ type instruct =
   | MergeBranches
   | Proof of ((query * game) * setf list) list
 
-type ins_updater = (instruct -> instruct list) option
+and ins_updater = (instruct -> instruct list) option
 
-type to_do_t = (instruct list * int * name_to_discharge_t) list
+and to_do_t = (instruct list * int * name_to_discharge_t) list
 
-type simplify_internal_info_t = 
+and simplify_internal_info_t = 
     (binder * binder) list * (term * term * probaf * (binder * term) list) list
 
 (* Detailed game transformations. Used to record what transformations 
    have been done. *)
 
-type pat_simp_type = 
+and pat_simp_type = 
     DEqTest
   | DExpandTuple
   | DImpossibleTuple
 
-type simplify_ins =
+and simplify_ins =
     SReplaceTerm of term * term
   | STestTrue of process
   | STestFalse of process
@@ -485,16 +489,16 @@ type simplify_ins =
   | SResRemoved of process
   | SResERemoved of term
 
-type def_change =
+and def_change =
     DRemoveDef
   | DKeepDefPoint
   | DKeepDef
 
-type usage_change =
+and usage_change =
     DRemoveAll
   | DRemoveNonArray
 
-type detailed_instruct =
+and detailed_instruct =
     DExpandGetInsert of table
   | DExpandIfFind
   | DSimplify of simplify_ins list
@@ -519,11 +523,11 @@ detailed description of the transformation).
 Game transformations also set Transform.changed when they actually
 modify the game, and add advised instructions in Transform.advise. *)
 
-type game_transformer = game -> game * setf list * detailed_instruct list
+and game_transformer = game -> game * setf list * detailed_instruct list
 
 (* State. Used to remember a sequence of game modifications *)
 
-type state =
+and state =
     { game : game;
       prev_state : (instruct * setf list * detailed_instruct list * state) option }
 

@@ -1340,7 +1340,7 @@ let rec check_types ext pl0 pl tl =
 		   "Unexpected number of arguments.") ext
 
 
-let dummy_game = { proc = Terms.nil_proc; game_number = -1 }
+let dummy_game = { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 
 let rec check_probability_formula seen_ch seen_repl env = function
     PPIdent(s,ext), ext2 ->

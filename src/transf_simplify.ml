@@ -1,7 +1,7 @@
 open Types
 open Simplify1
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
+let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 
 let current_pass_transfos = ref []
 
@@ -2105,7 +2105,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
       begin
       match t.t_desc with
 	FunApp(f,_) ->
-	  if not (Settings.event_occurs_in_queries f) then
+	  if not (Settings.event_occurs_in_queries f (!whole_game).current_queries) then
 	    simplify_oprocess cur_array (List.hd dep_info_list') true_facts p
 	  else
 	    Terms.oproc_from_desc2 p' (EventP(simplify_term cur_array dep_info false true_facts t,
@@ -2259,7 +2259,7 @@ let rec simplify_main1 iter g =
      definition. auto_sa_rename restores this invariant.
    *)
     if !Settings.changed then
-        let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1 } in
+        let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1; current_queries = g.current_queries } in
         if iter != 1 then 
 	  let (g'', proba'', renames'') = simplify_main1 (iter-1) g' in
           (g'', proba'' @ proba_sa_rename, renames'' @ renames @ [DSimplify(current_transfos)])

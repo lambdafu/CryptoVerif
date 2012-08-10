@@ -185,7 +185,7 @@ let reduce_tables g =
   let tables = ref [] in
   List.iter (fun (tbl,_) ->
     if not (List.memq tbl (!tables)) then tables := tbl :: (!tables)) l;
-  let g1 = { proc = transform_get p l; game_number = -1 } in
+  let g1 = { proc = transform_get p l; game_number = -1; current_queries = g.current_queries } in
   Terms.cleanup_array_ref();
   let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename g1 in
   (g', proba, renames @ (List.map (fun tbl -> DExpandGetInsert tbl) (!tables)))

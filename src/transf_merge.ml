@@ -1274,7 +1274,7 @@ let merge_arrays bll mode g =
 	    Terms.empty_comp_process g.proc;
 	    (* Display.display_process p'; *)
 	    let proba = Proba.final_add_proba [] in
-	    ({ proc = p'; game_number = -1 }, proba, [DMergeArrays(bll,mode)])
+	    ({ proc = p'; game_number = -1; current_queries = g.current_queries }, proba, [DMergeArrays(bll,mode)])
 	  end
 	else
 	  begin
@@ -1771,7 +1771,7 @@ let merge_branches g =
 	merges_cannot_be_done := [];
 	let proba = Simplify1.final_add_proba () in
 	Simplify1.term_collisions := [];
-	({ proc = p'; game_number = -1 }, proba, done_transfos)
+	({ proc = p'; game_number = -1; current_queries = g.current_queries }, proba, done_transfos)
       else
 	begin
 	  (* No change, but may advise MergeArrays *)

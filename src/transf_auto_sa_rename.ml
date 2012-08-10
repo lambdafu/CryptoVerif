@@ -177,5 +177,5 @@ let auto_sa_rename g =
   Terms.cleanup_array_ref();
   let sa_rename = !done_sa_rename in
   done_sa_rename := [];
-  ({ proc = p'; game_number = -1 }, [], do_sa_rename sa_rename)
+  ({ proc = p'; game_number = -1; current_queries = g.current_queries }, [], do_sa_rename sa_rename)
 

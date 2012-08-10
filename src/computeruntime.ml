@@ -24,7 +24,7 @@ and make_length g = function
 
 (* (!Settings.ignore_small_times)>0 when many details should be ignored.*)
 
-let empty_game = { proc = Terms.nil_proc; game_number = -1 }
+let empty_game = { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
 let get_time_map = ref ((fun t -> raise Not_found) : term -> term list * int * int * repl_index list * (binder list * term list) list)
 let whole_game = ref empty_game
 let names_to_discharge = ref []

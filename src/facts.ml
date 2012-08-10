@@ -1166,7 +1166,86 @@ let rec check_term next_check ((_,facts2,_) as facts) injrepidxs vars injinfo = 
 	  Proba.restore_state tmp_proba_state;
 	  raise NoMatch
       end
+
+
+(* This is a modified version of add_facts/get_facts_at to give
+   advise information, to facilitate the proof of correspondences.
+   I advise (SArename b) when the intersection over all definitions
+   of b leads to losing events needed to prove the correspondence. *)
       
+let intersect_list_useful_facts (is_useful, advise_ref) advice_sa_ren l =
+  let inter_l = Terms.intersect_list Terms.equal_terms l in
+  (* If a useful fact has been removed due to the intersection, 
+     advise SA renaming the variable [advice_sa_ren], to distinguish
+     cases depending on the definition of this variable. *)
+  if List.exists (fun l1 -> 
+    List.exists (fun f -> is_useful f && (not (List.exists (Terms.equal_terms f) inter_l))) l1) l then
+    advise_ref := Terms.add_eq (SArenaming advice_sa_ren) (!advise_ref);
+  inter_l
+
+let intersect_list_useful_br seen_refs l = 
+  let inter_l = Terms.intersect_list Terms.equal_binderref l in
+  let missed_br = ref [] in
+  List.iter (fun l1 ->
+    List.iter (fun br ->
+      if not (Terms.mem_binderref br seen_refs ||
+              Terms.mem_binderref br inter_l) then
+	Terms.add_binderref br missed_br) l1) l;
+  (inter_l, !missed_br)
+
+let rec add_facts ((is_useful, advise_ref) as is_useful_info) current_node fact_accu seen_refs ((b,l) as br) =
+  (* print_string "Is defined "; Display.display_var b l; print_newline(); *)
+  if (List.for_all (check_non_nested [] [b]) l) &&
+    (not (Terms.mem_binderref br (!seen_refs))) then
+    begin
+      seen_refs := br :: (!seen_refs);
+      let true_facts_at_def = 
+	filter_ifletfindres (intersect_list_useful_facts is_useful_info b (List.map (true_facts_from_node current_node) b.def)) 
+      in
+      let (def_vars_at_def, missed_br) = intersect_list_useful_br (!seen_refs) (List.map def_vars_from_node b.def) in
+      (* put links for the substitution b.args_at_creation -> l *)
+      let bindex = List.map Terms.repl_index_from_term b.args_at_creation in
+      List.iter2 (fun b t -> b.ri_link <- TLink t) bindex l;
+      (* add facts *)
+      List.iter (fun f -> 
+        (* b.args_at_creation -> l *)
+	let f = Terms.copy_term Terms.Links_RI f in
+	(* print_string "Adding "; Display.display_term f; print_newline(); *)
+	if not (List.exists (Terms.equal_terms f) (!fact_accu)) then
+	  fact_accu := f :: (!fact_accu)
+	  ) true_facts_at_def;
+      (* compute arguments of recursive call *)
+      let def_vars_at_def' = Terms.copy_def_list Terms.Links_RI def_vars_at_def in
+      (* binderrefs missed due to the intersection over definitions of b *)
+      let missed_br' = Terms.copy_def_list Terms.Links_RI missed_br in
+      (* remove the links *)
+      List.iter (fun b -> b.ri_link <- NoLink) bindex;
+      (* recursive call *)
+      List.iter (add_facts is_useful_info current_node fact_accu seen_refs) def_vars_at_def';
+      (* facts that would be collected thanks to the binderrefs missed due 
+	 to the intersection over definitions of b *)
+      let missed_facts = ref [] in
+      let seen_refs_tmp = ref (!seen_refs) in
+      List.iter (add_facts is_useful_info current_node missed_facts seen_refs_tmp) missed_br';
+      if List.exists (fun f -> is_useful f && (not (List.exists (Terms.equal_terms f) (!fact_accu)))) (!missed_facts) then
+	advise_ref := Terms.add_eq (SArenaming b) (!advise_ref)	
+    end
+
+let get_facts_at_useful_facts is_useful_info = function
+    None -> []
+  | Some(true_facts, def_vars, n) ->
+      let fact_accu = ref (filter_ifletfindres true_facts) in
+      (* Note: def_vars contains n.def_vars_at_def *)
+      List.iter (add_facts is_useful_info (Some n) fact_accu (ref [])) def_vars;
+      !fact_accu
+
+let rec get_events accu = function
+    QTerm _ -> accu
+  | QAnd(t1, t2) | QOr(t1, t2) -> get_events (get_events accu t1) t2
+  | QEvent(_,t) ->
+      match t.t_desc with
+	FunApp(f,_) -> f :: accu
+      |	_ -> Parsing_helper.internal_error "Events should be function applications in Facts.get_events"
 
 let check_corresp (t1,t2) g =
    Terms.auto_cleanup (fun () ->
@@ -1194,6 +1273,18 @@ let check_corresp (t1,t2) g =
     Terms.link b (TLink (Terms.term_from_binder b'));
     b') (!vars_t1)
   in
+  (* A fact that is an event that occurs in [t2] is particularly
+     useful, since it can allow us to prove [t2].
+     We are going to advise SArename if an intersection
+     removes such a fact. These pieces of advicce are stored in
+     [advise_ref] *)
+  let advise_ref = ref [] in
+  let events_t2 = get_events [] t2 in
+  let is_useful f = 
+    match f.t_desc with
+      FunApp(f',_) -> List.memq f' events_t2 
+    | _ -> false
+  in
   let collect_facts1 next_f facts injrepidxs vars (is_inj,t) =
     List.for_all (fun (t1',fact_info) ->
       match t.t_desc,t1'.t_desc with
@@ -1209,7 +1300,7 @@ let check_corresp (t1,t2) g =
 	      let new_bend_sid = List.map Terms.new_repl_index bend_sid in
 	      let new_end_sid = List.map Terms.term_from_repl_index new_bend_sid in
 	      let eq_facts = List.map2 Terms.make_equal (List.map (Terms.copy_term Terms.Links_Vars) l) (List.map (Terms.subst bend_sid new_end_sid) l') in
-	      let new_facts = List.map (Terms.subst bend_sid new_end_sid) (get_facts_at fact_info) in
+	      let new_facts = List.map (Terms.subst bend_sid new_end_sid) (get_facts_at_useful_facts (is_useful, advise_ref) fact_info) in
 (*
               print_string "\nFound ";
               Display.display_term t1';
@@ -1251,7 +1342,16 @@ let check_corresp (t1,t2) g =
     (* Add probability for eliminated collisions *)
     (true, Proba.final_add_proba [])
   else
-    (false, []))
+    begin
+      if (!advise_ref) != [] then
+	begin
+	  print_string "User advice: to prove ";
+	  Display.display_query (QEventQ(t1,t2),{game_number = 1; proc = g.proc; current_queries = []});
+	  print_string ", you could try\n";
+	  List.iter (fun i -> print_string "  "; Display.display_instruct i; print_newline()) (!advise_ref)
+	end;
+      (false, [])
+    end)
 
 (***** Simplify a term knowing some true facts *****)
 

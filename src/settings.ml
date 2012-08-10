@@ -422,17 +422,15 @@ let get_inverse f n =
 
 (***************************************************************************)
 
-let queries = ref []
-
 let public_vars = ref []
 
-let collect_public_vars() =
+let collect_public_vars queries =
   List.iter (function 
-      (QSecret b',_) | (QSecret1 b',_) -> 
+      (QSecret b',_),_,_ | (QSecret1 b',_),_,_ -> 
          if not (List.memq b' (!public_vars)) then
            public_vars := b' :: (!public_vars)
-    | (QEventQ _,_) -> ()
-    | (AbsentQuery,_) -> ()) (!queries)
+    | (QEventQ _,_),_,_ -> ()
+    | (AbsentQuery,_),_,_ -> ()) queries
 
 let occurs_in_queries b = List.memq b (!public_vars)
 
@@ -447,14 +445,15 @@ let rec event_occurs_in_qterm f = function
   | QAnd(t1,t2) | QOr(t1,t2) -> 
       (event_occurs_in_qterm f t1) || (event_occurs_in_qterm f t2)
 
-let event_occurs_in_queries f =
+let event_occurs_in_queries f q =
   List.exists (function
-      ((QSecret _|QSecret1 _), _) -> false
-    | (AbsentQuery, _) -> true
-    | (QEventQ (l,r),_) -> 
+      _, _, popt when popt != None -> false (* I ignore already proved queries *)
+    | ((QSecret _|QSecret1 _), _),_,_ -> false
+    | (AbsentQuery, _),_,_ -> true
+    | (QEventQ (l,r),_),_,_ ->
 	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||
 	(event_occurs_in_qterm f r)
-	  ) (!queries)
+	  ) q
 
 (***************************************************************************)
 

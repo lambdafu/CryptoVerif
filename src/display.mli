@@ -30,24 +30,21 @@ val display_instruct : instruct -> unit
 
 (* The next functions are made public so that displaytex can call them *)
 
-val proba_table : ((query * game) * (setf list * state)) list ref
+type query_specif =
+    InitQuery of query
+  | QEvent of funsymb
+
+val equal_qs : query_specif * game -> query_specif * game -> bool
+
+type proof_tree =
+    { pt_game : game;
+      mutable pt_sons : (instruct * setf list * proof_tree * (query_specif * game) list ref) list }
 
 exception NotBoundEvent of funsymb * game
 
-(* [compute_proba q p s] returns a computation of probabilities 
-of query [q] in state [s]. [p] is the probability of [q] in the game
-that proves it (corresponding to the last elimination of collisions).
-When the obtained probability refers to the probability of executing
-event [e] in game [g], and that probability has not been bounded, raises
-[NotBoundEvent(e,g)]. The returned probability is guaranteed not to
-contain [SetEvent]. *)
+val build_proof_tree : query * game -> setf list -> state -> proof_tree
 
-val compute_proba : query * game -> setf list -> state -> setf list
-
-(* [proba_since g s] returns the probability of distinguishing game [g]
-from the game corresponding to state [s] *)
-
-val proba_since : game -> state -> setf list
+val double_if_needed : (query_specif * game) list -> setf list -> setf list
 
 (* [proba_from_set q p] converts the probability [p] represented as
 a [setf list] into a probability represented as a [probaf].
@@ -55,6 +52,13 @@ a [setf list] into a probability represented as a [probaf].
 
 val proba_from_set : setf list -> probaf
 val proba_from_set_may_double : query * game -> setf list -> probaf
+
+
+val get_initial_queries : state -> ((query * game) * proof_t ref * proof_t) list
+
+val get_all_states_from_queries : ((query * game) * proof_t ref * proof_t) list -> state list
+
+val remove_duplicate_states : state list -> state list -> state list
 
 
 val display_state : state -> unit

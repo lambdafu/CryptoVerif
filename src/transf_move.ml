@@ -325,5 +325,5 @@ let move_new_let move_set g =
   Terms.cleanup_array_ref();
   let transfos = !done_transfos in
   done_transfos := [];
-  ({ proc = r; game_number = -1}, [], transfos)
+  ({ proc = r; game_number = -1; current_queries = g.current_queries}, [], transfos)
 
