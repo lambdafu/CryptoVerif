@@ -185,7 +185,7 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 \fi
 &\funmode ::= \fungroup\ [\texttt{[exist]}]\\
 &\phfm \fungroup \texttt{ [all]}\\[2mm]
-&\nonterm{channel} ::= \nonterm{ident}[\texttt{[}\seq{term}\texttt{]}]\\
+&\nonterm{channel} ::= \nonterm{ident}\\
 &\oprocess ::= \nonterm{ident}\\
 &\phop \texttt{(} \oprocess \texttt{)}\\
 &\phop \yield\\
@@ -266,7 +266,8 @@ constructs of output processes but return a bitstring instead of
 executing a process. 
 They are not allowed to occur in \texttt{defined} conditions of \texttt{find} and in input channels.
 The construct \texttt{new} is not allowed to occur in
-conditions of \texttt{find}.
+conditions of \texttt{find} or {\tt get}.
+The construct \texttt{find} is also not allowed in conditions of {\tt get}.
 We refer the reader to the description of 
 processes below for a fully detailed explanation.
 \else
@@ -275,7 +276,8 @@ Terms contain further constructs \texttt{<-R}, \texttt{<-},
 corresponding constructs of oracle bodies.
 They are not allowed to occur in \texttt{defined} conditions of \texttt{find} and in input channels.
 The construct \texttt{<-R} is not allowed to occur in
-conditions of \texttt{find}.
+conditions of \texttt{find} or {\tt get}.
+The construct \texttt{find} is also not allowed in conditions of {\tt get}.
 We refer the reader to the description of 
 oracle bodies below for a fully detailed explanation.
 \fi
@@ -333,7 +335,7 @@ $cond_j$ for each $j$ and
 each value of $u_{j1}, \ldots, u_{jm_j}$ in $[1, n_{j1}] 
 \times \ldots \times [1, n_{jm_j}]$.
 If none of these conditions is \texttt{true}, it returns the result of $M$.
-Otherwise, it chooses randomly with uniform probability
+Otherwise, it chooses randomly with (almost) uniform probability
 one $j$ and one value of $u_{j1}, \ldots, u_{jm_j}$
 such that the corresponding condition is \texttt{true}, and returns 
 the result of $M_j$.
@@ -344,7 +346,8 @@ The construct \texttt{event} in terms is also similar to the one for
 processes, except that it is restricted to events without arguments
 \texttt{event $f$} and that it aborts the process immediately after
 the event. It is not allowed to occur in conditions of \texttt{find}
-or in input channels. It is intended to be used in the right-hand side
+or {\tt get} or in input channels. 
+It is intended to be used in the right-hand side
 of the definitions of some cryptographic primitives. (See also
 the \texttt{equiv} declaration; events in the right-hand side can be
 used when the simulation of left-hand side by the right-hand side
@@ -448,13 +451,13 @@ by an \texttt{event} declaration.
 \item $\Res{x}{T}\texttt{;}P$ chooses a new
 random number in type $T$, stores it in $x$, and executes $P$.
 $T$ must be declared with option {\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
-Each such type $T$ comes with an associated standard probability distribution $D_T$;
+Each such type $T$ comes with an associated default probability distribution $D_T$;
 the random number is chosen according to that distribution.
 The time for generated random numbers in that distribution
 is bounded by $\ifchannels\texttt{time(new }\else\texttt{time(<-R }\fi T\texttt{)}$.
 \begin{itemize}
 
-\item When the type $T$ is {\tt nonuniform}, the standard probability 
+\item When the type $T$ is {\tt nonuniform}, the default probability 
 distribution $D_T$ for type $T$ may be non-uniform. It is left unspecified.
 (Notice that random bitstrings with non-uniform distributions can also
 be obtained by applying a function to a random bitstring choosen 
@@ -464,14 +467,14 @@ uniformly among a finite set of bitstrings, chosen in another type.)
 bitstrings of a certain length $n$.  Probabilistic Turing machines can
 return uniformly distributed random numbers in such types, in bounded
 time.
-If $T$ is not marked {\tt nonuniform}, the standard probability 
+If $T$ is not marked {\tt nonuniform}, the default probability 
 distribution $D_T$ for $T$ is the uniform distribution.
 
 \item For other {\tt bounded} types $T$, probabilistic bounded-time Turing 
 machines can choose random numbers with a distribution as close as we
 wish to uniform, but may not be able to produce exactly a uniform
 distribution. If $T$ is not marked {\tt nonuniform}, 
-the standard probability distribution $D_T$ is such that its distance
+the default probability distribution $D_T$ is such that its distance
 to the uniform distribution is at most $\epsrand{T}$. The distance between
 two probability distributions $D_1$ and $D_2$ for type $T$ is
 \[d(D_1, D_2) = \sum_{a \in T} | \Pr[X_1 = a] - \Pr[X_2 = a] |\]
@@ -614,7 +617,7 @@ then executes $P$.
 The table $\mathit{tbl}$ must have been declared with the appropriate
 types using the $\texttt{table}$ declaration.
 
-\item \texttt{get} $\mathit{tbl}\texttt{(}p_1, \ldots, p_n\texttt{)}$ \texttt{suchthat} $M$ \texttt{in} $P$ \texttt{else} $P'$ tries to find an element of the table $\mathit{tbl}$ that matches the patterns $p_1, \ldots, p_n$ and such that $M$ is true. If it succeeds, it executes $P$ with the variables of $p_1, \ldots, p_n$ bound to that element of the table. If several elements match, one of them is chosen randomly with uniform probability. If no element matches, it executes $P'$. 
+\item \texttt{get} $\mathit{tbl}\texttt{(}p_1, \ldots, p_n\texttt{)}$ \texttt{suchthat} $M$ \texttt{in} $P$ \texttt{else} $P'$ tries to find an element of the table $\mathit{tbl}$ that matches the patterns $p_1, \ldots, p_n$ and such that $M$ is true. If it succeeds, it executes $P$ with the variables of $p_1, \ldots, p_n$ bound to that element of the table. If several elements match, one of them is chosen randomly with (almost) uniform probability. If no element matches, it executes $P'$. 
 
 When \texttt{else} $P'$ is omitted, it is equivalent to \texttt{else} \yield. When \texttt{suchthat} $M$ is omitted, it is equivalent to \texttt{suchthat} $\mathit{true}$. Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
 
@@ -636,7 +639,7 @@ M_l\texttt{],}N\texttt{);}Q$, one looks for an input on the same
 channel in the available input processes. If no such input process is
 found, the process blocks.  Otherwise, one such input process
 $\texttt{in(}c\texttt{[}M'_1, \ldots, M'_l\texttt{],}p\texttt{);}P $
-is chosen randomly with uniform probability. The communication is then
+is chosen randomly with (almost) uniform probability. The communication is then
 executed: the output message $N$ is evaluated, its result is truncated
 to the maximum length of bitstrings on channel $c$, the obtained
 bitstring is matched against pattern $p$.  Finally, the output process
@@ -648,7 +651,8 @@ Patterns $p$ are as in the \texttt{let} process, except that
 variables in $p$ that are not under a function symbol $f(\ldots)$
 must be declared with their type.
 
-When a channel is just a channel name $c$, it is an abbreviation for
+In the game as given to CryptoVerif, the channel is just a channel 
+name $c$, and it is an abbreviation for
 $c[i_1, \ldots, i_n]$ where $i_1, \ldots, i_n$ are the current
 replication indexes at the considered input or output.  It is
 recommended to use as channel a different channel name for each input
@@ -739,7 +743,10 @@ is a subterm of $M'_1, \ldots, M'_l$.
 
 \end{itemize}
 These syntactic constraints guarantee that a variable is accessed
-only when it is defined.
+only when it is defined. Moreover, the variables defined in
+conditions of {\tt find} or in patterns or conditions of {\tt get}
+must not have array accesses (that is, accesses corresponding to the
+last three cases above).
 
 Finally, the calculus is equipped with a type system.
 To be able to use variables outside their scope (by \texttt{find}),
@@ -1180,8 +1187,8 @@ cannot be chosen among other types.)
 \item \texttt{large}, \texttt{password}, and \texttt{size$n$} indicate 
 the order of magnitude of the probability of collision $\texttt{Pcoll1rand}(T)$
 between a random element
-chosen according to the standard probability distribution $D_T$ for the considered type $T$,
-and an independent element of type $T$. When the standard distribution is uniform
+chosen according to the default probability distribution $D_T$ for the considered type $T$,
+and an independent element of type $T$. When the default distribution is uniform
 or almost uniform ({\tt fixed} and {\tt bounded} types), $\texttt{Pcoll1rand}(T) = \frac{1}{|T|}$,
 so these parameters give an order of magnitude of the cardinal of the type.
 
@@ -1246,8 +1253,8 @@ function. $f$ must be unary. (Thanks to the pattern matching construct, one can
 in general avoid completely the declaration of \texttt{decompos} functions,
 by just declaring the corresponding poly-injective function \texttt{compos}.)
 
-\item \texttt{uniform} means that $f$ maps the standard distribution
-of its argument into the standard distribution of its result. $f$ must be unary;
+\item \texttt{uniform} means that $f$ maps the default distribution
+of its argument into the default distribution of its result. $f$ must be unary;
 the argument and the result of $f$ must be of types marked 
 {\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
 
@@ -1346,8 +1353,8 @@ $\texttt{collision }\Res{x_1}{T_1}\texttt{;}\ldots
 M_1\texttt{) <=(}p\texttt{)=> return(}M_2\texttt{).}$ 
 \fi
 means that when
-$x_1, \ldots, x_n$ are chosen randomly with uniform probability
-and independently in $T_1, \ldots, T_n$ respectively, a Turing machine running in
+$x_1, \ldots, x_n$ are chosen randomly 
+and independently in $T_1, \ldots, T_n$ respectively (with the default probability distributions for these types), a Turing machine running in
 time $\texttt{time}$ has probability at most $p$ of finding
 $y_1, \ldots, y_m$ in $T'_1, \ldots, T'_m$ such that $M_1 \neq M_2$.
 %
@@ -1779,25 +1786,25 @@ distribution and the probability distribution used for choosing elements
 in {\tt find}.
 
 \item $\texttt{eps\_rand(}T\texttt{)}$ is the maximum distance between the 
-uniform probability distribution and the standard probability distribution 
+uniform probability distribution and the default probability distribution 
 $D_T$ for type $T$ (when $T$ is \texttt{bounded}).
 
 \item 
 $\texttt{Pcoll1rand(}T\texttt{)}$ is the maximum probability of
 collision between a random value $X$ of type $T$ chosen according
-to the standard distribution $D_T$ for type $T$ and an element of type $T$
+to the default distribution $D_T$ for type $T$ and an element of type $T$
 that does not depend on it (when $T$ is \texttt{nonuniform}).
 This is also the maximum probability of choosing any given element of 
-$T$ in the standard distribution for that type:
+$T$ in the default distribution for that type:
 \[\texttt{Pcoll1rand(}T\texttt{)} = \max_{a \in T} \Pr[X = a]\]
 where $X$ is chosen according to distribution $D_T$.
 
 \item $\texttt{Pcoll2rand(}T\texttt{)}$ is the maximum probability of
 collision between two independent random values of type $T$  
-chosen according to the standard distribution $D_T$ for type $T$
+chosen according to the default distribution $D_T$ for type $T$
 (when $T$ is \texttt{nonuniform}). We have
 \[\texttt{Pcoll2rand(}T\texttt{)} = \sum_{a \in T} \Pr[X = a]^2 \leq \texttt{Pcoll1rand(}T\texttt{)}\]
-where $X$ is chosen according to the standard distribution $D_T$.
+where $X$ is chosen according to the default distribution $D_T$.
 
 \item $\texttt{time}$ designates the runtime of the environment (attacker).
 
@@ -1846,7 +1853,7 @@ $\texttt{time(\&\&)}$ is the maximum time of a boolean and.
 $\texttt{time(\string|\string|)}$ is the maximum time of a boolean or.
 \item
 $\ifchannels\texttt{time(new }\else\texttt{time(<-R }\fi T\texttt{)}$ is the maximum time needed to choose
-a random number of type $T$ uniformly.
+a random number of type $T$ according to the default distribution for type $T$.
 \item
 \ifchannels
 $\texttt{time(newChannel)}$ is the maximum time to create a new

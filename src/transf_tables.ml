@@ -96,7 +96,7 @@ let rec get_find_branch_process brl patl p =
     | br::brl',pat::patl' ->
         let t1=Terms.term_from_binderref br in
         (match pat with
-           | PatVar (b) when not (Terms.has_array_ref_q b) ->
+           | PatVar (b) ->
 	       let subst = Terms.OneSubst(b,t1,ref false) in
 	       let patl'' = List.map (Terms.copy_pat subst) patl' in
 	       let p' = Terms.copy_oprocess subst p in

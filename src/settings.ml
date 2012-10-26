@@ -294,8 +294,14 @@ module CatTypeHashtbl = Hashtbl.Make(HashedCatType)
 let comp_funs = CatTypeHashtbl.create 7
 
 let f_comp cat t t2 =
-  if t != t2 then
-    Parsing_helper.internal_error "Comparisons for compatible types only";
+  let t = 
+    if t2 == t_any then t else
+    if t == t_any then t2 else
+    if t != t2 then
+      Parsing_helper.internal_error "Comparisons for compatible types only"
+    else
+      t
+  in
   try 
     CatTypeHashtbl.find comp_funs (cat,t)
   with Not_found ->

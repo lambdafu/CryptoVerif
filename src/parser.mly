@@ -482,9 +482,9 @@ process:
 	{ PLet($2,$4,(PYield, parse_extent()),(PYield, parse_extent())), parse_extent() }
 | 	LET pattern EQUAL term IN process optelse
 	{ PLet($2,$4,$6,$7), parse_extent() }
-|	IN LPAREN term COMMA pattern RPAREN optprocess
+|	IN LPAREN IDENT COMMA pattern RPAREN optprocess
 	{ PInput($3,$5,$7), parse_extent() }
-|	OUT LPAREN term COMMA term RPAREN progend optinputprocess
+|	OUT LPAREN IDENT COMMA term RPAREN progend optinputprocess
 	{ POutput($7,$3,$5,$8), parse_extent() }
 |       YIELD
         { PYield, parse_extent() }

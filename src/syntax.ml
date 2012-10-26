@@ -342,14 +342,10 @@ let rec check_process1 cur_array = function
 	check_term1 true cur_array' t;
 	check_process1 cur_array p1) l0;
       check_process1 cur_array p2
-  | PInput(t, pat, p), _ ->
-      if (!Settings.front_end) == Settings.Channels then
-	check_term1 false cur_array t;
+  | PInput(c, pat, p), _ ->
       check_pattern1 false cur_array true pat;
       check_process1 cur_array p 
-  | POutput(b,t1,t2,p), _ ->
-      if (!Settings.front_end) == Settings.Channels then
-	check_term1 false cur_array t1;
+  | POutput(b,c,t2,p), _ ->
       check_term1 false cur_array t2;
       check_process1 cur_array p
   | PLet(pat, t, p1, p2), _ ->
@@ -364,10 +360,7 @@ let rec check_process1 cur_array = function
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
 	 We must appropriately forbid array accesses to the variables they define. *)
-      List.iter (fun pat -> 
-	match pat with
-	  (PPatVar _,_) -> check_pattern1 false cur_array false pat
-	| _ -> check_pattern1 true cur_array false pat) patlist;
+      List.iter (check_pattern1 true cur_array false) patlist;
       (match topt with Some t -> check_term1 true cur_array t | None -> ());
       check_process1 cur_array p1;
       check_process1 cur_array p2
@@ -429,34 +422,42 @@ let rec check_no_iffindletnewevent (t,ext) =
 
 (* Check that t does not contain new *)
 
-let rec check_no_new (t,ext) =
+let rec check_no_new_event no_find (t,ext) =
   match t with
     PIdent _ -> () 
   | PArray (_,l) | PFunApp(_,l) | PTuple l ->
-      List.iter check_no_new l
+      List.iter (check_no_new_event no_find) l
   | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) ->
-      check_no_new t1;
-      check_no_new t2
+      check_no_new_event no_find t1;
+      check_no_new_event no_find t2
   | PTestE(t1,t2,t3) ->
-      check_no_new t1;
-      check_no_new t2;
-      check_no_new t3
+      check_no_new_event no_find t1;
+      check_no_new_event no_find t2;
+      check_no_new_event no_find t3
   | PLetE(pat,t1,t2,topt) ->
-      check_no_new_pat pat;
-      check_no_new t1;
-      check_no_new t2;
+      check_no_new_event_pat no_find pat;
+      check_no_new_event no_find t1;
+      check_no_new_event no_find t2;
       begin
 	match topt with
 	  None -> ()
-	| Some t3 -> check_no_new t3
+	| Some t3 -> check_no_new_event no_find t3
       end
   | PFindE(l0,t3,_) ->
+      if no_find then
+	begin
+	  match l0 with
+	    [(_,[],def_list,_,_)] -> ()
+	      (* This find is in fact a if, so ok *)
+	  | _ ->
+	      Parsing_helper.input_error "find is not allowed in conditions of get" ext
+	end;
       List.iter (fun (_,_,def_list,t1,t2) ->
 	(* def_list will be checked by check_no_iffindletnew
 	   when translating this find *)
-	check_no_new t1;
-	check_no_new t2) l0;
-      check_no_new t3
+	check_no_new_event no_find t1;
+	check_no_new_event no_find t2) l0;
+      check_no_new_event no_find t3
   | PResE _ -> 
       Parsing_helper.input_error "new should not occur as term" ext
   | PEventE _ -> 
@@ -464,11 +465,11 @@ let rec check_no_new (t,ext) =
   | PInjEvent _ -> 
       Parsing_helper.input_error "inj: allowed only in queries" ext
 
-and check_no_new_pat (pat,_) = 
+and check_no_new_event_pat no_find (pat,_) = 
   match pat with
     PPatVar _ -> ()
-  | PPatTuple l | PPatFunApp(_,l) -> List.iter check_no_new_pat l
-  | PPatEqual t -> check_no_new t
+  | PPatTuple l | PPatFunApp(_,l) -> List.iter (check_no_new_event_pat no_find) l
+  | PPatEqual t -> check_no_new_event no_find t
 
 (* Check terms *)
 
@@ -672,7 +673,7 @@ let rec check_term cur_array env = function
 	let env'' = List.fold_left2 (fun env ((s1, ext1),_) b -> StringMap.add s1 (EReplIndex b) env) env bl bl'' in
 	let cur_array' = (List.map Terms.term_from_repl_index bl'') @ cur_array in
 	let t1' = check_term cur_array' env'' t1 in
-	check_no_new t1;
+	check_no_new_event false t1;
 	let t2' = check_term cur_array env' t2 in
 	check_type (snd t1) t1' Settings.t_bool;
 	if (t2'.t_type != t3'.t_type)  && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
@@ -699,13 +700,13 @@ let rec check_term cur_array env = function
   | PEqual(t1,t2), ext ->
       let t1' = check_term cur_array env t1 in
       let t2' = check_term cur_array env t2 in
-      if t1'.t_type != t2'.t_type then
+      if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
 	Parsing_helper.input_error "= expects expressions of the same type" ext;
       Terms.make_equal_ext ext t1' t2'
   | PDiff(t1,t2), ext ->
       let t1' = check_term cur_array env t1 in
       let t2' = check_term cur_array env t2 in
-      if t1'.t_type != t2'.t_type then
+      if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
 	Parsing_helper.input_error "<> expects expressions of the same type" ext;
       Terms.make_diff_ext ext t1' t2'
   | PAnd(t1,t2), ext ->
@@ -1057,35 +1058,18 @@ let check_channel_id (s,ext) =
     Hashtbl.add channel_env s c;
     c
 
-let check_process_channel cur_array env c = 
+let check_process_channel cur_array env ((s, ext) as id) = 
   if (!Settings.front_end) == Settings.Channels then
-    match c with
-      PIdent (s, ext), ext2 ->
-	begin
-	  try 
-	    match StringMap.find s env with
-	      EChannel(b) -> (b,cur_array)
-	    | _ -> input_error (s ^ " should be a channel") ext
-	  with Not_found -> 
-	    input_error (s ^ " not defined") ext
-	end
-    | PArray((s, ext), tl), ext2 ->
-	let tl' = List.map (check_term cur_array env) tl in
-	begin
-	  try 
-	    match StringMap.find s env with
-	      EChannel(b) -> (b,tl')
-	    | _ -> input_error (s ^ " should be a channel") ext
-	  with Not_found -> 
-	    input_error (s ^ " not defined") ext
-	end
-    | _, ext -> 
-	input_error "A channel should be an identifier or an array access" ext
+    begin
+      try 
+	match StringMap.find s env with
+	  EChannel(b) -> (b,cur_array)
+	| _ -> input_error (s ^ " should be a channel") ext
+      with Not_found -> 
+	input_error (s ^ " not defined") ext
+    end
   else
-    match c with
-      PIdent id, ext2 -> (check_channel_id id, cur_array)
-    | _, ext -> 
-	internal_error "An oracle name should be an identifier" 
+    (check_channel_id id, cur_array)
 
 (* Check statement *)
 
@@ -1959,7 +1943,6 @@ let rec check_process cur_array env prog = function
       let (p',oracle,ip) = check_process (cur_array1::cur_array) env prog p in
       (iproc_from_desc (Repl(b', p')), oracle, iproc_from_desc (Repl(b',ip)))
   | PInput(t, pat, p), _ ->
-      check_no_iffindletnewevent t;
       let ((c, _) as t') = check_process_channel cur_array env t in
       let (env', pat') = check_pattern cur_array env None pat in
       let (p', tres, oracle,ip) = check_oprocess cur_array env' prog p in
@@ -2031,7 +2014,7 @@ and check_oprocess cur_array env prog = function
 		     let env'' = List.fold_left2 (fun env ((s1, ext1),_) b -> StringMap.add s1 (EReplIndex b) env) env bl bl'' in
 		     let cur_array' = (List.map Terms.term_from_repl_index bl'') @ cur_array in
 	             let t' = check_term cur_array' env'' t in
-	               check_no_new t;
+	               check_no_new_event false t;
 	               check_type (snd t) t' Settings.t_bool;
 	               let def_list' = List.map (check_br cur_array' env'') def_list in
 	               let (p1', tres1, oracle1,ip1') = check_oprocess cur_array env' prog p1 in
@@ -2106,7 +2089,7 @@ and check_oprocess cur_array env prog = function
 	match topt with 
 	  None -> None 
 	| Some t -> 
-	    check_no_new t;
+	    check_no_new_event true t;
 	    Some (check_term cur_array env' t) 
       in
       let (p1',tres1,oracle1,ip1') = check_oprocess cur_array env' prog p1 in
@@ -2200,8 +2183,8 @@ let rec rename_proc (p, ext) =
        rename_term c,
        rename_proc p1)) l, rename_proc p, opt)
   | PEvent(t,p) -> PEvent(rename_term t, rename_proc p)
-  | PInput(t,tpat,p) -> PInput(rename_term t, rename_pat tpat, rename_proc p)
-  | POutput(b,t1,t2,p) -> POutput(b,rename_term t1, rename_term t2, rename_proc p)
+  | PInput(c,tpat,p) -> PInput(rename_ie c, rename_pat tpat, rename_proc p)
+  | POutput(b,c,t2,p) -> POutput(b,rename_ie c, rename_term t2, rename_proc p)
   | PLet(pat, t, p1, p2) -> PLet(rename_pat pat, rename_term t, rename_proc p1, rename_proc p2)
   | PGet(id, patlist, sto, p1,p2) -> PGet(rename_ie id, List.map rename_pat patlist, (match sto with None -> None|Some t -> Some (rename_term t)), rename_proc p1, rename_proc p2)
   | PInsert(id, tlist, p) -> PInsert(rename_ie id, List.map rename_term tlist, rename_proc p)

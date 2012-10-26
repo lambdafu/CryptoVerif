@@ -9,7 +9,7 @@ let cst_true = (PIdent ("true", dummy_ext), dummy_ext)
 
 let dummy_channel = ("@dummy_channel", dummy_ext)
 
-let return_channel = (PIdent dummy_channel, dummy_ext)
+let return_channel = dummy_channel
 
 %}
 
@@ -483,8 +483,8 @@ process:
 | 	LET pattern EQUAL term IN process optelse
 	{ PLet($2,$4,$6,$7), parse_extent() }
 |	IDENT LPAREN patternseq RPAREN DEF process
-	{ let (_,ext) = $1 in 
-	  PInput((PIdent $1, ext),(PPatTuple $3, ext),$6), parse_extent() }
+	{ let (_,ext) = $1 in
+	  PInput($1,(PPatTuple $3, ext),$6), parse_extent() }
 |	RETURN LPAREN termseq RPAREN progend optinputprocess
 	{ POutput($5,return_channel, (PTuple($3), parse_extent()),$6), parse_extent() }
 |	RETURN progend optinputprocess

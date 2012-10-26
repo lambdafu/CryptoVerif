@@ -41,8 +41,8 @@ and process =  PNil
 	     | PTest of term_e * process_e * process_e
 	     | PFind of (Types.repl_index list ref(*to store replication indices*) * (ident * ident) list * (ident * term_e list) list * term_e * process_e) list * process_e * ident list
 	     | PEvent of term_e * process_e
-             | PInput of term_e * pattern_e * process_e
-             | POutput of bool * term_e * term_e * process_e
+             | PInput of ident * pattern_e * process_e
+             | POutput of bool * ident * term_e * process_e
 	     | PLet of pattern_e * term_e * process_e * process_e
              | PGet of ident * (pattern_e list) * term_e option * process_e * process_e
              | PInsert of ident * term_e list * process_e

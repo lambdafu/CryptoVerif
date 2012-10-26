@@ -26,12 +26,13 @@ message.
 - fixed bug that could cause an internal error with option
 "set optimizeVars = true".
 - fixed bugs that could lead to a wrong transformed game or to an internal
-error when there were array accesses to variables bound by "get".
+error when there were array accesses to variables bound by "get";
+such array accesses are now forbidden.
 - fixed bug that could cause useless renamings of variables defined
 in conditions of find and not used.
 - fixed bug that could cause an internal error when referring to 
-find indices in the right-hand of an equivalence; such references are now
-rejected with a correct error message.
+find indices in the right-hand side of an equivalence; such references are 
+now rejected with a correct error message.
 - fixed bug that caused an internal error in auto_sa_rename when
 there were array accesses to variables defined inside terms
 (but not conditions of find)
