@@ -6,6 +6,8 @@ Version
 - improved explanation of probability computations
 - cleaned up the semantics of "find", by using temporary variables for
 the lookup.
+- channels must be identifiers only in the initial game; indices of channels
+are always implicitly the current replication indices.
 - allow approximately uniform distributions for finite sets (bounded types),
 and non-uniform distributions for all typs (all random elements chosen by 
 "new" in the same type are chosen using the same distribution, called
