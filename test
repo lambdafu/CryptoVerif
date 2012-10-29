@@ -75,14 +75,14 @@ done
 egrep \(PROTOCOL\|RESULT\|user\) tests/$output > tests/sum-$output
 
 
-if [ -d ../../dev/cnrs/webperso/cryptoverif/kerberos ]
+if [ -d ../../dev/web/webperso/cryptoverif/kerberos ]
 then
 echo
 echo WEB
 echo
 output=web`date '+%Y.%m.%d-%H_%M_%S'`
 (
-for i in ../../dev/cnrs/webperso/cryptoverif/kerberos/*.cv
+for i in ../../dev/web/webperso/cryptoverif/kerberos/*.cv
 do
 	analyze $i "" $i tests/$output
 done

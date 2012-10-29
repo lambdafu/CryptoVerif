@@ -1,7 +1,7 @@
 set elsefindFactsInSimplify = true.
+set mergeBranches = false.
 
 proof {
-      set mergeBranches = false;
       success;
       (*prove authentication*)
       show_game occ;
@@ -14,11 +14,10 @@ proof {
 
       (*secrecy of the key*)
       show_game occ;
-      insert 218 "find i' <= N suchthat defined(svc[i'], svs[i'], scC[i'], sns[i'], scS[i'], se[i'], sf[i'], KS[i'], @22_r_393[i']) && ((cvc = svc[i']) && ((cvs = svs[i']) && (((ccC = scC[i']) && (negotiation_string = sns[i'])) && (((ccS = scS[i']) && (cns = negotiation_string)) && ((ce = se[i']) && ((cf = sf[i']))))))) then";
+      insert 218 "find i' <= N suchthat defined(svc[i'], svs[i'], scC[i'], sns[i'], scS[i'], se[i'], sf[i'], @22_r_393[i']) && ((cvc = svc[i']) && ((cvs = svs[i']) && (((ccC = scC[i']) && (negotiation_string = sns[i'])) && (((ccS = scS[i']) && (cns = negotiation_string)) && ((ce = se[i']) && ((cf = sf[i']))))))) then";
       insert 53 "find j <= N suchthat defined (ce[j]) && ce[j]=se then";
       simplify;
       crypto cdh(exp);
-      simplify;
       crypto hash_to_iv_random;
       success
 }

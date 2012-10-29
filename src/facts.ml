@@ -1013,10 +1013,13 @@ let rec collect_vars accu t =
 let show_fact facts fact =
   Terms.auto_cleanup (fun () ->
       try
-	ignore (simplif_add no_dependency_anal facts (Terms.make_not fact));
-(*	print_string "Failed to prove "; 
+        ignore(simplif_add no_dependency_anal facts (Terms.make_not fact));
+(*	let r = simplif_add no_dependency_anal facts (Terms.make_not fact) in
+	print_string "Failed to prove "; 
 	Display.display_term fact;
-	print_newline();*)
+	print_newline();
+	print_string "Simplified facts: ";
+	display_facts r; *)
 	false
       with Contradiction ->
 (*	print_string "Proved "; 
@@ -1255,7 +1258,7 @@ let check_corresp (t1,t2) g =
    That's why I use "no_dependency_anal" *)
 
 (*  print_string "Trying to prove ";
-  Display.display_query (QEventQ(t1,t2));*)
+  Display.display_query (QEventQ(t1,t2), g);*)
   Proba.reset [] g;
   let event_accu = ref [] in
   Terms.build_def_process (Some event_accu) g.proc;
@@ -1401,7 +1404,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 	| _ ->
 	    try
 	      let _ = simplif_add dep_info simp_facts t' in
-	      t
+	      apply_reds simp_facts t 
 	    with Contradiction -> 
 	      Terms.make_false()
       end
@@ -1423,11 +1426,11 @@ let rec simplify_term_rec dep_info simp_facts t =
 	| _ -> 
 	    try
 	      let _ = simplif_add dep_info simp_facts (Terms.make_not t') in
-	      t
+	      apply_reds simp_facts t
 	    with Contradiction -> 
 	      Terms.make_true()
       end
-  | _ -> t
+  | _ -> apply_reds simp_facts t
 
 let simplify_term dep_info simp_facts t = 
   let t' = apply_reds simp_facts t in
