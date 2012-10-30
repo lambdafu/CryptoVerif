@@ -8,18 +8,18 @@ echo First, proving authentication
 ./cryptoverif implementation/ssh/ssh.ocv > implementation/ssh/ssh.out
 egrep '(RESULT|All)' implementation/ssh/ssh.out | grep -v "RESULT time"
 echo "Second, proving secrecy of the exchanged keys: IVs, encryption keys, MAC keys"
-./cryptoverif implementation/ssh/ssh-secrecy-key-civcs.ocv > implementation/ssh/ssh-secrecy-key-civcs.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-civcs.out | grep -v "RESULT time"
-./cryptoverif implementation/ssh/ssh-secrecy-key-civsc.ocv > implementation/ssh/ssh-secrecy-key-civsc.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-civsc.out | grep -v "RESULT time"
-./cryptoverif implementation/ssh/ssh-secrecy-key-cekcs.ocv > implementation/ssh/ssh-secrecy-key-cekcs.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-cekcs.out | grep -v "RESULT time"
-./cryptoverif implementation/ssh/ssh-secrecy-key-ceksc.ocv > implementation/ssh/ssh-secrecy-key-ceksc.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-ceksc.out | grep -v "RESULT time"
-./cryptoverif implementation/ssh/ssh-secrecy-key-cmkcs.ocv > implementation/ssh/ssh-secrecy-key-cmkcs.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-cmkcs.out | grep -v "RESULT time"
-./cryptoverif implementation/ssh/ssh-secrecy-key-cmksc.ocv > implementation/ssh/ssh-secrecy-key-cmksc.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-cmksc.out | grep -v "RESULT time"
+./cryptoverif implementation/ssh/ssh-secrecy-key-IVCC.ocv > implementation/ssh/ssh-secrecy-key-IVCC.out
+egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-IVCC.out | grep -v "RESULT time"
+./cryptoverif implementation/ssh/ssh-secrecy-key-IVSC.ocv > implementation/ssh/ssh-secrecy-key-IVSC.out
+egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-IVSC.out | grep -v "RESULT time"
+./cryptoverif implementation/ssh/ssh-secrecy-key-EKCC.ocv > implementation/ssh/ssh-secrecy-key-EKCC.out
+egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-EKCC.out | grep -v "RESULT time"
+./cryptoverif implementation/ssh/ssh-secrecy-key-EKSC.ocv > implementation/ssh/ssh-secrecy-key-EKSC.out
+egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-EKSC.out | grep -v "RESULT time"
+./cryptoverif implementation/ssh/ssh-secrecy-key-MKCC.ocv > implementation/ssh/ssh-secrecy-key-MKCC.out
+egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-MKCC.out | grep -v "RESULT time"
+./cryptoverif implementation/ssh/ssh-secrecy-key-MKSC.ocv > implementation/ssh/ssh-secrecy-key-MKSC.out
+egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-MKSC.out | grep -v "RESULT time"
 
 echo Generating implementation...
 ./cryptoverif -impl -o implementation/ssh implementation/ssh/ssh.ocv

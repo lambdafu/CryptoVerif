@@ -1,96 +1,96 @@
-param N,N2.
+param N,N'.
 
-type pad_rand[fixed]. (*size 255 bytes or less depending on how the padding is done*)
-type cookie[fixed,large]. (* 16 bytes *)
-type tag[bounded]. (* 1 byte *)
-type uint32[bounded]. (* 4 bytes *)
+type pad_rand [fixed]. (*size 255 bytes or less depending on how the padding is done*)
+type cookie [fixed, large]. (* 16 bytes *)
+type tag [bounded]. (* 1 byte *)
+type uint32 [bounded]. (* 4 bytes *)
 type D [fixed].
-type hashkey[bounded].
-type hash[fixed,large].
-type signature[bounded].
-type sblocksize[fixed].
+type hashkey [bounded].
+type hash [fixed, large].
+type signature [bounded].
+type block [fixed].
 type sseed [fixed].
-type skeyseed [large,fixed].
-type sskey[bounded,large].
-type spkey[bounded,large].
-type mkeyseed[fixed].
-type mkey[bounded,large].
-type macinput[bounded].
-type macres[large].
-type symkey[fixed,large].
-type symseed[fixed,large].
-type symkeyseed[fixed].
+type skeyseed [large, fixed].
+type sskey [bounded, large].
+type spkey [bounded, large].
+type mkeyseed [fixed].
+type mkey [bounded, large].
+type macinput [bounded].
+type macres [large].
+type iv [fixed, large].
+type symkey [fixed, large].
+type symkeyseed [fixed, large].
 
-fun skp(spkey,sskey) : bitstring [compos].
+fun skp(spkey,sskey): bitstring [compos].
 
-type Z [large,bounded]. (*mpint = ssh string (size+string payload). MSB. 8 bits per byte. where 0=empty string, >0=first bit=0, <0=first bit=1,at beginning no useless 00 or FF. *)
-type G [large,bounded]. (*mpint*)
+type Z [large, bounded]. (*mpint = ssh string (size+string payload). MSB. 8 bits per byte. where 0=empty string, >0=first bit=0, <0=first bit=1,at beginning no useless 00 or FF. *)
+type G [large, bounded]. (*mpint*)
 
-fun G_to_bitstring(G):bitstring [compos].
+fun bitstring_of_G(G): bitstring [compos].
 
-fun padr(bitstring,pad_rand) : bitstring.
-letfun pad (m:bitstring) = r <-R pad_rand; padr (m,r).
-fun unpad(bitstring) : bitstringbot.
-fun binjbot(bitstring) : bitstringbot [compos].
-forall x:bitstring; binjbot (x) <> bottom.
-forall x:bitstring, r:pad_rand;
-       unpad(padr(x,r)) = binjbot(x).
+fun padr(bitstring,pad_rand): bitstring.
+letfun pad(m:bitstring) = r <-R pad_rand; padr(m, r).
+fun unpad(bitstring): bitstringbot.
+
+fun injbot(bitstring): bitstringbot [compos].
+forall x: bitstring; injbot (x) <> bottom.
+forall x: bitstring, r: pad_rand;
+       unpad(padr(x, r)) = injbot(x).
 
 (* utils *)
 
-fun get_size (bitstring) : uint32.
+fun get_size(bitstring): uint32.
 
-fun concatm (tag, bitstring) : bitstring [compos].
-fun concatn (cookie,bitstring) : bitstring [compos].
-fun concat8 (bitstring,bitstring,bitstring,bitstring,spkey,G,G,G) : bitstring [compos].
-fun concat3 (spkey,G,signature) : bitstring [compos].
-fun concatmsm(bitstring,bitstring):bitstring.
-fun concatnm(uint32,bitstring):bitstring.
-fun concatem(bitstring,macres):bitstring.
-fun check_algorithms (bitstring) : bool.
-fun sblocksize_of_hash (hash): sblocksize [compos].
+fun concatm(tag, bitstring): bitstring [compos].
+fun concatKEXINIT(cookie, bitstring): bitstring [compos].
+fun concat8(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G): bitstring [compos].
+fun concatKEXDHREPLY(spkey, G, signature): bitstring [compos].
+fun concat(bitstring, bitstring): bitstring.
+fun concatnm(uint32, bitstring): bitstring [compos].
+fun concatem(bitstring, macres): bitstring [compos].
+fun check_algorithms(bitstring): bool.
+fun block_of_hash(hash): block [compos].
 
-const negotiation_string:bitstring.
-const tag_kexdh_init:tag.
-const tag_kexdh_reply:tag.
-const tag_kex_init:tag.
-const tag_newkeys:tag.
-const uint32_zero:uint32.
-const null_string:bitstring. (*the string of length 0 *)
+const negotiation_string: bitstring.
+const tag_kexdh_init: tag.
+const tag_kexdh_reply: tag.
+const tag_kex_init: tag.
+const tag_newkeys: tag.
+const uint32_zero: uint32.
+const null_string: bitstring. (*the string of length 0 *)
 
 (*CDH*)
+
 proba pCDH.
 
 expand CDH(G, Z, g, exp, mult, pCDH).
 
-letfun message (x:Z) = exp (g,x).
+letfun message(x: Z) = exp(g, x).
 
 (*MAC*)
 
-fun mac(bitstring, mkey):macres.
+fun mac(bitstring, mkey): macres.
 fun check_mac(bitstring, mkey, macres): bool.
-fun mkgen(mkeyseed):mkey.
+fun mkgen(mkeyseed): mkey.
 
-forall m:bitstring, r:mkeyseed;
+forall m: bitstring, r: mkeyseed;
 	check_mac(m, mkgen(r), mac(m, mkgen(r))).
 
 (* symmetric encryption *)
 
-fun symkgen(symkeyseed): symkey.
-fun symenc(bitstring,symkey,symseed): bitstring.
-fun symdec(bitstring,symkey,symseed): bitstringbot.
-fun syminjbot(bitstring): bitstringbot [compos].
+fun kgen(symkeyseed): symkey.
+fun enc(bitstring, symkey, iv): bitstring.
+fun dec(bitstring, symkey, iv): bitstringbot.
 
-forall x:bitstring; syminjbot(x) <> bottom.
-forall m:bitstring, r:symkeyseed, r2:symseed;
-    symdec(symenc(m, symkgen(r), r2), symkgen(r), r2) = syminjbot (m).
+forall m: bitstring, r: symkeyseed, r2: iv;
+    dec(enc(m, kgen(r), r2), kgen(r), r2) = injbot (m).
 
 (*hash function *)
 
 param qH [noninteractive].
 proba Phash.
 
-expand CollisionResistant_hash(hashkey,bitstring,hash, h, Phash).
+expand CollisionResistant_hash(hashkey, bitstring, hash, h, Phash).
 
 
 (* signature *)
@@ -98,41 +98,40 @@ expand CollisionResistant_hash(hashkey,bitstring,hash, h, Phash).
 proba Psign.
 proba Psigncoll.
 
-expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, signr, check, Psign, Psigncoll).
+expand UF_CMA_signature(skeyseed, spkey, sskey, block, signature, sseed, sskgen, spkgen, signr, check, Psign, Psigncoll).
 
-letfun kgen_s () = r <-R skeyseed; skp (spkgen(r),sskgen(r)).
+letfun kgen_s () = r <-R skeyseed; skp(spkgen(r), sskgen(r)).
 
-letfun sign (m:sblocksize, sk:sskey) = r <-R sseed; signr (m, sk, r).
+letfun sign(m: block, sk: sskey) = r <-R sseed; signr(m, sk, r).
 
 (* utils *)
 
-const tag_IVCS:tag.
-const tag_IVSC:tag.
-const tag_EKCS:tag.
-const tag_EKSC:tag.
-const tag_MKCS:tag.
-const tag_MKSC:tag.
+const tag_IVC: tag.
+const tag_IVS: tag.
+const tag_EKC: tag.
+const tag_EKS: tag.
+const tag_MKC: tag.
+const tag_MKS: tag.
 
-fun symseed_of_hash (hash):symseed.
-fun symkey_of_hash (hash):symkey.
-fun mkey_of_hash (hash):mkey.
+fun iv_of_hash (hash): iv.
+fun symkey_of_hash (hash): symkey.
+fun mkey_of_hash (hash): mkey.
 
-fun concat_constr (G, hash, tag, hash): bitstring [compos].
-letfun construct (hk:hashkey, k:G, h1:hash, c:tag, h2:hash) = h(hk, concat_constr (k, h1, c, h2)).
-letfun constructIVCS (hk:hashkey, k:G, h1:hash, h2:hash) = symseed_of_hash (construct (hk, k, h1, tag_IVCS, h2)).
-letfun constructIVSC (hk:hashkey, k:G, h1:hash, h2:hash) = symseed_of_hash (construct (hk, k, h1, tag_IVSC, h2)).
-letfun constructEKCS (hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash (construct (hk, k, h1, tag_EKCS, h2)).
-letfun constructEKSC (hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash (construct (hk, k, h1, tag_EKSC, h2)).
-letfun constructMKCS (hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash (construct (hk, k, h1, tag_MKCS, h2)).
-letfun constructMKSC (hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash (construct (hk, k, h1, tag_MKSC, h2)).
+fun concat4(G, hash, tag, hash): bitstring [compos].
+letfun gen(hk:hashkey, k:G, h1:hash, c:tag, h2:hash) = h(hk, concat4(k, h1, c, h2)).
+letfun genIVC(hk:hashkey, k:G, h1:hash, h2:hash) = iv_of_hash(gen(hk, k, h1, tag_IVC, h2)).
+letfun genIVS(hk:hashkey, k:G, h1:hash, h2:hash) = iv_of_hash(gen(hk, k, h1, tag_IVS, h2)).
+letfun genEKC(hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash(gen(hk, k, h1, tag_EKC, h2)).
+letfun genEKS(hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash(gen(hk, k, h1, tag_EKS, h2)).
+letfun genMKC(hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash(gen(hk, k, h1, tag_MKC, h2)).
+letfun genMKS(hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash(gen(hk, k, h1, tag_MKS, h2)).
 
-
-forall k: G, h1: hash, c: tag, h2: hash, x1:bitstring,x2:bitstring,x3:bitstring,x4:bitstring,x5:spkey,x6:G,x7:G,x8:G;
-   concat_constr (k, h1, c, h2) <> concat8(x1,x2,x3,x4,x5,x6,x7,x8).
+forall k: G, h1: hash, c: tag, h2: hash, x1: bitstring, x2: bitstring, x3: bitstring, x4: bitstring, x5: spkey, x6: G, x7: G, x8: G;
+   concat4(k, h1, c, h2) <> concat8(x1, x2, x3, x4, x5, x6, x7, x8).
 
 (* key table *)
 
-table trusted_hosts (spkey).
+table trusted_hosts(spkey).
 
 
 (* implementation *)
@@ -141,7 +140,7 @@ implementation
 	       type sseed = 160;
 	       type Z = "string" [random = "(dh_rand dh_group14)" ];
 	       type cookie = 128;
-               type symseed = 128;
+               type iv = 128;
 	       type sskey = "Ssh_crypto.skey" [serial = "Ssh_crypto.skey_to","Ssh_crypto.skey_from"];
 	       type spkey = "Ssh_crypto.pkey" [serial = "Ssh_crypto.pkey_to_file","Ssh_crypto.pkey_from_file"];
 	       type hashkey = "unit" [serial = "(fun () -> \"\")","(fun _ -> ())"; random = "(fun () -> ())"];
@@ -157,33 +156,32 @@ implementation
 	       const null_string ="\"\"";
 	       const bottom = "()";
 	       fun concatm = "Ssh_crypto.concatm" [inverse = "Ssh_crypto.unconcatm"];
-	       fun concatn = "Ssh_crypto.concatn" [inverse = "Ssh_crypto.unconcatn"];
+	       fun concatKEXINIT = "Ssh_crypto.concatn" [inverse = "Ssh_crypto.unconcatn"];
 	       fun concat8 = "Ssh_crypto.concat8";
-	       fun concat3 = "Ssh_crypto.concat3" [inverse = "Ssh_crypto.unconcat3"];
-	       fun concatmsm = "Ssh_crypto.concatmsm";
+	       fun concatKEXDHREPLY = "Ssh_crypto.concat3" [inverse = "Ssh_crypto.unconcat3"];
+	       fun concat = "Ssh_crypto.concatmsm";
 	       fun concatem = "Ssh_crypto.concatem";
 	       fun concatnm = "Ssh_crypto.concatnm";
 	       fun pad = "Ssh_crypto.ssh_pad 16";
 	       fun unpad = "Ssh_crypto.ssh_unpad";
-	       fun G_to_bitstring = "Ssh_crypto.mpint_of_g" [inverse = "Ssh_crypto.g_of_mpint"];
+	       fun bitstring_of_G = "Ssh_crypto.mpint_of_g" [inverse = "Ssh_crypto.g_of_mpint"];
 	       fun message = "(dh_message dh_group14)";
 	       fun exp = "(dh_exp dh_group14)";
 	       fun h = "Ssh_crypto.hash";
 	       fun sign = "Ssh_crypto.sign";
 	       fun check = "Ssh_crypto.check";
-	       fun sblocksize_of_hash = "id" [ inverse = "id"];
+	       fun block_of_hash = "id" [ inverse = "id"];
 	       fun kgen_s = "Ssh_crypto.kgen ~e:65537 1024";
 	       fun skp = "id" [inverse = "id"];
-	       fun binjbot = "injbot" [inverse="injbot_inv"];
-	       fun syminjbot = "injbot" [inverse="injbot_inv"];
-	       fun constructIVCS = "Ssh_crypto.construct 16 \"A\"";
-	       fun constructIVSC = "Ssh_crypto.construct 16 \"B\"";
-	       fun constructEKCS = "Ssh_crypto.construct 16 \"C\"";
-	       fun constructEKSC = "Ssh_crypto.construct 16 \"D\"";
-	       fun constructMKCS = "Ssh_crypto.construct 20 \"E\"";
-	       fun constructMKSC = "Ssh_crypto.construct 20 \"F\"";
-	       fun symenc = "Ssh_crypto.symenc";
-	       fun symdec = "Ssh_crypto.symdec";
+	       fun injbot = "injbot" [inverse="injbot_inv"];
+	       fun genIVC = "Ssh_crypto.construct 16 \"A\"";
+	       fun genIVS = "Ssh_crypto.construct 16 \"B\"";
+	       fun genEKC = "Ssh_crypto.construct 16 \"C\"";
+	       fun genEKS = "Ssh_crypto.construct 16 \"D\"";
+	       fun genMKC = "Ssh_crypto.construct 20 \"E\"";
+	       fun genMKS = "Ssh_crypto.construct 20 \"F\"";
+	       fun enc = "Ssh_crypto.symenc";
+	       fun dec = "Ssh_crypto.symdec";
 	       fun get_size = "Ssh_crypto.get_size";
 	       fun mac = "Ssh_crypto.mac";
 	       fun check_mac = "Ssh_crypto.check_mac";
@@ -192,142 +190,135 @@ implementation
 
 (* Authentication property *)
 
-event endC(bitstring,bitstring,bitstring,bitstring,spkey,G,G,G,hash).
-event endS(bitstring,bitstring,bitstring,bitstring,spkey,G,G,G,hash).
+event endC(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
+event endS(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
 
-query vc:bitstring, vs:bitstring, ic:bitstring,is:bitstring, pk:spkey,x:G, y:G, k:G,h:hash; event inj:endC(vc,vs,ic,is,pk,x,y,k,h) ==> inj:endS(vc,vs,ic,is,pk,x,y,k,h).
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash; event inj: endC(idC, idS, initC, initS, pk, x, y, K, H) ==> inj:endS(idC, idS, initC, initS, pk, x, y, K, H).
 
-query vc:bitstring, vs:bitstring, ic:bitstring,is:bitstring, pk:spkey,x:G, y:G, k:G,h:hash,k':G,h':hash; event endC(vc,vs,ic,is,pk,x,y,k,h) && endS(vc,vs,ic,is,pk,x,y,k',h') ==> k = k' && h = h'.
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K': G, H': hash; event endC(idC, idS, initC, initS, pk, x, y, K, H) && endS(idC, idS, initC, initS, pk, x, y, K', H') ==> K = K' && H = H'.
 
 (* Server *)
 
 let processS =
 SSH_S {
-        OS_neg () :=
+      negotiationS() :=
 	  (* Returning KEX_INIT to client *)
-          scS <-R cookie;
-          sis <- concatm (tag_kex_init, concatn (scS, negotiation_string));
-          return (pad (sis));
+          cookieSS <-R cookie;
+          initSS <- concatm(tag_kex_init, concatKEXINIT(cookieSS, negotiation_string));
+          return (pad(initSS));
 
-        OS_KE2 (svc:bitstring,svs:bitstring,smsg1:bitstring,smsg2:bitstring) :=
+          key_exchange2S(idCS: bitstring, idSS: bitstring, m1: bitstring, m2: bitstring) :=
 	  (* Expecting KEX_INIT and KEXDH_INIT from client, returning KEXDH_REPLY *)
-          let binjbot(sic) = unpad(smsg1) in
-          let concatm(=tag_kex_init,concatn(scC,sns)) = sic in
-          if (check_algorithms (sns)) then
-	    let binjbot(concatm(=tag_kexdh_init,G_to_bitstring(se))) = unpad (smsg2) in
-            sy <-R Z;
-            sf <- message (sy);
-            KS:G <- exp (se,sy);
-            sh <- h (hk,concat8(svc,svs,sic,sis,pkS,se,sf,KS));
-	    event endS(svc,svs,sic,sis,pkS,se,sf,KS,sh);
-            ss <- sign (sblocksize_of_hash(sh),skS);
-            return (pad(concatm(tag_kexdh_reply,concat3(pkS,sf,ss))));
+          let injbot(initCS) = unpad(m1) in
+          let concatm(=tag_kex_init, concatKEXINIT(cookieCS, nsCS)) = initCS in
+          if (check_algorithms(nsCS)) then
+          let injbot(concatm(=tag_kexdh_init, bitstring_of_G(eS))) = unpad(m2) in
+          yS <-R Z;
+          fS <- message(yS);
+          KS: G <- exp(eS, yS);
+          HS <- h(hk, concat8(idCS, idSS, initCS, initSS, pkS, eS, fS, KS));
+	  event endS(idCS, idSS, initCS, initSS, pkS, eS, fS, KS, HS);
+          sS <- sign(block_of_hash(HS), skS);
+          return (pad(concatm(tag_kexdh_reply, concatKEXDHREPLY(pkS, fS, sS))));
 
-	 OS_KE4 (smsg:bitstring) :=
+	 key_exchange4S(m: bitstring) :=
 	   (* Expecting NEW_KEYS from client, returning NEW_KEYS *)
-	   let binjbot(snk) = unpad(smsg) in
-	   let concatm(=tag_newkeys, =null_string) = snk in
+	   let injbot(nkCS) = unpad(m) in
+	   let concatm(=tag_newkeys, =null_string) = nkCS in
 	   return (pad(concatm(tag_newkeys, null_string)));
 
-	 OS_Getk () :=
+         get_keysS() :=
 	   (* Tunnel *)
- 	   sivcs:symseed <- constructIVCS(hk,KS,sh,sh);
- 	   sivsc <- constructIVSC(hk,KS,sh,sh);
-	   sekcs <- constructEKCS(hk,KS,sh,sh);
-	   seksc <- constructEKSC(hk,KS,sh,sh);
-	   smkcs <- constructMKCS(hk,KS,sh,sh);
-	   smksc <- constructMKSC(hk,KS,sh,sh);
-           return (sivsc,sivcs,sh);
-           foreach j<=N2 do (
-                (OS_Send (m:bitstring, ivsc: symseed, msg_nb:uint32) :=
-	          (* Expecting message from the application, sending it to the client *)
-                  m2 <- pad (m);
-                  return (concatem(symenc(m2,seksc,ivsc),mac(concatnm(msg_nb,m2),smksc)))
-                )|
-                (OS_Recv1 (m:bitstring, ivcs:symseed) :=
+ 	   IVCS:iv <- genIVC(hk,KS,HS,HS);
+ 	   IVSS <- genIVS(hk,KS,HS,HS);
+	   EKCS <- genEKC(hk,KS,HS,HS);
+	   EKSS <- genEKS(hk,KS,HS,HS);
+	   MKCS <- genMKC(hk,KS,HS,HS);
+	   MKSS <- genMKS(hk,KS,HS,HS);
+           return (IVSS,IVCS,HS);
+         (foreach j <= N' do 
+            (tunnel_sendS(payload: bitstring, IVS: iv, sequence_numberS: uint32) :=
+	                 (* Expecting message from the application, sending it to the client *)
+                  packet <- pad(payload);
+                  return (concatem(enc(packet, EKSS, IVS), mac(concatnm(sequence_numberS, packet), MKSS))))
+         |foreach j <= N' do
+            (tunnel_recv1S(m: bitstring, IVC: iv) :=
 	          (* Expecting one ciphertext block, returning the decrypted packet length,
 	             so that the network code can obtain the rest of the packet. *)
-                  let syminjbot(m1)=symdec (m,sekcs, ivcs) in
+                  let injbot(m1) = dec(m, EKCS, IVC) in
                   return (get_size(m1));
-	         OS_Recv2 (m:bitstring, ivcs: symseed, mm: macres, msg_nb:uint32) :=
+	     tunnel_recv2S(m: bitstring, IVC: iv, m': macres, sequence_numberC: uint32) :=
 	          (* Expecting the rest of the ciphertext, returning the decrypted 
 		     packet to the application *)
-                  let syminjbot(m2)=symdec (m,sekcs, ivcs) in
-                  let m = concatmsm(m1, m2) in
-                  if (check_mac(concatnm(msg_nb,m),smkcs,mm)) then
-                    let binjbot(ms) = unpad (m) in
-                    return (ms)
-                )).
-                  
+                  let injbot(m2) = dec(m, EKCS, IVC) in
+                  let packet = concat(m1, m2) in
+                  if (check_mac(concatnm(sequence_numberC, packet), MKCS, m')) then
+                  let injbot(payload) = unpad(packet) in
+                  return (payload))).
+
 
 (* Client *)
 
 let processC =
 SSH_C {
-        OC_neg () :=
+        negotiationC() :=
 	     (* Returning KEX_INIT to the server *)
-             ccC <-R cookie;
-             cic <- concatm (tag_kex_init, concatn (ccC, negotiation_string));
-             return (pad (cic));
+             cookieCC <-R cookie;
+             initCC <- concatm(tag_kex_init, concatKEXINIT (cookieCC, negotiation_string));
+             return (pad(initCC));
         
-        OC_KE1 (cmsg:bitstring) :=
+        key_exchange1C(m: bitstring) :=
              (* Expecting KEX_INIT from the server, returning KEXDH_INIT *)
-             let binjbot(cis) = unpad(cmsg) in
-             let concatm(=tag_kex_init,concatn(ccS,cns)) = cis in
-             if (check_algorithms (cns)) then
-               cx <-R Z;
-               ce <- message (cx);
-               return (pad(concatm(tag_kexdh_init, G_to_bitstring (ce))));
+             let injbot(initSC) = unpad(m) in
+             let concatm(=tag_kex_init, concatKEXINIT(cookieSC, nsSC)) = initSC in
+             if (check_algorithms(initSC)) then
+             xC <-R Z;
+             eC <- message(xC);
+             return (pad(concatm(tag_kexdh_init, bitstring_of_G(eC))));
 
-        OC_KE3 (cvc:bitstring,cvs:bitstring,cmsg2:bitstring) :=
+        key_exchange3C(idCC: bitstring, idSC: bitstring, m: bitstring) :=
 	     (* Expecting KEYDH_REPLY from the server, returning NEW_KEYS *)
-               let binjbot(concatm(=tag_kexdh_reply,concat3(pkS',cf,cs))) = unpad(cmsg2) in
-               get trusted_hosts (=pkS') in
-               KC:G <- exp(cf,cx);
-               ch <- h (hk,concat8(cvc,cvs,cic,cis,pkS',ce,cf,KC));
-               if check (sblocksize_of_hash(ch),pkS',cs) then
-                  event endC (cvc,cvs,cic,cis,pkS',ce,cf,KC,ch);
-	          return (pad(concatm(tag_newkeys, null_string)));
+             let injbot(concatm(=tag_kexdh_reply, concatKEXDHREPLY(pkSC, fC, sC))) = unpad(m) in
+             get trusted_hosts(=pkSC) in
+             KC:G <- exp(fC,xC);
+             HC <- h(hk,concat8(idCC, idSC, initCC, initSC, pkSC, eC, fC, KC));
+             if check(block_of_hash(HC),pkSC,sC) then
+             event endC(idCC, idSC, initCC, initSC, pkSC, eC, fC, KC, HC);
+	     return (pad(concatm(tag_newkeys, null_string)));
 	
-	OC_Getk (cmsg3:bitstring) :=
+	get_keysC(m: bitstring) :=
 	  (* Expecting NEW_KEYS from the server, then start the tunnel *)
-  	  let binjbot (cnk) = unpad(cmsg3) in
-	  let concatm(=tag_newkeys, =null_string) = cnk in
-	  civcs:symseed <- constructIVCS(hk,KC,ch,ch);
-	  civsc <- constructIVSC(hk,KC,ch,ch);
-	  cekcs <- constructEKCS(hk,KC,ch,ch);
-	  ceksc <- constructEKSC(hk,KC,ch,ch);
-	  cmkcs <- constructMKCS(hk,KC,ch,ch);
-	  cmksc <- constructMKSC(hk,KC,ch,ch);
-          return (civcs,civsc,ch);
-          foreach j<=N2 do (
-                (OC_Send (m:bitstring, ivcs: symseed, msg_nb:uint32) :=
-                  (* Expecting message from the application, sending it to the server *)
-		  m2 <- pad (m);
-                  return (concatem(symenc(m2,cekcs,ivcs),mac(concatnm(msg_nb,m2),cmkcs)))
-                )|
-                (OC_Recv1 (m:bitstring, ivsc: symseed) :=
-	          (* Expecting one ciphertext block, returning the decrypted packet length,
-	             so that the network code can obtain the rest of the packet. *)
-                  let syminjbot(m1)=symdec (m,ceksc,ivsc) in
+  	  let injbot(nkSC) = unpad(m) in
+	  let concatm(=tag_newkeys, =null_string) = nkSC in
+          IVCC:iv <- genIVC(hk,KC,HC,HC);
+	  IVSC <- genIVS(hk,KC,HC,HC);
+	  EKCC <- genEKC(hk,KC,HC,HC);
+	  EKSC <- genEKS(hk,KC,HC,HC);
+	  MKCC <- genMKC(hk,KC,HC,HC);
+	  MKSC <- genMKS(hk,KC,HC,HC);
+          return (IVSC, IVCC, HC);
+         (foreach j <= N' do 
+            (tunnel_sendC(payload: bitstring, IVC: iv, sequence_numberC: uint32) :=
+                  packet <- pad(payload);
+                  return (concatem(enc(packet, EKCC, IVC), mac(concatnm(sequence_numberC, packet), MKCC))))
+         |foreach j <= N' do
+            (tunnel_recv1C(m: bitstring, IVS: iv) :=
+                  let injbot(m1) = dec(m, EKSC, IVS) in
                   return (get_size(m1));
-	         OC_Recv2 (m:bitstring, ivsc: symseed, mm: macres, msg_nb:uint32) :=
-	          (* Expecting the rest of the ciphertext, returning the decrypted 
-		     packet to the application *)
-                  let syminjbot(m2)=symdec (m,ceksc,ivsc) in
-                  let m = concatmsm(m1, m2) in
-                  if (check_mac(concatnm(msg_nb,m),cmksc,mm)) then
-                    let binjbot(ms) = unpad (m) in
-                    return (ms)
-                )).
+	     tunnel_recv2C(m: bitstring, IVS: iv, m': macres, sequence_numberS: uint32) :=
+                  let injbot(m2) = dec (m, EKSC, IVS) in
+                  let packet = concat(m1, m2) in
+                  if (check_mac(concatnm(sequence_numberS, packet), MKSC, m')) then
+                  let injbot(payload) = unpad(packet) in
+                  return (m))).
 
 (* Key generation *)
 
 process 
    SSH_Keygen [ hk > hk, pkS > pkS, skS > skS ] {
-	Ostart () :=
+	Ostart() :=
 	hk <-R hashkey;
-        let skp(pkS:spkey,skS:sskey) = kgen_s () in
-        insert trusted_hosts (pkS);
+        let skp(pkS: spkey,skS: sskey) = kgen_s() in
+        insert trusted_hosts(pkS);
         return (pkS,hk)};
         ((foreach iA <= N do processS) | (foreach iB <= N do processC))

@@ -1,12 +1,13 @@
-set mergeBranches = false.
+set elsefindFactsInSimplify = true.
 
 proof {
+      set mergeBranches = false;
       success;
       (*prove authentication*)
       show_game occ;
-      insert 415 "let concat8(a1, a2, a3, a4, a5, a6, a7, a8) = hx in"; (* in OH, at the beginning *)
+      insert 350 "let concat8(a1, a2, a3, a4, a5, a6, a7, a8) = hx in"; (* in OH, at the beginning *)
       show_game occ;
-      insert 425 "let concat4(b1, b2, b3, b4) = hx in"; (* in the else branch of the "let" inserted above *) 
+      insert 360 "let concat4(b1, b2, b3, b4) = hx in"; (* in the else branch of the "let" inserted above *) 
       crypto rom(h);
       crypto uf_cma(signr);
       success;
@@ -14,16 +15,11 @@ proof {
       (*secrecy of the key*)
       show_game occ;
       insert 218 "find w <= N suchthat defined(idCS[w], idSS[w], cookieCS[w], nsCS[w], cookieSS[w], eS[w], fS[w], @22_r_397[w]) && ((idCC = idCS[w]) && ((idSC = idSS[w]) && (((cookieCC = cookieCS[w]) && (negotiation_string = nsCS[w])) && (((cookieSC = cookieSS[w]) && (nsSC = negotiation_string)) && ((eC = eS[w]) && ((fC = fS[w]))))))) then";
-       insert 53 "find v <= N suchthat defined (eC[v]) && eC[v]=eS then";
+      insert 53 "find v <= N suchthat defined(eC[v]) && eC[v] = eS then";
       simplify;
-      set elsefindFactsInSimplify = true; (* Already true by default; I keep this in case the default changes *)
       crypto cdh(exp);
-      crypto hash_to_symkey_random;
-      crypto hash_to_symkey_random;
-      crypto hash_to_iv_random;
-      crypto hash_to_iv_random;    
+      simplify;
       crypto hash_to_mackey_random;
-      crypto hash_to_mackey_random;  
       success
 }
 
@@ -159,11 +155,7 @@ equiv hash_to_mackey_random
 table trusted_hosts(spkey).
 
 (* Secret *)
-query secret IVCC.
-query secret IVSC.
-query secret EKCC.
-query secret EKSC.
-query secret MKCC.
+
 query secret MKSC.
 
 (* Authentication property *)
