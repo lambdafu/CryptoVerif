@@ -1,7 +1,7 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
-Version
+Version 1.16
 
 - improved explanation of probability computations
 - cleaned up the semantics of "find", by using temporary variables for
