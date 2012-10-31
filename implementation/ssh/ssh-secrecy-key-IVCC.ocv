@@ -1,7 +1,7 @@
 set elsefindFactsInSimplify = true.
+set mergeBranches = false.
 
 proof {
-      set mergeBranches = false;
       success;
       (*prove authentication*)
       show_game occ;
@@ -18,7 +18,6 @@ proof {
       insert 53 "find v <= N suchthat defined(eC[v]) && eC[v] = eS then";
       simplify;
       crypto cdh(exp);
-      simplify;
       crypto hash_to_iv_random;
       success
 }
@@ -198,7 +197,7 @@ SSH_S {
 	   return (pad(concatm(tag_newkeys, null_string)));
 
          get_keysS() :=
- 	   IVCS:iv <- genIVC(hk,KS,HS,HS);
+ 	   IVCS <- genIVC(hk,KS,HS,HS);
  	   IVSS <- genIVS(hk,KS,HS,HS);
 	   EKCS <- genEKC(hk,KS,HS,HS);
 	   EKSS <- genEKS(hk,KS,HS,HS);

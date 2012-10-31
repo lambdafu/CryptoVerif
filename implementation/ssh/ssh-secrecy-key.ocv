@@ -206,7 +206,7 @@ SSH_S {
 	   return (pad(concatm(tag_newkeys, null_string)));
 
          get_keysS() :=
- 	   IVCS:iv <- genIVC(hk,KS,HS,HS);
+ 	   IVCS <- genIVC(hk,KS,HS,HS);
  	   IVSS <- genIVS(hk,KS,HS,HS);
 	   EKCS <- genEKC(hk,KS,HS,HS);
 	   EKSS <- genEKS(hk,KS,HS,HS);
