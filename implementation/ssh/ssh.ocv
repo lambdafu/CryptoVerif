@@ -229,7 +229,7 @@ SSH_S {
 
          get_keysS() :=
 	   (* Tunnel *)
- 	   IVCS:iv <- genIVC(hk,KS,HS,HS);
+ 	   IVCS <- genIVC(hk,KS,HS,HS);
  	   IVSS <- genIVS(hk,KS,HS,HS);
 	   EKCS <- genEKC(hk,KS,HS,HS);
 	   EKSS <- genEKS(hk,KS,HS,HS);
@@ -290,7 +290,7 @@ SSH_C {
 	  (* Expecting NEW_KEYS from the server, then start the tunnel *)
   	  let injbot(nkSC) = unpad(m) in
 	  let concatm(=tag_newkeys, =null_string) = nkSC in
-          IVCC:iv <- genIVC(hk,KC,HC,HC);
+          IVCC <- genIVC(hk,KC,HC,HC);
 	  IVSC <- genIVS(hk,KC,HC,HC);
 	  EKCC <- genEKC(hk,KC,HC,HC);
 	  EKSC <- genEKS(hk,KC,HC,HC);
