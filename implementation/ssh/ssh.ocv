@@ -310,7 +310,7 @@ SSH_C {
                   let packet = concat(m1, m2) in
                   if (check_mac(concatnm(sequence_numberS, packet), MKSC, m')) then
                   let injbot(payload) = unpad(packet) in
-                  return (m))).
+                  return (payload))).
 
 (* Key generation *)
 
