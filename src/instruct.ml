@@ -757,7 +757,6 @@ let help() =
   "move random                  : move all \"new\" down in the game\n" ^
   "move random_noarrayref       : move \"new\" without array references down in the game\n" ^
   "move assign                  : move all \"let\" down in the game\n" ^
-  "move assign_noarrayref       : move \"let\" without array references down in the game\n" ^
   "move binder <ident>          : move \"new <ident>\" or \"let <ident>\" down in the game\n"
   else
   "move all                     : move all \"<-R\" and \"<-\" down in the game\n" ^
@@ -765,8 +764,8 @@ let help() =
   "move random                  : move all \"<-R\" down in the game\n" ^
   "move random_noarrayref       : move \"<-R\" without array references down in the game\n" ^
   "move assign                  : move all \"<-\" down in the game\n" ^
-  "move assign_noarrayref       : move \"<-\" without array references down in the game\n" ^
   "move binder <ident>          : move \"<ident> <-R\" or \"<ident> <-\" down in the game\n") ^
+  "move array <ident>           : move the generation of the random <ident> to its first usage\n" ^
   "SArename <ident>    : rename several definitions of <ident> to distinct names\n" ^
   "global_dep_anal <ident>      : global dependency analysis on <ident>\n" ^
   "crypto                       : apply a cryptographic transformation\n" ^
@@ -778,16 +777,19 @@ let help() =
   "insert <occ> <ins>           : insert instruction <ins> at occurrence <occ>\n" ^
   "replace <occ> <term>         : replace term at occurrence <occ> with <term> (when equal)\n" ^
   "merge_arrays <ident> ...     : merge all given variables\n" ^
+  "merge_branches               : merge find branches\n" ^
   "success                      : check the desired properties\n" ^
   "show_game                    : show the current game\n" ^
   "show_game occ                : show the current game with occurrences\n" ^
   "show_state                   : show the sequence of games up to now\n" ^
+  "show_facts <occ>             : show the facts that hold at program point <occ>\n" ^
   "auto                         : try to terminate the proof automatically\n" ^
   "set <param> = <value>        : set the value of various parameters\n" ^
   "allowed_collisions <formulas>: determine when to eliminate collisions\n" ^
   "undo                         : undo the last transformation\n" ^
   "undo <n>                     : undo the last n transformations\n" ^
   "restart                      : restart from the initial game\n" ^
+  "quit                         : quit interactive mode\n" ^
   "help                         : display this help message\n" ^
   "?                            : display this help message\n")
 
