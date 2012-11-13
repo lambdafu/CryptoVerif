@@ -296,7 +296,7 @@ SSH_C {
 	  EKSC <- genEKS(hk,KC,HC,HC);
 	  MKCC <- genMKC(hk,KC,HC,HC);
 	  MKSC <- genMKS(hk,KC,HC,HC);
-          return (IVSC, IVCC, HC);
+          return (IVCC, IVSC, HC);
          (foreach j <= N' do 
             (tunnel_sendC(payload: bitstring, IVC: iv, sequence_numberC: uint32) :=
                   packet <- pad(payload);
