@@ -109,8 +109,8 @@ let rec simplify_cterm t =
       Terms.build_term2 t (LetE(pat', t1', t2', topt'))
   | ResE(b,t) ->
       Terms.build_term2 t (ResE(b, simplify_cterm t))
-  | EventE(t) ->
-      Terms.build_term2 t (EventE(simplify_cterm t))
+  | EventAbortE(f) ->
+      Terms.build_term2 t (EventAbortE(f))
 
 and simplify_pat = function
     PatVar b -> PatVar b
@@ -136,7 +136,7 @@ and simplify_oprocess p =
   Terms.oproc_from_desc 
       (match p.p_desc with
 	Yield -> Yield
-      |	Abort -> Abort
+      |	EventAbort f -> EventAbort f
       | Restr(b,p) -> Restr(b, simplify_oprocess p)
       | Test(t,p1,p2) -> 
 	  let t' = simplify_cterm t in
@@ -353,7 +353,7 @@ let rec pseudo_expand_term t =
   | ResE(b, t) ->
       let (f,l) = always_some t (pseudo_expand_term t) in
       Some((fun l -> let t' = f l in Terms.build_term t' (ResE(b, t'))), l)
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Events should not occur in conditions of find before expansion"
 
 and pseudo_expand_term_list = function
@@ -494,14 +494,12 @@ let rec expand_term t =
   | ResE(b, t) ->
       let (f,l) = always_some t (expand_term t) in
       Some((fun l -> Terms.oproc_from_desc (Restr(b, f l))), l)
-  | EventE(t) ->
+  | EventAbortE(f) ->
       (* The event is expanded to a process that stops just after the event.
 	 Events in terms are used only in the RHS of equivalences, and 
 	 one includes their probability of execution in the probability of
 	 breaking the protocol. *)
-      let (f1, l1) = always_some t (expand_term t) in
-      Some((fun l -> 
-	f1 (List.map (fun ti -> Terms.oproc_from_desc (EventP(ti,Terms.abort_proc))) l1)), [])
+      Some((fun l -> Terms.oproc_from_desc (EventAbort f)), [])
 
 and expand_term_list = function
   [] -> None
@@ -566,7 +564,7 @@ let rec expand_process cur_array p =
 and expand_oprocess cur_array p =
   match p.p_desc with 
     Yield -> Terms.yield_proc
-  | Abort -> Terms.abort_proc
+  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) -> Terms.oproc_from_desc (Restr(b, expand_oprocess cur_array p))
   | Test(t,p1,p2) ->
 	begin

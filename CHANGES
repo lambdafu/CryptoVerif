@@ -1,6 +1,11 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version 1.17
+
+- the construct "event_abort e" replaces "event e; abort".
+- fixed minor bug in SSH example.
+
 Version 1.16
 
 - improved explanation of probability computations

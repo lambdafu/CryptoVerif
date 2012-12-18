@@ -37,7 +37,7 @@ let keyword_table =
   "event", EVENT;
   "time", TIME;
   "yield", YIELD;
-  "abort", ABORT;
+  "event_abort", EVENT_ABORT;
   "otheruses", OTHERUSES;
   "maxlength", MAXLENGTH;
   "length", LENGTH;

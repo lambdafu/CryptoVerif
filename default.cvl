@@ -1089,8 +1089,8 @@ equiv ddh(exp)
     !na new a:Z; (
       OA() := exp'(g,a), 
       Oa() := 
-         find uaDH <= naDH suchthat defined(ka'[uaDH]) then event ev_abort else
-	 find ubDH <= nbDH, ub <= nb suchthat defined(kb'[ubDH, ub], a'[ubDH, ub]) && a'[ubDH, ub] = a then event ev_abort else
+         find uaDH <= naDH suchthat defined(ka'[uaDH]) then event_abort ev_abort else
+	 find ubDH <= nbDH, ub <= nb suchthat defined(kb'[ubDH, ub], a'[ubDH, ub]) && a'[ubDH, ub] = a then event_abort ev_abort else
          let ka:bitstring = mark in a,
       !naDH ODHa(j<=nb) := 
       	 let b':Z = b[j] in
@@ -1104,8 +1104,8 @@ equiv ddh(exp)
     !nb new b:Z; (
       OB() := exp'(g,b), 
       Ob() := 
-         find ubDH <= nbDH suchthat defined(kb'[ubDH]) then event ev_abort else
-	 find uaDH <= naDH, ua <= na suchthat defined(ka'[uaDH, ua], b'[uaDH, ua]) && b'[uaDH, ua] = b then event ev_abort else
+         find ubDH <= nbDH suchthat defined(kb'[ubDH]) then event_abort ev_abort else
+	 find uaDH <= naDH, ua <= na suchthat defined(ka'[uaDH, ua], b'[uaDH, ua]) && b'[uaDH, ua] = b then event_abort ev_abort else
          let kb:bitstring = mark in b,
       !nbDH ODHb(j<=na) := 
          let a':Z = a[j] in

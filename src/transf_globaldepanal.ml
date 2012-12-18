@@ -324,7 +324,7 @@ let rec check_depend_process cur_array seen_list p' =
 and check_depend_oprocess cur_array seen_list p = 
   match p.p_desc with
     Yield -> Terms.yield_proc
-  | Abort -> Terms.abort_proc
+  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) -> 
       Terms.oproc_from_desc (Restr(b, check_depend_oprocess cur_array seen_list p))
   | Test(t,p1,p2) -> 

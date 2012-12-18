@@ -225,7 +225,7 @@ and term_desc =
   | FindE of term findbranch list * term * find_info
   | LetE of pattern * term * term * term option
   | ResE of binder * term
-  | EventE of term
+  | EventAbortE of funsymb
 
 and 'a findbranch = (binder(*the variable defined when the find succeeds*) * repl_index(*the corresponding replication index used for searching in the arrays*)) list * binderref list(*guaranteed defined array references*) * term(*condition*) * 'a(*then branch*)
 
@@ -268,7 +268,7 @@ and inputprocess =
 
 and process_desc =  
     Yield
-  | Abort
+  | EventAbort of funsymb
   | Restr of binder * process 
   | Test of term * process * process
   | Find of process findbranch list * process * find_info

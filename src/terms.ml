@@ -238,7 +238,6 @@ let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_facts = None }
 
 let nil_proc = iproc_from_desc Nil
 let yield_proc = oproc_from_desc Yield
-let abort_proc = oproc_from_desc Abort
 
 (* Constant for each type *)
 
@@ -345,8 +344,8 @@ let rec equal_terms t1 t2 =
       |	_ -> false)
   | ResE(b,t), ResE(b',t') ->
       (b == b') && (equal_terms t t')
-  | EventE(t), EventE(t') -> 
-      equal_terms t t'
+  | EventAbortE(f), EventAbortE(f') -> 
+      f == f'
   | _ -> false
 
 and equal_def_lists def_list def_list' =
@@ -585,7 +584,7 @@ let rec get_deflist_subterms accu t =
 	| Some t3 -> get_deflist_subterms accu t3
       end
   | ResE(b,t) -> get_deflist_subterms accu t
-  | EventE(t) -> get_deflist_subterms accu t
+  | EventAbortE f -> ()
 
 and get_def_list_pat accu = function
     PatVar _ -> ()
@@ -605,7 +604,7 @@ let rec get_deflist_process accu p =
 
 and get_deflist_oprocess accu p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) -> get_deflist_oprocess accu p
   | Test(t,p1,p2) -> 
       get_deflist_subterms accu t;
@@ -768,7 +767,7 @@ and copy_term transf t =
       build_term2 t (FindE(l0', copy_term transf t3, find_info))
   | ResE(b,t) ->
       build_term2 t (ResE(b, copy_term transf t))
-  | EventE(t) ->
+  | EventAbortE(f) ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 and copy_def_list transf def_list =
@@ -859,7 +858,7 @@ and copy_oprocess transf p =
   oproc_from_desc3 p (
   match p.p_desc with
     Yield -> Yield
-  | Abort -> Abort
+  | EventAbort f -> EventAbort f
   | Restr(b, p) ->
       Restr(b, copy_oprocess transf p)
   | Test(t,p1,p2) ->
@@ -945,7 +944,7 @@ let rec refers_to b0 t =
   | ReplIndex i -> false
   | TestE(t1,t2,t3) -> (refers_to b0 t1) || (refers_to b0 t2) || (refers_to b0 t3)
   | ResE(b,t) -> refers_to b0 t
-  | EventE(t) -> refers_to b0 t
+  | EventAbortE f -> false
   | FindE(l0,t3, find_info) -> 
       (List.exists (fun (bl,def_list,t1,t2) ->
 	(List.exists (refers_to_br b0) def_list) ||
@@ -976,7 +975,7 @@ let rec refers_to_process b0 p =
 
 and refers_to_oprocess b0 p =
   match p.p_desc with
-    Yield | Abort -> false
+    Yield | EventAbort _ -> false
   | Restr(b,p) -> refers_to_oprocess b0 p
   | Test(t,p1,p2) -> (refers_to b0 t) || (refers_to_oprocess b0 p1) ||
     (refers_to_oprocess b0 p2)
@@ -1193,7 +1192,7 @@ let rec split_term f0 t =
 	raise Impossible
       else
 	raise Not_found
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Simplify)"
 
 
@@ -1233,8 +1232,8 @@ let rec move_occ_term t =
 	  LetE(pat', t1', t2', topt')
       |	ResE(b,t) ->
 	  ResE(b, move_occ_term t)
-      |	EventE(t) ->
-	  EventE(move_occ_term t));
+      |	EventAbortE f -> EventAbortE f 
+	    );
     t_type = t.t_type;
     t_occ = occ; 
     t_loc = Parsing_helper.dummy_ext;
@@ -1270,7 +1269,7 @@ and move_occ_oprocess p =
   { p_desc = 
       (match p.p_desc with
 	Yield -> Yield
-      |	Abort -> Abort
+      |	EventAbort f -> EventAbort f
       | Restr(b,p) -> Restr(b, move_occ_oprocess p)
       | Test(t,p1,p2) -> 
 	  let t' = move_occ_term t in
@@ -1358,7 +1357,7 @@ let rec empty_def_term t =
 	| Some t3 -> empty_def_term t3
       end
   | ResE(b,t) -> b.def <- []; empty_def_term t
-  | EventE(t) -> empty_def_term t
+  | EventAbortE _ -> ()
 
 and empty_def_term_list l = List.iter empty_def_term l
 
@@ -1389,7 +1388,7 @@ let rec empty_def_process p =
 and empty_def_oprocess p = 
   p.p_facts <- None;
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) ->
       b.def <- [];
       empty_def_oprocess p
@@ -1446,7 +1445,7 @@ let rec check_no_ifletfindres t =
     Var(_,l) | FunApp(_,l) ->
       List.for_all check_no_ifletfindres l
   | ReplIndex _ -> true
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       false
 
 (* Build tree of definition dependences
@@ -1528,8 +1527,7 @@ let rec def_vars_term accu t =
       def_vars_term (def_vars_pat (add_vars_from_pat (def_vars_term accu' t2) pat) pat) t1
   | ResE(b,t) ->
       add_var (def_vars_term accu t) b
-  | EventE(t) ->
-      def_vars_term accu t
+  | EventAbortE _ -> accu
 
 and def_vars_term_list accu = function
     [] -> accu
@@ -1551,18 +1549,18 @@ By induction.
 In cases ReplIndex, FindE, n' = above_node. 
 In the other cases, we use the induction hypothesis. *)
 
-let rec def_term above_node true_facts def_vars t =
+let rec def_term event_accu above_node true_facts def_vars t =
   t.t_facts <- Some (true_facts, def_vars, above_node);
   match t.t_desc with
     Var(_,l) | FunApp(_,l) ->
-      def_term_list above_node true_facts def_vars l
+      def_term_list event_accu above_node true_facts def_vars l
   | ReplIndex i -> above_node
   | TestE(t1,t2,t3) ->
       let true_facts' = t1 :: true_facts in
       let true_facts'' = (make_not t1) :: true_facts in
-      ignore(def_term above_node true_facts' def_vars t2);
-      ignore(def_term above_node true_facts'' def_vars t3);
-      def_term above_node true_facts def_vars t1
+      ignore(def_term event_accu above_node true_facts' def_vars t2);
+      ignore(def_term event_accu above_node true_facts'' def_vars t3);
+      def_term event_accu above_node true_facts def_vars t1
   | FindE(l0,t3,_) ->
       List.iter (fun (bl,def_list,t1,t2) ->
 	let vars = List.map fst bl in
@@ -1584,14 +1582,14 @@ let rec def_term above_node true_facts def_vars t =
 			    definition = DTerm t } 
 	in
 	List.iter (fun b -> b.def <- above_node' :: b.def) vars;
-	ignore(def_term (def_term_def_list above_node true_facts def_vars def_list) true_facts def_vars_t1 t1);
-	ignore(def_term above_node' true_facts' def_vars' t2)) l0;
-      ignore(def_term above_node true_facts def_vars t3);
+	ignore(def_term event_accu (def_term_def_list event_accu above_node true_facts def_vars def_list) true_facts def_vars_t1 t1);
+	ignore(def_term event_accu above_node' true_facts' def_vars' t2)) l0;
+      ignore(def_term event_accu above_node true_facts def_vars t3);
       above_node
   | LetE(pat, t1, t2, topt) ->
-      let above_node' = def_term above_node true_facts def_vars t1 in
+      let above_node' = def_term event_accu above_node true_facts def_vars t1 in
       let accu = ref [] in
-      let above_node'' = def_pattern accu above_node' true_facts def_vars pat in
+      let above_node'' = def_pattern accu event_accu above_node' true_facts def_vars pat in
       let true_facts' = ((match pat with PatVar _ -> make_let_equal | _ -> make_equal) (term_from_pat pat) t1) :: true_facts in
       let above_node''' = { above_node = above_node''; binders = !accu; 
 			    true_facts_at_def = true_facts'; 
@@ -1601,7 +1599,7 @@ let rec def_term above_node true_facts def_vars t =
 			    definition = DTerm t } 
       in
       List.iter (fun b -> b.def <- above_node''' :: b.def) (!accu);
-      ignore (def_term above_node''' true_facts' def_vars t2);
+      ignore (def_term event_accu above_node''' true_facts' def_vars t2);
       begin
 	match topt with
 	  None -> ()
@@ -1611,7 +1609,7 @@ let rec def_term above_node true_facts def_vars t =
 		(make_for_all_diff (gen_term_from_pat pat) t1) :: true_facts
 	      with NonLinearPattern -> true_facts
 	    in
-	    ignore(def_term above_node' true_facts' def_vars t3)
+	    ignore(def_term event_accu above_node' true_facts' def_vars t3)
       end;
       above_node'
   | ResE(b, t') ->
@@ -1623,27 +1621,35 @@ let rec def_term above_node true_facts def_vars t =
 			  definition = DTerm t } 
       in
       b.def <- above_node' :: b.def;
-      def_term above_node' true_facts def_vars t'
-  | EventE(t') ->
-      def_term above_node true_facts def_vars t'
+      def_term event_accu above_node' true_facts def_vars t'
+  | EventAbortE f ->
+      begin
+	match event_accu with
+	  None -> ()
+	| Some accu -> 
+	    let idx = build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
+	    let t = build_term_type Settings.t_bool (FunApp(f, [idx])) in
+	    accu := (t, Some (true_facts, def_vars, above_node)) :: (!accu)
+      end;
+      above_node
       
 
-and def_term_list above_node true_facts def_vars = function
+and def_term_list event_accu above_node true_facts def_vars = function
     [] -> above_node
-  | (a::l) -> def_term_list (def_term above_node true_facts def_vars a) true_facts def_vars l
+  | (a::l) -> def_term_list event_accu (def_term event_accu above_node true_facts def_vars a) true_facts def_vars l
 
-and def_term_def_list above_node true_facts def_vars = function
+and def_term_def_list event_accu above_node true_facts def_vars = function
     [] -> above_node
-  | (b,l)::l' -> def_term_def_list (def_term_list above_node true_facts def_vars l) true_facts def_vars l'
+  | (b,l)::l' -> def_term_def_list event_accu (def_term_list event_accu above_node true_facts def_vars l) true_facts def_vars l'
 
-and def_pattern accu above_node true_facts def_vars = function
+and def_pattern accu event_accu above_node true_facts def_vars = function
     PatVar b -> accu := b :: (!accu); above_node
-  | PatTuple (f,l) -> def_pattern_list accu above_node true_facts def_vars l
-  | PatEqual t -> def_term above_node true_facts def_vars t
+  | PatTuple (f,l) -> def_pattern_list accu event_accu above_node true_facts def_vars l
+  | PatEqual t -> def_term event_accu above_node true_facts def_vars t
 
-and def_pattern_list accu above_node true_facts def_vars = function
+and def_pattern_list accu event_accu above_node true_facts def_vars = function
     [] -> above_node 
-  | (a::l) -> def_pattern_list accu (def_pattern accu above_node true_facts def_vars a) true_facts def_vars l
+  | (a::l) -> def_pattern_list accu event_accu (def_pattern accu event_accu above_node true_facts def_vars a) true_facts def_vars l
 
 (* def_process is always called with above_node.def_vars_at_def \subseteq def_vars
    By induction, also using the properties of def_term, ...
@@ -1670,9 +1676,9 @@ let rec def_process event_accu above_node true_facts def_vars p' =
       in
       def_process event_accu above_node' true_facts def_vars p
   | Input((c,tl),pat,p) ->
-      let above_node' = def_term_list above_node true_facts def_vars tl in
+      let above_node' = def_term_list event_accu above_node true_facts def_vars tl in
       let accu = ref [] in
-      let above_node'' = def_pattern accu above_node' true_facts def_vars pat in
+      let above_node'' = def_pattern accu event_accu above_node' true_facts def_vars pat in
       (* is_find_unique uses this node to test whether two variables are defined
 	 in the same input/output block, so it's important to generate this
 	 node even if the pattern pat defines no variable. *)
@@ -1693,7 +1699,17 @@ let rec def_process event_accu above_node true_facts def_vars p' =
 and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
   p'.p_facts <- Some (true_facts, def_vars, above_node);
   match p'.p_desc with
-    Yield | Abort -> 
+    Yield -> 
+      ([],[])
+  | EventAbort f -> 
+      begin
+	match event_accu with
+	  None -> ()
+	| Some accu -> 
+	    let idx = build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
+	    let t = build_term_type Settings.t_bool (FunApp(f, [idx])) in
+	    accu := (t, Some (true_facts, def_vars, above_node)) :: (!accu)
+      end;
       ([],[])
   | Restr(b,p) ->
       let elsefind_facts' = List.filter (not_deflist b) elsefind_facts in
@@ -1712,7 +1728,7 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
       above_node'.future_true_facts <- fut_true_facts;
       (b::fut_binders, fut_true_facts)
   | Test(t,p1,p2) ->
-      let above_node' = def_term above_node true_facts def_vars t in
+      let above_node' = def_term event_accu above_node true_facts def_vars t in
       let true_facts' = t :: true_facts in
       let true_facts'' = (make_not t) :: true_facts in
       let vars_t = def_vars_term [] t in
@@ -1760,7 +1776,7 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
 				definition = DProcess p' } 
 	    in
 	    List.iter (fun b -> b.def <- above_node' :: b.def) vars;
-	    ignore(def_term (def_term_def_list above_node true_facts def_vars def_list) true_facts def_vars_t t);
+	    ignore(def_term event_accu (def_term_def_list event_accu above_node true_facts def_vars def_list) true_facts def_vars_t t);
 	    let (fut_binders1, fut_true_facts1) = 
 	      def_oprocess event_accu above_node' true_facts' def_vars' elsefind_facts'' p1
 	    in
@@ -1771,14 +1787,14 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
       in
       find_l l0
   | Output((c,tl),t',p) ->
-      let above_node' = def_term_list above_node true_facts def_vars  tl in
-      let above_node'' = def_term above_node' true_facts def_vars t' in
+      let above_node' = def_term_list event_accu above_node true_facts def_vars  tl in
+      let above_node'' = def_term event_accu above_node' true_facts def_vars t' in
       def_process event_accu above_node'' true_facts def_vars p;
       ([],[])
   | Let(pat,t,p1,p2) ->
-      let above_node' = def_term above_node true_facts def_vars t in
+      let above_node' = def_term event_accu above_node true_facts def_vars t in
       let accu = ref [] in
-      let above_node'' = def_pattern accu above_node' true_facts def_vars pat in
+      let above_node'' = def_pattern accu event_accu above_node' true_facts def_vars pat in
       let new_fact = (match pat with PatVar _ -> make_let_equal | _ -> make_equal) (term_from_pat pat) t in
       let true_facts' = new_fact :: true_facts in
       let vars_t_pat = def_vars_term (def_vars_pat [] pat) t in
@@ -1819,7 +1835,7 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
 	  None -> ()
 	| Some accu -> accu := (t, Some (true_facts, def_vars, above_node)) :: (!accu)
       end;
-      let above_node' = def_term above_node true_facts def_vars t in
+      let above_node' = def_term event_accu above_node true_facts def_vars t in
       let vars_t = def_vars_term [] t in
       let elsefind_facts' = List.filter (not_deflist_l vars_t) elsefind_facts in
       let (fut_binders, fut_true_facts) = 
@@ -1828,10 +1844,10 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
       (fut_binders, t::fut_true_facts)
   | Get(tbl,patl,topt,p1,p2) ->
       let accu = ref [] in
-      let above_node' = def_pattern_list accu above_node true_facts def_vars patl in
+      let above_node' = def_pattern_list accu event_accu above_node true_facts def_vars patl in
       let above_node'' = 
         match topt with 
-          Some t -> def_term above_node' true_facts def_vars t
+          Some t -> def_term event_accu above_node' true_facts def_vars t
         | None -> above_node'
       in
       (* The variables defined in patl, topt are variables defined in conditions of find,
@@ -1851,7 +1867,7 @@ and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
   | Insert(tbl,tl,p) ->
       let vars_tl = def_vars_term_list [] tl in
       let elsefind_facts' = List.filter (not_deflist_l vars_tl) elsefind_facts in
-      let above_node' = def_term_list above_node true_facts def_vars tl in
+      let above_node' = def_term_list event_accu above_node true_facts def_vars tl in
       def_oprocess event_accu above_node' true_facts def_vars elsefind_facts' p
 
 let build_def_process event_accu p =
@@ -1944,8 +1960,7 @@ let rec array_ref_term in_scope t =
       add b;
       b.count_def <- b.count_def + 1;
       array_ref_term (b::in_scope) t
-  | EventE(t) ->
-      array_ref_term in_scope t
+  | EventAbortE _ -> ()
 
 and array_ref_pattern in_scope = function
     PatVar b -> 
@@ -1982,7 +1997,7 @@ let rec array_ref_process in_scope p =
 
 and array_ref_oprocess in_scope p = 
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) ->
       add b;
       b.count_def <- b.count_def + 1;
@@ -2104,8 +2119,7 @@ let rec exclude_array_ref_term in_scope t =
       exclude_array_ref_term in_scope t3
   | ResE(b,t) ->
       exclude_array_ref_term (b::in_scope) t
-  | EventE(t) ->
-      exclude_array_ref_term in_scope t
+  | EventAbortE _ -> ()
 
 and exclude_array_ref_pattern in_scope = function
     PatVar b -> ()
@@ -2169,8 +2183,7 @@ and empty_comp_term t =
   | ResE(b,p) ->
       b.compatible <- compatible_empty;
       empty_comp_term p
-  | EventE(t) ->
-      empty_comp_term t
+  | EventAbortE _ -> ()
 
 let rec empty_comp_process p = 
   match p.i_desc with
@@ -2187,7 +2200,7 @@ let rec empty_comp_process p =
 
 and empty_comp_oprocess p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) ->
       b.compatible <- compatible_empty;
       empty_comp_oprocess p
@@ -2286,8 +2299,8 @@ let rec compatible_def_term t =
       let def = compatible_def_term t in
       add_compatible def [b];
       unionq def [b]
-  | EventE(t) ->
-      compatible_def_term t
+  | EventAbortE _ ->
+      []
 
 and compatible_def_term_list = function
     [] -> []
@@ -2336,7 +2349,7 @@ let rec compatible_def_process p =
 
 and compatible_def_oprocess p =
   match p.p_desc with
-    Yield | Abort -> []
+    Yield | EventAbort _ -> []
   | Restr(b, p) ->
       let def = compatible_def_oprocess p in
       add_compatible def [b];
@@ -2433,7 +2446,7 @@ let rec update_args_at_creation cur_array t =
       end
   | ReplIndex b -> t
   | FunApp(f,l) -> build_term2 t (FunApp(f, List.map (update_args_at_creation cur_array) l))
-  | ResE _ | EventE _ ->
+  | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "new/event should not occur as term in find condition" 
   | TestE(t1,t2,t3) ->
        build_term2 t (TestE(update_args_at_creation cur_array t1,

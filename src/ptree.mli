@@ -11,7 +11,7 @@ type term = PIdent of ident
 	  | PFindE of (Types.repl_index list ref(*to store replication indices*) * (ident * ident) list * (ident * term_e list) list * term_e * term_e) list * term_e * ident list
 	  | PLetE of pattern_e * term_e * term_e * term_e option
 	  | PResE of ident * ident * term_e
-	  | PEventE of ident
+	  | PEventAbortE of ident
 	  | PEqual of term_e * term_e
 	  | PDiff of term_e * term_e
 	  | POr of term_e * term_e
@@ -33,7 +33,7 @@ type progopt = PWrite of ident (*variable*) * ident (* file *)
 
 and process =  PNil
              | PYield
-	     | PAbort
+	     | PEventAbort of ident
 	     | PPar of process_e * process_e
 	     | PRepl of Types.repl_index option ref(*to store replication index*) * ident option(*index*) * ident(*bound*) * process_e
  	     | PRestr of ident * ident(*type*) * process_e 

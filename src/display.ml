@@ -214,9 +214,9 @@ and display_term t =
 	end;
       print_string "; ";
       display_term t
-  | EventE(t) ->
-      print_string "event ";
-      display_term t
+  | EventAbortE(f) ->
+      print_string "event_abort ";
+      print_string f.f_name
       
 (* Patterns *)
 
@@ -501,9 +501,9 @@ let rec display_procasterm t =
       print_string b.btype.tname;
       print_string "; ";
       display_procasterm t
-  | EventE(t) ->
-      print_string "event ";
-      display_term t
+  | EventAbortE(f) ->
+      print_string "event_abort ";
+      print_string f.f_name
        
 
 let rec display_fungroup indent = function
@@ -653,7 +653,7 @@ let display_channel c tl =
 
 let rec may_have_elseo p = 
   match p.p_desc with
-    Yield | Abort -> false
+    Yield | EventAbort _ -> false
   | Test _ | Find _ | Let _ | Get _ -> true
   | Restr(_,p) | EventP(_,p) | Insert (_,_,p) -> may_have_elseo p
   | Output(_,_,p) -> may_have_else p
@@ -760,8 +760,8 @@ and display_oprocess indent p =
 	print_string (indent ^ "end\n")
       else
 	print_string (indent ^ "yield\n")
-  | Abort -> 
-      print_string (indent ^ "abort\n")
+  | EventAbort f -> 
+      print_string (indent ^ "event_abort " ^ f.f_name ^ "\n")
   | Restr(b,p) ->
       if (!Settings.front_end) == Settings.Oracles then
 	begin

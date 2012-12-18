@@ -271,7 +271,7 @@ let update_dep_info cur_array dep_info true_facts p = dep_info
 let rec update_dep_infoo cur_array dep_info true_facts p' = 
   match p'.p_desc with
     Yield -> (Terms.oproc_from_desc2 p' Yield, [])
-  | Abort -> (Terms.oproc_from_desc2 p' Abort, [])
+  | EventAbort f -> (Terms.oproc_from_desc2 p' (EventAbort f), [])
   | Restr(b,p) ->
       let b_term = Terms.term_from_binder b in
       let dep_info' = List.map (fun (b', (dep, nodep)) -> (b', (dep, b_term::nodep))) dep_info in
@@ -748,7 +748,7 @@ let rec check_compatiblefc b pp def_node_opt t' =
 	raise Compatible;
       (has_b1 || has_b2 || has_b3, has_pp1 || has_pp2)
   | Var _ | FunApp _ | ReplIndex _ -> (false, false) (* Will not contain any find or variable definition *)
-  | EventE _ -> Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ -> Parsing_helper.internal_error "Event should have been expanded"
 
 let rec check_compatible lcp b pp def_node_opt p' = 
   match p'.i_desc with
@@ -789,7 +789,7 @@ let rec check_compatible lcp b pp def_node_opt p' =
 
 and check_compatibleo lcp b pp def_node_opt p =
   match p.p_desc with
-    Yield | Abort -> (false, false)
+    Yield | EventAbort _ -> (false, false)
   | Restr(b',p) ->
       let (has_b, has_pp) = check_compatibleo lcp b pp def_node_opt p in
       if (b' == b) && has_pp then
@@ -934,7 +934,7 @@ let rec has_array_access b t =
       (match topt with
 	None -> false
       |	Some t3 -> has_array_access b t3)
-  | EventE _ ->
+  | EventAbortE _ ->
      Parsing_helper.internal_error "Event should have been expanded"
 
 and has_array_access_br b (b',l) =
@@ -1522,7 +1522,7 @@ let rec simplify_term_w_find cur_array true_facts t =
       else
 	Terms.build_term2 t (ResE(b, t'))
 
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 and simplify_term_if if_t cur_array true_facts ttrue tfalse t' =
@@ -1625,7 +1625,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
   let (p', dep_info_list') = DepAnal2.update_dep_infoo cur_array dep_info true_facts p in
   match p'.p_desc with
     Yield -> Terms.yield_proc
-  | Abort -> Terms.abort_proc
+  | EventAbort f -> Terms.oproc_from_desc2 p' (EventAbort f)
   | Restr(b,p0) -> 
       let true_facts = filter_elsefind (Terms.not_deflist b) true_facts in
       let p1 = simplify_oprocess cur_array (List.hd dep_info_list') true_facts p0 in
@@ -2025,15 +2025,6 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Terms.yield_proc
 	      end
 	    else
-	    if (p2'.p_desc == Abort) && (List.for_all (fun (bl,_,t,p1) ->
-	      (p1.p_desc == Abort) && (not (List.exists Terms.has_array_ref_q (List.map fst bl)))
-		) l0') then
-	      begin
-		Settings.changed := true;
-		current_pass_transfos := (SFindRemoved(p')) :: (!current_pass_transfos);
-		Terms.abort_proc
-	      end
-	    else
 	      let find_info = is_unique l0' find_info in
 	      Terms.oproc_from_desc2 p' (Find(l0', p2', find_info))
 	  end
@@ -2139,13 +2130,6 @@ and simplify_if if_p dep_info cur_array true_facts ptrue pfalse t' =
 	    Terms.yield_proc
 	  end
 	else
-	if (ptrue'.p_desc == Abort) && (pfalse.p_desc == Abort) then 
-	  begin
-	    Settings.changed := true;
-	    current_pass_transfos := (STestMerge(if_p)) :: (!current_pass_transfos);
-	    Terms.abort_proc
-	  end
-	else
 	  Terms.oproc_from_desc2 if_p (Test(t', ptrue', pfalse))
       with Contradiction ->
 	Settings.changed := true;
@@ -2213,14 +2197,6 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
 		    Settings.changed := true;
 		    current_pass_transfos := (SLetRemoved(let_p)) :: (!current_pass_transfos);
 		    Terms.yield_proc
-		  end
-		else
-		if (ptrue'.p_desc == Abort) && (pfalse.p_desc == Abort) &&
-		  (not (needed_vars_in_pat pat)) then
-		  begin
-		    Settings.changed := true;
-		    current_pass_transfos := (SLetRemoved(let_p)) :: (!current_pass_transfos);
-		    Terms.abort_proc
 		  end
 		else
 		  Terms.oproc_from_desc2 let_p (Let(pat, t', ptrue', simplify_oprocess cur_array dep_info_else true_facts_else pfalse))

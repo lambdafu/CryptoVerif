@@ -58,7 +58,7 @@ let rec incompatible_def_term t =
       t::(def1 @ def2 @ def3 @ def4)
   | ResE(b,t) ->
       incompatible_def_term t
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 and incompatible_def_term_list = function
@@ -100,7 +100,7 @@ let rec incompatible_def_process p =
 
 and incompatible_def_oprocess p =
   match p.p_desc with
-    Yield | Abort -> []
+    Yield | EventAbort _ -> []
   | Restr(b, p) ->
       incompatible_def_oprocess p 
   | Test(t,p1,p2) ->
@@ -171,7 +171,7 @@ let rec check_no_new_event t =
       List.iter (fun (_,_,t1,t2) ->
 	check_no_new_event t1;
 	check_no_new_event t2) l0
-  | ResE _ | EventE _ ->
+  | ResE _ | EventAbortE _ ->
       raise SurelyNot
 
 and check_no_new_event_pat = function
@@ -215,7 +215,7 @@ let rec occurs_name_to_discharge t =
   | FunApp(f,l) ->
       List.exists occurs_name_to_discharge l
   | ReplIndex _ -> false
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventE _ -> 
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
       Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.occurs_name_to_discharge)"
       
 (* Check if a function symbol in fun_list occurs in t *)
@@ -227,7 +227,7 @@ let rec occurs_symbol_to_discharge t =
   | FunApp(f,l) ->
       (List.memq f (!symbols_to_discharge)) || (List.exists occurs_symbol_to_discharge l)
   | ReplIndex _ -> false
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventE _ -> 
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
       Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.occurs_symbol_to_discharge)"
   
 
@@ -481,7 +481,7 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
         (* suggest assignment expansion on b *)
 	next_f { state with advised_ins = Terms.add_eq (explicit_value b) state.advised_ins }
   | FunApp _, ReplIndex _ -> raise SurelyNot
-  | FunApp(f,l), (TestE _ | FindE _ | LetE _ | ResE _ | EventE _) ->
+  | FunApp(f,l), (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _) ->
       Parsing_helper.internal_error "If, let, find, new, and event should have been expanded (Cryptotransf.check_instance_of_rec)"
   | Var(b,l), _ when List.for_all2 Terms.equal_terms b.args_at_creation l ->
       begin
@@ -689,7 +689,7 @@ let rec check_instance_of_subterms next_f all_names_exp_opt mode term t =
     Var _ | ReplIndex _ -> raise SurelyNot
   | FunApp(f,l) ->
       check_instance_of_list next_f all_names_exp_opt mode l t
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventE _ ->
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
 
 and check_instance_of_list next_f all_names_exp_opt mode l t = 
@@ -717,7 +717,7 @@ let rec reverse_subst indexes cur_array t =
 	  Var(b,l) -> Var(b, reverse_subst_index indexes cur_array l)
 	| ReplIndex _ -> raise SurelyNot 
 	| FunApp(f,l) -> FunApp(f, List.map (reverse_subst indexes cur_array) l)
-	| TestE _ | LetE _ | FindE _ | ResE _ | EventE _ -> 
+	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
 	    Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.reverse_subst)")
   | _ -> Parsing_helper.internal_error "Lists should have the same length in reverse_subst"
   in
@@ -912,8 +912,7 @@ let rec letvars_from_term accu t =
   | ResE(b,t) ->
       accu := b :: (!accu);
       letvars_from_term accu t
-  | EventE(t) ->
-      letvars_from_term accu t
+  | EventAbortE(f) -> ()
 
 and vars_from_pat accu = function
     PatVar b -> accu := b :: (!accu)
@@ -1130,8 +1129,8 @@ let rec get_def_vars accu t =
 	if List.exists (fun b -> List.memq b accu) vars then
 	  raise SurelyNot;
 	get_def_vars (get_def_vars (vars @ accu) t1) t2) accu' l0
-  | EventE(t) ->
-      get_def_vars accu t
+  | EventAbortE(f) ->
+      accu
 
 and get_def_vars_pat accu = function
     PatVar b ->
@@ -1155,7 +1154,7 @@ let rec used_indices indices used t =
       Var(_,l) | FunApp(_,l) -> 
 	List.iter (used_indices indices used) l
     | ReplIndex _ -> ()
-    | TestE _ | LetE _ |FindE _ | ResE _ | EventE _ ->
+    | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _ ->
 	Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.used_indices)"
 
 (* [has_repl_index t] returns true when [t] contains a replication index *)
@@ -1165,7 +1164,7 @@ let rec has_repl_index t =
     Var(_,l) | FunApp(_,l) -> 
       List.exists has_repl_index l
   | ReplIndex _ -> true
-  | TestE _ | LetE _ |FindE _ | ResE _ | EventE _ ->
+  | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.has_repl_index)"
 
   
@@ -1766,7 +1765,7 @@ and check_term_try_subterms where_info cur_array defined_refs t =
 	 else
 	   map_and_ins (check_term where_info [] cur_array defined_refs) l
      | ReplIndex _ -> success_no_advice
-     | TestE _ | LetE _ | FindE _ | ResE _ | EventE _ -> 
+     | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
 	 Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.check_term_try_subterms)"
 
 let check_term where_info ta_above cur_array defined_refs t =
@@ -1858,7 +1857,7 @@ let rec check_cterm t =
       if is_name_to_discharge b then
 	raise SurelyNot;
       check_cterm t
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 and check_cbr (_,l) =
@@ -1899,7 +1898,7 @@ This avoids creating array references to such variables.
 let rec check_find_cond cur_array defined_refs t =
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ -> check_term FindCond [] cur_array defined_refs t 
-  | FindE _ | ResE _ | TestE _ | LetE _ | EventE _ -> check_cterm t; success_no_advice
+  | FindE _ | ResE _ | TestE _ | LetE _ | EventAbortE _ -> check_cterm t; success_no_advice
 
 let rec check_process accu cur_array defined_refs p =
   match p.i_desc with
@@ -1916,7 +1915,7 @@ let rec check_process accu cur_array defined_refs p =
 
 and check_oprocess accu cur_array defined_refs p = 
   match p.p_desc with
-    Yield | Abort -> accu 
+    Yield | EventAbort _ -> accu 
   | Restr(b,p) ->
       check_oprocess accu cur_array ((b, b.args_at_creation)::defined_refs) p
   | Test(t,p1,p2) ->
@@ -2185,7 +2184,7 @@ let rec transform_term t =
 	Var(b,l) -> Var(b, List.map transform_term l)
       | FunApp(f,l) -> FunApp(f, List.map transform_term l)
       |	ReplIndex b -> ReplIndex b 
-      | TestE _ | LetE _ | FindE _ | ResE _ | EventE _ -> 
+      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
 	  Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.transform_term)")
 
 and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
@@ -2443,23 +2442,20 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
         with Not_found ->
 	  Parsing_helper.internal_error "Variable not found (ResE)"), 
 	      instantiate_term cur_array in_find_cond loc_rename mapping one_exp t'))
-  | EventE(t') ->
-      match t'.t_desc with
-	FunApp(f,[_]) -> 
-	  (* Create a fresh function symbol, in case the same equivalence has already been applied before *)
-	  let f' = { f_name = f.f_name ^ "_" ^ (string_of_int (Terms.new_vname()));
-		     f_type = f.f_type;
-		     f_cat = f.f_cat;
-		     f_options = f.f_options;
-                     f_impl = No_impl;
-                     f_impl_inv = None }
-	  in
-	  (* Add the event to introduced_events, to add it in the difference 
-	     of probability and in the queries *)
-	  introduced_events := f' :: (!introduced_events);
-	  let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
-	  Terms.build_term t (EventE(Terms.build_term t' (FunApp(f',[idx])))) 
-      |	_ -> Parsing_helper.internal_error "Events in RHS of equivalences should have no argument"
+  | EventAbortE(f) ->
+      (* Create a fresh function symbol, in case the same equivalence has already been applied before *)
+      let f' = { f_name = f.f_name ^ "_" ^ (string_of_int (Terms.new_vname()));
+		 f_type = f.f_type;
+		 f_cat = f.f_cat;
+		 f_options = f.f_options;
+                 f_impl = No_impl;
+                 f_impl_inv = None }
+      in
+      (* Add the event to introduced_events, to add it in the difference 
+	 of probability and in the queries *)
+      introduced_events := f' :: (!introduced_events);
+      Terms.build_term t (EventAbortE(f'))
+
 
 and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = function
     PatVar b ->
@@ -2490,7 +2486,7 @@ let transform_find_cond t =
   | TestE _ | FindE _ | LetE _ | ResE _ -> 
       (* Terms if/let/find/new/event are never transformed *)
       t
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 let rec put_restr l p =
@@ -2579,7 +2575,7 @@ let rec transform_process cur_array p =
 and transform_oprocess_norestr cur_array p = 
   match p.p_desc with
     Yield -> Terms.yield_proc
-  | Abort -> Terms.abort_proc
+  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
       (* Remove restriction when it is now useless *)
       let p' = transform_oprocess cur_array p in
@@ -2681,7 +2677,7 @@ let rec is_transformed t =
   (is_in_map t) || 
   (match t.t_desc with
     Var(_,l) | FunApp(_,l) -> List.exists is_transformed l
-  | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ -> false)
+  | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ -> false)
 
 type count_get =
     ReplCount of param
@@ -2815,7 +2811,7 @@ let rec repl_count_term true_facts accu b_repl t =
       (* find conditions that contain if/let/find/new are never transformed,
 	 so nothing to add for them *)
       accu'
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 and repl_count_term_list true_facts accu b_repl = function
@@ -2845,7 +2841,7 @@ let rec repl_count_process cur_array b_repl p =
 
 and repl_count_oprocess cur_array b_repl p = 
   match p.p_desc with
-    Yield | Abort -> FZero
+    Yield | EventAbort _ -> FZero
   | Restr(_,p) -> repl_count_oprocess cur_array b_repl p
   | Test(t,p1,p2) ->
       repl_count_term [] (add_diff_branch cur_array (repl_count_oprocess cur_array b_repl p1) (repl_count_oprocess cur_array b_repl p2)) b_repl t
@@ -3148,7 +3144,7 @@ let rec find_restr accu p =
 
 and find_restro accu p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Let(_,_,p1,p2) | Test(_,p1,p2) -> 
       find_restro accu p1;
       find_restro accu p2

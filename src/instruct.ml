@@ -567,8 +567,7 @@ let rec find_binders_term accu t =
   | ResE(b,t) ->
       add accu b;
       find_binders_term accu t
-  | EventE(t) ->
-      find_binders_term accu t
+  | EventAbortE _ -> ()
   | LetE(pat, t1, t2, topt) ->
       find_binders_pat accu pat;
       find_binders_term accu t1;
@@ -611,7 +610,7 @@ let rec find_binders_rec accu p =
 
 and find_binders_reco accu p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) -> 
       add accu b;
       find_binders_reco accu p

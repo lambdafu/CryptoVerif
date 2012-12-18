@@ -241,10 +241,9 @@ and display_term t =
 	end;
       print_string ";\\ ";
       display_term t
-  | EventE(t) ->
-      print_string "\\kw{event}\\ ";
-      display_term t
-      
+  | EventAbortE(f) ->
+      print_string "\\kw{event\\string_abort}\\ ";
+      print_id "\\kwf{" f.f_name "}"      
 
 (* Patterns *)
 
@@ -519,9 +518,9 @@ let rec display_procasterm t =
       display_binder_with_array b;
       print_id " \\getR \\kwt{" b.btype.tname "};\\ ";
       display_procasterm t
-  | EventE(t) -> 
-      print_string "\\kw{event}\\ ";
-      display_term t
+  | EventAbortE(f) -> 
+      print_string "\\kw{event\\string_abort}\\ ";
+      print_id "\\kwf{" f.f_name "}"      
       
 
 let rec display_fungroup indent = function
@@ -695,7 +694,7 @@ let rec split_par p =
 
 let rec may_have_elseo p = 
   match p.p_desc with
-    Yield | Abort -> false
+    Yield | EventAbort _ -> false
   | Test _ | Find _ | Let _ | Get _ -> true
   | Restr(_,p) | EventP(_,p) | Insert(_,_,p) -> may_have_elseo p
   | Output(_,_,p) -> may_have_else p
@@ -811,8 +810,10 @@ and display_oprocess indent p =
 	print_string (indent ^ "\\overline{0}$\\\\\n")
       else
 	print_string (indent ^ "\\kw{yield}$\\\\\n")
-  | Abort -> 
-      print_string (indent ^ "\\kw{abort}$\\\\\n")
+  | EventAbort f -> 
+      print_string (indent ^ "\\kw{event\\string_abort}\\ ");
+      print_id "\\kwf{" f.f_name "}";
+      print_string "$\\\\\n"
   | Restr(b,p) ->
       if (!Settings.front_end) == Settings.Oracles then
 	begin

@@ -128,7 +128,7 @@ let rec equal_find_cond map t t' =
       eq_pat && (equal_find_cond (!map_ref) t2 t2'))
   | ResE(b,t), ResE(b',t') ->
       merge_var (fun map' -> equal_find_cond map' t t') map b b'
-  | EventE _, EventE _ ->
+  | EventAbortE _, EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
   | _ -> false
 
@@ -153,7 +153,7 @@ let rec equal_process map p p' =
 and equal_oprocess map p p' =
   match p.p_desc, p'.p_desc with
     Yield, Yield -> true
-  | Abort, Abort -> true
+  | EventAbort f, EventAbort f' -> f == f'
   | Restr(b,p), Restr(b',p') ->
       merge_var (fun map' -> equal_oprocess map' p p') map b b'
   | Test(t,p1,p2), Test(t',p1',p2') ->
@@ -283,7 +283,7 @@ let rec match_term next_f restr t t' =
 	    match_term_list next_f restr l l'
 	| _ -> raise NoMatch
       end
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, and new should not occur in match_term"
 
 and match_term_list next_f restr l l' = 
@@ -750,7 +750,7 @@ let rec merge_term rename_instr t =
   | FunApp(f,l) ->
       Terms.build_term2 t (FunApp(f, List.map (merge_term rename_instr) l))
   | ReplIndex _ -> t
-  | ResE _ | EventE _ | TestE _ | LetE _ | FindE _ ->
+  | ResE _ | EventAbortE _ | TestE _ | LetE _ | FindE _ ->
       Parsing_helper.internal_error "new/event/if/let/find unexpected in terms"
 
 let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merge proc_add_def_var merge_find_cond curr_facts 
@@ -1018,7 +1018,7 @@ let rec merge_find_cond rename_instr t =
     ResE(b,p) ->
       Terms.build_term2 t (ResE(rename_var rename_instr b, 
 				add_def_var_find_cond rename_instr (merge_find_cond rename_instr p) b))
-  | EventE _ ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "event should not occur as term"
   | TestE(t1,t2,t3) ->
       let t1' = merge_term rename_instr t1 in
@@ -1092,7 +1092,7 @@ and merge_o rename_instr p =
   let p_desc' =
     match p.p_desc with
       Yield -> Yield
-    | Abort -> Abort
+    | EventAbort f -> EventAbort f
     | Restr(b,p) ->
 	Restr(rename_var rename_instr b, 
 	      add_def_var_proc rename_instr (merge_o rename_instr p) b)
@@ -1355,7 +1355,7 @@ let add_advice (merge_type, cur_array, all_branches_var_list, _, _) =
 let rec collect_merges_find_cond cur_array t =
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ -> ()
-  | EventE _ -> Parsing_helper.internal_error "EventE should have been expanded"
+  | EventAbortE _ -> Parsing_helper.internal_error "EventAbortE should have been expanded"
   | ResE(_,t) -> collect_merges_find_cond cur_array t
   | TestE(t1,t2,t3) ->
       begin
@@ -1470,7 +1470,7 @@ let rec collect_merges_i cur_array p =
     
 and collect_merges_o cur_array p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) ->
       collect_merges_o cur_array p
   | EventP(t,p) ->
@@ -1595,7 +1595,7 @@ let rec remove_impossible_merges() =
 let rec do_merges_find_cond t =
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ -> t
-  | EventE _ -> Parsing_helper.internal_error "EventE should have been expanded"
+  | EventAbortE _ -> Parsing_helper.internal_error "EventAbortE should have been expanded"
   | ResE(b,t1) ->
       let t1' = do_merges_find_cond t1 in
       Terms.build_term2 t (ResE(b,t1'))
@@ -1667,7 +1667,7 @@ let rec do_merges_i p =
 
 and do_merges_o p =
   match p.p_desc with
-    Yield | Abort -> p
+    Yield | EventAbort _ -> p
   | Restr(b,p1) ->    
       Terms.oproc_from_desc2 p (Restr(b, do_merges_o p1))
   | EventP(t,p1) ->

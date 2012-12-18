@@ -99,12 +99,12 @@ and get_term_bv t = match t.t_desc with
       add_bv (bound_bv (get_binder_name b))
         (get_term_bv t)
   | ReplIndex _ -> Parsing_helper.input_error "Replication indices should occur only inside variables (implementation)" t.t_loc
-  | EventE _ -> Parsing_helper.input_error "Events not allowed in terms (implementation)" t.t_loc
+  | EventAbortE _ -> Parsing_helper.input_error "Events not allowed in terms (implementation)" t.t_loc
   | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
       
 and get_oprocess_bv p =
   match p.p_desc with
-      Yield | Abort -> empty_bv
+      Yield | EventAbort _ -> empty_bv
     | Restr(b,p) -> 
         add_bv 
           (bound_bv (get_binder_name b))
@@ -307,7 +307,7 @@ let pat_tuple_types pat =
 
 let rec get_oracle_types_oprocess name args_types p = 
   match p.p_desc with
-    | Yield | Abort -> StringMap.add name (None, args_types) StringMap.empty
+    | Yield | EventAbort _ -> StringMap.add name (None, args_types) StringMap.empty
     | Restr(b,p) -> 
         get_oracle_types_oprocess name args_types p
     | Test(t,p1,p2) ->
@@ -460,7 +460,7 @@ let random b ind =
 let rec translate_oprocess opt p ind =
   match p.p_desc with
     | Yield -> "\n"^ind^"raise Match_fail"
-    | Abort -> "\n"^ind^"raise Abort"
+    | EventAbort _ -> "\n"^ind^"raise Abort"
     | Restr(b,p) -> 
         (random b ind)^
         (write_file opt b ind)^
@@ -542,7 +542,7 @@ and translate_term t ind =
             )
       | TestE(t1,t2,t3) -> "(if "^(translate_term t1 ind)^" then "^(translate_term t2 ind)^" else "^(translate_term t3 ind)^" )"
       | ReplIndex _ -> Parsing_helper.input_error "Replication indices should occur only inside variables (implementation)" t.t_loc
-      | EventE _ -> Parsing_helper.input_error "Events not allowed in terms (implementation)" t.t_loc
+      | EventAbortE _ -> Parsing_helper.input_error "Events not allowed in terms (implementation)" t.t_loc
       | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
       | ResE (b,t) -> "("^(random b ind)^" "^(translate_term t ind)^")"
       | LetE (pat, t1, t2, topt) -> 

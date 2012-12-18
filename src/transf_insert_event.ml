@@ -29,7 +29,7 @@ and replace_oprocess count occ premp p =
       begin
     match p.p_desc with
       Yield -> Yield
-    | Abort -> Abort
+    | EventAbort f -> EventAbort f
     | Restr(b,p) -> Restr(b, replace_oprocess count occ premp p)
     | Test(t,p1,p2) -> Test(t, replace_oprocess count occ premp p1,
 			    replace_oprocess count occ premp p2)
@@ -60,7 +60,7 @@ let insert_event occ s g =
   in
   let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
   let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-  let premp = Terms.oproc_from_desc(EventP(t,Terms.abort_proc)) in
+  let premp = Terms.oproc_from_desc(EventAbort(f)) in
   let count = ref 0 in
   let p' = replace_process count occ premp g.proc in
   if (!count) = 0 then 

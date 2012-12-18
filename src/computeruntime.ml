@@ -10,7 +10,7 @@ let rec make_length_term g t =
       Maxlength(g, Terms.term_from_binder b)
   | ReplIndex b ->
       Maxlength(g, Terms.term_from_repl_index b)
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventE _ ->
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "If/let/find/new/event not allowed in make_length_term"
 
 and make_length g = function
@@ -121,7 +121,7 @@ and time_term t =
 	    Polynom.sum tt (Polynom.probaf_to_polynom 
 	      (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []), ActTime(ANew b.btype, []))))
 	end
-  | EventE(t) ->
+  | EventAbortE(f) ->
       Parsing_helper.internal_error "event should have been expanded"
   | TestE(t,t1,t2) ->
       let tp = Polynom.sum (time_term t) (Polynom.max (time_term t1) (time_term t2)) in
@@ -246,12 +246,13 @@ let rec time_process p =
       
 and time_oprocess p = 
   match p.p_desc with
-    Yield | Abort -> 
+    Yield -> 
       if ((!Settings.ignore_small_times)>0) || 
          ((!Settings.front_end) == Settings.Oracles) then
 	Polynom.zero
       else
 	Polynom.probaf_to_polynom (ActTime(AOut([], Settings.t_unit), []))
+  | EventAbort _ -> Polynom.zero
   | Restr(b,p) ->
       let tp = time_oprocess p in
       if (!Settings.ignore_small_times)>0 then

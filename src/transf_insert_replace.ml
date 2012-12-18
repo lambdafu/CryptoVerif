@@ -82,8 +82,8 @@ let rec find_binders_find_cond t =
   | ResE(b,t) ->
       add_find_cond b;
       find_binders_find_cond t
-  | EventE _ ->
-      Parsing_helper.internal_error "event should not occur as term"
+  | EventAbortE _ ->
+      Parsing_helper.internal_error "event_abort should not occur as term"
   | LetE(pat, t1, t2, topt) ->
       let pat_vars = Terms.vars_from_pat [] pat in
       List.iter add_find_cond pat_vars;
@@ -108,7 +108,7 @@ let rec find_binders_rec p =
 
 and find_binders_reco p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) -> 
       add b;
       find_binders_reco p
@@ -343,8 +343,8 @@ let rec check_term defined_refs cur_array env = function
       raise (Error("if/let/find should appear as terms only in conditions of find", ext))
   | PResE _, ext ->
       raise (Error("new should not appear as term", ext))
-  | PEventE _, ext ->
-      raise (Error("event should not appear as term", ext))
+  | PEventAbortE _, ext ->
+      raise (Error("event_abort should not appear as term", ext))
   | PEqual(t1,t2), ext ->
       let t1' = check_term defined_refs cur_array env t1 in
       let t2' = check_term defined_refs cur_array env t2 in
@@ -523,8 +523,8 @@ let rec check_find_cond defined_refs cur_array env = function
 	t_loc = ext;
 	t_facts = None }
 *)
-  | PEventE _, ext ->
-      raise (Error("event should not appear as term", ext))
+  | PEventAbortE _, ext ->
+      raise (Error("event_abort should not appear as term", ext))
   | PFindE(l0,t3,opt), ext ->
       if opt != [] then
 	Parsing_helper.input_error "Options are not allowed for find in manually inserted instructions, because I cannot check that they are correct." ext;
@@ -674,7 +674,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
   let (p_desc', def) =
     match p.p_desc with
       Yield -> (Yield, [])
-    | Abort -> (Abort, [])
+    | EventAbort f -> (EventAbort f, [])
     | Restr(b,p) ->
 	let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
 	let (p', def) = insert_inso count occ ins env' ((b, b.args_at_creation)::defined_refs) cur_array p in
@@ -818,8 +818,8 @@ let rec replace_tt count env defined_refs facts proba cur_array t =
 	  FunApp(f, [replace_tt count env defined_refs ((Terms.make_not t2)::facts) proba cur_array t1;
 		 replace_tt count env defined_refs ((Terms.make_not t1)::facts) proba cur_array t2])
 	| FunApp(f,l) -> FunApp(f, List.map (replace_tt count env defined_refs facts proba cur_array) l)
-	| ResE _ | TestE _ | LetE _ | FindE _ | EventE _ ->
-	    Parsing_helper.internal_error "if/let/find/new/event should have been expanded in replace_term")
+	| ResE _ | TestE _ | LetE _ | FindE _ | EventAbortE _ ->
+	    Parsing_helper.internal_error "if/let/find/new/event_abort should have been expanded in replace_term")
 
 let rec replace_tpat count env defined_refs facts proba cur_array = function
     PatVar b -> PatVar b
@@ -831,8 +831,8 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
     ResE(b,p) ->
       let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
       Terms.build_term2 t (ResE(b, replace_tfind_cond count env' ((b, b.args_at_creation)::defined_refs) facts proba cur_array p))
-  | EventE _ ->
-      Parsing_helper.internal_error "event should not occur as term"
+  | EventAbortE _ ->
+      Parsing_helper.internal_error "event_abort should not occur as term"
   | TestE(t1,t2,t3) ->
       let t2' = replace_tfind_cond count env defined_refs facts proba cur_array t2 in
       let t3' = replace_tfind_cond count env defined_refs facts proba cur_array t3 in
@@ -908,7 +908,7 @@ and replace_to count env defined_refs facts proba cur_array p =
   let p_desc' =
     match p.p_desc with
       Yield -> Yield
-    | Abort -> Abort
+    | EventAbort f -> EventAbort f
     | Restr(b,p) ->
 	let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
 	Restr(b, replace_to count env' ((b, b.args_at_creation)::defined_refs) facts proba cur_array p)

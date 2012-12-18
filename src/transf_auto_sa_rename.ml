@@ -60,7 +60,7 @@ let rec auto_sa_rename_fc t =
           let t2' = auto_sa_rename_fc t2 in
           List.iter (fun b -> b.link <- NoLink) (Terms.vars_from_pat [] pat);
 	  LetE(pat', t1', t2', topt')
-      |	ResE _ | EventE _ -> 
+      |	ResE _ | EventAbortE _ -> 
 	  Parsing_helper.internal_error "New and event should not occur in find condition")
 
 and auto_sa_rename_fc_binder (b,l) =
@@ -106,8 +106,8 @@ let rec auto_sa_rename_term t =
 	  LetE(pat', t1', t2', topt')
       |	ResE(b,t) ->
 	  ResE(b, auto_sa_rename_term t)
-      |	EventE(t) -> 
-          EventE(auto_sa_rename_term t))
+      |	EventAbortE(f) -> 
+	  EventAbortE(f))
 
 and auto_sa_rename_pat = function
     PatVar b -> PatVar b
@@ -132,7 +132,7 @@ and auto_sa_rename_oprocess p =
   Terms.oproc_from_desc2 p (
   match p.p_desc with
     Yield -> Yield
-  | Abort -> Abort
+  | EventAbort f -> EventAbort f
   | Restr(b,p) ->
       Restr(b, auto_sa_rename_oprocess p)
   | Test(t,p1,p2) ->

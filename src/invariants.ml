@@ -25,7 +25,7 @@ let rec inv1t cur_array t =
   | ReplIndex b -> 
       if not (List.memq b cur_array) then
 	Parsing_helper.internal_error "When I refer to a replication index, it should be an element of cur_array"
-  | ResE _ | FindE _ | TestE _ | LetE _ | EventE _ ->
+  | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ ->
       Parsing_helper.internal_error "If/let/new/find should have been expanded"
 
 let rec inv1fc cur_array t =
@@ -44,8 +44,8 @@ let rec inv1fc cur_array t =
       ok_cur_array cur_array b;
       b :: def
 *)
-  | EventE(t) ->
-      Parsing_helper.internal_error "event should not appear as term"
+  | EventAbortE(t) ->
+      Parsing_helper.internal_error "event_abort should not appear as term"
   | LetE(pat,t,p1,topt) ->
       inv1t cur_array t;
       let def1 = inv1fc cur_array p1 in
@@ -97,7 +97,7 @@ let rec inv1 cur_array p =
 
 and inv1o cur_array p =
   match p.p_desc with
-    Yield | Abort -> []
+    Yield | EventAbort _ -> []
   | Restr(b,p) ->
       let def = inv1o cur_array p in
       check_noninter def [b];
@@ -204,7 +204,7 @@ let rec invt defined_refs t =
       if t.t_type != snd f.f_type then
 	Parsing_helper.internal_error "Type error";
       List.iter (invt defined_refs) l
-  | ResE _ | FindE _ | TestE _ | LetE _ | EventE _ ->
+  | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ ->
       Parsing_helper.internal_error "If/let/new/find should have been expanded"
 
 let rec invpat defined_refs = function
@@ -231,8 +231,8 @@ let rec invfc defined_refs t =
       no_array_ref b;
       invfc ((b, b.args_at_creation)::defined_refs) t
 *)
-  | EventE(t) ->
-      Parsing_helper.internal_error "event should not appear as term"
+  | EventAbortE(t) ->
+      Parsing_helper.internal_error "event_abort should not appear as term"
   | TestE(t1,t2,t3) ->
       invt defined_refs t1;
       invfc defined_refs t2;
@@ -297,7 +297,14 @@ let rec inv defined_refs p =
 
 and invo defined_refs p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield -> ()
+  | EventAbort f -> 
+      begin
+	match f.f_type with
+	  [t], t' when t == Settings.t_bitstring && t' == Settings.t_bool -> ()
+	| _ ->
+	    Parsing_helper.internal_error "Type error: badly typed event in event_abort"
+      end
   | Restr(b,p) ->
       let ty = b.btype in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then

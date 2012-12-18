@@ -120,7 +120,7 @@ let rec try_no_var ((subst2, _, _) as simp_facts) t =
 	try_no_var simp_facts t' 
       else
 	t
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ -> 
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ -> 
       Display.display_term t; print_newline();
       Parsing_helper.internal_error "If, find, let, and new should not occur in try_no_var"
 
@@ -132,8 +132,8 @@ let rec try_no_var ((subst2, _, _) as simp_facts) t =
 let rec unify_terms simp_facts t t' =
   (* print_string "Trying to unify "; Display.display_term t; print_string " and "; Display.display_term t'; print_newline(); *)
   match t.t_desc,t'.t_desc with
-    ((TestE _ | FindE _ | LetE _ | ResE _ | EventE _), _)
-  | (_, (TestE _ | FindE _ | LetE _ | ResE _ | EventE _)) ->
+    ((TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _), _)
+  | (_, (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _)) ->
       Display.display_term t; print_newline();
       Parsing_helper.internal_error "If, find, let, and new should not occur in unify_terms"
   | (Var _, Var _) when Terms.equal_terms t t' -> t
@@ -212,7 +212,7 @@ let rec match_term next_f simp_facts restr t t' =
 	    match_term_list next_f simp_facts restr l l'
 	| _ -> raise NoMatch
       end
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in match_term"
 
 and match_term_list next_f simp_facts restr l l' = 
@@ -957,7 +957,7 @@ let rec guess_by_matching next_f simp_facts t t' =
 	    guess_by_matching_list next_f simp_facts l l'
 	| _ -> next_f()
       end
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, and new should not occur in guess_by_matching"
 
 and guess_by_matching_list next_f simp_facts l l' = 
@@ -1001,7 +1001,7 @@ let guess_by_matching_same_root next_f simp_facts t t' =
 	    guess_by_matching_list next_f simp_facts l l'
 	| _ -> raise NoMatch
       end
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ ->
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, and new should not occur in guess_by_matching"
 
 let rec collect_vars accu t =
@@ -1495,7 +1495,7 @@ and display_facts_at_op p occ =
     display_fact_info p.p_facts
   else
     match p.p_desc with
-        Yield|Abort -> ()
+        Yield| EventAbort _ -> ()
       | Restr (_,p) -> display_facts_at_op p occ
       | Test (t,p,p') -> display_facts_at_t t occ;display_facts_at_op p occ;display_facts_at_op p' occ
       | Find (bl,p,_) -> List.iter (fun (_,_,t,p) -> display_facts_at_t t occ;display_facts_at_op p occ) bl; display_facts_at_op p occ
@@ -1516,7 +1516,7 @@ and display_facts_at_t t occ =
       | FindE (bl,t,_) -> List.iter (fun (_,_,t1,t2) -> display_facts_at_t t1 occ;display_facts_at_t t2 occ) bl; display_facts_at_t t occ
       | LetE (pat,t1,t2,topt) -> display_facts_at_pat pat occ;display_facts_at_t t1 occ;display_facts_at_t t2 occ;(match topt with Some t -> display_facts_at_t t occ| None -> ())
       | ResE (_,t) -> display_facts_at_t t occ
-      | EventE t -> display_facts_at_t t occ
+      | EventAbortE f -> ()
 
 and display_facts_at_pat pat occ =
   match pat with

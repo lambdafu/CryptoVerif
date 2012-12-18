@@ -45,8 +45,7 @@ let rec check_def_term defined_refs t =
       check_def_term defined_refs t3
   | ResE(b,t) ->
       check_def_term ((b,b.args_at_creation)::defined_refs) t
-  | EventE(t) ->
-      check_def_term defined_refs t
+  | EventAbortE(f) -> ()
 
 and check_def_pat accu defined_refs = function
     PatVar b -> accu := (b, b.args_at_creation) :: (!accu)
@@ -83,7 +82,7 @@ let rec check_def_process defined_refs p =
 
 and check_def_oprocess defined_refs p = 
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(b,p) ->
       check_def_oprocess ((b,b.args_at_creation)::defined_refs) p
   | Test(t,p1,p2) ->
@@ -149,7 +148,7 @@ let rec build_def_fungroup above_node = function
 			definition = DFunArgs } 
     in
     List.iter (fun b -> b.def <- above_node1 :: b.def) args;
-    ignore(Terms.def_term above_node1 [] [] res)
+    ignore(Terms.def_term None above_node1 [] [] res)
 
 let array_index_args args =
   List.filter (fun b -> match b.btype.tcat with
@@ -260,8 +259,7 @@ let rec get_arg_array_ref index_args accu t =
       get_arg_array_ref index_args accu t3
   | ResE(b,t) ->
       get_arg_array_ref index_args accu t
-  | EventE(t) ->
-      get_arg_array_ref index_args accu t
+  | EventAbortE(f) -> ()
 
 and get_arg_array_ref_pat index_args accu = function
     PatVar b -> ()
@@ -316,8 +314,7 @@ let rec check_def_funterm defined_refs t =
       check_def_funterm defined_refs t3
   | ResE(b,t) ->
       check_def_funterm ((b,b.args_at_creation)::defined_refs) t
-  | EventE(t) ->
-      check_def_funterm defined_refs t
+  | EventAbortE(f) -> ()
 
 and check_def_pat accu defined_refs = function
     PatVar b -> accu := (b, b.args_at_creation) :: (!accu)
@@ -374,7 +371,7 @@ let rec check_lm_term t =
       check_lm_term t1
   | LetE _ ->
       Parsing_helper.input_error "let with non-variable patterns forbidden in left member of equivalences" t.t_loc
-  | (TestE _ | FindE _ | ResE _ | EventE _) ->
+  | (TestE _ | FindE _ | ResE _ | EventAbortE _) ->
       Parsing_helper.input_error "if, find, new and event forbidden in left member of equivalences" t.t_loc
 
 let rec check_lm_fungroup = function
@@ -489,8 +486,8 @@ let rec check_rm_term allowed_index_seq t =
 	      (lindex, def_list, t1', t2')
 		) l0,
 	check_rm_term allowed_index_seq t3, find_info))
-  | EventE(t') ->
-      Terms.build_term2 t (EventE(check_rm_term allowed_index_seq t'))
+  | EventAbortE(f) ->
+      Terms.build_term2 t (EventAbortE(f))
 
 and check_rm_pat allowed_index_seq = function
     PatVar b -> PatVar b
@@ -560,8 +557,8 @@ let rec move_names_term add_names corresp_list t =
       Terms.build_term2 t (TestE(move_names_term add_names corresp_list t1,
 		       move_names_term add_names corresp_list t2,
 		       move_names_term add_names corresp_list t3))
-  | EventE(t1) ->
-      Terms.build_term2 t (EventE(move_names_term add_names corresp_list t1))
+  | EventAbortE(f) ->
+      Terms.build_term2 t (EventAbortE(f))
 
 and move_names_pat add_names corresp_list = function
     PatVar b -> PatVar b
@@ -626,8 +623,8 @@ let rec update_def_list_term corresp_list t =
 	  TestE(update_def_list_term corresp_list t1,
 		update_def_list_term corresp_list t2,
 		update_def_list_term corresp_list t3)
-      |	EventE(t1) ->
-	  EventE(update_def_list_term corresp_list t1))
+      |	EventAbortE(f) ->
+	  EventAbortE(f))
 
 and update_def_list_pat corresp_list = function
     PatVar b -> PatVar b
@@ -677,7 +674,7 @@ let rec uses b0 t =
       (match topt with
 	None -> false
       |	Some t3 -> uses b0 t3)
-  | EventE(t) -> uses b0 t
+  | EventAbortE(f) -> false
 
 and uses_pat b0 = function
     PatVar b -> false

@@ -116,7 +116,7 @@ let candidate_for_rem_assign remove_set b t p =
 
 let rec find_replacement_for_def remove_set b p =
   match p.p_desc with
-    Yield | Abort -> raise Not_found
+    Yield | EventAbort _ -> raise Not_found
   | Restr(b',p') ->
       if b' != b && b'.count_def == 1 then b' else find_replacement_for_def remove_set b p'
   | Let(PatVar b', t, p', _) ->
@@ -329,7 +329,7 @@ let rec remove_assignments_term remove_set t =
 	end
       else
 	Terms.build_term2 t (ResE(b, remove_assignments_term remove_set t))
-  | EventE(t) ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
 
 and remove_assignments_br remove_set (b,l) =
@@ -351,7 +351,7 @@ let rec remove_assignments_rec remove_set p =
 and remove_assignments_reco remove_set above_proc p =
   match p.p_desc with
     Yield -> Terms.yield_proc
-  | Abort -> Terms.abort_proc
+  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
       if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b)) then
 	begin

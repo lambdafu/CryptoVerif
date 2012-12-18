@@ -31,10 +31,10 @@ the quote character ('), as well as accented letters of the ISO Latin 1
 character set. Case is significant. 
 Keywords cannot be used as ordinary identifiers. The keywords are:
 \ifchannels
-{\tt abort}, {\tt channel}, 
+{\tt channel}, 
 {\tt collision}, {\tt const}, {\tt define}, 
 {\tt defined}, {\tt else}, {\tt eps\_find}, {\tt eps\_rand}, {\tt equiv}, 
-{\tt event}, {\tt expand}, {\tt find}, {\tt forall}, {\tt fun}, 
+{\tt event}, {\tt event\string_abort}, {\tt expand}, {\tt find}, {\tt forall}, {\tt fun}, 
 {\tt get}, {\tt if}, {\tt implementation}, {\tt in}, {\tt inj}, 
 {\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
 {\tt new}, {\tt newChannel}, {\tt orfind}, {\tt otheruses},
@@ -44,10 +44,10 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}, {\tt yield}%
 \else
-{\tt abort}, {\tt collision}, {\tt const}, {\tt define}, 
+{\tt collision}, {\tt const}, {\tt define}, 
 {\tt defined}, {\tt do}, {\tt else}, {\tt end}, {\tt eps\_find}, 
 {\tt eps\_rand}, 
-{\tt equiv}, {\tt event}, {\tt expand}, 
+{\tt equiv}, {\tt event}, {\tt event\string_abort}, {\tt expand}, 
 {\tt find}, {\tt forall}, {\tt foreach}, 
 {\tt fun}, {\tt get}, {\tt if}, {\tt implementation},
 {\tt in}, {\tt inj}, {\tt insert}, 
@@ -90,7 +90,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\pht \texttt{let } \nonterm{pattern} \texttt{ = }\nonterm{term}\texttt{ in }\nonterm{term}\ [\texttt{else }\nonterm{term}]\\
 &\pht \texttt{if }\nonterm{cond}\texttt{ then } \nonterm{term} \texttt{ else }\nonterm{term}\\
 &\pht \texttt{find }\nonterm{tfindbranch}\ (\texttt{orfind }\nonterm{tfindbranch})^*\texttt{ else }\nonterm{term}\\
-&\pht \texttt{event }\nonterm{ident}\\
+&\pht \texttt{event\string_abort }\nonterm{ident}\\
 &\nonterm{varref} ::= \nonterm{ident}\texttt{[}\seq{simpleterm}\texttt{]}\\
 &\phantom{\nonterm{varref} =}\mid \nonterm{ident}\\
 &\nonterm{cond} ::= \texttt{defined(} \neseq{varref} \texttt{) }\ [\texttt{\&\& }\nonterm{term}]\\
@@ -189,8 +189,8 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 &\oprocess ::= \nonterm{ident}\\
 &\phop \texttt{(} \oprocess \texttt{)}\\
 &\phop \yield\\
-&\phop \texttt{abort}\\
 &\phop \texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\ [\texttt{; }\oprocess]\\
+&\phop \texttt{event\string_abort }\nonterm{ident}\\
 &\phop \Resvt[\texttt{; }\oprocess]\\
 \ifchannels\else
 &\phop \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}[\texttt{; }\oprocess]\\
@@ -260,23 +260,23 @@ are otherwise considered as ordinary function symbols.
 
 \end{itemize}
 \ifchannels
-Terms contain further constructs \texttt{new}, \texttt{if}, \texttt{find},
-\texttt{let} which are similar to the corresponding
+Terms contain further constructs \texttt{event\string_abort}, \texttt{if}, \texttt{find},
+\texttt{let}, \texttt{new} which are similar to the corresponding
 constructs of output processes but return a bitstring instead of
 executing a process. 
 They are not allowed to occur in \texttt{defined} conditions of \texttt{find} and in input channels.
-The construct \texttt{new} is not allowed to occur in
-conditions of \texttt{find} or {\tt get}.
+The constructs \texttt{new} and \texttt{event\string_abort} are not allowed to 
+occur in conditions of \texttt{find} or {\tt get}.
 The construct \texttt{find} is also not allowed in conditions of {\tt get}.
 We refer the reader to the description of 
 processes below for a fully detailed explanation.
 \else
 Terms contain further constructs \texttt{<-R}, \texttt{<-},
-\texttt{let}, \texttt{if}, and \texttt{find} which are similar to the 
+\texttt{event\string_abort}, \texttt{let}, \texttt{if}, and \texttt{find} which are similar to the 
 corresponding constructs of oracle bodies.
-They are not allowed to occur in \texttt{defined} conditions of \texttt{find} and in input channels.
-The construct \texttt{<-R} is not allowed to occur in
-conditions of \texttt{find} or {\tt get}.
+They are not allowed to occur in \texttt{defined} conditions of \texttt{find}.
+The constructs \texttt{<-R} and \texttt{event\string_abort} are not allowed to 
+occur in conditions of \texttt{find} or {\tt get}.
 The construct \texttt{find} is also not allowed in conditions of {\tt get}.
 We refer the reader to the description of 
 oracle bodies below for a fully detailed explanation.
@@ -341,18 +341,15 @@ such that the corresponding condition is \texttt{true}, and returns
 the result of $M_j$.
 See the explanation of the {\tt find} process below for more details.
 
-\end{itemize}
-The construct \texttt{event} in terms is also similar to the one for
-processes, except that it is restricted to events without arguments
-\texttt{event $f$} and that it aborts the process immediately after
-the event. It is not allowed to occur in conditions of \texttt{find}
-or {\tt get} or in input channels. 
+\item \texttt{event\string_abort $e$} executes event $e$ and aborts the game.
 It is intended to be used in the right-hand side
 of the definitions of some cryptographic primitives. (See also
 the \texttt{equiv} declaration; events in the right-hand side can be
 used when the simulation of left-hand side by the right-hand side
 fails. CryptoVerif is going bound the probability that the event is
 executed and include it in the probability of success of an attack.)
+
+\end{itemize}
 
 \ifchannels
 The calculus distinguishes two kinds of processes: input processes
@@ -439,14 +436,17 @@ as an abbreviation for $\texttt{out(}\textit{yield}\texttt{,());0}$.
 \item {\yield} terminates the oracle, returning control to the caller.
 \fi
 
-\item {\tt abort} terminates the game. (Nothing can be executed after
-this instruction, neither by the protocol nor by the adversary.)
-
 \item $\texttt{event }e\texttt{(}M_1, \ldots, M_n\texttt{);}P$ executes the
 event $e\texttt{(}M_1, \ldots, M_n\texttt{)}$, then executes $P$.
 Events serve in recording the execution of certain parts of the program
 for using them in queries. The symbol $e$ must have been declared
 by an \texttt{event} declaration.
+
+\item {\tt event\string_abort} $e$ executes event $e$ and terminates the game. 
+(Nothing can be executed after
+this instruction, neither by the protocol nor by the adversary.)
+The symbol $e$ must have been declared
+by an \texttt{event} declaration, without any argument.
 
 \item $\Res{x}{T}\texttt{;}P$ chooses a new
 random number in type $T$, stores it in $x$, and executes $P$.

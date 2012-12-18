@@ -78,7 +78,7 @@ let rec sa_term b0 t =
 	    ResE(b0', Terms.copy_term (Terms.Rename(b0.args_at_creation, b0, b0')) t)
 	  else
 	    ResE(b, sa_term b0 t)
-      |	EventE(t) ->
+      |	EventAbortE _ ->
           Parsing_helper.internal_error "Event should have been expanded")
 
 and sa_pat b0 target_name = function
@@ -119,7 +119,7 @@ and sa_oprocess b0 p =
   Terms.oproc_from_desc (
   match p.p_desc with
     Yield -> Yield
-  | Abort -> Abort
+  | EventAbort f -> EventAbort f
   | Restr(b,p) ->
       if b == b0 then
 	let b0' = Terms.new_binder b0 in
@@ -300,7 +300,7 @@ let rec ren_out_find_cond b0 t =
             None -> None
           | Some p2 -> Some (ren_out_find_cond b0 p2))
       end
-  | EventE(t) ->
+  | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded")
 
 
@@ -318,7 +318,7 @@ and ren_out_oprocess b0 p =
   Terms.oproc_from_desc (
   match p.p_desc with
     Yield -> Yield
-  | Abort -> Abort
+  | EventAbort f -> EventAbort f
   | Restr(b,p) -> Restr(b, ren_out_oprocess b0 p)
   | Test(t,p1,p2) -> 
       Test(t,

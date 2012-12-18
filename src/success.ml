@@ -57,8 +57,8 @@ let rec check_usage_term seen_accu b t =
       end
   | ResE(b,t) ->
       check_usage_term seen_accu b t
-  | EventE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ ->
+      Parsing_helper.internal_error "Event_abort should have been expanded"
       
 and check_usage_pat seen_accu b = function
     PatVar _ -> ()
@@ -80,7 +80,7 @@ and check_usage_process seen_accu b p =
 
 and check_usage_oprocess seen_accu b p =
   match p.p_desc with
-    Yield | Abort -> ()
+    Yield | EventAbort _ -> ()
   | Restr(_,p) ->
       check_usage_oprocess seen_accu b p
   | Test(t,p1,p2) ->

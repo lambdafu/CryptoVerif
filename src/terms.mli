@@ -79,7 +79,6 @@ val iproc_from_desc2 : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc2 : process -> process_desc -> process
 val nil_proc : inputprocess
 val yield_proc : process
-val abort_proc : process
 
 val cst_for_type : typet -> term
 
@@ -254,7 +253,7 @@ val defined_refs_find : (binder * repl_index) list -> binderref list ->
    it contains no if/let/find/new/event. *)
 val check_no_ifletfindres : term -> bool
 
-val def_term : def_node -> term list -> binderref list -> term -> def_node
+val def_term : (term * fact_info) list ref option -> def_node -> term list -> binderref list -> term -> def_node
 val build_def_process : (term * fact_info) list ref option -> inputprocess -> unit
 val add_def_vars_node : binder list -> def_node -> binder list
 

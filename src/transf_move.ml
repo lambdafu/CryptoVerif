@@ -49,7 +49,7 @@ and move_a_newo array_ref b p =
 	Restr(b, Terms.yield_proc)
       else
 	Yield
-  | Abort -> Abort
+  | EventAbort f -> EventAbort f
   | Restr(b',p) -> 
       Settings.changed := true;
       Restr(b', move_a_newo array_ref b p)
@@ -146,7 +146,7 @@ and move_a_leto (b,t0) p =
   Terms.oproc_from_desc (
   match p.p_desc with
     Yield -> Yield
-  | Abort -> Abort
+  | EventAbort f -> EventAbort f
   | Restr(b',p) -> 
       Settings.changed := true;
       Restr(b', move_a_leto (b,t0) p)
@@ -254,7 +254,7 @@ let rec move_new_let_rec move_set p =
 and move_new_let_reco move_set p =
   match p.p_desc with
     Yield -> Terms.yield_proc
-  | Abort -> Terms.abort_proc
+  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
       let array_ref = Terms.has_array_ref_q b in
       if (not (do_move_new move_set array_ref b)) then

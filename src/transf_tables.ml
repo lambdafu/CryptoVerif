@@ -21,7 +21,7 @@ let rec transform_insert_iprocess cur_array p =
 and transform_insert_oprocess cur_array p =
   match p.p_desc with
     | Yield -> (Terms.yield_proc, [])
-    | Abort -> (Terms.abort_proc, [])
+    | EventAbort f -> (Terms.oproc_from_desc (EventAbort f), [])
     | Restr(b,p) ->
         let p',l=transform_insert_oprocess cur_array p in
           (Terms.oproc_from_desc (Restr(b,p')),l)
@@ -141,7 +141,7 @@ and transform_get_oprocess l cur_array p =
   Terms.oproc_from_desc (
     match p.p_desc with
       | Yield -> Yield
-      |	Abort -> Abort
+      |	EventAbort f -> EventAbort f
       | Restr(b,p) ->
           let p'=transform_get_oprocess l cur_array p in
             Restr(b,p')

@@ -224,7 +224,7 @@ let rec check_term1 in_find_cond cur_array = function
       else
 	add_in_env1 s1 ty' cur_array;
       check_term1 in_find_cond cur_array t
-  | PEventE(id), ext -> ()
+  | PEventAbortE(id), ext -> ()
   | (PEqual(t1,t2) | PDiff(t1,t2) | PAnd(t1,t2) | POr(t1,t2)), ext ->
       check_term1 in_find_cond cur_array t1;
       check_term1 in_find_cond cur_array t2
@@ -300,7 +300,7 @@ let rec check_fungroup1 cur_array = function
 (* Check process *)
 
 let rec check_process1 cur_array = function
-    PNil, _ | PYield, _ | PAbort, _ -> ()
+    PNil, _ | PYield, _ | PEventAbort(_), _ -> ()
   | PPar(p1,p2), _ -> 
       check_process1 cur_array p1;
       check_process1 cur_array p2
@@ -415,7 +415,7 @@ let rec check_no_iffindletnewevent (t,ext) =
 	Parsing_helper.input_error "if, let, find should not occur in defined conditions" ext
   | PResE _ -> 
       Parsing_helper.input_error "new should not occur as term" ext
-  | PEventE _ -> 
+  | PEventAbortE _ -> 
       Parsing_helper.input_error "event should not occur as term" ext
   | PInjEvent _ -> 
       Parsing_helper.input_error "inj: allowed only in queries" ext
@@ -460,7 +460,7 @@ let rec check_no_new_event no_find (t,ext) =
       check_no_new_event no_find t3
   | PResE _ -> 
       Parsing_helper.input_error "new should not occur as term" ext
-  | PEventE _ -> 
+  | PEventAbortE _ -> 
       Parsing_helper.input_error "event should not occur as term" ext
   | PInjEvent _ -> 
       Parsing_helper.input_error "inj: allowed only in queries" ext
@@ -507,8 +507,8 @@ let rec expand_letfun_term cur_array env' t =
     | ResE (b, t) ->
         let b' = Terms.create_binder b.sname (Terms.new_vname ()) b.btype cur_array in
           { t_desc = ResE (b', expand_letfun_term cur_array ((b,b')::env') t); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
-    | EventE (t) ->
-       { t_desc = EventE(expand_letfun_term cur_array env' t); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+    | EventAbortE f ->
+       { t_desc = EventAbortE(f); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
 
 and expand_letfun_pat cur_array env' = function
     PatVar (b) ->
@@ -682,21 +682,17 @@ let rec check_term cur_array env = function
 	(List.combine bl' bl'', def_list', t1', t2')) l0 
       in
       { t_desc = FindE(l0', t3', !find_info); t_type = t3'.t_type; t_occ = new_occ(); t_loc = ext; t_facts = None }
-  | PEventE(s,ext2), ext ->
-      let t = 
+  | PEventAbortE(s,ext2), ext ->
       begin
       try 
 	match StringMap.find s env with
 	  EEvent(f) ->
 	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
-	    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
-	    { t_desc = FunApp(f, [idx]); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	    { t_desc = EventAbortE(f); t_type = Settings.t_any; t_occ = new_occ(); t_loc = ext; t_facts = None }
 	| _ -> input_error (s ^ " should be an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
       end
-      in
-      { t_desc = EventE(t); t_type = Settings.t_any; t_occ = new_occ(); t_loc = ext; t_facts = None }
   | PEqual(t1,t2), ext ->
       let t1' = check_term cur_array env t1 in
       let t2' = check_term cur_array env t2 in
@@ -919,21 +915,17 @@ let rec check_term_letfun env = function
 	t_facts = None }
   | (PFindE _ | PArray _), ext ->
       input_error "Find and array references are forbidden in letfun terms" ext
-  | PEventE(s,ext2), ext ->
-      let t = 
+  | PEventAbortE(s,ext2), ext ->
       begin
       try 
 	match StringMap.find s env with
 	  EEvent(f) ->
 	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
-	    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
-	    { t_desc = FunApp(f, [idx]); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	    { t_desc = EventAbortE(f); t_type = Settings.t_any; t_occ = new_occ(); t_loc = ext; t_facts = None }
 	| _ -> input_error (s ^ " should be an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
       end
-      in
-      { t_desc = EventE(t); t_type = Settings.t_any; t_occ = new_occ(); t_loc = ext; t_facts = None }
   | PEqual(t1,t2), ext ->
       let t1' = check_term_letfun env t1 in
       let t2' = check_term_letfun env t2 in
@@ -1154,7 +1146,7 @@ let rec check_term_nobe env = function
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
-  | (PArray _ | PTestE _ | PFindE _ | PLetE _ | PResE _ | PEventE _), ext ->
+  | (PArray _ | PTestE _ | PFindE _ | PLetE _ | PResE _ | PEventAbortE _), ext ->
       input_error "If, find, let, new, event, and array references forbidden in forall statements" ext
   | PInjEvent _,ext -> 
       Parsing_helper.input_error "inj: allowed only in queries" ext
@@ -1223,7 +1215,7 @@ let rec check_term_proba env = function
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
       { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
-  | (PArray _ | PTestE _ | PLetE _ | PResE _ | PFindE _ | PEventE _), ext ->
+  | (PArray _ | PTestE _ | PLetE _ | PResE _ | PFindE _ | PEventAbortE _), ext ->
       Parsing_helper.input_error "Array accesses/if/let/find/new/event not allowed in terms in probability formulas" ext
   | PEqual(t1,t2), ext ->
       let t1' = check_term_proba env t1 in
@@ -1965,7 +1957,18 @@ let rec check_process cur_array env prog = function
 
 and check_oprocess cur_array env prog = function
     PYield, _ -> (oproc_from_desc Yield, None, [], oproc_from_desc Yield)
-  | PAbort, _ -> (oproc_from_desc Abort, None, [], oproc_from_desc Abort)
+  | PEventAbort(s,ext), _ -> 
+      begin
+      try 
+	match StringMap.find s env with
+	  EEvent(f) ->
+	    check_type_list ext [] [] (List.tl (fst f.f_type));
+	    let p_desc = EventAbort(f) in
+	    (oproc_from_desc p_desc, None, [], oproc_from_desc p_desc)
+	| _ -> input_error (s ^ " should be an event") ext
+      with Not_found ->
+	input_error (s ^ " not defined") ext
+      end
   | PRestr((s1,ext1),(s2,ext2),p), _ ->
       let t = get_type env s2 ext2 in
         if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
@@ -2146,7 +2149,7 @@ let rec rename_term (t,ext) =
 	None -> None
       |	Some t -> Some (rename_term t))
   | PResE(i,ty,t) -> PResE(rename_ie i, rename_ie ty, rename_term t)
-  | PEventE(i) -> PEventE(rename_ie i)
+  | PEventAbortE(i) -> PEventAbortE(rename_ie i)
   | PEqual(t1,t2) -> PEqual(rename_term t1, rename_term t2)
   | PDiff(t1,t2) -> PDiff(rename_term t1, rename_term t2)
   | POr(t1,t2) -> POr(rename_term t1, rename_term t2)
@@ -2168,7 +2171,7 @@ let rec rename_proc (p, ext) =
   let p' = match p with
     PNil -> PNil
   | PYield -> PYield
-  | PAbort -> PAbort
+  | PEventAbort id -> PEventAbort(rename_ie id)
   | PPar(p1,p2) -> PPar(rename_proc p1, rename_proc p2)
   | PRepl(i, idopt, id, p) -> PRepl(ref None, (match idopt with
       None -> None
@@ -2719,7 +2722,8 @@ let rec count_occ_events p =
 
 and count_occ_eventso p = 
   match p.p_desc with
-    Yield | Abort -> []
+    Yield -> []
+  | EventAbort f -> [f]
   | Restr(_,p) -> count_occ_eventso p
   | Test(_,p1,p2) -> Terms.unionq (count_occ_eventso p1) (count_occ_eventso p2)
   | Find(l0,p2,_) ->

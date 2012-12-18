@@ -69,7 +69,7 @@ let dummy_channel = ("@dummy_channel", dummy_ext)
 %token IMPLIES
 %token TIME
 %token YIELD
-%token ABORT
+%token EVENT_ABORT
 %token OTHERUSES
 %token MAXLENGTH
 %token LENGTH
@@ -351,8 +351,8 @@ term:
         { PLetE($2,$4,$6,None), parse_extent() }
 | 	NEW IDENT COLON IDENT SEMI term
 	{ PResE($2, $4, $6), parse_extent() }
-|       EVENT IDENT
-        { PEventE($2), parse_extent() }
+|       EVENT_ABORT IDENT
+        { PEventAbortE($2), parse_extent() }
 |       term EQUAL term
         { PEqual($1, $3), parse_extent() }
 |       term DIFF term
@@ -488,8 +488,8 @@ process:
 	{ POutput($7,$3,$5,$8), parse_extent() }
 |       YIELD
         { PYield, parse_extent() }
-|       ABORT
-        { PAbort, parse_extent() }
+|       EVENT_ABORT IDENT
+        { PEventAbort($2), parse_extent() }
 |	process BAR process
 	{ PPar($1,$3), parse_extent() }
 
@@ -751,6 +751,8 @@ instruct:
     { PFind($2, (PYield, parse_extent()), []), parse_extent() }
 |   EVENT IDENT
     { PEvent((PFunApp($2, []), parse_extent()), (PYield, parse_extent())), parse_extent() }
+|   EVENT IDENT LPAREN termseq RPAREN 
+    { PEvent((PFunApp($2, $4), parse_extent()), (PYield, parse_extent())), parse_extent() }
 |   LET pattern EQUAL term IN
     { PLet($2,$4,(PYield, parse_extent()),(PYield, parse_extent())), parse_extent() }
 

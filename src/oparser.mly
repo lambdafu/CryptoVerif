@@ -65,7 +65,7 @@ let return_channel = dummy_channel
 %token IMPLIES
 %token TIME
 %token END
-%token ABORT
+%token EVENT_ABORT
 %token OTHERUSES
 %token MAXLENGTH
 %token LENGTH
@@ -491,8 +491,8 @@ process:
 	{ POutput($2,return_channel, (PTuple [], parse_extent()),$3), parse_extent() }
 |       END
         { PYield, parse_extent() }
-|       ABORT
-        { PAbort, parse_extent() }
+|       EVENT_ABORT IDENT
+        { PEventAbort($2), parse_extent() }
 |	process BAR process
 	{ PPar($1,$3), parse_extent() }
 
@@ -596,8 +596,8 @@ procasterm:
         { PLetE($2,$4,$6,None), parse_extent() }
 | 	IDENT RANDOM IDENT SEMI procasterm
 	{ PResE($1, $3, $5), parse_extent() }
-|       EVENT IDENT
-        { PEventE($2), parse_extent() }
+|       EVENT_ABORT IDENT
+        { PEventAbortE($2), parse_extent() }
 
 findoneprocasterm:
     tidentseq SUCHTHAT findcond THEN procasterm
@@ -784,6 +784,8 @@ instruct:
     { PFind($2, (PYield, parse_extent()), []), parse_extent() }
 |   EVENT IDENT
     { PEvent((PFunApp($2, []), parse_extent()), (PYield, parse_extent())), parse_extent() }
+|   EVENT IDENT LPAREN termseq RPAREN 
+    { PEvent((PFunApp($2, $4), parse_extent()), (PYield, parse_extent())), parse_extent() }
 |   basicpattern LEFTARROW term 
     { PLet($1,$3,(PYield, parse_extent()),(PYield, parse_extent())), parse_extent() }
 |   LET pattern EQUAL term IN
