@@ -370,6 +370,73 @@ let rec check_process1 cur_array = function
   | PBeginModule (_,p),_ ->
       check_process1 cur_array p
 
+(**************************************************************)
+
+(* This check finds all oracles/in-out block containing a }
+   terminating the current role. These blocks must have at most one
+   return/out. *)
+let rec find_role_end_process cur = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> []
+  | PPar (p1, p2), _
+  | PTest (_, p1, p2), _
+  | PLet (_, _, p1, p2), _
+  | PGet(_, _, _, p1, p2), _ ->
+      find_role_end_process cur p1 @ find_role_end_process cur p2
+  | PRepl (_, _, _, p), _
+  | PRestr (_, _, p), _
+  | PEvent(_, p), _
+  | PInsert(_, _, p),_
+  | PBeginModule (_, p),_ ->
+      find_role_end_process cur p
+  | PLetDef(s,ext), _ ->
+      find_role_end_process cur (get_process (!env) s ext)    
+  | PFind(l, p, _), _ ->
+      List.concat
+        (find_role_end_process cur p ::
+          (List.map (fun (_, _, _, _, p) -> find_role_end_process cur p) l))
+  | PInput(_, _, p), _ as p1  ->
+      find_role_end_process p1 p
+  | POutput(b, _, _, p), _ ->
+      let l = find_role_end_process cur p in
+      if b then cur :: l else l
+
+let rec number_of_outs = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> 0
+  | PPar (p1, p2), _
+  | PTest (_, p1, p2), _
+  | PLet (_, _, p1, p2), _
+  | PGet(_, _, _, p1, p2), _ ->
+      number_of_outs p1 + number_of_outs p2
+  | PRepl (_, _, _, p), _
+  | PRestr (_, _, p), _
+  | PEvent(_, p), _
+  | PInsert(_, _, p),_
+  | PBeginModule (_, p),_ ->
+      number_of_outs p
+  | PLetDef(s,ext), _ ->
+      number_of_outs (get_process (!env) s ext)    
+  | PFind(l, p, _), _ ->
+      let sum = ref (number_of_outs p) in
+      List.iter (fun (_, _, _, _, p) -> sum := !sum +
+                 (number_of_outs p)) l;
+      !sum
+  | PInput(_, _, p), _ ->
+      number_of_outs p
+  | POutput(b, _, _, p), _ ->
+      1
+
+let check_process2 p =
+  let check p =
+    if number_of_outs p <> 1 then
+      let name, ext = match p with
+        | PInput ((name, _), _, _), ext -> name, ext
+        | _ -> internal_error "check_process2: p is not a PInput"
+      in
+      input_error ("Oracle/in-out block " ^ name ^ " closes a role but \
+                    contains more than one out/return.") ext
+  in
+  List.iter check (find_role_end_process p p)
+
 (**** Second pass: type check everything ****)
 
 (* Add a binder in the environment *)
@@ -2681,6 +2748,8 @@ let rec check_all (l,p) =
   current_location := InProcess;
   Hashtbl.clear binder_env;
   check_process1 [] p; (* Builds binder_env *)
+  check_process2 p; (* Checks oracles that finish roles contain only
+                       one return *)
   check_process [] (!env) None p
 
 let get_qbinder (i,ext) = 
