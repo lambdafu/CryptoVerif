@@ -372,33 +372,57 @@ let rec check_process1 cur_array = function
 
 (**************************************************************)
 
-(* This check finds all oracles/in-out block containing a }
+(* This function finds all oracles/in-out block containing a }
    terminating the current role. These blocks must have at most one
-   return/out. *)
-let rec find_role_end_process cur = function
+   return/out if there is a role definition following the block. *)
+let rec find_role_end cur = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> []
   | PPar (p1, p2), _
   | PTest (_, p1, p2), _
   | PLet (_, _, p1, p2), _
   | PGet(_, _, _, p1, p2), _ ->
-      find_role_end_process cur p1 @ find_role_end_process cur p2
+      find_role_end cur p1 @ find_role_end cur p2
   | PRepl (_, _, _, p), _
   | PRestr (_, _, p), _
   | PEvent(_, p), _
   | PInsert(_, _, p),_
   | PBeginModule (_, p),_ ->
-      find_role_end_process cur p
+      find_role_end cur p
   | PLetDef(s,ext), _ ->
-      find_role_end_process cur (get_process (!env) s ext)    
+      find_role_end cur (get_process (!env) s ext)    
   | PFind(l, p, _), _ ->
       List.concat
-        (find_role_end_process cur p ::
-          (List.map (fun (_, _, _, _, p) -> find_role_end_process cur p) l))
+        (find_role_end cur p ::
+          (List.map (fun (_, _, _, _, p) -> find_role_end cur p) l))
   | PInput(_, _, p), _ as p1  ->
-      find_role_end_process p1 p
+      find_role_end p1 p
   | POutput(b, _, _, p), _ ->
-      let l = find_role_end_process cur p in
-      if b then cur :: l else l
+      let l = find_role_end cur p in
+      if b && find_role_begin p then cur :: l else l
+
+(* This finds whether a role begin is in the process given in argument. *)
+and find_role_begin = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> false
+  | PPar (p1, p2), _
+  | PTest (_, p1, p2), _
+  | PLet (_, _, p1, p2), _
+  | PGet(_, _, _, p1, p2), _ ->
+      find_role_begin p1 || find_role_begin p2
+  | PRepl (_, _, _, p), _
+  | PRestr (_, _, p), _
+  | PEvent(_, p), _
+  | PInsert(_, _, p),_
+  | PInput(_, _, p), _
+  | POutput(_, _, _, p), _ ->
+      find_role_begin p
+  | PLetDef(s,ext), _ ->
+      find_role_begin (get_process (!env) s ext)    
+  | PFind(l, p, _), _ ->
+      List.exists (fun x -> x)
+        (find_role_begin p ::
+          (List.map (fun (_, _, _, _, p) -> find_role_begin p) l))
+  | PBeginModule (_, p),_ ->
+      true
 
 let rec number_of_outs = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> 0
@@ -432,10 +456,11 @@ let check_process2 p =
         | PInput ((name, _), _, _), ext -> name, ext
         | _ -> internal_error "check_process2: p is not a PInput"
       in
-      input_error ("Oracle/in-out block " ^ name ^ " closes a role but \
+      input_error ("Oracle/in-out block " ^ name ^ " closes a role and \
+                     a role definition follows it, but \
                     contains more than one out/return.") ext
   in
-  List.iter check (find_role_end_process p p)
+  List.iter check (find_role_end p p)
 
 (**** Second pass: type check everything ****)
 
