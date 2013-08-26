@@ -372,95 +372,100 @@ let rec check_process1 cur_array = function
 
 (**************************************************************)
 
-(* This function finds all oracles/in-out block containing a }
-   terminating the current role. These blocks must have at most one
-   return/out if there is a role definition following the block. *)
-let rec find_role_end cur = function
+(* Find the POutput following the given process and return the
+   processes following them. *)
+let rec find_output = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> []
-  | PPar (p1, p2), _
-  | PTest (_, p1, p2), _
-  | PLet (_, _, p1, p2), _
+  | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
   | PGet(_, _, _, p1, p2), _ ->
-      find_role_end cur p1 @ find_role_end cur p2
-  | PRepl (_, _, _, p), _
-  | PRestr (_, _, p), _
-  | PEvent(_, p), _
-  | PInsert(_, _, p),_
+    find_output p1 @ find_output p2
+  | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
+  | PInsert(_, _, p),_ | PInput(_, _, p), _
   | PBeginModule (_, p),_ ->
-      find_role_end cur p
+    find_output p
   | PLetDef(s,ext), _ ->
-      find_role_end cur (get_process (!env) s ext)    
+    find_output (get_process (!env) s ext) 
   | PFind(l, p, _), _ ->
-      List.concat
-        (find_role_end cur p ::
-          (List.map (fun (_, _, _, _, p) -> find_role_end cur p) l))
-  | PInput(_, _, p), _ as p1  ->
-      find_role_end p1 p
-  | POutput(b, _, _, p), _ ->
-      let l = find_role_end cur p in
-      if b && find_role_begin p then cur :: l else l
-
-(* This finds whether a role begin is in the process given in argument. *)
-and find_role_begin = function
-  | PNil, _ | PYield, _ | PEventAbort _, _ -> false
-  | PPar (p1, p2), _
-  | PTest (_, p1, p2), _
-  | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2), _ ->
-      find_role_begin p1 || find_role_begin p2
-  | PRepl (_, _, _, p), _
-  | PRestr (_, _, p), _
-  | PEvent(_, p), _
-  | PInsert(_, _, p),_
-  | PInput(_, _, p), _
+    List.concat
+      (find_output p ::
+         (List.map (fun (_, _, _, _, p) -> find_output p) l))
   | POutput(_, _, _, p), _ ->
-      find_role_begin p
-  | PLetDef(s,ext), _ ->
-      find_role_begin (get_process (!env) s ext)    
-  | PFind(l, p, _), _ ->
-      List.exists (fun x -> x)
-        (find_role_begin p ::
-          (List.map (fun (_, _, _, _, p) -> find_role_begin p) l))
-  | PBeginModule (_, p),_ ->
-      true
+    [p]    
 
-let rec number_of_outs = function
-  | PNil, _ | PYield, _ | PEventAbort _, _ -> 0
-  | PPar (p1, p2), _
-  | PTest (_, p1, p2), _
-  | PLet (_, _, p1, p2), _
+(* Find the following PInput. Return the list of PInput, and list of
+   present roles present in the part of the process we walked. *)
+let rec find_input_and_roles = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> [], []
+  | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
   | PGet(_, _, _, p1, p2), _ ->
-      number_of_outs p1 + number_of_outs p2
-  | PRepl (_, _, _, p), _
-  | PRestr (_, _, p), _
-  | PEvent(_, p), _
-  | PInsert(_, _, p),_
-  | PBeginModule (_, p),_ ->
-      number_of_outs p
+    let inputs1, roles1 = find_input_and_roles p1 in
+    let inputs2, roles2 = find_input_and_roles p2 in
+    inputs1 @ inputs2, roles1 @ roles2
+  | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
+  | PInsert(_, _, p),_ | POutput(_, _, _, p), _ ->
+    find_input_and_roles p
+  | PBeginModule (_, p),_ as role ->
+    let inputs, roles = find_input_and_roles p in
+    inputs, role :: roles
   | PLetDef(s,ext), _ ->
-      number_of_outs (get_process (!env) s ext)    
+    find_input_and_roles (get_process (!env) s ext) 
   | PFind(l, p, _), _ ->
-      let sum = ref (number_of_outs p) in
-      List.iter (fun (_, _, _, _, p) -> sum := !sum +
-                 (number_of_outs p)) l;
-      !sum
-  | PInput(_, _, p), _ ->
-      number_of_outs p
-  | POutput(b, _, _, p), _ ->
-      1
+    List.fold_left
+      (fun (inputacc, roleacc) (inputs, roles) ->
+        inputs @ inputacc, roles @ roleacc)
+      ([], [])
+      (find_input_and_roles p ::
+         (List.map (fun (_, _, _, _, p) -> find_input_and_roles p) l))
+  | PInput(_, _, _), _ as p ->
+    [p], []
+
+let get_role_name = function
+  | PBeginModule (((name, _), _), _), ext -> name, ext
+  | _ ->
+    internal_error "get_role_name: not a PBeginModule"
+
+let get_input_name = function
+  | PInput ((name, _), _, _), ext -> name, ext
+  | _ -> internal_error "get_input_name: not a PInput"
+
+(* Checks whether role definitions are done after processes with only
+   one return or not. [witnesses] is a list of PInput that have more
+   than one output, used to display the error message. If [witnesses]
+   is empty, there are no in/out block above with more than one output.
+*)
+let rec check_role witnesses p =
+  let inputs, roles = find_input_and_roles p in
+  if witnesses <> [] && roles <> [] then
+    let witness_name, witness_ext =
+      get_input_name (List.hd witnesses)
+    in
+    let role_name, role_ext = get_role_name (List.hd roles) in
+    input_error
+      (Printf.sprintf
+         "Role definition %s is under oracle/in-out block %s that \
+          contains more than one return/out at %s"
+         role_name
+         witness_name
+         (file_position witness_ext))
+      role_ext
+  else
+    List.iter (check_outputs witnesses) inputs
+
+(* This part finds the outputs corresponding to an input, and
+   adds the current input to the witnesses if it contains more than
+   one output *)
+and check_outputs witnesses p =
+  let outputs = find_output p in
+  let witnesses =
+    if List.length outputs > 1 then
+      p :: witnesses
+    else
+      witnesses
+  in
+  List.iter (check_role witnesses) outputs
 
 let check_process2 p =
-  let check p =
-    if number_of_outs p <> 1 then
-      let name, ext = match p with
-        | PInput ((name, _), _, _), ext -> name, ext
-        | _ -> internal_error "check_process2: p is not a PInput"
-      in
-      input_error ("Oracle/in-out block " ^ name ^ " closes a role and \
-                     a role definition follows it, but \
-                    contains more than one out/return.") ext
-  in
-  List.iter check (find_role_end p p)
+  check_role [] p
 
 (**** Second pass: type check everything ****)
 

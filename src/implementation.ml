@@ -159,6 +159,7 @@ let impl_get_vars p=
   bound_vars_under_repl := BinderSet.empty;
   (fv, bv_no_repl, bv_repl)
 
+(* Check if the free variables of roles are all written to files. *)
 let impl_check impllist =
   let bf=StringMap.empty in
   let boundfiles = ref bf in
@@ -214,7 +215,6 @@ let impl_check impllist =
   let vars = List.map (fun ((pn,opt,p):impl_process) -> (pn,p,impl_get_vars p,opt)) impllist in
   List.map add_files 
     (List.map check_read (List.map check_write vars))
-
 
 let rt = ref 0
 
