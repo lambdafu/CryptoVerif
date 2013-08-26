@@ -48,14 +48,21 @@ let display_error mess (loc_start, loc_end) =
       loc_end.pos_cnum
       mess
 
+let file_position (loc_start, loc_end) =
+  if loc_start.pos_cnum = -1 then
+    "<unknown>"
+  else
+    Printf.sprintf "File \"%s\", line %d, character %d - line %d, character %d"
+      loc_start.pos_fname
+      loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
+      loc_end.pos_lnum (loc_end.pos_cnum - loc_end.pos_bol+1)
+
 let input_error mess (loc_start, loc_end) =
   if loc_start.pos_cnum = -1 then
     Printf.printf "Error: %s\n" mess
   else
-    Printf.printf "File \"%s\", line %d, character %d - line %d, character %d:\nError: %s\n"
-      loc_start.pos_fname
-      loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
-      loc_end.pos_lnum (loc_end.pos_cnum - loc_end.pos_bol+1)
+    Printf.printf "%s:\nError: %s\n"
+      (file_position (loc_start, loc_end))
       mess;
   exit 2
 
@@ -63,10 +70,8 @@ let input_warning mess (loc_start, loc_end) =
   if loc_start.pos_cnum = -1 then
     Printf.printf "Warning: \n%s\n" mess
   else
-    Printf.printf "File \"%s\", line %d, character %d - line %d, character %d:\nWarning: %s\n"
-      loc_start.pos_fname
-      loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
-      loc_end.pos_lnum (loc_end.pos_cnum - loc_end.pos_bol+1)
+    Printf.printf "%s:\nWarning: %s\n"
+      (file_position (loc_start, loc_end))
       mess
 
 let user_error mess =
