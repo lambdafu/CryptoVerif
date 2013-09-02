@@ -372,100 +372,126 @@ let rec check_process1 cur_array = function
 
 (**************************************************************)
 
-(* Find the POutput following the given process and return the
-   processes following them. *)
-let rec find_output = function
-  | PNil, _ | PYield, _ | PEventAbort _, _ -> []
-  | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2), _ ->
-    find_output p1 @ find_output p2
-  | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
-  | PInsert(_, _, p),_ | PInput(_, _, p), _
-  | PBeginModule (_, p),_ ->
-    find_output p
-  | PLetDef(s,ext), _ ->
-    find_output (get_process (!env) s ext) 
-  | PFind(l, p, _), _ ->
-    List.concat
-      (find_output p ::
-         (List.map (fun (_, _, _, _, p) -> find_output p) l))
-  | POutput(_, _, _, p), _ ->
-    [p]    
+(* I decided to do checks one after the another to easily disable just one of
+   them. *)
 
-(* Find the following PInput. Return the list of PInput, and list of
-   present roles present in the part of the process we walked. *)
-let rec find_input_and_roles = function
-  | PNil, _ | PYield, _ | PEventAbort _, _ -> [], []
+(* Build a list of returns corresponding to an oracle/channel name.
+   [h] is a hash table containing bindings from oracle names to returns.
+   [name] is the current oracle/channel name. *)
+let rec build_return_list_aux h name = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
   | PGet(_, _, _, p1, p2), _ ->
-    let inputs1, roles1 = find_input_and_roles p1 in
-    let inputs2, roles2 = find_input_and_roles p2 in
-    inputs1 @ inputs2, roles1 @ roles2
+    build_return_list_aux h name p1;
+    build_return_list_aux h name p2
+  | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
+  | PInsert(_, _, p),_ | PBeginModule (_, p),_ ->
+    build_return_list_aux h name p
+  | PLetDef(s,ext), _ ->
+    build_return_list_aux h name (get_process (!env) s ext) 
+  | PFind(l, p, _), _ ->
+    build_return_list_aux h name p;
+    List.iter (fun (_, _, _, _, p) -> build_return_list_aux h name p) l
+  | POutput(_, _, _, p), ext as o ->
+    begin
+      match name with
+        | Some name ->
+          Hashtbl.add h name o;
+          build_return_list_aux h None p
+        | None ->
+          (* This error should be catched by the typing phase. Maybe we should
+             call this after the typing phase? *)
+          input_error "Out/Return present in in process" ext
+    end
+  | PInput((name, _), _, p), _ ->
+    build_return_list_aux h (Some name) p
+
+let build_return_list p =
+  let h = Hashtbl.create 10 in
+  build_return_list_aux h None p;
+  h
+
+(* Check that the previous oracle before a role declaration has at most one
+   return. *)
+let rec check_role_aux h name = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
+  | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
+  | PGet(_, _, _, p1, p2), _ ->
+    check_role_aux h name p1;
+    check_role_aux h name p2
   | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
   | PInsert(_, _, p),_ | POutput(_, _, _, p), _ ->
-    find_input_and_roles p
-  | PBeginModule (_, p),_ as role ->
-    let inputs, roles = find_input_and_roles p in
-    inputs, role :: roles
+    check_role_aux h name p
   | PLetDef(s,ext), _ ->
-    find_input_and_roles (get_process (!env) s ext) 
+    check_role_aux h name (get_process (!env) s ext) 
   | PFind(l, p, _), _ ->
-    List.fold_left
-      (fun (inputacc, roleacc) (inputs, roles) ->
-        inputs @ inputacc, roles @ roleacc)
-      ([], [])
-      (find_input_and_roles p ::
-         (List.map (fun (_, _, _, _, p) -> find_input_and_roles p) l))
-  | PInput(_, _, _), _ as p ->
-    [p], []
+    check_role_aux h name p;
+    List.iter (fun (_, _, _, _, p) -> check_role_aux h name p) l
+  | PBeginModule (((role, _), _), p), ext ->
+    begin
+      match name with
+        | Some name ->
+          let returns = Hashtbl.find_all h name in
+          if List.length returns > 1 then
+            input_error
+              (Printf.sprintf
+                 "Role %s is defined after oracle/in-out block %s that has \
+                  more than one return/out declarations"
+                 role
+                 name)
+              ext
+        | None -> ()
+    end
+  | PInput((name, _), _, p), _ ->
+    check_role_aux h (Some name) p
 
-let get_role_name = function
-  | PBeginModule (((name, _), _), _), ext -> name, ext
-  | _ ->
-    internal_error "get_role_name: not a PBeginModule"
+let check_role h p =
+  check_role_aux h None p
 
-let get_input_name = function
-  | PInput ((name, _), _, _), ext -> name, ext
-  | _ -> internal_error "get_input_name: not a PInput"
+(* Check that an out followed by a role declaration closes the current
+   oracle. This ensures that no oracle is between two roles.
+   The boolean [role_possible] indicates whether a role declaration is
+   possible here. *)
+let rec check_role_continuity_aux role_possible = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
+  | PPar (p1, p2), _ ->
+    check_role_continuity_aux role_possible p1;
+    check_role_continuity_aux role_possible p2;
+  | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
+  | PGet(_, _, _, p1, p2), _ ->
+    check_role_continuity_aux false p1;
+    check_role_continuity_aux false p2
+  | PRepl (_, _, _, p), _ ->
+    check_role_continuity_aux role_possible p
+  | PRestr (_, _, p), _ | PEvent(_, p), _
+  | PInsert(_, _, p),_ | PInput(_, _, p), _ ->
+    check_role_continuity_aux false p
+  | PLetDef(s,ext), _ ->
+    check_role_continuity_aux role_possible (get_process (!env) s ext) 
+  | PFind(l, p, _), _ ->
+    check_role_continuity_aux false p;
+    List.iter
+      (fun (_, _, _, _, p) -> check_role_continuity_aux false p)
+      l
+  | POutput(role_end, _, _, p), _ ->
+    check_role_continuity_aux role_end p
+  | PBeginModule (((role, _), _), p), ext ->
+    if not role_possible then
+      input_error
+        (Printf.sprintf
+           "Role %s is defined after a return/out that does not end the \
+            previous role/is not in a role"
+           role)
+        ext;
+    check_role_continuity_aux role_possible p
 
-(* Checks whether role definitions are done after processes with only
-   one return or not. [witnesses] is a list of PInput that have more
-   than one output, used to display the error message. If [witnesses]
-   is empty, there are no in/out block above with more than one output.
-*)
-let rec check_role witnesses p =
-  let inputs, roles = find_input_and_roles p in
-  if witnesses <> [] && roles <> [] then
-    let witness_name, witness_ext =
-      get_input_name (List.hd witnesses)
-    in
-    let role_name, role_ext = get_role_name (List.hd roles) in
-    input_error
-      (Printf.sprintf
-         "Role definition %s is under oracle/in-out block %s that \
-          contains more than one return/out at %s"
-         role_name
-         witness_name
-         (file_position witness_ext))
-      role_ext
-  else
-    List.iter (check_outputs witnesses) inputs
-
-(* This part finds the outputs corresponding to an input, and
-   adds the current input to the witnesses if it contains more than
-   one output *)
-and check_outputs witnesses p =
-  let outputs = find_output p in
-  let witnesses =
-    if List.length outputs > 1 then
-      p :: witnesses
-    else
-      witnesses
-  in
-  List.iter (check_role witnesses) outputs
+let check_role_continuity p =
+  check_role_continuity_aux true p
 
 let check_process2 p =
-  check_role [] p
+  let h = build_return_list p in
+  check_role h p;
+  check_role_continuity p
 
 (**** Second pass: type check everything ****)
 
@@ -2123,28 +2149,30 @@ and check_oprocess cur_array env prog = function
 	                 (List.combine bl' bl'', def_list', t', p1'),(List.combine bl' bl'', def_list', t', ip1')) l0)
       in
         (oproc_from_desc (Find(l0', p2',!find_info)), (!trescur), (!oraclecur), oproc_from_desc (Find(il0',ip2', !find_info)))
-  | POutput(rt,t1,t2,p), _ ->
+  | POutput(rt,t1,t2,p), ext ->
       let t2' = check_term cur_array env t2 in
-        begin
-          match t2'.t_type.tcat with
-	      Interv _ -> input_error "Cannot output a term of interval type" (snd t2)
-            |	_ -> ()
-        end;
-        let (p', oracle,ip'') = check_process cur_array env (if rt then None else prog) p in
-        let ip'=if rt then (iproc_from_desc Nil) else ip'' in
-          if (!Settings.front_end) == Settings.Channels then
-	    let t1' = check_process_channel cur_array env t1 in
-	      (oproc_from_desc (Output(t1', t2', p')), None, oracle,oproc_from_desc (Output(t1', t2', ip')))
-          else
-	    begin
-	      match t2'.t_desc with
-	          FunApp(_,tl) ->
-	            (oproc_from_desc (Output((dummy_channel, []), t2', p')), 
-	             Some (List.map (fun t -> t.t_type) tl), oracle,
-                     oproc_from_desc (Output((dummy_channel, []), t2', ip')))
-	        | _ -> 
-	            internal_error "One can only return a tuple"
-	    end
+      begin
+        match t2'.t_type.tcat with
+	    Interv _ -> input_error "Cannot output a term of interval type" (snd t2)
+          | _ -> ()
+      end;
+      if rt && prog = None then
+        input_error "Cannot close inexistent role" ext;
+      let (p', oracle,ip'') = check_process cur_array env (if rt then None else prog) p in
+      let ip'=if rt then (iproc_from_desc Nil) else ip'' in
+      if (!Settings.front_end) == Settings.Channels then
+	let t1' = check_process_channel cur_array env t1 in
+	(oproc_from_desc (Output(t1', t2', p')), None, oracle,oproc_from_desc (Output(t1', t2', ip')))
+      else
+	begin
+	  match t2'.t_desc with
+	      FunApp(_,tl) ->
+	        (oproc_from_desc (Output((dummy_channel, []), t2', p')), 
+	         Some (List.map (fun t -> t.t_type) tl), oracle,
+                 oproc_from_desc (Output((dummy_channel, []), t2', ip')))
+	    | _ -> 
+	      internal_error "One can only return a tuple"
+	end
   | PLet(pat, t, p1, p2), ext ->
       let t' = check_term cur_array env t in
       let (env', pat') = check_pattern cur_array env (Some t'.t_type) pat in
