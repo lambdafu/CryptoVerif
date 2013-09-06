@@ -38,7 +38,7 @@ let hashoracle = foreach iH <= qH do OH(x:seed) := return(hash(hk,x)).
 
 (* Xor *)
 
-expand Xor(hasht, xor).
+expand Xor(hasht, xor, zero).
 
 (* Implementing a test as a function.
    Useful to avoid expanding if, which is necessary for this proof. *)

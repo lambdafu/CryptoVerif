@@ -46,7 +46,7 @@ and move_a_newo array_ref b p =
   match p.p_desc with
     Yield -> 
       if array_ref then
-	Restr(b, Terms.yield_proc)
+	Restr(b, Terms.oproc_from_desc Yield)
       else
 	Yield
   | EventAbort f -> EventAbort f
@@ -96,7 +96,7 @@ and move_a_newo array_ref b p =
 	  Settings.changed := true;
 	  match pat with
 	    PatVar _ -> 
-	      Let(pat, t, move_a_newo array_ref b p1, Terms.yield_proc)
+	      Let(pat, t, move_a_newo array_ref b p1, Terms.oproc_from_desc Yield)
 	  | _ -> 
 	      beneficial := true;
 	      Let(pat, t, move_a_newo array_ref b p1, 
@@ -154,7 +154,7 @@ and move_a_leto (b,t0) p =
       let r1 = Terms.refers_to_oprocess b p1 in
       let r2 = Terms.refers_to_oprocess b p2 in
       if (Terms.refers_to b t) || (r1 && r2) then
-	Let(PatVar b, t0, Terms.oproc_from_desc (Test(t,p1,p2)), Terms.yield_proc)
+	Let(PatVar b, t0, Terms.oproc_from_desc (Test(t,p1,p2)), Terms.oproc_from_desc Yield)
       else
 	begin
 	  Settings.changed:= true;
@@ -173,7 +173,7 @@ and move_a_leto (b,t0) p =
       if List.exists (fun (bl, def_list, t, _) ->
 	(List.exists (Terms.refers_to_br b) def_list) ||
 	Terms.refers_to b t) l0 || (!count_ref) > 1 then
-	Let(PatVar b, t0, Terms.oproc_from_desc (Find(l0,p,find_info)), Terms.yield_proc)
+	Let(PatVar b, t0, Terms.oproc_from_desc (Find(l0,p,find_info)), Terms.oproc_from_desc Yield)
       else
 	begin
 	  Settings.changed := true;
@@ -185,7 +185,7 @@ and move_a_leto (b,t0) p =
 	end
   | Output((c,tl),t2,p) ->
       if (List.exists (Terms.refers_to b) tl) || (Terms.refers_to b t2) then
-	Let(PatVar b, t0, Terms.oproc_from_desc (Output((c,tl),t2,p)), Terms.yield_proc)
+	Let(PatVar b, t0, Terms.oproc_from_desc (Output((c,tl),t2,p)), Terms.oproc_from_desc Yield)
       else
 	begin
 	  try
@@ -193,19 +193,19 @@ and move_a_leto (b,t0) p =
 	    Settings.changed := true;
 	    Output((c,tl), t2, p')
 	  with Not_found ->
-	    Let(PatVar b, t0, Terms.oproc_from_desc (Output((c,tl),t2,p)), Terms.yield_proc)
+	    Let(PatVar b, t0, Terms.oproc_from_desc (Output((c,tl),t2,p)), Terms.oproc_from_desc Yield)
 	end
   | Let(pat, t, p1, p2) ->
       let r1 = Terms.refers_to_oprocess b p1 in
       let r2 = Terms.refers_to_oprocess b p2 in
       if (Terms.refers_to b t) || (Terms.refers_to_pat b pat) || (r1 && r2) then
-	Let(PatVar b, t0, Terms.oproc_from_desc (Let(pat, t, p1, p2)), Terms.yield_proc)
+	Let(PatVar b, t0, Terms.oproc_from_desc (Let(pat, t, p1, p2)), Terms.oproc_from_desc Yield)
       else
 	begin
 	  Settings.changed := true;
 	  match pat with
 	    PatVar _ -> 
-	      Let(pat, t, (if r1 then move_a_leto (b,t0) p1 else p1), Terms.yield_proc)
+	      Let(pat, t, (if r1 then move_a_leto (b,t0) p1 else p1), Terms.oproc_from_desc Yield)
 	  | _ -> 
 	      beneficial := true;
 	      Let(pat, t, (if r1 then move_a_leto (b,t0) p1 else p1), 
@@ -213,7 +213,7 @@ and move_a_leto (b,t0) p =
 	end
   | EventP(t,p) ->
       if Terms.refers_to b t then
-	Let(PatVar b, t0, Terms.oproc_from_desc (EventP(t,p)), Terms.yield_proc)
+	Let(PatVar b, t0, Terms.oproc_from_desc (EventP(t,p)), Terms.oproc_from_desc Yield)
       else
 	begin
 	  Settings.changed := true;
@@ -253,7 +253,7 @@ let rec move_new_let_rec move_set p =
 
 and move_new_let_reco move_set p =
   match p.p_desc with
-    Yield -> Terms.yield_proc
+    Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
       let array_ref = Terms.has_array_ref_q b in
@@ -307,7 +307,7 @@ and move_new_let_reco move_set p =
 	      begin
 	        (* Don't do a move all/noarrayref if it is not beneficial *)
 		Settings.changed := tmp_changed;
-		Terms.oproc_from_desc (Let(pat, t, p1', Terms.yield_proc))
+		Terms.oproc_from_desc (Let(pat, t, p1', Terms.oproc_from_desc Yield))
 	      end
 	| _ -> 
 	    Terms.oproc_from_desc 

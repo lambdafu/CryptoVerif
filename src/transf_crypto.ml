@@ -145,9 +145,12 @@ let incompatible_defs p =
 let stop_mode = ref false
 let no_advice_mode = ref false
 
-(* Check that t does not contain new or event *)
+(* In case we fail to apply the crypto transformation, we raise the
+exception NoMatch, like when matching fails. This facilitates the
+interaction with the matching functions, which are used as part of the
+test to see whether we can apply the transformation. *)
 
-exception SurelyNot
+(* Check that t does not contain new or event *)
 
 let rec check_no_new_event t =
   match t.t_desc with
@@ -172,7 +175,7 @@ let rec check_no_new_event t =
 	check_no_new_event t1;
 	check_no_new_event t2) l0
   | ResE _ | EventAbortE _ ->
-      raise SurelyNot
+      raise NoMatch
 
 and check_no_new_event_pat = function
     PatVar _ -> ()
@@ -188,7 +191,7 @@ and check_no_new_event_pat = function
    indexes for all elements of name_list_i, and the indexes of variables of 
    name_list_g must be a suffix of the indexes of variables in name_list_i)
 
-   If it is impossible, raise SurelyNot
+   If it is impossible, raise NoMatch
    If it may be possible after some syntactic game transformations,
    return the list of these transformations.
    When the returned list is empty, t is an instance of term in the
@@ -230,16 +233,34 @@ let rec occurs_symbol_to_discharge t =
   | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
       Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.occurs_symbol_to_discharge)"
   
+(* Association lists (binderref, value) *)
+
+let rec assq_binderref br = function
+    [] -> raise Not_found
+  | (br',v)::l ->
+      if Terms.equal_binderref br br' then
+	v
+      else
+	assq_binderref br l
+
+let rec assq_binder_binderref b = function
+    [] -> raise Not_found
+  | ((b',l'),v)::l ->
+      if (b == b') && (Terms.is_args_at_creation b l') then
+	v
+      else
+	assq_binder_binderref b l
+
 
 let check_distinct_links lhs_array_ref_map bl =
   let seen_binders = ref [] in
   List.iter (List.iter (fun (b,_) ->
     try
-      match List.assq (b, b.args_at_creation) lhs_array_ref_map with
+      match assq_binder_binderref b lhs_array_ref_map with
 	{ t_desc = Var(b',l) } -> 
-	  if (List.memq b' (!seen_binders)) then raise SurelyNot;
+	  if (List.memq b' (!seen_binders)) then raise NoMatch;
 	  seen_binders := b' :: (!seen_binders)
-      | t -> Parsing_helper.internal_error "unexpected link in check_distinct_links"
+      | _ -> Parsing_helper.internal_error "unexpected link in check_distinct_links"
     with Not_found ->
       (* binder not linked; should not happen when no useless new is
 	 present in the equivalence Now happens also for all names of
@@ -431,35 +452,43 @@ let rec get_inter_names = function
   | [(_,_,a)] -> a
   | (_,_,a)::l -> intersect_n a (get_inter_names l)
 
-(* Association lists (binderref, value) *)
-
-let rec assq_binderref br = function
-    [] -> raise Not_found
-  | (br',v)::l ->
-      if Terms.equal_binderref br br' then
-	v
-      else
-	assq_binderref br l
 
 (* In check_instance_of_rec, mode = AllEquiv for the root symbol of functions marked [all] 
    in the equivalence. Only in this case a function symbol can be discharged. *)
 
-let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
-  match (term.t_desc, t.t_desc) with
-    FunApp(f,[t1;t2]), FunApp(f',[t1';t2']) when f == f' && f.f_options land Settings.fopt_COMMUT != 0 ->
-      (* Commutative function symbols *)
-      begin
-	let state' = 
-	  if (mode == AllEquiv) && (List.memq f (!symbols_to_discharge)) then
-	    { state with sthg_discharged = true }
-	  else
-	    state
+let check_instance_of next_f all_names_exp_opt mode term t =
+
+(* [get_var_link] function associated to [check_instance_of_rec].
+   See the interface of [Terms.match_funapp] for the 
+   specification of [get_var_link]. *)
+
+let get_var_link t state =
+  match t.t_desc with
+    Var (b,l) -> 
+      (* return None for restrictions *)
+      let is_restr = 
+	if Terms.is_args_at_creation b l then
+	  List.exists (List.exists (fun (b',_) -> b' == b)) all_names_exp_opt	  
+	else 
+	  true
+      in
+      if is_restr then 
+	None
+      else
+	let vlink = 
+	  try 
+	    TLink (assq_binderref (b,l) state.lhs_array_ref_map)
+	  with Not_found -> 
+	    NoLink
 	in
-	try
-	  check_instance_of_rec (check_instance_of_rec next_f all_names_exp_opt mode t2 t2') all_names_exp_opt mode t1 t1' state;
-	with SurelyNot ->
-	  check_instance_of_rec (check_instance_of_rec next_f all_names_exp_opt mode t1 t2') all_names_exp_opt mode t2 t1' state'
-      end
+	Some (vlink, false) (* TO DO I consider that variables cannot be bound to the neutral element.
+			       I would be better to allow the user to choose which variables can be bound
+			       to the neutral element. *)
+  | _ -> None
+in
+
+let rec check_instance_of_rec next_f term t state =
+  match (term.t_desc, t.t_desc) with
   | FunApp(f,l), FunApp(f',l') when f == f' ->
       let state' = 
 	if (mode == AllEquiv) && (List.memq f (!symbols_to_discharge)) then
@@ -467,29 +496,29 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 	else
 	  state
       in
-      check_instance_of_rec_list next_f all_names_exp_opt mode l l' state'
+      Terms.match_funapp check_instance_of_rec get_var_link Terms.default_match_error Terms.try_no_var_id next_f term t state'
   | FunApp(f,l), FunApp(_,_) -> 
-      raise SurelyNot
+      raise NoMatch
 	(* Might work after rewriting with an equation *)
   | FunApp(f,l), Var(b,_) ->
       if (!no_advice_mode) || (not (List.exists (function 
 	  { definition = DProcess { p_desc = Let _ }} -> true
 	| { definition = DTerm { t_desc = LetE _ }} -> true
 	| _ -> false) b.def)) then
-	raise SurelyNot
+	raise NoMatch
       else
         (* suggest assignment expansion on b *)
 	next_f { state with advised_ins = Terms.add_eq (explicit_value b) state.advised_ins }
-  | FunApp _, ReplIndex _ -> raise SurelyNot
+  | FunApp _, ReplIndex _ -> raise NoMatch
   | FunApp(f,l), (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _) ->
       Parsing_helper.internal_error "If, let, find, new, and event should have been expanded (Cryptotransf.check_instance_of_rec)"
-  | Var(b,l), _ when List.for_all2 Terms.equal_terms b.args_at_creation l ->
+  | Var(b,l), _ when Terms.is_args_at_creation b l ->
       begin
 	try 
 	  let t' = assq_binderref (b,l) state.lhs_array_ref_map in
 	  (* (b,l) is already mapped *)
 	  if not (Terms.equal_terms t t') then
-	    raise SurelyNot
+	    raise NoMatch
 	  else
 	    next_f state
 	with Not_found ->
@@ -511,17 +540,17 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 			  then
 			    next_f { state with advised_ins = Terms.add_eq (explicit_value b') state.advised_ins }
 			  else
-			    raise SurelyNot
+			    raise NoMatch
 			end
 		      else 
 			begin
                           (* check that b' is of the right type *)
-			  if b'.btype != b.btype then raise SurelyNot; 
+			  if b'.btype != b.btype then raise NoMatch; 
 		          (* check that b' is not used in a query *)
-			  if Settings.occurs_in_queries b' then raise SurelyNot;
+			  if Settings.occurs_in_queries b' then raise NoMatch;
 
 			  let state' = { state with lhs_array_ref_map = ((b,l), t):: state.lhs_array_ref_map } in
-                          (* Note: when I catch SurelyNot, backtrack on names_to_discharge *)
+                          (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  let bopt = List.assq b name_group_opt in
 			  let state'' = 
 			    try 
@@ -530,12 +559,12 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 			      if !bopt' != bopt then
 				(* Incompatible options [unchanged]. May happen when the variable occurs in an event 
 				   (so its option [unchanged] is required), but later we see that it does not have option [unchanged] *) 
-				raise SurelyNot;
+				raise NoMatch;
 			      { state' with sthg_discharged = true }
                             with Not_found ->
 			      if !stop_mode then 
 				(* Do not add more names in stop_mode *)
-				raise SurelyNot
+				raise NoMatch
 			      else
 				add_name_to_discharge2 (b',ref bopt) state'
 			  in
@@ -543,20 +572,20 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 			  try
                             let indexes = assq_binderref (group_head, l) state''.name_indexes in
                             if not (Terms.equal_term_lists indexes l') then
-			      raise SurelyNot
+			      raise NoMatch
 			    else
 			      next_f state''
 			  with Not_found -> 
-                            (* Note: when I catch SurelyNot, backtrack on all_names_indexes *)
+                            (* Note: when I catch NoMatch, backtrack on all_names_indexes *)
                             next_f { state'' with name_indexes = ((group_head,l), l') :: state''.name_indexes } 
 			end
                     end
-                | _ -> raise SurelyNot
+                | _ -> raise NoMatch
               with Not_found -> 
                 begin
                   (* check that t is of the right type *)
                   if t.t_type != b.btype then
-                    raise SurelyNot; 
+                    raise NoMatch; 
 		  next_f { state with lhs_array_ref_map = ((b,l), t):: state.lhs_array_ref_map }
                 end
             end
@@ -569,7 +598,7 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 	  let t' = assq_binderref (b,l) state.lhs_array_ref_map in
 	  (* (b,l) is already mapped *)
 	  if not (Terms.equal_terms t t') then
-	    raise SurelyNot
+	    raise NoMatch
 	  else
 	    next_f state
 	with Not_found ->
@@ -587,17 +616,17 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 			  then
 			    next_f { state with advised_ins = Terms.add_eq (explicit_value b') state.advised_ins }
 			  else
-			    raise SurelyNot
+			    raise NoMatch
 			end
 		      else 
 			begin
                           (* check that b' is of the right type *)
-			  if b'.btype != b.btype then raise SurelyNot; 
+			  if b'.btype != b.btype then raise NoMatch; 
 		          (* check that b' is not used in a query *)
-			  if Settings.occurs_in_queries b' then raise SurelyNot;
+			  if Settings.occurs_in_queries b' then raise NoMatch;
 
 			  let state' = { state with lhs_array_ref_map = ((b,l), t)::state.lhs_array_ref_map } in
-                          (* Note: when I catch SurelyNot, backtrack on names_to_discharge *)
+                          (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  try
 			    let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) all_names_exp_opt in
 			    let name_group = List.map fst name_group_opt in
@@ -610,23 +639,23 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 				if !bopt' != bopt then
 				  (* Incompatible options [unchanged]. May happen when the variable occurs in an event 
 				     (so its option [unchanged] is required), but later we see that it does not have option [unchanged] *) 
-				  raise SurelyNot;
+				  raise NoMatch;
 				{ state' with sthg_discharged = true }
                               with Not_found ->
 				if !stop_mode then 
 				  (* Do not add more names in stop_mode *)
-				  raise SurelyNot
+				  raise NoMatch
 				else
 				  add_name_to_discharge2 (b',ref bopt) state'
 			    in
 			    try
                               let indexes = assq_binderref (group_head,l) state''.name_indexes in
                               if not (Terms.equal_term_lists indexes l') then
-				raise SurelyNot
+				raise NoMatch
 			      else
 				next_f state''
 			    with Not_found -> 
-                            (* Note: when I catch SurelyNot, backtrack on all_names_indexes *)
+                            (* Note: when I catch NoMatch, backtrack on all_names_indexes *)
 			      next_f { state'' with name_indexes = ((group_head,l), l') :: state''.name_indexes } 
 			  with Not_found ->
 			    Display.display_binder b;
@@ -635,18 +664,12 @@ let rec check_instance_of_rec next_f all_names_exp_opt mode term t state =
 			    Parsing_helper.internal_error "Array reference in the left-hand side of an equivalence should always be a reference to a restriction"
 			end
                     end
-          | _ -> raise SurelyNot
+          | _ -> raise NoMatch
       end
   | _ -> Parsing_helper.internal_error "if, find, defined, replication indices should have been excluded from left member of equivalences"
 
-and check_instance_of_rec_list next_f all_names_exp_opt mode l l' state =
-  match l,l' with
-    [],[] -> next_f state
-  | a::l, a'::l' ->
-      check_instance_of_rec_list (check_instance_of_rec next_f all_names_exp_opt mode a a') all_names_exp_opt mode l l' state
-  | _ -> Parsing_helper.internal_error "different length in check_instance_of_rec_list"
+in
 
-let check_instance_of next_f all_names_exp_opt mode term t =
   if (!Settings.debug_cryptotransf) > 5 then
     begin
       print_string "Check instance of ";
@@ -656,7 +679,7 @@ let check_instance_of next_f all_names_exp_opt mode term t =
       print_newline();
     end;
   check_instance_of_rec (fun state -> 
-    if not state.sthg_discharged then raise SurelyNot;
+    if not state.sthg_discharged then raise NoMatch;
     if state.advised_ins == [] then
       check_distinct_links state.lhs_array_ref_map all_names_exp_opt;
     if (!Settings.debug_cryptotransf) > 5 then
@@ -677,7 +700,7 @@ let check_instance_of next_f all_names_exp_opt mode term t =
 	  end
       end;
     next_f state
-      ) all_names_exp_opt mode term t init_state 
+      ) term t init_state 
 
 (* Check whether t is an instance of a subterm of term
    Useful when t is just a test (if/find) or an assignment,
@@ -686,7 +709,7 @@ let check_instance_of next_f all_names_exp_opt mode term t =
 
 let rec check_instance_of_subterms next_f all_names_exp_opt mode term t =
   match term.t_desc with
-    Var _ | ReplIndex _ -> raise SurelyNot
+    Var _ | ReplIndex _ -> raise NoMatch
   | FunApp(f,l) ->
       check_instance_of_list next_f all_names_exp_opt mode l t
   | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
@@ -694,14 +717,14 @@ let rec check_instance_of_subterms next_f all_names_exp_opt mode term t =
 
 and check_instance_of_list next_f all_names_exp_opt mode l t = 
   match l with
-    [] -> raise SurelyNot
+    [] -> raise NoMatch
   | (term::l) -> 
       try
 	check_instance_of next_f all_names_exp_opt mode term t
-      with SurelyNot ->
+      with NoMatch ->
 	try 
 	  check_instance_of_subterms next_f all_names_exp_opt mode term t
-	with SurelyNot ->
+	with NoMatch ->
 	  check_instance_of_list next_f all_names_exp_opt mode l t
 
 (* Reverse substitution: all array references must be computable using
@@ -715,7 +738,7 @@ let rec reverse_subst indexes cur_array t =
       Terms.build_term2 t 
 	(match t.t_desc with
 	  Var(b,l) -> Var(b, reverse_subst_index indexes cur_array l)
-	| ReplIndex _ -> raise SurelyNot 
+	| ReplIndex _ -> raise NoMatch 
 	| FunApp(f,l) -> FunApp(f, List.map (reverse_subst indexes cur_array) l)
 	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
 	    Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.reverse_subst)")
@@ -734,7 +757,7 @@ type one_exp =
         (* List of (b,b') where b is a binder created by a let in
            the right member of the equivalence and b' is its image in 
            the transformed process. The indexes at creation of b' are cur_array_exp *)
-     cur_array_exp : term list; 
+     cur_array_exp : repl_index list; 
         (* Value of cur_array at this expression in the process. *)
      name_indexes_exp : (binder list * term list) list; 
         (* Values of indexes of names in this expression *)
@@ -820,8 +843,8 @@ let display_mapping () =
 
 let equiv = ref (((NoName,[],[],[],StdEqopt,Decisional),[]) : equiv_nm)
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
-let whole_game_next = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game_next = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 
 let incompatible_terms = ref []
 
@@ -928,6 +951,9 @@ let new_binder3 ri args_at_creation =
 let new_repl_index3 t =
   Terms.create_repl_index "@ri" (Terms.new_vname()) t.t_type
 
+let new_repl_index4 ri =
+  Terms.create_repl_index "@ri" (Terms.new_vname()) ri.ri_type
+
 let rec make_prod = function
     [] -> Cst 1.0
   | [a] -> Count (Terms.param_from_type a.t_type)
@@ -955,15 +981,15 @@ let check_same_args_at_creation = function
     [] -> ()
   | (a::l) -> 
       if not (List.for_all (fun b -> 
-	(Terms.equal_term_lists b.args_at_creation a.args_at_creation)) l)
-	  then raise SurelyNot
+	(Terms.equal_lists (==) b.args_at_creation a.args_at_creation)) l)
+	  then raise NoMatch
 
 (* l1 and l2 are tables [[(binder in equiv, corresponding name);...];...]
    common_names return the number of name groups in common between l1 and l2 *)
 
 let all_diff l1 l2 =
   if not (List.for_all (fun b -> not (List.memq b (List.map snd (List.concat l1))))
-    (List.map snd (List.concat l2))) then raise SurelyNot
+    (List.map snd (List.concat l2))) then raise NoMatch
 
 let rec common_names_rev l1 l2 =
   match l1,l2 with
@@ -996,7 +1022,7 @@ let rec rev_subst_indexes current_indexes name_table indexes =
       if names == [] && index == [] then
 	([],[])::(rev_subst_indexes current_indexes rest_name_table rest_indexes)
       else
-	let args_at_creation = (snd (List.hd name_table1)).args_at_creation in
+	let args_at_creation = List.map Terms.term_from_repl_index (snd (List.hd name_table1)).args_at_creation in
 	match current_indexes with
 	  None -> 
 	    (names, index)::
@@ -1024,9 +1050,9 @@ let rec check_compatible name_indexes env rev_subst_name_indexes names_exp name_
      name_table_first::name_table_rest) ->
        (* Complete the environment env if compatible *)
        List.iter2 (fun b1 (b,b') ->
-	 if b != b1 then raise SurelyNot;
+	 if b != b1 then raise NoMatch;
 	 try 
-	   if (get_name b1 (!env)) != b' then raise SurelyNot
+	   if (get_name b1 (!env)) != b' then raise NoMatch
 	 with Not_found ->
 	   env := (b,Terms.term_from_binder b') :: (!env)) names_exp_first name_table_first;
        (* Complete the indexes name_indexes if needed
@@ -1039,16 +1065,15 @@ let rec check_compatible name_indexes env rev_subst_name_indexes names_exp name_
 	 | (names, indexes)::_, (b0::_)::_ ->
 	     begin
 	     try 
-	       ignore (assq_binderref (b0, b0.args_at_creation) (!name_indexes))
+	       ignore (assq_binder_binderref b0 (!name_indexes))
 	       (* Found; will be checked for compatibility later *)
 	     with Not_found ->
 	       (* Add missing indexes *)
 	       let b1 = List.hd names_exp_first in 
-	       let indexes_above = assq_binderref (b1, b1.args_at_creation) (!name_indexes) in
+	       let indexes_above = assq_binder_binderref b1 (!name_indexes) in
 	       let args_at_creation = (get_name b1 (!env)).args_at_creation in
-	       name_indexes := ((b0, b0.args_at_creation), 
-		 List.map (Terms.subst (List.map Terms.repl_index_from_term 
-                  args_at_creation) indexes_above) indexes) :: (!name_indexes)
+	       name_indexes := ((b0, List.map Terms.term_from_repl_index b0.args_at_creation), 
+		 List.map (Terms.subst args_at_creation indexes_above) indexes) :: (!name_indexes)
 	     end
 	 | _ -> Parsing_helper.internal_error "bad length in check_compatible (2)"
        end;   
@@ -1103,7 +1128,7 @@ let complete_env_call name_indexes env all_names_exp =
 
 
 (* Returns the list of variables defined in a term.
-   Raises SurelyNot when it defines several times the same variable. *)
+   Raises NoMatch when it defines several times the same variable. *)
 
 let rec get_def_vars accu t =
   match t.t_desc with
@@ -1120,14 +1145,14 @@ let rec get_def_vars accu t =
       get_def_vars_pat (get_def_vars (get_def_vars accu' t1) t2) pat
   | ResE(b,t) ->
       if List.memq b accu then 
-	raise SurelyNot;
+	raise NoMatch;
       get_def_vars (b::accu) t
   | FindE(l0,t3,_) ->
       let accu' = get_def_vars accu t3 in
       List.fold_left (fun accu (bl,_,t1,t2) ->
 	let vars = List.map fst bl in
 	if List.exists (fun b -> List.memq b accu) vars then
-	  raise SurelyNot;
+	  raise NoMatch;
 	get_def_vars (get_def_vars (vars @ accu) t1) t2) accu' l0
   | EventAbortE(f) ->
       accu
@@ -1135,7 +1160,7 @@ let rec get_def_vars accu t =
 and get_def_vars_pat accu = function
     PatVar b ->
       if List.memq b accu then 
-	raise SurelyNot;
+	raise NoMatch;
       b::accu
   | PatTuple(_,l) ->
       List.fold_left get_def_vars_pat accu l
@@ -1174,7 +1199,7 @@ let rec try_list f = function
   | a::l -> 
       try
 	f a
-      with SurelyNot ->
+      with NoMatch ->
 	try_list f l
 
 type 'a check_res =
@@ -1192,13 +1217,13 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	  separate_env restr_env input_env array_ref_env r
 	in
 	if (List.exists (List.memq b) restr) && 
-	  (List.for_all2 Terms.equal_terms l b.args_at_creation) then
+	  (Terms.is_args_at_creation b l) then
 	  ((b,t)::restr_env', input_env', array_ref_env')
 	else if List.exists (List.memq b) all_names_lhs then
 	  (restr_env', input_env', a::array_ref_env')
 	else
 	  begin
-	    if not (List.for_all2 Terms.equal_terms l b.args_at_creation) then
+	    if not (Terms.is_args_at_creation b l) then
 	      Parsing_helper.internal_error "Array references in LHS of equivalences should refer to random numbers";
 	    (restr_env', (b,t)::input_env', array_ref_env')
 	  end
@@ -1235,7 +1260,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	(b::_ as lrestr) -> 
           begin
             try
-              (lrestr, assq_binderref (b, b.args_at_creation) name_indexes)
+              (lrestr, assq_binder_binderref b name_indexes)
             with Not_found ->
 	      Parsing_helper.internal_error "indexes missing"
           end
@@ -1254,8 +1279,8 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     List.iter (fun ((b1,l1), (b1',_)) ->
       List.iter (fun ((b2,l2), (b2',_)) ->
 	if (Terms.equal_term_lists l1 l2) &&
-	  not (Terms.equal_term_lists b1'.args_at_creation b2'.args_at_creation) then
-	  raise SurelyNot
+	  not (Terms.equal_lists (==) b1'.args_at_creation b2'.args_at_creation) then
+	  raise NoMatch
 	    ) before_transfo_array_ref_map
 	) before_transfo_array_ref_map;
 	
@@ -1278,14 +1303,14 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	   otherwise, we may use variables with a bad [args_at_creation] field. *)
 	let rec find_incomp_same_exp = function
 	    [] -> (* Not found; create new let variables *)
-	      List.map (fun b -> (b, new_binder2 b cur_array_terms)) (!let_vars')
+	      List.map (fun b -> (b, new_binder2 b cur_array)) (!let_vars')
 	  | (mapping::rest_map) ->
 	      if mapping.target_exp == res_term' then
 		try
 		  let exp = List.find (fun exp ->
 		    (Terms.equal_terms exp.source_exp_instance t) &&
 		    (is_incompatible exp.source_exp_instance t) &&
-		    (Terms.equal_term_lists exp.cur_array_exp cur_array_terms)
+		    (Terms.equal_lists (==) exp.cur_array_exp cur_array)
 		      ) mapping.expressions in
 		    (* Found, reuse exp.after_transfo_let_vars *)
 		  exp.after_transfo_let_vars
@@ -1296,13 +1321,13 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	in
 	find_incomp_same_exp (!map)
       else
-	List.map (fun b -> (b, new_binder2 b cur_array_terms)) (!let_vars')
+	List.map (fun b -> (b, new_binder2 b cur_array)) (!let_vars')
     in
 	
     (* Compute rev_subst_indexes
        It must be possible to compute indexes of upper restrictions in 
        the equivalence from the indexes of lower restrictions.
-       Otherwise, raise SurelyNot *)
+       Otherwise, raise NoMatch *)
     let rev_subst_name_indexes = rev_subst_indexes None before_transfo_name_table indexes_ordered in
 	
     (* Common names with other expressions
@@ -1324,7 +1349,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	  let common_rev_subst_name_indexes1 = Terms.lsuffix (new_common_suffix - 1) rev_subst_name_indexes in
 	  let common_rev_subst_name_indexes2 = Terms.lsuffix (new_common_suffix - 1) mapping.rev_subst_name_indexes in
 	  if not (List.for_all2 (fun (_,r1) (_,r2) -> Terms.equal_term_lists r1 r2) common_rev_subst_name_indexes1 common_rev_subst_name_indexes2) then
-	    raise SurelyNot
+	    raise NoMatch
 	end;
       if new_common_suffix > (!longest_common_suffix) then
 	begin
@@ -1344,14 +1369,14 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	       *)
       List.iter (fun ((b,_),(b',_)) ->
 	List.iter (fun (b1, b1') ->
-	  if b1' == b' && b1 != b then raise SurelyNot
+	  if b1' == b' && b1 != b then raise NoMatch
 	      ) before_transfo_restr;
 	List.iter (fun (b1, b1') ->
-	  if b1' == b' && b1 != b then raise SurelyNot
+	  if b1' == b' && b1 != b then raise NoMatch
 	      ) mapping.before_transfo_restr;
 	List.iter (fun exp ->
 	  List.iter (fun ((b1,_),(b1',_)) ->
-	    if b1' == b' && b1 != b then raise SurelyNot
+	    if b1' == b' && b1 != b then raise NoMatch
 		) exp.before_transfo_array_ref_map
 	    ) mapping.expressions
 		(* TO DO Should I advise SArename b' when one these checks fails?
@@ -1363,7 +1388,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
       List.iter (fun (b, b') ->
 	List.iter (fun exp ->
 	  List.iter (fun ((b1,_),(b1',_)) ->
-	    if b1' == b' && b1 != b then raise SurelyNot
+	    if b1' == b' && b1 != b then raise NoMatch
 		) exp.before_transfo_array_ref_map
 	    ) mapping.expressions
 	  ) before_transfo_restr
@@ -1372,7 +1397,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     
     let after_transfo_table_builder nt r = 
       match nt with
-	[] -> List.map (fun (b,_) -> (b, new_binder2 b cur_array_terms)) r
+	[] -> List.map (fun (b,_) -> (b, new_binder2 b cur_array)) r
       | ((_,one_name)::_) ->
 	  List.map (fun (b,bopt) -> 
 	    try 
@@ -1411,7 +1436,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	before_transfo_array_ref_map = before_transfo_array_ref_map;
 	after_transfo_array_ref_map = [];
 	after_transfo_let_vars = after_transfo_let_vars;
-	cur_array_exp = cur_array_terms;
+	cur_array_exp = cur_array;
 	before_transfo_input_vars_exp = input_env;
 	after_transfo_input_vars_exp = after_transfo_input_vars_exp;
 	all_indices = cur_array
@@ -1431,7 +1456,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	Terms.array_ref_eqside rm;
 	let def_vars = get_def_vars [] res_term' in
 	if List.exists Terms.has_array_ref def_vars then
-	      raise SurelyNot;
+	      raise NoMatch;
 	Terms.cleanup_array_ref();
 	check_no_new_event res_term'
       end;
@@ -1454,7 +1479,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     match to_do with
       ([],_,_)::_ ->
         (* Accept not being able to complete missing names if I am in "rebuild map" mode *)
-	if (!rebuild_map_mode) then NotComplete(to_do) else raise SurelyNot
+	if (!rebuild_map_mode) then NotComplete(to_do) else raise NoMatch
     | [] -> Parsing_helper.internal_error "ins_accu should not be empty (6)"
     | _ -> AdviceNeeded(to_do)
 
@@ -1464,7 +1489,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 
    Return the list of transformations to apply before so that the desired
    transformation may work. When this list is empty, the desired transformation
-   is ok. Raises SurelyNot when the desired transformation is impossible,
+   is ok. Raises NoMatch when the desired transformation is impossible,
    even after preliminary changes.
 *)
 
@@ -1510,7 +1535,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 		    match exp.name_indexes_exp with
 		      (_::_,top_indices)::_ -> (* The down-most sequence of restrictions is not empty *)
 			make_count repl' (List.map snd exp.name_indexes_exp) before_transfo_name_table,
-			(ch, None, exp.cur_array_exp)
+			(ch, None, List.map Terms.term_from_repl_index exp.cur_array_exp)
 		        (* Another solution would be:
 			   (ch, Some before_transfo_name_table, top_indices)
 		           It's not clear a priori which one is smaller... *)
@@ -1539,9 +1564,9 @@ and check_term where_info ta_above cur_array defined_refs t =
 		        (* There is no replication at all in the LHS => 
 			   the expression must be evaluated once *)
 			if has_repl_index t then
-			  raise SurelyNot;
+			  raise NoMatch;
 			if List.exists (fun mapping -> mapping.source_exp == res_term) (!map) then
-			  raise SurelyNot;
+			  raise NoMatch;
 			make_count repl' [] before_transfo_name_table,
 			(ch, None, [])
 		  in
@@ -1553,12 +1578,12 @@ and check_term where_info ta_above cur_array defined_refs t =
 			try
 			  match List.assq b restr_env with
 			    { t_desc = Var(b_check,_) } -> 
-			      let l_check = assq_binderref (b, b.args_at_creation) name_indexes in
+			      let l_check = assq_binder_binderref b name_indexes in
 		              (*print_string "Checking that ";
 			      Display.display_term (Terms.term_from_binderref (b_check, l_check));
 			      print_string " is defined... "; *)
 			      if not (List.exists (Terms.equal_binderref (b_check, l_check)) defined_refs) then
-				raise SurelyNot;
+				raise NoMatch;
 		              (* print_string "Ok.\n" *)
 			  | _ -> Parsing_helper.internal_error "unexpected link in check_term 3"
 			with Not_found ->
@@ -1632,7 +1657,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 			   let exp' = List.hd mapping.expressions in
 			   if not (Terms.equal_terms exp'.source_exp_instance 
 				     (Terms.subst cur_array' (snd (List.hd exp'.name_indexes_exp)) t')) then
-			     raise SurelyNot;
+			     raise NoMatch;
 			   mapping.expressions <- exp :: mapping.expressions
 			 end
                        else 
@@ -1694,13 +1719,13 @@ and check_term where_info ta_above cur_array defined_refs t =
 		map := old_map;
 		Terms.vcounter := vcounter; (* Forget variables *)
 		transform_to_do := merge_ins to_do (!transform_to_do);
-		raise SurelyNot
+		raise NoMatch
 	    | NotComplete(to_do) ->
 		transform_to_do := merge_ins to_do (!transform_to_do);
 		true
 		  ) (!all_names_lhs_opt) mode res_term t 
 
-	with SurelyNot ->
+	with NoMatch ->
 	  if (!Settings.debug_cryptotransf) > 5 then
 	    begin
 	      print_string "failed to discharge ";
@@ -1715,7 +1740,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 		Success(to_do,_,_,_,_,_,_,_,_,_) |  AdviceNeeded(to_do) | NotComplete(to_do) ->
 		  transform_to_do := merge_ins (and_ins1 (ta_above,0,[]) to_do) (!transform_to_do)
 		       ) (!all_names_lhs_opt) mode res_term t;
-	  raise SurelyNot
+	  raise NoMatch
 	    ) (!accu_exp)
       in
 
@@ -1730,8 +1755,8 @@ and check_term where_info ta_above cur_array defined_refs t =
       else
         try 
           merge_ins (!transform_to_do) (check_term_try_subterms where_info cur_array defined_refs t)
-        with SurelyNot ->
-	  if (!transform_to_do) == [] then raise SurelyNot else (!transform_to_do)
+        with NoMatch ->
+	  if (!transform_to_do) == [] then raise NoMatch else (!transform_to_do)
 
 and check_term_try_subterms where_info cur_array defined_refs t =
      (* If fails, try a subterm; if t is just a variable in names_to_discharge,
@@ -1755,13 +1780,13 @@ and check_term_try_subterms where_info cur_array defined_refs t =
 		  these definitions *)
 	       [([SArenaming b],0,[])]
 	     else
-               raise SurelyNot
+               raise NoMatch
 	   with Not_found ->
 	     map_and_ins (check_term where_info [] cur_array defined_refs) l
 	 end
      | FunApp(f,l) ->
 	 if List.memq f (!symbols_to_discharge) then
-	   raise SurelyNot
+	   raise NoMatch
 	 else
 	   map_and_ins (check_term where_info [] cur_array defined_refs) l
      | ReplIndex _ -> success_no_advice
@@ -1804,7 +1829,7 @@ let check_term where_info l c defined_refs t =
 
 
 let rec check_pat cur_array accu defined_refs = function
-    PatVar b -> accu := (b, b.args_at_creation)::(!accu); success_no_advice
+    PatVar b -> accu := (b, List.map Terms.term_from_repl_index b.args_at_creation)::(!accu); success_no_advice
   | PatTuple (f,l) -> map_and_ins (check_pat cur_array accu defined_refs) l
   | PatEqual t -> check_term ElseWhere [] cur_array defined_refs t
 
@@ -1824,12 +1849,12 @@ let rec check_cterm t =
   match t.t_desc with
     Var(b,l) ->
       if is_name_to_discharge b then
-	raise SurelyNot;
+	raise NoMatch;
       List.iter check_cterm l
   | ReplIndex _ -> ()
   | FunApp(f,l) ->
       if List.memq f (!symbols_to_discharge) then
-	raise SurelyNot;
+	raise NoMatch;
       List.iter check_cterm l
   | TestE(t1,t2,t3) ->
       check_cterm t1;
@@ -1839,7 +1864,7 @@ let rec check_cterm t =
       List.iter (fun (bl, def_list, t1, t2) ->
 	List.iter (fun (b,_) ->
 	  if is_name_to_discharge b then
-	    raise SurelyNot) bl;
+	    raise NoMatch) bl;
 	List.iter check_cbr def_list;
 	check_cterm t1;
 	check_cterm t2) l0;
@@ -1855,7 +1880,7 @@ let rec check_cterm t =
       end
   | ResE(b,t) -> 
       if is_name_to_discharge b then
-	raise SurelyNot;
+	raise NoMatch;
       check_cterm t
   | EventAbortE _ ->
       Parsing_helper.internal_error "Event should have been expanded"
@@ -1866,7 +1891,7 @@ and check_cbr (_,l) =
 and check_cpat = function
     PatVar b -> 
       if is_name_to_discharge b then
-	raise SurelyNot
+	raise NoMatch
   | PatTuple(f,l) -> List.iter check_cpat l
   | PatEqual t -> check_cterm t
 
@@ -1917,7 +1942,7 @@ and check_oprocess accu cur_array defined_refs p =
   match p.p_desc with
     Yield | EventAbort _ -> accu 
   | Restr(b,p) ->
-      check_oprocess accu cur_array ((b, b.args_at_creation)::defined_refs) p
+      check_oprocess accu cur_array ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) p
   | Test(t,p1,p2) ->
       and_ins (check_term ElseWhere [] cur_array defined_refs t)
 	(check_oprocess (check_oprocess accu cur_array defined_refs p1) cur_array defined_refs p2)
@@ -1975,7 +2000,7 @@ let check_lhs_array_ref() =
 	          Display.display_binder b';
 	          print_string " in a standard reference.\n"
 		end; 
-	      raise SurelyNot
+	      raise NoMatch
 	  in
 	  (* Display.display_var b l;
 	  print_string " is mapped to ";
@@ -1988,7 +2013,7 @@ let check_lhs_array_ref() =
 	     { l'/b'.args_at_creation } \circ mapping'.rev_subst_name_indexes[j1-1] \circ ... \circ mapping'.rev_subst_name_indexes[k0] =
 	     one_exp.name_indexes_exp[k0]
 	     *)
-	  let k0 = Terms.len_common_suffix l b.args_at_creation in
+	  let k0 = Terms.len_common_suffix l (List.map Terms.term_from_repl_index b.args_at_creation) in
 	  if k0 > 0 then
 	    begin
 	      if not (List.for_all2 equal_binder_pair_lists
@@ -2008,7 +2033,7 @@ let check_lhs_array_ref() =
 		      Display.display_binder b';
 		      print_string " in a standard reference.\n"
                     end;
-		  raise SurelyNot
+		  raise NoMatch
 		end;
 	      (* TO DO implement support for array references that use
 	      both arguments and replication indices. Also modify
@@ -2033,7 +2058,7 @@ let check_lhs_array_ref() =
 	  ((b1,l1),(b1',l1'),mapping1')::r ->
 	    List.iter (function ((b2,l2),(b2',l2'),mapping2') ->
 	      let k0 = Terms.len_common_suffix l1 l2 in
-	      if k0 > Terms.len_common_suffix l1 b1.args_at_creation then
+	      if k0 > Terms.len_common_suffix l1 (List.map Terms.term_from_repl_index b1.args_at_creation) then
 		begin
 		  if not (List.for_all2 equal_binder_pair_lists
 			    (Terms.lsuffix k0 mapping1'.before_transfo_name_table)
@@ -2052,7 +2077,7 @@ let check_lhs_array_ref() =
 			  print_string (".\nCommon prefix of length " ^ (string_of_int k0) ^ ".\n");
 			  print_string ("The corresponding expressions with standard references do not share the first " ^ (string_of_int k0) ^ " sequences of random variables\n.")
 			end; 
-		      raise SurelyNot
+		      raise NoMatch
 		    end;
 	          (* TO DO implement support for array references that share
 		     arguments. Also modify check.ml accordingly to allow such 
@@ -2084,7 +2109,7 @@ let check_lhs_array_ref() =
 		  end
 	      |	ReplIndex b ->
 		  (* Replication index *)
-		  Terms.lsuffix (1+List.length r) b_after.args_at_creation
+		  List.map Terms.term_from_repl_index (Terms.lsuffix (1+List.length r) b_after.args_at_creation)
 	      | _ ->  Parsing_helper.internal_error "Variable or replication index expected as index in array reference"
 	    end
 	| [] -> []
@@ -2176,7 +2201,7 @@ let rec transform_term t =
 	  restr_to_put := (List.map snd (List.hd mapping.after_transfo_name_table)) @ (!restr_to_put)
       | _ -> ()
     end;
-    instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp
+    Terms.move_occ_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp)
   with Not_found ->
     (* Mapping not found, the term is unchanged. Visit subterms *)
     Terms.build_term2 t 
@@ -2198,7 +2223,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	  try
 	    Terms.term_from_binderref (assq_binderref (b,l) one_exp.after_transfo_array_ref_map)
 	  with Not_found -> 
-          if not (List.for_all2 Terms.equal_terms l b.args_at_creation) then
+          if not (Terms.is_args_at_creation b l) then
 	    begin
 	      Display.display_var b l;
               Parsing_helper.internal_error "Unexpected variable reference in instantiate_term"
@@ -2265,7 +2290,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		    !accu
 	      end, 
 	      begin
-		let cur_array_cond = (List.map Terms.term_from_repl_index indexes) @ cur_array in
+		let cur_array_cond = indexes @ cur_array in
 		match constra with
 		  None -> instantiate_term cur_array_cond true loc_rename' mapping one_exp t1
 		| Some t -> Terms.make_and t (instantiate_term cur_array_cond true loc_rename' mapping one_exp t1)
@@ -2326,7 +2351,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		      let cur_array_indexes0 = reverse_subst_index max_indexes map_indexes0 cur_array_indexes in
 		      let constra = make_constra_equal cur_array_indexes0 (snd (List.nth one_exp.name_indexes_exp (List.length one_exp.name_indexes_exp - l_cur_array_suffix))) in
 		      (map_indexes0_binders, map_indexes0, constra)
-		    with SurelyNot ->
+		    with NoMatch ->
 		      Parsing_helper.internal_error "reverse_subst_index failed in instantiate_term (1)"
 		else
 		  (map_indexes0_binders, map_indexes0, None)
@@ -2338,7 +2363,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		  cur_var_map := ((b,l),(b',reverse_subst_index max_indexes map_indexes indexes))::(!cur_var_map)
 		with Not_found ->
 		  var_not_found := (b,l) :: (!var_not_found)
-		| SurelyNot ->
+		| NoMatch ->
 		      Parsing_helper.internal_error "reverse_subst_index failed in instantiate_term (2)"
 					      ) def_list;
 	      if (!var_not_found) == [] then
@@ -2382,7 +2407,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		       references. *)
 		    if not (List.memq one_exp'.after_transfo_let_vars (!seen_let_vars)) then
 		    let exp_cur_var_map = ref (!cur_var_map) in
-		    if (Terms.equal_term_lists (snd (List.hd one_exp'.name_indexes_exp)) one_exp'.cur_array_exp) then
+		    if (Terms.equal_term_lists (snd (List.hd one_exp'.name_indexes_exp)) (List.map Terms.term_from_repl_index one_exp'.cur_array_exp)) then
 		      begin
 			List.iter (fun (b,l) ->
 			  let b' = List.assq b one_exp'.after_transfo_let_vars in
@@ -2395,12 +2420,11 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		      end
 		    else
 		      begin
-			let exp_map_indexes = List.map new_repl_index3 one_exp'.cur_array_exp in
+			let exp_map_indexes = List.map new_repl_index4 one_exp'.cur_array_exp in
 			let constra2 = 
 		    (* Constraint 
 		         map_indexes = (snd (List.hd one_exp'.name_indexes_exp)) { exp_map_indexes / one_exp'.cur_array_exp } *)
-			  make_constra 
-			    (List.map Terms.repl_index_from_term one_exp'.cur_array_exp) 
+			  make_constra one_exp'.cur_array_exp
 			    (List.map Terms.term_from_repl_index exp_map_indexes)
 			    map_indexes (snd (List.hd one_exp'.name_indexes_exp))
 			in
@@ -2448,6 +2472,9 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		 f_type = f.f_type;
 		 f_cat = f.f_cat;
 		 f_options = f.f_options;
+		 f_statements = f.f_statements;
+		 f_collisions = f.f_collisions;
+		 f_eq_theories = f.f_eq_theories;
                  f_impl = No_impl;
                  f_impl_inv = None }
       in
@@ -2461,7 +2488,8 @@ and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = 
     PatVar b ->
       if in_find_cond then
 	let b' = new_binder2 b cur_array in
-	loc_rename_ref := ((b, b.args_at_creation), (b', b'.args_at_creation)) :: (!loc_rename_ref);
+	loc_rename_ref := ((b, List.map Terms.term_from_repl_index b.args_at_creation), 
+			   (b', List.map Terms.term_from_repl_index b'.args_at_creation)) :: (!loc_rename_ref);
 	PatVar b'
       else
 	PatVar(try
@@ -2534,7 +2562,7 @@ let rec update_def_list suppl_def_list (b,l) =
   | Some l' -> 
       (* Do not add a condition that is already present *)
       let l' = List.filter (fun b' -> b' != b) l' in
-      suppl_def_list := (List.map (fun b' -> (b',l)) l') @ (!suppl_def_list)
+      suppl_def_list := (List.map (fun b' -> (b',List.map Terms.move_occ_term l)) l') @ (!suppl_def_list)
   end;
   List.iter check_not_touched l
   (*List.iter (update_def_list_term suppl_def_list) l
@@ -2554,7 +2582,7 @@ let rec transform_process cur_array p =
       Par(transform_process cur_array p1,
 	  transform_process cur_array p2)
   | Repl(b,p) ->
-      Repl(b, (transform_process ((Terms.term_from_repl_index b)::cur_array) p))
+      Repl(b, (transform_process (b::cur_array) p))
   | Input((c,tl),pat,p) ->
       let p' = transform_oprocess cur_array p in
       if (!restr_to_put) != [] then
@@ -2567,14 +2595,14 @@ let rec transform_process cur_array p =
 	let b = Terms.create_binder "patv" (Terms.new_vname()) Settings.t_bitstring cur_array
 	in
 	let p'' = Input((c, tl), PatVar b, put_restr (!restr_to_put) 
-			  (Terms.oproc_from_desc (Let(pat', Terms.term_from_binder b, p', Terms.yield_proc))))
+			  (Terms.oproc_from_desc (Let(pat', Terms.term_from_binder b, p', Terms.oproc_from_desc Yield))))
 	in
 	restr_to_put := [];
 	p'')
 	
 and transform_oprocess_norestr cur_array p = 
   match p.p_desc with
-    Yield -> Terms.yield_proc
+    Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
       (* Remove restriction when it is now useless *)
@@ -2585,7 +2613,7 @@ and transform_oprocess_norestr cur_array p =
 	| Some l ->
 	    put_restr l 
 	      (if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
-		Terms.oproc_from_desc (Let(PatVar b, Terms.cst_for_type b.btype, p', Terms.yield_proc))
+		Terms.oproc_from_desc (Let(PatVar b, Terms.cst_for_type b.btype, p', Terms.oproc_from_desc Yield))
               else
 		p')
       end
@@ -3013,7 +3041,7 @@ let rec rename_term map one_exp t =
       Terms.build_term t (FunApp(f, List.map (rename_term map one_exp) l))
   | Var(b,l) -> 
       begin
-	if not (List.for_all2 Terms.equal_terms l b.args_at_creation) then
+	if not (Terms.is_args_at_creation b l) then
           Parsing_helper.internal_error "Unexpected variable reference in rename_term";
 	try
 	  List.assq b one_exp.before_transfo_input_vars_exp
@@ -3259,11 +3287,11 @@ let subst2 mapping t =
   let (_,name_mapping) = !equiv in 
   let link b b' =
     b.link <- TLink (Terms.term_from_binder b');
-    List.iter2 (fun t t' -> (Terms.repl_index_from_term t).ri_link <- TLink t') b.args_at_creation b'.args_at_creation
+    List.iter2 (fun t t' -> t.ri_link <- TLink (Terms.term_from_repl_index t')) b.args_at_creation b'.args_at_creation
   in
   let unlink b =
     b.link <- NoLink;
-    List.iter (fun t -> (Terms.repl_index_from_term t).ri_link <- NoLink) b.args_at_creation 
+    List.iter (fun t -> t.ri_link <- NoLink) b.args_at_creation 
   in
   List.iter (fun (b',b,_) -> link b b') name_mapping;
   List.iter2 link mapping.source_args mapping.target_args;
@@ -3326,7 +3354,7 @@ let rec try_with_restr_list apply_equiv = function
 	      begin
 		if (!Settings.debug_cryptotransf) > 0 then
 		  print_string "Nothing transformed\n";
-		raise SurelyNot
+		raise NoMatch
 	      end;
 	    begin
 	      match b with
@@ -3336,7 +3364,7 @@ let rec try_with_restr_list apply_equiv = function
 		    (* The suggested name has not been used at all, fail*)
 		    if (!Settings.debug_cryptotransf) > 0 then
 		      print_string ("Nothing transformed using the suggested name " ^ (Display.binder_to_string bn) ^ "\n");
-		    raise SurelyNot
+		    raise NoMatch
 		  end
 	      |	_ -> Parsing_helper.internal_error "Unexpected name list in try_with_restr_list"
 	    end;
@@ -3370,7 +3398,7 @@ let rec try_with_restr_list apply_equiv = function
 		  TSuccessPrio (prob,ins,g') -> TSuccessPrio (prob,ins,g')
 		| TFailurePrio l' -> TFailurePrio (merge_ins to_do l')
 	      end
-          with SurelyNot -> 
+          with NoMatch -> 
 	    Terms.vcounter := vcounter; (* This transformation failed, forget the variables *)
 	    try_with_restr_list apply_equiv l
         end
@@ -3479,7 +3507,7 @@ let crypto_transform stop no_advice (((_,lm,_,_,_,opt2),_) as apply_equiv) names
 	    Terms.vcounter := vcounter; (* Forget created variables when the transformation fails *)
             TFailure (List.map (fun (l,p,n) -> (apply_equiv, List.map fst n, l)) to_do)
 	  end
-      with SurelyNot -> 
+      with NoMatch -> 
 	Terms.vcounter := vcounter; (* Forget created variables when the transformation fails *)
 	TFailure []
     end

@@ -20,6 +20,7 @@ val debug_simplify : bool ref
 val debug_simplif_add_facts : bool ref
 
 val elsefind_facts_in_replace : bool ref
+val max_replace_depth : int ref
 val elsefind_facts_in_simplify : bool ref
 
 val diff_constants : bool ref
@@ -108,7 +109,6 @@ val tyopt_CHOOSABLE : int
 val fopt_COMPOS : int
 val fopt_DECOMPOS : int
 val fopt_UNIFORM : int
-val fopt_COMMUT : int
 
 val tex_output : string ref
 
@@ -137,8 +137,6 @@ val f_mul : funsymb
 val get_inverse : funsymb -> int -> funsymb
 
 (* Assumptions given in the input file *)
-val statements : statement list ref
-val collisions : collision list ref
 val equivs : equiv_nm list ref
 val move_new_eq : (typet * equiv_nm) list ref
 

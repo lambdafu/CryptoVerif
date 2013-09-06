@@ -28,6 +28,78 @@ let do_implementation impl =
       ) impl
 
 
+(* Prepare the equation statements given by the user *)
+
+let simplify_statement (vl, t) =
+  let glob_reduced = ref false in
+  let rec reduce_rec t =
+    let reduced = ref false in
+    let t' = Terms.apply_eq_reds Terms.try_no_var_id reduced t in
+    if !reduced then 
+      begin
+	glob_reduced := true;
+	reduce_rec t'
+      end
+    else t
+  in
+  let t' = reduce_rec t in
+  if Terms.is_true t' then 
+    begin
+      print_string "Warning: statement ";
+      Display.display_term t;
+      print_string " removed using the equational theory.\n"
+    end
+  else if Terms.is_false t' then
+    begin
+      print_string "Error: statement ";
+      Display.display_term t;
+      Parsing_helper.user_error " contradictory.\n"
+    end
+  else
+    let tnew = 
+      if !glob_reduced then 
+	begin
+	  print_string "Statement ";
+	  Display.display_term t;
+	  print_string " simplified into ";
+	  Display.display_term t';
+	  print_string " using the equational theory.\n";
+	  t'
+	  end
+      else 
+	t
+    in
+    let record_statement ((_, _, t1, _,t2) as statement) =
+      match t1.t_desc with
+	FunApp(f, l) -> 
+	  f.f_statements <- statement :: f.f_statements
+      | _ -> 
+	  print_string "Statement ";
+	  Display.display_term t1;
+	  print_string " = ";
+	  Display.display_term t2;
+	  print_string " ignored: the left-hand side should start with a function symbol.\n"
+    in
+    match tnew.t_desc with
+      FunApp(f, [t1;t2]) when f.f_cat == Equal ->
+	record_statement ([], vl, t1, Zero, t2)
+    | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
+	record_statement ([], vl, tnew, Zero, Terms.make_true());
+	record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false())
+    | _ -> 
+	record_statement ([], vl, tnew, Zero, Terms.make_true())
+	  
+let record_collision ((_, _, t1, _,t2) as collision) =
+  match t1.t_desc with
+    FunApp(f, l) -> 
+      f.f_collisions <- collision :: f.f_collisions
+  | _ -> 
+      print_string "Collision ";
+      Display.display_term t1;
+      print_string " <=(...)=> ";
+      Display.display_term t2;
+      print_string " ignored: the left-hand side should start with a function symbol.\n"
+
 let anal_file s =
   if not (!front_end_set) then
     begin
@@ -54,8 +126,8 @@ let anal_file s =
               else
 	        List.map (fun q -> ((q,g), ref None, None)) queries in
 	    g.current_queries <- queries;
-            Settings.statements := statements;
-            Settings.collisions := collisions;
+            List.iter simplify_statement statements;
+            List.iter record_collision collisions;
             Settings.equivs := equivs;
             Settings.move_new_eq := new_new_eq;
             Settings.collect_public_vars queries;

@@ -13,82 +13,17 @@ insert 21 let concat(xh2',xh2'') = xh2 in
 crypto rom(hash2)
 crypto rom(hash)
 remove_assign binder pk
-crypto ow(f) r x_74
-crypto remove_xor(xor) @7_r_95
+crypto ow(f) r x_108
+crypto remove_xor(xor) @9_r_152
+show_game
 
-      in(hstart, ());
-      out(hret, ());
-      (
-        ! !_69 <= qH
-        in(hc1[!_69], x_72: seed);
-        find [unique] @i_102 <= qH suchthat defined(x_72[@i_102], @7_r_91[@i_102]) && (x_72 = x_72[@i_102]) then
-          out(hc2[!_69], @7_r_91[@i_102])
-        orfind @i_101 <= qD suchthat defined(r, a[@i_101], @7_r_93[@i_101]) && (f(@5_pkgen'(r), x_72) = a[@i_101]) then
-          out(hc2[!_69], @7_r_93[@i_101])
-        else
-          new @7_r_91: hasht;
-          out(hc2[!_69], @7_r_91)
-      ) | (
-        ! !_70 <= qH2
-        in(hc3[!_70], xh2: bitstring);
-        let concat(xh2': seed, xh2'': hasht) = xh2 in
-        (
-          find [unique] @i_90 <= qH2 suchthat defined(xh2'[@i_90], xh2''[@i_90], @8_r_77[@i_90]) && ((xh2' = xh2'[@i_90]) && (xh2'' = xh2''[@i_90])) then
-            out(hc4[!_70], @8_r_77[@i_90])
-          else
-            new @8_r_77: hasht2;
-            out(hc4[!_70], @8_r_77)
-        )
-        else
-          find [unique] @i_87 <= qH2 suchthat defined(xh2[@i_87], @8_r_79[@i_87]) && (xh2 = xh2[@i_87]) then
-            out(hc4[!_70], @8_r_79[@i_87])
-          else
-            new @8_r_79: hasht2;
-            out(hc4[!_70], @8_r_79)
-      ) | (
-        in(start, ());
-        new r: keyseed;
-        out(c9, @5_pkgen'(r));
-        (
-          ! !_71 <= qD
-          in(c5[!_71], (a: seed, b: hasht, c: hasht2));
-          if defined(@7_r_103, x_74, aT, @8_r_81) && ((a = aT) && ((b = @7_r_103) && (c = @8_r_81))) then
-            yield
-          else
-            find [unique] @i_100 <= qH suchthat defined(x_72[@i_100], @7_r_91[@i_100]) && (f(@5_pkgen'(r), x_72[@i_100]) = a) then
-            (
-              let m: hasht = xor(@7_r_91[@i_100], b) in
-              find [unique] @i_86 <= qH2 suchthat defined(xh2'[@i_86], xh2''[@i_86], @8_r_77[@i_86]) && ((xh2'[@i_86] = x_72[@i_100]) && (m = xh2''[@i_86])) then
-              if (c = @8_r_77[@i_86]) then
-              out(c6[!_71], m)
-            )
-            orfind @i_99 <= qD suchthat defined(a[@i_99], @7_r_93[@i_99]) && (a = a[@i_99]) then
-            (
-              let m: hasht = xor(@7_r_93[@i_99], b) in
-              find [unique] @i_86 <= qH2 suchthat defined(xh2'[@i_86], xh2''[@i_86], @8_r_77[@i_86]) && ((f(@5_pkgen'(r), xh2'[@i_86]) = a) && (m = xh2''[@i_86])) then
-              if (c = @8_r_77[@i_86]) then
-              out(c6[!_71], m)
-            )
-            orfind  suchthat defined(x_74, x_74) && (@5_f'(@5_pkgen'(r), x_74) = a) then
-              yield
-            else
-              new @7_r_93: hasht
-        ) | (
-          in(c7, menc: hasht);
-          new x_74: seed;
-          let aT: seed = @5_f'(@5_pkgen'(r), x_74) in
-          new @7_r_103: hasht;
-          new @8_r_81: hasht2;
-          out(c8, (aT, @7_r_103, @8_r_81))
-        )
-      )
-
-The game does not depend on menc.
+The obtained game does not depend on menc.
 
 We can then easily show that if menc is defined by 
 "in(c, (m1,m2)); new b1:bool; let menc = if b1 then m1 else m2"
 then the secrecy of b1 is preserved.
-(The system fails to show that directly; see encryptBR93-2.)
+(In earlier versions, the system failed to show that directly; 
+it now succeeds, see encryptBR93-2.)
 *)
 
 param nx, qD.
@@ -128,7 +63,7 @@ let hashoracle2 = ! qH2 in(hc3, xh2:bitstring); out(hc4, hash2(hk2,xh2)).
 
 (* Xor *)
 
-expand Xor(hasht, xor).
+expand Xor(hasht, xor, zero).
 
 (* Queries *)
 

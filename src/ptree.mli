@@ -156,6 +156,7 @@ type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list
 	  | ChannelDecl of ident
 	  | TypeDecl of ident * ident list(*options*)
 	  | Statement of statement
+	  | BuiltinEquation of ident * ident list
 	  | EqStatement of eqstatement
 	  | Collision of collision
 	  | Setting of ident * pval

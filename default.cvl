@@ -909,7 +909,8 @@ fun exp(G,Z): G.
 fun exp'(G,Z): G.
 const g:G.
 
-fun mult(Z,Z): Z [commut]. 
+fun mult(Z,Z): Z. 
+equation commut(mult).
 
 (* exponents multiply *)
 
@@ -1017,7 +1018,8 @@ fun exp(G,Z): G.
 fun exp'(G,Z): G.
 const g:G.
 
-fun mult(Z,Z): Z [commut]. 
+fun mult(Z,Z): Z. 
+equation commut(mult).
 
 (* exponents multiply *)
 
@@ -1312,28 +1314,21 @@ equiv prf(f)
 (* Xor
    D: domain on which xor applies 
    xor: the exclusive or function
+   zero: the neutral element
 
-   The type D must be declared before this macro is expanded. The function
-   xor is declared by this macro. It must not be declared elsewhere,
-   and it can be used only after expanding the macro.
-
-   This model of xor is not fully satisfactory. In particular, associativity
-   is missing.
+   The type D must be declared before this macro is expanded. The
+   function xor and the constant zero are declared by this macro. They
+   must not be declared elsewhere, and they can be used only after
+   expanding the macro.
  *)
 
-define Xor(D, xor) {
+define Xor(D, xor, zero) {
 
 param nx.
 
-fun xor(D,D):D [commut].
-
-(* Xor self-cancels *)
-
-forall x:D,y:D; xor(x, xor(x,y)) = y.
-
-(* Xor is injective *)
-
-forall x:D,y:D,z:D; (xor(x,z) = xor(y,z)) = (x = y).
+fun xor(D,D): D.
+const zero: D.
+equation ACUN(xor,zero).
 
 (* Xor is a one-time pad *)
 

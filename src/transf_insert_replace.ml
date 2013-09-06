@@ -171,7 +171,6 @@ let is_yield (p,_) =
     Parsing_helper.internal_error "Yield process expected"
 
 let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
-  let cur_array = List.map Terms.term_from_repl_index cur_array in
   if find_cond then
 
   try 
@@ -203,7 +202,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
 	      if ty != b.btype then
 		raise (Error(s_b ^ " already defined with type " ^ b.btype.tname ^ ", so cannot be redefined with type " ^ ty.tname, ext_b))
 	end;
-	if not (Terms.equal_term_lists b.args_at_creation cur_array) then
+	if not (Terms.equal_lists (==) b.args_at_creation cur_array) then
 	  raise (Error(s_b ^ " already defined, but under different replications", ext_b));
 	b
     | _ -> raise (Error(s_b ^ " already defined and not a variable", ext_b))
@@ -222,7 +221,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
 		if ty != b.btype then
 		  raise (Error(s_b ^ " already defined with type " ^ b.btype.tname ^ ", so cannot be redefined with type " ^ ty.tname, ext_b))
 	  end;
-	  if not (Terms.equal_term_lists b.args_at_creation cur_array) then
+	  if not (Terms.equal_lists (==) b.args_at_creation cur_array) then
 	    raise (Error(s_b ^ " already defined, but under different replications", ext_b));
 	  b
     with Not_found ->
@@ -262,15 +261,12 @@ let rec check_array_type_list ext pel el cur_array creation_array =
       if n < 0 then 
 	raise (Error("Unexpected number of array specifiers", ext));
       let cur_array_rest = Terms.skip n cur_array in
-      if List.for_all2 (fun b t -> 
-	match t.t_desc with
-	  ReplIndex(b') -> b == b'
-	| _ -> false) cur_array_rest creation_array then
-	creation_array
+      if List.for_all2 (==) cur_array_rest creation_array then
+	List.map Terms.term_from_repl_index creation_array
       else
 	raise (Error("Unexpected number of array specifiers", ext))
   | (pe::pel, e::el, t::tl) ->
-      check_type (snd pe) e t.t_type;
+      check_type (snd pe) e t.ri_type;
       e::(check_array_type_list ext pel el cur_array tl)
   | _ ->
       raise (Error("Unexpected number of array specifiers", ext))
@@ -282,7 +278,7 @@ let rec check_term defined_refs cur_array env = function
       try 
 	match StringMap.find s env with
 	  EVar(b) -> 
-	    { t_desc = Var(b,b.args_at_creation); 
+	    { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); 
 	      t_type = b.btype; t_occ = Terms.new_occ(); t_loc = ext2; t_facts = None }
 	| EReplIndex(b) ->
 	    { t_desc = ReplIndex(b); 
@@ -492,7 +488,7 @@ let rec check_find_cond defined_refs cur_array env = function
       let t1' = check_term (Some defined_refs) cur_array env t1 in
       let (env', pat') = check_pattern true defined_refs cur_array env (Some t1'.t_type) pat in
       let def2 = Terms.vars_from_pat [] pat' in
-      let defined_refs' = (List.map (fun b -> (b, b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
       let t2' = check_find_cond defined_refs' cur_array env' t2 in
       let topt' = 
 	match topt, pat with
@@ -598,7 +594,7 @@ let rec insert_ins_now (p', def) (ins, ext) env defined_refs cur_array =
       begin
       match pat' with
 	PatVar b ->
-	  (Terms.oproc_from_desc (Let(pat', t', p', Terms.yield_proc)), def')
+	  (Terms.oproc_from_desc (Let(pat', t', p', Terms.oproc_from_desc Yield)), def')
       |	_ ->
 	  (Terms.oproc_from_desc (Let(pat', t', p', p')), def')
       end
@@ -662,7 +658,7 @@ let rec insert_ins count occ ins env defined_refs cur_array p =
       (Repl(b,p'), def)
   | Input((c,tl),pat, p) ->
       let def2 = Terms.vars_from_pat [] pat in
-      let defined_refs' = (List.map (fun b -> (b, b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let (p', def) = insert_inso count occ ins env' defined_refs' cur_array p in
       check_noninter def def2;
@@ -677,7 +673,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
     | EventAbort f -> (EventAbort f, [])
     | Restr(b,p) ->
 	let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-	let (p', def) = insert_inso count occ ins env' ((b, b.args_at_creation)::defined_refs) cur_array p in
+	let (p', def) = insert_inso count occ ins env' ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) cur_array p in
 	check_noninter def [b];
 	(Restr(b,p'), b::def)
     | Test(t,p1,p2) ->
@@ -689,7 +685,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
 	(EventP(t,p'), def)
     | Let(pat,t,p1,p2) ->
 	let def2 = Terms.vars_from_pat [] pat in
-	let defined_refs' = (List.map (fun b -> (b, b.args_at_creation)) def2) @ defined_refs in
+	let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
 	let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
 	let (p1', def1) = insert_inso count occ ins env' defined_refs' cur_array p1 in
 	check_noninter def1 def2;
@@ -703,7 +699,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
 	  let repl_indices = List.map snd bl in
 	  let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
 	  let def_list' = Terms.subst_def_list repl_indices (List.map Terms.term_from_binder vars) def_list in	  
-	  let accu_dr = ref ((List.map (fun b -> (b, b.args_at_creation)) vars) @ defined_refs) in
+	  let accu_dr = ref ((List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) vars) @ defined_refs) in
 	  List.iter (Terms.close_def_subterm accu_dr) def_list';
 	  let defined_refs' = !accu_dr in
 	  (* I will check that the newly added definitions do not concern 
@@ -779,7 +775,7 @@ type state_ty =
     RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent 
   | RepDone of setf list * int * term * term * Parsing_helper.extent 
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 
 let rec replace_tt count env defined_refs facts proba cur_array t =
   match !count with
@@ -830,7 +826,7 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
   match t.t_desc with
     ResE(b,p) ->
       let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-      Terms.build_term2 t (ResE(b, replace_tfind_cond count env' ((b, b.args_at_creation)::defined_refs) facts proba cur_array p))
+      Terms.build_term2 t (ResE(b, replace_tfind_cond count env' ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) facts proba cur_array p))
   | EventAbortE _ ->
       Parsing_helper.internal_error "event_abort should not occur as term"
   | TestE(t1,t2,t3) ->
@@ -840,7 +836,7 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
       Terms.build_term2 t (TestE(t1',t2',t3'))
   | LetE(pat,t1,t2,topt) ->
       let def2 = Terms.vars_from_pat [] pat in
-      let defined_refs' = (List.map (fun b -> (b, b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let t2' = replace_tfind_cond count env' defined_refs' facts proba cur_array t2 in
       let topt' = 
@@ -895,7 +891,7 @@ let rec replace_t count env defined_refs facts proba cur_array p =
       Repl(b, replace_t count env defined_refs facts proba (b::cur_array) p)
   | Input((c,tl),pat, p) ->
       let def2 = Terms.vars_from_pat [] pat in
-      let defined_refs' = (List.map (fun b -> (b, b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let p' = replace_to count env' defined_refs' facts proba cur_array p in
       let pat' = replace_tpat count env defined_refs facts proba cur_array pat in
@@ -911,7 +907,7 @@ and replace_to count env defined_refs facts proba cur_array p =
     | EventAbort f -> EventAbort f
     | Restr(b,p) ->
 	let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-	Restr(b, replace_to count env' ((b, b.args_at_creation)::defined_refs) facts proba cur_array p)
+	Restr(b, replace_to count env' ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) facts proba cur_array p)
     | Test(t,p1,p2) ->
 	let p1' = replace_to count env defined_refs facts proba cur_array p1 in
 	let p2' = replace_to count env defined_refs facts proba cur_array p2 in
@@ -923,7 +919,7 @@ and replace_to count env defined_refs facts proba cur_array p =
 	EventP(t',p')
     | Let(pat,t,p1,p2) ->
 	let def2 = Terms.vars_from_pat [] pat in
-	let defined_refs' = (List.map (fun b -> (b, b.args_at_creation)) def2) @ defined_refs in
+	let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
 	let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
 	let p1' = replace_to count env' defined_refs' facts proba cur_array p1 in
 	let p2' = replace_to count env defined_refs facts proba cur_array p2 in

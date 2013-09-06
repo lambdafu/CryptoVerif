@@ -22,6 +22,7 @@ let debug_elsefind_facts = ref false
 let debug_simplif_add_facts = ref false
 
 let elsefind_facts_in_replace = ref true
+let max_replace_depth = ref 20
 let elsefind_facts_in_simplify = ref true
 let diff_constants = ref true
 let constants_not_tuple = ref true
@@ -152,6 +153,7 @@ let do_set p v =
   | "elsefindFactsInReplace", S ("false",_) -> elsefind_facts_in_replace := false
   | "elsefindFactsInSimplify", S ("true",_) -> elsefind_facts_in_simplify := true
   | "elsefindFactsInSimplify", S ("false",_) -> elsefind_facts_in_simplify := false
+  | "maxReplaceDepth", I n -> max_replace_depth := n
   | "debugInstruct", S ("true",_) -> debug_instruct := true
   | "debugInstruct", S ("false",_) -> debug_instruct := false
   | "debugFindUnique", S ("true",_) -> debug_find_unique := true
@@ -185,7 +187,6 @@ let tyopt_CHOOSABLE = tyopt_FIXED + tyopt_BOUNDED + tyopt_NONUNIFORM
 let fopt_COMPOS = 1
 let fopt_DECOMPOS = 2
 let fopt_UNIFORM = 8
-let fopt_COMMUT = 4
 
 let tex_output = ref ""
 
@@ -254,31 +255,43 @@ let c_true = { f_name = "true";
 	       f_type = [],t_bool;
 	       f_cat = Std;
 	       f_options = 0;
+	       f_statements = [];
+	       f_collisions = [];
+	       f_eq_theories = NoEq;
                f_impl = Const "true";
                f_impl_inv = None }
 
 let c_false = { f_name = "false";
-	       f_type = [],t_bool;
-	       f_cat = Std;
-	       f_options = 0;
-               f_impl = Const "false";
-               f_impl_inv = None }
+		f_type = [],t_bool;
+		f_cat = Std;
+		f_options = 0;
+		f_statements = [];
+		f_collisions = [];
+		f_eq_theories = NoEq;
+		f_impl = Const "false";
+		f_impl_inv = None }
 
 (* Functions *)
 
-let f_and = { f_name = "&&";
-	      f_type = [t_bool; t_bool], t_bool;
-	      f_cat = And;
-	      f_options = fopt_COMMUT;
-              f_impl = Func "(&&)";
-              f_impl_inv = None }
+let rec f_and = { f_name = "&&";
+		  f_type = [t_bool; t_bool], t_bool;
+		  f_cat = And;
+		  f_options = 0;
+		  f_statements = [];
+		  f_collisions = [];
+		  f_eq_theories = AssocCommutN(f_and, c_true);
+		  f_impl = Func "(&&)";
+		  f_impl_inv = None }
 
-let f_or = { f_name = "||";
-	     f_type = [t_bool; t_bool], t_bool;
-	     f_cat = Or;
-	     f_options = fopt_COMMUT;
-             f_impl = Func "(||)";
-             f_impl_inv = None }
+let rec f_or = { f_name = "||";
+		 f_type = [t_bool; t_bool], t_bool;
+		 f_cat = Or;
+		 f_options = 0;
+		 f_statements = [];
+		 f_collisions = [];
+		 f_eq_theories = AssocCommutN(f_or, c_false);
+		 f_impl = Func "(||)";
+		 f_impl_inv = None }
 
 module HashedCatType =
   struct
@@ -316,7 +329,10 @@ let f_comp cat t t2 =
 	      end;
 	      f_type = [t; t], t_bool;
 	      f_cat = cat;
-	      f_options = if cat == Equal || cat == Diff then fopt_COMMUT else 0;
+	      f_options = 0;
+	      f_statements = [];
+	      f_collisions = [];
+	      f_eq_theories = if cat == Equal || cat == Diff then Commut else NoEq;
               f_impl = 
               begin
                 match cat with
@@ -334,6 +350,9 @@ let f_not = { f_name = "not";
 	      f_type = [t_bool], t_bool;
 	      f_cat = Std;
 	      f_options = 0;
+	      f_statements = [];
+	      f_collisions = [];
+	      f_eq_theories = NoEq;
               f_impl = Func "not";
               f_impl_inv = None;
             }
@@ -362,6 +381,9 @@ let get_tuple_fun tl =
 	      f_cat = Tuple;
 	      f_type = tl, t_bitstring;
 	      f_options = fopt_COMPOS;
+	      f_statements = [];
+	      f_collisions = [];
+	      f_eq_theories = NoEq;
               f_impl = Func "tuple";
               f_impl_inv = Some "detuple" }
     in
@@ -383,7 +405,10 @@ let t_interv = { tname ="[1,*]";
 let f_plus = { f_name = "+";
 	       f_type = [t_interv; t_interv],t_interv;
 	       f_cat = Std;
-	       f_options = fopt_COMMUT;
+	       f_options = 0;
+	       f_statements = [];
+	       f_collisions = [];
+	       f_eq_theories = Commut;
                f_impl = No_impl;
                f_impl_inv = None }
 
@@ -391,7 +416,10 @@ let f_plus = { f_name = "+";
 let f_mul = { f_name = "*";
 	      f_type = [t_interv; t_interv],t_interv;
 	      f_cat = Std;
-	      f_options = fopt_COMMUT;
+	      f_options = 0;
+	      f_statements = [];
+	      f_collisions = [];
+	      f_eq_theories = Commut;
               f_impl = No_impl;
               f_impl_inv = None }
 
@@ -420,6 +448,9 @@ let get_inverse f n =
 		 f_type = [snd f.f_type], (List.nth (fst f.f_type) (n-1));
 		 f_cat = Std;
 		 f_options = fopt_DECOMPOS;
+		 f_statements = [];
+		 f_collisions = [];
+		 f_eq_theories = NoEq;
                  f_impl = No_impl;
                  f_impl_inv = None }
     in
@@ -462,10 +493,6 @@ let event_occurs_in_queries f q =
 	  ) q
 
 (***************************************************************************)
-
-let statements = ref []
-
-let collisions = ref []
 
 let equivs = ref []
 

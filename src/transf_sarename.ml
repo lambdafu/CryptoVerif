@@ -45,7 +45,7 @@ let rec sa_term b0 t =
                   than the current indices in t1, since the latter include the
                   non-empty list bl *)
                t1,
-               Terms.copy_term (Terms.Rename(b0.args_at_creation, b0, b0')) t2)
+               Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, b0')) t2)
             else
 	      (* def_list does not contain if/let/find/res so
 		 no change in it *)
@@ -67,7 +67,7 @@ let rec sa_term b0 t =
 	  else
 	    (* b0 defined in pat and renamed to !target_name *)
 	    LetE(pat', t1, 
-		Terms.copy_term (Terms.Rename(b0.args_at_creation, b0, !target_name)) t2, 
+		Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, !target_name)) t2, 
 		match topt with
 		  Some t3 -> Some (sa_term b0 t3)
 		| None -> None)
@@ -75,7 +75,7 @@ let rec sa_term b0 t =
 	  if b == b0 then
 	    let b0' = Terms.new_binder b0 in
 	    image_name_list := b0' :: (!image_name_list);
-	    ResE(b0', Terms.copy_term (Terms.Rename(b0.args_at_creation, b0, b0')) t)
+	    ResE(b0', Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, b0')) t)
 	  else
 	    ResE(b, sa_term b0 t)
       |	EventAbortE _ ->
@@ -113,7 +113,7 @@ let rec sa_process b0 p =
       else
 	(* b0 defined in pat and renamed to !target_name *)
 	Input((c,List.map (sa_term b0) tl), pat', 
-	      Terms.copy_oprocess (Terms.Rename(b0.args_at_creation, b0, !target_name)) p))
+	      Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, !target_name)) p))
 
 and sa_oprocess b0 p = 
   Terms.oproc_from_desc (
@@ -124,7 +124,7 @@ and sa_oprocess b0 p =
       if b == b0 then
 	let b0' = Terms.new_binder b0 in
 	image_name_list := b0' :: (!image_name_list);
-	Restr(b0', Terms.copy_oprocess (Terms.Rename(b0.args_at_creation, b0, b0')) p)
+	Restr(b0', Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, b0')) p)
       else
 	Restr(b, sa_oprocess b0 p)
   | Test(t,p1,p2) ->
@@ -143,7 +143,7 @@ and sa_oprocess b0 p =
                   than the current indices in t, since the latter include the
                   non-empty list bl *)
 	   t,
-	   Terms.copy_oprocess (Terms.Rename(b0.args_at_creation, b0, b0')) p1)
+	   Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, b0')) p1)
 	else
 	  (* def_list does not contain if/let/find/res so
 	     no change in it *)
@@ -167,7 +167,7 @@ and sa_oprocess b0 p =
       else
 	(* b0 defined in pat and renamed to !target_name *)
 	Let(pat', t, 
-	    Terms.copy_oprocess (Terms.Rename(b0.args_at_creation, b0, !target_name)) p1, 
+	    Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, !target_name)) p1, 
 	    sa_oprocess b0 p2)
   | EventP(t,p) ->
       EventP(sa_term b0 t,

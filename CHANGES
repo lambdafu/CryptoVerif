@@ -3,8 +3,32 @@ of the cryptographic protocol verifier.
 
 Version 1.17
 
+- support for equational theories using the declaration "equation".
+This new declaration leads to two incompatible changes:
+   - the declaration "fun f(T,T):T' [commut]." should now be written
+     	fun f(T,T):T'. 
+	equation commut(f).
+   - the declaration "expand Xor(T, xor)." should now be written
+   "expand Xor(T, xor, zero)." where zero designates the neutral element
+   for xor, a bitstring consisting only of zeroes.
 - the construct "event_abort e" replaces "event e; abort".
+- improved the "replace" transformation, so that it succeeds more often.
+The search depth for this transformation can be set by
+"set maxReplaceDepth = ..."
+- optimized the game simplification
+- generation of OCaml implementations: 
+   - check that the oracle above the beginning of a role has
+   a single return.
+   - check that oracle above a role are also included in a role.
 - fixed minor bug in SSH example.
+- fixed bug that allowed declaring two oracles of the same name
+one after the other: O():= ... return(); O():= ...
+- fixed subtle bug that could lead to an incorrect computation
+of the facts that hold at a certain point in the game, due to
+some terms being physically equal inside the game.
+- fixed bug in which applying a collision statement may lead to
+storing links in it, which interfere with a subsequent application of the
+same collision statement.
 
 Version 1.16
 

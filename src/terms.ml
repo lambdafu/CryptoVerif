@@ -213,14 +213,23 @@ let build_term_type ty desc =
     t_loc = Parsing_helper.dummy_ext;
     t_facts = None }
 
+let term_from_repl_index b =
+  build_term_type b.ri_type (ReplIndex b)
+
 let term_from_binder b =
-  build_term_type b.btype (Var(b, b.args_at_creation))
+  build_term_type b.btype (Var(b, List.map term_from_repl_index b.args_at_creation))
 
 let term_from_binderref (b,l) =
   build_term_type b.btype (Var(b, l))
 
-let term_from_repl_index b =
-  build_term_type b.ri_type (ReplIndex b)
+let is_args_at_creation b l =
+  List.for_all2 (fun ri t -> 
+    match t.t_desc with
+      ReplIndex ri' -> ri == ri'
+    | _ -> false) b.args_at_creation l
+
+let app f l =
+  build_term_type (snd f.f_type) (FunApp(f,l)) 
 
 (* Process from desc *)
 
@@ -235,9 +244,6 @@ let oproc_from_desc2 p d = { p_desc = d; p_occ = p.p_occ; p_facts = p.p_facts }
 let iproc_from_desc3 p d = { i_desc = d; i_occ = p.i_occ; i_facts = None }
 
 let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_facts = None }
-
-let nil_proc = iproc_from_desc Nil
-let yield_proc = oproc_from_desc Yield
 
 (* Constant for each type *)
 
@@ -255,19 +261,24 @@ module TypeHashtbl = Hashtbl.Make(HashedType)
 let cst_for_type_table = TypeHashtbl.create 7
 
 let cst_for_type ty =
-  try
-    TypeHashtbl.find cst_for_type_table ty
-  with Not_found ->
-    let r = build_term_type ty 
-	(FunApp({ f_name = "cst_" ^ ty.tname;
-		  f_type = [],ty;
-		  f_cat = Std;
-		  f_options = 0;
-                  f_impl = No_impl;
-                  f_impl_inv = None },[]))
-    in
-    TypeHashtbl.add cst_for_type_table ty r;
-    r
+  let f = 
+    try
+      TypeHashtbl.find cst_for_type_table ty
+    with Not_found ->
+      let r = { f_name = "cst_" ^ ty.tname;
+		f_type = [],ty;
+		f_cat = Std;
+		f_options = 0;
+		f_statements = [];
+		f_collisions = [];
+		f_eq_theories = NoEq;
+                f_impl = No_impl;
+                f_impl_inv = None }
+      in
+      TypeHashtbl.add cst_for_type_table ty r;
+      r
+  in
+  build_term_type ty (FunApp(f,[]))
 
 (* Is a variable defined by a restriction ? *)
 
@@ -313,40 +324,442 @@ let auto_cleanup f =
 
 (* Equality *)
 
-let rec equal_terms t1 t2 = 
+(* Simplification function:
+   [simp_main_fun try_no_var reduced f t] simplifies term [t].
+   [f] is a binary function with an equational theory. 
+   [simp_main_fun] returns a list of terms [l], such that [t] is equal to
+   the product of the elements of [l] by function [f].
+   [reduced] is set to true when [t] has really been simplified.
+   [try_no_var] is a function from terms to terms that tries to replace
+   variables with their values. It leaves non-variable terms unchanged.
+   It can be the identity when we do not have information on the values
+   of variables.
+   ([simp_main_fun] does not consider cancellations between terms in
+   ACUN or group equational theories, which are considered below by
+   function [simp_prod].) *)
+
+let rec simp_main_fun try_no_var reduced f t =
+  match f.f_eq_theories, (try_no_var t).t_desc with
+    (Assoc | AssocN _ | AssocCommut | AssocCommutN _ | ACUN _ | 
+     Group _ | CommutGroup _), FunApp(f', [t1;t2]) when f == f' -> 
+      (simp_main_fun try_no_var reduced f t1) @ 
+      (simp_main_fun try_no_var reduced f t2)
+  | (Group(f'',inv,n) | CommutGroup(f'',inv,n)), FunApp(inv', [t1]) when inv' == inv ->
+      let reduced' = ref false in
+      let t' = compute_inv try_no_var reduced' (f'',inv,n) t1 in
+      if !reduced' then
+	begin
+	  reduced := true;
+	  simp_main_fun try_no_var reduced f t'
+	end
+      else
+	[t]
+  | (AssocN(_,n) | AssocCommutN(_,n) | ACUN(_,n) | Group(_,_,n) | 
+     CommutGroup(_,_,n)), FunApp(n', []) when n == n' ->
+      (* Eliminate the neutral element *)
+      reduced := true;
+      []
+  | _ -> [t]
+
+(* [compute_inv try_no_var reduced (f, inv, n) t] returns a term equal to 
+   [inv(t)]. 
+   [(f, inv,n)] is supposed to be a group, with product [f],
+   inverse function [inv], and neutral element [n]. 
+   [reduced] is set to true when a simplification occurred
+   during the computation. 
+   [try_no_var] is explained in the function [simp_main_fun]. *)
+
+and compute_inv try_no_var reduced (f, inv, n) t =
+  let t_no_var = try_no_var t in
+  match t_no_var.t_desc with
+    FunApp(inv', [t']) when inv' == inv -> 
+      (* inv(inv(x)) = x *)
+      reduced := true;
+      t'
+  | FunApp(f', [t1;t2]) when f' == f ->
+      (* inv(x.y) = inv(y).inv(x) *)
+      reduced := true;
+      build_term t (FunApp(f, [compute_inv try_no_var reduced (f,inv,n) t2; compute_inv try_no_var reduced (f,inv,n) t1]))
+  | FunApp(n', []) when n' == n ->
+      (* inv(n) = n *)
+      reduced := true;
+      t_no_var
+  | _ ->
+      build_term t (FunApp(inv, [t]))
+
+(* [remove_elem sub_eq a l] returns list [l] with one
+   occurrence of element [a] removed. Function [sub_eq]
+   is used to test equality between elements.
+   When [l] does not contain [a], raises [Not_found]. *)
+
+let rec remove_elem sub_eq a = function
+    [] -> raise Not_found 
+  | (a'::l) ->
+      if sub_eq a a' then l else a'::(remove_elem sub_eq a l)
+
+(* [remove_duplicates reduced sub_eq l] returns list [l]
+   after removing duplicate elements. Function [sub_eq]
+   is used to test equality between elements.
+   [reduced] is set to true when some elements have been removed. *)
+
+let rec remove_duplicates reduced sub_eq = function
+    [] -> []
+  | (a::l) ->
+      try 
+	let l' = remove_elem sub_eq a l in
+	reduced := true;
+	remove_duplicates reduced sub_eq l'
+      with Not_found ->
+	a::(remove_duplicates reduced sub_eq l)
+
+(* [remove_inverse try_no_var reduced group_th sub_eq l] returns list [l]
+   after removing elements that are inverse of one another. 
+   [group_th = (f, inv,n)] is supposed to be a group, with product [f],
+   inverse function [inv], and neutral element [n].    
+   Function [sub_eq] is used to test equality between elements.
+   [reduced] is set to true when some elements have been removed.
+   [try_no_var] is explained in the function [simp_main_fun]. *)
+
+let rec remove_inverse try_no_var reduced group_th sub_eq = function
+    [] -> []
+  | (a::l) ->
+      try 
+	let a_inv = compute_inv try_no_var (ref false) group_th a in
+	let l' = remove_elem sub_eq a_inv l in
+	reduced := true;
+	remove_inverse try_no_var reduced group_th sub_eq l'
+      with Not_found ->
+	a::(remove_inverse try_no_var reduced group_th sub_eq l)
+
+(* [remove_consecutive_inverse try_no_var reduced group_th sub_eq seen_l l]
+   removes consecutive elements of [l] that are inverses of one another.
+   [seen_l] corresponds to the part of [l] already examined by the algorithm,
+   in reverse order. The algorithm always tries to eliminate the first
+   element of [seen_l] and the first element of [l].
+   [group_th = (f, inv,n)] is supposed to be a group, with product [f],
+   inverse function [inv], and neutral element [n].    
+   Function [sub_eq] is used to test equality between elements.
+   [reduced] is set to true when some elements have been removed.
+   [try_no_var] is explained in the function [simp_main_fun]. *)
+
+let rec remove_consecutive_inverse try_no_var reduced group_th sub_eq seen_l l = 
+  match (seen_l, l) with
+    [],[] -> []
+  | [],a::l' -> remove_consecutive_inverse try_no_var reduced group_th sub_eq [a] l'
+  | _ ,[] -> List.rev seen_l
+  | a::seen_l', a'::l' ->
+      let a_inv = compute_inv try_no_var (ref false) group_th a in
+      if sub_eq a_inv a' then
+	begin
+	  reduced := true;
+	  remove_consecutive_inverse try_no_var reduced group_th sub_eq seen_l' l'
+	end
+      else
+	remove_consecutive_inverse try_no_var reduced group_th sub_eq (a'::seen_l) l'
+
+(* [remove_inverse_ends try_no_var reduced group_th sub_eq l] removes the
+   inverse elements at the two ends of the list [l]. In a non-commutative group,
+   the product of the elements [l] is the neutral element if and only if the
+   product of the resulting list is: x * t * x^-1 = e iff t = e by multiplying
+   on the left by x^-1 and on the right by x. 
+   [try_no_var], [reduced], [group_th], and [sub_eq] are as above. *)
+
+let rec cut_list n accu l = 
+  if n = 0 then (accu, l) else
+  match l with
+    [] -> (accu, [])
+  | a::l' -> cut_list (n-1) (a::accu) l'
+
+let rec remove_inverse_prefix try_no_var reduced group_th sub_eq l1 l2 =
+  match l1, l2 with
+    t1::r1, t2::r2 when sub_eq t1 (compute_inv try_no_var (ref false) group_th t2) -> 
+      reduced := true;
+      remove_inverse_prefix try_no_var reduced group_th sub_eq r1 r2
+  | _ -> (l1,l2)    
+
+let remove_inverse_ends try_no_var reduced group_th sub_eq l = 
+  let n = (List.length l) / 2 in
+  let half1, half2 = cut_list n [] l in
+  let half1', half2' = remove_inverse_prefix try_no_var reduced group_th sub_eq half1 half2 in
+  List.rev_append half1' half2'
+
+
+(* [equal_up_to_roll sub_eq l1 l2] returns true when [l1]
+   contains the same elements as [l2], in the same order,
+   but the lists may be rotated, that is,
+   l1 = [t1;...;tn] and l2 = [tk;...;tn;t1;...;t_{k-1}].
+   Function [sub_eq] is used to test equality between elements. *)
+
+let rec equal_up_to_roll_rec sub_eq l1 seen2 rest2 =
+  (List.for_all2 sub_eq l1 (rest2 @ (List.rev seen2))) ||
+  (match rest2 with
+    [] -> false
+  | (a::rest2') ->
+      equal_up_to_roll_rec sub_eq l1 (a::seen2) rest2'
+	)
+
+let equal_up_to_roll sub_eq l1 l2 =
+  (List.length l1 == List.length l2) && 
+  (equal_up_to_roll_rec sub_eq l1 [] l2)
+
+(* Simplification function:
+   [simp_prod try_no_var reduced sub_eq f t] simplifies term [t].
+   [f] is a binary function with an equational theory. 
+   [simp_prod] returns a list of terms [l], such that [t] is equal to
+   the product of the elements of [l] by function [f].
+   Function [sub_eq] is used to test equality between elements.
+   [reduced] is set to true when [t] has really been simplified.
+   [try_no_var] is explained in the function [simp_main_fun]. *)
+
+let simp_prod try_no_var reduced sub_eq f t =
+  let l = simp_main_fun try_no_var reduced f t in
+  match f.f_eq_theories with
+    ACUN _ -> 
+      (* Remove duplicates from the list, since they cancel out *)
+      remove_duplicates reduced sub_eq l
+  | Group(f',inv,n) ->
+      (* Remove pairs formed of an element immediately followed by its inverse,
+	 since they cancel out. *)
+      remove_consecutive_inverse try_no_var reduced (f',inv,n) sub_eq [] l
+  | CommutGroup(f',inv,n) ->
+      (* Remove pairs of an element and its inverse since they cancel out *)
+      remove_inverse try_no_var reduced (f',inv,n) sub_eq l
+  | _ -> l
+
+let get_neutral f =
+  match f.f_eq_theories with
+    ACUN(_,n) | Group(_,_,n) | CommutGroup(_,_,n) -> n
+  | _ -> Parsing_helper.internal_error "equational theory has no neutral element in Terms.get_neutral"
+
+
+(* [equal_up_to_order sub_eq l1 l2] returns true when the
+   lists [l1] and [l2] are equal up to the ordering of their
+   elements. 
+   The function [sub_eq] is used to test equality between elements. *)
+
+let rec equal_up_to_order sub_eq l1 l2 =
+  match l1,l2 with
+    [],[] -> true
+  | [],_ | _,[] -> false
+  | (a::l,_) ->
+      try
+	let l2' = remove_elem sub_eq a l2 in
+	equal_up_to_order sub_eq l l2'
+      with Not_found ->
+	false
+
+(* [simp_inverse try_no_var t] tries to simplify [t] when it is [inv(...)].
+   Raises [Not_found] when [t] is not an inverse or cannot be 
+   simplified.
+   [try_no_var] is explained in the function [simp_main_fun].
+   [t] is supposed to be already the result of a call to [try_no_var],
+   except when it is the identity, so that [try_no_var] is not
+   applied to [t] itself in this function. 
+
+let simp_inverse try_no_var t =
+  (* Try to simplify t when it is an inverse *)
+  match t.t_desc with
+    FunApp(inv, [t']) ->
+      begin
+	match inv.f_eq_theories with
+	  Group(f,inv',n) | CommutGroup(f,inv',n) when inv == inv' ->
+	    (* inv is an inverse function *)
+	    let reduced = ref false in
+	    let t_simp = compute_inv try_no_var reduced (f,inv',n) t' in
+	    if !reduced then t_simp else raise Not_found
+	| _ -> raise Not_found
+      end
+  | _ -> raise Not_found
+*)
+
+(* [get_prod try_no_var t] returns the equational theory of the root
+   function symbol of term [t], when it is a product
+   in a group or xor. *)
+
+let get_prod try_no_var t =
+  match (try_no_var t).t_desc with
+    FunApp(f,[_;_]) ->
+      begin
+	match f.f_eq_theories with
+	  Group(prod,_,_) | CommutGroup(prod,_,_) 
+	| ACUN(prod,_) when prod == f -> 
+	    f.f_eq_theories
+	| _ -> NoEq
+      end
+  | _ -> NoEq
+
+(* [get_prod_list try_no_var l] returns the equational theory of the root
+   function symbol of a term in [l], when it is a product
+   in a group or xor. *)
+
+let rec get_prod_list try_no_var = function
+    [] -> NoEq
+  | t::l ->
+      match (try_no_var t).t_desc with
+	FunApp(f,[_;_]) ->
+	  begin
+	  match f.f_eq_theories with
+	    Group(prod,_,_) | CommutGroup(prod,_,_) 
+	  | ACUN(prod,_) when prod == f -> 
+	      f.f_eq_theories
+	  | _ -> get_prod_list try_no_var l
+	  end
+      |	_ -> get_prod_list try_no_var l
+
+(* Equality test *)
+
+let try_no_var_id t = t
+
+let rec simp_equal_terms try_no_var t1 t2 = 
+  if try_no_var == try_no_var_id then
+    simp_equal_terms1 try_no_var t1 t2
+  else
+    match t1.t_desc, t2.t_desc with
+      (Var _, Var _) when simp_equal_terms1 try_no_var_id t1 t2 -> true
+    | _, _ ->
+	let t1' = try_no_var t1 in
+	let t2' = try_no_var t2 in
+	simp_equal_terms1 try_no_var t1' t2'
+
+and simp_equal_terms1 try_no_var t1 t2 =
   match (t1.t_desc, t2.t_desc) with
     Var(b1,l1),Var(b2,l2) ->
       (b1 == b2) && (List.for_all2 equal_terms l1 l2)
   | ReplIndex b1, ReplIndex b2 -> b1 == b2
-  | FunApp(f1,[t1;t1']),FunApp(f2,[t2;t2']) when f1 == f2 && f1.f_options land Settings.fopt_COMMUT != 0 ->
+  | FunApp(f1, [t1;t1']), FunApp(f2, [t2;t2']) when 
+      f1 == f2 && (f1.f_cat == Equal || f1.f_cat == Diff) ->
+	(* It is important to test this case before the commutative
+	   function symbols: = and <> are also commutative function
+	   symbols. *)
+	begin
+	  (* In a group, when t1/t1' = t2/t2', we have t1 = t1' if and only if t2 = t2'.
+	     With xor, when t1 xor t1' = t2 xor t2', we have t1 = t1' if and only if t2 = t2'. *)
+	  match get_prod_list try_no_var [t1;t1';t2;t2'] with
+	    ACUN(xor,_) ->
+	      simp_equal_terms try_no_var (app xor [t1;t1']) (app xor [t2;t2'])
+	  | CommutGroup(prod,inv,_) ->
+	      (simp_equal_terms try_no_var (app prod [t1; app inv [t1']])
+		(app prod [t2; app inv [t2']])) ||
+	      (simp_equal_terms try_no_var (app prod [t1; app inv [t1']]) 
+		(app prod [t2'; app inv [t2]]))
+	  | Group(prod,inv,neut) ->
+	      (* For non-commutative groups, I can still commute a term
+		 and its inverse, so I try all possibilities. 
+		 t1 = t1' iff t1/t1' = neut iff the product of the elements of [l1] is neut 
+		          iff the product of the elements of [l1'] is neut 
+		 Similarly, t2 = t2' iff the product of the elements of [l2'] is neut.
+		 The product of the elements of [l2''] is the inverse of 
+		 the product of the elements of [l2'],
+		 so one is neut iff the other is.
+		 *)
+	      let l1 = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) prod (app prod [t1; app inv [t1']]) in
+	      let l1' = remove_inverse_ends try_no_var (ref false) (prod, inv, neut) (simp_equal_terms try_no_var) l1 in
+	      let l2 = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) prod (app prod [t2; app inv [t2']]) in
+	      let l2' = remove_inverse_ends try_no_var (ref false) (prod, inv, neut) (simp_equal_terms try_no_var) l2 in
+	      (equal_up_to_roll (simp_equal_terms try_no_var) l1' l2') || 
+	      (let l2'' = List.rev (List.map (compute_inv try_no_var (ref false) (prod, inv, neut)) l2') in
+	      equal_up_to_roll (simp_equal_terms try_no_var) l1' l2'')
+	  | _ -> 
+	      ((simp_equal_terms try_no_var t1 t2) && (simp_equal_terms try_no_var t1' t2')) ||
+	      ((simp_equal_terms try_no_var t1 t2') && (simp_equal_terms try_no_var t1' t2))
+	end
+  | FunApp(f1,[t1;t1']),FunApp(f2,[t2;t2']) when f1 == f2 && f1.f_eq_theories = Commut ->
       (* Commutative function symbols *)
-      ((equal_terms t1 t2) && (equal_terms t1' t2')) ||
-      ((equal_terms t1 t2') && (equal_terms t1' t2))
+      ((simp_equal_terms try_no_var t1 t2) && (simp_equal_terms try_no_var t1' t2')) ||
+      ((simp_equal_terms try_no_var t1 t2') && (simp_equal_terms try_no_var t1' t2))
+  | FunApp({f_eq_theories = (Group(f,inv',n) | CommutGroup(f,inv',n)) } as inv, [t1']), _ when inv' == inv ->
+      (* inv is an inverse function *)
+      let reduced = ref false in
+      let t1_simp = compute_inv try_no_var reduced (f,inv',n) t1' in
+      if !reduced then simp_equal_terms try_no_var t1_simp t2 else 
+      begin
+        match t2.t_desc with
+          FunApp({f_eq_theories = (Group(f2,inv2',n2) | CommutGroup(f2,inv2',n2)) } as inv2, [t2']) when inv2' == inv2 ->
+            (* inv2 is an inverse function *)
+            let reduced = ref false in
+            let t2_simp = compute_inv try_no_var reduced (f2,inv2',n2) t2' in
+            if !reduced then simp_equal_terms try_no_var t1 t2_simp else 
+            (inv == inv2) && (simp_equal_terms try_no_var t1' t2')
+        | FunApp(f2, [_;_]) when f2.f_eq_theories != NoEq && f2.f_eq_theories != Commut ->
+            (* f2 is a binary function with an equational theory that is
+	       not commutativity nor inverse -> it is a product-like function *)
+            let l2 = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) f2 t2 in
+            begin
+	      match l2 with
+	        [] -> simp_equal_terms try_no_var t1 (build_term t2 (FunApp(get_neutral f2, [])))
+	      | [t] -> simp_equal_terms try_no_var t1 t
+	      | _ -> (* t2 is a product and t1 is not (it is an inverse), so they cannot be equal *)
+	         false
+            end
+        | _ -> (* t2 is not an inverse nor a product, it cannot be equal to t1 *) false
+      end
+  | FunApp(f1,[_;_]),_ when f1.f_eq_theories != NoEq && f1.f_eq_theories != Commut ->
+      (* f1 is a binary function with an equational theory that is
+	 not commutativity nor inverse -> it is a product-like function *)
+      let l1 = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) f1 t1 in
+      begin
+	match l1 with
+	  [] -> simp_equal_terms try_no_var (build_term t1 (FunApp(get_neutral f1, []))) t2
+	| [t] -> simp_equal_terms try_no_var t t2
+	| _ -> 
+	    let l2 = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) f1 t2 in
+	    match f1.f_eq_theories with
+	      NoEq | Commut -> Parsing_helper.internal_error "Terms.equal_terms: cases NoEq, Commut should have been eliminated"
+	    | AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+		(* Commutative equational theories: test equality up to ordering *)
+		(List.length l1 == List.length l2) &&
+		(equal_up_to_order (simp_equal_terms try_no_var) l1 l2)
+	    | Assoc | AssocN _ | Group _ -> 
+		(* Non-commutative equational theories: test equality in the same order *)
+		equal_lists (simp_equal_terms try_no_var) l1 l2		
+      end
+  | _, FunApp({f_eq_theories = (Group(f,inv',n) | CommutGroup(f,inv',n)) } as inv, [t2']) when inv == inv' ->
+      (* inv is an inverse function *)
+      let reduced = ref false in
+      let t2_simp = compute_inv try_no_var reduced (f,inv',n) t2' in
+      if !reduced then simp_equal_terms try_no_var t1 t2_simp else 
+      (* t1 is not a product nor an inverse, otherwise the previous cases 
+         would have been triggered, so t1 cannot be equal to t2 *)
+      false
+  | _, FunApp(f2, [_;_]) when f2.f_eq_theories != NoEq && f2.f_eq_theories != Commut ->
+      (* f2 is a binary function with an equational theory that is
+	 not commutativity nor inverse -> it is a product-like function *)
+      let l2 = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) f2 t2 in
+      begin
+	match l2 with
+	  [] -> simp_equal_terms try_no_var t1 (build_term t2 (FunApp(get_neutral f2, [])))
+	| [t] -> simp_equal_terms try_no_var t1 t
+	| _ -> (* t2 is a product and t1 is not (otherwise the previous case
+		  would have been triggered), so they cannot be equal *)
+	    false
+      end
   | FunApp(f1,l1),FunApp(f2,l2) ->
-      (f1 == f2) && (List.for_all2 equal_terms l1 l2)
+      (f1 == f2) && (List.for_all2 (simp_equal_terms try_no_var) l1 l2)
   | TestE(t1,t2,t3), TestE(t1',t2',t3') ->
-      (equal_terms t1 t1') && (equal_terms t2 t2') && (equal_terms t3 t3')
+      (simp_equal_terms try_no_var t1 t1') && (simp_equal_terms try_no_var t2 t2') && (simp_equal_terms try_no_var t3 t3')
   | FindE(l,t3,find_info),FindE(l',t3',find_info') ->
       (* Could do modulo renaming of bl and bl'! *)
       (equal_lists (fun (bl,def_list,t1,t2) (bl',def_list',t1',t2') ->
 	(equal_lists (fun (b1,b2) (b1', b2') -> (b1 == b1') && (b2 == b2')) bl bl') && 
 	(equal_def_lists def_list def_list') && 
-	(equal_terms t1 t1') && (equal_terms t2 t2')) l l') && 
-      (equal_terms t3 t3') &&
+	(simp_equal_terms try_no_var t1 t1') && (simp_equal_terms try_no_var t2 t2')) l l') && 
+      (simp_equal_terms try_no_var t3 t3') &&
       (find_info == find_info')
   | LetE(pat, t1, t2, topt), LetE(pat', t1', t2', topt') ->
       (equal_pats pat pat') &&
-      (equal_terms t1 t1') &&
-      (equal_terms t2 t2') &&
+      (simp_equal_terms try_no_var t1 t1') &&
+      (simp_equal_terms try_no_var t2 t2') &&
       (match topt, topt' with
 	None, None -> true
-      |	Some t3, Some t3' -> equal_terms t3 t3'
+      |	Some t3, Some t3' -> simp_equal_terms try_no_var t3 t3'
       |	_ -> false)
   | ResE(b,t), ResE(b',t') ->
-      (b == b') && (equal_terms t t')
+      (b == b') && (simp_equal_terms try_no_var t t')
   | EventAbortE(f), EventAbortE(f') -> 
       f == f'
   | _ -> false
+
+and equal_terms t1 t2 = simp_equal_terms1 try_no_var_id t1 t2
 
 and equal_def_lists def_list def_list' =
   equal_lists equal_binderref def_list def_list'
@@ -407,6 +820,37 @@ let equal_elsefind_facts (bl1,def_list1,t1) (bl2,def_list2,t2) =
   equal_lists (==) bl1 bl2 && 
   equal_def_lists def_list1 def_list2 && 
   equal_terms t1 t2
+
+(* Compute a product *)
+
+let rec make_prod prod = function
+    [] -> 
+      begin
+	(* Look for the neutral element of the product *)
+	match prod.f_eq_theories with
+	  Group(_,_,n) | CommutGroup(_,_,n) | AssocN(_,n) 
+	| AssocCommutN(_,n) | ACUN(_,n) -> 
+	    build_term_type (snd n.f_type) (FunApp(n, []))
+	| _ -> 
+	    Parsing_helper.internal_error "Empty product impossible without a neutral element"
+      end
+  | [t] -> t
+  | t::l -> build_term_type t.t_type (FunApp(prod, [t; make_prod prod l]))
+  
+(* [make_inv_prod eq_th l1 t l2] computes the product 
+   inv (product (List.rev l1)) * t * inv(product l2) *)
+
+let make_inv_prod eq_th l1 t l2 =
+  match eq_th with
+    ACUN(prod, neut) ->
+      make_prod prod (l1 @ (t::l2))
+  | Group(prod, inv, neut) | CommutGroup(prod, inv, neut) ->
+      let compute_inv = compute_inv try_no_var_id (ref false) (prod, inv, neut) in
+      let inv_rev_l1 = List.map compute_inv l1 in
+      let inv_l2 = List.map compute_inv (List.rev l2) in
+      make_prod prod (inv_rev_l1 @ (t :: inv_l2))
+  | _ -> Parsing_helper.internal_error "No product in make_inv_prod"
+
 
 (* Compute the length of the longest common prefix *)
 
@@ -638,6 +1082,130 @@ and get_deflist_oprocess accu p =
       get_deflist_oprocess accu p
       
 
+(* Change the occurrences and make sure nodes associated with Find
+   are distinct for different occurrences of Find *)
+
+let rec move_occ_term t = 
+  let occ = new_occ() in
+  { t_desc = 
+      (match t.t_desc with
+	Var(b,l) -> Var(b, List.map move_occ_term l)
+      |	ReplIndex i -> ReplIndex i
+      |	FunApp(f,l) -> FunApp(f, List.map move_occ_term l)
+      |	TestE(t1,t2,t3) -> 
+	  let t1' = move_occ_term t1 in
+	  let t2' = move_occ_term t2 in
+	  let t3' = move_occ_term t3 in 
+	  TestE(t1', t2', t3')
+      |	FindE(l0,t3, find_info) -> 
+	  let l0' = List.map (fun (bl,def_list,t1,t2) ->
+	    let def_list' = List.map move_occ_br def_list in
+	    let t1' = move_occ_term t1 in
+	    let t2' = move_occ_term t2 in
+	    (bl, def_list', t1', t2')) l0
+	  in
+	  let t3' = move_occ_term t3 in
+	  FindE(l0', t3', find_info)
+      |	LetE(pat, t1, t2, topt) ->
+	  let pat' = move_occ_pat pat in
+	  let t1' = move_occ_term t1 in
+	  let t2' = move_occ_term t2 in
+	  let topt' = match topt with
+		 None -> None
+	       | Some t3 -> Some (move_occ_term t3)
+	  in
+	  LetE(pat', t1', t2', topt')
+      |	ResE(b,t) ->
+	  ResE(b, move_occ_term t)
+      |	EventAbortE f -> EventAbortE f 
+	    );
+    t_type = t.t_type;
+    t_occ = occ; 
+    t_loc = Parsing_helper.dummy_ext;
+    t_facts = None }
+
+and move_occ_pat = function
+    PatVar b -> PatVar b
+  | PatTuple (f,l) -> PatTuple(f,List.map move_occ_pat l)
+  | PatEqual t -> PatEqual(move_occ_term t)
+
+and move_occ_br (b,l) = (b, List.map move_occ_term l)
+
+let rec move_occ_process p = 
+  let occ = new_occ() in
+  { i_desc = 
+      (match p.i_desc with
+	Nil -> Nil
+      | Par(p1,p2) -> 
+	  let p1' = move_occ_process p1 in
+	  let p2' = move_occ_process p2 in
+	  Par(p1', p2')
+      | Repl(b,p) -> Repl(b, move_occ_process p)
+      | Input((c,tl),pat,p) ->
+	  let tl' = List.map move_occ_term tl in
+	  let pat' = move_occ_pat pat in
+	  let p' = move_occ_oprocess p in
+	  Input((c, tl'), pat', p'));
+    i_occ = occ; 
+    i_facts = None }
+
+and move_occ_oprocess p =
+  let occ = new_occ() in
+  { p_desc = 
+      (match p.p_desc with
+	Yield -> Yield
+      |	EventAbort f -> EventAbort f
+      | Restr(b,p) -> Restr(b, move_occ_oprocess p)
+      | Test(t,p1,p2) -> 
+	  let t' = move_occ_term t in
+	  let p1' = move_occ_oprocess p1 in
+	  let p2' = move_occ_oprocess p2 in
+	  Test(t', p1', p2')
+      | Find(l0, p2, find_info) -> 
+	  let l0' = List.map (fun (bl, def_list, t, p1) -> 
+	    let def_list' = List.map move_occ_br def_list in
+	    let t' = move_occ_term t in
+	    let p1' = move_occ_oprocess p1 in
+	    (bl, def_list', t', p1')) l0
+	  in
+	  let p2' = move_occ_oprocess p2 in
+	  Find(l0', p2', find_info)
+      | Let(pat,t,p1,p2) ->
+	  let pat' = move_occ_pat pat in
+	  let t' = move_occ_term t in
+	  let p1' = move_occ_oprocess p1 in
+	  let p2' = move_occ_oprocess p2 in	  
+	  Let(pat', t', p1', p2')
+      | Output((c,tl),t2,p) ->
+	  let tl' = List.map move_occ_term tl in
+	  let t2' = move_occ_term t2 in
+	  let p' = move_occ_process p in
+	  Output((c, tl'), t2', p')
+      | EventP(t,p) ->
+	  let t' = move_occ_term t in
+	  let p' = move_occ_oprocess p in
+	  EventP(t', p')
+      | Get(tbl,patl,topt,p1,p2) -> 
+	  let patl' = List.map move_occ_pat patl in
+	  let topt' = 
+	    match topt with 
+	      Some t -> Some (move_occ_term t) 
+	    | None -> None
+	  in
+	  let p1' = move_occ_oprocess p1 in
+	  let p2' = move_occ_oprocess p2 in	  
+          Get(tbl,patl',topt',p1', p2')
+      | Insert (tbl,tl,p) -> 
+	  let tl' = List.map move_occ_term tl in
+	  let p' = move_occ_oprocess p in
+          Insert(tbl, tl', p'));
+    p_occ = occ;
+    p_facts = None }
+
+let move_occ_process p =
+  occ := 0;
+  move_occ_process p
+
 (* Copy a term
    Preserves occurrences of the original term. This is useful so that
    we can designate variables by occurrences in simplify coll_elim;
@@ -705,22 +1273,25 @@ and copy_term transf t =
 	| Links_RI | Links_RI_Vars -> 
 	    match b.ri_link with
 	      NoLink -> t
-	    | TLink t' -> t'
+	    | TLink t' -> move_occ_term t' (* Same comment as in case OneSubst *)
       end
   | Var(b,l) ->
       begin
         match transf with
           OneSubst(b',t',changed) ->
-            if (b == b') && (List.for_all2 equal_terms l b.args_at_creation) then
+            if (b == b') && (is_args_at_creation b l) then
 	      begin
 		changed := true;
-                t'
+                move_occ_term t' (* This just makes a copy of the same term -- This is needed
+				    to make sure that all terms are physically distinct,
+				    which is needed to store facts correctly in
+				    [Terms.build_def_process]. *)
 	      end
             else
 	      build_term2 t (Var(b,List.map (copy_term transf) l))
 	| OneSubstArgs((b',l'), t') ->
 	    if (b == b') && (List.for_all2 equal_terms l l') then
-	      t'
+	      move_occ_term t' (* Same comment as in case OneSubst *)
 	    else
 	      build_term2 t (Var(b,List.map (copy_term transf) l))
 	| Rename _ ->
@@ -734,12 +1305,12 @@ and copy_term transf t =
 	      | TLink t ->
 		  let t = copy_term transf t in
                   (* Rename array indices *)
-		  subst (List.map repl_index_from_term b.args_at_creation) l' t
+		  subst b.args_at_creation l' t
 	    end
 	| Links_RI ->  build_term2 t (Var(b,List.map (copy_term transf) l))
 	| Links_Vars | Links_RI_Vars ->
 	    match b.link with
-	      TLink t' when List.for_all2 equal_terms l b.args_at_creation -> t'
+	      TLink t' when is_args_at_creation b l -> move_occ_term t' (* Same comment as in case OneSubst *)
 	    | _ -> build_term2 t (Var(b,List.map (copy_term transf) l))
       end
   | FunApp(f,l) ->
@@ -780,7 +1351,7 @@ and copy_def_list transf def_list =
       List.map (fun (b,l) ->
         (b, List.map (copy_term transf) l)) 
        (List.filter (fun (b,l) ->
-          not ((b == b') && (List.for_all2 equal_terms b.args_at_creation l))) def_list)
+          not ((b == b') && (is_args_at_creation b l))) def_list)
   | OneSubstArgs((b',l'), t') ->
       List.map (fun (b,l) ->
         (b, List.map (copy_term transf) l)) 
@@ -824,7 +1395,7 @@ and copy_def_list transf def_list =
       List.map (fun (b,l) ->
         (b, List.map (copy_term transf) l)) 
        (List.filter (fun (b,l) ->
-          not ((b.link != NoLink) && (List.for_all2 equal_terms b.args_at_creation l))) def_list)
+          not ((b.link != NoLink) && (is_args_at_creation b l))) def_list)
       
 and copy_pat transf = function
   PatVar b -> PatVar b
@@ -928,6 +1499,7 @@ let subst_oprocess3 subst p =
   auto_cleanup (fun () ->
     List.iter (fun (b,t') -> link b (TLink t')) subst;
     copy_oprocess Links_Vars p)
+
 
 (* Check whether a term t refers to a binder b0 *)
 
@@ -1055,9 +1627,8 @@ let make_false () =
   build_term_type Settings.t_bool (FunApp(Settings.c_false, []))
 
 let make_and_ext ext t t' =
-  if (is_false t) || (is_false t') then make_false() else
-  if is_true t then t' else
-  if is_true t' then t else
+  if (is_true t) || (is_false t') then t' else
+  if (is_true t') || (is_false t) then t else
   { t_desc = FunApp(Settings.f_and, [t;t']);
     t_type = Settings.t_bool;
     t_occ = new_occ();
@@ -1067,9 +1638,8 @@ let make_and_ext ext t t' =
 let make_and t t' =  make_and_ext Parsing_helper.dummy_ext t t'
 
 let make_or_ext ext t t' =
-  if (is_true t) || (is_true t') then make_true() else
-  if is_false t then t' else
-  if is_false t' then t else
+  if (is_false t) || (is_true t') then t' else
+  if (is_false t') || (is_true t) then t else
   { t_desc = FunApp(Settings.f_or, [t;t']);
     t_type = Settings.t_bool;
     t_occ = new_occ();
@@ -1197,130 +1767,6 @@ let rec split_term f0 t =
 
 
   
-(* Change the occurrences and make sure nodes associated with Find
-   are distinct for different occurrences of Find *)
-
-let rec move_occ_term t = 
-  let occ = new_occ() in
-  { t_desc = 
-      (match t.t_desc with
-	Var(b,l) -> Var(b, List.map move_occ_term l)
-      |	ReplIndex i -> ReplIndex i
-      |	FunApp(f,l) -> FunApp(f, List.map move_occ_term l)
-      |	TestE(t1,t2,t3) -> 
-	  let t1' = move_occ_term t1 in
-	  let t2' = move_occ_term t2 in
-	  let t3' = move_occ_term t3 in 
-	  TestE(t1', t2', t3')
-      |	FindE(l0,t3, find_info) -> 
-	  let l0' = List.map (fun (bl,def_list,t1,t2) ->
-	    let def_list' = List.map move_occ_br def_list in
-	    let t1' = move_occ_term t1 in
-	    let t2' = move_occ_term t2 in
-	    (bl, def_list', t1', t2')) l0
-	  in
-	  let t3' = move_occ_term t3 in
-	  FindE(l0', t3', find_info)
-      |	LetE(pat, t1, t2, topt) ->
-	  let pat' = move_occ_pat pat in
-	  let t1' = move_occ_term t1 in
-	  let t2' = move_occ_term t2 in
-	  let topt' = match topt with
-		 None -> None
-	       | Some t3 -> Some (move_occ_term t3)
-	  in
-	  LetE(pat', t1', t2', topt')
-      |	ResE(b,t) ->
-	  ResE(b, move_occ_term t)
-      |	EventAbortE f -> EventAbortE f 
-	    );
-    t_type = t.t_type;
-    t_occ = occ; 
-    t_loc = Parsing_helper.dummy_ext;
-    t_facts = None }
-
-and move_occ_pat = function
-    PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple(f,List.map move_occ_pat l)
-  | PatEqual t -> PatEqual(move_occ_term t)
-
-and move_occ_br (b,l) = (b, List.map move_occ_term l)
-
-let rec move_occ_process p = 
-  let occ = new_occ() in
-  { i_desc = 
-      (match p.i_desc with
-	Nil -> Nil
-      | Par(p1,p2) -> 
-	  let p1' = move_occ_process p1 in
-	  let p2' = move_occ_process p2 in
-	  Par(p1', p2')
-      | Repl(b,p) -> Repl(b, move_occ_process p)
-      | Input((c,tl),pat,p) ->
-	  let tl' = List.map move_occ_term tl in
-	  let pat' = move_occ_pat pat in
-	  let p' = move_occ_oprocess p in
-	  Input((c, tl'), pat', p'));
-    i_occ = occ; 
-    i_facts = None }
-
-and move_occ_oprocess p =
-  let occ = new_occ() in
-  { p_desc = 
-      (match p.p_desc with
-	Yield -> Yield
-      |	EventAbort f -> EventAbort f
-      | Restr(b,p) -> Restr(b, move_occ_oprocess p)
-      | Test(t,p1,p2) -> 
-	  let t' = move_occ_term t in
-	  let p1' = move_occ_oprocess p1 in
-	  let p2' = move_occ_oprocess p2 in
-	  Test(t', p1', p2')
-      | Find(l0, p2, find_info) -> 
-	  let l0' = List.map (fun (bl, def_list, t, p1) -> 
-	    let def_list' = List.map move_occ_br def_list in
-	    let t' = move_occ_term t in
-	    let p1' = move_occ_oprocess p1 in
-	    (bl, def_list', t', p1')) l0
-	  in
-	  let p2' = move_occ_oprocess p2 in
-	  Find(l0', p2', find_info)
-      | Let(pat,t,p1,p2) ->
-	  let pat' = move_occ_pat pat in
-	  let t' = move_occ_term t in
-	  let p1' = move_occ_oprocess p1 in
-	  let p2' = move_occ_oprocess p2 in	  
-	  Let(pat', t', p1', p2')
-      | Output((c,tl),t2,p) ->
-	  let tl' = List.map move_occ_term tl in
-	  let t2' = move_occ_term t2 in
-	  let p' = move_occ_process p in
-	  Output((c, tl'), t2', p')
-      | EventP(t,p) ->
-	  let t' = move_occ_term t in
-	  let p' = move_occ_oprocess p in
-	  EventP(t', p')
-      | Get(tbl,patl,topt,p1,p2) -> 
-	  let patl' = List.map move_occ_pat patl in
-	  let topt' = 
-	    match topt with 
-	      Some t -> Some (move_occ_term t) 
-	    | None -> None
-	  in
-	  let p1' = move_occ_oprocess p1 in
-	  let p2' = move_occ_oprocess p2 in	  
-          Get(tbl,patl',topt',p1', p2')
-      | Insert (tbl,tl,p) -> 
-	  let tl' = List.map move_occ_term tl in
-	  let p' = move_occ_oprocess p in
-          Insert(tbl, tl', p'));
-    p_occ = occ;
-    p_facts = None }
-
-let move_occ_process p =
-  occ := 0;
-  move_occ_process p
-
 (* Empty tree of definition dependances 
    The treatment of TestE/FindE/LetE/ResE is necessary: build_def_process
    is called in check.ml.
@@ -1482,7 +1928,7 @@ let defined_refs_find bl def_list defined_refs =
   let vars = List.map fst bl in
   let repl_indices = List.map snd bl in
   let def_list' = subst_def_list repl_indices (List.map term_from_binder vars) def_list in
-  let accu = ref ((List.map (fun b -> (b, b.args_at_creation)) vars) @ defined_refs) in
+  let accu = ref ((List.map (fun b -> (b, List.map term_from_repl_index b.args_at_creation)) vars) @ defined_refs) in
   List.iter (close_def_subterm accu) def_list';
   let defined_refs_branch = !accu in
   (defined_refs_cond, defined_refs_branch)
@@ -1550,6 +1996,8 @@ In cases ReplIndex, FindE, n' = above_node.
 In the other cases, we use the induction hypothesis. *)
 
 let rec def_term event_accu above_node true_facts def_vars t =
+  if (t.t_facts != None) then
+    Parsing_helper.internal_error "Two terms physically equal: cannot compute facts correctly";
   t.t_facts <- Some (true_facts, def_vars, above_node);
   match t.t_desc with
     Var(_,l) | FunApp(_,l) ->
@@ -1657,6 +2105,8 @@ and def_pattern_list accu event_accu above_node true_facts def_vars = function
    def_vars contains the def_list, which is not included in above_node.def_vars_at_def. *)
 
 let rec def_process event_accu above_node true_facts def_vars p' =
+  if p'.i_facts != None then
+    Parsing_helper.internal_error "Two processes physically equal: cannot compute facts correctly";
   p'.i_facts <- Some (true_facts, def_vars, above_node);
   match p'.i_desc with
     Nil -> ()
@@ -1697,6 +2147,8 @@ let rec def_process event_accu above_node true_facts def_vars p' =
       above_node'''.future_true_facts <- fut_true_facts
 
 and def_oprocess event_accu above_node true_facts def_vars elsefind_facts p' =
+  if p'.p_facts != None then
+    Parsing_helper.internal_error "Two processes physically equal: cannot compute facts correctly";
   p'.p_facts <- Some (true_facts, def_vars, above_node);
   match p'.p_desc with
     Yield -> 
@@ -1922,7 +2374,7 @@ let add b =
 let rec array_ref_term in_scope t = 
   match t.t_desc with
     Var(b, l) -> 
-      if List.for_all2 equal_terms l b.args_at_creation &&
+      if is_args_at_creation b l &&
 	List.memq b in_scope then
 	b.std_ref <- true
       else
@@ -1972,7 +2424,7 @@ and array_ref_pattern in_scope = function
 and array_ref_def_list in_scope' def_list =
   List.iter (fun (b,l) -> 
     List.iter (array_ref_term in_scope') l;
-    if List.for_all2 equal_terms l b.args_at_creation &&
+    if is_args_at_creation b l &&
       List.memq b in_scope' then
       b.root_def_std_ref <- true
     else
@@ -2087,7 +2539,7 @@ let add_exclude b =
 let rec exclude_array_ref_term in_scope t = 
   match t.t_desc with
     Var(b, l) -> 
-      if not (List.for_all2 equal_terms l b.args_at_creation &&
+      if not (is_args_at_creation b l &&
 	List.memq b in_scope) then
 	begin
       	  b.count_exclude_array_ref <- b.count_exclude_array_ref + 1;
@@ -2129,7 +2581,7 @@ and exclude_array_ref_pattern in_scope = function
 and exclude_array_ref_def_list in_scope' def_list = 
   List.iter (fun (b,l) -> 
     List.iter (exclude_array_ref_term in_scope') l;
-    if not (List.for_all2 equal_terms l b.args_at_creation &&
+    if not (is_args_at_creation b l &&
 	    List.memq b in_scope') then
       begin
 	b.count_exclude_array_ref <- b.count_exclude_array_ref + 1;
@@ -2460,7 +2912,7 @@ let rec update_args_at_creation cur_array t =
 	  let def_list' = List.map (update_args_at_creation_br cur_array_cond) def_list in
 	  let t1' = update_args_at_creation cur_array_cond t1 in
 	  let bl' = List.map (fun (b,b') ->
-	    let b1 = create_binder b.sname (new_vname()) b.btype (List.map term_from_repl_index cur_array) in
+	    let b1 = create_binder b.sname (new_vname()) b.btype cur_array in
 	    link b (TLink (term_from_binder b1));
 	    (b1, b')) bl 
 	  in
@@ -2494,7 +2946,7 @@ and update_args_at_creation_br cur_array (b,l) =
 
 and update_args_at_creation_pat cur_array = function
     PatVar b ->
-      let b' = create_binder b.sname (new_vname()) b.btype (List.map term_from_repl_index cur_array) in
+      let b' = create_binder b.sname (new_vname()) b.btype cur_array in
       link b (TLink (term_from_binder b'));
       PatVar b'
   | PatTuple(f,l) ->
@@ -2506,3 +2958,756 @@ and update_args_at_creation_pat cur_array = function
 let update_args_at_creation cur_array t =
   auto_cleanup (fun () ->
     update_args_at_creation cur_array t)
+
+(********** Use the equational theory to simplify a term *************)
+
+(* Remark: applying remove_consecutive_inverse and remove_inverse_ends
+to t1 * inv(t2) does the same job as applying 
+- remove_consecutive_inverse to t1 and to t2, 
+- remove_common_prefix and remove_common_suffix to the obtained t1 t2, 
+- and remove_inverse_ends to t1 in case t2 is the neutral element and conversely.
+We do the latter below. (One advantage is that the form of the simplified
+term is then closer to the initial term.) *)
+
+let rec remove_common_prefix try_no_var reduced l1 l2 = 
+  match (l1,l2) with
+    t1::r1, t2::r2 when simp_equal_terms try_no_var t1 t2 -> 
+      reduced := true;
+      remove_common_prefix try_no_var reduced r1 r2
+  | _ -> (l1,l2)
+      
+let remove_common_suffix try_no_var reduced l1 l2 = 
+  let l1rev = List.rev l1 in
+  let l2rev = List.rev l2 in
+  let (l1rev',l2rev') = remove_common_prefix try_no_var reduced l1rev l2rev in
+  (List.rev l1rev', List.rev l2rev')
+
+let is_neut neut t =
+  match t.t_desc with
+    FunApp(f,[]) -> f == neut 
+  | _ -> false
+
+let is_inv inv t =
+  match t.t_desc with
+    FunApp(f,[_]) -> f == inv
+  | _ -> false
+
+(* apply_eq_reds implements reduction rules coming from the
+   equational theories, as well as
+     not (x = y) -> x != y
+     not (x != y) -> x = y
+     x = x -> true
+     x != x -> false
+     ?x != t -> false where ?x is a general variable (universally quantified)
+(These rules cannot be stored in file default, because there are several
+functions for = and for !=, one for each type.)
+*)
+
+let rec apply_eq_reds try_no_var reduced t =
+  match t.t_desc with
+(* not (x = y) -> x != y
+   not (x != y) -> x = y *)
+    FunApp(fnot, [t']) when fnot == Settings.f_not ->
+      begin
+      let t' = try_no_var t' in
+      match t'.t_desc with
+	FunApp(feq, [t1;t2]) when feq.f_cat == Equal ->
+	  reduced := true;
+	  apply_eq_reds try_no_var reduced (make_diff t1 t2)
+      |	FunApp(fdiff, [t1;t2]) when fdiff.f_cat == Diff ->
+	  reduced := true;
+	  apply_eq_reds try_no_var reduced (make_equal t1 t2)
+      |	_ -> make_not (apply_eq_reds try_no_var reduced t')
+      end
+
+(* simplify inv(M): inv(neut) -> neut; inv(inv(M)) -> M; inv(M * M') -> inv(M') * inv(M) *)
+  | FunApp({f_eq_theories = (Group(f,inv',n) | CommutGroup(f,inv',n)) } as inv, [t']) when inv' == inv ->
+      (* inv is an inverse function *)
+      let t' = apply_eq_reds try_no_var reduced t' in
+      compute_inv try_no_var reduced (f,inv',n) t'
+
+(* Simplify and/or when one side is known to be true/false
+   It is important that this case is tested before the more general case below. *)
+  | FunApp(f,[t1;t2]) when f == Settings.f_and ->
+      let t1' = apply_eq_reds try_no_var reduced t1 in
+      let t2' = apply_eq_reds try_no_var reduced t2 in
+      if (is_true t1') || (is_false t2') then
+	begin
+	  reduced := true; t2'
+	end
+      else if (is_true t2') || (is_false t1') then
+	begin
+	  reduced := true; t1'
+	end
+      else
+	build_term2 t (FunApp(f, [t1';t2']))
+  | FunApp(f,[t1;t2]) when f == Settings.f_or ->
+      let t1' = apply_eq_reds try_no_var reduced t1 in
+      let t2' = apply_eq_reds try_no_var reduced t2 in
+      if (is_false t1') || (is_true t2') then
+	begin
+	  reduced := true; t2'
+	end
+      else if (is_false t2') || (is_true t1') then
+	begin
+	  reduced := true; t1'
+	end
+      else
+	build_term2 t (FunApp(f, [t1';t2']))
+
+(* simplify products: eliminate factors that cancel out *)
+  | FunApp(f,[t1;t2]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut &&
+    f.f_eq_theories != Assoc && f.f_eq_theories != AssocCommut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity nor inverse -> it is a product-like function *)
+      begin
+	match f.f_eq_theories with
+	  NoEq | Commut | Assoc | AssocCommut -> 
+	    Parsing_helper.internal_error "Terms.apply_eq_reds: cases NoEq, Commut, Assoc, AssocCommut should have been eliminated"
+	| AssocN(_, neut) | AssocCommutN(_, neut) -> 
+	    (* eliminate the neutral element *)
+	    if is_neut neut t1 then 
+	      begin
+		reduced := true;
+		apply_eq_reds try_no_var reduced t2
+	      end
+	    else if is_neut neut t2 then
+	      begin
+		reduced := true;
+		apply_eq_reds try_no_var reduced t1
+	      end
+	    else
+	      build_term2 t (FunApp(f, [ apply_eq_reds try_no_var reduced t1;
+					 apply_eq_reds try_no_var reduced t2 ]))	      
+	| Group _ | CommutGroup _ | ACUN _ ->
+	    (* eliminate factors that cancel out and the neutral element *)
+	    let reduced' = ref false in
+	    let l1 = simp_prod try_no_var reduced' (simp_equal_terms try_no_var) f t in
+	    if !reduced' then
+	      begin
+		reduced := true;
+		let l1 = List.map (apply_eq_reds try_no_var reduced) l1 in
+		make_prod f l1
+	      end
+	    else
+	      build_term2 t (FunApp(f, [ apply_eq_reds try_no_var reduced t1;
+					 apply_eq_reds try_no_var reduced t2 ]))
+      end
+
+(* simplify equalities and inequalities:
+     x = x -> true
+     x != x -> false
+as well as equalities between products *)
+  | FunApp(f, [t1;t2]) when (f.f_cat == Equal || f.f_cat == Diff) ->
+      begin
+	if simp_equal_terms try_no_var t1 t2 then
+	  begin
+	    reduced := true;
+	    match f.f_cat with
+	      Equal -> make_true()
+	    | Diff -> make_false()
+	    | _ -> assert false
+	  end
+	else
+	match get_prod_list try_no_var [t1;t2] with
+	  ACUN(xor,neut) ->
+	    let reduced' = ref false in
+	    let l1 = simp_prod try_no_var reduced' (simp_equal_terms try_no_var) xor (app xor [t1;t2]) in
+	    if !reduced' then
+	      begin
+		reduced := true;
+		let l1 = List.map (apply_eq_reds try_no_var reduced) l1 in
+		match l1 with
+		  [] -> 
+		    begin
+		      match f.f_cat with
+			Equal -> make_true()
+		      | Diff -> make_false()
+		      | _ -> assert false
+		    end
+		| t1::l -> build_term2 t (FunApp(f,[t1;make_prod xor l]))
+		      (* The number of terms that appear here is always strictly
+			 less than the initial number of terms:
+			 the number of terms in l1 is strictly less than the number of terms
+			 in t1 plus t2; make_prod introduces an additional neutral
+			 term when l = []; in this case, we have two terms 
+			 in the final result, and at least 3 in the initial t1 = t2,
+			 since the side that contains the XOR symbol returned by get_prod_list
+			 contains at least two terms. 
+			 Hence, we always really simplify the term. *)
+	      end
+	    else
+	      build_term2 t (FunApp(f, [ apply_eq_reds try_no_var reduced t1;
+					 apply_eq_reds try_no_var reduced t2 ]))
+	| CommutGroup(prod,inv,neut) ->
+	    let reduced' = ref false in
+	    let lmix =
+	      if is_neut neut t1 then
+		let l2 = simp_main_fun try_no_var reduced' prod t2 in
+		reduced' := (!reduced') || (List.exists (is_inv inv) l2);
+		l2
+	      else if is_neut neut t2 then
+		let l1 = simp_main_fun try_no_var reduced' prod t1 in
+		reduced' := (!reduced') || (List.exists (is_inv inv) l1);
+		l1
+	      else
+		let l1 = simp_main_fun try_no_var reduced' prod t1 in
+		let l2 = simp_main_fun try_no_var reduced' prod t2 in
+		reduced' := (!reduced') || (List.exists (is_inv inv) l1) ||
+		  (List.exists (is_inv inv) l2);
+		l1 @ (List.map (compute_inv try_no_var reduced' (prod, inv, neut)) l2)
+	        (* t2 = t1 is equivalent to t1 * t2^-1 = neut *)
+
+	      (* It is important to treat the cases t1 or t2 neutral specially above.
+		 Otherwise, we would leave M1 * M2 = neut unchanged, while still setting
+		 reduced to true because simp_prod eliminates neut.
+
+		 reduced' is set when t1 or t2 contains an inverse,
+		 since this inverse will be removed by the final
+		 building of the result below. *)
+	    in
+	    let l1 = remove_inverse try_no_var reduced' (prod,inv,neut) (simp_equal_terms try_no_var) lmix in
+	    if !reduced' then
+	      begin
+		reduced := true;
+		let l1 = List.map (apply_eq_reds try_no_var reduced) l1 in
+		match l1 with
+		  [] -> 
+		    begin
+		      match f.f_cat with
+			Equal -> make_true()
+		      | Diff -> make_false()
+		      | _ -> assert false
+		    end
+		| l -> 
+		    let linv, lno_inv = List.partition (is_inv inv) l in
+		    let linv_removed = List.map (function { t_desc = FunApp(f,[t]) } when f == inv -> t | _ -> assert false) linv in
+		    build_term2 t (FunApp(f, [ make_prod prod lno_inv; 
+					       make_prod prod linv_removed ]))
+	      end
+	    else
+	      build_term2 t (FunApp(f, [ apply_eq_reds try_no_var reduced t1;
+					 apply_eq_reds try_no_var reduced t2 ]))
+	| Group(prod,inv,neut) ->
+	    let reduced' = ref false in
+	    let l1 = 
+	      (* When t1 is the neutral element, applying simp_prod would
+		 set reduced' to true, so one would iterate simplification.
+		 However, the neutral element will be reintroduced by
+		 make_prod below, so that could lead to a loop. 
+		 We detect this special case, and avoid setting reduced'
+		 in this case. *)
+	      if is_neut neut t1 then [] else
+	      simp_prod try_no_var reduced' (simp_equal_terms try_no_var) prod t1 
+	    in
+	    let l2 = 
+	      if is_neut neut t2 then [] else
+	      simp_prod try_no_var reduced' (simp_equal_terms try_no_var) prod t2 
+	    in
+	    let (l1',l2') = remove_common_prefix try_no_var reduced' l1 l2 in
+	    let (l1'',l2'') = remove_common_suffix try_no_var reduced' l1' l2' in
+	    let l1'' = if l2'' == [] then remove_inverse_ends try_no_var reduced' (prod, inv, neut) (simp_equal_terms try_no_var) l1'' else l1'' in
+	    let l2'' = if l1'' == [] then remove_inverse_ends try_no_var reduced' (prod, inv, neut) (simp_equal_terms try_no_var) l2'' else l2'' in
+	    if !reduced' then
+	      begin
+		reduced := true;
+		let l1 = List.map (apply_eq_reds try_no_var reduced) l1'' in
+		let l2 = List.map (apply_eq_reds try_no_var reduced) l2'' in
+		match l1,l2 with
+		  [],[] -> 
+		    begin
+		      match f.f_cat with
+			Equal -> make_true()
+		      | Diff -> make_false()
+		      | _ -> assert false
+		    end
+		| _ -> 
+		    build_term2 t (FunApp(f, [ make_prod prod l1; 
+					       make_prod prod l2 ]))
+	      end
+	    else
+	      build_term2 t (FunApp(f, [ apply_eq_reds try_no_var reduced t1;
+					 apply_eq_reds try_no_var reduced t2 ]))
+	| _ -> 
+	    build_term2 t (FunApp(f, [ apply_eq_reds try_no_var reduced t1;
+				       apply_eq_reds try_no_var reduced t2 ]))
+      end
+
+(* ?x <> t is always false when ?x is a general variable (universally quantified) *)
+  | FunApp(f,[{t_desc = Var(b,[])};t2]) when f.f_cat == ForAllDiff && 
+    b.sname == gvar_name && not (refers_to b t2) -> 
+      reduced := true;
+      make_false()      
+  | FunApp(f,[t2;{t_desc = Var(b,[])}]) when f.f_cat == ForAllDiff && 
+    b.sname == gvar_name && not (refers_to b t2) -> 
+      reduced := true;
+      make_false()      
+
+(* Simplify subterms *)
+  | FunApp(f,l) ->
+      build_term2 t (FunApp(f, List.map (apply_eq_reds try_no_var reduced) l))
+  | _ -> t
+
+(*********** Matching modulo equational theory *************)
+
+(* Common arguments for the matching functions:
+
+   [match_term]: [match_term next_f t1 t2 state] matches [t1] with [t2];
+   calls [next_f state'] when the match succeeds; raises NoMatch when it
+   fails. It must clean up the links it has put at least when it fails.
+   (When it succeeds, the cleanup is optional.)
+
+   [get_var_link]: [get_var_link t state] returns [Some (link, allow_neut)]
+   when [t] is variable that can be bound by a product of terms,
+   [link] is the current contents of the link of that variable,
+   [allow_neut] is true if and only if the variable may be bound to
+   the neutral element (provided there is a neutral element for the
+   product); it returns [None] otherwise.
+
+   [match_error]: [match_error()] is called in case of matching error.
+   (In most cases, [match_error] should be [default_match_error]
+   which raises the [NoMatch] exception.)
+
+   [try_no_var]: [try_no_var t] tries to replace variables with their
+   values in [t]; it returns the resulting term.
+
+   [prod] is the product function symbol, which is associative or AC.
+
+   [has_neut] is true iff there is a neutral element for the product [prod].
+
+   [allow_rest] is true when we match inside a subterm, so that some
+   elements of the products are allowed to remain unmatched.
+   *)
+
+
+let default_match_error() = raise NoMatch
+
+(* [prod_has_neut prod] returns true if and only if the product
+   [prod] has a neutral element. *)
+
+let prod_has_neut prod =
+  (* Look for the neutral element of the product *)
+  match prod.f_eq_theories with
+    Group(_,_,n) | CommutGroup(_,_,n) | AssocN(_,n) 
+  | AssocCommutN(_,n) | ACUN(_,n) -> true
+  | _ -> false
+
+(* Matching modulo associativity, plus perhaps neutral element *)
+
+(* [remove_list_prefix l1 l2] checks that [l1] is equal to a prefix of [l2],
+   and returns the remaining suffix of [l2] after removing [l1]. *)
+
+let rec remove_list_prefix try_no_var l1 l2 =
+  match (l1,l2) with
+    [], _ -> l2
+  | _::_, [] -> raise Not_found
+  | t1::r1, t2::r2 ->  
+      if not (simp_equal_terms try_no_var t1 t2) then raise Not_found;
+      remove_list_prefix try_no_var r1 r2
+
+let final_step match_error next_f allow_rest l2 state =
+  if (l2 == []) || allow_rest then next_f l2 state else match_error()
+
+
+(* [match_assoc match_term get_var_link match_error next_f try_no_var prod allow_rest l1 l2 state]
+   matches the lists [l1] and [l2] modulo associativity. 
+   When [allow_rest] is false, it calls [next_f [] state'] after linking variables in [l1]
+   so that [\sigma l1 = l2] modulo associativity. 
+   When [allow_rest] is true, it calls [next_f lrest state']  after linking variables in [l1]
+   so that [\sigma l1 . lrest = l2] modulo associativity. *)
+
+let match_assoc match_term get_var_link match_error next_f try_no_var prod allow_rest l1 l2 state =
+  let has_neut = prod_has_neut prod in
+  if (not has_neut) && (List.length l1 > List.length l2) then match_error() else
+
+  let rec match_assoc_rec l1 l2 state =
+    match l1 with
+    | [] -> final_step match_error next_f allow_rest l2 state
+    | t1::r1 ->
+	match get_var_link t1 state, l2 with
+	  None, [] -> match_error()
+	| None, t2::r2 -> 
+	    match_term (match_assoc_rec r1 r2) t1 t2 state
+	| Some (TLink t, _), _ ->
+            let l1' = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) prod t in
+	    begin
+	      try 
+		let r2 = remove_list_prefix try_no_var l1' l2 in
+		match_assoc_rec r1 r2 state
+	      with Not_found -> match_error()
+	    end
+	| Some (NoLink, allow_neut), _ ->
+	    if (not allow_rest) && (r1 == []) then
+	      begin
+	        (* If variable v is alone, that's easy: v should be linked to l2 *)
+		if (not (has_neut && allow_neut)) && (l2 == []) then match_error() else
+		let t' = make_prod prod l2 in
+		match_term (next_f []) t1 t' state
+	      end
+	    else
+	      begin
+	        (* try to see if the end of the list contains something that is not an unbound variable *)
+		let l1rev = List.rev l1 in
+		if allow_rest || (match get_var_link (List.hd l1rev) state with
+		                    Some (NoLink, _) -> true
+		                  | _ -> false) then
+		  (* l1 starts and ends with a variable, I really need to try all prefixes
+		     of l2 as values for variable v. That can be costly.
+		     I try the prefixes by first trying l2 entirely, then removing the
+		     last element of l2, etc. until I try the empty list. 
+		     The reason for this order is that, in case we match a subterm of the
+		     product, we want to take the largest possible subterm that works. *)
+		  let rec try_prefixes seen r2 =
+		    try 
+		      (* Try with at least one more element as seen if possible *)
+		      match r2 with
+			[] -> match_error()
+		      | a::l -> 
+			  if (not has_neut) && (List.length r1 > List.length l) then match_error() else
+			  try_prefixes (seen @ [a]) l
+		    with NoMatch ->
+		      (* Try the list "seen" *)
+		      if (seen == []) && (not (has_neut && allow_neut)) then match_error() else
+		      match_term (match_assoc_rec r1 r2) t1 (make_prod prod seen) state;
+		  in
+		  try_prefixes [] l2
+		else
+		  let l2rev = List.rev l2 in
+		  match_assoc_rec l1rev l2rev state
+	      end
+  in
+  match_assoc_rec l1 l2 state
+
+(* [match_assoc_subterm match_term get_var_link next_f try_no_var prod has_neut l1 l2]
+   matches the lists [l1] and [l2] modulo associativity. 
+   More precisely, it calls [next_f left_rest right_rest]  after linking variables in [l1]
+   so that [left_rest. \sigma l1 . right_rest = l2] modulo associativity. *)
+
+let match_assoc_subterm match_term get_var_link next_f try_no_var prod l1 l2 state =
+  let rec try_prefix seen l =
+    try
+      (* Try to match [l1] with [l], assuming [seen] will be the left rest of the subterm *)
+      match_assoc match_term get_var_link default_match_error (fun right_rest -> next_f seen right_rest) try_no_var prod true l1 l state
+    with NoMatch ->
+      (* If it does not work, try with one more element in the left rest *)
+      match l with
+	[] -> raise NoMatch
+      |	a::r -> 
+	  try_prefix (seen @ [a]) r
+  in
+  try_prefix [] l2
+
+(* Matching modulo associativity and commutativity, plus perhaps neutral element *)
+
+(* [remove_elem try_no_var a l] returns list [l] after removing element [a] *)
+
+let rec remove_elem try_no_var a = function
+    [] -> raise Not_found
+  | a'::l ->
+      if simp_equal_terms try_no_var a a' then l else
+      a'::(remove_elem try_no_var a l)
+	  
+(* [multiset_minus try_no_var l lrem] returns list [l] after removing
+   the elements in [lrem] *)
+
+let rec multiset_minus try_no_var l = function
+    [] -> l
+  | a::r ->
+      multiset_minus try_no_var (remove_elem try_no_var a l) r
+
+let rec count_occ list_occ = function
+    [] -> list_occ
+  | (v::l) ->
+      try
+	let count = List.assq v list_occ in
+	incr count;
+	count_occ list_occ l
+      with Not_found ->
+	count_occ ((v, ref 1)::list_occ) l
+
+let rec group_same_occ ((n, vl) as current_group) = function
+    [] -> [current_group]
+  | (v, c)::r ->
+      if !c = n then
+	group_same_occ (n, v::vl) r
+      else
+	(n, vl) :: (group_same_occ (!c, [v]) r)
+	
+
+let rec remove_n_times try_no_var n a l = 
+  if n = 0 then l else
+  match l with
+    [] -> raise Not_found
+  | a'::l' ->
+      if simp_equal_terms try_no_var a a' then
+	remove_n_times try_no_var (n-1) a l'
+      else
+	a' :: (remove_n_times try_no_var n a l')
+
+(* [sep_at_least_occ try_no_var n l] returns a pair [(l1,l2)] where
+   [l] contains at least [n] times the elements in [l1], and [l2]
+   consists of the remaining elements of [l]: the elements of [l] are
+   [n] times the elements of [l1] plus the elements of [l2]; [l2]
+   never contains [n] times the same element. *)
+
+let rec sep_at_least_occ try_no_var n = function
+    [] -> [], []
+  | a::l ->
+      try 
+	let l' = remove_n_times try_no_var (n-1) a l in
+	let (at_least_n, not_at_least_n) = sep_at_least_occ try_no_var n l' in
+	(a::at_least_n, not_at_least_n)
+      with Not_found ->
+	let (at_least_n, not_at_least_n) = sep_at_least_occ try_no_var n l in
+	(at_least_n, a::not_at_least_n)
+
+(* [append_n_times accu n l] returns the concatenation
+   of [n] copies of [l] and [accu]. (Assumes n >= 0.) *)
+
+let rec append_n_times accu n l =
+  if n = 0 then
+    accu 
+  else
+    append_n_times (l @ accu) (n-1) l
+
+(* [split_n next_f [] [] n l] splits the list [l] into a list of [n]
+   elements and the rest, and calls [next_f] with the two lists. When
+   [next_f] raises [NoMatch], try another partition of [l] (with the
+   same numbers of elements).  Raises [NoMatch] when no partition
+   works.
+
+   Inside the induction, [split_n next_f n_part rest n l] splits the
+   list [l] into a list [l1] of [n] elements and the rest [l2], and
+   calls [next_f] with [l1 @ n_part] and [l2 @ rest] (reversed).
+ *)
+
+let rec split_n match_error next_f n_part rest n l =
+  if n = 0 then
+    next_f n_part (List.rev_append rest l)
+  else
+    match l with
+      [] -> match_error()
+    | a::r ->
+	try 
+	  split_n match_error next_f (a::n_part) rest (n-1) r
+	with NoMatch ->
+	  if List.length r < n then match_error() else
+	  split_n match_error next_f n_part (a::rest) n r 
+
+
+(* [match_AC match_term get_var_link match_error next_f try_no_var prod has_neut allow_rest l1 l2 state]
+   matches the lists [l1] and [l2] modulo AC. 
+   When [allow_rest] is false, it calls [next_f [] state'] after linking variables in [l1]
+   so that [\sigma l1 = l2] modulo AC. 
+   When [allow_rest] is true, it calls [next_f lrest state']  after linking variables in [l1]
+   so that [\sigma l1 . lrest = l2] modulo AC. *)
+
+let match_AC match_term get_var_link match_error next_f try_no_var prod allow_rest l1 l2 state =
+  let has_neut = prod_has_neut prod in
+  if (not has_neut) && (List.length l1 > List.length l2) then match_error() else 
+
+  let rec split_among_vars_with_possible_rest next_f vl l state =
+    match vl with
+      [] -> next_f l state
+    | v :: rest_vl ->
+      (* Split [l] into two disjoint subsets, one that matches [v], the other that
+	 matches [rest_vl]. We start with [l] matching [v] and the empty list matching
+	 [rest_vl], and continue with fewer and fewer elements matching [v]. *)
+	let len_l = List.length l in
+	let allow_neut = 
+	  match get_var_link v state with
+	    None -> Parsing_helper.internal_error "get_var_link should return a link"
+	  | Some(_, allow_neut) -> allow_neut
+	in
+	let rec partition_n n =
+	  (* Considers a partition in which a sublist of [l] of [n] elements matches
+	     [rest_vl] and the rest of [l], of [len_l - n] elements matches [v]. *) 
+	  if n > len_l then match_error() else
+	  if (n = len_l) && (not (has_neut && allow_neut)) then match_error() else
+	  try 
+	    split_n match_error (fun n_elem rest ->
+	      match_term (split_among_vars_with_possible_rest next_f rest_vl n_elem) v (make_prod prod rest) state
+		) [] [] n l
+	  with NoMatch ->
+	    partition_n (n+1)
+	in
+	partition_n 0
+  in
+
+  let rec match_variable_groups next_f g l2 state =
+    match g with
+      [] -> final_step match_error next_f allow_rest l2 state
+    | (c, vl) :: rest ->
+        (* Separate l2 into the elements that are present at least
+	   [c] times and the others *)
+	if c > 1 then
+	  let (at_least_c, not_at_least_c) = sep_at_least_occ try_no_var c l2 in
+	  split_among_vars_with_possible_rest (fun rest_l2 state' ->
+	    let real_rest_l2 = append_n_times not_at_least_c c rest_l2 in
+	    match_variable_groups next_f g real_rest_l2 state'
+	      )  vl at_least_c state
+	else
+	  begin
+	    assert(rest == []);
+	    split_among_vars_with_possible_rest (final_step match_error next_f allow_rest) vl l2 state
+	  end
+  in
+  
+  let rec match_remaining_vars next_f remaining_vars l2 state =
+    match remaining_vars with
+      [] -> 
+	final_step match_error next_f allow_rest l2 state
+    | [t] when not allow_rest ->
+	let allow_neut = 
+	  match get_var_link t state with
+	    None -> Parsing_helper.internal_error "get_var_link should return a link"
+	  | Some(_, allow_neut) -> allow_neut
+	in
+	if (not (has_neut && allow_neut)) && (l2 == []) then match_error() else
+	match_term (next_f []) t (make_prod prod l2) state
+    | _ -> 
+        (* Count the number of occurrences of variables in [remaining_vars] *)
+	let var_occs = count_occ [] remaining_vars in
+        (* Sort the variables in decreasing number of occurrences *)
+	let var_occs_sorted = List.sort (fun (v1, c1) (v2, c2) -> (!c2) - (!c1)) var_occs in
+	match var_occs_sorted with
+          (vmax, cmax) :: rest ->
+	    let g = group_same_occ (!cmax, [vmax]) rest in
+	    match_variable_groups next_f g l2 state
+	| _ -> Parsing_helper.internal_error "Should have at least one variable"	
+  in
+
+  let rec match_AC_rec next_f remaining_vars l1 l2 state =
+    match l1 with
+      [] -> 
+	if List.exists (fun t -> 
+	  match get_var_link t state with 
+	    Some (TLink _, _) -> true
+	  | _ -> false) remaining_vars then
+	  match_AC_rec next_f [] remaining_vars l2 state
+	else
+	  match_remaining_vars next_f remaining_vars l2 state
+    | t1::r1 ->
+	match get_var_link t1 state with
+	  None ->
+	    (* Try to match t1 with an element of l2, and 
+	       r1 with the rest of l2. *)
+	    let rec try_list seen = function
+		[] -> match_error()
+	      | t2::r2 ->
+		  let l2' = List.rev_append seen r2 in
+		  try
+		    match_term (match_AC_rec next_f remaining_vars r1 l2') t1 t2 state
+		  with NoMatch ->
+		    try_list (t2::seen) r2
+	    in
+	    try_list [] l2
+	| Some (TLink t, _) ->
+	    let l1' = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) prod t in
+	    begin
+	      try 
+		let r2 = multiset_minus try_no_var l2 l1' in
+		match_AC_rec next_f remaining_vars r1 r2 state
+	      with Not_found -> match_error()
+	    end
+	| Some (NoLink, _) ->
+	    match_AC_rec next_f (t1::remaining_vars) r1 l2 state
+  in
+
+  match_AC_rec next_f [] l1 l2 state
+
+(* Match term list *)
+
+let rec match_term_list match_term next_f l l' state = 
+  match l,l' with
+    [],[] -> next_f state
+  | a::l,a'::l' ->
+      match_term (match_term_list match_term next_f l l') a a' state
+  | _ -> Parsing_helper.internal_error "Different lengths in match_term_list"
+
+(* Match function application *)
+
+let match_funapp match_term get_var_link match_error try_no_var next_f t t' state =
+  if t.t_type != t'.t_type then match_error() else
+  let t'' = try_no_var t' in
+  match t.t_desc, t''.t_desc with
+  | FunApp(f, [t1;t2]), FunApp(f', [t1';t2']) when 
+    f == f' && (f.f_cat == Equal || f.f_cat == Diff) ->
+	(* It is important to test this case before the commutative
+	   function symbols: = and <> are also commutative function
+	   symbols. *)
+      begin
+	match (match get_prod_list try_no_var_id [t1;t2] with
+	         NoEq -> get_prod_list try_no_var [t1';t2']
+	       | x -> x)
+	with
+	  ACUN(xor,_) ->
+	    match_term next_f (app xor [t1;t2]) (app xor [t1';t2']) state
+	| CommutGroup(prod,inv,_) ->
+	    begin
+	      try
+		match_term next_f (app prod [t1; app inv [t2]])
+		  (app prod [t1'; app inv [t2']]) state
+	      with NoMatch ->
+		match_term next_f (app prod [t1; app inv [t2]])
+		  (app prod [t2'; app inv [t1']]) state
+	    end
+        | Group(prod,inv,neut) -> 
+            begin
+	      let l1 = simp_prod try_no_var_id (ref false) (simp_equal_terms try_no_var_id) prod (app prod [t1; app inv [t2]]) in
+	      let l2 = remove_inverse_ends try_no_var_id (ref false) (prod, inv, neut) (simp_equal_terms try_no_var_id) l1 in
+	      let l1' = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) prod (app prod [t1'; app inv [t2']]) in
+	      let l2' = remove_inverse_ends try_no_var (ref false) (prod, inv, neut) (simp_equal_terms try_no_var) l1' in
+	      let rec match_assoc_up_to_roll seen' rest' =
+		try
+		  match_assoc match_term get_var_link match_error (fun _ state -> next_f state) try_no_var prod false l2 (rest' @ (List.rev seen')) state
+		with NoMatch ->
+		  match rest' with
+		    [] -> match_error()
+		  | a::rest'' ->
+		      match_assoc_up_to_roll (a::seen') rest''
+	      in
+	      try
+		match_assoc_up_to_roll [] l2'
+	      with NoMatch ->
+		let l3' = List.rev (List.map (compute_inv try_no_var (ref false) (prod, inv, neut)) l2') in
+		match_assoc_up_to_roll [] l3'
+	    end
+	| _ -> 
+	    (* Fall back to the basic commutativity case when there is
+	       no product. *)
+            try
+	      match_term (match_term next_f t2 t2') t1 t1' state
+            with NoMatch ->
+              match_term (match_term next_f t2 t1') t1 t2' state
+      end
+  | FunApp(f, [t1; t2]), FunApp(f', [t1';t2']) when (f == f') && (f.f_eq_theories = Commut) ->
+      begin
+        try
+	  match_term (match_term next_f t2 t2') t1 t1' state
+        with NoMatch ->
+          match_term (match_term next_f t2 t1') t1 t2' state
+      end
+  | FunApp({f_eq_theories = (Group(f,inv',n) | CommutGroup(f,inv',n)) } as inv, [t]), _ when inv' == inv ->
+      let t''inv = compute_inv try_no_var (ref false) (f,inv,n) t'' in
+      match_term next_f t t''inv state
+  | FunApp(f,[_;_]),_ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+      begin
+	let l = simp_prod try_no_var_id (ref false) (simp_equal_terms try_no_var_id) f t in
+	let l' = simp_prod try_no_var (ref false) (simp_equal_terms try_no_var) f t'' in
+	match f.f_eq_theories with
+	  NoEq | Commut -> Parsing_helper.internal_error "Terms.match_funapp: cases NoEq, Commut should have been eliminated"
+	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+	    (* Commutative equational theories: use matching modulo AC *)
+	    match_AC match_term get_var_link match_error (fun _ state -> next_f state) try_no_var f false l l' state
+	| Assoc | AssocN _ | Group _ -> 
+	    (* Non-commutative equational theories: use matching modulo associativity *)
+	    match_assoc match_term get_var_link match_error (fun _ state -> next_f state) try_no_var f false l l' state
+	      (* Above, I ignore on purpose group and XOR properties,
+		 they would yield too general and counter-intuitive matchings. *)
+      end
+  | FunApp(f,l), FunApp(f',l') when f == f' ->
+      match_term_list match_term next_f l l' state
+  | _ -> match_error()

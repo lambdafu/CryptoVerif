@@ -1,7 +1,7 @@
 open Types
 open Simplify1
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 
 let current_pass_transfos = ref []
 
@@ -96,7 +96,7 @@ let is_indep = FindCompos.is_indep
 value of b can yield a certain value of t *)
 
 let check (b, (st, (bct, _))) l =
-  if List.for_all2 Terms.equal_terms l b.args_at_creation then
+  if Terms.is_args_at_creation b l then
     Some (st, CharacType bct)
   else
     None
@@ -126,7 +126,7 @@ exception Else
    Raises Else when only the else branch of the let may be taken *)
 let rec check_assign1 cur_array true_facts ((t1, t2, b, charac_type) as proba_info) bdep_info st pat =
   match pat with
-    PatVar b -> ()
+    PatVar _ -> ()
   | PatTuple(f,l) ->
       let st' = if st != Decompos then Any else st in
       List.iter (check_assign1 cur_array true_facts proba_info bdep_info st') l
@@ -137,7 +137,7 @@ let rec check_assign1 cur_array true_facts ((t1, t2, b, charac_type) as proba_in
       else
 	begin
 	  (* add probability *)
-	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) t1 t2 b (Some b.args_at_creation) [charac_type] then
+	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) t1 t2 b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
 	    raise Else
 	end
 
@@ -235,7 +235,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		    try 
 		      let t2' = is_indep bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) (subst b2 b2fromb t1'') t2' b (Some b.args_at_creation) [charac_type]) then raise Not_found;
+		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) (subst b2 b2fromb t1'') t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		    with Not_found ->
 		      try_dep_info restl
@@ -248,7 +248,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		      try 
 			let t1' = is_indep bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) (subst b2 b2fromb t2'') t1' b (Some b.args_at_creation) [charac_type]) then raise Not_found;
+			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) (subst b2 b2fromb t2'') t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		      with Not_found ->
 			try_dep_info restl
@@ -410,7 +410,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	       else
 		 bdepinfo) dep_b dep_info
 	 in
-         (Terms.oproc_from_desc2 p' (Find(l0',(if !always_then then Terms.yield_proc else p2), find_info)), dep_info_else :: dep_info_branches)
+         (Terms.oproc_from_desc2 p' (Find(l0',(if !always_then then Terms.oproc_from_desc Yield else p2), find_info)), dep_info_else :: dep_info_branches)
        end
   | Let(pat, t, p1, p2) ->
       begin
@@ -446,7 +446,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		Settings.changed := true;
 		current_pass_transfos := (SLetElseRemoved(p')) :: (!current_pass_transfos);
 	      end;
-            (Terms.oproc_from_desc2 p' (Let(pat, t, p1, Terms.yield_proc)), [dep_info'])
+            (Terms.oproc_from_desc2 p' (Let(pat, t, p1, Terms.oproc_from_desc Yield)), [dep_info'])
         | _ -> 
             let bl = Terms.vars_from_pat [] pat in
             let bl_terms = List.map Terms.term_from_binder bl in
@@ -466,7 +466,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 			None -> ()
 		      |	Some(charac_type, t1') ->
 			  (* Add probability *)
-			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) t1' t' b (Some b.args_at_creation) [charac_type] then
+			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, []) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
 			    raise Else
 		    end;
 		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
@@ -556,7 +556,7 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (not (Terms.refers_to b t2)) ->
       begin
-	(List.for_all2 Terms.equal_terms l b.args_at_creation) &&
+	(Terms.is_args_at_creation b l) &&
 	(let depinfo = DepAnal2.get_dep_info dep_info b in
 	 let t1' = FindCompos.remove_dep_array_index (b,depinfo) t1 in
 	 match DepAnal2.find_compos_glob depinfo b t1' with
@@ -565,7 +565,7 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
 	    try 
 	      let t2' = DepAnal2.is_indep (b,depinfo) t2 in
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      add_term_collisions (cur_array, true_facts, []) t1'' t2' b (Some b.args_at_creation) [charac_type]
+	      add_term_collisions (cur_array, true_facts, []) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]
 	    with Not_found -> false)
       end 
   | FunApp(f,l) ->
@@ -914,7 +914,7 @@ let needed_vars_in_pat pat =
 let rec has_array_access b t =
   match t.t_desc with
     Var(b',l) -> 
-      ((b == b') && not (List.for_all2 Terms.equal_terms l b.args_at_creation)) ||
+      ((b == b') && not (Terms.is_args_at_creation b l)) ||
       (List.exists (has_array_access b) l)
   | ReplIndex _ -> false
   | FunApp(f,l) ->
@@ -938,7 +938,7 @@ let rec has_array_access b t =
      Parsing_helper.internal_error "Event should have been expanded"
 
 and has_array_access_br b (b',l) =
-  ((b == b') && not (List.for_all2 Terms.equal_terms l b.args_at_creation)) ||
+  ((b == b') && not (Terms.is_args_at_creation b l)) ||
   (List.exists (has_array_access b) l)
 
 and has_array_access_pat b = function
@@ -950,7 +950,7 @@ and has_array_access_pat b = function
    Store them in [accu]. *)
 
 let rec collect_array_accesses_br accu bl (b,l) =
-  if (List.memq b bl) && (not (List.for_all2 Terms.equal_terms l b.args_at_creation)) then
+  if (List.memq b bl) && (not (Terms.is_args_at_creation b l)) then
     Terms.add_binderref (b,l) accu;
   List.iter (collect_array_accesses_t accu bl) l
 
@@ -1006,7 +1006,7 @@ let rec generate_branches_rec ((bl, _, _, _) as ext_branch) (bl3, def_list3, t3,
       (List.map (fun (bl', def_list', t', p') -> 
 	(bl', Terms.copy_def_list subst def_list', 
 	 make_and_find_cond (Terms.copy_term subst t') 
-	   (Terms.make_and_list (List.map2 Terms.make_equal l b.args_at_creation)), p')) branches_rest)
+	   (Terms.make_and_list (List.map2 (fun t ri -> Terms.make_equal t (Terms.term_from_repl_index ri)) l b.args_at_creation)), p')) branches_rest)
       (* Case the array access to br is done with indices different from the current 
 	 replication indices => I can leave br as it is *)
       @ branches_rest
@@ -1029,7 +1029,7 @@ let generate_branches ((bl, def_list, t, _) as ext_branch) ((bl3, def_list3, t3,
 let rec add_let p = function
     [] -> p
   | ((b, b_im)::l) ->
-      Terms.oproc_from_desc (Let(PatVar b, b_im, add_let p l, Terms.yield_proc))
+      Terms.oproc_from_desc (Let(PatVar b, b_im, add_let p l, Terms.oproc_from_desc Yield))
 
 let rec add_let_term p = function
     [] -> p
@@ -1167,7 +1167,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 			(* The variables in bl3 are no longer used, but I need to have some variables there.
 			   Moreover, the old variables of bl3 cannot be kept, because their
 			   args_at_creation is not correct in the transformed game *)
-			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname (Terms.new_vname()) b.btype (List.map Terms.term_from_repl_index cur_array), b')) bl3 in
+			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname (Terms.new_vname()) b.btype cur_array, b')) bl3 in
 			(bl @ bl3', def_list @ def_list3, make_and_find_cond t5 t6', t2)) l2) @ r'
 		    in
 		    done_expand := true;
@@ -1624,7 +1624,7 @@ let rec simplify_process cur_array dep_info true_facts p =
 and simplify_oprocess cur_array dep_info true_facts p =
   let (p', dep_info_list') = DepAnal2.update_dep_infoo cur_array dep_info true_facts p in
   match p'.p_desc with
-    Yield -> Terms.yield_proc
+    Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc2 p' (EventAbort f)
   | Restr(b,p0) -> 
       let true_facts = filter_elsefind (Terms.not_deflist b) true_facts in
@@ -1728,7 +1728,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 			(* The variables in bl3 are no longer used, but I need to have some variables there.
 			   Moreover, the old variables of bl3 cannot be kept, because their
 			   args_at_creation is not correct in the transformed game *)
-			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname (Terms.new_vname()) b.btype (List.map Terms.term_from_repl_index cur_array), b')) bl3 in
+			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname (Terms.new_vname()) b.btype cur_array, b')) bl3 in
 			(bl @ bl3', def_list @ def_list3, make_and_find_cond t3 t4', p1)) l2) @ r'
 		    in
 		    done_expand := true;
@@ -1795,13 +1795,13 @@ and simplify_oprocess cur_array dep_info true_facts p =
 
       let def_vars = Facts.get_def_vars_at p'.p_facts in
       let p2' = 
-	if p2.p_desc == Yield then Terms.yield_proc else
+	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
 	try
 	  simplify_oprocess cur_array dep_info_else (add_elsefind (dependency_collision cur_array dep_info_else) def_vars true_facts l0) p2
 	with Contradiction ->
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindElseRemoved(p')) :: (!current_pass_transfos);
-	  Terms.yield_proc
+	  Terms.oproc_from_desc Yield
       in
       let rec simplify_findl dep_info_l1 l1 = 
 	match (dep_info_l1,l1) with
@@ -2022,7 +2022,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindRemoved(p')) :: (!current_pass_transfos);
-		Terms.yield_proc
+		Terms.oproc_from_desc Yield
 	      end
 	    else
 	      let find_info = is_unique l0' find_info in
@@ -2041,7 +2041,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Settings.changed := true;
 		current_pass_transfos := (SFindSingleBranch(p',find_branch)) :: (!current_pass_transfos);
 	      end;
-	    Terms.oproc_from_desc2 p' (Find([find_branch], Terms.yield_proc, find_info))
+	    Terms.oproc_from_desc2 p' (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
 	
       end
   | Let(pat, t, p1, p2) ->
@@ -2076,11 +2076,11 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		  Settings.changed := true;
 		  current_pass_transfos := (SLetElseRemoved(p')) :: (!current_pass_transfos);
 		end;
-	      simplify_let p' dep_info_else true_facts dep_info dep_info_in cur_array true_facts' p1 Terms.yield_proc t' pat
+	      simplify_let p' dep_info_else true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat
 	  end
       |	[dep_info_in] -> 
 	  let t' = simplify_term cur_array dep_info (Terms.is_pat_tuple pat) true_facts t in
-	  simplify_let p' dep_info true_facts dep_info dep_info_in cur_array true_facts' p1 Terms.yield_proc t' pat 
+	  simplify_let p' dep_info true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat 
       |	_ -> Parsing_helper.internal_error "Bad dep_info_list' in case Let"
       end
   | Output((c,tl),t2,p) ->
@@ -2127,7 +2127,7 @@ and simplify_if if_p dep_info cur_array true_facts ptrue pfalse t' =
 	  begin
 	    Settings.changed := true;
 	    current_pass_transfos := (STestMerge(if_p)) :: (!current_pass_transfos);
-	    Terms.yield_proc
+	    Terms.oproc_from_desc Yield
 	  end
 	else
 	  Terms.oproc_from_desc2 if_p (Test(t', ptrue', pfalse))
@@ -2166,7 +2166,7 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
 	  Terms.oproc_from_desc2 let_p 
 	    (Let(pat, t', simplify_oprocess cur_array dep_info_in 
 		   (Facts.simplif_add (dependency_collision cur_array dep_info_in) true_facts 
-		      (Terms.make_let_equal (Terms.term_from_binder b) t')) ptrue, Terms.yield_proc))
+		      (Terms.make_let_equal (Terms.term_from_binder b) t')) ptrue, Terms.oproc_from_desc Yield))
 	with Contradiction -> 
 	  Parsing_helper.internal_error "adding b = pat should not yield a contradiction"
       end
@@ -2196,7 +2196,7 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
 		  begin
 		    Settings.changed := true;
 		    current_pass_transfos := (SLetRemoved(let_p)) :: (!current_pass_transfos);
-		    Terms.yield_proc
+		    Terms.oproc_from_desc Yield
 		  end
 		else
 		  Terms.oproc_from_desc2 let_p (Let(pat, t', ptrue', simplify_oprocess cur_array dep_info_else true_facts_else pfalse))

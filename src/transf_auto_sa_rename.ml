@@ -90,7 +90,9 @@ let rec auto_sa_rename_term t =
 		auto_sa_rename_term t3)
       | FindE(l0,t3,find_info) ->
           FindE(List.map (fun (bl, def_list, t1,t2) ->
-	    (bl, def_list (* def_list contains only Var/FunApp/ReplIndex so no change *),
+	    (bl, List.map Terms.move_occ_br def_list (* def_list contains only Var/FunApp/ReplIndex so no change
+							I still need to copy the def_list to make sure that all
+							terms are physically distinct, for a correct computation of facts. *),
 	     auto_sa_rename_fc t1,
 	     auto_sa_rename_term t2)) l0,
 		auto_sa_rename_term t3, find_info)
@@ -141,7 +143,7 @@ and auto_sa_rename_oprocess p =
 	   auto_sa_rename_oprocess p2)
   | Find(l0, p2, find_info) ->
       Find(List.map (fun (bl, def_list, t, p1) ->
-	  (bl, def_list(* def_list contains only Var/FunApp/ReplIndex so no change *),
+	  (bl, List.map Terms.move_occ_br def_list(* def_list contains only Var/FunApp/ReplIndex so no change *),
 	   auto_sa_rename_fc t,
 	   auto_sa_rename_oprocess p1)) l0,
 	   auto_sa_rename_oprocess p2, find_info)

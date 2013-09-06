@@ -4,94 +4,19 @@ section 3.2:
 	E(x) = f(r) || H(r) xor x || H2(r || x) 
 (CCA2) -- in progress *)
 
-set interactiveMode = true.
+(* set interactiveMode = true.
+The proof is as follows: *)
 
-(* The proof should be as follows:
-
-show_game occ
-insert 106 let concat(xh2',xh2'') = xh2 in 
-crypto rom(hash2)
-crypto rom(hash)
-remove_assign binder pk
-crypto ow(f) r x_74
-crypto remove_xor(xor) @7_r_151
-
-but it fails.
-
-
-After crypto f r x_23, we have to simplify (this is an old version of the game):
-
-    find  suchthat defined(cT, aT, bT, r_44) && ((a = aT) && ((b = bT) && (c = r_44))) then
-      yield
-    else
-      find  suchthat defined(x_32, r_120, menc) && otheruses(r_120) && (f'(pkgen'(r), x_32) = a) then
-        let m: hasht = xor(r_120, b) in
-        find  suchthat defined(menc, r_44) && otheruses(r_44) && (m = menc) then
-        if (c = r_44) then
-        out(c6[!_31], m)
-      [...]
-|
-  in(c7, (m1: hasht, m2: hasht));
-  new b1: bool;
-  let menc: hasht = test(b1, m1, m2) in
-  new x_32: seed;
-  let aT: seed = f'(pkgen'(r), x_32) in
-  new r_120: hasht;
-  let bT: hasht = xor(r_120, menc) in
-  new r_44: hasht2;
-  let cT: hasht2 = cst_hasht2 in
-  out(c8, (aT, bT, r_44))
-
-elsefind([],[cT, aT, bT, r_44], (a = aT) && ((b = bT) && (c = r_44)))
-defined(x_32, r_120, menc, r_44) implies defined(cT, aT, bT, r_44)
-so not((a = aT) && ((b = bT) && (c = r_44))).
-m = menc, m = xor(r_120,b), so xor(r_120,b) = menc
-bT = xor(r_120, menc), so bT = xor(r_120, xor(r_120,b)) = b.
-a = f'(pkgen'(r), x_32) = aT
-c = r_44
-So contradiction after then test "if (c = r_44) then"
-but currently the system does not find that contradiction.
-
-Substitutions:
-(c[!_31] = r_44)
-(a[!_31] = f'(pkgen'(r), x_32))
-(x_121 >>= cst_seed)
-(cT >>= cst_hasht2)
-(menc >>= test(b1, m1, m2))
-(bT >>= xor(r_120, menc))
-(aT >>= f'(pkgen'(r), x_32))
-(m[!_31] >>= xor(r_120, b[!_31]))
-Facts:
-(m[!_31] = menc)
-(b[!_31] <> bT)
-Elsefind:
-for all ; not(defined(cT, aT, bT, r_44) && ((a[!_31] = aT) && ((b[!_31] = bT) && (c[!_31] = r_44))))
-
-The system fails to orient (m[!_31] = menc), because it is rewritten
-into xor(r_120, b[!_31]) = test(b1, m1, m2)
-     b[!_31] <> xor(r_120, test(b1, m1, m2)) 
-
-The system does not really handle the equations of xor well...
-Adding
-forall x:hasht,y:hasht,a:bool,b:hasht,c:hasht; (xor(x,y) = test(a,b,c)) =
-(y = xor(x, test(a,b,c))).
-does not work either...
-
-Adding
-fun xor'(hasht,hasht):hasht [commut].
-forall x:hasht,y:hasht,a:hasht; (xor(x,y) = a) =
-(y = xor'(x, a)).
-forall x:hasht,y:hasht; xor'(x, xor'(x,y)) = y.
-forall x:hasht,y:hasht,z:hasht; (xor'(x,z) = xor'(y,z)) = (x = y).
-equiv !nx new a:hasht; (x:hasht) -> xor'(a,x)
-      <=(0)=>
-      !nx new a:hasht; (x:hasht) -> a.
-does not work either.
-
-See encryptBR93-2b for a variant that works but is not fully
-satisfactory.
-
-*)
+proof {
+  show_game occ;
+  insert 21 "let concat(xh2',xh2'') = xh2 in";
+  crypto rom(hash2);
+  crypto rom(hash);
+  remove_assign binder pk;
+  crypto ow(f) r x_108;
+  crypto remove_xor(xor) "@9_r_152";
+  success
+}
 
 param nx, qD.
 
@@ -131,7 +56,7 @@ let hashoracle2 =
 
 (* Xor *)
 
-expand Xor(hasht, xor).
+expand Xor(hasht, xor, zero).
 
 (* Implementing a test as a function.
    Useful to avoid expanding if, which is necessary for this proof. *)
@@ -181,6 +106,7 @@ process
 	return(pk);
 	(processD | processT))
 
-(* DESIRED
+(* EXPECTED
 All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 18752K
 END *)

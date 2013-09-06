@@ -9,20 +9,21 @@ set interactiveMode = true.
 (* The proof is as follows:
 
 show_game occ
-insert 99 let concat(xh2',xh2'') = xh2 in 
+insert 21 let concat(xh2',xh2'') = xh2 in 
 crypto rom(hash2)
 crypto rom(hash)
 remove_assign binder pk
-crypto ow(f) r x_74
-crypto remove_xor(xor) @7_r_151
+crypto ow(f) r x_108
+crypto remove_xor(xor) @9_r_152
+show_game
 
-The game should be transformed into a game that does not depend on menc,
-but there is still a dependency somewhere!
+The game is transformed into a game that does not depend on menc.
 
 We can then easily show that if menc is defined by 
 "in(c, (m1,m2); new b1:bool; let menc = if b1 then m1 else m2"
 then the secrecy of b1 is preserved.
-(The system fails to show that directly; see encryptBR93-2.)
+(In earlier versions, the system failed to show that directly; 
+it now succeeds, see encryptBR93-2.)
 
 *)
 
@@ -64,7 +65,7 @@ let hashoracle2 =
 
 (* Xor *)
 
-expand Xor(hasht, xor).
+expand Xor(hasht, xor, zero).
 
 (* Queries *)
 

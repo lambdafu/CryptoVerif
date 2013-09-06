@@ -5,14 +5,13 @@ open Types
 
 let rec transform_insert_iprocess cur_array p =
   match p.i_desc with
-    | Nil -> (Terms.nil_proc, [])
+    | Nil -> (Terms.iproc_from_desc Nil, [])
     | Par(p1,p2) -> 
         let p1',l1=transform_insert_iprocess cur_array p1 in
         let p2',l2=transform_insert_iprocess cur_array p2 in
           (Terms.iproc_from_desc (Par(p1',p2')),l1@l2)
     | Repl(b,p) ->
-        let bt = Terms.term_from_repl_index b in
-        let p',l=transform_insert_iprocess (bt::cur_array) p in
+        let p',l=transform_insert_iprocess (b::cur_array) p in
           (Terms.iproc_from_desc (Repl(b,p')),l)
     | Input((c,tl),pat,p) ->
         let p',l=transform_insert_oprocess cur_array p in
@@ -20,7 +19,7 @@ let rec transform_insert_iprocess cur_array p =
 
 and transform_insert_oprocess cur_array p =
   match p.p_desc with
-    | Yield -> (Terms.yield_proc, [])
+    | Yield -> (Terms.oproc_from_desc Yield, [])
     | EventAbort f -> (Terms.oproc_from_desc (EventAbort f), [])
     | Restr(b,p) ->
         let p',l=transform_insert_oprocess cur_array p in
@@ -51,7 +50,7 @@ and transform_insert_oprocess cur_array p =
         let p',l=transform_insert_oprocess cur_array p in
         let bl = List.map (fun ty -> Terms.create_binder tbl.tblname (Terms.new_vname()) ty cur_array) tbl.tbltype in
         let p'' = List.fold_right2 (fun b t p ->
-                                      Terms.oproc_from_desc (Let(PatVar(b),t,p,Terms.yield_proc))
+                                      Terms.oproc_from_desc (Let(PatVar(b),t,p,Terms.oproc_from_desc Yield))
                                    ) bl tl p' in
           (p'',(tbl,Some bl)::l)
     | Get(tbl,patl,topt,p1,p2) ->
@@ -106,20 +105,20 @@ let rec get_find_branch_process brl patl p =
                get_find_branch_process brl' patl' p
            | _ ->
                let p' = get_find_branch_process brl' patl' p in
-                 Terms.oproc_from_desc (Let(pat, t1, p', Terms.yield_proc)))
+                 Terms.oproc_from_desc (Let(pat, t1, p', Terms.oproc_from_desc Yield)))
 
 let get_find_branch patl topt p cur_array bl =
   let ac = (List.hd bl).args_at_creation in
-  let vars = List.map (fun a -> Terms.create_binder "u" (Terms.new_vname ()) a.t_type cur_array) ac in
+  let vars = List.map (fun a -> Terms.create_binder "u" (Terms.new_vname ()) a.ri_type cur_array) ac in
   let vars_t = List.map Terms.term_from_binder vars in
-  let repl_indices = List.map (fun a -> Terms.create_repl_index "u" (Terms.new_vname ()) a.t_type) ac in
+  let repl_indices = List.map (fun a -> Terms.create_repl_index "u" (Terms.new_vname ()) a.ri_type) ac in
   let repl_indices_t = List.map Terms.term_from_repl_index repl_indices in
   let brl = List.map (fun b -> (b,repl_indices_t)) bl in
   let t = get_find_branch_term brl patl (match topt with None -> Terms.make_true () | Some t -> t) in
   let brl' = List.map (fun b -> (b,vars_t)) bl in
   let p' = get_find_branch_process brl' patl p in
   (List.combine vars repl_indices,brl,
-   Terms.update_args_at_creation (repl_indices @ (List.map Terms.repl_index_from_term cur_array)) t,p')
+   Terms.update_args_at_creation (repl_indices @ cur_array) t,p')
 
 let rec transform_get_iprocess l cur_array p =
   Terms.iproc_from_desc (
@@ -130,8 +129,7 @@ let rec transform_get_iprocess l cur_array p =
           let p2'=transform_get_iprocess l cur_array p2 in
             Par(p1',p2')
       | Repl(b,p) ->
-          let bt = Terms.term_from_repl_index b in
-          let p'=transform_get_iprocess l (bt::cur_array) p in
+          let p'=transform_get_iprocess l (b::cur_array) p in
             Repl(b,p')
       | Input((c,tl),pat,p) ->
           let p'=transform_get_oprocess l cur_array p in

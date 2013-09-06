@@ -47,7 +47,7 @@ let rec display_list f = function
       display_list f l
 
 let rec remove_common_prefix l1 l2 = match (l1,l2) with
-  (a1::l1',a2::l2') when Terms.equal_terms a1 a2 -> 
+  ({t_desc = ReplIndex ri1}::l1',ri2::l2') when ri1 == ri2 -> 
     remove_common_prefix l1' l2'
 | _ -> l1
 
@@ -97,7 +97,7 @@ and display_binder_with_array b =
   if (!display_arrays) && (b.args_at_creation != []) then
     begin
       print_string "[";
-      display_list display_term b.args_at_creation;      
+      display_list display_repl_index b.args_at_creation;      
       print_string "]"
     end
   

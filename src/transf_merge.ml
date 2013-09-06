@@ -237,170 +237,6 @@ let simp_equal_terms simp_facts t t' =
   let t' = reduce simp_facts t' in
   Terms.equal_terms t t'
 
-(* Apply reduction rules defined by statements to term t *)
-
-let rec match_term next_f restr t t' = 
-  match t.t_desc with
-    Var (v,[]) -> 
-    (* Check that types match *)
-      if t'.t_type != v.btype then
-	raise NoMatch;
-      begin
-	match v.link with
-	  NoLink -> 
-	    if List.memq v restr then
-	      (* t' must be a variable created by a restriction *)
-	      begin
-		if not (t'.t_type == v.btype) then
-		  raise NoMatch;
-		match t'.t_desc with
-		  Var(b,l) when Terms.is_restr b -> ()
-		| _ -> raise NoMatch
-	      end;
-	    Terms.link v (TLink t')
-	| TLink t -> 
-	    if not (Terms.equal_terms t t') then raise NoMatch
-      end;
-      next_f()
-  | FunApp(f,[t1;t2]) when f.f_options land Settings.fopt_COMMUT != 0 ->
-      (* Commutative function symbols *)
-      begin
-	match t'.t_desc with
-	  FunApp(f',[t1';t2']) when f == f' ->
-            begin
-              try
-                Terms.auto_cleanup (fun () ->
-	          match_term (fun () -> match_term next_f restr t2 t2') restr t1 t1')
-              with NoMatch ->
-                match_term (fun () -> match_term next_f restr t2 t1') restr t1 t2'
-            end
-	| _ -> raise NoMatch
-      end
-  | FunApp(f,l) ->
-      begin
-	match t'.t_desc with
-	  FunApp(f',l') when f == f' ->
-	    match_term_list next_f restr l l'
-	| _ -> raise NoMatch
-      end
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, and new should not occur in match_term"
-
-and match_term_list next_f restr l l' = 
-  match l,l' with
-    [],[] -> next_f()
-  | a::l,a'::l' ->
-      match_term (fun () -> match_term_list next_f restr l l') 
-	restr a a'
-  | _ -> Parsing_helper.internal_error "Different lengths in match_term_list"
-
-let reduced = ref false
-
-(* apply_not_red implements reduction rules 
-     not (x = y) -> x != y
-     not (x != y) -> x = y
-     x = x -> true
-     x != x -> false
-(These rules cannot be stored in file default, because there are several
-functions for = and for !=, one for each type.)
-*)
-
-let rec apply_not_red t =
-  match t.t_desc with
-    FunApp(fnot, [t']) when fnot == Settings.f_not ->
-      begin
-      match t'.t_desc with
-	FunApp(feq, [t1;t2]) when feq.f_cat == Equal ->
-	  reduced := true;
-	  Terms.make_diff t1 t2
-      |	FunApp(fdiff, [t1;t2]) when fdiff.f_cat == Diff ->
-	  reduced := true;
-	  Terms.make_equal t1 t2
-      |	_ -> Terms.make_not (apply_not_red t')
-      end
-  | FunApp(f,[t1;t2]) when f.f_cat == Equal && (Terms.equal_terms t1 t2) ->
-      reduced := true;
-      Terms.make_true()
-  | FunApp(f,[t1;t2]) when f.f_cat == Diff && (Terms.equal_terms t1 t2) ->
-      reduced := true;
-      Terms.make_false()
-  | FunApp(f,[t1;t2]) when f == Settings.f_and ->
-      Terms.make_and (apply_not_red t1) (apply_not_red t2)
-  | FunApp(f,[t1;t2]) when f == Settings.f_or ->
-      Terms.make_or (apply_not_red t1) (apply_not_red t2)
-  | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map apply_not_red l))
-  | _ -> t
-
-let rec apply_red t (restr,proba,redl,redr) =
-  match t.t_desc with
-    FunApp(f,l) ->
-      begin
-	try
-	  match_term (fun () -> 
-	    let t' = Terms.copy_term Terms.Links_Vars redr in
-	    if proba != Zero then
-	      begin
-              (* Instead of storing the term t, I store the term obtained 
-                 after the applications of try_no_var in match_term,
-                 obtained by (Terms.copy_term Terms.Links_Vars redl) *)
-		if not (Proba.add_proba_red (Terms.copy_term Terms.Links_Vars redl) t' proba (List.map (fun restr1 ->
-		  match restr1.link with
-		    TLink trestr -> (restr1,trestr)
-		  | _ -> Parsing_helper.internal_error "unexpected link in apply_red") restr)) then
-		  raise NoMatch
-	      end;
-	    Terms.cleanup();
-	    reduced := true;
-	    t'
-	      ) restr redl t
-	with NoMatch ->
-	  Terms.cleanup();
-	  Terms.build_term2 t (FunApp(f, List.map (fun t' -> apply_red t' (restr, proba, redl, redr)) l))
-      end
-  | _ -> t
-
-let apply_statement t (vl,t_state) =
-  match t_state.t_desc with
-    FunApp(f, [t1;t2]) when f.f_cat == Equal ->
-      apply_red t ([],Zero,t1,t2)
-  | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
-      apply_red (apply_red t 
-	([],Zero,t_state, Terms.make_true())) 
-	([],Zero,Terms.make_equal t1 t2, Terms.make_false())
-  | _ -> apply_red t ([],Zero,t_state, Terms.make_true())
-
-let rec apply_all_red t = function
-    [] -> 
-      let t' = apply_not_red t in
-      if !reduced then t' else t
-  | (a::l) ->
-      let t' = apply_statement t a in
-      if !reduced then t' else apply_all_red t l
-
-let apply_collision t (restr, forall, t1, proba, t2) =
-  apply_red t (restr,proba,t1,t2)
-
-let rec apply_all_coll t = function
-    [] -> t
-  | (a::l) ->
-      let t' = apply_collision t a in
-      if !reduced then t' else apply_all_coll t l
-
-let apply_statements_and_collisions t =
-  let t' = apply_all_red t (!Settings.statements) in
-  if !reduced then t' else
-  apply_all_coll t (!Settings.collisions) 
-
-let rec apply_reds simp_facts t =
-  let t = reduce simp_facts t in
-  reduced := false;
-  let t' = apply_statements_and_collisions t in
-  if !reduced then 
-    apply_reds simp_facts t' 
-  else
-    t
-
 let rec orient t1 t2 = 
   match t1.t_desc, t2.t_desc with
     (Var(b,l), _) when
@@ -413,7 +249,30 @@ let rec orient t1 t2 =
     (f1 == f2) && (List.for_all2 orient l1 l2) -> true
   | _ -> false
     
-let rec add_fact ((subst2, facts, elsefind) as simp_facts) fact =
+(* Apply reduction rules defined by statements to term t *)
+
+let reduced = Facts.reduced
+
+let rec apply_reds simp_facts t =
+  let t = reduce simp_facts t in
+  reduced := false;
+  let t' = Facts.apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts) Terms.try_no_var_id t in
+  if !reduced then 
+    apply_reds simp_facts t' 
+  else
+    t
+
+(* [reduce_rec simp_facts f t] simplifies the term [t] knowing the fact [f] 
+   in addition to the already known facts [simp_facts]. It sets the flag [reduced]
+   when [t] has really been modified. *)
+
+and reduce_rec simp_facts f t =
+  Terms.auto_cleanup (fun () ->
+    let simp_facts' = simplif_add simp_facts f in
+    let t' = reduce simp_facts' t in
+    Facts.apply_eq_statements_subterms_once Terms.try_no_var_id t')
+  
+and add_fact ((subst2, facts, elsefind) as simp_facts) fact =
   (* print_string "Adding "; Display.display_term fact; print_newline(); *)
   match fact.t_desc with
     FunApp(f,[t1;t2]) when f.f_cat == LetEqual ->
@@ -505,7 +364,8 @@ and subst_simplify2 (subst2, facts, elsefind) link =
 	      let red = !reduced_subst in
 	      (* Applying reductions here slows down simplification *)
 	      reduced := false;
-	      let t1' = apply_statements_and_collisions (reduce (link :: (!subst2''), facts, elsefind) t') in
+	      let simp_facts_tmp = (link :: (!subst2''), facts, elsefind) in
+	      let t1' = Facts.apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts_tmp) Terms.try_no_var_id (reduce simp_facts_tmp t') in
 	      (t1, t1', red || (!reduced) || (!reduced_subst))
 	  | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in subst_simplify2"
 	in
@@ -736,7 +596,7 @@ let add_def_var_proc rename_instr p b =
       begin
 	try
 	  let b2 = assq2 source_vars brl b in
-	  Terms.oproc_from_desc (Let(PatVar b2, Terms.cst_for_type b2.btype, p, Terms.yield_proc))
+	  Terms.oproc_from_desc (Let(PatVar b2, Terms.cst_for_type b2.btype, p, Terms.oproc_from_desc Yield))
 	with Not_found -> 
 	  p
       end
@@ -760,7 +620,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
     match curr_facts with
       Some (_, def_vars, def_node) ->
         def_vars @ def_node.def_vars_at_def @ 
-	(List.map (fun b -> (b, b.args_at_creation)) (Terms.add_def_vars_node [] def_node))
+	(List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) (Terms.add_def_vars_node [] def_node))
     | None -> Parsing_helper.internal_error "p_facts should have been defined"
   in
   let branches_to_merge = ref [] in
@@ -1138,7 +998,7 @@ and merge_o rename_instr p =
       begin
 	try
 	  let b = assq2 pl bl p in
-	  Terms.oproc_from_desc (Let(PatVar b, Terms.cst_for_type b.btype, p', Terms.yield_proc))
+	  Terms.oproc_from_desc (Let(PatVar b, Terms.cst_for_type b.btype, p', Terms.oproc_from_desc Yield))
 	with Not_found ->
 	  p'
       end
@@ -1209,7 +1069,7 @@ let merge_arrays bll mode g =
 			(Display.binder_to_string b) ^ 
 			" should have the same type as " ^
 			(Display.binder_to_string b1), ext));
-	  if not (Terms.equal_term_lists b.args_at_creation b1.args_at_creation) then
+	  if not (Terms.equal_lists (==) b.args_at_creation b1.args_at_creation) then
 	    raise(Error("For merging arrays, variable " ^
 			(Display.binder_to_string b) ^ 
 			" should have the same indices as " ^
@@ -1254,10 +1114,10 @@ let merge_arrays bll mode g =
 	      NoBranchVar
 	| MCreateBranchVarAtProc(pl, cur_array) ->
 	    CreateBranchVarAtProc(pl, List.map (fun (b,_) -> 
-	      Terms.create_binder "@br" (Terms.new_vname()) b.btype (List.map Terms.term_from_repl_index cur_array)) bl1)
+	      Terms.create_binder "@br" (Terms.new_vname()) b.btype cur_array) bl1)
 	| MCreateBranchVarAtTerm(tl, cur_array) ->
 	    CreateBranchVarAtTerm(tl, List.map (fun (b,_) -> 
-	      Terms.create_binder "@br" (Terms.new_vname()) b.btype (List.map Terms.term_from_repl_index cur_array)) bl1)
+	      Terms.create_binder "@br" (Terms.new_vname()) b.btype cur_array) bl1)
       in
       try
 	let bll_no_ext = List.map (List.map fst) bll in

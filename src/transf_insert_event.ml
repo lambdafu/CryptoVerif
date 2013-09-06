@@ -55,6 +55,9 @@ let insert_event occ s g =
 	    f_type = [Settings.t_bitstring],Settings.t_bool;
 	    f_cat = Event;
 	    f_options = 0;
+	    f_statements = [];
+	    f_collisions = [];
+	    f_eq_theories = NoEq;
             f_impl = No_impl;
             f_impl_inv = None }
   in

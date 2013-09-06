@@ -40,7 +40,7 @@ let hashoracle = ! qH in(hc1, x: seed); out(hc2, hash(hk,x)).
 
 (* Xor *)
 
-expand Xor(hasht, xor).
+expand Xor(hasht, xor, zero).
 
 (* Queries *)
 

@@ -38,6 +38,7 @@ let return_channel = dummy_channel
 %token EQUAL
 %token DIFF
 %token FORALL
+%token EQUATION
 %token PARAM
 %token PROBA
 %token TYPE
@@ -132,6 +133,8 @@ lib:
         { (EventDecl($2, $4)) :: $7 }
 |	FORALL vartypelist SEMI term DOT lib
 	{ (Statement($2, $4)) :: $6 }
+|       EQUATION IDENT LPAREN identlist RPAREN DOT lib
+        { (BuiltinEquation($2, $4)) :: $7 }
 |	LET IDENT EQUAL process DOT lib
 	{ (PDef($2,$4)) :: $6 }
 |       SET IDENT EQUAL IDENT DOT lib

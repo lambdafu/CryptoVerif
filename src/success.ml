@@ -12,7 +12,7 @@ open Types
 
 let advise = ref []
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 
 let rec check_usage_term seen_accu b t =
   match t.t_desc with

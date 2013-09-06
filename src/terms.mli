@@ -77,8 +77,10 @@ val iproc_from_desc : inputprocess_desc -> inputprocess
 val oproc_from_desc : process_desc -> process
 val iproc_from_desc2 : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc2 : process -> process_desc -> process
-val nil_proc : inputprocess
-val yield_proc : process
+
+val app : funsymb -> term list -> term
+
+val is_args_at_creation : binder -> term list -> bool
 
 val cst_for_type : typet -> term
 
@@ -102,7 +104,7 @@ val vcounter : int ref
 val new_vname : unit -> int
 val new_binder : binder -> binder
 val new_repl_index : repl_index -> repl_index
-val create_binder : string -> int -> typet -> term list -> binder
+val create_binder : string -> int -> typet -> repl_index list -> binder
 val create_repl_index : string -> int -> typet -> repl_index
 
 (* Copy a term, process, ..., substituting variables with their links.
@@ -159,7 +161,57 @@ val subst3 : (binder * term) list -> term -> term
 val subst_def_list3 : (binder * term) list -> binderref list -> binderref list
 val subst_oprocess3 : (binder * term) list -> process -> process
 
+(* Functions for manipulating terms with equations *)
+
+(* Identity function, to be used as placeholder for
+   a term simplification function when we don't want to do
+   any simplification *)
+val try_no_var_id : term -> term
+
+(* [compute_inv try_no_var reduced (prod, inv, neut) t] computes the inverse of
+   term [t].
+   [prod] is the product function, [inv] is the inverse function,
+   [neut] is the neutral element.
+   [reduced] is set to true when [t] has been simplified.
+   [try_no_var] is a function from terms to terms that tries to replace
+   variables with their values. It leaves non-variable terms unchanged.
+   It can be the identity when we do not have information on the values
+   of variables. *)
+val compute_inv : (term -> term) -> bool ref ->
+  funsymb * funsymb * funsymb -> term -> term
+
+(* Simplification function:
+   [simp_prod try_no_var reduced sub_eq f t] simplifies term [t].
+   [f] is a binary function with an equational theory. 
+   [simp_prod] returns a list of terms [l], such that [t] is equal to
+   the product of the elements of [l] by function [f].
+   Function [sub_eq] is used to test equality between elements.
+   [reduced] is set to true when [t] has really been simplified.
+   [try_no_var] is as above. *)
+val simp_prod : (term -> term) -> bool ref ->
+  (term -> term -> bool) -> funsymb -> term -> term list
+
+(* [make_prod prod l] computes the product by function [prod]
+   of the elements in list [l]. [l] must not be empty. *)
+val make_prod : funsymb -> term list -> term
+
+(* [make_inv_prod eq_th l1 t l2] computes the product 
+   inv (product (List.rev l1)) * t * inv(product l2) *)
+val make_inv_prod : eq_th -> term list -> term -> term list -> term
+
+(* [get_prod try_no_var t] returns the equational theory of the root
+   function symbol of term [t], when it is a product
+   in a group or xor. [try_no_var] is as in [compute_inv] above. *)
+val get_prod : (term -> term) -> term -> eq_th
+val get_prod_list : (term -> term) -> term list -> eq_th
+
+(* [apply_eq_reds try_no_var reduced t] simplifies the term [t] using
+   the equational theory. [reduced] is set when the term [t] is really
+   simplified. [try_no_var] is as in [compute_inv] above. *) 
+val apply_eq_reds : (term -> term) -> bool ref -> term -> term
+
 (* Equality tests between terms, lists of terms, ... *)
+val simp_equal_terms : (term -> term) -> term -> term -> bool
 val equal_terms : term -> term -> bool
 val equal_term_lists : term list -> term list -> bool 
 val equal_probaf : probaf -> probaf -> bool
@@ -223,6 +275,12 @@ val put_lets_term : pattern list -> term list -> term -> term option -> term
 exception Impossible
 val split_term : funsymb -> term -> term list
 
+val move_occ_term : term -> term
+val move_occ_br : binderref -> binderref
+(* [move_occ_process] renumbers the occurrences in the process given
+   as argument. Additionally, it makes sure that all terms and processes
+   inside the returned process are physically distinct, which is a 
+   requirement for calling [Terms.build_def_process]. *)
 val move_occ_process : inputprocess -> inputprocess
 
 val term_from_pat : pattern -> term
@@ -285,3 +343,82 @@ of find have no array accesses, and that new/event do not occur in
 conditions of find. It creates fresh variables for all variables
 defined in the condition of the find. *)
 val update_args_at_creation : repl_index list -> term -> term
+
+(* Function to call by default in case of matching error *)
+
+val default_match_error : unit -> 'a
+
+(* [match_funapp match_term get_var_link match_error try_no_var next_f t t' state]
+   matches [t] and [t']; [t] must be FunApp, otherwise matching
+   is considered to fail. The other cases must have been handled previously.
+
+   [match_term]: [match_term next_f t1 t2 state] matches [t1] with [t2];
+   calls [next_f state'] when the match succeeds; raises NoMatch when it
+   fails. It must clean up the links it has put at least when it fails.
+   (When it succeeds, the cleanup is optional.)
+
+   [get_var_link]: [get_var_link t state] returns [Some (link, allow_neut)]
+   when [t] is variable that can be bound by a product of terms,
+   [link] is the current contents of the link of that variable,
+   [allow_neut] is true if and only if the variable may be bound to
+   the neutral element (provided there is a neutral element for the
+   product); it returns [None] otherwise.
+
+   [match_error]: [match_error()] is called in case of matching error.
+   (In most cases, [match_error] should be [default_match_error],
+   which raises the [NoMatch] exception.)
+
+   [try_no_var]: [try_no_var t] tries to replace variables with their
+   values in [t]; it returns the resulting term.
+
+   [next_f]: [next_f state'] is called when the matching succeeds.
+   It can raise [NoMatch] to force the function to look for
+   another matching.
+*)
+
+val match_funapp :
+  (('b -> 'a) -> term -> term -> 'b -> 'a) ->
+  (term -> 'b -> (linktype * bool) option) ->
+  (unit -> 'a) -> 
+  (term -> term) ->
+  ('b -> 'a) -> term -> term -> 'b -> 'a
+
+(* [match_assoc_subterm match_term get_var_link next_f try_no_var prod l1 l2 state]
+   matches the lists of terms [l1] and [l2] modulo associativity of the product
+   function [prod].
+   [match_term], [get_var_link], [next_f], [try_no_var] are as in the function
+   [match_funapp] above.
+   *)
+
+val match_assoc_subterm :
+  (('b -> 'a) -> term -> term -> 'b -> 'a) ->
+  (term -> 'b -> (linktype * bool) option) ->
+  (term list -> term list -> 'b -> 'a) ->
+  (term -> term) ->
+  funsymb -> term list -> term list -> 'b -> 'a
+
+(* [match_AC match_term get_var_link match_error next_f try_no_var prod allow_rest l1 l2 state]
+   matches the lists of terms [l1] and [l2] modulo associativity and commutativity
+   of the product function [prod].
+   [allow_rest] is true when one is allowed to match only a sublist of [l2] with [l1].
+   [match_term], [get_var_link], [match_error], [next_f], [try_no_var] are as in the function
+   [match_funapp] above.
+*)
+
+val match_AC :
+  (('b -> 'a) -> term -> term -> 'b -> 'a) ->
+  (term -> 'b -> (linktype * bool) option) ->
+  (unit -> 'a) -> 
+  (term list -> 'b -> 'a) ->
+  (term -> term) ->
+  funsymb -> bool -> term list -> term list -> 'b -> 'a
+
+(* [match_term_list match_term next_f l l' state] matches the lists of terms
+   [l] and [l'], using [match_term] to match individual terms.
+   [next_f state'] is called when the matching succeeds.
+   It can raise [NoMatch] to force the function to look for
+   another matching. *)
+
+val match_term_list :
+  (('b -> 'a) -> term -> term -> 'b -> 'a) ->
+  ('b -> 'a) -> term list -> term list -> 'b -> 'a

@@ -122,8 +122,8 @@ let execute_state state i =
     end;
   if !Settings.changed then
     begin
-      Invariants.global_inv g'.proc;
       g'.proc <- Terms.move_occ_process g'.proc;
+      Invariants.global_inv g'.proc;
       ({ game = g';
 	 prev_state = Some (i, proba, done_ins, state) }, ins_update)
     end
@@ -255,8 +255,8 @@ let crypto_transform stop no_advice equiv bl_assoc state =
       else
 	print_string "Succeeded.\n"; 
       (* Always expand FindE *)
-      Invariants.global_inv g''.proc;
       g''.proc <- Terms.move_occ_process g''.proc;
+      Invariants.global_inv g''.proc;
       CSuccess (simplify { game = g''; 
 			   prev_state = Some (CryptoTransf(equiv, bl_assoc), proba, ins, state) })
   | TFailure l ->

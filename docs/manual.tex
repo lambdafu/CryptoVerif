@@ -814,21 +814,19 @@ $\texttt{cdh}(\vn{exp})$ equivalence.)
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{ddh}(\vn{exp})$.
 
-\item $\texttt{expand\ Xor(}D, \vn{xor}\texttt{).}$ defines the
+\item $\texttt{expand\ Xor(}D, \vn{xor}, \vn{zero}\texttt{).}$ defines the
   function symbol $\vn{xor}$ to be exclusive or on the set of
-  bitstrings $D$.
+  bitstrings $D$, where $\vn{zero}$ is the bitstring consisting only
+  of zeroes in $D$.
 
-   The type $D$ must be declared before this macro is expanded. The
-   function $\vn{xor}$ is declared by this macro. It must not be
-   declared elsewhere, and it can be used only after expanding the
-   macro.
+  The type $D$ must be declared before this macro is expanded. The
+  function $\vn{xor}$ and the constant $\vn{zero}$ are declared by
+  this macro.  They must not be declared elsewhere, and they can be
+  used only after expanding the macro.
 
    This macro defines the equivalence named $\texttt{remove\_xor}(\vn{xor})$
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
-
-   This model of xor is not fully satisfactory. In particular,
-   associativity is missing (but it is obviously still sound).
 
 \end{itemize}
 

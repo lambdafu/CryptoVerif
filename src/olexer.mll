@@ -18,6 +18,7 @@ let keyword_table =
   "fun", FUN;
   "param", PARAM;
   "forall", FORALL;
+  "equation", EQUATION;
   "proba", PROBA;
   "type", TYPE;
   "equiv", EQUIV;

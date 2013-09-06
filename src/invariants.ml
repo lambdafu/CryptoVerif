@@ -16,7 +16,7 @@ let check_noninter d1 d2 =
 	) d1
 
 let ok_cur_array cur_array b =
-  if not (Terms.equal_term_lists b.args_at_creation (List.map Terms.term_from_repl_index cur_array)) then 
+  if not (Terms.equal_lists (==) b.args_at_creation cur_array) then 
     Parsing_helper.internal_error ("Bad args_at_creation for " ^ (Display.binder_to_string b))
 
 let rec inv1t cur_array t =
@@ -169,12 +169,17 @@ let rec check_indices all_args args l =
   match args,l with
     [],[] -> ()
   | _::rargs, i::rl -> 
-      if List.exists (Terms.equal_terms i) all_args then
-	List.iter2 (fun arg i -> 
-	  if not (Terms.equal_terms arg i) then
-	    Parsing_helper.internal_error "If a variable access refers to a replication index, all the rest of the indices must be the indices at creation") args l
-      else
-	check_indices all_args rargs rl
+      begin
+	match i.t_desc with
+	  ReplIndex i' when List.memq i' all_args ->
+	    List.iter2 (fun arg i -> 
+	      match i.t_desc with
+		ReplIndex i' when i' == arg -> ()
+	      |	_ -> Parsing_helper.internal_error "If a variable access refers to a replication index, all the rest of the indices must be the indices at creation"
+		    ) args l
+	| _ -> 
+	    check_indices all_args rargs rl
+      end
   | _ -> Parsing_helper.internal_error "Variable indices have length different from args_at_creation"
 
 let rec invt defined_refs t =
@@ -189,20 +194,55 @@ let rec invt defined_refs t =
 	end;
       check_indices b.args_at_creation b.args_at_creation l;
       List.iter2 (fun arg p ->
-	if arg.t_type != p.t_type then
-	  Parsing_helper.internal_error "Type error") b.args_at_creation l;
+	if arg.ri_type != p.t_type then
+	  begin
+	    print_string "Variable access "; 
+	    Display.display_var b l; 
+	    print_newline();
+	    print_string ("Excepted index type: " ^ arg.ri_type.tname ^ "\n");
+	    print_string ("Actual index type: " ^ p.t_type.tname ^ "\n");
+	    Parsing_helper.internal_error "Type error"
+	  end) b.args_at_creation l;
       if t.t_type != b.btype then
-	Parsing_helper.internal_error "Type error";
+	begin
+	  print_string "Variable access "; 
+	  Display.display_var b l; 
+	  print_newline();
+	  print_string ("Variable type: " ^ b.btype.tname ^ "\n");
+	  print_string ("Term type: " ^ t.t_type.tname ^ "\n");
+	  Parsing_helper.internal_error "Type error"
+	end;
       List.iter (invt defined_refs) l
   | ReplIndex(b) ->
       if t.t_type != b.ri_type then
-	Parsing_helper.internal_error "Type error"
+	begin
+	  print_string "Replication index "; 
+	  Display.display_term t; 
+	  print_newline();
+	  print_string ("Replication index type: " ^ b.ri_type.tname ^ "\n");
+	  print_string ("Term type: " ^ t.t_type.tname ^ "\n");
+	  Parsing_helper.internal_error "Type error"
+	end
   | FunApp(f,l) ->
-      List.iter2 (fun t p ->
-	if t != p.t_type then
-	  Parsing_helper.internal_error "Type error") (fst f.f_type) l;
+      List.iter2 (fun ty p ->
+	if ty != p.t_type then
+	  begin
+	    print_string "Function application "; 
+	    Display.display_term t; 
+	    print_newline();
+	    print_string ("Expected argument type: " ^ ty.tname ^ "\n");
+	    print_string ("Actual argument type: " ^ p.t_type.tname ^ "\n");
+	    Parsing_helper.internal_error "Type error"
+	  end) (fst f.f_type) l;
       if t.t_type != snd f.f_type then
-	Parsing_helper.internal_error "Type error";
+	begin
+	  print_string "Function application "; 
+	  Display.display_term t; 
+	  print_newline();
+	  print_string ("Function result type: " ^ (snd f.f_type).tname ^ "\n");
+	  print_string ("Term type: " ^ t.t_type.tname ^ "\n");
+	  Parsing_helper.internal_error "Type error"
+	end;
       List.iter (invt defined_refs) l
   | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ ->
       Parsing_helper.internal_error "If/let/new/find should have been expanded"
@@ -245,7 +285,7 @@ let rec invfc defined_refs t =
       let ty = invpat defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
       List.iter no_array_ref bpat;
-      let defs = List.map (fun b -> (b, b.args_at_creation)) bpat in
+      let defs = List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) bpat in
       invt defined_refs t;
       invfc (defs @ defined_refs) t2;
       if ty != t.t_type then
@@ -292,7 +332,7 @@ let rec inv defined_refs p =
       List.iter (invt defined_refs) tl;
       let _ = invpat defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
-      let defs = List.map (fun b -> (b, b.args_at_creation)) bpat in
+      let defs = List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) bpat in
       invo (defs @ defined_refs) p
 
 and invo defined_refs p =
@@ -309,7 +349,7 @@ and invo defined_refs p =
       let ty = b.btype in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	Parsing_helper.internal_error ("Cannot choose randomly a bitstring from " ^ ty.tname ^ "\n");
-      invo ((b, b.args_at_creation)::defined_refs) p
+      invo ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) p
   | Test(t,p1,p2) ->
       invt defined_refs t;
       invo defined_refs p1;
@@ -319,7 +359,7 @@ and invo defined_refs p =
   | Let(pat, t, p1, p2) ->
       let ty = invpat defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
-      let defs = List.map (fun b -> (b, b.args_at_creation)) bpat in
+      let defs = List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) bpat in
       invt defined_refs t;
       invo (defs @ defined_refs) p1;
       if ty != t.t_type then

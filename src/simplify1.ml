@@ -88,82 +88,82 @@ let ri_auto_cleanup f =
     current_bound_ri := tmp_bound_ri;
     raise x
 
-let rec match_term3 next_f t t' = 
-  match t.t_desc, t'.t_desc with
-    Var (v,[]), _ when v.sname==any_term_name -> next_f()
-  | ReplIndex (v), _ -> 
-    (* Check that types match *)
-      if t'.t_type != v.ri_type then
-	raise NoMatch;
-      begin
-	match v.ri_link with
-	  NoLink -> ri_link v (TLink t')
-	| TLink t -> if not (Terms.equal_terms t t') then raise NoMatch;
-      end;
-      next_f()
-  | Var(b,l), Var(b',l') when b == b' -> 
-      match_term_list3 next_f l l'
-  | FunApp(f,[t1;t2]), FunApp(f',[t1';t2']) when f.f_options land Settings.fopt_COMMUT != 0 && f == f' ->
-      (* Commutative function symbols *)
-      begin
-        try
-          ri_auto_cleanup (fun () ->
-	    match_term3 (fun () -> match_term3 next_f t2 t2') t1 t1')
-        with NoMatch ->
-          match_term3 (fun () -> match_term3 next_f t2 t1') t1 t2'
-      end
-  | FunApp(f,l), FunApp(f',l') when f == f' ->
-      match_term_list3 next_f l l'
-  | _ -> raise NoMatch
+let ri_auto_cleanup_failure f =
+  let tmp_bound_ri = !current_bound_ri in
+  try
+    f() 
+  with x ->
+    cleanup_until tmp_bound_ri (!current_bound_ri);
+    current_bound_ri := tmp_bound_ri;
+    raise x
 
-and match_term_list3 next_f l l' = 
-  match l,l' with
-    [],[] -> next_f()
-  | a::l,a'::l' ->
-      match_term3 (fun () -> match_term_list3 next_f l l') a a'
-  | _ -> Parsing_helper.internal_error "Different lengths in match_term_list"
+(* [get_var_link] function associated to [match_term3].
+   See the interface of [Terms.match_funapp] for the 
+   specification of [get_var_link]. *)
+
+let get_var_link t () =
+  match t.t_desc with
+    Var (v,[]) when v.sname==any_term_name -> Some(v.link, true)
+  | ReplIndex (v) -> Some(v.ri_link, false)
+  | _ -> None
+    
+let rec match_term3 next_f t t' () = 
+  ri_auto_cleanup_failure (fun () ->
+    match t.t_desc, t'.t_desc with
+      Var (v,[]), _ when v.sname==any_term_name -> next_f()
+    | ReplIndex (v), _ -> 
+      (* Check that types match *)
+	if t'.t_type != v.ri_type then
+	  raise NoMatch;
+	begin
+	  match v.ri_link with
+	    NoLink -> ri_link v (TLink t')
+	  | TLink t -> if not (Terms.equal_terms t t') then raise NoMatch;
+	end;
+	next_f()
+    | Var(b,l), Var(b',l') when b == b' -> 
+	Terms.match_term_list match_term3 next_f l l' ()
+    | FunApp(f,l), FunApp(f',l') when f == f' ->
+	Terms.match_funapp match_term3 get_var_link Terms.default_match_error Terms.try_no_var_id next_f t t' ()
+    | _ -> raise NoMatch
+	  )
 
 let matches_pair t1 t2 t1' t2' =
   try
-    ri_auto_cleanup (fun () ->
-      match_term3 (fun () -> match_term3 (fun () -> ()) t2 t2') t1 t1');
+    ri_auto_cleanup (match_term3 (match_term3 (fun () -> ()) t2 t2') t1 t1');
     true
   with NoMatch -> false
 
 let matches_pair_with_order_ass order_assumptions t1 t2 order_assumptions' t1' t2' =
-  try
+  try 
     if (order_assumptions != []) && (order_assumptions' == []) then
-      false 
+      false
     else
       begin
-	ri_auto_cleanup (fun () ->
-	  match_term3 (fun () -> match_term3 (fun () -> 
-	    let order_assumptions_instance = List.map (fun (br1,br2) ->
-	      (Terms.copy_term Terms.Links_RI (Terms.term_from_binderref br1),
-	       Terms.copy_term Terms.Links_RI (Terms.term_from_binderref br2))) order_assumptions
-	    in
-	    let order_assumptions' = List.map (fun (br1, br2) ->
-	      (Terms.term_from_binderref br1,
-	       Terms.term_from_binderref br2)) order_assumptions'
-	    in
-	    if not 
-		(List.for_all (fun (br1,br2) ->
-		  List.exists (fun (br1',br2') ->
-		    (Terms.equal_terms br1 br1') && (Terms.equal_terms br2 br2')) order_assumptions') order_assumptions_instance)
-	    then raise NoMatch
-		) t2 t2') t1 t1');
+	match_term3 (match_term3 (fun () -> 
+	  let order_assumptions_instance = List.map (fun (br1,br2) ->
+	    (Terms.copy_term Terms.Links_RI (Terms.term_from_binderref br1),
+	     Terms.copy_term Terms.Links_RI (Terms.term_from_binderref br2))) order_assumptions
+	  in
+	  let order_assumptions' = List.map (fun (br1, br2) ->
+	    (Terms.term_from_binderref br1,
+	     Terms.term_from_binderref br2)) order_assumptions'
+	  in
+	  if not 
+	      (List.for_all (fun (br1,br2) ->
+		List.exists (fun (br1',br2') ->
+		  (Terms.equal_terms br1 br1') && (Terms.equal_terms br2 br2')) order_assumptions') order_assumptions_instance)
+	  then raise NoMatch
+	      ) t2 t2') t1 t1' ();
 	true
       end
   with NoMatch -> false
 
 let eq_terms3 t1 t2 =
-  let cur_bound_ri = !current_bound_ri in
   try
-    match_term3 (fun () -> ()) t1 t2;
+    match_term3 (fun () -> ()) t1 t2 ();
     true
   with NoMatch ->
-    cleanup_until cur_bound_ri (!current_bound_ri);
-    current_bound_ri := cur_bound_ri;
     false
 
 let get_index_size b =
@@ -269,7 +269,7 @@ as t1 = t2. *)
 let matches 
     (order_assumptions, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, tl)
     (order_assumptions', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', tl') =
-  ri_auto_cleanup (fun () ->
+  ri_auto_cleanup (fun () -> 
     if matches_pair_with_order_ass order_assumptions t1 t2 order_assumptions' t1' t2' then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
       ri_cleanup();
@@ -576,38 +576,37 @@ let rec remove_array_index t =
 
 let reduced = ref false
 
-(* Same as apply_reds but do not apply collisions, and apply statements
-   only at the root of the term *)
-let apply_statement2 t t_state =
-  match t_state.t_desc, t.t_desc with
-    FunApp(f1, [redl;redr]), FunApp(f,l) when f1.f_cat == Equal ->
+(* This is a specialized version of Facts.apply_collisions_at_root_once
+   for statements, with try_no_var = Terms.try_no_var_id *)
+let rec apply_statements_at_root_once t = function
+    [] -> t
+  | ([], _, redl, Zero, redr)::other_statements ->
       begin
 	try
-	  Facts.match_term (fun () -> 
+	  Facts.match_term Terms.try_no_var_id [] (fun () -> 
 	    let t' = Terms.copy_term Terms.Links_Vars redr in
 	    Terms.cleanup();
 	    reduced := true;
 	    t'
-	      ) ([],[],[]) [] redl t
+	      ) redl t ()
 	with NoMatch ->
 	  Terms.cleanup();
-	  t
+	  apply_statements_at_root_once t other_statements
       end
-  | _ -> t
+  | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr)"
 
-let rec apply_all_red2 t = function
-    [] -> t
-  | ((_,t_state)::l) ->
-      let t' = apply_statement2 t t_state in
-      if !reduced then t' else apply_all_red2 t l
-
-let rec apply_statements t =
+(* Same as Facts.apply_reds but does not apply collisions, and 
+   applies statements only at the root of the term *)
+let rec apply_eq_statements_at_root t =
   reduced := false;
-  let t' = apply_all_red2 t (!Settings.statements) in
-  if !reduced then 
-    apply_statements t' 
-  else
-    t
+  let t' = Terms.apply_eq_reds Terms.try_no_var_id reduced t in
+  if !reduced then apply_eq_statements_at_root t' else 
+  let t' =  
+    match t.t_desc with
+      FunApp(f,l) -> apply_statements_at_root_once t f.f_statements
+    | _ -> t
+  in
+  if !reduced then apply_eq_statements_at_root t' else t
 
 
 (* find_compos b t returns true when t characterizes b: only one
@@ -665,7 +664,7 @@ and find_compos_bin_l check b_st b' l1 l2 =
     [],[] -> None
   | (a1::l1,a2::l2) ->
       begin
-      match find_compos_bin check b_st b' (apply_statements (Terms.make_equal a1 a2)) with
+      match find_compos_bin check b_st b' (apply_eq_statements_at_root (Terms.make_equal a1 a2)) with
 	None -> find_compos_bin_l check b_st b' l1 l2
       |	Some(_, charac_type) -> Some(Compos,charac_type)
       end
@@ -748,7 +747,7 @@ let rec find_compos check depinfo ((b,(st,_)) as b_st) t =
           print_newline ()
         end;
 
-      let f1 = apply_statements (Terms.make_equal t t') in
+      let f1 = apply_eq_statements_at_root (Terms.make_equal t t') in
       let r = 
 	match find_compos_bin check b_st b' f1 with
 	  None -> None
@@ -792,7 +791,7 @@ let rec match_term2 next_f simp_facts bl t t' =
 	  raise NoMatch;
 	match v.ri_link with
 	  NoLink -> ri_link v (TLink t')
-	| TLink t -> ignore (Facts.unify_terms simp_facts t t')
+	| TLink t -> if not (Terms.simp_equal_terms (Facts.try_no_var simp_facts) t t') then raise NoMatch
       end;
       next_f ()
   | ReplIndex(v) ->
@@ -808,27 +807,8 @@ let rec match_term2 next_f simp_facts bl t t' =
 	    match_term_list2 next_f simp_facts bl l l'
 	| _ -> raise NoMatch
       end
-  | FunApp(f,[t1;t2]) when f.f_options land Settings.fopt_COMMUT != 0 ->
-      (* Commutative function symbols *)
-      begin
-	match t'.t_desc with
-	  FunApp(f',[t1';t2']) when f == f' ->
-	    begin
-	      try
-		ri_auto_cleanup (fun () ->
-		  match_term2 (fun () -> match_term2 next_f simp_facts bl t2 t2') simp_facts bl t1 t1')
-	      with NoMatch ->
-		match_term2 (fun () -> match_term2 next_f simp_facts bl t2 t1') simp_facts bl t1 t2'
-	    end
-	| _ -> raise NoMatch
-      end
-  | FunApp(f,l) ->
-      begin
-	match t'.t_desc with
-	  FunApp(f',l') when f == f' ->
-	    match_term_list2 next_f simp_facts bl l l'
-	| _ -> raise NoMatch
-      end
+  | FunApp _ ->
+      Parsing_helper.internal_error "Function symbol in Simplify1.match_term2. Should never occur since it is used to match binderrefs only"
   | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in match_term2"
 
 and match_term_list2 next_f simp_facts bl l l' = 
@@ -984,7 +964,7 @@ let rec try_no_var_rec simp_facts t =
 let is_in_bl bl t =
   match t.t_desc with
     Var(b,l) ->
-      (List.memq b bl) && (List.for_all2 Terms.equal_terms b.args_at_creation l)
+      (List.memq b bl) && (Terms.is_args_at_creation b l)
   | _ -> false
 
 (* Dependency analysis that takes into account assumption on the
@@ -1190,7 +1170,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
     | ((b2,tl2)::l) ->
 	let before_br2 = 
 	  try 
-            Terms.subst_def_list (List.map Terms.repl_index_from_term b2.args_at_creation) tl2 (Facts.def_vars_from_defined None [(b2, b2.args_at_creation)])
+            Terms.subst_def_list b2.args_at_creation tl2 (Facts.def_vars_from_defined None [(b2, List.map Terms.term_from_repl_index b2.args_at_creation)])
 	  with Contradiction -> 
 	    (* Contradiction may be raised when b2 can in fact not be defined. *)
 	    []	
@@ -1204,7 +1184,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
   (* transform the elsefind fact such that the variable (b,b.args_at_creation) 
      for the original fact corresponds to our variable (b,tl):
      substitute b.args_at_creation with tl *)
-  let b_index = List.map Terms.repl_index_from_term b.args_at_creation in
+  let b_index = b.args_at_creation in
   let def_list = Terms.subst_def_list b_index tl def_list in
   let t1 = Terms.subst b_index tl t1 in
 
@@ -1246,7 +1226,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
     (* Variables defined before (b,tl) *)
     let def_vars = 
       try 
-        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [(b, b.args_at_creation)])
+        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [(b, List.map Terms.term_from_repl_index b.args_at_creation)])
       with Contradiction -> 
 	(* Contradiction may be raised when b can in fact not be defined. *)
 	[]
@@ -1291,7 +1271,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
 		   add to the future variables of br the variables defined between the previous input 
 		   point and the definition of br and after another definition of (b,_). *)
               let future_binders = add_vars_until_binder_or_node n [b] (above_input_node n) n.future_binders in
-	      let future_vars = Terms.subst_def_list (List.map Terms.repl_index_from_term (fst br).args_at_creation) (snd br) (List.map (fun b -> (b, b.args_at_creation)) future_binders) in
+	      let future_vars = Terms.subst_def_list (fst br).args_at_creation (snd br) (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) future_binders) in
                 if (!Settings.debug_elsefind_facts) then
                   begin
                     print_string "Elsefind_fact_future_vars:\n";

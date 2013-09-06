@@ -52,7 +52,7 @@ let add_list_bv f l=
   List.fold_left (fun x y -> add_bv x (f y)) empty_bv l
 
 let get_binderref_name ext (b,l) =
-  if (Terms.equal_term_lists b.args_at_creation l) then
+  if Terms.is_args_at_creation b l then
     get_binder_name b
   else
     Parsing_helper.input_error "There should not be any find variable" ext
@@ -457,9 +457,11 @@ let random b ind =
   in
     "\n"^ind^"let "^(get_binder_name b)^" = "^rand^" () in"
 
+let yield_transl ind = "\n"^ind^"raise Match_fail"
+
 let rec translate_oprocess opt p ind =
   match p.p_desc with
-    | Yield -> "\n"^ind^"raise Match_fail"
+    | Yield -> yield_transl ind
     | EventAbort _ -> "\n"^ind^"raise Abort"
     | Restr(b,p) -> 
         (random b ind)^
@@ -519,7 +521,7 @@ and translate_get opt tbl patl topt p1 p2 ind =
       (p2 (ind^"  "))^
       "\n"^ind^"end else begin\n"^ind^
       "  let ("^(string_list_sep "," tvars)^") = rand_list "^list^" in"^
-      (match_pattern_list opt patl tvars p1 (translate_oprocess opt Terms.yield_proc) false (ind^"  "))^"\n"^ind^"end"
+      (match_pattern_list opt patl tvars p1 yield_transl false (ind^"  "))^"\n"^ind^"end"
       
 and translate_term t ind =
   let rec termlist sep = function
@@ -658,18 +660,18 @@ and match_pattern_from_input opt pat (vars:string list) (next:string -> string) 
         (
           match pat with
             | PatTuple (f,pl) when f.f_name = "" ->
-                match_pattern_list opt pl vars next (translate_oprocess opt Terms.yield_proc) false ind
+                match_pattern_list opt pl vars next yield_transl false ind
             | _ -> Parsing_helper.internal_error "oracle must begin with pattern \"\"(...)"
         )
     | Settings.Channels ->
         (
           match pat with
             | PatTuple (f,pl) when f.f_name = "" ->
-                match_pattern_list opt pl vars next (translate_oprocess opt Terms.yield_proc) false ind
+                match_pattern_list opt pl vars next yield_transl false ind
             | _ -> 
                 match vars with
                     [var] ->
-                      match_pattern opt pat var next (translate_oprocess opt Terms.yield_proc) false ind
+                      match_pattern opt pat var next yield_transl false ind
                   | _ -> Parsing_helper.internal_error "var in match_pattern_from_input"
         )
 

@@ -4,19 +4,23 @@ section 3.2:
 	E(x) = f(r) || H(r) xor x || H2(r || x) 
 (CCA2) -- in progress *)
 
-set interactiveMode = true.
+(* set interactiveMode = true. 
+The proof is as follows: *)
 
-(* The proof is as follows:
+proof {
+  show_game occ;
+  insert 21 "let concat(xh2',xh2'') = xh2 in";
+       (* inserted just before "out(hc4, ...)" to distinguish 
+          cases depending on whether xh2 is concat(...) or not *)
+  crypto rom(hash2);
+  crypto rom(hash);
+  remove_assign binder pk;
+  crypto ow(f) r x_108;
+  crypto remove_xor(xor) "@9_r_152";
+  success
+}
 
-show_game occ
-insert 21 let concat(xh2',xh2'') = xh2 in 
-crypto rom(hash2)
-show_game
-crypto rom(hash)
-remove_assign binder pk
-crypto ow(f) r x_74
-crypto remove_xor(xor) @7_r_95
-
+(* 
 After crypto rom(hash2), we have to simplify:
 
 in(hstart, ());
@@ -79,6 +83,8 @@ bT = xor(hash(hk, x_74), menc) = xor(hash(hk, x_74), m)
 c = @8_r_81
 This is wrong since we are in the "else" branch of
 if defined(@8_r_81, b1, aT, bT) && ((a = aT) && ((b = bT) && (c = @8_r_81))) 
+
+This simplification now succeeds thanks to the improved treatment of xor.
 ***]
               out(c6[!_71], m)
             )
@@ -96,7 +102,7 @@ if defined(@8_r_81, b1, aT, bT) && ((a = aT) && ((b = bT) && (c = @8_r_81)))
 
 If we make this simplification, the proof then goes through.
 
-See encryptBR93-2b for a variant that works but is not fully
+See encryptBR93-2b for another variant that works but is less
 satisfactory.
 
 *)
@@ -138,7 +144,7 @@ let hashoracle2 = ! qH2 in(hc3, xh2:bitstring); out(hc4, hash2(hk2,xh2)).
 
 (* Xor *)
 
-expand Xor(hasht, xor).
+expand Xor(hasht, xor, zero).
 
 (* Implementing a test as a function.
    Useful to avoid expanding if, which is necessary for this proof. *)
@@ -189,6 +195,7 @@ process
 	out(c9, pk);
 	(processD | processT)))
 
-(* DESIRED
+(* EXPECTED
 All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 18752K
 END *)

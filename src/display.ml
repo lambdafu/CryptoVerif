@@ -14,7 +14,7 @@ let rec display_list f = function
       display_list f l
 
 let rec remove_common_prefix l1 l2 = match (l1,l2) with
-  (a1::l1',a2::l2') when Terms.equal_terms a1 a2 -> 
+  ({t_desc = ReplIndex ri1}::l1',ri2::l2') when ri1 == ri2 -> 
     remove_common_prefix l1' l2'
 | _ -> l1
 
@@ -74,7 +74,7 @@ and display_binder_with_array b =
   if (!display_arrays) && (b.args_at_creation != []) then
     begin
       print_string "[";
-      display_list display_term b.args_at_creation;      
+      display_list display_repl_index b.args_at_creation;      
       print_string "]"
     end
 
@@ -1227,7 +1227,7 @@ let build_proof_tree ((q0,g0) as q) p s =
 		    let q' = (QEventQ([false, t], QTerm (Terms.make_false())), g) in
 
 		let sons_to_add =
-		  let pt_final_event_f_in_g = { pt_game = { proc = Terms.nil_proc; 
+		  let pt_final_event_f_in_g = { pt_game = { proc = Terms.iproc_from_desc Nil; 
 							    game_number = -1;
 							    current_queries = [] } (* dummy_game *);
 						pt_sons = [] }
@@ -1238,7 +1238,7 @@ let build_proof_tree ((q0,g0) as q) p s =
 		  ) p
   in
   let sons_to_add =
-    let pt_final_proof = { pt_game = { proc = Terms.nil_proc; 
+    let pt_final_proof = { pt_game = { proc = Terms.iproc_from_desc Nil; 
 				       game_number = -1;
 				       current_queries = [] } (* dummy_game *);
 			   pt_sons = [] }

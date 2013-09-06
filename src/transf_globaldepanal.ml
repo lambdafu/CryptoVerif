@@ -23,7 +23,7 @@ yields a bad dependency (comparison with the small type A).
 
 open FindCompos
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 let collisions_for_current_check_dependency = ref []
 let local_changed = ref false
 let advise = ref []
@@ -279,7 +279,7 @@ and check_assign2_list seen_list to_advise tmp_bad_dep = function
 
 let rec check_depend_process cur_array seen_list p' =
   match p'.i_desc with
-    Nil -> Terms.nil_proc
+    Nil -> Terms.iproc_from_desc Nil
   | Par(p1,p2) -> 
       let p1' = check_depend_process cur_array seen_list p1 in
       let p2' = check_depend_process cur_array seen_list p2 in
@@ -291,7 +291,7 @@ let rec check_depend_process cur_array seen_list p' =
       (* Create a dummy variable for the input message *)
       let b = Terms.create_binder "dummy_input" (Terms.new_vname())
 		(Terms.term_from_pat pat).t_type
-		(List.map Terms.term_from_repl_index cur_array)
+		cur_array
       in
       let t2 = Terms.term_from_binder b in
       let tmp_bad_dep = ref false in
@@ -300,7 +300,7 @@ let rec check_depend_process cur_array seen_list p' =
 	Some(charac_type, t1) -> 
 	  add_collisions_for_current_check_dependency (cur_array, [], p'.i_facts) (t1, t2, charac_type);
 	  local_changed := true;
-	  Terms.iproc_from_desc (Input((c, tl), PatVar b, Terms.yield_proc))
+	  Terms.iproc_from_desc (Input((c, tl), PatVar b, Terms.oproc_from_desc Yield))
       |	None ->
 	begin
 	  if (!tmp_bad_dep) then
@@ -323,7 +323,7 @@ let rec check_depend_process cur_array seen_list p' =
 
 and check_depend_oprocess cur_array seen_list p = 
   match p.p_desc with
-    Yield -> Terms.yield_proc
+    Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) -> 
       Terms.oproc_from_desc (Restr(b, check_depend_oprocess cur_array seen_list p))
@@ -372,7 +372,7 @@ and check_depend_oprocess cur_array seen_list p =
       if !always_then then
 	begin
 	  local_changed := true;
-	  Terms.oproc_from_desc (Find(!l0', Terms.yield_proc, find_info))
+	  Terms.oproc_from_desc (Find(!l0', Terms.oproc_from_desc Yield, find_info))
 	end
       else
 	Terms.oproc_from_desc (Find(!l0', check_depend_oprocess cur_array seen_list p2, find_info))

@@ -12,4 +12,6 @@ val advise : instruct list ref
 val check_all_deps : binder -> game ->
   (game * ((repl_index list * term list) * (term * term * typet list)) list) option
 
+(* When calling [main], the terms and processes in the input game must be physically
+   distinct, since [Terms.build_def_process] is called.  *)
 val main : binder -> string list -> game_transformer

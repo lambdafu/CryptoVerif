@@ -33,7 +33,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 \ifchannels
 {\tt channel}, 
 {\tt collision}, {\tt const}, {\tt define}, 
-{\tt defined}, {\tt else}, {\tt eps\_find}, {\tt eps\_rand}, {\tt equiv}, 
+{\tt defined}, {\tt else}, {\tt eps\_find}, {\tt eps\_rand}, {\tt equation}, {\tt equiv}, 
 {\tt event}, {\tt event\string_abort}, {\tt expand}, {\tt find}, {\tt forall}, {\tt fun}, 
 {\tt get}, {\tt if}, {\tt implementation}, {\tt in}, {\tt inj}, 
 {\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
@@ -46,7 +46,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 \else
 {\tt collision}, {\tt const}, {\tt define}, 
 {\tt defined}, {\tt do}, {\tt else}, {\tt end}, {\tt eps\_find}, 
-{\tt eps\_rand}, 
+{\tt eps\_rand}, {\tt equation}, 
 {\tt equiv}, {\tt event}, {\tt event\string_abort}, {\tt expand}, 
 {\tt find}, {\tt forall}, {\tt foreach}, 
 {\tt fun}, {\tt get}, {\tt if}, {\tt implementation},
@@ -1114,6 +1114,12 @@ at the current program point.
 Similar to \texttt{elsefindFactsInReplace}, but applies in
 \texttt{simplify} operations. 
 
+\item \texttt{set maxReplaceDepth = $n$.} (default 20)
+
+Sets the maximum number of rewriting steps that are allowed 
+to prove that the new term is equal to the old one in a 
+\texttt{replace} transformation. 
+
 \end{itemize}
 The default value is the first mentioned, except when explicitly specified.
 In most cases, the default values should be left as they are, except
@@ -1258,13 +1264,6 @@ of its argument into the default distribution of its result. $f$ must be unary;
 the argument and the result of $f$ must be of types marked 
 {\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
 
-\item \texttt{commut} indicates that the function $f$ is commutative,
-that is, $f(x,y) = f(y,x)$ for all $x,y$. In this case, the function
-$f$ must be a binary function with both arguments of the same type.
-(The equation $f(x,y) = f(y,x)$ cannot be given by the {\tt forall}
-declaration because CryptoVerif interprets such declarations as rewrite rules,
-and the rewrite rule $f(x,y) \rightarrow f(y,x)$ does not terminate.)
-
 \end{itemize}
 
 \item $\texttt{letfun}\
@@ -1331,6 +1330,37 @@ When $M$ is an inequality, $M_1 \texttt{<>} M_2$, CryptoVerif rewrites
 $M_1 \texttt{=} M_2$ to false and $M_1 \texttt{<>} M_2$ to true.
 %
 Otherwise, it rewrites $M$ to true.
+
+\item $\texttt{equation }\nonterm{eq\_name}\texttt{(}\neseq{ident}\texttt{).}$
+
+This declaration declares the equational theories satisfied by function symbols.
+The following equational theories are supported:
+\begin{itemize}
+
+\item \texttt{equation commut($f$).} indicates that the function $f$ is commutative,
+that is, $f(x,y) = f(y,x)$ for all $x,y$. In this case, the function
+$f$ must be a binary function with both arguments of the same type.
+(The equation $f(x,y) = f(y,x)$ cannot be given by the {\tt forall}
+declaration because CryptoVerif interprets such declarations as rewrite rules,
+and the rewrite rule $f(x,y) \rightarrow f(y,x)$ does not terminate.)
+
+\item \texttt{equation assoc($f$).} indicates that the function $f$ is associative, that is, $f(x,f(y,z)) = f(f(x,y),z)$ for all $x,y,z$. In this case, the function $f$ must be a binary function with both arguments and the result of
+the same type.
+
+\item \texttt{equation AC($f$).} indicates that the function $f$ is associative and commutative. In this case, the function $f$ must be a binary function with both arguments and the result of
+the same type.
+
+\item \texttt{equation assocU($f$, $n$).} indicates that the function $f$ is associative, and that $n$ is a neutral element for $f$, that $f(x,n) = f(n,x) = x$ for all $x$. In this case, the function $f$ must be a binary function with both arguments and the result of the same type as the type of the constant $n$.
+
+\item \texttt{equation ACU($f$, $n$).} indicates that the function $f$ is associative and commutative, and that $n$ is a neutral element for $f$. In this case, the function $f$ must be a binary function with both arguments and the result of the same type as the type of the constant $n$.
+
+\item \texttt{equation ACUN($f$, $n$).} indicates that the function $f$ is associative and commutative, that $n$ is a neutral element for $f$, and that $f$ satisfies the cancellation equation $f(x,x) = n$. In this case, the function $f$ must be a binary function with both arguments and the result of the same type as the type of the constant $n$.
+
+\item \texttt{equation group($f$, $inv$, $n$).} indicates that $f$ forms group with inverse $inv$ and neutral element $n$, that is, the function $f$ is associative, $n$ is a neutral element for $f$, and $inv(x)$ is the inverse of $x$, that is, $f(inv(x),x) = f(x,inv(x)) = n$. In this case, the function $f$ must be a binary function with both arguments and the result of the same type $T$, $inv$ must be a unary function that takes and returns a value of type $T$, and $n$ must be a constant of type $T$.
+
+\item \texttt{equation commut\_group($f$, $inv$, $n$).} indicates that $f$ forma commutative group with inverse $inv$ and neutral element $n$, that is, the function $f$ is associative and commutative, $n$ is a neutral element for $f$, and $inv(x)$ is the inverse of $x$. In this case, the function $f$ must be a binary function with both arguments and the result of the same type $T$, $inv$ must be a unary function that takes and returns a value of type $T$, and $n$ must be a constant of type $T$.
+
+\end{itemize}
 
 \item 
 \ifchannels

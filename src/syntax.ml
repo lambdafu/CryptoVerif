@@ -138,12 +138,12 @@ let rec check_array_type_list ext pel el cur_array creation_array =
       if n < 0 then 
 	input_error "Unexpected number of array specifiers" ext;
       let cur_array_rest = skip n cur_array in
-      if List.for_all2 Terms.equal_terms cur_array_rest creation_array then
-	cur_array_rest
+      if List.for_all2 (==) cur_array_rest creation_array then
+	List.map Terms.term_from_repl_index cur_array_rest
       else
 	input_error "Unexpected number of array specifiers" ext
   | (pe::pel, e::el, t::tl) ->
-      check_type (snd pe) e t.t_type;
+      check_type (snd pe) e t.ri_type;
       e::(check_array_type_list ext pel el cur_array tl)
   | _ ->
       input_error ("Unexpected number of array specifiers") ext
@@ -203,7 +203,7 @@ let rec check_term1 in_find_cond cur_array = function
 	      ) bl
 	in
 	bl_ref := bl_repl_index;
-	let cur_array' = (List.map Terms.term_from_repl_index bl_repl_index) @ cur_array in
+	let cur_array' = bl_repl_index @ cur_array in
 	List.iter (check_br1 cur_array') def_list;
 	check_term1 true cur_array' t1;
 	check_term1 in_find_cond cur_array t2) l0;
@@ -286,9 +286,8 @@ let rec check_fungroup1 cur_array = function
 	    None -> "!" 
 	  | Some(id,ext) -> id) (Terms.new_vname()) t
       in
-      let cur_array1 = Terms.term_from_repl_index b in
       repl_index_ref := Some b;
-      let cur_array' = cur_array1 :: cur_array in
+      let cur_array' = b :: cur_array in
       List.iter (check_binder1 cur_array') restrlist;
       List.iter (check_fungroup1 cur_array') funlist
   | PFun(_, arglist, tres, _) ->
@@ -312,9 +311,8 @@ let rec check_process1 cur_array = function
 	      None -> "!" 
 	    | Some(id,ext) -> id) (Terms.new_vname()) t 
       in
-      let cur_array1 = Terms.term_from_repl_index b in
       repl_index_ref := Some b;
-      check_process1 (cur_array1::cur_array) p
+      check_process1 (b::cur_array) p
   | PRestr((s1,ext1),(s2,ext2),p), _ ->
       let t = get_type (!env) s2 ext2 in
       add_in_env1 s1 t cur_array;
@@ -337,7 +335,7 @@ let rec check_process1 cur_array = function
 	      ) bl
 	in
 	bl_ref := bl_repl_index;
-	let cur_array' = (List.map Terms.term_from_repl_index bl_repl_index) @ cur_array in
+	let cur_array' = bl_repl_index @ cur_array in
 	List.iter (check_br1 cur_array') def_list;
 	check_term1 true cur_array' t;
 	check_process1 cur_array p1) l0;
@@ -666,7 +664,7 @@ let rec check_term cur_array env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| EReplIndex(b) -> { t_desc = ReplIndex(b); t_type = b.ri_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| EFunc(f) -> 
 	    if fst (f.f_type) = [] then
@@ -794,7 +792,7 @@ let rec check_term cur_array env = function
 	let (env', bl') = add env bl in
 	let bl'' = !bl_ref in (* recover replication indices *)
 	let env'' = List.fold_left2 (fun env ((s1, ext1),_) b -> StringMap.add s1 (EReplIndex b) env) env bl bl'' in
-	let cur_array' = (List.map Terms.term_from_repl_index bl'') @ cur_array in
+	let cur_array' = bl'' @ cur_array in
 	let t1' = check_term cur_array' env'' t1 in
 	check_no_new_event false t1;
 	let t2' = check_term cur_array env' t2 in
@@ -954,7 +952,7 @@ let rec check_term_letfun env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| EFunc(f) -> 
 	    if fst (f.f_type) = [] then
               (*expand letfun functions*)
@@ -1178,13 +1176,13 @@ let check_process_channel cur_array env ((s, ext) as id) =
     begin
       try 
 	match StringMap.find s env with
-	  EChannel(b) -> (b,cur_array)
+	  EChannel(b) -> (b,List.map Terms.term_from_repl_index cur_array)
 	| _ -> input_error (s ^ " should be a channel") ext
       with Not_found -> 
 	input_error (s ^ " not defined") ext
     end
   else
-    (check_channel_id id, cur_array)
+    (check_channel_id id, List.map Terms.term_from_repl_index cur_array)
 
 (* Check statement *)
 
@@ -1208,7 +1206,7 @@ let rec check_term_nobe env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| EFunc(f) ->
             begin 
               match f.f_cat with 
@@ -1287,6 +1285,106 @@ let check_statement env (l,t) =
   check_type (snd t) t' Settings.t_bool;
   statements := (l',t') :: (!statements)
 
+(* Check builtin equation statements *)
+
+let get_fun env (s,ext) =
+  try 
+    match StringMap.find s env with
+      EFunc(f) -> f
+    | _ -> input_error (s ^ " should be a function") ext
+  with Not_found ->
+    input_error (s ^ " not defined") ext
+
+let check_builtin_eq env (eq_categ, ext) l_fun_symb =
+  let l_fun = List.map (get_fun env) l_fun_symb in
+  match eq_categ with
+    "commut" -> 
+      begin
+	match l_fun with
+	  [f] -> 
+	    begin
+	      match fst f.f_type with
+		[t1;t2] when t1 == t2 -> ()
+	      |	_ -> input_error "A commutative function should have two arguments of the same type" ext
+	    end;
+	    if f.f_eq_theories = NoEq then
+	      f.f_eq_theories <- Commut
+	    else
+	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> input_error "A commut declaration expects a single function symbol" ext
+      end
+  | "assoc" | "AC" ->
+      begin
+	match l_fun with
+	  [f] -> 
+	    begin
+	      match f.f_type with
+		([t1;t2], tres) when t1 == t2 && t1 == tres -> ()
+	      |	_ -> input_error ("An " ^ eq_categ ^ " function should have two arguments of the same type as the result") ext
+	    end;
+	    if f.f_eq_theories = NoEq then
+	      f.f_eq_theories <- if eq_categ = "AC" then AssocCommut else Assoc
+	    else
+	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> input_error ("An " ^ eq_categ ^ " declaration expects a single function symbol") ext
+      end
+  | "assocU" | "ACU" ->
+      begin
+	match l_fun with
+	  [f;n] -> 
+	    begin
+	      match f.f_type, n.f_type with
+		([t1;t2], tres), ([], tn) when t1 == t2 && t1 == tres && tn == tres -> ()
+	      |	_ -> input_error ("An " ^ eq_categ ^ " function should have two arguments of the same type as the result, and a constant neutral element of the same type") ext
+	    end;
+	    if f.f_eq_theories = NoEq then
+	      f.f_eq_theories <- if eq_categ = "ACU" then AssocCommutN(f,n) else AssocN(f,n)
+	    else
+	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> input_error ("An " ^ eq_categ ^ " declaration expects a single function symbol") ext
+      end
+  | "ACUN" ->
+      begin
+	match l_fun with
+	  [f; n] -> 
+	    begin
+	      match f.f_type, n.f_type with
+		([t1;t2], tres), ([], tneut) when t1 == t2 && t1 == tres && tneut == tres -> ()
+	      |	_ -> input_error "An ACUN function should have two arguments, the result, and a constant neutral element of the same type" ext
+	    end;
+	    if f.f_eq_theories = NoEq then
+	      f.f_eq_theories <- ACUN(f,n)
+	    else
+	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> input_error "An ACUN declaration expects two function symbols" ext
+      end  
+  | "group" | "commut_group" ->
+      begin
+	match l_fun with
+	  [f; inv; n] -> 
+	    begin
+	      match f.f_type, inv.f_type, n.f_type with
+		([t1;t2], tres), ([invarg], invres), ([], tneut) when t1 == t2 && t1 == tres && invarg == tres && invres == tres && tneut == tres -> ()
+	      |	_ -> input_error "A group operation should be of type T,T -> T, with an inverse of type T -> T and a neutral element of type T" ext
+	    end;
+	    if f.f_eq_theories != NoEq then
+	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	    else if inv.f_eq_theories != NoEq then
+	      input_error ("Function " ^ inv.f_name ^ " already has an equational theory") ext
+	    else
+	      begin
+		let eq_th = 
+		  if eq_categ = "group" 
+		  then Group(f, inv, n) 
+		  else CommutGroup(f, inv, n) 
+		in
+		f.f_eq_theories <- eq_th;
+		inv.f_eq_theories <- eq_th
+	      end
+	| _ -> input_error ("A " ^ eq_categ ^ " declaration expects 3 function symbols") ext
+      end  
+  | _ -> input_error ("Equational theory " ^ eq_categ ^ " not implemented") ext	
+
 (* Check equivalence statements *)
 
 let rec check_term_proba env = function
@@ -1294,7 +1392,7 @@ let rec check_term_proba env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
 	| EFunc(f) ->
             begin
               match f.f_cat with
@@ -1439,7 +1537,7 @@ let rec check_types ext pl0 pl tl =
 		   "Unexpected number of arguments.") ext
 
 
-let dummy_game = { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let dummy_game = { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 
 let rec check_probability_formula seen_ch seen_repl env = function
     PPIdent(s,ext), ext2 ->
@@ -1754,8 +1852,7 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	  Some b -> b
 	| None -> Parsing_helper.internal_error "Repl index should have been initialized in check_lm_fungroup2"
       in
-      let cur_array1 = Terms.term_from_repl_index repl_count' in
-      let cur_array' = cur_array1 :: cur_array in
+      let cur_array' = repl_count' :: cur_array in
       let (env',restrlist') = check_lm_restrlist cur_array' env restrlist in
       if List.memq repl_count'.ri_type (!seen_repl) then
 	Parsing_helper.input_error "In an equivalence, different functions must have a different number of repetitions" ext;
@@ -1834,8 +1931,7 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
 	  Some b -> b
 	| None -> Parsing_helper.internal_error "Repl index should have been initialized in check_rm_fungroup2"
       in
-      let cur_array1 = Terms.term_from_repl_index repl_count' in
-      let cur_array' = cur_array1 :: cur_array in
+      let cur_array' = repl_count' :: cur_array in
       let (env',restrlist') = check_rm_restrlist options2 cur_array' env restrlist0 restrlist in
       if List.length funlist != List.length funlist0 then
 	input_error "Different number of functions in left and right sides of equivalence" ext;
@@ -2054,10 +2150,9 @@ let rec check_process cur_array env prog = function
 	  Some b -> b
 	| None -> Parsing_helper.internal_error "Repl index should have been initialized in check_process"
       in
-      let cur_array1 = Terms.term_from_repl_index b' in
-      let (p',oracle,ip) = check_process (cur_array1::cur_array) env prog p in
+      let (p',oracle,ip) = check_process (b'::cur_array) env prog p in
       (iproc_from_desc (Repl(b', p')), oracle, iproc_from_desc (Repl(b',ip)))
-  | PInput(t, pat, p), _ ->
+  | PInput(t, pat, p), ext ->
       let ((c, _) as t') = check_process_channel cur_array env t in
       let (env', pat') = check_pattern cur_array env None pat in
       let (p', tres, oracle,ip) = check_oprocess cur_array env' prog p in
@@ -2065,10 +2160,13 @@ let rec check_process cur_array env prog = function
 	  (iproc_from_desc (Input(t', pat', p')), oracle, iproc_from_desc (Input(t',pat',ip)))
         else
 	  begin
+	    if List.exists (fun (c',_,_,_) -> c' == c) oracle then
+	      input_error ("Duplicate definitions of oracle " ^ c.cname ^ 
+			   "\n(The second definition is located under the return of the first one.)") ext;
 	    match pat' with
 	        PatTuple(_,patl) ->
 	          (iproc_from_desc (Input(t', pat', p')), 
-	           (c, List.map (fun t -> t.t_type) cur_array, 
+	           (c, List.map (fun ri -> ri.ri_type) cur_array, 
 		    List.map get_type_for_pattern patl, tres)::oracle,
                    iproc_from_desc (Input(t',pat',ip)))
 	      | _ -> internal_error "One can only have a tuple as argument"
@@ -2138,7 +2236,7 @@ and check_oprocess cur_array env prog = function
 	             let (env', bl') = add env bl in
 		     let bl'' = !bl_ref in (* recover replication indices *)
 		     let env'' = List.fold_left2 (fun env ((s1, ext1),_) b -> StringMap.add s1 (EReplIndex b) env) env bl bl'' in
-		     let cur_array' = (List.map Terms.term_from_repl_index bl'') @ cur_array in
+		     let cur_array' = bl'' @ cur_array in
 	             let t' = check_term cur_array' env'' t in
 	               check_no_new_event false t;
 	               check_type (snd t) t' Settings.t_bool;
@@ -2153,11 +2251,11 @@ and check_oprocess cur_array env prog = function
       let t2' = check_term cur_array env t2 in
       begin
         match t2'.t_type.tcat with
-	    Interv _ -> input_error "Cannot output a term of interval type" (snd t2)
-          | _ -> ()
+	  Interv _ -> input_error "Cannot output a term of interval type" (snd t2)
+        |	_ -> ()
       end;
       if rt && prog = None then
-        input_error "Cannot close inexistent role" ext;
+	input_error "Cannot close inexistent role" ext;
       let (p', oracle,ip'') = check_process cur_array env (if rt then None else prog) p in
       let ip'=if rt then (iproc_from_desc Nil) else ip'' in
       if (!Settings.front_end) == Settings.Channels then
@@ -2166,11 +2264,11 @@ and check_oprocess cur_array env prog = function
       else
 	begin
 	  match t2'.t_desc with
-	      FunApp(_,tl) ->
-	        (oproc_from_desc (Output((dummy_channel, []), t2', p')), 
-	         Some (List.map (fun t -> t.t_type) tl), oracle,
-                 oproc_from_desc (Output((dummy_channel, []), t2', ip')))
-	    | _ -> 
+	    FunApp(_,tl) ->
+	      (oproc_from_desc (Output((dummy_channel, []), t2', p')), 
+	       Some (List.map (fun t -> t.t_type) tl), oracle,
+               oproc_from_desc (Output((dummy_channel, []), t2', ip')))
+	  | _ -> 
 	      internal_error "One can only return a tuple"
 	end
   | PLet(pat, t, p1, p2), ext ->
@@ -2188,9 +2286,9 @@ and check_oprocess cur_array env prog = function
 	      EEvent(f) ->
 	        let tl' = List.map (check_term cur_array env) tl in
 	          check_type_list ext tl tl' (List.tl (fst f.f_type));
-	          let tupf = Settings.get_tuple_fun (List.map (fun t -> t.t_type) cur_array) in
+	          let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
 	            event_type_list := (f, tupf) :: (!event_type_list);
-	            let tcur_array = { t_desc = FunApp(tupf, cur_array);
+	            let tcur_array = { t_desc = FunApp(tupf, List.map Terms.term_from_repl_index cur_array);
 			               t_type = Settings.t_bitstring;
 			               t_occ = Terms.new_occ();
 			               t_loc = ext2; 
@@ -2414,6 +2512,8 @@ let rename_decl = function
   | Statement(l, t) ->
       Statement(List.map (fun (i,t) -> (rename_ie i, rename_ie t)) l,
 		rename_term t)
+  | BuiltinEquation(eq_categ, l_fun_symb) ->
+      BuiltinEquation(eq_categ, List.map rename_ie l_fun_symb)
   | EqStatement(n, l,r,p,options) ->
       EqStatement(rename_eqname n, rename_eqmember l, rename_eqmember r, rename_probaf p, options)
   | Collision(restr, forall,  t1, p, t2) ->
@@ -2594,6 +2694,9 @@ let rec check_one = function
 				    f_type = [], s2';
 				    f_cat = Std;
 				    f_options = 0;
+				    f_statements = [];
+				    f_collisions = [];
+				    f_eq_theories = NoEq;
                                     f_impl = No_impl;
                                     f_impl_inv = None })
   | ChannelDecl(s1,ext1) ->
@@ -2634,22 +2737,18 @@ let rec check_one = function
 	    end
 	  else if sopt = "compos" then 
 	    opt := (!opt) lor Settings.fopt_COMPOS
-	  else if sopt = "commut" then
-	    begin
-	      opt := (!opt) lor Settings.fopt_COMMUT;
-	      match l' with
-		[t1;t2] when t1 == t2 -> ()
-	      |	_ -> Parsing_helper.input_error "A commutative function should have two arguments of the same type" extopt
-	    end
 	  else
 	    Parsing_helper.input_error ("Unknown function option " ^ sopt) extopt
 	      ) f_options;
       add_not_found s1 ext1 (EFunc{ f_name = s1;
-				   f_type = l',sr';
-				   f_cat = Std;
-				   f_options = !opt;
-                                   f_impl = No_impl;
-                                   f_impl_inv = None })
+				    f_type = l',sr';
+				    f_cat = Std;
+				    f_options = !opt;
+				    f_statements = [];
+				    f_collisions = [];
+				    f_eq_theories = NoEq;
+                                    f_impl = No_impl;
+                                    f_impl_inv = None })
   | LetFun((s1,ext1), l, s2) ->
       let (bl, tl,env')=
         List.fold_right (fun ((s1, ext1), (s2, ext2)) (bl,tl,env') ->
@@ -2664,6 +2763,9 @@ let rec check_one = function
                                       f_type = tl, t.t_type;
                                       f_cat  = LetFunTerm(bl,t);
 				      f_options = 0;
+				      f_statements = [];
+				      f_collisions = [];
+				      f_eq_theories = NoEq;
                                       f_impl = No_impl;
                                       f_impl_inv = None })
           
@@ -2673,13 +2775,18 @@ let rec check_one = function
       in
       add_not_found s1 ext1 (EEvent{ f_name = s1;
 				     (* Add a bitstring argument to store the current indexes *)
-				   f_type = (Settings.t_bitstring :: l'),Settings.t_bool;
-				   f_cat = Event;
-				   f_options = 0;
-                                   f_impl = No_impl;
-                                   f_impl_inv = None })
+				     f_type = (Settings.t_bitstring :: l'),Settings.t_bool;
+				     f_cat = Event;
+				     f_options = 0;
+				     f_statements = [];
+				     f_collisions = [];
+				     f_eq_theories = NoEq;
+                                     f_impl = No_impl;
+                                     f_impl_inv = None })
   | Statement s ->
       check_statement (!env) s
+  | BuiltinEquation(eq_categ, l_fun_symb) ->
+      check_builtin_eq (!env) eq_categ l_fun_symb
   | EqStatement s ->
       current_location := InEquivalence;
       check_eqstatement s
@@ -2930,7 +3037,7 @@ let rec check_term_query2 env = function
       try 
 	match StringMap.find s env with
 	  EVar(b) -> 
-	    let x' = { t_desc = Var(b,b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
+	    let x' = { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
 	    check_type (snd x) x' Settings.t_bool;	    
 	    QTerm x'
 	| EFunc(f) ->

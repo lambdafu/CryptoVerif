@@ -44,11 +44,11 @@ let rec check_def_term defined_refs t =
 	check_def_term defined_refs_t2 t2) l0;
       check_def_term defined_refs t3
   | ResE(b,t) ->
-      check_def_term ((b,b.args_at_creation)::defined_refs) t
+      check_def_term ((b,List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) t
   | EventAbortE(f) -> ()
 
 and check_def_pat accu defined_refs = function
-    PatVar b -> accu := (b, b.args_at_creation) :: (!accu)
+    PatVar b -> accu := (b, List.map Terms.term_from_repl_index b.args_at_creation) :: (!accu)
   | PatTuple (f,l) ->
       List.iter (check_def_pat accu defined_refs) l
   | PatEqual t -> check_def_term defined_refs t
@@ -84,7 +84,7 @@ and check_def_oprocess defined_refs p =
   match p.p_desc with
     Yield | EventAbort _ -> ()
   | Restr(b,p) ->
-      check_def_oprocess ((b,b.args_at_creation)::defined_refs) p
+      check_def_oprocess ((b,List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) p
   | Test(t,p1,p2) ->
       check_def_term defined_refs t;
       check_def_oprocess defined_refs p1;
@@ -204,8 +204,8 @@ let rec get_arg_array_ref index_args accu t =
 	      [],[] -> ()
 	    | (l1::lr, c1::cr) ->
 		begin
-		  if Terms.equal_terms l1 c1 then
-		    begin
+		  match l1.t_desc with
+		    ReplIndex ri when ri == c1 ->
 		      Parsing_helper.input_error "Incorrect array reference: contains an argument of the function, but also implicitly refers to some current replication indices, and this is not supported yet" t.t_loc
 		      (* TO DO The line above could be replaced by the next code, which
 			 is more permissive. However, cryptotransf.ml does not support yet
@@ -215,18 +215,15 @@ let rec get_arg_array_ref index_args accu t =
 		      if not (List.for_all2 Terms.equal_terms l args_at_creation) then
 			Parsing_helper.input_error "Incorrect array reference" t.t_loc
 			  *)
-		    end
-		  else
-		    match l1.t_desc with
-		      Var(b',l') ->
+		  | Var(b',l') ->
 			if not (List.memq b' index_args) then
 			  Parsing_helper.input_error "Incorrect array reference: argument of the function expected as index" t.t_loc;
-			if not (List.for_all2 Terms.equal_terms l' b'.args_at_creation) then
+			if not (Terms.is_args_at_creation b' l') then
 			  Parsing_helper.input_error "Incorrect array reference: argument index should have no indices" l1.t_loc;
 			if not (Terms.is_restr b) then
 			  Parsing_helper.input_error "Only restrictions are allowed to take arguments as indices" t.t_loc;
 			check_ok lr cr
-		    | _ ->  Parsing_helper.input_error "Variable expected as index in array reference" t.t_loc
+		  | _ ->  Parsing_helper.input_error "Variable expected as index in array reference" t.t_loc
 		end
 	    | _ -> Parsing_helper.input_error "Bad number of indices in array reference" t.t_loc
 	  in
@@ -313,23 +310,23 @@ let rec check_def_funterm defined_refs t =
 	check_def_funterm defined_refs_t2 t2) l0;
       check_def_funterm defined_refs t3
   | ResE(b,t) ->
-      check_def_funterm ((b,b.args_at_creation)::defined_refs) t
+      check_def_funterm ((b,List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) t
   | EventAbortE(f) -> ()
 
 and check_def_pat accu defined_refs = function
-    PatVar b -> accu := (b, b.args_at_creation) :: (!accu)
+    PatVar b -> accu := (b, List.map Terms.term_from_repl_index b.args_at_creation) :: (!accu)
   | PatTuple (f,l) ->
       List.iter (check_def_pat accu defined_refs) l
   | PatEqual t -> check_def_funterm defined_refs t
 
 let rec check_def_fungroup def_refs = function
     ReplRestr(repl, restr, funlist) ->
-      List.iter (check_def_fungroup ((List.map (fun (b,_) -> (b, b.args_at_creation)) restr) @ def_refs)) funlist
+      List.iter (check_def_fungroup ((List.map (fun (b,_) -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) restr) @ def_refs)) funlist
   | Fun(ch, args, res, priority) ->
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
       get_arg_array_ref index_args array_ref_args res;
-      check_def_funterm ((List.map (fun b -> (b, b.args_at_creation)) args) @ (!array_ref_args) @ def_refs) res
+      check_def_funterm ((List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) args) @ (!array_ref_args) @ def_refs) res
 
 let check_def_member l =
   let rec st_node = { above_node = st_node; binders = []; 
@@ -658,7 +655,7 @@ let move_names_all lmg rmg =
 let rec uses b0 t = 
   match t.t_desc with
     Var (b,l) -> 
-      ((b == b0) && (List.for_all2 Terms.equal_terms l b.args_at_creation)) || 
+      ((b == b0) && (Terms.is_args_at_creation b l)) || 
       (List.exists (uses b0) l)
   | ReplIndex _ -> false
   | FunApp(f,l) -> List.exists (uses b0) l

@@ -435,7 +435,7 @@ let rec expand_term t =
 	    Some ((fun l -> 
 	      f1 (List.map (fun t1i -> 
 		fpat (List.map (fun pati ->
-		  Terms.oproc_from_desc (Let(pati, t1i, f2 l, Terms.yield_proc))) lpat)) l1)), l2)
+		  Terms.oproc_from_desc (Let(pati, t1i, f2 l, Terms.oproc_from_desc Yield))) lpat)) l1)), l2)
 	| Some t3 ->
 	    let (f3,l3) = always_some t3 (expand_term t3) in
 	    let len2 = List.length l2 in
@@ -460,7 +460,7 @@ let rec expand_term t =
                     Some(extract_elem, [final_pseudo_expand t1])
                   else
                     ex1
-		  (*let fNil = f (List.map (fun _ -> Terms.yield_proc) l) in
+		  (*let fNil = f (List.map (fun _ -> Terms.oproc_from_desc Yield) l) in
 		  if List.exists (fun b -> Terms.refers_to_oprocess b fNil) bl || [fNil refers to variables in def_list] | [fNil contains new and bl != [] ] then
 		    Some (extract_elem, [final_pseudo_expand t1]) (* We cannot move the condition of the find outside, because it refers to variables defined in the find. In this case, we leave the term with if/let/find/res in it. *)
                   else
@@ -542,7 +542,7 @@ let rec expand_process cur_array p =
     Nil -> Terms.iproc_from_desc Nil
   | Par(p1,p2) -> Terms.iproc_from_desc  (Par(expand_process cur_array p1,
 		      expand_process cur_array p2))
-  | Repl(b,p) -> Terms.iproc_from_desc (Repl(b, expand_process ((Terms.term_from_repl_index b)::cur_array) p))
+  | Repl(b,p) -> Terms.iproc_from_desc (Repl(b, expand_process (b::cur_array) p))
   | Input((c,tl),pat,p) ->
       List.iter check_no_ifletfind tl;
       begin
@@ -558,12 +558,12 @@ let rec expand_process cur_array p =
 	    Terms.iproc_from_desc (Input((c,tl),PatVar b, 
 	      f (List.map (fun pati -> Terms.oproc_from_desc 
                   (Let(pati, Terms.term_from_binder b,
-		       expand_oprocess cur_array p, Terms.yield_proc))) l)))
+		       expand_oprocess cur_array p, Terms.oproc_from_desc Yield))) l)))
       end
 
 and expand_oprocess cur_array p =
   match p.p_desc with 
-    Yield -> Terms.yield_proc
+    Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) -> Terms.oproc_from_desc (Restr(b, expand_oprocess cur_array p))
   | Test(t,p1,p2) ->
@@ -594,7 +594,7 @@ and expand_oprocess cur_array p =
                     Some(extract_elem, [final_pseudo_expand t])
                   else
                     ex1
-		  (*let fNil = f (List.map (fun _ -> Terms.yield_proc) l) in
+		  (*let fNil = f (List.map (fun _ -> Terms.oproc_from_desc Yield) l) in
 		  if List.exists (fun b -> Terms.refers_to_oprocess b fNil) bl || [fNil refers to variables in def_list] || [fNil contains new and bl != [] ] then
 		    Some(extract_elem, [final_pseudo_expand t]) (* We cannot move the condition of the find outside, because it refers to variables defined in the find. In this case, we leave the term with if/let/find/res in it. *)
                   else
@@ -643,8 +643,8 @@ and expand_oprocess cur_array p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 (* Main function for expansion of if and find
-   Call auto_sa_rename after expand_process, so that occurrences have distinct 
-   numbers, facts associated with nodes are emptied, and variables defined in
+   Call auto_sa_rename after expand_process, so that facts associated with 
+   nodes are emptied, and variables defined in
    conditions of find have a single definition. 
    Expansion is called only when there is no advice pending, so we can simply 
    ignore the list of done SArenamings.

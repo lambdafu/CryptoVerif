@@ -12,23 +12,35 @@ val filter_ifletfindres : term list -> term list
    is not a variable, using the equalities in [facts] *)
 val try_no_var : simp_facts -> term -> term
 
-(* [unify_terms facts t t'] tests equality between [t] and [t'], modulo 
-   rewrite rules in [facts].
-   Returns the common form when they are equal;
-   raises NoMatch otherwise. *)
-val unify_terms : simp_facts -> term -> term -> term
-
-(* [simp_equal_terms facts t t'] tests equality between [t] and[t'], 
-   modulo rewrite rules in [facts]. Returns true when equal, false otherwise. *)
-val simp_equal_terms : simp_facts -> term -> term -> bool
-
 (* match_term is an intermediate function used for apply_reds. It is exported
    because we need to compute a variant of apply_reds in dependency analyses. *)
-val match_term : (unit -> 'a) -> simp_facts -> binder list -> term -> term -> 'a
+val match_term : (term -> term) -> binder list -> (unit -> 'a) -> term -> term -> unit -> 'a
 
-(* [apply_reds facts t] applies all equalities and collisions given in the 
-   input file to the term [t], taking into account the equalities in [facts]
-   to enable their application. *)
+(* set to true by the functions below when they reduce the term *)
+val reduced : bool ref
+
+(* [apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t] 
+   simplifies the term [t] using the equalities coming from the
+   equational theories, the equality statements, and the collisions  
+   given in the input file.
+   [reduce_rec f t] must simplify the term [t] knowing the fact [f] 
+   in addition to the already known facts. It sets the flag [reduced]
+   when [t] has really been modified.
+   [try_no_var t] must simplify the term [t] by replacing variables
+   with their values according to currently known facts. *)
+val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> (term -> term) -> term -> term
+
+(* [apply_eq_statements_subterms_once try_no_var t] simplifies
+   the term [t] using the equalities coming from the
+   equational theories and the equality statements given in the input file.
+   [try_no_var] is as above. *)
+val apply_eq_statements_subterms_once : (term -> term) -> term -> term
+
+(* [apply_reds simp_facts t] applies all equalities coming from the
+   equational theories, equality statements, and collisions given in
+   the input file to all subterms of the term [t], taking into account
+   the equalities in [simp_facts] to enable their application.
+   Application is repeated until a fixpoint is reached. *)
 val apply_reds : simp_facts -> term -> term
 
 (* Display the facts. Mainly used for debugging *)

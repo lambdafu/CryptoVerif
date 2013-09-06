@@ -32,7 +32,7 @@ match t.tcat with
       Parsing_helper.internal_error "Cardinal of unbounded type"
 
 let card_index b =
-  Polynom.p_prod (List.map (fun t -> card t.t_type) b.args_at_creation)
+  Polynom.p_prod (List.map (fun ri -> card ri.ri_type) b.args_at_creation)
 
 (* 3. Computation of probabilities of collisions *)
 
@@ -67,7 +67,7 @@ let is_small_enough_collision proba_l =
   List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
   
 
-let whole_game = ref { proc = Terms.nil_proc; game_number = -1; current_queries = [] }
+let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 
 (* Probability of collision between a random value of type [t],
    and an independent value. The collision occurs [num] times. *)
@@ -109,7 +109,7 @@ let add_elim_collisions b1 b2 =
   in
   if not (List.exists equal (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (List.map Terms.repl_index_from_term (b1.args_at_creation @ b2.args_at_creation), b1.btype) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, b1.btype) then
 	begin
 	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
 	  true

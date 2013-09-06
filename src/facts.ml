@@ -76,6 +76,335 @@ let rec orient t1 t2 =
     (b1 == b2) && (List.for_all2 orient l1 l2) -> true
   | _ -> false
     
+let prod_orient try_no_var t1 t2 =
+  match Terms.get_prod Terms.try_no_var_id t1 with 
+  (* try_no_var has always been applied to t1 and t2 before, 
+     so I don't need to reapply it, I can use the identity instead *)
+    NoEq -> None
+  | (ACUN(prod, _) | Group(prod, _, _) | CommutGroup(prod, _, _)) as eq_th -> 
+      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) prod t1 in
+      let rec find_orient seen = function
+	  [] -> None
+	| (t::l) ->
+	    match t.t_desc with
+	      Var _ -> 
+	        (* We have t1 = product (List.rev seen) t l = t2.
+		   So t = product (inv (product (List.rev seen))) t2 (inv (product l)). *)
+		let t' = Terms.make_inv_prod eq_th seen t2 l in
+		if orient t t' then
+		  Some (t,t')
+		else 
+		  find_orient (t::seen) l
+	    | _ -> find_orient (t::seen) l
+      in
+      find_orient [] l
+  | _ -> Parsing_helper.internal_error "Expecting a group or xor theory in Facts.prod_orient"
+
+let orient_eq try_no_var t1 t2 =
+  if orient t1 t2 then Some(t1,t2) else
+  if orient t2 t1 then Some(t2,t1) else
+  match prod_orient try_no_var t1 t2 with
+    None -> prod_orient try_no_var t2 t1
+  | x -> x
+
+
+(* Apply reduction rules defined by statements to term t *)
+
+(* [get_var_link]: [get_var_link t ()] returns [Some (link, allow_neut)]
+   when [t] is variable that can be bound by a product of terms,
+   [link] is the current contents of the link of that variable,
+   [allow_neut] is true if and only if the variable may be bound to
+   the neutral element (provided there is a neutral element for the
+   product); it returns [None] otherwise. *)
+
+let get_var_link restr t () = 
+  match t.t_desc with
+    FunApp _ -> None
+  | Var(v,[]) -> 
+      (* If v must be a random number, it can correspond only to 1 element of 
+	 the matching list l2, so it can be handled like a FunApp term
+	 by match_term. *)
+      if List.memq v restr then None else Some (v.link, false (* TO DO I consider that v cannot be bound to the neutral element; it would be better to allow the user to set that *))
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
+      Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in match_assoc"      
+
+let rec match_term try_no_var restr next_f t t' () = 
+  let get_var_link = get_var_link restr in
+  let rec match_term_rec next_f t t' () =
+    Terms.auto_cleanup (fun () -> 
+      match t.t_desc with
+	Var (v,[]) -> 
+        (* Check that types match *)
+	  if t'.t_type != v.btype then
+	    raise NoMatch;
+	  begin
+	    match v.link with
+	      NoLink -> 
+		if List.memq v restr then
+	      (* t' must be a variable created by a restriction *)
+		  begin
+		    if not (t'.t_type == v.btype) then
+		      raise NoMatch;
+		    match t'.t_desc with
+		      Var(b,l) when Terms.is_restr b -> ()
+		    | _ -> raise NoMatch
+		  end;
+		Terms.link v (TLink t')
+	    | TLink t -> 
+		if not (Terms.simp_equal_terms try_no_var t t') then raise NoMatch
+	  end;
+	  next_f()
+      | FunApp(f,l) ->
+	  Terms.match_funapp match_term_rec get_var_link Terms.default_match_error try_no_var next_f t t' ()
+      | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
+	  Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in match_term"
+	    )
+  in
+  match_term_rec next_f t t' ()
+
+let match_term_root_or_prod_subterm try_no_var restr next_f t t' =
+  match t.t_desc, t'.t_desc with
+    FunApp(f,[_;_]), _ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
+      let l' = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t' in
+      begin
+	match f.f_eq_theories with
+	  NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
+	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+	    Terms.match_AC (match_term try_no_var restr) (get_var_link restr) Terms.default_match_error (fun rest () -> 
+	      Terms.make_prod f ((next_f())::rest)) try_no_var f true l l' ()
+	| Assoc | AssocN _ | Group _ -> 
+	    Terms.match_assoc_subterm (match_term try_no_var restr) (get_var_link restr) (fun rest_left rest_right () ->
+	      Terms.make_prod f (rest_left @ (next_f())::rest_right)) try_no_var f l l' ()
+      end
+  | _ ->
+      match_term try_no_var restr next_f t t' ()
+
+let reduced = ref false
+
+let rec check_indep v = function
+    [] -> []
+  | v'::l ->
+      let l_indep = check_indep v l in
+      match v.link, v'.link with
+	TLink { t_desc = Var(b,l) }, TLink { t_desc = Var(b',l') } ->
+	  if b == b' then
+	    (Terms.make_and_list (List.map2 Terms.make_equal l l')):: l_indep
+	  else
+	    l_indep
+      |	_ -> Parsing_helper.internal_error "variables should be linked in check_indep"
+	  
+let rec check_indep_list = function
+    [] -> []
+  | [v] -> []
+  | (v::l) ->
+      (check_indep v l) @ (check_indep_list l)
+
+(* [apply_collisions_at_root_once reduce_rec try_no_var t collisions] 
+   applies all collisions in the list [collisions] to the root of term [t].
+
+   Statements are a particular case of collisions, so this function
+   can also be applied with a list of statements in [collisions].
+
+   [reduce_rec f t] must simplify the term [t] knowing the fact [f] 
+   in addition to the already known facts. It sets the flag [reduced]
+   when [t] has really been modified. *)
+
+let rec apply_collisions_at_root_once reduce_rec try_no_var t = function
+    [] -> t 
+  | (restr, forall, redl, proba, redr)::other_coll ->
+      try
+	match_term_root_or_prod_subterm try_no_var restr (fun () -> 
+	  let t' = Terms.copy_term Terms.Links_Vars redr in
+	  let l_indep = check_indep_list restr in
+	  let redl' = Terms.copy_term Terms.Links_Vars redl in
+	  let restr_map = 
+	    List.map (fun restr1 ->
+	      match restr1.link with
+		TLink trestr -> (restr1,trestr)
+	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red"
+		    ) restr
+	  in
+	(* Cleanup early enough, so that the links that we create in this 
+	   collision do not risk to interfere with a later application of 
+	   the same collision in reduce_rec. *)
+	  Terms.cleanup();
+	  let t'' =
+	    if l_indep == [] then
+		(* All restrictions are always independent, nothing to add *)
+	      t' 
+	    else
+	      begin
+		if not (Terms.is_false redr) then
+	          (* I can test conditions that make restrictions independent only
+		     when the result "redr" is false *)
+		  raise NoMatch;
+	          (* When redr is false, the result "If restrictions
+		     independent then redr else t" is equal to
+		     "(restrictions not independent) and t" which we
+		     simplify.  We keep the transformed value only
+		     when t has been reduced, because otherwise we
+		     might enter a loop (applying the collision to t
+		     over and over again). *)
+		Terms.make_or_list 
+		  (List.map (fun f ->
+		    let reduced_tmp = !reduced in
+		    reduced := false;
+		    let t1 = reduce_rec f t in
+		    if not (!reduced) then 
+		      begin 
+			reduced := reduced_tmp; 
+			raise NoMatch 
+		      end;
+		    reduced := reduced_tmp;
+		    Terms.make_and f t1
+		      ) l_indep)
+	      end
+	  in
+	  if proba != Zero then
+	    begin
+              (* Instead of storing the term t, I store the term obtained 
+                 after the applications of try_no_var in match_term,
+                 obtained by (Terms.copy_term redl) *)
+	      if not (Proba.add_proba_red redl' t' proba restr_map) then
+		raise NoMatch
+	    end;
+	  reduced := true;
+	  t''
+	    ) redl t
+      with NoMatch ->
+	Terms.cleanup();
+	apply_collisions_at_root_once reduce_rec try_no_var t other_coll
+
+
+(* [apply_statements_subterms_once try_no_var t] applies the equality
+   statements given in the input file to all subterms of [t]. *)
+
+let reduce_rec_impossible t = assert false
+
+let rec apply_statements_subterms_once try_no_var t = 
+  match t.t_desc with
+    FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      if !reduced then t' else 
+      (* We apply the statements only to subterms that are not products by f.
+	 Subterms that are products by f are already handled above
+	 using [match_term_root_or_prod_subterm]. *)
+      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
+      Terms.make_prod f (List.map (apply_statements_subterms_once try_no_var) l)
+  | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
+      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      if !reduced then t' else 
+      begin
+	match Terms.get_prod_list try_no_var l with
+	  ACUN(xor, neut) ->
+	    let t' = Terms.app xor [t1;t2] in
+	    let t'' = apply_statements_subterms_once try_no_var t' in
+	    begin
+	      match t''.t_desc with
+		FunApp(xor', [t1';t2']) when xor' == xor ->
+		  Terms.build_term2 t (FunApp(f, [t1';t2']))
+	      |	_ -> 
+		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
+	    end
+	| CommutGroup(prod, inv, neut) | Group(prod, inv, neut) ->
+	    let t' = Terms.app prod [t1; Terms.app inv [t2]] in
+	    let t'' = apply_statements_subterms_once try_no_var t' in
+	    begin
+	      match t''.t_desc with
+		FunApp(prod', [t1';t2']) when prod' == prod ->
+		  Terms.build_term2 t (FunApp(f, [t1';Terms.compute_inv try_no_var (ref false) (prod, inv, neut) t2']))
+	      |	_ -> 
+		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
+	    end
+	| _ -> 
+	    Terms.build_term2 t (FunApp(f, List.map (apply_statements_subterms_once try_no_var) l))
+      end
+  | FunApp(f, l) ->
+      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      if !reduced then t' else 
+      Terms.build_term2 t (FunApp(f, List.map (apply_statements_subterms_once try_no_var) l))
+  | _ -> t
+
+(* [apply_eq_statements_subterms_once try_no_var t] applies the equalities 
+   coming from the equational theories and the equality
+   statements given in the input file to all subterms of [t]. *)
+
+let apply_eq_statements_subterms_once try_no_var t =
+  let t' = Terms.apply_eq_reds try_no_var reduced t in
+  if !reduced then t' else 
+  apply_statements_subterms_once try_no_var t
+
+(* [apply_statements_and_collisions_subterms_once reduce_rec try_no_var t] 
+   applies the equality statements and the collisions given in the input 
+   file to all subterms of [t]. *)
+
+let rec apply_statements_and_collisions_subterms_once reduce_rec try_no_var t = 
+  match t.t_desc with
+    FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      if !reduced then t' else 
+      let t' = apply_collisions_at_root_once reduce_rec try_no_var t f.f_collisions in
+      if !reduced then t' else       
+      (* We apply the statements only to subterms that are not products by f.
+	 Subterms that are products by f are already handled above
+	 using [match_term_root_or_prod_subterm]. *)
+      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
+      Terms.make_prod f (List.map (apply_statements_and_collisions_subterms_once reduce_rec try_no_var) l)
+  | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
+      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      if !reduced then t' else 
+      let t' = apply_collisions_at_root_once reduce_rec try_no_var t f.f_collisions in
+      if !reduced then t' else       
+      begin
+	match Terms.get_prod_list try_no_var l with
+	  ACUN(xor, neut) ->
+	    let t' = Terms.app xor [t1;t2] in
+	    let t'' = apply_statements_and_collisions_subterms_once reduce_rec try_no_var t' in
+	    begin
+	      match t''.t_desc with
+		FunApp(xor', [t1';t2']) when xor' == xor ->
+		  Terms.build_term2 t (FunApp(f, [t1';t2']))
+	      |	_ -> 
+		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
+	    end
+	| CommutGroup(prod, inv, neut) | Group(prod, inv, neut) ->
+	    let t' = Terms.app prod [t1; Terms.app inv [t2]] in
+	    let t'' = apply_statements_and_collisions_subterms_once reduce_rec try_no_var t' in
+	    begin
+	      match t''.t_desc with
+		FunApp(prod', [t1';t2']) when prod' == prod ->
+		  Terms.build_term2 t (FunApp(f, [t1';Terms.compute_inv try_no_var (ref false) (prod, inv, neut) t2']))
+	      |	_ -> 
+		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
+	    end
+	| _ -> 
+	    Terms.build_term2 t (FunApp(f, List.map (apply_statements_and_collisions_subterms_once reduce_rec try_no_var) l))
+      end
+  | FunApp(f, l) ->
+      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      if !reduced then t' else 
+      let t' = apply_collisions_at_root_once reduce_rec try_no_var t f.f_collisions in
+      if !reduced then t' else       
+      Terms.build_term2 t (FunApp(f, List.map (apply_statements_and_collisions_subterms_once reduce_rec try_no_var) l))
+  | _ -> t
+
+(* [apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t] 
+   applies the equalities coming from the equational theories, 
+   the equality statements, and the collisions given in the input 
+   file to all subterms of [t]. *)
+
+let apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t =
+  let t' = Terms.apply_eq_reds try_no_var reduced t in
+  if !reduced then t' else 
+  apply_statements_and_collisions_subterms_once reduce_rec try_no_var t
+
 (* Applying a substitution that maps x[M1,...,Mn] to M' *)
 
 let reduced_subst = ref false
@@ -104,12 +433,30 @@ let rec apply_subst1 t tsubst =
          end
      | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 
-let rec apply_all_subst t = function
+let rec apply_subst_list t = function
     [] -> t
-  | (a::l) ->
-      let t' = apply_subst1 t a in
-      if !reduced_subst then t' else apply_all_subst t l
+  | tsubst::rest -> 
+     match tsubst.t_desc with
+       FunApp(f,[redl;redr]) when f.f_cat == Equal || f.f_cat == LetEqual ->
+         begin
+           if Terms.equal_terms t redl then 
+	     begin
+	       reduced_subst := true;
+	       redr
+	     end
+           else
+	     apply_subst_list t rest
+         end
+     | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 
+let rec apply_all_subst t substl = 
+  let t' = apply_subst_list t substl in
+  if !reduced_subst then t' else
+  match t.t_desc with
+    Var(b,l) ->
+      Terms.build_term2 t (Var(b, List.map (fun t' -> apply_all_subst t' substl) l))
+  | _ -> t
+      
 let rec try_no_var ((subst2, _, _) as simp_facts) t =
   match t.t_desc with
     FunApp(f,l) -> t
@@ -124,278 +471,28 @@ let rec try_no_var ((subst2, _, _) as simp_facts) t =
       Display.display_term t; print_newline();
       Parsing_helper.internal_error "If, find, let, and new should not occur in try_no_var"
 
-(* [unify_terms simp_facts t t'] tests equality between [t] and [t'], 
-   modulo rewrite rules in [simp_facts].
-   Returns the common form when they are equal;
-   raises NoMatch otherwise.  *)
+(* [apply_reds simp_facts t] applies all equalities coming from the
+   equational theories, equality statements, and collisions given in
+   the input file to all subterms of the term [t], taking into account
+   the equalities in [simp_facts] to enable their application.
+   Application is repeated until a fixpoint is reached. *)
 
-let rec unify_terms simp_facts t t' =
-  (* print_string "Trying to unify "; Display.display_term t; print_string " and "; Display.display_term t'; print_newline(); *)
-  match t.t_desc,t'.t_desc with
-    ((TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _), _)
-  | (_, (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _)) ->
-      Display.display_term t; print_newline();
-      Parsing_helper.internal_error "If, find, let, and new should not occur in unify_terms"
-  | (Var _, Var _) when Terms.equal_terms t t' -> t
-  | _ ->
-      let t1 = try_no_var simp_facts t in
-      let t1' = try_no_var simp_facts t' in
-      match (t1.t_desc, t1'.t_desc) with
-	FunApp(f,[t1;t2]), FunApp(f',[t1';t2']) when f == f' && f.f_options land Settings.fopt_COMMUT != 0 ->
-          (* Commutative function symbols *)
-          begin
-          try
-            Terms.build_term2 t (FunApp(f, [ unify_terms simp_facts t1 t1';
-					     unify_terms simp_facts t2 t2']))
-          with NoMatch ->
-            Terms.build_term2 t (FunApp(f, [ unify_terms simp_facts t1 t2';
-					     unify_terms simp_facts t2 t1']))
-          end
-      |	FunApp(f,l), FunApp(f',l') when f == f' ->
-	  Terms.build_term2 t (FunApp(f, List.map2 (unify_terms simp_facts) l l'))
-      |	_ -> if Terms.equal_terms t1 t1' then t1 else raise NoMatch
-
-
-(* simp_equal_terms tests equality between t1 and t2, modulo rewrite rules in 
-   simp_facts. Returns true when equal, false otherwise.  *)
-
-let simp_equal_terms simp_facts t1 t2 =
-  try 
-    ignore(unify_terms simp_facts t1 t2); 
-    true 
-  with NoMatch -> 
-    false
-
-(* Apply reduction rules defined by statements to term t *)
-
-let rec match_term next_f simp_facts restr t t' = 
-  match t.t_desc with
-    Var (v,[]) -> 
-    (* Check that types match *)
-      if t'.t_type != v.btype then
-	raise NoMatch;
-      begin
-	match v.link with
-	  NoLink -> 
-	    if List.memq v restr then
-	      (* t' must be a variable created by a restriction *)
-	      begin
-		if not (t'.t_type == v.btype) then
-		  raise NoMatch;
-		match t'.t_desc with
-		  Var(b,l) when Terms.is_restr b -> ()
-		| _ -> raise NoMatch
-	      end;
-	    Terms.link v (TLink t')
-	| TLink t -> 
-	    v.link <- TLink (unify_terms simp_facts t t')
-      end;
-      next_f()
-  | FunApp(f,[t1;t2]) when f.f_options land Settings.fopt_COMMUT != 0 ->
-      (* Commutative function symbols *)
-      begin
-	match (try_no_var simp_facts t').t_desc with
-	  FunApp(f',[t1';t2']) when f == f' ->
-            begin
-              try
-                Terms.auto_cleanup (fun () ->
-	          match_term (fun () -> match_term next_f simp_facts restr t2 t2') simp_facts restr t1 t1')
-              with NoMatch ->
-                match_term (fun () -> match_term next_f simp_facts restr t2 t1') simp_facts restr t1 t2'
-            end
-	| _ -> raise NoMatch
-      end
-  | FunApp(f,l) ->
-      begin
-	match (try_no_var simp_facts t').t_desc with
-	  FunApp(f',l') when f == f' ->
-	    match_term_list next_f simp_facts restr l l'
-	| _ -> raise NoMatch
-      end
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in match_term"
-
-and match_term_list next_f simp_facts restr l l' = 
-  match l,l' with
-    [],[] -> next_f()
-  | a::l,a'::l' ->
-      match_term (fun () -> match_term_list next_f simp_facts restr l l') 
-	simp_facts restr a a'
-  | _ -> Parsing_helper.internal_error "Different lengths in match_term_list"
-
-let reduced = ref false
-
-(* apply_not_red implements reduction rules 
-     not (x = y) -> x != y
-     not (x != y) -> x = y
-     x = x -> true
-     x != x -> false
-     ?x != t -> false where ?x is a general variable (universally quantified)
-(These rules cannot be stored in file default, because there are several
-functions for = and for !=, one for each type.)
-*)
-
-let rec apply_not_red simp_facts t =
-  match t.t_desc with
-    FunApp(fnot, [t']) when fnot == Settings.f_not ->
-      begin
-      let t' = try_no_var simp_facts t' in
-      match t'.t_desc with
-	FunApp(feq, [t1;t2]) when feq.f_cat == Equal ->
-	  reduced := true;
-	  Terms.make_diff t1 t2
-      |	FunApp(fdiff, [t1;t2]) when fdiff.f_cat == Diff ->
-	  reduced := true;
-	  Terms.make_equal t1 t2
-      |	_ -> Terms.make_not (apply_not_red simp_facts t')
-      end
-  | FunApp(f,[t1;t2]) when f.f_cat == Equal && (simp_equal_terms simp_facts t1 t2) ->
-      reduced := true;
-      Terms.make_true()
-  | FunApp(f,[t1;t2]) when f.f_cat == Diff && (simp_equal_terms simp_facts t1 t2) ->
-      reduced := true;
-      Terms.make_false()
-
-(* ?x <> t is always false when ?x is a general variable (universally quantified) *)
-  | FunApp(f,[{t_desc = Var(b,[])};t2]) when f.f_cat == ForAllDiff && b.sname == Terms.gvar_name && not (Terms.refers_to b t2) -> 
-      reduced := true;
-      Terms.make_false()      
-  | FunApp(f,[t2;{t_desc = Var(b,[])}]) when f.f_cat == ForAllDiff && b.sname == Terms.gvar_name && not (Terms.refers_to b t2) -> 
-      reduced := true;
-      Terms.make_false()      
-
-  | FunApp(f,[t1;t2]) when f == Settings.f_and ->
-      Terms.make_and (apply_not_red simp_facts t1) (apply_not_red simp_facts t2)
-  | FunApp(f,[t1;t2]) when f == Settings.f_or ->
-      Terms.make_or (apply_not_red simp_facts t1) (apply_not_red simp_facts t2)
-  | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map (apply_not_red simp_facts) l))
-  | _ -> t
-
-let rec check_indep v = function
-    [] -> []
-  | v'::l ->
-      let l_indep = check_indep v l in
-      match v.link, v'.link with
-	TLink { t_desc = Var(b,l) }, TLink { t_desc = Var(b',l') } ->
-	  if b == b' then
-	    (Terms.make_and_list (List.map2 Terms.make_equal l l')):: l_indep
-	  else
-	    l_indep
-      |	_ -> Parsing_helper.internal_error "variables should be linked in check_indep"
-	  
-let rec check_indep_list = function
-    [] -> []
-  | [v] -> []
-  | (v::l) ->
-      (check_indep v l) @ (check_indep_list l)
-
-let rec apply_red simp_facts t (restr,proba,redl,redr) =
-  match t.t_desc with
-    FunApp(f,l) ->
-      begin
-	try
-	  match_term (fun () -> 
-	    let t' = Terms.copy_term Terms.Links_Vars redr in
-	    let l_indep = check_indep_list restr in
-	    let t'' =
-	      if l_indep == [] then
-		(* All restrictions are always independent, nothing to add *)
-		t' 
-	      else
-		begin
-		  if not (Terms.is_false redr) then
-		    (* I can test conditions that make restrictions independent only
-		       when the result "redr" is false *)
-		    raise NoMatch;
-		  (* When redr is false, the result "If restrictions
-		     independent then redr else t" is equal to
-		     "(restrictions not independent) and t" which we
-		     simplify.  We keep the transformed value only
-		     when t has been reduced, because otherwise we
-		     might enter a loop (applying the collision to t
-		     over and over again). *)
-		  Terms.make_or_list 
-		    (List.map (fun f ->
-		      let reduced_tmp = !reduced in
-		      reduced := false;
-		      let t1 = Terms.auto_cleanup (fun () ->
-			apply_all_red (simplif_add no_dependency_anal simp_facts f) t (!Settings.statements))
-		      in
-		      if not (!reduced) then 
-			begin 
-			  reduced := reduced_tmp; 
-			  raise NoMatch 
-			end;
-		      reduced := reduced_tmp;
-		      Terms.make_and f t1
-			) l_indep)
-		end
-	    in
-	    if proba != Zero then
-	      begin
-              (* Instead of storing the term t, I store the term obtained 
-                 after the applications of try_no_var in match_term,
-                 obtained by (Terms.copy_term redl) *)
-		if not (Proba.add_proba_red (Terms.copy_term Terms.Links_Vars redl) t' proba (List.map (fun restr1 ->
-		  match restr1.link with
-		    TLink trestr -> (restr1,trestr)
-		  | _ -> Parsing_helper.internal_error "unexpected link in apply_red") restr)) then
-		  raise NoMatch
-	      end;
-	    Terms.cleanup();
-	    reduced := true;
-	    t''
-	      ) simp_facts restr redl t
-	with NoMatch ->
-	  Terms.cleanup();
-	  Terms.build_term2 t (FunApp(f, List.map (fun t' -> apply_red simp_facts t' (restr, proba, redl, redr)) l))
-      end
-  | _ -> t
-
-and apply_statement simp_facts t (vl,t_state) =
-  match t_state.t_desc with
-    FunApp(f, [t1;t2]) when f.f_cat == Equal ->
-      apply_red simp_facts t ([],Zero,t1,t2)
-  | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
-      apply_red simp_facts (apply_red simp_facts t 
-	([],Zero,t_state, Terms.make_true())) 
-	([],Zero,Terms.make_equal t1 t2, Terms.make_false())
-  | _ -> apply_red simp_facts t ([],Zero,t_state, Terms.make_true())
-
-and apply_all_red simp_facts t = function
-    [] -> 
-      let t' = apply_not_red simp_facts t in
-      if !reduced then t' else t
-  | (a::l) ->
-      let t' = apply_statement simp_facts t a in
-      if !reduced then t' else apply_all_red simp_facts t l
-
-and apply_collision simp_facts t (restr, forall, t1, proba, t2) =
-  apply_red simp_facts t (restr,proba,t1,t2)
-
-and apply_all_coll simp_facts t = function
-    [] -> t
-  | (a::l) ->
-      let t' = apply_collision simp_facts t a in
-      if !reduced then t' else apply_all_coll simp_facts t l
-
-and apply_statements_and_collisions simp_facts t =
-  let t' = apply_all_red simp_facts t (!Settings.statements) in
-  if !reduced then t' else
-  apply_all_coll simp_facts t (!Settings.collisions) 
-
-(* [apply_reds simp_facts t] applies all equalities and collisions given in the 
-   input file to the term [t], taking into account the equalities in 
-   [simp_facts] to enable their application. *)
-
-and apply_reds simp_facts t =
+let rec apply_reds simp_facts t =
   reduced := false;
-  let t' = apply_statements_and_collisions simp_facts t in
+  let t' = apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts) (try_no_var simp_facts) t in
   if !reduced then 
     apply_reds simp_facts t' 
   else
     t
+
+(* [reduce_rec simp_facts f t] simplifies the term [t] knowing the fact [f] 
+   in addition to the already known facts [simp_facts]. It sets the flag [reduced]
+   when [t] has really been modified. *)
+
+and reduce_rec simp_facts f t = 
+  Terms.auto_cleanup (fun () ->
+    let simp_facts' = simplif_add no_dependency_anal simp_facts f in
+    apply_eq_statements_subterms_once (try_no_var simp_facts') t)   
 
 (* Replaces each occurence of t in fact with true *)
 and replace_with_true modified t fact =
@@ -498,11 +595,12 @@ and add_fact dep_info simp_facts fact =
 	f1 != f2 && (!Settings.diff_constants) ->
 	  raise Contradiction
 	  (* Different constants are different *)
-      | (_, _) when orient t1' t2' ->
-	  subst_simplify2 dep_info simp_facts (Terms.make_equal t1' t2')
-      | (_, _) when orient t2' t1' -> 
-	  subst_simplify2 dep_info simp_facts (Terms.make_equal t2' t1')
-      | _ -> (subst2, fact'::facts, elsefind)
+      | (_, _) -> 
+	  match orient_eq (try_no_var simp_facts) t1' t2' with
+	    Some(t1'',t2'') -> 
+	      subst_simplify2 dep_info simp_facts (Terms.make_equal t1'' t2'')
+	  | None ->
+	      (subst2, fact'::facts, elsefind)
       end
   | FunApp(f,[t1;t2]) when f.f_cat == ForAllDiff ->
       let t1' = try_no_var simp_facts t1 in
@@ -550,22 +648,23 @@ and subst_simplify2 dep_info (subst2, facts, elsefind) link =
 	   However, it is not clear what "simp_facts" should really be...
          *)
 	let (t1, t1', reduced) = 
-	  match t'.t_desc with
-	    Var _ | ReplIndex _ ->
-	      reduced_subst := false;
-	      let t1 = apply_subst1 t link in
-	      let t1' = apply_subst1 t' link in
-	      (t1,t1',!reduced_subst)
-	  | FunApp _ ->
-	      reduced_subst := false;
-	      let t1 = apply_subst1 t link in
-	      let red = !reduced_subst in
-	      (* Applying reductions here slows down simplification *)
-	      reduced := false;
-	      let t1' = apply_statements_and_collisions (link :: (!subst2''), facts, elsefind) t' in
-	      (t1, t1', red || (!reduced))
-	  | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in subst_simplify2"
-	in
+          match t'.t_desc with
+            Var _ | ReplIndex _ ->
+              reduced_subst := false;
+              let t1 = apply_subst1 t link in
+              let t1' = apply_subst1 t' link in
+              (t1,t1',!reduced_subst)
+          | FunApp _ ->
+              reduced_subst := false;
+              let t1 = apply_subst1 t link in
+              let red = !reduced_subst in
+              (* Applying reductions here slows down simplification *)
+              reduced := false;
+              let simp_facts_tmp = (link :: (!subst2''), facts, elsefind) in
+              let t1' = apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts_tmp) (try_no_var simp_facts_tmp) t' in
+              (t1, t1', red || (!reduced))
+          | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in subst_simplify2"
+        in
 	if reduced then
 	  begin
 	    let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
@@ -657,7 +756,7 @@ let rec is_reachable n n' =
   is_reachable n n'.above_node
 
 let get_def_vars_above n =
-  List.map (fun b -> (b, b.args_at_creation)) (Terms.add_def_vars_node [] n)
+  List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) (Terms.add_def_vars_node [] n)
 
 (* Given a node, return the variable references whose definition
    is guaranteed by defined conditions above that node. *)
@@ -711,11 +810,13 @@ let rec add_def_vars current_node seen_refs ((b,l) as br) =
       let def_vars_above_def = Terms.intersect_list (==) (List.map (get_def_vars_above2 current_node) b.def) in
       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node b.def) in
       (* put links for the substitution b.args_at_creation -> l *)
-      let bindex = List.map Terms.repl_index_from_term b.args_at_creation in
+      let bindex = b.args_at_creation in
       List.iter2 (fun b t -> b.ri_link <- TLink t) bindex l;
       (* add facts *)
       List.iter (fun b -> 
-	Terms.add_binderref (b, List.map (Terms.copy_term Terms.Links_RI) b.args_at_creation) seen_refs
+	Terms.add_binderref (b, List.map (fun ri -> match ri.ri_link with
+	  NoLink -> Terms.term_from_repl_index ri
+	| TLink t' -> t') b.args_at_creation) seen_refs
 	  ) def_vars_above_def;
       (* compute arguments of recursive call *)
       let def_vars_at_def' = Terms.copy_def_list Terms.Links_RI def_vars_at_def in
@@ -747,7 +848,7 @@ let rec add_facts current_node fact_accu seen_refs ((b,l) as br) =
       let true_facts_at_def = filter_ifletfindres (Terms.intersect_list Terms.equal_terms (List.map (true_facts_from_node current_node) b.def)) in
       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node b.def) in
       (* put links for the substitution b.args_at_creation -> l *)
-      let bindex = List.map Terms.repl_index_from_term b.args_at_creation in
+      let bindex = b.args_at_creation in
       List.iter2 (fun b t -> b.ri_link <- TLink t) bindex l;
       (* add facts *)
       List.iter (fun f -> 
@@ -823,7 +924,7 @@ let get_facts_at = function
 
 let make_indexes b =
   List.map (fun t -> 
-    Terms.term_from_repl_index (Terms.new_repl_index (Terms.repl_index_from_term t))) b.args_at_creation
+    Terms.term_from_repl_index (Terms.new_repl_index t)) b.args_at_creation
 
 let collect_facts accu (def,bindex,index) =
   let fact_accu = ref accu in
@@ -855,7 +956,7 @@ let check_distinct b g =
   let index1 = make_indexes b in
   let index2 = make_indexes b in
   let diff_index = Terms.make_or_list (List.map2 Terms.make_diff index1 index2) in
-  let bindex = List.map Terms.repl_index_from_term b.args_at_creation in
+  let bindex = b.args_at_creation in
   let d1withfacts = collect_facts_list bindex index1 b.def in
   let d2withfacts = collect_facts_list bindex index2 b.def in
   let r = 
@@ -924,7 +1025,18 @@ let check_distinct b g =
 
 (***** Check correspondence assertions *****)
 
-let rec guess_by_matching next_f simp_facts t t' = 
+(* [get_var_link] function associated to [guess_by_matching].
+   See the interface of [Terms.match_funapp] for the 
+   specification of [get_var_link]. *)
+
+let get_var_link_g t () = 
+  match t.t_desc with
+    FunApp _ -> None
+  | Var(v,[]) -> Some (v.link, true)
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
+      Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in guess_by_matching"      
+
+let rec guess_by_matching simp_facts next_f t t' () = 
   match t.t_desc with
     Var (v,[]) -> 
     (* Check that types match *)
@@ -936,69 +1048,21 @@ let rec guess_by_matching next_f simp_facts t t' =
 	| TLink t -> ()
       end;
       next_f()
-  | FunApp(f,[t1;t2]) when f.f_options land Settings.fopt_COMMUT != 0 ->
-      (* Commutative function symbols *)
-      begin
-	match (try_no_var simp_facts t').t_desc with
-	  FunApp(f',[t1';t2']) when f == f' ->
-            begin
-              try
-                Terms.auto_cleanup (fun () ->
-	          guess_by_matching (fun () -> guess_by_matching next_f simp_facts t2 t2') simp_facts t1 t1')
-              with NoMatch ->
-                guess_by_matching (fun () -> guess_by_matching next_f simp_facts t2 t1') simp_facts t1 t2'
-            end
-	| _ -> next_f()
-      end
-  | FunApp(f,l) ->
-      begin
-	match (try_no_var simp_facts t').t_desc with
-	  FunApp(f',l') when f == f' ->
-	    guess_by_matching_list next_f simp_facts l l'
-	| _ -> next_f()
-      end
+  | FunApp _ ->
+      Terms.match_funapp (guess_by_matching simp_facts) get_var_link_g next_f (try_no_var simp_facts) next_f t t' ()
   | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, and new should not occur in guess_by_matching"
-
-and guess_by_matching_list next_f simp_facts l l' = 
-  match l,l' with
-    [],[] -> next_f()
-  | a::l,a'::l' ->
-      guess_by_matching (fun () -> guess_by_matching_list next_f simp_facts l l') 
-	simp_facts a a'
-  | _ -> Parsing_helper.internal_error "Different lengths in guess_by_matching_list"
 
 let guess_by_matching_same_root next_f simp_facts t t' = 
   match t.t_desc with
     Var (v,[]) -> 
-    (* Check that types match *)
-      if t'.t_type != v.btype then
-	raise NoMatch;
-      begin
-	match v.link with
-	  NoLink -> Terms.link v (TLink t')
-	| TLink t -> ()
-      end;
-      next_f()
-  | FunApp(f,[t1;t2]) when f.f_options land Settings.fopt_COMMUT != 0 ->
-      (* Commutative function symbols *)
-      begin
-	match (try_no_var simp_facts t').t_desc with
-	  FunApp(f',[t1';t2']) when f == f' ->
-            begin
-              try
-                Terms.auto_cleanup (fun () ->
-	          guess_by_matching (fun () -> guess_by_matching next_f simp_facts t2 t2') simp_facts t1 t1')
-              with NoMatch ->
-                guess_by_matching (fun () -> guess_by_matching next_f simp_facts t2 t1') simp_facts t1 t2'
-            end
-	| _ -> raise NoMatch
-      end
+      guess_by_matching simp_facts next_f t t' ()
   | FunApp(f,l) ->
       begin
-	match (try_no_var simp_facts t').t_desc with
+	let t'' = try_no_var simp_facts t' in 
+	match t''.t_desc with
 	  FunApp(f',l') when f == f' ->
-	    guess_by_matching_list next_f simp_facts l l'
+	    guess_by_matching simp_facts next_f t t'' ()
 	| _ -> raise NoMatch
       end
   | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
@@ -1207,7 +1271,7 @@ let rec add_facts ((is_useful, advise_ref) as is_useful_info) current_node fact_
       in
       let (def_vars_at_def, missed_br) = intersect_list_useful_br (!seen_refs) (List.map def_vars_from_node b.def) in
       (* put links for the substitution b.args_at_creation -> l *)
-      let bindex = List.map Terms.repl_index_from_term b.args_at_creation in
+      let bindex = b.args_at_creation in
       List.iter2 (fun b t -> b.ri_link <- TLink t) bindex l;
       (* add facts *)
       List.iter (fun f -> 
@@ -1451,6 +1515,300 @@ let simplify_term dep_info simp_facts t =
        and are true with probability and_proba.
 *)
 
+(* [apply_eq add_accu t equalities] applies the equalities of [equalities] 
+   to the term [t], at the root or to the immediate subterms in case [t] is
+   a product. Each equality is applied at most once.
+   It calls the function [add_accu] on each obtained term. 
+
+   [get_var_link_novar] is the [get_var_link] function used for matching
+   inside [apply_eq]. It always returns [None] since nothing is considered
+   as a variable in this matching: we just want equality of terms.
+
+   [match_term_novar] is the [match_term] function used for matching
+   inside [apply_eq]. It just tests equality, since nothing is considered
+   as a variable in this matching.
+*)
+let get_var_link_novar t () = None
+
+let match_term_novar next_f t t' () =
+  if Terms.equal_terms t t' then next_f() else raise NoMatch
+
+let apply_eq add_accu t equalities =
+  List.iter (fun (left, right) ->
+    match t.t_desc, left.t_desc with
+      FunApp(f,[_;_]), _ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+	let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f t in
+	let l' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f left in
+	begin
+	  match f.f_eq_theories with
+	    NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
+	  | AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+	    (* By commutativity, all possibilities will yield the same result, so we do not raise NoMatch
+	       after finding a solution. *)
+	      begin
+		try 
+		  Terms.match_AC match_term_novar get_var_link_novar Terms.default_match_error (fun rest () -> 
+		    add_accu (Terms.make_prod f (right::rest))) Terms.try_no_var_id f true l l' ()
+		with NoMatch -> ()
+	      end
+	  | Assoc | AssocN _ | Group _ -> 
+	    (* Try all possibilities *)
+	      begin
+		try
+		  Terms.match_assoc_subterm match_term_novar get_var_link_novar (fun rest_left rest_right () ->
+		    add_accu (Terms.make_prod f (rest_left @ right::rest_right)); raise NoMatch) Terms.try_no_var_id f l l' ()
+		with NoMatch -> ()
+	      end
+	end
+    | _ ->
+	if Terms.equal_terms t left then add_accu right
+	    ) equalities
+
+(* [apply_colls reduce_rec add_accu t colls] applies the collisions in
+   [colls] to the term [t], at the root or in immediate subterms in case
+   [t] is a product. Each collision is applied at most once. 
+   It calls the function [add_accu] on each obtained term.
+
+   [accu_match_term_root_or_prod_subterm] is a helper matching function
+   for [apply_colls]. It performs the matching either at the root or
+   in the immediate subterms in case the considered terms are products.
+   *)
+
+let accu_match_term_root_or_prod_subterm try_no_var restr add_accu next_f t t' =
+  match t.t_desc, t'.t_desc with
+    FunApp(f,[_;_]), _ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
+      let l' = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t' in
+      begin
+	match f.f_eq_theories with
+	  NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
+	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+	    Terms.match_AC (match_term try_no_var restr) (get_var_link restr) Terms.default_match_error (fun rest () -> 
+	      add_accu (Terms.make_prod f ((next_f())::rest)); raise NoMatch) try_no_var f true l l' ()
+	| Assoc | AssocN _ | Group _ -> 
+	    Terms.match_assoc_subterm (match_term try_no_var restr) (get_var_link restr) (fun rest_left rest_right () ->
+	      add_accu (Terms.make_prod f (rest_left @ (next_f())::rest_right)); raise NoMatch) try_no_var f l l' ()
+      end
+  | _ ->
+      match_term try_no_var restr (fun () -> add_accu (next_f())) t t' ()
+
+let apply_colls reduce_rec add_accu t colls = 
+  List.iter (fun (restr, forall, redl, proba, redr) -> 
+    try
+      accu_match_term_root_or_prod_subterm Terms.try_no_var_id restr add_accu (fun () -> 
+	let t' = Terms.copy_term Terms.Links_Vars redr in
+	let l_indep = check_indep_list restr in
+	let redl' = Terms.copy_term Terms.Links_Vars redl in
+	let restr_map = 
+	  List.map (fun restr1 ->
+	    match restr1.link with
+	      TLink trestr -> (restr1,trestr)
+	    | _ -> Parsing_helper.internal_error "unexpected link in apply_red"
+		  ) restr
+	in
+	(* Cleanup early enough, so that the links that we create in this 
+	   collision do not risk to interfere with a later application of 
+	   the same collision in reduce_rec. *)
+	Terms.cleanup();
+	let t'' =
+	  if l_indep == [] then
+	    (* All restrictions are always independent, nothing to add *)
+	    t' 
+	  else
+	    begin
+	      if not (Terms.is_false redr) then
+	          (* I can test conditions that make restrictions independent only
+		     when the result "redr" is false *)
+		raise NoMatch;
+	          (* When redr is false, the result "If restrictions
+		     independent then redr else t" is equal to
+		     "(restrictions not independent) and t" which we
+		     simplify.  We keep the transformed value only
+		     when t has been reduced, because otherwise we
+		     might enter a loop (applying the collision to t
+		     over and over again). *)
+	      Terms.make_or_list 
+		(List.map (fun f ->
+		  let reduced_tmp = !reduced in
+		  reduced := false;
+		  let t1 = reduce_rec f t in
+		  if not (!reduced) then 
+		    begin 
+		      reduced := reduced_tmp; 
+		      raise NoMatch 
+		    end;
+		    reduced := reduced_tmp;
+		  Terms.make_and f t1
+		    ) l_indep)
+	    end
+	in
+	if proba != Zero then
+	  begin
+              (* Instead of storing the term t, I store the term obtained 
+                 after the applications of try_no_var in match_term,
+                 obtained by (Terms.copy_term redl) *)
+	    if not (Proba.add_proba_red redl' t' proba restr_map) then
+	      raise NoMatch
+	  end;
+	t''
+	    ) redl t
+      with NoMatch ->
+	Terms.cleanup()
+    ) colls
+    
+(* [apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t] 
+   applies the equalities coming from the equational theories, 
+   the equality statements, the collisions given in the input 
+   file, and the equalities given in [equalities] from left to right  
+   to all subterms of [t]. It applies each equality once, and 
+   calls the function [add_accu] on all terms generated by these equalities.
+*)
+
+let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t = 
+  match t.t_desc with
+    FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function *)
+      (* We apply the statements only to subterms that are not products by f.
+	 Subterms that are products by f are already handled above
+	 using [match_term_root_or_prod_subterm]. *)
+      apply_eq add_accu t equalities;
+      apply_colls reduce_rec_impossible add_accu t f.f_statements;
+      apply_colls reduce_rec add_accu t f.f_collisions;
+      let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f t in
+      let rec apply_list seen = function
+	  [] -> ()
+	| first::rest ->
+	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
+	      add_accu (Terms.make_prod f (List.rev_append seen (t''::rest)))
+		) first;
+	    apply_list (first::seen) rest
+      in
+      apply_list [] l
+  | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
+      apply_eq add_accu t equalities;
+      apply_colls reduce_rec_impossible add_accu t f.f_statements;
+      apply_colls reduce_rec add_accu t f.f_collisions;
+      begin
+	match Terms.get_prod_list Terms.try_no_var_id l with
+	  ACUN(xor, neut) ->
+	    let t' = Terms.app xor [t1;t2] in
+	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->
+	      match t''.t_desc with
+		FunApp(xor', [t1';t2']) when xor' == xor ->
+		  add_accu (Terms.build_term2 t (FunApp(f, [t1';t2'])))
+	      |	_ -> 
+		  add_accu (Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []])))
+		    ) t'
+	| CommutGroup(prod, inv, neut) | Group(prod, inv, neut) ->
+	    let t' = Terms.app prod [t1; Terms.app inv [t2]] in
+	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' -> 
+	      match t''.t_desc with
+		FunApp(prod', [t1';t2']) when prod' == prod ->
+		  add_accu (Terms.build_term2 t (FunApp(f, [t1';Terms.compute_inv Terms.try_no_var_id (ref false) (prod, inv, neut) t2'])))
+	      |	_ -> 
+		  add_accu (Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []])))
+		) t'
+	| _ -> 
+	    let rec apply_list seen = function
+		[] -> ()
+	      | first::rest ->
+		  apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
+		    add_accu (Terms.build_term2 t (FunApp(f, List.rev_append seen (t''::rest))))
+		      ) first;
+		  apply_list (first::seen) rest
+	    in
+	    apply_list [] l
+      end
+  | FunApp(f, l) ->
+      apply_eq add_accu t equalities;
+      apply_colls reduce_rec_impossible add_accu t f.f_statements;
+      apply_colls reduce_rec add_accu t f.f_collisions;
+      let rec apply_list seen = function
+	  [] -> ()
+	| first::rest ->
+	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
+	      add_accu (Terms.build_term2 t (FunApp(f, List.rev_append seen (t''::rest))))
+		) first;
+	    apply_list (first::seen) rest
+      in
+      apply_list [] l
+  | Var(b,l) -> 
+      apply_eq add_accu t equalities;
+      let rec apply_list seen = function
+	  [] -> ()
+	| first::rest ->
+	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
+	      add_accu (Terms.build_term2 t (Var(b, List.rev_append seen (t''::rest))))
+		) first;
+	    apply_list (first::seen) rest
+      in
+      apply_list [] l
+  | _ -> ()
+
+(*
+NOTE: we might want to reimplement apply_eq_reds to add all possible 
+rewrites instead of just one.
+*)
+
+let apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
+  let t' = Terms.apply_eq_reds Terms.try_no_var_id reduced t in
+  if !reduced then add_accu t'; 
+  apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t
+
+(* In the function [apply_eq_and_collisions_subterms_once], we apply
+   the equalities that come from the game (stored in [equalities]) in
+   both directions, but we apply the statements and collisions given
+   in the input file only in the direction specified in the input
+   file.
+   To be able to apply them at least a bit in both directions, 
+   we reduce both the initial term [t] and the desired replacement [t']
+   by [apply_eq_and_collisions_subterms_once]. The function [test_equal]
+   reduces [t'] and calls [test_equal_rewrite_left], which reduces [t].
+*)
+
+(* [test_equal_rewrite_left depth reduce_rec equalities seen_left_terms left_terms right_terms]
+   is true when a term in [left_terms] can be rewritten into a term in [right_terms] in
+   at most [depth] steps. 
+   [seen_left_terms] are terms already seen on the left, which do not need to be
+   considered any more. *)
+
+let rec test_equal_rewrite_left depth reduce_rec equalities seen_left_terms left_terms right_terms =
+  if List.exists (fun tleft ->
+    List.exists (Terms.equal_terms tleft) right_terms) left_terms then true else
+  if depth <= 0 then false else
+  let seen_terms = left_terms @ seen_left_terms in
+  let new_terms = ref [] in
+  List.iter (apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t' ->
+    if (not (List.exists (Terms.equal_terms t') seen_terms)) &&
+       (not (List.exists (Terms.equal_terms t') (!new_terms))) then
+      new_terms := t' :: (!new_terms)
+			   )) left_terms;
+  test_equal_rewrite_left (depth-1) reduce_rec equalities seen_terms (!new_terms) right_terms
+
+(* [test_equal depth reduce_rec equalities t right_terms seen_right_terms] is true when
+   [t] is equal to a term in [right_terms] by at most [depth] rewriting steps. 
+   [seen_right_terms] are terms already seen on the right, which do not need to be
+   considered any more. *)
+
+let rec test_equal depth reduce_rec equalities t right_terms seen_right_terms =
+  if List.exists (fun tright ->
+    test_equal_rewrite_left depth reduce_rec equalities [] [t] right_terms) right_terms then true else
+  if depth <= 0 then false else
+  let seen_terms = right_terms @ seen_right_terms in
+  let new_terms = ref [] in
+  List.iter (apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t' ->
+    if (not (List.exists (Terms.equal_terms t') seen_terms)) &&
+       (not (List.exists (Terms.equal_terms t') (!new_terms))) then
+      new_terms := t' :: (!new_terms)
+			   )) right_terms;
+  test_equal (depth-1) reduce_rec equalities t (!new_terms) seen_terms
+
+
 let check_equal g t t' and_facts and_proba =
   Proba.reset [] g;
   try 
@@ -1459,7 +1817,23 @@ let check_equal g t t' and_facts and_proba =
               Display.display_list Display.display_term (facts'@and_facts);
               print_newline ();*)
     let simp_facts = Terms.auto_cleanup (fun () -> simplif_add_list no_dependency_anal ([],[],[]) (facts' @ and_facts)) in
-    let r = (simp_equal_terms simp_facts t t') || (simp_equal_terms simp_facts (simplify_term no_dependency_anal simp_facts t) (simplify_term no_dependency_anal simp_facts t')) in
+    let r = (Terms.simp_equal_terms (try_no_var simp_facts) t t') || 
+    (Terms.simp_equal_terms (try_no_var simp_facts) (simplify_term no_dependency_anal simp_facts t) (simplify_term no_dependency_anal simp_facts t')) ||
+    (let equalities = ref [] in
+    let (subst, facts, elsefind) = simp_facts in
+    List.iter (fun t ->
+      match t.t_desc with
+	FunApp(f,[t1;t2]) when f.f_cat == Equal || f.f_cat == LetEqual ->
+	  equalities := (t1,t2) :: (t2,t1) :: (!equalities)
+      |	FunApp(f,[t1;t2]) when f.f_cat == Diff -> 
+	  equalities := (t, Terms.make_true()) :: (Terms.make_equal t1 t2, Terms.make_false()) :: 
+	                (Terms.make_true(), t) :: (Terms.make_false(), Terms.make_equal t1 t2) :: (!equalities)
+      |	_ -> 
+	  equalities := (t, Terms.make_true()) :: (Terms.make_true(), t) :: (!equalities)
+	) (subst @ facts);
+    test_equal (!Settings.max_replace_depth) (reduce_rec simp_facts) (!equalities) t [t'] []
+    )
+    in
     (* Add probability for eliminated collisions *)
     let proba = Proba.final_add_proba [] in
     (r, and_proba @ proba)

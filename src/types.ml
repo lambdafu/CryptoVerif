@@ -68,7 +68,7 @@ type binder = { sname : string;
 		      and choose a fresh integer vname. *)
 		btype : typet; 
 		   (* The type of the variable *)
-		args_at_creation : term list;
+		args_at_creation : repl_index list;
 		   (* The replication indices coming from replications and find
 		      above the definition of this variable. 
 		      These are the indices at the definition of the variable,
@@ -187,7 +187,7 @@ and funcats =
   | Or
   | And
   | Event (* Function symbols for events *)
-  | LetFunTerm of (binder list*term)
+  | LetFunTerm of binder list * term
 
 and impl_name =
     Func of string
@@ -198,9 +198,23 @@ and funsymb = { f_name : string;
 		f_type : typet list * typet; (* argument and result types *)
                 f_cat : funcats;
 	    	f_options : int; (* options *)
+		mutable f_statements : collision list;
+		mutable f_collisions : collision list;
+		mutable f_eq_theories : eq_th; (* equational theories for this function symbol *)
                 mutable f_impl : impl_name; (* implementation name *)
                 mutable f_impl_inv : string option; (* implementation of inverse if applicable *)
               }
+
+and eq_th =
+    NoEq
+  | Commut 
+  | Assoc 
+  | AssocCommut 
+  | AssocN of funsymb(*associative function*) * funsymb(*neutral*)
+  | AssocCommutN of funsymb(*AC function*) * funsymb(*neutral*)
+  | Group of funsymb(*mult*) * funsymb(*inverse*) * funsymb(*neutral*)
+  | CommutGroup of funsymb(*mult*) * funsymb(*inverse*) * funsymb(*neutral*)
+  | ACUN of funsymb(*xor*) * funsymb(*neutral*)
 
 (* Replication index *)
 and repl_index = { ri_sname : string;
@@ -285,7 +299,7 @@ and process =
 
 (* Equivalences *)
 
-type action =
+and action =
     AFunApp of funsymb         (* Application of f *)
   | APatFunApp of funsymb      (* Pattern matching with f *)
   | AReplIndex                 (* Reading a replication index *)
@@ -297,37 +311,37 @@ type action =
   | AOut of typet list * typet (* Output with channel indexes of types tl and output bitstring of type t *)
   | AIn of int                 (* Record input with n channel indexes in input list *)
 
-type mode =
+and mode =
     ExistEquiv | AllEquiv
 
-type options =
+and options =
     StdOpt | UsefulChange
 
-type restropt =
+and restropt =
     NoOpt | Unchanged | DontKnow
 
-type name_to_discharge_t = (binder * restropt ref) list
+and name_to_discharge_t = (binder * restropt ref) list
     
-type fungroup =
+and fungroup =
     ReplRestr of repl_index(*replication*) * (binder * restropt) list(*restrictions*) * fungroup list
   | Fun of channel * binder list(*inputs*) * term * (int(*priority*) * options)
 
-type eqmember = 
+and eqmember = 
     (fungroup * mode) list
 
-type eqopt =
+and eqopt =
     StdEqopt | ManualEqopt | PrioEqopt of int
 
-type eqopt2 =
+and eqopt2 =
     Decisional | Computational
 
-type eqname = 
+and eqname = 
     CstName of ident
   | ParName of ident * ident
   | NoName
 
 
-type game = 
+and game = 
     { mutable proc : inputprocess;
       mutable game_number : int;
       mutable current_queries : ((query * game) * proof_t ref * proof_t) list }

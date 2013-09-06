@@ -153,7 +153,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
       let put_link do_advise =
 	if Terms.refers_to b t then
 	  (* Cannot replace cyclic assignment *)
-	  Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.yield_proc))
+	  Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
 	else 
 	  match b.def with
 	    [] -> Parsing_helper.internal_error "Should have at least one definition"
@@ -163,7 +163,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
 		Terms.link b (TLink t);
 		if Settings.occurs_in_queries b then
 		  (* if b occurs in queries then leave as it is *)
-		  Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.yield_proc))
+		  Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
 		else if b.root_def_array_ref || b.root_def_std_ref || b.array_ref then
 		  (* We may keep calls to defined(b), so keep a definition of b
 		     but its value does not matter *)
@@ -182,7 +182,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                         done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
                         Settings.changed := true
                       end;
-		    Terms.oproc_from_desc (Let(pat,  t', rec_simplif above_proc p1, Terms.yield_proc))
+		    Terms.oproc_from_desc (Let(pat,  t', rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
 		else
 		  begin
                     (* b will completely disappear *)
@@ -211,14 +211,14 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                     (* Keep the definition so that out-of-scope array accesses are correct *)
                     if subst_def then
                       done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveNonArray)) :: (!done_transfos);
-                    Terms.oproc_from_desc (Let(pat, t, p1'', Terms.yield_proc))
+                    Terms.oproc_from_desc (Let(pat, t, p1'', Terms.oproc_from_desc Yield))
 		  end
 		else if Settings.occurs_in_queries b then
                   begin
 		    (* Cannot change definition if b occurs in queries *)
                     if subst_def then
                       done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
- 		    Terms.oproc_from_desc (Let(pat, t, p1'', Terms.yield_proc))
+ 		    Terms.oproc_from_desc (Let(pat, t, p1'', Terms.oproc_from_desc Yield))
                   end
                 else if b.root_def_array_ref || b.root_def_std_ref then
 		  (* We may keep calls to defined(b), so keep a definition of b
@@ -231,7 +231,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                     end
                   else if subst_def then
                     done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
-		  Terms.oproc_from_desc (Let(pat, t', p1'', Terms.yield_proc))
+		  Terms.oproc_from_desc (Let(pat, t', p1'', Terms.oproc_from_desc Yield))
 		else
                   (* b will completely disappear *)
 		  begin
@@ -273,7 +273,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                         done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
                         Settings.changed := true
                       end;
-		    Terms.oproc_from_desc (Let(pat, t', rec_simplif above_proc p1, Terms.yield_proc))
+		    Terms.oproc_from_desc (Let(pat, t', rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
 		end
 	    end
 	  else
@@ -287,7 +287,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                        but don't do a lot of work for that, so don't apply advises *)
 		    put_link false
 		| _ ->
-		    Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.yield_proc))
+		    Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
 	end
       else
 	Parsing_helper.internal_error "If, find, let, and new should not occur in expand_assign"
@@ -322,7 +322,7 @@ let rec remove_assignments_term remove_set t =
       if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b)) then
 	begin
 	  let b' = Terms.new_binder b in
-	  let t' = Terms.copy_term (Terms.Rename(b.args_at_creation, b, b')) t in
+	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
 	  Settings.changed := true;
 	  done_sa_rename := (b,b') :: (!done_sa_rename);
 	  Terms.build_term2 t' (ResE(b', remove_assignments_term remove_set t'))
@@ -350,13 +350,13 @@ let rec remove_assignments_rec remove_set p =
 
 and remove_assignments_reco remove_set above_proc p =
   match p.p_desc with
-    Yield -> Terms.yield_proc
+    Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
       if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b)) then
 	begin
 	  let b' = Terms.new_binder b in
-	  let p' = Terms.copy_oprocess (Terms.Rename(b.args_at_creation, b, b')) p in
+	  let p' = Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) p in
 	  Settings.changed := true;
 	  done_sa_rename := (b,b') :: (!done_sa_rename);
           (* Allow using b' for testing whether a variable is defined *) 
