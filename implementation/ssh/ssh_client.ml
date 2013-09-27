@@ -244,6 +244,5 @@ let _ =
     else
       begin
         print "userauth ok!";
-        exit(-10);
         do_connect (read_packet,write_packet) rfd ip porth hostr portr
       end

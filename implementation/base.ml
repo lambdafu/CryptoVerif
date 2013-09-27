@@ -54,7 +54,7 @@ let rng()=
   match !rng_ref with
     Some r -> r
   | None -> 
-      let r = Cryptokit.Random.pseudo_rng (Cryptokit.Random.string (Cryptokit.Random.device_rng "/dev/urandom") 20) in
+      let r = Cryptokit.Random.pseudo_rng (Cryptokit.Random.string Cryptokit.Random.secure_rng 20) in
       rng_ref := Some r;
       r
 
