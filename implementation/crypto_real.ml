@@ -14,6 +14,13 @@ type pkey =
     }
 type skey = Cryptokit.RSA.key
 
+let time msg f =
+  let t1 = Sys.time () in
+  let result = f () in
+  let t2 = Sys.time () in
+  Printf.eprintf "Time elapsed (%s): %f" msg (t2 -. t1);
+  result
+
 let pkey_from s =
   let (pk:pkey) = Marshal.from_string s 0 in
     pk
@@ -363,7 +370,7 @@ let dh_group14 =
 let dh_rand parameters () =
   Cryptokit.DH.private_secret ~rng:(Base.rng()) parameters
 
-let dh_message parameters x = 
+let dh_message parameters x =
   Cryptokit.DH.message parameters x
 
 let dh_exp parameters a b =

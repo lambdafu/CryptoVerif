@@ -177,3 +177,7 @@ val dh_rand : dh_parameters -> unit -> dh_secret
 val dh_message : dh_parameters -> dh_secret -> string
 (* [dh_exp params] calculates [a]^[b] mod p and deletes the contents of b *)
 val dh_exp : dh_parameters -> string -> dh_secret -> string
+
+(* For debug purposes. Prints on stderr the time taken to compute the
+   function in argument and returns its result. *)
+val time : string -> (unit -> 'a) -> 'a

@@ -487,9 +487,12 @@ let check_role_continuity p =
   check_role_continuity_aux true p
 
 let check_process2 p =
-  let h = build_return_list p in
-  check_role h p;
-  check_role_continuity p
+  (* Do not check implementation based requirements when not compiling
+     the specification into an implementation. *)
+  if (!Settings.get_implementation) then
+    let h = build_return_list p in
+    check_role h p;
+    check_role_continuity p
 
 (**** Second pass: type check everything ****)
 

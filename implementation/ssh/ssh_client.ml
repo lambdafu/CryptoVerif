@@ -239,8 +239,11 @@ let _ =
     let portr = int_of_string (Sys.argv.(7)) in
 
     let ((read_packet,write_packet,sid),rfd) = tunnel ip port in
-      if not (do_userauth username sk sid (read_packet,write_packet)) then
-        failwith "userauth failed"
-      else
+    if not (do_userauth username sk sid (read_packet,write_packet)) then
+      failwith "userauth failed"
+    else
+      begin
         print "userauth ok!";
+        exit(-10);
         do_connect (read_packet,write_packet) rfd ip porth hostr portr
+      end
