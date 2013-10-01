@@ -6,8 +6,8 @@ module BinderSet = Set.Make(String)
 
 
 (*informations to the user*)
-let info mess = print_string ("Information: "^ mess^"\n")
-let error mess = Parsing_helper.user_error ("Error: "^mess^"\n")
+let info mess = print_string ("Information: "^ mess^" (implementation)\n")
+let error mess = Parsing_helper.user_error ("Error: "^mess^" (implementation)\n")
 
 let string_list_sep = String.concat
 
@@ -55,7 +55,7 @@ let get_binderref_name ext (b,l) =
   if Terms.is_args_at_creation b l then
     get_binder_name b
   else
-    Parsing_helper.input_error "There should not be any find variable" ext
+    Parsing_helper.input_error "There should not be any find variable (implementation)" ext
 
 let free_vars = ref BinderSet.empty (* Contains all free variables; may contain some variables that are also bound *)
 let bound_vars_under_repl = ref BinderSet.empty
@@ -124,7 +124,7 @@ and get_oprocess_bv p =
     | EventP(t,p)->
         get_oprocess_bv p
     | Find(fl,ep,_) -> 
-        error "Find not supported (implementation)"
+        error "Find not supported"
     | Get(tbl,patl,topt,p1,p2) ->
         (List.fold_right add_bv (List.map get_pattern_bv patl)
            (add_bv 
@@ -229,29 +229,51 @@ let rec create_fresh_names prefix = function
     0 -> []
   | i -> (create_fresh_name prefix)::(create_fresh_names prefix (i-1))
 
+let check_oracle_compatibility name (rt, o) (rt', o') =
+  if (rt <> rt') then
+    match !Settings.front_end with
+      | Settings.Channels ->
+          error ("The outputs following inputs "^name^
+                    " have not the same type")
+      | Settings.Oracles ->
+          error ("The oracle "^name^
+                    " has not the same return types everywhere")
+  else if (o <> o') then
+    match !Settings.front_end with
+      | Settings.Channels ->
+          error ("The inputs after outputs after inputs "^name^
+                    " are not the same everywhere")
+      | Settings.Oracles ->
+          error ("The oracle "^name^
+                    " has not the same next oracles everywhere")
+
+let check_argument_type_compatibility name at at' =
+  if (at <> at') then
+    match !Settings.front_end with
+      | Settings.Channels ->
+          error ("The arguments of input "^name^
+                    " have not the same types everywhere")
+      | Settings.Oracles ->
+          error ("The arguments of oracle "^name^
+                    " have not the same types everywhere")
+
 let type_append = 
   StringMap.fold 
     (fun name (s,at) acc -> 
        try
          (
            let (s',at') = StringMap.find name acc in
-             if (at <> at') then
-               error ("The oracle "^name^" has not the same arguments types everywhere")
-             else
-               match s,s' with
-                   Some (rt,o), Some (rt',o') ->
-                     if (rt <> rt') then
-                       error ("The oracle "^name^" has not the same return types everywhere")
-                     else if (o <> o') then
-                       error ("The oracle "^name^" has not the same next oracles everywhere")
-                     else
-                       acc
-                 | None, Some(rt,o) ->
-                     acc
-                 | Some(rt,o), None ->
-                     StringMap.add name (Some(rt,o),at) (StringMap.remove name acc)
-                 | None, None ->
-                     acc
+           check_argument_type_compatibility name at at';
+           match s,s' with
+             | Some (rt,o), Some (rt',o') ->
+                 check_oracle_compatibility name (rt, o) (rt', o');
+                 acc
+             | None, Some(rt,o) ->
+                 acc
+             | Some(rt,o), None ->
+                 StringMap.add name (Some(rt,o),at) (StringMap.remove name acc)
+             | None, None ->
+                 acc
          )
        with Not_found -> 
          StringMap.add name (s,at) acc)
@@ -293,7 +315,7 @@ let pat_tuple_types pat =
           match pat with 
             | PatTuple (f,pl) when f.f_name = "" -> 
                 List.map (Terms.get_type_for_pattern) pl
-            | _ -> Parsing_helper.internal_error "An oracle arguments must be a pattern with a function tuple"
+            | _ -> Parsing_helper.internal_error "An oracle argument must be a pattern with a function tuple"
         )
     | Settings.Channels ->
         ( 
@@ -320,19 +342,13 @@ let rec get_oracle_types_oprocess name args_types p =
           (
             try 
               let (s,a') = StringMap.find name r in
-                if (a' <> args_types) then
-                  error ("The oracle "^name^" has not the same argument types")
-                else
-                  match s with 
-                      Some (ra',o') -> 
-                        if (ra <> ra') then
-                          error ("The oracle "^name^" has not the same return types everywhere")
-                        else if (o <> o') then
-                          error ("The oracle "^name^" has not the same next oracles everywhere")
-                        else
-                          r        
-                    | None ->
-                        type_append (StringMap.add name (Some(ra,o),args_types) StringMap.empty) r
+              check_argument_type_compatibility name a' args_types;
+              match s with 
+                | Some (ra',o') -> 
+                    check_oracle_compatibility name (ra, o) (ra', o');
+                    r        
+                | None ->
+                    type_append (StringMap.add name (Some(ra,o),args_types) StringMap.empty) r
             with
               | Not_found -> 
                   StringMap.add name (Some(ra,o),args_types) r
@@ -342,7 +358,7 @@ let rec get_oracle_types_oprocess name args_types p =
     | EventP(t,p)->
         get_oracle_types_oprocess name args_types p
     | Find(_,_,_) -> 
-        error "Find not supported (implementation)"
+        error "Find not supported"
     | Get(tbl,patl,topt,p1,p2) ->
         type_append (get_oracle_types_oprocess name args_types p1) (get_oracle_types_oprocess name args_types p2)
     | Insert(tbl,tl,p) ->
@@ -484,7 +500,7 @@ let rec translate_oprocess opt p ind =
     | EventP(t,p)->
         translate_oprocess opt p ind
     | Find(_,_,_) -> 
-        error "Find not supported (implementation)"
+        error "Find not supported"
     | Get(tbl,patl,topt,p1,p2) ->
         translate_get opt tbl patl topt (translate_oprocess opt p1) (translate_oprocess opt p2) ind
     | Insert(tbl,tl,p) ->

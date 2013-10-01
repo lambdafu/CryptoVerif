@@ -399,7 +399,11 @@ let rec build_return_list_aux h name = function
         | None ->
           (* This error should be catched by the typing phase. Maybe we should
              call this after the typing phase? *)
-          input_error "Out/Return present in in process" ext
+            match !Settings.front_end with
+              | Settings.Channels ->
+                  input_error "Out present in input process part (implementation)" ext
+              | Settings.Oracles ->
+                  input_error "Return present in oracle description part (implementation)" ext
     end
   | PInput((name, _), _, p), _ ->
     build_return_list_aux h (Some name) p
@@ -431,12 +435,22 @@ let rec check_role_aux h name = function
         | Some name ->
           let returns = Hashtbl.find_all h name in
           if List.length returns > 1 then
+            let oracle = match !Settings.front_end with
+              | Settings.Channels -> "in-out block"
+              | Settings.Oracles -> "oracle"
+            in
+            let return = match !Settings.front_end with
+              | Settings.Channels -> "out construct"
+              | Settings.Oracles -> "return"
+            in
             input_error
               (Printf.sprintf
-                 "Role %s is defined after oracle/in-out block %s that has \
-                  more than one return/out declarations"
+                 "Role %s is defined after %s %s that has \
+                  more than one %s (implementation)"
                  role
-                 name)
+                 oracle
+                 name
+                 return)
               ext
         | None -> ()
     end
@@ -475,13 +489,18 @@ let rec check_role_continuity_aux role_possible = function
     check_role_continuity_aux role_end p
   | PBeginModule (((role, _), _), p), ext ->
     if not role_possible then
+      let return = match !Settings.front_end with
+        | Settings.Channels -> "an out construct"
+        | Settings.Oracles -> "a return"
+      in
       input_error
         (Printf.sprintf
-           "Role %s is defined after a return/out that does not end the \
-            previous role/is not in a role"
-           role)
+           "Role %s is defined after a %s that does not end the \
+            previous role/is not in a role (implementation)"
+           role
+           return)
         ext;
-    check_role_continuity_aux role_possible p
+      check_role_continuity_aux role_possible p
 
 let check_role_continuity p =
   check_role_continuity_aux true p
