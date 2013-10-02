@@ -90,7 +90,7 @@ let queries_parse = ref ([]: Ptree.query list)
 let proof = ref (None : Ptree.ident list list option)
 
 let implementation = ref ([]: Ptree.impl list)
-let impl_programs = ref StringMap.empty
+let impl_roles = ref StringMap.empty
 
 
 type binder_env_content = 
@@ -499,7 +499,8 @@ let rec check_role_continuity_aux role_possible = function
             previous role/is not in a role (implementation)"
            role
            return)
-        ext;
+        ext
+    else
       check_role_continuity_aux role_possible p
 
 let check_role_continuity p =
@@ -2119,7 +2120,7 @@ let event_type_list = ref []
 let dummy_channel = { cname = "dummy_channel" }
 
 
-(* Add a program *)
+(* Add a role *)
 
 let check_opt opt =
   List.map (function
@@ -2145,12 +2146,12 @@ let check_opt opt =
                   end
            ) opt
 
-let add_program ((id,ext),opt) ip =
+let add_role ((id,ext),opt) ip =
   try 
-    let _=StringMap.find id !impl_programs in
-      input_error "This program has already been defined" ext
+    let _=StringMap.find id !impl_roles in
+      input_error ("Role " ^ id ^ " has already been defined") ext
   with Not_found ->
-    impl_programs := StringMap.add id (ip,check_opt opt) !impl_programs
+    impl_roles := StringMap.add id (ip,check_opt opt) !impl_roles
 
 let rec check_process cur_array env prog = function
     PBeginModule (a,p), ext ->
@@ -2158,7 +2159,7 @@ let rec check_process cur_array env prog = function
          input_error "Modules cannot be nested" ext
       else
         let (p,oracle,ip) = check_process cur_array env (Some a) p in
-          add_program a ip;
+          add_role a ip;
           (p,oracle,ip)
   | PNil, _ -> (iproc_from_desc Nil, [], iproc_from_desc Nil)
   | PPar(p1,p2), ext -> 
@@ -3149,7 +3150,7 @@ let check_query = function
       QEventQ(t1',t2')
 
 let get_impl ()=
-  StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_programs []
+  StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles []
 
 let read_file f =
   let p = parse_with_lib f in
