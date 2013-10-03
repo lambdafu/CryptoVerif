@@ -236,12 +236,12 @@ SSH_S {
 	   MKCS <- genMKC(hk,KS,HS,HS);
 	   MKSS <- genMKS(hk,KS,HS,HS);
            return (IVSS,IVCS,HS);
-         (foreach j <= N' do 
+         ((foreach j <= N' do 
             (tunnel_sendS(payload: bitstring, IVS: iv, sequence_numberS: uint32) :=
 	                 (* Expecting message from the application, sending it to the client *)
                   packet <- pad(payload);
-                  return (concatem(enc(packet, EKSS, IVS), mac(concatnm(sequence_numberS, packet), MKSS))))
-         |foreach j <= N' do
+                  return (concatem(enc(packet, EKSS, IVS), mac(concatnm(sequence_numberS, packet), MKSS)))))
+         |(foreach j <= N' do
             (tunnel_recv1S(m: bitstring, IVC: iv) :=
 	          (* Expecting one ciphertext block, returning the decrypted packet length,
 	             so that the network code can obtain the rest of the packet. *)
@@ -254,7 +254,7 @@ SSH_S {
                   let packet = concat(m1, m2) in
                   if (check_mac(concatnm(sequence_numberC, packet), MKCS, m')) then
                   let injbot(payload) = unpad(packet) in
-                  return (payload))).
+                  return (payload)))).
 
 
 (* Client *)
@@ -297,11 +297,11 @@ SSH_C {
 	  MKCC <- genMKC(hk,KC,HC,HC);
 	  MKSC <- genMKS(hk,KC,HC,HC);
           return (IVCC, IVSC, HC);
-         (foreach j <= N' do 
+          ((foreach j <= N' do 
             (tunnel_sendC(payload: bitstring, IVC: iv, sequence_numberC: uint32) :=
                   packet <- pad(payload);
-                  return (concatem(enc(packet, EKCC, IVC), mac(concatnm(sequence_numberC, packet), MKCC))))
-         |foreach j <= N' do
+                  return (concatem(enc(packet, EKCC, IVC), mac(concatnm(sequence_numberC, packet), MKCC)))))
+         |(foreach j <= N' do
             (tunnel_recv1C(m: bitstring, IVS: iv) :=
                   let injbot(m1) = dec(m, EKSC, IVS) in
                   return (get_size(m1));
@@ -310,7 +310,7 @@ SSH_C {
                   let packet = concat(m1, m2) in
                   if (check_mac(concatnm(sequence_numberS, packet), MKSC, m')) then
                   let injbot(payload) = unpad(packet) in
-                  return (payload))).
+                  return (payload)))).
 
 (* Key generation *)
 
