@@ -514,6 +514,124 @@ let check_process2 p =
     check_role h p;
     check_role_continuity p
 
+
+(* Check the form of process p to signal inefficiencies.
+
+   The check is done on the parse tree instead of processes in order to
+   get locations for warnings. *)
+
+let warn_replication_same_name p =
+  let param_tbl = Hashtbl.create 20 in
+  let repl, repl', repl'' = match !Settings.front_end with
+    | Settings.Channels -> "Replication", "replication", "replications"
+    | Settings.Oracles -> "Foreach", "foreach", "foreach"
+  in
+  let add_and_warn param loc =
+    begin
+      try
+        let witness = Hashtbl.find param_tbl param in
+        Parsing_helper.input_warning
+          (Printf.sprintf "%s reuses its parameter %s with %s at %s. \
+          Avoid reusing parameters for multiple %s to avoid losing precision \
+          in the probability bound." repl param repl' (file_position witness) repl'')
+          loc
+      with Not_found -> ()
+    end;
+    Hashtbl.add param_tbl param loc
+  in
+  let rec gather_replication_params = function
+    | PRepl(_, _, (bound, loc), p), _ ->
+      add_and_warn bound loc;
+      gather_replication_params p
+
+    | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
+    | PPar(p1, p2), _
+    | PTest(_, p1, p2), _ | PLet (_, _, p1, p2), _
+    | PGet(_, _, _, p1, p2), _ ->
+      gather_replication_params p1;
+      gather_replication_params p2
+    | PInput (_, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
+    | PInsert(_, _, p),_ | PBeginModule (_, p),_ 
+    | POutput(_, _, _, p), _ ->
+      gather_replication_params p
+    | PLetDef(s,ext), _ ->
+      gather_replication_params (get_process (!env) s ext) 
+    | PFind(l, p, _), _ ->
+      gather_replication_params p;
+      List.iter
+        (fun (_, _, _, _, p) -> gather_replication_params p)
+        l
+  in
+  gather_replication_params p
+
+let warn_parallel_or_replication_after_replication i =
+  let repl = match !Settings.front_end with
+    | Settings.Channels -> "replication"
+    | Settings.Oracles -> "foreach"
+  in
+  let warn_parallel_after_replication locp locr =
+    Parsing_helper.input_warning
+      (Printf.sprintf "Parallel at %s after %s. Avoid this to avoid \
+         losing precision in the probability bound."
+         (file_position locp)
+         repl)
+      locr
+  in
+  let warn_replication_after_replication locr1 locr2 =
+    Parsing_helper.input_warning
+      (Printf.sprintf "Useless %s at %s after %s. Avoid this to \
+         avoid losing precision in the probability bound."
+         repl
+         (file_position locr1)
+         repl)
+      locr2
+  in
+  let rec aux after_repl = function
+    | PRepl(_, _, _, p), loc ->
+      begin
+        match after_repl with
+          | Some r -> warn_replication_after_replication loc r
+          | None -> ()
+      end;
+      aux (Some loc) p
+
+    | PPar(p1, p2), loc ->
+      begin
+        match after_repl with
+          | Some r -> warn_parallel_after_replication loc r
+          | None -> ()
+      end;
+      aux after_repl p1;
+      aux after_repl p2
+
+    | PInput (_, _, p), _ ->
+      aux None p
+
+    | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
+    | PTest(_, p1, p2), _ | PLet (_, _, p1, p2), _
+    | PGet(_, _, _, p1, p2), _ ->
+      aux after_repl p1;
+      aux after_repl p2
+    | PRestr (_, _, p), _ | PEvent(_, p), _
+    | PInsert(_, _, p),_ | PBeginModule (_, p),_ 
+    | POutput(_, _, _, p), _ ->
+      aux after_repl p
+    | PLetDef(s,ext), _ ->
+      aux after_repl (get_process (!env) s ext) 
+    | PFind(l, p, _), _ ->
+      aux after_repl p;
+      List.iter
+        (fun (_, _, _, _, p) -> aux after_repl p)
+        l
+  in
+  aux None i
+
+let warn_process_form p =
+  warn_replication_same_name p;
+  warn_parallel_or_replication_after_replication p
+
+
+
 (**** Second pass: type check everything ****)
 
 (* Add a binder in the environment *)
@@ -2930,15 +3048,17 @@ let rec check_one = function
 	with Not_found ->
 	  input_error ("Macro " ^ s1 ^ " not defined.") ext1
       end
-      
+
 let rec check_all (l,p) = 
   List.iter check_one l;
   current_location := InProcess;
   Hashtbl.clear binder_env;
   check_process1 [] p; (* Builds binder_env *)
+  let result = check_process [] (!env) None p in
   check_process2 p; (* Checks oracles that finish roles contain only
                        one return *)
-  check_process [] (!env) None p
+  warn_process_form p; (* Warns user if form of process is not optimal *)
+  result
 
 let get_qbinder (i,ext) = 
   try
