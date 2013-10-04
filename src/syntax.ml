@@ -397,8 +397,7 @@ let rec build_return_list_aux h name = function
           Hashtbl.add h name o;
           build_return_list_aux h None p
         | None ->
-          (* This error should be catched by the typing phase. Maybe we should
-             call this after the typing phase? *)
+            (* This error should be catched by [check_process] *)
             match !Settings.front_end with
               | Settings.Channels ->
                   input_error "Out present in input process part (implementation)" ext
@@ -415,20 +414,20 @@ let build_return_list p =
 
 (* Check that the previous oracle before a role declaration has at most one
    return. *)
-let rec check_role_aux h name = function
+let rec check_role_aux error h name = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
   | PGet(_, _, _, p1, p2), _ ->
-    check_role_aux h name p1;
-    check_role_aux h name p2
+    check_role_aux error h name p1;
+    check_role_aux error h name p2
   | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
   | PInsert(_, _, p),_ | POutput(_, _, _, p), _ ->
-    check_role_aux h name p
+    check_role_aux error h name p
   | PLetDef(s,ext), _ ->
-    check_role_aux h name (get_process (!env) s ext) 
+    check_role_aux error h name (get_process (!env) s ext) 
   | PFind(l, p, _), _ ->
-    check_role_aux h name p;
-    List.iter (fun (_, _, _, _, p) -> check_role_aux h name p) l
+    check_role_aux error h name p;
+    List.iter (fun (_, _, _, _, p) -> check_role_aux error h name p) l
   | PBeginModule (((role, _), _), p), ext ->
     begin
       match name with
@@ -443,7 +442,7 @@ let rec check_role_aux h name = function
               | Settings.Channels -> "out construct"
               | Settings.Oracles -> "return"
             in
-            input_error
+            error
               (Printf.sprintf
                  "Role %s is defined after %s %s that has \
                   more than one %s (implementation)"
@@ -453,66 +452,73 @@ let rec check_role_aux h name = function
                  return)
               ext
         | None -> ()
-    end
+    end;
+    check_role_aux error h name p
   | PInput((name, _), _, p), _ ->
-    check_role_aux h (Some name) p
+    check_role_aux error h (Some name) p
 
-let check_role h p =
-  check_role_aux h None p
+let check_role error h p =
+  check_role_aux error h None p
 
 (* Check that an out followed by a role declaration closes the current
    oracle. This ensures that no oracle is between two roles.
    The boolean [role_possible] indicates whether a role declaration is
    possible here. *)
-let rec check_role_continuity_aux role_possible = function
+let rec check_role_continuity_aux error role_possible = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ ->
-    check_role_continuity_aux role_possible p1;
-    check_role_continuity_aux role_possible p2;
+    check_role_continuity_aux error role_possible p1;
+    check_role_continuity_aux error role_possible p2;
   | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
   | PGet(_, _, _, p1, p2), _ ->
-    check_role_continuity_aux false p1;
-    check_role_continuity_aux false p2
+    check_role_continuity_aux error false p1;
+    check_role_continuity_aux error false p2
   | PRepl (_, _, _, p), _ ->
-    check_role_continuity_aux role_possible p
+    check_role_continuity_aux error role_possible p
   | PRestr (_, _, p), _ | PEvent(_, p), _
   | PInsert(_, _, p),_ | PInput(_, _, p), _ ->
-    check_role_continuity_aux false p
+    check_role_continuity_aux error false p
   | PLetDef(s,ext), _ ->
-    check_role_continuity_aux role_possible (get_process (!env) s ext) 
+    check_role_continuity_aux error role_possible (get_process (!env) s ext) 
   | PFind(l, p, _), _ ->
-    check_role_continuity_aux false p;
+    check_role_continuity_aux error false p;
     List.iter
-      (fun (_, _, _, _, p) -> check_role_continuity_aux false p)
+      (fun (_, _, _, _, p) -> check_role_continuity_aux error false p)
       l
   | POutput(role_end, _, _, p), _ ->
-    check_role_continuity_aux role_end p
+    check_role_continuity_aux error role_end p
   | PBeginModule (((role, _), _), p), ext ->
     if not role_possible then
-      let return = match !Settings.front_end with
-        | Settings.Channels -> "an out construct"
-        | Settings.Oracles -> "a return"
-      in
-      input_error
-        (Printf.sprintf
-           "Role %s is defined after a %s that does not end the \
-            previous role/is not in a role (implementation)"
-           role
-           return)
-        ext
-    else
-      check_role_continuity_aux role_possible p
+      begin
+        let return = match !Settings.front_end with
+          | Settings.Channels -> "an out construct"
+          | Settings.Oracles -> "a return"
+        in
+        error
+          (Printf.sprintf
+             "Role %s is defined after %s that does not end the \
+              previous role/is not in a role (implementation)"
+             role
+             return)
+          ext
+      end;
+    check_role_continuity_aux error role_possible p
 
-let check_role_continuity p =
-  check_role_continuity_aux true p
+let check_role_continuity error p =
+  check_role_continuity_aux error true p
 
 let check_process2 p =
   (* Do not check implementation based requirements when not compiling
      the specification into an implementation. *)
-  if (!Settings.get_implementation) then
-    let h = build_return_list p in
-    check_role h p;
-    check_role_continuity p
+  let error_function =
+    if (!Settings.get_implementation) then
+      input_error
+    else
+      input_warning
+  in
+  let h = build_return_list p in
+  check_role error_function h p;
+  check_role_continuity error_function p
 
 
 (* Check the form of process p to signal inefficiencies.
@@ -2274,7 +2280,7 @@ let add_role ((id,ext),opt) ip =
 let rec check_process cur_array env prog = function
     PBeginModule (a,p), ext ->
       if (prog <> None) then
-         input_error "Modules cannot be nested" ext
+         input_error "Roles cannot be nested" ext
       else
         let (p,oracle,ip) = check_process cur_array env (Some a) p in
           add_role a ip;
