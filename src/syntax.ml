@@ -584,8 +584,10 @@ let warn_parallel_or_replication_after_replication i =
   in
   let warn_parallel_after_replication locp locr =
     Parsing_helper.input_warning
-      (Printf.sprintf "Parallel at %s after %s. Avoid this to avoid \
-         losing precision in the probability bound."
+      (Printf.sprintf "Parallel at %s after %s. To avoid \
+         losing precision in the probability bound, you should \
+         rather put a distinct replication above each component \
+         of the parallel composition."
          (file_position locp)
          repl)
       locr

@@ -4,7 +4,7 @@
 
 (defvar cryptoverif-kw '("new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "secret1" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "otheruses" "maxlength" "length" "max" "newChannel" "inj" "define" "expand" "proof" "implementation" "get" "insert" "table" "letfun") "Cryptoverif keywords")
 
-(defvar cryptoverif-builtin '("noninteractive" "bounded" "fixed" "large" "password" "compos" "decompos" "uniform" "commut" "assoc" "AC" "assocN" "ACN" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
+(defvar cryptoverif-builtin '("noninteractive" "bounded" "fixed" "large" "password" "compos" "decompos" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
 ;; build optimal regular expression from list of keywords
 ;; 'words if for taking full words only, not subwords
@@ -40,7 +40,7 @@
 
 (defvar cryptoverifo-kw '("if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "secret1" "const" "set" "defined" "collision" "event" "time" "end" "event_abort" "otheruses" "maxlength" "length" "max" "newOracle" "inj" "foreach" "do" "return" "define" "expand" "proof" "implementation" "get" "insert" "table" "letfun") "Cryptoverif keywords")
 
-(defvar cryptoverifo-builtin '("noninteractive" "bounded" "fixed" "large" "password" "compos" "decompos" "uniform" "commut" "assoc" "AC" "assocN" "ACN" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
+(defvar cryptoverifo-builtin '("noninteractive" "bounded" "fixed" "large" "password" "compos" "decompos" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
 (defvar cryptoverifo-kw-regexp (regexp-opt cryptoverifo-kw 'words))
 (defvar cryptoverifo-builtin-regexp (regexp-opt cryptoverifo-builtin 'words))
