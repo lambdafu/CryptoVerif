@@ -1170,7 +1170,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
     | ((b2,tl2)::l) ->
 	let before_br2 = 
 	  try 
-            Terms.subst_def_list b2.args_at_creation tl2 (Facts.def_vars_from_defined None [(b2, List.map Terms.term_from_repl_index b2.args_at_creation)])
+            Terms.subst_def_list b2.args_at_creation tl2 (Facts.def_vars_from_defined None [Terms.binderref_from_binder b2])
 	  with Contradiction -> 
 	    (* Contradiction may be raised when b2 can in fact not be defined. *)
 	    []	
@@ -1226,7 +1226,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
     (* Variables defined before (b,tl) *)
     let def_vars = 
       try 
-        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [(b, List.map Terms.term_from_repl_index b.args_at_creation)])
+        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [Terms.binderref_from_binder b])
       with Contradiction -> 
 	(* Contradiction may be raised when b can in fact not be defined. *)
 	[]
@@ -1271,7 +1271,7 @@ let get_fact_of_elsefind_fact proba_accu term_accu g cur_array def_vars simp_fac
 		   add to the future variables of br the variables defined between the previous input 
 		   point and the definition of br and after another definition of (b,_). *)
               let future_binders = add_vars_until_binder_or_node n [b] (above_input_node n) n.future_binders in
-	      let future_vars = Terms.subst_def_list (fst br).args_at_creation (snd br) (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) future_binders) in
+	      let future_vars = Terms.subst_def_list (fst br).args_at_creation (snd br) (List.map Terms.binderref_from_binder future_binders) in
                 if (!Settings.debug_elsefind_facts) then
                   begin
                     print_string "Elsefind_fact_future_vars:\n";

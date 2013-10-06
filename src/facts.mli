@@ -120,6 +120,11 @@ val get_facts_at : fact_info -> term list
    to the facts at the considered find. *)
 val reduced_def_list : fact_info -> binderref list -> binderref list
 
+(* Functions useful to simplify def_list *)
+val filter_def_list : binderref list -> binderref list -> binderref list
+val remove_subterms : binderref list -> binderref list -> binderref list
+val eq_deflists : binderref list -> binderref list -> bool
+
 (* 3. Some rich functions that rely on collecting facts and reasoning 
    about them *)
 

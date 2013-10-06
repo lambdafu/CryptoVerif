@@ -354,6 +354,16 @@ let rec merge_ins ins_accu1 ins_accu2 =
   | [], ins_accu2 -> ins_accu2
   | ins_accu1, [] -> ins_accu1
 
+let merge_ins_fail f1 f2 =
+  try
+    let ins1 = f1() in
+    try
+      if is_success_no_advice ins1 then ins1 else merge_ins ins1 (f2())
+    with NoMatch ->
+      ins1
+  with NoMatch ->
+    f2()
+
 (* Makes a "and" between two lists of advised instructions, by concatenating the sublists
    and adding priorities 
 
@@ -441,6 +451,12 @@ let add_name_to_discharge2 (b, bopt) state =
   if List.exists (fun (b', _) -> b' == b) state.names_to_discharge then state else
   { state with names_to_discharge = (b, bopt)::state.names_to_discharge }
 
+let explicit_value_state t state =
+  match t.t_desc with
+    Var(b,_) -> 
+      { state with advised_ins = Terms.add_eq (explicit_value b) state.advised_ins }
+  | _ -> Parsing_helper.internal_error "Var expected (should have been checked by is_var_inst)"
+
 (* Intersection of sets of names to discharge, to get the names that must be discharged in all cases *)
 
 let rec intersect_n l1 = function 
@@ -452,17 +468,11 @@ let rec get_inter_names = function
   | [(_,_,a)] -> a
   | (_,_,a)::l -> intersect_n a (get_inter_names l)
 
-
-(* In check_instance_of_rec, mode = AllEquiv for the root symbol of functions marked [all] 
-   in the equivalence. Only in this case a function symbol can be discharged. *)
-
-let check_instance_of next_f all_names_exp_opt mode term t =
-
 (* [get_var_link] function associated to [check_instance_of_rec].
-   See the interface of [Terms.match_funapp] for the 
+   See the interface of [Terms.match_funapp_advice] for the 
    specification of [get_var_link]. *)
 
-let get_var_link t state =
+let get_var_link all_names_exp_opt t state =
   match t.t_desc with
     Var (b,l) -> 
       (* return None for restrictions *)
@@ -485,9 +495,26 @@ let get_var_link t state =
 			       I would be better to allow the user to choose which variables can be bound
 			       to the neutral element. *)
   | _ -> None
-in
 
-let rec check_instance_of_rec next_f term t state =
+(* [is_var_inst]: [is_var_inst t] returns true when [t] is a variable
+   that may be replaced by a product after applying advice. *)
+
+let is_var_inst t =
+  match t.t_desc with
+    Var(b,_) ->
+      if (!no_advice_mode) || (not (List.exists (function 
+        { definition = DProcess { p_desc = Let _ }} -> true
+      | { definition = DTerm { t_desc = LetE _ }} -> true
+      | _ -> false) b.def)) then
+        false
+      else
+        true
+  | _ -> false
+
+(* In check_instance_of_rec, mode = AllEquiv for the root symbol of functions marked [all] 
+   in the equivalence. Only in this case a function symbol can be discharged. *)
+
+let rec check_instance_of_rec all_names_exp_opt mode next_f term t state =
   match (term.t_desc, t.t_desc) with
   | FunApp(f,l), FunApp(f',l') when f == f' ->
       let state' = 
@@ -496,7 +523,7 @@ let rec check_instance_of_rec next_f term t state =
 	else
 	  state
       in
-      Terms.match_funapp check_instance_of_rec get_var_link Terms.default_match_error Terms.try_no_var_id next_f term t state'
+      Terms.match_funapp_advice (check_instance_of_rec all_names_exp_opt mode) explicit_value_state (get_var_link all_names_exp_opt) is_var_inst next_f term t state'
   | FunApp(f,l), FunApp(_,_) -> 
       raise NoMatch
 	(* Might work after rewriting with an equation *)
@@ -668,8 +695,11 @@ let rec check_instance_of_rec next_f term t state =
       end
   | _ -> Parsing_helper.internal_error "if, find, defined, replication indices should have been excluded from left member of equivalences"
 
-in
+let list_to_term_opt f = function
+    [] -> None
+  | l -> Some (Terms.make_prod f l)
 
+let check_instance_of next_f comp_neut all_names_exp_opt mode term t =
   if (!Settings.debug_cryptotransf) > 5 then
     begin
       print_string "Check instance of ";
@@ -678,7 +708,7 @@ in
       Display.display_term t;
       print_newline();
     end;
-  check_instance_of_rec (fun state -> 
+  let next_f product_rest state =
     if not state.sthg_discharged then raise NoMatch;
     if state.advised_ins == [] then
       check_distinct_links state.lhs_array_ref_map all_names_exp_opt;
@@ -699,8 +729,56 @@ in
 	    print_string "\n"
 	  end
       end;
-    next_f state
-      ) term t init_state 
+    next_f product_rest state
+  in
+  match term.t_desc with
+    FunApp(f,[_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut &&
+      not ((mode == AllEquiv) && (List.memq f (!symbols_to_discharge))) ->
+      (* f is a binary function with an equational theory that is
+	 not commutativity -> it is a product-like function;
+	 when f has to be discharged, we cannot match a subproduct, 
+	 because occurrences of f would remain, so we can use the
+	 default case below. *)
+      let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f term in
+      let l' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f t in
+      begin
+	match f.f_eq_theories with
+	  NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
+	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+	    Terms.match_AC_advice (check_instance_of_rec all_names_exp_opt mode) 
+	      explicit_value_state (get_var_link all_names_exp_opt) is_var_inst
+	      (fun rest state' -> 
+		let product_rest =
+		  match rest, comp_neut with
+		    [], None -> None
+		  | _ -> Some (f, list_to_term_opt f rest, None, comp_neut)
+		in
+		next_f product_rest state') f false false true l l' init_state
+	| Assoc | AssocN _ | Group _ -> 
+	    Terms.match_assoc_advice_subterm (check_instance_of_rec all_names_exp_opt mode) 
+	      explicit_value_state (get_var_link all_names_exp_opt) is_var_inst
+	      (fun rest_left rest_right state' ->
+		let product_rest =
+		  match rest_left, rest_right, comp_neut with
+		    [], [], None -> None
+		  | _ -> 
+		      Some (f, list_to_term_opt f rest_left, 
+			    list_to_term_opt f rest_right, comp_neut)
+		in
+		next_f product_rest state') f l l' init_state
+      end
+  | _ -> 
+      (* When f is a symbol to discharge in mode [all],
+	 the following assertion may not hold. 
+	 assert (comp_neut == None); *)
+      let product_rest =
+	match comp_neut, term.t_desc with
+	  None, _ -> None
+	| _, FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut -> 
+	    Some(f, None, None, comp_neut)
+	| _ -> assert false
+      in
+      check_instance_of_rec all_names_exp_opt mode (next_f product_rest) term t init_state 
 
 (* Check whether t is an instance of a subterm of term
    Useful when t is just a test (if/find) or an assignment,
@@ -708,24 +786,180 @@ in
    arrange so that a superterm of t is an instance of term *)
 
 let rec check_instance_of_subterms next_f all_names_exp_opt mode term t =
-  match term.t_desc with
-    Var _ | ReplIndex _ -> raise NoMatch
-  | FunApp(f,l) ->
-      check_instance_of_list next_f all_names_exp_opt mode l t
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+  let next_f_internal state =
+    if not state.sthg_discharged then raise NoMatch;
+    if state.advised_ins == [] then
+      check_distinct_links state.lhs_array_ref_map all_names_exp_opt;
+    if (!Settings.debug_cryptotransf) > 5 then
+      begin
+	print_string "check_instance_of_subterms ";
+	Display.display_term term;
+	print_string " ";
+	Display.display_term t;
+	if state.advised_ins == [] then
+	  print_string " succeeded\n"
+	else
+	  begin
+	    print_string " succeeded with advice ";
+	    Display.display_list Display.display_instruct state.advised_ins;
+	    print_string " priority: ";
+	    print_int state.priority;
+	    print_string "\n"
+	  end
+      end;
+    next_f state
+  in
 
-and check_instance_of_list next_f all_names_exp_opt mode l t = 
-  match l with
-    [] -> raise NoMatch
-  | (term::l) -> 
-      try
-	check_instance_of next_f all_names_exp_opt mode term t
-      with NoMatch ->
-	try 
-	  check_instance_of_subterms next_f all_names_exp_opt mode term t
-	with NoMatch ->
-	  check_instance_of_list next_f all_names_exp_opt mode l t
+  (* When t starts with a function, the matching can succeeds only
+     when the considered subterm of term starts with the same function.
+     (The product with the neutral element can be simplified out before.)
+     We exploit this property in particular when t starts with a product,
+     to try the matches only with the same product. *)
+  match t.t_desc with
+    FunApp(prod,[_;_]) when prod.f_eq_theories != NoEq && prod.f_eq_theories != Commut ->
+      begin
+	let l' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t in
+	let state = 
+	  match term.t_desc with
+	    FunApp(prod',_) when prod' == prod ->
+	      if (mode == AllEquiv) && (List.memq prod (!symbols_to_discharge)) then
+		{ init_state with sthg_discharged = true }
+	      else
+		init_state
+	  | _ -> init_state
+	in
+	match prod.f_eq_theories with
+	  NoEq | Commut -> Parsing_helper.internal_error "Transf_crypto.check_instance_of_subterms: cases NoEq, Commut should have been eliminated"
+	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
+	    let match_AC allow_full l =
+	      Terms.match_AC_advice (check_instance_of_rec all_names_exp_opt mode) 
+		explicit_value_state (get_var_link all_names_exp_opt) 
+		is_var_inst (fun _ state -> next_f_internal state)
+		prod true allow_full false l l' state
+	    in
+	    let rec check_instance_of_list = function
+		[] -> raise NoMatch
+	      | term::l ->
+		  try 
+		    check_instance_of_subterms_rec true term
+		  with NoMatch -> 
+		    check_instance_of_list l
+	    and check_instance_of_subterms_rec allow_full term =
+	      match term.t_desc with
+		Var _ | ReplIndex _ -> raise NoMatch
+	      | FunApp(f,_) when f == prod ->
+		  begin
+		    let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f term in
+		    try
+		      match_AC allow_full l
+		    with NoMatch ->
+		      check_instance_of_list l
+		  end
+	      |	FunApp(f,([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
+		  if Terms.is_fun prod t1 || Terms.is_fun prod t2 then
+		    match prod.f_eq_theories with
+		      ACUN(xor, neut) ->
+			check_instance_of_subterms_rec true (Terms.app xor [t1;t2]) 
+		    | CommutGroup(prod, inv, neut) -> 
+			begin
+			  try 
+			    check_instance_of_subterms_rec true (Terms.app prod [t1; Terms.app inv [t2]])
+			  with NoMatch ->
+			    let term' = (Terms.app prod [t2; Terms.app inv [t1]]) in
+			    let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod term' in
+			    (* I don't need to try the elements of l individually, since this has
+			       already been done in the previous case *) 
+			    match_AC true l
+			end
+		    | _ -> check_instance_of_list l
+		  else
+		    check_instance_of_list l
+	      | FunApp(f,l) ->
+		  check_instance_of_list l
+	      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
+		  Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+	    in
+	    check_instance_of_subterms_rec false term
+	| Assoc | AssocN _ | Group _ -> 
+	    let match_assoc allow_full l =
+	      Terms.match_assoc_advice_pat_subterm (check_instance_of_rec all_names_exp_opt mode) 
+		explicit_value_state (get_var_link all_names_exp_opt) 
+		is_var_inst next_f_internal prod allow_full l l' state
+	    in
+	    let rec check_instance_of_list = function
+		[] -> raise NoMatch
+	      | term::l ->
+		  try 
+		    check_instance_of_subterms_rec true term
+		  with NoMatch -> 
+		    check_instance_of_list l
+	    and check_instance_of_subterms_rec allow_full term =
+	      match term.t_desc with
+		Var _ | ReplIndex _ -> raise NoMatch
+	      | FunApp(f,_) when f == prod ->
+		  begin
+		    let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f term in
+		    try
+		      match_assoc allow_full l
+		    with NoMatch ->
+		      check_instance_of_list l
+		  end
+	      |	FunApp(f,([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
+		  begin
+		    if Terms.is_fun prod t1 || Terms.is_fun prod t2 then
+		      match prod.f_eq_theories with
+			Group(prod, inv, neut) ->
+			  begin
+			    let l1 = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod (Terms.app prod [t1; Terms.app inv [t2]]) in
+			    let l2 = Terms.remove_inverse_ends Terms.try_no_var_id (ref false) (prod, inv, neut) Terms.equal_terms l1 in
+			    let rec apply_up_to_roll seen' rest' =
+			      try 
+				match_assoc true (rest' @ (List.rev seen'))
+			      with NoMatch ->
+				match rest' with
+				  [] -> raise NoMatch
+				| a::rest'' -> apply_up_to_roll (a::seen') rest''
+			    in
+			    try 
+			      apply_up_to_roll [] l2
+			    with NoMatch ->
+			      let l3 = List.rev (List.map (Terms.compute_inv Terms.try_no_var_id (ref false) (prod, inv, neut)) l2) in
+			      try 
+				apply_up_to_roll [] l3
+			      with NoMatch -> 
+				check_instance_of_list l2
+			  end
+		      |	_ -> check_instance_of_list l
+		    else
+		      check_instance_of_list l
+		  end
+	      | FunApp(f,l) ->
+		  check_instance_of_list l
+	      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
+		  Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+	    in
+	    check_instance_of_subterms_rec false term
+      end
+  | _ -> 
+      let rec check_instance_of_list = function
+	  [] -> raise NoMatch
+	| term::l ->
+	    try
+	      check_instance_of_rec all_names_exp_opt mode next_f_internal term t init_state
+	    with NoMatch ->
+	      try 
+		check_instance_of_subterms_rec term
+	      with NoMatch -> 
+		check_instance_of_list l
+      and check_instance_of_subterms_rec term =
+	match term.t_desc with
+	  Var _ | ReplIndex _ -> raise NoMatch
+	| FunApp(f,l) ->
+	    check_instance_of_list l 
+	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
+	    Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+      in
+      check_instance_of_subterms_rec term
 
 (* Reverse substitution: all array references must be computable using
    indexes, and these values are replaced with variables 
@@ -778,9 +1012,21 @@ type one_exp =
      after_transfo_input_vars_exp : (binder * term) list ;
         (* List of (b,t) where b is a binder defined by an input in the 
            right member of the equivalence and the term t is its image in the process *)
-     all_indices : repl_index list
+     all_indices : repl_index list;
         (* The list of array and find indices at the program point of the 
 	   transformed expression *)
+     product_rest : (funsymb * term option * term option * (funsymb * term) option) option
+       (* In case the source_exp_instance is a product, and source_exp
+	  matches only a subproduct, this field contains 
+	  Some(prod, left_rest, right_rest, comp_neut) such that
+	  - When comp_neut = None,
+	  source_exp_instance = prod(left_rest, prod(instance of source_exp, right_rest)).
+	  When left_rest/right_rest are None, they are considered as empty.
+	  (This is useful when the product has no neutral element.)
+	  - When comp_neut = Some(eqdiff, neut),
+	  source_exp_instance = (prod(left_rest, prod(instance of source_exp, right_rest)) eqdiff neut)
+	  where eqdiff is either = or <> and neut is the neutral element of the product. 
+	  *)
    }
 
 type mapping =
@@ -1072,7 +1318,7 @@ let rec check_compatible name_indexes env rev_subst_name_indexes names_exp name_
 	       let b1 = List.hd names_exp_first in 
 	       let indexes_above = assq_binder_binderref b1 (!name_indexes) in
 	       let args_at_creation = (get_name b1 (!env)).args_at_creation in
-	       name_indexes := ((b0, List.map Terms.term_from_repl_index b0.args_at_creation), 
+	       name_indexes := (Terms.binderref_from_binder b0,
 		 List.map (Terms.subst args_at_creation indexes_above) indexes) :: (!name_indexes)
 	     end
 	 | _ -> Parsing_helper.internal_error "bad length in check_compatible (2)"
@@ -1208,7 +1454,7 @@ type 'a check_res =
   | NotComplete of to_do_t
 
 let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl', args', res_term'), mode, priority) 
-    where_info cur_array defined_refs t state =
+    product_rest where_info cur_array defined_refs t state =
   let restr = List.map (List.map fst) restr_opt in
   let rec separate_env restr_env input_env array_ref_env = function
       [] -> (restr_env, input_env, array_ref_env)
@@ -1232,14 +1478,31 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     separate_env [] [] [] state.lhs_array_ref_map
   in
   
-  let to_do = 
+  let args_ins = 
     and_ins1 (state.advised_ins, state.priority + priority, state.names_to_discharge) (* Take into account the priority *)
       (map_and_ins  (fun (b,t) ->
 	(* Check the arguments of the function *)
-	check_term where_info [] cur_array defined_refs t
+	check_term where_info [] None cur_array defined_refs t t
 	  ) input_env) 
   in
-
+  (* Also check the product rests before and after the transformed term,
+     if any *)
+  let to_do =
+    match product_rest with
+      None -> args_ins
+    | Some(prod, left_rest, right_rest, comp_neut) ->
+	let ins_with_left_rest = 
+	  match left_rest with
+	    None -> args_ins
+	  | Some(t_left) ->
+	      and_ins (check_term where_info [] None cur_array defined_refs t_left t_left) args_ins
+	in
+	match right_rest with
+	  None -> ins_with_left_rest
+	| Some(t_right) ->
+	    and_ins (check_term where_info [] None cur_array defined_refs t_right t_right) ins_with_left_rest
+  in
+  
   try
     (* Adding missing names if necessary *)
     let (name_indexes, restr_env) = complete_env_call state.name_indexes restr_env restr in
@@ -1439,7 +1702,8 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	cur_array_exp = cur_array;
 	before_transfo_input_vars_exp = input_env;
 	after_transfo_input_vars_exp = after_transfo_input_vars_exp;
-	all_indices = cur_array
+	all_indices = cur_array;
+	product_rest = product_rest
 	  }
     in
     
@@ -1491,23 +1755,46 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
    transformation may work. When this list is empty, the desired transformation
    is ok. Raises NoMatch when the desired transformation is impossible,
    even after preliminary changes.
+
+   when comp_neut = None, torg = t
+   when comp_neut = Some(f, neut), torg = FunApp(f, [t; neut])
+   torg is the full transformed term, including the context '= neut' or '<> neut'.
+   t is the part of the term that is matched with the left-hand side
+   of the equivalence.
 *)
 
-and check_term where_info ta_above cur_array defined_refs t =
+and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
   if not ((occurs_name_to_discharge t) || 
           (occurs_symbol_to_discharge t)) then
     (* The variables in names_to_discharge do not occur in t => OK *)
     success_no_advice
   else
     try 
-      let (mapping, exp) = find_map t in
-      (* The term t is already discharged in the map => OK
-	 The term t itself is ok, we just need to recheck the arguments
-	 of t; they may need to be further discharged when a new name
+      let (mapping, exp) = find_map torg in
+      (* The term torg is already discharged in the map => OK
+	 The term torg itself is ok, we just need to recheck the arguments
+	 of torg; they may need to be further discharged when a new name
 	 has been added in names_to_discharge. *)
-      map_and_ins  (fun (_,t') ->
-	check_term where_info [] cur_array defined_refs t'
-	  ) exp.before_transfo_input_vars_exp
+      let args_ins = 
+	map_and_ins  (fun (_,t') ->
+	  check_term where_info [] None cur_array defined_refs t' t'
+	    ) exp.before_transfo_input_vars_exp
+      in
+      (* Also check the product rests before and after the transformed term,
+	 if any *)
+      match exp.product_rest with
+	None -> args_ins
+      |	Some(prod, left_rest, right_rest, comp_neut) ->
+	  let ins_with_left_rest = 
+	    match left_rest with
+	      None -> args_ins
+	    | Some(t_left) ->
+		and_ins (check_term where_info [] None cur_array defined_refs t_left t_left) args_ins
+	  in
+	  match right_rest with
+	    None -> ins_with_left_rest
+	  | Some(t_right) ->
+	      and_ins (check_term where_info [] None cur_array defined_refs t_right t_right) ins_with_left_rest
     with Not_found ->
       (* First try to find a matching source expression in the equivalence to apply *)
       let ((_, lm, rm, _, _, _),name_mapping) = !equiv in 
@@ -1522,10 +1809,10 @@ and check_term where_info ta_above cur_array defined_refs t =
          advice, we can stop, since all future expressions don't have higher priority *)
       let r = try_list (fun ((ch, (restr_opt, args, res_term), (restr_opt', repl', args', res_term'), mode, priority) as current_exp) ->
 	try
-	  check_instance_of (fun state -> 
+	  check_instance_of (fun product_rest state -> 
 	    let old_map = !map in
 	    let vcounter = !Terms.vcounter in
-	    match checks all_names_lhs current_exp where_info cur_array defined_refs t state with
+	    match checks all_names_lhs current_exp product_rest where_info cur_array defined_refs torg state with
 	      Success(to_do, indexes_ordered, restr_env, name_indexes, rev_subst_name_indexes, 
 		      before_transfo_name_table, before_transfo_restr, after_transfo_name_table, 
 		      after_transfo_restr, exp) -> 
@@ -1542,7 +1829,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 		    | ([], top_indices)::rest -> 
 		        (* Filter the indices that are really useful *)
 			let used = ref [] in
-			used_indices top_indices used t;
+			used_indices top_indices used torg;
 		        (* I need to keep the indices in the same order as the initial
 	                   order (for cur_array), that's why I don't use (!used) directly.
 			   I also need the property that if t refers to an element to cur_array,
@@ -1551,7 +1838,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 		        let top_indices' = List.filter (fun t -> List.memq t (!used)) top_indices in
 		        (*
 			  print_string "Term: ";
-			  Display.display_term t;
+			  Display.display_term torg;
 			  print_string "\nIndices before filtering: ";
 			  Display.display_list Display.display_term top_indices;
 			  print_string "\nIndices used: ";
@@ -1563,7 +1850,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 		    | [] ->
 		        (* There is no replication at all in the LHS => 
 			   the expression must be evaluated once *)
-			if has_repl_index t then
+			if has_repl_index torg then
 			  raise NoMatch;
 			if List.exists (fun mapping -> mapping.source_exp == res_term) (!map) then
 			  raise NoMatch;
@@ -1616,7 +1903,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 		   Terms.create_repl_index "@tmpcur" (!tmpcur_count) e.t_type) down_indexes 
 		 in
 		 let cur_array_terms' = List.map Terms.term_from_repl_index cur_array' in
-		 let t' = reverse_subst down_indexes cur_array_terms' t in
+		 let t' = reverse_subst down_indexes cur_array_terms' torg in
 		 (* NOTE If we are in a find condition, the
 		    find indices are included in cur_array, so that we
 		    make sure that the term can be expressed as a
@@ -1681,7 +1968,7 @@ and check_term where_info ta_above cur_array defined_refs t =
                     (reduces the number of find and the probability difference)
                  try 
 		   let mapping' = List.find (fun mapping' -> 
-		     List.exists (fun exp' -> Terms.equal_terms exp'.source_exp_instance t) mapping'.expressions) (!map)
+		     List.exists (fun exp' -> Terms.equal_terms exp'.source_exp_instance torg) mapping'.expressions) (!map)
 		   in
 		   mapping'.expressions <- exp :: mapping'.expressions
 		 with Not_found -> *)
@@ -1723,7 +2010,7 @@ and check_term where_info ta_above cur_array defined_refs t =
 	    | NotComplete(to_do) ->
 		transform_to_do := merge_ins to_do (!transform_to_do);
 		true
-		  ) (!all_names_lhs_opt) mode res_term t 
+		  ) comp_neut (!all_names_lhs_opt) mode res_term t 
 
 	with NoMatch ->
 	  if (!Settings.debug_cryptotransf) > 5 then
@@ -1735,8 +2022,9 @@ and check_term where_info ta_above cur_array defined_refs t =
 	    (* When t is just under a test (if/find) or an assignment,
 	       try subterms of res_term *)
 	  if ta_above != [] then
+	    (* When ta_above != [], comp_neut = None, so torg = t *)
 	    check_instance_of_subterms (fun state -> 
-	      match checks all_names_lhs current_exp where_info cur_array defined_refs t state with
+	      match checks all_names_lhs current_exp None where_info cur_array defined_refs t state with
 		Success(to_do,_,_,_,_,_,_,_,_,_) |  AdviceNeeded(to_do) | NotComplete(to_do) ->
 		  transform_to_do := merge_ins (and_ins1 (ta_above,0,[]) to_do) (!transform_to_do)
 		       ) (!all_names_lhs_opt) mode res_term t;
@@ -1754,47 +2042,116 @@ and check_term where_info ta_above cur_array defined_refs t =
         !transform_to_do
       else
         try 
+	  if comp_neut != None then raise NoMatch;
           merge_ins (!transform_to_do) (check_term_try_subterms where_info cur_array defined_refs t)
         with NoMatch ->
 	  if (!transform_to_do) == [] then raise NoMatch else (!transform_to_do)
 
 and check_term_try_subterms where_info cur_array defined_refs t =
-     (* If fails, try a subterm; if t is just a variable in names_to_discharge,
-        the transformation is not possible *)
-     match t.t_desc with
-       Var(b,l) ->
-	 begin
-	   try 
-	     let bopt = List.assq b (!names_to_discharge) in
-	     if (where_info == Event) && (!bopt != NoOpt) then
-	       begin
-		 (* Note: if the current option is "DontKnow" and in fact it will later
-		    become "NoOpt", then the transformation will fail. It might have succeeded
-		    with advice SArenaming... *)
-		 if !bopt == DontKnow then bopt := Unchanged;
-		 map_and_ins (check_term where_info [] cur_array defined_refs) l
-	       end
-	     else if (not (!no_advice_mode)) && (List.length b.def > 1) then
-	       (* If b has several definitions, advise SArenaming, so that perhaps
-		  the transformation becomes possible after distinguishing between
-		  these definitions *)
-	       [([SArenaming b],0,[])]
-	     else
-               raise NoMatch
-	   with Not_found ->
-	     map_and_ins (check_term where_info [] cur_array defined_refs) l
-	 end
-     | FunApp(f,l) ->
-	 if List.memq f (!symbols_to_discharge) then
-	   raise NoMatch
-	 else
-	   map_and_ins (check_term where_info [] cur_array defined_refs) l
-     | ReplIndex _ -> success_no_advice
-     | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
-	 Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.check_term_try_subterms)"
+  (* If fails, try a subterm; if t is just a variable in names_to_discharge,
+     the transformation is not possible *)
+  match t.t_desc with
+    Var(b,l) ->
+      begin
+	try 
+	  let bopt = List.assq b (!names_to_discharge) in
+	  if (where_info == Event) && (!bopt != NoOpt) then
+	    begin
+	      (* Note: if the current option is "DontKnow" and in fact it will later
+		 become "NoOpt", then the transformation will fail. It might have succeeded
+		 with advice SArenaming... *)
+	      if !bopt == DontKnow then bopt := Unchanged;
+	      map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l
+	    end
+	  else if (not (!no_advice_mode)) && (List.length b.def > 1) then
+	    (* If b has several definitions, advise SArenaming, so that perhaps
+	       the transformation becomes possible after distinguishing between
+	       these definitions *)
+	    [([SArenaming b],0,[])]
+	  else
+            raise NoMatch
+	with Not_found ->
+	  map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l
+      end
+  | FunApp(f,l) ->
+      if List.memq f (!symbols_to_discharge) then
+	raise NoMatch
+      else
+	begin
+	  match l with
+	    [_;_] when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+              (* f is a binary function with an equational theory that is
+		 not commutativity -> it is a product-like function 
+
+		 We apply the statements only to subterms that are not products by f.
+		 Subterms that are products by f are already handled above
+		 using [check_instance_of]. *)
+	      let l' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f t in
+	      map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l'
+	  | [t1;t2] when f.f_cat == Equal || f.f_cat == Diff ->
+	      begin
+		match Terms.get_prod_list Terms.try_no_var_id l with
+		  ACUN(xor, neut) ->
+		    let comp_neut = Some(f, Terms.app neut []) in
+		    let t' = Terms.app xor [t1;t2] in
+		    merge_ins_fail
+		      (fun () -> check_term where_info [] comp_neut cur_array defined_refs t' t)
+		      (fun () ->
+			if List.memq xor (!symbols_to_discharge) then raise NoMatch;
+			let l' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms xor t' in
+			map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l')
+		| CommutGroup(prod, inv, neut) -> 
+		    let comp_neut = Some(f, Terms.app neut []) in
+		    merge_ins_fail
+		      (fun () -> 
+			let t' = Terms.app prod [t1; Terms.app inv [t2]] in
+			check_term where_info [] comp_neut cur_array defined_refs t' t)
+		      (fun () -> merge_ins_fail
+			 (fun () -> 
+			   let t'' = Terms.app prod [t2; Terms.app inv [t1]] in
+			   check_term where_info [] comp_neut cur_array defined_refs t'' t)
+			 (fun () ->
+			   if List.memq prod (!symbols_to_discharge) then raise NoMatch;
+			   let l1' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t1 in
+			   let l2' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t2 in
+			   map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') (l1' @ l2')))
+		| Group(prod, inv, neut) -> 
+		    let comp_neut = Some(f, Terms.app neut []) in
+		    let l1 = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod 
+			(Terms.app prod [t1; Terms.app inv [t2]]) in
+		    let l2 = Terms.remove_inverse_ends Terms.try_no_var_id (ref false) (prod, inv, neut) Terms.equal_terms l1 in
+		    let rec apply_up_to_roll seen' rest' =
+		      merge_ins_fail
+			(fun () ->
+			  let t0 = (Terms.make_prod prod (rest' @ (List.rev seen'))) in
+			  check_term where_info [] comp_neut cur_array defined_refs t0 t)
+			(fun () ->
+			  match rest' with
+			    [] -> raise NoMatch
+			  | a::rest'' -> apply_up_to_roll (a::seen') rest'')
+		    in
+		    merge_ins_fail 
+		      (fun () -> apply_up_to_roll [] l2)
+		      (fun () -> merge_ins_fail
+			  (fun () ->
+			    let l3 = List.rev (List.map (Terms.compute_inv Terms.try_no_var_id (ref false) (prod, inv, neut)) l2) in
+			    apply_up_to_roll [] l3)
+			  (fun () ->
+			    let l1' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t1 in
+			    let l2' = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t2 in
+			    map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') (l1' @ l2')))
+		| _ -> 
+		    map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l
+	      end
+	  | _ -> 
+	      map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l
+	end
+  | ReplIndex _ -> success_no_advice
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
+      Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.check_term_try_subterms)"
 
 let check_term where_info ta_above cur_array defined_refs t =
-  let ins_to_do = check_term where_info ta_above cur_array defined_refs t in
+  let ins_to_do = check_term where_info ta_above None cur_array defined_refs t t in
   names_to_discharge := (get_inter_names ins_to_do) @ (!names_to_discharge);
   ins_to_do
 
@@ -1829,7 +2186,7 @@ let check_term where_info l c defined_refs t =
 
 
 let rec check_pat cur_array accu defined_refs = function
-    PatVar b -> accu := (b, List.map Terms.term_from_repl_index b.args_at_creation)::(!accu); success_no_advice
+    PatVar b -> accu := (Terms.binderref_from_binder b)::(!accu); success_no_advice
   | PatTuple (f,l) -> map_and_ins (check_pat cur_array accu defined_refs) l
   | PatEqual t -> check_term ElseWhere [] cur_array defined_refs t
 
@@ -1942,7 +2299,7 @@ and check_oprocess accu cur_array defined_refs p =
   match p.p_desc with
     Yield | EventAbort _ -> accu 
   | Restr(b,p) ->
-      check_oprocess accu cur_array ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) p
+      check_oprocess accu cur_array ((Terms.binderref_from_binder b)::defined_refs) p
   | Test(t,p1,p2) ->
       and_ins (check_term ElseWhere [] cur_array defined_refs t)
 	(check_oprocess (check_oprocess accu cur_array defined_refs p1) cur_array defined_refs p2)
@@ -2201,7 +2558,23 @@ let rec transform_term t =
 	  restr_to_put := (List.map snd (List.hd mapping.after_transfo_name_table)) @ (!restr_to_put)
       | _ -> ()
     end;
-    Terms.move_occ_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp)
+    let instance = Terms.move_occ_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp) in
+    match one_exp.product_rest with
+      None -> instance
+    | Some(prod, left_rest, right_rest, comp_neut) ->
+	let instance_with_left =
+	  match left_rest with
+	    None -> instance
+	  | Some(t_left) -> Terms.app prod [transform_term t_left; instance]
+	in
+	let instance_with_both_sides =
+	  match right_rest with
+	    None -> instance_with_left
+	  | Some(t_right) -> Terms.app prod [instance_with_left; transform_term t_right]
+	in
+	match comp_neut with
+	  None -> instance_with_both_sides
+	| Some(eqdiff, neut) -> Terms.app eqdiff [instance_with_both_sides; neut]
   with Not_found ->
     (* Mapping not found, the term is unchanged. Visit subterms *)
     Terms.build_term2 t 
@@ -2488,8 +2861,7 @@ and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = 
     PatVar b ->
       if in_find_cond then
 	let b' = new_binder2 b cur_array in
-	loc_rename_ref := ((b, List.map Terms.term_from_repl_index b.args_at_creation), 
-			   (b', List.map Terms.term_from_repl_index b'.args_at_creation)) :: (!loc_rename_ref);
+	loc_rename_ref := (Terms.binderref_from_binder b, Terms.binderref_from_binder b') :: (!loc_rename_ref);
 	PatVar b'
       else
 	PatVar(try
@@ -3342,9 +3714,12 @@ let rec try_with_restr_list apply_equiv = function
 	  let vcounter = !Terms.vcounter in
 	  if (!Settings.debug_cryptotransf) > 0 then
 	    begin
-	      print_string "Trying with random coins ";
-	      Display.display_binder (fst (List.hd b));
-	      print_newline();
+	      if b != [] then
+		begin
+		  print_string "Trying with random coins ";
+		  Display.display_binder (fst (List.hd b));
+		  print_newline()
+		end;
 	    end;
           try 
             let (discharge_names,to_do) = try_with_partial_assoc [([],0,!names_to_discharge)] apply_equiv [] in

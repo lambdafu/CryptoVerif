@@ -162,9 +162,9 @@ let rec match_term try_no_var restr next_f t t' () =
   in
   match_term_rec next_f t t' ()
 
-let match_term_root_or_prod_subterm try_no_var restr next_f t t' =
-  match t.t_desc, t'.t_desc with
-    FunApp(f,[_;_]), _ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
+let match_term_root_or_prod_subterm try_no_var restr final next_f t t' =
+  match t.t_desc with
+    FunApp(f,[_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
       (* f is a binary function with an equational theory that is
 	 not commutativity -> it is a product-like function *)
       let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
@@ -174,13 +174,13 @@ let match_term_root_or_prod_subterm try_no_var restr next_f t t' =
 	  NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
 	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
 	    Terms.match_AC (match_term try_no_var restr) (get_var_link restr) Terms.default_match_error (fun rest () -> 
-	      Terms.make_prod f ((next_f())::rest)) try_no_var f true l l' ()
+	      final (Terms.make_prod f ((next_f())::rest))) try_no_var f true l l' ()
 	| Assoc | AssocN _ | Group _ -> 
 	    Terms.match_assoc_subterm (match_term try_no_var restr) (get_var_link restr) (fun rest_left rest_right () ->
-	      Terms.make_prod f (rest_left @ (next_f())::rest_right)) try_no_var f l l' ()
+	      final (Terms.make_prod f (rest_left @ (next_f())::rest_right))) try_no_var f l l' ()
       end
   | _ ->
-      match_term try_no_var restr next_f t t' ()
+      match_term try_no_var restr (fun () -> final (next_f())) t t' ()
 
 let reduced = ref false
 
@@ -202,8 +202,11 @@ let rec check_indep_list = function
   | (v::l) ->
       (check_indep v l) @ (check_indep_list l)
 
-(* [apply_collisions_at_root_once reduce_rec try_no_var t collisions] 
+(* [apply_collisions_at_root_once reduce_rec try_no_var final t collisions] 
    applies all collisions in the list [collisions] to the root of term [t].
+   It calls the function [final] on each term obtained by applying a collision.
+   The function final may raise the exception [NoMatch] so that other 
+   possibilities are considered.
 
    Statements are a particular case of collisions, so this function
    can also be applied with a list of statements in [collisions].
@@ -212,11 +215,11 @@ let rec check_indep_list = function
    in addition to the already known facts. It sets the flag [reduced]
    when [t] has really been modified. *)
 
-let rec apply_collisions_at_root_once reduce_rec try_no_var t = function
-    [] -> t 
+let rec apply_collisions_at_root_once reduce_rec try_no_var final t = function
+    [] -> raise NoMatch
   | (restr, forall, redl, proba, redr)::other_coll ->
       try
-	match_term_root_or_prod_subterm try_no_var restr (fun () -> 
+	match_term_root_or_prod_subterm try_no_var restr final (fun () -> 
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
 	  let l_indep = check_indep_list restr in
 	  let redl' = Terms.copy_term Terms.Links_Vars redl in
@@ -271,64 +274,172 @@ let rec apply_collisions_at_root_once reduce_rec try_no_var t = function
 	      if not (Proba.add_proba_red redl' t' proba restr_map) then
 		raise NoMatch
 	    end;
-	  reduced := true;
 	  t''
 	    ) redl t
       with NoMatch ->
 	Terms.cleanup();
-	apply_collisions_at_root_once reduce_rec try_no_var t other_coll
+	apply_collisions_at_root_once reduce_rec try_no_var final t other_coll
 
-
-(* [apply_statements_subterms_once try_no_var t] applies the equality
-   statements given in the input file to all subterms of [t]. *)
 
 let reduce_rec_impossible t = assert false
 
-let rec apply_statements_subterms_once try_no_var t = 
+let apply_statements_at_root_once try_no_var t =
+  match t.t_desc with
+    FunApp(f,_) ->
+      begin
+	try 
+	  apply_collisions_at_root_once reduce_rec_impossible try_no_var (fun t' -> reduced := true; t') t f.f_statements 
+	with NoMatch -> t
+      end
+  | _ -> t
+
+let apply_statements_and_collisions_at_root_once reduce_rec try_no_var t =
+  match t.t_desc with
+    FunApp(f,_) ->
+      begin
+	try 
+	  apply_collisions_at_root_once reduce_rec_impossible try_no_var (fun t' -> reduced := true; t') t f.f_statements 
+	with NoMatch ->
+	  try 
+	    apply_collisions_at_root_once reduce_rec try_no_var (fun t' -> reduced := true; t') t f.f_collisions 
+	  with NoMatch -> t
+      end
+  | _ -> t
+
+(* [apply_simplif_subterms_once simplif_root_or_prod_subterm try_no_var t] 
+   applies the simplification specified by [simplif_root_or_prod_subterm] 
+   to all subterms of [t].
+
+   [simplif_root_or_prod_subterm: term -> term] should simplify only the root
+   of the term, or when the term is a product, simplify subproducts,
+   but not smaller subterms. When the simplification succeeds, it sets [reduced]
+   to true and returns the simplified term. When the simplification fails,
+   it returns the initial term and leaves [reduced] unchanged. *)
+
+let rec first_inv inv = function
+    [] -> ([], [])
+  | (a::l) as x -> 
+      match a.t_desc with
+	FunApp(f,[t]) when f == inv -> 
+	  let (invl, rest) = first_inv inv l in
+	  (t::invl, rest)
+      |	_ -> 
+	  ([], x)
+
+let apply_simplif_subterms_once simplif_root_or_prod_subterm try_no_var t = 
+  let rec simplif_rec t =
   match t.t_desc with
     FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
       (* f is a binary function with an equational theory that is
 	 not commutativity -> it is a product-like function *)
-      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      let t' = simplif_root_or_prod_subterm t in
       if !reduced then t' else 
       (* We apply the statements only to subterms that are not products by f.
 	 Subterms that are products by f are already handled above
 	 using [match_term_root_or_prod_subterm]. *)
       let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
-      Terms.make_prod f (List.map (apply_statements_subterms_once try_no_var) l)
+      Terms.make_prod f (List.map simplif_rec l)
   | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
-      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      let t' = simplif_root_or_prod_subterm t in
       if !reduced then t' else 
       begin
 	match Terms.get_prod_list try_no_var l with
 	  ACUN(xor, neut) ->
 	    let t' = Terms.app xor [t1;t2] in
-	    let t'' = apply_statements_subterms_once try_no_var t' in
-	    begin
-	      match t''.t_desc with
-		FunApp(xor', [t1';t2']) when xor' == xor ->
-		  Terms.build_term2 t (FunApp(f, [t1';t2']))
-	      |	_ -> 
-		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
-	    end
-	| CommutGroup(prod, inv, neut) | Group(prod, inv, neut) ->
+	    let t'' = simplif_rec t' in
+	    if !reduced then 
+	      begin
+		match t''.t_desc with
+		  FunApp(xor', [t1';t2']) when xor' == xor ->
+		    Terms.build_term2 t (FunApp(f, [t1';t2']))
+		| _ -> 
+		    Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
+	      end
+	    else
+	      t
+	| CommutGroup(prod, inv, neut) -> 
+	    let rebuild_term t'' = 
+	      (* returns a term equal to [f(t'', neut)] *)
+	      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) prod t'' in
+	      let linv, lno_inv = List.partition (Terms.is_fun inv) l in
+	      let linv_removed = List.map (function { t_desc = FunApp(f,[t]) } when f == inv -> t | _ -> assert false) linv in
+	      Terms.build_term2 t (FunApp(f, [ Terms.make_prod prod lno_inv; 
+					       Terms.make_prod prod linv_removed ]))
+	    in	      
 	    let t' = Terms.app prod [t1; Terms.app inv [t2]] in
-	    let t'' = apply_statements_subterms_once try_no_var t' in
-	    begin
-	      match t''.t_desc with
-		FunApp(prod', [t1';t2']) when prod' == prod ->
-		  Terms.build_term2 t (FunApp(f, [t1';Terms.compute_inv try_no_var (ref false) (prod, inv, neut) t2']))
-	      |	_ -> 
-		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
-	    end
+	    let t'' = simplif_rec t' in
+	    if !reduced then
+	      rebuild_term t''
+	    else
+	      let t' = Terms.app prod [t2; Terms.app inv [t1]] in
+	      (* No need to try subterms of t' inside elements of the product,
+		 since they have already been tried above *)
+	      let t'' = simplif_root_or_prod_subterm t' in
+	      if !reduced then
+		rebuild_term t''
+	      else
+		t
+	| Group(prod, inv, neut) ->
+	    let rebuild_term t'' =
+	      (* returns a term equal to [f(t'', neut)] *)
+	      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) prod t'' in
+	      let (inv_first, rest) = first_inv inv l in
+	      let (inv_last_rev, rest_rev) = first_inv inv (List.rev rest) in
+		(* if inv_first = [x1...xk], inv_last_rev = [y1...yl],
+		   List.rev rest_rev = [z1...zm]
+		   then the term we want to rewrite is
+		   x1^-1...xk^-1.z1...zm.yl^-1...y1^-1 = neut
+		   which is equal to
+		   z1...zm = xk...x1.y1...yl *)
+	      Terms.build_term2 t (FunApp(f, [ Terms.make_prod prod (List.rev rest_rev) ; 
+					       Terms.make_prod prod (List.rev_append inv_first inv_last_rev)]))
+	    in
+	    let l1 = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) prod (Terms.app prod [t1; Terms.app inv [t2]]) in
+	    let l2 = Terms.remove_inverse_ends try_no_var (ref false) (prod, inv, neut) (Terms.simp_equal_terms try_no_var) l1 in
+	    let rec apply_up_to_roll seen' rest' =
+	      let t0 = (Terms.make_prod prod (rest' @ (List.rev seen'))) in
+	      let t'' = simplif_root_or_prod_subterm t0 in
+	      if !reduced then
+		rebuild_term t''
+	      else
+		match rest' with
+		  [] -> t
+		| a::rest'' -> apply_up_to_roll (a::seen') rest''
+	    in
+	    let t' = apply_up_to_roll [] l2 in
+	    if !reduced then t' else
+	    let l3 = List.rev (List.map (Terms.compute_inv try_no_var (ref false) (prod, inv, neut)) l2) in
+	    let t' = apply_up_to_roll [] l3 in
+	    if !reduced then t' else
+	    let l1 = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) prod t1 in
+	    let l2 = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) prod t2 in
+	    Terms.build_term2 t (FunApp(f, [ Terms.make_prod prod (List.map simplif_rec l1);
+					     Terms.make_prod prod (List.map simplif_rec l2) ]))
 	| _ -> 
-	    Terms.build_term2 t (FunApp(f, List.map (apply_statements_subterms_once try_no_var) l))
+	    Terms.build_term2 t (FunApp(f, List.map simplif_rec l))
       end
   | FunApp(f, l) ->
-      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
+      let t' = simplif_root_or_prod_subterm t in
       if !reduced then t' else 
-      Terms.build_term2 t (FunApp(f, List.map (apply_statements_subterms_once try_no_var) l))
+      Terms.build_term2 t (FunApp(f, List.map simplif_rec l))
   | _ -> t
+  in
+  simplif_rec t
+
+(* For debugging: replace Terms.apply_eq_reds with apply_eq_reds below.
+
+let apply_eq_reds try_no_var reduced t =
+  let t' = Terms.apply_eq_reds try_no_var reduced t in
+  if !reduced then
+    begin
+      print_string "apply_eq_reds ";
+      Display.display_term t;
+      print_string " = ";
+      Display.display_term t';
+      print_newline()
+    end;
+  t'
+*)
 
 (* [apply_eq_statements_subterms_once try_no_var t] applies the equalities 
    coming from the equational theories and the equality
@@ -337,63 +448,7 @@ let rec apply_statements_subterms_once try_no_var t =
 let apply_eq_statements_subterms_once try_no_var t =
   let t' = Terms.apply_eq_reds try_no_var reduced t in
   if !reduced then t' else 
-  apply_statements_subterms_once try_no_var t
-
-(* [apply_statements_and_collisions_subterms_once reduce_rec try_no_var t] 
-   applies the equality statements and the collisions given in the input 
-   file to all subterms of [t]. *)
-
-let rec apply_statements_and_collisions_subterms_once reduce_rec try_no_var t = 
-  match t.t_desc with
-    FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
-      (* f is a binary function with an equational theory that is
-	 not commutativity -> it is a product-like function *)
-      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
-      if !reduced then t' else 
-      let t' = apply_collisions_at_root_once reduce_rec try_no_var t f.f_collisions in
-      if !reduced then t' else       
-      (* We apply the statements only to subterms that are not products by f.
-	 Subterms that are products by f are already handled above
-	 using [match_term_root_or_prod_subterm]. *)
-      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
-      Terms.make_prod f (List.map (apply_statements_and_collisions_subterms_once reduce_rec try_no_var) l)
-  | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
-      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
-      if !reduced then t' else 
-      let t' = apply_collisions_at_root_once reduce_rec try_no_var t f.f_collisions in
-      if !reduced then t' else       
-      begin
-	match Terms.get_prod_list try_no_var l with
-	  ACUN(xor, neut) ->
-	    let t' = Terms.app xor [t1;t2] in
-	    let t'' = apply_statements_and_collisions_subterms_once reduce_rec try_no_var t' in
-	    begin
-	      match t''.t_desc with
-		FunApp(xor', [t1';t2']) when xor' == xor ->
-		  Terms.build_term2 t (FunApp(f, [t1';t2']))
-	      |	_ -> 
-		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
-	    end
-	| CommutGroup(prod, inv, neut) | Group(prod, inv, neut) ->
-	    let t' = Terms.app prod [t1; Terms.app inv [t2]] in
-	    let t'' = apply_statements_and_collisions_subterms_once reduce_rec try_no_var t' in
-	    begin
-	      match t''.t_desc with
-		FunApp(prod', [t1';t2']) when prod' == prod ->
-		  Terms.build_term2 t (FunApp(f, [t1';Terms.compute_inv try_no_var (ref false) (prod, inv, neut) t2']))
-	      |	_ -> 
-		  Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []]))
-	    end
-	| _ -> 
-	    Terms.build_term2 t (FunApp(f, List.map (apply_statements_and_collisions_subterms_once reduce_rec try_no_var) l))
-      end
-  | FunApp(f, l) ->
-      let t' = apply_collisions_at_root_once reduce_rec_impossible try_no_var t f.f_statements in
-      if !reduced then t' else 
-      let t' = apply_collisions_at_root_once reduce_rec try_no_var t f.f_collisions in
-      if !reduced then t' else       
-      Terms.build_term2 t (FunApp(f, List.map (apply_statements_and_collisions_subterms_once reduce_rec try_no_var) l))
-  | _ -> t
+  apply_simplif_subterms_once (apply_statements_at_root_once try_no_var) try_no_var t
 
 (* [apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t] 
    applies the equalities coming from the equational theories, 
@@ -403,7 +458,21 @@ let rec apply_statements_and_collisions_subterms_once reduce_rec try_no_var t =
 let apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t =
   let t' = Terms.apply_eq_reds try_no_var reduced t in
   if !reduced then t' else 
-  apply_statements_and_collisions_subterms_once reduce_rec try_no_var t
+  apply_simplif_subterms_once (apply_statements_and_collisions_at_root_once reduce_rec try_no_var) try_no_var t
+
+(* For debugging 
+let apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t =
+  let t' = apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t in
+  if !reduced then
+    begin
+      print_string "apply_eq_statements_and_collisions_subterms_once ";
+      Display.display_term t;
+      print_string " = ";
+      Display.display_term t';
+      print_newline()
+    end;
+  t'
+*)
 
 (* Applying a substitution that maps x[M1,...,Mn] to M' *)
 
@@ -756,7 +825,7 @@ let rec is_reachable n n' =
   is_reachable n n'.above_node
 
 let get_def_vars_above n =
-  List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) (Terms.add_def_vars_node [] n)
+  List.map Terms.binderref_from_binder (Terms.add_def_vars_node [] n)
 
 (* Given a node, return the variable references whose definition
    is guaranteed by defined conditions above that node. *)
@@ -913,7 +982,28 @@ let get_facts_at = function
       List.iter (add_facts (Some n) fact_accu (ref [])) def_vars;
       !fact_accu
 
+(* Functions useful to simplify def_list *)
 
+let rec filter_def_list accu = function
+    [] -> accu
+  | (br::l) ->
+      let implied_br = def_vars_from_defined None [br] in
+      let accu' = Terms.setminus_binderref accu implied_br in
+      let l' = Terms.setminus_binderref l implied_br in
+      filter_def_list (br::accu') l'
+
+let rec remove_subterms accu = function
+    [] -> accu
+  | (br::l) ->
+      let subterms = ref [] in
+      Terms.close_def_subterm subterms br;
+      let accu' = Terms.setminus_binderref accu (!subterms) in
+      let l' = Terms.setminus_binderref l (!subterms) in
+      remove_subterms (br::accu') l' 
+
+let eq_deflists dl dl' =
+  (List.for_all (fun br' -> Terms.mem_binderref br' dl) dl') &&
+  (List.for_all (fun br -> Terms.mem_binderref br dl') dl) 
 
 (*****
    Show that elements of the array b at different indices are always
@@ -1570,95 +1660,12 @@ let apply_eq add_accu t equalities =
    [colls] to the term [t], at the root or in immediate subterms in case
    [t] is a product. Each collision is applied at most once. 
    It calls the function [add_accu] on each obtained term.
-
-   [accu_match_term_root_or_prod_subterm] is a helper matching function
-   for [apply_colls]. It performs the matching either at the root or
-   in the immediate subterms in case the considered terms are products.
    *)
 
-let accu_match_term_root_or_prod_subterm try_no_var restr add_accu next_f t t' =
-  match t.t_desc, t'.t_desc with
-    FunApp(f,[_;_]), _ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
-      (* f is a binary function with an equational theory that is
-	 not commutativity -> it is a product-like function *)
-      let l = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t in
-      let l' = Terms.simp_prod try_no_var (ref false) (Terms.simp_equal_terms try_no_var) f t' in
-      begin
-	match f.f_eq_theories with
-	  NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
-	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
-	    Terms.match_AC (match_term try_no_var restr) (get_var_link restr) Terms.default_match_error (fun rest () -> 
-	      add_accu (Terms.make_prod f ((next_f())::rest)); raise NoMatch) try_no_var f true l l' ()
-	| Assoc | AssocN _ | Group _ -> 
-	    Terms.match_assoc_subterm (match_term try_no_var restr) (get_var_link restr) (fun rest_left rest_right () ->
-	      add_accu (Terms.make_prod f (rest_left @ (next_f())::rest_right)); raise NoMatch) try_no_var f l l' ()
-      end
-  | _ ->
-      match_term try_no_var restr (fun () -> add_accu (next_f())) t t' ()
-
 let apply_colls reduce_rec add_accu t colls = 
-  List.iter (fun (restr, forall, redl, proba, redr) -> 
-    try
-      accu_match_term_root_or_prod_subterm Terms.try_no_var_id restr add_accu (fun () -> 
-	let t' = Terms.copy_term Terms.Links_Vars redr in
-	let l_indep = check_indep_list restr in
-	let redl' = Terms.copy_term Terms.Links_Vars redl in
-	let restr_map = 
-	  List.map (fun restr1 ->
-	    match restr1.link with
-	      TLink trestr -> (restr1,trestr)
-	    | _ -> Parsing_helper.internal_error "unexpected link in apply_red"
-		  ) restr
-	in
-	(* Cleanup early enough, so that the links that we create in this 
-	   collision do not risk to interfere with a later application of 
-	   the same collision in reduce_rec. *)
-	Terms.cleanup();
-	let t'' =
-	  if l_indep == [] then
-	    (* All restrictions are always independent, nothing to add *)
-	    t' 
-	  else
-	    begin
-	      if not (Terms.is_false redr) then
-	          (* I can test conditions that make restrictions independent only
-		     when the result "redr" is false *)
-		raise NoMatch;
-	          (* When redr is false, the result "If restrictions
-		     independent then redr else t" is equal to
-		     "(restrictions not independent) and t" which we
-		     simplify.  We keep the transformed value only
-		     when t has been reduced, because otherwise we
-		     might enter a loop (applying the collision to t
-		     over and over again). *)
-	      Terms.make_or_list 
-		(List.map (fun f ->
-		  let reduced_tmp = !reduced in
-		  reduced := false;
-		  let t1 = reduce_rec f t in
-		  if not (!reduced) then 
-		    begin 
-		      reduced := reduced_tmp; 
-		      raise NoMatch 
-		    end;
-		    reduced := reduced_tmp;
-		  Terms.make_and f t1
-		    ) l_indep)
-	    end
-	in
-	if proba != Zero then
-	  begin
-              (* Instead of storing the term t, I store the term obtained 
-                 after the applications of try_no_var in match_term,
-                 obtained by (Terms.copy_term redl) *)
-	    if not (Proba.add_proba_red redl' t' proba restr_map) then
-	      raise NoMatch
-	  end;
-	t''
-	    ) redl t
-      with NoMatch ->
-	Terms.cleanup()
-    ) colls
+  try 
+    apply_collisions_at_root_once reduce_rec Terms.try_no_var_id (fun t' -> add_accu t'; raise NoMatch) t colls
+  with NoMatch -> ()
     
 (* [apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t] 
    applies the equalities coming from the equational theories, 
@@ -1669,6 +1676,15 @@ let apply_colls reduce_rec add_accu t colls =
 *)
 
 let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t = 
+  let rec apply_list next_f seen = function
+      [] -> ()
+    | first::rest ->
+	apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
+	  next_f (List.rev_append seen (t''::rest))
+	    ) first;
+        apply_list next_f (first::seen) rest
+  in
+
   match t.t_desc with
     FunApp(f, [_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
       (* f is a binary function with an equational theory that is
@@ -1680,15 +1696,7 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
       apply_colls reduce_rec_impossible add_accu t f.f_statements;
       apply_colls reduce_rec add_accu t f.f_collisions;
       let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms f t in
-      let rec apply_list seen = function
-	  [] -> ()
-	| first::rest ->
-	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
-	      add_accu (Terms.make_prod f (List.rev_append seen (t''::rest)))
-		) first;
-	    apply_list (first::seen) rest
-      in
-      apply_list [] l
+      apply_list (fun l' -> add_accu (Terms.make_prod f l')) [] l
   | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
       apply_eq add_accu t equalities;
       apply_colls reduce_rec_impossible add_accu t f.f_statements;
@@ -1704,50 +1712,69 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
 	      |	_ -> 
 		  add_accu (Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []])))
 		    ) t'
-	| CommutGroup(prod, inv, neut) | Group(prod, inv, neut) ->
-	    let t' = Terms.app prod [t1; Terms.app inv [t2]] in
-	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' -> 
-	      match t''.t_desc with
-		FunApp(prod', [t1';t2']) when prod' == prod ->
-		  add_accu (Terms.build_term2 t (FunApp(f, [t1';Terms.compute_inv Terms.try_no_var_id (ref false) (prod, inv, neut) t2'])))
-	      |	_ -> 
-		  add_accu (Terms.build_term2 t (FunApp(f, [t'';Terms.app neut []])))
-		) t'
-	| _ -> 
-	    let rec apply_list seen = function
-		[] -> ()
-	      | first::rest ->
-		  apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
-		    add_accu (Terms.build_term2 t (FunApp(f, List.rev_append seen (t''::rest))))
-		      ) first;
-		  apply_list (first::seen) rest
+	| CommutGroup(prod, inv, neut) ->
+	    let rebuild_term t'' = 
+	      (* calls add_accu on a term equal to FunApp(f, [t'', neut]) *)
+	      let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t'' in
+	      let linv, lno_inv = List.partition (Terms.is_fun inv) l in
+	      let linv_removed = List.map (function { t_desc = FunApp(f,[t]) } when f == inv -> t | _ -> assert false) linv in
+	      add_accu (Terms.build_term2 t (FunApp(f, [ Terms.make_prod prod lno_inv; 
+							 Terms.make_prod prod linv_removed ])))
 	    in
-	    apply_list [] l
+	    apply_eq_and_collisions_subterms_once reduce_rec equalities rebuild_term (Terms.app prod [t1; Terms.app inv [t2]]);
+	    (* Simplify the term t' = t2.t1^-1 just on the product level.
+	       The simplification of smaller subterms has already been considered above. *)
+	    let t' = Terms.app prod [t2; Terms.app inv [t1]] in
+	    apply_eq rebuild_term t' equalities;
+	    apply_colls reduce_rec_impossible rebuild_term t' prod.f_statements;
+	    apply_colls reduce_rec rebuild_term t' prod.f_collisions
+	| Group(prod, inv, neut) ->
+	    let rebuild_term t'' =
+		  (* calls add_accu on a term equal to FunApp(f, [t'', neut]) *)
+		  let l = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t'' in
+		  let (inv_first, rest) = first_inv inv l in
+		  let (inv_last_rev, rest_rev) = first_inv inv (List.rev rest) in
+		(* if inv_first = [x1...xk], inv_last_rev = [y1...yl],
+		   List.rev rest_rev = [z1...zm]
+		   then the term we want to rewrite is
+		   x1^-1...xk^-1.z1...zm.yl^-1...y1^-1 = neut
+		   which is equal to
+		   z1...zm = xk...x1.y1...yl *)
+		  add_accu (Terms.build_term2 t (FunApp(f, [ Terms.make_prod prod (List.rev rest_rev) ; 
+							     Terms.make_prod prod (List.rev_append inv_first inv_last_rev)])))
+	    in
+	    let l1 = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod (Terms.app prod [t1; Terms.app inv [t2]]) in
+	    let l2 = Terms.remove_inverse_ends Terms.try_no_var_id (ref false) (prod, inv, neut) Terms.equal_terms l1 in
+	    let rec apply_up_to_roll seen' rest' =
+	      let t' = Terms.make_prod prod (rest' @ (List.rev seen')) in
+	      (* Simplify the term t' = t2.t1^-1 just on the product level.
+	         The simplification of smaller subterms is considered below. *)
+	      apply_eq rebuild_term t' equalities;
+	      apply_colls reduce_rec_impossible rebuild_term t' prod.f_statements;
+	      apply_colls reduce_rec rebuild_term t' prod.f_collisions;
+	      match rest' with
+		[] -> ()
+	      | a::rest'' -> apply_up_to_roll (a::seen') rest''
+	    in
+	    apply_up_to_roll [] l2;
+	    let l3 = List.rev (List.map (Terms.compute_inv Terms.try_no_var_id (ref false) (prod, inv, neut)) l2) in
+	    apply_up_to_roll [] l3;
+	    (* Simplify smaller subterms *)
+	    let l1 = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t1 in
+	    apply_list (fun l' -> add_accu (Terms.app f [Terms.make_prod prod l'; t2])) [] l1;
+	    let l2 = Terms.simp_prod Terms.try_no_var_id (ref false) Terms.equal_terms prod t2 in
+	    apply_list (fun l' -> add_accu (Terms.app f [t1; Terms.make_prod prod l'])) [] l2
+	| _ -> 
+	    apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
       end
   | FunApp(f, l) ->
       apply_eq add_accu t equalities;
       apply_colls reduce_rec_impossible add_accu t f.f_statements;
       apply_colls reduce_rec add_accu t f.f_collisions;
-      let rec apply_list seen = function
-	  [] -> ()
-	| first::rest ->
-	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
-	      add_accu (Terms.build_term2 t (FunApp(f, List.rev_append seen (t''::rest))))
-		) first;
-	    apply_list (first::seen) rest
-      in
-      apply_list [] l
+      apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
   | Var(b,l) -> 
       apply_eq add_accu t equalities;
-      let rec apply_list seen = function
-	  [] -> ()
-	| first::rest ->
-	    apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t'' ->  
-	      add_accu (Terms.build_term2 t (Var(b, List.rev_append seen (t''::rest))))
-		) first;
-	    apply_list (first::seen) rest
-      in
-      apply_list [] l
+      apply_list (fun l' -> add_accu (Terms.build_term2 t (Var(b, l')))) [] l
   | _ -> ()
 
 (*

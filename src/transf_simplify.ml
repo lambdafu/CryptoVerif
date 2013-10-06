@@ -644,7 +644,7 @@ let simplify_term cur_array dep_info keep_tuple simp_facts t =
   let t'' = Facts.simplify_term (dependency_collision cur_array dep_info) simp_facts t' in
   if !Settings.minimal_simplifications then
     begin
-      if Terms.is_true t'' || Terms.is_false t'' || (not (Terms.equal_terms t' t'')) ||
+      if Terms.is_true t'' || Terms.is_false t'' || (not (Terms.synt_equal_terms t' t'')) ||
          (keep_tuple && Terms.is_tuple t'' && not (Terms.is_tuple t)) then
 	begin
 	  if not (Terms.is_true t || Terms.is_false t) then 
@@ -660,7 +660,7 @@ let simplify_term cur_array dep_info keep_tuple simp_facts t =
     end
   else
     begin
-      if not (Terms.equal_terms t t'') then 
+      if not (Terms.synt_equal_terms t t'') then 
 	begin
 	  Settings.changed := true;
 	  current_pass_transfos := (SReplaceTerm(t,t'')) :: (!current_pass_transfos)
@@ -671,7 +671,7 @@ let simplify_term cur_array dep_info keep_tuple simp_facts t =
 (*
 let simplify_term cur_array dep_info k s t =
   let res = simplify_term cur_array dep_info k s t in
-  if not (Terms.equal_terms t res) then
+  if not (Terms.synt_equal_terms t res) then
     begin
       print_string "Simplifying "; Display.display_term t;
       print_string " knowing\n";
@@ -1051,27 +1051,6 @@ let rec add_let_term p = function
        but difficult to implement) 
        Do not reconsider an already seen pair (b,l), to avoid loops.*)
 
-let rec filter_def_list accu = function
-    [] -> accu
-  | (br::l) ->
-      let implied_br = Facts.def_vars_from_defined None [br] in
-      let accu' = Terms.setminus_binderref accu implied_br in
-      let l' = Terms.setminus_binderref l implied_br in
-      filter_def_list (br::accu') l'
-
-let rec remove_subterms accu = function
-    [] -> accu
-  | (br::l) ->
-      let subterms = ref [] in
-      Terms.close_def_subterm subterms br;
-      let accu' = Terms.setminus_binderref accu (!subterms) in
-      let l' = Terms.setminus_binderref l (!subterms) in
-      remove_subterms (br::accu') l' 
-
-let eq_deflists dl dl' =
-  (List.for_all (fun br' -> Terms.mem_binderref br' dl) dl') &&
-  (List.for_all (fun br -> Terms.mem_binderref br dl') dl) 
-
 let is_unique l0' find_info =
   match l0' with
     [([],_,_,_)] -> Unique
@@ -1346,14 +1325,14 @@ let rec simplify_term_w_find cur_array true_facts t =
 		   (Terms.inter_binderref (!accu_needed_subterm) (!accu_def_list_subterm))) in
 	      let implied_needed_occur = Facts.def_vars_from_defined None needed_occur in
 	      let def_list'' = Terms.setminus_binderref def_list' implied_needed_occur in
-	      let def_list3 = remove_subterms [] (needed_occur @ (filter_def_list [] def_list'')) in
+	      let def_list3 = Facts.remove_subterms [] (needed_occur @ (Facts.filter_def_list [] def_list'')) in
 
 	      if List.length def_list3 < List.length def_list then
 		begin
 		  Settings.changed := true;
 		  current_pass_transfos := (SFindEDeflist(t, def_list, def_list3)) :: (!current_pass_transfos)
 		end
-	      else if not (eq_deflists def_list def_list3)  then
+	      else if not (Facts.eq_deflists def_list def_list3)  then
 		current_pass_transfos := (SFindEDeflist(t, def_list, def_list3)) :: (!current_pass_transfos);
 
 	      (* When i = M implied by def_list & t, remove i from bl
@@ -1908,14 +1887,14 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		   (Terms.inter_binderref (!accu_needed_subterm) (!accu_def_list_subterm))) in
 	      let implied_needed_occur = Facts.def_vars_from_defined None needed_occur in
 	      let def_list'' = Terms.setminus_binderref def_list' implied_needed_occur in
-	      let def_list3 = remove_subterms [] (needed_occur @ (filter_def_list [] def_list'')) in
+	      let def_list3 = Facts.remove_subterms [] (needed_occur @ (Facts.filter_def_list [] def_list'')) in
 
 	      if List.length def_list3 < List.length def_list then
 		begin
 		  Settings.changed := true;
 		  current_pass_transfos := (SFindDeflist(p', def_list, def_list3)) :: (!current_pass_transfos)
 		end
-	      else if not (eq_deflists def_list def_list3)  then
+	      else if not (Facts.eq_deflists def_list def_list3)  then
 		current_pass_transfos := (SFindDeflist(p', def_list, def_list3)) :: (!current_pass_transfos);
 
 	      (* When i = M implied by def_list & t, remove i from bl

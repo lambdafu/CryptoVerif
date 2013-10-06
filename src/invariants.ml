@@ -285,7 +285,7 @@ let rec invfc defined_refs t =
       let ty = invpat defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
       List.iter no_array_ref bpat;
-      let defs = List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) bpat in
+      let defs = List.map Terms.binderref_from_binder bpat in
       invt defined_refs t;
       invfc (defs @ defined_refs) t2;
       if ty != t.t_type then
@@ -332,7 +332,7 @@ let rec inv defined_refs p =
       List.iter (invt defined_refs) tl;
       let _ = invpat defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
-      let defs = List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) bpat in
+      let defs = List.map Terms.binderref_from_binder bpat in
       invo (defs @ defined_refs) p
 
 and invo defined_refs p =
@@ -349,7 +349,7 @@ and invo defined_refs p =
       let ty = b.btype in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	Parsing_helper.internal_error ("Cannot choose randomly a bitstring from " ^ ty.tname ^ "\n");
-      invo ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) p
+      invo ((Terms.binderref_from_binder b)::defined_refs) p
   | Test(t,p1,p2) ->
       invt defined_refs t;
       invo defined_refs p1;
@@ -359,7 +359,7 @@ and invo defined_refs p =
   | Let(pat, t, p1, p2) ->
       let ty = invpat defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
-      let defs = List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) bpat in
+      let defs = List.map Terms.binderref_from_binder bpat in
       invt defined_refs t;
       invo (defs @ defined_refs) p1;
       if ty != t.t_type then

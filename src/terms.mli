@@ -68,6 +68,7 @@ val binderref_from_term : term -> binderref
 val repl_index_from_term : term -> repl_index
 val term_from_binder : binder -> term
 val term_from_binderref : binderref -> term
+val binderref_from_binder : binder -> binderref
 val term_from_repl_index : repl_index -> term
 val build_term : term -> term_desc -> term
 val build_term2 : term -> term_desc -> term
@@ -205,6 +206,23 @@ val make_inv_prod : eq_th -> term list -> term -> term list -> term
 val get_prod : (term -> term) -> term -> eq_th
 val get_prod_list : (term -> term) -> term list -> eq_th
 
+(* [is_fun f t] is true if and only if the root function symbol
+   of [t] is [f]. *)
+val is_fun : funsymb -> term -> bool
+
+(* [remove_inverse_ends try_no_var reduced group_th sub_eq l] removes the
+   inverse elements at the two ends of the list [l]. In a non-commutative group,
+   the product of the elements [l] is the neutral element if and only if the
+   product of the resulting list is: x * t * x^-1 = e iff t = e by multiplying
+   on the left by x^-1 and on the right by x. 
+   [group_th = (f, inv,n)] is supposed to be a group, with product [f],
+   inverse function [inv], and neutral element [n].    
+   [try_no_var], [reduced], and [sub_eq] are as above. *)
+
+val remove_inverse_ends :
+  (term -> term) -> bool ref -> funsymb * funsymb * funsymb ->
+  (term -> term -> bool) -> term list -> term list
+
 (* [apply_eq_reds try_no_var reduced t] simplifies the term [t] using
    the equational theory. [reduced] is set when the term [t] is really
    simplified. [try_no_var] is as in [compute_inv] above. *) 
@@ -213,6 +231,7 @@ val apply_eq_reds : (term -> term) -> bool ref -> term -> term
 (* Equality tests between terms, lists of terms, ... *)
 val simp_equal_terms : (term -> term) -> term -> term -> bool
 val equal_terms : term -> term -> bool
+val synt_equal_terms : term -> term -> bool
 val equal_term_lists : term list -> term list -> bool 
 val equal_probaf : probaf -> probaf -> bool
 val equal_def_lists : binderref list -> binderref list -> bool
@@ -371,8 +390,9 @@ val default_match_error : unit -> 'a
    [try_no_var]: [try_no_var t] tries to replace variables with their
    values in [t]; it returns the resulting term.
 
-   [next_f]: [next_f state'] is called when the matching succeeds.
-   It can raise [NoMatch] to force the function to look for
+   [next_f]: [next_f state'] is called when the matching succeeds,
+   that is, the variables in [t] are linked so that [\sigma t = t'].
+   [next_f] can raise [NoMatch] to force the function to look for
    another matching.
 *)
 
@@ -386,7 +406,9 @@ val match_funapp :
 (* [match_assoc_subterm match_term get_var_link next_f try_no_var prod l1 l2 state]
    matches the lists of terms [l1] and [l2] modulo associativity of the product
    function [prod].
-   [match_term], [get_var_link], [next_f], [try_no_var] are as in the function
+   More precisely, it calls [next_f left_rest right_rest state'] after linking variables in [l1]
+   so that [left_rest. \sigma l1 . right_rest = l2] modulo associativity.
+   [match_term], [get_var_link], [try_no_var] are as in the function
    [match_funapp] above.
    *)
 
@@ -401,7 +423,12 @@ val match_assoc_subterm :
    matches the lists of terms [l1] and [l2] modulo associativity and commutativity
    of the product function [prod].
    [allow_rest] is true when one is allowed to match only a sublist of [l2] with [l1].
-   [match_term], [get_var_link], [match_error], [next_f], [try_no_var] are as in the function
+   When [allow_rest] is false, [match_AC] calls [next_f [] state'] after linking variables in [l1]
+   so that [\sigma l1 = l2] modulo AC. 
+   When [allow_rest] is true, it calls [next_f lrest state']  after linking variables in [l1]
+   so that [\sigma l1 . lrest = l2] modulo AC. 
+
+   [match_term], [get_var_link], [match_error], [try_no_var] are as in the function
    [match_funapp] above.
 *)
 
@@ -422,3 +449,106 @@ val match_AC :
 val match_term_list :
   (('b -> 'a) -> term -> term -> 'b -> 'a) ->
   ('b -> 'a) -> term list -> term list -> 'b -> 'a
+
+(* Matching with advice, for use in transf_crypto.ml *)
+
+(* [match_assoc_advice_subterm match_term explicit_value get_var_link is_var_inst next_f prod l1 l2 state]
+   matches the lists [l1] and [l2] modulo associativity. 
+   More precisely, it calls [next_f left_rest right_rest state']  after linking variables in [l1]
+   so that [left_rest. \sigma l1 . right_rest = l2] modulo associativity.
+   [left_rest] and [right_rest] may be empty. 
+
+   [match_term]: [match_term next_f t1 t2 state] matches [t1] with [t2];
+   calls [next_f state'] when the match succeeds; raises NoMatch when it
+   fails. It must clean up the links it has put at least when it fails.
+   (When it succeeds, the cleanup is optional.)
+
+   [explicit_value]: [explicit_value t state] returns a state in which 
+   the advice needed to instantiate the variable [t] has been recorded.
+   Causes an internal error when [t] is not a variable.
+
+   [get_var_link]: [get_var_link t state] returns [Some (link, allow_neut)]
+   when [t] is variable that can be bound by a product of terms,
+   [link] is the current contents of the link of that variable,
+   [allow_neut] is true if and only if the variable may be bound to
+   the neutral element (provided there is a neutral element for the
+   product); it returns [None] otherwise.
+
+   [is_var_inst]: [is_var_inst t] returns [true] when [t] is a variable
+   that can be instantiated by applying advice.
+
+   [prod] is the product function symbol, which is associative or AC.
+ *)
+
+val match_assoc_advice_subterm :
+  (('a -> 'b) -> term -> term -> 'a -> 'b) ->
+  (term -> 'a -> 'a) ->
+  (term -> 'a -> (linktype * bool) option) ->
+  (term -> bool) ->
+  (term list -> term list -> 'a -> 'b) ->
+  funsymb -> term list -> term list -> 'a -> 'b
+
+(* [match_assoc_advice_pat_subterm match_term explicit_value get_var_link is_var_inst next_f prod allow_full l1 l2 state]
+   matches the lists [l1] and [l2] modulo associativity. 
+   More precisely, it calls [next_f state']  after linking variables in [l1]
+   so that [\sigma l1 = left_rest . l2 . right_rest] modulo associativity.
+   [left_rest] and [right_rest] are just ignored, they are not passed to [next_f].
+
+   [allow_full] is true when [l2] may match the full list [l1], that is,
+   [left_rest] and [right_rest] may both be empty. 
+
+   [match_term], [explicit_value], [get_var_link], [is_var_inst], [prod] 
+   are as in the function [match_assoc_advice_subterm] above.   
+ *)
+
+val match_assoc_advice_pat_subterm :
+  (('a -> 'b) -> term -> term -> 'a -> 'b) ->
+  (term -> 'a -> 'a) ->
+  (term -> 'a -> (linktype * bool) option) ->
+  (term -> bool) ->
+  ('a -> 'b) ->
+  funsymb -> bool -> term list -> term list -> 'a -> 'b
+
+(* [match_AC_advice match_term explicit_value get_var_link is_var_inst next_f prod allow_rest_pat allow_full allow_rest l1 l2 state]
+   matches the lists [l1] and [l2] modulo AC. 
+   When [allow_rest] and [allow_rest_pat] are false, it calls [next_f [] state'] after linking variables in [l1]
+   so that [\sigma l1 = l2] modulo AC. 
+   When [allow_rest] is true and [allow_rest_pat] is false, it calls [next_f lrest state']  after linking variables in [l1]
+   so that [\sigma l1 . lrest = l2] modulo AC. 
+   When [allow_rest] is false and [allow_rest_pat] is true, it calls [next_f [] state']  after linking variables in [l1]
+   so that [\sigma l1 = l2 . lrest] modulo AC. [lrest] is ignored, it is not passed to [next_f].
+
+   [allow_rest_pat] is true when a subterm of the pattern in [l1] should match
+   [l2], so that some elements of [l1] are allowed to remain unmatched.
+
+   In case [allow_rest_pat] is true, [allow_full] is true when [l2] may match the full list [l1], that is, [lrest] may be empty.
+
+   [allow_rest] is true when the pattern in [l1] should match a subterm of 
+   the term in [l2], so that some elements of [l2] are allowed to remain unmatched.
+
+   [match_term], [explicit_value], [get_var_link], [is_var_inst], [prod] 
+   are as in the function [match_assoc_advice_subterm] above.   
+*)
+
+val match_AC_advice :
+  (('a -> 'b) -> term -> term -> 'a -> 'b) ->
+  (term -> 'a -> 'a) ->
+  (term -> 'a -> (linktype * bool) option) ->
+  (term -> bool) ->
+  (term list -> 'a -> 'b) ->
+  funsymb -> bool -> bool -> bool -> term list -> term list -> 'a -> 'b
+
+(* [match_funapp_advice match_term explicit_value get_var_link is_var_inst next_f t t' state]
+   matches [t] with [t'] when they are function applications. More precisely,
+   it calls [next_f state'] after linking variables in [t] such that [\sigma t = t'].
+
+   [match_term], [explicit_value], [get_var_link], [is_var_inst]
+   are as in the function [match_assoc_advice_subterm] above.   
+ *)
+
+val match_funapp_advice :
+  (('a -> 'b) -> term -> term -> 'a -> 'b) ->
+  (term -> 'a -> 'a) ->
+  (term -> 'a -> (linktype * bool) option) ->
+  (term -> bool) -> ('a -> 'b) -> term -> term -> 'a -> 'b
+

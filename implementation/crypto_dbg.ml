@@ -3,6 +3,13 @@ open Base
 type pkey = string
 type skey = string
 
+let time msg f =
+  let t1 = Sys.time () in
+  let result = f () in
+  let t2 = Sys.time () in
+  Printf.eprintf "Time elapsed (%s): %f" msg (t2 -. t1);
+  result
+
 let pkey_from x=x
 let pkey_to x=x
 let skey_from x=x

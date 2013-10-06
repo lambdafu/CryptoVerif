@@ -509,7 +509,14 @@ let check_role_continuity error p =
 
 let check_process2 p =
   (* Do not check implementation based requirements when not compiling
-     the specification into an implementation. *)
+     the specification into an implementation, in the channel front-end. *)
+  if (!Settings.get_implementation) || (!Settings.front_end = Settings.Oracles) then
+    let h = build_return_list p in
+    check_role input_error h p;
+    check_role_continuity input_error p
+  (* We could have a warning when we do not generate an implementation,
+     as follows. However, in this case, we should also have a warning
+     for other errors that happen at implementation time (e.g. type errors) 
   let error_function =
     if (!Settings.get_implementation) then
       input_error
@@ -518,7 +525,7 @@ let check_process2 p =
   in
   let h = build_return_list p in
   check_role error_function h p;
-  check_role_continuity error_function p
+  check_role_continuity error_function p *)
 
 
 (* Check the form of process p to signal inefficiencies.

@@ -488,7 +488,7 @@ let rec check_find_cond defined_refs cur_array env = function
       let t1' = check_term (Some defined_refs) cur_array env t1 in
       let (env', pat') = check_pattern true defined_refs cur_array env (Some t1'.t_type) pat in
       let def2 = Terms.vars_from_pat [] pat' in
-      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map Terms.binderref_from_binder def2) @ defined_refs in
       let t2' = check_find_cond defined_refs' cur_array env' t2 in
       let topt' = 
 	match topt, pat with
@@ -658,7 +658,7 @@ let rec insert_ins count occ ins env defined_refs cur_array p =
       (Repl(b,p'), def)
   | Input((c,tl),pat, p) ->
       let def2 = Terms.vars_from_pat [] pat in
-      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map Terms.binderref_from_binder def2) @ defined_refs in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let (p', def) = insert_inso count occ ins env' defined_refs' cur_array p in
       check_noninter def def2;
@@ -673,7 +673,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
     | EventAbort f -> (EventAbort f, [])
     | Restr(b,p) ->
 	let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-	let (p', def) = insert_inso count occ ins env' ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) cur_array p in
+	let (p', def) = insert_inso count occ ins env' ((Terms.binderref_from_binder b)::defined_refs) cur_array p in
 	check_noninter def [b];
 	(Restr(b,p'), b::def)
     | Test(t,p1,p2) ->
@@ -685,7 +685,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
 	(EventP(t,p'), def)
     | Let(pat,t,p1,p2) ->
 	let def2 = Terms.vars_from_pat [] pat in
-	let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
+	let defined_refs' = (List.map Terms.binderref_from_binder def2) @ defined_refs in
 	let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
 	let (p1', def1) = insert_inso count occ ins env' defined_refs' cur_array p1 in
 	check_noninter def1 def2;
@@ -699,7 +699,7 @@ and insert_inso count occ ins env defined_refs cur_array p =
 	  let repl_indices = List.map snd bl in
 	  let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
 	  let def_list' = Terms.subst_def_list repl_indices (List.map Terms.term_from_binder vars) def_list in	  
-	  let accu_dr = ref ((List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) vars) @ defined_refs) in
+	  let accu_dr = ref ((List.map Terms.binderref_from_binder vars) @ defined_refs) in
 	  List.iter (Terms.close_def_subterm accu_dr) def_list';
 	  let defined_refs' = !accu_dr in
 	  (* I will check that the newly added definitions do not concern 
@@ -826,7 +826,7 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
   match t.t_desc with
     ResE(b,p) ->
       let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-      Terms.build_term2 t (ResE(b, replace_tfind_cond count env' ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) facts proba cur_array p))
+      Terms.build_term2 t (ResE(b, replace_tfind_cond count env' ((Terms.binderref_from_binder b)::defined_refs) facts proba cur_array p))
   | EventAbortE _ ->
       Parsing_helper.internal_error "event_abort should not occur as term"
   | TestE(t1,t2,t3) ->
@@ -836,7 +836,7 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
       Terms.build_term2 t (TestE(t1',t2',t3'))
   | LetE(pat,t1,t2,topt) ->
       let def2 = Terms.vars_from_pat [] pat in
-      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map Terms.binderref_from_binder def2) @ defined_refs in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let t2' = replace_tfind_cond count env' defined_refs' facts proba cur_array t2 in
       let topt' = 
@@ -852,7 +852,7 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
       let l0' = List.map (fun (bl, def_list, tc, p) ->
 	let vars = List.map fst bl in
 	let repl_indices = List.map snd bl in
-          let tl,proba' = 
+        let tl,proba' = 
 	    if !Settings.elsefind_facts_in_replace then
               let simp_facts, def_vars = 
 		try
@@ -865,16 +865,49 @@ and replace_tfind_cond count env defined_refs facts proba cur_array t =
               Simplify1.get_facts_of_elsefind_facts (!whole_game) (repl_indices @ cur_array) true simp_facts def_vars def_list
             else
               [],[] 
-	  in
-	let (defined_refs_tc, defined_refs_p) = Terms.defined_refs_find bl def_list defined_refs in
+	in
+	let this_branch_node = Facts.get_node t.t_facts in 
+	let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list in
+	let vars_terms = List.map Terms.term_from_binder vars in
+	let def_vars_then = Terms.subst_def_list repl_indices vars_terms def_vars_cond in
+	let defined_refs_tc = def_vars_cond @ defined_refs in
+	let defined_refs_p = def_vars_then @ (List.map Terms.binderref_from_binder vars) @ defined_refs in
 	(* Compute the environment in the then branch p *)
 	let env_p = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
 	(* Compute the environment in the condition tc *)
 	let env_tc = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
 	(* TO DO Should the probability proba' be updated when I apply the fact in the then branch p? It is computed for all values of the indices bl. In any case, the current probability is safe, as it is larger. *)
+	let count_before = !count in
 	let p' = replace_tfind_cond count env_p defined_refs_p  ((List.map (Terms.subst repl_indices (List.map Terms.term_from_binder vars)) tl) @ facts) (proba' @ proba) cur_array p in
 	let tc' = replace_tfind_cond count env_tc defined_refs_tc (tl @ facts) (proba' @ proba) cur_array tc in
-	(bl, def_list, tc', p')
+	let count_after = !count in
+	(* Update def_list if needed *)
+	let def_list' = 
+	  match count_before, count_after with
+	    RepToDo _, RepDone _ ->
+	      let accu_needed = ref [] in
+	      Terms.get_deflist_subterms accu_needed tc';
+	      (* Replace vars with repl_indices in p', to get the variable
+		 references that need to occur in the new def_list *)
+	      let bl_rev_subst = List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl in
+	      let p'_repl_indices = Terms.subst3 bl_rev_subst p' in
+	      Terms.get_deflist_subterms accu_needed p'_repl_indices;
+	      let accu_needed_subterm = ref [] in
+	      List.iter (Terms.close_def_subterm accu_needed_subterm) (!accu_needed);
+	      let needed_occur = 
+		(Facts.reduced_def_list t.t_facts 
+		   (Terms.inter_binderref (!accu_needed_subterm) def_vars_cond)) in
+	      let implied_needed_occur = Facts.def_vars_from_defined None needed_occur in
+	      let def_list'' = Terms.setminus_binderref def_list implied_needed_occur in
+	      let def_list3 = Facts.remove_subterms [] (needed_occur @ (Facts.filter_def_list [] def_list'')) in
+	      if (List.length def_list3 < List.length def_list) ||
+	         (not (Facts.eq_deflists def_list def_list3)) then
+		def_list3 
+	      else
+		def_list
+	  | _ -> def_list
+	in
+	(bl, def_list', tc', p')
 	  ) l0 
       in
       Terms.build_term2 t (FindE(l0',t3',find_info))
@@ -891,7 +924,7 @@ let rec replace_t count env defined_refs facts proba cur_array p =
       Repl(b, replace_t count env defined_refs facts proba (b::cur_array) p)
   | Input((c,tl),pat, p) ->
       let def2 = Terms.vars_from_pat [] pat in
-      let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
+      let defined_refs' = (List.map Terms.binderref_from_binder def2) @ defined_refs in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let p' = replace_to count env' defined_refs' facts proba cur_array p in
       let pat' = replace_tpat count env defined_refs facts proba cur_array pat in
@@ -907,7 +940,7 @@ and replace_to count env defined_refs facts proba cur_array p =
     | EventAbort f -> EventAbort f
     | Restr(b,p) ->
 	let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-	Restr(b, replace_to count env' ((b, List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) facts proba cur_array p)
+	Restr(b, replace_to count env' ((Terms.binderref_from_binder b)::defined_refs) facts proba cur_array p)
     | Test(t,p1,p2) ->
 	let p1' = replace_to count env defined_refs facts proba cur_array p1 in
 	let p2' = replace_to count env defined_refs facts proba cur_array p2 in
@@ -919,7 +952,7 @@ and replace_to count env defined_refs facts proba cur_array p =
 	EventP(t',p')
     | Let(pat,t,p1,p2) ->
 	let def2 = Terms.vars_from_pat [] pat in
-	let defined_refs' = (List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) def2) @ defined_refs in
+	let defined_refs' = (List.map Terms.binderref_from_binder def2) @ defined_refs in
 	let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
 	let p1' = replace_to count env' defined_refs' facts proba cur_array p1 in
 	let p2' = replace_to count env defined_refs facts proba cur_array p2 in
@@ -945,15 +978,48 @@ and replace_to count env defined_refs facts proba cur_array p =
             else
               [],[] 
 	  in
-	  let (defined_refs_t, defined_refs_p1) = Terms.defined_refs_find bl def_list defined_refs in
+	  let this_branch_node = Facts.get_node p.p_facts in 
+	  let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list in
+	  let vars_terms = List.map Terms.term_from_binder vars in
+	  let def_vars_then = Terms.subst_def_list repl_indices vars_terms def_vars_cond in
+	  let defined_refs_t = def_vars_cond @ defined_refs in
+	  let defined_refs_p1 = def_vars_then @ (List.map Terms.binderref_from_binder vars) @ defined_refs in
 	  (* Compute the environment in the then branch p1 *)
 	  let env_p1 = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
 	  (* Compute the environment in the condition t *)
 	  let env_t = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
 	  (* TO DO Should the probability proba' be updated when I apply the fact in the then branch p1? It is computed for all values of the indices bl. In any case, the current probability is safe, as it is larger. *)
+	  let count_before = !count in
 	  let p1' = replace_to count env_p1 defined_refs_p1 ((List.map (Terms.subst repl_indices (List.map Terms.term_from_binder vars)) tl) @ facts) (proba' @ proba) cur_array p1 in
 	  let t' = replace_tfind_cond count env_t defined_refs_t (tl @ facts) (proba' @ proba) cur_array t in
-	  (bl, def_list, t', p1')
+	  let count_after = !count in
+	  (* Update def_list if needed *)
+	  let def_list' = 
+	    match count_before, count_after with
+	      RepToDo _, RepDone _ ->
+		let accu_needed = ref [] in
+		Terms.get_deflist_subterms accu_needed t';
+	        (* Replace vars with repl_indices in p1', to get the variable
+		   references that need to occur in the new def_list *)
+		let bl_rev_subst = List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl in
+		let p1'_repl_indices = Terms.subst_oprocess3 bl_rev_subst p1' in
+		Terms.get_deflist_oprocess accu_needed p1'_repl_indices;
+		let accu_needed_subterm = ref [] in
+		List.iter (Terms.close_def_subterm accu_needed_subterm) (!accu_needed);
+		let needed_occur = 
+		  (Facts.reduced_def_list p.p_facts 
+		     (Terms.inter_binderref (!accu_needed_subterm) def_vars_cond)) in
+		let implied_needed_occur = Facts.def_vars_from_defined None needed_occur in
+		let def_list'' = Terms.setminus_binderref def_list implied_needed_occur in
+		let def_list3 = Facts.remove_subterms [] (needed_occur @ (Facts.filter_def_list [] def_list'')) in
+		if (List.length def_list3 < List.length def_list) ||
+	        (not (Facts.eq_deflists def_list def_list3)) then
+		  def_list3 
+		else
+		  def_list
+	    | _ -> def_list
+	  in
+	  (bl, def_list', t', p1')
 	  ) l0 
 	in
 	Find(l0',p3',find_info)

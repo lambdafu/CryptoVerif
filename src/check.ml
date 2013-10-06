@@ -44,11 +44,11 @@ let rec check_def_term defined_refs t =
 	check_def_term defined_refs_t2 t2) l0;
       check_def_term defined_refs t3
   | ResE(b,t) ->
-      check_def_term ((b,List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) t
+      check_def_term ((Terms.binderref_from_binder b)::defined_refs) t
   | EventAbortE(f) -> ()
 
 and check_def_pat accu defined_refs = function
-    PatVar b -> accu := (b, List.map Terms.term_from_repl_index b.args_at_creation) :: (!accu)
+    PatVar b -> accu := (Terms.binderref_from_binder b) :: (!accu)
   | PatTuple (f,l) ->
       List.iter (check_def_pat accu defined_refs) l
   | PatEqual t -> check_def_term defined_refs t
@@ -84,7 +84,7 @@ and check_def_oprocess defined_refs p =
   match p.p_desc with
     Yield | EventAbort _ -> ()
   | Restr(b,p) ->
-      check_def_oprocess ((b,List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) p
+      check_def_oprocess ((Terms.binderref_from_binder b)::defined_refs) p
   | Test(t,p1,p2) ->
       check_def_term defined_refs t;
       check_def_oprocess defined_refs p1;
@@ -310,23 +310,23 @@ let rec check_def_funterm defined_refs t =
 	check_def_funterm defined_refs_t2 t2) l0;
       check_def_funterm defined_refs t3
   | ResE(b,t) ->
-      check_def_funterm ((b,List.map Terms.term_from_repl_index b.args_at_creation)::defined_refs) t
+      check_def_funterm ((Terms.binderref_from_binder b)::defined_refs) t
   | EventAbortE(f) -> ()
 
 and check_def_pat accu defined_refs = function
-    PatVar b -> accu := (b, List.map Terms.term_from_repl_index b.args_at_creation) :: (!accu)
+    PatVar b -> accu := (Terms.binderref_from_binder b) :: (!accu)
   | PatTuple (f,l) ->
       List.iter (check_def_pat accu defined_refs) l
   | PatEqual t -> check_def_funterm defined_refs t
 
 let rec check_def_fungroup def_refs = function
     ReplRestr(repl, restr, funlist) ->
-      List.iter (check_def_fungroup ((List.map (fun (b,_) -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) restr) @ def_refs)) funlist
+      List.iter (check_def_fungroup ((List.map (fun (b,_) -> Terms.binderref_from_binder b) restr) @ def_refs)) funlist
   | Fun(ch, args, res, priority) ->
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
       get_arg_array_ref index_args array_ref_args res;
-      check_def_funterm ((List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) args) @ (!array_ref_args) @ def_refs) res
+      check_def_funterm ((List.map Terms.binderref_from_binder args) @ (!array_ref_args) @ def_refs) res
 
 let check_def_member l =
   let rec st_node = { above_node = st_node; binders = []; 
