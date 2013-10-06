@@ -233,29 +233,29 @@ let check_oracle_compatibility name (rt, o) (rt', o') =
   if (rt <> rt') then
     match !Settings.front_end with
       | Settings.Channels ->
-          error ("The outputs following inputs "^name^
-                    " have not the same type")
+          error ("The outputs following inputs on channel "^name^
+                    " do not have the same type")
       | Settings.Oracles ->
           error ("The oracle "^name^
-                    " has not the same return types everywhere")
+                    " does not have the same return types everywhere")
   else if (o <> o') then
     match !Settings.front_end with
       | Settings.Channels ->
-          error ("The inputs after outputs after inputs "^name^
+          error ("The input channels after outputs after inputs on channel "^name^
                     " are not the same everywhere")
       | Settings.Oracles ->
           error ("The oracle "^name^
-                    " has not the same next oracles everywhere")
+                    " does not have the same next oracles everywhere")
 
 let check_argument_type_compatibility name at at' =
   if (at <> at') then
     match !Settings.front_end with
       | Settings.Channels ->
-          error ("The arguments of input "^name^
-                    " have not the same types everywhere")
+          error ("The messages of inputs on channel "^name^
+                    " do not have the same types everywhere")
       | Settings.Oracles ->
           error ("The arguments of oracle "^name^
-                    " have not the same types everywhere")
+                    " do not have the same types everywhere")
 
 let type_append = 
   StringMap.fold 

@@ -544,9 +544,9 @@ let warn_replication_same_name p =
       try
         let witness = Hashtbl.find param_tbl param in
         Parsing_helper.input_warning
-          (Printf.sprintf "%s reuses its parameter %s with %s at %s. \
+          (Printf.sprintf "%s uses the same parameter %s as %s at %s. \
           Avoid reusing parameters for multiple %s to avoid losing precision \
-          in the probability bound." repl param repl' (file_position witness) repl'')
+          in the probability bound." repl param repl' (in_file_position loc witness) repl'')
           loc
       with Not_found -> ()
     end;
@@ -588,7 +588,7 @@ let warn_parallel_or_replication_after_replication i =
          losing precision in the probability bound, you should \
          rather put a distinct replication above each component \
          of the parallel composition."
-         (file_position locp)
+         (in_file_position locr locp)
          repl)
       locr
   in
@@ -597,7 +597,7 @@ let warn_parallel_or_replication_after_replication i =
       (Printf.sprintf "Useless %s at %s after %s. Avoid this to \
          avoid losing precision in the probability bound."
          repl
-         (file_position locr1)
+         (in_file_position locr2 locr1)
          repl)
       locr2
   in

@@ -18,6 +18,9 @@ val user_error : string -> 'a
 val internal_error : string -> 'a
 (* Get a string representation of an extent. *)
 val file_position : extent -> string
+(* Get a string representation of the second extent, without displaying the
+   file name when it is equal to the file given in the first extent. *)
+val in_file_position : extent -> extent -> string
 
 (*String parsing*)
 val clear_buffer : unit -> unit

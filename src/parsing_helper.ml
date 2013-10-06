@@ -48,6 +48,21 @@ let display_error mess (loc_start, loc_end) =
       loc_end.pos_cnum
       mess
 
+let in_file_position (def_start,_) (loc_start, loc_end) =
+  if loc_start.pos_cnum = -1 then
+    "<unknown>"
+  else
+    if loc_start.pos_fname = def_start.pos_fname then
+      Printf.sprintf "line %d, character %d - line %d, character %d"
+	loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
+	loc_end.pos_lnum (loc_end.pos_cnum - loc_end.pos_bol+1)
+    else
+      Printf.sprintf "file \"%s\", line %d, character %d - line %d, character %d"
+	loc_start.pos_fname
+	loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
+	loc_end.pos_lnum (loc_end.pos_cnum - loc_end.pos_bol+1)
+
+
 let file_position (loc_start, loc_end) =
   if loc_start.pos_cnum = -1 then
     "<unknown>"
