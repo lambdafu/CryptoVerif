@@ -16,7 +16,7 @@ dbg: cryptoverif_dbg
 	ocamllex $<
 
 %.ml %.mli: %.mly
-	ocamlyacc $<
+	ocamlyacc -v $<
 
 cryptoverif:$(OBJECTSOPT)
 	ocamlopt -o cryptoverif str.cmxa $(OBJECTSOPT)

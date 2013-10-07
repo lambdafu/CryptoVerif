@@ -103,6 +103,7 @@ let dummy_channel = ("@dummy_channel", dummy_ext)
 %left MUL DIV
 %nonassoc EQUAL
 %nonassoc DIFF
+%nonassoc REPL
 
 %start all
 %type <Ptree.decl list * Ptree.process_e> all
@@ -454,9 +455,9 @@ process:
 	{ $2 }
 |	IDENT
 	{ PLetDef $1, parse_extent() }
-|	REPL IDENT process
+|	REPL IDENT process %prec REPL
 	{ PRepl (ref None,None,$2,$3), parse_extent() }
-|	REPL IDENT LEQ IDENT process
+|	REPL IDENT LEQ IDENT process %prec REPL
 	{ PRepl (ref None,Some $2,$4,$5), parse_extent() }
 |	INT 
 	{ let x = $1 in

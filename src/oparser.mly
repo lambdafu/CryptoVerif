@@ -106,6 +106,7 @@ let return_channel = dummy_channel
 %left MUL DIV
 %nonassoc EQUAL
 %nonassoc DIFF
+%nonassoc FOREACH
 
 %start all
 %type <Ptree.decl list * Ptree.process_e> all
@@ -452,7 +453,7 @@ process:
 	{ $2 }
 |	IDENT
 	{ PLetDef $1, parse_extent() }
-|	FOREACH IDENT LEQ IDENT DO process
+|	FOREACH IDENT LEQ IDENT DO process %prec FOREACH
 	{ PRepl (ref None,Some $2,$4,$6), parse_extent() }
 |	INT 
 	{ let x = $1 in
