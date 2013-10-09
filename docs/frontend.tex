@@ -89,7 +89,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \fi
 &\pht \texttt{let } \nonterm{pattern} \texttt{ = }\nonterm{term}\texttt{ in }\nonterm{term}\ [\texttt{else }\nonterm{term}]\\
 &\pht \texttt{if }\nonterm{cond}\texttt{ then } \nonterm{term} \texttt{ else }\nonterm{term}\\
-&\pht \texttt{find }\nonterm{tfindbranch}\ (\texttt{orfind }\nonterm{tfindbranch})^*\texttt{ else }\nonterm{term}\\
+&\pht \texttt{find}[\texttt{[unique]}]\ \nonterm{tfindbranch}\ (\texttt{orfind }\nonterm{tfindbranch})^*\texttt{ else }\nonterm{term}\\
 &\pht \texttt{event\string_abort }\nonterm{ident}\\
 &\nonterm{varref} ::= \nonterm{ident}\texttt{[}\seq{simpleterm}\texttt{]}\\
 &\phantom{\nonterm{varref} =}\mid \nonterm{ident}\\
@@ -198,7 +198,7 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 &\phop \texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ 
 [\texttt{in }\oprocess\ [\texttt{else }\oprocess]]\\
 &\phop \texttt{if }\nonterm{cond}\texttt{ then }\oprocess\ [\texttt{else }\oprocess]\\
-&\phop \texttt{find }\nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^* \ [\texttt{else }\oprocess]\\
+&\phop \texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^* \ [\texttt{else }\oprocess]\\
 &\phop \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\ [\texttt{; }\oprocess]\\
 &\phop \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\oprocess\ [\texttt{else }\oprocess]\\
 &\phop \ifchannels\texttt{out(}\nonterm{channel}\texttt{, }\nonterm{term}\texttt{)}\else \texttt{return(}\seq{term}\texttt{)}\fi[\texttt{; }\iprocess]\\
@@ -611,6 +611,14 @@ Internally, CryptoVerif distinguishes two variables for each index
 of ${\tt find}$, so that the syntax of a {\tt find} branch becomes
 $FB_j = u_{j1} = u'_{j1} \texttt{<=} n_{j1}, \ldots, u_{jm_j} = u'_{jm_j} \texttt{<=} n_{jm_j}$ $\texttt{suchthat}$ $\texttt{defined(}M_{j1}, \allowbreak\ldots,\allowbreak M_{jl_j}\texttt{)}$ $\&\&$ $M_j$ $\texttt{then}$ $P_j$. The variables $u'_{j1}, \ldots, u'_{jm_j}$ are considered as replication indices, and are used in the $\texttt{defined}$ condition and in $M_j$: they are temporary variables that are used as loop indices to look for indices that satisfy the desired conditions. Once suitable indices are found, their value is stored in $u_{j1}, \ldots, u_{jm_j}$ and the \texttt{then} branch is executed using these variables. It is possible to make array accesses to $u_{j1}, \ldots, u_{jm_j}$ (such as $u_{j1}[M_1, \ldots, M_k]$) elsewhere in the game, which is not possible for $u'_{j1}, \ldots, u'_{jm_j}$.
 
+A variant of {\tt find} is {\tt find[unique]}. 
+Consider the process 
+$\texttt{find[unique]}$ $FB_1$ \texttt{orfind} \ldots \texttt{orfind} $FB_m$ \texttt{else} $P$
+where $FB_j = u_{j1} \texttt{<=} n_{j1}, \ldots, u_{jm_j} \texttt{<=} n_{jm_j}$ $\texttt{suchthat}$ $\texttt{defined(}M_{j1}, \ldots, M_{jl_j}\texttt{)}$ $\texttt{\&\&}$ $M_j$ \texttt{then} $P_j$.
+When there are several values of $j, u_{j1}, \ldots, u_{jm_j}$ for which 
+$M_{j1}, \ldots, M_{jl_j}$ are defined and $M_j$ is true, this process executes an event $\mathsf{NonUnique}$ and aborts the game. In all other cases, it behaves as {\tt find}.
+Intuitively, {\tt find[unique]} should be used when there is a negligible probability of finding several suitable values of $j, u_{j1}, \ldots, u_{jm_j}$. The construct {\tt find[unique]} is typically not used in the initial game. (One would have to prove manually that there is indeed a negligible probabibility of finding several suitable values of $j, u_{j1}, \ldots, u_{jm_j}$. CryptoVerif displays a warning if {\tt find[unique]} occurs in the initial game.) However, {\tt find[unique]} is used in the specification of cryptographic primitives, in the right-hand of equivalences specified by \texttt{equiv}. 
+
 \item \texttt{insert} $\mathit{tbl}\texttt{(}M_1, \ldots, M_n\texttt{)}; P$
 inserts the tuples $(M_1, \ldots, M_n)$ in the table $\mathit{tbl}$, 
 then executes $P$.
@@ -912,24 +920,23 @@ When it is set to {\tt true}, simplification often undoes
 \item \texttt{set uniqueBranch = true.}\\
 \texttt{set uniqueBranch = false.}
 
-We say that a {\tt find} is \emph{unique} when there is at most
-one branch and one value of the indices that we look up,
-for which the conditions are true.
-When {\tt uniqueBranch = true} and some {\tt find}s are proved to be unique,
-several transformations are enabled as part of {\tt simplify}:
+% We say that a {\tt find} is \emph{unique} when there is at most
+% one branch and one value of the indices that we look up,
+% for which the conditions are true.
+When {\tt uniqueBranch = true}, several transformations are 
+enabled as part of {\tt simplify}:
 \begin{itemize}
 \item 
-If a branch of a {\tt find} is proved to succeed and that {\tt find}
-is unique, then simplification removes all other branches of that {\tt
-find}.
+If a branch of a {\tt find[unique]} is proved to succeed, 
+then simplification removes all other branches of that {\tt find}.
 
 \item
-If a {\tt find} occurs in the {\tt then} branch of a {\tt find} 
-and both {\tt find}s are unique, we reorganize them.
+If a {\tt find[unique]} occurs in the {\tt then} branch 
+of a {\tt find[unique]}, we reorganize them.
 
 \item 
-If a {\tt find} occurs in the condition of a {\tt find} and the
-inner {\tt find} is unique, we reorganize them.
+If a {\tt find[unique]} occurs in the condition of a {\tt find}, 
+we reorganize them.
 
 \end{itemize}
 When {\tt uniqueBranch = false}, these transformations are not performed. 
@@ -1498,10 +1505,10 @@ bounds. Functions in $L$ (resp. $R$) must have pairwise distinct names.
 
 Finds in $R$ are of the form
 \[\begin{split}
-&\texttt{find }\ldots\texttt{ orfind }u_1 \texttt{ <= } N_1, \ldots, 
-u_m \texttt{ <= }N_m
-\texttt{ suchthat defined(}z_1[\tup{u_1}], \ldots, z_l[\tup{u_l}]\texttt{) \&\& }M\\
-&\texttt{then }FP \ldots \texttt{ else }FP'
+&\texttt{find}[\texttt{[unique]}]\ \ldots\\
+&\texttt{orfind }u_1 \texttt{ <= } N_1, \ldots, u_m \texttt{ <= }N_m
+\texttt{ suchthat defined(}z_1[\tup{u_1}], \ldots, z_l[\tup{u_l}]\texttt{) \&\& }M\texttt{ then }FP\\
+&\ldots \texttt{ else }FP'
 \end{split}\]
 where $\tup{u_k}$ is a non-empty
 prefix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
