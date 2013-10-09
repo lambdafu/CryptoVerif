@@ -3,6 +3,10 @@ of the cryptographic protocol verifier.
 
 Version 1.17
 
+- warnings when one uses a replication above another replication or
+a parallel composition. Changed priorities in the parser, so that
+(!N P1 | !N P2) is interpreted as ((!N P1) | (!N P2)) and not as
+(!N (P1 | !N P2)).
 - support for equational theories using the declaration "equation".
 This new declaration leads to two incompatible changes:
    - the declaration "fun f(T,T):T' [commut]." should now be written
