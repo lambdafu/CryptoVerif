@@ -371,6 +371,13 @@ let rec check_lm_term t =
   | (TestE _ | FindE _ | ResE _ | EventAbortE _) ->
       Parsing_helper.input_error "if, find, new and event forbidden in left member of equivalences" t.t_loc
 
+let rec reduce_rec t =
+  let reduced = ref false in
+  let t' = Terms.apply_eq_reds Terms.try_no_var_id reduced t in
+  if !reduced then 
+    reduce_rec t'
+  else t
+      
 let rec check_lm_fungroup = function
     ReplRestr(repl, restr, funlist) ->
       let funlist' = List.map check_lm_fungroup funlist in
@@ -378,7 +385,12 @@ let rec check_lm_fungroup = function
   | Fun(ch, args, res, priority) ->
       let res' = check_lm_term res in
       Terms.cleanup();
-      Fun(ch, args, res', priority)
+      let res'' = reduce_rec res' in
+      List.iter (fun arg ->
+	if not (Terms.refers_to arg res'') then
+	  Parsing_helper.input_error ("After simplification, variable " ^ arg.sname ^ " is not used in this term") res.t_loc
+	  ) args;
+      Fun(ch, args, res'', priority)
 
 
 (* Check and simplify the right member of equivalences 

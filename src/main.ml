@@ -1,7 +1,7 @@
 open Types
 
 let front_end_set = ref false
-let dir_sep = "/" (* Filename.dir_sep exists only in Ocaml >= 3.11.2 and 
+let dir_sep = "/" (* Filename.dir_sep exists only in OCaml >= 3.11.2 and 
 		     OCaml MinGW exists only in OCaml 3.11.0... *)
 
 let ends_with s sub =
@@ -29,6 +29,15 @@ let do_implementation impl =
 
 
 (* Prepare the equation statements given by the user *)
+
+let rec get_vars accu t =
+  match t.t_desc with
+    Var(b,[]) -> 
+      if not (List.memq b (!accu)) then 
+	accu := b :: (!accu)
+  | FunApp(_,l) ->
+      List.iter (get_vars accu) l
+  | _ -> Parsing_helper.internal_error "statement terms should contain only Var and FunApp\n"
 
 let simplify_statement (vl, t) =
   let glob_reduced = ref false in
@@ -82,6 +91,18 @@ let simplify_statement (vl, t) =
     in
     match tnew.t_desc with
       FunApp(f, [t1;t2]) when f.f_cat == Equal ->
+	let vars = ref [] in
+	get_vars vars t2;
+	if not (List.for_all (fun b ->
+	  Terms.refers_to b t1
+	  ) (!vars)) then
+	  begin
+	    print_string "Error in simplified statement ";
+	    Display.display_term t1;
+	    print_string " = ";
+	    Display.display_term t2;
+	    Parsing_helper.user_error ": all variables of the right-hand side should occur in the left-hand side.\n"
+	  end;	  
 	record_statement ([], vl, t1, Zero, t2)
     | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
 	record_statement ([], vl, tnew, Zero, Terms.make_true());
