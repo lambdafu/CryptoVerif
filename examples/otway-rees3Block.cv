@@ -3,6 +3,8 @@
    of the same cryptographic rule.
 *)
 
+(* Improved fact collection is too slow on this example, disable it. *)
+set improvedFactCollection = false.
 
 param N.
 param N2.

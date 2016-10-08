@@ -57,6 +57,7 @@ of the Caml standard library
 - or modify the variable CRYPTOKIT in the scripts
 implementation/npsk/build.sh
 implementation/wlsk/build_wlsk.sh
+implementation/ssh/build.sh
 so that the cryptokit library is included.
 
 USAGE

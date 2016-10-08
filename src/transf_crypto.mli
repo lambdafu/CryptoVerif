@@ -1,5 +1,7 @@
 open Types
 
+val display_failure_reason : failure_reason -> unit
+
 (* [crypto_transform stop no_advice e bl g] applies an equivalence e coming 
    from the definition of a cryptographic primitive to game g 
    bl is the list of names in p that correspond to names defined at the
@@ -14,5 +16,6 @@ open Types
    which guarantees that by calling [Transf_auto_sa_rename.auto_sa_rename].
 *)
 
-val crypto_transform : bool -> bool -> equiv_nm -> binder list -> game -> trans_res
+val crypto_transform : bool -> equiv_nm -> crypto_transf_user_info ->
+  game -> trans_res
 

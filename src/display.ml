@@ -1,5 +1,31 @@
 open Types
 
+(* Allow changing the output destination *)
+  
+let output = ref (stdout : out_channel)
+
+let print_string s =
+  output_string (!output) s
+
+let print_int i =
+  print_string (string_of_int i)
+    
+let print_float f =
+  print_string (string_of_float f)
+
+let print_newline() =
+  print_string "\n";
+  flush (!output)
+    
+let file_out filename f =
+  let old_output = !output in
+  let file = open_out filename in
+  output := file;
+  f();
+  close_out file;
+  output := old_output
+
+       
 let display_occurrences = ref false
 let useful_occs = ref []
 
@@ -56,6 +82,34 @@ let repl_index_to_string b =
 let display_repl_index b =
   print_string (repl_index_to_string b)
 
+(* Define when to put parentheses around infix symbols *)
+
+type infix_paren =
+    NoInfix
+  | AllInfix
+  | AllInfixExcept of funsymb
+
+(* Define when to put parentheses around process-like terms 
+   (TestE, ResE, LetE, FindE, EventAbortE) *)
+
+type process_paren =
+    NoProcess
+  | AllProcess
+  | ProcessMayHaveElseBranch
+
+(* [may_have_elset t] returns true when the term [t] may have an
+   "else" branch, so needs to be put between parentheses when [t]
+   is itself inside a term that may have an else branch. *)
+
+let rec may_have_elset t =
+  match t.t_desc with
+    ReplIndex _ | Var _ | FunApp _ -> false 
+           (* An infix operator inside a process will be between parentheses; 
+	      no need to add further parentheses *)
+  | TestE _ | FindE _ | LetE _ -> true
+  | ResE(_,t') -> may_have_elset t'
+  | EventAbortE _ -> false
+
 let rec display_var b tl =
   let tl = 
     if !display_arrays then tl else 
@@ -65,7 +119,7 @@ let rec display_var b tl =
   if tl != [] then
     begin
       print_string "[";
-      display_list display_term tl;
+      display_list (display_term_paren AllInfix AllProcess) tl;
       print_string "]"
     end
   
@@ -107,19 +161,13 @@ and display_findcond (def_list, t1) =
       if not (Terms.is_true t1) then
 	begin
 	  print_string " && ";
-	  display_term t1
+	  display_term_paren (AllInfixExcept Settings.f_and) AllProcess t1
 	end
     end
   else
-    display_term t1
+    display_term_paren NoInfix AllProcess t1
 
 and display_term t = 
-  if (!display_occurrences) || (List.memq t.t_occ (!useful_occs)) then
-    begin
-      print_string "{";
-      print_int t.t_occ;
-      print_string "}"
-    end;
   match t.t_desc with
     Var(b,tl) -> display_var b tl
   | ReplIndex b -> display_repl_index b
@@ -134,33 +182,40 @@ and display_term t =
 	    if (l != []) || (f.f_cat == Tuple) then
 	      begin
 		print_string "(";
-		display_list display_term l;
+		display_list (display_term_paren AllInfix AllProcess) l;
 		print_string ")"
 	      end
-	| LetEqual | Equal | Diff | ForAllDiff | Or | And ->
+	| LetEqual | Equal | Diff | ForAllDiff ->
+	    begin
 	    match l with
 	      [t1;t2] -> 
-		print_string "(";
-		display_term t1;
+		display_term_paren AllInfix AllProcess t1;
 		print_string (" " ^ f.f_name ^ " ");
-		display_term t2;
-		print_string ")"
+		display_term_paren AllInfix AllProcess t2
+	    | _ -> Parsing_helper.internal_error "Infix operators need two arguments (display)"
+	    end
+	| Or | And ->
+	    match l with
+	      [t1;t2] -> 
+		display_term_paren (AllInfixExcept f) AllProcess t1;
+		print_string (" " ^ f.f_name ^ " ");
+		display_term_paren (AllInfixExcept f) AllProcess t2
 	    | _ -> Parsing_helper.internal_error "Infix operators need two arguments (display)"
       end
   | TestE(t1,t2,t3) ->
       print_string "if ";
-      display_term t1;
+      display_term_paren NoInfix AllProcess t1;
       print_string " then ";
-      display_term t2;
+      display_term_paren AllInfix ProcessMayHaveElseBranch t2;
       print_string " else ";
-      display_term t3
+      display_term_paren AllInfix NoProcess t3
   | FindE([([],def_list,t1,t2)],t3,find_info) ->
       print_string "if ";
       display_findcond (def_list,t1);
       print_string " then ";
-      display_term t2;
+      display_term_paren AllInfix ProcessMayHaveElseBranch t2;
       print_string " else ";
-      display_term t3
+      display_term_paren AllInfix NoProcess t3
   | FindE(l0, t3, find_info) ->
       let first = ref true in
       print_string "find ";
@@ -174,31 +229,31 @@ and display_term t =
 	print_string " suchthat ";
 	display_findcond (def_list, t1);
 	print_string " then ";
-	display_term t2) l0;
+	display_term_paren AllInfix ProcessMayHaveElseBranch t2) l0;
       print_string " else ";
-      display_term t3      
+      display_term_paren AllInfix NoProcess t3      
   | LetE(pat, t1, t2, topt) ->
       begin
 	match pat with
-	  PatVar b when (!Settings.front_end) == Settings.Oracles ->
+	  PatVar b when ((!Settings.front_end) == Settings.Oracles) && (topt == None) ->
 	    display_binder_with_type b;
 	    print_string " <- ";
-	    display_term t1;
+	    display_term_paren NoInfix AllProcess t1;
 	    print_string "; ";	    
 	| _ ->
 	    print_string "let ";
 	    display_pattern pat;
 	    print_string " = ";
-	    display_term t1;
+	    display_term_paren NoInfix AllProcess t1;
 	    print_string " in "
       end;
       begin
-	display_term t2;
+	display_term_paren AllInfix ProcessMayHaveElseBranch t2;
 	match topt with
 	  None -> ()
 	| Some t3 ->
 	    print_string " else ";
-	    display_term t3      
+	    display_term_paren AllInfix NoProcess t3      
       end
   | ResE(b,t) ->
       if (!Settings.front_end) == Settings.Oracles then
@@ -213,11 +268,55 @@ and display_term t =
 	  display_binder_with_type b
 	end;
       print_string "; ";
-      display_term t
+      display_term_paren AllInfix NoProcess t
   | EventAbortE(f) ->
       print_string "event_abort ";
       print_string f.f_name
       
+and display_term_paren infix_paren process_paren t =
+  let infix_paren' = 
+    if (!display_occurrences) || (List.memq t.t_occ (!useful_occs)) then
+      begin
+	print_string "{";
+	print_int t.t_occ;
+	print_string "}";
+	(* When we show the occurrence of an infix term, this
+	   term must always be between parentheses (otherwise,
+	   we cannot know whether the occurrence refers to the
+	   whole infix term or to its first argument). *)
+	AllInfix
+      end
+    else
+      infix_paren
+  in
+  let put_paren =
+    match t.t_desc with
+      Var _ | ReplIndex _ 
+    | FunApp({ f_cat = Std | Tuple | Event | LetFunTerm _ },_) -> false
+    | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
+	begin
+	  match infix_paren' with
+	    NoInfix -> false
+	  | AllInfix -> true
+	  | AllInfixExcept f' -> f != f'
+	end
+    | TestE _ | ResE _ | FindE _ | LetE _ | EventAbortE _ ->
+	begin
+	  match process_paren with
+	    NoProcess -> false
+	  | AllProcess -> true
+	  | ProcessMayHaveElseBranch -> may_have_elset t
+	end
+  in
+  if put_paren then 
+    begin
+      print_string "(";
+      display_term t;
+      print_string ")"
+    end
+  else
+    display_term t
+
 (* Patterns *)
 
 and display_pattern = function
@@ -230,7 +329,11 @@ and display_pattern = function
       print_string ")"
   | PatEqual t ->
       print_string "=";
-      display_term t
+      display_term_paren AllInfix AllProcess t
+
+(* Display term with appropriate parentheses around *)
+
+let display_term t = display_term_paren AllInfix AllProcess t
 
 (* Statements *)
 
@@ -824,6 +927,7 @@ and display_oprocess indent p =
 	else
 	  display_oprocess_paren indent p1
 	  ) l0;
+      if l0 == [] then print_string "\n";
       if p2.p_desc != Yield then
 	begin
 	  occ_space();
@@ -848,7 +952,7 @@ and display_oprocess indent p =
   | Let(pat,t,p1,p2) ->
       begin
 	match pat with
-	  PatVar b when (!Settings.front_end) == Settings.Oracles ->
+	  PatVar b when ((!Settings.front_end) == Settings.Oracles) && (p2.p_desc = Yield) ->
 	    print_string indent;
 	    display_binder_with_type b;
 	    print_string " <- ";
@@ -959,6 +1063,8 @@ let display_rem_set = function
       display_binder b
   | Minimal -> 
       print_string "useless"
+  | FindCond -> 
+      print_string "findcond"
 
 let display_move_set = function
     MAll -> print_string "all binders"
@@ -973,6 +1079,40 @@ let display_move_set = function
 let display_bl_assoc bl_assoc =
   display_list display_binder bl_assoc
 
+let display_user_info = function
+    VarList(l,stop) ->
+      display_list display_binder l;
+      if stop then print_string "."
+  | Detailed(vmopt,tmopt) ->
+      begin
+      match vmopt with
+	None -> ()
+      | Some(vm,vl,stop) ->
+	  print_string "variables: ";
+	  display_list (fun (b1,b2) -> display_binder b1; print_string " -> "; display_binder b2) vm;
+	  if vm != [] && vl != [] then print_string ", ";
+	  display_list display_binder vl;
+	  if stop then print_string ".";
+	  if tmopt != None then print_string ";"
+      end;
+      begin
+      match tmopt with
+	None -> ()
+      | Some(tm,stop) ->
+	  print_string "terms: ";
+	  display_list (fun (occ,t) -> print_int occ; print_string " -> "; display_term t) tm;
+	  if stop then print_string "."
+      end
+	      
+    
+let display_with_user_info user_info =
+  match user_info with
+    VarList([],_) | Detailed((None | Some([],[],_)), (None | Some([],_))) -> ()
+  | _ ->
+      print_string "with ";
+      display_user_info user_info
+
+    
 let rec display_query1 = function
     [] -> Parsing_helper.internal_error "List should not be empty"
   | [b,t] -> 
@@ -1050,14 +1190,10 @@ let display_instruct = function
   | SArenaming b -> 
       print_string "SA rename ";
       display_binder b
-  | CryptoTransf(e, bl_assoc) -> 
+  | CryptoTransf(e, user_info) -> 
       print_string "equivalence ";
       display_equiv_with_name e;
-      if bl_assoc != [] then
-	begin
-	  print_string "with ";
-	  display_bl_assoc bl_assoc
-	end
+      display_with_user_info user_info
   | InsertEvent(s,occ) ->
       print_string ("insert event " ^ s ^ " at occurrence " ^ (string_of_int occ))
   | InsertInstruct(s,ext_s,occ,ext_o) ->
@@ -1646,9 +1782,19 @@ let display_simplif_step = function
       print_string "    - Remove random number generation at ";
       print_int p.p_occ;      
       print_newline()
+  | SResToAssign(p) ->
+      print_string "    - Transform unused random number generation at ";
+      print_int p.p_occ;
+      print_string " into constant assignment";
+      print_newline()
   | SResERemoved(t) ->
       print_string "    - Remove random number generation at ";
       print_int t.t_occ;
+      print_newline()
+  | SResEToAssign(t) ->
+      print_string "    - Transform unused random number generation at ";
+      print_int t.t_occ;
+      print_string " into constant assignment";
       print_newline()
 
 let display_detailed_ins = function
@@ -1706,14 +1852,10 @@ let display_detailed_ins = function
       print_string "  - Move assignment to ";
       display_binder b;
       print_newline()      
-  | DCryptoTransf(e, bl_assoc) ->
+  | DCryptoTransf(e, user_info) ->
       print_string "  - Equivalence ";
       display_equiv_with_name e;
-      if bl_assoc != [] then
-	begin
-	  print_string "with ";
-	  display_bl_assoc bl_assoc
-	end;
+      display_with_user_info user_info;
       print_newline()
   | DInsertEvent _  | DInsertInstruct _ 
   | DReplaceTerm _  | DMergeArrays _ ->
@@ -1783,8 +1925,8 @@ let mark_occs_simplif_step f_p f_t = function
   | SFindinFindECondition(t, t') | SFindinFindEBranch(t,t') -> f_t t; f_t t'
   | SLetElseRemoved(p) | SLetRemoved(p) | SLetSimplifyPattern(p, _,_) -> f_p p
   | SLetEElseRemoved(t) | SLetERemoved(t) | SLetESimplifyPattern(t,_,_) -> f_t t
-  | SResRemoved(p) -> f_p p
-  | SResERemoved(t) -> f_t t
+  | SResRemoved(p) | SResToAssign(p) -> f_p p
+  | SResERemoved(t) | SResEToAssign(t) -> f_t t
 
 let mark_occs1 f_p f_t = function
     DExpandGetInsert(_) | DExpandIfFind | DGlobalDepAnal _ 

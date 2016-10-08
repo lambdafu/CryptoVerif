@@ -43,7 +43,7 @@ let simplify_statement (vl, t) =
   let glob_reduced = ref false in
   let rec reduce_rec t =
     let reduced = ref false in
-    let t' = Terms.apply_eq_reds Terms.try_no_var_id reduced t in
+    let t' = Terms.apply_eq_reds Terms.simp_facts_id reduced t in
     if !reduced then 
       begin
 	glob_reduced := true;

@@ -54,7 +54,8 @@ Game transformations:
 - transf_globaldepanal.ml: implements global dependency analysis. Called from
   transf_simplify.ml or by an independent manual game transformation.
 - transf_simplify.ml simplifies games after cryptographic transformations
-- insertinstruct.ml: implements the following manual game transformations:
+- transf_insert_replace.ml: implements the following manual game 
+  transformations:
   - insert_instruct: inserts an instruction at a certain program point
   - replace_term: replaces a term with an equal term
 - transf_merge.ml: implements the following game transformations:
@@ -63,8 +64,14 @@ Game transformations:
   This module also provides helper functions for transf_simplify.ml, which are
   used to merge branches of if/let/find in simplify (in a less powerful
   way than merge_branches).
-- reduce_tables.ml: transforms get/insert in tables into find.
+- transf_tables.ml: transforms get/insert in tables into find.
+
 - success.ml: Tests if a game satisfies the desired security properties
+Uses:
+  - check_corresp.ml to verify correspondence assertions
+  - check_distinct.ml to verify secrecy, knowing that one-session secrecy
+  already holds.
+  (one-session secrecy is checked in success.ml itself)
 
 display.ml: display games
 displaytex.ml: display games in TeX

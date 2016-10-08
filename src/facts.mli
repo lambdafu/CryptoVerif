@@ -8,13 +8,9 @@ open Types
    can be used as facts *)
 val filter_ifletfindres : term list -> term list
 
-(* [try_no_var facts t] tries to transform [t] into a term that
-   is not a variable, using the equalities in [facts] *)
-val try_no_var : simp_facts -> term -> term
-
 (* match_term is an intermediate function used for apply_reds. It is exported
    because we need to compute a variant of apply_reds in dependency analyses. *)
-val match_term : (term -> term) -> binder list -> (unit -> 'a) -> term -> term -> unit -> 'a
+val match_term : simp_facts -> binder list -> (unit -> 'a) -> term -> term -> unit -> 'a
 
 (* set to true by the functions below when they reduce the term *)
 val reduced : bool ref
@@ -28,13 +24,13 @@ val reduced : bool ref
    when [t] has really been modified.
    [try_no_var t] must simplify the term [t] by replacing variables
    with their values according to currently known facts. *)
-val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> (term -> term) -> term -> term
+val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> simp_facts -> term -> term
 
 (* [apply_eq_statements_subterms_once try_no_var t] simplifies
    the term [t] using the equalities coming from the
    equational theories and the equality statements given in the input file.
    [try_no_var] is as above. *)
-val apply_eq_statements_subterms_once : (term -> term) -> term -> term
+val apply_eq_statements_subterms_once : simp_facts -> term -> term
 
 (* [apply_reds simp_facts t] applies all equalities coming from the
    equational theories, equality statements, and collisions given in
@@ -44,16 +40,19 @@ val apply_eq_statements_subterms_once : (term -> term) -> term -> term
 val apply_reds : simp_facts -> term -> term
 
 (* Display the facts. Mainly used for debugging *)
+val display_elsefind : elsefind_fact -> unit
 val display_facts : simp_facts -> unit
 
 (* A dependency analysis is a function of type 
-   [dep_anal = simp_facts -> term -> term -> bool] 
-   such that [dep_anal facts t1 t2] is true when [t1 != t2] 
+   [dep_anal = simp_facts -> term -> term -> term option] 
+   such that [dep_anal facts t1 t2] is [Some t'] when [t1 = t2] 
+   can be simplified into the term [t']
    up to negligible probability, by eliminating collisions
    between [t1] and [t2] using the results of some dependency analysis.
+   Otherwise, [dep_anal facts t1 t2] returns [None].
 
    [no_dependency_anal] is a particular dependency analysis that
-   does nothing, i.e. always returns false.
+   does nothing, i.e. always returns [None].
    Other dependency analyses are defined in simplify.ml.
  *)
 val no_dependency_anal : dep_anal
@@ -82,7 +81,7 @@ val simplif_add_list : dep_anal -> simp_facts -> term list -> simp_facts
 
 (* [get_node fact_info] gets the node from the p_facts field of a 
    process / the t_facts field of a term *)
-val get_node : fact_info -> def_node option
+val get_node : fact_info -> block_execution
 
 (* [def_vars_from_defined current_node def_list] returns the variables that
    are known to be defined when the condition of a find with defined condition 
@@ -90,7 +89,7 @@ val get_node : fact_info -> def_node option
    is tested (may be returned by [get_node]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
-val def_vars_from_defined : def_node option -> binderref list -> binderref list
+val def_vars_from_defined : block_execution -> binderref list -> binderref list
 
 (* [facts_from_defined current_node def_list] returns the facts that
    are known to hold when the condition of a find with defined condition 
@@ -98,10 +97,7 @@ val def_vars_from_defined : def_node option -> binderref list -> binderref list
    is tested (may be returned by [get_node]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
-val facts_from_defined : def_node option -> binderref list -> term list
-
-(* Returns fresh array indices for the variable given as argument *)
-val make_indexes : binder -> term list
+val facts_from_defined : block_execution -> binderref list -> term list
 
 (* [get_def_vars_at fact_info] returns the variables that are known
    to be defined given [fact_info].
@@ -115,55 +111,94 @@ val get_def_vars_at : fact_info -> binderref list
    unreachable. *)
 val get_facts_at : fact_info -> term list
 
+(* [get_facts_at_cases fact_info] returns the facts that are known to hold
+   given [fact_info]. It is a modified version of
+   [get_facts_at] to distinguish cases depending on the
+   definition point of variables (instead of taking intersections), to
+   facilitate the proof of correspondences.
+   May raise Contradiction when the program point at [fact_info] is
+   unreachable. *)
+val get_facts_at_cases : fact_info -> term list * term list list list
+
 (* [reduced_def_list fact_info def_list] removes variables that are 
    certainly defined from a [def_list] in a find. [fact_info] corresponds
    to the facts at the considered find. *)
 val reduced_def_list : fact_info -> binderref list -> binderref list
 
 (* Functions useful to simplify def_list *)
+
+(* [filter_def_list accu l] returns a def_list that contains
+   all elements of [accu] and [l] except the elements whose definition
+   is implied by the definition of some other element of [l].
+   The typical call is [filter_def_list [] l], which returns 
+   a def_list that contains all elements of [l] except 
+   the elements whose definition is implied by the definition 
+   of some other element.*)
 val filter_def_list : binderref list -> binderref list -> binderref list
+
+(* [remove_subterms accu l] returns a def_list that contains
+   all elements of [accu] and [l] except elements that
+   also occur as subterms in [l].
+   The typical call is  [remove_subterms [] l], which returns
+   [l] with elements that occur as subterms removed. *)
 val remove_subterms : binderref list -> binderref list -> binderref list
+
+(* [eq_deflists dl dl'] returns true when the two def_list [dl]
+   and [dl'] are equal (by checking mutual inclusion) *)
 val eq_deflists : binderref list -> binderref list -> bool
+
+(* [update_def_list_term already_defined newly_defined bl def_list tc' p'] 
+   returns an updated find branch [(bl, def_list', tc'', p'')].
+   This function should be called after modifying a branch of find 
+   (when the find is a term), to make sure that all needed variables are defined.
+   It updates in particular [def_list], but may also add defined conditions
+   inside [tc'] or [p'].
+   [already_defined] is a list of variables already known to be defined
+   above the find.
+   [newly_defined] is the set of variables whose definition is guaranteed
+   by the old defined condition [def_list]; it is used only for a sanity check.
+   [bl, def_list, tc', p'] describe the modified branch of find:
+   [bl] contains the indices of find
+   [def_list] is the old def_list
+   [tc'] is the modified condition of the find
+   [p'] is the modified then branch of the find. *) 
+val update_def_list_term : binderref list -> binderref list -> 
+  (binder * repl_index) list -> binderref list -> term -> term ->
+    term findbranch
+
+(* [update_def_list_process already_defined newly_defined bl def_list t' p1'] 
+   returns an updated find branch [(bl, def_list', t'', p1'')].
+   This function should be called after modifying a branch of find 
+   (when the find is a process), to make sure that all needed variables are defined.
+   It updates in particular [def_list], but may also add defined conditions
+   inside [t'] or [p1'].
+   [already_defined] is a list of variables already known to be defined
+   above the find.
+   [newly_defined] is the set of variables whose definition is guaranteed
+   by the old defined condition [def_list]; it is used only for a sanity check.
+   [bl, def_list, t', p1'] describe the modified branch of find:
+   [bl] contains the indices of find
+   [def_list] is the old def_list
+   [t'] is the modified condition of the find
+   [p1'] is the modified then branch of the find. *) 
+val update_def_list_process : binderref list -> binderref list -> 
+  (binder * repl_index) list -> binderref list -> term -> process ->
+    process findbranch
 
 (* 3. Some rich functions that rely on collecting facts and reasoning 
    about them *)
-
-(* [check_distinct b g] show that elements of the array [b] 
-   at different indices are always different (up to negligible probability).
-   This is useful for showing secrecy of a key, and is called from success.ml.
-   [g] is the full game. In addition to the boolean result, when it is true, 
-   it also returns the probability of collisions eliminated to reach that 
-   result.
-*)
-val check_distinct : binder -> game -> bool * setf list
-
-(* [check_corresp corresp internal_info g] returns true when the
-   correspondence [corresp] is proved (up to negligible probability).
-   It is called from success.ml. [g] is the full game. In addition to the
-   boolean result, when it is true, it also returns the probability of
-   collisions eliminated to reach that result. *)
-val check_corresp : (bool * term) list * qterm -> game -> bool * setf list
 
 (* [simplify_term dep_anal facts t] returns a simplified form of
    the term [t] using the dependency analysis [dep_anal] and the
    true facts [facts]. *)
 val simplify_term : dep_anal -> simp_facts -> term -> term
 
-(* [check_equal g t t' facts] returns true when [t] and [t'] are
-   proved equal when the terms in [facts] are true (up to negligible
-   probability. It is called from insertinstruct.ml. [g] is the full
-   game.  [t] is supposed to be a term of the game [g], [t'] is a
-   candidate replacement for [t]. In addition to the boolean result,
-   when it is true, it also returns the probability of collisions
-   eliminated to reach that result and the updated eliminated
-   collisions.  Terms.build_def_process must have been called so that
-   t.t_facts has been filled. *)
-val check_equal : game -> term -> term -> term list -> setf list -> bool * setf list
+(* [check_equal t t' simp_facts] returns true when [t] and [t'] are
+   proved equal when the facts in [simp_facts] are true.
+   It is called from transf_insert_replace.ml. The probability of collisions
+   eliminated to reach that result is taken into account by module [Proba]. *)
+val check_equal : term -> term -> simp_facts -> bool
 
-(* [is_reachable n n'] returns true when [n] is reachable from [n'],
-   that is, the variable defined at [n] is defined above than the one 
-   defined at [n']. *)
-val is_reachable : def_node -> def_node -> bool
-
-
+(* [display_facts_at p occ] displays the facts that are known
+   to hold at the program point [occ] of the process [p]. *)
 val display_facts_at : inputprocess -> int -> unit

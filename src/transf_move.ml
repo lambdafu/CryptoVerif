@@ -13,7 +13,7 @@ let done_transfos = ref []
 
 let beneficial = ref false
 
-let rec move_a_new b p =
+let rec move_a_binder put_process b p =
   Terms.iproc_from_desc (
   match p.i_desc with 
     Nil -> 
@@ -28,9 +28,9 @@ let rec move_a_new b p =
 	begin
 	  Settings.changed := true;
 	  if r1 then
-	    Par(move_a_new b p1,p2)
+	    Par(move_a_binder put_process b p1,p2)
 	  else if r2 then
-	    Par(p1, move_a_new b p2)
+	    Par(p1, move_a_binder put_process b p2)
 	  else
 	    Par(p1,p2)
 	end
@@ -39,76 +39,76 @@ let rec move_a_new b p =
       if (List.exists (Terms.refers_to b) tl) || (Terms.refers_to_pat b pat) then
 	raise Not_found
       else
-	Input((c,tl), pat, move_a_newo false b p))
+	Input((c,tl), pat, move_a_bindero put_process false b p))
 
-and move_a_newo array_ref b p = 
+and move_a_bindero put_process array_ref b p = 
   Terms.oproc_from_desc (
   match p.p_desc with
     Yield -> 
       if array_ref then
-	Restr(b, Terms.oproc_from_desc Yield)
+	put_process Yield
       else
 	Yield
   | EventAbort f -> EventAbort f
   | Restr(b',p) -> 
       Settings.changed := true;
-      Restr(b', move_a_newo array_ref b p)
+      Restr(b', move_a_bindero put_process array_ref b p)
   | Test(t,p1,p2) ->
       if Terms.refers_to b t then
-	Restr(b, Terms.oproc_from_desc (Test(t,p1,p2)))
+	put_process (Test(t,p1,p2))
       else
 	begin
 	  Settings.changed:= true;
 	  beneficial := true;
-	  Test(t, move_a_newo array_ref b p1, move_a_newo array_ref b p2)
+	  Test(t, move_a_bindero put_process array_ref b p1, move_a_bindero put_process array_ref b p2)
 	end
   | Find(l0,p,find_info) ->
       if List.exists (fun (bl, def_list, t, _) ->
 	(List.exists (Terms.refers_to_br b) def_list) ||
 	Terms.refers_to b t) l0 then
-	Restr(b, Terms.oproc_from_desc (Find(l0,p,find_info)))
+	put_process (Find(l0,p,find_info))
       else
 	begin
 	  Settings.changed := true;
 	  beneficial := true;
 	  Find(List.map (fun (bl, def_list, t, p1) ->
 	    (bl, def_list, t, 
-	     move_a_newo array_ref b p1)) l0,
-	       move_a_newo array_ref b p, find_info)
+	     move_a_bindero put_process array_ref b p1)) l0,
+	       move_a_bindero put_process array_ref b p, find_info)
 	end
   | Output((c,tl),t2,p) ->
       if (List.exists (Terms.refers_to b) tl) || (Terms.refers_to b t2) || array_ref then
-	Restr(b, Terms.oproc_from_desc (Output((c,tl),t2,p)))
+	put_process (Output((c,tl),t2,p))
       else
 	begin
 	  try
-	    let p' = move_a_new b p in
+	    let p' = move_a_binder put_process b p in
 	    Settings.changed := true;
 	    Output((c,tl), t2, p')
 	  with Not_found ->
-	    Restr(b, Terms.oproc_from_desc (Output((c,tl),t2,p)))
+	    put_process (Output((c,tl),t2,p))
 	end
   | Let(pat, t, p1, p2) ->
       if (Terms.refers_to b t) || (Terms.refers_to_pat b pat) then
-	Restr(b, Terms.oproc_from_desc (Let(pat, t, p1, p2)))
+	put_process (Let(pat, t, p1, p2))
       else
 	begin
 	  Settings.changed := true;
 	  match pat with
 	    PatVar _ -> 
-	      Let(pat, t, move_a_newo array_ref b p1, Terms.oproc_from_desc Yield)
+	      Let(pat, t, move_a_bindero put_process array_ref b p1, Terms.oproc_from_desc Yield)
 	  | _ -> 
 	      beneficial := true;
-	      Let(pat, t, move_a_newo array_ref b p1, 
-		  move_a_newo array_ref b p2)
+	      Let(pat, t, move_a_bindero put_process array_ref b p1, 
+		  move_a_bindero put_process array_ref b p2)
 	end
   | EventP(t,p) ->
       if Terms.refers_to b t then
-	Restr(b, Terms.oproc_from_desc (EventP(t,p)))
+	put_process (EventP(t,p))
       else
 	begin
 	  Settings.changed := true;
-	  EventP(t, move_a_newo array_ref b p)
+	  EventP(t, move_a_bindero put_process array_ref b p)
 	end
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   )
@@ -230,16 +230,28 @@ let do_move_new move_set array_ref b =
   | MLet -> false
   | MOneBinder b' -> b == b'
 
-let do_move_let move_set b =
+(* The result of do_move_let can be:
+   0: do not move
+   1: move but do not duplicate the let binding;
+      this case happens only when b has no array accesses. 
+   2: move, perhaps duplicating the let binding. *)
+
+let do_move_let move_set array_ref b t =
   match move_set with
     MAll | MLet | MNoArrayRef -> 
-      not (Terms.has_array_ref_q b)
+      begin
+	match t.t_desc with
+	  FunApp(_,[]) -> 2 (* t is a constant; we allow duplicating its evaluation *)
+	| _ -> if array_ref then 0 else 1
 	(* Lets are moved only when there are no array references.
 	   Moving them is interesting only when it reduces the cases in
            which the value is computed, which can never be done when there
 	   are array references. *)
-  | MNew | MNewNoArrayRef -> false
-  | MOneBinder b' -> b == b'
+      end
+  | MNew | MNewNoArrayRef -> 0
+  | MOneBinder b' -> if b == b' then 2 else 0
+      (* When the user instructs the move on the binder b, we perform
+	 the move even if b has array references and/or we duplicate the let. *)
 
 let rec move_new_let_rec move_set p =
   Terms.iproc_from_desc (
@@ -264,7 +276,7 @@ and move_new_let_reco move_set p =
 	let tmp_changed = !Settings.changed in
 	Settings.changed := false;
 	beneficial := false;
-	let p'' = move_a_newo array_ref b p' in
+	let p'' = move_a_bindero (fun p_desc -> Restr(b, Terms.oproc_from_desc p_desc)) array_ref b p' in
 	if (!beneficial) || (match move_set with MOneBinder _ -> true | _ -> false) then
 	  begin
 	    Settings.changed := (!Settings.changed) || tmp_changed;
@@ -291,23 +303,46 @@ and move_new_let_reco move_set p =
   | Let(pat,t,p1,p2) ->
       begin
 	match pat with
-	  PatVar b when do_move_let move_set b ->
-	    let p1' = move_new_let_reco move_set p1 in
-	    let tmp_changed = !Settings.changed in
-	    Settings.changed := false;
-	    beneficial := false;
-	    let p1'' = move_a_leto (b,t) p1' in
-	    if (!beneficial) || (match move_set with MOneBinder _ -> true | _ -> false) then
+	  PatVar b ->
+	    let array_ref = Terms.has_array_ref_q b in
+	    let move_decision = do_move_let move_set array_ref b t in
+	    if move_decision = 0 then
 	      begin
-		Settings.changed := (!Settings.changed) || tmp_changed;
-		done_transfos := (DMoveLet b) :: (!done_transfos);
-		p1''
+		(* Do not move *)
+		Terms.oproc_from_desc 
+		  (Let(pat,t,move_new_let_reco move_set p1,
+		       move_new_let_reco move_set p2))
 	      end
 	    else
 	      begin
+		let p1' = move_new_let_reco move_set p1 in
+		let tmp_changed = !Settings.changed in
+		Settings.changed := false;
+		beneficial := false;
+		let p1'' = 
+		  if move_decision = 1 then 
+		    (* Move the let, trying to evaluate it less often.
+		       We never do that when b has array references.
+		       In this case, the let binding is never duplicated. *)
+		    move_a_leto (b,t) p1' 
+		  else
+		    (* Move the let, even if b has array references.
+		       In this case, the let binding may be duplicated. *)
+		    move_a_bindero (fun p_desc -> 
+		      Let(pat, t, Terms.oproc_from_desc p_desc, Terms.oproc_from_desc Yield)) array_ref b p1'
+		in
+		if (!beneficial) || (match move_set with MOneBinder _ -> true | _ -> false) then
+		  begin
+		    Settings.changed := (!Settings.changed) || tmp_changed;
+		       done_transfos := (DMoveLet b) :: (!done_transfos);
+		       p1''
+		  end
+		else
+		  begin
 	        (* Don't do a move all/noarrayref if it is not beneficial *)
-		Settings.changed := tmp_changed;
-		Terms.oproc_from_desc (Let(pat, t, p1', Terms.oproc_from_desc Yield))
+		    Settings.changed := tmp_changed;
+		    Terms.oproc_from_desc (Let(pat, t, p1', Terms.oproc_from_desc Yield))
+		  end
 	      end
 	| _ -> 
 	    Terms.oproc_from_desc 

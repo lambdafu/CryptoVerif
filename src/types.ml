@@ -77,14 +77,6 @@ type binder = { sname : string;
 		mutable def : def_node list;
 		   (* Pointer to the nodes at which this variable is defined. 
 		      Set by Terms.build_def_process. *)
-		mutable compatible : binderset;
-		   (* Set of variables that can be defined at the same time as
-                      this variable, with the same indices.
-                      For instance, if the only definitions of b and b' are
-                      ! N ... if ... then (let b = ...) else (let b' = ...)
-		      b and b' cannot be defined simultaneously with the same indices,
-                      b is not in b'.compatible and b' is not in b.compatible.
-		      Set by Terms.build_compatible_defs *)
 		mutable link : linktype;
 		   (* Link of the variable to a term. 
 		      This is used for implementing substitutions:
@@ -130,16 +122,12 @@ type binder = { sname : string;
 		      of equations, see Facts.orient *)
 	      }
 
-and binderset = (* set of binders represented by a hash table *)
-  { mutable nelem : int;               
-    mutable table : binder list array } 
-
 and binderref = binder * term list
 
 (* Definition graph *)
 and def_node = { above_node : def_node;
 		 binders : binder list; (* The variables defined at this node *)
-		 true_facts_at_def : term list; 
+		 mutable true_facts_at_def : term list; 
                     (* The facts that are guaranteed to be true at this node *)
 		 def_vars_at_def : binderref list; 
                     (* The variables that are guaranteed to be defined at 
@@ -160,11 +148,13 @@ and def_node = { above_node : def_node;
 		    (* The facts that are guaranteed to be defined 
 		       before we reach the end of the current input...output block.
 		       They come from let definitions and events after this node. *)
-	         definition : def_type 
-		    (* Pointer to the process or term that corresponds to this node *)
+	         definition : program_point;
+		    (* Pointer to the process or term that contains the variable definition *)
+		 definition_success : program_point
+		   (* Pointer to the process or term that is executed just after the variable is defined *)
 	       }
 
-and def_type = 
+and program_point = 
     DProcess of process
   | DInputProcess of inputprocess
   | DTerm of term
@@ -246,12 +236,26 @@ and 'a findbranch = (binder(*the variable defined when the find succeeds*) * rep
 and term = { t_desc : term_desc;
 	     t_type : typet;
 	     t_occ : int;
+	        (* Occurrence of the term *)
+	     t_max_occ : int;
+	        (* Maximum occurrence of any subterm of the considered term.
+		   [Terms.move_occ_term] guarantees that the occurrences of the subterms
+		   of the considered term form exactly the interval [t_occ,t_max_occ].
+		   When [t_max_occ] cannot be set to satisfy this constraint,
+		   it is set to 0. *)
 	     t_loc : Parsing_helper.extent;
+	     mutable t_incompatible : int Occ_map.occ_map;
+	        (* Incompatible program points:
+		   if [(pp -> n) \in t.t_incompatible] and 
+                   the common suffix of [l] and [l'] has length at least [n], then
+		   [t] with indices [l] and [pp] with indices [l'] cannot be both executed.
+		   Program points are represented by their occurrence. *)
 	     mutable t_facts : fact_info }
 
-and fact_info = (term list * binderref list * def_node) option
-      (* Some(true_facts, def_vars, def_node):
+and fact_info = (term list * elsefind_fact list * binderref list * def_node) option
+      (* Some(true_facts, elsefind, def_vars, def_node):
 	 true_facts = the facts that are true at the current program point
+	 elsefind = elsefind facts that are true at the current program point
 	 def_vars = the variables whose definition is guaranteed because
 	    of defined conditions above the current program point
 	 def_node = the node immediately above the current program point *)
@@ -278,6 +282,8 @@ and inputprocess_desc =
 and inputprocess =
     { i_desc : inputprocess_desc;
       i_occ : int;
+      i_max_occ : int;
+      mutable i_incompatible : int Occ_map.occ_map; (* similar to t_incompatible *)
       mutable i_facts : fact_info }
 
 and process_desc =  
@@ -295,6 +301,8 @@ and process_desc =
 and process =
     { p_desc : process_desc;
       p_occ : int;
+      p_max_occ : int;
+      mutable p_incompatible : int Occ_map.occ_map; (* similar to t_incompatible *)
       mutable p_facts : fact_info }
 
 (* Equivalences *)
@@ -344,7 +352,18 @@ and eqname =
 and game = 
     { mutable proc : inputprocess;
       mutable game_number : int;
-      mutable current_queries : ((query * game) * proof_t ref * proof_t) list }
+      mutable current_queries : ((query * game) * proof_t ref * proof_t) list
+	(* [current_queries] contains, for each query:
+	   [(query, game), proof_ref, proof] where
+	   the query [query] should be proved in game [game],
+	   [proof = None] when it is not proved yet;
+	   [proof = Some(proba, state)] when it is proved up to probability [proba]
+	   using the sequence of games [state].
+	   However, the probability [proba] may depend on the probability of events
+	   introduced during the proof. 
+	   [proof_ref] is set to [proof] when the probability of all these events
+	   has been bounded. Otherwise, [!proof_ref = None]. *)
+    }
 
 and proof_t = (setf list * state) option
 
@@ -377,6 +396,12 @@ and probaf =
   | Maxlength of game * term
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
+
+(* An element of type [setf list] represents a probability
+   computed as the sum of the probabilities [proba] 
+   of all elements [SetProba proba] of the list, plus
+   the probability of the disjunction of all events
+   recorded by elements [SetEvent ...] of the list. *)
 
 and setf =
     SetProba of probaf
@@ -418,6 +443,7 @@ and query =
 and rem_set =
     All
   | OneBinder of binder
+  | FindCond
   | Minimal
 
 and move_set =
@@ -434,6 +460,19 @@ and merge_mode =
   | MCreateBranchVarAtProc of process list * repl_index list
   | MCreateBranchVarAtTerm of term list * repl_index list
 
+(* User info for cryptographic transformation *)
+
+and var_mapping = (binder(*variable in game*) * binder(*variable in equivalence*)) list * 
+      binder(*variable in game, when the corresponding variable in equivalence is not known*) list * bool
+    (* bool is true when the list ends with "."
+       no other variable should be added by the transformation in this case *)
+and term_mapping = (int(*occurrence in game*) * term(*oracle in equivalence*)) list * bool
+
+and crypto_transf_user_info =
+    VarList of binder list * bool (* bool is true when the list ends with "."
+				    no other variable should be added by the transformation in this case *)
+  | Detailed of var_mapping option * term_mapping option
+	
 and instruct =
     ExpandIfFindGetInsert
   | Simplify of string list(*occurrences, variables, or types for collision elimination of password types*)
@@ -441,7 +480,7 @@ and instruct =
   | RemoveAssign of rem_set
   | SArenaming of binder
   | MoveNewLet of move_set
-  | CryptoTransf of equiv_nm * binder list
+  | CryptoTransf of equiv_nm * crypto_transf_user_info
   | InsertEvent of string(*event name*) * int(*occurrence of insertion*) 
   | InsertInstruct of string(*instruction*) * Parsing_helper.extent * int (*occurrence of insertion*) * Parsing_helper.extent
   | ReplaceTerm of string(*term*) * Parsing_helper.extent * int (*occurrence of replacement*) * Parsing_helper.extent
@@ -501,7 +540,9 @@ and simplify_ins =
   | SLetERemoved of term
   | SLetESimplifyPattern of term * pattern * pat_simp_type
   | SResRemoved of process
+  | SResToAssign of process
   | SResERemoved of term
+  | SResEToAssign of term
 
 and def_change =
     DRemoveDef
@@ -523,7 +564,7 @@ and detailed_instruct =
   | DSArenaming of binder * binder list
   | DMoveNew of binder
   | DMoveLet of binder
-  | DCryptoTransf of equiv_nm * binder list
+  | DCryptoTransf of equiv_nm * crypto_transf_user_info
   | DInsertEvent of funsymb(*event name*) * int(*occurrence of insertion*) 
   | DInsertInstruct of string * int (*occurrence of insertion*)
   | DReplaceTerm of term * term * int (*occurrence of replacement*)
@@ -546,15 +587,34 @@ and state =
       prev_state : (instruct * setf list * detailed_instruct list * state) option }
 
 (* Result of a cryptographic transformation *)
+type failure_reason =
+    Term of term
+  | UntransformableTerm of term
+  | RefWithIndicesWithoutMatchingStandardRef of binderref * binderref
+  | RefWithIndicesWithIncompatibleStandardRef of binderref * binderref * int
+  | IncompatibleRefsWithIndices of binderref * binderref * binderref * binderref * int
+  | NoChange
+  | NoChangeName of binder
+  | NoUsefulChange
+  | NameNeededInStopMode
+
+
 type trans_res =
     TSuccess of setf list * detailed_instruct list * game
-  | TFailure of (equiv_nm * binder list * instruct list) list
+  | TFailure of (equiv_nm * crypto_transf_user_info * instruct list) list * ((binder * binder) list * failure_reason) list
 
 type simp_facts = term list * term list * elsefind_fact list
-type dep_anal = simp_facts -> term -> term -> bool
+type dep_anal = simp_facts -> term -> term -> term option
 
 exception NoMatch
 exception Contradiction
+
+(* Where are we in the execution of a block of code between an input and an output *)
+
+type block_execution =
+    Unknown
+  | FullBlock
+  | PartialBlock of def_node
 
 (* For the generation of implementations
    type for a program : name, options, process *)
@@ -562,3 +622,4 @@ exception Contradiction
 type impl_opt = Read of binder * string | Write of binder * string 
 
 type impl_process = string * impl_opt list * inputprocess
+

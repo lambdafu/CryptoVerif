@@ -254,3 +254,8 @@ process
         insert trusted_hosts(pkS);
         return (pkS)};
         ((foreach iA <= N do processS) | (foreach iB <= N do processC) | processH)
+
+(* EXPECTED
+All queries proved.
+0.540s (user 0.528s + system 0.012s), max rss 101664K
+END *)

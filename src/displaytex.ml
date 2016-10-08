@@ -46,6 +46,12 @@ let rec display_list f = function
   | (a::l) -> f a; print_string ", ";
       display_list f l
 
+let rec display_list_break f = function
+    [] -> ()
+  | [a] -> f a
+  | (a::l) -> f a; print_string ", \\allowbreak ";
+      display_list_break f l
+
 let rec remove_common_prefix l1 l2 = match (l1,l2) with
   ({t_desc = ReplIndex ri1}::l1',ri2::l2') when ri1 == ri2 -> 
     remove_common_prefix l1' l2'
@@ -336,7 +342,7 @@ let rec display_proba level = function
       if l != [] then
 	begin
 	  print_string "(";
-	  display_list (display_proba 0) l;
+	  display_list_break (display_proba 0) l;
 	  print_string ")"
 	end
   | Count p -> print_id "\\kwp{" p.pname "}"
@@ -355,7 +361,7 @@ let rec display_proba level = function
       if level > 1 then print_string ")"
   | Max(l) -> 
       print_string "\\kw{max}(";
-      display_list (display_proba 0) l;
+      display_list_break (display_proba 0) l;
       print_string ")"
   | Mul(x,y) ->
       if level > 3 then print_string "(";
@@ -389,7 +395,7 @@ let rec display_proba level = function
       if pl != [] then
 	begin
 	  print_string ", ";
-	  display_list (display_proba 0) pl
+	  display_list_break (display_proba 0) pl
 	end;
       print_string ")"
   | Maxlength(g,t) ->
@@ -420,8 +426,8 @@ let rec display_proba level = function
       end;
       if pl != [] then
 	begin
-	  print_string ", ";
-	  display_list (display_proba 0) pl
+	  print_string ", \\allowbreak ";
+	  display_list_break (display_proba 0) pl
 	end;
       print_string ")"
 
@@ -878,6 +884,7 @@ and display_oprocess indent p =
 	else
 	  display_oprocess_paren indent p1
 	  ) l0;
+      if l0 == [] then print_string "$\\\\\n";
       if p2.p_desc != Yield then
 	begin
 	  occ_space();
@@ -1026,6 +1033,8 @@ let display_rem_set = function
       print_string "$"
   | Minimal -> 
       print_string "useless"
+  | FindCond -> 
+      print_string "findcond"
 
 let display_move_set = function
     MAll -> print_string "all\\ binders"
@@ -1041,7 +1050,41 @@ let display_move_set = function
 let display_bl_assoc bl_assoc =
   display_list display_binder bl_assoc
 
-let rec display_query1 = function
+let display_user_info = function
+    VarList(l,stop) ->
+      display_list display_binder l;
+      if stop then print_string "."
+  | Detailed(vmopt,tmopt) ->
+      begin
+      match vmopt with
+	None -> ()
+      | Some(vm,vl,stop) ->
+	  print_string "\\text{variables: }";
+	  display_list (fun (b1,b2) -> display_binder b1; print_string " \\rightarrow "; display_binder b2) vm;
+	  if vm != [] && vl != [] then print_string ", ";
+	  display_list display_binder vl;
+	  if stop then print_string ".";
+	  if tmopt != None then print_string ";"
+      end;
+      begin
+      match tmopt with
+	None -> ()
+      | Some(tm,stop) ->
+	  print_string "\\text{terms: }";
+	  display_list (fun (occ,t) -> print_int occ; print_string " \\rightarrow "; display_term t) tm;
+	  if stop then print_string "."
+      end
+	      
+    
+let display_with_user_info user_info =
+  match user_info with
+    VarList([],_) | Detailed((None | Some([],[],_)), (None | Some([],_))) -> ()
+  | _ ->
+      print_string "with $";
+      display_user_info user_info;
+      print_string "$"
+
+ let rec display_query1 = function
     [] -> Parsing_helper.internal_error "List should not be empty"
   | [b,t] -> 
       if b then print_string "\\kw{inj}:";
@@ -1122,15 +1165,10 @@ let display_instruct = function
       print_string "SA rename $";
       display_binder b;
       print_string "$"
-  | CryptoTransf(e, bl_assoc) -> 
+  | CryptoTransf(e, user_info) -> 
       print_string "equivalence ";
       display_equiv_with_name e;
-      if bl_assoc != [] then 
-	begin
-	  print_string "with $";
-	  display_bl_assoc bl_assoc;
-	  print_string "$"
-	end
+      display_with_user_info user_info
   | InsertEvent(s,occ) ->
       print_id "insert event $\\kwf{" s "}$";
       print_string (" at occurrence " ^ (string_of_int occ))
@@ -1560,9 +1598,19 @@ let display_simplif_step = function
       print_string "\\qquad -- Remove random number generation at ";
       print_int p.p_occ;      
       print_string "\\\\\n"
+  | SResToAssign(p) ->
+      print_string "\\qquad -- Transform unused random number generation at ";
+      print_int p.p_occ;      
+      print_string " into constant assignment";
+      print_string "\\\\\n"
   | SResERemoved(t) ->
       print_string "\\qquad -- Remove random number generation at ";
       print_int t.t_occ;
+      print_string "\\\\\n"
+  | SResEToAssign(t) ->
+      print_string "\\qquad -- Transform unused random number generation at ";
+      print_int t.t_occ;      
+      print_string " into constant assignment";
       print_string "\\\\\n"
 
 let display_detailed_ins = function
@@ -1621,15 +1669,10 @@ let display_detailed_ins = function
       print_string "\\quad -- Move assignment to $";
       display_binder b;
       print_string "$\\\\\n"      
-  | DCryptoTransf(e, bl_assoc) ->
+  | DCryptoTransf(e, user_info) ->
       print_string "\\quad -- Equivalence ";
       display_equiv_with_name e;
-      if bl_assoc != [] then
-	begin
-	  print_string "with $";
-	  display_bl_assoc bl_assoc;
-	  print_string "$"
-	end;
+      display_with_user_info user_info;
       print_string "\\\\\n"
   | DInsertEvent _  | DInsertInstruct _ 
   | DReplaceTerm _  | DMergeArrays _ ->
@@ -1745,9 +1788,11 @@ let display_state s =
   let states_needed_in_queries = Display.get_all_states_from_queries initial_queries in
   let states_to_display = Display.remove_duplicate_states [] (s::states_needed_in_queries) in
   (* Set a tab stop after the occurrence display *)
+  print_string "\\begin{tabbing}\n";
   print_string (String.make (Display.len_num (!Terms.max_occ) + 2) '0');
   print_string "\\=\\kill\n";
   List.iter (fun s -> display_state [] s) states_to_display;  
+  print_string "\\end{tabbing}\n";
 
   (* Display the probabilities of proved queries *)
   List.iter (fun (q,poptref,_) ->
@@ -1797,7 +1842,6 @@ let preamble = "
 \\newcommand{\\kwp}[1]{\\mathit{#1}}
 \\newcommand{\\kwc}[1]{\\mathit{#1}}
 \\begin{document}
-\\begin{tabbing}
 "
 
 let nice_tex_preamble = "
@@ -1812,7 +1856,6 @@ let nice_tex_preamble = "
 \\newcommand{\\kwp}[1]{\\mathit{#1}}
 \\newcommand{\\kwc}[1]{\\mathit{#1}}
 \\begin{document}
-\\begin{tabbing}
 "
 
 let oracles_preamble = "
@@ -1827,11 +1870,9 @@ let oracles_preamble = "
 \\newcommand{\\kwp}[1]{\\mathit{#1}}
 \\newcommand{\\kwc}[1]{\\mathit{#1}}
 \\begin{document}
-\\begin{tabbing}
 "
 
 let postamble = "
-\\end{tabbing}
 \\end{document}
 "
 

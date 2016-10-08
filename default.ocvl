@@ -153,6 +153,119 @@ equiv int_ctxt(enc)
 
 }
 
+(* IND-CCA2 probabilistic symmetric encryption 
+   keyseed: type of key seeds, must be "bounded" (to be able to generate random numbers from it), typically "fixed" and "large".
+   key: type of keys, must be "bounded"
+   cleartext: type of cleartexts
+   ciphertext: type of ciphertexts
+   seed: type of random seeds for encryption, must be "bounded", typically "fixed".
+   
+   kgen: key generation function 
+   enc: encryption function
+   dec: decryption function
+   injbot: natural injection from cleartext to bitstringbot
+   Z: function that returns for each cleartext a cleartext of the same length consisting only of zeroes.
+
+   Penc(t, N, N', l, l'): probability of breaking the IND-CCA2 property
+   in time t for one key, N encryption queries, N' decryption queries with
+   cleartexts of length at most l and ciphertexts of length at most l'.
+
+   The types keyseed, key, cleartext, ciphertext, seed and the
+   probability Penc must be declared before this macro is
+   expanded. The functions kgen, enc, dec, injbot, and Z are declared
+   by this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.
+*)
+
+define IND_CCA2_sym_enc(keyseed, key, cleartext, ciphertext, seed, kgen, enc, dec, injbot, Z, Penc) { 
+
+param N, N2, N3.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun kgen(keyseed):key.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc2(cleartext, key, seed): ciphertext.
+fun kgen2(keyseed):key.
+fun dec2(ciphertext, key): bitstringbot.
+
+fun injbot(cleartext):bitstringbot [compos].
+forall x:cleartext; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+
+	(* IND-CCA2 *)
+
+equiv ind_cca2(enc)
+       foreach i2 <= N2 do r <-R keyseed; (
+       	       foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
+               foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,kgen(r))))
+     <=(N2 * Penc(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> 
+       foreach i2 <= N2 do r <-R keyseed; (
+       	       foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := z:ciphertext <- enc2(Z(x), kgen2(r), r2); return(z) |
+	       foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r2[j],z[j]) && y = z[j] then return(injbot(x[j])) else return(dec2(y, kgen2(r)))).
+
+}
+
+(* INT-PTXT probabilistic symmetric encryption 
+   keyseed: type of key seeds, must be "bounded" (to be able to generate random numbers from it), typically "fixed" and "large".
+   key: type of keys, must be "bounded"
+   cleartext: type of cleartexts
+   ciphertext: type of ciphertexts
+   seed: type of random seeds for encryption, must be "bounded", typically "fixed".
+   
+   kgen: key generation function 
+   enc: encryption function
+   dec: decryption function
+   injbot: natural injection from cleartext to bitstringbot
+
+   Pencptxt(t, N, N', l, l'): probability of breaking the INT-PTXT property
+   in time t for one key, N encryption queries, N' decryption queries with
+   cleartexts of length at most l and ciphertexts of length at most l'.
+
+   The types keyseed, key, cleartext, ciphertext, seed and the
+   probability Pencptxt must be declared before this macro is
+   expanded. The functions kgen, enc, dec, and injbot are declared
+   by this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.
+*)
+
+define INT_PTXT_sym_enc(keyseed, key, cleartext, ciphertext, seed, kgen, enc, dec, injbot, Pencptxt) { 
+
+param N, N2, N3.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun kgen(keyseed):key.
+fun dec(ciphertext, key): bitstringbot.
+
+fun dec2(ciphertext, key): bitstringbot.
+
+fun injbot(cleartext):bitstringbot [compos].
+forall x:cleartext; injbot(x) <> bottom.
+
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+
+	(* INT-PTXT *)
+
+equiv int_ptxt(enc)
+      foreach i2 <= N2 do r <-R keyseed; (
+      	      foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,kgen(r)))) 
+     <=(N2 * Pencptxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational] 
+      foreach i2 <= N2 do r <-R keyseed [unchanged]; (
+      	      foreach i <= N do r2 <-R seed [unchanged]; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) := 
+				z <- dec2(y, kgen(r));
+                                find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom)).
+
+}
+
 (* IND-CCA2 and INT-PTXT probabilistic symmetric encryption 
    keyseed: type of key seeds, must be "bounded" (to be able to generate random numbers from it), typically "fixed" and "large".
    key: type of keys, must be "bounded"
@@ -178,6 +291,10 @@ equiv int_ctxt(enc)
    expanded. The functions kgen, enc, dec, injbot, and Z are declared
    by this macro. They must not be declared elsewhere, and they can be
    used only after expanding the macro.
+
+   CryptoVerif often needs manual guidance with this property,
+   because it does not know which property (IND-CCA2 or INT-PTXT)
+   to apply first.
 *)
 
 define IND_CCA2_INT_PTXT_sym_enc(keyseed, key, cleartext, ciphertext, seed, kgen, enc, dec, injbot, Z, Penc, Pencptxt) { 
@@ -207,6 +324,15 @@ forall m:cleartext, r:keyseed, r2:seed;
 equiv ind_cca2(enc)
        foreach i2 <= N2 do r <-R keyseed; (
        	       foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
+               foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,kgen(r))))
+     <=(N2 * Penc(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> 
+       foreach i2 <= N2 do r <-R keyseed; (
+       	       foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := z:ciphertext <- enc2(Z(x), kgen2(r), r2); return(z) |
+	       foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r2[j],z[j]) && y = z[j] then return(injbot(x[j])) else return(dec(y, kgen2(r)))).
+
+equiv ind_cca2_after_int_ptxt(enc)
+       foreach i2 <= N2 do r <-R keyseed; (
+       	       foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
                foreach i3 <= N3 do Odec(y:ciphertext) := return(dec2(y,kgen(r))))
      <=(N2 * Penc(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> 
        foreach i2 <= N2 do r <-R keyseed; (
@@ -218,12 +344,23 @@ equiv ind_cca2(enc)
 equiv int_ptxt(enc)
       foreach i2 <= N2 do r <-R keyseed; (
       	      foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
-	      foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,kgen(r)))) 
-     <=(N2 * Pencptxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational] 
+	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,kgen(r)))) 
+     <=(N2 * Pencptxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational] 
       foreach i2 <= N2 do r <-R keyseed [unchanged]; (
       	      foreach i <= N do r2 <-R seed [unchanged]; Oenc(x:cleartext) := return(enc(x, kgen(r), r2)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := 
 				z <- dec2(y, kgen(r));
+                                find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom)).
+
+equiv int_ptxt_after_ind_cca2(enc)
+      foreach i2 <= N2 do r <-R keyseed; (
+      	      foreach i <= N do r2 <-R seed; Oenc(x:cleartext) := return(enc2(x, kgen2(r), r2)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,kgen2(r)))) 
+     <=(N2 * Pencptxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational] 
+      foreach i2 <= N2 do r <-R keyseed [unchanged]; (
+      	      foreach i <= N do r2 <-R seed [unchanged]; Oenc(x:cleartext) := return(enc2(x, kgen2(r), r2)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) := 
+				z <- dec2(y, kgen2(r));
                                 find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom)).
 
 }
@@ -1145,6 +1282,199 @@ equiv ddh(exp)
 
 }
 
+(* Gap Diffie-Hellman 
+   G: type of group elements (must be "bounded" and "large", of cardinal 
+   a prime q)
+   Z: type of exponents (must be "bounded" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pGDH: the probability of breaking the GDH assumption
+
+   The types G and Z and the probability pGDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+*)
+
+define GDH(G, Z, g, exp, mult, pGDH) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
+  return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
+
+collision x1 <-R Z; x2 <-R Z; 
+  return(mult(x1,x1) = mult(x2,x2)) <=(1/|Z|)=> return(false). 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      foreach iX <= N do X <-R G; (OX() := return(X) | foreach iXm <= N' do OXm(m:Z) [useful_change] := return(exp(X,m)))
+<=(0)=> [computational]
+      foreach iX <= N do x <-R Z; (OX() := return(exp(g,x)) | foreach iXm <= N' do OXm(m:Z) := return(exp(g,mult(x,m)))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp) 
+      foreach iX <= N do X <-R G; OX() := return(X) 
+<=(0)=> [manual, computational]    
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x)).
+
+
+equiv exp_to_group(exp)
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x))
+<=(0)=> [computational]
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+equiv exp'_to_group(exp)
+      foreach iX <= N do x <-R Z; OX() := return(exp'(g,x))
+<=(0)=> [computational]
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+(* the GDH assumption 
+    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+    negligible probability, even in the presence of a DDH oracle
+    DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
+    that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *)
+
+const mark: bitstring.
+
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
+      nb, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8.
+
+equiv gdh(exp)
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) | 
+      Oa() [3] := return(a) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH2 <= naDDH2 do ODDHa2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', a)) |
+      foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
+      foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) := return(exp(m,b[j]) = exp(g, mult(b[j'], a))) |
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) := return(exp(m,a[j]) = exp(g, mult(b[j'], a))) |
+      foreach iaDDH6 <= naDDH6 do ODDHa6(m:G, j'<=na,j<=nb) := return(exp(m,b[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH7 <= naDDH7 do ODDHa7(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
+      foreach iaDDH8 <= naDDH8 do ODDHa8(m:G,j<=na) [3] := return(m = exp(g,mult(a[j], a)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      Ob() [3] := return(b) |
+      foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := return(m = exp(m', b)) |
+      foreach ibDDH2 <= nbDDH2 do ODDHb2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', b)) |
+      foreach ibDDH3 <= nbDDH3 do ODDHb3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', b)) |
+      foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp(m,b[j]) = exp(g, mult(b[j'], b))) |
+      foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp(m,a[j]) = exp(g, mult(b[j'], b))) |
+      foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) := return(exp(m,b[j]) = exp(g, mult(a[j'], b))) |
+      foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], b))) |
+      foreach ibDDH  <= nbDDH  do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
+      foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b)))
+    )
+<=((#ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) *
+	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
+	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
+	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp'(g,a)) |
+      Oa() := let ka:bitstring = mark in return(a) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
+              if defined(ka) then return(m = exp'(m', a)) else 
+              find u<=nb suchthat defined(b[u],kb[u]) && m' = exp(g,b[u]) then return(m = exp'(m', a)) else
+	      find u<=nb suchthat defined(b[u]) && m' = exp(g,b[u]) then return(false) else
+                (* by CDH, if neither a nor b[u] are leaked, then m = exp(g, b[u]*a) is impossible *)
+	      return(m = exp'(m', a))
+		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
+		   as it is DDH(g, exp(g,a), m', m) *) |
+      foreach iaDDH2 <= naDDH2 do ODDHa2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', a)) |
+      	   (* GDH allows to compute exp(m, b[j]) = exp(m',a) for any m and m', 
+	      without leaking a, as it is DDH(exp(g,a), exp(g,b[j]), m, m')
+	      Indeed, 
+    	      D(exp(g,a),exp(g,b[j]),m,m') 
+      	        = (log_{g^a}(g^b[j]) * log_{g^a}(m) = log_{g^a}(m'))
+      		= (b[j]/a * log_g(m)/a = log_g(m')/a)
+      		= (b[j] * log_g(m) = a log_g(m'))
+      		= (m^b[j] = m'^a). *)
+      foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
+      	    (* Similar to ODDHa2 *)
+      foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) := return(exp(m,b[j]) = exp(g, mult(b[j'], a))) |
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) := return(exp(m,a[j]) = exp(g, mult(b[j'], a))) |
+      foreach iaDDH6 <= naDDH6 do ODDHa6(m:G, j'<=na,j<=nb) := return(exp(m,b[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH7 <= naDDH7 do ODDHa7(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+            (* ODDHa4..7 are particular cases of ODDHa2 or ODDHa3, with m' = exp(g, b[j'])
+	       or m' = exp(g, a[j']).
+	       We need to consider all these forms because CryptoVerif rewrites
+	       exp(exp(g,b[j']),a) into exp(g,mult(b[j'],a)), and it would not
+	       detect exp(g,mult(b[j'],a)) as an instance of exp(m',a). *)
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(m = exp'(g, mult(b[j], a))) else 
+              if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
+            (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption,
+	       provided a and b[j] are not leaked. *)
+      foreach iaDDH8 <= naDDH8 do ODDHa8(m:G,j<=na) [3] := return(m = exp(g,mult(a[j], a)))
+      	    (* ODDHa8 is a particular case of ODDHa1 in which we do not apply
+               the CDH assumption, since we apply it between a's and b's *)      
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp'(g,b)) |
+      Ob() := let kb:bitstring = mark in return(b) |
+      foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
+              if defined(kb) then return(m = exp'(m', b)) else 
+              find u<=na suchthat defined(a[u],ka[u]) && m' = exp(g,a[u]) then return(m = exp'(m', b)) else
+	      find u<=na suchthat defined(a[u]) && m' = exp(g,a[u]) then return(false) else
+                (* by CDH, if neither a[u] nor b are leaked, then m = exp(g, a[u]*b) is impossible *)
+	      return(m = exp'(m', b))
+		(* GDH allows to compute m = exp(m',b) for any m and m', without leaking b *) |
+      foreach ibDDH2 <= nbDDH2 do ODDHb2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', b)) |
+      foreach ibDDH3 <= nbDDH3 do ODDHb3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', b)) |
+      foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp(m,b[j]) = exp(g, mult(b[j'], b))) |
+      foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp(m,a[j]) = exp(g, mult(b[j'], b))) |
+      foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) := return(exp(m,b[j]) = exp(g, mult(a[j'], b))) |
+      foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], b))) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
+              if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
+      foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b)))
+    ).
+    (* We need to consider both forms m = exp(m', a) and m = exp(g,
+    mult(b[j], a)) in the equivalence, because, when m' is known to be
+    exp(g, b[j]), CryptoVerif is going to simplify m = exp(m', a) into
+    m = exp(g, mult(b[j], a)), and the procedure that tests whether a
+    term in the game matches a term in the equivalence would not
+    recognize that m = exp(g, mult(b[j], a)) in the game matches m =
+    exp(m', a) in the equivalence. *)
+}
+
 (********************************* Miscellaneous ***************************)
 
 (* One-way trapdoor permutation 
@@ -1311,6 +1641,107 @@ equiv ow_rsr(f)
 		 foreach i1 <= n1 do Oeq(x':D) := 
 	           if defined(k) then return(x' = x) else return(false) |
 		 Ox() := let k:bitstring = mark in return(x))).
+
+}
+
+(* Set partial-domain one-way trapdoor permutation 
+   seed: type of random seeds to generate keys, must be "bounded", typically "fixed"
+   pkey: type of public keys, must be "bounded"
+   skey: type of secret keys, must be "bounded"
+   D: type of the input and output of the permutation, must be "bounded", typically "fixed"
+   The domain D consists of the concatenation of bitstrings in Dow and Dr.
+   Dow is the set of sub-bitstrings of D on which one-wayness holds (it is difficult to compute the
+   random element x of Dow knowing f(pk, concat(x,y)) where y is a random element of Dr).
+   Dow and Dr must be "bounded", typically "fixed".
+
+   pkgen: public-key generation function
+   skgen: secret-key generation function
+   f: the permutation (taking as argument the public key)
+   invf: the inverse permutation of f (taking as argument the secret key,
+         i.e. the trapdoor)
+   concat(Dow, Dr):D is bitstring concatenation
+
+   P_PD_OW(t,l): probability of breaking the set partial-domain one-wayness property
+   in time t, for one key, one permuted value, and l tries.
+
+   The types seed, pkey, skey, D, Dow, Dr and the probability P_PD_OW must be
+   declared before this macro. The functions pkgen, skgen, f, invf, concat
+   are defined by this macro. They must not be declared elsewhere, and
+   they can be used only after expanding the macro. 
+*)
+
+define set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW) {
+
+param nK, nF, n1.
+
+const mark:bitstring.
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):D.
+fun f'(pkey, D):D.
+fun invf(skey, D):D.
+fun concat(Dow,Dr):D [compos].
+
+(* invf is the inverse of f *)
+
+forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+
+(* f is the inverse of invf *)
+
+forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
+
+(* Injectivity of f *)
+
+forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
+
+(* injectivity of invf *)
+
+forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
+
+(* f/invf are inverse permutations; use this to remove some
+   occurrences of invf in equality tests *)
+
+forall r:seed, x:D, x':D; 
+	(x' = invf(skgen(r),x)) = (f(pkgen(r),x') = x).
+
+(* We can permute the distribution, for uniformly distributed random
+   numbers x. Do that only when x is used in invf(skgen(r),x) *)
+
+equiv remove_invf(f)
+      foreach iK <= nK do r <-R seed; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oant() := return(invf(skgen(r),x)) | 
+	         Oim() := return(x)))
+<=(0)=> [computational]
+      foreach iK <= nK do r <-R seed [unchanged]; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oant() := return(x) |
+                 Oim() := return(f(pkgen(r), x)))).
+
+(* One-wayness *)
+
+equiv pd_ow(f)
+      foreach iK <= nK do r <-R seed; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do xow <-R Dow; xr <-R Dr; 
+		(Oy() := return(f(pkgen(r), concat(xow, xr))) |
+		 foreach i1 <= n1 do Oeq(xow' : Dow) := return(xow' = xow) |
+		 Oxow() := return(xow) |
+		 Oxr() := return(xr)))
+<=(nK * nF * P_PD_OW(time + (nK-1) * time(pkgen) + (#Oy-1) * time(f), n1))=> [computational]
+      foreach iK <= nK do r <-R seed [unchanged]; (
+	Opk() := return(pkgen'(r)) |
+	foreach iF <= nF do xow <-R Dow [unchanged]; xr <-R Dr [unchanged]; 
+		(Oy() := return(f'(pkgen'(r), concat(xow, xr))) |
+		 foreach i1 <= n1 do Oeq(xow':Dow) := 
+	           if defined(kow) then return(xow' = xow) else 
+		   if defined(kr) then return(xow' = xow) else return(false) |
+		 Oxow() := let kow:bitstring = mark in return(xow) |
+		 Oxr() := let kr:bitstring = mark in return(xr))).
 
 }
 

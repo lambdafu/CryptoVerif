@@ -1,13 +1,9 @@
 open Lexing
 
-exception IllegalCharacter
-exception IllegalEscape
-exception UnterminatedString
-
 let accept_arobase = ref false
 
 let internal_error mess =
-  print_string ("Internal error: " ^ mess ^ "\nPlease report bug to Bruno.Blanchet@ens.fr, including input file and output\n");
+  print_string ("Internal error: " ^ mess ^ "\nPlease report bug to Bruno.Blanchet@inria.fr, including input file and output\n");
   exit 3
 
 (* extent, for error messages *)

@@ -20,7 +20,12 @@ let tunnel ic oc =
   else
     begin
       let negociation_function = SSH_S.init () in
-      let (key_exchange_reply_function, s) = negociation_function () in
+      let (key_exchange_reply_function, s) = 
+	try
+	  negociation_function () 
+	with Cryptokit.Error Cryptokit.No_entropy_source ->
+	  failwith "No entropy source!!!!"
+      in
       output_packet oc s;
       print ("S:KEXINIT:"^s);
 

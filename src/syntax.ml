@@ -20,12 +20,8 @@ let parse filename =
       with 
 	Parsing.Parse_error ->
           input_error "Syntax error" (extent lexbuf)
-      |	IllegalCharacter ->
-	  input_error "Illegal character" (extent lexbuf)
-      | IllegalEscape -> 
-          input_error "Illegal escape" (extent lexbuf)
-      | UnterminatedString -> 
-          input_error "Unterminated string" (extent lexbuf)
+      |	Error(s,ext) ->
+	  input_error s ext
     in
     close_in ic;
     ptree
@@ -764,12 +760,12 @@ let rec expand_letfun_term cur_array env' t =
 	Parsing_helper.internal_error "Replication index unexpected in expand_letfun_term"
     | FunApp (f,tl') ->
         let tl'' = List.map (expand_letfun_term cur_array env') tl' in
-          { t_desc = FunApp (f,tl''); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+	Terms.build_term3 t (FunApp (f,tl''))
     | TestE (t1,t2,t3) ->
-        { t_desc= TestE (expand_letfun_term cur_array env' t1,
-                         expand_letfun_term cur_array env' t2,
-                         expand_letfun_term cur_array env' t3) ;
-          t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+	Terms.build_term3 t 
+          (TestE (expand_letfun_term cur_array env' t1,
+                  expand_letfun_term cur_array env' t2,
+                  expand_letfun_term cur_array env' t3))
     | FindE _ -> Parsing_helper.internal_error "in expand_letfun_term, find elements should not appear"
     | LetE (pat, t1, t2, topt) ->
         let (pat',env'') = expand_letfun_pat cur_array env' pat in
@@ -777,15 +773,16 @@ let rec expand_letfun_term cur_array env' t =
         let t2' = expand_letfun_term cur_array env'' t2 in
         let topt' = 
           (match topt with 
-               Some t ->
-                 Some (expand_letfun_term cur_array env' t)
-             | None -> None) in
-          { t_desc = LetE (pat', t1', t2', topt'); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+            Some t ->
+              Some (expand_letfun_term cur_array env' t)
+          | None -> None)
+	in
+	Terms.build_term3 t (LetE (pat', t1', t2', topt'))
     | ResE (b, t) ->
         let b' = Terms.create_binder b.sname (Terms.new_vname ()) b.btype cur_array in
-          { t_desc = ResE (b', expand_letfun_term cur_array ((b,b')::env') t); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+        Terms.build_term3 t (ResE (b', expand_letfun_term cur_array ((b,b')::env') t))
     | EventAbortE f ->
-       { t_desc = EventAbortE(f); t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+	Terms.build_term3 t (EventAbortE(f))
 
 and expand_letfun_pat cur_array env' = function
     PatVar (b) ->
@@ -809,8 +806,7 @@ let expand_letfun cur_array bl tl t =
       | b::bl',t'::tl' -> 
           let b' = Terms.create_binder b.sname (Terms.new_vname ()) b.btype cur_array in
           let t1 = expand_letfun_rec ((b,b')::env')  bl' tl' in
-          let tdesc = LetE (PatVar(b'),t',t1,None) in
-            {  t_desc = tdesc; t_type = t.t_type; t_occ = new_occ (); t_loc = t.t_loc; t_facts = t.t_facts }
+          Terms.build_term3 t (LetE (PatVar(b'),t',t1,None))
       | _,_ -> Parsing_helper.internal_error "expand_letfun: bl and tl do not have the same size"
   in
     expand_letfun_rec [] bl tl
@@ -820,12 +816,14 @@ let rec check_term cur_array env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
-	| EReplIndex(b) -> { t_desc = ReplIndex(b); t_type = b.ri_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) ->
+	    Terms.new_term b.btype ext2 (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
+	| EReplIndex(b) ->
+	    Terms.new_term b.ri_type ext2 (ReplIndex(b))
 	| EFunc(f) -> 
 	    if fst (f.f_type) = [] then
               (*expand letfun functions*)
-              let t'= { t_desc = FunApp(f, []); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
+              let t'= Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
               begin
               match f.f_cat with
                   LetFunTerm (bl,t) ->
@@ -842,7 +840,7 @@ let rec check_term cur_array env = function
 	match Hashtbl.find binder_env s with
 	  Uniq b -> 
 	    let tl'' = check_array_type_list ext2 [] [] cur_array b.args_at_creation in 
-	    { t_desc = Var(b,tl''); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	    Terms.new_term b.btype ext2 (Var(b,tl''))
 	| Ambiguous | UniqNoType | FindCond ->
 	    input_error (s ^ " is referenced outside its scope and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
       with Not_found ->
@@ -855,7 +853,7 @@ let rec check_term cur_array env = function
 	match Hashtbl.find binder_env s with
 	  Uniq b -> 
 	    let tl'' = check_array_type_list ext2 tl tl' cur_array b.args_at_creation in 
-	    { t_desc = Var(b,tl''); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	    Terms.new_term b.btype ext2 (Var(b,tl''))
 	| Ambiguous | UniqNoType | FindCond ->
 	    input_error (s ^ " is referenced in an array reference and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
       with Not_found ->
@@ -868,7 +866,7 @@ let rec check_term cur_array env = function
 	match StringMap.find s env with
 	  EFunc(f) ->
 	    check_type_list ext2 tl tl' (fst f.f_type);
-	    let t' = { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
+	    let t' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
               begin
               match f.f_cat with
                   LetFunTerm (bl,t) ->
@@ -886,7 +884,7 @@ let rec check_term cur_array env = function
       let tl' = List.map (check_term cur_array env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
-      { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTestE(t1, t2, t3), ext ->
       let t1' = check_term cur_array env t1 in
       let t2' = check_term cur_array env t2 in
@@ -894,7 +892,7 @@ let rec check_term cur_array env = function
       check_type (snd t1) t1' Settings.t_bool;
       if (t2'.t_type != t3'.t_type) && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
 	Parsing_helper.input_error "Both branches of a test should yield the same type" ext;
-      { t_desc = TestE(t1', t2', t3'); t_type = t2'.t_type; t_occ = new_occ(); t_loc = ext; t_facts = None }
+      Terms.new_term t2'.t_type ext (TestE(t1', t2', t3'))
   | PLetE(pat, t1, t2, topt), ext ->
       let t1' = check_term cur_array env t1 in
       let (env', pat') = check_pattern cur_array env (Some t1'.t_type) pat in
@@ -911,18 +909,14 @@ let rec check_term cur_array env = function
 	| Some t3' -> if (t2'.t_type != t3'.t_type)  && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
 	    input_error "Both branches of a let should return the same type" ext
       end;
-      { t_desc = LetE(pat', t1', t2', topt'); t_type = t2'.t_type; t_occ = new_occ(); t_loc = ext; t_facts = None }
+      Terms.new_term t2'.t_type ext (LetE(pat', t1', t2', topt'))
   | PResE((s1,ext1),(s2,ext2),t), ext ->
       let ty = get_type env s2 ext2 in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	input_error ("Cannot choose randomly a bitstring from " ^ ty.tname) ext2;
       let (env',b) = add_in_env env s1 ext1 ty cur_array in
       let t' = check_term cur_array env' t in
-      { t_desc = ResE(b, t');
-	t_type = t'.t_type;
-	t_occ = new_occ();
-	t_loc = ext; 
-	t_facts = None }
+      Terms.new_term t'.t_type ext (ResE(b, t'))
   | PFindE(l0,t3,opt), ext ->
       let find_info = ref Nothing in
       List.iter (fun (s,ext_s) ->
@@ -958,14 +952,14 @@ let rec check_term cur_array env = function
 	let def_list' = List.map (check_br cur_array' env'') def_list in
 	(List.combine bl' bl'', def_list', t1', t2')) l0 
       in
-      { t_desc = FindE(l0', t3', !find_info); t_type = t3'.t_type; t_occ = new_occ(); t_loc = ext; t_facts = None }
+      Terms.new_term t3'.t_type ext (FindE(l0', t3', !find_info))
   | PEventAbortE(s,ext2), ext ->
       begin
       try 
 	match StringMap.find s env with
 	  EEvent(f) ->
 	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
-	    { t_desc = EventAbortE(f); t_type = Settings.t_any; t_occ = new_occ(); t_loc = ext; t_facts = None }
+	    Terms.new_term Settings.t_any ext (EventAbortE(f))
 	| _ -> input_error (s ^ " should be an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
@@ -1108,11 +1102,13 @@ let rec check_term_letfun env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) -> 
+	    Terms.new_term b.btype ext2
+	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
 	| EFunc(f) -> 
 	    if fst (f.f_type) = [] then
               (*expand letfun functions*)
-              let t'= { t_desc = FunApp(f, []); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
+              let t'= Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
               begin
               match f.f_cat with
                   LetFunTerm (bl,t) ->
@@ -1135,7 +1131,7 @@ let rec check_term_letfun env = function
 	match StringMap.find s env with
 	  EFunc(f) ->
 	    check_type_list ext2 tl tl' (fst f.f_type);
-	    let t' = { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
+	    let t' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
               begin
               match f.f_cat with
                   LetFunTerm (bl,t) ->
@@ -1153,7 +1149,7 @@ let rec check_term_letfun env = function
       let tl' = List.map (check_term_letfun env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
-      { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTestE(t1, t2, t3), ext ->
       let t1' = check_term_letfun env t1 in
       let t2' = check_term_letfun env t2 in
@@ -1161,7 +1157,7 @@ let rec check_term_letfun env = function
       check_type (snd t1) t1' Settings.t_bool;
       if (t2'.t_type != t3'.t_type) && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
 	Parsing_helper.input_error "Both branches of a test should yield the same type" ext;
-      { t_desc = TestE(t1', t2', t3'); t_type = t2'.t_type; t_occ = new_occ(); t_loc = ext; t_facts = None }
+      Terms.new_term t2'.t_type ext (TestE(t1', t2', t3'))
   | PLetE(pat, t1, t2, topt), ext ->
       let t1' = check_term_letfun env t1 in
       let (env', pat') = check_pattern_letfun env (Some t1'.t_type) pat in
@@ -1178,18 +1174,14 @@ let rec check_term_letfun env = function
 	| Some t3' -> if (t2'.t_type != t3'.t_type)  && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
 	    input_error "Both branches of a let should return the same type" ext
       end;
-      { t_desc = LetE(pat', t1', t2', topt'); t_type = t2'.t_type; t_occ = new_occ(); t_loc = ext; t_facts = None }
+      Terms.new_term t2'.t_type ext (LetE(pat', t1', t2', topt'))
   | PResE((s1,ext1),(s2,ext2),t), ext ->
       let ty = get_type env s2 ext2 in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	input_error ("Cannot choose randomly a bitstring from " ^ ty.tname) ext2;
       let (env',b) = add_in_env_letfun env s1 ext1 ty in
       let t' = check_term_letfun env' t in
-      { t_desc = ResE(b, t');
-	t_type = t'.t_type;
-	t_occ = new_occ();
-	t_loc = ext; 
-	t_facts = None }
+      Terms.new_term t'.t_type ext (ResE(b, t'))
   | (PFindE _ | PArray _), ext ->
       input_error "Find and array references are forbidden in letfun terms" ext
   | PEventAbortE(s,ext2), ext ->
@@ -1198,7 +1190,7 @@ let rec check_term_letfun env = function
 	match StringMap.find s env with
 	  EEvent(f) ->
 	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
-	    { t_desc = EventAbortE(f); t_type = Settings.t_any; t_occ = new_occ(); t_loc = ext; t_facts = None }
+	    Terms.new_term Settings.t_any ext (EventAbortE(f))
 	| _ -> input_error (s ^ " should be an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
@@ -1362,14 +1354,16 @@ let rec check_term_nobe env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) ->
+	    Terms.new_term b.btype ext2
+	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
 	| EFunc(f) ->
             begin 
               match f.f_cat with 
                   LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
                 | _ ->
       	            if fst (f.f_type) = [] then
-	              { t_desc = FunApp(f, []); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	              Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	            else
 	              input_error (s ^ " has no arguments but expects some") ext
             end
@@ -1384,11 +1378,10 @@ let rec check_term_nobe env = function
 	  EFunc(f) ->
             begin
               match f.f_cat with
-                  LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                | _->
-                    
-	            check_type_list ext2 tl tl' (fst f.f_type);
-	            { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+                LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
+              | _ ->
+	          check_type_list ext2 tl tl' (fst f.f_type);
+	          Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
             end
 	  | _ -> input_error (s ^ " should be a function") ext
       with Not_found ->
@@ -1398,7 +1391,7 @@ let rec check_term_nobe env = function
       let tl' = List.map (check_term_nobe env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
-      { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PEqual(t1,t2), ext ->
       let t1' = check_term_nobe env t1 in
       let t2' = check_term_nobe env t2 in
@@ -1548,14 +1541,16 @@ let rec check_term_proba env = function
       begin
       try 
 	match StringMap.find s env with
-	  EVar(b) -> { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	  EVar(b) ->
+	    Terms.new_term b.btype ext2
+	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
 	| EFunc(f) ->
             begin
               match f.f_cat with
                 | LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
                 | _->
 	            if fst (f.f_type) = [] then
-	              { t_desc = FunApp(f, []); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+		      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	            else
 	              input_error (s ^ " has no arguments but expects some") ext
             end
@@ -1563,8 +1558,8 @@ let rec check_term_proba env = function
       with Not_found -> try
 	match Hashtbl.find binder_env s with
 	  Uniq b -> 
-	    let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in 
-	    { t_desc = Var(b,tl''); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+	    let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in
+	    Terms.new_term b.btype ext2 (Var(b,tl''))
 	| Ambiguous | UniqNoType | FindCond ->
 	    input_error (s ^ " is referenced outside its scope and is either\ndefined without type, defined several times, defined in a condition of find or get, or defined in find in an equivalence") ext
       with Not_found ->
@@ -1578,10 +1573,10 @@ let rec check_term_proba env = function
 	    EFunc(f) ->
               begin
                 match f.f_cat with
-                    LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                  | _->
-	              check_type_list ext2 tl tl' (fst f.f_type);
-	              { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+                  LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
+                | _->
+	            check_type_list ext2 tl tl' (fst f.f_type);
+	            Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
               end
 	  | _ -> input_error (s ^ " should be a function") ext
       with Not_found ->
@@ -1591,7 +1586,7 @@ let rec check_term_proba env = function
       let tl' = List.map (check_term_proba env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
-      { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | (PArray _ | PTestE _ | PLetE _ | PResE _ | PFindE _ | PEventAbortE _), ext ->
       Parsing_helper.input_error "Array accesses/if/let/find/new/event not allowed in terms in probability formulas" ext
   | PEqual(t1,t2), ext ->
@@ -1869,7 +1864,14 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	                else
 		          (Length(f, pl'), Some(0,0,1))
               end
-	  | _ -> input_error (s ^ " should be a function symbol") ext'
+	  | EType t ->
+	      if pl != [] then
+		input_error "the length of a type should have no additional argument" ext';
+	      if t.toptions land Settings.tyopt_BOUNDED != 0 then
+		(TypeMaxlength t, Some(0,0,1))
+	      else
+		input_error "the length of a type is allowed only when the type is bounded" ext'
+	  | _ -> input_error (s ^ " should be a function symbol or a type") ext'
 	with Not_found ->
 	  input_error (s ^ " is not defined") ext'
       end
@@ -2444,21 +2446,17 @@ and check_oprocess cur_array env prog = function
 	          check_type_list ext tl tl' (List.tl (fst f.f_type));
 	          let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
 	            event_type_list := (f, tupf) :: (!event_type_list);
-	            let tcur_array = { t_desc = FunApp(tupf, List.map Terms.term_from_repl_index cur_array);
-			               t_type = Settings.t_bitstring;
-			               t_occ = Terms.new_occ();
-			               t_loc = ext2; 
-			               t_facts = None }
-	            in
-	            let (p', tres, oracle,ip') = check_oprocess cur_array env prog p in
-                    let event={ t_desc = FunApp(f, tcur_array::tl');
-			        t_type = Settings.t_bool;
-			        t_occ = Terms.new_occ();
-			        t_loc = ext2; 
-			        t_facts = None } in
-	              (oproc_from_desc 
-	                 (EventP(event, p')), tres, oracle,
-                       oproc_from_desc (EventP(event, ip')))
+	          let tcur_array =
+		    Terms.new_term Settings.t_bitstring ext2
+		     (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
+	          in
+	          let (p', tres, oracle,ip') = check_oprocess cur_array env prog p in
+                  let event =
+		    Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
+		  in
+	          (oproc_from_desc 
+	             (EventP(event, p')), tres, oracle,
+                   oproc_from_desc (EventP(event, ip')))
 	    | _ -> input_error (s ^ " should be an event") ext0
         with Not_found ->
 	  input_error (s ^ " not defined") ext0
@@ -3150,7 +3148,7 @@ let rec check_term_query1 env = function
 	match StringMap.find s env with
 	  EEvent(f) -> 
 	    if List.tl (fst f.f_type) = [] then
-	      [false, { t_desc = FunApp(f, [new_bitstring_binder()]); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }]
+	      [false, Terms.new_term (snd f.f_type) ext2 (FunApp(f, [new_bitstring_binder()]))]
 	    else
 	      input_error (s ^ " has no arguments but expects some") ext
 	| _ -> input_error (s ^ " should be an event") ext
@@ -3164,7 +3162,7 @@ let rec check_term_query1 env = function
 	match StringMap.find s env with
 	  EEvent(f) ->
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
-	    [false, { t_desc = FunApp(f, (new_bitstring_binder()) :: tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }]
+	    [false, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl'))]
 	| _ -> input_error (s ^ " should be an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
@@ -3180,7 +3178,7 @@ let rec check_term_query1 env = function
 	    if diff_types f then
 	      input_error "Injective events should be under replications of the same type" ext2;
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
-	    [true, { t_desc = FunApp(f, (new_bitstring_binder()) :: tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None }]
+	    [true, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl'))]
 	| _ -> input_error (s ^ " should be an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
@@ -3195,7 +3193,10 @@ let rec check_term_query2 env = function
       try 
 	match StringMap.find s env with
 	  EVar(b) -> 
-	    let x' = { t_desc = Var(b,List.map Terms.term_from_repl_index b.args_at_creation); t_type = b.btype; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
+	    let x' =
+	      Terms.new_term b.btype ext2
+		(Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
+	    in
 	    check_type (snd x) x' Settings.t_bool;	    
 	    QTerm x'
 	| EFunc(f) ->
@@ -3204,15 +3205,15 @@ let rec check_term_query2 env = function
                   LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
                 | _ ->
 	            if fst (f.f_type) = [] then
-	              let x' = { t_desc = FunApp(f, []); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
-	                check_type (snd x) x' Settings.t_bool;
-	                QTerm x'
+	              let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
+	              check_type (snd x) x' Settings.t_bool;
+	              QTerm x'
 	            else
 	              input_error (s ^ " has no arguments but expects some") ext
             end
 	| EEvent(f) -> 
 	    if List.tl (fst f.f_type) = [] then
-	      QEvent (false, { t_desc = FunApp(f, [new_bitstring_binder()]); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None })
+	      QEvent (false, Terms.new_term (snd f.f_type) ext2 (FunApp(f, [new_bitstring_binder()])))
 	    else
 	      input_error (s ^ " has no arguments but expects some") ext
 	| _ -> input_error (s ^ " should be a variable, a function, or an event") ext
@@ -3230,13 +3231,13 @@ let rec check_term_query2 env = function
                   LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
                 | _ ->
                     check_type_list ext2 tl tl' (fst f.f_type);
-	            let x' = { t_desc = FunApp(f, tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None } in
-	              check_type (snd x) x' Settings.t_bool;
-	              QTerm x'
+	            let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
+	            check_type (snd x) x' Settings.t_bool;
+	            QTerm x'
             end
 	| EEvent(f) ->
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
-	    QEvent (false, { t_desc = FunApp(f, (new_bitstring_binder()) :: tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None })
+	    QEvent (false, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl')))
 	| _ -> input_error (s ^ " should be a function or an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
@@ -3250,7 +3251,7 @@ let rec check_term_query2 env = function
 	    if List.memq f (!several_occ_events) then
 	      input_error "Injective events should occur once in the process" ext2;
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
-	    QEvent (true, { t_desc = FunApp(f, (new_bitstring_binder()) :: tl'); t_type = snd f.f_type; t_occ = new_occ(); t_loc = ext2; t_facts = None })
+	    QEvent (true, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl')))
 	| _ -> input_error (s ^ " should be a an event") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext

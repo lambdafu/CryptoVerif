@@ -19,7 +19,8 @@ let has_common_elem l1 l2 =
 
 let sa_rename_ins_updater b bl = function
     (ExpandIfFindGetInsert | Simplify _ | RemoveAssign(All) | 
-     RemoveAssign(Minimal) | MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
+     RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
+     MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *)) as x -> [x]
   | RemoveAssign (OneBinder b') ->
@@ -43,12 +44,22 @@ let sa_rename_ins_updater b bl = function
 	List.map (fun b'' -> GlobalDepAnal (b'',l)) bl
       else
 	[GlobalDepAnal (b',l)]
-  | CryptoTransf(eq,bl') ->
+  | CryptoTransf(eq,VarList(bl',stop)) ->
       if List.memq b bl' then
-	List.map (fun b'' -> CryptoTransf(eq, List.map (fun b' -> if b' == b then b'' else b') bl')) bl
+	List.map (fun b'' -> CryptoTransf(eq, VarList(List.map (fun b' -> if b' == b then b'' else b') bl', stop))) bl
       else
-	[CryptoTransf(eq,bl')]
-
+	[CryptoTransf(eq,VarList(bl',stop))]
+  | CryptoTransf(eq,Detailed(None,_)) ->
+      [CryptoTransf(eq,Detailed(None,None))] (* term mapping cannot be preserved *)
+  | CryptoTransf(eq,Detailed(Some(vmap,vl,stop), _)) ->
+      if List.exists (fun (b',_) -> b'==b) vmap then
+	List.map (fun b'' -> CryptoTransf(eq, Detailed(Some(
+	   List.map (fun (b',r) -> if b' == b then (b'',r) else (b',r)) vmap, vl, stop), None))) bl
+      else if List.memq b vl then
+	List.map (fun b'' -> CryptoTransf(eq, Detailed(Some(vmap, List.map (fun b' -> if b' == b then b'' else b') vl, stop), None))) bl
+      else
+	[CryptoTransf(eq,Detailed(Some(vmap,vl,stop), None))]
+	  
 let compos_ins_updater a b = match a, b with
   None, x -> x
 | x, None -> x
@@ -98,7 +109,7 @@ let execute g ins =
   (g', proba, done_ins, compos_sa_rename done_ins)
 
 
-let execute_state state i =
+let execute_state_basic state i =
   let tmp_changed = !Settings.changed in
   Settings.changed := false;
   print_string "Doing ";
@@ -132,16 +143,20 @@ let execute_state state i =
       Settings.changed := tmp_changed;
       (state, None)
     end
+
+let default_remove_assign() =
+  let r = if !Settings.auto_remove_assign_find_cond then FindCond else Minimal in
+  RemoveAssign(r)
       
-let execute_state state = function
+let rec execute_state state = function
     SArenaming b ->
       (* Adding simplification after SArenaming *)
       let tmp_changed = !Settings.changed in
       Settings.changed := false;
-      let (state', ins_updater) = execute_state state (SArenaming b) in
+      let (state', ins_updater) = execute_state_basic state (SArenaming b) in
       if !Settings.changed then 
 	if !Settings.simplify_after_sarename then 
-	  let (state'', ins_updater') = execute_state state' (RemoveAssign Minimal) in
+	  let (state'', ins_updater') = execute_state_basic state' (default_remove_assign()) in
 	  let (state''', ins_updater'') = execute_state state'' (Simplify []) in
 	  (state''', compos_ins_updater (compos_ins_updater ins_updater ins_updater') ins_updater'')
 	else
@@ -151,7 +166,75 @@ let execute_state state = function
 	  Settings.changed := tmp_changed;
 	  (state', ins_updater)
 	end
-  | i -> execute_state state i
+  | (Simplify l) as i ->
+      (* Iterate Simplify (!Settings.max_iter_simplif) times *)
+      let tmp_changed = !Settings.changed in
+      Settings.changed := false;
+      print_string "Doing ";
+      Display.display_instruct i;
+      print_string "... "; flush stdout;
+      let rec iterate iter state =
+	let (g', proba, done_ins, ins_updater) = execute state.game i in
+	if !Settings.debug_instruct then
+	  begin
+	    print_string " Resulting game after one simplification pass:\n";
+	    Display.display_process g'.proc
+	  end;
+	match done_ins with
+	  [] ->
+	    (* No change in this pass *)
+	    print_string "Run simplify ";
+            print_int ((!Settings.max_iter_simplif) - iter + 1);
+	    print_string " time(s). Fixpoint reached.\n";
+	    (state, None)
+	| [DGlobalDepAnal _] ->
+	    (* Global dependency analysis done; iterate simplification the same number of times *)
+	    g'.proc <- Terms.move_occ_process g'.proc;
+	    Invariants.global_inv g'.proc;
+	    let state' =  
+	      { game = g';
+		prev_state = Some (i, proba, done_ins, state) }
+	    in
+	    let (state'', ins_updater') = iterate iter state' in
+	    (state'', compos_ins_updater ins_updater ins_updater')
+	| _ ->
+	    (* Simplification done *)
+	    g'.proc <- Terms.move_occ_process g'.proc;
+	    Invariants.global_inv g'.proc;
+	    let state' =  
+	      { game = g';
+		prev_state = Some (i, proba, done_ins, state) }
+	    in
+	    if iter != 1 then
+	      let (state'', ins_updater') = iterate (iter-1) state' in
+	      (state'', compos_ins_updater ins_updater ins_updater')
+	    else
+	      begin
+		print_string "Run simplify ";
+		print_int ((!Settings.max_iter_simplif) - iter + 1);
+		print_string " time(s). Maximum reached.\n";
+		(state', ins_updater)
+              end
+      in
+      let result = iterate (!Settings.max_iter_simplif) state in
+      (* Transfer the local advice of Globaldepanal to the global advice in Settings.advise *)
+      List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!Transf_globaldepanal.advise);
+      Transf_globaldepanal.advise := [];
+
+      if !Settings.changed then
+	begin
+	  print_string "Done.";
+	  print_newline();
+	  result
+	end
+      else
+	begin
+	  print_string "No change.";
+	  print_newline();
+	  Settings.changed := tmp_changed;
+	  (state, None)
+	end
+  | i -> execute_state_basic state i
 
 let rec execute_with_advise state i = 
   let tmp_changed0 = !Settings.changed in
@@ -215,7 +298,7 @@ let execute_display_advise state i =
 
 type trans_res =
     CSuccess of state
-  | CFailure of (equiv_nm * binder list * instruct list) list
+  | CFailure of (equiv_nm * crypto_transf_user_info * instruct list) list
 
 let move_new_let state =
   if !Settings.auto_move then
@@ -226,17 +309,42 @@ let move_new_let state =
 let remove_assign_no_sa_rename state =
   let tmp_auto_sa_rename = !Settings.auto_sa_rename in
   Settings.auto_sa_rename := false;
-  let state' = execute_with_advise_last state (RemoveAssign Minimal) in
+  let state' = execute_with_advise_last state (default_remove_assign()) in
   Settings.auto_sa_rename := tmp_auto_sa_rename;
   state'
 
-let simplify state = execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify []))) (RemoveAssign Minimal)
+let merge state =
+  if !Settings.merge_branches then
+    execute_with_advise_last state MergeBranches
+  else
+    state
+
+let simplify state = merge (execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify []))) (default_remove_assign()))
 
 let expand_simplify state = simplify (execute_with_advise_last state ExpandIfFindGetInsert)
 
-let crypto_transform stop no_advice equiv bl_assoc state =
-  print_string "Trying "; Display.display_instruct (CryptoTransf(equiv, bl_assoc)); print_string "... ";
-  let res = Transf_crypto.crypto_transform stop no_advice equiv bl_assoc state.game in
+let display_failure_reasons failure_reasons =
+  if failure_reasons == [] then
+    begin
+      print_string "."; print_newline()
+    end
+  else
+    begin
+      print_string ":"; print_newline()
+    end;
+  List.iter (fun (bl, failure_reason) ->
+    if bl != [] then
+      begin
+	print_string "Random variables: ";
+	Display.display_list (fun (b1,b2) -> Display.display_binder b1; print_string " -> "; Display.display_binder b2) bl;
+	print_newline()
+      end;
+    Transf_crypto.display_failure_reason failure_reason
+      ) failure_reasons
+
+let crypto_transform no_advice equiv user_info state =
+  print_string "Trying "; Display.display_instruct (CryptoTransf(equiv, user_info)); print_string "... "; flush stdout;
+  let res = Transf_crypto.crypto_transform no_advice equiv user_info state.game in
   match res with
     TSuccess (proba,ins,g'') -> 
       if !Settings.debug_instruct then
@@ -244,11 +352,7 @@ let crypto_transform stop no_advice equiv bl_assoc state =
 	  Display.display_process state.game.proc;
 	  print_string "Applying ";
 	  Display.display_equiv_with_name equiv;
-	  if bl_assoc != [] then
-	    begin
-	      print_string "with ";
-	      Display.display_bl_assoc bl_assoc
-	    end;
+	  Display.display_with_user_info user_info;
 	  print_string " succeeds. Resulting game:\n";
 	  Display.display_process g''.proc
 	end
@@ -258,39 +362,46 @@ let crypto_transform stop no_advice equiv bl_assoc state =
       g''.proc <- Terms.move_occ_process g''.proc;
       Invariants.global_inv g''.proc;
       CSuccess (simplify { game = g''; 
-			   prev_state = Some (CryptoTransf(equiv, bl_assoc), proba, ins, state) })
-  | TFailure l ->
+			   prev_state = Some (CryptoTransf(equiv, user_info), proba, ins, state) })
+  | TFailure (l,failure_reasons) ->
       if !Settings.debug_instruct then
 	begin
 	  Display.display_process state.game.proc;
 	  print_string "Applying ";
 	  Display.display_equiv_with_name equiv;
-	  if bl_assoc != [] then
-	    begin
-	      print_string "with ";
-	      Display.display_bl_assoc bl_assoc
-	    end;
-	  print_string " failed.\n";
+	  Display.display_with_user_info user_info;
+	  print_string " failed";
+	  display_failure_reasons failure_reasons;
 	  if l != [] then print_string "Suggestions: \n";
-	  List.iter (fun (_, bl_assoc, to_do) ->
-	    Display.display_bl_assoc bl_assoc;
+	  List.iter (fun (_, user_info, to_do) ->
+	    Display.display_user_info user_info;
 	    print_string ", after executing ";
 	    Display.display_list Display.display_instruct to_do;
 	    print_newline()
 	      ) l
 	end
       else
-	print_string "Failed.\n";
+	begin
+	  print_string "Failed";
+	  display_failure_reasons failure_reasons
+	end;
       CFailure l
 
+let get_var_list = function
+    VarList(l,_) -> l
+  | Detailed(vmopt,_) ->
+      match vmopt with
+	None -> []
+      | Some (vm,vl,_) -> vl @ (List.map fst vm) 
+	
 let rec execute_crypto_list continue = function
     [] -> continue (CFailure [])
-  | ((equiv, bl_assoc, to_do), state, first_try, stop)::l ->
+  | ((equiv, user_info, to_do), state, first_try)::l ->
       (* Try after executing the advice *)
       Settings.changed := false;
       if to_do == [] then
         (* When no advice is given and it's not the first time the transfo is tried, apply the crypto transformation without advice *)
-	match crypto_transform stop ((not first_try) || (!Settings.no_advice_crypto)) equiv bl_assoc state with
+	match crypto_transform ((not first_try) || (!Settings.no_advice_crypto)) equiv user_info state with
 	  CSuccess state'' -> 
 	    begin
 	      try
@@ -298,8 +409,8 @@ let rec execute_crypto_list continue = function
 	      with Backtrack ->
 		if !Settings.backtrack_on_crypto then
 	          (* Filter the choices to avoid considering too many similar choices *)
-		  let l = List.filter (fun ((equiv', bl_assoc', _), _, _, _) -> 
-		    equiv' != equiv || not (has_common_elem bl_assoc' bl_assoc)) l
+		  let l = List.filter (fun ((equiv', user_info', _), _, _) -> 
+		    equiv' != equiv || not (has_common_elem (get_var_list user_info') (get_var_list user_info))) l
 		  in
 		  (*
 		  print_string "Just tried\n";
@@ -309,17 +420,17 @@ let rec execute_crypto_list continue = function
 		  print_string "End of list\n";
 		  *)
 		  if l = [] then raise Backtrack;
-		  execute_crypto_list continue (List.map (fun (tr, st, first_try, stop) -> (tr, state_without_proof st, first_try, stop)) l)
+		  execute_crypto_list continue (List.map (fun (tr, st, first_try) -> (tr, state_without_proof st, first_try)) l)
 		else
 		  raise Backtrack
 	    end
-	| CFailure l' -> execute_crypto_list continue ((List.map (fun x -> (x, state, false, stop)) l') @ l) 
+	| CFailure l' -> execute_crypto_list continue ((List.map (fun x -> (x, state, false)) l') @ l) 
       else
 	let (state', ins_updater) = execute_list_with_advise state to_do in
 	if !Settings.changed then
-	  let l_crypto_transf = apply_ins_updater ins_updater (CryptoTransf(equiv, bl_assoc)) in
+	  let l_crypto_transf = apply_ins_updater ins_updater (CryptoTransf(equiv, user_info)) in
 	  execute_crypto_list continue ((List.map (function
-	      CryptoTransf(equiv, bl_assoc) -> ((equiv, bl_assoc, []), state', true, stop)
+	      CryptoTransf(equiv, user_info) -> ((equiv, user_info, []), state', true)
 	    | _ -> Parsing_helper.internal_error "The result of an ins_updater on CryptoTransf should be a list of CryptoTransf") l_crypto_transf) @ l)
 	else
 	  execute_crypto_list continue l
@@ -333,7 +444,7 @@ let rec execute_any_crypto_rec continue state = function
           (* This equivalence should be applied only manually, and we are in automatic mode, so skip it *) 
 	  execute_any_crypto_rec continue state equivs
       |	_ ->
-      match crypto_transform false (!Settings.no_advice_crypto) equiv [] state with
+      match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([],false)) state with
 	CSuccess state' -> 
 	  begin
 	    try
@@ -519,7 +630,7 @@ let rec execute_any_crypto_rec1 state =
 		  CFailure _ -> 
 		    apply_equivs rest_equivs
 		| CSuccess state''' ->
-		    execute_any_crypto_rec1 state''') (List. map (fun x -> (x, state', false, false)) l)) state' lequiv
+		    execute_any_crypto_rec1 state''') (List. map (fun x -> (x, state', false)) l)) state' lequiv
     in
     apply_equivs equiv_list
 
@@ -644,8 +755,11 @@ let find_binders game =
   find_binders_rec accu game;
   accu 
 
-let find_binder binders s =
-  Hashtbl.find binders s
+let find_binder binders (s,ext) =
+  try
+    Hashtbl.find binders s
+  with Not_found -> 
+    raise (Error("Binder " ^ s ^ " not found", ext))
 
 let rec find_funsymb f t =
   match t.t_desc with
@@ -678,52 +792,125 @@ let find_equiv_by_name f ((n,_,_,_,_,_),_) =
   | CstName (s,_) -> f = s
   | ParName ((s1,_),(s2,_)) -> f = (s1 ^ "(" ^ s2 ^ ")")
 
-let do_equiv ext equiv lb state = 
-  match lb with
-    ["*", _] ->
+let rec find_list f = function
+    [] -> raise Not_found
+  | (a::l) ->
+      try
+	f a
+      with Not_found ->
+	find_list f l
+	
+let rec find_oracle_fg s = function
+    Fun(n,_,res,_) -> if s = n.cname then res else raise Not_found
+  | ReplRestr(_,_,l) -> find_list (find_oracle_fg s) l
+	
+let find_oracle (s,ext) ((_,lm,_,_,_,_),_) =
+  try
+    find_list (fun (a,_) -> find_oracle_fg s a) lm
+  with Not_found ->
+    raise (Error("Oracle " ^ s ^ " not found in equivalence", ext))
+
+let rec find_restr_fg s = function
+    Fun _ -> raise Not_found
+  | ReplRestr(_,restr,l) ->
+      try
+	find_list (fun (b,_) ->
+	  if Display.binder_to_string b = s then b else raise Not_found) restr
+      with Not_found ->
+	find_list (find_restr_fg s) l
+    
+let find_restr (s,ext) ((_,lm,_,_,_,_),_) =
+  try 
+    find_list (fun (a,_) -> find_restr_fg s a) lm
+  with Not_found ->
+    raise (Error("Random variable " ^ s ^ " not found in equivalence", ext))
+    
+let do_equiv ext equiv (s,ext_s) state = 
+  (* @ is not accepted in identifiers when parsing the initial file,
+     but CryptoVerif creates variables with @, so I accept @ here. *)
+  Parsing_helper.accept_arobase := true;
+  let lexbuf = Lexing.from_string s in
+  let parsed_user_info = 
+    try 
+      if (!Settings.front_end) == Settings.Channels then 
+	Parser.cryptotransfinfo Lexer.token lexbuf
+      else
+	Oparser.cryptotransfinfo Olexer.token lexbuf
+    with
+      Parsing.Parse_error -> raise (Error("Syntax error", combine_extent ext_s (extent lexbuf)))
+    | Error(s,ext) -> raise (Error(s, combine_extent ext_s ext))
+
+  in
+  match parsed_user_info with
+    Ptree.PRepeat ->
       let rec repeat_crypto equiv state = 
-	match crypto_transform false (!Settings.no_advice_crypto) equiv [] state with
+	match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([],false)) state with
 	  CSuccess state' -> repeat_crypto equiv state'
 	| CFailure l -> 
 	    execute_crypto_list (function 
 		CSuccess state'' -> repeat_crypto equiv state''
-	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; state) (List.map (fun x -> (x, state, false, false)) l) 
+	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; state) (List.map (fun x -> (x, state, false)) l) 
       in
       repeat_crypto equiv state
-  | _ -> 
-    (* When the list of binders lb ends with a ".", do not add more binders
-       automatically *)
-      let (lb, stop) = 
-	match List.rev lb with 
-	  (".",_)::rest -> (List.rev rest, true) 
-	| _ -> (lb, false) 
+  | _ ->
+      let user_info =
+	match parsed_user_info with
+	  Ptree.PRepeat -> Parsing_helper.internal_error "PRepeat should have been handled earlier"
+	| Ptree.PVarList(lb, stop) -> 
+           (* When the list of binders lb ends with a ".", do not add more binders
+              automatically *)
+	    let binders = find_binders state.game.proc in	      	  
+	    let lb' = List.map (find_binder binders) lb in
+	    VarList(lb',stop)
+	| Ptree.PDetailed l ->
+	    let binders = find_binders state.game.proc in	      	  
+	    let var_mapping = ref None in
+	    let term_mapping = ref None in
+	    List.iter (function
+		Ptree.PVarMapping((id,ext), map, stop) ->
+		  if id <>"variables" then
+		    raise (Error ("\"variables\" expected", ext));
+		  if (!var_mapping) != None then
+		    raise (Error ("Variable mapping already set", ext));
+		  var_mapping := Some (List.fold_right (fun (id_g,id_equiv) accu ->
+		    let v_g = find_binder binders id_g in
+		    let v_equiv = find_restr id_equiv equiv in
+		    if v_g.btype != v_equiv.btype then
+		      raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
+				    " should have the same type as " ^ 
+				    (Display.binder_to_string v_equiv), snd id_g));
+		    if List.exists (fun (v_g', _) -> v_g == v_g') accu then
+		      raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
+				    " mapped several times", snd id_g));
+		    (v_g, v_equiv)::accu) map [], [], stop)
+	      | Ptree.PTermMapping((id,ext),map,stop) ->
+		  if id <>"terms" then
+		    raise (Error ("\"terms\" expected", ext));
+		  if (!term_mapping) != None then
+		    raise (Error ("Term mapping already set", ext));
+		  term_mapping := Some (List.map (fun (occ,id_oracle) ->
+		    (occ, find_oracle id_oracle equiv)) map, stop)
+		       ) l;
+	    Detailed (!var_mapping, !term_mapping)
       in
-      let binders = find_binders state.game.proc in	      	  
-      let lb' = List.map (fun (s,ext) -> 
-	try
-	  find_binder binders s 
-	with Not_found -> 
-	  raise (Error("Binder " ^ s ^ " not found", ext))
-	  ) lb in
-      match crypto_transform stop (!Settings.no_advice_crypto) equiv lb' state with
+      match crypto_transform (!Settings.no_advice_crypto) equiv user_info state with
 	CSuccess state' -> state'
       | CFailure l -> 
 	  if !Settings.auto_advice then
 	    execute_crypto_list (function 
 	      CSuccess state'' -> state''
-	    | CFailure _ -> raise (Error ("Cryptographic transformation failed", ext))) (List.map (fun x -> (x, state, false, stop)) l) 
+	    | CFailure _ -> raise (Error ("Cryptographic transformation failed", ext))) (List.map (fun x -> (x, state, false)) l) 
 	  else
 	    begin
 	      if l != [] then print_string "Failed. Suggestions: \n";
-	      List.iter (fun (_, bl_assoc, to_do) ->
-		Display.display_bl_assoc bl_assoc;
+	      List.iter (fun (_, user_info, to_do) ->
+		Display.display_user_info user_info;
 		print_string ", after executing ";
 		Display.display_list Display.display_instruct to_do;
 		print_newline()
 		  ) l;
 	      raise (Error ("Cryptographic transformation failed", ext))
 	    end
-
 
 
 let rec undo ext state n =
@@ -740,9 +927,13 @@ let rec undo ext state n =
   | Some (_,_,_,state') -> undo ext state' (n-1)
 
 let rec concat_strings = function
-    [] -> Parsing_helper.internal_error "Empty list in concat_strings"
+    [] -> ""
   | [a,_] -> a
   | ((a, _)::l) -> a ^ " " ^ (concat_strings l)
+
+let get_ext = function
+    [] -> dummy_ext
+  | (_,ext)::_ -> ext
 
 let help() =
   print_string (
@@ -770,7 +961,7 @@ let help() =
   "crypto                       : apply a cryptographic transformation\n" ^
   "(can be used alone or with a specifier of the transformation; see the manual)\n" ^
   "simplify                     : simplify the game\n" ^
-  "simplify coll_elim <locations> : simplify the game, allowing collision eliminination at <locations> (variables, types, occurrences)\n" ^
+  "simplify coll_elim <locations> : simplify the game, allowing collision elimination at <locations> (variables, types, occurrences)\n" ^
   "all_simplify                 : remove_assign useless, simplify, move all\n" ^
   "insert_event <ident> <occ>   : insert an event <ident> at occurrence <occ>\n" ^
   "insert <occ> <ins>           : insert instruction <ins> at occurrence <occ>\n" ^
@@ -782,6 +973,10 @@ let help() =
   "show_game occ                : show the current game with occurrences\n" ^
   "show_state                   : show the sequence of games up to now\n" ^
   "show_facts <occ>             : show the facts that hold at program point <occ>\n" ^
+  "out_game <filename>          : output the current game to <filename>\n" ^
+  "out_game <filename> occ      : output the current game with occurrences to <filename>\n" ^
+  "out_state <filename>         : output the sequence of games up to now to <filename>\n" ^
+  "out_facts <filename> <occ>   : output the facts that hold at program point <occ> to <filename>\n" ^
   "auto                         : try to terminate the proof automatically\n" ^
   "set <param> = <value>        : set the value of various parameters\n" ^
   "allowed_collisions <formulas>: determine when to eliminate collisions\n" ^
@@ -815,15 +1010,11 @@ let rec interpret_command interactive state = function
       begin
 	match l with
 	  [("useless", _)] -> execute_display_advise state (RemoveAssign Minimal)
+	| [("findcond", _)] -> execute_display_advise state (RemoveAssign FindCond)
 	| [("all", _)] -> execute_display_advise state (RemoveAssign All)
-	| [("binder",_); (s,ext2)] -> 
-	    begin
-	    try
-	      let binders = find_binders state.game.proc in
-	      execute_display_advise state (RemoveAssign (OneBinder (find_binder binders s)))
-	    with Not_found ->
-	      raise (Error("Binder " ^ s ^ " not found", ext2))
-	    end
+	| [("binder",_); id] -> 
+	    let binders = find_binders state.game.proc in
+	    execute_display_advise state (RemoveAssign (OneBinder (find_binder binders id)))
 	| _ -> 
 	    raise (Error("Allowed options for remove_assign are useless, all, binder x", ext1))
       end
@@ -835,33 +1026,25 @@ let rec interpret_command interactive state = function
 	| [("random",_)] -> execute_display_advise state (MoveNewLet MNew)
 	| [("random_noarrayref",_)] -> execute_display_advise state (MoveNewLet MNewNoArrayRef)
 	| [("assign",_)] -> execute_display_advise state (MoveNewLet MLet)
-	| [("binder",_); (s,ext2)] ->
+	| [("binder",_); id] ->
+	    let binders = find_binders state.game.proc in	      
+	    execute_display_advise state (MoveNewLet (MOneBinder (find_binder binders id)))
+	| [("array",_); ((s,ext2) as id)] ->
 	    begin
-	    try
 	      let binders = find_binders state.game.proc in	      
-	      execute_display_advise state (MoveNewLet (MOneBinder (find_binder binders s)))
-	    with Not_found ->
-	      raise (Error("Binder " ^ s ^ " not found", ext2))
-	    end
-	| [("array",_); (s,ext2)] ->
-	    begin
-	    try
-	      let binders = find_binders state.game.proc in	      
-	      let b = find_binder binders s in
+	      let b = find_binder binders id in
 	      if not (Proba.is_large b.btype) then
 		raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
  	      if (b.btype.toptions land Settings.tyopt_CHOOSABLE) == 0 then
 		raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
 	      try
 		let equiv = List.assq b.btype (!Settings.move_new_eq) in
-		match crypto_transform true (!Settings.no_advice_crypto) equiv [b] state with
+		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([b],true)) state with
 		  CSuccess state' -> state'
 		| CFailure l -> 
 		    raise (Error ("Transformation \"move array\" failed", ext1))
 	      with Not_found ->
 		raise (Error("Transformation for \"move array\" not found, perhaps the macro move_array_internal_macro is not defined in your library", ext2))
-	    with Not_found ->
-	      raise (Error("Binder " ^ s ^ " not found", ext2))
 	    end
 	| _ -> raise (Error("Allowed options for move are all, noarrayref, random, random_noarrayref, assign, and binder x", ext1))
       end
@@ -915,13 +1098,8 @@ let rec interpret_command interactive state = function
 	    [] -> [List.rev accu]
 	  | (",", ext)::r ->
 	      (List.rev accu) :: (anal_r [] r)
-	  | (s, ext2)::r ->
-	      let b = 
-		try
-		  (find_binder binders s, ext2)
-		with Not_found ->
-		  raise (Error("Binder " ^ s ^ " not found", ext2))
-	      in
+	  | ((s, ext2)as id)::r ->
+	      let b = (find_binder binders id, ext2) in
 	      anal_r (b::accu) r
 	in
 	let bl = anal_r [] r in
@@ -935,30 +1113,15 @@ let rec interpret_command interactive state = function
       end
   | ["merge_branches",_] ->
       execute_display_advise state MergeBranches
-  | ["SArename",_;s,ext1] ->
-      begin
-	try
-	  let binders = find_binders state.game.proc in	      
-	  execute_display_advise state (SArenaming (find_binder binders s))
-	with Not_found ->
-	  raise (Error("Binder " ^ s ^ " not found", ext1))
-      end
-  | ["global_dep_anal",_;s,ext1] ->
-      begin
-	try
-	  let binders = find_binders state.game.proc in	      
-	  execute_display_advise state (GlobalDepAnal (find_binder binders s, []))
-	with Not_found ->
-	  raise (Error("Binder " ^ s ^ " not found", ext1))
-      end
-  | ("global_dep_anal",_) :: (s,ext1) :: ("coll_elim", _) :: l ->
-      begin
-	try
-	  let binders = find_binders state.game.proc in	      
-	  execute_display_advise state (GlobalDepAnal (find_binder binders s, List.map fst l))
-	with Not_found ->
-	  raise (Error("Binder " ^ s ^ " not found", ext1))
-      end
+  | ["SArename",_;id] ->
+      let binders = find_binders state.game.proc in	      
+      execute_display_advise state (SArenaming (find_binder binders id))
+  | ["global_dep_anal",_;id] ->
+      let binders = find_binders state.game.proc in	      
+      execute_display_advise state (GlobalDepAnal (find_binder binders id, []))
+  | ("global_dep_anal",_) :: id :: ("coll_elim", _) :: l ->
+      let binders = find_binders state.game.proc in	      
+      execute_display_advise state (GlobalDepAnal (find_binder binders id, List.map fst l))
   | ["all_simplify",_] ->
       simplify state
   | ("crypto",ext1)::r ->
@@ -995,14 +1158,13 @@ let rec interpret_command interactive state = function
 		    begin
 		      print_string "Applying ";
 		      Display.display_equiv equiv; print_newline();
-		      print_string "Please enter binders mapped to restrictions for this equivalence: ";
+		      print_string "Please enter variable and/or term mapping for this equivalence: ";
 		      let s = read_line() in
-		      let lb = Str.split (Str.regexp "[ \t]+") s in
-		      do_equiv ext1 equiv (List.map (fun s -> (s, dummy_ext)) lb) state
+		      do_equiv ext1 equiv (s,dummy_ext) state
 		    end
 		  else
-		    do_equiv ext1 equiv [] state
-	      |	Some _ -> do_equiv ext1 equiv binders state
+		    do_equiv ext1 equiv ("",dummy_ext) state
+	      |	Some _ -> do_equiv ext1 equiv (concat_strings binders, get_ext binders) state
 	    end
 	| _ -> 
 	    if interactive then
@@ -1015,11 +1177,10 @@ let rec interpret_command interactive state = function
 		  let equiv = List.nth possible_equivs (int_of_string s - 1) in
 		  match eq_name_opt with
 		    None -> 
-		      print_string "Please enter binders mapped to restrictions for this equivalence: ";
+		      print_string "Please enter variable and/or term mapping for this equivalence: ";
 		      let s = read_line() in
-		      let lb = Str.split (Str.regexp "[ \t]+") s in
-		      do_equiv ext1 equiv (List.map (fun s -> (s, dummy_ext)) lb) state
-		  | Some _ -> do_equiv ext1 equiv binders state
+		      do_equiv ext1 equiv (s,dummy_ext) state
+		  | Some _ -> do_equiv ext1 equiv (concat_strings binders, get_ext binders) state
 		with Failure _ -> 
 		  raise (Error("Incorrect number", dummy_ext))
 	      end
@@ -1057,8 +1218,33 @@ let rec interpret_command interactive state = function
 	try 
 	  let occ = int_of_string occ_s in
 	  (* First compute the facts, then display them *)
-	  Terms.build_def_process None state.game.proc;
+	  Simplify1.improved_def_process None false state.game.proc;
 	  Facts.display_facts_at state.game.proc occ;
+	  state
+	with Failure _ ->
+	  raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
+      end
+  | [("out_game",_); (s,_)] ->
+      Display.file_out s (fun () -> Display.display_process state.game.proc);
+      state
+  | [("out_game",_); (s, _); ("occ",_)] ->
+      Display.file_out s (fun () ->
+	Display.display_occurrences := true;
+	Display.display_process state.game.proc;
+	Display.display_occurrences := false);
+      state
+  | [("out_state",_); (s, _)] ->
+      Display.file_out s (fun () ->
+	display_state false state);
+      state
+  | [("out_facts",_); (s, _); (occ_s,ext2)] ->
+      begin
+	try
+	  Display.file_out s (fun () ->
+	    let occ = int_of_string occ_s in
+	    (* First compute the facts, then display them *)
+	    Simplify1.improved_def_process None false state.game.proc;
+	    Facts.display_facts_at state.game.proc occ);
 	  state
 	with Failure _ ->
 	  raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
@@ -1110,9 +1296,7 @@ let rec interpret_command interactive state = function
 		  ) coll
 	with
 	  Parsing.Parse_error -> raise (Error("Syntax error", Parsing_helper.combine_extent ext_s (extent lexbuf)))
-	| Parsing_helper.IllegalCharacter -> raise (Error("Illegal character", Parsing_helper.combine_extent ext_s (extent lexbuf)))
-        | Parsing_helper.IllegalEscape -> raise (Error("Illegal escape", combine_extent ext_s (extent lexbuf)))
-        | Parsing_helper.UnterminatedString -> raise (Error("Unterminated string", combine_extent ext_s (extent lexbuf)))
+	| Error(s,ext) -> raise (Error(s, Parsing_helper.combine_extent ext_s ext))
       end;
       state
   | ["undo",ext] -> undo ext state 1

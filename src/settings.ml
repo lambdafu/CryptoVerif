@@ -20,12 +20,19 @@ let debug_find_unique = ref false
 let debug_simplify = ref false
 let debug_elsefind_facts = ref false
 let debug_simplif_add_facts = ref false
+let debug_corresp = ref false
 
-let elsefind_facts_in_replace = ref true
+let max_depth_add_fact = ref 1000
 let max_replace_depth = ref 20
+let elsefind_facts_in_replace = ref true
+let elsefind_facts_in_success = ref true
 let elsefind_facts_in_simplify = ref true
+let improved_fact_collection = ref false
+
 let diff_constants = ref true
 let constants_not_tuple = ref true
+
+let use_known_equalities_crypto = ref true
 
 let expand_letxy = ref true
 
@@ -37,11 +44,12 @@ let max_advice_possibilities_end = ref 10
 
 let minimal_simplifications = ref true
 let merge_branches = ref true
-let merge_arrays = ref false
+let merge_arrays = ref true
 let unique_branch = ref true
+let unique_branch_reorg = ref true
 
 let auto_sa_rename = ref true
-
+let auto_remove_assign_find_cond = ref true
 let auto_move = ref true
 
 let optimize_let_vars = ref false
@@ -120,8 +128,12 @@ let do_set p v =
   | "mergeArrays", S ("false",_) -> merge_arrays := false
   | "uniqueBranch", S ("true",_) -> unique_branch := true
   | "uniqueBranch", S ("false",_) -> unique_branch := false
+  | "uniqueBranchReorganize", S ("true",_) -> unique_branch_reorg := true
+  | "uniqueBranchReorganize", S ("false",_) -> unique_branch_reorg := false
   | "autoSARename", S ("true",_) -> auto_sa_rename := true
   | "autoSARename", S ("false",_) -> auto_sa_rename := false
+  | "autoRemoveAssignFindCond", S ("true",_) -> auto_remove_assign_find_cond := true
+  | "autoRemoveAssignFindCond", S ("false",_) -> auto_remove_assign_find_cond := false
   | "autoMove", S ("true",_) -> auto_move := true
   | "autoMove", S ("false",_) -> auto_move := false
   | "optimizeVars", S ("true",_) -> optimize_let_vars := true
@@ -145,15 +157,22 @@ let do_set p v =
   | "maxIterRemoveUselessAssign", I n -> max_iter_removeuselessassign := n
   | "maxAdvicePossibilitiesBeginning", I n -> max_advice_possibilities_beginning := n
   | "maxAdvicePossibilitiesEnd", I n -> max_advice_possibilities_end := n
+  | "useKnownEqualitiesInCryptoTransform", S ("true", _) -> use_known_equalities_crypto := true
+  | "useKnownEqualitiesInCryptoTransform", S ("false", _) -> use_known_equalities_crypto := false
   | "minAutoCollElim", S (s,_) -> 
       let r = parse_type_size s in
       if r <= 0 then raise Not_found;
       tysize_MIN_Auto_Coll_Elim := r
   | "elsefindFactsInReplace", S ("true",_) -> elsefind_facts_in_replace := true
   | "elsefindFactsInReplace", S ("false",_) -> elsefind_facts_in_replace := false
+  | "elsefindFactsInSuccess", S ("true",_) -> elsefind_facts_in_success := true
+  | "elsefindFactsInSuccess", S ("false",_) -> elsefind_facts_in_success := false
   | "elsefindFactsInSimplify", S ("true",_) -> elsefind_facts_in_simplify := true
   | "elsefindFactsInSimplify", S ("false",_) -> elsefind_facts_in_simplify := false
+  | "improvedFactCollection", S ("true",_) -> improved_fact_collection := true
+  | "improvedFactCollection", S ("false",_) -> improved_fact_collection := false
   | "maxReplaceDepth", I n -> max_replace_depth := n
+  | "maxAddFactDepth", I n -> max_depth_add_fact := n
   | "debugInstruct", S ("true",_) -> debug_instruct := true
   | "debugInstruct", S ("false",_) -> debug_instruct := false
   | "debugFindUnique", S ("true",_) -> debug_find_unique := true
@@ -163,6 +182,10 @@ let do_set p v =
   | "debugElsefindFacts", S ("false",_) -> debug_elsefind_facts := false
   | "debugSimplify", S ("true",_) -> debug_simplify := true
   | "debugSimplify", S ("false",_) -> debug_simplify := false
+  | "debugSimplifAddFacts", S ("true",_) -> debug_simplif_add_facts := true
+  | "debugSimplifAddFacts", S ("false",_) -> debug_simplif_add_facts := false
+  | "debugCorresp", S ("true",_) -> debug_corresp := true
+  | "debugCorresp", S ("false",_) -> debug_corresp := false
   | _ -> raise Not_found
 
 

@@ -1,8 +1,5 @@
 type extent
 
-exception IllegalCharacter
-exception IllegalEscape
-exception UnterminatedString
 exception Error of string * extent
 
 val accept_arobase : bool ref

@@ -225,3 +225,7 @@ ONS_Keygen [pkS > pkS, skS > skS ] {
          (foreach i <= N do processS) |
 	 (foreach i <= N2 do processK))
 
+(* EXPECTED
+All queries proved.
+1.880s (user 1.864s + system 0.016s), max rss 214048K
+END *)

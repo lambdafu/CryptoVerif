@@ -895,7 +895,8 @@ definitions, thus duplicating their contents.
 \item \texttt{set mergeBranches = true.}\\
 \texttt{set mergeBranches = false.}
 
-When {\tt true}, simplification tries to merge branches of {\tt if}, {\tt let},
+When {\tt true}, the transformation {\tt merge\_branches} is applied
+after simplification, to merge branches of {\tt if}, {\tt let},
 and {\tt find} when all branches execute the same code.
 This is useful in order to remove the test, which can remove
 a use of a secret.
@@ -904,18 +905,15 @@ This is useful in particular when the test has been
 manually introduced in order to force CryptoVerif to
 distinguish cases.
 
-\item \texttt{set mergeArrays = false.}\\
-\texttt{set mergeArrays = true.}
+\item \texttt{set mergeArrays = true.}\\
+\texttt{set mergeArrays = false.}
 
-When {\tt true}, simplification advises {\tt merge\_arrays} commands
+When {\tt true}, {\tt merge\_branches} advises {\tt merge\_arrays} commands
 to make the merging of branches of {\tt if}, {\tt find}, {\tt let}
 succeed more often. When {\tt false}, this advice is not
-automatically given and the user should use the manual commands
-{\tt merge\_branches} and/or {\tt merge\_arrays} (defined in 
+automatically given and the user should use the manual command
+{\tt merge\_arrays} (defined in 
 Section~\ref{sec:interact}) to perform the merging.
-
-When it is set to {\tt true}, simplification often undoes
-{\tt SArename}. That is why it is not set to {\tt true} by default.
 
 \item \texttt{set uniqueBranch = true.}\\
 \texttt{set uniqueBranch = false.}
@@ -923,13 +921,18 @@ When it is set to {\tt true}, simplification often undoes
 % We say that a {\tt find} is \emph{unique} when there is at most
 % one branch and one value of the indices that we look up,
 % for which the conditions are true.
-When {\tt uniqueBranch = true}, several transformations are 
+When {\tt uniqueBranch = true}, the following transformation is 
+enabled as part of {\tt simplify}:
+if a branch of a {\tt find[unique]} is proved to succeed, 
+then simplification removes all other branches of that {\tt find}.
+When {\tt uniqueBranch = false}, this transformation is not performed. 
+
+\item \texttt{set uniqueBranchReorganize = true.}\\
+\texttt{set uniqueBranchReorganize = false.}
+
+When {\tt uniqueBranchReorganize = true}, the following transformations are 
 enabled as part of {\tt simplify}:
 \begin{itemize}
-\item 
-If a branch of a {\tt find[unique]} is proved to succeed, 
-then simplification removes all other branches of that {\tt find}.
-
 \item
 If a {\tt find[unique]} occurs in the {\tt then} branch 
 of a {\tt find[unique]}, we reorganize them.
@@ -939,7 +942,7 @@ If a {\tt find[unique]} occurs in the condition of a {\tt find},
 we reorganize them.
 
 \end{itemize}
-When {\tt uniqueBranch = false}, these transformations are not performed. 
+When {\tt uniqueBranchReorganize = false}, these transformations are not performed. 
 
 \item \texttt{set autoSARename = true.}\\
 \texttt{set autoSARename = false.}
@@ -952,6 +955,16 @@ are renamed accordingly, by the transformation {\tt remove\string_assign}.
 When {\tt false}, such a renaming is not done automatically,
 but in manual proofs, it can be requested specifically for each 
 variable by {\tt SArename x}, where {\tt x} is the name of the variable.
+
+\item \texttt{set autoRemoveAssignFindCond = true.}\\
+\texttt{set autoRemoveAssignFindCond = false.}
+
+When {\tt true}, the default removal of assignments performed by
+CryptoVerif removes assignments on variables $x$ defined by
+${\tt let}\ x = M\ {\tt in}\ ...$ inside a condition of {\tt find}.
+When {\tt false}, the removal of this assignments is not
+performed automatically, but in manual proofs, it can be requested 
+by the command {\tt remove\string_assign\ findcond}.
 
 \item \texttt{set autoMove = true.}\\
 \texttt{set autoMove = false.}
@@ -1035,6 +1048,16 @@ that mix several primitives. One usage is to try first with the default
 setting and, if the proof fails although the property
 is believed to hold, try again with backtracking.
 
+\item \texttt{set useKnownEqualitiesInCryptoTransform = true.}\\
+\texttt{set useKnownEqualitiesInCryptoTransform = false.}
+
+When \texttt{useKnownEqualitiesInCryptoTransform = true}, CryptoVerif
+relies on known equalities between terms to replace variables with
+their values in the cryptographic transformations.
+When it is false, CryptoVerif just uses the variables as their
+appear in the game, and relies only on advice to replace variables
+with their values. 
+
 % \item \texttt{set detectIncompatibleDefined = true.}\\
 % \texttt{set detectIncompatibleDefined = false.}
 % 
@@ -1072,6 +1095,13 @@ for each {\tt simplify} instruction.
 A greater value slows down the system but may enable it to obtain
 simpler games, and therefore increase its chances of success.
 When $n \leq 0$, repeats simplification until a fixpoint is reached.
+
+\item $\texttt{set maxAddFactDepth = }\nonterm{n}{\tt .}$ (default 1000)
+
+Sets the maximum depth of recursion in the addition and simplification
+of known facts. 
+When $n \leq 0$, puts no limit on this depth of recursion.
+Putting a limit avoids an infinite loop in some rare cases.
 
 \item $\texttt{set maxIterRemoveUselessAssign = }\nonterm{n}{\tt .}$ (default 10)
 
@@ -1120,6 +1150,24 @@ at the current program point.
 
 Similar to \texttt{elsefindFactsInReplace}, but applies in
 \texttt{simplify} operations. 
+
+\item \texttt{set elsefindFactsInSuccess = true.}\\
+\texttt{set elsefindFactsInSuccess = false.}
+
+Similar to \texttt{elsefindFactsInReplace}, but applies in
+\texttt{success} operations. 
+
+\item \texttt{set improvedFactCollection = false.}\\
+\texttt{set improvedFactCollection = true.}
+
+When \texttt{improvedFactCollection = true}, and CryptoVerif collects
+the facts that hold at each program point, it also takes into account
+variables that cannot be defined at a certain program point, variables
+that cannot be simultaneously defined, and elsefind facts, in order to
+prove more facts.
+
+It is a bit costly, so it is disabled by default
+(\texttt{improvedFactCollection = false}).
 
 \item \texttt{set maxReplaceDepth = $n$.} (default 20)
 
@@ -1809,6 +1857,9 @@ $\texttt{maxlength(}M\texttt{)}$, and $\texttt{length(}f', \ldots
 \texttt{)}$, where $M$ is a term of the type of the corresponding
 argument of $f$ and the result of $f'$ is of the type of the
 corresponding argument of $f$).
+
+\item $\texttt{length}(T)$ designates the maximal 
+length of a bitstring of type $T$, where $T$ is a bounded type.
 
 \item $\texttt{length((}T_1, \ldots, T_n\texttt{)}, p_1, \ldots,
 p_n\texttt{)}$ designates the maximal length of the result of the

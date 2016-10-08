@@ -1,6 +1,153 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version
+
+- use elsefind facts to prove correspondences:
+1/ to prove injectivity (useful for protocols with a replay cache,
+for instance)
+2/ to infer more facts by making case distinctions depending on 
+the order of definition of variables.
+- improved collection of facts: when CryptoVerif collects the
+facts that hold at each program point, it can also take into account
+variables that cannot be defined at a certain program point, variables
+that cannot be simultaneously defined, and elsefind facts. (This is a
+bit costly, so it is disabled by default. You can enable it by 
+"set improvedFactCollection = true".)
+- improved collection of facts and defined variables: take into
+account more often that the variables after the current program
+point in the current input-output block are defined.
+- more precise treatment of elsefind facts: when a new variable x
+is defined, the elsefind facts that test the definition of x are
+not removed but updated.
+- when a "find" has a single branch that always succeeds,
+and the indices are not used, keep its "then" branch.
+- new commands out_game, out_state, ... to output the current game,
+state, ... to a file instead of displaying them to the standard output.
+- fixed bug in the removal of assignments, which sometimes lead to an
+incorrect update of defined conditions of find.
+- fixed bug in the update of "defined" conditions of find after
+simplification, which could lead to an internal error.
+
+Version 1.23
+
+- By default, automatically remove assignments on variables defined 
+by "let" in conditions of find.
+- Definitions for IND-CCA2 symmetric encryption and INT-PTXT 
+symmetric encryption added to the cryptographic library;
+definition of IND-CCA2 and INT-PTXT symmetric encryption made
+more flexible by allowing the two properties to be applied in 
+any order.
+- Fixed bug in definition of IND-CCA2, INT-PTXT symmetric encryption,
+which could cause an infinite loop.
+
+Version 1.22
+
+- Improved global dependency analysis for find with complex
+  find conditions (containing themselves find, if, or let).
+- Allow variables that depend on b0 without characterizing
+  b0 in global dependency analysis.
+- Allow the user to specify the mapping from variables of the
+  game to variables of the equivalence, and the mapping from terms
+  of the game to oracles of equivalence, in the cryptographic
+  transformation.
+- Apply simplifications of booleans terms to all subterms, not only
+  to the root.
+- Fixed bug in cryptographic transformation, which could make it
+  fail unexpectedly.
+- Fixed bug in cryptographic transformation: when using known equalities
+  to transform terms, the defined conditions of find were not
+  correctly updated.
+
+Version 1.21
+
+- Display an explanation when a cryptographic transformation
+  fails (when it needs no random variable or at least one
+  random variable was provided)
+- Reimplemented the test of compatibility between definitions
+  of variables and between program points, to make it cleaner,
+  more precise, and faster
+- In expand, remove the find completely when all branches are removed
+- Improved display of long mathematical formulas in latex
+- Improved model of the Gap Diffie-Hellman assumption
+- Fixed bug that could cause an internal error in merging of branches,
+  when CryptoVerif did not manage to build a MergeArrays advised instruction.
+  It now gives no advice in this case.
+- Fixed missing update of defined conditions of find in
+  global dependency analysis
+- Fixed display bug for find with no branch at all
+
+Version 1.20
+
+- added modeling of the Gap Diffie-Hellman assumption
+- improved proof of secrecy, in particular for forward secrecy
+- improved merging of branches of if/find/let, to allow variables
+  with array accesses to be renamed between the branches (with
+  additional conditions so that this is sound).
+  Useful in particular for proving indistinguishability of
+  P1 and P2 by showing secrecy of b in the process
+  "if b then P1 else P2".
+  The merging of branches is no longer done within simplify;
+  it is done as a separate transformation after simplify.
+- improved collection of facts that hold at each program point,
+  by taking into account that certain definition points of variables
+  are not compatible.
+- improved the proof of correspondence assertions by distinguishing
+  cases depending on the definition points of variables. Removed the display
+  of advice since it is replaced by these case distinctions.
+- extended the command 'insert' to allow references to variables
+  known to be defined but not explicitly included in the 'defined'
+  conditions of 'find's above the inserted instruction. The 'defined'
+  conditions of these 'find's are updated accordingly.
+- improved case distinctions on the order in which variables
+  are defined: now both cases can be proved using "elsefind" facts,
+  in addition to proving one case via "elsefind" facts and the other
+  one by elimination of collisions.
+- improved elimination of collisions between terms t1 = t2
+  when t1 characterizes a large random value b[l] and
+  t2 contains b[l'] with l <> l'.
+- improved dependency analysis in conditions of find
+- improved the simplification of terms. More precisely,
+  improved usage of known equalities to test equality of
+  two given terms
+- use known equalities to determine the values of variables
+  in the cryptographic transformation (can be disabled with
+  "set useKnownEqualitiesInCryptoTransform = false.")
+- check that the defined variables are compatible also after
+  each "if". This is useful in case the condition of the "if" 
+  allows to simplify array indices of variables.
+- fixed two bugs in global dependency analysis
+- fixed bug that could lead to an internal error in the cryptographic 
+  transformation (some terms were incorrectly forbidden in the computation 
+  of the length of a term)
+
+Version 1.19
+
+- improved simplification by orienting equations f(...) = f'(...)
+  with function symbols at the root of both sides.
+- improved display of terms (parentheses omitted when useless,
+  added when useful for clarity)
+- fixed bug that could lead to Internal error: File
+  "transf_crypto.ml", line 824, characters 8-14: Assertion failed
+
+Version 1.18
+
+- allow length(t) in probability formulas, where t is a bounded type.
+- replace restrictions with constant assignments when their value is not
+  used.
+- improved again the "replace" transformation, in particular to take into
+  when one knows that constants are pairwise distinct.
+- fixed bug in transformation "move binder x" when x is defined by
+  let and has array references.
+- fixed termination problem in simplification.
+- fixed bug that could lead to Internal error: LetEqual terms should have a
+  variable in the left-hand side
+- separated the setting "set uniqueBranch = ..." into two:
+  a) "set uniqueBranch = ..." determines whether, when a branch of a 
+  find[unique] succeeds, we remove the other branches.
+  b) "set uniqueBranchReorganize = ..." determines whether, when a find[unique]
+  is in the condition / branch of another find, we reorganize the find.
+
 Version 1.17
 
 - support for equational theories using the declaration "equation".

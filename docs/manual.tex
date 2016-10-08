@@ -282,7 +282,97 @@ and modifying them as desired. Here is a list of the predefined primitives.
    This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
    and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
    IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}).
+   (see Section~\ref{sec:interact}). The equivalence $\texttt{int\_ctxt}(\vn{enc})$
+   should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
+   because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
+
+\item $\texttt{expand IND\_CCA2\_sym\_enc(}\vn{keyseed}, \vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ defines a
+  IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks)
+  probabilistic symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
+
+  $\vn{Penc}(t, N, N', l, l')$ is the probability of breaking the
+  IND-CCA2 property in time $t$ for one key, $N$ encryption queries, $N'$
+  decryption queries with cleartexts of length at most $l$ and
+  ciphertexts of length at most $l'$.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{seed}$ and the probability $\vn{Penc}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalence named $\texttt{ind\_cca2}(\vn{enc})$, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). 
+
+\item $\texttt{expand INT\_PTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Pencptxt}\texttt{).}$ defines an INT-PTXT (plaintext integrity)
+  probabilistic symmetric encryption scheme.
+
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+
+   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+  $\vn{Pencptxt}(t, N, N', l, l')$ is the probability of breaking the
+  INT-PTXT property in time $t$ for one key, $N$ encryption queries, $N'$
+  decryption queries with cleartexts of length at most $l$ and
+  ciphertexts of length at most $l'$.
+
+   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{seed}$ and the probability $\vn{Pencptxt}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, and $\vn{injbot}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named
+   $\texttt{int\_ptxt}(\vn{enc})$, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). 
 
 \item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
@@ -332,10 +422,16 @@ and modifying them as desired. Here is a list of the predefined primitives.
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
-   This macro defines the equivalences named $\texttt{ind\_cca2}(\vn{enc})$
-   and $\texttt{int\_ptxt}(\vn{enc})$ corresponding respectively to the
-   IND-CCA2 and INT-PTXT properties, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}).
+   This macro defines the equivalences named $\texttt{ind\_cca2}(\vn{enc})$,
+   $\texttt{ind\_cca2\_after\_int\_ptxt}(\vn{enc})$,
+   $\texttt{int\_ptxt}(\vn{enc})$,
+   and $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). The first two correspond to the IND-CCA2 property,
+   the last two to the INT-PTXT property. The equivalence $\texttt{ind\_cca2}(\vn{enc})$
+   can be applied before applying the INT-PTXT property, while $\texttt{ind\_cca2\_after\_int\_ptxt}(\vn{enc})$
+   can be applied after applying the INT-PTXT property. Similarly, the equivalence  $\texttt{int\_ptxt}(\vn{enc})$
+   can be applied before applying the IND-CCA2 property, while $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$
+   can be applied after applying the IND-CCA2 property.
 
 \item $\texttt{expand SPRP\_cipher(}\vn{keyseed}, \vn{key},
   \vn{blocksize}, \vn{kgen}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
@@ -736,6 +832,48 @@ defines a collision-resistant hash function.
 
 \item $\texttt{expand OW\_trapdoor\_perm\_RSR(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation, with random self-reducibility. The arguments are the same as above, but the probability of breaking one-wayness is bound more precisely. This macro defines the equivalences $\texttt{remove\_invf}(f)$ as above and $\texttt{ow\_rsr}(f)$.
 
+\item $\texttt{expand set\_PD\_OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{Dow}, \vn{Dr}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{concat}, \vn{P\_PD\_OW}\texttt{).}$ defines a set partial-domain one-way trapdoor permutation.
+
+   $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
+
+   $\vn{skey}$ is the type of secret keys, must be \texttt{bounded}.
+
+   $\vn{D}$ is the type of the input and output of the permutation, must be \texttt{bounded}, typically \texttt{fixed}.
+   The domain $\vn{D}$ consists of the concatenation of bitstrings in $\vn{Dow}$ and $\vn{Dr}$.
+   $\vn{Dow}$ is the set of sub-bitstrings of $\vn{D}$ on which one-wayness holds (it is difficult to compute the
+   random element $x$ of $\vn{Dow}$ knowing $f(\vn{pk}, \vn{concat}(x,y))$ where $y$ is a random element of $\vn{Dr}$).
+   $\vn{Dow}$ and $\vn{Dr}$ must be \texttt{bounded}, typically \texttt{fixed}.
+  
+   $\vn{pkgen}(\vn{seed}): \vn{pkey}$ is the public key generation function.
+
+   $\vn{skgen}(\vn{seed}): \vn{skey}$ is the secret key generation function.
+
+   $\vn{f}(\vn{pkey}, \vn{D}):\vn{D}$ is the permutation (taking as argument the public key)
+
+   $\vn{invf}(\vn{skey}, \vn{D}):\vn{D}$ is the inverse permutation of f (taking as argument the secret key,
+         i.e. the trapdoor)
+
+   $\vn{concat}(\vn{Dow}, \vn{Dr}):\vn{D}$ is bitstring concatenation.
+
+   $\vn{P\_PD\_OW}(t,l)$ is the probability of breaking the set partial-domain one-wayness property
+   in time $t$, for one key, one permuted value, and $l$ tries.
+
+   The types $\vn{seed}$, $\vn{pkey}$, $\vn{skey}$, $\vn{D}$, $\vn{Dow}$, $\vn{Dr}$ 
+   and the probability $\vn{P\_PD\_OW}$ must be
+   declared before this macro. The functions $\vn{pkgen}$, $\vn{skgen}$, $\vn{f}$, $\vn{invf}$, $\vn{concat}$
+   are defined by this macro. They must not be declared elsewhere, and
+   they can be used only after expanding the macro. 
+
+   This macro defines the equivalences $\texttt{remove\_invf}(f)$,
+   which expresses that, for $y$ chosen randomly in $D$, $y$ and
+   $\vn{invf}(\vn{skey}, y)$ are distributed like for $x$ chosen
+   randomly in $D$, $\vn{f}(\vn{pkey}, x)$ and $x$, and
+   $\texttt{pd\_ow}(f)$, which corresponds to set partial-domain one-wayness, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+
 \item $\texttt{expand PRF(}\vn{keyseed}, \vn{key}, \vn{input}, \vn{output}, \vn{kgen}, \vn{f}, \vn{Pprf}\texttt{).}$ 
 defines a pseudo-random function.
 
@@ -842,6 +980,10 @@ Here is a list of available instructions:
 \item \texttt{remove\string_assign useless}: remove useless assignments,
 that is, assignments to $x$ when $x$ is unused and assignments
 between variables.
+
+\item \texttt{remove\string_assign findcond}: removes useless assignments,
+as above, as well as assignments ${\tt let}\ x = M\ {\tt in}$ inside
+conditions of {\tt find}. 
 
 \item \texttt{remove\string_assign all}: remove all assignments,
 by replacing variables with their values. This is not recommended:
@@ -980,6 +1122,46 @@ In case the command ends with a dot ($\texttt{.}$), CryptoVerif never adds
 other variable names to those already listed. If the dot is absent,
 CryptoVerif may add other variable names if that seems necessary to perform
 the transformation.
+
+\item $\texttt{crypto }\nonterm{name}\ 
+\texttt{variables: }x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n
+\texttt{; terms: }o_1\texttt{->}O_1,\ldots,o_m\texttt{->}O_m$:
+apply a cryptographic transformation chosen as above, where
+\begin{itemize}
+
+\item $x_1, \ldots, x_n$ are variable names of the game which
+  correspond to random number generations $y_1, \ldots, y_n$
+  respectively in the left-hand side of the equivalence. (CryptoVerif
+  may automatically add variables to the list
+  $x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n$ if needed, except when
+  a dot is added at the end of this list.)
+
+\item $o_1, \ldots, o_m$ are occurrences of terms in the game, which
+  will be transformed using oracles $O_1, \ldots, O_m$ respectively of
+  the equivalence. (CryptoVerif may automatically add elements to the
+  list $o_1\texttt{->}O_1,\ldots,o_m\texttt{->}O_m$ if needed, except
+  when a dot is added at the end of this list.)
+
+\end{itemize}
+When the considered equivalence is defined inside a macro,
+macro expansion adds a prefix \texttt{\string@$k$\_} to the variable
+and oracle names of the equivalence. This prefix must be included in
+the variable and oracle names used in this command.
+This happens in particular for primitives defined in the
+library of primitives of CryptoVerif. The right value of $k$ in the
+prefix can be determined by issuing a command \texttt{crypto} without
+further indication. This command will display the equivalences
+as they are stored by CryptoVerif after macro expansion.
+
+One of the lists of variables or terms may be omitted.
+In this case, the separating semi-colon \texttt{;} is obviously
+omitted as well.
+
+When this command occurs in proof environment inside a CryptoVerif
+file, it is generally necessary to put the lists between quotes:
+\[\texttt{crypto }\nonterm{name}\ 
+\texttt{"variables: }x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n
+\texttt{; terms: }o_1\texttt{->}O_1,\ldots,o_m\texttt{->}O_m\texttt{"}\]
 
 \end{itemize}
 
@@ -1122,6 +1304,25 @@ of games until the current game.
 \item $\texttt{show\string_facts}\ occ$: show the facts that are proved
 by CryptoVerif in the current game, at the program point of occurrence $occ$. 
 This command is mainly helpful for debugging.
+
+\item \texttt{out\string_game $f$}: output the current game to file $f$.
+  (Be careful: file $f$ will be overwritten if it already exists.)
+
+\item \texttt{out\string_game $f$ occ}: output the current game with
+  occurrences to file $f$. Useful for some commands that require specifying a
+  program point; one can use the displayed numbers to specify program
+  points.
+  (Be careful: file $f$ will be overwritten if it already exists.)
+
+\item \texttt{out\string_state $f$}: output the whole sequence
+of games until the current game to file $f$.
+  (Be careful: file $f$ will be overwritten if it already exists.)
+
+\item $\texttt{out\string_facts}\ f\ occ$: output the facts that are proved
+  by CryptoVerif in the current game, at the program point of occurrence $occ$,
+  to file $f$. 
+This command is mainly helpful for debugging.
+  (Be careful: file $f$ will be overwritten if it already exists.)
 
 \item \texttt{auto}: switch to automatic mode; try to
 terminate the proof automatically from the current game.

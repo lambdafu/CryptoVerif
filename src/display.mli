@@ -1,5 +1,10 @@
 open Types
 
+val file_out : string -> (unit -> unit) -> unit
+
+val print_string : string -> unit
+val print_newline : unit -> unit  
+
 val display_occurrences : bool ref
 val display_arrays : bool ref
 val display_list : ('a -> unit) -> 'a list -> unit
@@ -25,6 +30,8 @@ val display_oprocess : string -> process -> unit
 val display_process : inputprocess -> unit
 
 val display_bl_assoc : binder list -> unit
+val display_user_info : crypto_transf_user_info -> unit
+val display_with_user_info : crypto_transf_user_info -> unit
 val display_query : query * game -> unit
 val display_instruct : instruct -> unit
 

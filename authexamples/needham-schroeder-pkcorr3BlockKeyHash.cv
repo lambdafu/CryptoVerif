@@ -124,6 +124,10 @@ Combining this correspondence with
 we obtain a).  With these manual arguments, we get the proof of
 authenticated key exchange.
 
+7/10/2016: The correspondence
+query x:bitstring, k:shkey;
+	event inj:fullB(A, k, x) ==> inj:fullA(B, k, x).
+is now proved by CryptoVerif.
 *)
 
 let processA =
@@ -208,6 +212,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove event inj:fullB(A, k, x) ==> inj:fullA(B, k, x).
+All queries proved.
 12.020s (user 11.980s + system 0.040s), max rss 318272K
 END *)

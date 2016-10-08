@@ -91,7 +91,7 @@ let expand_assign_term let_t remove_set
 	end
       else
 	match remove_set with
-	  All -> put_link()
+	  All | FindCond -> put_link()
 	| OneBinder b0 when b == b0 -> put_link()
 	| _ -> 
 	    match t.t_desc with
@@ -161,10 +161,20 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
 	      begin
 		(* All references to binder b will be removed *)
 		Terms.link b (TLink t);
+                (* copy_oprocess exactly replaces 
+                   b[b.args_at_creation] with t, without changing any other variable. *)
+                let copy_changed = ref false in
+                let p1' = Terms.copy_oprocess (Terms.OneSubst(b,t,copy_changed)) p1 in
+                let subst_def = !copy_changed in (* Set to true if an occurrence of b has really been substituted *)
+                Settings.changed := (!Settings.changed) || subst_def;
 		if Settings.occurs_in_queries b then
-		  (* if b occurs in queries then leave as it is *)
-		  Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
-		else if b.root_def_array_ref || b.root_def_std_ref || b.array_ref then
+		  begin
+		    (* if b occurs in queries then leave as it is *)
+                    if subst_def then
+                      done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
+		    Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1', Terms.oproc_from_desc Yield))
+		  end
+		else if b.root_def_array_ref || b.array_ref then
 		  (* We may keep calls to defined(b), so keep a definition of b
 		     but its value does not matter *)
                   try
@@ -174,7 +184,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                     Settings.changed := true;
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
                     replacement_def_list := (b, b') :: (!replacement_def_list);
-                    rec_simplif above_proc p1
+                    rec_simplif above_proc p1'
                   with Not_found ->
 		    let t' = Terms.cst_for_type t.t_type in
 		    if not (Terms.equal_terms t t') then 
@@ -182,13 +192,13 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                         done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
                         Settings.changed := true
                       end;
-		    Terms.oproc_from_desc (Let(pat,  t', rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
+		    Terms.oproc_from_desc (Let(pat,  t', rec_simplif above_proc p1', Terms.oproc_from_desc Yield))
 		else
 		  begin
                     (* b will completely disappear *)
                     Settings.changed := true;
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-		    rec_simplif above_proc p1
+		    rec_simplif above_proc p1'
 		  end
 	      end
 	  | _ -> (* There are several definitions.
@@ -220,7 +230,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                       done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
  		    Terms.oproc_from_desc (Let(pat, t, p1'', Terms.oproc_from_desc Yield))
                   end
-                else if b.root_def_array_ref || b.root_def_std_ref then
+                else if b.root_def_array_ref then
 		  (* We may keep calls to defined(b), so keep a definition of b
 		     but its value does not matter *)
 		  let t' = Terms.cst_for_type t.t_type in
@@ -435,7 +445,7 @@ let remove_assignments remove_set g =
   done_sa_rename := [];
   done_transfos := [];
   let r = 
-    if remove_set == Minimal then
+    if (remove_set == Minimal) || (remove_set = FindCond) then
       remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g.proc
     else
       remove_assignments remove_set g.proc

@@ -4,38 +4,45 @@
 
 proof {
 set maxIterSimplif = 3;
+set uniqueBranchReorganize = false;
 show_game occ;
 insert 261 "let concat(x1,x2,x3,x4,x5) = h1x in"; (* just after OH1(..):= *)
 crypto rom(h1);
 show_game occ;
 insert 168 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then"; (* just after OS2(..):= *)
 show_game occ;
-insert 310 "find jh <= qH1 suchthat defined(x1[jh], x2[jh], x3[jh], x4[jh], @12_r_185[jh]) && (U = x1[jh]) && (S = x2[jh]) && (X_s = x3[jh]) && (Y = x4[jh]) && (auth_s = @12_r_185[jh]) then"; (* beginning of the "else" branch of the just inserted find *)
+insert 303 "find jh <= qH1 suchthat defined(x1[jh], x2[jh], x3[jh], x4[jh], @12_r_185[jh]) && (U = x1[jh]) && (S = x2[jh]) && (X_s = x3[jh]) && (Y = x4[jh]) && (auth_s = @12_r_185[jh]) then"; (* beginning of the "else" branch of the just inserted find *)
 show_game occ;
-insert_event Auth 343; (* "then" branch of the just inserted find *)
+insert_event Auth 336; (* "then" branch of the just inserted find *)
 simplify;
 crypto icm(enc);
 show_game occ;
 insert_event Encrypt 550; (* beginning of the branch "find ... && (pw = ke[..]) then .." in OC2 *)
 show_game occ;
-insert 1046 "let concat(x01,x02,x03,x04,x05) = h0x in"; (* just after OH0(..) := *)
+insert 1037 "let concat(x01,x02,x03,x04,x05) = h0x in"; (* just after OH0(..) := *)
 crypto rom(h0);
+SArename Y_u;
 auto;
-move array "@7_X_734"; (* variable chosen at the end of OC2 and not used immediately *)
+set uniqueBranchReorganize = true;
+show_game;
+move array "@7_X_737"; (* variable chosen at the end of OC2 and not used immediately *)
 move binder "@12_r_179";
-merge_arrays "@7_X_730" "@2_Y_737";
-merge_branches;
-move array "@7_X_731"; (* variable chosen in OP and not used immediately *)
 show_game;
-merge_arrays "@7_X_730" "@2_Y_749";
+merge_arrays "@7_X_733" "@2_Y_740";
 merge_branches;
-move array "@7_X_733"; (* variable chosen in OS1 and not used immediately *)
-show_game;
-merge_arrays "@7_X_730" "@2_Y_762";
+move array "@7_X_734"; (* variable chosen in OP and not used immediately *)
+(*show_game;
+merge_arrays "@7_X_733" "@2_Y_766";
+merge_branches;*)
+move array "@7_X_736"; (* variable chosen in OS1 and not used immediately *)
+(*show_game;
+merge_arrays "@7_X_733" "@2_Y_779";*)
 show_game occ;
-insert 110 "find jh' <= qH1, jd <= qD suchthat defined(x1[jh'], x2[jh'], x3[jh'], x4[jh'], @12_r_185[jh'], m[jd], kd[jd], @7_X_730[jd]) && (m[jd] = @9_re_234) && (U = x1[jh']) && (S = x2[jh']) && (X_s = x3[jh']) && (x4[jh'] = @7_X_730[jd]) && (auth_s = @12_r_185[jh'])  && (kd[jd] = pw) then";
+insert 110 "find jh' <= qH1, jd <= qD suchthat defined(x1[jh'], x2[jh'], x3[jh'], x4[jh'], @12_r_185[jh'], m[jd], kd[jd], @7_X_733[jd]) && (m[jd] = @9_re_234) && (U = x1[jh']) && (S = x2[jh']) && (X_s = x3[jh']) && (x4[jh'] = @7_X_733[jd]) && (auth_s = @12_r_185[jh'])  && (kd[jd] = pw) then";
 show_game occ;
 insert_event Auth2 157;
+simplify;
+merge_branches;
 simplify coll_elim pw;
 success
 }

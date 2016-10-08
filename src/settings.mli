@@ -18,13 +18,19 @@ val debug_find_unique : bool ref
 val debug_elsefind_facts : bool ref
 val debug_simplify : bool ref
 val debug_simplif_add_facts : bool ref
+val debug_corresp : bool ref
 
-val elsefind_facts_in_replace : bool ref
+val max_depth_add_fact : int ref
 val max_replace_depth : int ref
+val elsefind_facts_in_replace : bool ref
+val elsefind_facts_in_success : bool ref
 val elsefind_facts_in_simplify : bool ref
+val improved_fact_collection : bool ref
 
 val diff_constants : bool ref
 val constants_not_tuple : bool ref 
+
+val use_known_equalities_crypto : bool ref
 
 val expand_letxy : bool ref
 
@@ -35,9 +41,10 @@ val minimal_simplifications : bool ref
 val merge_branches : bool ref
 val merge_arrays : bool ref
 val unique_branch : bool ref
+val unique_branch_reorg : bool ref
 
 val auto_sa_rename : bool ref
-
+val auto_remove_assign_find_cond : bool ref
 val auto_move : bool ref
 
 val optimize_let_vars : bool ref
