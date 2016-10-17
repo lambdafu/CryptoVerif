@@ -1490,10 +1490,10 @@ let rec put_defined_cond_fc def_list t =
   | FindE(l0, t3, find_info) ->
       let (def_list3, t3') = put_defined_cond_fc def_list t3 in
       let t3'' = add_def_cond_fc def_list3 t3' in
-      let l0' = List.map (fun (bl, def_list, t1, t2) ->
+      let l0' = List.map (fun (bl, def_list0, t1, t2) ->
 	let (def_list1, t1') = put_defined_cond_fc def_list t1 in
 	let (def_list2, t2') = put_defined_cond_fc def_list t2 in
-	(bl, Terms.union_binderref def_list (Terms.union_binderref def_list1 def_list2), t1', t2')
+	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list1 def_list2), t1', t2')
 	  ) l0
       in
       ([], Terms.build_term2 t (FindE(l0', t3'', find_info)))
@@ -1564,10 +1564,10 @@ and put_defined_cond_o def_list p =
   | Find(l0, p2, find_info) ->
       let (def_list2, p2') = put_defined_cond_o def_list p2 in
       let p2'' = add_def_cond_o def_list2 p2' in
-      let l0' = List.map (fun (bl, def_list, t, p1) ->
+      let l0' = List.map (fun (bl, def_list0, t, p1) ->
 	let (def_list_t, t') = put_defined_cond_fc def_list t in
 	let (def_list1, p1') = put_defined_cond_o def_list p1 in
-	(bl, Terms.union_binderref def_list (Terms.union_binderref def_list_t def_list1), t', p1')
+	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list_t def_list1), t', p1')
 	  ) l0
       in
       ([], Terms.oproc_from_desc2 p (Find(l0', p2'', find_info)))
@@ -1693,22 +1693,6 @@ let update_def_list_process already_defined newly_defined bl def_list t' p1' =
   let accu_needed_subterm = ref [] in
   List.iter (Terms.close_def_subterm accu_needed_subterm) (!accu_needed);
   let needed_occur = !accu_needed_subterm in
-  (* In case the definition of all needed variables 
-     cannot be inferred from the original defined condition,
-     the defined conditions for the additional variables are put inside t'/p1',
-     or in def_list4 in case we are sure that they are defined at this point. *)
-  let def_list_inside_t'_p1' = Terms.setminus_binderref needed_occur newly_defined in
-  let (needed_occur, t', p1') =
-    if def_list_inside_t'_p1' == [] then
-      (needed_occur, t', p1')
-    else
-      let (def_list_t'', t'') = put_defined_cond_fc def_list_inside_t'_p1' t' in
-      let def_list_inside_p1' = Terms.subst_def_list (List.map snd bl) (List.map (fun (b,_) -> Terms.term_from_binder b) bl) def_list_inside_t'_p1' in
-      let (def_list_p1'', p1'') = put_defined_cond_o def_list_inside_p1' p1' in
-      let rest_def_list_p1' = Terms.subst_def_list3 bl_rev_subst def_list_p1'' in
-      (Terms.union_binderref (Terms.inter_binderref needed_occur newly_defined)
-	 (Terms.union_binderref def_list_t'' rest_def_list_p1'), t'', p1'')
-  in
   (* Safety check: check that the definition of all needed variables 
      can be inferred from the original defined condition 
   if not (List.for_all (fun br -> Terms.mem_binderref br newly_defined) needed_occur) then
@@ -1727,8 +1711,23 @@ let update_def_list_process already_defined newly_defined bl def_list t' p1' =
       print_string "Newly defined = ";
       Display.display_list (fun (b,tl) -> Display.display_var b tl) newly_defined;
       print_newline();
-      Parsing_helper.internal_error "Hem, that's strange: the update of a defined condition of find may be wrong"
     end; *)
+  (* In case the definition of all needed variables 
+     cannot be inferred from the original defined condition,
+     the defined conditions for the additional variables are put inside t'/p1',
+     or in def_list4 in case we are sure that they are defined at this point. *)
+  let def_list_inside_t'_p1' = Terms.setminus_binderref needed_occur newly_defined in
+  let (needed_occur, t', p1') =
+    if def_list_inside_t'_p1' == [] then
+      (needed_occur, t', p1')
+    else
+      let (def_list_t'', t'') = put_defined_cond_fc def_list_inside_t'_p1' t' in
+      let def_list_inside_p1' = Terms.subst_def_list (List.map snd bl) (List.map (fun (b,_) -> Terms.term_from_binder b) bl) def_list_inside_t'_p1' in
+      let (def_list_p1'', p1'') = put_defined_cond_o def_list_inside_p1' p1' in
+      let rest_def_list_p1' = Terms.subst_def_list3 bl_rev_subst def_list_p1'' in
+      (Terms.union_binderref (Terms.inter_binderref needed_occur newly_defined)
+	 (Terms.union_binderref def_list_t'' rest_def_list_p1'), t'', p1'')
+  in
   (* Update the defined condition to include [needed_occur],
      but remove elements that are no longer useful *)
   let implied_needed_occur = def_vars_from_defined Unknown needed_occur in
