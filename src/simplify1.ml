@@ -1996,3 +1996,9 @@ else
     if compatible_needed then
       Terms.build_compatible_defs p
   end
+
+let empty_improved_def_process compatible_needed p =
+  Terms.empty_def_process p;
+  if compatible_needed || (!Settings.improved_fact_collection)  then
+    Terms.empty_comp_process p
+

@@ -396,4 +396,5 @@ let global_inv p =
   Terms.array_ref_process p;
   Terms.build_def_process None p;
   inv [] p;
-  Terms.cleanup_array_ref()
+  Terms.cleanup_array_ref();
+  Terms.empty_def_process p

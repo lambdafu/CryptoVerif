@@ -302,6 +302,8 @@ let iproc_from_desc3 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0;
 let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0;
 			     p_incompatible = map_empty; p_facts = None }
 
+let empty_game = { proc = iproc_from_desc Nil; game_number = -1; current_queries = [] }
+    
 (* Constant for each type *)
 
 module HashedType =
@@ -508,7 +510,7 @@ let equal_up_to_roll sub_eq l1 l2 =
 
 let get_neutral f =
   match f.f_eq_theories with
-    ACUN(_,n) | Group(_,_,n) | CommutGroup(_,_,n) -> n
+    ACUN(_,n) | Group(_,_,n) | CommutGroup(_,_,n) | AssocN(_,n) | AssocCommutN(_,n) -> n
   | _ -> Parsing_helper.internal_error "equational theory has no neutral element in Terms.get_neutral"
 
 (* [get_prod try_no_var t] returns the equational theory of the root
@@ -691,7 +693,7 @@ and try_no_var (subst2, _, _) t =
   if subst2 == [] then t else
   match t.t_desc with
     Var _ | ReplIndex _ -> 
-      normalize_var subst2 t 
+      normalize_var subst2 t
   | _ -> t
 
 (* Equality test *)

@@ -1408,6 +1408,10 @@ let display_simplif_step = function
       print_string ("\\qquad -- Expand $" ^ (if !nice_tex then "\\vee " else "\\|\\|") ^ "$ in test at ");
       print_int t.t_occ;
       print_string "\\\\\n"
+  | STestEElim(t) ->
+      print_string "\\qquad -- Transformed test at ";
+      print_int t.t_occ;
+      print_string " into a logical formula\\\\\n"
   | SFindBranchRemoved(p,br) -> 
       print_string "\\qquad -- Remove branch ";
       get_find_branch p br;

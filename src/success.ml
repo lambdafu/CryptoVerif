@@ -16,7 +16,7 @@ let advise = ref []
 
 (* [whole_game] contains the game on which we want to prove security properties *)
 
-let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game = ref Terms.empty_game
 
 (* [proved_one_session_secrets] contains a list of pairs [(b,res)]
    which mean that [check_secrecy b] returned [res].
@@ -650,7 +650,8 @@ let is_success state =
   List.iter (update_full_proof all_queries) all_queries;
   Terms.vcounter := vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
-  Terms.empty_comp_process g.proc;
+  Simplify1.empty_improved_def_process true g.proc;
+  whole_game := Terms.empty_game;
   proved_queries, all_proved
 
 

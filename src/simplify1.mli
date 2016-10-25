@@ -175,3 +175,5 @@ val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem 
      When [compatible_needed] is true, always initializes the [incompatible] field.
  ***)
 val improved_def_process : (term * fact_info) list ref option -> bool -> inputprocess -> unit
+
+val empty_improved_def_process : bool -> inputprocess -> unit

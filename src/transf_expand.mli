@@ -15,3 +15,5 @@ open Types
 
 val expand_process : game_transformer
 
+val final_pseudo_expand : term -> term
+

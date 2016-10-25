@@ -24,7 +24,7 @@ yields a bad dependency (comparison with the small type A).
 
 open FindCompos
 
-let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game = ref Terms.empty_game
 
 (* The main variable on which we perform the dependency analysis (b0) *)
 let main_var = ref (Terms.create_binder "dummy" 0 Settings.t_bitstring [])
@@ -1606,6 +1606,7 @@ let main b0 coll_elim g =
   Terms.array_ref_process g.proc;
   Simplify1.improved_def_process None false g.proc;
   let dummy_term = Terms.term_from_binder b0 in
+  let result = 
   if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
     (g, [], []) 
   else
@@ -1622,3 +1623,7 @@ let main b0 coll_elim g =
 	let proba = Simplify1.final_add_proba() in
 	(res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
     end
+  in
+  Simplify1.empty_improved_def_process false g.proc;
+  whole_game := Terms.empty_game;
+  result

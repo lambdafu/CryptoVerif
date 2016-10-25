@@ -83,6 +83,8 @@ val oproc_from_desc2 : process -> process_desc -> process
 val iproc_from_desc3 : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc3 : process -> process_desc -> process
 
+val empty_game : game
+    
 val app : funsymb -> term list -> term
 
 val is_args_at_creation : binder -> term list -> bool
@@ -371,6 +373,7 @@ val check_no_ifletfindres : term -> bool
 
 val def_term : (term * fact_info) list ref option -> def_node -> term list -> binderref list -> elsefind_fact list -> term -> def_node
 val build_def_process : (term * fact_info) list ref option -> inputprocess -> unit
+val empty_def_process : inputprocess -> unit
 val add_def_vars_node : binder list -> def_node -> binder list
 
 val cleanup_array_ref : unit -> unit

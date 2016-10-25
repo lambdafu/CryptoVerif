@@ -194,7 +194,9 @@ and incompatible_def_oprocess p =
 let incompatible_defs p = 
   incompatible_terms := [];
   ignore (incompatible_def_process p);
-  !incompatible_terms
+  let result = !incompatible_terms in
+  incompatible_terms := [];
+  result
 
 (* Flags *)
 
@@ -1259,13 +1261,14 @@ let display_mapping () =
       ) (!map);
   print_newline()
 
-let equiv = ref (((NoName,[],[],[],StdEqopt,Decisional),[]) : equiv_nm)
+let empty_equiv = (((NoName,[],[],[],StdEqopt,Decisional),[]) : equiv_nm)
+let equiv = ref empty_equiv
 let equiv_names_lhs_opt = ref []
 let equiv_names_lhs = ref []
 let equiv_names_lhs_flat = ref []
 
-let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
-let whole_game_next = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game = ref Terms.empty_game
+let whole_game_next = ref Terms.empty_game
 
 let incompatible_terms = ref []
 
@@ -3364,7 +3367,11 @@ let do_crypto_transform p =
     if !Settings.use_known_equalities_crypto then
       begin
 	Terms.build_def_process None r;
-	update_def_list_simplif r
+	let r' = update_def_list_simplif r in
+	(* Cannot cleanup here because it may delete information
+	   in the initial game, needed to compute the probabilities.
+	   Terms.empty_def_process r; *)
+	r'
       end
     else
       r
@@ -4069,7 +4076,9 @@ type trans_res =
 | TFailurePrio of to_do_t * ((binder * binder) list * failure_reason) list
 
 let transfo_expand p q =
-  Transf_expand.expand_process { proc = do_crypto_transform p; game_number = -1; current_queries = q }
+  let g' = { proc = do_crypto_transform p; game_number = -1; current_queries = q } in
+  print_string "Transf. done "; flush stdout;
+  Transf_expand.expand_process g'
 	
 let rec try_with_restr_list apply_equiv = function
     [] -> TFailurePrio([],[])
@@ -4117,6 +4126,7 @@ let rec try_with_restr_list apply_equiv = function
 			Display.display_list Display.display_binder (List.map fst (!names_to_discharge));
 			print_newline()
 		      end;
+		    print_string "Transf. OK "; flush stdout;
 		    let (g',proba',ins) = transfo_expand (!whole_game).proc (!whole_game).current_queries in
 		    whole_game_next := g';
 		    TSuccessPrio ((compute_proba apply_equiv) @ proba',
@@ -4244,6 +4254,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   Simplify1.improved_def_process None false p;
   if !Settings.optimize_let_vars then
     incompatible_terms := incompatible_defs p;
+  let result = 
   if (names == []) then
     begin
       (* I need to determine the names to discharge from scratch *)
@@ -4276,6 +4287,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 		    Display.display_list Display.display_binder (List.map fst discharge_names);
 		    print_newline()
 		  end;
+		print_string "Transf. OK "; flush stdout;
 		let (g',proba',ins) = transfo_expand p g.current_queries in
 		whole_game_next := g';
 		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
@@ -4300,3 +4312,14 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 	Terms.vcounter := vcounter; (* Forget created variables when the transformation fails *)
 	TFailure ([], [!gameeq_name_mapping, failure_reason])
     end
+  in
+  (* Cleanup to save memory *)
+  Simplify1.empty_improved_def_process false p;
+  whole_game := Terms.empty_game;
+  whole_game_next := Terms.empty_game;
+  equiv := empty_equiv;
+  equiv_names_lhs_opt := [];
+  equiv_names_lhs := [];
+  equiv_names_lhs_flat := [];
+  incompatible_terms := [];
+  result

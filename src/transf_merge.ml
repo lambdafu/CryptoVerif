@@ -1649,17 +1649,17 @@ let merge_arrays bll mode g =
 	  end
 	else
 	  begin
-	    Terms.empty_comp_process g.proc;
+	    Simplify1.empty_improved_def_process true g.proc;
 	    Settings.merge_arrays := old_merge_arrays;
 	    (g, [], [])
 	  end
       with 
 	Failed ->
-	  Terms.empty_comp_process g.proc;
+	  Simplify1.empty_improved_def_process true g.proc;
 	  Settings.merge_arrays := old_merge_arrays;
 	  (g, [], [])
       | Error(mess,ext) ->
-	  Terms.empty_comp_process g.proc;
+	  Simplify1.empty_improved_def_process true g.proc;
 	  Settings.merge_arrays := old_merge_arrays;
 	  raise (Error(mess,ext))
   
@@ -2165,6 +2165,7 @@ let merge_branches g =
   merges_to_do := [];
   merges_cannot_be_done := [];
   collect_merges_i [] g.proc;
+  let result =
   if (!merges_to_do) == [] then
     (* No merge can be done *)
     (g, [], [])
@@ -2197,3 +2198,7 @@ let merge_branches g =
 	  (g, [], [])
 	end
     end
+  in
+  Simplify1.empty_improved_def_process false g.proc;
+  result
+    

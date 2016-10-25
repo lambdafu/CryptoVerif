@@ -376,6 +376,7 @@ let sa_rename b0 g =
 	image_name_list := [];
 	proba_accu := [];
 	Terms.empty_comp_process p';
+	Terms.empty_def_process p';
 	let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1; current_queries = g.current_queries } in      
 	(g', proba @ probaSArename, renames @ [DSArenaming(b0,new_names)])
       end

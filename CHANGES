@@ -22,12 +22,17 @@ is defined, the elsefind facts that test the definition of x are
 not removed but updated.
 - when a "find" has a single branch that always succeeds,
 and the indices are not used, keep its "then" branch.
+- simplify terms "if M then M1 else M2" inside conditions of find
+into (M && M1) || (not(M) && M2). 
 - new commands out_game, out_state, ... to output the current game,
 state, ... to a file instead of displaying them to the standard output.
+- decreased memory usage
 - fixed bug in the removal of assignments, which sometimes lead to an
 incorrect update of defined conditions of find.
 - fixed bug in the update of "defined" conditions of find after
 simplification, which could lead to an internal error.
+- fixed bug that could cause an internal error
+"equational theory has no neutral element in Terms.get_neutral"
 
 Version 1.23
 

@@ -1,7 +1,7 @@
 open Types
 open Simplify1
 
-let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game = ref Terms.empty_game
 
 let current_pass_transfos = ref []
 
@@ -1054,6 +1054,14 @@ let rec simplify_term_w_find cur_array true_facts t =
     Var _ | FunApp _ | ReplIndex _ ->     
       simplify_term cur_array DepAnal2.init false true_facts t
   | TestE(t1,t2,t3) ->
+      if t2.t_type = Settings.t_bool then
+	begin
+	  Settings.changed := true;
+          current_pass_transfos := (STestEElim(t)) :: (!current_pass_transfos);
+	  let t' = Terms.make_or (Terms.make_and t1 t2) (Terms.make_and (Terms.make_not t1) t3) in
+	  simplify_term_w_find cur_array true_facts (Transf_expand.final_pseudo_expand t')
+	end
+      else
       begin
       let t1' = simplify_term cur_array DepAnal2.init false true_facts t1 in
       let t_or_and = Terms.or_and_form t1' in
@@ -2113,7 +2121,8 @@ let simplify_main coll_elim g =
     let current_transfos = !current_pass_transfos in
     current_pass_transfos := [];
     Terms.cleanup_array_ref();
-    Terms.empty_comp_process g.proc;
+    Simplify1.empty_improved_def_process true g.proc;
+    whole_game := Terms.empty_game;
   (* I need to apply auto_sa_rename because I duplicate some code
      (for example when there is an || inside a test, or when
      I reorganize a find inside a condition of find). I may then
@@ -2133,7 +2142,8 @@ let simplify_main coll_elim g =
 	end
   with Restart (b,g') ->
     Terms.cleanup_array_ref();
-    Terms.empty_comp_process g.proc;
+    Simplify1.empty_improved_def_process true g.proc;
+    whole_game := Terms.empty_game;
     (* Add probability for eliminated collisions *)
     let proba = final_add_proba() in
     (g', proba, [DGlobalDepAnal(b, !Proba.elim_collisions_on_password_occ)])

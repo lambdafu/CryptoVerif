@@ -1220,6 +1220,7 @@ let rec interpret_command interactive state = function
 	  (* First compute the facts, then display them *)
 	  Simplify1.improved_def_process None false state.game.proc;
 	  Facts.display_facts_at state.game.proc occ;
+	  Simplify1.empty_improved_def_process false state.game.proc;
 	  state
 	with Failure _ ->
 	  raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
@@ -1244,7 +1245,8 @@ let rec interpret_command interactive state = function
 	    let occ = int_of_string occ_s in
 	    (* First compute the facts, then display them *)
 	    Simplify1.improved_def_process None false state.game.proc;
-	    Facts.display_facts_at state.game.proc occ);
+	    Facts.display_facts_at state.game.proc occ;
+	    Simplify1.empty_improved_def_process false state.game.proc);
 	  state
 	with Failure _ ->
 	  raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))

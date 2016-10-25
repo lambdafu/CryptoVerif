@@ -125,7 +125,8 @@ and check_def_oprocess defined_refs p =
 
 let check_def_process_main p =
   Terms.build_def_process None p;
-  check_def_process [] p
+  check_def_process [] p;
+  Terms.empty_def_process p
 
 (* - Main checking function for equivalence statements *)
 

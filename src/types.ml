@@ -513,6 +513,7 @@ and simplify_ins =
   | STestEFalse of term
   | STestEMerge of term
   | STestEOr of term
+  | STestEElim of term
   | SFindBranchRemoved of process * process findbranch
   | SFindSingleBranch of process * process findbranch
   | SFindRemoved of process 

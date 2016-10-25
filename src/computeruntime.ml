@@ -36,9 +36,8 @@ and make_length g = function
 	  
 (* (!Settings.ignore_small_times)>0 when many details should be ignored.*)
 
-let empty_game = { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
 let get_time_map = ref ((fun t -> raise Not_found) : term -> term list * int * int * repl_index list * (binder list * term list) list)
-let whole_game = ref empty_game
+let whole_game = ref Terms.empty_game
 let names_to_discharge = ref []
 
 let rec time_list f = function
@@ -366,7 +365,7 @@ let compute_runtime_for_context g equiv map_fun names_discharge =
       Polynom.sum tp (Polynom.probaf_to_polynom (Mul(Cst (float_of_int nnewchannel), ActTime(ANewChannel, []))))
   in
   let r = Polynom.polynom_to_probaf t in
-  whole_game := empty_game;
+  whole_game := Terms.empty_game;
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
   r
@@ -376,7 +375,7 @@ let compute_runtime_for g =
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
   let r = Polynom.polynom_to_probaf (time_process g.proc) in
-  whole_game := empty_game;
+  whole_game := Terms.empty_game;
   r
 
 

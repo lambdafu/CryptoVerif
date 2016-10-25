@@ -416,6 +416,7 @@ let remove_assignments remove_set p =
   let p'' = Terms.copy_process (Terms.Links_Vars_Args(!replacement_def_list)) p' in
   Terms.cleanup();
   Terms.cleanup_array_ref();
+  Terms.empty_def_process p;
   replacement_def_list := [];
   p''
 

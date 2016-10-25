@@ -1604,6 +1604,10 @@ let display_simplif_step = function
       print_string "    - Expand || in test at ";
       print_int t.t_occ;
       print_string "\n"
+  | STestEElim(t) ->
+      print_string "    - Transformed test at ";
+      print_int t.t_occ;
+      print_string " into a logical formula\n"
   | SFindBranchRemoved(p,br) -> 
       print_string "    - Remove branch ";
       get_find_branch p br;
@@ -1911,7 +1915,8 @@ let mark_useful_occ_t t =
 let mark_occs_simplif_step f_p f_t = function
     SReplaceTerm(t,t') -> f_t t
   | STestTrue(p) | STestFalse(p) | STestMerge(p) | STestOr(p) -> f_p p
-  | STestETrue(t) | STestEFalse(t) | STestEMerge(t) | STestEOr(t) -> f_t t
+  | STestETrue(t) | STestEFalse(t) | STestEMerge(t) | STestEOr(t) 
+  | STestEElim(t) -> f_t t
   | SFindBranchRemoved(p,_) | SFindSingleBranch(p,_) 
   | SFindRemoved(p) | SFindElseRemoved(p) | SFindBranchMerge(p, _) 
   | SFindtoTest(p) | SFindIndexKnown(p, _,_) 

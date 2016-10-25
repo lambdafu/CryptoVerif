@@ -96,6 +96,9 @@ let check_distinct b g =
 	  ) d2withfacts
       ) d1withfacts
   in
+  (* Must not empty, because may be used by other queries;
+     Will be emptied in success.ml
+     Simplify1.empty_improved_def_process false g.proc; *)
   if r then
     (* Add probability for eliminated collisions *)
     (true, Proba.final_add_proba[])

@@ -67,7 +67,7 @@ let is_small_enough_collision proba_l =
   List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
   
 
-let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game = ref Terms.empty_game
 
 (* Probability of collision between a random value of type [t],
    and an independent value. The collision occurs [num] times. *)
@@ -233,6 +233,7 @@ let final_add_proba coll_list =
   eliminated_collisions := [];
   red_proba := [];
   elim_collisions_on_password_occ := [];
+  whole_game := Terms.empty_game;
   if r == Zero then [] else [ SetProba r ]
 
 let get_current_state() =

@@ -754,6 +754,7 @@ let insert_instruct occ ext_o s ext_s g =
       raise (Error(mess, combine_extent ext_s extent))
   in
   Terms.cleanup_array_ref();
+  Simplify1.empty_improved_def_process false g.proc;
   Hashtbl.clear hash_binders;
   if (!count) = 0 then 
     raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
@@ -772,7 +773,7 @@ type state_ty =
     RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent 
   | RepDone of setf list * int * term * term * Parsing_helper.extent 
 
-let whole_game = ref { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
+let whole_game = ref Terms.empty_game
 
 let rec replace_tt count env facts cur_array t =
   match !count with
@@ -1019,7 +1020,8 @@ let replace_term occ ext_o s ext_s g =
   in
   Terms.cleanup_array_ref();
   Hashtbl.clear hash_binders;
-  Terms.empty_comp_process g.proc;
+  Simplify1.empty_improved_def_process true g.proc;
+  whole_game := Terms.empty_game;
   match !count with
     RepToDo _ ->
       raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))

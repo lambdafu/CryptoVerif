@@ -200,6 +200,9 @@ let simplify_process g =
   in
   current_pass_transfos := [];
   let proba = Proba.final_add_proba [] in
+  (* Cannot cleanup here because it may delete information
+     in the initial game, needed to compute the probabilities.
+     Terms.empty_def_process g.proc; *)
   (p', proba, simplif_transfos)
 
 let check_no_ifletfind t =
@@ -528,13 +531,19 @@ and expand_oprocess cur_array p =
 *)
 
 let expand_process g =
+  print_string "SA renaming... "; flush stdout;
   let (g', proba0, ins0) = Transf_auto_sa_rename.auto_sa_rename g in
+  print_string "Simplifying... "; flush stdout;
   let tmp_changed = !Settings.changed in
   let (p', proba, simplif_transfos) = simplify_process g' in
+  print_string "Expanding... "; flush stdout;
   let p'' = expand_process [] p' in
   if !Settings.changed then 
-    let (g'', proba', ins) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1; current_queries = g'.current_queries } in
-    (g'', proba' @ proba @ proba0, ins @ (DExpandIfFind :: simplif_transfos) @ ins0)
+    begin
+      print_string "SA renaming... "; flush stdout;
+      let (g'', proba', ins) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1; current_queries = g'.current_queries } in
+      (g'', proba' @ proba @ proba0, ins @ (DExpandIfFind :: simplif_transfos) @ ins0)
+    end
   else
     begin
       Settings.changed := tmp_changed;
