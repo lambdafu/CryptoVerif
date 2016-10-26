@@ -1103,6 +1103,13 @@ of known facts.
 When $n \leq 0$, puts no limit on this depth of recursion.
 Putting a limit avoids an infinite loop in some rare cases.
 
+\item $\texttt{set maxTryNoVarDepth = }\nonterm{n}{\tt .}$ (default 20)
+
+Sets the maximum depth of recursion in the replacement of
+variables with their values.
+When $n < 0$, puts no limit on this depth of recursion.
+Putting a limit avoids an infinite loop in some rare cases.
+
 \item $\texttt{set maxIterRemoveUselessAssign = }\nonterm{n}{\tt .}$ (default 10)
 
 Sets the maximum number of repetitions of the removal of useless assignments 
