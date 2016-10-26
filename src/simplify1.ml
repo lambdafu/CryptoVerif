@@ -981,13 +981,16 @@ let convert_elsefind dep_info def_vars ((_, _, elsefind) as simp_facts) =
 let true_facts_from_simp_facts (facts, subst, else_find) =
   subst @ facts
 
-let rec try_no_var_rec simp_facts t =
+let rec try_no_var_rec depth simp_facts t =
+  if depth = 0 then t else 
   let t' = Terms.try_no_var simp_facts t in(* Risk of non-termination? *)
   match t'.t_desc with
     FunApp(f,l) -> 
-      Terms.build_term2 t' (FunApp(f, List.map (try_no_var_rec simp_facts) l))
+      Terms.build_term2 t' (FunApp(f, List.map (try_no_var_rec (depth-1) simp_facts) l))
   | _ -> t'
 
+let try_no_var_rec simp_facts t =
+  try_no_var_rec (!Settings.max_depth_try_no_var_rec) simp_facts t
 
 (* Reasoning that depends on assumptions on the order of definition
    of variables. *)

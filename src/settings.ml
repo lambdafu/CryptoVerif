@@ -23,6 +23,7 @@ let debug_simplif_add_facts = ref false
 let debug_corresp = ref false
 
 let max_depth_add_fact = ref 1000
+let max_depth_try_no_var_rec = ref 20
 let max_replace_depth = ref 20
 let elsefind_facts_in_replace = ref true
 let elsefind_facts_in_success = ref true
@@ -173,6 +174,7 @@ let do_set p v =
   | "improvedFactCollection", S ("false",_) -> improved_fact_collection := false
   | "maxReplaceDepth", I n -> max_replace_depth := n
   | "maxAddFactDepth", I n -> max_depth_add_fact := n
+  | "maxTryNoVarDepth", I n -> max_depth_try_no_var_rec := n
   | "debugInstruct", S ("true",_) -> debug_instruct := true
   | "debugInstruct", S ("false",_) -> debug_instruct := false
   | "debugFindUnique", S ("true",_) -> debug_find_unique := true

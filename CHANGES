@@ -33,6 +33,7 @@ incorrect update of defined conditions of find.
 simplification, which could lead to an internal error.
 - fixed bug that could cause an internal error
 "equational theory has no neutral element in Terms.get_neutral"
+- fixed infinite loop in replacement of a variable with its value
 
 Version 1.23
 
