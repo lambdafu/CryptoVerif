@@ -6,6 +6,6 @@ open Types
    boolean result, when it is true, it also returns the probability of
    collisions eliminated to reach that result. *)
 val check_corresp : 
-    (term * fact_info) list -> 
+    (term * program_point) list -> 
     (bool * term) list * qterm -> game -> bool * setf list
 

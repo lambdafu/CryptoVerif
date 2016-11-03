@@ -550,7 +550,7 @@ let rec check_find_cond defined_refs cur_array env = function
 let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
   let defined_refs = 
     try 
-      Facts.get_def_vars_at p'.p_facts 
+      Facts.get_def_vars_at (DProcess p')
     with Contradiction ->
       raise (Error("The occurrence " ^ (string_of_int occ) ^ " at which you are inserting an instruction is in fact unreachable", ext))
   in
@@ -694,8 +694,8 @@ and insert_inso count occ ins env cur_array p =
 	  try
 	    let find_branch' = 
 	      if (count_before == 0) && (count_after == 1) then
-		let already_defined = Facts.get_def_vars_at p.p_facts in
-		let newly_defined = Facts.def_vars_from_defined (Facts.get_node p.p_facts) def_list in
+		let already_defined = Facts.get_def_vars_at (DProcess p) in
+		let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
 		Facts.update_def_list_process already_defined newly_defined bl def_list t p'
 	      else
 		(bl, def_list, t, p')
@@ -780,7 +780,7 @@ let rec replace_tt count env facts cur_array t =
     RepToDo (occ, ext_o, ins, ext_s) when occ == t.t_occ ->
       let defined_refs = 
 	try 
-	  Facts.get_def_vars_at t.t_facts 
+	  Facts.get_def_vars_at (DTerm t)
 	with Contradiction ->
 	  raise (Error("The occurrence " ^ (string_of_int occ) ^ " at which you are replacing a term is in fact unreachable", ext_o))
       in
@@ -790,7 +790,7 @@ let rec replace_tt count env facts cur_array t =
       Simplify1.reset [] (!whole_game);
       let r = 
 	try 
-	  let facts' = Facts.get_facts_at t.t_facts in
+	  let facts' = Facts.get_facts_at (DTerm t) in
 	  let simp_facts = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (facts'@facts)) in
 	  let facts'' = 
 	    if !Settings.elsefind_facts_in_replace then
@@ -888,8 +888,8 @@ and replace_tfind_cond count env cur_array t =
 	  let find_branch' = 
 	    match count_before, count_after with
 	      RepToDo _, RepDone _ -> 
-		let already_defined = Facts.get_def_vars_at t.t_facts in
-		let newly_defined = Facts.def_vars_from_defined (Facts.get_node t.t_facts) def_list in
+		let already_defined = Facts.get_def_vars_at (DTerm t) in
+		let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t)) def_list in
 		Facts.update_def_list_term already_defined newly_defined bl def_list tc' p'
 	    | _ -> (bl, def_list, tc', p')
 	  in
@@ -966,8 +966,8 @@ and replace_to count env cur_array p =
 	    let find_branch' = 
 	      match count_before, count_after with
 		RepToDo _, RepDone _ ->
-		  let already_defined = Facts.get_def_vars_at p.p_facts in
-		  let newly_defined = Facts.def_vars_from_defined (Facts.get_node p.p_facts) def_list in
+		  let already_defined = Facts.get_def_vars_at (DProcess p) in
+		  let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
 		  Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
 	      | _ -> (bl, def_list, t', p1')
 	    in

@@ -590,12 +590,12 @@ Returns
 
 let almost_indep_test cur_array t =
   (* Call a fast version of almost_indep_test first. *)
-  let res = almost_indep_test cur_array [] t.t_facts t in
+  let res = almost_indep_test cur_array [] (DTerm t) t in
   if res != BothDepB then res else
   (* In case this version is not sufficient to eliminate the dependency,
      use a more costly and more precise version *)
   try
-    let true_facts = Facts.get_facts_at t.t_facts in
+    let true_facts = Facts.get_facts_at (DTerm t) in
     let simp_facts = Facts.simplif_add_list (dependency_collision cur_array) ([],[],[]) true_facts in
     let t' = Facts.simplify_term (dependency_collision cur_array) simp_facts t in
     (*print_string ("At " ^ (string_of_int t.t_occ) ^ ", the term ");
@@ -876,7 +876,7 @@ let rec check_assign1 cur_array proba_info st = function
 	    else
 	      begin
 	      (* add probability *)
-		add_collisions_for_current_check_dependency (cur_array, [], t.t_facts) proba_info;
+		add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) proba_info;
 		false
 	      end
 	  with Not_found ->
@@ -888,7 +888,7 @@ let rec check_assign1 cur_array proba_info st = function
       else
 	begin
 	  (* add probability *)
-	  add_collisions_for_current_check_dependency (cur_array, [], t.t_facts) proba_info;
+	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) proba_info;
 	  false
 	end
 
@@ -975,8 +975,8 @@ let rec almost_indep_fc cur_array t0 =
 		      let t' = Terms.make_true() in
 		      let find_branch' = 
 			if not (Terms.equal_terms t t' && Terms.equal_terms p1 p1') then
-			  let already_defined = Facts.get_def_vars_at t0.t_facts in
-			  let newly_defined = Facts.def_vars_from_defined (Facts.get_node t0.t_facts) def_list in
+			  let already_defined = Facts.get_def_vars_at (DTerm t0) in
+			  let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t0)) def_list in
 			  Facts.update_def_list_term already_defined newly_defined bl def_list t' p1'
 			else
 			  findbranch
@@ -994,8 +994,8 @@ let rec almost_indep_fc cur_array t0 =
 		      let p1' = to_term (almost_indep_fc cur_array p1) in
 		      let find_branch' = 
 			if not (Terms.equal_terms t t' && Terms.equal_terms p1 p1') then
-			  let already_defined = Facts.get_def_vars_at t0.t_facts in
-			  let newly_defined = Facts.def_vars_from_defined (Facts.get_node t0.t_facts) def_list in
+			  let already_defined = Facts.get_def_vars_at (DTerm t0) in
+			  let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t0)) def_list in
 			  Facts.update_def_list_term already_defined newly_defined bl def_list t' p1'
 			else
 			  findbranch
@@ -1073,7 +1073,7 @@ let rec almost_indep_fc cur_array t0 =
               | BothIndepB t1', BothIndepB t2'  ->
 		  begin
 		    try
-                      let true_facts = Facts.get_facts_at t0.t_facts in
+                      let true_facts = Facts.get_facts_at (DTerm t0) in
 		      let simp_facts = Facts.simplif_add_list (dependency_collision cur_array) ([],[],[]) true_facts in
                       if Terms.simp_equal_terms simp_facts true t1' t2' then
 			BothIndepB t1' 
@@ -1171,7 +1171,7 @@ let rec almost_indep_fc cur_array t0 =
                         (* [t'] independent of [b0], the pattern characterizes [b0]
 			   => only the else branch can be taken up to negligible probability *)
 		        (* add probability *)
-			add_collisions_for_current_check_dependency (cur_array, [], t0.t_facts) (t1, t', charac_type);
+			add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t1, t', charac_type);
 			local_changed := true;
 			almost_indep_fc cur_array p2
 		    | None ->
@@ -1227,7 +1227,7 @@ let rec almost_indep_fc cur_array t0 =
 		| BothIndepB t1', BothIndepB t2'  ->
 		    begin
 		      try 
-			let true_facts = Facts.get_facts_at t0.t_facts in
+			let true_facts = Facts.get_facts_at (DTerm t0) in
 			let simp_facts = Facts.simplif_add_list (dependency_collision cur_array) ([],[],[]) true_facts in
 			if Terms.simp_equal_terms simp_facts true t1' t2' then
 			  BothIndepB t2' 
@@ -1300,7 +1300,7 @@ let rec check_depend_process cur_array p' =
 	      cur_array
 	  in
 	  let t2 = Terms.term_from_binder b in
-	  add_collisions_for_current_check_dependency (cur_array, [], p'.i_facts) (t1, t2, charac_type);
+	  add_collisions_for_current_check_dependency (cur_array, [], DInputProcess p') (t1, t2, charac_type);
 	  local_changed := true;
 	  Terms.iproc_from_desc (Input((c, tl), PatVar b, Terms.oproc_from_desc Yield))
       |	None ->
@@ -1379,8 +1379,8 @@ and check_depend_oprocess cur_array p =
 		  try 
 		    let findbranch' = 
 		      if !defined_condition_update_needed then
-			let already_defined = Facts.get_def_vars_at p.p_facts in
-			let newly_defined = Facts.def_vars_from_defined (Facts.get_node p.p_facts) def_list in
+			let already_defined = Facts.get_def_vars_at (DProcess p) in
+			let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
 			Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
 		      else
 			(bl, def_list, t', p1')
@@ -1403,8 +1403,8 @@ and check_depend_oprocess cur_array p =
 		  try 
 		    let findbranch'  = 
 		      if !defined_condition_update_needed then
-			let already_defined = Facts.get_def_vars_at p.p_facts in
-			let newly_defined = Facts.def_vars_from_defined (Facts.get_node p.p_facts) def_list in
+			let already_defined = Facts.get_def_vars_at (DProcess p) in
+			let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
 			Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
 		      else
 			(bl, def_list, t', p1')
@@ -1494,7 +1494,7 @@ and check_depend_oprocess cur_array p =
                     (* [t] independent of [b0], the pattern characterizes [b0]
 		       => only the else branch can be taken up to negligible probability *)
 		    (* add probability *)
-		    add_collisions_for_current_check_dependency (cur_array, [], p.p_facts) (t1, t, charac_type);
+		    add_collisions_for_current_check_dependency (cur_array, [], DProcess p) (t1, t, charac_type);
 		    local_changed := true;
 		    check_depend_oprocess cur_array p2
 		| None ->

@@ -174,6 +174,6 @@ val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem 
      Reverts to [Terms.build_def_process] when [Settings.improved_fact_collection = false].
      When [compatible_needed] is true, always initializes the [incompatible] field.
  ***)
-val improved_def_process : (term * fact_info) list ref option -> bool -> inputprocess -> unit
+val improved_def_process : (term * program_point) list ref option -> bool -> inputprocess -> unit
 
 val empty_improved_def_process : bool -> inputprocess -> unit

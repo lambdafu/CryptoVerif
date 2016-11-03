@@ -532,7 +532,7 @@ and check_array_ref_oprocess in_scope curarray_suffix ok_vars p =
 
 let get_in_scope fact_info =
   match fact_info with
-    Some(_,_,_,n) -> Terms.add_def_vars_node [] n
+    Some(_,_,_,_,n) -> Terms.add_def_vars_node [] n
   | None -> Parsing_helper.internal_error "facts should have been set"
 
 (* [filter_good_vars l] starts from a list containing
@@ -1119,12 +1119,12 @@ let rec merge_term rename_instr t =
   | ResE _ | EventAbortE _ | TestE _ | LetE _ | FindE _ ->
       Parsing_helper.internal_error "new/event/if/let/find unexpected in terms"
 
-let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merge proc_add_def_var merge_find_cond curr_facts 
+let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merge proc_add_def_var merge_find_cond pp 
     rename_instr l0 p3 =
   let (source_to_target_list, br_vars) = rename_instr in
   let already_defined = 
-    match curr_facts with
-      Some (_, _, def_vars, def_node) ->
+    match Terms.get_facts pp with
+      Some (_, _, _, def_vars, def_node) ->
         def_vars @ def_node.def_vars_at_def @ 
 	(List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) (Terms.add_def_vars_node [] def_node))
     | None -> Parsing_helper.internal_error "p_facts should have been defined"
@@ -1258,7 +1258,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
 	    - Check that the new_def_conditions_to_rename of these branches
 	    consist of (b,l) for the same l (modulo known equalities)
 	    *)
-	  let true_facts = Facts.get_facts_at curr_facts in
+	  let true_facts = Facts.get_facts_at pp in
 	  let simp_facts = simplif_add_list ([],[],[]) true_facts in
 	  List.iter (fun (b,l) ->
 	    if not (Terms.equal_lists (equal (equal_find_cond None) simp_facts) l target_l) then
@@ -1286,7 +1286,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
 	    let accu = ref [] in
 	    List.iter (Terms.close_def_subterm accu) def_list';
 	    try
-	      let facts = Facts.facts_from_defined Unknown def_list' in
+	      let facts = Facts.facts_from_defined None def_list' in
 	      let fact_accu = 
 		List.fold_left (fun accu br -> 
 		  List.fold_left (fun accu' (target_b,target_l) -> 
@@ -1325,21 +1325,21 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
 	    
 	    begin
 	      try
-		let new_def_list_implied = Facts.def_vars_from_defined Unknown new_def_list in
+		let new_def_list_implied = Facts.def_vars_from_defined None new_def_list in
 		if not (List.for_all (fun br -> Terms.mem_binderref br new_def_list_implied) def_list) then
 		  raise Failed
 	      with Contradiction -> ()
 	    end;
 	    begin
 	      try
-		let def_list_implied = Facts.def_vars_from_defined Unknown def_list in
+		let def_list_implied = Facts.def_vars_from_defined None def_list in
 		if not (List.for_all (fun br -> Terms.mem_binderref br def_list_implied) new_def_list) then
 		  raise Failed
 	      with Contradiction -> ()
 	    end;
 	    begin
 	      try
-		let facts = Facts.facts_from_defined Unknown def_list in
+		let facts = Facts.facts_from_defined None def_list in
 		let simp_facts' = simplif_add_list simp_facts facts in
 		if not (equal (equal_find_cond None) simp_facts' t new_t) then
 		  raise Failed;
@@ -1409,7 +1409,7 @@ let rec merge_find_cond rename_instr t =
 	try
 	  let (l0', t3') = merge_find_branches Display.display_term 
 	      Terms.subst3 Terms.copy_term (equal_find_cond None)
-	      merge_find_cond add_def_var_find_cond merge_find_cond t.t_facts rename_instr l0 t3
+	      merge_find_cond add_def_var_find_cond merge_find_cond (DTerm t) rename_instr l0 t3
 	  in
 	  Terms.build_term2 t (FindE(l0',t3',find_info))
 	with Contradiction ->
@@ -1485,7 +1485,7 @@ and merge_o rename_instr p =
 	  try
 	    let (l0', p3') = merge_find_branches (Display.display_oprocess "  ") 
 		Terms.subst_oprocess3 Terms.copy_oprocess (equal_oprocess None)
-		merge_o add_def_var_proc merge_find_cond p.p_facts rename_instr l0 p3
+		merge_o add_def_var_proc merge_find_cond (DProcess p) rename_instr l0 p3
 	    in
 	    Find(l0',p3',find_info)
 	  with Contradiction ->
@@ -1783,7 +1783,7 @@ let rec collect_merges_find_cond cur_array t =
 	  all_branches_var_list := [];
 	  cur_branch_var_list := [];
 	  var_no_array_ref := [];
-	  let true_facts = Facts.get_facts_at t.t_facts in
+	  let true_facts = Facts.get_facts_at (DTerm t) in
 	  let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
 	  if equal_store_arrays (equal_find_cond (get_curarray_suffix_term cur_array t1)) simp_facts t2 t3 then
 	    begin
@@ -1814,7 +1814,7 @@ let rec collect_merges_find_cond cur_array t =
 		all_branches_var_list := [];
 		cur_branch_var_list := [];
 		var_no_array_ref := [];
-		let true_facts = Facts.get_facts_at t.t_facts in
+		let true_facts = Facts.get_facts_at (DTerm t) in
 		let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
 		let curarray_suffix = get_curarray_suffix_pat_term cur_array pat t in
 		if equal_store_arrays (equal_find_cond curarray_suffix) simp_facts t2 t3 then
@@ -1831,7 +1831,7 @@ let rec collect_merges_find_cond cur_array t =
       end
   | FindE(l0,t3,find_info) -> 
       collect_merges_find_cond cur_array t3;
-      let true_facts = Facts.get_facts_at t.t_facts in
+      let true_facts = Facts.get_facts_at (DTerm t) in
       let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
       if find_info == Unique then
 	begin
@@ -1902,7 +1902,7 @@ and collect_merges_o cur_array p =
 	  all_branches_var_list := [];
 	  cur_branch_var_list := [];
 	  var_no_array_ref := [];
-	  let true_facts = Facts.get_facts_at p.p_facts in
+	  let true_facts = Facts.get_facts_at (DProcess p) in
 	  let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
 	  if equal_store_arrays (equal_oprocess (get_curarray_suffix_term cur_array t)) simp_facts p1 p2 then
 	    begin
@@ -1921,7 +1921,7 @@ and collect_merges_o cur_array p =
 	  all_branches_var_list := [];
 	  cur_branch_var_list := [];
 	  var_no_array_ref := [];
-	  let true_facts = Facts.get_facts_at p.p_facts in
+	  let true_facts = Facts.get_facts_at (DProcess p) in
 	  let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
 	  let curarray_suffix = get_curarray_suffix_pat_term cur_array pat t in
 	  if equal_store_arrays (equal_oprocess curarray_suffix) simp_facts p1 p2 then
@@ -1937,7 +1937,7 @@ and collect_merges_o cur_array p =
       collect_merges_o cur_array p2
   | Find(l0,p3,find_info) ->
       collect_merges_o cur_array p3;
-      let true_facts = Facts.get_facts_at p.p_facts in
+      let true_facts = Facts.get_facts_at (DProcess p) in
       let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
       if find_info == Unique then
 	begin

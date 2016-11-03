@@ -3,37 +3,46 @@ of the cryptographic protocol verifier.
 
 Version
 
-- use elsefind facts to prove correspondences:
+- Queries:
+  query secret x public_vars x1, ..., xn.
+  query secret1 x public_vars x1, ..., xn.
+to show (one-session) secrecy of x when the variables x1, ..., xn
+are public. This query is useful to show that several variables
+are independent secrets, with a single input file.
+- Use elsefind facts to prove correspondences:
 1/ to prove injectivity (useful for protocols with a replay cache,
 for instance)
 2/ to infer more facts by making case distinctions depending on 
 the order of definition of variables.
-- improved collection of facts: when CryptoVerif collects the
+- Improved collection of facts: when CryptoVerif collects the
 facts that hold at each program point, it can also take into account
 variables that cannot be defined at a certain program point, variables
 that cannot be simultaneously defined, and elsefind facts. (This is a
 bit costly, so it is disabled by default. You can enable it by 
 "set improvedFactCollection = true".)
-- improved collection of facts and defined variables: take into
+- Improved collection of facts and defined variables: take into
 account more often that the variables after the current program
-point in the current input-output block are defined.
-- more precise treatment of elsefind facts: when a new variable x
+point in the current input-output block are defined; take into
+account the current program point and the order of definition
+of variables to eliminate some cases and to infer new facts
+(inequalities between indices of variables).
+- More precise treatment of elsefind facts: when a new variable x
 is defined, the elsefind facts that test the definition of x are
 not removed but updated.
-- when a "find" has a single branch that always succeeds,
+- When a "find" has a single branch that always succeeds,
 and the indices are not used, keep its "then" branch.
-- simplify terms "if M then M1 else M2" inside conditions of find
+- Simplify terms "if M then M1 else M2" inside conditions of find
 into (M && M1) || (not(M) && M2). 
-- new commands out_game, out_state, ... to output the current game,
+- New commands out_game, out_state, ... to output the current game,
 state, ... to a file instead of displaying them to the standard output.
-- decreased memory usage
-- fixed bug in the removal of assignments, which sometimes lead to an
+- Decreased memory usage
+- Fixed bug in the removal of assignments, which sometimes lead to an
 incorrect update of defined conditions of find.
-- fixed bug in the update of "defined" conditions of find after
+- Fixed bug in the update of "defined" conditions of find after
 simplification, which could lead to an internal error.
-- fixed bug that could cause an internal error
+- Fixed bug that could cause an internal error
 "equational theory has no neutral element in Terms.get_neutral"
-- fixed infinite loop in replacement of a variable with its value
+- Fixed infinite loop in replacement of a variable with its value
 
 Version 1.23
 

@@ -40,7 +40,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt new}, {\tt newChannel}, {\tt orfind}, {\tt otheruses},
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
-{\tt proof}, {\tt query}, 
+{\tt proof}, {\tt public_vars}, {\tt query}, 
 {\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}, {\tt yield}%
 \else
@@ -54,7 +54,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
 {\tt newOracle}, {\tt orfind}, {\tt otheruses},
 {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, {\tt proba}, {\tt process}, 
-{\tt proof}, {\tt query}, {\tt return},
+{\tt proof}, {\tt public_vars}, {\tt query}, {\tt return},
 {\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}%
 \fi.
@@ -106,8 +106,8 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phqt \nonterm{queryterm}\texttt{ || }\nonterm{queryterm}\\
 &\phqt \nonterm{event}\\
 &\phqt \nonterm{simpleterm}\\
-&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\\
-&\phq \texttt{secret1 } \nonterm{ident}\\
+&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\\
+&\phq \texttt{secret1 } \nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\\
 &\phq [\seq{vartype}\texttt{;}]\texttt{ event }\nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \texttt{ ==> }\nonterm{queryterm}
 \end{align*}
 where 
@@ -1107,7 +1107,7 @@ Putting a limit avoids an infinite loop in some rare cases.
 
 Sets the maximum depth of recursion in the replacement of
 variables with their values.
-When $n < 0$, puts no limit on this depth of recursion.
+When $n \leq 0$, puts no limit on this depth of recursion.
 Putting a limit avoids an infinite loop in some rare cases.
 
 \item $\texttt{set maxIterRemoveUselessAssign = }\nonterm{n}{\tt .}$ (default 10)
@@ -1711,13 +1711,15 @@ The {\tt query} declaration indicates which security properties we
 would like to prove. The available queries are as follows:
 \begin{itemize}
 
-\item ${\tt secret1}\ x$: show that any element of the array $x$ 
-cannot be distinguished from a random number (by a single test query).
+\item ${\tt secret1}\ x\ [\texttt{public\_vars}\ l]$: show that any element of the array $x$ 
+cannot be distinguished from a random number (by a single test query),
+even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
 In the vocabulary of~\cite{BlanchetEPrint05}, this is one-session
 secrecy.
 
 \item ${\tt secret}\ x$: show that the array $x$ is indistinguishable
-from an array of independent random numbers (by several test queries).
+from an array of independent random numbers (by several test queries),
+even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
 In the vocabulary of~\cite{BlanchetEPrint05}, this is secrecy.
 
 \item $x_1:T_1, \ldots, x_n:T_n; {\tt event}\ M \texttt{ ==> } M'$.

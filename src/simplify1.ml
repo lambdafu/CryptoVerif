@@ -1239,7 +1239,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
     | ((b2,tl2)::l) ->
 	let before_br2 = 
 	  try 
-            Terms.subst_def_list b2.args_at_creation tl2 (Facts.def_vars_from_defined Unknown [Terms.binderref_from_binder b2])
+            Terms.subst_def_list b2.args_at_creation tl2 (Facts.def_vars_from_defined None [Terms.binderref_from_binder b2])
 	  with Contradiction -> 
 	    (* Contradiction may be raised when b2 can in fact not be defined. *)
 	    []	
@@ -1293,7 +1293,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
     (* Variables defined before (b,tl) *)
     let def_vars_before = 
       try 
-        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined Unknown [Terms.binderref_from_binder b])
+        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [Terms.binderref_from_binder b])
       with Contradiction -> 
 	(* Contradiction may be raised when b can in fact not be defined. *)
 	[]
@@ -1527,7 +1527,7 @@ let filter_indices t true_facts0 all_indices used_indices =
   (* Collect all facts that are known to be true *)
   let true_facts = 
     try
-      true_facts0 @ (Facts.get_facts_at t.t_facts)
+      true_facts0 @ (Facts.get_facts_at (DTerm t))
     with Contradiction ->
       [Terms.make_false()]
   in
@@ -1762,15 +1762,15 @@ let convert_elsefind2 accu def_vars elsefind =
 
 let get_node = function
     None -> Parsing_helper.internal_error "t/i/p_facts should have been set"
-  | Some(_,_,_,n) ->
+  | Some(_,_,_,_,n) ->
       n
 
 let rec infer_facts_t true_facts t =
   begin
     match t.t_facts with
       None -> Parsing_helper.internal_error "t_facts should have been set"
-    | Some (true_facts_old, elsefind, def_vars, n) ->
-	t.t_facts <- Some(true_facts, elsefind, def_vars, n)
+    | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
+	t.t_facts <- Some(cur_array, true_facts, elsefind, def_vars, n)
   end;
   match t.t_desc with
     Var(_,l) | FunApp(_,l) -> List.iter (infer_facts_t true_facts) l
@@ -1785,8 +1785,8 @@ let rec infer_facts_pat true_facts = function
 let rec infer_facts_fc cur_array true_facts t =
   match t.t_facts with
     None -> Parsing_helper.internal_error "t_facts should have been set"
-  | Some (true_facts_old, elsefind, def_vars, n) ->
-      t.t_facts <- Some(true_facts, elsefind, def_vars, n);
+  | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
+      t.t_facts <- Some(cur_array, true_facts, elsefind, def_vars, n);
       match t.t_desc with
 	Var(_,l) | FunApp(_,l) -> List.iter (infer_facts_t true_facts) l
       | ReplIndex _ -> ()
@@ -1799,10 +1799,10 @@ let rec infer_facts_fc cur_array true_facts t =
       |	FindE(l0,t3,_) ->
 	  begin
 	  try 
-	    let def_vars = Facts.get_def_vars_at t.t_facts in
+	    let def_vars = Facts.get_def_vars_at (DTerm t) in
 	    let true_facts_t3 = add_elsefind2 true_facts def_vars l0 in
 	    infer_facts_fc cur_array true_facts_t3 t3;
-	    let find_node = Facts.get_node t.t_facts in 
+	    let find_node = Facts.get_initial_history (DTerm t) in 
 	    List.iter (fun (bl,def_list,t1,t2) ->
 	      let vars = List.map fst bl in
 	      let repl_indices = List.map snd bl in
@@ -1867,8 +1867,8 @@ let rec infer_facts_i cur_array true_facts p' =
   begin
     match p'.i_facts with
       None -> Parsing_helper.internal_error "i_facts should have been set"
-    | Some (true_facts_old, elsefind, def_vars, n) ->
-	p'.i_facts <- Some(true_facts, elsefind, def_vars, n)
+    | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
+	p'.i_facts <- Some(cur_array, true_facts, elsefind, def_vars, n)
   end;
   match p'.i_desc with
     Nil -> ()
@@ -1890,8 +1890,8 @@ and infer_facts_o cur_array true_facts p' =
   (* print_string "infer_facts_o occ "; print_int p'.p_occ; print_newline(); *)
   match p'.p_facts with
     None -> Parsing_helper.internal_error "p_facts should have been set"
-  | Some (true_facts_old, elsefind, def_vars, n) ->
-      p'.p_facts <- Some(true_facts, elsefind, def_vars, n);
+  | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
+      p'.p_facts <- Some(cur_array, true_facts, elsefind, def_vars, n);
       match p'.p_desc with
 	Yield -> ()
       |	EventAbort f ->
@@ -1901,7 +1901,7 @@ and infer_facts_o cur_array true_facts p' =
 	    | Some accu -> 
 		let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
 		let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-		accu := (t, Some (true_facts, elsefind, def_vars, n)) :: (!accu)
+		accu := (t, DProcess p') :: (!accu)
 	  end
       |	Restr(b,p) ->
 	  let node = get_node p.p_facts in
@@ -1916,10 +1916,10 @@ and infer_facts_o cur_array true_facts p' =
       |	Find(l0,p2,_) ->
 	  begin
 	  try 
-	    let def_vars = Facts.get_def_vars_at p'.p_facts in
+	    let def_vars = Facts.get_def_vars_at (DProcess p') in
 	    let true_facts_p2 = add_elsefind2 true_facts def_vars l0 in
 	    infer_facts_o cur_array true_facts_p2 p2;
-	    let find_node = Facts.get_node p'.p_facts in 
+	    let find_node = Facts.get_initial_history (DProcess p') in 
 	    List.iter (fun (bl,def_list,t,p1) ->
 	      let vars = List.map fst bl in
 	      let repl_indices = List.map snd bl in
@@ -1980,7 +1980,7 @@ and infer_facts_o cur_array true_facts p' =
 	  begin
 	    match event_accu with
 	      None -> ()
-	    | Some accu -> accu := (t, Some (true_facts, elsefind, def_vars, n)) :: (!accu)
+	    | Some accu -> accu := (t, DProcess p') :: (!accu)
 	  end;
 	  infer_facts_t true_facts t;
 	  infer_facts_o cur_array (t::true_facts) p

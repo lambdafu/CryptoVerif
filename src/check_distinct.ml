@@ -21,7 +21,7 @@ let collect_facts accu (def,bindex,index) =
       fact_accu := f :: (!fact_accu)) (Facts.filter_ifletfindres def.true_facts_at_def);
   (* recursive call *)
   let def_list = List.map (fun (b', l') -> (b', List.map (Terms.subst bindex index) l')) def.def_vars_at_def in
-  (Facts.facts_from_defined Unknown def_list) @ (!fact_accu)
+  (Facts.facts_from_defined None def_list) @ (!fact_accu)
   (* Old code, modified to avoid adding add_facts to Facts.mli
   List.iter (fun (b',l') ->
     Facts.add_facts None fact_accu (ref []) (ref []) (b', List.map (Terms.subst bindex index) l')

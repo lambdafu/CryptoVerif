@@ -311,7 +311,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
       let dep_info' = List.map (fun (b', (dep, nodep)) -> (b', (dep, b_term::nodep))) dep_info in
       if Proba.is_large b.btype then
 	try 
-	  let def_vars = Facts.get_def_vars_at p'.p_facts in
+	  let def_vars = Facts.get_def_vars_at (DProcess p') in
 	  (Terms.oproc_from_desc (Restr(b,p)), 
 	   [(b, (Some [b, (Decompos, (b.btype, Terms.term_from_binder b))], 
 		 (List.map Terms.term_from_binderref def_vars))) :: dep_info' ])
@@ -397,7 +397,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 
          (* Dependence info for the "then" branches *)
          let dep_info_branches = List.fold_right (fun (bl, def_list, _, _) accu ->
-	   let this_branch_node = Facts.get_node p'.p_facts in
+	   let this_branch_node = Facts.get_initial_history (DProcess p') in
 	   (* Variables that are certainly defined before the find do not depend on b *)
 	   let nodep_add_cond = List.map Terms.term_from_binderref 
 	     (try
@@ -1176,7 +1176,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  current_pass_transfos := (SFindEtoTestE t) :: (!current_pass_transfos);
 	  simplify_term_w_find cur_array true_facts (Terms.build_term2 t (TestE(t1,t2,t3)))
       |	_ -> 
-      let def_vars = Facts.get_def_vars_at t.t_facts in
+      let def_vars = Facts.get_def_vars_at (DTerm t) in
       let t3' = 
 	try
 	  simplify_term_w_find cur_array (add_elsefind (dependency_collision cur_array DepAnal2.init) def_vars true_facts l0) t3
@@ -1200,7 +1200,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_node t.t_facts in 
+	      let this_branch_node = Facts.get_initial_history (DTerm t) in 
 	      let def_list' = Facts.reduced_def_list t.t_facts def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
@@ -1695,8 +1695,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  current_pass_transfos := (SFindtoTest p') :: (!current_pass_transfos);
 	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc2 p'  (Test(t1,p1,p2)))
       |	_ -> 
-
-      let def_vars = Facts.get_def_vars_at p'.p_facts in
+      let def_vars = Facts.get_def_vars_at (DProcess p') in
       let p2' = 
 	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
 	try
@@ -1717,7 +1716,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_node p'.p_facts in 
+	      let this_branch_node = Facts.get_initial_history (DProcess p') in 
 	      let def_list' = Facts.reduced_def_list p'.p_facts def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in

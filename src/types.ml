@@ -252,8 +252,9 @@ and term = { t_desc : term_desc;
 		   Program points are represented by their occurrence. *)
 	     mutable t_facts : fact_info }
 
-and fact_info = (term list * elsefind_fact list * binderref list * def_node) option
-      (* Some(true_facts, elsefind, def_vars, def_node):
+and fact_info = (repl_index list * term list * elsefind_fact list * binderref list * def_node) option
+      (* Some(cur_array, true_facts, elsefind, def_vars, def_node):
+	 cur_array = replication indices at the current program point
 	 true_facts = the facts that are true at the current program point
 	 elsefind = elsefind facts that are true at the current program point
 	 def_vars = the variables whose definition is guaranteed because
@@ -432,8 +433,8 @@ and qterm =
   | QOr of qterm * qterm
 
 and query = 
-    QSecret1 of binder
-  | QSecret of binder
+    QSecret1 of binder * binder list
+  | QSecret of binder * binder list
   | QEventQ of (bool(*true when injective*) * term) list * qterm
   | AbsentQuery
   
@@ -610,12 +611,40 @@ type dep_anal = simp_facts -> term -> term -> term option
 exception NoMatch
 exception Contradiction
 
-(* Where are we in the execution of a block of code between an input and an output *)
+(* Where are we in add_facts/add_def_vars:
+   current_point = the current program point
+   cur_array = the value of the replication indices at the current program point 
+   current_node = the definition node at the current program point
 
-type block_execution =
-    Unknown
-  | FullBlock
-  | PartialBlock of def_node
+   Due to "defined" conditions above the current program point, I know
+   that some variables are defined before this point.
+   def_vars_in_different_blocks and def_vars_maybe_in_same_block
+   collect ordered sequences of variables defined before the current
+   program point.
+   The elements in these two lists occur in chronological order of
+   definition (the first element has been defined first).
+   The elements of def_vars_maybe_in_same_block are all defined before
+   the elements of def_vars_in_different_blocks.
+   Each element of these lists contains
+   - the nodes at which the variable may have been defined
+   - the indices of the variable.
+
+   The elements of def_vars_in_different_blocks are known to be defined
+   after the end of the input...output block of code that defines 
+   the first element of def_vars_maybe_in_same_block.
+   current_in_different_block is true when the current program point
+   is known to be after the end of the input...output block of code
+   that defined the first element of def_vars_maybe_in_same_block.
+   Invariant: current_in_different_block is always true when 
+   def_vars_in_different_blocks is non-empty. *)
+
+type known_history =
+    { current_point : program_point;
+      cur_array : term list;
+      current_node : def_node;
+      current_in_different_block : bool;
+      def_vars_in_different_blocks : (def_node list * term list) list;
+      def_vars_maybe_in_same_block : (def_node list * term list) list }
 
 (* For the generation of implementations
    type for a program : name, options, process *)

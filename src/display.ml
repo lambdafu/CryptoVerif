@@ -1159,8 +1159,20 @@ let display_query (q,g) =
   | _ ->
       begin
 	match q with 
-	  QSecret1 b -> print_string "one-session secrecy of "; display_binder b
-	| QSecret b -> print_string "secrecy of "; display_binder b
+	  QSecret1 (b,l) -> 
+	    print_string "one-session secrecy of "; display_binder b; 
+	    if l <> [] then
+	      begin
+		print_string " with public variables ";
+		display_list display_binder l
+	      end
+	| QSecret (b,l) -> 
+	    print_string "secrecy of "; display_binder b; 
+	    if l <> [] then
+	      begin
+		print_string " with public variables ";
+		display_list display_binder l
+	      end
 	| AbsentQuery -> Parsing_helper.internal_error "AbsentQuery should have been handled"
 	| QEventQ(t1,t2) -> 
 	    print_string "event ";

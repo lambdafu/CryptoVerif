@@ -371,8 +371,8 @@ val defined_refs_find : (binder * repl_index) list -> binderref list ->
    it contains no if/let/find/new/event. *)
 val check_no_ifletfindres : term -> bool
 
-val def_term : (term * fact_info) list ref option -> def_node -> term list -> binderref list -> elsefind_fact list -> term -> def_node
-val build_def_process : (term * fact_info) list ref option -> inputprocess -> unit
+val def_term : (term * program_point) list ref option -> repl_index list -> def_node -> term list -> binderref list -> elsefind_fact list -> term -> def_node
+val build_def_process : (term * program_point) list ref option -> inputprocess -> unit
 val empty_def_process : inputprocess -> unit
 val add_def_vars_node : binder list -> def_node -> binder list
 
@@ -396,6 +396,9 @@ val empty_comp_process : inputprocess -> unit
 (* [build_def_process] must be called before [build_compatible_defs] *)
 val build_compatible_defs : inputprocess -> unit
 
+(* [get_facts pp] returns the fact_info at program point [pp] *)
+val get_facts : program_point -> fact_info
+
 (* [incompatible_suffix_length b b'] returns a length [l] such that if
    [b[args]] and [b'[args']] are both defined, then the suffixes of
    length [l] of [args] and [args'] must be different.
@@ -409,6 +412,14 @@ val is_compatible : binderref -> binderref -> bool
    [b[args]] and [b'[args']] may both be defined, with [b[args]]
    defined at node [n]. *)
 val is_compatible_node : binderref -> def_node -> binderref -> bool
+(* [is_compatible_history (n,args) history] returns true when 
+   the information in [history] is compatible with the execution
+   of node [n] with indices [args] before that history. *)
+val is_compatible_history : (def_node * term list) -> known_history -> bool
+(* [facts_compatible_history fact_accu (nl,args) history] returns
+   [fact_accu] with additional facts inferred from the execution of a
+   node in [nl] with indices [args] before the history [history]. *)
+val facts_compatible_history : term list -> (def_node list * term list) -> known_history -> term list 
 (* [both_def_add_fact fact_accu (b,args) (b',args')] returns [fact_accu] 
    after adding a fact that always holds when
    [b[args]] and [b'[args']] are both defined. *)

@@ -50,6 +50,7 @@ let dummy_channel = ("@dummy_channel", dummy_ext)
 %token QUERY
 %token SECRET
 %token SECRET1
+%token PUBLICVARS
 %token AND
 %token OR
 %token CONST
@@ -563,14 +564,20 @@ queryseq:
     { $1::$3 }
 
 query:
-    SECRET IDENT
-    { PQSecret $2 }
-|   SECRET1 IDENT
-    { PQSecret1 $2 }
+    SECRET IDENT optpublicvars
+    { PQSecret ($2,$3) }
+|   SECRET1 IDENT optpublicvars
+    { PQSecret1 ($2,$3) }
 |   vartypelist SEMI EVENT term IMPLIES term 
     { PQEvent($1, $4, $6) }
 |   EVENT term IMPLIES term 
     { PQEvent([], $2, $4) }
+
+optpublicvars:
+    
+    { None }
+|   PUBLICVARS identlist
+    { Some $2 }
 
 eqname:
     IDENT

@@ -1140,18 +1140,31 @@ let rec check_non_nested seen_fsymb seen_binders t =
 
 (* Get the node from the p_facts field of a process / the t_facts field of a term *)
 
-let get_node def_node_opt =
-  match def_node_opt with
-    None -> Unknown
-  | Some (_,_,_,n) -> PartialBlock n
+let get_initial_history pp =
+  match Terms.get_facts pp with
+    None -> None
+  | Some (cur_array,_,_,_,n) -> 
+      Some { current_point = pp;
+	     cur_array = List.map Terms.term_from_repl_index cur_array;
+	     current_node = n;
+	     current_in_different_block = false;
+	     def_vars_in_different_blocks = [];
+	     def_vars_maybe_in_same_block = [] }
+ 
 
-(* [is_reachable n n'] returns true when [n] is reachable from [n'],
-   that is, the variable defined at [n] is defined above than the one 
-   defined at [n']. *)
-let rec is_reachable n n' =
+(* [is_reachable_same_block n n'] returns true when [n] is reachable from [n']
+   within the same input...output block, 
+   that is, the variable defined at [n] is defined above the one 
+   defined at [n'] and within the same input...output block. *)
+let rec is_reachable_same_block n n' =
   if n == n' then true else
-  if n'.above_node == n' then false else
-  is_reachable n n'.above_node
+  if n'.above_node == n' || 
+     (match n'.definition with 
+       DInputProcess({ i_desc = Input _}) -> true 
+     | _ -> false) then 
+    false 
+  else
+    is_reachable_same_block n n'.above_node
 
 let get_def_vars_above n =
   List.map Terms.binderref_from_binder (Terms.add_def_vars_node [] n)
@@ -1162,33 +1175,53 @@ let def_vars_from_node n = n.def_vars_at_def
 
 (* If I know that a node [n] in node_list is executed,
    and it is not before the current node, then 
-   all blocks before [n] must be fully executed.
-   [Deactivated for now because it causes a bug] *)
-let update_block_execution block_execution node_list =
-  match block_execution with
-    PartialBlock current_node ->
-      if List.for_all (fun n ->
-	not (is_reachable n current_node)) node_list then
-	FullBlock
+   all blocks before [n] must be fully executed. *)
+
+let rec transfer_diff_block same_block node_list = function
+    [] -> (List.rev same_block, [])
+  | ((node_list', indices) as a)::l ->
+      if List.for_all (fun n' ->
+	List.for_all (fun n ->
+	  not (is_reachable_same_block n n')) node_list) node_list'
+      then 
+	(List.rev same_block, a::l)
       else
-	block_execution
-  | _ -> block_execution
+	transfer_diff_block (a::same_block) node_list l
+
+let update_history history node_list indices =
+  match history with
+    None -> None
+  | Some h -> 
+      let (same_block, new_diff_block) = 
+	transfer_diff_block [] node_list h.def_vars_maybe_in_same_block
+      in
+      let current_diff_block = 
+	h.current_in_different_block || (new_diff_block != []) ||
+	(List.for_all (fun n ->
+	  not (is_reachable_same_block n h.current_node)) node_list)
+      in
+      Some 
+	{ h with
+          current_in_different_block = current_diff_block;
+          def_vars_in_different_blocks = new_diff_block @ h.def_vars_in_different_blocks;
+          def_vars_maybe_in_same_block = (node_list, indices) :: same_block }
 
 (* Take into account variables that must be defined because a block of code
    is always executed until the next output/yield before passing control to
    another block of code *)
-let get_def_vars_above2 current_node_opt n =
+let get_def_vars_above2 history n =
   let vars_above_n = Terms.add_def_vars_node [] n in
-  match current_node_opt with
-    PartialBlock current_node ->
-      if is_reachable n current_node then
+  match history with
+    None -> vars_above_n
+  | Some h ->
+      if h.current_in_different_block then 
+	n.future_binders @ vars_above_n
+      else if is_reachable_same_block n h.current_node then
 	Terms.intersect (==) 
 	  (n.future_binders @ vars_above_n)
-	  (Terms.add_def_vars_node [] current_node)
+	  (Terms.add_def_vars_node [] h.current_node)
       else
 	n.future_binders @ vars_above_n
-  | Unknown -> vars_above_n
-  | FullBlock -> n.future_binders @ vars_above_n
 
 (* Remove variables that are certainly defined from a def_list in a find.
    Variables that are defined above the find (so don't need a "defined"
@@ -1197,20 +1230,32 @@ let get_def_vars_above2 current_node_opt n =
    find are found by "def_vars". *)
 let reduced_def_list def_node_opt def_list =
   match def_node_opt with
-    Some (_, _, def_vars, def_node) ->
+    Some (_, _, _, def_vars, def_node) ->
       Terms.setminus_binderref def_list (def_vars @ (get_def_vars_above def_node))
   | None -> def_list
 
-(* [get_compatible_def_nodes def_vars b l] returns the list of 
+(* [get_compatible_def_nodes history def_vars b l] returns the list of 
    possible definitions nodes for [b[l]], compatible with
-   the knowledge that the variables in [def_vars] are defined. *)
+   the knowledge that the variables in [def_vars] are defined
+   and the information in [history]. *)
 
-let get_compatible_def_nodes def_vars b l =
-  List.filter (fun n -> List.for_all (Terms.is_compatible_node (b,l) n) def_vars) b.def 
+let display_pp = function
+    DTerm t -> Display.display_term t
+  | DInputProcess i -> Display.display_process i
+  | DProcess p -> Display.display_oprocess "" p
+  | _ -> print_string "other"
 
-(* [add_def_vars current_node def_vars_accu seen_refs br] adds in
+let get_compatible_def_nodes history def_vars b l =
+  List.filter (fun n ->
+    (match history with
+      None -> true
+    | Some h -> Terms.is_compatible_history (n,l) h) &&
+    (List.for_all (Terms.is_compatible_node (b,l) n) def_vars)
+      ) b.def 
+
+(* [add_def_vars history def_vars_accu seen_refs br] adds in
    [def_vars_accu] the variables that are known to be defined when [br]
-   is defined and [current_node] corresponds to the current program
+   is defined and [history] corresponds to the current program
    point. [seen_refs] stores the variables already seen to avoid loops.
 
 [add_def_vars] must not be used to remove elements
@@ -1225,14 +1270,14 @@ break the code of SArename.
 Use [reduced_def_list] above to remove useless elements of def_list.
 *)
 
-let rec add_def_vars current_node seen_refs done_refs ((b,l) as br) =
+let rec add_def_vars history seen_refs done_refs ((b,l) as br) =
   if (List.for_all (check_non_nested [] [b]) l) &&
     (not (Terms.mem_binderref br (!done_refs))) then
     begin
       done_refs := br :: (!done_refs);
-      let nodes_b_def = get_compatible_def_nodes (!seen_refs) b l in    
-      let current_node = update_block_execution current_node nodes_b_def in
-      let def_vars_above_def = Terms.intersect_list (==) (List.map (get_def_vars_above2 current_node) nodes_b_def) in
+      let nodes_b_def = get_compatible_def_nodes history (!seen_refs) b l in    
+      let history = update_history history nodes_b_def l in
+      let def_vars_above_def = Terms.intersect_list (==) (List.map (get_def_vars_above2 history) nodes_b_def) in
       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node nodes_b_def) in
       (* put links for the substitution b.args_at_creation -> l *)
       let bindex = b.args_at_creation in
@@ -1252,23 +1297,22 @@ let rec add_def_vars current_node seen_refs done_refs ((b,l) as br) =
       (* remove the links *)
       List.iter (fun b -> b.ri_link <- NoLink) bindex;
       (* recursive call *)
-      List.iter (add_def_vars current_node seen_refs done_refs) def_vars_at_def'
+      List.iter (add_def_vars history seen_refs done_refs) def_vars_at_def'
     end
 
 (* Take into account facts that must be true because a block of code
    is always executed until the next output/yield before passing control to
    another block of code *)
-let true_facts_from_node current_node_opt n =
-  match current_node_opt with
-    PartialBlock current_node ->
-      if is_reachable n current_node then
-	Terms.intersect Terms.equal_terms (n.future_true_facts @ n.true_facts_at_def) current_node.true_facts_at_def
+let true_facts_from_node history n =
+  match history with
+    None -> n.true_facts_at_def
+  | Some h ->
+      if h.current_in_different_block then
+	n.future_true_facts @ n.true_facts_at_def
+      else if is_reachable_same_block n h.current_node then
+	Terms.intersect Terms.equal_terms (n.future_true_facts @ n.true_facts_at_def) h.current_node.true_facts_at_def
       else
 	n.future_true_facts @ n.true_facts_at_def
-  | Unknown -> 
-      n.true_facts_at_def
-  | FullBlock -> 
-      n.future_true_facts @ n.true_facts_at_def
 
 (* [add_facts] collects the facts that are known to hold when [br = b[l]]
    is defined. The facts are collected in [fact_accu].
@@ -1283,15 +1327,21 @@ let true_facts_from_node current_node_opt n =
    - Do not reconsider an already seen pair (b,l), to avoid loops.
      The pairs (b,l) already seen are stored in [done_refs]. *)
 
-let rec add_facts current_node fact_accu seen_refs done_refs ((b,l) as br) =
+let rec add_facts history fact_accu seen_refs done_refs ((b,l) as br) =
   (* print_string "Is defined "; Display.display_var b l; print_newline(); *)
   if (List.for_all (check_non_nested [] [b]) l) &&
     (not (Terms.mem_binderref br (!done_refs))) then
     begin
       done_refs := br :: (!done_refs);
-      let nodes_b_def = get_compatible_def_nodes (!seen_refs) b l in    
-      let current_node = update_block_execution current_node nodes_b_def in
-      let true_facts_at_def = filter_ifletfindres (Terms.intersect_list Terms.equal_terms (List.map (true_facts_from_node current_node) nodes_b_def)) in
+      let nodes_b_def = get_compatible_def_nodes history (!seen_refs) b l in
+      begin
+	match history with
+	  None -> ()
+	| Some h ->
+	    fact_accu := Terms.facts_compatible_history (!fact_accu) (nodes_b_def, l) h
+      end;
+      let history = update_history history nodes_b_def l in
+      let true_facts_at_def = filter_ifletfindres (Terms.intersect_list Terms.equal_terms (List.map (true_facts_from_node history) nodes_b_def)) in
       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node nodes_b_def) in
       (* put links for the substitution b.args_at_creation -> l *)
       let bindex = b.args_at_creation in
@@ -1310,55 +1360,59 @@ let rec add_facts current_node fact_accu seen_refs done_refs ((b,l) as br) =
       (* remove the links *)
       List.iter (fun b -> b.ri_link <- NoLink) bindex;
       (* recursive call *)
-      List.iter (add_facts current_node fact_accu seen_refs done_refs) def_vars_at_def'
+      List.iter (add_facts history fact_accu seen_refs done_refs) def_vars_at_def'
     end
       
-(* [def_vars_from_defined current_node def_list] returns the variables that
+(* [def_vars_from_defined history def_list] returns the variables that
    are known to be defined when the condition of a find with defined condition 
-   [def_list] holds. [current_node] is the node of the find, at which [def_list]
-   is tested (may be returned by [get_node]). *)
+   [def_list] holds. [history] is the history of the find, at which [def_list]
+   is tested (may be returned by [get_initial_history]). *)
 
-let def_vars_from_defined current_node def_list =
+let def_vars_from_defined history def_list =
   let subterms = ref [] in
   List.iter (Terms.close_def_subterm subterms) def_list;
-  let seen_refs = ref [] in
-  List.iter (add_def_vars current_node seen_refs (ref [])) (!subterms);
+  let seen_refs = ref (!subterms) in
+  List.iter (add_def_vars history seen_refs (ref [])) (!subterms);
   !seen_refs
 
-(* [facts_from_defined current_node def_list] returns the facts that
+(* [facts_from_defined history def_list] returns the facts that
    are known to hold when the condition of a find with defined condition 
-   [def_list] holds. [current_node] is the node of the find, at which [def_list]
-   is tested (may be returned by [get_node]). *)
+   [def_list] holds. [history] is the history of the find, at which [def_list]
+   is tested (may be returned by [get_initial_history]). *)
 
-let facts_from_defined current_node def_list =
+let facts_from_defined history def_list =
   let def_list_subterms = ref [] in
   List.iter (Terms.close_def_subterm def_list_subterms) def_list;
   let fact_accu = ref [] in
-  let seen_refs = ref [] in
-  List.iter (add_facts current_node fact_accu seen_refs (ref [])) (!def_list_subterms);
+  let seen_refs = ref (!def_list_subterms) in
+  List.iter (add_facts history fact_accu seen_refs (ref [])) (!def_list_subterms);
   !fact_accu
 
-(* [get_def_vars_at fact_info] returns the variables that are known
-   to be defined given [fact_info]. *)
+(* [get_def_vars_at pp] returns the variables that are known
+   to be defined at program point [pp]. *)
 
-let get_def_vars_at = function
-    Some (_,_,def_vars,n) ->
+let get_def_vars_at pp  = 
+  match Terms.get_facts pp with
+    Some (_,_,_,def_vars,n) ->
       let done_refs = ref (get_def_vars_above n) in
       let seen_refs = ref (def_vars @ (!done_refs)) in
       (* Note: def_vars contains n.def_vars_at_def *)
-      List.iter (add_def_vars (PartialBlock n) seen_refs done_refs) def_vars;
+      let history = get_initial_history pp in
+      List.iter (add_def_vars history seen_refs done_refs) def_vars;
       !seen_refs
   | None -> []
 
-(* [get_facts_at fact_info] returns the facts that are known to hold
-   given [fact_info]. *)
+(* [get_facts_at pp] returns the facts that are known to hold
+   at program point [pp]. *)
 
-let get_facts_at = function
+let get_facts_at pp =
+  match Terms.get_facts pp with
     None -> []
-  | Some(true_facts, _, def_vars, n) ->
+  | Some(_,true_facts, _, def_vars, n) ->
       let fact_accu = ref (filter_ifletfindres true_facts) in
       (* Note: def_vars contains n.def_vars_at_def *)
-      List.iter (add_facts (PartialBlock n) fact_accu (ref def_vars) (ref [])) def_vars;
+      let history = get_initial_history pp in
+      List.iter (add_facts history fact_accu (ref def_vars) (ref [])) def_vars;
       !fact_accu
 
 (* Functions useful to simplify def_list *)
@@ -1374,7 +1428,7 @@ let get_facts_at = function
 let rec filter_def_list accu = function
     [] -> accu
   | (br::l) ->
-      let implied_br = def_vars_from_defined Unknown [br] in
+      let implied_br = def_vars_from_defined None [br] in
       let accu' = Terms.setminus_binderref accu implied_br in
       let l' = Terms.setminus_binderref l implied_br in
       filter_def_list (br::accu') l'
@@ -1649,7 +1703,7 @@ let update_def_list_term already_defined newly_defined bl def_list tc' p' =
   in
   (* Update the defined condition to include [needed_occur],
      but remove elements that are no longer useful *)
-  let implied_needed_occur = def_vars_from_defined Unknown needed_occur in
+  let implied_needed_occur = def_vars_from_defined None needed_occur in
   let def_list'' = Terms.setminus_binderref 
       (Terms.setminus_binderref def_list implied_needed_occur) already_defined in
   let def_list3 = remove_subterms [] (needed_occur @ (filter_def_list [] def_list'')) in
@@ -1730,7 +1784,7 @@ let update_def_list_process already_defined newly_defined bl def_list t' p1' =
   in
   (* Update the defined condition to include [needed_occur],
      but remove elements that are no longer useful *)
-  let implied_needed_occur = def_vars_from_defined Unknown needed_occur in
+  let implied_needed_occur = def_vars_from_defined None needed_occur in
   let def_list'' = Terms.setminus_binderref
       (Terms.setminus_binderref def_list implied_needed_occur) already_defined in
   let def_list3 = remove_subterms [] (needed_occur @ (filter_def_list [] def_list'')) in
@@ -1786,18 +1840,18 @@ let rec fold_left3 f accu l1 l2 l3 =
    interpreted as a conjunction of a disjunction of a conjunction of facts.
    This conjunction is known to hold. *)
 
-let rec add_facts_cases current_node (fact_accu, fact_accu_cases) seen_refs done_refs ((b,l) as br) =
+let rec add_facts_cases history (fact_accu, fact_accu_cases) seen_refs done_refs ((b,l) as br) =
   (* done_refs is always included in seen_refs *)
   (* print_string "Is defined "; Display.display_var b l; print_newline(); *)
   if (List.for_all (check_non_nested [] [b]) l) &&
     (not (Terms.mem_binderref br (!done_refs))) then
     begin
       done_refs := br :: (!done_refs);
-      let nodes_b_def = get_compatible_def_nodes (!seen_refs) b l in    
-      let current_node = update_block_execution current_node nodes_b_def in
+      let nodes_b_def = get_compatible_def_nodes history (!seen_refs) b l in    
+      let history' = update_history history nodes_b_def l in
       let true_facts_at_def_list = 
 	List.map (fun n -> 
-	  filter_ifletfindres (true_facts_from_node current_node n)
+	  filter_ifletfindres (true_facts_from_node history n)
 	    ) nodes_b_def
       in
       let def_vars_at_def_list = List.map def_vars_from_node nodes_b_def in
@@ -1814,9 +1868,18 @@ let rec add_facts_cases current_node (fact_accu, fact_accu_cases) seen_refs done
       in
       (* remove the links *)
       List.iter (fun b -> b.ri_link <- NoLink) bindex;
+      (* add facts from compatibility with history *)
+      let true_facts_at_def_list' = 
+	match history with
+	  None -> true_facts_at_def_list'
+	| Some h ->
+	    List.map2 (fun fact_accu n ->
+	      Terms.facts_compatible_history fact_accu ([n], l) h
+		) true_facts_at_def_list' nodes_b_def
+      in
       (* split into cases *)
-      let current_node_cases =
-	List.map (fun n -> update_block_execution current_node [n]) nodes_b_def
+      let history_cases =
+	List.map (fun n -> update_history history [n] l) nodes_b_def
       in
       let (true_facts_at_def_common, true_facts_at_def_cases) = 
 	intersect_list_cases (!fact_accu) Terms.equal_terms true_facts_at_def_list'
@@ -1827,17 +1890,17 @@ let rec add_facts_cases current_node (fact_accu, fact_accu_cases) seen_refs done
       fact_accu := true_facts_at_def_common @ (!fact_accu);
       seen_refs := def_vars_at_def_common @ (!seen_refs);
       (* recursive call *)
-      List.iter (add_facts_cases current_node (fact_accu, fact_accu_cases) seen_refs done_refs) def_vars_at_def_common;
+      List.iter (add_facts_cases history' (fact_accu, fact_accu_cases) seen_refs done_refs) def_vars_at_def_common;
       (* facts that would be collected thanks to the binderrefs missed due 
 	 to the intersection over definitions of b *)
       let true_facts_at_def_cases =
-	fold_left3 (fun accu current_node_1case true_facts_at_def_1case missed_br ->
+	fold_left3 (fun accu history_1case true_facts_at_def_1case missed_br ->
 	  try 
 	    let missed_facts = ref [] in
 	    let missed_facts_cases = ref [] in
 	    let seen_refs_tmp = ref (!seen_refs) in
 	    let done_refs_tmp = ref (!done_refs) in
-	    List.iter (add_facts_cases current_node_1case (missed_facts, missed_facts_cases) seen_refs_tmp done_refs_tmp) missed_br;
+	    List.iter (add_facts_cases history_1case (missed_facts, missed_facts_cases) seen_refs_tmp done_refs_tmp) missed_br;
 	  (* I ignore missed_facts_cases for simplicity; taking it into account might be an improvement *)
 	    let true_facts_at_def_from_br_1case = 
 	      List.filter (fun f -> not (List.exists (Terms.equal_terms f) (!fact_accu))) (!missed_facts)
@@ -1846,18 +1909,20 @@ let rec add_facts_cases current_node (fact_accu, fact_accu_cases) seen_refs done
 	  with Contradiction -> 
 	    (* This case cannot happen *)
 	    accu
-	      ) [] current_node_cases true_facts_at_def_cases def_vars_at_def_cases
+	      ) [] history_cases true_facts_at_def_cases def_vars_at_def_cases
       in
       fact_accu_cases := true_facts_at_def_cases :: (!fact_accu_cases);
     end
 
-let get_facts_at_cases = function
+let get_facts_at_cases pp  =
+  match Terms.get_facts pp with
     None -> [],[]
-  | Some(true_facts, _, def_vars, n) ->
+  | Some(_,true_facts, _, def_vars, n) ->
       let fact_accu = ref (filter_ifletfindres true_facts) in
       let fact_accu_cases = ref [] in
       (* Note: def_vars contains n.def_vars_at_def *)
-      List.iter (add_facts_cases (PartialBlock n) (fact_accu, fact_accu_cases) (ref def_vars) (ref [])) def_vars;
+      let history = get_initial_history pp in
+      List.iter (add_facts_cases history (fact_accu, fact_accu_cases) (ref def_vars) (ref [])) def_vars;
       !fact_accu, !fact_accu_cases
 
 (***** [simplify_term dep_info simp_facts t] simplifies a term [t] 
@@ -2363,17 +2428,17 @@ let check_equal t t' simp_facts  =
       [display_facts_at p occ] displays the facts that are known
       to hold at the program point (occurrence) [occ] of the process [p].
 
-      [display_fact_info] performs the actual display.
+      [display_fact_pp] performs the actual display.
       The other functions look for the occurrence [occ] inside the
       process [p]. ***)
 
-let display_fact_info fact_info = 
+let display_fact_pp pp = 
   List.iter (fun f -> Display.display_term f; Display.print_newline()) 
-    (get_facts_at fact_info)
+    (get_facts_at pp)
   
 let rec display_facts_at p occ =
   if p.i_occ = occ then
-    display_fact_info p.i_facts
+    display_fact_pp (DInputProcess p)
   else
     match p.i_desc with
         Nil -> ()
@@ -2383,13 +2448,15 @@ let rec display_facts_at p occ =
 
 and display_facts_at_op p occ =
   if p.p_occ = occ then
-    display_fact_info p.p_facts
+    display_fact_pp (DProcess p)
   else
     match p.p_desc with
         Yield| EventAbort _ -> ()
       | Restr (_,p) -> display_facts_at_op p occ
       | Test (t,p,p') -> display_facts_at_t t occ;display_facts_at_op p occ;display_facts_at_op p' occ
-      | Find (bl,p,_) -> List.iter (fun (_,_,t,p) -> display_facts_at_t t occ;display_facts_at_op p occ) bl; display_facts_at_op p occ
+      | Find (l,p,_) -> List.iter (fun (_,_,t,p) -> 
+	  display_facts_at_t t occ;
+	  display_facts_at_op p occ) l; display_facts_at_op p occ
       | Output ((_,tl),t,q) -> List.iter (fun t -> display_facts_at_t t occ) tl;display_facts_at_t t occ;display_facts_at q occ
       | Let (pat,t,p,p') -> display_facts_at_pat pat occ;display_facts_at_t t occ;display_facts_at_op p occ;display_facts_at_op p' occ
       | EventP (t,p) -> display_facts_at_t t occ;display_facts_at_op p occ
@@ -2397,14 +2464,16 @@ and display_facts_at_op p occ =
 
 and display_facts_at_t t occ =
   if t.t_occ = occ then
-    display_fact_info t.t_facts
+    display_fact_pp (DTerm t)
   else
     match t.t_desc with
         Var (_,tl) -> List.iter (fun t -> display_facts_at_t t occ) tl
       | ReplIndex _ -> ()
       | FunApp (_,tl) -> List.iter (fun t -> display_facts_at_t t occ) tl
       | TestE (t1,t2,t3) -> display_facts_at_t t1 occ;display_facts_at_t t2 occ;display_facts_at_t t3 occ
-      | FindE (bl,t,_) -> List.iter (fun (_,_,t1,t2) -> display_facts_at_t t1 occ;display_facts_at_t t2 occ) bl; display_facts_at_t t occ
+      | FindE (l,t,_) -> List.iter (fun (_,_,t1,t2) -> 
+	  display_facts_at_t t1 occ;
+	  display_facts_at_t t2 occ) l; display_facts_at_t t occ
       | LetE (pat,t1,t2,topt) -> display_facts_at_pat pat occ;display_facts_at_t t1 occ;display_facts_at_t t2 occ;(match topt with Some t -> display_facts_at_t t occ| None -> ())
       | ResE (_,t) -> display_facts_at_t t occ
       | EventAbortE f -> ()

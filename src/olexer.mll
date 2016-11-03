@@ -28,6 +28,7 @@ let keyword_table =
   "query", QUERY;
   "secret", SECRET;
   "secret1", SECRET1;
+  "public_vars", PUBLICVARS;
   "const", CONST;
   "set", SET;
   "defined", DEFINED;

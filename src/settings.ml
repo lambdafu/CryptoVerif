@@ -174,7 +174,9 @@ let do_set p v =
   | "improvedFactCollection", S ("false",_) -> improved_fact_collection := false
   | "maxReplaceDepth", I n -> max_replace_depth := n
   | "maxAddFactDepth", I n -> max_depth_add_fact := n
-  | "maxTryNoVarDepth", I n -> max_depth_try_no_var_rec := n
+  | "maxTryNoVarDepth", I n ->
+      (* For uniformity with maxAddFactDepth, 0 means no limit *)
+      max_depth_try_no_var_rec := (if n = 0 then -1 else n)
   | "debugInstruct", S ("true",_) -> debug_instruct := true
   | "debugInstruct", S ("false",_) -> debug_instruct := false
   | "debugFindUnique", S ("true",_) -> debug_find_unique := true
@@ -488,9 +490,11 @@ let public_vars = ref []
 
 let collect_public_vars queries =
   List.iter (function 
-      (QSecret b',_),_,_ | (QSecret1 b',_),_,_ -> 
-         if not (List.memq b' (!public_vars)) then
-           public_vars := b' :: (!public_vars)
+      (QSecret (b',l),_),_,_ | (QSecret1 (b',l),_),_,_ -> 
+	List.iter (fun b ->
+          if not (List.memq b (!public_vars)) then
+            public_vars := b :: (!public_vars)
+				  ) (b'::l)
     | (QEventQ _,_),_,_ -> ()
     | (AbsentQuery,_),_,_ -> ()) queries
 

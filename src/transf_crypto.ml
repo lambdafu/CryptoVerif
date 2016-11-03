@@ -2086,7 +2086,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
       let simp_facts = 
 	if !Settings.use_known_equalities_crypto then
 	  try 
-	    let facts = Facts.get_facts_at t.t_facts in
+	    let facts = Facts.get_facts_at (DTerm t) in
 	    Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts 
 	  (* let simp_facts_ref = ref None in
 	  fun t1 ->
@@ -2095,7 +2095,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		Facts.try_no_var simp_facts t1
 	    | None ->
 	        (* First compute the right facts *)
-		let facts = Facts.get_facts_at t.t_facts in
+		let facts = Facts.get_facts_at (DTerm t) in
 		let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
 		simp_facts_ref := Some simp_facts;
 		(* Simplify the term using the known facts *)
@@ -3334,9 +3334,10 @@ and update_def_list_simplifo p =
 	List.fold_right (fun (bl, def_list, t, p1) laccu ->
 	  try
 	    let find_branch' = 
-	      let already_defined = Facts.get_def_vars_at p.p_facts in
-	      let newly_defined = Facts.def_vars_from_defined (Facts.get_node p.p_facts) def_list in
-	      Facts.update_def_list_process already_defined newly_defined bl def_list t p1
+	      let p1' = update_def_list_simplifo p1 in
+	      let already_defined = Facts.get_def_vars_at (DProcess p) in
+	      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
+	      Facts.update_def_list_process already_defined newly_defined bl def_list t p1'
 	    in
 	    find_branch' :: laccu
 	  with Contradiction ->

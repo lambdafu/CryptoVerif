@@ -18,11 +18,11 @@ let advise = ref []
 
 let whole_game = ref Terms.empty_game
 
-(* [proved_one_session_secrets] contains a list of pairs [(b,res)]
-   which mean that [check_secrecy b] returned [res].
+(* [proved_one_session_secrets] contains a list of triples [(b,l,res)]
+   which mean that [check_secrecy b l] returned [res].
    The goal is avoid redoing the proof of one-session secrecy when we
    want to prove both secrecy and one-session secrecy for the same
-   variable. *)
+   variable with the same public variables. *)
 
 let proved_one_session_secrets = ref []
 
@@ -37,13 +37,16 @@ let proved_one_session_secrets = ref []
    [b] may itself be defined by a restriction, in which case [current_restr]
    will be set to [Some b]. 
    [b] may also be defined by assignment from [b'], where [b'] is defined 
-   by a restriction. In this case, [!current_restr = Some b']. *)
+   by a restriction. In this case, [!current_restr = Some b'].
+
+   [public_vars] stores the list of public variables. *)
 
 type leak_t =
     CyclicDep of binder (* [CyclicDep b] means that there is a cyclic dependency on variable [b]:
 			   [b] depends on itself *)
   | Leak of binder * int list (* [Leak(b, occs)] means that variable [b] is 
 				 leaked at the occurrences [occs] in the game *)
+  | PublicVar of binder (* [PublicVar b] means that variable [b] is public *)
 
 type group_leak_t =
     LeaksOf of binder * leak_t list
@@ -53,6 +56,8 @@ type group_leak_t =
 let detected_leaks = ref ([] : group_leak_t list)
 
 let current_restr = ref None
+
+let public_vars = ref []
 
 (* [add_leak_for_current_restr l1] adds the leak [l1],
    which may be [CyclicDep b'] or [Leak(b',occs)],
@@ -70,6 +75,8 @@ let add_leak_for_current_restr l1 =
 	    l
 	| Leak(b,n), Leak(b',n') when b == b' -> 
 	    Leak(b, Terms.unionq n n') :: rest
+	| PublicVar b, PublicVar b' when b == b' ->
+	    l
 	| _ -> 
 	    l2 :: (add_leak_rec rest)
   in
@@ -130,6 +137,10 @@ let display_leaks_of b l =
 	print_string (", bad usage(s) of " ^ (Display.binder_to_string b'));
 	if b' != b then
 	  print_string (", which may depend on " ^ (Display.binder_to_string b))
+    | PublicVar b' ->
+	print_string ((Display.binder_to_string b') ^ " is a public variable");
+	if b' != b then
+	  print_string (", which may depend on " ^ (Display.binder_to_string b))
   in
   display_list_sc display_leak l;
   print_string ".\n"
@@ -180,14 +191,14 @@ let display_leaks b0 =
    [add_facts_at] returns [lidx'] as well as the updated quadruple.
 *)
 
-let add_facts_at (all_indices, simp_facts0, defined_refs0, pp_list) cur_array new_facts pp fact_info =
+let add_facts_at (all_indices, simp_facts0, defined_refs0, pp_list) cur_array new_facts pp =
   let ri_lidx' = List.map Terms.new_repl_index cur_array in
   let lidx' = List.map Terms.term_from_repl_index ri_lidx' in
   let defined_refs1 = 
-    (Terms.subst_def_list cur_array lidx' (Facts.get_def_vars_at fact_info)) 
+    (Terms.subst_def_list cur_array lidx' (Facts.get_def_vars_at pp)) 
     @ defined_refs0 
   in
-  let facts1 = List.map (Terms.subst cur_array lidx') (new_facts @ (Facts.get_facts_at fact_info)) in
+  let facts1 = List.map (Terms.subst cur_array lidx') (new_facts @ (Facts.get_facts_at pp)) in
   let new_pp = (lidx', pp) in
   let facts2 = List.fold_left (fun accu -> Terms.both_pp_add_fact accu new_pp) facts1 pp_list in
   let simp_facts1 = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal simp_facts0 facts2) in
@@ -234,7 +245,7 @@ let rec check_usage_term cur_array seen_accu b lidx facts t =
 	     facts union (rename Facts.get_facts_at t.t_facts) union (lidx = rename l) implies a contradiction *)
 	  try
 	    let eq_index = List.map2 Terms.make_equal lidx l in 
-	    let (lidx', (all_indices, simp_facts, defined_refs, _)) = add_facts_at facts cur_array eq_index (DTerm t) t.t_facts in
+	    let (lidx', (all_indices, simp_facts, defined_refs, _)) = add_facts_at facts cur_array eq_index (DTerm t) in
 	    let facts2 = 
 	      if !Settings.elsefind_facts_in_success then
 		Simplify1.get_facts_of_elsefind_facts (!whole_game) all_indices simp_facts defined_refs 
@@ -288,8 +299,8 @@ let rec check_usage_term cur_array seen_accu b lidx facts t =
 	               facts' = facts union (rename get_facts_at t2.t_facts) union (lidx = rename l) 
 	               lidx' = rename b'.args_at_creation *)
 		    let eq_index = List.map2 Terms.make_equal lidx l in 
-		    let (lidx', facts') = add_facts_at facts cur_array eq_index (DTerm t) t2.t_facts in
-		    check_usage_process [] (b'::seen_accu) b' lidx' facts' (!whole_game).proc
+		    let (lidx', facts') = add_facts_at facts cur_array eq_index (DTerm t2) in
+		    check_usage_full_process (b'::seen_accu) b' lidx' facts'
 		  with Contradiction -> 
 	              (* current program point unreachable *)
 		      ()
@@ -372,8 +383,8 @@ and check_usage_oprocess cur_array seen_accu b lidx facts p =
 		       facts' = facts union (rename (get_facts_at p1.p_facts)) union (lidx = rename l)
 		       lidx' = rename b'.args_at_creation *)
 		    let eq_index = List.map2 Terms.make_equal lidx l in 
-		    let (lidx', facts') = add_facts_at facts cur_array eq_index (DProcess p) p1.p_facts in
-		    check_usage_process [] (b'::seen_accu) b' lidx' facts' (!whole_game).proc
+		    let (lidx', facts') = add_facts_at facts cur_array eq_index (DProcess p1) in
+		    check_usage_full_process (b'::seen_accu) b' lidx' facts' 
 		  with Contradiction -> 
 	              (* Current program point unreachable *)
 		      ()
@@ -403,19 +414,30 @@ and check_usage_oprocess cur_array seen_accu b lidx facts p =
       check_usage_oprocess cur_array seen_accu b lidx facts p
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
+and check_usage_full_process seen_accu b lidx facts =
+  if List.memq b (!public_vars) then
+    begin
+      add_leak_for_current_restr (PublicVar b);
+      raise Not_found
+    end
+  else
+    check_usage_process [] seen_accu b lidx facts (!whole_game).proc
+
+
 let has_assign b =
   List.exists (fun def ->
     match def.definition with
       DProcess { p_desc = Let _ } | DTerm { t_desc = LetE _} -> true
     | _ -> false) b.def
 
-(* [check_secrecy b] proves one-session secrecy of [b].
+(* [check_secrecy b pub_vars] proves one-session secrecy of [b]
+   with public variables [pub_vars].
    It returns [(true, proba)] when one-session secrecy of [b]
    holds up to probability [proba].
    It returns [(false, _)] when the proof of one-session secrecy
    of [b] failed. *)
 
-let check_secrecy b =
+let check_secrecy b pub_vars =
   let ty = ref None in
   Simplify1.reset [] (!whole_game);
   advise := [];
@@ -423,8 +445,8 @@ let check_secrecy b =
   try
     List.iter (fun d -> 
       match d.definition with
-	DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b',l) },{ p_facts = facts },_) }
-      |	DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b',l) },{ t_facts = facts },_) } ->
+	DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b',l) },_,_) }
+      |	DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b',l) },_,_) } ->
 	  if has_assign b' then
 	    begin
 	      add_leak (NotOnlyRestr b');
@@ -433,14 +455,15 @@ let check_secrecy b =
 	  else if Terms.is_restr b' then
 	    begin
 	      current_restr := Some b';
+	      public_vars := pub_vars;
 	      (match !ty with
 		None -> ty := Some b'.btype
 	      |	Some ty' -> if ty' != b'.btype then 
 		  Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " has definitions of different types"));
 	      try
-		let (lidx, facts) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition facts in
+		let (lidx, facts) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition_success in
 		let rename = Terms.subst b.args_at_creation lidx in
-		check_usage_process [] [b'] b' (List.map rename l) facts (!whole_game).proc
+		check_usage_full_process [b'] b' (List.map rename l) facts
 	      with
 		Not_found ->
 		  if List.length b'.def > 1 then
@@ -456,7 +479,7 @@ let check_secrecy b =
 	      add_leak (NotOnlyRestr b');
 	      raise Not_found
 	    end
-      |	DProcess { p_desc = Restr(_, { p_facts = facts }) } ->
+      |	DProcess { p_desc = Restr(_, _) } ->
 	  (match !ty with
 	    None -> ty := Some b.btype
 	  | Some ty' -> if ty' != b.btype then 
@@ -464,8 +487,9 @@ let check_secrecy b =
 	  begin
 	    try
 	      current_restr := Some b;
-	      let (lidx, facts) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition facts in
-	      check_usage_process [] [b] b lidx facts (!whole_game).proc
+	      public_vars := pub_vars;
+	      let (lidx, facts) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition_success in
+	      check_usage_full_process [b] b lidx facts
 	    with Contradiction ->
 	      (* Current program point unreachable *)
 	      ()
@@ -480,6 +504,7 @@ let check_secrecy b =
 	print_newline();
 	detected_leaks := [];
 	current_restr := None;
+	public_vars := [];
 	(true, Simplify1.final_add_proba())
       end
     else
@@ -490,6 +515,7 @@ let check_secrecy b =
 	advise := [];
 	detected_leaks := [];
 	current_restr := None;
+	public_vars := [];
 	(false, [])
       end
   with Not_found -> 
@@ -497,18 +523,23 @@ let check_secrecy b =
     advise := [];
     detected_leaks := [];
     current_restr := None;
+    public_vars := [];
     (false, [])
 
-(* [check_secrecy_memo b] does the same as [check_secrecy b] 
+(* [check_secrecy_memo b l] does the same as [check_secrecy b l] 
    but uses [proved_one_session_secrets] to avoid redoing work 
-   when it is called several times with the same variable [b]. *)
+   when it is called several times with the same variable [b]
+   and list [l]. *)
 
-let check_secrecy_memo b =
+let check_secrecy_memo b l =
   try
-    List.assq b (!proved_one_session_secrets)
+    let (_,_,res) = List.find (fun (b',l',res) -> (b == b') && (Terms.equal_lists (==) l l')) 
+	(!proved_one_session_secrets) 
+    in 
+    res
   with Not_found ->
-    let res = check_secrecy b in
-    proved_one_session_secrets := (b, res) :: (!proved_one_session_secrets);
+    let res = check_secrecy b l in
+    proved_one_session_secrets := (b, l, res) :: (!proved_one_session_secrets);
     res
 
 (* [check_query q] proves the query [q]. 
@@ -516,9 +547,9 @@ let check_secrecy_memo b =
    It returns [(false, _)] when the proof of [q] failed.*)
 
 let check_query event_accu = function
-    (QSecret1 b,_) -> check_secrecy_memo b
-  | (QSecret b,_) -> 
-      let (r1, proba1) = check_secrecy_memo b in
+    (QSecret1 (b,l),_) -> check_secrecy_memo b l
+  | (QSecret (b,l),_) -> 
+      let (r1, proba1) = check_secrecy_memo b l in
       if r1 then
 	let (r2, proba2) = Check_distinct.check_distinct b (!whole_game) in
 	if r2 then

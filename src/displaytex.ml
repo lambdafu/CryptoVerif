@@ -1124,14 +1124,26 @@ let display_query (q,g) =
   | _ ->
   begin
   match q with 
-    QSecret1 b -> 
+    QSecret1 (b,l) -> 
       print_string "one-session secrecy of $"; 
       display_binder b; 
-      print_string "$"
-  | QSecret b -> 
+      print_string "$";
+      if l <> [] then
+	begin
+	  print_string " with public variables $";
+	  display_list display_binder l;
+	  print_string "$"
+	end
+  | QSecret (b,l) -> 
       print_string "secrecy of $"; 
       display_binder b; 
-      print_string "$"
+      print_string "$";
+      if l <> [] then
+	begin
+	  print_string " with public variables $";
+	  display_list display_binder l;
+	  print_string "$"
+	end
   | QEventQ(t1,t2) ->
       print_string "event $";
       display_query1 t1;

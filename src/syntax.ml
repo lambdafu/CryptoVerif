@@ -1066,7 +1066,7 @@ and check_pattern cur_array env tyoptres = function
 	      input_error ("Function " ^ f.f_name ^ " expects " ^ 
 			   (string_of_int (List.length (fst f.f_type))) ^ 
 			   " arguments but is here applied to " ^  
-			   (string_of_int (List.length l)) ^ "arguments") ext;
+			   (string_of_int (List.length l)) ^ " arguments") ext;
 	    let (env', l') = check_pattern_list cur_array env (List.map (fun t -> Some t) (fst f.f_type)) l in
 	    (env', PatTuple(f, l'))
 	| _ -> input_error (s ^ " should be a function") ext
@@ -1280,7 +1280,7 @@ and check_pattern_letfun env tyoptres = function
 	      input_error ("Function " ^ f.f_name ^ " expects " ^ 
 			   (string_of_int (List.length (fst f.f_type))) ^ 
 			   " arguments but is here applied to " ^  
-			   (string_of_int (List.length l)) ^ "arguments") ext;
+			   (string_of_int (List.length l)) ^ " arguments") ext;
 	    let (env', l') = check_pattern_list_letfun env (List.map (fun t -> Some t) (fst f.f_type)) l in
 	    (env', PatTuple(f, l'))
 	| _ -> input_error (s ^ " should be a function") ext
@@ -2628,9 +2628,13 @@ let rename_eqname = function
 let rename_eqmember (l,ext1) =
   (List.map (fun (fg, mode, ext) -> (rename_fungroup fg, mode, ext)) l, ext1) (* Do not rename the mode! *)
 
+let rename_lopt = function
+    None -> None
+  | Some l -> Some (List.map rename_ie l)
+
 let rename_query = function
-    PQSecret i -> PQSecret (rename_ie i)
-  | PQSecret1 i -> PQSecret1 (rename_ie i)
+    PQSecret (i, lopt) -> PQSecret (rename_ie i, rename_lopt lopt)
+  | PQSecret1 (i, lopt) -> PQSecret1 (rename_ie i, rename_lopt lopt)
   | PQEvent(decl,t1,t2) -> 
       PQEvent(List.map (fun (x,t) -> (rename_ie x, rename_ie t)) decl, 
 	      rename_term t1, rename_term t2)
@@ -3270,9 +3274,13 @@ let rec find_inj = function
   | QEvent(b,t) -> b
   | QTerm t -> false
 
+let get_qpubvars = function
+    None -> []
+  | Some l -> List.map get_qbinder l
+
 let check_query = function
-    PQSecret i -> QSecret (get_qbinder i)
-  | PQSecret1 i -> QSecret1 (get_qbinder i)
+    PQSecret (i, lopt) -> QSecret (get_qbinder i, get_qpubvars lopt)
+  | PQSecret1 (i, lopt) -> QSecret1 (get_qbinder i, get_qpubvars lopt)
   | PQEvent(vl,t1,t2) -> 
       let (env',l') = check_binder_list (!env) vl in
       let t1' = check_term_query1 env' t1 in

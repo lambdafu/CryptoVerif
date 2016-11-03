@@ -264,9 +264,10 @@ let rec check_term next_check ((_,facts2,_) as facts) def_vars elsefind_facts in
       end
 
 
-let get_elsefind_facts_at = function
+let get_elsefind_facts_at pp = 
+  match Terms.get_facts pp with
     None -> []
-  | Some(_, elsefind_facts, _, _) -> elsefind_facts
+  | Some(_, _, elsefind_facts, _, _) -> elsefind_facts
 
 (* [includes l1 l2] returns true when [l1] is included in [l2] *)
 

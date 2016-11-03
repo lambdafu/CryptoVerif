@@ -79,9 +79,9 @@ val simplif_add_list : dep_anal -> simp_facts -> term list -> simp_facts
 (* 2. Compute the facts that hold and the variables that are defined
    at certain program points. *)
 
-(* [get_node fact_info] gets the node from the p_facts field of a 
-   process / the t_facts field of a term *)
-val get_node : fact_info -> block_execution
+(* [get_initial_history pp] gets the known_history corresponding to the program
+   point [pp] *)
+val get_initial_history : program_point -> known_history option
 
 (* [def_vars_from_defined current_node def_list] returns the variables that
    are known to be defined when the condition of a find with defined condition 
@@ -89,7 +89,7 @@ val get_node : fact_info -> block_execution
    is tested (may be returned by [get_node]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
-val def_vars_from_defined : block_execution -> binderref list -> binderref list
+val def_vars_from_defined : known_history option -> binderref list -> binderref list
 
 (* [facts_from_defined current_node def_list] returns the facts that
    are known to hold when the condition of a find with defined condition 
@@ -97,28 +97,28 @@ val def_vars_from_defined : block_execution -> binderref list -> binderref list
    is tested (may be returned by [get_node]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
-val facts_from_defined : block_execution -> binderref list -> term list
+val facts_from_defined : known_history option -> binderref list -> term list
 
-(* [get_def_vars_at fact_info] returns the variables that are known
-   to be defined given [fact_info].
-   May raise Contradiction when the program point at [fact_info] is
+(* [get_def_vars_at pp] returns the variables that are known
+   to be defined at program point [pp].
+   May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_def_vars_at : fact_info -> binderref list
+val get_def_vars_at : program_point -> binderref list
 
-(* [get_facts_at fact_info] returns the facts that are known to hold
-   given [fact_info].
-   May raise Contradiction when the program point at [fact_info] is
+(* [get_facts_at pp] returns the facts that are known to hold
+   at program point [pp].
+   May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_facts_at : fact_info -> term list
+val get_facts_at : program_point -> term list
 
-(* [get_facts_at_cases fact_info] returns the facts that are known to hold
-   given [fact_info]. It is a modified version of
+(* [get_facts_at_cases pp] returns the facts that are known to hold
+   at program point [pp]. It is a modified version of
    [get_facts_at] to distinguish cases depending on the
    definition point of variables (instead of taking intersections), to
    facilitate the proof of correspondences.
-   May raise Contradiction when the program point at [fact_info] is
+   May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_facts_at_cases : fact_info -> term list * term list list list
+val get_facts_at_cases : program_point -> term list * term list list list
 
 (* [reduced_def_list fact_info def_list] removes variables that are 
    certainly defined from a [def_list] in a find. [fact_info] corresponds

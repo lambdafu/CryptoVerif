@@ -130,8 +130,8 @@ type pval =
 (* Queries *)
 
 type query = 
-    PQSecret of ident
-  | PQSecret1 of ident
+    PQSecret of ident * ident list option
+  | PQSecret1 of ident * ident list option
   | PQEvent of (ident * ident(*type*)) list * term_e * term_e
 
 (* Implementation *)

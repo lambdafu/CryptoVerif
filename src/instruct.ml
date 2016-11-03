@@ -1199,7 +1199,15 @@ let rec interpret_command interactive state = function
 	end
       else
 	begin
-	  print_string "Sorry, some queries remain unproved.\n";
+	  print_string "Sorry, the following queries remain unproved:\n";
+	  List.iter (fun (a, _, popt) ->
+	    if popt == None then
+	      begin
+		print_string "- ";
+		Display.display_query a;
+		print_newline()
+	      end
+	    ) state'.game.current_queries;
 	  state'
 	end
   | ["show_game",_] ->
@@ -1218,9 +1226,9 @@ let rec interpret_command interactive state = function
 	try 
 	  let occ = int_of_string occ_s in
 	  (* First compute the facts, then display them *)
-	  Simplify1.improved_def_process None false state.game.proc;
+	  Simplify1.improved_def_process None true state.game.proc;
 	  Facts.display_facts_at state.game.proc occ;
-	  Simplify1.empty_improved_def_process false state.game.proc;
+	  Simplify1.empty_improved_def_process true state.game.proc;
 	  state
 	with Failure _ ->
 	  raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
@@ -1244,9 +1252,9 @@ let rec interpret_command interactive state = function
 	  Display.file_out s (fun () ->
 	    let occ = int_of_string occ_s in
 	    (* First compute the facts, then display them *)
-	    Simplify1.improved_def_process None false state.game.proc;
+	    Simplify1.improved_def_process None true state.game.proc;
 	    Facts.display_facts_at state.game.proc occ;
-	    Simplify1.empty_improved_def_process false state.game.proc);
+	    Simplify1.empty_improved_def_process true state.game.proc);
 	  state
 	with Failure _ ->
 	  raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))

@@ -130,7 +130,7 @@ let check_def_process_main p =
 
 (* - Main checking function for equivalence statements *)
 
-let rec build_def_fungroup above_node = function
+let rec build_def_fungroup cur_array above_node = function
     ReplRestr(repl, restr, funlist) ->
       let above_node2 = { above_node = above_node; 
 			  binders = List.map fst restr; 
@@ -140,7 +140,7 @@ let rec build_def_fungroup above_node = function
 			  definition = DFunRestr; definition_success = DFunRestr } 
       in
       List.iter (fun (b,_) -> b.def <- above_node2 :: b.def) restr;
-      List.iter (build_def_fungroup above_node2) funlist
+      List.iter (build_def_fungroup (repl::cur_array) above_node2) funlist
   | Fun(ch, args, res, priority) ->
     let above_node1 = { above_node = above_node; binders = args; 
 			true_facts_at_def = []; def_vars_at_def = [];
@@ -149,7 +149,7 @@ let rec build_def_fungroup above_node = function
 			definition = DFunArgs; definition_success = DFunArgs } 
     in
     List.iter (fun b -> b.def <- above_node1 :: b.def) args;
-    ignore(Terms.def_term None above_node1 [] [] [] res)
+    ignore(Terms.def_term None cur_array above_node1 [] [] [] res)
 
 let array_index_args args =
   List.filter (fun b -> match b.btype.tcat with
@@ -336,7 +336,7 @@ let check_def_member l =
 		      future_binders = []; future_true_facts = []; 
 		      definition = DNone; definition_success = DNone } 
   in
-  List.iter (fun (fg, mode) -> build_def_fungroup st_node fg) l;
+  List.iter (fun (fg, mode) -> build_def_fungroup [] st_node fg) l;
   List.iter (fun (fg, mode) -> check_def_fungroup [] fg) l
 
 let check_def_eqstatement (_,lm,rm,_,_,_) =
