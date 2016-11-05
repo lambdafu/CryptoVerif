@@ -433,6 +433,13 @@ and modifying them as desired. Here is a list of the predefined primitives.
    can be applied before applying the IND-CCA2 property, while $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$
    can be applied after applying the IND-CCA2 property.
 
+   CryptoVerif often needs manual guidance with this property,
+   because it does not know which property (IND-CCA2 or INT-PTXT)
+   to apply first. Moreover, when empty plaintexts are not allowed,
+   IND-CCA2 and INT-PTXT is equivalent to IND-CPA and INT-CTXT, 
+   which is much easier to use for CryptoVerif, so we recommend
+   using the latter property when possible.
+
 \item $\texttt{expand SPRP\_cipher(}\vn{keyseed}, \vn{key},
   \vn{blocksize}, \vn{kgen}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
   defines a SPRP (super-pseudo-random permutation) deterministic
@@ -750,13 +757,13 @@ the choice of the hash function, must be \texttt{bounded}, typically
 
    $\vn{hashoutput}$ is the type of the output of the hash function, must be \texttt{bounded} and \texttt{large}, typically \texttt{fixed}.
 
-   $\vn{hash}(\vn{hashinput}): \vn{hashoutput}$ is the hash function.
+   $\vn{hash}(\vn{key}, \vn{hashinput}): \vn{hashoutput}$ is the hash function.
 
    WARNING: $\vn{hash}$ is a keyed hash function.
    The key must be generated once and for all at the beginning of the game 
    and the hash oracle must be made available to the adversary,
    by including a process such as
-      \texttt{!qH in(c1, x:hashinput); out(c2, hash(k,x))}
+      \texttt{!qH in(c1, x:$\vn{hashinput}$); out(c2, hash(k,x))}
    where \texttt{k} is the key, \texttt{qH} the number of requests to the hash oracle,
    \texttt{c1} and \texttt{c2} channels (or a similar oracle if you use the oracles front-end).
 %    $\vn{hashoracle}$ is a process that allows the adversary to call the hash function.
@@ -773,6 +780,20 @@ the choice of the hash function, must be \texttt{bounded}, typically
    This macro defines the equivalence named $\texttt{rom}(\vn{hash})$
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
+
+ \item
+   $\texttt{expand ROM\_hash\_pair(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}
+   \texttt{).}$\\
+   $\texttt{expand ROM\_hash\_triple(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}\
+   \texttt{).}$\\
+$\texttt{expand ROM\_hash\_quad(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashinput4}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}
+   \texttt{).}$\\
+   define random oracle with 2, 3, and 4 arguments respectively, similarly to \texttt{ROM\_hash} above.
+   Letting $N$ be the number of arguments of the oracle,
+   $\vn{hashinput1},\dots,\vn{hashinput}N$ are the types of the inputs of the hash function,
+   $\vn{hash}(\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N): \vn{hashoutput}$ is the hash function,
+   and the hash oracle that must be provided to the adversary is
+   \texttt{! qH in(c1, (x1:$\vn{hashinput1}$,$\dots$,x$N$:$\vn{hashinput}N$)); out(c2, hash(k,x1,...,x$N$))}.
 
 \item $\texttt{expand CollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{Phash}\texttt{).}$
 defines a collision-resistant hash function.
@@ -952,6 +973,19 @@ $\texttt{cdh}(\vn{exp})$ equivalence.)
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{ddh}(\vn{exp})$.
 
+\item $\texttt{expand\ GDH(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{PGDH}\texttt{).}$ defines a group that satisfies the gap
+  Diffie-Hellman assumption. The arguments are the same as for
+  \texttt{CDH} above, except that the probability $\vn{PCDH}$ is
+  replaced with $\vn{PGDH}$. This macro defines the same equivalences
+as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
+with $\texttt{gdh}(\vn{exp})$.
+
+\item $\texttt{expand\ GDH\_prime\_order(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{PGDH}\texttt{).}$ defines a group that satisfies the gap
+  Diffie-Hellman assumption and has prime order. The interface is exactly
+  the same as for \texttt{GDH} above.
+  
 \item $\texttt{expand\ Xor(}D, \vn{xor}, \vn{zero}\texttt{).}$ defines the
   function symbol $\vn{xor}$ to be exclusive or on the set of
   bitstrings $D$, where $\vn{zero}$ is the bitstring consisting only

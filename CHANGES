@@ -9,6 +9,9 @@ Version
 to show (one-session) secrecy of x when the variables x1, ..., xn
 are public. This query is useful to show that several variables
 are independent secrets, with a single input file.
+- Added a specialised version of the Gap Diffie-Hellman assumption
+for prime order groups and random oracles with 2, 3, and 4 arguments
+in the library of cryptographic primitives.
 - Use elsefind facts to prove correspondences:
 1/ to prove injectivity (useful for protocols with a replay cache,
 for instance)

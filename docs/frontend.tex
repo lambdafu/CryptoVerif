@@ -40,7 +40,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt new}, {\tt newChannel}, {\tt orfind}, {\tt otheruses},
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
-{\tt proof}, {\tt public_vars}, {\tt query}, 
+{\tt proof}, {\tt public\_vars}, {\tt query}, 
 {\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}, {\tt yield}%
 \else
@@ -54,7 +54,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
 {\tt newOracle}, {\tt orfind}, {\tt otheruses},
 {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, {\tt proba}, {\tt process}, 
-{\tt proof}, {\tt public_vars}, {\tt query}, {\tt return},
+{\tt proof}, {\tt public\_vars}, {\tt query}, {\tt return},
 {\tt secret}, {\tt secret1}, {\tt set}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}%
 \fi.
@@ -1717,7 +1717,7 @@ even when the variables in $l$ are public. The list $l$ is considered empty when
 In the vocabulary of~\cite{BlanchetEPrint05}, this is one-session
 secrecy.
 
-\item ${\tt secret}\ x$: show that the array $x$ is indistinguishable
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]$: show that the array $x$ is indistinguishable
 from an array of independent random numbers (by several test queries),
 even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
 In the vocabulary of~\cite{BlanchetEPrint05}, this is secrecy.
