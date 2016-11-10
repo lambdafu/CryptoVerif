@@ -1201,10 +1201,10 @@ let update_history history node_list indices =
 	  not (is_reachable_same_block n h.current_node)) node_list)
       in
       Some 
-	{ h with
-          current_in_different_block = current_diff_block;
-          def_vars_in_different_blocks = new_diff_block @ h.def_vars_in_different_blocks;
-          def_vars_maybe_in_same_block = (node_list, indices) :: same_block }
+	  { h with
+            current_in_different_block = current_diff_block;
+            def_vars_in_different_blocks = new_diff_block @ h.def_vars_in_different_blocks;
+            def_vars_maybe_in_same_block = (node_list, indices) :: same_block }
 
 (* Take into account variables that must be defined because a block of code
    is always executed until the next output/yield before passing control to
@@ -1897,11 +1897,11 @@ let rec add_facts_cases history (fact_accu, fact_accu_cases) seen_refs done_refs
 	fold_left3 (fun accu history_1case true_facts_at_def_1case missed_br ->
 	  try 
 	    let missed_facts = ref [] in
-	    let missed_facts_cases = ref [] in
 	    let seen_refs_tmp = ref (!seen_refs) in
 	    let done_refs_tmp = ref (!done_refs) in
-	    List.iter (add_facts_cases history_1case (missed_facts, missed_facts_cases) seen_refs_tmp done_refs_tmp) missed_br;
-	  (* I ignore missed_facts_cases for simplicity; taking it into account might be an improvement *)
+	    List.iter (add_facts history_1case missed_facts seen_refs_tmp done_refs_tmp) missed_br;
+	  (* I do not distinguish cases further for simplicity; 
+	     doing it might be an improvement, but might be costly *)
 	    let true_facts_at_def_from_br_1case = 
 	      List.filter (fun f -> not (List.exists (Terms.equal_terms f) (!fact_accu))) (!missed_facts)
 	    in

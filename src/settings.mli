@@ -27,12 +27,13 @@ val elsefind_facts_in_replace : bool ref
 val elsefind_facts_in_success : bool ref
 val elsefind_facts_in_simplify : bool ref
 val improved_fact_collection : bool ref
-
+val corresp_cases : bool ref
+    
 val diff_constants : bool ref
 val constants_not_tuple : bool ref 
 
 val use_known_equalities_crypto : bool ref
-
+    
 val expand_letxy : bool ref
 
 val max_advice_possibilities_beginning : int ref
@@ -46,6 +47,7 @@ val unique_branch_reorg : bool ref
 
 val auto_sa_rename : bool ref
 val auto_remove_assign_find_cond : bool ref
+val auto_remove_if_find_cond : bool ref
 val auto_move : bool ref
 
 val optimize_let_vars : bool ref

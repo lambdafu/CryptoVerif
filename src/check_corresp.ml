@@ -325,6 +325,12 @@ let simplify_cases fact_accu fact_accu_cases =
   in
   remove_implied [] fact_accu_cases
 
+let get_facts_at_cases fact_info =
+  if !Settings.corresp_cases then
+    Facts.get_facts_at_cases fact_info
+  else
+    (Facts.get_facts_at fact_info, [])
+    
 let check_corresp event_accu (t1,t2) g =
   Terms.auto_cleanup (fun () ->
 (* Dependency collision must be deactivated, because otherwise
@@ -367,7 +373,8 @@ let check_corresp event_accu (t1,t2) g =
 	      let new_bend_sid = List.map Terms.new_repl_index bend_sid in
 	      let new_end_sid = List.map Terms.term_from_repl_index new_bend_sid in
 	      let eq_facts = List.map2 Terms.make_equal (List.map (Terms.copy_term Terms.Links_Vars) l) (List.map (Terms.subst bend_sid new_end_sid) l') in
-	      let (facts_common, facts_cases) = Facts.get_facts_at_cases fact_info in
+	      
+	      let (facts_common, facts_cases) = get_facts_at_cases fact_info in
 	      let elsefind_facts_common = get_elsefind_facts_at fact_info in
 	      let def_vars_common = Facts.get_def_vars_at fact_info in
 
@@ -392,10 +399,14 @@ let check_corresp event_accu (t1,t2) g =
 		  ) facts_cases;
 	          print_newline();
 		end;
+	      let new_facts = Terms.both_def_list_facts new_facts def_vars new_def_vars in
 	      
 	      let facts1 = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal facts new_facts) in
 	      if !Settings.debug_corresp then
-		print_string "First step without contradiction\n";
+		begin
+		  print_string "First step without contradiction";
+		  print_newline();
+		end;
 	      let facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal facts1 eq_facts) in
 	      if !Settings.debug_corresp then
 		begin
@@ -447,7 +458,10 @@ let check_corresp event_accu (t1,t2) g =
 	      collect_facts_cases facts' new_facts_cases
 	    with Contradiction -> 
 	      if !Settings.debug_corresp then
-		print_string "Contradiction. Proof succeeded.\n";
+		begin
+		  print_string "Contradiction. Proof succeeded.";
+		  print_newline();
+		end;
 	      true
 	  else 
 	    true

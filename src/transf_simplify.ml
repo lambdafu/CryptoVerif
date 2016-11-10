@@ -1054,7 +1054,7 @@ let rec simplify_term_w_find cur_array true_facts t =
     Var _ | FunApp _ | ReplIndex _ ->     
       simplify_term cur_array DepAnal2.init false true_facts t
   | TestE(t1,t2,t3) ->
-      if t2.t_type = Settings.t_bool then
+      if (!Settings.auto_remove_if_find_cond) && (t2.t_type = Settings.t_bool) then
 	begin
 	  Settings.changed := true;
           current_pass_transfos := (STestEElim(t)) :: (!current_pass_transfos);

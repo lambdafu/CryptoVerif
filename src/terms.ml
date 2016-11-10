@@ -882,16 +882,27 @@ and equal_pats simp_facts p1 p2 =
    is already normalized.
  *)
 
-and apply_subst_list_fun simp_facts t = function
+and apply_subst_list_fun simp_facts t seen = function
     [] -> t
   | tsubst::rest -> 
      match tsubst.t_desc with
        FunApp(f,[redl;redr]) when f.f_cat == Equal || f.f_cat == LetEqual ->
          begin
-           if simp_equal_terms simp_facts false t redl then 
+	   (* Excluding the rewrite rule redl->redr that we want to test
+              from the rules that can be used to test equality between t and redl.
+              This avoids an infinite loop.
+	      For instance, when t = H(M') and redl = H(H(M)),
+	      normalizing t calls simp_equal_terms [...] false H(M') H(H(M)),
+	      which calls normalize on H(M). If the rewrite rule redl->redr
+	      with redl = H(H(M)) is still present, it will call 
+	      simp_equal_terms [...] false H(M) H(H(M)),
+	      which again calls normalize on H(M). *)
+	   let (_,facts,elsefind) = simp_facts in
+	   let simp_facts' = (List.rev_append seen rest, facts,elsefind) in
+           if simp_equal_terms simp_facts' false t redl then 
 	     redr
            else
-	     apply_subst_list_fun simp_facts t rest
+	     apply_subst_list_fun simp_facts t (tsubst::seen) rest
          end
      | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 
@@ -910,7 +921,7 @@ and apply_subst_list_fun simp_facts t = function
 and normalize ((subst2, _, _) as simp_facts) t =
   match t.t_desc with
     FunApp(f,l) ->
-      apply_subst_list_fun simp_facts t subst2
+      apply_subst_list_fun simp_facts t [] subst2
   | Var _ | ReplIndex _ -> 
       normalize_var subst2 t 
   | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ -> 

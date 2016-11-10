@@ -966,6 +966,13 @@ When {\tt false}, the removal of this assignments is not
 performed automatically, but in manual proofs, it can be requested 
 by the command {\tt remove\string_assign\ findcond}.
 
+\item \texttt{set autoRemoveIfFindCond = true.}\\
+\texttt{set autoRemoveIfFindCond = false.}
+
+When {\tt true}, simplification removes {\tt if} in defined conditions
+of {\tt find} by transforming them into logical formulae.
+When {\tt false}, this removal is not performed.
+
 \item \texttt{set autoMove = true.}\\
 \texttt{set autoMove = false.}
 
@@ -1057,6 +1064,16 @@ their values in the cryptographic transformations.
 When it is false, CryptoVerif just uses the variables as their
 appear in the game, and relies only on advice to replace variables
 with their values. 
+
+\item \texttt{set casesInCorresp = true.}\\
+\texttt{set casesInCorresp = false.}
+
+When \texttt{casesInCorresp = true}, CryptoVerif distinguishes
+cases depending on the definition point of variables, to infer
+more facts in order to prove correspondence properties.
+However, this can be slow in complex cases. Using
+\texttt{set casesInCorresp = false} disables this case
+distinction and speeds up the proof of correspondences.
 
 % \item \texttt{set detectIncompatibleDefined = true.}\\
 % \texttt{set detectIncompatibleDefined = false.}

@@ -29,12 +29,13 @@ let elsefind_facts_in_replace = ref true
 let elsefind_facts_in_success = ref true
 let elsefind_facts_in_simplify = ref true
 let improved_fact_collection = ref false
-
+let corresp_cases = ref true
+    
 let diff_constants = ref true
 let constants_not_tuple = ref true
 
 let use_known_equalities_crypto = ref true
-
+    
 let expand_letxy = ref true
 
 (* Bound the number of advice possibilities in cryptotransf.ml
@@ -51,6 +52,7 @@ let unique_branch_reorg = ref true
 
 let auto_sa_rename = ref true
 let auto_remove_assign_find_cond = ref true
+let auto_remove_if_find_cond = ref true
 let auto_move = ref true
 
 let optimize_let_vars = ref false
@@ -135,6 +137,8 @@ let do_set p v =
   | "autoSARename", S ("false",_) -> auto_sa_rename := false
   | "autoRemoveAssignFindCond", S ("true",_) -> auto_remove_assign_find_cond := true
   | "autoRemoveAssignFindCond", S ("false",_) -> auto_remove_assign_find_cond := false
+  | "autoRemoveIfFindCond", S ("true",_) -> auto_remove_if_find_cond := true
+  | "autoRemoveIfFindCond", S ("false",_) -> auto_remove_if_find_cond := false
   | "autoMove", S ("true",_) -> auto_move := true
   | "autoMove", S ("false",_) -> auto_move := false
   | "optimizeVars", S ("true",_) -> optimize_let_vars := true
@@ -177,6 +181,9 @@ let do_set p v =
   | "maxTryNoVarDepth", I n ->
       (* For uniformity with maxAddFactDepth, 0 means no limit *)
       max_depth_try_no_var_rec := (if n = 0 then -1 else n)
+  | "casesInCorresp", S ("true",_) -> corresp_cases := true
+  | "casesInCorresp", S ("false",_) -> corresp_cases := false
+
   | "debugInstruct", S ("true",_) -> debug_instruct := true
   | "debugInstruct", S ("false",_) -> debug_instruct := false
   | "debugFindUnique", S ("true",_) -> debug_find_unique := true
