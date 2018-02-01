@@ -1,0 +1,161 @@
+(* set interactiveMode = true. *)
+
+(* Signed Diffie-Hellman protocol, very freely inspired by SSH
+(there is an asymmetry, since only the server is authenticated to
+the client by a signature, but not the converse) *)
+
+param n, n1, n2, n3, q, nH, N, N2, nCDH, nCDH'.
+
+type host.
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize.
+type signature.
+
+type Z [fixed].
+type G.
+type K [large,fixed].
+type D [fixed].
+
+fun exp(G,Z): G.
+fun exp1(G,Z): G.
+fun exp2(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* the CDH assumption *) 
+
+proba pCDH.
+(*
+equiv
+    !n new x:Z; new y:Z; (
+      () -> exp(g,x), 
+      () -> exp(g,y), 
+      (z:G) nCDH -> z = exp(g, mult(x,y))
+ )
+<=(pCDH(time,n,nCDH))=>
+    !n new x:Z; new y:Z; (
+      () -> exp(g,x), 
+      () -> exp(g,y), 
+      (z:G) nCDH -> false ).
+
+This does not work because the form z = exp1(exp2(g, y), x) does not appear.
+We need some equation exp1(exp2(...)) so that simplification makes it appear.
+*)
+equiv
+  ! n new x: Z; new y: Z; (
+    gen_Oracle() := return(exp1(g,x)) |
+    gen_Oracle_1() := return(exp2(g,y)) |
+    ! nCDH gen_Oracle_2(z: G) := return(z = exp1(exp2(g, y), x)) |
+    ! nCDH' gen_Oracle_3(z: G) := return(z = exp2(exp1(g, x), y)) |
+    ! n1 gen_Oracle_4(z: G, m: G) [2] := return(z = exp1(m,x)) |
+    ! n2 gen_Oracle_5(z: G, m: G) [2] := return(z = exp2(m,y)) |
+    ! n3 gen_Oracle_6(m: G, m': G) := return(exp1(m,x) = exp2(m',y)))
+<=(pCDH(time,n,nCDH+nCDH'))=>
+  ! n new x: Z; new y: Z; (
+    gen_Oracle() := return(exp(g,x)) |
+    gen_Oracle_1() := return(exp(g,y)) |
+    ! nCDH gen_Oracle_2(z: G) := return(false) |
+    ! nCDH' gen_Oracle_3(z: G) := return(false) |
+    ! n1 gen_Oracle_4(z: G, m: G) := return(z = exp(m,x)) |
+    ! n2 gen_Oracle_5(z: G, m: G) := return(z = exp(m,y)) |
+    ! n3 gen_Oracle_6(m: G, m': G) := return(exp(m,x) = exp(m',y))).
+
+(* h in the random oracle model *)
+
+fun h(K,G): D.
+
+equiv
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := return(h(k,x))
+<=(0)=>
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := find j <= nH suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: D; return(r).
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+
+
+
+
+
+
+
+
+process
+	in(start, ());
+new k_1: K;
+new rkA: keyseed;
+let skA: skey = skgen(rkA) in
+let pkA: pkey = pkgen(rkA) in
+new rkB: keyseed;
+let skB: skey = skgen(rkB) in
+let pkB: pkey = pkgen(rkB) in
+out(cstart, (pkA, pkB));
+((
+  in(cA1, hostB: host);
+  new a: Z;
+  let ga: G = exp1(g, a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb_1: G, s: signature));
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostB) then
+  let pkhostB: pkey = Rkey[j2] in
+  if check(concatB(A, hostB, ga, gb_1), pkhostB, s) then
+  new r2_1: seed;
+  let gab: G = exp1(gb_1, a) in
+  let kA: D = h(k_1, gab) in
+  if hostB = B then
+  (
+    let keyA: D = kA
+  )
+  else
+    out(cA6, kA)
+) | (
+  in(cB1, (hostA: host, =B, ga_1: G));
+  new b: Z;
+  let gb_2: G = exp2(g, b) in
+  new r1_1: seed;
+  let gab_1: G = exp2(ga_1, b) in
+  let kB: D = h(k_1, gab_1) in
+  out(cB2, (hostA, B, gb_2, sign(concatB(hostA, B, ga_1, gb_2), skB, r1_1)))
+) | (
+  ! i_1 <= nH
+  in(cH[i_1], xH: G);
+  out(cHret[i_1], h(k_1, xH))
+) | (
+  ! i_2 <= N2
+  in(cK[i_2], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = B then pkB else if Khost = A then pkA else Kkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.116s (user 0.112s + system 0.004s), max rss 43712K
+END *)

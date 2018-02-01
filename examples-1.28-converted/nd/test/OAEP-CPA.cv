@@ -1,0 +1,106 @@
+(* OAEP scheme, proof of CPA security *)
+
+proof {
+      crypto rom(H);
+      crypto rom(G);
+      show_game occ;
+      insert_event bad1 31;
+      show_game occ;
+      insert_event bad2 59;
+      crypto remove_xor(xorDr) r_6;
+      crypto remove_xor(xorDow) r_8;      
+      remove_assign binder pk;
+      show_game;
+      crypto pd_ow(f) r_3 r_9 r_10;
+      success
+}
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed,large].
+type Dow [fixed,large].
+type Dr [fixed,large].
+
+(* Set partial-domain one-way trapdoor permutation *)
+
+proba P_PD_OW.
+
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW).
+
+(* Hash functions, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, Dr, Dow, G).
+param qG [noninteractive].
+channel ch1, ch2.
+
+
+expand ROM_hash(hashkey, Dow, Dr, H).
+param qH [noninteractive].
+channel ch3, ch4.
+
+
+(* concatenation *)
+type Dm.
+type Dz [large].
+
+fun concatm(Dm,Dz):Dow [data].
+const zero: Dz.
+
+(* Xor *)
+
+expand Xor(Dow, xorDow, zeroDow).
+expand Xor(Dr, xorDr, zeroDr).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, Dm, Dm):Dm.
+forall x:Dm,y:Dm; test(true,x,y) = x.
+forall x:Dm,y:Dm; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1 [onesession].
+
+channel c0, c1, c2.
+
+
+
+process 
+	in(c0, ());
+new hkh: hashkey;
+new hkg: hashkey;
+new r_4: seed;
+let pk: pkey = pkgen(r_4) in
+let sk: skey = skgen(r_4) in
+out(c0, pk);
+((
+  ! i_1 <= qG
+  in(ch1[i_1], x_6: Dr);
+  out(ch2[i_1], G(hkg, x_6))
+) | (
+  ! i_2 <= qH
+  in(ch3[i_2], x_7: Dow);
+  out(ch4[i_2], H(hkh, x_7))
+) | (
+  in(c1, (m1: Dm, m2: Dm));
+  new b1: bool;
+  let menc: Dm = test(b1, m1, m2) in
+  new r_5: Dr;
+  let s: Dow = xorDow(concatm(menc, zero), G(hkg, r_5)) in
+  let t: Dr = xorDr(r_5, H(hkh, s)) in
+  out(c2, f(pk, concat(s, t)))
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.032s + system 0.012s), max rss 38672K
+END *)

@@ -1,0 +1,77 @@
+(* Bug in CryptoVerif 1.09: 
+after transforming
+	find k2<=N suchthat defined(k1) && k2 = k1 then
+into
+	let k2 = k1 in
+it removes this assignment, although a defined condition
+refers to k2 (but not at the root!). It should change 
+        let k2 = k1 in
+into
+        let k2 = cst in
+but not remove it.
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+proof {
+show_game
+}
+
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], m: hash);
+  let y: hash = m in
+  find j_4 = j_5 <= N suchthat defined(y[k2[j_5]]) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x_1: hashinput);
+  find k1 = k1_1 <= N suchthat defined(m[k1_1]) then
+  find k2 = k2_1 <= N suchthat defined(k1) && (k2_1 = k1) then
+  new s: hash;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(hc1[i_3], z: hashinput);
+  out(hc2[i_3], h(hk, z))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.020s + system 0.000s), max rss 34256K
+END *)

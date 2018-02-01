@@ -1,0 +1,64 @@
+(* FDH signature scheme *)
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, bitstring, D, hash).
+
+param qH [noninteractive].
+
+
+(* Queries *)
+
+event forge.
+query event(forge) ==> false.
+
+
+
+
+
+process 
+	Ogen() :=
+hk <-R hashkey;
+r_2 <-R seed;
+pk: pkey <- pkgen(r_2);
+sk: skey <- skgen(r_2);
+return(pk);
+((
+  foreach iH <= qH do
+  OH(x_2: bitstring) :=
+  return(hash(hk, x_2))
+) | (
+  foreach iS <= qS do
+  OS(m: bitstring) :=
+  return(invf(sk, hash(hk, m)))
+) | (
+  OS(m': bitstring, s: D) :=
+  if f(pk, s) = hash(hk, m') then
+  find u_1 = u_2 <= qS suchthat defined(m[u_2]) && (m' = m[u_2]) then
+    yield
+  else
+    event forge
+))
+
+
+
+
+(* EXPECTED
+Error: Duplicate definitions of oracle OS
+xtime: error in child process (status : 512)
+END *)

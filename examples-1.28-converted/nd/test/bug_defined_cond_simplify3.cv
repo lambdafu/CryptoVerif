@@ -1,0 +1,36 @@
+(* I think there might be a bug, but I do not manage to trigger it *)
+
+param N, N'.
+
+fun enc(bitstring, bitstring): bitstring.
+fun dec(bitstring, bitstring): bitstring.
+forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
+
+const const0, const1: bitstring.
+
+fun f(bitstring):bitstring.
+
+channel c.
+
+process
+	((
+  in(c, ());
+  find j = j_1 <= N suchthat defined(n[j_1], k[j_1]) then
+  out(c, ());
+  in(c, ());
+  let (x: bitstring, =const0) = n[j] in
+  let m': bitstring = dec(x, k[j]) in
+  out(c, m')
+) | (
+  ! i <= N
+  in(c[i], (k: bitstring, b: bool));
+  let n: bitstring = (if b then (let m: bitstring = f(k) in (enc(m, k), const0)) else (enc(k, k), const1)) in
+  out(c[i], n)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 37968K
+END *)

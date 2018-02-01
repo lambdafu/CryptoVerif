@@ -1,0 +1,109 @@
+
+type keyseed [fixed].
+type key [bounded].
+
+
+param N.
+const dummy:bitstring.
+
+
+
+
+fun QueryRequestTag(bitstring):bitstring[data].
+fun QueryRequest(bitstring):bitstring[data].
+const SCambridge:bitstring.
+const Scoldbutsunny:bitstring.
+const SOrsay:bitstring.
+fun QueryResponse(bitstring,bitstring):bitstring[data].
+fun QueryResponseTag(bitstring,bitstring):bitstring[data].
+const Ssunnybutcold:bitstring.
+channel c.
+
+
+(* MAC *)
+proba Pmac.
+expand UF_CMA_mac(keyseed, key, bitstring, 
+                  bitstring, kgen, hmacsha1, 
+                  hmacsha1Verify, Pmac).
+
+(* other assumptions *)
+forall x:bitstring,y:bitstring,z:bitstring;
+  QueryRequestTag(x)<>QueryResponseTag(y,z).
+
+forall x:bitstring,y:bitstring,z:bitstring;
+  QueryRequest(x)<>QueryResponse(y,z).
+
+
+
+(* Events and queries *)
+event AuxSent(bitstring).
+event AuxReceived(bitstring).
+
+query m: bitstring;
+  event(AuxReceived(m)) ==> event(AuxSent(m)).
+
+query m: bitstring;
+  event(AuxReceived(QueryRequest(m))) ==> event(AuxSent(QueryRequest(m))).
+
+query m': bitstring, m: bitstring;
+  event(AuxReceived(QueryResponse(m, m'))) ==> event(AuxSent(QueryResponse(m, m'))).
+
+
+
+process
+  in(c, ());
+let NethttpChan: bitstring = dummy in
+let Auxtr: bitstring = dummy in
+new kseed: keyseed;
+let F11: key = kgen(kseed) in
+let Queryk: key = F11 in
+out(c, dummy);
+((
+  ! i_1 <= N
+  in(c[i_1], request: bitstring);
+  event AuxSent(QueryRequest(request));
+  let h: bitstring = hmacsha1(QueryRequestTag(request), Queryk) in
+  out(c[i_1], (request, h));
+  in(c[i_1], msg2: bitstring);
+  let (s2: bitstring, h5: bitstring) = msg2 in
+  let F14: bool = hmacsha1Verify(QueryResponseTag(request, s2), Queryk, h5) in
+  if F14 = true then
+  let W3: bitstring = QueryResponseTag(request, s2) in
+    event AuxReceived(QueryResponse(request, s2));
+    out(c[i_1], s2)
+  else
+    out(c[i_1], dummy)
+) | (
+  ! i_2 <= N
+  in(c[i_2], ());
+  out(c[i_2], dummy);
+  in(c[i_2], msg1: bitstring);
+  let (u: bitstring, h_1: bitstring) = msg1 in
+  let F16: bool = hmacsha1Verify(QueryRequestTag(u), Queryk, h_1) in
+  if F16 = true then
+  let W4: bitstring = QueryRequestTag(u) in
+  event AuxReceived(QueryRequest(u));
+  let (=SCambridge) = u in
+  (
+    event AuxSent(QueryResponse(u, Scoldbutsunny));
+    let h_2: bitstring = hmacsha1(QueryResponseTag(u, Scoldbutsunny), Queryk) in
+    out(c[i_2], (Scoldbutsunny, h_2))
+  )
+  else
+    let (=SOrsay) = u in
+    event AuxSent(QueryResponse(u, Ssunnybutcold));
+    let h_3: bitstring = hmacsha1(QueryResponseTag(u, Ssunnybutcold), Queryk) in
+      out(c[i_2], (Ssunnybutcold, h_3))
+    else
+      out(c[i_2], dummy)
+) | (
+  in(c, ());
+  out(c, ())
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.024s + system 0.000s), max rss 37872K
+END *)

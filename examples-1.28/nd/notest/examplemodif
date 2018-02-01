@@ -1,0 +1,6 @@
+#!/bin/sh
+
+for i in examples/*
+do
+	cat $i | sed s/secret/secret1/ | sed s/semsec/secret/ > new$i
+done

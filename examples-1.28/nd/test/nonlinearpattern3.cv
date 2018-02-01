@@ -1,0 +1,16 @@
+channel c.
+
+
+process
+   in(c, y: bitstring);
+   (* This is interpreted as 
+     let (x_2: bitstring, x_1: bitstring) = y in
+     out(c, x_2)
+   with a warning: identifier x rebound *)
+   let (x: bitstring, x: bitstring) = y in
+   out(c, x)
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 16560K
+END *)

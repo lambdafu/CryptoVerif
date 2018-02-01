@@ -1,0 +1,249 @@
+(*************************************************************
+ *                                                           *
+ *       Cryptographic protocol verifier                     *
+ *                                                           *
+ *       Bruno Blanchet                                      *
+ *                                                           *
+ *       Copyright (C) ENS & CNRS, 2005-2006                 *
+ *                                                           *
+ *************************************************************)
+
+(*
+
+    Copyright ENS & CNRS, 
+    contributor: Bruno Blanchet, Bruno.Blanchet@ens.fr
+    
+This software is a computer program whose purpose is to verify 
+cryptographic protocols in the computational model.
+
+This software is governed by the CeCILL license under French law and
+abiding by the rules of distribution of free software.  You can use, 
+modify and/ or redistribute the software under the terms of the CeCILL
+license as circulated by CEA, CNRS and INRIA at the following URL
+"http://www.cecill.info". 
+
+As a counterpart to the access to the source code and  rights to copy,
+modify and redistribute granted by the license, users are provided only
+with a limited warranty  and the software's author,  the holder of the
+economic rights,  and the successive licensors  have only  limited
+liability. 
+
+In this respect, the user's attention is drawn to the risks associated
+with loading,  using,  modifying and/or developing or reproducing the
+software by the user in light of its specific status of free software,
+that may mean  that it is complicated to manipulate,  and  that  also
+therefore means  that it is reserved for developers  and  experienced
+professionals having in-depth computer knowledge. Users are therefore
+encouraged to load and test the software's suitability as regards their
+requirements in conditions enabling the security of their systems and/or 
+data to be ensured and,  more generally, to use and operate it in the 
+same conditions as regards security. 
+
+The fact that you are presently reading this means that you have had
+knowledge of the CeCILL license and that you accept its terms.
+
+*)
+(* Needham Schroeder shared key protocol.
+   Corrected version.
+   With messages of key confirmation, in order to prove correspondence
+   properties.
+ *)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+fun concat1(nonce, host, mkey, key, macs, bitstring):bitstring [data].
+fun concat2(host, nonce):bitstring [data].
+fun concat3(mkey, key, host, nonce):bitstring [data].
+
+forall m:mkey,y:key,z:host,t:nonce,m2:mkey,y2:nonce,z2:host,t2:key,u2:macs,v2:bitstring;
+	concat3(m,y,z,t) <> concat1(y2,z2,m2,t2,u2,v2).
+forall z:host,t:nonce,y2:nonce,z2:host,m2:mkey,t2:key,u2:macs,v2:bitstring;
+	concat2(z,t) <> concat1(y2,z2,m2,t2,u2,v2).
+forall z:host,t:nonce,m2:mkey,y2:key,z2:host,t2:nonce;
+	concat2(z,t) <> concat3(m2,y2,z2,t2).
+
+fun minusone(nonce):nonce [data].
+forall x:nonce; minusone(x) <> x.
+
+fun nonceToBitstring(nonce):bitstring [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstringbot.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+fun injbot(bitstring):bitstringbot [data].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+fun Zconcat1(bitstring):bitstring.
+const Zconcat2:bitstring.
+const Zconcat3:bitstring.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce,z:host,m:mkey,t:key,v:macs,u:bitstring;
+	Z(concat1(y,z,m,t,v,u)) = Zconcat1(Z(u)).
+forall y:host,z:nonce; 
+	Z(concat2(y,z)) = Zconcat2.
+forall m:mkey,y:key,z:host,t:nonce; 
+	Z(concat3(m,y,z,t)) = Zconcat3.
+forall m:bitstring, r:keyseed, r2:seed; 
+	Z(enc(m, kgen(r), r2)) = Z(m).
+
+equiv
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc(x, kgen(r), r2))
+<=(N2 * Penc(time, N, maxlength(x)))=>
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc2(Z(x), kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, mkey):macs.
+fun check(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(bitstring, mkey):macs.
+fun check2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:mkeyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv
+  ! N3 new r: mkeyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac(x, mkgen(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := return(check(m, mkgen(r), ma)))
+<=(N3 * Pmac(time, N, N2, max(maxlength(x), maxlength(m))))=>
+  ! N3 new r: mkeyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac2(x, mkgen2(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := find j <= N suchthat defined(x[j]) && (m = x[j])&& (ma = mac2(x[j], mkgen2(r))) then return(true) else return(false)).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, start, finish.
+const A : host.
+const B : host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+event partA(host, bitstring).
+event fullA(host, bitstring).
+event partB(host, bitstring).
+event fullB(host, bitstring).
+
+query x: bitstring;
+  inj-event(partA(B, x)) ==> inj-event(partB(A, x)).
+query x: bitstring;
+  inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mKas: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mKbs: mkey = mkgen(rmKbs) in
+out(start, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], (h_1: host, bm_1: bitstring, mac1_1: macs));
+  new Na: nonce;
+  out(c3[i_1], (A, h_1, Na, bm_1, mac1_1));
+  in(c4[i_1], (m2: bitstring, mac2_1: macs));
+  if check(m2, mKas, mac2_1) then
+  let injbot(concat1(=Na, =h_1, mk: mkey, k: key, mac3: macs, m: bitstring)) = dec(m2, Kas) in
+  out(c5[i_1], (m, mac3));
+  in(c15[i_1], (e4_1: bitstring, m4_1: macs));
+  if check(e4_1, mk, m4_1) then
+  let injbot(nonceToBitstring(Nb: nonce)) = dec(e4_1, k) in
+  new r4_1: seed;
+  let e5: bitstring = enc(nonceToBitstring(minusone(Nb)), k, r4_1) in
+  let m5: macs = mac(e5, mk) in
+  event partA(h_1, (m, e4_1, m4_1));
+  event fullA(h_1, (m, e4_1, m4_1, e5, m5));
+  out(c16[i_1], (e5, m5, acceptA(h_1)))
+) | (
+  ! i_2 <= N
+  in(c6[i_2], h_2: host);
+  new J: nonce;
+  new r2: seed;
+  let e2: bitstring = enc(concat2(h_2, J), Kbs, r2) in
+  out(c7[i_2], (e2, mac(e2, mKbs)));
+  in(c8[i_2], (m4_2: bitstring, mac4: macs));
+  if check(m4_2, mKbs, mac4) then
+  let injbot(concat3(mk_1: mkey, k_1: key, =h_2, =J)) = dec(m4_2, Kbs) in
+  new Nb_1: nonce;
+  new r3_1: seed;
+  let e3: bitstring = enc(nonceToBitstring(Nb_1), k_1, r3_1) in
+  let m3: macs = mac(e3, mk_1) in
+  event partB(h_2, (m4_2, e3, m3));
+  out(c14[i_2], (e3, m3));
+  in(c17[i_2], (e6: bitstring, m6: macs));
+  if check(e6, mk_1, m6) then
+  if injbot(nonceToBitstring(minusone(Nb_1))) = dec(e6, k_1) then
+  event fullB(h_2, (m4_2, e3, m3, e6, m6));
+  out(c13[i_2], acceptB(h_2))
+) | (
+  ! i_3 <= N
+  in(c10[i_3], (h1: host, h2: host, n: nonce, bm_2: bitstring, mac1_2: macs));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rmkey[j1_1], Rkey[j1_1]) && (Khost[j1_1] = h1) then
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rmkey[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  if check(bm_2, Rmkey[j2], mac1_2) then
+  let injbot(concat2(=h1, j_8: nonce)) = dec(bm_2, Rkey[j2]) in
+  new kseed: keyseed;
+  let k_2: key = kgen(kseed) in
+  new mkseed: mkeyseed;
+  let mk_2: mkey = mkgen(mkseed) in
+  new r3_2: seed;
+  let e3_1: bitstring = enc(concat3(mk_2, k_2, h1, j_8), Rkey[j2], r3_2) in
+  let mac3_1: macs = mac(e3_1, Rmkey[j2]) in
+  new r4_2: seed;
+  let e4_2: bitstring = enc(concat1(n, h2, mk_2, k_2, mac3_1, e3_1), Rkey[j1], r4_2) in
+  out(c11[i_3], (e4_2, mac(e4_2, Rmkey[j1])))
+) | (
+  ! i_4 <= N2
+  in(c9[i_4], (Khost: host, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: mkey = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+3.180s (user 3.156s + system 0.024s), max rss 90384K
+END *)

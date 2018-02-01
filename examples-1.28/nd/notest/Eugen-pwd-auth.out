@@ -1,0 +1,349 @@
+Microsoft Windows XP [version 5.1.2600]
+(C) Copyright 1985-2001 Microsoft Corp.
+
+c:\cygwin\home\Bruno Blanchet\dev\cryptoverif\examplesnd>cd ..
+cd ..
+
+C:\cygwin\home\Bruno Blanchet\dev\cryptoverif>prover.exe -lib examplesnd/Eugen-default examplesnd/Eugen-pwd-auth.cv
+prover.exe -lib examplesnd/Eugen-default examplesnd/Eugen-pwd-auth.cv
+Doing expand if, let, find... No change.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move new all binders... No change.
+Doing remove assignments of useless... Done.
+Please enter a command: crypto Dbselect
+Trying equivalence
+equiv ! !_7 <= @3_N new @3_d: guid; (
+  ! !_8 <= @3_N1 (@3_k: bitstring, @3_v: bitstring) -> Dbinsert(DbnewDb(@3_d), @3_k, @3_v),
+  ! !_9 <= @3_N2 (@3_k': bitstring) -> Dbselect(DbnewDb(@3_d), @3_k'))
+<=(@3_N * @3_Pdb(@3_N2))=>
+      ! !_10 <= @3_N new @3_d: guid; (
+  ! !_11 <= @3_N1 (@3_k_22: bitstring, @3_v_21: bitstring) -> let @3_k: bitstring = @3_k_22 in let @3_v: bitstring = @3_v_21 in @3_un,
+  ! !_12 <= @3_N2 (@3_k': bitstring) -> find @3_j <= @3_N1 suchthat defined(@3_k[@3_j], @3_v[@3_j]) && (@3_k' = @3_k[@3_j]) then Some(@3_v[@3_j]) else None)
+... Failed.
+Doing remove assignments of binder PwdpwdDb... Done.
+Trying equivalence
+equiv ! !_7 <= @3_N new @3_d: guid; (
+  ! !_8 <= @3_N1 (@3_k: bitstring, @3_v: bitstring) -> Dbinsert(DbnewDb(@3_d), @3_k, @3_v),
+  ! !_9 <= @3_N2 (@3_k': bitstring) -> Dbselect(DbnewDb(@3_d), @3_k'))
+<=(@3_N * @3_Pdb(@3_N2))=>
+      ! !_10 <= @3_N new @3_d: guid; (
+  ! !_11 <= @3_N1 (@3_k_22: bitstring, @3_v_21: bitstring) -> let @3_k: bitstring = @3_k_22 in let @3_v: bitstring = @3_v_21 in @3_un,
+  ! !_12 <= @3_N2 (@3_k': bitstring) -> find @3_j <= @3_N1 suchthat defined(@3_k[@3_j], @3_v[@3_j]) && (@3_k' = @3_k[@3_j]) then Some(@3_v[@3_j]) else None)
+with F6... Succeeded.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move new all binders... No change.
+Doing remove assignments of useless... Done.
+Please enter a command: show_state
+Initial state
+Game 1 is
+in(c, ());
+new F6: guid;
+let PwdpwdDb: Dbdb = DbnewDb(F6) in
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = mkgen(mkseed) in
+  let F7: unit = Dbinsert(PwdpwdDb, ab_18, PwdPwEntry(mk)) in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = bs2mk(pwd) in
+    let F10: unit = Dbinsert(PwdpwdDb, ab_17, PwdLeakedPwEntry(F9)) in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    let F11: bitstring = Dbselect(PwdpwdDb, ab_16) in
+    let Some(PwdPwEntry(pwd8: mkey)) = F11 in
+      event PwdSend(ab_16, m)
+    else       let Some(PwdLeakedPwEntry(pwd9: mkey)) = F11 in
+      event PwdSendLeak(ab_16, m)
+  )
+)
+
+
+Applying simplify yields
+
+Game 2 is
+in(c, ());
+new F6: guid;
+let PwdpwdDb: Dbdb = DbnewDb(F6) in
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = mkgen(mkseed) in
+  let F7: unit = Dbinsert(PwdpwdDb, ab_18, PwdPwEntry(mk)) in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = bs2mk(pwd) in
+    let F10: unit = Dbinsert(PwdpwdDb, ab_17, PwdLeakedPwEntry(F9)) in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    let F11: bitstring = Dbselect(PwdpwdDb, ab_16) in
+    let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_16) in
+      event PwdSend(ab_16, m)
+    else       let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_16) in
+      event PwdSendLeak(ab_16, m)
+  )
+)
+
+
+Applying remove assignments of useless yields
+
+Game 3 is
+in(c, ());
+new F6: guid;
+let PwdpwdDb: Dbdb = DbnewDb(F6) in
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = mkgen(mkseed) in
+  let F7: unit = Dbinsert(PwdpwdDb, ab_18, PwdPwEntry(mk)) in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = bs2mk(pwd) in
+    let F10: unit = Dbinsert(PwdpwdDb, ab_17, PwdLeakedPwEntry(F9)) in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_16) in
+      event PwdSend(ab_16, m)
+    else       let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_16) in
+      event PwdSendLeak(ab_16, m)
+  )
+)
+
+
+Applying remove assignments of binder PwdpwdDb yields
+
+Game 4 is
+in(c, ());
+new F6: guid;
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = mkgen(mkseed) in
+  let F7: unit = Dbinsert(DbnewDb(F6), ab_18, PwdPwEntry(mk)) in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = bs2mk(pwd) in
+    let F10: unit = Dbinsert(DbnewDb(F6), ab_17, PwdLeakedPwEntry(F9)) in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(DbnewDb(F6), ab_16) in
+      event PwdSend(ab_16, m)
+    else       let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(DbnewDb(F6), ab_16) in
+      event PwdSendLeak(ab_16, m)
+  )
+)
+
+
+Applying equivalence
+equiv ! !_7 <= @3_N new @3_d: guid; (
+  ! !_8 <= @3_N1 (@3_k: bitstring, @3_v: bitstring) -> Dbinsert(DbnewDb(@3_d), @3_k, @3_v),
+  ! !_9 <= @3_N2 (@3_k': bitstring) -> Dbselect(DbnewDb(@3_d), @3_k'))
+<=(@3_N * @3_Pdb(@3_N2))=>
+      ! !_10 <= @3_N new @3_d: guid; (
+  ! !_11 <= @3_N1 (@3_k_22: bitstring, @3_v_21: bitstring) -> let @3_k: bitstring = @3_k_22 in let @3_v: bitstring = @3_v_21 in @3_un,
+  ! !_12 <= @3_N2 (@3_k': bitstring) -> find @3_j <= @3_N1 suchthat defined(@3_k[@3_j], @3_v[@3_j]) && (@3_k' = @3_k[@3_j]) then Some(@3_v[@3_j]) else None)
+with F6 [Difference of probability @3_Pdb(2. * N)] yields
+
+Game 5 is
+in(c, ());
+new F6: guid;
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = mkgen(mkseed) in
+  let @3_k_27: bitstring = ab_18 in
+  let @3_v_26: bitstring = PwdPwEntry(mk) in
+  let F7: unit = @3_un in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = bs2mk(pwd) in
+    let @3_k_25: bitstring = ab_17 in
+    let @3_v_24: bitstring = PwdLeakedPwEntry(F9) in
+    let F10: unit = @3_un in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    find @i_33 <= N suchthat defined(@3_k_25[@i_33], @3_v_24[@i_33]) && (ab_16 = @3_k_25[@i_33]) then
+        find @i_29 <= N suchthat defined(@3_k_25[@i_29], @3_v_24[@i_29]) && (ab_16 = @3_k_25[@i_29]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_24[@i_29]) in
+          event PwdSendLeak(ab_16, m)
+        orfind @i_28 <= N suchthat defined(@3_k_27[@i_28], @3_v_26[@i_28]) && (ab_16 = @3_k_27[@i_28]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_26[@i_28]) in
+          event PwdSendLeak(ab_16, m)
+        else
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+          event PwdSendLeak(ab_16, m)
+    orfind @i_32 <= N suchthat defined(@3_k_27[@i_32], @3_v_26[@i_32]) && (ab_16 = @3_k_27[@i_32]) then
+      let Some(PwdPwEntry(pwd8: mkey)) = Some(@3_v_26[@i_32]) in
+        event PwdSend(ab_16, m)
+      else         find @i_29 <= N suchthat defined(@3_k_25[@i_29], @3_v_24[@i_29]) && (ab_16 = @3_k_25[@i_29]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_24[@i_29]) in
+          event PwdSendLeak(ab_16, m)
+        orfind @i_28 <= N suchthat defined(@3_k_27[@i_28], @3_v_26[@i_28]) && (ab_16 = @3_k_27[@i_28]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_26[@i_28]) in
+          event PwdSendLeak(ab_16, m)
+        else
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+          event PwdSendLeak(ab_16, m)
+    else
+      let Some(PwdPwEntry(pwd8: mkey)) = None in
+        event PwdSend(ab_16, m)
+      else         find @i_29 <= N suchthat defined(@3_k_25[@i_29], @3_v_24[@i_29]) && (ab_16 = @3_k_25[@i_29]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_24[@i_29]) in
+          event PwdSendLeak(ab_16, m)
+        orfind @i_28 <= N suchthat defined(@3_k_27[@i_28], @3_v_26[@i_28]) && (ab_16 = @3_k_27[@i_28]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_26[@i_28]) in
+          event PwdSendLeak(ab_16, m)
+        else
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+          event PwdSendLeak(ab_16, m)
+
+SHOULD SIMPLIFY INTO THE FOLLOWING GAME, NOT THE ONE OBTAINED BELOW
+
+    find @i_33 <= N suchthat defined(@3_k_25[@i_33], @3_v_24[@i_33]) && (ab_16 = @3_k_25[@i_33]) then
+        find @i_29 <= N suchthat defined(@3_k_25[@i_29], @3_v_24[@i_29]) && (ab_16 = @3_k_25[@i_29]) then
+          let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@3_v_24[@i_29]) in
+          event PwdSendLeak(ab_16, m)
+        orfind @i_28 <= N suchthat defined(@3_k_27[@i_28], @3_v_26[@i_28]) && (ab_16 = @3_k_27[@i_28]) then
+          yield
+    orfind @i_32 <= N suchthat defined(@3_k_27[@i_32], @3_v_26[@i_32]) && (ab_16 = @3_k_27[@i_32]) then
+      let Some(PwdPwEntry(pwd8: mkey)) = Some(@3_v_26[@i_32]) in
+        event PwdSend(ab_16, m)
+
+IT AS IF THE "ELSEFIND" WAS SET IN THE FIND BRANCH, INSTEAD OF IN THE ELSE BRANCH...
+  )
+)
+
+
+Applying simplify yields
+
+Game 6 is
+in(c, ());
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = mkgen(mkseed) in
+  let @3_k_27: bitstring = ab_18 in
+  let @3_v_26: bitstring = PwdPwEntry(mk) in
+  let F7: unit = @3_un in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = bs2mk(pwd) in
+    let @3_k_25: bitstring = ab_17 in
+    let @3_v_24: bitstring = PwdLeakedPwEntry(F9) in
+    let F10: unit = @3_un in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    find @i_33 <= N suchthat defined(@3_k_25[@i_33], @3_v_24[@i_33]) && (ab_16 = @3_k_25[@i_33]) then
+      yield
+    orfind @i_32 <= N suchthat defined(mk[@i_32], @3_k_27[@i_32], @3_v_26[@i_32]) && (ab_16 = @3_k_27[@i_32]) then
+      let pwd8: mkey = mk[@i_32] in
+      event PwdSend(ab_16, m)
+    else
+      find @i_29 <= N suchthat defined(F9[@i_29], @3_k_25[@i_29], @3_v_24[@i_29]) && (ab_16 = @3_k_25[@i_29]) then
+        let pwd9: mkey = F9[@i_29] in
+        event PwdSendLeak(ab_16, m)
+      orfind @i_28 <= N suchthat defined(@3_k_27[@i_28], @3_v_26[@i_28]) && (ab_16 = @3_k_27[@i_28]) then
+        yield
+  )
+)
+
+
+Applying remove assignments of useless yields
+
+Game 7 is
+in(c, ());
+out(c, dummy);
+(
+  ! !_13 <= N
+  in(c[!_13], ab_18: bitstring);
+  new mkseed: mkeyseed;
+  let mk: mkey = cst_mkey in
+  let @3_k_27: bitstring = cst_bitstring in
+  let @3_v_26: bitstring = cst_bitstring in
+  let F7: unit = @3_un in
+  out(c[!_13], F7)
+|
+  (
+    ! !_14 <= N
+    in(c[!_14], (ab_17: bitstring, pwd: bitstring));
+    event PwdPwLeak(ab_17);
+    let F9: mkey = cst_mkey in
+    let @3_k_25: bitstring = cst_bitstring in
+    let @3_v_24: bitstring = cst_bitstring in
+    let F10: unit = @3_un in
+    out(c[!_14], F10)
+  |
+    ! !_15 <= N
+    in(c[!_15], (a: bitstring, b: bitstring, m: bitstring));
+    let ab_16: bitstring = concat(a, b) in
+    find @i_33 <= N suchthat defined(ab_17[@i_33], @3_k_25[@i_33], @3_v_24[@i_33]) && (ab_16 = ab_17[@i_33]) then
+      yield
+    orfind @i_32 <= N suchthat defined(ab_18[@i_32], @3_k_27[@i_32], mk[@i_32], @3_v_26[@i_32]) && (ab_16 = ab_18[@i_32]) then
+      event PwdSend(ab_16, m)
+    else
+      find @i_29 <= N suchthat defined(ab_17[@i_29], @3_k_25[@i_29], F9[@i_29], @3_v_24[@i_29]) && (ab_16 = ab_17[@i_29]) then
+        event PwdSendLeak(ab_16, m)
+      orfind @i_28 <= N suchthat defined(ab_18[@i_28], @3_k_27[@i_28], @3_v_26[@i_28]) && (ab_16 = ab_18[@i_28]) then
+        yield
+  )
+)
+
+Please enter a command: quit
+
+C:\cygwin\home\Bruno Blanchet\dev\cryptoverif>

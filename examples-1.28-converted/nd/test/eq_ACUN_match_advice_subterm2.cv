@@ -1,0 +1,100 @@
+type D [fixed].
+
+(* set interactiveMode = true. *)
+
+fun xor(D,D):D.
+const neut:D.
+equation ACUN(xor,neut).
+
+fun h(D):bitstring.
+fun g(D): D.
+
+const zero, one, two, three: D. 
+
+channel c.
+proba Peq.
+param n,n'.
+
+equiv
+  ! n new r1: D; new r2: D; ! n' O(y: D) := return(xor(r1,xor(y,r2)))
+<=(Peq)=>
+  ! n ! n' O(y: D) := return(g(y)).
+
+fun xor2(D,D):D.
+equation ACUN(xor2,neut).
+equiv
+  ! n new r1: D; new r2: D; ! n' O() := return(xor2(r1,xor2(one,r2)))
+<=(Peq)=>
+  ! n ! n' O() := return(g(one)).
+
+
+process in(c, ());
+new r1_1: D;
+new r2_1: D;
+out(c, h(xor(xor(r1_1, one), xor(two, r2_1))));
+in(c, ());
+new r1_2: D;
+new r2_2: D;
+out(c, h(xor(xor(r1_2, one), xor(r2_2, two))));
+in(c, ());
+new r1_3: D;
+new r2_3: D;
+out(c, h(xor(two, xor(xor(r1_3, one), xor(r2_3, two)))));
+in(c, ());
+let z: D = xor(r1_3, one) in
+out(c, h(xor(z, xor(r2_3, zero))));
+in(c, ());
+let t: D = xor(two, r2_3) in
+out(c, h(xor(z, t)));
+in(c, ());
+let x: D = xor(z, t) in
+out(c, h(x));
+in(c, ());
+new r1_4: D;
+new r2_4: D;
+new r1'_1: D;
+new r2'_1: D;
+out(c, h(xor(xor(r1_4, one), xor(r2_4, xor(two, xor(r1'_1, xor(one, r2'_1)))))));
+in(c, ());
+new r1_5: D;
+new r2_5: D;
+out(c, h(xor(xor(r1_5, one), xor(r2_5, xor(two, xor(r1_5, xor(one, r2_5)))))));
+in(c, ());
+new r1_6: D;
+new r2_6: D;
+out(c, h(xor2(xor2(r1_6, one), xor2(r2_6, xor2(two, xor2(r1_6, xor2(one, r2_6)))))));
+in(c, ());
+new r1_7: D;
+new r2_7: D;
+new r1'_2: D;
+new r2'_2: D;
+out(c, h(xor2(xor2(r1'_2, one), xor2(r2_7, xor2(two, xor2(r1_7, xor2(one, r2'_2)))))));
+in(c, ());
+new r1_8: D;
+new r2_8: D;
+let z_1: D = xor(r1_8, one) in
+out(c, h(xor(z_1, xor(two, zero))));
+in(c, ());
+new r1_9: D;
+new r2_9: D;
+let z_2: D = xor(r1_9, one) in
+let t_1: D = xor(two, r2_9) in
+out(c, h(xor(z_2, t_1)));
+in(c, ());
+let x_1: D = xor(z_2, t_1) in
+out(c, h(x_1));
+in(c, ());
+new r1_10: D;
+new r2_10: D;
+out(c, (xor(r1_10, one) = xor(two, r2_10)));
+in(c, ());
+let t_2: D = xor(zero, two) in
+out(c, (xor(t_2, r1_10) = r2_10))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.052s (user 0.048s + system 0.004s), max rss 38576K
+END *)

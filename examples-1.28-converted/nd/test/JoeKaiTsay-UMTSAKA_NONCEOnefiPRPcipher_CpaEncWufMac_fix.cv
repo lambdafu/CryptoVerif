@@ -1,0 +1,360 @@
+(* UMTS Authentication and Key Agreement Protocol 
+
+
+U --> S: U
+
+S --> H: {Sid, U,S}_Ksh   (Sid=nonce, {.}_ authenticated encryption)
+
+H --> S: {Sid,CK,IK,RAND,XRES,SQN,MAC}_Ksh   (note: XRES and MAC are generated with secret value shared between H and U)
+
+S --> U: RAND,SQN,MAC
+
+U --> S: RES
+
+If XRES=RES then protocol run successful.
+
+   
+
+
+Idealizations: 		  Combine each pair USIM & ME, NB & VLR/SGSN, and  HLR & AuC to one process/participant,
+			  IMSI modeled as name of USIM/ME and SNid as name of eNB/MME,
+			  We consider a system with only one HSS/AuC but multiple USIM/ME and eNB/MME;
+
+Cryptographic primitives: symmetric encryption (stream cipher, 128-bit cipher key input, (128-bit counter blocks for CTR)), 
+			  message authentication code (128-bit key, perhaps a keyed hash function),
+			  pseudo-random function (for key derivation, i.e output must be of type key),
+			  key generating function and message authentication funciton modeled through prp block cipher (essentially a prf)
+
+Trust assumptions: 	  HLR/AuC is always honest.  [Serving network trusts the home network (to verify the identity of a serving network requesting authentication vectors and ensure that the serving network identity matches the verified identity), the HLR need *not* trust the serving network (in providing its correct identity)] 	  			  
+
+Assumptions on channels:  need an authenticated and secret channel between  NB/VLR/SGSN and HLR/AuC via shared keys and encrypt-then-mac 
+
+How we model the Sequence number SQN check: just use equality check, i.e. SQN is a nonce, as in the paper by M.Ryan et al.
+
+We omit the AMF.
+
+Choose the anonymity key AK to be 0, i.e. omit it. I.e. in our model there's no xor.
+
+FIX: Add NONCE (as session ID) to the Authentication vector/response by HSS/AuC
+
+*)
+
+(* It seems that I get variable numbers different from yours.
+That's a bit strange, but not a serious problem.
+Please adjust variable numbers if necessary. *) 
+proof {
+  auto;
+  show_game;
+  SArename "RAND_2";
+  SArename "r2_13";
+  SArename "r2_12";
+  show_game;
+  move array "r2_31";
+  success
+}
+(* The command move array "@22_r2_466" delays the choice of @22_r2_466
+as much as possible, until the first use of this variable. As a result,
+@22_r2_466 (renamed into @17_Y_495) is chosen in U and no longer in H 
+and CryptoVerif sees that @22_r2_466 needs to be chosen before being 
+able to execute event endAuthS, so event partAuthU needs to be executed
+before event endAuthS. *)
+
+(* 
+set interactiveMode = true.
+
+Proof /w cryptoverif1.15: 
+auto
+SArename RAND_157        (apply the SArenames only to improve readability of last game)
+SArename @16_r2_174    
+SArename @16_r2_172
+
+/w cryptoverif1.16:
+auto
+SArename RAND_275
+SArename @24_r2_292
+SArename @24_r2_290
+
+for proof w/ CV1.15: 40 Game transformations. We can manually conlude the proof as follows:
+Authentication U to S: when S runs a session with U (and H) then (X)RES = @16_r2_325, which is a random value (and plaintext in H session replaced by string of zeros). Attacker can't guess it with non-negligible probability, so it must have been sent by U. Also note that there are no collisions of XRES between different sessions of H (for U & S); this is important to note as U's and S's execution are not directly matched but matched via sessions of H.
+
+ 1-session secrecy of keyU can't be proved, because there is no authentication of S to U!
+*)
+
+param N.
+param NU.
+param NS.
+param NH.
+param NO.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type ue [bounded].
+type sn [bounded].
+type hn [bounded].
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type macs [fixed].
+
+type key [bounded]. (* [large, fixed]. *)
+type keyseed [large, fixed].
+type seed [fixed].		(* randomness for encryption *)
+
+type prfkeyseed [large, fixed].
+type prfkey [bounded].
+
+type prft [large, fixed]. (* output type for prf *)
+
+type prpckeyseed [fixed, large].
+type prpckey [bounded].
+type prpcblocksize [fixed, large].
+
+type econst [fixed].
+
+
+
+(* encoding/wrapping tuples with pattern concati so that can be fed to certain algorithms/primitives *)
+		
+fun concat2(nonce, ue, sn):bitstring [data].			 	(* used for Auth data request*)
+fun concat5(nonce): bitstring [data].	      		(* used for RES *)
+fun concat6(nonce, prpcblocksize, prpcblocksize, sn): bitstring [data].		(* used for KASME *)
+fun concat7(nonce, prpcblocksize, prpcblocksize, nonce, prpcblocksize, nonce, prpcblocksize): bitstring [data].		(* used for Auth data response *)
+fun concat8(econst, nonce, nonce) : prpcblocksize [data]. (* used for f1 (MAC) *)
+fun concat9(econst, nonce) :prpcblocksize [data]. (*used for f2 - f5 *)
+
+
+forall x:nonce, y:ue, z:sn,  v:nonce;
+        concat2(x,y,z) <> concat5(v).
+
+forall x:nonce, y:ue, z:sn, u:nonce, v:prpcblocksize, w:prpcblocksize, t:sn;
+       concat2(x,y,z) <> concat6(u,v,w,t).
+
+forall x:nonce, y:ue, z:sn, s:nonce, u: prpcblocksize, u': prpcblocksize, v:nonce, w:prpcblocksize, q:nonce,  t:prpcblocksize;
+       concat2(x,y,z) <> concat7(s,u,u',v,w,q,t).
+
+
+forall  y: nonce, u:nonce, v:prpcblocksize, w:prpcblocksize, t:sn;
+       concat5(y) <> concat6(u,v,w,t).
+
+forall y: nonce, s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize;
+       concat5(y) <> concat7(s,u,u',v,w,r,t).
+
+forall x:nonce, y:prpcblocksize,z:prpcblocksize, q:sn, s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize;
+       concat6(x,y,z,q) <> concat7(s,u,u',v,w,r,t).
+
+forall x:econst, y:nonce, z:nonce, u:econst, v: nonce;
+       concat8(x,y,z) <> concat9(u,v).
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+proba Pencptxt.
+proba Pencctxt.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat2:bitstring.
+const Zconcat7:bitstring.
+forall x:nonce, y:ue,z:sn; 
+	Z(concat2(x,y,z)) = Zconcat2.
+forall  s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize; 
+	Z(concat7(s,u,u',v,w,r,t)) = Zconcat7.
+forall m:bitstring, r:keyseed, r2:seed; 
+	Z(enc(m, kgen(r), r2)) = Z(m).
+
+(* Mac *)
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
+
+
+
+(* PRF *)
+proba  Pprf.
+
+expand  PRF(prfkeyseed, prfkey, bitstring, mkeyseed, prfkgen, f, Pprf).
+
+
+(* PRP block cipher *)
+proba Pprpcenc.
+
+expand  PRP_cipher(prpckeyseed, prpckey, prpcblocksize, prpckgen, prpcenc, prpcdec, Pprpcenc).
+
+const U : ue. (* User Equipment *)
+const S : sn. (* Serving Network *)
+const H : hn. (* Home Network *)
+const AMF: bitstring.
+
+const const1: econst.
+const const2: econst.
+const const3: econst.
+const const4: econst.
+const const5: econst.
+
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30, 
+	start, finish, end1, end2.
+
+event beginAuthU(sn).
+event partAuthU(nonce,prpcblocksize).
+event endAuthU(sn, nonce, mkey).
+event endAuthU2(sn, nonce,  prpcblocksize, prpcblocksize).
+
+
+event endAuthS(ue, nonce, prpcblocksize).
+event partAuthS(bitstring, nonce,  prpcblocksize,  prpcblocksize).
+event endAuthS2(ue, nonce, prpcblocksize,  prpcblocksize).
+event endAuthSU(ue, nonce, mkey).
+
+event partAuthH(sn, bitstring, nonce,  prpcblocksize,  prpcblocksize).
+event endAuthH(ue, sn, nonce, prpcblocksize).
+
+event endAuthHU(ue, nonce,  prpcblocksize). 
+
+
+
+
+query secret keyU1 [onesession].
+query secret keyU2 [onesession].   (* secret1 keyUi cannot be shown as in UMTS there is no authentication of S to U *)
+query secret keyS1 [onesession].
+query secret keyS2 [onesession].   (* Only one-session secrecy can at most be proved, as we can't prevent replays (b/c we don't model increasing SQN) *)
+
+
+
+query x': prpcblocksize, x: prpcblocksize, y: nonce, z: bitstring;
+  event(partAuthS(z, y, x, x')) ==> event(partAuthH(S, z, y, x, x')) public_vars keyU1, keyU2, keyS1, keyS2.	 (* Trivial property as communication between S & H is (intergrity) protected; and infact not really a goal of the AKA protocol *)
+
+query z: prpcblocksize, x: nonce;
+  event(endAuthS(U, x, z)) ==> event(partAuthU(x, z)) public_vars keyU1, keyU2, keyS1, keyS2. (* This cannot be proved automatically! This should capture entity authentication of U to S  *)
+ 
+query y: prpcblocksize, x: nonce;
+  event(endAuthS(U, x, y)) ==> event(endAuthH(U, S, x, y)) public_vars keyU1, keyU2, keyS1, keyS2. (* If S completes AKA supposedly with U, then H must have generates some credentials for  S & U; true for the fixed version *)
+
+query y: prpcblocksize, x: nonce;
+  event(partAuthU(x, y)) ==> event(endAuthHU(U, x, y)) public_vars keyU1, keyU2, keyS1, keyS2.  (* authentication of network to user; as U receievs values gernerated with secret key shared with H *)
+
+
+
+
+ 
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+process					(* main process *)
+	in(start, ());
+new rKuh: keyseed;
+let Kuh: key = kgen(rKuh) in
+new rmKuh: mkeyseed;
+let mKuh: mkey = mkgen(rmKuh) in
+new r0Kuh: prfkeyseed;
+let prfKuh: prfkey = prfkgen(r0Kuh) in
+new rprpcKuh: prpckeyseed;
+let prpcKuh: prpckey = prpckgen(rprpcKuh) in
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mKas: mkey = mkgen(rmKas) in
+new rKsh: keyseed;
+let Ksh: key = kgen(rKsh) in
+new rmKsh: mkeyseed;
+let mKsh: mkey = mkgen(rmKsh) in
+new SQN: nonce;
+out(start, ());
+((
+  ! i_1 <= NU
+  in(c1[i_1], hostS: sn);
+  out(c2[i_1], (U, hostS));
+  in(c11[i_1], (RAND'': nonce, =SQN, MAC'': prpcblocksize));
+  let MAC''': prpcblocksize = prpcenc(concat8(const1, SQN, RAND''), prpcKuh) in
+  if MAC''' = MAC'' then
+  let RES'': prpcblocksize = prpcenc(concat9(const2, RAND''), prpcKuh) in
+  let CK'': prpcblocksize = prpcenc(concat9(const3, RAND''), prpcKuh) in
+  let IK'': prpcblocksize = prpcenc(concat9(const4, RAND''), prpcKuh) in
+  event partAuthU(RAND'', RES'');
+  out(c12[i_1], RES'');
+  in(finish[i_1], ());
+  if hostS = S then
+  (
+    event endAuthU2(hostS, RAND'', CK'', IK'');
+    let keyU1: prpcblocksize = CK'' in
+    let keyU2: prpcblocksize = IK''
+  )
+  else
+    out(end1[i_1], (CK'', IK''))
+) | (
+  ! i_2 <= NS
+  in(c3[i_2], (h: ue, hostS': sn));
+  if hostS' = S then
+  new sid: nonce;
+  new r1: seed;
+  let e1: bitstring = enc(concat2(sid, h, S), Ksh, r1) in
+  out(c4[i_2], (S, e1, mac(e1, mKsh)));
+  in(c9[i_2], (e4': bitstring, mac4': macs));
+  if check(e4', mKsh, mac4') then
+  let injbot(concat7(=sid, CK': prpcblocksize, IK': prpcblocksize, RAND': nonce, XRES': prpcblocksize, SQN': nonce, MAC': prpcblocksize)) = dec(e4', Ksh) in
+  event partAuthS(e4', RAND', CK', IK');
+  out(c10[i_2], (RAND', SQN', MAC'));
+  in(c13[i_2], RES': prpcblocksize);
+  if XRES' = RES' then
+  event endAuthS(h, RAND', RES');
+  if h = U then
+  (
+    let keyS1: prpcblocksize = CK' in
+    let keyS2: prpcblocksize = IK'
+  )
+  else
+    out(end2[i_2], (CK', IK'))
+) | (
+  ! i_3 <= NH
+  in(c5[i_3], (h1: sn, e1': bitstring, mac1': macs));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rmkey[j1_1], Rkey[j1_1]) && (Khost[j1_1] = h1) then
+  if check(e1', Rmkey[j1], mac1') then
+  let injbot(concat2(ssid: nonce, h2: ue, =h1)) = dec(e1', Rkey[j1]) in
+  find j2 = j2_1 <= N2 suchthat defined(Lhost[j2_1], Ukey[j2_1], Uprfkey[j2_1]) && (Lhost[j2_1] = h2) then
+  new RAND: nonce;
+  let MAC: prpcblocksize = prpcenc(concat8(const1, SQN, RAND), Ukey[j2]) in
+  let XRES: prpcblocksize = prpcenc(concat9(const2, RAND), Ukey[j2]) in
+  let CK: prpcblocksize = prpcenc(concat9(const3, RAND), Ukey[j2]) in
+  let IK: prpcblocksize = prpcenc(concat9(const4, RAND), Ukey[j2]) in
+  new r2_3: seed;
+  let e2: bitstring = enc(concat7(ssid, CK, IK, RAND, XRES, SQN, MAC), Rkey[j1], r2_3) in
+  event endAuthHU(h2, RAND, XRES);
+  event partAuthH(h1, e2, RAND, CK, IK);
+  event endAuthH(h2, h1, RAND, XRES);
+  out(c8[i_3], (e2, mac(e2, Rmkey[j1])))
+) | (
+  ! i_4 <= N2
+  in(c6[i_4], (Khost: sn, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = S then Ksh else Kkey) in
+  let Rmkey: mkey = (if Khost = S then mKsh else Kmkey)
+) | (
+  ! i_5 <= N2
+  in(c7[i_5], (Lhost: ue, Lkey: prpckey, Lprfkey: prfkey));
+  let Ukey: prpckey = (if Lhost = U then prpcKuh else Lkey) in
+  let Uprfkey: prfkey = (if Lhost = U then prfKuh else Lprfkey)
+))
+
+
+ 
+(* EXPECTED
+RESULT Could not prove one-session secrecy of keyS2; one-session secrecy of keyS1; one-session secrecy of keyU2; one-session secrecy of keyU1.
+0.752s (user 0.700s + system 0.052s), max rss 82112K
+END *)

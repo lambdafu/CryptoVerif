@@ -1,0 +1,22 @@
+param N.
+channel c.
+
+process
+	((
+  in(c, (x: bitstring, y: bitstring, z: bitstring));
+  if (x = y) || (x = z) then
+  find i = i_1 <= N suchthat defined(a[i_1]) && (let y': bitstring = a[i_1] in (x = y')) then
+    out(c, true)
+  else
+    out(c, false)
+) | (
+  ! i_2 <= N
+  in(c[i_2], a: bitstring)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 41568K
+END *)

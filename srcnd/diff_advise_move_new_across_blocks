@@ -1,0 +1,69 @@
+Index: eke/EKEtryfinalstep
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/eke/EKEtryfinalstep,v
+retrieving revision 1.21
+diff -r1.21 EKEtryfinalstep
+54a55
+> insert 472 find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_106[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_106[nj]) then
+Index: src/instruct.ml
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/src/instruct.ml,v
+retrieving revision 1.150
+diff -r1.150 instruct.ml
+95c95,106
+<   | CryptoTransf _ | Proof _ -> 
+---
+>   | CryptoTransf (equiv, bl_assoc) ->
+>       begin
+>       let res = Cryptotransf.crypto_transform simplify_internal_info true true equiv bl_assoc g in
+>       match res with
+> 	TSuccess (proba,g'',simplify_internal_info') -> 
+> 	  Transform.changed := true;
+> 	  (g'', proba, simplify_internal_info', None)
+>       | TFailure l ->
+> 	  (g, [], simplify_internal_info, None)
+>       end
+>   | Proof _ -> 
+>       Display.display_process g.proc;
+Index: src/transform.ml
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/src/transform.ml,v
+retrieving revision 1.267
+diff -r1.267 transform.ml
+63a64,65
+> let move_new_eq = ref []
+> 
+1927a1930,1951
+> let rec has_immediate_ref b p =
+>   match p.p_desc with
+>     Yield -> false
+>   | Restr(_,p) -> 
+>       has_immediate_ref b p
+>   | Test(t,p1,p2) ->
+>       (Terms.refers_to b t) || (has_immediate_ref b p1) || (has_immediate_ref b p2)
+>   | Find(l0,p,_) ->
+>       (List.exists (fun (bl, def_list, t, p1) ->
+> 	(List.exists (Terms.refers_to_br b) def_list) ||
+> 	(Terms.refers_to b t) ||
+> 	(has_immediate_ref b p1)
+> 	  ) l0) || (has_immediate_ref b p)
+>   | Output((c,tl),t2,_) ->
+>       (List.exists (Terms.refers_to b) tl) || (Terms.refers_to b t2) 
+>   | Let(pat, t, p1, p2) ->
+>       (Terms.refers_to b t) || (Terms.refers_to_pat b pat) || 
+>       (has_immediate_ref b p1) || (has_immediate_ref b p2)
+>   | EventP(t,p) ->
+>       (Terms.refers_to b t) || (has_immediate_ref b p)
+>     
+> 
+1978a2003,2012
+> 	    if (b.btype.toptions land Settings.tyopt_LARGE) != 0 &&
+> 	      (b.btype.toptions land Settings.tyopt_CHOOSABLE) != 0 &&
+> 	      array_ref &&
+> 	      (not (has_immediate_ref b p)) then
+> 	      begin
+> 		try
+> 		  let eq = List.assq b.btype (!move_new_eq) in
+> 		  advise := Terms.add_eq (CryptoTransf(eq, [b])) (!advise)
+> 		with Not_found -> ()
+> 	      end;

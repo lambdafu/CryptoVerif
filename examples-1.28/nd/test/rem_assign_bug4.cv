@@ -1,0 +1,58 @@
+(* Bug: 
+removes the definition of z_8, but keeps a condition "defined(z_8)"
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+proof {
+crypto f;
+undo 2;
+remove_assign useless
+}
+
+fun f(hash,hash):bool.
+
+equiv !N Ohash(x:hash,y:hash) := f(x,y) [all]
+      <=(0)=>
+      !N Ohash(x:hash,y:hash) := let z:hash = x in if defined(z) then z = y else false.
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle = ! qH in(hc1, z: hashinput); out(hc2, h(hk,z)).
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+let processU =
+	in(c1, (m: hash, m':hash, a:bool, b:bool));
+	find j<=N suchthat defined(m'[j]) && f(m'[j],m') then
+	new s: hash;
+	out(c2, true)
+	else
+	out(c2, false).
+
+process 
+	in(hstart, ());
+	new hk: hashkey;
+	out(hret, ());
+	((! N processU) | hashoracle)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.010s + system 0.010s), max rss 16320K
+END *)

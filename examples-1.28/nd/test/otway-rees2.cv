@@ -1,0 +1,146 @@
+(* Version in which the participants only talk to A and B 
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+(* For simplicity, in this first example, I ignore the length of messages
+   and the fact that decryption may fail. See otway-rees2Stream for a better
+   version *)
+(* Shared-key encryption (CPA) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = m.
+
+const Z: bitstring.
+equiv  !N3 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N3 * Penc(time, N))=> 
+       !N3 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z, kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv !N3 new r: keyseed;(
+	 (x: bitstring) N -> mac(x, mkgen(r)),
+	 (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      !N3 new r: keyseed;(
+	 (x: bitstring) N -> mac2(x, mkgen2(r)),
+	 (m: bitstring, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, start, dummy, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query x:host, y:host, n:nonce, k:key; 
+	event endA(x,y,n,k) ==> beginB(x,y,n).
+query x:host, y:host, n:nonce, k:key; 
+	event endB(x,y,n,k) ==> beginA(x,y,n).
+
+
+let processA = 
+	in(start, =());
+	new M : nonce;
+	new Na : nonce;
+	new s1 : seed;
+	let ea1 = enc((Na, M, A, B), Kas, s1) in
+	event beginA(A, B, M);
+	out(c1, (M, A, B, ea1, mac(ea1, mKas)));
+	in(c2, (=M, ea2: bitstring, ma2: macs));
+	if check(ea2, mKas, ma2) then
+	let (=Na, ka:key) = dec(ea2, Kas) in
+	event endA(A, B, M, ka);
+	let keyA:key = ka.
+
+let processB =
+	in(c3, (M: nonce, =A, =B, ea:bitstring, ma:macs));
+	new Nb : nonce;
+	new s2 : seed;
+	let e2 = enc((Nb, M, A, B), Kbs, s2) in
+	event beginB(A, B, M);
+	out(c4, (M, A, B, ea, ma, e2, mac(e2, mKbs)));
+	in(c5, (=M, ea2: bitstring, ma2: macs, eb2: bitstring, mb2: macs));
+	if check(eb2, mKbs, mb2) then
+	let (=Nb, kb:key) = dec(eb2, Kbs) in
+	out(c6, (M, ea2, ma2));
+	in(finish, =());
+	event endB(A, B, M, kb);
+	let keyB:key = kb.
+
+let processS =
+	in(c7, (M: nonce, =A, =B, ea1: bitstring, ma1: macs, eb1: bitstring, mb1: macs));
+	if check(ea1, mKas, ma1) then
+	let (Na:nonce, =M, =A, =B) = dec(ea1, Kas) in
+	if check(eb1, mKbs, mb1) then
+	let (Nb:nonce, =M, =A, =B) = dec(eb1, Kbs) in
+	new k: key;
+	new s3: seed;
+	new s4: seed;
+	let e1 = enc((Na, k), Kas, s3) in
+	let e2 = enc((Nb, k), Kbs, s4) in
+	out(c8, (M, e1, mac(e1, mKas), e2, mac(e2, mKbs))).
+	
+process 
+	in(start, =());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	new rmKas: keyseed;
+	let mKas = mkgen(rmKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	new rmKbs: keyseed;
+	let mKbs = mkgen(rmKbs) in
+	out(dummy, ());
+	((! N processA) |
+	 (! N processB) | 
+	 (! N processS))
+
+(* EXPECTED
+All queries proved.
+0.100s (user 0.090s + system 0.010s), max rss 28160K
+END *)

@@ -1,0 +1,368 @@
+THE CHANGES BELOW STILL NEED TO BE INTEGRATED IN THE TECHNICAL REPORT
+
+Generalize the dependency analysis: values received before
+the first output that follows a new do not depend on that new.
+Done 27/3/2006 simplify.ml, module DepAnal2
+-----------------------------------------------------------
+In simplify, orient substitutions that come from "let" always
+in the order "variable pattern -> term". Useful for
+examplesnd/encryptfdh2 (28/12/2005)
+-----------------------------------------------------------
+Simplify: correct bug in proba computation (see simplify.ml)
+Done 31/3/2006. The computation of probabilities in the tech
+report should be updated to reflect more precisely what we do.
+Abandoned for now: would be better in the context of 
+exact security proofs.
+-----------------------------------------------------------
+NOT FOR THE OAKLAND'06 TECH REPORT, BUT FOR FUTURE PAPERS
+
+Added events; proof of correspondence assertions.
+
+Proof of injective correspondences: inj:end(M) ==> ... inj:begin(M') ...
+
+- make sure that each event used as injective "begin" or "end" occurs only
+once in the initial game.
+(begin = after the ==> , end = before the ==>)
+Done
+
+- add the replication indexes in the various events
+("begin" and "end")
+Done
+
+- show that two "end" events with different replication indexes
+correspond to two "begin" events with different replication indexes,
+that is, that two "begin" events with the same replication indexes
+correspond to two "end" events with the same replication indexes.
+
+That is, we consider all facts implied by two end events
+for two different values of their replication indexes 
+and the equality of replication indexes at begin events.
+From that, we show the equality of repl. indexes at the end events.
+
+(If the hypothesis or conclusion contain several injective events,
+from the equality of replication indexes at a certain begin
+event, show the equality of repl. indexes at all end events.)
+
+In particular, if we prove the non-injective correspondence
+	end(x,...) ==> begin(x,...)
+the end event in the game is end(N[i],...)
+and N is a nonce created above the end event, then we have the
+injective correspondence inj:end(x,...) ==> inj:begin(x,...)
+Indeed, x = N[i] and end(i,N[i],...) implies begin(j,x, ...)
+x' = N[i'] and end(i',N[i'],...) implies begin(j',x',...)
+j = j', so x = x' so N[i] = N[i'] and by eliminating collisions
+on N, i = i'. QED.
+
+It would be good to be able to conclude even when the nonce does not
+explicitly occur in the events.
+
+Rename the session indexes everytime I create facts associated to
+an end event.
+In collect_facts, store a renamed copy of the facts consequence of inj:end
+in a list of facts "inj_facts". Store the renaming of indices in a list
+"subst". 
+When we find inj:begin(p,...), try to inder a contradiction facts + inj_facts
++ or_{x \in dom(subst)} x \neq subst(x) + p = subst(p).
+(p represents the session indexes of the begin event.)
+Done 16/04/2006
+-----------------------------------------------------------
+Practical security: compute the probability explicitly.
+Limit the length of messages passed to mac/stream ciphers.
+
+- cryptographic transformations: when two expressions are in different
+branches of if/find, they cannot be executed in the same copy of the
+process, so we take a max instead of a sum when computing
+probabilities for such expressions.
+Done 4/4/2006
+- allow probability formulas and runtime that depend on the length
+of bitstrings. In particular, probabilities of attack for stream 
+ciphers and mac depend on the length of messages.
+Done 6/4/2006
+- computation of the runtime.
+
+time(i) = t_replindex
+time(x[M_1, ..., M_m]) = t_array_acc(m) + time(M_1) + ... + time(M_m)
+time(f(M_1, ..., M_m)) = t_f(len(M_1),...,len(M_m)) + time(M_1) + ... + time(M_m)
+[len(M_i) can be omitted when the type of M_i is bounded length]
+
+time(x[i_1, ..., i_m]) = t_array_acc(m)
+time(f(pat_1, ..., pat_m)) = t_pat_f(len(f(pat_1, ..., pat_m))) + 
+			     time(pat_1) + ... + time(pat_m)
+time(=M) = time(M) + t_compare(len(M))
+
+time(new x[i_1, ..., i_m]:T;P) = t_array_acc(m) + t_new(T) + time(P)
+time(let pat:T = M in P) = time(pat) + time(M) + time(P)
+time(if M then P else P') = t_test + time(M) + max(time(P), time(P'))
+time(event e(M_1, ..., M_m); P) = time(M_1) + ... + time(M_m) + time(P)
+time(find (+_j (u_j1...u_jm_j)[i_1...i_m] <= (n_j1...n_jm_j) suchthat 
+	defined(M_j1...M_jl_j) && M_j then P_j) else P) 
+	= sum_j (n_j1 * ... * n_jm_j * (m_j * t_array_acc(m) + time(M_j1) + ... + time(M_jl_j) + time(M_j) + t_store_find(m_j)))
+	  + max(m_j) * t_array_acc(m) + max(max_j time(P_j), time(P)) 
+time(out(c[M_1, ..., M_l], N);Q) =
+	time(M_1) + ... + time(M_l) + time(N) + 
+	t_comm(n_inputs, len(M_1) + ... + len(M_l), len(N)) + time(Q)
+	n_inputs = number of available inputs
+
+time(0) = 0
+time(Q | Q') = time(Q) + time(Q')
+time(!i<=n Q) = n * time(Q)
+time(newChannel c; Q) = t_newchannel + time(Q)
+time(in(c[M_1, ..., M_l], pat:T); P) =
+	time(M_1) + ... + time(M_l) + t_store_input(l) +
+		//insertion in waiting list
+	time(pat) + time(P)
+		//message reception
+
+I consider that bitstrings are manipulated by pointers.
+Copies are only made inside functions.
+
+The evaluation time for find and in/out is perhaps not fully correct.
+Evaluation time of find:
+	for each j, u_j1...u_jm_j, 
+	- store values of u_j1...u_jm_j   -> m_j * t_array_acc(m)
+	- evaluate M_j1...M_jl_j, M_j     -> time(M_j1) + ... + time(M_jl_j) + time(M_j)
+	- if condition true, store (u_j1...u_jm_j) in a list
+	(time depends on length of (u_j1...u_jm_j), so on n_j1,...,n_jm_j
+	but that dependency is ignored, like for array accesses)
+	Choose a random number smaller than the length of the list;
+	take that element (this is in time O(length of list)),
+	store values in u_j1...u_jm_j -> max(m_j) * t_array_acc(m)
+	and evaluate P_j or P.
+
+Elementary actions:
+repl_index
+array_acc(m)
+compare(T) -- length argument if T non-bounded } infix functions
+and					       }
+or					       }
+funapp(f)  -- length arguments for non-bounded args
+pat_funapp(f) -- one length argument if result non-bounded
+new(T)
+test
+storefind(m)
+comm(n_inputs) -- length arguments for array elements + message
+newchannel
+store_input
+
+To avoid new keywords:
+time(!)
+time([m])
+time(=T, ...)
+time(&&)
+time(||)
+time(f, ...)
+time(let f, ...)
+time(new T)
+time(if)
+time(find m)
+time(out, ...)
+time(newChannel)
+time(in m)
+
+Time of the context:
+- for each transformed expression (including what is executed in the relay process):
+	time for evaluating the indexes of restrictions in that expression
+	2kl arithmetic operations for computing k indexes from l indexes
+	3k outputs of an empty message 3*t_comm(1, i, 0) + 2*i*t_repl_index for i <= k
+	3k inputs of an empty 3*t_store_input(i) + 2*i*t_repl_index for i <= k
+	2 outputs of the arguments of the expression: time for computing them + 2*t_comm(1, k, len(args))
+	1 input of the arguments of the expression: t_store_input(k)
+	2 inputs of the result of the expression 2*t_store_input(k) + t_array_acc(l) + t_array_acc(k)
+	1 output of the result of the expression t_comm(1, k, len(res))
+where k is the number of levels of replications in the equivalence 
+and l is the number of levels of replications in the process above that 
+expression.
+
+Sum: time for array indexes of restrictions + 2kl arith op + 
+3k t_comm(k,0) + 2 t_comm(k,len(args)) + t_comm(k,len(res)) +
+(3k+3)t_store_input(k) + 2k(k+1)t_repl_index +
+t_array_acc(l) + t_array_acc(k)
+
+- newChannel: 2*number of nodes in the equivalence*t_newchannel.
+
+Update the manual: keyword newChannel, new actions in proba formulas,
+set ignoreSmallTimes = true/false.
+The first argument of t_comm is missing in the implementation. Add it? 
+No, I consider it ok as it is.
+Done 10/4/2006
+
+Use types of arguments of f in time(let f)
+Ignore times, level 2 (ignore &&, ||, (), let (), constant generated
+by cst_for_type; use polyadic inputs/outputs).
+Added Length(f,...) in probability formulas. Express Maxlength
+using Maxlength for variables only and Length(f,...).
+Done 11/4/2006
+=================================================================
+CHANGES STILL TO DO
+
+When x has several definitions but no array references,
+SSA rename it immediately.
+Done for restrictions 29/7/2005 (in transform.ml, remove_assignments_rec)
+Could be generalized to other definitions of variables.
+-----------------------------------------------------------
+For public key protocols, the tool does not find alone that
+it should do "SSArename Rkey" (where Rkey is the key table).
+Should we add the possibility to include an advice in the input
+file?
+Another idea would be to require that the value of public key 
+appears explicitly in an encryption/signature checking
+before applying the corresponding equivalence. This would
+force RemoveAssign Rkey, so SSArename Rkey.
+
+Also, for the Denning-Sacco protocol, it is important to apply the
+security of the encryption for pkB before applying the security of the
+signature for pkA.  Otherwise, we need either to reapply the security
+of the signature for pkA (which is not possible in our prover), or
+perhaps to use non-malleability of encryption, which is problematic as
+well.
+For now, this order of application is enforced by putting the
+definition of signature before the definition of encryption,
+and can also be given interactively.
+Obviously, in the future, we should find some other way (backtracking?
+when we build a term f(g(..)), always apply the security of g
+before the security of x? Otherwise apply the security of
+primitives in the order of the messages constructed.)
+
+For the Needham-Schroeder protocol, the simplification procedure
+does not seem powerful enough to find the proof.
+(Problem of nonces appearing in the queries.)
+---------------------------------------------------------
+Deplacement des "new" sous les "if"/"find", suivi en general de SSA rename.
+pour faire une etude de cas. This should be recommended by crypto_transform
+when some usages of a name in names_to_discharge are forbidden and are under 
+a test, while other usages in other branches of the test are ok.
+Partly done (transformation MoveNew): for now we can either do this
+transformation for all names that have no array references,
+or not do it at all. Would be better with advice, and also to be able
+to do it for names with array references.
+---------------------------------------------------------
+examples/needham-schroeder-pkcorr3BlockHash:
+SSArename Na_39 could be advised by the dependency analysis,
+when a variable has several definitions, and some of its usages are not ok
+for the dependency analysis. Would that create too many SSArename pieces of
+advice?
+A currently unactivated code in simplify.ml generates advice that
+guesses some useful SArename, but makes the proof of 
+event endB(x, y, na, nb) ==> beginA(x, y, na, nb) fail for 
+needham-schroeder-pkcorr3BlockAuth
+-----------------------------------------------------------
+Problem in simplification in encryptBR93-2
+(equations of xor not handled properly...)
+-----------------------------------------------------------------------
+Find the better reduction for pfdh.
+-----------------------------------------------------------------------
+One could have a more general equivalence for onewayness.
+The equivalence
+
+equiv !N new r: keyseed; (
+	!N2 () -> pkgen(r),
+	!N3 new y: hasht; (() N4 -> f(pkgen(r), y),
+		           (x:hasht) N5 -> x = y,
+		           () N6 -> y))
+<=(N * N3 * Ptd(time))=>
+      !N new r: keyseed; (
+	!N2 () -> pkgen2(r),
+	!N3 new y: hasht; (() N4 -> f2(pkgen2(r), y),
+		           (x:hasht) N5 -> find j <= N6 suchthat defined(k[j]) && true then x = y else false,
+		           () N6 -> let k:bitstring = mark in y)).
+
+does not allow to receive the public key pkgen(r) on a channel
+when computing f(pkgen(r),y).
+
+The more general version would be:
+
+equiv !N new r: keyseed; () -> pkgen(r),
+      !N3 new y: hasht; ((k:key) N4 -> f(k, y),
+		         (x:hasht) N5 -> x = y,
+		         () N6 -> y))
+<=(N * N3 * Ptd(time))=>
+      !N new r: keyseed; () -> pkgen(r),
+      !N3 new y: hasht; ((k:key) N4 -> find j suchthat defined(r[j]) && k = pkgen(r[j]) then f(k, y) else 
+				       let ma2:bitstring = mark in f(k,y),
+		         (x:hasht) N5 -> find j <= N6 suchthat defined(ma[j]) && true then x = y 
+				         orfind j <= N4 suchthat defined(ma2[j]) && true then x = y else false,
+		         () N6 -> let ma:bitstring = mark in y)).
+
+
+The version above is not correct, because when f(k,y) is computed for
+two different public keys k, we should consider that y has been published.
+(One-wayness can be applied only for one public key.)
+Here is a corrected version:
+
+equiv !N new r: keyseed; () -> pkgen(r),
+      !N3 new y: hasht; ((k:key) N4 -> f(k, y),
+		         (x:hasht) N5 -> x = y,
+		         () N6 -> y))
+<=(N3 * Ptd(time))=>
+      !N new r: keyseed; () -> pkgen(r),
+      !N3 new y: hasht; 
+	    ((k:key) N4 -> 
+		find j2 suchthat defined(k[j2]) && k[j2] != k then let ma3:bitstring = mark in f(k,y) else
+		find j suchthat defined(r[j]) && k = pkgen(r[j]) then f(k, y) else 
+		let ma2:bitstring = mark in f(k,y),
+	     (x:hasht) N5 -> 
+		find j <= N6 suchthat defined(ma[j]) && true then x = y 
+		orfind j <= N4 suchthat defined(ma2[j]) && true then x = y
+		orfind j2 <= N4 suchthat defined(ma3[j2]) && true then x = y else false,
+             () N6 -> let ma:bitstring = mark in y)).
+
+
+Note that it would not be good put the function pkgen(r) in mode "all", because
+there may be occurrences of new r: keyseed; pkgen(r) for which we also compute skgen(r),
+and one-wayness cannot be applied to those occurrences. Still, they should not block
+the application of one-wayness for other occurrences.
+
+Problems:
+- We want to apply this for some pairs r, y, so there are two functions in
+mode "Exist". (If we want to allow that, we need to have an initial
+value of names_to_discharge in cryptotransf.ml set to a pair of names
+instead of a single name when there is only one "Exist".)
+- How do we prevent repeated application of this rule?
+The trick of renaming functions pkgen -> pkgen2, f -> f2 does not work
+satisfactorily, because it would prevent either repeated applications
+with the same r or repeated applications with the same y, and we
+want to prevent only repeated applications with the same pair (r,y).
+One idea is to store the sets of random variables for which the rule
+has already been applied, but that is sensitive to renaming.
+(Explicitly take into account renaming?) One difficulty is that the
+names that should be excluded are the names introduced by the transformation,
+not the names on which the transformation is performed. How do we
+determine exactly which names should be excluded?
+
+Advantages:
+- should enable an automatic proof of encryptfdh
+- should enable a manual, more precise (smaller probability) proof
+of the non-deterministic version of fdh
+------------------------------------------------------------------------
+Cryptographic transformations cannot be applied when some keys (or
+other restricted names of the transformation) appear in events.
+Fix this? How? (Allow them to appear in events, but then I must
+make sure that they are not renamed by the transformation...)
+-----------------------------------------------------------------
+syntax.ml, check_probability_formula
+  we should output an error message when a term in a probability
+  formula depends on variables occurring in several different expressions
+  of the left-hand side of the equivalence. (In such a case, no expression
+  can instantiate all variables, so it will always have result 0, which
+  is not the desired behaviour!)
+-----------------------------------------------------------------
+simplify.ml:
+Have facts to express that a pattern-matching (in a let) failed:
+forall x1...xn, pat \neq t
+-----------------------------------------------------------------
+simplify.ml:
+improve detection of collisions:
+
+1) when we have f(t1,t2) = t', f is a COMPOS fct, t1 characterizes
+a part of x of type T1, t2 characterizes a part of y of type T2, 
+x and y are independent random numbers, and t' does not depend on x, 
+we currently use either t1 or t2, yielding a probability 1/|T1| or 1/|T2|
+(times the number of executions). We could use both t1 and t2 and obtain
+a probability 1/(|T1| |T2|), which is much smaller.
+
+2) when we have t = t', t characterizes a part of x with status "Decompos"
+and t' = COMPOS fcts applied to at least one argument t1' has a large type and 
+does not depend on x, then we can eliminate the collision, even if some
+other arguments depend on x.
+(This implies that COMPOS^{-1}(t) = t1'.)
+-----------------------------------------------------------------

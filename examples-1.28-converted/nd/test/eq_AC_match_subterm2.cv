@@ -1,0 +1,39 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun concat(D,D):D.
+equation AC(concat).
+
+fun g(D,D,D): D.
+
+forall x:D, y:D; concat(x,concat(y,x)) = g(x,y,x).
+const zero, one, two, three: D. 
+
+channel c.
+
+process in(c, ());
+out(c, concat(zero, concat(one, two)));
+in(c, ());
+out(c, concat(concat(zero, one), two));
+in(c, ());
+out(c, concat(concat(zero, one), concat(two, three)));
+in(c, ());
+out(c, concat(concat(concat(zero, one), two), three));
+in(c, ());
+out(c, concat(concat(zero, one), concat(two, zero)));
+in(c, ());
+out(c, concat(concat(zero, one), concat(two, concat(zero, one))));
+in(c, ());
+out(c, concat(concat(zero, one), concat(concat(zero, one), two)));
+in(c, ());
+out(c, concat(concat(zero, zero), concat(two, concat(one, one))));
+in(c, ());
+out(c, concat(concat(zero, one), concat(two, concat(one, zero))))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.016s + system 0.004s), max rss 39056K
+END *)

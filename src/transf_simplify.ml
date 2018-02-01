@@ -55,7 +55,7 @@ sig
      compute [b'] from [b].
      The status is
       * [Compos] when [b'] is obtained from [b] by first applying
-        poly-injective functions (functions marked [compos]), then
+        poly-injective functions (functions marked [data]), then
         functions that extract a part of their argument 
         (functions marked [uniform]).
       * [Decompos] when [b'] is obtained from [b] by applying functions
@@ -302,7 +302,8 @@ let update_dep_info cur_array dep_info true_facts p = dep_info
 (* Takes a dep_info as input and returns a simplified process and
    the list of new dep_info's for the subprocesses *)
 
-let rec update_dep_infoo cur_array dep_info true_facts p' = 
+let rec update_dep_infoo cur_array dep_info true_facts p' =
+  let pp = DProcess p' in
   match p'.p_desc with
     Yield -> (Terms.oproc_from_desc2 p' Yield, [])
   | EventAbort f -> (Terms.oproc_from_desc2 p' (EventAbort f), [])
@@ -326,13 +327,13 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
       if Terms.is_true t' then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (STestTrue(p')) :: (!current_pass_transfos);
+	  current_pass_transfos := (STestTrue(pp)) :: (!current_pass_transfos);
 	  update_dep_infoo cur_array dep_info true_facts p1
 	end
       else if Terms.is_false t' then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (STestFalse(p')) :: (!current_pass_transfos);
+	  current_pass_transfos := (STestFalse(pp)) :: (!current_pass_transfos);
 	  update_dep_infoo cur_array dep_info true_facts p2
 	end
       else
@@ -360,7 +361,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
             if Terms.is_false t' then 
 	      begin
 		Settings.changed := true;
-		current_pass_transfos := (SFindBranchRemoved(p', (bl, def_list, t, p1))) :: (!current_pass_transfos);
+		current_pass_transfos := (SFindBranchRemoved(pp, (bl, def_list, t, DProcess p1))) :: (!current_pass_transfos);
 		l'
 	      end 
 	    else 
@@ -378,7 +379,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
              update_dep_infoo cur_array dep_info true_facts p2
 	 | [([],[],t, p1)] when Terms.is_true t ->
 	     Settings.changed := true;
-	     current_pass_transfos := (SFindElseRemoved(p')) :: (!current_pass_transfos);
+	     current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	     update_dep_infoo cur_array dep_info true_facts p1
 	 | _ ->
          (* For each b in dep_info.in_progress, does the branch taken
@@ -475,7 +476,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	    if p2.p_desc != Yield then 
 	      begin
 		Settings.changed := true;
-		current_pass_transfos := (SLetElseRemoved(p')) :: (!current_pass_transfos);
+		current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
 	      end;
             (Terms.oproc_from_desc2 p' (Let(pat, t, p1, Terms.oproc_from_desc Yield)), [dep_info'])
         | _ -> 
@@ -514,7 +515,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
               (Terms.oproc_from_desc2 p' (Let(pat, t, p1, p2)), [dep_info1; dep_info2])
 	    with Else ->         
 	      Settings.changed := true;
-	      current_pass_transfos := (SLetRemoved(p')) :: (!current_pass_transfos);	      
+	      current_pass_transfos := (SLetRemoved(pp)) :: (!current_pass_transfos);	      
 	      update_dep_infoo cur_array dep_info true_facts p2
       end
   | Output _ ->
@@ -604,59 +605,6 @@ let rec dependency_collision_rec1 cur_array true_facts t1 t2 t =
       Terms.find_some (dependency_collision_rec1 cur_array true_facts t1 t2) l
   | _ -> None
 
-(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a term independent of [b0[l0]] in which some array indices in [t] 
-   may have been replaced with fresh replication indices. 
-   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
-   [(dep,nodep)] is the dependency information:
-     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
-              or [None] when any variable may depend on [b0];
-     [nodep] is a list of terms that are known not to depend on [b0].
-   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
-   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
-   array indices that depend on [b0] are replaced with fresh replication indices
-   (as in the transformation from [t] to the result of [is_indep]). *)
-
-let rec is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
-  Terms.build_term2 t
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (is_indep bdepinfo) l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  if (List.exists (Terms.equal_terms t) nodep) then
-	    t.t_desc 
-	  else if (b != b0 && Terms.is_restr b) || (match dep with
-	      None -> false
-	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
-	  then
-	    Var(b, List.map (fun t' ->
-	      try
-		is_indep bdepinfo t'
-	      with Not_found ->
-		Terms.term_from_repl_index (Simplify1.new_repl_index_term t')) l)
-	  else if b == b0 then
-	    if List.for_all2 Terms.equal_terms l0 l then
-	      raise Not_found 
-	    else 
-	      begin
-		let l' = 
-		  List.map (fun t' ->
-		  try
-		    is_indep bdepinfo t'
-		  with Not_found ->
-		    Terms.term_from_repl_index (Simplify1.new_repl_index_term t')) l
-		in
-		if not (List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs)) then
-		  begin
-		    collect_bargs := l :: (!collect_bargs);
-		    collect_bargs_sc := l' :: (!collect_bargs_sc)
-		  end;
-		Var(b, l')
-	      end
-	  else
-	    raise Not_found
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
-    
 let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (Terms.is_args_at_creation b l) ->
@@ -669,7 +617,7 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
-	      let t2' = is_indep (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      let t2' = Simplify1.is_indep (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
 	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
                  In case b occurs in t2, we reason as follows:
                     1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
@@ -702,47 +650,6 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
       Terms.find_some (dependency_collision_rec2 cur_array true_facts dep_info t1 t2) l
   | _ -> None
 
-let rec dependency_collision_rec3 cur_array true_facts t1 t2 t =
-  let t_simp_ind = FindCompos.remove_array_index t in
-  match t_simp_ind.t_desc, t.t_desc with
-    Var(b,l_simp_ind), Var(b',l) when (Terms.is_restr b) && (Proba.is_large_term t) ->
-      assert (b == b');
-      begin
-	let t1_simp_ind = FindCompos.remove_array_index t1 in
-	let check (b, (st, _)) tl =
-	  if List.for_all2 Terms.equal_terms tl l_simp_ind then
-	    Some (st, FindCompos.CharacType b.btype) 
-	  else 
-	    None
-	in
-	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
-	  Some(_, FindCompos.CharacType charac_type, t1') -> 
-	    begin
-	      try 
-		let collect_bargs = ref [] in
-		let collect_bargs_sc = ref [] in
-		let t2' = is_indep (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
-		let side_condition = 
-		  Terms.make_and_list (List.map (fun l' ->
-		    Terms.make_or_list (List.map2 Terms.make_diff l l')
-		      ) (!collect_bargs_sc))
-		in
-	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, true_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
-		  Some (Terms.make_or_list (List.map (fun l' ->   
-		    let t2'' = Terms.replace l' l t2 in
-		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
-		      ) (!collect_bargs)))
-		else
-		  None
-	      with Not_found -> 
-		None
-	    end
-       | _ -> None
-      end 
-  | _, FunApp(f,l) ->
-      Terms.find_some (dependency_collision_rec3 cur_array true_facts t1 t2) l
-  | _ -> None
 
 (* [dependency_collision cur_array dep_info simp_facts t1 t2] simplifies [t1 = t2]
 using dependency analysis.
@@ -752,11 +659,6 @@ It returns
 [cur_array] is the list of current replication indices at [t1 = t2].
 [dep_info] is the local dependency information (for module DepAnal2).
 [simp_facts] contains facts that are known to hold. *)
-
-let try_two_directions f t1 t2 =
-  match f t1 t2 t1 with
-    None -> f t2 t1 t2
-  | x -> x
 
 let dependency_collision cur_array dep_info simp_facts t1 t2 = 
   let t1' = try_no_var_rec simp_facts t1 in
@@ -827,6 +729,17 @@ let simplify_term cur_array dep_info k s t =
   res
 *)
 
+let rec get_tuple cur_array dep_info simp_facts t =
+  if Terms.is_tuple t then t else
+  let t' = Terms.try_no_var simp_facts t in
+  if Terms.is_tuple t' then t' else
+  let t'' = Facts.simplify_term (dependency_collision cur_array dep_info) simp_facts t' in
+  if Terms.is_tuple t'' then t'' else
+  match t''.t_desc with
+    Var _ when (not (Terms.synt_equal_terms t' t'')) ->
+      get_tuple cur_array dep_info simp_facts t''
+  | _ -> t
+
 (* Simplify pattern *)
 
 let rec simplify_pat cur_array dep_info true_facts = function
@@ -849,11 +762,6 @@ let make_and_find_cond t t' =
     (Var _ | FunApp _), (Var _ | FunApp _) -> Terms.make_and t t'
   | _ -> raise CannotExpand
 
-
-let needed_vars vars = List.exists Terms.has_array_ref_q vars
-
-let needed_vars_in_pat pat =
-  needed_vars (Terms.vars_from_pat [] pat)
 
 (* [has_array_access b t] returns true when [b] has an array reference
    in [t] with indexes different from the indexes at creation *)
@@ -881,8 +789,8 @@ let rec has_array_access b t =
       (match topt with
 	None -> false
       |	Some t3 -> has_array_access b t3)
-  | EventAbortE _ ->
-     Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+     Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 and has_array_access_br b (b',l) =
   ((b == b') && not (Terms.is_args_at_creation b l)) ||
@@ -971,78 +879,6 @@ let generate_branches ((bl, def_list, t, _) as ext_branch) ((bl3, def_list3, t3,
   List.map (fun (bl3, def_list3, t3, p4) ->
     (bl @ bl3, def_list @ def_list3, make_and_find_cond t t3, p4)) br'
 
-(* Add lets *)
-
-let rec add_let p = function
-    [] -> p
-  | ((b, b_im)::l) ->
-      Terms.oproc_from_desc (Let(PatVar b, b_im, add_let p l, Terms.oproc_from_desc Yield))
-
-let rec add_let_term p = function
-    [] -> p
-  | ((b, b_im)::l) ->
-      Terms.build_term_type p.t_type (LetE(PatVar b, b_im, add_let_term p l, None))
-
-(* [not_found_repl_index_t ri t] returns either
-   [None] when [t] does not contain any replication index of [ri]
-   or [Some def_list] where [def_list] is a list of the largest variable
-   references in [t] that do not contain indices in [ri] *)
-
-let rec not_found_repl_index_l ri = function
-    [] -> None
-  | (a::l) ->
-      let r1 = not_found_repl_index_l ri l in
-      let r2 = not_found_repl_index_t ri a in
-      match r1, r2 with
-	None, None -> None
-      |	Some (def_list1), Some(def_list2) -> Some (def_list1 @ def_list2)
-      |	None, Some(def_list2) -> 
-	  let accu = ref def_list2 in
-	  List.iter (Terms.get_deflist_subterms accu) l;
-	  Some(!accu)
-      |	Some(def_list1), None ->
-	  let accu = ref def_list1 in
-	  Terms.get_deflist_subterms accu a;
-	  Some(!accu)
-
-and not_found_repl_index_t ri t =
-  match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> not_found_repl_index_l ri l
-  | ReplIndex i -> 
-      if List.memq i ri then Some [] else None
-  | _ -> Parsing_helper.internal_error "This term should not occur in def_list, in Transf_simplify.not_found_repl_index_t"
-      
-(* [not_found_repl_index_br accu ri def_list] adds to [accu]
-   the largest sub-array-references in [def_list] that do not contain 
-   replication indices in [ri]. *)
-
-let not_found_repl_index_br accu ri (b,l) =
-  match not_found_repl_index_l ri l with
-    Some(def_list) -> List.iter (fun br -> Terms.add_binderref br accu) def_list
-  | None -> Terms.add_binderref (b,l) accu 
-
-(* [filter_deflist_indices bl def_list] removes from [def_list] all
-   elements that refer to replication indices in [bl].
-   Used when we know that the indices in [bl] are in fact not used. *)
-
-let filter_deflist_indices bl def_list =
-  let ri = List.map snd bl in
-  let accu = ref [] in
-  List.iter (not_found_repl_index_br accu ri) def_list;
-  !accu
-  
-(* [is_unique l0' find_info] returns Unique when a [find] is unique,
-   that is, at runtime, there is always a single possible branch 
-   and a single possible value of the indices:
-   either it is marked [Unique] in the [find_info],
-   or it has a single branch with no index.
-   [l0'] contains the branches of the considered [find]. *)
-
-let is_unique l0' find_info =
-  match l0' with
-    [([],_,_,_)] -> Unique
-  | _ -> find_info
-
 (* Simplification of terms with if/let/find/res.
    The simplifications are very similar to those performed
    on processes below. *)
@@ -1050,6 +886,7 @@ let is_unique l0' find_info =
 exception OneBranchTerm of term findbranch
 
 let rec simplify_term_w_find cur_array true_facts t =
+  let pp = DTerm t in
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ ->     
       simplify_term cur_array DepAnal2.init false true_facts t
@@ -1059,7 +896,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  Settings.changed := true;
           current_pass_transfos := (STestEElim(t)) :: (!current_pass_transfos);
 	  let t' = Terms.make_or (Terms.make_and t1 t2) (Terms.make_and (Terms.make_not t1) t3) in
-	  simplify_term_w_find cur_array true_facts (Transf_expand.final_pseudo_expand t')
+	  simplify_term_w_find cur_array true_facts (Transf_expand.final_pseudo_expand cur_array true_facts t')
 	end
       else
       begin
@@ -1073,7 +910,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	simplify_term_if t cur_array true_facts t2 t3' t_or_and
       with Contradiction ->
 	Settings.changed := true;
-	current_pass_transfos := (STestETrue(t)) :: (!current_pass_transfos);
+	current_pass_transfos := (STestTrue(pp)) :: (!current_pass_transfos);
 	simplify_term_w_find cur_array true_facts t2
       end
 
@@ -1107,11 +944,11 @@ let rec simplify_term_w_find cur_array true_facts t =
 			(* The variables in bl3 are no longer used, but I need to have some variables there.
 			   Moreover, the old variables of bl3 cannot be kept, because their
 			   args_at_creation is not correct in the transformed game *)
-			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname (Terms.new_vname()) b.btype cur_array, b')) bl3 in
+			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname b.btype cur_array, b')) bl3 in
 			(bl @ bl3', def_list @ def_list3, make_and_find_cond t5 t6', t2)) l2) @ r'
 		    in
 		    done_expand := true;
-		    current_pass_transfos := (SFindinFindECondition(t,t')) :: (!current_pass_transfos);
+		    current_pass_transfos := (SFindinFindCondition(pp,t')) :: (!current_pass_transfos);
 		    result
 		| _ -> br1 :: r'
 	  in
@@ -1150,7 +987,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 		      (List.rev_append seen ((List.concat (List.map (generate_branches br1) l3)) @ r)),
 		      (Terms.build_term_type t3.t_type (FindE([bl, def_list, t', t4], t3, Unique)))
 		    in
-		    current_pass_transfos := (SFindinFindEBranch(t,t2)) :: (!current_pass_transfos);
+		    current_pass_transfos := (SFindinFindBranch(pp,DTerm t2)) :: (!current_pass_transfos);
 		    result
 		| _ -> expand_find (br1::seen) r
 	  in
@@ -1173,10 +1010,10 @@ let rec simplify_term_w_find cur_array true_facts t =
       |	[([],def_list,t1,t2)] when Facts.reduced_def_list t.t_facts def_list = [] && 
 	                              (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
 	  Settings.changed := true;
-	  current_pass_transfos := (SFindEtoTestE t) :: (!current_pass_transfos);
+	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
 	  simplify_term_w_find cur_array true_facts (Terms.build_term2 t (TestE(t1,t2,t3)))
       |	_ -> 
-      let def_vars = Facts.get_def_vars_at (DTerm t) in
+      let def_vars = Facts.get_def_vars_at pp in
       let t3' = 
 	try
 	  simplify_term_w_find cur_array (add_elsefind (dependency_collision cur_array DepAnal2.init) def_vars true_facts l0) t3
@@ -1187,7 +1024,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    FunApp(_,[]) -> t3 (* t3 is already a constant, leave it as it is *)
 	  | _ ->
 	      Settings.changed := true;
-	      current_pass_transfos := (SFindEElseRemoved(t)) :: (!current_pass_transfos);
+	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Terms.cst_for_type t3.t_type
       in
       let rec simplify_findl = function
@@ -1282,7 +1119,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 		if (!subst) != [] then
 		  begin
 		    Settings.changed := true;
-		    current_pass_transfos := (SFindEIndexKnown(t, (bl, def_list, t1, t2), !subst)) :: (!current_pass_transfos);
+		    current_pass_transfos := (SFindIndexKnown(pp, (bl, def_list, t1, DTerm t2), !subst)) :: (!current_pass_transfos);
 		    let bl' = !keep_bl in
 		    let subst_repl_indices_source = List.map (fun (b,_) -> List.assq b bl) (!subst) in
 		    let bl_rev_subst = List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl in
@@ -1313,10 +1150,10 @@ let rec simplify_term_w_find cur_array true_facts t =
               if List.length def_list3 < List.length def_list then
                 begin
                   Settings.changed := true;
-                  current_pass_transfos := (SFindEDeflist(t, def_list, def_list3)) :: (!current_pass_transfos)
+                  current_pass_transfos := (SFindDeflist(pp, def_list, def_list3)) :: (!current_pass_transfos)
 		end
               else if not (Facts.eq_deflists def_list def_list3)  then
-		current_pass_transfos := (SFindEDeflist(t, def_list, def_list3)) :: (!current_pass_transfos);
+		current_pass_transfos := (SFindDeflist(pp, def_list, def_list3)) :: (!current_pass_transfos);
 
               (* If the find is marked "unique", and we can prove that
 	         the current branch succeeds, keep only that branch *)
@@ -1340,7 +1177,7 @@ let rec simplify_term_w_find cur_array true_facts t =
                           (* When def_list4 == [] or List.length l0 > 1, the change is recorded below *) then
 			begin
 			  Settings.changed := true;
-			  current_pass_transfos := (SFindESingleBranch(t,find_branch)) :: (!current_pass_transfos);
+			  current_pass_transfos := (SFindSingleBranch(pp,(bl', def_list3, t1', DTerm t2'))) :: (!current_pass_transfos);
 			end;
 		      raise (OneBranchTerm([], def_list4, Terms.make_true(), t2'))
 		    end
@@ -1363,7 +1200,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 		      if subst != [] then 
 			begin
 			  Settings.changed := true;
-			  current_pass_transfos := (SFindEIndexKnown(t1', (bl, def_list, t1, t2), subst)) :: (!current_pass_transfos)
+			  current_pass_transfos := (SFindIndexKnown(pp, (bl, def_list, t1, DTerm t2), subst)) :: (!current_pass_transfos)
 			end;
 		      let def_list_tmp = ref [] in
 		      List.iter (fun br ->
@@ -1382,7 +1219,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      simplify_find true_facts' l' bl def_list' t_or_and p1 *)
 	    with Contradiction ->
 	      Settings.changed := true;
-	      current_pass_transfos := (SFindEBranchRemoved(t,(bl, def_list, t1, t2))) :: (!current_pass_transfos);
+	      current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos);
 	      l'
 	    end
       in
@@ -1391,7 +1228,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
-	    current_pass_transfos := (SFindERemoved(t)) :: (!current_pass_transfos);
+	    current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
 	    t3'
 	  end
 	else
@@ -1399,11 +1236,11 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  Terms.build_term2 t (FindE(l0', t3',find_info))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
-	  ([],[],_,t2) -> 
+	  ([],[],t1,t2) -> 
 	    Settings.changed := true;
-	    current_pass_transfos := (SFindESingleBranch(t,find_branch)) :: (!current_pass_transfos);
+	    current_pass_transfos := (SFindSingleBranch(pp,([],[],t1,DTerm t2))) :: (!current_pass_transfos);
 	    t2
-	| _ ->
+	| (bl,def_list,t1,t2) ->
             (* The else branch of the find will never be executed
                => use some constant to simplify *)
 	    let t3'' = 
@@ -1414,12 +1251,12 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    if List.length l0 > 1 then 
 	      begin
 		Settings.changed := true;
-		current_pass_transfos := (SFindESingleBranch(t,find_branch)) :: (!current_pass_transfos)
+		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DTerm t2))) :: (!current_pass_transfos)
 	      end
 	    else if not (Terms.equal_terms t3' t3'') then
 	      begin
 		Settings.changed := true;
-		current_pass_transfos := (SFindEElseRemoved(t)) :: (!current_pass_transfos)
+		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
 	      end;
 	    Terms.build_term2 t (FindE([find_branch], t3'',find_info))
       end
@@ -1445,34 +1282,34 @@ let rec simplify_term_w_find cur_array true_facts t =
       if not ((Terms.has_array_ref_q b) || (Terms.refers_to b t0)) then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (SResERemoved(t)) :: (!current_pass_transfos);
+	  current_pass_transfos := (SResRemoved(pp)) :: (!current_pass_transfos);
 	  t'
 	end
       else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b)) then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (SResEToAssign(t)) :: (!current_pass_transfos);
+	  current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
 	  Terms.build_term2 t (LetE(PatVar b,  Terms.cst_for_type b.btype, t', None))
 	end
       else
 	Terms.build_term2 t (ResE(b, t'))
 
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 and simplify_term_if if_t cur_array true_facts ttrue tfalse t' =
   match t'.t_desc with
     FunApp(f, []) when f == Settings.c_false -> 
       Settings.changed := true;
-      current_pass_transfos := (STestEFalse(if_t)) :: (!current_pass_transfos);
+      current_pass_transfos := (STestFalse(DTerm if_t)) :: (!current_pass_transfos);
       tfalse
   | FunApp(f, []) when f == Settings.c_true -> 
       Settings.changed := true;
-      current_pass_transfos := (STestETrue(if_t)) :: (!current_pass_transfos);
+      current_pass_transfos := (STestTrue(DTerm if_t)) :: (!current_pass_transfos);
       simplify_term_w_find cur_array true_facts ttrue
   | FunApp(f, [t1; t2]) when f == Settings.f_or ->
       Settings.changed := true;
-      current_pass_transfos := (STestEOr(if_t)) :: (!current_pass_transfos);
+      current_pass_transfos := (STestOr(DTerm if_t)) :: (!current_pass_transfos);
       simplify_term_if if_t cur_array true_facts ttrue (simplify_term_if if_t cur_array true_facts ttrue tfalse t2) t1
   | _ -> 
       try
@@ -1482,58 +1319,69 @@ and simplify_term_if if_t cur_array true_facts ttrue tfalse t' =
 	Terms.build_term2 if_t (TestE(t', ttrue', tfalse))
       with Contradiction ->
 	Settings.changed := true;
-	current_pass_transfos := (STestEFalse(if_t)) :: (!current_pass_transfos);
+	current_pass_transfos := (STestFalse(DTerm if_t)) :: (!current_pass_transfos);
 	tfalse
 
-and simplify_term_let let_t true_facts_else cur_array true_facts ttrue tfalse t' = function
-    (PatVar b) as pat -> 
-      if tfalse != None then 
-	begin
-	  Settings.changed := true;
-	  current_pass_transfos := (SLetEElseRemoved(let_t)) :: (!current_pass_transfos);
-	end;
-      Terms.build_term2 let_t (LetE(pat, t', simplify_term_w_find cur_array (Facts.simplif_add (dependency_collision cur_array DepAnal2.init) true_facts (Terms.make_let_equal 
-	(Terms.term_from_binder b) t')) ttrue, None))
-  | (PatEqual t) as pat ->
+and simplify_term_let let_t true_facts_else cur_array true_facts ttrue tfalse t' pat =
+  try
+    let (transfos, test, bind) = Terms.simplify_let_tuple (get_tuple cur_array DepAnal2.init true_facts) pat t' in
+    if transfos != [] then
+      begin
+	Settings.changed := true;
+	current_pass_transfos := (SLetSimplifyPattern(DTerm let_t, transfos)) :: (!current_pass_transfos);
+      end;
+    (* always_succeeds = true when the let never fails *)
+    let always_succeeds =
+      (Terms.is_true test) &&
+      (match bind with
+      | (PatTuple _, _)::_ -> false
+      | _ -> true)
+    in
+    if always_succeeds && (tfalse != None) then 
+      begin
+	Settings.changed := true;
+	current_pass_transfos := (SLetElseRemoved(DTerm let_t)) :: (!current_pass_transfos);
+      end;
+    if Terms.is_true test then
+      (* Simplify the process tfalse if it will be used at least once *)
+      let tfalse' =
+	if always_succeeds then None else
+	Some(simplify_term_w_find cur_array true_facts_else (Terms.get_else tfalse))
+      in
+      (* Simplify the process ttrue *)
+      let rec add_true_facts true_facts = function
+	  [] -> true_facts
+	| (PatVar b, t)::l ->
+	    add_true_facts
+	      (Facts.simplif_add (dependency_collision cur_array DepAnal2.init) true_facts
+		 (Terms.make_let_equal (Terms.term_from_binder b) t)) l
+	| (pat, t)::l ->
+	    add_true_facts
+	      (Facts.simplif_add (dependency_collision cur_array DepAnal2.init) true_facts 
+		 (Terms.make_equal (Terms.term_from_pat pat) t)) l
+      in
+      let true_facts' = add_true_facts true_facts bind in
+      let ttrue' = simplify_term_w_find cur_array true_facts' ttrue in
+      (* Put the lets. There is no test *)
+      Terms.put_lets_term bind ttrue' tfalse'
+    else
+      let t3 = Terms.get_else tfalse in
+      let plet = Terms.put_lets_term bind ttrue tfalse in
+      let ptest = Terms.build_term2 let_t (TestE(test, plet, t3)) in
+      simplify_term_w_find cur_array true_facts ptest
+  with
+    Terms.Impossible ->
+      let t3 = Terms.get_else tfalse in
       Settings.changed := true;
-      current_pass_transfos := (SLetESimplifyPattern(let_t, pat, DEqTest)) :: (!current_pass_transfos);
-      begin
-	match tfalse with
-	  None -> Parsing_helper.internal_error "missing else branch of let"
-	| Some t3 ->
-	    simplify_term_w_find cur_array true_facts (Terms.build_term2 let_t (TestE(Terms.make_equal t t', ttrue, t3)))
-      end
-  | (PatTuple (f,l)) as pat ->
-      begin
-	match tfalse with
-	  None -> Parsing_helper.internal_error "missing else branch of let"
-	| Some t3 ->
-	try 
-	  let res = simplify_term_w_find cur_array true_facts 
-	      (Terms.put_lets_term l (Terms.split_term f t') ttrue tfalse)
-	  in
-	  Settings.changed := true;
-	  current_pass_transfos := (SLetESimplifyPattern(let_t, pat, DExpandTuple)) :: (!current_pass_transfos);
-	  res
-	with 
-	  Not_found -> 
-	    begin
-	      try
-		let ttrue' = simplify_term_w_find cur_array (Facts.simplif_add (dependency_collision cur_array DepAnal2.init) true_facts 
-		   (Terms.make_equal (Terms.term_from_pat pat) t')) ttrue
-		in
-		Terms.build_term2 let_t (LetE(pat, t', ttrue', Some (simplify_term_w_find cur_array true_facts_else t3)))
-	      with Contradiction ->
-		Settings.changed := true;
-		current_pass_transfos := (SLetERemoved(let_t)) :: (!current_pass_transfos);
-		simplify_term_w_find cur_array true_facts_else t3
-	    end
-	| Terms.Impossible -> 
-	    Settings.changed := true;
-	    current_pass_transfos := (SLetESimplifyPattern(let_t, pat, DImpossibleTuple)) :: (!current_pass_transfos);
-	    simplify_term_w_find cur_array true_facts_else t3
-      end
-
+      current_pass_transfos := (SLetSimplifyPattern(DTerm let_t, [pat, DImpossibleTuple])) :: (!current_pass_transfos);
+      simplify_term_w_find cur_array true_facts_else t3
+  | Contradiction ->
+	(* Adding facts to simplify ttrue raised a contradiction,
+           ttrue is never executed, tfalse is always executed *)
+      let t3 = Terms.get_else tfalse in
+      Settings.changed := true;
+      current_pass_transfos := (SLetRemoved(DTerm let_t)) :: (!current_pass_transfos);
+      simplify_term_w_find cur_array true_facts_else t3
 
 (* Simplification of processes *)
 
@@ -1562,6 +1410,7 @@ let rec simplify_process cur_array dep_info true_facts p =
 and simplify_oprocess cur_array dep_info true_facts p =
   (* print_string "Simplify occ "; print_int p.p_occ; print_newline(); *)
   let (p', dep_info_list') = DepAnal2.update_dep_infoo cur_array dep_info true_facts p in
+  let pp = DProcess p' in
   match p'.p_desc with
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc2 p' (EventAbort f)
@@ -1571,13 +1420,13 @@ and simplify_oprocess cur_array dep_info true_facts p =
       if not ((Terms.has_array_ref_q b) || (Terms.refers_to_oprocess b p0)) then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (SResRemoved(p')) :: (!current_pass_transfos);
+	  current_pass_transfos := (SResRemoved(pp)) :: (!current_pass_transfos);
 	  p1
 	end
       else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b)) then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (SResToAssign(p')) :: (!current_pass_transfos);
+	  current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc2 p' (Let(PatVar b,  Terms.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
 	end
       else
@@ -1595,7 +1444,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	simplify_if p' dep_info_branch cur_array true_facts p1 p2' t_or_and
       with Contradiction ->
 	Settings.changed := true;
-	current_pass_transfos := (STestTrue(p')) :: (!current_pass_transfos);	  	
+	current_pass_transfos := (STestTrue(pp)) :: (!current_pass_transfos);	  	
 	simplify_oprocess cur_array dep_info_branch true_facts p1
       end
   | Find(l0, p2, find_info) ->
@@ -1631,11 +1480,11 @@ and simplify_oprocess cur_array dep_info true_facts p =
 			(* The variables in bl3 are no longer used, but I need to have some variables there.
 			   Moreover, the old variables of bl3 cannot be kept, because their
 			   args_at_creation is not correct in the transformed game *)
-			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname (Terms.new_vname()) b.btype cur_array, b')) bl3 in
+			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname b.btype cur_array, b')) bl3 in
 			(bl @ bl3', def_list @ def_list3, make_and_find_cond t3 t4', p1)) l2) @ r'
 		    in
 		    done_expand := true;
-		    current_pass_transfos := (SFindinFindCondition(p',t)) :: (!current_pass_transfos);
+		    current_pass_transfos := (SFindinFindCondition(pp,t)) :: (!current_pass_transfos);
 		    result
 		| _ -> br1 :: r'
 	  in
@@ -1669,7 +1518,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		      (List.rev_append seen ((List.concat (List.map (generate_branches br1) l3)) @ r)),
 		      (Terms.oproc_from_desc (Find([bl, def_list, t, p3], p2, Unique)))
 		    in
-		    current_pass_transfos := (SFindinFindBranch(p',p1)) :: (!current_pass_transfos);
+		    current_pass_transfos := (SFindinFindBranch(pp,DProcess p1)) :: (!current_pass_transfos);
 		    result
 		| _ -> expand_find (br1::seen) r
 	  in
@@ -1692,17 +1541,17 @@ and simplify_oprocess cur_array dep_info true_facts p =
       |	[([],def_list,t1,p1)] when (Facts.reduced_def_list p'.p_facts def_list = []) && 
 	                              (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
 	  Settings.changed := true;
-	  current_pass_transfos := (SFindtoTest p') :: (!current_pass_transfos);
+	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
 	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc2 p'  (Test(t1,p1,p2)))
       |	_ -> 
-      let def_vars = Facts.get_def_vars_at (DProcess p') in
+      let def_vars = Facts.get_def_vars_at pp in
       let p2' = 
 	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
 	try
 	  simplify_oprocess cur_array dep_info_else (add_elsefind (dependency_collision cur_array dep_info_else) def_vars true_facts l0) p2
 	with Contradiction ->
 	  Settings.changed := true;
-	  current_pass_transfos := (SFindElseRemoved(p')) :: (!current_pass_transfos);
+	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
       let rec simplify_findl dep_info_l1 l1 = 
@@ -1716,7 +1565,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_initial_history (DProcess p') in 
+	      let this_branch_node = Facts.get_initial_history pp in 
 	      let def_list' = Facts.reduced_def_list p'.p_facts def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
@@ -1806,7 +1655,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		if (!subst) != [] then 
 		  begin
 		    Settings.changed := true;
-		    current_pass_transfos := (SFindIndexKnown(p', (bl, def_list, t, p1), !subst)) :: (!current_pass_transfos);
+		    current_pass_transfos := (SFindIndexKnown(pp, (bl, def_list, t, DProcess p1), !subst)) :: (!current_pass_transfos);
 		    let bl' = !keep_bl in
 		    let subst_repl_indices_source = List.map (fun (b,_) -> List.assq b bl) (!subst) in
 		    let bl_rev_subst = List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl in
@@ -1837,10 +1686,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
               if List.length def_list3 < List.length def_list then
                 begin
                   Settings.changed := true;
-                  current_pass_transfos := (SFindDeflist(p', def_list, def_list3)) :: (!current_pass_transfos)
+                  current_pass_transfos := (SFindDeflist(pp, def_list, def_list3)) :: (!current_pass_transfos)
 		end
               else if not (Facts.eq_deflists def_list def_list3)  then
-		current_pass_transfos := (SFindDeflist(p', def_list, def_list3)) :: (!current_pass_transfos);
+		current_pass_transfos := (SFindDeflist(pp, def_list, def_list3)) :: (!current_pass_transfos);
 
               (* If the find is marked "unique", and we can prove that
 	         the current branch succeeds, keep only that branch *)
@@ -1864,7 +1713,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
                           (* When p2.p_desc != Yield or def_list4 == [] or List.length l0 > 1, the change is recorded below *) then
 			begin
 			  Settings.changed := true;
-			  current_pass_transfos := (SFindSingleBranch(p',find_branch)) :: (!current_pass_transfos);
+			  current_pass_transfos := (SFindSingleBranch(pp,(bl', def_list3, t', DProcess p1'))) :: (!current_pass_transfos);
 			end;
 		      raise (OneBranchProcess([], def_list4, Terms.make_true(), p1'))
 		    end
@@ -1887,7 +1736,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		      if subst != [] then 
 			begin
 			  Settings.changed := true;
-			  current_pass_transfos := (SFindIndexKnown(p', (bl, def_list, t, p1), subst)) :: (!current_pass_transfos)
+			  current_pass_transfos := (SFindIndexKnown(pp, (bl, def_list, t, DProcess p1), subst)) :: (!current_pass_transfos)
 			end;
 		      let def_list_tmp = ref [] in
 		      List.iter (fun br ->
@@ -1906,7 +1755,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      simplify_find true_facts' l' bl def_list' t_or_and p1 *)
 	    with Contradiction ->
 	      Settings.changed := true;
-	      current_pass_transfos := (SFindBranchRemoved(p',(bl, def_list, t, p1))) :: (!current_pass_transfos);
+	      current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t, DProcess p1))) :: (!current_pass_transfos);
 	      l'
 	    end
 	| _ -> Parsing_helper.internal_error "Different lengths in simplify/Find"
@@ -1916,7 +1765,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
-	    current_pass_transfos := (SFindRemoved(p')) :: (!current_pass_transfos);
+	    current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
 	    p2'
 	  end
 	else
@@ -1926,7 +1775,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		) l0') then
 	      begin
 		Settings.changed := true;
-		current_pass_transfos := (SFindRemoved(p')) :: (!current_pass_transfos);
+		current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
 		Terms.oproc_from_desc Yield
 	      end
 	    else
@@ -1935,16 +1784,16 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  end
       with OneBranchProcess(find_branch) ->
 	match find_branch with
-	  ([],[],_,p1) -> 
+	  ([],[],t1,p1) -> 
 	    Settings.changed := true;
-	    current_pass_transfos := (SFindSingleBranch(p',find_branch)) :: (!current_pass_transfos);
+	    current_pass_transfos := (SFindSingleBranch(pp, ([],[],t1,DProcess p1))) :: (!current_pass_transfos);
 	    p1
-	| _ ->
+	| (bl,def_list,t1,p1) ->
 	    (* the else branch of the find will never be executed *)
 	    if (List.length l0 > 1) || (p2.p_desc != Yield) then 
 	      begin
 		Settings.changed := true;
-		current_pass_transfos := (SFindSingleBranch(p',find_branch)) :: (!current_pass_transfos);
+		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DProcess p1))) :: (!current_pass_transfos);
 	      end;
 	    Terms.oproc_from_desc2 p' (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
 	
@@ -1967,7 +1816,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      if p2.p_desc != Yield then 
 		begin
 		  Settings.changed := true;
-		  current_pass_transfos := (SLetElseRemoved(p')) :: (!current_pass_transfos);
+		  current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
 		end;
 	      simplify_let p' dep_info_else true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat
 	  end
@@ -2003,15 +1852,15 @@ and simplify_if if_p dep_info cur_array true_facts ptrue pfalse t' =
   match t'.t_desc with
     FunApp(f, []) when f == Settings.c_false -> 
       Settings.changed := true;
-      current_pass_transfos := (STestFalse(if_p)) :: (!current_pass_transfos);
+      current_pass_transfos := (STestFalse(DProcess if_p)) :: (!current_pass_transfos);
       pfalse
   | FunApp(f, []) when f == Settings.c_true -> 
       Settings.changed := true;
-      current_pass_transfos := (STestTrue(if_p)) :: (!current_pass_transfos);
+      current_pass_transfos := (STestTrue(DProcess if_p)) :: (!current_pass_transfos);
       simplify_oprocess cur_array dep_info true_facts ptrue
   | FunApp(f, [t1; t2]) when f == Settings.f_or ->
       Settings.changed := true;
-      current_pass_transfos := (STestOr(if_p)) :: (!current_pass_transfos);
+      current_pass_transfos := (STestOr(DProcess if_p)) :: (!current_pass_transfos);
       simplify_if if_p dep_info cur_array true_facts ptrue (simplify_if if_p dep_info cur_array true_facts ptrue pfalse t2) t1
   | _ -> 
       try
@@ -2021,14 +1870,14 @@ and simplify_if if_p dep_info cur_array true_facts ptrue pfalse t' =
 	if (ptrue'.p_desc == Yield) && (pfalse.p_desc == Yield) then 
 	  begin
 	    Settings.changed := true;
-	    current_pass_transfos := (STestMerge(if_p)) :: (!current_pass_transfos);
+	    current_pass_transfos := (STestMerge(DProcess if_p)) :: (!current_pass_transfos);
 	    Terms.oproc_from_desc Yield
 	  end
 	else
 	  Terms.oproc_from_desc2 if_p (Test(t', ptrue', pfalse))
       with Contradiction ->
 	Settings.changed := true;
-	current_pass_transfos := (STestFalse(if_p)) :: (!current_pass_transfos);
+	current_pass_transfos := (STestFalse(DProcess if_p)) :: (!current_pass_transfos);
 	pfalse
 
 (*
@@ -2049,64 +1898,71 @@ and simplify_find true_facts accu bl def_list t' ptrue =
 	accu
 *)
 
-and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_array true_facts ptrue pfalse t' = function
-    (PatVar b) as pat -> 
-      if pfalse.p_desc != Yield then 
+and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_array true_facts ptrue pfalse t' pat =
+  try
+    let (transfos, test, bind) = Terms.simplify_let_tuple (get_tuple cur_array dep_info true_facts) pat t' in
+    if transfos != [] then
+      begin
+	Settings.changed := true;
+	current_pass_transfos := (SLetSimplifyPattern(DProcess let_p, transfos)) :: (!current_pass_transfos);
+      end;
+    (* always_succeeds = true when the let never fails *)
+    let always_succeeds =
+      (Terms.is_true test) &&
+      (match bind with
+      | (PatTuple _, _)::_ -> false
+      | _ -> true)
+    in
+    if always_succeeds && (pfalse.p_desc != Yield) then 
+      begin
+	Settings.changed := true;
+	current_pass_transfos := (SLetElseRemoved(DProcess let_p)) :: (!current_pass_transfos);
+      end;
+    if Terms.is_true test then
+      (* Simplify the process tfalse if it will be used at least once *)
+      let pfalse' =
+	if always_succeeds then Terms.oproc_from_desc Yield else
+	simplify_oprocess cur_array dep_info_else true_facts_else pfalse
+      in
+      (* Simplify the process ttrue *)
+      let rec add_true_facts true_facts = function
+	  [] -> true_facts
+	| (PatVar b, t)::l ->
+	    add_true_facts
+	      (Facts.simplif_add (dependency_collision cur_array dep_info_in) true_facts
+		 (Terms.make_let_equal (Terms.term_from_binder b) t)) l
+	| (pat, t)::l ->
+	    add_true_facts
+	      (Facts.simplif_add (dependency_collision cur_array dep_info_in) true_facts 
+		 (Terms.make_equal (Terms.term_from_pat pat) t)) l
+      in
+      let true_facts' = add_true_facts true_facts bind in
+      let ptrue' = simplify_oprocess cur_array dep_info_in true_facts' ptrue in
+      (* Put the lets. There is no test *)
+      if (ptrue'.p_desc == Yield) && (pfalse'.p_desc == Yield) &&
+	(List.for_all (fun (pat, _) -> not (needed_vars_in_pat pat)) bind) then
 	begin
 	  Settings.changed := true;
-	  current_pass_transfos := (SLetElseRemoved(let_p)) :: (!current_pass_transfos);	  
-	end;
-      begin
-	try
-	  let new_facts = Facts.simplif_add (dependency_collision cur_array dep_info_in) true_facts 
-		      (Terms.make_let_equal (Terms.term_from_binder b) t')
-	  in
-	  Terms.oproc_from_desc2 let_p 
-	    (Let(pat, t', simplify_oprocess cur_array dep_info_in 
-		   new_facts ptrue, Terms.oproc_from_desc Yield))
-	with Contradiction -> 
-	  Parsing_helper.internal_error "adding b = pat should not yield a contradiction"
-      end
-  | (PatEqual t) as pat ->
+	  current_pass_transfos := (SLetRemoved(DProcess let_p)) :: (!current_pass_transfos);
+	  Terms.oproc_from_desc Yield
+	end
+      else
+	Terms.put_lets bind ptrue' pfalse'
+    else
+      let plet = Terms.put_lets bind ptrue pfalse in
+      let ptest = Terms.oproc_from_desc2 let_p (Test(test, plet, pfalse)) in
+      simplify_oprocess cur_array dep_info true_facts ptest
+  with
+    Terms.Impossible ->
       Settings.changed := true;
-      current_pass_transfos := (SLetSimplifyPattern(let_p, pat, DEqTest)) :: (!current_pass_transfos);
-      simplify_oprocess cur_array dep_info true_facts 
-	(Terms.oproc_from_desc2 let_p (Test(Terms.make_equal t t', ptrue, pfalse)))
-  | (PatTuple (f,l)) as pat ->
-      begin
-	try 
-	  let res = simplify_oprocess cur_array dep_info true_facts 
-	      (Terms.put_lets l (Terms.split_term f t') ptrue pfalse)
-	  in
-	  Settings.changed := true;
-	  current_pass_transfos := (SLetSimplifyPattern(let_p, pat, DExpandTuple)) :: (!current_pass_transfos);
-	  res
-	with 
-	  Not_found -> 
-	    begin
-	      try
-		let ptrue' = simplify_oprocess cur_array dep_info_in (Facts.simplif_add (dependency_collision cur_array dep_info_in) true_facts 
-		   (Terms.make_equal (Terms.term_from_pat pat) t')) ptrue
-		in
-		if (ptrue'.p_desc == Yield) && (pfalse.p_desc == Yield) &&
-		  (not (needed_vars_in_pat pat)) then
-		  begin
-		    Settings.changed := true;
-		    current_pass_transfos := (SLetRemoved(let_p)) :: (!current_pass_transfos);
-		    Terms.oproc_from_desc Yield
-		  end
-		else
-		  Terms.oproc_from_desc2 let_p (Let(pat, t', ptrue', simplify_oprocess cur_array dep_info_else true_facts_else pfalse))
-	      with Contradiction ->
-		Settings.changed := true;
-		current_pass_transfos := (SLetRemoved(let_p)) :: (!current_pass_transfos);
-		simplify_oprocess cur_array dep_info_else true_facts_else pfalse
-	    end
-	| Terms.Impossible -> 
-	    Settings.changed := true;
-	    current_pass_transfos := (SLetSimplifyPattern(let_p, pat, DImpossibleTuple)) :: (!current_pass_transfos);
-	    simplify_oprocess cur_array dep_info_else true_facts_else pfalse
-      end
+      current_pass_transfos := (SLetSimplifyPattern(DProcess let_p, [pat, DImpossibleTuple])) :: (!current_pass_transfos);
+      simplify_oprocess cur_array dep_info_else true_facts_else pfalse
+  | Contradiction ->
+      (* Adding facts to simplify ptrue raised a contradiction,
+         ptrue is never executed, pfalse is always executed *)
+      Settings.changed := true;
+      current_pass_transfos := (SLetRemoved(DProcess let_p)) :: (!current_pass_transfos);
+      simplify_oprocess cur_array dep_info_else true_facts_else pfalse
 
 let simplify_main coll_elim g =
   let tmp_changed = !Settings.changed in

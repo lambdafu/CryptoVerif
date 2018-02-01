@@ -1,0 +1,84 @@
+param nK, nf, q.
+
+type seed [large,fixed].
+type pkey.
+type skey.
+type D [large,fixed].
+
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):D.
+fun f'(pkey, D):D.
+fun invf(skey, D):D.
+
+equiv !nK new r: seed; (
+	() -> pkgen(r),
+	!nf new x:D; (() -> invf(skgen(r),x), () -> x))
+<=(0)=>
+      !nK new r: seed; (
+	() -> pkgen(r),
+	!nf new x:D; (() -> x, () -> f(pkgen(r), x))).
+
+
+query secret test.
+
+channel dummy, start.
+
+let processC = 
+    in(dummy, ());
+    new x:D;
+    out(dummy, x).
+
+let processE = 
+    in(dummy, ());
+    new r:seed;
+    out(dummy, pkgen(r)).
+
+let processD = 
+    in(dummy, ());
+    if defined(x,r) then out(dummy, invf(skgen(r),x)).
+
+(* CryptoVerif assumes that all restrictions used in an equivalence
+are defined at all expressions that occur in the equivalence. This is not
+true when some expressions do not use all restrictions. For instance,
+here x in the equivalence does not use r. As a result, r need not be
+defined at x. This is the case in processC above; r is not always defined when
+x is output. 
+
+Solutions: 
+1) check that r is defined at every occurrence of () -> x, before
+performing the transformation.
+2) reorganize the restrictions when I perform the game transformation.
+
+(2) is better (the transformation can be performed more often) but seems harder to do
+(in the example given in this file, there is no place to put the generation of r,
+but there are examples (see bugeq5.cv) in which it would be possible to move the
+generation of r.)
+
+If the input processes were restricted to be of the form
+(!N in(c, ...)) | (!N in(c,...)) | ...)
+i.e. possibly replicated inputs, but no replication just above a parallel
+composition, then it should be possible to generate r just after the 
+first input that follows the replication (provided the terms in the
+channel and pattern matching in that input do not require r, but can they?).  
+*)
+
+
+
+process
+  in(start, ());
+  new test:D;
+  out(dummy, test); !q
+  (processC | processD | processE)
+
+
+
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of test.
+0.020s (user 0.020s + system 0.000s), max rss 15888K
+END *)

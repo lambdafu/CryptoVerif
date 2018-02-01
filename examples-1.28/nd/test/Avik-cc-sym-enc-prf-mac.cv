@@ -1,0 +1,127 @@
+
+(** Chosen ciphertext secure symmetric encryption **)
+
+(** The construction of an encryption scheme 
+    using a pseudo-random function family
+    and an unpredictable function family
+    is shown to be IND-CCA2.
+    See Section 7, "Sequences of Games", Victor Shoup. **)
+
+param n, m, p, q, qE, qD.
+
+type S [large,fixed].
+type K [large,fixed].
+
+type N [large,fixed].
+type L [fixed].
+type W [fixed].
+
+proba pPRF.
+proba pUF.
+proba pXOR.
+
+fun f(S,N): L.
+
+(* f(S) is a pseudo-random function family *) 
+
+equiv
+    !n new s:S;
+      (x:N) m -> f(s,x)
+<=(pPRF(time,n,m))=>
+    !n 
+      (x:N) m -> find u <= m 
+	            suchthat defined(x[u],r[u])
+                          && x = x[u]
+	            then r[u]
+                    else new r:L; r.
+
+fun h(K,N,L): W.
+
+(* h(K) is a message authentication code (an unpredictable function family) *)
+
+fun h'(K,N,L): W.
+
+equiv 
+    !n new k:K; (
+         (y:N,z:L) m -> h(k,y,z),
+	 (y':N,z':L,t:W) p -> t = h(k,y',z')  
+    ) 
+<=(pUF(time,n,m,p))=>
+    !n new k:K; (
+         (y:N,z:L) m -> h'(k,y,z),
+	 (y':N,z':L,t:W) p -> find u <= m suchthat 
+	     defined(y[u],z[u]) && y' = y[u] && z' = z[u] 
+                          then t = h'(k,y',z') else false 
+    ).
+
+fun xor(L,L): L.
+
+(* the theory of xor implies several propositions *)
+
+forall x:L, y:L; xor(x, xor(x,y)) = y.
+
+equiv 
+    (y:L) n -> new x:L; xor(x,y)
+<=(pXOR(time,n))=>
+    (y:L) n -> new x:L; x.
+
+fun choose(bool,L,L): L.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:L, z:L;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+const reject:L.
+
+(* query *)
+query secret b.
+
+channel dummy, cE, cEret, cD, cDret, start.
+
+let processE = !qE
+    in(cE, (m0:L, m1:L));
+    new x':N;
+    let tempE = f(s,x') in
+    let m' = choose(b,m1,m0) in
+    let c':L = xor(tempE, m') in
+    let t':W = h(k,x',c') in
+    out(cEret, (x',c',t')).
+
+let processD = !qD
+    in(cD, (x:N, c:L, t:W));
+    if t = h(k,x,c) 
+      then 
+        (find u <= qE suchthat 
+                defined(x'[u],c'[u],t'[u])
+             && x = x'[u]
+             && c = c'[u]
+	     && t = t'[u] (* BB: added *)
+           then out(cDret, reject)  
+           else 
+             let tempD = f(s,x) in 
+             let m = xor(tempD, c) in 
+             out(cDret, m) ) 
+      else out(cDret, reject).
+
+let processI = !q
+  in(dummy, ());
+  new k:K;
+  new s:S;
+  new b:bool;
+  out(dummy, ()); 
+  (processE | processD).
+
+process
+  in(start, ());
+  out(dummy, ());
+  processI
+
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 18976K
+END *)

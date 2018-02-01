@@ -1,0 +1,34 @@
+channel c.
+
+type nonce [fixed].
+
+fun f(nonce): bitstring [compos].
+forall x: nonce, x': nonce;
+  (f(x) = f(x')) = (x = x').
+
+fun g(nonce): nonce.
+
+event start(nonce).
+event finish(nonce).
+
+query x: nonce;
+  event finish(x) ==> start(x).
+
+process
+  in(c, x:nonce);
+
+  event start(x);
+  
+  out(c, x);
+  in(c, x':nonce);
+  
+  if f(x) = f(g(x')) then
+  
+  event finish(g(x'));
+  yield
+
+(* Works when x is input *)
+(* EXPECTED
+All queries proved.
+0.024s (user 0.020s + system 0.004s), max rss 40816K
+END *)

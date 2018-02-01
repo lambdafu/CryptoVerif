@@ -1,0 +1,45 @@
+(* I think there is a bug in the computation of probabilities:
+pw = y is replaced with false with probability N*N/|passwd|
+while I compare N pw with N*N2 y -> should be N*N*N2/|passwd|
+Choosing random numbers in conditions of find is a bit strange
+anyway, should I forbid that?
+FIXED by forbidding new in find conditions
+
+OK: CryptoVerif does not expand the "new" in the "find" condition when
+the find has indices (here j); that would be incorrect because when it
+is in the "find" condition, the "new" is repeated for each index,
+while it would not be repeated after expansion. Anyway, no expansion
+is done when the find has indices.
+ *)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type passwd [large,fixed].
+
+proof {
+show_state
+}
+
+(* Queries *)
+
+query secret M [onesession].
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+
+let processA = 
+	in(start, ());
+	new pw : passwd;
+	new M : nonce;
+	find j <= N2 suchthat new y:passwd; pw = y then
+	out(c1, M).
+
+process 
+	(! N processA) | (!N2 in(c3, m:passwd))
+
+(* EXPECTED
+Error: new at line 36, characters 24-44 should not occur in condition of find
+xtime: error in child process (status : 512)
+END *)

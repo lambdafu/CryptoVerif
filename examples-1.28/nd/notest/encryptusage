@@ -1,0 +1,122 @@
+Block ciphers:
+
+(* Bitstrings of size exactly the block size *)
+type blocksize <= bitstring.
+
+(* One concatenation function for each used message format,
+   which includes padding.
+   (DATATYPES may be any sequence of types, key, nonce, ...,
+    whose total length is at most the one of a block) *)
+fun concat(DATATYPES):blocksize.
+(* Function that extracts a message of a given data type from a block
+   The function getDT always succeeds. If necessary, add a function
+   isgoodDT(blocksize):bool to check that the value of blocksize
+   is ok for applying getDT. When isgoodDT(m) = false, getDT(m) returns
+   any value in DT. *)
+fun getDT(blocksize):DT.
+forall x:DT,y:DATATYPES;getDT(concat(x,y)) = x.
+
+(* Encryption and decryption *)
+fun enc(blocksize,key):blocksize.
+fun dec(blocksize,key):blocksize.
+fun kgen(keyseed):key.
+
+forall m:blocksize, r:keyseed;
+        dec(enc(m, kgen(r)), kgen(r)) = m.
+
+equiv  !N3 new r: keyseed; ((x:blocksize) N -> enc(x, kgen(r)),
+			    (m:blocksize) N2 -> dec(m, kgen(r)))
+     <=(N3 * Penc(time, N, N2))=>
+       !N3 new r: keyseed; ((x:blocksize) N -> 
+		new r2: blocksize; 
+		let r3: blocksize = find j<=N suchthat defined(x[j],r3[j]) && x = x[j] then r3[j] else
+			 find j<=N2 suchthat defined(r5[j],m[j]) && x = r5[j] then m[j] else
+			 r2
+                in r3,
+			(m:blocksize) N2 ->
+		new r4: blocksize;
+		let r5: blocksize = find j<=N suchthat defined(x[j],r3[j]) && m = r3[j] then x[j] else
+			 find j<=N2 suchthat defined(r5[j],m[j]) && m = m[j] then r5[j] else
+			 r4
+		in r5)
+
+
+
+=============================================================================
+Stream ciphers
+
+If recreating the state at each new encryption, we can simply have:
+  fun enc(bitstring,key,seed):bitstring.
+  fun dec(bitstring,key):bitstring.
+The state may be part of the ciphertext to communicate it to
+the decryption function. These ciphers are length revealing!
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+
+forall m:bitstring, r:keyseed, r2:seed;
+        dec(enc(m, kgen(r), r2), kgen(r)) = m.
+
+(* CPA security; in general, the only one for stream ciphers *)
+equiv  !N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2))
+     <=(N2 * Penc(time, N))=>
+       !N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z(x), kgen2(r), r2)).
+
+(* For each data type DT of constant length (nonce, key, ...) *)
+const Z_DT:DT.
+forall x:DT; Z(x) = Z_DT.
+fun concat(bitstring,bitstring):bitstring.
+forall x:bitstring, y:bitstring; Z(concat(x,y)) = concat(Z(x),Z(y)).
+
+(* Function that extracts a message of a given data type from the
+   beginning of a block
+   The function getDT always succeeds. If necessary, add a function
+   isgoodDT(bitstring):bool to check that the value of bitstring
+   is ok for applying getDT. When isgoodDT(m) = false, getDT(m) returns
+   any value in DT, remainDT(m) returns the empty bitstring. *)
+fun getDT(bitstring):DT.
+fun remainDT(bitstring):bitstring.
+
+forall x:DT,y:bitstring;getDT(concat(x,y)) = x.
+forall x:DT,y:bitstring;remainDT(concat(x,y)) = y.
+
+
+
+========================================================================
+
+However, the state is often passed from one encryption to the next
+(as in SSH for instance).
+
+fun enc(bitstring,key,state):bitstring.
+fun dec(bitstring,key,state):bitstring.
+fun newstate(bitstring,key,state):state.
+
+forall x:bitstring, k:key, s:state; dec(enc(x,k,s),k,s) = x.
+
+Correct use: (How do I check that the use is always correct?)
+
+new s1:state;
+let e1 = enc(m1,k,s1) in
+out(c, e1);
+let s2 = newstate(e1,k,s1) in
+let e2 = enc(m2,k,s2) in
+out(c, e2);
+
+Not easy... Restrict to the case in which the number of messages
+is finite, constant (which is not quite the case in SSH, if we consider
+a full run of the protocol... This might be ok if we limit
+ourselves to the initial key exchange + authentication phase, plus
+perhaps a single data message.). 
+
+According to D. Pointcheval, reusing the same IV for several 
+messages is not really secure, so it is ok for me not to handle
+it (that's good!).

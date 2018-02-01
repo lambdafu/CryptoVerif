@@ -1,0 +1,211 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.2: 
+	E(x) = f(r) || H(r) xor x || H2(r || x) 
+(CCA2) *)
+
+(* set interactiveMode = true. 
+The proof is as follows: *)
+
+proof {
+  show_game occ;
+  insert 21 "let concat(xh2',xh2'') = xh2 in";
+       (* inserted just before "out(hc4, ...)" to distinguish 
+          cases depending on whether xh2 is concat(...) or not *)
+  crypto rom(hash2);
+  crypto rom(hash);
+  remove_assign binder pk;
+  crypto ow(f) r_3 x_6;
+  show_game;
+  crypto remove_xor(xor) r_9;
+  success
+}
+
+(* 
+After crypto rom(hash2), we simplify:
+
+in(hstart, ());
+      new hk: hashkey;
+      out(hret, ());
+      (
+        ! !_69 <= qH
+        in(hc1[!_69], x_72: seed);
+        out(hc2[!_69], hash(hk, x_72))
+      ) | (
+        ! !_70 <= qH2
+        in(hc3[!_70], xh2: bitstring);
+        let concat(xh2': seed, xh2'': hasht) = xh2 in
+        (
+          find [unique] @i_90 <= qH2 suchthat defined(xh2'[@i_90], xh2''[@i_90], @8_r_77[@i_90]) && ((xh2' = xh2'[@i_90]) && (xh2'' = xh2''[@i_90])) then
+            out(hc4[!_70], @8_r_77[@i_90])
+          orfind  suchthat defined(x_74, menc, @8_r_81) && ((xh2' = x_74) && (xh2'' = menc)) then
+            out(hc4[!_70], @8_r_81)
+          else
+            new @8_r_77: hasht2;
+            out(hc4[!_70], @8_r_77)
+        )
+        else
+          let @8_x_80: bitstring = cst_bitstring in
+          find [unique] @i_87 <= qH2 suchthat defined(xh2[@i_87], @8_x_80[@i_87], @8_r_79[@i_87]) && (xh2 = xh2[@i_87]) then
+            out(hc4[!_70], @8_r_79[@i_87])
+          else
+            new @8_r_79: hasht2;
+            out(hc4[!_70], @8_r_79)
+      ) | (
+        in(start, ());
+        new r: keyseed;
+        let sk: skey = skgen(r) in
+        let pk: pkey = pkgen(r) in
+        out(c9, pk);
+        (
+          ! !_71 <= qD
+          in(c5[!_71], (a: seed, b: hasht, c: hasht2));
+          if defined(@8_r_81, b1, aT, bT) && ((a = aT) && ((b = bT) && (c = @8_r_81))) then
+            yield
+          else
+            let x_73: seed = mf(sk, a) in
+            let m: hasht = xor(hash(hk, x_73), b) in
+            find [unique] @i_86 <= qH2 suchthat defined(xh2'[@i_86], xh2''[@i_86], @8_r_77[@i_86]) && ((f(pkgen(r), xh2'[@i_86]) = a) && (m = xh2''[@i_86])) then
+            (
+              if (c = @8_r_77[@i_86]) then
+              out(c6[!_71], m)
+            )
+            orfind  suchthat defined(x_74, menc, @8_r_81) && ((f(pkgen(r), x_74) = a) && (m = menc)) then
+            (
+              if (c = @8_r_81) then
+[*** Test always wrong:  
+a = f(pkgen(r), x_74) = aT, 
+bT = xor(hash(hk, x_74), menc) = xor(hash(hk, x_74), m) 
+   = xor(hash(hk, x_74), xor(hash(hk, x_73), b))
+   = xor(hash(hk, x_74), xor(hash(hk, mf(sk, a)), b))
+   = xor(hash(hk, x_74), xor(hash(hk, mf(sk, f(pkgen(r), x_74))), b))
+   = xor(hash(hk, x_74), xor(hash(hk, x_74), b))
+   = b
+c = @8_r_81
+This is wrong since we are in the "else" branch of
+if defined(@8_r_81, b1, aT, bT) && ((a = aT) && ((b = bT) && (c = @8_r_81))) 
+
+This simplification now succeeds thanks to the improved treatment of xor.
+***]
+              out(c6[!_71], m)
+            )
+        ) | (
+          in(c7, (m1: hasht, m2: hasht));
+          new b1: bool;
+          let menc: hasht = test(b1, m1, m2) in
+          new x_74: seed;
+          let aT: seed = f(pk, x_74) in
+          let bT: hasht = xor(hash(hk, x_74), menc) in
+          new @8_r_81: hasht2;
+          out(c8, (aT, bT, @8_r_81))
+        )
+      )
+
+After this simplification, the proof goes through.
+
+See encryptBR93-2b for another, less satisfactory variant.
+*)
+
+param nx, qD.
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type hasht2 [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, pkey, skey, seed, pkgen, skgen, f, mf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Another hash function, random oracle model *)
+
+expand ROM_hash(hashkey, bitstring, hasht2, hash2).
+
+fun concat(seed,hasht):bitstring [data].
+
+param qH2 [noninteractive].
+channel hc3, hc4.
+
+
+(* Xor *)
+
+expand Xor(hasht, xor, zero).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1 [onesession].
+
+channel c5, c6, c7, c8, c9, hstart, hret, start.
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+new hk2: hashkey;
+out(hret, ());
+((
+  ! i_1 <= qH
+  in(hc1[i_1], x_5: seed);
+  out(hc2[i_1], hash(hk, x_5))
+) | (
+  ! i_2 <= qH2
+  in(hc3[i_2], xh2: bitstring);
+  out(hc4[i_2], hash2(hk2, xh2))
+) | (
+  in(start, ());
+  new r_3: keyseed;
+  let sk: skey = skgen(r_3) in
+  let pk: pkey = pkgen(r_3) in
+  out(c9, pk);
+  ((
+    ! i_3 <= qD
+    in(c5[i_3], (a_1: seed, b: hasht, c: hasht2));
+    if defined(aT, bT, cT) && (a_1 = aT) && (b = bT) && (c = cT) then
+      yield
+    else
+      let x_6: seed = mf(sk, a_1) in
+      let m: hasht = xor(hash(hk, x_6), b) in
+      if c = hash2(hk2, concat(x_6, m)) then
+      out(c6[i_3], m)
+  ) | (
+    in(c7, (m1: hasht, m2: hasht));
+    new b1: bool;
+    let menc: hasht = test(b1, m1, m2) in
+    new x_7: seed;
+    let aT: seed = f(pk, x_7) in
+    let bT: hasht = xor(hash(hk, x_7), menc) in
+    let cT: hasht2 = hash2(hk2, concat(x_7, menc)) in
+    out(c8, (aT, bT, cT))
+  ))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.116s (user 0.108s + system 0.008s), max rss 44576K
+END *)

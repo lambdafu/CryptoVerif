@@ -1,0 +1,2438 @@
+Doing expand get, insert, if, let, find... Done.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Trying equivalence rom(hash) ... Eliminated collisions between NonceGen and NonceGen Probability: 0.5 * qGen * qGen / |nonce|
+Succeeded.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between NonceGen and hashOHash[@ri_146] Probability: qHash * qGen / |nonce|
+(NonceGen characterizes a part of NonceGen of type(s) nonce;
+ hashOHash[@ri_146] does not depend on NonceGen)
+Eliminated collisions between NonceGen and NonceGen Probability: 0.5 * qGen * qGen / |nonce|
+Done.
+Doing move all binders... Done.
+Doing remove assignments of useless... No change.
+Trying equivalence rom(hash) ... Failed.
+Trying equivalence sprp(enc) ... Failed.
+Trying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+... Failed.
+Doing remove assignments of binder k... Done.
+Trying equivalence sprp(enc) with ks... Eliminated collisions between NonceGen and NonceGen Probability: 0.5 * qGen * qGen / |nonce|
+Succeeded.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on @7_r4_161 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on @7_r4_161 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between concat(?, NonceGen[@ri_140]) and @7_r4_156 Probability: qGen / |nonce|
+(concat(?, NonceGen[@ri_140]) characterizes a part of NonceGen[@ri_140] of type(s) nonce;
+ @7_r4_156 does not depend on NonceGen[@ri_140])
+Eliminated collisions between concat(?, NonceGen[@ri_140]) and @7_r4_161 Probability: qVerif * qGen / |nonce|
+(concat(?, NonceGen[@ri_140]) characterizes a part of NonceGen[@ri_140] of type(s) nonce;
+ @7_r4_161 does not depend on NonceGen[@ri_140])
+Eliminated collisions between NonceGen and NonceGen Probability: 0.5 * qGen * qGen / |nonce|
+Done.
+Doing SA rename nV... Done.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @7_r4_161 inside simplify... No change
+Doing global dependency analysis on @7_r4_161 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Done.
+Doing SA rename @i_164... No change.
+Doing simplify... Doing global dependency analysis on @7_r4_161 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 1 time(s). Fixpoint reached.
+No change.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Trying equivalence rom(hash) ... Failed.
+Trying equivalence sprp(enc) ... Failed.
+Trying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+... Succeeded.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on n_180 inside simplify... Done. Restarting simplify
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on @7_r2_159 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between n_180[@ri_173] and hashOHash[@ri_154] Probability: qHash * qVerif / |nonce|
+(n_180[@ri_173] characterizes a part of n_180[...] of type(s) nonce;
+ hashOHash[@ri_154] does not depend on n_180[...])
+Done.
+Doing SA rename @i_174... No change.
+Doing SA rename @i_166... No change.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Trying equivalence rom(hash) ... Failed.
+Trying equivalence sprp(enc) ... Failed.
+Trying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+... Succeeded.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on d_188 inside simplify... No change
+Doing global dependency analysis on n_189 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on @7_r4_156 inside simplify... No change
+Doing global dependency analysis on @10_r_134 inside simplify... No change
+Doing global dependency analysis on d_188 inside simplify... No change
+Doing global dependency analysis on n_189 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Trying equivalence rom(hash) ... Failed.
+Trying equivalence sprp(enc) ... Failed.
+Trying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+... Succeeded.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on NonceGen inside simplify... No change
+Doing global dependency analysis on d_188 inside simplify... No change
+Doing global dependency analysis on n_189 inside simplify... No change
+Doing global dependency analysis on n_191 inside simplify... Done. Restarting simplify
+Doing global dependency analysis on d_188 inside simplify... No change
+Doing global dependency analysis on n_189 inside simplify... No change
+Doing global dependency analysis on @10_r_136 inside simplify... No change
+Doing global dependency analysis on NonceGen inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between n_191 and hashOHash[@ri_154] Probability: qHash / |nonce|
+(n_191 characterizes a part of n_191 of type(s) nonce;
+ hashOHash[@ri_154] does not depend on n_191)
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Proved query event bad ==> false
+===================== Proof starts =======================
+Initial state
+Game 1 is
+      in(SetupIn, ());
+      new hk: hashkey;
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        get queries (d2: data, n2: nonce) suchthat ((nV = n2) && (d2 = dV)) in
+          out(ChallengeOut, ())
+        else
+          if (h_110 = hash(hk, nV)) then
+            event bad;
+            out(ChallengeOut, ())
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        out(OHashOut[!_107], hash(hk, hashOHash))
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        insert queries DGen, NonceGen;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        let h_113: hashout = hash(hk, NonceGen) in
+        out(OGenOut[!_108], (c_112, h_113, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        let verifSuccess: bool = (hash(hk, nVerif) = hVerif) in
+        out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying expand get, insert, if, let, find
+  - Expand get/insert for table queries
+  - Expand if/find/let
+yields
+
+Game 2 is
+      in(SetupIn, ());
+      new hk: hashkey;
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        find u_130 = u_131 <= qGen suchthat defined(queries_128[u_131], queries_129[u_131]) && ((nV = queries_129[u_131]) && (queries_128[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          if (h_110 = hash(hk, nV)) then
+            event bad;
+            out(ChallengeOut, ())
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        out(OHashOut[!_107], hash(hk, hashOHash))
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let queries_128: data = DGen in
+        let queries_129: nonce = NonceGen in
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        let h_113: hashout = hash(hk, NonceGen) in
+        out(OGenOut[!_108], (c_112, h_113, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        let verifSuccess: bool = (hash(hk, nVerif) = hVerif) in
+        out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on queries_128 (definition removed, all usages removed)
+  - Remove assignments on queries_129 (definition removed, all usages removed)
+yields
+
+Game 3 is
+      in(SetupIn, ());
+      new hk: hashkey;
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+  {17}  find u_130 = u_131 <= qGen suchthat defined(DGen[u_131], NonceGen[u_131], NonceGen[u_131], NonceGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          if (h_110 = hash(hk, nV)) then
+            event bad;
+            out(ChallengeOut, ())
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        out(OHashOut[!_107], hash(hk, hashOHash))
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        let h_113: hashout = hash(hk, NonceGen) in
+        out(OGenOut[!_108], (c_112, h_113, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        let verifSuccess: bool = (hash(hk, nVerif) = hVerif) in
+        out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify
+  - Simplification pass
+    - Replaced defined condition DGen[u_131], NonceGen[u_131], NonceGen[u_131], NonceGen[u_131] with DGen[u_131], NonceGen[u_131] in find at 17
+yields
+
+Game 4 is
+      in(SetupIn, ());
+      new hk: hashkey;
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          if (h_110 = hash(hk, nV)) then
+            event bad;
+            out(ChallengeOut, ())
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        out(OHashOut[!_107], hash(hk, hashOHash))
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        let h_113: hashout = hash(hk, NonceGen) in
+        out(OGenOut[!_108], (c_112, h_113, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        let verifSuccess: bool = (hash(hk, nVerif) = hVerif) in
+        out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying equivalence rom(hash)  [probability (qVerif + 1.) / |hashout| + 0.5 * qGen * qGen / |nonce|]
+  - Equivalence rom(hash) with hk
+  - Expand if/find/let
+yields
+
+Game 5 is
+      in(SetupIn, ());
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          let @10_x'_133: nonce = nV in
+          let @10_r'_132: hashout = h_110 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(@10_x_135[@ri_154], @10_r_134[@ri_154]) && (@10_x'_133 = @10_x_135[@ri_154]) then
+          (
+            if (@10_r'_132 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          orfind @i_153 = @ri_152 <= qGen suchthat defined(@10_x_137[@ri_152], @10_r_136[@ri_152]) && (@10_x'_133 = @10_x_137[@ri_152]) then
+          (
+            if (@10_r'_132 = @10_r_136[@i_153]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        let @10_x_135: nonce = hashOHash in
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(@10_x_135[@ri_150], @10_r_134[@ri_150]) && (@10_x_135 = @10_x_135[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(@10_x_137[@ri_148], @10_r_136[@ri_148]) && (@10_x_135 = @10_x_137[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        let @10_x_137: nonce = NonceGen in
+        find [unique] @i_147 = @ri_146 <= qHash suchthat defined(@10_x_135[@ri_146], @10_r_134[@ri_146]) && (@10_x_137 = @10_x_135[@ri_146]) then
+        (
+          let h_113: hashout = @10_r_134[@i_147] in
+          out(OGenOut[!_108], (c_112, h_113, NonceGen))
+        )
+        orfind @i_145 = @ri_144 <= qGen suchthat defined(@10_x_137[@ri_144], @10_r_136[@ri_144]) && (@10_x_137 = @10_x_137[@ri_144]) then
+        (
+          let h_113: hashout = @10_r_136[@i_145] in
+          out(OGenOut[!_108], (c_112, h_113, NonceGen))
+        )
+        else
+          new @10_r_136: hashout;
+          let h_113: hashout = @10_r_136 in
+          out(OGenOut[!_108], (c_112, h_113, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        let @10_x'_139: nonce = nVerif in
+        let @10_r'_138: hashout = hVerif in
+        find [unique] @i_143 = @ri_142 <= qHash suchthat defined(@10_x_135[@ri_142], @10_r_134[@ri_142]) && (@10_x'_139 = @10_x_135[@ri_142]) then
+        (
+          let verifSuccess: bool = (@10_r'_138 = @10_r_134[@i_143]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_141 = @ri_140 <= qGen suchthat defined(@10_x_137[@ri_140], @10_r_136[@ri_140]) && (@10_x'_139 = @10_x_137[@ri_140]) then
+        (
+          let verifSuccess: bool = (@10_r'_138 = @10_r_136[@i_141]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          let verifSuccess: bool = false in
+          out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @10_x'_139 (definition removed, all usages removed)
+  - Remove assignments on @10_r'_138 (definition removed, all usages removed)
+  - Remove assignments on @10_x_137 (definition removed, all usages removed)
+  - Remove assignments on h_113 (definition removed, all usages removed)
+  - Remove assignments on h_113 (definition removed, all usages removed)
+  - Remove assignments on h_113 (definition removed, all usages removed)
+  - Remove assignments on @10_x_135 (definition point kept, all usages removed)
+  - Remove assignments on @10_x'_133 (definition removed, all usages removed)
+  - Remove assignments on @10_r'_132 (definition removed, all usages removed)
+yields
+
+Game 6 is
+      in(SetupIn, ());
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+  {31}    find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_x_135[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+          (
+            if (h_110 = @10_r_136[@i_153]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        let @10_x_135: nonce = cst_nonce in
+  {83}  find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_x_135[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+ {131}  find [unique] @i_147 = @ri_146 <= qHash suchthat defined(hashOHash[@ri_146], @10_x_135[@ri_146], @10_r_134[@ri_146]) && (NonceGen = hashOHash[@ri_146]) then
+          out(OGenOut[!_108], (c_112, @10_r_134[@i_147], NonceGen))
+        orfind @i_145 = @ri_144 <= qGen suchthat defined(NonceGen[@ri_144], NonceGen[@ri_144], @10_r_136[@ri_144]) && {154}(NonceGen = NonceGen[@ri_144]) then
+          out(OGenOut[!_108], (c_112, @10_r_136[@i_145], NonceGen))
+        else
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+ {190}  find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_x_135[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          let verifSuccess: bool = false in
+          out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify [probability (0.5 * qGen * qGen + qHash * qGen) / |nonce|]
+  - Simplification pass
+    - Replaced defined condition NonceGen[@ri_140], NonceGen[@ri_140], @10_r_136[@ri_140] with @10_r_136[@ri_140], NonceGen[@ri_140] in find at 190
+    - Replaced defined condition hashOHash[@ri_142], @10_x_135[@ri_142], @10_r_134[@ri_142] with @10_r_134[@ri_142], hashOHash[@ri_142] in find at 190
+    - Remove branch 1 in find at 131
+    - Replaced (NonceGen = NonceGen[@ri_144]) with (!_108 = @ri_144) at 154
+    - Remove branch 1 in find at 131
+    - Find at 131 removed (else branch kept if any)
+    - Replaced defined condition NonceGen[@ri_148], NonceGen[@ri_148], @10_r_136[@ri_148] with @10_r_136[@ri_148], NonceGen[@ri_148] in find at 83
+    - Replaced defined condition hashOHash[@ri_150], @10_x_135[@ri_150], @10_r_134[@ri_150] with @10_r_134[@ri_150], hashOHash[@ri_150] in find at 83
+    - Replaced defined condition NonceGen[@ri_152], NonceGen[@ri_152], @10_r_136[@ri_152] with @10_r_136[@ri_152], NonceGen[@ri_152] in find at 31
+    - Replaced defined condition hashOHash[@ri_154], @10_x_135[@ri_154], @10_r_134[@ri_154] with @10_r_134[@ri_154], hashOHash[@ri_154] in find at 31
+yields
+
+Game 7 is
+      in(SetupIn, ());
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+          (
+            if (h_110 = @10_r_136[@i_153]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        let @10_x_135: nonce = cst_nonce in
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          let verifSuccess: bool = false in
+          out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying move all binders
+  - Move assignment to @10_x_135
+yields
+
+Game 8 is
+      in(SetupIn, ());
+      new ks: keyseed;
+      let k: key = kgen(ks) in
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, k) in
+        find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+          (
+            if (h_110 = @10_r_136[@i_153]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), k) in
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, k) in
+        find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          let verifSuccess: bool = false in
+          out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of binder k
+  - Remove assignments on k (definition removed, all usages removed)
+yields
+
+Game 9 is
+      in(SetupIn, ());
+      new ks: keyseed;
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let concat(dV: data, nV: nonce) = dec(c_111, kgen(ks)) in
+        find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+          (
+            if (h_110 = @10_r_136[@i_153]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let c_112: block = enc(concat(DGen, NonceGen), kgen(ks)) in
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let concat(dVerif: data, nVerif: nonce) = dec(cVerif, kgen(ks)) in
+        find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          let verifSuccess: bool = false in
+          out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying equivalence sprp(enc) with ks [probability (qVerif * qVerif + qVerif + 2. * qVerif * qGen + qGen + qGen * qGen) / |block| + SPRPProba(time(context for game 9) + time, qGen, 1. + qVerif) + 0.5 * qGen * qGen / |nonce|]
+  - Equivalence sprp(enc) with ks
+  - Simplification pass
+    - Replaced (@7_m_157 = @7_m_157) with true at 383
+  - Expand if/find/let
+yields
+
+Game 10 is
+      in(SetupIn, ());
+      new ks_158: keyseed;
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let @7_m_157: block = c_111 in
+        find [unique]  suchthat defined(@7_r4_156, @7_m_157) then
+        (
+          let concat(dV: data, nV: nonce) = @7_r4_156 in
+          find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+        )
+        orfind @i_174 = @ri_173 <= qVerif suchthat defined(@7_r4_161[@ri_173], @7_m_162[@ri_173]) && (@7_m_157 = @7_m_162[@ri_173]) then
+        (
+          let concat(dV: data, nV: nonce) = @7_r4_161[@i_174] in
+          find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_x_160[@ri_171], @7_r2_159[@ri_171]) && (@7_m_157 = @7_r2_159[@ri_171]) then
+        (
+          let concat(dV: data, nV: nonce) = @7_x_160[@i_172] in
+          find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+        )
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV: nonce) = @7_r4_156 in
+          find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let @7_x_160: block = concat(DGen, NonceGen) in
+        find [unique]  suchthat defined(@7_r4_156, @7_m_157) && (@7_x_160 = @7_r4_156) then
+        (
+          let c_112: block = @7_m_157 in
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+        )
+        orfind @i_170 = @ri_169 <= qVerif suchthat defined(@7_r4_161[@ri_169], @7_m_162[@ri_169]) && (@7_x_160 = @7_r4_161[@ri_169]) then
+        (
+          let c_112: block = @7_m_162[@i_170] in
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+        )
+        orfind @i_168 = @ri_167 <= qGen suchthat defined(@7_x_160[@ri_167], @7_r2_159[@ri_167]) && (@7_x_160 = @7_x_160[@ri_167]) then
+        (
+          let c_112: block = @7_r2_159[@i_168] in
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+        )
+        else
+          new @7_r2_159: block;
+          let c_112: block = @7_r2_159 in
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (c_112, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let @7_m_162: block = cVerif in
+        find [unique]  suchthat defined(@7_r4_156, @7_m_157) && (@7_m_162 = @7_m_157) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(@7_r4_161[@ri_165], @7_m_162[@ri_165]) && (@7_m_162 = @7_m_162[@ri_165]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161[@i_166] in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_x_160[@ri_163], @7_r2_159[@ri_163]) && (@7_m_162 = @7_r2_159[@ri_163]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_x_160[@i_164] in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new @7_r4_161: block;
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && (nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @7_m_162 (definition point kept, all usages removed)
+  - Remove assignments on c_112 (definition removed, all usages removed)
+  - Remove assignments on c_112 (definition removed, all usages removed)
+  - Remove assignments on c_112 (definition removed, all usages removed)
+  - Remove assignments on c_112 (definition removed, all usages removed)
+  - Remove assignments on @7_m_157 (definition point kept, all usages removed)
+yields
+
+Game 11 is
+      in(SetupIn, ());
+      new ks_158: keyseed;
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let @7_m_157: block = cst_block in
+  {11}  find [unique]  suchthat defined(c_111, @7_m_157, @7_r4_156) then
+        (
+          let concat(dV: data, nV: nonce) = @7_r4_156 in
+          find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+        )
+        orfind @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], @7_m_162[@ri_173], @7_r4_161[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+          let concat(dV: data, nV: nonce) = @7_r4_161[@i_174] in
+  {85}    find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+ {100}      find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && {123}(nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_x_160[@ri_171], @7_r2_159[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+        (
+ {151}    let concat(dV: data, nV: nonce) = {152}@7_x_160[@i_172] in
+ {154}    find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && (nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+        )
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV: nonce) = @7_r4_156 in
+ {217}    find u_130 = u_131 <= qGen suchthat defined(NonceGen[u_131], DGen[u_131]) && ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) then
+            out(ChallengeOut, ())
+          else
+ {232}      find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            orfind @i_153 = @ri_152 <= qGen suchthat defined(NonceGen[@ri_152], @10_r_136[@ri_152]) && {255}(nV = NonceGen[@ri_152]) then
+            (
+              if (h_110 = @10_r_136[@i_153]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let @7_x_160: block = concat(DGen, NonceGen) in
+ {324}  find [unique]  suchthat defined(c_111, @7_m_157, @7_r4_156) && (@7_x_160 = @7_r4_156) then
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (c_111, @10_r_136, NonceGen))
+        orfind @i_170 = @ri_169 <= qVerif suchthat defined(cVerif[@ri_169], @7_m_162[@ri_169], @7_r4_161[@ri_169]) && (@7_x_160 = @7_r4_161[@ri_169]) then
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (cVerif[@i_170], @10_r_136, NonceGen))
+        orfind @i_168 = @ri_167 <= qGen suchthat defined(@7_x_160[@ri_167], @7_r2_159[@ri_167]) && {361}(@7_x_160 = @7_x_160[@ri_167]) then
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (@7_r2_159[@i_168], @10_r_136, NonceGen))
+        else
+          new @7_r2_159: block;
+          new @10_r_136: hashout;
+          out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let @7_m_162: block = cst_block in
+ {396}  find [unique]  suchthat defined(c_111, @7_m_157, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+ {403}    find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && {426}(nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], @7_m_162[@ri_165], @7_r4_161[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161[@i_166] in
+ {465}    find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && {488}(nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_x_160[@ri_163], @7_r2_159[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+ {522}    let concat(dVerif: data, nVerif: nonce) = {523}@7_x_160[@i_164] in
+ {526}    find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && {549}(nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new @7_r4_161: block;
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161 in
+ {580}    find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          orfind @i_141 = @ri_140 <= qGen suchthat defined(NonceGen[@ri_140], @10_r_136[@ri_140]) && {603}(nVerif = NonceGen[@ri_140]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_136[@i_141]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify [probability (0.5 * qGen * qGen + qGen + qVerif * qGen) / |nonce|]
+  - Simplification pass
+    - Replaced (nVerif = NonceGen[@ri_140]) with false at 603
+    - Remove branch 2 in find at 580
+    - Replaced @7_x_160[@i_164] with concat(DGen[@i_164], NonceGen[@i_164]) at 523
+    - Remove else branch of find at 526
+    - Replaced (nVerif = NonceGen[@ri_140]) with (@i_164 = @ri_140) at 549
+    - Replaced defined condition NonceGen[@ri_140], @10_r_136[@ri_140] with @10_r_136[@ri_140] in find at 526
+    - In branch 2 of find at 526, substituting @i_141 with @i_164
+    - A single branch always succeeds in find at 526
+    - Simplify pattern concat(dVerif: data, nVerif: nonce) at 522 (tuple expanded)
+    - Replaced defined condition @7_x_160[@ri_163], @7_r2_159[@ri_163] with NonceGen[@ri_163], DGen[@ri_163], @7_r2_159[@ri_163] in find at 396
+    - Replaced (nVerif = NonceGen[@ri_140]) with false at 488
+    - Remove branch 2 in find at 465
+    - Replaced defined condition cVerif[@ri_165], @7_m_162[@ri_165], @7_r4_161[@ri_165] with @7_r4_161[@ri_165], cVerif[@ri_165] in find at 396
+    - Replaced (nVerif = NonceGen[@ri_140]) with false at 426
+    - Remove branch 2 in find at 403
+    - Replaced defined condition c_111, @7_m_157, @7_r4_156 with @7_r4_156, c_111 in find at 396
+    - Remove branch 2 in find at 324
+    - Remove branch 1 in find at 324
+    - Replaced (@7_x_160 = @7_x_160[@ri_167]) with (!_108 = @ri_167) at 361
+    - Remove branch 1 in find at 324
+    - Find at 324 removed (else branch kept if any)
+    - Replaced (nV = NonceGen[@ri_152]) with false at 255
+    - Remove branch 2 in find at 232
+    - Replaced ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) with false at 1611
+    - Remove branch 1 in find at 217
+    - Find at 217 removed (else branch kept if any)
+    - Replaced @7_x_160[@i_172] with concat(DGen[@i_172], NonceGen[@i_172]) at 152
+    - Remove else branch of find at 154
+    - Replaced ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) with (@i_172 = u_131) at 1733
+    - Replaced defined condition NonceGen[u_131], DGen[u_131] with NonceGen[u_131] in find at 154
+    - In branch 1 of find at 154, substituting u_130 with @i_172
+    - Simplify pattern concat(dV: data, nV: nonce) at 151 (tuple expanded)
+    - Replaced defined condition @7_x_160[@ri_171], @7_r2_159[@ri_171] with NonceGen[@ri_171], DGen[@ri_171], @7_r2_159[@ri_171] in find at 11
+    - Replaced (nV = NonceGen[@ri_152]) with false at 123
+    - Remove branch 2 in find at 100
+    - Replaced ((nV = NonceGen[u_131]) && (DGen[u_131] = dV)) with false at 1820
+    - Remove branch 1 in find at 85
+    - Find at 85 removed (else branch kept if any)
+    - Replaced defined condition cVerif[@ri_173], @7_m_162[@ri_173], @7_r4_161[@ri_173] with @7_r4_161[@ri_173], cVerif[@ri_173] in find at 11
+    - Remove branch 1 in find at 11
+    - Remove random number generation at 791
+  - Simplification pass
+    - Replaced (@i_164 = @i_164) with true at 1172
+    - Transformed find at 154 into a test
+    - Replaced (@i_172 = @i_172) with true at 1762
+    - Test at 154 always true
+yields
+
+Game 12 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let @7_m_157: block = cst_block in
+        find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], @7_r4_161[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+          let concat(dV: data, nV: nonce) = @7_r4_161[@i_174] in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171], DGen[@ri_171], NonceGen[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+        (
+          let dV: data = DGen[@i_172] in
+          let nV: nonce = NonceGen[@i_172] in
+          let u_130 <= qGen = @i_172 in
+          out(ChallengeOut, ())
+        )
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV: nonce) = @7_r4_156 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let @7_x_160: block = concat(DGen, NonceGen) in
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let @7_m_162: block = cst_block in
+        find [unique]  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], @7_r4_161[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161[@i_166] in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], DGen[@ri_163], NonceGen[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+          let dVerif: data = DGen[@i_164] in
+          let nVerif: nonce = NonceGen[@i_164] in
+          if defined(@10_r_136[@i_164]) then
+          let @i_141 <= qGen = @i_164 in
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new @7_r4_161: block;
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying SA rename nV
+  - Rename variable nV into nV_177, nV_176, nV_175
+yields
+
+Game 13 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        let @7_m_157: block = cst_block in
+        find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], @7_r4_161[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+          let concat(dV: data, nV_175: nonce) = @7_r4_161[@i_174] in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_175 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171], DGen[@ri_171], NonceGen[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+        (
+          let dV: data = DGen[@i_172] in
+          let nV_176: nonce = NonceGen[@i_172] in
+          let u_130 <= qGen = @i_172 in
+          out(ChallengeOut, ())
+        )
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        let @7_x_160: block = concat(DGen, NonceGen) in
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        let @7_m_162: block = cst_block in
+        find [unique]  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], @7_r4_161[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161[@i_166] in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], DGen[@ri_163], NonceGen[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+          let dVerif: data = DGen[@i_164] in
+          let nVerif: nonce = NonceGen[@i_164] in
+          if defined(@10_r_136[@i_164]) then
+          let @i_141 <= qGen = @i_164 in
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new @7_r4_161: block;
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @7_m_162 (definition removed, all usages removed)
+  - Remove assignments on dVerif (definition removed, all usages removed)
+  - Remove assignments on nVerif (definition removed, all usages removed)
+  - Remove assignments on @i_141 (definition removed, all usages removed)
+  - Remove assignments on @7_x_160 (definition removed, all usages removed)
+  - Remove assignments on @7_m_157 (definition removed, all usages removed)
+  - Remove assignments on dV (definition removed, all usages removed)
+  - Remove assignments on nV_176 (definition removed, all usages removed)
+  - Remove assignments on u_130 (definition removed, all usages removed)
+yields
+
+Game 14 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+   {8}  find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], @7_r4_161[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+          let concat(dV: data, nV_175: nonce) = @7_r4_161[@i_174] in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_175 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171], DGen[@ri_171], NonceGen[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+          out(ChallengeOut, ())
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+ {136}  find [unique]  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], @7_r4_161[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161[@i_166] in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], DGen[@ri_163], NonceGen[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+ {222}    if defined(@10_r_136[@i_164]) then
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new @7_r4_161: block;
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify
+  - Simplification pass
+    - Simplified find at 222 in branch of find at 136
+    - Replaced defined condition @7_r2_159[@ri_171], DGen[@ri_171], NonceGen[@ri_171] with @7_r2_159[@ri_171] in find at 8
+  - Simplification pass
+    - Remove branch 1 in find at 364
+    - Find at 364 removed (else branch kept if any)
+    - Replaced defined condition @7_r2_159[@ri_163], DGen[@ri_163], NonceGen[@ri_163], @10_r_136[@ri_163] with @10_r_136[@ri_163], @7_r2_159[@ri_163] in find at 136
+yields
+
+Game 15 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], @7_r4_161[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+          let concat(dV: data, nV_175: nonce) = @7_r4_161[@i_174] in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_175 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+          out(ChallengeOut, ())
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique]  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], @7_r4_161[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161[@i_166] in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], @10_r_136[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new @7_r4_161: block;
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_161 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+
+  - Equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+with @7_r4_161
+  - Expand if/find/let
+yields
+
+Game 16 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(n_180[@ri_173], d_179[@ri_173], cVerif[@ri_173], @7_r4_161[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+  {17}    let concat(dV: data, nV_175: nonce) = concat(d_179[@i_174], n_180[@i_174]) in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_175 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+          out(ChallengeOut, ())
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique]  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(n_180[@ri_165], d_179[@ri_165], cVerif[@ri_165], @7_r4_161[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+ {185}    let concat(dVerif: data, nVerif: nonce) = concat(d_179[@i_166], n_180[@i_166]) in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], @10_r_136[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new n_180: nonce;
+          new d_179: data;
+          let @7_r4_161: block = cst_block in
+ {247}    let concat(dVerif: data, nVerif: nonce) = concat(d_179, n_180) in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @7_r4_161 (definition removed, all usages removed)
+  - Remove assignments on dVerif (definition removed, all usages removed)
+  - Remove assignments on nVerif (definition removed, all usages removed)
+  - Simplify pattern concat(dVerif: data, nVerif: nonce) at 247 (tuple expanded)
+  - Remove assignments on dVerif (definition removed, all usages removed)
+  - Remove assignments on nVerif (definition removed, all usages removed)
+  - Simplify pattern concat(dVerif: data, nVerif: nonce) at 185 (tuple expanded)
+  - Remove assignments on dV (definition removed, all usages removed)
+  - Remove assignments on nV_175 (definition removed, all usages removed)
+  - Simplify pattern concat(dV: data, nV_175: nonce) at 17 (tuple expanded)
+yields
+
+Game 17 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+   {8}  find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(n_180[@ri_173], d_179[@ri_173], cVerif[@ri_173], n_180[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+        (
+  {17}    find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (n_180[@i_174] = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+        )
+        orfind @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+          out(ChallengeOut, ())
+        else
+          new @7_r4_156: block;
+          let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+          find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+          (
+            if (h_110 = @10_r_134[@i_155]) then
+              event bad;
+              out(ChallengeOut, ())
+            else
+              out(ChallengeOut, ())
+          )
+          else
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+ {133}  find [unique]  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_166 = @ri_165 <= qVerif suchthat defined(n_180[@ri_165], d_179[@ri_165], cVerif[@ri_165], n_180[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+        (
+ {179}    find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (n_180[@i_166] = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], @10_r_136[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          new n_180: nonce;
+          new d_179: data;
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (n_180 = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify [probability qHash * qVerif / |nonce|]
+  - Simplification pass
+    - Simplified find at 179 in branch of find at 133
+    - Simplified find at 17 in branch of find at 8
+  - Global dependency analysis on n_180
+  - Simplification pass
+    - Replaced defined condition n_180[@ri_165], d_179[@ri_165], cVerif[@ri_165], n_180[@ri_165] with d_179[@ri_165], cVerif[@ri_165] in find at 709
+    - Replaced defined condition n_180[@ri_173], d_179[@ri_173], cVerif[@ri_173], n_180[@ri_173] with d_179[@ri_173], cVerif[@ri_173] in find at 660
+yields
+
+Game 18 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_172 = @ri_171 <= qGen suchthat defined(@7_r2_159[@ri_171]) && (c_111 = @7_r2_159[@ri_171]) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new @7_r4_156: block;
+            let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        orfind @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new @7_r2_159: block;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (@7_r2_159, @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique] @i_164 = @ri_163 <= qGen suchthat defined(@7_r2_159[@ri_163], @10_r_136[@ri_163]) && (cVerif = @7_r2_159[@ri_163]) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            new n_180: nonce;
+            new d_179: data;
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+
+  - Equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+with @7_r2_159
+  - Expand if/find/let
+yields
+
+Game 19 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_172 = @ri_171 <= qGen suchthat defined(n_189[@ri_171], d_188[@ri_171], @7_r2_159[@ri_171]) && (c_111 = concat(d_188[@ri_171], n_189[@ri_171])) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new @7_r4_156: block;
+            let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        orfind @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new n_189: nonce;
+        new d_188: data;
+        let @7_r2_159: block = cst_block in
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (concat(d_188, n_189), @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique] @i_164 = @ri_163 <= qGen suchthat defined(n_189[@ri_163], d_188[@ri_163], @7_r2_159[@ri_163], @10_r_136[@ri_163]) && (cVerif = concat(d_188[@ri_163], n_189[@ri_163])) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            new n_180: nonce;
+            new d_179: data;
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @7_r2_159 (definition removed, all usages removed)
+yields
+
+Game 20 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+   {8}  find [unique] @i_172 = @ri_171 <= qGen suchthat defined(n_189[@ri_171], d_188[@ri_171], NonceGen[@ri_171]) && (c_111 = concat(d_188[@ri_171], n_189[@ri_171])) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new @7_r4_156: block;
+            let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        orfind @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new n_189: nonce;
+        new d_188: data;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (concat(d_188, n_189), @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+ {119}  find [unique] @i_164 = @ri_163 <= qGen suchthat defined(n_189[@ri_163], d_188[@ri_163], NonceGen[@ri_163], @10_r_136[@ri_163]) && (cVerif = concat(d_188[@ri_163], n_189[@ri_163])) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            new n_180: nonce;
+            new d_179: data;
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify
+  - Simplification pass
+    - Remove random number generation at 269
+    - Replaced defined condition n_189[@ri_163], d_188[@ri_163], NonceGen[@ri_163], @10_r_136[@ri_163] with @10_r_136[@ri_163], n_189[@ri_163], d_188[@ri_163] in find at 119
+    - Replaced defined condition n_189[@ri_171], d_188[@ri_171], NonceGen[@ri_171] with n_189[@ri_171], d_188[@ri_171] in find at 8
+yields
+
+Game 21 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_172 = @ri_171 <= qGen suchthat defined(d_188[@ri_171], n_189[@ri_171]) && (c_111 = concat(d_188[@ri_171], n_189[@ri_171])) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new @7_r4_156: block;
+            let concat(dV: data, nV_177: nonce) = @7_r4_156 in
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        orfind @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new n_189: nonce;
+        new d_188: data;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (concat(d_188, n_189), @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique] @i_164 = @ri_163 <= qGen suchthat defined(d_188[@ri_163], n_189[@ri_163], @10_r_136[@ri_163]) && (cVerif = concat(d_188[@ri_163], n_189[@ri_163])) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind  suchthat defined(c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+          let concat(dVerif: data, nVerif: nonce) = @7_r4_156 in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            new d_179: data;
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+
+  - Equivalence equiv ! !_41 <= N new b: block; a() := b
+<=(0)=>
+      ! !_42 <= N new d: data; new n: nonce; a() := concat(d, n)
+with @7_r4_156
+  - Expand if/find/let
+yields
+
+Game 22 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_172 = @ri_171 <= qGen suchthat defined(d_188[@ri_171], n_189[@ri_171]) && (c_111 = concat(d_188[@ri_171], n_189[@ri_171])) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new n_191: nonce;
+            new d_190: data;
+            let @7_r4_156: block = cst_block in
+  {35}      let concat(dV: data, nV_177: nonce) = concat(d_190, n_191) in
+            find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (nV_177 = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        orfind @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new n_189: nonce;
+        new d_188: data;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (concat(d_188, n_189), @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique] @i_164 = @ri_163 <= qGen suchthat defined(d_188[@ri_163], n_189[@ri_163], @10_r_136[@ri_163]) && (cVerif = concat(d_188[@ri_163], n_189[@ri_163])) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind  suchthat defined(n_191, d_190, c_111, @7_r4_156) && (cVerif = c_111) then
+        (
+ {153}    let concat(dVerif: data, nVerif: nonce) = concat(d_190, n_191) in
+          find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (nVerif = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            new d_179: data;
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying remove assignments of useless
+  - Remove assignments on dVerif (definition removed, all usages removed)
+  - Remove assignments on nVerif (definition removed, all usages removed)
+  - Simplify pattern concat(dVerif: data, nVerif: nonce) at 153 (tuple expanded)
+  - Remove assignments on @7_r4_156 (definition removed, all usages removed)
+  - Remove assignments on dV (definition removed, all usages removed)
+  - Remove assignments on nV_177 (definition removed, all usages removed)
+  - Simplify pattern concat(dV: data, nV_177: nonce) at 35 (tuple expanded)
+yields
+
+Game 23 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_172 = @ri_171 <= qGen suchthat defined(d_188[@ri_171], n_189[@ri_171]) && (c_111 = concat(d_188[@ri_171], n_189[@ri_171])) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new n_191: nonce;
+            new d_190: data;
+  {33}      find [unique] @i_155 = @ri_154 <= qHash suchthat defined(hashOHash[@ri_154], @10_r_134[@ri_154]) && (n_191 = hashOHash[@ri_154]) then
+            (
+              if (h_110 = @10_r_134[@i_155]) then
+                event bad;
+                out(ChallengeOut, ())
+              else
+                out(ChallengeOut, ())
+            )
+            else
+              out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        orfind @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new n_189: nonce;
+        new d_188: data;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (concat(d_188, n_189), @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+ {116}  find [unique] @i_164 = @ri_163 <= qGen suchthat defined(d_188[@ri_163], n_189[@ri_163], @10_r_136[@ri_163]) && (cVerif = concat(d_188[@ri_163], n_189[@ri_163])) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        orfind  suchthat defined(n_191, d_190, c_111, n_191) && (cVerif = c_111) then
+        (
+ {145}    find [unique] @i_143 = @ri_142 <= qHash suchthat defined(hashOHash[@ri_142], @10_r_134[@ri_142]) && (n_191 = hashOHash[@ri_142]) then
+          (
+            let verifSuccess: bool = (hVerif = @10_r_134[@i_143]) in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            new d_179: data;
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Applying simplify [probability qHash / |nonce|]
+  - Simplification pass
+    - Simplified find at 145 in branch of find at 116
+    - Remove branch 1 in find at 33
+  - Global dependency analysis on n_191
+  - Simplification pass
+    - Replaced defined condition n_191, d_190, c_111, n_191 with d_190, c_111 in find at 589
+yields
+
+Game 24 is
+      in(SetupIn, ());
+      out(SetupOut, ());
+      (
+        in(ChallengeIn, (c_111: block, h_110: hashout));
+        find [unique] @i_172 = @ri_171 <= qGen suchthat defined(d_188[@ri_171], n_189[@ri_171]) && (c_111 = concat(d_188[@ri_171], n_189[@ri_171])) then
+          out(ChallengeOut, ())
+        else
+          find [unique] @i_174 = @ri_173 <= qVerif suchthat defined(cVerif[@ri_173], d_179[@ri_173]) && (c_111 = cVerif[@ri_173]) then
+            out(ChallengeOut, ())
+          else
+            new n_191: nonce;
+            new d_190: data;
+            out(ChallengeOut, ())
+      ) | (
+        ! !_107 <= qHash
+        in(OHashIn[!_107], hashOHash: nonce);
+        find [unique] @i_151 = @ri_150 <= qHash suchthat defined(hashOHash[@ri_150], @10_r_134[@ri_150]) && (hashOHash = hashOHash[@ri_150]) then
+          out(OHashOut[!_107], @10_r_134[@i_151])
+        orfind @i_149 = @ri_148 <= qGen suchthat defined(NonceGen[@ri_148], @10_r_136[@ri_148]) && (hashOHash = NonceGen[@ri_148]) then
+          out(OHashOut[!_107], @10_r_136[@i_149])
+        else
+          new @10_r_134: hashout;
+          out(OHashOut[!_107], @10_r_134)
+      ) | (
+        ! !_108 <= qGen
+        in(OGenIn[!_108], DGen: data);
+        new NonceGen: nonce;
+        new n_189: nonce;
+        new d_188: data;
+        new @10_r_136: hashout;
+        out(OGenOut[!_108], (concat(d_188, n_189), @10_r_136, NonceGen))
+      ) | (
+        ! !_109 <= qVerif
+        in(OVerifIn[!_109], (cVerif: block, hVerif: hashout));
+        find [unique] @i_164 = @ri_163 <= qGen suchthat defined(d_188[@ri_163], n_189[@ri_163], @10_r_136[@ri_163]) && (cVerif = concat(d_188[@ri_163], n_189[@ri_163])) then
+        (
+          let verifSuccess: bool = (hVerif = @10_r_136[@i_164]) in
+          out(OVerifOut[!_109], verifSuccess)
+        )
+        else
+          if defined(c_111, d_190) && (cVerif = c_111) then
+          (
+            let verifSuccess: bool = false in
+            out(OVerifOut[!_109], verifSuccess)
+          )
+          else
+            find [unique] @i_166 = @ri_165 <= qVerif suchthat defined(cVerif[@ri_165], d_179[@ri_165]) && (cVerif = cVerif[@ri_165]) then
+            (
+              let verifSuccess: bool = false in
+              out(OVerifOut[!_109], verifSuccess)
+            )
+            else
+              new d_179: data;
+              let verifSuccess: bool = false in
+              out(OVerifOut[!_109], verifSuccess)
+      )
+
+
+Proved event bad ==> false in game 24
+Adv[Game 1: event bad ==> false] <= (qHash + qHash * qVerif + qVerif * qGen + qGen + qHash * qGen + 2. * qGen * qGen) / |nonce| + (qGen * qGen + qGen + 2. * qVerif * qGen + qVerif + qVerif * qVerif) / |block| + SPRPProba(time(context for game 9) + time, qGen, 1. + qVerif) + (1. + qVerif) / |hashout| + Adv[Game 24: event bad ==> false]
+Adv[Game 24: event bad ==> false] <= 0
+RESULT Proved event bad ==> false up to probability (qHash + qHash * qVerif + qVerif * qGen + qGen + qHash * qGen + 2. * qGen * qGen) / |nonce| + (qGen * qGen + qGen + 2. * qVerif * qGen + qVerif + qVerif * qVerif) / |block| + SPRPProba(time(context for game 9) + time, qGen, 1. + qVerif) + (1. + qVerif) / |hashout|
+RESULT time(context for game 9) = (1. + qVerif) * time(let concat) + qGen * time(concat)
+All queries proved.

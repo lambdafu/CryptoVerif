@@ -1,0 +1,61 @@
+(* CryptoVerif makes a wrong computation of probabilities.
+To count the number of calls to the encryption oracle,
+it computes a "max" between the two branches of find,
+but this is correct only when the current replication index
+appears as a factor. Here, the encryption oracle
+is called N2 times in each branch of find.
+In total, it is called 2 N2 times.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+
+(* Shared-key encryption (IND-CPA) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* Queries *)
+
+query secret N_6 [onesession].
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new N_6: nonce;
+out(c9, N_6);
+((
+  ! i_1 <= N
+  in(start[i_1], x_1: bitstring);
+  find j_7 = j_5 <= N2 suchthat defined(m1[j_5], r1[j_5]) && (m1[j_5] = x_1) then
+    out(c1[i_1], enc(m1[j_7], Kas, r1[j_7]))
+  orfind j_8 = j_6 <= N2 suchthat defined(m2[j_6], r2_1[j_6]) && (m2[j_6] = x_1) then
+    out(c1[i_1], enc(m2[j_8], Kas, r2_1[j_8]))
+) | (
+  ! i_2 <= N2
+  in(c3[i_2], m1: bitstring);
+  new r1: seed
+) | (
+  ! i_3 <= N2
+  in(c4[i_3], m2: bitstring);
+  new r2_1: seed
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of N_6.
+0.020s (user 0.016s + system 0.004s), max rss 37568K
+END *)

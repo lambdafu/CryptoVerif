@@ -1,0 +1,41 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun concat(D,D):D.
+equation AC(concat).
+
+fun f(D):bitstring.
+fun h(D):bitstring.
+fun g(D,D,D): bitstring.
+
+const zero, one, two, three: D. 
+
+channel c.
+
+proba Peq.
+param n.
+
+equiv
+  ! n O(x: D, y: D) := return(h(concat(x,concat(y,x)))) [all]
+<=(Peq)=>
+  ! n O(x: D, y: D) := return(g(x,y,x)).
+
+process in(c, ());
+out(c, h(concat(concat(zero, one), concat(two, zero))));
+in(c, ());
+let z: D = concat(zero, zero) in
+out(c, h(concat(z, concat(two, one))));
+in(c, ());
+let t: D = concat(two, one) in
+out(c, h(concat(z, t)));
+in(c, ());
+let x: D = concat(z, t) in
+out(c, h(x))
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.020s + system 0.004s), max rss 37424K
+END *)

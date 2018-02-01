@@ -1,0 +1,150 @@
+(* Signed Diffie-Hellman protocol *)
+
+proof { 
+crypto uf_cma(sign) rkA;
+crypto uf_cma(sign) rkB;
+crypto ddh(exp);
+auto
+}
+
+param N, N2.
+
+type host.
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize.
+type signature.
+
+type Z [large,bounded].
+type G [large,bounded].
+type D [fixed].
+
+(* the DDH assumption *) 
+
+proba pDDH.
+
+expand DDH(G, Z, g, exp, mult, pDDH).
+
+param N'.
+equiv(group_to_exp_strict2(exp))
+  ! N new X: G; (
+    gen_Oracle() := return(X) |
+    ! N' gen_Oracle_1(m: Z) [useful_change] := return(exp(X,m)))
+<=(0)=> [computational]
+  ! N new x: Z; (
+    gen_Oracle() := return(exp(g,x)) |
+    ! N' gen_Oracle_1(m: Z) := return(exp(g,mult(x,m)))).
+
+(* h entropy extractor *)
+
+proba pH.
+fun h(G):D.
+
+equiv
+  ! N new x: G; OH() := return(h(x))
+<=(N * pH(time + (N-1)*time(h)))=>
+  ! N new X: D; OH() := return(X).
+
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+query secret keyB.
+
+event endA(host, host, G, G).
+event beginB(host, host, G, G).
+event endB(host, host, G, G).
+
+query y: G, x: G;
+  inj-event(endA(A, B, x, y)) ==> inj-event(beginB(A, B, x, y)) public_vars keyA, keyB.
+query y: G, x: G;
+  inj-event(endB(A, B, x, y)) ==> inj-event(endA(A, B, x, y)) public_vars keyA, keyB.
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+
+
+
+
+
+
+process
+	in(start, ());
+new rkA: keyseed;
+let skA: skey = skgen(rkA) in
+let pkA: pkey = pkgen(rkA) in
+new rkB: keyseed;
+let skB: skey = skgen(rkB) in
+let pkB: pkey = pkgen(rkB) in
+out(cstart, (pkA, pkB));
+((
+  ! i_1 <= N
+  in(cA1[i_1], hostB: host);
+  new a_1: Z;
+  let ga: G = exp(g, a_1) in
+  out(cA2[i_1], (A, hostB, ga));
+  in(cA3[i_1], (=A, =hostB, gb_1: G, s_1: signature));
+  find j2_3 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostB) then
+  let pkhostB: pkey = Rkey[j2_3] in
+  if check(concatB(A, hostB, ga, gb_1), pkhostB, s_1) then
+  new r2_1: seed;
+  let gab: G = exp(gb_1, a_1) in
+  let kA: D = h(gab) in
+  event endA(A, hostB, ga, gb_1);
+  out(cA4[i_1], sign(concatA(A, hostB, ga, gb_1), skA, r2_1));
+  in(cA5[i_1], ());
+  if hostB = B then
+  (
+    let keyA: D = kA
+  )
+  else
+    out(cA6[i_1], kA)
+) | (
+  ! i_2 <= N
+  in(cB1[i_2], (hostA: host, =B, ga_1: G));
+  new b_1: Z;
+  let gb_2: G = exp(g, b_1) in
+  new r1_1: seed;
+  event beginB(hostA, B, ga_1, gb_2);
+  out(cB2[i_2], (hostA, B, gb_2, sign(concatB(hostA, B, ga_1, gb_2), skB, r1_1)));
+  in(cB3[i_2], s_2: signature);
+  find j2_4 = j2_2 <= N2 suchthat defined(Khost[j2_2], Rkey[j2_2]) && (Khost[j2_2] = hostA) then
+  let pkhostA: pkey = Rkey[j2_4] in
+  if check(concatA(hostA, B, ga_1, gb_2), pkhostA, s_2) then
+  let gab_1: G = exp(ga_1, b_1) in
+  let kB: D = h(gab_1) in
+  event endB(hostA, B, ga_1, gb_2);
+  if hostA = A then
+  (
+    let keyB: D = kB
+  )
+  else
+    out(cB4[i_2], kB)
+) | (
+  ! i_3 <= N2
+  in(cK[i_3], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = B then pkB else if Khost = A then pkA else Kkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.224s (user 0.212s + system 0.012s), max rss 54224K
+END *)

@@ -1,0 +1,122 @@
+
+(** The Luby-Rackoff construction **)
+
+(** A construction 
+    using a pseudo-random family of functions over a large domain
+    and an almost-XOR-universal-hash function family
+    is shown to be pseudo-random.
+    See Section 6, "Sequences of Games", Victor Shoup. **)
+
+proof {
+      auto;
+      show_game occ;
+      insert 27 "if defined(x_2[u_3], y_10[u_3], r_4[u_3]) && (u_1 = u_1[u_3]) && (v = v[u_3]) then";
+      show_game occ;
+      insert_event e2 90;
+      insert_event e3 79;
+      show_game occ;
+      replace 50 "x_2[u_3]";
+      SArename x_6;
+      simplify;
+      auto;
+      show_game occ;
+      replace 45 "y_10[u_3]";
+      auto;
+      remove_assign binder x_2;
+      merge_branches;
+      success
+}
+(* This proof requires a bit more advice than desired: it is normal
+to put the events manually, but the rest should be automated.
+
+This proof shows that the obtained function is a pseudo-random function.
+We additionally need to prove that it is a permutation, that is,
+it is injective. This can be done manually without using sequences of
+games.
+*)
+
+
+param n, m, q.
+
+type S [large,fixed].
+type K [large,fixed].
+
+type D [large,fixed].
+type DD [fixed].
+
+proba pPRF.
+proba pAXUH.
+proba pXOR.
+
+fun f(S,D): D.
+
+(* f(S) is a pseudo-random function family *) 
+
+equiv
+  ! n new s: S; ! m gen_Oracle(x: D) := return(f(s,x)) [all]
+<=(pPRF(time,n,m))=>
+  ! n ! m gen_Oracle(x: D) := find u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(r[u]) else new r: D; return(r).
+
+
+(* the theory of xor implies several propositions... *)
+
+expand Xor(D, xor, zero).
+
+fun h(K,D): D.
+
+(* ...and h(K) is an almost-XOR-universal-hash function family *)
+
+equiv
+  ! m new k: K; ! n Oxorh(x: D, x': D, y: D) := return(xor(h(k,x),h(k,x')) = y)
+<=(n * m * pAXUH(time))=>
+  ! m ! n Oxorh(x: D, x': D, y: D) := return(x = x' && y = zero).
+
+(* query *)
+query secret b.
+
+channel dummy, start, c1, c2.
+
+(* The Luby-Rackoff construction *)
+
+
+
+(* The random function *)
+
+
+
+process
+  in(start, ());
+new b: bool;
+new k: K;
+new s1: S;
+new s2: S;
+if b then
+(
+  out(dummy, ());
+  ! i_1 <= q
+  in(c1[i_1], (u_1: D, v: D));
+  let temp1: D = h(k, v) in
+  let w: D = xor(u_1, temp1) in
+  let temp2: D = f(s1, w) in
+  let x_1: D = xor(v, temp2) in
+  let temp3: D = f(s2, x_1) in
+  let y: D = xor(w, temp3) in
+  out(c2[i_1], (x_1, y))
+)
+else
+  out(dummy, ());
+  ! i_2 <= q
+  in(c1[i_2], (u': D, v': D));
+  find i_3 = i_4 <= q suchthat defined(u'[i_4], v'[i_4], x'[i_4], y'[i_4]) && (u' = u'[i_4]) && (v' = v'[i_4]) then
+    out(c2[i_2], (x'[i_3], y'[i_3]))
+  else
+    new x': D;
+    new y': D;
+    out(c2[i_2], (x', y'))
+
+
+
+(* EXPECTED
+All queries proved.
+0.240s (user 0.212s + system 0.028s), max rss 42880K
+END *)

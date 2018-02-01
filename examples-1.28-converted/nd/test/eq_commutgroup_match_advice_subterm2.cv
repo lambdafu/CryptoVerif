@@ -1,0 +1,96 @@
+type D [fixed].
+
+(* set interactiveMode = true. *)
+
+fun mult(D,D):D.
+fun inv(D):D.
+const neut:D.
+equation commut_group(mult,inv,neut).
+
+fun h(D):bitstring.
+fun g(D): D.
+
+const zero, one, two, three: D. 
+
+channel c.
+proba Peq.
+param n,n'.
+
+equiv
+  ! n new r1: D; new r2: D; ! n' O(y: D) := return(mult(r1,mult(y,r2)))
+<=(Peq)=>
+  ! n ! n' O(y: D) := return(g(y)).
+
+fun mult2(D,D):D.
+fun inv2(D):D.
+equation group(mult2,inv2,neut).
+equiv
+  ! n new r1: D; new r2: D; ! n' O() := return(mult2(r1,mult2(one,r2)))
+<=(Peq)=>
+  ! n ! n' O() := return(g(one)).
+
+
+process in(c, ());
+new r1_1: D;
+new r2_1: D;
+out(c, h(mult(mult(r1_1, one), mult(two, r2_1))));
+in(c, ());
+new r1_2: D;
+new r2_2: D;
+out(c, h(mult(mult(r1_2, one), mult(r2_2, two))));
+in(c, ());
+new r1_3: D;
+new r2_3: D;
+out(c, h(mult(two, mult(mult(r1_3, one), mult(r2_3, two)))));
+in(c, ());
+let z: D = mult(r1_3, one) in
+out(c, h(mult(z, mult(r2_3, zero))));
+in(c, ());
+let t: D = mult(two, r2_3) in
+out(c, h(mult(z, t)));
+in(c, ());
+let x: D = mult(z, t) in
+out(c, h(x));
+in(c, ());
+new r1_4: D;
+new r2_4: D;
+new r1': D;
+new r2': D;
+out(c, h(mult(mult(r1_4, one), mult(r2_4, mult(two, mult(r1', mult(one, r2')))))));
+in(c, ());
+new r1_5: D;
+new r2_5: D;
+out(c, h(mult(mult(r1_5, one), mult(r2_5, mult(two, mult(r1_5, mult(one, r2_5)))))));
+in(c, ());
+new r1_6: D;
+new r2_6: D;
+out(c, h(mult2(mult2(r1_6, one), mult2(r2_6, mult2(two, mult2(r1_6, mult2(one, r2_6)))))));
+in(c, ());
+new r1_7: D;
+new r2_7: D;
+let z_1: D = mult(inv(r1_7), one) in
+out(c, h(mult(z_1, mult(two, zero))));
+in(c, ());
+new r1_8: D;
+new r2_8: D;
+let z_2: D = mult(inv(r1_8), one) in
+let t_1: D = mult(two, inv(r2_8)) in
+out(c, h(inv(mult(z_2, t_1))));
+in(c, ());
+let x_1: D = inv(mult(z_2, t_1)) in
+out(c, h(x_1));
+in(c, ());
+new r1_9: D;
+new r2_9: D;
+out(c, (mult(inv(r1_9), one) = mult(two, r2_9)));
+in(c, ());
+let t_2: D = mult(zero, two) in
+out(c, (mult(t_2, r1_9) = inv(r2_9)))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.128s (user 0.116s + system 0.012s), max rss 42608K
+END *)

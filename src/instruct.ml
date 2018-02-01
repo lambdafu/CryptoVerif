@@ -358,6 +358,7 @@ let crypto_transform no_advice equiv user_info state =
 	end
       else
 	print_string "Succeeded.\n"; 
+      flush stdout;
       (* Always expand FindE *)
       g''.proc <- Terms.move_occ_process g''.proc;
       Invariants.global_inv g''.proc;
@@ -528,7 +529,7 @@ let rec is_full_state query_list g state =
 
 and is_full_proba query_list = function
     SetProba _ -> true
-  | SetEvent(f,g,poptref) ->
+  | SetEvent(f,g,pub_vars,poptref) ->
       match !poptref with
 	Some _ -> true
       |	None -> false
@@ -683,9 +684,15 @@ let rec find_binders_term accu t =
       find_binders_pat accu pat;
       find_binders_term accu t1;
       find_binders_term accu t2;
+      begin
       match topt with
 	None -> ()
       |	Some t3 -> find_binders_term accu t3
+      end
+  | EventE(t,p) ->
+      find_binders_term accu t;
+      find_binders_term accu p
+  | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
       
 and find_binders_pat accu = function
     PatVar b -> add accu b
@@ -784,7 +791,7 @@ let find_equiv f ((n,lm,_,set,_,_),_) =
   (List.exists (fun (fg, _) -> find_funsymb_fg f fg) lm) ||
   (List.exists (function 
       SetProba r -> find_proba f r
-    | SetEvent(e,_,_) -> f = e.f_name) set)
+    | SetEvent(e,_,_,_) -> f = e.f_name) set)
 
 let find_equiv_by_name f ((n,_,_,_,_,_),_) =
   match n with
@@ -826,19 +833,13 @@ let find_restr (s,ext) ((_,lm,_,_,_,_),_) =
     raise (Error("Random variable " ^ s ^ " not found in equivalence", ext))
     
 let do_equiv ext equiv (s,ext_s) state = 
-  (* @ is not accepted in identifiers when parsing the initial file,
-     but CryptoVerif creates variables with @, so I accept @ here. *)
-  Parsing_helper.accept_arobase := true;
   let lexbuf = Lexing.from_string s in
+  Parsing_helper.set_start lexbuf ext_s;
   let parsed_user_info = 
     try 
-      if (!Settings.front_end) == Settings.Channels then 
-	Parser.cryptotransfinfo Lexer.token lexbuf
-      else
-	Oparser.cryptotransfinfo Olexer.token lexbuf
+      Parser.cryptotransfinfo Lexer.token lexbuf
     with
-      Parsing.Parse_error -> raise (Error("Syntax error", combine_extent ext_s (extent lexbuf)))
-    | Error(s,ext) -> raise (Error(s, combine_extent ext_s ext))
+      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
 
   in
   match parsed_user_info with
@@ -926,6 +927,14 @@ let rec undo ext state n =
       Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 
+exception NthFailed
+	
+let nth l n =
+  try
+    List.nth l n
+  with _ ->
+    raise NthFailed
+
 let rec concat_strings = function
     [] -> ""
   | [a,_] -> a
@@ -997,13 +1006,13 @@ let map_param (s,ext) ext_s =
 	if (String.sub s 0 4) <> "size" then raise Not_found;
 	int_of_string (String.sub s 4 (String.length s - 4))
       with _ ->
-	raise (Error("Unknown parameter size " ^ s, Parsing_helper.combine_extent ext_s ext))
+	raise (Error("Unknown parameter size " ^ s, ext))
 
 let map_type (s,ext) ext_s =   
   try
     Settings.parse_type_size s 
   with Not_found ->
-    raise (Error("Unknown type size " ^ s, Parsing_helper.combine_extent ext_s ext))
+    raise (Error("Unknown type size " ^ s, ext))
 
 let rec interpret_command interactive state = function
     ("remove_assign", ext1)::l ->
@@ -1135,9 +1144,9 @@ let rec interpret_command interactive state = function
 	      (Some s, eq_list, lb)
 	  | (s, s_ext)::lb ->
 	      try 
-		(Some s, [List.nth (!Settings.equivs) (int_of_string s - 1)], lb)
+		(Some s, [nth (!Settings.equivs) (int_of_string s - 1)], lb)
 	      with 
-		Failure "nth" | Invalid_argument "List.nth" ->
+		NthFailed ->
 		  raise (Error("Equivalence number " ^ s ^ " does not exist", s_ext))
 	      |	Failure _ -> 
 		  let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
@@ -1289,12 +1298,10 @@ let rec interpret_command interactive state = function
       begin
 	let coll_s = concat_strings r in
 	let lexbuf = Lexing.from_string coll_s in
+	Parsing_helper.set_start lexbuf ext_s;
 	try 
 	  let coll = 
-	    if (!Settings.front_end) == Settings.Channels then 
-	      Parser.allowed_coll Lexer.token lexbuf
-	    else
-	      Oparser.allowed_coll Olexer.token lexbuf
+	    Parser.allowed_coll Lexer.token lexbuf
 	  in
 	  Settings.allowed_collisions := [];
 	  Settings.allowed_collisions_collision := [];
@@ -1305,8 +1312,7 @@ let rec interpret_command interactive state = function
 	    | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
 		  ) coll
 	with
-	  Parsing.Parse_error -> raise (Error("Syntax error", Parsing_helper.combine_extent ext_s (extent lexbuf)))
-	| Error(s,ext) -> raise (Error(s, Parsing_helper.combine_extent ext_s ext))
+	  Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
       end;
       state
   | ["undo",ext] -> undo ext state 1
@@ -1350,9 +1356,26 @@ let rec interpret_command interactive state = function
 and interactive_loop state =
   print_string "Please enter a command: ";
   let s = read_line() in
-  let l = Str.split (Str.regexp "[ \t]+") s in
+  let lexbuf = Lexing.from_string s in
+  let rec command_from_lexbuf state com_accu lexbuf =
+    match Lexer.interactive_command lexbuf with
+      Com_elem s -> command_from_lexbuf state ((s, Parsing_helper.extent lexbuf)::com_accu) lexbuf
+    | Com_sep ->
+	let state' = 
+	  if com_accu != [] then
+	    interpret_command true state (List.rev com_accu)
+	  else
+	    state
+	in
+	command_from_lexbuf state' [] lexbuf
+    | Com_end ->
+	if com_accu != [] then
+	  interpret_command true state (List.rev com_accu)
+	else
+	  state
+  in
   try 
-    interactive_loop (interpret_command true state (List.map (fun s -> (s, dummy_ext)) l))
+    interactive_loop (command_from_lexbuf state [] lexbuf)
   with End s ->
     CSuccess s
   | Error(mess, extent) ->

@@ -167,6 +167,73 @@ val filter_indices : term -> term list -> repl_index list -> term list ->
 val is_compatible_indices : compat_info_elem -> compat_info_elem -> bool
 val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem option
 
+(*** Helper functions for simplification ***)
+    
+(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+   returns a term independent of [b0[l0]] in which some array indices in [t] 
+   may have been replaced with fresh replication indices. 
+   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
+   [(dep,nodep)] is the dependency information:
+     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
+              or [None] when any variable may depend on [b0];
+     [nodep] is a list of terms that are known not to depend on [b0].
+   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
+   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
+   array indices that depend on [b0] are replaced with fresh replication indices
+   (as in the transformation from [t] to the result of [is_indep]). *)
+val is_indep :
+  binder * term list * ((binder * 'a) list option * term list) *
+  term list list ref * term list list ref ->
+  term -> term
+
+(* [dependency_collision_rec3 cur_array true_facts t1 t2 t] aims 
+   to simplify [t1 = t2] by eliminating collisions
+   using that randomly chosen values do not depend on other variables.
+   Basically, the collision is eliminated when [t1] characterizes
+   a large part of a random variable [b] and [t2] does not depend 
+   on [b]. 
+   [t] is a subterm of [t1] that contains the variable [b].
+   (Initially, it is [t1], and recursive calls are made until [t] is 
+   just a variable.)
+
+   It returns [None] when it fails, and [Some t'] when it
+   succeeds in simplifying [t1=t2] into [t'].
+
+   [cur_array] is the list of current replication indices.
+   [true_facts] is a list of facts that are known to hold. *)
+val dependency_collision_rec3 :
+  repl_index list -> term list -> term -> term -> term -> term option
+
+(* [try_two_directions f t1 t2] tries a dependency analysis [f]
+   on both sides of [t1 = t2] *)
+val try_two_directions :
+  ('a -> 'a -> 'a -> 'b option) -> 'a -> 'a -> 'b option
+
+(* [needed_vars vars] returns true when some variables in [vars]
+   have array accesses or are used in queries. That is, we must keep
+   them even if they are not used in their scope. *)
+val needed_vars : binder list -> bool
+val needed_vars_in_pat : pattern -> bool
+
+(* Add lets to a process or a term *)
+val add_let : process -> (binder * term) list -> process
+val add_let_term : term -> (binder * term) list -> term
+
+(* [filter_deflist_indices bl def_list] removes from [def_list] all
+   elements that refer to replication indices in [bl].
+   Used when we know that the indices in [bl] are in fact not used. *)
+val filter_deflist_indices :
+  (binder * repl_index) list -> binderref list -> binderref list
+
+(* [is_unique l0' find_info] returns Unique when a [find] is unique,
+   that is, at runtime, there is always a single possible branch 
+   and a single possible value of the indices:
+   either it is marked [Unique] in the [find_info],
+   or it has a single branch with no index.
+   [l0'] contains the branches of the considered [find]. *)
+val is_unique : 'a findbranch list -> find_info -> find_info
+
+
 (*** [improved_def_process event_accu compatible_needed p]
      Improved version of [Terms.build_def_process] that infers facts from 
      variables being defined at a program point, variables being simultaneously

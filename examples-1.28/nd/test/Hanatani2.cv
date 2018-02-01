@@ -1,0 +1,99 @@
+(* FDH signature scheme *)
+
+param nK, nf, n0, n1, n2, n3, nH, qH, qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [large,fixed].  (* Modified. [fixed] -> [large, fixed] *)
+type E [large,fixed].  (* Modified. [fixed] -> [large, fixed] *)
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):E.  (* Modified. the image D -> E *)
+fun f'(pkey, D):E. (* Modified. the image D -> E *)
+fun mf(skey, E):D. (* Modified. the domain D -> E *)
+
+(* mf is the inverse of f *)
+
+forall r:seed, x:D; mf(skgen(r), f(pkgen(r), x)) = x.
+
+(* Injectivity *)
+forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+
+(* We can permute the distributions, for uniformly distributed random
+   numbers x and y. Do that only when x is used in mf(skgen(r),x) *)
+
+equiv !nK new r: seed; (
+	() -> pkgen(r),
+	!nf new x:E; (() -> x, () -> mf(skgen(r),x)))
+<=(0)=>
+      !nK new r: seed; (
+	() -> pkgen(r),
+	!nf new y:D; (() -> f(pkgen(r),y), () -> y)).  (* Modified. x:E -> y:D *)
+
+(* One-wayness *)
+
+equiv !nK new r: seed; (
+	() -> pkgen(r),
+	!nf new x: D; (() -> f(pkgen(r), x),
+		       (x':D) n2 -> x' = x,
+		       () -> x))
+<=(nK * nf * POW(time + (nK-1) * time(pkgen) + (nf*nK-1) * time(f)))=>
+      !nK new r: seed; (
+	() -> pkgen'(r),
+	!nf new x: D; (() -> f'(pkgen'(r), x),
+		       (x':D) n2 -> if defined(k) then x' = x else false,
+		       () -> let k:bitstring = mark in x)).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):E. (* Modify the image *)
+
+equiv (x:bitstring) nH -> hash(x) [all]   (* Modify the set which r is chosen *)
+      <=(0)=>
+      (x:bitstring) nH -> find u <= nH suchthat defined(x[u],r[u])  && otheruses(r[u]) && x= x[u] then r[u] else
+			  new r:E; r.
+
+(* Queries *)
+
+event bad.
+query event bad ==> false.
+
+channel c0, c1, c2, c3, c4, c5, start.
+
+let processH =
+	! qH
+	in(c4, x:bitstring);
+	out(c5, hash(x)).
+
+let processS =
+	! qS
+	in(c1, m:bitstring);
+	out(c2, mf(sk, hash(m))).
+
+let processT = 
+	in(c3, (m':bitstring, s:D));
+	if f(pk, s) = hash(m') then
+	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then yield else
+	event bad.
+
+process 
+	processH |
+	(in(start, ());
+	new r:seed; 
+	let pk = pkgen(r) in
+	let sk = skgen(r) in
+	out(c0, pk);
+	(processS | processT))
+
+(* EXPECTED
+RESULT Could not prove event bad ==> false.
+0.030s (user 0.030s + system 0.000s), max rss 18032K
+END *)

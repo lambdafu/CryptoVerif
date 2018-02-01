@@ -1,0 +1,478 @@
+Doing expand if, let, find
+Doing simplify
+Run simplify 1 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Please enter a command: auto
+Doing equivalence
+equiv ! !_11 <= nH (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_12 <= nH (x_16: bitstring) -> let x: bitstring = x_16 in find u <= nH suchthat defined(x[u], r[u]) && otheruse
+s(r[u]) && (x = x[u]) then r[u] else new r: E; r
+
+Doing simplify
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between r_18 and f(pk, s) Probability: 1. / |E|
+(r_18 characterizes a part of r_18 of type(s) E;
+ f(pk, s) does not depend on r_18)
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_11 <= nH (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_12 <= nH (x_16: bitstring) -> let x: bitstring = x_16 in find u <= nH suchthat defined(x[u], r[u]) && otheruse
+s(r[u]) && (x = x[u]) then r[u] else new r: E; r
+
+Doing equivalence
+equiv ! !_5 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_6 <= nf new x: D; (
+    () -> f(pkgen(r), x),
+    ! !_7 <= n2 (x': D) -> (x' = x),
+    () -> x))
+<=(nK * nf * POW(time + (nK - 1.) * time(pkgen) + (nf * nK - 1.) * time(f)))=>
+      ! !_8 <= nK new r: seed; (
+  () -> pkgen'(r),
+  ! !_9 <= nf new x: D; (
+    () -> f'(pkgen'(r), x),
+    ! !_10 <= n2 (x': D) -> if defined(k) then (x' = x) else false,
+    () -> let k: bitstring = mark in x))
+
+Doing equivalence
+equiv ! !_1 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_2 <= nf new x: E; (
+    () -> x,
+    () -> mf(skgen(r), x)))
+<=(0)=>
+      ! !_3 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_4 <= nf new y: D; (
+    () -> f(pkgen(r), y),
+    () -> y))
+
+Doing remove assignments of binder sk
+Doing equivalence
+equiv ! !_1 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_2 <= nf new x: E; (
+    () -> x,
+    () -> mf(skgen(r), x)))
+<=(0)=>
+      ! !_3 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_4 <= nf new y: D; (
+    () -> f(pkgen(r), y),
+    () -> y))
+with r
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Proved query event bad ==> false
+Initial state
+Game 1 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  out(c5[!_13], hash(x))
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  let sk: skey = skgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    out(c2[!_14], mf(sk, hash(m)))
+  |
+    in(c3, (m': bitstring, s: D));
+    if (f(pk, s) = hash(m')) then
+    find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+      yield
+    else
+      event bad
+  )
+)
+
+
+Applying equivalence
+equiv ! !_11 <= nH (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_12 <= nH (x_16: bitstring) -> let x: bitstring = x_16 in find u <= nH suchthat defined(x[u], r[u]) && otheruse
+s(r[u]) && (x = x[u]) then r[u] else new r: E; r
+ yields
+
+Game 2 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = x in
+  find  suchthat defined(x_19, r_18) && otheruses(r_18) && (x_23 = x_19) then
+    out(c5[!_13], r_18)
+  orfind @i_29 <= qS suchthat defined(x_21[@i_29], r_20[@i_29]) && otheruses(r_20[@i_29]) && (x_23 = x_21[@i_29]) then
+    out(c5[!_13], r_20[@i_29])
+  orfind @i_28 <= qH suchthat defined(x_23[@i_28], r_22[@i_28]) && otheruses(r_22[@i_28]) && (x_23 = x_23[@i_28]) then
+    out(c5[!_13], r_22[@i_28])
+  else
+    new r_22: E;
+    out(c5[!_13], r_22)
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  let sk: skey = skgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = m in
+    find  suchthat defined(x_19, r_18) && otheruses(r_18) && (x_21 = x_19) then
+      out(c2[!_14], mf(sk, r_18))
+    orfind @i_27 <= qS suchthat defined(x_21[@i_27], r_20[@i_27]) && otheruses(r_20[@i_27]) && (x_21 = x_21[@i_27]) then
+
+      out(c2[!_14], mf(sk, r_20[@i_27]))
+    orfind @i_26 <= qH suchthat defined(x_23[@i_26], r_22[@i_26]) && otheruses(r_22[@i_26]) && (x_21 = x_23[@i_26]) then
+
+      out(c2[!_14], mf(sk, r_22[@i_26]))
+    else
+      new r_20: E;
+      out(c2[!_14], mf(sk, r_20))
+  |
+    in(c3, (m': bitstring, s: D));
+    let x_19: bitstring = m' in
+    find  suchthat defined(x_19, r_18) && otheruses(r_18) && (x_19 = x_19) then
+      if (f(pk, s) = r_18) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    orfind @i_25 <= qS suchthat defined(x_21[@i_25], r_20[@i_25]) && otheruses(r_20[@i_25]) && (x_19 = x_21[@i_25]) then
+
+      if (f(pk, s) = r_20[@i_25]) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    orfind @i_24 <= qH suchthat defined(x_23[@i_24], r_22[@i_24]) && otheruses(r_22[@i_24]) && (x_19 = x_23[@i_24]) then
+
+      if (f(pk, s) = r_22[@i_24]) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    else
+      new r_18: E;
+      if (f(pk, s) = r_18) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+  )
+)
+
+
+Applying simplify [Difference of probability 1. / |E|] yields
+
+Game 3 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = x in
+  find @i_29 <= qS suchthat defined(r_20[@i_29], x_21[@i_29]) && otheruses(r_20[@i_29]) && (x_23 = x_21[@i_29]) then
+    out(c5[!_13], r_20[@i_29])
+  orfind @i_28 <= qH suchthat defined(r_22[@i_28], x_23[@i_28]) && otheruses(r_22[@i_28]) && (x_23 = x_23[@i_28]) then
+    out(c5[!_13], r_22[@i_28])
+  else
+    new r_22: E;
+    out(c5[!_13], r_22)
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  let sk: skey = skgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = m in
+    find @i_27 <= qS suchthat defined(r_20[@i_27], x_21[@i_27]) && otheruses(r_20[@i_27]) && (x_21 = x_21[@i_27]) then
+      out(c2[!_14], mf(sk, r_20[@i_27]))
+    orfind @i_26 <= qH suchthat defined(r_22[@i_26], x_23[@i_26]) && otheruses(r_22[@i_26]) && (x_21 = x_23[@i_26]) then
+
+      out(c2[!_14], mf(sk, r_22[@i_26]))
+    else
+      new r_20: E;
+      out(c2[!_14], mf(sk, r_20))
+  |
+    in(c3, (m': bitstring, s: D));
+    let x_19: bitstring = m' in
+    find @i_25 <= qS suchthat defined(x_21[@i_25], r_20[@i_25]) && otheruses(r_20[@i_25]) && (x_19 = x_21[@i_25]) then
+      yield
+    orfind @i_24 <= qH suchthat defined(r_22[@i_24], x_23[@i_24]) && otheruses(r_22[@i_24]) && (x_19 = x_23[@i_24]) then
+
+      if (f(pk, s) = r_22[@i_24]) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    else
+      new r_18: E
+  )
+)
+
+
+Applying remove assignments of useless yields
+
+Game 4 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = cst_bitstring in
+  find @i_29 <= qS suchthat defined(m[@i_29], x_21[@i_29], r_20[@i_29]) && otheruses(r_20[@i_29]) && (x = m[@i_29]) then
+
+    out(c5[!_13], r_20[@i_29])
+  orfind @i_28 <= qH suchthat defined(x[@i_28], x_23[@i_28], r_22[@i_28]) && otheruses(r_22[@i_28]) && (x = x[@i_28]) th
+en
+    out(c5[!_13], r_22[@i_28])
+  else
+    new r_22: E;
+    out(c5[!_13], r_22)
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  let sk: skey = skgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = cst_bitstring in
+    find @i_27 <= qS suchthat defined(m[@i_27], x_21[@i_27], r_20[@i_27]) && otheruses(r_20[@i_27]) && (m = m[@i_27]) th
+en
+      out(c2[!_14], mf(sk, r_20[@i_27]))
+    orfind @i_26 <= qH suchthat defined(x[@i_26], x_23[@i_26], r_22[@i_26]) && otheruses(r_22[@i_26]) && (m = x[@i_26])
+then
+      out(c2[!_14], mf(sk, r_22[@i_26]))
+    else
+      new r_20: E;
+      out(c2[!_14], mf(sk, r_20))
+  |
+    in(c3, (m': bitstring, s: D));
+    find @i_25 <= qS suchthat defined(m[@i_25], x_21[@i_25], r_20[@i_25]) && otheruses(r_20[@i_25]) && (m' = m[@i_25]) t
+hen
+      yield
+    orfind @i_24 <= qH suchthat defined(x[@i_24], x_23[@i_24], r_22[@i_24]) && otheruses(r_22[@i_24]) && (m' = x[@i_24])
+ then
+      if (f(pk, s) = r_22[@i_24]) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    else
+      new r_18: E
+  )
+)
+
+
+Applying remove assignments of binder sk yields
+
+Game 5 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = cst_bitstring in
+  find @i_29 <= qS suchthat defined(m[@i_29], x_21[@i_29], r_20[@i_29]) && otheruses(r_20[@i_29]) && (x = m[@i_29]) then
+
+    out(c5[!_13], r_20[@i_29])
+  orfind @i_28 <= qH suchthat defined(x[@i_28], x_23[@i_28], r_22[@i_28]) && otheruses(r_22[@i_28]) && (x = x[@i_28]) th
+en
+    out(c5[!_13], r_22[@i_28])
+  else
+    new r_22: E;
+    out(c5[!_13], r_22)
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = cst_bitstring in
+    find @i_27 <= qS suchthat defined(m[@i_27], x_21[@i_27], r_20[@i_27]) && otheruses(r_20[@i_27]) && (m = m[@i_27]) th
+en
+      out(c2[!_14], mf(skgen(r), r_20[@i_27]))
+    orfind @i_26 <= qH suchthat defined(x[@i_26], x_23[@i_26], r_22[@i_26]) && otheruses(r_22[@i_26]) && (m = x[@i_26])
+then
+      out(c2[!_14], mf(skgen(r), r_22[@i_26]))
+    else
+      new r_20: E;
+      out(c2[!_14], mf(skgen(r), r_20))
+  |
+    in(c3, (m': bitstring, s: D));
+    find @i_25 <= qS suchthat defined(m[@i_25], x_21[@i_25], r_20[@i_25]) && otheruses(r_20[@i_25]) && (m' = m[@i_25]) t
+hen
+      yield
+    orfind @i_24 <= qH suchthat defined(x[@i_24], x_23[@i_24], r_22[@i_24]) && otheruses(r_22[@i_24]) && (m' = x[@i_24])
+ then
+      if (f(pk, s) = r_22[@i_24]) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    else
+      new r_18: E
+  )
+)
+
+
+Applying equivalence
+equiv ! !_1 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_2 <= nf new x: E; (
+    () -> x,
+    () -> mf(skgen(r), x)))
+<=(0)=>
+      ! !_3 <= nK new r: seed; (
+  () -> pkgen(r),
+  ! !_4 <= nf new y: D; (
+    () -> f(pkgen(r), y),
+    () -> y))
+with r yields
+
+Game 6 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = cst_bitstring in
+  find @i_29 <= qS suchthat defined(y_34[@i_29], m[@i_29], x_21[@i_29], r_20[@i_29]) && otheruses(r_20[@i_29]) && (x = m
+[@i_29]) then
+    out(c5[!_13], f(pkgen(r), y_34[@i_29]))
+  orfind @i_28 <= qH suchthat defined(y_37[@i_28], x[@i_28], x_23[@i_28], r_22[@i_28]) && otheruses(r_22[@i_28]) && (x =
+ x[@i_28]) then
+    out(c5[!_13], f(pkgen(r), y_37[@i_28]))
+  else
+    new y_37: D;
+    let r_22: E = cst_E in
+    out(c5[!_13], f(pkgen(r), y_37))
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = cst_bitstring in
+    find @i_27 <= qS suchthat defined(y_34[@i_27], m[@i_27], x_21[@i_27], r_20[@i_27]) && otheruses(r_20[@i_27]) && (m =
+ m[@i_27]) then
+      out(c2[!_14], y_34[@i_27])
+    orfind @i_26 <= qH suchthat defined(y_37[@i_26], x[@i_26], x_23[@i_26], r_22[@i_26]) && otheruses(r_22[@i_26]) && (m
+ = x[@i_26]) then
+      out(c2[!_14], y_37[@i_26])
+    else
+      new y_34: D;
+      let r_20: E = cst_E in
+      out(c2[!_14], y_34)
+  |
+    in(c3, (m': bitstring, s: D));
+    find @i_25 <= qS suchthat defined(y_34[@i_25], m[@i_25], x_21[@i_25], r_20[@i_25]) && otheruses(r_20[@i_25]) && (m'
+= m[@i_25]) then
+      yield
+    orfind @i_24 <= qH suchthat defined(y_37[@i_24], x[@i_24], x_23[@i_24], r_22[@i_24]) && otheruses(r_22[@i_24]) && (m
+' = x[@i_24]) then
+      if (f(pk, s) = f(pkgen(r), y_37[@i_24])) then
+      find u <= qS suchthat defined(m[u]) && (m' = m[u]) then
+        yield
+      else
+        event bad
+    else
+      new r_18: E
+  )
+)
+
+
+Applying simplify yields
+
+Game 7 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = cst_bitstring in
+  new y_37: D;
+  let r_22: E = cst_E in
+  out(c5[!_13], f(pkgen(r), y_37))
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = cst_bitstring in
+    new y_34: D;
+    let r_20: E = cst_E in
+    out(c2[!_14], y_34)
+  |
+    in(c3, (m': bitstring, s: D))
+  )
+)
+
+
+Applying move new all binders yields
+
+Game 8 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  let x_23: bitstring = cst_bitstring in
+  let r_22: E = cst_E in
+  new y_37: D;
+  out(c5[!_13], f(pkgen(r), y_37))
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    let x_21: bitstring = cst_bitstring in
+    let r_20: E = cst_E in
+    new y_34: D;
+    out(c2[!_14], y_34)
+  |
+    in(c3, (m': bitstring, s: D))
+  )
+)
+
+
+Applying remove assignments of useless yields
+
+Game 9 is
+(
+  ! !_13 <= qH
+  in(c4[!_13], x: bitstring);
+  new y_37: D;
+  out(c5[!_13], f(pkgen(r), y_37))
+|
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  out(c0, pk);
+  (
+    ! !_14 <= qS
+    in(c1[!_14], m: bitstring);
+    new y_34: D;
+    out(c2[!_14], y_34)
+  |
+    in(c3, (m': bitstring, s: D))
+  )
+)
+
+
+RESULT Proved event bad ==> false with probability 1. / |E|
+All queries proved.

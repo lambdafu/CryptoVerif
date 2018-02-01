@@ -1,0 +1,71 @@
+param n, m, m', m'', q.
+
+type S [large,fixed].
+type D [large,fixed].
+
+fun f(S,D): D.
+fun g(S,S,D): D.
+fun g'(S,S,D): D.
+fun h(S,D): D.
+
+equiv
+    !n new a:S; new b:S; 
+      ((x:D) m -> f(b,x), (y:D) m' -> g(a,b,y), (z:D) m'' -> h(a,z))
+<=(0)=>
+    !n new c:S; new d:S;
+      ((x:D) m -> f(c,x), (y:D) m' -> g'(d,c,y), (z:D) m'' -> h(d,z)).
+
+
+query secret test.
+
+channel dummy, start.
+
+let processC = !q
+    in(dummy, x:D);
+    new b:S;
+    out(dummy, f(b,x));
+    in(dummy, y:D);
+    new a:S; 
+    out(dummy, (g(a,b,y), h(a,y))).
+
+(* The mapping of restrictions should be c -> b, d -> a, so that
+new c is written where new b is, and new d is written where new a is.
+Note that no restriction is used in all expressions.
+
+Next comment was for bugeq.cv, but the situation is similar here:
+
+CryptoVerif assumes that all restrictions used in an equivalence
+are defined at all expressions that occur in the equivalence. This is not
+true when some expressions do not use all restrictions. For instance,
+here f(b,x) in the equivalence does not use a. As a result, a need not be
+defined at f(b,x). This is the case in processC above; a is defined only after
+f(b,x). The problem is that, after the transformation, CryptoVerif replaces
+new a:S with new c_8:S and removes new b:S, so c_8 is not defined at f(c_8,x):
+
+Game 2 is
+in(start, ());
+new test: S;
+out(dummy, test);
+! !_7 <= q
+in(dummy[!_7], x: D);
+out(dummy[!_7], f(c_8, x));
+in(dummy[!_7], y: D);
+new c_8: S;                 <=== c_8 defined too late!
+out(dummy[!_7], g'(c_8, y))
+
+*)
+
+
+
+process
+  in(start, ());
+  new test:S;
+  out(dummy, test);
+  processC
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of test.
+0.020s (user 0.010s + system 0.010s), max rss 15760K
+END *)

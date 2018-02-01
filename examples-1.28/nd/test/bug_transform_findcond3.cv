@@ -1,0 +1,71 @@
+(* CryptoVerif transforms the game, but the result is incorrect:
+
+  find @i_16 <= N suchthat defined(x'_11[@i_16], x_15[@i_16], y[j[@i_16]]) && (x'_10 = y[j[@i_16]]) then
+
+performs a look up on y[j[...]] when in fact h may be called for any
+y[..] in the find j<= N suchthat defined(y[j]) && m=h1(x',y[j])
+to check whether the condition holds, so the look up should be done
+on all y[...]
+
+The simplest fix is to forbid such transformations, where, due to
+the transform of a subterm of M in find j<=N suchthat ... M...,
+we end up making a look up on an expression that depends on the index j
+defined by that find.
+
+*)
+
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', N3, qH.
+
+fun h1(hashinput, hr):hash.
+fun h2(hr):hash.
+
+equiv !N' new y:hr; (x:hashinput) N'' -> h1(x,y), (x':hr) N3 -> h2(x') [all]
+      <=(0)=>
+      !N' new y:hr; (x:hashinput) N'' -> h1(x,y), (x':hr) N3 -> find  k<=N'',j <= N' suchthat defined(y[j],x[k,j]) && x'= y[j] then h1(x[k,j],y[j]) else
+			 new r:hash; r.
+
+channel c5, c6.
+
+let hashoracle = ! qH in(c1, (x':hr)); out(c2, h2(x')). 
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+let processU =
+	in(c1, (m: hash, x':hashinput));
+	find j<= N suchthat defined(y[j]) && m=h1(x',y[j]) then
+	out(c2, true)
+	else
+	out(c2, false).
+
+let processS =
+	in(c3, x: hashinput);
+	new y: hr;
+	new s: G;
+        out(c4, s).
+
+process 
+	((! N processU) |
+	 (! N processS) | hashoracle)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.020s + system 0.000s), max rss 16096K
+END *)

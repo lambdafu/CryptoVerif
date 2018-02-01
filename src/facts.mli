@@ -111,14 +111,33 @@ val get_def_vars_at : program_point -> binderref list
    unreachable. *)
 val get_facts_at : program_point -> term list
 
-(* [get_facts_at_cases pp] returns the facts that are known to hold
-   at program point [pp]. It is a modified version of
-   [get_facts_at] to distinguish cases depending on the
+(* [get_def_vars_full_block pp] returns the variables that are known
+   to be defined at the end of the input...output block containing 
+   program point [pp].
+   May raise Contradiction when the program point [pp] is
+   unreachable. *)
+val get_def_vars_full_block : program_point -> binderref list
+
+(* [get_facts_full_block pp] returns the facts that are known to hold
+   at the end of the input...output block containing program point [pp].
+   May raise Contradiction when the program point [pp] is
+   unreachable. *)
+val get_facts_full_block : program_point -> term list
+
+(* [get_facts_full_block_cases pp] returns the facts that are known to hold
+   at the end of the input...output block containing program point [pp]. 
+   It is a modified version of
+   [get_facts_full_block] to distinguish cases depending on the
    definition point of variables (instead of taking intersections), to
    facilitate the proof of correspondences.
    May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_facts_at_cases : program_point -> term list * term list list list
+val get_facts_full_block_cases : program_point -> term list * term list list list
+ 
+(* [get_elsefind_facts_at pp] returns the elsefind facts that are known to hold
+   at program point [pp]. *)
+   
+val get_elsefind_facts_at : program_point -> elsefind_fact list
 
 (* [reduced_def_list fact_info def_list] removes variables that are 
    certainly defined from a [def_list] in a find. [fact_info] corresponds

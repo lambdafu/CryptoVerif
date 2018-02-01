@@ -1,0 +1,188 @@
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type timest [fixed].									(* needed in particular for CS_reply *)
+
+(* following functions are needed to set the type of a list of elements to `bitstring', so that the list can be encrypted: *)
+fun concat1(key, mkey, nonce, host):bitstring [data]. 				(* needed for {AK, mAK, n1, T}_Kc in AS_reply *)
+fun concat2(key, mkey, host):bitstring [data].  					(* needed for TGT and ST *)
+
+
+forall y:key, w:mkey, z:host, y2:nonce, z2:host, t2:key, w2:mkey;
+	concat2(y,w,z) <> concat1(t2,w2,y2,z2).
+
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstringbot.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+fun injbot(bitstring):bitstringbot [data].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Zconcat1:bitstring.
+const Zconcat2:bitstring.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce, z:host, t:key, u:mkey;
+	Z(concat1(t, u, y, z)) = Zconcat1.
+forall y:key, w:mkey, z:host; 
+	Z(concat2(y, w, z)) = Zconcat2.
+forall m:bitstring, r:keyseed, r2:seed; 
+	Z(enc(m, kgen(r), r2)) = Z(m).
+
+equiv
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc(x, kgen(r), r2))
+<=(N2 * Penc(time, N, maxlength(x)))=>
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc2(Z(x), kgen2(r), r2)).
+
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, mkey):macs.
+fun check(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(bitstring, mkey):macs.
+fun check2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:mkeyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv
+  ! N3 new r: mkeyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac(x, mkgen(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := return(check(m, mkgen(r), ma)))
+<=(N3 * Pmac(time, N, N2, max(maxlength(x), maxlength(m))))=>
+  ! N3 new r: mkeyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac2(x, mkgen2(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then return(true) else return(false)).
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, start, finish, cC, cS.
+const C : host. (* client *)
+const T : host. (* tgs *)
+const K : host. (* kas *)						
+
+fun acceptC(host,host):bitstring.
+fun acceptK(host):bitstring.
+
+
+event partC(host, host, bitstring).
+event fullC(host, host, key, mkey, bitstring).
+event partK(host, host, bitstring).
+event fullK(host, host, key, mkey, bitstring).
+
+(* authentication of K to C : *)
+
+query x: bitstring, mk: mkey, k: key;
+  inj-event(fullC(K, T, k, mk, x)) ==> inj-event(fullK(C, T, k, mk, x)) public_vars keyAK.		
+
+query mk': mkey, k': key, x: bitstring, mk: mkey, k: key;
+  event(fullC(K, T, k, mk, x)) && event(fullK(C, T, k', mk', x)) ==> (k = k') public_vars keyAK.
+
+(* Secrecy of the key AK *)
+query secret keyAK [onesession]. (* One-Session Secrecy *)						
+query secret keyAK. (* Secrecy  *)
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+process
+	in(start, ());
+new rKc: keyseed;
+let Kc: key = kgen(rKc) in
+new rmKc: mkeyseed;
+let mKc: mkey = mkgen(rmKc) in
+new rKt: keyseed;
+let Kt: key = kgen(rKt) in
+new rmKt: mkeyseed;
+let mKt: mkey = mkgen(rmKt) in
+out(c20, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], h: host);
+  new Nc: nonce;
+  let p1: bitstring = (C, h, Nc) in
+  out(c2[i_1], (C, h, Nc));
+  in(c3[i_1], (=C, m: bitstring, mac1: macs, m2: bitstring, mac2_1: macs));
+  let p2: bitstring = (C, m2) in
+  if check(m2, mKc, mac2_1) then
+  let injbot(concat1(AK: key, mAK: mkey, =Nc, =h)) = dec(m2, Kc) in
+  event fullC(K, h, AK, mAK, (p1, p2));
+  out(c4[i_1], acceptC(K, h));
+  in(finish[i_1], ());
+  if h = T then
+  (
+    let keyAK: key = AK
+  )
+  else
+    out(cC[i_1], AK)
+) | (
+  ! i_2 <= N
+  in(c14[i_2], (h1: host, h2: host, n: nonce));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rmkey[j1_1], Rkey[j1_1]) && (Khost[j1_1] = h1) then
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rmkey[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  let q1: bitstring = (h1, h2, n) in
+  new AK_1: key;
+  new rmAK: mkeyseed;
+  let mAK_1: mkey = mkgen(rmAK) in
+  new r3: seed;
+  let e3: bitstring = enc(concat2(AK_1, mAK_1, h1), Rkey[j2], r3) in
+  let mac3: macs = mac(e3, Rmkey[j2]) in
+  new r4: seed;
+  let e4: bitstring = enc(concat1(AK_1, mAK_1, n, h2), Rkey[j1], r4) in
+  let q2: bitstring = (h1, e4) in
+  event fullK(h1, h2, AK_1, mAK_1, (q1, q2));
+  out(c15[i_2], (h1, e3, mac3, e4, mac(e4, Rmkey[j1])))
+) | (
+  ! i_3 <= N2
+  in(c13[i_3], (Khost: host, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = C then Kc else if Khost = T then Kt else Kkey) in
+  let Rmkey: mkey = (if Khost = C then mKc else if Khost = T then mKt else Kmkey)
+))
+
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.620s (user 0.604s + system 0.016s), max rss 65664K
+END *)

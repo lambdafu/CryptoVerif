@@ -7,5 +7,5 @@ open Types
    collisions eliminated to reach that result. *)
 val check_corresp : 
     (term * program_point) list -> 
-    (bool * term) list * qterm -> game -> bool * setf list
+    (bool * term) list * qterm * binder list -> game -> bool * setf list
 

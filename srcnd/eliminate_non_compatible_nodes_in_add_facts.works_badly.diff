@@ -1,0 +1,418 @@
+Index: src/check.ml
+===================================================================
+RCS file: /home/ROCQ/prosecco/bblanche/CVS-repository/dev/cryptoverif/src/check.ml,v
+retrieving revision 1.110
+diff -r1.110 check.ml
+138c138
+< 			  future_binders = []; future_true_facts = [];
+---
+> 			  future_binders = []; future_true_facts = []; n_compatible = Terms.compatible_empty;
+147c147
+< 			future_binders = []; future_true_facts = [];
+---
+> 			future_binders = []; future_true_facts = []; n_compatible = Terms.compatible_empty;
+335c335
+< 		      future_binders = []; future_true_facts = [];
+---
+> 		      future_binders = []; future_true_facts = []; n_compatible = Terms.compatible_empty;
+Index: src/facts.ml
+===================================================================
+RCS file: /home/ROCQ/prosecco/bblanche/CVS-repository/dev/cryptoverif/src/facts.ml,v
+retrieving revision 1.120
+diff -r1.120 facts.ml
+1166a1167,1196
+> (* Compute the variables in seen_refs with indices args' such that 
+>    args' and args are suffix of one another *)
+> let filter_suffix_indices seen_refs args =
+>   let accu = ref [] in
+>   List.iter (fun (b,args') ->
+>     let l = List.length args in
+>     let l' = List.length args' in
+>     let min = if l > l' then l' else l in
+>     let args_skip = Terms.skip (l-min) args in
+>     let args_skip' = Terms.skip (l'-min) args' in
+>     if (List.for_all2 Terms.equal_terms args_skip args_skip') &&
+>       (not (List.memq b (!accu))) then
+>       accu := b :: (!accu)
+> 		     ) seen_refs;
+>   !accu
+> 
+> let is_compatible refs_suffix_indices n =
+>   (* For safety, when n.n_compatible == Terms.empty_compatible,
+>      we consider that n.n_compatible has not been computed, so
+>      all variables are considered compatible. *)
+>   (n.n_compatible == Terms.compatible_empty) ||
+>   (List.for_all (Binderset.mem n.n_compatible) refs_suffix_indices)
+> 
+> let get_compatible_def_nodes def_vars b l =
+>   (* Compute the variables for which we are sure that they are defined
+>      with indices such that these indices and l are suffix of one another *)
+>   let refs_suffix_indices = filter_suffix_indices def_vars l in
+>   (* Keep only the nodes that define b and that are compatible with these variables *)
+>   List.filter (is_compatible refs_suffix_indices) b.def 
+>     
+1172,1173c1202,1204
+<       let def_vars_above_def = Terms.intersect_list (==) (List.map (get_def_vars_above2 current_node) b.def) in
+<       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node b.def) in
+---
+>       let nodes_b_def = get_compatible_def_nodes (!seen_refs) b l in
+>       let def_vars_above_def = Terms.intersect_list (==) (List.map (get_def_vars_above2 current_node) nodes_b_def) in
+>       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node nodes_b_def) in
+1223,1224c1254,1256
+<       let true_facts_at_def = filter_ifletfindres (Terms.intersect_list Terms.equal_terms (List.map (true_facts_from_node current_node) b.def)) in
+<       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node b.def) in
+---
+>       let nodes_b_def = get_compatible_def_nodes (!seen_refs) b l in
+>       let true_facts_at_def = filter_ifletfindres (Terms.intersect_list Terms.equal_terms (List.map (true_facts_from_node current_node) nodes_b_def)) in
+>       let def_vars_at_def = Terms.intersect_list Terms.equal_binderref (List.map def_vars_from_node nodes_b_def) in
+1684a1717
+>       let nodes_b_def = get_compatible_def_nodes (!seen_refs) b l in
+1686c1719
+< 	filter_ifletfindres (intersect_list_useful_facts is_useful_info b (List.map (true_facts_from_node current_node) b.def)) 
+---
+> 	filter_ifletfindres (intersect_list_useful_facts is_useful_info b (List.map (true_facts_from_node current_node) nodes_b_def)) 
+1688c1721
+<       let (def_vars_at_def, missed_br) = intersect_list_useful_br (!seen_refs) (List.map def_vars_from_node b.def) in
+---
+>       let (def_vars_at_def, missed_br) = intersect_list_useful_br (!seen_refs) (List.map def_vars_from_node nodes_b_def) in
+1744a1778,1779
+>   (* TO DO TODO the variables in vars_t1 / vars_t1' need to be made compatible 
+>      with all variables!!! *)
+1751c1786
+< 			 future_binders = []; future_true_facts = [];
+---
+> 			 future_binders = []; future_true_facts = []; n_compatible = Terms.compatible_empty;
+Index: src/simplify1.ml
+===================================================================
+RCS file: /home/ROCQ/prosecco/bblanche/CVS-repository/dev/cryptoverif/src/simplify1.ml,v
+retrieving revision 1.57
+diff -r1.57 simplify1.ml
+47c47
+< 		   future_binders = []; future_true_facts = [];
+---
+> 		   future_binders = []; future_true_facts = []; n_compatible = Terms.compatible_empty;
+Index: src/terms.ml
+===================================================================
+RCS file: /home/ROCQ/prosecco/bblanche/CVS-repository/dev/cryptoverif/src/terms.ml,v
+retrieving revision 1.327
+diff -r1.327 terms.ml
+1138c1138
+< 		      future_binders = []; future_true_facts = [];
+---
+> 		      future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2248c2248
+< 			    future_binders = []; future_true_facts = [];
+---
+> 			    future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2265c2265
+< 			    future_binders = []; future_true_facts = [];
+---
+> 			    future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2287c2287
+< 			  future_binders = []; future_true_facts = [];
+---
+> 			  future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2343c2343
+<                           future_binders = []; future_true_facts = [];
+---
+>                           future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2358c2358
+< 			    future_binders = []; future_true_facts = [];
+---
+> 			    future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2391c2391
+< 			  future_binders = []; future_true_facts = [];
+---
+> 			  future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2446c2446
+< 				future_binders = []; future_true_facts = [];
+---
+> 				future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2478c2478
+< 			    future_binders = []; future_true_facts = [];
+---
+> 			    future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+2544,2555d2543
+< let build_def_process event_accu p =
+<   empty_def_process p;
+<   let rec st_node = { above_node = st_node; 
+< 		      binders = []; 
+< 		      true_facts_at_def = []; 
+< 		      def_vars_at_def = []; 
+< 		      elsefind_facts_at_def = [];
+< 		      future_binders = []; future_true_facts = [];
+< 		      definition = DNone } 
+<   in
+<   def_process event_accu st_node [] [] p
+< 
+2912a2901,2906
+> let add_compatible1 a l =
+>   List.iter (fun b ->
+>     if a == b then
+>       Parsing_helper.internal_error "Same binder may be defined several times";
+>     a.compatible <- Binderset.add a.compatible b) l
+> 	
+2914,2918c2908
+<   List.iter (fun a ->
+<     List.iter (fun b ->
+<       if a == b then
+< 	Parsing_helper.internal_error "Same binder may be defined several times";
+<       a.compatible <- Binderset.add a.compatible b) l2) l1
+---
+>   List.iter (fun a -> add_compatible1 a l2) l1
+2922c2912,2931
+<   | (a::l) -> add_compatible [a] l; add_self_compatible l
+---
+>   | (a::l) -> add_compatible1 a l; add_self_compatible l
+> 
+> let add_compatible_node1 n bl =
+>   List.iter (fun b ->
+>     n.n_compatible <- Binderset.add n.n_compatible b) bl
+> 	
+> let add_compatible_node nl bl =
+>   List.iter (fun n -> add_compatible_node1 n bl) nl
+> 	
+> let add_compatible_var_node (bl1, nl1) (bl2, nl2) =
+>   add_compatible bl1 bl2;
+>   add_compatible_node nl1 bl2;
+>   add_compatible_node nl2 bl1
+> 
+> let add_self_compatible_var_node (bl, nl) =
+>   add_self_compatible bl;
+>   add_compatible_node nl bl
+>     
+> let unionq_var_node (bl1, nl1) (bl2, nl2) =
+>   (unionq bl1 bl2, unionq nl1 nl2)
+2923a2933,2937
+> let get_node fact_info =
+>   match fact_info with
+>     None -> Parsing_helper.internal_error "facts should be set"
+>   | Some(_,_,n) -> n
+>     
+2927c2941
+<   | ReplIndex i -> []
+---
+>   | ReplIndex i -> [],[]
+2932,2934c2946,2948
+<       add_compatible def1 def2;
+<       add_compatible def1 def3;
+<       unionq def1 (unionq def2 def3)
+---
+>       add_compatible_var_node def1 def2;
+>       add_compatible_var_node def1 def3;
+>       unionq_var_node def1 (unionq_var_node def2 def3)
+2941a2956,2957
+> 	let node = get_node t2.t_facts in
+> 	let vn = (vars, [node]) in
+2944,2948c2960,2964
+< 	add_self_compatible vars;
+< 	add_compatible vars def1;
+< 	add_compatible vars def2;
+< 	add_compatible def1 def2;
+< 	accu := unionq vars (unionq def1 (unionq def2 (!accu)))) l0;
+---
+> 	add_self_compatible_var_node vn;
+> 	add_compatible_var_node vn def1;
+> 	add_compatible_var_node vn def2;
+> 	add_compatible_var_node def1 def2;
+> 	accu := unionq_var_node vn (unionq_var_node def1 (unionq_var_node def2 (!accu)))) l0;
+2951a2968,2969
+>       let node = get_node t2.t_facts in
+>       let vn = (accu, [node]) in
+2956c2974
+< 	None -> []
+---
+> 	None -> [],[]
+2959,2968c2977,2986
+<       add_self_compatible accu;
+<       add_compatible accu def1;
+<       add_compatible accu def2;
+<       add_compatible accu def3;
+<       add_compatible def1 def2;
+<       add_compatible def1 def3;
+<       add_compatible def2 def3;
+<       add_compatible def1 def4;
+<       add_compatible def2 def4;
+<       unionq accu (unionq def1 (unionq def2 (unionq def3 def4)))
+---
+>       add_self_compatible_var_node vn;
+>       add_compatible_var_node vn def1;
+>       add_compatible_var_node vn def2;
+>       add_compatible_var_node vn def3;
+>       add_compatible_var_node def1 def2;
+>       add_compatible_var_node def1 def3;
+>       add_compatible_var_node def2 def3;
+>       add_compatible_var_node def1 def4;
+>       add_compatible_var_node def2 def4;
+>       unionq_var_node vn (unionq_var_node def1 (unionq_var_node def2 (unionq_var_node def3 def4)))
+2971,2972c2989,2992
+<       add_compatible def [b];
+<       unionq def [b]
+---
+>       let vn = ([b], [get_node t.t_facts]) in
+>       add_self_compatible_var_node vn;
+>       add_compatible_var_node def vn;
+>       unionq_var_node def vn
+2974c2994
+<       []
+---
+>       [],[]
+2977c2997
+<     [] -> []
+---
+>     [] -> [],[]
+2981,2982c3001,3002
+<       add_compatible defl defa;
+<       unionq defa defl
+---
+>       add_compatible_var_node defl defa;
+>       unionq_var_node defa defl
+2985c3005
+<     PatVar b -> []
+---
+>     PatVar b -> [],[]
+2990c3010
+<     [] -> []
+---
+>     [] -> [],[]
+2994,2995c3014,3015
+<       add_compatible defl defa;
+<       unionq defa defl
+---
+>       add_compatible_var_node defl defa;
+>       unionq_var_node defa defl
+2999c3019
+<     Nil -> []
+---
+>     Nil -> [],[]
+3003,3004c3023,3024
+<       add_compatible def1 def2;
+<       unionq def1 def2
+---
+>       add_compatible_var_node def1 def2;
+>       unionq_var_node def1 def2
+3008a3029,3030
+>       let node = get_node p.p_facts in
+>       let vn = (accu, [node]) in
+3012,3019c3034,3041
+<       add_self_compatible accu;
+<       add_compatible accu def1;
+<       add_compatible accu def2;
+<       add_compatible accu def3;
+<       add_compatible def1 def2;
+<       add_compatible def1 def3;
+<       add_compatible def2 def3;
+<       unionq accu (unionq def1 (unionq def2 def3))
+---
+>       add_self_compatible_var_node vn;
+>       add_compatible_var_node vn def1;
+>       add_compatible_var_node vn def2;
+>       add_compatible_var_node vn def3;
+>       add_compatible_var_node def1 def2;
+>       add_compatible_var_node def1 def3;
+>       add_compatible_var_node def2 def3;
+>       unionq_var_node vn (unionq_var_node def1 (unionq_var_node def2 def3))
+3023c3045
+<     Yield | EventAbort _ -> []
+---
+>     Yield | EventAbort _ -> [],[]
+3026,3027c3048,3051
+<       add_compatible def [b];
+<       unionq def [b]
+---
+>       let vn = ([b], [get_node p.p_facts]) in
+>       add_self_compatible_var_node vn;
+>       add_compatible_var_node def vn;
+>       unionq_var_node def vn
+3032,3034c3056,3058
+<       add_compatible def1 def2;
+<       add_compatible def1 def3;
+<       unionq def1 (unionq def2 def3)
+---
+>       add_compatible_var_node def1 def2;
+>       add_compatible_var_node def1 def3;
+>       unionq_var_node def1 (unionq_var_node def2 def3)
+3041a3066,3067
+> 	let node = get_node p1.p_facts in
+> 	let vn = (vars, [node]) in
+3044,3048c3070,3074
+< 	add_self_compatible vars;
+< 	add_compatible vars def1;
+< 	add_compatible vars def2;
+< 	add_compatible def1 def2;
+< 	accu := unionq vars (unionq def1 (unionq def2 (!accu)))) l0;
+---
+> 	add_self_compatible_var_node vn;
+> 	add_compatible_var_node vn def1;
+> 	add_compatible_var_node vn def2;
+> 	add_compatible_var_node def1 def2;
+> 	accu := unionq_var_node vn (unionq_var_node def1 (unionq_var_node def2 (!accu)))) l0;
+3054,3057c3080,3083
+<       add_compatible def1 def2;
+<       add_compatible def1 def3;
+<       add_compatible def2 def3;
+<       unionq def1 (unionq def2 def3)      
+---
+>       add_compatible_var_node def1 def2;
+>       add_compatible_var_node def1 def3;
+>       add_compatible_var_node def2 def3;
+>       unionq_var_node def1 (unionq_var_node def2 def3)      
+3059a3086,3087
+>       let node = get_node p1.p_facts in
+>       let vn = (accu, [node]) in
+3064,3073c3092,3101
+<       add_self_compatible accu;
+<       add_compatible accu def1;
+<       add_compatible accu def2;
+<       add_compatible accu def3;
+<       add_compatible def1 def2;
+<       add_compatible def1 def3;
+<       add_compatible def2 def3;
+<       add_compatible def1 def4;
+<       add_compatible def2 def4;
+<       unionq accu (unionq def1 (unionq def2 (unionq def3 def4)))
+---
+>       add_self_compatible_var_node vn;
+>       add_compatible_var_node vn def1;
+>       add_compatible_var_node vn def2;
+>       add_compatible_var_node vn def3;
+>       add_compatible_var_node def1 def2;
+>       add_compatible_var_node def1 def3;
+>       add_compatible_var_node def2 def3;
+>       add_compatible_var_node def1 def4;
+>       add_compatible_var_node def2 def4;
+>       unionq_var_node vn (unionq_var_node def1 (unionq_var_node def2 (unionq_var_node def3 def4)))
+3077,3078c3105,3106
+<       add_compatible def1 def2;
+<       unionq def1 def2
+---
+>       add_compatible_var_node def1 def2;
+>       unionq_var_node def1 def2
+3082c3110,3111
+< let build_compatible_defs p = 
+---
+> let build_def_process event_accu p =
+>   empty_def_process p;
+3083a3113,3121
+>   let rec st_node = { above_node = st_node; 
+> 		      binders = []; 
+> 		      true_facts_at_def = []; 
+> 		      def_vars_at_def = []; 
+> 		      elsefind_facts_at_def = [];
+> 		      future_binders = []; future_true_facts = []; n_compatible = compatible_empty;
+> 		      definition = DNone } 
+>   in
+>   def_process event_accu st_node [] [] p;
+3085a3124,3125
+> let build_compatible_defs p = () (* Now included in build_def_process *)
+>     
+Index: src/types.ml
+===================================================================
+RCS file: /home/ROCQ/prosecco/bblanche/CVS-repository/dev/cryptoverif/src/types.ml,v
+retrieving revision 1.53
+diff -r1.53 types.ml
+162a163,166
+> 		 mutable n_compatible : binderset;
+> 		    (* Set of variables whose definition is compatible with
+> 		       the execution of that node (for replication indices
+> 		       that are suffix of one another) *)

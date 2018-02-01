@@ -1,0 +1,67 @@
+(* Caused an internal error because if/let/find/new occurred in try_no_var *)
+
+proof {
+show_game occ;
+replace 72 x (* The message in out(c2, ...) *)
+}
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, bitstring, D, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle = ! qH in(hc1, y: bitstring); out(hc2, hash(hk,y)).
+
+(* Queries *)
+
+event bad.
+query event bad ==> false.
+
+channel c0, c1, c2, c3, c4, c5, start.
+
+let processS =
+	! qS
+	in(c1, m:bitstring);
+	out(c2, invf(sk, hash(hk,m))).
+
+let processT = 
+	in(c3, (m':bitstring, s:D));
+	if f(pk, s) = hash(hk,m') then
+	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then yield else
+	event bad.
+
+process 
+	in(start, ());
+	new hk: hashkey;
+	new r:seed; 
+	let pk = pkgen(r) in
+	let sk = skgen(r) in
+	out(c0, pk);
+	(processS | processT | hashoracle | 
+	(in (c1, x:bitstring); 
+	find j<=qS suchthat defined(m[j]) && 
+	  (find j'<=qS suchthat defined(m[j']) then m[j] = m[j'] else false) 
+	then out(c2, x) 
+	else out(c3, x))  )
+
+
+(* EXPECTED
+RESULT Could not prove event bad ==> false.
+0.030s (user 0.010s + system 0.020s), max rss 16320K
+END *)

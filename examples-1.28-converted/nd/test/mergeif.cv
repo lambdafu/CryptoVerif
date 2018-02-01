@@ -1,0 +1,264 @@
+(* Public-key Kerberos 5, all three rounds, with PKINIT in public key mode (RFC 4556), consider key usability of AK after client completes session, client and TGS are restricted not to take outputs by the encryption oracle, authentication will partly fail as expected  *)
+
+proof {
+merge_branches;
+success
+}
+
+param N.
+param N2.
+param N3.
+param N4.
+param N5.
+param qE.
+param qD.
+
+type nonce [fixed,large].
+type client [bounded].
+type kas [bounded].
+type tgs [bounded].
+type server [bounded].
+
+(* types for public-key cryptography *)
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].  
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+
+(* types for symmetric encryption *)
+
+type symkeyseed [fixed].
+type key [fixed].
+type protkey [fixed].
+type usenum [fixed].
+type macs [fixed].
+type mkeyseed [fixed].
+type mkey [fixed].
+type symseed [fixed].
+type maxmac [bounded].
+type maxenc [bounded].
+type timest [fixed].
+
+(* message construction functions *)
+
+fun concat1(client, pkey, spkey):sblocksize [data].				
+fun concat3(protkey, macs):sblocksize [data]. 	     	       	  	
+fun concat7(kas, pkey, spkey):sblocksize [data].    				
+fun padno(timest,nonce):sblocksize [data]. 	    	   	      	      	
+fun concat2(kas, pkey, spkey, signature, protkey, macs, signature):blocksize [data]. 	
+fun concat4(key, nonce, timest, tgs):maxenc [data]. 				
+fun concat5(key, timest, client):maxenc [data]. 				
+fun concat8(key, nonce, timest, server):maxenc [data]. 		       	
+fun pad(client, timest):maxenc [data].					
+fun padts(timest):maxenc [data].						
+fun concat6(client, pkey, spkey, signature, timest, nonce, signature, client, tgs, nonce):maxmac [data].   
+
+forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;        	  concat5(y,x,z) <> concat4(t2,y2,x2,z2).
+forall t:key, y: nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs;  concat8(t,y,x,z) <> concat4(t2,y2,x2,z2).
+forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	 	  pad(z,t) <> concat4(t2,y2,x2,z2).
+forall t: timest, t2:key, y2:nonce, x2:timest, z2:tgs;  			  padts(t) <> concat4(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server;   	  concat5(y,x,z) <> concat8(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: timest, z2:client;    			  concat5(y,x,z) <> pad(z2,t2). 
+forall y:key, x:timest, z:client, t2: timest;    				  concat5(y,x,z) <> padts(t2). 
+forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  		  concat8(t,y,x,z) <> pad(z2,t2).
+forall t:key, y:nonce, x:timest, z:server, t2:timest;  				  concat8(t,y,x,z) <> padts(t2).
+forall t: timest, z: client, t2: timest;   					  pad(z,t)<> padts(t2).
+
+forall k1:protkey, y:macs, z2:client, y2:pkey, x2:spkey; 		  	  concat3(k1,y) <> concat1(z2,y2,x2).
+forall k1:protkey, y:macs, z2: nonce, t2:timest; 			  	  concat3(k1,y) <> padno(t2,z2).
+forall t:timest, y:nonce, z2:client, y2:pkey, x2:spkey;				  padno(t,y) <> concat1(z2,y2,x2).
+forall k1:protkey, y:macs, z2:kas, y2:pkey, x2:spkey;		  		  concat3(k1,y) <> concat7(z2,y2,x2).
+forall t:timest, y:nonce, z2:kas, y2:pkey, x2:spkey; 	     			  padno(t,y) <> concat7(z2,y2,x2).
+forall z2:client, y2:pkey, x2:spkey, z:kas, y:pkey, x:spkey;		  	  concat1(z2,y2,x2) <> concat7(z,y,x).
+
+
+(* Public-key encryption (IND-CCA2): *)
+
+proba Ppenc.
+proba Ppenccoll.
+
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, penc, pdec, injbot1, Z, Ppenc, Ppenccoll).
+
+(* Signatures (UF-CMA): *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Shared-key encryption (IND-CPA and INT-CTXT Stream cipher): *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(symkeyseed, key, maxenc, maxmac, symseed, kgen, enc, dec, injbot2, Z2, Penc, Pencctxt).
+
+(* The function Z2 returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+const Zconcat4:maxenc.
+const Zconcat5:maxenc.
+const Zconcat8:maxenc.
+const     Zpad:maxenc.
+const   Zpadts:maxenc. 
+forall m:key, y:nonce, x:timest, z:tgs; 
+    Z2(concat4(m,y,x,z)) = Zconcat4.
+forall y:key, x:timest, z:client; 
+    Z2(concat5(y,x,z)) = Zconcat5.
+forall t:key, y:nonce, x:timest, z:server;
+    Z2(concat8(t, y, x, z)) = Zconcat8.
+forall z:client, t:timest;
+        Z2(pad(z,t)) = Zpad.
+forall t: timest;
+        Z2(padts(t)) = Zpadts.
+
+(* Collision-resistance for hmac: *)
+(* HMAC:
+
+HMAC(m,k) = H(k xor opad ++ H((k xor ipad) ++ m))
+where ++ is concatenation.
+
+Consider collision resistance for H:
+Let k' be a key corresponding to the choice of H (chosen once
+at the beginning of the protocol and published). We add k' as 
+argument to H, so also to HMAC...
+
+HMAC(m,k,k') = H(k xor opad ++ H((k xor ipad) ++ m, k'), k')
+
+Collision resistance for H means:
+H(m1,k') = H(m2,k') <==> m1 = m2 up to negligible probability.
+
+Hence
+HMAC(m1,k,k') = HMAC(m2,k,k') ==> 
+k xor opad ++ H((k xor ipad) ++ m1, k') = k xor opad ++ H((k xor ipad) ++ m2, k') ==>
+H((k xor ipad) ++ m1, k') = H((k xor ipad) ++ m2, k') ==>
+(k xor ipad) ++ m1 = (k xor ipad) ++ m2 ==>
+m1 = m2
+
+(k, ipad, opad have the same, known length, so the concatenation uniquely
+determines its elements)
+
+If needed, we could even have the stronger property:
+HMAC(m1,k1,k') = HMAC(m2,k2,k') ==> m1 = m2 && k1 = k2
+
+Here, we give the definition of HMAC and assume the collision resistance
+of the underlying hash function. CryptoVerif proves the collision
+resistance for HMAC.
+*)
+
+proba Phash.
+type collisionkey [fixed].
+expand CollisionResistant_hash(collisionkey, bitstring, macs, h, Phash).
+
+fun mkgen(symkeyseed):key.
+fun concath1(key,macs):bitstring [data].
+fun concath2(key, maxmac):bitstring [data].
+fun xor(key,key):key.
+const opad:key.
+const ipad:key.
+
+fun hmac(maxmac, key, collisionkey):macs.
+
+forall m:maxmac, k:key, collkey:collisionkey; hmac(m,k,collkey) = h(collkey, concath1(xor(k, opad), h(collkey, concath2(xor(k, ipad), m)))).
+
+(* Pseudorandom function (PRF) for key derivation
+   The definition included in the CryptoVerif library uses a key generation function for the PRF.
+   Here, we don't, so we adapt that definition instead of reusing the macro directly *)
+
+proba pPRF.
+
+fun keyderivation(protkey, usenum):symkeyseed.
+
+equiv
+  ! N2 new z: protkey; ! N gen_Oracle(x: usenum) := return(keyderivation(z,x))
+<=(N2 * pPRF(time, N))=>
+  ! N2 ! N gen_Oracle(x: usenum) := find u <= N suchthat defined(x[u], s[u]) && (x = x[u]) then return(s[u]) else new s: symkeyseed; return(s).
+
+(* Key Usage Numbers for key derivation *)
+const un1: usenum.
+const un2: usenum.
+
+
+(* Channel declarations *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30, c31, c32, c33,
+	 start, finish, cC, cK.
+
+(* Host names for honest hosts *)
+
+const C :client.
+const K :kas.
+const T :tgs.
+const S :server.
+
+(* Final accept messages *)
+
+fun acceptC1(kas, tgs):bitstring.
+fun acceptC2(tgs, server):bitstring.
+fun acceptC3(server):bitstring.
+fun acceptK(client):bitstring.
+fun acceptT(client, server):bitstring.
+fun acceptS(client): bitstring.
+
+(* Authentication Queries *)
+
+event fullKC(client, tgs, nonce, bitstring, maxmac, maxmac).
+event fullCK(kas, tgs, nonce, bitstring, maxmac, maxmac).       
+event partCT(tgs, maxmac, maxmac).          
+event fullCT(kas, tgs, server, nonce, maxmac, maxmac, maxmac).  
+event partTC(client, maxmac, maxmac).           
+event fullTC(client, server, nonce, maxmac, maxmac, maxmac, maxmac).
+
+event partCS(server, tgs, maxmac, maxmac).
+event fullCS(server, tgs, kas, maxmac, maxmac, maxmac).
+event partSC(client, maxmac, maxmac).
+event fullSC(client, maxmac, maxmac, maxmac).           
+      		
+
+(* Theorem 9, client completes sesssion
+   Secrecy of the coin b1 *)
+query secret b1 [onesession].
+
+(* Encryption Oracle *)
+
+
+
+
+(* Main process, which generates long-term keys and runs the various processes *)
+
+process 
+	in(start, ());
+new b1: bool;
+new s: symkeyseed;
+let k1: key = kgen(s) in
+out(c25, ());
+! i_1 <= qE
+in(c27[i_1], (m1_2: maxenc, m2_1: maxenc));
+if Z2(m1_2) = Z2(m2_1) then
+if b1 then
+(
+  new r1_2: symseed;
+  let z1: maxmac = enc(Z2(m1_2), k1, r1_2) in
+  out(c22[i_1], z1)
+)
+else
+  new r2_3: symseed;
+  let z2: maxmac = enc(Z2(m2_1), k1, r2_3) in
+  out(c22[i_1], z2)
+
+
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.028s + system 0.000s), max rss 37024K
+END *)

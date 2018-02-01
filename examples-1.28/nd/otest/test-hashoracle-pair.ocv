@@ -1,0 +1,85 @@
+(* OAEP scheme, proof of CPA security *)
+
+proof {
+      crypto rom(H);
+      crypto rom(G);
+      show_game occ
+}
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed,large].
+type Dow [fixed,large].
+type Dr [fixed,large].
+
+(* Set partial-domain one-way trapdoor permutation *)
+
+proba P_PD_OW.
+
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW).
+
+(* Hash functions, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash_pair(hashkey, Dr, Dr, Dow, G).
+param qG [noninteractive].
+let hashoracleG = foreach iG <= qG do OG(x:Dr,y:Dr) := return(G(hkg,x,y)).
+
+expand ROM_hash_triple(hashkey, Dow, Dow, Dow, Dr, H).
+param qH [noninteractive].
+let hashoracleH = foreach iH <= qH do OH(x:Dow,y:Dow,z:Dow) := return(H(hkh,x,y,z)).
+
+(* concatenation *)
+type Dm.
+type Dz [large].
+
+fun concatm(Dm,Dz):Dow [compos].
+const zero: Dz.
+
+(* Xor *)
+
+expand Xor(Dow, xorDow, zeroDow).
+expand Xor(Dr, xorDr, zeroDr).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, Dm, Dm):Dm.
+forall x:Dm,y:Dm; test(true,x,y) = x.
+forall x:Dm,y:Dm; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret1 b1.
+
+let processT = 
+	OT(m1: Dm, m2: Dm) :=
+	b1 <-R bool;
+	(* The next line is equivalent to an "if" that will not be
+	expanded. This is necessary for the system to succeed in
+	proving the protocol. *)
+	menc <- test(b1, m1, m2);
+	r <-R Dr;
+	s <- xorDow(concatm(menc, zero), G(hkg,r,r));
+	t <- xorDr(r, H(hkh,s,s,s));
+	return(f(pk, concat(s,t))).
+
+process 
+	Ogen() :=
+	hkh <-R hashkey;
+	hkg <-R hashkey;
+	r <-R seed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	(hashoracleG | hashoracleH | processT)
+
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of b1.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

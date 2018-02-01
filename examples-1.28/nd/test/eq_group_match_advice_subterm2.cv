@@ -1,0 +1,54 @@
+type D [fixed].
+
+(* set interactiveMode = true. *)
+
+fun mult(D,D):D.
+fun inv(D):D.
+const neut:D.
+equation group(mult,inv,neut).
+
+fun h(D):bitstring.
+fun g(D): D.
+
+const zero, one, two, three: D. 
+
+channel c.
+proba Peq.
+param n,n'.
+
+equiv !n new r1: D; new r2: D; !n' O(y:D) := mult(r1,mult(y,r2))
+<=(Peq)=>
+      !n !n' O(y:D) := g(y).
+
+fun mult2(D,D):D.
+fun inv2(D):D.
+equation group(mult2,inv2,neut).
+equiv !n new r1: D; new r2: D; !n' O() := mult2(r1,mult2(one,r2))
+<=(Peq)=>
+      !n !n' O() := g(one).
+
+
+process in(c, ()); new r1: D; new r2: D; out(c, h(mult(mult(r1, one), mult(two, r2))));
+	in(c, ()); new r1: D; new r2: D; out(c, h(mult(mult(r1, one), mult(r2, two))));
+	in(c, ()); new r1: D; new r2: D; out(c, h(mult(two, mult(mult(r1, one), mult(r2, two)))));
+	in(c, ()); let z = mult(r1,one) in out(c, h(mult(z, mult(r2, zero))));
+	in(c, ()); let t = mult(two, r2) in out(c, h(mult(z, t)));
+	in(c, ()); let x = mult(z,t) in out(c, h(x));
+	in(c, ()); new r1: D; new r2: D; new r1': D; new r2': D; out(c, h(mult(mult(r1, one), mult(r2, mult(two, mult(r1', mult(one, r2')))))));
+	(* In the next example, the transformation cannot be done, because
+	   CryptoVerif tries to match mult(r1,mult(y,r2)) with
+	   y = mult(one, r2, two, r1, one)
+	   but this leaves occurrences of r1 and r2 that cannot be transformed. *)
+	in(c, ()); new r1: D; new r2: D; out(c, h(mult(mult(r1, one), mult(r2, mult(two, mult(r1, mult(one, r2)))))));
+	in(c, ()); new r1: D; new r2: D; out(c, h(mult2(mult2(r1, one), mult2(r2, mult2(two, mult2(r1, mult2(one, r2)))))));
+	in(c, ()); new r1: D; new r2: D; let z = mult(inv(r1),one) in out(c, h(mult(z, mult(two, zero))));
+        in(c, ()); new r1: D; new r2: D; let z = mult(inv(r1),one) in let t = mult(two, inv(r2)) in out(c, h(inv(mult(z, t))));
+        in(c, ()); let x = inv(mult(z,t)) in out(c, h(x));
+	in(c, ()); new r1: D; new r2: D; out(c, mult(inv(r1),one) = mult(two,r2));
+	in(c, ()); let t = mult(zero,two) in out(c, mult(t,r1) = inv(r2))
+
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

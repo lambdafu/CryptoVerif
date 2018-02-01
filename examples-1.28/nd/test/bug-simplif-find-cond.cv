@@ -1,0 +1,93 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03 *)
+
+proof {
+crypto h0
+}
+
+param N.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [fixed].
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host.
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+equiv !N new X:G; () -> X <=(0)=> !N new x:exponent; () -> exp(g,x).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec).
+
+param qE, qD [noninteractive].
+channel cE, cD.
+let enc_dec_oracle =
+       (!qE in(cE, (x:G, ke:passwd)); out(cE, enc(ck,x,ke)))
+     | (!qD in(cD, (m:G, kd:passwd)); out(cD, dec(ck,m,kd))).
+
+(* Hash functions in the random oracle model *)
+
+param N0, qH0.
+
+fun h0(G, G, G):hash0.
+
+equiv (x3: G, x4: G, x5: G) N -> h0(x3, x4, x5) [all]
+      <=(0)=>
+      (x3: G, x4: G, x5: G) N -> find j <= N suchthat defined(x3[j],x4[j],x5[j],r[j]) && otheruses(r[j]) && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r[j] else
+			 new r:hash0; r.
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+let processU =
+	in(c1, ());
+	new x: exponent;
+	let X:G = exp(g,x) in
+	out(c2, X);
+        in(c5, Ystar_u: G);
+	let Y_u = dec(ck, Ystar_u, pw) in
+	let K_u = exp(Y_u, x) in
+	let sk_u: hash0 = h0(X,Y_u,K_u).
+
+let processS =
+	in(c3, X_s: G);
+	new y: exponent;
+	let Y = exp(g,y) in
+	let Ystar = enc(ck, Y, pw) in
+	out(c4, Ystar);
+	in(c7, auth_s: hash1);
+	find j <= N suchthat defined(X[j]) && X[j] = X_s then
+        (
+	let K_s = exp(X_s, y) in
+	let sk_s: hash0 = h0(X_s,Y,K_s)
+        ).
+
+process 
+	in(start, ());
+	new ck: cipherkey;
+	new pw: passwd;
+	out(c8, ());
+	((! N processU) |
+	 (! N processS))
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of sk_s, secrecy of sk_u.
+0.030s (user 0.030s + system 0.000s), max rss 19552K
+END *)

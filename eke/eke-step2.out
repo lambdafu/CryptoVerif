@@ -1,0 +1,1158 @@
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif$ prover eke-step2.in
+Doing expand if, let, find... No change.
+Doing simplify... Run simplify 1 time(s). Fixpoint reached.
+No change.
+Doing move all binders... No change.
+Doing remove assignments of useless... Done.
+Please enter a command: crypto
+1. equiv ! !_29 <= N (x1: host, x2: host, x3: G, x4: G, x5: G) -> h1(x1, x2, x3, x4, x5) [all]
+<=(0)=>
+      ! !_30 <= N (x1_49: host, x2_48: host, x3_47: G, x4_46: G, x5_45: G) -> let x1: host = x1_49 in let x2: host = x2_48 in let x3: G = x3_47 in let x4: G = x4_46 in let x5: G = x5_45 in find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && otheruses(r[j]) && ((x1 = x1[j]) && ((x2 = x2[j]) && ((x3 = x3[j]) && ((x4 = x4[j]) && (x5 = x5[j]))))) then r[j] else new r: hash1; r
+
+2. equiv ! !_27 <= N (x1: host, x2: host, x3: G, x4: G, x5: G) -> h0(x1, x2, x3, x4, x5) [all]
+<=(0)=>
+      ! !_28 <= N (x1_54: host, x2_53: host, x3_52: G, x4_51: G, x5_50: G) -> let x1: host = x1_54 in let x2: host = x2_53 in let x3: G = x3_52 in let x4: G = x4_51 in let x5: G = x5_50 in find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && otheruses(r[j]) && ((x1 = x1[j]) && ((x2 = x2[j]) && ((x3 = x3[j]) && ((x4 = x4[j]) && (x5 = x5[j]))))) then r[j] else new r: hash0; r
+
+3. equiv ! !_19 <= @2_N (@2_x: G, @2_ke: passwd) -> enc(@2_x, @2_ke) [all], ! !_20 <= @2_N2 (@2_m: G, @2_kd: passwd) -> dec(@2_m, @2_kd) [all]
+<=((@2_N + @2_N2) * (@2_N + @2_N2 - 1.) / |G|)=>
+      ! !_21 <= @2_N (@2_x_56: G, @2_ke_55: passwd) -> let @2_x: G = @2_x_56 in let @2_ke: passwd = @2_ke_55 in find @2_j_23 <= @2_N suchthat defined(@2_x[@2_j_23], @2_ke[@2_j_23], @2_r2[@2_j_23]) && otheruses(@2_r2[@2_j_23]) && ((@2_x = @2_x[@2_j_23]) && (@2_ke = @2_ke[@2_j_23])) then @2_r2[@2_j_23] orfind @2_k_24 <= @2_N2 suchthat defined(@2_r4[@2_k_24], @2_m[@2_k_24], @2_kd[@2_k_24]) && otheruses(@2_r4[@2_k_24]) && ((@2_x = @2_r4[@2_k_24]) && (@2_ke = @2_kd[@2_k_24])) then @2_m[@2_k_24] else new @2_r2: G; @2_r2, ! !_22 <= @2_N2 (@2_m_58: G, @2_kd_57: passwd) -> let @2_m: G = @2_m_58 in let @2_kd: passwd = @2_kd_57 in find @2_j_25 <= @2_N suchthat defined(@2_x[@2_j_25], @2_ke[@2_j_25], @2_r2[@2_j_25]) && otheruses(@2_r2[@2_j_25]) && ((@2_m = @2_r2[@2_j_25]) && (@2_kd = @2_ke[@2_j_25])) then @2_x[@2_j_25] orfind @2_k_26 <= @2_N2 suchthat defined(@2_r4[@2_k_26], @2_m[@2_k_26], @2_kd[@2_k_26]) && otheruses(@2_r4[@2_k_26]) && ((@2_m = @2_m[@2_k_26]) && (@2_kd = @2_kd[@2_k_26])) then @2_r4[@2_k_26] else new @2_r4: G; @2_r4
+
+4. equiv ! !_17 <= N new X: G; () -> X
+<=(0)=>
+      ! !_18 <= N new x: exponent; () -> exp(g, x)
+
+5. equiv ! !_1 <= @1_n new @1_a: exponent; (
+  () -> exp(g, @1_a),
+  ! !_2 <= @1_n' (@1_m_5: G) -> exp(@1_m_5, @1_a),
+  ! !_3 <= @1_nCDH (@1_m_6: G, @1_j_7 <= @1_n) -> (@1_m_6 = exp(g, mult(@1_a[@1_j_7], @1_a))),
+  ! !_4 <= @1_nCDH' (@1_j_8 <= @1_n, @1_j' <= @1_n, @1_j'' <= @1_n) -> (exp(g, mult(@1_a[@1_j_8], @1_a)) = exp(g, mult(@1_a[@1_j'], @1_a[@1_j'']))))
+<=(pCDH(time, @1_n, @1_nCDH))=>
+      ! !_9 <= @1_n new @1_a: exponent; (
+  () -> @1_exp'(g, @1_a),
+  ! !_10 <= @1_n' (@1_m_13: G) -> let @1_k: bitstring = @1_mark in @1_exp'(@1_m_13, @1_a),
+  ! !_11 <= @1_nCDH (@1_m_14: G, @1_j_15 <= @1_n) -> find @1_v <= @1_n', @1_u <= @1_n suchthat defined(@1_k[@1_v, @1_u], @1_a[@1_u]) && ((@1_a = @1_a[@1_u]) || (@1_a[@1_j_15] = @1_a[@1_u])) then (@1_m_14 = @1_exp'(g, mult(@1_a[@1_j_15], @1_a))) else false,
+  ! !_12 <= @1_nCDH' (@1_j_16 <= @1_n, @1_j' <= @1_n, @1_j'' <= @1_n) -> (((@1_a[@1_j_16] = @1_a[@1_j']) && (@1_a = @1_a[@1_j''])) || ((@1_a[@1_j_16] = @1_a[@1_j'']) && (@1_a = @1_a[@1_j']))))
+
+Please enter number of equivalence to consider: 4
+Please enter binders mapped to restrictions for this equivalence: ar2_r4_63_0
+Trying equivalence
+equiv ! !_17 <= N new X: G; () -> X
+<=(0)=>
+      ! !_18 <= N new x: exponent; () -> exp(g, x)
+with ar2_r4_63_0... Succeeded.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move all binders... Done.
+Doing remove assignments of useless... No change.
+Please enter a command: crypto
+1. equiv ! !_29 <= N (x1: host, x2: host, x3: G, x4: G, x5: G) -> h1(x1, x2, x3, x4, x5) [all]
+<=(0)=>
+      ! !_30 <= N (x1_49: host, x2_48: host, x3_47: G, x4_46: G, x5_45: G) -> let x1: host = x1_49 in let x2: host = x2_48 in let x3: G = x3_47 in let x4: G = x4_46 in let x5: G = x5_45 in find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && otheruses(r[j]) && ((x1 = x1[j]) && ((x2 = x2[j]) && ((x3 = x3[j]) && ((x4 = x4[j]) && (x5 = x5[j]))))) then r[j] else new r: hash1; r
+
+2. equiv ! !_27 <= N (x1: host, x2: host, x3: G, x4: G, x5: G) -> h0(x1, x2, x3, x4, x5) [all]
+<=(0)=>
+      ! !_28 <= N (x1_54: host, x2_53: host, x3_52: G, x4_51: G, x5_50: G) -> let x1: host = x1_54 in let x2: host = x2_53 in let x3: G = x3_52 in let x4: G = x4_51 in let x5: G = x5_50 in find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && otheruses(r[j]) && ((x1 = x1[j]) && ((x2 = x2[j]) && ((x3 = x3[j]) && ((x4 = x4[j]) && (x5 = x5[j]))))) then r[j] else new r: hash0; r
+
+3. equiv ! !_19 <= @2_N (@2_x: G, @2_ke: passwd) -> enc(@2_x, @2_ke) [all], ! !_20 <= @2_N2 (@2_m: G, @2_kd: passwd) -> dec(@2_m, @2_kd) [all]
+<=((@2_N + @2_N2) * (@2_N + @2_N2 - 1.) / |G|)=>
+      ! !_21 <= @2_N (@2_x_56: G, @2_ke_55: passwd) -> let @2_x: G = @2_x_56 in let @2_ke: passwd = @2_ke_55 in find @2_j_23 <= @2_N suchthat defined(@2_x[@2_j_23], @2_ke[@2_j_23], @2_r2[@2_j_23]) && otheruses(@2_r2[@2_j_23]) && ((@2_x = @2_x[@2_j_23]) && (@2_ke = @2_ke[@2_j_23])) then @2_r2[@2_j_23] orfind @2_k_24 <= @2_N2 suchthat defined(@2_r4[@2_k_24], @2_m[@2_k_24], @2_kd[@2_k_24]) && otheruses(@2_r4[@2_k_24]) && ((@2_x = @2_r4[@2_k_24]) && (@2_ke = @2_kd[@2_k_24])) then @2_m[@2_k_24] else new @2_r2: G; @2_r2, ! !_22 <= @2_N2 (@2_m_58: G, @2_kd_57: passwd) -> let @2_m: G = @2_m_58 in let @2_kd: passwd = @2_kd_57 in find @2_j_25 <= @2_N suchthat defined(@2_x[@2_j_25], @2_ke[@2_j_25], @2_r2[@2_j_25]) && otheruses(@2_r2[@2_j_25]) && ((@2_m = @2_r2[@2_j_25]) && (@2_kd = @2_ke[@2_j_25])) then @2_x[@2_j_25] orfind @2_k_26 <= @2_N2 suchthat defined(@2_r4[@2_k_26], @2_m[@2_k_26], @2_kd[@2_k_26]) && otheruses(@2_r4[@2_k_26]) && ((@2_m = @2_m[@2_k_26]) && (@2_kd = @2_kd[@2_k_26])) then @2_r4[@2_k_26] else new @2_r4: G; @2_r4
+
+4. equiv ! !_17 <= N new X: G; () -> X
+<=(0)=>
+      ! !_18 <= N new x: exponent; () -> exp(g, x)
+
+5. equiv ! !_1 <= @1_n new @1_a: exponent; (
+  () -> exp(g, @1_a),
+  ! !_2 <= @1_n' (@1_m_5: G) -> exp(@1_m_5, @1_a),
+  ! !_3 <= @1_nCDH (@1_m_6: G, @1_j_7 <= @1_n) -> (@1_m_6 = exp(g, mult(@1_a[@1_j_7], @1_a))),
+  ! !_4 <= @1_nCDH' (@1_j_8 <= @1_n, @1_j' <= @1_n, @1_j'' <= @1_n) -> (exp(g, mult(@1_a[@1_j_8], @1_a)) = exp(g, mult(@1_a[@1_j'], @1_a[@1_j'']))))
+<=(pCDH(time, @1_n, @1_nCDH))=>
+      ! !_9 <= @1_n new @1_a: exponent; (
+  () -> @1_exp'(g, @1_a),
+  ! !_10 <= @1_n' (@1_m_13: G) -> let @1_k: bitstring = @1_mark in @1_exp'(@1_m_13, @1_a),
+  ! !_11 <= @1_nCDH (@1_m_14: G, @1_j_15 <= @1_n) -> find @1_v <= @1_n', @1_u <= @1_n suchthat defined(@1_k[@1_v, @1_u], @1_a[@1_u]) && ((@1_a = @1_a[@1_u]) || (@1_a[@1_j_15] = @1_a[@1_u])) then (@1_m_14 = @1_exp'(g, mult(@1_a[@1_j_15], @1_a))) else false,
+  ! !_12 <= @1_nCDH' (@1_j_16 <= @1_n, @1_j' <= @1_n, @1_j'' <= @1_n) -> (((@1_a[@1_j_16] = @1_a[@1_j']) && (@1_a = @1_a[@1_j''])) || ((@1_a[@1_j_16] = @1_a[@1_j'']) && (@1_a = @1_a[@1_j']))))
+
+Please enter number of equivalence to consider: 4
+Please enter binders mapped to restrictions for this equivalence: ar2_r4_72_0
+Trying equivalence
+equiv ! !_17 <= N new X: G; () -> X
+<=(0)=>
+      ! !_18 <= N new x: exponent; () -> exp(g, x)
+with ar2_r4_72_0... Succeeded.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Please enter a command: show_game
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        (
+          ! !_31 <= N
+          in(c1[!_31], ());
+          new x: exponent;
+          let X: G = exp(g, x) in
+          out(c2[!_31], (U, X));
+          in(c5[!_31], (=S, Ystar_u: G));
+          find ari_106_0 <= qD suchthat defined(x_83[ari_106_0], ar2_kd[ari_106_0], ar2_m[ari_106_0], ar2_r4_63_0[ari_106_0]) && otheruses(x_83[ari_106_0]) && ((Ystar_u = ar2_m[ari_106_0]) && (pw = ar2_kd[ari_106_0])) then
+            let K_u_37: G = exp(g, mult(x_83[ari_106_0], x)) in
+            let auth_u_38: hash1 = h1(U, S, X, exp(g, x_83[ari_106_0]), K_u_37) in
+            out(c6[!_31], auth_u_38);
+            in(c9[!_31], ());
+            let sk_u1: hash0 = h0(U, S, X, exp(g, x_83[ari_106_0]), K_u_37)
+          orfind ari_103_0 <= N suchthat defined(x_132[ari_103_0], Ystar_u[ari_103_0], ar2_r4_72_0[ari_103_0]) && otheruses(x_132[ari_103_0]) && (Ystar_u = Ystar_u[ari_103_0]) then
+            let K_u_39: G = exp(g, mult(x_132[ari_103_0], x)) in
+            let auth_u_40: hash1 = h1(U, S, X, exp(g, x_132[ari_103_0]), K_u_39) in
+            out(c6[!_31], auth_u_40);
+            in(c9[!_31], ());
+            let sk_u2: hash0 = h0(U, S, X, exp(g, x_132[ari_103_0]), K_u_39)
+          orfind ari_100_0 <= N suchthat defined(Y[ari_100_0], y[ari_100_0], ar2_r2_69_0[ari_100_0]) && otheruses(ar2_r2_69_0[ari_100_0]) && (Ystar_u = ar2_r2_69_0[ari_100_0]) then
+            let K_u_41: G = exp(g, mult(y[ari_100_0], x)) in
+            let auth_u_42: hash1 = h1(U, S, X, Y[ari_100_0], K_u_41) in
+            out(c6[!_31], auth_u_42);
+            in(c9[!_31], ());
+            let sk_u3: hash0 = h0(U, S, X, Y[ari_100_0], K_u_41)
+          else
+            new x_132: exponent;
+            let ar2_r4_72_0: G = cst_G in
+            let K_u_43: G = exp(g, mult(x_132, x)) in
+            let auth_u_44: hash1 = h1(U, S, X, exp(g, x_132), K_u_43) in
+            out(c6[!_31], auth_u_44);
+            in(c9[!_31], ());
+            let sk_u4: hash0 = h0(U, S, X, exp(g, x_132), K_u_43)
+        |
+          ! !_32 <= N
+          in(c3[!_32], (=U, X_s: G));
+          new y: exponent;
+          let Y: G = exp(g, y) in
+          new ar2_r2_69_0: G;
+          out(c4[!_32], (S, ar2_r2_69_0));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47_0: G = exp(g, mult(x[j], y)) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_47_0)) then
+            let sk_s: hash0 = h0(U, S, X_s, Y, K_s_47_0)
+          else
+            let K_s_48_0: G = exp(X_s, y) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_48_0)) then
+            event bad
+        )
+      |
+        ! !_33 <= qE
+        in(ar2_c1[!_33], (ar2_x: G, ar2_ke: passwd));
+        find ari_90_0 <= qD suchthat defined(ar2_m[ari_90_0], ar2_kd[ari_90_0], x_83[ari_90_0], ar2_r4_63_0[ari_90_0]) && otheruses(x_83[ari_90_0]) && ((ar2_x = exp(g, x_83[ari_90_0])) && (ar2_ke = ar2_kd[ari_90_0])) then
+          out(ar2_c2[!_33], ar2_m[ari_90_0])
+        orfind ari_87_0 <= N suchthat defined(Ystar_u[ari_87_0], x_132[ari_87_0], ar2_r4_72_0[ari_87_0]) && otheruses(x_132[ari_87_0]) && ((ar2_x = exp(g, x_132[ari_87_0])) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], Ystar_u[ari_87_0])
+        orfind ari_85_0 <= qE suchthat defined(ar2_r2_66_0[ari_85_0], ar2_ke[ari_85_0], ar2_x[ari_85_0]) && otheruses(ar2_r2_66_0[ari_85_0]) && ((ar2_x = ar2_x[ari_85_0]) && (ar2_ke = ar2_ke[ari_85_0])) then
+          out(ar2_c2[!_33], ar2_r2_66_0[ari_85_0])
+        orfind ari_84_0 <= N suchthat defined(ar2_r2_69_0[ari_84_0], Y[ari_84_0]) && otheruses(ar2_r2_69_0[ari_84_0]) && ((ar2_x = Y[ari_84_0]) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], ar2_r2_69_0[ari_84_0])
+        else
+          new ar2_r2_66_0: G;
+          out(ar2_c2[!_33], ar2_r2_66_0)
+      )
+    |
+      ! !_34 <= qD
+      in(ar2_c3[!_34], (ar2_m: G, ar2_kd: passwd));
+      find ari_82_0 <= qD suchthat defined(x_83[ari_82_0], ar2_kd[ari_82_0], ar2_m[ari_82_0], ar2_r4_63_0[ari_82_0]) && otheruses(x_83[ari_82_0]) && ((ar2_m = ar2_m[ari_82_0]) && (ar2_kd = ar2_kd[ari_82_0])) then
+        out(ar2_c4[!_34], exp(g, x_83[ari_82_0]))
+      orfind ari_79_0 <= N suchthat defined(x_132[ari_79_0], Ystar_u[ari_79_0], ar2_r4_72_0[ari_79_0]) && otheruses(x_132[ari_79_0]) && ((ar2_m = Ystar_u[ari_79_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], exp(g, x_132[ari_79_0]))
+      orfind ari_77_0 <= qE suchthat defined(ar2_x[ari_77_0], ar2_ke[ari_77_0], ar2_r2_66_0[ari_77_0]) && otheruses(ar2_r2_66_0[ari_77_0]) && ((ar2_m = ar2_r2_66_0[ari_77_0]) && (ar2_kd = ar2_ke[ari_77_0])) then
+        out(ar2_c4[!_34], ar2_x[ari_77_0])
+      orfind ari_76_0 <= N suchthat defined(Y[ari_76_0], ar2_r2_69_0[ari_76_0]) && otheruses(ar2_r2_69_0[ari_76_0]) && ((ar2_m = ar2_r2_69_0[ari_76_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], Y[ari_76_0])
+      else
+        new x_83: exponent;
+        let ar2_r4_63_0: G = cst_G in
+        out(ar2_c4[!_34], exp(g, x_83))
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46_0: host, x2_45_0: host, x3_44_0: G, x4_43_0: G, x5_42_0: G));
+    out(c20[!_35], h0(x1_46_0, x2_45_0, x3_44_0, x4_43_0, x5_42_0))
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41_0: host, x2_40_0: host, x3_39_0: G, x4_38_0: G, x5_37_0: G));
+  out(c21[!_36], h1(x1_41_0, x2_40_0, x3_39_0, x4_38_0, x5_37_0))
+)
+
+Please enter a command: crypto h0
+Trying equivalence
+equiv ! !_27 <= N (x1: host, x2: host, x3: G, x4: G, x5: G) -> h0(x1, x2, x3, x4, x5) [all]
+<=(0)=>
+      ! !_28 <= N (x1_54: host, x2_53: host, x3_52: G, x4_51: G, x5_50: G) -> let x1: host = x1_54 in let x2: host = x2_53 in let x3: G = x3_52 in let x4: G = x4_51 in let x5: G = x5_50 in find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && otheruses(r[j]) && ((x1 = x1[j]) && ((x2 = x2[j]) && ((x3 = x3[j]) && ((x4 = x4[j]) && (x5 = x5[j]))))) then r[j] else new r: hash0; r
+... Succeeded.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between x_83 and x_83 Probability: 0.5 * qD * qD / |exponent|
+Eliminated collisions between x_132 and x_83 Probability: N * qD / |exponent|
+Eliminated collisions between x_132 and x_132 Probability: 0.5 * N * N / |exponent|
+Eliminated collisions between y and x_83 Probability: N * qD / |exponent|
+Eliminated collisions between y and x_132 Probability: N * N / |exponent|
+Eliminated collisions between x and x Probability: 0.5 * N * N / |exponent|
+Eliminated collisions between y and y Probability: 0.5 * N * N / |exponent|
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... Done.
+Please enter a command: crypto h1
+Trying equivalence
+equiv ! !_29 <= N (x1: host, x2: host, x3: G, x4: G, x5: G) -> h1(x1, x2, x3, x4, x5) [all]
+<=(0)=>
+      ! !_30 <= N (x1_49: host, x2_48: host, x3_47: G, x4_46: G, x5_45: G) -> let x1: host = x1_49 in let x2: host = x2_48 in let x3: G = x3_47 in let x4: G = x4_46 in let x5: G = x5_45 in find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && otheruses(r[j]) && ((x1 = x1[j]) && ((x2 = x2[j]) && ((x3 = x3[j]) && ((x4 = x4[j]) && (x5 = x5[j]))))) then r[j] else new r: hash1; r
+... Succeeded.
+Doing simplify... Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between r_293[!_32] and auth_s[!_32] Probability: N / |hash1|
+(r_293[!_32] characterizes a part of r_293[!_32] of type(s) hash1;
+ auth_s[!_32] does not depend on r_293[!_32])
+Eliminated collisions between r_287[!_32] and auth_s[!_32] Probability: N / |hash1|
+(r_287[!_32] characterizes a part of r_287[!_32] of type(s) hash1;
+ auth_s[!_32] does not depend on r_287[!_32])
+Done.
+Doing move all binders... Done.
+Doing remove assignments of useless... Done.
+Please enter a command: show_game
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        (
+          ! !_31 <= N
+          in(c1[!_31], ());
+          new x: exponent;
+          let X: G = exp(g, x) in
+          out(c2[!_31], (U, X));
+          in(c5[!_31], (=S, Ystar_u: G));
+          find ari_106_0 <= qD suchthat defined(x_83[ari_106_0], ar2_kd[ari_106_0], ar2_m[ari_106_0], ar2_r4_63_0[ari_106_0]) && otheruses(x_83[ari_106_0]) && ((Ystar_u = ar2_m[ari_106_0]) && (pw = ar2_kd[ari_106_0])) then
+            let K_u_37: G = exp(g, mult(x_83[ari_106_0], x)) in
+            let x1_310: host = U in
+            let x2_309: host = S in
+            let x3_308: G = cst_G in
+            let x4_307: G = exp(g, x_83[ari_106_0]) in
+            let x5_306: G = cst_G in
+            find @i_357 <= qH1 suchthat defined(x5_37_0[@i_357], x4_38_0[@i_357], x3_39_0[@i_357], x2_40_0[@i_357], x1_41_0[@i_357], x1_286[@i_357], x2_285[@i_357], x3_284[@i_357], x4_283[@i_357], x5_282[@i_357], r_281[@i_357]) && otheruses(r_281[@i_357]) && ((x1_310 = x1_41_0[@i_357]) && ((x2_309 = x2_40_0[@i_357]) && ((X = x3_39_0[@i_357]) && ((x4_307 = x4_38_0[@i_357]) && (K_u_37 = x5_37_0[@i_357]))))) then
+              out(c6[!_31], r_281[@i_357]);
+              in(c9[!_31], ());
+              let x1_198: host = U in
+              let x2_197: host = S in
+              let x4_195: G = exp(g, x_83[ari_106_0]) in
+              find @i_234 <= qH0 suchthat defined(r_175[@i_234], x5_42_0[@i_234], x4_43_0[@i_234], x3_44_0[@i_234], x2_45_0[@i_234], x1_46_0[@i_234]) && otheruses(r_175[@i_234]) && ((x1_198 = x1_46_0[@i_234]) && ((x2_197 = x2_45_0[@i_234]) && ((X = x3_44_0[@i_234]) && ((x4_195 = x4_43_0[@i_234]) && (K_u_37 = x5_42_0[@i_234]))))) then
+                let sk_u1: hash0 = r_175[@i_234]
+              else
+                new r_193: hash0;
+                let sk_u1: hash0 = r_193
+            else
+              new r_305: hash1;
+              out(c6[!_31], r_305);
+              in(c9[!_31], ());
+              let x1_198: host = U in
+              let x2_197: host = S in
+              let x4_195: G = exp(g, x_83[ari_106_0]) in
+              find @i_234 <= qH0 suchthat defined(r_175[@i_234], x5_42_0[@i_234], x4_43_0[@i_234], x3_44_0[@i_234], x2_45_0[@i_234], x1_46_0[@i_234]) && otheruses(r_175[@i_234]) && ((x1_198 = x1_46_0[@i_234]) && ((x2_197 = x2_45_0[@i_234]) && ((X = x3_44_0[@i_234]) && ((x4_195 = x4_43_0[@i_234]) && (K_u_37 = x5_42_0[@i_234]))))) then
+                let sk_u1: hash0 = r_175[@i_234]
+              else
+                new r_193: hash0;
+                let sk_u1: hash0 = r_193
+          orfind ari_103_0 <= N suchthat defined(x_132[ari_103_0], Ystar_u[ari_103_0], ar2_r4_72_0[ari_103_0]) && otheruses(x_132[ari_103_0]) && (Ystar_u = Ystar_u[ari_103_0]) then
+            let K_u_39: G = exp(g, mult(x_132[ari_103_0], x)) in
+            let x1_316: host = U in
+            let x2_315: host = S in
+            let x3_314: G = cst_G in
+            let x4_313: G = exp(g, x_132[ari_103_0]) in
+            let x5_312: G = cst_G in
+            find @i_364 <= qH1 suchthat defined(x5_37_0[@i_364], x4_38_0[@i_364], x3_39_0[@i_364], x2_40_0[@i_364], x1_41_0[@i_364], x1_286[@i_364], x2_285[@i_364], x3_284[@i_364], x4_283[@i_364], x5_282[@i_364], r_281[@i_364]) && otheruses(r_281[@i_364]) && ((x1_316 = x1_41_0[@i_364]) && ((x2_315 = x2_40_0[@i_364]) && ((X = x3_39_0[@i_364]) && ((x4_313 = x4_38_0[@i_364]) && (K_u_39 = x5_37_0[@i_364]))))) then
+              out(c6[!_31], r_281[@i_364]);
+              in(c9[!_31], ());
+              let x1_204: host = U in
+              let x2_203: host = S in
+              let x4_201: G = exp(g, x_132[ari_103_0]) in
+              find @i_240 <= qH0 suchthat defined(r_175[@i_240], x5_42_0[@i_240], x4_43_0[@i_240], x3_44_0[@i_240], x2_45_0[@i_240], x1_46_0[@i_240]) && otheruses(r_175[@i_240]) && ((x1_204 = x1_46_0[@i_240]) && ((x2_203 = x2_45_0[@i_240]) && ((X = x3_44_0[@i_240]) && ((x4_201 = x4_43_0[@i_240]) && (K_u_39 = x5_42_0[@i_240]))))) then
+                let sk_u2: hash0 = r_175[@i_240]
+              else
+                new r_199: hash0;
+                let sk_u2: hash0 = r_199
+            else
+              new r_311: hash1;
+              out(c6[!_31], r_311);
+              in(c9[!_31], ());
+              let x1_204: host = U in
+              let x2_203: host = S in
+              let x4_201: G = exp(g, x_132[ari_103_0]) in
+              find @i_240 <= qH0 suchthat defined(r_175[@i_240], x5_42_0[@i_240], x4_43_0[@i_240], x3_44_0[@i_240], x2_45_0[@i_240], x1_46_0[@i_240]) && otheruses(r_175[@i_240]) && ((x1_204 = x1_46_0[@i_240]) && ((x2_203 = x2_45_0[@i_240]) && ((X = x3_44_0[@i_240]) && ((x4_201 = x4_43_0[@i_240]) && (K_u_39 = x5_42_0[@i_240]))))) then
+                let sk_u2: hash0 = r_175[@i_240]
+              else
+                new r_199: hash0;
+                let sk_u2: hash0 = r_199
+          orfind ari_100_0 <= N suchthat defined(Y[ari_100_0], y[ari_100_0], ar2_r2_69_0[ari_100_0]) && otheruses(ar2_r2_69_0[ari_100_0]) && (Ystar_u = ar2_r2_69_0[ari_100_0]) then
+            let K_u_41: G = exp(g, mult(y[ari_100_0], x)) in
+            let x1_322: host = U in
+            let x2_321: host = S in
+            let x3_320: G = cst_G in
+            let x4_319: G = cst_G in
+            let x5_318: G = cst_G in
+            find @i_371 <= qH1 suchthat defined(x5_37_0[@i_371], x4_38_0[@i_371], x3_39_0[@i_371], x2_40_0[@i_371], x1_41_0[@i_371], x1_286[@i_371], x2_285[@i_371], x3_284[@i_371], x4_283[@i_371], x5_282[@i_371], r_281[@i_371]) && otheruses(r_281[@i_371]) && ((x1_322 = x1_41_0[@i_371]) && ((x2_321 = x2_40_0[@i_371]) && ((X = x3_39_0[@i_371]) && ((Y[ari_100_0] = x4_38_0[@i_371]) && (K_u_41 = x5_37_0[@i_371]))))) then
+              out(c6[!_31], r_281[@i_371]);
+              in(c9[!_31], ());
+              let x1_210: host = U in
+              let x2_209: host = S in
+              find @i_246 <= qH0 suchthat defined(r_175[@i_246], x5_42_0[@i_246], x4_43_0[@i_246], x3_44_0[@i_246], x2_45_0[@i_246], x1_46_0[@i_246]) && otheruses(r_175[@i_246]) && ((x1_210 = x1_46_0[@i_246]) && ((x2_209 = x2_45_0[@i_246]) && ((X = x3_44_0[@i_246]) && ((Y[ari_100_0] = x4_43_0[@i_246]) && (K_u_41 = x5_42_0[@i_246]))))) then
+                let sk_u3: hash0 = r_175[@i_246]
+              orfind @i_245 <= N suchthat defined(r_181[@i_245], K_s_47_0[@i_245]) && otheruses(r_181[@i_245]) && ((!_31 = j[@i_245]) && ((ari_100_0 = @i_245) && (K_u_41 = K_s_47_0[@i_245]))) then
+                let sk_u3: hash0 = r_181[@i_245]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+            else
+              new r_317: hash1;
+              out(c6[!_31], r_317);
+              in(c9[!_31], ());
+              let x1_210: host = U in
+              let x2_209: host = S in
+              find @i_246 <= qH0 suchthat defined(r_175[@i_246], x5_42_0[@i_246], x4_43_0[@i_246], x3_44_0[@i_246], x2_45_0[@i_246], x1_46_0[@i_246]) && otheruses(r_175[@i_246]) && ((x1_210 = x1_46_0[@i_246]) && ((x2_209 = x2_45_0[@i_246]) && ((X = x3_44_0[@i_246]) && ((Y[ari_100_0] = x4_43_0[@i_246]) && (K_u_41 = x5_42_0[@i_246]))))) then
+                let sk_u3: hash0 = r_175[@i_246]
+              orfind @i_245 <= N suchthat defined(r_181[@i_245], K_s_47_0[@i_245]) && otheruses(r_181[@i_245]) && ((!_31 = j[@i_245]) && ((ari_100_0 = @i_245) && (K_u_41 = K_s_47_0[@i_245]))) then
+                let sk_u3: hash0 = r_181[@i_245]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+          else
+            new x_132: exponent;
+            let ar2_r4_72_0: G = cst_G in
+            let K_u_43: G = exp(g, mult(x_132, x)) in
+            let x1_304: host = U in
+            let x2_303: host = S in
+            let x3_302: G = cst_G in
+            let x4_301: G = exp(g, x_132) in
+            let x5_300: G = cst_G in
+            find @i_350 <= qH1 suchthat defined(x5_37_0[@i_350], x4_38_0[@i_350], x3_39_0[@i_350], x2_40_0[@i_350], x1_41_0[@i_350], x1_286[@i_350], x2_285[@i_350], x3_284[@i_350], x4_283[@i_350], x5_282[@i_350], r_281[@i_350]) && otheruses(r_281[@i_350]) && ((x1_304 = x1_41_0[@i_350]) && ((x2_303 = x2_40_0[@i_350]) && ((X = x3_39_0[@i_350]) && ((x4_301 = x4_38_0[@i_350]) && (K_u_43 = x5_37_0[@i_350]))))) then
+              out(c6[!_31], r_281[@i_350]);
+              in(c9[!_31], ());
+              let x1_192: host = U in
+              let x2_191: host = S in
+              let x4_189: G = exp(g, x_132) in
+              find @i_228 <= qH0 suchthat defined(r_175[@i_228], x5_42_0[@i_228], x4_43_0[@i_228], x3_44_0[@i_228], x2_45_0[@i_228], x1_46_0[@i_228]) && otheruses(r_175[@i_228]) && ((x1_192 = x1_46_0[@i_228]) && ((x2_191 = x2_45_0[@i_228]) && ((X = x3_44_0[@i_228]) && ((x4_189 = x4_43_0[@i_228]) && (K_u_43 = x5_42_0[@i_228]))))) then
+                let sk_u4: hash0 = r_175[@i_228]
+              else
+                new r_187: hash0;
+                let sk_u4: hash0 = r_187
+            else
+              new r_299: hash1;
+              out(c6[!_31], r_299);
+              in(c9[!_31], ());
+              let x1_192: host = U in
+              let x2_191: host = S in
+              let x4_189: G = exp(g, x_132) in
+              find @i_228 <= qH0 suchthat defined(r_175[@i_228], x5_42_0[@i_228], x4_43_0[@i_228], x3_44_0[@i_228], x2_45_0[@i_228], x1_46_0[@i_228]) && otheruses(r_175[@i_228]) && ((x1_192 = x1_46_0[@i_228]) && ((x2_191 = x2_45_0[@i_228]) && ((X = x3_44_0[@i_228]) && ((x4_189 = x4_43_0[@i_228]) && (K_u_43 = x5_42_0[@i_228]))))) then
+                let sk_u4: hash0 = r_175[@i_228]
+              else
+                new r_187: hash0;
+                let sk_u4: hash0 = r_187
+        |
+          ! !_32 <= N
+          in(c3[!_32], (=U, X_s: G));
+          new y: exponent;
+          let Y: G = exp(g, y) in
+          new ar2_r2_69_0: G;
+          out(c4[!_32], (S, ar2_r2_69_0));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47_0: G = exp(g, mult(x[j], y)) in
+            let x1_298: host = U in
+            let x2_297: host = S in
+            find @i_343 <= qH1 suchthat defined(x5_37_0[@i_343], x4_38_0[@i_343], x3_39_0[@i_343], x2_40_0[@i_343], x1_41_0[@i_343], x1_286[@i_343], x2_285[@i_343], x3_284[@i_343], x4_283[@i_343], x5_282[@i_343], r_281[@i_343]) && otheruses(r_281[@i_343]) && ((x1_298 = x1_41_0[@i_343]) && ((x2_297 = x2_40_0[@i_343]) && ((X_s = x3_39_0[@i_343]) && ((Y = x4_38_0[@i_343]) && (K_s_47_0 = x5_37_0[@i_343]))))) then
+              if (auth_s = r_281[@i_343]) then
+              let x1_186: host = U in
+              let x2_185: host = S in
+              find @i_222 <= qH0 suchthat defined(r_175[@i_222], x5_42_0[@i_222], x4_43_0[@i_222], x3_44_0[@i_222], x2_45_0[@i_222], x1_46_0[@i_222]) && otheruses(r_175[@i_222]) && ((x1_186 = x1_46_0[@i_222]) && ((x2_185 = x2_45_0[@i_222]) && ((X_s = x3_44_0[@i_222]) && ((Y = x4_43_0[@i_222]) && (K_s_47_0 = x5_42_0[@i_222]))))) then
+                let sk_s: hash0 = r_175[@i_222]
+              orfind @i_217 <= N suchthat defined(r_205[@i_217], K_u_41[@i_217]) && otheruses(r_205[@i_217]) && ((j = @i_217) && ((!_32 = ari_100_0[@i_217]) && (K_s_47_0 = K_u_41[@i_217]))) then
+                let sk_s: hash0 = r_205[@i_217]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            orfind @i_337 <= N suchthat defined(K_u_41[@i_337], x5_318[@i_337], r_317[@i_337]) && otheruses(r_317[@i_337]) && ((j = @i_337) && ((!_32 = ari_100_0[@i_337]) && (K_s_47_0 = K_u_41[@i_337]))) then
+              if (auth_s = r_317[@i_337]) then
+              let x1_186: host = U in
+              let x2_185: host = S in
+              find @i_222 <= qH0 suchthat defined(r_175[@i_222], x5_42_0[@i_222], x4_43_0[@i_222], x3_44_0[@i_222], x2_45_0[@i_222], x1_46_0[@i_222]) && otheruses(r_175[@i_222]) && ((x1_186 = x1_46_0[@i_222]) && ((x2_185 = x2_45_0[@i_222]) && ((X_s = x3_44_0[@i_222]) && ((Y = x4_43_0[@i_222]) && (K_s_47_0 = x5_42_0[@i_222]))))) then
+                let sk_s: hash0 = r_175[@i_222]
+              orfind @i_217 <= N suchthat defined(r_205[@i_217], K_u_41[@i_217]) && otheruses(r_205[@i_217]) && ((j = @i_217) && ((!_32 = ari_100_0[@i_217]) && (K_s_47_0 = K_u_41[@i_217]))) then
+                let sk_s: hash0 = r_205[@i_217]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            else
+              new r_293: hash1
+          else
+            let K_s_48_0: G = exp(X_s, y) in
+            let x1_292: host = U in
+            let x2_291: host = S in
+            find @i_336 <= qH1 suchthat defined(x5_37_0[@i_336], x4_38_0[@i_336], x3_39_0[@i_336], x2_40_0[@i_336], x1_41_0[@i_336], x1_286[@i_336], x2_285[@i_336], x3_284[@i_336], x4_283[@i_336], x5_282[@i_336], r_281[@i_336]) && otheruses(r_281[@i_336]) && ((x1_292 = x1_41_0[@i_336]) && ((x2_291 = x2_40_0[@i_336]) && ((X_s = x3_39_0[@i_336]) && ((Y = x4_38_0[@i_336]) && (K_s_48_0 = x5_37_0[@i_336]))))) then
+              if (auth_s = r_281[@i_336]) then
+              event bad
+            else
+              new r_287: hash1
+        )
+      |
+        ! !_33 <= qE
+        in(ar2_c1[!_33], (ar2_x: G, ar2_ke: passwd));
+        find ari_90_0 <= qD suchthat defined(ar2_m[ari_90_0], ar2_kd[ari_90_0], x_83[ari_90_0], ar2_r4_63_0[ari_90_0]) && otheruses(x_83[ari_90_0]) && ((ar2_x = exp(g, x_83[ari_90_0])) && (ar2_ke = ar2_kd[ari_90_0])) then
+          out(ar2_c2[!_33], ar2_m[ari_90_0])
+        orfind ari_87_0 <= N suchthat defined(Ystar_u[ari_87_0], x_132[ari_87_0], ar2_r4_72_0[ari_87_0]) && otheruses(x_132[ari_87_0]) && ((ar2_x = exp(g, x_132[ari_87_0])) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], Ystar_u[ari_87_0])
+        orfind ari_85_0 <= qE suchthat defined(ar2_r2_66_0[ari_85_0], ar2_ke[ari_85_0], ar2_x[ari_85_0]) && otheruses(ar2_r2_66_0[ari_85_0]) && ((ar2_x = ar2_x[ari_85_0]) && (ar2_ke = ar2_ke[ari_85_0])) then
+          out(ar2_c2[!_33], ar2_r2_66_0[ari_85_0])
+        orfind ari_84_0 <= N suchthat defined(ar2_r2_69_0[ari_84_0], Y[ari_84_0]) && otheruses(ar2_r2_69_0[ari_84_0]) && ((ar2_x = Y[ari_84_0]) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], ar2_r2_69_0[ari_84_0])
+        else
+          new ar2_r2_66_0: G;
+          out(ar2_c2[!_33], ar2_r2_66_0)
+      )
+    |
+      ! !_34 <= qD
+      in(ar2_c3[!_34], (ar2_m: G, ar2_kd: passwd));
+      find ari_82_0 <= qD suchthat defined(x_83[ari_82_0], ar2_kd[ari_82_0], ar2_m[ari_82_0], ar2_r4_63_0[ari_82_0]) && otheruses(x_83[ari_82_0]) && ((ar2_m = ar2_m[ari_82_0]) && (ar2_kd = ar2_kd[ari_82_0])) then
+        out(ar2_c4[!_34], exp(g, x_83[ari_82_0]))
+      orfind ari_79_0 <= N suchthat defined(x_132[ari_79_0], Ystar_u[ari_79_0], ar2_r4_72_0[ari_79_0]) && otheruses(x_132[ari_79_0]) && ((ar2_m = Ystar_u[ari_79_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], exp(g, x_132[ari_79_0]))
+      orfind ari_77_0 <= qE suchthat defined(ar2_x[ari_77_0], ar2_ke[ari_77_0], ar2_r2_66_0[ari_77_0]) && otheruses(ar2_r2_66_0[ari_77_0]) && ((ar2_m = ar2_r2_66_0[ari_77_0]) && (ar2_kd = ar2_ke[ari_77_0])) then
+        out(ar2_c4[!_34], ar2_x[ari_77_0])
+      orfind ari_76_0 <= N suchthat defined(Y[ari_76_0], ar2_r2_69_0[ari_76_0]) && otheruses(ar2_r2_69_0[ari_76_0]) && ((ar2_m = ar2_r2_69_0[ari_76_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], Y[ari_76_0])
+      else
+        new x_83: exponent;
+        let ar2_r4_63_0: G = cst_G in
+        out(ar2_c4[!_34], exp(g, x_83))
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46_0: host, x2_45_0: host, x3_44_0: G, x4_43_0: G, x5_42_0: G));
+    find @i_216 <= qH0 suchthat defined(r_175[@i_216], x5_42_0[@i_216], x4_43_0[@i_216], x3_44_0[@i_216], x2_45_0[@i_216], x1_46_0[@i_216]) && otheruses(r_175[@i_216]) && ((x1_46_0 = x1_46_0[@i_216]) && ((x2_45_0 = x2_45_0[@i_216]) && ((x3_44_0 = x3_44_0[@i_216]) && ((x4_43_0 = x4_43_0[@i_216]) && (x5_42_0 = x5_42_0[@i_216]))))) then
+      out(c20[!_35], r_175[@i_216])
+    orfind @i_215 <= N suchthat defined(r_181[@i_215], K_s_47_0[@i_215], Y[@i_215], X_s[@i_215], x2_185[@i_215], x1_186[@i_215]) && otheruses(r_181[@i_215]) && ((x1_46_0 = x1_186[@i_215]) && ((x2_45_0 = x2_185[@i_215]) && ((x3_44_0 = X_s[@i_215]) && ((x4_43_0 = Y[@i_215]) && (x5_42_0 = K_s_47_0[@i_215]))))) then
+      out(c20[!_35], r_181[@i_215])
+    orfind @i_214 <= N suchthat defined(r_187[@i_214], K_u_43[@i_214], x4_189[@i_214], X[@i_214], x2_191[@i_214], x1_192[@i_214]) && otheruses(r_187[@i_214]) && ((x1_46_0 = x1_192[@i_214]) && ((x2_45_0 = x2_191[@i_214]) && ((x3_44_0 = X[@i_214]) && ((x4_43_0 = x4_189[@i_214]) && (x5_42_0 = K_u_43[@i_214]))))) then
+      out(c20[!_35], r_187[@i_214])
+    orfind @i_213 <= N suchthat defined(r_193[@i_213], K_u_37[@i_213], x4_195[@i_213], X[@i_213], x2_197[@i_213], x1_198[@i_213]) && otheruses(r_193[@i_213]) && ((x1_46_0 = x1_198[@i_213]) && ((x2_45_0 = x2_197[@i_213]) && ((x3_44_0 = X[@i_213]) && ((x4_43_0 = x4_195[@i_213]) && (x5_42_0 = K_u_37[@i_213]))))) then
+      out(c20[!_35], r_193[@i_213])
+    orfind @i_212 <= N suchthat defined(r_199[@i_212], K_u_39[@i_212], x4_201[@i_212], X[@i_212], x2_203[@i_212], x1_204[@i_212]) && otheruses(r_199[@i_212]) && ((x1_46_0 = x1_204[@i_212]) && ((x2_45_0 = x2_203[@i_212]) && ((x3_44_0 = X[@i_212]) && ((x4_43_0 = x4_201[@i_212]) && (x5_42_0 = K_u_39[@i_212]))))) then
+      out(c20[!_35], r_199[@i_212])
+    orfind @i_211 <= N suchthat defined(r_205[@i_211], K_u_41[@i_211], Y[ari_100_0[@i_211]], X[@i_211], x2_209[@i_211], x1_210[@i_211]) && otheruses(r_205[@i_211]) && ((x1_46_0 = x1_210[@i_211]) && ((x2_45_0 = x2_209[@i_211]) && ((x3_44_0 = X[@i_211]) && ((x4_43_0 = Y[ari_100_0[@i_211]]) && (x5_42_0 = K_u_41[@i_211]))))) then
+      out(c20[!_35], r_205[@i_211])
+    else
+      new r_175: hash0;
+      out(c20[!_35], r_175)
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41_0: host, x2_40_0: host, x3_39_0: G, x4_38_0: G, x5_37_0: G));
+  let x1_286: host = cst_host in
+  let x2_285: host = cst_host in
+  let x3_284: G = cst_G in
+  let x4_283: G = cst_G in
+  let x5_282: G = cst_G in
+  find @i_329 <= qH1 suchthat defined(x5_37_0[@i_329], x4_38_0[@i_329], x3_39_0[@i_329], x2_40_0[@i_329], x1_41_0[@i_329], x1_286[@i_329], x2_285[@i_329], x3_284[@i_329], x4_283[@i_329], x5_282[@i_329], r_281[@i_329]) && otheruses(r_281[@i_329]) && ((x1_41_0 = x1_41_0[@i_329]) && ((x2_40_0 = x2_40_0[@i_329]) && ((x3_39_0 = x3_39_0[@i_329]) && ((x4_38_0 = x4_38_0[@i_329]) && (x5_37_0 = x5_37_0[@i_329]))))) then
+    out(c21[!_36], r_281[@i_329])
+  orfind @i_326 <= N suchthat defined(K_u_43[@i_326], X[@i_326], x3_302[@i_326], x5_300[@i_326], r_299[@i_326], x4_301[@i_326], x2_303[@i_326], x1_304[@i_326]) && otheruses(r_299[@i_326]) && ((x1_41_0 = x1_304[@i_326]) && ((x2_40_0 = x2_303[@i_326]) && ((x3_39_0 = X[@i_326]) && ((x4_38_0 = x4_301[@i_326]) && (x5_37_0 = K_u_43[@i_326]))))) then
+    out(c21[!_36], r_299[@i_326])
+  orfind @i_325 <= N suchthat defined(K_u_37[@i_325], X[@i_325], x3_308[@i_325], x5_306[@i_325], r_305[@i_325], x4_307[@i_325], x2_309[@i_325], x1_310[@i_325]) && otheruses(r_305[@i_325]) && ((x1_41_0 = x1_310[@i_325]) && ((x2_40_0 = x2_309[@i_325]) && ((x3_39_0 = X[@i_325]) && ((x4_38_0 = x4_307[@i_325]) && (x5_37_0 = K_u_37[@i_325]))))) then
+    out(c21[!_36], r_305[@i_325])
+  orfind @i_324 <= N suchthat defined(K_u_39[@i_324], X[@i_324], x3_314[@i_324], x5_312[@i_324], r_311[@i_324], x4_313[@i_324], x2_315[@i_324], x1_316[@i_324]) && otheruses(r_311[@i_324]) && ((x1_41_0 = x1_316[@i_324]) && ((x2_40_0 = x2_315[@i_324]) && ((x3_39_0 = X[@i_324]) && ((x4_38_0 = x4_313[@i_324]) && (x5_37_0 = K_u_39[@i_324]))))) then
+    out(c21[!_36], r_311[@i_324])
+  orfind @i_323 <= N suchthat defined(K_u_41[@i_323], Y[ari_100_0[@i_323]], X[@i_323], x3_320[@i_323], x4_319[@i_323], x5_318[@i_323], r_317[@i_323], x2_321[@i_323], x1_322[@i_323]) && otheruses(r_317[@i_323]) && ((x1_41_0 = x1_322[@i_323]) && ((x2_40_0 = x2_321[@i_323]) && ((x3_39_0 = X[@i_323]) && ((x4_38_0 = Y[ari_100_0[@i_323]]) && (x5_37_0 = K_u_41[@i_323]))))) then
+    out(c21[!_36], r_317[@i_323])
+  else
+    new r_281: hash1;
+    out(c21[!_36], r_281)
+)
+
+Please enter a command: quit
+
+(************* Manual changes *************)
+
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        (
+          ! !_31 <= N
+          in(c1[!_31], ());
+          new x: exponent;
+          let X: G = exp(g, x) in
+          out(c2[!_31], (U, X));
+          in(c5[!_31], (=S, Ystar_u: G));
+          find ari_106_0 <= qD suchthat defined(x_83[ari_106_0], ar2_kd[ari_106_0], ar2_m[ari_106_0], ar2_r4_63_0[ari_106_0]) && otheruses(x_83[ari_106_0]) && ((Ystar_u = ar2_m[ari_106_0]) && (pw = ar2_kd[ari_106_0])) then
+            let K_u_37: G = exp(g, mult(x_83[ari_106_0], x)) in
+            let x1_310: host = U in
+            let x2_309: host = S in
+            let x3_308: G = cst_G in
+            let x4_307: G = exp(g, x_83[ari_106_0]) in
+            let x5_306: G = cst_G in
+            find @i_357 <= qH1 suchthat defined(x5_37_0[@i_357], x4_38_0[@i_357], x3_39_0[@i_357], x2_40_0[@i_357], x1_41_0[@i_357], x1_286[@i_357], x2_285[@i_357], x3_284[@i_357], x4_283[@i_357], x5_282[@i_357], r_281[@i_357]) && otheruses(r_281[@i_357]) && ((x1_310 = x1_41_0[@i_357]) && ((x2_309 = x2_40_0[@i_357]) && ((X = x3_39_0[@i_357]) && ((x4_307 = x4_38_0[@i_357]) && (K_u_37 = x5_37_0[@i_357]))))) then
+              out(c6[!_31], r_281[@i_357]);
+              in(c9[!_31], ());
+              let x1_198: host = U in
+              let x2_197: host = S in
+              let x4_195: G = exp(g, x_83[ari_106_0]) in
+              find @i_234 <= qH0 suchthat defined(r_175[@i_234], x5_42_0[@i_234], x4_43_0[@i_234], x3_44_0[@i_234], x2_45_0[@i_234], x1_46_0[@i_234]) && otheruses(r_175[@i_234]) && ((x1_198 = x1_46_0[@i_234]) && ((x2_197 = x2_45_0[@i_234]) && ((X = x3_44_0[@i_234]) && ((x4_195 = x4_43_0[@i_234]) && (K_u_37 = x5_42_0[@i_234]))))) then
+                let sk_u1: hash0 = r_175[@i_234]
+              else
+                new r_193: hash0;
+                let sk_u1: hash0 = r_193
+            else
+              new r_305: hash1;
+              out(c6[!_31], r_305);
+              in(c9[!_31], ());
+              let x1_198: host = U in
+              let x2_197: host = S in
+              let x4_195: G = exp(g, x_83[ari_106_0]) in
+              find @i_234 <= qH0 suchthat defined(r_175[@i_234], x5_42_0[@i_234], x4_43_0[@i_234], x3_44_0[@i_234], x2_45_0[@i_234], x1_46_0[@i_234]) && otheruses(r_175[@i_234]) && ((x1_198 = x1_46_0[@i_234]) && ((x2_197 = x2_45_0[@i_234]) && ((X = x3_44_0[@i_234]) && ((x4_195 = x4_43_0[@i_234]) && (K_u_37 = x5_42_0[@i_234]))))) then
+                let sk_u1: hash0 = r_175[@i_234]
+              else
+                new r_193: hash0;
+                let sk_u1: hash0 = r_193
+          orfind ari_103_0 <= N suchthat defined(x_132[ari_103_0], Ystar_u[ari_103_0], ar2_r4_72_0[ari_103_0]) && otheruses(x_132[ari_103_0]) && (Ystar_u = Ystar_u[ari_103_0]) then
+            let K_u_39: G = exp(g, mult(x_132[ari_103_0], x)) in
+            let x1_316: host = U in
+            let x2_315: host = S in
+            let x3_314: G = cst_G in
+            let x4_313: G = exp(g, x_132[ari_103_0]) in
+            let x5_312: G = cst_G in
+            find @i_364 <= qH1 suchthat defined(x5_37_0[@i_364], x4_38_0[@i_364], x3_39_0[@i_364], x2_40_0[@i_364], x1_41_0[@i_364], x1_286[@i_364], x2_285[@i_364], x3_284[@i_364], x4_283[@i_364], x5_282[@i_364], r_281[@i_364]) && otheruses(r_281[@i_364]) && ((x1_316 = x1_41_0[@i_364]) && ((x2_315 = x2_40_0[@i_364]) && ((X = x3_39_0[@i_364]) && ((x4_313 = x4_38_0[@i_364]) && (K_u_39 = x5_37_0[@i_364]))))) then
+              out(c6[!_31], r_281[@i_364]);
+              in(c9[!_31], ());
+              let x1_204: host = U in
+              let x2_203: host = S in
+              let x4_201: G = exp(g, x_132[ari_103_0]) in
+              find @i_240 <= qH0 suchthat defined(r_175[@i_240], x5_42_0[@i_240], x4_43_0[@i_240], x3_44_0[@i_240], x2_45_0[@i_240], x1_46_0[@i_240]) && otheruses(r_175[@i_240]) && ((x1_204 = x1_46_0[@i_240]) && ((x2_203 = x2_45_0[@i_240]) && ((X = x3_44_0[@i_240]) && ((x4_201 = x4_43_0[@i_240]) && (K_u_39 = x5_42_0[@i_240]))))) then
+                let sk_u2: hash0 = r_175[@i_240]
+              else
+                new r_199: hash0;
+                let sk_u2: hash0 = r_199
+            else
+              new r_311: hash1;
+              out(c6[!_31], r_311);
+              in(c9[!_31], ());
+              let x1_204: host = U in
+              let x2_203: host = S in
+              let x4_201: G = exp(g, x_132[ari_103_0]) in
+              find @i_240 <= qH0 suchthat defined(r_175[@i_240], x5_42_0[@i_240], x4_43_0[@i_240], x3_44_0[@i_240], x2_45_0[@i_240], x1_46_0[@i_240]) && otheruses(r_175[@i_240]) && ((x1_204 = x1_46_0[@i_240]) && ((x2_203 = x2_45_0[@i_240]) && ((X = x3_44_0[@i_240]) && ((x4_201 = x4_43_0[@i_240]) && (K_u_39 = x5_42_0[@i_240]))))) then
+                let sk_u2: hash0 = r_175[@i_240]
+              else
+                new r_199: hash0;
+                let sk_u2: hash0 = r_199
+          orfind ari_100_0 <= N suchthat defined(Y[ari_100_0], y[ari_100_0], ar2_r2_69_0[ari_100_0]) && otheruses(ar2_r2_69_0[ari_100_0]) && (Ystar_u = ar2_r2_69_0[ari_100_0]) then
+            let K_u_41: G = exp(g, mult(y[ari_100_0], x)) in
+            let x1_322: host = U in
+            let x2_321: host = S in
+            let x3_320: G = cst_G in
+            let x4_319: G = cst_G in
+            let x5_318: G = cst_G in
+            find @i_371 <= qH1 suchthat defined(x5_37_0[@i_371], x4_38_0[@i_371], x3_39_0[@i_371], x2_40_0[@i_371], x1_41_0[@i_371], x1_286[@i_371], x2_285[@i_371], x3_284[@i_371], x4_283[@i_371], x5_282[@i_371], r_281[@i_371]) && otheruses(r_281[@i_371]) && ((x1_322 = x1_41_0[@i_371]) && ((x2_321 = x2_40_0[@i_371]) && ((X = x3_39_0[@i_371]) && ((Y[ari_100_0] = x4_38_0[@i_371]) && (K_u_41 = x5_37_0[@i_371]))))) then
+              out(c6[!_31], r_281[@i_371]);
+              in(c9[!_31], ());
+              let x1_210: host = U in
+              let x2_209: host = S in
+              find @i_246 <= qH0 suchthat defined(r_175[@i_246], x5_42_0[@i_246], x4_43_0[@i_246], x3_44_0[@i_246], x2_45_0[@i_246], x1_46_0[@i_246]) && otheruses(r_175[@i_246]) && ((x1_210 = x1_46_0[@i_246]) && ((x2_209 = x2_45_0[@i_246]) && ((X = x3_44_0[@i_246]) && ((Y[ari_100_0] = x4_43_0[@i_246]) && (K_u_41 = x5_42_0[@i_246]))))) then
+                let sk_u3: hash0 = r_175[@i_246]
+              orfind @i_245 <= N suchthat defined(r_181[@i_245], K_s_47_0[@i_245]) && otheruses(r_181[@i_245]) && ((!_31 = j[@i_245]) && ((ari_100_0 = @i_245) && (K_u_41 = K_s_47_0[@i_245]))) then
+                let sk_u3: hash0 = r_181[@i_245]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+            else
+              new r_317: hash1;
+              out(c6[!_31], r_317);
+              in(c9[!_31], ());
+              let x1_210: host = U in
+              let x2_209: host = S in
+              find @i_246 <= qH0 suchthat defined(r_175[@i_246], x5_42_0[@i_246], x4_43_0[@i_246], x3_44_0[@i_246], x2_45_0[@i_246], x1_46_0[@i_246]) && otheruses(r_175[@i_246]) && ((x1_210 = x1_46_0[@i_246]) && ((x2_209 = x2_45_0[@i_246]) && ((X = x3_44_0[@i_246]) && ((Y[ari_100_0] = x4_43_0[@i_246]) && (K_u_41 = x5_42_0[@i_246]))))) then
+                let sk_u3: hash0 = r_175[@i_246]
+              orfind @i_245 <= N suchthat defined(r_181[@i_245], K_s_47_0[@i_245]) && otheruses(r_181[@i_245]) && ((!_31 = j[@i_245]) && ((ari_100_0 = @i_245) && (K_u_41 = K_s_47_0[@i_245]))) then
+                let sk_u3: hash0 = r_181[@i_245]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+          else
+            new x_132: exponent;
+            let ar2_r4_72_0: G = cst_G in
+            let K_u_43: G = exp(g, mult(x_132, x)) in
+            let x1_304: host = U in
+            let x2_303: host = S in
+            let x3_302: G = cst_G in
+            let x4_301: G = exp(g, x_132) in
+            let x5_300: G = cst_G in
+            find @i_350 <= qH1 suchthat defined(x5_37_0[@i_350], x4_38_0[@i_350], x3_39_0[@i_350], x2_40_0[@i_350], x1_41_0[@i_350], x1_286[@i_350], x2_285[@i_350], x3_284[@i_350], x4_283[@i_350], x5_282[@i_350], r_281[@i_350]) && otheruses(r_281[@i_350]) && ((x1_304 = x1_41_0[@i_350]) && ((x2_303 = x2_40_0[@i_350]) && ((X = x3_39_0[@i_350]) && ((x4_301 = x4_38_0[@i_350]) && (K_u_43 = x5_37_0[@i_350]))))) then
+              out(c6[!_31], r_281[@i_350]);
+              in(c9[!_31], ());
+              let x1_192: host = U in
+              let x2_191: host = S in
+              let x4_189: G = exp(g, x_132) in
+              find @i_228 <= qH0 suchthat defined(r_175[@i_228], x5_42_0[@i_228], x4_43_0[@i_228], x3_44_0[@i_228], x2_45_0[@i_228], x1_46_0[@i_228]) && otheruses(r_175[@i_228]) && ((x1_192 = x1_46_0[@i_228]) && ((x2_191 = x2_45_0[@i_228]) && ((X = x3_44_0[@i_228]) && ((x4_189 = x4_43_0[@i_228]) && (K_u_43 = x5_42_0[@i_228]))))) then
+                let sk_u4: hash0 = r_175[@i_228]
+              else
+                new r_187: hash0;
+                let sk_u4: hash0 = r_187
+            else
+              new r_299: hash1;
+              out(c6[!_31], r_299);
+              in(c9[!_31], ());
+              let x1_192: host = U in
+              let x2_191: host = S in
+              let x4_189: G = exp(g, x_132) in
+              find @i_228 <= qH0 suchthat defined(r_175[@i_228], x5_42_0[@i_228], x4_43_0[@i_228], x3_44_0[@i_228], x2_45_0[@i_228], x1_46_0[@i_228]) && otheruses(r_175[@i_228]) && ((x1_192 = x1_46_0[@i_228]) && ((x2_191 = x2_45_0[@i_228]) && ((X = x3_44_0[@i_228]) && ((x4_189 = x4_43_0[@i_228]) && (K_u_43 = x5_42_0[@i_228]))))) then
+                let sk_u4: hash0 = r_175[@i_228]
+              else
+                new r_187: hash0;
+                let sk_u4: hash0 = r_187
+        |
+          ! !_32 <= N
+          in(c3[!_32], (=U, X_s: G));
+          new y: exponent;
+          let Y: G = exp(g, y) in
+          new ar2_r2_69_0: G;
+          out(c4[!_32], (S, ar2_r2_69_0));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47_0: G = exp(g, mult(x[j], y)) in
+            let x1_298: host = U in
+            let x2_297: host = S in
+            find @i_343 <= qH1 suchthat defined(x5_37_0[@i_343], x4_38_0[@i_343], x3_39_0[@i_343], x2_40_0[@i_343], x1_41_0[@i_343], x1_286[@i_343], x2_285[@i_343], x3_284[@i_343], x4_283[@i_343], x5_282[@i_343], r_281[@i_343]) && otheruses(r_281[@i_343]) && ((x1_298 = x1_41_0[@i_343]) && ((x2_297 = x2_40_0[@i_343]) && ((X_s = x3_39_0[@i_343]) && ((Y = x4_38_0[@i_343]) && (K_s_47_0 = x5_37_0[@i_343]))))) then
+              if (auth_s = r_281[@i_343]) then
+              let x1_186: host = U in
+              let x2_185: host = S in
+              find @i_222 <= qH0 suchthat defined(r_175[@i_222], x5_42_0[@i_222], x4_43_0[@i_222], x3_44_0[@i_222], x2_45_0[@i_222], x1_46_0[@i_222]) && otheruses(r_175[@i_222]) && ((x1_186 = x1_46_0[@i_222]) && ((x2_185 = x2_45_0[@i_222]) && ((X_s = x3_44_0[@i_222]) && ((Y = x4_43_0[@i_222]) && (K_s_47_0 = x5_42_0[@i_222]))))) then
+                let sk_s: hash0 = r_175[@i_222]
+              orfind @i_217 <= N suchthat defined(r_205[@i_217], K_u_41[@i_217]) && otheruses(r_205[@i_217]) && ((j = @i_217) && ((!_32 = ari_100_0[@i_217]) && (K_s_47_0 = K_u_41[@i_217]))) then
+                let sk_s: hash0 = r_205[@i_217]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            orfind @i_337 <= N suchthat defined(K_u_41[@i_337], x5_318[@i_337], r_317[@i_337]) && otheruses(r_317[@i_337]) && ((j = @i_337) && ((!_32 = ari_100_0[@i_337]) && (K_s_47_0 = K_u_41[@i_337]))) then
+              if (auth_s = r_317[@i_337]) then
+              let x1_186: host = U in
+              let x2_185: host = S in
+              find @i_222 <= qH0 suchthat defined(r_175[@i_222], x5_42_0[@i_222], x4_43_0[@i_222], x3_44_0[@i_222], x2_45_0[@i_222], x1_46_0[@i_222]) && otheruses(r_175[@i_222]) && ((x1_186 = x1_46_0[@i_222]) && ((x2_185 = x2_45_0[@i_222]) && ((X_s = x3_44_0[@i_222]) && ((Y = x4_43_0[@i_222]) && (K_s_47_0 = x5_42_0[@i_222]))))) then
+                let sk_s: hash0 = r_175[@i_222]
+              orfind @i_217 <= N suchthat defined(r_205[@i_217], K_u_41[@i_217]) && otheruses(r_205[@i_217]) && ((j = @i_217) && ((!_32 = ari_100_0[@i_217]) && (K_s_47_0 = K_u_41[@i_217]))) then
+                let sk_s: hash0 = r_205[@i_217]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            else
+              new r_293: hash1
+          else
+            let x1_292: host = U in
+            let x2_291: host = S in
+            find @i_336 <= qH1 suchthat defined(x5_37_0[@i_336], x4_38_0[@i_336], x3_39_0[@i_336], x2_40_0[@i_336], x1_41_0[@i_336], x1_286[@i_336], x2_285[@i_336], x3_284[@i_336], x4_283[@i_336], x5_282[@i_336], r_281[@i_336]) && otheruses(r_281[@i_336]) && ((x1_292 = x1_41_0[@i_336]) && ((x2_291 = x2_40_0[@i_336]) && ((X_s = x3_39_0[@i_336]) && ((Y = x4_38_0[@i_336]) then
+            if (auth_s = r_281[@i_336]) then
+	    (* Raise bad as soon as U/S/X_s/Y collides with some input from the adversary and the hash matches, even when DH(X_s,Y) does not match. We will bound Pr[bad] *)
+            event bad
+        )
+      |
+        ! !_33 <= qE
+        in(ar2_c1[!_33], (ar2_x: G, ar2_ke: passwd));
+        find ari_90_0 <= qD suchthat defined(ar2_m[ari_90_0], ar2_kd[ari_90_0], x_83[ari_90_0], ar2_r4_63_0[ari_90_0]) && otheruses(x_83[ari_90_0]) && ((ar2_x = exp(g, x_83[ari_90_0])) && (ar2_ke = ar2_kd[ari_90_0])) then
+          out(ar2_c2[!_33], ar2_m[ari_90_0])
+        orfind ari_87_0 <= N suchthat defined(Ystar_u[ari_87_0], x_132[ari_87_0], ar2_r4_72_0[ari_87_0]) && otheruses(x_132[ari_87_0]) && ((ar2_x = exp(g, x_132[ari_87_0])) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], Ystar_u[ari_87_0])
+        orfind ari_85_0 <= qE suchthat defined(ar2_r2_66_0[ari_85_0], ar2_ke[ari_85_0], ar2_x[ari_85_0]) && otheruses(ar2_r2_66_0[ari_85_0]) && ((ar2_x = ar2_x[ari_85_0]) && (ar2_ke = ar2_ke[ari_85_0])) then
+          out(ar2_c2[!_33], ar2_r2_66_0[ari_85_0])
+        orfind ari_84_0 <= N suchthat defined(ar2_r2_69_0[ari_84_0], Y[ari_84_0]) && otheruses(ar2_r2_69_0[ari_84_0]) && ((ar2_x = Y[ari_84_0]) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], ar2_r2_69_0[ari_84_0])
+        else
+          new ar2_r2_66_0: G;
+          out(ar2_c2[!_33], ar2_r2_66_0)
+      )
+    |
+      ! !_34 <= qD
+      in(ar2_c3[!_34], (ar2_m: G, ar2_kd: passwd));
+      find ari_82_0 <= qD suchthat defined(x_83[ari_82_0], ar2_kd[ari_82_0], ar2_m[ari_82_0], ar2_r4_63_0[ari_82_0]) && otheruses(x_83[ari_82_0]) && ((ar2_m = ar2_m[ari_82_0]) && (ar2_kd = ar2_kd[ari_82_0])) then
+        out(ar2_c4[!_34], exp(g, x_83[ari_82_0]))
+      orfind ari_79_0 <= N suchthat defined(x_132[ari_79_0], Ystar_u[ari_79_0], ar2_r4_72_0[ari_79_0]) && otheruses(x_132[ari_79_0]) && ((ar2_m = Ystar_u[ari_79_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], exp(g, x_132[ari_79_0]))
+      orfind ari_77_0 <= qE suchthat defined(ar2_x[ari_77_0], ar2_ke[ari_77_0], ar2_r2_66_0[ari_77_0]) && otheruses(ar2_r2_66_0[ari_77_0]) && ((ar2_m = ar2_r2_66_0[ari_77_0]) && (ar2_kd = ar2_ke[ari_77_0])) then
+        out(ar2_c4[!_34], ar2_x[ari_77_0])
+      orfind ari_76_0 <= N suchthat defined(Y[ari_76_0], ar2_r2_69_0[ari_76_0]) && otheruses(ar2_r2_69_0[ari_76_0]) && ((ar2_m = ar2_r2_69_0[ari_76_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], Y[ari_76_0])
+      else
+        new x_83: exponent;
+        let ar2_r4_63_0: G = cst_G in
+        out(ar2_c4[!_34], exp(g, x_83))
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46_0: host, x2_45_0: host, x3_44_0: G, x4_43_0: G, x5_42_0: G));
+    find @i_216 <= qH0 suchthat defined(r_175[@i_216], x5_42_0[@i_216], x4_43_0[@i_216], x3_44_0[@i_216], x2_45_0[@i_216], x1_46_0[@i_216]) && otheruses(r_175[@i_216]) && ((x1_46_0 = x1_46_0[@i_216]) && ((x2_45_0 = x2_45_0[@i_216]) && ((x3_44_0 = x3_44_0[@i_216]) && ((x4_43_0 = x4_43_0[@i_216]) && (x5_42_0 = x5_42_0[@i_216]))))) then
+      out(c20[!_35], r_175[@i_216])
+    orfind @i_215 <= N suchthat defined(r_181[@i_215], K_s_47_0[@i_215], Y[@i_215], X_s[@i_215], x2_185[@i_215], x1_186[@i_215]) && otheruses(r_181[@i_215]) && ((x1_46_0 = x1_186[@i_215]) && ((x2_45_0 = x2_185[@i_215]) && ((x3_44_0 = X_s[@i_215]) && ((x4_43_0 = Y[@i_215]) && (x5_42_0 = K_s_47_0[@i_215]))))) then
+      out(c20[!_35], r_181[@i_215])
+    orfind @i_214 <= N suchthat defined(r_187[@i_214], K_u_43[@i_214], x4_189[@i_214], X[@i_214], x2_191[@i_214], x1_192[@i_214]) && otheruses(r_187[@i_214]) && ((x1_46_0 = x1_192[@i_214]) && ((x2_45_0 = x2_191[@i_214]) && ((x3_44_0 = X[@i_214]) && ((x4_43_0 = x4_189[@i_214]) && (x5_42_0 = K_u_43[@i_214]))))) then
+      out(c20[!_35], r_187[@i_214])
+    orfind @i_213 <= N suchthat defined(r_193[@i_213], K_u_37[@i_213], x4_195[@i_213], X[@i_213], x2_197[@i_213], x1_198[@i_213]) && otheruses(r_193[@i_213]) && ((x1_46_0 = x1_198[@i_213]) && ((x2_45_0 = x2_197[@i_213]) && ((x3_44_0 = X[@i_213]) && ((x4_43_0 = x4_195[@i_213]) && (x5_42_0 = K_u_37[@i_213]))))) then
+      out(c20[!_35], r_193[@i_213])
+    orfind @i_212 <= N suchthat defined(r_199[@i_212], K_u_39[@i_212], x4_201[@i_212], X[@i_212], x2_203[@i_212], x1_204[@i_212]) && otheruses(r_199[@i_212]) && ((x1_46_0 = x1_204[@i_212]) && ((x2_45_0 = x2_203[@i_212]) && ((x3_44_0 = X[@i_212]) && ((x4_43_0 = x4_201[@i_212]) && (x5_42_0 = K_u_39[@i_212]))))) then
+      out(c20[!_35], r_199[@i_212])
+    orfind @i_211 <= N suchthat defined(r_205[@i_211], K_u_41[@i_211], Y[ari_100_0[@i_211]], X[@i_211], x2_209[@i_211], x1_210[@i_211]) && otheruses(r_205[@i_211]) && ((x1_46_0 = x1_210[@i_211]) && ((x2_45_0 = x2_209[@i_211]) && ((x3_44_0 = X[@i_211]) && ((x4_43_0 = Y[ari_100_0[@i_211]]) && (x5_42_0 = K_u_41[@i_211]))))) then
+      out(c20[!_35], r_205[@i_211])
+    else
+      new r_175: hash0;
+      out(c20[!_35], r_175)
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41_0: host, x2_40_0: host, x3_39_0: G, x4_38_0: G, x5_37_0: G));
+  let x1_286: host = cst_host in
+  let x2_285: host = cst_host in
+  let x3_284: G = cst_G in
+  let x4_283: G = cst_G in
+  let x5_282: G = cst_G in
+  find @i_329 <= qH1 suchthat defined(x5_37_0[@i_329], x4_38_0[@i_329], x3_39_0[@i_329], x2_40_0[@i_329], x1_41_0[@i_329], x1_286[@i_329], x2_285[@i_329], x3_284[@i_329], x4_283[@i_329], x5_282[@i_329], r_281[@i_329]) && otheruses(r_281[@i_329]) && ((x1_41_0 = x1_41_0[@i_329]) && ((x2_40_0 = x2_40_0[@i_329]) && ((x3_39_0 = x3_39_0[@i_329]) && ((x4_38_0 = x4_38_0[@i_329]) && (x5_37_0 = x5_37_0[@i_329]))))) then
+    out(c21[!_36], r_281[@i_329])
+  orfind @i_326 <= N suchthat defined(K_u_43[@i_326], X[@i_326], x3_302[@i_326], x5_300[@i_326], r_299[@i_326], x4_301[@i_326], x2_303[@i_326], x1_304[@i_326]) && otheruses(r_299[@i_326]) && ((x1_41_0 = x1_304[@i_326]) && ((x2_40_0 = x2_303[@i_326]) && ((x3_39_0 = X[@i_326]) && ((x4_38_0 = x4_301[@i_326]) && (x5_37_0 = K_u_43[@i_326]))))) then
+    out(c21[!_36], r_299[@i_326])
+  orfind @i_325 <= N suchthat defined(K_u_37[@i_325], X[@i_325], x3_308[@i_325], x5_306[@i_325], r_305[@i_325], x4_307[@i_325], x2_309[@i_325], x1_310[@i_325]) && otheruses(r_305[@i_325]) && ((x1_41_0 = x1_310[@i_325]) && ((x2_40_0 = x2_309[@i_325]) && ((x3_39_0 = X[@i_325]) && ((x4_38_0 = x4_307[@i_325]) && (x5_37_0 = K_u_37[@i_325]))))) then
+    out(c21[!_36], r_305[@i_325])
+  orfind @i_324 <= N suchthat defined(K_u_39[@i_324], X[@i_324], x3_314[@i_324], x5_312[@i_324], r_311[@i_324], x4_313[@i_324], x2_315[@i_324], x1_316[@i_324]) && otheruses(r_311[@i_324]) && ((x1_41_0 = x1_316[@i_324]) && ((x2_40_0 = x2_315[@i_324]) && ((x3_39_0 = X[@i_324]) && ((x4_38_0 = x4_313[@i_324]) && (x5_37_0 = K_u_39[@i_324]))))) then
+    out(c21[!_36], r_311[@i_324])
+  orfind @i_323 <= N suchthat defined(K_u_41[@i_323], Y[ari_100_0[@i_323]], X[@i_323], x3_320[@i_323], x4_319[@i_323], x5_318[@i_323], r_317[@i_323], x2_321[@i_323], x1_322[@i_323]) && otheruses(r_317[@i_323]) && ((x1_41_0 = x1_322[@i_323]) && ((x2_40_0 = x2_321[@i_323]) && ((x3_39_0 = X[@i_323]) && ((x4_38_0 = Y[ari_100_0[@i_323]]) && (x5_37_0 = K_u_41[@i_323]))))) then
+    out(c21[!_36], r_317[@i_323])
+  else
+    new r_281: hash1;
+    out(c21[!_36], r_281)
+)
+
+
+
+(**** CDH ****)
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        (
+          ! !_31 <= N
+          in(c1[!_31], ());
+          new x: exponent;
+          let X: G = exp(g, x) in
+          out(c2[!_31], (U, X));
+          in(c5[!_31], (=S, Ystar_u: G));
+          find ari_106_0 <= qD suchthat defined(x_83[ari_106_0], ar2_kd[ari_106_0], ar2_m[ari_106_0], ar2_r4_63_0[ari_106_0]) && otheruses(x_83[ari_106_0]) && ((Ystar_u = ar2_m[ari_106_0]) && (pw = ar2_kd[ari_106_0])) then
+            let K_u_37: G = exp(g, mult(x_83[ari_106_0], x)) in
+            let x1_310: host = U in
+            let x2_309: host = S in
+            let x3_308: G = cst_G in
+            let x4_307: G = exp(g, x_83[ari_106_0]) in
+            let x5_306: G = cst_G in
+              new r_305: hash1;
+              out(c6[!_31], r_305);
+              in(c9[!_31], ());
+              let x1_198: host = U in
+              let x2_197: host = S in
+              let x4_195: G = exp(g, x_83[ari_106_0]) in
+                new r_193: hash0;
+                let sk_u1: hash0 = r_193
+          orfind ari_103_0 <= N suchthat defined(x_132[ari_103_0], Ystar_u[ari_103_0], ar2_r4_72_0[ari_103_0]) && otheruses(x_132[ari_103_0]) && (Ystar_u = Ystar_u[ari_103_0]) then
+            let K_u_39: G = exp(g, mult(x_132[ari_103_0], x)) in
+            let x1_316: host = U in
+            let x2_315: host = S in
+            let x3_314: G = cst_G in
+            let x4_313: G = exp(g, x_132[ari_103_0]) in
+            let x5_312: G = cst_G in
+              new r_311: hash1;
+              out(c6[!_31], r_311);
+              in(c9[!_31], ());
+              let x1_204: host = U in
+              let x2_203: host = S in
+              let x4_201: G = exp(g, x_132[ari_103_0]) in
+                new r_199: hash0;
+                let sk_u2: hash0 = r_199
+          orfind ari_100_0 <= N suchthat defined(Y[ari_100_0], y[ari_100_0], ar2_r2_69_0[ari_100_0]) && otheruses(ar2_r2_69_0[ari_100_0]) && (Ystar_u = ar2_r2_69_0[ari_100_0]) then
+            let K_u_41: G = exp(g, mult(y[ari_100_0], x)) in
+            let x1_322: host = U in
+            let x2_321: host = S in
+            let x3_320: G = cst_G in
+            let x4_319: G = cst_G in
+            let x5_318: G = cst_G in
+              new r_317: hash1;
+              out(c6[!_31], r_317);
+              in(c9[!_31], ());
+              let x1_210: host = U in
+              let x2_209: host = S in
+              find @i_245 <= N suchthat defined(r_181[@i_245], K_s_47_0[@i_245]) && otheruses(r_181[@i_245]) && ((!_31 = j[@i_245]) && ((ari_100_0 = @i_245) && (K_u_41 = K_s_47_0[@i_245]))) then
+                let sk_u3: hash0 = r_181[@i_245]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+          else
+            new x_132: exponent;
+            let ar2_r4_72_0: G = cst_G in
+            let K_u_43: G = exp(g, mult(x_132, x)) in
+            let x1_304: host = U in
+            let x2_303: host = S in
+            let x3_302: G = cst_G in
+            let x4_301: G = exp(g, x_132) in
+            let x5_300: G = cst_G in
+              new r_299: hash1;
+              out(c6[!_31], r_299);
+              in(c9[!_31], ());
+              let x1_192: host = U in
+              let x2_191: host = S in
+              let x4_189: G = exp(g, x_132) in
+                new r_187: hash0;
+                let sk_u4: hash0 = r_187
+        |
+          ! !_32 <= N
+          in(c3[!_32], (=U, X_s: G));
+          new y: exponent;
+          let Y: G = exp(g, y) in
+          new ar2_r2_69_0: G;
+          out(c4[!_32], (S, ar2_r2_69_0));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47_0: G = exp(g, mult(x[j], y)) in
+            let x1_298: host = U in
+            let x2_297: host = S in
+            find @i_337 <= N suchthat defined(K_u_41[@i_337], x5_318[@i_337], r_317[@i_337]) && otheruses(r_317[@i_337]) && ((j = @i_337) && ((!_32 = ari_100_0[@i_337]) && (K_s_47_0 = K_u_41[@i_337]))) then
+              if (auth_s = r_317[@i_337]) then
+              let x1_186: host = U in
+              let x2_185: host = S in
+              find @i_217 <= N suchthat defined(r_205[@i_217], K_u_41[@i_217]) && otheruses(r_205[@i_217]) && ((j = @i_217) && ((!_32 = ari_100_0[@i_217]) && (K_s_47_0 = K_u_41[@i_217]))) then
+                let sk_s: hash0 = r_205[@i_217]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            else
+              new r_293: hash1
+          else
+            let x1_292: host = U in
+            let x2_291: host = S in
+            find @i_336 <= qH1 suchthat defined(x5_37_0[@i_336], x4_38_0[@i_336], x3_39_0[@i_336], x2_40_0[@i_336], x1_41_0[@i_336], x1_286[@i_336], x2_285[@i_336], x3_284[@i_336], x4_283[@i_336], x5_282[@i_336], r_281[@i_336]) && otheruses(r_281[@i_336]) && ((x1_292 = x1_41_0[@i_336]) && ((x2_291 = x2_40_0[@i_336]) && ((X_s = x3_39_0[@i_336]) && ((Y = x4_38_0[@i_336]) then
+            if (auth_s = r_281[@i_336]) then
+	    (* Raise bad as soon as U/S/X_s/Y collides with some input from the adversary and the hash matches, even when DH(X_s,Y) does not match. We will bound Pr[bad] *)
+            event bad
+        )
+      |
+        ! !_33 <= qE
+        in(ar2_c1[!_33], (ar2_x: G, ar2_ke: passwd));
+        find ari_90_0 <= qD suchthat defined(ar2_m[ari_90_0], ar2_kd[ari_90_0], x_83[ari_90_0], ar2_r4_63_0[ari_90_0]) && otheruses(x_83[ari_90_0]) && ((ar2_x = exp(g, x_83[ari_90_0])) && (ar2_ke = ar2_kd[ari_90_0])) then
+          out(ar2_c2[!_33], ar2_m[ari_90_0])
+        orfind ari_87_0 <= N suchthat defined(Ystar_u[ari_87_0], x_132[ari_87_0], ar2_r4_72_0[ari_87_0]) && otheruses(x_132[ari_87_0]) && ((ar2_x = exp(g, x_132[ari_87_0])) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], Ystar_u[ari_87_0])
+        orfind ari_85_0 <= qE suchthat defined(ar2_r2_66_0[ari_85_0], ar2_ke[ari_85_0], ar2_x[ari_85_0]) && otheruses(ar2_r2_66_0[ari_85_0]) && ((ar2_x = ar2_x[ari_85_0]) && (ar2_ke = ar2_ke[ari_85_0])) then
+          out(ar2_c2[!_33], ar2_r2_66_0[ari_85_0])
+        orfind ari_84_0 <= N suchthat defined(ar2_r2_69_0[ari_84_0], Y[ari_84_0]) && otheruses(ar2_r2_69_0[ari_84_0]) && ((ar2_x = Y[ari_84_0]) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], ar2_r2_69_0[ari_84_0])
+        else
+          new ar2_r2_66_0: G;
+          out(ar2_c2[!_33], ar2_r2_66_0)
+      )
+    |
+      ! !_34 <= qD
+      in(ar2_c3[!_34], (ar2_m: G, ar2_kd: passwd));
+      find ari_82_0 <= qD suchthat defined(x_83[ari_82_0], ar2_kd[ari_82_0], ar2_m[ari_82_0], ar2_r4_63_0[ari_82_0]) && otheruses(x_83[ari_82_0]) && ((ar2_m = ar2_m[ari_82_0]) && (ar2_kd = ar2_kd[ari_82_0])) then
+        out(ar2_c4[!_34], exp(g, x_83[ari_82_0]))
+      orfind ari_79_0 <= N suchthat defined(x_132[ari_79_0], Ystar_u[ari_79_0], ar2_r4_72_0[ari_79_0]) && otheruses(x_132[ari_79_0]) && ((ar2_m = Ystar_u[ari_79_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], exp(g, x_132[ari_79_0]))
+      orfind ari_77_0 <= qE suchthat defined(ar2_x[ari_77_0], ar2_ke[ari_77_0], ar2_r2_66_0[ari_77_0]) && otheruses(ar2_r2_66_0[ari_77_0]) && ((ar2_m = ar2_r2_66_0[ari_77_0]) && (ar2_kd = ar2_ke[ari_77_0])) then
+        out(ar2_c4[!_34], ar2_x[ari_77_0])
+      orfind ari_76_0 <= N suchthat defined(Y[ari_76_0], ar2_r2_69_0[ari_76_0]) && otheruses(ar2_r2_69_0[ari_76_0]) && ((ar2_m = ar2_r2_69_0[ari_76_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], Y[ari_76_0])
+      else
+        new x_83: exponent;
+        let ar2_r4_63_0: G = cst_G in
+        out(ar2_c4[!_34], exp(g, x_83))
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46_0: host, x2_45_0: host, x3_44_0: G, x4_43_0: G, x5_42_0: G));
+    find @i_216 <= qH0 suchthat defined(r_175[@i_216], x5_42_0[@i_216], x4_43_0[@i_216], x3_44_0[@i_216], x2_45_0[@i_216], x1_46_0[@i_216]) && otheruses(r_175[@i_216]) && ((x1_46_0 = x1_46_0[@i_216]) && ((x2_45_0 = x2_45_0[@i_216]) && ((x3_44_0 = x3_44_0[@i_216]) && ((x4_43_0 = x4_43_0[@i_216]) && (x5_42_0 = x5_42_0[@i_216]))))) then
+      out(c20[!_35], r_175[@i_216])
+    else
+      new r_175: hash0;
+      out(c20[!_35], r_175)
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41_0: host, x2_40_0: host, x3_39_0: G, x4_38_0: G, x5_37_0: G));
+  let x1_286: host = cst_host in
+  let x2_285: host = cst_host in
+  let x3_284: G = cst_G in
+  let x4_283: G = cst_G in
+  let x5_282: G = cst_G in
+  find @i_329 <= qH1 suchthat defined(x5_37_0[@i_329], x4_38_0[@i_329], x3_39_0[@i_329], x2_40_0[@i_329], x1_41_0[@i_329], x1_286[@i_329], x2_285[@i_329], x3_284[@i_329], x4_283[@i_329], x5_282[@i_329], r_281[@i_329]) && otheruses(r_281[@i_329]) && ((x1_41_0 = x1_41_0[@i_329]) && ((x2_40_0 = x2_40_0[@i_329]) && ((x3_39_0 = x3_39_0[@i_329]) && ((x4_38_0 = x4_38_0[@i_329]) && (x5_37_0 = x5_37_0[@i_329]))))) then
+    out(c21[!_36], r_281[@i_329])
+  else
+    new r_281: hash1;
+    out(c21[!_36], r_281)
+)
+
+
+(***** Cleanup after CDH *****)
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        (
+          ! !_31 <= N
+          in(c1[!_31], ());
+          new x: exponent;
+          let X: G = exp(g, x) in
+          out(c2[!_31], (U, X));
+          in(c5[!_31], (=S, Ystar_u: G));
+          find ari_106_0 <= qD suchthat defined(x_83[ari_106_0], ar2_kd[ari_106_0], ar2_m[ari_106_0], ar2_r4_63_0[ari_106_0]) && otheruses(x_83[ari_106_0]) && ((Ystar_u = ar2_m[ari_106_0]) && (pw = ar2_kd[ari_106_0])) then
+              new r_305: hash1;
+              out(c6[!_31], r_305);
+              in(c9[!_31], ());
+              new r_193: hash0;
+              let sk_u1: hash0 = r_193
+          orfind ari_103_0 <= N suchthat defined(x_132[ari_103_0], Ystar_u[ari_103_0]) && otheruses(x_132[ari_103_0]) && (Ystar_u = Ystar_u[ari_103_0]) then
+              new r_311: hash1;
+              out(c6[!_31], r_311);
+              in(c9[!_31], ());
+              new r_199: hash0;
+              let sk_u2: hash0 = r_199
+          orfind ari_100_0 <= N suchthat defined(Y[ari_100_0], y[ari_100_0], ar2_r2_69_0[ari_100_0]) && otheruses(ar2_r2_69_0[ari_100_0]) && (Ystar_u = ar2_r2_69_0[ari_100_0]) then
+            let K_u_41: G = exp(g, mult(y[ari_100_0], x)) in
+              new r_317: hash1;
+              out(c6[!_31], r_317);
+              in(c9[!_31], ());
+              if defined(r_181[ari_100_0], K_s_47_0[ari_100_0]) && otheruses(r_181[ari_100_0]) && (!_31 = j[ari_100_0]) (* TRUE && (K_u_41 = K_s_47_0[ari_100_0]))*) then
+                let sk_u3: hash0 = r_181[ari_100_0]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+          else
+              new x_132: exponent;
+              new r_299: hash1;
+              out(c6[!_31], r_299);
+              in(c9[!_31], ());
+              new r_187: hash0;
+              let sk_u4: hash0 = r_187
+        |
+          ! !_32 <= N
+          in(c3[!_32], (=U, X_s: G));
+          new y: exponent;
+          let Y: G = exp(g, y) in
+          new ar2_r2_69_0: G;
+          out(c4[!_32], (S, ar2_r2_69_0));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47_0: G = exp(g, mult(x[j], y)) in
+            let x1_298: host = U in
+            let x2_297: host = S in
+            if defined(K_u_41[j], r_317[j]) && otheruses(r_317[j]) && (!_32 = ari_100_0[j]) (*TRUE  && (K_s_47_0 = K_u_41[j]) *) then
+              if (auth_s = r_317[j]) then
+              let x1_186: host = U in
+              let x2_185: host = S in
+              if defined(r_205[j], K_u_41[j]) && otheruses(r_205[j]) && (!_32 = ari_100_0[j]) (*TRUE  && (K_s_47_0 = K_u_41[j]) *) then
+                let sk_s: hash0 = r_205[j]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            else
+              new r_293: hash1
+          else
+            find @i_336 <= qH1 suchthat defined(x5_37_0[@i_336], x4_38_0[@i_336], x3_39_0[@i_336], x2_40_0[@i_336], x1_41_0[@i_336], x1_286[@i_336], x2_285[@i_336], x3_284[@i_336], x4_283[@i_336], x5_282[@i_336], r_281[@i_336]) && otheruses(r_281[@i_336]) && ((U = x1_41_0[@i_336]) && ((S = x2_40_0[@i_336]) && ((X_s = x3_39_0[@i_336]) && ((Y = x4_38_0[@i_336]) then
+            if (auth_s = r_281[@i_336]) then
+	    (* Raise bad as soon as U/S/X_s/Y collides with some input from the adversary and the hash matches, even when DH(X_s,Y) does not match. We will bound Pr[bad] *)
+            event bad
+        )
+      |
+        ! !_33 <= qE
+        in(ar2_c1[!_33], (ar2_x: G, ar2_ke: passwd));
+        find ari_90_0 <= qD suchthat defined(ar2_m[ari_90_0], ar2_kd[ari_90_0], x_83[ari_90_0], ar2_r4_63_0[ari_90_0]) && otheruses(x_83[ari_90_0]) && ((ar2_x = exp(g, x_83[ari_90_0])) && (ar2_ke = ar2_kd[ari_90_0])) then
+          out(ar2_c2[!_33], ar2_m[ari_90_0])
+        orfind ari_87_0 <= N suchthat defined(Ystar_u[ari_87_0], x_132[ari_87_0]) && otheruses(x_132[ari_87_0]) && ((ar2_x = exp(g, x_132[ari_87_0])) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], Ystar_u[ari_87_0])
+        orfind ari_85_0 <= qE suchthat defined(ar2_r2_66_0[ari_85_0], ar2_ke[ari_85_0], ar2_x[ari_85_0]) && otheruses(ar2_r2_66_0[ari_85_0]) && ((ar2_x = ar2_x[ari_85_0]) && (ar2_ke = ar2_ke[ari_85_0])) then
+          out(ar2_c2[!_33], ar2_r2_66_0[ari_85_0])
+        orfind ari_84_0 <= N suchthat defined(ar2_r2_69_0[ari_84_0], Y[ari_84_0]) && otheruses(ar2_r2_69_0[ari_84_0]) && ((ar2_x = Y[ari_84_0]) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], ar2_r2_69_0[ari_84_0])
+        else
+          new ar2_r2_66_0: G;
+          out(ar2_c2[!_33], ar2_r2_66_0)
+      )
+    |
+      ! !_34 <= qD
+      in(ar2_c3[!_34], (ar2_m: G, ar2_kd: passwd));
+      find ari_82_0 <= qD suchthat defined(x_83[ari_82_0], ar2_kd[ari_82_0], ar2_m[ari_82_0], ar2_r4_63_0[ari_82_0]) && otheruses(x_83[ari_82_0]) && ((ar2_m = ar2_m[ari_82_0]) && (ar2_kd = ar2_kd[ari_82_0])) then
+        out(ar2_c4[!_34], exp(g, x_83[ari_82_0]))
+      orfind ari_79_0 <= N suchthat defined(x_132[ari_79_0], Ystar_u[ari_79_0]) && otheruses(x_132[ari_79_0]) && ((ar2_m = Ystar_u[ari_79_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], exp(g, x_132[ari_79_0]))
+      orfind ari_77_0 <= qE suchthat defined(ar2_x[ari_77_0], ar2_ke[ari_77_0], ar2_r2_66_0[ari_77_0]) && otheruses(ar2_r2_66_0[ari_77_0]) && ((ar2_m = ar2_r2_66_0[ari_77_0]) && (ar2_kd = ar2_ke[ari_77_0])) then
+        out(ar2_c4[!_34], ar2_x[ari_77_0])
+      orfind ari_76_0 <= N suchthat defined(Y[ari_76_0], ar2_r2_69_0[ari_76_0]) && otheruses(ar2_r2_69_0[ari_76_0]) && ((ar2_m = ar2_r2_69_0[ari_76_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], Y[ari_76_0])
+      else
+        new x_83: exponent;
+        let ar2_r4_63_0: G = cst_G in
+        out(ar2_c4[!_34], exp(g, x_83))
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46_0: host, x2_45_0: host, x3_44_0: G, x4_43_0: G, x5_42_0: G));
+    find @i_216 <= qH0 suchthat defined(r_175[@i_216], x5_42_0[@i_216], x4_43_0[@i_216], x3_44_0[@i_216], x2_45_0[@i_216], x1_46_0[@i_216]) && otheruses(r_175[@i_216]) && ((x1_46_0 = x1_46_0[@i_216]) && ((x2_45_0 = x2_45_0[@i_216]) && ((x3_44_0 = x3_44_0[@i_216]) && ((x4_43_0 = x4_43_0[@i_216]) && (x5_42_0 = x5_42_0[@i_216]))))) then
+      out(c20[!_35], r_175[@i_216])
+    else
+      new r_175: hash0;
+      out(c20[!_35], r_175)
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41_0: host, x2_40_0: host, x3_39_0: G, x4_38_0: G, x5_37_0: G));
+  let x1_286: host = cst_host in
+  let x2_285: host = cst_host in
+  let x3_284: G = cst_G in
+  let x4_283: G = cst_G in
+  let x5_282: G = cst_G in
+  find @i_329 <= qH1 suchthat defined(x5_37_0[@i_329], x4_38_0[@i_329], x3_39_0[@i_329], x2_40_0[@i_329], x1_41_0[@i_329], x1_286[@i_329], x2_285[@i_329], x3_284[@i_329], x4_283[@i_329], x5_282[@i_329], r_281[@i_329]) && otheruses(r_281[@i_329]) && ((x1_41_0 = x1_41_0[@i_329]) && ((x2_40_0 = x2_40_0[@i_329]) && ((x3_39_0 = x3_39_0[@i_329]) && ((x4_38_0 = x4_38_0[@i_329]) && (x5_37_0 = x5_37_0[@i_329]))))) then
+    out(c21[!_36], r_281[@i_329])
+  else
+    new r_281: hash1;
+    out(c21[!_36], r_281)
+)
+
+
+(***** Continuing cleanup after CDH *****)
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        (
+          ! !_31 <= N
+          in(c1[!_31], ());
+          new x: exponent;
+          let X: G = exp(g, x) in
+          out(c2[!_31], (U, X));
+          in(c5[!_31], (=S, Ystar_u: G));
+          find ari_106_0 <= qD suchthat defined(x_83[ari_106_0], ar2_kd[ari_106_0], ar2_m[ari_106_0], ar2_r4_63_0[ari_106_0]) && otheruses(x_83[ari_106_0]) && ((Ystar_u = ar2_m[ari_106_0]) && (pw = ar2_kd[ari_106_0])) then
+              new r_305: hash1;
+              out(c6[!_31], r_305);
+              in(c9[!_31], ());
+              new r_193: hash0;
+              let sk_u1: hash0 = r_193
+          orfind ari_103_0 <= N suchthat defined(x_132[ari_103_0], Ystar_u[ari_103_0]) && otheruses(x_132[ari_103_0]) && (Ystar_u = Ystar_u[ari_103_0]) then
+              new r_311: hash1;
+              out(c6[!_31], r_311);
+              in(c9[!_31], ());
+              new r_199: hash0;
+              let sk_u2: hash0 = r_199
+          orfind ari_100_0 <= N suchthat defined(ar2_r2_69_0[ari_100_0]) && otheruses(ar2_r2_69_0[ari_100_0]) && (Ystar_u = ar2_r2_69_0[ari_100_0]) then
+              new r_317: hash1;
+              out(c6[!_31], r_317);
+              in(c9[!_31], ());
+              if defined(r_181[ari_100_0]) && otheruses(r_181[ari_100_0]) && (!_31 = j[ari_100_0]) then
+                let sk_u3: hash0 = r_181[ari_100_0]
+              else
+                new r_205: hash0;
+                let sk_u3: hash0 = r_205
+          else
+              new x_132: exponent;
+              new r_299: hash1;
+              out(c6[!_31], r_299);
+              in(c9[!_31], ());
+              new r_187: hash0;
+              let sk_u4: hash0 = r_187
+        |
+          ! !_32 <= N
+          in(c3[!_32], (=U, X_s: G));
+          new y: exponent;
+          let Y: G = exp(g, y) in
+          new ar2_r2_69_0: G;
+          out(c4[!_32], (S, ar2_r2_69_0));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            if defined(r_317[j]) && otheruses(r_317[j]) && (!_32 = ari_100_0[j]) then
+              if (auth_s = r_317[j]) then
+              if defined(r_205[j]) && otheruses(r_205[j]) && (!_32 = ari_100_0[j]) then
+                let sk_s: hash0 = r_205[j]
+              else
+                new r_181: hash0;
+                let sk_s: hash0 = r_181
+            else
+              new r_293: hash1
+          else
+            find @i_336 <= qH1 suchthat defined(x5_37_0[@i_336], x4_38_0[@i_336], x3_39_0[@i_336], x2_40_0[@i_336], x1_41_0[@i_336], x1_286[@i_336], x2_285[@i_336], x3_284[@i_336], x4_283[@i_336], x5_282[@i_336], r_281[@i_336]) && otheruses(r_281[@i_336]) && ((U = x1_41_0[@i_336]) && ((S = x2_40_0[@i_336]) && ((X_s = x3_39_0[@i_336]) && ((Y = x4_38_0[@i_336]) then
+            if (auth_s = r_281[@i_336]) then
+	    (* Raise bad as soon as U/S/X_s/Y collides with some input from the adversary and the hash matches, even when DH(X_s,Y) does not match. We will bound Pr[bad] *)
+            event bad
+        )
+      |
+        ! !_33 <= qE
+        in(ar2_c1[!_33], (ar2_x: G, ar2_ke: passwd));
+        find ari_90_0 <= qD suchthat defined(ar2_m[ari_90_0], ar2_kd[ari_90_0], x_83[ari_90_0], ar2_r4_63_0[ari_90_0]) && otheruses(x_83[ari_90_0]) && ((ar2_x = exp(g, x_83[ari_90_0])) && (ar2_ke = ar2_kd[ari_90_0])) then
+          out(ar2_c2[!_33], ar2_m[ari_90_0])
+        orfind ari_87_0 <= N suchthat defined(Ystar_u[ari_87_0], x_132[ari_87_0]) && otheruses(x_132[ari_87_0]) && ((ar2_x = exp(g, x_132[ari_87_0])) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], Ystar_u[ari_87_0])
+        orfind ari_85_0 <= qE suchthat defined(ar2_r2_66_0[ari_85_0], ar2_ke[ari_85_0], ar2_x[ari_85_0]) && otheruses(ar2_r2_66_0[ari_85_0]) && ((ar2_x = ar2_x[ari_85_0]) && (ar2_ke = ar2_ke[ari_85_0])) then
+          out(ar2_c2[!_33], ar2_r2_66_0[ari_85_0])
+        orfind ari_84_0 <= N suchthat defined(ar2_r2_69_0[ari_84_0], Y[ari_84_0]) && otheruses(ar2_r2_69_0[ari_84_0]) && ((ar2_x = Y[ari_84_0]) && (ar2_ke = pw)) then
+          out(ar2_c2[!_33], ar2_r2_69_0[ari_84_0])
+        else
+          new ar2_r2_66_0: G;
+          out(ar2_c2[!_33], ar2_r2_66_0)
+      )
+    |
+      ! !_34 <= qD
+      in(ar2_c3[!_34], (ar2_m: G, ar2_kd: passwd));
+      find ari_82_0 <= qD suchthat defined(x_83[ari_82_0], ar2_kd[ari_82_0], ar2_m[ari_82_0], ar2_r4_63_0[ari_82_0]) && otheruses(x_83[ari_82_0]) && ((ar2_m = ar2_m[ari_82_0]) && (ar2_kd = ar2_kd[ari_82_0])) then
+        out(ar2_c4[!_34], exp(g, x_83[ari_82_0]))
+      orfind ari_79_0 <= N suchthat defined(x_132[ari_79_0], Ystar_u[ari_79_0]) && otheruses(x_132[ari_79_0]) && ((ar2_m = Ystar_u[ari_79_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], exp(g, x_132[ari_79_0]))
+      orfind ari_77_0 <= qE suchthat defined(ar2_x[ari_77_0], ar2_ke[ari_77_0], ar2_r2_66_0[ari_77_0]) && otheruses(ar2_r2_66_0[ari_77_0]) && ((ar2_m = ar2_r2_66_0[ari_77_0]) && (ar2_kd = ar2_ke[ari_77_0])) then
+        out(ar2_c4[!_34], ar2_x[ari_77_0])
+      orfind ari_76_0 <= N suchthat defined(Y[ari_76_0], ar2_r2_69_0[ari_76_0]) && otheruses(ar2_r2_69_0[ari_76_0]) && ((ar2_m = ar2_r2_69_0[ari_76_0]) && (ar2_kd = pw)) then
+        out(ar2_c4[!_34], Y[ari_76_0])
+      else
+        new x_83: exponent;
+        let ar2_r4_63_0: G = cst_G in
+        out(ar2_c4[!_34], exp(g, x_83))
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46_0: host, x2_45_0: host, x3_44_0: G, x4_43_0: G, x5_42_0: G));
+    find @i_216 <= qH0 suchthat defined(r_175[@i_216], x5_42_0[@i_216], x4_43_0[@i_216], x3_44_0[@i_216], x2_45_0[@i_216], x1_46_0[@i_216]) && otheruses(r_175[@i_216]) && ((x1_46_0 = x1_46_0[@i_216]) && ((x2_45_0 = x2_45_0[@i_216]) && ((x3_44_0 = x3_44_0[@i_216]) && ((x4_43_0 = x4_43_0[@i_216]) && (x5_42_0 = x5_42_0[@i_216]))))) then
+      out(c20[!_35], r_175[@i_216])
+    else
+      new r_175: hash0;
+      out(c20[!_35], r_175)
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41_0: host, x2_40_0: host, x3_39_0: G, x4_38_0: G, x5_37_0: G));
+  let x1_286: host = cst_host in
+  let x2_285: host = cst_host in
+  let x3_284: G = cst_G in
+  let x4_283: G = cst_G in
+  let x5_282: G = cst_G in
+  find @i_329 <= qH1 suchthat defined(x5_37_0[@i_329], x4_38_0[@i_329], x3_39_0[@i_329], x2_40_0[@i_329], x1_41_0[@i_329], x1_286[@i_329], x2_285[@i_329], x3_284[@i_329], x4_283[@i_329], x5_282[@i_329], r_281[@i_329]) && otheruses(r_281[@i_329]) && ((x1_41_0 = x1_41_0[@i_329]) && ((x2_40_0 = x2_40_0[@i_329]) && ((x3_39_0 = x3_39_0[@i_329]) && ((x4_38_0 = x4_38_0[@i_329]) && (x5_37_0 = x5_37_0[@i_329]))))) then
+    out(c21[!_36], r_281[@i_329])
+  else
+    new r_281: hash1;
+    out(c21[!_36], r_281)
+)

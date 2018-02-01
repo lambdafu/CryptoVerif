@@ -1,0 +1,56 @@
+(*
+  CryptoVerif tries to apply the rewrite rule test(b,x,x) -> x to
+  test(b,Z(m1),Z(m2)). Trying to match the term test(b,Z(m1),Z(m2))
+  with the pattern test(b,x,x) in Facts.match_term calls
+  "Terms.simp_equal_terms try_no_var Z(m1) Z(m2)" where
+  try_no_var = Facts.try_no_var (Z(m1) -> Z(m2)).
+  However, Terms.simp_equal_terms and Facts.try_no_var 
+  apply substitutions only to variables, so not to Z(m1).
+  Hence the matching fails and the simplification is not
+  detected.
+*)
+
+
+param qE.
+type maxenc [bounded].
+fun Z(maxenc):maxenc.
+
+channel c1, c2, c3, start.
+
+
+query secret b1 [onesession].
+
+
+(* Key Usability : we want to check if the encryption scheme is still CCA2 secure when using the key SK *)
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, maxenc, maxenc):maxenc.
+
+forall b:bool, x:maxenc, y:maxenc; Z(test(b,x,y)) = test(b,Z(x),Z(y)).
+forall b:bool, x:maxenc; test(b,x,x) = x.
+
+(* Encryption Oracle *)
+
+
+
+process 
+	in(start, ());
+new b1: bool;
+out(c1, ());
+! i_1 <= qE
+in(c2[i_1], (m1: maxenc, m2: maxenc));
+if Z(m1) = Z(m2) then
+let menc: maxenc = test(b1, Z(m1), Z(m2)) in
+out(c3[i_1], menc)
+
+ 
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.020s + system 0.004s), max rss 34032K
+END *)

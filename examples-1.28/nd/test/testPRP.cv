@@ -1,0 +1,72 @@
+(* Trivial running example for conference paper. *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed,large].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+fun keyToBitstring(key):bitstring [compos].
+
+(* Shared-key encryption (PRP) *)
+
+proba Penc.
+
+expand PRP_cipher(keyseed, key, key, kgen, enc, dec, Penc).
+
+
+(* Mac *)
+
+proba Pmac.
+
+expand SUF_CMA_mac(mkeyseed, mkey, key, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret1 k2.
+query secret1 k3.
+
+query secret k2.
+query secret k3.
+
+event endB(key, macs).
+event beginA(key, macs).
+
+query x:key, y:macs, y':macs; event endB(x,y) ==> beginA(x,y).
+
+channel cA, cB, start, c.
+
+let processA = 
+	in(cA, ());
+	new k2 : key;
+	let ea1 = enc(k2, Kab) in
+	let t1 = mac(ea1, mKab) in
+	event beginA(ea1, t1);
+	out(cA, (ea1, t1)).
+
+let processB =
+	in(cB, (ea:key, ma:macs));
+	if check(ea, mKab, ma) then
+	let k3:key = dec(ea, Kab) in
+	event endB(ea, ma);
+	out(cB, ()).
+
+process 
+	in(start, ());
+	new rKab: keyseed;
+	let Kab = kgen(rKab) in
+	new rmKab: mkeyseed;
+	let mKab = mkgen(rmKab) in
+	out(c, ());
+	((! N processA) |
+	 (! N processB))
+
+(* EXPECTED
+RESULT Could not prove secrecy of k3.
+0.030s (user 0.030s + system 0.000s), max rss 17920K
+END *)

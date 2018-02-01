@@ -29,46 +29,18 @@ let done_sa_rename = ref []
 
 (* Function for assignment expansion for terms *)
 
-let expand_assign_term let_t remove_set
-    rec_simplif pat t p1 topt =
+let put_one_let_term remove_set pat t p1 topt =
   match pat with
-    PatEqual t' -> 
-      Settings.changed := true;
-      done_transfos := (DLetESimplifyPattern(let_t, pat, DEqTest)) :: (!done_transfos);
-      Terms.build_term_type p1.t_type (TestE(Terms.make_equal t t', rec_simplif p1, 
-	    match topt with
-	      None -> Parsing_helper.internal_error "Missing else part of let"
-	    | Some p2 -> rec_simplif p2))
-  | PatTuple (f,l) -> 
-      (* try to split *)
-      begin
-	try 
-	  let res = rec_simplif
-	      (Terms.put_lets_term l (Terms.split_term f t) p1 topt)
-	  in
-	  Settings.changed := true;
-          done_transfos := (DLetESimplifyPattern(let_t, pat, DExpandTuple)) :: (!done_transfos);
-	  res
-	with Not_found -> 
-	  Terms.build_term_type p1.t_type (LetE(pat, t, rec_simplif p1, match topt with 
-	    None -> None
-	  | Some p2 -> Some (rec_simplif p2)))
-	| Terms.Impossible -> 
-	    Settings.changed := true;
-            done_transfos := (DLetESimplifyPattern(let_t, pat, DImpossibleTuple)) :: (!done_transfos);
-	    match topt with
-	      None -> Parsing_helper.internal_error "Missing else part of let"
-	    | Some p2 -> rec_simplif p2
-      end
   | PatVar b ->
+      begin
       if Terms.has_array_ref_q b then
 	Parsing_helper.internal_error "Variables defined in conditions of find should not have array references and should not occur in queries.";
-      if not (Terms.check_no_ifletfindres t) then
+      if not (Terms.check_simple_term t) then
 	Parsing_helper.internal_error "If, find, let, and new should not occur in expand_assign";
       let put_link() =
 	if Terms.refers_to b t then
 	  (* Cannot replace cyclic assignment *)
-	  Terms.build_term_type p1.t_type (LetE(pat, t, rec_simplif p1, None))
+	  Terms.build_term_type p1.t_type (LetE(pat, t, p1, None))
 	else 
           begin
                 (* copy_term exactly replaces 
@@ -79,7 +51,7 @@ let expand_assign_term let_t remove_set
             let p1' = Terms.copy_term (Terms.OneSubst(b,t,ref false)) p1 in
 	    Settings.changed := true;
             done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-	    rec_simplif p1'
+	    p1'
           end
       in
       if (not (Terms.refers_to b p1)) then
@@ -87,7 +59,7 @@ let expand_assign_term let_t remove_set
 	  (* Variable is useless *)
 	  Settings.changed := true;
           done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-	  rec_simplif p1
+	  p1
 	end
       else
 	match remove_set with
@@ -98,7 +70,44 @@ let expand_assign_term let_t remove_set
 	      Var _ | ReplIndex _ when !Settings.expand_letxy -> 
 		put_link()
 	    | _ ->
-		Terms.build_term_type p1.t_type (LetE(pat, t, rec_simplif p1, None))
+		Terms.build_term_type p1.t_type (LetE(pat, t, p1, None))
+      end
+  | _ -> 
+      Terms.build_term_type p1.t_type (LetE(pat, t, p1, topt))
+
+let expand_assign_term let_t remove_set
+    rec_simplif pat t p1 topt =
+  try
+    let (transfos, test, bind) = Terms.simplify_let_tuple (fun t -> t) pat t in
+    (* Simplify the process topt if it will be used at least once *)
+    let topt =
+      if (not (Terms.is_true test)) ||
+      (match bind with
+      | (PatTuple _, _)::_ -> true
+      | _ -> false)
+      then
+	match topt with
+	  None -> None
+	| Some p2 -> Some (rec_simplif p2)
+      else
+	topt
+    in
+    (* Put the lets *)
+    let plet = List.fold_right (fun (pat, t) p -> put_one_let_term remove_set pat t p topt) bind (rec_simplif p1) in
+    if transfos != [] then
+      begin
+	Settings.changed := true;
+	done_transfos := (DLetSimplifyPattern(DTerm let_t, transfos)) :: (!done_transfos);
+      end;
+    if Terms.is_true test then
+      plet
+    else
+      Terms.build_term_type p1.t_type (TestE(test, plet, Terms.get_else topt))
+  with Terms.Impossible -> 
+    Settings.changed := true;
+    done_transfos := (DLetSimplifyPattern(DTerm let_t, [pat, DImpossibleTuple])) :: (!done_transfos);
+    rec_simplif (Terms.get_else topt)
+
 
 (* Function for assignment expansion for processes *)
 
@@ -114,46 +123,40 @@ let candidate_for_rem_assign remove_set b t p =
 	Var _ | ReplIndex _ when !Settings.expand_letxy -> true
       | _ -> false
 
-let rec find_replacement_for_def remove_set b p =
+(* [find_replacement_for_def_proc remove_set b p] finds a variable that
+   can replace [b] in defined conditions (that is, a variable that is defined exactly when [b] is defined)
+   in the process [p]. [b] is defined exactly when [p] is executed. *)
+	    
+let rec find_replacement_for_def_proc remove_set b p =
   match p.p_desc with
-    Yield | EventAbort _ -> raise Not_found
   | Restr(b',p') ->
-      if b' != b && b'.count_def == 1 then b' else find_replacement_for_def remove_set b p'
+      if b' != b && b'.count_def == 1 then b' else find_replacement_for_def_proc remove_set b p'
   | Let(PatVar b', t, p', _) ->
       if b' != b && b'.count_def == 1 && not (candidate_for_rem_assign remove_set b' t p') then b' else 
-      find_replacement_for_def remove_set b p'
-  | EventP(_,p') -> find_replacement_for_def remove_set b p'
-  | Test _ | Find _ | Output _ | Let _ -> raise Not_found
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+      find_replacement_for_def_proc remove_set b p'
+  | EventP(_,p') -> find_replacement_for_def_proc remove_set b p'
+  | _ -> raise Not_found
+
+(* [find_replacement_for_def remove_set above_vars p b] finds a variable that
+   can replace [b] in defined conditions (that is, a variable that is defined exactly when [b] is defined)
+   in the variables [above_vars] or in the process [p]. 
+   [b] and [above_vars] are defined exactly when [p] is executed.
+   The variables in [above_vars] are not removed. *)
+
+let rec find_replacement_for_def remove_set b p = function
+    [] -> find_replacement_for_def_proc remove_set b p
+  | b'::l -> if b' != b && (b'.count_def == 1)then b' else find_replacement_for_def remove_set b p l
+	
 
 
-let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
+let expand_assign_one let_p remove_set above_vars rec_simplif pat t p1 p2 =
   match pat with
-    PatEqual t' -> 
-      Settings.changed := true;
-      done_transfos := (DLetSimplifyPattern(let_p, pat, DEqTest)) :: (!done_transfos);
-      Terms.oproc_from_desc (Test(Terms.make_equal t t', rec_simplif p1 p1, rec_simplif p2 p2))
-  | PatTuple (f,l) -> 
-      (* try to split *)
-      begin
-	try 
-          let p' = (Terms.put_lets l (Terms.split_term f t) p1 p2) in
-	  let res = rec_simplif p' p' in
-          done_transfos := (DLetSimplifyPattern(let_p, pat, DExpandTuple)) :: (!done_transfos);
-	  Settings.changed := true;
-	  res
-	with Not_found -> 
-	  Terms.oproc_from_desc (Let(pat, t, rec_simplif p1 p1, rec_simplif p2 p2))
-	| Terms.Impossible -> 
-            done_transfos := (DLetSimplifyPattern(let_p, pat, DImpossibleTuple)) :: (!done_transfos);
-	    Settings.changed := true;
-	    rec_simplif p2 p2
-      end
   | PatVar b ->
+      begin
       let put_link do_advise =
 	if Terms.refers_to b t then
 	  (* Cannot replace cyclic assignment *)
-	  Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
+	  Terms.oproc_from_desc (Let(pat, t, rec_simplif (b::above_vars) p1, Terms.oproc_from_desc Yield))
 	else 
 	  match b.def with
 	    [] -> Parsing_helper.internal_error "Should have at least one definition"
@@ -172,7 +175,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
 		    (* if b occurs in queries then leave as it is *)
                     if subst_def then
                       done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
-		    Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1', Terms.oproc_from_desc Yield))
+		    Terms.oproc_from_desc (Let(pat, t, rec_simplif (b::above_vars) p1', Terms.oproc_from_desc Yield))
 		  end
 		else if b.root_def_array_ref || b.array_ref then
 		  (* We may keep calls to defined(b), so keep a definition of b
@@ -180,11 +183,11 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                   try
                     (* Try to remove the definition of b completely, by replacing
                        defined(b[...]) with defined(b'[...]) *)
-                    let b' = find_replacement_for_def remove_set b above_proc in
+                    let b' = find_replacement_for_def remove_set b p1' above_vars in
                     Settings.changed := true;
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
                     replacement_def_list := (b, b') :: (!replacement_def_list);
-                    rec_simplif above_proc p1'
+                    rec_simplif above_vars p1'
                   with Not_found ->
 		    let t' = Terms.cst_for_type t.t_type in
 		    if not (Terms.equal_terms t t') then 
@@ -192,13 +195,13 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                         done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
                         Settings.changed := true
                       end;
-		    Terms.oproc_from_desc (Let(pat,  t', rec_simplif above_proc p1', Terms.oproc_from_desc Yield))
+		    Terms.oproc_from_desc (Let(pat,  t', rec_simplif (b::above_vars) p1', Terms.oproc_from_desc Yield))
 		else
 		  begin
                     (* b will completely disappear *)
                     Settings.changed := true;
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-		    rec_simplif above_proc p1'
+		    rec_simplif above_vars p1'
 		  end
 	      end
 	  | _ -> (* There are several definitions.
@@ -213,9 +216,9 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                 let p1' = Terms.copy_oprocess (Terms.OneSubst(b,t,copy_changed)) p1 in
                 let subst_def = !copy_changed in (* Set to true if an occurrence of b has really been substituted *)
                 Settings.changed := (!Settings.changed) || subst_def;
-                let p1'' = rec_simplif above_proc p1' in
                 if b.array_ref then
 		  begin
+                    let p1'' = rec_simplif (b::above_vars) p1' in
                     (* suggest to use "sa_rename b" before removing assignments *)
 		    if do_advise then Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise);
                     (* Keep the definition so that out-of-scope array accesses are correct *)
@@ -225,6 +228,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
 		  end
 		else if Settings.occurs_in_queries b then
                   begin
+                    let p1'' = rec_simplif (b::above_vars) p1' in
 		    (* Cannot change definition if b occurs in queries *)
                     if subst_def then
                       done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
@@ -241,17 +245,19 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                     end
                   else if subst_def then
                     done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+                  let p1'' = rec_simplif (b::above_vars) p1' in
 		  Terms.oproc_from_desc (Let(pat, t', p1'', Terms.oproc_from_desc Yield))
 		else
                   (* b will completely disappear *)
 		  begin
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
 		    Settings.changed := true;
+                    let p1'' = rec_simplif above_vars p1' in
 		    p1''
 		  end
               end
       in
-      if (Terms.check_no_ifletfindres t) then
+      if (Terms.check_simple_term t) then
 	begin
 	  if not (Terms.refers_to_process_nodef b p1 || b.array_ref || Settings.occurs_in_queries b) then
 	    begin
@@ -261,7 +267,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
 		begin
 		  Settings.changed := true;
                   done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-		  rec_simplif above_proc p1
+		  rec_simplif above_vars p1
 		end
 	      else
 		begin
@@ -271,11 +277,11 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                     (* Try to remove the definition of b completely, by replacing
                        defined(b[...]) with defined(b'[...]) *)
                     if b.count_def > 1 then raise Not_found;
-                    let b' = find_replacement_for_def remove_set b above_proc in
+                    let b' = find_replacement_for_def remove_set b p1 above_vars in
                     Settings.changed := true;
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
                     replacement_def_list := (b, b') :: (!replacement_def_list);
-                    rec_simplif above_proc p1
+                    rec_simplif above_vars p1
                   with Not_found ->
 		    let t' = Terms.cst_for_type t.t_type in
 		    if not (Terms.equal_terms t t') then 
@@ -283,7 +289,7 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                         done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
                         Settings.changed := true
                       end;
-		    Terms.oproc_from_desc (Let(pat, t', rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
+		    Terms.oproc_from_desc (Let(pat, t', rec_simplif (b::above_vars) p1, Terms.oproc_from_desc Yield))
 		end
 	    end
 	  else
@@ -297,10 +303,38 @@ let expand_assign let_p remove_set above_proc rec_simplif pat t p1 p2 =
                        but don't do a lot of work for that, so don't apply advises *)
 		    put_link false
 		| _ ->
-		    Terms.oproc_from_desc (Let(pat, t, rec_simplif above_proc p1, Terms.oproc_from_desc Yield))
+		    Terms.oproc_from_desc (Let(pat, t, rec_simplif (b::above_vars) p1, Terms.oproc_from_desc Yield))
 	end
       else
 	Parsing_helper.internal_error "If, find, let, and new should not occur in expand_assign"
+      end
+  | _ -> 
+      Terms.oproc_from_desc (Let(pat, t, rec_simplif [] p1, rec_simplif [] p2))
+
+	
+let expand_assign let_p remove_set above_vars rec_simplif pat t p1 p2 =
+  try
+    let (transfos, test, bind) = Terms.simplify_let_tuple (fun t -> t) pat t in
+    if transfos != [] then
+      begin
+	Settings.changed := true;
+	done_transfos := (DLetSimplifyPattern(DProcess let_p, transfos)) :: (!done_transfos);
+        (* Put the lets *)
+	let plet = rec_simplif above_vars (Terms.put_lets bind p1 p2) in
+        (* Put the test *)
+	if Terms.is_true test then
+	  plet
+	else
+	  Terms.oproc_from_desc (Test(test, plet, rec_simplif [] p2))
+      end
+    else
+      expand_assign_one let_p remove_set above_vars rec_simplif pat t p1 p2
+  with Terms.Impossible -> 
+    Settings.changed := true;
+    done_transfos := (DLetSimplifyPattern(DProcess let_p, [pat, DImpossibleTuple])) :: (!done_transfos);
+    rec_simplif above_vars p2
+
+
 
 let several_def b =
   match b.def with
@@ -339,8 +373,8 @@ let rec remove_assignments_term remove_set t =
 	end
       else
 	Terms.build_term2 t (ResE(b, remove_assignments_term remove_set t))
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->      
+      Parsing_helper.internal_error "Event/Event_abort/Get/Insert should not appear in Transf_remove_assign.remove_assignments_term"
 
 and remove_assignments_br remove_set (b,l) =
   (b, List.map (remove_assignments_term remove_set) l)
@@ -356,9 +390,9 @@ let rec remove_assignments_rec remove_set p =
       Repl(b,remove_assignments_rec remove_set p)
   | Input((c,tl),pat,p) ->
       Input((c, List.map (remove_assignments_term remove_set) tl),pat, 
-	    remove_assignments_reco remove_set p p))
+	    remove_assignments_reco remove_set [] p))
 
-and remove_assignments_reco remove_set above_proc p =
+and remove_assignments_reco remove_set above_vars p =
   match p.p_desc with
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
@@ -371,22 +405,22 @@ and remove_assignments_reco remove_set above_proc p =
 	  done_sa_rename := (b,b') :: (!done_sa_rename);
           (* Allow using b' for testing whether a variable is defined *) 
           b'.count_def <- 1;
-          let above_proc' = Terms.oproc_from_desc (Restr(b',p)) in
-	  Terms.oproc_from_desc (Restr(b',remove_assignments_reco remove_set above_proc' p'))
+          let above_vars' = b' :: above_vars in
+	  Terms.oproc_from_desc (Restr(b',remove_assignments_reco remove_set above_vars' p'))
 	end
       else
-	Terms.oproc_from_desc (Restr(b,remove_assignments_reco remove_set above_proc p))
+	Terms.oproc_from_desc (Restr(b,remove_assignments_reco remove_set (b::above_vars) p))
   | Test(t,p1,p2) ->
       Terms.oproc_from_desc (Test(remove_assignments_term remove_set t, 
-	   remove_assignments_reco remove_set p1 p1,
-	   remove_assignments_reco remove_set p2 p2))
+	   remove_assignments_reco remove_set [] p1,
+	   remove_assignments_reco remove_set [] p2))
   | Find(l0,p2,find_info) ->
       Terms.oproc_from_desc 
 	(Find(List.map (fun (bl,def_list,t,p1) ->
 	     (bl, def_list, 
 	      remove_assignments_term remove_set t,
-	      remove_assignments_reco remove_set p1 p1)) l0,
-	   remove_assignments_reco remove_set p2 p2, find_info))
+	      remove_assignments_reco remove_set [] p1)) l0,
+	   remove_assignments_reco remove_set [] p2, find_info))
   | Output((c,tl),t2,p) ->
       Terms.oproc_from_desc 
 	(Output((c, List.map (remove_assignments_term remove_set) tl), 
@@ -394,11 +428,11 @@ and remove_assignments_reco remove_set above_proc p =
 		remove_assignments_rec remove_set p))
   | Let(pat, t, p1, p2) ->
       let rec_simplif = remove_assignments_reco remove_set in
-      expand_assign p remove_set above_proc rec_simplif pat t p1 p2
+      expand_assign p remove_set above_vars rec_simplif pat t p1 p2
   | EventP(t,p) ->
       Terms.oproc_from_desc 
 	(EventP(remove_assignments_term remove_set t,
-		remove_assignments_reco remove_set above_proc p))
+		remove_assignments_reco remove_set above_vars p))
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 (* - Main function for assignment removal *)
@@ -437,6 +471,11 @@ let rec do_sa_rename = function
   | ((b,b')::l) ->
       let lb = List.map snd (List.filter (fun (b1,b1') -> b1 == b) l) in
       let lr = do_sa_rename (List.filter (fun (b1,b1') -> b1 != b) l) in
+      (* In case b has been entirely removed from the game in
+         an iteration of remove_assignments_repeat that is not
+	 the last one, b has no definition at this point, 
+	 so it is considered as a restriction by Terms.is_restr.
+	 This is fine: in this case, we say that b has been removed indeed. *)
       if Terms.is_restr b then
 	(DSArenaming(b, b'::lb))::lr
       else

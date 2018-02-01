@@ -1,0 +1,180 @@
+(* Version in which the participants only talk to A and B 
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+
+This file causes an internal error:
+  Internal error: Variable @8_j not found in instantiate_term
+in CryptoVerif 1.15
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+
+fun concat1(nonce, nonce, host, host):maxenc [compos].
+fun concat2(nonce, key):maxenc [compos].
+
+forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+const Zconcat2:maxenc.
+forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = Zconcat1.
+forall y:nonce,z:key; 
+	Z(concat2(y,z)) = Zconcat2.
+
+(* Mac *)
+
+proba Pmac.
+
+def UF_CMA_mac_bug(mkeyseed, mkey, macinput, macres, mkgen, mac, check, Pmac) {
+
+const mark: bitstring.
+
+fun mac(macinput, mkey):macres.
+fun check(macinput, mkey, macres): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(macinput, mkey):macres.
+fun check2(macinput, mkey, macres): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:macinput, r:mkeyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:macinput, r:mkeyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv(uf_cma(mac))
+      ! N3 new r: mkeyseed;(
+	 !N Omac(x: macinput) := return(mac(x, mkgen(r))) |
+	 !N2 Ocheck(m: macinput, ma: macres) := return(check(m, mkgen(r), ma)))
+     <=(N3 * Pmac(time + (N3-1)*(time(mkgen) + N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [computational]
+      ! N3 new r: mkeyseed [unchanged];(
+	 !N Omac(x: macinput) := return(mac2(x, mkgen2(r))) |
+	 !N2 Ocheck(m: macinput, ma: macres) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && let u = j (* The reference to j here causes an internal error *)in check2(x[j], mkgen2(r), ma) then return(true) else return(false)).
+
+equiv(uf_cma_corrupt(mac))
+      ! N3 new r: mkeyseed;(
+	 !N Omac(x: macinput) [useful_change] := return(mac(x, mkgen(r))) |
+	 !N2 Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, mkgen(r), ma)) |
+	 Ocorrupt() [10] := return(r))
+     <=(N3 * Pmac(time + (N3-1)*(time(mkgen) + N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [manual,computational]
+      ! N3 new r: mkeyseed [unchanged];(
+	 !N Omac(x: macinput) := return(mac2(x, mkgen2(r))) |
+	 !N2 Ocheck(m: macinput, ma: macres) := 
+	    if defined(corrupt) then return(check2(m, mkgen2(r), ma)) else
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then return(true) else return(false) |
+	 Ocorrupt() := let corrupt: bitstring = mark in return(r)).
+
+}
+
+expand UF_CMA_mac_bug(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query x:host, y:host, n:nonce, k:key; 
+	event(endA(x,y,n,k)) ==> event(beginB(x,y,n)).
+query x:host, y:host, n:nonce, k:key; 
+	event(endB(x,y,n,k)) ==> event(beginA(x,y,n)).
+query x:host, y:host, n:nonce, k:key; 
+	inj-event(endA(x,y,n,k)) ==> inj-event(beginB(x,y,n)).
+query x:host, y:host, n:nonce, k:key; 
+	inj-event(endB(x,y,n,k)) ==> inj-event(beginA(x,y,n)).
+
+
+let processA(Kas: key, mKas: mkey) = 
+	in(start, ());
+	new M : nonce;
+	new Na : nonce;
+	new s1 : seed;
+	let ea1 = enc(concat1(Na, M, A, B), Kas, s1) in
+	event beginA(A, B, M);
+	out(c1, (M, A, B, ea1, mac(ea1, mKas)));
+	in(c2, (=M, ea2: maxmac, ma2: macs));
+	if check(ea2, mKas, ma2) then
+	let injbot(concat2(=Na, k)) = dec(ea2, Kas) in
+	event endA(A, B, M, k);
+	let keyA:key = k.
+
+let processB(Kbs: key, mKbs: mkey) =
+	in(c3, (M: nonce, =A, =B, ea:maxmac, ma:macs));
+	new Nb : nonce;
+	new s2 : seed;
+	let e2 = enc(concat1(Nb, M, A, B), Kbs, s2) in
+	event beginB(A, B, M);
+	out(c4, (M, A, B, ea, ma, e2, mac(e2, mKbs)));
+	in(c5, (=M, ea2: maxmac, ma2: macs, eb2: maxmac, mb2: macs));
+	if check(eb2, mKbs, mb2) then
+	let injbot(concat2(=Nb, k)) = dec(eb2, Kbs) in
+	out(c6, (M, ea2, ma2));
+	in(finish, ());
+	event endB(A, B, M, k);
+	let keyB:key = k.
+
+let processS(Kas: key, mKas: mkey, Kbs: key, mKbs: mkey) =
+	in(c7, (M: nonce, =A, =B, ea1: maxmac, ma1: macs, eb1: maxmac, mb1: macs));
+	if check(ea1, mKas, ma1) then
+	let injbot(concat1(Na, =M, =A, =B)) = dec(ea1, Kas) in
+	if check(eb1, mKbs, mb1) then
+	let injbot(concat1(Nb, =M, =A, =B)) = dec(eb1, Kbs) in
+	new k: key;
+	new s3: seed;
+	new s4: seed;
+	let e1 = enc(concat2(Na, k), Kas, s3) in
+	let e2 = enc(concat2(Nb, k), Kbs, s4) in
+	out(c8, (M, e1, mac(e1, mKas), e2, mac(e2, mKbs))).
+	
+process 
+	in(start, ());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	new rmKas: mkeyseed;
+	let mKas = mkgen(rmKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	new rmKbs: mkeyseed;
+	let mKbs = mkgen(rmKbs) in
+	out(c9, ());
+	((! N processA(Kas, mKas)) |
+	 (! N processB(Kbs, mKbs)) | 
+	 (! N processS(Kas, mKas, Kbs, mKbs)))
+
+(* EXPECTED
+Error: References to replication indices not as array indices are forbidden
+xtime: error in child process (status : 512)
+END *)

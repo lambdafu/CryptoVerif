@@ -1,0 +1,9 @@
+channel c.
+
+process
+	in(c, =(let x = true in x)); out(c, false)
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19968K
+END *)

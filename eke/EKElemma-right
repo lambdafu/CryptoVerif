@@ -1,0 +1,79 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03 *)
+
+proof {
+      auto;
+      move binder Ystar;
+      show_game occ;
+      replace 222 r4e_65;
+      remove_assign binder Y;
+      show_state
+}
+(* set interactiveMode = true. *)
+
+param Ngen, Nenc, Ndec.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+param N, N2, N3.
+
+fun Genc(G, passwd): G.
+fun Gdec(G, passwd): G.
+fun Gdecexp(G, passwd): exponent.
+
+event bad.
+
+equiv  !N Oenc(x:G, ke:passwd) := Genc(x, ke) [all],
+       !N2 Odec(m:G, kd:passwd) := Gdec(m, kd) [all],
+       !N3 Odecexp(me:G, kde:passwd) := Gdecexp(me, kde) [all] 
+     <=((N+N2+N3)*(N+N2+N3-1)/|G|)=>
+       !N Oenc(x:G, ke:passwd) :=
+		find[unique] j<=N suchthat defined(x[j],ke[j],r2[j]) && x = x[j] && ke = ke[j] then r2[j] 
+		orfind k<=N2 suchthat defined(r4[k],m[k],kd[k]) && x = r4[k] && ke = kd[k] then m[k] 
+		orfind k<=N3 suchthat defined(r4e[k],me[k],kde[k]) && x = r4e[k] && ke = kde[k] then me[k] 
+		else new r2: G; r2,
+       !N2 Odec(m:G, kd:passwd) :=
+		find[unique] j<=N suchthat defined(x[j],ke[j],r2[j]) && m = r2[j] && kd = ke[j] then x[j] 
+		orfind k<=N2 suchthat defined(r4[k],m[k],kd[k]) && m = m[k] && kd = kd[k] then r4[k]
+		orfind k<=N3 suchthat defined(r4e[k],me[k],kde[k]) && m = me[k] && kd = kde[k] then r4e[k] 
+		else new r4' : exponent; let r4:G = exp(g, r4') in r4,
+	!N3 Odecexp(me:G, kde:passwd) :=
+	        find[unique] j<=N suchthat defined(x[j],ke[j],r2[j]) && me = r2[j] && kde = ke[j] then event bad 
+		orfind k<=N2 suchthat defined(r4'[k],m[k],kd[k]) && me = m[k] && kde = kd[k] then r4'[k]
+		orfind k<=N3 suchthat defined(r4e'[k],me[k],kde[k]) && me = me[k] && kde = kde[k] then r4e'[k] 
+		else new r4e': exponent; let r4e:G = exp(g, r4e') in r4e' .
+
+
+channel cgen, cgenout, cenc, cencout, cdec, cdecout.
+
+process 
+	(
+	! Ngen
+	in(cgen, pw: passwd); 
+	new Ystar:G;
+	let y = Gdecexp(Ystar, pw) in
+	let Y = exp(g,y) in
+	out(cgenout, (y, Y, Ystar))
+	)
+	|
+	(
+	! Nenc
+	in(cenc, (x: G, pw:passwd));
+	out(cencout, Genc(x,pw))
+	)
+	|
+	(
+	! Ndec
+	in(cdec, (y: G, pw:passwd));
+	out(cdecout, Gdec(y, pw))
+	)

@@ -1,0 +1,36 @@
+param N.
+type T [large, fixed].
+channel c.
+
+process
+	(
+	in(c, (x:bitstring, y:T, z:bitstring));
+	find j <= N suchthat defined(a[j]) && (find j1 <= N suchthat defined(a[j1],r[j1]) && z = a[j1] then y = r[j1]
+	       	    	     		       orfind j2 <=N suchthat defined(a'[j2],r'[j2]) && z = a'[j2] then y = r'[j2] 
+					       else false) then
+	find i <= N suchthat defined(a[i]) && let y' = a[i] in x = y' then
+	     out(c, true)
+	else	
+	     out(c, false)
+	)	     
+|
+	(
+	!N
+	in(c, a:bitstring);
+	find j <= N suchthat defined(a[j],r[j]) && a = a[j] then out(c, r[j]) 
+	orfind j' <= N suchthat defined(a'[j'],r'[j']) && a = a'[j'] then out(c, r'[j']) else 
+	new r:T; out(c, r)
+	)
+|
+	(
+	!N
+	in(c, a':bitstring);
+	find j' <= N suchthat defined(a'[j'],r'[j']) && a' = a'[j'] then out(c, r'[j'])
+	orfind j <= N suchthat defined(a[j],r[j]) && a' = a[j] then out(c, r[j]) else 
+	new r':T; out(c, r')
+	)
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 16048K
+END *)

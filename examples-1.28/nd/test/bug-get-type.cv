@@ -1,0 +1,11 @@
+table T(bitstring).
+
+channel c.
+
+process
+	in(c, x: bitstring); get T(y) suchthat x in out(c, y)
+
+(* EXPECTED
+Error: This expression has type bitstring but expects type bool
+xtime: error in child process (status : 512)
+END *)

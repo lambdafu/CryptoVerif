@@ -1,0 +1,158 @@
+proof{
+interactive
+}
+
+
+(* Declarations, for CPA security of the PK scheme (Gcpa,Ecpa,Dcpa) that is used in the construction. *)
+
+type pkeycpa [bounded].
+type skeycpa [bounded].
+type keyseedcpa [large,fixed].
+type seedcpa [fixed].
+type ptcpa [bounded].  (* Plaintext type for CPA-secure scheme *)
+type ctcpa. (* Ciphertext type for CPA-secure scheme *)
+
+fun pkgencpa(keyseedcpa):pkeycpa.
+fun skgencpa(keyseedcpa):skeycpa.
+fun Ecpa(ptcpa,pkeycpa,seedcpa):ctcpa.
+fun Dcpa(ctcpa,skeycpa):bitstringbot.
+
+fun pkgencpa2(keyseedcpa):pkeycpa.
+fun Ecpa2(ptcpa,pkeycpa,seedcpa):ctcpa.
+
+fun injbotcpa(ptcpa):bitstringbot [compos].
+
+forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
+	Dcpa(Ecpa(m,pkgencpa(r),r2),skgencpa(r)) = injbotcpa(m).
+forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
+	Dcpa(Ecpa2(m,pkgencpa2(r),r2),skgencpa(r)) = injbotcpa(m).
+
+const Zcpa:ptcpa.
+
+proba Penccpa.
+proba Penccollcpa.
+
+(* equiv; the probability needs to be refined *)
+
+param N, N2, N3, N4.
+
+equiv  !N3 new r: keyseedcpa; Opk() [2] := pkgencpa(r),
+       !N4 new r2:seedcpa; Oenc2(x:ptcpa, y:pkeycpa) [3] := Ecpa(x,y,r2) [all]
+     <=(Penccpa)=> 
+       !N3 new r: keyseedcpa; Opk() := pkgencpa2(r),
+       !N4 Oenc2(x:ptcpa, y:pkeycpa) :=
+		find k <= N3 suchthat defined(r[k]) && y = pkgencpa2(r[k]) then
+			(new r2:seedcpa; 
+			let m2:ctcpa = Ecpa2(Zcpa, y, r2) in
+			m2)
+		else new r3:seedcpa; Ecpa(x,y,r3).
+
+
+(* collisions *)
+
+collision new r1:keyseedcpa; new r2:keyseedcpa; 
+	pkgencpa(r1) = pkgencpa(r2) <=(Penccollcpa)=> false.
+collision new r1:keyseedcpa; new r2:keyseedcpa; 
+	pkgencpa2(r1) = pkgencpa2(r2) <=(Penccollcpa)=> false.
+collision new r1:keyseedcpa; new r2:keyseedcpa; 
+	skgencpa(r1) = skgencpa(r2) <=(Penccollcpa)=> false.
+
+
+
+(* NIZK system with (P,V,S) *)
+
+
+(* Assume that we have a fixed length for all elements of L and that all reference strings are the appropriate corresponding length. *)
+
+type refstr [fixed]. (* Reference strings used in constructing proofs *)
+type witness[fixed]. (* Witnesses to membership in L *)
+type thm[fixed]. (* Things that may or may not be in the language L *)
+type nizkpf[large,fixed]. (* Proof type *)
+type sseed[fixed]. (* Randomness for PPT simulator *)
+type sstate. (* State to link the two stages of the simulator *)
+
+proba Pnizk.
+
+param Nnizk1, Nnizk2, Nnizk3.
+
+fun L(thm):bool.
+fun R(thm,witness):bool.
+fun V(thm,nizkpf,refstr):bool.
+
+fun P(thm,witness,refstr):nizkpf.
+
+(* Def. 2.1 of Sahai *)
+
+(* Completeness *)
+
+forall x:thm,w:witness,sigma:refstr; (L(x) = true && R(x,w) = true && V(x,P(x,w,sigma),sigma) = false) = false.
+
+(* Soundness *)
+
+proba Pnipssound.
+
+collision new sigma:refstr;
+	forall x:thm,p:nizkpf;
+	L(x) = false && V(x,p,sigma) <=(Pnipssound)=> false.
+
+
+(* Def. 2.2 of Sahai *)
+
+
+
+(*
+
+Summarizing Def.2.2 of Sahai, which is intended to be captured in the equivalence below:
+
+Experiment without simulators:
+(Choose a random reference string s.  First stage of adversary produces an element x of the language L and a witness w for x.  The prover produces a proof p that x \in L based on x, w, and s.  p is given to the second stage of the adversary, along with state t from the first stage of the adversary.)
+
+s <- {0,1}^f(k)
+(x,w,t) <- A1(s)
+p <- P(x,w,s)
+return A2(p,t)
+
+Experiment with simulators:
+(Use a two-stage PPT simulator to produce the reference string and the proof p, although the proof may no longer depend on the witness w.)
+
+(s,v) <- S1(1^k)
+(x,w,t) <- A1(s)
+p <- S2(x,v)
+return A2(p,t)
+
+*)
+
+(* I changed the meaning of these functions to be closer to Sahai's paper:
+   S1a = first result of S1 = \sigma
+   S1b = second result of S1 = \kappa 
+The argument Zsigma is useless. It just depends on the security parameter,
+which is fixed for each execution.
+In the CryptoVerif equivalence, we could replace S2(x,S1b(rs)) with
+S(x,rs). I keep S2(x,S1b(rs)) to be closer to Sahai's paper.
+*)
+fun S1a(sseed):refstr.
+fun S1b(sseed):sstate.
+fun S2(thm,sstate):nizkpf.
+
+
+equiv	! Nnizk1 new sigma:refstr; (Ostring() := sigma,
+	  	     		    Oproof(x:thm,w:witness) := P(x,w,sigma))
+	<=(Pnizk)=>
+	! Nnizk1 new rs:sseed; (Ostring() := S1a(rs),
+	  	     	        Oproof(x:thm,w:witness) := S2(x,S1b(rs))).
+
+
+
+param Nenc.
+
+channel start, c1.
+
+process ! Nenc
+	in(start,());
+(*	in(start,(x:thm,w:witness));
+*)
+	new s:refstr;
+	new x:thm;
+	new w:witness;
+	let p:nizkpf = P(x,w,s) in
+	out(c1,p)

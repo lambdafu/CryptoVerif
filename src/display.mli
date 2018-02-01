@@ -13,6 +13,9 @@ val len_num : int -> int
 val useful_occs : int list ref
 val mark_occs : detailed_instruct list -> unit
 
+val may_have_elset : term -> bool
+val may_have_elseo : process -> bool
+    
 val ends_with_underscore_number : string -> bool
 val binder_to_string : binder -> string
 val repl_index_to_string : repl_index -> string
@@ -32,6 +35,8 @@ val display_process : inputprocess -> unit
 val display_bl_assoc : binder list -> unit
 val display_user_info : crypto_transf_user_info -> unit
 val display_with_user_info : crypto_transf_user_info -> unit
+val display_query2 : qterm -> unit
+val display_query3 : query -> unit
 val display_query : query * game -> unit
 val display_instruct : instruct -> unit
 

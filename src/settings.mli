@@ -20,6 +20,11 @@ val debug_simplify : bool ref
 val debug_simplif_add_facts : bool ref
 val debug_corresp : bool ref
 
+(* To parse games output by CryptoVerif, 
+set this variable to true: such games may contain
+"defined" conditions on variables that are never defined. *)
+val allow_undefined_var : bool ref
+
 val max_depth_add_fact : int ref
 val max_depth_try_no_var_rec : int ref
 val max_replace_depth : int ref
@@ -28,6 +33,7 @@ val elsefind_facts_in_success : bool ref
 val elsefind_facts_in_simplify : bool ref
 val improved_fact_collection : bool ref
 val corresp_cases : bool ref
+val simplify_use_equalities_in_simplifying_facts : bool ref
     
 val diff_constants : bool ref
 val constants_not_tuple : bool ref 
@@ -151,6 +157,7 @@ val equivs : equiv_nm list ref
 val move_new_eq : (typet * equiv_nm) list ref
 
 val collect_public_vars : ((query * game) * proof_t ref * proof_t) list -> unit
+val get_public_vars : unit -> binder list
 val occurs_in_queries : binder -> bool
 val event_occurs_in_queries : funsymb -> ((query * game) * proof_t ref * proof_t) list -> bool
 

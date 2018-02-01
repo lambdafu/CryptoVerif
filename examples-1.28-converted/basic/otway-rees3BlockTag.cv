@@ -1,0 +1,140 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+(* Improved fact collection is too slow on this example, disable it. *)
+set improvedFactCollection = false.
+
+param N.
+param N2.
+param N3.
+
+(* Bitstrings of size exactly the block size *)
+type blocksize [large,fixed].
+type blocksizeltag [fixed].
+
+type tag [bounded].
+type nonce [large,fixed].
+type host [bounded].
+type key [large,fixed].
+type keyseed [fixed].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+(* Concat1 and concat2 already include the necessary padding to reach the block size *)
+fun concat1(nonce, nonce, host, host):blocksizeltag [data].
+fun concat2(nonce, key):blocksizeltag [data].
+fun tagf(tag, blocksizeltag):blocksize [data].
+
+(* Shared-key encryption (Block cipher) *)
+
+proba Penc.
+
+expand SPRP_cipher(keyseed, key, blocksize, kgen, enc, dec, Penc).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
+	start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query k: key, n: nonce, y: host, x: host;
+  event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) public_vars keyA, keyB.
+
+
+
+
+
+
+
+
+
+	
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+out(start, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hb_1: host);
+  new M_1: nonce;
+  new Na_1: nonce;
+  event beginA(A, hb_1, M_1);
+  let ea1: blocksize = enc(tagf(tag1, concat1(Na_1, M_1, A, hb_1)), Kas) in
+  out(c2[i_1], (M_1, A, hb_1, ea1));
+  in(c3[i_1], (=M_1, ea2_1: blocksize));
+  let tagf(=tag3, concat2(=Na_1, k_1: key)) = dec(ea2_1, Kas) in
+  if hb_1 = B then
+  (
+    event endA(A, hb_1, M_1, k_1);
+    let keyA: key = k_1
+  )
+  else
+    out(c11[i_1], k_1)
+) | (
+  ! i_2 <= N
+  in(c4[i_2], (M_2: nonce, ha_1: host, =B, ea: bitstring));
+  new Nb_1: nonce;
+  event beginB(ha_1, B, M_2);
+  let e2: blocksize = enc(tagf(tag2, concat1(Nb_1, M_2, ha_1, B)), Kbs) in
+  out(c5[i_2], (M_2, ha_1, B, ea, e2));
+  in(c6[i_2], (=M_2, ea2_2: blocksize, eb2: blocksize));
+  let tagf(=tag4, concat2(=Nb_1, k_2: key)) = dec(eb2, Kbs) in
+  out(c7[i_2], (M_2, ea2_2));
+  in(finish[i_2], ());
+  if ha_1 = A then
+  (
+    event endB(ha_1, B, M_2, k_2);
+    let keyB: key = k_2
+  )
+  else
+    out(c12[i_2], k_2)
+) | (
+  ! i_3 <= N
+  in(c9[i_3], (M_3: nonce, ha_2: host, hb_2: host, ea1_1: blocksize, eb1: blocksize));
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Khost[jA_1]) && (ha_2 = Khost[jA_1]) then
+  let kas: key = Rkey[jA] in
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Khost[jB_1]) && (hb_2 = Khost[jB_1]) then
+  let kbs: key = Rkey[jB] in
+  let tagf(=tag1, concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, kas) in
+  let tagf(=tag2, concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, kbs) in
+  new k_3: key;
+  let e1: blocksize = enc(tagf(tag3, concat2(Na_2, k_3)), kas) in
+  let e2_1: blocksize = enc(tagf(tag4, concat2(Nb_2, k_3)), kbs) in
+  out(c10[i_3], (M_3, e1, e2_1))
+) | (
+  ! i_4 <= N2
+  in(c8[i_4], (Khost: host, Kkey: key));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
+6.192s (user 6.040s + system 0.152s), max rss 119536K
+END *)

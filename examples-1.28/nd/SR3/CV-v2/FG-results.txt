@@ -1,0 +1,411 @@
+Doing expand get, insert, if, let, find... Done.
+Doing remove assignments of useless... No change.
+Doing simplify... Run simplify 1 time(s). Fixpoint reached.
+No change.
+Doing move all binders... Done.
+Doing remove assignments of useless... Done.
+Trying equivalence prp(enc) ... Failed.
+Doing remove assignments of binder k... Done.
+Trying equivalence prp(enc) with ks... Eliminated collisions between n_oracle_cpa and n_oracle_cpa Probability: 0.5 * qGen * qGen / |nonce|
+Eliminated collisions between n_challenge_101 and n_oracle_cpa Probability: qGen / |nonce|
+Eliminated collisions between n_challenge_102 and n_challenge_101 Probability: 1. / |nonce|
+Eliminated collisions between n_challenge_102 and n_oracle_cpa Probability: qGen / |nonce|
+Succeeded.
+Doing remove assignments of useless... Done.
+Doing simplify... Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between n_oracle_cpa and n_oracle_cpa Probability: 0.5 * qGen * qGen / |nonce|
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... Done.
+Proved one-session secrecy of b
+Proved secrecy of b
+===================== Proof starts =======================
+Initial state
+Game 1 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks: keyseed;
+     new n_challenge: nonce;
+     new b: bool;
+     let k: key = kgen(ks) in
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       let cc: block = concat(if b then D0 else D1, n_challenge) in
+       let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge)) in
+       out(gameout, (p_challenge, n_challenge))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let p_oracle_cpa: bitstring = (enc(concat(DCPA, n_oracle_cpa), k), hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying expand get, insert, if, let, find
+  - Expand if/find/let
+yields
+
+Game 2 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks: keyseed;
+     new n_challenge: nonce;
+     new b: bool;
+     let k: key = kgen(ks) in
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       if b then
+       (
+         let cc: block = concat(D0, n_challenge) in
+         let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge)) in
+         out(gameout, (p_challenge, n_challenge))
+       )
+       else
+         let cc: block = concat(D1, n_challenge) in
+         let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge)) in
+         out(gameout, (p_challenge, n_challenge))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let p_oracle_cpa: bitstring = (enc(concat(DCPA, n_oracle_cpa), k), hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying move all binders
+  - Move random number generation n_challenge
+yields
+
+Game 3 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks: keyseed;
+     new b: bool;
+     let k: key = kgen(ks) in
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       if b then
+       (
+         new n_challenge: nonce;
+         let cc: block = concat(D0, n_challenge) in
+         let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge)) in
+         out(gameout, (p_challenge, n_challenge))
+       )
+       else
+         new n_challenge: nonce;
+         let cc: block = concat(D1, n_challenge) in
+         let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge)) in
+         out(gameout, (p_challenge, n_challenge))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let p_oracle_cpa: bitstring = (enc(concat(DCPA, n_oracle_cpa), k), hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying remove assignments of useless
+  - Rename variable n_challenge into n_challenge_102, n_challenge_101
+yields
+
+Game 4 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks: keyseed;
+     new b: bool;
+     let k: key = kgen(ks) in
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       if b then
+       (
+         new n_challenge_102: nonce;
+         let cc: block = concat(D0, n_challenge_102) in
+         let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge_102)) in
+         out(gameout, (p_challenge, n_challenge_102))
+       )
+       else
+         new n_challenge_101: nonce;
+         let cc: block = concat(D1, n_challenge_101) in
+         let p_challenge: bitstring = (enc(cc, k), hash(hk, n_challenge_101)) in
+         out(gameout, (p_challenge, n_challenge_101))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let p_oracle_cpa: bitstring = (enc(concat(DCPA, n_oracle_cpa), k), hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying remove assignments of binder k
+  - Remove assignments on k (definition removed, all usages removed)
+yields
+
+Game 5 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks: keyseed;
+     new b: bool;
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       if b then
+       (
+         new n_challenge_102: nonce;
+         let cc: block = concat(D0, n_challenge_102) in
+         let p_challenge: bitstring = (enc(cc, kgen(ks)), hash(hk, n_challenge_102)) in
+         out(gameout, (p_challenge, n_challenge_102))
+       )
+       else
+         new n_challenge_101: nonce;
+         let cc: block = concat(D1, n_challenge_101) in
+         let p_challenge: bitstring = (enc(cc, kgen(ks)), hash(hk, n_challenge_101)) in
+         out(gameout, (p_challenge, n_challenge_101))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let p_oracle_cpa: bitstring = (enc(concat(DCPA, n_oracle_cpa), kgen(ks)), hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying equivalence prp(enc) with ks [probability (qGen * qGen + qGen) / |block| + PRPProba(time(context for game 5) + time, 1. + qGen) + (0.5 * qGen * qGen + 1. + 2. * qGen) / |nonce|]
+  - Equivalence prp(enc) with ks
+  - Simplification pass
+    - Replaced (@6_x_104 = @6_x_109[@ri_114]) with false at 178
+    - Remove branch 3 in find at 189
+    - Replaced (@6_x_104 = @6_x_107) with false at 182
+    - Remove branch 2 in find at 189
+    - Replaced (@6_x_104 = @6_x_104) with true at 186
+    - Replaced (@6_x_107 = @6_x_109[@ri_112]) with false at 153
+    - Remove branch 3 in find at 164
+    - Replaced (@6_x_107 = @6_x_107) with true at 157
+    - Replaced (@6_x_107 = @6_x_104) with false at 161
+    - Remove branch 1 in find at 164
+    - Replaced (@6_x_109 = @6_x_107) with false at 126
+    - Remove branch 2 in find at 133
+    - Replaced (@6_x_109 = @6_x_104) with false at 130
+    - Remove branch 1 in find at 133
+  - Expand if/find/let
+yields
+
+Game 6 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks_105: keyseed;
+     new b: bool;
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       if b then
+       (
+         new n_challenge_102: nonce;
+         let cc: block = concat(D0, n_challenge_102) in
+         let @6_x_104: block = cc in
+         if defined(@6_x_104, @6_r2_103) then
+         (
+           let p_challenge: bitstring = (@6_r2_103, hash(hk, n_challenge_102)) in
+           out(gameout, (p_challenge, n_challenge_102))
+         )
+         else
+           new @6_r2_103: block;
+           let p_challenge: bitstring = (@6_r2_103, hash(hk, n_challenge_102)) in
+           out(gameout, (p_challenge, n_challenge_102))
+       )
+       else
+         new n_challenge_101: nonce;
+         let cc: block = concat(D1, n_challenge_101) in
+         let @6_x_107: block = cc in
+         if defined(@6_x_107, @6_r2_106) then
+         (
+           let p_challenge: bitstring = (@6_r2_106, hash(hk, n_challenge_101)) in
+           out(gameout, (p_challenge, n_challenge_101))
+         )
+         else
+           new @6_r2_106: block;
+           let p_challenge: bitstring = (@6_r2_106, hash(hk, n_challenge_101)) in
+           out(gameout, (p_challenge, n_challenge_101))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let @6_x_109: block = concat(DCPA, n_oracle_cpa) in
+       find [unique] @i_111 = @ri_110 <= qGen suchthat defined(@6_x_109[@ri_110], @6_r2_108[@ri_110]) && (@6_x_109 = @6_x_109[@ri_110]) then
+       (
+         let p_oracle_cpa: bitstring = (@6_r2_108[@i_111], hash(hk, n_oracle_cpa)) in
+         out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+       )
+       else
+         new @6_r2_108: block;
+         let p_oracle_cpa: bitstring = (@6_r2_108, hash(hk, n_oracle_cpa)) in
+         out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @6_x_107 (definition removed, all usages removed)
+  - Remove assignments on @6_x_104 (definition removed, all usages removed)
+  - Remove assignments on cc (definition removed, all usages removed)
+  - Remove assignments on cc (definition removed, all usages removed)
+yields
+
+Game 7 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new ks_105: keyseed;
+     new b: bool;
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+ {10}  if b then
+       (
+         new n_challenge_102: nonce;
+ {13}    if defined(n_challenge_102, @6_r2_103) then
+         (
+           let p_challenge: bitstring = (@6_r2_103, hash(hk, n_challenge_102)) in
+           out(gameout, (p_challenge, n_challenge_102))
+         )
+         else
+           new @6_r2_103: block;
+           let p_challenge: bitstring = (@6_r2_103, hash(hk, n_challenge_102)) in
+           out(gameout, (p_challenge, n_challenge_102))
+       )
+       else
+         new n_challenge_101: nonce;
+ {41}    if defined(n_challenge_101, @6_r2_106) then
+         (
+           let p_challenge: bitstring = (@6_r2_106, hash(hk, n_challenge_101)) in
+           out(gameout, (p_challenge, n_challenge_101))
+         )
+         else
+           new @6_r2_106: block;
+           let p_challenge: bitstring = (@6_r2_106, hash(hk, n_challenge_101)) in
+           out(gameout, (p_challenge, n_challenge_101))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let @6_x_109: block = concat(DCPA, n_oracle_cpa) in
+ {88}  find [unique] @i_111 = @ri_110 <= qGen suchthat defined(@6_x_109[@ri_110], @6_r2_108[@ri_110]) && {91}(@6_x_109 = @6_x_109[@ri_110]) then
+       (
+         let p_oracle_cpa: bitstring = (@6_r2_108[@i_111], hash(hk, n_oracle_cpa)) in
+         out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+       )
+       else
+         new @6_r2_108: block;
+         let p_oracle_cpa: bitstring = (@6_r2_108, hash(hk, n_oracle_cpa)) in
+         out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying simplify [probability 0.5 * qGen * qGen / |nonce|]
+  - Simplification pass
+    - Replaced (@6_x_109 = @6_x_109[@ri_110]) with (!_89 = @ri_110) at 91
+    - Remove branch 1 in find at 88
+    - Find at 88 removed (else branch kept if any)
+    - Remove branch 1 in find at 41
+    - Find at 41 removed (else branch kept if any)
+    - Remove branch 1 in find at 13
+    - Find at 13 removed (else branch kept if any)
+    - Remove random number generation at 156
+  - Simplification pass
+    - Merge branches of test at 10
+yields
+
+Game 8 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new b: bool;
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       new n_challenge_101: nonce;
+       new @6_r2_106: block;
+       let p_challenge: bitstring = (@6_r2_106, hash(hk, n_challenge_101)) in
+       out(gameout, (p_challenge, n_challenge_101))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       let @6_x_109: block = concat(DCPA, n_oracle_cpa) in
+       new @6_r2_108: block;
+       let p_oracle_cpa: bitstring = (@6_r2_108, hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Applying remove assignments of useless
+  - Remove assignments on @6_x_109 (definition removed, all usages removed)
+yields
+
+Game 9 is
+     in(keyinitin, ());
+     new hk: hashkey;
+     new b: bool;
+     out(keyinitout, ());
+     (
+       in(gamein, (D0: data, D1: data));
+       new n_challenge_101: nonce;
+       new @6_r2_106: block;
+       let p_challenge: bitstring = (@6_r2_106, hash(hk, n_challenge_101)) in
+       out(gameout, (p_challenge, n_challenge_101))
+     ) | (
+       ! !_88 <= qHash
+       in(OHashIn[!_88], hash_query: nonce);
+       out(OHashOut[!_88], hash(hk, hash_query))
+     ) | (
+       ! !_89 <= qGen
+       in(OGenIn[!_89], DCPA: data);
+       new n_oracle_cpa: nonce;
+       new @6_r2_108: block;
+       let p_oracle_cpa: bitstring = (@6_r2_108, hash(hk, n_oracle_cpa)) in
+       out(OGenOut[!_89], (p_oracle_cpa, n_oracle_cpa))
+     )
+
+
+Proved secrecy of b in game 9
+Adv[Game 1: secrecy of b] <= (2. * qGen + 2. * qGen * qGen) / |block| + 2. * PRPProba(time(context for game 5) + time, 1. + qGen) + (4. * qGen + 2. + 2. * qGen * qGen) / |nonce| + Adv[Game 9: secrecy of b]
+Adv[Game 9: secrecy of b] <= 0
+RESULT Proved secrecy of b up to probability (2. * qGen + 2. * qGen * qGen) / |block| + 2. * PRPProba(time(context for game 5) + time, 1. + qGen) + (4. * qGen + 2. + 2. * qGen * qGen) / |nonce|
+RESULT time(context for game 5) = (1. + qGen) * time(concat) + (1. + qHash + qGen) * time(hash) + (1. + qGen) * time((block, hashout))
+All queries proved.

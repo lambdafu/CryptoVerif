@@ -1,0 +1,28 @@
+(* The variable f is renamed into f_1 and f_2, leading to a confusion
+   with the function f_1, which is not renamed. 
+   Internally, CryptoVerif correctly distinguishes them, but
+   the display is very confusing:
+
+     in(c, f_1: bitstring);
+     let f_2: bitstring = f_1 in
+     out(c, f_1(f_2))
+
+     in(c, f_1: bitstring);
+     out(c, f_1(f_1))
+
+   *)
+
+fun f_1(bitstring): bitstring.
+
+channel c.
+
+process
+	in(c, f_3: bitstring);
+let f_4: bitstring = f_3 in
+out(c, f_1(f_4))
+
+
+(* EXPECTED
+All queries proved.
+0.012s (user 0.012s + system 0.000s), max rss 37936K
+END *)

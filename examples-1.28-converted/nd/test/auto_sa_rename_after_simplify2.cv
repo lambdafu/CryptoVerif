@@ -1,0 +1,40 @@
+param N.
+type T [large, fixed].
+channel c.
+
+process
+	((
+  in(c, (x: bitstring, y: T, z: bitstring));
+  find j_5 = j_2 <= N suchthat defined(a[j_2]) && (find j1_1 = j1 <= N suchthat defined(a[j1], r[j1]) && (z = a[j1]) then (y = r[j1_1]) orfind j2_1 = j2 <= N suchthat defined(a'[j2], r'[j2]) && (z = a'[j2]) then (y = r'[j2_1]) else false) then
+  find i_1 = i_2 <= N suchthat defined(a[i_2]) && (let y': bitstring = a[i_2] in (x = y')) then
+    out(c, true)
+  else
+    out(c, false)
+) | (
+  ! i_3 <= N
+  in(c[i_3], a: bitstring);
+  find j_6 = j_3 <= N suchthat defined(a[j_3], r[j_3]) && (a = a[j_3]) then
+    out(c[i_3], r[j_6])
+  orfind j'_3 = j'_1 <= N suchthat defined(a'[j'_1], r'[j'_1]) && (a = a'[j'_1]) then
+    out(c[i_3], r'[j'_3])
+  else
+    new r: T;
+    out(c[i_3], r)
+) | (
+  ! i_4 <= N
+  in(c[i_4], a': bitstring);
+  find j'_4 = j'_2 <= N suchthat defined(a'[j'_2], r'[j'_2]) && (a' = a'[j'_2]) then
+    out(c[i_4], r'[j'_4])
+  orfind j_7 = j_4 <= N suchthat defined(a[j_4], r[j_4]) && (a' = a[j_4]) then
+    out(c[i_4], r[j_7])
+  else
+    new r': T;
+    out(c[i_4], r')
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.020s + system 0.004s), max rss 41968K
+END *)

@@ -1,0 +1,28 @@
+channel c.
+
+param n.
+
+type host.
+const A, B, C: host.
+
+table tbl2(host, bool).
+
+process
+	((
+  ! i <= n
+  in(c[i], z: host)
+) | (
+  in(c, y: host);
+  insert tbl2(A, false);
+  insert tbl2(B, true);
+  insert tbl2(C, true);
+  find i_1 = i_2 <= n suchthat defined(z[i_2]) && (y = z[i_2]) && (get tbl2(z': host, b: bool) suchthat z' = y in b else false) then
+  out(c, y)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.016s + system 0.000s), max rss 41104K
+END *)

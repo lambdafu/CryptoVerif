@@ -1,0 +1,53 @@
+(* Internal error 
+The transformation of h(x[j]) defines 
+
+let m = x[j] in find ... and makes a look up on m.
+
+When we do that inside a condition of find, we end up making a look up
+on a variable m defined in a condition of find, which is forbidden.
+
+We should forbid such transformations (which ones precisely?).
+
+*)
+
+type G [large, fixed].
+type hashinput [fixed].
+type hashoutput [fixed].
+type host.
+
+param N, qH.
+
+proba P.
+
+fun hash(hashinput):hashoutput.
+fun hash2(hashinput):hashoutput.
+
+equiv
+  gen_Oracle(x: hashinput) := return(hash(x)) [all]
+<=(P)=>
+  gen_Oracle(x: hashinput) := return(hash2(x)).
+
+channel c1, c2.
+
+ 
+
+(* Queries *)
+
+query secret s.
+
+
+
+process in(c1, ());
+new s: hashinput;
+out(c2, s);
+! i_1 <= qH
+in(c1[i_1], x: hashinput);
+out(c2[i_1], hash(x))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.016s (user 0.016s + system 0.000s), max rss 40144K
+END *)

@@ -1,0 +1,57 @@
+(* Trivial running example for conference paper. *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed,large].
+type keyseed [fixed].
+type seed [fixed].
+
+fun keyToBitstring(key):bitstring [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Pencptxt.
+
+expand INT_PTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Pencptxt).
+
+(* Queries *)
+
+query secret k2 [onesession].
+query secret k3 [onesession].
+
+query secret k2.
+query secret k3.
+
+
+
+
+
+process 
+	Ostart() :=
+rKab <-R keyseed;
+Kab: key <- kgen(rKab);
+return();
+((
+  foreach iA <= N do
+  OA() :=
+  k2 <-R key;
+  s1 <-R seed;
+  ea1: bitstring <- enc(keyToBitstring(k2), Kab, s1);
+  return(ea1)
+) | (
+  foreach iB <= N do
+  OB(ea: bitstring) :=
+  let injbot(keyToBitstring(k3: key)) = dec(ea, Kab) in
+  return()
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of k3; secrecy of k2; one-session secrecy of k3; one-session secrecy of k2.
+0.028s (user 0.024s + system 0.004s), max rss 41488K
+END *)

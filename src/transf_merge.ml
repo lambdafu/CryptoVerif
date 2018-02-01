@@ -197,6 +197,7 @@ let rec equal_find_cond map t t' =
 	  (bl', def_list', t', t1') ->
 	    (* I don't check here that the types of the indices are the same, but
 	       this is checked by merge_var_list below. *)
+	    (List.length bl == List.length bl') &&
 	    let map' = (List.map2 (fun (_, b) (_,b') -> (Terms.term_from_repl_index b, Terms.term_from_repl_index b')) bl bl') @ map in
 	    (eq_deflist map' def_list def_list') &&
 	    (equal_find_cond map' t t') &&
@@ -213,8 +214,10 @@ let rec equal_find_cond map t t' =
       eq_pat && (equal_find_cond (!map_ref) t2 t2'))
   | ResE(b,t), ResE(b',t') ->
       merge_var (fun map' -> equal_find_cond map' t t') map b b'
-  | EventAbortE _, EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | (EventAbortE _, EventAbortE _) | (EventE _, EventE _) ->
+      Parsing_helper.internal_error "Events should not occur in find conditions"
+  | (GetE _, GetE _) | (InsertE _, InsertE _) ->
+      Parsing_helper.internal_error "Get/Insert should not occur in Transf_merge.equal_find_cond"
   | _ -> false
 
 let rec equal_process map p p' =
@@ -267,6 +270,7 @@ and equal_oprocess map p p' =
 	  (bl', def_list', t', p1') ->
 	    (* I don't check here that the types of the indices are the same, but
 	       this is checked by merge_var_list below. *)
+	    (List.length bl == List.length bl') &&
 	    let map' = (List.map2 (fun (_, b) (_,b') -> (Terms.term_from_repl_index b, Terms.term_from_repl_index b')) bl bl') @ map in
 	    (eq_deflist map' def_list def_list') &&
 	    (equal_find_cond map' t t') &&
@@ -319,6 +323,11 @@ let rec collect_def_vars_term def_vars t =
       add def_vars b;
       collect_def_vars_term def_vars t
   | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      collect_def_vars_term def_vars t;
+      collect_def_vars_term def_vars p
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.collect_def_vars_term"
 
 and collect_def_vars_pattern def_vars = function
     PatVar b -> add def_vars b
@@ -461,6 +470,11 @@ let rec check_array_ref_term in_scope curarray_suffix ok_vars t =
   | ResE(b,t) ->
       check_array_ref_term (b::in_scope) curarray_suffix ok_vars t
   | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      check_array_ref_term in_scope curarray_suffix ok_vars t;      
+      check_array_ref_term in_scope curarray_suffix ok_vars p
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.check_array_ref_term"
 
 and check_array_ref_pattern in_scope curarray_suffix ok_vars = function
     PatVar b -> ()
@@ -731,7 +745,8 @@ and add_fact ((subst2, facts, elsefind) as simp_facts) fact =
 	      | _::l -> try_red_t1 l
 	    in
 	    try_red_t1 subst2
-	| _ -> 
+	| _ ->
+	    Display.display_term fact;
 	    Parsing_helper.internal_error "LetEqual terms should have a variable in the left-hand side"
       end
   | FunApp(f,[t1;t2]) when f.f_cat == Equal ->
@@ -1116,8 +1131,8 @@ let rec merge_term rename_instr t =
   | FunApp(f,l) ->
       Terms.build_term2 t (FunApp(f, List.map (merge_term rename_instr) l))
   | ReplIndex _ -> t
-  | ResE _ | EventAbortE _ | TestE _ | LetE _ | FindE _ ->
-      Parsing_helper.internal_error "new/event/if/let/find unexpected in terms"
+  | ResE _ | EventAbortE _ | TestE _ | LetE _ | FindE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "new/event/event_abort/if/let/find/get/insert unexpected in terms"
 
 let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merge proc_add_def_var merge_find_cond pp 
     rename_instr l0 p3 =
@@ -1386,8 +1401,10 @@ let rec merge_find_cond rename_instr t =
     ResE(b,p) ->
       Terms.build_term2 t (ResE(rename_var rename_instr b, 
 				add_def_var_find_cond rename_instr (merge_find_cond rename_instr p) b))
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "event should not occur as term"
+  | EventAbortE _ | EventE _ ->
+      Parsing_helper.internal_error "events should not occur in find conditions in merge_find_cond"
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.merge_find_cond"
   | TestE(t1,t2,t3) ->
       let t1' = merge_term rename_instr t1 in
       let t2' = merge_find_cond rename_instr t2 in
@@ -1624,10 +1641,10 @@ let merge_arrays bll mode g =
 	      NoBranchVar
 	| MCreateBranchVarAtProc(pl, cur_array) ->
 	    CreateBranchVarAtProc(pl, List.map (fun (b,_) -> 
-	      Terms.create_binder "@br" (Terms.new_vname()) b.btype cur_array) bl1)
+	      Terms.create_binder "br" b.btype cur_array) bl1)
 	| MCreateBranchVarAtTerm(tl, cur_array) ->
 	    CreateBranchVarAtTerm(tl, List.map (fun (b,_) -> 
-	      Terms.create_binder "@br" (Terms.new_vname()) b.btype cur_array) bl1)
+	      Terms.create_binder "br" b.btype cur_array) bl1)
       in
       try
 	let bll_no_ext = List.map (List.map fst) bll in
@@ -1741,7 +1758,7 @@ let rec get_curarray_suffix_t cur_array curarray_suffix t =
   match t.t_desc with
     Var(_,l) | FunApp(_,l) -> List.iter (get_curarray_suffix_t cur_array curarray_suffix) l
   | ReplIndex i -> get_curarray_suffix cur_array curarray_suffix i
-  | EventAbortE _ -> Parsing_helper.internal_error "EventAbortE should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> Parsing_helper.internal_error "EventAbortE, EventE, GetE, InsertE should have been expanded"
   | ResE(_,t) -> get_curarray_suffix_t cur_array curarray_suffix t
   | TestE(t1,t2,t3) -> 
       get_curarray_suffix_t cur_array curarray_suffix t1;
@@ -1775,7 +1792,10 @@ let get_curarray_suffix_pat_term cur_array pat t =
 let rec collect_merges_find_cond cur_array t =
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ -> ()
-  | EventAbortE _ -> Parsing_helper.internal_error "EventAbortE should have been expanded"
+  | EventAbortE _ | EventE _ ->
+      Parsing_helper.internal_error "events should not occur in find conditions in collect_merges_find_cond"
+  | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.collect_merges_find_cond"
   | ResE(_,t) -> collect_merges_find_cond cur_array t
   | TestE(t1,t2,t3) ->
       begin
@@ -2017,7 +2037,10 @@ let rec remove_impossible_merges() =
 let rec do_merges_find_cond t =
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ -> t
-  | EventAbortE _ -> Parsing_helper.internal_error "EventAbortE should have been expanded"
+  | EventAbortE _ | EventE _ ->
+      Parsing_helper.internal_error "events should not occur in find conditions in collect_merges_find_cond"
+  | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.collect_merges_find_cond"
   | ResE(b,t1) ->
       let t1' = do_merges_find_cond t1 in
       Terms.build_term2 t (ResE(b,t1'))

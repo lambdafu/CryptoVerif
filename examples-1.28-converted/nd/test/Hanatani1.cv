@@ -1,0 +1,183 @@
+(* DH key Exchange *)
+
+proof {
+crypto PCDH2 x
+}
+
+param nK, na, nb, n0, n1, n2, n3, qS, nT.
+
+type modp [large,fixed].    
+type typeg [large,fixed].   
+type modq [large,fixed].    
+type R [large,fixed].       
+type seed [large,fixed].    
+
+
+proba PCDH1.
+proba PCDH2.
+proba PCDH3.
+proba PCDH4.
+const mark:bitstring.
+
+(* CDH Group *)
+fun pkgen1(seed):modp.    (* low p *)
+fun pkgen2(seed):typeg.   (* generater g *)
+fun pkgen3(seed):modq.    (* order of <g> *)
+fun pkgen'1(seed):modp.   (* low p *)
+fun pkgen'2(seed):typeg.  (* generater g *)
+fun pkgen'3(seed):modq.   (* order of <g> *)
+
+
+(* f(p,g,q,a) = g^a mod p *)
+fun f(modp, typeg, modq, modq):typeg.
+fun f'(modp, typeg, modq, modq):typeg.
+
+(* This proof dose not need the power low. *)
+
+		   
+
+(* Computational Assumptions *)    
+(* CDH Assumption, type 4.  fix:(p,g,q), choose problem : g^a, g^b  *)
+equiv
+  ! nK new r: seed; (
+    gen_Oracle() := return(pkgen1(r)) |
+    gen_Oracle_1() := return(pkgen2(r)) |
+    gen_Oracle_2() := return(pkgen3(r)) |
+    ! na new a: modq; (
+      gen_Oracle_3() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), a)) |
+      ! nb new b: modq; (
+        gen_Oracle_4() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), b)) |
+        ! n2 gen_Oracle_5(y': typeg) := return(y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)) |
+        gen_Oracle_6() := return(f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))))
+<=(nK * na * nb * PCDH4(time + (2 * nK * na * nb + nK * na  -3) * time(f) + (nK-1) * (time(pkgen1) + time(pkgen2) + time(pkgen3)) ))=>
+  ! nK new r: seed; (
+    gen_Oracle() := return(pkgen'1(r)) |
+    gen_Oracle_1() := return(pkgen'2(r)) |
+    gen_Oracle_2() := return(pkgen'3(r)) |
+    ! na new a: modq; (
+      gen_Oracle_3() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a)) |
+      ! nb new b: modq; (
+        gen_Oracle_4() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b)) |
+        ! n2 gen_Oracle_5(y': typeg) := if defined(flg) then return(y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)) else return(false) |
+        gen_Oracle_6() := let flg:bitstring = mark in return(f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b))))).
+
+
+(* CDH Assumption, type 3. fix:(p,g,q), choose problem: (g^a,g^b) *)
+equiv
+  ! nK new r: seed; (
+    gen_Oracle_1() := return(pkgen1(r)) |
+    gen_Oracle_2() := return(pkgen2(r)) |
+    gen_Oracle_3() := return(pkgen3(r)) |
+    ! qS new a: modq; new b: modq; (
+      gen_Oracle_4() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), a)) |
+      gen_Oracle_5() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), b)) |
+      ! n2 gen_Oracle_6(y': typeg) := return(y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)) |
+      gen_Oracle_7() := return(f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b))))
+<=(nK  * qS * PCDH3(time + 3 * (nK  * qS  -1) * time(f) + (nK-1) * (time(pkgen1) + time(pkgen2) + time(pkgen3)) ))=>
+  ! nK new r: seed; (
+    gen_Oracle_1() := return(pkgen'1(r)) |
+    gen_Oracle_2() := return(pkgen'2(r)) |
+    gen_Oracle_3() := return(pkgen'3(r)) |
+    ! qS new a: modq; new b: modq; (
+      gen_Oracle_4() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a)) |
+      gen_Oracle_5() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b)) |
+      ! n2 gen_Oracle_6(y': typeg) := if defined(flg) then return(y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)) else return(false) |
+      gen_Oracle_7() := let flg:bitstring = mark in return(f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))).
+
+
+(* CDH Assumption, type 2.  fix:(p,g,q,g^a), choose problem: g^b  *)
+equiv
+  ! nK new r: seed; new a: modq; (
+    gen_Oracle_1() := return(pkgen1(r)) |
+    gen_Oracle_2() := return(pkgen2(r)) |
+    gen_Oracle_3() := return(pkgen3(r)) |
+    gen_Oracle_4() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), a)) |
+    ! qS new b: modq; (
+      gen_Oracle_5() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), b)) |
+      ! n2 gen_Oracle_6(y': typeg) := return(y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)) |
+      gen_Oracle_7() := return(f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b))))
+<=(nK  * qS * PCDH2(time + (2 * nK  * qS + nK -3) * time(f) + (nK-1) * (time(pkgen1) + time(pkgen2) + time(pkgen3)) ))=>
+  ! nK new r: seed; new a: modq; (
+    gen_Oracle_1() := return(pkgen'1(r)) |
+    gen_Oracle_2() := return(pkgen'2(r)) |
+    gen_Oracle_3() := return(pkgen'3(r)) |
+    gen_Oracle_4() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a)) |
+    ! qS new b: modq; (
+      gen_Oracle_5() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b)) |
+      ! n2 gen_Oracle_6(y': typeg) := if defined(flg) then return(y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)) else return(false) |
+      gen_Oracle_7() := let flg:bitstring = mark in return(f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))).
+
+(* CDH Assumption, type 1.  fix:(p,g,q,g^a,g^b), choose problem :--  *)
+equiv
+  ! nK new r: seed; new a: modq; new b: modq; (
+    gen_Oracle_1() := return(pkgen1(r)) |
+    gen_Oracle_2() := return(pkgen2(r)) |
+    gen_Oracle_3() := return(pkgen3(r)) |
+    gen_Oracle_4() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), a)) |
+    gen_Oracle_5() := return(f(pkgen1(r), pkgen2(r), pkgen3(r), b)) |
+    ! n2 gen_Oracle_6(y': typeg) := return(y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)) |
+    gen_Oracle_7() := return(f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK   * PCDH1(time + 3 * (nK -1) * time(f) + (nK-1) * (time(pkgen1) + time(pkgen2) + time(pkgen3)) ))=>
+  ! nK new r: seed; new a: modq; new b: modq; (
+    gen_Oracle_1() := return(pkgen'1(r)) |
+    gen_Oracle_2() := return(pkgen'2(r)) |
+    gen_Oracle_3() := return(pkgen'3(r)) |
+    gen_Oracle_4() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a)) |
+    gen_Oracle_5() := return(f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b)) |
+    ! n2 gen_Oracle_6(y': typeg) := if defined(flg) then return(y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)) else return(false) |
+    gen_Oracle_7() := let flg:bitstring = mark in return(f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b))).
+
+
+(* Queries *)
+
+event bad.
+query event(bad) ==> false.
+
+channel c0, c1, c2, c3, c4, c5, c6, c7, start.
+
+
+
+(****************************************************)
+
+(* Attack Model *)
+(* Unknown Key Shared Attack *)
+(* One of the weakened active attack.*)
+(* The attacker can catch sending data, and can send the caught data to arbitrary user.
+   However the attacker cannot modify the caught data. 
+   If the attacker succeeds in computing a shared key, the attacker wins.*)
+
+process 
+	in(start, ());
+new r: seed;
+let pk1: modp = pkgen1(r) in
+let pk2: typeg = pkgen2(r) in
+let pk3: modq = pkgen3(r) in
+out(c0, (pk1, pk2, pk3));
+in(c1, ());
+new x: modq;
+out(c2, f(pk1, pk2, pk3, x));
+! i_1 <= nb
+in(c3[i_1], ());
+new s: modq;
+out(c4[i_1], f(pk1, pk2, pk3, s));
+((
+  ! i_2 <= nT
+  in(c5[i_2, i_1], K: typeg);
+  if K = f(pk1, f(pk1, pk2, pk3, x), pk3, s) then
+  if defined(p) then
+    yield
+  else
+    event bad
+) | (
+  in(c6[i_1], ());
+  let p: typeg = f(pk1, f(pk1, pk2, pk3, x), pk3, s) in
+  out(c7[i_1], p)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(bad) ==> false.
+0.036s (user 0.032s + system 0.004s), max rss 42464K
+END *)

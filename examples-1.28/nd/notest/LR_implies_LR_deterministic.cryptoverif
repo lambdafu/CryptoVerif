@@ -1,0 +1,37 @@
+type cleartext [large,fixed]. (* message space *)
+type ciphertext [large,fixed]. (* ciphertext space *)
+
+fun enc(cleartext): ciphertext.
+
+(* Implementing a test as a function. if b=1 return x else y *)
+  
+fun test(bool, cleartext, cleartext):cleartext. 
+forall x:cleartext,y:cleartext; test(true,x,y) = x.
+forall x:cleartext,y:cleartext; test(false,x,y) = y.
+
+(* Axiom: Left ot Right *)
+
+param N.
+
+equiv  foreach i <= N do 
+       b1 <-R bool; Oenc(x:cleartext, y:cleartext) :=  
+       return(enc(test(b1, x,y)))
+     <=(0)=> 
+       foreach i <= N do
+       Oenc(x:cleartext, y:cleartext) :=  
+       return(enc(x)).
+
+(* Queries *)
+
+(* If you make a query on b1, all transformations that may alter the value of b1
+   are forbidden.
+query secret1 b1. *)
+
+(* Process description *)
+
+process 
+	OT(m1:cleartext,m2:cleartext) :=
+		 b1 <-R bool;
+		 return(enc(test(b1, m1, m2)))
+
+

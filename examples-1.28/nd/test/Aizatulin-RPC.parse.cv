@@ -1,0 +1,59 @@
+
+param N.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
+  start, finish.
+
+(* unforgeable MACs *)
+
+type mkeyseed [fixed, large].
+type mkey [bounded].
+type macinput.
+(* type macres. *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, bitstring, bitstring, mkgen, mac, check, Pmac).
+
+fun concat1(bitstring, bitstring): bitstring [compos].
+fun parse1(bitstring): bitstring. (* The indication [decompos] makes the proof fail... *)
+fun parse2(bitstring): bitstring. (* The indication [decompos] makes the proof fail... *)
+
+forall x:bitstring, y:bitstring;
+  parse1(concat1(x, y)) = x.
+
+forall x:bitstring, y:bitstring;
+  parse2(concat1(x, y)) = y.
+
+event client_begin(bitstring).
+event server_accept(bitstring).
+
+query x: bitstring, y:bitstring;
+  event server_accept(x) ==> client_begin(x).
+
+let A =
+  in(c1, payload: bitstring);
+  event client_begin(payload);
+  out(c2, concat1(payload, mac(payload, kAB))).
+
+let B = 
+  in(c4, m: bitstring);
+  let payload = parse1(m) in
+  let h = parse2(m) in
+  if check(payload, kAB, h) then
+  event server_accept(payload);
+  yield.
+
+(* can we insert a bang at the front? *)
+process
+  in(start, ());
+  new keyseed: mkeyseed;
+  let kAB = mkgen(keyseed) in
+  out(finish, ());
+  ((! N A) | (! N B))
+
+   
+(* EXPECTED
+All queries proved.
+0.032s (user 0.028s + system 0.004s), max rss 36912K
+END *)

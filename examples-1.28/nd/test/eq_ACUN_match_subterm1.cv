@@ -1,0 +1,32 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun xor(D,D):D.
+const neut:D.
+equation ACUN(xor,neut).
+
+fun g(D,D,D): D.
+
+forall x:D, y:D, z:D; xor(x,xor(y,z)) = g(x,y,z).
+const zero, one, two, three, four: D. 
+const zero', one', two', three', four': D. 
+
+channel c.
+
+process in(c, ()); out(c, xor(zero, xor(one, two)));
+	in(c, ()); out(c, xor(xor(zero, one), two));
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, three)));
+	in(c, ()); out(c, xor(xor(xor(zero, one), two), three));
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, zero)));
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, xor(three,one))));
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, xor(zero,one))));
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, xor(three,one))));
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, xor(one,zero)))); 
+	in(c, ()); out(c, xor(zero, one) = two);
+	in(c, ()); out(c, xor(xor(zero, one), xor(two, xor(three,four))) = xor(xor(zero, one), xor(two', xor(three',four')))) 
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

@@ -1,0 +1,154 @@
+Doing expand if, let, find
+Doing simplify
+Run simplify 1 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_25 <= N (x: bitstring) -> mhash(x) [all]
+<=(0)=>
+      ! !_26 <= N (x_39: bitstring) -> let x: bitstring = x_39 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: mkeyseed; r
+
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between Na_32 and Na_32 Probability: 0.5 * N * N / |nonce|
+Eliminated collisions between Nb_31 and Nb_31 Probability: 0.5 * N * N / |nonce|
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_25 <= N (x: bitstring) -> mhash(x) [all]
+<=(0)=>
+      ! !_26 <= N (x_39: bitstring) -> let x: bitstring = x_39 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: mkeyseed; r
+
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_40: bitstring) -> let x: bitstring = x_40 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_25 <= N (x: bitstring) -> mhash(x) [all]
+<=(0)=>
+      ! !_26 <= N (x_39: bitstring) -> let x: bitstring = x_39 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: mkeyseed; r
+
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_40: bitstring) -> let x: bitstring = x_40 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing equivalence
+equiv ! !_17 <= N3 new r: mkeyseed; (
+  ! !_18 <= N (x: bitstring) -> mac(x, mkgen(r)),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> check(m, mkgen(r), ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new r: mkeyseed; (
+  ! !_21 <= N (x_41: bitstring) -> let x: bitstring = x_41 in mac2(x, mkgen2(r)),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && check2(x[j], mkgen2(r), ma)) then true else false)
+
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_42: blocksize) -> let x: blocksize = x_42 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_43: blocksize) -> let m: blocksize = m_43 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+
+Doing equivalence
+equiv ! !_1 <= N3 new r: keyseed; (
+  () -> pkgen(r),
+  ! !_2 <= N2 (m: bitstring) -> dec(m, skgen(r))), ! !_3 <= N4 new r2: seed; (x: blocksize, y: pkey) -> enc(x, y, r2) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+      ! !_4 <= N3 new r: keyseed; (
+  () -> pkgen2(r),
+  ! !_5 <= N2 (m: bitstring) -> find j <= N4 suchthat defined(m2[j], y[j], x[j]) && ((y[j] = pkgen2(r)) && (m = m2[j])) then injbot(x[j]) else dec2(m, skgen2(r))), ! !_6 <= N4 new r2: seed; new r3: seed; (x_45: blocksize, y_44: pkey) -> let x: blocksize = x_45 in let y: pkey = y_44 in find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then let m2: bitstring = enc2(Zkey, y, r2) in m2 else enc(x, y, r3)
+
+Doing remove assignments of binder mSKrecv
+Doing remove assignments of binder mSK
+Doing equivalence
+equiv ! !_17 <= N3 new r: mkeyseed; (
+  ! !_18 <= N (x: bitstring) -> mac(x, mkgen(r)),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> check(m, mkgen(r), ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new r: mkeyseed; (
+  ! !_21 <= N (x_41: bitstring) -> let x: bitstring = x_41 in mac2(x, mkgen2(r)),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && check2(x[j], mkgen2(r), ma)) then true else false)
+with r_48
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_25 <= N (x: bitstring) -> mhash(x) [all]
+<=(0)=>
+      ! !_26 <= N (x_39: bitstring) -> let x: bitstring = x_39 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: mkeyseed; r
+
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_40: bitstring) -> let x: bitstring = x_40 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing equivalence
+equiv ! !_17 <= N3 new r: mkeyseed; (
+  ! !_18 <= N (x: bitstring) -> mac(x, mkgen(r)),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> check(m, mkgen(r), ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new r: mkeyseed; (
+  ! !_21 <= N (x_41: bitstring) -> let x: bitstring = x_41 in mac2(x, mkgen2(r)),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && check2(x[j], mkgen2(r), ma)) then true else false)
+
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between Sid_33 and Sid_33 Probability: 0.5 * N * N / |nonce|
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_25 <= N (x: bitstring) -> mhash(x) [all]
+<=(0)=>
+      ! !_26 <= N (x_39: bitstring) -> let x: bitstring = x_39 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: mkeyseed; r
+
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_40: bitstring) -> let x: bitstring = x_40 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing equivalence
+equiv ! !_17 <= N3 new r: mkeyseed; (
+  ! !_18 <= N (x: bitstring) -> mac(x, mkgen(r)),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> check(m, mkgen(r), ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new r: mkeyseed; (
+  ! !_21 <= N (x_41: bitstring) -> let x: bitstring = x_41 in mac2(x, mkgen2(r)),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && check2(x[j], mkgen2(r), ma)) then true else false)
+
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_42: blocksize) -> let x: blocksize = x_42 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_43: blocksize) -> let m: blocksize = m_43 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+
+Doing equivalence
+equiv ! !_1 <= N3 new r: keyseed; (
+  () -> pkgen(r),
+  ! !_2 <= N2 (m: bitstring) -> dec(m, skgen(r))), ! !_3 <= N4 new r2: seed; (x: blocksize, y: pkey) -> enc(x, y, r2) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+      ! !_4 <= N3 new r: keyseed; (
+  () -> pkgen2(r),
+  ! !_5 <= N2 (m: bitstring) -> find j <= N4 suchthat defined(m2[j], y[j], x[j]) && ((y[j] = pkgen2(r)) && (m = m2[j])) then injbot(x[j]) else dec2(m, skgen2(r))), ! !_6 <= N4 new r2: seed; new r3: seed; (x_45: blocksize, y_44: pkey) -> let x: blocksize = x_45 in let y: pkey = y_44 in find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then let m2: bitstring = enc2(Zkey, y, r2) in m2 else enc(x, y, r3)
+
+Doing remove assignments of binder SKrecv
+Doing remove assignments of binder SK
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_42: blocksize) -> let x: blocksize = x_42 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_43: blocksize) -> let m: blocksize = m_43 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+with r_92

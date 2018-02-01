@@ -1,0 +1,120 @@
+(* 
+Bug related to simplify/otheruses: the event termS is finally
+removed
+*)
+
+
+proof {
+crypto enc;
+SArename Y_u;
+show_game occ;
+insert_event Encrypt 81; (* In the client, at the branch that tests pw = ke[...] *)
+simplify;
+simplify;
+simplify coll_elim pw;
+auto
+}
+
+(* set interactiveMode = true. *)
+
+param NU, NS, NP.
+
+type G [large, fixed].
+type passwd [password, fixed].
+     (* I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large). *)
+
+
+type host [bounded].
+
+(* Ideal cipher model
+   Using otheruses without argument, as in versions of CryptoVerif < 1.10
+   to check that the bug already occurred there. (Unfortunately, it did.) *)
+
+define ICM_cipher_oldotheruses(key, blocksize, enc, dec, enc_dec_oracle, qE, qD) {
+
+param N, N2.
+param qE, qD [noninteractive].
+
+fun enc(blocksize, key): blocksize.
+fun dec(blocksize, key): blocksize.
+
+forall m:blocksize, k:key; 
+	dec(enc(m, k), k) = m.
+
+equiv  !N Oenc(x:blocksize, ke:key) := enc(x, ke) [all],
+       !N2 Odec(m:blocksize, kd:key) := dec(m, kd) [all]
+     <=((N+N2)*(N+N2-1)/|blocksize|)=>
+       !N Oenc(x:blocksize, ke:key) :=
+		find[unique] j<=N suchthat defined(x[j],ke[j],r2[j]) && otheruses(r2[j]) && x = x[j] && ke = ke[j] then r2[j] 
+		orfind k<=N2 suchthat defined(r4[k],m[k],kd[k]) && otheruses(r4[k]) && x = r4[k] && ke = kd[k] then m[k] 
+		else new r2: blocksize; r2,
+       !N2 Odec(m:blocksize, kd:key) :=
+		find[unique] j<=N suchthat defined(x[j],ke[j],r2[j]) && otheruses(r2[j]) && m = r2[j] && kd = ke[j] then x[j] 
+		orfind k<=N2 suchthat defined(r4[k],m[k],kd[k]) && otheruses(r4[k]) && m = m[k] && kd = kd[k] then r4[k] 
+		else new r4: blocksize; r4.
+
+(* The difference of probability is the probability of collision between two
+random numbers in blocksize among the N+N2 chosen random numbers. *)
+
+channel c1, c2, c3, c4.
+
+let enc_dec_oracle = (! qE in(c1, (x:blocksize, ke:key)); out(c2, enc(x,ke)))
+                   | (! qD in(c3, (m:blocksize, kd:key)); out(c4, dec(m,kd))). 
+
+
+}
+
+expand ICM_cipher_oldotheruses(passwd, G, enc, dec, enc_dec_oracle, qE, qD).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp,
+	start, finish.
+
+const U : host.
+const S : host.
+
+event termS.
+
+query 
+	event termS ==> false.
+
+(* Client *)
+
+let processU =
+	in(c1, ());
+	new X: G;
+	out(c2, (U, X));
+        in(c5, (=S, Ystar_u: G));
+	let Y_u:G = dec(Ystar_u, pw) in
+	out(c6, ()).
+
+(* Server *)
+
+let processS =
+	in(c3, (=U, X_s: G));
+	new Ystar: G;
+	let Y = dec(Ystar, pw) in
+	out(c4, (S, Ystar));
+	in(c7, ());
+	find j <= NU suchthat defined(X[j],Y_u[j]) && X[j] = X_s && Y_u[j] = Y then
+	event termS.
+
+
+process 
+	in(start, ());
+	new pw: passwd;
+	out(c8, ());
+	((! NU processU) |
+	 (! NS processS) | 
+	 enc_dec_oracle)
+
+
+(* EXPECTED
+RESULT Could not prove event termS ==> false.
+0.060s (user 0.050s + system 0.010s), max rss 24048K
+END *)

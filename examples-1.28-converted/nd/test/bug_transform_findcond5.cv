@@ -1,0 +1,42 @@
+(* Internal error due to the spurious index k<=N'' in the find in the
+equivalence 
+Internal error: split
+The error is located in src/check.ml
+
+Fixed 22/11/2009: normal error message
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', qH.
+
+fun h(hashinput, hr):hash.
+
+equiv !N' new y:hr; !N'' OH(x:hashinput) := return(h(x,y))
+      <=(0)=>
+      !N' new y:hr; !N'' OH(x:hashinput) := find k<= N'', j <= N' suchthat defined(y[j]) && y= y[j] then return(h(x,y)) else
+			 new r:hash; return(r).
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+process 
+in(c1, x: hash);
+new s: hash
+
+(* EXPECTED
+Error: Variables in right member of equivalences should have as indexes the indexes defined by find
+xtime: error in child process (status : 512)
+END *)

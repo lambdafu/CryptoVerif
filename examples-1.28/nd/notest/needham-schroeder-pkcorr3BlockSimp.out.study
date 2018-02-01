@@ -1,0 +1,1312 @@
+Last game of the proof:
+
+new r_3807: keyseed;
+let pkA_26: key = pkgen2(r_3807) in
+new r_1613: keyseed;
+let pkB_28: key = pkgen2(r_1613) in
+new r_268: keyseed;
+let pkS_30: key = spkgen2(r_268) in
+out(c, pkA_26);
+out(c, pkB_28);
+out(c, pkS_30);
+(
+  (
+    (
+      ! !_22 <= N
+      in(c, hostX: host);
+      out(c, (A, hostX));
+      in(c, (pkX: key, =hostX, ms_40: signature));
+      find @i_283 <= N suchthat defined(x_266[@i_283]) && (((pkX = Kkey[j2[@i_283]]) && (hostX = h2[@i_283])) && check2(concat3(pkX, hostX), pkS_30, ms_40)) then
+        new Na_293: nonce;
+        let y_1640: key = cst_key in
+        if (pkX = pkgen2(r_1613)) then
+          let x2_1639: bitstring = cst_blocksize in
+          new r2_1641: seed;
+          let m2_1638: bitstring = enc2(Z, pkX, r2_1641) in
+          out(c, m2_1638);
+          in(c, m_43: bitstring);
+          find @i_3921 <= N suchthat defined(m2_3771[@i_3921], y_3773[@i_3921], x2_3772[@i_3921]) && (m_43 = m2_3771[@i_3921]) then
+            if (Na_293 = Na_37[@i_3921]) then
+            0
+          orfind @i_3920 <= N suchthat defined(m2_3777[@i_3920], y_3779[@i_3920], x2_3778[@i_3920]) && (m_43 = m2_3777[@i_3920]) then
+            if (Na_293 = Na_37[@i_3920]) then
+            0
+          orfind @i_3919 <= N suchthat defined(m2_3783[@i_3919], y_3785[@i_3919], x2_3784[@i_3919]) && (m_43 = m2_3783[@i_3919]) then
+            if (!_22 = @i_1726[@i_3919]) then
+            0
+          orfind @i_3918 <= N suchthat defined(m2_3789[@i_3918], y_3791[@i_3918], x2_3790[@i_3918]) && (m_43 = m2_3789[@i_3918]) then
+            0
+          orfind @i_3917 <= N suchthat defined(m2_3795[@i_3917], y_3797[@i_3917], x2_3796[@i_3917]) && (m_43 = m2_3795[@i_3917]) then
+            0
+          else
+            let concat2(=Na_293, Nb_4012: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+            let y_1634: key = cst_key in
+            let x2_1633: bitstring = cst_blocksize in
+            new r2_1635: seed;
+            let m2_1632: bitstring = enc2(Z, pkX, r2_1635) in
+            out(c, m2_1632);
+            0
+        else
+          let y_3810: key = cst_key in
+          if (pkX = pkgen2(r_3807)) then
+            let x2_3809: bitstring = cst_blocksize in
+            new r2_3811: seed;
+            let m2_3808: bitstring = enc2(Z, pkX, r2_3811) in
+            out(c, m2_3808);
+            in(c, m_43: bitstring);
+            find @i_3901 <= N suchthat defined(m2_3771[@i_3901], y_3773[@i_3901], x2_3772[@i_3901]) && (m_43 = m2_3771[@i_3901]) then
+              if (Na_293 = Na_37[@i_3901]) then
+              0
+            orfind @i_3900 <= N suchthat defined(m2_3777[@i_3900], y_3779[@i_3900], x2_3778[@i_3900]) && (m_43 = m2_3777[@i_3900]) then
+              if (Na_293 = Na_37[@i_3900]) then
+              0
+            orfind @i_3899 <= N suchthat defined(m2_3783[@i_3899], y_3785[@i_3899], x2_3784[@i_3899]) && (m_43 = m2_3783[@i_3899]) then
+              if (!_22 = @i_1726[@i_3899]) then
+              0
+            orfind @i_3898 <= N suchthat defined(m2_3789[@i_3898], y_3791[@i_3898], x2_3790[@i_3898]) && (m_43 = m2_3789[@i_3898]) then
+              0
+            orfind @i_3897 <= N suchthat defined(m2_3795[@i_3897], y_3797[@i_3897], x2_3796[@i_3897]) && (m_43 = m2_3795[@i_3897]) then
+              0
+            orfind @i_3896 <= N suchthat defined(Nb_4008[@i_3896], m2_3801[@i_3896], y_3803[@i_3896], x2_3802[@i_3896]) && (m_43 = m2_3801[@i_3896]) then
+              0
+            orfind @i_3895 <= N suchthat defined(m2_3808[@i_3895], y_3810[@i_3895], x2_3809[@i_3895]) && (m_43 = m2_3808[@i_3895]) then
+              0
+            orfind @i_3894 <= N suchthat defined(Nb_4020[@i_3894], m2_3814[@i_3894], y_3816[@i_3894], x2_3815[@i_3894]) && (m_43 = m2_3814[@i_3894]) then
+              0
+            orfind @i_3893 <= N suchthat defined(m2_3820[@i_3893], y_3822[@i_3893], x2_3821[@i_3893]) && (m_43 = m2_3820[@i_3893]) then
+              0
+            orfind @i_3892 <= N suchthat defined(Nb_4024[@i_3892], m2_3826[@i_3892], y_3828[@i_3892], x2_3827[@i_3892]) && (m_43 = m2_3826[@i_3892]) then
+              0
+            else
+              let concat2(=Na_293, Nb_4008: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+              let y_1634: key = cst_key in
+              let y_3803: key = cst_key in
+              let x2_3802: bitstring = cst_blocksize in
+              new r2_3804: seed;
+              let m2_3801: bitstring = enc2(Z, pkX, r2_3804) in
+              out(c, m2_3801);
+              0
+          else
+            new r3_3812: seed;
+            out(c, enc(concat1(Na_293, A), pkX, r3_3812));
+            in(c, m_43: bitstring);
+            find @i_3901 <= N suchthat defined(m2_3771[@i_3901], y_3773[@i_3901], x2_3772[@i_3901]) && (m_43 = m2_3771[@i_3901]) then
+              if (Na_293 = Na_37[@i_3901]) then
+              0
+            orfind @i_3900 <= N suchthat defined(m2_3777[@i_3900], y_3779[@i_3900], x2_3778[@i_3900]) && (m_43 = m2_3777[@i_3900]) then
+              if (Na_293 = Na_37[@i_3900]) then
+              0
+            orfind @i_3899 <= N suchthat defined(m2_3783[@i_3899], y_3785[@i_3899], x2_3784[@i_3899]) && (m_43 = m2_3783[@i_3899]) then
+              0
+            orfind @i_3898 <= N suchthat defined(m2_3789[@i_3898], y_3791[@i_3898], x2_3790[@i_3898]) && (m_43 = m2_3789[@i_3898]) then
+              0
+            orfind @i_3897 <= N suchthat defined(m2_3795[@i_3897], y_3797[@i_3897], x2_3796[@i_3897]) && (m_43 = m2_3795[@i_3897]) then
+              0
+            orfind @i_3896 <= N suchthat defined(Nb_4008[@i_3896], m2_3801[@i_3896], y_3803[@i_3896], x2_3802[@i_3896]) && (m_43 = m2_3801[@i_3896]) then
+              0
+            orfind @i_3895 <= N suchthat defined(m2_3808[@i_3895], y_3810[@i_3895], x2_3809[@i_3895]) && (m_43 = m2_3808[@i_3895]) then
+              0
+            orfind @i_3894 <= N suchthat defined(Nb_4020[@i_3894], m2_3814[@i_3894], y_3816[@i_3894], x2_3815[@i_3894]) && (m_43 = m2_3814[@i_3894]) then
+              0
+            orfind @i_3893 <= N suchthat defined(m2_3820[@i_3893], y_3822[@i_3893], x2_3821[@i_3893]) && (m_43 = m2_3820[@i_3893]) then
+              0
+            orfind @i_3892 <= N suchthat defined(Nb_4024[@i_3892], m2_3826[@i_3892], y_3828[@i_3892], x2_3827[@i_3892]) && (m_43 = m2_3826[@i_3892]) then
+              0
+            else
+              let concat2(=Na_293, Nb_4004: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+              let y_1634: key = cst_key in
+              let y_3803: key = cst_key in
+              new r3_3805: seed;
+              out(c, enc(pad(Nb_4004), pkX, r3_3805));
+              0
+      orfind @i_282 <= N suchthat defined(x_270[@i_282]) && (((pkX = pkB_28) && (hostX = h2[@i_282])) && check2(concat3(pkX, hostX), pkS_30, ms_40)) then
+        new Na_296: nonce;
+        let y_1652: key = cst_key in
+        let x2_1651: bitstring = cst_blocksize in
+        new r2_1653: seed;
+        let m2_1650: bitstring = enc2(Z, pkX, r2_1653) in
+        out(c, m2_1650);
+        in(c, m_43: bitstring);
+        find @i_3931 <= N suchthat defined(m2_3771[@i_3931], y_3773[@i_3931], x2_3772[@i_3931]) && (m_43 = m2_3771[@i_3931]) then
+          if (Na_296 = Na_37[@i_3931]) then
+          let Nb_4013: nonce = cst_nonce in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_3999: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_3999) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_1785[@i_3931] in
+          0
+        orfind @i_3930 <= N suchthat defined(m2_3777[@i_3930], y_3779[@i_3930], x2_3778[@i_3930]) && (m_43 = m2_3777[@i_3930]) then
+          if (Na_296 = Na_37[@i_3930]) then
+          let Nb_4014: nonce = cst_nonce in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_4000: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_4000) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_1787[@i_3930] in
+          0
+        orfind @i_3928 <= N suchthat defined(m2_3789[@i_3928], y_3791[@i_3928], x2_3790[@i_3928]) && (m_43 = m2_3789[@i_3928]) then
+          if (!_22 = @i_1724[@i_3928]) then
+          let Nb_4015: nonce = cst_nonce in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_4001: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_4001) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_1795[@i_3928] in
+          0
+        else
+          let concat2(=Na_296, Nb_4016: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_3998: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_3998) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_4016 in
+          0
+      orfind @i_281 <= N suchthat defined(x_273[@i_281]) && (((pkX = pkA_26) && (hostX = h2[@i_281])) && check2(concat3(pkX, hostX), pkS_30, ms_40)) then
+        new Na_299: nonce;
+        let y_1664: key = cst_key in
+        if (pkX = pkgen2(r_1613)) then
+          let x2_1663: bitstring = cst_blocksize in
+          new r2_1665: seed;
+          let m2_1662: bitstring = enc2(Z, pkX, r2_1665) in
+          out(c, m2_1662);
+          in(c, m_43: bitstring);
+          find @i_3981 <= N suchthat defined(m2_3771[@i_3981], y_3773[@i_3981], x2_3772[@i_3981]) && (m_43 = m2_3771[@i_3981]) then
+            if (Na_299 = Na_37[@i_3981]) then
+            0
+          orfind @i_3980 <= N suchthat defined(m2_3777[@i_3980], y_3779[@i_3980], x2_3778[@i_3980]) && (m_43 = m2_3777[@i_3980]) then
+            if (Na_299 = Na_37[@i_3980]) then
+            0
+          orfind @i_3977 <= N suchthat defined(m2_3795[@i_3977], y_3797[@i_3977], x2_3796[@i_3977]) && (m_43 = m2_3795[@i_3977]) then
+            if (!_22 = @i_1722[@i_3977]) then
+            0
+          orfind @i_3974 <= N suchthat defined(Nb_4020[@i_3974], m2_3814[@i_3974], y_3816[@i_3974], x2_3815[@i_3974]) && (m_43 = m2_3814[@i_3974]) then
+            0
+          orfind @i_3973 <= N suchthat defined(m2_3820[@i_3973], y_3822[@i_3973], x2_3821[@i_3973]) && (m_43 = m2_3820[@i_3973]) then
+            0
+          orfind @i_3972 <= N suchthat defined(Nb_4024[@i_3972], m2_3826[@i_3972], y_3828[@i_3972], x2_3827[@i_3972]) && (m_43 = m2_3826[@i_3972]) then
+            0
+          else
+            let concat2(=Na_299, Nb_4024: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+            let y_1658: key = pkX in
+            if (pkX = pkgen2(r_1613)) then
+              let x2_1657: bitstring = cst_blocksize in
+              new r2_1806: seed;
+              let m2_1656: bitstring = enc2(Z, pkX, r2_1806) in
+              out(c, m2_1656);
+              0
+            else
+              let y_3828: key = cst_key in
+              let x2_3827: bitstring = cst_blocksize in
+              new r2_3829: seed;
+              let m2_3826: bitstring = enc2(Z, pkX, r2_3829) in
+              out(c, m2_3826);
+              0
+        else
+          let y_3822: key = cst_key in
+          let x2_3821: bitstring = cst_blocksize in
+          new r2_3823: seed;
+          let m2_3820: bitstring = enc2(Z, pkX, r2_3823) in
+          out(c, m2_3820);
+          in(c, m_43: bitstring);
+          find @i_3951 <= N suchthat defined(m2_3771[@i_3951], y_3773[@i_3951], x2_3772[@i_3951]) && (m_43 = m2_3771[@i_3951]) then
+            if (Na_299 = Na_37[@i_3951]) then
+            0
+          orfind @i_3950 <= N suchthat defined(m2_3777[@i_3950], y_3779[@i_3950], x2_3778[@i_3950]) && (m_43 = m2_3777[@i_3950]) then
+            if (Na_299 = Na_37[@i_3950]) then
+            0
+          orfind @i_3947 <= N suchthat defined(m2_3795[@i_3947], y_3797[@i_3947], x2_3796[@i_3947]) && (m_43 = m2_3795[@i_3947]) then
+            if (!_22 = @i_1722[@i_3947]) then
+            0
+          orfind @i_3944 <= N suchthat defined(Nb_4020[@i_3944], m2_3814[@i_3944], y_3816[@i_3944], x2_3815[@i_3944]) && (m_43 = m2_3814[@i_3944]) then
+            0
+          orfind @i_3943 <= N suchthat defined(m2_3820[@i_3943], y_3822[@i_3943], x2_3821[@i_3943]) && (m_43 = m2_3820[@i_3943]) then
+            0
+          orfind @i_3942 <= N suchthat defined(Nb_4024[@i_3942], m2_3826[@i_3942], y_3828[@i_3942], x2_3827[@i_3942]) && (m_43 = m2_3826[@i_3942]) then
+            0
+          else
+            let concat2(=Na_299, Nb_4020: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+            let y_1658: key = pkX in
+            if (pkX = pkgen2(r_1613)) then
+              let x2_1657: bitstring = cst_blocksize in
+              new r2_1804: seed;
+              let m2_1656: bitstring = enc2(Z, pkX, r2_1804) in
+              out(c, m2_1656);
+              0
+            else
+              let y_3816: key = cst_key in
+              let x2_3815: bitstring = cst_blocksize in
+              new r2_3817: seed;
+              let m2_3814: bitstring = enc2(Z, pkX, r2_3817) in
+              out(c, m2_3814);
+              0
+    |
+      ! !_23 <= N
+      in(c, m_35: bitstring);
+      find @i_1730 <= N suchthat defined(m2_1614[@i_1730], y_1616[@i_1730], x2_1615[@i_1730]) && (m_35 = m2_1614[@i_1730]) then
+        0
+      orfind @i_1729 <= N suchthat defined(m2_1620[@i_1729], y_1622[@i_1729], x2_1621[@i_1729]) && (m_35 = m2_1620[@i_1729]) then
+        0
+      orfind @i_1728 <= N suchthat defined(m2_1626[@i_1728], y_1628[@i_1728], x2_1627[@i_1728]) && (m_35 = m2_1626[@i_1728]) then
+        0
+      orfind @i_1727 <= N suchthat defined(Nb_4012[@i_1727], m2_1632[@i_1727], y_1634[@i_1727], x2_1633[@i_1727]) && (m_35 = m2_1632[@i_1727]) then
+        0
+      orfind @i_1726 <= N suchthat defined(m2_1638[@i_1726], y_1640[@i_1726], x2_1639[@i_1726]) && (m_35 = m2_1638[@i_1726]) then
+        let hostY_36: host = A in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_276 <= N suchthat defined(x_273[@i_276]) && ((pkY = pkA_26) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+        let y_1628: key = pkY in
+        if (pkY = pkgen2(r_1613)) then
+          let x2_1627: bitstring = cst_blocksize in
+          new r2_1794: seed;
+          let m2_1626: bitstring = enc2(Z, pkY, r2_1794) in
+          out(c, m2_1626);
+          in(c, m3: bitstring);
+          find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+            0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            new Nb_3987: nonce;
+            if (Nb_3987 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_3987 in
+            0
+          orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4031: nonce;
+            if (Nb_4031 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_4031 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4032: nonce;
+            if (Nb_4032 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_4032 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4033: nonce;
+            if (Nb_4033 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_4033 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4034: nonce;
+            if (Nb_4034 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_4034 in
+            0
+          orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            new Nb_4035: nonce;
+            if (Nb_4035 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_4035 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            new Nb_4036: nonce;
+            if (Nb_4036 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_4036 in
+            0
+          orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+            0
+          else
+            new Nb_3986: nonce;
+            let pad(=Nb_3986) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_3986 in
+            0
+        else
+          new Nb_1791: nonce;
+          let y_3785: key = cst_key in
+          let x2_3784: bitstring = cst_blocksize in
+          new r2_3786: seed;
+          let m2_3783: bitstring = enc2(Z, pkY, r2_3786) in
+          out(c, m2_3783);
+          in(c, m3: bitstring);
+          find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+            0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            if (Nb_1791 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1791 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1791 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+            0
+          else
+            let pad(=Nb_1791) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+      orfind @i_1725 <= N suchthat defined(Nb_4013[@i_1725], m2_1644[@i_1725], y_1646[@i_1725], x2_1645[@i_1725]) && (m_35 = m2_1644[@i_1725]) then
+        0
+      orfind @i_1725 <= N suchthat defined(Nb_4014[@i_1725], m2_1644[@i_1725], y_1646[@i_1725], x2_1645[@i_1725]) && (m_35 = m2_1644[@i_1725]) then
+        0
+      orfind @i_1725 <= N suchthat defined(Nb_4015[@i_1725], m2_1644[@i_1725], y_1646[@i_1725], x2_1645[@i_1725]) && (m_35 = m2_1644[@i_1725]) then
+        0
+      orfind @i_1725 <= N suchthat defined(Nb_4016[@i_1725], m2_1644[@i_1725], y_1646[@i_1725], x2_1645[@i_1725]) && (m_35 = m2_1644[@i_1725]) then
+        0
+      orfind @i_1724 <= N suchthat defined(m2_1650[@i_1724], y_1652[@i_1724], x2_1651[@i_1724]) && (m_35 = m2_1650[@i_1724]) then
+        let hostY_36: host = A in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_276 <= N suchthat defined(x_273[@i_276]) && ((pkY = pkA_26) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+        let y_1628: key = pkY in
+        if (pkY = pkgen2(r_1613)) then
+          let x2_1627: bitstring = cst_blocksize in
+          new r2_1798: seed;
+          let m2_1626: bitstring = enc2(Z, pkY, r2_1798) in
+          out(c, m2_1626);
+          in(c, m3: bitstring);
+          find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+            0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            new Nb_3991: nonce;
+            if (Nb_3991 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_3991 in
+            0
+          orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4037: nonce;
+            if (Nb_4037 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_4037 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4038: nonce;
+            if (Nb_4038 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_4038 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4039: nonce;
+            if (Nb_4039 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_4039 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4040: nonce;
+            if (Nb_4040 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_4040 in
+            0
+          orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            new Nb_4041: nonce;
+            if (Nb_4041 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_4041 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            new Nb_4042: nonce;
+            if (Nb_4042 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_4042 in
+            0
+          orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+            0
+          else
+            new Nb_3990: nonce;
+            let pad(=Nb_3990) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_3990 in
+            0
+        else
+          new Nb_1795: nonce;
+          let y_3791: key = cst_key in
+          let x2_3790: bitstring = cst_blocksize in
+          new r2_3792: seed;
+          let m2_3789: bitstring = enc2(Z, pkY, r2_3792) in
+          out(c, m2_3789);
+          in(c, m3: bitstring);
+          find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+            0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            if (Nb_1795 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1795 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1795 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+            0
+          else
+            let pad(=Nb_1795) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+      orfind @i_1723 <= N suchthat defined(Nb_4020[@i_1723], m2_1656[@i_1723], y_1658[@i_1723], x2_1657[@i_1723]) && ((y_1658[@i_1723] = pkgen2(r_1613)) && (m_35 = m2_1656[@i_1723])) then
+        0
+      orfind @i_1723 <= N suchthat defined(Nb_4024[@i_1723], m2_1656[@i_1723], y_1658[@i_1723], x2_1657[@i_1723]) && ((y_1658[@i_1723] = pkgen2(r_1613)) && (m_35 = m2_1656[@i_1723])) then
+        0
+      orfind @i_1722 <= N suchthat defined(m2_1662[@i_1722], y_1664[@i_1722], x2_1663[@i_1722]) && ((pkX[@i_1722] = pkgen2(r_1613)) && (m_35 = m2_1662[@i_1722])) then
+        let hostY_36: host = A in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_276 <= N suchthat defined(x_273[@i_276]) && ((pkY = pkA_26) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+        let y_1628: key = pkY in
+        if (pkY = pkgen2(r_1613)) then
+          let x2_1627: bitstring = cst_blocksize in
+          new r2_1802: seed;
+          let m2_1626: bitstring = enc2(Z, pkY, r2_1802) in
+          out(c, m2_1626);
+          in(c, m3: bitstring);
+          find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+            0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            new Nb_3995: nonce;
+            if (Nb_3995 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_3995 in
+            0
+          orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4043: nonce;
+            if (Nb_4043 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_4043 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4044: nonce;
+            if (Nb_4044 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_4044 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4045: nonce;
+            if (Nb_4045 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_4045 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            new Nb_4046: nonce;
+            if (Nb_4046 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_4046 in
+            0
+          orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            new Nb_4047: nonce;
+            if (Nb_4047 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_4047 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            new Nb_4048: nonce;
+            if (Nb_4048 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_4048 in
+            0
+          orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+            0
+          else
+            new Nb_3994: nonce;
+            let pad(=Nb_3994) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_3994 in
+            0
+        else
+          new Nb_1799: nonce;
+          let y_3797: key = cst_key in
+          let x2_3796: bitstring = cst_blocksize in
+          new r2_3798: seed;
+          let m2_3795: bitstring = enc2(Z, pkY, r2_3798) in
+          out(c, m2_3795);
+          in(c, m3: bitstring);
+          find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+            0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            if (Nb_1799 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1799 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1799 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1799 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1799 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1799 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1799 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+          orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+            0
+          else
+            let pad(=Nb_1799) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_299[@i_1722] in
+            let NbB: nonce = Nb_1799 in
+            0
+      else
+        let concat1(Na_37: nonce, hostY_36: host) = dec2(m_35, skgen2(r_1613)) in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_278 <= N suchthat defined(x_266[@i_278]) && (((pkY = Kkey[j2[@i_278]]) && (hostY_36 = h2[@i_278])) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+          let y_1616: key = cst_key in
+          if (pkY = pkgen2(r_1613)) then
+            let x2_1615: bitstring = cst_blocksize in
+            new r2_1617: seed;
+            let m2_1614: bitstring = enc2(Z, pkY, r2_1617) in
+            out(c, m2_1614);
+            in(c, m3: bitstring);
+            find @i_1676 <= N suchthat defined(m2_1614[@i_1676], y_1616[@i_1676], x2_1615[@i_1676]) && (m3 = m2_1614[@i_1676]) then
+              0
+            orfind @i_1675 <= N suchthat defined(m2_1620[@i_1675], y_1622[@i_1675], x2_1621[@i_1675]) && (m3 = m2_1620[@i_1675]) then
+              0
+            orfind @i_1674 <= N suchthat defined(m2_1626[@i_1674], y_1628[@i_1674], x2_1627[@i_1674]) && (m3 = m2_1626[@i_1674]) then
+              0
+            orfind @i_1673 <= N suchthat defined(Nb_4012[@i_1673], m2_1632[@i_1673], y_1634[@i_1673], x2_1633[@i_1673]) && (m3 = m2_1632[@i_1673]) then
+              0
+            orfind @i_1672 <= N suchthat defined(m2_1638[@i_1672], y_1640[@i_1672], x2_1639[@i_1672]) && (m3 = m2_1638[@i_1672]) then
+              0
+            orfind @i_1671 <= N suchthat defined(Nb_4013[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+              0
+            orfind @i_1671 <= N suchthat defined(Nb_4014[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+              0
+            orfind @i_1671 <= N suchthat defined(Nb_4015[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+              0
+            orfind @i_1671 <= N suchthat defined(Nb_4016[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+              0
+            orfind @i_1670 <= N suchthat defined(m2_1650[@i_1670], y_1652[@i_1670], x2_1651[@i_1670]) && (m3 = m2_1650[@i_1670]) then
+              0
+            orfind @i_1669 <= N suchthat defined(Nb_4020[@i_1669], m2_1656[@i_1669], y_1658[@i_1669], x2_1657[@i_1669]) && ((y_1658[@i_1669] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1669])) then
+              0
+            orfind @i_1669 <= N suchthat defined(Nb_4024[@i_1669], m2_1656[@i_1669], y_1658[@i_1669], x2_1657[@i_1669]) && ((y_1658[@i_1669] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1669])) then
+              0
+            orfind @i_1668 <= N suchthat defined(m2_1662[@i_1668], y_1664[@i_1668], x2_1663[@i_1668]) && ((pkX[@i_1668] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1668])) then
+              0
+            else
+              new Nb_1786: nonce;
+              let pad(=Nb_1786) = dec2(m3, skgen2(r_1613)) in
+              0
+          else
+            new Nb_1785: nonce;
+            let y_3773: key = cst_key in
+            if (pkY = pkgen2(r_3807)) then
+              let x2_3772: bitstring = cst_blocksize in
+              new r2_3774: seed;
+              let m2_3771: bitstring = enc2(Z, pkY, r2_3774) in
+              out(c, m2_3771);
+              in(c, m3: bitstring);
+              find @i_1676 <= N suchthat defined(m2_1614[@i_1676], y_1616[@i_1676], x2_1615[@i_1676]) && (m3 = m2_1614[@i_1676]) then
+                0
+              orfind @i_1675 <= N suchthat defined(m2_1620[@i_1675], y_1622[@i_1675], x2_1621[@i_1675]) && (m3 = m2_1620[@i_1675]) then
+                0
+              orfind @i_1674 <= N suchthat defined(m2_1626[@i_1674], y_1628[@i_1674], x2_1627[@i_1674]) && (m3 = m2_1626[@i_1674]) then
+                0
+              orfind @i_1673 <= N suchthat defined(Nb_4012[@i_1673], m2_1632[@i_1673], y_1634[@i_1673], x2_1633[@i_1673]) && (m3 = m2_1632[@i_1673]) then
+                0
+              orfind @i_1672 <= N suchthat defined(m2_1638[@i_1672], y_1640[@i_1672], x2_1639[@i_1672]) && (m3 = m2_1638[@i_1672]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4013[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4014[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4015[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4016[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1670 <= N suchthat defined(m2_1650[@i_1670], y_1652[@i_1670], x2_1651[@i_1670]) && (m3 = m2_1650[@i_1670]) then
+                0
+              orfind @i_1669 <= N suchthat defined(Nb_4020[@i_1669], m2_1656[@i_1669], y_1658[@i_1669], x2_1657[@i_1669]) && ((y_1658[@i_1669] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1669])) then
+                0
+              orfind @i_1669 <= N suchthat defined(Nb_4024[@i_1669], m2_1656[@i_1669], y_1658[@i_1669], x2_1657[@i_1669]) && ((y_1658[@i_1669] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1669])) then
+                0
+              orfind @i_1668 <= N suchthat defined(m2_1662[@i_1668], y_1664[@i_1668], x2_1663[@i_1668]) && ((pkX[@i_1668] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1668])) then
+                0
+              else
+                let pad(=Nb_1785) = dec2(m3, skgen2(r_1613)) in
+                0
+            else
+              new r3_3775: seed;
+              out(c, enc(concat2(Na_37, Nb_1785, B), pkY, r3_3775));
+              in(c, m3: bitstring);
+              find @i_1676 <= N suchthat defined(m2_1614[@i_1676], y_1616[@i_1676], x2_1615[@i_1676]) && (m3 = m2_1614[@i_1676]) then
+                0
+              orfind @i_1675 <= N suchthat defined(m2_1620[@i_1675], y_1622[@i_1675], x2_1621[@i_1675]) && (m3 = m2_1620[@i_1675]) then
+                0
+              orfind @i_1674 <= N suchthat defined(m2_1626[@i_1674], y_1628[@i_1674], x2_1627[@i_1674]) && (m3 = m2_1626[@i_1674]) then
+                0
+              orfind @i_1673 <= N suchthat defined(Nb_4012[@i_1673], m2_1632[@i_1673], y_1634[@i_1673], x2_1633[@i_1673]) && (m3 = m2_1632[@i_1673]) then
+                0
+              orfind @i_1672 <= N suchthat defined(m2_1638[@i_1672], y_1640[@i_1672], x2_1639[@i_1672]) && (m3 = m2_1638[@i_1672]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4013[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4014[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4015[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1671 <= N suchthat defined(Nb_4016[@i_1671], m2_1644[@i_1671], y_1646[@i_1671], x2_1645[@i_1671]) && (m3 = m2_1644[@i_1671]) then
+                0
+              orfind @i_1670 <= N suchthat defined(m2_1650[@i_1670], y_1652[@i_1670], x2_1651[@i_1670]) && (m3 = m2_1650[@i_1670]) then
+                0
+              orfind @i_1669 <= N suchthat defined(Nb_4020[@i_1669], m2_1656[@i_1669], y_1658[@i_1669], x2_1657[@i_1669]) && ((y_1658[@i_1669] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1669])) then
+                0
+              orfind @i_1669 <= N suchthat defined(Nb_4024[@i_1669], m2_1656[@i_1669], y_1658[@i_1669], x2_1657[@i_1669]) && ((y_1658[@i_1669] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1669])) then
+                0
+              orfind @i_1668 <= N suchthat defined(m2_1662[@i_1668], y_1664[@i_1668], x2_1663[@i_1668]) && ((pkX[@i_1668] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1668])) then
+                0
+              else
+                let pad(=Nb_1785) = dec2(m3, skgen2(r_1613)) in
+                0
+        orfind @i_277 <= N suchthat defined(x_270[@i_277]) && (((pkY = pkB_28) && (hostY_36 = h2[@i_277])) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+          let y_1622: key = cst_key in
+          let x2_1621: bitstring = cst_blocksize in
+          new r2_1623: seed;
+          let m2_1620: bitstring = enc2(Z, pkY, r2_1623) in
+          out(c, m2_1620);
+          in(c, m3: bitstring);
+          find @i_1693 <= N suchthat defined(m2_1620[@i_1693], y_1622[@i_1693], x2_1621[@i_1693]) && (m3 = m2_1620[@i_1693]) then
+            0
+          orfind @i_1691 <= N suchthat defined(Nb_4012[@i_1691], m2_1632[@i_1691], y_1634[@i_1691], x2_1633[@i_1691]) && (m3 = m2_1632[@i_1691]) then
+            0
+          orfind @i_1690 <= N suchthat defined(m2_1638[@i_1690], y_1640[@i_1690], x2_1639[@i_1690]) && (m3 = m2_1638[@i_1690]) then
+            0
+          orfind @i_1689 <= N suchthat defined(Nb_4013[@i_1689], m2_1644[@i_1689], y_1646[@i_1689], x2_1645[@i_1689]) && (m3 = m2_1644[@i_1689]) then
+            0
+          orfind @i_1689 <= N suchthat defined(Nb_4014[@i_1689], m2_1644[@i_1689], y_1646[@i_1689], x2_1645[@i_1689]) && (m3 = m2_1644[@i_1689]) then
+            0
+          orfind @i_1689 <= N suchthat defined(Nb_4015[@i_1689], m2_1644[@i_1689], y_1646[@i_1689], x2_1645[@i_1689]) && (m3 = m2_1644[@i_1689]) then
+            0
+          orfind @i_1689 <= N suchthat defined(Nb_4016[@i_1689], m2_1644[@i_1689], y_1646[@i_1689], x2_1645[@i_1689]) && (m3 = m2_1644[@i_1689]) then
+            0
+          orfind @i_1688 <= N suchthat defined(m2_1650[@i_1688], y_1652[@i_1688], x2_1651[@i_1688]) && (m3 = m2_1650[@i_1688]) then
+            0
+          orfind @i_1687 <= N suchthat defined(Nb_4020[@i_1687], m2_1656[@i_1687], y_1658[@i_1687], x2_1657[@i_1687]) && ((y_1658[@i_1687] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1687])) then
+            0
+          orfind @i_1687 <= N suchthat defined(Nb_4024[@i_1687], m2_1656[@i_1687], y_1658[@i_1687], x2_1657[@i_1687]) && ((y_1658[@i_1687] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1687])) then
+            0
+          orfind @i_1686 <= N suchthat defined(m2_1662[@i_1686], y_1664[@i_1686], x2_1663[@i_1686]) && ((pkX[@i_1686] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1686])) then
+            0
+          else
+            new Nb_289: nonce;
+            let pad(=Nb_289) = dec2(m3, skgen2(r_1613)) in
+            0
+        orfind @i_276 <= N suchthat defined(x_273[@i_276]) && (((pkY = pkA_26) && (hostY_36 = h2[@i_276])) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+          let y_1628: key = pkY in
+          if (pkY = pkgen2(r_1613)) then
+            let x2_1627: bitstring = cst_blocksize in
+            new r2_1790: seed;
+            let m2_1626: bitstring = enc2(Z, pkY, r2_1790) in
+            out(c, m2_1626);
+            in(c, m3: bitstring);
+            find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+              0
+            orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+              new Nb_3983: nonce;
+              if (Nb_3983 = Nb_4012[@i_1709]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_3983 in
+              0
+            orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              new Nb_4025: nonce;
+              if (Nb_4025 = Nb_1785[@i_3931[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_4025 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              new Nb_4026: nonce;
+              if (Nb_4026 = Nb_1787[@i_3930[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_4026 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              new Nb_4027: nonce;
+              if (Nb_4027 = Nb_1795[@i_3928[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_4027 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              new Nb_4028: nonce;
+              if (Nb_4028 = Nb_4016[@i_1707]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_4028 in
+              0
+            orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+              0
+            orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+              new Nb_4029: nonce;
+              if (Nb_4029 = Nb_4020[@i_1705]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_4029 in
+              0
+            orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+              new Nb_4030: nonce;
+              if (Nb_4030 = Nb_4024[@i_1705]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_4030 in
+              0
+            orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+              0
+            else
+              new Nb_3982: nonce;
+              let pad(=Nb_3982) = dec2(m3, skgen2(r_1613)) in
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_3982 in
+              0
+          else
+            new Nb_1787: nonce;
+            let y_3779: key = cst_key in
+            let x2_3778: bitstring = cst_blocksize in
+            new r2_3780: seed;
+            let m2_3777: bitstring = enc2(Z, pkY, r2_3780) in
+            out(c, m2_3777);
+            in(c, m3: bitstring);
+            find @i_1710 <= N suchthat defined(m2_1626[@i_1710], y_1628[@i_1710], x2_1627[@i_1710]) && ((y_1628[@i_1710] = pkgen2(r_1613)) && (m3 = m2_1626[@i_1710])) then
+              0
+            orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+              if (Nb_1787 = Nb_4012[@i_1709]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1708 <= N suchthat defined(m2_1638[@i_1708], y_1640[@i_1708], x2_1639[@i_1708]) && (m3 = m2_1638[@i_1708]) then
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_1785[@i_3931[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_1787[@i_3930[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_1795[@i_3928[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_4016[@i_1707]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1706 <= N suchthat defined(m2_1650[@i_1706], y_1652[@i_1706], x2_1651[@i_1706]) && (m3 = m2_1650[@i_1706]) then
+              0
+            orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+              if (Nb_1787 = Nb_4020[@i_1705]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+              if (Nb_1787 = Nb_4024[@i_1705]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1704 <= N suchthat defined(m2_1662[@i_1704], y_1664[@i_1704], x2_1663[@i_1704]) && ((pkX[@i_1704] = pkgen2(r_1613)) && (m3 = m2_1662[@i_1704])) then
+              0
+            else
+              let pad(=Nb_1787) = dec2(m3, skgen2(r_1613)) in
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+    )
+  |
+    ! !_24 <= N
+    in(c, (h1: host, h2: host));
+    if (h2 = A) then
+      let x_273: blocksize = concat3(pkA_26, h2) in
+      new r2_274: seed;
+      out(c, (pkA_26, h2, sign2(x_273, sskgen2(r_268), r2_274)));
+      0
+    else
+      if (h2 = B) then
+        let x_270: blocksize = concat3(pkB_28, h2) in
+        new r2_271: seed;
+        out(c, (pkB_28, h2, sign2(x_270, sskgen2(r_268), r2_271)));
+        0
+      else
+        find j2 <= N2 suchthat defined(Khost[j2], Kkey[j2]) && (Khost[j2] = h2) then
+        let x_266: blocksize = concat3(Kkey[j2], h2) in
+        new r2_267: seed;
+        out(c, (Kkey[j2], h2, sign2(x_266, sskgen2(r_268), r2_267)));
+        0
+  )
+|
+  ! !_25 <= N2
+  in(c, (Khost: host, Kkey: key));
+  0
+)
+
+RESULT Could not prove secrecy of NbB, secrecy of NbA, secrecy of NaB, secrecy of NaA.
+===========================================================================================================================
+Last game after some manual simplifications:
+
+new r_3807: keyseed;
+let pkA_26: key = pkgen2(r_3807) in
+new r_1613: keyseed;
+let pkB_28: key = pkgen2(r_1613) in
+new r_268: keyseed;
+let pkS_30: key = spkgen2(r_268) in
+out(c, pkA_26);
+out(c, pkB_28);
+out(c, pkS_30);
+(
+  (
+    (
+      ! !_22 <= N
+      in(c, hostX: host);
+      out(c, (A, hostX));
+      in(c, (pkX: key, =hostX, ms_40: signature));
+      find @i_283 <= N suchthat defined(x_266[@i_283]) && (((pkX = Kkey[j2[@i_283]]) && (hostX = h2[@i_283])) && check2(concat3(pkX, hostX), pkS_30, ms_40)) then
+        new Na_293: nonce;
+        let y_1640: key = cst_key in
+        if (pkX = pkgen2(r_1613)) then
+          let x2_1639: bitstring = cst_blocksize in
+          new r2_1641: seed;
+          let m2_1638: bitstring = enc2(Z, pkX, r2_1641) in
+          out(c, m2_1638);
+          in(c, m_43: bitstring);
+          find [...] then 0
+          else
+            let concat2(=Na_293, Nb_4012: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+            let y_1634: key = cst_key in
+            let x2_1633: bitstring = cst_blocksize in
+            new r2_1635: seed;
+            let m2_1632: bitstring = enc2(Z, pkX, r2_1635) in
+            out(c, m2_1632);
+            0
+        else
+          let y_3810: key = cst_key in
+          if (pkX = pkgen2(r_3807)) then
+            let x2_3809: bitstring = cst_blocksize in
+            new r2_3811: seed;
+            let m2_3808: bitstring = enc2(Z, pkX, r2_3811) in
+            out(c, m2_3808);
+            in(c, m_43: bitstring);
+            find [...] then 0
+            else
+              let concat2(=Na_293, Nb_4008: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+              let y_1634: key = cst_key in
+              let y_3803: key = cst_key in
+              let x2_3802: bitstring = cst_blocksize in
+              new r2_3804: seed;
+              let m2_3801: bitstring = enc2(Z, pkX, r2_3804) in
+              out(c, m2_3801);
+              0
+          else
+            new r3_3812: seed;
+            out(c, enc(concat1(Na_293, A), pkX, r3_3812));
+            in(c, m_43: bitstring);
+            find [...] then 0
+            else
+              let concat2(=Na_293, Nb_4004: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+              let y_1634: key = cst_key in
+              let y_3803: key = cst_key in
+              new r3_3805: seed;
+              out(c, enc(pad(Nb_4004), pkX, r3_3805));
+              0
+      orfind @i_282 <= N suchthat defined(x_270[@i_282]) && (((pkX = pkB_28) && (hostX = h2[@i_282])) && check2(concat3(pkX, hostX), pkS_30, ms_40)) then
+        new Na_296: nonce; [Na_296 is used only in unlikely tests and in queries; so in fact Na_37 cannot depend on it, and the collision Na_296 = Na_37[...] is unlikely]
+        let y_1652: key = cst_key in
+        let x2_1651: bitstring = cst_blocksize in
+        new r2_1653: seed;
+        let m2_1650: bitstring = enc2(Z, pkX, r2_1653) in
+        out(c, m2_1650);
+        in(c, m_43: bitstring);
+        find @i_3931 <= N suchthat defined(m2_3771[@i_3931], y_3773[@i_3931], x2_3772[@i_3931]) && (m_43 = m2_3771[@i_3931]) then
+          if (Na_296 = Na_37[@i_3931]) then
+          let Nb_4013: nonce = cst_nonce in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_3999: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_3999) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_1785[@i_3931] in
+          0
+        orfind @i_3930 <= N suchthat defined(m2_3777[@i_3930], y_3779[@i_3930], x2_3778[@i_3930]) && (m_43 = m2_3777[@i_3930]) then
+          if (Na_296 = Na_37[@i_3930]) then
+          let Nb_4014: nonce = cst_nonce in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_4000: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_4000) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_1787[@i_3930] in
+          0
+        orfind @i_3928 <= N suchthat defined(m2_3789[@i_3928], y_3791[@i_3928], x2_3790[@i_3928]) && (m_43 = m2_3789[@i_3928]) then
+          if (!_22 = @i_1724[@i_3928]) then    [THE ONLY SUCCESSFUL CASE FOR A]
+          let Nb_4015: nonce = cst_nonce in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_4001: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_4001) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_1795[@i_3928] in
+          0
+        else
+          let concat2(=Na_296, Nb_4016: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+          let y_1646: key = cst_key in
+          let x2_1645: bitstring = cst_blocksize in
+          new r2_3998: seed;
+          let m2_1644: bitstring = enc2(Z, pkX, r2_3998) in
+          out(c, m2_1644);
+          let NaA: nonce = Na_296 in
+          let NbA: nonce = Nb_4016 in
+          0
+      orfind @i_281 <= N suchthat defined(x_273[@i_281]) && (((pkX = pkA_26) && (hostX = h2[@i_281])) && check2(concat3(pkX, hostX), pkS_30, ms_40)) then
+        new Na_299: nonce;
+        let y_1664: key = cst_key in
+        if (pkX = pkgen2(r_1613)) [always false since pkX = pkA and pkgen2(r_1613) = pkB!] then [...]
+        else
+          let y_3822: key = cst_key in
+          let x2_3821: bitstring = cst_blocksize in
+          new r2_3823: seed;
+          let m2_3820: bitstring = enc2(Z, pkX, r2_3823) in
+          out(c, m2_3820);
+          in(c, m_43: bitstring);
+          find [...] then 0
+          else
+            let concat2(=Na_299, Nb_4020: nonce, =hostX) = dec2(m_43, skgen2(r_3807)) in
+            let y_1658: key = pkX in
+            if (pkX = pkgen2(r_1613)) [always false since pkX = pkA and pkgen2(r_1613) = pkB!] then [...]
+            else
+              let y_3816: key = cst_key in
+              let x2_3815: bitstring = cst_blocksize in
+              new r2_3817: seed;
+              let m2_3814: bitstring = enc2(Z, pkX, r2_3817) in
+              out(c, m2_3814);
+              0
+    |
+      ! !_23 <= N
+      in(c, m_35: bitstring);
+      find [...] then 0
+      orfind @i_1726 <= N suchthat defined(m2_1638[@i_1726], y_1640[@i_1726], x2_1639[@i_1726]) && (m_35 = m2_1638[@i_1726]) then
+        let hostY_36: host = A in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_276 <= N suchthat defined(x_273[@i_276]) && ((pkY = pkA_26) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+        let y_1628: key = pkY in
+        if (pkY = pkgen2(r_1613)) [always false since pkY = pkA and pkgen2(r_1613) = pkB!] then [...]
+        else
+          new Nb_1791: nonce; [Nb_1791 is used only in unlikely tests and in queries, so in fact Nb_??? cannot depend on it, so the tests Nb_1791 = Nb_???[...] are unlikely]
+          let y_3785: key = cst_key in
+          let x2_3784: bitstring = cst_blocksize in
+          new r2_3786: seed;
+          let m2_3783: bitstring = enc2(Z, pkY, r2_3786) in
+          out(c, m2_3783);
+          in(c, m3: bitstring);
+          find [...] then 0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            if (Nb_1791 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1791 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1791 = Nb_4020[@i_1705]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4024[@i_1705], m2_1656[@i_1705], y_1658[@i_1705], x2_1657[@i_1705]) && ((y_1658[@i_1705] = pkgen2(r_1613)) && (m3 = m2_1656[@i_1705])) then
+            if (Nb_1791 = Nb_4024[@i_1705]) then
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+          else
+            let pad(=Nb_1791) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_293[@i_1726] in
+            let NbB: nonce = Nb_1791 in
+            0
+      orfind [...] then 0 
+      orfind @i_1724 <= N suchthat defined(m2_1650[@i_1724], y_1652[@i_1724], x2_1651[@i_1724]) && (m_35 = m2_1650[@i_1724]) then
+        let hostY_36: host = A in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_276 <= N suchthat defined(x_273[@i_276]) && ((pkY = pkA_26) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+        let y_1628: key = pkY in
+        if (pkY = pkgen2(r_1613)) then [always false: pkY = pkA, pkgen2(r_1613) = pkB]
+        else
+          new Nb_1795: nonce; [same as for Nb_1791]
+          let y_3791: key = cst_key in
+          let x2_3790: bitstring = cst_blocksize in
+          new r2_3792: seed;
+          let m2_3789: bitstring = enc2(Z, pkY, r2_3792) in
+          out(c, m2_3789);
+          in(c, m3: bitstring);
+          find [...] then 0
+          orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+            if (Nb_1795 = Nb_4012[@i_1709]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_1785[@i_3931[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_1787[@i_3930[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_1795[@i_3928[@i_1707]]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+            if (Nb_1795 = Nb_4016[@i_1707]) then
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+          orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705] [always false: m2_1656 not defined now]
+          else
+            let pad(=Nb_1795) = dec2(m3, skgen2(r_1613)) in
+            let NaB: nonce = Na_296[@i_1724] in
+            let NbB: nonce = Nb_1795 in
+            0
+      orfind @i_1722 <= N suchthat defined(m2_1662[@i_1722], y_1664[@i_1722], x2_1663[@i_1722]) && ((pkX[@i_1722] = pkgen2(r_1613)) && (m_35 = m2_1662[@i_1722])) then
+	[m2_1662 is not defined now]
+      else
+        let concat1(Na_37: nonce, hostY_36: host) = dec2(m_35, skgen2(r_1613)) in
+        out(c, (B, hostY_36));
+        in(c, (pkY: key, =hostY_36, ms_38: signature));
+        find @i_278 <= N suchthat defined(x_266[@i_278]) && (((pkY = Kkey[j2[@i_278]]) && (hostY_36 = h2[@i_278])) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+          let y_1616: key = cst_key in
+          if (pkY = pkgen2(r_1613)) then
+            let x2_1615: bitstring = cst_blocksize in
+            new r2_1617: seed;
+            let m2_1614: bitstring = enc2(Z, pkY, r2_1617) in
+            out(c, m2_1614);
+            in(c, m3: bitstring);
+            find [...] then 0
+            else
+              new Nb_1786: nonce;
+              let pad(=Nb_1786) = dec2(m3, skgen2(r_1613)) in
+              0
+          else
+            new Nb_1785: nonce;
+            let y_3773: key = cst_key in
+            if (pkY = pkgen2(r_3807)) then
+              let x2_3772: bitstring = cst_blocksize in
+              new r2_3774: seed;
+              let m2_3771: bitstring = enc2(Z, pkY, r2_3774) in
+              out(c, m2_3771);
+              in(c, m3: bitstring);
+              find [...] then 0
+              else
+                let pad(=Nb_1785) = dec2(m3, skgen2(r_1613)) in
+                0
+            else
+              new r3_3775: seed;
+              out(c, enc(concat2(Na_37, Nb_1785, B), pkY, r3_3775));
+              in(c, m3: bitstring);
+              find [...] then 0
+              else
+                let pad(=Nb_1785) = dec2(m3, skgen2(r_1613)) in
+                0
+        orfind @i_277 <= N suchthat defined(x_270[@i_277]) && (((pkY = pkB_28) && (hostY_36 = h2[@i_277])) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+          let y_1622: key = cst_key in
+          let x2_1621: bitstring = cst_blocksize in
+          new r2_1623: seed;
+          let m2_1620: bitstring = enc2(Z, pkY, r2_1623) in
+          out(c, m2_1620);
+          in(c, m3: bitstring);
+          find [...] then 0
+          else
+            new Nb_289: nonce;
+            let pad(=Nb_289) = dec2(m3, skgen2(r_1613)) in
+            0
+        orfind @i_276 <= N suchthat defined(x_273[@i_276]) && (((pkY = pkA_26) && (hostY_36 = h2[@i_276])) && check2(concat3(pkY, hostY_36), pkS_30, ms_38)) then
+          let y_1628: key = pkY in
+          if (pkY = pkgen2(r_1613)) then [always false pkY = pkA, pkgen2(r_1613) = pkB]
+          else
+            new Nb_1787: nonce; [same as for Nb_1791]
+            let y_3779: key = cst_key in
+            let x2_3778: bitstring = cst_blocksize in
+            new r2_3780: seed;
+            let m2_3777: bitstring = enc2(Z, pkY, r2_3780) in
+            out(c, m2_3777);
+            in(c, m3: bitstring);
+            find [...] then 0
+            orfind @i_1709 <= N suchthat defined(Nb_4012[@i_1709], m2_1632[@i_1709], y_1634[@i_1709], x2_1633[@i_1709]) && (m3 = m2_1632[@i_1709]) then
+              if (Nb_1787 = Nb_4012[@i_1709]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4013[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_1785[@i_3931[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4014[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_1787[@i_3930[@i_1707]]) then [THIS CASE SUCCEEDS WITH HIGH PROBABILITY WHEN !_23 = @i_3930[@i_1707]
+							     The system should have eliminated the collision, yielding !_23 = @i_3930[@i_1707]]
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4015[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_1795[@i_3928[@i_1707]]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1707 <= N suchthat defined(Nb_4016[@i_1707], m2_1644[@i_1707], y_1646[@i_1707], x2_1645[@i_1707]) && (m3 = m2_1644[@i_1707]) then
+              if (Nb_1787 = Nb_4016[@i_1707]) then
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+            orfind @i_1705 <= N suchthat defined(Nb_4020[@i_1705], m2_1656[@i_1705] [always false: m2_1656 not defined now]
+            else
+              let pad(=Nb_1787) = dec2(m3, skgen2(r_1613)) in
+              let NaB: nonce = Na_37 in
+              let NbB: nonce = Nb_1787 in
+              0
+    )
+  |
+    ! !_24 <= N
+    in(c, (h1: host, h2: host));
+    if (h2 = A) then
+      let x_273: blocksize = concat3(pkA_26, h2) in
+      new r2_274: seed;
+      out(c, (pkA_26, h2, sign2(x_273, sskgen2(r_268), r2_274)));
+      0
+    else
+      if (h2 = B) then
+        let x_270: blocksize = concat3(pkB_28, h2) in
+        new r2_271: seed;
+        out(c, (pkB_28, h2, sign2(x_270, sskgen2(r_268), r2_271)));
+        0
+      else
+        find j2 <= N2 suchthat defined(Khost[j2], Kkey[j2]) && (Khost[j2] = h2) then
+        let x_266: blocksize = concat3(Kkey[j2], h2) in
+        new r2_267: seed;
+        out(c, (Kkey[j2], h2, sign2(x_266, sskgen2(r_268), r2_267)));
+        0
+  )
+|
+  ! !_25 <= N2
+  in(c, (Khost: host, Kkey: key));
+  0
+)

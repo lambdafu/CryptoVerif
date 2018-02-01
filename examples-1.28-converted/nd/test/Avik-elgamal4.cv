@@ -1,0 +1,66 @@
+
+(** ElGamal encryption scheme **)
+
+(** An encryption scheme is shown to be SS
+    under the DDH assumption.
+    See Section 3, "Sequences of Games", Victor Shoup. **)
+
+(* Replicated the encryption oracle, so that several encryptions can
+be performed, in order to show that El Gamal is IND-CPA. This goes 
+slightly beyond the proof in Shoup's paper (it is however an easy
+consequence of Shoup's proof). It requires a slightly more powerful
+formalization of DDH than Shoup's proof. 
+
+Here, I am just using the default formalization of DDH provided
+in the library of primitives. *) 
+
+param n, n', q.
+
+type Z [fixed].
+type G [fixed].
+
+proba pDDH.
+expand DDH(G, Z, gamma, exp, mult, pDDH).
+
+fun dot(G,G): G.
+
+(* dot(.,y) is a uniform function *)
+
+equiv
+  ! n new x: G; gen_Oracle(y: G) := return(dot(x,y)) [all]
+<=(0)=>
+  ! n new x: G; gen_Oracle(y: G) := return(x).
+
+(* choose(b,M,N) = if b then M else N *)
+
+fun choose(bool,G,G): G.
+
+
+(* query *)
+query secret b_1.
+
+channel cPK, cE, cEret, start.
+
+
+
+process
+  in(start, ());
+new b_1: bool;
+new x_1: Z;
+let alpha: G = exp(gamma, x_1) in
+out(cPK, alpha);
+! i_1 <= q
+in(cE[i_1], (m0: G, m1: G));
+let m_1: G = choose(b_1, m1, m0) in
+new y_1: Z;
+let beta: G = exp(gamma, y_1) in
+let delta: G = exp(alpha, y_1) in
+let zeta: G = dot(delta, m_1) in
+out(cEret[i_1], (beta, zeta))
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.028s + system 0.000s), max rss 35440K
+END *)

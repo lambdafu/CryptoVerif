@@ -1,0 +1,31 @@
+define INT_PTXT_sym_enc(keyseed, key, cleartext, ciphertext, seed, kgen, enc, dec, injbot, Pencptxt) { 
+
+param N, N2, N3.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun kgen(keyseed):key.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc2(cleartext, key, seed): ciphertext.
+fun kgen2(keyseed):key.
+fun dec2(ciphertext, key): bitstringbot.
+
+fun injbot(cleartext):bitstringbot [compos].
+forall x:cleartext; injbot(x) <> bottom.
+
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+
+	(* INT-PTXT *)
+
+equiv int_ptxt(enc)
+      ! N2 new r: keyseed; (! N new r2: seed; Oenc(x:cleartext) := enc(x, kgen(r), r2),
+			    ! N3 Odec(y:ciphertext) [useful_change] := dec(y,kgen(r))) 
+     <=(N2 * Pencptxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational]
+      ! N2 new r: keyseed [unchanged]; 
+      	       	  	   (! N new r2: seed [unchanged]; Oenc(x:cleartext) := enc(x, kgen(r), r2),
+			    ! N3 Odec(y:ciphertext) := 
+				let z = dec2(y, kgen(r)) in
+                                find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then injbot(x[j]) else bottom).
+
+}

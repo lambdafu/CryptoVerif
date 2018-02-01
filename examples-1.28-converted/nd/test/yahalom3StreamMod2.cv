@@ -1,0 +1,270 @@
+(* Yahalom, Version of Burrows, Abadi, Needham, SRC039 
+
+Does not terminate
+The problem occurred between 13 and 14 August 2011, at version 1.327
+of src/cryptotransf.ml. But actually the change in cryptotransf changes the
+proof strategy: it adds 
+   Doing SA rename r_161... Done.
+which leads to a different sequence of games and 
+results in a loop in simplification.
+
+SA rename r_161 is advised by success.ml. The reason why it is advised
+in version 1.327 and not before is just an ordering reason:
+success.ml looks at all definitions of the secret variables,
+and stops at the first one that contradicts secrecy.
+r_161 is examined before secrecy is contradicted in version 1.327,
+while the corresponding variable r_167 is not examined in version
+1.326 because secrecy is already contradicted.
+
+An improvement may be to either
+- always examine all variables to collect advice, and take the union of
+  all pieces of advice.
+- or examine all variables until we find one that cannot succeed even with
+  advice. If we find such a variable, return no advice at all.
+  Otherwise, take the union of all pieces of advice.
+The second choice is better.
+
+Simplifying (k_72[!_62] = k_68[@i_96[!_62]]) knowing
+Substitutions:
+   (k_72[!_62] = k_68[@i_100[!_62]])
+   (k_68[@i_110[@i_96[!_62]]] = k_68[@i_96[!_62]])
+   [plus other facts that do not matter]
+
+To try to obtain a contradiction, we add the fact k_72[!_62] = k_68[@i_96[!_62]] to the current facts:
+simplif_add (k_72[!_62] = k_68[@i_96[!_62]]) knowing
+   (k_72[!_62] = k_68[@i_100[!_62]])
+   (k_68[@i_110[@i_96[!_62]]] = k_68[@i_96[!_62]])
+   [plus other facts that do not matter]
+becomes k_68[@i_100[!_62]] = k_68[@i_96[!_62]]
+oriented: k_68[@i_96[!_62]] -> k_68[@i_100[!_62]]
+Applying the substitution, the last fact becomes k_68[@i_110[@i_96[!_62]]] = k_68[@i_100[!_62]]
+
+simplif_add (k_68[@i_110[@i_96[!_62]]] = k_68[@i_100[!_62]]) knowing
+   (k_68[@i_96[!_62]] = k_68[@i_100[!_62]])
+oriented k_68[@i_100[!_62]] -> k_68[@i_110[@i_96[!_62]]]
+Applying the substitution, k_72[!_62] = k_68[@i_100[!_62]] becomes k_72[!_62] = k_68[@i_110[@i_96[!_62]]]
+
+simplif_add (k_72[!_62] = k_68[@i_110[@i_96[!_62]]]) knowing
+   k_68[@i_100[!_62]] = k_68[@i_110[@i_96[!_62]]]
+oriented k_72[!_62] -> k_68[@i_110[@i_96[!_62]]]
+
+FIRST LOOP START
+
+simplif_add (k_68[@i_96[!_62]] = k_68[@i_110[@i_96[!_62]]]) knowing
+   [[[NOT NECESSARY (k_72[!_62] = k_68[@i_110[@i_96[!_62]]]) ]]]
+   (k_68[@i_100[!_62]] = k_68[@i_110[@i_96[!_62]]])
+oriented k_68[@i_110[@i_96[!_62]]] -> k_68[@i_96[!_62]]
+Applying that, k_68[@i_100[!_62]] = k_68[@i_110[@i_96[!_62]]] becomes k_68[@i_100[!_62]] = k_68[@i_96[!_62]]
+
+simplif_add (k_68[@i_100[!_62]] = k_68[@i_96[!_62]]) knowing
+   (k_68[@i_110[@i_96[!_62]]] = k_68[@i_96[!_62]])
+oriented k_68[@i_96[!_62]] -> k_68[@i_100[!_62]]
+Applying that, k_68[@i_110[@i_96[!_62]]] = k_68[@i_96[!_62]] becomes k_68[@i_110[@i_96[!_62]]] = k_68[@i_100[!_62]]
+
+simplif_add (k_68[@i_110[@i_96[!_62]]] = k_68[@i_100[!_62]]) knowing
+   (k_68[@i_96[!_62]] = k_68[@i_100[!_62]])
+oriented k_68[@i_100[!_62]] -> k_68[@i_110[@i_96[!_62]]]
+Applying that, k_68[@i_96[!_62]] = k_68[@i_100[!_62]] becomes k_68[@i_96[!_62]] = k_68[@i_110[@i_96[!_62]]]
+
+SECOND LOOP START
+
+simplif_add (k_68[@i_96[!_62]] = k_68[@i_110[@i_96[!_62]]]) knowing
+   (k_68[@i_100[!_62]] = k_68[@i_110[@i_96[!_62]]])
+simplif_add (k_68[@i_100[!_62]] = k_68[@i_96[!_62]]) knowing
+   (k_68[@i_110[@i_96[!_62]]] = k_68[@i_96[!_62]])
+simplif_add (k_68[@i_110[@i_96[!_62]]] = k_68[@i_100[!_62]]) knowing
+   (k_68[@i_96[!_62]] = k_68[@i_100[!_62]])
+
+and looping...
+
+To sum up, the problem is that the 'ordering' define by the function "orient" contains a loop
+k_68[@i_110[@i_96[!_62]]] -> k_68[@i_96[!_62]] -> k_68[@i_100[!_62]] -> k_68[@i_110[@i_96[!_62]]]
+
+17/11/2013: this looping problem should be fixed, although
+I did not test on this example, since the looping had already been
+removed by changing the proof strategy.
+
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type tag [fixed].
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+fun concat1(host, key, nonce, nonce):bitstring [data].
+fun concat2(host, key):bitstring [data].
+fun concat3(host, nonce, nonce):bitstring [data].
+
+forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:nonce,t2:nonce; concat1(y,z,t,u) <> concat3(y2,z2,t2).
+forall y:host,z:key,y2:host,z2:nonce,t2:nonce; concat2(y,z) <> concat3(y2,z2,t2).
+
+fun nonceToBitstring(nonce):bitstring [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstringbot.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+fun injbot(bitstring):bitstringbot [data].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Znonce:nonce.
+const Zhost:host.
+const Zkey:key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:host,z:key,t:nonce,u:nonce; 
+	Z(concat1(y,z,t,u)) = concat1(Zhost,Zkey,Znonce,Znonce).
+forall y:host,z:key; 
+	Z(concat2(y,z)) = concat2(Zhost,Zkey).
+forall y:host,z:nonce,t:nonce; 
+	Z(concat3(y,z,t)) = concat3(Zhost,Znonce,Znonce).
+
+equiv
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc(x, kgen(r), r2))
+<=(N2 * N * Penc)=>
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc2(Z(x), kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac(x, mkgen(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := return(check(m, mkgen(r), ma)))
+<=(N3 * N2 * Pmac)=>
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac2(x, mkgen2(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then return(true) else return(false)).
+
+(* Hash function, random oracle model *)
+
+proba Phash.
+const mark:bitstring.
+
+fun hash(bitstring):key.
+
+equiv
+  ! N gen_Oracle_1(x: bitstring) := return(hash(x)) [all]
+<=(Phash)=>
+  ! N gen_Oracle_1(x: bitstring) := find j <= N suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: key; return(r).
+
+const tag1, tag2: tag.
+fun keyToBitstring(tag,key):bitstring [data].
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, start, finish.
+const A : host.
+const B : host.
+
+
+
+
+
+
+
+
+
+process 
+	in(start, =());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: keyseed;
+let mKas: key = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: keyseed;
+let mKbs: key = mkgen(rmKbs) in
+out(start, ());
+((
+  ! i_1 <= N
+  in(start[i_1], =());
+  new Na: nonce;
+  out(c1[i_1], (A, Na));
+  in(c2[i_1], (cert1: bitstring, mac1: macs, cert2_1: bitstring, mac2_2: macs));
+  if check(cert1, mKas, mac1) then
+  let injbot(concat1(b: host, k: key, =Na, nb_1: nonce)) = dec(cert1, Kas) in
+  new s3: seed;
+  let e3: bitstring = enc(nonceToBitstring(nb_1), hash(keyToBitstring(tag1, k)), s3) in
+  out(c3[i_1], (cert2_1, mac2_2, e3));
+  in(finish[i_1], =());
+  if b = B then
+  let keyA: key = hash(keyToBitstring(tag2, k))
+) | (
+  ! i_2 <= N
+  in(c4[i_2], (a: host, na_1: nonce));
+  new Nb: nonce;
+  new s4: seed;
+  let e4: bitstring = enc(concat3(a, na_1, Nb), Kbs, s4) in
+  out(c5[i_2], (B, e4, mac(e4, mKbs)));
+  in(c6[i_2], (cert2_2: bitstring, mac2_3: macs, m_1: bitstring));
+  if check(cert2_2, mKbs, mac2_3) then
+  let injbot(concat2(=a, k_1: key)) = dec(cert2_2, Kbs) in
+  if injbot(nonceToBitstring(Nb)) = dec(m_1, hash(keyToBitstring(tag1, k_1))) then
+  if a = A then
+  let keyB: key = hash(keyToBitstring(tag2, k_1))
+) | (
+  ! i_3 <= N
+  in(c8[i_3], (h2: host, m_2: bitstring, ma: macs));
+  find j_6 = j_7 <= N2 suchthat defined(Khost[j_7], Rmkey[j_7], Rkey[j_7]) && (Khost[j_7] = h2) then
+  if check(m_2, Rmkey[j_6], ma) then
+  let injbot(concat3(h1: host, n1_1: nonce, n2_1: nonce)) = dec(m_2, Rkey[j_6]) in
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rmkey[j1_1], Rkey[j1_1]) && (Khost[j1_1] = h1) then
+  new k_2: key;
+  new s1: seed;
+  new s2: seed;
+  let e1: bitstring = enc(concat1(h2, k_2, n1_1, n2_1), Rkey[j1], s1) in
+  let e2: bitstring = enc(concat2(h1, k_2), Rkey[j_6], s2) in
+  out(c9[i_3], (e1, mac(e1, Rmkey[j1]), e2, mac(e2, Rmkey[j_6])))
+) | (
+  ! i_4 <= N2
+  in(c7[i_4], (Khost: host, Kkey: key, Kmkey: key));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: key = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+) | (
+  ! i_5 <= N3
+  in(c10[i_5], x: bitstring);
+  out(c11[i_5], hash(x))
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of keyB; secrecy of keyA.
+4.540s (user 4.528s + system 0.012s), max rss 99968K
+END *)

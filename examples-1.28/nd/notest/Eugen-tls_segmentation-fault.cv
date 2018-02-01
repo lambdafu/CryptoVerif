@@ -1,0 +1,438 @@
+(* TLS *)
+
+(* This file causes a segmentation fault, probably due
+to an out-of-memory error *)
+
+set interactiveMode = true.
+
+(*
+Commands executed:
+crypto mhash
+crypto hash
+crypto mac 
+crypto mac 
+crypto mac 
+
+
+*)
+
+
+param N.
+param N2.
+param N3.
+param N4.
+
+(* types *)
+(* EZ: add descriptions for types *)
+
+type nonce [fixed,large].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type key [fixed].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [fixed].
+
+(* EZ: ours *)
+
+type mkey [fixed].  (* type mkey [bounded]. *)
+type mkeyseed [fixed].
+type macs [bounded].
+
+(* functions *)
+
+fun concat1(nonce, host):blocksize [compos].
+fun concat2(nonce, nonce):blocksize [compos].
+fun concat3(pkey, host):sblocksize [compos].
+
+
+(* RC: ours *)
+fun concat(bitstring,bitstring): bitstring [compos].
+fun concat2p(nonce, nonce):bitstring [compos].
+fun concat3p(nonce, nonce, host):bitstring [compos].
+fun concat3s(nonce, nonce, nonce):bitstring [compos].
+fun concat3t(key, nonce, nonce):bitstring [compos].
+fun concat3m(mkey, nonce, nonce):bitstring [compos].
+fun concat4(host, nonce, nonce, host):bitstring [compos].
+fun concat4p(host, nonce, nonce, nonce):bitstring [compos].
+
+(* conevertions *)
+fun nonceToBitstring(nonce):bitstring [compos].
+fun mkeyToBitstring(mkey):bitstring [compos].
+fun macToBitstring(macs):bitstring [compos].
+
+fun pad(bitstring):blocksize [compos].
+(* fun pad(nonce):blocksize [compos]. *) (* OLD version *)
+
+
+(* EZ: what are these for? *)
+forall z:nonce,t:nonce,y2:nonce,z2:host;
+    concat2(z,t) <> concat1(y2,z2).
+(*forall y:nonce,y2:nonce,z2:host;
+    pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,y2:nonce;
+    concat2(z,t) <> pad(y2).*)
+
+(* RC: do we need to add hypothesis for concat4? *)
+
+(* Public-key encryption (CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+fun enc(blocksize, pkey, seed): bitstring.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(bitstring, skey): blocksizebot.
+
+fun enc2(blocksize, pkey, seed): bitstring.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(bitstring, skey): blocksizebot.
+
+fun injbot(blocksize):blocksizebot [compos].
+
+const Zkey:blocksize.
+
+forall m:blocksize, r:keyseed, r2:seed;
+    dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
+forall m:blocksize, r:keyseed, r2:seed;
+    dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+
+equiv  !N3 new r: keyseed; (() -> pkgen(r),
+                (m:bitstring) N2 -> dec(m, skgen(r))),
+       (x:blocksize, y:pkey) N4 -> new r2:seed; enc(x,y,r2) [all]
+     <=(N3 * N4 * Penc(time, N2))=>
+       !N3 new r: keyseed; (() -> pkgen2(r),
+                (m:bitstring) N2 ->
+        find j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
+        y[j] = pkgen2(r) && m = m2[j] then injbot(x[j]) else dec2(m, skgen2(r))),
+       (x:blocksize, y:pkey) N4 ->
+        find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+            (new r2:seed;
+            let m2:bitstring = enc2(Zkey, y, r2) in
+            m2)
+        else new r3:seed; enc(x,y,r3).
+
+collision new r1:keyseed; new r2:keyseed;
+    pkgen(r1) = pkgen(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed;
+    pkgen2(r1) = pkgen2(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed;
+    skgen(r1) = skgen(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed;
+    skgen2(r1) = skgen2(r2) <=(Penccoll)=> r1 = r2.
+
+
+(* Shared-key symencryption (SPRP) *)
+
+proba Psymenc.
+
+param Nenc.
+param Ndec.
+
+fun symenc(blocksize, key): blocksize.
+fun kgen(keyseed):key.
+fun symdec(blocksize, key): blocksize.
+
+forall m:blocksize, r:keyseed;
+    symdec(symenc(m, kgen(r)), kgen(r)) = m.
+
+equiv  !N new r: keyseed;
+           ((x:blocksize) Nenc  -> symenc(x, kgen(r)),
+            (m:blocksize) Ndec -> symdec(m, kgen(r)))
+
+     <=(N * Psymenc(time, Nenc, Ndec))=>
+
+       !N new r: keyseed;
+           ((x:blocksize) Nenc ->
+                find j<=Nenc suchthat defined(x[j],r2[j]) && otheruses(r2[j]) &&  x = x[j] then r2[j]
+                orfind k<=Ndec suchthat defined(r4[k],m[k]) && otheruses(r4[k]) && x = r4[k] then m[k]
+                else new r2: blocksize; r2,
+            (m:blocksize) Ndec ->
+                find j<=Nenc suchthat defined(x[j],r2[j]) && otheruses(r2[j]) && m = r2[j] then x[j]
+                orfind k<=Ndec suchthat defined(r4[k],m[k]) && otheruses(r4[k]) && m = m[k] then r4[k]
+                else new r4: blocksize; r4).
+
+(* Mac *)
+
+(*
+proba Pmac.
+
+fun mac(bitstring, mkey):macs.
+fun mcheck(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(bitstring, mkey):macs.
+fun mcheck2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+    mcheck(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:mkeyseed;
+    mcheck2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv ! N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac(x, mkgen(r)),
+     (m: bitstring, ma: macs) N2 -> mcheck(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      ! N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac2(x, mkgen2(r)),
+     (m: bitstring, ma: macs) N2 ->
+        find j <= N suchthat defined(x[j]) && (m = x[j]) && mcheck2(x[j], mkgen2(r), ma) then true else false).
+*)
+
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, mkey):macs.
+fun check(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(bitstring, mkey):macs.
+fun check2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+    check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:mkeyseed;
+    check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv ! N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac(x, mkgen(r)),
+     (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      ! N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac2(x, mkgen2(r)),
+     (m: bitstring, ma: macs) N2 ->
+        find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+
+(* Hash function, random oracle model *)
+fun hash(bitstring):keyseed.
+
+equiv (x:bitstring) N -> hash(x) [all]
+      <=(0)=>
+      (x:bitstring) N -> find j <= N suchthat defined(x[j],r[j]) && otheruses(r[j]) && x= x[j] then r[j] else
+             new r:keyseed; r.
+
+
+(* Hash function, random oracle model *)
+fun mhash(bitstring):mkeyseed.
+
+equiv (x:bitstring) N -> mhash(x) [all]
+      <=(0)=>
+      (x:bitstring) N -> find j <= N suchthat defined(x[j],r[j]) && otheruses(r[j]) && x= x[j] then r[j] else
+             new r:mkeyseed; r.
+
+
+
+(* Signatures *)
+
+(* not yet needed
+proba Psign.
+proba Psigncoll.
+
+fun sign(sblocksize, sskey, sseed): signature.
+fun sskgen(skeyseed):sskey.
+fun spkgen(skeyseed):spkey.
+fun check(sblocksize, spkey, signature): bool.
+
+fun sign2(sblocksize, sskey, sseed): signature.
+fun sskgen2(skeyseed):sskey.
+fun spkgen2(skeyseed):spkey.
+fun check2(sblocksize, spkey, signature): bool.
+
+forall m:sblocksize, r:skeyseed, r2:sseed;
+    check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:sblocksize, r:skeyseed, r2:sseed;
+    check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+equiv  !N3 new r: skeyseed; (() -> spkgen(r),
+                (x: sblocksize) N2 -> new r2: sseed; sign(x, sskgen(r), r2)),
+       (m: sblocksize, y: spkey, si: signature) N4 -> check(m, y, si) [all]
+     <=(N3 * Psign(time, N2))=>
+       !N3 new r: skeyseed; (() -> spkgen2(r),
+                (x: sblocksize) N2 -> new r2: sseed; sign2(x, sskgen2(r), r2)),
+       (m: sblocksize, y: spkey, si: signature) N4 ->
+        find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+        find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+        check(m,y,si).
+
+collision new r1:skeyseed; new r2:skeyseed;
+    spkgen(r1) = spkgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed;
+    spkgen2(r1) = spkgen2(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed;
+    sskgen(r1) = sskgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed;
+    sskgen2(r1) = sskgen2(r2) <=(Psigncoll)=> r1 = r2.
+*)
+
+
+(* Queries *)
+
+(*
+query secret1 PMS.
+query secret PMS.
+
+
+query secret1 PMSrecv.
+query secret PMSrecv.
+*)
+
+(*
+query secret1 SK.
+query secret SK.
+
+query secret1 SKrecv.
+query secret SKrecv.
+*)
+
+
+event beginA(nonce).
+event endB(nonce).
+
+event beginB(nonce).
+event endA(nonce).
+
+
+query na:nonce;
+    event endA(na) ==> beginB(na).
+
+query na:nonce;
+    event inj:endA(na) ==> inj:beginB(na).
+
+
+(*
+query secret1 sNa.
+query secret sNa.
+*)
+
+
+(* Protocol *)
+
+channel ca1, ca2, ca3, ca4, ca5, ca6, ca7, ca8, ca9,
+        cb1, cb2, cb3, cb4, cb5, cb6, cb7, cb8, cb9,
+        c1, c2,  start, finish.
+const A : host.   (* client *)
+const B : host.   (* server *)
+const Pa : host.  (* client's cipher suites *)
+const Pb : host.  (* server's cipher suites *)
+(* const lMS : label. (* client's finished label = "client_finished" *)
+(* const lSF : label. (* server's finished label = "server_finished" *)
+(* const lCF : label. (* client's finished label = "client_finished" *)
+(* const lSF : label. (* server's finished label = "server_finished" *)
+
+
+let processA =
+    in(start, ());
+
+    (* Client Hello *)
+    new Na: nonce;
+    new Sid: nonce; (* in this message Sid is a constant *)
+    out(ca1, concat4(A, Na, Sid, Pa));
+
+    (* Sever Hello *)
+    in(ca2, ma1:bitstring);
+    let concat3p(Nb, =Sid, Pb) = ma1 in
+
+    (* Client Key Exchange *)
+    new PMS: mkey;
+    new r1: seed;
+    let ea = enc(pad(mkeyToBitstring(PMS)), pkB, r1) in
+    out(ca3, ea);
+
+    in(ca4, ());
+
+    (* Client Finished *)
+    (* in reality :
+    let MS = PRF(PMS, lMS, concat2p(Na, Nb)) in
+    let SK = PRF(MS, lKE, concat2p(Na, Nb)) in
+    let VD = PRF(MS, lCF, MD5(HSM)||SHA1(HSM)) *)
+    let verifyDataA = mac(concat2p(Na, Nb), PMS) in
+    let SK: key = kgen(hash(concat3m(PMS, Na, Nb))) in
+    let mSK: mkey = mkgen(mhash(concat3m(PMS, Na, Nb))) in
+    out(ca5, symenc(pad(macToBitstring(verifyDataA)), SK));
+
+    (* Server Finished *)
+    in(ca6, ma2:blocksize);
+    let pad(macToBitstring(verifyDataBRecv: macs)) = symdec(ma2, SK) in
+    if check(concat2p(Na, Nb), PMS, verifyDataBRecv) then
+
+    (* Record Protocol *)
+    new sNa : nonce;
+    event beginA(sNa);
+    let maca = mac(nonceToBitstring(sNa),mSK) in
+    out(ca7, symenc(pad(concat(nonceToBitstring(sNa),macToBitstring(maca))), SK));
+    (*out(ca7, ());*)
+
+    in(ca8, ma3: blocksize);
+    let pad(concat(nonceToBitstring(sNbr),macToBitstring(macbr))) = symdec(ma3, SK) in
+    if check(nonceToBitstring(sNbr),mSK,macbr) then
+    event endA(sNbr).
+
+
+
+
+let processB =
+    (* Client Hello *)
+    in(cb1, mb1: bitstring);
+
+    (* Sever Hello *)
+    let concat4(A, Na, Sid, Pa) = mb1 in
+    new Nb: nonce;
+    out(cb2, concat3p(Nb, Sid, Pb)); (* in this message Sid is (may be) a nonce *)
+
+    (* Client Key Exchange *)
+    in(cb3, eaRecv: bitstring);
+    let injbot(pad(mkeyToBitstring(PMSrecv: mkey))) = dec(eaRecv, skB) in
+    (* if PMSrecv = PMS then  ....error *)
+    out(cb4, ());
+
+
+    (* Client Finished *)
+    in(cb5, mb2: blocksize);
+    let SKrecv: key = kgen(hash(concat3m(PMSrecv, Na, Nb))) in
+    let mSKrecv: mkey = mkgen(mhash(concat3m(PMSrecv, Na, Nb))) in
+    let pad(macToBitstring(verifyDataARecv: macs)) = symdec(mb2, SKrecv) in
+    if check(concat2p(Na, Nb), PMSrecv, verifyDataARecv) then
+
+    (* Server Finished *)
+    let verifyDataB = mac(concat2p(Na, Nb), PMSrecv) in
+    out(cb6, symenc(pad(macToBitstring(verifyDataB)), SKrecv));
+
+    (* Record Protocol *)
+    (* in(cb6, ()); *)
+
+    in(cb6, mb3:blocksize);
+    let pad(concat(nonceToBitstring(sNar),macToBitstring(macar))) = symdec(mb3, SKrecv) in
+    if check(nonceToBitstring(sNar),mSKrecv,macar) then
+    event endB(sNar);
+    (* out(cb7, ()).*)
+
+
+    new sNb : nonce;
+    event beginB(sNb);
+    let macb = mac(nonceToBitstring(sNb),mSKrecv) in
+    out(cb7, (symenc(pad(concat(nonceToBitstring(sNb),macToBitstring(macb))), SKrecv))).
+
+
+process
+    in(start, ());
+    new rkB: keyseed;
+    let pkB = pkgen(rkB) in
+    let skB = skgen(rkB) in
+    out(c1, (pkB));
+    ((! N processA) | ! N processB)
+

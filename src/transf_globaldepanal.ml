@@ -27,7 +27,7 @@ open FindCompos
 let whole_game = ref Terms.empty_game
 
 (* The main variable on which we perform the dependency analysis (b0) *)
-let main_var = ref (Terms.create_binder "dummy" 0 Settings.t_bitstring [])
+let main_var = ref (Terms.create_binder0 "dummy" Settings.t_bitstring [])
 
 (* List of variables that depend on the main variable b0.
    The list contains triples (b, (status, (ref [(t1,t2,charac_type);...], ref args_opt))) 
@@ -249,7 +249,7 @@ let rec add_defined_pat = function
    (i.e. only one value of that part of [b0] can yield a certain value of [t];
    [st] is 
         - [Compos] when [t] is obtained from [b0] by first applying
-        poly-injective functions (functions marked [compos]), then
+        poly-injective functions (functions marked [data]), then
         functions that extract a part of their argument 
         (functions marked [uniform]).
         - [Decompos] when [t] is obtained from [b0] by applying functions
@@ -855,7 +855,7 @@ let rec convert_to_term = function
       - [charac_type] determines the type of the part of [b0] characterized by the assigned term.
    [st] is 
         - [Compos] when the assigned term is obtained from [b0] by first applying
-        poly-injective functions (functions marked [compos]), then
+        poly-injective functions (functions marked [data]), then
         functions that extract a part of their argument 
         (functions marked [uniform]).
         - [Decompos] when the assigned term is obtained from [b0] by applying functions
@@ -1144,11 +1144,7 @@ let rec almost_indep_fc cur_array t0 =
 	    dvar_list := old_dvar_list;
 	    res
 	| _ ->
-	    let p2 = 
-	      match p2opt with
-		None -> Parsing_helper.internal_error "else branch should be present in let when the pattern is not a variable"
-	      | Some p2 -> p2
-	    in
+	    let p2 = Terms.get_else p2opt in
 	    try
 	      match find_compos_list t' with
 		Some (st, charac_type,t',charac_args_opt) ->
@@ -1295,7 +1291,7 @@ let rec check_depend_process cur_array p' =
 	Some(charac_type, t1) -> 
 	  (* The pattern matching of this input always fails *)
           (* Create a dummy variable for the input message *)
-	  let b = Terms.create_binder "dummy_input" (Terms.new_vname())
+	  let b = Terms.create_binder "dummy_input"
 	      (Terms.term_from_pat pat).t_type
 	      cur_array
 	  in
@@ -1567,7 +1563,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
 let check_all_deps b0 init_proba_state g =
   whole_game := g;
   main_var := b0;
-  let vcounter = !Terms.vcounter in
+  let vcounter = Terms.get_var_num_state() in
   try
     let dummy_term = Terms.term_from_binder b0 in
     let args_opt = Some (List.map Terms.term_from_repl_index b0.args_at_creation) in
@@ -1591,7 +1587,7 @@ let check_all_deps b0 init_proba_state g =
     dvar_list := [];
     defvar_list := [];
     vars_charac_type := [];
-    Terms.vcounter := vcounter; (* Forget variables when fails *)
+    Terms.set_var_num_state vcounter; (* Forget variables when fails *)
     None
 
 (* [main b0 coll_elim g] is the entry point for calling

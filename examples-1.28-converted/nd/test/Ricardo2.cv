@@ -1,0 +1,104 @@
+(* A->B: {nonce}_pkB. *)
+
+(* set interactiveMode = true. *)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type blocksize [fixed].
+type blocksizebot [bounded].
+
+
+fun pad(nonce):blocksize [data].
+
+(* Public-key encryption (CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+fun enc(blocksize, pkey, seed): bitstring.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(bitstring, skey): blocksizebot.
+
+fun enc2(blocksize, pkey, seed): bitstring.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(bitstring, skey): blocksizebot.
+
+fun injbot(blocksize):blocksizebot [data].
+
+const Z:blocksize.
+
+forall m:blocksize, r:keyseed, r2:seed; 
+	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
+forall m:blocksize, r:keyseed, r2:seed; 
+	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+
+equiv
+  ! N3 new r: keyseed; (
+    gen_Oracle() := return(pkgen(r)) |
+    ! N2 gen_Oracle_1(m: bitstring) := return(dec(m, skgen(r))))|
+  ! N4 new r2: seed; gen_Oracle_2(x: blocksize, y: pkey) := return(enc(x,y,r2)) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+  ! N3 new r: keyseed; (
+    gen_Oracle() := return(pkgen2(r)) |
+    ! N2 gen_Oracle_1(m: bitstring) := find j <= N4 suchthat defined(m2[j], y[j], x[j]) && y[j] = pkgen2(r) && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r))))|
+  ! N4 gen_Oracle_2(x: blocksize, y: pkey) := find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then (new r2: seed; let m2:bitstring = enc2(Z, y, r2) in return(m2)) else new r3: seed; return(enc(x,y,r3)).
+
+collision new r1: keyseed; new r2: keyseed; return(pkgen(r1) = pkgen(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(pkgen2(r1) = pkgen2(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(skgen(r1) = skgen(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(skgen2(r1) = skgen2(r2)) <=(Penccoll)=> return(r1 = r2).
+
+(* Queries *)
+
+query secret NaA [onesession].
+
+query secret NaA.
+
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, start, finish.
+const A : host.
+const B : host.
+
+
+
+
+
+process 
+	in(start, ());
+new rkB: keyseed;
+let pkB: pkey = pkgen(rkB) in
+let skB: skey = skgen(rkB) in
+out(c15, pkB);
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new Na: nonce;
+  new r3: seed;
+  out(c4[i_1], enc(pad(Na), pkB, r3));
+  in(c5[i_1], ());
+  let NaA: nonce = Na in
+  out(c13[i_1], ())
+) | (
+  ! i_2 <= N
+  in(c6[i_2], m3: bitstring);
+  let x: blocksizebot = dec(m3, skB)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.016s + system 0.008s), max rss 39600K
+END *)

@@ -1,0 +1,22 @@
+param N.
+channel c.
+type nonce [fixed].
+
+let p1 = (! N in(c, ()); new x:nonce; new y: nonce; out(c,()))
+|( !N in(c, ()); new z:nonce; out(c, ())).
+
+process
+	p1 |
+	in(c, ());
+	find k' <= N suchthat defined(x[k']) then
+	find k <= N suchthat defined(x[k],y[k],z[k]) && x[k] = y[k] then 
+	if k' = k then
+	(* CV should see that this "find" always succeeds. Why doesn't it?
+	   FIXED 5/10/2016. Was just because Settings.changed was not set. *)
+	find j <= N suchthat defined(x[j],y[j],z[k']) && x[j] = y[j] then
+	out(c, z[k'])
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

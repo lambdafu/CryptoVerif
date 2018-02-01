@@ -1,0 +1,63 @@
+(* 
+insert 9 "let concat(x1,x2,x3,x4,x4) = h1x in";
+binds x4 twice, it should be rejected.
+Now it causes:
+Internal error: Same binder may be defined several times
+
+*)
+
+(* Proof indications *)
+
+proof {
+show_game occ;
+insert 9 "let concat(x1,x2,x3,x4,x4) = h1x in";
+crypto h1;
+show_game
+}
+
+(* Parameter and type declarations *)
+
+param NU, NS, NP.
+
+type Z [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host [bounded].
+
+(* Hash functions in the random oracle model; 
+   we give the adversary the possibility to compute hash functions
+   only on 5-tuples; the other hash values can be computed by an
+   independent random oracle *)
+
+type hashkey [fixed].
+
+fun concat(host, host, G, G, G): bitstring [data].
+
+param qH1.
+
+expand ROM_hash(hashkey, bitstring, hash1, h1).
+
+ 
+
+(* Queries *)
+
+query secret sk_s.
+
+process 
+	Ostart() :=
+hk1 <-R hashkey;
+sk_s <-R hash0;
+return();
+foreach iH1 <= qH1 do
+OH1(h1x: bitstring) :=
+return(h1(hk1, h1x))
+
+
+
+(* EXPECTED
+Error: Variable x4 defined several times in this pattern
+xtime: error in child process (status : 512)
+END *)

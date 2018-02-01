@@ -1,0 +1,1270 @@
+- simplification of terms and processes DONE
+
+	1) collect true equalities and defined variables 
+	- under if M then, M is true
+	- under if M else, M is false
+	- under let x = M in, x = M
+	- under find j suchthat defined(b[j]):M, b[j] is defined and M is true
+	- when a variable is defined, all equalities true above all its definition
+	points hold.
+
+	2) perform the simplifications for terms
+forall x:bool; not(not(x)) = x.
+forall x:bitstring,y:bitstring; (not(x = y)) = (x <> y).
+forall x:bitstring,y:bitstring; (not(x <> y)) = (x = y).
+forall x:bool,y:bool; (not(x && y)) = (not(x) || not(y)).
+forall x:bool,y:bool; (not(x || y)) = (not(x) && not(y)).
+forall ; not(true) = false.
+forall ; not(false) = true.
+
+forall x:bool; (x && true) = x.
+forall x:bool; (true && x) = x.
+forall x:bool; (x && false) = false.
+forall x:bool; (false && x) = false.
+
+forall x:bool; (x || true) = true.
+forall x:bool; (true || x) = true.
+forall x:bool; (x || false) = x.
+forall x:bool; (false || x) = x.
+
+	- when x = M holds and x does not occur in M, replace x with M everywhere
+	- when M = M' comes from a statement, replace M with M'
+	- replace (M_1, ..., M_n) = (M'_1, ..., M'_n) with
+	M_1 = M'_1 && ... && M_n = M'_n
+	- group || above &&: (M_11 && ... && M_{1n_1}) || ... || (M_m1 && ... && M_{mn_m})
+	- eliminate collisions
+
+	3) perform the simplifications for processes
+	- if true then P else Q -> P	
+	- if false then P else Q -> Q	
+	- find j suchthat false then P else Q -> Q	
+	- two nested finds with the same condition can be simplified
+	==> be careful! find j1 suchthat C1 then find j2 suchthat C1{j2/j1} then ... else ...
+	may assign different values to j1 and j2. However, it always executes the
+	then part of the second find, and
+	find j1 suchthat C1 then ... else find j2 suchthat C1{j2/j1} then ... else ...
+	always executes the else part of the second find.
+	- let pat = M in P else Q -> split when pat and M are tuple.	
+	  			     transform into if when pat is =M'
+				     remove Q when pat is a variable
+
+	4) expand assignments for let x = x' in
+
+A set of true facts is simplified into
+- a substitution, such that the variables in its domain do not occur in
+its image.
+- a set of true facts not containing variables in the domain of
+the substitution
+or raise Contradiction
+
+* Adding a fact to a simplified set of true facts
+1) Apply the substitution to the fact
+2) Apply all rewrite rules given by statements
+3) Simplify the fact
+- F1 and F2 -> recursively add F1 then F2 to the set of true facts
+- M = M -> remove
+- x = M / M = x, when x does not occur in M and x is not created by a 
+  restriction: substitute M for x everywhere 
+  in the substitution image and the set of true facts; remove that fact;
+  and resimplify the whole set of facts, starting from step 2.
+- (M1, ..., Mn) = (N1,...,Nn) -> recursively add M1 = N1, .., Mn = Nn
+- (M1, ..., Mn) = (N1, ..., Nn') n <> n' -> raise Contradiction
+- a = b, a,b created by different restrictions -> raise Contradiction
+  Add probability.
+- a[M] = a[M'] -> add M = M'; add probability
+- otherwise keep as it is
+
+* Simplifying a term, knowing a simplified set of true facts
+1) Apply the substitution to the fact
+2) Apply all rewrite rules given by statements
+3) Simplify the term
+- (F1 or F2) and F3 -> (F1 and F3) or (F2 and F3)   (and commuted version) 
+- F1 and false -> false (and commuted version) 
+- F1 and true -> F1 (and commuted version) 
+- F1 or false -> F1 (and commuted version) 
+- F1 or true -> true (and commuted version) 
+- (M1, ..., Mn) = (N1,...,Nn) -> M1 = N1 and  .. and Mn = Nn
+- (M1, ..., Mn) = (N1, ..., Nn') n <> n' -> false
+- M = M -> true
+- a = b, a,b created by different restrictions -> false
+  Add probability.
+- a[M] = a[M'] -> M = M'; add probability
+- if the term M is a boolean, add not(M) to the set of true facts;
+If that raises Contradiction, then M simplifies to false.
+
+- expansion des or: DONE
+	if M1 || M2 then P else Q => if M1 then P else if M2 then P else Q
+	idem for find
+(always do that as part of simplification? YES)
+
+- remove expression defined(b,l). DONE
+
+- expand all assignments let x = x' DONE
+- remove useless assignments (when the defined variable is not used) DONE
+
+- keep the result of simplify_term only when the simplification is  DONE
+useful (i.e. when it yields true/false or when a reduction rule
+from a statement is applied)
+
+- test of success: does a game prove that a piece of data is secret?
+
+- find with several possibilities (non-deterministic choice between
+these possibilities): 
+	find j11 <= N11... j1n <= N1n suchthat ... then P1 
+	     ........
+	     jm1 <= Nm1... jmn <= Nmn suchthat ... then Pm else Q
+
+- take into account statements M <> M' (DONE at least a first try)
+
+-------------------------------------------------------------
+otway-rees3 (problem solved)
+
+k_281: Rmkey_45, Rmkey_45: session A,A [OK... (should be impossible)]
+k_280: Rmkey_45, Rmkey_44: session A,B [OK]
+k_279: Rmkey_45, Rmkey_43: session A,X [k published]
+
+       Rmkey_44, Rmkey_45: session B,A [Impossible]
+k_278: Rmkey_44, Rmkey_44: session B,B [OK... (should be impossible)]
+       Rmkey_44, Rmkey_43: session B,X [Impossible]
+
+       Rmkey_43, Rmkey_45: session X,A [Impossible]
+k_277: Rmkey_43, Rmkey_44: session X,B [k published]
+k_276: Rmkey_43, Rmkey_43: session X,X [k published]
+
+
+
+      find !_236 <= N suchthat defined(x_161[!_236]) && ((ea2_39 = e1_25[!_236]) && check2(e1_25[!_236], mkgen2(r_166), ma2_38)) then
+        if (!_7 = !_179[!_236]) then
+        if (hb_34 = B) then
+        let keyA: bitstring = k_279[!_236] in
+        0
+
+          find jB <= N2 suchthat defined(Rkey_247[jB], Rmkey_43[jB], Khost[jB]) && (hb_16 = Khost[jB]) then
+          find !_179 <= N suchthat defined(x_165[!_179]) && ((ea1_15 = ea1_37[!_179]) && check2(ea1_37[!_179], mkgen2(r_166), ma1)) then
+          if (M_18 = M_35[!_179]) then
+          if (hb_16 = hb_34[!_179]) then
+          if check(eb1, Kmkey[jB], mb1) then
+          let (Nb_24: bitstring, =M_18, =ha_17, =hb_16) = dec(eb1, Kkey[jB]) in
+          new k_279: key;
+          let e1_25: bitstring = enc2(Z, kgen2(r_275), r2_268) in
+          let e2_26: bitstring = enc((Nb_24, k_279), Kkey[jB], s4) in
+          let x_161: bitstring = cst_bitstring in
+
+!_7 = !_179[!_236[!_7]]
+hb_34[!_7] = B
+x_161[!_236[!_7]] defined ==>
+	hb_16[!_236[!_7]] = hb_34[!_179[!_236[!_7]]]
+	hb_16[!_236[!_7]] = Khost[jB[!_236[!_7]]
+	Rmkey_43[jB[!_236[!_7]] defined ==>
+		Khost[jB[!_236[!_7]] <> A,B
+
+The simplification should reach a contradiction.
+
+Simplifying (hb_34[!_7] = B) knowing
+ea2_39 -> enc2(Z, kgen2(r_275), r2_268[!_236[!_7]])
+x_165 -> cst_bitstring
+ea1_37 -> enc2(Z, kgen2(r_275), r2_274[!_7])
+!_179[!_236[!_7]] -> !_7
+x_161[!_236[!_7]] -> cst_bitstring
+e2_26[!_236[!_7]] -> enc((Nb_24[!_236[!_7]], k_279[!_236[!_7]]), Kkey[jB[!_236[!_7]]], s4[!_236[!_7]])
+e1_25[!_236[!_7]] -> enc2(Z, kgen2(r_275), r2_268[!_236[!_7]])
+hb_16[!_236[!_7]] -> hb_34[!_179[!_236[!_7]]]
+M_18[!_236[!_7]] -> M_35[!_179[!_236[!_7]]]
+ea1_15[!_236[!_7]] -> enc2(Z, kgen2(r_275), r2_274[!_179[!_236[!_7]]])
+hb_16[!_236[!_7]] -> Khost[jB[!_236[!_7]]]
+ha_17[!_236[!_7]] -> Khost[jA[!_236[!_7]]]
+Rkey_247[jB[!_236[!_7]]] -> cst_key
+Rmkey_43[jB[!_236[!_7]]] -> cst_key
+Rkey_247[jB[!_236[!_7]]] -> cst_key
+Rkey_249[jA[!_236[!_7]]] -> cst_key
+Khost[jA[!_236[!_7]]] -> A
+Rmkey_45[jA[!_236[!_7]]] -> cst_key
+Rkey_249[jA[!_236[!_7]]] -> cst_key
+Khost[jA[!_236[!_7]]] -> A
+(Khost[jB[!_236[!_7]]] <> A)
+(Khost[jB[!_236[!_7]]] <> B)
+(Khost[jB[!_236[!_7]]] <> A)
+(Khost[jB[!_236[!_7]]] <> B)
+check2(enc2(Z, kgen2(r_275), r2_274[!_179[!_236[!_7]]]), mkgen2(r_166), ma1[!_236[!_7]])
+check(eb1[!_236[!_7]], Kmkey[jB[!_236[!_7]]], mb1[!_236[!_7]])
+((Nb_24[!_236[!_7]], M_18[!_236[!_7]], ha_17[!_236[!_7]], hb_16[!_236[!_7]]) = dec(eb1[!_236[!_7]], Kkey[jB[!_236[!_7]]]))
+check2(enc2(Z, kgen2(r_275), r2_268[!_236[!_7]]), mkgen2(r_166), ma2_38[!_7])
+
+
+============================================================================
+otway-rees3StreamTag (problem solved 23.05.2005)
+
+Defs (e1_29[!_9] = enc(concat(tag3, concat(Na_41[!_280[!_9]], k_338[!_9])), Rkey[jA[!_9]], s3[!_9]))
+
+let e1_29: bitstring = enc(concat(tag3, concat(Na_41[!_248], k)), Kas_11, s3) in
+let e1_29: bitstring = enc(concat(tag3, concat(Na_41[!_220], k)), Kas_11, s3) in
+let e1_29: bitstring = enc(concat(tag3, concat(Na_41[!_206], k)), Kas_11, s3) in
+
+eb1 -> x_172[!_193[!_9]] missing!
+
+Simplifying dec(eb1[!_9], kbs_21[!_9]) knowing
+Na_25 -> getNonce(remainTag(dec(ea1_15[!_9], Kkey[jA[!_9]])))
+da1_24 -> remainTag(dec(ea1_15[!_9], Kkey[jA[!_9]]))
+da10_23 -> dec(ea1_15[!_9], Kkey[jA[!_9]])
+kbs_21 -> kgen(rKas)
+hb_16 -> A
+kas_19 -> Kkey[jA[!_9]]
+ha_17 -> Khost[jA[!_9]]
+Kbs_13 -> kgen(rKbs)
+Kas_11 -> kgen(rKas)
+x_172[!_193[!_9]] -> enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_
+9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]])
+e2_30[!_193[!_9]] -> enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_
+9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]])
+e1_29[!_193[!_9]] -> enc(concat(tag3, concat(getNonce(remainTag(dec(ea1_15[!_193
+[!_9]], Kkey[jA[!_193[!_9]]]))), k[!_193[!_9]])), Kkey[jA[!_193[!_9]]], s3[!_193
+[!_9]])
+Nb_28[!_193[!_9]] -> getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas))))
+db1_27[!_193[!_9]] -> remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))
+db10_26[!_193[!_9]] -> dec(eb1[!_193[!_9]], kgen(rKas))
+Rmkey_51[jB[!_9]] -> cst_key
+Rkey[jB[!_9]] -> kgen(rKas)
+Khost[jB[!_9]] -> A
+Rmkey_49[jA[!_9]] -> Kmkey[jA[!_9]]
+Rkey[jA[!_9]] -> Kkey[jA[!_9]]
+check2(enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas
+)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]), mkgen2(r_179), mb1[!_9])
+(eb1[!_9] = enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen
+(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]))
+(remainNonce(remainTag(dec(ea1_15[!_193[!_9]], Kkey[jA[!_193[!_9]]]))) = concat(
+M_18[!_193[!_9]], concat(Khost[jA[!_193[!_9]]], A)))
+(getTag(dec(ea1_15[!_193[!_9]], Kkey[jA[!_193[!_9]]])) = tag1)
+check(ea1_15[!_193[!_9]], Kmkey[jA[!_193[!_9]]], ma1[!_193[!_9]])
+(Khost[jA[!_193[!_9]]] <> B)
+(Khost[jA[!_193[!_9]]] <> A)
+(remainNonce(remainTag(dec(ea1_15[!_9], Kkey[jA[!_9]]))) = concat(M_18[!_9], con
+cat(Khost[jA[!_9]], A)))
+(getTag(dec(ea1_15[!_9], Kkey[jA[!_9]])) = tag1)
+(Khost[jA[!_9]] <> B)
+(Khost[jA[!_9]] <> A)
+check(ea1_15[!_9], Kmkey[jA[!_9]], ma1[!_9])
+(getTag(dec(eb1[!_193[!_9]], kgen(rKas))) = tag2)
+(remainNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))) = concat(M_18[!_193[!_
+9]], concat(Khost[jA[!_193[!_9]]], A)))
+
+Simplify done dec(eb1[!_9], kbs_21[!_9])
+
+
+
+Adding ((eb1[!_9] = x_172[!_193[!_9]]) && check2(x_172[!_193[!_9]], mkgen2(r_179
+), mb1[!_9]))
+Add_fact ((eb1[!_9] = enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]])) && check2(enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]), mkgen2(r_179), mb1[!_9]))
+Add_fact (eb1[!_9] = enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]))
+Add_fact check2(enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]],kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]), mkgen2(r_179), mb1[!_9])
+ yields
+Na_25 -> getNonce(remainTag(dec(ea1_15[!_9], Kkey[jA[!_9]])))
+da1_24 -> remainTag(dec(ea1_15[!_9], Kkey[jA[!_9]]))
+da10_23 -> dec(ea1_15[!_9], Kkey[jA[!_9]])
+kbs_21 -> kgen(rKas)
+hb_16 -> A
+kas_19 -> Kkey[jA[!_9]]
+ha_17 -> Khost[jA[!_9]]
+Kbs_13 -> kgen(rKbs)
+Kas_11 -> kgen(rKas)
+x_172[!_193[!_9]] -> enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]])
+e2_30[!_193[!_9]] -> enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]])
+e1_29[!_193[!_9]] -> enc(concat(tag3, concat(getNonce(remainTag(dec(ea1_15[!_193[!_9]], Kkey[jA[!_193[!_9]]]))), k[!_193[!_9]])), Kkey[jA[!_193[!_9]]], s3[!_193[!_9]])
+Nb_28[!_193[!_9]] -> getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas))))
+db1_27[!_193[!_9]] -> remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))
+db10_26[!_193[!_9]] -> dec(eb1[!_193[!_9]], kgen(rKas))
+Rmkey_51[jB[!_9]] -> cst_key
+Rkey[jB[!_9]] -> kgen(rKas)
+Khost[jB[!_9]] -> A
+Rmkey_49[jA[!_9]] -> Kmkey[jA[!_9]]
+Rkey[jA[!_9]] -> Kkey[jA[!_9]]
+check2(enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]), mkgen2(r_179), mb1[!_9])
+(eb1[!_9] = enc(concat(tag4, concat(getNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))), k[!_193[!_9]])), kgen(rKas), s4[!_193[!_9]]))
+(remainNonce(remainTag(dec(ea1_15[!_193[!_9]], Kkey[jA[!_193[!_9]]]))) = concat(M_18[!_193[!_9]], concat(Khost[jA[!_193[!_9]]], A)))
+(getTag(dec(ea1_15[!_193[!_9]], Kkey[jA[!_193[!_9]]])) = tag1)
+check(ea1_15[!_193[!_9]], Kmkey[jA[!_193[!_9]]], ma1[!_193[!_9]])
+(Khost[jA[!_193[!_9]]] <> B)
+(Khost[jA[!_193[!_9]]] <> A)
+(remainNonce(remainTag(dec(ea1_15[!_9], Kkey[jA[!_9]]))) = concat(M_18[!_9], concat(Khost[jA[!_9]], A)))
+(getTag(dec(ea1_15[!_9], Kkey[jA[!_9]])) = tag1)
+(Khost[jA[!_9]] <> B)
+(Khost[jA[!_9]] <> A)
+check(ea1_15[!_9], Kmkey[jA[!_9]], ma1[!_9])
+(getTag(dec(eb1[!_193[!_9]], kgen(rKas))) = tag2)
+(remainNonce(remainTag(dec(eb1[!_193[!_9]], kgen(rKas)))) = concat(M_18[!_193[!_9]], concat(Khost[jA[!_193[!_9]]], A)))
+
+Pb is: it takes Na_25 = something that depends on eb1,
+so cannot replace eb1 with its value later...
+
+============================================================================
+otway-rees2Block
+
+A simplification does not terminate:
+
+Simplifying (x_83[!_11] = x_92[!_112[!_11]]) knowing
+x_83 -> concat2(getnonce1(r5_94[!_174[!_11]]), k[!_11])
+Nb_19 -> getnonce1(r4_37[!_11])
+db1_18 -> r4_37[!_11]
+r5_38 -> r4_37[!_11]
+m_39 -> eb1[!_11]
+M_15 -> getnonce2(r5_94[!_174[!_11]])
+Na_17 -> getnonce1(r5_94[!_174[!_11]])
+da1_16 -> r5_94[!_174[!_11]]
+r5_97 -> r5_94[!_174[!_11]]
+m_98 -> ea1_14[!_11]
+x_92[!_112[!_11]] -> concat2(getnonce1(r5_94[!_174[!_112[!_11]]]), k[!_112[!_11]])
+M_22[!_58[!_112[!_11]]] -> getnonce2(r5_94[!_112[!_11]])
+m_95[!_112[!_11]] -> ea1_14[!_112[!_11]]
+x_45[!_58[!_112[!_11]]] -> r4_37[!_112[!_11]]
+eb1[!_112[!_11]] -> r3_44[!_58[!_112[!_11]]]
+m_95[!_174[!_11]] -> ea1_14[!_174[!_11]]
+r4_37[!_174[!_11]] -> x_45[!_58[!_174[!_11]]]
+eb1[!_174[!_11]] -> r3_44[!_58[!_174[!_11]]]
+eb1[!_174[!_11]] -> r3_44[!_58[!_174[!_11]]]
+(getnonce1(r4_37[!_112[!_11]]) = Nb_23[!_58[!_112[!_11]]])
+(B = gethost2(r5_94[!_174[!_112[!_11]]]))
+(A = gethost1(r5_94[!_174[!_112[!_11]]]))
+isconcat1(r5_94[!_174[!_112[!_11]]])
+(B = gethost2(r4_37[!_11]))
+(A = gethost1(r4_37[!_11]))
+(getnonce2(r5_94[!_174[!_11]]) = getnonce2(r4_37[!_11]))
+(B = gethost2(r5_94[!_174[!_11]]))
+(A = gethost1(r5_94[!_174[!_11]]))
+isconcat1(r5_94[!_174[!_11]])
+(ea1_14[!_11] = ea1_14[!_174[!_11]])
+(B = gethost2(r5_94[!_174[!_174[!_11]]]))
+(A = gethost1(r5_94[!_174[!_174[!_11]]]))
+isconcat1(r5_94[!_174[!_174[!_11]]])
+isconcat1(r5_94[!_174[!_174[!_11]]])
+(A = gethost1(r5_94[!_174[!_174[!_11]]]))
+(B = gethost2(r5_94[!_174[!_174[!_11]]]))
+isconcat1(r4_37[!_11])
+(getnonce1(x_45[!_58[!_174[!_11]]]) = Nb_23[!_58[!_174[!_11]]])
+isconcat1(r5_94[!_174[!_112[!_11]]])
+(A = gethost1(r5_94[!_174[!_112[!_11]]]))
+(B = gethost2(r5_94[!_174[!_112[!_11]]]))
+(getnonce1(r4_37[!_112[!_11]]) = Nb_23[!_58[!_112[!_11]]])
+
+Interm ((getnonce1(r5_94[!_174[!_11]]) = getnonce1(r5_94[!_174[!_112[!_11]]])) && (k[!_11] = k[!_112[!_11]]))
+Add_fact ((getnonce1(r5_94[!_174[!_11]]) = getnonce1(r5_94[!_174[!_112[!_11]]])) && (k[!_11] = k[!_112[!_11]]))
+Add_fact (getnonce1(r5_94[!_174[!_11]]) = getnonce1(r5_94[!_174[!_112[!_11]]]))
+Add_fact (k[!_11] = k[!_112[!_11]])
+Add_fact (!_11 = !_112[!_11])
+Add_fact (getnonce1(r5_94[!_174[!_11]]) = getnonce1(r5_94[!_174[!_11]]))
+Add_fact (getnonce1(r4_37[!_11]) = Nb_23[!_58[!_11]])
+Add_fact (B = gethost2(r5_94[!_174[!_11]]))
+Add_fact (A = gethost1(r5_94[!_174[!_11]]))
+Add_fact isconcat1(r5_94[!_174[!_11]])
+Add_fact (B = gethost2(r4_37[!_11]))
+Add_fact (A = gethost1(r4_37[!_11]))
+Add_fact (getnonce2(r5_94[!_174[!_11]]) = getnonce2(r4_37[!_11]))
+Add_fact (B = gethost2(r5_94[!_174[!_11]]))
+Add_fact (A = gethost1(r5_94[!_174[!_11]]))
+Add_fact isconcat1(r5_94[!_174[!_11]])
+Add_fact (ea1_14[!_11] = ea1_14[!_174[!_11]])
+Add_fact (B = gethost2(r5_94[!_174[!_174[!_11]]]))
+Add_fact (A = gethost1(r5_94[!_174[!_174[!_11]]]))
+Add_fact isconcat1(r5_94[!_174[!_174[!_11]]])
+Add_fact isconcat1(r5_94[!_174[!_174[!_11]]])
+Add_fact (A = gethost1(r5_94[!_174[!_174[!_11]]]))
+Add_fact (B = gethost2(r5_94[!_174[!_174[!_11]]]))
+Add_fact isconcat1(r4_37[!_11])
+
+cycle:
+
+Apply subst (getnonce1(x_45[!_58[!_174[!_11]]]) = Nb_23[!_58[!_174[!_11]]])
+Apply subst (getnonce1(r4_37[!_174[!_11]]) = Nb_23[!_58[!_174[!_11]]])
+
+!_112[!_11] -> !_11 comes from "Add_fact (!_11 = !_112[!_11])"
+
+x_45[!_58[!_112[!_11]]] -> r4_37[!_112[!_11]]
+so x_45[!_58[!_11]] -> r4_37[!_11]
+r4_37[!_174[!_11]] -> x_45[!_58[!_174[!_11]]]
+==> LOOP!!!
+
+===================================================================
+otway-rees3Stream
+
+        let keyA: bitstring = k_351[!_240] in   hb = B should yield a contradiction
+        let keyA: bitstring = k_352[!_240] in
+       let keyA: bitstring = k_357[!_240] in
+       let keyA: bitstring = k_358[!_240] in
+       let keyA: bitstring = k_353[!_238] in
+        let keyA: bitstring = k_354[!_238] in
+       let keyA: bitstring = k_359[!_238] in
+        let keyA: bitstring = k_360[!_238] in
+
+        let keyB: bitstring = k_337[!_155] in
+        let keyB: bitstring = k_338[!_155] in
+        let keyB: bitstring = k_343[!_155] in
+        let keyB: bitstring = k_344[!_155] in
+       let keyB: bitstring = k_353[!_145] in
+       let keyB: bitstring = k_354[!_145] in
+        let keyB: bitstring = k_359[!_145] in
+        let keyB: bitstring = k_360[!_145] in
+
+:  if (Khost = A) then
+    let Rkey_254: key = cst_key in
+    let Rmkey_47: key = cst_key in
+  else if (Khost = B) then
+      let Rkey_253: key = cst_key in
+      let Rmkey_46: key = cst_key in
+  else
+      let Rkey_252: key = Kkey in
+      let Rmkey_45: key = Kmkey in
+
+
+Case k_351:
+
+hb_16 = hb_36[!_183]
+hb_16 = Khost[jB]
+defined(Rkey_252[jB], Rmkey_45[jB]
+	Khost[jB] <> A, B
+
+hb_36[!_7] = B
+!_183[!_240] = !_7
+defined(k_351[!_240]
+	hb_16[!_240] = hb_36[!_183[!_240]]
+	hb_16[!_240] = Khost[jB[!_240]]
+	defined(Rkey_252[jB[!_240]], Rmkey_45[jB]
+		Khost[jB[!_240]] <> A, B
+
+Simplifying (hb_36[!_7] = B) knowing
+!_183[!_240[!_7]] -> !_7
+Rmkey_45[jB[!_240[!_7]]] -> Kmkey[jB[!_240[!_7]]]
+Rmkey_47[jA[!_240[!_7]]] -> cst_key
+x_165[!_240[!_7]] -> enc2(concat2(Znonce, Zkey), kgen2(r_334), r2_316[!_240[!_7]])
+hb_16[!_240[!_7]] -> gethost2(db1_25[!_240[!_7]])
+hb_36[!_183[!_240[!_7]]] -> gethost2(db1_25[!_240[!_7]])
+Khost[jA[!_240[!_7]]] -> gethost1(db1_25[!_240[!_7]])
+db1_25[!_240[!_7]] -> dec(eb1[!_240[!_7]], Rkey_252[jB[!_240[!_7]]])
+ea1_15[!_240[!_7]] -> enc2(concat1(Znonce, Znonce, Zhost, Zhost), kgen2(r_334),
+r2_333[!_183[!_240[!_7]]])
+ea1_39[!_7] -> enc2(concat1(Znonce, Znonce, Zhost, Zhost), kgen2(r_334), r2_333[!_7])
+x_169[!_7] -> enc2(concat1(Znonce, Znonce, Zhost, Zhost), kgen2(r_334), r2_333[!_7])
+M_18[!_240[!_7]] -> M_37[!_183[!_240[!_7]]]
+Nb_26[!_240[!_7]] -> getnonce1(db1_25[!_240[!_7]])
+ha_17[!_240[!_7]] -> gethost1(db1_25[!_240[!_7]])
+Khost[jB[!_240[!_7]]] -> gethost2(db1_25[!_240[!_7]])
+e1_27[!_240[!_7]] -> enc2(concat2(Znonce, Zkey), kgen2(r_334), r2_316[!_240[!_7]])
+Rkey_254[jA[!_240[!_7]]] -> cst_key
+Rkey_252[jB[!_240[!_7]]] -> Kkey[jB[!_240[!_7]]]
+ea2_41[!_7] -> enc2(concat2(Znonce, Zkey), kgen2(r_334), r2_316[!_240[!_7]])
+(M_18[!_240[!_7]] = getnonce2(db1_25[!_240[!_7]]))
+isconcat1(db1_25[!_240[!_7]])
+check(eb1[!_240[!_7]], Rmkey_45[jB[!_240[!_7]]], mb1[!_240[!_7]])
+check2(x_169[!_183[!_240[!_7]]], mkgen2(r_170), ma1[!_240[!_7]])
+(Khost[jB[!_240[!_7]]] <> B)
+(Khost[jB[!_240[!_7]]] <> A)
+(Khost[jB[!_240[!_7]]] <> B)
+(Khost[jB[!_240[!_7]]] <> A)
+(Khost[jA[!_240[!_7]]] = A)
+(Khost[jA[!_240[!_7]]] = A)
+(M_18[!_240[!_7]] = getnonce2(db1_25[!_240[!_7]]))
+check(eb1[!_240[!_7]], Rmkey_45[jB[!_240[!_7]]], mb1[!_240[!_7]])
+check2(x_169[!_183[!_240[!_7]]], mkgen2(r_170), ma1[!_240[!_7]])
+isconcat1(db1_25[!_240[!_7]])
+check2(x_165[!_240[!_7]], mkgen2(r_170), ma2_40[!_7])
+
+Simplify done (hb_36[!_7] = B)
+
+
+solved by adding [decompos] option to functions, which prevents 
+these functions from appearing at the top of the image of substitutions.
+
+----------------------------------------------------------
+otway-rees3Stream
+(see proof crypto-proof/otway-rees3Stream.dvi)
+
+When SSA renaming Rkey, we duplicate cases in the server process
+(Rkey_249, Rmkey_45 appears twice
+idem for Rkey_250, Rmkey_46
+and Rkey_251, Rmkey_47)
+
+Solved: avoid adding duplicates in Transform.implies_def.
+
+-----------------------------------------------
+examples/needham-schroeder-sk3Stream
+
+semantic security of keyB is proved when it should not.
+
+      ! !_8 <= N
+      ....
+      orfind !_39 <= N suchthat defined(k_114[!_39], x_36[!_39]) && ((m4 = e3_16
+[!_39]) && check2(e3_16[!_39], mkgen2(r_37), mac4)) then
+        let keyB: key = k_114[!_39] in
+        0
+
+nothing shows that for two different values of !_8 the values of !_39
+are different...
+
+Solved 14/7/2005, was a bug in simplify.ml, check_no_dep
+----------------------------------------------------
+proof of semantic security
+
+modified simplify.ml so that the proof succeeds:
+- order t1 = t2 into t1 -> t2 when t1 and t2 have the same
+root function symbol and their subterms are ordered.
+- apply subsitutions to subterms, not only to the root.
+----------------------------------------------------
+Should I allow more general indexes of find in equivalences ?
+Like
+
+            find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then
+                    find j <= N2 suchthat defined(x[j,k]) && m = x[j,k] && check2(m, pkgen2(r[k]), si) then true else false
+            else check(m,y,si).
+
+Now only 
+
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+		find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+		check(m,y,si).
+
+is allowed.
+
+Allow the following indexes:
+- suffixes of cur_array
+- when ix is an authorized sequence of indexes, "find ix' suchthat defined(x[l1],y[l2]...z[ln])"
+is authorized when l1, ..., ln are all the concatenation of a suffix of ix' and the same suffix of ix.
+Then, when I know the first index of a sequence (the one for the inner-most replication),
+the other indexes are uniquely determined.
+
+Done 28/7/2005, then undone because it made the transformation more
+complicated.
+
+Checking in examples/needham-schroeder-pk3;
+/users/absint/blanchet/CVS-repository/dev/cryptoverif/examples/needham-schroeder-pk3,v  <--  needham-schroeder-pk3
+new revision: 1.3; previous revision: 1.2
+done
+Checking in src/check.ml;
+/users/absint/blanchet/CVS-repository/dev/cryptoverif/src/check.ml,v  <--  check.ml
+new revision: 1.32; previous revision: 1.31
+done
+-------------------------------------------------------------------------
+Simplify a find without index such that all variables in "defined" 
+are defined and the condition is true: the else branch
+is never executed. 
+Ex:        find  suchthat defined(r_65) && true then
+If there is a single then branch (or all then branches are
+equal), then the find can be removed completely.
+
+A find with a single then branch, no index, and that all variables in "defined" 
+are defined can be turned into a "if"
+	find suchthat defined(r_65) && c then p else p'
+becomes
+	if c then p else p'
+
+Done 31/7/05.
+-----------------------------------------------------------
+When [all] is present in an equivalence, I should perhaps
+insist on transforming all occurrences of the root symbol
+present in the left member. (Instead of just all terms of
+the required form: in the former case, we would perform
+preliminary transformations on the game, so that all
+occurrences can be transformed.)
+Done 31/07/2005
+-----------------------------------------------------------
+
+When a restriction has no array reference but several usages
+in different branches of a if/find, move its definition
+under each branch of the if/find and SSA rename it immediately.
+Done 31/7/2005 
+-----------------------------------------------------------
+[feature enhancement]
+Option compos means that the function is injective,
+so the declaration
+	fun f(t1...tn):t [compos]
+should add automatically for i = 1...n
+	fun getif(t):ti [decompos]
+	getif(f(x1...xn)) = xi
+(or rather extend the pattern matching construct to allow
+	let f(x1...xn) = ...
+but be careful about the semantics of this construct:
+a priori, f(x1...xn) = g(M1...Mm) may succeed 
+even when f <> g and both f and g are "[compos]".
+One can add an explicit statement
+	forall x1...xn,y1...ym f(x1...xn) <> g(y1...ym)
+to say that they are different)
+and
+	(f(x1...xn) = f(y1...yn)) = ((x1 = y1) && ... && (xn = yn))
+
+This would simplify the declaration of concat functions.
+Done 1/8/05
+-----------------------------------------------------------
+Function "=" should allow interval types 
+(It is used internally with these types, but currently only allows
+bitstrings.)
+Idem for "<>"
+Done 1/8/05
+---------------------------------------------------------
+In syntax.ml, interpret "set" instruction in input file to set parameters 
+in settings.ml
+Done 3/8/05
+---------------------------------------------------------
+Done interactive prover (3/8/05)
+---------------------------------------------------------
+Add a construct 
+  collision new a1:T1...an:Tn;forall x1:T'1...xn:T'n; M =(P)=> M'
+handled in simplify.ml. In contrast to "equiv" this construct allows
+a1...an to be used anywhere, but it still requires them to be random
+numbers.
+Done 3/8/05
+-----------------------------------------------------------
+There is a bug the dependency analysis in terms.ml
+It is temporarily disabled by modifying simplify.ml
+Fixed 5/8/05
+---------------------------------------------------------
+Cache the result of the dependency analysis to speed up simplification.
+Done 6/8/05
+---------------------------------------------------------
+Interactive prover: implement "crypto <f> *" to apply
+the rule corresponding to f for all binders for which this
+is possible.
+Done 7/8/05
+---------------------------------------------------------
+Optimize when there are several occurrences of the same expression
+in different branches of if/find/let: I could reuse the same "let"-vars
+after a cryptographic transformation, to reduce the number of cases
+to consider in find.
+Done 13/8/2005, but not activated by default (use set optimizeLetVars = true)
+because does not seem to do much good...
+---------------------------------------------------------
+Try to speed up find_compos (simplify.ml).
+Goal: not be much slower than test05.08.05-14\:26\:37
+Done 13/8/2005: avoid redoing dependency collision in add_fact;
+modified simplify_term to avoid repeatedly adding facts
+(facts are added only when simplifying the test itself)
+---------------------------------------------------------
+Tried 15/8/2005 to apply simplification before expanding if/find/let,
+to avoid creating large games. This reduces memory consumption, but
+slows down most examples (except skeme with a complex encoding of 
+Diffie-Hellman). So abandoned for now. 
+(see src/simplify-allowIfLetFindE.ml in ~/arch/cryptoverif03.tgz
+for a simplification that supports the presence of if/find/let
+everywhere in expressions).
+--------------------------------------------------
+Loop in examples/needham-schroeder-pkcorr3BlockHash
+(simplify, after crypto hash)
+
+simplif_add (x[!_29] = x[@i_24817[!_29]]) knowing
+x_24767[@i_24817[!_29]] -> x[@i_24817[!_29]]
+x_24767[!_29] -> x[@i_24817[!_29]]
+
+orient x[@i_24817[!_29]] -> x[!_29].
+	same var at root, so orient subterms @i_24817[!_29] -> !_29
+This reduces x_24767[@i_24817[!_29]] -> x[@i_24817[!_29]]
+into x_24767[@i_24817[!_29]] -> x[!_29]
+and x_24767[!_29] -> x[@i_24817[!_29]]
+into x_24767[!_29] -> x[!_29]
+
+simplif_add (x_24767[!_29] = x[!_29]) knowing
+x[@i_24817[!_29]] -> x[!_29]
+
+simplif_add (x_24767[@i_24817[!_29]] = x[!_29]) knowing
+x_24767[!_29] -> x[!_29]
+x[@i_24817[!_29]] -> x[!_29]
+
+orient x[!_29] -> x_24767[@i_24817[!_29]]
+	this orientation is chosen because x[current repl id] is the left side
+reduces both rules
+
+simplif_add (x[@i_24817[!_29]] = x_24767[@i_24817[!_29]]) knowing
+x[!_29] -> x_24767[@i_24817[!_29]]
+
+simplif_add (x_24767[!_29] = x_24767[@i_24817[!_29]]) knowing
+x[@i_24817[!_29]] -> x_24767[@i_24817[!_29]]
+x[!_29] -> x_24767[@i_24817[!_29]]
+
+orient x_24767[@i_24817[!_29]] -> x_24767[!_29]
+	same var at root, so orient subterms @i_24817[!_29] -> !_29
+reduces both rules
+
+simplif_add (x[!_29] = x_24767[!_29]) knowing
+x_24767[@i_24817[!_29]] -> x_24767[!_29]
+
+simplif_add (x[@i_24817[!_29]] = x_24767[!_29]) knowing
+x[!_29] -> x_24767[!_29]
+x_24767[@i_24817[!_29]] -> x_24767[!_29]
+
+orient x_24767[!_29] -> x[@i_24817[!_29]]
+	this orientation is chosen because x[current repl id] is the left side
+reduces both rules
+
+simplif_add (x_24767[@i_24817[!_29]] = x[@i_24817[!_29]]) knowing
+x_24767[!_29] -> x[@i_24817[!_29]]
+
+simplif_add (x[!_29] = x[@i_24817[!_29]]) knowing
+x_24767[@i_24817[!_29]] -> x[@i_24817[!_29]]
+x_24767[!_29] -> x[@i_24817[!_29]]
+
+orient x[@i_24817[!_29]] -> x[!_29]
+reduces both rules
+and so on --> LOOP!
+
+Fixed 29/09/2005 by removing the orientation condition that
+x[current repl id] is the left side.
+(Would be better fixed by using a reduction ordering, if I find
+a good one!)
+--------------------------------------------------------------------------
+examples/needham-schroeder-pkcorr3BlockHash:
+The dependency analysis in simplify.ml is not really powerful enough because
+of a test
+
+let concat2(=Na, ...) = dec2(...) in
+
+which is not considered as
+
+let concat2(x, ...) = dec2(...) in
+if x = Na then
+
+For testing, I rewrote the pattern test into the if test as shown above.
+Fixed 12/10/2005
+---------------------------------------------------------
+examples/needham-schroeder-pkcorr3BlockHash:
+      let pad(=Nb_92) = dec2(m3, skgen2(r_550)) in ...
+I should check dependency_collision in add_fact, to eliminate
+this test... or call simplify_term on the term 
+	pad(Nb_92) = dec2(m3, skgen2(r_550))
+Fixed 12/10/2005: Settings.redo_dependency_collision = true
+------------------------------------------------------------------
+- transform.ml, remove_assignments: when we replace x[N_1, ..., N_n]
+by its definition M, add the "defined" corresponding to array references
+found in M to the find that guarantees that x[M_1, ..., M_n] is defined.
+Precisely, if we have a find with defined(M_1,...,M_m) and
+x occurs in M_1, ..., M_m, let M'_1, ..., M'_l be the subterms of 
+M_1, \ldots, M_m of root x, let M''_i be obtained from M'_i by substituting
+M\{N_1/i_1,...N_n/i_n\} for x[N_1,...,N_n] except at the root,
+and M'''_i be obtained from M_i by substituting
+M\{N_1/i_1,...N_n/i_n\} for x[N_1,...,N_n] everywhere.
+The new defined condition is defined(M''_1,...,M''_l,M'''_1,...,M'''_m)
+(function symbols at the root are removed). 
+The same problem also occurs in simplify.ml; it is a bit more difficult
+to solve there, because we need to track where each array reference comes
+from.
+Furthermore, a defined condition defined(M) now does not guarantee definition
+of variables defined above the root variable of M, but it guarantees
+definition of all variables in subterms of M.
+Fixed 31/10/05
+------------------------------------------------------------------------
+Formulas with probabilities:
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+equiv  ! N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N2 * Penc(time, N))=> 
+       ! N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z(x), kgen2(r), r2)).
+
+depends on the length? YES
+
+(* Mac *)
+
+equiv ! N3 new r: keyseed;(
+	 (x: bitstring) N -> mac(x, mkgen(r)),
+	 (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      ! N3 new r: keyseed;(
+	 (x: bitstring) N -> mac2(x, mkgen2(r)),
+	 (m: bitstring, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+depends on the length? YES
+
+(* Block cipher *)
+
+equiv  !N3 new r: keyseed; ((x:blocksize) N -> enc(x, kgen(r)),
+			(m:blocksize) N2 -> dec(m, kgen(r)))
+     <=(N3 * Penc(time, N, N2))=>
+       !N3 new r: keyseed; ((x:blocksize) N -> 
+		find j<=N suchthat defined(x[j],r2[j]) && x = x[j] then r2[j] 
+		orfind k<=N2 suchthat defined(r3[k],m[k]) && x = r3[k] then m[k] 
+		else new r2:blocksize; r2,
+			(m:blocksize) N2 ->
+		find j<=N suchthat defined(x[j],r2[j]) && m = r2[j] then x[j] 
+		orfind k<=N2 suchthat defined(r3[k],m[k]) && m = m[k] then r3[k] 
+		else new r3:blocksize; r3).
+
+(* Public-key encryption *)
+
+equiv  !N3 new r: keyseed; (() N -> pkgen(r),
+			    (m:bitstring) N2 -> dec(m, skgen(r))),
+       (x:blocksize, y:key) N4 -> new r2:seed; enc(x,y,r2) [all]
+     <=(N3 * Penc(time, N2))=> 
+       !N3 new r: keyseed; (() N -> pkgen2(r),
+			    (m:bitstring) N2 -> 
+		find j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
+		y[j] = pkgen2(r) && m = m2[j] then injbot(x[j]) else dec2(m, skgen2(r))),
+       (x:blocksize, y:key) N4 -> 
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+			(new r2:seed;
+			let m2:bitstring = enc2(Z, y, r2) in
+			m2)
+		else new r3:seed; enc(x,y,r3).
+
+(* Signatures *)
+
+equiv  !N3 new r: keyseed; (() N -> spkgen(r),
+			    (x: blocksize) N2 -> new r2: seed; sign(x, sskgen(r), r2)),
+       (m: blocksize, y: key, si: signature) N4 -> check(m, y, si) [all]
+     <=(N3 * Psign(time, N2))=>
+       !N3 new r: keyseed; (() N -> spkgen2(r),
+			    (x: blocksize) N2 -> new r2: seed; sign2(x, sskgen2(r), r2)),
+       (m: blocksize, y: key, si: signature) N4 -> 
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+		find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+		check(m,y,si).
+
+Hash functions, xor: proba 0
+Onewayness OK.
+------------------------------------------------------------------------------
+(x = x) -> 1 and (x != x) -> 0 now as default rewrite rules.
+The rule KB:diffcontrad of the equational prover can then be
+removed. (Useful to reduce probabilities for practical security.)
+Added in tech report 18/1/2006.
+-----------------------------------------------------------
+Allow restrictions in terms in the right-hand side of equivalences
+(13/1/2006)Added in tech report 18/1/2006.
+
+When there is a name just above a function in the left-hand side,
+the corresponding function in the right-hand side must not contain
+new names (in the term), for the crypto transformation to be correct
+as it is implemented. So we move the names in the sequence of names
+just above the function in the right-hand side. (21/01/2006)
+Added in tech report 23/01/2006
+-----------------------------------------------------------
+Simplify: Find removed when all branches are Yield and the variables
+bound by find have no array references.
+Restr b removed when b is not referenced.
+Let pat = M in Yield else Yield -> Yield when variables defined in pat
+have no array references.
+(15/1/2006) Fixed and added in tech report 18/1/2006
+-----------------------------------------------------------
+Support for commutative function symbols (30/12/2005)
+Useful to reduce probabilities for practical security, and to
+simplify some statements (no need to repeat statements after commuting
+arguments). Hence, M != M' is now translated only into 2 rules:
+(M != M') -> 1 and (M = M') -> 0.
+Added in tech report 19/1/2006
+-----------------------------------------------------------
+Improved simplification, to remove else branches of find more often.
+(find bl suchthat deflist and M then ... always succeeds
+when for some bl = bl0, deflist{bl0/bl} is in the set of known defined 
+variables and not(M{bl0/bl}) yields a contradiction. The suitable value
+of bl0 is found by looking in the set of known defined variables
+for elements of the form deflist{bl0/bl}.)
+Added in tech report 19/1/2006
+-----------------------------------------------------------------
+Avoid useless renamings:
+Reuse the same name when applying an equivalence, for names in the
+left- and right-hand sides that are in the corresponding name sequence,
+have the same type and the same variable name.
+
+Advantages:
+- games easier to read, a little bit simpler.
+- might help for previous treatment of onewayness.
+Done 20/1/2006
+-----------------------------------------------------------
+In cryptotransf, allow equivalences in which some expressions do
+not contain all names above them (provided the name sequences
+can be completed by looking at other elements of the mapping).
+Added in tech report 26/01/2006
+-----------------------------------------------------------
+In cryptotransf, allow to transform terms that occur in the condition
+part of a find. Expansion of find may then fail, in which case
+the cryptographic transformation is undone.
+Added in tech report 26/01/2006
+-----------------------------------------------------------
+For pfdh, and more generally to be able to guide more precisely the
+prover, have a mode in which, for interactive proofs, the prover
+does not add names to the list of names of a crypto transformation. 
+Done 27/3/2006, but is not sufficient for finding the better reduction
+for pfdh.
+-----------------------------------------------------------------------
+Seg fault for examples/needham-schroeder-skcorr3StreamAuth
+Probably a loop in simplification that yields stack overflow.
+Works ok if I replace the { Nb }K... { Nb-1 }K with
+{ tag0, Nb }K... { tag1, Nb }K
+(examples/needham-schroeder-skcorr3StreamAuth2)
+
+A related point is that the system needs a rather subtle argument to
+show that the collision
+	minusone(Nb[i]) = Nb[j]
+has negligible probability:
+	either i = j, and this is impossible since minusone(x) <> x
+	or i <> j and the left-hand side is independent of Nb[j] while
+	the right-hand side characterizes Nb[j], so the collision has
+	negligible probability.
+Currently, the fact that minusone(x) <> x is not given, and
+the system is unable to distinguish two cases as outline above.
+
+Solved 7/4/2006, due to other changes, plus the addition of
+forall x:nonce; minusone(x) <> x.
+------------------------------------------------------------------------
+25/10/2005: Improved dependency analysis to handle block ciphers.
+- find_compos now allows expressions of the form compos(decompos x),
+which generalizes the definition of "characterize"
+- when a test is almost surely true or false, do not take into
+account in the dependency analysis the branch that cannot be executed 
+
+Problems with block ciphers.
+
+After transformation, yields:
+
+x' = encryption(x,k) ->
+ find (x as argument of each encryption)
+   should be eliminated by eliminating collisions and distinguishing messages.
+   the current encryption in the current session remains, but it is actually
+   impossible, because the find requires the definition of a variable
+   that is defined under it.
+
+ orfind (x as result of each decryption)
+   should also be eliminated, but it does not work currently.
+   we need a case analysis on the results of decryptions (the system would
+   currently perform such an analysis only after SSArenaming the results
+   of decryptions, which would yield an explosion of the game):
+	- if it is the argument of another encryption, it boils down to the
+	first case above, and is eliminated
+	- if it is the result of another decryption, it is eliminated by
+	induction hypothesis (the system cannot handle such an induction now)
+	- if it is a fresh value, it is eliminated by eliminating collisions
+	(the system cannot do that now: the collision is of the form
+	r = x where r is a nonce and x is the function that builds the message;
+	the collision is unlikely to happen because _x does not depend on r_).
+
+ else x' = fresh value
+
+
+y' = decryption(y,k) ->
+  find (y as result of each encryption)   y' is the argument x of that encryption
+    all these find remain, but after the find the process becomes 0 except
+    when y comes from the desired encryption, because the tests
+    that check the correctness of the message fail.
+
+  orfind (y as argument of each decryption)  
+    these find remain, but a case analysis could greatly simplify them:
+    they boil down to one of the other two cases by induction.
+    (the system cannot handle such an induction now)
+
+  else y' = fresh value
+    the process after the find often becomes 0, because the tests
+    that check the correctness of the message fail. (sometimes, we cannot
+    prove that with sufficiently high probability???)
+
+
+The following coding
+
+equiv  new r: keyseed; ((x:blocksize) N -> enc(x, kgen(r)),
+			(m:blocksize) N2 -> dec(m, kgen(r)))
+     <=(Penc)=>
+       new r: keyseed; ((x:blocksize) N -> 
+		new r2: blocksize; 
+		find j<=N suchthat defined(x[j],r3[j]) && x = x[j] then r3[j] 
+		orfind k<=N2 suchthat defined(r5[k],m[k]) && x = r5[k] then m[k] 
+		else let r3: blocksize = r2 in r3,
+			(m:blocksize) N2 ->
+		new r4: blocksize;
+		find j<=N suchthat defined(x[j],r3[j]) && m = r3[j] then x[j] 
+		orfind k<=N2 suchthat defined(r5[k],m[k]) && m = m[k] then r5[k] 
+		else let r5: blocksize = r4 in r5).
+
+avoids the induction problem. Still a race condition problem (but only with negligible
+probability??) and the problem of elimination of collisions r5 = x.
+
+
+After transformation, yields:
+
+x' = encryption(x,k) ->
+ find (x as argument of each encryption)
+   should be eliminated by eliminating collisions and distinguishing messages.
+   the current encryption in the current session remains, but it is actually
+   impossible, because the find requires the definition of a variable
+   that is defined under it.
+
+ orfind (x as result of each decryption)
+   should also be eliminated, but it does not work currently.
+   it is eliminated by eliminating collisions
+   (the system cannot do that now: the collision is of the form
+   r = x where r is a nonce and x is the function that builds the message;
+   the collision is unlikely to happen because _x does not depend on r_).
+
+ else x' = fresh value
+
+
+y' = decryption(y,k) ->
+  find (y as result of each encryption)   y' is the argument x of that encryption
+    all these find remain, but after the find the process becomes 0 except
+    when y comes from the desired encryption, because the tests
+    that check the correctness of the message fail.
+
+  orfind (y as argument of each decryption)  
+    these find remain, but as the last case, the process after the find 
+    often becomes 0, because the tests that check the correctness of the 
+    message fail. (sometimes, we cannot prove that with sufficiently high 
+    probability???)
+
+  else y' = fresh value
+    the process after the find often becomes 0, because the tests
+    that check the correctness of the message fail. (sometimes, we cannot
+    prove that with sufficiently high probability???)
+
+In the case of otway-rees2BlockTag, we obtain
+  new r4_37: blocksize;
+  [...]
+  if (gettag(r4_37[!_60]) = tag2) then
+  let Nb_19: nonce = getnonce1(r4_37[!_60]) in
+  if ((M_15 = getnonce2(r4_37[!_60])) && ((A = gethost1(r4_37[!_60])) && (B = gethost2(r4_37[!_60])))) then
+  [...]
+where r4_37 is the fresh value created as a result of a (bad) decryption
+(one of the last two cases of decryption).
+
+  let x_36: blocksize = concat2(tag4, Nb_19, k) in
+  find !_52 <= N suchthat defined(r5_38[!_52], m_39[!_52]) && (x_36 = r4_37[!_52]) then
+
+
+The reasoning to eliminate these cases should be as follows:
+	1) gettag(r4_37[...]), getnonce1(r4_37[...]), gethost1/2(r4_37[...])
+	may be revealed
+	2) but getnonce2(r4_37[...]) is independent of the above four values,
+	so getnonce2(r4_37[...]) is a random nonce on which the adversary
+	has no information: all tests on it fail with high probability
+	(M_15 does not depend on it, k in concat2(tag4, Nb_19, k) does 
+	not depend on r4_37), the output messages do not depend on it.
+We have the needed dependency analysis to do that, except that
+the dependency analysis should be done on getnonce2(r4_37[...]),
+not on r4_37 itself as it is now...
+-----------------------------------------------------------
+The following kind of reasoning would be useful for simplification,
+but appears difficult to formalize and implement:
+
+When we expand a hash function h into a random function (random oracle
+model), and for some calls to h, the following of the computation is
+independent of the result of h when it is a fresh random number
+(i.e. h has not been called on the same argument before), then we can
+omit this case in the whole game, that is, we do not need to make a
+find in the arguments of h for these calls to h.
+
+A typical example is the following: a game containing
+
+	!...h(x)
+
+	!...y = h(x')
+
+should be transformed into
+
+	!...new r
+	find j such that defined(x[j],r[j]) && x = x[j] then r[j] else r
+
+	!...find j such that defined(x[j],r[j]) && x' = x[j] then y = r[j] else 0
+
+because when h(x') has not been called before evaluating y = h(x'),
+h(x') returns a fresh random number, which has a negligible probability
+of collision with y.
+
+(The cryptographic transformation yields:
+
+	!...new r
+	find j such that defined(x[j],r[j]) && x = x[j] then r[j] 
+	orfind j' such that defined(x'[j'],r'[j']) && x = x'[j'] then r'[j'] else r
+
+	!...new r'
+	y = find j such that defined(x[j],r[j]) && x' = x[j] then r[j]
+	orfind j' suchthat defined(x'[j'],r'[j']) && x' = x'[j'] then r'[j'] else r'
+
+The collision y = r' can easily be shown to have negligible probability,
+even if the current system does not do it immediately,
+but eliminating the other uses of r' is more difficult.
+The justification of the transformation seems to be that, even if the
+value of h(x0) is some r' in this game, it can equivalently be considered
+to be some r.)
+
+One idea would be to add a special condition to "find", "otheruses(r'[j'])",
+so that the find j' is removed when r' is used only as r'[j'] in finds of the form 
+	find j' suchthat defined(...,r'[j'],...) && otheruses(r'[j']) in ... r'[j'] ...
+
+	!...new r
+	find j such that defined(x[j],r[j]) && otheruses(r[j]) && x = x[j] then r[j] 
+	orfind j' such that defined(x'[j'],r'[j']) && otheruses(r'[j']) && x = x'[j'] then r'[j'] else r
+
+	!...new r'
+	y = find j such that defined(x[j],r[j]) && otheruses(r[j]) && x' = x[j] then r[j]
+	orfind j' suchthat defined(x'[j'],r'[j']) && otheruses(r'[j']) && x' = x'[j'] then r'[j'] else r'
+
+In the implementation, we would need several "otheruses: T -> bool" functions,
+one for each type T.
+Is it ok to modify the argument of otheruses, for example during 
+simplification? Probably not: the root variable should remain unchanged.
+
+What is exactly the semantics of such a condition??? Perhaps something like:
+	Cignore(r[i], i \in I)[P] \approx_0 Cignore(r[i], i \in I)[P]
+where P is the transformed process
+	!new r
+	find j such that defined(x[j],r[j]) && x = x[j] then r[j] else r
+P' is the process P with the branches of find for j \in I removed
+Cignore(r[i], i \in I) is a context that does not use r[i] for i \in I.
+
+The same kind of situation appears for block ciphers (PRP pseudo-random
+permutations or SPRP super pseudo-random permutations).
+Done 22/3/2006
+Added in tech report 17/4/2006
+-----------------------------------------------------------
+Take into account that a block must be executed until the next
+output/yield before passing control to another block, when 
+computing variables that must be defined and facts that must be true.
+
+Solve encryptBR93-2v
+
+    find  suchthat defined(cT, aT, bT, r_44) && ((a = aT) && ((b = bT) && (c = r_44))) then
+      yield
+    else
+      find  suchthat defined(x_32, r_120) && otheruses(r_120) && (f'(pkgen'(r), x_32) = a) then
+        let m: hasht = xor(r_120, b) in
+        find  suchthat defined(bT, r_44) && otheruses(r_44) && (b = bT) then
+        if (c = r_44) then
+        out(c6[!_31], m)
+
+Elsefind([], [cT, aT, bT, r_44], (a = aT) && ((b = bT) && (c = r_44)))
+
+defined(bT, r_44) implies defined(cT, aT, bT, r_44)
+	[Thanks to the extension of the definition computation, because
+	cT is defined after bT and r_44, but in the same block]
+so we generate not((a = aT) && ((b = bT) && (c = r_44)))
+Furthermore, we have b = bT by the find condition,
+c = r_44 by the test condition,
+aT = f'(pkgen'(r), x_32) by definition of aT,
+f'(pkgen'(r), x_32) = a by the condition of the previous find,
+so a = aT.
+Hence we obtain a contradiction after the test "if (c = r_44) then".
+
+Done 04/4/2006
+Added in tech report 18/4/2006.
+-----------------------------------------------------------
+in the else branch of find, we should record the fact that
+the find failed, in order to possibly infer a contradiction later.
+This requires a new kind of fact
+	Elsefind(bl, deflist, M)
+meaning: forall bl, not (defined(deflist) && M)
+Since we introduce a new kind of fact, we could rework the already
+existing facts to introduce
+	FTerm(M) - standard fact
+	FLet(b[...],M') - replaces LetEqual
+	FDefined(b[...]) - replaces the variable definitions handled separately
+
+Note that, when new variables are defined in the else branch of the
+find, these variables should not be taken into account when inferring a
+contradiction from Elsefind(bl, deflist, M) (these variables were not
+defined yet when evaluating the find). 
+Similarly, variables whose definition is required by a find should
+be taken into account only when there is no output between the find
+that generated Elsefind(bl, deflist, M) and the current program point
+and they are not defined in the else branch of the find
+(Then these variables must have been defined before evaluating the
+find that generated Elsefind(bl, deflist, M), since only the code
+of the else branch of this find has been executed in between.)
+
+When deflist is empty, bl must also be empty, so 
+Elsefind(bl, deflist, M) can be replaced with not(M).
+
+When we define a new variable b, look for all "Elsefind" in the
+true facts, and remove Elsefind(bl, deflist, M) with b \in deflist.
+
+When we meet an output, remove all Elsefind(bl, deflist, M).
+
+When we analyze a find, in the true branch, for each
+Elsefind(bl, deflist, M), add not(M) for each bl such that deflist
+is certainly defined, taking into account the variables that must be  
+defined according to the condition of the find.
+Done 03/4/2006
+Added in tech report 21/4/2006
+-----------------------------------------------------------
+transform
+find i suchthat defined(x[i]) && i = M && M'...
+into
+find suchthat defined(x[M]) && M'{M/i} then
+	let i = M in ...
+(This is somewhat similar to the removal of assignments.)
+
+In detail:
+
+when we meet 
+	find l suchthat defined(def_list) && M then
+we let true_facts' = add M to true_facts
+   let M_i = try_no_var true_facts' l_i
+   if l_i does not occur in M_i, remove l_i from l, substitute {M_i/l_i}
+   in defined(def_list) && M, and add "let l_i = M_i in" in the then branch.
+After this transformation, 
+ - if all elements of def_list are always defined 
+(reduced_def_list true_facts def_list == []) and M is true (adding
+not M yields a contradiction) then always_then := true
+ - if some element of def_list is never defined (how do we check that?)
+or M is false (adding M yields a contradiction), remove this branch
+of find.
+Done 20/03/2006
+Added in tech report 21/4/2006.
+-----------------------------------------------------------
+Simplification: when a "defined" test is always false
+(the variable is only defined in a different branch of if/find
+in the same session, or only defined after the test in the same
+session), remove the corresponding find branch.
+Done 20/03/2006.
+Added in tech report 24/4/2006
+-----------------------------------------------------------
+25/10/2005: Improved dependency analysis to handle block ciphers.
+- find_compos now allows expressions of the form compos(decompos x),
+which generalizes the definition of "characterize"
+- when a test is almost surely true or false, do not take into
+account in the dependency analysis the branch that cannot be executed 
+Added in tech report 28/5/2006
+-----------------------------------------------------------
+Generalize the notion of "characterize", so that 
+f2(pkgen2(r_94), y_93) characterizes y_93 
+when there is a rewrite rule 
+	(f2(pkgen2(x),y) = f2(pkgen2(x),y2)) = (y = y2)
+(This is similar to a previous version of find_compos, which used
+a rewrite rule prover; however, do not use probabilistic rewrite rules
+for that. See srcnd/simplify-lpo.ml. Variables that do not depend on
+b need not be renamed to new variables by subst. In particular, this
+is true for variables created by restrictions different from b.)
+Done 23/3/2006
+Added in tech report 28/5/2006
+-----------------------------------------------------------
+Improve a bit the dependency analysis: in FindCompos.subst, do not
+rename variables that do not depend on the considered variable
+(use dependency/independency list for that). 
+Done 9/4/2006
+Added in tech report 28/5/2006
+-----------------------------------------------------------
+There is a subtle bug in SSA renaming when expression if/let/find are
+present: 
+for instance, in a process
+	let x = (letE y = M in M') in
+	P
+y[cur_array] is allowed in P, but when we SSA rename y, y[cur_array]
+will be renamed by rename_term only in M', not in P.
+(This could also be corrected by allowing y[cur_array] in P only under
+a find.)
+Fixed 13/5/2006: SArename no longer allows expressions if/let/find in terms.
+
+There could be a similar problem in array_ref_term: a reference
+y[cur_array] is considered a non-array reference only when it is in scope,
+while the previous example shows a case when y[cur_array] should probably
+be considered a non-array reference. (However, it depends on its exact usage:
+the current definition is coherent with the code for removal of 
+assignments, which substitutes in scope references only when there are
+several definitions of a variable)
+
+One should be careful that references y[cur_array] may be array references
+Example: (let y = M in M') | (find suchthat defined(y[cur_array]) && ...)
+I don't see a bug related to that, but keep that in mind...
+---------------------------------------------------------
+Fixed a bug in probability computation for collisions between terms
+23/6/2006.
+---------------------------------------------------------
+examplesnd/JoeKaiTsayBasicKerberos_070711a_auth_vhost: [DONE]
+	move "let" as well as "new" in "move_new", to be less sensitive
+	to the ordering of instructions
+        i.e. move_random (move new) should also make the move if it requires
+        moving a "let", provided the variable bound in this "let" has
+        no array accesses.
+        In fact I decided to move "let" with a different criterion:
+        "let" is moved under a if/let/find when the variable is used 
+        in a branch of that if/let/find. (So that it is computed in
+        fewer cases.)
+05/2009.

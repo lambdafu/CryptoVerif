@@ -1,0 +1,72 @@
+type D [fixed].
+
+(*set interactiveMode = true.*)
+
+fun concat(D,D):D.
+equation AC(concat).
+
+fun f(D):bitstring.
+fun h(D):bitstring.
+fun g(D): D.
+
+const zero, one, two, three: D. 
+
+channel c.
+
+proba Peq.
+param n, n'.
+
+equiv
+  ! n new r1: D; new r2: D; ! n' O(y: D) := return(concat(r1,concat(y,r2)))
+<=(Peq)=>
+  ! n ! n' O(y: D) := return(g(y)).
+
+fun concat2(D,D):D.
+equation AC(concat2).
+equiv
+  ! n new r1: D; new r2: D; ! n' O() := return(concat2(r1,concat2(one,r2)))
+<=(Peq)=>
+  ! n ! n' O() := return(g(one)).
+
+process in(c, ());
+new r1_1: D;
+new r2_1: D;
+out(c, h(concat(concat(r1_1, one), concat(two, r2_1))));
+in(c, ());
+new r1_2: D;
+new r2_2: D;
+out(c, h(concat(concat(r1_2, one), concat(r2_2, two))));
+in(c, ());
+new r1_3: D;
+new r2_3: D;
+out(c, h(concat(two, concat(concat(r1_3, one), concat(r2_3, two)))));
+in(c, ());
+let z: D = concat(r1_3, one) in
+out(c, h(concat(z, concat(r2_3, zero))));
+in(c, ());
+let t: D = concat(two, r2_3) in
+out(c, h(concat(z, t)));
+in(c, ());
+let x: D = concat(z, t) in
+out(c, h(x));
+in(c, ());
+new r1_4: D;
+new r2_4: D;
+new r1': D;
+new r2': D;
+out(c, h(concat(concat(r1_4, one), concat(r2_4, concat(two, concat(r1', concat(one, r2')))))));
+in(c, ());
+new r1_5: D;
+new r2_5: D;
+out(c, h(concat(concat(r1_5, one), concat(r2_5, concat(two, concat(r1_5, concat(one, r2_5)))))));
+in(c, ());
+new r1_6: D;
+new r2_6: D;
+out(c, h(concat2(concat2(r1_6, r1_6), concat2(two, concat2(r2_6, concat2(one, concat2(one, r2_6)))))))
+
+	
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.040s + system 0.000s), max rss 35552K
+END *)

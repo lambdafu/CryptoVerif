@@ -1,0 +1,62 @@
+
+(** ElGamal encryption scheme 
+    Modeling by Bruno Blanchet and Avik Chaudhuri **)
+
+(** An encryption scheme is shown to be SS
+    under the DDH assumption.
+    See Section 3, "Sequences of Games", Victor Shoup. **)
+
+(* Replicated the encryption oracle, so that several encryptions can
+be performed, in order to show that El Gamal is IND-CPA. This goes 
+slightly beyond the proof in Shoup's paper (it is however an easy
+consequence of Shoup's proof). *) 
+
+param n, qE.
+
+type Z [fixed].
+type G [fixed].
+
+(* Decisional Diffie-Hellman assumption *)
+
+proba pDDH.
+
+expand DDH(G,Z,gamma,exp,mult,pDDH).
+
+(* Product in the group G *)
+
+fun dot(G,G): G.
+
+(* dot(.,y) is a uniform function *)
+
+equiv 
+    (y:G) n -> new x:G; dot(x,y) [all]
+<=(0)=> (* BB: The difference of probability is 0 *)
+    (y:G) n -> new x:G; x.
+
+(* query *)
+query secret b.
+
+channel cPK, cE, cEret, start.
+
+let processE = 
+    !qE
+    in(cE, (m0:G, m1:G));
+    let m = if b then m1 else m0 in
+    new y:Z;
+    let beta = exp(gamma,y) in
+    let delta = exp(alpha,y) in
+    let zeta = dot(delta, m) in
+    out(cEret, (beta,zeta)).
+
+process
+  in(start, ());
+  new b:bool;
+  new x:Z;
+  let alpha = exp(gamma,x) in
+  out(cPK, alpha); 
+  processE
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 16560K
+END *)

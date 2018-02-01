@@ -1,0 +1,85 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.1: E(x) = f(r) || H(r) xor x (CPA) *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto rom(hash);
+remove_assign binder pk;
+crypto ow(f) r_2;
+crypto remove_xor(xor) *;
+success
+}
+
+param nx.
+
+type key [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, key, key, seed, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+
+
+(* Xor *)
+
+expand Xor(hasht, xor, zero).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1 [onesession].
+
+
+
+process 
+	Ohkgen() :=
+hk <-R hashkey;
+return();
+((
+  foreach iH <= qH do
+  OH(x_4: seed) :=
+  return(hash(hk, x_4))
+) | (
+  Ogen() :=
+  r_2 <-R keyseed;
+  pk: key <- pkgen(r_2);
+  sk: key <- skgen(r_2);
+  return(pk);
+  OT(m1: hasht, m2: hasht) :=
+  b1 <-R bool;
+  menc: hasht <- test(b1, m1, m2);
+  x_5 <-R seed;
+  a_1: seed <- f(pk, x_5);
+  b: hasht <- xor(hash(hk, x_5), menc);
+  return(a_1, b)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.040s + system 0.004s), max rss 36144K
+END *)

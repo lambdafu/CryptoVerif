@@ -1,0 +1,488 @@
+(************************************************************************
+ *                                                                      *
+ *       Kerberos 5 protocol                                            *
+ *                                                                      *
+ *       Joe-Kai Tsay, Bruno Blanchet, Aaron D. Jaggard, Andre Scedrov  *
+ *                                                                      *
+ *       Copyright (C) University of Pennsylvania, ENS, CNRS,           *
+ *       Rutgers University, 2007-2008                                  *
+ *                                                                      *
+ ************************************************************************)
+
+(*
+
+    Copyright University of Pennsylvania, ENS, CNRS, Rutgers University
+    authors of this file:   Joe-Kai Tsay, jetsay@math.upenn.edu,
+                Bruno Blanchet, Bruno.Blanchet@ens.fr,
+                Aaron D. Jaggard, adj@dimacs.rutgers.edu,
+                Andre Scedrov, scedrov@math.upenn.edu
+    
+    
+This file contains a model of the Kerberos 5 protocol, for use with the
+cryptographic protocol verifier CryptoVerif. It is a companion to
+the AsiaCCS'08 paper "Computationally Sound Mechanized Proofs for
+Basic and Public-key Kerberos", by B. Blanchet, A. D. Jaggard, A. Scedrov,
+and J.-K. Tsay.
+
+This software is governed by the CeCILL license under French law and
+abiding by the rules of distribution of free software.  You can use, 
+modify and/ or redistribute the software under the terms of the CeCILL
+license as circulated by CEA, CNRS and INRIA at the following URL
+"http://www.cecill.info". 
+
+As a counterpart to the access to the source code and  rights to copy,
+modify and redistribute granted by the license, users are provided only
+with a limited warranty  and the software's author,  the holder of the
+economic rights,  and the successive licensors  have only  limited
+liability. 
+
+In this respect, the user's attention is drawn to the risks associated
+with loading,  using,  modifying and/or developing or reproducing the
+software by the user in light of its specific status of free software,
+that may mean  that it is complicated to manipulate,  and  that  also
+therefore means  that it is reserved for developers  and  experienced
+professionals having in-depth computer knowledge. Users are therefore
+encouraged to load and test the software's suitability as regards their
+requirements in conditions enabling the security of their systems and/or 
+data to be ensured and,  more generally, to use and operate it in the 
+same conditions as regards security. 
+
+Anything other than deleting this file means that you have knowledge
+of the CeCILL license and that you accept its terms.
+
+*)
+
+(* Note: This file requires CryptoVerif version 1.06pl3 or higher. *)
+
+(* Public-key Kerberos 5, first round only (AS_exchange), with PKINIT in public key mode (RFC 4556), 
+consider authentication and secrecy queries *)
+
+
+proof {
+crypto sign rkCA
+crypto sign rkCs
+crypto penc rkC
+crypto sign rkKs
+auto
+}
+(*
+One more simplification is needed after "crypto keyderivation":
+CryptoVerif is configured to iterate simplification at most twice,
+three iterations are needed, so:
+ *)
+set maxIterSimplif = 3.
+
+set interactiveMode = true.
+
+param N.
+param N2.
+param N3.
+param N4.
+
+(* types for public-key cryptography *)
+
+type nonce [fixed,large].
+type client [bounded].
+type kas [bounded].
+type tgs [bounded].
+type server [bounded].
+
+(* types for public-key cryptography *)
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].  
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+
+(* types for symmetric encryption *)
+
+type symkeyseed [fixed].
+type key [fixed].
+type protkey [fixed].
+type usenum [fixed].
+type macs [fixed].
+type mkeyseed [fixed].
+type mkey [fixed].
+type symseed [fixed].
+type maxmac [bounded].
+type maxenc [bounded].
+type timest [fixed].
+
+
+(* message construction functions *)
+
+fun concat1(client, pkey, spkey):sblocksize [compos].				
+fun concat3(protkey, macs):sblocksize [compos]. 	     	       	  	 
+fun concat7(kas, pkey, spkey):sblocksize [compos].    				
+fun padno(timest,nonce):sblocksize [compos]. 	    	   	      	      	   
+fun concat2(kas, pkey, spkey, signature, protkey, macs, signature):blocksize [compos]. 
+fun concat4(key, nonce, timest, tgs):maxenc [compos]. 				
+fun concat5(key, timest, client):maxenc [compos]. 				
+fun concat8(key, nonce, timest, server):maxenc [compos]. 		       	
+fun pad(client, timest):maxenc [compos].					
+fun padts(timest):maxenc [compos].						
+fun concat6(client, pkey, spkey, signature, timest, nonce, signature, client, tgs, nonce):maxmac [compos].   
+
+forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;        	  concat5(y,x,z) <> concat4(t2,y2,x2,z2).
+forall t:key, y: nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs;  concat8(t,y,x,z) <> concat4(t2,y2,x2,z2).
+forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	 	  pad(z,t) <> concat4(t2,y2,x2,z2).
+forall t: timest, t2:key, y2:nonce, x2:timest, z2:tgs;  			  padts(t) <> concat4(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server;   	  concat5(y,x,z) <> concat8(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: timest, z2:client;    			  concat5(y,x,z) <> pad(z2,t2). 
+forall y:key, x:timest, z:client, t2: timest;    				  concat5(y,x,z) <> padts(t2). 
+forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  		  concat8(t,y,x,z) <> pad(z2,t2).
+forall t:key, y:nonce, x:timest, z:server, t2:timest;  				  concat8(t,y,x,z) <> padts(t2).
+forall t: timest, z: client, t2: timest;   					  pad(z,t)<> padts(t2).
+
+forall k1:protkey, y:macs, z2:client, y2:pkey, x2:spkey; 		  concat3(k1,y) <> concat1(z2,y2,x2).
+forall k1:protkey, y:macs, z2: nonce, t2:timest; 			  concat3(k1,y) <> padno(t2,z2).
+forall t:timest, y:nonce, z2:client, y2:pkey, x2:spkey;				  padno(t,y) <> concat1(z2,y2,x2).
+forall k1:protkey, y:macs, z2:kas, y2:pkey, x2:spkey;		  		  concat3(k1,y) <> concat7(z2,y2,x2).
+forall t:timest, y:nonce, z2:kas, y2:pkey, x2:spkey; 	     			  padno(t,y) <> concat7(z2,y2,x2).
+forall z2:client, y2:pkey, x2:spkey, z:kas, y:pkey, x:spkey;		  	  concat1(z2,y2,x2) <> concat7(z,y,x).
+
+
+(* Public-key encryption (IND-CCA2): *)
+
+proba Ppenc.
+proba Ppenccoll.
+
+fun penc(blocksize, pkey, seed):bitstring.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun pdec(bitstring, skey):blocksizebot.
+
+fun penc2(blocksize, pkey, seed):bitstring.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun pdec2(bitstring, skey):blocksizebot.
+
+fun injbot1(blocksize):blocksizebot [compos].
+
+const Z:blocksize.
+
+forall m:blocksize, r:keyseed, r2:seed; 
+	pdec(penc(m, pkgen(r), r2), skgen(r)) = injbot1(m).
+forall m:blocksize, r:keyseed, r2:seed; 
+	pdec2(penc2(m, pkgen2(r), r2), skgen2(r)) = injbot1(m).
+
+equiv  !N3 new r:keyseed; (() [2] -> pkgen(r),
+			    (m:bitstring) N2 -> pdec(m, skgen(r)),
+			    (x1:blocksize) N -> new r1:seed; penc(x1, pkgen(r),r1)),
+       (x:blocksize, y:pkey) N4 [3] -> new r2:seed; penc(x,y,r2) [all]
+     <=(N3 * N4 * Ppenc(time, N2))=> 
+       !N3 new r:keyseed; (() -> pkgen2(r),
+			    (m:bitstring) N2 -> 
+	        find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then injbot1(x1[j]) else
+		find j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
+		y[j] = pkgen2(r) && m = m2[j] then injbot1(x[j]) else pdec2(m, skgen2(r)),
+		            (x1:blocksize) N -> 
+                        new r1:seed; 
+			let m1:bitstring = penc2(Z, pkgen2(r), r1) in
+			m1),
+       (x:blocksize, y:pkey) N4 -> 
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+			(new r2:seed;
+			let m2:bitstring = penc2(Z, y, r2) in
+			m2)
+		else new r3:seed; penc(x,y,r3).
+
+collision new r1:keyseed; new r2:keyseed; 
+	pkgen(r1) = pkgen(r2) <=(Ppenccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed; 
+	pkgen2(r1) = pkgen2(r2) <=(Ppenccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed; 
+	skgen(r1) = skgen(r2) <=(Ppenccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed; 
+	skgen2(r1) = skgen2(r2) <=(Ppenccoll)=> r1 = r2.
+
+
+(* Signatures (UF-CMA): *)
+
+proba Psign.
+proba Psigncoll.
+
+fun sign(sblocksize, sskey, sseed):signature.
+fun sskgen(skeyseed):sskey.
+fun spkgen(skeyseed):spkey.
+fun check(sblocksize, spkey, signature):bool.
+
+fun sign2(sblocksize, sskey, sseed):signature.
+fun sskgen2(skeyseed):sskey.
+fun spkgen2(skeyseed):spkey.
+fun check2(sblocksize, spkey, signature):bool.
+
+forall m:sblocksize, r:skeyseed, r2:sseed; 
+	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:sblocksize, r:skeyseed, r2:sseed; 
+	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+equiv  !N3 new r:skeyseed; (() -> spkgen(r),
+			    (x:sblocksize) N2 -> new r2:sseed; sign(x, sskgen(r), r2),
+			    (m1: sblocksize, si1:signature) N -> check(m1, spkgen(r), si1)),
+       (m: sblocksize, y:spkey, si:signature) N4 -> check(m, y, si) [all]
+     <=(N3 * Psign(time, N2))=>
+       !N3 new r:skeyseed; (() -> spkgen2(r),
+			    (x:sblocksize) N2 -> new r2:sseed; sign2(x, sskgen2(r), r2),
+			    (m1: sblocksize, si1:signature) N -> 
+                              find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, spkgen(r), si1) then true else false),
+       (m: sblocksize, y: spkey, si: signature) N4 -> 
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+		find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+		check(m,y,si).
+
+collision new r1:skeyseed; new r2:skeyseed; 
+	spkgen(r1) = spkgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed; 
+	spkgen2(r1) = spkgen2(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed; 
+	sskgen(r1) = sskgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed; 
+	sskgen2(r1) = sskgen2(r2) <=(Psigncoll)=> r1 = r2. 
+
+
+(* Shared-key encryption (IND-CPA and INT-CTXT Stream cipher): *)
+
+proba Penc.
+proba Pencctxt.
+
+fun enc(maxenc,key,symseed):maxmac.
+fun kgen(symkeyseed):key.
+fun dec(maxmac,key):bitstringbot.
+
+fun injbot2(maxenc):bitstringbot [compos].
+forall x:maxenc; injbot2(x) <> bottom.
+
+fun enc2(maxenc,key,symseed):maxmac.
+fun kgen2(symkeyseed):key.
+
+fun enc3(maxenc,key,symseed):maxmac.
+fun kgen3(symkeyseed):key.
+
+
+(* The function Z2 returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+fun Z2(maxenc):maxenc.
+
+const Zconcat4:maxenc.
+const Zconcat5:maxenc.
+const Zconcat8:maxenc.
+const  	  Zpad:maxenc.
+const   Zpadts:maxenc. 
+
+forall m:maxenc, r:symkeyseed, r2:symseed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot2(m).
+
+forall m:key, y:nonce, x:timest, z:tgs; 
+	Z2(concat4(m,y,x,z)) = Zconcat4.
+forall y:key, x:timest, z:client; 
+	Z2(concat5(y,x,z)) = Zconcat5.
+forall t:key, y:nonce, x:timest, z:server;
+	Z2(concat8(t, y, x, z)) = Zconcat8.
+forall z:client, t:timest;
+        Z2(pad(z,t)) = Zpad.
+forall t: timest;
+        Z2(padts(t)) = Zpadts.
+
+(* IND-CPA *)
+equiv  !N2 new r:symkeyseed; ((x:maxenc) N -> new r2:symseed; enc(x, kgen2(r), r2)) 
+     <=(N2 * Penc(time, N))=> 
+       !N2 new r:symkeyseed; ((x:maxenc) N -> new r2:symseed; enc2(Z2(x), kgen2(r), r2)).
+
+(* INT-CTXT *)
+equiv ! N2 new r:symkeyseed; ((x:maxenc) N -> new r2:symseed; enc(x, kgen(r), r2),
+			    (y:maxmac) N3 -> dec(y,kgen(r))) 
+     <=(N2 * Pencctxt(time, N, N3))=> 
+      ! N2 new r:symkeyseed; ((x:maxenc) N -> new r2:symseed; let z:maxmac = enc(x, kgen2(r), r2) in z,
+			    (y:maxmac) N3 -> find j <= N suchthat defined(x[j],r2[j],z[j]) && z[j] = y then injbot2(x[j]) else bottom).
+
+
+(* Weakly Unforgeable Mac: *)
+
+proba Pmac.
+
+fun mac(maxmac, key):macs.
+fun checkmac(maxmac, key, macs): bool.
+
+fun mac2(maxmac, key):macs.
+fun checkmac2(maxmac, key, macs): bool.
+
+forall m:maxmac, r:symkeyseed;
+	checkmac(m, kgen(r), mac(m, kgen(r))).
+forall m:maxmac, r:symkeyseed;
+	checkmac2(m, kgen2(r), mac2(m, kgen2(r))).
+
+
+equiv !N3 new r: symkeyseed;(
+	 (x: maxmac) N -> mac(x, kgen(r)),
+	 (m: maxmac, ma: macs) N2 -> checkmac(m, kgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      !N3 new r: symkeyseed;(
+	 (x: maxmac) N -> mac2(x, kgen2(r)),
+	 (m: maxmac, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && checkmac2(x[j], kgen2(r), ma) then true else false).
+
+
+(* Pseudorandom function for key derivation *)
+
+proba pPRF.
+
+fun keyderivation(protkey, usenum):key.
+
+equiv !N2 new z:protkey;
+      	 (x:usenum) N -> keyderivation(z,x)
+      <=(N2 * pPRF(time, N))=>
+      !N2 (x:usenum) N -> find u <= N suchthat defined(x[u],r[u]) && x = x[u]
+                 then r[u]
+                 else new s:symkeyseed; let r:key=kgen(s) in r. 
+
+(* Key Usage Numbers for key derivation *)
+
+const un1: usenum.
+const un2: usenum.
+
+
+(* Channel declarations *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24, c25,
+	 start, finish, cC, cK.
+
+(* Host names for honest hosts *)
+
+const C :client.
+const K :kas.
+const T :tgs.
+const S :server.
+
+(* Final accept messages *)
+
+fun acceptC1(kas, tgs):bitstring.
+fun acceptC2(tgs, server):bitstring.
+fun acceptC3(server):bitstring.
+fun acceptK(client):bitstring.
+fun acceptT(client, server):bitstring.
+fun acceptS(client): bitstring.
+
+(* Authentication queries *)
+
+event fullKC(client, tgs, nonce, key, bitstring, maxmac, maxmac).
+event fullCK(kas, tgs, nonce, key, bitstring, maxmac, maxmac).		
+
+query w:bitstring, x:maxmac, y:maxmac, z:maxmac, N:nonce, k:key;
+       event inj:fullCK(K,T,N,k,w,x,y) ==> inj:fullKC(C,T,N,k,w,z,y).
+
+query w:bitstring, x:maxmac, y:maxmac, z:maxmac, N:nonce, k:key, k':key;  (* Not proved *)
+       event fullCK(K,T,N,k,w,x,y) && fullKC(C,T,N,k',w,z,y) ==> k=k'.
+		  
+(* Theorem 6: Secrecy of the key AK *)
+
+query secret keyAK. 
+
+
+(* Code for the client C *)
+
+let processC =
+	in(c1, hostT:tgs);							(* choose TGS hostT *)
+	new tc'':timest;
+	new n1: nonce;
+	new n2: nonce;
+    	new r1: sseed;
+	out(c2, (C, pkC, spkC, certC, tc'', n2, sign(padno(tc'',n2), sskC, r1), C, hostT, n1));
+	in(c3, (m21: bitstring, =C, TGT:maxmac, m24:maxmac));
+	let injbot1(concat2(hostZ:kas, pkZ:pkey, spkZ:spkey, ms1:signature, k3:protkey, ck1:macs, ms2:signature))=pdec(m21, skC) in   (* m21 = {{certK, [k,ck]_skK}}_{pkC} if k3=k and ck1=ck *)
+	if check(concat7(hostZ, pkZ, spkZ), pkCA, ms1) then  (* checking the signature of certK using the public key of the CA : *)
+	if check(concat3(k3, ck1), spkK, ms2) then     	     (* checking the signature over k, ck using the public key pkK of K :*)
+	let k1'=keyderivation(k3, un1) in
+	let k2'=keyderivation(k3, un2) in
+	let y':maxmac = concat6(C, pkC, spkC, certC, tc'', n2, sign(padno(tc'',n2), sskC, r1), C, hostT, n1) in
+	if checkmac(y', k2', ck1) then
+	let injbot2(concat4(AK, =n1, tk, =hostT)) = dec(m24, k1') in		(* m24 = {AK, n1, t_K, T}_{k} if k1'=k *)
+	event fullCK(hostZ, hostT, n1, AK, m21, TGT, m24);
+	out(c18, acceptC1(hostZ,hostT));
+	(* OK *)
+	in(finish, ());
+	if hostT = T then
+	(
+	let keyAK:key = AK		
+	)
+	else out(cC, AK).
+	
+	
+(* Code for registering the keys *)
+
+let processTKEY =
+	in(c21, (Lhost:tgs, Lkey:key)); 
+	let Qkey:key =
+	    	  if Lhost = T then Kt else			(* The key for the TGS T is Kt; for other TGSs, the key is chosen by the adversary *)
+		  Lkey.
+
+
+(* Code for the Kerberos Authentication Server (KAS) K *)
+
+let processK = 
+    	in(c22, (hostY:client, pkY:pkey, spkY:spkey, ms3:signature, tc'':timest, n4:nonce, ms4:signature, hostV:client, hostW:tgs, n5:nonce)); 
+	if hostV = hostY then
+	let m3 = (hostY, pkY, spkY, ms3, tc'', n4, ms4, hostY, hostW, n5) in
+     	if check(concat1(hostY, pkY, spkY), pkCA, ms3) then
+	if check(padno(tc'', n4), spkY, ms4) then
+	find j1 <= N2 suchthat defined(Lhost[j1],Qkey[j1]) && (Lhost[j1] = hostW) then
+	new AK:key;
+	new kp:protkey;
+	let k1 = keyderivation(kp, un1) in	(* encryption key*)
+	let k2 = keyderivation(kp, un2) in	(* mac key *)
+
+	new tk:timest;
+	new r4:symseed;
+	let TGT = enc(concat5(AK, tk, hostY), Qkey[j1], r4) in
+	new r5:symseed;
+	let e24 = enc(concat4(AK, n5, tk, hostW), k1, r5) in
+	new r6:sseed;
+	let y:maxmac = concat6(hostY, pkY, spkY, ms3, tc'', n4, ms4, hostY, hostW, n5) in
+	let ck = mac(y, k2) in
+	let ms21 =  sign(concat3(kp, ck), sskK, r6) in 
+	new r7:seed;
+	let e21 = penc(concat2(K, pkK, spkK, certK, kp, ck, ms21), pkY, r7) in
+	let m5 = (e21, hostY, TGT, e24) in
+	event fullKC(hostY, hostW, n5, AK, e21, TGT, e24);
+	out(c23, m5).
+
+
+(* Main process, which generates long-term keys and runs the various processes *)
+
+process 
+	in(start, ());
+	new rkC: keyseed;
+	let pkC = pkgen(rkC) in
+	let skC = skgen(rkC) in
+	new rkCs: skeyseed;
+	let spkC = spkgen(rkCs) in
+	let sskC = sskgen(rkCs) in
+	new rkK: keyseed;
+	let pkK = pkgen(rkK) in
+	let skK = skgen(rkK) in
+	new rkKs: skeyseed;
+	let spkK = spkgen(rkKs) in
+	let sskK = sskgen(rkKs) in
+	new rkCA: skeyseed;
+	let pkCA = spkgen(rkCA) in
+	let skCA = sskgen(rkCA) in
+	new rKt: symkeyseed;
+	let Kt = kgen(rKt) in
+	new q1: sseed;
+	new q2: sseed;
+	let certC = sign(concat1(C, pkC, spkC), skCA, q1) in
+	let certK = sign(concat7(K, pkK, spkK), skCA, q2) in  (* Note: certK actually only needs to bind K's name to a public key for signing,  not for encryption. We just want certK and certC to have the same structure  *)
+	out(c25,(pkC, spkC, spkK, pkCA));
+	((! N processC) |
+	 (! N processK) | 
+	 (! N2 processTKEY))
+
+
+

@@ -1,0 +1,13 @@
+const c0, c1: bitstring.
+
+process
+	Ostart() :=
+r: bitstring <- (x: bitstring <- c0; x);
+return(r)
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.016s + system 0.004s), max rss 39872K
+END *)

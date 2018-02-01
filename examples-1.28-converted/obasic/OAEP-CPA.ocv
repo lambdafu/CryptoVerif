@@ -1,0 +1,102 @@
+(* OAEP scheme, proof of CPA security *)
+
+proof {
+      crypto rom(H);
+      crypto rom(G);
+      show_game occ;
+      insert_event bad1 32;
+      show_game occ;
+      insert_event bad2 60;
+      crypto remove_xor(xorDr) r_6;
+      crypto remove_xor(xorDow) r_8;      
+      remove_assign binder pk;
+      show_game;
+      crypto pd_ow(f) r_3 r_9 r_10;
+      success
+}
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed,large].
+type Dow [fixed,large].
+type Dr [fixed,large].
+
+(* Set partial-domain one-way trapdoor permutation *)
+
+proba P_PD_OW.
+
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW).
+
+(* Hash functions, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, Dr, Dow, G).
+param qG [noninteractive].
+
+
+expand ROM_hash(hashkey, Dow, Dr, H).
+param qH [noninteractive].
+
+
+(* concatenation *)
+type Dm.
+type Dz [large].
+
+fun concatm(Dm,Dz):Dow [data].
+const zero: Dz.
+
+(* Xor *)
+
+expand Xor(Dow, xorDow, zeroDow).
+expand Xor(Dr, xorDr, zeroDr).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, Dm, Dm):Dm.
+forall x:Dm,y:Dm; test(true,x,y) = x.
+forall x:Dm,y:Dm; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1 [onesession].
+
+
+
+process 
+	Ogen() :=
+hkh <-R hashkey;
+hkg <-R hashkey;
+r_4 <-R seed;
+pk: pkey <- pkgen(r_4);
+sk: skey <- skgen(r_4);
+return(pk);
+((
+  foreach iG <= qG do
+  OG(x_6: Dr) :=
+  return(G(hkg, x_6))
+) | (
+  foreach iH <= qH do
+  OH(x_7: Dow) :=
+  return(H(hkh, x_7))
+) | (
+  OT(m1: Dm, m2: Dm) :=
+  b1 <-R bool;
+  menc: Dm <- test(b1, m1, m2);
+  r_5 <-R Dr;
+  s: Dow <- xorDow(concatm(menc, zero), G(hkg, r_5));
+  t: Dr <- xorDr(r_5, H(hkh, s));
+  return(f(pk, concat(s, t)))
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.052s (user 0.036s + system 0.016s), max rss 38256K
+END *)

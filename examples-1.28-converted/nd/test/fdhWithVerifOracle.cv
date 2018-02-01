@@ -1,0 +1,134 @@
+(* FDH signature scheme *)
+
+(* set interactiveMode = true.*)
+
+param N.
+param N2.
+param N3.
+param N4.
+param N5.
+param N6.
+param N7.
+
+type pkey.
+type skey.
+type keyseed [large,fixed].
+type hasht [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(keyseed):pkey.
+fun pkgen'(keyseed):pkey.
+fun skgen(keyseed):skey.
+fun f(pkey, hasht):hasht.
+fun f'(pkey, hasht):hasht.
+fun mf(skey, hasht):hasht.
+
+forall r:keyseed, x:hasht; mf(skgen(r), f(pkgen(r), x)) = x.
+
+forall k:pkey, x:hasht, x':hasht; (f(k,x) = f(k,x')) = (x = x').
+
+(*
+equiv !N new y:hasht; (k:pkey) -> y
+<=(0)=> 
+      !N new y:hasht; (k:pkey) -> f(k,y).
+
+The equivalence above is ok, but for manual proofs only. (It can be applied
+everywhere.) The one below can be used in automatic proofs.
+*)
+
+equiv
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle() := return(pkgen(r)) |
+    ! N3 new x: hasht; (
+      ! N4 gen_Oracle_1() := return(mf(skgen(r),x)) |
+      ! N5 gen_Oracle_2() := return(x)))
+<=(0)=>
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle() := return(pkgen(r)) |
+    ! N3 new x: hasht; (
+      ! N4 gen_Oracle_1() := return(x) |
+      ! N5 gen_Oracle_2() := return(f(pkgen(r), x)))).
+
+
+equiv
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle_1() := return(pkgen(r)) |
+    ! N3 new x: hasht; (
+      ! N4 gen_Oracle_2() := return(f(pkgen(r), x)) |
+      ! N5 gen_Oracle_3(x': hasht) := return(x' = x) |
+      ! N6 gen_Oracle_4() := return(x)))
+<=(N * N3 * POW(time))=>
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle_1() := return(pkgen'(r)) |
+    ! N3 new x: hasht; (
+      ! N4 gen_Oracle_2() := return(f'(pkgen'(r), x)) |
+      ! N5 gen_Oracle_3(x': hasht) := find j <= N6 suchthat defined(k[j]) then return(x' = x) else return(false) |
+      ! N6 gen_Oracle_4() := let k:bitstring = mark in return(x))).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):hasht.
+
+equiv
+  ! N gen_Oracle_1(x: bitstring) := return(hash(x)) [all]
+<=(0)=>
+  ! N gen_Oracle_1(x: bitstring) := find j <= N suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: hasht; return(r).
+
+(* Queries *)
+
+event bad.
+query event(bad) ==> false.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15,
+	start, finish.
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, =());
+new r: keyseed;
+let sk: skey = skgen(r) in
+let pk: pkey = pkgen(r) in
+out(c9, pk);
+((
+  ! i_1 <= N
+  in(c1[i_1], x: bitstring);
+  out(c2[i_1], hash(x))
+) | (
+  ! i_2 <= N2
+  in(c3[i_2], m: bitstring);
+  out(c4[i_2], mf(sk, hash(m)))
+) | (
+  ! i_3 <= N3
+  in(c5[i_3], (m3: bitstring, s_1: hasht));
+  if f(pk, s_1) = hash(m3) then
+    out(c6[i_3], true)
+  else
+    out(c6[i_3], false)
+) | (
+  in(c7, (m2: bitstring, s_2: hasht));
+  if f(pk, s_2) = hash(m2) then
+  find j_2 = j_3 <= N2 suchthat defined(m[j_3]) && (m2 = m[j_3]) then
+    yield
+  else
+    event bad
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.092s (user 0.080s + system 0.012s), max rss 43056K
+END *)

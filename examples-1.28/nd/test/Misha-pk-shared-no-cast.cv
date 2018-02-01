@@ -1,0 +1,102 @@
+
+channel c_in, c_out.
+type mstring.
+
+param N.
+
+type nonce [fixed, large].
+
+(************************
+  Public-key encryption
+*************************)
+
+(* IND-CCA2 probabilistic public-key encryption 
+   keyseed: type of key seeds, must be "fixed" (to be able to generate random numbers from it), typically large.
+   pkey: type of public keys, must be "bounded"
+   skey: type of secret keys, must be "bounded"
+   cleartext: type of cleartexts, must be "bounded" or "fixed" (the encryptions of *all* cleartexts of any length
+              are assumed to be indistinguishable from each other).
+   ciphertext: type of ciphertexts
+   seed: type of random seeds for encryption, must be "fixed"
+
+   dk: public-key generation function 
+   sk: secret-key generation function
+   E: encryption function
+   D: decryption function
+   injbot: natural injection from cleartext to bitstringbot
+   Z: a constant cleartext
+
+   Penc(t, N): probability of breaking the IND-CCA2 property
+   in time t for one key and N decryption queries.
+   Penccoll: probability of collision between independently generated keys
+*)
+
+type keyseed_T [fixed, large].
+type pkey [bounded].
+type cleartext [bounded].
+type seed_T [fixed].
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc(keyseed_T, pkey, pkey, cleartext, mstring, seed_T, dk, ek, E, D, injbot, Z, Penc, Penccoll).
+
+(*************************** 
+  Concatenation and Parsing 
+***************************)
+
+fun pad(nonce): cleartext [compos].
+
+(******************** 
+  Query
+********************)
+ 
+event beginA().
+event endB().
+
+query;
+  event endB() ==> beginA().
+
+(******************** 
+  Process
+********************)
+
+let pA = 
+  in(c_in, ());
+  
+  event beginA();
+
+  new nonce3: seed_T;
+  let msg1 = E(pad(sN), pkB, nonce3) in
+  out(c_out, msg1); 0 .
+
+let pB = 
+  in(c_in, msg1: mstring);
+  let injbot(msg1_c) = D(msg1, skB) in
+  
+  (* This doesn't work: *)
+  (* if pad(sN) = msg1_c then *)
+  
+  (* This does: *)
+  let pad(=sN) = msg1_c in
+
+  event endB();
+  yield .
+
+process
+(
+  in(c_in, ());
+  new B_seed: keyseed_T;
+  let pkB = ek(B_seed) in
+  let skB = dk(B_seed) in
+  
+  new sN: nonce;
+  
+  out(c_out, (pkB));
+  ((! N pA) | (! N pB))
+)
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.016s + system 0.008s), max rss 41456K
+END *)

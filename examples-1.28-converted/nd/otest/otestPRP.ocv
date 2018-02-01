@@ -1,0 +1,76 @@
+(* Trivial running example for conference paper. *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed,large].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+fun keyToBitstring(key):bitstring [data].
+
+(* Shared-key encryption (PRP) *)
+
+proba Penc.
+
+expand PRP_cipher(keyseed, key, key, kgen, enc, dec, Penc).
+
+
+(* Mac *)
+
+proba Pmac.
+
+expand SUF_CMA_mac(mkeyseed, mkey, key, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret k2 [onesession].
+query secret k3 [onesession].
+
+query secret k2.
+query secret k3.
+
+event endB(key, macs).
+event beginA(key, macs).
+
+query y: macs, x: key;
+  event(endB(x, y)) ==> event(beginA(x, y)) public_vars k2, k3.
+
+
+
+
+
+process 
+	Ostart() :=
+rKab <-R keyseed;
+Kab: key <- kgen(rKab);
+rmKab <-R mkeyseed;
+mKab: mkey <- mkgen(rmKab);
+return();
+((
+  foreach iA <= N do
+  OA() :=
+  k2 <-R key;
+  ea1: key <- enc(k2, Kab);
+  t1: macs <- mac(ea1, mKab);
+  event beginA(ea1, t1);
+  return(ea1, t1)
+) | (
+  foreach iB <= N do
+  OB(ea: key, ma_1: macs) :=
+  if check(ea, mKab, ma_1) then
+  k3: key <- dec(ea, Kab);
+  event endB(ea, ma_1);
+  return()
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of k3.
+0.032s (user 0.028s + system 0.004s), max rss 36224K
+END *)

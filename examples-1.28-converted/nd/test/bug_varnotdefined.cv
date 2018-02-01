@@ -1,0 +1,320 @@
+proof{
+insert 17 "let keyAB = hkdf1_init_key(hk1, gexp(g, mult(secA, secB))) in";
+crypto rom(hkdf1_init_key);
+crypto rom(hkdf1_zeroWhisperRatchet);
+crypto rom(hkdf_sharedWhisperRatchet);
+show_game;
+remove_assign binder x_12;
+remove_assign binder g1;
+remove_assign binder g2;
+remove_assign binder g3;
+remove_assign binder g1_1;
+remove_assign binder g2_1;
+remove_assign binder g3_1;
+remove_assign binder shared;
+remove_assign binder shared_1;
+crypto gdh(gexp) "variables: secA -> a_1, secB -> b_1, ephSecAB -> b_1, ephSecBA -> a_1, ephSecBA' -> a_1"
+}
+
+type mkey [fixed,large]. (* Mac key *)
+type ekey [fixed,large]. (* Encryption key *)
+type rkey [fixed,large]. 
+type ckey [fixed,large].
+
+type Z [bounded,large]. (* Exponents *)
+type G [bounded,large]. (* Diffie-Hellman group *)
+
+(* Type of principals *)
+type prin [bounded].
+
+(* Honest principals *)
+const alice, bob: prin.
+
+(* Gap Diffie-Hellman *)
+
+proba pGDH.
+expand GDH(G, Z, g, gexp, mult, pGDH).
+
+(* Key derivation functions: Random oracles *)
+
+(* Generate long-term MAC key *)
+
+type hashkey1 [large,fixed].
+expand ROM_hash(hashkey1, G, mkey, hkdf1_init_key).
+
+param qH1 [noninteractive].
+channel c1h1, c2h1.
+ 
+
+(* Generate initial rkey *)
+
+type hashkey2 [large,fixed].
+expand ROM_hash_triple(hashkey2, G, G, G, rkey, hkdf1_zeroWhisperRatchet).
+
+param qH2 [noninteractive].
+channel c1h2, c2h2.
+ 
+
+(* Generate message keys: encryption and MAC keys *)
+
+type hashkey4 [large,fixed].
+type emkey [large,fixed].
+expand ROM_hash(hashkey4, ckey, emkey, hkdf_zeroWhisperMessageKeys).
+
+param qH4 [noninteractive].
+channel c1h4, c2h4.
+ 
+
+(* Extraction of encryption and MAC keys from the pair *)
+
+fun get_ekey(emkey):ekey.
+fun get_mkey(emkey):mkey.
+param Nk.
+
+equiv(emkey )
+  ! Nk new r: emkey; (
+    O1() := return(get_ekey(r)) |
+    O2() := return(get_mkey(r)))
+<=(0)=>
+  ! Nk (
+    O1() := new k1: ekey; return(k1) |
+    O2() := new k2: mkey; return(k2)).
+
+(* Generate next rkey and ckey *)
+
+type hashkey6 [large,fixed].
+type rckey [large,fixed].
+expand ROM_hash_pair(hashkey6, rkey, G, rckey, hkdf_sharedWhisperRatchet).
+
+param qH6 [noninteractive].
+channel c1h6, c2h6.
+ 
+
+(* Extraction of rkey and ckey from the pair *)
+
+fun get_rkey(rckey):rkey.
+fun get_ckey(rckey):ckey.
+
+equiv(rckey )
+  ! Nk new r: rckey; (
+    O1() := return(get_rkey(r)) |
+    O2() := return(get_ckey(r)))
+<=(0)=>
+  ! Nk (
+    O1() := new k1: rkey; return(k1) |
+    O2() := new k2: ckey; return(k2)).
+
+(* End of key derivation functions *)
+
+(* MAC *)
+
+def SUF_CMA_mac_nokgen(mkey, macinput, macres, mac, check, Pmac) {
+
+param N, N2, N3.
+
+const mark: bitstring.
+
+fun mac(macinput, mkey):macres.
+fun check(macinput, mkey, macres): bool.
+
+fun mac2(macinput, mkey):macres.
+
+forall m:macinput, k:mkey;
+	check(m, k, mac(m, k)).
+
+equiv(suf_cma(mac))
+  ! N3 new k: mkey; (
+    ! N Omac(x: macinput) := return(mac(x, k)) |
+    ! N2 Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
+<=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [computational]
+  ! N3 new k: mkey [unchanged]; (
+    ! N Omac(x: macinput) := let ma2:macres = mac2(x, k) in return(ma2) |
+    ! N2 Ocheck(m: macinput, ma: macres) := find j <= N suchthat defined(x[j], ma2[j]) && (m = x[j]) && (ma = ma2[j]) then return(true) else return(false)).
+
+}
+
+
+type macres [fixed].
+proba Pmac.
+expand SUF_CMA_mac_nokgen(mkey, bitstring, macres, hmac, check, Pmac).
+
+(* Encryption in counter mode *)
+
+type t_ctr [fixed].
+
+param N, N2.
+
+fun enc(ekey, t_ctr, bitstring): bitstring.
+fun dec(ekey, bitstring): bitstring.
+
+forall k: ekey, ctr: t_ctr, msg: bitstring;
+      dec(k, enc(k, ctr, msg)) = msg.
+
+(* encryption is IND-CPA provided ctr is distinct
+   for each encryption *)
+
+proba Penc.
+	(* Penc(t, N, l) is the probability of breaking the IND-CPA property of encryption
+	   in time t, with N queries to the left-right encryption oracle, of length at most l
+	   (for one encryption key). *)
+
+(* Zero(x) is a bitstring of the same length as x, containing only zeroes *)
+fun Zero(bitstring): bitstring.
+
+fun enc'(ekey, t_ctr, bitstring): bitstring.
+
+event repeated_ctr.
+
+equiv
+  ! N2 new k: ekey; ! N Oenc(ctr: t_ctr, msg: bitstring) := return(enc(k, ctr, msg))
+<=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(msg)) + N*time(Zero, maxlength(msg))), N, maxlength(msg)))=>
+  ! N2 new k: ekey; ! N Oenc(ctr: t_ctr, msg: bitstring) := find i <= N suchthat defined(ctr[i], r[i]) && (ctr = ctr[i]) then event_abort repeated_ctr else let r: bitstring = enc'(k, ctr, Zero(msg)) in return(r).
+
+(* Counter - not used for now *)
+
+type int.
+const czero: int.
+fun incr(int):int.
+
+(* test(b,x,y) returns x when b = true and y when b is false *)
+
+fun test(bool, bitstring, bitstring): bitstring.
+forall x:bitstring,y:bitstring; test(true,x,y) = x.
+forall x:bitstring,y:bitstring; test(false,x,y) = y.
+forall b:bool,x:bitstring; test(b,x,x) = x.
+forall b:bool,x:bitstring,y:bitstring; Zero(test(b,x,y)) = test(b,Zero(x),Zero(y)).
+
+
+fun concat3(prin,prin,G):bitstring [data].
+fun concat4(prin,prin,G,G): bitstring [data].
+fun concatmsg(prin,prin,G,bitstring):bitstring [data].
+
+forall x1:prin,x2:prin,x3:G,y1:prin,y2:prin,y3:G,y4:G;
+  concat3(x1,x2,x3) <> concat4(y1,y2,y3,y4).
+
+param Nsend, Nrecv.
+channel start, ch0, recprin, outprin, chprin, ch1, ch2, ch3, ch3bis, ch4, ch5, ch6, ch7, ch8, ch9.
+
+(* Security properties *)
+
+event Send(prin, prin, bitstring).
+event Recv(prin, prin, bitstring).
+
+query m: bitstring, b: prin, a: prin;
+  event(Recv(a, b, m)) ==> event(Send(a, b, m)) public_vars secb.
+
+query secret secb. (* Actually can be secret only when SendMsg is 
+      executed only for sessions between honest participants.
+      This is true for all sessions in this file.  *)
+
+(* I do not look at forward secrecy for now. 
+   If I wanted to do it, I should give a query
+   that leaks secA/secB. *)
+
+(* Alice (a = alice) running the protocol as initiator, 
+   with a participant b with public key pubB
+   (b may be bob but also a dishonest participant). *)
+
+
+
+(* Bob (b = bob) running the protocol as responder, 
+   with a participant a with public key pubA
+   (a may be alice but also a dishonest participant). *)
+
+
+
+
+process
+    in(start, ());
+new secb: bool;
+new hk1: hashkey1;
+new hk2: hashkey2;
+new hk4: hashkey4;
+new hk6: hashkey6;
+new secA: Z;
+let pubA: G = gexp(g, secA) in
+new secB: Z;
+let pubB: G = gexp(g, secB) in
+out(outprin, (pubA, pubB));
+((
+  ! i_1 <= Nsend
+  in(ch1[i_1], (a_2: prin, b_2: prin));
+  if a_2 = alice then
+  new ephSecAB: Z;
+  let ephPubAB: G = gexp(g, ephSecAB) in
+  let mackey: mkey = hkdf1_init_key(hk1, gexp(pubB, secA)) in
+  let tag: macres = hmac(concat3(a_2, b_2, ephPubAB), mackey) in
+  out(ch2[i_1], (a_2, b_2, ephPubAB, tag));
+  in(ch3[i_1], (=b_2, =a_2, ephPubBA_1: G, tag2_1: macres));
+  if check(concat4(b_2, a_2, ephPubBA_1, ephPubAB), mackey, tag2_1) then
+  let g1: G = gexp(pubB, ephSecAB) in
+  let g2: G = gexp(ephPubBA_1, secA) in
+  let g3: G = gexp(ephPubBA_1, ephSecAB) in
+  let rkAB: rkey = hkdf1_zeroWhisperRatchet(hk2, g1, g2, g3) in
+  out(ch3bis[i_1], ());
+  in(ch8[i_1], (=b_2, =a_2, ephPubBA'_1: G, msgenc_1: bitstring, tag_1: macres));
+  let shared: G = gexp(ephPubBA'_1, ephSecAB) in
+  let rckBA': rckey = hkdf_sharedWhisperRatchet(hk6, rkAB, shared) in
+  let rkBA': rkey = get_rkey(rckBA') in
+  let ckBA': ckey = get_ckey(rckBA') in
+  let kENCMAC: emkey = hkdf_zeroWhisperMessageKeys(hk4, ckBA') in
+  let kENC: ekey = get_ekey(kENCMAC) in
+  let kMAC: mkey = get_mkey(kENCMAC) in
+  if check(concatmsg(b_2, a_2, ephPubBA'_1, msgenc_1), kMAC, tag_1) then
+  let msg: bitstring = dec(kENC, msgenc_1) in
+  event Recv(b_2, a_2, msg)
+) | (
+  ! i_2 <= Nrecv
+  in(ch4[i_2], (a_3: prin, b_3: prin, ephPubAB_1: G, tag_2: macres));
+  if b_3 = bob then
+  let mackey_1: mkey = hkdf1_init_key(hk1, gexp(pubA, secB)) in
+  if check(concat3(a_3, b_3, ephPubAB_1), mackey_1, tag_2) then
+  new ephSecBA: Z;
+  let ephPubBA_2: G = gexp(g, ephSecBA) in
+  let g1_1: G = gexp(ephPubAB_1, secB) in
+  let g2_1: G = gexp(pubA, ephSecBA) in
+  let g3_1: G = gexp(ephPubAB_1, ephSecBA) in
+  let rkAB_1: rkey = hkdf1_zeroWhisperRatchet(hk2, g1_1, g2_1, g3_1) in
+  let tag2_2: macres = hmac(concat4(b_3, a_3, ephPubBA_2, ephPubAB_1), mackey_1) in
+  out(ch5[i_2], (b_3, a_3, ephPubBA_2, tag2_2));
+  in(ch6[i_2], (m1: bitstring, m2: bitstring, ctr: t_ctr));
+  if Zero(m1) = Zero(m2) then
+  let msg_1: bitstring = test(secb, m1, m2) in
+  event Send(b_3, a_3, msg_1);
+  new ephSecBA': Z;
+  let ephPubBA'_2: G = gexp(g, ephSecBA') in
+  let shared_1: G = gexp(ephPubAB_1, ephSecBA') in
+  let rckBA'_1: rckey = hkdf_sharedWhisperRatchet(hk6, rkAB_1, shared_1) in
+  let rkBA'_1: rkey = get_rkey(rckBA'_1) in
+  let ckBA'_1: ckey = get_ckey(rckBA'_1) in
+  let kENCMAC_1: emkey = hkdf_zeroWhisperMessageKeys(hk4, ckBA'_1) in
+  let kENC_1: ekey = get_ekey(kENCMAC_1) in
+  let kMAC_1: mkey = get_mkey(kENCMAC_1) in
+  let msgenc_2: bitstring = enc(kENC_1, ctr, msg_1) in
+  let tag_3: macres = hmac(concatmsg(a_3, b_3, ephPubBA'_2, msgenc_2), kMAC_1) in
+  out(ch7[i_2], (b_3, a_3, ephPubBA'_2, msgenc_2, tag_3))
+) | (
+  ! i_3 <= qH1
+  in(c1h1[i_3], x_5: G);
+  out(c2h1[i_3], hkdf1_init_key(hk1, x_5))
+) | (
+  ! i_4 <= qH2
+  in(c1h2[i_4], (x1_4: G, x2_4: G, x3_2: G));
+  out(c2h2[i_4], hkdf1_zeroWhisperRatchet(hk2, x1_4, x2_4, x3_2))
+) | (
+  ! i_5 <= qH4
+  in(c1h4[i_5], x_6: ckey);
+  out(c2h4[i_5], hkdf_zeroWhisperMessageKeys(hk4, x_6))
+) | (
+  ! i_6 <= qH6
+  in(c1h6[i_6], (x1_5: rkey, x2_5: G));
+  out(c2h6[i_6], hkdf_sharedWhisperRatchet(hk6, x1_5, x2_5))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of secb; event(Recv(a, b, m)) ==> event(Send(a, b, m)) with public variables secb.
+1.892s (user 1.840s + system 0.052s), max rss 137488K
+END *)

@@ -1,0 +1,200 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+type maxencnotag [bounded].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+fun concat1(nonce, nonce, host, host):maxencnotag [data].
+fun concat2(nonce, key):maxencnotag [data].
+fun tagf(tag, maxencnotag):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(maxenc, key, seed): maxmac.
+fun kgen(keyseed):key.
+fun dec(maxmac, key): bitstringbot.
+
+fun enc2(maxenc, key, seed): maxmac.
+fun kgen2(keyseed):key.
+fun dec2(maxmac, key): bitstringbot.
+
+fun injbot(maxenc):bitstringbot [data].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(maxenc):maxenc.
+const Z1:maxenc.
+const Z2:maxenc.
+
+forall m:maxenc, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall m:maxenc, r:keyseed, r2:seed; 
+	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = injbot(m).
+forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
+forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
+
+equiv
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: maxenc) := return(enc(x, kgen(r), r2))
+<=(N2 * Penc(time, N))=>
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: maxenc) := return(enc2(Z(x), kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(maxmac, mkey):macs.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(maxmac, mkey):macs.
+fun mkgen2(mkeyseed):mkey.
+
+equiv
+  ! N3 new r: mkeyseed; (
+    ! N gen_Oracle_1(x: maxmac) := return(mac(x, mkgen(r))) |
+    ! N2 gen_Oracle_2(m: maxmac, ma: macs) := return(ma = mac(m, mkgen(r))))
+<=(N3 * Pmac(time, N, N2))=>
+  ! N3 new r: mkeyseed; (
+    ! N gen_Oracle_1(x: maxmac) := return(mac2(x, mkgen2(r))) |
+    ! N2 gen_Oracle_2(m: maxmac, ma: macs) := find j <= N suchthat defined(x[j]) && (m = x[j]) && ma = mac2(x[j], mkgen2(r)) then return(true) else return(false)).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query k: key, n: nonce, y: host, x: host;
+  event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) public_vars keyA, keyB.
+
+
+
+
+
+
+
+
+
+	
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mKas: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mKbs: mkey = mkgen(rmKbs) in
+out(c13, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hb_1: host);
+  new M_1: nonce;
+  new Na_1: nonce;
+  new s1: seed;
+  let ea1: maxmac = enc(tagf(tag1, concat1(Na_1, M_1, A, hb_1)), Kas, s1) in
+  event beginA(A, hb_1, M_1);
+  out(c2[i_1], (M_1, A, hb_1, ea1, mac(ea1, mKas)));
+  in(c3[i_1], (=M_1, ea2_1: maxmac, ma2_1: macs));
+  if ma2_1 = mac(ea2_1, mKas) then
+  let injbot(tagf(=tag3, concat2(=Na_1, k: key))) = dec(ea2_1, Kas) in
+  if hb_1 = B then
+  (
+    event endA(A, hb_1, M_1, k);
+    let keyA: key = k
+  )
+  else
+    out(c11[i_1], k)
+) | (
+  ! i_2 <= N
+  in(c4[i_2], (M_2: nonce, ha_1: host, =B, ea: maxmac, ma: macs));
+  new Nb_1: nonce;
+  new s2: seed;
+  let e2: maxmac = enc(tagf(tag2, concat1(Nb_1, M_2, ha_1, B)), Kbs, s2) in
+  event beginB(ha_1, B, M_2);
+  out(c5[i_2], (M_2, ha_1, B, ea, ma, e2, mac(e2, mKbs)));
+  in(c6[i_2], (=M_2, ea2_2: maxmac, ma2_2: macs, eb2: maxmac, mb2: macs));
+  if mb2 = mac(eb2, mKbs) then
+  let injbot(tagf(=tag4, concat2(=Nb_1, k_1: key))) = dec(eb2, Kbs) in
+  out(c7[i_2], (M_2, ea2_2, ma2_2));
+  in(finish[i_2], ());
+  if ha_1 = A then
+  (
+    event endB(ha_1, B, M_2, k_1);
+    let keyB: key = k_1
+  )
+  else
+    out(c12[i_2], k_1)
+) | (
+  ! i_3 <= N
+  in(c9[i_3], (M_3: nonce, ha_2: host, hb_2: host, ea1_1: maxmac, ma1: macs, eb1: maxmac, mb1: macs));
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Rmkey[jA_1], Khost[jA_1]) && (ha_2 = Khost[jA_1]) then
+  let kas: key = Rkey[jA] in
+  let mkas: mkey = Rmkey[jA] in
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Rmkey[jB_1], Khost[jB_1]) && (hb_2 = Khost[jB_1]) then
+  let kbs: key = Rkey[jB] in
+  let mkbs: mkey = Rmkey[jB] in
+  if ma1 = mac(ea1_1, mkas) then
+  let injbot(tagf(=tag1, concat1(Na_2: nonce, =M_3, =ha_2, =hb_2))) = dec(ea1_1, kas) in
+  if mb1 = mac(eb1, mkbs) then
+  let injbot(tagf(=tag2, concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2))) = dec(eb1, kbs) in
+  new k_2: key;
+  new s3: seed;
+  new s4: seed;
+  let e1: maxmac = enc(tagf(tag3, concat2(Na_2, k_2)), kas, s3) in
+  let e2_1: maxmac = enc(tagf(tag4, concat2(Nb_2, k_2)), kbs, s4) in
+  out(c10[i_3], (M_3, e1, mac(e1, mkas), e2_1, mac(e2_1, mkbs)))
+) | (
+  ! i_4 <= N2
+  in(c8[i_4], (Khost: host, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: mkey = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
+1.028s (user 0.996s + system 0.032s), max rss 74384K
+END *)

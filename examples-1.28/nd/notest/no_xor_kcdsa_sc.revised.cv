@@ -1,0 +1,169 @@
+(* A new signcryption scheme originated from KCDSA *)
+
+proof {
+remove_assign binder e_sc;
+show_game occ;
+insert 204 "let concat(x1,x2,x3,x4,x5,x6) = h1x in";
+crypto rom(h1);
+crypto rom(h0);
+show_game;
+interactive
+(* TO DO *)
+}
+
+(* Parameter and type declarations *)
+param Ne, Nd, N2, N3.
+type Z [large,bounded].
+type G [large,bounded].
+
+type key [bounded].
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+
+(* Shared-key encryption (IND-CPA Stream cipher)
+   IND-CPA is not enough, adding ciphertext integrity *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc_sc(key, bitstring, bitstring, seed, enc, dec, injbot, ZZ, Penc, Pencctxt).
+
+(* Hash functions in the random oracle model*)
+
+type hashkey[fixed]. 
+param nH0, nH1 [noninteractive]. 
+expand ROM_hash(hashkey, G, key, h0).
+
+channel h0c1, h0c2.
+let processH0 = !nH0 in(h0c1, h0x: G); out(h0c2, h0(hk0, h0x)). 
+
+
+(* Optimized version to avoid generating a random number when we
+   test the equality r' = exp(gm, hash(k,x')). *)
+define ROM_hash_Z(key, hashinput, hash) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):Z.
+
+equiv rom(hash)
+      !Nh new k:key;
+      	  (!N Ohash(x:hashinput) := hash(k,x),
+      	   !Neq Oeq(x':hashinput, r':G) := r' = exp(g, hash(k,x')))
+      <=(#Oeq / |Z|)=> [computational]
+      !Nh (!N Ohash(x:hashinput) := 
+              find[unique] j <= N suchthat defined(x[j],r[j]) && x = x[j] then r[j] else
+	      new r:Z; r,
+      	   !Neq Oeq(x':hashinput, r':G) := 
+              find[unique] j <= N suchthat defined(x[j],r[j]) && x' = x[j] then r' = exp(g, r[j]) else
+	      false).
+
+}
+
+
+expand ROM_hash_Z(hashkey, bitstring, h1).
+
+channel h1c1, h1c2.
+let processH1 = !nH1 in(h1c1, h1x: bitstring); out(h1c2, h1(hk1, h1x)). 
+
+
+
+(* Host name*)
+const ID_S: host.
+const ID_R: host.
+
+const one: Z.
+
+(* Queries *)
+query secret b.
+
+(* Functions *)
+fun concat(host, host, G, G, G, bitstring): bitstring [compos].
+
+(* Inversion function *)
+fun inv(Z): Z.
+forall y: Z;
+	mult(y, inv(y)) = one.
+forall x:Z, y: Z;
+	exp(exp(g, inv(x)), (mult(x, y))) = exp(g, y).
+
+(* Negation & mutiplication on G *)
+fun neg(Z, Z): Z.
+fun mult_G(G, G): G.
+forall x: Z, y: Z, z: Z;
+	mult_G(exp(exp(g, inv(x)), mult(x, neg(y, z))), exp(g, z)) = exp(g, y).
+
+
+fun choose(bool,bitstring,bitstring): bitstring.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:bitstring, z:bitstring;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+forall x:bool, y:bitstring;
+       choose(x,y,y) = y.
+forall x:bool, y:bitstring, z:bitstring;
+       ZZ(choose(x,y,z)) = choose(x,ZZ(y),ZZ(z)).
+
+
+
+channel start, cstart, cK, csc, cusc.
+
+
+
+(* Sender *)
+let processS = 
+	in(csc, (m1: bitstring, m2: bitstring));
+	if ZZ(m1) = ZZ(m2) then	
+	let M_b = choose(b, m1, m2) in
+	new x: Z;
+	let w = exp(pkR, x) in
+	let k_enc: key = h0(hk0,w) in 
+	new nonce: seed;
+	let cpt: bitstring = enc(M_b, k_enc, nonce) in
+
+	let e = h1(hk1, concat(ID_S, ID_R, pkS, pkR, w, M_b)) in 
+
+	let s:Z = mult(skS, neg(x, e)) in
+	let r:G = exp(g, e) in
+	out(csc, (ID_S, ID_R, r, s, cpt)).
+ 
+(* Receiver *)
+let processR = 
+	in(cusc, (=ID_S, =ID_R, r_sc: G, s_sc: Z, cpt_sc: bitstring));
+	find t2 <= Ne suchthat defined(r[t2], s[t2], cpt[t2]) && (r_sc = r[t2]) && (s_sc = s[t2]) && (cpt_sc = cpt[t2]) then yield else
+	let w_usc = exp(mult_G(exp(pkS, s_sc), r_sc), inv(skR)) in
+	let k_enc_usc = h0(hk0,w_usc) in
+	let injbot(M_usc) = dec(cpt_sc, k_enc_usc) in
+
+	let e_sc = h1(hk1, concat(ID_S, ID_R, pkS, pkR, w_usc, M_usc)) in
+	if(r_sc = exp(g, e_sc)) then
+	(
+		(* OK *)
+		out(cusc, M_usc)
+	)
+	else
+	(
+		out(cusc, bottom)
+	).
+
+process
+	in(start, ());
+	new b: bool;
+	new hk0: hashkey;
+	new hk1: hashkey;
+	new skS : Z;
+	let pkS = exp(g, inv(skS)) in
+	new skR : Z;
+	let pkR = exp(g, inv(skR)) in
+	out(cstart, (pkS, pkR));
+	((!Ne processS) | (!Nd processR) | processH0 | processH1)
+

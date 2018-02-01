@@ -1,0 +1,85 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.1: E(x) = f(r) || H(r) xor x (CPA) *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto rom(hash);
+remove_assign binder pk;
+crypto ow(f) r;
+crypto remove_xor(xor) *;
+success
+}
+
+param nx.
+
+type key [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, key, key, seed, pkgen, skgen, f, mf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle = ! qH in(hc1, x: seed); out(hc2, hash(hk,x)).
+
+(* Xor *)
+
+expand Xor(hasht, xor, zero).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret1 b1.
+
+channel c1, c2, c3, c4, c5, hstart, hret, start.
+
+let processT = 
+	in(c3, (m1:hasht, m2:hasht));
+	new b1:bool;
+	(* The next line is equivalent to an "if" that will not be
+	expanded. This is necessary for the system to succeed in
+	proving the protocol. *)
+	let menc = test(b1, m1, m2) in
+	new x:seed;
+	let a = f(pk,x) in
+	let b = xor(hash(hk,x), menc) in
+	out(c4, (a,b)).
+
+process 
+	in(hstart, ());
+	new hk: hashkey;
+	out(hret, ());
+	(hashoracle |
+	(in(start, ());
+	new r:keyseed; 
+	let sk = skgen(r) in
+	let pk = pkgen(r) in
+	out(c5, pk);
+	processT))
+
+
+(* EXPECTED
+All queries proved.
+0.036s (user 0.024s + system 0.012s), max rss 35952K
+END *)

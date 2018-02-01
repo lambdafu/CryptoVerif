@@ -1,0 +1,145 @@
+Doing expand if, let, find
+Doing simplify
+Run simplify 1 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Please enter a command: crypto
+1. equiv ! !_21 <= nK new r: seed; new a: modq; new b: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+  ! !_22 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen
+  () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b))
+<=(nK * PCDH(time + 3. * (nK - 1.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + tim
+      ! !_23 <= nK new r: seed; new a: modq; new b: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+  ! !_24 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'
+'3(r), b)) else false,
+  () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a)
+
+2. equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkg
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + tim
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkge
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r),
+
+3. equiv ! !_9 <= nK new r: seed; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  ! !_10 <= qS new a: modq; new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_11 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkg
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + 3. * (nK * qS - 1.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkg
+      ! !_12 <= nK new r: seed; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  ! !_13 <= qS new a: modq; new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_14 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkge
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r),
+
+4. equiv ! !_1 <= nK new r: seed; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  ! !_2 <= na new a: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+    ! !_3 <= nb new b: modq; (
+      () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+      ! !_4 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pk
+      () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b))))
+<=(nK * na * nb * PCDH(time + (2. * nK * na * nb + nK * na - 3.) * time(f) + (nK - 1.) * (tim
+time(pkgen3))))=>
+      ! !_5 <= nK new r: seed; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  ! !_6 <= na new a: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+    ! !_7 <= nb new b: modq; (
+      () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+      ! !_8 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkg
+gen'3(r), b)) else false,
+      () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r)
+
+Please enter number of equivalence to consider: 2
+Please enter binders mapped to restrictions for this equivalence: x
+Doing equivalence
+equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkg
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + tim
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkge
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r),
+with x
+Doing remove assignments of binder pk1
+Doing remove assignments of binder pk2
+Doing remove assignments of binder pk3
+Doing equivalence
+equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkg
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + tim
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkge
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r),
+with s, x
+Internal error: Invalid_argument("List.for_all2")
+Please report bug to Bruno.Blanchet@ens.fr, including input file and output

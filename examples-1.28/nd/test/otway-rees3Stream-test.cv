@@ -1,0 +1,173 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+
+Check that the system is not too sensitive to the syntax
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+(* A function f(x1...xn) is declared [compos] when:
+   - it is injective
+   - the values of x1...xn are computable in polynomial time from f(x1...xn) *)
+
+fun concat1(nonce, nonce, host, host):bitstring [compos].
+fun concat2(nonce, key):bitstring [compos].
+
+forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstringbot.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+fun injbot(bitstring):bitstringbot [compos].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Znonce:nonce.
+const Zhost:host.
+const Zkey:key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = concat1(Znonce,Znonce,Zhost,Zhost).
+forall y:nonce,z:key; 
+	Z(concat2(y,z)) = concat2(Znonce,Zkey).
+
+equiv  ! N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N2 * N * Penc)=> 
+       ! N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z(x), kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv ! N3 new r: keyseed;(
+	 (x: bitstring) N -> mac(x, mkgen(r)),
+	 (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * N2 * Pmac)=>
+      ! N3 new r: keyseed;(
+	 (x: bitstring) N -> mac2(x, mkgen2(r)),
+	 (m: bitstring, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+query secret1 keyA.
+query secret1 keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, start, dummy, finish.
+
+const A : host.
+const B : host.
+
+let processA = 
+	in(c1, hb: host);
+	new M : nonce;
+	new Na : nonce;
+	new s1 : seed;
+	out(c2, (M, A, hb, enc(concat1(Na, M, A, hb), Kas, s1), mac(enc(concat1(Na, M, A, hb), Kas, s1), mKas)));
+	in(c3, (=M, ea2: bitstring, ma2: macs));
+	if check(ea2, mKas, ma2) then
+	let injbot(concat2(=Na, k)) = dec(ea2, Kas) in
+	if hb = B then
+	let keyA:key = k.
+
+let processB =
+	in(c4, (M: nonce, ha: host, =B, ea:bitstring, ma:macs));
+	new Nb : nonce;
+	new s2 : seed;
+	let e2 = enc(concat1(Nb, M, ha, B), Kbs, s2) in
+	out(c5, (M, ha, B, ea, ma, e2, mac(e2, mKbs)));
+	in(c6, (=M, ea2: bitstring, ma2: macs, eb2: bitstring, mb2: macs));
+	if check(eb2, mKbs, mb2) then
+	let injbot(concat2(=Nb, k)) = dec(eb2, Kbs) in
+	out(c7, (M, ea2, ma2));
+	in(finish, =());
+	if ha = A then
+	let keyB:key = k.
+
+let processK =
+	in(c8, (Khost: host, Kkey: key, Kmkey: key));
+	let Rkey:key = 
+		if Khost = A then Kas else
+		if Khost = B then Kbs else
+		Kkey
+	in
+	let Rmkey:key =
+		if Khost = A then mKas else
+		if Khost = B then mKbs else
+		Kmkey.
+
+let processS =
+	in(c9, (M: nonce, ha: host, hb: host, ea1: bitstring, ma1: macs, eb1: bitstring, mb1: macs));
+	find jA <= N2 suchthat defined(Rkey[jA], Rmkey[jA], Khost[jA]) && (ha = Khost[jA]) then
+	let kas = Rkey[jA] in
+	let mkas = Rmkey[jA] in
+	find jB <= N2 suchthat defined(Rkey[jB], Rmkey[jB], Khost[jB]) && (hb = Khost[jB]) then
+	let kbs = Rkey[jB] in
+	let mkbs = Rmkey[jB] in
+	if check(ea1, mkas, ma1) then
+	let injbot(concat1(Na, =M, =ha, =hb)) = dec(ea1, kas) in
+	if check(eb1, mkbs, mb1) then
+	let injbot(concat1(Nb, =M, =ha, =hb)) = dec(eb1, kbs) in
+	new k: key;
+	new s3: seed;
+	new s4: seed;
+	let e1 = enc(concat2(Na, k), kas, s3) in
+	let e2 = enc(concat2(Nb, k), kbs, s4) in
+	out(c10, (M, e1, mac(e1, mkas), e2, mac(e2, mkbs))).
+	
+process 
+	in(start, =());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	new rmKas: keyseed;
+	let mKas = mkgen(rmKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	new rmKbs: keyseed;
+	let mKbs = mkgen(rmKbs) in
+	out(dummy, ());
+	((! N processA) |
+	 (! N processB) | 
+	 (! N processS) |
+	 (! N2 processK))
+
+(* EXPECTED
+All queries proved.
+1.970s (user 1.970s + system 0.000s), max rss 96784K
+END *)

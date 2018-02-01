@@ -1,0 +1,201 @@
+(* test with 
+./prover -lib examplesnd/notest/Eugen-default examplesnd/notest/Eugen-pwd-auth-orig.cv 
+Note: does not work with the current version of CryptoVerif because
+some types are missing. *)
+
+set interactiveMode = true.
+
+type nonce [large,fixed].
+type pkey.
+type skey.
+type keyseed [large,fixed].
+type seed [fixed].
+type blocks [fixed].
+type macs.
+type mkey.
+type mkeyseed [fixed].
+type guid [fixed].
+type Dbdb.
+type unit.
+
+param N.
+
+const dummy:bitstring.
+
+fun iconcat(bitstring):bitstring [compos].
+fun pair(bitstring,bitstring):bitstring [compos].
+
+
+
+
+const Shttp:bitstring.
+fun bs2mk(bitstring):mkey[compos].
+fun m2bl(macs):blocks[compos].
+fun concat(bitstring,bitstring):bitstring[compos].
+fun bl2m(blocks):macs[compos].
+fun bs2bl(bitstring):blocks[compos].
+fun empty_bstr():bitstring[compos].
+const SbadMAC:bitstring.
+channel c.
+
+
+(* public key encryption *)
+proba Penca.  
+proba Pencacoll.  
+expand public_key_enc(keyseed, pkey, skey, blocks,
+bitstring, seed, skgen, pkgen, enca, deca, injbot, Z, Penca,
+Pencacoll).
+
+fun inv_injbot(bitstringbot):blocks.
+fun skeygen(keyseed):skey.
+fun pubkey(skey,keyseed):pkey.
+
+
+(* MAC *)
+proba Pmac.
+expand UF_CMA_mac(mkeyseed, mkey, blocks, macs, mkgen, mac, check, Pmac).
+
+
+(* databases *)
+expand Database(bitstring,Some,None, guid,Dbdb,unit,bitstring,bitstring, DbnewDb,Dbinsert,Dbselect).
+
+fun PwdPkEntry(skey,pkey):bitstring[compos].
+fun PwdPwEntry(mkey):bitstring[compos].
+fun PwdLeakedPkEntry(skey,pkey):bitstring[compos].
+fun PwdLeakedPwEntry(mkey):bitstring[compos].
+
+forall x:skey,y:pkey; 
+  PwdPkEntry(x,y) <> dummy.
+forall x:skey,y:pkey; 
+  PwdLeakedPkEntry(x,y) <> dummy.
+forall x1:skey,x2:skey,y1:pkey,y2:pkey; 
+  PwdPkEntry(x1,y1) <> PwdLeakedPkEntry(x2,y2).
+
+forall x:mkey; 
+  PwdPwEntry(x) <> dummy.
+forall x:mkey; 
+  PwdLeakedPwEntry(x) <> dummy.
+forall x:mkey,y:mkey; 
+  PwdPwEntry(x) <> PwdLeakedPwEntry(y).
+
+
+(* queries *)
+
+event PwdSend(bitstring,bitstring).
+event PwdAccept(bitstring,bitstring).
+event PwdPwLeak(bitstring).
+event PwdSkLeak(bitstring).
+
+query m:bitstring,a:bitstring;
+  event PwdAccept(a,m) ==> PwdSend(a,m) .
+
+
+process
+  in(c,());
+  let NethttpChan = dummy in
+    let Pwdtr = dummy in
+      new F5:guid;
+      let PwdkeyDb = DbnewDb(F5) in
+        new F6:guid;
+        let PwdpwdDb = DbnewDb(F6) in
+          out(c,dummy);
+          (!N in(c,(ab:bitstring));
+              new mkseed:mkeyseed;
+              let mk = mkgen(mkseed) in
+                let F7 = Dbinsert(PwdpwdDb,ab,PwdPwEntry(mk)) in
+                  out(c,F7);
+                  0)
+           | 
+          ((!N in(c,(ab:bitstring,pwd:bitstring));
+               event PwdPwLeak(ab);
+               let F9 = bs2mk(pwd) in
+                 let F10 = Dbinsert(PwdpwdDb,ab,PwdLeakedPwEntry(F9)) in
+                   out(c,F10);
+                   0)
+            | 
+           ((!N in(c,(b:bitstring));
+                new kseed:keyseed;
+                let skB = skeygen(kseed) in
+                  let pkB = pubkey(skB,kseed) in
+                    let u = Dbinsert(PwdkeyDb,b,PwdPkEntry(skB,pkB)) in
+                      out(c,(pkB,u));
+                      0)
+             | 
+            ((!N in(c,(a:bitstring,b:bitstring,m:bitstring));
+                 let ab = concat(a,b) in
+                   let F11 = Dbselect(PwdpwdDb,ab) in
+                     let Some(PwdPwEntry(pwd8)) = F11 in
+                       ( let Some(PwdPkEntry(skB,pkB)) = Dbselect(PwdkeyDb,b) in
+                         event PwdSend(ab,m);
+                         new seed:seed;
+                         let F13 = bs2bl(m) in
+                           let m4 = mac(F13,pwd8) in
+                             let F14 = m2bl(m4) in
+                               let en = enca(F14,pkB,seed) in
+                                 let p = concat(en,m) in
+                                   out(c,p);
+                                   in(c,m:bitstring);
+                                   out(c,());
+                                   0) 
+                      else  
+                       let Some(PwdLeakedPwEntry(pwd9)) = F11 in
+                         let Some(PwdPkEntry(skB,pkB)) = Dbselect(PwdkeyDb,b) in
+                           event PwdSend(ab,m);
+                           new seed:seed;
+                           let F17 = bs2bl(m) in
+                             let m4 = mac(F17,pwd9) in
+                               let F18 = m2bl(m4) in
+                                 let en = enca(F18,pkB,seed) in
+                                   let p = concat(en,m) in
+                                     out(c,p);
+                                     in(c,m:bitstring);
+                                     out(c,());
+                                     0)
+              | 
+             ((!N in(c,(a:bitstring,b:bitstring));
+                  let ab = concat(a,b) in
+                    let F20 = Dbselect(PwdpwdDb,ab) in
+                      let Some(PwdPwEntry(pwd17)) = F20 in
+                        ( let Some(PwdPkEntry(skB,pkB)) = Dbselect(PwdkeyDb,b) in
+                          out(c,dummy);
+                          in(c,m:bitstring);
+                          let (en14,text15) = iconcat(m) in
+                            let F24 = deca(en14,skB) in
+                              let F25 = inv_injbot(F24) in
+                                let rmk = bl2m(F25) in
+                                  let F26 = bs2bl(text15) in
+                                    let F27 = check(F26,pwd17,rmk) in
+                                      if F27 = true then 
+                                        event PwdAccept(ab,text15);
+                                        out(c,empty_bstr);
+                                        0
+                                       else  
+                                        out(c,dummy);
+                                        0) 
+                       else  
+                        let Some(PwdLeakedPwEntry(pwd18)) = F20 in
+                          let Some(PwdPkEntry(skB,pkB)) = Dbselect(PwdkeyDb,b) in
+                            out(c,dummy);
+                            in(c,m:bitstring);
+                            let (en14,text15) = iconcat(m) in
+                              let F33 = deca(en14,skB) in
+                                let F34 = inv_injbot(F33) in
+                                  let rmk = bl2m(F34) in
+                                    let F35 = bs2bl(text15) in
+                                      let F36 = check(F35,pwd18,rmk) in
+                                        if F36 = true then 
+                                          event PwdAccept(ab,text15);
+                                          out(c,empty_bstr);
+                                          0
+                                         else  
+                                          out(c,dummy);
+                                          0)
+               | 
+              (in(c,());
+               out(c,());
+               0)))))
+
+(* EXPECTED
+Error: Macro public_key_enc not defined.
+xtime: error in child process (status : 512)
+END *)

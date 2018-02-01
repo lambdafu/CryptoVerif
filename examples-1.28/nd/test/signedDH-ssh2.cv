@@ -1,0 +1,176 @@
+
+(* Signed Diffie-Hellman protocol;
+   very free modeling of SSH *)
+
+(* set interactiveMode = true. *)
+
+(* 
+set mergeBranches = false
+show_game occ
+insert 133 find j3<=N suchthat defined(hostB[j3],ga_62[j3]) && hostB[j3] = B && ga_62[j3] = ga_58 && hostA = A then
+OR
+insert 133 find j3<=N suchthat defined(ga_62[j3]) && ga_62[j3] = ga_58 then
+
+PROBLEM: after crypto sign, we get:
+
+in A, when hostB = B:
+
+    orfind @i_105 <= N suchthat defined(hostA[@i_105], ga_58[@i_105], gb_59[@i_105], b_75[@i_105], @3_x_99[@i_105]) && (((A = hostA[@i_105]) && ((ga_62 = ga_58[@i_105]) && (gb_64 = gb_59[@i_105]))) && @3_check2(concatB(A, hostB, ga_62, gb_64), @3_pkgen2(rkB), s_63)) then
+    (
+      let gab_65: G = exp(g, mult(b_75[@i_105], a)) in
+
+in B:
+
+  in(cB1[!_54], (hostA: host, =B, ga_58: G));
+  find j3 <= N suchthat defined(hostB[j3], ga_62[j3], a[j3]) && ((hostB[j3] = B) && ((ga_62[j3] = ga_58) && (hostA = A))) then
+  ...
+  else
+  (
+    new b_75: Z;
+    let gb_59: G = exp(g, b_75) in
+    new r1_76: seed;
+    let gab_60: G = exp(ga_58, b_75) in
+
+The find in A should always be false, but CryptoVerif does not detect that.
+Since b_75[@i_105] is defined, we are in the "else" branch of the find in B,
+so, when B was executed, there was no j3<=N suchthat defined(hostB[j3], ga_62[j3], a[j3]) && ((hostB[j3] = B) && ((ga_62[j3] = ga_58[@i_105]) && (hostA[@i_105] = A))).
+The current replication index in A is such a j3, however, it may a priori
+have been defined after the execution of B (so CryptoVerif cannot conclude). 
+If it was defined after the execution of B, ga_62 = ga_58[@i_105],
+and ga_58[@i_105] would be defined _before_ the choice of ga_62, so this
+equality has a negligible probability of being true.
+CryptoVerif is currently not capable of this reasoning.
+ *)
+
+param N, N2.
+
+type host.
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize.
+type signature.
+
+type skeyseed [large,fixed].
+type sseed [fixed].
+type maxenc [large,fixed].
+
+type Z [large,fixed].
+type G [large,fixed].
+type K [large,fixed].
+type D [fixed].
+
+(* the CDH assumption *) 
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* h in the random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, G, D, h).
+
+param nH [noninteractive].
+channel hc1, hc2.
+let processH = ! nH in(hc1, x: G); out(hc2, h(hk,x)).
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [compos].
+fun concatB(host, host, G, G):blocksize [compos].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+(* Shared-key encryption (IND-CPA and INT-CTXT Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(skeyseed, D, maxenc, bitstring, sseed, kgen, enc, dec, injbot, Zenc, Penc, Pencctxt).
+
+
+const A,B:host.
+
+(* query *)
+query secret payloadA.
+query secret payloadB.
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+let processA = 
+  in(cA1, (hostB: host));
+  new a:Z;
+  let ga = exp(g,a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb:G, s:signature));
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  let pkhostB = Rkey[j2] in
+  if check(concatB(A, hostB, ga, gb), pkhostB, s) then
+  new r2: seed;
+  let gab = exp(gb, a) in
+  let kA = h(hk,gab) in 
+  new r3: sseed;
+  out(cA4, enc(pwA, kA, r3));
+  (* OK *)
+  in(cA5, eA:bitstring);
+  if hostB = B then
+  let injbot(payloadA:maxenc) = dec(eA, kA).
+
+let processB =
+  in(cB1, (hostA:host, =B, ga:G));
+  new b:Z;
+  let gb = exp(g,b) in
+  new r1:seed;
+  let gab = exp(ga, b) in
+  let kB = h(hk,gab) in
+  out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB, r1)));
+  in(cB3, e:bitstring);
+  let injbot(s) = dec(e, kB) in
+  find j<=N2 suchthat defined(Phost[j], Rpwd[j]) && Phost[j] = hostA then
+  if s = Rpwd[j] then
+  (* OK *)
+  if hostA = A then
+  new payloadB: maxenc;
+  new r4: sseed;
+  out(cB4, enc(payloadB, kB, r4)).
+
+let processK =
+  !N2
+  in(cK, (Khost: host, Kkey: pkey));
+  let Rkey:pkey = 
+		if Khost = B then pkB else
+		Kkey.
+
+let processP =
+  !N2
+  in(cK, (Phost: host, Ppwd: maxenc));
+  let Rpwd:maxenc = 
+		if Phost = A then pwA else
+		Ppwd.
+
+process
+	in(start, ());
+	new hk: hashkey;
+	new pwA: maxenc;
+	new rkA : keyseed;
+	let skA = skgen(rkA) in
+	let pkA = pkgen(rkA) in
+	new rkB : keyseed;
+	let skB = skgen(rkB) in
+	let pkB = pkgen(rkB) in
+	out(cstart, (pkA, pkB));
+	((!N processA) | (!N processB) | processH | processK | processP)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of payloadB, secrecy of payloadA.
+0.800s (user 0.790s + system 0.010s), max rss 60352K
+END *)

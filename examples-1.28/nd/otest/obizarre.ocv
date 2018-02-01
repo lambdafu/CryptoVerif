@@ -1,0 +1,23 @@
+param N.
+
+type key [fixed, large].
+
+query secret1 k.
+query secret k.
+
+process
+        Oa () :=
+           k <-R key;
+           return ();
+        foreach i <= N do 
+(*
+           Ob () := 
+              s <-R key ;
+*)
+           Ob (s:key) :=
+              if k=s then return(s) else return(s)
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 15248K
+END *)

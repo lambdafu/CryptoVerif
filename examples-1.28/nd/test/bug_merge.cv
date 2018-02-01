@@ -1,0 +1,34 @@
+(* I thought there might be a bug with merge inside simplify,
+in which the merge would rely on the absence of array access
+on a variable, while simplification would create one.
+However, I do not manage to trigger the bug. 
+
+The bug would appear with a stronger collection of true
+facts showing that z = f(a1,b) at point P below.
+CryptoVerif would then replace z with f(a1,b)
+while the merge would keep the "else" branch of
+"if b then ...." *)
+
+channel c.
+
+type D [fixed].
+fun f(D, bool): bitstring [compos].
+
+process
+	(
+        in(c, ());
+        if defined(z,b) && b = true then
+	   let f(t,b') = z in (* point P *)
+	   out(c, t)
+	)
+        |
+	(
+           in(c, b: bool);
+	   let z:bitstring = if b then new a1: D; f(a1,b) else new a2:D; f(a2,b) in
+	   out(c, z)
+	)
+
+(* EXPECTED
+All queries proved.
+0.008s (user 0.000s + system 0.008s), max rss 23136K
+END *)

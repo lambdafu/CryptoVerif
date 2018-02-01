@@ -1,0 +1,166 @@
+
+(* Signed Diffie-Hellman protocol *)
+
+param n, q, nH, N, N2, nCDH, nCDH', n1, n2, n3.
+
+type host.
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize.
+type signature.
+
+type Z [fixed].
+type G.
+type K [large,fixed].
+type D [fixed].
+
+fun exp(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* the CDH assumption 
+
+This does not work for two reasons:
+1) a and b both get mapped to x (or perhaps both to y), as CryptoVerif
+does not know a priori whether exp(g,x) or exp(g,y) should be used.
+2) the fact that mult is commutative is not fully taken into account:
+since the mapping z = exp(g, mult(x,y)) succeeds apparently,
+the mapping z = exp(g, mult(y,x)) is not tried, but the transformation
+will later fail when we check that the mappings of several expressions
+are compatible.
+These two problems could be considered bugs in the transformation mechanism,
+since not all possibilities are considered. 
+20/12/2009: PROBLEMS NOW FIXED, the equivalence below works.
+
+examplesnd/test/signedDH-simp-onesession-distinctexp considers a modified
+equivalence that solves these problems.
+*) 
+
+proba pCDH.
+
+equiv
+  ! n new x: Z; new y: Z; (
+    gen_Oracle() := return(exp(g,x)) |
+    gen_Oracle_1() := return(exp(g,y)) |
+    ! nCDH gen_Oracle_2(z: G) := return(z = exp(g, mult(x,y))) |
+    ! n1 gen_Oracle_3(z: G, m: G) := return(z = exp(m,x)) |
+    ! n2 gen_Oracle_4(z: G, m: G) := return(z = exp(m,y)) |
+    ! n3 gen_Oracle_5(m: G, m': G) := return(exp(m,x) = exp(m',y)))
+<=(pCDH(time,n,nCDH))=>
+  ! n new x: Z; new y: Z; (
+    gen_Oracle() := return(exp(g,x)) |
+    gen_Oracle_1() := return(exp(g,y)) |
+    ! nCDH gen_Oracle_2(z: G) := return(false) |
+    ! n1 gen_Oracle_3(z: G, m: G) := return(z = exp(m,x)) |
+    ! n2 gen_Oracle_4(z: G, m: G) := return(z = exp(m,y)) |
+    ! n3 gen_Oracle_5(m: G, m': G) := return(exp(m,x) = exp(m',y))).
+
+
+(* h in the random oracle model *)
+
+fun h(K,G): D.
+
+equiv
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := return(h(k,x))
+<=(0)=>
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := find j <= nH suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: D; return(r).
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+query secret keyB.
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+
+
+
+
+
+
+process
+	in(start, ());
+new k_1: K;
+new rkA: keyseed;
+let skA: skey = skgen(rkA) in
+let pkA: pkey = pkgen(rkA) in
+new rkB: keyseed;
+let skB: skey = skgen(rkB) in
+let pkB: pkey = pkgen(rkB) in
+out(cstart, (pkA, pkB));
+((
+  in(cA1, hostB: host);
+  new a: Z;
+  let ga: G = exp(g, a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb_1: G, s_1: signature));
+  if hostB = B then
+  (
+    if check(concatB(A, hostB, ga, gb_1), pkB, s_1) then
+    new r2_2: seed;
+    let gab: G = exp(gb_1, a) in
+    let kA: D = h(k_1, gab) in
+    out(cA4, sign(concatA(A, hostB, ga, gb_1), skA, r2_2));
+    in(cA5, ());
+    let keyA: D = kA
+  )
+  else
+    new r2_3: seed;
+    let gab_1: G = exp(gb_1, a) in
+    let kA_1: D = h(k_1, gab_1) in
+    out(cA4, sign(concatA(A, hostB, ga, gb_1), skA, r2_3));
+    in(cA5, ());
+    out(cA6, kA_1)
+) | (
+  in(cB1, (hostA: host, =B, ga_1: G));
+  new b: Z;
+  let gb_2: G = exp(g, b) in
+  new r1_1: seed;
+  out(cB2, (hostA, B, gb_2, sign(concatB(hostA, B, ga_1, gb_2), skB, r1_1)));
+  in(cB3, s_2: signature);
+  if hostA = A then
+  (
+    if check(concatA(hostA, B, ga_1, gb_2), pkA, s_2) then
+    let gab_2: G = exp(ga_1, b) in
+    let kB: D = h(k_1, gab_2) in
+    let keyB: D = kB
+  )
+  else
+    let gab_3: G = exp(ga_1, b) in
+    let kB_1: D = h(k_1, gab_3) in
+    out(cB4, kB_1)
+) | (
+  ! i_1 <= nH
+  in(cH[i_1], xH: G);
+  out(cHret[i_1], h(k_1, xH))
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.188s (user 0.168s + system 0.020s), max rss 49024K
+END *)

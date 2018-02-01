@@ -1,0 +1,817 @@
+Index: oexamples/OEKE.ocv
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/oexamples/OEKE.ocv,v
+retrieving revision 1.7
+diff -c -r1.7 OEKE.ocv
+*** oexamples/OEKE.ocv	23 Jan 2012 10:01:52 -0000	1.7
+--- oexamples/OEKE.ocv	2 Feb 2012 15:57:14 -0000
+***************
+*** 4,18 ****
+  
+  proof {
+  set maxIterSimplif = 3;
+- show_game occ;
+- insert 261 "let concat(x1,x2,x3,x4,x5) = h1x in"; (* just after OH1(..):= *)
+  crypto rom(h1);
+  show_game occ;
+! insert 179 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then"; (* just after OS2(..):= *)
+  show_game occ;
+! insert 341 "find nj <= qH1 suchthat defined(x1[nj], x2[nj], x3[nj], x4[nj], @11_r_134[nj]) && (U = x1[nj]) && (S = x2[nj]) && (X_s = x3[nj]) && (Y = x4[nj]) && (auth_s = @11_r_134[nj]) then"; (* beginning of the "else" branch of the just inserted find *)
+  show_game occ;
+! insert_event Auth 384; (* "then" branch of the just inserted find *)
+  simplify;
+  crypto icm(enc);
+  show_game occ;
+--- 4,16 ----
+  
+  proof {
+  set maxIterSimplif = 3;
+  crypto rom(h1);
+  show_game occ;
+! insert 171 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then"; (* just after OS2(..):= *)
+  show_game occ;
+! insert 372 "find nj <= qH1 suchthat defined(h1x[nj], @11_r_134[nj]) && let concat(x1,x2,x3,x4,x5) = h1x[nj] in (U = x1) && (S = x2) && (X_s = x3) && (Y = x4) && (auth_s = @11_r_134[nj]) else false then"; (* beginning of the "else" branch of the just inserted find *)
+  show_game occ;
+! insert_event Auth 410; (* "then" branch of the just inserted find *)
+  simplify;
+  crypto icm(enc);
+  show_game occ;
+Index: src/settings.ml
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/src/settings.ml,v
+retrieving revision 1.76
+diff -c -r1.76 settings.ml
+*** src/settings.ml	6 Jan 2012 15:46:39 -0000	1.76
+--- src/settings.ml	2 Feb 2012 15:20:35 -0000
+***************
+*** 23,28 ****
+--- 23,30 ----
+  
+  let expand_letxy = ref true
+  
++ let expand_compos_equal_var = ref true
++ 
+  (* Bound the number of advice possibilities in cryptotransf.ml
+     Having too many of them does not help because we will need to try
+     all of them and it will take a lot of time. *)
+Index: src/settings.mli
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/src/settings.mli,v
+retrieving revision 1.60
+diff -c -r1.60 settings.mli
+*** src/settings.mli	26 Sep 2011 12:34:07 -0000	1.60
+--- src/settings.mli	2 Feb 2012 15:20:47 -0000
+***************
+*** 21,26 ****
+--- 21,28 ----
+  
+  val expand_letxy : bool ref
+  
++ val expand_compos_equal_var : bool ref
++ 
+  val max_advice_possibilities_beginning : int ref
+  val max_advice_possibilities_end : int ref
+  
+Index: src/simplify.ml
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/src/simplify.ml,v
+retrieving revision 1.535
+diff -c -r1.535 simplify.ml
+*** src/simplify.ml	26 Jan 2012 14:55:12 -0000	1.535
+--- src/simplify.ml	2 Feb 2012 15:48:30 -0000
+***************
+*** 3,8 ****
+--- 3,10 ----
+  
+  let whole_game = ref { proc = Terms.nil_proc; game_number = -1 }
+  
++ let expand_needed = ref false
++ 
+  let current_pass_transfos = ref []
+  
+  (* Priorities for orienting equalities into rewrite rules *)
+***************
+*** 656,661 ****
+--- 658,673 ----
+  	  (FunApp(f1,l1), FunApp(f2,l2)) when
+  	  (f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
+  	    simplify_term_rec dep_info simp_facts (Terms.make_and_list (List.map2 Terms.make_equal l1 l2))
++ 	| (FunApp(f1,l1), Var _) when
++ 	  (f1.f_options land Settings.fopt_COMPOS) != 0 ->
++ 	    expand_needed := true;
++ 	    (* This is going to be transformed into "let f1(vl) = t2' in vl = l1 else false" by expand *)
++ 	    Terms.make_equal t1' t2'
++ 	| (Var _, FunApp(f2,l2)) when
++ 	  (f2.f_options land Settings.fopt_COMPOS) != 0 ->
++ 	    expand_needed := true;
++ 	    (* This is going to be transformed into "let f2(vl) = t1' in vl = l2 else false" by expand *)
++ 	    Terms.make_equal t2' t1'
+  	| (Var(b1,l1), Var(b2,l2)) when
+  	  (Terms.is_restr b1) &&
+  	  (Proba.is_large_term t1' || Proba.is_large_term t2') && (b1 == b2) &&
+***************
+*** 2135,2143 ****
+     *)
+      if !Transform.changed then
+          let (g',proba_sa_rename, renames) = Transform.auto_sa_rename { proc = p'; game_number = -1 } in
+          if iter != 1 then 
+  	  let (g'', proba'', renames'') = simplify_main1 (iter-1) g' in
+!           (g'', proba'' @ proba_sa_rename, renames'' @ renames @ [DSimplify(current_transfos)])
+          else
+  	  begin
+              print_string "Run simplify ";
+--- 2147,2162 ----
+     *)
+      if !Transform.changed then
+          let (g',proba_sa_rename, renames) = Transform.auto_sa_rename { proc = p'; game_number = -1 } in
++         let (g', proba_expand, transfo_expand) = 
++           if !expand_needed then 
++             Transform.expand_process g'
++           else
++             (g', [], [])
++         in
++         expand_needed := false;
+          if iter != 1 then 
+  	  let (g'', proba'', renames'') = simplify_main1 (iter-1) g' in
+!           (g'', proba'' @ proba_expand @ proba_sa_rename, renames'' @ transfo_expand @ renames @ [DSimplify(current_transfos)])
+          else
+  	  begin
+              print_string "Run simplify ";
+***************
+*** 2151,2157 ****
+            print_int ((!Settings.max_iter_simplif) - iter + 1);
+  	  print_string " time(s). Fixpoint reached.\n";
+            Transform.changed := tmp_changed;
+! 	  (g,[],[])
+  	end
+    with Restart (b,g') ->
+      Terms.cleanup_array_ref();
+--- 2170,2183 ----
+            print_int ((!Settings.max_iter_simplif) - iter + 1);
+  	  print_string " time(s). Fixpoint reached.\n";
+            Transform.changed := tmp_changed;
+! 	  let r =
+!             if !expand_needed then 
+!               Transform.expand_process g
+!             else
+!               (g, [], [])
+!           in
+!           expand_needed := false;
+!           r
+  	end
+    with Restart (b,g') ->
+      Terms.cleanup_array_ref();
+Index: src/transform.ml
+===================================================================
+RCS file: /users/absint/blanchet/CVS-repository/dev/cryptoverif/src/transform.ml,v
+retrieving revision 1.275
+diff -c -r1.275 transform.ml
+*** src/transform.ml	26 Jan 2012 14:55:13 -0000	1.275
+--- src/transform.ml	2 Feb 2012 16:18:58 -0000
+***************
+*** 276,301 ****
+       FindE((bl,def_list,[cond],[then]) list,[else])
+  *)
+  
+! let rec pseudo_expand_term t = 
+    match t.t_desc with
+      Var(b,l) ->
+        begin
+!         match pseudo_expand_term_list l with
+            None -> None
+          | Some(f,l') ->
+              Some(f, List.map (fun li -> Terms.build_term t (Var(b,li))) l')
+        end  
+    | FunApp(f,l) ->
+        begin
+!         match pseudo_expand_term_list l with
+            None -> None
+          | Some(f',l') -> Some(f', List.map (fun li -> Terms.build_term t (FunApp(f,li))) l')
+        end
+    | TestE(t1,t2,t3) ->
+        (* I always expand this test *)
+!       let (f2, l2) = always_some t2 (pseudo_expand_term t2) in
+!       let (f3, l3) = always_some t3 (pseudo_expand_term t3) in
+!       let (f1, l1) = always_some t1 (pseudo_expand_term t1) in
+        let len2 = List.length l2 in
+        Some((fun l -> 
+  	let (l2part, l3part) = Terms.split len2 l in
+--- 276,313 ----
+       FindE((bl,def_list,[cond],[then]) list,[else])
+  *)
+  
+! let rec pseudo_expand_term cur_array t = 
+    match t.t_desc with
+      Var(b,l) ->
+        begin
+!         match pseudo_expand_term_list cur_array l with
+            None -> None
+          | Some(f,l') ->
+              Some(f, List.map (fun li -> Terms.build_term t (Var(b,li))) l')
+        end  
++   | FunApp(f, [{t_desc = FunApp(f1,l1) }; ({t_desc = Var _} as t2)]) 
++        when (!Settings.expand_compos_equal_var) &&
++             (f.f_cat == Equal) &&
++             ((f1.f_options land Settings.fopt_COMPOS) != 0) ->
++       (* TO DO correctly set the detailed transformations: if I do that, 
++ 	 I don't necessarily do DExpandIfFind, I should have a precise
++ 	 description of the transformation of t into the new term. *)
++       let vl = List.map (fun t -> Terms.create_binder "v" (Terms.new_vname()) t.t_type cur_array) l1 in
++       pseudo_expand_term cur_array (Terms.build_term_type Settings.t_bool
++ 	  (LetE(PatTuple(f1, List.map (fun v -> PatVar v) vl), t2, 
++ 		Terms.make_and_list (List.map2 Terms.make_equal (List.map Terms.term_from_binder vl) l1), 
++ 		Some (Terms.make_false()))))
+    | FunApp(f,l) ->
+        begin
+!         match pseudo_expand_term_list cur_array l with
+            None -> None
+          | Some(f',l') -> Some(f', List.map (fun li -> Terms.build_term t (FunApp(f,li))) l')
+        end
+    | TestE(t1,t2,t3) ->
+        (* I always expand this test *)
+!       let (f2, l2) = always_some t2 (pseudo_expand_term cur_array t2) in
+!       let (f3, l3) = always_some t3 (pseudo_expand_term cur_array t3) in
+!       let (f1, l1) = always_some t1 (pseudo_expand_term cur_array t1) in
+        let len2 = List.length l2 in
+        Some((fun l -> 
+  	let (l2part, l3part) = Terms.split len2 l in
+***************
+*** 305,313 ****
+              if Terms.is_false t1i then f3 l3part else
+              let t2' = f2 l2part in Terms.build_term t2' (TestE(t1i, t2', f3 l3part))) l1)), l2 @ l3)
+    | LetE(pat, t1, t2, topt) ->
+!       let (fpat,lpat) = always_some pat (pseudo_expand_pat pat) in
+!       let (f1,l1) = always_some t1 (pseudo_expand_term t1) in
+!       let (f2,l2) = always_some t2 (pseudo_expand_term t2) in
+        begin
+  	match topt with
+  	  None ->
+--- 317,325 ----
+              if Terms.is_false t1i then f3 l3part else
+              let t2' = f2 l2part in Terms.build_term t2' (TestE(t1i, t2', f3 l3part))) l1)), l2 @ l3)
+    | LetE(pat, t1, t2, topt) ->
+!       let (fpat,lpat) = always_some pat (pseudo_expand_pat cur_array pat) in
+!       let (f1,l1) = always_some t1 (pseudo_expand_term cur_array t1) in
+!       let (f2,l2) = always_some t2 (pseudo_expand_term cur_array t2) in
+        begin
+  	match topt with
+  	  None ->
+***************
+*** 317,323 ****
+                    let t2' = f2 l in
+  		  Terms.build_term t2' (LetE(pati, t1i, t2', None))) lpat)) l1)), l2)
+  	| Some t3 ->
+! 	    let (f3,l3) = always_some t3 (pseudo_expand_term t3) in
+  	    let len2 = List.length l2 in
+  	    Some ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+--- 329,335 ----
+                    let t2' = f2 l in
+  		  Terms.build_term t2' (LetE(pati, t1i, t2', None))) lpat)) l1)), l2)
+  	| Some t3 ->
+! 	    let (f3,l3) = always_some t3 (pseudo_expand_term cur_array t3) in
+  	    let len2 = List.length l2 in
+  	    Some ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+***************
+*** 332,338 ****
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    List.iter check_no_ifletfind_br def_list;
+  	    let rest_lex = expand_cond_find_list restl in
+! 	    let ex1 = pseudo_expand_term t1 in
+  	    let ex1 = 
+  	      match ex1 with
+  		None -> None
+--- 344,350 ----
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    List.iter check_no_ifletfind_br def_list;
+  	    let rest_lex = expand_cond_find_list restl in
+! 	    let ex1 = pseudo_expand_term cur_array t1 in
+  	    let ex1 = 
+  	      match ex1 with
+  		None -> None
+***************
+*** 370,376 ****
+  	  [] -> ((fun l -> []), [])
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    let (frestl, lrestl) = expand_res_find_list restl in
+! 	    let (f2, l2) = always_some t2 (pseudo_expand_term t2) in
+  	    let len2 = List.length l2 in
+  	    ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+--- 382,388 ----
+  	  [] -> ((fun l -> []), [])
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    let (frestl, lrestl) = expand_res_find_list restl in
+! 	    let (f2, l2) = always_some t2 (pseudo_expand_term cur_array t2) in
+  	    let len2 = List.length l2 in
+  	    ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+***************
+*** 378,384 ****
+  	     l2 @ lrestl)
+        in 
+        let (f2, l2) = expand_res_find_list l0 in
+!       let (f3, l3) = always_some t3 (pseudo_expand_term t3) in
+        let len3 = List.length l3 in
+        Some((fun l -> 
+  	let (l3part, l2part) = Terms.split len3 l in
+--- 390,396 ----
+  	     l2 @ lrestl)
+        in 
+        let (f2, l2) = expand_res_find_list l0 in
+!       let (f3, l3) = always_some t3 (pseudo_expand_term cur_array t3) in
+        let len3 = List.length l3 in
+        Some((fun l -> 
+  	let (l3part, l2part) = Terms.split len3 l in
+***************
+*** 387,457 ****
+  	let (f1, l1) = always_some expanded_res_l (expand_cond_find_list expanded_res_l) in
+          f1 (List.map (fun l1i -> Terms.build_term expanded_res_t3 (FindE(l1i, expanded_res_t3, find_info))) l1)), l3 @ l2)
+    | ResE(b, t) ->
+!       let (f,l) = always_some t (pseudo_expand_term t) in
+        Some((fun l -> let t' = f l in Terms.build_term t' (ResE(b, t'))), l)
+    | EventE _ ->
+        Parsing_helper.internal_error "Events should not occur in conditions of find before expansion"
+  
+! and pseudo_expand_term_list = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = pseudo_expand_term a in
+!     let lex = pseudo_expand_term_list l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+  
+! and pseudo_expand_pat = function
+      PatVar b -> None
+    | PatTuple (ft,l) -> 
+        begin
+! 	match pseudo_expand_pat_list l with
+  	  None -> None
+  	| Some(f,l') -> Some(f, List.map (fun li -> PatTuple (ft,li)) l')
+        end 
+    | PatEqual t -> 
+        begin
+! 	match pseudo_expand_term t with
+  	  None -> None
+  	| Some(f,l) -> Some (f, List.map (fun ti -> PatEqual ti) l)
+        end
+  
+! and pseudo_expand_pat_list = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = pseudo_expand_pat a in
+!     let lex = pseudo_expand_pat_list l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+  
+! and final_pseudo_expand t =
+!   match pseudo_expand_term t with
+      None -> t
+    | Some(f,l) -> f l
+  
+  (* Expand term to process *)
+  
+! let rec expand_term t = 
+    match t.t_desc with
+      Var(b,l) ->
+        begin
+!         match expand_term_list l with
+            None -> None
+          | Some(f,l') ->
+              Some(f, List.map (fun li -> Terms.build_term t (Var(b,li))) l')
+        end  
+    | FunApp(f,l) ->
+        begin
+!         match expand_term_list l with
+            None -> None
+          | Some(f',l') -> Some(f', List.map (fun li -> Terms.build_term t (FunApp(f,li))) l')
+        end
+    | TestE(t1,t2,t3) ->
+        (* I always expand this test *)
+!       let (f2, l2) = always_some t2 (expand_term t2) in
+!       let (f3, l3) = always_some t3 (expand_term t3) in
+!       let (f1, l1) = always_some t1 (expand_term t1) in
+        let len2 = List.length l2 in
+        Some((fun l -> 
+  	let (l2part, l3part) = Terms.split len2 l in
+--- 399,481 ----
+  	let (f1, l1) = always_some expanded_res_l (expand_cond_find_list expanded_res_l) in
+          f1 (List.map (fun l1i -> Terms.build_term expanded_res_t3 (FindE(l1i, expanded_res_t3, find_info))) l1)), l3 @ l2)
+    | ResE(b, t) ->
+!       let (f,l) = always_some t (pseudo_expand_term cur_array t) in
+        Some((fun l -> let t' = f l in Terms.build_term t' (ResE(b, t'))), l)
+    | EventE _ ->
+        Parsing_helper.internal_error "Events should not occur in conditions of find before expansion"
+  
+! and pseudo_expand_term_list cur_array = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = pseudo_expand_term cur_array a in
+!     let lex = pseudo_expand_term_list cur_array l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+  
+! and pseudo_expand_pat cur_array = function
+      PatVar b -> None
+    | PatTuple (ft,l) -> 
+        begin
+! 	match pseudo_expand_pat_list cur_array l with
+  	  None -> None
+  	| Some(f,l') -> Some(f, List.map (fun li -> PatTuple (ft,li)) l')
+        end 
+    | PatEqual t -> 
+        begin
+! 	match pseudo_expand_term cur_array t with
+  	  None -> None
+  	| Some(f,l) -> Some (f, List.map (fun ti -> PatEqual ti) l)
+        end
+  
+! and pseudo_expand_pat_list cur_array = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = pseudo_expand_pat cur_array a in
+!     let lex = pseudo_expand_pat_list cur_array l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+  
+! and final_pseudo_expand cur_array t =
+!   match pseudo_expand_term cur_array t with
+      None -> t
+    | Some(f,l) -> f l
+  
+  (* Expand term to process *)
+  
+! let rec expand_term cur_array t = 
+    match t.t_desc with
+      Var(b,l) ->
+        begin
+!         match expand_term_list cur_array l with
+            None -> None
+          | Some(f,l') ->
+              Some(f, List.map (fun li -> Terms.build_term t (Var(b,li))) l')
+        end  
++   | FunApp(f, [{t_desc = FunApp(f1,l1) }; ({t_desc = Var _} as t2)]) 
++        when (!Settings.expand_compos_equal_var) &&
++             (f.f_cat == Equal) &&
++             ((f1.f_options land Settings.fopt_COMPOS) != 0) ->
++       (* TO DO correctly set the detailed transformations: if I do that, 
++ 	 I don't necessarily do DExpandIfFind, I should have a precise
++ 	 description of the transformation of t into the new term. *)
++       let vl = List.map (fun t -> Terms.create_binder "v" (Terms.new_vname()) t.t_type cur_array) l1 in
++       expand_term cur_array (Terms.build_term_type Settings.t_bool
++ 	  (LetE(PatTuple(f1, List.map (fun v -> PatVar v) vl), t2, 
++ 		Terms.make_and_list (List.map2 Terms.make_equal (List.map Terms.term_from_binder vl) l1), 
++ 		Some (Terms.make_false()))))
+    | FunApp(f,l) ->
+        begin
+!         match expand_term_list cur_array l with
+            None -> None
+          | Some(f',l') -> Some(f', List.map (fun li -> Terms.build_term t (FunApp(f,li))) l')
+        end
+    | TestE(t1,t2,t3) ->
+        (* I always expand this test *)
+!       let (f2, l2) = always_some t2 (expand_term cur_array t2) in
+!       let (f3, l3) = always_some t3 (expand_term cur_array t3) in
+!       let (f1, l1) = always_some t1 (expand_term cur_array t1) in
+        let len2 = List.length l2 in
+        Some((fun l -> 
+  	let (l2part, l3part) = Terms.split len2 l in
+***************
+*** 461,469 ****
+            if Terms.is_false t1i then f3 l3part else
+            Terms.oproc_from_desc (Test(t1i, f2 l2part, f3 l3part))) l1)), l2 @ l3)
+    | LetE(pat, t1, t2, topt) ->
+!       let (fpat,lpat) = always_some pat (expand_pat pat) in
+!       let (f1,l1) = always_some t1 (expand_term t1) in
+!       let (f2,l2) = always_some t2 (expand_term t2) in
+        begin
+  	match topt with
+  	  None ->
+--- 485,493 ----
+            if Terms.is_false t1i then f3 l3part else
+            Terms.oproc_from_desc (Test(t1i, f2 l2part, f3 l3part))) l1)), l2 @ l3)
+    | LetE(pat, t1, t2, topt) ->
+!       let (fpat,lpat) = always_some pat (expand_pat cur_array pat) in
+!       let (f1,l1) = always_some t1 (expand_term cur_array t1) in
+!       let (f2,l2) = always_some t2 (expand_term cur_array t2) in
+        begin
+  	match topt with
+  	  None ->
+***************
+*** 472,478 ****
+  		fpat (List.map (fun pati ->
+  		  Terms.oproc_from_desc (Let(pati, t1i, f2 l, Terms.yield_proc))) lpat)) l1)), l2)
+  	| Some t3 ->
+! 	    let (f3,l3) = always_some t3 (expand_term t3) in
+  	    let len2 = List.length l2 in
+  	    Some ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+--- 496,502 ----
+  		fpat (List.map (fun pati ->
+  		  Terms.oproc_from_desc (Let(pati, t1i, f2 l, Terms.yield_proc))) lpat)) l1)), l2)
+  	| Some t3 ->
+! 	    let (f3,l3) = always_some t3 (expand_term cur_array t3) in
+  	    let len2 = List.length l2 in
+  	    Some ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+***************
+*** 486,503 ****
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    List.iter check_no_ifletfind_br def_list;
+  	    let rest_lex = expand_cond_find_list restl in
+! 	    let ex1 = expand_term t1 in
+  	    let ex1 = 
+  	      match ex1 with
+  		None -> None
+  	      | Some(f,l) ->
+                    if bl != [] || def_list != [] then
+!                     Some(extract_elem, [final_pseudo_expand t1])
+                    else
+                      ex1
+  		  (*let fNil = f (List.map (fun _ -> Terms.yield_proc) l) in
+  		  if List.exists (fun b -> Terms.refers_to_oprocess b fNil) bl || "fNil refers to variables in def_list" | "fNil contains new and bl != []" then
+! 		    Some (extract_elem, [final_pseudo_expand t1]) (* We cannot move the condition of the find outside, because it refers to variables defined in the find. In this case, we leave the term with if/let/find/res in it. *)
+                    else
+                      ex1*)
+              in
+--- 510,527 ----
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    List.iter check_no_ifletfind_br def_list;
+  	    let rest_lex = expand_cond_find_list restl in
+! 	    let ex1 = expand_term cur_array t1 in
+  	    let ex1 = 
+  	      match ex1 with
+  		None -> None
+  	      | Some(f,l) ->
+                    if bl != [] || def_list != [] then
+!                     Some(extract_elem, [final_pseudo_expand cur_array t1])
+                    else
+                      ex1
+  		  (*let fNil = f (List.map (fun _ -> Terms.yield_proc) l) in
+  		  if List.exists (fun b -> Terms.refers_to_oprocess b fNil) bl || "fNil refers to variables in def_list" | "fNil contains new and bl != []" then
+! 		    Some (extract_elem, [final_pseudo_expand cur_array t1]) (* We cannot move the condition of the find outside, because it refers to variables defined in the find. In this case, we leave the term with if/let/find/res in it. *)
+                    else
+                      ex1*)
+              in
+***************
+*** 510,516 ****
+  	  [] -> ((fun l -> []), [])
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    let (frestl, lrestl) = expand_res_find_list restl in
+! 	    let (f2, l2) = always_some t2 (expand_term t2) in
+  	    let len2 = List.length l2 in
+  	    ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+--- 534,540 ----
+  	  [] -> ((fun l -> []), [])
+  	| ((bl, def_list, t1, t2)::restl) ->
+  	    let (frestl, lrestl) = expand_res_find_list restl in
+! 	    let (f2, l2) = always_some t2 (expand_term cur_array t2) in
+  	    let len2 = List.length l2 in
+  	    ((fun l -> 
+  	      let (l2part, l3part) = Terms.split len2 l in
+***************
+*** 518,524 ****
+  	     l2 @ lrestl)
+        in 
+        let (f2, l2) = expand_res_find_list l0 in
+!       let (f3, l3) = always_some t3 (expand_term t3) in
+        let len3 = List.length l3 in
+        Some((fun l -> 
+  	let (l3part, l2part) = Terms.split len3 l in
+--- 542,548 ----
+  	     l2 @ lrestl)
+        in 
+        let (f2, l2) = expand_res_find_list l0 in
+!       let (f3, l3) = always_some t3 (expand_term cur_array t3) in
+        let len3 = List.length l3 in
+        Some((fun l -> 
+  	let (l3part, l2part) = Terms.split len3 l in
+***************
+*** 527,572 ****
+  	let (f1, l1) = always_some expanded_res_l (expand_cond_find_list expanded_res_l) in
+          f1 (List.map (fun l1i -> Terms.oproc_from_desc (Find(l1i, expanded_res_t3, find_info))) l1)), l3 @ l2)
+    | ResE(b, t) ->
+!       let (f,l) = always_some t (expand_term t) in
+        Some((fun l -> Terms.oproc_from_desc (Restr(b, f l))), l)
+    | EventE(t) ->
+        (* The event is expanded to a process that stops just after the event.
+  	 Events in terms are used only in the RHS of equivalences, and 
+  	 one includes their probability of execution in the probability of
+  	 breaking the protocol. *)
+!       let (f1, l1) = always_some t (expand_term t) in
+        Some((fun l -> 
+  	f1 (List.map (fun ti -> Terms.oproc_from_desc (EventP(ti,Terms.abort_proc))) l1)), [])
+  
+! and expand_term_list = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = expand_term a in
+!     let lex = expand_term_list l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+  
+! and expand_pat = function
+      PatVar b -> None
+    | PatTuple (ft,l) -> 
+        begin
+! 	match expand_pat_list l with
+  	  None -> None
+  	| Some(f,l') -> Some(f, List.map (fun li -> PatTuple (ft,li)) l')
+        end 
+    | PatEqual t -> 
+        begin
+! 	match expand_term t with
+  	  None -> None
+  	| Some(f,l) -> Some (f, List.map (fun ti -> PatEqual ti) l)
+        end
+  
+! and expand_pat_list = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = expand_pat a in
+!     let lex = expand_pat_list l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+--- 551,596 ----
+  	let (f1, l1) = always_some expanded_res_l (expand_cond_find_list expanded_res_l) in
+          f1 (List.map (fun l1i -> Terms.oproc_from_desc (Find(l1i, expanded_res_t3, find_info))) l1)), l3 @ l2)
+    | ResE(b, t) ->
+!       let (f,l) = always_some t (expand_term cur_array t) in
+        Some((fun l -> Terms.oproc_from_desc (Restr(b, f l))), l)
+    | EventE(t) ->
+        (* The event is expanded to a process that stops just after the event.
+  	 Events in terms are used only in the RHS of equivalences, and 
+  	 one includes their probability of execution in the probability of
+  	 breaking the protocol. *)
+!       let (f1, l1) = always_some t (expand_term cur_array t) in
+        Some((fun l -> 
+  	f1 (List.map (fun ti -> Terms.oproc_from_desc (EventP(ti,Terms.abort_proc))) l1)), [])
+  
+! and expand_term_list cur_array = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = expand_term cur_array a in
+!     let lex = expand_term_list cur_array l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+  
+! and expand_pat cur_array = function
+      PatVar b -> None
+    | PatTuple (ft,l) -> 
+        begin
+! 	match expand_pat_list cur_array l with
+  	  None -> None
+  	| Some(f,l') -> Some(f, List.map (fun li -> PatTuple (ft,li)) l')
+        end 
+    | PatEqual t -> 
+        begin
+! 	match expand_term cur_array t with
+  	  None -> None
+  	| Some(f,l) -> Some (f, List.map (fun ti -> PatEqual ti) l)
+        end
+  
+! and expand_pat_list cur_array = function
+    [] -> None
+  | (a::l) -> 
+!     let aex = expand_pat cur_array a in
+!     let lex = expand_pat_list cur_array l in
+      match pairing_expand a l aex lex with
+        None -> None
+      | Some(f,l') -> Some(f, List.map (fun (a,l'') -> a::l'') l')
+***************
+*** 583,589 ****
+    | Input((c,tl),pat,p) ->
+        List.iter check_no_ifletfind tl;
+        begin
+! 	let patex = expand_pat pat in
+  	match patex with
+  	  None -> 
+              Terms.iproc_from_desc (Input((c,tl),pat, expand_oprocess cur_array p))
+--- 607,613 ----
+    | Input((c,tl),pat,p) ->
+        List.iter check_no_ifletfind tl;
+        begin
+! 	let patex = expand_pat cur_array pat in
+  	match patex with
+  	  None -> 
+              Terms.iproc_from_desc (Input((c,tl),pat, expand_oprocess cur_array p))
+***************
+*** 605,611 ****
+    | Restr(b,p) -> Terms.oproc_from_desc (Restr(b, expand_oprocess cur_array p))
+    | Test(t,p1,p2) ->
+  	begin
+! 	  match expand_term t with
+  	    None -> Terms.oproc_from_desc (Test(t,expand_oprocess cur_array p1,
+  			 expand_oprocess cur_array p2))
+  	  | Some(f,l) ->
+--- 629,635 ----
+    | Restr(b,p) -> Terms.oproc_from_desc (Restr(b, expand_oprocess cur_array p))
+    | Test(t,p1,p2) ->
+  	begin
+! 	  match expand_term cur_array t with
+  	    None -> Terms.oproc_from_desc (Test(t,expand_oprocess cur_array p1,
+  			 expand_oprocess cur_array p2))
+  	  | Some(f,l) ->
+***************
+*** 622,639 ****
+  	  [] -> next_f []
+  	| ((bl, def_list, t, p1)::rest_l) ->
+  	    List.iter check_no_ifletfind_br def_list;
+! 	    let ex1 = expand_term t in
+  	    let ex1 = 
+  	      match ex1 with
+  		None -> None
+  	      | Some(f,l) ->
+                    if bl != [] || def_list != [] then
+!                     Some(extract_elem, [final_pseudo_expand t])
+                    else
+                      ex1
+  		  (*let fNil = f (List.map (fun _ -> Terms.yield_proc) l) in
+  		  if List.exists (fun b -> Terms.refers_to_oprocess b fNil) bl || "fNil refers to variables in def_list" | "fNil contains new and bl != []" then
+! 		    Some(extract_elem, [final_pseudo_expand t]) (* We cannot move the condition of the find outside, because it refers to variables defined in the find. In this case, we leave the term with if/let/find/res in it. *)
+                    else
+                      ex1*)
+  	    in
+--- 646,663 ----
+  	  [] -> next_f []
+  	| ((bl, def_list, t, p1)::rest_l) ->
+  	    List.iter check_no_ifletfind_br def_list;
+! 	    let ex1 = expand_term cur_array t in
+  	    let ex1 = 
+  	      match ex1 with
+  		None -> None
+  	      | Some(f,l) ->
+                    if bl != [] || def_list != [] then
+!                     Some(extract_elem, [final_pseudo_expand cur_array t])
+                    else
+                      ex1
+  		  (*let fNil = f (List.map (fun _ -> Terms.yield_proc) l) in
+  		  if List.exists (fun b -> Terms.refers_to_oprocess b fNil) bl || "fNil refers to variables in def_list" | "fNil contains new and bl != []" then
+! 		    Some(extract_elem, [final_pseudo_expand cur_array t]) (* We cannot move the condition of the find outside, because it refers to variables defined in the find. In this case, we leave the term with if/let/find/res in it. *)
+                    else
+                      ex1*)
+  	    in
+***************
+*** 649,656 ****
+        expand_find_list (fun l0' -> Terms.oproc_from_desc (Find(l0', expand_oprocess cur_array p2, find_info))) l0
+    | Output((c,tl),t2,p) ->
+        begin
+! 	let tlex = expand_term_list tl in
+! 	let t2ex = expand_term t2 in
+  	match pairing_expand tl t2 tlex t2ex with
+  	  None -> Terms.oproc_from_desc (Output((c,tl),t2, expand_process cur_array p))
+  	| Some(f,l) -> 
+--- 673,680 ----
+        expand_find_list (fun l0' -> Terms.oproc_from_desc (Find(l0', expand_oprocess cur_array p2, find_info))) l0
+    | Output((c,tl),t2,p) ->
+        begin
+! 	let tlex = expand_term_list cur_array tl in
+! 	let t2ex = expand_term cur_array t2 in
+  	match pairing_expand tl t2 tlex t2ex with
+  	  None -> Terms.oproc_from_desc (Output((c,tl),t2, expand_process cur_array p))
+  	| Some(f,l) -> 
+***************
+*** 659,666 ****
+        end
+    | Let(pat,t,p1,p2) ->
+        begin
+! 	let tex = expand_term t in
+! 	let patex = expand_pat pat in
+  	match pairing_expand t pat tex patex with
+  	  None -> Terms.oproc_from_desc (Let(pat, t, expand_oprocess cur_array p1, 
+  		      expand_oprocess cur_array p2))
+--- 683,690 ----
+        end
+    | Let(pat,t,p1,p2) ->
+        begin
+! 	let tex = expand_term cur_array t in
+! 	let patex = expand_pat cur_array pat in
+  	match pairing_expand t pat tex patex with
+  	  None -> Terms.oproc_from_desc (Let(pat, t, expand_oprocess cur_array p1, 
+  		      expand_oprocess cur_array p2))
+***************
+*** 670,676 ****
+        end
+    | EventP(t,p) ->
+        begin
+! 	let tex = expand_term t in
+  	match tex with
+  	  None -> Terms.oproc_from_desc (EventP(t, expand_oprocess cur_array p))
+  	| Some(f,l) ->
+--- 694,700 ----
+        end
+    | EventP(t,p) ->
+        begin
+! 	let tex = expand_term cur_array t in
+  	match tex with
+  	  None -> Terms.oproc_from_desc (EventP(t, expand_oprocess cur_array p))
+  	| Some(f,l) ->

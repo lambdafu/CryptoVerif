@@ -85,6 +85,21 @@ let display_repl_index b =
 	print_string ("\\_" ^ (string_of_int b.ri_vname))
     end
 
+(* Define when to put parentheses around infix symbols *)
+
+type infix_paren =
+    NoInfix
+  | AllInfix
+  | AllInfixExcept of funsymb
+
+(* Define when to put parentheses around process-like terms 
+   (TestE, ResE, LetE, FindE, EventAbortE) *)
+
+type process_paren =
+    NoProcess
+  | AllProcess
+  | ProcessMayHaveElseBranch
+
 let rec display_var b tl =
       let tl = 
 	if !display_arrays then tl else 
@@ -94,7 +109,7 @@ let rec display_var b tl =
       if tl != [] then
 	begin
 	  print_string "[";
-	  display_list display_term tl;
+	  display_list (display_term_paren AllInfix AllProcess) tl;
 	  print_string "]"
 	end
 
@@ -133,19 +148,13 @@ and display_findcond (def_list, t1) =
       if not (Terms.is_true t1) then
 	begin
 	  print_string (if !nice_tex then "\\wedge " else "\\ \\&\\&\\ ");
-	  display_term t1
+	  display_term_paren (AllInfixExcept Settings.f_and) AllProcess t1
 	end
     end
   else
-    display_term t1
+    display_term_paren NoInfix AllProcess t1
 
 and display_term t = 
-  if !display_occurrences then
-    begin
-      print_string "\\{";
-      print_string (string_of_int t.t_occ);
-      print_string "\\}"
-    end;
   match t.t_desc with
     Var(b,tl) -> display_var b tl
   | ReplIndex b -> display_repl_index b
@@ -160,38 +169,49 @@ and display_term t =
 	    if (l != []) || (f.f_cat == Tuple) then
 	      begin
 		print_string "(";
-		display_list display_term l;
+		display_list (display_term_paren AllInfix AllProcess) l;
 		print_string ")"
 	      end
-	| LetEqual | Equal | Diff | ForAllDiff | Or | And ->
+	| LetEqual | Equal | Diff | ForAllDiff ->
+	    begin
 	    match l with
 	      [t1;t2] -> 
-		print_string "(";
-		display_term t1;
+		display_term_paren AllInfix AllProcess t1;
+		print_string (" " ^ (match f.f_name with
+		| "=" -> " = "
+		| "<>" -> " \\neq "
+		| "<A>" -> " \\mathbin{<A>} "
+		| ">>=" -> " \\mathbin{>>=} "
+		| _ -> f.f_name) ^ " ");
+		display_term_paren AllInfix AllProcess t2
+	    | _ -> Parsing_helper.internal_error "Infix operators need two arguments (display)"
+	    end
+	| Or | And ->
+	    match l with
+	      [t1;t2] -> 
+		display_term_paren (AllInfixExcept f) AllProcess t1;
 		print_string (" " ^ (match f.f_name with
 		  "&&" -> if !nice_tex then "\\wedge " else "\\ \\&\\&\\ "
 		| "||" -> if !nice_tex then "\\vee " else "\\ \\|\\|\\ "
-		| "=" -> " = "
-		| "<>" -> " \neq "
 		| _ -> f.f_name) ^ " ");
-		display_term t2;
-		print_string ")"
+		display_term_paren (AllInfixExcept f) AllProcess t2
 	    | _ -> Parsing_helper.internal_error "Infix operators need two arguments (display)"
+ 	    
       end
   | TestE(t1,t2,t3) ->
       print_string "\\kw{if}\\ ";
-      display_term t1;
+      display_term_paren NoInfix AllProcess t1;
       print_string "\\ \\kw{then}\\ ";
-      display_term t2;
+      display_term_paren AllInfix ProcessMayHaveElseBranch t2;
       print_string "\\ \\kw{else}\\ ";
-      display_term t3
+      display_term_paren AllInfix NoProcess t3
   | FindE([([],def_list,t1,t2)],t3, find_info) ->
       print_string "\\kw{if}\\ ";
       display_findcond (def_list, t1);
       print_string "\\ \\kw{then}\\ ";
-      display_term t2;
+      display_term_paren AllInfix ProcessMayHaveElseBranch t2;
       print_string "\\ \\kw{else}\\ ";
-      display_term t3
+      display_term_paren AllInfix NoProcess t3
   | FindE(l0, t3, find_info) ->
       let first = ref true in
       print_string "\\kw{find}\\ ";
@@ -207,32 +227,32 @@ and display_term t =
 	print_string "\\ \\kw{suchthat}\\ ";
 	display_findcond (def_list, t1);
 	print_string "\\ \\kw{then}\\ ";
-	display_term t2;
+	display_term_paren AllInfix ProcessMayHaveElseBranch  t2;
 	print_string "$\\\\\n$"  (* Should align somehow... *)) l0;
       print_string "\\ \\kw{else}\\ ";
-      display_term t3      
+      display_term_paren AllInfix NoProcess t3      
   | LetE(pat, t1, t2, topt) ->
       begin
 	match pat with
 	  PatVar b when (!Settings.front_end) == Settings.Oracles ->
 	    display_binder_with_type b;
 	    print_string " \\store ";
-	    display_term t1;
+	    display_term_paren NoInfix AllProcess t1;
 	    print_string "; ";	    
 	| _ ->
 	    print_string "\\kw{let}\\ ";
 	    display_pattern pat;
 	    print_string " = ";
-	    display_term t1;
+	    display_term_paren NoInfix AllProcess t1;
 	    print_string "\\ \\kw{in}\\ "
       end;
-      display_term t2;
+      display_term_paren AllInfix ProcessMayHaveElseBranch t2;
       begin
 	match topt with
 	  None -> ()
 	| Some t3 ->
 	    print_string "\\ \\kw{else}\\ ";
-	    display_term t3      
+	    display_term_paren AllInfix NoProcess t3      
       end
   | ResE(b,t) ->
       if (!Settings.front_end) == Settings.Oracles then
@@ -246,10 +266,84 @@ and display_term t =
 	  display_binder_with_type b
 	end;
       print_string ";\\ ";
-      display_term t
+      display_term_paren AllInfix NoProcess t
   | EventAbortE(f) ->
       print_string "\\kw{event\\string_abort}\\ ";
       print_id "\\kwf{" f.f_name "}"      
+  | EventE(t, p) ->
+      print_string "\\kw{event}\\ ";
+      display_term t;
+      print_string ";\\ ";
+      display_term_paren AllInfix NoProcess t
+  | GetE(tbl, patl, topt, p1, p2) ->
+      print_string "\\kw{get}\\ ";
+      display_table tbl;
+      print_string "(";
+      display_list display_pattern patl;
+      print_string ")";
+      (
+        match topt with 
+            None -> ();
+          | Some t -> 
+              print_string "\\ \\kw{suchthat}\\ ";
+              display_term_paren NoInfix AllProcess t
+      );
+      print_string "\\ \\kw{in}\\ ";
+      display_term_paren AllInfix ProcessMayHaveElseBranch p1;
+      print_string "\\ \\kw{else}\\ ";
+      display_term_paren AllInfix NoProcess p2
+  | InsertE (tbl,tl,p) ->
+      print_string "\\kw{insert}\\ ";
+      display_table tbl;
+      print_string "(";
+      display_list (display_term_paren NoInfix AllProcess) tl;
+      print_string "); ";
+      display_term_paren AllInfix NoProcess p
+
+and display_term_paren infix_paren process_paren t =
+  let infix_paren' = 
+    if (!display_occurrences) || (List.memq t.t_occ (!Display.useful_occs)) then
+      begin
+	print_string "\\{";
+	print_string (string_of_int t.t_occ);
+	print_string "\\}";
+	(* When we show the occurrence of an infix term, this
+	   term must always be between parentheses (otherwise,
+	   we cannot know whether the occurrence refers to the
+	   whole infix term or to its first argument). *)
+	AllInfix
+      end
+    else
+      infix_paren
+  in
+  let put_paren =
+    match t.t_desc with
+      Var _ | ReplIndex _ 
+    | FunApp({ f_cat = Std | Tuple | Event | LetFunTerm _ },_) -> false
+    | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
+	begin
+	  match infix_paren' with
+	    NoInfix -> false
+	  | AllInfix -> true
+	  | AllInfixExcept f' -> f != f'
+	end
+    | TestE _ | ResE _ | FindE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+	begin
+	  match process_paren with
+	    NoProcess -> false
+	  | AllProcess -> true
+	  | ProcessMayHaveElseBranch -> Display.may_have_elset t
+	end
+  in
+  if put_paren then 
+    begin
+      print_string "(";
+      display_term t;
+      print_string ")"
+    end
+  else
+    display_term t
+
 
 (* Patterns *)
 
@@ -264,6 +358,10 @@ and display_pattern = function
   | PatEqual t ->
       print_string "=";
       display_term t
+
+(* Display term with appropriate parentheses around *)
+
+let display_term t = display_term_paren AllInfix AllProcess t
 
 (* Statements *)
 
@@ -431,12 +529,21 @@ let rec display_proba level = function
 	end;
       print_string ")"
 
+let display_pub_vars pub_vars =
+  if pub_vars <> [] then
+    begin
+      print_string " with public variables $";
+      display_list display_binder pub_vars;
+      print_string "$"
+    end
+      
 let display_one_set = function
     SetProba r ->
       display_proba 0 r
-  | SetEvent(f, g, _) ->
+  | SetEvent(f, g, pub_vars, _) ->
       print_id "\\Pr[\\kw{event}\\ \\kwf{" f.f_name "}\\textrm{ in game }";
       print_string (string_of_int g.game_number);
+      display_pub_vars pub_vars;
       print_string "]"
 
 let rec display_set = function
@@ -521,13 +628,24 @@ let rec display_procasterm t =
 	    display_procasterm t3      
       end
   | ResE(b,t) ->
-      display_binder_with_array b;
-      print_id " \\getR \\kwt{" b.btype.tname "};\\ ";
+      if (!Settings.front_end) == Settings.Oracles then
+	begin
+	  display_binder_with_array b;
+	  print_id " \\getR \\kwt{" b.btype.tname "}"
+	end
+      else
+	begin
+	  print_string "\\kw{new}\\ ";
+	  display_binder_with_type b
+	end;
+      print_string ";\\ ";
       display_procasterm t
   | EventAbortE(f) -> 
       print_string "\\kw{event\\string_abort}\\ ";
       print_id "\\kwf{" f.f_name "}"      
-      
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event/get/insert not allowed in definitions of crypto primitives"
+
 
 let rec display_fungroup indent = function
     ReplRestr(repl, restr, funlist) ->
@@ -579,76 +697,48 @@ let rec display_fungroup indent = function
 	      if !first then
 		first := false
 	      else
-		(if (!Settings.front_end) == Settings.Oracles then
-		  print_string ("\\ |$\\\\\n$" ^ indent)
-		else
-		  print_string (",$\\\\\n$" ^ indent));
+		print_string ("\\ |$\\\\\n$" ^ indent);
 	      display_fungroup (indent ^ "\\quad ") f;
 	      ) funlist;
 	    print_string ")"
       end
   | Fun(ch, args, res, (priority, options)) ->
-      if (!Settings.front_end) == Settings.Oracles then
+      print_id "\\kwc{" ch.cname "}(";
+      display_list display_binder_with_type args;
+      print_string ")";
+      if priority != 0 then
 	begin
-	  print_id "\\kwc{" ch.cname "}(";
-	  display_list display_binder_with_type args;
-	  print_string ")";
-	  if priority != 0 then
-	    begin
-	      print_string " [";
-	      print_string (string_of_int priority);
-	      print_string "]"
-	    end;
-	  begin
-	    match options with
-	      StdOpt -> ()
-	    | UsefulChange -> print_string " [useful\\_change]"
-	  end;
-	  print_string " := ";
-	  display_procasterm res
-	end
-      else if ch.cname = "@dummy_channel" then
-	begin
-	  print_string "(";
-	  display_list display_binder_with_type args;
-	  print_string ")";
-	  if priority != 0 then
-	    begin
-	      print_string " [";
-	      print_string (string_of_int priority);
-	      print_string "]"
-	    end;
-	  print_string "\\ \\rightarrow\\ ";
-	  display_term res
-	end
-      else
-	begin
-	  print_id "\\kwc{" ch.cname "}(";
-	  display_list display_binder_with_type args;
-	  print_string ")";
-	  if priority != 0 then
-	    begin
-	      print_string " [";
-	      print_string (string_of_int priority);
-	      print_string "]"
-	    end;
-	  print_string " := ";
-	  display_term res
-	end
+	  print_string " [";
+	  print_string (string_of_int priority);
+	  print_string "]"
+	end;
+      begin
+	match options with
+	  StdOpt -> ()
+	| UsefulChange -> print_string " [useful\\_change]"
+      end;
+      print_string " := ";
+      display_procasterm res
 
 let display_eqmember l =
   display_list (fun (fg, mode) ->
-    display_fungroup "\\quad  " fg;
+    print_string "\\quad";
+    display_fungroup "\\qquad  " fg;
     if mode = AllEquiv then print_string " [all]") l
 
 let display_eqname = function
     NoName -> ()
-  | CstName(s,_) -> print_id "\\kwc{" s "}\\ "
-  | ParName((s,_),(p,_)) -> print_id "\\kwc{" s "}"; print_id "(\\kwf{" p "})\\ "
+  | CstName(s,_) -> print_id "\\kwc{" s "}"
+  | ParName((s,_),(p,_)) -> print_id "\\kwc{" s "}"; print_id "(\\kwf{" p "})"
 
 let display_equiv ((n,m1,m2,set,opt,opt2),_) =
-  if !nice_tex then print_string "$" else print_string "$\\kw{equiv}\\ ";
-  display_eqname n;
+  print_string "$\\kw{equiv}";
+  begin
+    match n with
+      NoName -> ()
+    | _ ->  print_string "("; display_eqname n; print_string ")"
+  end;
+  print_string "$\\\\\n$";
   display_eqmember m1;
   print_string "$\\\\\n$";
   if !nice_tex then
@@ -673,7 +763,6 @@ let display_equiv ((n,m1,m2,set,opt,opt2),_) =
     | ManualEqopt, Computational -> print_string "\\ [manual, computational]"
   end;
   print_string "$\\\\\n$";
-  if not (!nice_tex) then print_string "\\phantom{\\kw{equiv}}\\ ";
   display_eqmember m2;
   print_string "$\\\\\n"
 
@@ -697,21 +786,6 @@ let rec split_par p =
   match p.i_desc with
     Par(p1,p2) -> (split_par p1) @ (split_par p2)
   | _ -> [p]
-
-let rec may_have_elseo p = 
-  match p.p_desc with
-    Yield | EventAbort _ -> false
-  | Test _ | Find _ | Let _ | Get _ -> true
-  | Restr(_,p) | EventP(_,p) | Insert(_,_,p) -> may_have_elseo p
-  | Output(_,_,p) -> may_have_else p
-
-and may_have_else p = 
-  match p.i_desc with
-    Nil | Par _ -> false (* Par always introduces parentheses; whatever
-	there is inside will be surrounded by these parentheses so does not
-	need further parentheses *)
-  | Repl(_,p) -> may_have_else p
-  | Input(_,_,p) -> may_have_elseo p
 
 let occ_space() =
   print_string "\\>$"
@@ -956,7 +1030,7 @@ and display_oprocess indent p =
   | Get (tbl,patl,topt,p1,p2) ->
       print_string (indent ^ "\\kw{get}\\ ");
       display_table tbl;
-      print_string "\\ (";
+      print_string "(";
       display_list display_pattern patl;
       print_string ")";
       (
@@ -984,8 +1058,9 @@ and display_oprocess indent p =
   | Insert (tbl,tl,p) ->
       print_string (indent ^ "\\kw{insert}\\ ");
       display_table tbl;
-      print_string "\\ ";
+      print_string "(";
       display_list display_term tl;
+      print_string ")";
       display_optoprocess indent p
 
 
@@ -1008,7 +1083,7 @@ and display_optoprocess indent p =
     end
 
 and display_oprocess_paren indent p =
-  if may_have_elseo p then
+  if Display.may_have_elseo p then
     begin
       occ_space();
       print_string (indent ^ "($\\\\\n");
@@ -1059,7 +1134,7 @@ let display_user_info = function
       match vmopt with
 	None -> ()
       | Some(vm,vl,stop) ->
-	  print_string "\\text{variables: }";
+	  print_string "\\textrm{variables: }";
 	  display_list (fun (b1,b2) -> display_binder b1; print_string " \\rightarrow "; display_binder b2) vm;
 	  if vm != [] && vl != [] then print_string ", ";
 	  display_list display_binder vl;
@@ -1070,7 +1145,7 @@ let display_user_info = function
       match tmopt with
 	None -> ()
       | Some(tm,stop) ->
-	  print_string "\\text{terms: }";
+	  print_string "\\textrm{terms: }";
 	  display_list (fun (occ,t) -> print_int occ; print_string " \\rightarrow "; display_term t) tm;
 	  if stop then print_string "."
       end
@@ -1080,25 +1155,27 @@ let display_with_user_info user_info =
   match user_info with
     VarList([],_) | Detailed((None | Some([],[],_)), (None | Some([],_))) -> ()
   | _ ->
-      print_string "with $";
+      print_string " with $";
       display_user_info user_info;
       print_string "$"
 
+let display_event (b,t) =
+  print_string (if b then "\\kw{inj\text{-}event}(" else "\\kw{event}(");
+  display_term t;
+  print_string ")"
+
+	
  let rec display_query1 = function
     [] -> Parsing_helper.internal_error "List should not be empty"
-  | [b,t] -> 
-      if b then print_string "\\kw{inj}:";
-      display_term t
-  | (b,t)::l ->
-      if b then print_string "\\kw{inj}:";
-      display_term t;
+  | [x] -> display_event x
+  | x::l ->
+      display_event x;
       print_string (if !nice_tex then " \\wedge " else "\\ \\&\\&\\ ");
       display_query1 l
 
 let rec display_query2 = function
     QEvent(b,t) ->
-      if b then print_string "\\kw{inj}:";
-      display_term t
+      display_event (b,t)
   | QTerm t ->
       display_term t
   | QOr(t1,t2) ->
@@ -1124,32 +1201,19 @@ let display_query (q,g) =
   | _ ->
   begin
   match q with 
-    QSecret1 (b,l) -> 
-      print_string "one-session secrecy of $"; 
-      display_binder b; 
-      print_string "$";
-      if l <> [] then
-	begin
-	  print_string " with public variables $";
-	  display_list display_binder l;
-	  print_string "$"
-	end
-  | QSecret (b,l) -> 
+  | QSecret (b,pub_vars,onesession) -> 
+      if onesession then print_string "one-session ";
       print_string "secrecy of $"; 
       display_binder b; 
       print_string "$";
-      if l <> [] then
-	begin
-	  print_string " with public variables $";
-	  display_list display_binder l;
-	  print_string "$"
-	end
-  | QEventQ(t1,t2) ->
-      print_string "event $";
+      display_pub_vars pub_vars
+  | QEventQ(t1,t2,pub_vars) ->
+      print_string "$";
       display_query1 t1;
       print_string " \\Longrightarrow ";
       display_query2 t2;
-      print_string "$"
+      print_string "$";
+      display_pub_vars pub_vars
   | AbsentQuery ->
       Parsing_helper.internal_error "AbsentQuery should have been handled"
   end;
@@ -1300,7 +1364,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
     let rec compute_full_query_list = function
 	[] -> ql'
       |	(SetProba _)::l -> compute_full_query_list l
-      |	(SetEvent(f,g,_))::l -> (Display.QEvent f, g) :: (compute_full_query_list l)
+      |	(SetEvent(f,g,pub_vars,_))::l -> (Display.QEvent f, g) :: (compute_full_query_list l)
     in
     (* One transformation can consist of an arbitrary syntactic or cryptographic
        transformation, that follows a series of event insertions (Shoup lemma).
@@ -1357,9 +1421,16 @@ let compute_proba ((q0,g) as q) p s =
 
 let display_pat_simp t =
   print_string (match t with 
-    DEqTest -> " (equality test)\\\\\n"
-  | DExpandTuple -> " (tuple expanded)\\\\\n"
-  | DImpossibleTuple -> " (tuple matching always fails)\\\\\n")
+    DEqTest -> " (equality test)"
+  | DExpandTuple -> " (tuple expanded)"
+  | DImpossibleTuple -> " (tuple matching always fails)")
+
+let display_pat_simp_list l =
+  display_list (fun (pat, t) ->
+    print_string "pattern $";
+    display_pattern pat;
+    print_string "$";
+    display_pat_simp t) l
 
 let rec find_l def_list n = function
     [] -> print_string "[not found]"
@@ -1369,14 +1440,16 @@ let rec find_l def_list n = function
       else
 	find_l def_list (n+1) l
 
-let get_finde_branch p (bl,def_list,t,p1) =
-  match p.t_desc with
-    FindE(l,_,_) -> find_l def_list 1 l
-  | _ -> Parsing_helper.internal_error "Find expected in get_finde_branch"
-
 let get_find_branch p (bl,def_list,t,p1) =
-  match p.p_desc with
-    Find(l,_,_) -> find_l def_list 1 l
+  match p with
+    DProcess {p_desc = Find(l,_,_)} -> find_l def_list 1 l
+  | DTerm {t_desc = FindE(l,_,_)} -> find_l def_list 1 l
+  | _ -> Parsing_helper.internal_error "Find expected in get_find_branch"
+
+let get_nbr_find_branch p =
+  match p with
+    DProcess {p_desc = Find(l,_,_)} -> List.length l
+  | DTerm {t_desc = FindE(l,_,_)} -> List.length l
   | _ -> Parsing_helper.internal_error "Find expected in get_find_branch"
 
 let display_simplif_step = function
@@ -1390,35 +1463,19 @@ let display_simplif_step = function
       print_string "\\\\\n"
   | STestTrue(p) ->
       print_string "\\qquad -- Test at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " always true\\\\\n"
   | STestFalse(p) ->
       print_string "\\qquad -- Test at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " always false\\\\\n"
   | STestMerge(p) ->
       print_string "\\qquad -- Merge branches of test at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | STestOr(p) ->
       print_string ("\\qquad -- Expand $" ^ (if !nice_tex then "\\vee " else "\\|\\|") ^ "$ in test at ");
-      print_int p.p_occ;
-      print_string "\\\\\n"
-  | STestETrue(t) ->
-      print_string "\\qquad -- Test at ";
-      print_int t.t_occ;
-      print_string " always true\\\\\n" 
-  | STestEFalse(t) ->
-      print_string "\\qquad -- Test at ";
-      print_int t.t_occ;
-      print_string " always false\\\\\n" 
-  | STestEMerge(t) ->
-      print_string "\\qquad -- Merge branches of test at ";
-      print_int t.t_occ;
-      print_string "\\\\\n" 
-  | STestEOr(t) ->
-      print_string ("\\qquad -- Expand $" ^ (if !nice_tex then "\\vee " else "\\|\\|") ^ "$ in test at ");
-      print_int t.t_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | STestEElim(t) ->
       print_string "\\qquad -- Transformed test at ";
@@ -1428,34 +1485,31 @@ let display_simplif_step = function
       print_string "\\qquad -- Remove branch ";
       get_find_branch p br;
       print_string " in find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindSingleBranch(p,br) ->
       print_string "\\qquad -- A single branch always succeeds in find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindRemoved(p) ->
       print_string "\\qquad -- Find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " removed (else branch kept if any)\\\\\n"
   | SFindElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindBranchMerge(p, brl) ->
-      begin
-	match p.p_desc with
-	  Find(l0,_,_) when List.length l0 = List.length brl ->
-	    print_string "\\qquad -- Merge all branches of find at ";
-	    print_int p.p_occ;
-	    print_string "\\\\\n"
-	| _ ->
-	    print_string "\\qquad -- Merge branches ";
-	    display_list (get_find_branch p) brl;
-	    print_string " with else branch of find at ";
-	    print_int p.p_occ;
-	    print_string "\\\\\n"
-      end
+      if get_nbr_find_branch p = List.length brl then
+	print_string "\\qquad -- Merge all branches of find at "
+      else
+	begin
+	  print_string "\\qquad -- Merge branches ";
+	  display_list (get_find_branch p) brl;
+	  print_string " with else branch of find at ";
+	end;
+      print_int (Terms.occ_from_pp p);
+      print_string "\\\\\n"
   | SFindDeflist(p, def_list, def_list') ->
       if def_list == [] then
 	print_string "\\qquad -- Replaced an empty defined condition"
@@ -1475,108 +1529,29 @@ let display_simplif_step = function
 	  print_string "$"
 	end;
       print_string " in find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindinFindCondition(p, t) ->
       print_string "\\qquad -- Simplified find at ";
       print_int t.t_occ;
       print_string " in condition of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindinFindBranch(p,p') ->
       print_string "\\qquad -- Simplified find at ";
-      print_int p'.p_occ;
+      print_int (Terms.occ_from_pp p');
       print_string " in branch of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindtoTest(p) ->
       print_string "\\qquad -- Transformed find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " into a test\\\\\n"
   | SFindIndexKnown(p, br, subst) ->
       print_string "\\qquad -- In branch ";
       get_find_branch p br;
       print_string " of find at ";
-      print_int p.p_occ;
-      print_string ", substituting ";
-      display_list (fun (b,t) -> 
-	print_string "$"; display_binder b; print_string "$ with $";
-        display_term t; print_string "$") subst;
-      print_string "\\\\\n" 
-  | SFindEBranchRemoved(t,br) -> 
-      print_string "\\qquad -- Remove branch ";
-      get_finde_branch t br;
-      print_string " in find at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SFindESingleBranch(t,br) ->
-      print_string "\\qquad -- A single branch always succeeds in find at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SFindERemoved(t) ->
-      print_string "\\qquad -- Find at ";
-      print_int t.t_occ;
-      print_string " removed (else branch kept if any)\\\\\n"
-  | SFindEElseRemoved(t) ->
-      print_string "\\qquad -- Replace unused else branch of find at ";
-      print_int t.t_occ;
-      print_string " with a constant\\\\\n"
-  | SFindEBranchMerge(t, brl) ->
-      begin
-	match t.t_desc with
-	  FindE(l0,_,_) when List.length l0 = List.length brl ->
-	    print_string "\\qquad -- Merge all branches of find at ";
-	    print_int t.t_occ;
-	    print_string "\\\\\n"
-	| _ ->
-	    print_string "\\qquad -- Merge branches ";
-	    display_list (get_finde_branch t) brl;
-	    print_string " with else branch of find at ";
-	    print_int t.t_occ;
-	    print_string "\\\\\n"
-      end
-  | SFindEDeflist(t, def_list, def_list') ->
-      if def_list == [] then
-	print_string "\\qquad -- Replaced an empty defined condition"
-      else
-	begin
-	  print_string "\\qquad -- Replaced defined condition $";
-	  display_list (fun (b,l) -> display_var b l) def_list;
-	  print_string "$"
-	end;
-      print_string " with ";
-      if def_list' == [] then
-	print_string "an empty condition"
-      else 
-	begin
-	  print_string "$";
-	  display_list (fun (b,l) -> display_var b l) def_list';
-	  print_string "$"
-	end;
-      print_string " in find at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SFindinFindECondition(t, t') ->
-      print_string "\\qquad -- Simplified find at ";
-      print_int t'.t_occ;
-      print_string " in condition of find at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SFindinFindEBranch(t,t') ->
-      print_string "\\qquad -- Simplified find at ";
-      print_int t'.t_occ;
-      print_string " in branch of find at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SFindEtoTestE(t) ->
-      print_string "\\qquad -- Transformed find at ";
-      print_int t.t_occ;
-      print_string " into a test\\\\\n"
-  | SFindEIndexKnown(t, br, subst) ->
-      print_string "\\qquad -- In branch ";
-      get_finde_branch t br;
-      print_string " of find at ";
-      print_int t.t_occ;
+      print_int (Terms.occ_from_pp p);
       print_string ", substituting ";
       display_list (fun (b,t) -> 
 	print_string "$"; display_binder b; print_string "$ with $";
@@ -1585,47 +1560,26 @@ let display_simplif_step = function
 
   | SLetElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of let at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SLetRemoved(p) ->
       print_string "\\qquad -- Remove let at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
-  | SLetSimplifyPattern(p, pat, t) -> 
-      print_string "\\qquad -- Simplify pattern $";
-      display_pattern pat;
-      print_string "$ at "; print_int p.p_occ;
-      display_pat_simp t
-  | SLetEElseRemoved(t) ->
-      print_string "\\qquad -- Remove else branch of let at ";
-      print_int t.t_occ;
+  | SLetSimplifyPattern(p, l) -> 
+      print_string "\\qquad -- Simplify ";
+      display_pat_simp_list l;
+      print_string " at ";
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
-  | SLetERemoved(t) ->
-      print_string "\\qquad -- Remove let at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SLetESimplifyPattern(let_t, pat, t) -> 
-      print_string "\\qquad -- Simplify pattern $";
-      display_pattern pat;
-      print_string "$ at "; print_int let_t.t_occ;
-      display_pat_simp t
 
   | SResRemoved(p) ->
       print_string "\\qquad -- Remove random number generation at ";
-      print_int p.p_occ;      
+      print_int (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SResToAssign(p) ->
       print_string "\\qquad -- Transform unused random number generation at ";
-      print_int p.p_occ;      
-      print_string " into constant assignment";
-      print_string "\\\\\n"
-  | SResERemoved(t) ->
-      print_string "\\qquad -- Remove random number generation at ";
-      print_int t.t_occ;
-      print_string "\\\\\n"
-  | SResEToAssign(t) ->
-      print_string "\\qquad -- Transform unused random number generation at ";
-      print_int t.t_occ;      
+      print_int (Terms.occ_from_pp p);
       print_string " into constant assignment";
       print_string "\\\\\n"
 
@@ -1649,16 +1603,12 @@ let display_detailed_ins = function
 	  display_list display_string coll_elim
 	end;
       print_string "\\\\\n"
-  | DLetSimplifyPattern(let_p, pat, t) ->
-      print_string "\\quad -- Simplify pattern $";
-      display_pattern pat;
-      print_string "$ at "; print_int let_p.p_occ;
-      display_pat_simp t
-  | DLetESimplifyPattern(let_t, pat, t) ->
-      print_string "\\quad -- Simplify pattern $";
-      display_pattern pat;
-      print_string "$ at "; print_int let_t.t_occ;
-      display_pat_simp t
+  | DLetSimplifyPattern(let_p, l) ->
+      print_string "\\quad -- Simplify ";
+      display_pat_simp_list l;
+      print_string " at ";
+      print_int (Terms.occ_from_pp let_p);
+      print_string "\\\\\n"
   | DRemoveAssign(b, def_ch, usage_ch) ->
       print_string "\\quad -- Remove assignments on $";
       display_binder b;

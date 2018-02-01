@@ -1,0 +1,47 @@
+(*
+The simplification of 
+find j' <= N suchthat defined(k[j']) && j = j'
+should yield
+if defined(k[j]) ...
+since the condition implies that j' = j.
+However, this works only when the condition is oriented j' = ,
+not in the other direction. 
+(With the condition j' = j, we rewrite j' into j, so we get the value of j'. 
+ With the condition j = j', we rewrite j into j', so the value of j' is unchanged
+ and CryptoVerif does not manage to do the simplification...)
+
+*)
+
+
+param N.
+
+query event bad ==> false.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+const mark: bitstring.
+
+event bad.
+
+let processU =
+	in(c1, ());
+	find j <= N suchthat defined(k[j]) then
+        (find j' <= N suchthat defined(k[j']) && j = j' (* j' = j *) then
+           out(c2, ()) 
+        else
+        event bad).
+
+let processS =
+	in(c3, ());
+	let k:bitstring = mark.
+
+process 
+	((! N processU) |
+	 (! N processS))
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 15504K
+END *)

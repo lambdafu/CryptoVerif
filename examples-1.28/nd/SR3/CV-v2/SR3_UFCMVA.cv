@@ -1,0 +1,133 @@
+(************** SR3 UF modelization **************)
+(* 
+		SR3 is a routing protocol for wireless sensor
+		networks. Packets look like : 
+		
+			( E_{k_src}(Data || N), H(N), src )
+
+		Here's the UF game, FG in the other file.
+
+
+(qHash + qHash * qVerif + qVerif * qGen + qGen + qHash * qGen + 2. * qGen * qGen) / |nonce| + (qGen * qGen + qGen + 2. * qVerif * qGen + qVerif + qVerif * qVerif) / |block| + SPRPProba(time(context for game 9) + time, qGen, 1. + qVerif) + (1. + qVerif) / |hashout|
+
+*)
+
+proof {
+   allowed_collisions "noninteractive/large,passive^2/large";
+   auto
+   }
+
+(************** Parameters **************)
+(* Our number of queries to the packet-generation oracle *)
+param qGen.
+param qVerif.
+param qHash [noninteractive].
+
+(************** Basic types **************)
+type nonce [large, fixed]. (* also models nonces *)
+type data [large, fixed]. 
+type block [large, fixed].
+
+fun concat(data, nonce):block [compos].
+
+param N [noninteractive]. (* useless and necessary *)
+
+(* 
+	Important and non-trivial : a random	
+	block is undistinguishable from the 
+	concatenation of a random data and 
+	a random nonce.
+*)
+
+equiv 
+!N new b:block; a() := b 
+		<=(0)=> (*undistinguishable*)	
+!N new d:data; new n:nonce; a() := concat(d,n).
+
+(************** Block cipher **************)
+type keyseed [large,fixed].
+type key [large,fixed]. (* for the cipher *)
+
+proba SPRPProba. (* advprp-cca(enc) *)
+expand SPRP_cipher(keyseed, key, block, kgen, enc, dec, SPRPProba).
+
+
+(************** Hash function **************)
+type hashkey [large,fixed].
+(* input type : nonces *)
+type hashout [large, fixed].
+
+expand ROM_hash(hashkey, nonce, hashout, hash).
+
+
+(************** Key generation ********)
+(* todo, ptet *)
+
+
+
+(************** Queries **************)
+table queries(data,nonce).
+
+event bad().
+query  event bad()  ==> false.
+
+
+
+(*************** Packet generation oracle ******)
+channel OGenIn, OGenOut.
+let OGen = 
+	!qGen
+	in (OGenIn, (DGen:data));
+	new NonceGen : nonce; 
+	insert queries(DGen,NonceGen); 
+	let c = enc(concat(DGen, NonceGen), k) in
+	let h = hash(hk,NonceGen) in
+	out( OGenOut, (c, h, NonceGen)).
+
+
+(*************** Packet verification oracle ******)
+channel OVerifIn, OVerifOut. 
+let OVerif = 
+	!qVerif 
+	in (OVerifIn, (cVerif:block,hVerif:hashout));
+	let concat(dVerif:data,nVerif:nonce) = dec( cVerif, k ) in
+	let ( verifSuccess:bool ) = ( hash( hk, nVerif ) = hVerif ) in
+	out(OVerifOut, (verifSuccess)).
+
+
+(**************** Hash oracle *******************)
+channel OHashIn, OHashOut.
+let OHash =
+	!qHash
+	in(OHashIn, hashOHash:nonce); 
+	out(OHashOut, hash(hk,hashOHash)).
+
+
+(*************** The game itself ****************)
+channel SetupIn, SetupOut, ChallengeIn, ChallengeOut.
+process (
+	in(SetupIn, ());
+	new hk : hashkey;			(*public, used for the nonces *)
+	new ks : keyseed;
+	let k = kgen(ks) in	
+	out(SetupOut,());
+	(
+		in (ChallengeIn, (c:block,h:hashout));
+		let concat(dV:data,nV:nonce) = dec(c,k) in
+		get queries(d2,n2) suchthat (nV=n2 && d2=dV) in 
+			out(ChallengeOut, ())
+		else 
+			if (h = hash(hk,nV)) then (
+				event bad();  
+				out(ChallengeOut, ()) 
+			)	else 
+				out(ChallengeOut, ()) 
+	) | OHash | OGen  | OVerif 
+)
+
+
+
+
+
+(* unused stuff*)
+

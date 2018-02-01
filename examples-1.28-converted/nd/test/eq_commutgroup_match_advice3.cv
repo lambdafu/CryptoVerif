@@ -1,0 +1,48 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun mult(D,D):D.
+fun inv(D):D.
+const neut:D.
+equation commut_group(mult,inv,neut).
+
+fun h(D):bitstring.
+fun g(D,D,D): bitstring.
+
+const zero, one, two, three: D. 
+
+channel c.
+proba Peq.
+param n.
+
+(* inv(zero) and zero cancel out, so the rule is equivalent to
+   h(y) -> g(inv(zero),y,zero) *)
+
+equiv
+  ! n O(y: D) := return(h(mult(inv(zero),mult(y,zero)))) [all]
+<=(Peq)=>
+  ! n O(y: D) := return(g(inv(zero),y,zero)).
+
+
+process in(c, ());
+out(c, h(mult(mult(one, zero), mult(two, zero))));
+in(c, ());
+out(c, h(mult(mult(inv(zero), one), mult(two, mult(one, zero)))));
+in(c, ());
+let z: D = inv(mult(one, zero)) in
+out(c, h(mult(z, mult(two, zero))));
+in(c, ());
+let t: D = mult(two, zero) in
+out(c, h(mult(z, t)));
+in(c, ());
+let x: D = inv(mult(z, t)) in
+out(c, h(x))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.024s + system 0.000s), max rss 35568K
+END *)

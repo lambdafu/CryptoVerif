@@ -1,0 +1,153 @@
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif/examples$ cd ..
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif$ prover examples/EKE
+Doing expand if, let, find... No change.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Please enter a command: crypto enc
+Trying equivalence
+equiv ! !_19 <= @2_N (@2_x: G, @2_ke: passwd) -> enc(@2_x, @2_ke) [all], ! !_20 <= @2_N2 (@2_m: G, @2_kd: passwd) -> dec(@2_m, @2_kd) [all]
+<=((@2_N + @2_N2) * (@2_N + @2_N2 - 1.) / |G|)=>
+      ! !_21 <= @2_N (@2_x_60: G, @2_ke_59: passwd) -> let @2_x: G = @2_x_60 in let @2_ke: passwd = @2_ke_59 in find @2_j_23 <= @2_N suchthat defined(@2_x[@2_j_23], @2_ke[@2_j_23], @2_r2[@2_j_23]) && otheruses(@2_r2[@2_j_23]) && ((@2_x = @2_x[@2_j_23]) && (@2_ke = @2_ke[@2_j_23])) then @2_r2[@2_j_23] orfind @2_k_24 <= @2_N2 suchthat defined(@2_r4[@2_k_24], @2_m[@2_k_24], @2_kd[@2_k_24]) && otheruses(@2_r4[@2_k_24]) && ((@2_x = @2_r4[@2_k_24]) && (@2_ke = @2_kd[@2_k_24])) then @2_m[@2_k_24] else new @2_r2: G; @2_r2, ! !_22 <= @2_N2 (@2_m_62: G, @2_kd_61: passwd) -> let @2_m: G = @2_m_62 in let @2_kd: passwd = @2_kd_61 in find @2_j_25 <= @2_N suchthat defined(@2_x[@2_j_25], @2_ke[@2_j_25], @2_r2[@2_j_25]) && otheruses(@2_r2[@2_j_25]) && ((@2_m = @2_r2[@2_j_25]) && (@2_kd = @2_ke[@2_j_25])) then @2_x[@2_j_25] orfind @2_k_26 <= @2_N2 suchthat defined(@2_r4[@2_k_26], @2_m[@2_k_26], @2_kd[@2_k_26]) && otheruses(@2_r4[@2_k_26]) && ((@2_m = @2_m[@2_k_26]) && (@2_kd = @2_kd[@2_k_26])) then @2_r4[@2_k_26] else new @2_r4: G; @2_r4
+... Succeeded.
+Doing simplify... Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between y and y Probability: 0.5 * N * N / |exponent|
+Eliminated collisions between @2_r4_63[!2_82] and exp(g, y[!_32]) Probability: qD * N / |G|
+(@2_r4_63[!2_82] characterizes a part of @2_r4_63[!2_82] of type(s) G;
+ exp(g, y[!_32]) does not depend on @2_r4_63[!2_82])
+Eliminated collisions between @2_r4_72[!2_80] and exp(g, y[!_32]) Probability: N * N / |G|
+(@2_r4_72[!2_80] characterizes a part of @2_r4_72[!2_80] of type(s) G;
+ exp(g, y[!_32]) does not depend on @2_r4_72[!2_80])
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... Done.
+Please enter a command: show_game
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  (
+    (
+      (
+        ! !_31 <= N
+        in(c1[!_31], ());
+        new x: exponent;
+        let X: G = exp(g, x) in
+        out(c2[!_31], (U, X));
+        in(c5[!_31], (=S, Ystar_u: G));
+        let @2_m_74: G = cst_G in
+        let @2_kd_73: passwd = cst_passwd in
+        find @i_106 <= qD suchthat defined(@2_kd[@i_106], @2_m[@i_106], @2_m_65[@i_106], @2_kd_64[@i_106], @2_r4_63[@i_106]) && otheruses(@2_r4_63[@i_106]) && ((Ystar_u = @2_m[@i_106]) && (pw = @2_kd[@i_106])) then
+          let K_u: G = exp(@2_r4_63[@i_106], x) in
+          let auth_u: hash1 = h1(U, S, X, @2_r4_63[@i_106], K_u) in
+          out(c6[!_31], auth_u);
+          in(c9[!_31], ());
+          let sk_u: hash0 = h0(U, S, X, @2_r4_63[@i_106], K_u)
+        orfind @i_103 <= N suchthat defined(Ystar_u[@i_103], @2_m_74[@i_103], @2_r4_72[@i_103]) && otheruses(@2_r4_72[@i_103]) && (Ystar_u = Ystar_u[@i_103]) then
+          let K_u: G = exp(@2_r4_72[@i_103], x) in
+          let auth_u: hash1 = h1(U, S, X, @2_r4_72[@i_103], K_u) in
+          out(c6[!_31], auth_u);
+          in(c9[!_31], ());
+          let sk_u: hash0 = h0(U, S, X, @2_r4_72[@i_103], K_u)
+	(* eliminating collisions with the password 
+        orfind @i_101 <= qE suchthat defined(@2_x[@i_101], @2_ke[@i_101], @2_ke_67[@i_101], @2_x_68[@i_101], @2_r2_66[@i_101]) && otheruses(@2_r2_66[@i_101]) && ((Ystar_u = @2_r2_66[@i_101]) && (pw = @2_ke[@i_101])) then
+          let K_u: G = exp(@2_x[@i_101], x) in
+          let auth_u: hash1 = h1(U, S, X, @2_x[@i_101], K_u) in
+          out(c6[!_31], auth_u);
+          in(c9[!_31], ());
+          let sk_u: hash0 = h0(U, S, X, @2_x[@i_101], K_u)
+        *)
+        orfind @i_100 <= N suchthat defined(Y[@i_100], @2_x_71[@i_100], y[@i_100], @2_r2_69[@i_100]) && otheruses(@2_r2_69[@i_100]) && (Ystar_u = @2_r2_69[@i_100]) then
+          let K_u: G = exp(g, mult(y[@i_100], x)) in
+          let auth_u: hash1 = h1(U, S, X, Y[@i_100], K_u) in
+          out(c6[!_31], auth_u);
+          in(c9[!_31], ());
+          let sk_u: hash0 = h0(U, S, X, Y[@i_100], K_u)
+        else
+          new @2_r4_72: G;
+          let K_u: G = exp(@2_r4_72, x) in
+          let auth_u: hash1 = h1(U, S, X, @2_r4_72, K_u) in
+          out(c6[!_31], auth_u);
+          in(c9[!_31], ());
+          let sk_u: hash0 = h0(U, S, X, @2_r4_72, K_u)
+      |
+        ! !_32 <= N
+        in(c3[!_32], (=U, X_s: G));
+        new y: exponent;
+        let Y: G = exp(g, y) in
+        let @2_x_71: G = cst_G in
+        let @2_ke_70: passwd = cst_passwd in
+        (* Collision between Y = exp(g,y) and @2_x[@i_93] very unlikely 
+	NOW AUTOMATED, thanks to a change in default.cvl
+        find @i_93 <= qE suchthat defined(@2_ke[@i_93], @2_x[@i_93], @2_x_68[@i_93], @2_ke_67[@i_93], @2_r2_66[@i_93]) && otheruses(@2_r2_66[@i_93]) && ((Y = @2_x[@i_93]) && (pw = @2_ke[@i_93])) then
+          out(c4[!_32], (S, @2_r2_66[@i_93]));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47: G = exp(g, mult(x[j], y)) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_47)) then
+            let sk_s: hash0 = h0(U, S, X_s, Y, K_s_47)
+          else
+            let K_s_48: G = exp(X_s, y) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_48)) then
+            event bad
+        else  *)
+          new @2_r2_69: G;
+          out(c4[!_32], (S, @2_r2_69));
+          in(c7[!_32], auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+            let K_s_47: G = exp(g, mult(x[j], y)) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_47)) then
+            let sk_s: hash0 = h0(U, S, X_s, Y, K_s_47)
+          else
+            let K_s_48: G = exp(X_s, y) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_48)) then
+            event bad
+      )
+    |
+      (
+        ! !_33 <= qE
+        in(@2_c1[!_33], (@2_x: G, @2_ke: passwd));
+        let @2_x_68: G = cst_G in
+        let @2_ke_67: passwd = cst_passwd in
+        find @i_90 <= qD suchthat defined(@2_m[@i_90], @2_kd[@i_90], @2_kd_64[@i_90], @2_m_65[@i_90], @2_r4_63[@i_90]) && otheruses(@2_r4_63[@i_90]) && ((@2_x = @2_r4_63[@i_90]) && (@2_ke = @2_kd[@i_90])) then
+          out(@2_c2[!_33], @2_m[@i_90])
+        orfind @i_87 <= N suchthat defined(Ystar_u[@i_87], pw, @2_kd_73[@i_87], @2_m_74[@i_87], @2_r4_72[@i_87]) && otheruses(@2_r4_72[@i_87]) && ((@2_x = @2_r4_72[@i_87]) && (@2_ke = pw)) then
+          out(@2_c2[!_33], Ystar_u[@i_87])
+        orfind @i_85 <= qE suchthat defined(@2_ke[@i_85], @2_x[@i_85], @2_x_68[@i_85], @2_ke_67[@i_85], @2_r2_66[@i_85]) && otheruses(@2_r2_66[@i_85]) && ((@2_x = @2_x[@i_85]) && (@2_ke = @2_ke[@i_85])) then
+          out(@2_c2[!_33], @2_r2_66[@i_85])
+        orfind @i_84 <= N suchthat defined(pw, Y[@i_84], @2_x_71[@i_84], @2_ke_70[@i_84], @2_r2_69[@i_84]) && otheruses(@2_r2_69[@i_84]) && ((@2_x = Y[@i_84]) && (@2_ke = pw)) then
+          out(@2_c2[!_33], @2_r2_69[@i_84])
+        else
+          new @2_r2_66: G;
+          out(@2_c2[!_33], @2_r2_66)
+      |
+        ! !_34 <= qD
+        in(@2_c3[!_34], (@2_m: G, @2_kd: passwd));
+        let @2_m_65: G = cst_G in
+        let @2_kd_64: passwd = cst_passwd in
+        find @i_82 <= qD suchthat defined(@2_kd[@i_82], @2_m[@i_82], @2_m_65[@i_82], @2_kd_64[@i_82], @2_r4_63[@i_82]) && otheruses(@2_r4_63[@i_82]) && ((@2_m = @2_m[@i_82]) && (@2_kd = @2_kd[@i_82])) then
+          out(@2_c4[!_34], @2_r4_63[@i_82])
+        orfind @i_79 <= N suchthat defined(pw, Ystar_u[@i_79], @2_m_74[@i_79], @2_kd_73[@i_79], @2_r4_72[@i_79]) && otheruses(@2_r4_72[@i_79]) && ((@2_m = Ystar_u[@i_79]) && (@2_kd = pw)) then
+          out(@2_c4[!_34], @2_r4_72[@i_79])
+        orfind @i_77 <= qE suchthat defined(@2_x[@i_77], @2_ke[@i_77], @2_ke_67[@i_77], @2_x_68[@i_77], @2_r2_66[@i_77]) && otheruses(@2_r2_66[@i_77]) && ((@2_m = @2_r2_66[@i_77]) && (@2_kd = @2_ke[@i_77])) then
+          out(@2_c4[!_34], @2_x[@i_77])
+        orfind @i_76 <= N suchthat defined(Y[@i_76], pw, @2_ke_70[@i_76], @2_x_71[@i_76], @2_r2_69[@i_76]) && otheruses(@2_r2_69[@i_76]) && ((@2_m = @2_r2_69[@i_76]) && (@2_kd = pw)) then
+          out(@2_c4[!_34], Y[@i_76])
+        else
+          new @2_r4_63: G;
+          out(@2_c4[!_34], @2_r4_63)
+      )
+    )
+  |
+    ! !_35 <= qH0
+    in(c10[!_35], (x1_46: host, x2_45: host, x3_44: G, x4_43: G, x5_42: G));
+    out(c20[!_35], h0(x1_46, x2_45, x3_44, x4_43, x5_42))
+  )
+|
+  ! !_36 <= qH1
+  in(c11[!_36], (x1_41: host, x2_40: host, x3_39: G, x4_38: G, x5_37: G));
+  out(c21[!_36], h1(x1_41, x2_40, x3_39, x4_38, x5_37))
+)
+
+Please enter a command: quit

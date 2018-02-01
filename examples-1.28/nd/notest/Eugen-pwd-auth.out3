@@ -1,0 +1,535 @@
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif/examplesnd$ cd ..
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif$ prover examplesnd/Eugen-pwd-auth.cv
+Doing expand if, let, find... No change.
+Doing simplify... Simplifying let PwdpwdDb: Dbdb = DbnewDb(F6) in
+out(c, dummy);
+(
+  (
+    ! !_7 <= N
+    in(c[!_7], (ab_12: bitstring, F8: mkey));
+    out(c[!_7], Dbinsert(PwdpwdDb, ab_12, PwdPwEntry(F8)))
+  |
+    ! !_8 <= N
+    in(c[!_8], (ab_11: bitstring, F9: mkey));
+    event PwdPwLeak(ab_11);
+    out(c[!_8], Dbinsert(PwdpwdDb, ab_11, PwdLeakedPwEntry(F9)))
+  )
+|
+  ! !_9 <= N
+  in(c[!_9], (ab_10: bitstring, m: bitstring));
+  let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_10) in
+    event PwdSend(ab_10, m)
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10) in
+    event PwdSendLeak(ab_10, m)
+)
+No else branch
+Simplifying let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Final simplification
+let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Else branch simplified into
+let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10[!_9]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let PwdpwdDb: Dbdb = DbnewDb(F6) in
+out(c, dummy);
+(
+  (
+    ! !_7 <= N
+    in(c[!_7], (ab_12: bitstring, F8: mkey));
+    out(c[!_7], Dbinsert(PwdpwdDb, ab_12, PwdPwEntry(F8)))
+  |
+    ! !_8 <= N
+    in(c[!_8], (ab_11: bitstring, F9: mkey));
+    event PwdPwLeak(ab_11);
+    out(c[!_8], Dbinsert(PwdpwdDb, ab_11, PwdLeakedPwEntry(F9)))
+  )
+|
+  ! !_9 <= N
+  in(c[!_9], (ab_10: bitstring, m: bitstring));
+  let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_10) in
+    event PwdSend(ab_10, m)
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_10) in
+    event PwdSendLeak(ab_10, m)
+)
+Run simplify 1 time(s). Fixpoint reached.
+No change.
+Doing move new all binders... No change.
+Doing remove assignments of useless... No change.
+Please enter a command: crypto Dbinsert
+Trying equivalence
+equiv ! !_1 <= @1_N new @1_d: guid; (
+  ! !_2 <= @1_N1 (@1_k: bitstring, @1_v: bitstring) -> Dbinsert(DbnewDb(@1_d), @1_k, @1_v),
+  ! !_3 <= @1_N2 (@1_k': bitstring) -> Dbselect(DbnewDb(@1_d), @1_k'))
+<=(@1_N * @1_Pdb(@1_N2))=>
+      ! !_4 <= @1_N new @1_d: guid; (
+  ! !_5 <= @1_N1 (@1_k_16: bitstring, @1_v_15: bitstring) -> let @1_k: bitstring = @1_k_16 in let @1_v: bitstring = @1_v_15 in @1_un,
+  ! !_6 <= @1_N2 (@1_k': bitstring) -> find @1_j <= @1_N1 suchthat defined(@1_k[@1_j], @1_v[@1_j]) && (@1_k' = @1_k[@1_j]) then Some(@1_v[@1_j]) else None)
+... Failed.
+Doing remove assignments of binder PwdpwdDb... Done.
+Trying equivalence
+equiv ! !_1 <= @1_N new @1_d: guid; (
+  ! !_2 <= @1_N1 (@1_k: bitstring, @1_v: bitstring) -> Dbinsert(DbnewDb(@1_d), @1_k, @1_v),
+  ! !_3 <= @1_N2 (@1_k': bitstring) -> Dbselect(DbnewDb(@1_d), @1_k'))
+<=(@1_N * @1_Pdb(@1_N2))=>
+      ! !_4 <= @1_N new @1_d: guid; (
+  ! !_5 <= @1_N1 (@1_k_16: bitstring, @1_v_15: bitstring) -> let @1_k: bitstring = @1_k_16 in let @1_v: bitstring = @1_v_15 in @1_un,
+  ! !_6 <= @1_N2 (@1_k': bitstring) -> find @1_j <= @1_N1 suchthat defined(@1_k[@1_j], @1_v[@1_j]) && (@1_k' = @1_k[@1_j]) then Some(@1_v[@1_j]) else None)
+with F6... Succeeded.
+Doing simplify... Simplifying find find @i_26 <= N suchthat defined(@1_k_18[@i_26[!_9]], @1_v_17[@i_26[!_9]]) && (ab_10[!_9] = @1_k_18[@i_26[!_9]]) then
+  let Some(PwdPwEntry(pwd8: mkey)) = Some(@1_v_17[@i_26[!_9]]) in
+    event PwdSend(ab_10[!_9], m[!_9])
+  else
+    find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+    orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+    else
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_25 <= N suchthat defined(@1_k_20[@i_25[!_9]], @1_v_19[@i_25[!_9]]) && (ab_10[!_9] = @1_k_20[@i_25[!_9]]) then
+  let Some(PwdPwEntry(pwd8: mkey)) = Some(@1_v_19[@i_25[!_9]]) in
+    event PwdSend(ab_10[!_9], m[!_9])
+  else
+    find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+    orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+    else
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+else
+  let Some(PwdPwEntry(pwd8: mkey)) = None in
+    event PwdSend(ab_10[!_9], m[!_9])
+  else
+    find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+    orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+    else
+      let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+      event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdPwEntry(pwd8: mkey)) = None in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Simplifying find find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+else
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Final simplification
+yield
+Branch let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let PwdLeakedPwEntry(pwd9: mkey) = @1_v_19[@i_21[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Final simplification
+yield
+Final simplification
+yield
+Branch let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let PwdLeakedPwEntry(pwd9: mkey) = @1_v_17[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+No else branch
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Else branch simplified into
+find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Final simplification
+find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Branch let Some(PwdPwEntry(pwd8: mkey)) = Some(@1_v_19[@i_25[!_9]]) in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdPwEntry(pwd8: mkey)) = Some(@1_v_19[@i_25[!_9]]) in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Simplifying find find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+else
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+Branch let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let PwdLeakedPwEntry(pwd9: mkey) = @1_v_19[@i_21[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Final simplification
+yield
+Final simplification
+yield
+Branch let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let PwdLeakedPwEntry(pwd9: mkey) = @1_v_17[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+No else branch
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Else branch simplified into
+find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Simplifying let PwdPwEntry(pwd8: mkey) = @1_v_19[@i_25[!_9]] in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let pwd9: mkey = F9[@i_22[!_9]] in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    yield
+Has else branch
+Simplifying find find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Branch yield
+Contradiction check_compatible_deflistBranch let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Contradiction check_compatible_deflistElse branch simplified into
+yield
+Simplifying let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+No else branch
+Final simplification
+let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+Final simplification
+let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+Final simplification
+let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+
+
+
+
+Branch let Some(PwdPwEntry(pwd8: mkey)) = Some(@1_v_17[@i_26[!_9]]) in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdPwEntry(pwd8: mkey)) = Some(@1_v_17[@i_26[!_9]]) in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Simplifying find find @i_22 <= N suchthat defined(@1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+else
+  let Some(PwdLeakedPwEntry(pwd9: mkey)) = None in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+Branch let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_19[@i_21[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let PwdLeakedPwEntry(pwd9: mkey) = @1_v_19[@i_21[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Final simplification
+yield
+Final simplification
+yield
+Branch let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let Some(PwdLeakedPwEntry(pwd9: mkey)) = Some(@1_v_17[@i_22[!_9]]) in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let PwdLeakedPwEntry(pwd9: mkey) = @1_v_17[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Has else branch
+Else branch simplified into
+yield
+Simplifying let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+No else branch
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Else branch simplified into
+find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Simplifying let PwdPwEntry(pwd8: mkey) = @1_v_17[@i_26[!_9]] in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let pwd9: mkey = F9[@i_22[!_9]] in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    yield
+Has else branch
+Simplifying find find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Branch yield
+Contradiction check_compatible_deflistBranch let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Contradiction check_compatible_deflistElse branch simplified into
+yield
+Final simplification
+yield
+Final simplification
+yield
+Simplifying let @1_k_18: bitstring = ab_11[!_8] in
+let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+No else branch
+Simplifying let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+No else branch
+Final simplification
+let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+Final simplification
+let @1_k_18: bitstring = ab_11[!_8] in
+let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+Simplifying let @1_k_20: bitstring = ab_12[!_7] in
+let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+No else branch
+Simplifying let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+No else branch
+Final simplification
+let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+Final simplification
+let @1_k_20: bitstring = ab_12[!_7] in
+let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+Simplifying find find @i_26 <= N suchthat defined(@1_k_18[@i_26[!_9]], @1_v_17[@i_26[!_9]]) && (ab_10[!_9] = @1_k_18[@i_26[!_9]]) then
+  yield
+orfind @i_25 <= N suchthat defined(F8[@i_25[!_9]], @1_k_20[@i_25[!_9]], @1_v_19[@i_25[!_9]]) && (ab_10[!_9] = @1_k_20[@i_25[!_9]]) then
+  let pwd8: mkey = F8[@i_25[!_9]] in
+  event PwdSend(ab_10[!_9], m[!_9])
+else
+  find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+    let pwd9: mkey = F9[@i_22[!_9]] in
+    event PwdSendLeak(ab_10[!_9], m[!_9])
+  orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+    yield
+Simplifying find find @i_22 <= N suchthat defined(F9[@i_22[!_9]], @1_k_18[@i_22[!_9]], @1_v_17[@i_22[!_9]]) && (ab_10[!_9] = @1_k_18[@i_22[!_9]]) then
+  let pwd9: mkey = F9[@i_22[!_9]] in
+  event PwdSendLeak(ab_10[!_9], m[!_9])
+orfind @i_21 <= N suchthat defined(@1_k_20[@i_21[!_9]], @1_v_19[@i_21[!_9]]) && (ab_10[!_9] = @1_k_20[@i_21[!_9]]) then
+  yield
+Branch yield
+Branch let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Simplifying let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+No else branch
+Final simplification
+let pwd9: mkey = F9[@i_22[!_9]] in
+event PwdSendLeak(ab_10[!_9], m[!_9])
+Branch let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+Simplifying let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+No else branch
+Final simplification
+let pwd8: mkey = F8[@i_25[!_9]] in
+event PwdSend(ab_10[!_9], m[!_9])
+Branch yield
+Simplifying let @1_k_18: bitstring = ab_11[!_8] in
+let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+No else branch
+Simplifying let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+No else branch
+Final simplification
+let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+Final simplification
+let @1_k_18: bitstring = ab_11[!_8] in
+let @1_v_17: bitstring = PwdLeakedPwEntry(F9[!_8]) in
+out(c[!_8], @1_un)
+Simplifying let @1_k_20: bitstring = ab_12[!_7] in
+let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+No else branch
+Simplifying let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+No else branch
+Final simplification
+let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+Final simplification
+let @1_k_20: bitstring = ab_12[!_7] in
+let @1_v_19: bitstring = PwdPwEntry(F8[!_7]) in
+out(c[!_7], @1_un)
+Run simplify 2 time(s). Fixpoint reached.
+Done.
+Doing move new all binders... No change.
+Doing remove assignments of useless... Done.
+Please enter a command: quit
+
+quit
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif$ blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif$ bash: quit: command not found
+blanchet@laurier:/import/absint3/blanchet/dev/cryptoverif$ exit
+
+Process shell exited abnormally with code 127

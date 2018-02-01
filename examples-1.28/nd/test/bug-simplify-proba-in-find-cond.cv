@@ -1,0 +1,35 @@
+(* OK: CryptoVerif correctly counts the number of comparisons with the
+password pw, by replacing the index of find j with a new replication
+index (function new_repl_index in simplify.ml) *)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type passwd [password,fixed].
+
+proof {
+simplify coll_elim pw
+}
+
+(* Queries *)
+
+query secret1 M.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+
+let processA = 
+	in(start, ());
+	new pw : passwd;
+	new M : nonce;
+	find j <= N2 suchthat defined(m[j]) && pw = m[j] then
+	out(c1, M).
+
+process 
+	(! N processA) | (!N2 in(c3, m:passwd))
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of M.
+0.030s (user 0.010s + system 0.020s), max rss 15424K
+END *)

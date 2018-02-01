@@ -1,0 +1,209 @@
+(* Caused an internal error
+Doing simplify... Internal error: Program point not found in check_compatible_deflist; deflist probably altered since whole_game was set
+because find conditions were not scanned in check_compatible_deflist
+*)
+
+proof {
+show_game occ;
+insert 102 "find j <= NU suchthat defined(X_8[j]) && X_8[j] = X_s then";
+crypto enc;
+show_game occ;
+insert_event Encrypt 249;
+auto
+}
+
+param NU, NS, NP, N, N'.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+     (* I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large). *)
+
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host.
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+(* equiv !N new X:G; () -> X <=(0)=> !N new x:exponent; () -> exp(g,x). *)
+equiv
+  ! N new X: G; (
+    gen_Oracle() := return(X) |
+    ! N' gen_Oracle_1(m: exponent) [useful_change] := return(exp(X,m)))
+<=(0)=>
+  ! N new x: exponent; (
+    gen_Oracle() := return(exp(g,x)) |
+    ! N' gen_Oracle_1(m: exponent) := return(exp(g,mult(x,m)))).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec).
+
+param qE, qD [noninteractive].
+channel ec1, ec2, ec3, ec4.
+
+
+(* Hash functions in the random oracle model *)
+
+type hashkey [fixed].
+(*
+Problem: if I use hash(concat(...)), after game transformations I get
+equality tests x = concat(y1,y2,y3,y4,y5) that I would like to transform into
+x = concat(x1,x2,x3,x4,x5) && x1 = y1 && ... for some x1...x5 but
+CryptoVerif cannot do that. For simplicity, I consider only
+hash functions with 5 arguments.
+
+expand ROM_hash(hashkey, hashinput, hash0, h0).
+expand ROM_hash(hashkey, hashinput, hash1, h1).
+fun concat(host, host, G, G, G):hashinput [compos].
+*)
+
+param Nh, qH0, qH1, Neq.
+
+fun h0(hashkey, host, host, G, G, G):hash0.
+
+equiv
+  ! Nh new hk: hashkey; (
+    ! N OH(x1: host, x2: host, x3: G, x4: G, x5: G) := return(h0(hk, x1, x2, x3, x4, x5)) |
+    ! Neq Oeq(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) := return(r' = h0(hk, x1', x2', x3', x4', x5')))
+<=(#Oeq/|hash0|)=>
+  ! Nh (
+    ! N OH(x1: host, x2: host, x3: G, x4: G, x5: G) := find [unique] j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r[j]) else new r: hash0; return(r) |
+    ! Neq Oeq(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) := find [unique] j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then return(r' = r[j]) else return(false)).
+
+channel c10, c20.
+
+
+
+
+fun h1(hashkey, host, host, G, G, G):hash1.
+
+equiv
+  ! Nh new hk: hashkey; (
+    ! N OH(x1: host, x2: host, x3: G, x4: G, x5: G) := return(h1(hk, x1, x2, x3, x4, x5)) |
+    ! Neq Oeq(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) := return(r' = h1(hk, x1', x2', x3', x4', x5')))
+<=(#Oeq/|hash1|)=>
+  ! Nh (
+    ! N OH(x1: host, x2: host, x3: G, x4: G, x5: G) := find [unique] j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r1[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r1[j]) else new r1: hash1; return(r1) |
+    ! Neq Oeq(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) := find [unique] j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r1[j]) && x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then return(r' = r1[j]) else return(false)).
+
+channel c11, c21.
+
+ 
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+query secret sk_p.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp,
+	start, finish.
+
+const U : host.
+const S : host.
+
+event bad.
+(*
+event beginA(host, host, shkey).
+event endB(host, host, shkey).
+
+query x:host, y:host, k:shkey;
+	event endB(x,y,k) ==> beginA(x,y,k).
+query x:host, y:host, k:shkey;
+	event inj:endB(x,y,k) ==> inj:beginA(x,y,k).
+*)
+
+(* Client *)
+
+
+
+(* Server *)
+
+
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+
+
+process 
+	in(start, ());
+new hk0: hashkey;
+new hk1: hashkey;
+new ck_1: cipherkey;
+new pw: passwd;
+out(c8, ());
+((
+  ! i_1 <= NU
+  in(c1[i_1], ());
+  new x_2: exponent;
+  let X_8: G = exp(g, x_2) in
+  out(c2[i_1], (U, X_8));
+  in(c5[i_1], (=S, Ystar_u: G));
+  let Y_u: G = dec(ck_1, Ystar_u, pw) in
+  let K_u: G = exp(Y_u, x_2) in
+  let auth_u: hash1 = h1(hk1, U, S, X_8, Y_u, K_u) in
+  out(c6[i_1], auth_u);
+  in(c9[i_1], ());
+  let sk_u: hash0 = h0(hk0, U, S, X_8, Y_u, K_u)
+) | (
+  ! i_2 <= NS
+  in(c3[i_2], (=U, X_s: G));
+  new y_1: exponent;
+  let Y_7: G = exp(g, y_1) in
+  let Ystar: G = enc(ck_1, Y_7, pw) in
+  out(c4[i_2], (S, Ystar));
+  in(c7[i_2], auth_s: hash1);
+  let K_s: G = exp(X_s, y_1) in
+  if auth_s = h1(hk1, U, S, X_s, Y_7, K_s) then
+  let sk_s: hash0 = h0(hk0, U, S, X_s, Y_7, K_s)
+) | (
+  ! i_3 <= NP
+  in(cp[i_3], ());
+  new xp: exponent;
+  let Xp: G = exp(g, xp) in
+  new yp: exponent;
+  let Yp: G = exp(g, yp) in
+  let Kp: G = exp(g, mult(xp, yp)) in
+  let Ystarp: G = enc(ck_1, Yp, pw) in
+  let authp: hash1 = h1(hk1, U, S, Xp, Yp, Kp) in
+  let sk_p: hash0 = h0(hk0, U, S, Xp, Yp, Kp) in
+  out(cp[i_3], (U, Xp, S, Ystarp, authp))
+) | (
+  ! i_4 <= qE
+  in(ec1[i_4], (x_3: G, ke_1: passwd));
+  out(ec2[i_4], enc(ck_1, x_3, ke_1))
+) | (
+  ! i_5 <= qD
+  in(ec3[i_5], (m_2: G, kd_1: passwd));
+  out(ec4[i_5], dec(ck_1, m_2, kd_1))
+) | (
+  ! i_6 <= qH0
+  in(c10[i_6], (x1_1: host, x2_1: host, x3_1: G, x4_1: G, x5: G));
+  out(c20[i_6], h0(hk0, x1_1, x2_1, x3_1, x4_1, x5))
+) | (
+  ! i_7 <= qH1
+  in(c11[i_7], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  out(c21[i_7], h1(hk1, x11, x12, x13, x14, x15))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of sk_p; secrecy of sk_s; secrecy of sk_u.
+2.496s (user 2.428s + system 0.068s), max rss 169264K
+END *)

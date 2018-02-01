@@ -1,0 +1,100 @@
+(* Version in which the participants only talk to A and B 
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+(* For simplicity, in this first example, I ignore the length of messages
+   and the fact that decryption may fail *)
+(* Shared-key encryption (CCA2) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+fun dec2(bitstring, key): bitstring.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = m.
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = m.
+
+const Z: bitstring.
+equiv  !N3 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2),
+			    (m:bitstring) N2 -> dec(m,kgen(r)))
+     <=(N3 * N * Penc)=> 
+       !N3 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z, kgen2(r), r2),
+			    (m:bitstring) N2 -> find j <= N suchthat defined(r2[j],x[j]) && m = enc2(Z, kgen2(r), r2[j]) then x[j] else dec2(m, kgen2(r))).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, start, dummy, finish.
+const A : host.
+const B : host.
+
+let processA = 
+	in(start, =());
+	new M : nonce;
+	new Na : nonce;
+	new s1 : seed;
+	let ea1 = enc((Na, M, A, B), Kas, s1) in
+	out(c1, (M, A, B, ea1));
+	in(c2, (=M, ea2: bitstring));
+	let (=Na, ka:key) = dec(ea2, Kas) in
+	let keyA:key = ka.
+
+let processB =
+	in(c3, (M: nonce, =A, =B, ea:bitstring));
+	new Nb : nonce;
+	new s2 : seed;
+	let e2 = enc((Nb, M, A, B), Kbs, s2) in
+	out(c4, (M, A, B, ea, e2));
+	in(c5, (=M, ea2: bitstring, eb2: bitstring));
+	let (=Nb, kb:key) = dec(eb2, Kbs) in
+	out(c6, (M, ea2));
+	in(finish, =());
+	let keyB:key = kb.
+
+let processS =
+	in(c7, (M: nonce, =A, =B, ea1: bitstring, eb1: bitstring));
+	let (Na:nonce, =M, =A, =B) = dec(ea1, Kas) in
+	let (Nb:nonce, =M, =A, =B) = dec(eb1, Kbs) in
+	new k: key;
+	new s3: seed;
+	new s4: seed;
+	let e1 = enc((Na, k), Kas, s3) in
+	let e2 = enc((Nb, k), Kbs, s4) in
+	out(c8, (M, e1, e2)).
+	
+process 
+	in(start, =());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	out(dummy, ());
+	((! N processA) |
+	 (! N processB) | 
+	 (! N processS))
+
+(* EXPECTED
+All queries proved.
+0.090s (user 0.090s + system 0.000s), max rss 30000K
+END *)

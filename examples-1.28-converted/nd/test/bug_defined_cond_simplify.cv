@@ -1,0 +1,38 @@
+(* I think there was a bug, but I do not manage to trigger it *)
+
+param N, N'.
+
+(* set interactiveMode = true. *)
+
+fun enc(bitstring, bitstring): bitstring.
+fun dec(bitstring, bitstring): bitstring.
+forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
+
+const c0: bitstring.
+
+channel c.
+
+process
+	((
+  in(c, ());
+  find j = j_1 <= N suchthat defined(m[j_1], k[j2[j_1]]) && (dec(m[j_1], k[j2[j_1]]) = c0) then
+  out(c, ())
+) | (
+  ! i <= N
+  in(c[i], ());
+  find j2 = j2_1 <= N' suchthat defined(k[j2_1]) then
+  find j1 = j1_1 <= N' suchthat defined(x[j1_1], k[j1_1]) && (j1_1 = j2) then
+  let m: bitstring = enc(x[j1], k[j1]) in
+  out(c[i], ())
+) | (
+  ! i_1 <= N'
+  in(c[i_1], (x: bitstring, k: bitstring));
+  out(c[i_1], ())
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.016s + system 0.004s), max rss 36784K
+END *)

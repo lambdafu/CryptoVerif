@@ -1,0 +1,23 @@
+(* This example shows that the converter can output identifiers 
+   containing @. I need to fix that. *)
+
+define macro(f,t) {
+
+letfun f() = new x: t; x.
+
+}
+
+type nonce [fixed].
+
+expand macro(f,nonce).
+
+channel c.
+
+process
+	in(c, ());
+	out(c, f())
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.016s + system 0.000s), max rss 38496K
+END *)

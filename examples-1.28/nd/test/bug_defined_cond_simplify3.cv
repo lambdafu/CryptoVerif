@@ -1,0 +1,47 @@
+(* I think there might be a bug, but I do not manage to trigger it *)
+
+param N, N'.
+
+fun enc(bitstring, bitstring): bitstring.
+fun dec(bitstring, bitstring): bitstring.
+forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
+
+const const0, const1: bitstring.
+
+fun f(bitstring):bitstring.
+
+channel c.
+
+process
+	(in(c, ());
+	find j <= N suchthat defined(n[j],k[j]) then
+	out(c, ());
+	in(c, ());
+	let (x: bitstring, =const0) = n[j] in
+	    (* There would be a bug if the simplification was clever enough
+	       to notice that, when the pattern matching succeeds,
+	       x = enc(m[j],k[j]), so m' = m[j]. CryptoVerif would then
+	       wrongly add m[j] to the defined condition of the find above,
+	       to make sure that all needed terms are defined.
+	       However, it is not known at the point of the find that m[j]
+	       is defined. *)
+	let m' = dec(x,k[j]) in
+	out(c, m')
+	)
+|
+	(!N
+	in(c, (k:bitstring, b:bool));
+	let n: bitstring =
+	    (if b then
+	       (let m = f(k) in
+	       (enc(m,k), const0))
+	    else
+	       (enc(k,k), const1))
+	in
+	out(c, n)
+	)
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.004s + system 0.012s), max rss 22928K
+END *)

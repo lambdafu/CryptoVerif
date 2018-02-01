@@ -1,0 +1,185 @@
+(**********************************************************************
+*
+* Chosen *ciphertext* for CCM mode, one plaintext block, *separate* nonces for
+* the counter mode and CBC mac
+*
+*  * Cryptoverif version: 1.18
+*  * Blocks: 2
+*  * Result: unknown
+*
+*
+***********************************************************************)
+
+
+(*
+
+set debugInstruct = true.
+set debugFindUnique = true.
+set debugCryptotransf = 1.
+set debugElsefindFacts = true.
+set debugSimplify = true.
+
+
+set autoAdvice = false.
+set noAdviceCrypto = true.
+set noAdviceGlobalDepAnal = true.
+set simplifyAfterSARename = false.
+set maxIterSimplif = 1.
+*)
+set interactiveMode = true.
+
+
+
+type block [fixed, large].
+type aes_keyseed [fixed, large, bounded].
+type aes_key [large, bounded].
+proba Paes.
+expand SPRP_cipher(aes_keyseed, aes_key, block, aes_kgen, aes_enc, aes_dec, Paes).
+
+
+type cm_ciphertext [bounded].
+fun cm_join(block, block): cm_ciphertext [compos].
+
+type maced_ciphertext [bounded].
+fun mac_join(cm_ciphertext, block, block): maced_ciphertext [compos].
+
+
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zero_block).
+collision x <-R block; y <-R block; forall b1: block, b2: block; return(xor(x, b1) = xor(y,b2)) <=( 1/|block| )=> return(false). 
+collision r <-R block; forall b1: block, b2: block; return(xor(b1, r) = b2) <=( 1/|block| )=> return(false). 
+
+
+(* Useful helper function. Dunno why. *)
+fun test(bool, block, block):block.
+forall x:block,y:block; test(true,x,y) = x.
+forall x:block,y:block; test(false,x,y) = y.
+
+(* axiomitize incr *)
+fun incr(block): block [compos, uniform].
+forall x:block; incr(x) <> x. 
+collision x <-R block; y <-R block; return(incr(x) = y) <=( 1/|block| )=> return(false). 
+
+
+(* Parameters *)
+
+param N_enc. (* the number of times the adversary gets to call the encryption oracle *)
+param N_dec. (* the number of times the adversary gets to call the decryption oracle *)
+param C. (* the number of challenge ciphertexts available to the adversary *)
+
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+
+
+let enc_oracle = 
+    Oenc(b1 : block):=
+       
+       tag_nonce <-R block;
+       b0 <- tag_nonce;
+
+       t1 <- aes_enc(b0, aesk);
+       t2 <- aes_enc( xor(t1, b1), aesk);
+
+       counter_nonce <-R block;
+       s0 <- aes_enc(counter_nonce, aesk);
+
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       this_cm_ciphertext <- cm_join(counter_nonce, cipherblock1);
+
+       tag <- xor(t2, s0);
+
+       ciphertext <- mac_join(this_cm_ciphertext, tag_nonce, tag);
+
+       return (ciphertext).
+
+
+let dec_oracle = 
+   Odec(maced_ctext: maced_ciphertext) :=
+   find 
+       u <= C suchthat defined(challenge[u]) && (maced_ctext = challenge[u])
+   then
+       end
+   else
+	let mac_join(cm_ctext, tag_nonce, mac_tag) = maced_ctext in      
+        let cm_join(counter_nonce, cipherblock1) = cm_ctext in
+
+	    	counter1 <- incr(counter_nonce);
+		pad1 <- aes_enc(counter1 (* WAS counter_nonce*), aesk);
+		plaintext1 <- xor(pad1, cipherblock1);
+
+		b0 <- tag_nonce;
+		t1 <- aes_enc(b0, aesk);
+		t2 <- aes_enc(xor(t1, plaintext1), aesk);
+
+ 		s0 <- aes_enc(counter_nonce, aesk);
+		
+		recomputed_tag <- xor(t2, s0);
+
+		if recomputed_tag = mac_tag
+                    then return(plaintext1).
+
+
+
+let challenge_oracle =
+       
+       Ochallenge(b11: block,  
+       		  b21: block ) :=
+
+       b1 <- test(secret_bit, b11, b21);
+
+       (* le sigh-- cut and copy from encryption oracle *)
+
+       tag_nonce <-R block;
+       b0 <- tag_nonce;
+
+       t1 <- aes_enc(b0, aesk);
+       t2 <- aes_enc( xor(t1, b1), aesk);
+
+       counter_nonce <-R block;
+       s0 <- aes_enc(counter_nonce, aesk);
+
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       this_cm_ciphertext <- cm_join(counter_nonce, cipherblock1);
+
+       tag <- xor(t2, s0);
+
+       ciphertext <- mac_join(this_cm_ciphertext, tag_nonce, tag);
+
+       (* end cut and copy from encryption oracle *)
+
+       challenge : maced_ciphertext <- ciphertext;
+
+       return(challenge).
+
+
+
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+	aesx <-R aes_keyseed;
+        aesk <- aes_kgen(aesx);
+        secret_bit <-R bool;
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+        (foreach i <= N_enc do enc_oracle) | 
+	(foreach i <= N_dec do dec_oracle) | 
+	(foreach i <= C do challenge_oracle)
+

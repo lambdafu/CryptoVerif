@@ -1,0 +1,58 @@
+(* This file contains two declarations of oracle Ogen, one 
+   under the other. It should be rejected. *)
+
+
+(* FDH signature scheme *)
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, bitstring, D, hash).
+
+param qH [noninteractive].
+let hashoracle = foreach iH <= qH do OH(x:bitstring) := return(hash(hk,x)).
+
+(* Queries *)
+
+event forge.
+query event forge ==> false.
+
+let processS =
+	foreach iS <= qS do
+	Ogen(m:bitstring) :=
+	return(invf(sk, hash(hk, m))).
+
+let processT = 
+	OT(m':bitstring, s:D) :=
+	if f(pk, s) = hash(hk, m') then
+	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then end else
+	event forge.
+
+process 
+	Ogen() :=
+	hk <-R hashkey;
+	r <-R seed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	(hashoracle | processS | processT)
+
+
+(* EXPECTED
+Error: Duplicate definitions of oracle Ogen
+xtime: error in child process (status : 512)
+END *)

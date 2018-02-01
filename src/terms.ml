@@ -16,7 +16,7 @@ let rec repeat n x =
 let rec skip n l = 
   try
     if n = 0 then l else skip (n-1) (List.tl l)
-  with Failure "tl" ->
+  with Failure _ ->
     failwith "Terms.skip"
 
 (* Split l into two lists, first its n first elements, second
@@ -40,7 +40,7 @@ let rec find_in_list x = function
 let lsuffix n l =
   try
     skip (List.length l - n) l
-  with Failure "Terms.skip" ->
+  with Failure _ ->
     failwith "Terms.lsuffix"
 
 (* Remove a suffix of length n *)
@@ -76,6 +76,85 @@ let rec map_union eqtest f = function
     [] -> []
   | (a::l) -> union eqtest (f a) (map_union eqtest f l)
 
+(* Iterators *)
+
+(* Exists *)
+	
+let rec exists_subterm f f_br f_pat t =
+  match t.t_desc with
+    Var(_,tl) | FunApp(_,tl) ->
+      List.exists f tl
+  | ReplIndex _ -> false
+  | TestE(t1,t2,t3) ->
+      (f t1) ||
+      (f t2) ||
+      (f t3)
+  | FindE(l,t3,_) ->
+      (f t3) ||
+      (List.exists (fun (_,def_list,t1,t2) ->
+	(List.exists f_br def_list) || (f t1)|| (f t2)) l)
+  | LetE(pat,t1,t2,topt) ->
+      (f_pat pat) ||
+      (f t1) ||
+      (f t2) ||
+      (match topt with
+	None -> false
+      | Some t3 -> f t3)
+  | ResE(_,t1) -> f t1
+  | EventAbortE _ -> false
+  | EventE(t1,p) ->
+      (f t1) ||
+      (f p)
+  | InsertE(_,tl,p) ->
+      (List.exists f tl) ||
+      (f p)
+  | GetE(_, patl, topt, p1, p2) ->
+      (List.exists f_pat patl) ||
+      (match topt with
+	  None -> false
+	| Some t -> f t) ||
+      (f p1) ||
+      (f p2)
+
+let exists_subpat f f_pat = function
+    PatVar _ -> false
+  | PatTuple(_,l) -> List.exists f_pat l
+  | PatEqual t -> f t
+
+let exists_subiproc f f_input p =
+  match p.i_desc with
+    Nil -> false
+  | Par(p1,p2) -> (f p1) || (f p2)
+  | Repl(b,p) -> f p
+  | Input((c,tl),pat,p) -> 
+      f_input (c,tl) pat p
+
+let exists_suboproc f f_term f_br f_pat f_iproc p =
+  match p.p_desc with
+    Yield | EventAbort _ -> false
+  | Restr(_,p) -> f p
+  | Test(t,p1,p2) -> (f_term t) || (f p1) ||
+    (f p2)
+  | Find(l0,p2, find_info) ->
+      (List.exists (fun (bl,def_list,t,p1) ->
+	(List.exists f_br def_list) ||
+        (f_term t) || (f p1)) l0) || 
+      (f p2)
+  | Output((c,tl),t2,p) ->
+      (List.exists f_term tl) || (f_term t2) || (f_iproc p)
+  | EventP(t,p) ->
+      (f_term t) || (f p)
+  | Let(pat,t,p1,p2) ->
+      (f_term t) || (f_pat pat) || 
+      (f p1) ||(f p2)
+  | Get(tbl,patl,topt,p1,p2) ->
+      (List.exists f_pat patl) || 
+      (match topt with None -> false | Some t -> f_term t) || 
+      (f p1) ||(f p2)
+  | Insert(tbl,tl,p) ->
+      (List.exists f_term tl) || (f p)
+
+	
 (* Equality tests *)
 
 let equal_lists eq l1 l2 =
@@ -104,8 +183,8 @@ let equal_merge_mode m1 m2 =
 
 let equal_query q1 q2 =
   match (q1,q2) with
-    (QSecret (b1,l1), QSecret (b2,l2)) -> (b1 == b2) && (equal_lists (==) l1 l2)
-  | (QSecret1 (b1,l1), QSecret1 (b2,l2)) -> (b1 == b2) && (equal_lists (==) l1 l2)
+    (QSecret (b1,l1,onesession1), QSecret (b2,l2,onesession2)) ->
+      (b1 == b2) && (equal_lists (==) l1 l2) && (onesession1 = onesession2)
   | _ -> false
 
 let eq_pair (a1,b1) (a2,b2) =
@@ -192,6 +271,12 @@ let new_occ() =
   if !occ > !max_occ then max_occ := !occ;
   !occ
 
+(* Get the else branch of let for terms *)
+
+let get_else = function
+    None -> Parsing_helper.internal_error "missing else branch of let"
+  | Some t -> t
+    
 (* Binder from term *)
 
 let binder_from_term t =
@@ -342,6 +427,8 @@ let cst_for_type ty =
 (* Is a variable defined by a restriction ? *)
 
 let is_restr b =
+  (* if b.def == [] then
+    print_string ("Warning: is_restr with empty def " ^ b.sname ^ "_" ^ (string_of_int b.vname) ^ "\n"); *)
   List.for_all (function 
       { definition = DProcess { p_desc = Restr _} } -> true
     | { definition = DTerm ({ t_desc = ResE _}) } -> true
@@ -686,7 +773,7 @@ and normalize_var subst2 t =
       (* This property requires variables not to contain functions.
 	 This is true now, but may change in the future. *)
       Parsing_helper.internal_error "FunApp should not occur in normalize_var"
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ -> 
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "If, find, let, and new should not occur in normalize_var"
 
 and try_no_var (subst2, _, _) t =
@@ -843,12 +930,17 @@ and simp_equal_terms1 simp_facts t1 t2 =
       (simp_equal_terms simp_facts true t2 t2') &&
       (match topt, topt' with
 	None, None -> true
-      |	Some t3, Some t3' -> simp_equal_terms simp_facts true t3 t3'
-      |	_ -> false)
+      | Some t3, Some t3' -> simp_equal_terms simp_facts true t3 t3'
+      | _ -> false)
   | ResE(b,t), ResE(b',t') ->
       (b == b') && (simp_equal_terms simp_facts true t t')
   | EventAbortE(f), EventAbortE(f') -> 
       f == f'
+  | EventE(t,p), EventE(t',p') ->
+      (simp_equal_terms simp_facts true t t') &&
+      (simp_equal_terms simp_facts true p p')
+  | (GetE _, GetE _) | (InsertE _, InsertE _) ->
+      Parsing_helper.internal_error "get and insert should not occur in simp_equal_terms"
   | _ -> false
 
 and equal_terms t1 t2 = simp_equal_terms1 simp_facts_id t1 t2
@@ -924,7 +1016,7 @@ and normalize ((subst2, _, _) as simp_facts) t =
       apply_subst_list_fun simp_facts t [] subst2
   | Var _ | ReplIndex _ -> 
       normalize_var subst2 t 
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ -> 
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
       t
 
 let equal_term_lists l1 l2 =
@@ -1033,6 +1125,11 @@ let rec synt_equal_terms t1 t2 =
       (b == b') && (synt_equal_terms t t')
   | EventAbortE(f), EventAbortE(f') -> 
       f == f'
+  | EventE(t,p), EventE(t',p') ->
+      (synt_equal_terms t t') &&
+      (synt_equal_terms p p')
+  | (GetE _, GetE _) | (InsertE _, InsertE _) ->
+      Parsing_helper.internal_error "get and insert should not occur in synt_equal_terms"
   | _ -> false
 
 and synt_equal_pats p1 p2 =
@@ -1132,15 +1229,139 @@ let rec size t =
 
 (* New variable name *)
 
-let vcounter = ref 0
+(* These functions are used to guarantee the freshness of new identifiers 
+   Each identifier is represented by a pair (s,n):
+   - if n = 0, then (s,n) is displayed s
+   - otherwise, (s,n) is displayed s_n
+   Invariant: n has at most 9 digits (supports one billion of variables);
+   when n = 0, s is never of the form N_xxx where xxx is a non-zero
+   number of at most 9 digits. 
+   This guarantees that for each identifier, (s,n) is unique.
+   We guarantee the freshness by changing the value of n
+*)
 
-let new_vname() =
-  incr vcounter;
-  !vcounter
+(* [get_id_n s] converts [s] into a pair [(s',n)] displayed [s] *)
 
+let get_id_n s =
+  let l = String.length s in
+  if '0' <= s.[l-1] && s.[l-1] <= '9' then
+    let rec underscore_number n = 
+      if (n > 0) && (l-n<=10) then
+        if s.[n] = '_' then
+	  n 
+        else if '0' <= s.[n] && s.[n] <= '9' then
+	  underscore_number (n-1)
+	else
+	  raise Not_found
+      else
+	raise Not_found
+    in
+    try 
+      let pos_underscore = underscore_number (l-2) in
+      if s.[pos_underscore+1] = '0' then raise Not_found;
+      let n' = int_of_string (String.sub s (pos_underscore+1) (l-pos_underscore-1)) in
+      let s' = String.sub s 0 pos_underscore in
+      (* print_string (s ^ " split into " ^ s' ^ "  " ^ (string_of_int n') ^ "\n"); *)
+      (s',n')
+    with Not_found ->
+      (* s does not end with _xxx *)
+      (s,0)
+  else
+    (s,0)
+
+(* Counter incremented to generate fresh variable names.
+   We use a different counter for each string name,
+   stored in a hash table. *)
+let vcounter = ref (Hashtbl.create 7)
+
+type var_num_state = (string, int) Hashtbl.t
+
+let get_var_num_state() = Hashtbl.copy (!vcounter)
+
+let set_var_num_state x =
+  vcounter := x
+    
+(* The maximum xxx such N_xxx occurs and xxx does not come from vcounter *)
+let max_source_idx = ref 0
+
+(* Set of pairs (s,n) used, stored in a hash table. 
+   All pairs (s,n) where 0 < n <= !vcounter(s) are considered as always used,
+   so we need not add them to the hash table.
+   All pairs (s,n) in [used_ids] satisfy [n <= !max_source_idx] *)
+let used_ids = Hashtbl.create 7
+
+(* [record_id s ext] records the identifier [s] so that it will not be reused elsewhere.
+   [record_id] must be called only before calls to [fresh_id] or [new_var_name], so that
+   [s] cannot collide with an identifier generated by [fresh_id] or [new_var_name].
+   Moreover, !vcounter(s) = 0, there are no pairs (s,n) with 0 < n <= !vcounter(s),
+   so the used pairs are exactly those in the hash table used_ids. *)
+
+let record_id s ext =
+  let (_,n) as s_n = get_id_n s in
+  if n > !max_source_idx then max_source_idx := n;
+  if Hashtbl.mem used_ids s_n then
+    ()
+  else
+    Hashtbl.add used_ids s_n ()
+    
+(* [new_var_name s] creates a fresh pair [(s,n)] using [!vcounter(s)]. *) 
+
+let rec new_var_name_counter counter s =
+  let n = counter+1 in
+  if (n <= !max_source_idx) && (Hashtbl.mem used_ids (s,n)) then
+    new_var_name_counter n s
+  else
+    n
+
+let new_var_name s =
+  let counter = (try Hashtbl.find (!vcounter) s with Not_found -> 0) in
+  let counter' = new_var_name_counter counter s in
+  Hashtbl.replace (!vcounter) s counter';
+  (s, counter')
+      
+(* [fresh_id s] creates a fresh identifier [s'] corresponding to
+   identifier [s], preferably [s] itself. If [s] is already used,
+   create a fresh identifier by changing the number suffix of [s], or
+   adding a number suffix to [s] if there is none, using [new_var_name] *)
+
+let fresh_id s =
+  let ((s',n) as s_n) = get_id_n s in
+  let counter = (try Hashtbl.find (!vcounter) s' with Not_found -> 0) in
+  if ((n != 0) && (n <= counter)) || (Hashtbl.mem used_ids s_n) then
+    let n' = new_var_name_counter counter s' in
+    Hashtbl.replace (!vcounter) s' n';
+    s' ^ "_" ^ (string_of_int n')
+  else
+    begin
+      if n > !max_source_idx then max_source_idx := n;
+      Hashtbl.add used_ids s_n ();
+      s
+    end
+
+(* [fresh_id_keep_s s] creates a fresh pair [(s,n)] corresponding to 
+   identifier [s], preferably the pair [(s,0)], which displays exactly as [s],
+   if possible, that is, if [s] does not end with _number and this pair is
+   not already used. Otherwise, create a fresh pair using [new_var_name] *) 
+
+let fresh_id_keep_s s =
+  let ((s',n) as s_n) = get_id_n s in
+  if (n != 0) || (Hashtbl.mem used_ids s_n) then 
+    new_var_name s'
+  else
+    begin
+      (* n = 0, so no need to increase max_source_idx, it is already >= n *)
+      Hashtbl.add used_ids s_n ();
+      s_n
+    end
+        
 let new_binder b0 =
-  { sname = b0.sname;
-    vname = new_vname();
+  (* Invariant: 
+     if vname = 0, then sname never contains N_xxx where xxx is a non-zero 
+     number of at most 9 digits. As a consequence, we don't need to split 
+     v.sname using fresh_id_n. *)
+  let (s, n) = new_var_name b0.sname in
+  { sname = s;
+    vname = n;
     btype = b0.btype;
     args_at_creation = b0.args_at_creation;
     def = b0.def;
@@ -1155,12 +1376,13 @@ let new_binder b0 =
     priority = 0 }
 
 let new_repl_index b0 =
-  { ri_sname = b0.ri_sname;
-    ri_vname = new_vname();
+  let (s, n) = new_var_name b0.ri_sname in
+  { ri_sname = s;
+    ri_vname = n;
     ri_type = b0.ri_type;
     ri_link = NoLink }
 
-let create_binder s n t a =
+let create_binder_internal s n t a =
   { sname = s;
     vname = n;
     btype = t;
@@ -1176,8 +1398,17 @@ let create_binder s n t a =
     count_exclude_array_ref = 0;
     priority = 0 }
 
-let create_repl_index s n t =
-  { ri_sname = s;
+let create_binder s t a =
+  let (s', n) = fresh_id_keep_s s in
+  create_binder_internal s' n t a
+
+let create_binder0 s t a =
+  let (s', n) = get_id_n s in
+  create_binder_internal s' n t a
+    
+let create_repl_index s t =
+  let (s', n) = fresh_id_keep_s s in  
+  { ri_sname = s';
     ri_vname = n;
     ri_type = t;
     ri_link = NoLink }
@@ -1186,12 +1417,10 @@ let create_repl_index s n t =
 
 exception NonLinearPattern
 
-let gvar_counter = ref 0
 let gvar_name = "?x"
 
 let create_gvar b = 
-  incr gvar_counter;
-  let b' = create_binder gvar_name (!gvar_counter) b.btype [] in
+  let b' = create_binder gvar_name b.btype [] in
   let rec st_node = { above_node = st_node; 
 		      binders = []; 
 		      true_facts_at_def = []; 
@@ -1282,6 +1511,8 @@ let rec get_deflist_subterms accu t =
       end
   | ResE(b,t) -> get_deflist_subterms accu t
   | EventAbortE f -> ()
+  | EventE _ | InsertE _ | GetE _ ->
+      Parsing_helper.internal_error "event, get, and insert should not occur in get_deflist_subterms"
 
 and get_def_list_pat accu = function
     PatVar _ -> ()
@@ -1324,6 +1555,24 @@ let rec move_occ_term t =
       |	ResE(b,t) ->
 	  ResE(b, move_occ_term t)
       |	EventAbortE f -> EventAbortE f 
+      | EventE(t,p) ->
+	  let t' = move_occ_term t in
+	  let p' = move_occ_term p in
+	  EventE(t', p')
+      | GetE(tbl,patl,topt,p1,p2) -> 
+	  let patl' = List.map move_occ_pat patl in
+	  let topt' = 
+	    match topt with 
+	      Some t -> Some (move_occ_term t) 
+	    | None -> None
+	  in
+	  let p1' = move_occ_term p1 in
+	  let p2' = move_occ_term p2 in	  
+          GetE(tbl,patl',topt',p1', p2')
+      | InsertE (tbl,tl,p) -> 
+	  let tl' = List.map move_occ_term tl in
+	  let p' = move_occ_term p in
+          InsertE(tbl, tl', p')
   in
   { t_desc = desc;
     t_type = t.t_type;
@@ -1438,7 +1687,7 @@ type copy_transf =
 	The linked variables are supposed to be defined above the copied terms/processes *)
   | Links_RI_Vars (* Combines Links_RI and Links_Vars *)
   | OneSubst of binder * term * bool ref 
-     (* OneSubst(b,t,changed) substituted b[b.args_at_creation] with t.
+     (* OneSubst(b,t,changed) substitutes t for b[b.args_at_creation].
 	Sets changed to true when such a substitution has been done.
 	b is assumed to be defined above the copied terms/processes *) 
   | OneSubstArgs of binderref * term 
@@ -1553,10 +1802,26 @@ and copy_term transf t =
 	 copy_term transf t2)) l0
       in
       build_term2 t (FindE(l0', copy_term transf t3, find_info))
-  | ResE(b,t) ->
-      build_term2 t (ResE(b, copy_term transf t))
+  | ResE(b,t1) ->
+      build_term2 t (ResE(b, copy_term transf t1))
   | EventAbortE(f) ->
       build_term2 t (EventAbortE(f))
+  | EventE(t1,p) ->
+      build_term2 t (EventE(copy_term transf t1, 
+			    copy_term transf p))
+  | GetE(tbl, patl, topt, p1, p2) ->
+      let topt' =
+	match topt with
+	  None -> None
+	| Some t -> Some (copy_term transf t)
+      in
+      build_term2 t (GetE(tbl, List.map (copy_pat transf) patl,
+			  topt',
+			  copy_term transf p1,
+			  copy_term transf p2))
+  | InsertE(tbl,tl,p) ->
+      build_term2 t (InsertE(tbl, List.map (copy_term transf) tl,
+			     copy_term transf p))
 
 and copy_def_list transf def_list =
   match transf with
@@ -1627,6 +1892,8 @@ and subst cur_array l term =
   List.iter (fun b -> b.ri_link <- NoLink) cur_array;
   term'
 
+let copy_elsefind (bl, def_vars, t) = 
+  (bl, copy_def_list Links_RI def_vars, copy_term Links_RI t)
 
 let rec copy_process transf p = 
   iproc_from_desc3 p (
@@ -1672,7 +1939,19 @@ and copy_oprocess transf p =
   | EventP(t,p) ->
       EventP(copy_term transf t, 
 	     copy_oprocess transf p)
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+  | Get(tbl, patl, topt, p1, p2) ->
+      let topt' =
+	match topt with
+	  None -> None
+	| Some t -> Some (copy_term transf t)
+      in
+      Get(tbl, List.map (copy_pat transf) patl,
+	  topt',
+	  copy_oprocess transf p1,
+	  copy_oprocess transf p2)
+  | Insert(tbl,tl,p) ->
+      Insert(tbl, List.map (copy_term transf) tl,
+	     copy_oprocess transf p)
   )
 
 (* Compute element{l/cur_array}, where element is def_list, simp_facts
@@ -1684,12 +1963,11 @@ let subst_def_list cur_array l def_list =
   List.iter (fun b -> b.ri_link <- NoLink) cur_array;
   def_list'
 
-let subst_else_find cur_array l (bl, def_list, t) =
+let subst_else_find cur_array l ((bl, _, _) as elsefind_fact) =
   List.iter2 (fun b t -> if not (List.memq b bl) then b.ri_link <- (TLink t)) cur_array l;
-  let def_list' = copy_def_list Links_RI def_list in
-  let t' = copy_term Links_RI t in
+  let elsefind_fact' = copy_elsefind elsefind_fact in
   List.iter (fun b -> if not (List.memq b bl) then b.ri_link <- NoLink) cur_array;
-  (bl, def_list', t')
+  elsefind_fact'
 
 let subst_simp_facts cur_array l (substs, facts, elsefind) =
   List.iter2 (fun b t -> b.ri_link <- (TLink t)) cur_array l;
@@ -1758,69 +2036,30 @@ let rec replace l1 l0 t =
 let no_def = ref false
 
 let rec refers_to b0 t = 
-  match t.t_desc with
+  (match t.t_desc with
     Var (b,l) -> 
-      (b == b0) || (List.exists (refers_to b0) l) ||
+      (b == b0) ||
       (match b.link with
 	 TLink t -> refers_to b0 t
-       | _ -> false)
-  | FunApp(f,l) -> List.exists (refers_to b0) l
-  | ReplIndex i -> false
-  | TestE(t1,t2,t3) -> (refers_to b0 t1) || (refers_to b0 t2) || (refers_to b0 t3)
-  | ResE(b,t) -> refers_to b0 t
-  | EventAbortE f -> false
-  | FindE(l0,t3, find_info) -> 
-      (List.exists (fun (bl,def_list,t1,t2) ->
-	(List.exists (refers_to_br b0) def_list) ||
-	(refers_to b0 t1) || (refers_to b0 t2)) l0) || 
-      (refers_to b0 t3)
-  | LetE(pat, t1, t2, topt) ->
-      (refers_to_pat b0 pat) ||
-      (refers_to b0 t1) || (refers_to b0 t2) ||
-      (match topt with
-	None -> false
-      |	Some t3 -> refers_to b0 t3)
+      | _ -> false)
+  | _ -> false) ||
+  (exists_subterm (refers_to b0) (refers_to_br b0) (refers_to_pat b0) t)
 
 and refers_to_br b0 (b,l) =
   ((not (!no_def)) && (b == b0)) || List.exists (refers_to b0) l
 
-and refers_to_pat b0 = function
-    PatVar b -> false
-  | PatTuple (f,l) -> List.exists (refers_to_pat b0) l
-  | PatEqual t -> refers_to b0 t 
+and refers_to_pat b0 pat =
+  exists_subpat (refers_to b0) (refers_to_pat b0) pat
 
-let rec refers_to_process b0 p = 
-  match p.i_desc with
-    Nil -> false
-  | Par(p1,p2) -> (refers_to_process b0 p1) || (refers_to_process b0 p2)
-  | Repl(b,p) -> refers_to_process b0 p
-  | Input((c,tl),pat,p) -> 
-      (List.exists (refers_to b0) tl) || (refers_to_pat b0 pat) || (refers_to_oprocess b0 p)
+let rec refers_to_process b0 p =
+  exists_subiproc (refers_to_process b0) (fun (c,tl) pat p ->
+    (List.exists (refers_to b0) tl) || (refers_to_pat b0 pat) ||
+    (refers_to_oprocess b0 p)
+      ) p
 
 and refers_to_oprocess b0 p =
-  match p.p_desc with
-    Yield | EventAbort _ -> false
-  | Restr(b,p) -> refers_to_oprocess b0 p
-  | Test(t,p1,p2) -> (refers_to b0 t) || (refers_to_oprocess b0 p1) ||
-    (refers_to_oprocess b0 p2)
-  | Find(l0,p2, find_info) ->
-      (List.exists (fun (bl,def_list,t,p1) ->
-	(List.exists (refers_to_br b0) def_list) ||
-        (refers_to b0 t) || (refers_to_oprocess b0 p1)) l0) || 
-      (refers_to_oprocess b0 p2)
-  | Output((c,tl),t2,p) ->
-      (List.exists (refers_to b0) tl) || (refers_to b0 t2) || (refers_to_process b0 p)
-  | EventP(t,p) ->
-      (refers_to b0 t) || (refers_to_oprocess b0 p)
-  | Let(pat,t,p1,p2) ->
-      (refers_to b0 t) || (refers_to_pat b0 pat) || 
-      (refers_to_oprocess b0 p1) ||(refers_to_oprocess b0 p2)
-  | Get(tbl,patl,topt,p1,p2) ->
-      (List.exists (refers_to_pat b0) patl) || 
-      (match topt with None -> false | Some t -> refers_to b0 t) || 
-      (refers_to_oprocess b0 p1) ||(refers_to_oprocess b0 p2)
-  | Insert(tbl,tl,p) ->
-      (List.exists (refers_to b0) tl) || (refers_to_oprocess b0 p)
+  exists_suboproc (refers_to_oprocess b0) (refers_to b0) (refers_to_br b0)
+    (refers_to_pat b0) (refers_to_process b0) p
 
 let rec refers_to_fungroup b = function
     ReplRestr(_,_,funlist) ->
@@ -1940,6 +2179,11 @@ let make_equal_ext ext t t' =
 let make_equal t t' = make_equal_ext Parsing_helper.dummy_ext t t'
 
 let make_let_equal t t' =
+  begin
+    match t.t_desc with
+      Var _ -> ()
+    | _ -> Parsing_helper.internal_error "make_let_equal:  LetEqual terms should have a variable in the left-hand side"
+  end;
   build_term_type Settings.t_bool (FunApp(Settings.f_comp LetEqual t.t_type t'.t_type, [t;t']))
 
 let make_diff_ext ext t t' =
@@ -1997,20 +2241,35 @@ let is_pat_tuple = function
 
 (* Building lets *)
 
-let rec put_lets l1 l2 p1 p2 = 
-  match (l1,l2) with
-    [],[] -> p1
-  | (a1::l1),(a2::l2) ->
-      oproc_from_desc (Let(a1, a2, put_lets l1 l2 p1 p2, p2))
-  | _ -> Parsing_helper.internal_error "Different lengths in put_lets"
+let rec put_lets l p1 p2 = 
+  match l with
+    [] -> p1
+  | ((PatVar b) as a1,a2)::lr ->
+      oproc_from_desc (Let(a1, a2, put_lets lr p1 p2, oproc_from_desc Yield))
+  | (a1,a2)::lr ->
+      oproc_from_desc (Let(a1, a2, put_lets lr p1 p2, p2))
 
-let rec put_lets_term l1 l2 p1 p2 = 
-  match (l1,l2) with
-    [],[] -> p1
-  | (a1::l1),(a2::l2) ->
-      build_term_type p1.t_type (LetE(a1, a2, put_lets_term l1 l2 p1 p2, p2))
-  | _ -> Parsing_helper.internal_error "Different lengths in put_lets"
-
+let rec put_lets_term l p1 p2 = 
+  match l with
+    [] -> p1
+  | ((PatVar b) as a1,a2)::lr ->
+      build_term_type p1.t_type (LetE(a1, a2, put_lets_term lr p1 p2, None))
+  | (a1,a2)::lr ->
+      build_term_type p1.t_type (LetE(a1, a2, put_lets_term lr p1 p2, p2))
+	
+(* [simplify_let_tuple pat t] serves to simplify "let pat = t in ..."
+   when pat is a tuple.
+   It returns 
+   - the list of performed transformations
+   - a term [t] meant to be transformed into a test "if t then ... else ..." 
+   before the following [let]s (no test should be generated when [t] is true)
+   - a list [(pat1, t1);...;(patn, tn)] meant to
+   be transformed into "let pat1 = t1 in ... let patn = tn in ...".
+   It makes sure that, when the initial pattern matching fails,
+   none of the variables of pat is defined in the transformed let.
+   It raises the exception [Impossible] when the initial pattern 
+   matching always fails. *)
+	
 exception Impossible
 
 let rec split_term f0 t = 
@@ -2028,11 +2287,64 @@ let rec split_term f0 t =
 	raise Impossible
       else
 	raise Not_found
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Simplify)"
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "If, find, let, new, get, insert, event, and event_abort should have been expanded (Simplify)"
 
-
+let rec rename_var_pat rename_accu = function
+    (PatEqual t) as pat -> pat
+  | PatTuple(f,l) -> PatTuple(f, List.map (rename_var_pat rename_accu) l)
+  | PatVar b ->
+      let b' = new_binder b in
+      b'.count_def <- 1;
+      rename_accu := (PatVar b, term_from_binder b') :: (!rename_accu);
+      PatVar b'
+	
+let rec rename_var_except_last rename_accu = function
+    [] -> []
+  | [a] -> [a]
+  | (pat,t)::l -> (rename_var_pat rename_accu pat, t) :: (rename_var_except_last rename_accu l)
+	
+let rec simplify_let_tuple_aux get_tuple transfo_accu accu pat t =
+  match pat with
+    PatTuple(f, l) ->
+      begin
+      try 
+	let l' = split_term f (get_tuple t) in
+	simplify_let_tuple_aux_list get_tuple ((pat, DExpandTuple)::transfo_accu) accu l l'
+      with Not_found ->
+	transfo_accu, (pat, t) :: accu
+      end
+  | _ -> transfo_accu, (pat, t) :: accu
+				   
+and simplify_let_tuple_aux_list get_tuple transfo_accu accu patl tl =
+  match patl, tl with
+    [], [] -> transfo_accu, accu
+  | (pat::patr, t::tr) ->
+      let transfo_accu', accu' = 
+	simplify_let_tuple_aux get_tuple transfo_accu accu pat t
+      in
+      simplify_let_tuple_aux_list get_tuple transfo_accu' accu' patr tr
+  | _ -> Parsing_helper.internal_error "simplify_let_tuple_aux_list: lists should have same length"
+	
+let simplify_let_tuple get_tuple pat t =
+  let transfo_accu, lbind =
+    simplify_let_tuple_aux get_tuple [] [] pat t
+  in
+  let lbind_eq = List.filter (function (PatEqual _, _) -> true | _ -> false) lbind in
+  let lbind_tup = List.filter (function (PatTuple _, _) -> true | _ -> false) lbind in
+  let lbind_var = List.filter (function (PatVar _, _) -> true | _ -> false) lbind in
+  let rename_accu = ref [] in
+  let renamed_lbind_tup = rename_var_except_last rename_accu lbind_tup in
+  let pat_remaining = List.rev_append renamed_lbind_tup (List.rev_append (!rename_accu) lbind_var) in
+  let transfo_accu = (List.map (fun (pat, t') -> (pat, DEqTest)) lbind_eq) @ transfo_accu in
+  let test =
+    make_and_list (List.map (function
+      | (PatEqual t, t') -> make_equal t t'
+      | _ -> Parsing_helper.internal_error "Should have PatEqual") lbind_eq)
+  in
+  transfo_accu, test, pat_remaining
   
+    
 (* Empty tree of definition dependances 
    The treatment of TestE/FindE/LetE/ResE is necessary: build_def_process
    is called in check.ml.
@@ -2070,6 +2382,17 @@ let rec empty_def_term t =
       end
   | ResE(b,t) -> b.def <- []; empty_def_term t
   | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      empty_def_term t;
+      empty_def_term p
+  | GetE(tbl,patl,topt,p1,p2) ->
+      List.iter empty_def_pattern patl;
+      (match topt with None -> () | Some t -> empty_def_term t);
+      empty_def_term p1;
+      empty_def_term p2
+  | InsertE(tbl,tl,p) -> 
+      List.iter empty_def_term tl;
+      empty_def_term p
 
 and empty_def_term_list l = List.iter empty_def_term l
 
@@ -2192,19 +2515,19 @@ let update_elsefind_with_def bl ((bl',def_list,t) as elsefind) =
   else
     (bl', def_list, make_and_list (t::new_facts))
 
-(* Check that a term is a basic term (no if/let/find/new/event) *)
+(* Check that a term is a basic term (no if/let/find/new/event/get/insert) *)
 
-let rec check_no_ifletfindres t =
+let rec check_simple_term t =
   match t.t_desc with
     Var(_,l) | FunApp(_,l) ->
-      List.for_all check_no_ifletfindres l
+      List.for_all check_simple_term l
   | ReplIndex _ -> true
-  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
       false
 
 let find_list_to_elsefind accu l =
   List.fold_left (fun ((fact_accu, else_find_accu) as accu) ((bl, def_list, t1,_):'a findbranch) ->
-    if check_no_ifletfindres t1 then
+    if check_simple_term t1 then
       if bl == [] && def_list == [] then
 	((make_not t1)::fact_accu, else_find_accu)
       else
@@ -2230,7 +2553,7 @@ and close_def_term accu t =
     Var(b,l) -> close_def_subterm accu (b,l)
   | ReplIndex i -> ()
   | FunApp(f,l) -> List.iter (close_def_term accu) l
-  | _ -> Parsing_helper.input_error "if/find/let forbidden in defined conditions of find" t.t_loc
+  | _ -> Parsing_helper.input_error "if/find/let/new/event/get/insert forbidden in defined conditions of find" t.t_loc
 
 let defined_refs_find bl def_list defined_refs =
   (* Compute the defined references in the condition *)
@@ -2287,7 +2610,17 @@ let rec def_vars_term accu t =
   | ResE(b,t) ->
       add_var (def_vars_term accu t) b
   | EventAbortE _ -> accu
-
+  | EventE(t,p) ->
+      def_vars_term (def_vars_term accu p) t
+  | GetE(tbl,patl,topt,p1,p2) ->
+      let accu' = match topt with
+	None -> accu
+      |	Some t -> def_vars_term accu t
+      in
+      def_vars_term (def_vars_term (def_vars_pat_list (add_vars_from_pat_list accu' patl) patl) p1) p2
+  | InsertE(tbl,tl,p) ->
+      def_vars_term_list (def_vars_term accu p) tl
+      
 and def_vars_term_list accu = function
     [] -> accu
   | (a::l) -> def_vars_term (def_vars_term_list accu l) a
@@ -2408,7 +2741,37 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    accu := (t', DTerm t) :: (!accu)
       end;
       above_node
-      
+  | EventE(t1,p) ->
+      begin
+	match event_accu with
+	  None -> ()
+	| Some accu -> accu := (t1, DTerm t) :: (!accu)
+      end;
+      let (above_node', elsefind_facts') = def_term_ef event_accu cur_array above_node true_facts def_vars elsefind_facts t1 in
+      def_term event_accu cur_array above_node' (t1 :: true_facts) def_vars elsefind_facts' p
+
+  | GetE(tbl,patl,topt,p1,p2) ->
+      let accu = ref [] in
+      let above_node' = def_pattern_list accu event_accu cur_array above_node true_facts def_vars elsefind_facts patl in
+      let above_node'' = 
+        match topt with 
+          Some t -> def_term event_accu cur_array above_node' true_facts def_vars elsefind_facts t
+        | None -> above_node'
+      in
+      (* The variables defined in patl, topt are variables defined in conditions of find,
+	 one cannot make array accesses to them, nor test their definition,
+	 so they will not appear in defined conditions of elsefind_facts.
+	 We need not update elsefind_facts. *)
+      let elsefind_facts' = List.map (update_elsefind_with_def (!accu)) elsefind_facts in
+      ignore (def_term event_accu cur_array above_node'' true_facts def_vars elsefind_facts' p1);
+      ignore (def_term event_accu cur_array above_node true_facts def_vars elsefind_facts p2);
+      above_node
+        
+  | InsertE(tbl,tl,p) ->
+      let (above_node', elsefind_facts') = def_term_list_ef event_accu cur_array above_node true_facts def_vars elsefind_facts tl in
+      def_term event_accu cur_array above_node' true_facts def_vars elsefind_facts' p
+
+	
 (* same as [def_term] but additionally updates elsefind_facts to take into account
    the variables defined in [t] *) 
 and def_term_ef event_accu cur_array above_node true_facts def_vars elsefind_facts t =
@@ -2762,6 +3125,20 @@ let rec array_ref_term in_scope t =
       b.count_def <- b.count_def + 1;
       array_ref_term (b::in_scope) t
   | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      array_ref_term in_scope t;
+      array_ref_term in_scope p
+  | GetE(tbl,patl,topt,p1,p2) ->
+      List.iter (array_ref_pattern in_scope) patl;
+      let in_scope' = vars_from_pat_list in_scope patl in
+      (match topt with 
+         | Some t -> array_ref_term in_scope' t
+         | None -> ());
+      array_ref_term in_scope' p1;
+      array_ref_term in_scope p2
+  | InsertE(tbl,tl,p) ->
+      List.iter (array_ref_term in_scope) tl;
+      array_ref_term in_scope p
 
 and array_ref_pattern in_scope = function
     PatVar b -> 
@@ -2922,6 +3299,22 @@ let rec exclude_array_ref_term in_scope t =
   | ResE(b,t) ->
       exclude_array_ref_term (b::in_scope) t
   | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      exclude_array_ref_term in_scope t;
+      exclude_array_ref_term in_scope p
+  | GetE(tbl,patl,topt,p1,p2) -> 
+      List.iter (exclude_array_ref_pattern in_scope) patl;
+      let in_scope' = vars_from_pat_list in_scope patl in
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> exclude_array_ref_term in_scope' t
+      end;
+      exclude_array_ref_term in_scope' p1;
+      exclude_array_ref_term in_scope p2
+  | InsertE(tbl,tl,p) ->
+      List.iter (exclude_array_ref_term in_scope) tl;
+      exclude_array_ref_term in_scope p
 
 and exclude_array_ref_pattern in_scope = function
     PatVar b -> ()
@@ -2988,6 +3381,21 @@ and empty_comp_term t =
   | ResE(b,p) ->
       empty_comp_term p
   | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      empty_comp_term t;
+      empty_comp_term p
+  | GetE(tbl,patl,topt,p1,p2) -> 
+      List.iter empty_comp_pattern patl;
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> empty_comp_term t
+      end;
+      empty_comp_term p1;
+      empty_comp_term p2
+  | InsertE(tbl,tl,p) ->
+      List.iter empty_comp_term tl;
+      empty_comp_term p
 
 let rec empty_comp_process p = 
   p.i_incompatible <- map_empty;
@@ -3084,6 +3492,11 @@ let rec compatible_def_term cur_array_length current_incompatible t =
       compatible_def_term cur_array_length current_incompatible t2
   | EventAbortE _ ->
       ()
+  | EventE(t,p) ->
+      compatible_def_term cur_array_length current_incompatible t;
+      compatible_def_term cur_array_length current_incompatible p
+  | GetE(_,_,_,_,_) | InsertE (_,_,_) -> 
+      internal_error "Get/Insert should have been reduced at this point"
 
 and compatible_def_pat cur_array_length current_incompatible = function
     PatVar b -> ()
@@ -3146,7 +3559,15 @@ and compatible_def_oprocess cur_array_length current_incompatible p =
 let build_compatible_defs p = 
   compatible_def_process 0 map_empty p
 
-(* [occ_from_pp pp] returns a triple containing
+(* [occ_from_pp pp] returns the occurrence of program point [pp] *)
+
+let occ_from_pp = function
+    DProcess(p) -> p.p_occ
+  | DTerm(t) -> t.t_occ
+  | DInputProcess(p) -> p.i_occ
+  | _ -> raise Not_found
+
+(* [incomp_from_pp pp] returns a triple containing
    - the occurrence of program point [pp]
    - the maximum occurrence of program points under [pp] in the syntax tree.
    (the occurrences of program points under [pp] are then
@@ -3157,7 +3578,7 @@ let build_compatible_defs p =
    the suffixes of length [l] of [args] and [args'] must be different.
    Raises [Not_found] when [pp] does not uniquely identify a program point. *) 
 
-let occ_from_pp = function
+let incomp_from_pp = function
     DProcess(p) -> p.p_occ, p.p_max_occ, p.p_incompatible
   | DTerm(t) -> t.t_occ, t.t_max_occ, t.t_incompatible
   | DInputProcess(p) -> p.i_occ, p.i_max_occ, p.i_incompatible
@@ -3178,8 +3599,8 @@ let rec map_max f = function
    indices [args'] can be executed for any [args,args'].*)
 
 let incompatible_suffix_length_pp pp pp' =
-  let occ, _, occ_map = occ_from_pp pp in
-  let occ', _, occ_map' = occ_from_pp pp' in
+  let occ, _, occ_map = incomp_from_pp pp in
+  let occ', _, occ_map' = incomp_from_pp pp' in
   try 
     Occ_map.find occ occ_map' 
   with Not_found ->
@@ -3207,9 +3628,9 @@ let both_pp_add_fact fact_accu (args, pp) (args', pp') =
    and [b'[args']] can be defined for any [args,args'].*)
 
 let incompatible_suffix_length_onepp pp b' =
-  let pp_occ, _, pp_occ_map = occ_from_pp pp in
+  let pp_occ, _, pp_occ_map = incomp_from_pp pp in
   map_max (fun n' ->
-    let (occ', _, occ_map') = occ_from_pp n'.definition_success in
+    let (occ', _, occ_map') = incomp_from_pp n'.definition_success in
     try 
       Occ_map.find pp_occ occ_map' 
     with Not_found ->
@@ -3291,6 +3712,34 @@ let both_def_list_facts fact_accu old_def_list def_list =
   List.fold_left (fun accu br -> List.fold_left (fun accu' br' -> 
     both_def_add_fact accu' br br') accu new_def_list) fact_accu old_def_list
 
+(* [def_pp_add_fact fact_accu (pp,args) (b',args')] 
+   adds to [fact_accu] a fact inferred from the execution of 
+   program point [pp] with indices [args] and 
+   the definition of variable [b'] with indices [args'], if any.
+   [b[args']] may be defined before or after the execution
+   of program point [pp] with indices [args]. *)
+
+let def_pp_add_fact fact_accu (pp,args) (b',args') =
+  try
+    let suffix_l = incompatible_suffix_length_onepp pp b' in
+    let args_skip = lsuffix suffix_l args in
+    let args_skip' = lsuffix suffix_l args' in
+    (make_or_list (List.map2 make_diff args_skip args_skip')) :: fact_accu
+  with Not_found -> 
+    fact_accu
+
+(* [def_list_pp fact_accu pp_args def_list] returns facts
+   inferred from the knowledge that the variables in [def_list] are
+   defined and the program point [pp_args] is executed.
+   (The variables in [def_list] may be defined before or after
+   executing the program point [pp_args].
+   Uses the field "incompatible" set by Terms.build_compatible_defs
+ *)
+let def_list_pp fact_accu pp_args def_list =
+  List.fold_left (fun accu br -> 
+     def_pp_add_fact accu pp_args br) fact_accu def_list
+
+
 (* [not_after_suffix_length_one_pp pp length_cur_array_pp b'] returns
    the shortest length [l] such that the program point [pp] cannot be
    executed with indices [args] after the definition of variable [b']
@@ -3302,9 +3751,9 @@ let both_def_list_facts fact_accu old_def_list def_list =
    program point [pp]. *)
 
 let not_after_suffix_length_one_pp pp length_cur_array_pp b' =
-  let pp_occ, pp_max_occ, pp_occ_map = occ_from_pp pp in
+  let pp_occ, pp_max_occ, pp_occ_map = incomp_from_pp pp in
   map_max (fun n' ->
-    let (occ', _, occ_map') = occ_from_pp n'.definition_success in
+    let (occ', _, occ_map') = incomp_from_pp n'.definition_success in
     try 
       Occ_map.find pp_occ occ_map' 
     with Not_found ->
@@ -3328,8 +3777,8 @@ let not_after_suffix_length_one_pp pp length_cur_array_pp b' =
    program point [pp]. *)
 
 let not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n' =
-  let pp_occ, pp_max_occ, pp_occ_map = occ_from_pp pp in
-  let (occ', _, occ_map') = occ_from_pp n'.definition_success in
+  let pp_occ, pp_max_occ, pp_occ_map = incomp_from_pp pp in
+  let (occ', _, occ_map') = incomp_from_pp n'.definition_success in
   try 
     Occ_map.find pp_occ occ_map' 
   with Not_found ->
@@ -3531,8 +3980,8 @@ let rec update_args_at_creation cur_array t =
       end
   | ReplIndex b -> t
   | FunApp(f,l) -> build_term2 t (FunApp(f, List.map (update_args_at_creation cur_array) l))
-  | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "new/event should not occur as term in find condition" 
+  | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "new/event/event_abort/get/insert should not occur as term in find condition" 
   | TestE(t1,t2,t3) ->
        build_term2 t (TestE(update_args_at_creation cur_array t1,
 			    update_args_at_creation cur_array t2,
@@ -3545,7 +3994,7 @@ let rec update_args_at_creation cur_array t =
 	  let def_list' = List.map (update_args_at_creation_br cur_array_cond) def_list in
 	  let t1' = update_args_at_creation cur_array_cond t1 in
 	  let bl' = List.map (fun (b,b') ->
-	    let b1 = create_binder b.sname (new_vname()) b.btype cur_array in
+	    let b1 = create_binder b.sname b.btype cur_array in
 	    link b (TLink (term_from_binder b1));
 	    (b1, b')) bl 
 	  in
@@ -3579,7 +4028,7 @@ and update_args_at_creation_br cur_array (b,l) =
 
 and update_args_at_creation_pat cur_array = function
     PatVar b ->
-      let b' = create_binder b.sname (new_vname()) b.btype cur_array in
+      let b' = create_binder b.sname b.btype cur_array in
       link b (TLink (term_from_binder b'));
       PatVar b'
   | PatTuple(f,l) ->
@@ -3626,6 +4075,19 @@ let rec get_needed_deflist_term defined accu t =
       end
   | ResE(b,t) -> get_needed_deflist_term ((binderref_from_binder b)::defined) accu t
   | EventAbortE f -> ()
+  | EventE(t,p) ->
+      get_needed_deflist_term defined accu t;
+      get_needed_deflist_term defined accu p
+  | GetE(tbl,patl,topt,p1,p2) ->
+      List.iter (get_needed_deflist_pat defined accu) patl;
+      let bpat = List.fold_left vars_from_pat [] patl in
+      let defs = (List.map binderref_from_binder bpat) @ defined in
+      (match topt with None -> () | Some t -> get_needed_deflist_term defs accu t);
+      get_needed_deflist_term defs accu p1;
+      get_needed_deflist_term defined accu p2
+  | InsertE(tbl,tl,p) ->
+      List.iter (get_needed_deflist_term defined accu) tl;
+      get_needed_deflist_term defined accu p
 
 and get_needed_deflist_pat defined accu = function
     PatVar _ -> ()
@@ -4699,7 +5161,7 @@ let match_assoc_advice match_term explicit_value get_var_link is_var_inst fresh_
 		  let l2' = simp_prod simp_facts (ref false) prod t in
 		  try_prefix is_rev tvar l1 seen ((put_side is_rev Advice l2') @ r) state
 	      | Some(NoLink, allow_neut, _, _) ->
-		  let x = create_binder "@$match_var" (new_vname()) (snd prod.f_type) [] in
+		  let x = create_binder "@$match_var" (snd prod.f_type) [] in
 		  fresh_vars := x :: (!fresh_vars);
 		  let x_term = term_from_binder x in
 	          (* tvar = seen . x ; a = x . (some prefix of l1 to be defined) *)
@@ -4783,8 +5245,8 @@ let match_assoc_advice match_term explicit_value get_var_link is_var_inst fresh_
    so that [left_rest. \sigma l1 . right_rest = l2] modulo associativity. *)
 
 let match_assoc_advice_subterm match_term explicit_value get_var_link is_var_inst next_f simp_facts prod l1 l2 state =
-  let b_right = create_binder "@$special_var_allow_rest" (new_vname()) (snd prod.f_type) [] in
-  let b_left = create_binder "@$special_var_allow_rest" (new_vname()) (snd prod.f_type) [] in
+  let b_right = create_binder "@$special_var_allow_rest" (snd prod.f_type) [] in
+  let b_left = create_binder "@$special_var_allow_rest" (snd prod.f_type) [] in
   let l1' = term_from_binder b_left :: l1 @ [term_from_binder b_right] in
   let next_f_unif state = 
     let right_rest = 
@@ -4817,8 +5279,8 @@ let match_assoc_advice_subterm match_term explicit_value get_var_link is_var_ins
    [left_rest] and [right_rest] may both be empty. *)
 
 let match_assoc_advice_pat_subterm match_term explicit_value get_var_link is_var_inst next_f simp_facts prod allow_full l1 l2 state =
-  let b_right = create_binder "@$special_var_allow_rest" (new_vname()) (snd prod.f_type) [] in
-  let b_left = create_binder "@$special_var_allow_rest" (new_vname()) (snd prod.f_type) [] in
+  let b_right = create_binder "@$special_var_allow_rest" (snd prod.f_type) [] in
+  let b_left = create_binder "@$special_var_allow_rest" (snd prod.f_type) [] in
   let l2' = term_from_binder b_left :: l2 @ [term_from_binder b_right] in
   (* the variables b_right and b_left must not be both bound to the 
      neutral element because I want to match a strict subterm *)

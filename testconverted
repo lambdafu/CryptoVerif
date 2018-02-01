@@ -1,0 +1,137 @@
+#!/bin/bash
+
+if [ -x ./xtime ]
+then
+    PROG=./xtime
+else
+    PROG=
+fi
+
+# The arguments of analyze are
+# $1 = protocol name
+# $2 = CryptoVerif options
+# $3 = input filename (wrt the CryptoVerif directory)
+# $4 = output filename (wrt the CryptoVerif directory)
+
+function analyze()
+{
+	echo -n PROTOCOL $1 " "
+	$PROG ./cryptoverif $2 $3 > tmp.out 2>&1 
+	echo PROTOCOL $1 >> $4
+	cat tmp.out >> $4
+	egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res 
+	awk '/EXPECTED/, /END/ { print $0; }' $3 | grep -v EXPECTED | grep -v END > tmp.expected
+	grep -v user tmp.expected > tmp.expectedres
+	grep -v user tmp.res > tmp.actualres
+	if diff -q -b tmp.expectedres tmp.actualres >/dev/null
+	then 
+	    echo OK
+	else
+	    echo
+	    echo RESULTS DIFFER! Expected:
+	    cat  tmp.expectedres
+	    echo Actual:
+	    cat tmp.actualres
+	fi
+	(echo -n "EXPECTED: "; grep user tmp.expected ; echo -n "ACTUAL: "; grep user tmp.res) | awk '/^EXPECTED:/ { expectedtime = substr($2, 0, length($2)-1); } /^ACTUAL:/ { actualtime = substr($2, 0, length($2)-1); } END { if (actualtime != "") { if (actualtime + 0 > expectedtime * 1.2 + 0.2) { print "Slower: old=" expectedtime " new=" actualtime}; if (actualtime + 0 < expectedtime * 0.8 - 0.2) { print "Faster: old=" expectedtime " new=" actualtime; } } }'
+}
+
+mkdir -p tests
+
+echo
+echo TEST
+echo
+output=test`date '+%Y.%m.%d-%H_%M_%S'`
+(
+for i in examples-1.28-converted/basic/*.cv
+do
+	analyze $i "-lib converter/default-converted" $i tests/$output
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
+
+echo
+echo AUTHTEST
+echo
+output=auth`date '+%Y.%m.%d-%H_%M_%S'`
+(for i in examples-1.28-converted/authbasic/*.cv
+do
+	analyze $i "-lib converter/default-converted" $i tests/$output
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
+
+echo
+echo OTEST
+echo
+output=otest`date '+%Y.%m.%d-%H_%M_%S'`
+(
+for i in examples-1.28-converted/obasic/*.ocv
+do
+    analyze $i "-lib converter/default-converted -in oracles" $i tests/$output
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
+
+echo
+echo WEB
+echo
+output=web`date '+%Y.%m.%d-%H_%M_%S'`
+(
+for i in examples-1.28-converted/kerberos/*.cv
+do
+	analyze $i "-lib converter/default-converted" $i tests/$output
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
+
+echo
+echo NDTEST
+echo
+output=ndtest`date '+%Y.%m.%d-%H_%M_%S'`
+rm examples-1.28-converted/nd/*/*~ 
+(
+echo
+echo CHANNELS FRONTEND
+echo
+
+for i in examples-1.28-converted/nd/test/* examples-1.28-converted/nd/kerberos/* examples-1.28-converted/nd/implem/*.cv examples-1.28-converted/nd/arinc823/*.cv examples-1.28-converted/implementation/woolamskcorr_tbl.cv
+do
+    if [ -f $i ]
+    then
+	analyze $i "-lib converter/default-converted" $i tests/$output
+    fi
+done
+
+echo
+echo ORACLES FRONTEND
+echo
+
+for i in examples-1.28-converted/nd/otest/* examples-1.28-converted/nd/implem/*.ocv examples-1.28-converted/nd/arinc823/*.ocv examples-1.28-converted/implementation/*.ocv
+do
+    if [ -f $i ]
+    then
+	analyze $i "-lib converter/default-converted -in oracles" $i tests/$output
+    fi
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
+
+echo
+echo TLS 1.3 conference version
+echo
+output=tls`date '+%Y.%m.%d-%H_%M_%S'`
+(
+for i in examples-1.28-converted/tls-2017SP/*.cv
+do
+    analyze $i "-lib examples-1.28-converted/tls-2017SP/tls-lib" $i tests/$output
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
+rm tmp.*

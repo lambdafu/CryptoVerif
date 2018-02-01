@@ -1,0 +1,34 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun xor(D,D):D.
+const neut:D.
+equation ACUN(xor,neut).
+
+fun h(D):bitstring.
+fun g(D,D,D): bitstring.
+
+const zero, one, two, three, four: D. 
+const zero', one', two', three', four': D. 
+
+channel c.
+proba Peq.
+param n.
+
+equiv !n O(x:D,y:D,z:D) := h(xor(x,xor(y,z))) [all]
+<=(Peq)=>
+      !n O(x:D,y:D,z:D) := g(x,y,z).
+
+
+process in(c, ()); out(c, h(xor(xor(zero, one), xor(two, zero'))));
+	in(c, ()); out(c, h(xor(xor(zero, one), xor(two, xor(zero',one')))));
+	in(c, ()); let z = xor(zero,one) in out(c, h(xor(z, xor(two, zero'))));
+        in(c, ()); let t = xor(two, zero') in out(c, h(xor(z, t)));
+        in(c, ()); let x = xor(z,t) in out(c, h(x))
+
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

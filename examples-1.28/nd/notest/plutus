@@ -1,0 +1,520 @@
+(* Plutus file system.
+   VERY MUCH IN PROGRESS
+
+Some parts of the coding are inelegant, because CryptoVerif does not
+allow mutable variables. (The version, lockboxkey, ... would better
+be mutable.)
+
+ *)
+
+set interactiveMode = true.
+
+param N, nK, nf, n2, nH, Nversion, NRReq, NWReq, NR, NW, NCR, Nhash, Nrandomgen.
+param N2.
+param N3.
+param N4.
+
+(* Type of lockboxkeys.
+   - Keys for IND-CPA encryption.
+   - Domain of the RSA permutation.
+   - Target of the hash function (hash) used for RSA signatures
+   - Source of the random number generator (randomgen) for choosing RSA e values *)
+type D [large,fixed].
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed1 [large,fixed].
+type keyseed2 [large,fixed].
+type Tmodulus [bounded].
+type seed [fixed].
+type Tfilegroup.
+
+(****** Shared-key encryption (CPA Stream cipher) ******)
+
+proba Penc.
+
+fun enc(bitstring, D, seed): bitstring.
+fun dec(bitstring, D): bitstringbot.
+
+fun enc2(bitstring, D, seed): bitstring.
+
+fun injbot(bitstring):bitstringbot [compos].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+fun Zconcat1(bitstring):bitstring.
+const Zconcat2:bitstring.
+const Zconcat3:bitstring.
+
+forall m:bitstring, k:D, r2:seed; 
+	dec(enc(m, k, r2), k) = injbot(m).
+
+equiv  !N2 new k: D; ((x:bitstring) N -> new r2: seed; enc(x, k, r2)) 
+     <=(N2 * Penc(time, N, maxlength(x)))=> 
+       !N2 new k: D; ((x:bitstring) N -> new r2: seed; enc2(Z(x), k, r2)).
+
+(******* One-way trapdoor permutations, for RSA. ******
+   Special key generation functions for plutus.
+   TO DO check that RSA satisfies these properties, provided the RSA problem is hard
+	 Allow the adversary to choose r2? *)
+
+proba POW.
+
+const mark:bitstring.
+
+
+(* Secret key = dgen(r1,r2), mod(r1)
+   Public key = egen(mod(r1),r2), mod(r1)
+   r2 is chosen by the adversary; r1 is kept secret. *)
+fun dgen(keyseed1,keyseed2):skey.
+fun mod(keyseed1):Tmodulus.
+fun egen(Tmodulus,keyseed2):pkey.
+fun f(pkey, Tmodulus, D):D.
+fun f'(pkey, Tmodulus, D):D.
+fun mf(skey, Tmodulus, D):D.
+
+(* mf is the inverse of f *)
+
+forall r1:keyseed1, r2:keyseed2, x:D; 
+	mf(dgen(r1,r2), mod(r1), f(egen(mod(r1),r2), mod(r1), x)) = x.
+
+(* Injectivity *)
+
+forall k:pkey, m:Tmodulus, x:D, x':D; (f(k,m,x) = f(k,m,x')) = (x = x').
+
+(* We can permute the distribution, for uniformly distributed random
+   numbers x. Do that only when x is used in mf(skgen(r),x) *)
+
+equiv !nK new r1: keyseed1; new r2:keyseed2; (
+	() -> mod(r1),
+	() -> r2,
+	!nf new x:D; (() -> mf(dgen(r1,r2),mod(r1),x), () -> x))
+<=(0)=>
+      !nK new r1: keyseed1; new r2:keyseed2; (
+	() -> mod(r1),
+	() -> r2,
+	!nf new x:D; (() -> x, () -> f(egen(mod(r1),r2),mod(r1),x))).
+
+(* One-wayness *)
+
+equiv !nK new r1: keyseed1; new r2:keyseed2; (
+	() -> mod(r1),
+	() -> r2,
+	!nf new x: D; (() -> f(egen(mod(r1),r2),mod(r1), x),
+		       (x':D) n2 -> x' = x,
+		       () -> x))
+<=(nK * nf * POW(time + (nK-1) * (time(egen) + time(mod)) + (nf*nK-1) * time(f)))=>
+      !nK new r1: keyseed1; new r2:keyseed2; (
+	() -> mod(r1),
+	() -> r2,
+	!nf new x: D; (() -> f'(egen(mod(r1),r2),mod(r1), x),
+		       (x':D) n2 -> if defined(k) then x' = x else false,
+		       () -> let k:bitstring = mark in x)).
+
+
+(****** Hash function, random oracle model ******)
+
+fun hash(bitstring):D.
+
+equiv (x:bitstring) nH -> hash(x) [all]
+      <=(0)=>
+      (x:bitstring) nH -> find u <= nH suchthat defined(x[u],r[u]) && 
+				otheruses(r[u]) && x= x[u] then r[u] else
+			  new r:D; r.
+
+(* Signatures can be built by mf(dgen(r1,r2),mod(r1),hash(x))
+   See the FDH signature scheme. *)
+
+(******
+   Random number generator, modeled as a hash function, random oracle model.
+   The function randomgen is assumed to return a sequence of random numbers
+   long enough, so that the probability that sqrt(modulus) + n is not prime
+   for all random numbers n of this sequence is small (negligible).
+   We have to exclude traces such that sqrt(modulus) + n is not prime
+   for all random numbers n returned by a call to randomgen.
+   TO DO the use of randomgen does not correspond exactly to what
+   is done in plutus. Improve that! (The key generation algorithm
+   is not exactly the same when using randomgen and when simply generating
+   a random key.) *)
+
+fun randomgen(D):keyseed2.
+
+equiv (x:D) nH -> randomgen(x) [all]
+      <=(0)=>
+      (x:D) nH -> find u <= nH suchthat defined(x[u],r[u]) && 
+				otheruses(r[u]) && x= x[u] then r[u] else
+			  new r:keyseed2; r.
+
+
+(****** Miscellaneous declarations ******)
+
+(* Channels *)
+
+channel c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, start, finish, cchangelist, cchangeres, dounwind, unwind, doneunwind.
+
+(* Constants *)
+
+const success: bitstring.
+const failure: bitstring.
+const owner: host.
+
+(* List of host names, for lists of allowed readers and writers.
+   Function to test list membership *)
+
+type Thostlist.
+fun isinlist(host,Thostlist):bool.
+
+(* Versions *)
+
+type Tversion.
+fun fminusone(Tversion):Tversion.
+const zero: Tversion.
+(* TO DO the system would need to perform an induction in order to prove is_smaller... *)
+fun is_smaller(Tversion,Tversion):bool.
+
+(****** Events and queries ******)
+
+event allowedreader(host, Tfilegroup, host, Tversion).
+event allowedwriter(host, Tfilegroup, host, Tversion).
+event corrupt(host, Tfilegroup, host, Tversion).
+event puts(host, Tfilegroup, host, Tversion, bitstring).
+event gets(host, Tfilegroup, host, Tversion, Tversion, bitstring).
+
+
+query gx: Tfilegroup, rx:host, wx:host, vx:Tversion, vy:Tversion, mx:bitstring;
+  event gets(owner, gx, rx, vx, vy, mx) ==> 
+	allowedreader(owner, gx, rx, vy) && 
+	puts(owner, gx, wx, vx, mx) &&
+	allowedwriter(owner, gx, wx, vx) &&
+	is_smaller(vx, vy).
+
+
+(****** Protocol summary ******
+
+newlockboxkey(lockboxkey) = sign(lockboxkey,ownerprivatekey)
+unwindkey(lockboxkey) = verify(lockboxkey,ownerpublickey)
+
+read key (i.e. public key, file_verify_key) = 
+	mod(r), egen(mod(r), randomgen(lockboxkey))
+write key (i.e. secret key, file_sign_key) = 
+	mod(r), dgen(r, randomgen(lockboxkey))
+==> read and write keys are used as signature keys
+A fresh r is chosen for each new version. The modulus mod(r) is stored
+with the file.
+File header = modulus, version, filegroup, owner
+
+The file is encrypted by enc(file, lockboxkey) (symmetric key
+encryption), and a hash of the file is signed using the write key.
+
+*)
+
+(* Owner: A single owner is sufficient because there is no sharing of keys
+   between different owners *)
+
+(* TO DO I forsee difficulties for an unbounded number of versions...
+   One solution might be to have a function fN(N, ...) that iterates
+   f N times, and similarly, mfN(N, ...) that iterates mf N times.
+   Express the properties of these functions as an equivalence.
+   If that does not work, I'm afraid we will have to limit ourselves
+   to a fixed number of versions... *)
+
+let processOwr =
+  ! N
+  (* Generate new file group *)
+  in(c2, filegroup:Tfilegroup);
+  find v <= N suchthat defined(filegroup[v], lkey0[v]) && filegroup[v] = filegroup then
+    (* filegroup already defined *)
+    out(c3, failure)
+  else
+  new lkey0: D;  (* Initial lock box key for the group (random) *)
+  out(c3, success);
+  ((
+  ! Nversion
+   (* For simplicity, I assume that a new list of readers and writers is given at each version
+      TO DO In the future, I should allow additions of readers and writers without changing
+      the version *)
+   in(cchangelist, (version:Tversion, readerlist:Thostlist, writerlist:Thostlist));
+   (* Rotate the lock box key; generate new file_sign_key *)
+   let (new_key:D,is_ok:bitstring) = 
+      find u <= Nversion suchthat defined(key[u], version[u]) && version[u] = version then
+	(lkey0, failure)
+      else find u <= Nversion suchthat defined(key[u], version[u]) && version[u] = fminusone(version) then
+        (mf(skowner, modowner, key[u]), success)
+      else if version = zero then
+        (lkey0, success)
+      else
+        (lkey0, failure)
+   in
+   if is_ok = success then
+       (let key:D = new_key in
+	new r1: keyseed1;
+	let file_sign_key:skey = dgen(r1, randomgen(key)) in
+	let modulus:Tmodulus = mod(r1) in
+        out(cchangeres, success))
+   else 
+	out(cchangeres, failure)
+  )
+|
+(*
+	request from allowed reader -> return the current lockboxkey
+        The key is stored in rkey, so that it cannot be obtained by the
+	adversary.
+*)
+  (
+  ! NRReq
+  in(c4, (readerid:host,rversion:Tversion,=filegroup));
+  find v <= Nversion suchthat defined(version[v],key[v]) && 
+	fminusone(version[v]) = rversion then
+     (* We are not querying for the current version *)
+     out(c5, failure)
+  else
+  find u <= Nversion suchthat defined(version[u],readerlist[u],key[u]) &&
+    version[u] = rversion && isinlist(readerid, readerlist[u]) then
+     (* Success *)
+     event allowedreader(owner,filegroup,readerid, rversion);
+     let rkey:D = key[u] in
+     out(c5, success)
+  else
+     out(c5, failure)
+  )
+|
+(*
+	request from allowed writer -> return (current lockboxkey, file_sign_key, modulus)
+	These are stored in wkey, wfile_sign_key, and wmodulus, so that they
+	cannot be obtained by the adversary.
+*)
+  (
+  ! NWReq
+  in(c6, (writerid:host,wversion:Tversion,=filegroup));
+  find v <= Nversion suchthat defined(version[v],key[v]) && 
+	fminusone(version[v]) = wversion then
+     (* We are not querying for the current version *)
+     out(c7, failure)
+  else
+  find u <= Nversion suchthat defined(version[u],writerlist[u],key[u],file_sign_key[u],modulus[u]) &&
+    version[u] = wversion && isinlist(writerid, writerlist[u]) then
+     (* Success *)
+     event allowedwriter(owner,filegroup,writerid, wversion);
+     let wkey:D = key[u] in
+     let wfile_sign_key:skey = file_sign_key[u] in
+     let wmodulus:Tmodulus = modulus[u] in
+     out(c7, success)
+  else
+     out(c7, failure)
+  )
+).
+
+(*
+
+The reader gets the file to read
+	(modulus, version, owner, filegroup, encryptedfile, signature)
+It gets the lockboxkey for the right version, perhaps by
+rotating a lockboxkey for a later version, obtained from the owner.
+To rotate:
+	lockboxkey[version-1] = f(pkowner, modowner, lockboxkey[version])
+[public key of the owner = pkowner, modowner]
+
+Signature verification:
+	file-verify-key = egen(modulus, randomgen(lockboxkey))
+	f(file-verify-key, modulus, signature) = hash(encryptedfile)
+Decryption:
+	dec(encryptedfile, lockboxkey)
+
+The adversary is assumed to have already made the appropriate key request
+to the owner, so that the lockboxkey is available in some rkey[u]
+
+We implicitly model that the reader can cache keys, by allowing the reader to
+request a key for a past version, for which it was allowed to have the key.
+*)
+
+let reader = 
+	! NR
+	in(c8, ((fmodulus:Tmodulus, fversion:Tversion, =owner, ffilegroup:Tfilegroup, fencrypted_file:bitstring, fsignature: D), 
+		rreaderid:host, reversion:Tversion));
+	find grnum <= N, reqnum <= NRReq suchthat
+		defined(filegroup[grnum], readerid[reqnum, grnum], rversion[reqnum, grnum], rkey[reqnum, grnum]) &&
+		ffilegroup = filegroup[grnum] && rreaderid = readerid[reqnum, grnum] &&
+		reversion = rversion[reqnum, grnum] then
+	(* rkey[reqnum,grnum] is the lockboxkey for version reversion.
+	   I unwind it if reversion > fversion. *)
+	out(dounwind, ());
+        (
+	  (* In order to unwind the key, the adversary should send the
+	     versions in the order reversion, reversion-1, ..., fversion on channel unwind,
+	     and finally send () on channel doneunwind to decrypt the file. *)
+	  (! Nversion
+	   in(unwind, uversion:Tversion);
+	   let (lockboxkeytmp:D, is_ok:bitstring) = 
+		find u <= Nversion suchthat defined(uversion[u],lockboxkey[u]) && fminusone(uversion[u]) = uversion then
+		   (f(pkowner, modowner, lockboxkey[u]), success)
+		else if uversion = reversion then
+	           (rkey[reqnum,grnum], success)
+	        else
+	           (rkey[reqnum,grnum], failure)
+	   in
+	   if is_ok = success then
+	      (let lockboxkey:D = lockboxkeytmp in
+               out(unwind, success))
+           else
+              out(unwind, failure)
+          )
+        |
+          (in(doneunwind, ());
+	   (* Find the lockboxkey for the desired version, fversion *)
+	   find u <= Nversion suchthat defined(uversion[u],lockboxkey[u]) && uversion[u] = fversion then
+           let thelockboxkey = lockboxkey[u] in
+           let file_verify_key = egen(fmodulus, randomgen(thelockboxkey)) in
+	   if f(file_verify_key, fmodulus, fsignature) = hash(fencrypted_file) then
+	   let injbot(clearfile) = dec(fencrypted_file, thelockboxkey) in
+	   event gets(owner, ffilegroup, rreaderid, fversion, reversion, clearfile);
+	   out(c9, success)
+	  )
+        ).
+
+
+(*
+
+A corrupt reader outputs its lockboxkey, and executes an event "corrupt(owner, filegroup, readerid, version)"
+The adversary is assumed to have already made the appropriate key request
+to the owner, so that the lockboxkey is available in some rkey[u]
+
+TO DO the fact that the key rkey may be published will prevent
+applying the security of primitives that use this key. We should
+separate in two different scripts what happens when a reader is
+corrupt from what happens when no reader is corrupt. Or set from the 
+start which keys are corrupt and which are not.
+
+I comment out the corrupt reader for now
+
+let corruptReader =
+	! NCR
+	in(c10, (creaderid:host, cversion:Tversion, cfilegroup:Tfilegroup, =owner));
+	find grnum <= N, reqnum <= NRReq suchthat 
+		defined(filegroup[grnum], readerid[reqnum, grnum], rversion[reqnum, grnum], rkey[reqnum, grnum]) &&
+		cfilegroup = filegroup[grnum] && cversion = rversion[reqnum, grnum] && creaderid = readerid[reqnum, grnum] then
+	event corrupt(owner,cfilegroup, creaderid, cversion);
+	out(c11, rkey[reqnum, grnum]).
+
+*)
+
+(*
+The writer gets from the owner for a certain filegroup (for the current version):
+	lockboxkey, file_sign_key, modulus
+The writer stores a file as follows:
+	encrypted_file = enc(clearfile, lockboxkey)
+	signature = mf(file_sign_key, modulus, hash(encrypted_file))
+	(modulus, version, owner, filegroup, encryptedfile, signature)
+
+The adversary is assumed to have already made the appropriate key request
+to the owner, so that the keys are available in some wkey[u], wfile_sign_key[u], wmodulus[u]
+
+(The write tokens are ignored.)
+TO DO We should perhaps take them into account at some point.
+
+TO DO The model would not detect an attack in which a disallowed writer can
+overwrite the file, when the overwritten file is not accepted as correct
+by a reader.
+*)
+
+let writer =
+	! NW
+	in(c12, (clearfile:bitstring, wwriterid:host, wrversion:Tversion, wfilegroup:Tfilegroup, =owner));
+	find grnum <= N, reqnum <= NWReq suchthat
+		defined(filegroup[grnum], writerid[reqnum, grnum], wversion[reqnum, grnum], wkey[reqnum, grnum],
+		wfile_sign_key[reqnum, grnum], wmodulus[reqnum, grnum]) &&
+		wfilegroup = filegroup[grnum] && wrversion = wversion[reqnum, grnum] && wwriterid = writerid[reqnum, grnum] then
+	event puts(owner, wfilegroup, wwriterid, wrversion, clearfile);
+	new r1: seed;
+	let encrypted_file = enc(clearfile, wkey[reqnum, grnum], r1) in
+	let signature = mf(wfile_sign_key[reqnum, grnum], wmodulus[reqnum, grnum], hash(encrypted_file)) in
+	out(c13, (wmodulus[reqnum, grnum], wrversion, owner, wfilegroup, encrypted_file, signature)).
+
+
+process 
+  (* Necessary for random oracles *)
+   (! Nhash  in(c14, x:bitstring); out(c15, hash(x)))
+  |(! Nrandomgen in(c16, x:D); out(c17, randomgen(x)))
+
+  |(in(c0, ());
+    (* Generate owner public/private keys (randomly) *)
+    new r1:keyseed1;
+    new r2:keyseed2;
+    let skowner = dgen(r1,r2) in
+    let pkowner = egen(mod(r1),r2) in
+    let modowner = mod(r1) in
+    (* Publish owner public key *)
+    out(c1, (pkowner, modowner));
+    (processOwr | reader | (* corruptReader | *) writer))
+
+
+
+
+
+(************************************************************************************************************)
+
+(* I keep signatures commented out for now, since I plan to use explicitly
+   mf(dgen(r1,r2),mod(r1),hash(x)) as signature scheme.
+
+   Signatures 
+   I need to update: the verification should return the signed message!
+   Problem: the strategy should transform all occurrences of getmess,
+   not all occurrences of =, in oracle m = getmess(si, y) [all]
+
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+
+proba Psign.
+proba Psigncoll.
+
+fun sign(sblocksize, sskey, sseed): signature.
+fun sskgen(skeyseed):sskey.
+fun spkgen(skeyseed):spkey.
+fun check(sblocksize, spkey, signature): bool.
+
+fun sign2(sblocksize, sskey, sseed): signature.
+fun sskgen2(skeyseed):sskey.
+fun spkgen2(skeyseed):spkey.
+fun check2(sblocksize, spkey, signature): bool.
+
+forall m:sblocksize, r:skeyseed, r2:sseed; 
+	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:sblocksize, r:skeyseed, r2:sseed; 
+	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+equiv  !N3 new r: skeyseed; (() -> spkgen(r),
+			    (x: sblocksize) N2 -> new r2: sseed; sign(x, sskgen(r), r2)),
+       (m: sblocksize, y: spkey, si: signature) N4 -> check(m, y, si) [all]
+     <=(N3 * Psign(time, N2))=>
+       !N3 new r: skeyseed; (() -> spkgen2(r),
+			    (x: sblocksize) N2 -> new r2: sseed; sign2(x, sskgen2(r), r2)),
+       (m: sblocksize, y: spkey, si: signature) N4 -> 
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+		find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+		check(m,y,si).
+
+collision new r1:skeyseed; new r2:skeyseed; 
+	spkgen(r1) = spkgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed; 
+	spkgen2(r1) = spkgen2(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed; 
+	sskgen(r1) = sskgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed; 
+	sskgen2(r1) = sskgen2(r2) <=(Psigncoll)=> r1 = r2.
+
+
+   Function that extracts the modulus from the public key,
+   in order to obtain the first message, which will be signed v
+   times to obtain the lockbox key for version v. 
+
+fun getmodulus(spkey):sblocksize.
+*)
+

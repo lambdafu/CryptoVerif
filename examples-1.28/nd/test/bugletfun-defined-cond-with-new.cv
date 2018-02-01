@@ -1,0 +1,21 @@
+(* This file should be rejected by syntax.ml:
+   "new" is forbidden in defined conditions of "find", and f() contains a "new". *)
+
+channel c.
+
+param n.
+
+event e.
+
+letfun f() =
+       new b: bool; event_abort e.
+
+process
+      (!n in(c, x: bitstring); out(c, x))
+      |
+      in(c, y: bitstring); find u <= n suchthat defined(x[f()]) && x[u] = y then out(c, y)
+
+(* EXPECTED
+Error: new at line 11, character 8 - line 11, character 34 should not occur in defined condition
+xtime: error in child process (status : 512)
+END *)

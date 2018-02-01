@@ -1,0 +1,68 @@
+(* CryptoVerif makes a wrong computation of probabilities.
+It considers that the number of calls to enc is at most N,
+because it is under !N, but in fact it is also in a condition
+of find, so the number of calls to enc is at most N * N2
+(the number of *distinct* calls to enc is at most N2 because
+the call depends on j but not on the current replication index)
+*)
+
+param N.
+param N2.
+param N3.
+
+type tag [bounded].
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type blocksize [fixed].
+
+(* Shared-key encryption (PRP cipher) *)
+
+proba Penc.
+
+const Z:blocksize.
+
+fun enc(blocksize, key): blocksize.
+fun enc'(blocksize, key): blocksize.
+fun kgen(keyseed):key.
+fun dec(blocksize, key): blocksize.
+
+forall m:blocksize, r:keyseed; 
+	dec(enc(m, kgen(r)), kgen(r)) = m.
+
+equiv  !N3 new r: keyseed; (x:blocksize) N -> enc(x, kgen(r))
+     <=(N3 * Penc(time, N))=>
+       !N3 new r: keyseed; (x:blocksize) N -> enc'(Z, kgen(r)).
+
+
+(* Queries *)
+
+query secret1 M.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+let processA = 
+	in(start, ());
+	new M : nonce;
+	new Na : nonce;
+	find j <= N2 suchthat defined(m[j],r[j]) && r[j] = enc(m[j],Kas) then
+	out(c1, M).
+
+process 
+	in(start, ());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	out(c9, ());
+	(! N processA) | (!N2 in(c3, (m:blocksize, r:blocksize)))
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of M.
+0.020s (user 0.020s + system 0.000s), max rss 16688K
+END *)

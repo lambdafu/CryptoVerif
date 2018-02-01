@@ -1,0 +1,138 @@
+(*
+BUG: CryptoVerif transforms
+P(x,w,s) using oracle Oproof
+and its argument s using oracle Ostring.
+
+This results in a variable kappa_<n> being defined in the condition of
+a find and having array accesses.
+
+The problem would be solved if the game was transformed as
+    let s' = s in
+    P(x,w,s')
+transforming s using Ostring and P(x,w,s) using Oproof.
+
+I tried to force introducing a "let" before all arguments in 
+the right-hand side of equivalences in check.ml. This works
+for this example, but introduces problems elsewhere.
+- First, a "let" must not be introduced for array indices given
+  as arguments of oracles (as in CDH/DDH)
+- There are still other problems (crypto transformations
+  that fail unexpectedly). This is solved if I "remove_assign useless"
+  before "simplify" instead of after, or both before and after, by
+  writing in instruct.ml: 
+let simplify state = execute_with_advise_last (move_new_let (execute_with_advise_last (execute_with_advise_last state (RemoveAssign Minimal)) (Simplify []))) (RemoveAssign Minimal)
+  However, this breaks the proof of Otway-Rees... ("let"s remain in the way)
+  Try a (RemoveAssign Minimal) that would not SArename variables before simplify?
+*)
+
+proof{
+crypto Pnizk
+}
+
+(* Definitions for CCA2 security; these will be updated to CPA security, hence the names. *)
+
+type pkeycpa [bounded].
+type skeycpa [bounded].
+type keyseedcpa [large,fixed].
+type seedcpa [fixed].
+type ptcpa [bounded].  (* Plaintext type for CPA-secure scheme *)
+type ctcpa. (* Ciphertext type for CPA-secure scheme *)
+
+fun pkgencpa(keyseedcpa):pkeycpa.
+fun skgencpa(keyseedcpa):skeycpa.
+fun Ecpa(ptcpa,pkeycpa,seedcpa):ctcpa.
+fun Dcpa(ctcpa,skeycpa):bitstringbot.
+
+fun pkgencpa2(keyseedcpa):pkeycpa.
+fun skgencpa2(keyseedcpa):skeycpa.
+fun Ecpa2(ptcpa,pkeycpa,seedcpa):ctcpa.
+fun Dcpa2(ctcpa,skeycpa):bitstringbot.
+
+fun injbotcpa(ptcpa):bitstringbot [data].
+
+forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
+	Dcpa(Ecpa(m,pkgencpa(r),r2),skgencpa(r)) = injbotcpa(m).
+forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
+	Dcpa2(Ecpa2(m,pkgencpa2(r),r2),skgencpa2(r)) = injbotcpa(m).
+
+const Zcpa:ptcpa.
+
+proba Penccpa.
+proba Penccollcpa.
+
+(* equiv; the probability needs to be refined *)
+
+param N, N2, N3, N4.
+
+equiv
+  ! N3 new r: keyseedcpa; (
+    Opk() [2] := return(pkgencpa(r)) |
+    ! N2 Odec(m: ctcpa) := return(Dcpa(m, skgencpa(r))) |
+    ! N new r1: seedcpa; Oenc(x1: ptcpa) := return(Ecpa(x1, pkgencpa(r),r1)))|
+  ! N4 new r2: seedcpa; Oenc2(x: ptcpa, y: pkeycpa) [3] := return(Ecpa(x,y,r2)) [all]
+<=(Penccpa)=>
+  ! N3 new r: keyseedcpa; (
+    Opk() := return(pkgencpa2(r)) |
+    ! N2 Odec(m: ctcpa) := find j <= N suchthat defined(m1[j], x1[j]) && (m = m1[j]) then return(injbotcpa(x1[j])) else find j <= N4 suchthat defined(m2[j], y[j], x[j]) && y[j] = pkgencpa2(r) && m = m2[j] then return(injbotcpa(x[j])) else return(Dcpa2(m, skgencpa2(r))) |
+    ! N new r1: seedcpa; Oenc(x1: ptcpa) := let m1:ctcpa = Ecpa2(Zcpa, pkgencpa2(r), r1) in return(m1))|
+  ! N4 Oenc2(x: ptcpa, y: pkeycpa) := find k <= N3 suchthat defined(r[k]) && (y = pkgencpa2(r[k])) then (new r2: seedcpa; let m2:ctcpa = Ecpa2(Zcpa, y, r2) in return(m2)) else new r3: seedcpa; return(Ecpa(x,y,r3)).
+
+
+(* collisions *)
+
+collision new r1: keyseedcpa; new r2: keyseedcpa; return(pkgencpa(r1) = pkgencpa(r2)) <=(Penccollcpa)=> return(false).
+collision new r1: keyseedcpa; new r2: keyseedcpa; return(pkgencpa2(r1) = pkgencpa2(r2)) <=(Penccollcpa)=> return(false).
+collision new r1: keyseedcpa; new r2: keyseedcpa; return(skgencpa(r1) = skgencpa(r2)) <=(Penccollcpa)=> return(false).
+collision new r1: keyseedcpa; new r2: keyseedcpa; return(skgencpa2(r1) = skgencpa2(r2)) <=(Penccollcpa)=> return(false).
+
+
+
+type refstr [fixed].
+type witness[fixed].
+type thm[fixed].
+type nizkpf[large,fixed].
+type sstate.
+
+proba Pnizk.
+
+param Nnizk1, Nnizk2.
+
+const Zsigma:refstr.
+
+fun L(thm):bool.
+
+fun P(thm,witness,refstr):nizkpf.
+fun S1a(refstr):sstate.
+fun S1b(sstate):refstr.
+fun S2(thm,sstate):nizkpf.
+
+
+
+equiv
+  ! Nnizk1 new sigma: refstr; Ostring() := return(sigma)|
+  ! Nnizk2 Oproof(x: thm, w: witness, sigma2: refstr) := return(P(x,w,sigma2)) [all]
+<=(Pnizk)=>
+  ! Nnizk1 Ostring() := let kappa:sstate = S1a(Zsigma) in (let sigma:refstr = S1b(kappa) in return(sigma))|
+  ! Nnizk2 new p: nizkpf; Oproof(x: thm, w: witness, sigma2: refstr) := find i <= Nnizk1 suchthat defined(kappa[i]) && (sigma2 = S1b(kappa[i])) then return(S2(x,kappa[i])) else return(p).
+
+
+
+param Nenc.
+
+channel start, c1.
+
+process ! i_1 <= Nenc
+in(start[i_1], ());
+new s: refstr;
+new x: thm;
+new w: witness;
+let p: nizkpf = P(x, w, s) in
+out(c1[i_1], p)
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.016s + system 0.008s), max rss 34256K
+END *)

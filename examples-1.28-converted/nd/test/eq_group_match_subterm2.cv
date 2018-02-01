@@ -1,0 +1,47 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun mult(D,D):D.
+fun inv(D):D.
+const neut:D.
+equation group(mult,inv,neut).
+
+fun g(D,D,D): D.
+
+forall x:D, y:D; mult(x,mult(y,x)) = g(x,y,x).
+const zero, one, two, three: D. 
+
+channel c.
+
+process in(c, ());
+out(c, mult(zero, mult(one, two)));
+in(c, ());
+out(c, mult(mult(zero, one), two));
+in(c, ());
+out(c, mult(inv(mult(zero, one)), mult(two, three)));
+in(c, ());
+out(c, mult(mult(mult(zero, one), two), three));
+in(c, ());
+out(c, mult(mult(zero, one), mult(two, zero)));
+in(c, ());
+out(c, mult(mult(zero, one), mult(two, mult(zero, one))));
+in(c, ());
+out(c, inv(mult(mult(zero, one), mult(two, mult(zero, one)))));
+in(c, ());
+out(c, mult(mult(zero, one), inv(mult(two, mult(zero, one)))));
+in(c, ());
+out(c, mult(mult(zero, one), mult(two, mult(one, zero))));
+in(c, ());
+out(c, (mult(zero, one) = two));
+in(c, ());
+out(c, (mult(mult(zero, one), inv(mult(two, mult(zero, one)))) = mult(mult(zero, one), mult(two, mult(one, zero)))));
+in(c, ());
+out(c, (mult(mult(zero, three), inv(mult(two, mult(zero, one)))) = mult(mult(zero, three), mult(two, mult(one, zero)))))
+
+  
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 40272K
+END *)

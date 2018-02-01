@@ -1,0 +1,76 @@
+(**********************************************************************
+*
+* Prove the chosen-plaintext security of AES ECP mode.
+*
+*  * Cryptoverif version: 1.18
+*  * Blocks: 2 
+*  * Result: Failure (as expected: ECB is not CPA-secure)
+*
+*
+***********************************************************************)
+
+
+
+
+(* AES as a symmetric deterministic block cipher:
+
+Must define:
+
+* keyseed: set of key seeds, must be bounded, typically fixed and large.
+* key: type of keys, must be bounded.
+* blocksize: type of cleartexts and ciphertexts. Must be fixed and large.
+* Penc(t, N): the probability of breaking the PRP in time t with N encryption queries.
+
+Will get:
+
+* kgen: keyseed -> key,
+* enc: blockzise * key -> blocksize,
+* dec: blocksize * key -> block
+
+*)
+
+type keyseed [fixed, large].
+type key [bounded].
+type block [fixed, large].
+proba Penc.
+
+expand PRP_cipher(keyseed, key, block, kgen, enc, dec, Penc).
+
+
+
+(* Useful helper function. Dunno why. *)
+
+fun test(bool, block, block):block.
+forall x:block,y:block; test(true,x,y) = x.
+forall x:block,y:block; test(false,x,y) = y.
+
+
+(* Parameters *)
+
+param N. (* the number of times the adversary gets to call the encryption oracle *)
+
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret b1.
+
+
+let processT = 
+	OT(m11: block, m12: block, m21:block, m22:block) :=
+	menc1 <- test(b1, m11, m21);
+	menc2 <- test(b1, m12, m22);
+	ciphertext1 <- enc(menc1, k);
+	ciphertext2 <- enc(menc2, k);
+	return(ciphertext1, ciphertext2).
+
+
+process 
+	Ostart() :=
+	b1 <-R bool;
+	x <-R keyseed;
+        k <- kgen(x);
+	return;
+	foreach i <= N do processT
+

@@ -1,0 +1,71 @@
+(* Bug in CryptoVerif 1.09: 
+it transforms defined(m[k2]) into defined(m[k1]) 
+although they are not equivalent (k2 is defined only when x = x')
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+proof {
+show_game
+}
+
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], (m: hash, m': hash, a: bool, b: bool));
+  let y: hash = (if a = b then m else m') in
+  out(c2[i_1], y);
+  in(c3[i_1], ());
+  if defined(m[k2]) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  in(c3, (x_1: hashinput, x'_1: hashinput));
+  find k1 = k1_1 <= N suchthat defined(m[k1_1]) then
+  if x_1 = x'_1 then
+  find k2 = k2_1 <= N suchthat defined(k1) && (k2_1 = k1) then
+  new s: hash;
+  out(c4, s)
+) | (
+  ! i_2 <= qH
+  in(hc1[i_2], z: hashinput);
+  out(hc2[i_2], h(hk, z))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.024s (user 0.020s + system 0.004s), max rss 33984K
+END *)

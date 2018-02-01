@@ -1,0 +1,217 @@
+(* First round and a half of Basic Kerberos *)
+
+(*
+set interactiveMode = true.
+
+SArename Rmkey
+crypto mac rmKt
+crypto mac rmKc
+SArename Rkey
+crypto enc
+crypto enc
+SArename mAK_18
+
+remove_assign binder mAK_152
+remove_assign binder mAK_155
+remove_assign binder mAK_158
+crypto mac ...
+
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+			(*type client [bounded].
+			type kas [bounded].
+			type tgs [bounded].
+			type server [bounded].*)
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+type timest [fixed].									(* needed in particular for CS_reply *)
+
+(* following functions are needed to set the type of a list of elements to `bitstring', so that the list can be encrypted: *)
+fun concat1(key, mkey, nonce, host):maxenc [compos]. 					(* needed for {AK, mAK, n1, T}_Kc in AS_reply and {SK, mSK, n2, S}_AK in TG_reply *)
+fun concat2(key, mkey, host):maxenc [compos].  						(* needed for TGT and ST *)
+
+fun pad(host, timest):maxenc [compos].
+
+forall y:key, w:mkey, z:host, t2:key, w2:mkey, y2:nonce, z2:host;  concat2(y,w,z) <> concat1(t2,w2,y2,z2).
+       	      	      	      (* forall z: host, t:timest, t2:key, w2:mkey, y2:nonce, z2:host; 	   pad(z,t) <> concat1(t2,w2,y2,z2).
+			      	 	forall y:key, w:mkey, z:host, z2:host, t2:timest;    	   concat2(y,w,z) <> pad(z2,t2). *)
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(maxenc, key, seed): maxmac.
+fun kgen(keyseed):key.
+fun dec(maxmac, key): bitstringbot.
+
+fun enc2(maxenc, key, seed): maxmac.
+fun kgen2(keyseed):key.
+
+fun injbot(maxenc):bitstringbot [compos].
+(* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+fun    Z(maxenc):maxenc.
+const  Zconcat1:maxenc.
+const  Zconcat2:maxenc.
+		(*const  Zpad:maxenc.*)
+
+forall m:maxenc, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce, z:host, t:key, u:mkey;
+	Z(concat1(t, u, y, z)) = Zconcat1.
+forall y:key, w:mkey, z:host; 
+	Z(concat2(y, w, z)) = Zconcat2.
+					(* forall z:host, t:timest;
+        				   	  Z(pad(z,t)) = Zpad. *)
+					    
+
+equiv  !N2 new r: keyseed; ((x:maxenc) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N2 * Penc(time, N))=> 
+       !N2 new r: keyseed; ((x:maxenc) N -> new r2: seed; enc2(Z(x), kgen2(r), r2)).
+
+(* Weakly Unforgeable MAC *)
+
+proba Pmac.
+
+fun mac(maxmac, mkey):macs.
+fun check(maxmac, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(maxmac, mkey):macs.
+fun check2(maxmac, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:maxmac, r:mkeyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:maxmac, r:mkeyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+						   
+equiv !N3 new r: mkeyseed;(
+	 (x: maxmac) N -> mac(x, mkgen(r)),
+	 (m: maxmac, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      !N3 new r: mkeyseed;(
+	 (x: maxmac) N -> mac2(x, mkgen2(r)),
+	 (m: maxmac, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) &&  (* (ma = mac2(x[j], mkgen2(r)))*) check2(x[j], mkgen2(r), ma) then true else false).
+
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, start, finish, cC, cT.
+const C : host. (* client *)
+const T : host. (* tgs *)
+
+fun acceptC(host,host):bitstring.
+fun acceptT(host):bitstring.
+
+event partCT(host,(*host, key, mkey,*) maxmac, maxmac).	
+event partTC(host,(*host, key, mkey,*) maxmac, maxmac).			
+
+
+
+(* authentication queries : *)
+
+query  x:maxmac, x':maxmac, y:maxmac(*, t:timest, t2:timest, k:key, mk:mkey*);
+        event partTC(C,(*S,k,mk,*)x,y) ==> partCT(T,(*S,k,mk,*)x',y).		
+
+
+
+
+
+let processC = 
+	in(c1, (h: host(*, h2: host*)));	
+	new Nc: nonce;
+	    	(* let p1 = (C, h, Nc) in *)
+	out(c2, (C, h, Nc));
+	in(c3, (=C, m: maxmac, mac1: macs, m2: maxmac, mac2: macs));				(* m = Ticket Granting Ticket *)
+	        (* let p2 = (C, m2) in *)
+	if check(m2, mKc, mac2) then
+        let injbot(concat1(AK, mAK, =Nc, =h)) = dec(m2, Kc) in 
+	new Nt: nonce;
+	new ts: timest;
+	new r1: seed;
+	let e5 = enc(pad(C, ts), AK, r1) in
+	let mac5 = mac(e5, mAK) in
+	event partCT(h, (* h2,AK, mAK,*) m,e5);		(* C,ts *)
+	out(c4, (m, mac1, e5, mac5, (*h2,*) Nt)).
+	
+
+let processKEY =
+	in(c13, (Khost: host, Kkey: key, Kmkey: mkey));
+	let Rkey:key = 
+		if Khost = C then Kc else
+		if Khost = T then Kt else
+		   	 (* if Khost = S then Ks else *)
+		Kkey
+	in
+	let Rmkey:mkey =
+		if Khost = C then mKc else
+		if Khost = T then mKt else
+		   	 (* if Khost = S then mKs else*)
+		Kmkey.
+
+
+let processK = 
+	in(c14, (hc: host, ht: host, n: nonce));
+	find j1 <= N2 suchthat defined(Khost[j1],Rkey[j1],Rmkey[j1]) && (Khost[j1] = hc) then        (* shared key KC *)
+	find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2],Rmkey[j2]) && (Khost[j2] = ht) then        (* shared key KT *)
+	new rAK : keyseed;
+	let AK = kgen(rAK) in
+	new rmAK : mkeyseed;
+	let mAK = mkgen(rmAK) in 
+	new r3: seed;
+	let e3 = enc(concat2(AK, mAK, hc), Rkey[j2], r3) in  (* TGT *)
+	let mac3 = mac(e3, Rmkey[j2]) in
+	new r4: seed;
+	let e4 = enc(concat1(AK, mAK, n, ht), Rkey[j1], r4) in
+	let mac4 = mac(e4, Rmkey[j1]) in
+	let q2 = (hc, e4) in
+	out(c15, (hc, e3, mac3, e4, mac4)).
+
+let processT =
+    	in(c7, (m8:maxmac, mac8:macs, m9:maxmac, mac9: macs, (* h3:host,*) n2: nonce));		(* h3 = S *)
+	if check(m8, mKt, mac8) then
+	let injbot(concat2(AK, mAK, h4 )) = dec(m8, Kt) in					(* h4 = C *)
+	if check(m9, mAK, mac9) then
+	let injbot(pad(= h4, t: timest)) = dec(m9, AK) in
+	event partTC(h4,(*h3, AK, mAK,*) m8, m9);
+	out(c8, acceptT(h4)).
+
+process
+	in(start, ());
+	new rKc: keyseed;
+	let Kc = kgen(rKc) in									(* enc key between client C and KAS K *)
+	new rmKc: mkeyseed;
+	let mKc = mkgen(rmKc) in								(* mac key -"-  *)
+	new rKt: keyseed;
+	let Kt = kgen(rKt) in									(* enc key between TGS T and KAS K *)
+	new rmKt: mkeyseed;
+	let mKt = mkgen(rmKt) in								(* mac key  -"- *)
+	out(c20, ());
+	((! N processC) | 
+	 (! N processK) |
+	 (! N processT) |
+	 (! N2 processKEY))
+
+
+
+(* EXPECTED
+All queries proved.
+1.780s (user 1.760s + system 0.020s), max rss 92832K
+END *)

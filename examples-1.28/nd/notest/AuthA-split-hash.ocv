@@ -1,0 +1,247 @@
+(* AuthA (protocol similar to OEKE, but more complex in the way it uses hash functions) *)
+
+(* Proof indications *)
+
+proof {
+set maxIterSimplif = 3;
+crypto rom(h');
+crypto rom(h2);
+remove_assign binder MK_s; (* Removing these assignments transforms all usages 
+	      	     	      of MK_s <- h1(...) into tests h1(...) = ..., 
+	      	     	      so a fresh value for h1 is not generated in this case.
+			      This removal cannot be done when the hash function
+			      is not split into h1,h2,h3. *)
+crypto rom(h1);
+show_game occ;
+insert 675 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then"; (* just after OS2(..):= *)
+show_game occ;
+insert 1577 "find nj <= qH1, nj' <= qH2 suchthat defined(x1[nj], x2[nj], x3[nj], x4[nj], @9_r_182[nj], x1'[nj'], @10_r_160[nj']) && (U = x1[nj]) && (S = x2[nj]) && (X_s = x3[nj]) && (Y = x4[nj]) && (x1'[nj'] = @9_r_182[nj]) && (auth_s = @10_r_160[nj']) then"; (* beginning of the "else" branch of the just inserted find *)
+show_game occ;
+insert_event Auth 1632; (* "then" branch of the just inserted find *)
+simplify;
+SArename MK_u; (* needed to realize that @9_r_174[..] = MK_u[j] => X_s = X[j] *)
+crypto icm(enc);
+show_game occ;
+insert_event Encrypt 834;   (* beginning of the branch "find ... && (pw = ke[..]) then .." in OC2 *)
+crypto rom(h3);
+crypto group_to_exp_strict(exp) *;
+(* Difficulty for applying CDH: 
+   h' tests the value of the pw and returns pwU if correctly guessed. 
+   pwU is used as DH exponent, and so some exponents may be leaked!!
+   By first inserting the event CDH below, we manage to remove usages
+   of pwU as DH exponent. *)
+show_game occ;
+insert_event CDH1 110; (* Insert CDH events after each test x5[..] = exp(g, mult(...,...)) *)
+show_game occ;
+insert_event CDH2 232;
+show_game occ;
+insert_event CDH3 344;
+show_game occ;
+insert_event CDH4 456;
+show_game occ;
+insert_event CDH5 1752;
+insert_event CDH6 1708;
+insert_event CDH7 1664;
+insert_event CDH8 1620;
+insert_event CDH9 1576;
+insert_event CDH10 1532;
+show_game occ;
+insert 613 "find ih <= qH1 suchthat defined(x1[ih], x2[ih], x3[ih], x4[ih], x5[ih]) && (U = x1[ih]) && (S = x2[ih]) && (X_s = x3[ih]) && (Y = x4[ih]) && (K_s = x5[ih]) then";
+show_game occ;
+insert_event CDH11 656;
+simplify;
+remove_assign useless;
+crypto cdh(exp);
+auto;
+move array "@5_X_803"; (* variable chosen at the end of OC2 and not used immediately *)
+merge_arrays "@5_X_799" "@2_Y_805";
+merge_branches;
+move array "@5_X_800"; (* variable chosen in OP and not used immediately *)
+merge_arrays "@5_X_799" "@2_Y_812";
+merge_branches;
+move array "@5_X_802"; (* variable chosen in OS1 and not used immediately *)
+merge_arrays "@5_X_799" "@2_Y_819";
+show_game occ;
+insert 128 "find nk <= qD, nj2' <= qH2, nj2 <= qH1 suchthat defined(x1[nj2], x2[nj2], x3[nj2], x4[nj2], m[nk], kd[nk], @5_X_799[nk], x1'[nj2'], @9_r_182[nj2], @10_r_160[nj2']) && (m[nk] = @7_r2_224) && (U = x1[nj2]) && (S = x2[nj2]) && (X_s = x3[nj2]) && (x4[nj2] = @5_X_799[nk]) && (x1'[nj2'] = @9_r_182[nj2]) && (auth_s = @10_r_160[nj2']) && (kd[nk] = pwS) then";
+show_game occ;
+insert_event Auth2 203;
+simplify;
+success;
+(* Delay the choice of pwU = @12_r_152 *)
+remove_assign binder pwS;
+crypto move_pw "@12_r_152";
+merge_arrays "@12_r_150" "Y_827";
+(* Rewrite the tests for events Encrypt and Auth, to avoid looking at whether Y_827 is defined *)
+show_game occ;
+insert 24 "find ne <= qE, nh <= qH' suchthat defined(@7_r2_230[ne], ke[ne], y1[nh], y2[nh], y3[nh], @12_r_150[nh]) && (Ystar_u = @7_r2_230[ne]) && (y1[nh] = U) && (y2[nh] = S) && (y3[nh] = pw) && (ke[ne] = exp(g, @12_r_150[nh])) then";
+show_game occ;
+insert_event Encrypt2 71;
+show_game occ;
+insert 182 " find nj3 <= qH1, nj3' <= qH2, nk3 <= qD, nh' <= qH' suchthat defined(m[nk3], x1[nj3], x2[nj3], x3[nj3], x4[nj3], @5_X_799[nk3], x1'[nj3'], @9_r_182[nj3], @10_r_160[nj3'], kd[nk3], y1[nh'], y2[nh'], y3[nh'], @12_r_150[nh']) && (m[nk3] = @7_r2_224) && (U = x1[nj3]) && (S = x2[nj3]) && (X_s = x3[nj3]) && (x4[nj3] = @5_X_799[nk3]) && (x1'[nj3'] = @9_r_182[nj3]) && (auth_s = @10_r_160[nj3']) && (y1[nh'] = U) && (y2[nh'] = S) && (y3[nh'] = pw) && (kd[nk3] = exp(g, @12_r_150[nh'])) then";
+show_game occ;
+insert_event Auth3 287;
+simplify;
+simplify coll_elim pw;
+success
+} 
+
+
+
+(* Parameter and type declarations *)
+
+param NU, NS, NP.
+
+type Z [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+
+type hash [fixed,large].
+type host [bounded].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, G, G, enc, dec).
+
+param qE, qD [noninteractive].
+let enc_dec_oracle =
+       (foreach iE <= qE do Oenc(x:G, ke:G) := return(enc(ck,x,ke)))
+     | (foreach iD <= qD do Odec(m:G, kd:G) := return(dec(ck,m,kd))).
+
+(* Hash functions in the random oracle model *)
+
+type hashkey [fixed].
+
+fun concat(host, host, G, G, G): bitstring [compos].
+fun concat0(hash): bitstring [compos].
+fun concatG(hash, G): bitstring [compos].
+fun concatpw(host, host, passwd): bitstring [compos].
+
+param qH1, qH2, qH3, qH' [noninteractive].
+
+expand ROM_hash(hashkey, bitstring, hash, h1).
+
+let hashoracle1 = foreach iH <= qH1 do 
+    OH1(x1:host, x2:host, x3:G, x4:G, x5:G):= return(h1(hk1,concat(x1,x2,x3,x4,x5))). 
+
+expand ROM_hash(hashkey, bitstring, hash, h2).
+
+let hashoracle2 = foreach iH <= qH2 do 
+    OH2(x1':hash, x2':G):= return(h2(hk2,concatG(x1',x2'))). 
+
+expand ROM_hash(hashkey, bitstring, hash, h3).
+
+let hashoracle3 = foreach iH <= qH3 do 
+    OH3(x1'':hash):= return(h3(hk3,concat0(x1''))). 
+
+expand ROM_hash(hashkey, bitstring, Z, h').
+
+let hashoracle' = foreach iH' <= qH' do
+    OH'(y1: host, y2: host, y3: passwd):= return(h'(hk',concatpw(y1,y2,y3))). 
+
+(* TO DO The next equivalence is a generalization of move array. It should be integrated in CryptoVerif *)
+
+param N, NX, Neq.
+
+equiv move_pw
+      foreach i<=N do X <-R Z; (foreach iX <= NX do OX() := return(X) |
+                      	        foreach ieq <= Neq do Oeq(X':G) := return(X' = exp(g,X)))
+<=(#Oeq / |G|)=> [manual,computational]
+      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R Z; return(Y) |
+              	       foreach ieq <= Neq do Oeq(X':G) := find[unique] j<=NX suchthat defined(Y[j]) then return(X' = exp(g,Y[j])) else return(false)).
+
+(* Host names *)
+
+const U : host.
+const S : host.
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+event termS(host, G, host, G, hash, hash).
+event acceptU(host, G, host, G, hash, hash).
+
+query x:host, X:G, y:host, Ystar:G, a: hash, k:hash;
+	event inj:termS(x,X,y,Ystar,a,k) ==> inj:acceptU(x,X,y,Ystar,a,k).
+query x:host, X:G, y:host, Ystar:G, a: hash, k:hash, k':hash;
+	event termS(x,X,y,Ystar,a,k) && acceptU(x,X,y,Ystar,a,k') ==> k = k'.
+
+(* Client *)
+
+let processU =
+	foreach iU <= NU do 
+	OC1() :=
+	x <-R Z;
+	X <- exp(g,x);
+	return(U, X);
+	OC2(=S, Ystar_u: G) :=
+	Y_u <- dec(ck, Ystar_u, pwS);
+	K_u <- exp(Y_u, x);
+	MK_u <- h1(hk1,concat(U,S,X,Y_u,K_u));
+	PW_u <- exp(Y_u, pwU);
+	auth_u <- h2(hk2,concatG(MK_u,PW_u));
+	sk_u: hash <- h3(hk3,concat0(MK_u));
+	event acceptU(U, X, S, Ystar_u, auth_u, sk_u);
+	return(auth_u).
+
+(* Server *)
+
+let processS =
+	foreach iS <= NS do 
+	OS1(=U, X_s: G) :=
+	y <-R Z;
+	Y <- exp(g,y);
+	Ystar <- enc(ck, Y, pwS);
+	return(S, Ystar);
+	OS2(auth_s: hash) :=
+	K_s <- exp(X_s, y);
+	MK_s <- h1(hk1, concat(U,S,X_s,Y,K_s));
+	PW_s <- exp(pwS, y);
+	if auth_s = h2(hk2,concatG(MK_s,PW_s)) then
+	sk_s: hash <- h3(hk3,concat0(MK_s));
+	event termS(U, X_s, S, Ystar, auth_s, sk_s).
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+let processPassive =
+	foreach iP <= NP do 
+	OP() :=
+	xp <-R Z;
+	Xp <- exp(g, xp);
+	yp <-R Z;
+	Yp <- exp(g, yp);
+	Kp <- exp(g, mult(xp,yp));
+	PWp <- exp(g, mult(pwU,yp));
+	Ystarp <- enc(ck, Yp, pwS);
+	MKp <- h1(hk1, concat(U,S,Xp,Yp,Kp));
+	authp <- h2(hk2, concatG(MKp, PWp));
+	sk_p: hash <- h3(hk3, concat0(MKp));
+	return(U, Xp, S, Ystarp, authp).
+
+process 
+	Ostart() :=
+	hk1 <-R hashkey;
+	hk2 <-R hashkey;
+	hk3 <-R hashkey;
+	hk' <-R hashkey;
+	ck <-R cipherkey;
+	pw <-R passwd;
+	(* Computing the next hash before allowing the adversary to 
+	   query h' simplifies the proof a bit: pwU is a fresh random
+	   element of Z; it cannot be a random number coming from
+	   a previous query to h'. *)
+	pwU <- h'(hk',concatpw(U,S,pw));
+	pwS <- exp(g, pwU);
+	return;
+	(processU | processS | processPassive | 
+	 enc_dec_oracle | hashoracle1 | hashoracle2 | hashoracle3 | hashoracle')

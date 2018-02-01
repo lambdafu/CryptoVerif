@@ -1,0 +1,64 @@
+
+param N, N'.
+param N1.
+param N2.
+
+
+
+type block [fixed, large].
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zeroblock).
+
+(*
+equiv obvious
+      foreach i <= N do r <-R block; O() := return(r = zeroblock) 
+      <=( N / |block| )=> 
+      foreach i <= N do r <-R block; O() := return(false).
+
+equiv obvious2
+      foreach i <= N do r <-R block; O(x:block) := return(r = x) 
+      <=( N / |block| )=> 
+      foreach i <= N do r <-R block; O(x:block) := return(false).
+*)
+
+equiv jons_remove_xor
+      foreach i <= N do r <-R block; foreach i <= N' do O(b1:block, b2:block) := return(xor(b1, r) = b2) 
+      <=( N / |block| )=> 
+      foreach i <= N do r <-R block; foreach i <= N' do O(b1:block, b2:block) := return(false).
+
+
+
+
+query secret secret_bit.
+
+
+
+let left_oracle =
+    Oleft(b1: block, b2: block) :=
+    	if secret_bit then
+	        return( xor(b1, r) = b2)   
+	else
+		return(false).
+
+let right_oracle =
+    Oright(b1: block, b2: block) :=
+    	if secret_bit then
+	        return( false )
+	else
+		return( xor(b1, r) = b2).   
+
+
+
+process 
+	Ostart() :=
+	r <-R block;
+        secret_bit <-R bool;
+	return;
+
+	(foreach i <= N1 do left_oracle) | (foreach i <= N2 do right_oracle)
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

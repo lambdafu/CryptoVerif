@@ -1,0 +1,439 @@
+(* ATN protocol
+CryptoVerif model by Bruno Blanchet, INRIA Paris-Rocquencourt.
+This version allows sessions of U and V with unexpected 
+participants: U with U, V with V, U or V with dishonest 
+participants 
+This proof requires stronger assumptions:
+- KDF is a random oracle 
+- Gap Diffie-Hellman assumption *)
+
+proof {
+      crypto uf_cma(CAsign);
+      crypto uf_cma(sign);
+      crypto rom(SHA1);
+      (* Replace all ZUV using Vx or Ux with their value,
+      to make expressions of the form x = exp(g, mult(Ux,Vx))
+      x = exp(pk, Ux), x = exp(pk, Vx), etc appear. *)
+      show_game;
+      remove_assign binder ZUV_429;
+      remove_assign binder ZUV_452;
+      simplify;
+      crypto gdh(exp);
+      auto
+}
+
+(**** Declarations of types, constants, and function symbols ****)
+
+(* Type for session ids, used internally in the model to distinguish
+   each session of the protocol. *)
+
+type session_ids [large, fixed].
+
+(* Type of 32 bits numbers *)
+
+type t_Rand32 [large, fixed]. 
+
+(* Ids 
+U = aircraft
+V = ground entity *)
+
+type t_id.
+const U, V: t_id.
+
+(* Counter *)
+
+type t_Count [fixed].
+
+const Count1: t_Count.
+
+(* MAC *)
+
+proba Pmac.
+type mac_key [large, fixed]. (* 160 bits MAC key *)
+type tMAC [large, fixed]. (* 32 bits MAC *)
+
+define SUF_CMA_mac_no_kgen(mkey, macinput, macres, mac, check, Pmac) {
+
+param N, N2, N3.
+
+const mark: bitstring.
+
+fun mac(macinput, mkey):macres.
+fun check(macinput, mkey, macres): bool.
+
+fun mac2(macinput, mkey):macres.
+
+forall m:macinput, k:mkey;
+        check(m, k, mac(m, k)).
+
+equiv suf_cma(mac)
+      ! N3 new k: mkey;(
+         !N Omac(x: macinput) := mac(x, k),
+         !N2 Ocheck(m: macinput, ma: macres) := check(m, k, ma))
+     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [computational]
+      ! N3 new k: mkey [unchanged];(
+         !N Omac(x: macinput) := let ma2:macres = mac2(x, k) in ma2,
+         !N2 Ocheck(m: macinput, ma: macres) :=
+            find j <= N suchthat defined(x[j], ma2[j]) && (m = x[j]) && ma = ma2[j] then true else false).
+
+}
+
+expand SUF_CMA_mac_no_kgen(mac_key, bitstring, tMAC, mac, check, Pmac).
+
+(* EC Diffie-Hellman: Gap Diffie-Hellman assumption *)
+
+proba pGDH.
+type G [bounded,large].
+type Z [bounded,large].
+expand GDH(G, Z, g, exp, mult, pGDH).
+
+(* Signatures ECDSA - standard strength *)
+
+proba PsignStd.
+proba PsigncollStd.
+type tStd_keyseed [fixed,large].
+type tStd_pkey [bounded].
+type tStd_skey [bounded].
+type tStd_sign.
+type tStd_seed [fixed, large].
+
+expand UF_CMA_signature(tStd_keyseed, tStd_pkey, tStd_skey, bitstring, tStd_sign, tStd_seed, skgen, pkgen, sign, checksign, PsignStd, PsigncollStd).
+
+(* The signatures are probabilistic, and the probability of collision is low *)
+
+collision new s: tStd_seed; new s': tStd_seed;
+	  forall x: bitstring, y: tStd_skey, x': bitstring, y': tStd_skey;
+	  sign(x,y,s) = sign(x',y',s') <=(1/|G|)=> false.
+
+(* Signatures ECDSA - CA-strength *)
+
+proba PsignCA.
+proba PsigncollCA.
+type tCA_keyseed [fixed,large].
+type tCA_pkey [bounded].
+type tCA_skey [bounded].
+type tCA_sign.
+type tCA_seed [fixed, large].
+
+expand UF_CMA_signature(tCA_keyseed, tCA_pkey, tCA_skey, bitstring, tCA_sign, tCA_seed, CAskgen, CApkgen, CAsign, CAchecksign, PsignCA, PsigncollCA).
+
+(* Simplified model of certificates: 
+   it contains the identity and the public key *)
+fun build_s_certif(t_id, tStd_pkey): bitstring [compos].
+fun build_ka_certif(t_id, G): bitstring [compos].
+(* The ATN entities check that the certificate contains the appropriate type of
+   keys by examining the key usage extension, so they distinguish signing
+   keys from key agreement keys *)
+forall x1: t_id, x2: tStd_pkey, y1: t_id, y2: G;
+       build_s_certif(x1,x2) <> build_ka_certif(y1,y2).
+
+(* Key derivation function, considered as a random oracle *)
+
+type KDF_arg.
+type hash_key [large, fixed].
+
+expand ROM_hash(hash_key, bitstring, mac_key, SHA1).
+
+fun build_SHA1_arg(G, KDF_arg): bitstring [compos].
+
+letfun KDF160(hk: hash_key, key: G, arg: KDF_arg) = 
+   SHA1(hk, build_SHA1_arg(key, arg)).
+
+channel hash_in, hash_out.
+param qH.
+(* For simplicity, we consider only an oracle that yields KDF outputs *)
+let SHA1_oracle = ! qH in(hash_in, (key: G, arg: KDF_arg)); out(hash_out, KDF160(hk, key, arg)). 
+
+(* Time *)
+
+type t_Time [fixed].
+
+fun check_time(t_Time, t_Time): bool.
+     (* check_time(tU, tV) is supposed to check that 
+     	tV - 60 seconds <= tU <= tV + 120 seconds. *)
+
+(* ATN Message elements *)
+
+type t_applist.
+fun buildData1(t_id, t_id, t_Time, t_applist): bitstring [compos].
+fun buildData2(t_id, t_id, t_Rand32, t_applist (* component omitted here *)): bitstring [compos].
+fun buildData2Sign(bitstring, t_Rand32, tStd_sign): bitstring [compos].
+fun buildMACarg(t_id, t_id, t_Count, bitstring) : bitstring [compos].
+fun buildData3(t_id, t_id, bitstring): bitstring [compos].
+
+fun certifrequest(t_id): bitstring [compos].
+
+fun buildKDF_XUV_arg(tStd_sign, t_Rand32): KDF_arg [compos].
+fun buildKDF_MAC_arg(mac_key, t_id, t_id): KDF_arg [compos].
+
+(* buildKDF_XUV_arg starts with 0x00, buildKDF_MAC_arg starts with 0x01,
+   so they are always different. *)
+forall x1: tStd_sign, x2:t_Rand32, y1: mac_key, y2: t_id, y3: t_id;
+       buildKDF_XUV_arg(x1,x2) <> buildKDF_MAC_arg(y1,y2,y3).
+
+(* Tables of message counters
+   We simulate a distinct table for each session by
+   adding a unique session identifier as first argument. *)
+
+table received_count_table(session_ids, t_Count).
+table sent_count_table(session_ids, t_Count).
+
+(**** Security properties ****)
+
+(* Authentication of the ground entity to the aircraft *)
+
+event aircraft_accept(t_id, t_id, t_Time).
+event ground_request(t_id, t_id, t_Time).
+
+query tU:t_Time;
+      event inj:aircraft_accept(U, V, tU) ==> inj:ground_request(U, V, tU).
+
+(* Authentication of the aircraft to the ground entity *)
+
+event ground_accept(t_id, t_id, t_Time, t_Time).
+event aircraft_request(t_id, t_id, t_Time).
+
+query tU: t_Time, tV: t_Time;
+      event ground_accept(U, V, tU, tV) ==>
+         check_time(tU, tV) && aircraft_request(U, V, tU).
+
+(* Authenticity of the payload messages *)
+
+event send_msg(t_id, t_id, t_Time, tStd_sign, t_Rand32, t_Count, bitstring).
+event recv_msg(t_id, t_id, t_Time, tStd_sign, t_Rand32, t_Count, bitstring).
+
+query tU: t_Time, sU: tStd_sign, randV: t_Rand32, 
+      count: t_Count, msg: bitstring;
+      event recv_msg(U, V, tU, sU, randV, count, msg) ==>
+      	    send_msg(V, U, tU, sU, randV, count, msg).
+
+query tU: t_Time, sU: tStd_sign, randV: t_Rand32, 
+      count: t_Count, msg: bitstring;
+      event recv_msg(V, U, tU, sU, randV, count, msg) ==>
+      	    send_msg(U, V, tU, sU, randV, count, msg).
+
+(* Injectivity is guaranteed 
+- when U receives, because there is a single recv_msg(U,...) event with
+a given sU and a given count
+- when V receives, because there is a single recv_msg(V,...) event with
+a given randV and a given count *)
+
+(**** The protocol ****)
+
+param Ns_certif, Nka_certif, Naircraft, Nground, Nmessage.
+channel c_gen1, c_gen2, c_aircraft0, c_aircraft0', c_aircraft1, c_aircraft2, c_aircraft3, c_aircraft4, 
+	c_ground1, c_ground2, c_ground3, c_ground4,
+	c_certif1, c_certif2, c_certif3, c_certif4, 
+	choicechannel, pub.
+
+(* Tunnel 
+   arguments:
+   my_id
+   other_id
+   MacKeyUV
+   RandV
+   tU
+   sU
+   current_session_id
+   *)
+
+let tunnel_protocol =
+(
+    (* Sender side *)
+    ! Nmessage
+    in(choicechannel, (CMAdata: bitstring, 
+		       count: t_Count));
+    (* We never send two messages with the same count, in the same session. *)
+    get sent_count_table(=current_session_id, =count) in yield else
+    (* CM-D1 *)
+    let data3 = buildData3(my_id, other_id, CMAdata) in
+    event send_msg(my_id, other_id, tU, sU, RandV, count, CMAdata);
+    insert sent_count_table(current_session_id, count);
+    (* CM-D2 *)
+    let Data3mac = mac(buildMACarg(my_id, other_id, count, data3), MacKeyUV) in
+    (* CM-D3 *)
+    out(pub, (data3, Data3mac))
+)
+|
+(
+    (* Receiver side *)
+    ! Nmessage
+    in(pub, (xData3: bitstring, xData3mac: tMAC, (*count may be transmitted or inferred*)count: t_Count));
+    (* CM-D4 / CM-D5 *)
+    if check(buildMACarg(other_id, my_id, count, xData3), MacKeyUV, xData3mac) then
+    (* We never receive two messages with the same count, in the same session.
+       This is fairly implicit in the specification *)
+    get received_count_table(=current_session_id, =count) in yield else
+    insert received_count_table(current_session_id, count);
+    event recv_msg(my_id, other_id, tU, sU, RandV, count, xData3)
+).
+
+
+
+(* Secure CMA Dialog Establishment (Initial) *)
+
+let aircraft =
+    in(c_aircraft1, ((* current time *)tU: t_Time,
+    		     (* list of supported applications *)applist: t_applist,
+		     (* identity of the interlocutor *)xV: t_id));
+    (* Choose a session id *)
+    new current_session_id: session_ids;
+    (* Message 1, CM-L1 *)
+    let Data1 = buildData1(U, xV, tU, applist) in
+    (* CM-L2 *)
+    new Useed: tStd_seed;
+    let sU = sign(Data1, Uskey, Useed) in
+    (* CM-L3 *)
+    event aircraft_request(U, xV, tU);
+    out(c_aircraft2, (Data1, sU));
+    (* CM-L15 *)
+    in(c_aircraft3, (xData2: bitstring, xVka_certif: bitstring, xData2mac: tMAC));
+    let buildData2(xU, xV', xRandV, xapplist') = xData2 in
+    (* CM-L16 *)
+    if U = xU && xV = xV' then
+    let (xVka_certif_content: bitstring, xVka_sign: tCA_sign) = xVka_certif in
+    if CAchecksign(xVka_certif_content, CApkey, xVka_sign) then
+    (* CM-L17 *)
+    let build_ka_certif(=xV, xVX) = xVka_certif_content in
+    let ZUV = exp(xVX, Ux) in
+    let XUV = KDF160(hk, ZUV, buildKDF_XUV_arg(sU, xRandV)) in
+    (* CM-L18 *)
+    let MacKeyUV = KDF160(hk, ZUV, buildKDF_MAC_arg(XUV, U, xV)) in
+    (* CM-L19 / CM-L20*)
+    if check(buildMACarg(xV, U, Count1, buildData2Sign(xData2, xRandV, sU)), MacKeyUV, xData2mac) then
+    insert received_count_table(current_session_id, Count1);
+    event aircraft_accept(U, xV, tU);
+    (* Tunnel *)
+    let my_id = U in
+    let other_id = xV in
+    let RandV = xRandV in
+    out(c_aircraft4, ());
+    tunnel_protocol.
+
+
+(* If I understand the specification correctly, when the ground entity
+receives a replay of the message from the aircraft and the session is
+not terminated yet, it may recompute the session key, but using the
+same RandV, so the session key is actually unchanged, and the protocol
+continues as if the message had not been received.
+
+When the session is terminated, it restarts a session with a new RandV
+(since RandV has been deleted by SSO_Stop, cf sub-volume VIII, page 57), so a new key,
+provided the time check succeeds [but this time check is unspecified].
+It seems that the session cannot continue further, because the aircraft
+will have forgotten the signature, so it will not accept the message 
+from the ground entity. Except if actually the aircraft thinks he has not
+terminated his session? Would it accept to send its RandV and recompute
+the session key upon receiving the message from the ground? *)
+
+let ground =
+    (* CM-L4 *)
+    in(c_ground1, (* message from the aircraft *) (xData1:bitstring, xsU:tStd_sign,
+                  (* current time *)tV: t_Time,
+		  (* applications *)xapplist': t_applist));
+    let buildData1(xU, xV, xtU, xapplist) = xData1 in
+    (* Choose a session id *)
+    new current_session_id: session_ids;
+    (* CM-L5 *)
+    out(c_ground2, certifrequest(xU));
+    (* CM-L6 *)
+    in(c_ground3, (xUs_certif: bitstring, xUka_certif:bitstring));
+    (* CM-L7 *)
+    let (xUs_certif_content: bitstring, xUs_certif_sign: tCA_sign) = xUs_certif in
+    if CAchecksign(xUs_certif_content, CApkey, xUs_certif_sign) then
+    let (xUka_certif_content: bitstring, xUka_certif_sign: tCA_sign) = xUka_certif in
+    if CAchecksign(xUka_certif_content, CApkey, xUka_certif_sign) then
+    (* CM-L8 *)
+    let build_s_certif(=xU, xUpkey) = xUs_certif_content in
+    if checksign(xData1, xUpkey, xsU) then
+    (* CM-L9 *)
+    if xV = V then
+    if check_time(xtU, tV) then
+    (* CM-L10 *)
+    let build_ka_certif(=xU, xUX) = xUka_certif_content in
+    let ZUV = exp(xUX, Vx) in
+    new RandV: t_Rand32;
+    let XUV = KDF160(hk, ZUV, buildKDF_XUV_arg(xsU, RandV)) in
+    (* CM-L11 *)
+    let MacKeyUV = KDF160(hk, ZUV, buildKDF_MAC_arg(XUV, xU, V)) in
+    (* CM-L12 *)
+    let Data2 = buildData2(V, xU, RandV, xapplist') in
+    (* CM-L13 *)
+    let Data2mac = mac(buildMACarg(V, xU, Count1, buildData2Sign(Data2, RandV, xsU)), MacKeyUV) in
+    insert sent_count_table(current_session_id, Count1);
+    event ground_request(xU, V, xtU);
+    event ground_accept(xU, V, xtU, tV);
+    (* Tunnel arguments *)
+    let my_id = V in
+    let other_id = xU in
+    let tU = xtU in
+    let sU = xsU in
+    (* Output message *)
+    out(c_ground4, (Data2, Vka_certif, Data2mac));
+    (* Tunnel *)
+    tunnel_protocol.
+
+(* Allow the adversary to get certificates for its own keys *)
+
+let adv_s_certif =
+    in(c_certif1, (id: t_id, pk: tStd_pkey));
+    if id <> U then
+    new s_certif_seed: tCA_seed;
+    let s_certif_content = build_s_certif(id, pk) in
+    let s_certif = (s_certif_content, CAsign(s_certif_content, CAskey, s_certif_seed)) in
+    out(c_certif2, s_certif).
+
+let adv_ka_certif =
+    in(c_certif3, (id: t_id, pk: G));
+    if id <> U && id <> V then
+    new ka_certif_seed: tCA_seed;
+    let ka_certif_content = build_ka_certif(id, pk) in
+    let ka_certif = (ka_certif_content, CAsign(ka_certif_content, CAskey, ka_certif_seed)) in
+    out(c_certif4, ka_certif).
+
+(* TO DO add ground-initiated key establishment *)
+
+
+(* Putting the whole system together *)
+
+process 
+	in(c_gen1, ());
+        (* Generate the CA key pair *)
+	new CAkseed: tCA_keyseed;
+	let CApkey = CApkgen(CAkseed) in
+	let CAskey = CAskgen(CAkseed) in
+	(* Generate the aircraft signing key pair *)
+	new Ukseed: tStd_keyseed;
+	let Upkey = pkgen(Ukseed) in
+	let Uskey = skgen(Ukseed) in
+	(* Generate a certificate for it *)
+	new Us_certif_seed: tCA_seed;
+	let Us_certif_content = build_s_certif(U, Upkey) in
+        let Us_certif = (Us_certif_content, CAsign(Us_certif_content, CAskey, Us_certif_seed)) in
+	(* Generate the aircraft key agreement key pair *)
+	new Ux: Z;
+	let UX = exp(g, Ux) in
+	(* Generate a certificate for it *)
+	new Uka_certif_seed: tCA_seed;
+	let Uka_certif_content = build_ka_certif(U, UX) in
+        let Uka_certif = (Uka_certif_content, CAsign(Uka_certif_content, CAskey, Uka_certif_seed)) in
+	(* Generate the ground key agreement key pair *)
+	new Vx: Z;
+	let VX = exp(g, Vx) in
+	(* Generate a certificate for it *)
+	new Vka_certif_seed: tCA_seed;
+	let Vka_certif_content = build_ka_certif(V, VX) in
+        let Vka_certif = (Vka_certif_content, CAsign(Vka_certif_content, CAskey, Vka_certif_seed)) in
+        (* Hash key: models the choice of the hash function *)
+        new hk: hash_key;
+	out(c_gen2, (CApkey, Upkey, Us_certif, UX, Uka_certif, VX, Vka_certif));
+	((! Naircraft aircraft) | 
+	 (! Nground ground) |
+	 (! Ns_certif adv_s_certif) |
+	 (! Nka_certif adv_ka_certif) |
+	 SHA1_oracle)
+
+(* EXPECTED
+All queries proved.
+73.049s (user 72.777s + system 0.272s), max rss 1449008K
+END *)

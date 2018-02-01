@@ -1,0 +1,49 @@
+(* CryptoVerif proves secrecy of s, and this is wrong 
+   The attacker can get x[1] by first executing pA, receiving x[1],
+   then sending x[1] to pB, so z[1] = x[1]; since j[...] is not defined,
+   the find goes to its else branch, so y[1] = z[1] = x[1].
+   Then the attacker runs pC, the find succeeds for j = 1,
+   and the attacker gets s.
+*)
+
+
+param N.
+
+type T [fixed,large].
+
+channel c.
+
+set elsefindFactsInSimplify = true.
+set debugElsefindFacts = true.
+
+query secret s.
+
+
+let pA =
+    ! N
+    in(c, ());
+    new x:T;
+    out(c, x).
+
+let pB =
+    ! N
+    in(c, z:T);
+    find u <= N suchthat defined(x[j[u]],z[j[u]]) && x[j[u]] = z[j[u]] then
+      yield
+    else
+      let y:T = z.
+
+let pC =
+    ! N
+    in(c, ());
+    new s:T;
+    find j <= N suchthat defined(x[j],y[j]) && x[j] = y[j] then
+       out(c, s).
+
+
+process pA | pB | pC
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.030s (user 0.030s + system 0.000s), max rss 16032K
+END *)

@@ -53,6 +53,21 @@ val union : ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
    elements. *)
 val map_union : ('b -> 'b -> bool) -> ('a -> 'b list) -> 'a list -> 'b list
 
+(* Iterators *)
+
+    (* Exists *)
+    
+val exists_subterm :
+  (term -> bool) -> (binderref -> bool) -> (pattern -> bool) -> term -> bool
+val exists_subpat :
+  (term -> bool) -> (pattern -> bool) -> pattern -> bool
+val exists_subiproc :
+  (inputprocess -> bool) ->
+  (channel * term list -> pattern -> process -> bool) ->
+  inputprocess -> bool
+val exists_suboproc :
+  (process -> bool) -> (term -> bool) -> (binderref -> bool) ->
+  (pattern -> bool) -> (inputprocess -> bool) -> process -> bool
 
 
 
@@ -63,6 +78,7 @@ val add_eq : instruct -> instruct list -> instruct list
 val type_for_param : param -> typet
 val param_from_type : typet -> param
 
+val get_else : term option -> term
 val binder_from_term : term -> binder
 val binderref_from_term : term -> binderref
 val repl_index_from_term : term -> repl_index
@@ -106,13 +122,20 @@ val auto_cleanup : (unit -> 'a) -> 'a
 val max_occ : int ref
 (* [new_occ()] returns a new occurrence number *)
 val new_occ : unit -> int
-(* [vcounter] is a variable counter, incremented to create a fresh variable. *)
-val vcounter : int ref
-val new_vname : unit -> int
+
+(* State used to choose variable numbers *)
+type var_num_state
+val get_var_num_state : unit -> var_num_state
+val set_var_num_state : var_num_state -> unit
+    
+val record_id : string -> Parsing_helper.extent -> unit
+val fresh_id : string -> string
 val new_binder : binder -> binder
 val new_repl_index : repl_index -> repl_index
-val create_binder : string -> int -> typet -> repl_index list -> binder
-val create_repl_index : string -> int -> typet -> repl_index
+val create_binder_internal : string -> int -> typet -> repl_index list -> binder
+val create_binder : string -> typet -> repl_index list -> binder
+val create_binder0 : string -> typet -> repl_index list -> binder
+val create_repl_index : string -> typet -> repl_index
 
 (* Copy a term, process, ..., substituting variables with their links.
    The substitution is performed in different ways, depending on
@@ -146,7 +169,8 @@ val copy_pat : copy_transf -> pattern -> pattern
 val copy_def_list : copy_transf -> binderref list -> binderref list
 val copy_oprocess : copy_transf -> process -> process
 val copy_process : copy_transf -> inputprocess -> inputprocess
-
+val copy_elsefind : elsefind_fact -> elsefind_fact
+    
 (* [subst cur_array l t] returns the term [t] in which the replication
    indices in [cur_array] have been replaced with their corresponding
    term in [l]. 
@@ -328,10 +352,23 @@ val or_and_form : term -> term
 val is_tuple : term -> bool
 val is_pat_tuple : pattern -> bool
 
-val put_lets : pattern list -> term list -> process -> process -> process
-val put_lets_term : pattern list -> term list -> term -> term option -> term
+val put_lets : (pattern * term) list -> process -> process -> process
+val put_lets_term : (pattern * term) list -> term -> term option -> term
+(* [simplify_let_tuple get_tuple pat t] serves to simplify "let pat = t in ..."
+   when pat is a tuple.
+   [get_tuple] is a function that tries to transform a term into a tuple.
+   It returns 
+   - the list of performed transformations
+   - a term [t] meant to be transformed into a test "if t then ... else ..." 
+   before the following [let]s (no test should be generated when [t] is true)
+   - a list [(pat1, t1);...;(patn, tn)] meant to
+   be transformed into "let pat1 = t1 in ... let patn = tn in ...".
+   It makes sure that, when the initial pattern matching fails,
+   none of the variables of pat is defined in the transformed let.
+   It raises the exception [Impossible] when the initial pattern 
+   matching always fails. *)
 exception Impossible
-val split_term : funsymb -> term -> term list
+val simplify_let_tuple : (term -> term) -> pattern -> term -> let_transfo * term * (pattern * term) list
 
 val move_occ_term : term -> term
 val move_occ_br : binderref -> binderref
@@ -367,9 +404,9 @@ val close_def_term : binderref list ref -> term -> unit
 val defined_refs_find : (binder * repl_index) list -> binderref list -> 
   binderref list -> binderref list * binderref list
 
-(* [check_no_ifletfindres t] returns true if [t] is a basic term:
+(* [check_simple_term t] returns true if [t] is a basic term:
    it contains no if/let/find/new/event. *)
-val check_no_ifletfindres : term -> bool
+val check_simple_term : term -> bool
 
 val def_term : (term * program_point) list ref option -> repl_index list -> def_node -> term list -> binderref list -> elsefind_fact list -> term -> def_node
 val build_def_process : (term * program_point) list ref option -> inputprocess -> unit
@@ -399,6 +436,9 @@ val build_compatible_defs : inputprocess -> unit
 (* [get_facts pp] returns the fact_info at program point [pp] *)
 val get_facts : program_point -> fact_info
 
+(* [occ_from_pp pp] returns the occurrence of program point [pp] *)
+val occ_from_pp : program_point -> int
+    
 (* [incompatible_suffix_length b b'] returns a length [l] such that if
    [b[args]] and [b'[args']] are both defined, then the suffixes of
    length [l] of [args] and [args'] must be different.
@@ -434,6 +474,13 @@ val both_def_add_fact : term list -> binderref -> binderref -> term list
    Uses the field "incompatible" set by Terms.build_compatible_defs
  *)
 val both_def_list_facts : term list -> binderref list -> binderref list -> term list
+(* [def_list_pp fact_accu pp_args def_list] returns facts
+   inferred from the knowledge that the variables in [def_list] are
+   defined and the program point [pp_args] is executed.
+   (The variables in [def_list] may be defined before or after
+   executing the program point [pp_args].
+   Uses the field "incompatible" set by Terms.build_compatible_defs *)
+val def_list_pp : term list -> program_point * term list -> binderref list -> term list
 (* [def_at_pp_add_fact fact_accu pp args (b',args')] returns [fact_accu] 
    after adding a fact that always holds when [b'[args']] is defined
    before the execution of program point [pp] with indices [args], if

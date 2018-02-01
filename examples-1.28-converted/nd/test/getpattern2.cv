@@ -1,0 +1,14 @@
+channel c.
+
+table t(bool, bool).
+
+process
+	in(c, y:bool);
+	insert t(y, y);
+	get t(=b, b) in
+	out(c, y)
+
+(* EXPECTED
+Error: Variable reference not defined
+xtime: error in child process (status : 512)
+END *)

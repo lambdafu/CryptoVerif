@@ -1,0 +1,30 @@
+on windows, you need to use the cygwin port of OCaml.
+The Win32 port does not implement some functions needed in the Unix 
+OCaml library.
+=> to compile
+unset OCAMLLIB
+export PATH=/usr/bin:$PATH
+./build.sh
+
+
+Run a session
+=============
+(The key in ~/.ssh/id_rsa has a passphrase => it is not supported
+by our implementation of ssh. I have a key without passphrase
+in the local directory implementation/ssh.)
+
+
+create a listening server on port 4000:
+on unix: nc -l 127.0.0.1 4000
+on cygwin: nc -l 4000
+
+launch the server:
+./server 127.0.0.1 2222 username id_rsa.pub
+
+launch the client to forward connections :
+./client 127.0.0.1 2222 username id_rsa 3000 127.0.0.1 4000
+
+then connect to the port 3000:
+nc 127.0.0.1 3000
+
+then write in both "nc".

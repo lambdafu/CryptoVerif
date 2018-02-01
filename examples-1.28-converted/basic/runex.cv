@@ -1,0 +1,75 @@
+(* Trivial running example for conference paper. *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+fun keyToBitstring(key):bitstring [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zkey:bitstring.
+forall y:key; 
+	Z(keyToBitstring(y)) = Zkey.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret k2 [onesession].
+query secret k3 [onesession].
+
+query secret k2.
+query secret k3.
+
+channel cA, cB, start, c.
+
+
+
+
+
+process 
+	in(start, ());
+new rKab: keyseed;
+let Kab: key = kgen(rKab) in
+new rmKab: mkeyseed;
+let mKab: mkey = mkgen(rmKab) in
+out(c, ());
+((
+  ! i_1 <= N
+  in(cA[i_1], ());
+  new k2: key;
+  new s1: seed;
+  let ea1: bitstring = enc(keyToBitstring(k2), Kab, s1) in
+  out(cA[i_1], (ea1, mac(ea1, mKab)))
+) | (
+  ! i_2 <= N
+  in(cB[i_2], (ea: bitstring, ma_1: macs));
+  if check(ea, mKab, ma_1) then
+  let injbot(keyToBitstring(k3: key)) = dec(ea, Kab) in
+  out(cB[i_2], ())
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of k3.
+0.032s (user 0.024s + system 0.008s), max rss 37632K
+END *)

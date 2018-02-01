@@ -1,0 +1,35 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun concat(D,D):D.
+equation assoc(concat).
+
+fun f(D):bitstring.
+fun h(D):bitstring.
+fun g(D,D,D): D.
+
+const zero, one, two, three: D. 
+
+channel c.
+
+proba Peq.
+param n.
+
+equiv !n O(x:D,y:D) := concat(x,concat(y,x)) [all]
+<=(Peq)=>
+      !n O(x:D,y:D) := g(x,y,x).
+
+(* The transformation cannot be applied, because there would remain an
+   occurrence of concat in the transformed game and the transformation
+   requires all occurrences of concat to be transformed. *)
+
+process in(c, ()); out(c, h(concat(concat(zero, one), concat(zero, two)))) (*;
+	in(c, ()); let z = concat(zero,one) in out(c, h(concat(z, concat(two, zero))));
+	in(c, ()); let t = concat(two, zero) in out(c, h(concat(z, t)));
+	in(c, ()); let x = concat(z,t) in out(c, h(x)) *)
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

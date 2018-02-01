@@ -1,0 +1,68 @@
+(* FDH signature scheme
+   Result of Jean-Sebastien Coron, using the Random Self-Reducibility of RSA *)
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation, with Random-Self-Reducibility *)
+
+proba POW.
+
+expand OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, bitstring, D, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+event bad.
+query event(bad) ==> false.
+
+channel c0, c1, c2, c3, c4, c5, start.
+
+
+
+
+
+process 
+	(in(start, ());
+new hk: hashkey;
+new r_2: seed;
+let pk: pkey = pkgen(r_2) in
+let sk: skey = skgen(r_2) in
+out(c0, pk);
+((
+  ! i_1 <= qS
+  in(c1[i_1], m: bitstring);
+  out(c2[i_1], invf(sk, hash(hk, m)))
+) | (
+  in(c3, (m': bitstring, s: D));
+  if f(pk, s) = hash(hk, m') then
+  find u = u_1 <= qS suchthat defined(m[u_1]) && (m' = m[u_1]) then
+    yield
+  else
+    event bad
+) | (
+  ! i_2 <= qH
+  in(hc1[i_2], x_2: bitstring);
+  out(hc2[i_2], hash(hk, x_2))
+))
+
+)
+
+
+(* EXPECTED
+All queries proved.
+0.052s (user 0.044s + system 0.008s), max rss 38816K
+END *)

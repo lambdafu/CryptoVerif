@@ -1,0 +1,345 @@
+(* First round and a half of Basic Kerberos, key usability *)
+
+set interactiveMode = true.
+
+(* Now, CryptoVerif guesses SArename AK_20, SArename mAK_21 automatically,
+but menc remains at some points where it should not occur...
+
+
+Proof is
+	auto
+	SArename AK_20
+	simplify
+	SArename mAK_21
+	simplify
+	auto
+	show_game
+Concluding manually is not too difficult:
+  in(c24, ());
+  find j3 <= N suchthat defined(mkeyTAK[j3], rAK_84[@i_47[j3]], rmAK_85[@i_47[j3]]) then
+  new b1: bool;
+  out(c25, ());
+  (
+    ! !_16 <= qE
+    in(c21[!_16], (m1: maxenc, m2_19: maxenc));
+    if (Z(m1) = Z(m2_19)) then
+    let menc: maxenc = test(b1, m1, m2_19) in
+    new r: seed;
+    let aT: maxmac = enc2(Z(menc), kgen2(rAK_84[@i_47[j3]]), r) in
+    let x_327: maxmac = cst_maxmac in
+    let bT: macs = mac2(aT, mkgen2(rmAK_85[@i_47[j3]])) in
+    out(c22[!_16], (aT, bT))
+  |
+    ! !_17 <= qD
+    in(c23[!_17], (a: maxmac, b: macs));
+    find j5 <= qE suchthat defined(aT[j5]) && (a = aT[j5]) then
+      yield
+    else
+      find @i_331 <= qE suchthat defined(x_327[@i_331], aT[@i_331], rmAK_85[@i_47[j3]], menc[@i_331]) && ((a = aT[@i_331]) && check2(aT[@i_331], mkgen2(rmAK_85[@i_47[j3]]), b)) then
+	[[ 
+	In fact this branch of find is never executed because of the find on j5 above;
+	CryptoVerif should be able to prove that automatically...
+	The problem is that the recorded facts are:
+	(a[!_17] = enc2(Zpad, kgen2(rAK_84[@i_91[@i_329[!_17]]]), r1_100[@i_329[!_17]]))
+	(aT[@i_331[!_17]] >>= enc2(Z(menc[@i_331[!_17]]), kgen2(rAK_84[@i_47[j3]]), r[@i_331[!_17]]))
+	Elsefind:
+	for all j5; not(defined(aT[j5[!_17]]) && (a[!_17] = aT[j5[!_17]]))
+
+	One should perhaps reduce aT[j5[!_17]] in the "elsefind" when one builts it....
+	]]
+        let m_18: bitstringbot = injbot(menc[@i_331]) in
+        out(c24[!_17], m_18)
+      orfind @i_329 <= N suchthat defined(x_328[@i_329], @i_91[@i_329], @i_47[j3], e5[@i_329], ts_101[@i_329]) && ((@i_91[@i_329] = @i_47[j3]) && ((a = e5[@i_329]) && check2(e5[@i_329], mkgen2(rmAK_85[@i_47[j3]]), b))) then
+        let m_18: bitstringbot = injbot(pad(C, ts_101[@i_329])) in
+        out(c24[!_17], m_18)
+  )
+)
+
+After removing the branch of find on @i_331 as mentioned above, the only use of menc
+is in Z(menc) and, as in the IND-CPA case:
+	Z(menc) = Z(test(b1,m1,m2)) = Z(m1) = Z(m2) since m1 and m2 have same length
+	so actually the game does not depend on b1.
+(CryptoVerif cannot make the case distinction b1=true/b1=false 
+when "test" is used. It could with "if", but then it would not be 
+able to merge both branches of the "if" when they execute the 
+same code.)
+*)
+
+param N.
+param N2.
+param N3.
+param qC.
+param qD.
+param qE.
+
+type nonce [large,fixed].
+			(* type host [bounded].*)
+type client [bounded].
+type kas [bounded].
+type tgs [bounded].
+type server [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+type timest [fixed].									(* needed in particular for CS_reply *)
+
+(* following functions are needed to set the type of a list of elements to `bitstring', so that the list can be encrypted: *)
+fun concat1(key, mkey, nonce, tgs):maxenc [compos]. 					(* needed for {AK, mAK, n1, T}_Kc in AS_reply  *)
+fun concat2(key, mkey, client):maxenc [compos].  						(* needed for TGT and ST *)
+(* fun concat3(key, mkey, nonce, server):maxenc [compos]. *)   		       		(*for {SK, mSK, n2, S}_AK in TG_reply *)
+fun pad(client, timest):maxenc [compos].
+
+forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat2(y,w,z) <> concat1(t2,w2,y2,z2).
+forall z:client,t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(z, t) <> concat1(t2,w2,y2,z2).
+forall y:key, w:mkey, z:client, t2: timest,  z2: client;    concat2(y,w,z) <> pad(z2,t2).
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(maxenc, key, seed): maxmac.
+fun kgen(keyseed):key.
+fun dec(maxmac, key): bitstringbot.
+
+fun enc2(maxenc, key, seed): maxmac.
+fun kgen2(keyseed):key.
+
+fun injbot(maxenc):bitstringbot [compos].
+(* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+fun    Z(maxenc):maxenc.
+const  Zconcat1:maxenc.
+const  Zconcat2:maxenc.
+(*const  Zconst3: maxenc.*)
+const  Zpad:maxenc.
+
+forall m:maxenc, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce, z:tgs, t:key, u:mkey;
+	Z(concat1(t, u, y, z)) = Zconcat1.
+forall y:key, w:mkey, z:client; 
+	Z(concat2(y, w, z)) = Zconcat2.
+(*forall  y:nonce, z:server, t:key, u:mkey;
+	Z(concat3(t, u, y, z)) = Zconcat3.*)
+forall z:client, t:timest;
+        Z(pad(z,t)) = Zpad. 
+					    
+
+equiv  !N2 new r: keyseed; ((x:maxenc) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N2 * Penc(time, N))=> 
+       !N2 new r: keyseed; ((x:maxenc) N -> new r2: seed; enc2(Z(x), kgen2(r), r2)).
+
+(* Weakly Unforgeable MAC *)
+
+proba Pmac.
+
+fun mac(maxmac, mkey):macs.
+fun check(maxmac, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(maxmac, mkey):macs.
+fun check2(maxmac, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:maxmac, r:mkeyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:maxmac, r:mkeyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+						   
+equiv !N3 new r: mkeyseed;(
+	 (x: maxmac) N -> mac(x, mkgen(r)),
+	 (m: maxmac, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      !N3 new r: mkeyseed;(
+	 (x: maxmac) N -> mac2(x, mkgen2(r)),
+	 (m: maxmac, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) &&  (* (ma = mac2(x[j], mkgen2(r)))*) check2(x[j], mkgen2(r), ma) then true else false).
+
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20,c21, c22, c23, c24,c25, start, finish, cC, cT.
+const C : client.
+const T : tgs.
+const K : kas.
+const S : server.						
+
+fun acceptC(tgs,server):bitstring.
+fun acceptK(client):bitstring. 
+fun acceptT(client):bitstring.
+
+
+
+event fullKC(client, tgs,nonce, maxmac, maxmac).
+event fullCK(tgs, nonce,maxmac, maxmac).		
+event partCT(tgs,  maxmac, maxmac).
+event fullCT(tgs, server,  nonce, maxmac, maxmac, maxmac). 			
+event partTC(client, maxmac, maxmac).    		
+event fullTC(client,server,  nonce, maxmac, maxmac, maxmac).		
+      		
+
+
+(* authentication queries : *)
+
+query x:maxmac, y:maxmac, z:maxmac, N:nonce;
+       event inj:fullCK(T,N, x, y) ==> inj:fullKC(C,T,N, z, y).
+		 
+query  x:maxmac, x':maxmac, y:maxmac, y': maxmac, N:nonce;					   
+        event partTC(C,x,y) ==> partCT(T,x',y) && fullKC(C,T,N,x, y').	
+
+
+(* Secrecy of the coin b1 *)
+query secret1 b1.
+
+
+
+let processC = 
+	in(c1, (h: tgs, h2: server));								(* h = T , h2 = S *) 
+	new Nc: nonce;
+	out(c2, (C, h, Nc));
+	in(c3, (=C, m: maxmac, mac1: macs, m2: maxmac, mac2: macs));				(* m = Ticket Granting Ticket *)
+	if check(m2, mKc, mac2) then
+        let injbot(concat1(AK, mAK, =Nc, =h)) = dec(m2, Kc) in 
+	event fullCK(h,Nc, m, m2);
+	new Nt: nonce;
+	new ts: timest;
+	new r1: seed;
+	let e5 = enc(pad(C, ts), AK, r1) in
+	let mac5 = mac(e5, mAK) in
+	event partCT(h, m,e5);		
+	out(c4, (m, mac1, e5, mac5, h2, Nt)).
+	(*OK 
+	in(finish, ());
+	if h = T then
+	(
+	let keyAK:key = AK in
+	let mkeyAK: mkey = mAK	
+	)
+	else out(cC, (AK, mAK)). *)
+
+	
+
+let processKEY =
+	in(c13, (Khost: client, Kkey: key, Kmkey: mkey));
+	let Rkey:key = 
+		if Khost = C then Kc else
+		Kkey
+	in
+	let Rmkey:mkey =
+		if Khost = C then mKc else
+		Kmkey.
+
+let processTKEY =
+	in(c10, (Lhost: tgs, Lkey: key, Lmkey: mkey)); 
+	let Qkey:key =
+	    	  if Lhost = T then Kt else
+		  Lkey
+	in
+	let Qmkey:mkey = 
+	    	 if Lhost = T then mKt else
+		 Lmkey.      
+
+
+let processK = 
+	in(c14, (hc: client, ht: tgs, n: nonce));
+	find j1 <= N2 suchthat defined(Khost[j1],Rkey[j1],Rmkey[j1]) && (Khost[j1] = hc) then        (* shared key KC *)
+	find j2 <= N2 suchthat defined(Lhost[j2],Qkey[j2],Qmkey[j2]) && (Lhost[j2] = ht) then        (* shared key KT *) 
+	new rAK : keyseed;
+	let AK = kgen(rAK) in
+	new rmAK : mkeyseed;
+	let mAK = mkgen(rmAK) in 
+	new r3: seed;
+	let e3 = enc(concat2(AK, mAK, hc), Qkey[j2], r3) in  (* TGT *)
+	let mac3 = mac(e3, Qmkey[j2]) in
+	new r4: seed;
+	let e4 = enc(concat1(AK, mAK, n, ht), Rkey[j1], r4) in
+	let mac4 = mac(e4, Rmkey[j1]) in
+	event fullKC(hc, ht, n, e3, e4);
+	out(c15, (hc, e3, mac3, e4, mac4)).
+
+let processT =
+    	in(c7, (m8:maxmac, mac8:macs, m9:maxmac, mac9: macs, h3:server, n2: nonce));		(* h3 = S *)
+	if check(m8, mKt, mac8) then
+	let injbot(concat2(AK1, mAK1, h4 )) = dec(m8, Kt) in					(* h4 = C *)
+	if check(m9, mAK1, mac9) then
+	let injbot(pad(= h4, t: timest)) = dec(m9, AK1) in
+	event partTC(h4,m8, m9);					
+	out(c8, acceptT(h4));
+	(* OK *)
+	in(c9, ());
+	if h4 = C then
+	(
+	let keyTAK:key = AK1 in
+	let mkeyTAK: mkey = mAK1 
+	)
+	else
+	(
+	out(cT, (AK1, mAK1))
+	).
+
+
+(* Key Usability : we want to check if the encrypt-then-mac scheme is still CCA2 secure when using the key pair (AK,mAK) *)
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, maxenc, maxenc):maxenc.
+forall x:maxenc,y:maxenc; test(true,x,y) = x.
+forall x:maxenc,y:maxenc; test(false,x,y) = y.
+
+
+
+let processOE =
+	in(c21,(m1: maxenc, m2: maxenc));
+	if Z(m1) = Z(m2) then
+    	let menc = test(b1, m1, m2) in
+    	new r : seed;
+    	let aT: maxmac = enc(menc, k1, r) in
+    	let bT: macs = mac(aT, mk1)in
+    	out(c22, (aT,bT)).
+
+let processOD =
+        in(c23, (a: maxmac, b:macs));
+    	find j5<= qE suchthat defined (aT[j5] (*, bT[j5]*)) && a=aT[j5] (*&& b=bT[j5]*) then yield else
+	(* BB: to make it work with the test on b, I believe you need a strongly unforgeable mac *)
+    	if check(a, mk1, b) then
+    	let m = dec(a, k1) in
+    	out(c24, m).
+
+process
+	in(start, ());
+	new rKc: keyseed;
+	let Kc = kgen(rKc) in									(* enc key between client C and KAS K *)
+	new rmKc: mkeyseed;
+	let mKc = mkgen(rmKc) in								(* mac key -"-  *)
+	new rKt: keyseed;
+	let Kt = kgen(rKt) in									(* enc key between TGS T and KAS K *)
+	new rmKt: mkeyseed;
+	let mKt = mkgen(rmKt) in								(* mac key  -"- *)
+	out(c20, ());
+	(
+	 
+	 (
+	  (! N processC) | 
+	  (! N processK) |
+	  (! N processT) |
+	  (! N2 processKEY) |
+	  (! N2 processTKEY)
+ 	 )|
+    	 (
+     	  in(c24, ());
+	  new b1:bool;								(* let b1 in {0,1} *)
+     	  find j3 <= N suchthat defined(keyTAK[j3], mkeyTAK[j3]) then          	(* we are picking an exchanged key pair at RANDOM  *)
+     	  let k1 = keyTAK[j3] in                              	 	       	(* It's not the adversary's choice *)
+     	  let mk1 = mkeyTAK[j3] in                            			(* If we check all exchanged keys instead,*)
+     	  out(c25, ());								(* we would also check any key the adversary might pick. *)
+      	  ( ! qE processOE ) | ( ! qD processOD)
+     	 )
+	 
+        )

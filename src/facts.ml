@@ -1,7 +1,7 @@
 open Types
 
 let filter_ifletfindres l =
-  List.filter Terms.check_no_ifletfindres l
+  List.filter Terms.check_simple_term l
 
 (* Display facts; for debugging *)
 
@@ -186,8 +186,9 @@ let get_var_link restr t () =
 	 the matching list l2, so it can be handled like a FunApp term
 	 by match_term. *)
       if List.memq v restr then None else Some (v.link, false (* TO DO I consider that v cannot be bound to the neutral element; it would be better to allow the user to set that *))
-  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in match_assoc"      
+  | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, get, insert, event, and event_abort should not occur in match_assoc"      
 
 let rec match_term simp_facts restr next_f t t' () = 
   let get_var_link = get_var_link restr in
@@ -217,8 +218,9 @@ let rec match_term simp_facts restr next_f t t' () =
 	  next_f()
       | FunApp(f,l) ->
 	  Terms.match_funapp match_term_rec get_var_link Terms.default_match_error simp_facts next_f t t' ()
-      | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ ->
-	  Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event should not occur in match_term"
+      | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _
+      | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+	  Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, get, insert, event, and event_abort should not occur in match_term"
 	    )
   in
   match_term_rec next_f t t' ()
@@ -640,8 +642,14 @@ and reduce_rec depth simp_facts f t =
     apply_eq_statements_subterms_once simp_facts' t)   
 
 (* Replaces each occurence of t in fact with true *)
-and replace_with_true modified t fact =
-  if (fact.t_type = Settings.t_bool) && (not (Terms.is_true fact)) && (Terms.equal_terms t fact) then
+and replace_with_true modified simp_facts t fact =
+  if (fact.t_type = Settings.t_bool) && (not (Terms.is_true fact)) &&
+    (if !Settings.simplify_use_equalities_in_simplifying_facts then
+      (* This is more precise than Terms.equal_terms t fact,
+         but too slow to activate in general *)
+      Terms.simp_equal_terms simp_facts true t fact
+    else
+      Terms.equal_terms t fact) then
     begin
       modified := true;
       Terms.make_true ()
@@ -649,21 +657,26 @@ and replace_with_true modified t fact =
   else
     Terms.build_term2 fact 
       (match fact.t_desc with
-	| Var (b,tl) -> Var (b,tl)
-	| FunApp (f, l) -> FunApp (f, List.map (replace_with_true modified t) l)
-	| ReplIndex b -> ReplIndex b
-	| _ ->
-	    Parsing_helper.internal_error "Only Var and FunApp should occur in facts in replace_with_true")
+      | Var (b,tl) -> Var (b,tl)
+      | FunApp(f, [t1;t2]) when f.f_cat == LetEqual ->
+	  (* Make sure that the left-hand side of LetEqual is not replaced:
+	     it must remain a variable. *)
+	  FunApp(f, [t1; replace_with_true modified simp_facts t t2])
+      | FunApp (f, l) -> FunApp (f, List.map (replace_with_true modified simp_facts t) l)
+      | ReplIndex b -> ReplIndex b
+      | _ ->
+	  Parsing_helper.internal_error "Only Var, FunApp, ReplIndex should occur in facts in replace_with_true")
       (* ReplIndex can occur here because replication indices can occur as arguments of functions in events *)
 	  
 (* Simplify existing facts by knowing that the new term t is true, and then simplify the term t by knowing the facts are true *)
 and simplify_facts depth dep_info (subst2,facts,elsefind) t =
+  let simp_facts = (subst2, [], elsefind) in 
   let mod_facts = ref [] in
   let not_mod_facts = ref [] in
   List.iter
     (fun t' -> 
       let m = ref false in
-      let t''=replace_with_true m t t' in
+      let t''=replace_with_true m simp_facts t t' in
       if !m then 
 	mod_facts := t'' :: (!mod_facts)
       else
@@ -671,7 +684,7 @@ and simplify_facts depth dep_info (subst2,facts,elsefind) t =
     )
     facts;
   let m = ref false in
-  let t' = List.fold_left (fun nt f -> replace_with_true m f nt) t ((!mod_facts)@(!not_mod_facts)) in
+  let t' = List.fold_left (fun nt f -> replace_with_true m simp_facts f nt) t ((!mod_facts)@(!not_mod_facts)) in
   (* not(true) is not simplified in add_fact, simplify it here *)
   let t' = 
     if !m then 
@@ -720,7 +733,10 @@ and add_fact depth dep_info simp_facts fact =
 	      | _::l -> try_red_t1 l
 	    in
 	    try_red_t1 subst2
-	| _ -> 
+	| _ ->
+	    Display.display_term fact;
+	    print_string " reduced into ";
+	    Display.display_term fact';
 	    Parsing_helper.internal_error "LetEqual terms should have a variable in the left-hand side"
       end
   | FunApp(f,[t1;t2]) when f.f_cat == Equal ->
@@ -1415,6 +1431,45 @@ let get_facts_at pp =
       List.iter (add_facts history fact_accu (ref def_vars) (ref [])) def_vars;
       !fact_accu
 
+(* [get_def_vars_full_block pp] returns the variables that are known
+   to be defined at the end of the input...output block containing
+   program point [pp]. *)
+
+let get_def_vars_full_block pp  = 
+  match Terms.get_facts pp with
+    Some (_,_,_,def_vars,n) ->
+      let done_refs =
+	ref (List.map Terms.binderref_from_binder
+	       (n.future_binders @ Terms.add_def_vars_node [] n))
+      in
+      let seen_refs = ref (def_vars @ (!done_refs)) in
+      (* Note: def_vars contains n.def_vars_at_def *)
+      let history = get_initial_history pp in
+      List.iter (add_def_vars history seen_refs done_refs) def_vars;
+      !seen_refs
+  | None -> []
+
+(* [get_facts_full_block pp] returns the facts that are known to hold
+   at the end of the input...output block containing program point [pp]. *)
+
+let get_facts_full_block pp =
+  match Terms.get_facts pp with
+    None -> []
+  | Some(_,true_facts, _, def_vars, n) ->
+      let fact_accu = ref (filter_ifletfindres (n.future_true_facts @ true_facts)) in
+      (* Note: def_vars contains n.def_vars_at_def *)
+      let history = get_initial_history pp in
+      List.iter (add_facts history fact_accu (ref def_vars) (ref [])) def_vars;
+      !fact_accu
+
+(* [get_elsefind_facts_at pp] returns the elsefind facts that are
+   known to hold at program point [pp] *)
+
+let get_elsefind_facts_at pp = 
+  match Terms.get_facts pp with
+    None -> []
+  | Some(_, _, elsefind_facts, _, _) -> elsefind_facts
+
 (* Functions useful to simplify def_list *)
 
 (* [filter_def_list accu l] returns a def_list that contains
@@ -1575,6 +1630,7 @@ let rec put_defined_cond_fc def_list t =
       let (def_list', t1') = put_defined_cond_fc def_list t1 in
       (def_list', Terms.build_term2 t (ResE(b, t1')))
   | EventAbortE _ -> ([], t)
+  | EventE _ | GetE _ | InsertE _ -> Parsing_helper.internal_error "Event/Get/Insert not occur in Facts.put_defined_cond_fc"
 
 let rec put_defined_cond_i def_list p =
   match p.i_desc with
@@ -1914,11 +1970,11 @@ let rec add_facts_cases history (fact_accu, fact_accu_cases) seen_refs done_refs
       fact_accu_cases := true_facts_at_def_cases :: (!fact_accu_cases);
     end
 
-let get_facts_at_cases pp  =
+let get_facts_full_block_cases pp  =
   match Terms.get_facts pp with
     None -> [],[]
   | Some(_,true_facts, _, def_vars, n) ->
-      let fact_accu = ref (filter_ifletfindres true_facts) in
+      let fact_accu = ref (filter_ifletfindres (n.future_true_facts @ true_facts)) in
       let fact_accu_cases = ref [] in
       (* Note: def_vars contains n.def_vars_at_def *)
       let history = get_initial_history pp in
@@ -2477,6 +2533,8 @@ and display_facts_at_t t occ =
       | LetE (pat,t1,t2,topt) -> display_facts_at_pat pat occ;display_facts_at_t t1 occ;display_facts_at_t t2 occ;(match topt with Some t -> display_facts_at_t t occ| None -> ())
       | ResE (_,t) -> display_facts_at_t t occ
       | EventAbortE f -> ()
+      | EventE (t,p) -> display_facts_at_t t occ;display_facts_at_t p occ
+      | InsertE (_,_,_) | GetE (_,_,_,_,_) -> Parsing_helper.internal_error "Get/Insert should not appear at this point"
 
 and display_facts_at_pat pat occ =
   match pat with

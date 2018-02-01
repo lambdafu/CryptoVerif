@@ -1,0 +1,154 @@
+(* FDH encryption scheme (CPA) *)
+
+proof {
+show_game;
+crypto hash;
+remove_assign binder pk;
+crypto f r_1;
+show_game;
+crypto xor r_4;
+success
+}
+
+
+param N.
+param N2.
+param N3.
+param N4.
+param N5.
+param N6.
+param N7.
+
+type pkey.
+type skey.
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(keyseed):pkey.
+fun pkgen2(keyseed):pkey.
+fun skgen(keyseed):skey.
+fun f(pkey, seed):seed.
+fun f2(pkey, seed):seed.
+fun mf(skey, seed):seed.
+
+forall r:keyseed, x:seed; mf(skgen(r), f(pkgen(r), x)) = x.
+
+forall k:pkey, x:seed, x2:seed; (f(k,x) = f(k,x2)) = (x = x2).
+
+(*
+equiv !N new y:seed; (k:pkey) -> y
+<=(0)=> 
+      !N new y:seed; (k:pkey) -> f(k,y).
+
+The equivalence above is ok, but for manual proofs only. (It can be applied
+everywhere.) The one below can be used in automatic proofs.
+*)
+
+equiv
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle() := return(pkgen(r)) |
+    ! N3 new y: seed; (
+      ! N4 gen_Oracle_1() := return(mf(skgen(r),y)) |
+      ! N5 gen_Oracle_2() := return(y)))
+<=(0)=>
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle() := return(pkgen(r)) |
+    ! N3 new y: seed; (
+      ! N4 gen_Oracle_1() := return(y) |
+      ! N5 gen_Oracle_2() := return(f(pkgen(r), y)))).
+
+
+equiv
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle_1() := return(pkgen(r)) |
+    ! N3 new y: seed; (
+      ! N4 gen_Oracle_2() := return(f(pkgen(r), y)) |
+      ! N5 gen_Oracle_3(x: seed) := return(x = y) |
+      ! N6 gen_Oracle_4() := return(y)))
+<=(N * N3 * POW(time))=>
+  ! N new r: keyseed; (
+    ! N2 gen_Oracle_1() := return(pkgen2(r)) |
+    ! N3 new y: seed; (
+      ! N4 gen_Oracle_2() := return(f2(pkgen2(r), y)) |
+      ! N5 gen_Oracle_3(x: seed) := find j <= N6 suchthat defined(k[j]) then return(x = y) else return(false) |
+      ! N6 gen_Oracle_4() := let k:bitstring = mark in return(y))).
+
+(* Hash function, random oracle model *)
+
+fun hash(seed):hasht.
+
+equiv
+  ! N gen_Oracle_1(x: seed) := return(hash(x)) [all]
+<=(0)=>
+  ! N gen_Oracle_1(x: seed) := find j <= N suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: hasht; return(r).
+
+(* Xor *)
+
+fun xor(hasht,hasht):hasht.
+equation commut(xor).
+
+equiv
+  ! N new a: hasht; gen_Oracle_1(x: hasht) := return(xor(a,x))
+<=(0)=>
+  ! N new a: hasht; gen_Oracle_1(x: hasht) := return(a).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15,
+	start, finish.
+
+
+
+
+
+
+
+process 
+	in(start, =());
+new r: keyseed;
+let sk: skey = skgen(r) in
+let pk: pkey = pkgen(r) in
+out(c9, pk);
+((
+  ! i_1 <= N
+  in(c1[i_1], x_1: seed);
+  out(c2[i_1], hash(x_1))
+) | (
+  ! i_2 <= N2
+  in(c3[i_2], m: hasht);
+  new x_2: seed;
+  let a: seed = f(pk, x_2) in
+  let b: hasht = xor(hash(x_2), m) in
+  out(c4[i_2], (a, b))
+) | (
+  in(c7, (m1: hasht, m2: hasht));
+  new b1: bool;
+  let menc: hasht = test(b1, m1, m2) in
+  new x_3: seed;
+  let a_1: seed = f(pk, x_3) in
+  let b_1: hasht = xor(hash(x_3), menc) in
+  out(c8, (a_1, b_1))
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.020s + system 0.008s), max rss 41056K
+END *)

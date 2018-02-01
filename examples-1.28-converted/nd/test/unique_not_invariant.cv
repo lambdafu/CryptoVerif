@@ -1,0 +1,53 @@
+(* After transformation, we end up with
+
+in(c, ());
+new @3_r2_33: D;
+new @3_r2_31: D;
+out(c2, (@3_r2_33, @3_r2_31));
+in(c3, m: D);
+find [unique]  suchthat (m = @3_r2_31) then
+  new x2: D;
+  out(c4, x2)
+orfind  suchthat (m = @3_r2_33) then
+  new x1: D;
+  out(c4, x1)
+else
+  new @3_r4_29: D;
+  out(c4, @3_r4_29)
+
+
+The find is not unique in case there is a collision between
+@3_r2_33 and @3_r2_31. Such collisions have been eliminated previously,
+but still... *)
+
+
+
+
+type D [large, fixed].
+type keyseed [large, fixed].
+type key [large, bounded].
+
+proba Penc.
+expand SPRP_cipher(keyseed, key, D, kgen, enc, dec, Penc).
+
+channel c, c2, c3, c4.
+
+process
+	in(c, ());
+new r_1: keyseed;
+let k_1: key = kgen(r_1) in
+new x1: D;
+let y1: D = enc(x1, k_1) in
+new x2: D;
+let y2: D = enc(x2, k_1) in
+out(c2, (y1, y2));
+in(c3, m_1: D);
+let z: D = dec(m_1, k_1) in
+out(c4, z)
+
+
+
+(* EXPECTED
+All queries proved.
+0.012s (user 0.012s + system 0.000s), max rss 42880K
+END *)

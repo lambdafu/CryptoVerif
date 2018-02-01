@@ -1,0 +1,321 @@
+(************************************************************************
+ *                                                                      *
+ *       Kerberos 5 protocol                                            *
+ *                                                                      *
+ *       Joe-Kai Tsay, Bruno Blanchet, Aaron D. Jaggard, Andre Scedrov  *
+ *                                                                      *
+ *       Copyright (C) University of Pennsylvania, ENS, CNRS,           *
+ *       Rutgers University, 2007-2008                                  *
+ *                                                                      *
+ ************************************************************************)
+
+(*
+
+    Copyright University of Pennsylvania, ENS, CNRS, Rutgers University
+    authors of this file:   Joe-Kai Tsay, jetsay@math.upenn.edu,
+                Bruno Blanchet, Bruno.Blanchet@ens.fr,
+                Aaron D. Jaggard, adj@dimacs.rutgers.edu,
+                Andre Scedrov, scedrov@math.upenn.edu
+    
+    
+This file contains a model of the Kerberos 5 protocol, for use with the
+cryptographic protocol verifier CryptoVerif. It is a companion to
+the AsiaCCS'08 paper "Computationally Sound Mechanized Proofs for
+Basic and Public-key Kerberos", by B. Blanchet, A. D. Jaggard, A. Scedrov,
+and J.-K. Tsay.
+
+This software is governed by the CeCILL license under French law and
+abiding by the rules of distribution of free software.  You can use, 
+modify and/ or redistribute the software under the terms of the CeCILL
+license as circulated by CEA, CNRS and INRIA at the following URL
+"http://www.cecill.info". 
+
+As a counterpart to the access to the source code and  rights to copy,
+modify and redistribute granted by the license, users are provided only
+with a limited warranty  and the software's author,  the holder of the
+economic rights,  and the successive licensors  have only  limited
+liability. 
+
+In this respect, the user's attention is drawn to the risks associated
+with loading,  using,  modifying and/or developing or reproducing the
+software by the user in light of its specific status of free software,
+that may mean  that it is complicated to manipulate,  and  that  also
+therefore means  that it is reserved for developers  and  experienced
+professionals having in-depth computer knowledge. Users are therefore
+encouraged to load and test the software's suitability as regards their
+requirements in conditions enabling the security of their systems and/or 
+data to be ensured and,  more generally, to use and operate it in the 
+same conditions as regards security. 
+
+Anything other than deleting this file means that you have knowledge
+of the CeCILL license and that you accept its terms.
+
+*)
+
+(* Note: This file requires CryptoVerif version 1.07 or higher. *)
+
+
+(* basic Kerberos 5, all 3 rounds, consider only authentication properties *)
+
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type kas [bounded].
+type client [bounded].
+type tgs [bounded].
+type server [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type timest [fixed].                            
+
+(* Message construction functions *)
+
+fun concat1(key, nonce, timest, tgs):maxenc [data].       
+fun concat2(key, timest, client):maxenc [data].       
+fun concat3(key, nonce, timest, server):maxenc [data].        
+fun pad(client, timest):maxenc [data].
+fun padts(timest): maxenc [data].
+
+forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;      concat2(y,x,z) <> concat1(t2,y2,x2,z2).
+forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
+forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;         pad(z,t) <> concat1(t2,y2,x2,z2).
+forall t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;               padts(t) <> concat1(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server;  concat2(y,x,z) <> concat3(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2:timest, z2:client;             concat2(y,x,z) <> pad(z2,t2). 
+forall y:key, x:timest, z:client, t2:timest;                    concat2(y,x,z) <> padts(t2). 
+forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;        concat3(t,y,x,z) <> pad(z2,t2).
+forall t:key, y:nonce, x:timest, z:server, t2:timest;               concat3(t,y,x,z) <> padts( t2).
+forall t:timest, z:client, t2:timest;                       pad(z,t)<> padts(t2).
+
+
+(* Shared-key encryption (IND-CPA and INT-CTXT Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencctxt).
+
+(* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+const  Zconcat1:maxenc.
+const  Zconcat2:maxenc.
+const  Zconcat3: maxenc.
+const  Zpad:maxenc.
+const  Zpadts: maxenc.
+forall y:nonce, x:timest, z:tgs, t:key;
+    Z(concat1(t,y,x,z)) = Zconcat1.
+forall y:key, x:timest, z:client; 
+    Z(concat2(y,x,z)) = Zconcat2.
+forall  y:nonce, x:timest, z:server, t:key;
+    Z(concat3(t,y,x,z)) = Zconcat3.
+forall z:client, t:timest;
+        Z(pad(z,t)) = Zpad.
+forall t: timest;
+        Z(padts(t)) = Zpadts.
+                        
+(* Channel declarations *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, start, finish, cC, cT.
+
+(* Host names for honest hosts *)
+
+const C : client.
+const K : kas.
+const T : tgs.
+const S : server.                       
+
+(* Final accept messages *)
+
+fun acceptC1(kas): bitstring.
+fun acceptC2(tgs,server): bitstring.
+fun acceptC3(server): bitstring.
+fun acceptT(client,server): bitstring.
+fun acceptS(client): bitstring.
+
+(* Authentication Queries *)
+
+event fullKC(client, tgs, nonce, bitstring, bitstring).
+event fullCK(tgs, nonce, bitstring, bitstring).     
+
+event partCT(tgs, bitstring, bitstring).
+event fullCT(tgs, server, nonce, bitstring, bitstring, bitstring).          
+event partTC(client, bitstring, bitstring).         
+event fullTC(client, server, nonce, bitstring, bitstring, bitstring, bitstring).
+            
+event partCS(server, tgs, bitstring, bitstring).
+event fullCS(server, tgs, bitstring, bitstring, bitstring).
+event partSC(client, bitstring, bitstring).
+event fullSC(client, bitstring, bitstring, bitstring).              
+
+(* Theorem 1 *)
+
+query z: bitstring, y: bitstring, x: bitstring, N: nonce;
+  inj-event(fullCK(T, N, x, y)) ==> inj-event(fullKC(C, T, N, z, y)).
+        
+(* Theorem 2 *)
+ 
+query y': bitstring, N: nonce, x': bitstring, y: bitstring, x: bitstring;
+  event(partTC(C, x, y)) ==> (event(partCT(T, x', y)) && event(fullKC(C, T, N, x, y'))).
+        
+(* Theorem 3 *)
+                    
+query v: bitstring, z': bitstring, x': bitstring, y: bitstring, z: bitstring, x: bitstring, N: nonce;
+  inj-event(fullCT(T, S, N, x, z, y)) ==> inj-event(fullTC(C, S, N, x', z', v, y)).
+
+(* Theorem 4 *)
+
+query w: bitstring, v': bitstring, v: bitstring, N: nonce, x: bitstring, y: bitstring, z: bitstring;
+  event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))).
+
+(* Theorem 5 *)
+
+query y': bitstring, x: bitstring, w: bitstring, y: bitstring, z: bitstring;
+  event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)).
+     
+
+(* Code for the client C *)
+
+
+
+
+
+
+        
+
+(* Code for registering the keys *)
+
+
+
+
+
+
+
+                    
+(* Code for the Kerberos Authentication Server (KAS) K *)
+
+
+
+
+(* Code for the Ticket Granting Server (TGS) T *)
+
+   
+
+(* Code for the server S *) 
+
+
+
+
+(* Main process, which generates long-term keys and runs the various processes *)
+
+process
+    in(start, ());
+new rKc: keyseed;
+let Kc: key = kgen(rKc) in
+new rKt: keyseed;
+let Kt: key = kgen(rKt) in
+new rKs: keyseed;
+let Ks: key = kgen(rKs) in
+out(c25, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hostT: tgs);
+  new n1_1: nonce;
+  out(c2[i_1], (C, hostT, n1_1));
+  in(c3[i_1], (=C, m_1: bitstring, m2: bitstring));
+  let injbot(concat1(AK: key, =n1_1, tk: timest, =hostT)) = dec(m2, Kc) in
+  event fullCK(hostT, n1_1, m_1, m2);
+  out(c18[i_1], acceptC1(K));
+  ! i_2 <= N3
+  in(c17[i_2, i_1], (hostT': tgs, hostS: server));
+  if hostT' = hostT then
+  new n3: nonce;
+  new tc: timest;
+  new r1: seed;
+  let e5: bitstring = enc(pad(C, tc), AK, r1) in
+  event partCT(hostT, m_1, e5);
+  out(c4[i_2, i_1], (m_1, e5, hostS, n3));
+  in(c5[i_2, i_1], (=C, m6: bitstring, m7: bitstring));
+  let injbot(concat3(SK: key, =n3, tt: timest, =hostS)) = dec(m7, AK) in
+  event fullCT(hostT, hostS, n3, m_1, e5, m7);
+  out(c19[i_2, i_1], acceptC2(hostT, hostS));
+  ! i_3 <= N4
+  in(c20[i_3, i_2, i_1], hostS': server);
+  if hostS' = hostS then
+  new tc'_1: timest;
+  new r2_1: seed;
+  let e12: bitstring = enc(pad(C, tc'_1), SK, r2_1) in
+  event partCS(hostS, hostT, m7, e12);
+  out(c6[i_3, i_2, i_1], (m6, e12));
+  in(c9[i_3, i_2, i_1], m13: bitstring);
+  if injbot(padts(tc'_1)) = dec(m13, SK) then
+  event fullCS(hostS, hostT, m7, e12, m13);
+  out(c10[i_3, i_2, i_1], acceptC3(hostS))
+) | (
+  ! i_4 <= N
+  in(c14[i_4], (hostY_1: client, hostW_1: tgs, n: nonce));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rkey[j1_1]) && (Khost[j1_1] = hostY_1) then
+  find j2 = j2_1 <= N2 suchthat defined(Lhost[j2_1], Qkey[j2_1]) && (Lhost[j2_1] = hostW_1) then
+  new rAK: keyseed;
+  let AK_1: key = kgen(rAK) in
+  new tk_1: timest;
+  new r3: seed;
+  let e3: bitstring = enc(concat2(AK_1, tk_1, hostY_1), Qkey[j2], r3) in
+  new r4: seed;
+  let e4: bitstring = enc(concat1(AK_1, n, tk_1, hostW_1), Rkey[j1], r4) in
+  event fullKC(hostY_1, hostW_1, n, e3, e4);
+  out(c15[i_4], (hostY_1, e3, e4))
+) | (
+  ! i_5 <= N
+  in(c7[i_5], (m8: bitstring, m9: bitstring, hostW_2: server, n': nonce));
+  let injbot(concat2(AK_2: key, tk_2: timest, hostY_2: client)) = dec(m8, Kt) in
+  let injbot(pad(=hostY_2, ts: timest)) = dec(m9, AK_2) in
+  event partTC(hostY_2, m8, m9);
+  find j3 = j3_1 <= N2 suchthat defined(Mhost1[j3_1], Mhost2[j3_1], Pkey[j3_1]) && (Mhost1[j3_1] = T) && (Mhost2[j3_1] = hostW_2) then
+  new rSK: keyseed;
+  let SK_1: key = kgen(rSK) in
+  new tt_1: timest;
+  new r10: seed;
+  let e10: bitstring = enc(concat2(SK_1, tt_1, hostY_2), Pkey[j3], r10) in
+  new r11: seed;
+  let e11: bitstring = enc(concat3(SK_1, n', tt_1, hostW_2), AK_2, r11) in
+  event fullTC(hostY_2, hostW_2, n', m8, m9, e10, e11);
+  out(c8[i_5], (hostY_2, e10, e11, acceptT(hostY_2, hostW_2)))
+) | (
+  ! i_6 <= N
+  in(c11[i_6], (m14: bitstring, m15: bitstring));
+  let injbot(concat2(SK_2: key, tt_2: timest, hostC: client)) = dec(m14, Ks) in
+  let injbot(pad(=hostC, tc'_2: timest)) = dec(m15, SK_2) in
+  new r16: seed;
+  let e16: bitstring = enc(padts(tc'_2), SK_2, r16) in
+  event partSC(hostC, m14, m15);
+  event fullSC(hostC, m14, m15, e16);
+  out(c12[i_6], (e16, acceptS(hostC)))
+) | (
+  ! i_7 <= N2
+  in(c13[i_7], (Khost: client, Kkey: key));
+  let Rkey: key = (if Khost = C then Kc else Kkey)
+) | (
+  ! i_8 <= N2
+  in(c21[i_8], (Lhost: tgs, Lkey: key));
+  let Qkey: key = (if Lhost = T then Kt else Lkey)
+) | (
+  ! i_9 <= N2
+  in(c16[i_9], (Mhost1: tgs, Mhost2: server, Mkey: key));
+  let Pkey: key = (if (Mhost1 = T) && (Mhost2 = S) then Ks else Mkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+1.188s (user 1.132s + system 0.056s), max rss 99792K
+END *)

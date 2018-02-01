@@ -1,0 +1,80 @@
+(* Version in which the participants only talk to A and B *)
+
+param N.
+param N2.
+param N3.
+
+(* Bitstrings of size exactly the block size *)
+type blocksize [large,fixed].
+
+type tag.
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+(* Concat1 and concat2 already include the necessary padding to reach the block size *)
+fun concat2(tag, nonce, key):blocksize [data].
+
+(* Shared-key encryption (Block cipher) *)
+
+proba Penc.
+
+fun enc(blocksize, key): blocksize.
+fun kgen(keyseed):key.
+fun dec(blocksize, key): blocksize.
+
+forall m:blocksize, r:keyseed; 
+	dec(enc(m, kgen(r)), kgen(r)) = m.
+
+equiv
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle(x: blocksize) := return(enc(x, kgen(r))) |
+    ! N2 gen_Oracle_1(m: blocksize) := return(dec(m, kgen(r))))
+<=(N3 * Penc)=>
+  ! N3 new r: keyseed; (
+    ! N new r2: blocksize; gen_Oracle(x: blocksize) := find j <= N suchthat defined(x[j], r3[j]) && (x = x[j]) then return(r3[j]) orfind k <= N2 suchthat defined(r5[k], m[k]) && (x = r5[k]) then return(m[k]) else let r3: blocksize = r2 in return(r3) |
+    ! N2 new r4: blocksize; gen_Oracle_1(m: blocksize) := find j <= N suchthat defined(x[j], r3[j]) && (m = r3[j]) then return(x[j]) orfind k <= N2 suchthat defined(r5[k], m[k]) && (m = m[k]) then return(r5[k]) else let r5: blocksize = r4 in return(r5)).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret k_1 [onesession].
+
+channel c.
+const A : host.
+const B : host.
+
+
+
+
+	
+process 
+	in(c, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+out(c, ());
+((
+  ! i_1 <= N
+  in(c[i_1], ea2: blocksize);
+  let concat2(=tag3, n: nonce, keyA: key) = dec(ea2, Kas)
+) | (
+  ! i_2 <= N
+  in(c[i_2], ());
+  new Na: nonce;
+  new k_1: key;
+  let e1: blocksize = enc(concat2(tag3, Na, k_1), Kas) in
+  out(c[i_2], e1)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of keyA.
+0.032s (user 0.024s + system 0.008s), max rss 38672K
+END *)

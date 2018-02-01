@@ -64,7 +64,7 @@ and find_binders_term_def_list t =
       List.iter find_binders_term_def_list l
   | ReplIndex _ -> ()
   | _ -> 
-      Parsing_helper.internal_error "if/let/find/new forbidden in def_list"
+      Parsing_helper.internal_error "if/let/find/new/insert/get forbidden in def_list"
 
 let rec find_binders_find_cond t =
   match t.t_desc with
@@ -82,8 +82,8 @@ let rec find_binders_find_cond t =
   | ResE(b,t) ->
       add_find_cond b;
       find_binders_find_cond t
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "event_abort should not occur as term"
+  | InsertE _ | GetE _ | EventE _ | EventAbortE _ ->
+      Parsing_helper.internal_error "insert/get/event/event_abort should not occur as term"
   | LetE(pat, t1, t2, topt) ->
       let pat_vars = Terms.vars_from_pat [] pat in
       List.iter add_find_cond pat_vars;
@@ -185,7 +185,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
     match ty_opt with
       None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
     | Some ty ->
-	let b = Terms.create_binder s_b 0 ty cur_array in
+	let b = Terms.create_binder s_b ty cur_array in
 	Hashtbl.add hash_binders s_b FindCond;
 	b
 
@@ -230,7 +230,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
       match ty_opt with
 	None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
       |	Some ty ->
-	  let b = Terms.create_binder s_b 0 ty cur_array in
+	  let b = Terms.create_binder s_b ty cur_array in
 	  Hashtbl.add hash_binders s_b (Std b);
 	  b
 
@@ -328,8 +328,14 @@ let rec check_term defined_refs cur_array env = function
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | (PTestE _ | PLetE _ | PFindE _), ext ->
       raise (Error("if/let/find should appear as terms only in conditions of find", ext))
+  | PInsertE _, ext ->
+      raise (Error("insert should not appear as term", ext))
+  | PGetE _, ext ->
+      raise (Error("get should not appear as term", ext))
   | PResE _, ext ->
       raise (Error("new should not appear as term", ext))
+  | PEventE _, ext ->
+      raise (Error("event should not appear as term", ext))
   | PEventAbortE _, ext ->
       raise (Error("event_abort should not appear as term", ext))
   | PEqual(t1,t2), ext ->
@@ -356,8 +362,8 @@ let rec check_term defined_refs cur_array env = function
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
-  | PInjEvent _,ext -> 
-      raise (Error("inj: allowed only in queries", ext))
+  | PQEvent _,ext -> 
+      raise (Error("event(...) and inj-event(...) allowed only in queries", ext))
 
 and check_br defined_refs cur_array env ((s,ext), tl) =
   let tl' = List.map (check_term defined_refs cur_array env) tl in
@@ -386,8 +392,8 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 	  match tyopt, tyoptres with
 	    None, None -> None
 	  | None, Some ty -> Some ty
-	  | Some (s2, ext2), None -> 
-	      let ty' = get_type env s2 ext2 in
+	  | Some tyb, None -> 
+	      let (ty',ext2) = get_ty env tyb in
 	      begin
 		match ty'.tcat with
 		  Interv _ -> raise (Error("Cannot input a term of interval type", ext2))
@@ -397,8 +403,8 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 		|	_ -> ()
 	      end;
 	      Some ty'
-	  | Some (s2,ext2), Some ty ->
-	      let ty' = get_type env s2 ext2 in
+	  | Some tyb, Some ty ->
+	      let (ty',ext2) = get_ty env tyb in
 	      if ty != ty' then
 		raise (Error("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname, ext2));
 	      Some ty
@@ -425,7 +431,7 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 	match StringMap.find s env with
 	  EFunc(f) ->
 	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	      raise (Error("Only [compos] functions are allowed in patterns", ext));
+	      raise (Error("Only [data] functions are allowed in patterns", ext));
 	    begin
 	      match tyoptres with
 		None -> ()
@@ -511,10 +517,10 @@ let rec check_find_cond defined_refs cur_array env = function
 	Parsing_helper.input_error "Options are not allowed for find in manually inserted instructions, because I cannot check that they are correct." ext;
       let rec add env = function
 	  [] -> (env,[])
-	| ((s1,ext1),(s2,ext2))::bl ->
+	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
 	    let p = get_param env s2 ext2 in
-	    let b = get_var true env (s1,ext1) (Some (Terms.type_for_param p)) cur_array in
-	    let env' = StringMap.add s1 (EVar b) env in
+	    let b = get_var true env (s0,ext1) (Some (Terms.type_for_param p)) cur_array in
+	    let env' = StringMap.add s0 (EVar b) env in
 	    let (env'',bl') = add env' bl in
 	    if List.memq b bl' then
 	      raise (Error("Variable " ^ (Display.binder_to_string b) ^ " defined several times in the same find", ext1));
@@ -522,9 +528,9 @@ let rec check_find_cond defined_refs cur_array env = function
       in
       let rec add_ri env = function
 	  [] -> (env,[])
-	| ((s1,ext1),(s2,ext2))::bl ->
+	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
 	    let p = get_param env s2 ext2 in
-	    let b = Terms.create_repl_index s1 (Terms.new_vname()) (Terms.type_for_param p) in
+	    let b = Terms.create_repl_index s1 (Terms.type_for_param p) in
 	    let env' = StringMap.add s1 (EReplIndex b) env in
 	    let (env'',bl') = add_ri env' bl in
 	    (env'',b::bl')
@@ -595,10 +601,10 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
       let def_accu = ref def in
       let rec add env = function
 	  [] -> (env,[])
-	| ((s1,ext1),(s2,ext2))::bl ->
+	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
 	    let p = get_param env s2 ext2 in
-	    let b = get_var false env (s1,ext1) (Some (Terms.type_for_param p)) cur_array in
-	    let env' = StringMap.add s1 (EVar b) env in
+	    let b = get_var false env (s0,ext1) (Some (Terms.type_for_param p)) cur_array in
+	    let env' = StringMap.add s0 (EVar b) env in
 	    let (env'',bl') = add env' bl in
 	    if List.memq b bl' then
 	      raise (Error("Variable " ^ (Display.binder_to_string b) ^ " defined several times in the same find", ext1));
@@ -606,9 +612,9 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
       in
       let rec add_ri env = function
 	  [] -> (env,[])
-	| ((s1,ext1),(s2,ext2))::bl ->
+	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
 	    let p = get_param env s2 ext2 in
-	    let b = Terms.create_repl_index s1 (Terms.new_vname()) (Terms.type_for_param p) in
+	    let b = Terms.create_repl_index s1 (Terms.type_for_param p) in
 	    let env' = StringMap.add s1 (EReplIndex b) env in
 	    let (env'',bl') = add_ri env' bl in
 	    (env'',b::bl')
@@ -725,20 +731,13 @@ and insert_inso count occ ins env cur_array p =
     r
 
 let insert_instruct occ ext_o s ext_s g =
-  (* @ is not accepted in identifiers when parsing the initial file,
-     but CryptoVerif creates variables with @, so I accept @ here. *)
-  Parsing_helper.accept_arobase := true;
   let lexbuf = Lexing.from_string s in
+  Parsing_helper.set_start lexbuf ext_s;
   let ins = 
     try 
-      if (!Settings.front_end) == Settings.Channels then 
-	Parser.instruct Lexer.token lexbuf
-      else
-	Oparser.instruct Olexer.token lexbuf
+      Parser.instruct Lexer.token lexbuf
     with
-      Parsing.Parse_error -> raise (Error("Syntax error", combine_extent ext_s (extent lexbuf)))
-    | Error(s,ext) -> raise (Error(s, combine_extent ext_s ext))
-
+      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
   in
   Terms.array_ref_process g.proc;
   Simplify1.improved_def_process None false g.proc;
@@ -751,7 +750,7 @@ let insert_instruct occ ext_o s ext_s g =
     with Error(mess, extent) ->
       Terms.cleanup_array_ref();
       Hashtbl.clear hash_binders;
-      raise (Error(mess, combine_extent ext_s extent))
+      raise (Error(mess, extent))
   in
   Terms.cleanup_array_ref();
   Simplify1.empty_improved_def_process false g.proc;
@@ -837,8 +836,8 @@ let rec replace_tt count env facts cur_array t =
 	  FunApp(f, [replace_tt count env ((Terms.make_not t2)::facts) cur_array t1;
 		 replace_tt count env ((Terms.make_not t1)::facts) cur_array t2])
 	| FunApp(f,l) -> FunApp(f, List.map (replace_tt count env facts cur_array) l)
-	| ResE _ | TestE _ | LetE _ | FindE _ | EventAbortE _ ->
-	    Parsing_helper.internal_error "if/let/find/new/event_abort should have been expanded in replace_term")
+	| ResE _ | TestE _ | LetE _ | FindE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+	    Parsing_helper.internal_error "if/let/find/new/event/event_abort/get/insert should have been expanded in replace_term")
 
 let rec replace_tpat count env cur_array = function
     PatVar b -> PatVar b
@@ -850,8 +849,8 @@ and replace_tfind_cond count env cur_array t =
     ResE(b,p) ->
       let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
       Terms.build_term2 t (ResE(b, replace_tfind_cond count env' cur_array p))
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "event_abort should not occur as term"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event, event_abort, get, insert should not occur as term"
   | TestE(t1,t2,t3) ->
       let t2' = replace_tfind_cond count env cur_array t2 in
       let t3' = replace_tfind_cond count env cur_array t3 in
@@ -989,19 +988,13 @@ and replace_to count env cur_array p =
   Terms.oproc_from_desc2 p p_desc'
 
 let replace_term occ ext_o s ext_s g =
-  (* @ is not accepted in identifiers when parsing the initial file,
-     but CryptoVerif creates variables with @, so I accept @ here. *)
-  Parsing_helper.accept_arobase := true;
   let lexbuf = Lexing.from_string s in
+  Parsing_helper.set_start lexbuf ext_s;
   let rep_term = 
     try 
-      if (!Settings.front_end) == Settings.Channels then 
-	Parser.term Lexer.token lexbuf
-      else
-	Oparser.term Olexer.token lexbuf
+      Parser.term Lexer.token lexbuf
     with
-      Parsing.Parse_error -> raise (Error("Syntax error", combine_extent ext_s (extent lexbuf)))
-    | Error(s,ext) -> raise (Error(s, combine_extent ext_s ext))
+      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
   in
   Terms.array_ref_process g.proc;
   Simplify1.improved_def_process None true g.proc;

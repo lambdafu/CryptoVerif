@@ -1,0 +1,65 @@
+
+(** ElGamal encryption scheme **)
+
+(** An encryption scheme is shown to be SS
+    under the DDH assumption.
+    See Section 3, "Sequences of Games", Victor Shoup. **)
+
+(* Replicated the encryption oracle, so that several encryptions can
+be performed, in order to show that El Gamal is IND-CPA. This goes 
+slightly beyond the proof in Shoup's paper (it is however an easy
+consequence of Shoup's proof). It requires a slightly more powerful
+formalization of DDH than Shoup's proof. 
+
+Here, I am just using the default formalization of DDH provided
+in the library of primitives. *) 
+
+param n, n', q.
+
+type Z [fixed].
+type G [fixed].
+
+proba pDDH.
+expand DDH(G, Z, gamma, exp, mult, pDDH).
+
+fun dot(G,G): G.
+
+(* dot(.,y) is a uniform function *)
+
+equiv 
+    (y:G) n -> new x:G; dot(x,y) [all]
+<=(0)=> 
+    (y:G) n -> new x:G; x.
+
+(* choose(b,M,N) = if b then M else N *)
+
+fun choose(bool,G,G): G.
+
+
+(* query *)
+query secret b.
+
+channel cPK, cE, cEret, start.
+
+let processE = 
+    !q
+    in(cE, (m0:G, m1:G));
+    let m = choose(b,m1,m0) in
+    new y:Z;
+    let beta = exp(gamma,y) in
+    let delta = exp(alpha,y) in
+    let zeta = dot(delta, m) in
+    out(cEret, (beta,zeta)).
+
+process
+  in(start, ());
+  new b:bool;
+  new x:Z;
+  let alpha = exp(gamma,x) in
+  out(cPK, alpha); 
+  processE
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.020s + system 0.010s), max rss 16560K
+END *)

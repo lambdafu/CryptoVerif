@@ -24,6 +24,9 @@ let rec make_length_term g t =
       make_length_term g t
   | EventAbortE _ ->
       Zero
+  | EventE(_,p) ->
+      make_length_term g p
+  | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear in make_length_term"
 
 and make_length g = function
     [] -> []
@@ -188,6 +191,9 @@ and time_term t =
 	   (match topt with
 	     None -> Polynom.zero 
 	   | Some t2 -> time_term t2)))
+  | EventE(_,p) ->
+      (* Events can be ignored *) time_term p
+  | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear in time_term"
 
 and time_pat = function
     PatVar b -> 

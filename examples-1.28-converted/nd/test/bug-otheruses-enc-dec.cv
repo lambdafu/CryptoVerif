@@ -1,0 +1,101 @@
+(* 
+Bug related to simplify/otheruses: the event termS is finally
+removed
+*)
+
+
+proof {
+crypto enc;
+show_game occ;
+insert_event Encrypt 75; (* In the client, at the branch that tests pw = ke[...] *)
+simplify;
+simplify;
+simplify coll_elim pw;
+auto
+}
+
+(* set interactiveMode = true. *)
+
+param NU, NS, NP.
+
+type G [large, fixed].
+type passwd [password, fixed].
+     (* I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large). *)
+
+
+type host [bounded].
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec).
+
+param qE, qD [noninteractive].
+channel cE, cD.
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp,
+	start, finish.
+
+const U : host.
+const S : host.
+
+event termS.
+
+query event(termS) ==> false.
+
+(* Client *)
+
+
+
+(* Server *)
+
+
+
+
+process 
+	in(start, ());
+new ck_1: cipherkey;
+new pw: passwd;
+out(c8, ());
+((
+  ! i_1 <= NU
+  in(c1[i_1], ());
+  new X_4: G;
+  out(c2[i_1], (U, X_4));
+  in(c5[i_1], (=S, Ystar_u: G));
+  let Y_u: G = dec(ck_1, Ystar_u, pw) in
+  out(c6[i_1], ())
+) | (
+  ! i_2 <= NS
+  in(c3[i_2], (=U, X_s: G));
+  new Y_4: G;
+  let Ystar: G = enc(ck_1, Y_4, pw) in
+  out(c4[i_2], (S, Ystar));
+  in(c7[i_2], ());
+  find j_5 = j_6 <= NU suchthat defined(X_4[j_6], Y_u[j_6]) && (X_4[j_6] = X_s) && (Y_u[j_6] = Y_4) then
+  event termS
+) | (
+  ! i_3 <= qE
+  in(cE[i_3], (x: G, ke_1: passwd));
+  out(cE[i_3], enc(ck_1, x, ke_1))
+) | (
+  ! i_4 <= qD
+  in(cD[i_4], (m_1: G, kd_1: passwd));
+  out(cD[i_4], dec(ck_1, m_1, kd_1))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(termS) ==> false.
+0.052s (user 0.048s + system 0.004s), max rss 40784K
+END *)

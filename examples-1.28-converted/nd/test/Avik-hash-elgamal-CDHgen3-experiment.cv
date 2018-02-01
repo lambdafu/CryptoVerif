@@ -1,0 +1,118 @@
+(** Hashed ElGamal encryption scheme, in the random oracle model **)
+
+(** An encryption scheme is shown to be SS
+    under the CDH assumption, in the random oracle model.
+    See Section 8, "Sequences of Games", Victor Shoup. **)
+
+param n, n', q, nE, nH, nCDH, nCDH'.
+
+type Z [large,fixed].
+type G.
+type K [large,fixed].
+type D [fixed].
+
+proba pCDH.
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const gamma:G.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+fun xor(D,D): D.
+
+(* xor self-cancels *)
+
+forall x:D, y:D;
+  xor(x, xor(x,y)) = y.
+
+(* xor(.,y) is a one-time pad *)
+
+equiv
+  ! n new x: D; gen_Oracle(y: D) := return(xor(x,y)) [all]
+<=(0)=>
+  ! n new x: D; gen_Oracle(y: D) := return(x).
+
+(* the CDH assumption *) 
+
+const mark: bitstring.
+
+equiv
+  ! n new a: Z; (
+    gen_Oracle_1() := return(exp(gamma,a)) |
+    ! n' gen_Oracle_2(m: G) := return(exp(m,a)) |
+    ! nCDH gen_Oracle_3(m: G, j <= n) [useful_change] := return(m = exp(gamma, mult(a[j], a))) |
+    ! nCDH' gen_Oracle_4(j <= n, j' <= n, j'' <= n) := return(exp(gamma, mult(a[j], a)) = exp(gamma, mult(a[j'],a[j'']))))
+<=(pCDH(time,n,nCDH))=>
+  ! n new a: Z; (
+    gen_Oracle_1() := return(exp'(gamma,a)) |
+    ! n' gen_Oracle_2(m: G) := return(exp'(m, a)) |
+    ! nCDH gen_Oracle_3(m: G, j <= n) := find u <= n suchthat defined(a[u]) && (a = a[u] || a[j] = a[u]) then return(m = exp'(gamma, mult(a[j], a))) else return(false) |
+    ! nCDH' gen_Oracle_4(j <= n, j' <= n, j'' <= n) := return(((a[j] = a[j']) && (a = a[j''])) ||
+      		   	   	      ((a[j] = a[j'']) && (a = a[j'])))).
+
+
+
+fun h(K,G): D.
+
+(* h in the random oracle model *)
+
+equiv
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := return(h(k,x))
+<=(0)=>
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := find j <= nH suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: D; return(r).
+
+    
+fun choose(bool,D,D): D.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:D, z:D;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+(* query *)
+query secret b.
+
+channel dummy, cPK, cE, cEret, cH, cHret, start.
+
+
+
+
+
+process
+  in(dummy, ());
+new b: bool;
+new x: Z;
+new k: K;
+let alpha: G = exp(gamma, x) in
+out(cPK, alpha);
+((
+  ! i_1 <= nE
+  in(cE[i_1], (m0: D, m1: D));
+  let m_1: D = choose(b, m1, m0) in
+  new y: Z;
+  let beta: G = exp(gamma, y) in
+  let delta: G = exp(alpha, y) in
+  let hash_1: D = h(k, delta) in
+  let v: D = xor(hash_1, m_1) in
+  out(cEret[i_1], (beta, v))
+) | (
+  ! i_2 <= nH
+  in(cH[i_2], xH: G);
+  out(cHret[i_2], h(k, xH))
+))
+
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of b.
+0.052s (user 0.044s + system 0.008s), max rss 38816K
+END *)

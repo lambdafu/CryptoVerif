@@ -1,0 +1,100 @@
+
+(** ElGamal encryption scheme **)
+
+(** An encryption scheme is shown to be SS
+    under the DDH assumption.
+    See Section 3, "Sequences of Games", Victor Shoup. **)
+
+(* Removed the replication of the whole system present in Avik-elgamal.CV,
+but absent from Shoup's paper. This is exactly the proof done in
+Shoup's paper. *)
+
+param n, q.
+
+type Z [fixed].
+
+type G [fixed].
+
+proba pDDH.
+
+fun exp(G,Z): G.
+const gamma:G.
+
+(* gamma is a uniform generator *)
+
+equiv
+  ! n new x: Z; gen_Oracle() := return(exp(gamma,x)) [all]
+<=(0)=>
+  ! n new y: G; gen_Oracle() := return(y).
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+fun dot(G,G): G.
+
+(* dot(.,y) is a uniform function *)
+
+equiv
+  ! n new x: G; gen_Oracle_1(y: G) := return(dot(x,y)) [all]
+<=(0)=>
+  ! n new x: G; gen_Oracle_1(y: G) := return(x).
+
+fun invdot(G,G): G.
+
+(* invdot is the left-inverse of dot *)
+
+forall a:G, b:G;
+  invdot(a, dot(a,b)) = b.
+
+(* the DDH assumption *) 
+
+equiv
+  ! n new x: Z; new y: Z; (
+    gen_Oracle_1() := return(exp(gamma,x)) |
+    gen_Oracle_2() := return(exp(gamma,y)) |
+    gen_Oracle_3() := return(exp(gamma, mult(x,y))))
+<=(pDDH(time) * n)=>
+  ! n new x: Z; new y: Z; new z: Z; (
+    gen_Oracle_1() := return(exp(gamma,x)) |
+    gen_Oracle_2() := return(exp(gamma,y)) |
+    gen_Oracle_3() := return(exp(gamma, z))).
+
+fun choose(bool,G,G): G.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:G, z:G;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+(* query *)
+query secret b.
+
+channel cPK, cE, cEret, start.
+
+
+
+process
+  in(start, ());
+new x: Z;
+let alpha: G = exp(gamma, x) in
+out(cPK, alpha);
+in(cE, (m0: G, m1: G));
+new b: bool;
+let m: G = choose(b, m1, m0) in
+new y: Z;
+let beta: G = exp(gamma, y) in
+let delta: G = exp(alpha, y) in
+let zeta: G = dot(delta, m) in
+out(cEret, (beta, zeta))
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.028s + system 0.000s), max rss 39696K
+END *)

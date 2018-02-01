@@ -1,0 +1,12 @@
+channel c.
+
+process
+	in(c, =(let x: bool = true in x));
+out(c, false)
+
+
+
+(* EXPECTED
+All queries proved.
+0.008s (user 0.004s + system 0.004s), max rss 30448K
+END *)

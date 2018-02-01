@@ -1,0 +1,114 @@
+
+(* Bug: when applying the equivalence
+equiv
+  foreach i_f <= n_f do y <-R D; 
+	Opk(pk:pkey) := return(y)
+<=(0)=>
+  foreach i_f <= n_f do y<-R D; 
+	Opk(pk:pkey) := y'<- f(pk,y); return(y').
+
+CryptoVerif produces an internal error. It should have given an error
+message to require that pk was used in the lhs of the equivalence. *)
+
+param n_f, n_x.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+fun pkgen(seed):pkey.
+fun skgen(seed):skey.
+fun B(D):bool.
+fun f(pkey,D):D.
+fun invf(skey,D):D.
+fun xor(bool,bool):bool.
+
+forall r:seed,x:D; invf(skgen(r),f(pkgen(r),x))=x.
+(* forall r:seed,y:D; f(pkgen(r),invf(skgen(r),y))=y. *)
+forall pk:pkey,x:D,x':D; (f(pk,x)=f(pk,x'))=(x=x').
+forall b:bool,b':bool; xor(xor(b,b'),b')=b.
+
+equiv
+foreach i_f <= n_f do
+  r <-R seed;
+  ( Opk():= pk<-pkgen(r); return(pk) |
+    foreach j_f <= n_x do
+      x <-R D;
+      ( Oy():=return(f(pkgen(r),x)) | OB():=return(B(x)) )
+  )
+<=(0)=>  (* todo: replace with actual cost *)
+foreach i_f <= n_f do
+  r <-R seed;
+  ( Opk():=pk<-pkgen(r); return(pk) |
+    foreach j_f <= n_x do
+      x <-R D;
+      b <-R bool;
+     ( Oy():=return(f(pkgen(r),x)) | OB():=return(b) )
+  ).
+
+
+equiv
+  foreach i_f <= n_f do
+     r <-R seed;
+     x' <-R D;
+	(
+	Opk():=return(pkgen(r)) |
+	Oy():=return(f(pkgen(r),x')) |
+	Om():=return(B(x'))
+	)
+<=(0)=>
+  foreach i_f <= n_f do
+     r <-R seed;
+     x' <-R D;
+	(
+	Opk():=return(pkgen(r)) |
+	Oy():=return(f(pkgen(r),x')) |
+	Om():= b <-R bool; return(b)
+	).
+
+
+
+equiv
+  foreach i_f <= n_f do y <-R D; 
+	Opk(pk:pkey) := return(y)
+<=(0)=>
+  foreach i_f <= n_f do y<-R D; 
+	Opk(pk:pkey) := y'<- f(pk,y); return(y').
+
+
+
+
+let processRealBob =
+O(b:bool,v0:bool,v1:bool) :=
+  r <-R seed;
+  pk <- pkgen(r);
+  sk <- skgen(r);
+  x <-R D;
+  y <- f(pk,x);
+  y' <-R D;
+  if b then
+    z0 <- y';
+    z1 <- y;
+    x0 <- invf(sk,z0);
+    x1 <- invf(sk,z1);
+    u0 <- xor(B(x0),v0);
+    u1 <- xor(B(x1),v1);
+    vb <- xor(u1,B(x));
+    return(pk,x,y,y',u0,u1,vb)
+  else
+    z0 <- y;
+    z1 <- y';
+    x0 <- invf(sk,z0);
+    x1 <- invf(sk,z1);
+    u0 <- xor(B(x0),v0);
+    u1 <- xor(B(x1),v1);
+    vb <- xor(u0,B(x));
+    return(pk,x,y,y',u0,u1,vb).
+
+process processRealBob
+
+(* EXPECTED
+Error: Variable pk is not used in the result of the oracle
+xtime: error in child process (status : 512)
+END *)

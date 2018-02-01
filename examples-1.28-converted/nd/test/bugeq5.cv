@@ -1,0 +1,88 @@
+param nK, nf, q.
+
+type seed [large,fixed].
+type pkey.
+type skey.
+type D [large,fixed].
+
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):D.
+fun f'(pkey, D):D.
+fun invf(skey, D):D.
+
+equiv
+  ! nK new r: seed; (
+    gen_Oracle() := return(pkgen(r)) |
+    ! nf new x: D; (
+      gen_Oracle_1() := return(invf(skgen(r),x)) |
+      gen_Oracle_2() := return(x)))
+<=(0)=>
+  ! nK new r: seed; (
+    gen_Oracle() := return(pkgen(r)) |
+    ! nf new x: D; (
+      gen_Oracle_1() := return(x) |
+      gen_Oracle_2() := return(f(pkgen(r), x)))).
+
+
+query secret test.
+
+channel dummy, start.
+
+
+
+(* CryptoVerif assumes that all restrictions used in an equivalence
+are defined at all expressions that occur in the equivalence. This is not
+true when some expressions do not use all restrictions. For instance,
+here x in the equivalence does not use r. As a result, r need not be
+defined at x. This is the case in processC above; r is defined only after
+x is output. The problem is that, after the transformation, CryptoVerif replaces
+new r:seed with new r:seed, so r is not defined at f(pkgen(r),x_7):
+
+Game 2 is
+in(start, ());
+new test: D;
+out(dummy, test);
+! !_5 <= q
+in(dummy[!_5], x_6: D);
+new x_7: D;
+out(dummy[!_5], f(pkgen(r), x_7));
+in(dummy[!_5], ());
+new r: seed;              <=== r defined too late!
+out(dummy[!_5], (pkgen(r), x_7))
+
+Solutions: 
+1) check that r is defined at every occurrence of () -> x, before
+performing the transformation.
+2) reorganize the restrictions when I perform the game transformation.
+
+(2) is better (the transformation can be performed more often) but seems harder to do
+*)
+
+
+
+process
+  in(start, ());
+new test: D;
+out(dummy, test);
+! i_1 <= q
+in(dummy[i_1], x_1: D);
+new x_2: D;
+out(dummy[i_1], x_2);
+in(dummy[i_1], ());
+new r: seed;
+out(dummy[i_1], (pkgen(r), invf(skgen(r), x_2)))
+
+
+
+
+
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of test.
+0.016s (user 0.016s + system 0.000s), max rss 33936K
+END *)

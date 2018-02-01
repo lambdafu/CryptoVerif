@@ -121,7 +121,12 @@ let record_collision ((_, _, t1, _,t2) as collision) =
       Display.display_term t2;
       print_string " ignored: the left-hand side should start with a function symbol.\n"
 
+let first_file = ref true
+
 let anal_file s =
+  if not (!first_file) then
+    Parsing_helper.user_error "You can analyze a single CryptoVerif file for each run of CryptoVerif.\nPlease rerun CryptoVerif with your second file.";
+  first_file := false;
   if not (!front_end_set) then
     begin
       (* Use the oracle front-end by default when the file name ends

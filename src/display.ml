@@ -33,12 +33,14 @@ let display_arrays = ref false
 
 let max_game_number = ref 1
 
-let rec display_list f = function
+let rec display_list_sep sep f = function
     [] -> ()
   | [a] -> f a
-  | (a::l) -> f a; print_string ", ";
-      display_list f l
+  | (a::l) -> f a; print_string sep;
+      display_list_sep sep f l
 
+let display_list f l = display_list_sep ", " f l
+	
 let rec remove_common_prefix l1 l2 = match (l1,l2) with
   ({t_desc = ReplIndex ri1}::l1',ri2::l2') when ri1 == ri2 -> 
     remove_common_prefix l1' l2'
@@ -97,17 +99,26 @@ type process_paren =
   | AllProcess
   | ProcessMayHaveElseBranch
 
-(* [may_have_elset t] returns true when the term [t] may have an
-   "else" branch, so needs to be put between parentheses when [t]
-   is itself inside a term that may have an else branch. *)
+(* [may_have_elset t] returns true when the term [t] could have an
+   "else" branch but actually does not have one, so needs to be 
+   put between parentheses when [t] is itself inside a term that 
+   may have an else branch. *)
 
 let rec may_have_elset t =
   match t.t_desc with
     ReplIndex _ | Var _ | FunApp _ -> false 
-           (* An infix operator inside a process will be between parentheses; 
-	      no need to add further parentheses *)
-  | TestE _ | FindE _ | LetE _ -> true
-  | ResE(_,t') -> may_have_elset t'
+      (* An infix operator inside a process will be between parentheses; 
+	 no need to add further parentheses *)
+  | TestE _ | FindE _ | GetE _ -> false
+      (* Terms TestE _ | FindE _ | GetE _ always have an else branch *)
+  | LetE(_,_,t2,topt) ->
+      ((!Settings.front_end) == Settings.Channels) &&
+      (* In the oracles front-end, the let without else branch is 
+	 always written x <- M; M' and so an else branch cannot be added *)
+      (match topt with
+	None -> true
+      | Some t3 -> may_have_elset t3)
+  | ResE(_,t') | InsertE(_,_,t') | EventE(_,t') -> may_have_elset t'
   | EventAbortE _ -> false
 
 let rec display_var b tl =
@@ -217,14 +228,9 @@ and display_term t =
       print_string " else ";
       display_term_paren AllInfix NoProcess t3
   | FindE(l0, t3, find_info) ->
-      let first = ref true in
       print_string "find ";
       if find_info = Unique then print_string "[unique] ";
-      List.iter (fun (bl, def_list, t1, t2) ->
-	if !first then
-	  first := false
-	else
-	  print_string " orfind ";
+      display_list_sep " orfind " (fun (bl, def_list, t1, t2) ->
 	display_list (fun (b,b') -> display_binder_with_array b; print_string " = "; display_repl_index_with_type b') bl;
 	print_string " suchthat ";
 	display_findcond (def_list, t1);
@@ -242,7 +248,7 @@ and display_term t =
 	    print_string "; ";	    
 	| _ ->
 	    print_string "let ";
-	    display_pattern pat;
+	    display_pattern_paren pat;
 	    print_string " = ";
 	    display_term_paren NoInfix AllProcess t1;
 	    print_string " in "
@@ -272,7 +278,36 @@ and display_term t =
   | EventAbortE(f) ->
       print_string "event_abort ";
       print_string f.f_name
-      
+  | EventE(t1, p) ->
+      print_string "event ";
+      display_term t1;
+      print_string "; ";
+      display_term_paren AllInfix NoProcess p
+  | GetE(tbl, patl, topt, p1, p2) ->
+      print_string "get ";
+      display_table tbl;
+      print_string "(";
+      display_list display_pattern patl;
+      print_string ")";
+      (
+        match topt with 
+            None -> ();
+          | Some t -> 
+              print_string " suchthat ";
+              display_term_paren NoInfix AllProcess t
+      );
+      print_string " in ";
+      display_term_paren AllInfix ProcessMayHaveElseBranch p1;
+      print_string " else ";
+      display_term_paren AllInfix NoProcess p2
+  | InsertE (tbl,tl,p) ->
+      print_string "insert ";
+      display_table tbl;
+      print_string "(";
+      display_list (display_term_paren NoInfix AllProcess) tl;
+      print_string "); ";
+      display_term_paren AllInfix NoProcess p
+	
 and display_term_paren infix_paren process_paren t =
   let infix_paren' = 
     if (!display_occurrences) || (List.memq t.t_occ (!useful_occs)) then
@@ -300,7 +335,7 @@ and display_term_paren infix_paren process_paren t =
 	  | AllInfix -> true
 	  | AllInfixExcept f' -> f != f'
 	end
-    | TestE _ | ResE _ | FindE _ | LetE _ | EventAbortE _ ->
+    | TestE _ | ResE _ | FindE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
 	begin
 	  match process_paren with
 	    NoProcess -> false
@@ -331,6 +366,14 @@ and display_pattern = function
       print_string "=";
       display_term_paren AllInfix AllProcess t
 
+and display_pattern_paren pat =
+  match pat with
+    PatEqual _ ->
+      print_string "(";
+      display_pattern pat;
+      print_string ")"
+  | _ -> display_pattern pat
+	
 (* Display term with appropriate parentheses around *)
 
 let display_term t = display_term_paren AllInfix AllProcess t
@@ -510,14 +553,22 @@ let rec display_proba level = function
 	end;
       print_string ")"
 
+let display_pub_vars pub_vars =
+  if pub_vars <> [] then
+    begin
+      print_string " with public variables ";
+      display_list display_binder pub_vars
+    end
+	
 let display_one_set = function
     SetProba p ->
       display_proba 0 p;
-  | SetEvent(f, g, _) ->
+  | SetEvent(f, g, pub_vars, _) ->
       print_string "Pr[event ";
       print_string f.f_name;
       print_string " in game ";
       print_int g.game_number;
+      display_pub_vars pub_vars;
       print_string "]"
 
 let rec display_set = function
@@ -547,32 +598,27 @@ let rec display_procasterm t =
       Parsing_helper.internal_error "ReplIndex unexpected in display_procasterm"
   | TestE(t1,t2,t3) ->
       print_string "if ";
-      display_term t1;
+      display_term_paren NoInfix AllProcess t1;
       print_string " then ";
-      display_procasterm t2;
+      display_procasterm_paren t2;
       print_string " else ";
       display_procasterm t3
   | FindE([([],def_list,t1,t2)],t3,find_info) ->
       print_string "if ";
       display_findcond (def_list,t1);
       print_string " then ";
-      display_procasterm t2;
+      display_procasterm_paren t2;
       print_string " else ";
       display_procasterm t3
   | FindE(l0, t3, find_info) ->
-      let first = ref true in
       print_string "find ";
       if find_info = Unique then print_string "[unique] ";
-      List.iter (fun (bl, def_list, t1, t2) ->
-	if !first then
-	  first := false
-	else
-	  print_string " orfind ";
+      display_list_sep " orfind " (fun (bl, def_list, t1, t2) ->
 	display_list (fun (b, b') -> display_binder_with_array b; print_string " = "; display_repl_index_with_type b') bl;
 	print_string " suchthat ";
 	display_findcond (def_list, t1);
 	print_string " then ";
-	display_procasterm t2) l0;
+	display_procasterm_paren t2) l0;
       print_string " else ";
       display_procasterm t3      
   | LetE(pat, t1, t2, topt) ->
@@ -581,17 +627,17 @@ let rec display_procasterm t =
 	  PatVar b when (!Settings.front_end) == Settings.Oracles ->
 	    display_binder_with_type b;
 	    print_string " <- ";
-	    display_term t1;
+	    display_term_paren NoInfix AllProcess t1;
 	    print_string "; ";	    
 	| _ ->
 	    print_string "let ";
-	    display_pattern pat;
+	    display_pattern_paren pat;
 	    print_string " = ";
-	    display_term t1;
+	    display_term_paren NoInfix AllProcess t1;
 	    print_string " in "
       end;
       begin
-	display_procasterm t2;
+	display_procasterm_paren t2;
 	match topt with
 	  None -> ()
 	| Some t3 ->
@@ -599,15 +645,35 @@ let rec display_procasterm t =
 	    display_procasterm t3      
       end
   | ResE(b,t) ->
-      display_binder_with_array b;
-      print_string " <-R ";
-      print_string b.btype.tname;
+      if (!Settings.front_end) == Settings.Oracles then
+	begin
+	  display_binder_with_array b;
+	  print_string " <-R ";
+	  print_string b.btype.tname;
+	end
+      else
+	begin
+	  print_string "new ";
+	  display_binder_with_type b
+	end;
       print_string "; ";
       display_procasterm t
   | EventAbortE(f) ->
       print_string "event_abort ";
       print_string f.f_name
-       
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event/get/insert not allowed in definitions of crypto primitives"
+
+and display_procasterm_paren t =
+  if may_have_elset t then 
+    begin
+      print_string "(";
+      display_procasterm t;
+      print_string ")"
+    end
+  else
+    display_procasterm t
+
 
 let rec display_fungroup indent = function
     ReplRestr(repl, restr, funlist) ->
@@ -642,83 +708,51 @@ let rec display_fungroup indent = function
 	    display_fungroup indent f
 	| _ -> 
 	    print_string ("(\n" ^ indent);
-	    let first = ref true in
-	    List.iter (fun f ->
-	      if !first then
-		first := false
-	      else
-		(if (!Settings.front_end) == Settings.Oracles then
-		  print_string (" |\n" ^ indent)
-		else
-		  print_string (",\n" ^ indent));
+	    display_list_sep (" |\n" ^ indent) (fun f ->
 	      display_fungroup (indent ^ "  ") f;
 	      ) funlist;
 	    print_string ")"
       end
   | Fun(ch, args, res, (priority, options)) ->
-      if (!Settings.front_end) == Settings.Oracles then
+      print_string ch.cname;
+      print_string "(";
+      display_list display_binder_with_type args;
+      print_string ")";
+      if priority != 0 then
 	begin
-	  print_string ch.cname;
-	  print_string "(";
-	  display_list display_binder_with_type args;
-	  print_string ")";
-	  if priority != 0 then
-	    begin
-	      print_string " [";
-	      print_int priority;
-	      print_string "]"
-	    end;
-	  begin
-	    match options with
-	      StdOpt -> ()
-	    | UsefulChange -> print_string " [useful_change]"
-	  end;
-	  print_string " := ";
-	  display_procasterm res
-	end
-      else if ch.cname = "@dummy_channel" then
-	begin
-	  print_string "(";
-	  display_list display_binder_with_type args;
-	  print_string ")";
-	  if priority != 0 then
-	    begin
-	      print_string " [";
-	      print_int priority;
-	      print_string "]"
-	    end;
-	  print_string " -> ";
-	  display_term res
-	end
-      else
-	begin
-	  print_string ch.cname;
-	  print_string "(";
-	  display_list display_binder_with_type args;
-	  print_string ")";
-	  if priority != 0 then
-	    begin
-	      print_string " [";
-	      print_int priority;
-	      print_string "]"
-	    end;
-	  print_string " := ";
-	  display_term res
-	end
+	  print_string " [";
+	  print_int priority;
+	  print_string "]"
+	end;
+      begin
+	match options with
+	  StdOpt -> ()
+	| UsefulChange -> print_string " [useful_change]"
+      end;
+      print_string " := ";
+      display_procasterm res
 
+
+	
 let display_eqmember l =
-  display_list (fun (fg, mode) ->
-    display_fungroup "  " fg;
+  display_list_sep "|\n" (fun (fg, mode) ->
+    print_string "  ";
+    display_fungroup "    " fg;
     if mode = AllEquiv then print_string " [all]") l
 
 let display_eqname = function
     NoName -> ()
-  | CstName(s,_) -> print_string s; print_string " "
-  | ParName((s,_),(p,_)) -> print_string (s ^ "(" ^ p ^ ") ")
+  | CstName(s,_) -> print_string s
+  | ParName((s,_),(p,_)) -> print_string (s ^ "(" ^ p ^ ")")
 
 let display_equiv ((n,m1,m2,set,opt,opt2),_) =
-  print_string "equiv ";
-  display_eqname n;
+  print_string "equiv";
+  begin
+    match n with
+      NoName -> ()
+    | _ ->  print_string "("; display_eqname n; print_string ")"
+  end;
+  print_string "\n";
   display_eqmember m1;
   print_newline();
   print_string "<=(";
@@ -733,7 +767,7 @@ let display_equiv ((n,m1,m2,set,opt,opt2),_) =
     | PrioEqopt n, Computational -> print_string (" [" ^ (string_of_int n) ^ "] [computational]")
     | ManualEqopt, Computational -> print_string " [manual, computational]"
   end;
-  print_string "\n      ";
+  print_string "\n";
   display_eqmember m2;
   print_newline()
 
@@ -757,7 +791,19 @@ let display_channel c tl =
 let rec may_have_elseo p = 
   match p.p_desc with
     Yield | EventAbort _ -> false
-  | Test _ | Find _ | Let _ | Get _ -> true
+  | Test(_,_,pelse) | Find(_,pelse,_) | Get(_,_,_,_,pelse) ->
+      (pelse.p_desc = Yield) || (may_have_elseo pelse)
+  | Let(pat,t,p1,p2) ->
+      if ((!Settings.front_end) = Settings.Oracles) &&
+	(p2.p_desc = Yield) &&
+	(match pat with
+	  PatVar _ -> true
+	| _ -> false)
+      then
+	(* The "let" will be written x <- M; M' *)
+	may_have_elseo p1
+      else
+	(p2.p_desc = Yield) || (may_have_elseo p2)
   | Restr(_,p) | EventP(_,p) | Insert (_,_,p) -> may_have_elseo p
   | Output(_,_,p) -> may_have_else p
 
@@ -795,13 +841,13 @@ let rec display_process indent p =
 	| p -> [p0]
       in
       let l = dec_par p in
-      print_string (indent^"(\n");
+      print_string (indent^"((\n");
       let rec display_par_list = function
 	  [] -> Parsing_helper.internal_error "empty list of parallel processes"
 	| [p] ->
 	    display_process (indent^"  ") p;
 	    occ_space();
-	    print_string (indent^")\n");
+	    print_string (indent^"))\n");
 	| p::l ->
 	    display_process (indent^"  ") p;
 	    occ_space();
@@ -859,10 +905,7 @@ and display_oprocess indent p =
     occ_space();
   match p.p_desc with
     Yield -> 
-      if (!Settings.front_end) == Settings.Oracles then
-	print_string (indent ^ "end\n")
-      else
-	print_string (indent ^ "yield\n")
+      print_string (indent ^ "yield\n")
   | EventAbort f -> 
       print_string (indent ^ "event_abort " ^ f.f_name ^ "\n")
   | Restr(b,p) ->
@@ -881,7 +924,7 @@ and display_oprocess indent p =
       display_optoprocess indent p
   | Test(t,p1,p2) ->
       print_string (indent ^ "if ");
-      display_term t;
+      display_term_paren NoInfix AllProcess t;
       print_string " then\n";
       if p2.p_desc = Yield then
 	display_oprocess indent p1
@@ -938,6 +981,7 @@ and display_oprocess indent p =
       if (!Settings.front_end) == Settings.Oracles then
 	begin
 	  print_string (indent ^ "return");
+	  (* t2 is always a tuple, it will display the parentheses *)
 	  display_term t2
 	end
       else
@@ -956,13 +1000,13 @@ and display_oprocess indent p =
 	    print_string indent;
 	    display_binder_with_type b;
 	    print_string " <- ";
-	    display_term t;
+	    display_term_paren NoInfix AllProcess t;
 	    display_optoprocess indent p1
 	| _ ->
 	    print_string (indent ^ "let ");
-	    display_pattern pat;
+	    display_pattern_paren pat;
 	    print_string " = ";
-	    display_term t;
+	    display_term_paren NoInfix AllProcess t;
 	    if (p1.p_desc = Yield) && (p2.p_desc = Yield) then
 	      print_string "\n"
 	    else
@@ -986,7 +1030,7 @@ and display_oprocess indent p =
   | Get (tbl,patl,topt,p1,p2) ->
       print_string (indent ^ "get ");
       display_table tbl;
-      print_string " (";
+      print_string "(";
       display_list display_pattern patl;
       print_string ")";
       (
@@ -994,7 +1038,7 @@ and display_oprocess indent p =
             None -> ();
           | Some t -> 
               print_string " suchthat ";
-              display_term t
+              display_term_paren NoInfix AllProcess t
       );
       if (p1.p_desc = Yield) && (p2.p_desc = Yield) then
 	print_string "\n"
@@ -1014,8 +1058,9 @@ and display_oprocess indent p =
   | Insert (tbl,tl,p) ->
       print_string (indent ^ "insert ");
       display_table tbl;
-      print_string " ";
-      display_list display_term tl;
+      print_string "(";
+      display_list (display_term_paren NoInfix AllProcess) tl;
+      print_string ")";
       display_optoprocess indent p
 
 
@@ -1109,40 +1154,54 @@ let display_with_user_info user_info =
   match user_info with
     VarList([],_) | Detailed((None | Some([],[],_)), (None | Some([],_))) -> ()
   | _ ->
-      print_string "with ";
+      print_string " with ";
       display_user_info user_info
 
-    
+
+let display_event (b,t) =
+  if b then print_string "inj-";
+  print_string "event(";
+  display_term t;
+  print_string ")"
+ 
 let rec display_query1 = function
     [] -> Parsing_helper.internal_error "List should not be empty"
-  | [b,t] -> 
-      if b then print_string "inj:";
-      display_term t
-  | (b,t)::l ->
-      if b then print_string "inj:";
-      display_term t;
+  | [x] -> display_event x
+  | x::l ->
+      display_event x;
       print_string " && ";
       display_query1 l
 
 let rec display_query2 = function
     QEvent(b,t) ->
-      if b then print_string "inj:";
-      display_term t
+      display_event (b,t)
   | QTerm t ->
       display_term t
   | QOr(t1,t2) ->
       print_string "(";
       display_query2 t1;
-      print_string "||";
+      print_string " || ";
       display_query2 t2;
       print_string ")"
   | QAnd(t1,t2) ->
       print_string "(";
       display_query2 t1;
-      print_string "&&";
+      print_string " && ";
       display_query2 t2;
       print_string ")"
 
+let display_query3 = function
+  | QSecret (b,pub_vars,onesession) ->
+      if onesession then print_string "one-session ";
+      print_string "secrecy of "; display_binder b;
+      display_pub_vars pub_vars
+  | AbsentQuery -> Parsing_helper.internal_error "AbsentQuery should have been handled"
+  | QEventQ(t1,t2, pub_vars) -> 
+      display_query1 t1; 
+      print_string " ==> ";
+      display_query2 t2;
+      display_pub_vars pub_vars
+	
 let get_game_id g =
   if g.game_number = -1 then 
     "[game not shown yet]" 
@@ -1157,29 +1216,7 @@ let display_query (q,g) =
       else
 	print_string "indistinguishability from the initial game"
   | _ ->
-      begin
-	match q with 
-	  QSecret1 (b,l) -> 
-	    print_string "one-session secrecy of "; display_binder b; 
-	    if l <> [] then
-	      begin
-		print_string " with public variables ";
-		display_list display_binder l
-	      end
-	| QSecret (b,l) -> 
-	    print_string "secrecy of "; display_binder b; 
-	    if l <> [] then
-	      begin
-		print_string " with public variables ";
-		display_list display_binder l
-	      end
-	| AbsentQuery -> Parsing_helper.internal_error "AbsentQuery should have been handled"
-	| QEventQ(t1,t2) -> 
-	    print_string "event ";
-	    display_query1 t1; 
-	    print_string " ==> ";
-	    display_query2 t2
-      end;
+      display_query3 q;
       if g.game_number <> 1 then
 	print_string (" in game " ^ (get_game_id g))  
 
@@ -1237,11 +1274,6 @@ let display_instruct = function
 	    display_set set
 	  end) ql
       
-
-let proves_event_query f g = function
-    ((QEventQ([false, { t_desc = FunApp(f',[{ t_desc = FunApp(f_tuple, []) }]) }], QTerm t_false),g'), popt) -> 
-      g == g' && f == f' && Terms.is_false t_false && (!popt) != None
-  | _ -> false 
 
 exception NotBoundEvent of funsymb * game
 
@@ -1364,7 +1396,7 @@ let build_proof_tree ((q0,g0) as q) p s =
 	  build_pt_rec [(i,p,pt_cur, ref [q])] q s;
 	  List.iter (function 
 	      SetProba _ -> ()
-	    | SetEvent(f,g, popt') ->
+	    | SetEvent(f,g, pub_vars, popt') ->
 		  (* Get the proof of the property "Event f is not executed in game g" *)
                 match !popt' with
 		  None -> raise (NotBoundEvent(f,g))
@@ -1372,7 +1404,7 @@ let build_proof_tree ((q0,g0) as q) p s =
 		    (* Build the query that test for event f in game g *)
 		    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
 		    let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-		    let q' = (QEventQ([false, t], QTerm (Terms.make_false())), g) in
+		    let q' = (QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g) in
 
 		let sons_to_add =
 		  let pt_final_event_f_in_g = { pt_game = { proc = Terms.iproc_from_desc Nil; 
@@ -1431,7 +1463,7 @@ let display_adv ql game =
 
 
 let is_secrecy = function
-     (InitQuery (QSecret1 _ | QSecret _), _) -> true
+     (InitQuery (QSecret _), _) -> true
   | _ -> false
 
 let double_if_needed ql p =
@@ -1447,7 +1479,7 @@ let proba_from_set s =
 
 let proba_from_set_may_double (q,g) s =
   match q with
-    QSecret _ | QSecret1 _ ->
+    QSecret _ ->
       (* For secrecy, we need to double the probability *)
       let p = poly_from_set s in
       Polynom.polynom_to_probaf (Polynom.sum p p)
@@ -1500,7 +1532,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
     let rec compute_full_query_list = function
 	[] -> ql'
       |	(SetProba _)::l -> compute_full_query_list l
-      |	(SetEvent(f,g,_))::l -> (QEvent f, g) :: (compute_full_query_list l)
+      |	(SetEvent(f,g,pub_vars,_))::l -> (QEvent f, g) :: (compute_full_query_list l)
     in
     (* One transformation can consist of an arbitrary syntactic or cryptographic
        transformation, that follows a series of event insertions (Shoup lemma).
@@ -1553,10 +1585,17 @@ let compute_proba ((q0,g) as q) p s =
   
 let display_pat_simp t =
   print_string (match t with 
-    DEqTest -> " (equality test)\n"
-  | DExpandTuple -> " (tuple expanded)\n"
-  | DImpossibleTuple -> " (tuple matching always fails)\n")
+    DEqTest -> " (equality test)"
+  | DExpandTuple -> " (tuple expanded)"
+  | DImpossibleTuple -> " (tuple matching always fails)")
 
+let display_pat_simp_list l =
+  display_list (fun (pat, t) ->
+    print_string "pattern ";
+    display_pattern pat;
+    display_pat_simp t) l
+  
+    
 let rec find_l def_list n = function
     [] -> print_string "[not found]"
   | (bl',def_list',t',p1')::l ->
@@ -1565,16 +1604,19 @@ let rec find_l def_list n = function
       else
 	find_l def_list (n+1) l
 
-let get_finde_branch p (bl,def_list,t,p1) =
-  match p.t_desc with
-    FindE(l,_,_) -> find_l def_list 1 l
-  | _ -> Parsing_helper.internal_error "Find expected in get_finde_branch"
-
 let get_find_branch p (bl,def_list,t,p1) =
-  match p.p_desc with
-    Find(l,_,_) -> find_l def_list 1 l
+  match p with
+    DProcess {p_desc = Find(l,_,_)} -> find_l def_list 1 l
+  | DTerm {t_desc = FindE(l,_,_)} -> find_l def_list 1 l
   | _ -> Parsing_helper.internal_error "Find expected in get_find_branch"
 
+let get_nbr_find_branch p =
+  match p with
+    DProcess {p_desc = Find(l,_,_)} -> List.length l
+  | DTerm {t_desc = FindE(l,_,_)} -> List.length l
+  | _ -> Parsing_helper.internal_error "Find expected in get_find_branch"
+  
+	
 let display_simplif_step = function
     SReplaceTerm(t,t') -> 
       print_string "    - Replaced ";
@@ -1586,35 +1628,19 @@ let display_simplif_step = function
       print_newline()
   | STestTrue(p) ->
       print_string "    - Test at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " always true\n"
   | STestFalse(p) ->
       print_string "    - Test at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " always false\n"
   | STestMerge(p) ->
       print_string "    - Merge branches of test at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\n"
   | STestOr(p) ->
       print_string "    - Expand || in test at ";
-      print_int p.p_occ;
-      print_string "\n"
-  | STestETrue(t) ->
-      print_string "    - Test at ";
-      print_int t.t_occ;
-      print_string " always true\n" 
-  | STestEFalse(t) ->
-      print_string "    - Test at ";
-      print_int t.t_occ;
-      print_string " always false\n" 
-  | STestEMerge(t) ->
-      print_string "    - Merge branches of test at ";
-      print_int t.t_occ;
-      print_string "\n" 
-  | STestEOr(t) ->
-      print_string "    - Expand || in test at ";
-      print_int t.t_occ;
+      print_int (Terms.occ_from_pp p);
       print_string "\n"
   | STestEElim(t) ->
       print_string "    - Transformed test at ";
@@ -1624,34 +1650,31 @@ let display_simplif_step = function
       print_string "    - Remove branch ";
       get_find_branch p br;
       print_string " in find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SFindSingleBranch(p,br) ->
       print_string "    - A single branch always succeeds in find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SFindRemoved(p) ->
       print_string "    - Find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " removed (else branch kept if any)\n"
   | SFindElseRemoved(p) ->
       print_string "    - Remove else branch of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SFindBranchMerge(p, brl) ->
-      begin
-	match p.p_desc with
-	  Find(l0,_,_) when List.length l0 = List.length brl ->
-	    print_string "    - Merge all branches of find at ";
-	    print_int p.p_occ;
-	    print_newline()
-	| _ ->
-	    print_string "    - Merge branches ";
-	    display_list (get_find_branch p) brl;
-	    print_string " with else branch of find at ";
-	    print_int p.p_occ;
-	    print_newline()
-      end
+      if get_nbr_find_branch p = List.length brl then
+	print_string "    - Merge all branches of find at "
+      else
+	begin
+	  print_string "    - Merge branches ";
+	  display_list (get_find_branch p) brl;
+	  print_string " with else branch of find at ";
+	end;
+      print_int (Terms.occ_from_pp p);
+      print_newline()
   | SFindDeflist(p, def_list, def_list') ->
       if def_list == [] then
 	print_string "    - Replaced an empty defined condition"
@@ -1666,150 +1689,55 @@ let display_simplif_step = function
       else 
 	display_list (fun (b,l) -> display_var b l) def_list';
       print_string " in find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SFindinFindCondition(p, t) ->
       print_string "    - Simplified find at ";
       print_int t.t_occ;
       print_string " in condition of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SFindinFindBranch(p,p') ->
       print_string "    - Simplified find at ";
-      print_int p'.p_occ;
+      print_int (Terms.occ_from_pp p');
       print_string " in branch of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SFindtoTest(p) ->
       print_string "    - Transformed find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " into a test\n"
   | SFindIndexKnown(p, br, subst) ->
       print_string "    - In branch ";
       get_find_branch p br;
       print_string " of find at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_string ", substituting ";
       display_list (fun (b,t) -> display_binder b; print_string " with ";
         display_term t) subst;
       print_newline() 
-  | SFindEBranchRemoved(t,br) -> 
-      print_string "    - Remove branch ";
-      get_finde_branch t br;
-      print_string " in find at ";
-      print_int t.t_occ;
-      print_newline()
-  | SFindESingleBranch(t,br) ->
-      print_string "    - A single branch always succeeds in find at ";
-      print_int t.t_occ;
-      print_newline()
-  | SFindERemoved(t) ->
-      print_string "    - Find at ";
-      print_int t.t_occ;
-      print_string " removed (else branch kept if any)\n"
-  | SFindEElseRemoved(t) ->
-      print_string "    - Replace unused else branch of find at ";
-      print_int t.t_occ;
-      print_string " with a constant\n"
-  | SFindEBranchMerge(t, brl) ->
-      begin
-	match t.t_desc with
-	  FindE(l0,_,_) when List.length l0 = List.length brl ->
-	    print_string "    - Merge all branches of find at ";
-	    print_int t.t_occ;
-	    print_newline()
-	| _ ->
-	    print_string "    - Merge branches ";
-	    display_list (get_finde_branch t) brl;
-	    print_string " with else branch of find at ";
-	    print_int t.t_occ;
-	    print_newline()
-      end
-  | SFindEDeflist(t, def_list, def_list') ->
-      if def_list == [] then
-	print_string "    - Replaced an empty defined condition"
-      else
-	begin
-	  print_string "    - Replaced defined condition ";
-	  display_list (fun (b,l) -> display_var b l) def_list
-	end;
-      print_string " with ";
-      if def_list' == [] then
-	print_string "an empty condition"
-      else 
-	display_list (fun (b,l) -> display_var b l) def_list';
-      print_string " in find at ";
-      print_int t.t_occ;
-      print_newline()
-  | SFindinFindECondition(t, t') ->
-      print_string "    - Simplified find at ";
-      print_int t'.t_occ;
-      print_string " in condition of find at ";
-      print_int t.t_occ;
-      print_newline()
-  | SFindinFindEBranch(t,t') ->
-      print_string "    - Simplified find at ";
-      print_int t'.t_occ;
-      print_string " in branch of find at ";
-      print_int t.t_occ;
-      print_newline()
-  | SFindEtoTestE(t) ->
-      print_string "    - Transformed find at ";
-      print_int t.t_occ;
-      print_string " into a test\n"
-  | SFindEIndexKnown(t, br, subst) ->
-      print_string "    - In branch ";
-      get_finde_branch t br;
-      print_string " of find at ";
-      print_int t.t_occ;
-      print_string ", substituting ";
-      display_list (fun (b,t) -> display_binder b; print_string " with ";
-        display_term t) subst;
-      print_newline() 
-
   | SLetElseRemoved(p) ->
       print_string "    - Remove else branch of let at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SLetRemoved(p) ->
       print_string "    - Remove let at ";
-      print_int p.p_occ;
+      print_int (Terms.occ_from_pp p);
       print_newline()
-  | SLetSimplifyPattern(p, pat, t) -> 
-      print_string "    - Simplify pattern ";
-      display_pattern pat;
-      print_string " at "; print_int p.p_occ;
-      display_pat_simp t
-  | SLetEElseRemoved(t) ->
-      print_string "    - Remove else branch of let at ";
-      print_int t.t_occ;
+  | SLetSimplifyPattern(p, l) -> 
+      print_string "    - Simplify ";
+      display_pat_simp_list l;
+      print_string " at ";
+      print_int (Terms.occ_from_pp p);
       print_newline()
-  | SLetERemoved(t) ->
-      print_string "    - Remove let at ";
-      print_int t.t_occ;
-      print_newline()
-  | SLetESimplifyPattern(let_t, pat, t) -> 
-      print_string "    - Simplify pattern ";
-      display_pattern pat;
-      print_string " at "; print_int let_t.t_occ;
-      display_pat_simp t
 
   | SResRemoved(p) ->
       print_string "    - Remove random number generation at ";
-      print_int p.p_occ;      
+      print_int (Terms.occ_from_pp p);
       print_newline()
   | SResToAssign(p) ->
       print_string "    - Transform unused random number generation at ";
-      print_int p.p_occ;
-      print_string " into constant assignment";
-      print_newline()
-  | SResERemoved(t) ->
-      print_string "    - Remove random number generation at ";
-      print_int t.t_occ;
-      print_newline()
-  | SResEToAssign(t) ->
-      print_string "    - Transform unused random number generation at ";
-      print_int t.t_occ;
+      print_int (Terms.occ_from_pp p);
       print_string " into constant assignment";
       print_newline()
 
@@ -1832,16 +1760,12 @@ let display_detailed_ins = function
 	  display_list print_string coll_elim
 	end;
       print_newline()
-  | DLetSimplifyPattern(let_p, pat, t) ->
-      print_string "  - Simplify pattern ";
-      display_pattern pat;
-      print_string " at "; print_int let_p.p_occ;
-      display_pat_simp t
-  | DLetESimplifyPattern(let_t, pat, t) ->
-      print_string "  - Simplify pattern ";
-      display_pattern pat;
-      print_string " at "; print_int let_t.t_occ;
-      display_pat_simp t
+  | DLetSimplifyPattern(let_p, l) ->
+      print_string "  - Simplify ";
+      display_pat_simp_list l;
+      print_string " at "; 
+      print_int (Terms.occ_from_pp let_p);
+      print_newline()
   | DRemoveAssign(b, def_ch, usage_ch) ->
       print_string "  - Remove assignments on ";
       display_binder b;
@@ -1923,37 +1847,30 @@ let mark_useful_occ_p p =
   useful_occs := p.p_occ :: (!useful_occs)
 let mark_useful_occ_t t = 
   useful_occs := t.t_occ :: (!useful_occs)
+let mark_useful_occ_pp p = 
+  useful_occs := (Terms.occ_from_pp p) :: (!useful_occs)
 
-let mark_occs_simplif_step f_p f_t = function
-    SReplaceTerm(t,t') -> f_t t
-  | STestTrue(p) | STestFalse(p) | STestMerge(p) | STestOr(p) -> f_p p
-  | STestETrue(t) | STestEFalse(t) | STestEMerge(t) | STestEOr(t) 
-  | STestEElim(t) -> f_t t
+let mark_occs_simplif_step f_t = function
+    SReplaceTerm(t,_) | STestEElim(t) -> f_t t
+  | STestTrue(p) | STestFalse(p) | STestMerge(p) | STestOr(p) 
   | SFindBranchRemoved(p,_) | SFindSingleBranch(p,_) 
   | SFindRemoved(p) | SFindElseRemoved(p) | SFindBranchMerge(p, _) 
   | SFindtoTest(p) | SFindIndexKnown(p, _,_) 
-  | SFindDeflist(p, _,_) -> f_p p
-  | SFindinFindCondition(p, t) -> f_p p; f_t t
-  | SFindinFindBranch(p,p') -> f_p p; f_p p'
-  | SFindEBranchRemoved(t,_) | SFindESingleBranch(t,_) 
-  | SFindERemoved(t) | SFindEElseRemoved(t) | SFindEBranchMerge(t, _) 
-  | SFindEtoTestE(t) | SFindEIndexKnown(t, _,_) 
-  | SFindEDeflist(t, _,_) -> f_t t
-  | SFindinFindECondition(t, t') | SFindinFindEBranch(t,t') -> f_t t; f_t t'
-  | SLetElseRemoved(p) | SLetRemoved(p) | SLetSimplifyPattern(p, _,_) -> f_p p
-  | SLetEElseRemoved(t) | SLetERemoved(t) | SLetESimplifyPattern(t,_,_) -> f_t t
-  | SResRemoved(p) | SResToAssign(p) -> f_p p
-  | SResERemoved(t) | SResEToAssign(t) -> f_t t
+  | SFindDeflist(p, _,_)
+  | SLetElseRemoved(p) | SLetRemoved(p) | SLetSimplifyPattern(p, _) 
+  | SResRemoved(p) | SResToAssign(p) -> mark_useful_occ_pp p
+  | SFindinFindCondition(p, t) -> mark_useful_occ_pp p; f_t t
+  | SFindinFindBranch(p,p') -> mark_useful_occ_pp p; mark_useful_occ_pp p'
 
 let mark_occs1 f_p f_t = function
     DExpandGetInsert(_) | DExpandIfFind | DGlobalDepAnal _ 
   | DRemoveAssign _ | DSArenaming _ | DMoveNew(_) | DMoveLet(_) 
-  | DCryptoTransf _ | DInsertEvent _  | DInsertInstruct _ 
-  | DReplaceTerm _  | DMergeArrays _ -> ()
+  | DCryptoTransf _ | DMergeArrays _ -> ()
+  | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->
+      useful_occs := occ :: (!useful_occs)
   | DSimplify(l) ->
-      List.iter (mark_occs_simplif_step f_p f_t) l
-  | DLetSimplifyPattern(let_p, pat, t) -> f_p let_p
-  | DLetESimplifyPattern(let_t, pat, t) -> f_t let_t
+      List.iter (mark_occs_simplif_step f_t) l
+  | DLetSimplifyPattern(let_p, _) -> mark_useful_occ_pp let_p
   | DMergeBranches(p,l) ->
       f_p p;
       begin
@@ -2070,7 +1987,7 @@ let rec get_all_states_from_sequence accu g s =
 and get_all_states_from_proba accu = function
     [] -> accu
   | (SetProba _)::r -> get_all_states_from_proba accu r
-  | (SetEvent(f,g,poptref)) :: r  ->
+  | (SetEvent(f,g,pub_vars,poptref)) :: r  ->
       let accu' = get_all_states_from_proba accu r in
       match !poptref with
 	None -> accu'
@@ -2141,7 +2058,7 @@ let display_state s =
   else if rest' != [] then
     begin
       print_string "RESULT Could not prove ";
-      display_list (fun (q, _,_) -> display_query q) rest;
+      display_list_sep "; " (fun (q, _,_) -> display_query q) rest;
       print_string ".\n"
     end
 

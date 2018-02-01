@@ -194,14 +194,23 @@ let display_leaks b0 =
 let add_facts_at (all_indices, simp_facts0, defined_refs0, pp_list) cur_array new_facts pp =
   let ri_lidx' = List.map Terms.new_repl_index cur_array in
   let lidx' = List.map Terms.term_from_repl_index ri_lidx' in
-  let defined_refs1 = 
-    (Terms.subst_def_list cur_array lidx' (Facts.get_def_vars_at pp)) 
-    @ defined_refs0 
-  in
+  let new_def_list = Terms.subst_def_list cur_array lidx' (Facts.get_def_vars_at pp) in
+  let defined_refs1 = new_def_list @ defined_refs0 in
   let facts1 = List.map (Terms.subst cur_array lidx') (new_facts @ (Facts.get_facts_at pp)) in
   let new_pp = (lidx', pp) in
+  (* Add facts inferred from the compatibility between [new_pp] and [pp_list] *)
   let facts2 = List.fold_left (fun accu -> Terms.both_pp_add_fact accu new_pp) facts1 pp_list in
-  let simp_facts1 = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal simp_facts0 facts2) in
+  (* Add facts inferred from the compatibility between [defined_refs0] and [new_def_list] *)
+  let facts3 = Terms.both_def_list_facts facts2 defined_refs0 new_def_list in
+  (* Add facts inferred from the compatibility between [new_pp] and [defined_refs1] *)
+  let facts4 = Terms.def_list_pp facts3 (pp, lidx') defined_refs1 in
+  (* Add facts inferred from the compatibility between [pp_list] and [new_def_list] *)
+  let facts5 = List.fold_left (fun accu (lidx, pp0) -> 
+    Terms.def_list_pp accu (pp0, lidx) new_def_list) facts4 pp_list 
+  in
+  let simp_facts1 = Terms.auto_cleanup (fun () -> 
+    Facts.simplif_add_list Facts.no_dependency_anal simp_facts0 facts5) 
+  in
   (lidx', (ri_lidx' @ all_indices, simp_facts1, defined_refs1, new_pp::pp_list))
 
 (* [collect_bargs args_accu b t] collects in [args_accu] the arguments
@@ -325,8 +334,8 @@ let rec check_usage_term cur_array seen_accu b lidx facts t =
       end
   | ResE(b,t) ->
       check_usage_term cur_array seen_accu b lidx facts t
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event_abort should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
       
 and check_usage_pat cur_array seen_accu b lidx facts = function
     PatVar _ -> ()
@@ -547,10 +556,11 @@ let check_secrecy_memo b l =
    It returns [(false, _)] when the proof of [q] failed.*)
 
 let check_query event_accu = function
-    (QSecret1 (b,l),_) -> check_secrecy_memo b l
-  | (QSecret (b,l),_) -> 
-      let (r1, proba1) = check_secrecy_memo b l in
-      if r1 then
+  | (QSecret (b,pub_vars,onesession),_) -> 
+      let (r1, proba1) = check_secrecy_memo b pub_vars in
+      if onesession then
+	(r1, proba1)
+      else if r1 then
 	let (r2, proba2) = Check_distinct.check_distinct b (!whole_game) in
 	if r2 then
 	  begin
@@ -567,12 +577,12 @@ let check_query event_accu = function
 	  end
 	else (false, [])
       else (false, [])
-  | (QEventQ(t1,t2),gn) ->
-      let (r, proba) = Check_corresp.check_corresp event_accu (t1,t2) (!whole_game) in
+  | ((QEventQ(t1,t2,pub_vars) as query),_) ->
+      let (r, proba) = Check_corresp.check_corresp event_accu (t1,t2,pub_vars) (!whole_game) in
       if r then
 	begin
 	  print_string "Proved query ";
-	  Display.display_query (QEventQ(t1,t2),gn);
+	  Display.display_query3 query;
 	  if proba != [] then
 	    begin
 	      print_string " Probability: ";
@@ -606,13 +616,14 @@ let rec check_query_list event_accu state = function
 	    (* The query is not proved *)
 	    (l', (a, poptref,popt)::l'', false)
 
-(* [is_event_query f g q] returns [true] when the query [q] is 
+(* [is_event_query f g pub_vars q] returns [true] when the query [q] is 
    [event f ==> false] (that is, "the event [f] can never be executed") 
-   in game [g] *)
+   in game [g] with public variables [pub_vars] *)
 
-let is_event_query f g = function
-    ((QEventQ([false, { t_desc = FunApp(f',[{ t_desc = FunApp(f_tuple, []) }]) }], QTerm t_false),g'), _,_) -> 
-      g == g' && f == f' && Terms.is_false t_false
+let is_event_query f g pub_vars = function
+    ((QEventQ([false, { t_desc = FunApp(f',[{ t_desc = FunApp(f_tuple, []) }]) }], QTerm t_false, pub_vars'),g'), _,_) -> 
+      g == g' && f == f' && Terms.is_false t_false &&
+      Terms.equal_lists (==) pub_vars pub_vars'
   | _ -> false 
 
 (* [update_full_proof query_list (q, poptref, popt)] updates [poptref]
@@ -651,12 +662,12 @@ and is_full_state query_list g state =
 
 and is_full_proba query_list = function
     SetProba _ -> true
-  | SetEvent(f,g,poptref) ->
+  | SetEvent(f,g,pub_vars, poptref) ->
       match !poptref with
 	Some _ -> true
       |	None ->
 	  try
-	    let query = List.find (is_event_query f g) query_list in
+	    let query = List.find (is_event_query f g pub_vars) query_list in
 	    update_full_proof query_list query;
 	    match !poptref with
 	      Some _ -> true
@@ -673,13 +684,13 @@ let is_success state =
   let g = state.game in
   whole_game := g;
   proved_one_session_secrets := [];
-  let vcounter = !Terms.vcounter in
+  let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
   Simplify1.improved_def_process (Some event_accu) true g.proc;
   let (proved_queries, all_queries, all_proved) = check_query_list (!event_accu) state g.current_queries in
   g.current_queries <- all_queries; (* Updated queries *)
   List.iter (update_full_proof all_queries) all_queries;
-  Terms.vcounter := vcounter; (* Forget created variables *)
+  Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
   Simplify1.empty_improved_def_process true g.proc;
   whole_game := Terms.empty_game;

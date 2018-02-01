@@ -1,0 +1,181 @@
+
+(* Yahalom, Version of Burrows, Abadi, Needham, SRC039 
+
+The final round of key confirmation should have a "mac" in order
+to prove the correspondence property:
+	query x:host, y:host, k:key;
+		event endB(x,y,k) ==> beginA(x,y,k).
+This mac is added in this file.
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+fun nonceToBitstring(nonce):bitstring [compos].
+
+(* For simplicity, in this first example, I ignore the length of messages
+   and the fact that decryption may fail. See yahalom3Stream for a better
+   version *)
+(* Shared-key encryption (CPA) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = m.
+
+const Z: bitstring.
+equiv  !N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N2 * Penc(time, N))=> 
+       !N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z, kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv !N3 new r: keyseed;(
+	 (x: bitstring) N -> mac(x, mkgen(r)),
+	 (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      !N3 new r: keyseed;(
+	 (x: bitstring) N -> mac2(x, mkgen2(r)),
+	 (m: bitstring, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, start, finish.
+const A : host.
+const B : host.
+
+event beginA(host, host, key).
+event endA(host, host, key).
+event beginB(host, host).
+event beginBkey(host, host, key).
+event endB(host, host, key).
+
+query x:host, y:host, k:key;
+	event endA(x,y,k) ==> beginB(x,y).
+query x:host, y:host, k:key;
+	event endA(x,y,k) ==> beginBkey(x,y,k).
+query x:host, y:host, k:key;
+	event endB(x,y,k) ==> beginA(x,y,k).
+
+
+let processA =
+	in(start, =());
+        new Na: nonce;
+        out(c1, (A, Na));
+        in(c2, (cert1: bitstring, mac1:macs, cert2:bitstring, mac2:macs));
+	if check(cert1, mKas, mac1) then
+        let (b:host, mk:key, k:key, =Na, nb:nonce) = dec(cert1, Kas) in
+	event beginA(A, b, k);
+	new s3: seed;
+	let e3 = enc(nonceToBitstring(nb), k, s3) in
+	out(c3, (cert2, mac2, e3, mac(e3, mk)));
+	(* OK *)
+	in(finish, =());
+	if b = B then
+	(
+	event endA(A, b, k);
+	let keyA:key = k 
+	)
+	else out(c10, k).
+
+let processB =
+        in(c4, (a: host, na: nonce));
+	event beginB(a, B);
+	new Nb: nonce;
+	new s4: seed;
+	let e4 = enc((a, na, Nb), Kbs, s4) in
+	out(c5, (B, e4, mac(e4, mKbs)));
+	in(c6, (cert2: bitstring, mac2: macs, m:bitstring, macm: macs));
+	if check(cert2, mKbs, mac2) then
+	let (=a, mk:key, k:key) = dec(cert2, Kbs) in
+	event beginBkey(a, B, k);
+	if check(m, mk, macm) then
+	if nonceToBitstring(Nb) = dec(m, k) then
+	(* OK *)
+	if a = A then
+	(
+	event endB(a, B, k);
+	let keyB: key = k 
+	)
+	else out(c11, k).
+
+let processK =
+	in(c7, (Khost: host, Kkey: key, Kmkey: key));
+	let Rkey:key = 
+		if Khost = A then Kas else
+		if Khost = B then Kbs else
+		Kkey
+	in
+	let Rmkey:key =
+		if Khost = A then mKas else
+		if Khost = B then mKbs else
+		Kmkey.
+
+let processS = 
+	in(c8, (h2: host, m: bitstring, ma: macs));
+	find j <= N2 suchthat defined(Khost[j],Rmkey[j],Rkey[j]) && (Khost[j] = h2) then
+	if check(m, Rmkey[j], ma) then
+	let (h1:host, n1:nonce, n2:nonce) = dec(m, Rkey[j]) in
+	find j1 <= N2 suchthat defined(Khost[j1],Rmkey[j1],Rkey[j1]) && (Khost[j1] = h1) then
+	new kseed: keyseed;
+	let k = kgen(kseed) in
+	new mkseed: keyseed;
+	let mk = mkgen(mkseed) in
+	new s1: seed;
+	new s2: seed;
+	let e1 = enc((h2, mk, k, n1, n2), Rkey[j1], s1) in
+	let e2 = enc((h1, mk, k), Rkey[j], s2) in
+	out(c9, (e1, mac(e1, Rmkey[j1]), e2, mac(e2, Rmkey[j]))).
+
+process 
+	in(start, =());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	new rmKas: keyseed;
+	let mKas = mkgen(rmKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	new rmKbs: keyseed;
+	let mKbs = mkgen(rmKbs) in
+	out(start, ());
+	((! N processA) |
+	 (! N processB) | 
+	 (! N processS) |
+	 (! N2 processK))
+
+(* EXPECTED
+RESULT Could not prove event endA(x, y, k) ==> beginBkey(x, y, k).
+2.190s (user 2.170s + system 0.020s), max rss 88736K
+END *)

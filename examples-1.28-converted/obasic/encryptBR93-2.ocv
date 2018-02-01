@@ -1,0 +1,121 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.2: 
+	E(x) = f(r) || H(r) xor x || H2(r || x) 
+(CCA2) -- in progress *)
+
+(* set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+  show_game occ;
+  insert 21 "let concat(xh2',xh2'') = xh2 in";
+  crypto rom(hash2);
+  crypto rom(hash);
+  remove_assign binder pk;
+  crypto ow(f) r_3 x_6;
+  show_game;
+  crypto remove_xor(xor) r_9;
+  success
+}
+
+param nx, qD.
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type hasht2 [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, pkey, skey, seed, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash).
+
+param qH [noninteractive].
+
+
+(* Another hash function, random oracle model *)
+
+expand ROM_hash(hashkey, bitstring, hasht2, hash2).
+
+fun concat(seed,hasht):bitstring [data].
+
+param qH2 [noninteractive].
+
+
+(* Xor *)
+
+expand Xor(hasht, xor, zero).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1 [onesession].
+
+
+
+
+
+
+process 
+	Ohkgen() :=
+hk <-R hashkey;
+hk2 <-R hashkey;
+return();
+((
+  foreach iH <= qH do
+  OH(x_5: seed) :=
+  return(hash(hk, x_5))
+) | (
+  foreach iH2 <= qH2 do
+  OH2(xh2: bitstring) :=
+  return(hash2(hk2, xh2))
+) | (
+  Ogen() :=
+  r_3 <-R keyseed;
+  pk: pkey <- pkgen(r_3);
+  sk: skey <- skgen(r_3);
+  return(pk);
+  ((
+    foreach iD <= qD do
+    OD(a_1: seed, b: hasht, c: hasht2) :=
+    if defined(aT, bT, cT) && (a_1 = aT) && (b = bT) && (c = cT) then
+      yield
+    else
+      x_6: seed <- invf(sk, a_1);
+      m: hasht <- xor(hash(hk, x_6), b);
+      if c = hash2(hk2, concat(x_6, m)) then
+      return(m)
+  ) | (
+    OT(m1: hasht, m2: hasht) :=
+    b1 <-R bool;
+    menc: hasht <- test(b1, m1, m2);
+    x_7 <-R seed;
+    aT: seed <- f(pk, x_7);
+    bT: hasht <- xor(hash(hk, x_7), menc);
+    cT: hasht2 <- hash2(hk2, concat(x_7, menc));
+    return(aT, bT, cT)
+  ))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.116s (user 0.100s + system 0.016s), max rss 43696K
+END *)

@@ -1,0 +1,41 @@
+(* I think there was a bug, but I do not manage to trigger it *)
+
+param N, N'.
+
+(* set interactiveMode = true. *)
+
+fun enc(bitstring, bitstring): bitstring.
+fun dec(bitstring, bitstring): bitstring.
+forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
+
+const c0: bitstring.
+
+channel c.
+
+process
+	(in(c, ());
+	find j <= N suchthat defined(m[j],k[j2[j]]) && dec(m[j],k[j2[j]]) = c0 then
+	     (* In versions of CryptoVerif until August 31, 2015, in case
+	        cryptoverif would rewrite dec(m[j],k[j2[j]]) into x[j1[j]],
+		x[j1[j]] would probably be forgotten in the defined condition,
+		because x[j1[j]] does not occur in the known facts. *)
+	out(c, ())
+	)
+|
+	(!N
+	in(c, ());
+	find j2 <= N' suchthat defined(k[j2]) then
+	find j1 <= N' suchthat defined(x[j1],k[j1]) && j1 = j2 then
+	let m:bitstring = enc(x[j1],k[j1]) in
+	out(c, ())
+	)
+|
+	(!N'
+	in(c, (x: bitstring, k:bitstring));
+	out(c, ())
+	)
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.004s + system 0.012s), max rss 22928K
+END *)

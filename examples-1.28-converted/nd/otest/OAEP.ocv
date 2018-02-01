@@ -1,0 +1,232 @@
+(* OAEP scheme, proof of CCA2 security *)
+
+(* set interactiveMode = true. *)
+
+(*
+
+We need an extension of the transformation move_array:
+equiv move_array(T)
+      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
+                      	        foreach ieq <= Neq do Oeq(X':T) := return(X' = X))
+<=(#Oeq / |T|)=> [manual,computational]
+      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
+              	       foreach ieq <= Neq do Oeq(X':T) := find[unique] j<=NX suchthat defined(Y[j]) then return(X' = Y[j]) else return(false)).
+
+in which the equality test is replaced with any function f(X,z) such that when
+X is a fresh random number, f(X,z) = g(z) up to small proba, namely:
+
+equiv move_array(T)
+      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
+                      	        foreach ieq <= Neq do Oeq(X':T) := mz <- xor(X,X'); let concatm(m, =zero) = mz in return(m))
+<=(#Oeq / |T|)=> [manual,computational]
+      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
+              	       foreach ieq <= Neq do Oeq(X':T) := find[unique] j<=NX suchthat defined(Y[j]) then (mz <- xor(X,X'); let concatm(m, =zero) = mz in return(m)) else yield).
+
+The function f cannot currently be written directly in the LHS
+of an equivalence because it uses pattern matching: let concatm(m, =zero) = ...
+
+This extension could also be applied directly to the ROM (random oracle model).
+
+
+proof {
+      crypto rom(G);
+      insert_event bad1 [in OG, when the argument is equal to the argument of G in OT]
+      [delay choice of G(..) in OD, using the extension of move_array]
+
+      crypto rom(H);
+      insert_event bad2 [in OH, when the argument is equal to the argument of H in OT]
+      [delay choice of H(..) in OD, using the extension of move_array]
+
+}
+
+After crypto rom(H), crypto rom(G), manually delaying random choices,
+we insert events as mentioned below:
+
+       Ogen() :=
+       r_108 <-R seed;
+       pk: pkey <- pkgen(r_108);
+       sk: skey <- skgen(r_108);
+       return(pk);
+       (
+         foreach iG_105 <= qG do
+         OG(x_109: Dr) :=
+         find [unique] @i_222 = @ri_221 <= qG suchthat defined(x_109[@ri_221], @9_r_151[@ri_221]) && (x_109 = x_109[@ri_221]) then
+           return(@9_r_151[@i_222])
+         orfind  suchthat defined(r_111, @9_r_153) && (x_109 = r_111) then
+           event_abort bad1 [[was return(@9_r_153)]]
+         else
+           @9_r_151 <-R Dow;
+           return(@9_r_151)
+       ) | (
+         foreach iH_106 <= qH do
+         OH(x_110: Dow) :=
+         find [unique] @i_150 = @ri_149 <= qH suchthat defined(x_110[@ri_149], @10_r_133[@ri_149]) && (x_110 = x_110[@ri_149]) then
+           return(@10_r_133[@i_150])
+         orfind  suchthat defined(s_112, @10_r_135) && (x_110 = s_112) then
+           event_abort bad2 [[was return(@10_r_135)]]
+         else
+           @10_r_133 <-R Dr;
+           return(@10_r_133)
+       ) | (
+         OT(m1: Dm, m2: Dm) :=
+         b1 <-R bool;
+         menc: Dm <- test(b1, m1, m2);
+         r_111 <-R Dr;
+         @9_r_153 <-R Dow;
+         s_112: Dow <- xorDow(concatm(menc, zero), @9_r_153);
+         @10_r_135 <-R Dr;
+         t_113: Dr <- xorDr(r_111, @10_r_135);
+         cT: D <- f(pk, concat(s_112, t_113));
+         return(cT)
+       ) | (
+         foreach iD_107 <= qD do
+         OD(c: D) :=
+         if defined(cT) && (c = cT) then
+           end
+         else
+           let concat(s_115: Dow, t_114: Dr) = invf(sk, c) in
+           find [unique] @i_142 = @ri_141 <= qH suchthat defined(x_110[@ri_141], @10_r_133[@ri_141]) && (s_115 = x_110[@ri_141]) then
+           (
+             r_116: Dr <- xorDr(t_114, @10_r_133[@i_142]);
+             find [unique] @i_182 = @ri_181 <= qG suchthat defined(x_109[@ri_181], @9_r_151[@ri_181]) && (r_116 = x_109[@ri_181]) then
+             (
+               mz: Dow <- xorDow(s_115, @9_r_151[@i_182]);
+               let concatm(m: Dm, =zero) = mz in
+               return(m)
+             )
+             orfind  suchthat defined(r_111, @9_r_153) && (r_116 = r_111) then
+             (
+               event_abort bad3 [[was:
+	       mz: Dow <- xorDow(s_115, @9_r_153);
+               let concatm(m: Dm, =zero) = mz in
+               return(m)]]
+             )
+           )
+           orfind  suchthat defined(s_112, @10_r_135) && (s_115 = s_112) then
+           (
+	     r_116: Dr <- xorDr(t_114, @10_r_135); [[@10_r_135 is equal to r_111 xor t_113, so the test below r_116 = x_109[@ri_191] becomes r_111 = x_109[@ri_191] xor t_113 xor t_114]]
+             find [unique] @i_192 = @ri_191 <= qG suchthat defined(x_109[@ri_191], @9_r_151[@ri_191]) && (r_116 = x_109[@ri_191]) then
+             (
+               mz: Dow <- xorDow(s_115, @9_r_151[@i_192]);
+               let concatm(m: Dm, =zero) = mz in
+               return(m)
+             )
+           )
+       )
+
+we can then apply
+crypto remove_xor(xorDr) "@10_r_135";
+crypto remove_xor(xorDow) "@9_r_153";
+(@10_r_135 and @9_r_153 are used only in the xor)
+r_111 is now random and used only in equality tests. Dependency analysis on r_111
+removes events bad1 and bad3 and the branch s_115 = s_112.
+
+Then avoid using invf by performing the lookup in the tables first
+and checking c = f(pk, concat(s_115, t_114)).
+Finally remove event bad2 by partial-domain one-wayness.
+
+*)
+
+param qD.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed,large].
+type Dow [fixed,large].
+type Dr [fixed,large].
+
+(* Set partial-domain one-way trapdoor permutation *)
+
+proba P_PD_OW.
+
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW).
+
+(* Hash functions, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, Dr, Dow, G).
+param qG [noninteractive].
+
+
+expand ROM_hash(hashkey, Dow, Dr, H).
+param qH [noninteractive].
+
+
+(* concatenation *)
+type Dm.
+type Dz [large].
+
+fun concatm(Dm,Dz):Dow [data].
+const zero: Dz.
+
+(* Xor *)
+
+expand Xor(Dow, xorDow, zeroDow).
+expand Xor(Dr, xorDr, zeroDr).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, Dm, Dm):Dm.
+forall x:Dm,y:Dm; test(true,x,y) = x.
+forall x:Dm,y:Dm; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1 [onesession].
+
+
+
+
+	
+
+process 
+	Ogen() :=
+hkh <-R hashkey;
+hkg <-R hashkey;
+r_4 <-R seed;
+pk: pkey <- pkgen(r_4);
+sk: skey <- skgen(r_4);
+return(pk);
+((
+  foreach iG <= qG do
+  OG(x_6: Dr) :=
+  return(G(hkg, x_6))
+) | (
+  foreach iH <= qH do
+  OH(x_7: Dow) :=
+  return(H(hkh, x_7))
+) | (
+  OT(m1: Dm, m2: Dm) :=
+  b1 <-R bool;
+  menc: Dm <- test(b1, m1, m2);
+  r_5 <-R Dr;
+  s: Dow <- xorDow(concatm(menc, zero), G(hkg, r_5));
+  t: Dr <- xorDr(r_5, H(hkh, s));
+  cT: D <- f(pk, concat(s, t));
+  return(cT)
+) | (
+  foreach iD <= qD do
+  OD(c: D) :=
+  if defined(cT) && (c = cT) then
+    yield
+  else
+    let concat(s_1: Dow, t_1: Dr) = invf(sk, c) in
+    r_6: Dr <- xorDr(t_1, H(hkh, s_1));
+    mz: Dow <- xorDow(s_1, G(hkg, r_6));
+    let concatm(m: Dm, =zero) = mz in
+    return(m)
+))
+
+
+
+
+(* DESIRED
+All queries proved.
+END
+EXPECTED
+RESULT Could not prove one-session secrecy of b1.
+0.200s (user 0.196s + system 0.004s), max rss 50800K
+END *)

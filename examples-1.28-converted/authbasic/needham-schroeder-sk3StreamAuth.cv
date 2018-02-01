@@ -1,0 +1,162 @@
+(* Needham Schroeder shared key protocol.
+   Corrected version.
+   With messages of key confirmation, in order to prove correspondence
+   properties.
+ *)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+fun concat1(nonce, host, mkey, key, macs, bitstring):bitstring [data].
+fun concat2(host, nonce):bitstring [data].
+fun concat3(mkey, key, host):bitstring [data].
+
+forall m:mkey,y:key,z:host,m2:mkey,y2:nonce,z2:host,t2:key,u2:macs,v2:bitstring;
+	concat3(m,y,z) <> concat1(y2,z2,m2,t2,u2,v2).
+forall z:host,t:nonce,y2:nonce,z2:host,m2:mkey,t2:key,u2:macs,v2:bitstring;
+	concat2(z,t) <> concat1(y2,z2,m2,t2,u2,v2).
+forall z:host,t:nonce,m2:mkey,y2:key,z2:host;
+	concat2(z,t) <> concat3(m2,y2,z2).
+
+fun minusone(nonce):nonce [data].
+forall x:nonce; minusone(x) <> x.
+
+fun nonceToBitstring(nonce):bitstring [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Zconcat1(bitstring):bitstring.
+const Zconcat2:bitstring.
+const Zconcat3:bitstring.
+forall y:nonce,z:host,m:mkey,t:key,v:macs,u:bitstring;
+	Z(concat1(y,z,m,t,v,u)) = Zconcat1(Z(u)).
+forall y:host,z:nonce; 
+	Z(concat2(y,z)) = Zconcat2.
+forall m:mkey,y:key,z:host; 
+	Z(concat3(m,y,z)) = Zconcat3.
+forall m:bitstring, r:keyseed, r2:seed; 
+	Z(enc(m, kgen(r), r2)) = Z(m).
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, start, finish.
+const A : host.
+const B : host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+event partA(host, bitstring).
+event fullA(host, bitstring).
+event partB(host, bitstring).
+event fullB(host, bitstring).
+
+query x: bitstring;
+  inj-event(partA(B, x)) ==> inj-event(partB(A, x)).
+query x: bitstring;
+  inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mKas: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mKbs: mkey = mkgen(rmKbs) in
+out(start, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], h_1: host);
+  new Na: nonce;
+  out(c3[i_1], (A, h_1, Na));
+  in(c4[i_1], (m2: bitstring, mac2_2: macs));
+  if check(m2, mKas, mac2_2) then
+  let injbot(concat1(=Na, =h_1, mk: mkey, k: key, mac3: macs, m_2: bitstring)) = dec(m2, Kas) in
+  out(c5[i_1], (m_2, mac3));
+  in(c15[i_1], (e4_1: bitstring, m4_1: macs));
+  if check(e4_1, mk, m4_1) then
+  let injbot(nonceToBitstring(Nb: nonce)) = dec(e4_1, k) in
+  new r4_1: seed;
+  let e5: bitstring = enc(nonceToBitstring(minusone(Nb)), k, r4_1) in
+  let m5: macs = mac(e5, mk) in
+  event partA(h_1, (m_2, e4_1));
+  event fullA(h_1, (m_2, e4_1, e5));
+  out(c16[i_1], (e5, m5, acceptA(h_1)))
+) | (
+  ! i_2 <= N
+  in(c8[i_2], (m4_2: bitstring, mac4: macs));
+  if check(m4_2, mKbs, mac4) then
+  let injbot(concat3(mk_1: mkey, k_1: key, h_2: host)) = dec(m4_2, Kbs) in
+  new Nb_1: nonce;
+  new r3_1: seed;
+  let e3: bitstring = enc(nonceToBitstring(Nb_1), k_1, r3_1) in
+  let m3: macs = mac(e3, mk_1) in
+  event partB(h_2, (m4_2, e3));
+  out(c14[i_2], (e3, m3));
+  in(c17[i_2], (e6: bitstring, m6: macs));
+  if check(e6, mk_1, m6) then
+  if injbot(nonceToBitstring(minusone(Nb_1))) = dec(e6, k_1) then
+  event fullB(h_2, (m4_2, e3, e6));
+  out(c13[i_2], acceptB(h_2))
+) | (
+  ! i_3 <= N
+  in(c10[i_3], (h1: host, h2: host, n: nonce));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rmkey[j1_1], Rkey[j1_1]) && (Khost[j1_1] = h1) then
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rmkey[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  new kseed: keyseed;
+  let k_2: key = kgen(kseed) in
+  new mkseed: mkeyseed;
+  let mk_2: mkey = mkgen(mkseed) in
+  new r3_2: seed;
+  let e3_1: bitstring = enc(concat3(mk_2, k_2, h1), Rkey[j2], r3_2) in
+  let mac3_1: macs = mac(e3_1, Rmkey[j2]) in
+  new r4_2: seed;
+  let e4_2: bitstring = enc(concat1(n, h2, mk_2, k_2, mac3_1, e3_1), Rkey[j1], r4_2) in
+  out(c11[i_3], (e4_2, mac(e4_2, Rmkey[j1])))
+) | (
+  ! i_4 <= N2
+  in(c9[i_4], (Khost: host, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: mkey = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+1.852s (user 1.788s + system 0.064s), max rss 85856K
+END *)

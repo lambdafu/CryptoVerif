@@ -1,0 +1,101 @@
+(*
+
+This example makes an array access to the variable kas, bound by get.
+It causes a bug in CryptoVerif 1.15: the transformation
+of get removes the definition of kas, so CryptoVerif
+thinks that the find that accesses kas always fails.	
+
+*)
+
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+
+table keytbl (key, mkey, host).
+
+fun concat1(tag, host, nonce):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+forall y:tag, h:host, z:nonce; 
+	Z(concat1(y,h,z)) = Zconcat1.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+
+const A: host.
+const B: host.
+
+const tag3: tag.
+const tag5: tag.
+
+event endB.
+
+query event(endB) ==> false.
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let kAS: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mkAS: mkey = mkgen(rmKas) in
+insert keytbl(kAS, mkAS, A);
+out(c13, ());
+((
+  ! i_1 <= N
+  in(c5[i_1], hostA2: host);
+  event endB
+) | (
+  ! i_2 <= N
+  in(c11[i_2], (hostA1: host, hostB0: host));
+  get keytbl(kas: key, mkas: mkey, =(let x_2: host = hostA1 in x_2)) in
+  out(c12[i_2], ())
+) | (
+  ! i_3 <= N2
+  in(c10[i_3], (Khost: host, Kkey: key, Kmkey: mkey));
+  if (Khost <> A) && (Khost <> B) then
+  insert keytbl(Kkey, Kmkey, Khost)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove event(endB) ==> false.
+0.028s (user 0.024s + system 0.004s), max rss 42400K
+END *)

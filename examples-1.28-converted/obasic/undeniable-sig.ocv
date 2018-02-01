@@ -1,0 +1,98 @@
+(* Undeniable signature scheme of 
+   http://www.di.ens.fr/~pointche/Documents/Papers/2001_pkc.pdf
+   Section 4.2 *)
+
+proof {
+  crypto rom(H);
+  crypto group_to_exp_strict(exp) *;
+  SArename s;
+  show_game occ;
+  replace 60 "exp(y_1, x_7)";
+  replace 45 "exp(y_1, x_6[u_6])";
+  replace 24 "exp(y_1, x_7[u_7])";
+  crypto gdh(exp);
+  success
+}
+
+param NS, NC.
+
+type Z [large,bounded].
+type G [large,bounded].
+
+
+(* Gap Diffie-Hellman problem *)
+
+proba pGDH.
+expand GDH(G, Z, g, exp, mult, pGDH).
+
+(* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
+
+type hashkey [large,fixed].
+
+def ROM_hash_exp(key, hashinput, hash (*, hashoracle, qH*)) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):G.
+
+equiv(rom(hash))
+  foreach ih <= Nh do k <-R key; (
+    foreach i <= N do OH(x: hashinput) := return(hash(k,x)) |
+    foreach ieq <= Neq do Oeq(x': hashinput, e: Z, r': G) := return(exp(hash(k,x'),e) = r'))
+<=(#Oeq / |G|)=> [computational]
+  foreach ih <= Nh do (
+    foreach i <= N do OH(x: hashinput) := find [unique] u <= N suchthat defined(x[u], r[u]) && (x= x[u]) then return(r[u]) else r <-R G; return(r) |
+    foreach ieq <= Neq do Oeq(x': hashinput, e: Z, r': G) := find [unique] u <= N suchthat defined(x[u], r[u]) && (x' = x[u]) then return(exp(r[u], e) = r') else return(false)).
+
+}
+
+expand ROM_hash_exp(hashkey, bitstring, H).
+param NH [noninteractive].
+ 
+
+(* Query *)
+
+event forgery.
+
+query event(forgery) ==> false.
+
+
+
+
+		(* The zero-knowledge proof is omitted *)
+
+process
+	Ostart() :=
+hk <-R hashkey;
+x_2 <-R Z;
+y_1: G <- exp(g, x_2);
+return(y_1);
+((
+  foreach iS <= NS do
+  OS(m_1: bitstring) :=
+  h: G <- H(hk, m_1);
+  s: G <- exp(h, x_2);
+  return(s)
+) | (
+  foreach iC <= NS do
+  OC(m'_1: bitstring, s': G) :=
+  if exp(H(hk, m'_1), x_2) = s' then
+    find j_4 = j_5 <= NS suchthat defined(m_1[j_5], s[j_5]) && (m'_1 = m_1[j_5]) && (s' = s[j_5]) then
+      return(true)
+    else
+      event forgery;
+      return(true)
+  else
+    return(false)
+) | (
+  foreach i_4 <= NH do
+  OH(xh: bitstring) :=
+  return(H(hk, xh))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.064s + system 0.016s), max rss 41760K
+END *)

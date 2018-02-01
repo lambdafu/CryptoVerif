@@ -1,0 +1,10 @@
+#!/bin/sh
+
+cd tests
+
+for i in ndtest*
+do
+
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) $i > res-$i
+
+done

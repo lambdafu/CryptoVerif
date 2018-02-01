@@ -1,0 +1,78 @@
+(* CryptoVerif makes a wrong computation of probabilities.
+To count the number of calls to the encryption oracle,
+it computes a "max" between the two branches of find,
+but this is correct only when the current replication index
+appears as a factor. Here, the encryption oracle
+is called once in each branch of find (once for M1, once for M2).
+In total, it is called twice.
+*)
+
+param N.
+param N2.
+param N3.
+
+type tag [bounded].
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type blocksize [fixed].
+
+(* Shared-key encryption (IND-CPA) *)
+
+proba Penc.
+
+const Z:blocksize.
+
+fun enc(blocksize, key): blocksize.
+fun enc'(blocksize, key): blocksize.
+fun kgen(keyseed):key.
+fun dec(blocksize, key): blocksize.
+
+forall m:blocksize, r:keyseed; 
+	dec(enc(m, kgen(r)), kgen(r)) = m.
+
+equiv
+  ! N3 new r: keyseed; ! N gen_Oracle(x: blocksize) := return(enc(x, kgen(r)))
+<=(N3 * Penc(time, N))=>
+  ! N3 new r: keyseed; ! N gen_Oracle(x: blocksize) := return(enc'(Z, kgen(r))).
+
+
+(* Queries *)
+
+query secret N_11 [onesession].
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+
+
+process 
+	in(start, (M1: blocksize, M2: blocksize));
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new N_11: nonce;
+out(c9, N_11);
+((
+  ! i_1 <= N
+  in(start[i_1], x: bool);
+  find j_10 = j_11 <= N2 suchthat defined(m[j_11]) && (m[j_11] = x) then
+    out(c1[i_1], enc(M1, Kas))
+  else
+    out(c1[i_1], enc(M2, Kas))
+) | (
+  ! i_2 <= N2
+  in(c3[i_2], m: bool)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of N_11.
+0.024s (user 0.012s + system 0.012s), max rss 41376K
+END *)

@@ -1,0 +1,147 @@
+(* This file proves that, when the master secret ms is a fresh random value,
+  log_4 -> derive-secret(ms, client_ats, log_4)
+        || derive-secret(ms, server_ats, log_4)
+        || derive-secret(ms, exporter_ms, log_4)
+and
+  log_7 -> derive-secret(ms, resumption_ms, log_7)
+are indistinguishable from independent random functions. *)
+
+(* Proof indications *)
+
+proof {
+      auto;
+      show_game;
+      SArename r2_3;
+      auto
+      }
+
+
+type extracted [large, fixed].
+type key [large, fixed].
+type three_keys [large, fixed].
+type label.
+
+(* HMAC is a PRF *)
+
+fun HMAC(extracted, bitstring):key.
+
+proba Pprf.
+
+param N, N3.
+
+equiv(prf(HMAC))
+  ! N3 new r: extracted; ! N O(x: bitstring) := return(HMAC(r,x))
+<=(N3 * (2/|extracted| + Pprf(time + (N3-1)* N * time(HMAC, maxlength(x)), N, maxlength(x))))=>
+  ! N3 ! N O(x: bitstring) := find [unique] j <= N suchthat defined(x[j], r2[j]) && (x = x[j]) then return(r2[j]) else new r2: key; return(r2).
+
+(* Hash is a collision resistant hash function *)
+
+type hashkey [large,fixed].
+type hash [fixed].
+proba Phash.
+expand CollisionResistant_hash(hashkey, bitstring, hash, Hash, Phash).
+
+(* Derive_secret(Secret, Label, Messages) =
+   HKDF_expand_label(Secret, Label, Hash(Messages), Hash.length) =
+   HKDF_expand(Secret, [Hash.length, "TLS 1.3, " + Label, Hash(Messages)], Hash.length) =
+   HMAC(Secret, [Hash.length, "TLS 1.3, " + Label, Hash(Messages), 0x00])
+
+We define build_arg(Label, Hash) = [Length, "TLS 1.3, " + Label, Hash, 0x00].
+*)
+
+fun build_arg(label, hash): bitstring [data].
+
+letfun HKDF_expand_label(Secret: extracted, Label: label, HashValue: hash) =
+       HMAC(Secret, build_arg(Label, HashValue)).
+
+letfun Derive_secret(hk: hashkey, Secret: extracted, Label: label, Messages: bitstring) = 
+       HKDF_expand_label(Secret, Label, Hash(hk, Messages)).
+
+
+fun concat(key, key, key): three_keys [data].
+
+equiv(concat )
+  ! N new r1: key; new r2: key; new r3: key; O() := return(concat(r1, r2, r3))
+<=(0)=>
+  ! N new r: three_keys; O() := return(r).
+
+(* Labels *)
+
+const client_ats : label. (* ats = application traffic secret *)
+const server_ats : label.
+const exporter_ms : label. (* ms = master secret *)
+const resumption_ms : label.
+
+(* Concatenation of client_traffic_secret_0, server_traffic_secret_0, and exporter_secret *)
+
+letfun Derive_Secret_cs_ats_exp(hk: hashkey, MasterSecret: extracted, log: bitstring) =
+       concat(Derive_secret(hk, MasterSecret, client_ats, log),
+              Derive_secret(hk, MasterSecret, server_ats, log),
+	      Derive_secret(hk, MasterSecret, exporter_ms, log)).
+
+(* resumption_secret *)
+
+letfun Derive_Secret_rms(hk: hashkey, MasterSecret: extracted, log: bitstring) =
+       Derive_secret(hk, MasterSecret, resumption_ms, log).
+
+(* Prove equivalence between processLeft and processRight *)
+
+query secret b.
+
+channel start, c1, c2, c3.
+
+param N'.
+
+
+
+
+
+process
+	in(start, ());
+new b: bool;
+new hk: hashkey;
+if b then
+  out(start, hk);
+  ! i_1 <= N3
+  in(c1[i_1], ());
+  new ms: extracted;
+  out(c1[i_1], ());
+  ((
+    ! i_2 <= N
+    in(c2[i_2, i_1], log0: bitstring);
+    out(c2[i_2, i_1], (let hk_1: hashkey = hk in (let MasterSecret: extracted = ms in (let log_1: bitstring = log0 in concat(HMAC(MasterSecret, build_arg(client_ats, Hash(hk_1, log_1))), HMAC(MasterSecret, build_arg(server_ats, Hash(hk_1, log_1))), HMAC(MasterSecret, build_arg(exporter_ms, Hash(hk_1, log_1))))))))
+  ) | (
+    ! i_3 <= N'
+    in(c3[i_3, i_1], log0': bitstring);
+    out(c3[i_3, i_1], (let hk_2: hashkey = hk in (let MasterSecret_1: extracted = ms in (let log_2: bitstring = log0' in HMAC(MasterSecret_1, build_arg(resumption_ms, Hash(hk_2, log_2)))))))
+  ))
+else
+  out(start, hk);
+  ! i_4 <= N3
+  in(c1[i_4], ());
+  out(c1[i_4], ());
+  ((
+    ! i_5 <= N
+    in(c2[i_5, i_4], log: bitstring);
+    find [unique] j_5 = j_6 <= N suchthat defined(log[j_6], r[j_6]) && (log = log[j_6]) then
+      out(c2[i_5, i_4], r[j_5])
+    else
+      new r: three_keys;
+      out(c2[i_5, i_4], r)
+  ) | (
+    ! i_6 <= N'
+    in(c3[i_6, i_4], log': bitstring);
+    find [unique] j' = j'_1 <= N' suchthat defined(log'[j'_1], r'[j'_1]) && (log' = log'[j'_1]) then
+      out(c3[i_6, i_4], r'[j'])
+    else
+      new r': key;
+      out(c3[i_6, i_4], r')
+  ))
+
+
+	     
+
+(* EXPECTED
+All queries proved.
+0.632s (user 0.604s + system 0.028s), max rss 58720K
+END *)

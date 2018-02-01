@@ -1,0 +1,103 @@
+(* Version in which the participants only talk to A and B 
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+
+fun concat1(nonce, nonce, host, host):maxenc [data].
+fun concat2(nonce, key):maxenc [data].
+
+forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+const Zconcat2:maxenc.
+forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = Zconcat1.
+forall y:nonce,z:key; 
+	Z(concat2(y,z)) = Zconcat2.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyA.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+
+
+
+	
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mKas: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mKbs: mkey = mkgen(rmKbs) in
+out(c9, ());
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new M_1: nonce;
+  new Na: nonce;
+  new s1: seed;
+  let ea1: maxmac = enc(concat1(Na, M_1, A, B), Kas, s1) in
+  event beginA(A, B, M_1);
+  out(c1[i_1], (M_1, A, B, ea1, mac(ea1, mKas)));
+  in(c2[i_1], (=M_1, ea2: maxmac, ma2: macs));
+  if check(ea2, mKas, ma2) then
+  let injbot(concat2(=Na, k: key)) = dec(ea2, Kas) in
+  event endA(A, B, M_1, k);
+  let keyA: key = k
+) | (
+  ! i_2 <= N
+  in(c7[i_2], M_2: nonce);
+  find i_3 = i_4 <= N, j_11 = j_12 <= N suchthat defined(ea1[j_12]) && (let injbot(concat1(a: nonce, b: nonce, c: host, d: host)) = dec(ea1[j_12], Kas) in ((i_4 = j_12) && (b = M_2)) else false) then
+  out(c8[i_2], M_2)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.024s + system 0.004s), max rss 35584K
+END *)

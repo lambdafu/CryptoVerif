@@ -1,0 +1,121 @@
+
+(** Chosen ciphertext secure symmetric encryption **)
+
+(** The construction of an encryption scheme 
+    using a pseudo-random function family
+    and an unpredictable function family
+    is shown to be IND-CCA2.
+    See Section 7, "Sequences of Games", Victor Shoup. **)
+
+param n, m, p, q, qE, qD.
+
+type S [large,fixed].
+type K [large,fixed].
+
+type N [large,fixed].
+type L [fixed].
+type W [fixed].
+
+proba pPRF.
+proba pUF.
+proba pXOR.
+
+fun f(S,N): L.
+
+(* f(S) is a pseudo-random function family *) 
+
+equiv
+  ! n new s: S; ! m gen_Oracle(x: N) := return(f(s,x))
+<=(pPRF(time,n,m))=>
+  ! n ! m gen_Oracle(x: N) := find u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(r[u]) else new r: L; return(r).
+
+fun h(K,N,L): W.
+
+(* h(K) is a message authentication code (an unpredictable function family) *)
+
+fun h'(K,N,L): W.
+
+equiv
+  ! n new k: K; (
+    ! m gen_Oracle_1(y: N, z: L) := return(h(k,y,z)) |
+    ! p gen_Oracle_2(y': N, z': L, t: W) := return(t = h(k,y',z')))
+<=(pUF(time,n,m,p))=>
+  ! n new k: K; (
+    ! m gen_Oracle_1(y: N, z: L) := return(h'(k,y,z)) |
+    ! p gen_Oracle_2(y': N, z': L, t: W) := find u <= m suchthat defined(y[u], z[u]) && y' = y[u] && z' = z[u] then return(t = h'(k,y',z')) else return(false)).
+
+fun xor(L,L): L.
+
+(* the theory of xor implies several propositions *)
+
+forall x:L, y:L; xor(x, xor(x,y)) = y.
+
+equiv
+  ! n new x: L; gen_Oracle_1(y: L) := return(xor(x,y))
+<=(pXOR(time,n))=>
+  ! n new x: L; gen_Oracle_1(y: L) := return(x).
+
+fun choose(bool,L,L): L.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:L, z:L;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+const reject:L.
+
+(* query *)
+query secret b.
+
+channel dummy, cE, cEret, cD, cDret, start.
+
+
+
+
+
+
+
+process
+  in(start, ());
+out(dummy, ());
+! i_1 <= q
+in(dummy[i_1], ());
+new k: K;
+new s: S;
+new b: bool;
+out(dummy[i_1], ());
+((
+  ! i_2 <= qE
+  in(cE[i_2, i_1], (m0: L, m1: L));
+  new x': N;
+  let tempE: L = f(s, x') in
+  let m': L = choose(b, m1, m0) in
+  let c': L = xor(tempE, m') in
+  let t': W = h(k, x', c') in
+  out(cEret[i_2, i_1], (x', c', t'))
+) | (
+  ! i_3 <= qD
+  in(cD[i_3, i_1], (x: N, c: L, t: W));
+  if t = h(k, x, c) then
+  (
+    find u_1 = u_2 <= qE suchthat defined(x'[u_2], c'[u_2], t'[u_2]) && (x = x'[u_2]) && (c = c'[u_2]) && (t = t'[u_2]) then
+      out(cDret[i_3, i_1], reject)
+    else
+      let tempD: L = f(s, x) in
+      let m_1: L = xor(tempD, c) in
+      out(cDret[i_3, i_1], m_1)
+  )
+  else
+    out(cDret[i_3, i_1], reject)
+))
+
+
+
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.036s + system 0.004s), max rss 36896K
+END *)

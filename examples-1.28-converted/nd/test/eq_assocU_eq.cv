@@ -1,0 +1,30 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+proof {
+      show_game occ;
+      replace 3 concat(concat(zero,one),two);
+      show_game;
+      simplify
+}
+
+fun concat(D,D):D.
+const empty:D.
+equation assocU(concat,empty).
+
+const zero, one, two: D. 
+
+channel c.
+
+process in(c, ());
+out(c, concat(zero, concat(one, two)));
+in(c, ());
+out(c, concat(empty, concat(one, two)))
+
+
+
+(* EXPECTED
+All queries proved.
+0.012s (user 0.012s + system 0.000s), max rss 36048K
+END *)

@@ -1,0 +1,90 @@
+
+(** The Luby-Rackoff construction **)
+
+(** A construction 
+    using a pseudo-random family of functions over a large domain
+    and an almost-XOR-universal-hash function family
+    is shown to be pseudo-random.
+    See Section 6, "Sequences of Games", Victor Shoup. **)
+
+param n, m, q.
+
+type S [large,fixed].
+type K [large,fixed].
+
+type D [large,fixed].
+type DD [fixed].
+
+proba pPRF.
+proba pAXUH.
+
+fun f(S,D): D.
+
+(* f(S) is a pseudo-random function family *) 
+
+equiv
+  ! n new s: S; ! m gen_Oracle(x: D) := return(f(s,x)) [all]
+<=(pPRF(time,n,m))=>
+  ! n ! m gen_Oracle(x: D) := find u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(r[u]) else new r: D; return(r).
+
+(* the theory of xor implies several propositions... *)
+
+expand Xor(D, xor, zero).
+
+(* ...and h(K) is an almost-XOR-universal-hash function family *)
+
+fun h(K,D): D.
+
+collision new k: K; forall x: D, x': D, y: D; return(xor(h(k,x),h(k,x')) = y) <=(pAXUH(time))=> return(x = x' && y = zero).
+
+fun pairsep(D,D): DD [data].
+fun extract1(DD): D.
+fun extract2(DD): D.
+
+(* extracts are inverses of pair *)
+
+collision forall p: DD, p': DD; return((extract1(p) = extract1(p')) && (extract2(p) = extract2(p'))) <=(0)=> return(p = p').
+
+fun concat(D,D): DD.
+
+(* concat preserves independent-randomness *)
+
+equiv
+  ! n new x: D; new y: D; gen_Oracle_1() := return(concat(x,y))
+<=(0)=>
+  ! n new z: DD; gen_Oracle_1() := return(z).
+
+(* query *)
+query secret test.
+
+channel dummy, start.
+
+
+
+process
+  in(start, ());
+new k: K;
+new s1: S;
+new s2: S;
+out(dummy, ());
+! i_1 <= q
+in(dummy[i_1], ());
+new du: D;
+new dv: D;
+let p: DD = pairsep(du, dv) in
+let u_1: D = extract1(p) in
+let v: D = extract2(p) in
+let temp1: D = h(k, v) in
+let w: D = xor(u_1, temp1) in
+let temp2: D = f(s1, w) in
+let x_1: D = xor(v, temp2) in
+let temp3: D = f(s2, x_1) in
+let y: D = xor(w, temp3) in
+let test: DD = concat(x_1, y)
+
+
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.040s + system 0.000s), max rss 37344K
+END *)

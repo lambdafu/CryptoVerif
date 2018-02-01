@@ -1,0 +1,72 @@
+(* The result may be ok
+
+  ! !_5 <= N
+  in(c1[!_5], (m: hash, x': hashinput));
+  find j <= N suchthat defined(y[j]) && find @i_11 <= N suchthat defined(y[@i_11]) && (y[j] = y[@i_11]) then (m = h(x', y[j])) else new r_10: hash; (m = r_10) then
+ 
+The look up is correctly performed on all y[..]
+
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', qH.
+
+fun h(hashinput, hr):hash.
+
+equiv
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := return(h(x,y))
+<=(0)=>
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := find j <= N' suchthat defined(y[j]) && (y= y[j]) then return(h(x,y)) else new r: hash; return(r).
+
+channel c5, c6.
+
+ 
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+
+
+
+
+process 
+	(((
+  ! i_1 <= N
+  in(c1[i_1], (m: hash, x': hashinput));
+  find j_4 = j_5 <= N suchthat defined(y[j_5]) && (m = h(x', y[j_5])) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x_1: hashinput);
+  new y: hr;
+  new s: G;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(c5[i_3], (x_2: hashinput, y': hr));
+  out(c6[i_3], h(x_2, y'))
+))
+
+)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.012s (user 0.008s + system 0.004s), max rss 36336K
+END *)

@@ -1,0 +1,130 @@
+(* Signed Diffie-Hellman protocol *)
+
+param N, N2.
+
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize [bounded].
+type signature [bounded].
+
+type Z [large,bounded].
+type G [large,bounded].
+type D [fixed].
+
+(* the CDH assumption *) 
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* h in the random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, G, D, h).
+
+param nH [noninteractive].
+
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+query secret keyB.
+
+event endA(host, host, G, G).
+event beginB(host, host, G, G).
+event endB(host, host, G, G).
+
+query y: G, x: G;
+  inj-event(endA(A, B, x, y)) ==> inj-event(beginB(A, B, x, y)) public_vars keyA, keyB.
+query y: G, x: G;
+  inj-event(endB(A, B, x, y)) ==> inj-event(endA(A, B, x, y)) public_vars keyA, keyB.
+
+
+
+
+
+
+
+process
+	Ostart() :=
+hk <-R hashkey;
+rkA <-R keyseed;
+skA: skey <- skgen(rkA);
+pkA: pkey <- pkgen(rkA);
+rkB <-R keyseed;
+skB: skey <- skgen(rkB);
+pkB: pkey <- pkgen(rkB);
+return(pkA, pkB);
+((
+  foreach iA <= N do
+  OA1(hostB: host) :=
+  a_1 <-R Z;
+  ga: G <- exp(g, a_1);
+  return(A, hostB, ga);
+  OA2(=A, =hostB, gb_1: G, s_1: signature) :=
+  find j2_3 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostB) then
+  pkhostB: pkey <- Rkey[j2_3];
+  if check(concatB(A, hostB, ga, gb_1), pkhostB, s_1) then
+  r2_1 <-R seed;
+  gab: G <- exp(gb_1, a_1);
+  kA: D <- h(hk, gab);
+  event endA(A, hostB, ga, gb_1);
+  return(sign(concatA(A, hostB, ga, gb_1), skA, r2_1));
+  OA3() :=
+  if hostB = B then
+    keyA: D <- kA
+  else
+    return(kA)
+) | (
+  foreach iB <= N do
+  OB1(hostA: host, =B, ga_1: G) :=
+  b_1 <-R Z;
+  gb_2: G <- exp(g, b_1);
+  r1_1 <-R seed;
+  event beginB(hostA, B, ga_1, gb_2);
+  return(hostA, B, gb_2, sign(concatB(hostA, B, ga_1, gb_2), skB, r1_1));
+  OB2(s_2: signature) :=
+  find j2_4 = j2_2 <= N2 suchthat defined(Khost[j2_2], Rkey[j2_2]) && (Khost[j2_2] = hostA) then
+  pkhostA: pkey <- Rkey[j2_4];
+  if check(concatA(hostA, B, ga_1, gb_2), pkhostA, s_2) then
+  gab_1: G <- exp(ga_1, b_1);
+  kB: D <- h(hk, gab_1);
+  event endB(hostA, B, ga_1, gb_2);
+  if hostA = A then
+    keyB: D <- kB
+  else
+    return(kB)
+) | (
+  foreach iH <= nH do
+  OH(x_3: G) :=
+  return(h(hk, x_3))
+) | (
+  foreach iK <= N2 do
+  OK(Khost: host, Kkey: pkey) :=
+  Rkey: pkey <- (if Khost = B then pkB else if Khost = A then pkA else Kkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.860s (user 0.820s + system 0.040s), max rss 76976K
+END *)

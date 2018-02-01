@@ -1,0 +1,479 @@
+(* AuthA (protocol similar to OEKE, but more complex in the way it uses hash functions) *)
+
+(* Proof indications *)
+
+proof {
+set maxIterSimplif = 3;
+show_game occ;
+insert 309 "let concatpw(x1,x2,x3) = hx' in"; (* just after OH1(..):= *)
+crypto rom(h');
+show_game occ;
+insert 292 "let concat(x1',x2',x3',x4',x5') = hx in"; (* just after OH(..):= *)
+show_game occ;
+insert 302 "let concat0(xhash) = hx in"; (* in the "else" branch of the previously inserted let *)
+show_game occ;
+insert 312 "let concatG(xh',xG') = hx in"; (* in the "else" branch of the previously inserted let *)
+crypto rom(h);
+show_game occ;
+insert 1380 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then"; (* just after OS2(..):= *)
+show_game occ;
+insert 2085 "find nj <= qH, nj' <= qH suchthat defined(x1'[nj], x2'[nj], x3'[nj], x4'[nj], @9_r_148[nj], xh'[nj'], xG'[nj'], @9_r_152[nj']) && (U = x1'[nj]) && (S = x2'[nj]) && (X_s = x3'[nj]) && (Y = x4'[nj]) && (xh'[nj'] = @9_r_148[nj]) && (auth_s = @9_r_152[nj']) then"; (* beginning of the "else" branch of the just inserted find *)
+show_game occ;
+insert_event Auth 2142; (* "then" branch of the just inserted find *)
+simplify;
+SArename MK_u; (* needed to realize that @9_r_148[..] = MK_u[j] => X_s = X[j] *)
+show_game occ;
+insert_event CDH1 1347;
+insert_event CDH3 1259;
+insert_event CDH4 751;
+insert 45 "find i2 <= qH suchthat defined(x1'[i2], x2'[i2], x3'[i2], x4'[i2], x5'[i2]) && (U = x1'[i2]) && (S = x2'[i2]) && (X = x3'[i2]) && (Y_u = x4'[i2]) && (K_u = x5'[i2]) then";
+insert_event CDH5 88;
+simplify;
+remove_assign useless;
+SArename "@9_r_142";
+	 (* With the extension that distinguishes cases depending on the order in 
+	 which variables are defined, simplification should remove the branch 
+              orfind @i_283 <= NS suchthat defined(X_s[@i_283], Y[@i_283], K_s[@i_283], @9_r_331[@i_283]) && ((X = X_s[@i_283]) && ((Y_u = Y[@i_283]) && (K_u = K_s[@i_283]))) then
+	    
+* either OS2[@i_283] run after OC1[iU_103],
+then x_110[iU_103], X[iU_103] defined, X[iU_103] = X_s[@i_283]
+hence there is a j[@i_283] = iU_103 such that
+find j[@i_283] <= NU suchthat defined(X[j[@i_283]], x_110[j[@i_283]]) && (X[j[@i_283]] = X_s[@i_283]) then
+So @9_r_331[@i_283] cannot be defined.
+Impossible.
+
+* or OS2[@i_283] run before OC1[iU_103],
+by elimination of collisions X <> X_s[@i_283] 
+(X_s[@i_283] does not depend on x_110 since x_110 is chosen after X_s[@i_283] is defined, X = exp(g,x_110))
+So impossible.
+*)
+(*move array "@9_r_330";*)
+         (* Simplification should remove the branches
+               find [unique] @i_290 <= qH, @i_337 <= qH suchthat defined(@i_346[@i_337], xh'[@i_290], @4_Y_332[@i_337], xG'[@i_290], @9_r_152[@i_290]) && ((@i_346[@i_337] = @i_283) && ((xh'[@i_290] = @4_Y_332[@i_337]) && (PW_u = xG'[@i_290]))) then
+            and 
+               find [unique] @i_257 <= qH, @i_336 <= qH suchthat defined(@i_34 6[@i_336], xhash[@i_257], @4_Y_332[@i_336], @9_r_150[@i_257]) && ((@i_346[@i_336] = @i_283) && (xhash[@i_257] = @4_Y_332[@i_336])) then
+
+@4_Y_332[@i_337] defined implies
+find [unique] @i_346[@i_337] <= NS suchthat defined(X_s[@i_346[@i_337]], Y[@i_346[@i_337]], K_s[@i_346[@i_337]], @9_r_330[@i_346[@i_337]]) && ((x1'[@i_337] = U) && ((x2'[@i_337] = S) && ((x3'[@i_337] = X_s[@i_346[@i_337]]) && ((x4'[@i_337] = Y[@i_346[@i_337]]) && (x5'[@i_337] = K_s[@i_346[@i_337]]))))) then
+Since @i_346[@i_337] = @i_283, we have
+(x1'[@i_337] = U) && (x2'[@i_337] = S) && (x3'[@i_337] = X_s[@i_283]) && (x4'[@i_337] = Y[@i_283]) && (x5'[@i_337] = K_s[@i_283])
+Since we are in the "then" branch of
+             find [unique] @i_283 <= NS suchthat defined(j[@i_283], Y[@i_283], K_s[@i_283], @9_r_330[@i_283]) && ((iU_103 = j[@i_283]) && ((Y_u = Y[@i_283]) && (K_u = K_s[@i_283]))) then
+and j[@i_283] defined implies X[j[@i_283]] = X_s[@i_283]; moreover, iU_103 = j[@i_283], so X = X_s[@i_283]
+we have 
+(x1'[@i_337] = U) && (x2'[@i_337] = S) && (x3'[@i_337] = X) && (x4'[@i_337] = Y_u) && (x5'[@i_337] = K_u)
+which contradicts being in the "else" branch of 
+           find i2 <= qH suchthat defined(x1'[i2], x2'[i2], x3'[i2], x4'[i2], x5'[i2]) && ((U = x1'[i2]) && ((S = x2'[i2]) && ((X = x3'[i2]) && ((Y_u = x4'[i2]) && (K_u = x5'[i2]))))) then
+             event CDH5
+
+The reasoning is similar for the second branch.
+
+I am wondering why the current simplification does not manage to do that.
+The problem is that CryptoVerif fails to orient the equalities:
+(K_u[iU_103] = K_s[@i_283[iU_103]])
+(Y_u[iU_103] = Y[@i_283[iU_103]])
+Because, with already included substitutions, these equalities are rewritten
+exp(Y_u[iU_103], x_110[iU_103]) = exp(g, mult(x_110[iU_103], y[@i_283[iU_103]]))
+dec(ck, Ystar_u[iU_103], pwS) = exp(g, y[@i_283[iU_103]])
+and CryptoVerif does not orient those...
+          *)
+move array "@9_r_331";
+show_game
+(* 
+move array "@9_r_142";  PROBLEM: in the server, one chooses @9_r_142 (MK_s) without using it immediately.
+                          We should delay this choice, but CryptoVerif does not manage to merge the case of
+			  a delayed @9_r_142 with the case of a direct choice of @9_r_148. The merging
+			  of branches of find is too complex. 
+show_game
+
+
+Rest of the proof coming from OEKE
+crypto icm(enc);
+show_game occ;
+insert_event Encrypt 633;   beginning of the branch "find ... && (pw = ke[..]) then .." in OC2 
+auto;
+move array "@6_X_416";      variable chosen at the end of OC2 and not used immediately 
+move binder "@11_r_130";
+merge_arrays "@6_X_412" "@2_Y_418";
+merge_branches;
+move array "@6_X_413";      variable chosen in OP and not used immediately 
+merge_arrays "@6_X_412" "@2_Y_425";
+merge_branches;
+move array "@6_X_415";      variable chosen in OS1 and not used immediately 
+merge_arrays "@6_X_412" "@2_Y_432";
+show_game occ;
+insert 121 "find nj2 <= qH1, nk <= qD suchthat defined(x1[nj2], x2[nj2], x3[nj2], x4[nj2], @11_r_134[nj2], m[nk], kd[nk], @6_X_412[nk]) && (m[nk] = @8_r2_161) && (U = x1[nj2]) && (S = x2[nj2]) && (X_s = x3[nj2]) && (x4[nj2] = @6_X_412[nk]) && (auth_s = @11_r_134[nj2])  && (kd[nk] = pw) then";
+show_game occ;
+insert_event Auth2 184;
+simplify;
+success;
+simplify coll_elim pw;
+success *)
+} 
+
+(* Parameter and type declarations *)
+
+param NU, NS, NP.
+
+type Z [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+
+type hash [fixed,large].
+type host [bounded].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, G, G, enc, dec).
+
+param qE, qD [noninteractive].
+let enc_dec_oracle =
+       (foreach iE <= qE do Oenc(x:G, ke:G) := return(enc(ck,x,ke)))
+     | (foreach iD <= qD do Odec(m:G, kd:G) := return(dec(ck,m,kd))).
+
+(* Hash functions in the random oracle model *)
+
+type hashkey [fixed].
+
+fun concat(host, host, G, G, G): bitstring [compos].
+fun concat0(hash): bitstring [compos].
+fun concatG(hash, G): bitstring [compos].
+fun concatpw(host, host, passwd): bitstring [compos].
+
+forall x:hash, y:hash, z:G; concat0(x) <> concatG(y,z).
+
+(* The next two inequalities are reasonable, but it would be better
+   to do without them. Together with the inequality above, they
+   allow us to split h into 3 independent hash functions. *)
+
+forall x1: host, x2: host, x3: G, x4: G, x5: G, y:hash, z:G; 
+   concat(x1,x2,x3,x4,x5) <> concatG(y,z).
+forall x1: host, x2: host, x3: G, x4: G, x5: G, y:hash; 
+   concat(x1,x2,x3,x4,x5) <> concat0(y).
+
+param qH, qH' [noninteractive].
+
+expand ROM_hash(hashkey, bitstring, hash, h).
+
+let hashoracle = foreach iH <= qH do 
+    OH(hx: bitstring):= return(h(hk,hx)). 
+
+expand ROM_hash(hashkey, bitstring, Z, h').
+
+let hashoracle' = foreach iH' <= qH' do
+    OH1(hx': bitstring):= return(h'(hk',hx')). 
+
+
+(* Host names *)
+
+const U : host.
+const S : host.
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+event termS(host, G, host, G, hash, hash).
+event acceptU(host, G, host, G, hash, hash).
+
+query x:host, X:G, y:host, Ystar:G, a: hash, k:hash;
+	event inj:termS(x,X,y,Ystar,a,k) ==> inj:acceptU(x,X,y,Ystar,a,k).
+query x:host, X:G, y:host, Ystar:G, a: hash, k:hash, k':hash;
+	event termS(x,X,y,Ystar,a,k) && acceptU(x,X,y,Ystar,a,k') ==> k = k'.
+
+(* Client *)
+
+let processU =
+	foreach iU <= NU do 
+	OC1() :=
+	x <-R Z;
+	X <- exp(g,x);
+	return(U, X);
+	OC2(=S, Ystar_u: G) :=
+	Y_u <- dec(ck, Ystar_u, pwS);
+	K_u <- exp(Y_u, x);
+	MK_u <- h(hk,concat(U,S,X,Y_u,K_u));
+	PW_u <- exp(Y_u, pwU);
+	auth_u <- h(hk,concatG(MK_u,PW_u));
+	sk_u: hash <- h(hk,concat0(MK_u));
+	event acceptU(U, X, S, Ystar_u, auth_u, sk_u);
+	return(auth_u).
+
+(* Server *)
+
+let processS =
+	foreach iS <= NS do 
+	OS1(=U, X_s: G) :=
+	y <-R Z;
+	Y <- exp(g,y);
+	Ystar <- enc(ck, Y, pwS);
+	return(S, Ystar);
+	OS2(auth_s: hash) :=
+	K_s <- exp(X_s, y);
+	MK_s <- h(hk, concat(U,S,X_s,Y,K_s));
+	PW_s <- exp(pwS, y);
+	if auth_s = h(hk,concatG(MK_s,PW_s)) then
+	sk_s: hash <- h(hk,concat0(MK_s));
+	event termS(U, X_s, S, Ystar, auth_s, sk_s).
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+let processPassive =
+	foreach iP <= NP do 
+	OP() :=
+	xp <-R Z;
+	Xp <- exp(g, xp);
+	yp <-R Z;
+	Yp <- exp(g, yp);
+	Kp <- exp(g, mult(xp,yp));
+	PWp <- exp(g, mult(pwU,yp));
+	Ystarp <- enc(ck, Yp, pwS);
+	MKp <- h(hk, concat(U,S,Xp,Yp,Kp));
+	authp <- h(hk, concatG(MKp, PWp));
+	sk_p: hash <- h(hk, concat0(MKp));
+	return(U, Xp, S, Ystarp, authp).
+
+process 
+	Ostart() :=
+	hk <-R hashkey;
+	hk' <-R hashkey;
+	ck <-R cipherkey;
+	pw <-R passwd;
+	(* Computing the next hash before allowing the adversary to 
+	   query h' simplifies the proof a bit: pwU is a fresh random
+	   element of Z; it cannot be a random number coming from
+	   a previous query to h'. *)
+	pwU <- h'(hk',concatpw(U,S,pw));
+	pwS <- exp(g, pwU);
+	return;
+	(processU | processS | processPassive | 
+	 enc_dec_oracle | hashoracle | hashoracle')
+
+(*
+Game after move_array @9_r_330
+
+         Ostart() :=
+         ck <-R cipherkey;
+         pw <-R passwd;
+         @10_r_126 <-R Z;
+         pwS: G <- exp(g, @10_r_126);
+         return();
+         (
+           foreach iU_103 <= NU do
+           OC1() :=
+           x_110 <-R Z;
+           X: G <- exp(g, x_110);
+           return(U, X);
+           OC2(=S, Ystar_u: G) :=
+           Y_u: G <- dec(ck, Ystar_u, pwS);
+           K_u: G <- exp(Y_u, x_110);
+           find i2 <= qH suchthat defined(x1'[i2], x2'[i2], x3'[i2], x4'[i2], x5'[i2]) && ((U = x1'[i2]) && ((S = x2'[i2]) && ((X = x3'[i2]) && ((Y_u = x4'[i2]) && (K_u = x5'[i2]))))) then
+             event CDH5
+           else
+             find [unique] @i_283 <= NS suchthat defined(j[@i_283], Y[@i_283], K_s[@i_283], @9_r_330[@i_283]) && ((iU_103 = j[@i_283]) && ((Y_u = Y[@i_283]) && (K_u = K_s[@i_283]))) then
+             (
+               MK_u_302: hash <- cst_hash;
+               PW_u: G <- exp(Y_u, @10_r_126);
+               find [unique] @i_290 <= qH, @i_337 <= qH suchthat defined(@i_346[@i_337], xh'[@i_290], @4_Y_332[@i_337], xG'[@i_290], @9_r_152[@i_290]) && ((@i_346[@i_337] = @i_283) && ((xh'[@i_290] = @4_Y_332[@i_337]) && (PW_u = xG'[@i_290]))) then
+               (
+                 @9_r_134 <-R hash;
+                 sk_u: hash <- @9_r_134;
+                 event acceptU(U, X, S, Ystar_u, @9_r_152[@i_290], @9_r_134);
+                 return(@9_r_152[@i_290])
+               )
+               else
+                 find [unique] @i_257 <= qH, @i_336 <= qH suchthat defined(@i_346[@i_336], xhash[@i_257], @4_Y_332[@i_336], @9_r_150[@i_257]) && ((@i_346[@i_336] = @i_283) && (xhash[@i_257] = @4_Y_332[@i_336])) then
+                 (
+                   sk_u: hash <- @9_r_150[@i_257];
+                   @9_r_136 <-R hash;
+                   event acceptU(U, X, S, Ystar_u, @9_r_136, @9_r_150[@i_257]);
+                   return(@9_r_136)
+                 )
+                 else
+                   @9_r_134 <-R hash;
+                   sk_u: hash <- @9_r_134;
+                   @9_r_136 <-R hash;
+                   event acceptU(U, X, S, Ystar_u, @9_r_136, @9_r_134);
+                   return(@9_r_136)
+             )
+             orfind @i_283 <= NS suchthat defined(X_s[@i_283], Y[@i_283], K_s[@i_283], @9_r_331[@i_283]) && ((X = X_s[@i_283]) && ((Y_u = Y[@i_283]) && (K_u = K_s[@i_283]))) then
+             (
+               MK_u_302: hash <- cst_hash;
+               PW_u: G <- exp(Y_u, @10_r_126);
+               find [unique] @i_257 <= qH, @i_289 <= qH suchthat defined(xh'[@i_289], xG'[@i_289], xhash[@i_257], @9_r_150[@i_257], @9_r_152[@i_289]) && (((@9_r_331[@i_283] = xh'[@i_289]) && (PW_u = xG'[@i_289])) && (@9_r_331[@i_283] = xhash[@i_257])) then
+               (
+                 sk_u: hash <- @9_r_150[@i_257];
+                 event acceptU(U, X, S, Ystar_u, @9_r_152[@i_289], @9_r_150[@i_257]);
+                 return(@9_r_152[@i_289])
+               )
+               else
+                 find [unique] @i_290 <= qH suchthat defined(xh'[@i_290], xG'[@i_290], @9_r_152[@i_290]) && ((@9_r_331[@i_283] = xh'[@i_290]) && (PW_u = xG'[@i_290])) then
+                 (
+                   @9_r_134 <-R hash;
+                   sk_u: hash <- @9_r_134;
+                   event acceptU(U, X, S, Ystar_u, @9_r_152[@i_290], @9_r_134);
+                   return(@9_r_152[@i_290])
+                 )
+                 else
+                   find [unique] @i_257 <= qH suchthat defined(xhash[@i_257], @9_r_150[@i_257]) && (@9_r_331[@i_283] = xhash[@i_257]) then
+                   (
+                     sk_u: hash <- @9_r_150[@i_257];
+                     @9_r_136 <-R hash;
+                     event acceptU(U, X, S, Ystar_u, @9_r_136, @9_r_150[@i_257]);
+                     return(@9_r_136)
+                   )
+                   else
+                     @9_r_134 <-R hash;
+                     sk_u: hash <- @9_r_134;
+                     @9_r_136 <-R hash;
+                     event acceptU(U, X, S, Ystar_u, @9_r_136, @9_r_134);
+                     return(@9_r_136)
+             )
+             else
+               @9_r_138 <-R hash;
+               PW_u: G <- exp(Y_u, @10_r_126);
+               @9_r_136 <-R hash;
+               @9_r_134 <-R hash;
+               sk_u: hash <- @9_r_134;
+               event acceptU(U, X, S, Ystar_u, @9_r_136, @9_r_134);
+               return(@9_r_136)
+         ) | (
+           foreach iS_104 <= NS do
+           OS1(=U, X_s: G) :=
+           y <-R Z;
+           Y: G <- exp(g, y);
+           Ystar: G <- enc(ck, Y, pwS);
+           return(S, Ystar);
+           OS2(auth_s: hash) :=
+           find j <= NU suchthat defined(X[j], x_110[j]) && (X[j] = X_s) then
+           (
+             K_s: G <- exp(g, mult(x_110[j], y));
+             find [unique]  suchthat defined(Y_u[j], K_u[j], PW_u[j], @9_r_136[j], @9_r_134[j], @9_r_138[j]) && ((Y = Y_u[j]) && (K_s = K_u[j])) then
+             (
+               PW_s: G <- exp(g, mult(@10_r_126, y));
+               if (PW_s = PW_u[j]) then
+               if (auth_s = @9_r_136[j]) then
+               sk_s: hash <- @9_r_134[j];
+               event termS(U, X_s, S, Ystar, auth_s, @9_r_134[j])
+             )
+             orfind @i_247 <= qH suchthat defined(x1'[@i_247], x2'[@i_247], x3'[@i_247], x4'[@i_247], x5'[@i_247], @9_r_148[@i_247]) && ((U = x1'[@i_247]) && ((S = x2'[@i_247]) && ((X_s = x3'[@i_247]) && ((Y = x4'[@i_247]) && (K_s = x5'[@i_247]))))) then
+               event CDH4
+             else
+               @9_r_330: hash <- cst_hash
+           )
+           else
+             find nj' <= qH, nj <= qH suchthat defined(x1'[nj], x2'[nj], x3'[nj], x4'[nj], xh'[nj'], @9_r_148[nj], @9_r_152[nj']) && ((U = x1'[nj]) && ((S = x2'[nj]) && ((X_s = x3'[nj]) && ((Y = x4'[nj]) && ((xh'[nj'] = @9_r_148[nj]) && (auth_s = @9_r_152[nj'])))))) then
+               event Auth
+             else
+               K_s: G <- exp(X_s, y);
+               find [unique] @i_247 <= qH suchthat defined(x1'[@i_247], x2'[@i_247], x3'[@i_247], x4'[@i_247], x5'[@i_247], @9_r_148[@i_247]) && ((U = x1'[@i_247]) && ((S = x2'[@i_247]) && ((X_s = x3'[@i_247]) && ((Y = x4'[@i_247]) && (K_s = x5'[@i_247]))))) then
+                 end
+               else
+                 @9_r_331 <-R hash
+         ) | (
+           foreach iP_105 <= NP do
+           OP() :=
+           xp <-R Z;
+           Xp: G <- exp(g, xp);
+           yp <-R Z;
+           Yp: G <- exp(g, yp);
+           Kp: G <- exp(g, mult(xp, yp));
+           Ystarp: G <- enc(ck, Yp, pwS);
+           @9_r_146 <-R hash;
+           @9_r_144 <-R hash;
+           return(U, Xp, S, Ystarp, @9_r_144)
+         ) | (
+           foreach iE_106 <= qE do
+           Oenc(x_111: G, ke: G) :=
+           return(enc(ck, x_111, ke))
+         ) | (
+           foreach iD_107 <= qD do
+           Odec(m: G, kd: G) :=
+           return(dec(ck, m, kd))
+         ) | (
+           foreach iH_108 <= qH do
+           OH(hx: bitstring) :=
+           let concat(x1': host, x2': host, x3': G, x4': G, x5': G) = hx in
+           (
+             find [unique] @i_197 <= NU suchthat defined(X[@i_197], Y_u[@i_197], K_u[@i_197], @9_r_138[@i_197]) && ((x1' = U) && ((x2' = S) && ((x3' = X[@i_197]) && ((x4' = Y_u[@i_197]) && (x5' = K_u[@i_197]))))) then
+               event CDH3
+             orfind @i_335 <= qH suchthat defined(X_s[@i_346[@i_335]], Y[@i_346[@i_335]], K_s[@i_346[@i_335]], @4_Y_332[@i_335]) && ((x1' = U) && ((x2' = S) && ((x3' = X_s[@i_346[@i_335]]) && ((x4' = Y[@i_346[@i_335]]) && (x5' = K_s[@i_346[@i_335]]))))) then
+               return(@4_Y_332[@i_335])
+             orfind @i_345 <= NS suchthat defined(X_s[@i_345], Y[@i_345], K_s[@i_345], @9_r_331[@i_345]) && ((x1' = U) && ((x2' = S) && ((x3' = X_s[@i_345]) && ((x4' = Y[@i_345]) && (x5' = K_s[@i_345]))))) then
+               return(@9_r_331[@i_345])
+             orfind @i_193 <= NP suchthat defined(Xp[@i_193], Yp[@i_193], Kp[@i_193], @9_r_146[@i_193]) && ((x1' = U) && ((x2' = S) && ((x3' = Xp[@i_193]) && ((x4' = Yp[@i_193]) && (x5' = Kp[@i_193]))))) then
+               event CDH1
+             orfind @i_192 <= qH suchthat defined(x1'[@i_192], x2'[@i_192], x3'[@i_192], x4'[@i_192], x5'[@i_192], @9_r_148[@i_192]) && ((x1' = x1'[@i_192]) && ((x2' = x2'[@i_192]) && ((x3' = x3'[@i_192]) && ((x4' = x4'[@i_192]) && (x5' = x5'[@i_192]))))) then
+               return(@9_r_148[@i_192])
+             else
+               find [unique] @i_346 <= NS suchthat defined(X_s[@i_346], Y[@i_346], K_s[@i_346], @9_r_330[@i_346]) && ((x1' = U) && ((x2' = S) && ((x3' = X_s[@i_346]) && ((x4' = Y[@i_346]) && (x5' = K_s[@i_346]))))) then
+                 @4_Y_332 <-R hash;
+                 return(@4_Y_332)
+               else
+                 @9_r_148 <-R hash;
+                 return(@9_r_148)
+           )
+           else
+             let concat0(xhash: hash) = hx in
+             (
+               find [unique] @i_188 <= NU, @i_334 <= qH suchthat defined(@i_346[@i_334], @4_Y_332[@i_334], @9_r_134[@i_188], @9_r_330[@i_283[@i_188]], MK_u_302[@i_188]) && ((@i_346[@i_334] = @i_283[@i_188]) && (xhash = @4_Y_332[@i_334])) then
+                 return(@9_r_134[@i_188])
+               orfind @i_188 <= NU suchthat defined(@9_r_331[@i_283[@i_188]], @9_r_134[@i_188], MK_u_302[@i_188]) && (xhash = @9_r_331[@i_283[@i_188]]) then
+                 return(@9_r_134[@i_188])
+               orfind @i_180 <= qH suchthat defined(xhash[@i_180], @9_r_150[@i_180]) && (xhash = xhash[@i_180]) then
+                 return(@9_r_150[@i_180])
+               else
+                 @9_r_150 <-R hash;
+                 return(@9_r_150)
+             )
+             else
+               let concatG(xh': hash, xG': G) = hx in
+               (
+                 find [unique] @i_333 <= qH, @i_176 <= NU suchthat defined(@i_346[@i_333], @4_Y_332[@i_333], PW_u[@i_176], @9_r_136[@i_176], @9_r_330[@i_283[@i_176]], MK_u_302[@i_176]) && ((@i_346[@i_333] = @i_283[@i_176]) && ((xh' = @4_Y_332[@i_333]) && (xG' = PW_u[@i_176]))) then
+                   return(@9_r_136[@i_176])
+                 orfind @i_176 <= NU suchthat defined(@9_r_331[@i_283[@i_176]], PW_u[@i_176], @9_r_136[@i_176], MK_u_302[@i_176]) && ((xh' = @9_r_331[@i_283[@i_176]]) && (xG' = PW_u[@i_176])) then
+                   return(@9_r_136[@i_176])
+                 orfind @i_168 <= qH suchthat defined(xh'[@i_168], xG'[@i_168], @9_r_152[@i_168]) && ((xh' = xh'[@i_168]) && (xG' = xG'[@i_168])) then
+                   return(@9_r_152[@i_168])
+                 else
+                   @9_r_152 <-R hash;
+                   return(@9_r_152)
+               )
+               else
+                 find [unique] @i_156 <= qH suchthat defined(hx[@i_156], @9_r_154[@i_156]) && (hx = hx[@i_156]) then
+                   return(@9_r_154[@i_156])
+                 else
+                   @9_r_154 <-R hash;
+                   return(@9_r_154)
+         ) | (
+           foreach iH'_109 <= qH' do
+           OH1(hx': bitstring) :=
+           let concatpw(x1: host, x2: host, x3: passwd) = hx' in
+           (
+             find [unique] @i_131 <= qH' suchthat defined(x1[@i_131], x2[@i_131], x3[@i_131], @10_r_122[@i_131]) && ((x1 = x1[@i_131]) && ((x2 = x2[@i_131]) && (x3 = x3[@i_131]))) then
+               return(@10_r_122[@i_131])
+             orfind  suchthat ((x1 = U) && ((x2 = S) && (x3 = pw))) then
+               return(@10_r_126)
+             else
+               @10_r_122 <-R Z;
+               return(@10_r_122)
+           )
+           else
+             find [unique] @i_128 <= qH' suchthat defined(hx'[@i_128], @10_r_124[@i_128]) && (hx' = hx'[@i_128]) then
+               return(@10_r_124[@i_128])
+             else
+               @10_r_124 <-R Z;
+               return(@10_r_124)
+         )
+
+*)

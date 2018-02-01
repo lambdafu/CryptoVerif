@@ -1,0 +1,93 @@
+(* 
+Bug related to simplify/otheruses: the event termS is finally
+removed
+*)
+
+
+proof {
+crypto hash;
+simplify;
+simplify;
+auto
+}
+
+(* set interactiveMode = true. *)
+
+param NU, NS, NP.
+
+type G [large, fixed].
+type nonce [large, fixed].
+type thash [large, fixed].
+
+type host [bounded].
+
+(* Hash functions in the random oracle model *)
+
+param N, qH.
+
+fun hash(G, nonce):thash.
+
+equiv
+  ! N gen_Oracle(x1: G, x2: nonce) := return(hash(x1, x2)) [all]
+<=(0)=>
+  ! N gen_Oracle(x1: G, x2: nonce) := find [unique] j <= N suchthat defined(x1[j], x2[j], r[j]) && x1 = x1[j] && x2 = x2[j] then return(r[j]) else new r: thash; return(r).
+
+channel c10, c20.
+
+ 
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp,
+	start, finish.
+
+const U : host.
+const S : host.
+
+event termS.
+
+query event(termS) ==> false.
+
+(* Client *)
+
+
+
+(* Server *)
+
+
+
+
+process 
+	in(start, ());
+new pw: nonce;
+out(c8, ());
+((
+  ! i_1 <= NU
+  in(c1[i_1], ());
+  new X_4: G;
+  out(c2[i_1], (U, X_4));
+  in(c5[i_1], (=S, Ystar_u: G));
+  let Y_u: thash = hash(Ystar_u, pw) in
+  out(c6[i_1], ())
+) | (
+  ! i_2 <= NS
+  in(c3[i_2], (=U, X_s: G));
+  new Ystar: G;
+  let Y_4: thash = hash(Ystar, pw) in
+  out(c4[i_2], (S, Ystar));
+  in(c7[i_2], ());
+  find j_4 = j_5 <= NU suchthat defined(X_4[j_5], Y_u[j_5]) && (X_4[j_5] = X_s) && (Y_u[j_5] = Y_4) then
+  event termS
+) | (
+  ! i_3 <= qH
+  in(c10[i_3], (x1: G, x2: nonce));
+  out(c20[i_3], hash(x1, x2))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(termS) ==> false.
+0.040s (user 0.032s + system 0.008s), max rss 41072K
+END *)

@@ -1,0 +1,74 @@
+(* Show that, if encryption is IND-CPA and MAC is SUF-CMA, then
+   encrypt-then-MAC is IND-CCA2 *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* Mac *)
+
+proba Pmac.
+
+expand SUF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret b [onesession].
+
+channel cenc, cdec, start, c.
+
+
+
+
+
+process 
+	in(start, ());
+new b: bool;
+new rKab: keyseed;
+let Kab: key = kgen(rKab) in
+new rmKab: mkeyseed;
+let mKab: mkey = mkgen(rmKab) in
+out(c, ());
+((
+  ! i_1 <= N
+  in(cenc[i_1], (m1: bitstring, m2: bitstring));
+  if Z(m1) = Z(m2) then
+  let m_2: bitstring = (if b then m1 else m2) in
+  new s1: seed;
+  let ea1: bitstring = enc(m_2, Kab, s1) in
+  let ma1: macs = mac(ea1, mKab) in
+  out(cenc[i_1], (ea1, ma1))
+) | (
+  ! i_2 <= N
+  in(cdec[i_2], (ea: bitstring, ma_1: macs));
+  find u = u_1 <= N suchthat defined(ea1[u_1], ma1[u_1]) && (ea = ea1[u_1]) && (ma_1 = ma1[u_1]) then
+    yield
+  else
+    if check(ea, mKab, ma_1) then
+    (
+      let injbot(cleartext: bitstring) = dec(ea, Kab) in
+      out(cdec[i_2], injbot(cleartext))
+    )
+    else
+      out(cdec[i_2], bottom)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.032s + system 0.012s), max rss 37696K
+END *)

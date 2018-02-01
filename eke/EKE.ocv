@@ -1,0 +1,237 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03
+
+Contributions to mention in the paper:
+- allow array indices as arguments of functions in equivalences,
+  to formalize CDH
+- allow nested find in find conditions
+- formalization of the ideal cipher model.
+- manually guided elimination of collisions for passwords
+- abort events, and their manual insertion; computation of probabilities
+that avoids counting several times the difference between the
+same games, even with events
+- manual insertion of case distinctions and other instructions
+- manual replacement of a term with an equal term (may not be used
+for EKE)
+- possibility to designate the number of different calls to an oracle
+in probability formulas, for expressing more precise bounds.
+- optimization of counting for computation of probabilities, both
+for crypto transformations and for elimination of collisions.
+- [unique] option of find
+- move "new" when not used immediately (by a specific cryptographic
+transformation); powerful merging of find branches.
+
+Some things that could be improved:
+- the proof could be made more automatic
+(crypto 1 *, merge_branches; avoid depending on the position of 
+@2_kd[nk] = pw in the condition of find for computing the probability)
+- use hash functions with one argument instead of hash functions 
+with 5 arguments
+- improve the probability bound (CDH term)
+
+1/7/2010: results proved with probability:
+(NU+NS) / |passwd| + 
+2 (qH0 + qH1) pCDH((NS + 2 NP + 2 NU + qD + 2 qH0 + 2 qH1) * time(exp) + time) + 
+collision terms: NS * qD / |exponent| + NS * NU / |exponent| + 19. * 1. / |exponent| * NS + qD * qD / |G| + qD * NU / |G| + NS * NP / |G| + NU * qH1 / |hash1| + 28. * 1. / |exponent| * NU + 2. * 1. / |exponent| * NP + 2. * qD * NP / |exponent| + NP * qD / |G| + NS * NU / |hash1| + NS * qD / |G| + qH0 * NU / |G| + 2. * NP * NU / |G| + 3. * NS * NU / |G| + 8.5 * NU * NU / |G| + 2. * qD * NS / |exponent| + 2. * NU * NS / |exponent| + qH0 * NP / |exponent| + 4. * NS * NP / |exponent| + 13. * NU * NP / |exponent| + 0.5 * qE * qE / |G| + (NS * qE + NS) / |G| + NP * qE / |G| + NU * qE / |G| + 0.5 * NS * NS / |exponent| + qH1 * NU / |G| + qE * NS / |exponent| + NP * NS / |exponent| + qE * NP / |exponent| + (NS * NS + 2. * NP * NS + 2. * qE * NS + 2. * NU * NS + 2. * qD * NS + NP * NP + 2. * qE * NP + 2. * NU * NP + 2. * qD * NP + qE * qE + 2. * NU * qE + 2. * qD * qE + NU * NU + 2. * qD * NU + qD * qD + -1. * NS + -1. * NP + -1. * qE + -1. * NU + -1. * qD) / |G| + 0.5 * NU * NU / |exponent| + NP * NP / |exponent| + qH1 * NP / |exponent| + NS / |hash1|
+
+Desired proba:
+(NU + NS)/|passwd| + 
+(qH0 + qH1) pCDH((2 NS + 2 NP + 2 NU + qD) * time(exp) + time) +
+                 ^^^^^^^^^^^^^^^^^^^^^^^^ not completely sure for this
+collision terms
+
+*)
+
+proof {
+set maxIterSimplif = 3;
+crypto h1;
+show_game occ;
+insert 478 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then";
+show_game occ;
+insert 478 "find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_106[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_106[nj]) then";
+show_game occ;
+insert_event Auth 645;
+simplify;
+crypto enc;
+show_game occ;
+insert_event Encrypt 1241;
+auto;
+move array "@4_X_4111";
+merge_branches;
+move binder r1_118;
+merge_branches;
+remove_assign useless;
+move array "@4_X_3919";
+merge_branches;
+remove_assign useless;
+move array "@4_X_4049";
+merge_branches; 
+remove_assign useless;
+show_game occ;
+insert 347 "find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_106[nj2], m[nk], kd[nk], @4_X_3811[nk]) && (m[nk] = @5_r2_209) && (U = x11[nj2]) && (S = x12[nj2]) && (X_s = x13[nj2]) && (x14[nj2] = @4_X_3811[nk]) && (auth_s = r1_106[nj2])  && (kd[nk] = pw) then";
+show_game occ;
+insert_event Auth2 407;
+simplify;
+success;
+simplify coll_elim pw;
+success
+}
+
+param NU, NS, NP.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+     (* I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large). *)
+
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host [bounded].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec).
+
+param qE, qD [noninteractive].
+let enc_dec_oracle =
+       (foreach iE <= qE do Oenc(x:G, ke:passwd) := return(enc(ck,x,ke)))
+     | (foreach iD <= qD do Odec(m:G, kd:passwd) := return(dec(ck,m,kd))).
+
+(* Hash functions in the random oracle model *)
+
+type hashkey [fixed].
+(*
+Problem: if I use hash(concat(...)), after game transformations I get
+equality tests x = concat(y1,y2,y3,y4,y5) that I would like to transform into
+x = concat(x1,x2,x3,x4,x5) && x1 = y1 && ... for some x1...x5 but
+CryptoVerif cannot do that. As a temporary solution, I consider only
+hash functions with 5 arguments.
+
+expand ROM_hash(hashinput, hash0, h0, hashoracle0, qH0).
+expand ROM_hash(hashinput, hash1, h1, hashoracle1, qH1).
+fun concat(host, host, G, G, G):hashinput [compos].
+*)
+
+param Nh, N, qH0, qH1, Neq.
+
+fun h0(hashkey, host, host, G, G, G):hash0.
+
+equiv foreach ih <= Nh do hk <-R hashkey;
+        (foreach ih0 <= N do Oh0(x1: host, x2: host, x3: G, x4: G, x5: G) := return(h0(hk, x1, x2, x3, x4, x5)) |
+         foreach ieq0 <= Neq do Oeq0(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) := return(r' = h0(hk, x1', x2', x3', x4', x5')))
+      <=(Neq/|hash0|)=>
+      foreach ih <= Nh do 
+        (foreach ih0 <= N do Oh0(x1: host, x2: host, x3: G, x4: G, x5: G) :=
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && 
+	   		x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r[j]) else
+			 r <-R hash0; return(r) |
+         foreach ieq0 <= Neq do Oeq0(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) :=
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && 
+	   		x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then return(r' = r[j]) else return(false)).
+
+let hashoracle0 = foreach iH0 <= qH0 do OH0(x1: host, x2: host, x3: G, x4: G, x5: G):= return(h0(hk0,x1,x2,x3,x4,x5)). 
+
+fun h1(hashkey, host, host, G, G, G):hash1.
+
+equiv foreach ih <= Nh do hk <-R hashkey;
+        (foreach ih1 <= N do Oh1(x1: host, x2: host, x3: G, x4: G, x5: G) := return(h1(hk, x1, x2, x3, x4, x5)) |
+         foreach ieq1 <= Neq do Oeq1(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) := return(r' = h1(hk, x1', x2', x3', x4', x5')))
+      <=(Neq/|hash1|)=>
+      foreach ih <= Nh do 
+        (foreach ih1 <= N do Oh1(x1: host, x2: host, x3: G, x4: G, x5: G) :=
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r1[j]) && 
+	   		x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r1[j]) else
+			 r1 <-R hash1; return(r1) |
+         foreach ieq1 <= Neq do Oeq1(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) :=
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r1[j]) && 
+	   		x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then return(r' = r1[j]) else return(false)).
+
+
+let hashoracle1 = foreach iH1 <= qH1 do OH1(x11: host, x12: host, x13: G, x14: G, x15: G):= return(h1(hk1,x11,x12,x13,x14,x15)). 
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+query secret sk_p.
+
+const U : host.
+const S : host.
+
+event acceptS(host, G, host, G, hash1, hash0).
+event acceptU(host, G, host, G, hash1, hash0).
+
+query x:host, X:G, y:host, Ystar:G, a: hash1, k:hash0;
+	event inj:acceptS(x,X,y,Ystar,a,k) ==> inj:acceptU(x,X,y,Ystar,a,k).
+query x:host, X:G, y:host, Ystar:G, a: hash1, k:hash0, k':hash0;
+	event acceptS(x,X,y,Ystar,a,k) && acceptU(x,X,y,Ystar,a,k') ==> k = k'.
+
+(* Client *)
+
+let processU =
+	OC1() :=
+	x <-R exponent;
+	X <- exp(g,x);
+	return(U, X);
+        OC2(=S, Ystar_u: G) :=
+	Y_u <- dec(ck, Ystar_u, pw);
+	K_u <- exp(Y_u, x);
+	auth_u <- h1(hk1,U,S,X,Y_u,K_u);
+	sk_u: hash0 <- h0(hk0,U,S,X,Y_u,K_u);
+	event acceptU(U, X, S, Ystar_u, auth_u, sk_u);
+	return(auth_u).
+
+(* Server *)
+
+let processS =
+	OS1(=U, X_s: G) :=
+	y <-R exponent;
+	Y <- exp(g,y);
+	Ystar <- enc(ck, Y, pw);
+	return(S, Ystar);
+	OS2(auth_s: hash1) :=
+	K_s <- exp(X_s, y);
+	if auth_s = h1(hk1,U,S,X_s,Y,K_s) then
+	sk_s: hash0 <- h0(hk0,U,S,X_s,Y,K_s);
+	event acceptS(U, X_s, S, Ystar, auth_s, sk_s).
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+let processPassive =
+        OP() :=
+        xp <-R exponent;
+	Xp <- exp(g, xp);
+	yp <-R exponent;
+	Yp <- exp(g, yp);
+	Kp <- exp(g, mult(xp,yp));
+	Ystarp <- enc(ck, Yp, pw);
+	authp <- h1(hk1, U, S, Xp, Yp, Kp);
+	sk_p: hash0 <- h0(hk0, U, S, Xp, Yp, Kp);
+	return(U, Xp, S, Ystarp, authp).
+
+process 
+	Ostart() :=
+	hk0 <-R hashkey;
+	hk1 <-R hashkey;
+	ck <-R cipherkey;
+	pw <-R passwd;
+	return;
+	((foreach iU <= NU do processU) |
+	 (foreach iS <= NS do processS) | 
+	 (foreach iP <= NP do processPassive) | enc_dec_oracle | hashoracle0 | hashoracle1)
+

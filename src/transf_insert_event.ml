@@ -67,6 +67,7 @@ let insert_event occ s g =
       Settings.changed := true;
       let g' = { proc = p'; game_number = -1; current_queries = [] } in
       let q_proof = ref None in
-      g'.current_queries <- ((QEventQ([false, t], QTerm (Terms.make_false())), g'), q_proof, None) :: g.current_queries;
-      (g', [SetEvent(f, g', q_proof)], [DInsertEvent(f,occ)])
+      let pub_vars = Settings.get_public_vars() in
+      g'.current_queries <- ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g'), q_proof, None) :: g.current_queries;
+      (g', [SetEvent(f, g', pub_vars, q_proof)], [DInsertEvent(f,occ)])
     end

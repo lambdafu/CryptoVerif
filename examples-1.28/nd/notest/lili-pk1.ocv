@@ -1,0 +1,199 @@
+set interactiveMode = true.
+
+type Challenge [large, fixed]. 
+
+type Z [large,fixed].
+type G [large,fixed].
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+
+fun multG(G,G): G [commut]. 
+fun multZ(Z,Z): Z [commut]. 
+fun add(Z,Z): Z [commut]. 
+fun neg(Z): Z. 
+
+(* exponents multiply *)
+
+forall g:G, x:Z, y:Z; exp(exp(g,x), y) = exp(g, multZ(x,y)). 
+forall g:G, x:Z, y:Z; multG(exp(g, x), exp(g, y)) = exp(g, add(x, y)). 
+forall x:Z, y:Z; add(add(x, y), neg(y)) = x. 
+forall x:Z, y:Z; add(add(x, neg(y)), y) = x. 
+forall x:Z, y:Z; multZ(x, neg(y)) = neg(multZ(x, y)). 
+forall x:Z; neg(neg(x)) = x. 
+
+(* injectivity *)
+
+forall g:G, x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y). 
+forall g:G, x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y). 
+forall a:Z, x:Z, y:Z; (multZ(a,x) = multZ(a,y)) = (x = y). 
+forall a:G, x:G, y:G; (multG(a,x) = multG(a,y)) = (x = y). 
+forall a:Z, x:Z, y:Z; (add(a,x) = add(a,y)) = (x = y). 
+
+(* collision between products *)
+
+collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
+    return(multZ(x1,x2) = multZ(x3,x4)) <=(1/|Z|)=> return(false). 
+
+collision x1 <-R G; x2 <-R G; x3 <-R G; x4 <-R G; 
+    return(multG(x1,x2) = multG(x3,x4)) <=(1/|Z|)=> return(false). 
+
+collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
+    return(add(x1,x2) = add(x3,x4)) <=(1/|Z|)=> return(false). 
+
+(* Hash *)
+expand ROM_hash(Challenge, G, Z, hash). 
+(* expand ROM_hash(Challenge, bitstring, Z, hash).  *)
+
+param nH [noninteractive].
+let hashOracle = foreach iH <= nH do OH(x:G) := return(hash(R,x)).
+(* let hashOracle = foreach iH <= nH do OH(x:bitstring) := return(hash(R,x)). *)
+
+(* Message Constrcution *)
+fun pk1C(G, G): G [compos]. 
+forall x:G, y:G, s:G, t:G; multG(pk1C(x, y), pk1C(s, t)) = pk1C(multG(x, s), multG(y, t)). 
+forall x:G, y:G, a:Z; exp(pk1C(x, y), a) = pk1C(exp(x, a), exp(y, a)).
+
+(* Diffie-Hellman *)
+
+define myCDH(G, Z, g, exp, mult, pCDH) {
+
+const g:G.
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(g)
+      foreach iX <= N do X <-R G; (OX() := return(X) | foreach iXm <= N' do OXm(m:Z) [useful_change] := return(exp(X,m)))
+<=(0)=> [computational]
+      foreach iX <= N do x <-R Z; (OX() := return(exp(g,x)) | foreach iXm <= N' do OXm(m:Z) := return(exp(g,mult(x,m)))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. 
+*)
+
+equiv group_to_exp(g) 
+      foreach iX <= N do X <-R G; OX() := return(X) 
+<=(0)=> [manual, computational]    
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x)).
+
+equiv exp_to_group(g)
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x))
+<=(0)=> [computational]
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+equiv exp'_to_group(g)
+      foreach iX <= N do x <-R Z; OX() := return(exp'(g,x))
+<=(0)=> [computational]
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+(* the CDH assumption *)
+
+}
+
+proba pCDH.
+expand myCDH(G, Z, g0, exp, multZ, pCDH).
+expand myCDH(G, Z, g1, exp, multZ, pCDH).
+expand myCDH(G, Z, g2, exp, multZ, pCDH).
+expand myCDH(G, Z, g3, exp, multZ, pCDH).
+
+const mark:bitstring. 
+param NE, NMS, NMY', NMPS, NMGS, NMGPS. 
+equiv wrong_eq(pk1)
+    foreach ie <= NE do y'<-R Z; s <-R Z; py'<-R Z; ps <-R Z; c <-R Z; 
+    (
+        OPKC() := return(pk1C(exp(g0, y'), exp(g3, s))) | 
+        (* OS() := return(s) | *)
+        (* OPS() := return(ps) | *)
+        (* OY'() := return(y') | *)
+        (* OPY'() := return (py') | *)
+        OC() := return(c) |
+        OZY'() := return(add(py', neg(multZ(y', c)))) |
+        OZS() := return(add(ps, neg(multZ(s, c)))) |
+        foreach ims <= NMS do OMS(s':Z) := return(s' = s) |
+        (* foreach ims <= NMY' do OMY'(y'':Z) := return(y'' = y') | *)
+        (* foreach imps <= NMPS do OMPS(ps':Z) := return(ps' = ps) | *)
+        (* foreach imgs <= NMGS do OMGS(gs':G) := return(gs' = exp(g, s)) | *)
+        foreach imgps <= NMGPS do OMGPS(pkC':G) := return(pkC' = pk1C(exp(g0, py'), exp(g3, ps)))
+    ) 
+<=(pCDH(time))=> [computational]
+    foreach ie <= NE do y'<-R Z; s <-R Z; py'<-R Z; ps <-R Z; c <-R Z; 
+    (
+        OPKC() := rg <-R G; return(rg) | 
+        (* OS() := return(s) | *)
+        (* OPS() := return(ps) | *)
+        (* OY'() := return(y') | *)
+        (* OPY'() := return (py') | *)
+        OC() := return(c) |
+        OZY'() := r1 <-R Z; return(r1) |
+        OZS() := r2 <-R Z; return(r2) |
+        foreach ims <= NMS do OMS(s':Z) := return(false) |
+        (* foreach ims <= NMY' do OMY'(y'':Z) := return(false) | *)
+        (* foreach imps <= NMPS do OMPS(ps':Z) := return(false) | *)
+        (* foreach imgs <= NMGS do OMGS(gs':G) := return(false) | *)
+        foreach imgps <= NMGPS do OMGPS(pkC':G) := return(false)
+    ).
+
+
+
+(* Query *)
+event start. 
+event finish. 
+event bad_s.
+
+(* query secret y'. *)
+(* query secret s.  *)
+
+(* query event start() ==> finish().  *)
+query event bad_s ==> false.
+
+(* User *)
+let PUser = 
+    OU1() :=
+    y' <-R Z;
+    s <-R Z;
+    C <- pk1C(exp(g0, y'), exp(g3, s));
+    (* g0y' <- exp(g0, y'); *)
+    (* g3s <- exp(g3, s); *)
+    return(C);
+    (* return(g0y', g3s); *)
+    OU2() := 
+    event start(); 
+    py' <-R Z;
+    ps <-R Z;
+    T <- pk1C(exp(g0, py'), exp(g3, ps));
+    (* p_g0py' <- exp(g0, py'); *)
+    (* p_g3ps <- exp(g3, ps); *)
+    c <- hash(R, T);
+    (* c <- hash(R, (p_g0py', p_g3ps)); *)
+    zy' <- add(py', neg(multZ(y', c)));
+    zs <- add(ps, neg(multZ(s, c)));
+    return(c, zy', zs);
+    OU3(s':Z) := 
+    if s' = s then event bad_s. 
+    
+(* Supplier *)
+let PSupplier = 
+    OS1(in_C:G) :=
+    (* OS1(in_g0y':G, in_g3s:G) := *)
+    return();
+    OS2(in_c:Z, in_zy':Z, in_zs:Z) := 
+    T <- multG(exp(in_C, in_c), pk1C(exp(g0, in_zy'), exp(g3, in_zs)));
+    (* s_g0py' <- multG(exp(g0, in_zy'), exp(in_g0y', in_c)); *)
+    (* s_g3ps <- multG(exp(g3, in_zs), exp(in_g3s, in_c)); *)
+    c <- hash(R, T);
+    (* c <- hash(R, (s_g0py', s_g3ps)); *)
+    if c = in_c then
+    event finish().
+
+param N.     
+
+process 
+    Ostart() :=
+    R <-R Challenge;
+    return();
+    ((foreach iU <= N do PUser) | (foreach iS <= N do PSupplier) | hashOracle)
+        

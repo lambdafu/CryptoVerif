@@ -42,7 +42,9 @@ let get_binder_name b =
   get_iprocess_bv returns the set of variables bound not under a replication
   The set of variables bound under a replication is stored in
   bound_vars_under_repl.
-  The set of free variables is stored in free_vars. *)
+  The set of variables bound inside a term is stored in bound_vars_terms.
+  The set of free variables is stored in free_vars. 
+ *)
 
 let empty_bv = BinderSet.empty
 let bound_bv = BinderSet.singleton
@@ -59,7 +61,11 @@ let get_binderref_name ext (b,l) =
 
 let free_vars = ref BinderSet.empty (* Contains all free variables; may contain some variables that are also bound *)
 let bound_vars_under_repl = ref BinderSet.empty
+let bound_vars_terms = ref BinderSet.empty
 
+let add_bv_term bs =
+  bound_vars_terms := BinderSet.union bs (!bound_vars_terms)
+    
 let free_var b=
   free_vars := BinderSet.add b (!free_vars);
   BinderSet.empty
@@ -67,18 +73,19 @@ let free_var b=
 let rec get_pattern_bv = function
     PatVar(b)->bound_bv (get_binder_name b)
   | PatTuple((fs,pl))-> add_list_bv get_pattern_bv pl
-  | PatEqual(t)->get_term_bv t
+  | PatEqual(t)-> add_bv_term (get_term_bv t); empty_bv
+
 and get_iprocess_bv p = 
   match p.i_desc with
-      Nil -> empty_bv
-    | Input((c,tl),pat,p) -> 
-        add_bv (get_oprocess_bv p) (get_pattern_bv pat)
-    | Par (p1,p2) ->
-        add_bv (get_iprocess_bv p1) (get_iprocess_bv p2)
-    | Repl(b,p1) -> 
-	let bv = get_iprocess_bv p1 in
-	bound_vars_under_repl := BinderSet.union (!bound_vars_under_repl) bv;
-	empty_bv
+    Nil -> empty_bv
+  | Input((c,tl),pat,p) ->
+      add_bv (get_pattern_bv pat) (get_oprocess_bv p)
+  | Par (p1,p2) ->
+      add_bv (get_iprocess_bv p1) (get_iprocess_bv p2)
+  | Repl(b,p1) -> 
+      let bv = get_iprocess_bv p1 in
+      bound_vars_under_repl := BinderSet.union (!bound_vars_under_repl) bv;
+      empty_bv
 
 and get_term_bv t = match t.t_desc with
     Var(b,tl) -> 
@@ -98,9 +105,21 @@ and get_term_bv t = match t.t_desc with
   | ResE(b,t) -> 
       add_bv (bound_bv (get_binder_name b))
         (get_term_bv t)
-  | ReplIndex _ -> Parsing_helper.input_error "Replication indices should occur only inside variables (implementation)" t.t_loc
-  | EventAbortE _ -> Parsing_helper.input_error "Events not allowed in terms (implementation)" t.t_loc
+  | ReplIndex _ -> empty_bv
+	(*Replication indices may also occur in events
+	  Parsing_helper.input_error "Replication indices should occur only inside variables (implementation)" t.t_loc*)
+  | EventAbortE _ -> empty_bv
+  | EventE(t,p) ->
+      add_bv (get_term_bv t) (get_term_bv p) 
   | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
+  | GetE(tbl,patl,topt,p1,p2) ->
+      (List.fold_right add_bv (List.map get_pattern_bv patl)
+         (add_bv 
+            (match topt with Some t -> get_term_bv t | None -> empty_bv)
+            (add_bv (get_term_bv p1) (get_term_bv p2))))
+  | InsertE(tbl,tl,p) ->
+      List.fold_right add_bv (List.map get_term_bv tl)
+          (get_term_bv p)
       
 and get_oprocess_bv p =
   match p.p_desc with
@@ -110,29 +129,33 @@ and get_oprocess_bv p =
           (bound_bv (get_binder_name b))
           (get_oprocess_bv p)
     | Test(t,p1,p2) ->
+        add_bv_term (get_term_bv t);
         add_bv
-          (get_term_bv t)
-          (add_bv
-             (get_oprocess_bv p1)
-             (get_oprocess_bv p2))
+          (get_oprocess_bv p1)
+          (get_oprocess_bv p2)
     | Output((c,tl),t,p) -> 
-        add_bv (get_term_bv t) (get_iprocess_bv p)
+        add_bv_term (get_term_bv t);
+	get_iprocess_bv p
     | Let(pat,t,p1,p2) ->
-        add_bv
-          (add_bv (get_pattern_bv pat) (get_term_bv t))
+        add_bv_term (get_term_bv t);
+        add_bv (get_pattern_bv pat) 
           (add_bv (get_oprocess_bv p1) (get_oprocess_bv p2))
     | EventP(t,p)->
+	add_bv_term (get_term_bv t);
         get_oprocess_bv p
     | Find(fl,ep,_) -> 
         error "Find not supported"
     | Get(tbl,patl,topt,p1,p2) ->
+	begin
+	  match topt with
+	    Some t -> add_bv_term (get_term_bv t)
+	  | None -> ()
+	end;
         (List.fold_right add_bv (List.map get_pattern_bv patl)
-           (add_bv 
-              (match topt with Some t -> get_term_bv t | None -> empty_bv)
-              (add_bv (get_oprocess_bv p1) (get_oprocess_bv p2))))
+           (add_bv (get_oprocess_bv p1) (get_oprocess_bv p2)))
     | Insert(tbl,tl,p) ->
-        List.fold_right add_bv (List.map get_term_bv tl)
-          (get_oprocess_bv p)
+        List.iter (fun t ->  add_bv_term (get_term_bv t)) tl;
+        get_oprocess_bv p
 
 let display_vars (a,b)=
   print_string "Free vars : ";
@@ -152,12 +175,18 @@ let display_vars (a,b)=
 let impl_get_vars p=
   free_vars := BinderSet.empty;
   bound_vars_under_repl := BinderSet.empty;
+  bound_vars_terms := BinderSet.empty;
   let bv_no_repl = get_iprocess_bv p in
-  let fv = BinderSet.diff (!free_vars) (BinderSet.union bv_no_repl (!bound_vars_under_repl)) in
   let bv_repl = (!bound_vars_under_repl) in
+  let bv_terms = (!bound_vars_terms) in
+  (* This way of computing free variables is ok because the variables
+     are renamed to distinct names *)
+  let fv = BinderSet.diff (!free_vars)
+      (BinderSet.union bv_no_repl (BinderSet.union bv_repl bv_terms)) in
   free_vars := BinderSet.empty;
   bound_vars_under_repl := BinderSet.empty;
-  (fv, bv_no_repl, bv_repl)
+  bound_vars_terms := BinderSet.empty;
+  (fv, bv_no_repl, bv_repl, bv_terms)
 
 (* Check if the free variables of roles are all written to files. *)
 let impl_check impllist =
@@ -165,39 +194,43 @@ let impl_check impllist =
   let boundfiles = ref bf in
     
   let check_read (pn,p,vars,opt) =
-    let rec read_opt1 (fv,bv_no_repl,bv_repl) = function
+    let rec read_opt1 ((fv,bv_no_repl,bv_repl,bv_terms) as vars) = function
         Read(b,f)::next ->
 	  let bname = get_binder_name b in
           if BinderSet.mem bname fv then
-            read_opt1 (BinderSet.remove bname fv,bv_no_repl,bv_repl) next
+            read_opt1 (BinderSet.remove bname fv,bv_no_repl,bv_repl,bv_terms) next
           else
             error ("Module "^pn^" reads variable "^bname^", which is not free.")
       | _::next ->
-          read_opt1 (fv,bv_no_repl,bv_repl) next
-      | [] -> (fv,bv_no_repl,bv_repl)
+          read_opt1 vars next
+      | [] -> vars
     in
     (pn,p,read_opt1 vars opt,opt)
   in
   let check_write (pn,p,vars,opt) =
-    let rec read_opt2 (fv,bv_no_repl,bv_repl) = function
+    let rec read_opt2 ((fv,bv_no_repl,bv_repl,bv_terms) as vars) = function
       | Write(b,f)::next ->
 	  let bname = get_binder_name b in
           if BinderSet.mem bname bv_no_repl then
             (
+	      if BinderSet.mem bname bv_terms then
+	        print_string ("Warning: Module "^pn^" writes variable "^bname^", which is bound both in a process and in a term.\nOnly the variable(s) bound in a process will be written to a file.\n");
               boundfiles := StringMap.add bname (b,f) (!boundfiles);
-              read_opt2 (fv,BinderSet.remove bname bv_no_repl,bv_repl) next
+              read_opt2 (fv,BinderSet.remove bname bv_no_repl,bv_repl,bv_terms) next
             )
           else if BinderSet.mem bname bv_repl then
 	    error ("Module "^pn^" writes variable "^bname^", which is bound under a replication in that module.")
+	  else if BinderSet.mem bname bv_terms then
+	    error ("Module "^pn^" writes variable "^bname^", which is bound locally inside a term in that module.")
 	  else
             error ("Module "^pn^" writes variable "^bname^", which is not bound.")
       | _::next ->
-          read_opt2 (fv,bv_no_repl,bv_repl) next
-      | [] -> (fv,bv_no_repl,bv_repl)
+          read_opt2 vars next
+      | [] -> vars
     in
     (pn,p,read_opt2 vars opt,opt)
   in
-  let add_files (pn,p,(fv,_,_),opt) =
+  let add_files (pn,p,(fv,_,_,_),opt) =
     let opt = BinderSet.fold 
       (fun s opt -> 
          (*is it a variable written by a previous process ? *)
@@ -475,6 +508,8 @@ let random b ind =
 
 let yield_transl ind = "\n"^ind^"raise Match_fail"
 
+let inside_event = ref false
+				   
 let rec translate_oprocess opt p ind =
   match p.p_desc with
     | Yield -> yield_transl ind
@@ -498,7 +533,8 @@ let rec translate_oprocess opt p ind =
     | Let(pat,t,p1,p2) ->
         "\n"^ind^match_pattern opt pat (translate_term t ind) (translate_oprocess opt p1) (translate_oprocess opt p2) false ind
     | EventP(t,p)->
-        translate_oprocess opt p ind
+        "\n"^ind^(translate_event t ind)^
+	(translate_oprocess opt p ind)
     | Find(_,_,_) -> 
         error "Find not supported"
     | Get(tbl,patl,topt,p1,p2) ->
@@ -538,7 +574,22 @@ and translate_get opt tbl patl topt p1 p2 ind =
       "\n"^ind^"end else begin\n"^ind^
       "  let ("^(string_list_sep "," tvars)^") = rand_list "^list^" in"^
       (match_pattern_list opt patl tvars p1 yield_transl false (ind^"  "))^"\n"^ind^"end"
-      
+
+and translate_event t ind =
+  match t.t_desc with
+    ReplIndex _ | EventAbortE _ -> ""
+  | Var(_, tl) | FunApp(_,tl) ->
+      String.concat "" (List.map (fun t -> translate_event t ind) tl)
+  | _ ->
+      (* I need to allow replication indices inside events.
+	 Setting the flag [inside_event] to [true] allows replication
+	 indices inside [translate_term]. *)
+      let old_inside_event = !inside_event in
+      inside_event := true;
+      let transl_t = translate_term t ind in
+      inside_event := old_inside_event;
+      "let _ = " ^ transl_t ^ " in\n" ^ ind
+
 and translate_term t ind =
   let rec termlist sep = function
       [] -> "()"
@@ -559,8 +610,21 @@ and translate_term t ind =
                | No_impl -> error ("Function not registered:" ^ f.f_name)
             )
       | TestE(t1,t2,t3) -> "(if "^(translate_term t1 ind)^" then "^(translate_term t2 ind)^" else "^(translate_term t3 ind)^" )"
-      | ReplIndex _ -> Parsing_helper.input_error "Replication indices should occur only inside variables (implementation)" t.t_loc
-      | EventAbortE _ -> Parsing_helper.input_error "Events not allowed in terms (implementation)" t.t_loc
+      | ReplIndex _ ->
+	  if !inside_event then
+	    " () "
+	  else
+	    Parsing_helper.input_error "Replication indices should occur only inside variables and events (implementation)" t.t_loc
+      | EventAbortE _ -> "(raise Abort)"
+      | EventE(t,p)->
+          "("^(translate_event t ind)^
+	  (translate_term p ind)^")"
+      | GetE(tbl,patl,topt,p1,p2) ->
+          translate_get [] tbl patl topt (translate_term p1) (translate_term p2) ind
+      | InsertE(tbl,tl,p) ->
+          let tfile=get_table_file tbl in
+          "(insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^
+          (translate_term p ind)^")"
       | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
       | ResE (b,t) -> "("^(random b ind)^" "^(translate_term t ind)^")"
       | LetE (pat, t1, t2, topt) -> 

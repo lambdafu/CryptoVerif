@@ -1,0 +1,67 @@
+(* CryptoVerif applies the IND-CPA transformation although s2 is
+used in the plaintext, and not only as random seed for encryption. *)
+
+param N.
+param N2.
+param N3.
+
+type tag [bounded].
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+type maxencnotag [bounded].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+fun concat2(seed, key):maxenc [data].
+
+(* Shared-key encryption (IND-CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* Queries *)
+
+query secret k3.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+
+
+
+process 
+	in(c1, ());
+new r_1: keyseed;
+let k: key = kgen(r_1) in
+out(c2, ());
+! i_1 <= N
+in(c1[i_1], ());
+new s1: seed;
+new s2: seed;
+new k2: key;
+out(c2[i_1], enc(concat2(s2, k2), k, s1));
+in(c3[i_1], ());
+new s3: seed;
+new k3: key;
+out(c4[i_1], enc(concat2(s3, k3), k, s2))
+
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of k3.
+0.016s (user 0.016s + system 0.000s), max rss 38512K
+END *)

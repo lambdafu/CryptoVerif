@@ -1,0 +1,111 @@
+
+(** Hashed ElGamal encryption scheme, in the random oracle model **)
+
+(** An encryption scheme is shown to be SS
+    under the CDH assumption, in the random oracle model.
+    See Section 8, "Sequences of Games", Victor Shoup. **)
+
+param n, q, nH, nCDH, nCDH'.
+
+type Z [fixed].
+type G.
+type K [large,fixed].
+type D [fixed].
+
+proba pCDH.
+
+fun exp(G,Z): G.
+const gamma:G.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+fun xor(D,D): D.
+
+(* xor self-cancels *)
+
+forall x:D, y:D;
+  xor(x, xor(x,y)) = y.
+
+(* xor(.,y) is a one-time pad *)
+
+equiv
+  ! n new x: D; gen_Oracle(y: D) := return(xor(x,y)) [all]
+<=(0)=>
+  ! n new x: D; gen_Oracle(y: D) := return(x).
+
+(* the CDH assumption *) 
+
+equiv
+  ! n new x: Z; new y: Z; (
+    gen_Oracle_1() := return(exp(gamma,x)) |
+    gen_Oracle_2() := return(exp(gamma,y)) |
+    ! nCDH gen_Oracle_3(z: G) := return(z = exp(gamma, mult(x,y))))
+<=(pCDH(time,n,nCDH))=>
+  ! n new x: Z; new y: Z; (
+    gen_Oracle_1() := return(exp(gamma,x)) |
+    gen_Oracle_2() := return(exp(gamma,y)) |
+    ! nCDH gen_Oracle_3(z: G) := return(false)).
+
+fun h(K,G): D.
+
+(* h in the random oracle model *)
+
+equiv
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := return(h(k,x))
+<=(0)=>
+  ! n new k: K; ! nH gen_Oracle_1(x: G) := find j <= nH suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: D; return(r).
+
+    
+fun choose(bool,D,D): D.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:D, z:D;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+(* query *)
+query secret b.
+
+channel dummy, cPK, cE, cEret, cH, cHret, start.
+
+
+
+
+
+process
+  ! i_1 <= q
+in(dummy[i_1], ());
+new x: Z;
+new k: K;
+let alpha: G = exp(gamma, x) in
+out(cPK[i_1], alpha);
+((
+  in(cE[i_1], (m0: D, m1: D));
+  new b: bool;
+  let m: D = choose(b, m1, m0) in
+  new y: Z;
+  let beta: G = exp(gamma, y) in
+  let delta: G = exp(alpha, y) in
+  let hash_1: D = h(k, delta) in
+  let v: D = xor(hash_1, m) in
+  out(cEret[i_1], (beta, v))
+) | (
+  ! i_2 <= nH
+  in(cH[i_2, i_1], xH: G);
+  out(cHret[i_2, i_1], h(k, xH))
+))
+
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.036s + system 0.004s), max rss 38064K
+END *)

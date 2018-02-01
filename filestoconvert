@@ -1,0 +1,79 @@
+In general, original files are in examples-1.28/<dirname>
+and the converted files are to be put in examples/<dirname>.
+(There is one exception mentioned below.)
+
+basic/
+
+pfdh.cv
+runex.cv
+signedDH.cv
+signedDH-DDH-auto.cv
+signedDH-DDH.cv
+signedDH-forward-secrecy.cv
+
+----------------------------------------------------
+authbasic/
+
+denning-sacco3Block.cv
+denning-sacco-corr3Block.cv
+needham-schroeder-pk3BlockAuth.cv
+needham-schroeder-pkcorr3BlockAuth.cv
+needham-schroeder-pkcorr3BlockKeyHash2.cv
+needham-schroeder-pkcorr3BlockKeyHash.cv
+needham-schroeder-pkcorr3BlockKeyNa.cv
+needham-schroeder-pkcorr3BlockKeyNb.cv
+needham-schroeder-sk3StreamAuth.cv
+needham-schroeder-sk3Stream.cv
+needham-schroeder-sk3StreamFull.cv
+needham-schroeder-skcorr3StreamAuth.cv
+needham-schroeder-skcorr3Stream.cv
+needham-schroeder-skcorr3StreamFull.cv
+woolampkcorr.cv
+woolampkcorrSimp.cv
+woolampk.cv
+woolampkWeaksign-corr.cv
+woolampkWeaksign.cv
+woolamskcorrBlock.cv
+woolamskcorr.cv
+woolamsk.cv
+yahalom3Stream.cv
+yahalom3StreamMac.cv
+yahalom3StreamMod.cv
+
+Notes:
+* Use IND_CPA_INT_CTXT_sym_enc for authenticated encryption, not
+encrypt-then-MAC.
+* Put converted file in examples/basic
+
+------------------------------------------------------
+obasic/
+
+encryptBR93-1.ocv
+encryptBR93-2.ocv
+encryptBR93-2v.ocv
+fdh-JSC.ocv
+fdh.ocv
+OAEP-CPA.ocv
+OEKE.ocv
+signedDH-DDH.ocv
+signedDH.ocv
+undeniable-sig.ocv
+
+------------------------------------------------------
+kerberos/
+
+BasicKerberos*Updated.cv
+
+PublicKeyKerberos*TwoCertRegister2.cv
+Note: Name the converted files PublicKeyKerberos*Updated.cv
+
+------------------------------------------------------
+
+cryptoverif/implementation/{ssh,nspk,wlsk}
+
+Note: convert these files in place
+
+textsecure
+tls 1.3 (tech report version)
+arinc823
+icao9880

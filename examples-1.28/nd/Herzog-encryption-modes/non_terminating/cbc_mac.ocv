@@ -1,0 +1,75 @@
+(**********************************************************************
+*
+* Security of the CBC mac
+*
+*  * Cryptoverif version: 1.18
+*  * Blocks: 2
+*  * Result: unknown
+*
+*
+***********************************************************************)
+
+set interactiveMode = true.
+
+type block [fixed, large].
+type aes_keyseed [fixed, large, bounded].
+type aes_key [large, bounded].
+proba Paes.
+expand PRP_cipher(aes_keyseed, aes_key, block, aes_kgen, aes_enc, aes_dec, Paes).
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zero_block).
+
+
+
+(* Parameters *)
+
+param N_tag. (* the number of times the adversary gets to call the encryption oracle *)
+param N_ver. (* the number of times adversary is allowed to submit a forgery *)
+
+
+
+(* what do we want? If the verification oracle accepts a message, the message was
+   previously submitted to the tag oracle. *)
+
+event compute_mac(block, block, block).
+event accept_mac(block, block, block).
+query b1 : block, b2:block, tag: block; event accept_mac(b1, b2, tag) ==> compute_mac(b1, b2, tag).
+
+
+
+
+let tag_oracle = 
+    Otag(b1 : block, b2 : block):=
+       
+       tag1 <- aes_enc(b1, aesk);
+       tag2 <- aes_enc( xor(tag1, b2), aesk);
+       event compute_mac(b1, b2, tag2);
+
+       return (tag2).
+
+
+let ver_oracle = 
+    Over(b1 : block, b2 : block, tag: block):=
+       
+       tag1 <- aes_enc(b1, aesk);
+       tag2 <- aes_enc( xor(tag1, b2), aesk);
+
+       if tag2 = tag
+       then
+          event accept_mac(b1, b2, tag).
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+	aesx <-R aes_keyseed;
+        aesk <- aes_kgen(aesx);
+
+	(* Make tag and verification oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+        (foreach i <= N_tag do tag_oracle) | (foreach i <= N_ver do ver_oracle) 
+

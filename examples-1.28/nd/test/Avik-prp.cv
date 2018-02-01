@@ -1,0 +1,70 @@
+
+(** Pseudo-random permutations **)
+
+(** A pseudo-random permutation family with large domain
+    is shown to be pseudo-random.
+    See Section 5, "Sequences of Games", Victor Shoup. **)
+
+param n, m, q.
+
+type S [large,fixed].
+
+type D [large,fixed].
+
+proba pPRP.
+
+fun f(S,D): D.
+
+(* f(S) is a pseudo-random permutation family... *) 
+
+fun sep1(D): D [compos].
+
+equiv
+    !n new s:S;
+      (x:D) m -> f(s,x) [all] 
+<=(pPRP(time,n,m))=>
+    !n 
+      (x:D) m -> find u <= m 
+	            suchthat defined(x[u],r[u])
+                          && x = x[u]
+	            then sep1(r[u])
+                    else new r:D; sep1(r).
+			(* BB: f(S) is a pseudo-random function, not a pseudo
+			   random permutation. *)
+
+
+(* ...where sep1 is a permutation *)
+
+equiv
+    () n -> new x:D; sep1(x) 
+<=(0)=>
+    () n -> new x:D; x.
+
+fun sep2(D): D [compos].
+
+(* BB: Does not seem to be related to the problem we want to handle... *)
+
+(* query *)
+query secret test.
+
+channel dummy, start.
+
+let processC = !q
+    in(dummy, ());
+    new d:D;
+    let x = sep2(d) in
+    let test:D = f(s,x) in
+    yield.
+
+process
+  in(start, ());
+  new s:S;
+  out(dummy, ());
+  processC
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 16352K
+END *)

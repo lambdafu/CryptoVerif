@@ -1,0 +1,213 @@
+(* Needham Schroeder public key protocol, fixed by Lowe.
+   In this example, the host name is concatenated with the role (A or B)
+   to create the identity. Hence we use different keys for each role,
+   even if several roles are run on the same machine.
+ *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+show_game;
+crypto uf_cma(sign_r) k_2;
+auto
+}
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [fixed,large].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [fixed].
+type role [bounded].
+type hostname [bounded].
+type keypair [bounded].
+type skeypair [bounded].
+
+
+implementation type sseed=64;
+               type skeyseed=64;
+               type keyseed=64;
+               type seed=64;
+               type nonce=64;
+               type host="string" [serial = "id", "id"];
+               type pkey="pkey" [serial = "pkey_to","pkey_from"];
+               type skey="skey" [serial = "skey_to","skey_from"];
+               type signature="string";
+               type spkey="pkey" [serial = "pkey_to","pkey_from"];
+               type sskey="skey" [serial = "skey_to","skey_from"].
+
+table keytbl(host,pkey).
+implementation table keytbl="keytbl".
+
+(* The constants hostnameA and hostnameB may be equal or different *)
+
+set diffConstants = false.
+const hostnameA: hostname.
+const hostnameB: hostname.
+
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce, host):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun concat4(hostname, role):host [data].
+fun pad(nonce):blocksize [data].
+
+fun kp(pkey,skey):keypair [data].
+fun skp(spkey,sskey):skeypair [data].
+
+forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
+	concat2(z,t,u) <> concat1(y2,z2).
+forall y:nonce,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,u:host,y2:nonce;
+	concat2(z,t,u) <> pad(y2).
+
+(* Public-key encryption (IND-CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc_r, dec, injbot, Z, Penc, Penccoll).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign_r, check, Psign, Psigncoll).
+
+(* Queries *)
+
+event beginA(host, host, nonce, nonce).
+event endA(host, host, nonce, nonce).
+event beginB(host, host, nonce, nonce).
+event endB(host, host, nonce, nonce).
+
+query nb: nonce, na: nonce, y: host, x: host;
+  event(endA(x, y, na, nb)) ==> event(beginB(x, y, na, nb)).
+query nb: nonce, na: nonce, y: host, x: host;
+  event(endB(x, y, na, nb)) ==> event(beginA(x, y, na, nb)).
+query nb: nonce, na: nonce, y: host, x: host;
+  inj-event(endA(x, y, na, nb)) ==> inj-event(beginB(x, y, na, nb)).
+query nb: nonce, na: nonce, y: host, x: host;
+  inj-event(endB(x, y, na, nb)) ==> inj-event(beginA(x, y, na, nb)).
+
+const roleA:role.
+const roleB:role.
+forall ; roleA <> roleB.
+
+(*implementation*)
+
+letfun kgen() =  k <-R keyseed;  kp (pkgen(k) ,skgen(k) ).
+letfun kgen_s() =  k <-R skeyseed;  skp (spkgen(k) ,sskgen(k) ).
+
+letfun enc(msg: blocksize, k: pkey) = r <-R seed; enc_r(msg, k, r).
+letfun sign(msg: sblocksize, k: sskey) = r <-R sseed; sign_r(msg, k, r).
+
+implementation fun concat1="concat_str_str" [inverse = "unconcat_str_str"];
+               fun concat2="concat_str_str_str" [inverse =  "unconcat_str_str_str"];
+               fun concat3="concat_pk_str" [inverse =  "unconcat_pk_str"];
+               fun concat4="concat_str_str" [inverse =  "unconcat_str_str"];
+	       fun kgen = "(pk_kgen 1024)";
+	       fun kgen_s = "(pk_kgen 1024)";
+               fun sign="(rsassa_pss_sign 8)";
+               fun hostnameA="get_hostname";
+               fun hostnameB="get_hostname";
+               fun check="(rsassa_pss_verify 8)";
+               fun enc="pk_enc";
+               fun dec="pk_dec";
+               fun injbot="injbot" [inverse =  "injbot_inv"];
+               fun pad="(pad Cryptokit.Padding.length 64)" [inverse = "(pad_inv Cryptokit.Padding.length)"];
+               fun kp="id" [inverse="id"];
+               fun skp="id" [inverse="id"];
+               const roleA="\"A\"";
+               const roleB="\"B\"".
+
+
+
+
+
+
+
+
+
+
+
+process 
+(* This module generates keys for the certificate server *)
+OStart() :=
+let skp(pkS: spkey, skS: sskey) = (k_2 <-R skeyseed; skp(spkgen(k_2), sskgen(k_2))) in
+return(pkS);
+((
+  OAGK() :=
+  A: host <- concat4(hostnameA, roleA);
+  let kp(pkA: pkey, skA: skey) = (k_3 <-R keyseed; kp(pkgen(k_3), skgen(k_3))) in
+  insert keytbl(A, pkA);
+  return(pkA);
+  foreach i_20 <= N do
+  OA1(hostX: host) :=
+  return(A, hostX);
+  OA3(pkX: pkey, =hostX, ms_1: signature) :=
+  if check(concat3(pkX, hostX), pkS, ms_1) then
+  Na_1 <-R nonce;
+  return((msg: blocksize <- concat1(Na_1, A); k_4: pkey <- pkX; r_2 <-R seed; enc_r(msg, k_4, r_2)));
+  OA5(m_3: bitstring) :=
+  let injbot(concat2(=Na_1, Nb: nonce, =hostX)) = dec(m_3, skA) in
+  event beginA(A, hostX, Na_1, Nb);
+  return((msg_1: blocksize <- pad(Nb); k_5: pkey <- pkX; r_3 <-R seed; enc_r(msg_1, k_5, r_3)));
+  OAFinish() :=
+  if defined(B) && (hostX = B) then
+  event endA(A, hostX, Na_1, Nb)
+) | (
+  OBGK() :=
+  B: host <- concat4(hostnameB, roleB);
+  let kp(pkB: pkey, skB: skey) = (k_6 <-R keyseed; kp(pkgen(k_6), skgen(k_6))) in
+  insert keytbl(B, pkB);
+  return(pkB);
+  foreach i_21 <= N do
+  OB7(m_4: bitstring) :=
+  let injbot(concat1(Na_2: nonce, hostY: host)) = dec(m_4, skB) in
+  return(B, hostY);
+  OB9(pkY: pkey, =hostY, ms_2: signature) :=
+  if check(concat3(pkY, hostY), pkS, ms_2) then
+  Nb_1 <-R nonce;
+  event beginB(hostY, B, Na_2, Nb_1);
+  return((msg_2: blocksize <- concat2(Na_2, Nb_1, B); k_7: pkey <- pkY; r_4 <-R seed; enc_r(msg_2, k_7, r_4)));
+  OB11(m3: bitstring) :=
+  let injbot(pad(=Nb_1)) = dec(m3, skB) in
+  return();
+  OBFinish() :=
+  if defined(A) && (hostY = A) then
+  event endB(hostY, B, Na_2, Nb_1)
+) | (
+  foreach i_22 <= N do
+  OS13(h1: host, h2: host) :=
+  get keytbl(Khost: host, Rkey: pkey) suchthat Khost = h2 in
+  return(Rkey, h2, (msg_3: sblocksize <- concat3(Rkey, h2); k_8: sskey <- skS; r_5 <-R sseed; sign_r(msg_3, k_8, r_5)))
+) | (
+  foreach i_23 <= N2 do
+  OK12(Khost_1: host, Kkey: pkey) :=
+  if defined(A, B, pkA, pkB) && (Khost_1 <> A) && (Khost_1 <> B) then
+  insert keytbl(Khost_1, Kkey)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+1.716s (user 1.696s + system 0.020s), max rss 81728K
+END *)

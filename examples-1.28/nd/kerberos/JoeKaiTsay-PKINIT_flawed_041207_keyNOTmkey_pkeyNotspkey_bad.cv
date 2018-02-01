@@ -1,0 +1,384 @@
+(* PKINIT protocol. flawed. keyNOTmkey. pkeyNOTspkey. *)
+
+(* C --> K : certC, {n2}_skC, C, T n1
+   K --> C : { certK, {k, n2}_skK }_pkC, C, TGT, {AK, n1, T}_k
+   
+   where TGT = {AK, n1, T}_kT *)
+
+(* A proof for the fixed version, which fails to prove the relevant queries  for this version, is *)
+
+proof {
+crypto sign rkCA;
+success;
+crypto sign rkCs;
+crypto enc rkC;
+crypto sign rkKs;
+success;
+auto
+}
+
+set interactiveMode = true.
+
+param N.
+param N2.
+param N3.
+param N4.
+
+
+
+(* types for public-key crypto: *)
+type nonce [fixed,large].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+
+(* types for symmetric enc: *)
+type symkeyseed [fixed].
+type key [fixed].
+type macs [fixed].
+type mkeyseed [fixed].
+type mkey [fixed].
+type symseed [fixed].
+
+
+(* concatenation functions, needed to be able to apply, e.g., encryption to a list: *)
+fun concat1(host, pkey, spkey): sblocksize [compos]. (* needed for certificates *)
+fun concat2(host, pkey,spkey, signature, key, mkey, nonce, signature ): blocksize [compos]. (* needed for encryption of list { certC, {k,n}_skK } *)
+fun concat3(key, mkey, nonce): sblocksize [compos]. (* needed for signature over {k1,k2, n}*)
+fun concat4(key, nonce, host): bitstring [compos]. (* needed for authenticator *)
+ fun concat5(key, host): bitstring [compos]. (* needed for TGT *)
+fun concat6(host, pkey, spkey, signature, nonce, signature, host, host, nonce): bitstring [compos].
+fun pad(nonce): sblocksize [compos]. (* needed to sign nonce n2*)
+
+(* inequalities of outputs of two different concat functions when they output the same types : *)
+forall k: key, v: host, w2: key, y2: nonce, z2: host;
+    concat5(k,v) <> concat4(w2,y2,z2).
+forall k: key, v: host, w2: host, y2: pkey,z2: spkey, s2: signature,t2: nonce, u2: signature, x2: host, a2: host, b2: nonce;
+    concat5(k,v) <> concat6(w2,y2,z2,s2,t2,u2,x2,a2,b2).
+forall k: key,n:nonce, v: host, w2: host, y2: pkey,z2: spkey, s2: signature,t2: nonce, u2: signature, x2: host, a2: host, b2: nonce;
+    concat4(k,n,v) <> concat6(w2,y2,z2,s2,t2,u2,x2,a2,b2).
+forall k1:key, k2:mkey, y:nonce, z2:host, y2:pkey, x2:spkey;
+    concat3(k1,k2,y) <> concat1(z2,y2, x2).
+forall k1:key, k2:mkey, y:nonce, z2: nonce;
+    concat3(k1, k2,y) <> pad(z2).
+forall  y:nonce, z2:host, y2:pkey, x2:spkey;
+    pad(y) <> concat1(z2,y2, x2).
+
+
+
+
+(* Public-key encryption (CCA2): *)
+
+proba Penc.
+proba Penccoll.
+
+fun enc(blocksize, pkey, seed): bitstring.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(bitstring, skey): blocksizebot.
+
+fun enc2(blocksize, pkey, seed): bitstring.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(bitstring, skey): blocksizebot.
+
+fun injbot1(blocksize):blocksizebot [compos].
+
+const Z:blocksize.
+
+forall m:blocksize, r:keyseed, r2:seed;
+    dec(enc(m, pkgen(r), r2), skgen(r)) = injbot1(m).
+forall m:blocksize, r:keyseed, r2:seed;
+    dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot1(m).
+
+equiv  !N3 new r: keyseed; (() -> pkgen(r),
+                (m:bitstring) N2 -> dec(m, skgen(r))),
+       (x:blocksize, y:pkey) N4 -> new r2:seed; enc(x,y,r2) [all]
+     <=(N3 * N4 * Penc(time, N2))=>
+       !N3 new r: keyseed; (() -> pkgen2(r),
+                (m:bitstring) N2 ->
+        find j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
+        y[j] = pkgen2(r) && m = m2[j] then injbot1(x[j]) else dec2(m, skgen2(r))),
+       (x:blocksize, y:pkey) N4 ->
+        find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+            (new r2:seed;
+            let m2:bitstring = enc2(Z, y, r2) in
+            m2)
+        else new r3:seed; enc(x,y,r3).
+
+collision new r1:keyseed; new r2:keyseed;
+    pkgen(r1) = pkgen(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed;
+    pkgen2(r1) = pkgen2(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed;
+    skgen(r1) = skgen(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed;
+    skgen2(r1) = skgen2(r2) <=(Penccoll)=> r1 = r2.
+
+
+(* Signatures: *)
+
+proba Psign.
+proba Psigncoll.
+
+fun sign(sblocksize, sskey, sseed): signature.
+fun sskgen(skeyseed):sskey.
+fun spkgen(skeyseed):spkey.
+fun check(sblocksize, spkey, signature): bool.
+
+fun sign2(sblocksize, sskey, sseed): signature.
+fun sskgen2(skeyseed):sskey.
+fun spkgen2(skeyseed):spkey.
+fun check2(sblocksize, spkey, signature): bool.
+
+forall m:sblocksize, r:skeyseed, r2:sseed;
+    check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:sblocksize, r:skeyseed, r2:sseed;
+    check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+equiv  !N3 new r: skeyseed; (() -> spkgen(r),
+                (x: sblocksize) N2 -> new r2: sseed; sign(x, sskgen(r), r2)),
+       (m: sblocksize, y: spkey, si: signature) N4 -> check(m, y, si) [all]
+     <=(N3 * Psign(time, N2))=>
+       !N3 new r: skeyseed; (() -> spkgen2(r),
+                (x: sblocksize) N2 -> new r2: sseed; sign2(x, sskgen2(r), r2)),
+       (m: sblocksize, y: spkey, si: signature) N4 ->
+        find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+        find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+        check(m,y,si).
+
+
+collision new r1:skeyseed; new r2:skeyseed;
+    spkgen(r1) = spkgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed;
+    spkgen2(r1) = spkgen2(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed;
+    sskgen(r1) = sskgen(r2) <=(Psigncoll)=> r1 = r2.
+collision new r1:skeyseed; new r2:skeyseed;
+    sskgen2(r1) = sskgen2(r2) <=(Psigncoll)=> r1 = r2.
+
+
+
+(* Shared-key encryption (CPA Stream cipher): *)
+
+proba Pencsym.
+
+fun encsym(bitstring, key, symseed): bitstring.
+fun kgen(symkeyseed):key.
+fun decsym(bitstring, key): bitstringbot.
+
+fun encsym2(bitstring, key, symseed): bitstring.
+fun kgen2(symkeyseed):key.
+
+fun injbot2(bitstring):bitstringbot [compos].
+(* The function Z2 returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z2(bitstring):bitstring.
+
+const Zconcat4: bitstring.
+const Zconcat5: bitstring.
+
+forall m:bitstring, r:symkeyseed, r2:symseed;
+    decsym(encsym(m, kgen(r), r2), kgen(r)) = injbot2(m).
+
+forall m:key,y:nonce,z:host;
+    Z2(concat4(m,y,z)) = Zconcat4.
+forall y:key,z:host;
+    Z2(concat5(y,z)) = Zconcat5.
+forall m:bitstring, r:symkeyseed, r2:symseed;
+    Z2(encsym(m, kgen(r), r2)) = Z2(m).
+
+equiv  !N2 new r: symkeyseed; ((x:bitstring) N -> new r2: symseed; encsym(x, kgen(r), r2))
+     <=(N2 * Pencsym(time, N, maxlength(x)))=>
+       !N2 new r: symkeyseed; ((x:bitstring) N -> new r2: symseed; encsym2(Z2(x), kgen2(r), r2)).
+
+
+
+(* Mac: *)
+
+proba Pmac.
+
+fun mac(bitstring, mkey):macs.
+fun checkmac(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(bitstring, mkey):macs.
+fun checkmac2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+    checkmac(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:mkeyseed;
+    checkmac2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv !N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac(x, mkgen(r)),
+     (m: bitstring, ma: macs) N2 -> checkmac(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2, max(maxlength(x), maxlength(m))))=>
+      !N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac2(x, mkgen2(r)),
+     (m: bitstring, ma: macs) N2 ->
+        find j <= N suchthat defined(x[j]) && (m = x[j]) && checkmac2(x[j], mkgen2(r), ma) then true else false).
+
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10,
+     start, finish, cC, cK.
+
+const C : host.
+const K : host.
+const T : host.
+(* const CA : host.*)
+
+fun acceptC(host):bitstring.
+fun acceptK(host):bitstring.
+
+
+event partC(host, bitstring).
+event fullC(host, key, bitstring).
+event fullCnew(host, host, key, bitstring).
+event partK(host, bitstring).
+event fullK(host, key, bitstring).
+
+(* Authentication of K to C *)
+ query x:bitstring, k:key;
+    event inj:fullC(K,k,x) ==> inj:fullK(C,k,x). 
+
+query x:bitstring, k:key;
+    event fullC(K,k,x) ==> fullK(C,k,x).
+
+query x:bitstring, k:key, k':key;
+    event fullC(K,k,x) && fullK(C,k',x) ==> k = k'.
+
+
+query secret1 keyAK. (* One-Secrecy of key AK *)
+query secret keyAK. (* Secrecy of key AK *)
+
+
+let processC =
+    in(c1,  hostX: host); (* choose  hostX = T *)
+    new n1: nonce;
+    new n2: nonce;
+    new r1: sseed;
+    let m1 = (C, pkC, spkC, certC, n2, sign(pad(n2), sskC, r1), C, hostX, n1) in	
+    out(c2, (C, pkC, spkC, certC, n2, sign(pad(n2), sskC, r1), C, hostX, n1));
+    in(c3, (m21: bitstring, =C,  TGT: bitstring, macTGT: macs,m24: bitstring, mac24: macs ));
+    let m2 = (m21, C, m24 (*, mac24*)) in
+    let injbot1(concat2( hostZ: host, pkZ: pkey, spkZ: spkey, ms1: signature, k3: key, k4: mkey, =n2, ms2: signature))=dec(m21, skC) in   (* m21 = certK, [k,n2]_skK *)
+    (* checking the signature of certK using the public key of the CA : *)
+    if check(concat1(hostZ, pkZ, spkZ), pkCA, ms1) then
+    (* checking the signature over k, k', n2 using the public key pkK of K :*)
+    if check(concat3(k3, k4, n2), spkK, ms2) then
+    if checkmac(m24, k4, mac24) then
+    let injbot2(concat4(AK: key, =n1, =hostX)) = decsym(m24, k3) in (* m24 = AK, n1, T *)
+    event fullC(hostZ, AK, (m1, m2));
+    out(c4, acceptC(hostZ));
+    in(finish, ());
+    if hostZ = K && hostX = T then
+            (
+            let keyAK: key = AK
+            (* in out(c4, acceptC(hostZ))*)
+            )
+    else
+           (
+           (* out(c4, acceptC(hostZ)); in(cC, ()); *)
+            out(cC, AK)
+           ).
+
+
+
+let processK =
+    in(c5, (hostY: host, pkY: pkey, spkY: spkey,  ms3: signature, n4:nonce, ms4: signature, hostV: host, hostW: host, n5: nonce)); (* hostY = C, hostW = T *)
+    if hostV = hostY then
+    let m3 = (hostY, pkY, spkY,  ms3, n4, ms4, hostY, hostW, n5) in 
+    if check(concat1(hostY, pkY, spkY), pkCA, ms3) then
+    if check(pad(n4), spkY, ms4) then
+    new s1: symkeyseed;
+    new s2: mkeyseed;
+    let k1 = kgen(s1) in
+    let k2 = mkgen(s2) in
+    new s3: symkeyseed;
+    let AK = kgen(s3) in
+    find j1 <= N2 suchthat defined(Khost[j1],Rkey[j1],Rmkey[j1]) && (Khost[j1] = hostW) then
+    new r4: symseed;
+    let TGT = encsym(concat5(AK, hostY), Rkey[j1], r4) in
+    let mac1 = mac(TGT, Rmkey[j1]) in
+    new r5: symseed;
+    let auth = encsym(concat4(AK, n5, hostW), k1, r5) in
+    let mac2 = mac(auth, k2) in
+    new r6: sseed;
+    let y: bitstring = concat6(hostY, pkY, spkY, ms3, n4, ms4, hostY, hostW, n5) in
+    let ms21 =  sign(concat3(k1, k2, n4), sskK, r6) in
+    new r7: seed;
+    let x21 = enc(concat2(K, pkK, spkK, certK, k1, k2, n4, ms21), pkY, r7) in
+    let m4 = (x21, hostY, auth(*,mac2*)) in
+    let m5 = (x21, hostY, TGT, mac1, auth, mac2) in   
+    event fullK(hostY, AK, (m3, m4));
+    out(c6, m5).
+    (* if hostY = C then
+         (
+            out(c6, (m5, acceptK(hostY)))
+        )
+    else
+        (
+        out(c6,(m5, acceptK(hostY))); in(cK, ()); out(cK, AK)
+        ). *)
+
+
+(* storing in  (h,k,mk) a table of pairs (host name, symmetric key, mac key): the key for T is Kt shared between K and T; and for any other h, the adversary can choose the key k: *)
+ let processKsym =
+    in(c8, (Khost: host, Kkey: key, Kmkey: mkey));
+    let Rkey:key =
+        if Khost = T then Kt else
+        Kkey
+    in
+    let Rmkey: mkey =
+        if Khost = T then mKt else
+        Kmkey.
+
+process
+    in(start, ());
+    new rkC: keyseed;
+    let pkC = pkgen(rkC) in
+    let skC = skgen(rkC) in
+    new rkCs: skeyseed;
+    let spkC = spkgen(rkCs) in
+    let sskC = sskgen(rkCs) in
+    new rkK: keyseed;
+    let pkK = pkgen(rkK) in
+    let skK = skgen(rkK) in
+    new rkKs: skeyseed;
+    let spkK = spkgen(rkKs) in
+    let sskK = sskgen(rkKs) in
+    new rkCA: skeyseed;
+    let pkCA = spkgen(rkCA) in
+    let skCA = sskgen(rkCA) in
+    new rKt: symkeyseed;
+    new rmKt: mkeyseed;
+    let Kt = kgen(rKt) in
+    let mKt = mkgen(rmKt) in
+    new q1: sseed;
+    new q2: sseed;
+    let certC = sign(concat1(C, pkC, spkC), skCA, q1) in
+    let certK = sign(concat1(K, pkK, spkK), skCA, q2) in  (* Note: certK actuaaly only needs to bind K's name to a public key for signing,  not for encryption *)
+    out(c10,(pkC, spkC, pkK, spkK, pkCA));
+    ((! N processC) |
+     (! N processK) |
+     (! N2 processKsym)  )
+
+(* EXPECTED
+RESULT Could not prove secrecy of keyAK, one-session secrecy of keyAK, event fullC(K, k, x) ==> fullK(C, k, x), event inj:fullC(K, k, x) ==> inj:fullK(C, k, x).
+5.810s (user 5.790s + system 0.020s), max rss 136672K
+END *)

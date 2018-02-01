@@ -1,0 +1,378 @@
+Doing expand if, let, find
+Doing simplify
+Run simplify 1 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Please enter a command: crypto
+1. equiv ! !_21 <= nK new r: seed; new a: modq; new b: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+  ! !_22 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+  () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b))
+<=(nK * PCDH(time + 3. * (nK - 1.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + time(pkgen3))))=>
+      ! !_23 <= nK new r: seed; new a: modq; new b: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+  ! !_24 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen
+'3(r), b)) else false,
+  () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b))
+
+2. equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + time(pkgen3))))
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkg
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))
+
+3. equiv ! !_9 <= nK new r: seed; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  ! !_10 <= qS new a: modq; new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_11 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + 3. * (nK * qS - 1.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + time(pkgen3))))=>
+      ! !_12 <= nK new r: seed; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  ! !_13 <= qS new a: modq; new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_14 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkg
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))
+
+4. equiv ! !_1 <= nK new r: seed; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  ! !_2 <= na new a: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+    ! !_3 <= nb new b: modq; (
+      () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+      ! !_4 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+      () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b))))
+<=(nK * na * nb * PCDH(time + (2. * nK * na * nb + nK * na - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) +
+time(pkgen3))))=>
+      ! !_5 <= nK new r: seed; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  ! !_6 <= na new a: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+    ! !_7 <= nb new b: modq; (
+      () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+      ! !_8 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pk
+gen'3(r), b)) else false,
+      () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b))))
+
+Please enter number of equivalence to consider: 2
+Please enter binders mapped to restrictions for this equivalence: x
+Doing equivalence
+equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + time(pkgen3))))
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkg
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))
+with x
+Doing remove assignments of binder pk1
+Doing remove assignments of binder pk2
+Doing remove assignments of binder pk3
+Doing equivalence
+equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + time(pkgen3))))
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkg
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))
+with s, x
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Please enter a command: success
+Proved query event bad ==> false
+Initial state
+Game 1 is
+in(start, ());
+new r: seed;
+let pk1: modp = pkgen1(r) in
+let pk2: typeg = pkgen2(r) in
+let pk3: modq = pkgen3(r) in
+out(c0, (pk1, pk2, pk3));
+in(c1, ());
+new x: modq;
+out(c2, f(pk1, pk2, pk3, x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f(pk1, pk2, pk3, s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg);
+  if (K = f(pk1, f(pk1, pk2, pk3, x), pk3, s)) then
+  if defined(p) then
+    yield
+  else
+    event bad
+|
+  in(c6[!_25], ());
+  let p: typeg = f(pk1, f(pk1, pk2, pk3, x), pk3, s) in
+  out(c7[!_25], p)
+)
+
+
+Applying remove assignments of binder pk1 yields
+
+Game 2 is
+in(start, ());
+new r: seed;
+let pk2: typeg = pkgen2(r) in
+let pk3: modq = pkgen3(r) in
+out(c0, (pkgen1(r), pk2, pk3));
+in(c1, ());
+new x: modq;
+out(c2, f(pkgen1(r), pk2, pk3, x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f(pkgen1(r), pk2, pk3, s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg);
+  if (K = f(pkgen1(r), f(pkgen1(r), pk2, pk3, x), pk3, s)) then
+  if defined(p) then
+    yield
+  else
+    event bad
+|
+  in(c6[!_25], ());
+  let p: typeg = f(pkgen1(r), f(pkgen1(r), pk2, pk3, x), pk3, s) in
+  out(c7[!_25], p)
+)
+
+
+Applying remove assignments of binder pk2 yields
+
+Game 3 is
+in(start, ());
+new r: seed;
+let pk3: modq = pkgen3(r) in
+out(c0, (pkgen1(r), pkgen2(r), pk3));
+in(c1, ());
+new x: modq;
+out(c2, f(pkgen1(r), pkgen2(r), pk3, x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f(pkgen1(r), pkgen2(r), pk3, s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg);
+  if (K = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pk3, x), pk3, s)) then
+  if defined(p) then
+    yield
+  else
+    event bad
+|
+  in(c6[!_25], ());
+  let p: typeg = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pk3, x), pk3, s) in
+  out(c7[!_25], p)
+)
+
+
+Applying remove assignments of binder pk3 yields
+
+Game 4 is
+in(start, ());
+new r: seed;
+out(c0, (pkgen1(r), pkgen2(r), pkgen3(r)));
+in(c1, ());
+new x: modq;
+out(c2, f(pkgen1(r), pkgen2(r), pkgen3(r), x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f(pkgen1(r), pkgen2(r), pkgen3(r), s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg);
+  if (K = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), x), pkgen3(r), s)) then
+  if defined(p) then
+    yield
+  else
+    event bad
+|
+  in(c6[!_25], ());
+  let p: typeg = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), x), pkgen3(r), s) in
+  out(c7[!_25], p)
+)
+
+
+Applying equivalence
+equiv ! !_15 <= nK new r: seed; new a: modq; (
+  () -> pkgen1(r),
+  () -> pkgen2(r),
+  () -> pkgen3(r),
+  () -> f(pkgen1(r), pkgen2(r), pkgen3(r), a),
+  ! !_16 <= qS new b: modq; (
+    () -> f(pkgen1(r), pkgen2(r), pkgen3(r), b),
+    ! !_17 <= n2 (y': typeg) -> (y' = f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)),
+    () -> f(pkgen1(r), f(pkgen1(r), pkgen2(r), pkgen3(r), a), pkgen3(r), b)))
+<=(nK * qS * PCDH(time + (2. * nK * qS + nK - 3.) * time(f) + (nK - 1.) * (time(pkgen1) + time(pkgen2) + time(pkgen3))))
+=>
+      ! !_18 <= nK new r: seed; new a: modq; (
+  () -> pkgen'1(r),
+  () -> pkgen'2(r),
+  () -> pkgen'3(r),
+  () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a),
+  ! !_19 <= qS new b: modq; (
+    () -> f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), b),
+    ! !_20 <= n2 (y': typeg) -> if defined(flg) then (y' = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkg
+en'3(r), b)) else false,
+    () -> let flg: bitstring = mark in f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), a), pkgen'3(r), b)))
+with s, x [Difference of probability nb * PCDH(2. * nb * time(f) + -2. * time(f) + time + time(context for game 4))] yie
+lds
+
+Game 5 is
+in(start, ());
+new r: seed;
+out(c0, (pkgen'1(r), pkgen'2(r), pkgen'3(r)));
+in(c1, ());
+new x: modq;
+out(c2, f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg);
+  if defined(flg_31) then
+    if (K = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x), pkgen'3(r), s)) then
+    if defined(p) then
+      yield
+    else
+      event bad
+  else
+    if false then
+    if defined(p) then
+      yield
+    else
+      event bad
+|
+  in(c6[!_25], ());
+  let flg_31: bitstring = mark in
+  let p: typeg = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x), pkgen'3(r), s) in
+  out(c7[!_25], p)
+)
+
+
+Applying simplify yields
+
+Game 6 is
+in(start, ());
+new r: seed;
+out(c0, (pkgen'1(r), pkgen'2(r), pkgen'3(r)));
+in(c1, ());
+new x: modq;
+out(c2, f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg)
+|
+  in(c6[!_25], ());
+  let flg_31: bitstring = mark in
+  let p: typeg = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x), pkgen'3(r), s) in
+  out(c7[!_25], p)
+)
+
+
+Applying remove assignments of useless yields
+
+Game 7 is
+in(start, ());
+new r: seed;
+out(c0, (pkgen'1(r), pkgen'2(r), pkgen'3(r)));
+in(c1, ());
+new x: modq;
+out(c2, f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x));
+! !_25 <= nb
+in(c3[!_25], ());
+new s: modq;
+out(c4[!_25], f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), s));
+(
+  ! !_26 <= nT
+  in(c5[!_26, !_25], K: typeg)
+|
+  in(c6[!_25], ());
+  let p: typeg = f'(pkgen'1(r), f'(pkgen'1(r), pkgen'2(r), pkgen'3(r), x), pkgen'3(r), s) in
+  out(c7[!_25], p)
+)
+
+
+RESULT Proved event bad ==> false with probability nb * PCDH(2. * nb * time(f) + -2. * time(f) + time + time(context for
+ game 4))
+RESULT time(context for game 4) = time(true) * nT * nb
+All queries proved.
+
+

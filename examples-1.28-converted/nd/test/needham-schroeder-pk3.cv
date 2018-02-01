@@ -1,0 +1,195 @@
+(* Needham Schroeder public key protocol. *)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type host.
+type key.
+type keyseed [large,fixed].
+type seed [fixed].
+type signature.
+
+fun nonceToBitstring(nonce):bitstring [data].
+fun concat1(nonce, host):bitstring [data].
+fun concat2(nonce, nonce):bitstring [data].
+fun concat3(key, host):bitstring [data].
+
+forall y:key,z:host,y2:nonce,z2:host;
+	concat3(y,z) <> concat1(y2,z2).
+forall z:nonce,t:nonce,y2:nonce,z2:host;
+	concat2(z,t) <> concat1(y2,z2).
+forall z:nonce,t:nonce,y2:key,z2:host;
+	concat2(z,t) <> concat3(y2,z2).
+
+(* Here I ignore the fact that public-key encryption works on a block and
+   may fail. *)
+(* Public-key encryption (CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+fun enc(bitstring, key, seed): bitstring.
+fun skgen(keyseed):key.
+fun pkgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun skgen2(keyseed):key.
+fun pkgen2(keyseed):key.
+fun dec2(bitstring, key): bitstring.
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Znonce:nonce.
+const Zhost:host.
+const Zkey:key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, pkgen(r), r2), skgen(r)) = m.
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = m.
+
+forall y:nonce,z:host;
+	Z(concat1(y,z)) = concat1(Znonce,Zhost).
+forall y:nonce,z:nonce;
+	Z(concat2(y,z)) = concat2(Znonce,Znonce).
+forall y:key,z:host; 
+	Z(concat3(y,z)) = concat3(Zkey,Zhost).
+
+equiv
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle() := return(pkgen(r)) |
+    ! N2 gen_Oracle_1(m: bitstring) := return(dec(m, skgen(r))))|
+  ! N4 new r2: seed; gen_Oracle_2(x: bitstring, y: key) := return(enc(x,y,r2)) [all]
+<=(N4 * Penc)=>
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle() := return(pkgen2(r)) |
+    ! N2 gen_Oracle_1(m: bitstring) := find j <= N4 suchthat defined(m2[j], y[j], x[j]) && y[j] = pkgen2(r) && m = m2[j] then return(x[j]) else return(dec2(m, skgen2(r))))|
+  ! N4 new r2: seed; new r3: seed; gen_Oracle_2(x: bitstring, y: key) := find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then (let m2:bitstring = enc2(Z(x), y, r2) in return(m2)) else return(enc(x,y,r3)).
+
+collision new r1: keyseed; new r2: keyseed; return(pkgen(r1) = pkgen(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(pkgen2(r1) = pkgen2(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(skgen(r1) = skgen(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(skgen2(r1) = skgen2(r2)) <=(Penccoll)=> return(r1 = r2).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+fun sign(bitstring, key, seed): signature.
+fun sskgen(keyseed):key.
+fun spkgen(keyseed):key.
+fun check(bitstring, key, signature): bool.
+
+fun sign2(bitstring, key, seed): signature.
+fun sskgen2(keyseed):key.
+fun spkgen2(keyseed):key.
+fun check2(bitstring, key, signature): bool.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:bitstring, r:keyseed, r2:seed; 
+	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+equiv
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle_1() := return(spkgen(r)) |
+    ! N2 new r2: seed; gen_Oracle_2(x: bitstring) := return(sign(x, sskgen(r), r2)))|
+  ! N4 gen_Oracle_3(m: bitstring, y: key, si: signature) := return(check(m, y, si)) [all]
+<=(Psign)=>
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle_1() := return(spkgen2(r)) |
+    ! N2 new r2: seed; gen_Oracle_2(x: bitstring) := return(sign2(x, sskgen2(r), r2)))|
+  ! N4 gen_Oracle_3(m: bitstring, y: key, si: signature) := find j <= N2, k <= N3 suchthat defined(x[j, k], r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then return(true) else find k <= N3 suchthat defined(r[k]) && (y = spkgen2(r[k])) then return(false) else return(check(m,y,si)).
+
+collision new r1: keyseed; new r2: keyseed; return(spkgen(r1) = spkgen(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(spkgen2(r1) = spkgen2(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(sskgen(r1) = sskgen(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(sskgen2(r1) = sskgen2(r2)) <=(Psigncoll)=> return(r1 = r2).
+
+(* Queries *)
+
+query secret NaA.
+query secret NaB.
+query secret NbA.
+query secret NbB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, start, finish.
+const A : host.
+const B : host.
+
+
+
+
+
+
+
+
+
+process 
+	in(start, =());
+new rkA: keyseed;
+let pkA: key = pkgen(rkA) in
+let skA: key = skgen(rkA) in
+new rkB: keyseed;
+let pkB: key = pkgen(rkB) in
+let skB: key = skgen(rkB) in
+new rkS: keyseed;
+let pkS: key = spkgen(rkS) in
+let skS: key = sskgen(rkS) in
+out(c15, (pkA, pkB, pkS));
+((
+  ! i_1 <= N
+  in(c1[i_1], hostX: host);
+  out(c2[i_1], (A, hostX));
+  in(c3[i_1], (pkX: key, =hostX, ms_1: signature));
+  if check(concat3(pkX, hostX), pkS, ms_1) then
+  new Na_1: nonce;
+  new r3_1: seed;
+  out(c4[i_1], enc(concat1(Na_1, A), pkX, r3_1));
+  in(c5[i_1], m_1: bitstring);
+  let concat2(=Na_1, Nb: nonce) = dec(m_1, skA) in
+  new r4: seed;
+  out(c6[i_1], enc(nonceToBitstring(Nb), pkX, r4));
+  in(finish[i_1], =());
+  if hostX = B then
+  let NaA: nonce = Na_1 in
+  let NbA: nonce = Nb
+) | (
+  ! i_2 <= N
+  in(c7[i_2], m_2: bitstring);
+  let concat1(Na_2: nonce, hostY: host) = dec(m_2, skB) in
+  out(c8[i_2], (B, hostY));
+  in(c9[i_2], (pkY: key, =hostY, ms_2: signature));
+  if check(concat3(pkY, hostY), pkS, ms_2) then
+  new Nb_1: nonce;
+  new r5: seed;
+  out(c10[i_2], enc(concat2(Na_2, Nb_1), pkY, r5));
+  in(c11[i_2], m3: bitstring);
+  if nonceToBitstring(Nb_1) = dec(m3, skB) then
+  if hostY = A then
+  let NaB: nonce = Na_2 in
+  let NbB: nonce = Nb_1
+) | (
+  ! i_3 <= N
+  in(c13[i_3], (h1: host, h2: host));
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  new r3_2: seed;
+  out(c14[i_3], (Rkey[j2], h2, sign(concat3(Rkey[j2], h2), skS, r3_2)))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: key));
+  let Rkey: key = (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of NbB; secrecy of NbA; secrecy of NaB; secrecy of NaA.
+1.364s (user 1.352s + system 0.012s), max rss 68656K
+END *)

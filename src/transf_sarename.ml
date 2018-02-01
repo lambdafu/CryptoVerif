@@ -79,7 +79,13 @@ let rec sa_term b0 t =
 	  else
 	    ResE(b, sa_term b0 t)
       |	EventAbortE _ ->
-          Parsing_helper.internal_error "Event should have been expanded")
+          Parsing_helper.internal_error "Event should have been expanded"
+      | EventE(t,p) ->
+	  EventE(sa_term b0 t,
+		 sa_term b0 p)
+      | GetE _ | InsertE _ -> 
+	  Parsing_helper.internal_error "Get/Insert should not appear in Transf_sarename.sa_term"
+	    )
 
 and sa_pat b0 target_name = function
     PatVar b -> 
@@ -300,8 +306,11 @@ let rec ren_out_find_cond b0 t =
             None -> None
           | Some p2 -> Some (ren_out_find_cond b0 p2))
       end
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded")
+  | EventAbortE _ | EventE _ ->
+      Parsing_helper.internal_error "Events should not occur in find conditions"
+  | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_sarename.ren_out_find_cond"
+	)
 
 
 let rec ren_out_process b0 p = 

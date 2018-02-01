@@ -1,0 +1,28 @@
+#!/bin/bash
+
+mkdir -p examples-1.28-converted examples-1.28-converted/basic examples-1.28-converted/obasic examples-1.28-converted/authbasic examples-1.28-converted/implementation examples-1.28-converted/kerberos examples-1.28-converted/tls-2017SP examples-1.28-converted/nd examples-1.28-converted/nd/arinc823 examples-1.28-converted/nd/implem examples-1.28-converted/nd/kerberos examples-1.28-converted/nd/otest examples-1.28-converted/nd/test
+
+cd examples-1.28
+
+for i in basic/*.cv authbasic/*.cv obasic/*.ocv kerberos/*.cv nd/test/* nd/kerberos/* nd/implem/* nd/arinc823/* implementation/*
+do
+    if [ -f $i ]
+    then
+	../convert -lib ../converter/default-orig -o ../examples-1.28-converted/$i $i
+    fi
+done
+
+for i in nd/otest/*
+do
+    if [ -f $i ]
+    then
+	../convert -lib ../converter/default-orig -in oracles -o ../examples-1.28-converted/$i $i
+    fi
+done
+
+dir=tls-2017SP
+cat ../converter/default-orig.cvl $dir/tls-primitives.cvl > $dir/tls-lib.cvl
+for i in $dir/*.cv
+do
+    ../convert -lib $dir/tls-lib -olib ../examples-1.28-converted/$dir/tls-lib -o ../examples-1.28-converted/$i $i
+done

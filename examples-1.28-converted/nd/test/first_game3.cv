@@ -1,0 +1,76 @@
+(* The "let y" inside the condition of find should not be expanded,
+because we must make sure that x is defined before being able to
+execute the "let".
+This file causes an internal error at invariant checking after 
+the expansion of if/let/find/new.
+
+Fix 23/11/2009 This file is rejected: if/let/find/new are not accepted inside
+conditions of find.
+That's ok. I could be more permissive and accept this file.
+
+Fix 23/11/2009, file accepted, but there is still a bug in expansion 
+of terms/processes
+
+Fix 23/11/2009 expansion bug fixed, but now I get an internal error
+in simplification!
+
+Fix 23/11/2009 simplification bug fixed. I get the same bug as in 
+bug_transform_findcond.cv
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], m: hash);
+  if defined(x_1) && (let y: hashinput = x_1 in (m = h(hk, y))) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  in(c3, x_1: hashinput);
+  new s: G;
+  out(c4, s)
+) | (
+  ! i_2 <= qH
+  in(hc1[i_2], z: hashinput);
+  out(hc2[i_2], h(hk, z))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.024s (user 0.024s + system 0.000s), max rss 42496K
+END *)

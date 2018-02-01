@@ -1,0 +1,149 @@
+Index: src/globaldepanal.ml
+===================================================================
+RCS file: /import/absint3/blanchet/CVS-repository/dev/cryptoverif/src/globaldepanal.ml,v
+retrieving revision 1.2
+diff -r1.2 globaldepanal.ml
+472,473c472,473
+< let check_all_deps b0 coll_elim internal_info g =
+<   (*print_string "Doing check_all_deps ";
+---
+> let check_all_deps b0 g =
+>   print_string "Doing check_all_deps ";
+475c475
+<   print_newline();*)
+---
+>   print_newline();
+477,482d476
+<   Proba.reset coll_elim internal_info g;
+<   term_collisions := [];
+<   repl_index_list := [];
+<   Terms.array_ref_process g.proc;
+<   Terms.build_def_process None g.proc;
+< 
+485,487d478
+<     if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
+<       raise BadDep;
+< 
+492d482
+<   (*print_string "Success\n";*)
+498,499c488,489
+<     if not (List.for_all (fun (info,(t1,t2,c)) -> 
+<       let tl = 
+---
+>     let collisions = List.map (fun (info,(t1,t2,c)) -> 
+>       (info, (t1, t2, 
+502,512c492,496
+< 	| CharacTypeOfVar b -> List.assq b vars_charac_type
+<       in
+<       add_term_collisions info t1 t2 b0 None tl) 
+< 	      (!collisions_for_current_check_dependency)) then
+<       raise BadDep;
+< 
+<     Transform.changed := true;
+<     let proba = final_add_proba() in
+<     let internal_info' = Proba.final_internal_info() in
+<     (res_game, proba, internal_info', [])
+<  
+---
+> 	| CharacTypeOfVar b -> List.assq b vars_charac_type))) 
+> 	(!collisions_for_current_check_dependency)
+>     in
+>     print_string "Success"; print_newline();
+>     Some(res_game, collisions)
+513a498,507
+>     None
+> 
+> let main b0 coll_elim internal_info g =
+>   Proba.reset coll_elim internal_info g;
+>   term_collisions := [];
+>   repl_index_list := [];
+>   Terms.array_ref_process g.proc;
+>   Terms.build_def_process None g.proc;
+>   let dummy_term = Terms.term_from_binder b0 in
+>   if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
+514a509,522
+>   else
+>     match check_all_deps b0 g with
+>       None -> (g, [], internal_info, []) 
+>     | Some(res_game, collisions) ->
+> 	if not (List.for_all (fun (info,(t1,t2,tl)) -> 
+> 	  add_term_collisions info t1 t2 b0 None tl) collisions) then
+> 	  (g, [], internal_info, [])
+> 	else
+> 	  begin
+> 	    Transform.changed := true;
+> 	    let proba = final_add_proba() in
+> 	    let internal_info' = Proba.final_internal_info() in
+> 	    (res_game, proba, internal_info', [])
+> 	  end
+Index: src/globaldepanal.mli
+===================================================================
+RCS file: /import/absint3/blanchet/CVS-repository/dev/cryptoverif/src/globaldepanal.mli,v
+retrieving revision 1.1
+diff -r1.1 globaldepanal.mli
+3c3,6
+< val check_all_deps : binder -> string list -> simplify_internal_info_t -> game ->
+---
+> val check_all_deps : binder -> game ->
+>   (game * ((binder list * (binder * term) list * term list) * (term * term * typet list)) list) option
+> 
+> val main : binder -> string list -> simplify_internal_info_t -> game ->
+Index: src/instruct.ml
+===================================================================
+RCS file: /import/absint3/blanchet/CVS-repository/dev/cryptoverif/src/instruct.ml,v
+retrieving revision 1.161
+diff -r1.161 instruct.ml
+87c87
+< 	Globaldepanal.check_all_deps b l simplify_internal_info g
+---
+> 	Globaldepanal.main b l simplify_internal_info g
+Index: src/simplify.ml
+===================================================================
+RCS file: /import/absint3/blanchet/CVS-repository/dev/cryptoverif/src/simplify.ml,v
+retrieving revision 1.519
+diff -r1.519 simplify.ml
+9a10,12
+> let term_collisions_at_beginning_iteration = ref []
+> let failure_check_all_deps = ref []
+> 
+13a17
+>   term_collisions_at_beginning_iteration := !term_collisions;
+20a25
+>   failure_check_all_deps := [];
+464a470,471
+> exception Restart of game
+> 
+478,479c485,509
+< 	    Transform.advise := Terms.add_eq (GlobalDepAnal (b, (!Proba.elim_collisions_on_password_occ))) (!Transform.advise);
+< 	    false
+---
+> 	    if List.memq b (!failure_check_all_deps) then false else
+> 	    match Globaldepanal.check_all_deps b (!whole_game) with
+> 	      None -> 
+> 		failure_check_all_deps := b :: (!failure_check_all_deps);
+> 		false
+> 	    | Some(res_game, collisions) ->
+> 		let current_term_collisions = !term_collisions in
+> 		term_collisions := !term_collisions_at_beginning_iteration;
+> 		if not (List.for_all (fun (info,(t1,t2,tl)) -> 
+> 		  add_term_collisions info t1 t2 b None tl) collisions) then
+> 		  (* collisions yield a too large probability, I finally
+> 		     decide not to perform global dependency analysis *)
+> 		  begin
+> 		    failure_check_all_deps := b :: (!failure_check_all_deps);
+> 		    term_collisions := current_term_collisions;
+> 		    false
+> 		  end
+> 		else
+> 		  (* I perform global dependency analysis. 
+>                      Restart simplification from the result of global dep anal *)
+> 		  begin
+> 		    print_string "Restarting\n";
+> 		    Transform.changed := true;
+> 		    raise (Restart(res_game))
+> 		  end
+1837a1868
+>   try
+1865a1897,1898
+>   with Restart g ->
+>     simplify_main1 iter g

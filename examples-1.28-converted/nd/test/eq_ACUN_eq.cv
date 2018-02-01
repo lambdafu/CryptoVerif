@@ -1,0 +1,40 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+proof {
+      show_game occ;
+      replace 3 xor(xor(two,one),zero);
+      show_game occ;
+      replace 23 xor(xor(zero, xor(one, one')), xor(zero', xor(two, two'))) = neut;
+      replace 23 xor(xor(one', two'), xor(zero', xor(one, two))) = zero
+}
+
+fun xor(D,D):D.
+const neut:D.
+equation ACUN(xor,neut).
+
+set diffConstants = false.
+
+const zero, one, two, three: D. 
+const zero', one', two', three': D. 
+
+channel c.
+
+process in(c, ());
+out(c, xor(zero, xor(one, two)));
+in(c, ());
+out(c, xor(neut, xor(one, two)));
+in(c, ());
+out(c, xor(one, xor(two, one)));
+in(c, ());
+out(c, (xor(one, two) = xor(one, three)));
+in(c, ());
+out(c, (xor(zero', xor(one', two')) = xor(zero, xor(one, two))))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 42400K
+END *)

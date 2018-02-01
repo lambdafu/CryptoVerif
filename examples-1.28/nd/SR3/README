@@ -1,0 +1,12 @@
+Proofs of the security properties of the SR3 protocol.
+
+For the CryptoVerif proofs, we used cryptoverif1.16. For Scyther, 
+we used Scyther 1.1.1.
+
+Cryptoverif can be found here under the CeCILL-B licence :
+http://prosecco.gforge.inria.fr/personal/bblanche/cryptoverif/
+
+And Scyther is on GitHub : 
+https://github.com/cascremers/scyther
+
+Contact : rjamet@imag.fr 

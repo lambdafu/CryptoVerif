@@ -1,0 +1,45 @@
+
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+proof {
+SArename z
+}
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+
+
+
+
+
+process 
+	(((
+  ! i_1 <= N
+  in(c1[i_1], (x: G, y: G, a: hash, b: hash));
+  let z: hash = (if x = y then a else b)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], (x': G, c: hash));
+  find j_2 = j_3 <= N suchthat defined(x[j_3]) && (x[j_3] = x') && (find j'_1 = j' <= N suchthat defined(z[j']) && (z[j'] = c) then true else false) then
+  new s: G;
+  out(c4[i_2], s)
+))
+
+)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.008s + system 0.012s), max rss 40912K
+END *)

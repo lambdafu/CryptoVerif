@@ -1,0 +1,33 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+proof {
+      show_game occ;
+      replace 3 mult(mult(two,one),zero);
+      show_game occ;
+      replace 23 mult(mult(zero, mult(one, one)), mult(zero, mult(two, two))) = neut;
+      replace 23 mult(mult(one, two), mult(zero, mult(one, two))) = inv(zero)
+}
+
+fun mult(D,D):D.
+const neut:D.
+fun inv(D):D.
+equation commut_group(mult,inv,neut).
+
+set diffConstants = false.
+
+const zero, one, two, three: D. 
+
+channel c.
+
+process in(c, ()); out(c, mult(zero, mult(one, two)));
+	in(c, ()); out(c, mult(neut, mult(one, two)));
+	in(c, ()); out(c, mult(inv(one), mult(two, one)));
+	in(c, ()); out(c, mult(inv(one), two) = mult(inv(one), three));
+	in(c, ()); out(c, mult(zero, mult(one, two)) = inv(mult(zero, mult(one, two))))
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

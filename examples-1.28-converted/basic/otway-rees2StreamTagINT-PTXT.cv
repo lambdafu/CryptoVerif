@@ -1,0 +1,145 @@
+(* Version in which the participants only talk to A and B 
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+param N.
+param N2.
+param N3.
+
+type tag [bounded].
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [large,fixed].
+type keyseed [fixed].
+type seed [fixed].
+type maxenc [bounded].
+type maxencnotag [bounded].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+fun concat1(nonce, nonce, host, host):maxencnotag [data].
+fun concat2(nonce, key):maxencnotag [data].
+fun tagf(tag, maxencnotag):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+proba Pencptxt.
+
+expand IND_CCA2_INT_PTXT_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencptxt).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Z1:maxenc.
+const Z2:maxenc.
+
+forall u:tag, x:nonce, y:nonce, z:host, t:host; 
+	Z(tagf(u,concat1(x,y,z,t))) = Z1.
+forall u:tag, x:nonce, y:key; 
+	Z(tagf(u,concat2(x,y))) = Z2.
+
+(* Note: the system applies first INT-PTXT, then IND-CCA2 on the same key.
+   After these two transformations, we end up with three cases at each decryption:
+	a) the ciphertext comes from an encryption -> we get the cleartext x[j]
+	b) the ciphertext does not come from an encryption, but decrypts to some encrypted cleartext x[j]
+	   -> the cleartext is x[j], but we still have a test dec2(y,kgen2(r)) = injbot(x[j]), which would
+	   prevent showing the secrecy of x[j]. This case gets eliminated by simplification thanks to
+	   a dependency analysis: x[j] contains a nonce which is used only in such equality
+	   tests, so the adversary has no information on this nonce. y comes from the adversary, so
+	   the equality test is always wrong
+	c) the decryption fails -> we get bottom
+  *)
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query k: key, n: nonce, y: host, x: host;
+  event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) public_vars keyA, keyB.
+
+
+
+
+
+
+
+	
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+out(c9, ());
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new M_1: nonce;
+  new Na_1: nonce;
+  new s1: seed;
+  let ea1: bitstring = enc(tagf(tag1, concat1(Na_1, M_1, A, B)), Kas, s1) in
+  event beginA(A, B, M_1);
+  out(c1[i_1], (M_1, A, B, ea1));
+  in(c2[i_1], (=M_1, ea2_1: bitstring));
+  let injbot(tagf(=tag3, concat2(=Na_1, k: key))) = dec(ea2_1, Kas) in
+  event endA(A, B, M_1, k);
+  let keyA: key = k
+) | (
+  ! i_2 <= N
+  in(c3[i_2], (M_2: nonce, =A, =B, ea: bitstring));
+  new Nb_1: nonce;
+  new s2: seed;
+  let e2: bitstring = enc(tagf(tag2, concat1(Nb_1, M_2, A, B)), Kbs, s2) in
+  event beginB(A, B, M_2);
+  out(c4[i_2], (M_2, A, B, ea, e2));
+  in(c5[i_2], (=M_2, ea2_2: bitstring, eb2: bitstring));
+  let injbot(tagf(=tag4, concat2(=Nb_1, k_1: key))) = dec(eb2, Kbs) in
+  out(c6[i_2], (M_2, ea2_2));
+  in(finish[i_2], ());
+  event endB(A, B, M_2, k_1);
+  let keyB: key = k_1
+) | (
+  ! i_3 <= N
+  in(c7[i_3], (M_3: nonce, =A, =B, ea1_1: bitstring, eb1: bitstring));
+  let injbot(tagf(=tag1, concat1(Na_2: nonce, =M_3, =A, =B))) = dec(ea1_1, Kas) in
+  let injbot(tagf(=tag2, concat1(Nb_2: nonce, =M_3, =A, =B))) = dec(eb1, Kbs) in
+  new k_2: key;
+  new s3: seed;
+  new s4: seed;
+  let e1: bitstring = enc(tagf(tag3, concat2(Na_2, k_2)), Kas, s3) in
+  let e2_1: bitstring = enc(tagf(tag4, concat2(Nb_2, k_2)), Kbs, s4) in
+  out(c8[i_3], (M_3, e1, e2_1))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
+0.200s (user 0.176s + system 0.024s), max rss 49952K
+END *)

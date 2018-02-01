@@ -1,0 +1,120 @@
+(************** SR3 nonce secrecy modelization **************)
+(* 
+		SR3 is a routing protocol for wireless sensor
+		networks. Packets look like : 
+		
+			( E_{k_src}(Data || N), H(N), src )
+
+
+*)
+
+proof {
+   allowed_collisions "noninteractive/large";
+   auto
+   }
+
+(************** Parameters **************)
+(* Our number of queries to the packet-generation oracle *)
+param qGen. 
+param qHash [noninteractive]. 
+param qAnswer [noninteractive]. 
+
+(************** Basic types **************)
+type nonce [large, fixed]. (* also models nonces *)
+type data [large, fixed]. 
+type block [large, fixed].
+type nodeId [large, fixed].
+
+fun concat(data, nonce):block [compos]. 
+
+param N [noninteractive]. (* useless and necessary *)
+
+(* 
+	Important and non-trivial : a random	
+	block is undistinguishable from the 
+	concatenation of a random data and 
+	a random nonce.
+*)
+
+equiv
+!N new b:block; a() := b
+    <=(0)=> [manual]
+!N new d:data; new n:nonce; a() := concat(d,n).
+
+(************** Block cipher **************)
+type keyseed [large,fixed].
+type key [large,fixed]. (* for the cipher *)
+
+proba PRPProba. (* advprp(enc) *)
+expand PRP_cipher(keyseed, key, block, kgen, enc, dec, PRPProba).
+
+
+(************** Hash function **************)
+type hashkey [large,fixed].
+(* input type : nonces *)
+type hashout [large, fixed].
+
+expand ROM_hash(hashkey, nonce, hashout, hash).
+
+
+(************** Key generation ********)
+(* todo, ptet *)
+
+
+(************** Queries **************) 
+query event bad ==> false.
+
+
+(*************** Packet generation oracle ******) 
+channel OGenIn, OGenOut.
+
+let OGen =
+	!qGen 
+	in (OGenIn, (DCPA:data));
+	new n_oracle_cpa : nonce; 
+	let p_oracle_cpa = ( enc(concat(DCPA, n_oracle_cpa), k), hash(hk,n_oracle_cpa)) in
+	out (OGenOut, (p_oracle_cpa,n_oracle_cpa)).
+
+(**************** Hash oracle *******************)
+channel OHashIn, OHashOut.
+
+let OHash =
+  !qHash
+  in(OHashIn, hashOHash:nonce);
+  out(OHashOut, hash(hk,hashOHash)).
+
+(* win oracle *)
+event bad().
+channel WIn, WOut.
+let OWin = !qAnswer
+  in(WIn,( n:nonce));
+  if (n = n_challenge) then
+		event bad;
+	out(WOut, ()).
+
+(*************** The game itself ****************)
+channel keyinitin, keyinitout, gamein, gameout.
+process (
+	in(keyinitin, ());
+	
+	new hk : hashkey;		
+	new n_challenge : nonce;
+	new ks : keyseed;
+	let k = kgen(ks) in	
+
+	out(keyinitout,()); 
+	(
+		(
+			in(gamein,(D:data));
+			let cc = concat( D , n_challenge ) in
+			let p_challenge = ( enc(cc, k), hash(hk,n_challenge) ) in
+			out( gameout, (p_challenge) )
+			
+		) | OGen | OHash | OWin
+	)
+)
+
+
+
+
+

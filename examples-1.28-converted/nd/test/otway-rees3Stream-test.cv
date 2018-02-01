@@ -1,0 +1,174 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+
+Check that the system is not too sensitive to the syntax
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+(* A function f(x1...xn) is declared [compos] when:
+   - it is injective
+   - the values of x1...xn are computable in polynomial time from f(x1...xn) *)
+
+fun concat1(nonce, nonce, host, host):bitstring [data].
+fun concat2(nonce, key):bitstring [data].
+
+forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstringbot.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+fun injbot(bitstring):bitstringbot [data].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Znonce:nonce.
+const Zhost:host.
+const Zkey:key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = concat1(Znonce,Znonce,Zhost,Zhost).
+forall y:nonce,z:key; 
+	Z(concat2(y,z)) = concat2(Znonce,Zkey).
+
+equiv
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc(x, kgen(r), r2))
+<=(N2 * N * Penc)=>
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc2(Z(x), kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac(x, mkgen(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := return(check(m, mkgen(r), ma)))
+<=(N3 * N2 * Pmac)=>
+  ! N3 new r: keyseed; (
+    ! N gen_Oracle_1(x: bitstring) := return(mac2(x, mkgen2(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then return(true) else return(false)).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, start, dummy, finish.
+
+const A : host.
+const B : host.
+
+
+
+
+
+
+
+
+	
+process 
+	in(start, =());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: keyseed;
+let mKas: key = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: keyseed;
+let mKbs: key = mkgen(rmKbs) in
+out(dummy, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hb_1: host);
+  new M_1: nonce;
+  new Na_1: nonce;
+  new s1: seed;
+  out(c2[i_1], (M_1, A, hb_1, enc(concat1(Na_1, M_1, A, hb_1), Kas, s1), mac(enc(concat1(Na_1, M_1, A, hb_1), Kas, s1), mKas)));
+  in(c3[i_1], (=M_1, ea2_1: bitstring, ma2_1: macs));
+  if check(ea2_1, mKas, ma2_1) then
+  let injbot(concat2(=Na_1, k: key)) = dec(ea2_1, Kas) in
+  if hb_1 = B then
+  let keyA: key = k
+) | (
+  ! i_2 <= N
+  in(c4[i_2], (M_2: nonce, ha_1: host, =B, ea: bitstring, ma: macs));
+  new Nb_1: nonce;
+  new s2: seed;
+  let e2: bitstring = enc(concat1(Nb_1, M_2, ha_1, B), Kbs, s2) in
+  out(c5[i_2], (M_2, ha_1, B, ea, ma, e2, mac(e2, mKbs)));
+  in(c6[i_2], (=M_2, ea2_2: bitstring, ma2_2: macs, eb2: bitstring, mb2: macs));
+  if check(eb2, mKbs, mb2) then
+  let injbot(concat2(=Nb_1, k_1: key)) = dec(eb2, Kbs) in
+  out(c7[i_2], (M_2, ea2_2, ma2_2));
+  in(finish[i_2], =());
+  if ha_1 = A then
+  let keyB: key = k_1
+) | (
+  ! i_3 <= N
+  in(c9[i_3], (M_3: nonce, ha_2: host, hb_2: host, ea1: bitstring, ma1: macs, eb1: bitstring, mb1: macs));
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Rmkey[jA_1], Khost[jA_1]) && (ha_2 = Khost[jA_1]) then
+  let kas: key = Rkey[jA] in
+  let mkas: key = Rmkey[jA] in
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Rmkey[jB_1], Khost[jB_1]) && (hb_2 = Khost[jB_1]) then
+  let kbs: key = Rkey[jB] in
+  let mkbs: key = Rmkey[jB] in
+  if check(ea1, mkas, ma1) then
+  let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1, kas) in
+  if check(eb1, mkbs, mb1) then
+  let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, kbs) in
+  new k_2: key;
+  new s3: seed;
+  new s4: seed;
+  let e1: bitstring = enc(concat2(Na_2, k_2), kas, s3) in
+  let e2_1: bitstring = enc(concat2(Nb_2, k_2), kbs, s4) in
+  out(c10[i_3], (M_3, e1, mac(e1, mkas), e2_1, mac(e2_1, mkbs)))
+) | (
+  ! i_4 <= N2
+  in(c8[i_4], (Khost: host, Kkey: key, Kmkey: key));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: key = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+1.628s (user 1.580s + system 0.048s), max rss 86304K
+END *)

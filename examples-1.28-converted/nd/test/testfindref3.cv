@@ -1,0 +1,547 @@
+(* BUG: See end of file. Fixed
+
+The removal of the heuristic [decompos] on August 5, 2011 leads to a failure
+of the proof. See the last game at the end of this file.
+
+Proof succeeds again on Dec. 20, 2013.
+ *)
+
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+
+param N, N2, N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs.
+
+fun concat1(nonce, nonce, host, host):bitstring.
+forall y:nonce,z:nonce,t:host,u:host,y2:nonce,z2:nonce,t2:host,u2:host; 
+	(concat1(y,z,t,u) = concat1(y2,z2,t2,u2)) =
+	((y = y2) && (z = z2) && (t = t2) && (u = u2)).
+fun concat2(nonce, key):bitstring.
+forall y:nonce,z:key,y2:nonce,z2:key; 
+	(concat2(y,z) = concat2(y2,z2)) = ((y = y2) && (z = z2)).
+
+fun isconcat1(bitstring):bool.
+forall y:nonce,z:nonce,t:host,u:host; isconcat1(concat1(y,z,t,u)) = true.
+forall y:nonce,z:key; isconcat1(concat2(y,z)) = false.
+
+fun getnonce1(bitstring):nonce [projection].
+forall y:nonce,z:nonce,t:host,u:host; getnonce1(concat1(y,z,t,u)) = y.
+fun getnonce2(bitstring):nonce [projection].
+forall y:nonce,z:nonce,t:host,u:host; getnonce2(concat1(y,z,t,u)) = z.
+fun gethost1(bitstring):host [projection].
+forall y:nonce,z:nonce,t:host,u:host; gethost1(concat1(y,z,t,u)) = t.
+fun gethost2(bitstring):host [projection].
+forall y:nonce,z:nonce,t:host,u:host; gethost2(concat1(y,z,t,u)) = u.
+
+fun getnonce3(bitstring):nonce [projection].
+forall y:nonce,z:key; getnonce3(concat2(y,z)) = y.
+fun getkey2(bitstring):key [projection].
+forall y:nonce,z:key; getkey2(concat2(y,z)) = z.
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+fun dec2(bitstring, key): bitstring.
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Znonce:nonce.
+const Zhost:host.
+const Zkey:key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = m.
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = m.
+forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = concat1(Znonce,Znonce,Zhost,Zhost).
+forall y:nonce,z:key; 
+	Z(concat2(y,z)) = concat2(Znonce,Zkey).
+
+equiv
+  ! N new r: keyseed; ! N2 new r2: seed; gen_Oracle(x: bitstring) := return(enc(x, kgen(r), r2))
+<=(N * Penc(N2))=>
+  ! N new r: keyseed; ! N2 new r2: seed; gen_Oracle(x: bitstring) := return(enc2(Z(x), kgen2(r), r2)).
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv
+  ! N new r: keyseed; (
+    ! N3 gen_Oracle_1(x: bitstring) := return(mac(x, mkgen(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := return(check(m, mkgen(r), ma)))
+<=(N * Pmac(N2))=>
+  ! N new r: keyseed; (
+    ! N3 gen_Oracle_1(x: bitstring) := return(mac2(x, mkgen2(r))) |
+    ! N2 gen_Oracle_2(m: bitstring, ma: macs) := find j <= N3 suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then return(true) else return(false)).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+channel c.
+const A : host.
+const B : host.
+
+
+
+
+
+
+
+
+	
+process ! i_1 <= N
+in(c[i_1], ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: keyseed;
+let mKas: key = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: keyseed;
+let mKbs: key = mkgen(rmKbs) in
+out(c[i_1], ());
+((
+  ! i_2 <= N
+  in(c[i_2, i_1], hb_1: host);
+  new M_1: nonce;
+  new Na_1: nonce;
+  new s1: seed;
+  let ea1: bitstring = enc(concat1(Na_1, M_1, A, hb_1), Kas, s1) in
+  out(c[i_2, i_1], (M_1, A, hb_1, ea1, mac(ea1, mKas)));
+  in(c[i_2, i_1], (=M_1, ea2_1: bitstring, ma2_1: macs));
+  if check(ea2_1, mKas, ma2_1) then
+  let da2: bitstring = dec(ea2_1, Kas) in
+  if isconcat1(da2) = false then
+  if getnonce3(da2) = Na_1 then
+  if hb_1 = B then
+  let keyA: key = getkey2(da2)
+) | (
+  ! i_3 <= N
+  in(c[i_3, i_1], (M_2: nonce, ha_1: host, =B, ea: bitstring, ma: macs));
+  new Nb_1: nonce;
+  new s2: seed;
+  let e2: bitstring = enc(concat1(Nb_1, M_2, ha_1, B), Kbs, s2) in
+  out(c[i_3, i_1], (M_2, ha_1, B, ea, ma, e2, mac(e2, mKbs)));
+  in(c[i_3, i_1], (=M_2, ea2_2: bitstring, ma2_2: macs, eb2: bitstring, mb2: macs));
+  if check(eb2, mKbs, mb2) then
+  let db2: bitstring = dec(eb2, Kbs) in
+  if isconcat1(db2) = false then
+  if getnonce3(db2) = Nb_1 then
+  out(c[i_3, i_1], (M_2, ea2_2, ma2_2));
+  in(c[i_3, i_1], ());
+  if ha_1 = A then
+  let keyB: key = getkey2(db2)
+) | (
+  ! i_4 <= N
+  in(c[i_4, i_1], (M_3: nonce, ha_2: host, hb_2: host, ea1_1: bitstring, ma1: macs, eb1: bitstring, mb1: macs));
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Rmkey[jA_1], Khost[jA_1]) && (ha_2 = Khost[jA_1]) then
+  let kas: key = Rkey[jA] in
+  let mkas: key = Rmkey[jA] in
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Rmkey[jB_1], Khost[jB_1]) && (hb_2 = Khost[jB_1]) then
+  let kbs: key = Rkey[jB] in
+  let mkbs: key = Rmkey[jB] in
+  if check(ea1_1, mkas, ma1) then
+  let da1: bitstring = dec(ea1_1, kas) in
+  if isconcat1(da1) then
+  let Na_2: nonce = getnonce1(da1) in
+  if (M_3 = getnonce2(da1)) && (ha_2 = gethost1(da1)) && (hb_2 = gethost2(da1)) then
+  if check(eb1, mkbs, mb1) then
+  let db1: bitstring = dec(eb1, kbs) in
+  if isconcat1(db1) then
+  let Nb_2: nonce = getnonce1(db1) in
+  if (M_3 = getnonce2(db1)) && (ha_2 = gethost1(db1)) && (hb_2 = gethost2(db1)) then
+  new k: key;
+  new s3: seed;
+  new s4: seed;
+  let e1: bitstring = enc(concat2(Na_2, k), kas, s3) in
+  let e2_1: bitstring = enc(concat2(Nb_2, k), kbs, s4) in
+  out(c[i_4, i_1], (M_3, e1, mac(e1, mkas), e2_1, mac(e2_1, mkbs)))
+) | (
+  ! i_5 <= N2
+  in(c[i_5, i_1], (Khost: host, Kkey: key, Kmkey: key));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: key = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+))
+
+
+
+(* BUG: when the key is created under a replication, the "find"
+in the definition of the cryptographic primitive is not interpreted
+correctly. (We look for the values in all copies instead of just
+the copies that use the same key.) *)
+
+(* Last game, without the [decompos] heuristic.
+See explanation between [[  ]]
+
+Game 28 is
+        ! !_43 <= N
+        in(c[!_43], ());
+        new rKas_287: keyseed;
+        new rmKas_204: keyseed;
+        new rKbs_294: keyseed;
+        new rmKbs_98: keyseed;
+        out(c[!_43], ());
+        (
+          ! !_44 <= N
+          in(c[!_44, !_43], hb_48: host);
+          new M_49: nonce;
+          new s1_289: seed;
+          let ea1_51: bitstring = enc2(concat1(Znonce, Znonce, Zhost, Zhost), kgen2(rKas_287), s1_289) in
+          out(c[!_44, !_43], (M_49, A, hb_48, ea1_51, mac2(ea1_51, mkgen2(rmKas_204))));
+          in(c[!_44, !_43], (=M_49, ea2_53: bitstring, ma2_52: macs));
+          find @i_281 <= N suchthat defined(ea1_51[@i_281]) && ((ea2_53 = ea1_51[@i_281]) && check2(ea1_51[@i_281], mkgen2(rmKas_204), ma2_52)) then
+            yield
+          orfind @i_279 <= N suchthat defined(e2_66[@i_279], @i_221[@i_279], k_77[@i_279]) && ((ea2_53 = e2_66[@i_279]) && check2(e2_66[@i_279], mkgen2(rmKas_204), ma2_52)) then
+          (
+            if (@i_221[@i_279] = !_44) then
+            if (hb_48 = B) then
+            let keyA: key = k_77[@i_279]
+          )
+          orfind @i_277 <= N suchthat defined(e1[@i_277], @i_233[@i_277], k_89[@i_277]) && ((ea2_53 = e1[@i_277]) && check2(e1[@i_277], mkgen2(rmKas_204), ma2_52)) then
+          (
+            if (@i_233[@i_277] = !_44) then
+            if (hb_48 = B) then
+            let keyA: key = k_89[@i_277]
+          )
+          orfind @i_275 <= N suchthat defined(e1[@i_275], @i_245[@i_275], k_92[@i_275]) && ((ea2_53 = e1[@i_275]) && check2(e1[@i_275], mkgen2(rmKas_204), ma2_52)) then
+          (
+            if (@i_245[@i_275] = !_44) then
+            let keyA: key = k_92[@i_275]
+          )
+          orfind @i_273 <= N suchthat defined(e2_66[@i_273], k_95[@i_273]) && ((ea2_53 = e2_66[@i_273]) && check2(e2_66[@i_273], mkgen2(rmKas_204), ma2_52)) then
+            yield
+          orfind @i_271 <= N suchthat defined(e1[@i_271], k_95[@i_271]) && ((ea2_53 = e1[@i_271]) && check2(e1[@i_271], mkgen2(rmKas_204), ma2_52)) then
+            yield
+        ) | (
+          ! !_45 <= N
+          in(c[!_45, !_43], (M_55: nonce, ha_54: host, =B, ea: bitstring, ma: macs));
+          new s2_295: seed;
+          let e2_57: bitstring = enc2(concat1(Znonce, Znonce, Zhost, Zhost), kgen2(rKbs_294), s2_295) in
+          out(c[!_45, !_43], (M_55, ha_54, B, ea, ma, e2_57, mac2(e2_57, mkgen2(rmKbs_98))));
+          in(c[!_45, !_43], (=M_55, ea2_59: bitstring, ma2_58: macs, eb2: bitstring, mb2: macs));
+          find @i_202 <= N suchthat defined(e2_57[@i_202]) && ((eb2 = e2_57[@i_202]) && check2(e2_57[@i_202], mkgen2(rmKbs_98), mb2)) then
+            yield
+          orfind @i_200 <= N suchthat defined(e2_66[@i_200], @i_118[@i_200], k_74[@i_200]) && ((eb2 = e2_66[@i_200]) && check2(e2_66[@i_200], mkgen2(rmKbs_98), mb2)) then
+          (
+            if (@i_118[@i_200] = !_45) then
+            out(c[!_45, !_43], (M_55, ea2_59, ma2_58));
+            in(c[!_45, !_43], ());
+            if (ha_54 = A) then
+	    [[
+	    k_74[@i_200] defined =>
+	    ha_62[@i_200] = ha_54[@i_118[@i_200]] = ha_54 = A since @i_118[@i_200] = !_45
+	    ha_62[@i_200] = Khost[jA[@i_200]]
+	    Rmkey_68[jA[@i_200]] defined => Khost[jA[@i_200]] <> A,B
+	    => Contradiction. The next line "let keyB: key = k_74[@i_200]"
+	    is then removed, which allows the proof of secrecy of keyB
+	    to succeed.
+
+	    This simplification should have been found already in Game 12.
+
+	    Other equalities, like ha_62 = gethost1(da1) probably get in the
+	    way (ha_62 being reduced to gethost1(da1) instead of ha_54), 
+	    which explains why the simplification is not found.
+	    The heuristic [decompos] solved the problem by preventing the
+	    orientation ha_62 -> gethost1(da1).
+	    ]]
+            let keyB: key = k_74[@i_200]
+          )
+          orfind @i_196 <= N suchthat defined(e2_66[@i_196], @i_146[@i_196], k_83[@i_196]) && ((eb2 = e2_66[@i_196]) && check2(e2_66[@i_196], mkgen2(rmKbs_98), mb2)) then
+          (
+            if (@i_146[@i_196] = !_45) then
+            out(c[!_45, !_43], (M_55, ea2_59, ma2_58));
+            in(c[!_45, !_43], ())
+          )
+          orfind @i_194 <= N suchthat defined(e1[@i_194], @i_160[@i_194], k_83[@i_194]) && ((eb2 = e1[@i_194]) && check2(e1[@i_194], mkgen2(rmKbs_98), mb2)) then
+          (
+            if (@i_160[@i_194] = !_45) then
+            out(c[!_45, !_43], (M_55, ea2_59, ma2_58));
+            in(c[!_45, !_43], ())
+          )
+          orfind @i_190 <= N suchthat defined(e2_66[@i_190], @i_188[@i_190], k_92[@i_190]) && ((eb2 = e2_66[@i_190]) && check2(e2_66[@i_190], mkgen2(rmKbs_98), mb2)) then
+          (
+            if (@i_188[@i_190] = !_45) then
+            out(c[!_45, !_43], (M_55, ea2_59, ma2_58));
+            in(c[!_45, !_43], ());
+            let keyB: key = k_92[@i_190]
+          )
+        ) | (
+          ! !_46 <= N
+          in(c[!_46, !_43], (M_63: nonce, ha_62: host, hb_61: host, ea1_60: bitstring, ma1: macs, eb1: bitstring, mb1: macs));
+          find jA <= N2 suchthat defined(Khost[jA], Kmkey[jA], Kkey[jA], Rmkey_68[jA]) && (ha_62 = Khost[jA]) then
+          (
+            find jB <= N2 suchthat defined(Khost[jB], Kmkey[jB], Kkey[jB], Rmkey_68[jB]) && (hb_61 = Khost[jB]) then
+            (
+              if check(ea1_60, Kmkey[jA], ma1) then
+              let da1: bitstring = dec(ea1_60, Kkey[jA]) in
+              if isconcat1(da1) then
+              if ((M_63 = getnonce2(da1)) && ((ha_62 = gethost1(da1)) && (hb_61 = gethost2(da1)))) then
+              if check(eb1, Kmkey[jB], mb1) then
+              let db1: bitstring = dec(eb1, Kkey[jB]) in
+              if isconcat1(db1) then
+              if ((M_63 = getnonce2(db1)) && ((ha_62 = gethost1(db1)) && (hb_61 = gethost2(db1)))) then
+              new k_71: key;
+              new s3_72: seed;
+              new s4_73: seed;
+              let Na_64: nonce = getnonce1(da1) in
+              let e1: bitstring = enc(concat2(Na_64, k_71), Kkey[jA], s3_72) in
+              let Nb_65: nonce = getnonce1(db1) in
+              let e2_66: bitstring = enc(concat2(Nb_65, k_71), Kkey[jB], s4_73) in
+              out(c[!_46, !_43], (M_63, e1, mac(e1, Kmkey[jA]), e2_66, mac(e2_66, Kmkey[jB])))
+            )
+            orfind jB <= N2 suchthat defined(Khost[jB], Rmkey_69[jB]) && (hb_61 = Khost[jB]) then
+            (
+              if check(ea1_60, Kmkey[jA], ma1) then
+              let da1: bitstring = dec(ea1_60, Kkey[jA]) in
+              if isconcat1(da1) then
+              if ((M_63 = getnonce2(da1)) && ((ha_62 = gethost1(da1)) && (hb_61 = gethost2(da1)))) then
+              find @i_118 <= N suchthat defined(e2_57[@i_118], M_55[@i_118], ha_54[@i_118]) && ((eb1 = e2_57[@i_118]) && check2(e2_57[@i_118], mkgen2(rmKbs_98), mb1)) then
+              (
+                if ((M_63 = M_55[@i_118]) && (ha_62 = ha_54[@i_118])) then
+                new k_74: key;
+                new s3_75: seed;
+                new s4_296: seed;
+                let Na_64: nonce = getnonce1(da1) in
+                let e1: bitstring = enc(concat2(Na_64, k_74), Kkey[jA], s3_75) in
+                let e2_66: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKbs_294), s4_296) in
+                out(c[!_46, !_43], (M_63, e1, mac(e1, Kmkey[jA]), e2_66, mac2(e2_66, mkgen2(rmKbs_98))))
+              )
+              orfind @i_116 <= N suchthat defined(e2_66[@i_116], k_74[@i_116]) && ((eb1 = e2_66[@i_116]) && check2(e2_66[@i_116], mkgen2(rmKbs_98), mb1)) then
+                yield
+              orfind @i_112 <= N suchthat defined(e2_66[@i_112], k_83[@i_112]) && ((eb1 = e2_66[@i_112]) && check2(e2_66[@i_112], mkgen2(rmKbs_98), mb1)) then
+                yield
+              orfind @i_110 <= N suchthat defined(e1[@i_110], k_83[@i_110]) && ((eb1 = e1[@i_110]) && check2(e1[@i_110], mkgen2(rmKbs_98), mb1)) then
+                yield
+              orfind @i_106 <= N suchthat defined(e2_66[@i_106], k_92[@i_106]) && ((eb1 = e2_66[@i_106]) && check2(e2_66[@i_106], mkgen2(rmKbs_98), mb1)) then
+                yield
+            )
+            orfind jB <= N2 suchthat defined(Khost[jB], Rmkey_70[jB]) && (hb_61 = Khost[jB]) then
+            (
+              if check(ea1_60, Kmkey[jA], ma1) then
+              let da1: bitstring = dec(ea1_60, Kkey[jA]) in
+              if isconcat1(da1) then
+              if ((M_63 = getnonce2(da1)) && ((ha_62 = gethost1(da1)) && (hb_61 = gethost2(da1)))) then
+              find @i_221 <= N suchthat defined(ea1_51[@i_221], M_49[@i_221], hb_48[@i_221]) && ((eb1 = ea1_51[@i_221]) && check2(ea1_51[@i_221], mkgen2(rmKas_204), mb1)) then
+              (
+                if ((M_63 = M_49[@i_221]) && ((ha_62 = A) && (hb_61 = hb_48[@i_221]))) then
+                new k_77: key;
+                new s3_78: seed;
+                new s4_290: seed;
+                let Na_64: nonce = getnonce1(da1) in
+                let e1: bitstring = enc(concat2(Na_64, k_77), Kkey[jA], s3_78) in
+                let e2_66: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKas_287), s4_290) in
+                out(c[!_46, !_43], (M_63, e1, mac(e1, Kmkey[jA]), e2_66, mac2(e2_66, mkgen2(rmKas_204))))
+              )
+              orfind @i_219 <= N suchthat defined(e2_66[@i_219], k_77[@i_219]) && ((eb1 = e2_66[@i_219]) && check2(e2_66[@i_219], mkgen2(rmKas_204), mb1)) then
+                yield
+              orfind @i_217 <= N suchthat defined(e1[@i_217], k_89[@i_217]) && ((eb1 = e1[@i_217]) && check2(e1[@i_217], mkgen2(rmKas_204), mb1)) then
+                yield
+              orfind @i_215 <= N suchthat defined(e1[@i_215], k_92[@i_215]) && ((eb1 = e1[@i_215]) && check2(e1[@i_215], mkgen2(rmKas_204), mb1)) then
+                yield
+              orfind @i_213 <= N suchthat defined(e2_66[@i_213], k_95[@i_213]) && ((eb1 = e2_66[@i_213]) && check2(e2_66[@i_213], mkgen2(rmKas_204), mb1)) then
+                yield
+              orfind @i_211 <= N suchthat defined(e1[@i_211], k_95[@i_211]) && ((eb1 = e1[@i_211]) && check2(e1[@i_211], mkgen2(rmKas_204), mb1)) then
+                yield
+            )
+          )
+          orfind jA <= N2 suchthat defined(Khost[jA], Rmkey_69[jA]) && (ha_62 = Khost[jA]) then
+          (
+            find jB <= N2 suchthat defined(Khost[jB], Rmkey_68[jB]) && (hb_61 = Khost[jB]) then
+              yield
+            orfind jB <= N2 suchthat defined(Khost[jB], Rmkey_69[jB]) && (hb_61 = Khost[jB]) then
+            (
+              find @i_160 <= N suchthat defined(e2_57[@i_160], M_55[@i_160], ha_54[@i_160]) && ((ea1_60 = e2_57[@i_160]) && check2(e2_57[@i_160], mkgen2(rmKbs_98), ma1)) then
+              (
+                if ((M_63 = M_55[@i_160]) && (ha_62 = ha_54[@i_160])) then
+                find @i_146 <= N suchthat defined(e2_57[@i_146], M_55[@i_146], ha_54[@i_146]) && ((eb1 = e2_57[@i_146]) && check2(e2_57[@i_146], mkgen2(rmKbs_98), mb1)) then
+                (
+                  if ((M_63 = M_55[@i_146]) && (ha_62 = ha_54[@i_146])) then
+                  new k_83: key;
+                  new s3_298: seed;
+                  new s4_297: seed;
+                  let e1: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKbs_294), s3_298) in
+                  let e2_66: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKbs_294), s4_297) in
+                  out(c[!_46, !_43], (M_63, e1, mac2(e1, mkgen2(rmKbs_98)), e2_66, mac2(e2_66, mkgen2(rmKbs_98))))
+                )
+                orfind @i_144 <= N suchthat defined(e2_66[@i_144], k_74[@i_144]) && ((eb1 = e2_66[@i_144]) && check2(e2_66[@i_144], mkgen2(rmKbs_98), mb1)) then
+                  yield
+                orfind @i_140 <= N suchthat defined(e2_66[@i_140], k_83[@i_140]) && ((eb1 = e2_66[@i_140]) && check2(e2_66[@i_140], mkgen2(rmKbs_98), mb1)) then
+                  yield
+                orfind @i_138 <= N suchthat defined(e1[@i_138], k_83[@i_138]) && ((eb1 = e1[@i_138]) && check2(e1[@i_138], mkgen2(rmKbs_98), mb1)) then
+                  yield
+                orfind @i_134 <= N suchthat defined(e2_66[@i_134], k_92[@i_134]) && ((eb1 = e2_66[@i_134]) && check2(e2_66[@i_134], mkgen2(rmKbs_98), mb1)) then
+                  yield
+              )
+              orfind @i_158 <= N suchthat defined(e2_66[@i_158], k_74[@i_158]) && ((ea1_60 = e2_66[@i_158]) && check2(e2_66[@i_158], mkgen2(rmKbs_98), ma1)) then
+                yield
+              orfind @i_154 <= N suchthat defined(e2_66[@i_154], k_83[@i_154]) && ((ea1_60 = e2_66[@i_154]) && check2(e2_66[@i_154], mkgen2(rmKbs_98), ma1)) then
+                yield
+              orfind @i_152 <= N suchthat defined(e1[@i_152], k_83[@i_152]) && ((ea1_60 = e1[@i_152]) && check2(e1[@i_152], mkgen2(rmKbs_98), ma1)) then
+                yield
+              orfind @i_148 <= N suchthat defined(e2_66[@i_148], k_92[@i_148]) && ((ea1_60 = e2_66[@i_148]) && check2(e2_66[@i_148], mkgen2(rmKbs_98), ma1)) then
+                yield
+            )
+            orfind jB <= N2 suchthat defined(Khost[jB], Rmkey_70[jB]) && (hb_61 = Khost[jB]) then
+              yield
+          )
+          orfind jA <= N2 suchthat defined(Khost[jA], Rmkey_70[jA]) && (ha_62 = Khost[jA]) then
+          (
+            find jB <= N2 suchthat defined(Khost[jB], Kmkey[jB], Kkey[jB], Rmkey_68[jB]) && (hb_61 = Khost[jB]) then
+            (
+              find @i_233 <= N suchthat defined(ea1_51[@i_233], M_49[@i_233], hb_48[@i_233]) && ((ea1_60 = ea1_51[@i_233]) && check2(ea1_51[@i_233], mkgen2(rmKas_204), ma1)) then
+              (
+                if ((M_63 = M_49[@i_233]) && (hb_61 = hb_48[@i_233])) then
+                if check(eb1, Kmkey[jB], mb1) then
+                let db1: bitstring = dec(eb1, Kkey[jB]) in
+                if isconcat1(db1) then
+                if ((M_63 = getnonce2(db1)) && ((ha_62 = gethost1(db1)) && (hb_61 = gethost2(db1)))) then
+                new k_89: key;
+                new s3_291: seed;
+                new s4_91: seed;
+                let e1: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKas_287), s3_291) in
+                let Nb_65: nonce = getnonce1(db1) in
+                let e2_66: bitstring = enc(concat2(Nb_65, k_89), Kkey[jB], s4_91) in
+                out(c[!_46, !_43], (M_63, e1, mac2(e1, mkgen2(rmKas_204)), e2_66, mac(e2_66, Kmkey[jB])))
+              )
+              orfind @i_231 <= N suchthat defined(e2_66[@i_231], k_77[@i_231]) && ((ea1_60 = e2_66[@i_231]) && check2(e2_66[@i_231], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_229 <= N suchthat defined(e1[@i_229], k_89[@i_229]) && ((ea1_60 = e1[@i_229]) && check2(e1[@i_229], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_227 <= N suchthat defined(e1[@i_227], k_92[@i_227]) && ((ea1_60 = e1[@i_227]) && check2(e1[@i_227], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_225 <= N suchthat defined(e2_66[@i_225], k_95[@i_225]) && ((ea1_60 = e2_66[@i_225]) && check2(e2_66[@i_225], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_223 <= N suchthat defined(e1[@i_223], k_95[@i_223]) && ((ea1_60 = e1[@i_223]) && check2(e1[@i_223], mkgen2(rmKas_204), ma1)) then
+                yield
+            )
+            orfind jB <= N2 suchthat defined(Khost[jB], Rmkey_69[jB]) && (hb_61 = Khost[jB]) then
+            (
+              find @i_245 <= N suchthat defined(ea1_51[@i_245], M_49[@i_245], hb_48[@i_245]) && ((ea1_60 = ea1_51[@i_245]) && check2(ea1_51[@i_245], mkgen2(rmKas_204), ma1)) then
+              (
+                if ((M_63 = M_49[@i_245]) && (hb_61 = hb_48[@i_245])) then
+                find @i_188 <= N suchthat defined(e2_57[@i_188], M_55[@i_188], ha_54[@i_188]) && ((eb1 = e2_57[@i_188]) && check2(e2_57[@i_188], mkgen2(rmKbs_98), mb1)) then
+                (
+                  if ((M_63 = M_55[@i_188]) && (ha_62 = ha_54[@i_188])) then
+                  new k_92: key;
+                  new s3_292: seed;
+                  new s4_293: seed;
+                  let e1: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKas_287), s3_292) in
+                  let e2_66: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKbs_294), s4_293) in
+                  out(c[!_46, !_43], (M_63, e1, mac2(e1, mkgen2(rmKas_204)), e2_66, mac2(e2_66, mkgen2(rmKbs_98))))
+                )
+                orfind @i_186 <= N suchthat defined(e2_66[@i_186], k_74[@i_186]) && ((eb1 = e2_66[@i_186]) && check2(e2_66[@i_186], mkgen2(rmKbs_98), mb1)) then
+                  yield
+                orfind @i_182 <= N suchthat defined(e2_66[@i_182], k_83[@i_182]) && ((eb1 = e2_66[@i_182]) && check2(e2_66[@i_182], mkgen2(rmKbs_98), mb1)) then
+                  yield
+                orfind @i_180 <= N suchthat defined(e1[@i_180], k_83[@i_180]) && ((eb1 = e1[@i_180]) && check2(e1[@i_180], mkgen2(rmKbs_98), mb1)) then
+                  yield
+                orfind @i_176 <= N suchthat defined(e2_66[@i_176], k_92[@i_176]) && ((eb1 = e2_66[@i_176]) && check2(e2_66[@i_176], mkgen2(rmKbs_98), mb1)) then
+                  yield
+              )
+              orfind @i_243 <= N suchthat defined(e2_66[@i_243], k_77[@i_243]) && ((ea1_60 = e2_66[@i_243]) && check2(e2_66[@i_243], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_241 <= N suchthat defined(e1[@i_241], k_89[@i_241]) && ((ea1_60 = e1[@i_241]) && check2(e1[@i_241], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_239 <= N suchthat defined(e1[@i_239], k_92[@i_239]) && ((ea1_60 = e1[@i_239]) && check2(e1[@i_239], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_237 <= N suchthat defined(e2_66[@i_237], k_95[@i_237]) && ((ea1_60 = e2_66[@i_237]) && check2(e2_66[@i_237], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_235 <= N suchthat defined(e1[@i_235], k_95[@i_235]) && ((ea1_60 = e1[@i_235]) && check2(e1[@i_235], mkgen2(rmKas_204), ma1)) then
+                yield
+            )
+            orfind jB <= N2 suchthat defined(Khost[jB], Rmkey_70[jB]) && (hb_61 = Khost[jB]) then
+            (
+              find @i_269 <= N suchthat defined(ea1_51[@i_269], M_49[@i_269], hb_48[@i_269]) && ((ea1_60 = ea1_51[@i_269]) && check2(ea1_51[@i_269], mkgen2(rmKas_204), ma1)) then
+              (
+                if ((M_63 = M_49[@i_269]) && (hb_61 = hb_48[@i_269])) then
+                find @i_257 <= N suchthat defined(ea1_51[@i_257], hb_48[@i_257]) && ((eb1 = ea1_51[@i_257]) && check2(ea1_51[@i_257], mkgen2(rmKas_204), mb1)) then
+                (
+                  if ((@i_269 = @i_257) && (hb_61 = hb_48[@i_257])) then
+                  new k_95: key;
+                  new s3_288: seed;
+                  new s4_286: seed;
+                  let e1: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKas_287), s3_288) in
+                  let e2_66: bitstring = enc2(concat2(Znonce, Zkey), kgen2(rKas_287), s4_286) in
+                  out(c[!_46, !_43], (M_63, e1, mac2(e1, mkgen2(rmKas_204)), e2_66, mac2(e2_66, mkgen2(rmKas_204))))
+                )
+                orfind @i_255 <= N suchthat defined(e2_66[@i_255], k_77[@i_255]) && ((eb1 = e2_66[@i_255]) && check2(e2_66[@i_255], mkgen2(rmKas_204), mb1)) then
+                  yield
+                orfind @i_253 <= N suchthat defined(e1[@i_253], k_89[@i_253]) && ((eb1 = e1[@i_253]) && check2(e1[@i_253], mkgen2(rmKas_204), mb1)) then
+                  yield
+                orfind @i_251 <= N suchthat defined(e1[@i_251], k_92[@i_251]) && ((eb1 = e1[@i_251]) && check2(e1[@i_251], mkgen2(rmKas_204), mb1)) then
+                  yield
+                orfind @i_249 <= N suchthat defined(e2_66[@i_249], k_95[@i_249]) && ((eb1 = e2_66[@i_249]) && check2(e2_66[@i_249], mkgen2(rmKas_204), mb1)) then
+                  yield
+                orfind @i_247 <= N suchthat defined(e1[@i_247], k_95[@i_247]) && ((eb1 = e1[@i_247]) && check2(e1[@i_247], mkgen2(rmKas_204), mb1)) then
+                  yield
+              )
+              orfind @i_267 <= N suchthat defined(e2_66[@i_267], k_77[@i_267]) && ((ea1_60 = e2_66[@i_267]) && check2(e2_66[@i_267], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_265 <= N suchthat defined(e1[@i_265], k_89[@i_265]) && ((ea1_60 = e1[@i_265]) && check2(e1[@i_265], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_263 <= N suchthat defined(e1[@i_263], k_92[@i_263]) && ((ea1_60 = e1[@i_263]) && check2(e1[@i_263], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_261 <= N suchthat defined(e2_66[@i_261], k_95[@i_261]) && ((ea1_60 = e2_66[@i_261]) && check2(e2_66[@i_261], mkgen2(rmKas_204), ma1)) then
+                yield
+              orfind @i_259 <= N suchthat defined(e1[@i_259], k_95[@i_259]) && ((ea1_60 = e1[@i_259]) && check2(e1[@i_259], mkgen2(rmKas_204), ma1)) then
+                yield
+            )
+          )
+        ) | (
+          ! !_47 <= N2
+          in(c[!_47, !_43], (Khost: host, Kkey: key, Kmkey: key));
+          if (Khost = A) then
+          (
+            let Rmkey_70: key = cst_key
+          )
+          else
+            if (Khost = B) then
+            (
+              let Rmkey_69: key = cst_key
+            )
+            else
+              let Rmkey_68: key = cst_key
+        )
+
+RESULT Could not prove one-session secrecy of keyB, one-session secrecy of keyA, secrecy of keyB, secrecy of keyA.
+
+EXPECTED
+All queries proved.
+2.568s (user 2.552s + system 0.016s), max rss 106032K
+END *)

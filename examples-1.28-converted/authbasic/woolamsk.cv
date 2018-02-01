@@ -1,0 +1,156 @@
+(*
+
+WooLam shared-key auth protocol (1992, computer)
+Version of Gordon, Jeffrey, CSFW 2001
+
+A -> B : A
+B -> A : N (fresh)
+A -> B : { m3, N }_kAS
+B -> S : { m4, A,{ m3, N }_kAS }_kBS
+S -> B : { m5, N }_kBS
+B: verify { m5, N }_kBS = the message from S
+
+Session identifier (A, N)
+Authentication in one direction only.
+{ m3, N }_kAS is not authenticated because it is just forwarded
+by B to the server.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+
+
+fun concat1(tag, nonce):bitstring [data].
+fun concat2(tag, host, macs, bitstring):bitstring [data].
+
+forall x:tag, y:nonce, x2:tag, y2:host, m2:macs, z2:bitstring;
+	concat1(x,y) <> concat2(x2,y2,m2,z2).
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Zconcat2(bitstring):bitstring.
+const Zconcat1:bitstring.
+forall y:tag, z:nonce; 
+	Z(concat1(y,z)) = Zconcat1.
+forall y:tag, z:host, m:macs, u:bitstring; 
+	Z(concat2(y,z,m,u)) = Zconcat2(Z(u)).
+forall x:bitstring, k:key, r:seed;
+	Z(enc(x,k,r)) = Z(x).
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
+	start, finish.
+
+const A: host.
+const B: host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+
+const tag3: tag.
+const tag4: tag.
+const tag5: tag.
+
+event fullA(host, bitstring).
+event fullB(host, bitstring).
+
+query y: bitstring;
+  inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let kAS: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mkAS: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let kBS: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mkBS: mkey = mkgen(rmKbs) in
+out(c13, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hostB2: host);
+  out(c2[i_1], A);
+  in(c3[i_1], n_1: nonce);
+  new r1: seed;
+  let e1: bitstring = enc(concat1(tag3, n_1), kAS, r1) in
+  let m1: macs = mac(e1, mkAS) in
+  event fullA(hostB2, (A, n_1));
+  out(c4[i_1], (e1, m1, acceptA(hostB2)))
+) | (
+  ! i_2 <= N
+  in(c5[i_2], hostA2: host);
+  new N_12: nonce;
+  out(c6[i_2], N_12);
+  in(c7[i_2], (m_3: bitstring, macm_1: macs));
+  new r2_1: seed;
+  let e2: bitstring = enc(concat2(tag4, hostA2, macm_1, m_3), kBS, r2_1) in
+  out(c8[i_2], (e2, mac(e2, mkBS)));
+  in(c9[i_2], (m2_1: bitstring, macm2_1: macs));
+  if check(m2_1, mkBS, macm2_1) then
+  if injbot(concat1(tag5, N_12)) = dec(m2_1, kBS) then
+  event fullB(hostA2, (hostA2, N_12));
+  out(c14[i_2], acceptB(hostA2))
+) | (
+  ! i_3 <= N
+  in(c11[i_3], (hostB0: host, m_4: bitstring, macm_2: macs));
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Rmkey[jB_1], Khost[jB_1]) && (hostB0 = Khost[jB_1]) then
+  let kbs: key = Rkey[jB] in
+  let mkbs: mkey = Rmkey[jB] in
+  if check(m_4, mkbs, macm_2) then
+  let injbot(concat2(=tag4, hostA1: host, macm2_2: macs, m2_2: bitstring)) = dec(m_4, kbs) in
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Rmkey[jA_1], Khost[jA_1]) && (hostA1 = Khost[jA_1]) then
+  let kas: key = Rkey[jA] in
+  let mkas: mkey = Rmkey[jA] in
+  if check(m2_2, mkas, macm2_2) then
+  let injbot(concat1(=tag3, n_2: nonce)) = dec(m2_2, kas) in
+  new r3: seed;
+  let e3: bitstring = enc(concat1(tag5, n_2), kbs, r3) in
+  out(c12[i_3], (e3, mac(e3, mkbs)))
+) | (
+  ! i_4 <= N2
+  in(c10[i_4], (Khost: host, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = A then kAS else if Khost = B then kBS else Kkey) in
+  let Rmkey: mkey = (if Khost = A then mkAS else if Khost = B then mkBS else Kmkey)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
+0.380s (user 0.364s + system 0.016s), max rss 56240K
+END *)

@@ -1,10 +1,13 @@
 \documentclass{article}
 
 \usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc} % correct font encoding to enable search in pdf
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{url}
 \usepackage[a4paper,hmargin=1in,vmargin=1.25in]{geometry}  
+\usepackage[pdfborder={0 0 0.5},
+            colorlinks=false]{hyperref}
 
 \newcommand{\tttimes}{\mathop{\texttt{*}}}
 
@@ -47,6 +50,8 @@ User Manual}
 INRIA Paris-Rocquencourt, France}
 
 \maketitle
+
+\tableofcontents
 
 \section{Introduction}
 
@@ -117,7 +122,7 @@ of the proof, in the given file.
 \section{\texttt{oracles} Front-end}\label{sec:oracles}
 
 \channelsfalse
-\input{frontend}
+\input{ofrontend}
 
 \section{Summary of the Main Differences between the two Front-ends}
 
@@ -133,7 +138,7 @@ output process& oracle body\\
 $\texttt{newChannel }c$& $\texttt{newOracle }O$\\
 $\texttt{in(}c\texttt{, (}x_1:T_1, \ldots, x_l:T_l\texttt{));}P$&$O\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) := }P$\\
 $\texttt{out(}c\texttt{, (}M_1, \ldots, M_l\texttt{));}Q$&$\texttt{return(}M_1, \ldots, M_l\texttt{);}Q$\\
-$\texttt{yield}$&$\texttt{end}$\\
+%$\texttt{yield}$&$\texttt{end}$\\
 \end{tabular}
 \end{center}
 The \texttt{newChannel} or \texttt{newOracle} instruction does not appear
@@ -142,33 +147,20 @@ In the \texttt{channels} front-end, channels must be declared by a
 \texttt{channel} declaration. There is no such declaration in the 
 \texttt{oracles} front-end.
 
-In equivalences that define security assumptions, functions of the 
-\texttt{channels} front-end are also replaced with oracle definitions
-in the \texttt{oracles} front-end:
+Finally, both front-ends accept two syntaxes for replication,
+generation of random numbers, and assignments. However, 
+the default syntax for the display differs:
 \begin{center}
 \begin{tabular}{l|l}
-\texttt{channels}&\texttt{oracles}\\
-\hline
-function& oracle definition\\
-$\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) -> }M$&$O\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) := return(}M\texttt{)}$\\
-$\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) }N\texttt{ -> }M$&$\texttt{foreach }i\texttt{<=}N\texttt{ do }O\texttt{(}x_1:T_1, \ldots, x_l:T_l\texttt{) := return(}M\texttt{)}$\\
-\end{tabular}
-\end{center}
-
-Finally, some constructs use a different syntax in the \texttt{oracles} 
-front-end, to be closer to the syntax of cryptographic games:
-\begin{center}
-\begin{tabular}{l|l}
-\texttt{channels}&\texttt{oracles}\\
+display in \texttt{channels}&display in \texttt{oracles}\\
 \hline
 $\texttt{!}i\texttt{<=}N\ Q$& $\texttt{foreach }i\texttt{<=}N\texttt{ do }Q$\\
 $\texttt{new }x\texttt{:}T\texttt{; }P$&$x\texttt{ <-R }T\texttt{; }P$\\
 $\texttt{let }x\texttt{:}T\texttt{ = }M\texttt{ in }P$&$x\texttt{:}T\texttt{ <- }M\texttt{; }P$\\
 \end{tabular}
 \end{center}
-The \texttt{let} instruction is still available in the \texttt{oracles}
-front-end. Indeed, the assignment $x\texttt{:}T\texttt{ <- }M$ can be
-used only for directly assigning a variable; when a pattern occurs instead
+The assignment $x\texttt{:}T\texttt{ <- }M$ can be
+used only for assigning a variable; when a pattern occurs instead
 of the variable $x$, one has to use the \texttt{let} instruction.
 
 \section{Predefined cryptographic primitives}\label{sect:prim}
@@ -186,25 +178,19 @@ can be used as a basis in order to build definitions of new primitives, by copyi
 and modifying them as desired. Here is a list of the predefined primitives.
 \begin{itemize}
 
-\item $\texttt{expand IND\_CPA\_sym\_enc(}\vn{keyseed}, \vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+\item $\texttt{expand IND\_CPA\_sym\_enc(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc},
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ defines a
   IND-CPA (indistinguishable under chosen plaintext attacks)
   probabilistic symmetric encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
    $\vn{ciphertext}$ is the type of ciphertexts.
 
-   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
-
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
-
-   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+   $\vn{enc}(\vn{cleartext}, \vn{key}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
 
    $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
   decryption function; it returns \texttt{bottom} when decryption
@@ -221,10 +207,10 @@ and modifying them as desired. Here is a list of the predefined primitives.
   property in time $t$ for one key and $N$ encryption queries with
   cleartexts of length at most $l$.
 
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
-   $\vn{ciphertext}$, $\vn{seed}$ and the probability $\vn{Penc}$ must
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$ and the probability $\vn{Penc}$ must
    be declared before this macro is expanded. The functions
-   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
@@ -232,25 +218,26 @@ and modifying them as desired. Here is a list of the predefined primitives.
    for use in the \texttt{crypto} command in interactive proofs
    (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+\item $\texttt{expand IND\_CPA\_sym\_enc\_r(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc},
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ defines a
   IND-CPA (indistinguishable under chosen plaintext attacks) and INT-CTXT (ciphertext integrity)
   probabilistic symmetric encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
    $\vn{ciphertext}$ is the type of ciphertexts.
 
-   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
-
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
-
-   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+   $\vn{enc}(\vn{cleartext}, \vn{key}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
 
    $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
   decryption function; it returns \texttt{bottom} when decryption
@@ -272,10 +259,10 @@ and modifying them as desired. Here is a list of the predefined primitives.
   $N'$ decryption queries with cleartexts of length at most $l$ and
   ciphertexts of length at most $l'$.
 
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
-   $\vn{ciphertext}$, $\vn{seed}$ and the probabilities $\vn{Penc}$ and $\vn{Pencctxt}$ must
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$ and the probabilities $\vn{Penc}$ and $\vn{Pencctxt}$ must
    be declared before this macro is expanded. The functions
-   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
@@ -286,25 +273,138 @@ and modifying them as desired. Here is a list of the predefined primitives.
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
-\item $\texttt{expand IND\_CCA2\_sym\_enc(}\vn{keyseed}, \vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
+\item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc\_r(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$  is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand AEAD(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ defines an
+authenticated encryption scheme with additional data.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{add\_data}$ is the type of additional data.
+
+   $\vn{enc}(\vn{cleartext}, \vn{add\_data}, \vn{key}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
+
+   $\vn{dec}(\vn{ciphertext}, \vn{add\_data}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
+
+  $\vn{Penc}(t, N, l)$ is the probability of breaking the IND-CPA
+  property in time $t$ for one key and $N$ encryption queries with
+  cleartexts of length at most $l$.
+
+  $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the probability of
+  breaking the INT-CTXT property in time $t$ for one key, $N$
+  encryption queries, $N'$ decryption queries with cleartexts of
+  length at most $l$ and ciphertexts of length at most $l'$,
+  additional data for encryption of length at most $\vn{ld}$, and
+  additional data for decryption of length at most $\vn{ld}'$.
+
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{add\_data}$ and the probabilities $\vn{Penc}$ and $\vn{Pencctxt}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
+   and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
+   IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). The equivalence $\texttt{int\_ctxt}(\vn{enc})$
+   should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
+   because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
+
+\item $\texttt{expand AEAD\_r(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{add\_data}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand AEAD\_nonce(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{nonce}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ defines an
+authenticated encryption scheme with additional data, using a nonce that must have a different
+value in each call to encryption. A typical example is AES-GCM.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{add\_data}$ is the type of additional data.
+
+   $\vn{nonce}$ is the type of nonces.
+
+   $\vn{enc}(\vn{cleartext}, \vn{add\_data}, \vn{key}, \vn{nonce}): \vn{ciphertext}$ is the encryption function. 
+
+   $\vn{dec}(\vn{ciphertext}, \vn{add\_data}, \vn{key}, \vn{nonce}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
+
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
+
+  $\vn{Penc}(t, N, l)$ is the probability of breaking the IND-CPA
+  property in time $t$ for one key and $N$ encryption queries with
+  cleartexts of length at most $l$.
+
+  $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the probability of
+  breaking the INT-CTXT property in time $t$ for one key, $N$
+  encryption queries, $N'$ decryption queries with cleartexts of
+  length at most $l$ and ciphertexts of length at most $l'$,
+  additional data for encryption of length at most $\vn{ld}$, and
+  additional data for decryption of length at most $\vn{ld}'$.
+
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$, $\vn{add\_data}$, $\vn{nonce}$ and the probabilities $\vn{Penc}$ and $\vn{Pencctxt}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
+   and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
+   IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). The equivalence $\texttt{int\_ctxt}(\vn{enc})$
+   should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
+   because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
+
+\item $\texttt{expand IND\_CCA2\_sym\_enc(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc},
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ defines a
   IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks)
   probabilistic symmetric encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
    $\vn{ciphertext}$ is the type of ciphertexts.
 
-   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
-
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
-
-   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+   $\vn{enc}(\vn{cleartext}, \vn{key}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
 
    $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
   decryption function; it returns \texttt{bottom} when decryption
@@ -317,82 +417,108 @@ and modifying them as desired. Here is a list of the predefined primitives.
   returns for each cleartext a cleartext of the same length consisting
   only of zeroes.
 
-  $\vn{Penc}(t, N, N', l, l')$ is the probability of breaking the
-  IND-CCA2 property in time $t$ for one key, $N$ encryption queries, $N'$
+  $\vn{Penc}(t, N, \vn{Nu}, N', l, l')$ is the probability of breaking the
+  IND-CCA2 property in time $t$ for one key, $N$ encryption queries that are 
+  different in both sides of the IND-CCA2 equivalence, 
+  $\vn{Nu}$ encryption queries that are the same in both side of the IND-CCA2 equivalence, $N'$
   decryption queries with cleartexts of length at most $l$ and
   ciphertexts of length at most $l'$.
 
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
-   $\vn{ciphertext}$, $\vn{seed}$ and the probability $\vn{Penc}$ must
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$ and the probability $\vn{Penc}$ must
    be declared before this macro is expanded. The functions
-   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
-   macro. They must not be declared elsewhere, and they can be used
-   only after expanding the macro.
-
-   This macro defines the equivalence named $\texttt{ind\_cca2}(\vn{enc})$, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}). 
-
-\item $\texttt{expand INT\_PTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
-  \vn{dec}, \vn{injbot}, \ab \vn{Pencptxt}\texttt{).}$ defines an INT-PTXT (plaintext integrity)
-  probabilistic symmetric encryption scheme.
-
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
-
-   $\vn{cleartext}$ is the type of cleartexts.
-
-   $\vn{ciphertext}$ is the type of ciphertexts.
-
-   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
-
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
-
-   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
-
-   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
-  decryption function; it returns \texttt{bottom} when decryption
-  fails.
-
-   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
-  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
-
-  $\vn{Pencptxt}(t, N, N', l, l')$ is the probability of breaking the
-  INT-PTXT property in time $t$ for one key, $N$ encryption queries, $N'$
-  decryption queries with cleartexts of length at most $l$ and
-  ciphertexts of length at most $l'$.
-
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
-   $\vn{ciphertext}$, $\vn{seed}$ and the probability $\vn{Pencptxt}$ must
-   be declared before this macro is expanded. The functions
-   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, and $\vn{injbot}$ are declared by this
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
    This macro defines the equivalences named
-   $\texttt{int\_ptxt}(\vn{enc})$, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}). 
+   $\texttt{ind\_cca2}(\vn{enc})$ and
+   $\texttt{ind\_cca2\_partial}(\vn{enc})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}). While the
+   equivalence $\texttt{ind\_cca2}(\vn{enc})$ replaces all cleartexts
+   with zeroes, the equivalence
+   $\texttt{ind\_cca2\_partial}(\vn{enc})$ replaces only some of them
+   with zeroes. The latter equivalence can be applied only manually.
+   The user should map the occurrences of encryption that he wants to
+   transform to oracle $\vn{Oenc}$, the ones he wants to leave unchanged to
+   oracle $\vn{Oenc\_unchanged}$, and the ones that have already been transformed
+   by a previous application of this equivalence to oracle $\vn{Oenc\_unchanged}'$.
 
-\item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc(}\vn{keyseed}, \vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{kgen}, \vn{enc},
-  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencptxt}\texttt{).}$ defines a
-  IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks) and INT-PTXT (plaintext integrity)
+\item $\texttt{expand IND\_CCA2\_sym\_enc\_r(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand INT\_PTXT\_sym\_enc(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Pencptxt}\texttt{).}$ defines an INT-PTXT (plaintext integrity)
   probabilistic symmetric encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
    $\vn{ciphertext}$ is the type of ciphertexts.
 
-   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
+   $\vn{enc}(\vn{cleartext}, \vn{key}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
 
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+   $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
+  decryption function; it returns \texttt{bottom} when decryption
+  fails.
 
-   $\vn{enc}(\vn{cleartext}, \vn{key}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+   $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
+  injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
+
+  $\vn{Pencptxt}(t, N, N', \vn{Nu}', l, l')$ is the probability of breaking the
+  INT-PTXT property in time $t$ for one key, $N$ encryption queries, $N'$
+  decryption queries that are modified by the transformation, and 
+  $\vn{Nu}'$ decryption queries that are left unchanged by the transformation,
+  with cleartexts of length at most $l$ and
+  ciphertexts of length at most $l'$.
+
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$ and the probability $\vn{Pencptxt}$ must
+   be declared before this macro is expanded. The functions
+   $\vn{enc}$, $\vn{dec}$, and $\vn{injbot}$ are declared by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+   This macro defines the equivalences named
+   $\texttt{int\_ptxt}(\vn{enc})$ and
+   $\texttt{int\_ptxt\_partial}(\vn{enc})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).  While
+   the equivalence $\texttt{ind\_ptxt}(\vn{enc})$ replaces all
+   decryption with lookups in encryption queries, the equivalence
+   $\texttt{ind\_ptxt\_partial}(\vn{enc})$ replaces only some of them. 
+   The latter equivalence can be applied only manually.
+   The user should map the occurrences of decryption that he wants to
+   transform to oracle $\vn{Odec}$, the ones he wants to leave
+   unchanged to oracle $\vn{Odec\_unchanged}$, and the ones that have
+   already been transformed by a previous application of this
+   equivalence to oracle $\vn{Odec\_unchanged}'$.
+
+\item $\texttt{expand INT\_PTXT\_sym\_enc\_r(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+  \vn{dec}, \vn{injbot}, \ab \vn{Pencptxt}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencptxt}\texttt{).}$ defines a
+  IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks) and INT-PTXT (plaintext integrity)
+  probabilistic symmetric encryption scheme.
+
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+   $\vn{cleartext}$ is the type of cleartexts.
+
+   $\vn{ciphertext}$ is the type of ciphertexts.
+
+   $\vn{enc}(\vn{cleartext}, \vn{key}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
 
    $\vn{dec}(\vn{ciphertext}, \vn{key}): \texttt{bitstringbot}$ is the
   decryption function; it returns \texttt{bottom} when decryption
@@ -405,33 +531,65 @@ and modifying them as desired. Here is a list of the predefined primitives.
   returns for each cleartext a cleartext of the same length consisting
   only of zeroes.
 
-  $\vn{Penc}(t, N, N', l, l')$ is the probability of breaking the
-  IND-CCA2 property in time $t$ for one key, $N$ encryption queries, $N'$
+  $\vn{Penc}(t, N, \vn{Nu}, N', l, l')$ is the probability of breaking the
+  IND-CCA2 property in time $t$ for one key, $N$ encryption queries that are 
+  different in both sides of the IND-CCA2 equivalence, 
+  $\vn{Nu}$ encryption queries that are the same in both side of the IND-CCA2 equivalence, $N'$
   decryption queries with cleartexts of length at most $l$ and
   ciphertexts of length at most $l'$.
 
-  $\vn{Pencptxt}(t, N, N', l, l')$ is the probability of breaking the
+  $\vn{Pencptxt}(t, N, N', \vn{Nu}', l, l')$ is the probability of breaking the
   INT-PTXT property in time $t$ for one key, $N$ encryption queries, $N'$
-  decryption queries with cleartexts of length at most $l$ and
+  decryption queries that are modified by the transformation, and 
+  $\vn{Nu}'$ decryption queries that are left unchanged by the transformation,
+  with cleartexts of length at most $l$ and
   ciphertexts of length at most $l'$.
 
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{cleartext}$,
-   $\vn{ciphertext}$, $\vn{seed}$ and the probabilities $\vn{Penc}$ and $\vn{Pencptxt}$ must
+   The types $\vn{key}$, $\vn{cleartext}$,
+   $\vn{ciphertext}$ and the probabilities $\vn{Penc}$ and $\vn{Pencptxt}$ must
    be declared before this macro is expanded. The functions
-   $\vn{kgen}$, $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
+   $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
-   This macro defines the equivalences named $\texttt{ind\_cca2}(\vn{enc})$,
+\sloppy
+
+   This macro defines the equivalences named
+   $\texttt{ind\_cca2}(\vn{enc})$,
    $\texttt{ind\_cca2\_after\_int\_ptxt}(\vn{enc})$,
+   $\texttt{ind\_cca2\_partial}(\vn{enc})$,
    $\texttt{int\_ptxt}(\vn{enc})$,
-   and $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}). The first two correspond to the IND-CCA2 property,
-   the last two to the INT-PTXT property. The equivalence $\texttt{ind\_cca2}(\vn{enc})$
-   can be applied before applying the INT-PTXT property, while $\texttt{ind\_cca2\_after\_int\_ptxt}(\vn{enc})$
-   can be applied after applying the INT-PTXT property. Similarly, the equivalence  $\texttt{int\_ptxt}(\vn{enc})$
-   can be applied before applying the IND-CCA2 property, while $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$
-   can be applied after applying the IND-CCA2 property.
+   $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$, and
+   $\texttt{int\_ptxt\_partial}(\vn{enc})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}). 
+   %
+   The first three correspond to the IND-CCA2 property, the last three
+   to the INT-PTXT property. The equivalence
+   $\texttt{ind\_cca2}(\vn{enc})$ can be applied before applying the
+   INT-PTXT property, while
+   $\texttt{ind\_cca2\_after\_int\_ptxt}(\vn{enc})$ can be applied
+   after applying the INT-PTXT property. Similarly, the equivalence
+   $\texttt{int\_ptxt}(\vn{enc})$ can be applied before applying the
+   IND-CCA2 property, while
+   $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$ can be applied
+   after applying the IND-CCA2 property.
+   %
+   The equivalences $\texttt{ind\_cca2\_partial}(\vn{enc})$ and
+   $\texttt{int\_ptxt\_partial}(\vn{enc})$ transform only some
+   occurrences of encryption and/or decryption.  They can be applied
+   only manually, in any order.
+   %
+   For $\texttt{ind\_cca2\_partial}(\vn{enc})$, the user should map
+   the occurrences of encryption that he wants to transform to oracle
+   $\vn{Oenc}$, the ones he wants to leave unchanged to oracle
+   $\vn{Oenc\_unchanged}$.
+   %
+   For $\texttt{int\_ptxt\_partial}(\vn{enc})$, the user should map
+   the occurrences of decryption that he wants to transform to oracle
+   $\vn{Odec}$, the ones he wants to leave unchanged to oracle
+   $\vn{Odec\_unchanged}$.
+
+\fussy
 
    CryptoVerif often needs manual guidance with this property,
    because it does not know which property (IND-CCA2 or INT-PTXT)
@@ -440,14 +598,19 @@ and modifying them as desired. Here is a list of the predefined primitives.
    which is much easier to use for CryptoVerif, so we recommend
    using the latter property when possible.
 
-\item $\texttt{expand SPRP\_cipher(}\vn{keyseed}, \vn{key},
-  \vn{blocksize}, \vn{kgen}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
+\item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc\_r(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencptxt}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand SPRP\_cipher(}\vn{key},
+  \vn{blocksize}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
   defines a SPRP (super-pseudo-random permutation) deterministic
   symmetric encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{blocksize}$ is the type of cleartexts and ciphertexts, 
    must be \texttt{fixed} and \texttt{large}.
@@ -458,8 +621,6 @@ and modifying them as desired. Here is a list of the predefined primitives.
    those random numbers, so $\vn{blocksize}$ must really be
    \texttt{large}.)
 
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
-
    $\vn{enc}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
 
    $\vn{dec}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the
@@ -469,9 +630,9 @@ and modifying them as desired. Here is a list of the predefined primitives.
   property in time $t$ for one key, $N$ encryption queries, and $N'$
   decryption queries.
 
-  The types $\vn{keyseed}$, $\vn{key}$, $\vn{blocksize}$ and the
+  The types $\vn{key}$, $\vn{blocksize}$ and the
   probability $\vn{Penc}$ must be declared before this macro is
-  expanded. The functions $\vn{kgen}$, $\vn{enc}$, and $\vn{dec}$ are
+  expanded. The functions $\vn{enc}$ and $\vn{dec}$ are
   declared by this macro. They must not be declared elsewhere, and
   they can be used only after expanding the macro.
 
@@ -479,14 +640,12 @@ and modifying them as desired. Here is a list of the predefined primitives.
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand PRP\_cipher(}\vn{keyseed}, \vn{key},
-  \vn{blocksize}, \vn{kgen}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
+\item $\texttt{expand PRP\_cipher(}\vn{key},
+  \vn{blocksize}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
   defines a PRP (pseudo-random permutation) deterministic
   symmetric encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{blocksize}$ is the type of cleartexts and ciphertexts, must be
    \texttt{fixed} and \texttt{large}.
@@ -498,8 +657,6 @@ and modifying them as desired. Here is a list of the predefined primitives.
    CryptoVerif needs to eliminate collisions between those random
    numbers, so $\vn{blocksize}$ must really be \texttt{large}.)
 
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
-
    $\vn{enc}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
 
    $\vn{dec}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the
@@ -508,9 +665,9 @@ and modifying them as desired. Here is a list of the predefined primitives.
    $\vn{Penc}(t, N)$ is the probability of breaking the PRP property
    in time $t$ for one key and $N$ encryption queries.
 
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{blocksize}$ and the probability $\vn{Penc}$ must
+   The types $\vn{key}$, $\vn{blocksize}$ and the probability $\vn{Penc}$ must
    be declared before this macro is expanded. The functions
-   $\vn{kgen}$, $\vn{enc}$, and $\vn{dec}$ are declared by this
+   $\vn{enc}$ and $\vn{dec}$ are declared by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
@@ -519,8 +676,7 @@ and modifying them as desired. Here is a list of the predefined primitives.
    (see Section~\ref{sec:interact}).
 
 \item $\texttt{expand ICM\_cipher(}\vn{cipherkey}, \vn{key}, \vn{blocksize}, \vn{enc},
-   \vn{dec}%, \vn{enc\_dec\_oracle}, \vn{qE}, \vn{qD}
-\texttt{).}$
+   \vn{dec}, \vn{enc\_dec\_oracle}, \vn{qE}, \vn{qD}\texttt{).}$
    defines a block cipher in the ideal cipher model.
 
    $\vn{cipherkey}$ is the type of keys that correspond to the choice of the scheme, must be \texttt{bounded}, typically \texttt{fixed}.
@@ -535,102 +691,132 @@ and modifying them as desired. Here is a list of the predefined primitives.
    numbers. Then CryptoVerif needs to eliminate collisions between
    those random numbers, so blocksize must really be \texttt{large}.)
 
-   $\vn{enc}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
+   $\vn{enc}(\vn{cipherkey}, \vn{blocksize}, \vn{key}): \vn{blocksize}$ is the encryption function.
 
-   $\vn{dec}(\vn{blocksize}, \vn{key}): \vn{blocksize}$ is the decryption function.
+   $\vn{dec}(\vn{cipherkey}, \vn{blocksize}, \vn{key}): \vn{blocksize}$ is the decryption function.
 
+   $\vn{enc\_dec\_oracle}$ is a parametric process that allows the adversary to
+   call the encryption and decryption functions.
    WARNING: the encryption and decryption functions take 2 keys as
    input: the key of type cipherkey that corresponds to the choice of
    the scheme, and the normal encryption/decryption key. The cipherkey
    must be chosen once and for all at the beginning of the game and
    the encryption and decryption oracles must be made available to the
-   adversary, by including a process such as
-\begin{verbatim}
-       (! qE in(c1, (x:blocksize, ke:key)); out(c2, enc(ck,x,ke)))
-     | (! qD in(c3, (m:blocksize, kd:key)); out(c4, dec(ck,m,kd)))
-\end{verbatim}
-   where \texttt{c1}, \texttt{c2}, \texttt{c3}, \texttt{c4} are channels, 
-   \texttt{qE} the number of requests to the encryption oracle,
-   \texttt{qD} the number of requests to the decryption oracle,
-   \texttt{ck} the cipherkey (or similar oracles if you use the oracles
-   front-end).
+   adversary, by including the process $\vn{enc\_dec\_oracle}(\vn{ck})$
+   where $\vn{ck}$ is the cipherkey.
+
+   $\vn{qE}$ is the number of queries to the encryption oracle.
+
+   $\vn{qD}$ is the number of queries to the decryption oracle.
  
-%    $\vn{enc\_dec\_oracle}$ is a process that allows the adversary to
-%    call the encryption and decryption functions.
-%    WARNING: the encryption and decryption oracles must be made
-%    available to the adversary, by including $\vn{enc\_dec\_oracle}$ in
-%    the executed process.
-
-%    $\vn{qE}$ is the number of requests to the encryption oracle.
-
-%    $\vn{qD}$ is the number of requests to the decryption oracle.
-   
    The types $\vn{cipherkey}$, $\vn{key}$, $\vn{blocksize}$ must be
    declared before this macro is expanded. The functions $\vn{enc}$,
-   $\vn{dec}$ are declared by this macro. They must not be declared
+   $\vn{dec}$, the process $\vn{enc\_dec\_oracle}$, and the paramters 
+   $\vn{qE}$ and $\vn{qD}$ are declared by this macro. They must not be declared
    elsewhere, and they can be used only after expanding the macro.
 
    This macro defines the equivalence named $\texttt{icm}(\vn{enc})$
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand UF\_CMA\_mac(}\vn{mkeyseed}, \vn{mkey},
-  \vn{macinput}, \vn{macres}, \vn{mkgen}, \vn{mac}, \vn{check},
-  \vn{Pmac}\texttt{).}$ defines a UF-CMA (unforgeable under chosen
-  message attacks) MAC (message authentication code).
+\item $\texttt{expand SUF\_CMA\_det\_mac(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac}, \vn{check},
+  \vn{Pmac}\texttt{).}$ defines an SUF-CMA (strongly unforgeable under chosen
+  message attacks) deterministic MAC (message authentication code).
 
-   $\vn{mkeyseed}$ is the type of key seeds, must be \texttt{bounded} (to
+  The difference between a UF-CMA (unforgeable under chosen message
+  attacks) MAC and a SUF-CMA MAC is that, for a UF-CMA MAC, the
+  adversary may easily forge a new MAC for a message for which he has
+  already seen a MAC. Such a forgery is guaranteed to be hard for a
+  SUF-CMA MAC. For deterministic MACs, the verification can be done by
+  recomputing the MAC, and in this case, an UF-CMA MAC is always
+  SUF-CMA, so we model only SUF-CMA deterministic MACs. This macro
+  transforms tests $\vn{mac}(k,m) = m'$ into $\vn{check}(k, m, m')$,
+  so that the MAC verification can also be written
+  $\vn{mac}(k,m) = m'$.
+
+   $\vn{mkey}$ is the type of keys, must be \texttt{bounded} (to
   be able to generate random numbers from it), typically
   \texttt{fixed} and \texttt{large}.
-
-   $\vn{mkey}$ is the type of keys, must be \texttt{bounded}.
 
    $\vn{macinput}$ is the type of inputs of MACs
 
    $\vn{macres}$ is the type of MACs.
 
-   $\vn{mkgen}(\vn{mkeyseed}): \vn{mkey}$ is the key generation function.
-
    $\vn{mac}(\vn{macinput}, \vn{mkey}): \vn{macres}$ is the MAC function.
 
    $\vn{check}(\vn{macinput}, \vn{mkey}, \vn{macres}): \texttt{bool}$ is the verification function.
 
-   $\vn{Pmac}(t, N, N', l)$ is the probability of breaking the UF-CMA
+   $\vn{Pmac}(t, N, N', \vn{Nu}', l)$ is the probability of breaking the SUF-CMA
    property in time $t$ for one key, $N$ MAC queries, $N'$ verification
-   queries for messages of length at most $l$.
+   queries modified by the transformation and $\vn{Nu}$ verification
+   queries left unchanged by the transformation for messages of length at most $l$.
 
-   The types $\vn{mkeyseed}$, $\vn{mkey}$, $\vn{macinput}$,
+   The types $\vn{mkey}$, $\vn{macinput}$,
    $\vn{macres}$ and the probability $\vn{Pmac}$ must be declared
-   before this macro is expanded. The functions $\vn{mkgen}$,
+   before this macro is expanded. The functions 
    $\vn{mac}$, $\vn{check}$ are declared by this macro. They must not
    be declared elsewhere, and they can be used only after expanding
    the macro.
 
    This macro defines the equivalences named
-   $\texttt{uf\_cma}(\vn{mac})$ and
-   $\texttt{uf\_cma\_corrupt}(\vn{mac})$, for use in the
+   $\texttt{suf\_cma}(\vn{mac})$,
+   $\texttt{suf\_cma\_corrupt}(\vn{mac})$, and
+   $\texttt{suf\_cma\_corrupt\_partial}(\vn{mac})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
-   Both equivalences correspond to the UF-CMA property, but the former 
-   does not allow corruption of the secret keys while latter allows it.
-   The latter equivalence is applied only manually, because its automatic
+   All equivalences correspond to the SUF-CMA property, but the first one 
+   does not allow corruption of the secret keys while last two allow it.
+   The last two equivalences are applied only manually, in particular because their automatic
    application can sometimes be done too early, when other transformations
    should first be done in order to eliminate uses of the secret keys.
+   The equivalence $\texttt{suf\_cma\_corrupt\_partial}(\vn{mac})$ allows the
+   user to transform only some occurrences of the MAC verification into a 
+   lookup in the MACed messages. The user should map the occurrences 
+   he wants to transform to the oracle $\vn{Ocheck}$ and the ones
+   he does not want to transform to the oracle $\vn{Ocheck\_unchanged}$.
 
-\item $\texttt{expand SUF\_CMA\_mac(}\vn{mkeyseed}, \vn{mkey},
-  \vn{macinput}, \vn{macres}, \vn{mkgen}, \vn{mac}, \vn{check},
+\item $\texttt{expand UF\_CMA\_proba\_mac(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac}, \vn{check},
+  \vn{Pmac}\texttt{).}$ defines a UF-CMA (unforgeable under chosen
+  message attacks) probabilistic MAC (message authentication code).
+  The arguments are the same as for $\texttt{SUF\_CMA\_det\_mac}$, but the $\vn{mac}$ function chooses random
+  coins internally so that it is probabilistic, and the verification is not done by recomputing the MAC.
+   This macro defines the equivalences named
+   $\texttt{uf\_cma}(\vn{mac})$,
+   $\texttt{uf\_cma\_corrupt}(\vn{mac})$, and
+   $\texttt{uf\_cma\_corrupt\_partial}(\vn{mac})$ for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}),
+   similarly to $\texttt{SUF\_CMA\_det\_mac}$.
+
+\item $\texttt{expand UF\_CMA\_proba\_mac\_r(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac\_seed}, \vn{mac}, \vn{mac\_r}, \vn{check},
+  \vn{Pmac}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{mac\_seed}$ is the type of random coins for MAC, must be \texttt{bounded}.
+  $\vn{mac\_r}(\vn{macinput}, \vn{mkey}, \vn{mac\_seed}): \vn{macres}$ is the MAC function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand SUF\_CMA\_proba\_mac(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac}, \vn{check},
   \vn{Pmac}\texttt{).}$ defines a SUF-CMA (strongly unforgeable under
-  chosen message attacks) MAC (message authentication code).  The
-  difference between a UF-CMA MAC and a SUF-CMA MAC is that, for a
-  UF-CMA MAC, the adversary may easily forge a new MAC for a message
-  for which he has already seen a MAC. Such a forgery is guaranteed to
-  be hard for a SUF-CMA MAC. The arguments are the same as for the
-  previous macro. This macro defines the equivalences named
-   $\texttt{suf\_cma}(\vn{mac})$ and
-   $\texttt{suf\_cma\_corrupt}(\vn{mac})$, for use in the
-   \texttt{crypto} command (see Section~\ref{sec:interact}).
+  chosen message attacks) probabilistic MAC (message authentication code). 
+  The arguments are the same as for $\texttt{SUF\_CMA\_det\_mac}$, but the $\vn{mac}$ function chooses random
+  coins internally so that it is probabilistic, and the verification is not done by recomputing the MAC.
+  This macro defines the equivalences named
+   $\texttt{suf\_cma}(\vn{mac})$,
+   $\texttt{suf\_cma\_corrupt}(\vn{mac})$, and
+   $\texttt{suf\_cma\_corrupt\_partial}(\vn{mac})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}),
+   similarly to $\texttt{SUF\_CMA\_det\_mac}$.
+
+\item $\texttt{expand SUF\_CMA\_proba\_mac\_r(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac\_seed}, \vn{mac}, \vn{mac\_r}, \vn{check},
+  \vn{Pmac}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{mac\_seed}$ is the type of random coins for MAC, must be \texttt{bounded}.
+  $\vn{mac\_r}(\vn{macinput}, \vn{mkey}, \vn{mac\_seed}): \vn{macres}$ is the MAC function that takes coins as argument (instead of generating them internally).
 
 \item $\texttt{expand IND\_CCA2\_public\_key\_enc(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{cleartext}, \vn{ciphertext}, \vn{seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{enc}, \ab
+  \vn{cleartext}, \vn{ciphertext}, \vn{skgen}, \vn{pkgen}, \ab \vn{enc}, \ab
   \vn{dec}, \ab \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab\vn{Penccoll}\texttt{).}$ defines a
   IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks)
   probabilistic public-key encryption scheme.
@@ -645,13 +831,11 @@ and modifying them as desired. Here is a list of the predefined primitives.
 
    $\vn{ciphertext}$ is the type of ciphertexts.
 
-   $\vn{seed}$ is the type of random seeds for encryption, must be \texttt{bounded}, typically \texttt{fixed}.
-
    $\vn{skgen}(\vn{keyseed}): \vn{skey}$ is the secret key generation function.
 
    $\vn{pkgen}(\vn{keyseed}): \vn{pkey}$ is the public key generation function.
 
-   $\vn{enc}(\vn{cleartext}, \vn{pkey}, \vn{seed}): \vn{ciphertext}$ is the encryption function.
+   $\vn{enc}(\vn{cleartext}, \vn{pkey}): \vn{ciphertext}$ is the encryption function. Internally, it generates random coins, so that it is probabilistic.
 
    $\vn{dec}(\vn{ciphertext}, \vn{skey}): \texttt{bitstringbot}$ is the
   decryption function; it returns \texttt{bottom} when decryption
@@ -669,22 +853,33 @@ and modifying them as desired. Here is a list of the predefined primitives.
    $\vn{Penccoll}$ is the probability of collision between independently generated keys.
 
    The types $\vn{keyseed}$, $\vn{pkey}$, $\vn{skey}$,
-   $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{seed}$ and the
+   $\vn{cleartext}$, $\vn{ciphertext}$, and the
    probabilities $\vn{Penc}$, $\vn{Penccoll}$ must be declared before
    this macro is expanded. The functions $\vn{skgen}$, $\vn{pkgen}$,
    $\vn{enc}$, $\vn{dec}$, $\vn{injbot}$, and $\vn{Z}$ are declared by
    this macro. They must not be declared elsewhere, and they can be
    used only after expanding the macro.
 
-   This macro defines the equivalence named $\texttt{ind\_cca2}(\vn{enc})$
+   This macro defines the equivalences named $\texttt{ind\_cca2}(\vn{enc})$
+   and $\texttt{ind\_cca2\_partial}(\vn{enc})$
    for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}).
+   (see Section~\ref{sec:interact}). The equivalence $\texttt{ind\_cca2\_partial}(\vn{enc})$
+   can be applied only manually and allows the user to replace the encryption 
+   of a message with the encryption of zeroes for only some occurrences of
+   encryption under the considered key, the ones in which the public key appears explicitly.
 
-\item $\texttt{expand UF\_CMA\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{signinput}, \vn{signature}, \vn{seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+\item $\texttt{expand IND\_CCA2\_public\_key\_enc\_r(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{enc}, \ab \vn{enc\_r}, \ab
+  \vn{dec}, \ab \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab\vn{Penccoll}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+  $\vn{enc\_r}(\vn{cleartext}, \vn{pkey}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand UF\_CMA\_det\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
   \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
   UF-CMA (unforgeable under chosen message attacks)
-  probabilistic signature scheme.
+  deterministic signature scheme.
 
    $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
@@ -696,13 +891,11 @@ and modifying them as desired. Here is a list of the predefined primitives.
 
    $\vn{signature}$ is the type of signatures.
 
-   $\vn{seed}$ is the type of random seeds for signatures, must be \texttt{bounded}, typically \texttt{fixed}.
-
    $\vn{skgen}(\vn{keyseed}): \vn{skey}$ is the secret key generation function.
 
    $\vn{pkgen}(\vn{keyseed}): \vn{pkey}$ is the public key generation function.
 
-   $\vn{sign}(\vn{signinput}, \vn{skey}, \vn{seed}): \vn{signature}$ is the signature function.
+   $\vn{sign}(\vn{signinput}, \vn{skey}): \vn{signature}$ is the signature function.
 
    $\vn{check}(\vn{signinput}, \vn{pkey}, \vn{signature}): \texttt{bool}$ is the
   verification function.
@@ -714,39 +907,85 @@ and modifying them as desired. Here is a list of the predefined primitives.
    $\vn{Psigncoll}$ is the probability of collision between independently generated keys.
 
    The types $\vn{keyseed}$, $\vn{pkey}$, $\vn{skey}$, $\vn{signinput}$,
-   $\vn{signature}$, $\vn{seed}$ and the probabilities $\vn{Psign}$, $\vn{Psigncoll}$ must
+   $\vn{signature}$ and the probabilities $\vn{Psign}$, $\vn{Psigncoll}$ must
    be declared before this macro is expanded. The functions
    $\vn{skgen}$, $\vn{pkgen}$, $\vn{sign}$, and $\vn{check}$ are declared by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
    This macro defines the equivalences named
-   $\texttt{uf\_cma}(\vn{sign})$ and
-   $\texttt{uf\_cma\_corrupt}(\vn{sign})$, for use in the
+   $\texttt{uf\_cma}(\vn{sign})$,
+   $\texttt{uf\_cma\_corrupt}(\vn{sign})$, and
+   $\texttt{uf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
-   Both equivalences correspond to the UF-CMA property, but the former 
-   does not allow corruption of the secret keys while latter allows it.
-   The latter equivalence is applied only manually, because its automatic
+   All three equivalences correspond to the UF-CMA property, but the first one 
+   does not allow corruption of the secret keys while last two allow it.
+   The last two equivalences are applied only manually, in particular because their automatic
    application can sometimes be done too early, when other transformations
    should first be done in order to eliminate uses of the secret keys.
+   The equivalence $\texttt{uf\_cma\_corrupt\_partial}(\vn{sign})$ allows the
+   user to transform only some occurrences of the signature verification into a 
+   lookup in the signed messages, the ones in which the public key appears explicitly.  
 
-\item $\texttt{expand SUF\_CMA\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{signinput}, \vn{signature}, \vn{seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+\item $\texttt{expand SUF\_CMA\_det\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
   \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
   SUF-CMA (strongly unforgeable under chosen message attacks)
-  probabilistic signature scheme.
+  deterministic signature scheme.
   The difference between a UF-CMA signature and a SUF-CMA MAsignature
   is that, for a UF-CMA signature, the adversary may easily forge a
   new signature for a message for which he has already seen a
   signature. Such a forgery is guaranteed to be hard for a SUF-CMA
-  signature. The arguments are the same as for the previous macro.
+  signature. The arguments are the same as for $\texttt{UF\_CMA\_det\_signature}$.
    This macro defines the equivalences named
-   $\texttt{suf\_cma}(\vn{sign})$ and
-   $\texttt{suf\_cma\_corrupt}(\vn{sign})$, for use in the
+   $\texttt{suf\_cma}(\vn{sign})$,
+   $\texttt{suf\_cma\_corrupt}(\vn{sign})$, and
+   $\texttt{suf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand ROM\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}
-\texttt{).}$
+\item $\texttt{expand UF\_CMA\_proba\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
+  UF-CMA (strongly unforgeable under chosen message attacks)
+  probabilistic signature scheme.
+  The arguments are the same as for $\texttt{UF\_CMA\_det\_signature}$,
+  but the signature function internally generated random coins,
+  so that it is probabilistic.
+   This macro defines the equivalences named
+   $\texttt{uf\_cma}(\vn{sign})$,
+   $\texttt{uf\_cma\_corrupt}(\vn{sign})$, and
+   $\texttt{uf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand UF\_CMA\_proba\_signature\_r(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{sign\_seed}, \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab \vn{sign\_r}, \ab
+  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{sign\_seed}$ is the type of random coins for signature, must be \texttt{bounded}.
+  $\vn{sign\_r}(\vn{signinput}, \vn{skey}, \vn{sign\_seed}): \vn{signature}$ is the signature function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand SUF\_CMA\_proba\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
+  SUF-CMA (strongly unforgeable under chosen message attacks)
+  probabilistic signature scheme.
+  The arguments are the same as for $\texttt{UF\_CMA\_det\_signature}$,
+  but the signature function internally generated random coins,
+  so that it is probabilistic.
+   This macro defines the equivalences named
+   $\texttt{suf\_cma}(\vn{sign})$,
+   $\texttt{suf\_cma\_corrupt}(\vn{sign})$, and
+   $\texttt{suf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand SUF\_CMA\_proba\_signature\_r(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{sign\_seed}, \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab \vn{sign\_r}, \ab
+  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above,
+  with two additional arguments. 
+  $\vn{sign\_seed}$ is the type of random coins for signature, must be \texttt{bounded}.
+  $\vn{sign\_r}(\vn{signinput}, \vn{skey}, \vn{sign\_seed}): \vn{signature}$ is the signature function that takes coins as argument (instead of generating them internally).
+
+\item $\texttt{expand ROM\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$
 defines a hash function in the random oracle model.
 
 $\vn{key}$ is the type of the key of the hash function, which models
@@ -759,43 +998,34 @@ the choice of the hash function, must be \texttt{bounded}, typically
 
    $\vn{hash}(\vn{key}, \vn{hashinput}): \vn{hashoutput}$ is the hash function.
 
-   WARNING: $\vn{hash}$ is a keyed hash function.
-   The key must be generated once and for all at the beginning of the game 
+    $\vn{hashoracle}$ is a process that allows the adversary to call the hash function.
+    WARNING: The key must be generated once and for all at the beginning of the game 
    and the hash oracle must be made available to the adversary,
-   by including a process such as
-      \texttt{!qH in(c1, x:$\vn{hashinput}$); out(c2, hash(k,x))}
-   where \texttt{k} is the key, \texttt{qH} the number of requests to the hash oracle,
-   \texttt{c1} and \texttt{c2} channels (or a similar oracle if you use the oracles front-end).
-%    $\vn{hashoracle}$ is a process that allows the adversary to call the hash function.
-%    WARNING: the hash oracle must be made available to the adversary,
-%    by including "hashoracle" in the executed process.
+    by including $\vn{hashoracle}(\vn{hk})$ in the executed process,
+    where $\vn{hk}$ is the key.
 
-%    $\vn{qH}$ is the number of requests to the hash oracle
+    $\vn{qH}$ is the number of queries to the hash oracle.
 
-   The types $\vn{key}$, $\vn{hashinput}$, and $\vn{hashoutput}$ must
-   be declared before this macro.  The function $\vn{hash}$ is defined
-   by this macro. It must not be declared elsewhere, and it can be
-   used only after expanding the macro.
+    The types $\vn{key}$, $\vn{hashinput}$, and $\vn{hashoutput}$ must
+    be declared before this macro.  The function $\vn{hash}$, the
+    process $\vn{hashoracle}$, and the parameter $\vn{qH}$ are defined
+    by this macro. They must not be declared elsewhere, and they can
+    be used only after expanding the macro.
 
    This macro defines the equivalence named $\texttt{rom}(\vn{hash})$
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
  \item
-   $\texttt{expand ROM\_hash\_pair(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}
-   \texttt{).}$\\
-   $\texttt{expand ROM\_hash\_triple(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}\
-   \texttt{).}$\\
-$\texttt{expand ROM\_hash\_quad(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashinput4}, \vn{hashoutput}, \vn{hash}%, \vn{hashoracle}, \vn{qH}
-   \texttt{).}$\\
-   define random oracle with 2, 3, and 4 arguments respectively, similarly to \texttt{ROM\_hash} above.
+   $\texttt{expand ROM\_hash\_pair(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+   $\texttt{expand ROM\_hash\_triple(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+$\texttt{expand ROM\_hash\_quad(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashinput4}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+   define random oracles with 2, 3, and 4 arguments respectively, similarly to \texttt{ROM\_hash} above.
    Letting $N$ be the number of arguments of the oracle,
-   $\vn{hashinput1},\dots,\vn{hashinput}N$ are the types of the inputs of the hash function,
-   $\vn{hash}(\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N): \vn{hashoutput}$ is the hash function,
-   and the hash oracle that must be provided to the adversary is
-   \texttt{! qH in(c1, (x1:$\vn{hashinput1}$,$\dots$,x$N$:$\vn{hashinput}N$)); out(c2, hash(k,x1,...,x$N$))}.
+   $\vn{hashinput1},\dots,\vn{hashinput}N$ are the types of the inputs of the hash function and
+   $\vn{hash}(\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N): \vn{hashoutput}$ is the hash function.
 
-\item $\texttt{expand CollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{Phash}\texttt{).}$
+\item $\texttt{expand CollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{Phash}\texttt{).}$
 defines a collision-resistant hash function.
 
    $\vn{key}$ is the type of the key of the hash function, must be \texttt{bounded}, typically \texttt{fixed}.
@@ -806,16 +1036,20 @@ defines a collision-resistant hash function.
 
    $\vn{hash}(\vn{key}, \vn{hashinput}): \vn{hashoutput}$ is the hash function.
 
-   $\vn{Phash}$ is the probability of breaking collision resistance.
+   $\vn{hashoracle}$ is a process that leaks the key that it receives as argument.
    WARNING: A collision resistant hash function is a keyed hash function.
    The key must be generated once and for all at the beginning of the game,
-   and immediately made available to the adversary.
+   and immediately made available to the adversary, for instance
+   by including the process $\vn{hashoracle}(\vn{hk})$,
+   where $\vn{hk}$ is the key.
+
+   $\vn{Phash}$ is the probability of breaking collision resistance.
 
    The types $\vn{key}$, $\vn{hashinput}$, and $\vn{hashoutput}$ and
    the probability $\vn{Phash}$ must be declared before this macro.
-   The function $\vn{hash}$ is defined by this macro. It must not be
-   declared elsewhere, and it can be used only after expanding the
-   macro.
+   The function $\vn{hash}$ and the process $\vn{hashoracle}$ are
+   defined by this macro. They must not be declared elsewhere, and
+   they can be used only after expanding the macro.
 
 \item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.
 
@@ -895,28 +1129,24 @@ defines a collision-resistant hash function.
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
 
-\item $\texttt{expand PRF(}\vn{keyseed}, \vn{key}, \vn{input}, \vn{output}, \vn{kgen}, \vn{f}, \vn{Pprf}\texttt{).}$ 
+\item $\texttt{expand PRF(}\vn{key}, \vn{input}, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ 
 defines a pseudo-random function.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
-
-   $\vn{key}$ is the type of keys, must be \texttt{bounded}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{input}$ is the type of the input of the PRF.
 
    $\vn{output}$ is the type of the output of the PRF, must be \texttt{bounded}, typically \texttt{fixed}.
-
-   $\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
 
    $\vn{f}(\vn{key}, \vn{input}):\vn{output}$ is the PRF function.
 
    $\vn{Pprf}(t, N, l)$ is the probability of breaking the PRF property
    in time $t$, for one key, $N$ queries to the PRF of length at most $l$.
 
-   The types $\vn{keyseed}$, $\vn{key}$, $\vn{input}$, $\vn{output}$
+   The types $\vn{key}$, $\vn{input}$, $\vn{output}$
    and the probability $\vn{Pprf}$ must be declared before this macro
-   is expanded. The functions $\vn{kgen}$ and $\vn{f}$ are declared by
-   this macro. They must not be declared elsewhere, and they can be
+   is expanded. The function $\vn{f}$ is declared by
+   this macro. It must not be declared elsewhere, and it can be
    used only after expanding the macro.
 
    This macro defines the equivalence named $\texttt{prf}(\vn{f})$
@@ -950,7 +1180,7 @@ defines a pseudo-random function.
    This macro defines the following equivalences for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}):
 \begin{itemize}
-\item $\texttt{cdh}(\vn{exp})$ whichs corresponds to the CDH property
+\item $\texttt{cdh}(\vn{exp})$ whichs corresponds to the CDH property.
 \item $\texttt{group\_to\_exp\_strict}(\vn{exp})$ which allows to replace
 a random $X \in G$ with $\vn{exp}(g,x)$ for a random $x \in Z$, provided
 $\vn{exp}(X,\_)$ occurs in the game.
@@ -965,6 +1195,15 @@ $\vn{exp'}(g,x)$ for a random $x \in Z$ with a random $X \in G$.
 $\texttt{cdh}(\vn{exp})$ equivalence.)
 \end{itemize}
 
+\item $\texttt{expand\ square\_CDH(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{pCDH}\texttt{).}$ defines a group that satisfies the square
+  computational Diffie-Hellman assumption (as well as the computational 
+  Diffie-Hellman assumption). When the group has prime order,
+  the computational Diffie-Hellman assumption is equivalent to the
+  square variant, but CryptoVerif can do more proofs using the
+  square variant. (It allows transforming $\vn{exp}(g, \vn{mult}(x,x))$.)
+  The interface is the same as for \texttt{CDH} above.
+
 \item $\texttt{expand\ DDH(}G, Z, g, \vn{exp}, \vn{mult},
   \vn{PDDH}\texttt{).}$ defines a group that satisfies the decisional
   Diffie-Hellman assumption. The arguments are the same as for
@@ -972,6 +1211,11 @@ $\texttt{cdh}(\vn{exp})$ equivalence.)
   replaced with $\vn{PDDH}$. This macro defines the same equivalences
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{ddh}(\vn{exp})$.
+
+\item $\texttt{expand\ square\_DDH(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{PDDH}\texttt{).}$ defines a group that satisfies the square decisional
+  Diffie-Hellman assumption (as well as the decisional
+  Diffie-Hellman assumption). The interface is the same as for \texttt{DDH} above.
 
 \item $\texttt{expand\ GDH(}G, Z, g, \vn{exp}, \vn{mult},
   \vn{PGDH}\texttt{).}$ defines a group that satisfies the gap
@@ -981,11 +1225,25 @@ with $\texttt{ddh}(\vn{exp})$.
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{gdh}(\vn{exp})$.
 
+\item
+  $\texttt{expand\ square\_GDH(}G, Z, g, \vn{exp}, \vn{mult},
+  \vn{PGDH}\texttt{).}$
+  defines a group that satisfies the square gap Diffie-Hellman
+  assumption (as well as the gap Diffie-Hellman assumption). The
+  interface is the same as for \texttt{GDH} above.
+
 \item $\texttt{expand\ GDH\_prime\_order(}G, Z, g, \vn{exp}, \vn{mult},
   \vn{PGDH}\texttt{).}$ defines a group that satisfies the gap
-  Diffie-Hellman assumption and has prime order. The interface is exactly
+  Diffie-Hellman assumption and has prime order. The interface is 
   the same as for \texttt{GDH} above.
-  
+
+\item
+  $\texttt{expand\ square\_GDH\_prime\_order(}G, Z, g, \vn{exp},
+  \vn{mult}, \vn{PGDH}\texttt{).}$
+  defines a group that satisfies the square gap Diffie-Hellman
+  assumption, the gap Diffie-Hellman assumption, and has prime
+  order. The interface is the same as for \texttt{GDH} above.
+
 \item $\texttt{expand\ Xor(}D, \vn{xor}, \vn{zero}\texttt{).}$ defines the
   function symbol $\vn{xor}$ to be exclusive or on the set of
   bitstrings $D$, where $\vn{zero}$ is the bitstring consisting only
@@ -1000,6 +1258,110 @@ with $\texttt{gdh}(\vn{exp})$.
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
+\item $\texttt{expand\ keygen(}\vn{keyseed}, \vn{key}, \vn{kgen}\texttt{).}$
+defines a key generation function $\vn{kgen}$. It can be used to add a key
+generation function to symmetric cryptographic primitives, if needed.
+
+$\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+
+$\vn{key}$ type of keys, must be \texttt{bounded}.
+
+$\vn{kgen}(\vn{keyseed}): \vn{key}$ is the key generation function.
+
+The types $\vn{keyseed}$ and $\vn{key}$ must be declared before this
+macro is expanded. The function $\vn{kgen}$ is declared by this
+macro. It must not be declared elsewhere, and it can be used only
+after expanding the macro.
+
+This macro defines the equivalence named $\texttt{keygen}(\vn{kgen})$
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}).
+
+\item
+  $\texttt{expand\ Auth\_Enc\_from\_Enc\_then\_MAC(}\vn{key}, \vn{cleartext}, \vn{ciphertext}, \vn{enc}, \vn{dec}, \vn{injbot}, \vn{Z}, \vn{Penc}, \vn{Pmac}\texttt{).}$ defines an authenticated encryption scheme, built by encrypt-then-MAC from an IND-CPA encryption scheme and an SUF-CMA deterministic MAC.
+
+  The arguments are the same as for \texttt{IND\_CPA\_INT\_CTXT\_sym\_enc} except that $\vn{Penc}(t, N, l)$ is the probability of breaking the IND-CPA
+  property of the underlying encryption scheme in time $t$ for one key and $N$ encryption queries with
+  cleartexts of length at most $l$, and
+  $\vn{Pmac}(t, N, N', \vn{Nu}', l)$ is the probability of breaking the SUF-CMA
+   property of the underlying MAC scheme in time $t$ for one key, $N$ MAC queries, $N'$ verification
+   queries modified by the transformation and $\vn{Nu}$ verification
+   queries left unchanged by the transformation for messages of length at most $l$.
+
+ \item 
+   $\texttt{expand\ Auth\_Enc\_from\_AEAD(}\vn{key}, \vn{cleartext},
+   \vn{ciphertext}, \vn{enc}, \vn{dec}, \vn{injbot}, \vn{Z},
+   \vn{Penc}, \vn{Pencctxt}\texttt{).}$ defines an authenticated
+   encryption scheme, built from an AEAD scheme using empty additional
+   data.
+
+   The arguments are the same as for
+   \texttt{IND\_CPA\_INT\_CTXT\_sym\_enc} except that $\vn{Penc}(t, N,
+   l)$ is the probability of breaking the IND-CPA property of the
+   underlying AEAD scheme in time $t$ for one key and $N$ encryption
+   queries with cleartexts of length at most $l$, and
+   $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the
+   probability of breaking the INT-CTXT property of the underlying
+   AEAD scheme in time $t$ for one key, $N$ encryption queries, $N'$
+   decryption queries with cleartexts of length at most $l$ and
+   ciphertexts of length at most $l'$, additional data for encryption
+   of length at most $\vn{ld}$, and additional data for decryption of
+   length at most $\vn{ld}'$.
+   
+ \item 
+   $\texttt{expand\ Auth\_Enc\_from\_AEAD\_nonce(}\vn{key}, \vn{cleartext},
+   \vn{ciphertext}, \vn{enc}, \vn{dec}, \vn{injbot}, \vn{Z},
+   \vn{Penc}, \vn{Pencctxt}\texttt{).}$ defines an authenticated
+   encryption scheme, built from an AEAD scheme with a nonce
+   by choosing the nonce randomly at each encryption and
+   using empty additional data.
+
+   The arguments are the same as for
+   \texttt{IND\_CPA\_INT\_CTXT\_sym\_enc} except that $\vn{Penc}(t, N,
+   l)$ is the probability of breaking the IND-CPA property of the
+   underlying AEAD scheme in time $t$ for one key and $N$ encryption
+   queries with cleartexts of length at most $l$, and
+   $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the
+   probability of breaking the INT-CTXT property of the underlying
+   AEAD scheme in time $t$ for one key, $N$ encryption queries, $N'$
+   decryption queries with cleartexts of length at most $l$ and
+   ciphertexts of length at most $l'$, additional data for encryption
+   of length at most $\vn{ld}$, and additional data for decryption of
+   length at most $\vn{ld}'$.
+
+\item $\texttt{expand AEAD\_from\_Enc\_then\_MAC(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{enc},
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pmac}\texttt{).}$ defines an
+authenticated encryption scheme with additional data built by encrypt-then-MAC from an IND-CPA encryption scheme and an SUF-CMA deterministic MAC.
+
+The arguments are the same as for \texttt{AEAD} except that $\vn{Penc}(t, N, l)$ is the probability of breaking the IND-CPA
+  property of the underlying encryption scheme in time $t$ for one key and $N$ encryption queries with
+  cleartexts of length at most $l$, and
+  $\vn{Pmac}(t, N, N', \vn{Nu}', l)$ is the probability of breaking the SUF-CMA
+   property of the underlying MAC scheme in time $t$ for one key, $N$ MAC queries, $N'$ verification
+   queries modified by the transformation and $\vn{Nu}$ verification
+   queries left unchanged by the transformation for messages of length at most $l$.
+
+\item 
+   $\texttt{expand\ AEAD\_from\_AEAD\_nonce(}\vn{key}, \vn{cleartext},
+   \vn{ciphertext}, \vn{add\_data}, \vn{enc}, \vn{dec}, \vn{injbot}, \vn{Z},
+   \vn{Penc}, \vn{Pencctxt}\texttt{).}$ defines an authenticated
+   encryption scheme with additional data, built from an AEAD scheme with a nonce
+   by choosing the nonce randomly at each encryption.
+
+   The arguments are the same as for
+   \texttt{AEAD} except that $\vn{Penc}(t, N,
+   l)$ is the probability of breaking the IND-CPA property of the
+   underlying AEAD scheme in time $t$ for one key and $N$ encryption
+   queries with cleartexts of length at most $l$, and
+   $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the
+   probability of breaking the INT-CTXT property of the underlying
+   AEAD scheme in time $t$ for one key, $N$ encryption queries, $N'$
+   decryption queries with cleartexts of length at most $l$ and
+   ciphertexts of length at most $l'$, additional data for encryption
+   of length at most $\vn{ld}$, and additional data for decryption of
+   length at most $\vn{ld}'$.
+   
 \end{itemize}
 
 
@@ -1178,12 +1540,13 @@ apply a cryptographic transformation chosen as above, where
 
 \end{itemize}
 When the considered equivalence is defined inside a macro,
-macro expansion adds a prefix \texttt{\string@$k$\_} to the variable
-and oracle names of the equivalence. This prefix must be included in
+macro expansion may add an integer suffix \texttt{\_$k$} to the variable
+and oracle names of the equivalence (or may modify that suffix if
+they already have one). This suffix must be included in
 the variable and oracle names used in this command.
 This happens in particular for primitives defined in the
 library of primitives of CryptoVerif. The right value of $k$ in the
-prefix can be determined by issuing a command \texttt{crypto} without
+suffix can be determined by issuing a command \texttt{crypto} without
 further indication. This command will display the equivalences
 as they are stored by CryptoVerif after macro expansion.
 

@@ -1,0 +1,24 @@
+channel c.
+
+type host.
+const A, B, C: host.
+
+table tbl1(host).
+table tbl2(host, bool).
+
+process
+	in(c, y: host);
+insert tbl1(A);
+insert tbl1(B);
+insert tbl2(A, false);
+insert tbl2(B, true);
+insert tbl2(C, true);
+get tbl1(=y) suchthat (get tbl2(z: host, b: bool) suchthat z = y in b else false) in
+out(c, y)
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.012s + system 0.012s), max rss 40672K
+END *)

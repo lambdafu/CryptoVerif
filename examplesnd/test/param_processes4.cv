@@ -1,0 +1,167 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+type maxencnotag [bounded].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+fun concat1(nonce, nonce, host, host):maxencnotag [data].
+fun concat2(nonce, key):maxencnotag [data].
+fun tagf(tag, maxencnotag):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Z1:maxenc.
+const Z2:maxenc.
+forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
+forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query x:host, y:host, n:nonce, k:key; 
+	event(endA(x,y,n,k)) ==> event(beginB(x,y,n)) public_vars keyA, keyB.
+query x:host, y:host, n:nonce, k:key; 
+	event(endB(x,y,n,k)) ==> event(beginA(x,y,n)) public_vars keyA, keyB.
+query x:host, y:host, n:nonce, k:key; 
+	inj-event(endA(x,y,n,k)) ==> inj-event(beginB(x,y,n)) public_vars keyA, keyB.
+query x:host, y:host, n:nonce, k:key; 
+	inj-event(endB(x,y,n,k)) ==> inj-event(beginA(x,y,n)) public_vars keyA, keyB.
+
+
+let processA(mKas: mkey) = 
+	in(c1, hb: host);
+	new M : nonce;
+	new Na : nonce;
+	new s1 : seed;
+	let ea1 = enc(tagf(tag1, concat1(Na, M, A, hb)), Kas0(* Kas0 is a global reference; it should be guarded by a defined condition *), s1) in
+	event beginA(A, hb, M);
+	out(c2, (M, A, hb, ea1, mac(ea1, mKas)));
+	in(c3, (=M, ea2: maxmac, ma2: macs));
+	if check(ea2, mKas, ma2) then
+	let injbot(tagf(=tag3, concat2(=Na, k))) = dec(ea2, Kas0(* Kas0 is a global reference *)) in
+	if hb = B then
+	(
+	event endA(A, hb, M, k);
+	let keyA:key = k
+	)
+	else out(c11, k).
+
+let processB(Kbs: key, mKbs: mkey) =
+	in(c4, (M: nonce, ha: host, =B, ea:maxmac, ma:macs));
+	new Nb : nonce;
+	new s2 : seed;
+	let e2 = enc(tagf(tag2, concat1(Nb, M, ha, B)), Kbs, s2) in
+	event beginB(ha, B, M);
+	out(c5, (M, ha, B, ea, ma, e2, mac(e2, mKbs)));
+	in(c6, (=M, ea2: maxmac, ma2: macs, eb2: maxmac, mb2: macs));
+	if check(eb2, mKbs, mb2) then
+	let injbot(tagf(=tag4, concat2(=Nb, k))) = dec(eb2, Kbs) in
+	out(c7, (M, ea2, ma2));
+	in(finish, ());
+	if ha = A then
+	(
+	event endB(ha, B, M, k);
+	let keyB:key = k
+	)
+	else out(c12,k).
+
+let processK(Kas: key, mKas: mkey, Kbs: key, mKbs: mkey) =
+	in(c8, (Khost: host, Kkey: key, Kmkey: mkey));
+	let Rkey:key = 
+		if Khost = A then Kas else
+		if Khost = B then Kbs else
+		Kkey
+	in
+	let Rmkey:mkey =
+		if Khost = A then mKas else
+		if Khost = B then mKbs else
+		Kmkey.
+
+let processS =
+	in(c9, (M: nonce, ha: host, hb: host, ea1: maxmac, ma1: macs, eb1: maxmac, mb1: macs));
+	find jA <= N2 suchthat defined(Rkey[jA], Rmkey[jA], Khost[jA]) && (ha = Khost[jA]) then
+	let kas = Rkey[jA] in
+	let mkas = Rmkey[jA] in
+	find jB <= N2 suchthat defined(Rkey[jB], Rmkey[jB], Khost[jB]) && (hb = Khost[jB]) then
+	let kbs = Rkey[jB] in
+	let mkbs = Rmkey[jB] in
+	if check(ea1, mkas, ma1) then
+	let injbot(tagf(=tag1, concat1(Na, =M, =ha, =hb))) = dec(ea1, kas) in
+	if check(eb1, mkbs, mb1) then
+	let injbot(tagf(=tag2, concat1(Nb, =M, =ha, =hb))) = dec(eb1, kbs) in
+	new k: key;
+	new s3: seed;
+	new s4: seed;
+	let e1 = enc(tagf(tag3, concat2(Na, k)), kas, s3) in
+	let e2 = enc(tagf(tag4, concat2(Nb, k)), kbs, s4) in
+	out(c10, (M, e1, mac(e1, mkas), e2, mac(e2, mkbs))).
+	
+process 
+	in(start, ());
+	new rKas: keyseed;
+	let Kas0: key = kgen(rKas) in
+	new rmKas: mkeyseed;
+	let mKas = mkgen(rmKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	new rmKbs: mkeyseed;
+	let mKbs = mkgen(rmKbs) in
+	out(c13, ());
+	((! N processA(mKas)) |
+	 (! N processB(Kbs, mKbs)) | 
+	 (! N processS) |
+	 (! N2 processK(Kas0, mKas, Kbs, mKbs)))
+
+(* EXPECTED
+Error: Variable Kas0 is referenced outside its scope. It should be guarded by a defined condition
+xtime: error in child process (status : 512)
+END *)

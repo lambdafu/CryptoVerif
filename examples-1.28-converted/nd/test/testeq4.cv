@@ -1,0 +1,38 @@
+param n, m, m', q.
+
+type S [large,fixed].
+type D [large,fixed].
+
+fun f(S,D): D.
+fun f'(S,D): D.
+
+equiv
+  ! n new b: S; ! m gen_Oracle(x: D) := return(f(b,x))
+<=(0)=>
+  ! n ! m new c: S; gen_Oracle(x: D) := return(f'(c,x)).
+
+
+
+query secret test.
+
+channel dummy, start.
+
+
+
+process
+  in(start, ());
+new test: S;
+out(dummy, test);
+! i_1 <= q
+in(dummy[i_1], x: D);
+new b: S;
+out(dummy[i_1], f(b, x))
+
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of test.
+0.024s (user 0.016s + system 0.008s), max rss 36960K
+END *)

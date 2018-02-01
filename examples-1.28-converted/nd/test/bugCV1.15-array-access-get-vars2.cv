@@ -1,0 +1,101 @@
+(*
+
+This example makes an array access to the variable kas, bound by get.
+It causes a bug in CryptoVerif 1.15: the transformation
+of get removes the definition of kas, so CryptoVerif
+thinks that the find that accesses kas always fails.	
+
+*)
+
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+
+table keytbl (bitstring, host).
+
+fun concat1(tag, host, nonce):maxenc [compos].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+forall y:tag, h:host, z:nonce; 
+	Z(concat1(y,h,z)) = Zconcat1.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+
+const A: host.
+const B: host.
+
+const tag3: tag.
+const tag5: tag.
+
+event endB.
+
+query event(endB) ==> false.
+
+let processB(kAS: key) =
+	in(c5, hostA2:host);
+	(* Array access to the variable kas, bound by get 
+	   It causes a bug in CryptoVerif 1.15: the transformation
+	   of get removes the definition of kas, so CryptoVerif
+	   thinks that the find always fails. *)
+	find u <= N suchthat defined(kas[u]) && kas[u] = kAS then
+	event endB.
+
+let processK =
+	in(c10, (Khost: host, Kkey: key, Kmkey: mkey));
+(*        get keytbl (x,y,=Khost) in yield else*)
+        if (Khost <> A) && (Khost <> B) then
+           insert keytbl ((Kkey, Kmkey), Khost).
+
+let processS =
+	in(c11, (hostA1:host, hostB0:host));
+        get keytbl ((kas: key, mkas: mkey), =hostA1) in
+	out(c12, ()).
+
+
+process 
+	in(start, ());
+	new rKas: keyseed;
+	let kAS = kgen(rKas) in
+	new rmKas: mkeyseed;
+	let mkAS = mkgen(rmKas) in
+        insert keytbl ((kAS, mkAS), A);
+	out(c13, ());
+	((! N processB(kAS)) | 
+	 (! N processS) |
+	 (! N2 processK))
+
+(* EXPECTED
+Error: kas is referenced in an array reference and is defined in a condition of find or get
+xtime: error in child process (status : 512)
+END *)

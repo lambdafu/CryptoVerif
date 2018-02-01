@@ -1,0 +1,585 @@
+(* This file proves properties of the handshake with pre-shared key.
+It proves secrecy, authentication, and unique channel identifier
+properties.
+Secrecy is proved both on the client side and on the server side.
+On the server side, secrecy of cs_ats_exp (this value corresponds
+to the concatenation of cats, sats, ems in the paper) is proved
+when the server sends the ServerFinished message, before it
+receives the ClientFinished message. This property is useful for
+proving security of 0.5RTT messages, by composition with the record
+protocol. *)
+
+
+channel io1, io1', io2, io2', io3, io4, io5, io6, io7, io8, io9, io10,
+	io11, io12, io13, io14, io15, io16, io17, io18, io19, io20,
+	io21, io22, io23, io24, io25, io26, io27, io28, io29, io30,
+	cCorrupt.
+
+(* If desired, the proof can be guided as follows,
+   but the automatic proof strategy works.
+
+proof {
+      crypto rom(HKDF_extract_zero_salt);
+      crypto prf1;
+      crypto suf_cma(mac) *;
+      crypto prf2 *;
+      crypto client_server_hts *;
+      crypto prf_fin_key_iv *;
+      crypto prf3 *;
+      crypto suf_cma(mac) *; 
+      simplify;
+      success
+}
+*)
+
+
+type key [large, fixed].
+const zero_key: key.
+type extracted [large, fixed].
+const zero_extracted: extracted. 
+
+type elt [large, bounded].
+fun element2key(elt): key [data].
+fun elt2bitstring(elt): bitstring [data].
+
+(* Gap Diffie-Hellman assumption.
+   The considered groups are prime order. *)
+
+proba pGDH.
+expand GDH_prime_order(elt, key, G, exp, mult, pGDH).
+
+letfun dh_keygen() =
+   new x:key;
+   (x,exp(G,x)).
+
+param N, N', N'', N2, N3, N4.
+
+(* HKDF_extract_zero_salt, that is, HKDF_extract with salt argument 
+   0, is a random oracle. *)
+
+type hashkey [large,fixed].
+
+expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt).
+
+param qH [noninteractive].
+channel c1, c2.
+ 
+
+(* We use the lemma proved in KeySchedule1.cv *)
+
+type two_keys [large,fixed].
+const zero_two_keys: two_keys.
+fun Derive_Secret_cets_eems(extracted, bitstring): two_keys.
+fun Derive_Secret_psk_binder_key(extracted): key.
+fun HKDF_extract_DHE(extracted, elt): extracted.
+fun HKDF_extract_zero1(extracted): extracted.
+
+proba Pprf1.
+
+equiv(prf1 )
+  ! N3 new k: extracted; (
+    ! N O1(log: bitstring) := return(Derive_Secret_cets_eems(k, log)) |
+    O2() := return(Derive_Secret_psk_binder_key(k)) |
+    ! N'' O3(DHE: elt) := return(HKDF_extract_DHE(k, DHE)) |
+    O4() := return(HKDF_extract_zero1(k)))
+<=(N3 * Pprf1(time + (N3-1)*(time(Derive_Secret_psk_binder_key) + N * time(Derive_Secret_cets_eems, maxlength(log)) + N'' * time(HKDF_extract_DHE) + time(HKDF_extract_zero1)), N, N''))=>
+  ! N3 (
+    ! N O1(log: bitstring) := find [unique] j <= N suchthat defined(log[j], r[j]) && (log = log[j]) then return(r[j]) else new r: two_keys; return(r) |
+    O2() := new r': key; return(r') |
+    ! N'' O3(DHE: elt) := find [unique] j'' <= N'' suchthat defined(DHE[j''], r''[j'']) && (DHE = DHE[j'']) then return(r''[j'']) else new r'': extracted; return(r'') |
+    O4() := new r''': extracted; return(r''')).
+
+fun get_client_ets(two_keys): key.
+fun get_eets(two_keys): key.
+
+equiv(cets_eems )
+  ! N new r: two_keys; (
+    O1() := return(get_client_ets(r)) |
+    O2() := return(get_eets(r)))
+<=(0)=>
+  ! N (
+    O1() := new r1: key; return(r1) |
+    O2() := new r2: key; return(r2)).
+
+(* We use the lemma proved in KeySchedule2.cv *)
+
+fun Derive_Secret_cs_hts(extracted,bitstring):two_keys.
+fun HKDF_extract_zero(extracted):extracted.
+
+
+proba Pprf2.
+
+equiv(prf2 )
+  ! N3 new k: extracted; (
+    ! N O1(log: bitstring) := return(Derive_Secret_cs_hts(k, log)) |
+    O2() := return(HKDF_extract_zero(k)))
+<=(N3 * Pprf2(time + (N3-1)*(time(HKDF_extract_zero) + N * time(Derive_Secret_cs_hts, maxlength(log))), N))=>
+  ! N3 (
+    ! N O1(log: bitstring) := find [unique] j <= N suchthat defined(log[j], r[j]) && (log = log[j]) then return(r[j]) else new r: two_keys; return(r) |
+    O2() := new r': extracted; return(r')).
+
+fun get_client_hts(two_keys): key.
+fun get_server_hts(two_keys): key.
+
+equiv(client_server_hts )
+  ! N new r: two_keys; (
+    O1() := return(get_client_hts(r)) |
+    O2() := return(get_server_hts(r)))
+<=(0)=>
+  ! N (
+    O1() := new r1: key; return(r1) |
+    O2() := new r2: key; return(r2)).
+
+(* We use the lemma proved in KeySchedule3.cv *)
+
+type three_keys [large, fixed].
+fun Derive_Secret_cs_ats_exp(extracted, bitstring): three_keys.
+fun Derive_Secret_rms(extracted, bitstring): key.
+
+proba Pprf3.
+
+equiv(prf3 )
+  ! N3 new k: extracted; (
+    ! N O1(log: bitstring) := return(Derive_Secret_cs_ats_exp(k, log)) |
+    ! N' O2(log': bitstring) := return(Derive_Secret_rms(k, log')))
+<=(N3 * Pprf2(time + (N3-1)*(N' * time(Derive_Secret_rms, maxlength(log')) + N * time(Derive_Secret_cs_ats_exp, maxlength(log))), N, N'))=>
+  ! N3 (
+    ! N O1(log: bitstring) := find [unique] j <= N suchthat defined(log[j], r[j]) && (log = log[j]) then return(r[j]) else new r: three_keys; return(r) |
+    ! N' O2(log': bitstring) := find [unique] j' <= N' suchthat defined(log'[j'], r'[j']) && (log' = log'[j']) then return(r'[j']) else new r': key; return(r')).      
+
+fun get_client_ats(three_keys): key.
+fun get_server_ats(three_keys): key.
+fun get_exporter_ms(three_keys): key.
+
+equiv(client_server_ats_exporter_ms )
+  ! N new r: three_keys; (
+    O1() := return(get_client_ats(r)) |
+    O2() := return(get_server_ats(r)) |
+    O3() := return(get_exporter_ms(r)))
+<=(0)=>
+  ! N (
+    O1() := new r1: key; return(r1) |
+    O2() := new r2: key; return(r2) |
+    O3() := new r3: key; return(r3)).
+
+(* We use the lemma proved in HKDFexpand.cv *)
+
+fun HKDF_expand_fin_label(key): key.
+fun HKDF_expand_key_label(key): key.
+fun HKDF_expand_iv_label(key): key.
+
+proba Pprf_fin_key_iv.
+
+equiv(prf_fin_key_iv )
+  ! N3 new r: key; (
+    O1() := return(HKDF_expand_fin_label(r)) |
+    O2() := return(HKDF_expand_key_label(r)) |
+    O3() := return(HKDF_expand_iv_label(r)))
+<=(N3 * Pprf_fin_key_iv(time + (N3-1)*(time(HKDF_expand_fin_label) + time(HKDF_expand_key_label) + time(HKDF_expand_iv_label))))=>
+  ! N3 (
+    O1() := new r1: key; return(r1) |
+    O2() := new r2: key; return(r2) |
+    O3() := new r3: key; return(r3)).
+
+(* SUF-CMA MAC
+   The MAC is actually a combination of a hash followed by a MAC.
+   It is easy to see that the combination is SUF-CMA provided the MAC is SUF-CMA 
+   and the hash is collision resistant. *)
+
+proba Pmac.
+expand SUF_CMA_mac_nokgen(key, bitstring, bitstring, mac, check, Pmac).
+
+(* Message formats *)
+
+type nonce [large, fixed].
+type certificate.
+
+fun ClientHelloOut(nonce,bitstring): bitstring [data].
+fun ClientHelloIn(nonce,bitstring,bitstring,bitstring): bitstring [data].
+fun ServerHelloIn(nonce,bitstring): bitstring [data].
+fun ServerHelloOut(nonce): bitstring [data].
+
+fun ClientHelloOutDHE(nonce, elt, bitstring): bitstring [data].
+fun ClientHelloInDHE(nonce, elt, bitstring, bitstring, bitstring): bitstring [data].
+fun ServerHelloInDHE(nonce, elt, bitstring): bitstring [data].
+fun ServerHelloOutDHE(nonce, elt): bitstring [data].
+
+fun ServerFinishedIn(bitstring,bitstring): bitstring [data].
+fun ServerFinishedOut(bitstring): bitstring [data].
+
+fun ClientFinishedOut(bitstring): bitstring  [data].
+fun ClientFinishedIn(bitstring,bitstring): bitstring  [data].
+
+(* Logs *)
+
+fun ClientHelloBinderLogInfo(nonce,bitstring): bitstring [data].
+fun ClientHelloBinderLogInfoDHE(nonce,elt,bitstring): bitstring [data].
+fun ClientHelloLogInfo(bitstring,bitstring,bitstring): bitstring [data].
+fun ServerHelloLogInfo(bitstring,nonce,bitstring): bitstring [data].
+fun ServerHelloLogInfoDHE(bitstring,nonce,elt,bitstring): bitstring [data].
+fun ServerBeforeFinishedLogInfo(bitstring,bitstring): bitstring [data].
+fun ServerFinishedLogInfo(bitstring,bitstring): bitstring [data].
+fun ClientBeforeFinishedLogInfo(bitstring, bitstring): bitstring [data].
+fun ClientFinishedLogInfo(bitstring, bitstring): bitstring [data].
+
+forall cr: nonce, l: bitstring, cr': nonce, gx: elt, l': bitstring;
+       ClientHelloBinderLogInfo(cr,l) <> ClientHelloBinderLogInfoDHE(cr',gx,l').
+
+(* Secrecy of the key *)
+
+query secret cs_ats_exp_c public_vars cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+query secret cs_ats_exp_s public_vars cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+query secret cs_ats_exp_cDHE public_vars cs_ats_exp_c, cs_ats_exp_s, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+query secret cs_ats_exp_sDHE public_vars cs_ats_exp_c, cs_ats_exp_s, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+
+query secret resumption_secret_c public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+query secret resumption_secret_s public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+query secret resumption_secret_cDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+query secret resumption_secret_sDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
+
+query secret cets_eems_c public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_cDHE, cets_eems_sDHE.
+query secret cets_eems_s public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_cDHE, cets_eems_sDHE [onesession].
+       (* We cannot prove secrecy because of the replay attack,
+          but we can prove one-session secrecy *)
+query secret cets_eems_cDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s.
+query secret cets_eems_sDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s [onesession]. 
+      (* We cannot prove secrecy because of the replay attack,
+      	 but we can prove one-session secrecy *)
+
+(* Authentication of the server to the client *)
+
+event ClientTerm(nonce,bitstring,bitstring,bitstring,nonce,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys).
+event ServerAccept(nonce,bitstring,bitstring,bitstring,nonce,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys).
+
+query cs_ats_exp: three_keys, sfk: key, cfk: key, server_hiv: key, client_hiv: key, server_hk: key, client_hk: key, m: bitstring, log3: bitstring, log2: bitstring, sr: nonce, log1': bitstring, binder: bitstring, log1: bitstring, cr: nonce;
+  inj-event(ClientTerm(cr, log1, binder, log1', sr, log2, log3, m, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp)) ==> inj-event(ServerAccept(cr, log1, binder, log1', sr, log2, log3, m, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp)) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+event ClientTermDHE(nonce,elt,bitstring,bitstring,bitstring,nonce,elt,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys).
+event ServerAcceptDHE(nonce,elt,bitstring,bitstring,bitstring,nonce,elt,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys).
+
+query cs_ats_exp: three_keys, sfk: key, cfk: key, server_hiv: key, client_hiv: key, server_hk: key, client_hk: key, m: bitstring, log3: bitstring, log2: bitstring, gy: elt, sr: nonce, log1': bitstring, binder: bitstring, log1: bitstring, gx: elt, cr: nonce;
+  inj-event(ClientTermDHE(cr, gx, log1, binder, log1', sr, gy, log2, log3, m, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp)) ==> inj-event(ServerAcceptDHE(cr, gx, log1, binder, log1', sr, gy, log2, log3, m, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp)) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+
+(* Authentication of the client to the server *)
+
+event ServerTerm(nonce,bitstring,bitstring,bitstring,nonce,bitstring,bitstring,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys,key).
+event ClientAccept(nonce,bitstring,bitstring,bitstring,nonce,bitstring,bitstring,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys,key).
+
+query res_secret: key, cs_ats_exp: three_keys, sfk: key, cfk: key, server_hiv: key, client_hiv: key, server_hk: key, client_hk: key, cfin: bitstring, log4: bitstring, m: bitstring, log3: bitstring, log2: bitstring, sr: nonce, log1': bitstring, binder: bitstring, log1: bitstring, cr: nonce;
+  inj-event(ServerTerm(cr, log1, binder, log1', sr, log2, log3, m, log4, cfin, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp, res_secret)) ==> inj-event(ClientAccept(cr, log1, binder, log1', sr, log2, log3, m, log4, cfin, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp, res_secret)) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+event ServerTermDHE(nonce,elt,bitstring,bitstring,bitstring,nonce,elt,bitstring,bitstring,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys,key).
+event ClientAcceptDHE(nonce,elt,bitstring,bitstring,bitstring,nonce,elt,bitstring,bitstring,bitstring,bitstring,bitstring,key,key,key,key,key,key,three_keys,key).
+
+query res_secret: key, cs_ats_exp: three_keys, sfk: key, cfk: key, server_hiv: key, client_hiv: key, server_hk: key, client_hk: key, cfin: bitstring, log4: bitstring, m: bitstring, log3: bitstring, log2: bitstring, gy: elt, sr: nonce, log1': bitstring, binder: bitstring, log1: bitstring, gx: elt, cr: nonce;
+  inj-event(ServerTermDHE(cr, gx, log1, binder, log1', sr, gy, log2, log3, m, log4, cfin, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp, res_secret)) ==> inj-event(ClientAcceptDHE(cr, gx, log1, binder, log1', sr, gy, log2, log3, m, log4, cfin, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, cs_ats_exp, res_secret)) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+(* Early authentication *)
+
+event ServerEarlyTerm(nonce,bitstring,bitstring,bitstring,two_keys).
+event ClientEarlyAccept(nonce,bitstring,bitstring,bitstring,two_keys).
+
+query cets_eems': two_keys, log1'': bitstring, cets_eems: two_keys, log1': bitstring, binder: bitstring, log1: bitstring, cr: nonce;
+  event(ServerEarlyTerm(cr, log1, binder, log1', cets_eems)) ==> event(ClientEarlyAccept(cr, log1, binder, log1'', cets_eems')) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+event ServerEarlyTermDHE(nonce,elt,bitstring,bitstring,bitstring,two_keys).
+event ClientEarlyAcceptDHE(nonce,elt,bitstring,bitstring,bitstring,two_keys).
+
+query cets_eems': two_keys, log1'': bitstring, cets_eems: two_keys, log1': bitstring, binder: bitstring, log1: bitstring, gx: elt, cr: nonce;
+  event(ServerEarlyTermDHE(cr, gx, log1, binder, log1', cets_eems)) ==> event(ClientEarlyAcceptDHE(cr, gx, log1, binder, log1'', cets_eems')) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+(* We cannot prove injectivity because of the replay attack.
+   We cannot prove that log1' is the same on the client and server sides
+   (because it is not included in the MAC).
+   As a result, the early keys cets_eems may also be different on the 
+   client and server sides. *)
+
+(* Unique channel identifier *)
+
+event ClientTerm1(bitstring, bitstring, bitstring).
+event ServerTerm1(bitstring, bitstring, bitstring).
+
+query s_keys: bitstring, s_cfl: bitstring, c_keys: bitstring, c_cfl: bitstring, sfl: bitstring;
+  event(ClientTerm1(sfl, c_cfl, c_keys)) && event(ServerTerm1(sfl, s_cfl, s_keys)) ==> ((c_cfl = s_cfl) && (c_keys = s_keys)) public_vars cets_eems_cDHE, cets_eems_s, cets_eems_c, resumption_secret_sDHE, resumption_secret_cDHE, resumption_secret_s, resumption_secret_c, cs_ats_exp_sDHE, cs_ats_exp_cDHE, cs_ats_exp_s, cs_ats_exp_c, cets_eems_sDHE.
+
+
+letfun send_client_hello1() = 
+   new cr:nonce;
+   cr.
+
+letfun send_client_hello2(earlySecret: extracted, binder_key: key, cr: nonce, log1: bitstring, log1': bitstring) =
+   let chbl = ClientHelloBinderLogInfo(cr,log1) in
+   let binder = mac(binder_key, chbl) in
+   let chl = ClientHelloLogInfo(chbl, binder, log1') in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   (cr, binder, chl, cets_eems).
+
+letfun recv_server_hello(handshakeSecret: extracted, sil:bitstring) = 
+  let ServerHelloLogInfo(chl,sr,l2) = sil in
+  (let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   let client_hts = get_client_hts(cs_hts) in
+   let server_hts = get_server_hts(cs_hts) in
+   let client_hk = HKDF_expand_key_label(client_hts) in
+   let server_hk = HKDF_expand_key_label(server_hts) in
+   let client_hiv = HKDF_expand_iv_label(client_hts) in
+   let server_hiv = HKDF_expand_iv_label(server_hts) in
+   let cfk = HKDF_expand_fin_label(client_hts) in
+   let sfk = HKDF_expand_fin_label(server_hts) in
+   let masterSecret = HKDF_extract_zero(handshakeSecret) in
+   (masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,true))
+  else (zero_extracted,zero_key,zero_key,zero_key,zero_key,zero_key,zero_key,false).
+   
+
+letfun recv_server_finished(sil:bitstring, masterSecret:extracted, sfk: key,
+       		            m:bitstring, 
+			    log3:bitstring) =
+   let scvl = ServerBeforeFinishedLogInfo(sil, log3) in
+   let sfl = ServerFinishedLogInfo(scvl,m) in
+   let cs_ats_exp = Derive_Secret_cs_ats_exp(masterSecret,sfl) in
+   (cs_ats_exp, mac(sfk,scvl) = m).
+			   
+letfun send_client_finished(log:bitstring, cfk:key) = 
+   mac(cfk,log).
+
+letfun get_resumption_secret(masterSecret: extracted, cfl: bitstring) =
+   Derive_Secret_rms(masterSecret, cfl).
+
+letfun recv_client_hello(earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
+   let chbl = ClientHelloBinderLogInfo(cr,log1) in
+   if mac(binder_key, chbl) = binder then
+   (
+   let chl = ClientHelloLogInfo(chbl, binder, log1') in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   new sr:nonce;
+   (sr,chl,cets_eems,true)
+   )
+   else
+   (cr,chbl,zero_two_keys,false).
+
+letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) = 
+   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   let client_hts = get_client_hts(cs_hts) in
+   let server_hts = get_server_hts(cs_hts) in
+   let client_hk = HKDF_expand_key_label(client_hts) in
+   let server_hk = HKDF_expand_key_label(server_hts) in
+   let client_hiv = HKDF_expand_iv_label(client_hts) in
+   let server_hiv = HKDF_expand_iv_label(server_hts) in
+   let cfk = HKDF_expand_fin_label(client_hts) in
+   let sfk = HKDF_expand_fin_label(server_hts) in
+   let masterSecret = HKDF_extract_zero(handshakeSecret) in
+   (client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, masterSecret).
+
+letfun send_server_finished(scvl:bitstring,sfk:key) = 
+   mac(sfk,scvl).
+
+letfun onertt_data_keys(masterSecret: extracted, sfl:bitstring) = 
+   Derive_Secret_cs_ats_exp(masterSecret,sfl).
+
+letfun check_client_finished(masterSecret: extracted, ccvl:bitstring,cfin:bitstring,cfk:key) = 
+   if mac(cfk,ccvl) = cfin then
+   (
+       let cfl = ClientFinishedLogInfo(ccvl, cfin) in
+       let resumption_secret = Derive_Secret_rms(masterSecret, cfl) in
+       (resumption_secret, true)
+   )
+   else
+       (zero_key, false).
+
+(* Functions modified for the version with DHE *)
+
+letfun send_client_hello1DHE() = 
+   new cr:nonce;
+   new x:key;
+   let gx = exp(G,x) in
+   (cr,x,gx).
+
+letfun send_client_hello2DHE(earlySecret: extracted, binder_key: key, cr: nonce, x:key, gx: elt, log1: bitstring, log1': bitstring) = 
+   let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
+   let binder = mac(binder_key, chbl) in
+   let chl = ClientHelloLogInfo(chbl, binder, log1') in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   (cr,x,gx, binder, chl, cets_eems).
+
+letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:key) = 
+  let ServerHelloLogInfoDHE(chl,sr,gy,l2) = sil in
+  (let s = exp(gy,x) in
+   let handshakeSecret = HKDF_extract_DHE(earlySecret, s) in
+   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   let client_hts = get_client_hts(cs_hts) in
+   let server_hts = get_server_hts(cs_hts) in
+   let client_hk = HKDF_expand_key_label(client_hts) in
+   let server_hk = HKDF_expand_key_label(server_hts) in
+   let client_hiv = HKDF_expand_iv_label(client_hts) in
+   let server_hiv = HKDF_expand_iv_label(server_hts) in
+   let cfk = HKDF_expand_fin_label(client_hts) in
+   let sfk = HKDF_expand_fin_label(server_hts) in
+   let masterSecret = HKDF_extract_zero(handshakeSecret) in
+   (masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,true))
+  else (zero_extracted,zero_key,zero_key,zero_key,zero_key,zero_key,zero_key,false).
+
+letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
+   let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
+   if mac(binder_key, chbl) = binder then
+   (
+   let chl = ClientHelloLogInfo(chbl, binder, log1') in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   new sr:nonce;
+   new y: key;
+   let gy = exp(G,y) in
+   let s = exp(gx,y) in
+   let handshakeSecret = HKDF_extract_DHE(earlySecret,s) in   
+   (sr,gy,handshakeSecret,chl,cets_eems,true)
+   )
+   else
+   (cr,gx,zero_extracted,chbl,zero_two_keys,false).
+
+
+param N1,N5,N6,
+      N7,N8,N9,N10,N11,N12,
+      N13,N14,N15,N16.
+
+(* PSK without DHE *)
+
+
+
+
+
+(* PSKDHE *)
+
+
+
+
+
+process 
+  in(io20, ());
+new hk: hashkey;
+new PSK: key;
+let earlySecret: extracted = HKDF_extract_zero_salt(hk, PSK) in
+let binder_key: key = Derive_Secret_psk_binder_key(earlySecret) in
+let handshakeSecret: extracted = HKDF_extract_zero1(earlySecret) in
+out(io21, ());
+((
+  ! i_1 <= N1
+  in(io1[i_1], log1_1: bitstring);
+  let cr_1: nonce = (new cr: nonce; cr) in
+  out(io1'[i_1], cr_1);
+  in(io2'[i_1], log1'_1: bitstring);
+  let (cr_3: nonce, binder_2: bitstring, chl_2: bitstring, cets_eems_2: two_keys) = (let earlySecret_1: extracted = earlySecret in (let binder_key_1: key = binder_key in (let cr_2: nonce = cr_1 in (let log1_2: bitstring = log1_1 in (let log1'_2: bitstring = log1'_1 in (let chbl: bitstring = ClientHelloBinderLogInfo(cr_2, log1_2) in (let binder_1: bitstring = mac(binder_key_1, chbl) in (let chl_1: bitstring = ClientHelloLogInfo(chbl, binder_1, log1'_2) in (let cets_eems_1: two_keys = Derive_Secret_cets_eems(earlySecret_1, chl_1) in (cr_2, binder_1, chl_1, cets_eems_1)))))))))) in
+  event ClientEarlyAccept(cr_3, log1_1, binder_2, log1'_1, cets_eems_2);
+  let cets_eems_c: two_keys = cets_eems_2 in
+  out(io2[i_1], ClientHelloOut(cr_3, binder_2));
+  in(io3[i_1], ServerHelloIn(sr: nonce, log2: bitstring));
+  let sil: bitstring = ServerHelloLogInfo(chl_2, sr, log2) in
+  let (masterSecret_2: extracted, client_hk_2: key, server_hk_2: key, client_hiv_2: key, server_hiv_2: key, cfk_2: key, sfk_2: key, =true) = (let handshakeSecret_1: extracted = handshakeSecret in (let sil_1: bitstring = sil in let ServerHelloLogInfo(chl_3: bitstring, sr_1: nonce, l2: bitstring) = sil_1 in (let cs_hts: two_keys = Derive_Secret_cs_hts(handshakeSecret_1, sil_1) in (let client_hts: key = get_client_hts(cs_hts) in (let server_hts: key = get_server_hts(cs_hts) in (let client_hk_1: key = HKDF_expand_key_label(client_hts) in (let server_hk_1: key = HKDF_expand_key_label(server_hts) in (let client_hiv_1: key = HKDF_expand_iv_label(client_hts) in (let server_hiv_1: key = HKDF_expand_iv_label(server_hts) in (let cfk_1: key = HKDF_expand_fin_label(client_hts) in (let sfk_1: key = HKDF_expand_fin_label(server_hts) in (let masterSecret_1: extracted = HKDF_extract_zero(handshakeSecret_1) in (masterSecret_1, client_hk_1, server_hk_1, client_hiv_1, server_hiv_1, cfk_1, sfk_1, true))))))))))) else (zero_extracted, zero_key, zero_key, zero_key, zero_key, zero_key, zero_key, false))) in
+  out(io4[i_1], (client_hk_2, server_hk_2, client_hiv_2, server_hiv_2));
+  in(io5[i_1], (ServerFinishedIn(log3: bitstring, m_2: bitstring), ClientAuth_1: bool, log4_1: bitstring));
+  let (cs_ats_exp_2: three_keys, =true) = (let sil_2: bitstring = sil in (let masterSecret_3: extracted = masterSecret_2 in (let sfk_3: key = sfk_2 in (let m_3: bitstring = m_2 in (let log3_1: bitstring = log3 in (let scvl: bitstring = ServerBeforeFinishedLogInfo(sil_2, log3_1) in (let sfl: bitstring = ServerFinishedLogInfo(scvl, m_3) in (let cs_ats_exp_1: three_keys = Derive_Secret_cs_ats_exp(masterSecret_3, sfl) in (cs_ats_exp_1, (mac(sfk_3, scvl) = m_3)))))))))) in
+  let scvl_1: bitstring = ServerBeforeFinishedLogInfo(sil, log3) in
+  let c_sfl_1: bitstring = ServerFinishedLogInfo(scvl_1, m_2) in
+  let ccvl: bitstring = ClientBeforeFinishedLogInfo(c_sfl_1, log4_1) in
+  let cfin: bitstring = (let log: bitstring = ccvl in (let cfk_3: key = cfk_2 in mac(cfk_3, log))) in
+  let cfl: bitstring = ClientFinishedLogInfo(ccvl, cfin) in
+  let resumption_secret: key = (let masterSecret_4: extracted = masterSecret_2 in (let cfl_1: bitstring = cfl in Derive_Secret_rms(masterSecret_4, cfl_1))) in
+  event ClientAccept(cr_3, log1_1, binder_2, log1'_1, sr, log2, log3, m_2, log4_1, cfin, client_hk_2, server_hk_2, client_hiv_2, server_hiv_2, cfk_2, sfk_2, cs_ats_exp_2, resumption_secret);
+  event ClientTerm1((cr_3, log1_1, binder_2, log1'_1, sr, log2, log3, m_2), (log4_1, cfin), (client_hk_2, server_hk_2, client_hiv_2, server_hiv_2, cfk_2, sfk_2, cs_ats_exp_2, resumption_secret));
+  out(io6[i_1], ClientFinishedOut(cfin));
+  in(io7[i_1], ());
+  event ClientTerm(cr_3, log1_1, binder_2, log1'_1, sr, log2, log3, m_2, client_hk_2, server_hk_2, client_hiv_2, server_hiv_2, cfk_2, sfk_2, cs_ats_exp_2);
+  let cs_ats_exp_c: three_keys = cs_ats_exp_2 in
+  let resumption_secret_c: key = resumption_secret in
+  out(io8[i_1], ())
+) | (
+  ! i_2 <= N6
+  in(io9[i_2], ClientHelloIn(cr_4: nonce, log1_3: bitstring, binder_3: bitstring, log1'_3: bitstring));
+  let (sr_3: nonce, chl_5: bitstring, cets_eems_4: two_keys, =true) = (let earlySecret_2: extracted = earlySecret in (let binder_key_2: key = binder_key in (let cr_5: nonce = cr_4 in (let log1_4: bitstring = log1_3 in (let binder_4: bitstring = binder_3 in (let log1'_4: bitstring = log1'_3 in (let chbl_1: bitstring = ClientHelloBinderLogInfo(cr_5, log1_4) in if mac(binder_key_2, chbl_1) = binder_4 then (let chl_4: bitstring = ClientHelloLogInfo(chbl_1, binder_4, log1'_4) in (let cets_eems_3: two_keys = Derive_Secret_cets_eems(earlySecret_2, chl_4) in new sr_2: nonce; (sr_2, chl_4, cets_eems_3, true))) else (cr_5, chbl_1, zero_two_keys, false)))))))) in
+  event ServerEarlyTerm(cr_4, log1_3, binder_3, log1'_3, cets_eems_4);
+  let cets_eems_s: two_keys = cets_eems_4 in
+  out(io10[i_2], ServerHelloOut(sr_3));
+  in(io11[i_2], log2_1: bitstring);
+  let sil_3: bitstring = ServerHelloLogInfo(chl_5, sr_3, log2_1) in
+  let (client_hk_4: key, server_hk_4: key, client_hiv_4: key, server_hiv_4: key, cfk_5: key, sfk_5: key, masterSecret_6: extracted) = (let sil_4: bitstring = sil_3 in (let handshakeSecret_2: extracted = handshakeSecret in (let cs_hts_1: two_keys = Derive_Secret_cs_hts(handshakeSecret_2, sil_4) in (let client_hts_1: key = get_client_hts(cs_hts_1) in (let server_hts_1: key = get_server_hts(cs_hts_1) in (let client_hk_3: key = HKDF_expand_key_label(client_hts_1) in (let server_hk_3: key = HKDF_expand_key_label(server_hts_1) in (let client_hiv_3: key = HKDF_expand_iv_label(client_hts_1) in (let server_hiv_3: key = HKDF_expand_iv_label(server_hts_1) in (let cfk_4: key = HKDF_expand_fin_label(client_hts_1) in (let sfk_4: key = HKDF_expand_fin_label(server_hts_1) in (let masterSecret_5: extracted = HKDF_extract_zero(handshakeSecret_2) in (client_hk_3, server_hk_3, client_hiv_3, server_hiv_3, cfk_4, sfk_4, masterSecret_5))))))))))))) in
+  out(io12[i_2], (client_hk_4, server_hk_4, client_hiv_4, server_hiv_4));
+  in(io13[i_2], log3_2: bitstring);
+  let scvl_2: bitstring = ServerBeforeFinishedLogInfo(sil_3, log3_2) in
+  let m_4: bitstring = (let scvl_3: bitstring = scvl_2 in (let sfk_6: key = sfk_5 in mac(sfk_6, scvl_3))) in
+  let s_sfl: bitstring = ServerFinishedLogInfo(scvl_2, m_4) in
+  let cs_ats_exp_3: three_keys = (let masterSecret_7: extracted = masterSecret_6 in (let sfl_1: bitstring = s_sfl in Derive_Secret_cs_ats_exp(masterSecret_7, sfl_1))) in
+  event ServerAccept(cr_4, log1_3, binder_3, log1'_3, sr_3, log2_1, log3_2, m_4, client_hk_4, server_hk_4, client_hiv_4, server_hiv_4, cfk_5, sfk_5, cs_ats_exp_3);
+  let cs_ats_exp_s: three_keys = cs_ats_exp_3 in
+  out(io18[i_2], ServerFinishedOut(m_4));
+  in(io19[i_2], ClientFinishedIn(log4_2: bitstring, cfin_1: bitstring));
+  let ccvl_1: bitstring = ClientBeforeFinishedLogInfo(s_sfl, log4_2) in
+  let (resumption_secret_2: key, =true) = (let masterSecret_8: extracted = masterSecret_6 in (let ccvl_2: bitstring = ccvl_1 in (let cfin_2: bitstring = cfin_1 in (let cfk_6: key = cfk_5 in if mac(cfk_6, ccvl_2) = cfin_2 then (let cfl_2: bitstring = ClientFinishedLogInfo(ccvl_2, cfin_2) in (let resumption_secret_1: key = Derive_Secret_rms(masterSecret_8, cfl_2) in (resumption_secret_1, true))) else (zero_key, false))))) in
+  event ServerTerm(cr_4, log1_3, binder_3, log1'_3, sr_3, log2_1, log3_2, m_4, log4_2, cfin_1, client_hk_4, server_hk_4, client_hiv_4, server_hiv_4, cfk_5, sfk_5, cs_ats_exp_3, resumption_secret_2);
+  event ServerTerm1((cr_4, log1_3, binder_3, log1'_3, sr_3, log2_1, log3_2, m_4), (log4_2, cfin_1), (client_hk_4, server_hk_4, client_hiv_4, server_hiv_4, cfk_5, sfk_5, cs_ats_exp_3, resumption_secret_2));
+  let resumption_secret_s: key = resumption_secret_2 in
+  out(io30[i_2], ())
+) | (
+  ! i_3 <= N2
+  in(io1[i_3], log1_5: bitstring);
+  let (cr_7: nonce, x_5: key, gx: elt) = (new cr_6: nonce; new x_4: key; let gx_1: elt = exp(G, x_4) in (cr_6, x_4, gx_1)) in
+  out(io1'[i_3], (cr_7, gx));
+  in(io2'[i_3], log1'_5: bitstring);
+  let (cr_9: nonce, x_7: key, cgx: elt, binder_6: bitstring, chl_7: bitstring, cets_eems_6: two_keys) = (let earlySecret_3: extracted = earlySecret in (let binder_key_3: key = binder_key in (let cr_8: nonce = cr_7 in (let x_6: key = x_5 in (let gx_2: elt = gx in (let log1_6: bitstring = log1_5 in (let log1'_6: bitstring = log1'_5 in (let chbl_2: bitstring = ClientHelloBinderLogInfoDHE(cr_8, gx_2, log1_6) in (let binder_5: bitstring = mac(binder_key_3, chbl_2) in (let chl_6: bitstring = ClientHelloLogInfo(chbl_2, binder_5, log1'_6) in (let cets_eems_5: two_keys = Derive_Secret_cets_eems(earlySecret_3, chl_6) in (cr_8, x_6, gx_2, binder_5, chl_6, cets_eems_5)))))))))))) in
+  event ClientEarlyAcceptDHE(cr_9, cgx, log1_5, binder_6, log1'_5, cets_eems_6);
+  let cets_eems_cDHE: two_keys = cets_eems_6 in
+  out(io2[i_3], ClientHelloOutDHE(cr_9, cgx, binder_6));
+  in(io3[i_3], ServerHelloInDHE(sr_4: nonce, cgy: elt, log2_2: bitstring));
+  let sil_5: bitstring = ServerHelloLogInfoDHE(chl_7, sr_4, cgy, log2_2) in
+  let (masterSecret_10: extracted, client_hk_6: key, server_hk_6: key, client_hiv_6: key, server_hiv_6: key, cfk_8: key, sfk_8: key, =true) = (let earlySecret_4: extracted = earlySecret in (let sil_6: bitstring = sil_5 in (let x_8: key = x_7 in let ServerHelloLogInfoDHE(chl_8: bitstring, sr_5: nonce, gy: elt, l2_1: bitstring) = sil_6 in (let s: elt = exp(gy, x_8) in (let handshakeSecret_3: extracted = HKDF_extract_DHE(earlySecret_4, s) in (let cs_hts_2: two_keys = Derive_Secret_cs_hts(handshakeSecret_3, sil_6) in (let client_hts_2: key = get_client_hts(cs_hts_2) in (let server_hts_2: key = get_server_hts(cs_hts_2) in (let client_hk_5: key = HKDF_expand_key_label(client_hts_2) in (let server_hk_5: key = HKDF_expand_key_label(server_hts_2) in (let client_hiv_5: key = HKDF_expand_iv_label(client_hts_2) in (let server_hiv_5: key = HKDF_expand_iv_label(server_hts_2) in (let cfk_7: key = HKDF_expand_fin_label(client_hts_2) in (let sfk_7: key = HKDF_expand_fin_label(server_hts_2) in (let masterSecret_9: extracted = HKDF_extract_zero(handshakeSecret_3) in (masterSecret_9, client_hk_5, server_hk_5, client_hiv_5, server_hiv_5, cfk_7, sfk_7, true))))))))))))) else (zero_extracted, zero_key, zero_key, zero_key, zero_key, zero_key, zero_key, false)))) in
+  out(io4[i_3], (client_hk_6, server_hk_6, client_hiv_6, server_hiv_6));
+  in(io5[i_3], (ServerFinishedIn(log3_3: bitstring, m_5: bitstring), ClientAuth_2: bool, log4_3: bitstring));
+  let (cs_ats_exp_5: three_keys, =true) = (let sil_7: bitstring = sil_5 in (let masterSecret_11: extracted = masterSecret_10 in (let sfk_9: key = sfk_8 in (let m_6: bitstring = m_5 in (let log3_4: bitstring = log3_3 in (let scvl_4: bitstring = ServerBeforeFinishedLogInfo(sil_7, log3_4) in (let sfl_2: bitstring = ServerFinishedLogInfo(scvl_4, m_6) in (let cs_ats_exp_4: three_keys = Derive_Secret_cs_ats_exp(masterSecret_11, sfl_2) in (cs_ats_exp_4, (mac(sfk_9, scvl_4) = m_6)))))))))) in
+  let scvl_5: bitstring = ServerBeforeFinishedLogInfo(sil_5, log3_3) in
+  let c_sfl_2: bitstring = ServerFinishedLogInfo(scvl_5, m_5) in
+  let ccvl_3: bitstring = ClientBeforeFinishedLogInfo(c_sfl_2, log4_3) in
+  let cfin_3: bitstring = (let log_1: bitstring = ccvl_3 in (let cfk_9: key = cfk_8 in mac(cfk_9, log_1))) in
+  let cfl_3: bitstring = ClientFinishedLogInfo(ccvl_3, cfin_3) in
+  let resumption_secret_3: key = (let masterSecret_12: extracted = masterSecret_10 in (let cfl_4: bitstring = cfl_3 in Derive_Secret_rms(masterSecret_12, cfl_4))) in
+  event ClientAcceptDHE(cr_9, cgx, log1_5, binder_6, log1'_5, sr_4, cgy, log2_2, log3_3, m_5, log4_3, cfin_3, client_hk_6, server_hk_6, client_hiv_6, server_hiv_6, cfk_8, sfk_8, cs_ats_exp_5, resumption_secret_3);
+  event ClientTerm1((cr_9, cgx, log1_5, binder_6, log1'_5, sr_4, cgy, log2_2, log3_3, m_5), (log4_3, cfin_3), (client_hk_6, server_hk_6, client_hiv_6, server_hiv_6, cfk_8, sfk_8, cs_ats_exp_5, resumption_secret_3));
+  out(io6[i_3], ClientFinishedOut(cfin_3));
+  in(io7[i_3], ());
+  event ClientTermDHE(cr_9, cgx, log1_5, binder_6, log1'_5, sr_4, cgy, log2_2, log3_3, m_5, client_hk_6, server_hk_6, client_hiv_6, server_hiv_6, cfk_8, sfk_8, cs_ats_exp_5);
+  let cs_ats_exp_cDHE: three_keys = cs_ats_exp_5 in
+  let resumption_secret_cDHE: key = resumption_secret_3 in
+  out(io8[i_3], ())
+) | (
+  ! i_4 <= N7
+  in(io9[i_4], ClientHelloInDHE(cr_10: nonce, sgx: elt, log1_7: bitstring, binder_7: bitstring, log1'_7: bitstring));
+  let (sr_7: nonce, sgy: elt, handshakeSecret_5: extracted, chl_10: bitstring, cets_eems_8: two_keys, =true) = (let earlySecret_5: extracted = earlySecret in (let binder_key_4: key = binder_key in (let cr_11: nonce = cr_10 in (let gx_3: elt = sgx in (let log1_8: bitstring = log1_7 in (let binder_8: bitstring = binder_7 in (let log1'_8: bitstring = log1'_7 in (let chbl_3: bitstring = ClientHelloBinderLogInfoDHE(cr_11, gx_3, log1_8) in if mac(binder_key_4, chbl_3) = binder_8 then (let chl_9: bitstring = ClientHelloLogInfo(chbl_3, binder_8, log1'_8) in (let cets_eems_7: two_keys = Derive_Secret_cets_eems(earlySecret_5, chl_9) in (new sr_6: nonce; new y_1: key; let gy_1: elt = exp(G, y_1) in (let s_1: elt = exp(gx_3, y_1) in (let handshakeSecret_4: extracted = HKDF_extract_DHE(earlySecret_5, s_1) in (sr_6, gy_1, handshakeSecret_4, chl_9, cets_eems_7, true)))))) else (cr_11, gx_3, zero_extracted, chbl_3, zero_two_keys, false))))))))) in
+  event ServerEarlyTermDHE(cr_10, sgx, log1_7, binder_7, log1'_7, cets_eems_8);
+  let cets_eems_sDHE: two_keys = cets_eems_8 in
+  out(io10[i_4], ServerHelloOutDHE(sr_7, sgy));
+  in(io11[i_4], log2_3: bitstring);
+  let sil_8: bitstring = ServerHelloLogInfoDHE(chl_10, sr_7, sgy, log2_3) in
+  let (client_hk_8: key, server_hk_8: key, client_hiv_8: key, server_hiv_8: key, cfk_11: key, sfk_11: key, masterSecret_14: extracted) = (let sil_9: bitstring = sil_8 in (let handshakeSecret_6: extracted = handshakeSecret_5 in (let cs_hts_3: two_keys = Derive_Secret_cs_hts(handshakeSecret_6, sil_9) in (let client_hts_3: key = get_client_hts(cs_hts_3) in (let server_hts_3: key = get_server_hts(cs_hts_3) in (let client_hk_7: key = HKDF_expand_key_label(client_hts_3) in (let server_hk_7: key = HKDF_expand_key_label(server_hts_3) in (let client_hiv_7: key = HKDF_expand_iv_label(client_hts_3) in (let server_hiv_7: key = HKDF_expand_iv_label(server_hts_3) in (let cfk_10: key = HKDF_expand_fin_label(client_hts_3) in (let sfk_10: key = HKDF_expand_fin_label(server_hts_3) in (let masterSecret_13: extracted = HKDF_extract_zero(handshakeSecret_6) in (client_hk_7, server_hk_7, client_hiv_7, server_hiv_7, cfk_10, sfk_10, masterSecret_13))))))))))))) in
+  out(io12[i_4], (client_hk_8, server_hk_8, client_hiv_8, server_hiv_8));
+  in(io13[i_4], log3_5: bitstring);
+  let scvl_6: bitstring = ServerBeforeFinishedLogInfo(sil_8, log3_5) in
+  let m_7: bitstring = (let scvl_7: bitstring = scvl_6 in (let sfk_12: key = sfk_11 in mac(sfk_12, scvl_7))) in
+  let s_sfl_1: bitstring = ServerFinishedLogInfo(scvl_6, m_7) in
+  let cs_ats_exp_6: three_keys = (let masterSecret_15: extracted = masterSecret_14 in (let sfl_3: bitstring = s_sfl_1 in Derive_Secret_cs_ats_exp(masterSecret_15, sfl_3))) in
+  event ServerAcceptDHE(cr_10, sgx, log1_7, binder_7, log1'_7, sr_7, sgy, log2_3, log3_5, m_7, client_hk_8, server_hk_8, client_hiv_8, server_hiv_8, cfk_11, sfk_11, cs_ats_exp_6);
+  let cs_ats_exp_sDHE: three_keys = cs_ats_exp_6 in
+  out(io18[i_4], ServerFinishedOut(m_7));
+  in(io19[i_4], ClientFinishedIn(log4_4: bitstring, cfin_4: bitstring));
+  let ccvl_4: bitstring = ClientBeforeFinishedLogInfo(s_sfl_1, log4_4) in
+  let (resumption_secret_5: key, =true) = (let masterSecret_16: extracted = masterSecret_14 in (let ccvl_5: bitstring = ccvl_4 in (let cfin_5: bitstring = cfin_4 in (let cfk_12: key = cfk_11 in if mac(cfk_12, ccvl_5) = cfin_5 then (let cfl_5: bitstring = ClientFinishedLogInfo(ccvl_5, cfin_5) in (let resumption_secret_4: key = Derive_Secret_rms(masterSecret_16, cfl_5) in (resumption_secret_4, true))) else (zero_key, false))))) in
+  event ServerTermDHE(cr_10, sgx, log1_7, binder_7, log1'_7, sr_7, sgy, log2_3, log3_5, m_7, log4_4, cfin_4, client_hk_8, server_hk_8, client_hiv_8, server_hiv_8, cfk_11, sfk_11, cs_ats_exp_6, resumption_secret_5);
+  event ServerTerm1((cr_10, sgx, log1_7, binder_7, log1'_7, sr_7, sgy, log2_3, log3_5, m_7), (log4_4, cfin_4), (client_hk_8, server_hk_8, client_hiv_8, server_hiv_8, cfk_11, sfk_11, cs_ats_exp_6, resumption_secret_5));
+  let resumption_secret_sDHE: key = resumption_secret_5 in
+  out(io30[i_4], ())
+) | (
+  ! i_5 <= qH
+  in(c1[i_5], x_9: key);
+  out(c2[i_5], HKDF_extract_zero_salt(hk, x_9))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+137.352s (user 137.004s + system 0.348s), max rss 1053280K
+END *)

@@ -1,0 +1,63 @@
+(* Bug in CryptoVerif 1.09: 
+it transforms defined(m[k2]) into defined(m[k1]) 
+although they are not equivalent (k2 is defined only when x = x')
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+proof {
+show_game
+}
+
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle = ! qH in(hc1, z: hashinput); out(hc2, h(hk,z)).
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+let processU =
+	in(c1, (m: hash, m':hash, a:bool, b:bool));
+	let y:hash = if a = b then m else m' in
+	out(c2, y);
+	in(c3, ());
+	if defined(m[k2]) then
+	out(c2, true)
+	else
+	out(c2, false).
+
+let processS =
+	in(c3, (x: hashinput, x': hashinput));
+	find k1<=N suchthat defined(m[k1]) then
+	if x = x' then
+	find k2<=N suchthat defined(k1) && k2 = k1 then
+	new s:hash;
+        out(c4, s).
+
+process 
+	in(hstart, ());
+	new hk: hashkey;
+	out(hret, ());
+	((! N processU) |
+	 processS | hashoracle)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.030s (user 0.020s + system 0.010s), max rss 16176K
+END *)

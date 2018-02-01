@@ -1,0 +1,237 @@
+(* Skeme *)
+
+set interactiveMode = true.
+
+(* The proof is as follows:
+
+SArename Rkey
+crypto enc rkA
+crypto enc rkB
+crypto hash
+simplify
+crypto mac *
+crypto exp
+simplify
+auto
+
+Note: 28/05/2009: "crypto exp" fails with the current version 
+
+
+*)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [fixed,large].
+type host [fixed].
+type key [fixed].
+type keyseed [large,fixed].
+type seed [fixed].
+type macs.
+type blocksize [fixed].
+type blocksizebot.
+type skey [fixed]. (* distributed key *)
+type group [fixed]. (* Diffie-Hellman elements; should probably compute 
+		       a random DH element from coins, instead of taking
+		       coins directly *)
+
+fun concat1(host, nonce):blocksize [compos].
+fun pad(nonce):blocksize [compos].
+
+forall y:host,z:nonce,y2:nonce;
+	concat1(y,z) <> pad(y2).
+
+(* Public-key encryption (CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+fun enc(blocksize, key, seed): bitstring.
+fun skgen(keyseed):key.
+fun pkgen(keyseed):key.
+fun dec(bitstring, key): blocksizebot.
+
+fun enc2(blocksize, key, seed): bitstring.
+fun skgen2(keyseed):key.
+fun pkgen2(keyseed):key.
+fun dec2(bitstring, key): blocksizebot.
+
+fun injbot(blocksize):blocksizebot [compos].
+
+const Z:blocksize.
+
+forall m:blocksize, r:keyseed, r2:seed; 
+	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
+forall m:blocksize, r:keyseed, r2:seed; 
+	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+
+equiv  !N3 new r: keyseed; (() N -> pkgen(r),
+			    (m:bitstring) N2 -> dec(m, skgen(r))),
+       (x:blocksize, y:key) N4 -> new r2:seed; enc(x,y,r2) [all]
+     <=(N4 * Penc)=> 
+       !N3 new r: keyseed; (() N -> pkgen2(r),
+			    (m:bitstring) N2 -> 
+		find j <= N4 suchthat defined(m2[j],y[j],x2[j]) &&
+		y[j] = pkgen2(r) && m = m2[j] then injbot(x2[j]) else dec2(m, skgen2(r))),
+       (x:blocksize, y:key) N4 -> new r2:seed; new r3:seed;
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+			(let x2:blocksize = x in
+			let m2:bitstring = enc2(Z, y, r2) in
+			m2)
+		else enc(x,y,r3).
+
+collision new r1:keyseed; new r2:keyseed; 
+	pkgen(r1) = pkgen(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed; 
+	pkgen2(r1) = pkgen2(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed; 
+	skgen(r1) = skgen(r2) <=(Penccoll)=> r1 = r2.
+collision new r1:keyseed; new r2:keyseed; 
+	skgen2(r1) = skgen2(r2) <=(Penccoll)=> r1 = r2.
+
+(* Keyed hash function (mac) *)
+
+proba Pmac.
+
+fun mac(bitstring, skey):macs.
+fun check(bitstring, skey, macs): bool.
+
+fun mac2(bitstring, skey):macs.
+fun check2(bitstring, skey, macs): bool.
+
+forall m:bitstring, r:skey;
+	check(m, r, mac(m, r)).
+forall m:bitstring, r:skey;
+	check2(m, r, mac2(m, r)).
+
+equiv !N3 new r: skey;(
+	 (x: bitstring) N -> mac(x, r),
+	 (m: bitstring, ma: macs) N2 -> check(m, r, ma))
+     <=(N3 * N2 * Pmac)=>
+      !N3 new r: skey;(
+	 (x: bitstring) N -> mac2(x, r),
+	 (m: bitstring, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], r, ma) then true else false).
+
+(* Diffie-Hellman *)
+
+proba PDH.
+proba PDHcoll.
+
+const mark:bitstring.
+
+fun baseexp(group):group.
+fun exp(group,group):group.
+fun baseexp2(group):group.
+fun exp2(group,group):group.
+
+equiv ! N new a:group; (() -> baseexp(a), (m:group) -> exp(m,a)) [all]
+      <=(N * PDH)=>
+      ! N new a:group; new c:group; (() -> baseexp2(a), (m:group) ->
+	     find j <= N suchthat defined(m[j],c[j],c2[j],a[j]) &&
+			baseexp2(a[j]) = m && m[j] = baseexp2(a) 
+	     then baseexp2(c[j]) else
+	     find j <= N suchthat defined(a[j]) && baseexp2(a[j]) = m 
+	     then (let c2:bitstring = mark in baseexp2(c)) else
+             exp2(m, a)).
+
+collision new x:group; new y:group;
+	(baseexp(x) = baseexp(y)) <=(PDHcoll)=> (x = y).
+collision new x:group; new y:group;
+	(baseexp2(x) = baseexp2(y)) <=(PDHcoll)=> (x = y).
+(* This is true only with high probability, when x,y are random numbers *)
+
+(* Hash function, random oracle model *)
+
+proba Phash.
+
+fun hash(bitstring):skey.
+
+equiv (x:bitstring) N -> hash(x) [all]
+      <=(Phash)=>
+      (x:bitstring) N -> find j <= N suchthat defined(x[j],r[j]) && x= x[j] then r[j] else
+			 new r:skey; r.
+
+fun g2b(group):bitstring [compos].
+forall y:nonce, z:nonce, g:group, g2:group;
+	(y,z) <> g2b(exp(g,g2)).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+query secret1 keyA.
+query secret1 keyB.
+
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, start, finish.
+const A : host.
+const B : host.
+
+let processA =
+	in(c1, hostX: host);
+	(* Find the public key *)
+	find j <= N2 suchthat defined(Khost[j],Rkey[j]) && Khost[j] = hostX then 
+	let pkX = Rkey[j] in
+	(* Message 1 *)
+	new Ka : nonce; new x : group;
+	let gx = baseexp(x) in
+	new r1: seed;
+	out(c2, (enc(concat1(A, Ka), pkX, r1), gx));
+	(* Message 2 *)
+	in(c3, (m1:bitstring, m2:group, m3:macs));
+	let injbot(pad(Kb)) = dec(m1, skA) in
+	let K0 = hash((Ka, Kb)) in
+	if check((gx, m2, hostX, A), K0, m3) then
+	(* Message 3 *)
+	out(c4, mac((m2, gx, A, hostX), K0));
+	in(finish, =());
+	let sh = hash(g2b(exp(m2, x))) in
+	(* OK *)
+	if hostX = B then
+	let keyA:skey = sh.
+
+let processB =
+	(* Message 1 *)
+	in(c5, (m1:bitstring, m2:group));
+	let injbot(concat1(hostY, Ka)) = dec(m1, skB) in
+	(* Find the public key *)
+	find j <= N2 suchthat defined(Khost[j],Rkey[j]) && Khost[j] = hostY then 
+	let pkY = Rkey[j] in
+	(* Message 2 *)
+	new Kb : nonce; new y : group;
+	let gy = baseexp(y) in
+	let K0 = hash((Ka, Kb)) in
+	new r2: seed;
+	out(c6, (enc(pad(Kb), pkY, r2), gy, mac((m2, gy, B, hostY), K0)));
+	(* Message 3 *)
+	in(c7, m3:macs);
+	if check((gy, m2, hostY, B), K0, m3) then
+	let sh = hash(g2b(exp(m2, y))) in
+	(* OK *)
+	if hostY = A then
+	let keyB:skey = sh.
+
+let processK =
+	in(c8, (Khost: host, Kkey: key));
+	let Rkey:key = 
+		if Khost = A then pkA else
+		if Khost = B then pkB else
+		Kkey.
+
+process 
+	in(start, =());
+	new rkA: keyseed;
+	let pkA = pkgen(rkA) in
+	let skA = skgen(rkA) in
+	new rkB: keyseed;
+	let pkB = pkgen(rkB) in
+	let skB = skgen(rkB) in
+	out(c9, (pkA, pkB));
+	((! N processA) |
+	 (! N processB) | 
+	 (! N2 processK) |
+	 (! N3 in(c10,x:bitstring);out(c11,hash(x))))
+

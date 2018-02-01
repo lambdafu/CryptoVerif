@@ -1,0 +1,175 @@
+(* A new signcryption scheme originated from KCDSA *)
+(*
+proof {
+crypto rom(h0);
+crypto rom(h1);
+crypto cdh(exp);
+crypto ind_cpa(enc);
+success
+}
+*)
+
+(* Parameter and type declarations *)
+param N, N2, N3.
+type Z [large,bounded].
+type G [large,bounded].
+
+type pkey [bounded].
+type skey [bounded].
+type key [bounded].
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type secretData[large, bounded].
+
+
+type hash0 [fixed].
+type hash1 [fixed,large].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc_sc(keyseed, key, bitstring, bitstring, seed, enc, dec, injbot, ZZ, Penc).
+
+(* Hash functions in the random oracle model*)
+
+type hashkey[fixed]. 
+param nH0, nH1 [noninteractive]. 
+expand ROM_hash(hashkey, bitstring, hash0, h0).
+
+channel h0c1, h0c2.
+let processH0 = !nH0 in(h0c1, h0x: bitstring); out(h0c2, h0(hk0, h0x)). 
+
+expand ROM_hash(hashkey, bitstring, hash1, h1).
+
+channel h1c1, h1c2.
+let processH1 = !nH1 in(h1c1, h1x: bitstring); out(h1c2, h1(hk1, h1x)). 
+
+
+(* Xor *)
+(* expand Xor(hash1, xor, zero).
+*)
+
+
+(* Host name*)
+const ID_S: host.
+const ID_R: host.
+
+const one: Z.
+
+(* Queries *)
+query secret keyS.
+query secret keyR.
+
+
+(* Functions *)
+fun G_to_bitstring(G): bitstring.
+fun skey_to_Z(skey): Z.
+fun pkey_to_G(pkey): G.
+fun hash0_to_key(hash0): key.
+fun bitstring_to_key(bitstring): key.
+fun secretData_to_key(secretData): key.
+fun secretData_to_bitstring(secretData): bitstring.
+fun hash1_to_Z(hash1): Z.
+fun concat(host, host, pkey, pkey, G, bitstring): bitstring [compos].
+
+(* Inversion function *)
+fun inv(Z): Z.
+forall y: Z;
+	mult(y, inv(y)) = one.
+forall x:Z, y: Z;
+	exp(exp(g, inv(x)), (mult(x, y))) = exp(g, y).
+
+fun skgen(keyseed): skey.
+fun pkgen(keyseed): pkey.
+forall r: keyseed;
+	exp(g, inv(skey_to_Z(skgen(r)))) = pkey_to_G(pkgen(r)). 
+
+(* Negation & mutiplication on G *)
+fun neg(Z, Z): Z.
+fun mult_G(G, G): G.
+forall x: Z, y: Z, z: Z;
+	mult_G(exp(exp(g, inv(x)), mult(x, neg(y, z))), exp(g, z)) = exp(g, y).
+
+
+
+channel start, cstart, cK, csc, cusc.
+
+
+
+(* Sender *)
+let processS = 
+	in(csc, (hostR: host));
+	new M: secretData;
+	new x: Z;
+	let w = exp(pkey_to_G(pkR), x) in
+	let k_enc: key = hash0_to_key(h0(hk0,G_to_bitstring(w))) in 
+	new nonce: seed;
+	let M_b = secretData_to_bitstring(M) in
+	let cpt: bitstring = enc(M_b, k_enc, nonce) in
+
+	find j2<=N3 suchthat defined(Khost[j2], Rkey[j2]) && (Khost[j2] = hostR) then
+	let e = hash1_to_Z(h1(hk1, concat(ID_S, hostR, pkS, Rkey[j2], w, M_b))) in 
+
+	let s = mult(skey_to_Z(skS), neg(x, e)) in
+	let r:G = exp(g, e) in
+	out(csc, (ID_S, hostR, r, s, cpt));
+	(* OK *)
+	in(csc, ());	
+	if hostR = ID_R then (let keyS: key = secretData_to_key(M))
+	else
+		out(csc, ()).
+ 
+(* Receiver *)
+let processR = 
+	in(cusc, (hostS: host, = ID_R, r_sc: G, s_sc: Z, cpt_sc: bitstring));
+	find t2 <= N suchthat defined(hostS[t2], r_sc[t2], s_sc[t2], cpt_sc[t2]) && (hostS = hostS[t2]) && (r_sc = r_sc[t2]) &&
+	(s_sc = s_sc[t2]) && (cpt_sc = cpt_sc[t2]) then yield else
+	find j2<=N3 suchthat defined(Khost[j2], Rkey[j2]) && (Khost[j2]=hostS) then
+	let pkHostS = Rkey[j2] in
+	let w_usc = exp(mult_G(exp(pkey_to_G(pkHostS), s_sc), r_sc), inv(skey_to_Z(skR))) in
+	let k_enc_usc = hash0_to_key(h0(hk0,G_to_bitstring(w_usc))) in
+	let injbot(M_usc) = dec(cpt_sc, k_enc_usc) in
+
+	let e_sc = hash1_to_Z(h1(hk1, concat(hostS, ID_R, pkHostS, pkR, w_usc, M_usc))) in
+	if(r_sc = exp(g, e_sc)) then
+	(
+		(* OK *)
+		let keyR: key = bitstring_to_key(M_usc) in
+		out(cusc, ())
+	)
+	else
+	(
+		out(cusc, bottom)
+	).
+
+let processK =
+  !N3
+  in(cK, (Khost: host, Kkey: pkey));
+  let Rkey:pkey = 
+		if Khost = ID_S then pkS else
+		if Khost = ID_R then pkR else
+		Kkey.
+
+
+process
+	in(start, ());
+	new hk0: hashkey;
+	new hk1: hashkey;
+	new rkS : keyseed;
+	let skS = skgen(rkS) in
+	let pkS = pkgen(rkS) in
+	new rkR : keyseed;
+	let skR = skgen(rkR) in
+	let pkR = pkgen(rkR) in
+	out(cstart, (pkS, pkR));
+	((!N processS) | (!N processR) | processH0 | processH1 | processK)
+

@@ -1,0 +1,24 @@
+param N.
+
+type key [fixed, large].
+
+query secret k [onesession].
+query secret k.
+
+process
+        Oa() :=
+k <-R key;
+return();
+foreach i_1 <= N do
+Ob(s: key) :=
+if k = s then
+  return(s)
+else
+  return(s)
+
+
+
+(* EXPECTED
+All queries proved.
+0.012s (user 0.008s + system 0.004s), max rss 40528K
+END *)

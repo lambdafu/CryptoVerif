@@ -1,0 +1,454 @@
+set interactiveMode = true.
+
+param NA, NB, NSA, NRA, NSB, NRB.
+
+type sha256_bits [large,fixed]. (* 256 bits, output of SHA256 *)
+type sha1_bits [large,fixed].   (* 160 bits, output of SHA1 *)
+
+(* Computational Diffie-Hellman assumption *)
+type exp [large,bounded].
+type G [large,bounded].
+proba pCDH.
+expand CDH(G, exp, g, gexp, mult, pCDH).
+
+(* AES128-CTR *)
+
+event repeated_counter.
+
+define CTR_enc(key, cleartext, ciphertext, ctr, enc, dec, Z, Penc) { 
+
+param N, N2.
+
+fun enc(cleartext, key, ctr): ciphertext.
+fun dec(ciphertext, key, ctr): cleartext.
+
+fun enc2(cleartext, key, ctr): ciphertext.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+forall m:cleartext, k:key, c:ctr; 
+	dec(enc(m, k, c), k, c) = m.
+
+equiv  ind_cpa(enc)
+       ! N2 new k: key; ! N Oenc(x:cleartext, c:ctr) := enc(x, k, c) 
+     <=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(x)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
+       ! N2 new k: key; ! N Oenc(x:cleartext, c:ctr) := 
+       	    	find i <= N suchthat defined(c[i],r[i]) && c = c[i] then
+		     event_abort repeated_counter
+	 	else
+		     let r: ciphertext = enc2(Z(x), k, c) in
+		     r.
+
+}
+
+type enc_key [large,fixed]. (* 128 bits *)
+type ctr [fixed].
+proba Penc.
+expand CTR_enc(enc_key, bitstring, bitstring, ctr, senc, sdec, Z, Penc).
+
+const zero_ctr: ctr.
+
+(* UF-CMA MAC -- version without key generation function *)
+
+define UF_CMA_mac_nokgen(mkey, macinput, macres, mac, check, Pmac) {
+
+param N, N2, N3.
+
+const mark: bitstring.
+
+fun mac(macinput, mkey):macres.
+fun check(macinput, mkey, macres): bool.
+
+fun mac2(macinput, mkey):macres.
+fun check2(macinput, mkey, macres): bool.
+
+forall m:macinput, k:mkey;
+	check(m, k, mac(m, k)).
+forall m:macinput, k:mkey;
+	check2(m, k, mac2(m, k)).
+
+equiv uf_cma(mac)
+      ! N3 new k:mkey;(
+	 !N Omac(x: macinput) := mac(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) := check(m, k, ma))
+     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [computational]
+      ! N3 new k:mkey [unchanged];(
+	 !N Omac(x: macinput) := mac2(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], k, ma) then true else false).
+
+equiv uf_cma_corrupt(mac)
+      ! N3 new k:mkey;(
+	 !N Omac(x: macinput) [useful_change] := mac(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) [useful_change] := check(m, k, ma),
+	 Ocorrupt() [10] := k)
+     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [manual,computational]
+      ! N3 new k:mkey [unchanged];(
+	 !N Omac(x: macinput) := mac2(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) := 
+	    if defined(corrupt) then check2(m, k, ma) else
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], k, ma) then true else false,
+	 Ocorrupt() := let corrupt: bitstring = mark in k).
+
+}
+
+proba PSHA256_HMAC160.
+expand UF_CMA_mac_nokgen(sha256_bits, bitstring, sha1_bits, SHA256_HMAC160, SHA256_HMAC160_check, PSHA256_HMAC160).
+
+proba PSHA1_HMAC.
+expand UF_CMA_mac_nokgen(sha1_bits, bitstring, sha1_bits, SHA1_HMAC, SHA1_HMAC_check, PSHA1_HMAC).
+
+proba PSHA256_HMAC.
+expand CollisionResistant_hash(sha256_bits, bitstring, sha256_bits, SHA256_HMAC, PSHA256_HMAC).
+       (* TODO We might actually need something stronger than collision resistance,
+          because we cannot trust the key of SHA256_HMAC at this point *)
+
+
+(* Hashing - Random oracle model *)
+
+type hashkey [large,fixed].
+
+expand ROM_hash(hashkey, bitstring, sha256_bits, SHA256).
+param qSHA256 [noninteractive].
+channel sha256_in, sha256_out.
+let SHA256_oracle = ! qSHA256 in(sha256_in, x:bitstring); out(sha256_out, SHA256(SHA256k,x)). 
+
+expand ROM_hash(hashkey, bitstring, sha1_bits, SHA1).
+param qSHA1 [noninteractive].
+channel sha1_in, sha1_out.
+let SHA1_oracle = ! qSHA1 in(sha1_in, x:bitstring); out(sha1_out, SHA1(SHA1k,x)). 
+
+type byte [fixed].
+fun concat_byte(byte,G):bitstring [compos].
+const zero, one, two, three, four, five :byte.
+
+letfun hash2(SHA256k: hashkey, b:byte, x:G) = SHA256(SHA256k, concat_byte(b,x)).
+letfun hash1(SHA1k: hashkey, b:byte, x:G) = SHA1(SHA1k, concat_byte(b,x)).
+
+
+(* Signing - UF-CMA signatures *)
+type keyseed [large,fixed].
+type spkey [bounded].
+type sskey [bounded].
+type sseed [large,fixed].
+type signature.
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_signature(keyseed, spkey, sskey, bitstring, signature, sseed, ssk, spk, sign, checksign, Psign, Psigncoll).
+
+(* Key ids *)
+
+type key_id.
+
+const keyidA_init, keyidB_init: key_id.
+fun incr(key_id):key_id [compos].
+
+forall kid: key_id; incr(kid) <> keyidA_init.
+forall kid: key_id; incr(kid) <> keyidB_init.
+
+(* Type conversions and concatenations *)
+
+fun first_half(sha256_bits):enc_key.
+fun second_half(sha256_bits):enc_key.
+
+param N.
+
+equiv cut
+      ! N new r:sha256_bits; (O1() := first_half(r), O2() := second_half(r))
+   <=(0)=>
+      ! N (O1() := new k1: enc_key; k1, O2() := new k2: enc_key; k2).
+
+fun truncate(sha1_bits):enc_key.
+
+equiv truncate
+      ! N new r:sha1_bits; O() := truncate(r)
+   <=(0)=>
+      ! N new k: enc_key; O() := k.
+
+
+fun GToBits(G):bitstring [compos].
+fun enckeyToBits(enc_key):bitstring [compos].
+fun sha256ToBits(sha256_bits):bitstring [compos].
+fun concat1(G,G,spkey,key_id): bitstring [compos].
+fun concat2(spkey,key_id,signature): bitstring [compos].
+fun concat3(key_id,key_id,G,ctr,bitstring): bitstring [compos].
+
+channel start, ch, chA1, chA2, chA3, chA4, chA40, chA50, chA5, chA6, chA7, chA8, chA9, 
+	     chB0, chB1, chB2, chB3, chB4, chB50, chB5, chB6, chB7, chB8, chB9.
+
+(* Security properties *)
+
+(* Message authentication *)
+
+event Alice_sent_to(spkey, bitstring).
+event Alice_received_from_Bob(spkey, bitstring).
+event Bob_sent_to(spkey, bitstring).
+event Bob_received_from_Alice(spkey, bitstring).
+
+query pk:spkey, m: bitstring; event inj:Alice_received_from_Bob(pk, m) ==> inj:Bob_sent_to(pk, m).
+query pk:spkey, m: bitstring; event inj:Bob_received_from_Alice(pk, m) ==> inj:Alice_sent_to(pk, m).
+
+(* Entity authentication *)
+
+event Alice_session_with_Bob(spkey, G).
+event Bob_session_with_Alice(spkey, G).
+event Alice_starts_session_with(spkey, G).
+event Bob_starts_session_with(spkey, G).
+
+query pk:spkey, s:G; event inj:Bob_session_with_Alice(pk, s) ==> inj:Alice_starts_session_with(pk, s).
+(* Currently cannot be proved because of weakness in the protocol.
+query pk:spkey, s:G; event inj:Alice_session_with_Bob(pk, s) ==> inj:Bob_starts_session_with(pk, s). *)
+
+(*
+event LeakedMessage().
+query event(LeakedMessage()).
+event LeakedSharedSecret().
+query event(LeakedSharedSecret()).
+*)
+
+(* Tables needed to store the currently usable exponentials, keys 
+   CryptoVerif tables are global. 
+   To simulate tables local to one session, we use the initial exponent
+   (x for Bob, y for Alice) as first component of each entry of the table. *)
+
+table counters_Alice(exp, exp, G, ctr).
+table counters_Bob(exp, exp, G, ctr).
+
+(* Tables for Alice *)
+table Alice_session_info(exp, spkey).
+table Alice_state(exp(*initial exponent of the session*), 
+                  key_id(*key_idA for the last key acknowledged by Bob*), 
+                  exp(*exponent for the last key acknowledged by Bob*),
+		  exp(*exponent for the next key, not yet acknowledged by Bob*),
+		  key_id(*key_idB for the last key received from Bob*),
+		  G(*last key received from Bob*),
+		  exp(*exponent acknowledged in previous state*),
+		  G(*Bob's key in previous state*)).
+
+(* Tables for Bob *)
+table Bob_session_info(exp, spkey).
+table Bob_state(  exp(*initial exponent of the session*), 
+                  key_id(*key_idB for the last key acknowledged by Alice*), 
+                  exp(*exponent for the last key acknowledged by Alice*),
+		  exp(*exponent for the next key, not yet acknowledged by Alice*),
+		  key_id(*key_idA for the last key received from Alice*),
+		  G(*last key received from Alice*),
+		  exp(*exponent acknowledged in previous state*),
+		  G(*Alice's key in previous state*)).
+
+const exp0: exp.
+const G0: G.
+
+(* Alice is supposed to be the high end, Bob the low end *)
+
+let bobMSG =
+	((
+	! NSB
+	in(chB5, (count:ctr, msg:bitstring));                          (* We get the counter value from the adversary -- we will check that it is ok *)
+	get Bob_session_info(x0, pubX) in
+	(* Bob sends a message to Alice, in the session with initial exponent x0 *)
+	(* get the current state; we stop if we accidentally got an old state *)
+	get Bob_state(=x0, keyidB, x, next_x, keyidA, gy, old_x, old_gy) in
+	get Bob_state(=x0, z1, z2, z3, z4, z5, =x, =gy) in yield else
+
+	let s = gexp(gy, x) in
+	let send_enc_key = truncate(hash1(SHA1k, two, s)) in
+	let send_MAC_key = SHA1(SHA1k, enckeyToBits(send_enc_key)) in
+
+	get counters_Bob(=x0, =x, =gy, =count) in yield else (* Check that this counter was not already used *)
+	insert counters_Bob(x0, x,gy,count);
+
+	let enc_msg = senc(msg, send_enc_key, count) in
+	
+	event Bob_sent_to(pubX, msg);
+	let next_dh = gexp(g, next_x) in
+	let TB = concat3(keyidB, keyidA, next_dh, count, enc_msg) in
+	out(chB6, (TB, SHA1_HMAC(TB, send_MAC_key)))
+	)|(
+        ! NRB
+	(* Bob receives a message from Alice *)
+	in(chB7, (TA:bitstring, macA: sha1_bits));
+	get Bob_session_info(x0, pubX) in
+	get Bob_state(=x0, keyidB, x, next_x, keyidA, gy, old_x, old_gy) in
+	get Bob_state(=x0, z1, z2, z3, z4, z5, =x, =gy) in yield else
+	let concat3(=keyidA, keyidB', next_dh, count, enc_msg) = TA in
+	let x' = (if keyidB = keyidB' then x else next_x) in
+	let s = gexp(gy, x') in
+	let recv_enc_key = truncate(hash1(SHA1k, one, s)) in
+	let recv_MAC_key = SHA1(SHA1k, enckeyToBits(recv_enc_key)) in
+	if SHA1_HMAC_check(TA, recv_MAC_key, macA) then
+	let msg = sdec(enc_msg, recv_enc_key, count) in
+
+	let next_x' = (if keyidB = keyidB' then next_x else new next_x'': exp; next_x'') in
+	let keyidA' = (if next_dh = gy then keyidA else incr(keyidA)) in
+	if next_dh <> gy || keyidB <> keyidB' then
+	(* The state changes: either Bob has acknowledged a new exponent or he has provided a new key *)
+	insert Bob_state(x0, keyidB', x', next_x', keyidA', next_dh, x, gy);
+	let old_s = gexp(gy, x) in
+	let old_send_enc_key = truncate(hash1(SHA1k, two, old_s)) in
+	let old_send_MAC_key = SHA1(SHA1k, enckeyToBits(old_send_enc_key)) in
+	let old_recv_enc_key = truncate(hash1(SHA1k, one, old_s)) in
+	let old_recv_MAC_key = SHA1(SHA1k, enckeyToBits(old_recv_enc_key)) in
+	let old_recv_MAC_key2 = (if next_dh <> gy then recv_MAC_key else old_recv_MAC_key) in
+	(* We publish the old MAC keys at this point for simplicity *)
+	out(chB8, (old_send_MAC_key, old_recv_MAC_key, old_recv_MAC_key2));
+	in(chB9, ());
+	if pubX = pubA then
+	event Bob_received_from_Alice(pubB, msg)
+	)).
+         
+(* TODO with this treatment of old MAC keys, there is a known attack.
+   What fix do we want to apply? *)
+
+let aliceMSG =
+	((
+	! NSA
+	in(chA5, (count:ctr, msg:bitstring));                          (* We get the counter value from the adversary -- we will check that it is ok *)
+	get Alice_session_info(y0, pubX) in
+	(* Alice sends a message to Bob *)
+	(* get the current state; we stop if we accidentally got an old state *)
+	get Alice_state(=y0, keyidA, y, next_y, keyidB, gx, old_y, old_gx) in
+	get Alice_state(=y0, z1, z2, z3, z4, z5, =y, =gx) in yield else
+
+	let s = gexp(gx, y) in
+	let send_enc_key = truncate(hash1(SHA1k, one, s)) in
+	let send_MAC_key = SHA1(SHA1k, enckeyToBits(send_enc_key)) in
+
+	get counters_Alice(=y0,=y, =gx, =count) in yield else (* Check that this counter was not already used *)
+	insert counters_Alice(y0,y,gx,count);
+
+	let enc_msg = senc(msg, send_enc_key, count) in
+	
+	event Alice_sent_to(pubX, msg);
+	let next_dh = gexp(g, next_y) in
+	let TA = concat3(keyidA, keyidB, next_dh, count, enc_msg) in
+	out(chA6, (TA, SHA1_HMAC(TA, send_MAC_key)))
+	)|(
+        ! NRA
+	(* Alice receives a message from Bob *)
+	in(chA7, (TB:bitstring, macB: sha1_bits));
+	get Alice_session_info(y0, pubX) in
+	get Alice_state(=y0, keyidA, y, next_y, keyidB, gx, old_y, old_gx) in
+	get Alice_state(=y0, z1, z2, z3, z4, z5, =y, =gx) in yield else
+	let concat3(=keyidB, keyidA', next_dh, count, enc_msg) = TB in
+	let y' = (if keyidA = keyidA' then y else next_y) in
+	let s = gexp(gx, y') in
+	let recv_enc_key = truncate(hash1(SHA1k, two, s)) in
+	let recv_MAC_key = SHA1(SHA1k, enckeyToBits(recv_enc_key)) in
+	if SHA1_HMAC_check(TB, recv_MAC_key, macB) then
+	let msg = sdec(enc_msg, recv_enc_key, count) in
+
+	let next_y' = (if keyidA = keyidA' then next_y else new next_y'': exp; next_y'') in
+	let keyidB' = (if next_dh = gx then keyidB else incr(keyidB)) in
+	if next_dh <> gx || keyidA <> keyidA' then
+	(* The state changes: either Bob has acknowledged a new exponent or he has provided a new key *)
+	insert Alice_state(y0, keyidA', y', next_y', keyidB', next_dh, y, gx);
+	let old_s = gexp(gx, y) in
+	let old_send_enc_key = truncate(hash1(SHA1k, one, old_s)) in
+	let old_send_MAC_key = SHA1(SHA1k, enckeyToBits(old_send_enc_key)) in
+	let old_recv_enc_key = truncate(hash1(SHA1k, two, old_s)) in
+	let old_recv_MAC_key = SHA1(SHA1k, enckeyToBits(old_recv_enc_key)) in
+	let old_recv_MAC_key2 = (if next_dh <> gx then recv_MAC_key else old_recv_MAC_key) in
+	(* We publish the old MAC keys at this point for simplicity *)
+	out(chA8, (old_send_MAC_key, old_recv_MAC_key, old_recv_MAC_key2));
+	in(chA9, ());
+	if pubX = pubB then
+	event Alice_received_from_Bob(pubA, msg)
+	)).
+
+
+
+let bobAKE =
+        in(chB0, ());
+	new r:enc_key; (* Picks a random value r (128 bits) *)
+	new x:exp; (* Picks a random value x (at least 320 bits) *)
+	out(chB1, (
+		senc(GToBits(gexp(g, x)), r, zero_ctr), SHA256(SHA256k, GToBits(gexp(g, x)))
+	)); (* Sends Alice AESr(gx), HASH(gx) *)
+	in(chB2, gy:G); (* Receive gy from Alice *)
+	(*
+	Here I'm supposed to verify that gy is a legal value (2 <= gy <= modulus-2)
+	This point can be omitted.
+	*)
+	let s = gexp(gy, x) in (* Computes s = (gy)x *)
+	(* Computes two AES keys c, c' and four MAC keys m1, m1', m2, m2' by hashing s in various ways *)
+	let ssid = hash2(SHA256k, zero,  s) in
+	let c_c' = hash2(SHA256k, one,   s) in
+	let c    = first_half(c_c') in  (*  First half of hash bytes *)
+	let c'   = second_half(c_c') in (* Second half of hash bytes *)
+	let m1   = hash2(SHA256k, two,   s) in
+	let m2   = hash2(SHA256k, three, s) in
+	let m1'  = hash2(SHA256k, four,  s) in
+	let m2'  = hash2(SHA256k, five,  s) in
+	let mB = SHA256_HMAC(m1, concat1(gexp(g, x), gy, pubB, keyidB_init)) in (* Computes MB = MACm1(gx, gy, pubB, keyidB) *)
+	new rs1: sseed;
+	let xB = concat2(pubB, keyidB_init, sign(sha256ToBits(mB), secB, rs1)) in (* Computes XB = pubB, keyidB, sigB(MB) *)
+	let encxB = senc(xB, c, zero_ctr) in
+	out(chB3, (r, encxB, SHA256_HMAC160(encxB, m2))); (* Sends Alice r, AESc(XB), MACm2(AESc(XB)) *)
+	in(chB4, (encxA:bitstring, hmacencxA:sha1_bits)); (* Receive AESc'(XA), MACm2'(AESc'(XA)) from Alice *)
+	if SHA256_HMAC160_check(encxA, m2', hmacencxA) then ( (* Uses m2' to verify MACm2'(AESc'(XA)) *)
+		let concat2(pubX, keyidA_init', signmA) = sdec(encxA, c', zero_ctr) in (* Uses c' to decrypt AESc'(XA) to obtain XA = pubA, keyidA, sigA(MA) *)
+		let mA = SHA256_HMAC(m1', concat1(gy, gexp(g, x), pubX, keyidA_init')) in (* Computes MA = MACm1'(gy, gx, pubA, keyidA) *)
+		if checksign(sha256ToBits(mA), pubX, signmA) then ( (* Uses pubA to verify sigA(MA) *)
+		        insert Bob_session_info(x, pubX);
+			new next_x: exp;
+                        insert Bob_state(x, keyidB_init, x, next_x, keyidA_init', gy, exp0, G0);
+			if pubX = pubA then
+			event Bob_session_with_Alice(pubB, s)
+		)
+	).
+
+let aliceAKE =
+	in(chA1, (encgx:bitstring, hashgx:sha256_bits)); (* TODO why is it useful to encrypt and hash g^x? 
+		 		   			    Why is it more secure than just sending g^x in the clear? *)
+	new y:exp; (* Picks a random value y (at least 320 bits) *)
+	out(chA2, gexp(g, y)); (* Sends Bob gy *)
+	in(chA3, (r:enc_key, encxB:bitstring, hmacencxB:sha1_bits));
+	let GToBits(gx) = sdec(encgx, r, zero_ctr) in (* Uses r to decrypt the value of gx sent earlier *)
+	if (SHA256(SHA256k, GToBits(gx)) = hashgx) then (* Verifies that HASH(gx) matches the value sent earlier *)
+		let s = gexp(gx, y) in (* 4.Computes s = (gx)y *)
+		(* Computes two AES keys c, c' and four MAC keys m1, m1', m2, m2' by hashing s in various ways *)
+		let ssid = hash2(SHA256k, zero,  s) in
+		let c_c' = hash2(SHA256k, one,   s) in
+		let c    = first_half(c_c') in  (*  First half of hash bytes *)
+		let c'   = second_half(c_c') in (* Second half of hash bytes *)
+		let m1   = hash2(SHA256k, two,   s) in
+		let m2   = hash2(SHA256k, three, s) in
+		let m1'  = hash2(SHA256k, four,  s) in
+		let m2'  = hash2(SHA256k, five,  s) in
+		if SHA256_HMAC160_check(encxB, m2, hmacencxB) then ( (* Uses m2 to verify MACm2(AESc(XB)) *)
+			let concat2(pubX, keyidB_init', signmB) = sdec(encxB, c, zero_ctr) in (* Uses c to decrypt AESc(XB) to obtain XB = pubB, keyidB, sigB(MB) *)
+			let mB = SHA256_HMAC(m1, concat1(gx, gexp(g, y), pubX, keyidB_init')) in (* Computes MB = MACm1(gx, gy, pubB, keyidB) *)
+			if checksign(sha256ToBits(mB), pubX, signmB) then ( (* Uses pubB to verify sigB(MB) *)
+				let mA = SHA256_HMAC(m1', concat1(gexp(g, y), gx, pubA, keyidA_init)) in (* Computes MA = MACm1'(gy, gx, pubA, keyidA) *)
+				new rs2: sseed;
+				let xA = concat2(pubA, keyidA_init, sign(sha256ToBits(mA), secA, rs2)) in (* Computes XA = pubA, keyidA, sigA(MA) *)
+				let encxA = senc(xA, c', zero_ctr) in
+				insert Alice_session_info(y, pubX);
+				new next_y: exp;
+                        	insert Alice_state(y, keyidA_init, y, next_y, keyidB_init', gx, exp0, G0);
+				event Alice_starts_session_with(pubX, s);
+				out(chA4, (encxA, SHA256_HMAC160(encxA, m2'))); (* Sends Bob AESc'(XA), MACm2'(AESc'(XA)) *)
+				in(chA40, ());
+				if pubX = pubB then
+				event Alice_session_with_Bob(pubA, s)
+			)
+		).
+
+(* Alice and Bob talk to dishonest participants as well,
+so I use pubX instead of pubB (resp. pubA) *)
+
+process
+	in (start, ());
+	new SHA256k: hashkey; (* Models the choice of the hash functions *)
+	new SHA1k: hashkey;
+	new rA:keyseed;       (* Generation of signature keys *)
+	new rB:keyseed;
+	let pubA = spk(rA) in
+	let secA = ssk(rA) in
+	let pubB = spk(rB) in
+	let secB = ssk(rB) in
+	out(ch, (pubA, pubB));
+	( ! NA aliceAKE | ! NB bobAKE | SHA256_oracle | SHA1_oracle | aliceMSG | bobMSG)

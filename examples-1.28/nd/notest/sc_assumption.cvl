@@ -1,0 +1,457 @@
+forall x:bool; not(not(x)) = x.
+forall x:bool,y:bool; (not(x && y)) = (not(x) || not(y)).
+forall x:bool,y:bool; (not(x || y)) = (not(x) && not(y)).
+forall ; not(true) = false.
+forall ; not(false) = true.
+
+const bottom:bitstringbot.
+
+(* We define the equivalence used internally by the command "move array" *)
+
+define move_array_internal_macro(T) {
+
+param N, NX, Neq.
+
+equiv move_array(T)
+      !N new X:T; (!NX OX() := X, 
+                   !Neq Oeq(X':T) := X' = X)
+<=(#Oeq / |T|)=> [manual,computational]
+      !N (!NX OX() := find[unique] j<=NX suchthat defined(Y[j]) then Y[j] else new Y:T; Y,
+          !Neq Oeq(X':T) := find[unique] j<=NX suchthat defined(Y[j]) then X' = Y[j] else false).
+
+}
+
+
+(***************************** Symmetric encryption *********************************************)
+
+
+(* IND-CPA probabilistic symmetric encryption 
+   key: type of keys, must be "bounded"
+   cleartext: type of cleartexts
+   ciphertext: type of ciphertexts
+   seed: type of random seeds for encryption, must be "bounded", typically "fixed".
+
+   enc: encryption function
+   dec: decryption function
+   injbot: natural injection from cleartext to bitstringbot
+   ZZ: function that returns for each cleartext a cleartext of the same length consisting only of zeroes.
+
+   Penc(t, N, l): probability of breaking the IND-CPA property in time
+   t for one key and N encryption queries with cleartexts of length at
+   most l
+
+   The types key, cleartext, ciphertext, seed and the
+   probability Penc must be declared before this macro is
+   expanded. The functions enc, dec, injbot, and Z are declared
+   by this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.  
+*)
+
+define IND_CPA_sym_enc_sc(key, cleartext, ciphertext, seed, enc, dec, injbot, ZZ, Penc) { 
+
+param N, N2.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc2(cleartext, key, seed): ciphertext.
+
+fun injbot(cleartext):bitstringbot [compos].
+(* The function ZZ returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun ZZ(cleartext):cleartext.
+
+forall x:cleartext; injbot(x) <> bottom.
+forall m:cleartext, r:key, r2:seed; 
+	dec(enc(m, r, r2), r) = injbot(m).
+
+equiv  ind_cpa(enc)
+       ! N2 new r: key; ! N new r2: seed; Oenc(x:cleartext) := enc(x, r, r2) 
+     <=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(x)) + N*time(ZZ, maxlength(x))), N, maxlength(x)))=> 
+       ! N2 new r: key; ! N new r2: seed; Oenc(x:cleartext) := enc2(ZZ(x), r, r2).
+}
+
+(* IND-CPA and INT-CTXT probabilistic symmetric encryption 
+   key: type of keys, must be "bounded"
+   cleartext: type of cleartexts
+   ciphertext: type of ciphertexts
+   seed: type of random seeds for encryption, must be "bounded", typically "fixed".
+
+   enc: encryption function
+   dec: decryption function
+   injbot: natural injection from cleartext to bitstringbot
+   Z: function that returns for each cleartext a cleartext of the same length consisting only of zeroes.
+
+   Penc(t, N, l): probability of breaking the IND-CPA property in time
+   t for one key and N encryption queries with cleartexts of length at
+   most l
+   Pencctxt(t, N, N', l, l'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries, N' decryption queries with
+   cleartexts of length at most l and ciphertexts of length at most l'.
+
+   The types key, cleartext, ciphertext, seed and the
+   probabilities Penc, Pencctxt must be declared before this macro is
+   expanded. The functions enc, dec, injbot, and Z are declared
+   by this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.
+*)
+
+
+define IND_CPA_INT_CTXT_sym_enc_sc(key, cleartext, ciphertext, seed, enc, dec, injbot, Z, Penc, Pencctxt) { 
+
+param N, N2, N3.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc2(cleartext, key, seed): ciphertext.
+
+fun injbot(cleartext):bitstringbot [compos].
+forall x:cleartext; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+forall m:cleartext, k:key, r:seed; 
+	dec(enc(m, k, r), k) = injbot(m).
+
+	(* IND-CPA *)
+
+equiv ind_cpa(enc)
+       ! N2 new k: key; ! N new r: seed; Oenc(x:cleartext) := enc(x, k, r)
+     <=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(x)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
+       ! N2 new k: key; ! N new r: seed; Oenc(x:cleartext) := enc2(Z(x), k, r).
+
+	(* INT-CTXT *)
+
+equiv int_ctxt(enc)
+      ! N2 new k: key; (!N new r: seed; Oenc(x:cleartext) := enc(x, k, r),
+			    !N3 Odec(y:ciphertext) := dec(y,k)) 
+     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational]
+      ! N2 new k: key [unchanged]; 
+      	       	  	   (!N new r: seed [unchanged]; Oenc(x:cleartext) := let z:ciphertext =  enc(x, k, r) in z,
+			    !N3 Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r[j],z[j]) && z[j] = y then injbot(x[j]) else bottom).
+
+}
+
+(* Xor
+   D: domain on which xor applies 
+   xor: the exclusive or function
+   zero: the neutral element
+
+   The type D must be declared before this macro is expanded. The
+   function xor and the constant zero are declared by this macro. They
+   must not be declared elsewhere, and they can be used only after
+   expanding the macro.
+ *)
+
+
+(******************************** Diffie-Hellman ***************************)
+
+(* Computational Diffie-Hellman 
+   G: type of group elements (must be "bounded" and "large", of cardinal 
+   a prime q), neutral element excluded (so |G| = q-1)
+   Z: type of exponents (must be "bounded" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pCDH: the probability of breaking the CDH assumption
+
+   The types G and Z and the probability pCDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+*)
+
+define CDH(G, Z, g, exp, mult, pCDH) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; 
+  mult(x1,x2) = mult(x3,x4) <=(1/|Z|)=> false. 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      !N new X:G; (OX() := X, !N' OXm(m:Z) [useful_change] := exp(X,m))
+<=(0)=> [computational]
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp)
+      !N new X:G; OX() := X 
+<=(0)=> [manual, computational]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv exp_to_group(exp)
+      !N new x:Z; OX() := exp(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+equiv exp'_to_group(exp)
+      !N new x:Z; OX() := exp'(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+(* the CDH assumption *) 
+
+const mark: bitstring.
+
+param na, naDDH, nb, nbDDH.
+
+equiv cdh(exp)
+    !na new a:Z; (
+      OA() := exp(g,a), 
+      Oa() [3] := a,
+      !naDDH ODDHa(m:G, j<=nb) [useful_change] := m = exp(g, mult(b[j], a))
+    ),
+    !nb new b:Z; (
+      OB() := exp(g,b),
+      Ob() [3] := b,
+      !nbDDH ODDHb(m:G, j<=na) := m = exp(g, mult(a[j], b))
+    )
+<=((#ODDHa + #ODDHb) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)))=> [computational]
+    !na new a:Z [unchanged]; (
+      OA() := exp'(g,a), 
+      Oa() := let ka:bitstring = mark in a,
+      !naDDH ODDHa(m:G, j<=nb) := find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then m = exp'(g, mult(b[j], a)) else 
+                            if defined(ka) then m = exp'(g, mult(b[j], a)) else false
+    ),
+    !nb new b:Z [unchanged]; (
+      OB() := exp'(g,b), 
+      Ob() := let kb:bitstring = mark in b,
+      !nbDDH ODDHb(m:G, j<=na) := find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then m = exp'(g, mult(a[j], b)) else 
+                            if defined(kb) then m = exp'(g, mult(a[j], b)) else false
+    ).
+
+}
+
+(* Decisional Diffie-Hellman 
+   G: type of group elements (must be "bounded" and "large", of cardinal 
+   a prime q), neutral element excluded (so |G| = q-1)
+   Z: type of exponents (must be "bounded" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pDDH: the probability of breaking the DDH assumption
+
+   The types G and Z and the probability pDDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+*)
+
+define DDH(G, Z, g, exp, mult, pDDH) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; 
+  mult(x1,x2) = mult(x3,x4) <=(1/|Z|)=> false. 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      !N new X:G; (OX() := X, !N' OXm(m:Z) [useful_change] := exp(X,m))
+<=(0)=> [computational]
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp)
+      !N new X:G; OX() := X 
+<=(0)=> [manual, computational]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv exp_to_group(exp)
+      !N new x:Z; OX() := exp(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+equiv exp'_to_group(exp)
+      !N new x:Z; OX() := exp'(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+(* the DDH assumption *) 
+
+const mark: bitstring.
+event ev_abort.
+
+param na, naDH, nb, nbDH.
+
+equiv ddh(exp)
+    !na new a:Z; (
+      OA() := exp(g,a), 
+      Oa() [3] := a,
+      !naDH ODHa(j<=nb) [useful_change] := exp(g, mult(b[j], a))
+    ),
+    !nb new b:Z; (
+      OB() := exp(g,b),
+      Ob() [3] := b,
+      !nbDH ODHb(j<=na) := exp(g, mult(a[j], b))
+    )
+<=((#ODHa + #ODHb) * na * nb * pDDH(time + (na + nb + #ODHa + #ODHb) * time(exp)))=>
+    !na new a:Z; (
+      OA() := exp'(g,a), 
+      Oa() := 
+         find uaDH <= naDH suchthat defined(ka'[uaDH]) then event_abort ev_abort else
+	 find ubDH <= nbDH, ub <= nb suchthat defined(kb'[ubDH, ub], a'[ubDH, ub]) && a'[ubDH, ub] = a then event_abort ev_abort else
+         let ka:bitstring = mark in a,
+      !naDH ODHa(j<=nb) := 
+      	 let b':Z = b[j] in
+	 find u<=nb suchthat defined(kb[u],b[u]) && b' = b[u] then exp'(g, mult(b', a)) else 
+         if defined(ka) then exp'(g, mult(b', a)) else 
+	 let ka':bitstring = mark in
+         find vaDH <= naDH suchthat defined(b'[vaDH],ca[vaDH]) && b' = b'[vaDH] then ca[vaDH] else
+         find vbDH <= nbDH, vb <= nb suchthat defined(b[vb], a'[vbDH, vb], cb[vbDH, vb]) && b' = b[vb] && a = a'[vbDH, vb] then cb[vbDH, vb] else
+	 new ca: G; ca
+    ),
+    !nb new b:Z; (
+      OB() := exp'(g,b), 
+      Ob() := 
+         find ubDH <= nbDH suchthat defined(kb'[ubDH]) then event_abort ev_abort else
+	 find uaDH <= naDH, ua <= na suchthat defined(ka'[uaDH, ua], b'[uaDH, ua]) && b'[uaDH, ua] = b then event_abort ev_abort else
+         let kb:bitstring = mark in b,
+      !nbDH ODHb(j<=na) := 
+         let a':Z = a[j] in
+	 find u<=na suchthat defined(ka[u],a[u]) && a' = a[u] then exp'(g, mult(a', b)) else 
+         if defined(kb) then exp'(g, mult(a', b)) else 
+	 let kb':bitstring = mark in
+         find vbDH <= nbDH suchthat defined(a'[vbDH],cb[vbDH]) && a' = a'[vbDH] then cb[vbDH] else
+         find vaDH <= naDH, va <= na suchthat defined(a[va], b'[vaDH, va], ca[vaDH, va]) && a' = a[va] && b = b'[vaDH, va] then ca[vaDH, va] else
+	 new cb: G; cb
+    ).
+
+}
+
+
+(******************************* Hash functions ****************************)
+
+(* Hash function in the random oracle model
+   key: type of the key of the hash function, which models the choice of the hash function, must be "bounded", typically "fixed"
+   hashinput: type of the input of the hash function
+   hashoutput: type of the output of the hash function, must be "bounded" and "large", typically "fixed".
+
+   hash: the hash function.
+   WARNING: hash is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game 
+   and the hash oracle must be made available to the adversary,
+   by including a process such as
+      ! qH in(c1, x:hashinput); out(c2, hash(k,x))
+   where k is the key, qH the number of requests to the hash oracle,
+   c1 and c2 channels.
+
+   The types key, hashinput, and hashoutput must be declared before
+   this macro.  The function hash is defined by this macro. It not
+   must be declared elsewhere, and it can be used only after expanding
+   the macro.
+
+ *)
+
+define ROM_hash(key, hashinput, hashoutput, hash (*, hashoracle, qH*)) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):hashoutput.
+
+equiv rom(hash)
+      !Nh new k:key;
+      	  (!N Ohash(x:hashinput) := hash(k,x),
+      	   !Neq Oeq(x':hashinput, r':hashoutput) := r' = hash(k,x'))
+      <=(#Oeq / |hashoutput|)=> [computational]
+      !Nh (!N Ohash(x:hashinput) := 
+              find[unique] j <= N suchthat defined(x[j],r[j]) && x = x[j] then r[j] else
+	      new r:hashoutput; r,
+      	   !Neq Oeq(x':hashinput, r':hashoutput) := 
+              find[unique] j <= N suchthat defined(x[j],r[j]) && x' = x[j] then r' = r[j] else
+	      false).
+
+(* When CryptoVerif will support parametric processes
+param qH [noninteractive].
+channel c1, c2.
+let hashoracle(k) = ! qH in(c1, x:hashinput); out(c2, hash(k,x)). 
+*)
+}
+
+
+
+
+define Xor(D, xor, zero) {
+
+param nx.
+
+fun xor(D,D): D.
+const zero: D.
+equation ACUN(xor,zero).
+
+(* Xor is a one-time pad *)
+
+equiv remove_xor(xor)
+      !nx new a:D; Oxor(x:D) := xor(a,x)
+      <=(0)=> [computational]
+      !nx new a:D; Oxor(x:D) := a.
+
+}

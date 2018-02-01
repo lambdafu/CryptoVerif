@@ -1,0 +1,145 @@
+(* ----------------------------------------------------
+Copyright CEA
+Contributor: Kim Thuat Nguyen, KimThuat.Nguyen@cea.fr
+-----------------------------------------------------*)
+
+(* Ligtweight signcryption for the Internet of Things*)
+param N.
+param N2.
+param N3.
+
+type host [bounded].
+type keyseed [fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type key [fixed].
+type blocksize [bounded].
+
+type Z [large, bounded].
+type G [large, bounded].
+type D [fixed].
+
+(* The neutral element *)
+const zero: Z.
+const one: Z.
+
+(* Host identifier of Sender and Receiver *)
+const ID_S, ID_R: host.
+
+(* Shared-key encryption (CPA Stream cipher)*)
+proba Penc.
+
+expand IND_CPA_sym_enc_sc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, ZZ, Penc).
+
+
+(* CDH assumptions *)
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* One-way hash function without key *)
+fun H1(bitstring): Z.
+proba Phash.
+
+expand CollisionResistant_hash(bitstring, G, H1, Phash).
+
+
+(* --------------------- Functions ---------------------- *)
+fun G_to_Z(G): Z.
+fun Z_to_G(Z): G.
+forall x: G;
+	Z_to_G(G_to_Z(x)) = x.
+forall y: Z;
+	G_to_Z(Z_to_G(y)) = y.
+
+(* Addition *)
+fun add(Z, Z): Z.
+equation assocU(add, zero).
+
+(* Relation with the mult function *)
+forall x: Z, y: Z, t: Z;
+	mult(x, add(y, t)) = add(mult(x, y), mult(x, t)).
+
+forall x: G, y: Z, t: Z;
+	exp(x, add(y, t)) = Z_to_G(mult(G_to_Z(exp(x, y)), G_to_Z(exp(x, t)))).
+
+(* Negation *)
+fun neg(Z): Z.
+forall x: Z, y: Z;
+	add(add(x, neg(y)), neg(y)) = x.
+
+(* Key generator from an element of type G *)
+fun H2(G): key.
+forall x: G, y: G;
+	(H2(x) = H2(y)) = (x = y).
+(* Bitstring concatenation *)
+fun concat(host, G, G, G, bitstring): bitstring.
+fun concat1(host, G, G, G): bitstring.
+
+(* Inversion *)
+fun invers(Z): Z.
+forall x: Z;
+	invers(invers(x)) = x.
+forall y: Z;
+	mult(y, invers(y)) = one.
+
+forall x: G;
+	exp(x, one) = x.
+
+(* Queries *)
+query secret1 b.
+query secret priv_S.
+query secret priv_R.
+
+channel csc, cusc, start, c.
+
+let LRscOracle = 
+	
+	in(csc, (m1: bitstring, m2: bitstring));
+	
+	if ZZ(m1) = ZZ(m2) then	
+	let m = if b then m1 else m2 in
+	new k: Z;
+	let W = exp(pkR, k) in
+	let r: Z = H1(concat(ID_R, pvt_R, pkR, W, m)) in
+	let s: Z = mult(priv_S, add(k, neg(r))) in
+	new nonce: seed;
+	let ct: bitstring = enc(m, H2(W), nonce) in
+	out(csc, (r, s, ct)).
+
+let uscOracle = 
+	in(cusc, (r1: Z, s1: Z, ct1: bitstring));
+	find l <= N suchthat defined(r[l], s[l], ct[l]) && (r1 = r[l]) && 
+	  (s1 = s[l]) && (ct1 = ct[l]) then yield else
+	let U = Z_to_G(mult(G_to_Z(exp(pkS, s1)), G_to_Z(exp(g, r1)))) in
+	let W1 = exp(U, invers(priv_R)) in
+	let injbot(cleartext) = dec(ct1, H2(W1)) in
+	if H1(concat(ID_S, pvt_S, pkS, W1, cleartext)) = r1 then
+	(
+		out(cusc, injbot(cleartext))
+	)
+	else
+	(
+		out(cusc, bottom)
+	).
+
+process
+	in(start, ());
+	new b: bool;
+	(*---------- Setup -----------*)
+	new mk: Z; (* The master key *)
+	let p_pub = exp(g, mk) in
+	(* Key generation for S - the Sender *)	
+ 	new x_S: Z;
+	let pvt_S = exp(g, x_S) in
+	let pkS = Z_to_G(mult(G_to_Z(p_pub), G_to_Z(exp(pvt_S, H1(concat1(ID_S, pvt_S, g, p_pub)))))) in
+	let priv_S: Z = invers(add(mk, mult(H1(concat1(ID_S, pvt_S, g, p_pub)), x_S))) in	
+	(* Key generation for R - the Receiver *)
+	new x_R: Z;
+	let pvt_R = exp(g, x_R) in
+	let pkR = Z_to_G(mult(G_to_Z(p_pub), G_to_Z(exp(pvt_R, H1(concat1(ID_R, pvt_R, g, p_pub)))))) in
+	let priv_R: Z = invers(add(mk, mult(H1(concat1(ID_R, pvt_R, g, p_pub)), x_R))) in
+	
+	out(c, (pkS, pvt_S, pkR, pvt_R));
+	((! N LRscOracle) | (! N uscOracle))

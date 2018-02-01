@@ -1,0 +1,26 @@
+channel c.
+
+fun f1(bitstring, bitstring): bitstring [data].
+fun f2(bitstring): bitstring [data].
+fun f3(bitstring): bitstring [data].
+
+forall x: bitstring; f2(x) <> f3(x).
+
+process
+	in(c, x: bitstring);
+let f1(x1: bitstring, f2(x2: bitstring)) = x in
+let f1(y1: bitstring, f2(y2: bitstring)) = x in
+  out(c, (true, true))
+else
+  let f1(y1_1: bitstring, f3(y2_1: bitstring)) = x in
+    out(c, (true, false))
+  else
+    out(c, (false, true))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.012s + system 0.004s), max rss 37344K
+END *)

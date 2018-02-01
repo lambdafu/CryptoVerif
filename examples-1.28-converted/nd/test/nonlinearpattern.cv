@@ -1,0 +1,14 @@
+(* Non-linear patterns are rejected by CryptoVerif *)
+
+channel c.
+
+
+process
+   in(c, y: bitstring);
+   let (x: bitstring, =x) = y in
+   out(c, x)
+
+(* EXPECTED
+Error: Variable x is referenced outside its scope. It should be guarded by a defined condition
+xtime: error in child process (status : 512)
+END *)

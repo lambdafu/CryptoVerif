@@ -1,0 +1,97 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03 *)
+
+proof {
+crypto h0
+}
+
+param N.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [fixed].
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host.
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+equiv
+  ! N new X: G; gen_Oracle() := return(X)
+<=(0)=>
+  ! N new x: exponent; gen_Oracle() := return(exp(g,x)).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec).
+
+param qE, qD [noninteractive].
+channel cE, cD.
+
+
+(* Hash functions in the random oracle model *)
+
+param N0, qH0.
+
+fun h0(G, G, G):hash0.
+
+equiv
+  ! N gen_Oracle_1(x3: G, x4: G, x5: G) := return(h0(x3, x4, x5)) [all]
+<=(0)=>
+  ! N gen_Oracle_1(x3: G, x4: G, x5: G) := find j <= N suchthat defined(x3[j], x4[j], x5[j], r[j]) && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r[j]) else new r: hash0; return(r).
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+
+
+
+
+process 
+	in(start, ());
+new ck_1: cipherkey;
+new pw: passwd;
+out(c8, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], ());
+  new x_1: exponent;
+  let X_7: G = exp(g, x_1) in
+  out(c2[i_1], X_7);
+  in(c5[i_1], Ystar_u: G);
+  let Y_u: G = dec(ck_1, Ystar_u, pw) in
+  let K_u: G = exp(Y_u, x_1) in
+  let sk_u: hash0 = h0(X_7, Y_u, K_u)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], X_s: G);
+  new y_1: exponent;
+  let Y_6: G = exp(g, y_1) in
+  let Ystar: G = enc(ck_1, Y_6, pw) in
+  out(c4[i_2], Ystar);
+  in(c7[i_2], auth_s: hash1);
+  find j_8 = j_9 <= N suchthat defined(X_7[j_9]) && (X_7[j_9] = X_s) then
+  let K_s: G = exp(X_s, y_1) in
+  let sk_s: hash0 = h0(X_s, Y_6, K_s)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of sk_s; secrecy of sk_u.
+0.040s (user 0.036s + system 0.004s), max rss 37664K
+END *)

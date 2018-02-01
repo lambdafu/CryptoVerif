@@ -1,0 +1,172 @@
+(**********************************************************************
+*
+* Prove the chosen-plaintext security of CCM mode. Counter-mode and MAC 
+* nonces are derived from master nonce via separate functions, and these
+* functions have some axioms (but perhaps not enough).
+*
+*  * Cryptoverif version: 1.18
+*  * Blocks: 1
+*  * Result: non-termination
+*
+*
+***********************************************************************)
+
+set interactiveMode = true. 
+(* set autoAdvice = false. *)
+(* set simplifyAfterSARename = false. *)
+(*
+proof {
+remove_assign binder aesk;
+crypto prp(aes_enc) aesx;
+interactive
+}
+*)
+
+type block [fixed, large].
+type aes_keyseed [fixed, large, bounded].
+type aes_key [large, bounded].
+proba Paes.
+expand PRP_cipher(aes_keyseed, aes_key, block, aes_kgen, aes_enc, aes_dec, Paes).
+
+
+type cm_ciphertext [bounded].
+fun cm_join(block, block): cm_ciphertext [compos].
+
+
+type maced_ciphertext [bounded].
+fun mac_join(cm_ciphertext, block, block): maced_ciphertext [compos].
+
+
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zeroblock).
+
+
+(* Useful helper function. Dunno why. *)
+fun test(bool, block, block):block.
+forall x:block,y:block; test(true,x,y) = x.
+forall x:block,y:block; test(false,x,y) = y.
+
+(* axiomitize incr *)
+fun incr(block): block [compos, uniform].
+forall x:block; incr(x) <> x.
+collision x <-R block; y <-R block; return(incr(x) = y) <=( 1/|block| )=> return(false). 
+
+
+
+(****** derive counter-mode and mac-tag nonces from master nonce *******)
+
+type nonces [fixed, large].
+
+fun make_counter_mode_nonce(nonces) : block [uniform].
+collision x <-R nonces; y <-R block; return(make_counter_mode_nonce(x) = y) <=( 1/|block| )=> return(false).
+
+
+fun make_mac_nonce(nonces) : block [uniform].
+collision x <-R nonces; y <-R block; return(make_mac_nonce(x) = y) <=( 1/|block| )=> return(false).
+
+forall x:nonces; make_counter_mode_nonce(x) <> make_mac_nonce(x).
+forall x:nonces; incr(make_counter_mode_nonce(x)) <> make_mac_nonce(x).
+collision x <-R nonces; y <-R block; return(incr(make_counter_mode_nonce(x)) = y) <=( 1/|block| )=> return(false).
+
+
+(* Parameters *)
+
+param N_enc. (* the number of times the adversary gets to call the encryption oracle *)
+param N_dec. (* the number of times the adversary gets to call the decryption oracle *)
+param C. (* the number of challenge ciphertexts available to the adversary *)
+
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+
+
+let enc_oracle = 
+    Oenc(b1 : block):=
+       
+       nonce <-R nonces;
+       
+       tag_nonce <- make_mac_nonce(nonce);
+       b0 <- tag_nonce;
+
+       t1 <- aes_enc(b0, aesk);
+       t2 <- aes_enc( xor(t1, b1), aesk);
+
+
+       counter_nonce <- make_counter_mode_nonce(nonce);
+       s0 <- aes_enc(counter_nonce, aesk);
+
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       this_cm_ciphertext <- cm_join(counter_nonce, cipherblock1);
+
+       tag <- xor(t2, s0);
+
+       ciphertext <- mac_join(this_cm_ciphertext, tag_nonce, tag);
+
+       return (ciphertext).
+
+
+
+let challenge_oracle =
+       
+       Ochallenge(b11: block,  
+       		  b21: block ) :=
+
+       b1 <- test(secret_bit, b11, b21);
+
+       (* le sigh-- cut and copy from encryption oracle *)
+
+       nonce <-R nonces;
+       
+       tag_nonce <- make_mac_nonce(nonce);
+       b0 <- tag_nonce;
+
+       t1 <- aes_enc(b0, aesk);
+       t2 <- aes_enc( xor(t1, b1), aesk);
+
+
+       counter_nonce <- make_counter_mode_nonce(nonce);
+       s0 <- aes_enc(counter_nonce, aesk);
+
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       this_cm_ciphertext <- cm_join(counter_nonce, cipherblock1);
+
+       tag <- xor(t2, s0);
+
+       ciphertext <- mac_join(this_cm_ciphertext, tag_nonce, tag);
+
+       (* end cut and copy from encryption oracle *)
+
+       challenge : maced_ciphertext <- ciphertext;
+
+       return(challenge).
+
+
+
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+	aesx <-R aes_keyseed;
+        aesk <- aes_kgen(aesx);
+
+        secret_bit <-R bool;
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+        (foreach i <= N_enc do enc_oracle) |  (foreach i <= C do challenge_oracle)
+

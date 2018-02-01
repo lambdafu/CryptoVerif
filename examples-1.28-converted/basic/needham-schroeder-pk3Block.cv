@@ -1,0 +1,159 @@
+(* Needham Schroeder public key protocol. *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto uf_cma(sign) rkS;
+crypto ind_cca2(enc) rkA;
+crypto ind_cca2(enc) rkB;
+success;
+auto
+}
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [fixed,large].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [fixed].
+
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun pad(nonce):blocksize [data].
+
+forall z:nonce,t:nonce,y2:nonce,z2:host;
+	concat2(z,t) <> concat1(y2,z2).
+forall y:nonce,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,y2:nonce;
+	concat2(z,t) <> pad(y2).
+
+(* Public-key encryption (IND-CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+query secret NaA [onesession].
+query secret NaB [onesession].
+query secret NbA [onesession].
+query secret NbB [onesession].
+
+query secret NaA.
+query secret NaB.
+query secret NbA.
+query secret NbB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, start, finish.
+const A : host.
+const B : host.
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rkA: keyseed;
+let pkA: pkey = pkgen(rkA) in
+let skA: skey = skgen(rkA) in
+new rkB: keyseed;
+let pkB: pkey = pkgen(rkB) in
+let skB: skey = skgen(rkB) in
+new rkS: skeyseed;
+let pkS: spkey = spkgen(rkS) in
+let skS: sskey = sskgen(rkS) in
+out(c15, (pkA, pkB, pkS));
+((
+  ! i_1 <= N
+  in(c1[i_1], hostX: host);
+  out(c2[i_1], (A, hostX));
+  in(c3[i_1], (pkX: pkey, =hostX, ms_1: signature));
+  if check(concat3(pkX, hostX), pkS, ms_1) then
+  new Na_1: nonce;
+  new r3_2: seed;
+  out(c4[i_1], enc(concat1(Na_1, A), pkX, r3_2));
+  in(c5[i_1], m_3: bitstring);
+  let injbot(concat2(=Na_1, Nb: nonce)) = dec(m_3, skA) in
+  new r4: seed;
+  out(c6[i_1], enc(pad(Nb), pkX, r4));
+  in(finish[i_1], ());
+  if hostX = B then
+  (
+    let NaA: nonce = Na_1 in
+    let NbA: nonce = Nb
+  )
+  else
+    out(c16[i_1], (Na_1, Nb))
+) | (
+  ! i_2 <= N
+  in(c7[i_2], m_4: bitstring);
+  let injbot(concat1(Na_2: nonce, hostY: host)) = dec(m_4, skB) in
+  out(c8[i_2], (B, hostY));
+  in(c9[i_2], (pkY: pkey, =hostY, ms_2: signature));
+  if check(concat3(pkY, hostY), pkS, ms_2) then
+  new Nb_1: nonce;
+  new r5: seed;
+  out(c10[i_2], enc(concat2(Na_2, Nb_1), pkY, r5));
+  in(c11[i_2], m3: bitstring);
+  let injbot(pad(=Nb_1)) = dec(m3, skB) in
+  if hostY = A then
+  (
+    let NaB: nonce = Na_2 in
+    let NbB: nonce = Nb_1
+  )
+  else
+    out(c17[i_2], (Na_2, Nb_1))
+) | (
+  ! i_3 <= N
+  in(c13[i_3], (h1: host, h2: host));
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  new r3_3: sseed;
+  out(c14[i_3], (Rkey[j2], h2, sign(concat3(Rkey[j2], h2), skS, r3_3)))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+))
+
+
+
+
+(* DESIRED
+RESULT Could not prove secrecy of NbB, secrecy of NbA, one-session secrecy of NbB, one-session secrecy of NbA.
+END
+EXPECTED
+RESULT Could not prove secrecy of NbB; secrecy of NbA; secrecy of NaB; secrecy of NaA; one-session secrecy of NbB; one-session secrecy of NbA; one-session secrecy of NaB; one-session secrecy of NaA.
+4.676s (user 4.616s + system 0.060s), max rss 90560K
+END *)

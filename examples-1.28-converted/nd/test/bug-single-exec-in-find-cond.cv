@@ -1,0 +1,64 @@
+(* CryptoVerif applied the crypto transformation on
+   r[j] = enc(m[j],Kas,s1)
+even though, since it is in the condition of find, it is evaluated
+N2 times for each choice of s1.
+Fixed 27/11/2009. Transformation now fails.
+*)
+
+param N.
+param N2.
+param N3.
+
+type tag [bounded].
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+type maxencnotag [bounded].
+
+(* Shared-key encryption (IND-CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* Queries *)
+
+query secret M [onesession].
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+out(c9, ());
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new M: nonce;
+  new Na: nonce;
+  new s1: seed;
+  find j_12 = j_13 <= N2 suchthat defined(m_1[j_13], r_1[j_13]) && (r_1[j_13] = enc(m_1[j_13], Kas, s1)) then
+  out(c1[i_1], M)
+) | (
+  ! i_2 <= N2
+  in(c3[i_2], (m_1: maxenc, r_1: maxmac))
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of M.
+0.016s (user 0.012s + system 0.004s), max rss 37568K
+END *)

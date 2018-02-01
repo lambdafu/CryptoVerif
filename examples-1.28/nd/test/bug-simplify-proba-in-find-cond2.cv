@@ -1,0 +1,43 @@
+(* There may be a bug in the way CryptoVerif counts the number of comparisons 
+with the password pw, because the index of find j does not occur in the
+expression "pw = y", although y in fact depends on it.
+However, I don't manage to exhibit the bug, because 
+- if the expression "let y = m[j] in pw = y" is left as it is, the 
+simplification cannot eliminate collisions.
+- if the expression "let y = m[j] in pw = y" is changed into "pw =
+m[j]", CryptoVerif eliminates collisions and correctly counts the
+number of comparisons with the password pw, by replacing the index of
+find j with a new replication index (function new_repl_index in
+simplify.ml) *)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type passwd [large,fixed].
+
+proof {
+show_game
+}
+
+(* Queries *)
+
+query secret1 M.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+
+let processA = 
+	in(start, ());
+	new pw : passwd;
+	new M : nonce;
+	find j <= N2 suchthat defined(m[j]) && let y = m[j] in pw = y then
+	out(c1, M).
+
+process 
+	(! N processA) | (!N2 in(c3, m:passwd))
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of M.
+0.030s (user 0.020s + system 0.010s), max rss 15568K
+END *)

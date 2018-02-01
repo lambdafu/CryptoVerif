@@ -1,0 +1,63 @@
+(* Wrong occurrence *)
+
+proof {
+show_game occ;
+insert 700 "find a<=N suchthat defined(m[a]) then";
+show_game occ
+}
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+type hashkey [fixed].
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], m: hash);
+  find j_4 = j_5 <= N suchthat defined(x_1[j_5]) && (m = h(hk, x_1[j_5])) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x_1: hashinput);
+  new s: G;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(hc1[i_3], y: hashinput);
+  out(hc2[i_3], h(hk, y))
+))
+
+
+
+
+(* EXPECTED
+Error: Occurrence 700 not found. You should use the command show_game occ to determine the desired occurrence.
+xtime: error in child process (status : 512)
+END *)

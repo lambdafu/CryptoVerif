@@ -1,0 +1,56 @@
+(* Trivial running example for conference paper. *)
+
+set interactiveMode = true.
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed,large].
+type keyseed [fixed].
+type seed [fixed].
+
+fun keyToBitstring(key):bitstring [compos].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+proba Pencptxt.
+
+expand IND_CCA2_INT_PTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencptxt).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zkey:bitstring.
+forall y:key; 
+	Z(keyToBitstring(y)) = Zkey.
+
+(* Queries *)
+
+query secret1 k2.
+query secret1 k3.
+
+query secret k2.
+query secret k3.
+
+let processA = 
+	OA() :=
+	k2 <-R key;
+	s1 <-R seed;
+	let ea1 = enc(keyToBitstring(k2), Kab, s1) in
+	return(ea1).
+
+let processB =
+	OB(ea:bitstring) :=
+	let injbot(keyToBitstring(k3:key)) = dec(ea, Kab) in
+	return().
+
+process 
+	Ostart() :=
+	rKab <-R keyseed;
+	let Kab = kgen(rKab) in
+	return();
+	((foreach iA <= N do processA) |
+	 (foreach iB <= N do processB))

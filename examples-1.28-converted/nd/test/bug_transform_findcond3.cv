@@ -1,0 +1,82 @@
+(* CryptoVerif transforms the game, but the result is incorrect:
+
+  find @i_16 <= N suchthat defined(x'_11[@i_16], x_15[@i_16], y[j[@i_16]]) && (x'_10 = y[j[@i_16]]) then
+
+performs a look up on y[j[...]] when in fact h may be called for any
+y[..] in the find j<= N suchthat defined(y[j]) && m=h1(x',y[j])
+to check whether the condition holds, so the look up should be done
+on all y[...]
+
+The simplest fix is to forbid such transformations, where, due to
+the transform of a subterm of M in find j<=N suchthat ... M...,
+we end up making a look up on an expression that depends on the index j
+defined by that find.
+
+*)
+
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', N3, qH.
+
+fun h1(hashinput, hr):hash.
+fun h2(hr):hash.
+
+equiv
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := return(h1(x,y))|
+  ! N3 gen_Oracle_1(x': hr) := return(h2(x')) [all]
+<=(0)=>
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := return(h1(x,y))|
+  ! N3 gen_Oracle_1(x': hr) := find k <= N'', j <= N' suchthat defined(y[j], x[k, j]) && (x'= y[j]) then return(h1(x[k,j],y[j])) else new r: hash; return(r).
+
+channel c5, c6.
+
+ 
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+
+
+
+
+process 
+	(((
+  ! i_1 <= N
+  in(c1[i_1], (m: hash, x'_1: hashinput));
+  find j_4 = j_5 <= N suchthat defined(y[j_5]) && (m = h1(x'_1, y[j_5])) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x: hashinput);
+  new y: hr;
+  new s: G;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(c1[i_3], x'_2: hr);
+  out(c2[i_3], h2(x'_2))
+))
+
+)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.016s (user 0.012s + system 0.004s), max rss 37248K
+END *)

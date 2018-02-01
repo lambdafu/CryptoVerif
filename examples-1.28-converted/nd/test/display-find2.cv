@@ -1,0 +1,26 @@
+(* The "orfind" can refer to the first or second find.
+   In this example, the parenthesis makes sure it refers to the first
+   find. *)
+
+param n.
+channel c.
+
+process
+	! i <= n
+in(c[i], (x: bitstring, y: bitstring));
+find i_1 = i_2 <= n suchthat defined(x[i_2]) && (x[i_2] = y) then
+(
+  find j = j_1 <= n suchthat defined(y[j_1]) && (x = y[j_1]) then
+  out(c[i], (x, y[j]))
+)
+orfind k = k_1 <= n suchthat defined(y[k_1]) && (x = y[k_1]) then
+  out(c[i], (x, y[k]))
+else
+  out(c[i], (x, y))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.012s + system 0.008s), max rss 33920K
+END *)

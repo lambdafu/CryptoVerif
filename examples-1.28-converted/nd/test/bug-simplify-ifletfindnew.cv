@@ -1,0 +1,78 @@
+(* Caused an internal error because if/let/find/new occurred in try_no_var *)
+
+proof {
+show_game occ;
+replace 72 x_2 (* The message in out(c2, ...) *)
+}
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, bitstring, D, hash).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+event bad.
+query event(bad) ==> false.
+
+channel c0, c1, c2, c3, c4, c5, start.
+
+
+
+
+
+process 
+	in(start, ());
+new hk: hashkey;
+new r_2: seed;
+let pk: pkey = pkgen(r_2) in
+let sk: skey = skgen(r_2) in
+out(c0, pk);
+((
+  ! i_1 <= qS
+  in(c1[i_1], m: bitstring);
+  out(c2[i_1], invf(sk, hash(hk, m)))
+) | (
+  in(c3, (m': bitstring, s: D));
+  if f(pk, s) = hash(hk, m') then
+  find u = u_1 <= qS suchthat defined(m[u_1]) && (m' = m[u_1]) then
+    yield
+  else
+    event bad
+) | (
+  ! i_2 <= qH
+  in(hc1[i_2], y: bitstring);
+  out(hc2[i_2], hash(hk, y))
+) | (
+  in(c1, x_2: bitstring);
+  find j_6 = j_7 <= qS suchthat defined(m[j_7]) && (find j'_1 = j' <= qS suchthat defined(m[j']) then (m[j_7] = m[j'_1]) else false) then
+    out(c2, x_2)
+  else
+    out(c3, x_2)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(bad) ==> false.
+0.020s (user 0.016s + system 0.004s), max rss 33760K
+END *)

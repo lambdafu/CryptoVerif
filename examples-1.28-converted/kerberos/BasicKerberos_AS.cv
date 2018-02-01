@@ -1,0 +1,224 @@
+(************************************************************************
+ *                                                                      *
+ *       Kerberos 5 protocol                                            *
+ *                                                                      *
+ *       Joe-Kai Tsay, Bruno Blanchet, Aaron D. Jaggard, Andre Scedrov  *
+ *                                                                      *
+ *       Copyright (C) University of Pennsylvania, ENS, CNRS,           *
+ *       Rutgers University, 2007-2008                                  *
+ *                                                                      *
+ ************************************************************************)
+
+(*
+
+    Copyright University of Pennsylvania, ENS, CNRS, Rutgers University
+    authors of this file:   Joe-Kai Tsay, jetsay@math.upenn.edu,
+                Bruno Blanchet, Bruno.Blanchet@ens.fr,
+                Aaron D. Jaggard, adj@dimacs.rutgers.edu,
+                Andre Scedrov, scedrov@math.upenn.edu
+    
+    
+This file contains a model of the Kerberos 5 protocol, for use with the
+cryptographic protocol verifier CryptoVerif. It is a companion to
+the AsiaCCS'08 paper "Computationally Sound Mechanized Proofs for
+Basic and Public-key Kerberos", by B. Blanchet, A. D. Jaggard, A. Scedrov,
+and J.-K. Tsay.
+
+This software is governed by the CeCILL license under French law and
+abiding by the rules of distribution of free software.  You can use, 
+modify and/ or redistribute the software under the terms of the CeCILL
+license as circulated by CEA, CNRS and INRIA at the following URL
+"http://www.cecill.info". 
+
+As a counterpart to the access to the source code and  rights to copy,
+modify and redistribute granted by the license, users are provided only
+with a limited warranty  and the software's author,  the holder of the
+economic rights,  and the successive licensors  have only  limited
+liability. 
+
+In this respect, the user's attention is drawn to the risks associated
+with loading,  using,  modifying and/or developing or reproducing the
+software by the user in light of its specific status of free software,
+that may mean  that it is complicated to manipulate,  and  that  also
+therefore means  that it is reserved for developers  and  experienced
+professionals having in-depth computer knowledge. Users are therefore
+encouraged to load and test the software's suitability as regards their
+requirements in conditions enabling the security of their systems and/or 
+data to be ensured and,  more generally, to use and operate it in the 
+same conditions as regards security. 
+
+Anything other than deleting this file means that you have knowledge
+of the CeCILL license and that you accept its terms.
+
+*)
+
+(* Note: This file requires CryptoVerif version 1.07 or higher. *)
+
+
+(* basic Kerberos 5, first round only (AS_exchange), 
+consider authentication and  key secrecy properties *)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type kas [bounded].
+type client [bounded].
+type tgs [bounded].
+type server [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type timest [fixed].							
+
+(* Message construction functions *)
+fun concat1(key, nonce, timest, tgs):maxenc [data]. 		
+fun concat2(key, timest, client):maxenc [data].  		
+fun concat3(key, nonce, timest, server):maxenc [data].       	
+fun pad(client, timest):maxenc [data].
+fun padts(timest): maxenc [data].
+
+forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;		concat2(y,x,z) <> concat1(t2,y2,x2,z2).
+forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
+forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	   	pad(z,t) <> concat1(t2,y2,x2,z2).
+forall t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;   		   	padts(t) <> concat1(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server; 	concat2(y,x,z) <> concat3(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2:timest, z2:client;    		   	concat2(y,x,z) <> pad(z2,t2). 
+forall y:key, x:timest, z:client, t2:timest;    			   	concat2(y,x,z) <> padts(t2). 
+forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  	   	concat3(t,y,x,z) <> pad(z2,t2).
+forall t:key, y:nonce, x:timest, z:server, t2:timest;  			   	concat3(t,y,x,z) <> padts( t2).
+forall t:timest, z:client, t2:timest;  					   	pad(z,t)<> padts(t2).
+
+
+(* Shared-key encryption (IND-CPA and INT-CTXT Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencctxt).
+
+(* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+const  Zconcat1:maxenc.
+const  Zconcat2:maxenc.
+const  Zconcat3: maxenc.
+const  Zpad:maxenc.
+const  Zpadts: maxenc.
+forall y:nonce, x:timest, z:tgs, t:key;
+	Z(concat1(t,y,x,z)) = Zconcat1.
+forall y:key, x:timest, z:client; 
+	Z(concat2(y,x,z)) = Zconcat2.
+forall  y:nonce, x:timest, z:server, t:key;
+	Z(concat3(t,y,x,z)) = Zconcat3.
+forall z:client, t:timest;
+        Z(pad(z,t)) = Zpad.
+forall t: timest;
+        Z(padts(t)) = Zpadts.
+					    
+(* Channel declarations *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, start, finish, cC, cT.
+
+(* Host names for honest hosts *)
+
+const C : client.
+const K : kas.
+const T : tgs.
+const S : server.
+
+(* Final accept messages *)						
+
+fun acceptC(kas,tgs):bitstring.
+fun acceptK(client):bitstring.
+
+(* Authentication Queries *)
+
+event fullKC(client, tgs, nonce, key, bitstring, bitstring).
+event fullCK(kas, tgs, nonce, key, bitstring, bitstring).		
+
+query z: bitstring, y: bitstring, x: bitstring, k: key, N: nonce;
+  inj-event(fullCK(K, T, N, k, x, y)) ==> inj-event(fullKC(C, T, N, k, z, y)) public_vars keyAK.
+
+query k': key, y: bitstring, x: bitstring, k: key, N: nonce;
+  event(fullCK(K, T, N, k, x, y)) && event(fullKC(C, T, N, k', x, y)) ==> (k = k') public_vars keyAK.		 
+
+(* Theorem 6: Secrecy of the key AK *)
+
+query secret keyAK. 
+
+
+(* Code for the client C *)
+
+
+	
+
+(* Code for registering the keys *)
+
+
+
+
+
+(* Code for the Kerberos Authentication Server (KAS) K *)
+
+
+
+(* Main process, which generates long-term keys and runs the various processes *)
+
+process
+	in(start, ());
+new rKc: keyseed;
+let Kc: key = kgen(rKc) in
+new rKt: keyseed;
+let Kt: key = kgen(rKt) in
+out(c25, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hostT: tgs);
+  new n1_1: nonce;
+  out(c2[i_1], (C, hostT, n1_1));
+  in(c3[i_1], (=C, m_1: bitstring, m2: bitstring));
+  let injbot(concat1(AK: key, =n1_1, tk: timest, =hostT)) = dec(m2, Kc) in
+  event fullCK(K, hostT, n1_1, AK, m_1, m2);
+  out(c18[i_1], acceptC(K, hostT));
+  in(finish[i_1], ());
+  if hostT = T then
+  (
+    let keyAK: key = AK
+  )
+  else
+    out(cC[i_1], AK)
+) | (
+  ! i_2 <= N
+  in(c14[i_2], (hostY: client, hostW: tgs, n: nonce));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rkey[j1_1]) && (Khost[j1_1] = hostY) then
+  find j2 = j2_1 <= N2 suchthat defined(Lhost[j2_1], Qkey[j2_1]) && (Lhost[j2_1] = hostW) then
+  new AK_1: key;
+  new tk_1: timest;
+  new r3: seed;
+  let e3: bitstring = enc(concat2(AK_1, tk_1, hostY), Qkey[j2], r3) in
+  new r4: seed;
+  let e4: bitstring = enc(concat1(AK_1, n, tk_1, hostW), Rkey[j1], r4) in
+  event fullKC(hostY, hostW, n, AK_1, e3, e4);
+  out(c15[i_2], (hostY, e3, e4))
+) | (
+  ! i_3 <= N2
+  in(c13[i_3], (Khost: client, Kkey: key));
+  let Rkey: key = (if Khost = C then Kc else Kkey)
+) | (
+  ! i_4 <= N2
+  in(c21[i_4], (Lhost: tgs, Lkey: key));
+  let Qkey: key = (if Lhost = T then Kt else Lkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.128s (user 0.080s + system 0.048s), max rss 47264K
+END *)

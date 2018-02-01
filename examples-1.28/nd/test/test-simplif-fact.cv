@@ -1,0 +1,18 @@
+type id.
+fun is_air(id):bool.
+
+set useEqualitiesInSimplifyingFacts = true.
+
+channel c.
+
+process
+	in(c, (x: id, y: id));
+	if is_air(x) then yield else
+	if is_air(y) then
+	if x = y then
+	out(c, true)
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

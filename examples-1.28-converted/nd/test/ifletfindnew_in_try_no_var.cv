@@ -1,0 +1,66 @@
+(* Bug: 
+it transforms defined(m[k2]) into defined(m[k1]) 
+although they are not equivalent (k2 is defined only when x = x')
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+proof {
+crypto f
+}
+
+fun f(hash,hash):bool.
+
+equiv
+  ! N Ohash(x: hash, y: hash) := return(f(x,y)) [all]
+<=(0)=>
+  ! N Ohash(x: hash, y: hash) := let z:hash = x in if defined(z) then return(z = y) else return(false).
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], (m: hash, m': hash, a: bool, b: bool));
+  find j_4 = j_5 <= N suchthat defined(m'[j_5]) && f(m'[j_5], m') then
+    new s: hash;
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= qH
+  in(hc1[i_2], y: hashinput);
+  out(hc2[i_2], h(hk, y))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.012s + system 0.008s), max rss 40096K
+END *)

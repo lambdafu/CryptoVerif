@@ -1,0 +1,80 @@
+(* Version in which the participants only talk to A and B *)
+
+param N.
+param N2.
+param N3.
+
+(* Bitstrings of size exactly the block size *)
+type blocksize [large,fixed].
+
+type tag.
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+(* Concat1 and concat2 already include the necessary padding to reach the block size *)
+fun concat2(tag, nonce, key):blocksize [compos].
+
+(* Shared-key encryption (Block cipher) *)
+
+proba Penc.
+
+fun enc(blocksize, key): blocksize.
+fun kgen(keyseed):key.
+fun dec(blocksize, key): blocksize.
+
+forall m:blocksize, r:keyseed; 
+	dec(enc(m, kgen(r)), kgen(r)) = m.
+
+equiv  !N3 new r: keyseed; ((x:blocksize) N -> enc(x, kgen(r)),
+			    (m:blocksize) N2 -> dec(m, kgen(r)))
+     <=(N3 * Penc)=>
+       !N3 new r: keyseed; ((x:blocksize) N -> 
+		new r2: blocksize; 
+		find j<=N suchthat defined(x[j],r3[j]) && x = x[j] then r3[j] 
+		orfind k<=N2 suchthat defined(r5[k],m[k]) && x = r5[k] then m[k] 
+		else let r3: blocksize = r2 in r3,
+			(m:blocksize) N2 ->
+		new r4: blocksize;
+		find j<=N suchthat defined(x[j],r3[j]) && m = r3[j] then x[j] 
+		orfind k<=N2 suchthat defined(r5[k],m[k]) && m = m[k] then r5[k] 
+		else let r5: blocksize = r4 in r5).
+
+(* Queries *)
+
+query secret1 keyA.
+query secret1 k.
+
+channel c.
+const A : host.
+const B : host.
+
+let processA = 
+	in(c, ea2: blocksize);
+	let concat2(=tag3, n:nonce, keyA:key) = dec(ea2, Kas).
+
+let processS =
+        in(c, ());
+	new Na: nonce;
+	new k: key;
+	let e1 = enc(concat2(tag3, Na, k), Kas) in
+	out(c, e1).
+	
+process 
+	in(c, ());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	out(c, ());
+	((! N processA) |
+	 (! N processS))
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of keyA.
+0.030s (user 0.020s + system 0.010s), max rss 17296K
+END *)

@@ -1,0 +1,33 @@
+param N.
+channel c.
+type nonce [fixed].
+
+
+
+process
+	((
+  ! i_1 <= N
+  in(c[i_1], ());
+  new x: nonce;
+  new y: nonce;
+  out(c[i_1], ())
+) | (
+  ! i_2 <= N
+  in(c[i_2], ());
+  new z: nonce;
+  out(c[i_2], ())
+) | (
+  in(c, ());
+  find k' = k'_1 <= N suchthat defined(x[k'_1]) then
+  find k = k_1 <= N suchthat defined(x[k_1], y[k_1], z[k_1]) && (x[k_1] = y[k_1]) then
+  if k' = k then
+  find j_1 = j_2 <= N suchthat defined(x[j_2], y[j_2], z[k']) && (x[j_2] = y[j_2]) then
+  out(c, z[k'])
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.012s + system 0.004s), max rss 42384K
+END *)

@@ -1,0 +1,14 @@
+(* Non-linear patterns are rejected by CryptoVerif *)
+
+channel c.
+
+
+process
+   in(c, y: bitstring);
+   let (=x, x: bitstring) = y in
+   out(c, x)
+
+(* EXPECTED
+Error: Variable reference not defined
+xtime: error in child process (status : 512)
+END *)

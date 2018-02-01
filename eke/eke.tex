@@ -1,0 +1,444 @@
+\newif\iffull    
+
+  \fullfalse    % Final version -- Extended abstract
+
+% latex crypto.tex
+% dvips -t letterSize -Ppdf -G0 crypto.dvi -o 
+% ps2pdf -sPAPERSIZE=letter crypto.ps
+
+\documentclass[runningheads]{llncs}
+
+\usepackage{url,amsmath,amsfonts}
+
+\iffull
+
+  \usepackage[letterpaper,hmargin=1.2in,vmargin=1in]{geometry}
+
+\fi
+
+%******* COMMAND USED .....
+\def\bits{\{0,1\}}
+\def\bG{{\bf G}}
+\def\GG{\mathbb G}
+\def\FF{\mathbb F}
+\def\ZZ{\mathbb Z}
+\def\ZZs{\mathbb Z^\star}
+
+\def\calA{\ensuremath{\mathcal A}}
+\def\calD{\ensuremath{\mathcal D}}
+\def\calE{\ensuremath{\mathcal E}}
+\def\calF{\ensuremath{\mathcal F}}
+\def\calG{\ensuremath{\mathcal G}}
+\def\calH{\ensuremath{\mathcal H}}
+\def\calP{\ensuremath{\mathcal P}}
+\def\calK{\ensuremath{\mathcal K}}
+\def\calU{\ensuremath{\mathcal U}}
+\def\calX{\ensuremath{\mathcal X}}
+
+\def\phi{\varphi}
+\def\eps{\varepsilon}
+\def\gets{\leftarrow}
+\def\store{\leftarrow}
+\def\getR{\stackrel{R}{\gets}}
+\def\testeq{\stackrel{?}{=}}
+
+%\def\Adv{{\normalfont{\sf Adv}}}
+\def\Succ{{\normalfont{\sf Succ}}}
+
+\def\EUF{{\normalfont\textsf{UF}}}
+     \newcommand{\euf}{{\normalfont\mathsf{uf}}}
+\def\CMA{\normalfont\textsf{CMA}}
+     \newcommand{\cma}{{\normalfont\mathsf{cma}}}
+\def\OW{\normalfont\textsf{OW}}
+     \newcommand{\ow}{{\normalfont\mathsf{ow}}}
+\def\IND{{\normalfont\textsf{IND}}}
+\def\CPA{{\normalfont\textsf{CPA}}}
+\def\CCAT{{\normalfont\textsf{CCA2}}}
+
+\newcommand{\Succsign}{\Succ_\Scheme^{\euf-\cma}}
+\newcommand{\Succow}{\Succ_\calP^\ow}
+\newcommand{\tCa}{t_{C_{\ap}}}
+
+\def\more{\newline\textbf{--- More details\ldots ---}\newline}
+\def\TODO#1{\newline\textbf{--- TODO ---} \emph{#1}\newline}
+\def\TODO#1{}
+
+\makeatletter
+\newcommand{\pname}[1]{\item[{#1}.]\def\@currentlabel{#1}}
+
+% \renewcommand\small{%
+%    \@setfontsize\small\@xpt\@xiipt
+%    \abovedisplayskip 10\p@ \@plus2\p@ \@minus5\p@
+%    \abovedisplayshortskip \z@ \@plus3\p@
+%    \belowdisplayshortskip 6\p@ \@plus3\p@ \@minus3\p@
+%    \def\@listi{\leftmargin\leftmargini
+%                \parsep 0\p@ \@plus1\p@ \@minus\p@
+%                \topsep 8\p@ \@plus2\p@ \@minus4\p@
+%                \itemsep0\p@}%
+%    \belowdisplayskip \abovedisplayskip
+% }
+\makeatother
+
+% \spnewtheorem*{proofsk}{Proof sketch}{\itshape}{\rmfamily}
+% \spnewtheorem{invariant}{Invariant}{\bfseries}{\rmfamily}
+
+%\newtheorem{lemma}{Lemma}
+%\newtheorem{theorem}{Theorem}
+%\newtheorem{corollary}{Corollary}
+%\newtheorem{proposition}{Proposition}
+%\theorembodyfont{\rmfamily}
+\newtheorem{invariant}{Invariant}
+%\newtheorem{definition}{Definition}
+%\newtheorem{example}{Example}
+\newtheorem{Remark}{Remark}
+%\newtheorem{proof}{Proof}
+\newtheorem{proofsk}{Proof sketch}
+\def\theproof{}
+\def\theproofsk{}
+\newcommand{\proofcomplete}{\hspace*{\fill}$\Box$}
+
+\newenvironment{proofof}[1]%
+  {\begin{trivlist}\item[]{\normalsize\bf Proof of #1}\hspace*{4mm}}%
+  {\end{trivlist}}
+
+\newenvironment{proofskof}[1]%
+  {\begin{trivlist}\item[]{\normalsize\bf Proof sketch of #1}\hspace*{4mm}}%
+  {\end{trivlist}}
+
+% --------------------------------------------------------------------- %
+% Typesetting definitions:              Sample output:                  %
+%                                                                       %
+% \begin{defn}                                                          %
+% \categ{M,N}{terms}\\          M, N ::=        terms           %
+% \entry{x}{variable}\\                   x               variable      %
+% \entry{M\ N}{application}\\             M N             application   %
+% \entry{\lambda x.\ M}{abstraction}      \x.M            abstraction   %
+% \end{defn}                                                            %
+%                                                                       %
+% This is a tabbing environment; the last entry should have no \\.      %
+% --------------------------------------------------------------------- %
+
+\newenvironment{defn}{\begin{tabbing}
+  \hspace{1.5em} \= \hspace{.45\linewidth - 1.5em} \= \hspace{1.5em} \= \kill
+%  \hbra\\[-.8ex]
+  }{
+%\\[-.8ex]\hket
+  \end{tabbing}}
+\newenvironment{shortdefn}{\begin{tabbing}
+  \hspace{1.5em} \= \hspace{.38\linewidth - 1.5em} \= \hspace{1.5em} \= \kill
+%  \hbra\\[-.8ex]
+  }{
+%\\[-.8ex]\hket
+  \end{tabbing}}
+\newcommand{\entry}[2]{\>$#1$\>\>#2}
+\newcommand{\clause}[2]{$#1$\>\>#2}
+\newcommand{\categ}[2]{\clause{#1::=}{#2}}
+\newcommand{\subclause}[1]{\>\>\>#1}
+
+%Syntax of games
+
+\newcommand{\parpop}{\mid}
+\newcommand{\assign}[2]{{#1} \gets {#2}; }
+\newcommand{\bassign}[2]{{#1} \gets {#2}}
+\newcommand{\repl}[2]{\kw{foreach}\ {#1}\leq{#2}\ \kw{do}\ }
+\newcommand{\brepl}[2]{\kw{foreach}\ {#1}\leq{#2}}
+
+%TO DO Deprecated
+\newcommand{\cinput}[2]{{#1}({#2})}
+\newcommand{\coutput}[2]{\overline{#1}\langle{#2}\rangle}
+%\newcommand{\fun}[3]{({#1}) \rightarrow_{#2} {#3}}
+%input process -> oracle definitions
+%output process -> oracle body
+%Are the word process, the notations P, Q still good?
+%replace ``replication'' with ``copy''?
+
+\newcommand{\Reschan}[1]{\kw{newOracle}\ {#1}}
+\newcommand{\ora}{O}
+\newcommand{\Ostart}{Ostart}
+\newcommand{\oracledef}[2]{{#1}(#2) := }
+\newcommand{\creturn}[1]{\kw{return}({#1})}
+\newcommand{\ereturn}{\kw{return}}
+\newcommand{\eend}{\kw{end}} 
+\newcommand{\oraclecall}[3]{{#1} \gets {#2}(#3)}
+
+
+\newcommand{\yield}{\overline{0}}
+\newcommand{\Res}[2]{{#1}\getR {#2}}
+\newcommand{\kw}[1]{\mathbf{#1}}
+\newcommand{\kwt}[1]{\mathit{#1}}
+\newcommand{\kwp}[1]{\mathit{#1}}
+\newcommand{\kwf}[1]{\mathsf{#1}}
+\newcommand{\var}[1]{\mathit{#1}}
+\newcommand{\rn}[1]{\textbf{#1}}
+\newcommand{\IF}{\kw{if}\ }
+\newcommand{\THEN}{\ \kw{then}\ }
+\newcommand{\ELSE}{\kw{else}\ }
+\newcommand{\baguard}[1]{\IF{#1}\THEN}
+\newcommand{\bguard}[3]{\baguard{#1}{#2}\ \ELSE{#3}}
+\newcommand{\bafind}[3]{\kw{find}\ {#1}\ \kw{suchthat}\ (\kw{defined}({#2})\fand {#3})\THEN}
+\newcommand{\orfind}[3]{\oplus\ {#1}\ \kw{suchthat}\ (\kw{defined}({#2})\fand {#3})\THEN}
+\newcommand{\bfind}[5]{\bafind{#1}{#2}{#3}{#4}\ \ELSE{#5}}
+\newcommand{\cfind}[7]{\kw{find}\ (\mathop\bigoplus\nolimits_{#1}^{#2} {#3}\ \kw{suchthat}\ (\kw{defined}({#4})\fand {#5})\THEN{#6})\ \ELSE{#7}}
+\newcommand{\cdfind}[7]{\kw{find}\ (\mathop\bigoplus\nolimits_{#1}^{#2} {#3}\ \kw{suchthat}\ ({#4}\fand {#5})\THEN{#6})\ \ELSE{#7}}
+\newcommand{\defined}{\kw{defined}}
+\newcommand{\bitstring}{\kwt{bitstring}}
+\newcommand{\bitstringbot}{\kwt{bitstring}_{\bot}}
+\newcommand{\injbot}{i_{\bot}}
+
+\newcommand{\repeatproc}[2]{{#1} \times {#2}}
+
+\newcommand{\bool}{\kwt{bool}}
+
+\newcommand{\Adv}{\mathrm{Adv}}
+
+\newcommand{\obssecp}{\rightsquigarrow}
+
+\newcommand{\fand}{\wedge}
+\newcommand{\for}{\vee}
+\newcommand{\fnot}{\neg}
+\newcommand{\xor}{\mathop{\kwf{xor}}}
+
+\newcommand{\multiunion}{\uplus}
+
+\newcommand{\tup}[1]{\widetilde{#1}}
+
+\newcommand{\relay}[3]{\mathrm{relay}(#3)_{#1}^{#2}}
+\newcommand{\relaysubL}[2]{\mathrm{relay}(L_{#2}^{#1})}
+\newcommand{\translsubL}[2]{[\![L_{#2}^{#1}]\!]}
+\newcommand{\seqi}{\tup{i}}
+\newcommand{\seqj}{\tup{j}}
+
+\newcommand{\aridx}{\mathrm{index}}
+
+\newcommand{\transl}[3]{[\![ {#3} ]\!]^{#2}_{#1}}
+\newcommand{\extract}{\mathrm{extract}}
+\newcommand{\mset}{{\cal M}}
+\newcommand{\instan}[2]{\mathrm{transf}_{#1}(#2)}
+\newcommand{\variml}{\mathrm{varImL}}
+\newcommand{\varimr}{\mathrm{varImR}}
+\newcommand{\varimmap}{\xrightarrow{\mathrm{var}}}
+\newcommand{\VR}{M_V}
+\newcommand{\im}{\mathrm{im}\ }
+
+\newcommand{\ltr}[1]{\mathrel{\xrightarrow{#1}}}
+\newcommand{\evalterm}{\Downarrow}
+\newcommand{\red}[2]{\ltr{#1}_{#2}}
+\newcommand{\redq}{\rightsquigarrow}
+\newcommand{\redsecp}[2]{\ltr{#1}_{#2}}
+\newcommand{\initconfig}{\mathrm{initConfig}}
+
+\newcommand{\ix}{t}
+\newcommand{\dom}{\mathrm{Dom}}
+\newcommand{\reduce}{\mathrm{reduce}}
+\newcommand{\pset}{{\cal Q}}
+\newcommand{\cset}{{\cal C}}
+\newcommand{\restconfig}{,\pset,\cset}
+\newcommand{\fc}{\mathrm{fc}}
+%\newcommand{\kvar}{\mathrm{var}}
+\newcommand{\maxlen}{\mathrm{maxlen}}
+\newcommand{\defset}{\kw{Defined}}
+
+\newcommand{\SSAren}{\kw{SArename}}
+
+\newcommand{\redrepl}[2]{\mathrm{redRepl}({#1},#2)}
+
+\newcommand{\Lnewvar}[3]{y_{#1#2,#3}}
+\newcommand{\Limnewvar}[3]{z_{#1#2,#3}}
+\newcommand{\Lnewtype}[3]{T_{#1#2,#3}}
+\newcommand{\Lnewmax}[2]{\mathrm{nNew}_{#1,#2}}
+\newcommand{\LRnewmmax}[1]{\mathrm{nNewSeq}_{#1}}
+\newcommand{\LRinpvar}[2]{x_{#1,#2}}
+\newcommand{\LRinptype}[2]{T_{#1,#2}}
+\newcommand{\LRinpmax}[1]{\mathrm{nInput}_{#1}}
+\newcommand{\Lterm}[1]{N_{#1}}
+\newcommand{\subst}[1]{\sigma_{#1}}
+
+\newcommand{\Rnewvar}[3]{y'_{#1#2,#3}}
+\newcommand{\Rimnewvar}[3]{z'_{#1#2,#3}}
+\newcommand{\Rnewtype}[3]{T'_{#1#2,#3}}
+\newcommand{\Rnewmax}[2]{\mathrm{nNew}'_{#1,#2}}
+\newcommand{\RFP}[1]{FP_{#1}}
+
+\newcommand{\Sj}{\mathit{BL}}
+
+\newcommand{\sLnewvar}[2]{y_{(#1),#2}}
+\newcommand{\sLnewtype}[2]{T_{(#1),#2}}
+\newcommand{\sLreplidx}[1]{i_{#1}}
+\newcommand{\sLreplbound}[1]{n_{#1}}
+\newcommand{\sLRinpvar}[2]{x_{(#1),#2}}
+\newcommand{\sLRinptype}[2]{T_{(#1),#2}}
+\newcommand{\sLnewmax}[1]{\mathrm{nNew}_{#1}}
+\newcommand{\sLRinpmax}[1]{\mathrm{nInput}_{#1}}
+
+\newcommand{\enc}{\kwf{enc}}
+\newcommand{\dec}{\kwf{dec}}
+\newcommand{\kgen}{\kwf{kgen}}
+
+\newcommand{\mac}{\kwf{mac}}
+\newcommand{\mcheck}{\kwf{check}}
+\newcommand{\mkgen}{\kwf{mkgen}}
+
+\newcommand{\pkgen}{\kwf{pkgen}}
+\newcommand{\skgen}{\kwf{skgen}}
+
+\newcommand{\ktob}{\kwf{k2b}}
+
+\newcommand{\vn}[1]{x_{#1}}
+
+\newcommand{\tyenv}{{\cal E}}
+
+\newcommand{\rewrite}{\rightarrow}
+\newcommand{\indep}{\mathrm{only\_dep}}
+\newcommand{\collectfacts}{\mathrm{collectFacts}}
+\newcommand{\fset}{{\cal F}}
+\newcommand{\rset}{{\cal R}}
+\newcommand{\testp}[2]{\mathrm{if\ }{#1}\mathrm{\ then\ }{#2}}
+\newcommand{\facts}{\mathrm{TrueFacts}}
+\newcommand{\factatdef}{\mathrm{TrueFacts}_{\mathrm{def}}}
+
+\newcommand{\adeftest}[1]{\baguard{\kw{defined}({#1})}}
+\newcommand{\tproc}[1]{Q_{#1}}
+
+\newcommand{\sigmai}{\sigma_{\mathrm{i}}}
+
+\newcommand{\vf}{u} %find variable
+\newcommand{\ap}{a}
+
+\newcommand{\among}[1]{\mathrm{among}({#1})}
+
+%addition of events
+\newcommand{\kevent}[1]{\kw{event}\ {#1}}
+\newcommand{\evseq}{{\cal E}}
+\newcommand{\bad}{\kwf{forge}}
+\newcommand{\invert}{\kwf{invert}}
+
+\newcommand{\pkey}{\kwt{pkey}}
+\newcommand{\skey}{\kwt{skey}}
+\newcommand{\pk}{\kwt{pk}}
+\newcommand{\sk}{\kwt{sk}}
+
+\newcommand{\seed}{\kwt{seed}}
+\newcommand{\signt}{\kwt{signature}}
+\newcommand{\D}{D}
+\newcommand\Scheme{\kwf{S}}
+\newcommand{\sign}{\kwf{sign}}
+%\newcommand{\checks}{\kwf{check}}
+\newcommand{\checks}{\kwf{verify}}
+\newcommand{\mf}{\kwf{invf}}
+\newcommand{\f}{\kwf{f}}
+\newcommand{\hash}{\kwf{hash}}
+\newcommand{\cmark}{\kwf{mark}}
+\newcommand{\ctrue}{\kwf{true}}
+\newcommand{\cfalse}{\kwf{false}}
+\newcommand{\iH}{iH}
+\newcommand{\iS}{iS}
+
+\makeatletter
+\newcommand{\lnn}[2]{#1\def\@currentlabel{#1}\label{#2}}
+\makeatother
+
+\newcommand{\inds}[1]{#1_{\mathrm{s}}}
+\newcommand{\indk}[1]{#1_{\mathrm{k}}}
+\newcommand{\indv}[1]{#1_{\mathrm{v}}}
+
+\newcommand{\indf}[1]{#1_{\mathrm{f}}}
+
+\newcommand{\indh}[1]{#1_{\mathrm{h}}}
+
+\newcommand{\length}{\mathrm{length}}
+
+%\title{A Computationally Sound Mechanized Prover \\
+%       for Security Protocols}
+\title{Mechanized Proof of One-Encryption Key Exchange}
+%\titlerunning{}
+
+\author{Bruno Blanchet \and David Pointcheval}
+
+\institute{{\'E}cole Normale Sup{\'e}rieure, CNRS, INRIA, Paris\\
+{\url{{blanchet,pointche}@di.ens.fr}}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{Introduction}
+
+
+
+At some point, explain briefly the extensions of CryptoVerif
+needed to handle the protocol
+
+\paragraph{Related Work.}
+
+\paragraph{Outline.}
+
+\section{The OEKE protocol}
+\label{sec:protocol}
+
+Perhaps we can take something from the CCS'03 paper.
+
+\section{Modeling OEKE in CryptoVerif}
+
+assumptions, protocol, security properties.
+
+random oracle model already defined, but we use hash functions
+with 5 arguments instead of one (facilitates the automatic proof).
+
+give a pointer to the code on the web.
+
+\subsection{The computational Diffie-Hellman assumption}
+\label{sec:CDH}
+
+
+\subsection{The ideal cipher model}
+
+
+\subsection{The protocol itself}
+
+client, server, passive sessions.
+Follows Section~\ref{sec:protocol} closely.
+
+
+\section{Proving OEKE in CryptoVerif}
+\label{sec:proof}
+
+
+\subsection{On Shoup's lemma}
+
+- the remark on the computation of probabilities.
+
+- instruction for inserting an event in CryptoVerif
+
+- how we use it for proving EKE -> the first manual indications
+in the proof, until ``auto''.
+
+\subsection{Automatic steps}
+
+explain briefly what CryptoVerif does in ``auto''.
+
+\subsection{Reorganizing random number generations}
+
+manual indications after ``auto'' and before ``simplify coll\_elim pw''.
+
+\subsection{The final computation of probabilities}
+
+indication [noninteractive]...
+
+simplify coll\_elim pw
+
+\section{Conclusion}\label{sec:concl}
+
+
+\subsubsection*{Acknowledgments}
+
+%
+
+\bibliographystyle{abbrv}
+\bibliography{bruno,david}  
+\end{document}
+
+

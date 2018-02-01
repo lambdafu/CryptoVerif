@@ -1,0 +1,135 @@
+(* Wide-Mouth-Frog protocol, version without timestamps,
+   but with tags.
+   Proving secrecy of the session key.
+   (Script written for a paper with Martin Abadi and 
+   Hubert Comon-Lundh, CAV'09) *)
+
+param N, N2.
+
+type host [bounded].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type maxenc [bounded].
+type tag [fixed].
+
+const c0: tag.
+const c1: tag.
+
+fun concat(tag, host, key):maxenc [data].
+
+
+(* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, encrypt, decrypt, injbot, Z, Penc, Pencctxt).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat:maxenc.
+forall x:tag,h:host,k:key; 
+	Z(concat(x,h,k)) = Zconcat.
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+
+event endkey(host, host, key).
+event beginkey(host, host, key).
+
+query k: key, y: host, x: host;
+  event(endkey(x, y, k)) ==> event(beginkey(x, y, k)) public_vars keyA, keyB.
+
+(* Honest hosts *)
+
+const a : host.
+const b : host.
+
+(* Channels *)
+
+channel c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14.
+
+
+
+
+
+                         
+
+
+
+
+
+
+process 
+	in(c13, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+out(c14, ());
+((
+  ! i_1 <= N
+  in(c2[i_1], (xA_1: host, xB_1: host));
+  if (xA_1 = a) || (xA_1 = b) then
+  let KAs: key = (if xA_1 = a then Kas else Kbs) in
+  if (xB_1 = b) || (xB_1 = a) then
+  (
+    new Kab_1: key;
+    event beginkey(xA_1, xB_1, Kab_1);
+    new r_2: seed;
+    out(c3[i_1], (xA_1, encrypt(concat(c0, xB_1, Kab_1), KAs, r_2)));
+    in(c4[i_1], ());
+    let keyA: key = Kab_1
+  )
+  else
+    new Kab_2: key;
+    event beginkey(xA_1, xB_1, Kab_2);
+    new r_3: seed;
+    out(c3[i_1], (xA_1, encrypt(concat(c0, xB_1, Kab_2), KAs, r_3)));
+    in(c4[i_1], ());
+    out(c5[i_1], Kab_2)
+) | (
+  ! i_2 <= N
+  in(c8[i_2], xB_2: host);
+  if (xB_2 = a) || (xB_2 = b) then
+  let KBs: key = (if xB_2 = a then Kas else Kbs) in
+  out(c9[i_2], ());
+  in(c10[i_2], m_2: bitstring);
+  let injbot(concat(=c1, xA_2: host, kab: key)) = decrypt(m_2, KBs) in
+  if (xA_2 = a) || (xA_2 = b) then
+  (
+    event endkey(xA_2, xB_2, kab);
+    let keyB: key = kab
+  )
+  else
+    out(c11[i_2], kab)
+) | (
+  ! i_3 <= N
+  in(c6[i_3], (xA_3: host, m_3: bitstring));
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Khost[jA_1]) && (xA_3 = Khost[jA_1]) then
+  let KAs_1: key = Rkey[jA] in
+  let injbot(concat(=c0, xB_3: host, kab_1: key)) = decrypt(m_3, KAs_1) in
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Khost[jB_1]) && (xB_3 = Khost[jB_1]) then
+  let KBs_1: key = Rkey[jB] in
+  new r_4: seed;
+  out(c7[i_3], encrypt(concat(c1, xA_3, kab_1), KBs_1, r_4))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: key));
+  let Rkey: key = (if Khost = a then Kas else if Khost = b then Kbs else Kkey)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of keyB.
+0.368s (user 0.328s + system 0.040s), max rss 58464K
+END *)

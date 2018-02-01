@@ -1,0 +1,32 @@
+(* 
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+
+
+process 
+	in(c3, x: hashinput);
+new s: G;
+out(c4, x)
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.012s (user 0.008s + system 0.004s), max rss 36016K
+END *)

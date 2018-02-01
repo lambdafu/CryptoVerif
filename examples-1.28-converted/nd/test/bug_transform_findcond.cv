@@ -1,0 +1,69 @@
+(* Internal error 
+The transformation of h(x[j]) defines 
+
+let m = x[j] in find ... and makes a look up on m.
+
+When we do that inside a condition of find, we end up making a look up
+on a variable m defined in a condition of find, which is forbidden.
+
+We should forbid such transformations (which ones precisely?).
+
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], m: hash);
+  find j_4 = j_5 <= N suchthat defined(x_1[j_5]) && (m = h(hk, x_1[j_5])) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x_1: hashinput);
+  new s: G;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(hc1[i_3], y: hashinput);
+  out(hc2[i_3], h(hk, y))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.016s + system 0.004s), max rss 36160K
+END *)

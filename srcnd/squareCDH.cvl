@@ -1,0 +1,160 @@
+(* square Computational Diffie-Hellman 
+   G: type of group elements (must be "fixed" and "large", of cardinal a prime q)
+   Z: type of exponents (must be "fixed" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pCDH: the probability of breaking the square CDH assumption
+
+   The types G and Z and the probability pCDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They not must be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+*)
+
+define squareCDH(G, Z, g, exp, mult, pCDH) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z [commut]. 
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; mult(x1,x2) = mult(x3,x4)
+<=(1/|Z|)=> (x1 = x3 && x2 = x4) || (x1 = x4 && x2 = x3). 
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv !N new X:G; (OX() := X, !N' OXm(m:Z) [required] := exp(X,m))
+<=(0)=> 
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv !N new X:G; OX() := X 
+<=(0)=> [manual]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv !N new x:Z; OX() := exp(g,x)
+<=(0)=>
+      !N new X:G; OX() := X.
+
+equiv !N new x:Z; OX() := exp'(g,x)
+<=(0)=>
+      !N new X:G; OX() := X.
+
+(* the square CDH assumption *) 
+
+const mark: bitstring.
+
+param n, n', nCDH.
+
+equiv
+    !n new a:Z; (
+      OA() := exp(g,a), 
+      !n' Oma(m:G) := exp(m,a),
+      !nCDH OCDH(m:G, j<=n) [required] := m = exp(g, mult(a[j], a))
+    )
+<=(pCDH(time,n,nCDH))=>  (* The probability is still to compute *)
+    !n new a:Z; (
+      OA() := exp'(g,a), 
+      !n' Oma(m:G) := let k:bitstring = mark in exp'(m, a),
+      !nCDH OCDH(m:G, j<=n) := find v<=n', u<=n suchthat defined(k[v,u],a[u]) && (a = a[u] || a[j] = a[u]) then m = exp'(g, mult(a[j], a)) else false
+    ).
+
+}
+
+(***************** Version for the oracles front-end ************************)
+
+define squareCDH(G, Z, g, exp, mult, pCDH) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z [commut]. 
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; return(mult(x1,x2) = mult(x3,x4))
+<=(1/|Z|)=> return((x1 = x3 && x2 = x4) || (x1 = x4 && x2 = x3)). 
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv foreach iX <= N do X <-R G; (OX() := return(X) | foreach iXm <= N' do OXm(m:Z) [required] := return(exp(X,m)))
+<=(0)=> 
+      foreach iX <= N do x <-R Z; (OX() := return(exp(g,x)) | foreach iXm <= N' do OXm(m:Z) := return(exp(g,mult(x,m)))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv foreach iX <= N do X <-R G; OX() := return(X) 
+<=(0)=> [manual]    
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x)).
+
+
+equiv foreach iX <= N do x <-R Z; OX() := return(exp(g,x))
+<=(0)=>
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+equiv foreach iX <= N do x <-R Z; OX() := return(exp'(g,x))
+<=(0)=>
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+(* the CDH assumption *) 
+
+const mark: bitstring.
+
+param n, n', nCDH.
+
+equiv
+    foreach i <= n do a <-R Z; (
+      Oexp() := return(exp(g,a)) |
+      foreach i' <= n' do Oexpm(m:G) := return(exp(m,a)) |
+      foreach iCDH <= nCDH do OCDH(m:G, j<=n) [required] := return(m = exp(g, mult(a[j], a)))
+    )
+<=(pCDH(time,n,nCDH))=> (* The probability is still to compute *)
+    foreach i <= n do a <-R Z; (
+      Oexp() := return(exp'(g,a)) |
+      foreach i' <= n' do Oexpm(m:G) := let k:bitstring = mark in return(exp'(m, a)) |
+      foreach iCDH <= nCDH do OCDH(m:G, j<=n) := find v<=n', u<=n suchthat defined(k[v,u],a[u]) && (a = a[u] || a[j] = a[u]) then return(m = exp'(g, mult(a[j], a))) else return(false)
+    ).
+
+}

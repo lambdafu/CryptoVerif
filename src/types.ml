@@ -145,7 +145,7 @@ and def_node = { above_node : def_node;
 		       They come from let definitions and restrictions after this
 		       node. *)
 		 mutable future_true_facts : term list;
-		    (* The facts that are guaranteed to be defined 
+		    (* The facts that are guaranteed to hold
 		       before we reach the end of the current input...output block.
 		       They come from let definitions and events after this node. *)
 	         definition : program_point;
@@ -230,7 +230,10 @@ and term_desc =
   | LetE of pattern * term * term * term option
   | ResE of binder * term
   | EventAbortE of funsymb
-
+  | EventE of term * term
+  | InsertE of table * term list * term
+  | GetE of table * pattern list * term option * term * term
+	
 and 'a findbranch = (binder(*the variable defined when the find succeeds*) * repl_index(*the corresponding replication index used for searching in the arrays*)) list * binderref list(*guaranteed defined array references*) * term(*condition*) * 'a(*then branch*)
 
 and term = { t_desc : term_desc;
@@ -406,7 +409,7 @@ and probaf =
 
 and setf =
     SetProba of probaf
-  | SetEvent of funsymb * game * proof_t ref
+  | SetEvent of funsymb * game * binder list(*public variables*) * proof_t ref
 
 and equiv = eqname * eqmember * eqmember * setf list * eqopt * eqopt2
 
@@ -433,9 +436,8 @@ and qterm =
   | QOr of qterm * qterm
 
 and query = 
-    QSecret1 of binder * binder list
-  | QSecret of binder * binder list
-  | QEventQ of (bool(*true when injective*) * term) list * qterm
+  | QSecret of binder * binder list(*public variables*) * bool(*true when onesession*) 
+  | QEventQ of (bool(*true when injective*) * term) list * qterm * binder list(*public variables*)
   | AbsentQuery
   
 (* Instructions for modifying games *)
@@ -504,47 +506,30 @@ and pat_simp_type =
   | DExpandTuple
   | DImpossibleTuple
 
+and let_transfo = (pattern * pat_simp_type) list
+      
 and simplify_ins =
     SReplaceTerm of term * term
-  | STestTrue of process
-  | STestFalse of process
-  | STestMerge of process
-  | STestOr of process
-  | STestETrue of term
-  | STestEFalse of term
-  | STestEMerge of term
-  | STestEOr of term
+  | STestTrue of program_point
+  | STestFalse of program_point
+  | STestMerge of program_point
+  | STestOr of program_point
   | STestEElim of term
-  | SFindBranchRemoved of process * process findbranch
-  | SFindSingleBranch of process * process findbranch
-  | SFindRemoved of process 
-  | SFindElseRemoved of process
-  | SFindBranchMerge of process * process findbranch list
-  | SFindDeflist of process * binderref list * binderref list
-  | SFindinFindCondition of process * term
-  | SFindinFindBranch of process * process
-  | SFindtoTest of process
-  | SFindIndexKnown of process * process findbranch * (binder * term) list
-  | SFindEBranchRemoved of term * term findbranch
-  | SFindESingleBranch of term * term findbranch
-  | SFindERemoved of term
-  | SFindEElseRemoved of term
-  | SFindEBranchMerge of term * term findbranch list
-  | SFindEDeflist of term * binderref list * binderref list
-  | SFindinFindECondition of term * term
-  | SFindinFindEBranch of term * term
-  | SFindEtoTestE of term
-  | SFindEIndexKnown of term * term findbranch * (binder * term) list
-  | SLetElseRemoved of process
-  | SLetRemoved of process
-  | SLetSimplifyPattern of process * pattern * pat_simp_type
-  | SLetEElseRemoved of term
-  | SLetERemoved of term
-  | SLetESimplifyPattern of term * pattern * pat_simp_type
-  | SResRemoved of process
-  | SResToAssign of process
-  | SResERemoved of term
-  | SResEToAssign of term
+  | SFindBranchRemoved of program_point * program_point findbranch
+  | SFindSingleBranch of program_point * program_point findbranch
+  | SFindRemoved of program_point 
+  | SFindElseRemoved of program_point
+  | SFindBranchMerge of program_point * program_point findbranch list
+  | SFindDeflist of program_point * binderref list * binderref list
+  | SFindinFindCondition of program_point * term
+  | SFindinFindBranch of program_point * program_point
+  | SFindtoTest of program_point
+  | SFindIndexKnown of program_point * program_point findbranch * (binder * term) list
+  | SLetElseRemoved of program_point
+  | SLetRemoved of program_point
+  | SLetSimplifyPattern of program_point * let_transfo
+  | SResRemoved of program_point
+  | SResToAssign of program_point
 
 and def_change =
     DRemoveDef
@@ -560,8 +545,7 @@ and detailed_instruct =
   | DExpandIfFind
   | DSimplify of simplify_ins list
   | DGlobalDepAnal of binder * string list
-  | DLetSimplifyPattern of process * pattern * pat_simp_type
-  | DLetESimplifyPattern of term * pattern * pat_simp_type
+  | DLetSimplifyPattern of program_point * let_transfo
   | DRemoveAssign of binder * def_change * usage_change
   | DSArenaming of binder * binder list
   | DMoveNew of binder
@@ -653,3 +637,9 @@ type impl_opt = Read of binder * string | Write of binder * string
 
 type impl_process = string * impl_opt list * inputprocess
 
+(* Type for interactive commands *)
+
+type command =
+    Com_elem of string
+  | Com_sep
+  | Com_end

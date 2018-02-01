@@ -1,0 +1,70 @@
+(* set interactiveMode = true. *)
+
+proof {
+      show_game occ;
+      replace 16 test(c);
+      replace 16 test2(a)
+}
+
+(*
+
+$ ./cryptoverif.exe examplesnd/Dreier-exemple.cv
+Doing expand get, insert, if, let, find... No change.
+Doing remove assignments of useless... No change.
+Doing simplify... Run simplify 1 time(s). Fixpoint reached.
+No change.
+Doing move all binders... No change.
+Doing remove assignments of useless... No change.
+Please enter a command: show_game occ
+  {1}in(ch, (a: bitstring, b: bitstring, c: bitstring));
+  {2}if {3}({4}b = {5}test2({6}a)) then
+  {7}if {8}({9}b = {10}test({11}c)) then
+ {12}event {13}bad;
+ {15}out(ch, {16}b)
+
+Please enter a command: replace 16 test2(a)
+Doing replace term at occurrence 16 with test2(a)... Done.
+Please enter a command: show_game occ
+  {1}in(ch, (a: bitstring, b: bitstring, c: bitstring));
+  {2}if {3}({4}b = {5}test2({6}a)) then
+  {7}if {8}({9}b = {10}test({11}c)) then
+ {12}event {13}bad;
+ {15}out(ch, {16}test2({17}a))
+
+Please enter a command: replace 16 test(c)
+Doing replace term at occurrence 16 with test(c)... Done.
+Please enter a command: show_game occ
+  {1}in(ch, (a: bitstring, b: bitstring, c: bitstring));
+  {2}if {3}({4}b = {5}test2({6}a)) then
+  {7}if {8}({9}b = {10}test({11}c)) then
+ {12}event {13}bad;
+ {15}out(ch, {16}test({17}c))
+
+Please enter a command: replace 16 c
+Doing replace term at occurrence 16 with c... Error: I cannot prove that the term you want to put is equal to the term at 16
+
+*)
+
+
+fun test(bitstring):bitstring.
+fun test2(bitstring):bitstring.
+
+(* Queries *)
+
+channel start, chPKI, ch.
+
+event bad().
+
+query event bad ==> false.
+
+process
+  in(ch, (a: bitstring, b: bitstring, c: bitstring));
+  if (b = test2(a)) then (
+  if (b = test(c)) then (
+  event bad();
+  out(ch, b)))
+
+(* EXPECTED
+RESULT Could not prove event bad ==> false.
+0.020s (user 0.020s + system 0.000s), max rss 40352K
+END *)

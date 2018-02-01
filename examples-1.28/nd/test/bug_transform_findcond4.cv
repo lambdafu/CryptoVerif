@@ -1,0 +1,63 @@
+(* The result may be ok
+
+  ! !_5 <= N
+  in(c1[!_5], (m: hash, x': hashinput));
+  find j <= N suchthat defined(y[j]) && find @i_11 <= N suchthat defined(y[@i_11]) && (y[j] = y[@i_11]) then (m = h(x', y[j])) else new r_10: hash; (m = r_10) then
+ 
+The look up is correctly performed on all y[..]
+
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', qH.
+
+fun h(hashinput, hr):hash.
+
+equiv !N' new y:hr; (x:hashinput) N'' -> h(x,y) 
+      <=(0)=>
+      !N' new y:hr; (x:hashinput) N'' -> find j <= N' suchthat defined(y[j]) && y= y[j] then h(x,y) else
+			 new r:hash; r.
+
+channel c5, c6.
+
+let hashoracle = ! qH in(c5, (x:hashinput, y':hr)); out(c6, h(x,y')). 
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+let processU =
+	in(c1, (m: hash, x':hashinput));
+	find j<= N suchthat defined(y[j]) && m=h(x',y[j]) then
+	out(c2, true)
+	else
+	out(c2, false).
+
+let processS =
+	in(c3, x: hashinput);
+	new y: hr;
+	new s: G;
+        out(c4, s).
+
+process 
+	((! N processU) |
+	 (! N processS) | hashoracle)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.010s + system 0.010s), max rss 16096K
+END *)

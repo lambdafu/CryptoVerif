@@ -1,0 +1,115 @@
+(* FDH signature scheme *)
+
+param nK, nf, n0, n1, n2, n3, nH, qH, qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [large,fixed].  (* Modified. [fixed] -> [large, fixed] *)
+type E [large,fixed].  (* Modified. [fixed] -> [large, fixed] *)
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):E.  (* Modified. the image D -> E *)
+fun f'(pkey, D):E. (* Modified. the image D -> E *)
+fun mf(skey, E):D. (* Modified. the domain D -> E *)
+
+(* mf is the inverse of f *)
+
+forall r:seed, x:D; mf(skgen(r), f(pkgen(r), x)) = x.
+
+(* Injectivity *)
+forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+
+(* We can permute the distributions, for uniformly distributed random
+   numbers x and y. Do that only when x is used in mf(skgen(r),x) *)
+
+equiv
+  ! nK new r: seed; (
+    gen_Oracle() := return(pkgen(r)) |
+    ! nf new x: E; (
+      gen_Oracle_1() := return(x) |
+      gen_Oracle_2() := return(mf(skgen(r),x))))
+<=(0)=>
+  ! nK new r: seed; (
+    gen_Oracle() := return(pkgen(r)) |
+    ! nf new y: D; (
+      gen_Oracle_1() := return(f(pkgen(r),y)) |
+      gen_Oracle_2() := return(y))).  (* Modified. x:E -> y:D *)
+
+(* One-wayness *)
+
+equiv
+  ! nK new r: seed; (
+    gen_Oracle_1() := return(pkgen(r)) |
+    ! nf new x: D; (
+      gen_Oracle_2() := return(f(pkgen(r), x)) |
+      ! n2 gen_Oracle_3(x': D) := return(x' = x) |
+      gen_Oracle_4() := return(x)))
+<=(nK * nf * POW(time + (nK-1) * time(pkgen) + (nf*nK-1) * time(f)))=>
+  ! nK new r: seed; (
+    gen_Oracle_1() := return(pkgen'(r)) |
+    ! nf new x: D; (
+      gen_Oracle_2() := return(f'(pkgen'(r), x)) |
+      ! n2 gen_Oracle_3(x': D) := if defined(k) then return(x' = x) else return(false) |
+      gen_Oracle_4() := let k:bitstring = mark in return(x))).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):E. (* Modify the image *)
+
+equiv
+  ! nH gen_Oracle_1(x: bitstring) := return(hash(x)) [all]
+<=(0)=>
+  ! nH gen_Oracle_1(x: bitstring) := find u <= nH suchthat defined(x[u], r[u]) && (x= x[u]) then return(r[u]) else new r: E; return(r).
+
+(* Queries *)
+
+event bad.
+query event(bad) ==> false.
+
+channel c0, c1, c2, c3, c4, c5, start.
+
+
+
+
+
+
+
+process 
+	((
+  ! i_1 <= qH
+  in(c4[i_1], x: bitstring);
+  out(c5[i_1], hash(x))
+) | (
+  in(start, ());
+  new r: seed;
+  let pk: pkey = pkgen(r) in
+  let sk: skey = skgen(r) in
+  out(c0, pk);
+  ((
+    ! i_2 <= qS
+    in(c1[i_2], m: bitstring);
+    out(c2[i_2], mf(sk, hash(m)))
+  ) | (
+    in(c3, (m': bitstring, s: D));
+    if f(pk, s) = hash(m') then
+    find u_1 = u_2 <= qS suchthat defined(m[u_2]) && (m' = m[u_2]) then
+      yield
+    else
+      event bad
+  ))
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove event(bad) ==> false.
+0.036s (user 0.028s + system 0.008s), max rss 37792K
+END *)

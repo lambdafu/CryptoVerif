@@ -1,0 +1,61 @@
+proof {
+      show_game occ;
+      replace 18 x;
+      auto
+}
+
+channel c.
+
+type nonce [fixed].
+
+fun f(nonce): bitstring [data].
+forall x: nonce, x': nonce;
+  (f(x) = f(x')) = (x = x').
+
+fun g(nonce): nonce.
+
+event start(nonce).
+event finish(nonce).
+
+query x: nonce;
+  event(finish(x)) ==> event(start(x)).
+
+process
+  in(c, ());
+new x: nonce;
+event start(x);
+out(c, x);
+in(c, x': nonce);
+if f(x) = f(g(x')) then
+event finish(g(x'))
+
+
+
+(*
+     in(c, ());
+     new x: nonce;
+     event start(x);
+     out(c, x);
+     in(c, x': nonce);
+     if (x = g(x')) then
+     event finish(g(x'))
+
+In order to prove the correspondence finish(y) ==> start(y),
+it sees that when finish(y) is executed, we have
+y = g(x'), x = g(x') and start(x). In order to prove start(y)
+knowing start(x), it assumes x <> y and tries to prove a contradiction
+from: y = g(x'), x = g(x'), x <> y.
+Then the problem appears: substituting x with y their values,
+it should obviously obtain g(x') <> g(x') which yields a contradiction.
+However, while it correctly orients the equality y = g(x') into
+y -> g(x'), it fails to orient x = g(x') because of a heuristic that
+prevents creating x -> ... when x is created by a "new".
+So x is not replaced with g(x') and the proof fails.
+The obvious solution would be to disable this heuristic; however,
+this heuristic is very useful in many other examples...
+*)
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 40448K
+END *)

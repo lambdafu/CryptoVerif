@@ -1,0 +1,159 @@
+Doing expand if, let, find
+Doing simplify
+Run simplify 1 time(s). Fixpoint reached.
+Doing move new all binders
+Doing remove assignments of useless
+Please enter a command: Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_35: bitstring) -> let x: bitstring = x_35 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing simplify
+Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between Na_30 and Na_30 Probability: 0.5 * N * N / |nonce|
+Eliminated collisions between Nb_29 and Nb_29 Probability: 0.5 * N * N / |nonce|
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_35: bitstring) -> let x: bitstring = x_35 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing equivalence
+equiv ! !_17 <= N3 new k: mkey; (
+  ! !_18 <= N (x: bitstring) -> mac(x, k),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> mcheck(m, k, ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new k: mkey; (
+  ! !_21 <= N (x_36: bitstring) -> let x: bitstring = x_36 in mac2(x, k),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && mcheck2(x[j], k, ma)) then true else false)
+
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_37: blocksize) -> let x: blocksize = x_37 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && otheruses(r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && otheruses(r4[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_38: blocksize) -> let m: blocksize = m_38 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && otheruses(r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && otheruses(r4[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+
+Doing equivalence
+equiv ! !_1 <= N3 new r: keyseed; (
+  () -> pkgen(r),
+  ! !_2 <= N2 (m: bitstring) -> dec(m, skgen(r))), ! !_3 <= N4 new r2: seed; (x: blocksize, y: pkey) -> enc(x, y, r2) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+      ! !_4 <= N3 new r: keyseed; (
+  () -> pkgen2(r),
+  ! !_5 <= N2 (m: bitstring) -> find j <= N4 suchthat defined(m2[j], y[j], x[j]) && ((y[j] = pkgen2(r)) && (m = m2[j])) then injbot(x[j]) else dec2(m, skgen2(r))), ! !_6 <= N4 new r2: seed; new r3: seed; (x_40: blocksize, y_39: pkey) -> let x: blocksize = x_40 in let y: pkey = y_39 in find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then let m2: bitstring = enc2(Zkey, y, r2) in m2 else enc(x, y, r3)
+
+Doing remove assignments of binder SKrecv
+Doing remove assignments of binder SK
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_37: blocksize) -> let x: blocksize = x_37 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && otheruses(r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && otheruses(r4[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_38: blocksize) -> let m: blocksize = m_38 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && otheruses(r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && otheruses(r4[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+with r_43
+Doing simplify
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between nonceToBitstring(sNa[!2_1449]) and macToBitstring(mac(concat2p(Na_30[!2_1448], Nb_29[!_26]), PMS[!2_1448])) Probability: N * N * N / |nonce|
+(nonceToBitstring(sNa[!2_1449]) characterizes a part of sNa[!2_1449] of type(s) nonce;
+ macToBitstring(mac(concat2p(Na_30[!2_1448], Nb_29[!_26]), PMS[!2_1448])) does not depend on sNa[!2_1449])
+Doing move new all binders
+Doing remove assignments of useless
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_35: bitstring) -> let x: bitstring = x_35 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing equivalence
+equiv ! !_17 <= N3 new k: mkey; (
+  ! !_18 <= N (x: bitstring) -> mac(x, k),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> mcheck(m, k, ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new k: mkey; (
+  ! !_21 <= N (x_36: bitstring) -> let x: bitstring = x_36 in mac2(x, k),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && mcheck2(x[j], k, ma)) then true else false)
+
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_37: blocksize) -> let x: blocksize = x_37 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && otheruses(r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && otheruses(r4[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_38: blocksize) -> let m: blocksize = m_38 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && otheruses(r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && otheruses(r4[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+
+Doing simplify
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between pad(nonceToBitstring(sNa[!_25])) and r4_200[!2_4780] Probability: N * N / |nonce|
+(pad(nonceToBitstring(sNa[!_25])) characterizes a part of sNa[!_25] of type(s) nonce;
+ r4_200[!2_4780] does not depend on sNa[!_25])
+Eliminated collisions between pad(nonceToBitstring(sNa[!_25])) and r4_204[!2_4736] Probability: N * N / |nonce|
+(pad(nonceToBitstring(sNa[!_25])) characterizes a part of sNa[!_25] of type(s) nonce;
+ r4_204[!2_4736] does not depend on sNa[!_25])
+Eliminated collisions between pad(nonceToBitstring(sNa[!_25])) and r4_208[!_25] Probability: N / |nonce|
+(pad(nonceToBitstring(sNa[!_25])) characterizes a part of sNa[!_25] of type(s) nonce;
+ r4_208[!_25] does not depend on sNa[!_25])
+Eliminated collisions between nonceToBitstring(sNa[!_25]) and macToBitstring(mac(concat2p(Na_30[!2_4699], Nb_29[!2_4700]), PMS[!2_4699])) Probability: N * N * N / |nonce|
+(nonceToBitstring(sNa[!_25]) characterizes a part of sNa[!_25] of type(s) nonce;
+ macToBitstring(mac(concat2p(Na_30[!2_4699], Nb_29[!2_4700]), PMS[!2_4699])) does not depend on sNa[!_25])
+Eliminated collisions between nonceToBitstring(sNa[!_25]) and macToBitstring(mac(concat2p(Na_30[!_25], Nb_32[!_25]), PMS[!_25])) Probability: N / |nonce|
+(nonceToBitstring(sNa[!_25]) characterizes a part of sNa[!_25] of type(s) nonce;
+ macToBitstring(mac(concat2p(Na_30[!_25], Nb_32[!_25]), PMS[!_25])) does not depend on sNa[!_25])
+Doing move new all binders
+Doing remove assignments of useless
+Proved one-session secrecy of sNa
+Proved one-session secrecy of sNa
+Proved secrecy of sNa
+Doing equivalence
+equiv ! !_23 <= N (x: bitstring) -> hash(x) [all]
+<=(0)=>
+      ! !_24 <= N (x_35: bitstring) -> let x: bitstring = x_35 in find j <= N suchthat defined(x[j], r[j]) && otheruses(r[j]) && (x = x[j]) then r[j] else new r: keyseed; r
+
+Doing equivalence
+equiv ! !_17 <= N3 new k: mkey; (
+  ! !_18 <= N (x: bitstring) -> mac(x, k),
+  ! !_19 <= N2 (m: bitstring, ma: macs) -> mcheck(m, k, ma))
+<=(N3 * Pmac(time, N, N2))=>
+      ! !_20 <= N3 new k: mkey; (
+  ! !_21 <= N (x_36: bitstring) -> let x: bitstring = x_36 in mac2(x, k),
+  ! !_22 <= N2 (m: bitstring, ma: macs) -> find j <= N suchthat defined(x[j]) && ((m = x[j]) && mcheck2(x[j], k, ma)) then true else false)
+
+Doing equivalence
+equiv ! !_7 <= N new r: keyseed; (
+  ! !_8 <= Nenc (x: blocksize) -> symenc(x, kgen(r)),
+  ! !_9 <= Ndec (m: blocksize) -> symdec(m, kgen(r)))
+<=(N * Psymenc(time, Nenc, Ndec))=>
+      ! !_10 <= N new r: keyseed; (
+  ! !_11 <= Nenc (x_37: blocksize) -> let x: blocksize = x_37 in find j_13 <= Nenc suchthat defined(x[j_13], r2[j_13]) && otheruses(r2[j_13]) && (x = x[j_13]) then r2[j_13] orfind k_14 <= Ndec suchthat defined(r4[k_14], m[k_14]) && otheruses(r4[k_14]) && (x = r4[k_14]) then m[k_14] else new r2: blocksize; r2,
+  ! !_12 <= Ndec (m_38: blocksize) -> let m: blocksize = m_38 in find j_15 <= Nenc suchthat defined(x[j_15], r2[j_15]) && otheruses(r2[j_15]) && (m = r2[j_15]) then x[j_15] orfind k_16 <= Ndec suchthat defined(r4[k_16], m[k_16]) && otheruses(r4[k_16]) && (m = m[k_16]) then r4[k_16] else new r4: blocksize; r4)
+
+Doing equivalence
+equiv ! !_1 <= N3 new r: keyseed; (
+  () -> pkgen(r),
+  ! !_2 <= N2 (m: bitstring) -> dec(m, skgen(r))), ! !_3 <= N4 new r2: seed; (x: blocksize, y: pkey) -> enc(x, y, r2) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+      ! !_4 <= N3 new r: keyseed; (
+  () -> pkgen2(r),
+  ! !_5 <= N2 (m: bitstring) -> find j <= N4 suchthat defined(m2[j], y[j], x[j]) && ((y[j] = pkgen2(r)) && (m = m2[j])) then injbot(x[j]) else dec2(m, skgen2(r))), ! !_6 <= N4 new r2: seed; new r3: seed; (x_40: blocksize, y_39: pkey) -> let x: blocksize = x_40 in let y: pkey = y_39 in find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then let m2: bitstring = enc2(Zkey, y, r2) in m2 else enc(x, y, r3)
+
+Doing remove assignments of binder skB
+Doing equivalence
+equiv ! !_1 <= N3 new r: keyseed; (
+  () -> pkgen(r),
+  ! !_2 <= N2 (m: bitstring) -> dec(m, skgen(r))), ! !_3 <= N4 new r2: seed; (x: blocksize, y: pkey) -> enc(x, y, r2) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+      ! !_4 <= N3 new r: keyseed; (
+  () -> pkgen2(r),
+  ! !_5 <= N2 (m: bitstring) -> find j <= N4 suchthat defined(m2[j], y[j], x[j]) && ((y[j] = pkgen2(r)) && (m = m2[j])) then injbot(x[j]) else dec2(m, skgen2(r))), ! !_6 <= N4 new r2: seed; new r3: seed; (x_40: blocksize, y_39: pkey) -> let x: blocksize = x_40 in let y: pkey = y_39 in find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then let m2: bitstring = enc2(Zkey, y, r2) in m2 else enc(x, y, r3)
+with r1, rkB
+Doing simplify
+Run simplify 2 time(s). Maximum reached.
+Doing move new all binders
+Doing remove assignments of useless
+Internal error: A variable with "otheruses" condition should be defined only by restrictions.
+Please report bug to Bruno.Blanchet@ens.fr, including input file and output

@@ -1,0 +1,221 @@
+(* BUG: See def of encryption *)
+
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs.
+
+fun concat1(nonce, nonce, host, host):bitstring.
+forall y:nonce,z:nonce,t:host,u:host,y2:nonce,z2:nonce,t2:host,u2:host; 
+	(concat1(y,z,t,u) = concat1(y2,z2,t2,u2)) =
+	((y = y2) && (z = z2) && (t = t2) && (u = u2)).
+fun concat2(nonce, key):bitstring.
+forall y:nonce,z:key,y2:nonce,z2:key; 
+	(concat2(y,z) = concat2(y2,z2)) = ((y = y2) && (z = z2)).
+
+fun isconcat1(bitstring):bool.
+forall y:nonce,z:nonce,t:host,u:host; isconcat1(concat1(y,z,t,u)) = true.
+forall y:nonce,z:key; isconcat1(concat2(y,z)) = false.
+
+fun getnonce1(bitstring):nonce [decompos].
+forall y:nonce,z:nonce,t:host,u:host; getnonce1(concat1(y,z,t,u)) = y.
+fun getnonce2(bitstring):nonce [decompos].
+forall y:nonce,z:nonce,t:host,u:host; getnonce2(concat1(y,z,t,u)) = z.
+fun gethost1(bitstring):host [decompos].
+forall y:nonce,z:nonce,t:host,u:host; gethost1(concat1(y,z,t,u)) = t.
+fun gethost2(bitstring):host [decompos].
+forall y:nonce,z:nonce,t:host,u:host; gethost2(concat1(y,z,t,u)) = u.
+
+fun getnonce3(bitstring):nonce [decompos].
+forall y:nonce,z:key; getnonce3(concat2(y,z)) = y.
+fun getkey2(bitstring):key [decompos].
+forall y:nonce,z:key; getkey2(concat2(y,z)) = z.
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+fun dec2(bitstring, key): bitstring.
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Znonce:nonce.
+const Zhost:host.
+const Zkey:key.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = m.
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = m.
+forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = concat1(Znonce,Znonce,Zhost,Zhost).
+forall y:nonce,z:key; 
+	Z(concat2(y,z)) = concat2(Znonce,Zkey).
+
+equiv  !N2 new r: keyseed; !N Oenc(x:bitstring) := new r2: seed; return(enc(x, kgen(r), r2))
+     <=(N2 * N * Penc)=> 
+       !N2 new r: keyseed; !N Oenc(x:bitstring) :=
+                     new r2: seed; 
+                     let x2:bitstring = x in 
+                     let r3:seed = r2 in 
+                     find j <= N suchthat defined(r3[j]) && x2[j] = x then 
+                         return(enc2(Z(x), kgen2(r), r2))
+                     else 
+                         return(enc2(Z(x), kgen2(r), r2)).
+
+(* BUG: 
+Internal error: Unexpected variable reference in instantiate_term
+Please report bug to Bruno.Blanchet@ens.fr, including input file and output
+
+The code does not take into account that when r3[j] is defined, 
+x2[j] is also defined, so can be used, so should be renamed
+properly (added to loc_rename).
+
+NOTE: Now, an error message is displayed because the definition of 
+x2 is not explicitly required.
+ *)
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, key):macs.
+fun check(bitstring, key, macs): bool.
+fun mkgen(keyseed):key.
+
+fun mac2(bitstring, key):macs.
+fun check2(bitstring, key, macs): bool.
+fun mkgen2(keyseed):key.
+
+forall m:bitstring, r:keyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:keyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv !N3 new r: keyseed;(
+	 !N Omac(x: bitstring) := return(mac(x, mkgen(r))) |
+	 !N2 Ocheck(m: bitstring, ma: macs) := return(check(m, mkgen(r), ma)))
+     <=(N3 * N2 * Pmac)=>
+      !N3 new r: keyseed;(
+	 !N Omac(x: bitstring) := return(mac2(x, mkgen2(r))) |
+	 !N2 Ocheck(m: bitstring, ma: macs) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then return(true) else return(false)).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+channel c.
+const A : host.
+const B : host.
+
+let processA(Kas: key, mKas: key) = 
+	in(c, hb: host);
+	new M : nonce;
+	new Na : nonce;
+	new s1 : seed;
+	let ea1 = enc(concat1(Na, M, A, hb), Kas, s1) in
+	out(c, (M, A, hb, ea1, mac(ea1, mKas)));
+	in(c, (=M, ea2: bitstring, ma2: macs));
+	if check(ea2, mKas, ma2) then
+	let da2 = dec(ea2, Kas) in
+	if isconcat1(da2) = false then
+	if getnonce3(da2) = Na then
+	if hb = B then
+	let keyA:key = getkey2(da2).
+
+let processB(Kbs: key, mKbs: key) =
+	in(c, (M: nonce, ha: host, =B, ea:bitstring, ma:macs));
+	new Nb : nonce;
+	new s2 : seed;
+	let e2 = enc(concat1(Nb, M, ha, B), Kbs, s2) in
+	out(c, (M, ha, B, ea, ma, e2, mac(e2, mKbs)));
+	in(c, (=M, ea2: bitstring, ma2: macs, eb2: bitstring, mb2: macs));
+	if check(eb2, mKbs, mb2) then
+	let db2 = dec(eb2, Kbs) in
+	if isconcat1(db2) = false then
+	if getnonce3(db2) = Nb then
+	out(c, (M, ea2, ma2));
+	in(c, ());
+	if ha = A then
+	let keyB:key = getkey2(db2).
+
+let processK(Kas: key, mKas: key, Kbs: key, mKbs: key) =
+	in(c, (Khost: host, Kkey: key, Kmkey: key));
+	let Rkey:key = 
+		if Khost = A then Kas else
+		if Khost = B then Kbs else
+		Kkey
+	in
+	let Rmkey:key =
+		if Khost = A then mKas else
+		if Khost = B then mKbs else
+		Kmkey.
+
+let processS =
+	in(c, (M: nonce, ha: host, hb: host, ea1: bitstring, ma1: macs, eb1: bitstring, mb1: macs));
+	find jA <= N2 suchthat defined(Rkey[jA], Rmkey[jA], Khost[jA]) && (ha = Khost[jA]) then
+	let kas = Rkey[jA] in
+	let mkas = Rmkey[jA] in
+	find jB <= N2 suchthat defined(Rkey[jB], Rmkey[jB], Khost[jB]) && (hb = Khost[jB]) then
+	let kbs = Rkey[jB] in
+	let mkbs = Rmkey[jB] in
+	if check(ea1, mkas, ma1) then
+	let da1 = dec(ea1, kas) in
+	if isconcat1(da1) then
+	let Na = getnonce1(da1) in
+	if (M = getnonce2(da1)) && (ha = gethost1(da1)) && (hb = gethost2(da1)) then
+	if check(eb1, mkbs, mb1) then
+	let db1 = dec(eb1, kbs) in
+	if isconcat1(db1) then
+	let Nb = getnonce1(db1) in
+	if (M = getnonce2(db1)) && (ha = gethost1(db1)) && (hb = gethost2(db1)) then
+	new k: key;
+	new s3: seed;
+	new s4: seed;
+	let e1 = enc(concat2(Na, k), kas, s3) in
+	let e2 = enc(concat2(Nb, k), kbs, s4) in
+	out(c, (M, e1, mac(e1, mkas), e2, mac(e2, mkbs))).
+	
+process 
+	in(c, ());
+	new rKas: keyseed;
+	let Kas = kgen(rKas) in
+	new rmKas: keyseed;
+	let mKas = mkgen(rmKas) in
+	new rKbs: keyseed;
+	let Kbs = kgen(rKbs) in
+	new rmKbs: keyseed;
+	let mKbs = mkgen(rmKbs) in
+	out(c, ());
+	((! N processA(Kas, mKas)) |
+	 (! N processB(Kbs, mKbs)) | 
+	 (! N processS) |
+	 (! N2 processK(Kas, mKas, Kbs, mKbs)))
+	 
+(* EXPECTED
+Error: Variable reference not allowed
+xtime: error in child process (status : 512)
+END *)

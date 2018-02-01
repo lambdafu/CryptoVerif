@@ -1,0 +1,261 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+type maxencnotag [bounded].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+fun concat1(nonce, nonce, host, host):maxencnotag [data].
+fun concat2(nonce, key):maxencnotag [data].
+fun tagf(tag, maxencnotag):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Z1:maxenc.
+const Z2:maxenc.
+forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
+forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query x:host, y:host, n:nonce, k:key; 
+	event(endA(x,y,n,k)) ==> event(beginB(x,y,n)) public_vars keyA, keyB.
+query x:host, y:host, n:nonce, k:key; 
+	event(endB(x,y,n,k)) ==> event(beginA(x,y,n)) public_vars keyA, keyB.
+query x:host, y:host, n:nonce, k:key; 
+	inj-event(endA(x,y,n,k)) ==> inj-event(beginB(x,y,n)) public_vars keyA, keyB.
+query x:host, y:host, n:nonce, k:key; 
+	inj-event(endB(x,y,n,k)) ==> inj-event(beginA(x,y,n)) public_vars keyA, keyB.
+
+const cst_mkey: mkey.
+
+process
+       in(start, ());
+       new rKas: keyseed;
+       let Kas: key = kgen(rKas) in
+       new rmKas: mkeyseed;
+       let mKas: mkey = mkgen(rmKas) in
+       new rKbs: keyseed;
+       let Kbs: key = kgen(rKbs) in
+       new rmKbs: mkeyseed;
+       out(c13, ());
+       (
+         ! i_363 <= N
+         in(c1[i_363], hb_372: host);
+         new M_373: nonce;
+         new Na_374: nonce;
+         new s1: seed;
+         let ea1: maxmac = enc(tagf(tag1, concat1(Na_374, M_373, A, hb_372)), Kas, s1) in
+         event beginA(A, hb_372, M_373);
+         out(c2[i_363], (M_373, A, hb_372, ea1, mac(ea1, mKas)));
+         in(c3[i_363], (=M_373, ea2_376: maxmac, ma2_375: macs));
+         if check(ea2_376, mKas, ma2_375) then
+         let injbot(tagf(=tag3, concat2(=Na_374, k_377: key))) = dec(ea2_376, Kas) in
+         if (hb_372 = B) then
+         (
+           event endA(A, hb_372, M_373, k_377);
+           let keyA: key = k_377
+         )
+         else
+           out(c11[i_363], k_377)
+       ) | (
+         ! i_364 <= N
+         in(c4[i_364], (M_379: nonce, ha_378: host, =B, ea: maxmac, ma_367: macs));
+         new Nb_380: nonce;
+         new s2: seed;
+         let e2: maxmac = enc(tagf(tag2, concat1(Nb_380, M_379, ha_378, B)), Kbs, s2) in
+         event beginB(ha_378, B, M_379);
+         out(c5[i_364], (M_379, ha_378, B, ea, ma_367, e2, mac2_323(e2, mkgen2_325(rmKbs))));
+         in(c6[i_364], (=M_379, ea2_382: maxmac, ma2_381: macs, eb2: maxmac, mb2: macs));
+         find u_944 = ri_943 <= N suchthat defined(e2[ri_943]) && (eb2 = e2[ri_943]) && check2_324(e2[ri_943], mkgen2_325(rmKbs), mb2) then
+           yield
+         orfind u_942 = ri_941 <= N suchthat defined(k_539[ri_941], u_860[ri_941], e2_391[ri_941]) && (eb2 = e2_391[ri_941]) && check2_324(e2_391[ri_941], mkgen2_325(rmKbs), mb2) then
+         (
+           if (i_364 = u_860[u_942]) then
+           out(c7[i_364], (M_379, ea2_382, ma2_381));
+           in(finish[i_364], ());
+           out(c12[i_364], k_539[u_942])
+         )
+         orfind u_932 = ri_931 <= N suchthat defined(k_557[ri_931], u_930[ri_931], e2_391[ri_931]) && (eb2 = e2_391[ri_931]) && check2_324(e2_391[ri_931], mkgen2_325(rmKbs), mb2) then
+         (
+           if (i_364 = u_930[u_932]) then
+           out(c7[i_364], (M_379, ea2_382, ma2_381));
+           in(finish[i_364], ());
+           event endB(ha_378, B, M_379, k_557[u_932]);
+           let keyB: key = k_557[u_932]
+         )
+       ) | (
+         ! i_368 <= N
+         in(c9[i_368], (M_387: nonce, ha_386: host, hb_385: host, ea1_384: maxmac, ma1: macs, eb1: maxmac, mb1: macs));
+         find jA_370 = jA <= N2 suchthat defined(Kmkey[jA], Rmkey_489[jA], Rkey[jA], Khost[jA]) && (ha_386 = Khost[jA]) then
+         (
+           find jB_369 = jB <= N2 suchthat defined(Kmkey[jB], Rmkey_489[jB], Rkey[jB], Khost[jB]) && (hb_385 = Khost[jB]) then
+           (
+             if check(ea1_384, Kmkey[jA_370], ma1) then
+             let injbot(tagf(=tag1, concat1(Na_388: nonce, =M_387, =ha_386, =hb_385))) = dec(ea1_384, Rkey[jA_370]) in
+             if check(eb1, Kmkey[jB_369], mb1) then
+             let injbot(tagf(=tag2, concat1(Nb_389: nonce, =M_387, =ha_386, =hb_385))) = dec(eb1, Rkey[jB_369]) in
+             new k_536: key;
+             new s3_537: seed;
+             new s4_538: seed;
+             let e1: maxmac = enc(tagf(tag3, concat2(Na_388, k_536)), Rkey[jA_370], s3_537) in
+             let e2_391: maxmac = enc(tagf(tag4, concat2(Nb_389, k_536)), Rkey[jB_369], s4_538) in
+             out(c10[i_368], (M_387, e1, mac(e1, Kmkey[jA_370]), e2_391, mac(e2_391, Kmkey[jB_369])))
+           )
+           orfind jB_369 = jB <= N2 suchthat defined(Rmkey_490[jB], Rkey[jB], Khost[jB]) && (hb_385 = Khost[jB]) then
+           (
+             if check(ea1_384, Kmkey[jA_370], ma1) then
+             let injbot(tagf(=tag1, concat1(Na_388: nonce, =M_387, =ha_386, =hb_385))) = dec(ea1_384, Rkey[jA_370]) in
+             find u_860 = ri_859 <= N suchthat defined(Nb_380[ri_859], ha_378[ri_859], M_379[ri_859], e2[ri_859]) && (eb1 = e2[ri_859]) && check2_324(e2[ri_859], mkgen2_325(rmKbs), mb1) then
+             (
+               if ((M_387 = M_379[u_860]) && (ha_386 = ha_378[u_860])) then
+               let Nb_389: nonce = Nb_380[u_860] in
+               new k_539: key;
+               new s3_540: seed;
+               new s4_541: seed;
+               let e1: maxmac = enc(tagf(tag3, concat2(Na_388, k_539)), Rkey[jA_370], s3_540) in
+               let e2_391: maxmac = enc(tagf(tag4, concat2(Nb_380[u_860], k_539)), Rkey[jB_369], s4_541) in
+               out(c10[i_368], (M_387, e1, mac(e1, Kmkey[jA_370]), e2_391, mac2_323(e2_391, mkgen2_325(rmKbs))))
+             )
+             orfind u_858 = ri_857 <= N suchthat defined(e2_391[ri_857], s4_541[ri_857]) && (eb1 = e2_391[ri_857]) && check2_324(e2_391[ri_857], mkgen2_325(rmKbs), mb1) then
+               yield
+             orfind u = ri_848 <= N suchthat defined(e2_391[ri_848], s4_559[ri_848]) && (eb1 = e2_391[ri_848]) && check2_324(e2_391[ri_848], mkgen2_325(rmKbs), mb1) then
+               yield
+           )
+           orfind jB_369 = jB <= N2 suchthat defined(Rmkey_491[jB], Rkey[jB], Khost[jB]) && (hb_385 = Khost[jB]) then
+           (
+             if check(ea1_384, Kmkey[jA_370], ma1) then
+             let injbot(tagf(=tag1, concat1(Na_388: nonce, =M_387, =ha_386, =hb_385))) = dec(ea1_384, Rkey[jA_370]) in
+             if check(eb1, mKas, mb1) then
+             let injbot(tagf(=tag2, concat1(Nb_389: nonce, =M_387, =ha_386, =hb_385))) = dec(eb1, Rkey[jB_369]) in
+             new k_542: key;
+             new s3_543: seed;
+             new s4_544: seed;
+             let e1: maxmac = enc(tagf(tag3, concat2(Na_388, k_542)), Rkey[jA_370], s3_543) in
+             let e2_391: maxmac = enc(tagf(tag4, concat2(Nb_389, k_542)), Rkey[jB_369], s4_544) in
+             out(c10[i_368], (M_387, e1, mac(e1, Kmkey[jA_370]), e2_391, mac(e2_391, mKas)))
+           )
+         )
+         orfind jA_370 = jA <= N2 suchthat defined(Rmkey_490[jA], Khost[jA]) && (ha_386 = Khost[jA]) then
+           yield
+         orfind jA_370 = jA <= N2 suchthat defined(Rmkey_491[jA], Rkey[jA], Khost[jA]) && (ha_386 = Khost[jA]) then
+         (
+           find jB_369 = jB <= N2 suchthat defined(Kmkey[jB], Rmkey_489[jB], Rkey[jB], Khost[jB]) && (hb_385 = Khost[jB]) then
+           (
+             if check(ea1_384, mKas, ma1) then
+             let injbot(tagf(=tag1, concat1(Na_388: nonce, =M_387, =ha_386, =hb_385))) = dec(ea1_384, Rkey[jA_370]) in
+             if check(eb1, Kmkey[jB_369], mb1) then
+             let injbot(tagf(=tag2, concat1(Nb_389: nonce, =M_387, =ha_386, =hb_385))) = dec(eb1, Rkey[jB_369]) in
+             new k_554: key;
+             new s3_555: seed;
+             new s4_556: seed;
+             let e1: maxmac = enc(tagf(tag3, concat2(Na_388, k_554)), Rkey[jA_370], s3_555) in
+             let e2_391: maxmac = enc(tagf(tag4, concat2(Nb_389, k_554)), Rkey[jB_369], s4_556) in
+             out(c10[i_368], (M_387, e1, mac(e1, mKas), e2_391, mac(e2_391, Kmkey[jB_369])))
+           )
+           orfind jB_369 = jB <= N2 suchthat defined(Rmkey_490[jB], Rkey[jB], Khost[jB]) && (hb_385 = Khost[jB]) then
+           (
+             if check(ea1_384, mKas, ma1) then
+             let injbot(tagf(=tag1, concat1(Na_388: nonce, =M_387, =ha_386, =hb_385))) = dec(ea1_384, Rkey[jA_370]) in
+             find u_930 = ri_929 <= N suchthat defined(Nb_380[ri_929], ha_378[ri_929], M_379[ri_929], e2[ri_929]) && (eb1 = e2[ri_929]) && check2_324(e2[ri_929], mkgen2_325(rmKbs), mb1) then
+             (
+               if ((M_387 = M_379[u_930]) && (ha_386 = ha_378[u_930])) then
+               let Nb_389: nonce = Nb_380[u_930] in
+               new k_557: key;
+               new s3_558: seed;
+               new s4_559: seed;
+               let e1: maxmac = enc(tagf(tag3, concat2(Na_388, k_557)), Rkey[jA_370], s3_558) in
+               let e2_391: maxmac = enc(tagf(tag4, concat2(Nb_380[u_930], k_557)), Rkey[jB_369], s4_559) in
+               out(c10[i_368], (M_387, e1, mac(e1, mKas), e2_391, mac2_323(e2_391, mkgen2_325(rmKbs))))
+             )
+             orfind u_928 = ri_927 <= N suchthat defined(e2_391[ri_927], s4_541[ri_927]) && (eb1 = e2_391[ri_927]) && check2_324(e2_391[ri_927], mkgen2_325(rmKbs), mb1) then
+               yield
+             orfind u_918 = ri_917 <= N suchthat defined(e2_391[ri_917], s4_559[ri_917]) && (eb1 = e2_391[ri_917]) && check2_324(e2_391[ri_917], mkgen2_325(rmKbs), mb1) then
+               yield
+           )
+           orfind jB_369 = jB <= N2 suchthat defined(Rmkey_491[jB], Rkey[jB], Khost[jB]) && (hb_385 = Khost[jB]) then
+           (
+             if check(ea1_384, mKas, ma1) then
+             let injbot(tagf(=tag1, concat1(Na_388: nonce, =M_387, =ha_386, =hb_385))) = dec(ea1_384, Rkey[jA_370]) in
+             if check(eb1, mKas, mb1) then
+             let injbot(tagf(=tag2, concat1(Nb_389: nonce, =M_387, =ha_386, =hb_385))) = dec(eb1, Rkey[jB_369]) in
+             new k_560: key;
+             new s3_561: seed;
+             new s4_562: seed;
+             let e1: maxmac = enc(tagf(tag3, concat2(Na_388, k_560)), Rkey[jA_370], s3_561) in
+             let e2_391: maxmac = enc(tagf(tag4, concat2(Nb_389, k_560)), Rkey[jB_369], s4_562) in
+             out(c10[i_368], (M_387, e1, mac(e1, mKas), e2_391, mac(e2_391, mKas)))
+           )
+         )
+       ) | (
+         ! i_371 <= N2
+         in(c8[i_371], (Khost: host, Kkey: key, Kmkey: mkey));
+         if (Khost = A) then
+         (
+           let Rkey: key = Kas in
+           let Rmkey_491: mkey = cst_mkey
+         )
+         else
+           if (Khost = B) then
+           (
+             let Rkey: key = Kbs in
+             let Rmkey_490: mkey = cst_mkey
+           )
+           else
+             let Rkey: key = Kkey in
+             let Rmkey_489: mkey = cst_mkey
+       )
+
+(* EXPECTED
+RESULT Could not prove event inj:endB(x, y, n, k) ==> inj:beginA(x, y, n) with public variables keyA, keyB.
+1.000s (user 0.990s + system 0.010s), max rss 76848K
+END *)

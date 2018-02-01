@@ -1,0 +1,34 @@
+(* This was meant to test the simplification of find,
+   but it in fact exhibited a bug: CV removes the assignment
+   let k' = k, but incorrectly updates the defined condition
+   that follows.
+   FIXED 5/10/2016 *)
+
+param N.
+channel c.
+type nonce [fixed].
+
+
+
+process
+	((
+  ! i_1 <= N
+  in(c[i_1], ());
+  new x: nonce;
+  new y: nonce;
+  new z: nonce;
+  out(c[i_1], ())
+) | (
+  in(c, ());
+  find k = k_1 <= N suchthat defined(x[k_1], y[k_1], z[k_1]) && (x[k_1] = y[k_1]) then
+  let k' <= N = k in
+  find j_1 = j_2 <= N suchthat defined(x[j_2], y[j_2], z[k']) && (x[j_2] = y[j_2]) then
+  out(c, z[k'])
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.016s + system 0.004s), max rss 35776K
+END *)

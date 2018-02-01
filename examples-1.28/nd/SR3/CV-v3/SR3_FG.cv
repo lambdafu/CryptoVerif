@@ -1,0 +1,106 @@
+set interactiveMode = true.
+set useKnownEqualitiesInCryptoTransform = true.
+set ignoreSmallTimes = 3.
+
+proof {
+	allowed_collisions "noninteractive/large";
+	auto;
+	success
+}
+
+
+(************** SR3 FG modelization **************)
+
+(************** Parameters **************) 
+(* Our number of queries to the packet-generation oracle *) 
+param qGen.
+param qVerif.
+param qHash [noninteractive].
+ 
+
+(************** Basic types **************)
+type nonce [large, bounded]. (* our protocol's nonces *)
+type data [large, bounded]. 
+type blockPlaintext [large, bounded]. (* nonce + data *)
+
+fun concat(data, nonce):blockPlaintext [compos]. 
+			
+type nonceCipher [large, fixed]. (* the cipher's nonces *)
+type blockCiphertext [large, fixed].
+
+(************** Block cipher **************)
+type keyseed [large,fixed].
+type key [large,fixed]. (* for the cipher *)
+
+proba Penc. 
+proba Pencptxt.
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, blockPlaintext, blockCiphertext, nonceCipher, kgen, enc, dec, injbot, Z, Penc, Pencptxt).
+
+const blockZeroes:blockPlaintext.
+forall b:blockPlaintext; Z(b) = blockZeroes.
+
+
+(************** Hash function **************)
+type hashkey [large,fixed].
+(* input type : nonces *)
+type hashout [large, fixed].
+
+(* fun hash(hashkey, nonce):hashout . *)
+expand ROM_hash(hashkey, nonce, hashout, hash).
+
+(************** Key generation ********)
+(* not considered here *)
+
+
+(************** Queries **************)
+(* the standard FG stuff *)
+fun test(bool, data, data): data.
+query secret b.
+
+
+(*************** Packet generation oracle ******)
+channel OGenIn, OGenOut.
+let OGen = 
+	!qGen 
+	in (OGenIn, (D:data));
+	new n_proto : nonce; 
+	new n_oracle_cpa : nonceCipher; 
+	let p_oracle_cpa = (enc(concat(D, n_proto), k, n_oracle_cpa), hash(hk, n_challenge)) in
+	out (OGenOut, (p_oracle_cpa, n_proto)).
+	
+(*************** Packet verification oracle ******)
+channel OVerifIn, OVerifOut. 
+let OVerif = 
+	!qVerif 
+	in (OVerifIn, (cVerif:blockCiphertext));
+	let pVerif = dec( cVerif, k ) in
+	let verifSuccess = ( pVerif <> bottom ) in
+	out(OVerifOut, (verifSuccess)).
+
+(************** Hash oracle ****************)
+channel OHashIn, OHashOut.
+let OHash = 
+	!qHash
+	in(OHashIn, hash_query:nonce); 
+	out(OHashOut, hash(hk,hash_query)).
+	
+
+
+(*************** The game itself ****************)
+channel keyinitin, keyinitout, gamein, gameout.
+process (
+	in(keyinitin, ());
+	new ks : keyseed;
+	new hk : hashkey;
+	new n_enc : nonceCipher;
+	new n_challenge : nonce;
+	new b : bool;
+	let k = kgen(ks) in	
+	out(keyinitout,()); 
+	(
+		in(gamein,(D0:data,D1:data));
+		let p_challenge = ( enc(concat(test(b, D0, D1), n_challenge), k, n_enc), hash(hk, n_challenge) ) in
+		out(gameout, ( p_challenge, n_challenge))
+	) | OGen | OHash | OVerif
+)
+

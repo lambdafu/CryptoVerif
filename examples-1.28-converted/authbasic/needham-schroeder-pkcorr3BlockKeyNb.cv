@@ -1,0 +1,165 @@
+(* Needham Schroeder public key protocol. *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto uf_cma(sign) rkS;
+crypto ind_cca2(enc) rkA;
+crypto ind_cca2(enc) rkB;
+success;
+auto
+}
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce, host):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun pad(nonce):blocksize [data].
+
+forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
+	concat2(z,t,u) <> concat1(y2,z2).
+forall y:nonce,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,u:host,y2:nonce;
+	concat2(z,t,u) <> pad(y2).
+
+(* Public-key encryption (CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, c18, c19, start, finish.
+const A : host.
+const B : host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+event fullA(host, nonce, bitstring).
+event partA(host, bitstring).
+event fullB(host, nonce, bitstring).
+event partB(host, bitstring).
+
+query x: bitstring;
+  inj-event(partA(B, x)) ==> inj-event(partB(A, x)) public_vars keyA.
+query x: bitstring, k: nonce;
+  inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) public_vars keyA.
+query secret keyA.
+query k': nonce, x: bitstring, k: nonce;
+  event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') public_vars keyA.
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rkA: keyseed;
+let pkA: pkey = pkgen(rkA) in
+let skA: skey = skgen(rkA) in
+new rkB: keyseed;
+let pkB: pkey = pkgen(rkB) in
+let skB: skey = skgen(rkB) in
+new rkS: skeyseed;
+let pkS: spkey = spkgen(rkS) in
+let skS: sskey = sskgen(rkS) in
+out(c15, (pkA, pkB, pkS));
+((
+  ! i_1 <= N
+  in(c1[i_1], hostX: host);
+  out(c2[i_1], (A, hostX));
+  in(c3[i_1], (pkX: pkey, =hostX, ms_1: signature));
+  if check(concat3(pkX, hostX), pkS, ms_1) then
+  new Na_1: nonce;
+  new r3_2: seed;
+  let m1_2: bitstring = enc(concat1(Na_1, A), pkX, r3_2) in
+  out(c4[i_1], m1_2);
+  in(c5[i_1], m_3: bitstring);
+  let injbot(concat2(=Na_1, Nb: nonce, =hostX)) = dec(m_3, skA) in
+  new r4: seed;
+  let m3: bitstring = enc(pad(Nb), pkX, r4) in
+  event partA(hostX, (m1_2, m_3));
+  event fullA(hostX, Nb, (m1_2, m_3, m3));
+  if hostX = B then
+  let keyA: nonce = Nb in
+    out(c6[i_1], (m3, acceptA(hostX)))
+  else
+    out(c6[i_1], (m3, acceptA(hostX)));
+    in(c18[i_1], =());
+    out(c18[i_1], Nb)
+) | (
+  ! i_2 <= N
+  in(c7[i_2], m_4: bitstring);
+  let injbot(concat1(Na_2: nonce, hostY: host)) = dec(m_4, skB) in
+  out(c8[i_2], (B, hostY));
+  in(c9[i_2], (pkY: pkey, =hostY, ms_2: signature));
+  if check(concat3(pkY, hostY), pkS, ms_2) then
+  new Nb_1: nonce;
+  new r5: seed;
+  let m2_1: bitstring = enc(concat2(Na_2, Nb_1, B), pkY, r5) in
+  event partB(hostY, (m_4, m2_1));
+  out(c10[i_2], m2_1);
+  in(c11[i_2], m3_1: bitstring);
+  let injbot(pad(=Nb_1)) = dec(m3_1, skB) in
+  event fullB(hostY, Nb_1, (m_4, m2_1, m3_1));
+  if hostY = A then
+    out(c17[i_2], acceptB(hostY))
+  else
+    out(c17[i_2], acceptB(hostY));
+    in(c19[i_2], =());
+    out(c19[i_2], Nb_1)
+) | (
+  ! i_3 <= N
+  in(c13[i_3], (h1: host, h2: host));
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  new r3_3: sseed;
+  out(c14[i_3], (Rkey[j2], h2, sign(concat3(Rkey[j2], h2), skS, r3_3)))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA; secrecy of keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
+2.188s (user 2.156s + system 0.032s), max rss 96240K
+END *)

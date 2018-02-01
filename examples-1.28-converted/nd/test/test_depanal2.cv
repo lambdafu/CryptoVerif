@@ -1,0 +1,26 @@
+proba pGDH.
+type G [large,bounded].
+type Z [large,bounded].
+expand GDH_prime_order(G, Z, g, exp, mult, pGDH).
+
+channel c.
+
+param N.
+
+process
+	! i_1 <= N
+in(c[i_1], x_1: Z);
+new y_1: Z;
+let z: G = exp(g, mult(x_1, y_1)) in
+find j_3 = j_4 <= N suchthat defined(z[j_4], r[j_4]) && (z = z[j_4]) then
+  out(c[i_1], true)
+else
+  let r: bool = true in
+  out(c[i_1], (false, z))
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.016s + system 0.012s), max rss 38224K
+END *)

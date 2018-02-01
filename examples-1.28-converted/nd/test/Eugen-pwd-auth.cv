@@ -1,0 +1,106 @@
+proof {
+crypto Dbinsert;
+show_game
+}
+
+type mkey.
+type guid [fixed].
+type Dbdb.
+type unit.
+
+const dummy:bitstring.
+
+channel c.
+
+def Database(option,Some,None, guid,db,unit,key,value, newdb,dbinsert,select)
+{
+fun Some(value):option[data].
+fun None():option[data].
+
+forall x:bitstring;
+  Some(x)<>None.
+
+
+const un:unit.
+
+fun newdb(guid):db.
+fun dbinsert(db,key,value):unit.
+fun select(db,key):option.
+
+param N.
+param N1.
+param N2.
+
+proba Pdb.
+equiv
+  ! N new d: guid; (
+    ! N1 gen_Oracle_1(k: key, v: value) := return(dbinsert(newdb(d),k,v)) |
+    ! N2 gen_Oracle_2(k': key) := return(select(newdb(d),k')))
+<=(N * Pdb(N2))=>
+  ! N new d: guid; (
+    ! N1 gen_Oracle_1(k: key, v: value) := return(un) |
+    ! N2 gen_Oracle_2(k': key) := find j <= N1 suchthat defined(k[j], v[j]) && (k'=k[j]) then return(Some(v[j])) else return(None)).
+
+}
+
+param N.
+
+
+
+(* databases *)
+expand Database(bitstring,Some,None, guid,Dbdb,unit,bitstring,bitstring, DbnewDb,Dbinsert,Dbselect).
+
+fun PwdPwEntry(mkey):bitstring[data].
+fun PwdLeakedPwEntry(mkey):bitstring[data].
+
+forall x:mkey; 
+  PwdPwEntry(x) <> dummy.
+forall x:mkey; 
+  PwdLeakedPwEntry(x) <> dummy.
+forall x:mkey,y:mkey; 
+  PwdPwEntry(x) <> PwdLeakedPwEntry(y).
+
+
+(* queries *)
+
+event PwdSend(bitstring,bitstring).
+event PwdSendLeak(bitstring,bitstring).
+event PwdAccept(bitstring,bitstring).
+event PwdPwLeak(bitstring).
+event PwdSkLeak(bitstring).
+
+query m: bitstring, a: bitstring;
+  event(PwdAccept(a, m)) ==> event(PwdSend(a, m)).
+
+
+process
+  in(c, ());
+new F6: guid;
+let PwdpwdDb: Dbdb = DbnewDb(F6) in
+out(c, dummy);
+((
+  ! i_1 <= N
+  in(c[i_1], (ab_1: bitstring, F8: mkey));
+  out(c[i_1], Dbinsert(PwdpwdDb, ab_1, PwdPwEntry(F8)))
+) | (
+  ! i_2 <= N
+  in(c[i_2], (ab_2: bitstring, F9: mkey));
+  event PwdPwLeak(ab_2);
+  out(c[i_2], Dbinsert(PwdpwdDb, ab_2, PwdLeakedPwEntry(F9)))
+) | (
+  ! i_3 <= N
+  in(c[i_3], (ab_3: bitstring, m: bitstring));
+  let Some(PwdPwEntry(pwd8: mkey)) = Dbselect(PwdpwdDb, ab_3) in
+    event PwdSend(ab_3, m)
+  else
+    let Some(PwdLeakedPwEntry(pwd9: mkey)) = Dbselect(PwdpwdDb, ab_3) in
+    event PwdSendLeak(ab_3, m)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(PwdAccept(a, m)) ==> event(PwdSend(a, m)).
+0.016s (user 0.016s + system 0.000s), max rss 36992K
+END *)

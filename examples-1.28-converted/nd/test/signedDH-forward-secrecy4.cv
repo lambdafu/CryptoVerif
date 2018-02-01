@@ -1,0 +1,3082 @@
+(* Signed Diffie-Hellman protocol 
+   A -> B : A, B, g^a
+   B -> A : A, B, g^b, { A,B,g^a,g^b }skB  
+   A -> B : { A,B,g^a,g^b }skA
+*)
+
+param N, N2.
+
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize [bounded].
+type signature [bounded].
+
+type Z [large,fixed].
+type G [large,fixed].
+type K [large,fixed].
+type D [fixed].
+
+proof {
+success; (* prove query x:G, y:G, k:D, k':D; event endB(A, B, x, y, k) && endA(A, B, x, y, k') ==> k = k'. *)
+crypto uf_cma_corrupt(sign) rkA;
+success; (* prove query x:G, y:G, k:D; event inj:endB(A, B, x, y, k) ==> inj:endA(A, B, x, y, k) || evAcorrupted. *)
+crypto uf_cma_corrupt(sign) rkB;
+success; (* prove query x:G, y:G, k:D; event inj:endA(A, B, x, y, k) ==> inj:beginB(A, B, x, y) || evBcorrupted. *)
+(* set noAdviceCrypto = true; *)
+crypto rom(h);
+(* SArename gab_131;
+remove_assign binder gab_764;
+SArename gab_126;
+remove_assign binder gab_852;
+simplify;
+show_game; *)
+crypto cdh(exp) a_1 b_1;
+simplify;
+show_game;
+SArename r_6; 
+simplify;
+simplify;
+success
+}
+
+(* the CDH assumption *) 
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* h in the random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, G, D, h).
+
+param nH [noninteractive].
+channel hc1, hc2.
+
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret kA_secret.
+
+event endA(host, host, G, G, D).
+event beginB(host, host, G, G).
+event endB(host, host, G, G, D).
+event evAcorrupted.
+event evBcorrupted.
+
+query k: D, y: G, x: G;
+  inj-event(endA(A, B, x, y, k)) ==> (inj-event(beginB(A, B, x, y)) || event(evBcorrupted)) public_vars kA_secret.
+query k: D, y: G, x: G;
+  inj-event(endB(A, B, x, y, k)) ==> (inj-event(endA(A, B, x, y, k)) || event(evAcorrupted)) public_vars kA_secret.
+query k': D, k: D, y: G, x: G;
+  event(endB(A, B, x, y, k)) && event(endA(A, B, x, y, k')) ==> (k = k') public_vars kA_secret.
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cA7, cA8, cB1, cB2, cB3, cB4, cB5, cB6, cH, cHret, cK, cCorruptA, cCorruptB.
+
+
+
+
+
+
+
+
+
+
+
+process
+	in(start, ());
+new hk: hashkey;
+new rkA: keyseed;
+let skA: skey = skgen(rkA) in
+let pkA: pkey = pkgen(rkA) in
+new rkB: keyseed;
+let skB: skey = skgen(rkB) in
+let pkB: pkey = pkgen(rkB) in
+out(cstart, (pkA, pkB));
+((
+  ! i_1 <= N
+  in(cA1[i_1], hostB: host);
+  new a_1: Z;
+  let Aga: G = exp(g, a_1) in
+  out(cA2[i_1], (A, hostB, Aga));
+  in(cA3[i_1], (=A, =hostB, Agb: G, s_1: signature));
+  find j2_3 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostB) then
+  let pkhostB: pkey = Rkey[j2_3] in
+  if check(concatB(A, hostB, Aga, Agb), pkhostB, s_1) then
+  new r2_1: seed;
+  let sA: signature = sign(concatA(A, hostB, Aga, Agb), skA, r2_1) in
+  let gab: G = exp(Agb, a_1) in
+  let kA: D = h(hk, gab) in
+  event endA(A, hostB, Aga, Agb, kA);
+  if hostB = B then
+  (
+    if defined(Acorrupted) then
+      out(cA4[i_1], sA);
+      in(cA5[i_1], ());
+      out(cA6[i_1], kA)
+    else
+      if defined(Bcorrupted) then
+        out(cA4[i_1], sA);
+        in(cA5[i_1], ());
+        out(cA6[i_1], kA)
+      else
+        out(cA4[i_1], sA);
+        in(cA5[i_1], ());
+        let kA_secret: D = kA
+  )
+  else
+    out(cA4[i_1], sA);
+    in(cA5[i_1], ());
+    out(cA6[i_1], kA)
+) | (
+  ! i_2 <= N
+  in(cB1[i_2], (hostA: host, =B, Bga: G));
+  new b_1: Z;
+  let Bgb: G = exp(g, b_1) in
+  new r1_1: seed;
+  event beginB(hostA, B, Bga, Bgb);
+  out(cB2[i_2], (hostA, B, Bgb, sign(concatB(hostA, B, Bga, Bgb), skB, r1_1)));
+  in(cB3[i_2], s_2: signature);
+  find j2_4 = j2_2 <= N2 suchthat defined(Khost[j2_2], Rkey[j2_2]) && (Khost[j2_2] = hostA) then
+  let pkhostA: pkey = Rkey[j2_4] in
+  if check(concatA(hostA, B, Bga, Bgb), pkhostA, s_2) then
+  let gab_1: G = exp(Bga, b_1) in
+  let kB: D = h(hk, gab_1) in
+  event endB(hostA, B, Bga, Bgb, kB);
+  if hostA = A then
+    find j_15 = j_16 <= N suchthat defined(hostB[j_16], Aga[j_16], Agb[j_16], kA[j_16]) && (hostB[j_16] = B) && (Aga[j_16] = Bga) && (Agb[j_16] = Bgb) then
+      yield
+    else
+      out(cB4[i_2], kB)
+  else
+    out(cB4[i_2], kB)
+) | (
+  ! i_3 <= nH
+  in(hc1[i_3], x_3: G);
+  out(hc2[i_3], h(hk, x_3))
+) | (
+  ! i_4 <= N2
+  in(cK[i_4], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = B then pkB else if Khost = A then pkA else Kkey)
+) | (
+  in(cCorruptA, ());
+  let Acorrupted: bool = true in
+  event evAcorrupted;
+  out(cCorruptA, skA)
+) | (
+  in(cCorruptB, ());
+  let Bcorrupted: bool = true in
+  event evBcorrupted;
+  out(cCorruptB, skB)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+5.820s (user 5.760s + system 0.060s), max rss 154896K
+END *)
+
+(*
+
+Doing expand get, insert, if, let, find... Done.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Run simplify 1 time(s). Fixpoint reached.
+No change.
+Doing move all binders... No change.
+Doing remove assignments of useless... Done.
+Proved query event endB(A, B, x, y, k) && endA(A, B, x, y, k') ==> (k = k')
+Doing remove assignments of binder kA... Done.
+Sorry, some queries remain unproved.
+Trying equivalence uf_cma_corrupt(sign) with rkA... Failed.
+Doing remove assignments of binder pkA... Done.
+Doing remove assignments of binder skA... Done.
+Trying equivalence uf_cma_corrupt(sign) with rkA... Failed.
+Doing SA rename Rkey... Done.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Run simplify 2 time(s). Fixpoint reached.
+Done.
+Trying equivalence uf_cma_corrupt(sign) with rkA, r2_144... Failed.
+Doing remove assignments of binder Rkey_140... Done.
+Trying equivalence uf_cma_corrupt(sign) with r2_144, rkA, r2_142, r2_143... Succeeded.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between a and a Probability: 0.5 * N * N / |Z|
+Done.
+Doing move all binders... Done.
+Doing remove assignments of useless... Done.
+Eliminated collisions between b and b Probability: 0.5 * N * N / |Z|
+Proved query event inj:endB(A, B, x, y, k) ==> (inj:endA(A, B, x, y, k)||evAcorrupted) Probability: 0.5 * N * N / |Z|
+Doing remove assignments of binder kA... Done.
+Sorry, some queries remain unproved.
+Trying equivalence uf_cma_corrupt(sign) with rkB... Failed.
+Doing remove assignments of binder pkB... Done.
+Doing remove assignments of binder skB... Done.
+Trying equivalence uf_cma_corrupt(sign) with rkB... Succeeded.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Reduced (@10_pkgen2(rkB) = @10_pkgen2(rkA)) to false Probability: Psigncoll
+Done.
+Doing move all binders... Done.
+Doing remove assignments of useless... Done.
+Eliminated collisions between a and a Probability: 0.5 * N * N / |Z|
+Proved query event inj:endA(A, B, x, y, k) ==> (inj:beginB(A, B, x, y)||evBcorrupted) Probability: 0.5 * N * N / |Z|
+Doing remove assignments of binder kA... Done.
+Sorry, some queries remain unproved.
+Trying equivalence rom(h) ... Succeeded.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Run simplify 2 time(s). Fixpoint reached.
+Eliminated collisions between a and a Probability: 0.5 * N * N / |Z|
+Reduced (mult(b[@i_176[!_118]], a[!_118]) = mult(b[@i_176[@i_332[!_118]]], a[@i_332[!_118]])) to false Probability: 1. / |Z| * N
+Done.
+Doing move all binders... No change.
+Doing remove assignments of useless... Done.
+Trying equivalence cdh(exp) with a, b... Failed.
+Doing SA rename gab_124... Done.
+Doing remove assignments of useless... No change.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Run simplify 2 time(s). Fixpoint reached.
+Done.
+Trying equivalence cdh(exp) with b, a... Failed.
+Doing remove assignments of binder gab_354... Done.
+Trying equivalence cdh(exp) with a, b... Succeeded.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Eliminated collisions between b and b Probability: 0.5 * N * N / |Z|
+Done.
+Doing move all binders... Done.
+Doing remove assignments of useless... Done.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Run simplify 2 time(s). Maximum reached.
+Done.
+Doing SA rename @9_r_189... Done.
+Doing remove assignments of useless... No change.
+Doing simplify... Doing global dependency analysis on b inside simplify... No change
+Doing global dependency analysis on a inside simplify... No change
+Run simplify 1 time(s). Fixpoint reached.
+No change.
+        in(start, ());
+        new rkA: keyseed;
+        new rkB: keyseed;
+        out(cstart, (@10_pkgen2(rkA), @10_pkgen2(rkB)));
+        (
+          ! !_118 <= N
+          in(cA1[!_118], hostB: host);
+          new a: Z;
+          let Aga: G = @7_exp'(g, a) in
+          out(cA2[!_118], (A, hostB, Aga));
+          in(cA3[!_118], (=A, =hostB, Agb: G, s_122: signature));
+          find j2_123 <= N2 suchthat defined(Khost[j2_123], Kkey[j2_123], Rkey_139[j2_123]) && (Khost[j2_123] = hostB) then
+          (
+            if defined(@10_corrupt_147) && (Kkey[j2_123] = @10_pkgen2(rkA)) then
+            (
+              if @10_check2(concatB(A, hostB, Aga, Agb), Kkey[j2_123], s_122) then
+              new r2_168: seed;
+              let @10_x_148: blocksize = concatA(A, hostB, Aga, Agb) in
+              let sA: signature = @10_sign2(@10_x_148, @10_skgen2(rkA), r2_168) in
+              let gab_349: G = exp(Agb, a) in
+              find [unique] @i_312 <= N suchthat defined(gab_351[@i_312], @9_r_181[@i_312]) && (gab_349 = gab_351[@i_312]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_181[@i_312])
+              )
+              orfind @i_311 <= N suchthat defined(gab_350[@i_311], @9_r_183[@i_311]) && (gab_349 = gab_350[@i_311]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_183[@i_311])
+              )
+              orfind @i_310 <= N suchthat defined(gab_349[@i_310], @9_r_185[@i_310]) && (gab_349 = gab_349[@i_310]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_185[@i_310])
+              )
+              orfind @i_309 <= N suchthat defined(gab_352[@i_309], @9_r_187[@i_309]) && (gab_349 = gab_352[@i_309]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_187[@i_309])
+              )
+              orfind @i_308 <= N suchthat defined(b[@i_176[@i_308]], a[@i_308], @9_r_514[@i_308], @7_kb_367[@i_176[@i_308]]) && (gab_349 = @7_exp'(g, mult(b[@i_176[@i_308]], a[@i_308]))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_514[@i_308])
+              )
+              orfind @i_308 <= N suchthat defined(b[@i_176[@i_308]], a[@i_308], @9_r_515[@i_308], @7_kb_367[@i_176[@i_308]]) && (gab_349 = @7_exp'(g, mult(b[@i_176[@i_308]], a[@i_308]))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_515[@i_308])
+              )
+              orfind @i_307 <= N suchthat defined(gab_353[@i_307], @9_r_191[@i_307]) && (gab_349 = gab_353[@i_307]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_191[@i_307])
+              )
+              orfind @i_306 <= N suchthat defined(gab_127[@i_306], @9_r_193[@i_306]) && (gab_349 = gab_127[@i_306]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_193[@i_306])
+              )
+              orfind @i_305 <= N suchthat defined(gab_127[@i_305], @9_r_195[@i_305]) && (gab_349 = gab_127[@i_305]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_195[@i_305])
+              )
+              orfind @i_304 <= N suchthat defined(gab_127[@i_304], @9_r_197[@i_304]) && (gab_349 = gab_127[@i_304]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_197[@i_304])
+              )
+              orfind @i_303 <= N suchthat defined(gab_127[@i_303], @9_r_199[@i_303]) && (gab_349 = gab_127[@i_303]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_199[@i_303])
+              )
+              orfind @i_302 <= N suchthat defined(gab_127[@i_302], @9_r_201[@i_302]) && (gab_349 = gab_127[@i_302]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_201[@i_302])
+              )
+              orfind @i_301 <= nH suchthat defined(x[@i_301], @9_r_203[@i_301]) && (gab_349 = x[@i_301]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_203[@i_301])
+              )
+              else
+                new @9_r_185: D;
+                let kA: D = cst_D in
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_185)
+            )
+            else
+              if (Kkey[j2_123] = @10_pkgen2(rkA)) then
+                yield
+              else
+                if defined(@10_corrupt_172) && (Kkey[j2_123] = @10_pkgen2(rkB)) then
+                (
+                  if @10_check2(concatB(A, hostB, Aga, Agb), Kkey[j2_123], s_122) then
+                  new r2_178: seed;
+                  let @10_x_148: blocksize = concatA(A, hostB, Aga, Agb) in
+                  let sA: signature = @10_sign2(@10_x_148, @10_skgen2(rkA), r2_178) in
+                  let gab_350: G = exp(Agb, a) in
+                  find [unique] @i_300 <= N suchthat defined(gab_351[@i_300], @9_r_181[@i_300]) && (gab_350 = gab_351[@i_300]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_181[@i_300])
+                  )
+                  orfind @i_299 <= N suchthat defined(gab_350[@i_299], @9_r_183[@i_299]) && (gab_350 = gab_350[@i_299]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_183[@i_299])
+                  )
+                  orfind @i_298 <= N suchthat defined(gab_349[@i_298], @9_r_185[@i_298]) && (gab_350 = gab_349[@i_298]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_185[@i_298])
+                  )
+                  orfind @i_297 <= N suchthat defined(gab_352[@i_297], @9_r_187[@i_297]) && (gab_350 = gab_352[@i_297]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_187[@i_297])
+                  )
+                  orfind @i_296 <= N suchthat defined(b[@i_176[@i_296]], a[@i_296], @9_r_514[@i_296], @7_kb_367[@i_176[@i_296]]) && (gab_350 = @7_exp'(g, mult(b[@i_176[@i_296]], a[@i_296]))) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_514[@i_296])
+                  )
+                  orfind @i_296 <= N suchthat defined(b[@i_176[@i_296]], a[@i_296], @9_r_515[@i_296], @7_kb_367[@i_176[@i_296]]) && (gab_350 = @7_exp'(g, mult(b[@i_176[@i_296]], a[@i_296]))) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_515[@i_296])
+                  )
+                  orfind @i_295 <= N suchthat defined(gab_353[@i_295], @9_r_191[@i_295]) && (gab_350 = gab_353[@i_295]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_191[@i_295])
+                  )
+                  orfind @i_294 <= N suchthat defined(gab_127[@i_294], @9_r_193[@i_294]) && (gab_350 = gab_127[@i_294]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_193[@i_294])
+                  )
+                  orfind @i_293 <= N suchthat defined(gab_127[@i_293], @9_r_195[@i_293]) && (gab_350 = gab_127[@i_293]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_195[@i_293])
+                  )
+                  orfind @i_292 <= N suchthat defined(gab_127[@i_292], @9_r_197[@i_292]) && (gab_350 = gab_127[@i_292]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_197[@i_292])
+                  )
+                  orfind @i_291 <= N suchthat defined(gab_127[@i_291], @9_r_199[@i_291]) && (gab_350 = gab_127[@i_291]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_199[@i_291])
+                  )
+                  orfind @i_290 <= N suchthat defined(gab_127[@i_290], @9_r_201[@i_290]) && (gab_350 = gab_127[@i_290]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_201[@i_290])
+                  )
+                  orfind @i_289 <= nH suchthat defined(x[@i_289], @9_r_203[@i_289]) && (gab_350 = x[@i_289]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_203[@i_289])
+                  )
+                  else
+                    new @9_r_183: D;
+                    let kA: D = cst_D in
+                    out(cA4[!_118], sA);
+                    in(cA5[!_118], ());
+                    out(cA6[!_118], @9_r_183)
+                )
+                else
+                  if (Kkey[j2_123] = @10_pkgen2(rkB)) then
+                    yield
+                  else
+                    if check(concatB(A, hostB, Aga, Agb), Kkey[j2_123], s_122) then
+                    new r2_177: seed;
+                    let @10_x_148: blocksize = concatA(A, hostB, Aga, Agb) in
+                    let sA: signature = @10_sign2(@10_x_148, @10_skgen2(rkA), r2_177) in
+                    let gab_351: G = exp(Agb, a) in
+                    find [unique] @i_288 <= N suchthat defined(gab_351[@i_288], @9_r_181[@i_288]) && (gab_351 = gab_351[@i_288]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_181[@i_288])
+                    )
+                    orfind @i_287 <= N suchthat defined(gab_350[@i_287], @9_r_183[@i_287]) && (gab_351 = gab_350[@i_287]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_183[@i_287])
+                    )
+                    orfind @i_286 <= N suchthat defined(gab_349[@i_286], @9_r_185[@i_286]) && (gab_351 = gab_349[@i_286]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_185[@i_286])
+                    )
+                    orfind @i_285 <= N suchthat defined(gab_352[@i_285], @9_r_187[@i_285]) && (gab_351 = gab_352[@i_285]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_187[@i_285])
+                    )
+                    orfind @i_284 <= N suchthat defined(b[@i_176[@i_284]], a[@i_284], @9_r_514[@i_284], @7_kb_367[@i_176[@i_284]]) && (gab_351 = @7_exp'(g, mult(b[@i_176[@i_284]], a[@i_284]))) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_514[@i_284])
+                    )
+                    orfind @i_284 <= N suchthat defined(b[@i_176[@i_284]], a[@i_284], @9_r_515[@i_284], @7_kb_367[@i_176[@i_284]]) && (gab_351 = @7_exp'(g, mult(b[@i_176[@i_284]], a[@i_284]))) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_515[@i_284])
+                    )
+                    orfind @i_283 <= N suchthat defined(gab_353[@i_283], @9_r_191[@i_283]) && (gab_351 = gab_353[@i_283]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_191[@i_283])
+                    )
+                    orfind @i_282 <= N suchthat defined(gab_127[@i_282], @9_r_193[@i_282]) && (gab_351 = gab_127[@i_282]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_193[@i_282])
+                    )
+                    orfind @i_281 <= N suchthat defined(gab_127[@i_281], @9_r_195[@i_281]) && (gab_351 = gab_127[@i_281]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_195[@i_281])
+                    )
+                    orfind @i_280 <= N suchthat defined(gab_127[@i_280], @9_r_197[@i_280]) && (gab_351 = gab_127[@i_280]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_197[@i_280])
+                    )
+                    orfind @i_279 <= N suchthat defined(gab_127[@i_279], @9_r_199[@i_279]) && (gab_351 = gab_127[@i_279]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_199[@i_279])
+                    )
+                    orfind @i_278 <= N suchthat defined(gab_127[@i_278], @9_r_201[@i_278]) && (gab_351 = gab_127[@i_278]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_201[@i_278])
+                    )
+                    orfind @i_277 <= nH suchthat defined(x[@i_277], @9_r_203[@i_277]) && (gab_351 = x[@i_277]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_203[@i_277])
+                    )
+                    else
+                      new @9_r_181: D;
+                      let kA: D = cst_D in
+                      out(cA4[!_118], sA);
+                      in(cA5[!_118], ());
+                      out(cA6[!_118], @9_r_181)
+          )
+          orfind j2_123 <= N2 suchthat defined(Khost[j2_123], Rkey_140[j2_123]) && (Khost[j2_123] = hostB) then
+          (
+            if defined(@10_corrupt_147) then
+            if @10_check2(concatB(A, hostB, Aga, Agb), @10_pkgen2(rkA), s_122) then
+            new r2_143: seed;
+            let @10_x_145: blocksize = concatA(A, hostB, Aga, Agb) in
+            let sA: signature = @10_sign2(@10_x_145, @10_skgen2(rkA), r2_143) in
+            let gab_352: G = exp(Agb, a) in
+            find [unique] @i_324 <= N suchthat defined(gab_351[@i_324], @9_r_181[@i_324]) && (gab_352 = gab_351[@i_324]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_181[@i_324])
+            )
+            orfind @i_323 <= N suchthat defined(gab_350[@i_323], @9_r_183[@i_323]) && (gab_352 = gab_350[@i_323]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_183[@i_323])
+            )
+            orfind @i_322 <= N suchthat defined(gab_349[@i_322], @9_r_185[@i_322]) && (gab_352 = gab_349[@i_322]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_185[@i_322])
+            )
+            orfind @i_321 <= N suchthat defined(gab_352[@i_321], @9_r_187[@i_321]) && (gab_352 = gab_352[@i_321]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_187[@i_321])
+            )
+            orfind @i_320 <= N suchthat defined(b[@i_176[@i_320]], a[@i_320], @9_r_514[@i_320], @7_kb_367[@i_176[@i_320]]) && (gab_352 = @7_exp'(g, mult(b[@i_176[@i_320]], a[@i_320]))) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_514[@i_320])
+            )
+            orfind @i_320 <= N suchthat defined(b[@i_176[@i_320]], a[@i_320], @9_r_515[@i_320], @7_kb_367[@i_176[@i_320]]) && (gab_352 = @7_exp'(g, mult(b[@i_176[@i_320]], a[@i_320]))) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_515[@i_320])
+            )
+            orfind @i_319 <= N suchthat defined(gab_353[@i_319], @9_r_191[@i_319]) && (gab_352 = gab_353[@i_319]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_191[@i_319])
+            )
+            orfind @i_318 <= N suchthat defined(gab_127[@i_318], @9_r_193[@i_318]) && (gab_352 = gab_127[@i_318]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_193[@i_318])
+            )
+            orfind @i_317 <= N suchthat defined(gab_127[@i_317], @9_r_195[@i_317]) && (gab_352 = gab_127[@i_317]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_195[@i_317])
+            )
+            orfind @i_316 <= N suchthat defined(gab_127[@i_316], @9_r_197[@i_316]) && (gab_352 = gab_127[@i_316]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_197[@i_316])
+            )
+            orfind @i_315 <= N suchthat defined(gab_127[@i_315], @9_r_199[@i_315]) && (gab_352 = gab_127[@i_315]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_199[@i_315])
+            )
+            orfind @i_314 <= N suchthat defined(gab_127[@i_314], @9_r_201[@i_314]) && (gab_352 = gab_127[@i_314]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_201[@i_314])
+            )
+            orfind @i_313 <= nH suchthat defined(x[@i_313], @9_r_203[@i_313]) && (gab_352 = x[@i_313]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_203[@i_313])
+            )
+            else
+              new @9_r_187: D;
+              let kA: D = cst_D in
+              out(cA4[!_118], sA);
+              in(cA5[!_118], ());
+              out(cA6[!_118], @9_r_187)
+          )
+          orfind j2_123 <= N2 suchthat defined(Khost[j2_123], Rkey_141[j2_123]) && (Khost[j2_123] = hostB) then
+          (
+            if defined(@10_corrupt_172) then
+            (
+              if @10_check2(concatB(A, hostB, Aga, Agb), @10_pkgen2(rkB), s_122) then
+              new r2_180: seed;
+              let @10_x_146: blocksize = concatA(A, hostB, Aga, Agb) in
+              let sA: signature = @10_sign2(@10_x_146, @10_skgen2(rkA), r2_180) in
+              let gab_353: G = exp(Agb, a) in
+              find [unique] @i_348 <= N suchthat defined(gab_351[@i_348], @9_r_181[@i_348]) && (gab_353 = gab_351[@i_348]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_181[@i_348])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_181[@i_348])
+              )
+              orfind @i_347 <= N suchthat defined(gab_350[@i_347], @9_r_183[@i_347]) && (gab_353 = gab_350[@i_347]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_183[@i_347])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_183[@i_347])
+              )
+              orfind @i_346 <= N suchthat defined(gab_349[@i_346], @9_r_185[@i_346]) && (gab_353 = gab_349[@i_346]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_185[@i_346])
+              )
+              orfind @i_345 <= N suchthat defined(gab_352[@i_345], @9_r_187[@i_345]) && (gab_353 = gab_352[@i_345]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_187[@i_345])
+              )
+              orfind @i_344 <= N suchthat defined(b[@i_176[@i_344]], a[@i_344], @9_r_514[@i_344], @7_kb_367[@i_176[@i_344]]) && (gab_353 = @7_exp'(g, mult(b[@i_176[@i_344]], a[@i_344]))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_514[@i_344])
+              )
+              orfind @i_344 <= N suchthat defined(b[@i_176[@i_344]], a[@i_344], @9_r_515[@i_344], @7_kb_367[@i_176[@i_344]]) && (gab_353 = @7_exp'(g, mult(b[@i_176[@i_344]], a[@i_344]))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_515[@i_344])
+              )
+              orfind @i_343 <= N suchthat defined(gab_353[@i_343], @9_r_191[@i_343]) && (gab_353 = gab_353[@i_343]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_191[@i_343])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_191[@i_343])
+              )
+              orfind @i_342 <= N suchthat defined(gab_127[@i_342], @9_r_193[@i_342]) && (gab_353 = gab_127[@i_342]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_193[@i_342])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_193[@i_342])
+              )
+              orfind @i_341 <= N suchthat defined(gab_127[@i_341], @9_r_195[@i_341]) && (gab_353 = gab_127[@i_341]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_195[@i_341])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_195[@i_341])
+              )
+              orfind @i_340 <= N suchthat defined(gab_127[@i_340], @9_r_197[@i_340]) && (gab_353 = gab_127[@i_340]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_197[@i_340])
+              )
+              orfind @i_339 <= N suchthat defined(gab_127[@i_339], @9_r_199[@i_339]) && (gab_353 = gab_127[@i_339]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_199[@i_339])
+              )
+              orfind @i_338 <= N suchthat defined(gab_127[@i_338], @9_r_201[@i_338]) && (gab_353 = gab_127[@i_338]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_201[@i_338])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_201[@i_338])
+              )
+              orfind @i_337 <= nH suchthat defined(x[@i_337], @9_r_203[@i_337]) && (gab_353 = x[@i_337]) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_203[@i_337])
+                else
+                  if defined(Bcorrupted) then
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_203[@i_337])
+              )
+              else
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  new @9_r_191: D;
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_191)
+                else
+                  if defined(Bcorrupted) then
+                  new @9_r_191: D;
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_191)
+            )
+            else
+              find @i_176 <= N suchthat defined(hostA[@i_176], Bga[@i_176], Bgb[@i_176], b[@i_176], @10_x_171[@i_176]) && (((A = hostA[@i_176]) && ((Aga = Bga[@i_176]) && (Agb = Bgb[@i_176]))) && @10_check2(concatB(A, hostB, Aga, Agb), @10_pkgen2(rkB), s_122)) then
+              new r2_179: seed;
+              let @10_x_146: blocksize = concatA(A, hostB, Aga, Agb) in
+              let sA: signature = @10_sign2(@10_x_146, @10_skgen2(rkA), r2_179) in
+              find [unique] @i_336 <= N suchthat defined(gab_351[@i_336], @9_r_181[@i_336], @7_kb_367[@i_176]) && (gab_351[@i_336] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_181[@i_336])
+              )
+              orfind @i_334 <= N suchthat defined(gab_349[@i_334], @9_r_185[@i_334], @7_kb_367[@i_176]) && (gab_349[@i_334] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_185[@i_334])
+              )
+              orfind @i_333 <= N suchthat defined(gab_352[@i_333], @9_r_187[@i_333], @7_kb_367[@i_176]) && (gab_352[@i_333] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_187[@i_333])
+              )
+              orfind @i_330 <= N suchthat defined(gab_127[@i_330], @9_r_193[@i_330], @7_kb_367[@i_176]) && (gab_127[@i_330] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_193[@i_330])
+              )
+              orfind @i_328 <= N suchthat defined(gab_127[@i_328], @9_r_197[@i_328], @7_kb_367[@i_176]) && (gab_127[@i_328] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_197[@i_328])
+              )
+              orfind @i_327 <= N suchthat defined(gab_127[@i_327], @9_r_199[@i_327], @7_kb_367[@i_176]) && (gab_127[@i_327] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_199[@i_327])
+              )
+              orfind @i_325 <= nH suchthat defined(x[@i_325], @9_r_203[@i_325], @7_kb_367[@i_176]) && (x[@i_325] = @7_exp'(g, mult(b[@i_176], a))) then
+              (
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                out(cA4[!_118], sA);
+                in(cA5[!_118], ());
+                out(cA6[!_118], @9_r_203[@i_325])
+              )
+              else
+                let kA: D = cst_D in
+                if defined(Acorrupted) then
+                  new @9_r_514: D;
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  out(cA6[!_118], @9_r_514)
+                else
+                  new @9_r_515: D;
+                  out(cA4[!_118], sA);
+                  in(cA5[!_118], ());
+                  let kA_secret: D = @9_r_515
+          )
+        ) | (
+          ! !_119 <= N
+          in(cB1[!_119], (hostA: host, =B, Bga: G));
+          new b: Z;
+          let Bgb: G = @7_exp'(g, b) in
+          new r1: seed;
+          let @10_x_171: blocksize = concatB(hostA, B, Bga, Bgb) in
+          out(cB2[!_119], (hostA, B, Bgb, @10_sign2(@10_x_171, @10_skgen2(rkB), r1)));
+          in(cB3[!_119], s_125: signature);
+          find j2_126 <= N2 suchthat defined(Khost[j2_126], Kkey[j2_126], Rkey_139[j2_126]) && (Khost[j2_126] = hostA) then
+          (
+            if defined(@10_corrupt_147) && (Kkey[j2_126] = @10_pkgen2(rkA)) then
+            (
+              if @10_check2(concatA(hostA, B, Bga, Bgb), Kkey[j2_126], s_125) then
+              let gab_127: G = exp(Bga, b) in
+              find [unique] @i_252 <= N suchthat defined(gab_351[@i_252], @9_r_181[@i_252]) && (gab_127 = gab_351[@i_252]) then
+                out(cB4[!_119], @9_r_181[@i_252])
+              orfind @i_251 <= N suchthat defined(gab_350[@i_251], @9_r_183[@i_251]) && (gab_127 = gab_350[@i_251]) then
+                out(cB4[!_119], @9_r_183[@i_251])
+              orfind @i_250 <= N suchthat defined(gab_349[@i_250], @9_r_185[@i_250]) && (gab_127 = gab_349[@i_250]) then
+                out(cB4[!_119], @9_r_185[@i_250])
+              orfind @i_249 <= N suchthat defined(gab_352[@i_249], @9_r_187[@i_249]) && (gab_127 = gab_352[@i_249]) then
+                out(cB4[!_119], @9_r_187[@i_249])
+              orfind @i_248 <= N suchthat defined(b[@i_176[@i_248]], a[@i_248], @9_r_514[@i_248], @7_kb_367[@i_176[@i_248]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_248]], a[@i_248]))) then
+                out(cB4[!_119], @9_r_514[@i_248])
+              orfind @i_248 <= N suchthat defined(b[@i_176[@i_248]], a[@i_248], @9_r_515[@i_248], @7_kb_367[@i_176[@i_248]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_248]], a[@i_248]))) then
+                out(cB4[!_119], @9_r_515[@i_248])
+              orfind @i_247 <= N suchthat defined(gab_353[@i_247], @9_r_191[@i_247]) && (gab_127 = gab_353[@i_247]) then
+                out(cB4[!_119], @9_r_191[@i_247])
+              orfind @i_246 <= N suchthat defined(gab_127[@i_246], @9_r_193[@i_246]) && (gab_127 = gab_127[@i_246]) then
+                out(cB4[!_119], @9_r_193[@i_246])
+              orfind @i_245 <= N suchthat defined(gab_127[@i_245], @9_r_195[@i_245]) && (gab_127 = gab_127[@i_245]) then
+                out(cB4[!_119], @9_r_195[@i_245])
+              orfind @i_244 <= N suchthat defined(gab_127[@i_244], @9_r_197[@i_244]) && (gab_127 = gab_127[@i_244]) then
+                out(cB4[!_119], @9_r_197[@i_244])
+              orfind @i_243 <= N suchthat defined(gab_127[@i_243], @9_r_199[@i_243]) && (gab_127 = gab_127[@i_243]) then
+                out(cB4[!_119], @9_r_199[@i_243])
+              orfind @i_242 <= N suchthat defined(gab_127[@i_242], @9_r_201[@i_242]) && (gab_127 = gab_127[@i_242]) then
+                out(cB4[!_119], @9_r_201[@i_242])
+              orfind @i_241 <= nH suchthat defined(x[@i_241], @9_r_203[@i_241]) && (gab_127 = x[@i_241]) then
+                out(cB4[!_119], @9_r_203[@i_241])
+              else
+                new @9_r_197: D;
+                out(cB4[!_119], @9_r_197)
+            )
+            else
+              if (Kkey[j2_126] = @10_pkgen2(rkA)) then
+                yield
+              else
+                if defined(@10_corrupt_172) && (Kkey[j2_126] = @10_pkgen2(rkB)) then
+                (
+                  if @10_check2(concatA(hostA, B, Bga, Bgb), Kkey[j2_126], s_125) then
+                  let gab_127: G = exp(Bga, b) in
+                  find [unique] @i_240 <= N suchthat defined(gab_351[@i_240], @9_r_181[@i_240]) && (gab_127 = gab_351[@i_240]) then
+                    out(cB4[!_119], @9_r_181[@i_240])
+                  orfind @i_239 <= N suchthat defined(gab_350[@i_239], @9_r_183[@i_239]) && (gab_127 = gab_350[@i_239]) then
+                    out(cB4[!_119], @9_r_183[@i_239])
+                  orfind @i_238 <= N suchthat defined(gab_349[@i_238], @9_r_185[@i_238]) && (gab_127 = gab_349[@i_238]) then
+                    out(cB4[!_119], @9_r_185[@i_238])
+                  orfind @i_237 <= N suchthat defined(gab_352[@i_237], @9_r_187[@i_237]) && (gab_127 = gab_352[@i_237]) then
+                    out(cB4[!_119], @9_r_187[@i_237])
+                  orfind @i_236 <= N suchthat defined(b[@i_176[@i_236]], a[@i_236], @9_r_514[@i_236], @7_kb_367[@i_176[@i_236]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_236]], a[@i_236]))) then
+                    out(cB4[!_119], @9_r_514[@i_236])
+                  orfind @i_236 <= N suchthat defined(b[@i_176[@i_236]], a[@i_236], @9_r_515[@i_236], @7_kb_367[@i_176[@i_236]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_236]], a[@i_236]))) then
+                    out(cB4[!_119], @9_r_515[@i_236])
+                  orfind @i_235 <= N suchthat defined(gab_353[@i_235], @9_r_191[@i_235]) && (gab_127 = gab_353[@i_235]) then
+                    out(cB4[!_119], @9_r_191[@i_235])
+                  orfind @i_234 <= N suchthat defined(gab_127[@i_234], @9_r_193[@i_234]) && (gab_127 = gab_127[@i_234]) then
+                    out(cB4[!_119], @9_r_193[@i_234])
+                  orfind @i_233 <= N suchthat defined(gab_127[@i_233], @9_r_195[@i_233]) && (gab_127 = gab_127[@i_233]) then
+                    out(cB4[!_119], @9_r_195[@i_233])
+                  orfind @i_232 <= N suchthat defined(gab_127[@i_232], @9_r_197[@i_232]) && (gab_127 = gab_127[@i_232]) then
+                    out(cB4[!_119], @9_r_197[@i_232])
+                  orfind @i_231 <= N suchthat defined(gab_127[@i_231], @9_r_199[@i_231]) && (gab_127 = gab_127[@i_231]) then
+                    out(cB4[!_119], @9_r_199[@i_231])
+                  orfind @i_230 <= N suchthat defined(gab_127[@i_230], @9_r_201[@i_230]) && (gab_127 = gab_127[@i_230]) then
+                    out(cB4[!_119], @9_r_201[@i_230])
+                  orfind @i_229 <= nH suchthat defined(x[@i_229], @9_r_203[@i_229]) && (gab_127 = x[@i_229]) then
+                    out(cB4[!_119], @9_r_203[@i_229])
+                  else
+                    new @9_r_195: D;
+                    out(cB4[!_119], @9_r_195)
+                )
+                else
+                  if (Kkey[j2_126] = @10_pkgen2(rkB)) then
+                    yield
+                  else
+                    if check(concatA(hostA, B, Bga, Bgb), Kkey[j2_126], s_125) then
+                    let gab_127: G = exp(Bga, b) in
+                    find [unique] @i_228 <= N suchthat defined(gab_351[@i_228], @9_r_181[@i_228]) && (gab_127 = gab_351[@i_228]) then
+                      out(cB4[!_119], @9_r_181[@i_228])
+                    orfind @i_227 <= N suchthat defined(gab_350[@i_227], @9_r_183[@i_227]) && (gab_127 = gab_350[@i_227]) then
+                      out(cB4[!_119], @9_r_183[@i_227])
+                    orfind @i_226 <= N suchthat defined(gab_349[@i_226], @9_r_185[@i_226]) && (gab_127 = gab_349[@i_226]) then
+                      out(cB4[!_119], @9_r_185[@i_226])
+                    orfind @i_225 <= N suchthat defined(gab_352[@i_225], @9_r_187[@i_225]) && (gab_127 = gab_352[@i_225]) then
+                      out(cB4[!_119], @9_r_187[@i_225])
+                    orfind @i_224 <= N suchthat defined(b[@i_176[@i_224]], a[@i_224], @9_r_514[@i_224], @7_kb_367[@i_176[@i_224]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_224]], a[@i_224]))) then
+                      out(cB4[!_119], @9_r_514[@i_224])
+                    orfind @i_224 <= N suchthat defined(b[@i_176[@i_224]], a[@i_224], @9_r_515[@i_224], @7_kb_367[@i_176[@i_224]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_224]], a[@i_224]))) then
+                      out(cB4[!_119], @9_r_515[@i_224])
+                    orfind @i_223 <= N suchthat defined(gab_353[@i_223], @9_r_191[@i_223]) && (gab_127 = gab_353[@i_223]) then
+                      out(cB4[!_119], @9_r_191[@i_223])
+                    orfind @i_222 <= N suchthat defined(gab_127[@i_222], @9_r_193[@i_222]) && (gab_127 = gab_127[@i_222]) then
+                      out(cB4[!_119], @9_r_193[@i_222])
+                    orfind @i_221 <= N suchthat defined(gab_127[@i_221], @9_r_195[@i_221]) && (gab_127 = gab_127[@i_221]) then
+                      out(cB4[!_119], @9_r_195[@i_221])
+                    orfind @i_220 <= N suchthat defined(gab_127[@i_220], @9_r_197[@i_220]) && (gab_127 = gab_127[@i_220]) then
+                      out(cB4[!_119], @9_r_197[@i_220])
+                    orfind @i_219 <= N suchthat defined(gab_127[@i_219], @9_r_199[@i_219]) && (gab_127 = gab_127[@i_219]) then
+                      out(cB4[!_119], @9_r_199[@i_219])
+                    orfind @i_218 <= N suchthat defined(gab_127[@i_218], @9_r_201[@i_218]) && (gab_127 = gab_127[@i_218]) then
+                      out(cB4[!_119], @9_r_201[@i_218])
+                    orfind @i_217 <= nH suchthat defined(x[@i_217], @9_r_203[@i_217]) && (gab_127 = x[@i_217]) then
+                      out(cB4[!_119], @9_r_203[@i_217])
+                    else
+                      new @9_r_193: D;
+                      out(cB4[!_119], @9_r_193)
+          )
+          orfind j2_126 <= N2 suchthat defined(Khost[j2_126], Rkey_140[j2_126]) && (Khost[j2_126] = hostA) then
+          (
+            if defined(@10_corrupt_147) then
+            if @10_check2(concatA(hostA, B, Bga, Bgb), @10_pkgen2(rkA), s_125) then
+            find j <= N suchthat defined(hostB[j], Aga[j], Agb[j], kA[j]) && ((hostB[j] = B) && ((Aga[j] = Bga) && (Agb[j] = Bgb))) then
+              yield
+            else
+              let @7_kb_367: bitstring = cst_bitstring in
+              let gab_127: G = exp(Bga, b) in
+              find [unique] @i_264 <= N suchthat defined(gab_351[@i_264], @9_r_181[@i_264]) && (gab_127 = gab_351[@i_264]) then
+                out(cB4[!_119], @9_r_181[@i_264])
+              orfind @i_263 <= N suchthat defined(gab_350[@i_263], @9_r_183[@i_263]) && (gab_127 = gab_350[@i_263]) then
+                out(cB4[!_119], @9_r_183[@i_263])
+              orfind @i_262 <= N suchthat defined(gab_349[@i_262], @9_r_185[@i_262]) && (gab_127 = gab_349[@i_262]) then
+                out(cB4[!_119], @9_r_185[@i_262])
+              orfind @i_261 <= N suchthat defined(gab_352[@i_261], @9_r_187[@i_261]) && (gab_127 = gab_352[@i_261]) then
+                out(cB4[!_119], @9_r_187[@i_261])
+              orfind @i_260 <= N suchthat defined(b[@i_176[@i_260]], a[@i_260], @9_r_514[@i_260], @7_kb_367[@i_176[@i_260]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_260]], a[@i_260]))) then
+                out(cB4[!_119], @9_r_514[@i_260])
+              orfind @i_260 <= N suchthat defined(b[@i_176[@i_260]], a[@i_260], @9_r_515[@i_260], @7_kb_367[@i_176[@i_260]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_260]], a[@i_260]))) then
+                out(cB4[!_119], @9_r_515[@i_260])
+              orfind @i_259 <= N suchthat defined(gab_353[@i_259], @9_r_191[@i_259]) && (gab_127 = gab_353[@i_259]) then
+                out(cB4[!_119], @9_r_191[@i_259])
+              orfind @i_258 <= N suchthat defined(gab_127[@i_258], @9_r_193[@i_258]) && (gab_127 = gab_127[@i_258]) then
+                out(cB4[!_119], @9_r_193[@i_258])
+              orfind @i_257 <= N suchthat defined(gab_127[@i_257], @9_r_195[@i_257]) && (gab_127 = gab_127[@i_257]) then
+                out(cB4[!_119], @9_r_195[@i_257])
+              orfind @i_256 <= N suchthat defined(gab_127[@i_256], @9_r_197[@i_256]) && (gab_127 = gab_127[@i_256]) then
+                out(cB4[!_119], @9_r_197[@i_256])
+              orfind @i_255 <= N suchthat defined(gab_127[@i_255], @9_r_199[@i_255]) && (gab_127 = gab_127[@i_255]) then
+                out(cB4[!_119], @9_r_199[@i_255])
+              orfind @i_254 <= N suchthat defined(gab_127[@i_254], @9_r_201[@i_254]) && (gab_127 = gab_127[@i_254]) then
+                out(cB4[!_119], @9_r_201[@i_254])
+              orfind @i_253 <= nH suchthat defined(x[@i_253], @9_r_203[@i_253]) && (gab_127 = x[@i_253]) then
+                out(cB4[!_119], @9_r_203[@i_253])
+              else
+                new @9_r_199: D;
+                out(cB4[!_119], @9_r_199)
+          )
+          orfind j2_126 <= N2 suchthat defined(Khost[j2_126], Rkey_141[j2_126]) && (Khost[j2_126] = hostA) then
+          (
+            if defined(@10_corrupt_172) then
+            if @10_check2(concatA(hostA, B, Bga, Bgb), @10_pkgen2(rkB), s_125) then
+            let gab_127: G = exp(Bga, b) in
+            find [unique] @i_276 <= N suchthat defined(gab_351[@i_276], @9_r_181[@i_276]) && (gab_127 = gab_351[@i_276]) then
+              out(cB4[!_119], @9_r_181[@i_276])
+            orfind @i_275 <= N suchthat defined(gab_350[@i_275], @9_r_183[@i_275]) && (gab_127 = gab_350[@i_275]) then
+              out(cB4[!_119], @9_r_183[@i_275])
+            orfind @i_274 <= N suchthat defined(gab_349[@i_274], @9_r_185[@i_274]) && (gab_127 = gab_349[@i_274]) then
+              out(cB4[!_119], @9_r_185[@i_274])
+            orfind @i_273 <= N suchthat defined(gab_352[@i_273], @9_r_187[@i_273]) && (gab_127 = gab_352[@i_273]) then
+              out(cB4[!_119], @9_r_187[@i_273])
+            orfind @i_272 <= N suchthat defined(b[@i_176[@i_272]], a[@i_272], @9_r_514[@i_272], @7_kb_367[@i_176[@i_272]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_272]], a[@i_272]))) then
+              out(cB4[!_119], @9_r_514[@i_272])
+            orfind @i_272 <= N suchthat defined(b[@i_176[@i_272]], a[@i_272], @9_r_515[@i_272], @7_kb_367[@i_176[@i_272]]) && (gab_127 = @7_exp'(g, mult(b[@i_176[@i_272]], a[@i_272]))) then
+              out(cB4[!_119], @9_r_515[@i_272])
+            orfind @i_271 <= N suchthat defined(gab_353[@i_271], @9_r_191[@i_271]) && (gab_127 = gab_353[@i_271]) then
+              out(cB4[!_119], @9_r_191[@i_271])
+            orfind @i_270 <= N suchthat defined(gab_127[@i_270], @9_r_193[@i_270]) && (gab_127 = gab_127[@i_270]) then
+              out(cB4[!_119], @9_r_193[@i_270])
+            orfind @i_269 <= N suchthat defined(gab_127[@i_269], @9_r_195[@i_269]) && (gab_127 = gab_127[@i_269]) then
+              out(cB4[!_119], @9_r_195[@i_269])
+            orfind @i_268 <= N suchthat defined(gab_127[@i_268], @9_r_197[@i_268]) && (gab_127 = gab_127[@i_268]) then
+              out(cB4[!_119], @9_r_197[@i_268])
+            orfind @i_267 <= N suchthat defined(gab_127[@i_267], @9_r_199[@i_267]) && (gab_127 = gab_127[@i_267]) then
+              out(cB4[!_119], @9_r_199[@i_267])
+            orfind @i_266 <= N suchthat defined(gab_127[@i_266], @9_r_201[@i_266]) && (gab_127 = gab_127[@i_266]) then
+              out(cB4[!_119], @9_r_201[@i_266])
+            orfind @i_265 <= nH suchthat defined(x[@i_265], @9_r_203[@i_265]) && (gab_127 = x[@i_265]) then
+              out(cB4[!_119], @9_r_203[@i_265])
+            else
+              new @9_r_201: D;
+              out(cB4[!_119], @9_r_201)
+          )
+        ) | (
+          ! !_120 <= nH
+          in(hc1[!_120], x: G);
+          find [unique] @i_216 <= N suchthat defined(gab_351[@i_216], @9_r_181[@i_216]) && (x = gab_351[@i_216]) then
+            out(hc2[!_120], @9_r_181[@i_216])
+          orfind @i_215 <= N suchthat defined(gab_350[@i_215], @9_r_183[@i_215]) && (x = gab_350[@i_215]) then
+            out(hc2[!_120], @9_r_183[@i_215])
+          orfind @i_214 <= N suchthat defined(gab_349[@i_214], @9_r_185[@i_214]) && (x = gab_349[@i_214]) then
+            out(hc2[!_120], @9_r_185[@i_214])
+          orfind @i_213 <= N suchthat defined(gab_352[@i_213], @9_r_187[@i_213]) && (x = gab_352[@i_213]) then
+            out(hc2[!_120], @9_r_187[@i_213])
+          orfind @i_212 <= N suchthat defined(b[@i_176[@i_212]], a[@i_212], @9_r_514[@i_212], @7_kb_367[@i_176[@i_212]]) && (x = @7_exp'(g, mult(b[@i_176[@i_212]], a[@i_212]))) then
+            out(hc2[!_120], @9_r_514[@i_212])
+          orfind @i_212 <= N suchthat defined(b[@i_176[@i_212]], a[@i_212], @9_r_515[@i_212], @7_kb_367[@i_176[@i_212]]) && (x = @7_exp'(g, mult(b[@i_176[@i_212]], a[@i_212]))) then
+            out(hc2[!_120], @9_r_515[@i_212])
+          orfind @i_211 <= N suchthat defined(gab_353[@i_211], @9_r_191[@i_211]) && (x = gab_353[@i_211]) then
+            out(hc2[!_120], @9_r_191[@i_211])
+          orfind @i_210 <= N suchthat defined(gab_127[@i_210], @9_r_193[@i_210]) && (x = gab_127[@i_210]) then
+            out(hc2[!_120], @9_r_193[@i_210])
+          orfind @i_209 <= N suchthat defined(gab_127[@i_209], @9_r_195[@i_209]) && (x = gab_127[@i_209]) then
+            out(hc2[!_120], @9_r_195[@i_209])
+          orfind @i_208 <= N suchthat defined(gab_127[@i_208], @9_r_197[@i_208]) && (x = gab_127[@i_208]) then
+            out(hc2[!_120], @9_r_197[@i_208])
+          orfind @i_207 <= N suchthat defined(gab_127[@i_207], @9_r_199[@i_207]) && (x = gab_127[@i_207]) then
+            out(hc2[!_120], @9_r_199[@i_207])
+          orfind @i_206 <= N suchthat defined(gab_127[@i_206], @9_r_201[@i_206]) && (x = gab_127[@i_206]) then
+            out(hc2[!_120], @9_r_201[@i_206])
+          orfind @i_205 <= nH suchthat defined(x[@i_205], @9_r_203[@i_205]) && (x = x[@i_205]) then
+            out(hc2[!_120], @9_r_203[@i_205])
+          else
+            new @9_r_203: D;
+            out(hc2[!_120], @9_r_203)
+        ) | (
+          ! !_121 <= N2
+          in(cK[!_121], (Khost: host, Kkey: pkey));
+          if (Khost = B) then
+          (
+            let Rkey_141: pkey = cst_pkey
+          )
+          else
+            if (Khost = A) then
+            (
+              let Rkey_140: pkey = cst_pkey
+            )
+            else
+              let Rkey_139: pkey = cst_pkey
+        ) | (
+          in(cCorruptA, ());
+          let Acorrupted: bool = cst_bool in
+          let @10_corrupt_147: bitstring = cst_bitstring in
+          out(cCorruptA, skgen(rkA))
+        ) | (
+          in(cCorruptB, ());
+          let Bcorrupted: bool = cst_bool in
+          let @10_corrupt_172: bitstring = cst_bitstring in
+          out(cCorruptB, skgen(rkB))
+        )
+
+
+@9_r_515  now named @14_r_984
+@7_kb_367 now named @12_kb_735
+
+
+Show that kAsecret is secret
+-> show that @9_r_515 is secret
+
+          orfind @i_212 <= N suchthat defined(b[@i_176[@i_212]], a[@i_212], @9_r_515[@i_212], @7_kb_367[@i_176[@i_212]]) && (x = @7_exp'(g, mult(b[@i_176[@i_212]], a[@i_212]))) then
+            out(hc2[!_120], @9_r_515[@i_212])
+
+-> show that @9_r_515[j] and @7_kb_367[@i_176[j]] cannot be simultaneously defined.
+That's enough to remove all bad usages of @9_r_515
+
+@7_kb_367[@i_176[j]] defined =>
+  A corrupted
+At the definition of @7_kb_367[@i_176[j]], 
+there is no j' <= N suchthat 
+defined(hostB[j'], Aga[j'], Agb[j'], kA[j']) && ((hostB[j'] = B) && ((Aga[j'] = Bga[@i_176[j]]) && (Agb[j'] = Bgb[@i_176[j]])))
+
+@9_r_515[j] defined =>
+* find @i_176 <= N suchthat defined(hostA[@i_176], Bga[@i_176], Bgb[@i_176], b[@i_176], @10_x_171[@i_176]) && (((A = hostA[@i_176]) && ((Aga = Bga[@i_176]) && (Agb = Bgb[@i_176]))) && ... then
+so
+defined(hostA[@i_176[j]], Bga[@i_176[j]], Bgb[@i_176[j]], b[@i_176[j]], @10_x_171[@i_176[j]]) && (((A = hostA[@i_176[j]]) && ((Aga[j] = Bga[@i_176[j]]) && (Agb[j] = Bgb[@i_176[j]])))
+* orfind j2_123 <= N2 suchthat defined(Khost[j2_123], Rkey_141[j2_123]) && (Khost[j2_123] = hostB) then
+  	 Rkey_141[j2_123] defined => Khost[j2_123] = B
+so hostB[j] = B
+* kA[j] defined
+* A not corrupted yet at definition of @9_r_515[j]
+
+Two cases:
+1) @9_r_515[j] defined before @7_kb_367[@i_176[j]] defined
+At definition of @7_kb_367[@i_176[j]], @9_r_515[j] is defined,
+hence
+defined(hostB[j], Aga[j], Agb[j], kA[j]) && (hostB[j] = B) && (Aga[j] = Bga[@i_176[j]]) && (Agb[j] = Bgb[@i_176[j]])
+Contradiction
+
+2) @7_kb_367[@i_176[j]] defined before @9_r_515[j] defined 
+At definition of @9_r_515[j], @7_kb_367[@i_176[j]] defined,
+hence A corrupted. Contradiction.
+
+The current implementation of elsefind facts is not sufficient to do the above reasoning.
+From @7_kb_367[@i_176[j]] defined, we get the elsefind fact
+forall j' <= N, not(defined(hostB[j'], Aga[j'], Agb[j'], kA[j']) && ((hostB[j'] = B) && ((Aga[j'] = Bga[@i_176[j]]) && (Agb[j'] = Bgb[@i_176[j]]))))
+We instantiate with j' = j.
+We then need to prove that, if hostB[j], Aga[j], Agb[j], or kA[j] are defined after @7_kb_367[@i_176[j]], we have
+not(((hostB[j] = B) && ((Aga[j] = Bga[@i_176[j]]) && (Agb[j] = Bgb[@i_176[j]])))).
+We should first realize that it is enough to prove it for kA[j] defined after @7_kb_367[@i_176[j]]. Indeed, if kA[j] defined before @7_kb_367[@i_176[j]], then hostB[j], Aga[j], Agb[j] are also defined before @7_kb_367[@i_176[j]] (because kA[j] defined => hostB[j], Aga[j], Agb[j] defined), so we can conclude using the elsefind fact.
+Assuming now that kA[j] is defined after @7_kb_367[@i_176[j]], we infer that @9_r_515[j] is defined after Acorrupted (inferring @9_r_515[j] is already beyond the current implementation: when kA[j] is defined, we are not sure that @9_r_515[j] will necessarily be defined later; however, if @9_r_515[j] is defined, we are sure that it cannot be before kA[j], so it must be after). This allows one to apply the elsefind not(defined(Acorrupted)) found at the definition of @9_r_515[j]. Currently, the implementation does not apply this elsefind. It just tries to use dependency analysis to conclude.
+
+- pass all the available elsefind facts to get_fact_of_elsefind_fact, in addition of the targetted one
+[or recollect "elsefind" facts inside get_fact_of_elsefind_fact using the variables known to be defined
+at that point?]
+- OK def_list is already optimized to consider only "kA[j] defined after @7_kb_367[@i_176[j]]".
+(hostB[j], Aga[j], Agb[j] are removed by filter_def_list)
+- OK instead of using future_vars/future_binders, we should consider the variables that cannot be defined
+before (b,tl), using a kind of compatibility checking (similar to Transf_simplify.CompatibleDefs2, but 
+stricter: b \in b'.compatible when b can be defined at a definition of b' [hence before b'], so the relation
+is not symmetric).
+- use an "elsefind" fact to conclude when elimination of collisions does not work:
+the "elsefind" facts that we can use are those that
+   * hold at a definition of a variable defined after (b,tl)
+   * have in their defined conditions only variables defined before (b,tl) 
+   (so variables known to be defined at that point)
+Then the fact t inside the elsefind fact (bl, def_list, t) holds
+(after correct instantiation of the indices).
+We could even add the facts t and still try to apply elimination of collisions.
+That combines the two ideas.
+
+
+Last game 21/7/2015
+
+        in(start, ());
+        new rkA: keyseed;
+        new rkB: keyseed;
+        out(cstart, (@15_pkgen2(rkA), @15_pkgen2(rkB)));
+        (
+          ! !_195 <= N
+          in(cA1[!_195], hostB: host);
+          new a: Z;
+          let Aga: G = @12_exp'(g, a) in
+          out(cA2[!_195], (A, hostB, Aga));
+          in(cA3[!_195], (=A, =hostB, Agb: G, s_202: signature));
+          find j2_203 = j2_196 <= N2 suchthat defined(Khost[j2_196], Kkey[j2_196], Rkey_246[j2_196]) && (Khost[j2_196] = hostB) then
+          (
+            let @15_m_254: blocksize = concatB(A, hostB, Aga, Agb) in
+            if defined(@15_corrupt_270) && (Kkey[j2_203] = @15_pkgen2(rkA)) then
+            (
+              if @15_check2(@15_m_254, Kkey[j2_203], s_202) then
+              new r2_309: seed;
+              let @15_x_271: blocksize = concatA(A, hostB, Aga, Agb) in
+              let sA: signature = @15_sign2(@15_x_271, @15_skgen2(rkA), r2_309) in
+              let gab_646: G = exp(Agb, a) in
+              find [unique] @i_573 = @ri_572 <= N suchthat defined(gab_648[@ri_572], @14_r_334[@ri_572]) && (gab_646 = gab_648[@ri_572]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_334[@i_573])
+              )
+              orfind @i_571 = @ri_570 <= N suchthat defined(gab_647[@ri_570], @14_r_336[@ri_570]) && (gab_646 = gab_647[@ri_570]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_336[@i_571])
+              )
+              orfind @i_569 = @ri_568 <= N suchthat defined(gab_646[@ri_568], @14_r_338[@ri_568]) && (gab_646 = gab_646[@ri_568]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_338[@i_569])
+              )
+              orfind @i_567 = @ri_566 <= N suchthat defined(gab_649[@ri_566], @14_r_340[@ri_566]) && (gab_646 = gab_649[@ri_566]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_340[@i_567])
+              )
+              orfind @i_565 = @ri_564 <= N suchthat defined(b[@i_329[@ri_564]], a[@ri_564], @14_r_983[@ri_564], @12_kb_735[@i_329[@ri_564]]) && (gab_646 = @12_exp'(g, mult(b[@i_329[@ri_564]], a[@ri_564]))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_983[@i_565])
+              )
+              orfind @i_565 = @ri_564 <= N suchthat defined(b[@i_329[@ri_564]], a[@ri_564], @14_r_984[@ri_564], @12_kb_735[@i_329[@ri_564]]) && (gab_646 = @12_exp'(g, mult(b[@i_329[@ri_564]], a[@ri_564]))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_984[@i_565])
+              )
+              orfind @i_563 = @ri_562 <= N suchthat defined(gab_650[@ri_562], @14_r_344[@ri_562]) && (gab_646 = gab_650[@ri_562]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_344[@i_563])
+              )
+              orfind @i_561 = @ri_560 <= N suchthat defined(gab_207[@ri_560], @14_r_346[@ri_560]) && (gab_646 = gab_207[@ri_560]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_346[@i_561])
+              )
+              orfind @i_559 = @ri_558 <= N suchthat defined(gab_207[@ri_558], @14_r_348[@ri_558]) && (gab_646 = gab_207[@ri_558]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_348[@i_559])
+              )
+              orfind @i_557 = @ri_556 <= N suchthat defined(gab_207[@ri_556], @14_r_350[@ri_556]) && (gab_646 = gab_207[@ri_556]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_350[@i_557])
+              )
+              orfind @i_555 = @ri_554 <= N suchthat defined(gab_207[@ri_554], @14_r_352[@ri_554]) && (gab_646 = gab_207[@ri_554]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_352[@i_555])
+              )
+              orfind @i_553 = @ri_552 <= N suchthat defined(gab_207[@ri_552], @14_r_354[@ri_552]) && (gab_646 = gab_207[@ri_552]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_354[@i_553])
+              )
+              orfind @i_551 = @ri_550 <= nH suchthat defined(x[@ri_550], @14_r_356[@ri_550]) && (gab_646 = x[@ri_550]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_356[@i_551])
+              )
+              else
+                new @14_r_338: D;
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_338)
+            )
+            else
+              if (Kkey[j2_203] = @15_pkgen2(rkA)) then
+                yield
+              else
+                if defined(@15_corrupt_321) && (Kkey[j2_203] = @15_pkgen2(rkB)) then
+                (
+                  if @15_check2(@15_m_254, Kkey[j2_203], s_202) then
+                  new r2_331: seed;
+                  let @15_x_271: blocksize = concatA(A, hostB, Aga, Agb) in
+                  let sA: signature = @15_sign2(@15_x_271, @15_skgen2(rkA), r2_331) in
+                  let gab_647: G = exp(Agb, a) in
+                  find [unique] @i_549 = @ri_548 <= N suchthat defined(gab_648[@ri_548], @14_r_334[@ri_548]) && (gab_647 = gab_648[@ri_548]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_334[@i_549])
+                  )
+                  orfind @i_547 = @ri_546 <= N suchthat defined(gab_647[@ri_546], @14_r_336[@ri_546]) && (gab_647 = gab_647[@ri_546]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_336[@i_547])
+                  )
+                  orfind @i_545 = @ri_544 <= N suchthat defined(gab_646[@ri_544], @14_r_338[@ri_544]) && (gab_647 = gab_646[@ri_544]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_338[@i_545])
+                  )
+                  orfind @i_543 = @ri_542 <= N suchthat defined(gab_649[@ri_542], @14_r_340[@ri_542]) && (gab_647 = gab_649[@ri_542]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_340[@i_543])
+                  )
+                  orfind @i_541 = @ri_540 <= N suchthat defined(b[@i_329[@ri_540]], a[@ri_540], @14_r_983[@ri_540], @12_kb_735[@i_329[@ri_540]]) && (gab_647 = @12_exp'(g, mult(b[@i_329[@ri_540]], a[@ri_540]))) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_983[@i_541])
+                  )
+                  orfind @i_541 = @ri_540 <= N suchthat defined(b[@i_329[@ri_540]], a[@ri_540], @14_r_984[@ri_540], @12_kb_735[@i_329[@ri_540]]) && (gab_647 = @12_exp'(g, mult(b[@i_329[@ri_540]], a[@ri_540]))) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_984[@i_541])
+                  )
+                  orfind @i_539 = @ri_538 <= N suchthat defined(gab_650[@ri_538], @14_r_344[@ri_538]) && (gab_647 = gab_650[@ri_538]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_344[@i_539])
+                  )
+                  orfind @i_537 = @ri_536 <= N suchthat defined(gab_207[@ri_536], @14_r_346[@ri_536]) && (gab_647 = gab_207[@ri_536]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_346[@i_537])
+                  )
+                  orfind @i_535 = @ri_534 <= N suchthat defined(gab_207[@ri_534], @14_r_348[@ri_534]) && (gab_647 = gab_207[@ri_534]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_348[@i_535])
+                  )
+                  orfind @i_533 = @ri_532 <= N suchthat defined(gab_207[@ri_532], @14_r_350[@ri_532]) && (gab_647 = gab_207[@ri_532]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_350[@i_533])
+                  )
+                  orfind @i_531 = @ri_530 <= N suchthat defined(gab_207[@ri_530], @14_r_352[@ri_530]) && (gab_647 = gab_207[@ri_530]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_352[@i_531])
+                  )
+                  orfind @i_529 = @ri_528 <= N suchthat defined(gab_207[@ri_528], @14_r_354[@ri_528]) && (gab_647 = gab_207[@ri_528]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_354[@i_529])
+                  )
+                  orfind @i_527 = @ri_526 <= nH suchthat defined(x[@ri_526], @14_r_356[@ri_526]) && (gab_647 = x[@ri_526]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_356[@i_527])
+                  )
+                  else
+                    new @14_r_336: D;
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_336)
+                )
+                else
+                  if (Kkey[j2_203] = @15_pkgen2(rkB)) then
+                    yield
+                  else
+                    if check(@15_m_254, Kkey[j2_203], s_202) then
+                    new r2_330: seed;
+                    let @15_x_271: blocksize = concatA(A, hostB, Aga, Agb) in
+                    let sA: signature = @15_sign2(@15_x_271, @15_skgen2(rkA), r2_330) in
+                    let gab_648: G = exp(Agb, a) in
+                    find [unique] @i_525 = @ri_524 <= N suchthat defined(gab_648[@ri_524], @14_r_334[@ri_524]) && (gab_648 = gab_648[@ri_524]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_334[@i_525])
+                    )
+                    orfind @i_523 = @ri_522 <= N suchthat defined(gab_647[@ri_522], @14_r_336[@ri_522]) && (gab_648 = gab_647[@ri_522]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_336[@i_523])
+                    )
+                    orfind @i_521 = @ri_520 <= N suchthat defined(gab_646[@ri_520], @14_r_338[@ri_520]) && (gab_648 = gab_646[@ri_520]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_338[@i_521])
+                    )
+                    orfind @i_519 = @ri_518 <= N suchthat defined(gab_649[@ri_518], @14_r_340[@ri_518]) && (gab_648 = gab_649[@ri_518]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_340[@i_519])
+                    )
+                    orfind @i_517 = @ri_516 <= N suchthat defined(b[@i_329[@ri_516]], a[@ri_516], @14_r_983[@ri_516], @12_kb_735[@i_329[@ri_516]]) && (gab_648 = @12_exp'(g, mult(b[@i_329[@ri_516]], a[@ri_516]))) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_983[@i_517])
+                    )
+                    orfind @i_517 = @ri_516 <= N suchthat defined(b[@i_329[@ri_516]], a[@ri_516], @14_r_984[@ri_516], @12_kb_735[@i_329[@ri_516]]) && (gab_648 = @12_exp'(g, mult(b[@i_329[@ri_516]], a[@ri_516]))) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_984[@i_517])
+                    )
+                    orfind @i_515 = @ri_514 <= N suchthat defined(gab_650[@ri_514], @14_r_344[@ri_514]) && (gab_648 = gab_650[@ri_514]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_344[@i_515])
+                    )
+                    orfind @i_513 = @ri_512 <= N suchthat defined(gab_207[@ri_512], @14_r_346[@ri_512]) && (gab_648 = gab_207[@ri_512]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_346[@i_513])
+                    )
+                    orfind @i_511 = @ri_510 <= N suchthat defined(gab_207[@ri_510], @14_r_348[@ri_510]) && (gab_648 = gab_207[@ri_510]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_348[@i_511])
+                    )
+                    orfind @i_509 = @ri_508 <= N suchthat defined(gab_207[@ri_508], @14_r_350[@ri_508]) && (gab_648 = gab_207[@ri_508]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_350[@i_509])
+                    )
+                    orfind @i_507 = @ri_506 <= N suchthat defined(gab_207[@ri_506], @14_r_352[@ri_506]) && (gab_648 = gab_207[@ri_506]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_352[@i_507])
+                    )
+                    orfind @i_505 = @ri_504 <= N suchthat defined(gab_207[@ri_504], @14_r_354[@ri_504]) && (gab_648 = gab_207[@ri_504]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_354[@i_505])
+                    )
+                    orfind @i_503 = @ri_502 <= nH suchthat defined(x[@ri_502], @14_r_356[@ri_502]) && (gab_648 = x[@ri_502]) then
+                    (
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_356[@i_503])
+                    )
+                    else
+                      new @14_r_334: D;
+                      let kA: D = cst_D in
+                      out(cA4[!_195], sA);
+                      in(cA5[!_195], ());
+                      out(cA6[!_195], @14_r_334)
+          )
+          orfind j2_203 = j2_196 <= N2 suchthat defined(Khost[j2_196], Rkey_247[j2_196]) && (Khost[j2_196] = hostB) then
+          (
+            if defined(@15_corrupt_270) then
+            let @15_m1_257: blocksize = concatB(A, hostB, Aga, Agb) in
+            if @15_check2(@15_m1_257, @15_pkgen2(rkA), s_202) then
+            new r2_250: seed;
+            let @15_x_255: blocksize = concatA(A, hostB, Aga, Agb) in
+            let sA: signature = @15_sign2(@15_x_255, @15_skgen2(rkA), r2_250) in
+            let gab_649: G = exp(Agb, a) in
+            find [unique] @i_597 = @ri_596 <= N suchthat defined(gab_648[@ri_596], @14_r_334[@ri_596]) && (gab_649 = gab_648[@ri_596]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_334[@i_597])
+            )
+            orfind @i_595 = @ri_594 <= N suchthat defined(gab_647[@ri_594], @14_r_336[@ri_594]) && (gab_649 = gab_647[@ri_594]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_336[@i_595])
+            )
+            orfind @i_593 = @ri_592 <= N suchthat defined(gab_646[@ri_592], @14_r_338[@ri_592]) && (gab_649 = gab_646[@ri_592]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_338[@i_593])
+            )
+            orfind @i_591 = @ri_590 <= N suchthat defined(gab_649[@ri_590], @14_r_340[@ri_590]) && (gab_649 = gab_649[@ri_590]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_340[@i_591])
+            )
+            orfind @i_589 = @ri_588 <= N suchthat defined(b[@i_329[@ri_588]], a[@ri_588], @14_r_983[@ri_588], @12_kb_735[@i_329[@ri_588]]) && (gab_649 = @12_exp'(g, mult(b[@i_329[@ri_588]], a[@ri_588]))) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_983[@i_589])
+            )
+            orfind @i_589 = @ri_588 <= N suchthat defined(b[@i_329[@ri_588]], a[@ri_588], @14_r_984[@ri_588], @12_kb_735[@i_329[@ri_588]]) && (gab_649 = @12_exp'(g, mult(b[@i_329[@ri_588]], a[@ri_588]))) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_984[@i_589])
+            )
+            orfind @i_587 = @ri_586 <= N suchthat defined(gab_650[@ri_586], @14_r_344[@ri_586]) && (gab_649 = gab_650[@ri_586]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_344[@i_587])
+            )
+            orfind @i_585 = @ri_584 <= N suchthat defined(gab_207[@ri_584], @14_r_346[@ri_584]) && (gab_649 = gab_207[@ri_584]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_346[@i_585])
+            )
+            orfind @i_583 = @ri_582 <= N suchthat defined(gab_207[@ri_582], @14_r_348[@ri_582]) && (gab_649 = gab_207[@ri_582]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_348[@i_583])
+            )
+            orfind @i_581 = @ri_580 <= N suchthat defined(gab_207[@ri_580], @14_r_350[@ri_580]) && (gab_649 = gab_207[@ri_580]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_350[@i_581])
+            )
+            orfind @i_579 = @ri_578 <= N suchthat defined(gab_207[@ri_578], @14_r_352[@ri_578]) && (gab_649 = gab_207[@ri_578]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_352[@i_579])
+            )
+            orfind @i_577 = @ri_576 <= N suchthat defined(gab_207[@ri_576], @14_r_354[@ri_576]) && (gab_649 = gab_207[@ri_576]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_354[@i_577])
+            )
+            orfind @i_575 = @ri_574 <= nH suchthat defined(x[@ri_574], @14_r_356[@ri_574]) && (gab_649 = x[@ri_574]) then
+            (
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_356[@i_575])
+            )
+            else
+              new @14_r_340: D;
+              let kA: D = cst_D in
+              out(cA4[!_195], sA);
+              in(cA5[!_195], ());
+              out(cA6[!_195], @14_r_340)
+          )
+          orfind j2_203 = j2_196 <= N2 suchthat defined(Khost[j2_196], Rkey_248[j2_196]) && (Khost[j2_196] = hostB) then
+          (
+            let @15_m_261: blocksize = concatB(A, hostB, Aga, Agb) in
+            if defined(@15_corrupt_321) then
+            (
+              if @15_check2(@15_m_261, @15_pkgen2(rkB), s_202) then
+              new r2_333: seed;
+              let @15_x_258: blocksize = concatA(A, hostB, Aga, Agb) in
+              let sA: signature = @15_sign2(@15_x_258, @15_skgen2(rkA), r2_333) in
+              let gab_650: G = exp(Agb, a) in
+              find [unique] @i_673 = @ri_644 <= N suchthat defined(gab_648[@ri_644], @14_r_334[@ri_644], Acorrupted) && (gab_650 = gab_648[@ri_644]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_334[@i_673])
+              )
+              orfind @i_652 = @ri_642 <= N suchthat defined(gab_647[@ri_642], @14_r_336[@ri_642], Acorrupted) && (gab_650 = gab_647[@ri_642]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_336[@i_652])
+              )
+              orfind @i_641 = @ri_640 <= N suchthat defined(gab_646[@ri_640], @14_r_338[@ri_640]) && (gab_650 = gab_646[@ri_640]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_338[@i_641])
+              )
+              orfind @i_654 = @ri_638 <= N suchthat defined(gab_649[@ri_638], @14_r_340[@ri_638]) && (gab_650 = gab_649[@ri_638]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_340[@i_654])
+              )
+              orfind @i_670 = @ri_636 <= N suchthat defined(b[@i_329[@ri_636]], a[@ri_636], @14_r_983[@ri_636], @12_kb_735[@i_329[@ri_636]]) && (gab_650 = @12_exp'(g, mult(b[@i_329[@ri_636]], a[@ri_636]))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_983[@i_670])
+              )
+              orfind @i_670 = @ri_636 <= N suchthat defined(b[@i_329[@ri_636]], a[@ri_636], @14_r_984[@ri_636], @12_kb_735[@i_329[@ri_636]]) && (gab_650 = @12_exp'(g, mult(b[@i_329[@ri_636]], a[@ri_636]))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_984[@i_670])
+              )
+              orfind @i_656 = @ri_634 <= N suchthat defined(gab_650[@ri_634], @14_r_344[@ri_634], Acorrupted) && (gab_650 = gab_650[@ri_634]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_344[@i_656])
+              )
+              orfind @i_667 = @ri_632 <= N suchthat defined(gab_207[@ri_632], @14_r_346[@ri_632], Acorrupted) && (gab_650 = gab_207[@ri_632]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_346[@i_667])
+              )
+              orfind @i_658 = @ri_630 <= N suchthat defined(gab_207[@ri_630], @14_r_348[@ri_630], Acorrupted) && (gab_650 = gab_207[@ri_630]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_348[@i_658])
+              )
+              orfind @i_681 = @ri_628 <= N suchthat defined(gab_207[@ri_628], @14_r_350[@ri_628]) && (gab_650 = gab_207[@ri_628]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_350[@i_681])
+              )
+              orfind @i_660 = @ri_626 <= N suchthat defined(gab_207[@ri_626], @14_r_352[@ri_626]) && (gab_650 = gab_207[@ri_626]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_352[@i_660])
+              )
+              orfind @i_664 = @ri_624 <= N suchthat defined(gab_207[@ri_624], @14_r_354[@ri_624], Acorrupted) && (gab_650 = gab_207[@ri_624]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_354[@i_664])
+              )
+              orfind @i_662 = @ri_622 <= nH suchthat defined(x[@ri_622], @14_r_356[@ri_622], Acorrupted) && (gab_650 = x[@ri_622]) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_356[@i_662])
+              )
+              else
+                find [unique] @i_663 = @ri_622 <= nH suchthat defined(x[@ri_622], @14_r_356[@ri_622], Bcorrupted) && (gab_650 = x[@ri_622]) then
+                (
+                  let kA: D = cst_D in
+                  out(cA4[!_195], sA);
+                  in(cA5[!_195], ());
+                  out(cA6[!_195], @14_r_356[@i_663])
+                )
+                else
+                  find [unique] @i_665 = @ri_624 <= N suchthat defined(gab_207[@ri_624], @14_r_354[@ri_624]) && (gab_650 = gab_207[@ri_624]) then
+                  (
+                    let kA: D = cst_D in
+                    out(cA4[!_195], sA);
+                    in(cA5[!_195], ());
+                    out(cA6[!_195], @14_r_354[@i_665])
+                  )
+                  else
+                    find [unique] @i_666 = @ri_624 <= N suchthat defined(gab_207[@ri_624], @14_r_354[@ri_624]) && (gab_650 = gab_207[@ri_624]) then
+                    (
+                      let kA: D = cst_D
+                    )
+                    else
+                      find [unique] @i_661 = @ri_626 <= N suchthat defined(gab_207[@ri_626], @14_r_352[@ri_626]) && (gab_650 = gab_207[@ri_626]) then
+                      (
+                        let kA: D = cst_D
+                      )
+                      else
+                        find [unique] @i_682 = @ri_628 <= N suchthat defined(gab_207[@ri_628], @14_r_350[@ri_628]) && (gab_650 = gab_207[@ri_628]) then
+                        (
+                          let kA: D = cst_D
+                        )
+                        else
+                          find [unique] @i_678 = @ri_630 <= N suchthat defined(gab_207[@ri_630], @14_r_348[@ri_630]) && (gab_650 = gab_207[@ri_630]) then
+                          (
+                            let kA: D = cst_D in
+                            out(cA4[!_195], sA);
+                            in(cA5[!_195], ());
+                            out(cA6[!_195], @14_r_348[@i_678])
+                          )
+                          else
+                            find [unique] @i_679 = @ri_630 <= N suchthat defined(gab_207[@ri_630], @14_r_348[@ri_630]) && (gab_650 = gab_207[@ri_630]) then
+                            (
+                              let kA: D = cst_D
+                            )
+                            else
+                              find [unique] @i_668 = @ri_632 <= N suchthat defined(gab_207[@ri_632], @14_r_346[@ri_632], Bcorrupted) && (gab_650 = gab_207[@ri_632]) then
+                              (
+                                let kA: D = cst_D in
+                                out(cA4[!_195], sA);
+                                in(cA5[!_195], ());
+                                out(cA6[!_195], @14_r_346[@i_668])
+                              )
+                              else
+                                find [unique] @i_669 = @ri_632 <= N suchthat defined(gab_207[@ri_632], @14_r_346[@ri_632]) && (gab_650 = gab_207[@ri_632]) then
+                                (
+                                  let kA: D = cst_D
+                                )
+                                else
+                                  find [unique] @i_657 = @ri_634 <= N suchthat defined(gab_650[@ri_634], @14_r_344[@ri_634]) && (gab_650 = gab_650[@ri_634]) then
+                                  (
+                                    let kA: D = cst_D in
+                                    out(cA4[!_195], sA);
+                                    in(cA5[!_195], ());
+                                    out(cA6[!_195], @14_r_344[@i_657])
+                                  )
+                                  else
+                                    find [unique] @i_653 = @ri_642 <= N suchthat defined(gab_647[@ri_642], @14_r_336[@ri_642]) && (gab_650 = gab_647[@ri_642]) then
+                                    (
+                                      let kA: D = cst_D in
+                                      out(cA4[!_195], sA);
+                                      in(cA5[!_195], ());
+                                      out(cA6[!_195], @14_r_336[@i_653])
+                                    )
+                                    else
+                                      find [unique] @i_674 = @ri_644 <= N suchthat defined(gab_648[@ri_644], @14_r_334[@ri_644], Bcorrupted) && (gab_650 = gab_648[@ri_644]) then
+                                      (
+                                        let kA: D = cst_D in
+                                        out(cA4[!_195], sA);
+                                        in(cA5[!_195], ());
+                                        out(cA6[!_195], @14_r_334[@i_674])
+                                      )
+                                      else
+                                        if defined(Acorrupted) then
+                                        (
+                                          let kA: D = cst_D in
+                                          new @14_r_344: D;
+                                          out(cA4[!_195], sA);
+                                          in(cA5[!_195], ());
+                                          out(cA6[!_195], @14_r_344)
+                                        )
+                                        else
+                                          if defined(Bcorrupted) then
+                                          let kA: D = cst_D in
+                                          new @14_r_344: D;
+                                          out(cA4[!_195], sA);
+                                          in(cA5[!_195], ());
+                                          out(cA6[!_195], @14_r_344)
+            )
+            else
+              find @i_329 = @ri_328 <= N suchthat defined(hostA[@ri_328], Bga[@ri_328], Bgb[@ri_328], b[@ri_328], @15_x_320[@ri_328]) && (A = hostA[@ri_328]) && (Aga = Bga[@ri_328]) && (Agb = Bgb[@ri_328]) && @15_check2(@15_m_261, @15_pkgen2(rkB), s_202) then
+              new r2_332: seed;
+              let @15_x_258: blocksize = concatA(A, hostB, Aga, Agb) in
+              let sA: signature = @15_sign2(@15_x_258, @15_skgen2(rkA), r2_332) in
+              find [unique] @i_696 = @ri_620 <= N suchthat defined(gab_648[@ri_620], @14_r_334[@ri_620], @12_kb_735[@i_329]) && (gab_648[@ri_620] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_334[@i_696])
+              )
+              orfind @i_694 = @ri_616 <= N suchthat defined(gab_646[@ri_616], @14_r_338[@ri_616], @12_kb_735[@i_329]) && (gab_646[@ri_616] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_338[@i_694])
+              )
+              orfind @i_692 = @ri_614 <= N suchthat defined(gab_649[@ri_614], @14_r_340[@ri_614], @12_kb_735[@i_329]) && (gab_649[@ri_614] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_340[@i_692])
+              )
+              orfind @i_689 = @ri_608 <= N suchthat defined(gab_207[@ri_608], @14_r_346[@ri_608], @12_kb_735[@i_329]) && (gab_207[@ri_608] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_346[@i_689])
+              )
+              orfind @i_687 = @ri_604 <= N suchthat defined(gab_207[@ri_604], @14_r_350[@ri_604], @12_kb_735[@i_329]) && (gab_207[@ri_604] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_350[@i_687])
+              )
+              orfind @i_685 = @ri_602 <= N suchthat defined(gab_207[@ri_602], @14_r_352[@ri_602], @12_kb_735[@i_329]) && (gab_207[@ri_602] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_352[@i_685])
+              )
+              orfind @i_683 = @ri_598 <= nH suchthat defined(x[@ri_598], @14_r_356[@ri_598], @12_kb_735[@i_329]) && (x[@ri_598] = @12_exp'(g, mult(b[@i_329], a))) then
+              (
+                let kA: D = cst_D in
+                out(cA4[!_195], sA);
+                in(cA5[!_195], ());
+                out(cA6[!_195], @14_r_356[@i_683])
+              )
+              else
+                if defined(Acorrupted) then
+                (
+                  let kA: D = cst_D in
+                  new @14_r_983: D;
+                  out(cA4[!_195], sA);
+                  in(cA5[!_195], ());
+                  out(cA6[!_195], @14_r_983)
+                )
+                else
+                  let kA: D = cst_D in
+                  new @14_r_984: D;
+                  out(cA4[!_195], sA);
+                  in(cA5[!_195], ());
+                  let kA_secret: D = @14_r_984
+          )
+        ) | (
+          ! !_197 <= N
+          in(cB1[!_197], (hostA: host, =B, Bga: G));
+          new b: Z;
+          let Bgb: G = @12_exp'(g, b) in
+          new r1: seed;
+          let @15_x_320: blocksize = concatB(hostA, B, Bga, Bgb) in
+          out(cB2[!_197], (hostA, B, Bgb, @15_sign2(@15_x_320, @15_skgen2(rkB), r1)));
+          in(cB3[!_197], s_205: signature);
+          find j2_206 = j2_198 <= N2 suchthat defined(Khost[j2_198], Kkey[j2_198], Rkey_246[j2_198]) && (Khost[j2_198] = hostA) then
+          (
+            let @15_m_264: blocksize = concatA(hostA, B, Bga, Bgb) in
+            if defined(@15_corrupt_270) && (Kkey[j2_206] = @15_pkgen2(rkA)) then
+            (
+              if @15_check2(@15_m_264, Kkey[j2_206], s_205) then
+              let gab_207: G = exp(Bga, b) in
+              find [unique] @i_453 = @ri_452 <= N suchthat defined(gab_648[@ri_452], @14_r_334[@ri_452]) && (gab_207 = gab_648[@ri_452]) then
+                out(cB4[!_197], @14_r_334[@i_453])
+              orfind @i_451 = @ri_450 <= N suchthat defined(gab_647[@ri_450], @14_r_336[@ri_450]) && (gab_207 = gab_647[@ri_450]) then
+                out(cB4[!_197], @14_r_336[@i_451])
+              orfind @i_449 = @ri_448 <= N suchthat defined(gab_646[@ri_448], @14_r_338[@ri_448]) && (gab_207 = gab_646[@ri_448]) then
+                out(cB4[!_197], @14_r_338[@i_449])
+              orfind @i_447 = @ri_446 <= N suchthat defined(gab_649[@ri_446], @14_r_340[@ri_446]) && (gab_207 = gab_649[@ri_446]) then
+                out(cB4[!_197], @14_r_340[@i_447])
+              orfind @i_445 = @ri_444 <= N suchthat defined(b[@i_329[@ri_444]], a[@ri_444], @14_r_983[@ri_444], @12_kb_735[@i_329[@ri_444]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_444]], a[@ri_444]))) then
+                out(cB4[!_197], @14_r_983[@i_445])
+              orfind @i_445 = @ri_444 <= N suchthat defined(b[@i_329[@ri_444]], a[@ri_444], @14_r_984[@ri_444], @12_kb_735[@i_329[@ri_444]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_444]], a[@ri_444]))) then
+                out(cB4[!_197], @14_r_984[@i_445])
+              orfind @i_443 = @ri_442 <= N suchthat defined(gab_650[@ri_442], @14_r_344[@ri_442]) && (gab_207 = gab_650[@ri_442]) then
+                out(cB4[!_197], @14_r_344[@i_443])
+              orfind @i_441 = @ri_440 <= N suchthat defined(gab_207[@ri_440], @14_r_346[@ri_440]) && (gab_207 = gab_207[@ri_440]) then
+                out(cB4[!_197], @14_r_346[@i_441])
+              orfind @i_439 = @ri_438 <= N suchthat defined(gab_207[@ri_438], @14_r_348[@ri_438]) && (gab_207 = gab_207[@ri_438]) then
+                out(cB4[!_197], @14_r_348[@i_439])
+              orfind @i_437 = @ri_436 <= N suchthat defined(gab_207[@ri_436], @14_r_350[@ri_436]) && (gab_207 = gab_207[@ri_436]) then
+                out(cB4[!_197], @14_r_350[@i_437])
+              orfind @i_435 = @ri_434 <= N suchthat defined(gab_207[@ri_434], @14_r_352[@ri_434]) && (gab_207 = gab_207[@ri_434]) then
+                out(cB4[!_197], @14_r_352[@i_435])
+              orfind @i_433 = @ri_432 <= N suchthat defined(gab_207[@ri_432], @14_r_354[@ri_432]) && (gab_207 = gab_207[@ri_432]) then
+                out(cB4[!_197], @14_r_354[@i_433])
+              orfind @i_431 = @ri_430 <= nH suchthat defined(x[@ri_430], @14_r_356[@ri_430]) && (gab_207 = x[@ri_430]) then
+                out(cB4[!_197], @14_r_356[@i_431])
+              else
+                new @14_r_350: D;
+                out(cB4[!_197], @14_r_350)
+            )
+            else
+              if (Kkey[j2_206] = @15_pkgen2(rkA)) then
+                yield
+              else
+                if defined(@15_corrupt_321) && (Kkey[j2_206] = @15_pkgen2(rkB)) then
+                (
+                  if @15_check2(@15_m_264, Kkey[j2_206], s_205) then
+                  let gab_207: G = exp(Bga, b) in
+                  find [unique] @i_429 = @ri_428 <= N suchthat defined(gab_648[@ri_428], @14_r_334[@ri_428]) && (gab_207 = gab_648[@ri_428]) then
+                    out(cB4[!_197], @14_r_334[@i_429])
+                  orfind @i_427 = @ri_426 <= N suchthat defined(gab_647[@ri_426], @14_r_336[@ri_426]) && (gab_207 = gab_647[@ri_426]) then
+                    out(cB4[!_197], @14_r_336[@i_427])
+                  orfind @i_425 = @ri_424 <= N suchthat defined(gab_646[@ri_424], @14_r_338[@ri_424]) && (gab_207 = gab_646[@ri_424]) then
+                    out(cB4[!_197], @14_r_338[@i_425])
+                  orfind @i_423 = @ri_422 <= N suchthat defined(gab_649[@ri_422], @14_r_340[@ri_422]) && (gab_207 = gab_649[@ri_422]) then
+                    out(cB4[!_197], @14_r_340[@i_423])
+                  orfind @i_421 = @ri_420 <= N suchthat defined(b[@i_329[@ri_420]], a[@ri_420], @14_r_983[@ri_420], @12_kb_735[@i_329[@ri_420]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_420]], a[@ri_420]))) then
+                    out(cB4[!_197], @14_r_983[@i_421])
+                  orfind @i_421 = @ri_420 <= N suchthat defined(b[@i_329[@ri_420]], a[@ri_420], @14_r_984[@ri_420], @12_kb_735[@i_329[@ri_420]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_420]], a[@ri_420]))) then
+                    out(cB4[!_197], @14_r_984[@i_421])
+                  orfind @i_419 = @ri_418 <= N suchthat defined(gab_650[@ri_418], @14_r_344[@ri_418]) && (gab_207 = gab_650[@ri_418]) then
+                    out(cB4[!_197], @14_r_344[@i_419])
+                  orfind @i_417 = @ri_416 <= N suchthat defined(gab_207[@ri_416], @14_r_346[@ri_416]) && (gab_207 = gab_207[@ri_416]) then
+                    out(cB4[!_197], @14_r_346[@i_417])
+                  orfind @i_415 = @ri_414 <= N suchthat defined(gab_207[@ri_414], @14_r_348[@ri_414]) && (gab_207 = gab_207[@ri_414]) then
+                    out(cB4[!_197], @14_r_348[@i_415])
+                  orfind @i_413 = @ri_412 <= N suchthat defined(gab_207[@ri_412], @14_r_350[@ri_412]) && (gab_207 = gab_207[@ri_412]) then
+                    out(cB4[!_197], @14_r_350[@i_413])
+                  orfind @i_411 = @ri_410 <= N suchthat defined(gab_207[@ri_410], @14_r_352[@ri_410]) && (gab_207 = gab_207[@ri_410]) then
+                    out(cB4[!_197], @14_r_352[@i_411])
+                  orfind @i_409 = @ri_408 <= N suchthat defined(gab_207[@ri_408], @14_r_354[@ri_408]) && (gab_207 = gab_207[@ri_408]) then
+                    out(cB4[!_197], @14_r_354[@i_409])
+                  orfind @i_407 = @ri_406 <= nH suchthat defined(x[@ri_406], @14_r_356[@ri_406]) && (gab_207 = x[@ri_406]) then
+                    out(cB4[!_197], @14_r_356[@i_407])
+                  else
+                    new @14_r_348: D;
+                    out(cB4[!_197], @14_r_348)
+                )
+                else
+                  if (Kkey[j2_206] = @15_pkgen2(rkB)) then
+                    yield
+                  else
+                    if check(@15_m_264, Kkey[j2_206], s_205) then
+                    let gab_207: G = exp(Bga, b) in
+                    find [unique] @i_405 = @ri_404 <= N suchthat defined(gab_648[@ri_404], @14_r_334[@ri_404]) && (gab_207 = gab_648[@ri_404]) then
+                      out(cB4[!_197], @14_r_334[@i_405])
+                    orfind @i_403 = @ri_402 <= N suchthat defined(gab_647[@ri_402], @14_r_336[@ri_402]) && (gab_207 = gab_647[@ri_402]) then
+                      out(cB4[!_197], @14_r_336[@i_403])
+                    orfind @i_401 = @ri_400 <= N suchthat defined(gab_646[@ri_400], @14_r_338[@ri_400]) && (gab_207 = gab_646[@ri_400]) then
+                      out(cB4[!_197], @14_r_338[@i_401])
+                    orfind @i_399 = @ri_398 <= N suchthat defined(gab_649[@ri_398], @14_r_340[@ri_398]) && (gab_207 = gab_649[@ri_398]) then
+                      out(cB4[!_197], @14_r_340[@i_399])
+                    orfind @i_397 = @ri_396 <= N suchthat defined(b[@i_329[@ri_396]], a[@ri_396], @14_r_983[@ri_396], @12_kb_735[@i_329[@ri_396]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_396]], a[@ri_396]))) then
+                      out(cB4[!_197], @14_r_983[@i_397])
+                    orfind @i_397 = @ri_396 <= N suchthat defined(b[@i_329[@ri_396]], a[@ri_396], @14_r_984[@ri_396], @12_kb_735[@i_329[@ri_396]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_396]], a[@ri_396]))) then
+                      out(cB4[!_197], @14_r_984[@i_397])
+                    orfind @i_395 = @ri_394 <= N suchthat defined(gab_650[@ri_394], @14_r_344[@ri_394]) && (gab_207 = gab_650[@ri_394]) then
+                      out(cB4[!_197], @14_r_344[@i_395])
+                    orfind @i_393 = @ri_392 <= N suchthat defined(gab_207[@ri_392], @14_r_346[@ri_392]) && (gab_207 = gab_207[@ri_392]) then
+                      out(cB4[!_197], @14_r_346[@i_393])
+                    orfind @i_391 = @ri_390 <= N suchthat defined(gab_207[@ri_390], @14_r_348[@ri_390]) && (gab_207 = gab_207[@ri_390]) then
+                      out(cB4[!_197], @14_r_348[@i_391])
+                    orfind @i_389 = @ri_388 <= N suchthat defined(gab_207[@ri_388], @14_r_350[@ri_388]) && (gab_207 = gab_207[@ri_388]) then
+                      out(cB4[!_197], @14_r_350[@i_389])
+                    orfind @i_387 = @ri_386 <= N suchthat defined(gab_207[@ri_386], @14_r_352[@ri_386]) && (gab_207 = gab_207[@ri_386]) then
+                      out(cB4[!_197], @14_r_352[@i_387])
+                    orfind @i_385 = @ri_384 <= N suchthat defined(gab_207[@ri_384], @14_r_354[@ri_384]) && (gab_207 = gab_207[@ri_384]) then
+                      out(cB4[!_197], @14_r_354[@i_385])
+                    orfind @i_383 = @ri_382 <= nH suchthat defined(x[@ri_382], @14_r_356[@ri_382]) && (gab_207 = x[@ri_382]) then
+                      out(cB4[!_197], @14_r_356[@i_383])
+                    else
+                      new @14_r_346: D;
+                      out(cB4[!_197], @14_r_346)
+          )
+          orfind j2_206 = j2_198 <= N2 suchthat defined(Khost[j2_198], Rkey_247[j2_198]) && (Khost[j2_198] = hostA) then
+          (
+            if defined(@15_corrupt_270) then
+            let @15_m1_266: blocksize = concatA(hostA, B, Bga, Bgb) in
+            if @15_check2(@15_m1_266, @15_pkgen2(rkA), s_205) then
+            find j = j_199 <= N suchthat defined(hostB[j_199], Aga[j_199], Agb[j_199], kA[j_199]) && (hostB[j_199] = B) && (Aga[j_199] = Bga) && (Agb[j_199] = Bgb) then
+              yield
+            else
+              let @12_kb_735: bitstring = cst_bitstring in
+              let gab_207: G = exp(Bga, b) in
+              find [unique] @i_477 = @ri_476 <= N suchthat defined(gab_648[@ri_476], @14_r_334[@ri_476]) && (gab_207 = gab_648[@ri_476]) then
+                out(cB4[!_197], @14_r_334[@i_477])
+              orfind @i_475 = @ri_474 <= N suchthat defined(gab_647[@ri_474], @14_r_336[@ri_474]) && (gab_207 = gab_647[@ri_474]) then
+                out(cB4[!_197], @14_r_336[@i_475])
+              orfind @i_473 = @ri_472 <= N suchthat defined(gab_646[@ri_472], @14_r_338[@ri_472]) && (gab_207 = gab_646[@ri_472]) then
+                out(cB4[!_197], @14_r_338[@i_473])
+              orfind @i_471 = @ri_470 <= N suchthat defined(gab_649[@ri_470], @14_r_340[@ri_470]) && (gab_207 = gab_649[@ri_470]) then
+                out(cB4[!_197], @14_r_340[@i_471])
+              orfind @i_469 = @ri_468 <= N suchthat defined(b[@i_329[@ri_468]], a[@ri_468], @14_r_983[@ri_468], @12_kb_735[@i_329[@ri_468]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_468]], a[@ri_468]))) then
+                out(cB4[!_197], @14_r_983[@i_469])
+              orfind @i_469 = @ri_468 <= N suchthat defined(b[@i_329[@ri_468]], a[@ri_468], @14_r_984[@ri_468], @12_kb_735[@i_329[@ri_468]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_468]], a[@ri_468]))) then
+                out(cB4[!_197], @14_r_984[@i_469])
+              orfind @i_467 = @ri_466 <= N suchthat defined(gab_650[@ri_466], @14_r_344[@ri_466]) && (gab_207 = gab_650[@ri_466]) then
+                out(cB4[!_197], @14_r_344[@i_467])
+              orfind @i_465 = @ri_464 <= N suchthat defined(gab_207[@ri_464], @14_r_346[@ri_464]) && (gab_207 = gab_207[@ri_464]) then
+                out(cB4[!_197], @14_r_346[@i_465])
+              orfind @i_463 = @ri_462 <= N suchthat defined(gab_207[@ri_462], @14_r_348[@ri_462]) && (gab_207 = gab_207[@ri_462]) then
+                out(cB4[!_197], @14_r_348[@i_463])
+              orfind @i_461 = @ri_460 <= N suchthat defined(gab_207[@ri_460], @14_r_350[@ri_460]) && (gab_207 = gab_207[@ri_460]) then
+                out(cB4[!_197], @14_r_350[@i_461])
+              orfind @i_459 = @ri_458 <= N suchthat defined(gab_207[@ri_458], @14_r_352[@ri_458]) && (gab_207 = gab_207[@ri_458]) then
+                out(cB4[!_197], @14_r_352[@i_459])
+              orfind @i_457 = @ri_456 <= N suchthat defined(gab_207[@ri_456], @14_r_354[@ri_456]) && (gab_207 = gab_207[@ri_456]) then
+                out(cB4[!_197], @14_r_354[@i_457])
+              orfind @i_455 = @ri_454 <= nH suchthat defined(x[@ri_454], @14_r_356[@ri_454]) && (gab_207 = x[@ri_454]) then
+                out(cB4[!_197], @14_r_356[@i_455])
+              else
+                new @14_r_352: D;
+                out(cB4[!_197], @14_r_352)
+          )
+          orfind j2_206 = j2_198 <= N2 suchthat defined(Khost[j2_198], Rkey_248[j2_198]) && (Khost[j2_198] = hostA) then
+          (
+            if defined(@15_corrupt_321) then
+            let @15_m_269: blocksize = concatA(hostA, B, Bga, Bgb) in
+            if @15_check2(@15_m_269, @15_pkgen2(rkB), s_205) then
+            let gab_207: G = exp(Bga, b) in
+            find [unique] @i_501 = @ri_500 <= N suchthat defined(gab_648[@ri_500], @14_r_334[@ri_500]) && (gab_207 = gab_648[@ri_500]) then
+              out(cB4[!_197], @14_r_334[@i_501])
+            orfind @i_499 = @ri_498 <= N suchthat defined(gab_647[@ri_498], @14_r_336[@ri_498]) && (gab_207 = gab_647[@ri_498]) then
+              out(cB4[!_197], @14_r_336[@i_499])
+            orfind @i_497 = @ri_496 <= N suchthat defined(gab_646[@ri_496], @14_r_338[@ri_496]) && (gab_207 = gab_646[@ri_496]) then
+              out(cB4[!_197], @14_r_338[@i_497])
+            orfind @i_495 = @ri_494 <= N suchthat defined(gab_649[@ri_494], @14_r_340[@ri_494]) && (gab_207 = gab_649[@ri_494]) then
+              out(cB4[!_197], @14_r_340[@i_495])
+            orfind @i_493 = @ri_492 <= N suchthat defined(b[@i_329[@ri_492]], a[@ri_492], @14_r_983[@ri_492], @12_kb_735[@i_329[@ri_492]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_492]], a[@ri_492]))) then
+              out(cB4[!_197], @14_r_983[@i_493])
+            orfind @i_493 = @ri_492 <= N suchthat defined(b[@i_329[@ri_492]], a[@ri_492], @14_r_984[@ri_492], @12_kb_735[@i_329[@ri_492]]) && (gab_207 = @12_exp'(g, mult(b[@i_329[@ri_492]], a[@ri_492]))) then
+              out(cB4[!_197], @14_r_984[@i_493])
+            orfind @i_491 = @ri_490 <= N suchthat defined(gab_650[@ri_490], @14_r_344[@ri_490]) && (gab_207 = gab_650[@ri_490]) then
+              out(cB4[!_197], @14_r_344[@i_491])
+            orfind @i_489 = @ri_488 <= N suchthat defined(gab_207[@ri_488], @14_r_346[@ri_488]) && (gab_207 = gab_207[@ri_488]) then
+              out(cB4[!_197], @14_r_346[@i_489])
+            orfind @i_487 = @ri_486 <= N suchthat defined(gab_207[@ri_486], @14_r_348[@ri_486]) && (gab_207 = gab_207[@ri_486]) then
+              out(cB4[!_197], @14_r_348[@i_487])
+            orfind @i_485 = @ri_484 <= N suchthat defined(gab_207[@ri_484], @14_r_350[@ri_484]) && (gab_207 = gab_207[@ri_484]) then
+              out(cB4[!_197], @14_r_350[@i_485])
+            orfind @i_483 = @ri_482 <= N suchthat defined(gab_207[@ri_482], @14_r_352[@ri_482]) && (gab_207 = gab_207[@ri_482]) then
+              out(cB4[!_197], @14_r_352[@i_483])
+            orfind @i_481 = @ri_480 <= N suchthat defined(gab_207[@ri_480], @14_r_354[@ri_480]) && (gab_207 = gab_207[@ri_480]) then
+              out(cB4[!_197], @14_r_354[@i_481])
+            orfind @i_479 = @ri_478 <= nH suchthat defined(x[@ri_478], @14_r_356[@ri_478]) && (gab_207 = x[@ri_478]) then
+              out(cB4[!_197], @14_r_356[@i_479])
+            else
+              new @14_r_354: D;
+              out(cB4[!_197], @14_r_354)
+          )
+        ) | (
+          ! !_200 <= nH
+          in(hc1[!_200], x: G);
+          find [unique] @i_381 = @ri_380 <= N suchthat defined(gab_648[@ri_380], @14_r_334[@ri_380]) && (x = gab_648[@ri_380]) then
+            out(hc2[!_200], @14_r_334[@i_381])
+          orfind @i_379 = @ri_378 <= N suchthat defined(gab_647[@ri_378], @14_r_336[@ri_378]) && (x = gab_647[@ri_378]) then
+            out(hc2[!_200], @14_r_336[@i_379])
+          orfind @i_377 = @ri_376 <= N suchthat defined(gab_646[@ri_376], @14_r_338[@ri_376]) && (x = gab_646[@ri_376]) then
+            out(hc2[!_200], @14_r_338[@i_377])
+          orfind @i_375 = @ri_374 <= N suchthat defined(gab_649[@ri_374], @14_r_340[@ri_374]) && (x = gab_649[@ri_374]) then
+            out(hc2[!_200], @14_r_340[@i_375])
+          orfind @i_373 = @ri_372 <= N suchthat defined(b[@i_329[@ri_372]], a[@ri_372], @14_r_983[@ri_372], @12_kb_735[@i_329[@ri_372]]) && (x = @12_exp'(g, mult(b[@i_329[@ri_372]], a[@ri_372]))) then
+            out(hc2[!_200], @14_r_983[@i_373])
+          orfind @i_373 = @ri_372 <= N suchthat defined(b[@i_329[@ri_372]], a[@ri_372], @14_r_984[@ri_372], @12_kb_735[@i_329[@ri_372]]) && (x = @12_exp'(g, mult(b[@i_329[@ri_372]], a[@ri_372]))) then
+            out(hc2[!_200], @14_r_984[@i_373])
+          orfind @i_371 = @ri_370 <= N suchthat defined(gab_650[@ri_370], @14_r_344[@ri_370]) && (x = gab_650[@ri_370]) then
+            out(hc2[!_200], @14_r_344[@i_371])
+          orfind @i_369 = @ri_368 <= N suchthat defined(gab_207[@ri_368], @14_r_346[@ri_368]) && (x = gab_207[@ri_368]) then
+            out(hc2[!_200], @14_r_346[@i_369])
+          orfind @i_367 = @ri_366 <= N suchthat defined(gab_207[@ri_366], @14_r_348[@ri_366]) && (x = gab_207[@ri_366]) then
+            out(hc2[!_200], @14_r_348[@i_367])
+          orfind @i_365 = @ri_364 <= N suchthat defined(gab_207[@ri_364], @14_r_350[@ri_364]) && (x = gab_207[@ri_364]) then
+            out(hc2[!_200], @14_r_350[@i_365])
+          orfind @i_363 = @ri_362 <= N suchthat defined(gab_207[@ri_362], @14_r_352[@ri_362]) && (x = gab_207[@ri_362]) then
+            out(hc2[!_200], @14_r_352[@i_363])
+          orfind @i_361 = @ri_360 <= N suchthat defined(gab_207[@ri_360], @14_r_354[@ri_360]) && (x = gab_207[@ri_360]) then
+            out(hc2[!_200], @14_r_354[@i_361])
+          orfind @i_359 = @ri_358 <= nH suchthat defined(x[@ri_358], @14_r_356[@ri_358]) && (x = x[@ri_358]) then
+            out(hc2[!_200], @14_r_356[@i_359])
+          else
+            new @14_r_356: D;
+            out(hc2[!_200], @14_r_356)
+        ) | (
+          ! !_201 <= N2
+          in(cK[!_201], (Khost: host, Kkey: pkey));
+          if (Khost = B) then
+          (
+            let Rkey_248: pkey = cst_pkey
+          )
+          else
+            if (Khost = A) then
+            (
+              let Rkey_247: pkey = cst_pkey
+            )
+            else
+              let Rkey_246: pkey = cst_pkey
+        ) | (
+          in(cCorruptA, ());
+          let Acorrupted: bool = cst_bool in
+          let @15_corrupt_270: bitstring = cst_bitstring in
+          out(cCorruptA, skgen(rkA))
+        ) | (
+          in(cCorruptB, ());
+          let Bcorrupted: bool = cst_bool in
+          let @15_corrupt_321: bitstring = cst_bitstring in
+          out(cCorruptB, skgen(rkB))
+        )
+
+     {1}in(start, ());
+     {2}new rkA: keyseed;
+     {3}new rkB: keyseed;
+     {4}out(cstart, {5}({6}@15_pkgen2({7}rkA), {8}@15_pkgen2({9}rkB)));
+    {10}(
+    {15}  ! !_195 <= N
+    {16}  in(cA1[{17}!_195], hostB: host);
+    {18}  new a: Z;
+    {19}  let Aga: G = {20}@12_exp'({21}g, {22}a) in
+    {24}  out(cA2[{25}!_195], {26}({27}A, {28}hostB, {30}Aga));
+    {32}  in(cA3[{33}!_195], (={34}A, ={35}hostB, Agb: G, s_202: signature));
+    {37}  find j2_203 = j2_196 <= N2 suchthat defined(Khost[{38}j2_196], Kkey[{39}j2_196], Rkey_246[{40}j2_196]) && {41}({42}Khost[{43}j2_196] = {44}hostB) then
+          (
+    {46}    let @15_m_254: blocksize = {47}concatB({48}A, {49}hostB, {51}Aga, {53}Agb) in
+    {55}    if defined(@15_corrupt_270) && {56}({57}Kkey[{58}j2_203] = {60}@15_pkgen2({61}rkA)) then
+            (
+    {62}      if {63}@15_check2({64}@15_m_254, {66}Kkey[{67}j2_203], {69}s_202) then
+    {71}      new r2_309: seed;
+    {72}      let @15_x_271: blocksize = {73}concatA({74}A, {75}hostB, {77}Aga, {79}Agb) in
+    {81}      let sA: signature = {82}@15_sign2({83}@15_x_271, {85}@15_skgen2({86}rkA), {87}r2_309) in
+    {89}      let gab_646: G = {90}exp({91}Agb, {93}a) in
+    {95}      find [unique] @i_573 = @ri_572 <= N suchthat defined(gab_648[{96}@ri_572], @14_r_334[{97}@ri_572]) && {98}({99}gab_646 = {101}gab_648[{102}@ri_572]) then
+              (
+   {103}        let kA: D = {104}cst_D in
+   {105}        out(cA4[{106}!_195], {107}sA);
+   {109}        in(cA5[{110}!_195], ());
+   {111}        out(cA6[{112}!_195], {113}@14_r_334[{114}@i_573])
+              )
+              orfind @i_571 = @ri_570 <= N suchthat defined(gab_647[{118}@ri_570], @14_r_336[{119}@ri_570]) && {120}({121}gab_646 = {123}gab_647[{124}@ri_570]) then
+              (
+   {125}        let kA: D = {126}cst_D in
+   {127}        out(cA4[{128}!_195], {129}sA);
+   {131}        in(cA5[{132}!_195], ());
+   {133}        out(cA6[{134}!_195], {135}@14_r_336[{136}@i_571])
+              )
+              orfind @i_569 = @ri_568 <= N suchthat defined(gab_646[{140}@ri_568], @14_r_338[{141}@ri_568]) && {142}({143}gab_646 = {145}gab_646[{146}@ri_568]) then
+              (
+   {147}        let kA: D = {148}cst_D in
+   {149}        out(cA4[{150}!_195], {151}sA);
+   {153}        in(cA5[{154}!_195], ());
+   {155}        out(cA6[{156}!_195], {157}@14_r_338[{158}@i_569])
+              )
+              orfind @i_567 = @ri_566 <= N suchthat defined(gab_649[{162}@ri_566], @14_r_340[{163}@ri_566]) && {164}({165}gab_646 = {167}gab_649[{168}@ri_566]) then
+              (
+   {169}        let kA: D = {170}cst_D in
+   {171}        out(cA4[{172}!_195], {173}sA);
+   {175}        in(cA5[{176}!_195], ());
+   {177}        out(cA6[{178}!_195], {179}@14_r_340[{180}@i_567])
+              )
+              orfind @i_565 = @ri_564 <= N suchthat defined(b[{184}@i_329[{185}@ri_564]], a[{186}@ri_564], @14_r_983[{187}@ri_564], @12_kb_735[{188}@i_329[{189}@ri_564]]) && {190}({191}gab_646 = {193}@12_exp'({194}g, {195}mult({196}b[{197}@i_329[{198}@ri_564]], {199}a[{200}@ri_564]))) then
+              (
+   {201}        let kA: D = {202}cst_D in
+   {203}        out(cA4[{204}!_195], {205}sA);
+   {207}        in(cA5[{208}!_195], ());
+   {209}        out(cA6[{210}!_195], {211}@14_r_983[{212}@i_565])
+              )
+              orfind @i_565 = @ri_564 <= N suchthat defined(b[{216}@i_329[{217}@ri_564]], a[{218}@ri_564], @14_r_984[{219}@ri_564], @12_kb_735[{220}@i_329[{221}@ri_564]]) && {222}({223}gab_646 = {225}@12_exp'({226}g, {227}mult({228}b[{229}@i_329[{230}@ri_564]], {231}a[{232}@ri_564]))) then
+              (
+   {233}        let kA: D = {234}cst_D in
+   {235}        out(cA4[{236}!_195], {237}sA);
+   {239}        in(cA5[{240}!_195], ());
+   {241}        out(cA6[{242}!_195], {243}@14_r_984[{244}@i_565])
+              )
+              orfind @i_563 = @ri_562 <= N suchthat defined(gab_650[{248}@ri_562], @14_r_344[{249}@ri_562]) && {250}({251}gab_646 = {253}gab_650[{254}@ri_562]) then
+              (
+   {255}        let kA: D = {256}cst_D in
+   {257}        out(cA4[{258}!_195], {259}sA);
+   {261}        in(cA5[{262}!_195], ());
+   {263}        out(cA6[{264}!_195], {265}@14_r_344[{266}@i_563])
+              )
+              orfind @i_561 = @ri_560 <= N suchthat defined(gab_207[{270}@ri_560], @14_r_346[{271}@ri_560]) && {272}({273}gab_646 = {275}gab_207[{276}@ri_560]) then
+              (
+   {277}        let kA: D = {278}cst_D in
+   {279}        out(cA4[{280}!_195], {281}sA);
+   {283}        in(cA5[{284}!_195], ());
+   {285}        out(cA6[{286}!_195], {287}@14_r_346[{288}@i_561])
+              )
+              orfind @i_559 = @ri_558 <= N suchthat defined(gab_207[{292}@ri_558], @14_r_348[{293}@ri_558]) && {294}({295}gab_646 = {297}gab_207[{298}@ri_558]) then
+              (
+   {299}        let kA: D = {300}cst_D in
+   {301}        out(cA4[{302}!_195], {303}sA);
+   {305}        in(cA5[{306}!_195], ());
+   {307}        out(cA6[{308}!_195], {309}@14_r_348[{310}@i_559])
+              )
+              orfind @i_557 = @ri_556 <= N suchthat defined(gab_207[{314}@ri_556], @14_r_350[{315}@ri_556]) && {316}({317}gab_646 = {319}gab_207[{320}@ri_556]) then
+              (
+   {321}        let kA: D = {322}cst_D in
+   {323}        out(cA4[{324}!_195], {325}sA);
+   {327}        in(cA5[{328}!_195], ());
+   {329}        out(cA6[{330}!_195], {331}@14_r_350[{332}@i_557])
+              )
+              orfind @i_555 = @ri_554 <= N suchthat defined(gab_207[{336}@ri_554], @14_r_352[{337}@ri_554]) && {338}({339}gab_646 = {341}gab_207[{342}@ri_554]) then
+              (
+   {343}        let kA: D = {344}cst_D in
+   {345}        out(cA4[{346}!_195], {347}sA);
+   {349}        in(cA5[{350}!_195], ());
+   {351}        out(cA6[{352}!_195], {353}@14_r_352[{354}@i_555])
+              )
+              orfind @i_553 = @ri_552 <= N suchthat defined(gab_207[{358}@ri_552], @14_r_354[{359}@ri_552]) && {360}({361}gab_646 = {363}gab_207[{364}@ri_552]) then
+              (
+   {365}        let kA: D = {366}cst_D in
+   {367}        out(cA4[{368}!_195], {369}sA);
+   {371}        in(cA5[{372}!_195], ());
+   {373}        out(cA6[{374}!_195], {375}@14_r_354[{376}@i_553])
+              )
+              orfind @i_551 = @ri_550 <= nH suchthat defined(x[{380}@ri_550], @14_r_356[{381}@ri_550]) && {382}({383}gab_646 = {385}x[{386}@ri_550]) then
+              (
+   {387}        let kA: D = {388}cst_D in
+   {389}        out(cA4[{390}!_195], {391}sA);
+   {393}        in(cA5[{394}!_195], ());
+   {395}        out(cA6[{396}!_195], {397}@14_r_356[{398}@i_551])
+              )
+              else
+   {402}        new @14_r_338: D;
+   {403}        let kA: D = {404}cst_D in
+   {405}        out(cA4[{406}!_195], {407}sA);
+   {409}        in(cA5[{410}!_195], ());
+   {411}        out(cA6[{412}!_195], {413}@14_r_338)
+            )
+            else
+   {421}      if {422}({423}Kkey[{424}j2_203] = {426}@15_pkgen2({427}rkA)) then
+   {428}        yield
+              else
+   {429}        if defined(@15_corrupt_321) && {430}({431}Kkey[{432}j2_203] = {434}@15_pkgen2({435}rkB)) then
+                (
+   {436}          if {437}@15_check2({438}@15_m_254, {440}Kkey[{441}j2_203], {443}s_202) then
+   {445}          new r2_331: seed;
+   {446}          let @15_x_271: blocksize = {447}concatA({448}A, {449}hostB, {451}Aga, {453}Agb) in
+   {455}          let sA: signature = {456}@15_sign2({457}@15_x_271, {459}@15_skgen2({460}rkA), {461}r2_331) in
+   {463}          let gab_647: G = {464}exp({465}Agb, {467}a) in
+   {469}          find [unique] @i_549 = @ri_548 <= N suchthat defined(gab_648[{470}@ri_548], @14_r_334[{471}@ri_548]) && {472}({473}gab_647 = {475}gab_648[{476}@ri_548]) then
+                  (
+   {477}            let kA: D = {478}cst_D in
+   {479}            out(cA4[{480}!_195], {481}sA);
+   {483}            in(cA5[{484}!_195], ());
+   {485}            out(cA6[{486}!_195], {487}@14_r_334[{488}@i_549])
+                  )
+                  orfind @i_547 = @ri_546 <= N suchthat defined(gab_647[{492}@ri_546], @14_r_336[{493}@ri_546]) && {494}({495}gab_647 = {497}gab_647[{498}@ri_546]) then
+                  (
+   {499}            let kA: D = {500}cst_D in
+   {501}            out(cA4[{502}!_195], {503}sA);
+   {505}            in(cA5[{506}!_195], ());
+   {507}            out(cA6[{508}!_195], {509}@14_r_336[{510}@i_547])
+                  )
+                  orfind @i_545 = @ri_544 <= N suchthat defined(gab_646[{514}@ri_544], @14_r_338[{515}@ri_544]) && {516}({517}gab_647 = {519}gab_646[{520}@ri_544]) then
+                  (
+   {521}            let kA: D = {522}cst_D in
+   {523}            out(cA4[{524}!_195], {525}sA);
+   {527}            in(cA5[{528}!_195], ());
+   {529}            out(cA6[{530}!_195], {531}@14_r_338[{532}@i_545])
+                  )
+                  orfind @i_543 = @ri_542 <= N suchthat defined(gab_649[{536}@ri_542], @14_r_340[{537}@ri_542]) && {538}({539}gab_647 = {541}gab_649[{542}@ri_542]) then
+                  (
+   {543}            let kA: D = {544}cst_D in
+   {545}            out(cA4[{546}!_195], {547}sA);
+   {549}            in(cA5[{550}!_195], ());
+   {551}            out(cA6[{552}!_195], {553}@14_r_340[{554}@i_543])
+                  )
+                  orfind @i_541 = @ri_540 <= N suchthat defined(b[{558}@i_329[{559}@ri_540]], a[{560}@ri_540], @14_r_983[{561}@ri_540], @12_kb_735[{562}@i_329[{563}@ri_540]]) && {564}({565}gab_647 = {567}@12_exp'({568}g, {569}mult({570}b[{571}@i_329[{572}@ri_540]], {573}a[{574}@ri_540]))) then
+                  (
+   {575}            let kA: D = {576}cst_D in
+   {577}            out(cA4[{578}!_195], {579}sA);
+   {581}            in(cA5[{582}!_195], ());
+   {583}            out(cA6[{584}!_195], {585}@14_r_983[{586}@i_541])
+                  )
+                  orfind @i_541 = @ri_540 <= N suchthat defined(b[{590}@i_329[{591}@ri_540]], a[{592}@ri_540], @14_r_984[{593}@ri_540], @12_kb_735[{594}@i_329[{595}@ri_540]]) && {596}({597}gab_647 = {599}@12_exp'({600}g, {601}mult({602}b[{603}@i_329[{604}@ri_540]], {605}a[{606}@ri_540]))) then
+                  (
+   {607}            let kA: D = {608}cst_D in
+   {609}            out(cA4[{610}!_195], {611}sA);
+   {613}            in(cA5[{614}!_195], ());
+   {615}            out(cA6[{616}!_195], {617}@14_r_984[{618}@i_541])
+                  )
+                  orfind @i_539 = @ri_538 <= N suchthat defined(gab_650[{622}@ri_538], @14_r_344[{623}@ri_538]) && {624}({625}gab_647 = {627}gab_650[{628}@ri_538]) then
+                  (
+   {629}            let kA: D = {630}cst_D in
+   {631}            out(cA4[{632}!_195], {633}sA);
+   {635}            in(cA5[{636}!_195], ());
+   {637}            out(cA6[{638}!_195], {639}@14_r_344[{640}@i_539])
+                  )
+                  orfind @i_537 = @ri_536 <= N suchthat defined(gab_207[{644}@ri_536], @14_r_346[{645}@ri_536]) && {646}({647}gab_647 = {649}gab_207[{650}@ri_536]) then
+                  (
+   {651}            let kA: D = {652}cst_D in
+   {653}            out(cA4[{654}!_195], {655}sA);
+   {657}            in(cA5[{658}!_195], ());
+   {659}            out(cA6[{660}!_195], {661}@14_r_346[{662}@i_537])
+                  )
+                  orfind @i_535 = @ri_534 <= N suchthat defined(gab_207[{666}@ri_534], @14_r_348[{667}@ri_534]) && {668}({669}gab_647 = {671}gab_207[{672}@ri_534]) then
+                  (
+   {673}            let kA: D = {674}cst_D in
+   {675}            out(cA4[{676}!_195], {677}sA);
+   {679}            in(cA5[{680}!_195], ());
+   {681}            out(cA6[{682}!_195], {683}@14_r_348[{684}@i_535])
+                  )
+                  orfind @i_533 = @ri_532 <= N suchthat defined(gab_207[{688}@ri_532], @14_r_350[{689}@ri_532]) && {690}({691}gab_647 = {693}gab_207[{694}@ri_532]) then
+                  (
+   {695}            let kA: D = {696}cst_D in
+   {697}            out(cA4[{698}!_195], {699}sA);
+   {701}            in(cA5[{702}!_195], ());
+   {703}            out(cA6[{704}!_195], {705}@14_r_350[{706}@i_533])
+                  )
+                  orfind @i_531 = @ri_530 <= N suchthat defined(gab_207[{710}@ri_530], @14_r_352[{711}@ri_530]) && {712}({713}gab_647 = {715}gab_207[{716}@ri_530]) then
+                  (
+   {717}            let kA: D = {718}cst_D in
+   {719}            out(cA4[{720}!_195], {721}sA);
+   {723}            in(cA5[{724}!_195], ());
+   {725}            out(cA6[{726}!_195], {727}@14_r_352[{728}@i_531])
+                  )
+                  orfind @i_529 = @ri_528 <= N suchthat defined(gab_207[{732}@ri_528], @14_r_354[{733}@ri_528]) && {734}({735}gab_647 = {737}gab_207[{738}@ri_528]) then
+                  (
+   {739}            let kA: D = {740}cst_D in
+   {741}            out(cA4[{742}!_195], {743}sA);
+   {745}            in(cA5[{746}!_195], ());
+   {747}            out(cA6[{748}!_195], {749}@14_r_354[{750}@i_529])
+                  )
+                  orfind @i_527 = @ri_526 <= nH suchthat defined(x[{754}@ri_526], @14_r_356[{755}@ri_526]) && {756}({757}gab_647 = {759}x[{760}@ri_526]) then
+                  (
+   {761}            let kA: D = {762}cst_D in
+   {763}            out(cA4[{764}!_195], {765}sA);
+   {767}            in(cA5[{768}!_195], ());
+   {769}            out(cA6[{770}!_195], {771}@14_r_356[{772}@i_527])
+                  )
+                  else
+   {776}            new @14_r_336: D;
+   {777}            let kA: D = {778}cst_D in
+   {779}            out(cA4[{780}!_195], {781}sA);
+   {783}            in(cA5[{784}!_195], ());
+   {785}            out(cA6[{786}!_195], {787}@14_r_336)
+                )
+                else
+   {795}          if {796}({797}Kkey[{798}j2_203] = {800}@15_pkgen2({801}rkB)) then
+   {802}            yield
+                  else
+   {803}            if {804}check({805}@15_m_254, {807}Kkey[{808}j2_203], {810}s_202) then
+   {812}            new r2_330: seed;
+   {813}            let @15_x_271: blocksize = {814}concatA({815}A, {816}hostB, {818}Aga, {820}Agb) in
+   {822}            let sA: signature = {823}@15_sign2({824}@15_x_271, {826}@15_skgen2({827}rkA), {828}r2_330) in
+   {830}            let gab_648: G = {831}exp({832}Agb, {834}a) in
+   {836}            find [unique] @i_525 = @ri_524 <= N suchthat defined(gab_648[{837}@ri_524], @14_r_334[{838}@ri_524]) && {839}({840}gab_648 = {842}gab_648[{843}@ri_524]) then
+                    (
+   {844}              let kA: D = {845}cst_D in
+   {846}              out(cA4[{847}!_195], {848}sA);
+   {850}              in(cA5[{851}!_195], ());
+   {852}              out(cA6[{853}!_195], {854}@14_r_334[{855}@i_525])
+                    )
+                    orfind @i_523 = @ri_522 <= N suchthat defined(gab_647[{859}@ri_522], @14_r_336[{860}@ri_522]) && {861}({862}gab_648 = {864}gab_647[{865}@ri_522]) then
+                    (
+   {866}              let kA: D = {867}cst_D in
+   {868}              out(cA4[{869}!_195], {870}sA);
+   {872}              in(cA5[{873}!_195], ());
+   {874}              out(cA6[{875}!_195], {876}@14_r_336[{877}@i_523])
+                    )
+                    orfind @i_521 = @ri_520 <= N suchthat defined(gab_646[{881}@ri_520], @14_r_338[{882}@ri_520]) && {883}({884}gab_648 = {886}gab_646[{887}@ri_520]) then
+                    (
+   {888}              let kA: D = {889}cst_D in
+   {890}              out(cA4[{891}!_195], {892}sA);
+   {894}              in(cA5[{895}!_195], ());
+   {896}              out(cA6[{897}!_195], {898}@14_r_338[{899}@i_521])
+                    )
+                    orfind @i_519 = @ri_518 <= N suchthat defined(gab_649[{903}@ri_518], @14_r_340[{904}@ri_518]) && {905}({906}gab_648 = {908}gab_649[{909}@ri_518]) then
+                    (
+   {910}              let kA: D = {911}cst_D in
+   {912}              out(cA4[{913}!_195], {914}sA);
+   {916}              in(cA5[{917}!_195], ());
+   {918}              out(cA6[{919}!_195], {920}@14_r_340[{921}@i_519])
+                    )
+                    orfind @i_517 = @ri_516 <= N suchthat defined(b[{925}@i_329[{926}@ri_516]], a[{927}@ri_516], @14_r_983[{928}@ri_516], @12_kb_735[{929}@i_329[{930}@ri_516]]) && {931}({932}gab_648 = {934}@12_exp'({935}g, {936}mult({937}b[{938}@i_329[{939}@ri_516]], {940}a[{941}@ri_516]))) then
+                    (
+   {942}              let kA: D = {943}cst_D in
+   {944}              out(cA4[{945}!_195], {946}sA);
+   {948}              in(cA5[{949}!_195], ());
+   {950}              out(cA6[{951}!_195], {952}@14_r_983[{953}@i_517])
+                    )
+                    orfind @i_517 = @ri_516 <= N suchthat defined(b[{957}@i_329[{958}@ri_516]], a[{959}@ri_516], @14_r_984[{960}@ri_516], @12_kb_735[{961}@i_329[{962}@ri_516]]) && {963}({964}gab_648 = {966}@12_exp'({967}g, {968}mult({969}b[{970}@i_329[{971}@ri_516]], {972}a[{973}@ri_516]))) then
+                    (
+   {974}              let kA: D = {975}cst_D in
+   {976}              out(cA4[{977}!_195], {978}sA);
+   {980}              in(cA5[{981}!_195], ());
+   {982}              out(cA6[{983}!_195], {984}@14_r_984[{985}@i_517])
+                    )
+                    orfind @i_515 = @ri_514 <= N suchthat defined(gab_650[{989}@ri_514], @14_r_344[{990}@ri_514]) && {991}({992}gab_648 = {994}gab_650[{995}@ri_514]) then
+                    (
+   {996}              let kA: D = {997}cst_D in
+   {998}              out(cA4[{999}!_195], {1000}sA);
+  {1002}              in(cA5[{1003}!_195], ());
+  {1004}              out(cA6[{1005}!_195], {1006}@14_r_344[{1007}@i_515])
+                    )
+                    orfind @i_513 = @ri_512 <= N suchthat defined(gab_207[{1011}@ri_512], @14_r_346[{1012}@ri_512]) && {1013}({1014}gab_648 = {1016}gab_207[{1017}@ri_512]) then
+                    (
+  {1018}              let kA: D = {1019}cst_D in
+  {1020}              out(cA4[{1021}!_195], {1022}sA);
+  {1024}              in(cA5[{1025}!_195], ());
+  {1026}              out(cA6[{1027}!_195], {1028}@14_r_346[{1029}@i_513])
+                    )
+                    orfind @i_511 = @ri_510 <= N suchthat defined(gab_207[{1033}@ri_510], @14_r_348[{1034}@ri_510]) && {1035}({1036}gab_648 = {1038}gab_207[{1039}@ri_510]) then
+                    (
+  {1040}              let kA: D = {1041}cst_D in
+  {1042}              out(cA4[{1043}!_195], {1044}sA);
+  {1046}              in(cA5[{1047}!_195], ());
+  {1048}              out(cA6[{1049}!_195], {1050}@14_r_348[{1051}@i_511])
+                    )
+                    orfind @i_509 = @ri_508 <= N suchthat defined(gab_207[{1055}@ri_508], @14_r_350[{1056}@ri_508]) && {1057}({1058}gab_648 = {1060}gab_207[{1061}@ri_508]) then
+                    (
+  {1062}              let kA: D = {1063}cst_D in
+  {1064}              out(cA4[{1065}!_195], {1066}sA);
+  {1068}              in(cA5[{1069}!_195], ());
+  {1070}              out(cA6[{1071}!_195], {1072}@14_r_350[{1073}@i_509])
+                    )
+                    orfind @i_507 = @ri_506 <= N suchthat defined(gab_207[{1077}@ri_506], @14_r_352[{1078}@ri_506]) && {1079}({1080}gab_648 = {1082}gab_207[{1083}@ri_506]) then
+                    (
+  {1084}              let kA: D = {1085}cst_D in
+  {1086}              out(cA4[{1087}!_195], {1088}sA);
+  {1090}              in(cA5[{1091}!_195], ());
+  {1092}              out(cA6[{1093}!_195], {1094}@14_r_352[{1095}@i_507])
+                    )
+                    orfind @i_505 = @ri_504 <= N suchthat defined(gab_207[{1099}@ri_504], @14_r_354[{1100}@ri_504]) && {1101}({1102}gab_648 = {1104}gab_207[{1105}@ri_504]) then
+                    (
+  {1106}              let kA: D = {1107}cst_D in
+  {1108}              out(cA4[{1109}!_195], {1110}sA);
+  {1112}              in(cA5[{1113}!_195], ());
+  {1114}              out(cA6[{1115}!_195], {1116}@14_r_354[{1117}@i_505])
+                    )
+                    orfind @i_503 = @ri_502 <= nH suchthat defined(x[{1121}@ri_502], @14_r_356[{1122}@ri_502]) && {1123}({1124}gab_648 = {1126}x[{1127}@ri_502]) then
+                    (
+  {1128}              let kA: D = {1129}cst_D in
+  {1130}              out(cA4[{1131}!_195], {1132}sA);
+  {1134}              in(cA5[{1135}!_195], ());
+  {1136}              out(cA6[{1137}!_195], {1138}@14_r_356[{1139}@i_503])
+                    )
+                    else
+  {1143}              new @14_r_334: D;
+  {1144}              let kA: D = {1145}cst_D in
+  {1146}              out(cA4[{1147}!_195], {1148}sA);
+  {1150}              in(cA5[{1151}!_195], ());
+  {1152}              out(cA6[{1153}!_195], {1154}@14_r_334)
+          )
+          orfind j2_203 = j2_196 <= N2 suchthat defined(Khost[{1163}j2_196], Rkey_247[{1164}j2_196]) && {1165}({1166}Khost[{1167}j2_196] = {1168}hostB) then
+          (
+  {1170}    if defined(@15_corrupt_270) then
+  {1172}    let @15_m1_257: blocksize = {1173}concatB({1174}A, {1175}hostB, {1177}Aga, {1179}Agb) in
+  {1181}    if {1182}@15_check2({1183}@15_m1_257, {1185}@15_pkgen2({1186}rkA), {1187}s_202) then
+  {1189}    new r2_250: seed;
+  {1190}    let @15_x_255: blocksize = {1191}concatA({1192}A, {1193}hostB, {1195}Aga, {1197}Agb) in
+  {1199}    let sA: signature = {1200}@15_sign2({1201}@15_x_255, {1203}@15_skgen2({1204}rkA), {1205}r2_250) in
+  {1207}    let gab_649: G = {1208}exp({1209}Agb, {1211}a) in
+  {1213}    find [unique] @i_597 = @ri_596 <= N suchthat defined(gab_648[{1214}@ri_596], @14_r_334[{1215}@ri_596]) && {1216}({1217}gab_649 = {1219}gab_648[{1220}@ri_596]) then
+            (
+  {1221}      let kA: D = {1222}cst_D in
+  {1223}      out(cA4[{1224}!_195], {1225}sA);
+  {1227}      in(cA5[{1228}!_195], ());
+  {1229}      out(cA6[{1230}!_195], {1231}@14_r_334[{1232}@i_597])
+            )
+            orfind @i_595 = @ri_594 <= N suchthat defined(gab_647[{1236}@ri_594], @14_r_336[{1237}@ri_594]) && {1238}({1239}gab_649 = {1241}gab_647[{1242}@ri_594]) then
+            (
+  {1243}      let kA: D = {1244}cst_D in
+  {1245}      out(cA4[{1246}!_195], {1247}sA);
+  {1249}      in(cA5[{1250}!_195], ());
+  {1251}      out(cA6[{1252}!_195], {1253}@14_r_336[{1254}@i_595])
+            )
+            orfind @i_593 = @ri_592 <= N suchthat defined(gab_646[{1258}@ri_592], @14_r_338[{1259}@ri_592]) && {1260}({1261}gab_649 = {1263}gab_646[{1264}@ri_592]) then
+            (
+  {1265}      let kA: D = {1266}cst_D in
+  {1267}      out(cA4[{1268}!_195], {1269}sA);
+  {1271}      in(cA5[{1272}!_195], ());
+  {1273}      out(cA6[{1274}!_195], {1275}@14_r_338[{1276}@i_593])
+            )
+            orfind @i_591 = @ri_590 <= N suchthat defined(gab_649[{1280}@ri_590], @14_r_340[{1281}@ri_590]) && {1282}({1283}gab_649 = {1285}gab_649[{1286}@ri_590]) then
+            (
+  {1287}      let kA: D = {1288}cst_D in
+  {1289}      out(cA4[{1290}!_195], {1291}sA);
+  {1293}      in(cA5[{1294}!_195], ());
+  {1295}      out(cA6[{1296}!_195], {1297}@14_r_340[{1298}@i_591])
+            )
+            orfind @i_589 = @ri_588 <= N suchthat defined(b[{1302}@i_329[{1303}@ri_588]], a[{1304}@ri_588], @14_r_983[{1305}@ri_588], @12_kb_735[{1306}@i_329[{1307}@ri_588]]) && {1308}({1309}gab_649 = {1311}@12_exp'({1312}g, {1313}mult({1314}b[{1315}@i_329[{1316}@ri_588]], {1317}a[{1318}@ri_588]))) then
+            (
+  {1319}      let kA: D = {1320}cst_D in
+  {1321}      out(cA4[{1322}!_195], {1323}sA);
+  {1325}      in(cA5[{1326}!_195], ());
+  {1327}      out(cA6[{1328}!_195], {1329}@14_r_983[{1330}@i_589])
+            )
+            orfind @i_589 = @ri_588 <= N suchthat defined(b[{1334}@i_329[{1335}@ri_588]], a[{1336}@ri_588], @14_r_984[{1337}@ri_588], @12_kb_735[{1338}@i_329[{1339}@ri_588]]) && {1340}({1341}gab_649 = {1343}@12_exp'({1344}g, {1345}mult({1346}b[{1347}@i_329[{1348}@ri_588]], {1349}a[{1350}@ri_588]))) then
+            (
+  {1351}      let kA: D = {1352}cst_D in
+  {1353}      out(cA4[{1354}!_195], {1355}sA);
+  {1357}      in(cA5[{1358}!_195], ());
+  {1359}      out(cA6[{1360}!_195], {1361}@14_r_984[{1362}@i_589])
+            )
+            orfind @i_587 = @ri_586 <= N suchthat defined(gab_650[{1366}@ri_586], @14_r_344[{1367}@ri_586]) && {1368}({1369}gab_649 = {1371}gab_650[{1372}@ri_586]) then
+            (
+  {1373}      let kA: D = {1374}cst_D in
+  {1375}      out(cA4[{1376}!_195], {1377}sA);
+  {1379}      in(cA5[{1380}!_195], ());
+  {1381}      out(cA6[{1382}!_195], {1383}@14_r_344[{1384}@i_587])
+            )
+            orfind @i_585 = @ri_584 <= N suchthat defined(gab_207[{1388}@ri_584], @14_r_346[{1389}@ri_584]) && {1390}({1391}gab_649 = {1393}gab_207[{1394}@ri_584]) then
+            (
+  {1395}      let kA: D = {1396}cst_D in
+  {1397}      out(cA4[{1398}!_195], {1399}sA);
+  {1401}      in(cA5[{1402}!_195], ());
+  {1403}      out(cA6[{1404}!_195], {1405}@14_r_346[{1406}@i_585])
+            )
+            orfind @i_583 = @ri_582 <= N suchthat defined(gab_207[{1410}@ri_582], @14_r_348[{1411}@ri_582]) && {1412}({1413}gab_649 = {1415}gab_207[{1416}@ri_582]) then
+            (
+  {1417}      let kA: D = {1418}cst_D in
+  {1419}      out(cA4[{1420}!_195], {1421}sA);
+  {1423}      in(cA5[{1424}!_195], ());
+  {1425}      out(cA6[{1426}!_195], {1427}@14_r_348[{1428}@i_583])
+            )
+            orfind @i_581 = @ri_580 <= N suchthat defined(gab_207[{1432}@ri_580], @14_r_350[{1433}@ri_580]) && {1434}({1435}gab_649 = {1437}gab_207[{1438}@ri_580]) then
+            (
+  {1439}      let kA: D = {1440}cst_D in
+  {1441}      out(cA4[{1442}!_195], {1443}sA);
+  {1445}      in(cA5[{1446}!_195], ());
+  {1447}      out(cA6[{1448}!_195], {1449}@14_r_350[{1450}@i_581])
+            )
+            orfind @i_579 = @ri_578 <= N suchthat defined(gab_207[{1454}@ri_578], @14_r_352[{1455}@ri_578]) && {1456}({1457}gab_649 = {1459}gab_207[{1460}@ri_578]) then
+            (
+  {1461}      let kA: D = {1462}cst_D in
+  {1463}      out(cA4[{1464}!_195], {1465}sA);
+  {1467}      in(cA5[{1468}!_195], ());
+  {1469}      out(cA6[{1470}!_195], {1471}@14_r_352[{1472}@i_579])
+            )
+            orfind @i_577 = @ri_576 <= N suchthat defined(gab_207[{1476}@ri_576], @14_r_354[{1477}@ri_576]) && {1478}({1479}gab_649 = {1481}gab_207[{1482}@ri_576]) then
+            (
+  {1483}      let kA: D = {1484}cst_D in
+  {1485}      out(cA4[{1486}!_195], {1487}sA);
+  {1489}      in(cA5[{1490}!_195], ());
+  {1491}      out(cA6[{1492}!_195], {1493}@14_r_354[{1494}@i_577])
+            )
+            orfind @i_575 = @ri_574 <= nH suchthat defined(x[{1498}@ri_574], @14_r_356[{1499}@ri_574]) && {1500}({1501}gab_649 = {1503}x[{1504}@ri_574]) then
+            (
+  {1505}      let kA: D = {1506}cst_D in
+  {1507}      out(cA4[{1508}!_195], {1509}sA);
+  {1511}      in(cA5[{1512}!_195], ());
+  {1513}      out(cA6[{1514}!_195], {1515}@14_r_356[{1516}@i_575])
+            )
+            else
+  {1520}      new @14_r_340: D;
+  {1521}      let kA: D = {1522}cst_D in
+  {1523}      out(cA4[{1524}!_195], {1525}sA);
+  {1527}      in(cA5[{1528}!_195], ());
+  {1529}      out(cA6[{1530}!_195], {1531}@14_r_340)
+          )
+          orfind j2_203 = j2_196 <= N2 suchthat defined(Khost[{1541}j2_196], Rkey_248[{1542}j2_196]) && {1543}({1544}Khost[{1545}j2_196] = {1546}hostB) then
+          (
+  {1548}    let @15_m_261: blocksize = {1549}concatB({1550}A, {1551}hostB, {1553}Aga, {1555}Agb) in
+  {1557}    if defined(@15_corrupt_321) then
+            (
+  {1559}      if {1560}@15_check2({1561}@15_m_261, {1563}@15_pkgen2({1564}rkB), {1565}s_202) then
+  {1567}      new r2_333: seed;
+  {1568}      let @15_x_258: blocksize = {1569}concatA({1570}A, {1571}hostB, {1573}Aga, {1575}Agb) in
+  {1577}      let sA: signature = {1578}@15_sign2({1579}@15_x_258, {1581}@15_skgen2({1582}rkA), {1583}r2_333) in
+  {1585}      let gab_650: G = {1586}exp({1587}Agb, {1589}a) in
+  {1591}      find [unique] @i_673 = @ri_644 <= N suchthat defined(gab_648[{1592}@ri_644], @14_r_334[{1593}@ri_644], Acorrupted) && {1594}({1595}gab_650 = {1597}gab_648[{1598}@ri_644]) then
+              (
+  {1599}        let kA: D = {1600}cst_D in
+  {1601}        out(cA4[{1602}!_195], {1603}sA);
+  {1605}        in(cA5[{1606}!_195], ());
+  {1607}        out(cA6[{1608}!_195], {1609}@14_r_334[{1610}@i_673])
+              )
+              orfind @i_652 = @ri_642 <= N suchthat defined(gab_647[{1614}@ri_642], @14_r_336[{1615}@ri_642], Acorrupted) && {1616}({1617}gab_650 = {1619}gab_647[{1620}@ri_642]) then
+              (
+  {1621}        let kA: D = {1622}cst_D in
+  {1623}        out(cA4[{1624}!_195], {1625}sA);
+  {1627}        in(cA5[{1628}!_195], ());
+  {1629}        out(cA6[{1630}!_195], {1631}@14_r_336[{1632}@i_652])
+              )
+              orfind @i_641 = @ri_640 <= N suchthat defined(gab_646[{1636}@ri_640], @14_r_338[{1637}@ri_640]) && {1638}({1639}gab_650 = {1641}gab_646[{1642}@ri_640]) then
+              (
+  {1643}        let kA: D = {1644}cst_D in
+  {1645}        out(cA4[{1646}!_195], {1647}sA);
+  {1649}        in(cA5[{1650}!_195], ());
+  {1651}        out(cA6[{1652}!_195], {1653}@14_r_338[{1654}@i_641])
+              )
+              orfind @i_654 = @ri_638 <= N suchthat defined(gab_649[{1658}@ri_638], @14_r_340[{1659}@ri_638]) && {1660}({1661}gab_650 = {1663}gab_649[{1664}@ri_638]) then
+              (
+  {1665}        let kA: D = {1666}cst_D in
+  {1667}        out(cA4[{1668}!_195], {1669}sA);
+  {1671}        in(cA5[{1672}!_195], ());
+  {1673}        out(cA6[{1674}!_195], {1675}@14_r_340[{1676}@i_654])
+              )
+              orfind @i_670 = @ri_636 <= N suchthat defined(b[{1680}@i_329[{1681}@ri_636]], a[{1682}@ri_636], @14_r_983[{1683}@ri_636], @12_kb_735[{1684}@i_329[{1685}@ri_636]]) && {1686}({1687}gab_650 = {1689}@12_exp'({1690}g, {1691}mult({1692}b[{1693}@i_329[{1694}@ri_636]], {1695}a[{1696}@ri_636]))) then
+              (
+  {1697}        let kA: D = {1698}cst_D in
+  {1699}        out(cA4[{1700}!_195], {1701}sA);
+  {1703}        in(cA5[{1704}!_195], ());
+  {1705}        out(cA6[{1706}!_195], {1707}@14_r_983[{1708}@i_670])
+              )
+              orfind @i_670 = @ri_636 <= N suchthat defined(b[{1712}@i_329[{1713}@ri_636]], a[{1714}@ri_636], @14_r_984[{1715}@ri_636], @12_kb_735[{1716}@i_329[{1717}@ri_636]]) && {1718}({1719}gab_650 = {1721}@12_exp'({1722}g, {1723}mult({1724}b[{1725}@i_329[{1726}@ri_636]], {1727}a[{1728}@ri_636]))) then
+              (
+  {1729}        let kA: D = {1730}cst_D in
+  {1731}        out(cA4[{1732}!_195], {1733}sA);
+  {1735}        in(cA5[{1736}!_195], ());
+  {1737}        out(cA6[{1738}!_195], {1739}@14_r_984[{1740}@i_670])
+              )
+              orfind @i_656 = @ri_634 <= N suchthat defined(gab_650[{1744}@ri_634], @14_r_344[{1745}@ri_634], Acorrupted) && {1746}({1747}gab_650 = {1749}gab_650[{1750}@ri_634]) then
+              (
+  {1751}        let kA: D = {1752}cst_D in
+  {1753}        out(cA4[{1754}!_195], {1755}sA);
+  {1757}        in(cA5[{1758}!_195], ());
+  {1759}        out(cA6[{1760}!_195], {1761}@14_r_344[{1762}@i_656])
+              )
+              orfind @i_667 = @ri_632 <= N suchthat defined(gab_207[{1766}@ri_632], @14_r_346[{1767}@ri_632], Acorrupted) && {1768}({1769}gab_650 = {1771}gab_207[{1772}@ri_632]) then
+              (
+  {1773}        let kA: D = {1774}cst_D in
+  {1775}        out(cA4[{1776}!_195], {1777}sA);
+  {1779}        in(cA5[{1780}!_195], ());
+  {1781}        out(cA6[{1782}!_195], {1783}@14_r_346[{1784}@i_667])
+              )
+              orfind @i_658 = @ri_630 <= N suchthat defined(gab_207[{1788}@ri_630], @14_r_348[{1789}@ri_630], Acorrupted) && {1790}({1791}gab_650 = {1793}gab_207[{1794}@ri_630]) then
+              (
+  {1795}        let kA: D = {1796}cst_D in
+  {1797}        out(cA4[{1798}!_195], {1799}sA);
+  {1801}        in(cA5[{1802}!_195], ());
+  {1803}        out(cA6[{1804}!_195], {1805}@14_r_348[{1806}@i_658])
+              )
+              orfind @i_681 = @ri_628 <= N suchthat defined(gab_207[{1810}@ri_628], @14_r_350[{1811}@ri_628]) && {1812}({1813}gab_650 = {1815}gab_207[{1816}@ri_628]) then
+              (
+  {1817}        let kA: D = {1818}cst_D in
+  {1819}        out(cA4[{1820}!_195], {1821}sA);
+  {1823}        in(cA5[{1824}!_195], ());
+  {1825}        out(cA6[{1826}!_195], {1827}@14_r_350[{1828}@i_681])
+              )
+              orfind @i_660 = @ri_626 <= N suchthat defined(gab_207[{1832}@ri_626], @14_r_352[{1833}@ri_626]) && {1834}({1835}gab_650 = {1837}gab_207[{1838}@ri_626]) then
+              (
+  {1839}        let kA: D = {1840}cst_D in
+  {1841}        out(cA4[{1842}!_195], {1843}sA);
+  {1845}        in(cA5[{1846}!_195], ());
+  {1847}        out(cA6[{1848}!_195], {1849}@14_r_352[{1850}@i_660])
+              )
+              orfind @i_664 = @ri_624 <= N suchthat defined(gab_207[{1854}@ri_624], @14_r_354[{1855}@ri_624], Acorrupted) && {1856}({1857}gab_650 = {1859}gab_207[{1860}@ri_624]) then
+              (
+  {1861}        let kA: D = {1862}cst_D in
+  {1863}        out(cA4[{1864}!_195], {1865}sA);
+  {1867}        in(cA5[{1868}!_195], ());
+  {1869}        out(cA6[{1870}!_195], {1871}@14_r_354[{1872}@i_664])
+              )
+              orfind @i_662 = @ri_622 <= nH suchthat defined(x[{1876}@ri_622], @14_r_356[{1877}@ri_622], Acorrupted) && {1878}({1879}gab_650 = {1881}x[{1882}@ri_622]) then
+              (
+  {1883}        let kA: D = {1884}cst_D in
+  {1885}        out(cA4[{1886}!_195], {1887}sA);
+  {1889}        in(cA5[{1890}!_195], ());
+  {1891}        out(cA6[{1892}!_195], {1893}@14_r_356[{1894}@i_662])
+              )
+              else
+  {1898}        find [unique] @i_663 = @ri_622 <= nH suchthat defined(x[{1899}@ri_622], @14_r_356[{1900}@ri_622], Bcorrupted) && {1901}({1902}gab_650 = {1904}x[{1905}@ri_622]) then
+                (
+  {1906}          let kA: D = {1907}cst_D in
+  {1908}          out(cA4[{1909}!_195], {1910}sA);
+  {1912}          in(cA5[{1913}!_195], ());
+  {1914}          out(cA6[{1915}!_195], {1916}@14_r_356[{1917}@i_663])
+                )
+                else
+  {1921}          find [unique] @i_665 = @ri_624 <= N suchthat defined(gab_207[{1922}@ri_624], @14_r_354[{1923}@ri_624]) && {1924}({1925}gab_650 = {1927}gab_207[{1928}@ri_624]) then
+                  (
+  {1929}            let kA: D = {1930}cst_D in
+  {1931}            out(cA4[{1932}!_195], {1933}sA);
+  {1935}            in(cA5[{1936}!_195], ());
+  {1937}            out(cA6[{1938}!_195], {1939}@14_r_354[{1940}@i_665])
+                  )
+                  else
+  {1944}            find [unique] @i_666 = @ri_624 <= N suchthat defined(gab_207[{1945}@ri_624], @14_r_354[{1946}@ri_624]) && {1947}({1948}gab_650 = {1950}gab_207[{1951}@ri_624]) then
+                    (
+  {1952}              let kA: D = {1953}cst_D
+                    )
+                    else
+  {1956}              find [unique] @i_661 = @ri_626 <= N suchthat defined(gab_207[{1957}@ri_626], @14_r_352[{1958}@ri_626]) && {1959}({1960}gab_650 = {1962}gab_207[{1963}@ri_626]) then
+                      (
+  {1964}                let kA: D = {1965}cst_D
+                      )
+                      else
+  {1968}                find [unique] @i_682 = @ri_628 <= N suchthat defined(gab_207[{1969}@ri_628], @14_r_350[{1970}@ri_628]) && {1971}({1972}gab_650 = {1974}gab_207[{1975}@ri_628]) then
+                        (
+  {1976}                  let kA: D = {1977}cst_D
+                        )
+                        else
+  {1980}                  find [unique] @i_678 = @ri_630 <= N suchthat defined(gab_207[{1981}@ri_630], @14_r_348[{1982}@ri_630]) && {1983}({1984}gab_650 = {1986}gab_207[{1987}@ri_630]) then
+                          (
+  {1988}                    let kA: D = {1989}cst_D in
+  {1990}                    out(cA4[{1991}!_195], {1992}sA);
+  {1994}                    in(cA5[{1995}!_195], ());
+  {1996}                    out(cA6[{1997}!_195], {1998}@14_r_348[{1999}@i_678])
+                          )
+                          else
+  {2003}                    find [unique] @i_679 = @ri_630 <= N suchthat defined(gab_207[{2004}@ri_630], @14_r_348[{2005}@ri_630]) && {2006}({2007}gab_650 = {2009}gab_207[{2010}@ri_630]) then
+                            (
+  {2011}                      let kA: D = {2012}cst_D
+                            )
+                            else
+  {2015}                      find [unique] @i_668 = @ri_632 <= N suchthat defined(gab_207[{2016}@ri_632], @14_r_346[{2017}@ri_632], Bcorrupted) && {2018}({2019}gab_650 = {2021}gab_207[{2022}@ri_632]) then
+                              (
+  {2023}                        let kA: D = {2024}cst_D in
+  {2025}                        out(cA4[{2026}!_195], {2027}sA);
+  {2029}                        in(cA5[{2030}!_195], ());
+  {2031}                        out(cA6[{2032}!_195], {2033}@14_r_346[{2034}@i_668])
+                              )
+                              else
+  {2038}                        find [unique] @i_669 = @ri_632 <= N suchthat defined(gab_207[{2039}@ri_632], @14_r_346[{2040}@ri_632]) && {2041}({2042}gab_650 = {2044}gab_207[{2045}@ri_632]) then
+                                (
+  {2046}                          let kA: D = {2047}cst_D
+                                )
+                                else
+  {2050}                          find [unique] @i_657 = @ri_634 <= N suchthat defined(gab_650[{2051}@ri_634], @14_r_344[{2052}@ri_634]) && {2053}({2054}gab_650 = {2056}gab_650[{2057}@ri_634]) then
+                                  (
+  {2058}                            let kA: D = {2059}cst_D in
+  {2060}                            out(cA4[{2061}!_195], {2062}sA);
+  {2064}                            in(cA5[{2065}!_195], ());
+  {2066}                            out(cA6[{2067}!_195], {2068}@14_r_344[{2069}@i_657])
+                                  )
+                                  else
+  {2073}                            find [unique] @i_653 = @ri_642 <= N suchthat defined(gab_647[{2074}@ri_642], @14_r_336[{2075}@ri_642]) && {2076}({2077}gab_650 = {2079}gab_647[{2080}@ri_642]) then
+                                    (
+  {2081}                              let kA: D = {2082}cst_D in
+  {2083}                              out(cA4[{2084}!_195], {2085}sA);
+  {2087}                              in(cA5[{2088}!_195], ());
+  {2089}                              out(cA6[{2090}!_195], {2091}@14_r_336[{2092}@i_653])
+                                    )
+                                    else
+  {2096}                              find [unique] @i_674 = @ri_644 <= N suchthat defined(gab_648[{2097}@ri_644], @14_r_334[{2098}@ri_644], Bcorrupted) && {2099}({2100}gab_650 = {2102}gab_648[{2103}@ri_644]) then
+                                      (
+  {2104}                                let kA: D = {2105}cst_D in
+  {2106}                                out(cA4[{2107}!_195], {2108}sA);
+  {2110}                                in(cA5[{2111}!_195], ());
+  {2112}                                out(cA6[{2113}!_195], {2114}@14_r_334[{2115}@i_674])
+                                      )
+                                      else
+  {2119}                                if defined(Acorrupted) then
+                                        (
+  {2121}                                  let kA: D = {2122}cst_D in
+  {2123}                                  new @14_r_344: D;
+  {2124}                                  out(cA4[{2125}!_195], {2126}sA);
+  {2128}                                  in(cA5[{2129}!_195], ());
+  {2130}                                  out(cA6[{2131}!_195], {2132}@14_r_344)
+                                        )
+                                        else
+  {2136}                                  if defined(Bcorrupted) then
+  {2138}                                  let kA: D = {2139}cst_D in
+  {2140}                                  new @14_r_344: D;
+  {2141}                                  out(cA4[{2142}!_195], {2143}sA);
+  {2145}                                  in(cA5[{2146}!_195], ());
+  {2147}                                  out(cA6[{2148}!_195], {2149}@14_r_344)
+            )
+            else
+  {2158}      find @i_329 = @ri_328 <= N suchthat defined(hostA[{2159}@ri_328], Bga[{2160}@ri_328], Bgb[{2161}@ri_328], b[{2162}@ri_328], @15_x_320[{2163}@ri_328]) && {2164}({2165}({2166}({2167}A = {2168}hostA[{2169}@ri_328]) && {2170}({2171}({2172}Aga = {2174}Bga[{2175}@ri_328]) && {2176}({2177}Agb = {2179}Bgb[{2180}@ri_328]))) && {2181}@15_check2({2182}@15_m_261, {2184}@15_pkgen2({2185}rkB), {2186}s_202)) then
+  {2188}      new r2_332: seed;
+  {2189}      let @15_x_258: blocksize = {2190}concatA({2191}A, {2192}hostB, {2194}Aga, {2196}Agb) in
+  {2198}      let sA: signature = {2199}@15_sign2({2200}@15_x_258, {2202}@15_skgen2({2203}rkA), {2204}r2_332) in
+  {2206}      find [unique] @i_696 = @ri_620 <= N suchthat defined(gab_648[{2207}@ri_620], @14_r_334[{2208}@ri_620], @12_kb_735[{2209}@i_329]) && {2211}({2212}gab_648[{2213}@ri_620] = {2214}@12_exp'({2215}g, {2216}mult({2217}b[{2218}@i_329], {2220}a))) then
+              (
+  {2222}        let kA: D = {2223}cst_D in
+  {2224}        out(cA4[{2225}!_195], {2226}sA);
+  {2228}        in(cA5[{2229}!_195], ());
+  {2230}        out(cA6[{2231}!_195], {2232}@14_r_334[{2233}@i_696])
+              )
+              orfind @i_694 = @ri_616 <= N suchthat defined(gab_646[{2237}@ri_616], @14_r_338[{2238}@ri_616], @12_kb_735[{2239}@i_329]) && {2241}({2242}gab_646[{2243}@ri_616] = {2244}@12_exp'({2245}g, {2246}mult({2247}b[{2248}@i_329], {2250}a))) then
+              (
+  {2252}        let kA: D = {2253}cst_D in
+  {2254}        out(cA4[{2255}!_195], {2256}sA);
+  {2258}        in(cA5[{2259}!_195], ());
+  {2260}        out(cA6[{2261}!_195], {2262}@14_r_338[{2263}@i_694])
+              )
+              orfind @i_692 = @ri_614 <= N suchthat defined(gab_649[{2267}@ri_614], @14_r_340[{2268}@ri_614], @12_kb_735[{2269}@i_329]) && {2271}({2272}gab_649[{2273}@ri_614] = {2274}@12_exp'({2275}g, {2276}mult({2277}b[{2278}@i_329], {2280}a))) then
+              (
+  {2282}        let kA: D = {2283}cst_D in
+  {2284}        out(cA4[{2285}!_195], {2286}sA);
+  {2288}        in(cA5[{2289}!_195], ());
+  {2290}        out(cA6[{2291}!_195], {2292}@14_r_340[{2293}@i_692])
+              )
+              orfind @i_689 = @ri_608 <= N suchthat defined(gab_207[{2297}@ri_608], @14_r_346[{2298}@ri_608], @12_kb_735[{2299}@i_329]) && {2301}({2302}gab_207[{2303}@ri_608] = {2304}@12_exp'({2305}g, {2306}mult({2307}b[{2308}@i_329], {2310}a))) then
+              (
+  {2312}        let kA: D = {2313}cst_D in
+  {2314}        out(cA4[{2315}!_195], {2316}sA);
+  {2318}        in(cA5[{2319}!_195], ());
+  {2320}        out(cA6[{2321}!_195], {2322}@14_r_346[{2323}@i_689])
+              )
+              orfind @i_687 = @ri_604 <= N suchthat defined(gab_207[{2327}@ri_604], @14_r_350[{2328}@ri_604], @12_kb_735[{2329}@i_329]) && {2331}({2332}gab_207[{2333}@ri_604] = {2334}@12_exp'({2335}g, {2336}mult({2337}b[{2338}@i_329], {2340}a))) then
+              (
+  {2342}        let kA: D = {2343}cst_D in
+  {2344}        out(cA4[{2345}!_195], {2346}sA);
+  {2348}        in(cA5[{2349}!_195], ());
+  {2350}        out(cA6[{2351}!_195], {2352}@14_r_350[{2353}@i_687])
+              )
+              orfind @i_685 = @ri_602 <= N suchthat defined(gab_207[{2357}@ri_602], @14_r_352[{2358}@ri_602], @12_kb_735[{2359}@i_329]) && {2361}({2362}gab_207[{2363}@ri_602] = {2364}@12_exp'({2365}g, {2366}mult({2367}b[{2368}@i_329], {2370}a))) then
+              (
+  {2372}        let kA: D = {2373}cst_D in
+  {2374}        out(cA4[{2375}!_195], {2376}sA);
+  {2378}        in(cA5[{2379}!_195], ());
+  {2380}        out(cA6[{2381}!_195], {2382}@14_r_352[{2383}@i_685])
+              )
+              orfind @i_683 = @ri_598 <= nH suchthat defined(x[{2387}@ri_598], @14_r_356[{2388}@ri_598], @12_kb_735[{2389}@i_329]) && {2391}({2392}x[{2393}@ri_598] = {2394}@12_exp'({2395}g, {2396}mult({2397}b[{2398}@i_329], {2400}a))) then
+              (
+  {2402}        let kA: D = {2403}cst_D in
+  {2404}        out(cA4[{2405}!_195], {2406}sA);
+  {2408}        in(cA5[{2409}!_195], ());
+  {2410}        out(cA6[{2411}!_195], {2412}@14_r_356[{2413}@i_683])
+              )
+              else
+  {2417}        if defined(Acorrupted) then
+                (
+  {2419}          let kA: D = {2420}cst_D in
+  {2421}          new @14_r_983: D;
+  {2422}          out(cA4[{2423}!_195], {2424}sA);
+  {2426}          in(cA5[{2427}!_195], ());
+  {2428}          out(cA6[{2429}!_195], {2430}@14_r_983)
+                )
+                else
+  {2434}          let kA: D = {2435}cst_D in
+  {2436}          new @14_r_984: D;
+  {2437}          out(cA4[{2438}!_195], {2439}sA);
+  {2441}          in(cA5[{2442}!_195], ());
+  {2443}          let kA_secret: D = {2444}@14_r_984
+          )
+        ) | (
+  {2455}  ! !_197 <= N
+  {2456}  in(cB1[{2457}!_197], (hostA: host, ={2458}B, Bga: G));
+  {2459}  new b: Z;
+  {2460}  let Bgb: G = {2461}@12_exp'({2462}g, {2463}b) in
+  {2465}  new r1: seed;
+  {2466}  let @15_x_320: blocksize = {2467}concatB({2468}hostA, {2470}B, {2471}Bga, {2473}Bgb) in
+  {2475}  out(cB2[{2476}!_197], {2477}({2478}hostA, {2480}B, {2481}Bgb, {2483}@15_sign2({2484}@15_x_320, {2486}@15_skgen2({2487}rkB), {2488}r1)));
+  {2490}  in(cB3[{2491}!_197], s_205: signature);
+  {2492}  find j2_206 = j2_198 <= N2 suchthat defined(Khost[{2493}j2_198], Kkey[{2494}j2_198], Rkey_246[{2495}j2_198]) && {2496}({2497}Khost[{2498}j2_198] = {2499}hostA) then
+          (
+  {2501}    let @15_m_264: blocksize = {2502}concatA({2503}hostA, {2505}B, {2506}Bga, {2508}Bgb) in
+  {2510}    if defined(@15_corrupt_270) && {2511}({2512}Kkey[{2513}j2_206] = {2515}@15_pkgen2({2516}rkA)) then
+            (
+  {2517}      if {2518}@15_check2({2519}@15_m_264, {2521}Kkey[{2522}j2_206], {2524}s_205) then
+  {2526}      let gab_207: G = {2527}exp({2528}Bga, {2530}b) in
+  {2532}      find [unique] @i_453 = @ri_452 <= N suchthat defined(gab_648[{2533}@ri_452], @14_r_334[{2534}@ri_452]) && {2535}({2536}gab_207 = {2538}gab_648[{2539}@ri_452]) then
+  {2540}        out(cB4[{2541}!_197], {2542}@14_r_334[{2543}@i_453])
+              orfind @i_451 = @ri_450 <= N suchthat defined(gab_647[{2546}@ri_450], @14_r_336[{2547}@ri_450]) && {2548}({2549}gab_207 = {2551}gab_647[{2552}@ri_450]) then
+  {2553}        out(cB4[{2554}!_197], {2555}@14_r_336[{2556}@i_451])
+              orfind @i_449 = @ri_448 <= N suchthat defined(gab_646[{2559}@ri_448], @14_r_338[{2560}@ri_448]) && {2561}({2562}gab_207 = {2564}gab_646[{2565}@ri_448]) then
+  {2566}        out(cB4[{2567}!_197], {2568}@14_r_338[{2569}@i_449])
+              orfind @i_447 = @ri_446 <= N suchthat defined(gab_649[{2572}@ri_446], @14_r_340[{2573}@ri_446]) && {2574}({2575}gab_207 = {2577}gab_649[{2578}@ri_446]) then
+  {2579}        out(cB4[{2580}!_197], {2581}@14_r_340[{2582}@i_447])
+              orfind @i_445 = @ri_444 <= N suchthat defined(b[{2585}@i_329[{2586}@ri_444]], a[{2587}@ri_444], @14_r_983[{2588}@ri_444], @12_kb_735[{2589}@i_329[{2590}@ri_444]]) && {2591}({2592}gab_207 = {2594}@12_exp'({2595}g, {2596}mult({2597}b[{2598}@i_329[{2599}@ri_444]], {2600}a[{2601}@ri_444]))) then
+  {2602}        out(cB4[{2603}!_197], {2604}@14_r_983[{2605}@i_445])
+              orfind @i_445 = @ri_444 <= N suchthat defined(b[{2608}@i_329[{2609}@ri_444]], a[{2610}@ri_444], @14_r_984[{2611}@ri_444], @12_kb_735[{2612}@i_329[{2613}@ri_444]]) && {2614}({2615}gab_207 = {2617}@12_exp'({2618}g, {2619}mult({2620}b[{2621}@i_329[{2622}@ri_444]], {2623}a[{2624}@ri_444]))) then
+  {2625}        out(cB4[{2626}!_197], {2627}@14_r_984[{2628}@i_445])
+              orfind @i_443 = @ri_442 <= N suchthat defined(gab_650[{2631}@ri_442], @14_r_344[{2632}@ri_442]) && {2633}({2634}gab_207 = {2636}gab_650[{2637}@ri_442]) then
+  {2638}        out(cB4[{2639}!_197], {2640}@14_r_344[{2641}@i_443])
+              orfind @i_441 = @ri_440 <= N suchthat defined(gab_207[{2644}@ri_440], @14_r_346[{2645}@ri_440]) && {2646}({2647}gab_207 = {2649}gab_207[{2650}@ri_440]) then
+  {2651}        out(cB4[{2652}!_197], {2653}@14_r_346[{2654}@i_441])
+              orfind @i_439 = @ri_438 <= N suchthat defined(gab_207[{2657}@ri_438], @14_r_348[{2658}@ri_438]) && {2659}({2660}gab_207 = {2662}gab_207[{2663}@ri_438]) then
+  {2664}        out(cB4[{2665}!_197], {2666}@14_r_348[{2667}@i_439])
+              orfind @i_437 = @ri_436 <= N suchthat defined(gab_207[{2670}@ri_436], @14_r_350[{2671}@ri_436]) && {2672}({2673}gab_207 = {2675}gab_207[{2676}@ri_436]) then
+  {2677}        out(cB4[{2678}!_197], {2679}@14_r_350[{2680}@i_437])
+              orfind @i_435 = @ri_434 <= N suchthat defined(gab_207[{2683}@ri_434], @14_r_352[{2684}@ri_434]) && {2685}({2686}gab_207 = {2688}gab_207[{2689}@ri_434]) then
+  {2690}        out(cB4[{2691}!_197], {2692}@14_r_352[{2693}@i_435])
+              orfind @i_433 = @ri_432 <= N suchthat defined(gab_207[{2696}@ri_432], @14_r_354[{2697}@ri_432]) && {2698}({2699}gab_207 = {2701}gab_207[{2702}@ri_432]) then
+  {2703}        out(cB4[{2704}!_197], {2705}@14_r_354[{2706}@i_433])
+              orfind @i_431 = @ri_430 <= nH suchthat defined(x[{2709}@ri_430], @14_r_356[{2710}@ri_430]) && {2711}({2712}gab_207 = {2714}x[{2715}@ri_430]) then
+  {2716}        out(cB4[{2717}!_197], {2718}@14_r_356[{2719}@i_431])
+              else
+  {2722}        new @14_r_350: D;
+  {2723}        out(cB4[{2724}!_197], {2725}@14_r_350)
+            )
+            else
+  {2730}      if {2731}({2732}Kkey[{2733}j2_206] = {2735}@15_pkgen2({2736}rkA)) then
+  {2737}        yield
+              else
+  {2738}        if defined(@15_corrupt_321) && {2739}({2740}Kkey[{2741}j2_206] = {2743}@15_pkgen2({2744}rkB)) then
+                (
+  {2745}          if {2746}@15_check2({2747}@15_m_264, {2749}Kkey[{2750}j2_206], {2752}s_205) then
+  {2754}          let gab_207: G = {2755}exp({2756}Bga, {2758}b) in
+  {2760}          find [unique] @i_429 = @ri_428 <= N suchthat defined(gab_648[{2761}@ri_428], @14_r_334[{2762}@ri_428]) && {2763}({2764}gab_207 = {2766}gab_648[{2767}@ri_428]) then
+  {2768}            out(cB4[{2769}!_197], {2770}@14_r_334[{2771}@i_429])
+                  orfind @i_427 = @ri_426 <= N suchthat defined(gab_647[{2774}@ri_426], @14_r_336[{2775}@ri_426]) && {2776}({2777}gab_207 = {2779}gab_647[{2780}@ri_426]) then
+  {2781}            out(cB4[{2782}!_197], {2783}@14_r_336[{2784}@i_427])
+                  orfind @i_425 = @ri_424 <= N suchthat defined(gab_646[{2787}@ri_424], @14_r_338[{2788}@ri_424]) && {2789}({2790}gab_207 = {2792}gab_646[{2793}@ri_424]) then
+  {2794}            out(cB4[{2795}!_197], {2796}@14_r_338[{2797}@i_425])
+                  orfind @i_423 = @ri_422 <= N suchthat defined(gab_649[{2800}@ri_422], @14_r_340[{2801}@ri_422]) && {2802}({2803}gab_207 = {2805}gab_649[{2806}@ri_422]) then
+  {2807}            out(cB4[{2808}!_197], {2809}@14_r_340[{2810}@i_423])
+                  orfind @i_421 = @ri_420 <= N suchthat defined(b[{2813}@i_329[{2814}@ri_420]], a[{2815}@ri_420], @14_r_983[{2816}@ri_420], @12_kb_735[{2817}@i_329[{2818}@ri_420]]) && {2819}({2820}gab_207 = {2822}@12_exp'({2823}g, {2824}mult({2825}b[{2826}@i_329[{2827}@ri_420]], {2828}a[{2829}@ri_420]))) then
+  {2830}            out(cB4[{2831}!_197], {2832}@14_r_983[{2833}@i_421])
+                  orfind @i_421 = @ri_420 <= N suchthat defined(b[{2836}@i_329[{2837}@ri_420]], a[{2838}@ri_420], @14_r_984[{2839}@ri_420], @12_kb_735[{2840}@i_329[{2841}@ri_420]]) && {2842}({2843}gab_207 = {2845}@12_exp'({2846}g, {2847}mult({2848}b[{2849}@i_329[{2850}@ri_420]], {2851}a[{2852}@ri_420]))) then
+  {2853}            out(cB4[{2854}!_197], {2855}@14_r_984[{2856}@i_421])
+                  orfind @i_419 = @ri_418 <= N suchthat defined(gab_650[{2859}@ri_418], @14_r_344[{2860}@ri_418]) && {2861}({2862}gab_207 = {2864}gab_650[{2865}@ri_418]) then
+  {2866}            out(cB4[{2867}!_197], {2868}@14_r_344[{2869}@i_419])
+                  orfind @i_417 = @ri_416 <= N suchthat defined(gab_207[{2872}@ri_416], @14_r_346[{2873}@ri_416]) && {2874}({2875}gab_207 = {2877}gab_207[{2878}@ri_416]) then
+  {2879}            out(cB4[{2880}!_197], {2881}@14_r_346[{2882}@i_417])
+                  orfind @i_415 = @ri_414 <= N suchthat defined(gab_207[{2885}@ri_414], @14_r_348[{2886}@ri_414]) && {2887}({2888}gab_207 = {2890}gab_207[{2891}@ri_414]) then
+  {2892}            out(cB4[{2893}!_197], {2894}@14_r_348[{2895}@i_415])
+                  orfind @i_413 = @ri_412 <= N suchthat defined(gab_207[{2898}@ri_412], @14_r_350[{2899}@ri_412]) && {2900}({2901}gab_207 = {2903}gab_207[{2904}@ri_412]) then
+  {2905}            out(cB4[{2906}!_197], {2907}@14_r_350[{2908}@i_413])
+                  orfind @i_411 = @ri_410 <= N suchthat defined(gab_207[{2911}@ri_410], @14_r_352[{2912}@ri_410]) && {2913}({2914}gab_207 = {2916}gab_207[{2917}@ri_410]) then
+  {2918}            out(cB4[{2919}!_197], {2920}@14_r_352[{2921}@i_411])
+                  orfind @i_409 = @ri_408 <= N suchthat defined(gab_207[{2924}@ri_408], @14_r_354[{2925}@ri_408]) && {2926}({2927}gab_207 = {2929}gab_207[{2930}@ri_408]) then
+  {2931}            out(cB4[{2932}!_197], {2933}@14_r_354[{2934}@i_409])
+                  orfind @i_407 = @ri_406 <= nH suchthat defined(x[{2937}@ri_406], @14_r_356[{2938}@ri_406]) && {2939}({2940}gab_207 = {2942}x[{2943}@ri_406]) then
+  {2944}            out(cB4[{2945}!_197], {2946}@14_r_356[{2947}@i_407])
+                  else
+  {2950}            new @14_r_348: D;
+  {2951}            out(cB4[{2952}!_197], {2953}@14_r_348)
+                )
+                else
+  {2958}          if {2959}({2960}Kkey[{2961}j2_206] = {2963}@15_pkgen2({2964}rkB)) then
+  {2965}            yield
+                  else
+  {2966}            if {2967}check({2968}@15_m_264, {2970}Kkey[{2971}j2_206], {2973}s_205) then
+  {2975}            let gab_207: G = {2976}exp({2977}Bga, {2979}b) in
+  {2981}            find [unique] @i_405 = @ri_404 <= N suchthat defined(gab_648[{2982}@ri_404], @14_r_334[{2983}@ri_404]) && {2984}({2985}gab_207 = {2987}gab_648[{2988}@ri_404]) then
+  {2989}              out(cB4[{2990}!_197], {2991}@14_r_334[{2992}@i_405])
+                    orfind @i_403 = @ri_402 <= N suchthat defined(gab_647[{2995}@ri_402], @14_r_336[{2996}@ri_402]) && {2997}({2998}gab_207 = {3000}gab_647[{3001}@ri_402]) then
+  {3002}              out(cB4[{3003}!_197], {3004}@14_r_336[{3005}@i_403])
+                    orfind @i_401 = @ri_400 <= N suchthat defined(gab_646[{3008}@ri_400], @14_r_338[{3009}@ri_400]) && {3010}({3011}gab_207 = {3013}gab_646[{3014}@ri_400]) then
+  {3015}              out(cB4[{3016}!_197], {3017}@14_r_338[{3018}@i_401])
+                    orfind @i_399 = @ri_398 <= N suchthat defined(gab_649[{3021}@ri_398], @14_r_340[{3022}@ri_398]) && {3023}({3024}gab_207 = {3026}gab_649[{3027}@ri_398]) then
+  {3028}              out(cB4[{3029}!_197], {3030}@14_r_340[{3031}@i_399])
+                    orfind @i_397 = @ri_396 <= N suchthat defined(b[{3034}@i_329[{3035}@ri_396]], a[{3036}@ri_396], @14_r_983[{3037}@ri_396], @12_kb_735[{3038}@i_329[{3039}@ri_396]]) && {3040}({3041}gab_207 = {3043}@12_exp'({3044}g, {3045}mult({3046}b[{3047}@i_329[{3048}@ri_396]], {3049}a[{3050}@ri_396]))) then
+  {3051}              out(cB4[{3052}!_197], {3053}@14_r_983[{3054}@i_397])
+                    orfind @i_397 = @ri_396 <= N suchthat defined(b[{3057}@i_329[{3058}@ri_396]], a[{3059}@ri_396], @14_r_984[{3060}@ri_396], @12_kb_735[{3061}@i_329[{3062}@ri_396]]) && {3063}({3064}gab_207 = {3066}@12_exp'({3067}g, {3068}mult({3069}b[{3070}@i_329[{3071}@ri_396]], {3072}a[{3073}@ri_396]))) then
+  {3074}              out(cB4[{3075}!_197], {3076}@14_r_984[{3077}@i_397])
+                    orfind @i_395 = @ri_394 <= N suchthat defined(gab_650[{3080}@ri_394], @14_r_344[{3081}@ri_394]) && {3082}({3083}gab_207 = {3085}gab_650[{3086}@ri_394]) then
+  {3087}              out(cB4[{3088}!_197], {3089}@14_r_344[{3090}@i_395])
+                    orfind @i_393 = @ri_392 <= N suchthat defined(gab_207[{3093}@ri_392], @14_r_346[{3094}@ri_392]) && {3095}({3096}gab_207 = {3098}gab_207[{3099}@ri_392]) then
+  {3100}              out(cB4[{3101}!_197], {3102}@14_r_346[{3103}@i_393])
+                    orfind @i_391 = @ri_390 <= N suchthat defined(gab_207[{3106}@ri_390], @14_r_348[{3107}@ri_390]) && {3108}({3109}gab_207 = {3111}gab_207[{3112}@ri_390]) then
+  {3113}              out(cB4[{3114}!_197], {3115}@14_r_348[{3116}@i_391])
+                    orfind @i_389 = @ri_388 <= N suchthat defined(gab_207[{3119}@ri_388], @14_r_350[{3120}@ri_388]) && {3121}({3122}gab_207 = {3124}gab_207[{3125}@ri_388]) then
+  {3126}              out(cB4[{3127}!_197], {3128}@14_r_350[{3129}@i_389])
+                    orfind @i_387 = @ri_386 <= N suchthat defined(gab_207[{3132}@ri_386], @14_r_352[{3133}@ri_386]) && {3134}({3135}gab_207 = {3137}gab_207[{3138}@ri_386]) then
+  {3139}              out(cB4[{3140}!_197], {3141}@14_r_352[{3142}@i_387])
+                    orfind @i_385 = @ri_384 <= N suchthat defined(gab_207[{3145}@ri_384], @14_r_354
+
+*)

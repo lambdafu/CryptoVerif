@@ -1,0 +1,33 @@
+define IND_CPA_INT_CTXT_sym_enc(keyseed, key, cleartext, ciphertext, seed, kgen, enc, dec, injbot, Z, Penc, Pencctxt) { 
+
+param N, N2, N3.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun kgen(keyseed):key.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc2(cleartext, key, seed): ciphertext.
+fun kgen2(keyseed):key.
+
+fun injbot(cleartext):bitstringbot [compos].
+forall x:cleartext; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+
+	(* IND-CPA + INT-CTXT *)
+
+equiv ind_cpa_int_ctxt(enc)
+      ! N2 new r: keyseed; (!N new r2: seed; Oenc(x:cleartext) := enc(x, kgen(r), r2),
+			    !N3 Odec(y:ciphertext) := dec(y,kgen(r))) 
+     <=(N2 * Penc(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N*time(Z, maxlength(x))), N, maxlength(x)) + 
+        N2 * Pencctxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> 
+      ! N2 new r: keyseed; 
+      	       	  	   (!N new r2: seed; Oenc(x:cleartext) := let z:ciphertext =  enc2(Z(x), kgen2(r), r2) in z,
+			    !N3 Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r2[j],z[j]) && z[j] = y then injbot(x[j]) else bottom).
+
+}

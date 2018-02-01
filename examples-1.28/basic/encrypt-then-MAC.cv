@@ -1,0 +1,70 @@
+(* Show that, if encryption is IND-CPA and MAC is SUF-CMA, then
+   encrypt-then-MAC is IND-CCA2 *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* Mac *)
+
+proba Pmac.
+
+expand SUF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret1 b.
+
+channel cenc, cdec, start, c.
+
+let LRencOracle = 
+	in(cenc, (m1: bitstring, m2: bitstring));
+	if Z(m1) = Z(m2) then
+	let m = if b then m1 else m2 in
+	new s1 : seed;
+	let ea1: bitstring = enc(m, Kab, s1) in
+	let ma1: macs = mac(ea1, mKab) in
+	out(cenc, (ea1, ma1)).
+
+let decOracle =
+	in(cdec, (ea:bitstring, ma:macs));
+	find u <= N suchthat defined(ea1[u],ma1[u]) && (ea = ea1[u]) && 
+	  (ma = ma1[u]) then yield else
+	if check(ea, mKab, ma) then
+	(
+           let injbot(cleartext) = dec(ea, Kab) in
+	   out(cdec, injbot(cleartext))
+	)
+        else
+        (
+	   out(cdec, bottom)
+        ).
+
+process 
+	in(start, ());
+	new b: bool;
+	new rKab: keyseed;
+	let Kab = kgen(rKab) in
+	new rmKab: mkeyseed;
+	let mKab = mkgen(rmKab) in
+	out(c, ());
+	((! N LRencOracle) |
+	 (! N decOracle))
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.040s + system 0.000s), max rss 42672K
+END *)

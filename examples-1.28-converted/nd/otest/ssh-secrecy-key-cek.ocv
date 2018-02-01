@@ -1,0 +1,265 @@
+set elsefindFactsInSimplify = true.
+
+proof {
+      set mergeBranches = false;
+      success;
+      (*prove authentication*)
+      show_game occ;
+      insert 363 "let concat8 (a1,a2,a3,a4,a5,a6,a7,a8)=hx in"; (* in OH, at the beginning *)
+      show_game occ;
+      insert 373 "let concat_constr (b1,b2,b3,b4)=hx in"; (* in the else branch of the "let" inserted above *) 
+      crypto rom(h);
+      crypto uf_cma(signr);
+      success;
+
+      (*secrecy of the key*)
+      show_game occ;
+      insert 218 "find i' <= N suchthat defined(svc[i'], svs[i'], scC[i'], sns[i'], scS[i'], se[i'], sf[i'], KS[i'], r_10[i']) && ((cvc = svc[i']) && ((cvs = svs[i']) && (((ccC = scC[i']) && (negotiation_string = sns[i'])) && (((ccS = scS[i']) && (cns = negotiation_string)) && ((ce = se[i']) && ((cf = sf[i']))))))) then";
+      insert 53 "find j <= N suchthat defined (ce[j]) && ce[j]=se then";
+      simplify;
+      crypto cdh(exp);
+      simplify;
+      crypto hash_to_symkey_random;
+      crypto hash_to_symkey_random;
+      success
+}
+
+
+
+param N.
+
+type pad_rand[fixed]. (*size 255 bytes or less depending on how the padding is done*)
+type cookie[fixed,large]. (* 16 bytes *)
+type tag[bounded]. (* 1 byte *)
+type uint32[bounded]. (* 4 bytes *)
+type D [fixed].
+type hashkey[bounded].
+type hash[fixed,large].
+type signature[bounded].
+type sblocksize[fixed].
+type sseed [fixed].
+type skeyseed [large,fixed].
+type sskey[bounded,large].
+type spkey[bounded,large].
+type mkeyseed[fixed].
+type mkey[fixed,large].
+type macinput[bounded].
+type macres[large].
+type symkey[fixed,large].
+type symseed[fixed,large].
+
+fun skp(spkey,sskey) : bitstring [data].
+
+type Z [large,bounded]. (*mpint = ssh string (size+string payload). MSB. 8 bits per byte. where 0=empty string, >0=first bit=0, <0=first bit=1,at beginning no useless 00 or FF. *)
+type G [large,bounded]. (*mpint*)
+
+fun G_to_bitstring(G):bitstring [data].
+
+fun padr(bitstring,pad_rand) : bitstring.
+letfun pad (m:bitstring) = r <-R pad_rand; padr (m,r).
+fun unpad(bitstring) : bitstringbot.
+fun binjbot(bitstring) : bitstringbot [data].
+forall x:bitstring; binjbot (x) <> bottom.
+forall x:bitstring, r:pad_rand;
+       unpad(padr(x,r)) = binjbot(x).
+
+(*utils*)
+
+fun get_size (bitstring) : uint32.
+
+fun concatm (tag, bitstring) : bitstring [data].
+fun concatn (cookie,bitstring) : bitstring [data].
+fun concat8 (bitstring,bitstring,bitstring,bitstring,spkey,G,G,G) : bitstring [data].
+fun concat3 (spkey,G,signature) : bitstring [data].
+fun concatmsm(bitstring,bitstring):bitstring.
+fun concatnm(uint32,bitstring):bitstring.
+fun concatem(bitstring,macres):bitstring.
+fun check_algorithms (bitstring) : bool.
+fun sblocksize_of_hash (hash): sblocksize [data].
+
+const negotiation_string:bitstring.
+const tag_kexdh_init:tag.
+const tag_kexdh_reply:tag.
+const tag_kex_init:tag.
+const tag_newkeys:tag.
+const uint32_zero:uint32.
+const null_string:bitstring. (*the string of length 0 *)
+
+(*CDH*)
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+letfun message (x:Z) = exp (g,x).
+
+(*hash function *)
+
+param qH [noninteractive].
+
+expand ROM_hash(hashkey,bitstring,hash, h).
+
+
+
+(* signature *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, signr, check, Psign, Psigncoll).
+
+letfun kgen_s () = r <-R skeyseed; skp (spkgen(r),sskgen(r)).
+
+letfun sign (m:sblocksize, sk:sskey) = r <-R sseed; signr (m, sk, r).
+
+(* utils *)
+
+const tag_IVCS:tag.
+const tag_IVSC:tag.
+const tag_EKCS:tag.
+const tag_EKSC:tag.
+const tag_MKCS:tag.
+const tag_MKSC:tag.
+
+fun symseed_of_hash (hash):symseed.
+fun symkey_of_hash (hash):symkey.
+fun mkey_of_hash (hash):mkey.
+
+fun concat_constr (G, hash, tag, hash): bitstring [data].
+letfun construct (hk:hashkey, k:G, h1:hash, c:tag, h2:hash) = h(hk, concat_constr (k, h1, c, h2)).
+letfun constructIVCS (hk:hashkey, k:G, h1:hash, h2:hash) = symseed_of_hash (construct (hk, k, h1, tag_IVCS, h2)).
+letfun constructIVSC (hk:hashkey, k:G, h1:hash, h2:hash) = symseed_of_hash (construct (hk, k, h1, tag_IVSC, h2)).
+letfun constructEKCS (hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash (construct (hk, k, h1, tag_EKCS, h2)).
+letfun constructEKSC (hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash (construct (hk, k, h1, tag_EKSC, h2)).
+letfun constructMKCS (hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash (construct (hk, k, h1, tag_MKCS, h2)).
+letfun constructMKSC (hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash (construct (hk, k, h1, tag_MKSC, h2)).
+
+
+param Nsr.
+equiv(hash_to_iv_random )
+  foreach i <= Nsr do h <-R hash; O() := return(symseed_of_hash (h))
+<=(0)=>
+  foreach i <= Nsr do s <-R symseed; O() := return(s).
+
+equiv(hash_to_symkey_random )
+  foreach i <= Nsr do h <-R hash; O() := return(symkey_of_hash (h))
+<=(0)=>
+  foreach i <= Nsr do s <-R symkey; O() := return(s).
+
+equiv(hash_to_mackey_random )
+  foreach i <= Nsr do h <-R hash; O() := return(mkey_of_hash (h))
+<=(0)=>
+  foreach i <= Nsr do s <-R mkey; O() := return(s).
+
+forall k: G, h1: hash, c: tag, h2: hash, x1:bitstring,x2:bitstring,x3:bitstring,x4:bitstring,x5:spkey,x6:G,x7:G,x8:G;
+   concat_constr (k, h1, c, h2) <> concat8(x1,x2,x3,x4,x5,x6,x7,x8).
+
+(* key table *)
+
+table trusted_hosts (spkey).
+
+
+(* Secret *)
+
+query secret cekcs.
+query secret ceksc.
+
+(* Authentication property *)
+
+event endC(bitstring,bitstring,bitstring,bitstring,spkey,G,G,G,hash).
+event endS(bitstring,bitstring,bitstring,bitstring,spkey,G,G,G,hash).
+
+query h: hash, k: G, y: G, x: G, pk: spkey, is: bitstring, ic: bitstring, vs: bitstring, vc: bitstring;
+  inj-event(endC(vc, vs, ic, is, pk, x, y, k, h)) ==> inj-event(endS(vc, vs, ic, is, pk, x, y, k, h)) public_vars cekcs, ceksc.
+
+query h': hash, k': G, h: hash, k: G, y: G, x: G, pk: spkey, is: bitstring, ic: bitstring, vs: bitstring, vc: bitstring;
+  event(endC(vc, vs, ic, is, pk, x, y, k, h)) && event(endS(vc, vs, ic, is, pk, x, y, k', h')) ==> ((k = k') && (h = h')) public_vars cekcs, ceksc.
+
+(* Server *)
+
+
+
+
+(* Client *)	   
+
+
+
+(* Key generation *)
+
+process 
+   Ostart() :=
+hk <-R hashkey;
+let skp(pkS: spkey, skS: sskey) = (r_2 <-R skeyseed; skp(spkgen(r_2), sskgen(r_2))) in
+insert trusted_hosts(pkS);
+return(pkS);
+((
+  foreach iA <= N do
+  OS_neg() :=
+  scS <-R cookie;
+  sis: bitstring <- concatm(tag_kex_init, concatn(scS, negotiation_string));
+  return((m_2: bitstring <- sis; r_3 <-R pad_rand; padr(m_2, r_3)));
+  OS_KE2(svc: bitstring, svs: bitstring, smsg1: bitstring, smsg2: bitstring) :=
+  let binjbot(sic: bitstring) = unpad(smsg1) in
+  let concatm(=tag_kex_init, concatn(scC: cookie, sns: bitstring)) = sic in
+  if check_algorithms(sns) then
+  let binjbot(concatm(=tag_kexdh_init, G_to_bitstring(se: G))) = unpad(smsg2) in
+  sy <-R Z;
+  sf: G <- (x_3: Z <- sy; exp(g, x_3));
+  KS: G <- exp(se, sy);
+  sh: hash <- h(hk, concat8(svc, svs, sic, sis, pkS, se, sf, KS));
+  event endS(svc, svs, sic, sis, pkS, se, sf, KS, sh);
+  ss: signature <- (m_3: sblocksize <- sblocksize_of_hash(sh); sk: sskey <- skS; r_4 <-R sseed; signr(m_3, sk, r_4));
+  return((m_4: bitstring <- concatm(tag_kexdh_reply, concat3(pkS, sf, ss)); r_5 <-R pad_rand; padr(m_4, r_5)));
+  OS_KE4(smsg: bitstring) :=
+  let binjbot(snk: bitstring) = unpad(smsg) in
+  let concatm(=tag_newkeys, =null_string) = snk in
+  return((m_5: bitstring <- concatm(tag_newkeys, null_string); r_6 <-R pad_rand; padr(m_5, r_6)));
+  OS_Getk() :=
+  sivcs: symseed <- (hk_1: hashkey <- hk; k_2: G <- KS; h1: hash <- sh; h2: hash <- sh; symseed_of_hash(h(hk_1, concat_constr(k_2, h1, tag_IVCS, h2))));
+  sivsc: symseed <- (hk_2: hashkey <- hk; k_3: G <- KS; h1_1: hash <- sh; h2_1: hash <- sh; symseed_of_hash(h(hk_2, concat_constr(k_3, h1_1, tag_IVSC, h2_1))));
+  sekcs: symkey <- (hk_3: hashkey <- hk; k_4: G <- KS; h1_2: hash <- sh; h2_2: hash <- sh; symkey_of_hash(h(hk_3, concat_constr(k_4, h1_2, tag_EKCS, h2_2))));
+  seksc: symkey <- (hk_4: hashkey <- hk; k_5: G <- KS; h1_3: hash <- sh; h2_3: hash <- sh; symkey_of_hash(h(hk_4, concat_constr(k_5, h1_3, tag_EKSC, h2_3))));
+  smkcs: mkey <- (hk_5: hashkey <- hk; k_6: G <- KS; h1_4: hash <- sh; h2_4: hash <- sh; mkey_of_hash(h(hk_5, concat_constr(k_6, h1_4, tag_MKCS, h2_4))));
+  smksc: mkey <- (hk_6: hashkey <- hk; k_7: G <- KS; h1_5: hash <- sh; h2_5: hash <- sh; mkey_of_hash(h(hk_6, concat_constr(k_7, h1_5, tag_MKSC, h2_5))))
+) | (
+  foreach iB <= N do
+  OC_neg() :=
+  ccC <-R cookie;
+  cic: bitstring <- concatm(tag_kex_init, concatn(ccC, negotiation_string));
+  return((m_6: bitstring <- cic; r_7 <-R pad_rand; padr(m_6, r_7)));
+  OC_KE1(cmsg: bitstring) :=
+  let binjbot(cis: bitstring) = unpad(cmsg) in
+  let concatm(=tag_kex_init, concatn(ccS: cookie, cns: bitstring)) = cis in
+  if check_algorithms(cns) then
+  cx <-R Z;
+  ce: G <- (x_4: Z <- cx; exp(g, x_4));
+  return((m_7: bitstring <- concatm(tag_kexdh_init, G_to_bitstring(ce)); r_8 <-R pad_rand; padr(m_7, r_8)));
+  OC_KE3(cvc: bitstring, cvs: bitstring, cmsg2: bitstring) :=
+  let binjbot(concatm(=tag_kexdh_reply, concat3(pkS': spkey, cf: G, cs: signature))) = unpad(cmsg2) in
+  get trusted_hosts(=pkS') in
+  KC: G <- exp(cf, cx);
+  ch: hash <- h(hk, concat8(cvc, cvs, cic, cis, pkS', ce, cf, KC));
+  if check(sblocksize_of_hash(ch), pkS', cs) then
+  event endC(cvc, cvs, cic, cis, pkS', ce, cf, KC, ch);
+  return((m_8: bitstring <- concatm(tag_newkeys, null_string); r_9 <-R pad_rand; padr(m_8, r_9)));
+  OC_Getk(cmsg3: bitstring) :=
+  let binjbot(cnk: bitstring) = unpad(cmsg3) in
+  let concatm(=tag_newkeys, =null_string) = cnk in
+  civcs: symseed <- (hk_7: hashkey <- hk; k_8: G <- KC; h1_6: hash <- ch; h2_6: hash <- ch; symseed_of_hash(h(hk_7, concat_constr(k_8, h1_6, tag_IVCS, h2_6))));
+  civsc: symseed <- (hk_8: hashkey <- hk; k_9: G <- KC; h1_7: hash <- ch; h2_7: hash <- ch; symseed_of_hash(h(hk_8, concat_constr(k_9, h1_7, tag_IVSC, h2_7))));
+  cekcs: symkey <- (hk_9: hashkey <- hk; k_10: G <- KC; h1_8: hash <- ch; h2_8: hash <- ch; symkey_of_hash(h(hk_9, concat_constr(k_10, h1_8, tag_EKCS, h2_8))));
+  ceksc: symkey <- (hk_10: hashkey <- hk; k_11: G <- KC; h1_9: hash <- ch; h2_9: hash <- ch; symkey_of_hash(h(hk_10, concat_constr(k_11, h1_9, tag_EKSC, h2_9))));
+  cmkcs: mkey <- (hk_11: hashkey <- hk; k_12: G <- KC; h1_10: hash <- ch; h2_10: hash <- ch; mkey_of_hash(h(hk_11, concat_constr(k_12, h1_10, tag_MKCS, h2_10))));
+  cmksc: mkey <- (hk_12: hashkey <- hk; k_13: G <- KC; h1_11: hash <- ch; h2_11: hash <- ch; mkey_of_hash(h(hk_12, concat_constr(k_13, h1_11, tag_MKSC, h2_11))))
+) | (
+  foreach iH <= qH do
+  OH(hx: bitstring) :=
+  return(h(hk, hx))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+1.156s (user 1.120s + system 0.036s), max rss 89936K
+END *)

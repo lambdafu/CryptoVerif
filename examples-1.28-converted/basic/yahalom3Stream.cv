@@ -1,0 +1,176 @@
+(* Yahalom, Version of Burrows, Abadi, Needham, SRC039 
+
+The final round of key confirmation should have a "mac" in order
+to prove the correspondence property:
+	query x:host, y:host, k:key;
+		event endB(x,y,k) ==> beginA(x,y,k).
+
+*)
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type maxmac [bounded].
+
+fun concat1(host, key, nonce, nonce):maxenc [data].
+fun concat2(host, key):maxenc [data].
+fun concat3(host, nonce, nonce):maxenc [data].
+
+forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:nonce,t2:nonce; concat1(y,z,t,u) <> concat3(y2,z2,t2).
+forall y:host,z:key,y2:host,z2:nonce,t2:nonce; concat2(y,z) <> concat3(y2,z2,t2).
+
+fun nonceToMaxenc(nonce):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+const Zconcat2:maxenc.
+const Zconcat3:maxenc.
+forall y:host,z:key,t:nonce,u:nonce; 
+	Z(concat1(y,z,t,u)) = Zconcat1.
+forall y:host,z:key; 
+	Z(concat2(y,z)) = Zconcat2.
+forall y:host,z:nonce,t:nonce; 
+	Z(concat3(y,z,t)) = Zconcat3.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, start, finish.
+const A : host.
+const B : host.
+
+event beginA(host, host, key).
+event endA(host, host, key).
+event beginB(host, host).
+event beginBkey(host, host, key).
+event endB(host, host, key).
+
+query k: key, y: host, x: host;
+  event(endA(x, y, k)) ==> event(beginB(x, y)) public_vars keyA, keyB.
+query k: key, y: host, x: host;
+  event(endA(x, y, k)) ==> event(beginBkey(x, y, k)) public_vars keyA, keyB.
+query k: key, y: host, x: host;
+  event(endB(x, y, k)) ==> event(beginA(x, y, k)) public_vars keyA, keyB.
+query k: key, y: host, x: host;
+  inj-event(endA(x, y, k)) ==> inj-event(beginB(x, y)) public_vars keyA, keyB.
+query k: key, y: host, x: host;
+  inj-event(endA(x, y, k)) ==> inj-event(beginBkey(x, y, k)) public_vars keyA, keyB.
+query k: key, y: host, x: host;
+  inj-event(endB(x, y, k)) ==> inj-event(beginA(x, y, k)) public_vars keyA, keyB.
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mKas: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mKbs: mkey = mkgen(rmKbs) in
+out(c12, ());
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new Na: nonce;
+  out(c1[i_1], (A, Na));
+  in(c2[i_1], (cert1: maxmac, mac1: macs, cert2_1: maxmac, mac2_3: macs));
+  if check(cert1, mKas, mac1) then
+  let injbot(concat1(b: host, k: key, =Na, nb_1: nonce)) = dec(cert1, Kas) in
+  event beginA(A, b, k);
+  new s3: seed;
+  let e3: maxmac = enc(nonceToMaxenc(nb_1), k, s3) in
+  out(c3[i_1], (cert2_1, mac2_3, e3));
+  in(finish[i_1], ());
+  if b = B then
+  (
+    event endA(A, b, k);
+    let keyA: key = k
+  )
+  else
+    out(c10[i_1], k)
+) | (
+  ! i_2 <= N
+  in(c4[i_2], (a: host, na_1: nonce));
+  event beginB(a, B);
+  new Nb: nonce;
+  new s4: seed;
+  let e4: maxmac = enc(concat3(a, na_1, Nb), Kbs, s4) in
+  out(c5[i_2], (B, e4, mac(e4, mKbs)));
+  in(c6[i_2], (cert2_2: maxmac, mac2_4: macs, m_3: maxmac));
+  if check(cert2_2, mKbs, mac2_4) then
+  let injbot(concat2(=a, k_1: key)) = dec(cert2_2, Kbs) in
+  event beginBkey(a, B, k_1);
+  if injbot(nonceToMaxenc(Nb)) = dec(m_3, k_1) then
+  if a = A then
+  (
+    event endB(a, B, k_1);
+    let keyB: key = k_1
+  )
+  else
+    out(c11[i_2], k_1)
+) | (
+  ! i_3 <= N
+  in(c8[i_3], (h2: host, m_4: maxmac, ma_1: macs));
+  find j_11 = j_12 <= N2 suchthat defined(Khost[j_12], Rmkey[j_12], Rkey[j_12]) && (Khost[j_12] = h2) then
+  if check(m_4, Rmkey[j_11], ma_1) then
+  let injbot(concat3(h1: host, n1_1: nonce, n2_1: nonce)) = dec(m_4, Rkey[j_11]) in
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rmkey[j1_1], Rkey[j1_1]) && (Khost[j1_1] = h1) then
+  new k_2: key;
+  new s1: seed;
+  new s2: seed;
+  let e1: maxmac = enc(concat1(h2, k_2, n1_1, n2_1), Rkey[j1], s1) in
+  let e2: maxmac = enc(concat2(h1, k_2), Rkey[j_11], s2) in
+  out(c9[i_3], (e1, mac(e1, Rmkey[j1]), e2, mac(e2, Rmkey[j_11])))
+) | (
+  ! i_4 <= N2
+  in(c7[i_4], (Khost: host, Kkey: key, Kmkey: mkey));
+  let Rkey: key = (if Khost = A then Kas else if Khost = B then Kbs else Kkey) in
+  let Rmkey: mkey = (if Khost = A then mKas else if Khost = B then mKbs else Kmkey)
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(endB(x, y, k)) ==> inj-event(beginA(x, y, k)) with public variables keyA, keyB; inj-event(endA(x, y, k)) ==> inj-event(beginBkey(x, y, k)) with public variables keyA, keyB; event(endB(x, y, k)) ==> event(beginA(x, y, k)) with public variables keyA, keyB; event(endA(x, y, k)) ==> event(beginBkey(x, y, k)) with public variables keyA, keyB; secrecy of keyB; secrecy of keyA; one-session secrecy of keyB; one-session secrecy of keyA.
+0.528s (user 0.520s + system 0.008s), max rss 63264K
+END *)

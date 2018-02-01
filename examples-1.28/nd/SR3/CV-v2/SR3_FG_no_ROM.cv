@@ -1,0 +1,115 @@
+set interactiveMode = true.
+
+(************** SR3 FG modelization **************)
+(* 
+		SR3 is a routing protocol for wireless sensor
+		networks. Packets look like : 
+		
+			( E_{k_src}(Data || N), H(N), src )
+
+		Here's the FG game, UF in the other file.
+*)
+
+proof {
+        allowed_collisions "noninteractive/large";
+	auto;
+	success
+}
+
+
+(************** Parameters **************) 
+(* Our number of queries to the packet-generation oracle *) 
+param qGen, qVerif.
+
+
+(************** Basic types **************)
+type nonce [large, fixed]. (* also models nonces *)
+type data [large, fixed]. 
+type block [large, fixed].
+
+fun concat(data, nonce):block [compos]. 
+
+param N [noninteractive]. (* useless and necessary *)
+
+(* 
+	Important and non-trivial : a random	
+	block is undistinguishable from the 
+	concatenation of a random data and 
+	a random nonce.
+*)
+
+equiv 
+!N new b:block; a() := b 
+		<=(0)=> [manual]
+!N new d:data; new n:nonce; a() := concat(d,n).
+
+
+(************** Block cipher **************)
+type keyseed [large,fixed].
+type key [large,fixed]. (* for the cipher *)
+
+proba PRPProba. (* advprp(enc) *)
+expand SPRP_cipher(keyseed, key, block, kgen, enc, dec, PRPProba).
+
+
+(************** Hash function **************)
+(* input type : nonces *)
+type hashout [large, fixed].
+
+fun hash(nonce): hashout.
+
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, data, data):data.
+
+(************** Key generation ********)
+(* todo, ptet *)
+
+
+(************** Queries **************)
+(* the standard FG stuff *)
+query secret b.
+
+
+(*************** Packet generation oracle ******)
+channel OGenIn, OGenOut.
+let OGen = 
+	!qGen 
+	in (OGenIn, (DCPA:data));
+	new n_oracle_cpa : nonce; 
+	let p_oracle_cpa = ( enc(concat(DCPA, n_oracle_cpa), k), hash(n_oracle_cpa)) in
+	out (OGenOut, (p_oracle_cpa,n_oracle_cpa)).
+
+(*************** Packet verification oracle ******)
+channel OVerifIn, OVerifOut. 
+let OVerif = 
+	!qVerif 
+	in (OVerifIn, (cVerif:block,hVerif:hashout));
+	let concat(dVerif:data,nVerif:nonce) = dec( cVerif, k ) in
+	let ( verifSuccess:bool ) = ( hash( nVerif ) = hVerif ) in
+	out(OVerifOut, (verifSuccess)).
+
+(*************** The game itself ****************)
+channel keyinitin, keyinitout, gamein, gameout.
+process (
+	in(keyinitin, ());
+	new ks : keyseed;
+	new n_challenge : nonce;
+	new b : bool;
+	let k = kgen(ks) in	
+	out(keyinitout,()); 
+	(
+		in(gamein,(D0:data,D1:data));
+		let cc = concat( test(b,D0,D1) , n_challenge ) in
+		let p_challenge = ( enc(cc, k), hash(n_challenge) ) in
+		out( gameout, (p_challenge, n_challenge) )
+			
+	) | OGen | OVerif
+	
+)
+
+
+
+

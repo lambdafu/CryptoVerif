@@ -1,0 +1,60 @@
+(* Trivial running example for conference paper. *)
+
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed,large].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+fun keyToBitstring(key):bitstring [compos].
+
+(* Shared-key encryption (PRP) *)
+
+proba Penc.
+
+expand SPRP_cipher(keyseed, key, key, kgen, enc, dec, Penc).
+
+
+(* Queries *)
+
+query secret1 k2.
+query secret1 k3.
+
+query secret k2.
+query secret k3.
+
+event endB(key).
+event beginA(key).
+
+query x:key; event endB(x) ==> beginA(x). (* Wrong because decryption always succeeds *)
+
+let processA = 
+	OA() :=
+	k2 <-R key;
+	let ea1 = enc(k2, Kab) in
+	event beginA(ea1);
+	return(ea1).
+
+let processB =
+	OB(ea:key) :=
+	let k3:key = dec(ea, Kab) in
+	event endB(ea);
+	return().
+
+process 
+	Ostart() :=
+	rKab <-R keyseed;
+	let Kab = kgen(rKab) in
+	return();
+	((foreach iA <= N do processA) |
+	 (foreach iB <= N do processB))
+
+(* EXPECTED
+RESULT Could not prove event endB(x) ==> beginA(x), secrecy of k3.
+0.020s (user 0.010s + system 0.010s), max rss 17392K
+END *)

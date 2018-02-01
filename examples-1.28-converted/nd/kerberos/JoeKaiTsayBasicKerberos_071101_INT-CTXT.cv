@@ -1,0 +1,269 @@
+(* 3 rounds of Basic Kerberos, consider only authentication properties *)
+
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type kas [bounded].
+type client [bounded].
+type tgs [bounded].
+type server [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type maxenc [bounded].
+type timest [fixed].							
+
+(* following functions are needed to set the type of a list of elements to `bitstring', so that the list can be encrypted: *)
+fun concat1(key, nonce, timest, tgs):maxenc [data]. 		(* needed for {AK, n1, t_K, T}_Kc*)
+fun concat2(key, timest, client):maxenc [data].  		(* needed for TGT and ST *)
+fun concat3(key, nonce, timest, server):maxenc [data].       	(* neededfor {SK, n2, t_T, S}_AK *)
+fun pad(client, timest):maxenc [data].
+fun padts(timest): maxenc [data].
+
+forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;		concat2(y,x,z) <> concat1(t2,y2,x2,z2).
+forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
+forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	   pad(z,t) <> concat1(t2,y2,x2,z2).
+forall t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;   		   padts(t) <> concat1(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server; concat2(y,x,z) <> concat3(t2,y2,x2,z2).
+forall y:key, x:timest, z:client, t2:timest, z2:client;    		   concat2(y,x,z) <> pad(z2,t2). 
+forall y:key, x:timest, z:client, t2:timest;    			   concat2(y,x,z) <> padts(t2). 
+forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  	   concat3(t,y,x,z) <> pad(z2,t2).
+forall t:key, y:nonce, x:timest, z:server, t2:timest;  			   concat3(t,y,x,z) <> padts( t2).
+forall t:timest, z:client, t2:timest;  					   pad(z,t)<> padts(t2).
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+fun enc(maxenc,key,seed): bitstring.
+fun kgen(keyseed): key.
+fun dec(bitstring,key): bitstringbot.
+
+fun enc2(maxenc,key,seed): bitstring.
+fun kgen2(keyseed): key.
+
+fun injbot(maxenc): bitstringbot [data].
+forall x:maxenc; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+fun    Z(maxenc):maxenc.
+const  Zconcat1:maxenc.
+const  Zconcat2:maxenc.
+const  Zconcat3: maxenc.
+const  Zpad:maxenc.
+const  Zpadts: maxenc.
+
+forall m:maxenc, r:keyseed, r2:seed; 
+	dec(enc(m,kgen(r),r2),kgen(r)) = injbot(m).
+forall y:nonce, x:timest, z:tgs, t:key;
+	Z(concat1(t,y,x,z)) = Zconcat1.
+forall y:key, x:timest, z:client; 
+	Z(concat2(y,x,z)) = Zconcat2.
+forall  y:nonce, x:timest, z:server, t:key;
+	Z(concat3(t,y,x,z)) = Zconcat3.
+forall z:client, t:timest;
+        Z(pad(z,t)) = Zpad.
+forall t: timest;
+        Z(padts(t)) = Zpadts.
+					    
+
+equiv
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: maxenc) := return(enc(x, kgen2(r), r2))
+<=(N2 * Penc(time, N))=>
+  ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: maxenc) := return(enc2(Z(x), kgen2(r), r2)).
+
+
+equiv
+  ! N2 new r: keyseed; (
+    ! N new r2: seed; gen_Oracle_1(x: maxenc) := return(enc(x, kgen(r), r2)) |
+    ! N3 gen_Oracle_2(y: bitstring) := return(dec(y,kgen(r))))
+<=(N2 * Pencctxt(time, N, N3))=>
+  ! N2 new r: keyseed; (
+    ! N new r2: seed; gen_Oracle_1(x: maxenc) := let z:bitstring = enc(x, kgen2(r), r2) in return(z) |
+    ! N3 gen_Oracle_2(y: bitstring) := find j <= N suchthat defined(x[j], r2[j], z[j]) && (z[j] = y) then return(injbot(x[j])) else return(bottom)).
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, start, finish, cC, cT.
+const C : client.
+const K : kas.
+const T : tgs.
+const S : server.						
+
+fun acceptC1(kas): bitstring.
+fun acceptC2(tgs,server): bitstring.
+fun acceptC3(server): bitstring.
+fun acceptT(client,server): bitstring.
+fun acceptS(client): bitstring.
+
+event fullKC(client, tgs, nonce, bitstring, bitstring).
+event fullCK(tgs, nonce, bitstring, bitstring).		
+
+event partCT(tgs, bitstring, bitstring).
+event fullCT(tgs, server, nonce, bitstring, bitstring, bitstring). 			
+event partTC(client, bitstring, bitstring).    		
+event fullTC(client, server, nonce, bitstring, bitstring, bitstring, bitstring).
+			
+event partCS(server, tgs, bitstring, bitstring).
+event fullCS(server, tgs, bitstring, bitstring, bitstring).
+event partSC(client, bitstring, bitstring).
+event fullSC(client, bitstring, bitstring, bitstring).      		
+
+
+(* authentication queries : *)
+
+query z: bitstring, y: bitstring, x: bitstring, N: nonce;
+  inj-event(fullCK(T, N, x, y)) ==> inj-event(fullKC(C, T, N, z, y)).
+		 
+query y': bitstring, N: nonce, x': bitstring, y: bitstring, x: bitstring;
+  event(partTC(C, x, y)) ==> (event(partCT(T, x', y)) && event(fullKC(C, T, N, x, y'))).
+						  	
+query v: bitstring, z': bitstring, x': bitstring, y: bitstring, z: bitstring, x: bitstring, N: nonce;
+  inj-event(fullCT(T, S, N, x, z, y)) ==> inj-event(fullTC(C, S, N, x', z', v, y)).
+
+query w: bitstring, v': bitstring, v: bitstring, N: nonce, x: bitstring, y: bitstring, z: bitstring;
+  event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))).
+
+query y': bitstring, x: bitstring, w: bitstring, y: bitstring, z: bitstring;
+  event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)).
+	 
+
+(* processC,C2,C3 use channels c1, c2, c3, c4, c6, c9, c10, c17, c18, c19, c20 *)
+
+
+
+
+
+		
+(* processCKEY,TKEY,SKEY use channels c13, c16, c21 *)
+
+
+
+
+
+
+					
+(* processK uses channels c14, c15 *)
+
+
+(* processT uses channels c7, c8 *)
+	
+
+(*channels c11, c12*)	
+
+
+
+process
+	in(start, ());
+new rKc: keyseed;
+let Kc: key = kgen(rKc) in
+new rKt: keyseed;
+let Kt: key = kgen(rKt) in
+new rKs: keyseed;
+let Ks: key = kgen(rKs) in
+out(c25, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hostT: tgs);
+  new n1_1: nonce;
+  out(c2[i_1], (C, hostT, n1_1));
+  in(c3[i_1], (=C, m: bitstring, m2: bitstring));
+  let injbot(concat1(AK: key, =n1_1, tk: timest, =hostT)) = dec(m2, Kc) in
+  event fullCK(hostT, n1_1, m, m2);
+  out(c18[i_1], acceptC1(K));
+  ! i_2 <= N3
+  in(c17[i_2, i_1], (hostT': tgs, hostS: server));
+  if hostT' = hostT then
+  new n3: nonce;
+  new tc: timest;
+  new r1: seed;
+  let e5: bitstring = enc(pad(C, tc), AK, r1) in
+  event partCT(hostT, m, e5);
+  out(c4[i_2, i_1], (m, e5, hostS, n3));
+  in(c5[i_2, i_1], (=C, m6: bitstring, m7: bitstring));
+  let injbot(concat3(SK: key, =n3, tt: timest, =hostS)) = dec(m7, AK) in
+  event fullCT(hostT, hostS, n3, m, e5, m7);
+  out(c19[i_2, i_1], acceptC2(hostT, hostS));
+  ! i_3 <= N4
+  in(c20[i_3, i_2, i_1], hostS': server);
+  if hostS' = hostS then
+  new tc'_1: timest;
+  new r2: seed;
+  let e12: bitstring = enc(pad(C, tc'_1), SK, r2) in
+  event partCS(hostS, hostT, m7, e12);
+  out(c6[i_3, i_2, i_1], (m6, e12));
+  in(c9[i_3, i_2, i_1], m13: bitstring);
+  if injbot(padts(tc'_1)) = dec(m13, SK) then
+  event fullCS(hostS, hostT, m7, e12, m13);
+  out(c10[i_3, i_2, i_1], acceptC3(hostS))
+) | (
+  ! i_4 <= N
+  in(c14[i_4], (hostY_1: client, hostW_1: tgs, n: nonce));
+  find j1 = j1_1 <= N2 suchthat defined(Khost[j1_1], Rkey[j1_1]) && (Khost[j1_1] = hostY_1) then
+  find j2 = j2_1 <= N2 suchthat defined(Lhost[j2_1], Qkey[j2_1]) && (Lhost[j2_1] = hostW_1) then
+  new rAK: keyseed;
+  let AK_1: key = kgen(rAK) in
+  new tk_1: timest;
+  new r3: seed;
+  let e3: bitstring = enc(concat2(AK_1, tk_1, hostY_1), Qkey[j2], r3) in
+  new r4: seed;
+  let e4: bitstring = enc(concat1(AK_1, n, tk_1, hostW_1), Rkey[j1], r4) in
+  event fullKC(hostY_1, hostW_1, n, e3, e4);
+  out(c15[i_4], (hostY_1, e3, e4))
+) | (
+  ! i_5 <= N
+  in(c7[i_5], (m8: bitstring, m9: bitstring, hostW_2: server, n': nonce));
+  let injbot(concat2(AK_2: key, tk_2: timest, hostY_2: client)) = dec(m8, Kt) in
+  let injbot(pad(=hostY_2, ts: timest)) = dec(m9, AK_2) in
+  event partTC(hostY_2, m8, m9);
+  find j3 = j3_1 <= N2 suchthat defined(Mhost1[j3_1], Mhost2[j3_1], Pkey[j3_1]) && (Mhost1[j3_1] = T) && (Mhost2[j3_1] = hostW_2) then
+  new rSK: keyseed;
+  let SK_1: key = kgen(rSK) in
+  new tt_1: timest;
+  new r10: seed;
+  let e10: bitstring = enc(concat2(SK_1, tt_1, hostY_2), Pkey[j3], r10) in
+  new r11: seed;
+  let e11: bitstring = enc(concat3(SK_1, n', tt_1, hostW_2), AK_2, r11) in
+  event fullTC(hostY_2, hostW_2, n', m8, m9, e10, e11);
+  out(c8[i_5], (hostY_2, e10, e11, acceptT(hostY_2, hostW_2)))
+) | (
+  ! i_6 <= N
+  in(c11[i_6], (m14: bitstring, m15: bitstring));
+  let injbot(concat2(SK_2: key, tt_2: timest, hostC: client)) = dec(m14, Ks) in
+  let injbot(pad(=hostC, tc'_2: timest)) = dec(m15, SK_2) in
+  new r16: seed;
+  let e16: bitstring = enc(padts(tc'_2), SK_2, r16) in
+  event partSC(hostC, m14, m15);
+  event fullSC(hostC, m14, m15, e16);
+  out(c12[i_6], (e16, acceptS(hostC)))
+) | (
+  ! i_7 <= N2
+  in(c13[i_7], (Khost: client, Kkey: key));
+  let Rkey: key = (if Khost = C then Kc else Kkey)
+) | (
+  ! i_8 <= N2
+  in(c21[i_8], (Lhost: tgs, Lkey: key));
+  let Qkey: key = (if Lhost = T then Kt else Lkey)
+) | (
+  ! i_9 <= N2
+  in(c16[i_9], (Mhost1: tgs, Mhost2: server, Mkey: key));
+  let Pkey: key = (if (Mhost1 = T) && (Mhost2 = S) then Ks else Mkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+1.036s (user 1.024s + system 0.012s), max rss 99952K
+END *)

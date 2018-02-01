@@ -1,0 +1,146 @@
+(*
+
+WooLam shared-key auth protocol (1992, computer)
+Corrections of Gordon, Jeffrey CSFW'01
+
+A -> B : A
+B -> A : N (fresh)
+A -> B : { m3, B, N }_kAS
+B -> S : A,B,{ m3, B, N }_kAS
+S -> B : { m5, A, N }_kBS
+B: verify { m5, A, N }_kBS = the message from S
+
+Correct.
+*)
+
+
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+
+table keytbl (key, mkey, host).
+
+fun concat1(tag, host, nonce):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+forall y:tag, h:host, z:nonce; 
+	Z(concat1(y,h,z)) = Zconcat1.
+
+(* Mac *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+
+const A: host.
+const B: host.
+
+const tag3: tag.
+const tag5: tag.
+
+event beginA(host).
+event beginAfull(host, host, nonce).
+event endB(host, host, nonce).
+
+query z: nonce, y: host, x: host;
+  event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
+query z: nonce, y: host, x: host;
+  event(endB(x, y, z)) ==> event(beginA(x)).
+query z: nonce, y: host, x: host;
+  inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)).
+query z: nonce, y: host, x: host;
+  inj-event(endB(x, y, z)) ==> inj-event(beginA(x)).
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let kAS: key = kgen(rKas) in
+new rmKas: mkeyseed;
+let mkAS: mkey = mkgen(rmKas) in
+new rKbs: keyseed;
+let kBS: key = kgen(rKbs) in
+new rmKbs: mkeyseed;
+let mkBS: mkey = mkgen(rmKbs) in
+insert keytbl(kAS, mkAS, A);
+insert keytbl(kBS, mkBS, B);
+out(c13, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hostB2: host);
+  event beginA(hostB2);
+  out(c2[i_1], A);
+  in(c3[i_1], n_1: nonce);
+  event beginAfull(hostB2, A, n_1);
+  new r1: seed;
+  let e1: maxmac = enc(concat1(tag3, hostB2, n_1), kAS, r1) in
+  out(c4[i_1], (e1, mac(e1, mkAS)))
+) | (
+  ! i_2 <= N
+  in(c5[i_2], hostA2: host);
+  new N_14: nonce;
+  out(c6[i_2], N_14);
+  in(c7[i_2], (m_3: maxmac, macm_1: macs));
+  out(c8[i_2], (hostA2, B, m_3, macm_1));
+  in(c9[i_2], (m2: maxmac, macm2: macs));
+  if check(m2, mkBS, macm2) then
+  if injbot(concat1(tag5, hostA2, N_14)) = dec(m2, kBS) then
+  if hostA2 = A then
+  event endB(B, hostA2, N_14)
+) | (
+  ! i_3 <= N
+  in(c11[i_3], (hostA1: host, hostB0: host, m_4: maxmac, macm_2: macs));
+  get keytbl(kbs: key, mkbs: mkey, =hostB0) in
+  get keytbl(kas: key, mkas: mkey, =hostA1) in
+  if check(m_4, mkas, macm_2) then
+  let injbot(concat1(=tag3, =hostB0, n_2: nonce)) = dec(m_4, kas) in
+  new r3: seed;
+  let e3: maxmac = enc(concat1(tag5, hostA1, n_2), kbs, r3) in
+  out(c12[i_3], (e3, mac(e3, mkbs)))
+) | (
+  ! i_4 <= N2
+  in(c10[i_4], (Khost: host, Kkey: key, Kmkey: mkey));
+  if (Khost <> A) && (Khost <> B) then
+  insert keytbl(Kkey, Kmkey, Khost)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.168s (user 0.156s + system 0.012s), max rss 51424K
+END *)

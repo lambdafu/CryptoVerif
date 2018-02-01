@@ -1,0 +1,121 @@
+\def\iprocess{\nonterm{odef}}
+\def\oprocess{\nonterm{obody}}
+
+The \texttt{oracles} front-end is similar to the  \texttt{channels}
+with the following differences.
+The keyword \texttt{newChannel} is replaced with \texttt{newOracle},
+\texttt{run} is a keyword,
+and \texttt{channel} and \texttt{out} are not keywords.
+
+\begin{figure}[tp]
+\def\phop{\phantom{\oprocess = }\mid}
+\def\phip{\phantom{\iprocess = }\mid}
+\begin{align*}
+&\oprocess ::= \texttt{run}\ \nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
+&\phop \texttt{(} \oprocess \texttt{)}\\
+&\phop \yield\\
+&\phop \texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\ [\texttt{; }\oprocess]\\
+&\phop \texttt{event\string_abort }\nonterm{ident}\\
+&\phop \Resavt[\texttt{; }\oprocess]\\
+&\phop \Resbvt[\texttt{; }\oprocess]\\
+&\phop \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}[\texttt{; }\oprocess]\\
+&\phop \texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ 
+[\texttt{in }\oprocess\ [\texttt{else }\oprocess]]\\
+&\phop \texttt{if }\nonterm{cond}\texttt{ then }\oprocess\ [\texttt{else }\oprocess]\\
+&\phop \texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^* \ [\texttt{else }\oprocess]\\
+&\phop \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\ [\texttt{; }\oprocess]\\
+&\phop \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\oprocess\ [\texttt{else }\oprocess]\\
+&\phop \texttt{return(}\seq{term}\texttt{)}[\texttt{; }\iprocess]\\
+&\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\oprocess\\
+&\iprocess ::= \texttt{run}\ \nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
+&\phip \texttt{(} \iprocess \texttt{)}\\
+&\phip \texttt{0}\\
+&\phip \iprocess \texttt{ | } \iprocess\\
+&\phip \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident}\ \iprocess\\
+&\phip \texttt{foreach }\nonterm{ident}\texttt{ <= } \nonterm{ident}\texttt{ do }\iprocess\\
+&\phip \nonterm{ident}\texttt{(}\seq{pattern}\texttt{) := }\oprocess
+\end{align*}
+\caption{Grammar for processes (\texttt{oracles} front-end)}
+\label{fig:syntax3or}
+\end{figure}
+
+
+The input file consists of a list of declarations followed by 
+an oracle definition:
+\[\nonterm{declaration}^*\ {\tt process}\ \iprocess\]
+The syntax of processes is given in Figure~\ref{fig:syntax3or}.
+The calculus distinguishes two kinds of processes: oracle definitions
+$\iprocess$ define new oracles; oracle bodies $\oprocess$ return a
+result after executing some internal computations.  When a process
+(oracle definition or oracle body) is an identifier, it is substituted
+with its value defined by a \texttt{let} declaration.
+
+The oracle definition $\texttt{run }\mathit{proc}(M_1, \dots, M_n)$ is replaced with $P\{M_1/x_1, \dots, M_n/x_n\}$ when $\mathit{proc}$ is declared by $\texttt{let}\ \mathit{proc}(x_1:T_1, \dots, x_n:T_n)\texttt{ = }P\texttt{.}$ where $P$ is an oracle definition.
+The terms $M_1, \dots, M_n$ must contain only variables, replication indices, and function applications.
+
+The oracle definition $O\texttt{(}p_1, \ldots, p_n\texttt{) := }P$ defines an oracle
+$O$ taking arguments $p_1, \ldots, p_n$, and returning the result of
+the oracle body $P$. The patterns $p_1, \ldots, p_n$ are as in the
+\texttt{let} construct above, except that variables in $p$ that are
+not under a function symbol $f(\ldots)$ must be declared with their
+type. The other oracle definitions are similar to input processes
+in the \texttt{channels} front-end.
+
+When an oracle $O$ is defined under $\texttt{foreach }i_1\texttt{<=}N_1$, 
+\ldots, $\texttt{foreach }i_n\texttt{<=}N_n$, it also implicitly
+defines $O[i_1, \ldots, i_n]$.
+
+Note that the construct 
+$\textbf{newOracle }c;Q$ used in research papers
+is absent from the implementation: this construct is useful in the proof
+of soundness of CryptoVerif, but not essential for encoding games
+that CryptoVerif manipulates.
+
+Let us now describe oracle bodies:
+\begin{itemize}
+
+\item $\texttt{run }\mathit{proc}(M_1, \dots, M_n)$ is replaced with $\texttt{let}$ $x_1 = M_1$ $\texttt{in}$ \dots $\texttt{let}$ $x_n = M_n$ $\texttt{in}$ $P$ when $\mathit{proc}$ is declared by $\texttt{let}\ \mathit{proc}(x_1:T_1, \dots, x_n:T_n)\texttt{ = }P\texttt{.}$ where $P$ is an oracle body.
+
+\item {\yield} terminates the oracle, returning control to the caller.
+
+\item 
+$\texttt{return(}N_1, \ldots, N_l\texttt{);}Q$ terminates the oracle,
+returning the result of the terms $N_1, \ldots, N_l$. Then, it makes
+available the oracles defined in $Q$.
+
+\item The other oracle bodies are similar to output processes
+in the \texttt{channels} front-end.
+
+\end{itemize}
+
+In $\texttt{return(}M_1, \ldots, M_n\texttt{)}$,
+$M_j$ must be of a bitstring type $T_j$ for all $j \leq n$
+and that return instruction is said to be of type $T_1 \times \ldots 
+\times T_n$.
+All return instructions in an oracle body $P$ (excluding return
+instructions that occur in oracle definitions $Q$ in processes of the form 
+$\texttt{return(}M_1, \ldots, M_n\texttt{);}Q$) must be of the same
+type, and that type is said to be the type of the oracle body $P$.
+%
+For each oracle definition $O\texttt{(}p_1, \ldots, p_m\texttt{) :=
+}P$ under $\texttt{foreach }i_1\texttt{<=}N_1$, \ldots,
+$\texttt{foreach }i_n\texttt{<=}N_n$, the oracle $O$ is said to be of
+type $[1, N_1] \times \ldots \times [1, N_n] \rightarrow T'_1 \times
+\ldots \times T'_m \rightarrow T_1 \times \ldots \times T_n$ where
+$p_j$ is of type $T'_j$ for all $j \leq m$ and $P$ is of type $T_1
+\times \ldots \times T_n$. When an oracle has several definitions,
+it must be of the same type for all its definitions. Furthermore,
+definitions of the same oracle $O$ must not occur on both sides
+of a parallel composition $Q \texttt{|} Q'$ (so that several definitions
+of the same oracle cannot be simultaneously available).
+%
+The other constructs are typed as in the \texttt{channels} front-end.
+
+The $\texttt{channel}\ \neseq{ident}\texttt{.}$ declaration is removed,
+since channels do not exist in the \texttt{oracles} front-end.
+
+In probability formulas (Figure~\ref{fig:syntax2}), 
+\texttt{time(out $\dots$)} and \texttt{time(in $n$)} are removed and
+\texttt{time(newChannel)} is replaced with \texttt{time(newOracle)}.
+$\texttt{time(newOracle)}$ is the maximum time to create a new
+private oracle.

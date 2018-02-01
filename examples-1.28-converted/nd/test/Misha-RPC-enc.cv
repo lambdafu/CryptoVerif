@@ -1,0 +1,120 @@
+
+set interactiveMode = false.
+
+(* 
+remove_assign binder kS_45
+crypto enc r_46
+*)
+
+param N.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
+  start, finish.
+
+type payload [fixed].
+fun payload2bs(payload) : bitstring [data].
+
+(* unforgeable MACs *)
+
+type mkeyseed [fixed, large].
+type mkey [bounded].
+(* type macinput. *)
+(* type macres. *)
+
+proba Pmac.
+
+expand UF_CMA_mac(mkeyseed , mkey, bitstring, bitstring, mkgen, mac, check , Pmac).
+
+(* IND-CCA2 encryption *)
+
+type keyseed [fixed, large].
+type key [bounded].
+type seed [fixed, large].
+
+proba Penc.
+proba Pencptxt.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencctxt). 
+(* expand IND_CCA2_INT_PTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencptxt). *)
+
+fun key2bs(key): bitstring [data].
+fun bs2key(bitstring): key.
+forall k: key;
+  bs2key(key2bs(k)) = k.
+
+(* Concatenation and parsing *)
+
+fun concat1(bitstring, bitstring): bitstring [data].
+fun parse1(bitstring): bitstring.
+fun parse2(bitstring): bitstring.
+
+forall x:bitstring, y:bitstring;
+  parse1(concat1(x, y)) = x.
+
+forall x:bitstring, y:bitstring;
+  parse2(concat1(x, y)) = y.
+
+(* Events and queries *)
+
+event client_begin(bitstring).
+event client_accept(bitstring, bitstring).
+event server_reply(bitstring, bitstring).
+
+query y: bitstring, x: bitstring;
+  event(client_accept(x, y)) ==> event(server_reply(x, y)).
+
+query y: bitstring, x: bitstring;
+  event(server_reply(x, y)) ==> event(client_begin(x)).
+
+(*
+query x: bitstring, y:bitstring;
+  event client_accept(x, y).
+*)
+
+(* The process *)
+
+
+
+
+
+process
+  in(start, ());
+new kAB_seed: keyseed;
+let kAB: key = kgen(kAB_seed) in
+out(finish, ());
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new request_: payload;
+  let request: bitstring = payload2bs(request_) in
+  event client_begin(request);
+  new kS_seed: keyseed;
+  let kS: key = kgen(kS_seed) in
+  new r_3: seed;
+  let var1: bitstring = enc(concat1(request, key2bs(kS)), kAB, r_3) in
+  out(c1[i_1], var1);
+  in(c2[i_1], var2: bitstring);
+  let injbot(response: bitstring) = dec(var2, kS) in
+  event client_accept(request, response)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], var12: bitstring);
+  new response_: payload;
+  let response_1: bitstring = payload2bs(response_) in
+  let injbot(msg: bitstring) = dec(var12, kAB) in
+  let request_1: bitstring = parse1(msg) in
+  event server_reply(request_1, response_1);
+  let key2bs(kS_1: key) = parse2(msg) in
+  new r_4: seed;
+  let var13: bitstring = enc(response_1, kS_1, r_4) in
+  out(c4[i_2], var13)
+))
+
+
+
+   
+(* EXPECTED
+RESULT Could not prove event(client_accept(x, y)) ==> event(server_reply(x, y)).
+0.036s (user 0.028s + system 0.008s), max rss 36384K
+END *)

@@ -1,6 +1,143 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version 1.29
+
+- New front-end, for improved compatibility with ProVerif.
+  The main syntax changes are as follows:
+  - "define" becomes "def"
+  - "[compos]" becomes "[data]"
+  - "[decompos]" becomes "[projection]"
+  - "query secret1 x." becomes "query secret x [onesession]."
+  - The syntax of correspondences is now the ProVerif syntax:
+    For instance, "query event e1(...) ==> e2(...)."
+    becomes "query event(e1(...)) ==> event(e2(...))."
+    and "query event inj:e1(...) ==> inj:e2(...)."
+    becomes "query inj-event(e1(...)) ==> inj-event(e2(...))."
+    If there are public variables, they must be explicitly indicated
+    in the correspondences, by adding "pub_vars x1,...,xn" at the
+    end of the query. (In previous versions, CryptoVerif
+    implicitly considered as public variables in correspondences
+    the variables on which secrecy queries were present.)
+  - Equivalences use the syntax of the oracles front-end,
+    even in the channels front-end.
+    (Oracles must always be named; oracles must conclude with
+    return(M) instead of just M; oracles are separated by
+    parallel compositions, not by commas.)
+    The names of equivalences must be between parentheses:
+    "equiv(name) ..." or "equiv(name(f)) ..."
+  - Collisions use the syntax of the oracles front-end,
+    even in the channels front-end:
+    "collision new x1:T1; ... new xn:Tn; forall y1:T1', ..., ym:Tm'; M1 <=(p)=> M2."
+    becomes
+    "collision new x1:T1; ... new xn:Tn; forall y1:T1', ..., ym:Tm'; return(M1) <=(p)=> return(M2)."
+  - Processes are parametric: if a process macro P, defined by
+    "let P = ..." uses variables defined before the usage of P,
+    then these variables must now be passed as argument to P:
+    "let P(x1:T1,...,xn:Tn) = ...", used by "P(M1,...,Mn)" in the
+    channels front-end and by "run P(M1,...,Mn)" in the oracles
+    front-end.
+  - Both front-ends allow the synonym constructs
+    "! i<=N" and "forall i <= N do" for replication,
+    "new x:T" and "x <-R T" for random-number generation, and
+    "let x = M in N" and "x <-M; N" for assignment.
+    The oracle front-end now uses "yield" instead of "end"
+    (like the channels front-end).
+- The library of cryptographic primitives has been revised:
+  - Symmetric-key primitives no longer use a key generation
+  function.
+  - Probabilistic primitives choose random coins internally
+  (using "letfun"), so the user does not have to choose them
+  explicitly.
+  - Added equivalences that allow to transform manually only some
+  occurrences of encryption for IND-CCA2 encryption,
+  of decryption for INT-PTXT encryption,
+  of MAC verification for MACs,
+  of signature verification for signatures.
+  - Added probabilistic MACs, deterministic signatures,
+  and renamed the macros as a consequence.
+  - Added AEAD, possibly with a nonce (e.g. AES-GCM).
+  - Added square_CDH, square_DDH, square_GDH, and
+  square_GDH_prime_order.
+  - Added macros for combinations of primitives,
+  building authenticated encryption from encrypt-then-MAC,
+  from AEAD, or from AEAD_nonce, and AEAD from encrypt-then-MAC
+  or from AEAD_nonce.
+- An automatic converter from CryptoVerif 1.28 to CryptoVerif 1.29
+  is provided. It converts the front-end changes, but not the changes
+  in the cryptographic library. As a consequence, converted
+  examples need to be run using a converted version of the old
+  cryptographic library.
+
+  Usage:
+  ./convert [-lib <lib_filename>] [-in channels|-in oracles] [-olib <lib_output_filename>] -o <output_filename> <filename>
+  This command converts the <filename> into <output_filename>.
+  (This command should be run in the main CryptoVerif directory.)
+  The setting "-in channels" or "-in oracles" chooses the front-end to
+  use. It allows the user to override the default ("channels" when
+  <filename> ends in .cv and "oracles" when <filename> ends in .ocv).
+  If "-lib <lib_filename>" is present, it uses <lib_filename> as
+  CryptoVerif 1.28 library of cryptographic primitives.  Otherwise, it
+  uses the default CryptoVerif 1.28 library of cryptographic
+  primitives.
+  If "-olib <lib_output_filename>" is present, it outputs the
+  converted library of primitives into <lib_output_filename>.
+  The suffix ".cvl" or ".ocvl" is automatically added to all library
+  filenames (depending on the front-end in use), the user should not
+  include it.
+
+  The converted examples can be run by
+  ./cryptoverif -lib converter/default-converted <converted_filename>
+  when they use the default CryptoVerif 1.28 library.
+  (This command should be run in the main CryptoVerif directory.)
+  Otherwise, use the converted library built by ./convert.
+
+Version 1.28
+
+- Allow get, insert, and event in terms. (New, insert, event and event_abort
+  are forbidden in conditions of find and get.)
+- To prove an injective correspondence e1 ==> e2, also use the
+  variables defined after e1, in the same input...output block as e1.
+- Explain why the proof of correspondences fails
+- Allow using replication indices in arguments of events
+- Fixed several bugs (bad display of "insert" and "get"; missing occurrence
+  for user-specified transformations; type of the condition of get was not
+  checked; ...).
+
+Version 1.27
+
+- Simplify the game on-the-fly during expansion.
+- Added option "set useEqualitiesInSimplifyingFacts = true."
+  to improve simplification of facts using known equalities.
+- Modified the parsing of interactive commands so that one can copy-paste
+  commands of the "proof" part of a file.
+- Improved the simplification of "let pat = t in ..." when pat
+  contains nested tuples and/or several equality tests.
+- Fixed bug in the simplification of "let pat = t in ..."
+  when pat is a tuple: some variables of pat could erroneously
+  be defined when the pattern matching failed.
+- Fixed bug that could cause an internal error
+  "LetEqual terms should have a variable in the left-hand side"
+
+Version 1.26
+
+- Use compatibility between defined variables and
+between defined variables and executed program points
+to improve the precision of the proof of secrecy.
+- Fixed "Internal error: Invalid_argument("List.iter2")"
+when the number of arguments of insert does not match the arity
+of the table.
+- Fixed error message with events.
+
+Version 1.25
+
+- Use elsefind facts to prove that indices are distinct in
+the proof of secrecy.
+- Fixed "Internal error: Invalid_argument("List.map2")"
+in merging of branches.
+- Fixed stack overflow in the computation of probabilities
+in the cryptographic transformation.
+
 Version 1.24
 
 - Queries:

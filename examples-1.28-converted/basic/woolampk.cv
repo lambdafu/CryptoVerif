@@ -1,0 +1,127 @@
+(*
+
+Woo and Lam public-key auth protocol (1992, computer)
+
+A -> B: A
+B -> A: N
+A -> B: { N }_skA
+B -> S: A
+S -> B: A, { A, pkA }_skS
+
+Attack
+Full agreement is true, but there is an attack !
+(Indeed, the messages never mention B.)
+
+*)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type host [bounded].
+type skey [bounded].
+type pkey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+
+fun pad(nonce):blocksize [data].
+fun concat2(host, pkey):blocksize [data].
+
+forall z:nonce, x2:host, y2:pkey;
+	pad(z) <> concat2(x2,y2).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+
+const A:host.
+const B:host.
+
+event beginA(host).
+event beginAfull(host,host,nonce).
+event endB(host, host, nonce).
+
+query z: nonce, y: host, x: host;
+  event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
+query z: nonce, y: host, x: host;
+  event(endB(x, y, z)) ==> event(beginA(y)).
+query z: nonce, y: host, x: host;
+  inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)).
+query z: nonce, y: host, x: host;
+  inj-event(endB(x, y, z)) ==> inj-event(beginA(y)).
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rkA: keyseed;
+let pkA: pkey = spkgen(rkA) in
+let skA: skey = sskgen(rkA) in
+new rkB: keyseed;
+let pkB: pkey = spkgen(rkB) in
+let skB: skey = sskgen(rkB) in
+new rkS: keyseed;
+let pkS: pkey = spkgen(rkS) in
+let skS: skey = sskgen(rkS) in
+out(c13, (pkA, pkB, pkS));
+((
+  ! i_1 <= N
+  in(c1[i_1], hostB0: host);
+  event beginA(hostB0);
+  out(c2[i_1], A);
+  in(c3[i_1], n_1: nonce);
+  event beginAfull(A, hostB0, n_1);
+  new r1_1: seed;
+  out(c4[i_1], sign(pad(n_1), skA, r1_1))
+) | (
+  ! i_2 <= N
+  in(c5[i_2], hostA0: host);
+  new n_2: nonce;
+  out(c6[i_2], n_2);
+  in(c7[i_2], m_1: signature);
+  out(c8[i_2], hostA0);
+  in(c9[i_2], (=hostA0, pkA2: pkey, m4: signature));
+  if check(concat2(hostA0, pkA2), pkS, m4) then
+  if check(pad(n_2), pkA2, m_1) then
+  if hostA0 = A then
+  event endB(hostA0, B, n_2)
+) | (
+  ! i_3 <= N
+  in(c10[i_3], hostA: host);
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostA) then
+  let pka: pkey = Rkey[j2] in
+  new r2_1: seed;
+  out(c11[i_3], (hostA, pka, sign(concat2(hostA, pka), skS, r2_1)))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(endB(x, y, z)) ==> inj-event(beginA(y)); inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)); event(endB(x, y, z)) ==> event(beginA(y)); event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
+0.108s (user 0.100s + system 0.008s), max rss 42896K
+END *)

@@ -2,15 +2,13 @@ open Types
 
 (* Create fresh replication indices *)
 
-let repl_index_counter = ref 0
 (* mapping from terms to fresh repl indexes *)
 let repl_index_list = ref []
 
 let new_repl_index_term t =
   let rec find_repl_index = function
       [] ->
-	incr repl_index_counter;
-	let b' = Terms.create_repl_index "!2" (!repl_index_counter) t.t_type in
+	let b' = Terms.create_repl_index "i2" t.t_type in
 	repl_index_list := (t,b') :: (!repl_index_list);
 	b'
     | ((a,b')::l) ->
@@ -23,10 +21,11 @@ let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
 
 (* An element (t1, t2, b, lopt, T) in term_collisions means that
 the equality t1 = t2 was considered impossible; it has
-negligible probability because t1 depends on b[lopt] by decompos followed
-by compos functions, the types T are the types obtained after applying
-the decompos functions (they are large types), and t2 does not depend 
-on b *)
+negligible probability because t1 depends on b[lopt] by 
+[decompos]/[projection] functions followed
+by [compos]/[data] functions, the types T are the types obtained after applying
+the [decompos]/[projection] functions (they are large types), 
+and t2 does not depend on b *)
 
 let term_collisions = ref []
 
@@ -38,7 +37,7 @@ let reset coll_elim g =
 
 let any_term_name = "?"
 let any_term_binder t = 
-  let b' = Terms.create_binder any_term_name 0 t [] in
+  let b' = Terms.create_binder0 any_term_name t [] in
   let rec node = { above_node = node;
 		   binders = [b'];
 		   true_facts_at_def = [];
@@ -477,7 +476,7 @@ module FindCompos : sig
 type status = Compos | Decompos | Any
 (* The status is
    - [Compos] when a term [t] is obtained from a variable [b0] by first applying
-     poly-injective functions (functions marked [compos]), then
+     poly-injective functions (functions marked [data]), then
      functions that extract a part of their argument 
      (functions marked [uniform]).
    - [Decompos] when [t] is obtained from [b0] by applying functions
@@ -779,7 +778,7 @@ let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
 	 apply_statement2, apply_all_red2, apply_statements
 	 and replace this case with None
 	 *)
-      let vcounter = !Terms.vcounter in
+      let vcounter = Terms.get_var_num_state() in
       let b' = Terms.new_binder b in
       let init_subst = 
 	if main_var == b then 
@@ -804,7 +803,7 @@ let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
 	  None -> None
 	| Some(st,ch_ty) -> Some(st, ch_ty, t)
       in
-      Terms.vcounter := vcounter; (* Forget created variables *)
+      Terms.set_var_num_state vcounter; (* Forget created variables *)
       r
 
 and find_compos_l check var_depinfo b_st = function
@@ -1736,6 +1735,188 @@ let same_oracle_call call1 call2 =
     None -> match_oracle_call call2 call1
   | r -> r
 
+	(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+   returns a term independent of [b0[l0]] in which some array indices in [t] 
+   may have been replaced with fresh replication indices. 
+   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
+   [(dep,nodep)] is the dependency information:
+     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
+              or [None] when any variable may depend on [b0];
+     [nodep] is a list of terms that are known not to depend on [b0].
+   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
+   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
+   array indices that depend on [b0] are replaced with fresh replication indices
+   (as in the transformation from [t] to the result of [is_indep]). *)
+
+let rec is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
+  Terms.build_term2 t
+     (match t.t_desc with
+	FunApp(f,l) -> FunApp(f, List.map (is_indep bdepinfo) l)
+      | ReplIndex(b) -> t.t_desc
+      |	Var(b,l) ->
+	  if (List.exists (Terms.equal_terms t) nodep) then
+	    t.t_desc 
+	  else if (b != b0 && Terms.is_restr b) || (match dep with
+	      None -> false
+	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+	  then
+	    Var(b, List.map (fun t' ->
+	      try
+		is_indep bdepinfo t'
+	      with Not_found ->
+		Terms.term_from_repl_index (new_repl_index_term t')) l)
+	  else if b == b0 then
+	    if List.for_all2 Terms.equal_terms l0 l then
+	      raise Not_found 
+	    else 
+	      begin
+		let l' = 
+		  List.map (fun t' ->
+		  try
+		    is_indep bdepinfo t'
+		  with Not_found ->
+		    Terms.term_from_repl_index (new_repl_index_term t')) l
+		in
+		if not (List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs)) then
+		  begin
+		    collect_bargs := l :: (!collect_bargs);
+		    collect_bargs_sc := l' :: (!collect_bargs_sc)
+		  end;
+		Var(b, l')
+	      end
+	  else
+	    raise Not_found
+      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
+    
+let rec dependency_collision_rec3 cur_array true_facts t1 t2 t =
+  let t_simp_ind = FindCompos.remove_array_index t in
+  match t_simp_ind.t_desc, t.t_desc with
+    Var(b,l_simp_ind), Var(b',l) when (Terms.is_restr b) && (Proba.is_large_term t) ->
+      assert (b == b');
+      begin
+	let t1_simp_ind = FindCompos.remove_array_index t1 in
+	let check (b, (st, _)) tl =
+	  if List.for_all2 Terms.equal_terms tl l_simp_ind then
+	    Some (st, FindCompos.CharacType b.btype) 
+	  else 
+	    None
+	in
+	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
+	  Some(_, FindCompos.CharacType charac_type, t1') -> 
+	    begin
+	      try 
+		let collect_bargs = ref [] in
+		let collect_bargs_sc = ref [] in
+		let t2' = is_indep (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
+		let side_condition = 
+		  Terms.make_and_list (List.map (fun l' ->
+		    Terms.make_or_list (List.map2 Terms.make_diff l l')
+		      ) (!collect_bargs_sc))
+		in
+	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+		if add_term_collisions (cur_array, true_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
+		  Some (Terms.make_or_list (List.map (fun l' ->   
+		    let t2'' = Terms.replace l' l t2 in
+		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
+		      ) (!collect_bargs)))
+		else
+		  None
+	      with Not_found -> 
+		None
+	    end
+       | _ -> None
+      end 
+  | _, FunApp(f,l) ->
+      Terms.find_some (dependency_collision_rec3 cur_array true_facts t1 t2) l
+  | _ -> None
+
+(* [try_two_directions f t1 t2] *)
+	
+let try_two_directions f t1 t2 =
+  match f t1 t2 t1 with
+    None -> f t2 t1 t2
+  | x -> x
+
+(* [needed_vars vars] returns true when some variables in [vars]
+   have array accesses or are used in queries. That is, we must keep
+   them even if they are not used in their scope. *)
+	
+let needed_vars vars = List.exists Terms.has_array_ref_q vars
+
+let needed_vars_in_pat pat =
+  needed_vars (Terms.vars_from_pat [] pat)
+
+(* Add lets *)
+
+let rec add_let p = function
+    [] -> p
+  | ((b, b_im)::l) ->
+      Terms.oproc_from_desc (Let(PatVar b, b_im, add_let p l, Terms.oproc_from_desc Yield))
+
+let rec add_let_term p = function
+    [] -> p
+  | ((b, b_im)::l) ->
+      Terms.build_term_type p.t_type (LetE(PatVar b, b_im, add_let_term p l, None))
+
+(* [not_found_repl_index_t ri t] returns either
+   [None] when [t] does not contain any replication index of [ri]
+   or [Some def_list] where [def_list] is a list of the largest variable
+   references in [t] that do not contain indices in [ri] *)
+
+let rec not_found_repl_index_l ri = function
+    [] -> None
+  | (a::l) ->
+      let r1 = not_found_repl_index_l ri l in
+      let r2 = not_found_repl_index_t ri a in
+      match r1, r2 with
+	None, None -> None
+      |	Some (def_list1), Some(def_list2) -> Some (def_list1 @ def_list2)
+      |	None, Some(def_list2) -> 
+	  let accu = ref def_list2 in
+	  List.iter (Terms.get_deflist_subterms accu) l;
+	  Some(!accu)
+      |	Some(def_list1), None ->
+	  let accu = ref def_list1 in
+	  Terms.get_deflist_subterms accu a;
+	  Some(!accu)
+
+and not_found_repl_index_t ri t =
+  match t.t_desc with
+    Var(_,l) | FunApp(_,l) -> not_found_repl_index_l ri l
+  | ReplIndex i -> 
+      if List.memq i ri then Some [] else None
+  | _ -> Parsing_helper.internal_error "This term should not occur in def_list, in Transf_simplify.not_found_repl_index_t"
+      
+(* [not_found_repl_index_br accu ri def_list] adds to [accu]
+   the largest sub-array-references in [def_list] that do not contain 
+   replication indices in [ri]. *)
+
+let not_found_repl_index_br accu ri (b,l) =
+  match not_found_repl_index_l ri l with
+    Some(def_list) -> List.iter (fun br -> Terms.add_binderref br accu) def_list
+  | None -> Terms.add_binderref (b,l) accu 
+
+(* [filter_deflist_indices bl def_list] removes from [def_list] all
+   elements that refer to replication indices in [bl].
+   Used when we know that the indices in [bl] are in fact not used. *)
+
+let filter_deflist_indices bl def_list =
+  let ri = List.map snd bl in
+  let accu = ref [] in
+  List.iter (not_found_repl_index_br accu ri) def_list;
+  !accu
+  
+(* [is_unique l0' find_info] returns Unique when a [find] is unique,
+   that is, at runtime, there is always a single possible branch 
+   and a single possible value of the indices:
+   either it is marked [Unique] in the [find_info],
+   or it has a single branch with no index.
+   [l0'] contains the branches of the considered [find]. *)
+
+let is_unique l0' find_info =
+  match l0' with
+    [([],_,_,_)] -> Unique
+  | _ -> find_info
 
 (* Infer more facts *)
 
@@ -1855,10 +2036,8 @@ let rec infer_facts_fc cur_array true_facts t =
 		in
 		infer_facts_fc cur_array true_facts' t3
 	  end
-      |	ResE _ ->
-	  Parsing_helper.internal_error "new should have been expanded in infer_facts_fc"
-      |	EventAbortE _ -> 
-	  Parsing_helper.internal_error "event_abort should have been expanded in infer_facts_fc"
+      |	ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+	  Parsing_helper.internal_error "new, get, insert, event, event_abort should have been expanded in infer_facts_fc"
 
 let improved_def_process event_accu compatible_needed p =
   

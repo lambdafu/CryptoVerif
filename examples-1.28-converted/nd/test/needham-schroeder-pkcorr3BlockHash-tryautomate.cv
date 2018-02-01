@@ -1,0 +1,259 @@
+(* Needham Schroeder public key protocol. *)
+
+set backtrackOnCrypto = true.
+(* set interactiveMode = true. *)
+
+(* The proof should be
+
+crypto sign rkS
+crypto enc rkA
+crypto enc rkB
+auto
+
+
+crypto sign rkS
+crypto enc rkA
+crypto enc rkB
+crypto hash
+success		[FIXED - but does not work with "auto" instead of "success"!!!
+		 "auto" should check for immediate success -- now done]
+
+
+SArename Rkey
+crypto sign rkS
+crypto enc rkA
+crypto enc rkB
+crypto hash
+SArename Na_28
+simplify
+success
+auto
+quit
+
+SArename Na_28 could be advised by the dependency analysis,
+when a variable has several definitions, and some of its usages are not ok
+for the dependency analysis. Would that create too many SArename pieces of
+advice?
+
+
+A fully automatic proof does not work, probably because it does "crypto hash" too early. Now it works with backtracking!
+
+*)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [fixed].
+type shkey [fixed].
+
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce, host):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun pad(nonce):blocksize [data].
+
+forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
+	concat2(z,t,u) <> concat1(y2,z2).
+forall y:nonce,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,u:host,y2:nonce;
+	concat2(z,t,u) <> pad(y2).
+
+(* Public-key encryption (CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+fun enc(blocksize, pkey, seed): bitstring.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(bitstring, skey): blocksizebot.
+
+fun enc2(blocksize, pkey, seed): bitstring.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(bitstring, skey): blocksizebot.
+
+fun injbot(blocksize):blocksizebot [data].
+
+const Z:blocksize.
+
+forall m:blocksize, r:keyseed, r2:seed; 
+	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
+forall m:blocksize, r:keyseed, r2:seed; 
+	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+
+equiv
+  ! N3 new r: keyseed; (
+    gen_Oracle() [2] := return(pkgen(r)) |
+    ! N2 gen_Oracle_1(m: bitstring) := return(dec(m, skgen(r))) |
+    ! N new r1: seed; gen_Oracle_2(x1: blocksize) := return(enc(x1, pkgen(r),r1)))|
+  ! N4 new r2: seed; gen_Oracle_3(x: blocksize, y: pkey) [3] := return(enc(x,y,r2)) [all]
+<=(N3 * N4 * Penc(time, N2))=>
+  ! N3 new r: keyseed; (
+    gen_Oracle() := return(pkgen2(r)) |
+    ! N2 gen_Oracle_1(m: bitstring) := find j <= N suchthat defined(m1[j], x1[j]) && (m = m1[j]) then return(injbot(x1[j])) else find j <= N4 suchthat defined(m2[j], y[j], x[j]) && y[j] = pkgen2(r) && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r))) |
+    ! N new r1: seed; gen_Oracle_2(x1: blocksize) := let m1:bitstring = enc2(Z, pkgen2(r), r1) in return(m1))|
+  ! N4 gen_Oracle_3(x: blocksize, y: pkey) := find k <= N3 suchthat defined(r[k]) && (y = pkgen2(r[k])) then (new r2: seed; let m2:bitstring = enc2(Z, y, r2) in return(m2)) else new r3: seed; return(enc(x,y,r3)).
+
+collision new r1: keyseed; new r2: keyseed; return(pkgen(r1) = pkgen(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(pkgen2(r1) = pkgen2(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(skgen(r1) = skgen(r2)) <=(Penccoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(skgen2(r1) = skgen2(r2)) <=(Penccoll)=> return(r1 = r2).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+fun sign(sblocksize, sskey, sseed): signature.
+fun sskgen(skeyseed):sskey.
+fun spkgen(skeyseed):spkey.
+fun check(sblocksize, spkey, signature): bool.
+
+fun sign2(sblocksize, sskey, sseed): signature.
+fun sskgen2(skeyseed):sskey.
+fun spkgen2(skeyseed):spkey.
+fun check2(sblocksize, spkey, signature): bool.
+
+forall m:sblocksize, r:skeyseed, r2:sseed; 
+	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:sblocksize, r:skeyseed, r2:sseed; 
+	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+equiv
+  ! N3 new r: skeyseed; (
+    gen_Oracle_1() [2] := return(spkgen(r)) |
+    ! N2 new r2: sseed; gen_Oracle_2(x: sblocksize) := return(sign(x, sskgen(r), r2)) |
+    ! N gen_Oracle_3(m1: sblocksize, si1: signature) := return(check(m1, spkgen(r), si1)))|
+  ! N4 gen_Oracle_4(m: sblocksize, y: spkey, si: signature) [3] := return(check(m, y, si)) [all]
+<=(N3 * Psign(time, N2))=>
+  ! N3 new r: skeyseed; (
+    gen_Oracle_1() := return(spkgen2(r)) |
+    ! N2 new r2: sseed; gen_Oracle_2(x: sblocksize) := return(sign2(x, sskgen2(r), r2)) |
+    ! N gen_Oracle_3(m1: sblocksize, si1: signature) := find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, spkgen(r), si1) then return(true) else return(false))|
+  ! N4 gen_Oracle_4(m: sblocksize, y: spkey, si: signature) := find j <= N2, k <= N3 suchthat defined(x[j, k], r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then return(true) else find k <= N3 suchthat defined(r[k]) && (y = spkgen2(r[k])) then return(false) else return(check(m,y,si)).
+
+collision new r1: skeyseed; new r2: skeyseed; return(spkgen(r1) = spkgen(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: skeyseed; new r2: skeyseed; return(spkgen2(r1) = spkgen2(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: skeyseed; new r2: skeyseed; return(sskgen(r1) = sskgen(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: skeyseed; new r2: skeyseed; return(sskgen2(r1) = sskgen2(r2)) <=(Psigncoll)=> return(r1 = r2).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):shkey.
+
+equiv
+  ! N gen_Oracle_1(x: bitstring) := return(hash(x)) [all]
+<=(0)=>
+  ! N gen_Oracle_1(x: bitstring) := find j <= N suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: shkey; return(r).
+
+(* Queries *)
+
+query secret keyA [onesession].
+query secret keyB [onesession].
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, c18, c19, start, finish.
+const A : host.
+const B : host.
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rkA: keyseed;
+let pkA: pkey = pkgen(rkA) in
+let skA: skey = skgen(rkA) in
+new rkB: keyseed;
+let pkB: pkey = pkgen(rkB) in
+let skB: skey = skgen(rkB) in
+new rkS: skeyseed;
+let pkS: spkey = spkgen(rkS) in
+let skS: sskey = sskgen(rkS) in
+out(c15, (pkA, pkB, pkS));
+((
+  ! i_1 <= N
+  in(c1[i_1], hostX: host);
+  out(c2[i_1], (A, hostX));
+  in(c3[i_1], (pkX: pkey, =hostX, ms_1: signature));
+  if check(concat3(pkX, hostX), pkS, ms_1) then
+  new Na_1: nonce;
+  new r3_1: seed;
+  out(c4[i_1], enc(concat1(Na_1, A), pkX, r3_1));
+  in(c5[i_1], m_1: bitstring);
+  let injbot(concat2(=Na_1, Nb: nonce, =hostX)) = dec(m_1, skA) in
+  new r4: seed;
+  out(c6[i_1], enc(pad(Nb), pkX, r4));
+  in(finish[i_1], ());
+  let k_1: shkey = hash((Na_1, Nb)) in
+  if hostX = B then
+  (
+    let keyA: shkey = k_1
+  )
+  else
+    out(c16[i_1], k_1)
+) | (
+  ! i_2 <= N
+  in(c7[i_2], m_2: bitstring);
+  let injbot(concat1(Na_2: nonce, hostY: host)) = dec(m_2, skB) in
+  out(c8[i_2], (B, hostY));
+  in(c9[i_2], (pkY: pkey, =hostY, ms_2: signature));
+  if check(concat3(pkY, hostY), pkS, ms_2) then
+  new Nb_1: nonce;
+  new r5: seed;
+  out(c10[i_2], enc(concat2(Na_2, Nb_1, B), pkY, r5));
+  in(c11[i_2], m3: bitstring);
+  let injbot(pad(=Nb_1)) = dec(m3, skB) in
+  let k_2: shkey = hash((Na_2, Nb_1)) in
+  if hostY = A then
+  (
+    let keyB: shkey = k_2
+  )
+  else
+    out(c17[i_2], k_2)
+) | (
+  ! i_3 <= N
+  in(c13[i_3], (h1: host, h2: host));
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = h2) then
+  new r3_2: sseed;
+  out(c14[i_3], (Rkey[j2], h2, sign(concat3(Rkey[j2], h2), skS, r3_2)))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+) | (
+  ! i_5 <= N3
+  in(c18[i_5], x: bitstring);
+  out(c19[i_5], hash(x))
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+23.112s (user 22.892s + system 0.220s), max rss 274672K
+END *)

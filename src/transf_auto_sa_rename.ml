@@ -60,8 +60,8 @@ let rec auto_sa_rename_fc t =
           let t2' = auto_sa_rename_fc t2 in
           List.iter (fun b -> b.link <- NoLink) (Terms.vars_from_pat [] pat);
 	  LetE(pat', t1', t2', topt')
-      |	ResE _ | EventAbortE _ -> 
-	  Parsing_helper.internal_error "New and event should not occur in find condition")
+      |	ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+	  Parsing_helper.internal_error "New, get, insert, event, and event_abort should not occur in find condition")
 
 and auto_sa_rename_fc_binder (b,l) =
   let b' =
@@ -109,7 +109,12 @@ let rec auto_sa_rename_term t =
       |	ResE(b,t) ->
 	  ResE(b, auto_sa_rename_term t)
       |	EventAbortE(f) -> 
-	  EventAbortE(f))
+	  EventAbortE(f)
+      | EventE(t,p) ->
+	  EventE(auto_sa_rename_term t,
+		 auto_sa_rename_term p)
+      | GetE _ |InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear in auto_sa_rename_term"
+	    )
 
 and auto_sa_rename_pat = function
     PatVar b -> PatVar b
@@ -159,19 +164,22 @@ and auto_sa_rename_oprocess p =
   | EventP(t,p) ->
       EventP(auto_sa_rename_term t,
 	     auto_sa_rename_oprocess p)
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+  | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear in auto_sa_rename_oprocess"
   )
 
-let rec do_sa_rename = function
-    [] -> []
+let rec do_sa_rename accu = function
+    [] -> accu
   | ((b,b')::l) ->
-      let lb = List.map snd (List.filter (fun (b1,b1') -> b1 == b) l) in
-      let lr = do_sa_rename (List.filter (fun (b1,b1') -> b1 != b) l) in
-      if b.count_def > List.length lb + 1 then
-	(* b has not been renamed for all its definitions, so keep it *)
-	(DSArenaming(b, b::b'::lb))::lr
-      else
-	(DSArenaming(b, b'::lb))::lr
+      let (list_b, list_not_b) = List.partition (fun (b1,b1') -> b1 == b) l in
+      let lb = List.map snd list_b in
+      let b_rename = 
+	if b.count_def > List.length lb + 1 then
+	  (* b has not been renamed for all its definitions, so keep it *)
+	  DSArenaming(b, b::b'::lb)
+	else
+	  DSArenaming(b, b'::lb)
+      in
+      do_sa_rename (b_rename::accu) list_not_b
 
 let auto_sa_rename g =
   Terms.array_ref_process g.proc;
@@ -179,5 +187,5 @@ let auto_sa_rename g =
   Terms.cleanup_array_ref();
   let sa_rename = !done_sa_rename in
   done_sa_rename := [];
-  ({ proc = p'; game_number = -1; current_queries = g.current_queries }, [], do_sa_rename sa_rename)
+  ({ proc = p'; game_number = -1; current_queries = g.current_queries }, [], do_sa_rename [] sa_rename)
 

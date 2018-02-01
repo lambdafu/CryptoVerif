@@ -1,0 +1,152 @@
+set interactiveMode = true.
+set useKnownEqualitiesInCryptoTransform = true.
+set ignoreSmallTimes = 3.
+set backtrackOnCrypto = true.
+
+proof {
+	allowed_collisions "noninteractive/large";
+	auto;
+	success
+}
+
+
+(************** SR3 FG modelization **************)
+
+(************** Parameters **************) 
+(* Our number of queries to the packet-generation oracle *) 
+param qGen.
+param qVerif.
+param qHash [noninteractive].
+ 
+
+(************** Basic types **************)
+type nonce [large, bounded]. (* our protocol's nonces *)
+type data [large, bounded]. 
+type blockPlaintext [large, bounded]. (* nonce + data *)
+
+fun concat(data, nonce):blockPlaintext [compos]. 
+			
+type nonceCipher [large, fixed]. (* the cipher's nonces *)
+type blockCiphertext [large, fixed].
+
+(************** Block cipher **************)
+type keyseed [large,fixed].
+type key [large,fixed]. (* for the cipher *)
+
+define IND_CCA2_INT_PTXT_sym_enc_fixed(keyseed, key, cleartext, ciphertext, seed, kgen, enc, dec, injbot, Z, Penc, Pencptxt) { 
+
+param N, N2, N3.
+
+fun enc(cleartext, key, seed): ciphertext.
+fun kgen(keyseed):key.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc2(cleartext, key, seed): ciphertext.
+fun kgen2(keyseed):key.
+fun dec2(ciphertext, key): bitstringbot.
+
+fun injbot(cleartext):bitstringbot [compos].
+forall x:cleartext; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+
+	(* IND-CCA2 *)
+
+equiv ind_cca2(enc)
+       ! N2 new r: keyseed; (! N new r2: seed; Oenc(x:cleartext) := enc(x, kgen(r), r2),
+                             ! N3 Odec(y:ciphertext) := dec(y,kgen(r)))
+     <=(N2 * Penc(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> 
+       ! N2 new r: keyseed; (! N new r2: seed; Oenc(x:cleartext) := let z:ciphertext = enc2(Z(x), kgen2(r), r2) in z,
+			     ! N3 Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r2[j],z[j]) && y = z[j] then injbot(x[j]) else dec2(y, kgen2(r))).
+
+	(* INT-PTXT *)
+
+equiv int_ptxt(enc)
+      ! N2 new r: keyseed; (! N new r2: seed; Oenc(x:cleartext) := enc(x, kgen(r), r2),
+			    ! N3 Odec(y:ciphertext) [useful_change] := dec(y,kgen(r))) 
+     <=(N2 * Pencptxt(time + (N2-1)*(time(kgen) + N*time(enc, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational]
+      ! N2 new r: keyseed [unchanged]; 
+      	       	  	   (! N new r2: seed [unchanged]; Oenc(x:cleartext) := enc(x, kgen(r), r2),
+			    ! N3 Odec(y:ciphertext) := 
+				let z = dec2(y, kgen(r)) in
+                                find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then injbot(x[j]) else bottom).
+
+}
+
+proba Penc. 
+proba Pencptxt.
+expand IND_CCA2_INT_PTXT_sym_enc_fixed(keyseed, key, blockPlaintext, blockCiphertext, nonceCipher, kgen, enc, dec, injbot, Z, Penc, Pencptxt).
+
+const blockZeroes:blockPlaintext.
+forall b:blockPlaintext; Z(b) = blockZeroes.
+
+
+(************** Hash function **************)
+type hashkey [large,fixed].
+(* input type : nonces *)
+type hashout [large, fixed].
+
+(* fun hash(hashkey, nonce):hashout . *)
+expand ROM_hash(hashkey, nonce, hashout, hash).
+
+(************** Key generation ********)
+(* not considered here *)
+
+
+(************** Queries **************)
+(* the standard FG stuff *)
+fun test(bool, data, data): data.
+query secret b.
+
+
+(*************** Packet generation oracle ******)
+channel OGenIn, OGenOut.
+let OGen = 
+	!qGen 
+	in (OGenIn, (D:data));
+	new n_proto : nonce; 
+	new n_oracle_cpa : nonceCipher; 
+	let p_oracle_cpa = (enc(concat(D, n_proto), k, n_oracle_cpa), hash(hk, n_challenge)) in
+	out (OGenOut, (p_oracle_cpa, n_proto)).
+	
+(*************** Packet verification oracle ******)
+channel OVerifIn, OVerifOut. 
+let OVerif = 
+	!qVerif 
+	in (OVerifIn, (cVerif:blockCiphertext));
+	let pVerif = dec( cVerif, k ) in
+	let verifSuccess = ( pVerif <> bottom ) in
+	out(OVerifOut, (verifSuccess)).
+
+(************** Hash oracle ****************)
+channel OHashIn, OHashOut.
+let OHash = 
+	!qHash
+	in(OHashIn, hash_query:nonce); 
+	out(OHashOut, hash(hk,hash_query)).
+	
+
+
+(*************** The game itself ****************)
+channel keyinitin, keyinitout, gamein, gameout.
+process (
+	in(keyinitin, ());
+	new ks : keyseed;
+	new hk : hashkey;
+	new n_enc : nonceCipher;
+	new n_challenge : nonce;
+	new b : bool;
+	let k = kgen(ks) in	
+	out(keyinitout,()); 
+	(
+		in(gamein,(D0:data,D1:data));
+		let p_challenge = ( enc(concat(test(b, D0, D1), n_challenge), k, n_enc), hash(hk, n_challenge) ) in
+		out(gameout, (p_challenge, n_challenge))
+	) | OGen | OHash | OVerif
+)
+

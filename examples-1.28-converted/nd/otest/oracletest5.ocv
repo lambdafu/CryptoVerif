@@ -1,0 +1,119 @@
+(* FDH signature scheme *)
+
+param nK, nF, n1, nH, qH, qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):D.
+fun f'(pkey, D):D.
+fun invf(skey, D):D.
+
+(* invf is the inverse of f *)
+
+forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+
+(* Injectivity *)
+
+forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+
+(* We can permute the distribution, for uniformly distributed random
+   numbers x. Do that only when x is used in invf(skgen(r),x) *)
+
+equiv
+  foreach iK <= nK do r <-R seed; (
+    Opk() := return(pkgen(r)) |
+    foreach iF <= nF do x <-R D; (
+      Oant() := return(invf(skgen(r),x)) |
+      Oim() := return(x)))
+<=(0)=>
+  foreach iK <= nK do r <-R seed; (
+    Opk() := return(pkgen(r)) |
+    foreach iF <= nF do x <-R D; (
+      Oant() := return(x) |
+      Oim() := return(f(pkgen(r), x)))).
+
+(* One-wayness *)
+
+equiv
+  foreach iK <= nK do r <-R seed; (
+    Opk() := return(pkgen(r)) |
+    foreach iF <= nF do x <-R D; (
+      Oy() := return(f(pkgen(r), x)) |
+      foreach i1 <= n1 do Oeq(x': D) := return(x' = x) |
+      Ox() := return(x)))
+<=(nK * nF * POW(time + (nK-1) * time(pkgen) + (nF*nK-1) * time(f)))=>
+  foreach iK <= nK do r <-R seed; (
+    Opk() := return(pkgen'(r)) |
+    foreach iF <= nF do x <-R D; (
+      Oy() := return(f'(pkgen'(r), x)) |
+      foreach i1 <= n1 do Oeq(x': D) := if defined(k) then return(x' = x) else return(false) |
+      Ox() := k: bitstring <- mark; return(x))).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):D.
+
+equiv
+  foreach iH <= nH do OH(x: bitstring) := return(hash(x)) [all]
+<=(0)=>
+  foreach iH <= nH do OH(x: bitstring) := find u <= nH suchthat defined(x[u], r[u]) && (x= x[u]) then return(r[u]) else r <-R D; return(r).
+
+(* Queries *)
+
+event bad.
+query event(bad) ==> false.
+
+
+
+
+
+
+
+process 
+	((
+  foreach iH_1 <= qH do
+  OH(x: bitstring) :=
+  return(hash(x))
+) | (
+  Ogen() :=
+  r <-R seed;
+  pk: pkey <- pkgen(r);
+  sk: skey <- skgen(r);
+  return(pk);
+  ((
+    foreach iS <= qS do
+    OS(m: bitstring) :=
+    return(invf(sk, hash(m)))
+  ) | (
+    OT(m': bitstring, s: D) :=
+    if f(pk, s) = hash(m') then
+    find u_1 = u_2 <= qS suchthat defined(m[u_2]) && (m' = m[u_2]) then
+      return();
+      OT1(m''_2: bitstring) :=
+      return(m''_2)
+    else
+      event bad;
+      return();
+      OT1(m''_1: bitstring) :=
+      yield
+  ))
+))
+
+
+
+
+(* EXPECTED
+RESULT Could not prove event(bad) ==> false.
+0.028s (user 0.024s + system 0.004s), max rss 40560K
+END *)

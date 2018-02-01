@@ -1,0 +1,109 @@
+(* Version in which the participants only talk to A and B 
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host.
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+
+(* For simplicity, in this first example, I ignore the length of messages
+   and the fact that decryption may fail *)
+(* Shared-key encryption (CCA2) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstring.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+fun dec2(bitstring, key): bitstring.
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = m.
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = m.
+
+const Z: bitstring.
+equiv
+  ! N3 new r: keyseed; (
+    ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc(x, kgen(r), r2)) |
+    ! N2 gen_Oracle_1(m: bitstring) := return(dec(m,kgen(r))))
+<=(N3 * N * Penc)=>
+  ! N3 new r: keyseed; (
+    ! N new r2: seed; gen_Oracle(x: bitstring) := return(enc2(Z, kgen2(r), r2)) |
+    ! N2 gen_Oracle_1(m: bitstring) := find j <= N suchthat defined(r2[j], x[j]) && (m = enc2(Z, kgen2(r), r2[j])) then return(x[j]) else return(dec2(m, kgen2(r)))).
+
+(* Queries *)
+
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, start, dummy, finish.
+const A : host.
+const B : host.
+
+
+
+
+
+
+	
+process 
+	in(start, =());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+out(dummy, ());
+((
+  ! i_1 <= N
+  in(start[i_1], =());
+  new M_1: nonce;
+  new Na_1: nonce;
+  new s1: seed;
+  let ea1: bitstring = enc((Na_1, M_1, A, B), Kas, s1) in
+  out(c1[i_1], (M_1, A, B, ea1));
+  in(c2[i_1], (=M_1, ea2_1: bitstring));
+  let (=Na_1, ka: key) = dec(ea2_1, Kas) in
+  let keyA: key = ka
+) | (
+  ! i_2 <= N
+  in(c3[i_2], (M_2: nonce, =A, =B, ea: bitstring));
+  new Nb_1: nonce;
+  new s2: seed;
+  let e2: bitstring = enc((Nb_1, M_2, A, B), Kbs, s2) in
+  out(c4[i_2], (M_2, A, B, ea, e2));
+  in(c5[i_2], (=M_2, ea2_2: bitstring, eb2: bitstring));
+  let (=Nb_1, kb: key) = dec(eb2, Kbs) in
+  out(c6[i_2], (M_2, ea2_2));
+  in(finish[i_2], =());
+  let keyB: key = kb
+) | (
+  ! i_3 <= N
+  in(c7[i_3], (M_3: nonce, =A, =B, ea1_1: bitstring, eb1: bitstring));
+  let (Na_2: nonce, =M_3, =A, =B) = dec(ea1_1, Kas) in
+  let (Nb_2: nonce, =M_3, =A, =B) = dec(eb1, Kbs) in
+  new k: key;
+  new s3: seed;
+  new s4: seed;
+  let e1: bitstring = enc((Na_2, k), Kas, s3) in
+  let e2_1: bitstring = enc((Nb_2, k), Kbs, s4) in
+  out(c8[i_3], (M_3, e1, e2_1))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.144s (user 0.132s + system 0.012s), max rss 47824K
+END *)

@@ -1,0 +1,102 @@
+(* Undeniable signature scheme of 
+   http://www.di.ens.fr/~pointche/Documents/Papers/2001_pkc.pdf
+   Section 4.2 *)
+
+proof {
+  crypto rom(H);
+  crypto group_to_exp_strict(exp) *;
+  SArename s;
+  show_game occ;
+  replace 59 "exp(y_1, x_7)";
+  replace 44 "exp(y_1, x_6[u_5])";
+  replace 23 "exp(y_1, x_7[u_6])";
+  crypto gdh(exp);
+  success
+}
+
+param NS, NC.
+
+type Z [large,bounded].
+type G [large,bounded].
+
+
+(* Gap Diffie-Hellman problem *)
+
+proba pGDH.
+expand GDH(G, Z, g, exp, mult, pGDH).
+
+(* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
+
+type hashkey [large,fixed].
+
+def ROM_hash_exp(key, hashinput, hash (*, hashoracle, qH*)) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):G.
+
+equiv(rom(hash))
+  ! Nh new k: key; (
+    ! N Ohash(x: hashinput) := return(hash(k,x)) |
+    ! Neq Oeq(x': hashinput, e: Z, r': G) := return(exp(hash(k,x'), e) = r'))
+<=(#Oeq / |G|)=> [computational]
+  ! Nh (
+    ! N Ohash(x: hashinput) := find [unique] j <= N suchthat defined(x[j], r[j]) && (x = x[j]) then return(r[j]) else new r: G; return(r) |
+    ! Neq Oeq(x': hashinput, e: Z, r': G) := find [unique] j <= N suchthat defined(x[j], r[j]) && (x' = x[j]) then return(exp(r[j], e) = r') else return(false)).
+
+}
+
+expand ROM_hash_exp(hashkey, bitstring, H).
+param NH [noninteractive].
+channel H_in, H_out.
+ 
+
+(* Query *)
+
+event forgery.
+
+query event(forgery) ==> false.
+
+
+channel start, c0, c1, c2, c3, c4.
+
+
+
+
+		(* The zero-knowledge proof is omitted *)
+
+process
+	in(start, ());
+new hk: hashkey;
+new x_2: Z;
+let y_1: G = exp(g, x_2) in
+out(c0, y_1);
+((
+  ! i_1 <= NS
+  in(c1[i_1], m_1: bitstring);
+  let h: G = H(hk, m_1) in
+  let s: G = exp(h, x_2) in
+  out(c2[i_1], s)
+) | (
+  ! i_2 <= NC
+  in(c3[i_2], (m'_1: bitstring, s': G));
+  if exp(H(hk, m'_1), x_2) = s' then
+    find j_5 = j_6 <= NS suchthat defined(m_1[j_6], s[j_6]) && (m'_1 = m_1[j_6]) && (s' = s[j_6]) then
+      out(c4[i_2], true)
+    else
+      event forgery;
+      out(c4[i_2], true)
+  else
+    out(c4[i_2], false)
+) | (
+  ! i_3 <= NH
+  in(H_in[i_3], xh: bitstring);
+  out(H_out[i_3], H(hk, xh))
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.056s + system 0.024s), max rss 42384K
+END *)

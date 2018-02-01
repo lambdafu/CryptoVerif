@@ -1,0 +1,1032 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03
+
+Contributions to mention in the paper:
+- allow array indices as arguments of functions in equivalences,
+  to formalize CDH
+- allow nested find in find conditions
+- formalization of the ideal cipher model.
+- manually guided elimination of collisions for passwords
+- abort events, and their manual insertion; computation of probabilities
+that avoids counting several times the difference between the
+same games, even with events
+- manual insertion of case distinctions and other instructions
+- manual replacement of a term with an equal term (may not be used
+for EKE)
+- possibility to designate the number of different calls to an oracle
+in probability formulas, for expressing more precise bounds.
+- optimization of counting for computation of probabilities, both
+for crypto transformations and for elimination of collisions.
+- [unique] option of find
+
+Still missing:
+- move and remove "new" used only in "find"
+
+29/3/2010: results proved with probability:
+(NU + NS)/|passwd| +
+2 (qH0 + qH1) pCDH((NS + 2 NP + qD + 2 NU + 2 qH0 + 2 qH1) * time(exp) + time) +
+collision terms: 0.5 * qE * qE / |G| + 0.5 * qH1 * qH1 / |hash1| + qD * qD / |G| + 0.5 * NU * NU / |exponent| + 0.5 * qD * qD / |exponent| + 12. * NU * NP / |exponent| + NU * qD / |exponent| + NP * qD / |exponent| + NS * qD / |exponent| + NS * NU / |exponent| + 19. * 1. / |exponent| * NS + qD * NU / |G| + NU * qH1 / |hash1| + 2. * qD * NP / |exponent| + NP * qD / |G| + NS * NU / |hash1| + NS * qD / |G| + qH0 * NU / |G| + 2. * NP * NU / |G| + 3. * NS * NU / |G| + 8.5 * NU * NU / |G| + 2. * qD * NS / |exponent| + 2. * NU * NS / |exponent| + qH0 * NP / |exponent| + 4. * NS * NP / |exponent| + 28. * 1. / |exponent| * NU + 1. / |exponent| * NP + NS * qE / |G| + NS * NP / |G| + 0.5 * NS * NS / |G| + qH1 * NU / |G| + NS * NS / |exponent| + qE * NS / |exponent| + NP * NS / |exponent| + qE * NP / |exponent| + (NP * NP + 2. * qE * NP + 2. * NU * NP + 4. * NS * NP + 2. * qD * NP + qE * qE + 2. * NU * qE + 4. * NS * qE + 2. * qD * qE + NU * NU + 4. * NS * NU + 2. * qD * NU + 4. * NS * NS + 4. * qD * NS + qD * qD + -1. * NP + -1. * qE + -1. * NU + -2. * NS + -1. * qD) / |G|
+
+Desired proba:
+(NU + NS)/|passwd| + 
+(qH0 + qH1) pCDH((2 NS + 2 NP + 2 NU + qD) * time(exp) + time) +
+                 ^^^^^^^^^^^^^^^^^^^^^^^^ not completely sure for this
+collision terms
+
+*)
+
+set interactiveMode = true.
+
+(*
+set maxIterSimplif = 3
+crypto h1
+show_game occ
+insert 472 find j <= NU suchthat defined(X[j]) && X[j] = X_s then
+show_game occ
+insert 472 find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_82[nj]) then
+show_game occ
+insert_event Auth 637
+simplify
+crypto enc
+show_game occ
+insert_event Encrypt 1243
+auto
+
+insert 472 find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_106[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_106[nj]) then
+
+proof {
+set maxIterSimplif = 3;
+crypto h1;
+show_game occ;
+insert 472 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then";
+show_game occ;
+insert 472 "find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_82[nj]) then";
+show_game occ;
+insert_event Auth 637;
+simplify;
+crypto enc;
+show_game occ;
+insert_event Encrypt 1243;
+auto
+}
+*)
+param NU, NS, NP.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+     (* I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large). *)
+
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host [bounded].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+expand ICM_cipher(passwd, G, enc, dec, enc_dec_oracle, qE, qD).
+
+(* Hash functions in the random oracle model *)
+(*
+Problem: if I use hash(concat(...)), after game transformations I get
+equality tests x = concat(y1,y2,y3,y4,y5) that I would like to transform into
+x = concat(x1,x2,x3,x4,x5) && x1 = y1 && ... for some x1...x5 but
+CryptoVerif cannot do that. As a temporary solution, I consider only
+hash functions with 5 arguments.
+
+expand ROM_hash(hashinput, hash0, h0, hashoracle0, qH0).
+expand ROM_hash(hashinput, hash1, h1, hashoracle1, qH1).
+fun concat(host, host, G, G, G):hashinput [compos].
+*)
+
+param N, qH0, qH1, Neq.
+
+fun h0(host, host, G, G, G):hash0.
+
+equiv (x1: host, x2: host, x3: G, x4: G, x5: G) N -> h0(x1, x2, x3, x4, x5) [all],
+      (x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) Neq -> r' = h0(x1', x2', x3', x4', x5') [all]
+      <=(Neq/|hash0|)=>
+      (x1: host, x2: host, x3: G, x4: G, x5: G) N -> 
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && 
+	   		x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r[j] else
+			 new r:hash0; r,
+      (x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) Neq -> 
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && 
+	   		x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then r' = r[j] else false.
+
+channel c10, c20.
+
+let hashoracle0 = ! qH0 in(c10, (x1: host, x2: host, x3: G, x4: G, x5: G)); out(c20, h0(x1,x2,x3,x4,x5)). 
+
+fun h1(host, host, G, G, G):hash1.
+
+equiv (x1: host, x2: host, x3: G, x4: G, x5: G) N -> h1(x1, x2, x3, x4, x5) [all],
+      (x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) Neq -> r' = h1(x1', x2', x3', x4', x5') [all]
+      <=(Neq/|hash1|)=>
+      (x1: host, x2: host, x3: G, x4: G, x5: G) N -> 
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r1[j]) && 
+	   		x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r1[j] else
+			 new r1:hash1; r1,
+      (x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) Neq -> 
+      	   find[unique] j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r1[j]) && 
+	   		x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then r' = r1[j] else false.
+
+channel c11, c21.
+
+let hashoracle1 = ! qH1 in(c11, (x11: host, x12: host, x13: G, x14: G, x15: G)); out(c21, h1(x11,x12,x13,x14,x15)). 
+
+param N2,  N3.
+
+equiv !N new X:G; (!N2 OX() := X, 
+                   !N3 Oeq(X':G) := X' = X)
+<=(#Oeq / |G|)=> [manual]
+      !N (!N2 OX() := find[unique] j<=N2 suchthat defined(Y[j]) then Y[j] else new Y:G; Y,
+          !N3 Oeq(X':G) := find[unique] j<=N2 suchthat defined(Y[j]) then X' = Y[j] else false).
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+query secret sk_p.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp,
+	start, finish.
+
+const U : host.
+const S : host.
+
+event termS(host, G, host, G, hash1, hash0).
+event termU(host, G, host, G, hash1, hash0).
+
+query x:host, X:G, y:host, Y:G, a: hash1, k:hash0;
+	event inj:termS(x,X,y,Y,a,k) ==> inj:termU(x,X,y,Y,a,k).
+query x:host, X:G, y:host, Y:G, a: hash1, k:hash0, k':hash0;
+	event termS(x,X,y,Y,a,k) && termU(x,X,y,Y,a,k') ==> k = k'.
+
+(* Client *)
+
+let processU =
+	in(c1, ());
+	new x: exponent;
+	let X = exp(g,x) in
+	out(c2, (U, X));
+        in(c5, (=S, Ystar_u: G));
+	let Y_u = dec(Ystar_u, pw) in
+	let K_u = exp(Y_u, x) in
+	let auth_u = h1(U,S,X,Y_u,K_u) in
+	let sk_u: hash0 = h0(U,S,X,Y_u,K_u) in
+	event termU(U, X, S, Ystar_u, auth_u, sk_u);
+	out(c6, auth_u).
+
+(* Server *)
+
+let processS =
+	in(c3, (=U, X_s: G));
+	new y: exponent;
+	let Y = exp(g,y) in
+	let Ystar = enc(Y, pw) in
+	out(c4, (S, Ystar));
+	in(c7, auth_s: hash1);
+	let K_s = exp(X_s, y) in
+	if auth_s = h1(U,S,X_s,Y,K_s) then
+	let sk_s: hash0 = h0(U,S,X_s,Y,K_s) in
+	event termS(U, X_s, S, Ystar, auth_s, sk_s).
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+let processPassive =
+        in(cp, ());
+        new xp: exponent;
+	let Xp = exp(g, xp) in
+	new yp: exponent;
+	let Yp = exp(g, yp) in
+	let Kp = exp(g, mult(xp,yp)) in
+	let Ystarp = enc(Yp, pw) in
+	let authp = h1(U, S, Xp, Yp, Kp) in
+	let sk_p: hash0 = h0(U, S, Xp, Yp, Kp) in
+	out(cp, (U, Xp, S, Ystarp, authp)).
+
+process 
+	in(start, ());
+	new pw: passwd;
+	out(c8, ());
+	((! NU processU) |
+	 (! NS processS) | 
+	 (! NP processPassive) | enc_dec_oracle | hashoracle0 | hashoracle1)
+
+
+
+(* Last game
+
+Game 48 is
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  ! !_57 <= NU
+  in(c1[!_57], ());
+  new @1_X_4047: G;
+  out(c2[!_57], (U, @1_X_4047));
+  in(c5[!_57], (=S, Ystar_u: G));
+  find [unique] @i_240 <= qD suchthat defined(@2_m[@i_240], @2_kd[@i_240], @1_X_3680[@i_240]) && ((Ystar_u = @2_m[@i_240]) && (pw = @2_kd[@i_240])) then
+  (
+    new r_368: hash0;
+    let sk_u: hash0 = r_368 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_236 <= NU suchthat defined(@1_X_3980[@i_236], Ystar_u[@i_236], @1_X_3980[@i_236]) && (Ystar_u = Ystar_u[@i_236]) then
+  (
+    new r_380: hash0;
+    let sk_u: hash0 = r_380 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_234 <= qE suchthat defined(@2_r2_179[@i_234], @2_ke[@i_234]) && ((Ystar_u = @2_r2_179[@i_234]) && (pw = @2_ke[@i_234])) then
+    event Encrypt
+  orfind @i_233 <= NP suchthat defined(@2_r2_182[@i_233]) && (Ystar_u = @2_r2_182[@i_233]) then
+  (
+    new r_392: hash0;
+    let sk_u: hash0 = r_392 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_232 <= NS suchthat defined(@2_r2_185[@i_232]) && (Ystar_u = @2_r2_185[@i_232]) then
+  (
+    new r_404: hash0;
+    let sk_u: hash0 = r_404 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  else
+    new @1_X_3980: G;
+    new r1_94: hash1;
+    new r_362: hash0;
+    let sk_u: hash0 = r_362 in
+    out(c6[!_57], r1_94)
+) | (
+  ! !_58 <= NS
+  in(c3[!_58], (=U, X_s: G));
+  new @1_X_3918: G;
+  new @2_r2_185: G;
+  out(c4[!_58], (S, @2_r2_185));
+  in(c7[!_58], auth_s: hash1);
+  find j <= NU suchthat defined(@1_X_4047[j], @1_X_4047[j]) && (@1_X_4047[j] = X_s) then
+  (
+    if defined(@i_232[j], r1_94[j], r_404[j]) && (!_58 = @i_232[j]) then
+    if (auth_s = r1_94[j]) then
+    let sk_s: hash0 = r_404[j]
+  )
+  else
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((@1_X_3918 = x14[nj]) && (auth_s = r1_82[nj]))))) then
+    event Auth
+) | (
+  ! !_59 <= NP
+  in(cp[!_59], ());
+  new @1_X_3854: G;
+  new @1_X_3788: G;
+  new @2_r2_182: G;
+  new r1_88: hash1;
+  new r_344: hash0;
+  let sk_p: hash0 = r_344 in
+  out(cp[!_59], (U, @1_X_3854, S, @2_r2_182, r1_88))
+) | (
+  ! !_60 <= qE
+  in(@2_c1[!_60], (@2_x: G, @2_ke: passwd));
+  find [unique] @i_210 <= qD suchthat defined(@1_X_3680[@i_210], @2_kd[@i_210], @2_m[@i_210], @1_X_3680[@i_210]) && ((@2_x = @1_X_3680[@i_210]) && (@2_ke = @2_kd[@i_210])) then
+    out(@2_c2[!_60], @2_m[@i_210])
+  orfind @i_206 <= NU suchthat defined(@1_X_3980[@i_206], @1_X_3980[@i_206], Ystar_u[@i_206]) && ((@2_x = @1_X_3980[@i_206]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], Ystar_u[@i_206])
+  orfind @i_204 <= qE suchthat defined(@2_x[@i_204], @2_ke[@i_204], @2_r2_179[@i_204]) && ((@2_x = @2_x[@i_204]) && (@2_ke = @2_ke[@i_204])) then
+    out(@2_c2[!_60], @2_r2_179[@i_204])
+  orfind @i_203 <= NP suchthat defined(@1_X_3854[@i_203], @1_X_3788[@i_203], @1_X_3854[@i_203], @2_r2_182[@i_203]) && ((@2_x = @1_X_3788[@i_203]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_182[@i_203])
+  orfind @i_202 <= NS suchthat defined(@1_X_3918[@i_202], @1_X_3918[@i_202], @2_r2_185[@i_202]) && ((@2_x = @1_X_3918[@i_202]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_185[@i_202])
+  else
+    new @2_r2_179: G;
+    out(@2_c2[!_60], @2_r2_179)
+) | (
+  ! !_61 <= qD
+  in(@2_c3[!_61], (@2_m: G, @2_kd: passwd));
+  find [unique] @i_200 <= qD suchthat defined(@2_m[@i_200], @2_kd[@i_200], @1_X_3680[@i_200], @1_X_3680[@i_200]) && ((@2_m = @2_m[@i_200]) && (@2_kd = @2_kd[@i_200])) then
+    out(@2_c4[!_61], @1_X_3680[@i_200])
+  orfind @i_196 <= NU suchthat defined(@1_X_3980[@i_196], Ystar_u[@i_196], @1_X_3980[@i_196]) && ((@2_m = Ystar_u[@i_196]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3980[@i_196])
+  orfind @i_194 <= qE suchthat defined(@2_r2_179[@i_194], @2_ke[@i_194], @2_x[@i_194]) && ((@2_m = @2_r2_179[@i_194]) && (@2_kd = @2_ke[@i_194])) then
+    out(@2_c4[!_61], @2_x[@i_194])
+  orfind @i_193 <= NP suchthat defined(@1_X_3854[@i_193], @1_X_3788[@i_193], @1_X_3854[@i_193], @2_r2_182[@i_193]) && ((@2_m = @2_r2_182[@i_193]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3788[@i_193])
+  orfind @i_192 <= NS suchthat defined(@1_X_3918[@i_192], @1_X_3918[@i_192], @2_r2_185[@i_192]) && ((@2_m = @2_r2_185[@i_192]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3918[@i_192])
+  else
+    new @1_X_3680: G;
+    out(@2_c4[!_61], @1_X_3680)
+) | (
+  ! !_62 <= qH0
+  in(c10[!_62], (x1: host, x2: host, x3: G, x4: G, x5: G));
+  find [unique] @i_428 <= qH0 suchthat defined(x1[@i_428], x2[@i_428], x3[@i_428], x4[@i_428], x5[@i_428], r_338[@i_428]) && ((x1 = x1[@i_428]) && ((x2 = x2[@i_428]) && ((x3 = x3[@i_428]) && ((x4 = x4[@i_428]) && (x5 = x5[@i_428]))))) then
+    out(c20[!_62], r_338[@i_428])
+  else
+    new r_338: hash0;
+    out(c20[!_62], r_338)
+) | (
+  ! !_63 <= qH1
+  in(c11[!_63], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  find [unique] @i_103 <= qH1 suchthat defined(x11[@i_103], x12[@i_103], x13[@i_103], x14[@i_103], x15[@i_103], r1_82[@i_103]) && ((x11 = x11[@i_103]) && ((x12= x12[@i_103]) && ((x13 = x13[@i_103]) && ((x14 = x14[@i_103]) && (x15 = x15[@i_103]))))) then
+    out(c21[!_63], r1_82[@i_103])
+  else
+    new r1_82: hash1;
+    out(c21[!_63], r1_82)
+)
+
+Cases to eliminate:
+- @1_X_3980
+- @1_X_3788
+- @1_X_3918
+
+After 
+crypto 1 @1_X_3980
+ automatic: SArename @i_196; remove_assign useless
+
+Full proof:
+
+set maxIterSimplif = 3
+crypto h1
+show_game occ
+insert 472 find j <= NU suchthat defined(X[j]) && X[j] = X_s then
+show_game occ
+insert 472 find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_82[nj]) then
+show_game occ
+insert_event Auth 637
+simplify
+crypto enc
+show_game occ
+insert_event Encrypt 1243
+auto
+crypto 1 @1_X_3980
+merge_branches
+move binder r1_94
+merge_branches
+remove_assign useless
+crypto 1 @1_X_3788
+merge_branches
+remove_assign useless
+crypto 1 @1_X_3918
+merge_arrays @1_X_3680 Y_4963
+remove_assign useless
+show_game occ
+insert 348 find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_82[nj2], @2_m[nk], @2_kd[nk], @1_X_3680[nk]) && (@2_m[nk] = @2_r2_185) && (@2_kd[nk] = pw) && (U = x11[nj2]) && (S = x12[nj2]) && (X_s = x13[nj2]) && (x14[nj2] = @1_X_3680[nk]) && (auth_s = r1_82[nj2]) then
+show_game occ
+insert_event Auth2 408
+simplify
+simplify coll_elim pw
+	 REMAINING PB: computation of probabilities of collision yields qD / |passwd| instead of NS / |passwd| in the server
+success
+
+
+Temporary solution: put @2_kd[nk] = pw last in the condition, so that it is always correctly taken into account.
+I should really improve the system to avoid having to do that!
+
+set maxIterSimplif = 3
+crypto h1
+show_game occ
+insert 472 find j <= NU suchthat defined(X[j]) && X[j] = X_s then
+show_game occ
+insert 472 find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y = x14[nj]) && (auth_s = r1_82[nj]) then
+show_game occ
+insert_event Auth 637
+simplify
+crypto enc
+show_game occ
+insert_event Encrypt 1243
+auto
+crypto 1 @1_X_3980
+merge_branches
+move binder r1_94
+merge_branches
+remove_assign useless
+crypto 1 @1_X_3788
+merge_branches
+remove_assign useless
+crypto 1 @1_X_3918
+merge_arrays @1_X_3680 Y_4963
+remove_assign useless
+show_game occ
+insert 348 find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_82[nj2], @2_m[nk], @2_kd[nk], @1_X_3680[nk]) && (@2_m[nk] = @2_r2_185) && (U = x11[nj2]) && (S = x12[nj2]) && (X_s = x13[nj2]) && (x14[nj2] = @1_X_3680[nk]) && (auth_s = r1_82[nj2])  && (@2_kd[nk] = pw) then
+show_game occ
+insert_event Auth2 408
+simplify
+simplify coll_elim pw
+success
+
+Intermediate game:
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  ! !_57 <= NU
+  in(c1[!_57], ());
+  new @1_X_4047: G;
+  out(c2[!_57], (U, @1_X_4047));
+  in(c5[!_57], (=S, Ystar_u: G));
+  find [unique] @i_232 <= NS suchthat defined(@2_r2_185[@i_232]) && (Ystar_u = @2_r2_185[@i_232]) then
+  (
+    new r_404: hash0;
+    let sk_u: hash0 = r_404 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_234 <= qE suchthat defined(@2_r2_179[@i_234], @2_ke[@i_234]) && ((Ystar_u = @2_r2_179[@i_234]) && (pw = @2_ke[@i_234])) then
+    event Encrypt
+  else
+    new r_362: hash0;
+    let sk_u: hash0 = r_362 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+) | (
+  ! !_58 <= NS
+  in(c3[!_58], (=U, X_s: G));
+  new @1_X_3918: G;
+  new @2_r2_185: G;
+  out(c4[!_58], (S, @2_r2_185));
+  in(c7[!_58], auth_s: hash1);
+  find j <= NU suchthat defined(@1_X_4047[j]) && (@1_X_4047[j] = X_s) then
+  (
+    if defined(@i_232[j], r1_94[j], r_404[j]) && (!_58 = @i_232[j]) then
+    if (auth_s = r1_94[j]) then
+    let sk_s: hash0 = r_404[j]
+  )
+  else
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((@1_X_3918 = x14[nj]) && (auth_s = r1_82[nj]))))) then
+    event Auth
+) | (
+  ! !_59 <= NP
+  in(cp[!_59], ());
+  new @1_X_3854: G;
+  new @1_X_3788: G;
+  new @2_r2_182: G;
+  new r1_88: hash1;
+  new r_344: hash0;
+  let sk_p: hash0 = r_344 in
+  out(cp[!_59], (U, @1_X_3854, S, @2_r2_182, r1_88))
+) | (
+  ! !_60 <= qE
+  in(@2_c1[!_60], (@2_x: G, @2_ke: passwd));
+  find [unique] @i_210 <= qD suchthat defined(@1_X_3680[@i_210], @2_kd[@i_210], @2_m[@i_210]) && ((@2_x = @1_X_3680[@i_210]) && (@2_ke = @2_kd[@i_210])) then
+    out(@2_c2[!_60], @2_m[@i_210])
+  orfind @i_202 <= NS suchthat defined(@1_X_3918[@i_202], @2_r2_185[@i_202]) && ((@2_x = @1_X_3918[@i_202]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_185[@i_202])
+  orfind @i_203 <= NP suchthat defined(@1_X_3788[@i_203], @2_r2_182[@i_203]) && ((@2_x = @1_X_3788[@i_203]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_182[@i_203])
+  orfind @i_204 <= qE suchthat defined(@2_x[@i_204], @2_ke[@i_204], @2_r2_179[@i_204]) && ((@2_x = @2_x[@i_204]) && (@2_ke = @2_ke[@i_204])) then
+    out(@2_c2[!_60], @2_r2_179[@i_204])
+  else
+    new @2_r2_179: G;
+    out(@2_c2[!_60], @2_r2_179)
+) | (
+  ! !_61 <= qD
+  in(@2_c3[!_61], (@2_m: G, @2_kd: passwd));
+  find [unique] @i_200 <= qD suchthat defined(@2_m[@i_200], @2_kd[@i_200], @1_X_3680[@i_200]) && ((@2_m = @2_m[@i_200]) && (@2_kd = @2_kd[@i_200])) then
+    out(@2_c4[!_61], @1_X_3680[@i_200])
+  orfind @i_192 <= NS suchthat defined(@2_r2_185[@i_192], @1_X_3918[@i_192]) && ((@2_m = @2_r2_185[@i_192]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3918[@i_192])
+  orfind @i_193 <= NP suchthat defined(@2_r2_182[@i_193], @1_X_3788[@i_193]) && ((@2_m = @2_r2_182[@i_193]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3788[@i_193])
+  orfind @i_194 <= qE suchthat defined(@2_r2_179[@i_194], @2_ke[@i_194], @2_x[@i_194]) && ((@2_m = @2_r2_179[@i_194]) && (@2_kd = @2_ke[@i_194])) then
+    out(@2_c4[!_61], @2_x[@i_194])
+  else
+    new @1_X_3680: G;
+    out(@2_c4[!_61], @1_X_3680)
+) | (
+  ! !_62 <= qH0
+  in(c10[!_62], (x1: host, x2: host, x3: G, x4: G, x5: G));
+  find [unique] @i_428 <= qH0 suchthat defined(x1[@i_428], x2[@i_428], x3[@i_428], x4[@i_428], x5[@i_428], r_338[@i_428]) && ((x1 = x1[@i_428]) && ((x2 = x2[@i_428]) && ((x3 = x3[@i_428]) && ((x4 = x4[@i_428]) && (x5 = x5[@i_428]))))) then
+    out(c20[!_62], r_338[@i_428])
+  else
+    new r_338: hash0;
+    out(c20[!_62], r_338)
+) | (
+  ! !_63 <= qH1
+  in(c11[!_63], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  find [unique] @i_103 <= qH1 suchthat defined(x11[@i_103], x12[@i_103], x13[@i_103], x14[@i_103], x15[@i_103], r1_82[@i_103]) && ((x11 = x11[@i_103]) && ((x12 = x12[@i_103]) && ((x13 = x13[@i_103]) && ((x14 = x14[@i_103]) && (x15 = x15[@i_103]))))) then
+    out(c21[!_63], r1_82[@i_103])
+  else
+    new r1_82: hash1;
+    out(c21[!_63], r1_82)
+)
+
+
+After crypto 1 @1_X_3918 (and other instructions before)
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  ! !_57 <= NU
+  in(c1[!_57], ());
+  new @1_X_4047: G;
+  out(c2[!_57], (U, @1_X_4047));
+  in(c5[!_57], (=S, Ystar_u: G));
+  find [unique] @i_232 <= NS suchthat defined(@2_r2_185[@i_232]) && (Ystar_u = @2_r2_185[@i_232]) then
+  (
+    new r_404: hash0;
+    let sk_u: hash0 = r_404 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_234 <= qE suchthat defined(@2_r2_179[@i_234], @2_ke[@i_234]) && ((Ystar_u = @2_r2_179[@i_234]) && (pw = @2_ke[@i_234])) then
+    event Encrypt
+  else
+    new r_362: hash0;
+    let sk_u: hash0 = r_362 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+) | (
+  ! !_58 <= NS
+  in(c3[!_58], (=U, X_s: G));
+  new @2_r2_185: G;
+  out(c4[!_58], (S, @2_r2_185));
+  in(c7[!_58], auth_s: hash1);
+  find j <= NU suchthat defined(@1_X_4047[j]) && (@1_X_4047[j] = X_s) then
+  (
+    if defined(@i_232[j], r1_94[j], r_404[j]) && (!_58 = @i_232[j]) then
+    if (auth_s = r1_94[j]) then
+    let sk_s: hash0 = r_404[j]
+  )
+  else
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && find [unique] @i_4972 <= qD suchthat defined(@i_5068[@i_4972], Y_4963[@i_4972]) && (@i_5068[@i_4972] = !_58) then ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((x14[nj] = Y_4963[@i_4972]) && (auth_s = r1_82[nj]))))) else false then
+    event Auth
+) | (
+  ! !_59 <= NP
+  in(cp[!_59], ());
+  new @1_X_3854: G;
+  new @2_r2_182: G;
+  new r1_88: hash1;
+  new r_344: hash0;
+  let sk_p: hash0 = r_344 in
+  out(cp[!_59], (U, @1_X_3854, S, @2_r2_182, r1_88))
+) | (
+  ! !_60 <= qE
+  in(@2_c1[!_60], (@2_x: G, @2_ke: passwd));
+  find [unique] @i_210 <= qD suchthat defined(@1_X_3680[@i_210], @2_kd[@i_210], @2_m[@i_210]) && ((@2_x = @1_X_3680[@i_210]) && (@2_ke = @2_kd[@i_210])) then
+    out(@2_c2[!_60], @2_m[@i_210])
+  orfind @i_204 <= qE suchthat defined(@2_x[@i_204], @2_ke[@i_204], @2_r2_179[@i_204]) && ((@2_x = @2_x[@i_204]) && (@2_ke = @2_ke[@i_204])) then
+    out(@2_c2[!_60], @2_r2_179[@i_204])
+  orfind @i_4969 <= qD suchthat defined(Y_4963[@i_4969], @2_r2_185[@i_5068[@i_4969]]) && ((@2_x = Y_4963[@i_4969]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_185[@i_5068[@i_4969]])
+  else
+    new @2_r2_179: G;
+    out(@2_c2[!_60], @2_r2_179)
+) | (
+  ! !_61 <= qD
+  in(@2_c3[!_61], (@2_m: G, @2_kd: passwd));
+  find [unique] @i_200 <= qD suchthat defined(@2_m[@i_200], @2_kd[@i_200], @1_X_3680[@i_200]) && ((@2_m = @2_m[@i_200]) && (@2_kd = @2_kd[@i_200])) then
+    out(@2_c4[!_61], @1_X_3680[@i_200])
+  orfind @i_194 <= qE suchthat defined(@2_r2_179[@i_194], @2_ke[@i_194], @2_x[@i_194]) && ((@2_m = @2_r2_179[@i_194]) && (@2_kd = @2_ke[@i_194])) then
+    out(@2_c4[!_61], @2_x[@i_194])
+  orfind @i_4966 <= qD suchthat defined(@2_r2_185[@i_5068[@i_4966]], Y_4963[@i_4966]) && ((@2_m = @2_r2_185[@i_5068[@i_4966]]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], Y_4963[@i_4966])
+  else
+    find @i_5068 <= NS suchthat defined(@2_r2_185[@i_5068]) && ((@2_m = @2_r2_185[@i_5068]) && (@2_kd = pw)) then
+      new Y_4963: G;
+      out(@2_c4[!_61], Y_4963)
+    else
+      new @1_X_3680: G;
+      out(@2_c4[!_61], @1_X_3680)
+) | (
+  ! !_62 <= qH0
+  in(c10[!_62], (x1: host, x2: host, x3: G, x4: G, x5: G));
+  find [unique] @i_428 <= qH0 suchthat defined(x1[@i_428], x2[@i_428], x3[@i_428], x4[@i_428], x5[@i_428], r_338[@i_428]) && ((x1 = x1[@i_428]) && ((x2 = x2[@i_428]) && ((x3 = x3[@i_428]) && ((x4 = x4[@i_428]) && (x5 = x5[@i_428]))))) then
+    out(c20[!_62], r_338[@i_428])
+  else
+    new r_338: hash0;
+    out(c20[!_62], r_338)
+) | (
+  ! !_63 <= qH1
+  in(c11[!_63], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  find [unique] @i_103 <= qH1 suchthat defined(x11[@i_103], x12[@i_103], x13[@i_103], x14[@i_103], x15[@i_103], r1_82[@i_103]) && ((x11 = x11[@i_103]) && ((x12 = x12[@i_103]) && ((x13 = x13[@i_103]) && ((x14 = x14[@i_103]) && (x15 = x15[@i_103]))))) then
+    out(c21[!_63], r1_82[@i_103])
+  else
+    new r1_82: hash1;
+    out(c21[!_63], r1_82)
+)
+
+
+After
+crypto 1 @1_X_3918
+merge_arrays @1_X_3680 Y_4963
+remove_assign useless
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  ! !_57 <= NU
+  in(c1[!_57], ());
+  new @1_X_4047: G;
+  out(c2[!_57], (U, @1_X_4047));
+  in(c5[!_57], (=S, Ystar_u: G));
+  find [unique] @i_232 <= NS suchthat defined(@2_r2_185[@i_232]) && (Ystar_u = @2_r2_185[@i_232]) then
+  (
+    new r_404: hash0;
+    let sk_u: hash0 = r_404 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_234 <= qE suchthat defined(@2_r2_179[@i_234], @2_ke[@i_234]) && ((Ystar_u = @2_r2_179[@i_234]) && (pw = @2_ke[@i_234])) then
+    event Encrypt
+  else
+    new r_362: hash0;
+    let sk_u: hash0 = r_362 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+) | (
+  ! !_58 <= NS
+  in(c3[!_58], (=U, X_s: G));
+  new @2_r2_185: G;
+  out(c4[!_58], (S, @2_r2_185));
+  in(c7[!_58], auth_s: hash1);
+  find j <= NU suchthat defined(@1_X_4047[j]) && (@1_X_4047[j] = X_s) then
+  (
+    if defined(@i_232[j], r1_94[j], r_404[j]) && (!_58 = @i_232[j]) then
+    if (auth_s = r1_94[j]) then
+    let sk_s: hash0 = r_404[j]
+  )
+  else
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && find [unique] @i_4972 <= qD suchthat defined(@i_5068[@i_4972], @1_X_3680[@i_4972]) && (@i_5068[@i_4972] = !_58) then ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((x14[nj] = @1_X_3680[@i_4972]) && (auth_s = r1_82[nj]))))) else false then
+    event Auth
+) | (
+  ! !_59 <= NP
+  in(cp[!_59], ());
+  new @1_X_3854: G;
+  new @2_r2_182: G;
+  new r1_88: hash1;
+  new r_344: hash0;
+  let sk_p: hash0 = r_344 in
+  out(cp[!_59], (U, @1_X_3854, S, @2_r2_182, r1_88))
+) | (
+  ! !_60 <= qE
+  in(@2_c1[!_60], (@2_x: G, @2_ke: passwd));
+  find [unique] @i_210 <= qD suchthat defined(@1_X_3680[@i_210], @2_kd[@i_210],@2_m[@i_210]) && ((@2_x = @1_X_3680[@i_210]) && (@2_ke = @2_kd[@i_210])) then
+    out(@2_c2[!_60], @2_m[@i_210])
+  orfind @i_204 <= qE suchthat defined(@2_x[@i_204], @2_ke[@i_204], @2_r2_179[@i_204]) && ((@2_x = @2_x[@i_204]) && (@2_ke = @2_ke[@i_204])) then
+    out(@2_c2[!_60], @2_r2_179[@i_204])
+  else
+    new @2_r2_179: G;
+    out(@2_c2[!_60], @2_r2_179)
+) | (
+  ! !_61 <= qD
+  in(@2_c3[!_61], (@2_m: G, @2_kd: passwd));
+  find [unique] @i_200 <= qD suchthat defined(@2_m[@i_200], @2_kd[@i_200], @1_X_3680[@i_200]) && ((@2_m = @2_m[@i_200]) && (@2_kd = @2_kd[@i_200])) then
+    out(@2_c4[!_61], @1_X_3680[@i_200])
+  orfind @i_194 <= qE suchthat defined(@2_r2_179[@i_194], @2_ke[@i_194], @2_x[@i_194]) && ((@2_m = @2_r2_179[@i_194]) && (@2_kd = @2_ke[@i_194])) then
+    out(@2_c4[!_61], @2_x[@i_194])
+  else
+    find @i_5068 <= NS suchthat defined(@2_r2_185[@i_5068]) && ((@2_m = @2_r2_185[@i_5068]) && (@2_kd = pw)) then
+      new @1_X_3680: G;
+      out(@2_c4[!_61], @1_X_3680)
+    else
+      new @1_X_3680: G;
+      out(@2_c4[!_61], @1_X_3680)
+) | (
+  ! !_62 <= qH0
+  in(c10[!_62], (x1: host, x2: host, x3: G, x4: G, x5: G));
+  find [unique] @i_428 <= qH0 suchthat defined(x1[@i_428], x2[@i_428], x3[@i_428], x4[@i_428], x5[@i_428], r_338[@i_428]) && ((x1 = x1[@i_428]) && ((x2 = x2[@i_428]) && ((x3 = x3[@i_428]) && ((x4 = x4[@i_428]) && (x5 = x5[@i_428]))))) then
+    out(c20[!_62], r_338[@i_428])
+  else
+    new r_338: hash0;
+    out(c20[!_62], r_338)
+) | (
+  ! !_63 <= qH1
+  in(c11[!_63], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  find [unique] @i_103 <= qH1 suchthat defined(x11[@i_103], x12[@i_103], x13[@i_103], x14[@i_103], x15[@i_103], r1_82[@i_103]) && ((x11 = x11[@i_103]) && ((x12
+= x12[@i_103]) && ((x13 = x13[@i_103]) && ((x14 = x14[@i_103]) && (x15 = x15[@i_103]))))) then
+    out(c21[!_63], r1_82[@i_103])
+  else
+    new r1_82: hash1;
+    out(c21[!_63], r1_82)
+)
+
+
+We should transform:
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && find [unique] @i_4972 <= qD suchthat defined(@i_5068[@i_4972], @1_X_3680[@i_4972]) && (@i_5068[@i_4972] = !_58) then ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((x14[nj] = @1_X_3680[@i_4972]) && (auth_s = r1_82[nj]))))) else false then
+    event Auth
+
+@i_5068[@i_4972] defined ->
+defined(@2_r2_185[@i_5068[@i_4972]]) && ((@2_m[@i_4972] = @2_r2_185[@i_5068[@i_4972]]) && (@2_kd[@i_4972] = pw)
+Since @i_5068[@i_4972] = !_58,
+(@2_m[@i_4972] = @2_r2_185) && (@2_kd[@i_4972] = pw)
+
+So
+    find nj <= qH1, nk <= qD suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj], @2_m[nk], @2_kd[nk], @1_X_3680[nk]) && (@2_m[nk] = @2_r2_185) && (@2_kd[nk] = pw) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (x14[nj] = @1_X_3680[nk]) && (auth_s = r1_82[nj]) then
+    event Auth2
+
+
+show_game occ
+insert 348 find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_82[nj2], @2_m[nk], @2_kd[nk], @1_X_3680[nk]) && (@2_m[nk] = @2_r2_185) && (@2_kd[nk] = pw) && (U = x11[nj2]) && (S = x12[nj2]) && (X_s = x13[nj2]) && (x14[nj2] = @1_X_3680[nk]) && (auth_s = r1_82[nj2]) then
+show_game occ
+insert_event Auth2 408
+simplify
+... does not work: it does not manage to remove the "else" branch of the "find nj2..."
+
+    find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_82[nj2], @2_m[nk], @2_kd[nk], @1_X_3680[nk]) && ((@2_m[nk] = @2_r2_185) && ((@2_kd[nk] = pw) && ((U = x11[nj2]) && ((S = x12[nj2]) && ((X_s = x13[nj2]) && ((x14[nj2] = @1_X_3680[nk]) && (auth_s = r1_82[nj2]))))))) then
+      event Auth2
+    else
+      find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && find [unique] @i_5207 <= qD suchthat defined(@i_5068[@i_5207], @1_X_3680[@i_5207]) && (@i_5068[@i_5207] = !_58) then ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((x14[nj] = @1_X_3680[@i_5207]) && (auth_s = r1_82[nj]))))) else false then
+      event Auth
+
+Knowing auth_s, there is a single nj2 such that auth_s = r1_82[nj2] (r1_82 is random, large),
+so there is a single nk such that x14[nj2] = Y_4963[nk] (Y_4963 is random, large)
+so the comparison @2_kd[nk] = pw succeeds for at most one password for each session of the server
+OK!
+
+show_game occ
+insert 348 find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_82[nj2], @2_m[nk], @2_kd[nk], @1_X_3658[nk]) && (@2_m[nk] = @2_r2_185) && (@2_kd[nk] = pw) && (U = x11[nj2]) && (S = x12[nj2]) && (X_s = x13[nj2]) && (x14[nj2] = @1_X_3658[nk]) && (auth_s = r1_82[nj2]) then
+show_game occ
+insert_event Auth2 408
+simplify
+
+
+After crypto 1 @1_X_3788 (but no other crypto 1...)
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  ! !_57 <= NU
+  in(c1[!_57], ());
+  new @1_X_4047: G;
+  let X: G = cst_G in
+  out(c2[!_57], (U, @1_X_4047));
+  in(c5[!_57], (=S, Ystar_u: G));
+  find [unique] @i_240 <= qD suchthat defined(@2_m[@i_240], @2_kd[@i_240], @2_r4_176[@i_240]) && ((Ystar_u = @2_m[@i_240]) && (pw = @2_kd[@i_240])) then
+  (
+    new r_368: hash0;
+    let sk_u: hash0 = r_368 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_236 <= NU suchthat defined(Ystar_u[@i_236], @2_r4_188[@i_236]) && (Ystar_u = Ystar_u[@i_236]) then
+  (
+    new r_380: hash0;
+    let sk_u: hash0 = r_380 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_234 <= qE suchthat defined(@2_r2_179[@i_234], @2_ke[@i_234]) && ((Ystar_u = @2_r2_179[@i_234]) && (pw = @2_ke[@i_234])) then
+    event Encrypt
+  orfind @i_233 <= NP suchthat defined(@2_r2_182[@i_233]) && (Ystar_u = @2_r2_182[@i_233]) then
+  (
+    new r_392: hash0;
+    let sk_u: hash0 = r_392 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_232 <= NS suchthat defined(@2_r2_185[@i_232]) && (Ystar_u = @2_r2_185[@i_232]) then
+  (
+    new r_404: hash0;
+    let sk_u: hash0 = r_404 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  else
+    new @1_X_3980: G;
+    let @2_r4_188: G = cst_G in
+    new r1_94: hash1;
+    new r_362: hash0;
+    let sk_u: hash0 = r_362 in
+    out(c6[!_57], r1_94)
+) | (
+  ! !_58 <= NS
+  in(c3[!_58], (=U, X_s: G));
+  new @1_X_3918: G;
+  new @2_r2_185: G;
+  out(c4[!_58], (S, @2_r2_185));
+  in(c7[!_58], auth_s: hash1);
+  find j <= NU suchthat defined(@1_X_4047[j], X[j]) && (@1_X_4047[j] = X_s) then
+  (
+    if defined(@i_232[j], r1_94[j], r_404[j]) && (!_58 = @i_232[j]) then
+    if (auth_s = r1_94[j]) then
+    let sk_s: hash0 = r_404[j]
+  )
+  else
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((@1_X_3918 = x14[nj]) && (auth_s = r1_82[nj]))))) then
+    event Auth
+) | (
+  ! !_59 <= NP
+  in(cp[!_59], ());
+  new @1_X_3854: G;
+  new @2_r2_182: G;
+  new r1_88: hash1;
+  new r_344: hash0;
+  let sk_p: hash0 = r_344 in
+  out(cp[!_59], (U, @1_X_3854, S, @2_r2_182, r1_88))
+) | (
+  ! !_60 <= qE
+  in(@2_c1[!_60], (@2_x: G, @2_ke: passwd));
+  find [unique] @i_210 <= qD suchthat defined(@1_X_3680[@i_210], @2_kd[@i_210], @2_m[@i_210], @2_r4_176[@i_210]) && ((@2_x = @1_X_3680[@i_210]) && (@2_ke = @2_kd[@i_210])) then
+    out(@2_c2[!_60], @2_m[@i_210])
+  orfind @i_206 <= NU suchthat defined(@1_X_3980[@i_206], Ystar_u[@i_206], @2_r4_188[@i_206]) && ((@2_x = @1_X_3980[@i_206]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], Ystar_u[@i_206])
+  orfind @i_204 <= qE suchthat defined(@2_x[@i_204], @2_ke[@i_204], @2_r2_179[@i_204]) && ((@2_x = @2_x[@i_204]) && (@2_ke = @2_ke[@i_204])) then
+    out(@2_c2[!_60], @2_r2_179[@i_204])
+  orfind @i_203 <= NP suchthat defined(@2_r2_182[@i_203]) && find [unique] @i_4151 <= qD suchthat defined(@i_193[@i_4151], Y_4147[@i_4151]) && (@i_193[@i_4151] = @i_203) then ((@2_x = Y_4147[@i_4151]) && (@2_ke = pw)) else false then
+    out(@2_c2[!_60], @2_r2_182[@i_203])
+  orfind @i_202 <= NS suchthat defined(@1_X_3918[@i_202], @2_r2_185[@i_202]) && ((@2_x = @1_X_3918[@i_202]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_185[@i_202])
+  else
+    new @2_r2_179: G;
+    out(@2_c2[!_60], @2_r2_179)
+) | (
+  ! !_61 <= qD
+  in(@2_c3[!_61], (@2_m: G, @2_kd: passwd));
+  find [unique] @i_200 <= qD suchthat defined(@2_m[@i_200], @2_kd[@i_200], @1_X_3680[@i_200], @2_r4_176[@i_200]) && ((@2_m = @2_m[@i_200]) && (@2_kd = @2_kd[@i_200])) then
+    out(@2_c4[!_61], @1_X_3680[@i_200])
+  orfind @i_196 <= NU suchthat defined(Ystar_u[@i_196], @1_X_3980[@i_196], @2_r4_188[@i_196]) && ((@2_m = Ystar_u[@i_196]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3980[@i_196])
+  orfind @i_194 <= qE suchthat defined(@2_r2_179[@i_194], @2_ke[@i_194], @2_x[@i_194]) && ((@2_m = @2_r2_179[@i_194]) && (@2_kd = @2_ke[@i_194])) then
+    out(@2_c4[!_61], @2_x[@i_194])
+  orfind @i_193 <= NP suchthat defined(@2_r2_182[@i_193]) && ((@2_m = @2_r2_182[@i_193]) && (@2_kd = pw)) then
+  (
+    find [unique] @i_4149 <= qD suchthat defined(@i_193[@i_4149], Y_4147[@i_4149]) && (@i_193[@i_4149] = @i_193) then
+      out(@2_c4[!_61], Y_4147[@i_4149])
+    else
+      new Y_4147: G;
+      out(@2_c4[!_61], Y_4147)
+  )
+  orfind @i_192 <= NS suchthat defined(@2_r2_185[@i_192], @1_X_3918[@i_192]) && ((@2_m = @2_r2_185[@i_192]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3918[@i_192])
+  else
+    new @1_X_3680: G;
+    let @2_r4_176: G = cst_G in
+    out(@2_c4[!_61], @1_X_3680)
+) | (
+  ! !_62 <= qH0
+  in(c10[!_62], (x1: host, x2: host, x3: G, x4: G, x5: G));
+  find [unique] @i_428 <= qH0 suchthat defined(x1[@i_428], x2[@i_428], x3[@i_428], x4[@i_428], x5[@i_428], r_338[@i_428]) && ((x1 = x1[@i_428]) && ((x2 = x2[@i_428]) && ((x3 = x3[@i_428]) && ((x4 = x4[@i_428]) && (x5 = x5[@i_428]))))) then
+    out(c20[!_62], r_338[@i_428])
+  else
+    new r_338: hash0;
+    out(c20[!_62], r_338)
+) | (
+  ! !_63 <= qH1
+  in(c11[!_63], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  find [unique] @i_103 <= qH1 suchthat defined(x11[@i_103], x12[@i_103], x13[@i_103], x14[@i_103], x15[@i_103], r1_82[@i_103]) && ((x11 = x11[@i_103]) && ((x12 = x12[@i_103]) && ((x13 = x13[@i_103]) && ((x14 = x14[@i_103]) && (x15 = x15[@i_103]))))) then
+    out(c21[!_63], r1_82[@i_103])
+  else
+    new r1_82: hash1;
+    out(c21[!_63], r1_82)
+)
+
+After crypto 1 @1_X_3918 (but no other crypto 1...)
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+  ! !_57 <= NU
+  in(c1[!_57], ());
+  new @1_X_4047: G;
+  let X: G = cst_G in
+  out(c2[!_57], (U, @1_X_4047));
+  in(c5[!_57], (=S, Ystar_u: G));
+  find [unique] @i_240 <= qD suchthat defined(@2_m[@i_240], @2_kd[@i_240], @2_r4_176[@i_240]) && ((Ystar_u = @2_m[@i_240]) && (pw = @2_kd[@i_240])) then
+  (
+    new r_368: hash0;
+    let sk_u: hash0 = r_368 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_236 <= NU suchthat defined(Ystar_u[@i_236], @2_r4_188[@i_236]) && (Ystar_u = Ystar_u[@i_236]) then
+  (
+    new r_380: hash0;
+    let sk_u: hash0 = r_380 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_234 <= qE suchthat defined(@2_r2_179[@i_234], @2_ke[@i_234]) && ((Ystar_u = @2_r2_179[@i_234]) && (pw = @2_ke[@i_234])) then
+    event Encrypt
+  orfind @i_233 <= NP suchthat defined(@2_r2_182[@i_233]) && (Ystar_u = @2_r2_182[@i_233]) then
+  (
+    new r_392: hash0;
+    let sk_u: hash0 = r_392 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  orfind @i_232 <= NS suchthat defined(@2_r2_185[@i_232]) && (Ystar_u = @2_r2_185[@i_232]) then
+  (
+    new r_404: hash0;
+    let sk_u: hash0 = r_404 in
+    new r1_94: hash1;
+    out(c6[!_57], r1_94)
+  )
+  else
+    new @1_X_3980: G;
+    let @2_r4_188: G = cst_G in
+    new r1_94: hash1;
+    new r_362: hash0;
+    let sk_u: hash0 = r_362 in
+    out(c6[!_57], r1_94)
+) | (
+  ! !_58 <= NS
+  in(c3[!_58], (=U, X_s: G));
+  new @2_r2_185: G;
+  out(c4[!_58], (S, @2_r2_185));
+  in(c7[!_58], auth_s: hash1);
+  find j <= NU suchthat defined(@1_X_4047[j], X[j]) && (@1_X_4047[j] = X_s) then
+  (
+    if defined(@i_232[j], r1_94[j], r_404[j]) && (!_58 = @i_232[j]) then
+    if (auth_s = r1_94[j]) then
+    let sk_s: hash0 = r_404[j]
+  )
+  else
+    [* Y_4147[@i_4156] = Dec(@2_r2_185, pw) 
+
+       find @i_4156 <= qD suchthat defined(@2_m[@i_4156],@2_kd[@i_4156],rdec[@i_4156]) && @2_r2_185 = @2_m[@i_4156] && pw = @2_kd[@i_4156] then 
+       find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((x14[nj] = rdec[@i_4156]) && (auth_s = r1_82[nj]))))) then
+       event Auth
+     *]
+    find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_82[nj]) && find [unique] @i_4156 <= qD suchthat defined(@i_192[@i_4156], Y_4147[@i_4156]) && (@i_192[@i_4156] = !_58) then ((U = x11[nj]) && ((S = x12[nj]) && ((X_s = x13[nj]) && ((x14[nj] = Y_4147[@i_4156]) && (auth_s = r1_82[nj]))))) else false then
+    event Auth
+) | (
+  ! !_59 <= NP
+  in(cp[!_59], ());
+  new @1_X_3854: G;
+  new @1_X_3788: G;
+  new @2_r2_182: G;
+  new r1_88: hash1;
+  new r_344: hash0;
+  let sk_p: hash0 = r_344 in
+  out(cp[!_59], (U, @1_X_3854, S, @2_r2_182, r1_88))
+) | (
+  ! !_60 <= qE
+  in(@2_c1[!_60], (@2_x: G, @2_ke: passwd));
+  find [unique] @i_210 <= qD suchthat defined(@1_X_3680[@i_210], @2_kd[@i_210], @2_m[@i_210], @2_r4_176[@i_210]) && ((@2_x = @1_X_3680[@i_210]) && (@2_ke = @2_kd[@i_210])) then
+    out(@2_c2[!_60], @2_m[@i_210])
+  orfind @i_206 <= NU suchthat defined(@1_X_3980[@i_206], Ystar_u[@i_206], @2_r4_188[@i_206]) && ((@2_x = @1_X_3980[@i_206]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], Ystar_u[@i_206])
+  orfind @i_204 <= qE suchthat defined(@2_x[@i_204], @2_ke[@i_204], @2_r2_179[@i_204]) && ((@2_x = @2_x[@i_204]) && (@2_ke = @2_ke[@i_204])) then
+    out(@2_c2[!_60], @2_r2_179[@i_204])
+  orfind @i_203 <= NP suchthat defined(@1_X_3788[@i_203], @2_r2_182[@i_203]) && ((@2_x = @1_X_3788[@i_203]) && (@2_ke = pw)) then
+    out(@2_c2[!_60], @2_r2_182[@i_203])
+  orfind @i_202 <= NS suchthat defined(@2_r2_185[@i_202]) && find [unique] @i_4153 <= qD suchthat defined(@i_192[@i_4153], Y_4147[@i_4153]) && (@i_192[@i_4153] = @i_202) then ((@2_x = Y_4147[@i_4153]) && (@2_ke = pw)) else false then
+    out(@2_c2[!_60], @2_r2_185[@i_202])
+  else
+    new @2_r2_179: G;
+    out(@2_c2[!_60], @2_r2_179)
+) | (
+  ! !_61 <= qD
+  in(@2_c3[!_61], (@2_m: G, @2_kd: passwd));
+  find [unique] @i_200 <= qD suchthat defined(@2_m[@i_200], @2_kd[@i_200], @1_X_3680[@i_200], @2_r4_176[@i_200]) && ((@2_m = @2_m[@i_200]) && (@2_kd = @2_kd[@i_200])) then
+    out(@2_c4[!_61], @1_X_3680[@i_200])
+  orfind @i_196 <= NU suchthat defined(Ystar_u[@i_196], @1_X_3980[@i_196], @2_r4_188[@i_196]) && ((@2_m = Ystar_u[@i_196]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3980[@i_196])
+  orfind @i_194 <= qE suchthat defined(@2_r2_179[@i_194], @2_ke[@i_194], @2_x[@i_194]) && ((@2_m = @2_r2_179[@i_194]) && (@2_kd = @2_ke[@i_194])) then
+    out(@2_c4[!_61], @2_x[@i_194])
+  orfind @i_193 <= NP suchthat defined(@2_r2_182[@i_193], @1_X_3788[@i_193]) && ((@2_m = @2_r2_182[@i_193]) && (@2_kd = pw)) then
+    out(@2_c4[!_61], @1_X_3788[@i_193])
+  orfind @i_192 <= NS suchthat defined(@2_r2_185[@i_192]) && ((@2_m = @2_r2_185[@i_192]) && (@2_kd = pw)) then
+  (
+    find [unique] @i_4150 <= qD suchthat defined(@i_192[@i_4150], Y_4147[@i_4150]) && (@i_192[@i_4150] = @i_192) then
+      out(@2_c4[!_61], Y_4147[@i_4150])
+    else
+      new Y_4147: G;
+      out(@2_c4[!_61], Y_4147)
+  )
+  else
+    new @1_X_3680: G;
+    let @2_r4_176: G = cst_G in
+    out(@2_c4[!_61], @1_X_3680)
+) | (
+  ! !_62 <= qH0
+  in(c10[!_62], (x1: host, x2: host, x3: G, x4: G, x5: G));
+  find [unique] @i_428 <= qH0 suchthat defined(x1[@i_428], x2[@i_428], x3[@i_428], x4[@i_428], x5[@i_428], r_338[@i_428]) && ((x1 = x1[@i_428]) && ((x2 = x2[@i_428]) && ((x3 = x3[@i_428]) && ((x4 = x4[@i_428]) && (x5 = x5[@i_428]))))) then
+    out(c20[!_62], r_338[@i_428])
+  else
+    new r_338: hash0;
+    out(c20[!_62], r_338)
+) | (
+  ! !_63 <= qH1
+  in(c11[!_63], (x11: host, x12: host, x13: G, x14: G, x15: G));
+  find [unique] @i_103 <= qH1 suchthat defined(x11[@i_103], x12[@i_103], x13[@i_103], x14[@i_103], x15[@i_103], r1_82[@i_103]) && ((x11 = x11[@i_103]) && ((x12 = x12[@i_103]) && ((x13 = x13[@i_103]) && ((x14 = x14[@i_103]) && (x15 = x15[@i_103]))))) then
+    out(c21[!_63], r1_82[@i_103])
+  else
+    new r1_82: hash1;
+    out(c21[!_63], r1_82)
+)
+
+*)

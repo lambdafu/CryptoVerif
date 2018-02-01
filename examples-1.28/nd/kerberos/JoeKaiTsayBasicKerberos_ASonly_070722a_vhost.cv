@@ -1,0 +1,201 @@
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type client [bounded].
+type kas [bounded].
+type tgs [bounded].
+type mkey [fixed].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [fixed].
+type timest [fixed].									(* needed in particular for CS_reply *)
+
+(* following functions are needed to set the type of a list of elements to `bitstring', so that the list can be encrypted: *)
+fun concat1(key, mkey, nonce, tgs):bitstring [compos]. 				(* needed for {AK, mAK, n1, T}_Kc in AS_reply *)
+fun concat2(key, mkey, client):bitstring [compos].  					(* needed for TGT and ST *)
+
+
+forall y:key, w:mkey, z:client, y2:nonce, z2:tgs, t2:key, w2:mkey;
+	concat2(y,w,z) <> concat1(t2,w2,y2,z2).
+
+
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+fun enc(bitstring, key, seed): bitstring.
+fun kgen(keyseed):key.
+fun dec(bitstring, key): bitstringbot.
+
+fun enc2(bitstring, key, seed): bitstring.
+fun kgen2(keyseed):key.
+
+fun injbot(bitstring):bitstringbot [compos].
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(bitstring):bitstring.
+const Zconcat1:bitstring.
+const Zconcat2:bitstring.
+
+(* BB: Added in order to prove the query 
+query x:bitstring, k:key, k':key, mk:mkey, mk':mkey;
+	event fullC(K,T,k,mk,x) && fullK(C,T,k',mk',x) ==> k = k'.
+*)
+forall m1:bitstring, m2:bitstring, r:keyseed, r1: seed, r2:seed;
+	(enc(m1,kgen(r),r1) = enc(m2,kgen(r),r2)) = (m1 = m2).
+
+forall m:bitstring, r:keyseed, r2:seed; 
+	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
+forall y:nonce, z:tgs, t:key, u:mkey;
+	Z(concat1(t, u, y, z)) = Zconcat1.
+forall y:key, w:mkey, z:client; 
+	Z(concat2(y, w, z)) = Zconcat2.
+forall m:bitstring, r:keyseed, r2:seed; 
+	Z(enc(m, kgen(r), r2)) = Z(m).
+
+equiv  !N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc(x, kgen(r), r2)) 
+     <=(N2 * Penc(time, N, maxlength(x)))=> 
+       !N2 new r: keyseed; ((x:bitstring) N -> new r2: seed; enc2(Z(x), kgen2(r), r2)).
+
+
+(* Mac *)
+
+proba Pmac.
+
+fun mac(bitstring, mkey):macs.
+fun check(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(bitstring, mkey):macs.
+fun check2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+	check(m, mkgen(r), mac(m, mkgen(r))).
+forall m:bitstring, r:mkeyseed;
+	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
+
+equiv !N3 new r: mkeyseed;(
+	 (x: bitstring) N -> mac(x, mkgen(r)),
+	 (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2, max(maxlength(x), maxlength(m))))=>
+      !N3 new r: mkeyseed;(
+	 (x: bitstring) N -> mac2(x, mkgen2(r)),
+	 (m: bitstring, ma: macs) N2 -> 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, start, finish, cC, cS.
+const C : client.
+const T : tgs. 
+const K : kas.						
+fun acceptC(kas,tgs):bitstring.
+fun acceptK(client):bitstring.
+
+
+event fullC(kas, tgs, key, mkey, bitstring).
+event fullK(client, tgs, key, mkey, bitstring).
+
+(* authentication of K to C : *)
+
+query x:bitstring, k:key, mk:mkey;
+	event inj:fullC(K,T,k,mk,x) ==> inj:fullK(C,T,k,mk,x).		
+
+query x:bitstring, k:key, k':key, mk:mkey, mk':mkey;
+	event fullC(K,T,k,mk,x) && fullK(C,T,k',mk',x) ==> k = k'.
+
+(* Secrecy of the key AK *)
+query secret1 keyAK. (* One-Session Secrecy *)						
+query secret keyAK. (* Secrecy  *)
+
+
+
+
+let processC = 
+	in(c1, h: tgs);								(* h = T *)
+	new Nc: nonce;
+	let p1 = (C, h, Nc) in
+	out(c2, (C, h, Nc));
+	in(c3, (=C, m: bitstring, mac1: macs, m2: bitstring, mac2: macs));		(* m = Ticket Granting Ticket *)
+	let p2 = (C, m2) in
+	if check(m2, mKc, mac2) then
+        let injbot(concat1(AK, mAK, =Nc, =h)) = dec(m2, Kc) in 
+	event fullC(K, h, AK, mAK, (p1, p2));
+	out(c4, acceptC(K, h));
+	(* OK *)
+	in(finish, ());
+	if h = T then
+	(
+	let keyAK:key = AK	
+	)
+	else out(cC, AK).
+
+	
+
+let processCKEY =
+	in(c13, (Khost: client, Kkey: key, Kmkey: mkey));
+	let Rkey:key = 
+		if Khost = C then Kc else
+		Kkey
+	in
+	let Rmkey:mkey =
+		if Khost = C then mKc else
+		Kmkey.
+
+let processTKEY =
+	in(c13, (Lhost: tgs, Lkey: key, Lmkey: mkey));
+	let Qkey:key = 
+		if Lhost = T then Kt else
+		Lkey
+	in
+	let Qmkey:mkey =
+		if Lhost = T then mKt else
+		Lmkey.
+
+
+let processK = 
+	in(c14, (h1: client, h2: tgs, n: nonce));
+	find j1 <= N2 suchthat defined(Khost[j1],Rmkey[j1],Rkey[j1]) && (Khost[j1] = h1) then        (* shared key KC *)
+	find j2 <= N3 suchthat defined(Lhost[j2],Qmkey[j2],Qkey[j2]) && (Lhost[j2] = h2) then        (* shared key KT *)
+	let q1 = (h1, h2, n) in
+	new AK: key;
+	new rmAK : mkeyseed;
+	let mAK = mkgen(rmAK) in
+	new r3: seed;
+	let e3 = enc(concat2(AK, mAK, h1), Qkey[j2], r3) in  (* TGT *)
+	let mac3 = mac(e3, Qmkey[j2]) in
+	new r4: seed;
+	let e4 = enc(concat1(AK, mAK, n, h2), Rkey[j1], r4) in
+	let q2 = (h1, e4) in
+	event fullK(h1, h2, AK, mAK, (q1, q2));
+	out(c15, (h1, e3, mac3, e4, mac(e4, Rmkey[j1]))).
+
+
+
+process
+	in(start, ());
+	new rKc: keyseed;
+	let Kc = kgen(rKc) in									(* enc key between client C and KAS K *)
+	new rmKc: mkeyseed;
+	let mKc = mkgen(rmKc) in								(* mac key -"-  *)
+	new rKt: keyseed;
+	let Kt = kgen(rKt) in									(* enc key between TGS T and KAS K *)
+	new rmKt: mkeyseed;
+	let mKt = mkgen(rmKt) in								(* mac key  -"- *)
+	out(c20, ());
+	((! N processC) | 
+	 (! N processK) |
+	 (! N2 processCKEY) |
+	 (! N3 processTKEY))
+
+(* EXPECTED
+All queries proved.
+0.290s (user 0.290s + system 0.000s), max rss 44384K
+END *)

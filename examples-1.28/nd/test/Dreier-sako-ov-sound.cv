@@ -1,0 +1,104 @@
+(* sako.pi : protocol by Sako (2000) *)
+(* Property: Checks ov_l, ov_w, ov_s - soundness *)
+
+param N.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+type bid [bounded].
+type int [bounded].
+type bidderid [bounded].
+
+table keys(spkey).
+
+const bidval:bid.
+const one:int.
+const two:int.
+const bone:bidderid.
+const btwo:bidderid.
+
+fun bidToBit(bid):blocksize [compos].
+fun bitToSign(bitstring):sblocksize [compos]. 
+
+(* Public-key encryption *)
+
+fun enc(blocksize, pkey, seed): bitstring.
+fun pkgen(skey):pkey.
+fun dec(bitstring, skey): blocksize.
+
+fun injbot(blocksize):bitstringbot [compos].
+
+forall m:blocksize, r:skey, r2:seed; 
+	dec(enc(m, pkgen(r), r2), r) = m.
+
+forall r1:skey, r2:skey; 
+	((pkgen(r1)=pkgen(r2))=(r1=r2)).
+
+	
+fun iinjbot(bitstringbot):blocksize [compos].
+
+forall b:blocksize; iinjbot(injbot(b)) = b.
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+channel start, chPKI, chW, chPk1, ch011, ch021.
+
+event bad().
+event OK().
+event KO().
+
+query event bad ==> false.
+
+let testov =
+  in(chW, (m:blocksize, s:signature, w:bidderid, p:int, (* pk1:pkey, sk1:skey, *) c1:bitstring, m1:blocksize, c2:bitstring, m2:blocksize, sk:skey));
+  let sk1 = keyone in
+  let pk1 = pkgen(keyone) in
+  new r:seed;
+  if (pkgen(sk)=pk1 && m1=dec(c1,sk) && m2=dec(c2,sk)) then
+    if p = one && w = bone && m1=bidToBit(bidval) then
+      if ((dec(c1, sk1))=(bidToBit(bidval))) = false then
+        event bad() else yield
+    else
+    if p = one && w = btwo && m1 <> bidToBit(bidval) && m2 = bidToBit(bidval) then
+      if (dec(c1, sk1)) = (bidToBit(bidval)) || (dec(c2, sk1)) <> (bidToBit(bidval)) then
+        event bad() else yield
+    else 
+    if m1 <> bidToBit(bidval) && m2 <> bidToBit(bidval) && p <> one then
+      if (dec(c1, sk1)) = (bidToBit(bidval)) || (dec(c2, sk1)) = (bidToBit(bidval)) then
+        event bad()
+      else yield
+    else
+      event KO()
+  else
+    event KO() else yield.
+
+process
+ in(start, ());
+ new keyone:skey;
+ out(chPKI, (keyone, pkgen(keyone), (* skgen(keyone), *) one, two));
+ testov
+ 
+(* EXPECTED
+All queries proved.
+0.028s (user 0.028s + system 0.000s), max rss 26640K
+END
+*)

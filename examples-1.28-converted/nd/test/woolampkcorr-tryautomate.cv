@@ -1,0 +1,177 @@
+(*
+
+Woo and Lam public-key auth protocol (1997)
+
+A -> B: A
+B -> A: N
+A -> B: { A, B, N }_skA
+B -> S: A
+S -> B: A, { A, pkA }_skS
+
+Correct
+
+
+SArename Rkey
+crypto sign rkS
+crypto sign rkA
+success
+
+*)
+
+(* set interactiveMode = true. *)
+
+param N, N2, N3, N4, N5.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+
+fun concat1(host, host, nonce):blocksize [data].
+fun concat2(host, pkey):blocksize [data].
+
+forall x:host, y:host, z:nonce, x2:host, y2:pkey;
+	concat1(x,y,z) <> concat2(x2,y2).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+fun sign(blocksize, skey, seed): signature.
+fun sskgen(keyseed):skey.
+fun spkgen(keyseed):pkey.
+fun check(blocksize, pkey, signature): bool.
+
+fun sign2(blocksize, skey, seed): signature.
+fun sskgen2(keyseed):skey.
+fun spkgen2(keyseed):pkey.
+fun check2(blocksize, pkey, signature): bool.
+
+forall m:blocksize, r:keyseed, r2:seed; 
+	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
+forall m:blocksize, r:keyseed, r2:seed; 
+	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
+
+
+(*
+equiv  !N3 new r: keyseed; (() -> spkgen(r),
+			    (x: blocksize) N2 -> new r2: seed; sign(x, sskgen(r), r2)),
+       (m: blocksize, y: pkey, si: signature) N4 -> check(m, y, si) [all]
+     <=(N3 * Psign(time, N2))=>
+       !N3 new r: keyseed; (() -> spkgen2(r),
+			    (x: blocksize) N2 -> new r2: seed; sign2(x, sskgen2(r), r2)),
+       (m: blocksize, y: pkey, si: signature) N4 -> 
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then true else
+		find k <= N3 suchthat defined(r[k]) && y = spkgen2(r[k]) then false else
+		check(m,y,si).
+
+ New definition to automate by using priorities. *)
+
+equiv
+  ! N3 new r: keyseed; (
+    gen_Oracle() [2] := return(spkgen(r)) |
+    ! N2 new r2: seed; gen_Oracle_1(x: blocksize) := return(sign(x, sskgen(r), r2)) |
+    ! N5 gen_Oracle_2(m1: blocksize, si1: signature) := return(check(m1, spkgen(r), si1)))|
+  ! N4 gen_Oracle_3(m: blocksize, y: pkey, si: signature) [3] := return(check(m, y, si)) [all]
+<=(N3 * Psign(time, N2))=>
+  ! N3 new r: keyseed; (
+    gen_Oracle() := return(spkgen2(r)) |
+    ! N2 new r2: seed; gen_Oracle_1(x: blocksize) := return(sign2(x, sskgen2(r), r2)) |
+    ! N5 gen_Oracle_2(m1: blocksize, si1: signature) := find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, spkgen(r), si1) then return(true) else return(false))|
+  ! N4 gen_Oracle_3(m: blocksize, y: pkey, si: signature) := find j <= N2, k <= N3 suchthat defined(x[j, k], r[k]) && y = spkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then return(true) else find k <= N3 suchthat defined(r[k]) && (y = spkgen2(r[k])) then return(false) else return(check(m,y,si)).
+
+
+collision new r1: keyseed; new r2: keyseed; return(spkgen(r1) = spkgen(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(spkgen2(r1) = spkgen2(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(sskgen(r1) = sskgen(r2)) <=(Psigncoll)=> return(r1 = r2).
+collision new r1: keyseed; new r2: keyseed; return(sskgen2(r1) = sskgen2(r2)) <=(Psigncoll)=> return(r1 = r2).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, finish.
+
+const A:host.
+const B:host.
+
+event beginA(host).
+event beginAfull(host,host,nonce).
+event endB(host, host, nonce).
+
+query z: nonce, y: host, x: host;
+  event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
+query z: nonce, y: host, x: host;
+  event(endB(x, y, z)) ==> event(beginA(y)).
+query z: nonce, y: host, x: host;
+  inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)).
+query z: nonce, y: host, x: host;
+  inj-event(endB(x, y, z)) ==> inj-event(beginA(y)).
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rkA: keyseed;
+let pkA: pkey = spkgen(rkA) in
+let skA: skey = sskgen(rkA) in
+new rkB: keyseed;
+let pkB: pkey = spkgen(rkB) in
+let skB: skey = sskgen(rkB) in
+new rkS: keyseed;
+let pkS: pkey = spkgen(rkS) in
+let skS: skey = sskgen(rkS) in
+out(c13, (pkA, pkB, pkS));
+((
+  ! i_1 <= N
+  in(c1[i_1], hostB0: host);
+  event beginA(hostB0);
+  out(c2[i_1], A);
+  in(c3[i_1], n_1: nonce);
+  event beginAfull(A, hostB0, n_1);
+  new r1: seed;
+  out(c4[i_1], sign(concat1(A, hostB0, n_1), skA, r1))
+) | (
+  ! i_2 <= N
+  in(c5[i_2], hostA0: host);
+  new n_2: nonce;
+  out(c6[i_2], n_2);
+  in(c7[i_2], m: signature);
+  out(c8[i_2], hostA0);
+  in(c9[i_2], (=hostA0, pkA2: pkey, m4: signature));
+  if check(concat2(hostA0, pkA2), pkS, m4) then
+  if check(concat1(hostA0, B, n_2), pkA2, m) then
+  if hostA0 = A then
+  event endB(hostA0, B, n_2)
+) | (
+  ! i_3 <= N
+  in(c10[i_3], hostA: host);
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostA) then
+  let pka: pkey = Rkey[j2] in
+  new r2: seed;
+  out(c11[i_3], (hostA, pka, sign(concat2(hostA, pka), skS, r2)))
+) | (
+  ! i_4 <= N2
+  in(c12[i_4], (Khost: host, Kkey: pkey));
+  let Rkey: pkey = (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.044s + system 0.000s), max rss 42880K
+END *)

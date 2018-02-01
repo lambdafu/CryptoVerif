@@ -1,0 +1,176 @@
+(**********************************************************************
+*
+* Prove (not!) the chosen-ciphertext security of AES counter mode.
+*
+*  * Cryptoverif version: 1.18
+*  * Blocks: 3 
+*  * Result: non-termination (failure expected; counter mode is not CCA secure)
+*
+*
+***********************************************************************)
+
+
+(* AES as a symmetric deterministic block cipher:
+
+Must define:
+
+* keyseed: set of key seeds, must be bounded, typically fixed and large.
+* key: type of keys, must be bounded.
+* blocksize: type of cleartexts and ciphertexts. Must be fixed and large.
+* Penc(t, N): the probability of breaking the PRP in time t with N encryption queries.
+
+Will get:
+
+* kgen: keyseed -> key,
+* enc: blockzise * key -> blocksize,
+* dec: blocksize * key -> block
+
+*)
+
+type keyseed [fixed, large].
+type key [bounded].
+type block [fixed, large].
+proba Paes.
+
+expand PRP_cipher(keyseed, key, block, kgen, aes_enc, aes_dec, Paes).
+
+
+
+
+(* define xor to exist over blocks *)
+
+expand Xor(block, xor, zero_block).
+
+
+(* Useful helper function. Dunno why. *)
+
+fun test(bool, block, block):block.
+forall x:block,y:block; test(true,x,y) = x.
+forall x:block,y:block; test(false,x,y) = y.
+
+
+(* Axiomitize 'increment' *)
+
+fun incr(block):block [compos, uniform].
+forall x:block; incr(x) <> x.
+forall x:block; incr(incr(x)) <> x.
+forall x:block; incr(incr(incr(x))) <> x.
+
+(* Parameters *)
+
+param N. (* the number of times the adversary gets to call the encryption oracle *)
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+
+
+
+let enc_oracle = 
+    Oenc(b1 : block, b2: block, b3:block):=
+       nonce <-R block;
+
+       counter0 <- nonce;
+
+       counter1 <- incr(counter0);
+       pad1 <- aes_enc(counter1, k);
+       ciphertext1 <- xor(b1, pad1);
+
+       counter2 <- incr(counter1);
+       pad2 <- aes_enc(counter2, k);
+       ciphertext2 <- xor(b2, pad2);
+
+       counter3 <- incr(counter2);
+       pad3 <- aes_enc(counter3, k);
+       ciphertext3 <- xor(b3, pad3);
+
+       return (nonce, ciphertext1, ciphertext2, ciphertext3).
+
+
+
+let challenge_and_dec_oracles =
+    (* Oracle representing the non-oracle part of the game. 
+       When the adversary calls this with two messages, 
+       choose one to encrypt. *)
+       
+       Ochallenge(b11: block, b12: block, b13: block, 
+       		  b21: block, b22: block, b23: block) :=
+       secret_bit <-R bool;
+       b1 <- test(secret_bit, b11, b21);
+       b2 <- test(secret_bit, b12, b22);
+       b3 <- test(secret_bit, b13, b23);
+
+
+       (* le sigh-- cut and copy from encryption oracle *)
+       nonce <-R block;
+
+       counter0 <- nonce;
+       s0 <- aes_enc(counter0, k);
+
+       counter1 <- incr(counter0);
+       pad1 <- aes_enc(counter1, k);
+       ciphertext1 <- xor(b1, pad1);
+
+       counter2 <- incr(counter1);
+       pad2 <- aes_enc(counter2, k);
+       ciphertext2 <- xor(b2, pad2);
+
+       counter3 <- incr(counter2);
+       pad3 <- aes_enc(counter3, k);
+       ciphertext3 <- xor(b3, pad3);
+
+       challenge <- (nonce, ciphertext1, ciphertext2, ciphertext3);
+       (* end cut and copy from encryption oracle *)
+
+       return(challenge);
+
+       (foreach i <= N do dec_oracle).
+
+
+
+let dec_oracle = 
+   Odec(nonce: block, 
+       	   ciphertext1: block,
+       	   ciphertext2: block,
+       	   ciphertext3: block) :=
+   if 
+       (nonce, ciphertext1, ciphertext2, ciphertext3) = challenge
+   then
+       return(bottom,bottom,bottom)
+   else
+       (* decrypt *)
+
+       counter <- nonce;
+       s0 <- aes_enc(nonce, k);
+
+       counter <- incr(counter);
+       pad <- aes_enc(counter, k);
+       plaintext1 <- xor(ciphertext1, pad);
+
+       counter <- incr(counter);
+       pad <- aes_enc(counter, k);
+       plaintext2 <- xor(ciphertext2, pad);
+
+       counter <- incr(counter);
+       pad <- aes_enc(counter, k);
+       plaintext3 <- xor(ciphertext3, pad);
+       
+       return(plaintext1, plaintext2, plaintext3).
+
+
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+	x <-R keyseed;
+        k <- kgen(x);
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+        (foreach i <= N do enc_oracle) | challenge_and_dec_oracles

@@ -1,0 +1,51 @@
+(* I think there might be a bug, but I do not manage to trigger it *)
+
+param N, N'.
+
+(* set interactiveMode = true. *)
+
+fun enc(bitstring, bitstring): bitstring.
+fun dec(bitstring, bitstring): bitstring.
+forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
+
+const c0: bitstring.
+
+channel c.
+
+process
+	(in(c, ());
+	find j2 <= N suchthat defined(k[j2]) then
+	find j1 <= N suchthat defined(m[j1]) then
+	out(c, ());
+	in(c,());
+	if j1 = j2 then
+	(* There would be a bug if the simplification
+	   replaced r with (x[j2],k[...]). CryptoVerif would then add
+	   x[j2] in the defined condition of the 2nd find above.
+	   However, it not known at this point that x[j2] is defined.
+	   This is known only because x[j1] is defined and j1 = j2.
+
+	   In earlier versions (until August 31, 2015), in case
+	   simplification would replace r with (x[j2],k[...]), 
+	   CryptoVerif would just forget the condition defined(x[j2]),
+	   because x[j2] does not appear in the known facts,
+	   thus breaking the desired invariants on the game.
+
+	   One solution would be to add the condition defined(x[j2])
+	   to "if j1 = j2 then" *)
+	let r = dec(m[j1],k[j2]) in
+	out(c, r)
+	)
+|
+	(!N
+	in(c, k:bitstring);
+	out(c,());
+	in(c, x: bitstring);
+	let m:bitstring = enc(x,k) in
+	out(c, ())
+	)
+
+(* EXPECTED
+All queries proved.
+0.016s (user 0.004s + system 0.012s), max rss 22928K
+END *)

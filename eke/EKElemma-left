@@ -1,0 +1,42 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03 *)
+
+param Ngen, Nenc, Ndec.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+expand ICM_cipher(passwd, G, enc, dec, enc_dec_oracle, qE, qD).
+
+channel cgen, cgenout, cenc, cencout, cdec, cdecout.
+
+process 
+	(
+	! Ngen
+	in(cgen, pw: passwd); 
+	new y:exponent; 
+	let Y = exp(g,y) in
+	let Ystar = enc(Y, pw) in
+	out(cgenout, (y, Y, Ystar))
+	)
+	|
+	(
+	! Nenc
+	in(cenc, (x: G, pw:passwd));
+	out(cencout, enc(x,pw))
+	)
+	|
+	(
+	! Ndec
+	in(cdec, (y: G, pw:passwd));
+	out(cdecout, dec(y, pw))
+	)

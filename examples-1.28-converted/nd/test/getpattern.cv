@@ -1,0 +1,16 @@
+channel c.
+
+table t(bool).
+
+process
+	in(c, y: bool);
+insert t(y);
+get t(=(new b: bool; b)) in
+out(c, y)
+
+
+
+(* EXPECTED
+All queries proved.
+0.012s (user 0.012s + system 0.000s), max rss 30496K
+END *)

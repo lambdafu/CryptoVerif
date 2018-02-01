@@ -1,0 +1,8 @@
+#!/bin/sh
+
+ocamlyacc parser.mly
+ocamllex lexer.mll
+ocamlyacc oparser.mly
+ocamllex olexer.mll
+ocamlopt -o ../convert parsing_helper.mli parsing_helper.ml occ_map.mli occ_map.ml types.ml ptree.mli settings.mli settings.ml changes.mli changes.ml parser.mli parser.ml lexer.ml oparser.mli oparser.ml olexer.ml terms.mli terms.ml stringmap.mli stringmap.ml syntax.mli syntax.ml display.mli display.ml check.mli check.ml main.ml
+

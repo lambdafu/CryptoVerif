@@ -2,16 +2,23 @@
 
 type ident = Types.ident
 
+type ty =
+    Tid of ident (* For normal types, designated by an ident *)
+  | TBound of ident (* For interval types, designated by their bound *)
+
 type term = PIdent of ident
           | PArray of ident * term_e list
           | PFunApp of ident * term_e list
-	  | PInjEvent of ident * term_e list (* For queries only *)
+	  | PQEvent of bool(*injective?*) * term_e (* For queries only *)
 	  | PTuple of term_e list
 	  | PTestE of term_e * term_e * term_e
-	  | PFindE of (Types.repl_index list ref(*to store replication indices*) * (ident * ident) list * (ident * term_e list) list * term_e * term_e) list * term_e * ident list
+	  | PFindE of (Types.repl_index list ref(*to store replication indices*) * (ident * ident * ident) list * (ident * term_e list) list * term_e * term_e) list * term_e * ident list
 	  | PLetE of pattern_e * term_e * term_e * term_e option
 	  | PResE of ident * ident * term_e
 	  | PEventAbortE of ident
+	  | PEventE of term_e * term_e
+	  | PGetE of ident * (pattern_e list) * term_e option * term_e * term_e
+	  | PInsertE of ident * term_e list * term_e
 	  | PEqual of term_e * term_e
 	  | PDiff of term_e * term_e
 	  | POr of term_e * term_e
@@ -19,7 +26,7 @@ type term = PIdent of ident
 
 and term_e = term * Parsing_helper.extent
 
-and pattern = PPatVar of ident * ident option(*optional type*)
+and pattern = PPatVar of ident * ty option(*optional type*)
   | PPatTuple of pattern_e list
   | PPatFunApp of ident * pattern_e list
   | PPatEqual of term_e
@@ -28,6 +35,8 @@ and pattern_e = pattern * Parsing_helper.extent
 
 (* Processes *)
 
+type channel = ident * (ident list option)
+      
 type progopt = PWrite of ident (*variable*) * ident (* file *)
              | PRead of ident * ident
 
@@ -37,12 +46,12 @@ and process =  PNil
 	     | PPar of process_e * process_e
 	     | PRepl of Types.repl_index option ref(*to store replication index*) * ident option(*index*) * ident(*bound*) * process_e
  	     | PRestr of ident * ident(*type*) * process_e 
-	     | PLetDef of ident
+	     | PLetDef of ident * term_e list
 	     | PTest of term_e * process_e * process_e
-	     | PFind of (Types.repl_index list ref(*to store replication indices*) * (ident * ident) list * (ident * term_e list) list * term_e * process_e) list * process_e * ident list
+	     | PFind of (Types.repl_index list ref(*to store replication indices*) * (ident * ident * ident) list * (ident * term_e list) list * term_e * process_e) list * process_e * ident list
 	     | PEvent of term_e * process_e
-             | PInput of ident * pattern_e * process_e
-             | POutput of bool * ident * term_e * process_e
+             | PInput of channel * pattern_e * process_e
+             | POutput of bool * channel * term_e * process_e
 	     | PLet of pattern_e * term_e * process_e * process_e
              | PGet of ident * (pattern_e list) * term_e option * process_e * process_e
              | PInsert of ident * term_e list * process_e
@@ -101,10 +110,6 @@ type probabilityf =
 
 and probabilityf_e = probabilityf * Parsing_helper.extent
 
-type ty =
-    Tid of ident (* For normal types, designated by an ident *)
-  | TBound of ident (* For interval types, designated by their bound *)
-
 type fungroup =
     PReplRestr of (Types.repl_index option ref(*to store replication index*) * ident option(*index*) * ident(*repetitions*)) (*replication*) * 
 	(ident * ident(*type*) * ident list(*options*)) list(*restrictions*) * fungroup list
@@ -130,9 +135,8 @@ type pval =
 (* Queries *)
 
 type query = 
-    PQSecret of ident * ident list option
-  | PQSecret1 of ident * ident list option
-  | PQEvent of (ident * ident(*type*)) list * term_e * term_e
+    PQSecret of ident * ident list(*public variables*) * ident list(*options*)
+  | PQEventQ of (ident * ty(*type*)) list * term_e * term_e * ident list(*public variables*)
 
 (* Implementation *)
 
@@ -160,33 +164,17 @@ type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list
 	  | EqStatement of eqstatement
 	  | Collision of collision
 	  | Setting of ident * pval
-	  | PDef of ident * process_e
-	  | Query of query list
+	  | PDef of ident * (ident * ty) list * process_e
+	  | Query of (ident * ty(*type*)) list * query list
 	  | Define of ident * ident list * decl list
 	  | Expand of ident * ident list
 	  | Proofinfo of ident list list
           | Implementation of impl list
           | TableDecl of ident * ident list
-          | LetFun of ident * (ident * ident) list * term_e
+          | LetFun of ident * (ident * ty) list * term_e
 
 type pall = decl list
 
-
-(* Environment.
-   May contain function symbols, variables, ...
-   Is a map from strings to the description of the ident *)
-
-type env_entry =
-    EFunc of Types.funsymb
-  | EEvent of Types.funsymb
-  | EParam of Types.param
-  | EProba of Types.proba
-  | EType of Types.typet
-  | EVar of Types.binder
-  | EReplIndex of Types.repl_index
-  | EChannel of Types.channel
-  | EProcess of process_e
-  | ETable of Types.table
 
 (* User info for cryptographic transformation *)
 

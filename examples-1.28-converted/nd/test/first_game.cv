@@ -1,0 +1,56 @@
+(* This file is rejected: if/let/find/new are not accepted inside
+conditions of find.
+That's ok. I could be more permissive, but this file must be rejected
+because it makes a find on the variable y defined in a condition of find.
+
+Fix 23/11/2009 File correctly rejected because it makes a find on the 
+variable y defined in a condition of find.
+*)
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+type hashkey [fixed].
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+let hashoracle(hk: hashkey) = ! qH in(hc1, z: hashinput); out(hc2, h(hk,z)).
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+let processU(hk: hashkey) =
+	in(c1, m: hash);
+	find j<= N suchthat defined(x[j]) && let y:hashinput = x[j] in m = h(hk,y) then
+	out(c2, true)
+	else
+	out(c2, false).
+
+let processS =
+	in(c3, x: hashinput);
+	new s: G;
+	find k<=N suchthat defined(y[k]) && x = y[k] then
+        out(c4, s).
+
+process 
+	in(hstart, ());
+	new hk: hashkey;
+	out(hret, ());
+	((! N processU(hk)) |
+	 (! N processS) | hashoracle(hk))
+
+
+(* EXPECTED
+Error: y is referenced in an array reference and is defined in a condition of find or get
+xtime: error in child process (status : 512)
+END *)

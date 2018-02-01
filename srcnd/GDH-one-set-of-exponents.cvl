@@ -1,0 +1,292 @@
+(* Gap Diffie-Hellman
+   G: type of group elements (must be "bounded" and "large", of cardinal 
+   a prime q), neutral element excluded (so |G| = q-1)
+   Z: type of exponents (must be "bounded" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pGDH: the probability of breaking the GDH assumption
+
+   The types G and Z and the probability pGDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro. *)
+
+define GDH(G, Z, g, exp, mult, pGDH) {
+
+fun exp(G,Z): G. (* exp(x,y) denotes x^y *)
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; 
+  mult(x1,x2) = mult(x3,x4) <=(1/|Z|)=> false. 
+
+collision new x1:Z; new x2:Z; 
+  mult(x1,x1) = mult(x2,x2) <=(1/|Z|)=> false. 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      !N new X:G; (OX() := X, !N' OXm(m:Z) [useful_change] := exp(X,m))
+<=(0)=> [computational]
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp)
+      !N new X:G; OX() := X 
+<=(0)=> [manual, computational]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv exp_to_group(exp)
+      !N new x:Z; OX() := exp(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+equiv exp'_to_group(exp)
+      !N new x:Z; OX() := exp'(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+(* GDH assumption, see comments below *)
+
+const mark: bitstring.
+
+param na, naDDH, naDDH1, naDDH2, naDDH3.
+
+equiv gdh(exp)
+    !na new a:Z; (
+      OA() := exp(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := m = exp(m', a),
+      !naDDH2 ODDHa2(m:G, m':G, j<=na) := exp(m, a[j]) = exp(m',a),
+      !naDDH3 ODDHa3(m:G, j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+      !naDDH ODDHa(m:G, j<=na) [useful_change] := m = exp(g, mult(a[j], a))
+    )
+<=((#ODDHa + #ODDHa1) * pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp), #ODDHa1 + #ODDHa2 + #ODDHa3))=> [computational]
+    !na new a:Z [unchanged]; (
+      OA() := exp'(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := 
+			   find u<=na suchthat defined(a[u]) && m' = exp(g,a[u]) && a <> a[u] then false else
+                               (* by CDH, if neither a nor b[u] are leaked, then m = exp(g, b[u]*a) is impossible *)
+			   m = exp'(m', a)
+			       (* GDH allows to compute m = exp(m',a) for any m and m', without leaking a *),
+      !naDDH2 ODDHa2(m:G, m':G, j<=na) := exp(m, a[j]) = exp(m',a),
+      !naDDH3 ODDHa3(m:G, j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+      !naDDH ODDHa(m:G, j<=na) := (a = a[j]) && (m = exp(g, mult(a[j], a)))
+    ).
+
+    (* Oracle ODDHa is a particular case of oracle ODDHa1 (with m' =
+    exp(g, a[j])), but we need to consider both forms m = exp(m', a)
+    and m = exp(g, mult(a[j], a)) in the equivalence, because, when m'
+    is known to be exp(g, a[j]), CryptoVerif is going to simplify m =
+    exp(m', a) into m = exp(g, mult(a[j], a)), and the procedure that
+    tests whether a term in the game matches a term in the equivalence
+    would not recognize that m = exp(g, mult(a[j], a)) in the game
+    matches m = exp(m', a) in the equivalence.
+
+    Similarly, ODDHa3 is a particular case of ODDHa2 (with m' = exp(g, a[j'])), 
+    but we need to consider both exp(m, a[j]) = exp(m',a)
+    and exp(m, a[j]) = exp(g,mult(a[j'],a)), because, when m' is known to be
+    exp(g, a[j']), CryptoVerif is going to simplify m = exp(m', a) into
+    m = exp(g, mult(a[j'], a)).
+
+    This equivalence says that, when exp(g,a) and exp(g,a[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[j], a)) only with
+    negligible probability (oracle ODDHa returns false in the right-hand side, 
+    and similarly oracle ODDHa1 also returns false when m' = exp(g,a[j]) for some j),
+    even in the presence of the following oracles:
+    - an oracle that tells whether m = exp(m',a) for m,m' chosen by the adversary
+    (ODDHa1). This is a DDH oracle: DDH(g, exp(g,a), m', m), where
+    DDH(g,A,B,C) tells whether A = g^a, B = g^b, and C = g^{ab} for some a,b.
+    - an oracle that tells whether exp(m, a[j]) = exp(m',a) for m,m' chosen
+    by the adversary (ODDHa2 and its particular case ODDHa3).
+    This is also a DDH oracle: DDH(exp(g,a),exp(g,a[j]),m,m').
+    Indeed, DDH(g,A,B,C) is (log_g(A) * log_g(B) = log_g(C)),
+    so 
+    D(exp(g,a),exp(g,a[j]),m,m') 
+      = (log_{g^a}(g^a[j]) * log_{g^a}(m) = log_{g^a}(m'))
+      = (a[j]/a * log_g(m)/a = log_g(m')/a)
+      = (a[j] * log_g(m) = a log_g(m'))
+      = (m^a[j] = m'^a). *)
+
+}
+
+(* square Gap Diffie-Hellman 
+   G: type of group elements (must be "bounded" and "large", of cardinal 
+   a prime q), neutral element excluded (so |G| = q-1)
+   Z: type of exponents (must be "bounded" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pGDH: the probability of breaking the square GDH assumption
+
+   The types G and Z and the probability pGDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+*)
+
+define square_GDH(G, Z, g, exp, mult, pGDH) {
+
+fun exp(G,Z): G. (* exp(x,y) denotes x^y *)
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* Added for this example *)
+forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
+forall x:G, x':G, y:Z; (exp'(x,y) = exp'(x',y)) = (x = x').
+
+forall x:Z, x':G, y:Z; (exp(g, mult(x,y)) = exp(x',y)) = (exp(g,x) = x').
+forall x:Z, x':G, y:Z; (exp'(g, mult(x,y)) = exp'(x',y)) = (exp(g,x) = x').
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; 
+  mult(x1,x2) = mult(x3,x4) <=(1/|Z|)=> false. 
+
+collision new x1:Z; new x2:Z; 
+  mult(x1,x1) = mult(x2,x2) <=(1/|Z|)=> false. 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      !N new X:G; (OX() := X, !N' OXm(m:Z) [useful_change] := exp(X,m))
+<=(0)=> [computational]
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp)
+      !N new X:G; OX() := X 
+<=(0)=> [manual, computational]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv exp_to_group(exp)
+      !N new x:Z; OX() := exp(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+equiv exp'_to_group(exp)
+      !N new x:Z; OX() := exp'(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+(* Square GDH assumption, see comments below *)
+
+const mark: bitstring.
+
+param na, naDDH, naDDH1, naDDH2, naDDH3.
+
+equiv square_gdh(exp)
+    !na new a:Z; (
+      OA() := exp(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := m = exp(m', a),
+      !naDDH2 ODDHa2(m:G, m':G, j<=na) := exp(m, a[j]) = exp(m',a),
+      !naDDH3 ODDHa3(m:G, j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+      !naDDH ODDHa(m:G, j<=na) [useful_change] := m = exp(g, mult(a[j], a))
+    )
+<=((#ODDHa + #ODDHa1) * pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp), #ODDHa1 + #ODDHa2 + #ODDHa3))=> [computational]
+    !na new a:Z [unchanged]; (
+      OA() := exp'(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := 
+			   find u<=na suchthat defined(a[u]) && m' = exp(g,a[u]) then false else
+                               (* by CDH, if neither a nor b[u] are leaked, then m = exp(g, b[u]*a) is impossible *)
+			   m = exp'(m', a)
+			       (* GDH allows to compute m = exp(m',a) for any m and m', without leaking a *),
+      !naDDH2 ODDHa2(m:G, m':G, j<=na) := exp(m, a[j]) = exp(m',a),
+      !naDDH3 ODDHa3(m:G, j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+      !naDDH ODDHa(m:G, j<=na) := false
+    ).
+
+    (* Oracle ODDHa is a particular case of oracle ODDHa1 (with m' =
+    exp(g, a[j])), but we need to consider both forms m = exp(m', a)
+    and m = exp(g, mult(a[j], a)) in the equivalence, because, when m'
+    is known to be exp(g, a[j]), CryptoVerif is going to simplify m =
+    exp(m', a) into m = exp(g, mult(a[j], a)), and the procedure that
+    tests whether a term in the game matches a term in the equivalence
+    would not recognize that m = exp(g, mult(a[j], a)) in the game
+    matches m = exp(m', a) in the equivalence.
+
+    Similarly, ODDHa3 is a particular case of ODDHa2 (with m' = exp(g, a[j'])), 
+    but we need to consider both exp(m, a[j]) = exp(m',a)
+    and exp(m, a[j]) = exp(g,mult(a[j'],a)), because, when m' is known to be
+    exp(g, a[j']), CryptoVerif is going to simplify m = exp(m', a) into
+    m = exp(g, mult(a[j'], a)).
+
+    This equivalence says that, when exp(g,a) and exp(g,a[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[j], a)) only with
+    negligible probability (oracle ODDHa returns false in the right-hand side, 
+    and similarly oracle ODDHa1 also returns false when m' = exp(g,a[j]) for some j),
+    even in the presence of the following oracles:
+    - an oracle that tells whether m = exp(m',a) for m,m' chosen by the adversary
+    (ODDHa1). This is a DDH oracle: DDH(g, exp(g,a), m', m), where
+    DDH(g,A,B,C) tells whether A = g^a, B = g^b, and C = g^{ab} for some a,b.
+    - an oracle that tells whether exp(m, a[j]) = exp(m',a) for m,m' chosen
+    by the adversary (ODDHa2 and its particular case ODDHa3).
+    This is also a DDH oracle: DDH(exp(g,a),exp(g,a[j]),m,m').
+    Indeed, DDH(g,A,B,C) is (log_g(A) * log_g(B) = log_g(C)),
+    so 
+    D(exp(g,a),exp(g,a[j]),m,m') 
+      = (log_{g^a}(g^a[j]) * log_{g^a}(m) = log_{g^a}(m'))
+      = (a[j]/a * log_g(m)/a = log_g(m')/a)
+      = (a[j] * log_g(m) = a log_g(m'))
+      = (m^a[j] = m'^a).
+
+    It is "square" GDH, because it applies also to computing exp(g, mult(a,a))
+    from exp(g,a). *)
+}

@@ -1,0 +1,34 @@
+type Z [large,fixed].
+type G [large,fixed].
+(* the CDH assumption *) 
+proba pCDH.
+expand CDH(G, Z, g, exp, mult, pCDH).
+param NX, NMA. 
+equiv wrong_eq(g)
+    foreach iX <= NX do a <-R Z; 
+    (
+        OG() := return(exp(g, a)) | 
+        foreach ima <= NMA do OA(s:Z) := return(s = a)
+    ) 
+<=(pCDH(time))=> [computational]
+    foreach iX <= NX do a <-R Z; 
+    (
+        OG() := return(exp(g, a)) | 
+        foreach ima <= NMA do OA(s:Z) := return(false)
+    ).
+        
+event Bad.
+
+query event Bad ==> false. 
+let User = 
+    O1() :=
+    b <-R Z;
+    gb <- exp(g,b);
+    return(gb);
+    O2(b':Z) :=
+    if b' = b then event Bad.
+    
+param N. 
+ 
+process
+(foreach i <= N do User)

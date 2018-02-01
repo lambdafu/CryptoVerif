@@ -1,0 +1,83 @@
+(* S. Gajek et al *)
+
+(* set backtrackOnCrypto = true. *)
+
+param N, N2.
+
+type pkey [bounded].
+type skey [bounded]. 
+type keyseed [large,fixed]. (* Ramdomness for KeyGen Oracle *)
+type seed [large,fixed].    (* Ramdomness for Enc Oracle *)
+type cleartext [large,fixed]. (* message space *)
+type ciphertext [large,fixed]. (* ciphertext space *)
+
+const Z:cleartext. (* Garbage message *)
+
+
+fun enc(cleartext, pkey, seed): ciphertext.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(ciphertext, skey): bitstringbot.
+
+fun enc2(cleartext, pkey, seed): ciphertext.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(ciphertext, skey): bitstringbot.
+
+fun injbot(cleartext):bitstringbot [compos].
+
+(* Correctness *)
+
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
+forall m:cleartext, r:keyseed, r2:seed; 
+	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+	
+(* Axiom: Right or Random*)
+
+equiv  foreach i2 <= N2 do r <-R keyseed; 
+       	   (
+       	       Opk() [2] := return(pkgen(r)) | 
+       	       foreach i <= N do r2 <-R seed; 
+       	       	Oenc(x:cleartext) :=  
+       	       		return(enc(x, pkgen(r), r2)) 
+	   )
+     <=(0)=> 
+       foreach i2 <= N2 do r <-R keyseed; 
+           (
+       	       Opk() := return(pkgen2(r)) | 
+       	       foreach i <= N do r2 <-R seed; 
+       	       	Oenc(x:cleartext) := 
+	       	       return(enc2(Z, pkgen2(r), r2))
+           ).
+
+
+(* Implementing a test as a function.
+  if b=1 return x else y *)
+  
+fun test(bool, cleartext, cleartext):cleartext. 
+forall x:cleartext,y:cleartext; test(true,x,y) = x.
+forall x:cleartext,y:cleartext; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret1 b1. 
+
+(* Process description *)
+
+let processLeftorRight = 
+	OT(m1:cleartext,m2:cleartext) :=
+	b1 <-R bool;
+	menc <- test(b1, m1, m2);
+	r <-R seed;
+	c <- enc(menc, pk, r);
+  return(c).
+
+process 
+	OStart() :=
+	r <-R keyseed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	processLeftorRight
+

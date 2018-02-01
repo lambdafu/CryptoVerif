@@ -1,0 +1,106 @@
+(* This file shows that HMAC-SHA256, KDF256, and KDF128 are independent
+pseudo-random functions even when they use the same key, assuming that
+the compression functions of SHA256 and SHA1 are independent random oracles.
+
+KDF256(k, (X,U,V)) = KDF(k; 256; SharedInfoMAC(X,U,V))
+KDF128(k, (X,U,V)) = KDF(k; 128; SharedInfoENC(X,U,V))
+
+We rely on the result shown in 
+lemmaMAC_KDF_are_indep_PRFs_from_compression_PRF.ocv
+A random oracle is a fortiori a PRF. So we just have to show the
+following joint assumption:
+
+proba P_SHA1_SHA256_joint.
+
+equiv SHA1_SHA256_joint
+       foreach i3 <= N3 do k <-R mac_key;
+       	       (O1() := return(SHA256_comp(SHA256_init, xor(padkey(k), opad))) |
+	        O2() := return(SHA256_comp(SHA256_init, xor(padkey(k), ipad))) |
+		foreach i<= N do O3(x: mac_key) := return(SHA1_comp(SHA1_init, concatSHA1(k, x))))
+     <=(N3 * P_SHA1_SHA256_joint(time + (N3-1)*(2*time(SHA256_comp) + 2*time(xor) + 2*time(padkey) + N*time(SHA1_comp)), N))=>
+       foreach i3 <= N3 do 
+       	       (O1() := r1 <-R t_SHA256_out; return(r1) |
+	        O2() := r2 <-R t_SHA256_out; return(r2) |
+		foreach i<= N do O3(x: mac_key) := 
+			find[unique] j <= N suchthat defined(x[j],r3[j]) && x = x[j] then
+			     return(r3[j])
+			else
+			     r3 <-R t_SHA1_out;
+			     return(r3)).
+
+We prove the result and obtain
+P_SHA1_SHA256_joint(t, N) = (2 * N2 + N1 * N + 3 * N3) / |mac_key|
+where N1 is the number SHA1_comp queries from the adversary
+and N2 is the number SHA256_comp queries from the adversary.
+*)
+
+(* Do not assume by default that all constants are 
+   different. We shall say it explicitly when they are different *)
+
+set diffConstants = false.
+
+(**** Declarations of types, constants, and functions
+      with the associated assumptions ****)
+
+type mac_key [large, fixed]. (* 256 bits HMAC-SHA256 key *)
+
+(* Hash function SHA1 *)
+
+type hashkey1 [fixed, large]. (* Models the choice of the compression function of SHA1 *)
+type t_SHA1_out [fixed, large]. (* 160 bits bitstrings *)
+type t_SHA1_block [fixed, large]. (* 512 bits SHA-1 block *)
+
+const SHA1_init: t_SHA1_out.
+fun concatSHA1(mac_key, mac_key): t_SHA1_block [compos].
+
+(* SHA1 compression function = Random oracle *)
+expand ROM_hash_pair(hashkey1, t_SHA1_out, t_SHA1_block, t_SHA1_out, SHA1_comp).
+
+(* Hash function SHA256 *)
+
+type hashkey2 [fixed, large]. (* Models the choice of the compression function of SHA256 *)
+type t_SHA256_out [fixed, large]. (* 256 bits bitstrings *)
+type t_SHA256_block [large, fixed]. (* 512 bits SHA256 block *)
+
+const SHA256_init: t_SHA256_out.
+
+(* SHA256 compression function = Random oracle *)
+expand ROM_hash_pair(hashkey2, t_SHA256_out, t_SHA256_block, t_SHA256_out, SHA256_comp).
+
+(* HMAC helper functions *)
+
+const opad, ipad: t_SHA256_block.
+forall; opad <> ipad.
+
+fun padkey(mac_key): t_SHA256_block [compos].
+
+expand Xor(t_SHA256_block, xor, zero).
+
+(**** Initial game ****)
+
+param N, N1, N2, N3.
+
+process
+	Ostart() :=
+	hk1 <-R hashkey1;
+	hk2 <-R hashkey2;
+	return;
+	(foreach i3 <= N3 do 
+	    Ogen() := k <-R mac_key; return;
+	    ((O1() := return(SHA256_comp(hk2, SHA256_init, xor(padkey(k), opad)))) |
+             (O2() := return(SHA256_comp(hk2, SHA256_init, xor(padkey(k), ipad)))) |
+             foreach i <= N do 
+                O3(x: mac_key) := return(SHA1_comp(hk1, SHA1_init, concatSHA1(k, x))))) |
+	(* oracle for SHA256_comp *)
+        (foreach i2 <= N2 do 
+            OH2(x1: t_SHA256_out, x2: t_SHA256_block) :=
+		 return(SHA256_comp(hk2, x1, x2))) |
+        (* oracle for SHA1_comp *)
+        (foreach i1 <= N1 do 
+            OH1(y1: t_SHA1_out, y2: t_SHA1_block) :=
+		 return(SHA1_comp(hk1, y1, y2)))
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.036s + system 0.004s), max rss 31776K
+END *)

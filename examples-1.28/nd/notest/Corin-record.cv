@@ -1,0 +1,828 @@
+(* Note: does not work with the current version of CryptoVerif because
+some types are missing. *)
+
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [fixed,large].
+
+type key [fixed].
+type keyseed [large,fixed].
+
+type mkey [fixed].  (* type mkey [bounded]. *)
+type mkeyseed [fixed].
+type macs [bounded].
+type blocks [bounded].
+
+type str[bounded].
+
+fun S(bitstring):str[compos].
+fun iS(str):bitstring[compos].
+
+fun utf8(str):bitstring[compos].
+fun iutf8(bitstring):str[compos].
+fun DataConcat(bitstring, bitstring):bitstring[compos].
+
+fun noncetobytes(nonce):bitstring[compos].
+fun bytestononce(bitstring):nonce[compos].
+fun mactobytes(macs):bitstring[compos].
+fun bytestoblocks(bitstring):blocks[compos].
+fun blockstobytes(blocks):bitstring[compos].
+
+fun mkNonce():bitstring.
+
+fun macsToBitstring(macs):bitstring[compos].
+fun bitstringToMacs(bitstring):macs[compos].
+
+fun Dataconcat4(bitstring, bitstring, bitstring, bitstring):bitstring[compos].
+
+fun nonceToBitstring(nonce):bitstring [compos].
+
+(* Shared-key symencryption (SPRP) 
+   modified to match the expected plaintext format when decrypting junk
+*)
+
+proba Psymenc.
+
+param Nenc.
+param Ndec.
+
+fun aes_encrypt_wiv(key, bitstring, blocks): blocks.
+fun kgen(keyseed):key.
+fun aes_decrypt_wiv(key, bitstring, blocks): blocks.
+
+forall m:blocks, r:keyseed, iv:bitstring;
+  aes_decrypt_wiv(kgen(r), iv, aes_encrypt_wiv(kgen(r), iv, m)) = m.
+
+equiv !N new r: keyseed;
+           ((x:blocks,iv:bitstring) Nenc  -> aes_encrypt_wiv(kgen(r), iv, x),
+            (m:blocks,iv:bitstring) Ndec -> aes_decrypt_wiv(kgen(r), iv, m))
+
+     <=(N * Psymenc(time, Nenc, Ndec))=>
+
+       !N new r: keyseed;
+           ((x:blocks,iv:bitstring) Nenc ->
+                find j<=Nenc suchthat
+                     defined(x[j],r2[j],r2p[j]) &&  
+                     x = x[j]
+                then 
+                     bytestoblocks(DataConcat(r2[j],r2p[j]))
+                orfind k<=Ndec suchthat 
+                     defined(r4[k],r4p[k],m[k]) && 
+                     x = bytestoblocks(DataConcat(r4[k],r4p[k]))
+                then
+                     m[k]
+                else new r2: bitstring; 
+                     new r2p: bitstring; 
+                     bytestoblocks(DataConcat(r2,r2p)),
+            (m:blocks,iv:bitstring) Ndec ->
+                find j<=Nenc suchthat defined(x[j],r2[j],r2p[j]) && m = bytestoblocks(DataConcat(r2[j],r2p[j])) then x[j]
+                orfind k<=Ndec suchthat defined(r4[k],r4p[k],m[k]) && m = m[k] then bytestoblocks(DataConcat(r4[k],r4p[k]))
+                else new r4: bitstring; new r4p: bitstring; bytestoblocks(DataConcat(r4,r4p))).
+
+
+(* Mac *)
+
+proba Pmac.
+
+fun hmacsha1(mkey, bitstring):macs.
+fun check(bitstring, mkey, macs): bool.
+fun mkgen(mkeyseed):mkey.
+
+fun mac2(mkey, bitstring):macs.
+fun check2(bitstring, mkey, macs): bool.
+fun mkgen2(mkeyseed):mkey.
+
+forall m:bitstring, r:mkeyseed;
+    check(m, mkgen(r), hmacsha1(mkgen(r), m)).
+forall m:bitstring, r:mkeyseed;
+    check2(m, mkgen2(r), mac2(mkgen2(r), m)).
+
+equiv ! N3 new r: mkeyseed;(
+     (x: bitstring) N -> hmacsha1(mkgen(r), x),
+     (m: bitstring, ma: macs) N2 -> check(m, mkgen(r), ma))
+     <=(N3 * Pmac(time, N, N2))=>
+      ! N3 new r: mkeyseed;(
+     (x: bitstring) N -> mac2(mkgen2(r), x),
+     (m: bitstring, ma: macs) N2 ->
+        find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then true else false).
+
+
+(* PRF function, random oracle model *)
+fun prf_cv(bitstring):keyseed.
+
+equiv (x:bitstring) N -> prf_cv(x) [all]
+      <=(0)=>
+      (x:bitstring) N -> find j <= N suchthat defined(x[j],r[j]) && otheruses(r[j]) && x= x[j] then r[j] else
+             new r:keyseed; r.
+
+fun mprf_cv(bitstring):mkeyseed.
+
+equiv (x:bitstring) N -> mprf_cv(x) [all]
+      <=(0)=>
+      (x:bitstring) N -> find j <= N suchthat defined(x[j],r[j]) && otheruses(r[j]) && x= x[j] then r[j] else
+             new r:mkeyseed; r.
+
+
+
+
+fun Dbinsert(bitstring,bitstring,bitstring):bitstring[compos].
+
+fun Pitrace():bitstring[compos].
+fun Helpersbytes_of_seq(bitstring):bitstring[compos].
+fun TlsspecTLS1p0():bitstring[compos].
+fun Pifork():bitstring[compos].
+fun symkey(nonce):key[compos].
+fun msymkey(nonce):mkey[compos].
+
+
+fun HelpersbitstringToBitstring(bitstring):bitstring [compos].
+fun Helpersbytes_of_content_type(bitstring):bitstring[compos].
+fun Helpersbytes_of_version(bitstring):bitstring[compos].
+fun Helpersbytes_of_int(bitstring,bitstring):bitstring[compos].
+fun keyToBitstring(key):bitstring[compos].
+fun DataFresh(nonce):nonce[compos].
+fun DataBase64(bitstring):bitstring[compos].
+fun DataUtf8(bitstring):bitstring[compos].
+fun DataLiteral(bitstring):bitstring[compos].
+fun RecordKeyExpansionCenc():bitstring[compos].
+fun RecordKeyExpansionSenc():bitstring[compos].
+fun RecordKeyExpansionSmac():bitstring[compos].
+fun RecordKeyExpansionCmac():bitstring[compos].
+fun RecordKeyExpansionSiv():bitstring[compos].
+fun RecordKeyExpansionCiv():bitstring[compos].
+
+
+event MyhandshakeGenConn(bitstring,bitstring).
+event MyrecordRecvApp(bitstring,bitstring,bitstring).
+event MyrecordSendApp(bitstring,bitstring,bitstring).
+query conn_id:bitstring,pl:bitstring,pp:bitstring; 
+  event MyrecordRecvApp(conn_id,pl,pp) ==> MyrecordSendApp(conn_id,pl,pp).
+
+const dummy:bitstring.
+(*--- recRecvBegin *)
+query conn_id:bitstring,pl:bitstring,pp:bitstring; 
+  event MyrecordRecvApp(conn_id,pl,pp) ==> MyrecordSendApp(conn_id,pl,pp).
+(*--- recRecvEnd *)
+
+
+(* In order to check secrecy, comment out the  Pi.logs in record.ml *)
+
+(*--- recSecret *)
+
+(*query secret1 secret_payload.
+query secret secret_payload.*)
+
+(*--- recSecret *)
+
+(* replace Dbselect by:
+   new enckey:nonce;
+   new mackey:nonce;
+   let static_conn = (dummy , dummy, dummy, ( MyrecordBlockCipherState(noncetobytes(enckey),dummy) ,noncetobytes(mackey), dummy, dummy)) in
+*)
+
+fun Dbcreate():bitstring[compos].
+fun DataNonce(nonce):nonce[compos].
+fun MyrecordBlockCipherState(bitstring,bitstring):bitstring[compos].
+fun FormatsBCA_aes():bitstring[compos].
+fun FormatsCT_block():bitstring[compos].
+fun FormatsCE_client():bitstring[compos].
+fun FormatsCE_server():bitstring[compos].
+fun FormatsMA_sha1():bitstring[compos].
+const I0:bitstring.
+const STLS1p0:bitstring.
+
+channel c.
+const Sconn:bitstring.
+
+
+process
+  in(c,());
+  let NethttpChan = dummy in
+   new enckey:nonce;
+   new mackey:nonce;
+   let static_conn = (dummy , dummy, dummy, ( MyrecordBlockCipherState(noncetobytes(enckey),dummy) ,noncetobytes(mackey), dummy, dummy)) in
+
+    let Myrecordtr = Pitrace() in
+      let MyrecordconnDb = Dbcreate() in
+        out(c,dummy);
+        (!N in(c,(pv:bitstring));
+            let DataUtf8(DataLiteral(=STLS1p0)) = pv in
+              out(c,MyrecordPM_TLS1p0());
+              0)
+         | 
+        (in(c,());
+         out(c,dummy);
+         (!N in(c,(connid:bitstring,msg:bitstring));
+             let conn = static_conn in
+               let (id:bitstring,entity:bitstring) = connid in
+                 event MyrecordSendApp(id,entity,msg);
+                 let (W873:bitstring,W874:bitstring,W875:bitstring,wconn210:bitstring) = conn in
+                   let (W876:bitstring,W877:bitstring,sec_params211:bitstring,W878:bitstring) = wconn210 in
+                     let (crt_version212:bitstring,W879:bitstring,W880:bitstring,W881:bitstring) = conn in
+                       let (bulk_cipher_algorithm213:bitstring,W882:bitstring,W883:bitstring) = sec_params211 in
+                         let (W887:bitstring,W888:bitstring,mac_algorithm214:bitstring) = sec_params211 in
+                           let (W889:bitstring,mackey215:bitstring,W890:bitstring,W891:bitstring) = wconn210 in
+                             let (W892:bitstring,W893:bitstring,W894:bitstring,seq216:bitstring) = wconn210 in
+                               let DataUtf8(DataLiteral(=STLS1p0)) = crt_version212 in
+                                 let (FormatsMA_null(),W885:bitstring) = (mac_algorithm214,MyrecordPM_TLS1p0()) in
+                                   ( let (W896:bitstring,cipher_type217:bitstring,W897:bitstring) = sec_params211 in
+                                     let FormatsCT_stream() = cipher_type217 in
+                                       ( let (W904:bitstring,cipher_type218:bitstring,W905:bitstring) = sec_params211 in
+                                         let (cipher_state219:bitstring,W906:bitstring,W907:bitstring,W908:bitstring) = wconn210 in
+                                           let (FormatsCT_stream(),FormatsBCA_null(),W898:bitstring) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                             ( let (W915:bitstring,W916:bitstring,W917:bitstring,seq222:bitstring) = wconn210 in
+                                               let (W912:bitstring,W913:bitstring,sec_params221:bitstring,W914:bitstring) = wconn210 in
+                                                 let (W909:bitstring,mackey220:bitstring,W910:bitstring,W911:bitstring) = wconn210 in
+                                                   let (W936:bitstring,W937:bitstring,rconn229:bitstring,W938:bitstring) = conn in
+                                                     let (W933:bitstring,net_conn228:bitstring,W934:bitstring,W935:bitstring) = conn in
+                                                       let (crt_version227:bitstring,W930:bitstring,W931:bitstring,W932:bitstring) = conn in
+                                                         let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),DataConcat(msg,DataUtf8(DataLiteral(Semptybitstring)))) in
+                                                           let (crt_version2271655:bitstring,W930:bitstring,W931:bitstring,W932:bitstring) = conn in
+                                                             let (W933:bitstring,net_conn2281656:bitstring,W934:bitstring,W935:bitstring) = conn in
+                                                               let (W936:bitstring,W937:bitstring,rconn2291657:bitstring,W938:bitstring) = conn in
+                                                                 let (W915:bitstring,W916:bitstring,W917:bitstring,seq2221666:bitstring) = wconn210 in
+                                                                   let (W912:bitstring,W913:bitstring,sec_params2211663:bitstring,W914:bitstring) = wconn210 in
+                                                                     let (W909:bitstring,mackey2201660:bitstring,W910:bitstring,W911:bitstring) = wconn210 in
+                                                                       let (W915:bitstring,W916:bitstring,W917:bitstring,seq2221667:bitstring) = wconn210 in
+                                                                         let (W912:bitstring,W913:bitstring,sec_params2211664:bitstring,W914:bitstring) = wconn210 in
+                                                                           let (W909:bitstring,mackey2201661:bitstring,W910:bitstring,W911:bitstring) = wconn210 in
+                                                                             let (W915:bitstring,W916:bitstring,W917:bitstring,seq2221668:bitstring) = wconn210 in
+                                                                               let (W912:bitstring,W913:bitstring,sec_params2211665:bitstring,W914:bitstring) = wconn210 in
+                                                                                 let (W909:bitstring,mackey2201662:bitstring,W910:bitstring,W911:bitstring) = wconn210 in
+                                                                                   let conn = (crt_version2271655,net_conn2281656,rconn2291657,(cipher_state219,mackey2201661,sec_params2211665,I0)) in
+                                                                                     let (W942:bitstring,net_conn231:bitstring,W943:bitstring,W944:bitstring) = conn in
+                                                                                       out(c,record);
+                                                                                       in(c,());
+                                                                                       let F4627 = dummy in
+                                                                                         out(c,F4627);
+                                                                                         0) 
+                                            else  
+                                             let (FormatsCT_stream(),W899,W900) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                               ( out(c,dummy);
+                                               0) 
+                                              else  
+                                               let (FormatsCT_block(),FormatsBCA_aes(),MyrecordBlockCipherState(key,iv)) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                 ( let F4628 = bytestononce(key) in
+                                                   let F4629 = symkey(F4628) in
+                                                     let F4630 = bytestoblocks(DataConcat(msg,DataUtf8(DataLiteral(Semptybitstring)))) in
+                                                       let F4631 = aes_encrypt_wiv(F4629,iv,F4630) in
+                                                         let output = blockstobytes(F4631) in
+                                                           let (W915,W916,W917,seq222) = wconn210 in
+                                                             let (W912,W913,sec_params221,W914) = wconn210 in
+                                                               let (W909,mackey220,W910,W911) = wconn210 in
+                                                                 let (W936,W937,rconn229,W938) = conn in
+                                                                   let (W933,net_conn228,W934,W935) = conn in
+                                                                     let (crt_version227,W930,W931,W932) = conn in
+                                                                       let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),output) in
+                                                                         let (crt_version2271655,W930,W931,W932) = conn in
+                                                                           let (W933,net_conn2281656,W934,W935) = conn in
+                                                                             let (W936,W937,rconn2291657,W938) = conn in
+                                                                               let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                                 let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                                   let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                                     let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                                       let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                                         let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                           let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                             let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                               let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                                 let conn = (crt_version2271655,net_conn2281656,rconn2291657,(MyrecordBlockCipherState(key,iv),mackey2201661,sec_params2211665,I0)) in
+                                                                                                   let (W942,net_conn231,W943,W944) = conn in
+                                                                                                     out(c,record);
+                                                                                                     in(c,());
+                                                                                                     let F5143 = dummy in
+                                                                                                       out(c,F5143);
+                                                                                                       0) 
+                                                else  
+                                                 let (W901,W902,W903) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                   out(c,dummy);
+                                                   0) 
+                                      else  
+                                       let FormatsCT_block() = cipher_type217 in
+                                         let FormatsBCA_aes() = bulk_cipher_algorithm213 in
+                                           let (W904,cipher_type218,W905) = sec_params211 in
+                                             let (cipher_state219,W906,W907,W908) = wconn210 in
+                                               let (FormatsCT_stream(),FormatsBCA_null(),W898) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                 ( let (W915,W916,W917,seq222) = wconn210 in
+                                                   let (W912,W913,sec_params221,W914) = wconn210 in
+                                                     let (W909,mackey220,W910,W911) = wconn210 in
+                                                       let (W936,W937,rconn229,W938) = conn in
+                                                         let (W933,net_conn228,W934,W935) = conn in
+                                                           let (crt_version227,W930,W931,W932) = conn in
+                                                             let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),DataConcat(DataUtf8(DataLiteral(Semptybitstring)),DataConcat(DataConcat(msg,DataUtf8(DataLiteral(Semptybitstring))),DataUtf8(DataLiteral(Sint))))) in
+                                                               let (crt_version2271655,W930,W931,W932) = conn in
+                                                                 let (W933,net_conn2281656,W934,W935) = conn in
+                                                                   let (W936,W937,rconn2291657,W938) = conn in
+                                                                     let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                       let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                         let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                           let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                             let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                               let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                 let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                   let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                     let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                       let conn = (crt_version2271655,net_conn2281656,rconn2291657,(cipher_state219,mackey2201661,sec_params2211665,I0)) in
+                                                                                         let (W942,net_conn231,W943,W944) = conn in
+                                                                                           out(c,record);
+                                                                                           in(c,());
+                                                                                           let F5655 = dummy in
+                                                                                             out(c,F5655);
+                                                                                             0) 
+                                                else  
+                                                 let (FormatsCT_stream(),W899,W900) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                   ( out(c,dummy);
+                                                   0) 
+                                                  else  
+                                                   let (FormatsCT_block(),FormatsBCA_aes(),MyrecordBlockCipherState(key,iv)) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                     ( let F5656 = bytestononce(key) in
+                                                       let F5657 = symkey(F5656) in
+                                                         let F5658 = bytestoblocks(DataConcat(DataUtf8(DataLiteral(Semptybitstring)),DataConcat(DataConcat(msg,DataUtf8(DataLiteral(Semptybitstring))),DataUtf8(DataLiteral(Sint))))) in
+                                                           let F5659 = aes_encrypt_wiv(F5657,iv,F5658) in
+                                                             let output = blockstobytes(F5659) in
+                                                               let (W915,W916,W917,seq222) = wconn210 in
+                                                                 let (W912,W913,sec_params221,W914) = wconn210 in
+                                                                   let (W909,mackey220,W910,W911) = wconn210 in
+                                                                     let (W936,W937,rconn229,W938) = conn in
+                                                                       let (W933,net_conn228,W934,W935) = conn in
+                                                                         let (crt_version227,W930,W931,W932) = conn in
+                                                                           let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),output) in
+                                                                             let (crt_version2271655,W930,W931,W932) = conn in
+                                                                               let (W933,net_conn2281656,W934,W935) = conn in
+                                                                                 let (W936,W937,rconn2291657,W938) = conn in
+                                                                                   let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                                     let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                                       let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                                         let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                                           let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                                             let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                               let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                                 let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                                   let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                                     let conn = (crt_version2271655,net_conn2281656,rconn2291657,(MyrecordBlockCipherState(key,iv),mackey2201661,sec_params2211665,I0)) in
+                                                                                                       let (W942,net_conn231,W943,W944) = conn in
+                                                                                                         out(c,record);
+                                                                                                         in(c,());
+                                                                                                         let F6171 = dummy in
+                                                                                                           out(c,F6171);
+                                                                                                           0) 
+                                                    else  
+                                                     let (W901,W902,W903) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                       out(c,dummy);
+                                                       0) 
+                                  else  
+                                   let (FormatsMA_sha1(),MyrecordPM_TLS1p0()) = (mac_algorithm214,MyrecordPM_TLS1p0()) in
+                                     let mac_secret1616 = bytestononce(mackey215) in
+                                       let F6172 = msymkey(mac_secret1616) in
+                                         let F6173 = hmacsha1(F6172,DataConcat(DataUtf8(DataLiteral(Sseqint)),DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataConcat(DataUtf8(DataLiteral(Sint)),msg))))) in
+                                           let mac = mactobytes(F6173) in
+                                             let (W896,cipher_type217,W897) = sec_params211 in
+                                               let FormatsCT_stream() = cipher_type217 in
+                                                 ( let (W904,cipher_type218,W905) = sec_params211 in
+                                                   let (cipher_state219,W906,W907,W908) = wconn210 in
+                                                     let (FormatsCT_stream(),FormatsBCA_null(),W898) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                       ( let (W915,W916,W917,seq222) = wconn210 in
+                                                         let (W912,W913,sec_params221,W914) = wconn210 in
+                                                           let (W909,mackey220,W910,W911) = wconn210 in
+                                                             let (W936,W937,rconn229,W938) = conn in
+                                                               let (W933,net_conn228,W934,W935) = conn in
+                                                                 let (crt_version227,W930,W931,W932) = conn in
+                                                                   let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),DataConcat(msg,mac)) in
+                                                                     let (crt_version2271655,W930,W931,W932) = conn in
+                                                                       let (W933,net_conn2281656,W934,W935) = conn in
+                                                                         let (W936,W937,rconn2291657,W938) = conn in
+                                                                           let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                             let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                               let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                                 let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                                   let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                                     let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                       let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                         let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                           let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                             let conn = (crt_version2271655,net_conn2281656,rconn2291657,(cipher_state219,mackey2201661,sec_params2211665,I0)) in
+                                                                                               let (W942,net_conn231,W943,W944) = conn in
+                                                                                                 out(c,record);
+                                                                                                 in(c,());
+                                                                                                 let F6685 = dummy in
+                                                                                                   out(c,F6685);
+                                                                                                   0) 
+                                                      else  
+                                                       let (FormatsCT_stream(),W899,W900) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                         ( out(c,dummy);
+                                                         0) 
+                                                        else  
+                                                         let (FormatsCT_block(),FormatsBCA_aes(),MyrecordBlockCipherState(key,iv)) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                           ( let F6686 = bytestononce(key) in
+                                                             let F6687 = symkey(F6686) in
+                                                               let F6688 = bytestoblocks(DataConcat(msg,mac)) in
+                                                                 let F6689 = aes_encrypt_wiv(F6687,iv,F6688) in
+                                                                   let output = blockstobytes(F6689) in
+                                                                     let (W915,W916,W917,seq222) = wconn210 in
+                                                                       let (W912,W913,sec_params221,W914) = wconn210 in
+                                                                         let (W909,mackey220,W910,W911) = wconn210 in
+                                                                           let (W936,W937,rconn229,W938) = conn in
+                                                                             let (W933,net_conn228,W934,W935) = conn in
+                                                                               let (crt_version227,W930,W931,W932) = conn in
+                                                                                 let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),output) in
+                                                                                   let (crt_version2271655,W930,W931,W932) = conn in
+                                                                                     let (W933,net_conn2281656,W934,W935) = conn in
+                                                                                       let (W936,W937,rconn2291657,W938) = conn in
+                                                                                         let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                                           let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                                             let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                                               let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                                                 let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                                                   let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                                     let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                                       let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                                         let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                                           let conn = (crt_version2271655,net_conn2281656,rconn2291657,(MyrecordBlockCipherState(key,iv),mackey2201661,sec_params2211665,I0)) in
+                                                                                                             let (W942,net_conn231,W943,W944) = conn in
+                                                                                                               out(c,record);
+                                                                                                               in(c,());
+                                                                                                               let F7201 = dummy in
+                                                                                                                 out(c,F7201);
+                                                                                                                 0) 
+                                                          else  
+                                                           let (W901,W902,W903) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                             out(c,dummy);
+                                                             0) 
+                                                else  
+                                                 let FormatsCT_block() = cipher_type217 in
+                                                   let FormatsBCA_aes() = bulk_cipher_algorithm213 in
+                                                     let (W904,cipher_type218,W905) = sec_params211 in
+                                                       let (cipher_state219,W906,W907,W908) = wconn210 in
+                                                         let (FormatsCT_stream(),FormatsBCA_null(),W898) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                           ( let (W915,W916,W917,seq222) = wconn210 in
+                                                             let (W912,W913,sec_params221,W914) = wconn210 in
+                                                               let (W909,mackey220,W910,W911) = wconn210 in
+                                                                 let (W936,W937,rconn229,W938) = conn in
+                                                                   let (W933,net_conn228,W934,W935) = conn in
+                                                                     let (crt_version227,W930,W931,W932) = conn in
+                                                                       let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),DataConcat(DataUtf8(DataLiteral(Semptybitstring)),DataConcat(DataConcat(msg,mac),DataUtf8(DataLiteral(Sint))))) in
+                                                                         let (crt_version2271655,W930,W931,W932) = conn in
+                                                                           let (W933,net_conn2281656,W934,W935) = conn in
+                                                                             let (W936,W937,rconn2291657,W938) = conn in
+                                                                               let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                                 let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                                   let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                                     let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                                       let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                                         let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                           let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                             let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                               let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                                 let conn = (crt_version2271655,net_conn2281656,rconn2291657,(cipher_state219,mackey2201661,sec_params2211665,I0)) in
+                                                                                                   let (W942,net_conn231,W943,W944) = conn in
+                                                                                                     out(c,record);
+                                                                                                     in(c,());
+                                                                                                     let F7713 = dummy in
+                                                                                                       out(c,F7713);
+                                                                                                       0) 
+                                                          else  
+                                                           let (FormatsCT_stream(),W899,W900) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                             ( out(c,dummy);
+                                                             0) 
+                                                            else  
+                                                             let (FormatsCT_block(),FormatsBCA_aes(),MyrecordBlockCipherState(key,iv)) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                               ( let F7714 = bytestononce(key) in
+                                                                 let F7715 = symkey(F7714) in
+                                                                   let F7716 = bytestoblocks(DataConcat(DataUtf8(DataLiteral(Semptybitstring)),DataConcat(DataConcat(msg,mac),DataUtf8(DataLiteral(Sint))))) in
+                                                                     let F7717 = aes_encrypt_wiv(F7715,iv,F7716) in
+                                                                       let output = blockstobytes(F7717) in
+                                                                         let (W915,W916,W917,seq222) = wconn210 in
+                                                                           let (W912,W913,sec_params221,W914) = wconn210 in
+                                                                             let (W909,mackey220,W910,W911) = wconn210 in
+                                                                               let (W936,W937,rconn229,W938) = conn in
+                                                                                 let (W933,net_conn228,W934,W935) = conn in
+                                                                                   let (crt_version227,W930,W931,W932) = conn in
+                                                                                     let record = DataConcat(DataConcat(DataUtf8(DataLiteral(Sapplication_data)),DataConcat(crt_version212,DataUtf8(DataLiteral(Sint)))),output) in
+                                                                                       let (crt_version2271655,W930,W931,W932) = conn in
+                                                                                         let (W933,net_conn2281656,W934,W935) = conn in
+                                                                                           let (W936,W937,rconn2291657,W938) = conn in
+                                                                                             let (W915,W916,W917,seq2221666) = wconn210 in
+                                                                                               let (W912,W913,sec_params2211663,W914) = wconn210 in
+                                                                                                 let (W909,mackey2201660,W910,W911) = wconn210 in
+                                                                                                   let (W915,W916,W917,seq2221667) = wconn210 in
+                                                                                                     let (W912,W913,sec_params2211664,W914) = wconn210 in
+                                                                                                       let (W909,mackey2201661,W910,W911) = wconn210 in
+                                                                                                         let (W915,W916,W917,seq2221668) = wconn210 in
+                                                                                                           let (W912,W913,sec_params2211665,W914) = wconn210 in
+                                                                                                             let (W909,mackey2201662,W910,W911) = wconn210 in
+                                                                                                               let conn = (crt_version2271655,net_conn2281656,rconn2291657,(MyrecordBlockCipherState(key,iv),mackey2201661,sec_params2211665,I0)) in
+                                                                                                                 let (W942,net_conn231,W943,W944) = conn in
+                                                                                                                   out(c,record);
+                                                                                                                   in(c,());
+                                                                                                                   let F8229 = dummy in
+                                                                                                                     out(c,F8229);
+                                                                                                                     0) 
+                                                              else  
+                                                               let (W901,W902,W903) = (cipher_type218,bulk_cipher_algorithm213,cipher_state219) in
+                                                                 out(c,dummy);
+                                                                 0)
+          | 
+         (in(c,());
+          out(c,dummy);
+          (!N in(c,(connid:bitstring));
+              let conn = static_conn in
+                let (W945,net_conn232,W946,W947) = conn in
+                  out(c,dummy);
+                  in(c,msg1902:bitstring);
+                  let DataConcat(x,y) = msg1902 in
+                    let DataConcat(x1672,y1673) = x in
+                      let DataConcat(x1670,y1671) = y1673 in
+                        let DataUtf8(s) = y1671 in
+                          let (W953,W954,rconn233,W955) = conn in
+                            let (W956,W957,sec_params234,W958) = rconn233 in
+                              let (crt_version235,W959,W960,W961) = conn in
+                                let (bulk_cipher_algorithm236,W962,W963) = sec_params234 in
+                                  let (W970,cipher_type237,W971) = sec_params234 in
+                                    let (cipher_state238,W972,W973,W974) = rconn233 in
+                                      let (FormatsCT_stream(),FormatsBCA_null(),W964) = (cipher_type237,bulk_cipher_algorithm236,cipher_state238) in
+                                        ( let (W979,cipher_type239,W980) = sec_params234 in
+                                          let (W981,W982,mac_algorithm240) = sec_params234 in
+                                            let FormatsCT_stream() = cipher_type239 in
+                                              ( let DataConcat(x,y1864) = y in
+                                                let (W983,W984,W985,seq241) = rconn233 in
+                                                  let (W989,W990,mac_algorithm242) = sec_params234 in
+                                                    let (W991,mackey243,W992,W993) = rconn233 in
+                                                      let DataUtf8(DataLiteral(=STLS1p0)) = crt_version235 in
+                                                        let (FormatsMA_null(),W987) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                          ( let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                            let (W997,W998,sec_params245,W999) = rconn233 in
+                                                              let (W994,mackey244,W995,W996) = rconn233 in
+                                                                let msg = x in
+                                                                  let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                    let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                      let (W1000,W1001,W1002,seq2461725) = rconn233 in
+                                                                        let (W997,W998,sec_params2451722,W999) = rconn233 in
+                                                                          let (W994,mackey2441719,W995,W996) = rconn233 in
+                                                                            let (W1000,W1001,W1002,seq2461726) = rconn233 in
+                                                                              let (W997,W998,sec_params2451723,W999) = rconn233 in
+                                                                                let (W994,mackey2441720,W995,W996) = rconn233 in
+                                                                                  let (W1000,W1001,W1002,seq2461727) = rconn233 in
+                                                                                    let (W997,W998,sec_params2451724,W999) = rconn233 in
+                                                                                      let (W994,mackey2441721,W995,W996) = rconn233 in
+                                                                                        let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                          let conn = (crt_version251,net_conn252,(cipher_state238,mackey2441720,sec_params2451724,I0),wconn253) in
+                                                                                            let (id,entity) = connid in
+                                                                                              event MyrecordRecvApp(id,entity,msg);
+                                                                                              out(c,msg);
+                                                                                              0) 
+                                                         else  
+                                                          let (FormatsMA_sha1(),MyrecordPM_TLS1p0()) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                            let mac_secret1706 = bytestononce(mackey243) in
+                                                              let F9768 = msymkey(mac_secret1706) in
+                                                                let F9769 = hmacsha1(F9768,DataConcat(DataUtf8(DataLiteral(Sseqint)),DataConcat(x1672,DataConcat(crt_version235,DataConcat(DataUtf8(DataLiteral(Sint)),x))))) in
+                                                                  let ourmac = mactobytes(F9769) in
+                                                                    let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                      let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                        let (W994,mackey244,W995,W996) = rconn233 in
+                                                                          let msg = x in
+                                                                            let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                              let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                                let (W1000,W1001,W1002,seq2461734) = rconn233 in
+                                                                                  let (W997,W998,sec_params2451731,W999) = rconn233 in
+                                                                                    let (W994,mackey2441728,W995,W996) = rconn233 in
+                                                                                      let (W1000,W1001,W1002,seq2461735) = rconn233 in
+                                                                                        let (W997,W998,sec_params2451732,W999) = rconn233 in
+                                                                                          let (W994,mackey2441729,W995,W996) = rconn233 in
+                                                                                            let (W1000,W1001,W1002,seq2461736) = rconn233 in
+                                                                                              let (W997,W998,sec_params2451733,W999) = rconn233 in
+                                                                                                let (W994,mackey2441730,W995,W996) = rconn233 in
+                                                                                                  let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                    let conn = (crt_version251,net_conn252,(cipher_state238,mackey2441729,sec_params2451733,I0),wconn253) in
+                                                                                                      let (id,entity) = connid in
+                                                                                                        event MyrecordRecvApp(id,entity,msg);
+                                                                                                        out(c,msg);
+                                                                                                        0) 
+                                             else  
+                                              let FormatsCT_block() = cipher_type239 in
+                                                let DataConcat(x1680,y1865) = y in
+                                                  let DataConcat(x1678,y1679) = y1865 in
+                                                    let DataConcat(x,y1866) = x1678 in
+                                                      let (W983,W984,W985,seq241) = rconn233 in
+                                                        let (W989,W990,mac_algorithm242) = sec_params234 in
+                                                          let (W991,mackey243,W992,W993) = rconn233 in
+                                                            let DataUtf8(DataLiteral(=STLS1p0)) = crt_version235 in
+                                                              let (FormatsMA_null(),W987) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                                ( let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                  let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                    let (W994,mackey244,W995,W996) = rconn233 in
+                                                                      let msg = x in
+                                                                        let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                          let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                            let (W1000,W1001,W1002,seq2461743) = rconn233 in
+                                                                              let (W997,W998,sec_params2451740,W999) = rconn233 in
+                                                                                let (W994,mackey2441737,W995,W996) = rconn233 in
+                                                                                  let (W1000,W1001,W1002,seq2461744) = rconn233 in
+                                                                                    let (W997,W998,sec_params2451741,W999) = rconn233 in
+                                                                                      let (W994,mackey2441738,W995,W996) = rconn233 in
+                                                                                        let (W1000,W1001,W1002,seq2461745) = rconn233 in
+                                                                                          let (W997,W998,sec_params2451742,W999) = rconn233 in
+                                                                                            let (W994,mackey2441739,W995,W996) = rconn233 in
+                                                                                              let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                let conn = (crt_version251,net_conn252,(cipher_state238,mackey2441738,sec_params2451742,I0),wconn253) in
+                                                                                                  let (id,entity) = connid in
+                                                                                                    event MyrecordRecvApp(id,entity,msg);
+                                                                                                    out(c,msg);
+                                                                                                    0) 
+                                                               else  
+                                                                let (FormatsMA_sha1(),MyrecordPM_TLS1p0()) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                                  let mac_secret1706 = bytestononce(mackey243) in
+                                                                    let F11820 = msymkey(mac_secret1706) in
+                                                                      let F11821 = hmacsha1(F11820,DataConcat(DataUtf8(DataLiteral(Sseqint)),DataConcat(x1672,DataConcat(crt_version235,DataConcat(DataUtf8(DataLiteral(Sint)),x))))) in
+                                                                        let ourmac = mactobytes(F11821) in
+                                                                          let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                            let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                              let (W994,mackey244,W995,W996) = rconn233 in
+                                                                                let msg = x in
+                                                                                  let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                                    let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                                      let (W1000,W1001,W1002,seq2461752) = rconn233 in
+                                                                                        let (W997,W998,sec_params2451749,W999) = rconn233 in
+                                                                                          let (W994,mackey2441746,W995,W996) = rconn233 in
+                                                                                            let (W1000,W1001,W1002,seq2461753) = rconn233 in
+                                                                                              let (W997,W998,sec_params2451750,W999) = rconn233 in
+                                                                                                let (W994,mackey2441747,W995,W996) = rconn233 in
+                                                                                                  let (W1000,W1001,W1002,seq2461754) = rconn233 in
+                                                                                                    let (W997,W998,sec_params2451751,W999) = rconn233 in
+                                                                                                      let (W994,mackey2441748,W995,W996) = rconn233 in
+                                                                                                        let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                          let conn = (crt_version251,net_conn252,(cipher_state238,mackey2441747,sec_params2451751,I0),wconn253) in
+                                                                                                            let (id,entity) = connid in
+                                                                                                              event MyrecordRecvApp(id,entity,msg);
+                                                                                                              out(c,msg);
+                                                                                                              0) 
+                                       else  
+                                        let (FormatsCT_stream(),W965,W966) = (cipher_type237,bulk_cipher_algorithm236,cipher_state238) in
+                                          ( out(c,dummy);
+                                          0) 
+                                         else  
+                                          let (FormatsCT_block(),FormatsBCA_aes(),MyrecordBlockCipherState(key,iv)) = (cipher_type237,bulk_cipher_algorithm236,cipher_state238) in
+                                            ( let F12334 = bytestononce(key) in
+                                              let F12335 = symkey(F12334) in
+                                                let F12336 = bytestoblocks(y) in
+                                                  let F12337 = aes_decrypt_wiv(F12335,iv,F12336) in
+                                                    let plaintext = blockstobytes(F12337) in
+                                                      let (W979,cipher_type239,W980) = sec_params234 in
+                                                        let (W981,W982,mac_algorithm240) = sec_params234 in
+                                                          let FormatsCT_stream() = cipher_type239 in
+                                                            ( let DataConcat(x,y1870) = plaintext in
+                                                              let (W983,W984,W985,seq241) = rconn233 in
+                                                                let (W989,W990,mac_algorithm242) = sec_params234 in
+                                                                  let (W991,mackey243,W992,W993) = rconn233 in
+                                                                    let DataUtf8(DataLiteral(=STLS1p0)) = crt_version235 in
+                                                                      let (FormatsMA_null(),W987) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                                        ( let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                          let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                            let (W994,mackey244,W995,W996) = rconn233 in
+                                                                              let msg = x in
+                                                                                let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                                  let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                                    let (W1000,W1001,W1002,seq2461797) = rconn233 in
+                                                                                      let (W997,W998,sec_params2451794,W999) = rconn233 in
+                                                                                        let (W994,mackey2441791,W995,W996) = rconn233 in
+                                                                                          let (W1000,W1001,W1002,seq2461798) = rconn233 in
+                                                                                            let (W997,W998,sec_params2451795,W999) = rconn233 in
+                                                                                              let (W994,mackey2441792,W995,W996) = rconn233 in
+                                                                                                let (W1000,W1001,W1002,seq2461799) = rconn233 in
+                                                                                                  let (W997,W998,sec_params2451796,W999) = rconn233 in
+                                                                                                    let (W994,mackey2441793,W995,W996) = rconn233 in
+                                                                                                      let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                        let conn = (crt_version251,net_conn252,(MyrecordBlockCipherState(key,iv),mackey2441792,sec_params2451796,I0),wconn253) in
+                                                                                                          let (id,entity) = connid in
+                                                                                                            event MyrecordRecvApp(id,entity,msg);
+                                                                                                            out(c,msg);
+                                                                                                            0) 
+                                                                       else  
+                                                                        let (FormatsMA_sha1(),MyrecordPM_TLS1p0()) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                                          let mac_secret1706 = bytestononce(mackey243) in
+                                                                            let F13876 = msymkey(mac_secret1706) in
+                                                                              let F13877 = hmacsha1(F13876,DataConcat(DataUtf8(DataLiteral(Sseqint)),DataConcat(x1672,DataConcat(crt_version235,DataConcat(DataUtf8(DataLiteral(Sint)),x))))) in
+                                                                                let ourmac = mactobytes(F13877) in
+                                                                                  let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                                    let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                                      let (W994,mackey244,W995,W996) = rconn233 in
+                                                                                        let msg = x in
+                                                                                          let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                                            let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                                              let (W1000,W1001,W1002,seq2461806) = rconn233 in
+                                                                                                let (W997,W998,sec_params2451803,W999) = rconn233 in
+                                                                                                  let (W994,mackey2441800,W995,W996) = rconn233 in
+                                                                                                    let (W1000,W1001,W1002,seq2461807) = rconn233 in
+                                                                                                      let (W997,W998,sec_params2451804,W999) = rconn233 in
+                                                                                                        let (W994,mackey2441801,W995,W996) = rconn233 in
+                                                                                                          let (W1000,W1001,W1002,seq2461808) = rconn233 in
+                                                                                                            let (W997,W998,sec_params2451805,W999) = rconn233 in
+                                                                                                              let (W994,mackey2441802,W995,W996) = rconn233 in
+                                                                                                                let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                                  let conn = (crt_version251,net_conn252,(MyrecordBlockCipherState(key,iv),mackey2441801,sec_params2451805,I0),wconn253) in
+                                                                                                                    let (id,entity) = connid in
+                                                                                                                      event MyrecordRecvApp(id,entity,msg);
+                                                                                                                      out(c,msg);
+                                                                                                                      0) 
+                                                           else  
+                                                            let FormatsCT_block() = cipher_type239 in
+                                                              let DataConcat(x1680,y1871) = plaintext in
+                                                                let DataConcat(x1678,y1679) = y1871 in
+                                                                  let DataConcat(x,y1872) = x1678 in
+                                                                    let (W983,W984,W985,seq241) = rconn233 in
+                                                                      let (W989,W990,mac_algorithm242) = sec_params234 in
+                                                                        let (W991,mackey243,W992,W993) = rconn233 in
+                                                                          let DataUtf8(DataLiteral(=STLS1p0)) = crt_version235 in
+                                                                            let (FormatsMA_null(),W987) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                                              ( let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                                let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                                  let (W994,mackey244,W995,W996) = rconn233 in
+                                                                                    let msg = x in
+                                                                                      let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                                        let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                                          let (W1000,W1001,W1002,seq2461815) = rconn233 in
+                                                                                            let (W997,W998,sec_params2451812,W999) = rconn233 in
+                                                                                              let (W994,mackey2441809,W995,W996) = rconn233 in
+                                                                                                let (W1000,W1001,W1002,seq2461816) = rconn233 in
+                                                                                                  let (W997,W998,sec_params2451813,W999) = rconn233 in
+                                                                                                    let (W994,mackey2441810,W995,W996) = rconn233 in
+                                                                                                      let (W1000,W1001,W1002,seq2461817) = rconn233 in
+                                                                                                        let (W997,W998,sec_params2451814,W999) = rconn233 in
+                                                                                                          let (W994,mackey2441811,W995,W996) = rconn233 in
+                                                                                                            let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                              let conn = (crt_version251,net_conn252,(MyrecordBlockCipherState(key,iv),mackey2441810,sec_params2451814,I0),wconn253) in
+                                                                                                                let (id,entity) = connid in
+                                                                                                                  event MyrecordRecvApp(id,entity,msg);
+                                                                                                                  out(c,msg);
+                                                                                                                  0) 
+                                                                             else  
+                                                                              let (FormatsMA_sha1(),MyrecordPM_TLS1p0()) = (mac_algorithm242,MyrecordPM_TLS1p0()) in
+                                                                                let mac_secret1706 = bytestononce(mackey243) in
+                                                                                  let F15928 = msymkey(mac_secret1706) in
+                                                                                    let F15929 = hmacsha1(F15928,DataConcat(DataUtf8(DataLiteral(Sseqint)),DataConcat(x1672,DataConcat(crt_version235,DataConcat(DataUtf8(DataLiteral(Sint)),x))))) in
+                                                                                      let ourmac = mactobytes(F15929) in
+                                                                                        let (W1000,W1001,W1002,seq246) = rconn233 in
+                                                                                          let (W997,W998,sec_params245,W999) = rconn233 in
+                                                                                            let (W994,mackey244,W995,W996) = rconn233 in
+                                                                                              let msg = x in
+                                                                                                let (crt_version251,W1015,W1016,W1017) = conn in
+                                                                                                  let (W1018,net_conn252,W1019,W1020) = conn in
+                                                                                                    let (W1000,W1001,W1002,seq2461824) = rconn233 in
+                                                                                                      let (W997,W998,sec_params2451821,W999) = rconn233 in
+                                                                                                        let (W994,mackey2441818,W995,W996) = rconn233 in
+                                                                                                          let (W1000,W1001,W1002,seq2461825) = rconn233 in
+                                                                                                            let (W997,W998,sec_params2451822,W999) = rconn233 in
+                                                                                                              let (W994,mackey2441819,W995,W996) = rconn233 in
+                                                                                                                let (W1000,W1001,W1002,seq2461826) = rconn233 in
+                                                                                                                  let (W997,W998,sec_params2451823,W999) = rconn233 in
+                                                                                                                    let (W994,mackey2441820,W995,W996) = rconn233 in
+                                                                                                                      let (W1021,W1022,W1023,wconn253) = conn in
+                                                                                                                        let conn = (crt_version251,net_conn252,(MyrecordBlockCipherState(key,iv),mackey2441819,sec_params2451823,I0),wconn253) in
+                                                                                                                          let (id,entity) = connid in
+                                                                                                                            event MyrecordRecvApp(id,entity,msg);
+                                                                                                                            out(c,msg);
+                                                                                                                            0) 
+                                           else  
+                                            let (W967,W968,W969) = (cipher_type237,bulk_cipher_algorithm236,cipher_state238) in
+                                              out(c,dummy);
+                                              0)
+           | 
+          (in(c,());
+           let Myhandshaketr = Pitrace() in
+             out(c,dummy);
+             (!N in(c,(()));
+                 new F16442:nonce;
+                 let ekey = noncetobytes(DataNonce(DataFresh(F16442))) in
+                   new F16443:nonce;
+                   let iv = noncetobytes(DataNonce(DataFresh(F16443))) in
+                     new F16444:nonce;
+                     let mkey = noncetobytes(DataNonce(DataFresh(F16444))) in
+                       let conn1 = (MyrecordBlockCipherState(ekey,iv),mkey,(FormatsBCA_aes(),FormatsCT_block(),FormatsMA_sha1()),I0) in
+                         new F16445:nonce;
+                         let ekey = noncetobytes(DataNonce(DataFresh(F16445))) in
+                           new F16446:nonce;
+                           let iv = noncetobytes(DataNonce(DataFresh(F16446))) in
+                             new F16447:nonce;
+                             let mkey = noncetobytes(DataNonce(DataFresh(F16447))) in
+                               let conn2 = (MyrecordBlockCipherState(ekey,iv),mkey,(FormatsBCA_aes(),FormatsCT_block(),FormatsMA_sha1()),I0) in
+                                 new F16448:nonce;
+                                 let cid = noncetobytes(DataNonce(DataFresh(F16448))) in
+                                   new F16449:nonce;
+                                   let sid = noncetobytes(DataNonce(DataFresh(F16449))) in
+                                     let F16450 = Dbinsert(MyrecordconnDb,(cid,FormatsCE_client()),(DataUtf8(DataLiteral(STLS1p0)),Sconn,conn1,conn2)) in
+                                       let F16451 = Dbinsert(MyrecordconnDb,(sid,FormatsCE_server()),(DataUtf8(DataLiteral(STLS1p0)),Sconn,conn2,conn1)) in
+                                         event MyhandshakeGenConn((cid,FormatsCE_client()),(sid,FormatsCE_server()));
+                                         out(c,((cid,FormatsCE_client()),(sid,FormatsCE_server())));
+                                         0)
+              | 
+             (in(c,());
+              out(c,());
+              0))))
+
+(* EXPECTED
+Error: Cannot choose randomly a bitstring from bitstring
+xtime: error in child process (status : 512)
+END *)

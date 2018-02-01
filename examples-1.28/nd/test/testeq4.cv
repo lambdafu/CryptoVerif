@@ -1,0 +1,37 @@
+param n, m, m', q.
+
+type S [large,fixed].
+type D [large,fixed].
+
+fun f(S,D): D.
+fun f'(S,D): D.
+
+equiv
+    !n new b:S; 
+      (!m (x:D) -> f(b,x))
+<=(0)=>
+    !n !m new c:S; (x:D) -> f'(c,x).
+
+
+
+query secret test.
+
+channel dummy, start.
+
+let processC = !q
+    in(dummy, x:D);
+    new b:S;
+    out(dummy, f(b,x)).
+
+process
+  in(start, ());
+  new test:S;
+  out(dummy, test);
+  processC
+
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of test.
+0.020s (user 0.020s + system 0.000s), max rss 15584K
+END *)

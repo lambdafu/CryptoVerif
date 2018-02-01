@@ -1,0 +1,130 @@
+(*
+
+WooLam shared-key auth protocol (1992, computer)
+Corrections of Gordon, Jeffrey CSFW'01
+
+A -> B : A
+B -> A : N (fresh)
+A -> B : { m3, B, N }_kAS
+B -> S : A,B,{ m3, B, N }_kAS
+S -> B : { m5, A, N }_kBS
+B: verify { m5, A, N }_kBS = the message from S
+
+Correct.
+Session identifier (A, N)
+Authentication in one direction only.
+{ m3, B, N }_kAS is not authenticated because it is just
+forwarded by B to the server without checking it.
+*)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+SArename Rkey;
+crypto sprp(enc) rKbs;
+crypto sprp(enc) rKas;
+show_game;
+SArename "r2_3";
+simplify;
+success;
+auto
+}
+
+param N.
+param N2.
+param N3.
+
+(* Bitstrings of size exactly the block size *)
+type blocksize [large,fixed].
+
+type nonce [large,fixed].
+type host [bounded].
+type key [fixed].
+type keyseed [fixed].
+type tag [bounded].
+
+
+fun concat1(tag, host, nonce):blocksize [data].
+
+(* Shared-key encryption (Block cipher) *)
+
+proba Penc.
+
+expand SPRP_cipher(keyseed, key, blocksize, kgen, enc, dec, Penc).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
+	start, finish.
+
+const A: host.
+const B: host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+const tag3: tag.
+const tag5: tag.
+
+event fullA(host, bitstring).
+event fullB(host, bitstring).
+
+query y: bitstring;
+  inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
+
+
+
+
+
+
+
+
+
+
+process 
+	in(start, ());
+new rKas: keyseed;
+let kAS: key = kgen(rKas) in
+new rKbs: keyseed;
+let kBS: key = kgen(rKbs) in
+out(c13, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], hostB2: host);
+  out(c2[i_1], A);
+  in(c3[i_1], n_1: nonce);
+  event fullA(hostB2, (A, n_1));
+  out(c4[i_1], (enc(concat1(tag3, hostB2, n_1), kAS), acceptA(hostB2)))
+) | (
+  ! i_2 <= N
+  in(c5[i_2], hostA2: host);
+  new N_8: nonce;
+  out(c6[i_2], N_8);
+  in(c7[i_2], m_2: blocksize);
+  out(c8[i_2], (hostA2, B, m_2));
+  in(c9[i_2], m2: blocksize);
+  if concat1(tag5, hostA2, N_8) = dec(m2, kBS) then
+  event fullB(hostA2, (hostA2, N_8));
+  out(c14[i_2], acceptB(hostA2))
+) | (
+  ! i_3 <= N
+  in(c11[i_3], (hostA1: host, hostB0: host, m_3: blocksize));
+  find jB = jB_1 <= N2 suchthat defined(Rkey[jB_1], Khost[jB_1]) && (hostB0 = Khost[jB_1]) then
+  let kbs: key = Rkey[jB] in
+  find jA = jA_1 <= N2 suchthat defined(Rkey[jA_1], Khost[jA_1]) && (hostA1 = Khost[jA_1]) then
+  let kas: key = Rkey[jA] in
+  let concat1(=tag3, =hostB0, n_2: nonce) = dec(m_3, kas) in
+  out(c12[i_3], enc(concat1(tag5, hostA1, n_2), kbs))
+) | (
+  ! i_4 <= N2
+  in(c10[i_4], (Khost: host, Kkey: key));
+  let Rkey: key = (if Khost = A then kAS else if Khost = B then kBS else Kkey)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+3.096s (user 3.060s + system 0.036s), max rss 81616K
+END *)

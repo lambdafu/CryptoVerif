@@ -1,0 +1,128 @@
+(*
+
+Woo and Lam public-key auth protocol (1997)
+
+A -> B: A
+B -> A: N
+A -> B: { A, B, N }_skA
+B -> S: A
+S -> B: A, { A, pkA }_skS
+
+Correct
+
+
+SArename Rkey
+crypto sign rkS
+crypto sign rkA
+success
+
+Session identifier: (A, N)
+Authentication in one direction only.
+The adversary can forge a signature for a message that has already
+been signed, so the signature {A,B,N}_skA is not authenticated.
+
+*)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+
+fun concat1(host, host, nonce):blocksize [data].
+fun concat2(host, pkey):blocksize [data].
+
+forall x:host, y:host, z:nonce, x2:host, y2:pkey;
+	concat1(x,y,z) <> concat2(x2,y2).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+const A:host.
+const B:host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+event fullA(host,bitstring).
+event fullB(host,bitstring).
+
+query y: bitstring;
+  inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
+
+
+
+
+
+
+
+
+
+
+process 
+	Ostart() :=
+rkA <-R keyseed;
+pkA: pkey <- spkgen(rkA);
+skA: skey <- sskgen(rkA);
+rkB <-R keyseed;
+pkB: pkey <- spkgen(rkB);
+skB: skey <- sskgen(rkB);
+rkS <-R keyseed;
+pkS: pkey <- spkgen(rkS);
+skS: skey <- sskgen(rkS);
+return(pkA, pkB, pkS);
+((
+  foreach iA <= N do
+  OA1(hostB0: host) :=
+  return(A);
+  OA2(n_1: nonce) :=
+  r1_1 <-R seed;
+  m3: signature <- sign(concat1(A, hostB0, n_1), skA, r1_1);
+  event fullA(hostB0, (A, n_1));
+  return(m3, acceptA(hostB0))
+) | (
+  foreach iB <= N do
+  OB1(hostA0: host) :=
+  n_2 <-R nonce;
+  return(n_2);
+  OB2(m_1: signature) :=
+  return(hostA0);
+  OB3(=hostA0, pkA2: pkey, m4: signature) :=
+  if check(concat2(hostA0, pkA2), pkS, m4) then
+  if check(concat1(hostA0, B, n_2), pkA2, m_1) then
+  event fullB(hostA0, (hostA0, n_2));
+  return(acceptB(hostA0))
+) | (
+  foreach iS <= N do
+  OS(hostA: host) :=
+  find j2 = j2_1 <= N2 suchthat defined(Khost[j2_1], Rkey[j2_1]) && (Khost[j2_1] = hostA) then
+  pka: pkey <- Rkey[j2];
+  r2_1 <-R seed;
+  return(hostA, pka, sign(concat2(hostA, pka), skS, r2_1))
+) | (
+  foreach iK <= N2 do
+  OK(Khost: host, Kkey: pkey) :=
+  Rkey: pkey <- (if Khost = A then pkA else if Khost = B then pkB else Kkey)
+))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.100s (user 0.096s + system 0.004s), max rss 45632K
+END *)

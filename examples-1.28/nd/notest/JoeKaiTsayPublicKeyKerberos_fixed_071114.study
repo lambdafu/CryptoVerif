@@ -1,0 +1,40 @@
+Under !_38:
+
+find @i_265 <= N suchthat defined(r_258[@i_265], @i_183[@i_265]) && (@i_183[@i_265] = !_38) then
+
+orfind @i_183 <= N suchthat defined(ck[@i_183], m2_174[@i_183]) && (m21 = m2_174[@i_183]) then
+
+defined(@i_183[@i_265[!_38]]) => defined(m2_174[@i_183[@i_265[!_38]]]) => defined(m2_174[!_38])
+since @i_183[@i_265[!_38]] = !_38
+
+m2_174 is defined only _after_ find @i_265 <= N, so it cannot be defined at this point.
+Improve the simplification to detect that.
+
+in src/simplify.ml:
+		if not (check_compatible_deflist def_list cur_array (!def_node_opt) def_list') then
+		  raise Contradiction
+instead of def_list', use a completed def_list with variables for which we could infer that
+they are defined and after simplifying the indices of these variables.
+
+The list of defined variables that can be inferred from the defined condition of "find" can be computed by:
+
+let def_vars_accu = ref def_list' in
+let seen_refs = ref [] in
+List.iter (add_def_vars nopt def_vars_accu seen_refs) def_list';
+!def_vars_accu
+
+How to simplify the indices? tf' represents the true facts; apply "try_no_var tf'" to each index that is not
+a current repl index. 
+--------------------------------------------------
+Under !_35:
+
+          orfind @i_183 <= N suchthat defined(ck[@i_183], m2_174[@i_183]) && (m21 = m2_174[@i_183]) then
+            let hostZ: kas = K in
+            find  suchthat defined(ck[@i_183], r_252[@i_183]) then
+              find  suchthat defined(ck[@i_183], r_249[@i_183]) then
+
+After the previous simplification under !_38,
+when m2_174[@i_183] is defined, ck[@i_183], r_252[@i_183], r_249[@i_183] are always defined,
+so the else branches of find could be removed. After removing these branches, the definitions
+of r_255 and r_258 disappear, so the second branch of these finds can be removed as well.
+Improve the simplification to detect that.

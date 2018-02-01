@@ -1,0 +1,172 @@
+(* Signed Diffie-Hellman protocol *)
+
+proof {
+crypto rom(h);
+crypto uf_cma(sign) rkB;
+crypto uf_cma(sign) rkA;
+show_game;
+remove_assign binder gab_335;  (* The gab_... that are defined above an assignment keyA = ... *)
+remove_assign binder gab_336;
+remove_assign binder gab_337;
+show_game;
+SArename gab_210; (* I also want to remove assignments on the gab_... defined above an assignment keyB = ...
+	 	     That's gab_210, but there are other definitions of gab_210, so I SArename it first. *)
+show_game;
+remove_assign binder gab_371;  (* The gab_... defined above an assignment keyB = ... *)
+show_game;
+simplify;
+set noAdviceCrypto = true;
+crypto cdh(exp) a b_270 b_272 b_268;	(* The CDH transformation works, but it leaves far too complex "find" conditions *)
+success;	  	      		(* I don't manage to prove the desired security properties. Did I manage to do it at some point?
+					   This example may require the gap Diffie-Hellman assumption. *)
+show_game
+}
+(*
+remove_assign binder gab_126;
+remove_assign binder gab_131;
+simplify;
+show_game;
+crypto cdh(exp) a b_161 b_159 b_163;
+*)
+(* crypto cdh(exp) b_161 a . 
+This transformation fails. When trying to discharge a[..[..[..]]] in a find condition, CryptoVerif sees that we are going to replace it with "let ka = mark in a", thus defining ka in a find condition, and we make array accesses to ka in the RHS. Array accesses are forbidden in find conditions, so the transformation fails. *)
+(*SArename b_159; *)
+(*crypto pCDH a b_159+ b_161 . ;
+success;
+show_game
+}
+*)
+param N, N2.
+
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize [bounded].
+type signature [bounded].
+
+type Z [large,fixed].
+type G [large,fixed].
+type K [large,fixed].
+type D [fixed].
+
+(* the CDH assumption *) 
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* h in the random oracle model *)
+
+type hashkey [fixed].
+
+
+(* signatures *)
+
+(*
+fun concatA(host, G):blocksize [compos].
+fun concatB(host, G):blocksize [compos].
+forall x:host, t:G, x':host, t':G;
+   concatA(x,t) <> concatB(x',t').
+*)
+
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, G, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+expand ROM_hash(hashkey, bitstring, D, h).
+
+param nH [noninteractive].
+channel hc1, hc2.
+let processH = ! nH in(hc1, (x:host, y:host, z:G, t:G)); out(hc2, h(hk,(x,y,z,t))).
+
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+query secret keyB.
+
+event endA(host, host, G, G).
+event beginB(host, host, G, G).
+event endB(host, host, G, G).
+
+(*
+query x:G, y:G; event inj:endA(A, B, x, y) ==> inj:beginB(A, B, x, y).
+query x:G, y:G; event inj:endB(A, B, x, y) ==> inj:endA(A, B, x, y).
+*)
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+let processA = 
+  in(cA1, (hostB: host));
+  new a:Z;
+  let ga = exp(g,a) in
+
+  new r1:seed;
+  out(cA2, (A, hostB, ga, sign(ga, skA, r1)));
+  in(cA3, (=A, =hostB, gb:G, s:signature));
+
+
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  let pkhostB = Rkey[j2] in
+  if check(gb, pkhostB, s) then
+  
+  let gab = exp(gb, a) in
+  let kA = h(hk, (A, hostB, gab, ga)) in 
+  event endA(A, hostB, ga, gb);
+  (* OK *)
+  
+  if hostB = B then 
+  (let keyA:D = kA)
+  else
+   out(cA4, kA).
+
+let processB =
+  in(cB1, (hostA:host, =B, ga:G, s:signature));
+
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
+  let pkhostA = Rkey[j2] in
+  if check(ga, pkhostA, s) then
+
+  new b:Z;
+  let gb = exp(g,b) in
+  new r2: seed;
+  event beginB(hostA, B, ga, gb);
+  event endB(hostA, B, ga, gb);
+  out(cB2, (hostA, B, gb, sign(gb, skB, r2)));
+  (* OK *)
+  in(cB3, ());
+
+  let gab = exp(ga, b) in
+  let kB = h(hk, (hostA, B, gab, ga)) in 
+
+  if hostA = A then 
+  (let keyB:D = kB)
+  else
+   out(cB4, kB).
+
+
+let processK =
+  !N2
+  in(cK, (Khost: host, Kkey: pkey));
+  let Rkey:pkey = 
+		if Khost = B then pkB else
+		if Khost = A then pkA else
+		Kkey.
+
+process
+	in(start, ());
+	new hk: hashkey;
+	new rkA : keyseed;
+	let skA = skgen(rkA) in
+	let pkA = pkgen(rkA) in
+	new rkB : keyseed;
+	let skB = skgen(rkB) in
+	let pkB = pkgen(rkB) in
+	out(cstart, (pkA, pkB));
+	((!N processA) | (!N processB) | processH | processK)
+

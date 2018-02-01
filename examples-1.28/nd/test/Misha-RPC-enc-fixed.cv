@@ -1,0 +1,106 @@
+param N.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
+  start, finish.
+
+type payload [fixed].
+fun payload2bs(payload) : bitstring [compos].
+
+(* IND-CPA INT-CTXT encryption *)
+
+type keyseed [fixed, large].
+type key [bounded].
+type seed [fixed, large].
+
+proba Penc.
+proba Pencptxt.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec, injbot, Z, Penc, Pencctxt). 
+
+fun key2bs(key): bitstring [compos].
+fun bs2key(bitstring): key.
+forall k: key;
+  bs2key(key2bs(k)) = k.
+
+(* Concatenation and parsing *)
+
+fun concat1(bitstring, bitstring): bitstring [compos].
+fun parse1(bitstring): bitstring.
+fun parse2(bitstring): bitstring.
+
+forall x:bitstring, y:bitstring;
+  parse1(concat1(x, y)) = x.
+
+forall x:bitstring, y:bitstring;
+  parse2(concat1(x, y)) = y.
+
+(* Assumes concat1 is really just the concatenation.
+   If concat1 adds a non-zero tag, the equation below is wrong,
+   but can be adapted. *)
+forall x:bitstring, y:bitstring;
+       Z(concat1(x, y)) = concat1(Z(x), Z(y)).
+
+(* All keys have the same length *)
+const Zkey: bitstring.
+forall y:key;
+       Z(key2bs(y)) = Zkey.
+
+(* Events and queries *)
+
+event client_begin(bitstring).
+event client_accept(bitstring, bitstring).
+event server_reply(bitstring, bitstring).
+
+query x: bitstring, y:bitstring;
+  event client_accept(x, y) ==> server_reply(x, y).
+
+query x: bitstring, y:bitstring;
+  event server_reply(x, y) ==> client_begin(x).
+
+(*
+query x: bitstring, y:bitstring;
+  event client_accept(x, y).
+*)
+
+(* The process *)
+
+let A = 
+  in(start, ());
+  new request_: payload;
+  let request = payload2bs(request_) in
+  event client_begin(request);
+  new kS_seed: keyseed;
+  let kS = kgen(kS_seed) in
+  new r: seed;
+  let var1 = enc(concat1(request, key2bs(kS)), kAB, r) in
+  out(c1, var1);
+  in(c2, var2: bitstring);
+  let injbot(response) = dec(var2, kS) in
+  event client_accept(request, response); 
+  yield.
+
+let B = 
+  in(c3, var12: bitstring);
+  new response_: payload;
+  let response = payload2bs(response_) in
+  let injbot(msg) = dec(var12, kAB) in
+  let request = parse1(msg) in
+  event server_reply(request, response);
+  let key2bs(kS) = parse2(msg) in
+  new r: seed;  
+  let var13 = enc(response, kS, r) in
+  out(c4, var13).
+
+process
+  in(start, ());
+  new kAB_seed: keyseed;
+  let kAB = kgen(kAB_seed) in
+  out(finish, ());
+  ((! N A) | (! N B))
+
+
+(* EXPECTED
+All queries proved.
+0.048s (user 0.044s + system 0.004s), max rss 36016K
+END *)

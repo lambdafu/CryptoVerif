@@ -22,6 +22,11 @@ let debug_elsefind_facts = ref false
 let debug_simplif_add_facts = ref false
 let debug_corresp = ref false
 
+(* To parse games output by CryptoVerif, 
+set this variable to true: such games may contain
+"defined" conditions on variables that are never defined. *)
+let allow_undefined_var = ref false
+    
 let max_depth_add_fact = ref 1000
 let max_depth_try_no_var_rec = ref 20
 let max_replace_depth = ref 20
@@ -30,6 +35,7 @@ let elsefind_facts_in_success = ref true
 let elsefind_facts_in_simplify = ref true
 let improved_fact_collection = ref false
 let corresp_cases = ref true
+let simplify_use_equalities_in_simplifying_facts = ref false
     
 let diff_constants = ref true
 let constants_not_tuple = ref true
@@ -115,88 +121,64 @@ let parse_type_size = function
 	int_of_string (String.sub s 4 (String.length s - 4))
       with _ -> raise Not_found
 
+let parse_bool v var =
+  match v with
+    S ("true",_) -> var := true
+  | S ("false",_) -> var := false
+  | _ -> raise Not_found
+	  
 let do_set p v =
   match (p,v) with
-    "diffConstants", S ("true",_) -> diff_constants := true
-  | "diffConstants", S ("false",_) -> diff_constants := false
-  | "constantsNotTuple", S ("true",_) -> constants_not_tuple := true
-  | "constantsNotTuple", S ("false",_) -> constants_not_tuple := false
-  | "expandAssignXY", S ("true",_) -> expand_letxy := true
-  | "expandAssignXY", S ("false",_) -> expand_letxy := false
-  | "minimalSimplifications", S ("true",_) -> minimal_simplifications := true
-  | "minimalSimplifications", S ("false",_) -> minimal_simplifications := false
-  | "mergeBranches", S ("true",_) -> merge_branches := true
-  | "mergeBranches", S ("false",_) -> merge_branches := false
-  | "mergeArrays", S ("true",_) -> merge_arrays := true
-  | "mergeArrays", S ("false",_) -> merge_arrays := false
-  | "uniqueBranch", S ("true",_) -> unique_branch := true
-  | "uniqueBranch", S ("false",_) -> unique_branch := false
-  | "uniqueBranchReorganize", S ("true",_) -> unique_branch_reorg := true
-  | "uniqueBranchReorganize", S ("false",_) -> unique_branch_reorg := false
-  | "autoSARename", S ("true",_) -> auto_sa_rename := true
-  | "autoSARename", S ("false",_) -> auto_sa_rename := false
-  | "autoRemoveAssignFindCond", S ("true",_) -> auto_remove_assign_find_cond := true
-  | "autoRemoveAssignFindCond", S ("false",_) -> auto_remove_assign_find_cond := false
-  | "autoRemoveIfFindCond", S ("true",_) -> auto_remove_if_find_cond := true
-  | "autoRemoveIfFindCond", S ("false",_) -> auto_remove_if_find_cond := false
-  | "autoMove", S ("true",_) -> auto_move := true
-  | "autoMove", S ("false",_) -> auto_move := false
-  | "optimizeVars", S ("true",_) -> optimize_let_vars := true
-  | "optimizeVars", S ("false",_) -> optimize_let_vars := false
-  | "interactiveMode", S ("true",_) -> interactive_mode := true
-  | "interactiveMode", S ("false",_) -> interactive_mode := false
-  | "autoAdvice", S ("true",_) -> auto_advice := true
-  | "autoAdvice", S ("false",_) -> auto_advice := false
-  | "noAdviceCrypto", S ("true",_) -> no_advice_crypto := true
-  | "noAdviceCrypto", S ("false",_) -> no_advice_crypto := false
-  | "noAdviceGlobalDepAnal", S ("true",_) -> no_advice_globaldepanal := true
-  | "noAdviceGlobalDepAnal", S ("false",_) -> no_advice_globaldepanal := false
-  | "backtrackOnCrypto", S ("true",_) -> backtrack_on_crypto := true
-  | "backtrackOnCrypto", S ("false",_) -> backtrack_on_crypto := false
-  | "simplifyAfterSARename", S ("true",_) -> simplify_after_sarename := true
-  | "simplifyAfterSARename", S ("false",_) -> simplify_after_sarename := false
-  | "detectIncompatibleDefined", S ("true",_) -> detect_incompatible_defined_cond := true
-  | "detectIncompatibleDefined", S ("false",_) -> detect_incompatible_defined_cond := false
+  | "allowUndefinedVar", _ -> parse_bool v allow_undefined_var
+  | "diffConstants", _ -> parse_bool v diff_constants 
+  | "constantsNotTuple", _ -> parse_bool v constants_not_tuple 
+  | "expandAssignXY", _ -> parse_bool v expand_letxy
+  | "minimalSimplifications", _ -> parse_bool v minimal_simplifications 
+  | "mergeBranches", _ -> parse_bool v merge_branches
+  | "mergeArrays", _ -> parse_bool v merge_arrays
+  | "uniqueBranch", _ -> parse_bool v unique_branch
+  | "uniqueBranchReorganize", _ -> parse_bool v unique_branch_reorg
+  | "autoSARename", _ -> parse_bool v auto_sa_rename
+  | "autoRemoveAssignFindCond", _ -> parse_bool v auto_remove_assign_find_cond
+  | "autoRemoveIfFindCond", _ -> parse_bool v auto_remove_if_find_cond
+  | "autoMove", _ -> parse_bool v auto_move
+  | "optimizeVars", _ -> parse_bool v optimize_let_vars
+  | "interactiveMode", _ -> parse_bool v interactive_mode
+  | "autoAdvice", _ -> parse_bool v auto_advice
+  | "noAdviceCrypto", _ -> parse_bool v no_advice_crypto
+  | "noAdviceGlobalDepAnal", _ -> parse_bool v no_advice_globaldepanal
+  | "backtrackOnCrypto", _ -> parse_bool v backtrack_on_crypto
+  | "simplifyAfterSARename", _ -> parse_bool v simplify_after_sarename
+  | "detectIncompatibleDefined", _ -> parse_bool v detect_incompatible_defined_cond
   | "ignoreSmallTimes", I n -> ignore_small_times := n
   | "maxIterSimplif", I n -> max_iter_simplif := n
   | "maxIterRemoveUselessAssign", I n -> max_iter_removeuselessassign := n
   | "maxAdvicePossibilitiesBeginning", I n -> max_advice_possibilities_beginning := n
   | "maxAdvicePossibilitiesEnd", I n -> max_advice_possibilities_end := n
-  | "useKnownEqualitiesInCryptoTransform", S ("true", _) -> use_known_equalities_crypto := true
-  | "useKnownEqualitiesInCryptoTransform", S ("false", _) -> use_known_equalities_crypto := false
+  | "useKnownEqualitiesInCryptoTransform", _ -> parse_bool v use_known_equalities_crypto
   | "minAutoCollElim", S (s,_) -> 
       let r = parse_type_size s in
       if r <= 0 then raise Not_found;
       tysize_MIN_Auto_Coll_Elim := r
-  | "elsefindFactsInReplace", S ("true",_) -> elsefind_facts_in_replace := true
-  | "elsefindFactsInReplace", S ("false",_) -> elsefind_facts_in_replace := false
-  | "elsefindFactsInSuccess", S ("true",_) -> elsefind_facts_in_success := true
-  | "elsefindFactsInSuccess", S ("false",_) -> elsefind_facts_in_success := false
-  | "elsefindFactsInSimplify", S ("true",_) -> elsefind_facts_in_simplify := true
-  | "elsefindFactsInSimplify", S ("false",_) -> elsefind_facts_in_simplify := false
-  | "improvedFactCollection", S ("true",_) -> improved_fact_collection := true
-  | "improvedFactCollection", S ("false",_) -> improved_fact_collection := false
+  | "elsefindFactsInReplace", _ -> parse_bool v elsefind_facts_in_replace
+  | "elsefindFactsInSuccess", _ -> parse_bool v elsefind_facts_in_success
+  | "elsefindFactsInSimplify", _ -> parse_bool v elsefind_facts_in_simplify
+  | "improvedFactCollection", _ -> parse_bool v improved_fact_collection
+  | "useEqualitiesInSimplifyingFacts", _ -> parse_bool v simplify_use_equalities_in_simplifying_facts
   | "maxReplaceDepth", I n -> max_replace_depth := n
   | "maxAddFactDepth", I n -> max_depth_add_fact := n
   | "maxTryNoVarDepth", I n ->
       (* For uniformity with maxAddFactDepth, 0 means no limit *)
       max_depth_try_no_var_rec := (if n = 0 then -1 else n)
-  | "casesInCorresp", S ("true",_) -> corresp_cases := true
-  | "casesInCorresp", S ("false",_) -> corresp_cases := false
+  | "casesInCorresp", _ -> parse_bool v corresp_cases
 
-  | "debugInstruct", S ("true",_) -> debug_instruct := true
-  | "debugInstruct", S ("false",_) -> debug_instruct := false
-  | "debugFindUnique", S ("true",_) -> debug_find_unique := true
-  | "debugFindUnique", S ("false",_) -> debug_find_unique := false
+  | "debugInstruct", _ -> parse_bool v debug_instruct
+  | "debugFindUnique", _ -> parse_bool v debug_find_unique
   | "debugCryptotransf", I n -> debug_cryptotransf := n
-  | "debugElsefindFacts", S ("true",_) -> debug_elsefind_facts := true
-  | "debugElsefindFacts", S ("false",_) -> debug_elsefind_facts := false
-  | "debugSimplify", S ("true",_) -> debug_simplify := true
-  | "debugSimplify", S ("false",_) -> debug_simplify := false
-  | "debugSimplifAddFacts", S ("true",_) -> debug_simplif_add_facts := true
-  | "debugSimplifAddFacts", S ("false",_) -> debug_simplif_add_facts := false
-  | "debugCorresp", S ("true",_) -> debug_corresp := true
-  | "debugCorresp", S ("false",_) -> debug_corresp := false
+  | "debugElsefindFacts", _ -> parse_bool v debug_elsefind_facts
+  | "debugSimplify", _ -> parse_bool v debug_simplify
+  | "debugSimplifAddFacts", _ -> parse_bool v debug_simplif_add_facts
+  | "debugCorresp", _ -> parse_bool v debug_corresp
   | _ -> raise Not_found
 
 
@@ -495,16 +477,22 @@ let get_inverse f n =
 
 let public_vars = ref []
 
+let add_pub_vars pub_vars =
+  List.iter (fun b ->
+    if not (List.memq b (!public_vars)) then
+      public_vars := b :: (!public_vars)
+			    ) pub_vars
+    
 let collect_public_vars queries =
   List.iter (function 
-      (QSecret (b',l),_),_,_ | (QSecret1 (b',l),_),_,_ -> 
-	List.iter (fun b ->
-          if not (List.memq b (!public_vars)) then
-            public_vars := b :: (!public_vars)
-				  ) (b'::l)
-    | (QEventQ _,_),_,_ -> ()
+      (QSecret (b',pub_vars,onesession),_),_,_ ->
+	add_pub_vars (b'::pub_vars)
+    | (QEventQ (t1,t2,pub_vars),_),_,_ ->
+	add_pub_vars pub_vars
     | (AbsentQuery,_),_,_ -> ()) queries
 
+let get_public_vars() = !public_vars
+    
 let occurs_in_queries b = List.memq b (!public_vars)
 
 let event_occurs_in_term f t = 
@@ -521,9 +509,9 @@ let rec event_occurs_in_qterm f = function
 let event_occurs_in_queries f q =
   List.exists (function
       _, _, popt when popt != None -> false (* I ignore already proved queries *)
-    | ((QSecret _|QSecret1 _), _),_,_ -> false
+    | (QSecret _, _),_,_ -> false
     | (AbsentQuery, _),_,_ -> true
-    | (QEventQ (l,r),_),_,_ ->
+    | (QEventQ (l,r,_),_),_,_ ->
 	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||
 	(event_occurs_in_qterm f r)
 	  ) q

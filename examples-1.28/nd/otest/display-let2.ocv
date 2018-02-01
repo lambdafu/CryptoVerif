@@ -1,0 +1,11 @@
+const c0, c1: bitstring.
+
+process
+	Ostart() :=
+	let r = (let x = c0 in x else c1) in 
+	return(r)
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19856K
+END *)

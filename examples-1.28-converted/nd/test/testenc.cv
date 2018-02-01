@@ -1,0 +1,225 @@
+(* crypto hash causes an internal error *)
+
+proof {
+crypto hash;
+auto
+}
+
+
+param nK, nf, n0, n1, n2, n3, nH, nH2, nx.
+param qH, qH2, qD.
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type hasht2 [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(keyseed):pkey.
+fun pkgen'(keyseed):pkey.
+fun skgen(keyseed):skey.
+fun f(pkey, seed):seed.
+fun f'(pkey, seed):seed.
+fun mf(skey, seed):seed.
+
+(* mf is the inverse of f *)
+
+forall r:keyseed, x:seed; mf(skgen(r), f(pkgen(r), x)) = x.
+
+(* f is the inverse of mf *)
+
+forall r:keyseed, x:seed; f(pkgen(r), mf(skgen(r), x)) = x.
+
+(* injectivity of f *)
+
+forall k:pkey, x:seed, x':seed; (f(k,x) = f(k,x')) = (x = x').
+
+(* injectivity of mf *)
+
+forall k:skey, x:seed, x':seed; (mf(k,x) = mf(k,x')) = (x = x').
+
+(* f/mf are inverse permutations; use this to remove some
+   occurrences of mf in equality tests *)
+
+forall r:keyseed, x:seed, x':seed; 
+	(x' = mf(skgen(r),x)) = (f(pkgen(r),x') = x).
+
+(* We can permute the distribution, for uniformly distributed random
+   numbers x. Do that only when x is used in mf(skgen(r),x) *)
+
+equiv
+  ! nK new r: keyseed; (
+    ! n0 gen_Oracle() := return(pkgen(r)) |
+    ! nf new x: seed; (
+      ! n1 gen_Oracle_1() := return(mf(skgen(r),x)) |
+      ! n2 gen_Oracle_2() := return(x)))
+<=(0)=>
+  ! nK new r: keyseed; (
+    ! n0 gen_Oracle() := return(pkgen(r)) |
+    ! nf new x: seed; (
+      ! n1 gen_Oracle_1() := return(x) |
+      ! n2 gen_Oracle_2() := return(f(pkgen(r), x)))).
+
+(* One-wayness *)
+
+equiv
+  ! nK new r: keyseed; (
+    ! n0 gen_Oracle_1() := return(pkgen(r)) |
+    ! nf new x: seed; (
+      ! n1 gen_Oracle_2() := return(f(pkgen(r), x)) |
+      ! n2 gen_Oracle_3(x': seed) := return(x = x') |
+      ! n3 gen_Oracle_4() := return(x)))
+<=(nK * nf * POW(time + (nK-1) * time(pkgen) + (nf*nK-1) * time(f)))=>
+  ! nK new r: keyseed; (
+    ! n0 gen_Oracle_1() := return(pkgen'(r)) |
+    ! nf new x: seed; (
+      ! n1 gen_Oracle_2() := return(f'(pkgen'(r), x)) |
+      ! n2 gen_Oracle_3(x': seed) := find j <= n3 suchthat defined(k[j]) then return(x = x') else return(false) |
+      ! n3 gen_Oracle_4() := let k:bitstring = mark in return(x))).
+
+(* Hash function, random oracle model *)
+
+fun hash(seed):hasht.
+
+equiv
+  ! nH gen_Oracle_1(x: seed) := return(hash(x)) [all]
+<=(0)=>
+  ! nH gen_Oracle_1(x: seed) := find j <= nH suchthat defined(x[j], r[j]) && (x= x[j]) then return(r[j]) else new r: hasht; return(r).
+
+(* Another hash function, random oracle model *)
+
+fun hash2(seed, hasht):hasht2.
+
+equiv
+  ! nH2 gen_Oracle_1(x: seed, y: hasht) := return(hash2(x,y)) [all]
+<=(0)=>
+  ! nH2 gen_Oracle_1(x: seed, y: hasht) := find j <= nH2 suchthat defined(x[j], y[j], r[j]) && x= x[j] && y=y[j] then return(r[j]) else new r: hasht2; return(r).
+
+(* Xor *)
+
+fun xor(hasht,hasht):hasht.
+equation commut(xor).
+
+forall x:hasht,y:hasht; xor(x, xor(x,y)) = y.
+forall x:hasht,y:hasht,z:hasht; (xor(x,z) = xor(y,z)) = (x = y).
+
+fun xor'(hasht,hasht):hasht.
+equation commut(xor').
+forall x:hasht,y:hasht,a:hasht; (xor(x,y) = a) =
+(y = xor'(x, a)).
+forall x:hasht,y:hasht; xor'(x, xor'(x,y)) = y.
+forall x:hasht,y:hasht,z:hasht; (xor'(x,z) = xor'(y,z)) = (x = y).
+equiv
+  ! nx new a: hasht; gen_Oracle_1(x: hasht) := return(xor'(a,x))
+<=(0)=>
+  ! nx new a: hasht; gen_Oracle_1(x: hasht) := return(a).
+
+equiv
+  ! nx new a: hasht; gen_Oracle_1(x: hasht) := return(xor(a,x))
+<=(0)=>
+  ! nx new a: hasht; gen_Oracle_1(x: hasht) := return(a).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+forall x:hasht,y:hasht; test(true,x,y) = x.
+forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret menc [onesession].
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start.
+
+process
+
+in(start, ());
+new r: keyseed;
+let sk: skey = skgen(r) in
+let pk: pkey = pkgen(r) in
+out(c9, pk);
+((
+  ! i_1 <= qD
+  in(c5[i_1], (a: seed, b: hasht));
+  if defined(menc, x_2) && (menc = xor'(hash(x_2), b)) then
+    yield
+  else
+    let x_1: seed = mf(sk, a) in
+    let m: hasht = xor(hash(x_1), b)
+) | (
+  in(c7, menc: hasht);
+  new x_2: seed;
+  let aT: seed = f(pk, x_2) in
+  let bT: hasht = xor(hash(x_2), menc) in
+  out(c8, (aT, bT))
+))
+
+
+
+(*
+in(start, ());
+new r: keyseed;
+let sk: skey = skgen(r) in
+let pk: pkey = pkgen(r) in
+out(c9, pk);
+(
+    (
+      ! qH
+      in(c1, x_37: seed);
+      out(c2, hash(x_37))
+    )
+    |
+    (
+      ! qH2
+      in(c3, (x_36: seed, y: hasht));
+      find  suchthat defined(x_34, menc, r_50) && otheruses(r_50) && ((x_36 = x_34) && (y = menc)) then
+        out(c4, r_50)
+      orfind findi_63 <= qH2 suchthat defined(x_36[findi_63], y[findi_63], r_56[findi_63]) && otheruses(r_56[findi_63]) && ((x_36 = x_36[findi_63]) && (y = y[findi_63])) then
+        out(c4, r_56[findi_63])
+      else
+        new r_56: hasht2;
+        out(c4, r_56)
+    )
+  |
+  (
+    ! qD
+    in(c5, (a: seed, b: hasht, c: hasht2));
+    find  suchthat defined(r_50, aT, menc, x_34) && ((a = aT) && ((menc = xor'(hash(x_34), b)) && (c = r_50))) then
+      yield
+    else
+      let x_35: seed = mf(sk, a) in
+      let m: hasht = xor(hash(x_35), b) in
+      find  suchthat defined(x_34, menc, r_50) && otheruses(r_50) && ((f(pkgen(r), x_34) = a) && (b = xor'(hash(x_35), menc))) then
+        if (c = r_50) then
+        out(c6, m)
+      orfind findi_61 <= qH2 suchthat defined(x_36[findi_61], y[findi_61], r_56[findi_61]) && otheruses(r_56[findi_61]) && ((f(pkgen(r), x_36[findi_61]) = a) && (b = xor'(hash(x_35), y[findi_61]))) then
+        if (c = r_56[findi_61]) then
+        out(c6, m)
+      else
+        new r_53: hasht2
+  )
+|
+(
+  in(c7, (m1: hasht, m2: hasht));
+  new b1: bool;
+  let menc: hasht = test(b1, m1, m2) in
+  new x_34: seed;
+  let aT: seed = f(pk, x_34) in
+  let bT: hasht = xor(hash(x_34), menc) in
+  new r_50: hasht2;
+  out(c8, (aT, bT, r_50))
+)
+)
+*)
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of menc.
+0.032s (user 0.020s + system 0.012s), max rss 36720K
+END *)

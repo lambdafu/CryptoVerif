@@ -1,0 +1,248 @@
+(* Variables defined at several places cannot be written to a file.
+
+Needham Schroeder public key protocol. *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+(*
+proof {
+crypto uf_cma(sign) rkS;
+crypto ind_cca2(enc) rkA;
+crypto ind_cca2(enc) rkB;
+success;
+auto
+}*)
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [fixed,large].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [fixed].
+type role [bounded].
+type hostname [bounded].
+
+
+implementation type sseed=8;
+               type skeyseed=8;
+               type keyseed=8;
+               type seed=8;
+               type nonce=8;
+               type host="string" [serial = "id", "id"];
+               type pkey="pkey" [serial = "pkey_to","pkey_from"];
+               type skey="skey" [serial = "skey_to","skey_from"];
+               type signature="string";
+               type spkey="pkey" [serial = "pkey_to","pkey_from"];
+               type sskey="skey" [serial = "skey_to","skey_from"].
+
+table keytbl(host,pkey).
+implementation table keytbl="keytbl".
+
+
+fun get_hostname():hostname.
+fun concat1(nonce, host):blocksize [compos].
+fun concat2(nonce, nonce):blocksize [compos].
+fun concat3(pkey, host):sblocksize [compos].
+fun concat4(hostname, role):host [compos].
+fun pad(nonce):blocksize [compos].
+
+forall z:nonce,t:nonce,y2:nonce,z2:host;
+	concat2(z,t) <> concat1(y2,z2).
+forall y:nonce,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,y2:nonce;
+	concat2(z,t) <> pad(y2).
+
+const cstbitstring: bitstring.
+fun pad2(nonce): bitstring [compos].
+
+(* Public-key encryption (IND-CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+query secret1 NaA.
+query secret1 NaB.
+query secret1 NbA.
+query secret1 NbB.
+
+query secret NaA.
+query secret NaB.
+query secret NbA.
+query secret NbB.
+
+const roleA:role.
+const roleB:role.
+
+(*implementation*)
+
+implementation fun concat1="concat_str_str" [inverse = "unconcat_str_str"];
+               fun concat2="concat_str_str" [inverse =  "unconcat_str_str"];
+               fun concat3="concat_pk_str" [inverse =  "unconcat_pk_str"];
+               fun concat4="concat_str_str" [inverse =  "unconcat_str_str"];
+               fun sign="(pk_r_sign Cryptokit.Hash.sha256 Cryptokit.Padding.length)";
+               fun get_hostname="get_hostname";
+               fun check="(pk_r_check_sign Cryptokit.Hash.sha256 Cryptokit.Padding.length)";
+               fun enc="(pk_r_enc Cryptokit.Padding.length)";
+               fun dec="(pk_r_dec Cryptokit.Padding.length)";
+               fun injbot="injbot" [inverse =  "injbot_inv"];
+               fun pad="(pad Cryptokit.Padding.length 64)" [inverse = "(pad_inv Cryptokit.Padding.length)"];
+               const roleA="\"A\"";
+               const roleB="\"B\"";
+	       const cstbitstring="\"Z\"";
+	       fun pad2="id".
+
+
+letfun kgen_s()=  k <-R skeyseed; (spkgen(k),sskgen(k)).
+letfun kgen() =  k <-R keyseed;  (pkgen(k) ,skgen(k) ).
+
+implementation fun kgen = "(pk_kgen 1024)".
+implementation fun kgen_s = "(pk_kgen 1024)".
+
+let processA =
+
+ONS_AGenKey [ pkA > pkA, skA > skA, A > idA ] 
+{
+    OAGK (x: bool) :=
+        if x then 
+          (A:host <- concat4 (get_hostname (),roleA);
+           let (pkA:pkey,skA:skey) = kgen() in
+           insert keytbl(A,pkA);
+           return (pkA)};
+ONS_A {
+    OA1 (hostX: host) :=
+        return (A, hostX);
+    OA3 (pkX: pkey, =hostX, ms: signature) :=
+	if check(concat3(pkX, hostX), pkS, ms) then
+	(* Message 3 *)
+        Na <-R nonce;
+	r3 <-R seed;
+        return (enc(concat1(Na, A), pkX, r3));
+	(* Message 6 *)
+    OA5 (m: bitstring) :=
+	let injbot(concat2(=Na, Nb)) = dec(m, skA) in
+	(* Message 7 *)
+	r4 <-R seed;
+	return (enc(pad(Nb), pkX, r4))};
+	(* OK *)
+    OAFinish () := (*need to define B before to use it*)
+	if defined(B) then
+           if hostX = B then
+	   (  
+	      NaA:nonce <- Na; 
+	      NbA:nonce <- Nb
+	   )
+	   else return  (Na, Nb)
+
+) else (
+           A:host <- concat4 (get_hostname (),roleA);
+           let (pkA:pkey,skA:skey) = kgen() in
+           insert keytbl(A,pkA);
+           return (pkA)};
+ONS_A2 {
+    OA1 (hostX: host) :=
+        return (A, hostX);
+    OA3 (pkX: pkey, =hostX, ms: signature) :=
+	if check(concat3(pkX, hostX), pkS, ms) then
+	(* Message 3 *)
+        Na <-R nonce;
+	r3 <-R seed;
+        return (enc(concat1(Na, A), pkX, r3));
+	(* Message 6 *)
+    OA5 (m: bitstring) :=
+	let injbot(concat2(=Na, Nb)) = dec(m, skA) in
+	(* Message 7 *)
+	r4 <-R seed;
+	return (enc(pad(Nb), pkX, r4))};
+	(* OK *)
+    OAFinish () := end
+).
+
+let processB =
+
+ONS_BGenKey [ pkB > pkB, skB > skB, B > idB] 
+{
+    OBGK () :=
+        B:host <- concat4 (get_hostname (),roleB);
+        let (pkB:pkey,skB:skey) = kgen() in
+        insert keytbl(B,pkB);
+        return (pkB)};
+foreach i <= N do
+ONS_B {
+	(* Message 3 *)
+    OB7 (m:bitstring) :=
+	let injbot(concat1(Na, hostY)) = dec(m, skB) in
+	return (B, hostY);
+    OB9 (pkY: pkey, =hostY, ms: signature) :=
+	if check(concat3(pkY, hostY), pkS, ms) then
+	(* Message 6 *)
+	Nb <-R nonce;
+	r5 <-R seed;
+	return (enc(concat2(Na, Nb), pkY, r5));
+	(* Message 7 *)
+    OB11 (m3: bitstring) :=
+	let injbot(pad(=Nb)) = dec(m3, skB) in
+        return ()};
+    OBFinish () :=
+              	(* OK *)
+        if defined (A) then      
+            if hostY = A then
+	    (  
+	       NaB: nonce <- Na;
+	       NbB: nonce <- Nb
+	    )
+	    else return (Na, Nb).
+
+let processK =
+    OK12 (Khost: host, Kkey: pkey) :=
+           if defined (A,B,pkA,pkB) && (Khost <> A) && (Khost <> B) then 
+                 insert keytbl(Khost,Kkey).
+
+let processS =
+ONS_S {  
+    OS13 (h1: host, h2: host) :=
+	get keytbl (Khost,Rkey) suchthat Khost=h2 in
+	r3 <-R sseed;
+	return (Rkey, h2, sign(concat3(Rkey, h2), skS, r3))}.
+
+process 
+ONS_Keygen [pkS > pkS, skS > skS ] {
+    OStart() :=
+        let (pkS:spkey,skS:sskey) = kgen_s () in
+	return (pkS)};
+	(((*foreach i <= N do *) processA) |
+	 ((*foreach i <= N do *) processB) | 
+         (foreach i <= N do processS) |
+	 (foreach i <= N2 do processK))
+
+
+(* EXPECTED
+Error: This name is ambiguous, or the variable has not been declared with its type
+xtime: error in child process (status : 512)
+END *)

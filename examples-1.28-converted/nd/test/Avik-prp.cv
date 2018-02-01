@@ -1,0 +1,65 @@
+
+(** Pseudo-random permutations **)
+
+(** A pseudo-random permutation family with large domain
+    is shown to be pseudo-random.
+    See Section 5, "Sequences of Games", Victor Shoup. **)
+
+param n, m, q.
+
+type S [large,fixed].
+
+type D [large,fixed].
+
+proba pPRP.
+
+fun f(S,D): D.
+
+(* f(S) is a pseudo-random permutation family... *) 
+
+fun sep1(D): D [data].
+
+equiv
+  ! n new s: S; ! m gen_Oracle(x: D) := return(f(s,x)) [all]
+<=(pPRP(time,n,m))=>
+  ! n ! m gen_Oracle(x: D) := find u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(sep1(r[u])) else new r: D; return(sep1(r)).
+			(* BB: f(S) is a pseudo-random function, not a pseudo
+			   random permutation. *)
+
+
+(* ...where sep1 is a permutation *)
+
+equiv
+  ! n new x: D; gen_Oracle_1() := return(sep1(x))
+<=(0)=>
+  ! n new x: D; gen_Oracle_1() := return(x).
+
+fun sep2(D): D [data].
+
+(* BB: Does not seem to be related to the problem we want to handle... *)
+
+(* query *)
+query secret test.
+
+channel dummy, start.
+
+
+
+process
+  in(start, ());
+new s: S;
+out(dummy, ());
+! i_1 <= q
+in(dummy[i_1], ());
+new d: D;
+let x: D = sep2(d) in
+let test: D = f(s, x)
+
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.024s (user 0.020s + system 0.004s), max rss 39936K
+END *)

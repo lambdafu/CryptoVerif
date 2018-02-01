@@ -1,0 +1,914 @@
+set interactiveMode = true.
+
+(*
+crypto uf_cma(sign) rA
+crypto uf_cma(sign) rB
+insert 508 find j <= NA suchthat defined(y[j],hashgx[j]) && gy = gexp(g, y[j]) && hashgx[j] = SHA256(SHA256k, gexp(g, x_259)) then
+insert 44 find k <= NB suchthat defined(x_259[k],gy[k]) && gx = gexp(g, x_259[k]) && gexp(g, y) = gy[k] then
+crypto rom(hash2_6)
+SArename s_260
+SArename s_245
+crypto cdh(gexp)
+*)
+
+param NA, NB, NSA, NRA, NSB, NRB.
+
+type sha256_bits [large,fixed]. (* 256 bits, output of SHA256 *)
+type sha1_bits [large,fixed].   (* 160 bits, output of SHA1 *)
+
+(* Computational Diffie-Hellman assumption *)
+type exp [large,bounded].
+type G [large,bounded].
+proba pCDH.
+expand CDH(G, exp, g, gexp, mult, pCDH).
+
+(* AES128-CTR *)
+
+event repeated_counter.
+
+define CTR_enc(key, cleartext, ciphertext, ctr, enc, dec, Z, Penc) { 
+
+param N, N2.
+
+fun enc(cleartext, key, ctr): ciphertext.
+fun dec(ciphertext, key, ctr): cleartext.
+
+fun enc2(cleartext, key, ctr): ciphertext.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+forall m:cleartext, k:key, c:ctr; 
+	dec(enc(m, k, c), k, c) = m.
+
+equiv  ind_cpa(enc)
+       ! N2 new k: key; ! N Oenc(x:cleartext, c:ctr) := enc(x, k, c) 
+     <=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(x)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
+       ! N2 new k: key; ! N Oenc(x:cleartext, c:ctr) := 
+       	    	find i <= N suchthat defined(c[i],r[i]) && c = c[i] then
+		     event_abort repeated_counter
+	 	else
+		     let r: ciphertext = enc2(Z(x), k, c) in
+		     r.
+
+}
+
+type enc_key [large,fixed]. (* 128 bits *)
+type ctr [fixed].
+proba Penc.
+expand CTR_enc(enc_key, bitstring, bitstring, ctr, senc, sdec, Z, Penc).
+
+const zero_ctr: ctr.
+
+(* UF-CMA MAC -- version without key generation function *)
+
+define UF_CMA_mac_nokgen(mkey, macinput, macres, mac, check, Pmac) {
+
+param N, N2, N3.
+
+const mark: bitstring.
+
+fun mac(macinput, mkey):macres.
+fun check(macinput, mkey, macres): bool.
+
+fun mac2(macinput, mkey):macres.
+fun check2(macinput, mkey, macres): bool.
+
+forall m:macinput, k:mkey;
+	check(m, k, mac(m, k)).
+forall m:macinput, k:mkey;
+	check2(m, k, mac2(m, k)).
+
+equiv uf_cma(mac)
+      ! N3 new k:mkey;(
+	 !N Omac(x: macinput) := mac(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) := check(m, k, ma))
+     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [computational]
+      ! N3 new k:mkey [unchanged];(
+	 !N Omac(x: macinput) := mac2(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], k, ma) then true else false).
+
+equiv uf_cma_corrupt(mac)
+      ! N3 new k:mkey;(
+	 !N Omac(x: macinput) [useful_change] := mac(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) [useful_change] := check(m, k, ma),
+	 Ocorrupt() [10] := k)
+     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, max(maxlength(x), maxlength(m))))=> [manual,computational]
+      ! N3 new k:mkey [unchanged];(
+	 !N Omac(x: macinput) := mac2(x, k),
+	 !N2 Ocheck(m: macinput, ma: macres) := 
+	    if defined(corrupt) then check2(m, k, ma) else
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], k, ma) then true else false,
+	 Ocorrupt() := let corrupt: bitstring = mark in k).
+
+}
+
+proba PSHA256_HMAC160.
+expand UF_CMA_mac_nokgen(sha256_bits, bitstring, sha1_bits, SHA256_HMAC160, SHA256_HMAC160_check, PSHA256_HMAC160).
+
+proba PSHA1_HMAC.
+expand UF_CMA_mac_nokgen(sha1_bits, bitstring, sha1_bits, SHA1_HMAC, SHA1_HMAC_check, PSHA1_HMAC).
+
+
+type hashkey [large,fixed].
+
+proba PSHA256_HMAC.
+expand CollisionResistant_hash(hashkey, bitstring, sha256_bits, SHA256_HMAC, PSHA256_HMAC).
+
+proba PSHA256.
+expand CollisionResistant_hash(hashkey, G, sha256_bits, SHA256, PSHA256).
+
+(* Hashing - Random oracle model *)
+
+type keys6 [large, fixed].
+
+(*expand ROM_hash(hashkey, G, sha256_bits, SHA256).
+param qSHA256 [noninteractive].
+channel sha256_in, sha256_out.
+let SHA256_oracle = ! qSHA256 in(sha256_in, x:G); out(sha256_out, SHA256(SHA256k,x)). *)
+
+expand ROM_hash(hashkey, G, keys6, hash2_6).
+param qhash2_6 [noninteractive].
+channel hash2_6_in, hash2_6_out.
+let hash2_6_oracle = ! qhash2_6 in(hash2_6_in, x:G); out(hash2_6_out, hash2_6(hash2_6k,x)). 
+
+
+
+
+(* Signing - UF-CMA signatures *)
+type keyseed [large,fixed].
+type spkey [bounded].
+type sskey [bounded].
+type sseed [large,fixed].
+type signature.
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_signature(keyseed, spkey, sskey, bitstring, signature, sseed, ssk, spk, sign, checksign, Psign, Psigncoll).
+
+(* Key ids *)
+
+type key_id.
+
+const keyidA_init, keyidB_init: key_id.
+fun incr(key_id):key_id [compos].
+
+forall kid: key_id; incr(kid) <> keyidA_init.
+forall kid: key_id; incr(kid) <> keyidB_init.
+
+(* Type conversions and concatenations *)
+
+type ssid [fixed].
+fun extract1(keys6):ssid.
+fun extract2(keys6):enc_key.
+fun extract3(keys6):enc_key.
+fun extract4(keys6):sha256_bits.
+fun extract5(keys6):sha256_bits.
+fun extract6(keys6):sha256_bits.
+fun extract7(keys6):sha256_bits.
+
+param N.
+
+equiv cut
+      ! N new r:keys6; (O1() := extract1(r), O2() := extract2(r), O3() := extract3(r), 
+      	      	        O4() := extract4(r), O5() := extract5(r), O6() := extract6(r), 
+			O7() := extract7(r))
+   <=(0)=>
+      ! N (O1() := new k1: ssid; k1, O2() := new k2:enc_key; k2, O3() := new k3: enc_key; k3,
+           O4() := new k4: sha256_bits; k4, O5() := new k5: sha256_bits; k5, O6() := new k6: sha256_bits; k6, 
+	   O7() := new k7: sha256_bits; k7).
+
+
+fun GToBits(G):bitstring [compos].
+fun enckeyToBits(enc_key):bitstring [compos].
+fun sha256ToBits(sha256_bits):bitstring [compos].
+fun concat1(G,G,spkey,key_id): bitstring [compos].
+fun concat2(spkey,key_id,signature): bitstring [compos].
+fun concat3(key_id,key_id,G,ctr,bitstring): bitstring [compos].
+
+channel start, ch, chA1, chA2, chA3, chA4, chA40, chA50, chA5, chA6, chA7, chB0, chB1, chB2, chB3, chB4, chB50, chB5, chB6, chB7.
+
+(* Security properties *)
+
+(* Entity authentication *)
+
+event Alice_session_with_Bob(spkey, ssid).
+event Bob_session_with_Alice(spkey, ssid).
+event Alice_starts_session_with(spkey, ssid).
+event Bob_starts_session_with(spkey, ssid).
+
+query pk:spkey, s:ssid; event inj:Bob_session_with_Alice(pk, s) ==> inj:Alice_starts_session_with(pk, s).
+(* Currently cannot be proved because of weakness in the protocol.
+query pk:spkey, s:ssid; event inj:Alice_session_with_Bob(pk, s) ==> inj:Bob_starts_session_with(pk, s). *)
+query pk:spkey, s:ssid; event Alice_session_with_Bob(pk, s) ==> false.
+
+let bobAKE =
+        in(chB0, ());
+	new r:enc_key; (* Picks a random value r (128 bits) *)
+	new x:exp; (* Picks a random value x (at least 320 bits) *)
+	out(chB1, (
+		senc(GToBits(gexp(g, x)), r, zero_ctr), SHA256(SHA256k, gexp(g, x))
+	)); (* Sends Alice AESr(gx), HASH(gx) *)
+	in(chB2, gy:G); (* Receive gy from Alice *)
+	(*
+	Here I'm supposed to verify that gy is a legal value (2 <= gy <= modulus-2)
+	This point can be omitted.
+	*)
+	let s = gexp(gy, x) in (* Computes s = (gy)x *)
+	(* Computes two AES keys c, c' and four MAC keys m1, m1', m2, m2' by hashing s in various ways *)
+	let keys = hash2_6(hash2_6k, s) in
+	let ssid = extract1(keys) in
+	let c    = extract2(keys) in 
+	let c'   = extract3(keys) in 
+	let m1   = extract4(keys) in
+	let m2   = extract5(keys) in
+	let m1'  = extract6(keys) in
+	let m2'  = extract7(keys) in
+	let mB = SHA256_HMAC(SHA256_HMACk, (concat1(gexp(g, x), gy, pubB, keyidB_init), m1)) in (* Computes MB = MACm1(gx, gy, pubB, keyidB) *)
+	new rs1: sseed;
+	let xB = concat2(pubB, keyidB_init, sign(sha256ToBits(mB), secB, rs1)) in (* Computes XB = pubB, keyidB, sigB(MB) *)
+	let encxB = senc(xB, c, zero_ctr) in
+	out(chB3, (r, encxB, SHA256_HMAC160(encxB, m2))); (* Sends Alice r, AESc(XB), MACm2(AESc(XB)) *)
+	in(chB4, (encxA:bitstring, hmacencxA:sha1_bits)); (* Receive AESc'(XA), MACm2'(AESc'(XA)) from Alice *)
+	if SHA256_HMAC160_check(encxA, m2', hmacencxA) then ( (* Uses m2' to verify MACm2'(AESc'(XA)) *)
+		let concat2(pubX, keyidA_init', signmA) = sdec(encxA, c', zero_ctr) in (* Uses c' to decrypt AESc'(XA) to obtain XA = pubA, keyidA, sigA(MA) *)
+		let mA = SHA256_HMAC(SHA256_HMACk, (concat1(gy, gexp(g, x), pubX, keyidA_init'), m1')) in (* Computes MA = MACm1'(gy, gx, pubA, keyidA) *)
+		if checksign(sha256ToBits(mA), pubX, signmA) then ( (* Uses pubA to verify sigA(MA) *)
+		        (*insert Bob_session_info(x, pubX);*)
+			if pubX = pubA then
+			event Bob_session_with_Alice(pubB, ssid)
+		)
+	).
+
+let aliceAKE =
+	in(chA1, (encgx:bitstring, hashgx:sha256_bits)); (* TODO why is it useful to encrypt and hash g^x? 
+		 		   			    Why is it more secure than just sending g^x in the clear? *)
+	new y:exp; (* Picks a random value y (at least 320 bits) *)
+	out(chA2, gexp(g, y)); (* Sends Bob gy *)
+	in(chA3, (r:enc_key, encxB:bitstring, hmacencxB:sha1_bits));
+	let GToBits(gx) = sdec(encgx, r, zero_ctr) in (* Uses r to decrypt the value of gx sent earlier *)
+	if (SHA256(SHA256k, gx) = hashgx) then (* Verifies that HASH(gx) matches the value sent earlier *)
+		let s = gexp(gx, y) in (* 4.Computes s = (gx)y *)
+		(* Computes two AES keys c, c' and four MAC keys m1, m1', m2, m2' by hashing s in various ways *)
+		let keys = hash2_6(hash2_6k, s) in
+		let ssid = extract1(keys) in
+		let c    = extract2(keys) in 
+		let c'   = extract3(keys) in 
+		let m1   = extract4(keys) in
+		let m2   = extract5(keys) in
+		let m1'  = extract6(keys) in
+		let m2'  = extract7(keys) in
+		if SHA256_HMAC160_check(encxB, m2, hmacencxB) then ( (* Uses m2 to verify MACm2(AESc(XB)) *)
+			let concat2(pubX, keyidB_init', signmB) = sdec(encxB, c, zero_ctr) in (* Uses c to decrypt AESc(XB) to obtain XB = pubB, keyidB, sigB(MB) *)
+			let mB = SHA256_HMAC(SHA256_HMACk, (concat1(gx, gexp(g, y), pubX, keyidB_init'), m1)) in (* Computes MB = MACm1(gx, gy, pubB, keyidB) *)
+			if checksign(sha256ToBits(mB), pubX, signmB) then ( (* Uses pubB to verify sigB(MB) *)
+				let mA = SHA256_HMAC(SHA256_HMACk, (concat1(gexp(g, y), gx, pubA, keyidA_init), m1')) in (* Computes MA = MACm1'(gy, gx, pubA, keyidA) *)
+				new rs2: sseed;
+				let xA = concat2(pubA, keyidA_init, sign(sha256ToBits(mA), secA, rs2)) in (* Computes XA = pubA, keyidA, sigA(MA) *)
+				let encxA = senc(xA, c', zero_ctr) in
+				(* insert Alice_session_info(y, pubX); *)
+				event Alice_starts_session_with(pubX, ssid);
+				out(chA4, (encxA, SHA256_HMAC160(encxA, m2'))); (* Sends Bob AESc'(XA), MACm2'(AESc'(XA)) *)
+				in(chA40, ());
+				if pubX = pubB then
+				event Alice_session_with_Bob(pubA, ssid)
+			)
+		).
+
+(* Alice and Bob talk to dishonest participants as well,
+so I use pubX instead of pubB (resp. pubA) *)
+
+process
+	in (start, ());
+	new SHA256k: hashkey; (* Models the choice of the hash functions *)
+	new hash2_6k:hashkey;
+	new SHA256_HMACk: hashkey;
+	new rA:keyseed;       (* Generation of signature keys *)
+	new rB:keyseed;
+	let pubA = spk(rA) in
+	let secA = ssk(rA) in
+	let pubB = spk(rB) in
+	let secB = ssk(rB) in
+	out(ch, (pubA, pubB, SHA256_HMACk, SHA256k));
+	( ! NA aliceAKE | ! NB bobAKE | hash2_6_oracle)
+
+(*
+Here is an explanation of why I am blocked in the proof of this protocol.
+
+
+        in(start, ());
+        new SHA256k: hashkey;
+        new SHA256_HMACk: hashkey;
+        new rA: keyseed;
+        new rB: keyseed;
+        out(ch, (@20_pkgen2(rA), @20_pkgen2(rB), SHA256_HMACk));
+        (
+          ! !_250 <= NA
+          in(chA1[!_250], (encgx: bitstring, hashgx: sha256_bits));
+          new y: exp;
+          out(chA2[!_250], @5_exp'(g, y));
+          in(chA3[!_250], (r_255: enc_key, encxB_254: bitstring, hmacencxB: sha1_bits));
+          let GToBits(gx: G) = sdec(encgx, r_255, zero_ctr) in
+          if (SHA256(SHA256k, gx) = hashgx) then
+          find k = k_360 <= NB suchthat defined(x_270[k_360], gy[k_360]) && (gx = @5_exp'(g, x_270[k_360])) && (@5_exp'(g, y) = gy[k_360]) then
+          (
+            if defined(@15_r_367[k]) then
+            (
+              let m2_262: sha256_bits = extract5(@15_r_367[k]) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_367[k]) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              if (pubX_265 = @20_pkgen2(rA)) then
+                yield
+              else
+                let m1_261: sha256_bits = extract4(@15_r_367[k]) in
+                let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+                let @20_m_341: bitstring = sha256ToBits(mB_266) in
+                if defined(@20_x_354[k]) && (pubX_265 = @20_pkgen2(rB)) && (keyidB_init' = keyidB_init) && @20_check2(@20_m_341, pubX_265, signmB) then
+                (
+                  let m1'_263: sha256_bits = extract6(@15_r_367[k]) in
+                  let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                  new rs2_449: sseed;
+                  let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                  let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_449)) in
+                  let c'_260: enc_key = extract3(@15_r_367[k]) in
+                  let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                  let ssid_258: ssid = extract1(@15_r_367[k]) in
+                  event Alice_starts_session_with(pubX_265, ssid_258);
+                  let m2'_264: sha256_bits = extract7(@15_r_367[k]) in
+                  out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                  in(chA40[!_250], ());
+                  event Alice_session_with_Bob(@20_pkgen2(rA), ssid_258)
+                )
+                else
+                  if (pubX_265 = @20_pkgen2(rB)) then
+                    yield
+                  else
+                    if checksign(@20_m_341, pubX_265, signmB) then
+                    let m1'_263: sha256_bits = extract6(@15_r_367[k]) in
+                    let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                    new rs2_448: sseed;
+                    let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                    let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_448)) in
+                    let c'_260: enc_key = extract3(@15_r_367[k]) in
+                    let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                    let ssid_258: ssid = extract1(@15_r_367[k]) in
+                    event Alice_starts_session_with(pubX_265, ssid_258);
+                    let m2'_264: sha256_bits = extract7(@15_r_367[k]) in
+                    out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                    in(chA40[!_250], ())
+            )
+            else
+              new @15_r_363: keys6;
+              let m2_262: sha256_bits = extract5(@15_r_363) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_363) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              if (pubX_265 = @20_pkgen2(rA)) then
+                yield
+              else
+                let m1_261: sha256_bits = extract4(@15_r_363) in
+                let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+                let @20_m_341: bitstring = sha256ToBits(mB_266) in
+                if defined(@20_x_354[k]) && (pubX_265 = @20_pkgen2(rB)) && (keyidB_init' = keyidB_init) && @20_check2(@20_m_341, pubX_265, signmB) then
+                (
+                  let m1'_263: sha256_bits = extract6(@15_r_363) in
+                  let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                  new rs2_443: sseed;
+                  let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                  let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_443)) in
+                  let c'_260: enc_key = extract3(@15_r_363) in
+                  let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                  let ssid_258: ssid = extract1(@15_r_363) in
+                  event Alice_starts_session_with(pubX_265, ssid_258);
+                  let m2'_264: sha256_bits = extract7(@15_r_363) in
+                  out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                  in(chA40[!_250], ());
+                  event Alice_session_with_Bob(@20_pkgen2(rA), ssid_258)
+                )
+                else
+                  if (pubX_265 = @20_pkgen2(rB)) then
+                    yield
+                  else
+                    if checksign(@20_m_341, pubX_265, signmB) then
+                    let m1'_263: sha256_bits = extract6(@15_r_363) in
+                    let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                    new rs2_442: sseed;
+                    let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                    let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_442)) in
+                    let c'_260: enc_key = extract3(@15_r_363) in
+                    let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                    let ssid_258: ssid = extract1(@15_r_363) in
+                    event Alice_starts_session_with(pubX_265, ssid_258);
+                    let m2'_264: sha256_bits = extract7(@15_r_363) in
+                    out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                    in(chA40[!_250], ())
+          )
+          else
+            let s_455: G = gexp(gx, y) in
+            find [unique] @i_410 = @ri_409 <= NA suchthat defined(s_455[@ri_409], @15_r_361[@ri_409]) && (s_455 = s_455[@ri_409]) then
+            (
+              let m2_262: sha256_bits = extract5(@15_r_361[@i_410]) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_361[@i_410]) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              let m1_261: sha256_bits = extract4(@15_r_361[@i_410]) in
+              let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+              let @20_m_341: bitstring = sha256ToBits(mB_266) in
+              find @i_348 = @ri_347 <= NA suchthat defined(y[@ri_347], gx[@ri_347], m1'_263[@ri_347], @20_x_338[@ri_347]) && (gx = @5_exp'(g, y[@ri_347])) && (@5_exp'(g, y) = gx[@ri_347]) && (pubX_265 = @20_pkgen2(rA)) && (keyidB_init' = keyidA_init) && (m1_261 = m1'_263[@ri_347]) && @20_check2(@20_m_341, pubX_265, signmB) then
+              (
+                let m1'_263: sha256_bits = extract6(@15_r_361[@i_410]) in
+                let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                new rs2_435: sseed;
+                let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_435)) in
+                let c'_260: enc_key = extract3(@15_r_361[@i_410]) in
+                let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                let ssid_258: ssid = extract1(@15_r_361[@i_410]) in
+                event Alice_starts_session_with(pubX_265, ssid_258);
+                let m2'_264: sha256_bits = extract7(@15_r_361[@i_410]) in
+                out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                in(chA40[!_250], ())
+              )
+              else
+                if (pubX_265 = @20_pkgen2(rA)) then
+                  yield
+                else
+                  if (pubX_265 = @20_pkgen2(rB)) then
+                    yield
+                  else
+                    if checksign(@20_m_341, pubX_265, signmB) then
+                    let m1'_263: sha256_bits = extract6(@15_r_361[@i_410]) in
+                    let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                    new rs2_434: sseed;
+                    let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                    let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_434)) in
+                    let c'_260: enc_key = extract3(@15_r_361[@i_410]) in
+                    let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                    let ssid_258: ssid = extract1(@15_r_361[@i_410]) in
+                    event Alice_starts_session_with(pubX_265, ssid_258);
+                    let m2'_264: sha256_bits = extract7(@15_r_361[@i_410]) in
+                    out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                    in(chA40[!_250], ())
+            )
+            orfind @i_406 = @ri_405 <= NB suchthat defined(s_453[@ri_405], @15_r_365[@ri_405]) && (s_455 = s_453[@ri_405]) then
+            (
+              let m2_262: sha256_bits = extract5(@15_r_365[@i_406]) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_365[@i_406]) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              let m1_261: sha256_bits = extract4(@15_r_365[@i_406]) in
+              let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+              let @20_m_341: bitstring = sha256ToBits(mB_266) in
+              find @i_348 = @ri_347 <= NA suchthat defined(y[@ri_347], gx[@ri_347], m1'_263[@ri_347], @20_x_338[@ri_347]) && (gx = @5_exp'(g, y[@ri_347])) && (@5_exp'(g, y) = gx[@ri_347]) && (pubX_265 = @20_pkgen2(rA)) && (keyidB_init' = keyidA_init) && (m1_261 = m1'_263[@ri_347]) && @20_check2(@20_m_341, pubX_265, signmB) then
+              (
+                let m1'_263: sha256_bits = extract6(@15_r_365[@i_406]) in
+                let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                new rs2_438: sseed;
+                let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_438)) in
+                let c'_260: enc_key = extract3(@15_r_365[@i_406]) in
+                let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                let ssid_258: ssid = extract1(@15_r_365[@i_406]) in
+                event Alice_starts_session_with(pubX_265, ssid_258);
+                let m2'_264: sha256_bits = extract7(@15_r_365[@i_406]) in
+                out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                in(chA40[!_250], ())
+              )
+              else
+                if (pubX_265 = @20_pkgen2(rA)) then
+                  yield
+                else
+                  if (pubX_265 = @20_pkgen2(rB)) then
+                    yield
+                  else
+                    if checksign(@20_m_341, pubX_265, signmB) then
+                    let m1'_263: sha256_bits = extract6(@15_r_365[@i_406]) in
+                    let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                    new rs2_437: sseed;
+                    let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                    let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_437)) in
+                    let c'_260: enc_key = extract3(@15_r_365[@i_406]) in
+                    let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                    let ssid_258: ssid = extract1(@15_r_365[@i_406]) in
+                    event Alice_starts_session_with(pubX_265, ssid_258);
+                    let m2'_264: sha256_bits = extract7(@15_r_365[@i_406]) in
+                    out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                    in(chA40[!_250], ())
+            )
+            orfind @i_404 = @ri_403 <= NB suchthat defined(x_270[@ri_403], y[j[@ri_403]], @15_r_367[@ri_403], s_455[j[@ri_403]]) && (s_455 = @5_exp'(g, mult(x_270[@ri_403], y[j[@ri_403]]))) then
+            (
+              let m2_262: sha256_bits = extract5(@15_r_367[@i_404]) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_367[@i_404]) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              if (pubX_265 = @20_pkgen2(rA)) then
+                yield
+              else
+                if (pubX_265 = @20_pkgen2(rB)) then
+                  yield
+                else
+                  let m1_261: sha256_bits = extract4(@15_r_367[@i_404]) in
+                  let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+                  let @20_m_341: bitstring = sha256ToBits(mB_266) in
+                  if checksign(@20_m_341, pubX_265, signmB) then
+                  let m1'_263: sha256_bits = extract6(@15_r_367[@i_404]) in
+                  let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                  new rs2_439: sseed;
+                  let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                  let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_439)) in
+                  let c'_260: enc_key = extract3(@15_r_367[@i_404]) in
+                  let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                  let ssid_258: ssid = extract1(@15_r_367[@i_404]) in
+                  event Alice_starts_session_with(pubX_265, ssid_258);
+                  let m2'_264: sha256_bits = extract7(@15_r_367[@i_404]) in
+                  out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                  in(chA40[!_250], ())
+            )
+            orfind @i_402 = @ri_401 <= qhash2_6 suchthat defined(x_286[@ri_401], @15_r_369[@ri_401]) && (s_455 = x_286[@ri_401]) then
+            (
+              let m2_262: sha256_bits = extract5(@15_r_369[@i_402]) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_369[@i_402]) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              let m1_261: sha256_bits = extract4(@15_r_369[@i_402]) in
+              let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+              let @20_m_341: bitstring = sha256ToBits(mB_266) in
+              find @i_348 = @ri_347 <= NA suchthat defined(y[@ri_347], gx[@ri_347], m1'_263[@ri_347], @20_x_338[@ri_347]) && (gx = @5_exp'(g, y[@ri_347])) && (@5_exp'(g, y) = gx[@ri_347]) && (pubX_265 = @20_pkgen2(rA)) && (keyidB_init' = keyidA_init) && (m1_261 = m1'_263[@ri_347]) && @20_check2(@20_m_341, pubX_265, signmB) then
+              (
+                let m1'_263: sha256_bits = extract6(@15_r_369[@i_402]) in
+                let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                new rs2_441: sseed;
+                let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_441)) in
+                let c'_260: enc_key = extract3(@15_r_369[@i_402]) in
+                let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                let ssid_258: ssid = extract1(@15_r_369[@i_402]) in
+                event Alice_starts_session_with(pubX_265, ssid_258);
+                let m2'_264: sha256_bits = extract7(@15_r_369[@i_402]) in
+                out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                in(chA40[!_250], ())
+              )
+              else
+                if (pubX_265 = @20_pkgen2(rA)) then
+                  yield
+                else
+                  if (pubX_265 = @20_pkgen2(rB)) then
+                    yield
+                  else
+                    if checksign(@20_m_341, pubX_265, signmB) then
+                    let m1'_263: sha256_bits = extract6(@15_r_369[@i_402]) in
+                    let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                    new rs2_440: sseed;
+                    let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                    let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_440)) in
+                    let c'_260: enc_key = extract3(@15_r_369[@i_402]) in
+                    let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                    let ssid_258: ssid = extract1(@15_r_369[@i_402]) in
+                    event Alice_starts_session_with(pubX_265, ssid_258);
+                    let m2'_264: sha256_bits = extract7(@15_r_369[@i_402]) in
+                    out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                    in(chA40[!_250], ())
+            )
+            else
+              new @15_r_361: keys6;
+              let m2_262: sha256_bits = extract5(@15_r_361) in
+              if SHA256_HMAC160_check(encxB_254, m2_262, hmacencxB) then
+              let c_259: enc_key = extract2(@15_r_361) in
+              let concat2(pubX_265: spkey, keyidB_init': key_id, signmB: signature) = sdec(encxB_254, c_259, zero_ctr) in
+              let m1_261: sha256_bits = extract4(@15_r_361) in
+              let mB_266: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gx, @5_exp'(g, y), pubX_265, keyidB_init'), m1_261)) in
+              let @20_m_341: bitstring = sha256ToBits(mB_266) in
+              find @i_348 = @ri_347 <= NA suchthat defined(y[@ri_347], gx[@ri_347], m1'_263[@ri_347], @20_x_338[@ri_347]) && (gx = @5_exp'(g, y[@ri_347])) && (@5_exp'(g, y) = gx[@ri_347]) && (pubX_265 = @20_pkgen2(rA)) && (keyidB_init' = keyidA_init) && (m1_261 = m1'_263[@ri_347]) && @20_check2(@20_m_341, pubX_265, signmB) then
+              (
+                let m1'_263: sha256_bits = extract6(@15_r_361) in
+                let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                new rs2_433: sseed;
+                let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_433)) in
+                let c'_260: enc_key = extract3(@15_r_361) in
+                let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                let ssid_258: ssid = extract1(@15_r_361) in
+                event Alice_starts_session_with(pubX_265, ssid_258);
+                let m2'_264: sha256_bits = extract7(@15_r_361) in
+                out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                in(chA40[!_250], ())
+              )
+              else
+                if (pubX_265 = @20_pkgen2(rA)) then
+                  yield
+                else
+                  if (pubX_265 = @20_pkgen2(rB)) then
+                    yield
+                  else
+                    if checksign(@20_m_341, pubX_265, signmB) then
+                    let m1'_263: sha256_bits = extract6(@15_r_361) in
+                    let mA_267: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, y), gx, @20_pkgen2(rA), keyidA_init), m1'_263)) in
+                    new rs2_432: sseed;
+                    let @20_x_338: bitstring = sha256ToBits(mA_267) in
+                    let xA: bitstring = concat2(@20_pkgen2(rA), keyidA_init, @20_sign2(@20_x_338, @20_skgen2(rA), rs2_432)) in
+                    let c'_260: enc_key = extract3(@15_r_361) in
+                    let encxA_268: bitstring = senc(xA, c'_260, zero_ctr) in
+                    let ssid_258: ssid = extract1(@15_r_361) in
+                    event Alice_starts_session_with(pubX_265, ssid_258);
+                    let m2'_264: sha256_bits = extract7(@15_r_361) in
+                    out(chA4[!_250], (encxA_268, SHA256_HMAC160(encxA_268, m2'_264)));
+                    in(chA40[!_250], ())
+        ) | (
+          ! !_251 <= NB
+          in(chB0[!_251], ());
+          new r_269: enc_key;
+          new x_270: exp;
+          out(chB1[!_251], (senc(GToBits(@5_exp'(g, x_270)), r_269, zero_ctr), SHA256(SHA256k, @5_exp'(g, x_270))));
+          in(chB2[!_251], gy: G);
+          find j = j_359 <= NA suchthat defined(y[j_359], hashgx[j_359]) && (gy = @5_exp'(g, y[j_359])) && (hashgx[j_359] = SHA256(SHA256k, @5_exp'(g, x_270))) then
+          (
+            find [unique] @i_400 = @ri_399 <= NA suchthat defined(s_455[@ri_399], @15_r_361[@ri_399], s_455[j]) && (s_455[@ri_399] = @5_exp'(g, mult(x_270, y[j]))) then
+            (
+              let c_274: enc_key = extract2(@15_r_361[@i_400]) in
+              let m1_276: sha256_bits = extract4(@15_r_361[@i_400]) in
+              let m2_277: sha256_bits = extract5(@15_r_361[@i_400]) in
+              let m2'_279: sha256_bits = extract7(@15_r_361[@i_400]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_428: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_428)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_361[@i_400]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_361[@i_400]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              if defined(gx[j], @20_x_338[j]) && (@5_exp'(g, x_270) = gx[j]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_361[@i_400]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            orfind  suchthat defined(k[j], @15_r_363[j]) && (!_251 = k[j]) then
+            (
+              let c_274: enc_key = extract2(@15_r_363[j]) in
+              let m1_276: sha256_bits = extract4(@15_r_363[j]) in
+              let m2_277: sha256_bits = extract5(@15_r_363[j]) in
+              let m2'_279: sha256_bits = extract7(@15_r_363[j]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_429: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_429)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_363[j]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_363[j]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              if defined(@20_x_338[j]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_363[j]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            orfind @i_396 = @ri_395 <= NB suchthat defined(s_453[@ri_395], @15_r_365[@ri_395], s_455[j]) && (s_453[@ri_395] = @5_exp'(g, mult(x_270, y[j]))) then
+            (
+              let c_274: enc_key = extract2(@15_r_365[@i_396]) in
+              let m1_276: sha256_bits = extract4(@15_r_365[@i_396]) in
+              let m2_277: sha256_bits = extract5(@15_r_365[@i_396]) in
+              let m2'_279: sha256_bits = extract7(@15_r_365[@i_396]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_430: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_430)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_365[@i_396]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_365[@i_396]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              if defined(gx[j], @20_x_338[j]) && (@5_exp'(g, x_270) = gx[j]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_365[@i_396]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            orfind @i_392 = @ri_391 <= qhash2_6 suchthat defined(x_286[@ri_391], @15_r_369[@ri_391], s_455[j]) && (x_286[@ri_391] = @5_exp'(g, mult(x_270, y[j]))) then
+            (
+              let c_274: enc_key = extract2(@15_r_369[@i_392]) in
+              let m1_276: sha256_bits = extract4(@15_r_369[@i_392]) in
+              let m2_277: sha256_bits = extract5(@15_r_369[@i_392]) in
+              let m2'_279: sha256_bits = extract7(@15_r_369[@i_392]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_431: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_431)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_369[@i_392]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_369[@i_392]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              if defined(gx[j], @20_x_338[j]) && (@5_exp'(g, x_270) = gx[j]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_369[@i_392]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            else
+              new @15_r_367: keys6;
+              let c_274: enc_key = extract2(@15_r_367) in
+              let m1_276: sha256_bits = extract4(@15_r_367) in
+              let m2_277: sha256_bits = extract5(@15_r_367) in
+              let m2'_279: sha256_bits = extract7(@15_r_367) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_427: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_427)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_367) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_367) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              if defined(gx[j], @20_x_338[j]) && (@5_exp'(g, x_270) = gx[j]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_367) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+          )
+          else
+            let s_453: G = gexp(gy, x_270) in
+            find [unique] @i_390 = @ri_389 <= NA suchthat defined(s_455[@ri_389], @15_r_361[@ri_389]) && (s_453 = s_455[@ri_389]) then
+            (
+              let c_274: enc_key = extract2(@15_r_361[@i_390]) in
+              let m1_276: sha256_bits = extract4(@15_r_361[@i_390]) in
+              let m2_277: sha256_bits = extract5(@15_r_361[@i_390]) in
+              let m2'_279: sha256_bits = extract7(@15_r_361[@i_390]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_422: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_422)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_361[@i_390]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_361[@i_390]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              find @i_346 = @ri_345 <= NA suchthat defined(y[@ri_345], gx[@ri_345], @20_x_338[@ri_345]) && (gy = @5_exp'(g, y[@ri_345])) && (@5_exp'(g, x_270) = gx[@ri_345]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_361[@i_390]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            orfind @i_386 = @ri_385 <= NB suchthat defined(s_453[@ri_385], @15_r_365[@ri_385]) && (s_453 = s_453[@ri_385]) then
+            (
+              let c_274: enc_key = extract2(@15_r_365[@i_386]) in
+              let m1_276: sha256_bits = extract4(@15_r_365[@i_386]) in
+              let m2_277: sha256_bits = extract5(@15_r_365[@i_386]) in
+              let m2'_279: sha256_bits = extract7(@15_r_365[@i_386]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_424: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_424)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_365[@i_386]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_365[@i_386]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              find @i_346 = @ri_345 <= NA suchthat defined(y[@ri_345], gx[@ri_345], @20_x_338[@ri_345]) && (gy = @5_exp'(g, y[@ri_345])) && (@5_exp'(g, x_270) = gx[@ri_345]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_365[@i_386]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            orfind @i_384 = @ri_383 <= NB suchthat defined(x_270[@ri_383], y[j[@ri_383]], @15_r_367[@ri_383], s_455[j[@ri_383]]) && (s_453 = @5_exp'(g, mult(x_270[@ri_383], y[j[@ri_383]]))) then
+            (
+              let c_274: enc_key = extract2(@15_r_367[@i_384]) in
+              let m1_276: sha256_bits = extract4(@15_r_367[@i_384]) in
+              let m2_277: sha256_bits = extract5(@15_r_367[@i_384]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_425: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_425)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits))
+            )
+            orfind @i_382 = @ri_381 <= qhash2_6 suchthat defined(x_286[@ri_381], @15_r_369[@ri_381]) && (s_453 = x_286[@ri_381]) then
+            (
+              let c_274: enc_key = extract2(@15_r_369[@i_382]) in
+              let m1_276: sha256_bits = extract4(@15_r_369[@i_382]) in
+              let m2_277: sha256_bits = extract5(@15_r_369[@i_382]) in
+              let m2'_279: sha256_bits = extract7(@15_r_369[@i_382]) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_426: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_426)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_369[@i_382]) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_369[@i_382]) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              find @i_346 = @ri_345 <= NA suchthat defined(y[@ri_345], gx[@ri_345], @20_x_338[@ri_345]) && (gy = @5_exp'(g, y[@ri_345])) && (@5_exp'(g, x_270) = gx[@ri_345]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_369[@i_382]) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+            )
+            else
+              new @15_r_365: keys6;
+              let c_274: enc_key = extract2(@15_r_365) in
+              let m1_276: sha256_bits = extract4(@15_r_365) in
+              let m2_277: sha256_bits = extract5(@15_r_365) in
+              let m2'_279: sha256_bits = extract7(@15_r_365) in
+              let mB_280: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(@5_exp'(g, x_270), gy, @20_pkgen2(rB), keyidB_init), m1_276)) in
+              new rs1_421: sseed;
+              let @20_x_354: bitstring = sha256ToBits(mB_280) in
+              let xB: bitstring = concat2(@20_pkgen2(rB), keyidB_init, @20_sign2(@20_x_354, @20_skgen2(rB), rs1_421)) in
+              let encxB_281: bitstring = senc(xB, c_274, zero_ctr) in
+              out(chB3[!_251], (r_269, encxB_281, SHA256_HMAC160(encxB_281, m2_277)));
+              in(chB4[!_251], (encxA_282: bitstring, hmacencxA: sha1_bits));
+              if SHA256_HMAC160_check(encxA_282, m2'_279, hmacencxA) then
+              let c'_275: enc_key = extract3(@15_r_365) in
+              let concat2(pubX_283: spkey, keyidA_init': key_id, signmA: signature) = sdec(encxA_282, c'_275, zero_ctr) in
+              let m1'_278: sha256_bits = extract6(@15_r_365) in
+              let mA_284: sha256_bits = SHA256_HMAC(SHA256_HMACk, (concat1(gy, @5_exp'(g, x_270), pubX_283, keyidA_init'), m1'_278)) in
+              let @20_m_344: bitstring = sha256ToBits(mA_284) in
+              find @i_346 = @ri_345 <= NA suchthat defined(y[@ri_345], gx[@ri_345], @20_x_338[@ri_345]) && (gy = @5_exp'(g, y[@ri_345])) && (@5_exp'(g, x_270) = gx[@ri_345]) && (pubX_283 = @20_pkgen2(rA)) && (keyidA_init' = keyidA_init) && @20_check2(@20_m_344, pubX_283, signmA) then
+              let ssid_273: ssid = extract1(@15_r_365) in
+              event Bob_session_with_Alice(@20_pkgen2(rB), ssid_273)
+        ) | (
+          ! !_252 <= qSHA256
+          in(sha256_in[!_252], x_285: G);
+          out(sha256_out[!_252], SHA256(SHA256k, x_285))
+        ) | (
+          ! !_253 <= qhash2_6
+          in(hash2_6_in[!_253], x_286: G);
+          find [unique] @i_380 = @ri_379 <= NA suchthat defined(s_455[@ri_379], @15_r_361[@ri_379]) && (x_286 = s_455[@ri_379]) then
+            out(hash2_6_out[!_253], @15_r_361[@i_380])
+          orfind @i_376 = @ri_375 <= NB suchthat defined(s_453[@ri_375], @15_r_365[@ri_375]) && (x_286 = s_453[@ri_375]) then
+            out(hash2_6_out[!_253], @15_r_365[@i_376])
+          orfind @i_374 = @ri_373 <= NB suchthat defined(x_270[@ri_373], y[j[@ri_373]], @15_r_367[@ri_373], s_455[j[@ri_373]]) && (x_286 = @5_exp'(g, mult(x_270[@ri_373], y[j[@ri_373]]))) then
+            out(hash2_6_out[!_253], @15_r_367[@i_374])
+          orfind @i_372 = @ri_371 <= qhash2_6 suchthat defined(x_286[@ri_371], @15_r_369[@ri_371]) && (x_286 = x_286[@ri_371]) then
+            out(hash2_6_out[!_253], @15_r_369[@i_372])
+          else
+            new @15_r_369: keys6;
+            out(hash2_6_out[!_253], @15_r_369)
+        )
+
+s_455[j[@ri_373]] defined =>
+j[@ri_373] defined
+j = j_359 <= NA suchthat defined(y[j_359], hashgx[j_359]) && (gy = @5_exp'(g, y[j_359])) && (hashgx[j_359] = SHA256(SHA256k, @5_exp'(g, x_270)))
+defined(y[j[@ri_373]], hashgx[j[@ri_373]]) && (gy = @5_exp'(g, y[j[@ri_373]])) && (hashgx[j[@ri_373]] = SHA256(SHA256k, @5_exp'(g, x_270)))
+SHA256(SHA256k, gx[j[@ri_373]]) = hashgx[j[@ri_373]]
+gx[j[@ri_373]] = @5_exp'(g, x_270)
+gy = @5_exp'(g, y[j[@ri_373]]
+
+else branch of 
+find k = k_360 <= NB suchthat defined(x_270[k_360], gy[k_360]) && (gx = @5_exp'(g, x_270[k_360])) && (@5_exp'(g, y) = gy[k_360]) then
+x_270[@ri_373] gy[@ri_373] defined before s_455[j[@ri_373]]??
+
+Suppose in order to obtain a contradiction that 
+gy[@ri_373] is defined after s_455[j[@ri_373]]
+Stop the execution after the definition of s_455[j[@ri_373]].
+At this point, r_269[@ri_373] has not been sent,
+since gy[@ri_373] is not defined yet.
+So r_269[@ri_373] is used only in 
+senc(GToBits(@5_exp'(g, x_270)), r_269, zero_ctr)
+By IND-CPA on this scheme, we can replace
+GToBits(@5_exp'(g, x_270)) with zeroes (constant length??).
+Using the random oracle for the hash function
+SHA256(SHA256k, @5_exp'(g, x_270)),
+we can replace it with a random number.
+Then x_270[@ri_373] is used only in equality tests that fail with
+overwhelming probability.
+(Remember that the code of Bob in session @ri_373 is cut before the 
+definition of gy.)
+Then gx[j[@ri_373]] does not depend on x_270 so
+gx[j[@ri_373]] = @5_exp'(g, x_270)
+has a negligible probability of being true.
+Contradiction.
+
+Therefore, x_270[@ri_373] gy[@ri_373] are defined before s_455[j[@ri_373]]
+so the find 
+find k = k_360 <= NB suchthat defined(x_270[k_360], gy[k_360]) && (gx = @5_exp'(g, x_270[k_360])) && (@5_exp'(g, y) = gy[k_360]) then
+in fact succeeds.
+We obtain a contradiction again, showing that s_455[j[@ri_373]] 
+cannot be defined in the hash oracle, thus this branch of the find
+can be removed.
+
+CryptoVerif fails to do this reasoning, because it does not consider partial
+games in the execution is stopped at some point (so it cannot apply the
+assumption on encryption). Furthermore, it does not perform proofs
+by sequences of games as lemmas to show a dependency property
+used in another proof by sequences of games.
+*)

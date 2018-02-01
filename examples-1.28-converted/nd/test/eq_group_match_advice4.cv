@@ -1,0 +1,47 @@
+type D.
+
+(* set interactiveMode = true. *)
+
+fun mult(D,D):D.
+fun inv(D):D.
+const neut:D.
+equation group(mult,inv,neut).
+
+fun h(D):bitstring.
+fun g(D,D,D): bitstring.
+
+const zero, one, two, three: D. 
+
+channel c.
+proba Peq.
+param n.
+
+equiv
+  ! n O(y: D, z: D) := return(h(mult(inv(zero),mult(y,mult(two,z))))) [all]
+<=(Peq)=>
+  ! n O(y: D, z: D) := return(g(inv(zero),y,z)).
+
+
+process in(c, ());
+out(c, h(mult(inv(mult(one, zero)), mult(two, zero))));
+in(c, ());
+out(c, h(mult(mult(inv(zero), one), mult(two, mult(one, zero)))));
+in(c, ());
+let z: D = inv(mult(one, zero)) in
+out(c, h(mult(z, mult(two, zero))));
+in(c, ());
+let t: D = mult(two, zero) in
+out(c, h(mult(z, t)));
+in(c, ());
+let z_1: D = inv(mult(two, zero)) in
+let t_1: D = mult(one, zero) in
+let x: D = inv(mult(z_1, t_1)) in
+out(c, h(x))
+
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.012s + system 0.008s), max rss 36848K
+END *)

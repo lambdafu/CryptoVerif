@@ -1,0 +1,61 @@
+(* Internal error.
+The transformation of h(x,y) leads to creating a variable r and making
+a look up on r. When we do that in the condition of a find, we make
+a look up on a variable defined in the condition of find, which is
+forbidden.
+*)
+
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', qH.
+
+fun h(hashinput, hr):hash.
+
+equiv !N' new y:hr; (x:hashinput) N'' -> h(x,y) 
+      <=(0)=>
+      !N' new y:hr; (x:hashinput) N'' -> find k <= N'' , j <= N' suchthat defined(y[j],r[k,j]) && otheruses(r[k,j]) && y= y[j] then r[k,j] else
+			 new r:hash; r.
+
+channel c5, c6.
+
+let hashoracle = ! qH in(c5, (x:hashinput, y':hr)); out(c6, h(x,y')). 
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+let processU =
+	in(c1, (m: hash, x':hashinput));
+	find j<= N suchthat defined(y[j]) && m=h(x',y[j]) then
+	out(c2, true)
+	else
+	out(c2, false).
+
+let processS =
+	in(c3, x: hashinput);
+	new y: hr;
+	new s: G;
+        out(c4, s).
+
+process 
+	((! N processU) |
+	 (! N processS) | hashoracle)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.020s (user 0.020s + system 0.000s), max rss 16080K
+END *)

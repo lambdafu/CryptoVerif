@@ -1,0 +1,107 @@
+(* FDH signature scheme *)
+
+param nK, nF, n1, nH, qH, qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):D.
+fun f'(pkey, D):D.
+fun invf(skey, D):D.
+
+(* invf is the inverse of f *)
+
+forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+
+(* Injectivity *)
+
+forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+
+(* We can permute the distribution, for uniformly distributed random
+   numbers x. Do that only when x is used in invf(skgen(r),x) *)
+
+equiv foreach iK <= nK do r <-R seed; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oant() := return(invf(skgen(r),x)) | 
+	         Oim() := return(x)))
+<=(0)=>
+      foreach iK <= nK do r <-R seed; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oant() := return(x) |
+                 Oim() := return(f(pkgen(r), x)))).
+
+(* One-wayness *)
+
+equiv foreach iK <= nK do r <-R seed; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oy() := return(f(pkgen(r), x)) |
+		 foreach i1 <= n1 do Oeq   (x' : D) := return(x' = x) |
+		 Ox() := return(x)))
+<=(nK * nF * POW(time + (nK-1) * time(pkgen) + (nF*nK-1) * time(f)))=>
+      foreach iK <= nK do r <-R seed; (
+	Opk() := return(pkgen'(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oy() := return(f'(pkgen'(r), x)) |
+		 foreach i1 <= n1 do Oeq(x':D) := 
+	           if defined(k) then return(x' = x) else return(false) |
+		 Ox() := let k:bitstring = mark in return(x))).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):D.
+
+equiv foreach iH <= nH do OH(x:bitstring) := return(hash(x)) [all]
+      <=(0)=>
+      foreach iH <= nH do OH(x:bitstring) := 
+	find u <= nH suchthat defined(x[u],r[u]) && otheruses(r[u]) && x= x[u] then return(r[u]) else r <-R D; return(r).
+
+(* Queries *)
+
+event bad.
+query event bad ==> false.
+
+let processH =
+	foreach iH <= qH do
+	OH(x:bitstring) :=
+	return(hash(x)).
+
+let processS =
+	foreach iS <= qS do
+	OS(m:bitstring) :=
+	return(invf(sk, hash(m))).
+
+let processT = 
+	OT(m':bitstring, s:D) :=
+	if f(pk, s) = hash(m') then
+	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then 
+		return; OT1(m'':bitstring) := return(m'') 
+	else
+		event bad; return; foreach i1 <= n1 do OT1(m'':bitstring) := end.
+
+process 
+	processH |
+	Ogen() :=
+	r <-R seed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	(processS | processT)
+
+
+(* EXPECTED
+Error: Definitions of oracle OT1 with different replication indexes types
+xtime: error in child process (status : 512)
+END *)

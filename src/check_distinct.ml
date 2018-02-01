@@ -9,47 +9,41 @@ open Types
 
 
 let make_indexes cur_array =
-  List.map (fun t -> 
-    Terms.term_from_repl_index (Terms.new_repl_index t)) cur_array
+  List.map Terms.new_repl_index cur_array
 
-let collect_facts accu (def,bindex,index) =
-  let fact_accu = ref accu in
-  (* add facts *)
-  List.iter (fun f -> 
-    let f = Terms.subst bindex index f in
-    if not (List.memq f (!fact_accu)) then
-      fact_accu := f :: (!fact_accu)) (Facts.filter_ifletfindres def.true_facts_at_def);
-  (* recursive call *)
-  let def_list = List.map (fun (b', l') -> (b', List.map (Terms.subst bindex index) l')) def.def_vars_at_def in
-  (Facts.facts_from_defined None def_list) @ (!fact_accu)
-  (* Old code, modified to avoid adding add_facts to Facts.mli
-  List.iter (fun (b',l') ->
-    Facts.add_facts None fact_accu (ref []) (ref []) (b', List.map (Terms.subst bindex index) l')
-      ) def.def_vars_at_def;
-  [ Result ]
-  !fact_accu *)
-
-let rec collect_facts_list bindex index1 = function
-    [] -> []
-  | (d::l) ->
-      let l' = collect_facts_list bindex index1 l in
-      try
-	(d, collect_facts [] (d,bindex,index1))::l'
-      with Contradiction ->
-	l'
-
+let collect_facts def bindex index =
+  let facts = Facts.get_facts_at def.definition_success in
+  let def_vars = Facts.get_def_vars_at def.definition_success in
+  let elsefind_facts = Facts.get_elsefind_facts_at def.definition_success in
+  (* Rename session identifiers in facts, variables, and elsefind facts *)
+  List.iter2 (fun b t -> b.ri_link <- (TLink t)) bindex index;
+  let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts in
+  let new_def_vars = Terms.copy_def_list Terms.Links_RI def_vars in
+  let new_elsefind_facts = List.map Terms.copy_elsefind elsefind_facts in
+  List.iter (fun b -> b.ri_link <- NoLink) bindex;
+  (new_facts, new_def_vars, new_elsefind_facts)
+  
+let collect_facts_list bindex index1 defs =
+  List.fold_left (fun accu d ->
+    try
+      (d, collect_facts d bindex index1)::accu
+    with Contradiction ->
+      accu) [] defs
+    
 let check_distinct b g =
   Proba.reset [] g;
   Simplify1.improved_def_process None false g.proc;
-  let index1 = make_indexes b.args_at_creation in
-  let index2 = make_indexes b.args_at_creation in
+  let r_index1 = make_indexes b.args_at_creation in
+  let r_index2 = make_indexes b.args_at_creation in
+  let index1 = List.map Terms.term_from_repl_index r_index1 in
+  let index2 = List.map Terms.term_from_repl_index r_index2 in
   let diff_index = Terms.make_or_list (List.map2 Terms.make_diff index1 index2) in
   let bindex = b.args_at_creation in
   let d1withfacts = collect_facts_list bindex index1 b.def in
   let d2withfacts = collect_facts_list bindex index2 b.def in
   let r = 
-  List.for_all (fun (d1,d1facts) ->
-    List.for_all (fun (d2,d2facts) ->
+  List.for_all (fun (d1,(d1facts,d1def_vars,d1elsefind_facts)) ->
+    List.for_all (fun (d2,(d2facts,d2def_vars,d2elsefind_facts)) ->
       match d1.definition, d2.definition with
 	DProcess { p_desc = Restr _ }, DProcess { p_desc = Restr _} -> true
       | DProcess { p_desc = Restr _ }, 
@@ -63,8 +57,26 @@ let check_distinct b g =
 		  let eq_b = Terms.make_and_list 
 		      (List.map2 Terms.make_equal index1 (List.map (Terms.subst bindex index2) l))
 		  in
-		  let facts1 = diff_index :: eq_b :: d1facts @ d2facts in
-		  ignore (Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1);
+		  let facts1 = diff_index :: eq_b :: (List.rev_append d1facts d2facts) in
+		  let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1 in
+		  let def_vars = List.rev_append d1def_vars d2def_vars in
+		  let facts2 = 
+		    if !Settings.elsefind_facts_in_success then
+		      Simplify1.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
+			def_vars
+		    else
+		      []
+		  in
+		  ignore (Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2);
+		  (* The following part is commented out because it is too costly. 
+
+		  let simp_facts2 = [code above] in
+		     When the restriction and the let are the same value,
+		     the let must have been executed after the restriction.
+		     Hence the elsefind facts at the let hold. 
+		  let (subst, facts, _) = simp_facts2 in
+		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
+		  ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
 		  false
 		with Contradiction -> true
 		    )
@@ -86,8 +98,27 @@ let check_distinct b g =
 			 (List.map (Terms.subst bindex index1) l1) 
 			 (List.map (Terms.subst bindex index2) l2))
 		  in
-		  let facts1 = diff_index :: eq_b :: d1facts @ d2facts in
-		  ignore (Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1);
+		  let facts1 = diff_index :: eq_b :: (List.rev_append d1facts d2facts) in
+		  let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1 in
+		  let def_vars = List.rev_append d1def_vars d2def_vars in
+		  let facts2 = 
+		    if !Settings.elsefind_facts_in_success then
+		      Simplify1.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
+			def_vars
+		    else
+		      []
+		  in
+		  ignore (Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2);
+		  (* The following part is commented out because it is too costly. 
+
+		  let simp_facts2 = [code above] in
+		     We assume that the 2nd Let is executed after the 1st one.
+		     The other case will be checked symmetrically since we
+		     scan the whole lists d1withfacts and d2withfacts
+		     Hence the elsefind facts at the 2nd let hold. 
+		  let (subst, facts, _) = simp_facts2 in
+		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
+		  ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
 		  false
 		with Contradiction -> true
 		    )
@@ -103,8 +134,12 @@ let check_distinct b g =
     (* Add probability for eliminated collisions *)
     (true, Proba.final_add_proba[])
   else
-    (false, [])
-
+    begin
+      print_string ("Proof of secrecy of " ^ 
+		    (Display.binder_to_string b) ^ " failed:\n");
+      print_string "  Proved one-session secrecy but not secrecy.\n";
+      (false, [])
+    end
         (*
         print_string "Facts for check_distinct 1:\n";
         List.iter (fun t -> Display.display_term t; print_newline()) facts1;

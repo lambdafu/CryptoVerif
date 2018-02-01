@@ -1,0 +1,115 @@
+(* FDH signature scheme *)
+
+(* set interactiveMode = true.*)
+
+param N.
+param N2.
+param N3.
+param N4.
+param N5.
+param N6.
+param N7.
+
+type pkey.
+type skey.
+type keyseed [large,fixed].
+type hasht [fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+const mark:bitstring.
+fun pkgen(keyseed):pkey.
+fun pkgen'(keyseed):pkey.
+fun skgen(keyseed):skey.
+fun f(pkey, hasht):hasht.
+fun f'(pkey, hasht):hasht.
+fun mf(skey, hasht):hasht.
+
+forall r:keyseed, x:hasht; mf(skgen(r), f(pkgen(r), x)) = x.
+
+forall k:pkey, x:hasht, x':hasht; (f(k,x) = f(k,x')) = (x = x').
+
+(*
+equiv !N new y:hasht; (k:pkey) -> y
+<=(0)=> 
+      !N new y:hasht; (k:pkey) -> f(k,y).
+
+The equivalence above is ok, but for manual proofs only. (It can be applied
+everywhere.) The one below can be used in automatic proofs.
+*)
+
+equiv !N new r: keyseed; (
+	!N2 () -> pkgen(r),
+	!N3 new x:hasht; (() N4 -> mf(skgen(r),x), () N5 -> x))
+<=(0)=>
+      !N new r: keyseed; (
+	!N2 () -> pkgen(r),
+	!N3 new x:hasht; (() N4 -> x, () N5 -> f(pkgen(r), x))).
+
+
+equiv !N new r: keyseed; (
+	!N2 () -> pkgen(r),
+	!N3 new x: hasht; (() N4 -> f(pkgen(r), x),
+		           (x':hasht) N5 -> x' = x,
+		           () N6 -> x))
+<=(N * N3 * POW(time))=>
+      !N new r: keyseed; (
+	!N2 () -> pkgen'(r),
+	!N3 new x: hasht; (() N4 -> f'(pkgen'(r), x),
+		           (x':hasht) N5 -> find j <= N6 suchthat defined(k[j]) && true then x' = x else false,
+		           () N6 -> let k:bitstring = mark in x)).
+
+(* Hash function, random oracle model *)
+
+fun hash(bitstring):hasht.
+
+equiv (x:bitstring) N -> hash(x) [all]
+      <=(0)=>
+      (x:bitstring) N -> find j <= N suchthat defined(x[j],r[j]) && x= x[j] then r[j] else
+			 new r:hasht; r.
+
+(* Queries *)
+
+event bad.
+query event bad ==> false.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15,
+	start, finish.
+
+let processH =
+	! N
+	in(c1, x:bitstring);
+	out(c2, hash(x)).
+
+let processS =
+	! N2
+	in(c3, m:bitstring);
+	out(c4, mf(sk, hash(m))).
+
+let processV =
+	! N3
+	in(c5, (m3:bitstring,s:hasht));
+	if f(pk,s) = hash(m3) then out(c6, true) else out(c6, false).
+
+
+let processT = 
+	in(c7, (m2:bitstring, s:hasht));
+	if f(pk, s) = hash(m2) then
+	find j <= N2 suchthat defined(m[j]) && (m2 = m[j]) then yield else
+	event bad.
+
+process 
+	in(start, =());
+	new r:keyseed; 
+	let sk = skgen(r) in
+	let pk = pkgen(r) in
+	out(c9, pk);
+	(processH | processS | processV | processT)
+
+
+(* EXPECTED
+All queries proved.
+0.060s (user 0.060s + system 0.000s), max rss 24032K
+END *)

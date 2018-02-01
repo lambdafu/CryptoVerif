@@ -1,0 +1,70 @@
+(* Find with several times the same indices are useless.
+   We should reject them. That's not so important for
+   the first game, because variables are renamed, so the indices
+   will be different after renaming. But for instructions
+   inserted during the proof, there is no renaming, so having
+   several times the same find index is really silly. *)
+
+proof {
+show_game occ;
+insert 39 "find a<=N, a<=N suchthat defined(m[a]) then";
+show_game occ
+}
+
+param N.
+
+type G [large, fixed].
+type hashinput.
+type hash [fixed].
+type host.
+
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, hashinput, hash, h).
+
+param qH [noninteractive].
+channel hc1, hc2.
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	hstart, hret, start, finish.
+
+
+
+
+
+
+process 
+	in(hstart, ());
+new hk: hashkey;
+out(hret, ());
+((
+  ! i_1 <= N
+  in(c1[i_1], m: hash);
+  find j_7 = j_5 <= N, j_8 = j_6 <= N suchthat defined(x_1[j_6]) && (m = h(hk, x_1[j_6])) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x_1: hashinput);
+  new s: G;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(hc1[i_3], y: hashinput);
+  out(hc2[i_3], h(hk, y))
+))
+
+
+
+
+(* EXPECTED
+Error: Variable a defined several times in the same find
+xtime: error in child process (status : 512)
+END *)

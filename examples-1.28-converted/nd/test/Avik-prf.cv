@@ -1,0 +1,103 @@
+
+(** Pseudo-random functions **)
+
+(** Extending the input length of a pseudo-random function family
+    with a universal hash function
+    is shown to preserve pseudo-randomness.
+    See Section 4, "Sequences of Games", Victor Shoup. **)
+
+param n, m, q.
+
+proof {
+      auto;
+      merge_branches;
+      success
+      }
+
+type S [large,fixed].
+type K [large,fixed].
+
+type D1 [fixed].
+type D2 [fixed].
+type D [fixed].
+type G [large,fixed].
+
+proba pPRF.
+proba pUH.
+
+fun f(S,D1): D2.
+fun h(K,D): D1.
+
+(* f(S) is a pseudo-random function family *) 
+
+equiv
+  ! n new s: S; ! m gen_Oracle(x: D1) := return(f(s,x)) [all]
+<=(pPRF(time,n,m))=>
+  ! n ! m gen_Oracle(x: D1) := find u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(r[u]) else new r: D2; return(r).
+
+(* h(K) is a universal-hash function family *)
+
+collision new k: K; forall w: D, w': D; return(h(k,w) = h(k,w')) <=(pUH(time))=> return(w = w').
+
+
+(* query *)
+(* BB: Does not seem to correctly model the problem 
+
+fun sep(G): D [compos].
+
+query secret test.
+
+channel dummy, start.
+
+let processC = !q
+    in(dummy, ());
+    new g:G;
+    let w = sep(g) in
+    let x:D1 = h(k,w) in
+    let test:D2 = f(s,x) in
+    yield.
+
+process
+  in(start, ());
+  new k:K;
+  new s:S;
+  out(dummy, ());
+  processC
+
+
+BB: Another coding, but would require the system to be able to simplify
+if b then P else P' into P when P and P' are equal up to renaming.
+For now, can be checked by manual inspection...
+August 5, 2015: This merging of branches now works.
+*)
+
+query secret b.
+
+channel start, dummy, c0, c1.
+
+
+
+
+process
+  in(start, ());
+new k: K;
+new s: S;
+new b: bool;
+out(dummy, ());
+! i_1 <= q
+in(c0[i_1], w: D);
+if b then
+  out(c1[i_1], f(s, h(k, w)))
+else
+  find u_1 = u_2 <= q suchthat defined(w[u_2], r[u_2]) && (w[u_2] = w) then
+    out(c1[i_1], r[u_1])
+  else
+    new r: D2;
+    out(c1[i_1], r)
+
+
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.020s + system 0.008s), max rss 38320K
+END *)

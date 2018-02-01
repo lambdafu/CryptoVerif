@@ -1,0 +1,108 @@
+
+(** Pseudo-random functions **)
+
+(** Extending the input length of a pseudo-random function family
+    with a universal hash function
+    is shown to preserve pseudo-randomness.
+    See Section 4, "Sequences of Games", Victor Shoup. **)
+
+param n, m, q.
+
+proof {
+      auto;
+      merge_branches;
+      success
+      }
+
+type S [large,fixed].
+type K [large,fixed].
+
+type D1 [fixed].
+type D2 [fixed].
+type D [fixed].
+type G [large,fixed].
+
+proba pPRF.
+proba pUH.
+
+fun f(S,D1): D2.
+fun h(K,D): D1.
+
+(* f(S) is a pseudo-random function family *) 
+
+equiv
+    !n new s:S;
+      (x:D1) m -> f(s,x) [all] 
+<=(pPRF(time,n,m))=>		(* BB: Could be n * pPRF(time) *)
+    !n 
+      (x:D1) m -> find u <= m 
+	            suchthat defined(x[u],r[u])
+                          && x = x[u]
+	            then r[u]
+                    else new r:D2; r.
+
+(* h(K) is a universal-hash function family *)
+
+collision new k:K; forall w:D, w':D; 
+  h(k,w) = h(k,w') <=(pUH(time))=> w = w'.
+
+
+(* query *)
+(* BB: Does not seem to correctly model the problem 
+
+fun sep(G): D [compos].
+
+query secret test.
+
+channel dummy, start.
+
+let processC = !q
+    in(dummy, ());
+    new g:G;
+    let w = sep(g) in
+    let x:D1 = h(k,w) in
+    let test:D2 = f(s,x) in
+    yield.
+
+process
+  in(start, ());
+  new k:K;
+  new s:S;
+  out(dummy, ());
+  processC
+
+
+BB: Another coding, but would require the system to be able to simplify
+if b then P else P' into P when P and P' are equal up to renaming.
+For now, can be checked by manual inspection...
+August 5, 2015: This merging of branches now works.
+*)
+
+query secret b.
+
+channel start, dummy, c0, c1.
+
+let processC = !q
+    in(c0, w:D);
+    if b then
+        (* output the image of w by the constructed pseudo-random function *)
+        out(c1, f(s,h(k,w)))
+    else
+        (* output the image of w by a random function *)
+	find u <= q suchthat defined(w[u],r[u]) && w[u] = w 
+	then out(c1,r[u])
+	else new r:D2; out(c1,r).
+
+
+process
+  in(start, ());
+  new k:K;
+  new s:S;
+  new b:bool;
+  out(dummy, ());
+  processC
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 16688K
+END *)

@@ -2,12 +2,10 @@ type extent
 
 exception Error of string * extent
 
-val accept_arobase : bool ref
 val dummy_ext : extent
-val next_line : Lexing.lexbuf -> unit
 val extent : Lexing.lexbuf -> extent
 val parse_extent : unit -> extent
-val combine_extent : extent -> extent -> extent
+val set_start : Lexing.lexbuf -> extent -> unit
 val display_error : string -> extent -> unit
 val input_error : string -> extent -> 'a
 val input_warning : string -> extent -> unit

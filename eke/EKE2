@@ -1,0 +1,208 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03
+
+What's missing:
+- final reasoning step to show that Pr[bad] is bounded (may be hard!)
+- problem to express random self reducibility (express the number of
+sessions, like for the proof of JS Coron for FDH...)
+
+Contributions to mention in the paper:
+- allow array indices as arguments of functions in equivalences,
+  to formalize CDH
+- allow nested find in find conditions
+- formalization of the ideal cipher model.
+- manually guided elimination of collisions for passwords
+- abort events, and their manual insertion
+- manual insertion of case distinctions
+
+proof:
+
+undo 2        undo the simplification
+crypto enc
+
+show_game occ
+insert_event Encrypt 675
+
+crypto
+4
+@2_r4_59
+
+crypto 
+4
+@2_r4_71
+
+crypto h0
+crypto h1
+
+show_game occ
+insert 983 find nj <= qH1 suchthat defined(x1_35[nj], x2_34[nj], x3_33[nj], x4_32[nj], x4_413[nj], x3_414[nj], x2_415[nj], x1_416[nj], r_411[nj]) && otheruses(r_411[nj]) && (x1_422 = x1_35[nj]) && (x2_421 = x2_34[nj]) && (X_s = x3_33[nj]) && (x4_419 = x4_32[nj]) then
+show_game occ
+insert 1214 find nj <= qH1 suchthat defined(x1_35[nj], x2_34[nj], x3_33[nj], x4_32[nj], x4_413[nj], x3_414[nj], x2_415[nj], x1_416[nj], r_411[nj]) && otheruses(r_411[nj]) && (x1_428 = x1_35[nj]) && (x2_427 = x2_34[nj]) && (X_s = x3_33[nj]) && (x4_425 = x4_32[nj]) then
+show_game occ
+insert 1436 find nj <= qH1 suchthat defined(x1_35[nj], x2_34[nj], x3_33[nj], x4_32[nj], x4_413[nj], x3_414[nj], x2_415[nj], x1_416[nj], r_411[nj]) && otheruses(r_411[nj]) && (x1_434 = x1_35[nj]) && (x2_433 = x2_34[nj]) && (X_s = x3_33[nj]) && (Y_41 = x4_32[nj]) then
+simplify
+show_game occ
+insert_event Auth1 945
+show_game occ
+insert_event Auth2 1025
+show_game occ
+insert_event Auth3 1096
+
+simplify
+remove_assign binder K_s_43
+crypto pCDH
+simplify
+success
+
+remove_assign useless
+simplify
+show_game
+
+On the last game, still to do:
+- extend otheruses to remove branches using Y_41
+- merge branches of a find in the client thanks to unicity of the branch/index of that find
+- eliminate collisions on pw, but be careful when computing the probabilities (the test may succeed only for a single index because of the other comparisons)
+
+ *)
+
+set interactiveMode = true.
+
+param N.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+     (* I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large). *)
+
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host.
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+equiv !N new X:G; () -> X <=(0)=> !N new x:exponent; () -> exp(g,x).
+
+(* Ideal cipher model *)
+
+expand ICM_cipher(passwd, G, enc, dec, enc_dec_oracle, qE, qD).
+
+(* Hash functions in the random oracle model *)
+(*
+Problem: if I use hash(concat(...)), after game transformations I get
+equality tests x = concat(y1,y2,y3,y4,y5) that I would like to transform into
+x = concat(x1,x2,x3,x4,x5) && x1 = y1 && ... for some x1...x5 but
+CryptoVerif cannot do that. As a temporary solution, I consider only
+hash functions with 5 arguments.
+
+expand ROM_hash(hashinput, hash0, h0, hashoracle0, qH0).
+expand ROM_hash(hashinput, hash1, h1, hashoracle1, qH1).
+fun concat(host, host, G, G, G):hashinput [compos].
+*)
+
+param N0, qH0.
+
+fun h0(host, host, G, G, G):hash0.
+
+equiv (x1: host, x2: host, x3: G, x4: G, x5: G) N -> h0(x1, x2, x3, x4, x5) [all]
+      <=(0)=>
+      (x1: host, x2: host, x3: G, x4: G, x5: G) N -> find j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && otheruses(r[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r[j] else
+			 new r:hash0; r.
+
+channel c10, c20.
+
+let hashoracle0 = ! qH0 in(c10, (x1: host, x2: host, x3: G, x4: G, x5: G)); out(c20, h0(x1,x2,x3,x4,x5)). 
+
+param N1, qH1.
+
+fun h1(host, host, G, G, G):hash1.
+
+equiv (x1: host, x2: host, x3: G, x4: G, x5: G) N -> h1(x1, x2, x3, x4, x5) [all]
+      <=(0)=>
+      (x1: host, x2: host, x3: G, x4: G, x5: G) N -> find j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && otheruses(r[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r[j] else
+			 new r:hash1; r.
+
+channel c11, c21.
+
+let hashoracle1 = ! qH1 in(c11, (x1: host, x2: host, x3: G, x4: G, x5: G)); out(c21, h1(x1,x2,x3,x4,x5)). 
+
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  
+	start, finish.
+
+const U : host.
+const S : host.
+
+event bad.
+(*
+event beginA(host, host, shkey).
+event endB(host, host, shkey).
+
+query x:host, y:host, k:shkey;
+	event endB(x,y,k) ==> beginA(x,y,k).
+query x:host, y:host, k:shkey;
+	event inj:endB(x,y,k) ==> inj:beginA(x,y,k).
+*)
+
+let processU =
+	in(c1, ());
+	new x: exponent;
+	let X:G = exp(g,x) in
+	out(c2, (U, X));
+        in(c5, (=S, Ystar_u: G));
+	let Y_u = dec(Ystar_u, pw) in
+	let K_u = exp(Y_u, x) in
+	let auth_u = h1(U,S,X,Y_u,K_u) in
+	out(c6, auth_u);
+	in(c9, ());
+	let sk_u: hash0 = h0(U,S,X,Y_u,K_u).
+
+let processS =
+	in(c3, (=U, X_s: G));
+	new y: exponent;
+	let Y = exp(g,y) in
+	let Ystar = enc(Y, pw) in
+	out(c4, (S, Ystar));
+	in(c7, auth_s: hash1);
+	(* Problem: I need to distinguish cases depending on whether X_s is an X or not. CryptoVerif does not do that automatically. Introducing the case distinction manually as a temporary fix.
+
+	let K_s = exp(X_s, y) in
+	if auth_s = h1(U,S,X_s,Y,K_s) then
+	let sk_s: hash0 = h0(U,S,X_s,Y,K_s)
+
+ *)
+	find j <= N suchthat defined(X[j]) && X[j] = X_s then
+        (
+	let K_s = exp(X_s, y) in
+	if auth_s = h1(U,S,X_s,Y,K_s) then
+	let sk_s: hash0 = h0(U,S,X_s,Y,K_s)
+        )
+        else
+        (
+	let K_s = exp(X_s, y) in
+	let Y = dec(Ystar, pw) in
+	if auth_s = h1(U,S,X_s,Y,K_s) then
+	event bad
+        ).
+
+process 
+	in(start, ());
+	new pw: passwd;
+	out(c8, ());
+	((! N processU) |
+	 (! N processS) | enc_dec_oracle | hashoracle0 | hashoracle1)
+

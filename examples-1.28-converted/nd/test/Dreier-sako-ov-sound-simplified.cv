@@ -1,0 +1,65 @@
+(* 
+simplif_add (dec(c1, keyone) <> bidToBit(bidval)) knowing
+Substitutions:
+(dec(c1, sk) = bidToBit(bidval))
+(sk = keyone)
+(m1 = bidToBit(bidval))
+Facts:
+Elsefind:
+
+Adding (dec(c1, keyone) <> bidToBit(bidval))
+
+Trying to apply the rewrite rule "x <> x -> false"
+in Terms.apply_eq_reds leads to testing
+"Terms.simp_equal_terms try_no_var dec(c1, keyone) bidToBit(bidval)"
+where try_no_var = Facts.try_no_var (substitutions above).
+However, Terms.simp_equal_terms and Facts.try_no_var 
+apply substitutions only to variables, so not to dec(c1, keyone)
+or bidToBit(bidval).
+Hence the matching fails and the simplification is not
+detected.
+
+SOLVED 26/5/2015
+*)
+
+param N.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [fixed].
+type blocksize [fixed].
+type bid [bounded].
+
+const bidval:bid.
+
+fun bidToBit(bid):blocksize [data].
+
+(* Public-key encryption *)
+
+fun pkgen(skey):pkey.
+fun dec(bitstring, skey): blocksize.
+
+(* Queries *)
+
+channel start, chPKI, chW.
+
+event bad().
+
+query event(bad) ==> false.
+
+process
+ in(start, ());
+new keyone: skey;
+out(chPKI, (keyone, pkgen(keyone)));
+in(chW, (c1: bitstring, m1: blocksize, sk: skey));
+if (sk = keyone) && (m1 = dec(c1, sk)) then
+if m1 = bidToBit(bidval) then
+if dec(c1, keyone) <> bidToBit(bidval) then
+event bad
+
+
+ 
+(* EXPECTED
+All queries proved.
+0.020s (user 0.008s + system 0.012s), max rss 33920K
+END *)

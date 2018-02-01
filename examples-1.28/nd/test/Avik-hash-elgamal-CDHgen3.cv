@@ -1,0 +1,116 @@
+(** Hashed ElGamal encryption scheme, in the random oracle model **)
+
+(** An encryption scheme is shown to be SS
+    under the CDH assumption, in the random oracle model.
+    See Section 8, "Sequences of Games", Victor Shoup. **)
+
+param n, n', q, nE, nH, nCDH, nCDH'.
+
+type Z [large,fixed].
+type G.
+type K [large,fixed].
+type D [fixed].
+
+proba pCDH.
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const gamma:G.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+fun xor(D,D): D.
+
+(* xor self-cancels *)
+
+forall x:D, y:D;
+  xor(x, xor(x,y)) = y.
+
+(* xor(.,y) is a one-time pad *)
+
+equiv 
+    (y:D) n -> new x:D; xor(x,y) [all]
+<=(0)=>   (* BB: The difference of probability is 0 *)
+    (y:D) n -> new x:D; x.
+
+(* the CDH assumption *) 
+
+const mark: bitstring.
+
+equiv
+    !n new a:Z; (
+      () -> exp(gamma,a), 
+      (m:G) n' -> exp(m,a),
+      (m:G, j<=n) nCDH [useful_change] -> m = exp(gamma, mult(a[j], a)),
+      (j<=n, j'<=n, j''<=n) nCDH' -> exp(gamma, mult(a[j], a)) = exp(gamma, mult(a[j'],a[j'']))
+    )
+<=(pCDH(time,n,nCDH))=>
+    !n new a:Z; (
+      () -> exp'(gamma,a), 
+      (m:G) n' -> let k:bitstring = mark in exp'(m, a),
+      (m:G, j<=n) nCDH -> find v<=n', u<=n suchthat defined(k[v,u],a[u]) && (a = a[u] || a[j] = a[u]) then m = exp'(gamma, mult(a[j], a)) else false,
+      (j<=n, j'<=n, j''<=n) nCDH' -> ((a[j] = a[j']) && (a = a[j''])) ||
+      		   	   	      ((a[j] = a[j'']) && (a = a[j']))
+    ).
+
+
+
+fun h(K,G): D.
+
+(* h in the random oracle model *)
+
+equiv !n new k:K; (x:G) nH -> h(k,x)
+      <=(0)=>
+      !n new k:K; (x:G) nH -> find j <= nH suchthat defined(x[j],r[j]) && otheruses(r[j]) && x= x[j] then r[j] else
+			 new r:D; r.
+
+    
+fun choose(bool,D,D): D.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:D, z:D;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+(* query *)
+query secret b.
+
+channel dummy, cPK, cE, cEret, cH, cHret, start.
+
+let processE = 
+    !nE
+    in(cE, (m0:D, m1:D));
+    let m = choose(b,m1,m0) in
+    new y:Z;
+    let beta = exp(gamma,y) in
+    let delta = exp(alpha,y) in
+    let hash = h(k,delta) in
+    let v = xor(hash, m) in
+    out(cEret, (beta,v)).
+
+let processH =
+  !nH
+  in(cH, xH:G);
+  out(cHret, h(k,xH)).
+
+process
+  in(dummy, ());
+  new b:bool;
+  new x:Z;
+  new k:K;
+  let alpha = exp(gamma,x) in
+  out(cPK, alpha); 
+  (processE | processH)
+
+
+
+(* EXPECTED
+All queries proved.
+0.030s (user 0.030s + system 0.000s), max rss 19696K
+END *)

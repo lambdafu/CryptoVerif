@@ -1,0 +1,174 @@
+
+(* Signed Diffie-Hellman protocol *)
+
+param n, q, nH, N, N2, nCDH, nCDH', n1, n2, n3.
+
+type host.
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize.
+type signature.
+
+type Z [fixed].
+type G [fixed].
+type K [large,fixed].
+type D [fixed].
+
+fun exp(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* the DDH assumption 
+
+This does not work for two reasons:
+1) a and b both get mapped to x (or perhaps both to y), as CryptoVerif
+does not know a priori whether exp(g,x) or exp(g,y) should be used.
+2) the fact that mult is commutative is not fully taken into account:
+since the mapping z = exp(g, mult(x,y)) succeeds apparently,
+the mapping z = exp(g, mult(y,x)) is not tried, but the transformation
+will later fail when we check that the mappings of several expressions
+are compatible.
+These two problems could be considered bugs in the transformation mechanism,
+since not all possibilities are considered. 
+
+examplesnd/test/signedDH-simp-onesession-distinctexp-DDH considers a modified
+equivalence that solves these problems.
+*) 
+
+proba pDDH.
+
+equiv
+    !n new x:Z; new y:Z; (
+      () -> exp(g,x), 
+      () -> exp(g,y), 
+      () -> exp(g, mult(x,y)) ) 
+<=(pDDH(time) * n)=>  
+    !n new x:Z; new y:Z; new z:Z; (
+      () -> exp(g,x), 
+      () -> exp(g,y), 
+      () -> exp(g, z) ).
+
+
+
+(* h(K) is an entropy-smoothing hash-function family *)
+
+fun h(K,G): D.
+
+proba pESF.
+
+equiv 
+    !n new k:K; new delta:G; (
+      () -> k,
+      () -> h(k,delta) ) 
+<=(pESF(time) * n)=>
+    !n new k:K; new hash:D; (
+      () -> k,
+      () -> hash ).
+
+
+(* signatures *)
+
+fun concatA(host, host, G, G):blocksize [compos].
+fun concatB(host, host, G, G):blocksize [compos].
+forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+    
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(keyseed, pkey, skey, blocksize, signature, seed, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+const A,B:host.
+
+(* query *)
+query secret keyA.
+query secret keyB.
+
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+let processA = 
+  in(cA1, (hostB: host));
+  if hostB = B then
+  (
+  new a:Z;
+  let ga = exp(g,a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb:G, s:signature));
+  if check(concatB(A, hostB, ga, gb), pkB, s) then
+  new r2: seed;
+  let gab = exp(gb, a) in
+  let kA = h(k, gab) in 
+  out(cA4, sign(concatA(A, hostB, ga, gb), skA, r2));
+  (* OK *)
+  in(cA5, ());
+  let keyA:D = kA
+  )
+  else
+  (
+  new a:Z;
+  let ga = exp(g,a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb:G, s:signature));
+  new r2: seed;
+  let gab = exp(gb, a) in
+  let kA = h(k, gab) in 
+  out(cA4, sign(concatA(A, hostB, ga, gb), skA, r2));
+  (* OK *)
+  in(cA5, ());
+  out(cA6, kA)
+  ).
+
+let processB =
+  in(cB1, (hostA:host, =B, ga:G));
+  if hostA = A then
+  (
+  new b:Z;
+  let gb = exp(g,b) in
+  new r1:seed;
+  out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB, r1)));
+  in(cB3, s:signature);
+  if check(concatA(hostA, B, ga, gb), pkA, s) then
+  let gab = exp(ga, b) in
+  let kB = h(k, gab) in
+  (* OK *)
+  let keyB:D = kB
+  )
+  else
+  (
+  new b:Z;
+  let gb = exp(g,b) in
+  new r1:seed;
+  out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB, r1)));
+  in(cB3, s:signature);
+  let gab = exp(ga, b) in
+  let kB = h(k, gab) in
+  (* OK *)
+  out(cB4, kB)
+  ).
+
+process
+	in(start, ());
+	new k:K;
+	new rkA : keyseed;
+	let skA = skgen(rkA) in
+	let pkA = pkgen(rkA) in
+	new rkB : keyseed;
+	let skB = skgen(rkB) in
+	let pkB = pkgen(rkB) in
+	out(cstart, (k, pkA, pkB));
+	(processA | processB)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of keyB, secrecy of keyA.
+0.050s (user 0.050s + system 0.000s), max rss 23984K
+END *)

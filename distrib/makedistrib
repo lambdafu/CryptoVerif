@@ -1,0 +1,72 @@
+#!/bin/sh
+
+VERSION=$1
+YEAR=`date +%Y`
+DEST=$HOME/cryptoverifreleases
+DESTD=$DEST/cryptoverif$VERSION
+
+echo Creating release of CryptoVerif version $VERSION
+
+if [ -d $DEST ]
+then
+        echo
+else
+        echo Directory $DEST does not exist. Please create it.
+        exit 2
+fi
+
+if [ -d $DESTD ]
+then
+        echo Directory $DESTD already exists. Please remove it.
+        exit 2
+fi
+
+cd ..
+mkdir $DESTD
+
+sed s/VERSION/$VERSION/g\;s/YEAR/$YEAR/g README > $DESTD/README
+cp CHANGES LICENSE default.cvl default.ocvl build build.bat test $DESTD
+
+mkdir $DESTD/docs $DESTD/examples $DESTD/oexamples $DESTD/authexamples $DESTD/src $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
+
+rm *~ */*~ */*/*~
+
+cd docs
+pdflatex manual.tex
+bibtex manual
+pdflatex manual.tex
+pdflatex manual.tex
+cd ..
+
+cp docs/manual.pdf $DESTD/docs
+cp emacs/* $DESTD/emacs
+cp implementation/nspk/README $DESTD/implementation/nspk
+cp implementation/wlsk/README $DESTD/implementation/wlsk
+cp implementation/ssh/README $DESTD/implementation/ssh
+cp implementation/nspk/build.sh $DESTD/implementation/nspk
+cp implementation/wlsk/build.sh $DESTD/implementation/wlsk
+cp implementation/ssh/build.sh $DESTD/implementation/ssh
+
+for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/* oexamples/* authexamples/*
+do
+        if [ -f $i ]
+        then
+                cat distrib/head.ml $i > $DESTD/$i
+        fi
+done
+for i in src/*.mly
+do
+        if [ -f $i ]
+        then
+                (echo "%{"; cat distrib/head.ml; echo "%}"; cat $i) > $DESTD/$i
+        fi
+done
+
+cp $DESTD/implementation/crypto_real.ml $DESTD/implementation/crypto.ml
+
+rm $DESTD/src/*lexer.ml $DESTD/src/*parser.ml $DESTD/src/*parser.mli $DESTD/src/profile.ml*
+
+cd $DEST
+tar -czf $DEST/cryptoverif$VERSION.tar.gz cryptoverif$VERSION
+rm -r $DESTD
+

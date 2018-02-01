@@ -1,0 +1,35 @@
+hashfunction H;
+usertype Key;
+
+protocol sr3(V,S)
+{
+
+	role V
+	{
+		fresh Nv: Nonce;
+		fresh D:Ticket;
+		send_1(V,S,{D,Nv}k(V,S),H(Nv),V);
+		recv_2(S,V,Nv,V);
+		
+		claim_V1(V, Niagree);
+		claim_V2(V, Secret, D);
+		claim_V3(V, Secret, k(V,S));
+		claim_V4(V, Nisynch);
+		claim_V5(V, Secret, Nv);
+	}
+
+	role S
+	{
+		var D:Ticket;
+		var Nv:Nonce;
+		recv_1(V,S,{D,Nv}k(V,S),H(Nv),V);
+		send_2(S,V,Nv,V);
+
+		claim_S1(S, Niagree);
+		claim_S2(S, Secret, D);
+		claim_S3(S, Secret, k(V,S));
+		claim_S4(S, Nisynch);
+		claim_S5(S, Secret, Nv);
+	}
+
+}

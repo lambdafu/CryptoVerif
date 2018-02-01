@@ -1,0 +1,153 @@
+(* Exam MPRI 2014-15 *)
+
+proof {
+  crypto uf_cma(sign) rkA;
+  crypto ind_cpa(penc) rkB;
+  show_game;
+  move binder k_215;
+  move random;
+  auto
+}
+
+param NA, NB.
+
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type pkeyseed [large,fixed].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+type shkey [fixed]. (* distributed key *)
+type nonce [large, fixed].
+
+fun concat(pkey, bitstring):sblocksize [compos].
+
+
+(* Public-key encryption (IND-CPA) *)
+
+define IND_CPA_public_key_enc(keyseed, pkey, skey, cleartext, ciphertext, seed, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll) {
+
+param N, N2, N3, N4.
+
+fun enc(cleartext, pkey, seed): ciphertext.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(ciphertext, skey): bitstringbot.
+
+fun enc2(cleartext, pkey, seed): ciphertext.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+
+fun injbot(cleartext):bitstringbot [compos].
+
+const Z:cleartext.
+
+forall m:cleartext, r:keyseed, r2:seed; 
+        dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
+
+equiv ind_cpa(enc)
+       !N3 new r: keyseed; (Opk() [2] := pkgen(r),
+                            !N new r1:seed; Oenc(x1:cleartext) := enc(x1, pkgen(r),r1)),
+       !N4 new r2:seed; Oenc2(x:cleartext, y:pkey) [3] := enc(x,y,r2) [all]
+     <=((N3 * N + N4) * Penc(time + (N4+N-1) * time(enc) + (N3-1)*(time(pkgen) + time(skgen) + N * time(enc))))=> 
+       !N3 new r: keyseed; (Opk() := pkgen2(r),
+                            !N new r1:seed; Oenc(x1:cleartext) := enc2(Z, pkgen2(r), r1)),
+       !N4 Oenc2(x:cleartext, y:pkey) :=
+                find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+                        (new r2:seed; enc2(Z, y, r2))
+                else new r3:seed; enc(x,y,r3).
+
+collision new r1:keyseed; new r2:keyseed; 
+        pkgen(r1) = pkgen(r2) <=(Penccoll)=> false.
+collision new r1:keyseed; new r2:keyseed; 
+        pkgen2(r1) = pkgen2(r2) <=(Penccoll)=> false.
+collision new r1:keyseed; new r2:keyseed; 
+        pkgen(r1) = pkgen2(r2) <=(Penccoll)=> false.
+collision new r1:keyseed; new r2:keyseed; 
+        skgen(r1) = skgen(r2) <=(Penccoll)=> false.
+collision new r1:keyseed; new r2:keyseed; 
+        skgen(r1) = skgen2(r2) <=(Penccoll)=> false.
+collision new r1:keyseed; new r2:keyseed; 
+        skgen2(r1) = skgen2(r2) <=(Penccoll)=> false.
+
+}
+
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CPA_public_key_enc(pkeyseed, pkey, skey, shkey, bitstring, seed, skgen, pkgen, penc, pdec, pinjbot, pZ, Penc, Penccoll).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Shared-key encryption (IND-CPA + INT-CTXT) *)
+
+proba Senc.
+proba Sencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(keyseed, shkey, nonce, bitstring, seed, kgen, enc, dec, injbot, Z, Senc, Sencctxt).
+
+const Znonce: nonce.
+forall n:nonce; Z(n) = Znonce.
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, 
+	start, finish.
+
+query secret n.
+query secret n''.
+
+let processA =
+	in(c1, pkX: pkey);
+	new rk:keyseed;
+	let k = kgen(rk) in
+	new r1:sseed;
+	new r2:seed;
+	let payload = concat(pkX, penc(k, pkX, r2)) in
+        out(c2, (payload, sign(payload, skA, r1)));
+	in(c5, m': bitstring);
+	let injbot(n') = dec(m', k) in
+	if pkX = pkB then
+	let n'':nonce = n' in
+	yield.
+
+let processB =
+	in(c3, (concat(=pkB, m), s:signature));
+	if check(concat(pkB, m), pkA, s) then
+        let pinjbot(k) = pdec(m,skB) in
+	new n:nonce;
+	new r3: seed;
+	out(c4, enc(n, k, r3)).
+
+process 
+	in(start, ());
+	new rkA: skeyseed;
+	let pkA = spkgen(rkA) in
+	let skA = sskgen(rkA) in
+	new rkB: pkeyseed;
+	let pkB = pkgen(rkB) in
+	let skB = skgen(rkB) in
+	out(c7, (pkA, pkB));
+	((! NA processA) |
+	 (! NB processB))
+
+
+
+(* EXPECTED
+All queries proved.
+0.290s (user 0.290s + system 0.000s), max rss 48432K
+END *)

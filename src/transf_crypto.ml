@@ -62,8 +62,6 @@ let fail failure_reason =
 type where_info =
     FindCond | Event | ElseWhere
 
-let tmpcur_count = ref 0
-
 let equal_binder_pair_lists l1 l2 =
   (List.length l1 == List.length l2) && 
   (List.for_all2 (fun (b1,b1') (b2,b2') -> b1 == b2 && b1' == b2') l1 l2)
@@ -114,8 +112,8 @@ let rec incompatible_def_term t =
       t::(def1 @ def2 @ def3 @ def4)
   | ResE(b,t) ->
       incompatible_def_term t
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 and incompatible_def_term_list = function
     [] -> []
@@ -240,7 +238,9 @@ let rec check_no_new_event t =
       if (!Settings.debug_cryptotransf) > 4 then 
 	print_string "The transformed expression occurs in a condition of find, and the transformation may introduce new or event.\n";
       raise NoMatch
-
+  | EventE _ | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "insert, get, and event are not allowed in equivalences"
+      
 and check_no_new_event_pat = function
     PatVar _ -> ()
   | PatTuple(_,l) -> List.iter check_no_new_event_pat l
@@ -282,8 +282,8 @@ let rec occurs_name_to_discharge t =
   | FunApp(f,l) ->
       List.exists occurs_name_to_discharge l
   | ReplIndex _ -> false
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
-      Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.occurs_name_to_discharge)"
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.occurs_name_to_discharge)"
       
 (* Check if a function symbol in fun_list occurs in t *)
 
@@ -294,8 +294,8 @@ let rec occurs_symbol_to_discharge t =
   | FunApp(f,l) ->
       (List.memq f (!symbols_to_discharge)) || (List.exists occurs_symbol_to_discharge l)
   | ReplIndex _ -> false
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
-      Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.occurs_symbol_to_discharge)"
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.occurs_symbol_to_discharge)"
   
 (* Association lists (binderref, value) *)
 
@@ -614,8 +614,8 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
       |	_ -> check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t' state
       end
   | FunApp _, ReplIndex _ -> raise NoMatch
-  | FunApp(f,l), (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _) ->
-      Parsing_helper.internal_error "If, let, find, new, and event should have been expanded (Cryptotransf.check_instance_of_rec)"
+  | FunApp(f,l), (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _) ->
+      Parsing_helper.internal_error "If, let, find, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.check_instance_of_rec)"
   | Var(b,l), _ when Terms.is_args_at_creation b l ->
       begin
 	try 
@@ -1039,8 +1039,8 @@ let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term
 		    check_instance_of_list l
 	      | FunApp(f,l) ->
 		  check_instance_of_list l
-	      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
-		  Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+	      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+		  Parsing_helper.internal_error "if, let, find, new, event, event_abort, get, and insert should have been excluded from left member of equivalences"
 	    in
 	    check_instance_of_subterms_rec false term
 	| Assoc | AssocN _ | Group _ -> 
@@ -1098,8 +1098,8 @@ let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term
 		  end
 	      | FunApp(f,l) ->
 		  check_instance_of_list l
-	      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
-		  Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+	      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+		  Parsing_helper.internal_error "if, let, find, new, event, event_abort, get, and insert should have been excluded from left member of equivalences"
 	    in
 	    check_instance_of_subterms_rec false term
       end
@@ -1119,8 +1119,8 @@ let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term
 	  Var _ | ReplIndex _ -> raise NoMatch
 	| FunApp(f,l) ->
 	    check_instance_of_list l 
-	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ ->
-	    Parsing_helper.internal_error "if, let, find, new, and evemt should have been excluded from left member of equivalences"
+	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+	    Parsing_helper.internal_error "if, let, find, new, event, event_abort, get, and insert should have been excluded from left member of equivalences"
       in
       check_instance_of_subterms_rec term
 
@@ -1140,8 +1140,8 @@ let rec reverse_subst indexes cur_array t =
 	      print_string "reverse_subst failed\n";
 	    raise NoMatch 
 	| FunApp(f,l) -> FunApp(f, List.map (reverse_subst indexes cur_array) l)
-	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
-	    Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.reverse_subst)")
+	| TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+	    Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.reverse_subst)")
   | _ -> Parsing_helper.internal_error "Lists should have the same length in reverse_subst"
   in
   find indexes cur_array
@@ -1360,23 +1360,28 @@ let rec letvars_from_term accu t =
       accu := b :: (!accu);
       letvars_from_term accu t
   | EventAbortE(f) -> ()
-
+  | EventE(t,p) ->
+      letvars_from_term accu t;
+      letvars_from_term accu p
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get and insert should not occur in Transf_crypto.letvars_from_term"
+	
 and vars_from_pat accu = function
     PatVar b -> accu := b :: (!accu)
   | PatTuple (f,l) -> List.iter (vars_from_pat accu) l
   | PatEqual t -> letvars_from_term accu t
 
 let new_binder2 b args_at_creation = 
-  Terms.create_binder b.sname (Terms.new_vname()) b.btype args_at_creation
+  Terms.create_binder b.sname b.btype args_at_creation
 
 let new_binder3 ri args_at_creation = 
-  Terms.create_binder "@i" (Terms.new_vname())  ri.ri_type args_at_creation
+  Terms.create_binder "u" ri.ri_type args_at_creation
 
 let new_repl_index3 t =
-  Terms.create_repl_index "@ri" (Terms.new_vname()) t.t_type
+  Terms.create_repl_index "ri" t.t_type
 
 let new_repl_index4 ri =
-  Terms.create_repl_index "@ri" (Terms.new_vname()) ri.ri_type
+  Terms.create_repl_index "ri" ri.ri_type
 
 let rec make_prod = function
     [] -> Cst 1.0
@@ -1608,6 +1613,10 @@ let rec get_def_vars accu t =
 	get_def_vars (get_def_vars (vars @ accu) t1) t2) accu' l0
   | EventAbortE(f) ->
       accu
+  | EventE(t,p) ->
+      get_def_vars (get_def_vars accu t) p
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get and insert should not occur in Transf_crypto.get_def_vars"
 
 and get_def_vars_pat accu = function
     PatVar b ->
@@ -1635,8 +1644,8 @@ let rec used_indices indices used t =
       Var(_,l) | FunApp(_,l) -> 
 	List.iter (used_indices indices used) l
     | ReplIndex _ -> ()
-    | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _ ->
-	Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.used_indices)"
+    | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _  | EventE _ | GetE _ | InsertE _ ->
+	Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.used_indices)"
 
 (* [has_repl_index t] returns true when [t] contains a replication index *)
 
@@ -1645,8 +1654,8 @@ let rec has_repl_index t =
     Var(_,l) | FunApp(_,l) -> 
       List.exists has_repl_index l
   | ReplIndex _ -> true
-  | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _ ->
-      Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.has_repl_index)"
+  | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.has_repl_index)"
 
   
 
@@ -2129,7 +2138,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 	try
 	  check_instance_of simp_facts (fun product_rest state -> 
 	    let old_map = !map in
-	    let vcounter = !Terms.vcounter in
+	    let vcounter = Terms.get_var_num_state() in
 	    match checks all_names_lhs current_exp product_rest where_info cur_array defined_refs torg state with
 	      Success(to_do, indexes_ordered, restr_env, name_indexes, rev_subst_name_indexes, 
 		      before_transfo_name_table, before_transfo_restr, after_transfo_name_table, 
@@ -2232,9 +2241,8 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		    jX[iX[i]] = i, then i should also be allowed, and
 		    the result of the reverse subtitution applied to i
 		    is jX. *)
-		 incr tmpcur_count;
 		 let cur_array' = List.map (fun e -> 
-		   Terms.create_repl_index "@tmpcur" (!tmpcur_count) e.t_type) down_indexes 
+		   Terms.create_repl_index "tmpcur" e.t_type) down_indexes 
 		 in
 		 let cur_array_terms' = List.map Terms.term_from_repl_index cur_array' in
 		 let t' = reverse_subst down_indexes cur_array_terms' torg in
@@ -2345,7 +2353,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 	   end
 	    | AdviceNeeded(to_do) -> 
 		map := old_map;
-		Terms.vcounter := vcounter; (* Forget variables *)
+		Terms.set_var_num_state vcounter; (* Forget variables *)
 		transform_to_do := merge_ins to_do (!transform_to_do);
 		raise NoMatch
 	    | NotComplete(to_do) ->
@@ -2488,8 +2496,8 @@ and check_term_try_subterms where_info cur_array defined_refs t =
 	      map_and_ins (fun t' -> check_term where_info [] None cur_array defined_refs t' t') l
 	end
   | ReplIndex _ -> success_no_advice
-  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
-      Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.check_term_try_subterms)"
+  | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+      Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.check_term_try_subterms)"
 
 let check_term where_info ta_above cur_array defined_refs t =
   let ins_to_do = check_term where_info ta_above None cur_array defined_refs t t in
@@ -2572,8 +2580,8 @@ let rec check_cterm t =
       if is_name_to_discharge b then
 	raise NoMatch;
       check_cterm t
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 and check_cbr (_,l) =
   List.iter check_cterm l
@@ -2606,7 +2614,7 @@ This avoids creating array references to such variables.
 let rec check_find_cond cur_array defined_refs t =
   match t.t_desc with
     Var _ | FunApp _ | ReplIndex _ -> check_term FindCond [] cur_array defined_refs t 
-  | FindE _ | ResE _ | TestE _ | LetE _ | EventAbortE _ -> check_cterm t; success_no_advice
+  | _ -> check_cterm t; success_no_advice
 
 let rec check_process accu cur_array defined_refs p =
   match p.i_desc with
@@ -2869,8 +2877,8 @@ let rec transform_term t =
 	Var(b,l) -> Var(b, List.map transform_term l)
       | FunApp(f,l) -> FunApp(f, List.map transform_term l)
       |	ReplIndex b -> ReplIndex b 
-      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ -> 
-	  Parsing_helper.internal_error "If, find, let, new, and event should have been expanded (Cryptotransf.transform_term)")
+      | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
+	  Parsing_helper.internal_error "If, find, let, new, event, event_abort get, and insert should have been expanded (Cryptotransf.transform_term)")
 
 and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
   match t.t_desc with
@@ -2987,7 +2995,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		  (Terms.lsuffix l_cur_array_suffix mapping'.after_transfo_name_table)
 		  (Terms.lsuffix l_cur_array_suffix mapping.after_transfo_name_table)) then
 		Parsing_helper.internal_error "Names are common before transformation but not after!";
-	      let vcounter = !Terms.vcounter in
+	      let vcounter = Terms.get_var_num_state() in
 	      let one_exp0 = List.hd mapping'.expressions in
 	      let max_indexes = snd (List.nth one_exp0.name_indexes_exp (depth_mapping - (l_index + l_cur_array_suffix))) in
 	      let map_indexes0_binders = List.map new_repl_index3 max_indexes in
@@ -3048,7 +3056,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 			  find_previous_mapping l
 		  in
 		  if find_previous_mapping (!map) then
-		    Terms.vcounter := vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
+		    Terms.set_var_num_state vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
 		  else
 		    add_find (find_indexes, constra, !cur_var_map)
 		end
@@ -3101,9 +3109,9 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		with Not_found ->
 	    (* Variable really not found; this mapping does not
 	       correspond to the expected function *)
-		  Terms.vcounter := vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
+		  Terms.set_var_num_state vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
 	      else
-		Terms.vcounter := vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
+		Terms.set_var_num_state vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
               end
 		    ) (!map)
 	| _ -> Parsing_helper.internal_error "Bad index for find variable") l0;
@@ -3128,7 +3136,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	      instantiate_term cur_array in_find_cond loc_rename mapping one_exp t'))
   | EventAbortE(f) ->
       (* Create a fresh function symbol, in case the same equivalence has already been applied before *)
-      let f' = { f_name = f.f_name ^ "_" ^ (string_of_int (Terms.new_vname()));
+      let f' = { f_name = Terms.fresh_id f.f_name;
 		 f_type = f.f_type;
 		 f_cat = f.f_cat;
 		 f_options = f.f_options;
@@ -3142,7 +3150,9 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	 of probability and in the queries *)
       introduced_events := f' :: (!introduced_events);
       Terms.build_term t (EventAbortE(f'))
-
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event, get, insert should not occur in the RHS of equivalences"
+	
 
 and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = function
     PatVar b ->
@@ -3173,8 +3183,8 @@ let transform_find_cond t =
   | TestE _ | FindE _ | LetE _ | ResE _ -> 
       (* Terms if/let/find/new/event are never transformed *)
       t
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 let rec put_restr l p =
   match l with
@@ -3251,7 +3261,8 @@ let rec transform_process cur_array p =
 	Input((c, tl), pat', p')
       else
         (* put restrictions that come from transform_pat *)
-	let b = Terms.create_binder "patv" (Terms.new_vname()) Settings.t_bitstring cur_array
+	let b = Terms.create_binder "patv" 
+	    (Terms.get_type_for_pattern pat') cur_array
 	in
 	let p'' = Input((c, tl), PatVar b, put_restr (!restr_to_put) 
 			  (Terms.oproc_from_desc (Let(pat', Terms.term_from_binder b, p', Terms.oproc_from_desc Yield))))
@@ -3429,7 +3440,7 @@ let rec is_transformed t =
   (is_in_map t) || 
   (match t.t_desc with
     Var(_,l) | FunApp(_,l) -> List.exists is_transformed l
-  | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ -> false)
+  | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> false)
 
 type count_get =
     ReplCount of param
@@ -3563,8 +3574,8 @@ let rec repl_count_term true_facts accu b_repl t =
       (* find conditions that contain if/let/find/new are never transformed,
 	 so nothing to add for them *)
       accu'
-  | EventAbortE _ ->
-      Parsing_helper.internal_error "Event should have been expanded"
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 and repl_count_term_list true_facts accu b_repl = function
     [] -> accu
@@ -3679,32 +3690,43 @@ let eq (compat_info_ref1,_) (compat_info_ref2,_) =
 let inc a b =
   List.for_all (fun aelem -> List.exists (fun belem -> eq aelem belem) b) a
 
+(* Be careful to write tail-recursive functions to avoid a stack overflow *)
+    
 let rec append_no_include a l =
   match a with
     [] -> l
   | (a1::ar) ->
-      let l' = append_no_include ar l in
-      if List.exists (inc a1) l' then 
-	l'
-      else
-	a1::(List.filter (fun a2 -> not (inc a2 a1)) l')
-
-let rec add_repl_countl elem = function
-    [] -> []
+      let a1_l =
+	if List.exists (inc a1) l then 
+	  l
+	else
+	  a1::(List.filter (fun a2 -> not (inc a2 a1)) l)
+      in
+      append_no_include ar a1_l
+    
+let rec add_repl_countl_aux accu elem = function
+    [] -> accu
   | (a::l) ->
-      let l' = add_repl_countl elem l in
-      append_no_include (add_repl_count elem a) l'
+      let accu' = append_no_include (add_repl_count elem a) accu in
+      add_repl_countl_aux accu' elem l
+
+let add_repl_countl elem l = add_repl_countl_aux [] elem l
 
 (* merge_count computes the count corresponding to l1 + l2, 
    where l1 and l2 are lists of lists of pairs (nt, v).
    This is done by adding each element of l1 to each element of l2 *)
+
 let rec add_list eleml l =
   match eleml with
     [] -> l
-  | (a::eleml') -> add_repl_countl a (add_list eleml' l)
+  | (a::eleml') -> add_list eleml' (add_repl_countl a l)
+
+(* Tail recursive variant of 
+   List.concat (List.map (fun a -> add_list a l2) l1).
+   It may reorder the elements *)
 
 let merge_count l1 l2 =
-  List.concat (List.map (fun l -> add_list l l2) l1) 
+  List.fold_left (fun accu a -> List.rev_append (add_list a l2) accu) [] l1
 
 (* Test whether cur_array is included in a list of terms tl *)
 
@@ -3718,12 +3740,16 @@ let is_included cur_array tl =
    cur_array, so must be taken in a sum and not in a max in "append" below.
    Useless [] elements are removed. *)
 
-let rec filter_compat cur_array = function
-    [] -> []
+let rec filter_compat_aux accu cur_array = function
+    [] -> accu
   | (lsum::rest) ->
-      let rest' = filter_compat cur_array rest in
-      let lsum' = List.filter (fun (nt,tl) -> not (is_included cur_array tl)) lsum in
-      if rest' != [] && lsum' == [] then rest' else lsum'::rest'
+      let accu' = 
+	let lsum' = List.filter (fun (nt,tl) -> not (is_included cur_array tl)) lsum in
+	if accu != [] && lsum' == [] then accu else lsum'::accu
+      in
+      filter_compat_aux accu' cur_array rest 
+
+let filter_compat cur_array l = filter_compat_aux [] cur_array l
 
 (* Like l1 @ l2 but removes useless empty lists
    This is important for the speed of the probability evaluation... 
@@ -3736,8 +3762,8 @@ let append cur_array l1 l2 =
   if l2 = [[]] then l1 else
   let l1compat_in_l2 = filter_compat cur_array l2 in
   let l2compat_in_l1 = filter_compat cur_array l1 in
-  (merge_count l1 l1compat_in_l2) @ (merge_count l2 l2compat_in_l1)
-
+  List.rev_append (merge_count l1 l1compat_in_l2)
+    (merge_count l2 l2compat_in_l1)
 
 let rec formula_to_listlist = function
     FZero -> [[]]
@@ -3751,13 +3777,17 @@ let rec formula_to_listlist = function
    the number of usages of a repl. binder into a polynom
    (the first list is a max, the second one a sum) *)
 
-let rec count_to_poly = function
-    [] -> Polynom.zero
-  | ((_,v)::l) -> Polynom.sum (Polynom.probaf_to_polynom (make_prod v)) (count_to_poly l)
+let rec count_to_poly_aux accu = function
+    [] -> accu
+  | ((_,v)::l) -> count_to_poly_aux (Polynom.sum (Polynom.probaf_to_polynom (make_prod v)) accu) l
 
-let rec countl_to_poly = function
-    [] -> Polynom.zero
-  | v::l -> Polynom.max (count_to_poly v) (countl_to_poly l)
+let count_to_poly l = count_to_poly_aux Polynom.zero l
+
+let rec countl_to_poly_aux accu = function
+    [] -> accu
+  | v::l -> countl_to_poly_aux (Polynom.max (count_to_poly v) accu) l
+
+let countl_to_poly l = countl_to_poly_aux Polynom.zero l
 
 let rec rename_term map one_exp t =
   match t.t_desc with
@@ -4076,10 +4106,17 @@ type trans_res =
   TSuccessPrio of setf list * detailed_instruct list * game
 | TFailurePrio of to_do_t * ((binder * binder) list * failure_reason) list
 
-let transfo_expand p q =
+let transfo_expand apply_equiv p q =
   let g' = { proc = do_crypto_transform p; game_number = -1; current_queries = q } in
+  let proba' = compute_proba apply_equiv in
+  let ins' = [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
+						  (match !user_term_mapping with
+						    None -> None
+						  | Some tm -> Some (tm, !no_other_term))))]
+  in
   print_string "Transf. done "; flush stdout;
-  Transf_expand.expand_process g'
+  let (g'', proba'', ins'') = Transf_expand.expand_process g' in
+  (g'', proba'' @ proba', ins'' @ ins')
 	
 let rec try_with_restr_list apply_equiv = function
     [] -> TFailurePrio([],[])
@@ -4090,7 +4127,7 @@ let rec try_with_restr_list apply_equiv = function
 	  global_sthg_discharged := false;
 	  map := [];
 	  gameeq_name_mapping := [];
-	  let vcounter = !Terms.vcounter in
+	  let vcounter = Terms.get_var_num_state() in
 	  if (!Settings.debug_cryptotransf) > 0 then
 	    begin
 	      if b != [] then
@@ -4128,27 +4165,23 @@ let rec try_with_restr_list apply_equiv = function
 			print_newline()
 		      end;
 		    print_string "Transf. OK "; flush stdout;
-		    let (g',proba',ins) = transfo_expand (!whole_game).proc (!whole_game).current_queries in
+		    let (g',proba',ins') = transfo_expand apply_equiv (!whole_game).proc (!whole_game).current_queries in
 		    whole_game_next := g';
-		    TSuccessPrio ((compute_proba apply_equiv) @ proba',
-				  ins @ [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
-								     (match !user_term_mapping with
-								       None -> None
-								     | Some tm -> Some (tm, !no_other_term))))], g')
+		    TSuccessPrio (proba', ins', g')
 		  end
 		else
 		  fail NoUsefulChange
 	      end
             else
 	      begin
-		Terms.vcounter := vcounter; (* This transformation failed, forget the variables *)
+		Terms.set_var_num_state vcounter; (* This transformation failed, forget the variables *)
 		match try_with_restr_list apply_equiv l with
 		  (TSuccessPrio _) as result -> result
 		| TFailurePrio (l',failure_reasons) ->
 		    TFailurePrio (merge_ins to_do l',failure_reasons)
 	      end
           with OneFailure failure_reason -> 
-	    Terms.vcounter := vcounter; (* This transformation failed, forget the variables *)
+	    Terms.set_var_num_state vcounter; (* This transformation failed, forget the variables *)
 	    if (b == []) then
 	      match try_with_restr_list apply_equiv l with
 		(TSuccessPrio _) as result -> result
@@ -4191,13 +4224,14 @@ let rec build_symbols_to_discharge = function
   | Fun(_,_,t,_) ->
       build_symbols_to_discharge_term t
       
-let events_proba_queries events = 
+let events_proba_queries events =
+  let pub_vars = Settings.get_public_vars() in
   List.split (List.map (fun f ->
     let q_proof = ref None in
-    let proba = SetEvent(f, !whole_game_next, q_proof) in
+    let proba = SetEvent(f, !whole_game_next, pub_vars, q_proof) in
     let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
     let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-    let query = ((QEventQ([false, t], QTerm (Terms.make_false())), !whole_game_next), q_proof, None) in
+    let query = ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), !whole_game_next), q_proof, None) in
     (proba, query)
       ) events)
 
@@ -4249,7 +4283,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   introduced_events := [];
   time_computed := None;
   symbols_to_discharge := [];
-  let vcounter = !Terms.vcounter in
+  let vcounter = Terms.get_var_num_state() in
   List.iter (fun (fg, mode) ->
     if mode == AllEquiv then build_symbols_to_discharge fg) lm;
   Simplify1.improved_def_process None false p;
@@ -4269,7 +4303,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
       |	TFailurePrio (l,failure_reasons) -> 
 	  if ((!Settings.debug_cryptotransf) > 0) && (l != []) then 
 	    print_string "Advice given\n";
-	  Terms.vcounter := vcounter; (* Forget created variables when the transformation fails *)
+	  Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
 	  TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info n, l)) l, failure_reasons)
     end
   else
@@ -4289,15 +4323,11 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 		    print_newline()
 		  end;
 		print_string "Transf. OK "; flush stdout;
-		let (g',proba',ins) = transfo_expand p g.current_queries in
+		let (g',proba',ins') = transfo_expand apply_equiv p g.current_queries in
 		whole_game_next := g';
 		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
 		g'.current_queries <- ev_q @ g'.current_queries;
-		TSuccess ((compute_proba apply_equiv) @ ev_proba @ proba',
-			  ins @ [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
-								     (match !user_term_mapping with
-								       None -> None
-								     | Some tm -> Some (tm, !no_other_term))))], g')
+		TSuccess (ev_proba @ proba', ins', g')
 	      end
 	    else
 	      fail NoUsefulChange
@@ -4306,11 +4336,11 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 	  begin
 	    if (!Settings.debug_cryptotransf) > 0 then 
 	      print_string "Advice given\n";
-	    Terms.vcounter := vcounter; (* Forget created variables when the transformation fails *)
+	    Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
             TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info n, l)) to_do, [])
 	  end
       with OneFailure failure_reason -> 
-	Terms.vcounter := vcounter; (* Forget created variables when the transformation fails *)
+	Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
 	TFailure ([], [!gameeq_name_mapping, failure_reason])
     end
   in

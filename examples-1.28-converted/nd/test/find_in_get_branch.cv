@@ -1,0 +1,27 @@
+channel c.
+
+type host.
+const A, B, C: host.
+
+table tbl1(host).
+
+param n.
+
+process
+       ((
+  ! i <= n
+  in(c[i], y: host)
+) | (
+  in(c, ());
+  insert tbl1(A);
+  insert tbl1(B);
+  get tbl1(z: host) suchthat (find i_2 = i_1 <= n suchthat defined(y[i_1]) && (y[i_1] = z) then true else false) in
+  out(c, z)
+))
+
+
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 34800K
+END *)

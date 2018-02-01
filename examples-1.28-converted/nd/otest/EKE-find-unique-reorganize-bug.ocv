@@ -1,0 +1,211 @@
+(* Causes an internal error: 
+@i_1700 <= NS <- @i_220[@i_124[iH1_85]]; ((x11[iH1_85] = x1_123[@i_124[iH1_85]]) && ((x12[iH1_85] = x2_122[@i_124[iH1_85]]) && ((x13[iH1_85] = X[@i_124[iH1_85]]) && ((x14[iH1_85] = Y_u[@i_124[iH1_85]]) && (x15[iH1_85] = @4_exp'(g, mult(y[@i_220[@i_124[iH1_85]]], x_86[@i_124[iH1_85]])))))))
+Internal error: If, find, let, and new should not occur in try_no_var
+Please report bug to Bruno.Blanchet@ens.fr, including input file and output
+
+ *)
+
+(* Proof indications *)
+
+proof {
+set maxIterSimplif = 3;
+crypto h1;
+crypto enc;
+show_game occ;
+insert 767 "find j <= NU suchthat defined(X_9[j]) && X_9[j] = X_s then";
+show_game occ;
+insert 908 "find nj <= qH1, nk <= qD suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_3[nj], rd_2[nk], m_2[nk], kd_1[nk]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (m_2[nk] = re_1) && (rd_2[nk] = x14[nj]) && (auth_s = r1_3[nj]) && (kd_1[nk] = pw) then";
+show_game occ;
+insert_event Auth 955;
+(* set debugElsefindFacts = true; *)
+simplify;
+(* set debugElsefindFacts = false; *)
+show_game occ;
+insert_event Encrypt 575;
+auto
+(*
+auto;
+move array "@4_X_4121";
+move binder r1_118;
+merge_arrays "@4_X_3700" "@2_Y_4289";
+merge_branches;
+move array "@4_X_3929";
+merge_arrays "@4_X_3700" "@2_Y_4867";
+merge_branches;
+move array "@4_X_4059";
+merge_arrays "@4_X_3700" "@2_Y_5333";
+show_game occ;
+insert 347 "find nj2 <= qH1, nk <= qD suchthat defined(x11[nj2], x12[nj2], x13[nj2], x14[nj2], r1_106[nj2], m[nk], kd[nk], @4_X_3700[nk]) && (m[nk] = @5_r2_209) && (U = x11[nj2]) && (S = x12[nj2]) && (X_s = x13[nj2]) && (x14[nj2] = @4_X_3700[nk]) && (auth_s = r1_106[nj2])  && (kd[nk] = pw) then";
+show_game occ;
+insert_event Auth2 406;
+simplify;
+success;
+simplify coll_elim pw;
+success
+*)
+}
+
+(* Parameter and type declarations *)
+
+param NU, NS, NP.
+
+type Z [large, fixed].
+type G [large, fixed].
+type passwd [password, fixed].
+
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host [bounded].
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec).
+
+param qE, qD [noninteractive].
+
+
+(* Hash functions in the random oracle model; 
+   we use hash functions with 5 arguments, we redefine them
+   by adapting the definition of the random oracle model
+   given in the CryptoVerif library *)
+
+type hashkey [fixed].
+
+param Nh, N, qH0, qH1, Neq.
+
+fun h0(hashkey, host, host, G, G, G):hash0.
+
+equiv
+  foreach ih <= Nh do hk <-R hashkey; (
+    foreach ih0 <= N do Oh0(x1: host, x2: host, x3: G, x4: G, x5: G) := return(h0(hk, x1, x2, x3, x4, x5)) |
+    foreach ieq0 <= Neq do Oeq0(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) := return(r' = h0(hk, x1', x2', x3', x4', x5')))
+<=(Neq/|hash0|)=>
+  foreach ih <= Nh do (
+    foreach ih0 <= N do Oh0(x1: host, x2: host, x3: G, x4: G, x5: G) := find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r[j]) else r <-R hash0; return(r) |
+    foreach ieq0 <= Neq do Oeq0(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash0) := find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r[j]) && x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then return(r' = r[j]) else return(false)).
+
+ 
+
+
+fun h1(hashkey, host, host, G, G, G):hash1.
+
+equiv
+  foreach ih <= Nh do hk <-R hashkey; (
+    foreach ih1 <= N do Oh1(x1: host, x2: host, x3: G, x4: G, x5: G) := return(h1(hk, x1, x2, x3, x4, x5)) |
+    foreach ieq1 <= Neq do Oeq1(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) := return(r' = h1(hk, x1', x2', x3', x4', x5')))
+<=(Neq/|hash1|)=>
+  foreach ih <= Nh do (
+    foreach ih1 <= N do Oh1(x1: host, x2: host, x3: G, x4: G, x5: G) := find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r1[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then return(r1[j]) else r1 <-R hash1; return(r1) |
+    foreach ieq1 <= Neq do Oeq1(x1': host, x2': host, x3': G, x4': G, x5': G, r': hash1) := find j <= N suchthat defined(x1[j], x2[j], x3[j], x4[j], x5[j], r1[j]) && x1' = x1[j] && x2' = x2[j] && x3' = x3[j] && x4' = x4[j] && x5' = x5[j] then return(r' = r1[j]) else return(false)).
+
+ 
+
+(* Host names *)
+
+const U : host.
+const S : host.
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+event termS(host, G, host, G, hash1, hash0).
+event acceptU(host, G, host, G, hash1, hash0).
+
+query k: hash0, a: hash1, Ystar: G, y: host, X: G, x: host;
+  inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) public_vars sk_u, sk_s.
+query k': hash0, k: hash0, a: hash1, Ystar: G, y: host, X: G, x: host;
+  event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') public_vars sk_u, sk_s.
+
+(* Client *)
+
+
+
+(* Server *)
+
+
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+
+
+process 
+	Ostart() :=
+hk0 <-R hashkey;
+hk1 <-R hashkey;
+ck_1 <-R cipherkey;
+pw <-R passwd;
+return();
+((
+  foreach iU <= NU do
+  OC1() :=
+  x_2 <-R Z;
+  X_9: G <- exp(g, x_2);
+  return(U, X_9);
+  OC2(=S, Ystar_u: G) :=
+  Y_u: G <- dec(ck_1, Ystar_u, pw);
+  K_u: G <- exp(Y_u, x_2);
+  auth_u: hash1 <- h1(hk1, U, S, X_9, Y_u, K_u);
+  sk_u: hash0 <- h0(hk0, U, S, X_9, Y_u, K_u);
+  event acceptU(U, X_9, S, Ystar_u, auth_u, sk_u);
+  return(auth_u)
+) | (
+  foreach iS <= NS do
+  OS1(=U, X_s: G) :=
+  y_1 <-R Z;
+  Y_8: G <- exp(g, y_1);
+  Ystar: G <- enc(ck_1, Y_8, pw);
+  return(S, Ystar);
+  OS2(auth_s: hash1) :=
+  K_s: G <- exp(X_s, y_1);
+  if auth_s = h1(hk1, U, S, X_s, Y_8, K_s) then
+  sk_s: hash0 <- h0(hk0, U, S, X_s, Y_8, K_s);
+  event termS(U, X_s, S, Ystar, auth_s, sk_s)
+) | (
+  foreach iP <= NP do
+  OP() :=
+  xp <-R Z;
+  Xp: G <- exp(g, xp);
+  yp <-R Z;
+  Yp: G <- exp(g, yp);
+  Kp: G <- exp(g, mult(xp, yp));
+  Ystarp: G <- enc(ck_1, Yp, pw);
+  authp: hash1 <- h1(hk1, U, S, Xp, Yp, Kp);
+  sk_p: hash0 <- h0(hk0, U, S, Xp, Yp, Kp);
+  return(U, Xp, S, Ystarp, authp)
+) | (
+  foreach iE <= qE do
+  Oenc(x_3: G, ke_1: passwd) :=
+  return(enc(ck_1, x_3, ke_1))
+) | (
+  foreach iD <= qD do
+  Odec(m_2: G, kd_1: passwd) :=
+  return(dec(ck_1, m_2, kd_1))
+) | (
+  foreach iH0 <= qH0 do
+  OH0(x1_1: host, x2_1: host, x3_1: G, x4_1: G, x5: G) :=
+  return(h0(hk0, x1_1, x2_1, x3_1, x4_1, x5))
+) | (
+  foreach iH1 <= qH1 do
+  OH1(x11: host, x12: host, x13: G, x14: G, x15: G) :=
+  return(h1(hk1, x11, x12, x13, x14, x15))
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') with public variables sk_u, sk_s; inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) with public variables sk_u, sk_s; secrecy of sk_s; secrecy of sk_u.
+2.980s (user 2.932s + system 0.048s), max rss 159216K
+END
+
+Note: event(Auth) ==> false in game 13 is proved using elsefind facts. *)

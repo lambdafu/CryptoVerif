@@ -1,0 +1,217 @@
+(* Encrypted Key Exchange, version of 
+http://www.di.ens.fr/~pointche/pub.php?reference=BrChPo03 *)
+
+set interactiveMode = true.
+
+param N.
+
+type exponent [large, fixed].
+type G [large, fixed].
+type passwd [(*large, *)fixed].
+     (* Problem: I want to eliminate collisions with the password in 
+     some cases but not others. I want to eliminate them in the protocol
+     itself, but not in enc_dec_oracle (because if I eliminate them in
+     enc_dec_oracle, the probability of attack will depend on qE/|passwd| 
+     and/or qD/|passwd| so it may become too large).
+     On the other hand, not eliminating these collisions may make the game
+     very complicated... *)
+
+
+type hashinput.
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host.
+
+(* Computational Diffie-Hellman *)
+
+proba pCDH.
+
+expand CDH(G, exponent, g, exp, mult, pCDH).
+
+equiv !N new X:G; () -> X <=(0)=> !N new x:exponent; () -> exp(g,x).
+
+(* Ideal cipher model *)
+
+expand ICM_cipher(passwd, G, enc, dec, enc_dec_oracle, qE, qD).
+
+(* Hash functions in the random oracle model *)
+(*
+Problem: if I use hash(concat(...)), after game transformations I get
+equality tests x = concat(y1,y2,y3,y4,y5) that I would like to transform into
+x = concat(x1,x2,x3,x4,x5) && x1 = y1 && ... for some x1...x5 but
+CryptoVerif cannot do that. As a temporary solution, I consider only
+hash functions with 5 arguments.
+
+expand ROM_hash(hashinput, hash0, h0, hashoracle0, qH0).
+expand ROM_hash(hashinput, hash1, h1, hashoracle1, qH1).
+fun concat(host, host, G, G, G):hashinput [compos].
+*)
+
+param N0, qH0.
+
+fun h0(host, host, G, G, G):hash0.
+
+equiv (x1: host, x2: host, x3: G, x4: G, x5: G) N -> h0(x1, x2, x3, x4, x5) [all]
+      <=(0)=>
+      (x1: host, x2: host, x3: G, x4: G, x5: G) N -> find j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && otheruses(r[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r[j] else
+			 new r:hash0; r.
+
+channel c10, c20.
+
+let hashoracle0 = ! qH0 in(c10, (x1: host, x2: host, x3: G, x4: G, x5: G)); out(c20, h0(x1,x2,x3,x4,x5)). 
+
+param N1, qH1.
+
+fun h1(host, host, G, G, G):hash1.
+
+equiv (x1: host, x2: host, x3: G, x4: G, x5: G) N -> h1(x1, x2, x3, x4, x5) [all]
+      <=(0)=>
+      (x1: host, x2: host, x3: G, x4: G, x5: G) N -> find j <= N suchthat defined(x1[j],x2[j],x3[j],x4[j],x5[j],r[j]) && otheruses(r[j]) && x1 = x1[j] && x2 = x2[j] && x3 = x3[j] && x4 = x4[j] && x5 = x5[j] then r[j] else
+			 new r:hash1; r.
+
+channel c11, c21.
+
+let hashoracle1 = ! qH1 in(c11, (x1: host, x2: host, x3: G, x4: G, x5: G)); out(c21, h1(x1,x2,x3,x4,x5)). 
+
+
+(* Queries *)
+
+query secret sk_u1.
+query secret sk_u2.
+query secret sk_u3.
+query secret sk_u4.
+query secret sk_s.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9,  ar2_c1, ar2_c2, ar2_c3, ar2_c4,
+	start, finish.
+
+const U : host.
+const S : host.
+const cst_G: G.
+const cst_passwd: passwd.
+
+event bad.
+(*
+event beginA(host, host, shkey).
+event endB(host, host, shkey).
+
+query x:host, y:host, k:shkey;
+	event endB(x,y,k) ==> beginA(x,y,k).
+query x:host, y:host, k:shkey;
+	event inj:endB(x,y,k) ==> inj:beginA(x,y,k).
+*)
+
+process
+
+
+in(start, ());
+new pw: passwd;
+out(c8, ());
+(
+      (
+        ! N
+        in(c1, ());
+        new x: exponent;
+        let X: G = exp(g, x) in
+        out(c2, (U, X));
+        in(c5, (=S, Ystar_u: G));
+        let ar2_m_74: G = cst_G in
+        let ar2_kd_73: passwd = cst_passwd in
+        find ari_106 <= qD suchthat defined(ar2_kd[ari_106], ar2_m[ari_106], ar2_m_65[ari_106], ar2_kd_64[ari_106], ar2_r4_63[ari_106]) && otheruses(ar2_r4_63[ari_106]) && ((Ystar_u = ar2_m[ari_106]) && (pw = ar2_kd[ari_106])) then
+          let K_u: G = exp(ar2_r4_63[ari_106], x) in
+          let auth_u: hash1 = h1(U, S, X, ar2_r4_63[ari_106], K_u) in
+          out(c6, auth_u);
+          in(c9, ());
+          let sk_u1: hash0 = h0(U, S, X, ar2_r4_63[ari_106], K_u)
+        orfind ari_103 <= N suchthat defined(Ystar_u[ari_103], ar2_m_74[ari_103], ar2_r4_72[ari_103]) && otheruses(ar2_r4_72[ari_103]) && (Ystar_u = Ystar_u[ari_103]) then
+          let K_u: G = exp(ar2_r4_72[ari_103], x) in
+          let auth_u: hash1 = h1(U, S, X, ar2_r4_72[ari_103], K_u) in
+          out(c6, auth_u);
+          in(c9, ());
+          let sk_u2: hash0 = h0(U, S, X, ar2_r4_72[ari_103], K_u)
+        orfind ari_100 <= N suchthat defined(Y[ari_100], ar2_x_71[ari_100], y[ari_100], ar2_r2_69[ari_100]) && otheruses(ar2_r2_69[ari_100]) && (Ystar_u = ar2_r2_69[ari_100]) then
+	(
+          let K_u: G = exp(g, mult(y[ari_100], x)) in
+          let auth_u: hash1 = h1(U, S, X, Y[ari_100], K_u) in
+          out(c6, auth_u);
+          in(c9, ());
+          let sk_u3: hash0 = h0(U, S, X, Y[ari_100], K_u)
+        )
+        else
+          new ar2_r4_72: G;
+          let K_u: G = exp(ar2_r4_72, x) in
+          let auth_u: hash1 = h1(U, S, X, ar2_r4_72, K_u) in
+          out(c6, auth_u);
+          in(c9, ());
+          let sk_u4: hash0 = h0(U, S, X, ar2_r4_72, K_u)
+	  )
+      |
+       (
+        ! N
+        in(c3, (=U, X_s: G));
+        new y: exponent;
+        let Y: G = exp(g, y) in
+        let ar2_x_71: G = cst_G in
+        let ar2_ke_70: passwd = cst_passwd in
+          new ar2_r2_69: G;
+          out(c4, (S, ar2_r2_69));
+          in(c7, auth_s: hash1);
+          find j <= N suchthat defined(x[j], X[j]) && (X[j] = X_s) then
+          (  let K_s_47: G = exp(g, mult(x[j], y)) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_47)) then
+            let sk_s: hash0 = h0(U, S, X_s, Y, K_s_47)
+          )
+          else
+            let K_s_48: G = exp(X_s, y) in
+            if (auth_s = h1(U, S, X_s, Y, K_s_48)) then
+            event bad
+       )
+    |
+      (
+        ! qE
+        in(ar2_c1, (ar2_x: G, ar2_ke: passwd));
+        let ar2_x_68: G = cst_G in
+        let ar2_ke_67: passwd = cst_passwd in
+        find ari_90 <= qD suchthat defined(ar2_m[ari_90], ar2_kd[ari_90], ar2_kd_64[ari_90], ar2_m_65[ari_90], ar2_r4_63[ari_90]) && otheruses(ar2_r4_63[ari_90]) && ((ar2_x = ar2_r4_63[ari_90]) && (ar2_ke = ar2_kd[ari_90])) then
+          out(ar2_c2, ar2_m[ari_90])
+        orfind ari_87 <= N suchthat defined(Ystar_u[ari_87], pw, ar2_kd_73[ari_87], ar2_m_74[ari_87], ar2_r4_72[ari_87]) && otheruses(ar2_r4_72[ari_87]) && ((ar2_x = ar2_r4_72[ari_87]) && (ar2_ke = pw)) then
+          out(ar2_c2, Ystar_u[ari_87])
+        orfind ari_85 <= qE suchthat defined(ar2_ke[ari_85], ar2_x[ari_85], ar2_x_68[ari_85], ar2_ke_67[ari_85], ar2_r2_66[ari_85]) && otheruses(ar2_r2_66[ari_85]) && ((ar2_x = ar2_x[ari_85]) && (ar2_ke = ar2_ke[ari_85])) then
+          out(ar2_c2, ar2_r2_66[ari_85])
+        orfind ari_84 <= N suchthat defined(pw, Y[ari_84], ar2_x_71[ari_84], ar2_ke_70[ari_84], ar2_r2_69[ari_84]) && otheruses(ar2_r2_69[ari_84]) && ((ar2_x = Y[ari_84]) && (ar2_ke = pw)) then
+          out(ar2_c2, ar2_r2_69[ari_84])
+        else
+          new ar2_r2_66: G;
+          out(ar2_c2, ar2_r2_66)
+       )
+      |
+      (
+        ! qD
+        in(ar2_c3, (ar2_m: G, ar2_kd: passwd));
+        let ar2_m_65: G = cst_G in
+        let ar2_kd_64: passwd = cst_passwd in
+        find ari_82 <= qD suchthat defined(ar2_kd[ari_82], ar2_m[ari_82], ar2_m_65[ari_82], ar2_kd_64[ari_82], ar2_r4_63[ari_82]) && otheruses(ar2_r4_63[ari_82]) && ((ar2_m = ar2_m[ari_82]) && (ar2_kd = ar2_kd[ari_82])) then
+          out(ar2_c4, ar2_r4_63[ari_82])
+        orfind ari_79 <= N suchthat defined(pw, Ystar_u[ari_79], ar2_m_74[ari_79], ar2_kd_73[ari_79], ar2_r4_72[ari_79]) && otheruses(ar2_r4_72[ari_79]) && ((ar2_m = Ystar_u[ari_79]) && (ar2_kd = pw)) then
+          out(ar2_c4, ar2_r4_72[ari_79])
+        orfind ari_77 <= qE suchthat defined(ar2_x[ari_77], ar2_ke[ari_77], ar2_ke_67[ari_77], ar2_x_68[ari_77], ar2_r2_66[ari_77]) && otheruses(ar2_r2_66[ari_77]) && ((ar2_m = ar2_r2_66[ari_77]) && (ar2_kd = ar2_ke[ari_77])) then
+          out(ar2_c4, ar2_x[ari_77])
+        orfind ari_76 <= N suchthat defined(Y[ari_76], pw, ar2_ke_70[ari_76], ar2_x_71[ari_76], ar2_r2_69[ari_76]) && otheruses(ar2_r2_69[ari_76]) && ((ar2_m = ar2_r2_69[ari_76]) && (ar2_kd = pw)) then
+          out(ar2_c4, Y[ari_76])
+        else
+          new ar2_r4_63: G;
+          out(ar2_c4, ar2_r4_63)
+      )
+  |
+  (
+    ! qH0
+    in(c10, (x1_46: host, x2_45: host, x3_44: G, x4_43: G, x5_42: G));
+    out(c20, h0(x1_46, x2_45, x3_44, x4_43, x5_42))
+  )
+|
+  (
+  ! qH1
+  in(c11, (x1_41: host, x2_40: host, x3_39: G, x4_38: G, x5_37: G));
+  out(c21, h1(x1_41, x2_40, x3_39, x4_38, x5_37))
+)
+)

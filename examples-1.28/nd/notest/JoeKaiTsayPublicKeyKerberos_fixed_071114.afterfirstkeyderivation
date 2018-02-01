@@ -1,0 +1,499 @@
+in(start, ());
+new rkC: keyseed;
+let pkC: pkey = pkgen2(rkC) in
+new rkCs: skeyseed;
+let spkC: spkey = spkgen2(rkCs) in
+new rkKs: skeyseed;
+let spkK: spkey = spkgen2(rkKs) in
+new rkCA: skeyseed;
+let pkCA: spkey = spkgen2(rkCA) in
+new rKt: symkeyseed;
+let Kt: key = kgen(rKt) in
+new rKs: symkeyseed;
+let Ks: key = kgen(rKs) in
+let x_90: sblocksize = concat1(C, pkC, spkC) in
+new q1: sseed;
+let certC: signature = sign2(x_90, sskgen2(rkCA), q1) in
+out(c25, (pkC, spkC, spkK, pkCA));
+(
+  (
+    (
+      (
+        (
+          ! !_35 <= N
+          in(c1[!_35], hostT: tgs);
+          new n2: nonce;
+          let x_121: sblocksize = padno(n2) in
+          new n1: nonce;
+          new r1: sseed;
+          out(c2[!_35], (C, pkC, spkC, certC, n2, sign2(x_121, sskgen2(rkCs), r1), C, hostT, n1));
+          in(c3[!_35], (m21: bitstring, =C, TGT_58: maxmac, m24: maxmac));
+          find @i_184 <= N suchthat defined(ck[@i_184], kp_146[@i_184], m2_169[@i_184]) && (m21 = m2_169[@i_184]) then
+            let hostZ: kas = K in
+            let k1': key = keyderivation(kp_146[@i_184], un1) in
+            let k2': key = keyderivation(kp_146[@i_184], un2) in
+            let x_119: sblocksize = padno(n2) in
+            let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+            if checkmac(y', k2', ck[@i_184]) then
+            let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, k1') in
+            event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+            out(c18[!_35], acceptC1(hostZ, hostT));
+            ! !_36 <= N3
+            in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+            if (hosT' = hostT) then
+            new tc_206: timest;
+            new r7_207: symseed;
+            let e5: maxmac = encsym(pad(C, tc_206), AK_60, r7_207) in
+            event partCT(hostT, TGT_58, e5);
+            new n3_208: nonce;
+            out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_208));
+            in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+            let injbot2(concat8(SK_63: key, =n3_208, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+            event fullCT(hostT, hostS, n3_208, TGT_58, e5, m7);
+            out(c19[!_36, !_35], acceptC2(hostT, hostS));
+            ! !_37 <= N4
+            in(c20[!_37, !_36, !_35], hostS': server);
+            if (hostS' = hostS) then
+            new tc'_209: timest;
+            new r2_210: symseed;
+            let e12: maxmac = encsym(pad(C, tc'_209), SK_63, r2_210) in
+            event partCS(hostS, hostT, m7, e12);
+            out(c6[!_37, !_36, !_35], (m6, e12));
+            in(c9[!_37, !_36, !_35], (m13: maxmac));
+            let injbot2(padts(=tc'_209)) = decsym(m13, SK_63) in
+            event fullCS(hostS, hostT, m7, e12, m13);
+            out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+          orfind @i_183 <= N suchthat defined(ck[@i_183], m2_174[@i_183]) && (m21 = m2_174[@i_183]) then
+            let hostZ: kas = K in
+            find  suchthat defined(ck[@i_183], r_252[@i_183]) then
+              find  suchthat defined(ck[@i_183], r_249[@i_183]) then
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_249[@i_183], ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_252[@i_183]) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_349: timest;
+                new r7_350: symseed;
+                let e5: maxmac = encsym(pad(C, tc_349), AK_60, r7_350) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_351: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_351));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_351, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_351, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_352: timest;
+                new r2_353: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_352), SK_63, r2_353) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_352)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+              orfind @i_270 <= N suchthat defined(r_255[@i_270], @i_183[@i_270]) && (@i_183[@i_270] = @i_183) then
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_255[@i_270], ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_252[@i_183]) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_354: timest;
+                new r7_355: symseed;
+                let e5: maxmac = encsym(pad(C, tc_354), AK_60, r7_355) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_356: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_356));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_356, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_356, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_357: timest;
+                new r2_358: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_357), SK_63, r2_358) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_357)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+              else
+                new s_343: symkeyseed;
+                let r_255: key = kgen(s_343) in
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_255, ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_252[@i_183]) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_344: timest;
+                new r7_345: symseed;
+                let e5: maxmac = encsym(pad(C, tc_344), AK_60, r7_345) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_346: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_346));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_346, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_346, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_347: timest;
+                new r2_348: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_347), SK_63, r2_348) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_347)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+            orfind @i_273 <= N suchthat defined(r_258[@i_273], @i_183[@i_273]) && (@i_183[@i_273] = @i_183) then
+              find  suchthat defined(ck[@i_183], r_249[@i_183]) then
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_249[@i_183], ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_258[@i_273]) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_365: timest;
+                new r7_366: symseed;
+                let e5: maxmac = encsym(pad(C, tc_365), AK_60, r7_366) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_367: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_367));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_367, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_367, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_368: timest;
+                new r2_369: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_368), SK_63, r2_369) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_368)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+              orfind @i_270 <= N suchthat defined(r_255[@i_270], @i_183[@i_270]) && (@i_183[@i_270] = @i_183) then
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_255[@i_270], ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_258[@i_273]) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_370: timest;
+                new r7_371: symseed;
+                let e5: maxmac = encsym(pad(C, tc_370), AK_60, r7_371) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_372: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_372));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_372, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_372, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_373: timest;
+                new r2_374: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_373), SK_63, r2_374) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_373)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+              else
+                new s_359: symkeyseed;
+                let r_255: key = kgen(s_359) in
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_255, ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_258[@i_273]) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_360: timest;
+                new r7_361: symseed;
+                let e5: maxmac = encsym(pad(C, tc_360), AK_60, r7_361) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_362: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_362));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_362, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_362, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_363: timest;
+                new r2_364: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_363), SK_63, r2_364) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_363)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+            else
+              new s_259: symkeyseed;
+              let r_258: key = kgen(s_259) in
+              find  suchthat defined(ck[@i_183], r_249[@i_183]) then
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_249[@i_183], ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_258) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_333: timest;
+                new r7_334: symseed;
+                let e5: maxmac = encsym(pad(C, tc_333), AK_60, r7_334) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_335: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_335));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_335, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_335, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_336: timest;
+                new r2_337: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_336), SK_63, r2_337) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_336)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+              orfind @i_270 <= N suchthat defined(r_255[@i_270], @i_183[@i_270]) && (@i_183[@i_270] = @i_183) then
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_255[@i_270], ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_258) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_338: timest;
+                new r7_339: symseed;
+                let e5: maxmac = encsym(pad(C, tc_338), AK_60, r7_339) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_340: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_340));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_340, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_340, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_341: timest;
+                new r2_342: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_341), SK_63, r2_342) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_341)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+              else
+                new s_327: symkeyseed;
+                let r_255: key = kgen(s_327) in
+                let x_119: sblocksize = padno(n2) in
+                let y': maxmac = concat6(C, pkC, spkC, certC, n2, sign2(x_119, sskgen2(rkCs), r1), C, hostT, n1) in
+                if checkmac(y', r_255, ck[@i_183]) then
+                let injbot2(concat4(AK_60: key, =n1, tk_59: timest, =hostT)) = decsym(m24, r_258) in
+                event fullCK(hostZ, hostT, n1, m21, TGT_58, m24);
+                out(c18[!_35], acceptC1(hostZ, hostT));
+                ! !_36 <= N3
+                in(c17[!_36, !_35], (hosT': tgs, hostS: server));
+                if (hosT' = hostT) then
+                new tc_328: timest;
+                new r7_329: symseed;
+                let e5: maxmac = encsym(pad(C, tc_328), AK_60, r7_329) in
+                event partCT(hostT, TGT_58, e5);
+                new n3_330: nonce;
+                out(c4[!_36, !_35], (TGT_58, e5, hostS, n3_330));
+                in(c5[!_36, !_35], (=C, m6: maxmac, m7: maxmac));
+                let injbot2(concat8(SK_63: key, =n3_330, tt_62: timest, =hostS)) = decsym(m7, AK_60) in
+                event fullCT(hostT, hostS, n3_330, TGT_58, e5, m7);
+                out(c19[!_36, !_35], acceptC2(hostT, hostS));
+                ! !_37 <= N4
+                in(c20[!_37, !_36, !_35], hostS': server);
+                if (hostS' = hostS) then
+                new tc'_331: timest;
+                new r2_332: symseed;
+                let e12: maxmac = encsym(pad(C, tc'_331), SK_63, r2_332) in
+                event partCS(hostS, hostT, m7, e12);
+                out(c6[!_37, !_36, !_35], (m6, e12));
+                in(c9[!_37, !_36, !_35], (m13: maxmac));
+                let injbot2(padts(=tc'_331)) = decsym(m13, SK_63) in
+                event fullCS(hostS, hostT, m7, e12, m13);
+                out(c10[!_37, !_36, !_35], acceptC3(hostS'))
+        |
+          ! !_38 <= N
+          in(c22[!_38], (hostY_53: client, pkY: pkey, spkY: spkey, ms3: signature, n4: nonce, ms4: signature, hostV: client, hostW_52: tgs, n5: nonce));
+          if (hostV = hostY_53) then
+          if (((hostY_53 = C) && ((pkY = pkC) && (spkY = spkC))) && check2(concat1(hostY_53, pkY, spkY), pkCA, ms3)) then
+          find @i_123 <= N suchthat defined(n2[@i_123], x_119[@i_123]) && ((n4 = n2[@i_123]) && check2(padno(n4), spkY, ms4)) then
+            find j1 <= N2 suchthat defined(Qkey[j1], Lhost[j1]) && (Lhost[j1] = hostW_52) then
+            new s3_145: symkeyseed;
+            let AK_54: key = kgen(s3_145) in
+            new kp_146: protkey;
+            let k1: key = keyderivation(kp_146, un1) in
+            let k2: key = keyderivation(kp_146, un2) in
+            new tk_148: timest;
+            new r4_147: symseed;
+            let TGT_56: maxmac = encsym(concat5(AK_54, tk_148, hostY_53), Qkey[j1], r4_147) in
+            new r5_149: symseed;
+            let e24: maxmac = encsym(concat4(AK_54, n5, tk_148, hostW_52), k1, r5_149) in
+            let y: maxmac = concat6(hostY_53, pkY, spkY, ms3, n4, ms4, hostY_53, hostW_52, n5) in
+            let ck: macs = mac(y, k2) in
+            new r7_151: seed;
+            let m2_169: bitstring = enc2(Z, pkY, r7_151) in
+            let m5: bitstring = (m2_169, hostY_53, TGT_56, e24) in
+            event fullKC(hostY_53, hostW_52, n5, m2_169, TGT_56, e24);
+            out(c23[!_38], m5)
+          orfind @i_123 <= N suchthat defined(n2[@i_123], x_121[@i_123]) && ((n4 = n2[@i_123]) && check2(padno(n4), spkY, ms4)) then
+            find j1 <= N2 suchthat defined(Qkey[j1], Lhost[j1]) && (Lhost[j1] = hostW_52) then
+            new s3_152: symkeyseed;
+            let AK_54: key = kgen(s3_152) in
+            find @i_265 <= N suchthat defined(r_258[@i_265], @i_183[@i_265]) && (@i_183[@i_265] = !_38) then
+              find @i_262 <= N suchthat defined(r_255[@i_262], @i_183[@i_262]) && (@i_183[@i_262] = !_38) then
+                new tk_323: timest;
+                new r4_324: symseed;
+                let TGT_56: maxmac = encsym(concat5(AK_54, tk_323, hostY_53), Qkey[j1], r4_324) in
+                new r5_325: symseed;
+                let e24: maxmac = encsym(concat4(AK_54, n5, tk_323, hostW_52), r_258[@i_265], r5_325) in
+                let y: maxmac = concat6(hostY_53, pkY, spkY, ms3, n4, ms4, hostY_53, hostW_52, n5) in
+                let ck: macs = mac(y, r_255[@i_262]) in
+                new r7_326: seed;
+                let m2_174: bitstring = enc2(Z, pkY, r7_326) in
+                let m5: bitstring = (m2_174, hostY_53, TGT_56, e24) in
+                event fullKC(hostY_53, hostW_52, n5, m2_174, TGT_56, e24);
+                out(c23[!_38], m5)
+              else
+                new s_318: symkeyseed;
+                let r_249: key = kgen(s_318) in
+                new tk_319: timest;
+                new r4_320: symseed;
+                let TGT_56: maxmac = encsym(concat5(AK_54, tk_319, hostY_53), Qkey[j1], r4_320) in
+                new r5_321: symseed;
+                let e24: maxmac = encsym(concat4(AK_54, n5, tk_319, hostW_52), r_258[@i_265], r5_321) in
+                let y: maxmac = concat6(hostY_53, pkY, spkY, ms3, n4, ms4, hostY_53, hostW_52, n5) in
+                let ck: macs = mac(y, r_249) in
+                new r7_322: seed;
+                let m2_174: bitstring = enc2(Z, pkY, r7_322) in
+                let m5: bitstring = (m2_174, hostY_53, TGT_56, e24) in
+                event fullKC(hostY_53, hostW_52, n5, m2_174, TGT_56, e24);
+                out(c23[!_38], m5)
+            else
+              new s_253: symkeyseed;
+              let r_252: key = kgen(s_253) in
+              find @i_262 <= N suchthat defined(r_255[@i_262], @i_183[@i_262]) && (@i_183[@i_262] = !_38) then
+                new tk_314: timest;
+                new r4_315: symseed;
+                let TGT_56: maxmac = encsym(concat5(AK_54, tk_314, hostY_53), Qkey[j1], r4_315) in
+                new r5_316: symseed;
+                let e24: maxmac = encsym(concat4(AK_54, n5, tk_314, hostW_52), r_252, r5_316) in
+                let y: maxmac = concat6(hostY_53, pkY, spkY, ms3, n4, ms4, hostY_53, hostW_52, n5) in
+                let ck: macs = mac(y, r_255[@i_262]) in
+                new r7_317: seed;
+                let m2_174: bitstring = enc2(Z, pkY, r7_317) in
+                let m5: bitstring = (m2_174, hostY_53, TGT_56, e24) in
+                event fullKC(hostY_53, hostW_52, n5, m2_174, TGT_56, e24);
+                out(c23[!_38], m5)
+              else
+                new s_309: symkeyseed;
+                let r_249: key = kgen(s_309) in
+                new tk_310: timest;
+                new r4_311: symseed;
+                let TGT_56: maxmac = encsym(concat5(AK_54, tk_310, hostY_53), Qkey[j1], r4_311) in
+                new r5_312: symseed;
+                let e24: maxmac = encsym(concat4(AK_54, n5, tk_310, hostW_52), r_252, r5_312) in
+                let y: maxmac = concat6(hostY_53, pkY, spkY, ms3, n4, ms4, hostY_53, hostW_52, n5) in
+                let ck: macs = mac(y, r_249) in
+                new r7_313: seed;
+                let m2_174: bitstring = enc2(Z, pkY, r7_313) in
+                let m5: bitstring = (m2_174, hostY_53, TGT_56, e24) in
+                event fullKC(hostY_53, hostW_52, n5, m2_174, TGT_56, e24);
+                out(c23[!_38], m5)
+        )
+      |
+        ! !_39 <= N
+        in(c7[!_39], (m8: maxmac, m9: maxmac, hostW_46: server, n': nonce));
+        let injbot2(concat5(AK_49: key, tk_48: timest, hostY_47: client)) = decsym(m8, Kt) in
+        let injbot2(pad(=hostY_47, ts: timest)) = decsym(m9, AK_49) in
+        event partTC(hostY_47, m8, m9);
+        find j3 <= N2 suchthat defined(Pkey[j3], Mhost2[j3], Mhost1[j3]) && ((Mhost1[j3] = T) && (Mhost2[j3] = hostW_46)) then
+        new rSK: symkeyseed;
+        let SK_50: key = kgen(rSK) in
+        new tt_51: timest;
+        new r10: symseed;
+        let e10: maxmac = encsym(concat5(SK_50, tt_51, hostY_47), Pkey[j3], r10) in
+        new r11: symseed;
+        let e11: maxmac = encsym(concat8(SK_50, n', tt_51, hostW_46), AK_49, r11) in
+        event fullTC(hostY_47, hostW_46, n', m8, m9, e10, e11);
+        out(c8[!_39], (hostY_47, e10, e11, acceptT(hostY_47, hostW_46)))
+      )
+    |
+      ! !_40 <= N
+      in(c11[!_40], (m14: maxmac, m15: maxmac));
+      let injbot2(concat5(SK_44: key, tt_43: timest, hostC: client)) = decsym(m14, Ks) in
+      let injbot2(pad(=hostC, tc'_45: timest)) = decsym(m15, SK_44) in
+      new r16: symseed;
+      let e16: maxmac = encsym(padts(tc'_45), SK_44, r16) in
+      event partSC(hostC, m14, m15);
+      event fullSC(hostC, m14, m15, e16);
+      out(c12[!_40], (e16, acceptS(hostC)))
+    )
+  |
+    ! !_41 <= N2
+    in(c21[!_41], (Lhost: tgs, Lkey: key));
+    if (Lhost = T) then
+      let Qkey: key = Kt
+    else
+      let Qkey: key = Lkey
+  )
+|
+  ! !_42 <= N2
+  in(c16[!_42], (Mhost1: tgs, Mhost2: server, Mkey: key));
+  if ((Mhost1 = T) && (Mhost2 = S)) then
+    let Pkey: key = Ks
+  else
+    let Pkey: key = Mkey
+)

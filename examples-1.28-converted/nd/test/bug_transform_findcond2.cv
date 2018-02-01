@@ -1,0 +1,70 @@
+(* Internal error.
+The transformation of h(x,y) leads to creating a variable r and making
+a look up on r. When we do that in the condition of a find, we make
+a look up on a variable defined in the condition of find, which is
+forbidden.
+*)
+
+
+param N.
+
+type G [large, fixed].
+type hashinput [fixed].
+type hash [fixed].
+type host.
+type hr [fixed].
+
+
+param N', N'', qH.
+
+fun h(hashinput, hr):hash.
+
+equiv
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := return(h(x,y))
+<=(0)=>
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := find k <= N'', j <= N' suchthat defined(y[j], r[k, j]) && (y= y[j]) then return(r[k,j]) else new r: hash; return(r).
+
+channel c5, c6.
+
+ 
+
+
+(* Queries *)
+
+query secret s.
+
+channel c1, c2, c3, c4, 
+	start, finish.
+
+
+
+
+
+
+process 
+	(((
+  ! i_1 <= N
+  in(c1[i_1], (m: hash, x': hashinput));
+  find j_4 = j_5 <= N suchthat defined(y[j_5]) && (m = h(x', y[j_5])) then
+    out(c2[i_1], true)
+  else
+    out(c2[i_1], false)
+) | (
+  ! i_2 <= N
+  in(c3[i_2], x_1: hashinput);
+  new y: hr;
+  new s: G;
+  out(c4[i_2], s)
+) | (
+  ! i_3 <= qH
+  in(c5[i_3], (x_2: hashinput, y': hr));
+  out(c6[i_3], h(x_2, y'))
+))
+
+)
+
+
+(* EXPECTED
+RESULT Could not prove secrecy of s.
+0.016s (user 0.016s + system 0.000s), max rss 36816K
+END *)

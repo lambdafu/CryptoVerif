@@ -1,0 +1,114 @@
+(* Needham Schroeder public key protocol. *)
+
+(* In order to determine the proof, use interactive mode: 
+   set interactiveMode = true.
+The proof is as follows: *)
+
+
+proof {
+crypto uf_cma(sign) rk_92;
+crypto ind_cca2(enc) rk_122;
+crypto ind_cca2(enc) rk_121;
+success;
+auto
+}
+
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [fixed,large].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type sseed [fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [fixed].
+type role [bounded].
+type hostname [bounded].
+
+
+implementation typesize sseed 8;
+               typesize skeyseed 8;
+               typesize keyseed 8;
+               typesize seed 8;
+               typesize nonce 8;
+               typep host "bitstringp";
+               typep pkey "bitstringp";
+               typep signature "bitstringp".
+               
+
+
+table keytbl(host,pkey).
+implementation table keytbl="keytbl".
+
+
+fun get_hostname():hostname.
+fun concat1(nonce, host):blocksize [compos].
+fun concat2(nonce, nonce):blocksize [compos].
+fun concat3(pkey, host):sblocksize [compos].
+fun concat4(hostname, role):host [compos].
+fun pad(nonce):blocksize [compos].
+
+forall z:nonce,t:nonce,y2:nonce,z2:host;
+	concat2(z,t) <> concat1(y2,z2).
+forall y:nonce,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+forall z:nonce,t:nonce,y2:nonce;
+	concat2(z,t) <> pad(y2).
+
+(* Public-key encryption (IND-CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+(* Queries *)
+
+query secret1 x.
+
+const roleA:role.
+const roleB:role.
+
+(*implementation*)
+
+implementation function concat1="concat" "unconcat";
+               function concat2="concat" "unconcat";
+               function concat3="concat" "unconcat";
+               function concat4="concat" "unconcat";
+               function sign="sign";
+               function spkgen="spkgen";
+               function sskgen="sskgen";
+               function get_hostname="get_hostname";
+               function pkgen="pkgen";
+               function skgen="skgen";
+               function check="check_sign";
+               function enc="senc";
+               function dec="sdec";
+               function injbot="injbot" "injbot_inv";
+               function pad="pad" "pad_inv";
+               function roleA="constA";
+               function roleB="constB".
+
+
+letfun kgen()=  rk <-R keyseed;(pkgen(rk),skgen(rk)).
+
+process 
+	foreach i<=N do O() := let (pk: pkey, sk: skey) = kgen() in x<-R keyseed; return() 

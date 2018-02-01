@@ -1,0 +1,124 @@
+
+(** Hashed ElGamal encryption scheme **)
+
+(** An encryption scheme 
+    using an entropy-smoothing hash-function family
+    is shown to be SS
+    under the DDH assumption.
+    See Section 3, "Sequences of Games", Victor Shoup. **)
+
+param n, q.
+
+type Z [fixed].
+
+type G [fixed].
+
+type K [large,fixed].
+type D [fixed].
+
+proba pDDH.
+proba pESF.
+
+fun exp(G,Z): G.
+const gamma:G.
+
+(* gamma is a uniform generator *)
+
+equiv 
+    () n -> new x:Z; exp(gamma,x) [all]
+<=(0)=>  (* BB: The difference of probability is 0 *)
+    () n -> new y:G; y.
+
+fun mult(Z,Z): Z.
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+fun xor(D,D): D.
+
+(* xor self-cancels *)
+
+forall x:D, y:D;
+  xor(x, xor(x,y)) = y.
+
+(* xor(.,y) is a one-time pad *)
+
+equiv 
+    (y:D) n -> new x:D; xor(x,y) [all]
+<=(0)=>   (* BB: The difference of probability is 0 *)
+    (y:D) n -> new x:D; x.
+
+(* the DDH assumption *) 
+
+equiv
+    !n new x:Z; new y:Z; (
+      () -> exp(gamma,x), 
+      () -> exp(gamma,y), 
+      () -> exp(gamma, mult(x,y)) ) (* BB: removed [all] *)
+<=(pDDH(time) * n)=>
+    !n new x:Z; new y:Z; new z:Z; (
+      () -> exp(gamma,x), 
+      () -> exp(gamma,y), 
+      () -> exp(gamma, z) ).
+
+fun h(K,G): D.
+
+(* h(K) is an entropy-smoothing hash-function family *)
+
+equiv 
+    !n new k:K; new delta:G; (
+      () -> k,
+      () -> h(k,delta) ) [all]
+<=(pESF(time) * n)=>
+    !n new k:K; new hash:D; (
+      () -> k,
+      () -> hash ).
+    
+fun choose(bool,D,D): D.
+
+(* choose(b,M,N) = if b then M else N *)
+
+forall x:bool, y:D, z:D;
+  (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
+
+(* query *)
+query secret b.
+
+channel dummy, cPK, cE, cEret, start.
+
+let processE = 
+    in(cE, (m0:D, m1:D));
+    new b:bool;
+    let m = choose(b,m1,m0) in
+    new y:Z;
+    let beta = exp(gamma,y) in
+    let delta = exp(alpha,y) in
+    let hash = h(k,delta) in
+    let v = xor(hash, m) in
+    out(cEret, (beta,v)).
+
+process
+  !q  (* BB: Replication not present in Shoup's paper, but ok *)
+  in(dummy, ());
+  new x:Z;
+  new k:K;
+  let alpha = exp(gamma,x) in
+  out(cPK, (alpha,k)); 
+  processE
+
+(* BB: Cut, useless 
+
+process
+  in(start, ());
+  out(dummy, ());
+  processI
+
+*)
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.020s + system 0.000s), max rss 17008K
+END *)
