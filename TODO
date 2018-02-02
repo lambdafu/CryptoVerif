@@ -273,10 +273,6 @@ We could probably push this idea for noninterf x among S.
    [unchanged] restrictions are shared between both sides.
 
    TO DO in ProVerif
-   - Parsing_helper: next_line -> Lexing.new_line
-   Use set_start (as in CryptoVerif) instead of combine_extent
-   Show the line number only once when it is the same for the
-   beginning and the end.
    - Allow get, insert, event in terms (by expansion).
    - Use a <-R T as a synonym of new a: T,
       x [:T] <- M as a synonym of let x[:T] = M in,
