@@ -1,0 +1,37 @@
+#!/bin/bash
+
+##Please update to correspond to the location of ProVerif/CryptoVerif on your computer
+TIMER=../../xtime
+CRYPTOVERIF="../../cryptoverif -lib ../../default"
+
+if [ -x $TIMER ]
+then
+    PROG=$TIMER
+else
+    PROG=
+fi
+
+## Analysis of the protocol in CryptoVerif
+
+function analyzecv()
+{
+echo PROTOCOL CV $1
+
+$PROG $CRYPTOVERIF ATN-$1.cv > ATN-$1.result < /dev/null
+egrep '(RESULT Could|All queries proved)' ATN-$1.result
+grep system ATN-$1.result | grep user
+}
+
+(
+analyzecv AirGround
+analyzecv GroundGround
+analyzecv AirGround-Fixed
+) | tee results
+
+## Build the full summary
+
+(
+
+egrep '(PROTOCOL|RESULT Could|All queries proved|system)' results
+ 
+) | tee results.summary

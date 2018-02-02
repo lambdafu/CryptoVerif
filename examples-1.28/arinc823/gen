@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ##Please update to correspond to the location of ProVerif/CryptoVerif on your computer
 TIMER=../../../xtime
@@ -96,13 +96,9 @@ cd ..
 (
 echo SHARED KEY PROTOCOL
 echo
-egrep '(PROTOCOL|RESULT|system)' sharedkey/results
-echo
 egrep '(PROTOCOL|RESULT Could|All queries proved|system)' sharedkey/results
 echo
 echo PUBLIC KEY PROTOCOL
-echo
-egrep '(PROTOCOL|RESULT|system)' publickey/results
 echo
 egrep '(PROTOCOL|RESULT Could|All queries proved|system)' publickey/results
  

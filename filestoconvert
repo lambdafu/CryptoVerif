@@ -18,6 +18,7 @@ Notes:
 * Use IND_CPA_INT_CTXT_sym_enc for authenticated encryption, not
 encrypt-then-MAC.
 * Put converted file in examples/basic
+* Remove "3Block" or "3Stream" from the filenames of converted files
 
 denning-sacco-corr3Block.cv
 needham-schroeder-pk3BlockAuth.cv
@@ -73,8 +74,12 @@ Two of these files are already converted.
 cryptoverif/implementation/{ssh,nspk,wlsk}
 
 Note: convert these files in place
+For the files implementation/ssh/ssh-secrecy-key-*.ocv,
+use a single master file ssh-secrecy-key.m4.ocv
+from which all these files would be generated (using the m4 preprocessor).
+------------------------------------------------------
 
-textsecure
+examples-1.28/textsecure
 tls 1.3 (tech report version)
 arinc823
 icao9880
