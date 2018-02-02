@@ -19,7 +19,6 @@ Notes:
 encrypt-then-MAC.
 * Put converted file in examples/basic
 
-denning-sacco3Block.cv
 denning-sacco-corr3Block.cv
 needham-schroeder-pk3BlockAuth.cv
 needham-schroeder-pkcorr3BlockAuth.cv

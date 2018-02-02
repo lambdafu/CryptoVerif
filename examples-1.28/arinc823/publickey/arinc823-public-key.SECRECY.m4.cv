@@ -1,0 +1,783 @@
+(* ARINC 823 
+AMS protocol using private/public keys
+described in Attachment 7 of the ARINC specification 823 Part I. 
+
+CryptoVerif model. *)
+
+(**** Proof indications ****)
+
+proof {
+      (* Apply UF-CMA assumption on signatures used for
+      	 certificates *)
+      crypto uf_cma(signcert) seedCA;
+      (* Apply random oracle assumption on KDF256 and KDF128.
+      	 After these transformations, the games compare
+	 the arguments of key generation functions with arguments
+	 in previous calls to these functions.
+	 Hence there are comparisons between values of Z_UV1, Z_UV2,
+	 and values coming from the adversary. *)
+      crypto rom(KDF256_128);
+      (* Replace occurrences of Z_UV1 and Z_UV2 with their values.
+      	 This step makes comparisons m = exp(g, dU.dV) and other comparisons
+	 with exponentials appear. *)
+      remove_assign binder Z_UV1;
+      remove_assign binder Z_UV2;
+      (* Use the Gap Diffie-Hellman assumption. 
+      	 This step eliminates cases in which the comparisons m = exp(g, dU.dV)
+	 fail. *)
+      crypto gdh(exp) dU dV;
+      (* Apply SUF-CMA assumption on signatures under dU and dV.
+      	 This step must be applied after the Gap Diffie-Hellman assumption
+	 because of the way the joint security assumption on DH
+	 and signatures is written. *)
+ifdef(`REPLAY_PROT',`	 
+      crypto suf_cma(sign) dV;
+      crypto suf_cma(sign) dU;
+',`      
+      crypto uf_cma(sign) dV;
+      crypto uf_cma(sign) dU;
+')
+      (* Use the automatic proof strategy.
+      	 This step applies the security assumptions on
+	 the MAC and encryption *)
+      auto
+}
+
+(**** Declarations of types, constants, and function symbols ****)
+
+(* Type for session ids, used internally in the model to distinguish
+   each session of the protocol. *)
+
+type session_ids [large, fixed].
+
+(* Type of 32 bits numbers *)
+
+type t_Rand32 [large, fixed]. 
+
+(* Ids 
+U = aircraft
+V = ground entity *)
+
+type t_id [fixed]. (* 8 bytes = 64 bits entity type, AMS_EntityType *)
+const U, V: t_id.
+
+(* AMS Message elements *)
+
+type t_AMS_elem.
+type t_software_part_number.
+type t_policy_id.
+type t_algo_bits [fixed].
+
+fun buildAMS10_s_init_info(t_software_part_number, t_policy_id, t_id, t_id): t_AMS_elem [compos].
+fun buildAMS40_entity_id(t_id, t_id): t_AMS_elem [compos].
+fun buildAMS41_comp_algo_id(t_algo_bits): t_AMS_elem [compos].
+fun buildAMS42_comp_algo_sel(t_algo_bits): t_AMS_elem [compos].
+    (* The first bit is 1 when DMC level 0 is supported.
+       The second bit is 1 when DMC level 1 is supported.
+       The third bit is 1 when DEFLATE is supported.
+       We ignore algorithms reserved for future use. *)
+
+fun payload_with_1_element(t_AMS_elem): bitstring [compos].
+fun concat_AMS_element(t_AMS_elem, bitstring): bitstring [compos].
+
+(* Encoding algorithms *)
+
+type t_encode_algo [fixed]. (* 2 bits *)
+
+const encode_OFF, encode_B64, encode_B64PAD, encode_B128: t_encode_algo.
+
+fun encode(t_encode_algo, bitstring): bitstring.
+fun decode(t_encode_algo, bitstring): bitstring.
+
+forall encode_algo: t_encode_algo, payload:bitstring; 
+      decode(encode_algo, encode(encode_algo, payload)) = payload.
+
+(* encode is injective *)
+forall encode_algo: t_encode_algo, payload1:bitstring, payload2:bitstring; 
+      (encode(encode_algo, payload1) = encode(encode_algo, payload2)) = (payload1 = payload2).
+
+(* Compression *)
+
+type t_comp_algo [fixed]. (* 4 bits, Value of the CompMode field *)
+
+const comp_OFF, comp_DMC0, comp_DMC1, comp_DEFLATE: t_comp_algo.
+
+fun compress(t_comp_algo, bitstring): bitstring.
+fun decompress(t_comp_algo, bitstring): bitstring.
+
+forall comp_algo: t_comp_algo, payload:bitstring; 
+      decompress(comp_algo, compress(comp_algo, payload)) = payload.
+
+fun bool_and(t_algo_bits, t_algo_bits): t_algo_bits.
+fun select_common_compression(t_AMS_elem, t_comp_algo): t_comp_algo.
+
+(* Algorithms *)
+
+type t_AMS_AlgID [bounded]. (* 16 bits *)
+type t_MAClen [bounded]. (* 4 bits *)
+type t_AuthAlgo [bounded]. (* 4 bits *)
+type t_EncAlgo [bounded]. (* 8 bits *)
+
+fun algo(t_MAClen, t_AuthAlgo, t_EncAlgo): t_AMS_AlgID [compos].
+
+const MAClen32, MAClen64, MAClen128: t_MAClen.
+const HMAC_SHA256: t_AuthAlgo.
+const NULL_enc, AES128_CFB128: t_EncAlgo.
+
+letfun get_common_enc_algo(enc_algo: t_EncAlgo) = 
+      if enc_algo = AES128_CFB128 then AES128_CFB128 else NULL_enc.
+
+(* Policy types *)
+
+type t_AMS_Policy [fixed]. (* 2 bits *)
+
+const NONE, SIGN, AUTH, BOTH: t_AMS_Policy.
+
+fun get_policy(t_policy_id, bitstring): t_AMS_Policy.
+     (* The definition of the policy is left implicit in this model.
+     	get_policy(policy_id, msg) is supposed to 
+	determine the expected policy to apply to the message msg 
+	from the message msg itself and the policy identifier policy_id. *)
+
+letfun get_protect_mode(policy: t_AMS_Policy, enc_algo: t_EncAlgo) =
+       if enc_algo = NULL_enc && policy = BOTH then AUTH else policy.
+(* If the security policy specifies the BOTH protection mode
+   and the selected encryption is NULL, then ProtectMode is set to AUTH.
+   In all other cases, ProtectMode is the protection mode
+   specified in the security policy. *)
+
+(* Protocol ids *)
+
+type t_AMS_PID [bounded]. (* 1 byte, "1" or "2" *)
+
+const ams_pid1 (* public-key protocol *), ams_pid2 (* shared-key protocol *): t_AMS_PID.
+
+(* Commands *)
+
+type t_Cmd [fixed]. (* 4 bits *)
+
+const Data_IND, Info_IND, DataCnf_IND, Release_REQ, Release_RSP_Minus, 
+      Release_RSP_Plus, Init_IND, Init_REQ, Init_RSP_Minus, Init_RSP_Plus,
+      Abort_IND: t_Cmd.
+
+fun ok_tunnel(t_Cmd): bool.
+forall; ok_tunnel(Init_IND) = false.
+forall; ok_tunnel(Init_REQ) = false.
+forall; ok_tunnel(Init_RSP_Minus) = false.
+forall; ok_tunnel(Init_RSP_Plus) = false.
+
+(* Counter *)
+
+type t_Count [fixed].
+
+const Count1: t_Count.
+const Count_unspecified: t_Count. 
+      (* Used as a dummy value to fill the count argument
+      	 of event recv_msg when the message is sent unprotected. *)
+
+(* MAC *)
+
+type mac_key [large, fixed].
+
+proba PPRF. 
+      (* PPRF(t, qMAC, l, qKDF256, qKDF128) is the probability of 
+         distinguishing MAC, KDF256, and KDF128 from independent pseudo-random
+	 functions in time t, with qMAC, qKDF256, qKDF128 queries to
+	 MAC, KDF256, and KDF128 respectively, with MAC queries of length
+	 at most l. *)
+
+(* sessionMAC is SUF-CMA for each of the 3 lengths *)
+
+expand SUF_CMA_MAC_3lengths(t_MAClen, MAClen32, MAClen64, MAClen128,
+       mac_key, sessionMAC, PPRF).
+
+(* Encryption *)
+
+type enc_key [large, fixed]. (* 128 bits *)
+type t_IVdata [fixed].
+
+type byte [fixed]. (* 1 byte = 8 bits *)
+const CstDN: byte. (* 0x00 *)
+const CstUP: byte. (* 0x01 *)
+fun buildIVdata(byte, t_Count): t_IVdata [compos].
+
+proba Penc.
+	(* Penc(t, N, l) is the probability of breaking the IND-CPA property of encryption
+	   in time t, with N queries to the left-right encryption oracle, of length at most l
+	   (for one encryption key). *)
+
+expand encryption_IV_IND_CPA(enc_key, t_IVdata, E', D', Zero, Penc).
+
+(* Elliptic curve Diffie-Hellman *)
+
+type Z [bounded, large].
+type G [bounded, large].
+proba pGDH.
+type seed [fixed, large].
+type signature [bounded].
+proba Psign.
+proba Psigncoll.
+
+ifdef(`REPLAY_PROT', `
+expand joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+  signature, seed, sign, ver, Psign, Psigncoll).', `
+expand joint_GDH_UFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+  signature, seed, sign, ver, Psign, Psigncoll).')
+
+(* Hash function HASH is collision resistant *)
+
+type t_SHA256_out [large, fixed]. (* 256 bits, output of SHA256 *)
+
+type hash_key [large,fixed].
+proba Phash.
+expand CollisionResistant_hash(hash_key, bitstring, t_SHA256_out, HASH, Phash).
+
+type t_AMS_Appendix.
+fun concat_hash(t_AMS_Appendix, t_Rand32): bitstring [compos].
+
+(* the concatenation of KDF256 and KDF128 is a random oracle *)
+type hash_key1 [large,fixed].
+type mac_enc_key [large,fixed].
+expand ROM_hash_quad(hash_key1, G, t_SHA256_out, t_id, t_id, mac_enc_key, KDF256_128).
+param qH [noninteractive].
+channel c1h, c2h.
+let KDF256_128_oracle = ! qH in(c1h, (x1:G, x2:t_SHA256_out, x3:t_id, x4:t_id)); out(c2h, KDF256_128(hk1,x1,x2,x3,x4)).
+
+(* Generating a single random key of type mac_enc_key and splitting it into
+   a MAC key and an encryption key is equivalent to generating a
+   random MAC key and a random encryption key. *)
+
+fun get_kmac(mac_enc_key): mac_key.
+fun get_kenc(mac_enc_key): enc_key.
+
+param N.
+
+equiv eq_mac_enc_key
+      !N new r: mac_enc_key; (O1() := get_kmac(r),
+      	    	              O2() := get_kenc(r))
+    <=(0)=>
+      !N (O1() := new r1: mac_key; r1,
+      	  O2() := new r2: enc_key; r2).
+
+(* Certificates *)
+
+proba Psigncert.
+proba Psigncollcert.
+
+type keyseed [large,fixed].
+type pkey [large,bounded].
+type skey [large,bounded].
+
+expand UF_CMA_signature(keyseed, pkey, skey, bitstring, signature, seed, skgen, pkgen, signcert, checkcert, Psigncert, Psigncollcert).
+
+letfun cert(Ux: t_id, Q: G, sCA: skey) = new r: seed; (Ux, Q, signcert((Ux, Q), sCA, r)).
+letfun vercert(certif: bitstring, pkCA: pkey) = 
+       let (Ux: t_id, Q:G, s: signature) = certif in
+       if checkcert((Ux, Q), pkCA, s) then (true, Ux, Q) else (false, Ux, Q)
+       else (false, certif).
+
+(* Time *)
+
+type t_AMS_Time [fixed].
+
+fun check_time(t_AMS_Time, t_AMS_Time): bool.
+     (* check_time(tU, tV) is supposed to check that 
+     	tV - 60 seconds <= tU <= tV + 120 seconds. *)
+
+(* Supplementary address type *)
+
+type t_AMS_SuppAddr.
+
+(* Session identifiers *)
+
+type t_SID [fixed]. (* 3 bits *)
+const SID0, SID1, SID2, SID3, SID4, SID5: t_SID.
+
+(* Building AMS messages *)
+
+type t_AMS_IMI. (* empty or "PM1." *)
+type t_AMS_ID.
+
+(* t_AMS_SuppAddr has variable length, but starts with / and ends with .
+   so it can be distinguished from the PID, and its length can be determined. *)
+fun buildAMS_id1(t_AMS_SuppAddr, t_AMS_IMI, t_AMS_PID): t_AMS_ID [compos].
+fun buildAMS_id2(t_AMS_PID): t_AMS_ID [compos].
+
+type t_AMS_Header. (* 2 bytes = 16 bits *)
+
+fun buildAMS_Header(bool (*R1 parameter, ignored*), t_AMS_Policy, t_encode_algo, t_SID, t_comp_algo, t_Cmd): t_AMS_Header [compos].
+
+fun buildAMS_msg_prefix1(t_AMS_ID, t_AMS_Header, bitstring): bitstring [compos].
+fun buildAMS_msg_prefix_Init(bitstring, t_AMS_AlgID, t_AMS_Time): bitstring [compos].
+fun buildAMS_msg_prefix_RSP(bitstring, t_AMS_AlgID, t_AMS_Time, t_Rand32, t_Count): bitstring [compos].
+fun buildAMS_msg_prefix_TBP_RSP(bitstring, t_AMS_AlgID, t_AMS_Time, t_Rand32, t_Count, t_AMS_Appendix): bitstring [compos].
+fun buildAMS_msg_prefix_Rest(bitstring, t_Count): bitstring [compos].
+
+fun buildMAC_arg(t_id, t_id, bitstring): bitstring [compos].
+fun build_msg_Init(bitstring, signature): bitstring [compos].
+fun buildAMS_appendix_Init(t_AMS_AlgID, t_AMS_Time, signature): t_AMS_Appendix [compos].
+fun concat(bitstring, bitstring): bitstring. (* concatenation; it is NOT compos, because the
+    		      		  	     	lengths of the two concatenated bitstrings is not known. *)
+fun split_message(t_MAClen, bitstring): bitstring.
+    			    		(* split_message(l, m) returns a pair (m1, m2) such that
+					   m is the concatenation of m1 and m2, and m2 has length l.
+					   In this protocol, m2 is the MAC, m1 is the rest of the message. *)
+
+(* Tables of message counters
+   We simulate a distinct table for each session by
+   adding a unique session identifier as first argument. *)
+
+table received_count_table(session_ids, t_Count).
+table sent_count_table(session_ids, t_Count).
+
+(* Tables for replay protection for Init_IND and Init_REQ messages *)
+
+table received_Init_IND_table(t_id, t_AMS_Time, signature).
+table received_Init_REQ_table(t_id, t_AMS_Time, signature).
+
+(**** Security properties ****)
+
+(* Authenticity of the payload messages, when the policy is not NONE *)
+
+event send_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
+event recv_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
+
+(*
+query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, policy: t_AMS_Policy, 
+      enc: t_EncAlgo, count: t_Count, msg: bitstring;
+      event recv_msg(U, V, tU, sU, randV, policy_id, policy, enc, count, msg) ==>
+      policy = get_policy(policy_id, msg) && 
+      (send_msg(V, U, tU, sU, randV, policy_id, policy, enc, count, msg) || policy = NONE).
+
+query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, policy: t_AMS_Policy, 
+      enc: t_EncAlgo, count: t_Count, msg: bitstring;
+      event recv_msg(V, U, tU, sU, randV, policy_id, policy, enc, count, msg) ==>
+      policy = get_policy(policy_id, msg) && 
+      (send_msg(U, V, tU, sU, randV, policy_id, policy, enc, count, msg) || policy = NONE).
+*)
+(* Freshness of the AMS_Init_REQ message; 
+   authentication of the aircraft to the ground entity *)
+
+event send_Init_REQ(t_id, t_id, bitstring, signature, t_AMS_Time).
+event recv_Init_REQ(t_id, t_id, bitstring, signature, t_AMS_Time, t_AMS_Time).
+(*
+query x: bitstring, sU: signature, tU: t_AMS_Time, tV: t_AMS_Time;
+      event recv_Init_REQ(V, U, x, sU, tU, tV) ==>
+      check_time(tU, tV) && send_Init_REQ(U, V, x, sU, tU).
+*)
+(* Authentication of the ground entity to the aircraft *)
+
+event send_Init_RSP(t_id, t_id, bitstring, bitstring, signature, t_Rand32, t_AMS_Time, t_AMS_Time, mac_key, enc_key).
+event recv_Init_RSP(t_id, t_id, bitstring, bitstring, signature, t_Rand32, t_AMS_Time, mac_key, enc_key).
+(*
+query x: bitstring, m: bitstring, sU: signature, RandV: t_Rand32, tU: t_AMS_Time, tV: t_AMS_Time, KMAC_UV: mac_key,
+      KENC_UV: enc_key;
+      event inj:recv_Init_RSP(U, V, x, m, sU, RandV, tU, KMAC_UV, KENC_UV) ==>
+      check_time(tU, tV) && inj:send_Init_RSP(V, U, x, m, sU, RandV, tU, tV, KMAC_UV, KENC_UV).
+*)
+
+(* Detection of bilateral UKS attacks *)
+(*
+query Ux: t_id, Vx: t_id, x: bitstring, m: bitstring, sU: signature, RandV: t_Rand32, tU: t_AMS_Time, tV: t_AMS_Time, KMAC_UV: mac_key, KENC_UV: enc_key,
+      Ux2: t_id, Vx2: t_id, x2: bitstring, m2: bitstring, sU2: signature, RandV2: t_Rand32, tU2: t_AMS_Time, KMAC_UV2: mac_key;
+      event send_Init_RSP(Vx, Ux, x, m, sU, RandV, tU, tV, KMAC_UV, KENC_UV) &&
+      	    recv_Init_RSP(Ux2, Vx2, x2, m2, sU2, RandV2, tU2, KMAC_UV2, KENC_UV) ==> Ux = Ux2 && Vx = Vx2.
+*)
+(* Freshness of the AMS_Init_IND message (ground-initiated trigger);
+   authentication of the ground entity to the aircraft *)
+
+event send_Init_IND(t_id, t_id, bitstring, signature, t_AMS_Time).
+event recv_Init_IND(t_id, t_id, bitstring, signature, t_AMS_Time, t_AMS_Time).
+(*
+query x: bitstring, sV: signature, tV: t_AMS_Time, tU: t_AMS_Time;
+      event recv_Init_IND(U, V, x, sV, tV, tU) ==>
+      check_time(tV, tU) && send_Init_IND(V, U, x, sV, tV).
+*)
+
+(* Secrecy *)
+
+fun test(bool, bitstring, bitstring): bitstring.
+forall x:bitstring,y:bitstring; test(true,x,y) = x.
+forall x:bitstring,y:bitstring; test(false,x,y) = y.
+forall b:bool,x:bitstring; test(b,x,x) = x.
+
+fun test_policy(bool, t_AMS_Policy, t_AMS_Policy): t_AMS_Policy.
+forall x:t_AMS_Policy,y:t_AMS_Policy; test_policy(true,x,y) = x.
+forall x:t_AMS_Policy,y:t_AMS_Policy; test_policy(false,x,y) = y.
+forall b:bool,x:t_AMS_Policy; test_policy(b,x,x) = x.
+
+forall policy_id:t_policy_id,b:bool,x:bitstring,y:bitstring; 
+       get_policy(policy_id, test(b, x, y)) = test_policy(b, get_policy(policy_id, x), get_policy(policy_id, y)).
+
+forall comp_algo: t_comp_algo, encode_algo: t_encode_algo, b:bool,x:bitstring,y:bitstring; 
+       Zero(compress(comp_algo, encode(encode_algo, test(b, x, y)))) =
+       test(b, Zero(compress(comp_algo, encode(encode_algo, x))),
+       	       Zero(compress(comp_algo, encode(encode_algo, y)))).
+
+query secret b.
+
+(**** The protocol ****)
+
+param Naircraft, Nground, Nground_init, Nground_init_react, Ncert_server, Nmessage.
+channel c_gen1, c_gen2, c_aircraft0, c_aircraft0', c_aircraft1, c_aircraft2, c_aircraft3, c_aircraft4, 
+	c_ground1, c_ground2, c_ground_initiated_trigger1, c_ground_initiated_trigger2,
+	c_aircraft_react_ground_initiated_trigger1, c_aircraft_react_ground_initiated_trigger2,
+	c_cert_server1, c_cert_server2,
+	choicechannel, pub.
+
+(* The process tunnel_protocol models the secure session data exchange
+   (Attachment 7, Section 7.3) *)
+
+let tunnel_protocol =
+(
+    (* Sender side *)
+    ! Nmessage
+    in(choicechannel, (AMS_payload1: bitstring, AMS_payload2: bitstring, 
+    		       encode_alg: t_encode_algo, comp_algo: t_comp_algo,
+		       ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, 
+		       count: t_Count, cmd: t_Cmd));
+		       (* cmd can be
+		       	  - Data_IND / DataCnf_IND in case D04
+			  - Info_IND in case X04
+			  - Release_REQ in case R03 (Confirmed release)
+			  - Release_RSP+ / Release_RSP- in case R12 (reply to a confirmed release request)
+			  - Abort_IND in case A03 (Abort) *)
+    if ok_tunnel(cmd) then
+    (* We never send two messages with the same count, in the same session. *)
+    get sent_count_table(=current_session_id, =count) in yield else
+    (* Secrecy is possible only when the two messages have policy BOTH;
+       in particular we require the two messages to have the same policy *)
+    let policy_req = get_policy(policy_id, AMS_payload1) in
+    if policy_req = get_policy(policy_id, AMS_payload2) then
+    let actual_comp_algo = select_common_compression(common_comp_algo_id, comp_algo) in
+    let encoded_payload1 = encode(encode_alg, AMS_payload1) in
+    let compressed_payload1 = compress(actual_comp_algo, encoded_payload1) in
+    let encoded_payload2 = encode(encode_alg, AMS_payload2) in
+    let compressed_payload2 = compress(actual_comp_algo, encoded_payload2) in
+    (* We prove secrecy for messages exchanged between U and V,
+       with policy BOTH and of the same compressed payload length. *)
+    if (((my_id = U && other_id = V) || (my_id = V && other_id = U)) &&
+        policy_req = BOTH && Zero(compressed_payload1) = Zero(compressed_payload2)) || (AMS_payload1 = AMS_payload2) then
+    let AMS_payload = test(b, AMS_payload1, AMS_payload2) in
+    event send_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
+    (* D01 *)
+    if policy_req = NONE then
+       out(pub, AMS_payload)
+    else
+    (* D/X02 *)
+    let encoded_payload = encode(encode_alg, AMS_payload) in
+    let compressed_payload = compress(actual_comp_algo, encoded_payload) in
+    insert sent_count_table(current_session_id, count);
+    (* D/X03 *)
+    let protect_mode = get_protect_mode(policy_req, common_enc_algo) in
+    let encrypted_AMS_payload =
+       if protect_mode = BOTH then
+          E'(KENC_UV, buildIVdata(dir_send, count), compressed_payload)
+       else 
+          compressed_payload
+    in
+    (* D/X04 *)
+    let ams_id = buildAMS_id1(ams_dstaddr, ams_imi, ams_pid) in
+    let ams_header = buildAMS_Header(false, protect_mode, encode_alg, sid, actual_comp_algo, cmd) in
+    let AMS_Data_IND_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Rest(encrypted_AMS_payload, count)) in
+    let TBP_AMS_Data_IND = buildMAC_arg(my_id, other_id, AMS_Data_IND_prefix) in
+    let mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Data_IND) in
+    let AMS_Data_IND = concat(AMS_Data_IND_prefix, mac) in
+    (* D/X05 *)
+    out(pub, AMS_Data_IND)
+)
+|
+(
+    (* Receiver side *)
+    ! Nmessage
+    in(pub, (clear:bool, AMS_Data_IND: bitstring));
+    	    (* clear is true when the received message is not AMS-protected.
+	       This is determined using the ACARS label:
+	       there are specific Px ACARS labels for AMS protected messages (cf p. 58) *)
+    if clear then
+    (
+      (* Policy check not explicit in the description of the protocol p 135, but
+         mentioned  p 29-30, and essential for security *)
+      if get_policy(policy_id, AMS_Data_IND) = NONE then
+      event recv_msg(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
+    )
+    else
+    (* D/X06 *)
+    let (AMS_Data_IND_prefix: bitstring, mac: bitstring) = split_message(MAClen, AMS_Data_IND) in
+    (* The MAC checking of step D/X08 is moved here to facilitate verification *)
+    let TBP_AMS_Data_IND = buildMAC_arg(other_id, my_id, AMS_Data_IND_prefix) in
+    if mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Data_IND) then
+    let buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Rest(encrypted_AMS_payload, MsgCount)) = AMS_Data_IND_prefix in
+    let buildAMS_Header(R1, protect_mode, encode_alg, sid, compression, cmd) = ams_header in
+    if ok_tunnel(cmd) then
+    (* D/X07 *)
+    (* D/X08 *)
+    (* Check on the message count is slightly weaker than the check
+       given in the specification: we just discard the message if a message
+       with the same count has already been received in the same session. *)
+    get received_count_table(=current_session_id, =MsgCount) in yield else
+    insert received_count_table(current_session_id, MsgCount);
+    (* Message accepted *)
+    (* D/X09 *)
+    let compressed_payload = 
+    	if protect_mode = BOTH then
+	   D'(KENC_UV, buildIVdata(dir_recv, MsgCount), encrypted_AMS_payload)
+        else
+           encrypted_AMS_payload
+    in
+    (* D/X10 *)
+    let encoded_payload = decompress(compression, compressed_payload) in
+    let AMS_payload = decode(encode_alg, encoded_payload) in
+    (* Policy check not explicit in the description of the protocol p 137, but
+       mentioned  p 29-30 *)
+    let policy_req = get_policy(policy_id, AMS_payload) in
+    if protect_mode = get_protect_mode(policy_req, common_enc_algo) then
+    event recv_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
+).
+
+(* Secure session initiation, aircraft-initiated (Attachement 7, Section 7.2.1) *)
+
+let aircraft_fixed_MAClen =
+    in(c_aircraft1, (Vx: t_id, software_part_number: t_software_part_number, policy_id: t_policy_id, 
+    	      algo_bits: t_algo_bits, encode_alg: t_encode_algo, cert_or_query: t_AMS_elem,
+	      ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, sid: t_SID, 
+	      tU: t_AMS_Time));
+    (* Choose a session id *)
+    new current_session_id: session_ids;
+    (* Message 1, N01 *)
+    let s_init_info = buildAMS10_s_init_info(software_part_number, policy_id, U, Vx) in
+    let comp_algo_id = buildAMS41_comp_algo_id(algo_bits) in 
+    let ams_payload = concat_AMS_element(s_init_info, concat_AMS_element(comp_algo_id, payload_with_1_element(cert_or_query))) in
+    let encoded_payload = encode(encode_alg, ams_payload) in
+    (* N02 *)
+    let ams_id = buildAMS_id1(ams_dstaddr, ams_imi, ams_pid1) in
+    let ams_header = buildAMS_Header(false, SIGN, encode_alg, sid, comp_OFF, Init_REQ) in
+    let alg_ID_U = algo(MAClen, HMAC_SHA256, AES128_CFB128) in
+    let AMS_Init_REQ_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Init(encoded_payload, alg_ID_U, tU)) in
+    let TBP_AMS_Init_REQ = buildMAC_arg(U, Vx, AMS_Init_REQ_prefix) in
+    new r: seed;
+    let sU = sign(dU, TBP_AMS_Init_REQ, r) in
+    let AMS_Appendix = buildAMS_appendix_Init(alg_ID_U, tU, sU) in
+    let AMS_Init_REQ = build_msg_Init(AMS_Init_REQ_prefix, sU) in
+    (* N03 *)
+    event send_Init_REQ(U, Vx, AMS_Init_REQ_prefix, sU, tU);
+    out(c_aircraft2, AMS_Init_REQ);
+    (* Message 2, N14 *)
+    in(c_aircraft3, (AMS_Init_RSP: bitstring, certV: bitstring));
+    let (AMS_Init_RSP_prefix: bitstring, mac2: bitstring) = split_message(MAClen, AMS_Init_RSP) in
+    let buildAMS_msg_prefix1(ams_id2, ams_header2, buildAMS_msg_prefix_RSP(compressed_payload2, AlgSel, =tU, RandV, MsgCount)) = AMS_Init_RSP_prefix in
+    let buildAMS_Header(R1, =AUTH, encode_alg2, sid2, compression2, cmd2) = ams_header2 in
+    let encoded_payload2 = decompress(compression2, compressed_payload2) in
+    let AMS_payload2 = decode(encode_alg2, encoded_payload2) in
+    let concat_AMS_element(common_comp_algo_id, app_data2) = AMS_payload2 in
+    (* N15 - certificate already obtained above *)
+    (* N16 *)
+    let (=true, =Vx, QV: G) = vercert(certV, pkCA) in
+    (* N17 *)
+    let Z_UV1 = exp(QV, dU) in
+    let X_UV = HASH(hk, concat_hash(AMS_Appendix, RandV)) in
+    (* N18 *)
+    let algo(MAClen', =HMAC_SHA256, common_enc_algo) = AlgSel in
+             (* We use the MAC length initially chosen by the aircraft,
+	     	and ignore the MAC length included in AlgSel. *)             
+    let KMAC_KENC_UV = KDF256_128(hk1, Z_UV1, X_UV, U, Vx) in
+    let KMAC_UV = get_kmac(KMAC_KENC_UV) in
+    (* N19 - This should be done only if the encryption is not NULL,
+       but doing it anyway does not hurt. *)
+    let KENC_UV = get_kenc(KMAC_KENC_UV) in
+    (* N20 *)
+    let TBP_AMS_Init_RSP = buildMAC_arg(Vx, U, buildAMS_msg_prefix1(ams_id2, ams_header2, buildAMS_msg_prefix_TBP_RSP(compressed_payload2, AlgSel, tU, RandV, MsgCount, AMS_Appendix))) in
+    (* N21 *)
+    if MsgCount = Count1 then
+    if mac2 = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Init_RSP) then
+    if cmd2 = Init_RSP_Plus then
+    event recv_Init_RSP(U, Vx, AMS_Init_RSP_prefix, mac2, sU, RandV, tU, KMAC_UV, KENC_UV);
+    insert received_count_table(current_session_id, Count1);
+    (* When the command is Init_RSP- instead of Init_RSP_Plus, 
+       the aircraft entity executes an airline configurable unavailable action,
+       which is ignored here. *)
+    (* Message accepted, secure session established *)
+    (* Parameters for the process tunnel_protocol *)
+    let ams_pid = ams_pid1 in
+    let dir_send = CstDN in
+    let dir_recv = CstUP in
+    let my_id = U in
+    let other_id = Vx in
+    out(c_aircraft4, ());
+    tunnel_protocol.
+    (*tunnel_protocol(ams_pid1, common_comp_algo_id, policy_id,
+      tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstDN, CstUP, U, Vx)*)
+
+let aircraft = 
+    (in(c_aircraft0, MAClen: t_MAClen); 
+     if MAClen = MAClen32 || MAClen = MAClen64 || MAClen = MAClen128 then 
+     out(c_aircraft0', ()); aircraft_fixed_MAClen). 
+
+let ground = 
+    in(c_ground1, (gd_algo_bits: t_algo_bits, tV: t_AMS_Time, 
+            app_data: bitstring, encode_alg: t_encode_algo, comp_algo: t_comp_algo,
+            AMS_Init_REQ: bitstring, certU: bitstring));
+    (* Choose a session id *)
+    new current_session_id: session_ids;
+    (* Message 1, N04 *)
+    let build_msg_Init(AMS_Init_REQ_prefix, sU: signature) = AMS_Init_REQ in
+    let buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Init(encoded_payload, alg_ID_U, tU)) = AMS_Init_REQ_prefix in
+    let buildAMS_Header(R1, =SIGN, encode_alg: t_encode_algo, sid: t_SID, compression: t_comp_algo, =Init_REQ) = ams_header in
+    let ams_payload = decode(encode_alg, encoded_payload) in
+    let concat_AMS_element(s_init_info, concat_AMS_element(comp_algo_id, payload_with_1_element(cert_or_query))) = ams_payload in
+    let buildAMS10_s_init_info(software_part_number, policy_id, Ux, =V) = s_init_info in
+    (* The signature checking of step N07 could be moved here to facilitate verification *)
+    let AMS_Appendix = buildAMS_appendix_Init(alg_ID_U, tU, sU) in
+    if check_time(tU, tV) then
+    let algo(MAClen, =HMAC_SHA256, enc_algo) = alg_ID_U in
+    let common_enc_algo = get_common_enc_algo(enc_algo) in
+    let buildAMS41_comp_algo_id(algo_bits) = comp_algo_id in
+    let gd_comp_algo_id = buildAMS41_comp_algo_id(gd_algo_bits) in
+    let common_comp_algo_id = buildAMS42_comp_algo_sel(bool_and(algo_bits, gd_algo_bits)) in
+    (* N05 - certificate already obtained above in certU *)
+    (* N06 *)
+    let (=true, =Ux, QU: G) = vercert(certU, pkCA) in
+    (* N07 *)
+    let TBP_AMS_Init_REQ = buildMAC_arg(Ux, V, AMS_Init_REQ_prefix) in
+    if ver(QU, sU, TBP_AMS_Init_REQ) then
+ifdef(`REPLAY_PROT',`
+    (* Replay protection. This check is stronger than the one in the specification! *)
+    get received_Init_REQ_table(=Ux, =tU, =sU) in yield else
+    insert received_Init_REQ_table(Ux, tU, sU);
+',`
+    (* Uniqueness check of AMS_Appendix not modeled *)
+')
+    (* N08 - Message 1 accepted *)
+    event recv_Init_REQ(V, Ux, AMS_Init_REQ_prefix, sU, tU, tV);
+    (* Termination of another session with the same peer aircraft not modeled *)
+    let Z_UV2 = exp(QU, dV) in
+    new RandV: t_Rand32;
+    let X_UV = HASH(hk, concat_hash(AMS_Appendix, RandV)) in
+    (* N09 *)
+    let KMAC_KENC_UV = KDF256_128(hk1, Z_UV2, X_UV, Ux, V) in
+    let KMAC_UV = get_kmac(KMAC_KENC_UV) in
+    (* N10 - This should be done only if the encryption is not NULL,
+       but doing it anyway does not hurt. *)
+    let KENC_UV = get_kenc(KMAC_KENC_UV) in
+    (* Message 2, N11 *)
+    (* I consider the optional Certificate, Query and Ping as application data, 
+       whose content does not need to be detailed. *)
+    let AMS_payload = concat_AMS_element(common_comp_algo_id, app_data) in
+    let encoded_payload = encode(encode_alg, AMS_payload) in
+    let actual_comp_algo = select_common_compression(common_comp_algo_id, comp_algo) in
+    let compressed_payload = compress(actual_comp_algo, encoded_payload) in
+    insert sent_count_table(current_session_id, Count1);
+    (* N12 *)
+    let ams_id = buildAMS_id2(ams_pid1) in
+    let ams_header = buildAMS_Header(false, AUTH, encode_alg, sid, actual_comp_algo, Init_RSP_Plus) in
+    let AlgSel = algo(MAClen, HMAC_SHA256, common_enc_algo) in
+    let AMS_Init_RSP_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_RSP(compressed_payload, AlgSel, tU, RandV, Count1)) in
+    let TBP_AMS_Init_RSP = buildMAC_arg(V, Ux, buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_TBP_RSP(compressed_payload, AlgSel, tU, RandV, Count1, AMS_Appendix))) in
+    let mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Init_RSP) in
+    let AMS_Init_RSP = concat(AMS_Init_RSP_prefix, mac) in
+    (* N13 *)
+    event send_Init_RSP(V, Ux, AMS_Init_RSP_prefix, mac, sU, RandV, tU, tV, KMAC_UV, KENC_UV);
+    (* Parameters for the process tunnel_protocol *)
+    let ams_pid = ams_pid1 in
+    let dir_send = CstUP in
+    let dir_recv = CstDN in
+    let my_id = V in
+    let other_id = Ux in
+    out(c_ground2, AMS_Init_RSP);
+    tunnel_protocol. (* tunnel_protocol(ams_pid1, common_comp_algo_id, policy_id,
+       tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstUP, CstDN, V, Ux)*)
+
+(* Ground-initiated trigger (Attachment 7, Section 7.2.2). *)
+
+let ground_initiated_trigger =
+    in(c_ground_initiated_trigger1, (opt_certV: bitstring, Ux: t_id, encode_alg: t_encode_algo, MAClen: t_MAClen, tV: t_AMS_Time));
+    (* G01 *)
+    let ams_payload = concat_AMS_element(buildAMS40_entity_id(Ux,V), opt_certV) in 
+    let encoded_payload = encode(encode_alg, ams_payload) in
+    (* G02 *)
+    let ams_id = buildAMS_id2(ams_pid1) in
+    let ams_header = buildAMS_Header(false, SIGN, encode_alg, SID0, comp_OFF, Init_IND) in
+    let alg_ID_V = algo(MAClen, HMAC_SHA256, AES128_CFB128) in
+    let AMS_Init_IND_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Init(encoded_payload, alg_ID_V, tV)) in
+    let TBP_AMS_Init_IND = buildMAC_arg(V, Ux, AMS_Init_IND_prefix) in
+    new r: seed;
+    let sV = sign(dV, TBP_AMS_Init_IND, r) in
+    let AMS_Init_IND = build_msg_Init(AMS_Init_IND_prefix, sV) in
+    (* G03 *)
+    event send_Init_IND(V, Ux, AMS_Init_IND_prefix, sV, tV);
+    out(c_ground_initiated_trigger2, AMS_Init_IND).
+
+let aircraft_react_ground_initiated_trigger =
+    (* G04 *)
+    in(c_aircraft_react_ground_initiated_trigger1, (tU: t_AMS_Time, AMS_Init_IND: bitstring, certV: bitstring));
+    let build_msg_Init(AMS_Init_IND_prefix, sV) = AMS_Init_IND in
+    let buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Init(encoded_payload, alg_ID_V, tV)) = AMS_Init_IND_prefix in
+    if check_time(tV, tU) then
+    let buildAMS_Header(R1, =SIGN, encode_alg: t_encode_algo, sid: t_SID, compression: t_comp_algo, =Init_IND) = ams_header in
+    let ams_payload = decode(encode_alg, encoded_payload) in
+    let concat_AMS_element(buildAMS40_entity_id(=U,Vx), opt_certV) = ams_payload in
+    (* G05 - certificate already obtained above *)
+    (* G06 *)
+    let (=true, =Vx, QV: G) = vercert(certV, pkCA) in
+    (* G07 *)
+    let TBP_AMS_Init_IND = buildMAC_arg(Vx, U, AMS_Init_IND_prefix) in
+    if ver(QV, sV, TBP_AMS_Init_IND) then
+ifdef(`REPLAY_PROT',`
+    (* Replay protection. This check is not present in the specification! *)
+    get received_Init_IND_table(=Vx, =tV, =sV) in yield else
+    insert received_Init_IND_table(Vx, tV, sV);
+')
+    (* G08 - Message accepted *)
+    event recv_Init_IND(U, Vx, AMS_Init_IND_prefix, sV, tV, tU);
+    out(c_aircraft_react_ground_initiated_trigger1, ()).
+    (* We let the adversary schedule the aircraft;
+       no need to put it explicitly here. *)
+
+(* Certificate server, to allow the adversary to create its own
+   participants *)
+
+let cert_server =
+    in(c_cert_server1, (h: t_id, pk: G));
+    if h <> U && h <> V then
+    out(c_cert_server2, cert(h, pk, sCA)).
+
+(* Putting the whole system together *)
+
+process 
+	in(c_gen1, ());
+	(* Bit b for secrecy *)
+	new b: bool;
+	(* CA private and public keys *)
+	new seedCA: keyseed;
+	let sCA = skgen(seedCA) in
+	let pkCA = pkgen(seedCA) in
+	(* Aircraft private and public keys *)
+	new dU: Z; let QU = exp(g, dU) in
+	(* Ground private and public keys *)
+	new dV: Z; let QV = exp(g, dV) in
+	(* Aircraft certificate *)
+	let certU = cert(U, QU, sCA) in
+	(* Ground certificate *)
+	let certV = cert(V, QV, sCA) in
+	(* Keys that models the choice of hash functions *)
+	new hk: hash_key; new hk1: hash_key1; 
+	(* Publish the public keys and certificates, and hash key for the collision resistant hash function *)
+	out(c_gen2, (hk, pkCA, QU, QV, certU, certV));
+	((! Naircraft aircraft) | 
+	 (! Nground ground) | 
+	 (! Nground_init ground_initiated_trigger) | 
+	 (! Nground_init_react aircraft_react_ground_initiated_trigger) |
+	 (! Ncert_server cert_server) |
+	 KDF256_128_oracle)
+
+ifdef(`REPLAY_PROT',`
+(* EXPECTED
+All queries proved.
+213.541s (user 213.365s + system 0.176s), max rss 1832352K
+END *)
+',`
+(* EXPECTED
+All queries proved.
+190.772s (user 190.608s + system 0.164s), max rss 1832720K
+END *)
+')

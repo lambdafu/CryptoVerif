@@ -1,0 +1,75 @@
+(* This file shows that AES128-CFB128 is IND-CPA, when the IV is
+computed as IV = E(k, 0; IVdata) provided the IVdata arguments are
+pairwise distinct. *)
+
+(* Do not assume by default that all constants are 
+   different. We shall say it explicitly when they are different *)
+
+set diffConstants = false.
+
+(* Definition of a pseudo-random permutation *)
+
+define PRP(key, blocksize, enc, Penc) {
+
+param N, N3.
+
+fun enc(key, blocksize): blocksize.
+
+equiv prp(enc)
+       foreach i3 <= N3 do k <-R key; 
+       	       foreach i <= N do Oenc(x:blocksize) := return(enc(k, x))
+     <=(N3 * (Penc(time + (N3-1)*N*time(enc), N) + N * (N-1) / |blocksize|))=>
+       foreach i3 <= N3 do k <-R key; 
+       	       foreach i <= N do Oenc(x:blocksize) := 
+		find[unique] j<=N suchthat defined(x[j],r2[j]) && x = x[j] then return(r2[j])
+		else r2 <-R blocksize; return(r2).
+
+}
+
+
+type enc_key [fixed]. (* 128 bits AES key *)
+type blocksize [fixed, large]. (* 128 bits AES block *)
+
+(* AES is a pseuso-random permutation *)
+proba P_AES.
+expand PRP(enc_key, blocksize, AES, P_AES).
+
+(* Properties of XOR *)
+expand Xor(blocksize, xor, Zero).
+
+type len. (* len is the type of the length of the last block *)
+fun truncate(blocksize, len): bitstring.
+
+let enc1 =
+    Oenc1(IVdata1: blocksize, m1: blocksize, l:len) :=
+    if defined(IVdata2) && IVdata1 = IVdata2 then end else 
+    if defined(IVdata3) && IVdata1 = IVdata3 then end else 
+    let IV1 = xor(IV0, IVdata1) in
+    let c1 = xor(AES(k, IV1), m1) in
+    return(truncate(c1, l)).
+
+let enc2 = 
+    Oenc2(IVdata2: blocksize, m21: blocksize, m22: blocksize, l:len) :=
+    if defined(IVdata1) && IVdata2 = IVdata1 then end else 
+    if defined(IVdata3) && IVdata2 = IVdata3 then end else 
+    let IV2 = xor(IV0, IVdata2) in
+    let c21 = xor(AES(k, IV2), m21) in
+    let c22 = xor(AES(k, c21), m22) in
+    return(c21, truncate(c22, l)).
+
+let enc3 = 
+    Oenc3(IVdata3: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l:len) :=
+    if defined(IVdata1) && IVdata3 = IVdata1 then end else 
+    if defined(IVdata2) && IVdata3 = IVdata2 then end else 
+    let IV3 = xor(IV0, IVdata3) in
+    let c31 = xor(AES(k, IV3), m31) in
+    let c32 = xor(AES(k, c31), m32) in
+    let c33 = xor(AES(k, c32), m33) in
+    return(c31, c32, truncate(c33, l)).
+
+process
+	Ogen() :=
+	k <-R enc_key;
+	let IV0 = AES(k, Zero) in
+	return();
+	(enc1 | enc2 | enc3)

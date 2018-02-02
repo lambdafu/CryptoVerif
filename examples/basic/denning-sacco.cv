@@ -49,10 +49,10 @@ type blocksizebot [bounded].
 type sblocksize [bounded].
 type shkey [fixed]. (* distributed key *)
 
-fun concat1(shkey, signature):blocksize [compos].
-fun concat3(host, pkey):sblocksize [compos].
-fun concat4(host, spkey):sblocksize [compos].
-fun pad(shkey):sblocksize [compos].
+fun concat1(shkey, signature):blocksize [data].
+fun concat3(host, pkey):sblocksize [data].
+fun concat4(host, spkey):sblocksize [data].
+fun pad(shkey):sblocksize [data].
 
 forall y:host,z:pkey,y2:shkey;
 	concat3(y,z) <> pad(y2).

@@ -1,0 +1,684 @@
+(* Joint assumption:
+   - Gap Diffie-Hellman
+   - SUF-CMA signatures, with collision-resistance
+*)
+
+define joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+  signature, seed, sign, ver, Psign, Psigncoll)
+{
+const g: G.
+fun exp(G, Z): G.
+
+(* ECDSA Signatures, modified to avoid malleability *)
+
+fun sign(Z, bitstring, seed): signature.
+fun ver(G, signature, bitstring): bool.
+fun sign'(Z, bitstring, seed): signature.
+
+(* I need a joint security assumption on DH (GDH) and signatures,
+   because they use the same secret keys
+
+First, let us define GDH, with allowed signature oracles *)
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+
+(* when the order of the group is a prime *)
+
+forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
+forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; 
+  mult(x1,x2) = mult(x3,x4) <=(1/|Z|)=> false. 
+
+collision new x1:Z; new x2:Z; 
+  mult(x1,x1) = mult(x2,x2) <=(1/|Z|)=> false. 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      !N new X:G; (OX() := X, !N' OXm(m:Z) [useful_change] := exp(X,m))
+<=(0)=> [computational]
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp)
+      !N new X:G; OX() := X 
+<=(0)=> [manual, computational]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv exp_to_group(exp)
+      !N new x:Z; OX() := exp(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+(* the GDH assumption
+    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+    negligible probability, even in the presence of a DDH oracle
+    DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
+    that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *) 
+
+const mark: bitstring.
+
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naSign, naSign2,
+      nb, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbSign, nbSign2.
+
+equiv gdh(exp)
+    !na new a:Z; (
+      OA() := exp(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := m = exp(m', a),
+      !naDDH2 ODDHa2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',a),
+      !naDDH3 ODDHa3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',a),
+      !naDDH4 ODDHa4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],a)),
+      !naDDH5 ODDHa5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],a)),
+      !naDDH6 ODDHa6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],a)),
+      !naDDH7 ODDHa7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+      !naDDH ODDHa(m:G, j<=nb) [useful_change] := m = exp(g, mult(b[j], a)),
+      !naDDH8 ODDHa8(m:G,j<=na) [3] := m = exp(g,mult(a[j], a)),
+      !naSign new r:seed; OSigna(m:bitstring) := sign(a, m, r),
+      !naSign2 new r:seed; OSigna2(m:bitstring) := sign'(a, m, r)
+    ),
+    !nb new b:Z; (
+      OB() := exp(g,b),
+      !nbDDH1 ODDHb1(m:G, m':G) := m = exp(m', b),
+      !nbDDH2 ODDHb2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',b),
+      !nbDDH3 ODDHb3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',b),
+      !nbDDH4 ODDHb4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH5 ODDHb5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH6 ODDHb6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH7 ODDHb7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH ODDHb(m:G, j<=na) := m = exp(g, mult(a[j], b)),
+      !nbDDH8 ODDHb8(m:G,j<=nb) [3] := m = exp(g,mult(b[j], b)),
+      !nbSign new r:seed; OSignb(m:bitstring) := sign(b, m, r),
+      !nbSign2 new r:seed; OSignb2(m:bitstring) := sign'(b, m, r)
+    )
+<=((#ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * 
+	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
+	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
+	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
+    !na new a:Z [unchanged]; (
+      OA() := exp(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := m = exp(m', a)
+			       (* GDH allows to compute m = exp(m',a) for any m and m', without leaking a, 
+			          as it is DDH(g, exp(g,a), m', m) *),
+      !naDDH2 ODDHa2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',a),
+      	   (* GDH allows to compute exp(m, b[j]) = exp(m',a) for any m and m', 
+	      without leaking a, as it is DDH(exp(g,a), exp(g,b[j]), m, m')
+	      Indeed, 
+ 	      D(exp(g,a),exp(g,b[j]),m,m') 
+      	        = (log_{g^a}(g^b[j]) * log_{g^a}(m) = log_{g^a}(m'))
+      		= (b[j]/a * log_g(m)/a = log_g(m')/a)
+      		= (b[j] * log_g(m) = a log_g(m'))
+      		= (m^b[j] = m'^a). *)
+      !naDDH3 ODDHa3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',a),
+      	    (* Similar to ODDHa2 *)
+      !naDDH4 ODDHa4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],a)),
+      !naDDH5 ODDHa5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],a)),
+      !naDDH6 ODDHa6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],a)),
+      !naDDH7 ODDHa7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+            (* ODDHa4..7 are particular cases of ODDHa2 or ODDHa3, with m' = exp(g, b[j'])
+	       or m' = exp(g, a[j']).
+	       We need to consider all these forms because CryptoVerif rewrites
+	       exp(exp(g,b[j']),a) into exp(g,mult(b[j'],a)), and it would not
+	       detect exp(g,mult(b[j'],a)) as an instance of exp(m',a). *)
+      !naDDH ODDHa(m:G, j<=nb) := false,
+	    (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption. *)
+      !naDDH8 ODDHa8(m:G,j<=na) := m = exp(g,mult(a[j], a)),
+            (* ODDHa8 is a particular case of ODDHa1 in which we do not apply
+	       the CDH assumption, since we apply it between a's and b's *)
+      !naSign OSigna(m:bitstring) := new r:seed; sign(a, m, r),
+      !naSign2 OSigna2(m:bitstring) := new r:seed; sign'(a, m, r)
+      ),
+    !nb new b:Z [unchanged]; (
+      OB() := exp(g,b), 
+      !nbDDH1 ODDHb1(m:G, m':G) := m = exp(m', b)
+			       (* GDH allows to compute m = exp(m',a) for any m and m', without leaking a *),
+      !nbDDH2 ODDHb2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',b),
+      !nbDDH3 ODDHb3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',b),
+      !nbDDH4 ODDHb4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH5 ODDHb5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH6 ODDHb6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH7 ODDHb7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH ODDHb(m:G, j<=na) := false,
+      !nbDDH8 ODDHb8(m:G,j<=nb) := m = exp(g,mult(b[j], b)),
+      !nbSign OSignb(m:bitstring) := new r:seed; sign(b, m, r),
+      !nbSign2 OSignb2(m:bitstring) := new r:seed; sign'(b, m, r)
+    ).
+
+    (* We need to consider both forms m = exp(m', a) and m = exp(g,
+    mult(b[j], a)) in the equivalence, because, when m' is known to be
+    exp(g, b[j]), CryptoVerif is going to simplify m = exp(m', a) into
+    m = exp(g, mult(b[j], a)), and the procedure that tests whether a
+    term in the game matches a term in the equivalence would not
+    recognize that m = exp(g, mult(b[j], a)) in the game matches m =
+    exp(m', a) in the equivalence. *)
+
+(* Now, SUF-CMA signatures *)
+
+forall m:bitstring, r:Z, r2:seed; 
+	ver(exp(g,r), sign(r, m, r2), m) = true.
+
+param N2, N3, N4, NDDH1, NDDH2, NDDH3.
+
+equiv suf_cma(sign)
+       !N3 new r: Z; (Opk() [2] := exp(g,r),
+			    !N2 new r2: seed; Osign(x: bitstring) := sign(r, x, r2),
+			    !N Ocheck(m1: bitstring, si1:signature) := ver(exp(g,r), si1, m1),
+			    !NDDH1 ODDH1(m2: G, m3: G) := m2 = exp(m3, r),
+			    !NDDH2 ODDH2(m2: G, m3: Z) := m2 = exp(g, mult(m3, r)),
+			    !NDDH3 ODDH3(m2: G) := m2 = exp(g, mult(r,r))
+			    ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := ver(y, si, m) [all]
+     <=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual,computational]
+       !N3 new r: Z [unchanged]; 
+       	       	  	   (Opk() := exp(g,r),
+			    !N2 new r2: seed [unchanged]; Osign(x: bitstring) := let s: signature = sign'(r, x, r2) in s,
+			    !N Ocheck(m1: bitstring, si1:signature) :=
+                              find j <= N2 suchthat defined(x[j],s[j]) && m1 = x[j] && si1 = s[j] then true else false,
+			    !NDDH1 ODDH1(m2: G, m3: G) := m2 = exp(m3, r),
+			    !NDDH2 ODDH2(m2: G, m3: Z) := m2 = exp(g, mult(m3, r)),
+			    !NDDH3 ODDH3(m2: G) := m2 = exp(g, mult(r,r))
+			      ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) :=
+		find j <= N2, k <= N3 suchthat defined(x[j,k],s[j,k],r[k]) && y = exp(g,r[k]) && m = x[j,k] && si = s[j,k] then true else
+		find k <= N3 suchthat defined(r[k]) && y = exp(g,r[k]) then false else
+		ver(y,si,m).
+
+(* Collision resistance property
+   This property holds for ECDSA signatures
+   sign(k, m1, r1) = sign(k, m2, r2) implies that r1.G and r2.G have 
+   the same first coordinate modulo n (the prime order of G), which has a negligible
+   probability of happening for independent random r1 and r2. *)
+
+collision new k:Z; new r1: seed; new r2: seed; forall m1: bitstring, m2: bitstring;
+	   (sign'(k, m1, r1) = sign'(k, m2, r2)) <=(Psigncoll)=> false.
+
+}
+
+(* Joint assumption:
+   - Gap Diffie-Hellman
+   - UF-CMA signatures, with collision-resistance
+*)
+
+define joint_GDH_UFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+  signature, seed, sign, ver, Psign, Psigncoll)
+{
+const g: G.
+fun exp(G, Z): G.
+
+(* ECDSA Signatures *)
+
+fun sign(Z, bitstring, seed): signature.
+fun ver(G, signature, bitstring): bool.
+fun sign'(Z, bitstring, seed): signature.
+fun ver'(G, signature, signature, bitstring): bool.
+    (* Intuitively, ver'(pk, s1, s2, m) means that 
+       - s2 is a good signature for m, that is, ver(pk, s2, m), 
+       - and furthermore s2 has been obtained by malleability of s1, 
+         which in the case of ECDSA signatures means that either s2 = s1
+         or s1 = (r,s) and s2 = (r, -s mod n).  *)
+
+(* I need a joint security assumption on DH (GDH) and signatures,
+   because they use the same secret keys
+
+First, let us define GDH, with allowed signature oracles *)
+
+fun mult(Z,Z): Z. 
+equation commut(mult).
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+
+(* when the order of the group is a prime *)
+
+forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
+forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
+
+(* collision between products *)
+
+collision new x1:Z; new x2:Z; new x3:Z; new x4:Z; 
+  mult(x1,x2) = mult(x3,x4) <=(1/|Z|)=> false. 
+
+collision new x1:Z; new x2:Z; 
+  mult(x1,x1) = mult(x2,x2) <=(1/|Z|)=> false. 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      !N new X:G; (OX() := X, !N' OXm(m:Z) [useful_change] := exp(X,m))
+<=(0)=> [computational]
+      !N new x:Z; (OX() := exp(g,x), !N' OXm(m:Z) := exp(g,mult(x,m))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp)
+      !N new X:G; OX() := X 
+<=(0)=> [manual, computational]    
+      !N new x:Z; OX() := exp(g,x).
+
+
+equiv exp_to_group(exp)
+      !N new x:Z; OX() := exp(g,x)
+<=(0)=> [computational]
+      !N new X:G; OX() := X.
+
+(* the GDH assumption
+    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+    negligible probability, even in the presence of a DDH oracle
+    DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
+    that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *) 
+
+const mark: bitstring.
+
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naSign, naSign2,
+      nb, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbSign, nbSign2.
+
+equiv gdh(exp)
+    !na new a:Z; (
+      OA() := exp(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := m = exp(m', a),
+      !naDDH2 ODDHa2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',a),
+      !naDDH3 ODDHa3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',a),
+      !naDDH4 ODDHa4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],a)),
+      !naDDH5 ODDHa5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],a)),
+      !naDDH6 ODDHa6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],a)),
+      !naDDH7 ODDHa7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+      !naDDH ODDHa(m:G, j<=nb) [useful_change] := m = exp(g, mult(b[j], a)),
+      !naDDH8 ODDHa8(m:G,j<=na) [3] := m = exp(g,mult(a[j], a)),
+      !naSign new r:seed; OSigna(m:bitstring) := sign(a, m, r),
+      !naSign2 new r:seed; OSigna2(m:bitstring) := sign'(a, m, r)
+    ),
+    !nb new b:Z; (
+      OB() := exp(g,b),
+      !nbDDH1 ODDHb1(m:G, m':G) := m = exp(m', b),
+      !nbDDH2 ODDHb2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',b),
+      !nbDDH3 ODDHb3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',b),
+      !nbDDH4 ODDHb4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH5 ODDHb5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH6 ODDHb6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH7 ODDHb7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH ODDHb(m:G, j<=na) := m = exp(g, mult(a[j], b)),
+      !nbDDH8 ODDHb8(m:G,j<=nb) [3] := m = exp(g,mult(b[j], b)),
+      !nbSign new r:seed; OSignb(m:bitstring) := sign(b, m, r),
+      !nbSign2 new r:seed; OSignb2(m:bitstring) := sign'(b, m, r)
+    )
+<=((#ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * 
+	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
+	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
+	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
+    !na new a:Z [unchanged]; (
+      OA() := exp(g,a), 
+      !naDDH1 ODDHa1(m:G, m':G) := m = exp(m', a)
+			       (* GDH allows to compute m = exp(m',a) for any m and m', without leaking a, 
+			          as it is DDH(g, exp(g,a), m', m) *),
+      !naDDH2 ODDHa2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',a),
+      	   (* GDH allows to compute exp(m, b[j]) = exp(m',a) for any m and m', 
+	      without leaking a, as it is DDH(exp(g,a), exp(g,b[j]), m, m')
+	      Indeed, 
+ 	      D(exp(g,a),exp(g,b[j]),m,m') 
+      	        = (log_{g^a}(g^b[j]) * log_{g^a}(m) = log_{g^a}(m'))
+      		= (b[j]/a * log_g(m)/a = log_g(m')/a)
+      		= (b[j] * log_g(m) = a log_g(m'))
+      		= (m^b[j] = m'^a). *)
+      !naDDH3 ODDHa3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',a),
+      	    (* Similar to ODDHa2 *)
+      !naDDH4 ODDHa4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],a)),
+      !naDDH5 ODDHa5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],a)),
+      !naDDH6 ODDHa6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],a)),
+      !naDDH7 ODDHa7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],a)),
+            (* ODDHa4..7 are particular cases of ODDHa2 or ODDHa3, with m' = exp(g, b[j'])
+	       or m' = exp(g, a[j']).
+	       We need to consider all these forms because CryptoVerif rewrites
+	       exp(exp(g,b[j']),a) into exp(g,mult(b[j'],a)), and it would not
+	       detect exp(g,mult(b[j'],a)) as an instance of exp(m',a). *)
+      !naDDH ODDHa(m:G, j<=nb) := false,
+	    (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption. *)
+      !naDDH8 ODDHa8(m:G,j<=na) := m = exp(g,mult(a[j], a)),
+            (* ODDHa8 is a particular case of ODDHa1 in which we do not apply
+	       the CDH assumption, since we apply it between a's and b's *)
+      !naSign OSigna(m:bitstring) := new r:seed; sign(a, m, r),
+      !naSign2 OSigna2(m:bitstring) := new r:seed; sign'(a, m, r)
+      ),
+    !nb new b:Z [unchanged]; (
+      OB() := exp(g,b), 
+      !nbDDH1 ODDHb1(m:G, m':G) := m = exp(m', b)
+			       (* GDH allows to compute m = exp(m',a) for any m and m', without leaking a *),
+      !nbDDH2 ODDHb2(m:G,m':G,j<=nb) := exp(m, b[j]) = exp(m',b),
+      !nbDDH3 ODDHb3(m:G,m':G,j<=na) := exp(m, a[j]) = exp(m',b),
+      !nbDDH4 ODDHb4(m:G,j'<=nb,j<=nb) := exp(m, b[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH5 ODDHb5(m:G,j'<=nb,j<=na) := exp(m, a[j]) = exp(g,mult(b[j'],b)),
+      !nbDDH6 ODDHb6(m:G,j'<=na,j<=nb) := exp(m, b[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH7 ODDHb7(m:G,j'<=na,j<=na) := exp(m, a[j]) = exp(g,mult(a[j'],b)),
+      !nbDDH ODDHb(m:G, j<=na) := false,
+      !nbDDH8 ODDHb8(m:G,j<=nb) := m = exp(g,mult(b[j], b)),
+      !nbSign OSignb(m:bitstring) := new r:seed; sign(b, m, r),
+      !nbSign2 OSignb2(m:bitstring) := new r:seed; sign'(b, m, r)
+    ).
+
+    (* We need to consider both forms m = exp(m', a) and m = exp(g,
+    mult(b[j], a)) in the equivalence, because, when m' is known to be
+    exp(g, b[j]), CryptoVerif is going to simplify m = exp(m', a) into
+    m = exp(g, mult(b[j], a)), and the procedure that tests whether a
+    term in the game matches a term in the equivalence would not
+    recognize that m = exp(g, mult(b[j], a)) in the game matches m =
+    exp(m', a) in the equivalence. *)
+
+(* Now, UF-CMA signatures *)
+
+forall m:bitstring, r:Z, r2:seed; 
+	ver(exp(g,r), sign(r, m, r2), m) = true.
+forall m:bitstring, r:Z, r2:seed; 
+	ver'(exp(g,r), sign'(r, m, r2), sign'(r, m, r2), m) = true.
+    (* The first signature is the initial one -
+       the second signature is the received one,
+       possibly altered since signatures are malleable *)
+
+param N2, N3, N4, NDDH1, NDDH2, NDDH3.
+
+equiv uf_cma(sign)
+       !N3 new r: Z; (Opk() [2] := exp(g,r),
+			    !N2 new r2: seed; Osign(x: bitstring) := sign(r, x, r2),
+			    !N Ocheck(m1: bitstring, si1:signature) := ver(exp(g,r), si1, m1),
+			    !NDDH1 ODDH1(m2: G, m3: G) := m2 = exp(m3, r),
+			    !NDDH2 ODDH2(m2: G, m3: Z) := m2 = exp(g, mult(m3, r)),
+			    !NDDH3 ODDH3(m2: G) := m2 = exp(g, mult(r,r))
+			    ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := ver(y, si, m) [all]
+     <=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual,computational]
+       !N3 new r: Z [unchanged]; 
+       	       	  	   (Opk() := exp(g,r),
+			    !N2 new r2: seed [unchanged]; Osign(x: bitstring) := let s: signature = sign'(r, x, r2) in s,
+			    !N Ocheck(m1: bitstring, si1:signature) :=
+                              find j <= N2 suchthat defined(x[j],s[j]) && m1 = x[j] && ver'(exp(g,r), s[j], si1, m1) then true else false,
+			    !NDDH1 ODDH1(m2: G, m3: G) := m2 = exp(m3, r),
+			    !NDDH2 ODDH2(m2: G, m3: Z) := m2 = exp(g, mult(m3, r)),
+			    !NDDH3 ODDH3(m2: G) := m2 = exp(g, mult(r,r))
+			      ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) :=
+		find j <= N2, k <= N3 suchthat defined(x[j,k],s[j,k],r[k]) && y = exp(g,r[k]) && m = x[j,k] && ver'(y, s[j,k], si, m) then true else
+		find k <= N3 suchthat defined(r[k]) && y = exp(g,r[k]) then false else
+		ver(y,si,m).
+
+(* Collision resistance property
+   This property holds for ECDSA signatures
+   sign(k, m1, r1) = sign(k, m2, r2) implies that r1.G and r2.G have 
+   the same first coordinate modulo n (the prime order of G), which has a negligible
+   probability of happening for independent random r1 and r2. *)
+
+collision new k:Z; new r1: seed; new r2: seed; forall m1: bitstring, m2: bitstring;
+	   (sign'(k, m1, r1) = sign'(k, m2, r2)) <=(Psigncoll)=> false.
+
+
+(* Given the intuitive meaning of ver' mentioned at its declaration,
+   ver'(exp(g,k), sign'(k, m1, r1), sign'(k, m2, r2), m)
+   implies that 
+   sign'(k, m1, r1) = sign'(k, m2, r2) or
+   sign'(k, m1, r1) = (r,s) and sign'(k, m2, r2) = (r, -s mod n).
+   These two signatures have the same first component, so as above
+   r1.G and r2.G have the same first coordinate modulo n, which has a negligible
+   probability of happening for independent random r1 and r2. *)
+
+collision new k:Z; new r1: seed; new r2: seed; forall m1: bitstring, m2: bitstring, m: bitstring;
+           ver'(exp(g,k), sign'(k, m1, r1), sign'(k, m2, r2), m) <=(Psigncoll)=> false.
+
+}
+
+(* SUF-CMA assumption, with keys generated by exponentiation *)
+
+define SUFCMA_EC(G, Z, g, exp, 
+  signature, seed, sign, ver, Psign, Psigncoll) {
+
+const g: G.
+fun exp(G, Z): G.
+
+fun sign(Z, bitstring, seed): signature.
+fun ver(G, signature, bitstring): bool.
+fun sign'(Z, bitstring, seed): signature.
+fun ver'(G, signature, bitstring): bool.
+
+forall m:bitstring, r:Z, r2:seed; 
+	ver(exp(g,r), sign(r, m, r2), m) = true.
+forall m:bitstring, r:Z, r2:seed; 
+	ver'(exp(g,r), sign'(r, m, r2), m) = true.
+
+param N, N2, N3, N4.
+
+equiv suf_cma(sign)
+       !N3 new r: Z; (Opk() [2] := exp(g,r),
+			    !N2 new r2: seed; Osign(x: bitstring) := sign(r, x, r2),
+			    !N Ocheck(m1: bitstring, si1:signature) := ver(exp(g,r), si1, m1)
+			    ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := ver(y, si, m) [all]
+     <=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual,computational]
+       !N3 new r: Z [unchanged]; 
+       	       	  	   (Opk() := exp(g,r),
+			    !N2 new r2: seed [unchanged]; Osign(x: bitstring) := let s: signature = sign'(r, x, r2) in s,
+			    !N Ocheck(m1: bitstring, si1:signature) :=
+                              find j <= N2 suchthat defined(x[j],s[j]) && m1 = x[j] && si1 = s[j] then true else false
+			      ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) :=
+		find j <= N2, k <= N3 suchthat defined(x[j,k],s[j,k],r[k]) && y = exp(g,r[k]) && m = x[j,k] && si = s[j,k] then true else
+		find k <= N3 suchthat defined(r[k]) && y = exp(g,r[k]) then false else
+		ver(y,si,m).
+
+const mark: bitstring.
+
+equiv suf_cma_corrupt(sign)
+       !N3 new r: Z; (Opk() [2] := exp(g,r),
+                          !N2 new r2: seed; Osign(x: bitstring) := sign(r, x, r2),
+                          !N Ocheck(m1: bitstring, si1:signature) := ver(exp(g,r), si1, m1),
+                          Ocorrupt() [10] := r
+                          ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := ver(y, si, m) [all]
+     <=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual,computational]
+       !N3 new r: Z [unchanged]; 
+                                 (Opk() := exp(g,r),
+                          !N2 new r2: seed [unchanged]; Osign(x: bitstring) := let s: signature = sign'(r, x, r2) in s,
+                          !N Ocheck(m1: bitstring, si1:signature) :=
+                            if defined(corrupt) then ver'(exp(g,r), si1, m1) else
+                              find j <= N2 suchthat defined(x[j],s[j]) && m1 = x[j] && si1 = s[j] then true else false,
+                            Ocorrupt() := let corrupt: bitstring = mark in r
+                            ),
+       !N4 Ocheck2(m: bitstring, y: G, si: signature) :=
+              find k <= N3 suchthat defined(r[k],corrupt[k]) && y = exp(g,r[k]) then ver'(y,si,m) else
+              find j <= N2, k <= N3 suchthat defined(x[j,k],s[j,k],r[k]) && y = exp(g,r[k]) && m = x[j,k] && si = s[j,k] then true else
+              find k <= N3 suchthat defined(r[k]) && y = exp(g,r[k]) then false else
+              ver(y,si,m).
+
+}
+
+(* PRF MAC truncated to 3 different lengths: 32, 64, 128 bits *)
+
+define SUF_CMA_MAC_3lengths(t_MAClen, MAClen32, MAClen64, MAClen128,
+       mac_key, sessionMAC, PPRF) {
+
+fun sessionMAC(t_MAClen, mac_key, bitstring): bitstring.
+
+(* sessionMAC is SUF-CMA for each of the 3 lengths *)
+
+fun sessionMAC2(t_MAClen, mac_key, bitstring): bitstring.
+param N, N2, N3.
+type mac_32bits [fixed].
+type mac_64bits [fixed].
+type mac_128bits [fixed].
+
+equiv suf_cma_truncated32_mac
+      ! N3 new k: mac_key;(
+	 !N Omac(x: bitstring) := sessionMAC(MAClen32, k, x),
+	 !N2 Ocheck(m: bitstring, ma: bitstring) := ma = sessionMAC(MAClen32, k, m))
+     <=(N3 * (4*N2/|mac_32bits| + 2*PPRF(time + (N3-1)*(N+N2)*time(sessionMAC,maxlength(x)), N + N2, max(maxlength(x), maxlength(m)), 0, 0)))=> [computational]
+      ! N3 new k: mac_key [unchanged];(
+	 !N Omac(x: bitstring) := sessionMAC2(MAClen32, k, x),
+	 !N2 Ocheck(m: bitstring, ma: bitstring) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && ma = sessionMAC2(MAClen32, k, m) then true else false).
+
+equiv suf_cma_truncated64_mac
+      ! N3 new k: mac_key;(
+	 !N Omac(x: bitstring) := sessionMAC(MAClen64, k, x),
+	 !N2 Ocheck(m: bitstring, ma: bitstring) := ma = sessionMAC(MAClen64, k, m))
+     <=(N3 * (4*N2/|mac_64bits| + 2*PPRF(time + (N3-1)*(N+N2)*time(sessionMAC,maxlength(x)), N + N2, max(maxlength(x), maxlength(m)), 0, 0)))=> [computational]
+      ! N3 new k: mac_key [unchanged];(
+	 !N Omac(x: bitstring) := sessionMAC2(MAClen64, k, x),
+	 !N2 Ocheck(m: bitstring, ma: bitstring) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && ma = sessionMAC2(MAClen64, k, m) then true else false).
+
+equiv suf_cma_truncated128_mac
+      ! N3 new k: mac_key;(
+	 !N Omac(x: bitstring) := sessionMAC(MAClen128, k, x),
+	 !N2 Ocheck(m: bitstring, ma: bitstring) := ma = sessionMAC(MAClen128, k, m))
+     <=(N3 * (4*N2/|mac_128bits| + 2*PPRF(time + (N3-1)*(N+N2)*time(sessionMAC,maxlength(x)), N + N2, max(maxlength(x), maxlength(m)), 0, 0)))=> [computational]
+      ! N3 new k: mac_key [unchanged];(
+	 !N Omac(x: bitstring) := sessionMAC2(MAClen128, k, x),
+	 !N2 Ocheck(m: bitstring, ma: bitstring) := 
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && ma = sessionMAC2(MAClen128, k, m) then true else false).
+
+}
+
+(* Encryption 
+   First, version without security assumption, sufficient for authentication and key secrecy *)
+
+define encryption_IV_no_hyp(enc_key, t_IVdata, E', D') {
+
+fun E'(enc_key, t_IVdata, bitstring): bitstring.
+fun D'(enc_key, t_IVdata, bitstring): bitstring.
+
+forall k: enc_key, IVdata: t_IVdata, msg: bitstring;
+      D'(k, IVdata, E'(k, IVdata, msg)) = msg.
+
+}
+
+(* Second, version with IND-CPA assumtion, provided IVdata is distinct
+   for each encryption. For secrecy of messages. *)
+
+define encryption_IV_IND_CPA(enc_key, t_IVdata, E', D', Zero, Penc) {
+
+expand encryption_IV_no_hyp(enc_key, t_IVdata, E', D').
+
+(* encryption is IND-CPA provided IVdata is distinct
+   for each encryption *)
+
+(* Zero(x) is a bitstring of the same length as x, containing only zeroes *)
+fun Zero(bitstring): bitstring.
+
+fun E''(enc_key, t_IVdata, bitstring): bitstring.
+
+event repeated_IVdata.
+param N, N2.
+
+equiv 
+      !N2 new k: enc_key; !N Oenc(IVdata: t_IVdata, msg: bitstring) := E'(k, IVdata, msg)
+<=(N2 * Penc(time + (N2-1)*(N*time(E', maxlength(msg)) + N*time(Zero, maxlength(msg))), N, maxlength(msg)))=>
+      !N2 new k: enc_key; !N Oenc(IVdata: t_IVdata, msg: bitstring) := 
+      	      	 	         find i <= N suchthat defined(IVdata[i],r[i]) && IVdata = IVdata[i] then
+				     event_abort repeated_IVdata
+				 else
+				     let r: bitstring = E''(k, IVdata, Zero(msg)) in
+				     r.
+
+}
+
+(* MAC is HMAC_SHA256, it is SUF-CMA and collision-resistant;
+   KDF256, KDF128 are PRFs, even when they share the same key as the MAC *)
+
+define MAC_KDF(mac_key, enc_key, t_SHA256_out, t_id, MAC, KDF256, KDF128, PPRF) {
+
+fun MAC(mac_key, bitstring): t_SHA256_out.
+fun KDF256(mac_key, t_SHA256_out, t_id, t_id): mac_key.
+fun KDF128(mac_key, t_SHA256_out, t_id, t_id): enc_key.
+
+(* MAC is HMAC_SHA256, it is SUF-CMA;
+   KDF256, KDF128 are PRFs, even when they share the same key as the MAC *)
+
+param N, qMAC, qVer, qKDF256, qKDF128, qColl.
+fun MAC2(mac_key, bitstring): t_SHA256_out.
+
+equiv
+	! N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC(k, m),
+	 ! qVer O_Ver(mv: bitstring, mac: t_SHA256_out) := mac = MAC(k, mv),
+	 ! qKDF256 O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) := KDF256(k, X2, U2, V2),
+	 ! qKDF128 O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) := KDF128(k, X3, U3, V3))
+<=(N * (4 * qVer / |t_SHA256_out| + 
+        2 * PPRF(time + (N-1)*((qMAC + qVer) * time(MAC, max(maxlength(m), maxlength(mv))) + qKDF256 * time(KDF256) + qKDF128 * time(KDF128)), qMAC + qVer, max(maxlength(m), maxlength(mv)), qKDF256, qKDF128)))=>
+	! N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC2(k, m),
+	 ! qVer O_Ver(mv: bitstring, mac: t_SHA256_out) := 
+	    find j <= qMAC suchthat defined(m[j]) && mv = m[j] && mac = MAC2(k, mv) then
+    	    	true
+            else
+		false,
+         ! qKDF256 O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) := 
+	    find[unique] j2 <= qKDF256 suchthat defined(X2[j2], U2[j2], V2[j2], r2[j2]) && X2 = X2[j2] && U2 = U2[j2] && V2 = V2[j2] then
+                r2[j2]
+            else
+	        new r2: mac_key;
+		r2,
+	 ! qKDF128 O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) := 
+            find[unique] j3 <= qKDF128 suchthat defined(X3[j3], U3[j3], V3[j3], r3[j3]) && X3 = X3[j3] && U3 = U3[j3] && V3 = V3[j3] then
+                r3[j3]
+            else
+		new r3: enc_key;
+		r3).
+
+(* MAC is HMAC_SHA256, it is collision resistant *)
+
+fun MAC2collision(mac_key, bitstring, bitstring): bool.
+
+(* This equality allows simplification to automatically transform
+   x = y into MAC2collision(k,m1,m2) when x = MAC2(k,m1) and y = MAC2(k,m2).
+   Without this equality, the transformation of x = y into MAC2(k, m1)
+   = MAC2(k, m2) is not automatically done by the cryptographic
+   transformation because x = y can (apparently) be discharged without
+   doing anything since it does not contain k. *)
+forall k: mac_key, m1: bitstring, m2: bitstring;
+       (MAC2(k, m1) = MAC2(k, m2)) = MAC2collision(k,m1,m2).
+
+equiv
+	! N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC2(k, m),
+	 ! qColl O_coll(m1: bitstring, m2: bitstring) [useful_change] := (MAC2collision(k, m1, m2)))
+<=(N * ((12 * qColl + 4 * qColl * qColl * N + 4 * qColl * N * qMAC + qMAC * qMAC * N) / |t_SHA256_out| + 
+        2 * PPRF(time + (N-1) * (qMAC + 2 * qColl) * time(MAC, max(maxlength(m), maxlength(m2), maxlength(m1))),
+	         qMAC + 2 * qColl, max(maxlength(m), maxlength(m2), maxlength(m1)), 0, 0)))=>
+	! N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC2(k, m),
+	 ! qColl O_coll(m1: bitstring, m2: bitstring) := (m1 = m2)).
+	
+}
