@@ -40,11 +40,9 @@ type host [bounded].
 type pkey [bounded].
 type skey [bounded].
 type keyseed [large,fixed].
-type seed [fixed].
 type spkey [bounded].
 type sskey [bounded].
 type skeyseed [large,fixed].
-type sseed [fixed].
 type signature [bounded].
 type blocksize [fixed].
 type blocksizebot [bounded].
@@ -68,14 +66,14 @@ forall y:host,z:spkey,y2:shkey;
 proba Penc.
 proba Penccoll.
 
-expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
 
 (* Signatures *)
 
 proba Psign.
 proba Psigncoll.
 
-expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign, check, Psign, Psigncoll).
+expand UF_CMA_proba_signature(skeyseed, spkey, sskey, sblocksize, signature, sskgen, spkgen, sign, check, Psign, Psigncoll).
 
 (* Queries *)
 
@@ -97,14 +95,12 @@ query x: bitstring, k: shkey;
   event(fullB(A, k, x)) ==> event(fullA(B, k, x)) public_vars keyA.
 query k': shkey, x: bitstring, k: shkey;
   event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') public_vars keyA. 
-let processA(pkA: pkey, skA: skey, pkS: pkey) =
+let processA(pkA: spkey, skA: sskey, pkS: spkey) =
 	in(c1, (=A, =pkA, cert1:signature, hostX: host, pkX:pkey, cert2:signature));
 	if check(concat4(A, pkA), pkS, cert1) then
 	if check(concat3(hostX, pkX), pkS, cert2) then 
 	new k:shkey;
-	new r1:sseed;
-	new r2:seed;
-	let m1enc = enc(concat1(k, sign(pad(k), skA, r1)), pkX, r2) in
+	let m1enc = enc(concat1(k, sign(pad(k), skA)), pkX) in
 	let m1 = (A, pkA, cert1, hostX, pkX, cert2, m1enc) in
 	(* Last message and OK *)
 	event fullA(hostX, k, (A, pkA, hostX, pkX, m1enc));
@@ -113,7 +109,7 @@ let processA(pkA: pkey, skA: skey, pkS: pkey) =
 	else
 		(out(c2, (m1, acceptA(hostX))); in(cAK, ()); out(cAK, k)).
 
-let processB =
+let processB(pkB: pkey, skB: skey, pkS: spkey) =
 	in(c3, (hostY:host, pkY:spkey, cert1:signature, =B, =pkB, cert2:signature, m:bitstring));
 	if check(concat4(hostY, pkY), pkS, cert1) then
 	if check(concat3(B, pkB), pkS, cert2) then 
@@ -126,29 +122,27 @@ let processB =
 	else
 		(out(c9, acceptB(hostY)); in(cBK, ()); out(cBK, k)).
 
-let processK =
+let processK(pkB: pkey) =
 	in(c4, (Khost: host, Kkey: pkey));
 	let Rkey:pkey = 
 		if Khost = B then pkB else
 		Kkey.
 
-let processS = 
+let processS(skS: sskey) = 
 	in(c5, (h1: host, h2: host));
 	find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = h2) then
-	new r3: sseed;
-	out(c6, (h2, Rkey[j2], sign(concat3(h2, Rkey[j2]), skS, r3))).
+	out(c6, (h2, Rkey[j2], sign(concat3(h2, Rkey[j2]), skS))).
 
-let processSK =
+let processSK(pkA: spkey) =
 	in(c10, (SKhost: host, SKkey: spkey));
 	let SRkey:spkey = 
 		if SKhost = A then pkA else
 		SKkey.
 
-let processSS = 
+let processSS(skS: sskey) = 
 	in(c11, (h1: host, h2: host));
 	find j2 <= N2 suchthat defined(SKhost[j2],SRkey[j2]) && (SKhost[j2] = h2) then
-	new r3: sseed;
-	out(c12, (h2, SRkey[j2], sign(concat4(h2, SRkey[j2]), skS, r3))).
+	out(c12, (h2, SRkey[j2], sign(concat4(h2, SRkey[j2]), skS))).
 
 process 
 	in(start, ());
@@ -162,15 +156,15 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c7, (pkA, pkB, pkS));
-	((! N processA) |
-	 (! N processB) | 
-	 (! N processS) |
-	 (! N processSS) |
-	 (! N2 processK) |
-	 (! N2 processSK))
+	((! N processA(pkA, skA, pkS)) |
+	 (! N processB(pkB, skB, pkS)) | 
+	 (! N processS(skS)) |
+	 (! N processSS(skS)) |
+	 (! N2 processK(pkB)) |
+	 (! N2 processSK(pkA)))
 
 
 (* EXPECTED
-RESULT Could not prove event fullB(A, k, x) ==> fullA(B, k, x), event inj:fullB(A, k, x) ==> inj:fullA(B, k, x), secrecy of keyA.
+RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
 1.240s (user 1.240s + system 0.000s), max rss 60416K
 END *)
