@@ -80,6 +80,34 @@ from which all these files would be generated (using the m4 preprocessor).
 ------------------------------------------------------
 
 examples-1.28/textsecure
-tls 1.3 (tech report version)
-arinc823
-icao9880
+
+These examples use a specific library of crypto primitives (TextSecure.cvl),
+but it should now be possible to use the new standard library of primitives
+instead.
+They use the m4 preprocessor to generate the CryptoVerif models
+from 3 master files, using the script "runcv".
+------------------------------------------------------
+
+examples-1.28/tls-tech-report
+
+These examples add a few primitives defined in tls-primitives.cvl
+to the standard library of primitives. I am hesitating between two
+options:
+- continue using these macros, just renaming SUF_CMA_mac_nokgen
+into SUF_CMA_mac_key_first
+- use the standard crypto library, after reordering the arguments
+of MACs and signatures.
+
+------------------------------------------------------
+
+examples-1.28/arinc823
+
+These examples add primitives defined in arinc823prim.cvl to the
+standard library of primitives. arinc823prim.cvl needs to be converted
+to the new syntax, because the primitives are too specific to
+include them in the standard library. (The automatic converter may help.)
+These examples use the m4 preprocessor to generate the CryptoVerif models
+from several master files, using the script "gen".
+------------------------------------------------------
+
+examples-1.28/icao9880-May2017
