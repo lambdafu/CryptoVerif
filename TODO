@@ -239,7 +239,7 @@ more transformations with the square variant.
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
 
-   TO DO prepare examples for Benjamin Beurdouche, put in svn
+   TO DO prepare examples for Benjamin Beurdouche
 
    h-bis) Remove "compos" and "decompos" to keep only
    "data" and "projection"?

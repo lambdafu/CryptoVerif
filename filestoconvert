@@ -1,8 +1,8 @@
 In general, original files are in examples-1.28/<dirname>
 and the converted files are to be put in examples/<dirname>.
-(There is one exception mentioned below.)
+(There are exceptions mentioned below.)
 
-basic/
+examples-1.28/basic/
 
 pfdh.cv
 runex.cv
@@ -12,7 +12,12 @@ signedDH-DDH.cv
 signedDH-forward-secrecy.cv
 
 ----------------------------------------------------
-authbasic/
+examples-1.28/authbasic/
+
+Notes:
+* Use IND_CPA_INT_CTXT_sym_enc for authenticated encryption, not
+encrypt-then-MAC.
+* Put converted file in examples/basic
 
 denning-sacco3Block.cv
 denning-sacco-corr3Block.cv
@@ -40,13 +45,8 @@ yahalom3Stream.cv
 yahalom3StreamMac.cv
 yahalom3StreamMod.cv
 
-Notes:
-* Use IND_CPA_INT_CTXT_sym_enc for authenticated encryption, not
-encrypt-then-MAC.
-* Put converted file in examples/basic
-
 ------------------------------------------------------
-obasic/
+examples-1.28/obasic/
 
 encryptBR93-1.ocv
 encryptBR93-2.ocv
@@ -60,12 +60,14 @@ signedDH.ocv
 undeniable-sig.ocv
 
 ------------------------------------------------------
-kerberos/
+examples-1.28/kerberos/
 
 BasicKerberos*Updated.cv
 
 PublicKeyKerberos*TwoCertRegister2.cv
 Note: Name the converted files PublicKeyKerberos*Updated.cv
+
+Two of these files are already converted.
 
 ------------------------------------------------------
 
