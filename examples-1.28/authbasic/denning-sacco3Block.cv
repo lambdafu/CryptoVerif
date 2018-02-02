@@ -91,13 +91,14 @@ event fullA(host, shkey, bitstring).
 event fullB(host, shkey, bitstring).
 
 query secret keyA.
-query x: bitstring, k: shkey;
-  inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) public_vars keyA. (* WRONG: replay attack *)
-query x: bitstring, k: shkey;
-  event(fullB(A, k, x)) ==> event(fullA(B, k, x)) public_vars keyA.
-query k': shkey, x: bitstring, k: shkey;
-  event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') public_vars keyA. 
-let processA(pkA: pkey, skA: skey, pkS: pkey) =
+query k:shkey, x:bitstring;
+	event inj:fullB(A,k,x) ==> inj:fullA(B,k,x). (* WRONG: replay attack *)
+query k:shkey, x:bitstring;
+	event fullB(A,k,x) ==> fullA(B,k,x).
+query k:shkey, k':shkey, x:bitstring;
+	event fullB(A,k,x) && fullA(B,k',x) ==> k = k'. 
+
+let processA =
 	in(c1, (=A, =pkA, cert1:signature, hostX: host, pkX:pkey, cert2:signature));
 	if check(concat4(A, pkA), pkS, cert1) then
 	if check(concat3(hostX, pkX), pkS, cert2) then 
