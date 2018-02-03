@@ -339,6 +339,14 @@ neidentlist:
 |       IDENT COMMA neidentlist
         { $1 :: $3 }
 
+newarg: /* For compatibility with ProVerif; ignored by CryptoVerif */
+  
+    { None }
+| LBRACKET RBRACKET
+    { Some [] }
+| LBRACKET neidentlist RBRACKET
+    { Some ($2) }
+
 vartypelist:
 
         { [] }
@@ -388,14 +396,14 @@ term:
         { PLetE($2,$4,$6,Some $8), parse_extent() }
 |       LET pattern EQUAL term IN term
         { PLetE($2,$4,$6,None), parse_extent() }
-| 	NEW IDENT COLON IDENT SEMI term
-	{ PResE($2, $4, $6), parse_extent() }
+| 	NEW IDENT newarg COLON IDENT SEMI term
+	{ PResE($2, $5, $7), parse_extent() }
 | 	IDENT RANDOM IDENT SEMI term
 	{ PResE($1, $3, $5), parse_extent() }
 |       EVENT_ABORT IDENT
         { PEventAbortE($2), parse_extent() }
-|       EVENT funapp SEMI term
-        { PEventE($2, $4), parse_extent() }
+|       EVENT funapp newarg SEMI term
+        { PEventE($2, $5), parse_extent() }
 |       INSERT IDENT LPAREN termseq RPAREN SEMI term
         { PInsertE($2,$4,$7), parse_extent() }
 |       GET IDENT LPAREN patternseq RPAREN SUCHTHAT term IN term ELSE term
@@ -512,8 +520,8 @@ process:
 	{ let x = $1 in
 	  if x = 0 then PNil, parse_extent() else 
           input_error ("The only integer in a process is 0 for the nil process") (parse_extent()) }
-| 	NEW IDENT COLON IDENT optprocess
-	{ PRestr($2, $4, $5), parse_extent() }
+| 	NEW IDENT newarg COLON IDENT optprocess
+	{ PRestr($2, $5, $6), parse_extent() }
 | 	IDENT RANDOM IDENT optprocess
 	{ PRestr($1, $3, $4), parse_extent() }
 |	IF findcond THEN process optelse
@@ -529,10 +537,8 @@ process:
         { PGet($2,$4,Some $7,$9,$10), parse_extent() }
 |       GET IDENT LPAREN patternseq RPAREN IN process optelse
         { PGet($2,$4,None,$7,$8), parse_extent() }
-|       EVENT IDENT optprocess
-        { PEvent((PFunApp($2, []), parse_extent()), $3), parse_extent() }
-|       EVENT IDENT LPAREN termseq RPAREN optprocess
-        { PEvent((PFunApp($2, $4), parse_extent()), $6), parse_extent() }
+|       EVENT funapp newarg optprocess
+        { PEvent($2, $4), parse_extent() }
 |       basicpattern LEFTARROW term optprocess
         { PLet($1,$3,$4,(PYield, parse_extent())), parse_extent() }
 | 	LET pattern EQUAL term

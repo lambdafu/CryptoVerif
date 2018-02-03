@@ -239,8 +239,6 @@ more transformations with the square variant.
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
 
-   TO DO prepare examples for Benjamin Beurdouche
-
    h-bis) Remove "compos" and "decompos" to keep only
    "data" and "projection"?
    
@@ -272,7 +270,7 @@ We could probably push this idea for noninterf x among S.
    a negligible probability of happening.
    [unchanged] restrictions are shared between both sides.
 
-   TO DO in ProVerif
+   TO DO in ProVerif (branch compat_cryptoverif)
    - Allow get, insert, event in terms (by expansion).
    - Use a <-R T as a synonym of new a: T,
       x [:T] <- M as a synonym of let x[:T] = M in,
