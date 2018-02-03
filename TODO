@@ -272,10 +272,11 @@ We could probably push this idea for noninterf x among S.
 
    TO DO in ProVerif (branch compat_cryptoverif)
    - Allow get, insert, event in terms (by expansion).
-   - Use a <-R T as a synonym of new a: T,
+   - DONE Use a <-R T as a synonym of new a: T,
       x [:T] <- M as a synonym of let x[:T] = M in,
       foreach i <= N do as a synonym of ! i <= N
-     0 and yield are synonym, I think that's already done.
+     0 and yield are synonym, that's already done.
+   - allow (and ignore) CV implementation annotations in PV
    - allow conjunctions of events before ==>
    - query secret <variable> public_vars ... [options]
    public_vars x1, ..., xn can be encoded by adding an output
