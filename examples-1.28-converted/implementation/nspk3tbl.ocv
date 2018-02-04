@@ -108,7 +108,7 @@ query nb: nonce, na: nonce, y: host, x: host;
 
 const roleA:role.
 const roleB:role.
-equation forall ; roleA <> roleB.
+equation roleA <> roleB.
 
 (*implementation*)
 
