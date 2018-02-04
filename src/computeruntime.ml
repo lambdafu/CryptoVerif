@@ -136,7 +136,7 @@ and time_term t =
 	      (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []), ActTime(ANew b.btype, []))))
 	end
   | EventAbortE(f) ->
-      Parsing_helper.internal_error "event should have been expanded"
+      Polynom.zero
   | TestE(t,t1,t2) ->
       let tp = Polynom.sum (time_term t) (Polynom.max (time_term t1) (time_term t2)) in
       if (!Settings.ignore_small_times)>0 then
