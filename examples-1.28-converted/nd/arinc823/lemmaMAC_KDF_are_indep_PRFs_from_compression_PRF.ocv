@@ -184,7 +184,7 @@ const AES128num: byte.        (* 0x01 *)
 const HMAC256keylength: byte. (* 256 *)
 const HMAC_SHA256num: byte.   (* 0xF1 *)
 
-forall; MACcst <> ENCcst.
+equation MACcst <> ENCcst.
 
 
 type t_shared_info [fixed]. (* 408 bits SharedInfoMAC and SharedInfoENC *)
@@ -197,7 +197,7 @@ fun concatSI(byte, byte, t_SHA256_out, t_id, t_id, byte): t_shared_info [data].
 
 type t_count [fixed]. (* 16 bits integer counter *)
 const count1 (* constant 1 *), count2 (* constant 2 *): t_count. 
-forall; count1 <> count2.
+equation count1 <> count2.
 fun concatKDF(mac_key, t_count, t_shared_info): t_SHA1_in [data].
 (* The result of concatKDF is 256 + 16 + 408 = 680 bits long.
    That will be padded to two 512-bits blocks when computing SHA1. *)
@@ -258,7 +258,7 @@ equiv
 (* HMAC helper functions *)
 
 const opad, ipad: t_SHA256_block.
-forall; opad <> ipad.
+equation opad <> ipad.
 
 fun padkey(mac_key): t_SHA256_block [data].
 

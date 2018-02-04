@@ -70,7 +70,7 @@ expand ROM_hash_pair(hashkey2, t_SHA256_out, t_SHA256_block, t_SHA256_out, SHA25
 (* HMAC helper functions *)
 
 const opad, ipad: t_SHA256_block.
-forall; opad <> ipad.
+equation opad <> ipad.
 
 fun padkey(mac_key): t_SHA256_block [data].
 
