@@ -55,11 +55,11 @@ fun pad(bitstring):blocksize [data].
 (* fun pad(nonce):blocksize [compos]. *) (* OLD version *)
 
 
-forall z:nonce,t:nonce,y2:nonce,z2:host;
+equation forall z:nonce,t:nonce,y2:nonce,z2:host;
     concat2(z,t) <> concat1(y2,z2).
 (*forall y:nonce,y2:nonce,z2:host;
     pad(y) <> concat1(y2,z2).
-forall z:nonce,t:nonce,y2:nonce;
+equation forall z:nonce,t:nonce,y2:nonce;
     concat2(z,t) <> pad(y2).*)
 
 
@@ -82,9 +82,9 @@ fun injbot(blocksize):blocksizebot [data].
 
 const Zkey:blocksize.
 
-forall m:blocksize, r:keyseed, r2:seed;
+equation forall m:blocksize, r:keyseed, r2:seed;
     dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
-forall m:blocksize, r:keyseed, r2:seed;
+equation forall m:blocksize, r:keyseed, r2:seed;
     dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
 
 equiv
@@ -115,7 +115,7 @@ fun symenc(blocksize, key): blocksize.
 fun kgen(keyseed):key.
 fun symdec(blocksize, key): blocksize.
 
-forall m:blocksize, r:keyseed;
+equation forall m:blocksize, r:keyseed;
     symdec(symenc(m, kgen(r)), kgen(r)) = m.
 
 equiv
@@ -140,9 +140,9 @@ fun mac2(bitstring, mkey):macs.
 fun mcheck2(bitstring, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:bitstring, r:mkeyseed;
+equation forall m:bitstring, r:mkeyseed;
     mcheck(m, mkgen(r), mac(m, mkgen(r))).
-forall m:bitstring, r:mkeyseed;
+equation forall m:bitstring, r:mkeyseed;
     mcheck2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv ! N3 new r: mkeyseed;(
@@ -167,9 +167,9 @@ fun mac2(bitstring, mkey):macs.
 fun mcheck2(bitstring, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:bitstring, k:mkey;
+equation forall m:bitstring, k:mkey;
     mcheck(m, k, mac(m, k)).
-forall m:bitstring, k:mkey;
+equation forall m:bitstring, k:mkey;
     mcheck2(m, k, mac2(m, k)).
 
 equiv
@@ -209,9 +209,9 @@ fun sskgen2(skeyseed):sskey.
 fun spkgen2(skeyseed):spkey.
 fun check2(sblocksize, spkey, signature): bool.
 
-forall m:sblocksize, r:skeyseed, r2:sseed;
+equation forall m:sblocksize, r:skeyseed, r2:sseed;
     check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
-forall m:sblocksize, r:skeyseed, r2:sseed;
+equation forall m:sblocksize, r:skeyseed, r2:sseed;
     check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
 
 equiv  !N3 new r: skeyseed; (() -> spkgen(r),

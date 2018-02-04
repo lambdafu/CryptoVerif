@@ -19,10 +19,10 @@ fun concat1(bitstring, bitstring): bitstring [data].
 fun parse1(bitstring): bitstring. (* The indication [decompos] makes the proof fail... *)
 fun parse2(bitstring): bitstring. (* The indication [decompos] makes the proof fail... *)
 
-forall x:bitstring, y:bitstring;
+equation forall x:bitstring, y:bitstring;
   parse1(concat1(x, y)) = x.
 
-forall x:bitstring, y:bitstring;
+equation forall x:bitstring, y:bitstring;
   parse2(concat1(x, y)) = y.
 
 event client_begin(bitstring).

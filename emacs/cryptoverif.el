@@ -2,7 +2,7 @@
 ;; mode for .cv files 
 ;;
 
-(defvar cryptoverif-kw '("new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun") "Cryptoverif keywords")
+(defvar cryptoverif-kw '("new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun") "Cryptoverif keywords")
 
 (defvar cryptoverif-builtin '("noninteractive" "bounded" "fixed" "large" "password" "compos" "data" "decompos" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "onesession" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
@@ -38,7 +38,7 @@
 ;; mode for .ocv files (oracles mode)
 ;;
 
-(defvar cryptoverifo-kw '("new" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "newOracle" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "run") "Cryptoverif keywords")
+(defvar cryptoverifo-kw '("new" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "newOracle" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "run") "Cryptoverif keywords")
 
 (defvar cryptoverifo-kw-regexp (regexp-opt cryptoverifo-kw 'words))
 ;; the builtins are the same as in the .cv mode

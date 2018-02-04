@@ -58,10 +58,10 @@ fun Z(maxenc):maxenc.
 const Z1:maxenc.
 const Z2:maxenc.
 
-forall m:maxenc, r:keyseed, r2:seed; 
+equation forall m:maxenc, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
-forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
+equation forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
+equation forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
 
 
 equiv
@@ -81,9 +81,9 @@ fun mac2(maxmac, mkey):macs.
 fun check2(maxmac, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv

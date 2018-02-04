@@ -8,6 +8,10 @@ Version 1.29
   - "define" becomes "def"
   - "[compos]" becomes "[data]"
   - "[decompos]" becomes "[projection]"
+  - "equation structure(id1, ..., idn)." becomes
+    "equation builtin structure(id1, ..., idn)."
+  - "forall x1:t1, ..., xn:tn; M." becomes
+    "equation forall x1:t1, ..., xn:tn; M."
   - "query secret1 x." becomes "query secret x [onesession]."
   - The syntax of correspondences is now the ProVerif syntax:
     For instance, "query event e1(...) ==> e2(...)."

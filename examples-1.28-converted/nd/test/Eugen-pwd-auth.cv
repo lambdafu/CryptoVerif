@@ -17,7 +17,7 @@ def Database(option,Some,None, guid,db,unit,key,value, newdb,dbinsert,select)
 fun Some(value):option[data].
 fun None():option[data].
 
-forall x:bitstring;
+equation forall x:bitstring;
   Some(x)<>None.
 
 
@@ -53,11 +53,11 @@ expand Database(bitstring,Some,None, guid,Dbdb,unit,bitstring,bitstring, DbnewDb
 fun PwdPwEntry(mkey):bitstring[data].
 fun PwdLeakedPwEntry(mkey):bitstring[data].
 
-forall x:mkey; 
+equation forall x:mkey; 
   PwdPwEntry(x) <> dummy.
-forall x:mkey; 
+equation forall x:mkey; 
   PwdLeakedPwEntry(x) <> dummy.
-forall x:mkey,y:mkey; 
+equation forall x:mkey,y:mkey; 
   PwdPwEntry(x) <> PwdLeakedPwEntry(y).
 
 

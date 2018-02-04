@@ -4,7 +4,7 @@ type D.
 
 fun xor(D,D):D.
 const neut:D.
-equation ACUN(xor,neut).
+equation builtin ACUN(xor,neut).
 
 fun f(D):bitstring.
 fun h(D):bitstring.
@@ -13,11 +13,11 @@ fun i(D):bitstring.
 fun j(D):bitstring.
 
 const zero, one, two, three: D. 
-forall x:D, y:D, z:D; f(xor(x,xor(y,z))) = g(x,y,z).
-forall y:D; h(xor(one,xor(y,two))) = g(one,y,two).
+equation forall x:D, y:D, z:D; f(xor(x,xor(y,z))) = g(x,y,z).
+equation forall y:D; h(xor(one,xor(y,two))) = g(one,y,two).
 
-forall x:D, y:D; i(xor(zero,xor(x,xor(y,one)))) = g(x,y,x).
-forall x:D, y:D; j(xor(zero,xor(x,xor(one,y)))) = g(x,y,x).
+equation forall x:D, y:D; i(xor(zero,xor(x,xor(y,one)))) = g(x,y,x).
+equation forall x:D, y:D; j(xor(zero,xor(x,xor(one,y)))) = g(x,y,x).
 
 channel c.
 

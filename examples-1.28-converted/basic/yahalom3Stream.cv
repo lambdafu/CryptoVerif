@@ -27,9 +27,9 @@ fun concat1(host, key, nonce, nonce):maxenc [data].
 fun concat2(host, key):maxenc [data].
 fun concat3(host, nonce, nonce):maxenc [data].
 
-forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
-forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:nonce,t2:nonce; concat1(y,z,t,u) <> concat3(y2,z2,t2).
-forall y:host,z:key,y2:host,z2:nonce,t2:nonce; concat2(y,z) <> concat3(y2,z2,t2).
+equation forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+equation forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:nonce,t2:nonce; concat1(y,z,t,u) <> concat3(y2,z2,t2).
+equation forall y:host,z:key,y2:host,z2:nonce,t2:nonce; concat2(y,z) <> concat3(y2,z2,t2).
 
 fun nonceToMaxenc(nonce):maxenc [data].
 
@@ -44,11 +44,11 @@ expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbo
 const Zconcat1:maxenc.
 const Zconcat2:maxenc.
 const Zconcat3:maxenc.
-forall y:host,z:key,t:nonce,u:nonce; 
+equation forall y:host,z:key,t:nonce,u:nonce; 
 	Z(concat1(y,z,t,u)) = Zconcat1.
-forall y:host,z:key; 
+equation forall y:host,z:key; 
 	Z(concat2(y,z)) = Zconcat2.
-forall y:host,z:nonce,t:nonce; 
+equation forall y:host,z:nonce,t:nonce; 
 	Z(concat3(y,z,t)) = Zconcat3.
 
 (* Mac *)

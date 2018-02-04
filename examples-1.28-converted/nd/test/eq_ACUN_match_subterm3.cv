@@ -4,13 +4,13 @@ type D.
 
 fun xor(D,D):D.
 const neut:D.
-equation ACUN(xor,neut).
+equation builtin ACUN(xor,neut).
 
 fun g(D,D,D): D.
 
 const zero, one, two, three, four: D. 
 const zero', one', two', three', four': D. 
-forall x:D, y:D; xor(zero,xor(x,xor(y,one))) = g(x,y,x).
+equation forall x:D, y:D; xor(zero,xor(x,xor(y,one))) = g(x,y,x).
 
 channel c.
 

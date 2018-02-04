@@ -18,30 +18,30 @@ type seed [fixed].
 type macs.
 
 fun concat1(nonce, nonce, host, host):bitstring.
-forall y:nonce,z:nonce,t:host,u:host,y2:nonce,z2:nonce,t2:host,u2:host; 
+equation forall y:nonce,z:nonce,t:host,u:host,y2:nonce,z2:nonce,t2:host,u2:host; 
 	(concat1(y,z,t,u) = concat1(y2,z2,t2,u2)) =
 	((y = y2) && (z = z2) && (t = t2) && (u = u2)).
 fun concat2(nonce, key):bitstring.
-forall y:nonce,z:key,y2:nonce,z2:key; 
+equation forall y:nonce,z:key,y2:nonce,z2:key; 
 	(concat2(y,z) = concat2(y2,z2)) = ((y = y2) && (z = z2)).
 
 fun isconcat1(bitstring):bool.
-forall y:nonce,z:nonce,t:host,u:host; isconcat1(concat1(y,z,t,u)) = true.
-forall y:nonce,z:key; isconcat1(concat2(y,z)) = false.
+equation forall y:nonce,z:nonce,t:host,u:host; isconcat1(concat1(y,z,t,u)) = true.
+equation forall y:nonce,z:key; isconcat1(concat2(y,z)) = false.
 
 fun getnonce1(bitstring):nonce [decompos].
-forall y:nonce,z:nonce,t:host,u:host; getnonce1(concat1(y,z,t,u)) = y.
+equation forall y:nonce,z:nonce,t:host,u:host; getnonce1(concat1(y,z,t,u)) = y.
 fun getnonce2(bitstring):nonce [decompos].
-forall y:nonce,z:nonce,t:host,u:host; getnonce2(concat1(y,z,t,u)) = z.
+equation forall y:nonce,z:nonce,t:host,u:host; getnonce2(concat1(y,z,t,u)) = z.
 fun gethost1(bitstring):host [decompos].
-forall y:nonce,z:nonce,t:host,u:host; gethost1(concat1(y,z,t,u)) = t.
+equation forall y:nonce,z:nonce,t:host,u:host; gethost1(concat1(y,z,t,u)) = t.
 fun gethost2(bitstring):host [decompos].
-forall y:nonce,z:nonce,t:host,u:host; gethost2(concat1(y,z,t,u)) = u.
+equation forall y:nonce,z:nonce,t:host,u:host; gethost2(concat1(y,z,t,u)) = u.
 
 fun getnonce3(bitstring):nonce [decompos].
-forall y:nonce,z:key; getnonce3(concat2(y,z)) = y.
+equation forall y:nonce,z:key; getnonce3(concat2(y,z)) = y.
 fun getkey2(bitstring):key [decompos].
-forall y:nonce,z:key; getkey2(concat2(y,z)) = z.
+equation forall y:nonce,z:key; getkey2(concat2(y,z)) = z.
 
 (* Shared-key encryption (CPA Stream cipher) *)
 
@@ -61,13 +61,13 @@ const Znonce:nonce.
 const Zhost:host.
 const Zkey:key.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = m.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = m.
-forall y:nonce,z:nonce,t:host,u:host; 
+equation forall y:nonce,z:nonce,t:host,u:host; 
 	Z(concat1(y,z,t,u)) = concat1(Znonce,Znonce,Zhost,Zhost).
-forall y:nonce,z:key; 
+equation forall y:nonce,z:key; 
 	Z(concat2(y,z)) = concat2(Znonce,Zkey).
 
 equiv  !N2 new r: keyseed; !N Oenc(x:bitstring) := new r2: seed; return(enc(x, kgen(r), r2))
@@ -105,9 +105,9 @@ fun mac2(bitstring, key):macs.
 fun check2(bitstring, key, macs): bool.
 fun mkgen2(keyseed):key.
 
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv !N3 new r: keyseed;(

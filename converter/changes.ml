@@ -4,6 +4,7 @@ open Lexing
 type change =
     Replace of string
   | Remove
+  | ChEquation of Ptree.statement
   | ChEquiv of Ptree.eqstatement
   | ChCollision of Ptree.collision
   | ChQuery of Ptree.query list

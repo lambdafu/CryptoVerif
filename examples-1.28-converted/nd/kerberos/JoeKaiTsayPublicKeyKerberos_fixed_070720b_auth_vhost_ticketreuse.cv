@@ -68,31 +68,31 @@ fun padts(timest): maxenc [data].									(* needed to create {t}_SK *)
 
 (* inequalities of outputs of two different concat functions when they output the same types : *) 
 
-forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat5(y,w,z) <> concat4(t2,w2,y2,z2).
-forall t:key, w: mkey, y: nonce, z: server, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat8(t,w,y,z) <> concat4(t2,w2,y2,z2).
-forall z:client,t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(z,t) <> concat4(t2,w2,y2,z2).
-forall t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  padts(t) <> concat4(t2,w2,y2,z2).
-forall y:key, w:mkey, z:client, t2: key, w2: mkey, y2: nonce, z2: server;    concat5(y,w,z) <> concat8(t2,w2,y2,z2).
-forall y:key, w:mkey, z:client, t2: timest,  z2:client;    concat5(y,w,z) <> pad(z2,t2). 
-forall y:key, w:mkey, z:client, t2: timest;    concat5(y,w,z) <> padts(t2). 
-forall t:key, w: mkey, y: nonce, z: server, t2:timest, z2:client;  concat8(t,w,y,z) <> pad(z2, t2).
-forall t:key, w: mkey, y: nonce, z: server, t2:timest;  concat8(t,w,y,z) <> padts( t2).
-forall t: timest, z: client, t2: timest;  pad(z,t)<> padts(t2).
+equation forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat5(y,w,z) <> concat4(t2,w2,y2,z2).
+equation forall t:key, w: mkey, y: nonce, z: server, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat8(t,w,y,z) <> concat4(t2,w2,y2,z2).
+equation forall z:client,t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(z,t) <> concat4(t2,w2,y2,z2).
+equation forall t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  padts(t) <> concat4(t2,w2,y2,z2).
+equation forall y:key, w:mkey, z:client, t2: key, w2: mkey, y2: nonce, z2: server;    concat5(y,w,z) <> concat8(t2,w2,y2,z2).
+equation forall y:key, w:mkey, z:client, t2: timest,  z2:client;    concat5(y,w,z) <> pad(z2,t2). 
+equation forall y:key, w:mkey, z:client, t2: timest;    concat5(y,w,z) <> padts(t2). 
+equation forall t:key, w: mkey, y: nonce, z: server, t2:timest, z2:client;  concat8(t,w,y,z) <> pad(z2, t2).
+equation forall t:key, w: mkey, y: nonce, z: server, t2:timest;  concat8(t,w,y,z) <> padts( t2).
+equation forall t: timest, z: client, t2: timest;  pad(z,t)<> padts(t2).
 
 
 
-forall k1:key, k2:mkey, y:checksum, z2:client, y2:pkey, x2:spkey;
+equation forall k1:key, k2:mkey, y:checksum, z2:client, y2:pkey, x2:spkey;
 	concat3(k1,k2,y) <> concat1(z2,y2, x2).
-forall k1:key, k2:mkey, y:checksum, z2: nonce;
+equation forall k1:key, k2:mkey, y:checksum, z2: nonce;
 	concat3(k1, k2,y) <> padno(z2).
-forall  y:nonce, z2:client, y2:pkey, x2:spkey;
+equation forall  y:nonce, z2:client, y2:pkey, x2:spkey;
 	padno(y) <> concat1(z2,y2, x2).
 
-forall k1:key, k2:mkey, y:checksum, z2:kas, y2:pkey, x2:spkey;
+equation forall k1:key, k2:mkey, y:checksum, z2:kas, y2:pkey, x2:spkey;
 	concat3(k1,k2,y) <> concat7(z2,y2, x2).
-forall  y:nonce, z2:kas, y2:pkey, x2:spkey;
+equation forall  y:nonce, z2:kas, y2:pkey, x2:spkey;
 	padno(y) <> concat7(z2,y2, x2).
-forall z2:client, y2:pkey, x2:spkey, z:kas, y: pkey, x: spkey;
+equation forall z2:client, y2:pkey, x2:spkey, z:kas, y: pkey, x: spkey;
         concat1(z2,y2,x2) <> concat7(z,y,x).
 
 
@@ -115,9 +115,9 @@ fun injbot1(blocksize):blocksizebot [data].
 
 const Z:blocksize.
 
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot1(m).
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot1(m).
 
 equiv
@@ -152,9 +152,9 @@ fun sskgen2(skeyseed):sskey.
 fun spkgen2(skeyseed):spkey.
 fun check2(sblocksize, spkey, signature): bool.
 
-forall m:sblocksize, r:skeyseed, r2:sseed; 
+equation forall m:sblocksize, r:skeyseed, r2:sseed; 
 	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
-forall m:sblocksize, r:skeyseed, r2:sseed; 
+equation forall m:sblocksize, r:skeyseed, r2:sseed; 
 	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
 
 equiv
@@ -198,18 +198,18 @@ const Zconcat8: maxenc.
 const  	  Zpad: maxenc.
 const   Zpadts: maxenc. 
 
-forall m:maxenc, r:symkeyseed, r2:symseed; 
+equation forall m:maxenc, r:symkeyseed, r2:symseed; 
 	decsym(encsym(m, kgen(r), r2), kgen(r)) = injbot2(m).
 
-forall m:key,x:mkey, y:nonce,z:tgs; 
+equation forall m:key,x:mkey, y:nonce,z:tgs; 
 	Z2(concat4(m,x,y,z)) = Zconcat4.
-forall y:key,x:mkey,z:client; 
+equation forall y:key,x:mkey,z:client; 
 	Z2(concat5(y,x,z)) = Zconcat5.
-forall  y:nonce, z:server, t:key, u:mkey;
+equation forall  y:nonce, z:server, t:key, u:mkey;
 	Z2(concat8(t, u, y, z)) = Zconcat8.
-forall z:client, t:timest;
+equation forall z:client, t:timest;
         Z2(pad(z,t)) = Zpad.
-forall t: timest;
+equation forall t: timest;
         Z2(padts(t)) = Zpadts.
 (* forall m:maxenc, r:symkeyseed, r2:symseed; 
 	Z2(encsym(m, kgen(r), r2)) = Z2(m). *)
@@ -231,9 +231,9 @@ fun mac2(maxmac, mkey):macs.
 fun checkmac2(maxmac, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	checkmac(m, mkgen(r), mac(m, mkgen(r))).
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	checkmac2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 

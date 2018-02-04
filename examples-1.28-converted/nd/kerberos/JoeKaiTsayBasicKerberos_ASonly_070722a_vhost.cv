@@ -19,7 +19,7 @@ fun concat1(key, mkey, nonce, tgs):bitstring [data]. 				(* needed for {AK, mAK,
 fun concat2(key, mkey, client):bitstring [data].  					(* needed for TGT and ST *)
 
 
-forall y:key, w:mkey, z:client, y2:nonce, z2:tgs, t2:key, w2:mkey;
+equation forall y:key, w:mkey, z:client, y2:nonce, z2:tgs, t2:key, w2:mkey;
 	concat2(y,w,z) <> concat1(t2,w2,y2,z2).
 
 
@@ -46,16 +46,16 @@ const Zconcat2:bitstring.
 query x:bitstring, k:key, k':key, mk:mkey, mk':mkey;
 	event fullC(K,T,k,mk,x) && fullK(C,T,k',mk',x) ==> k = k'.
 *)
-forall m1:bitstring, m2:bitstring, r:keyseed, r1: seed, r2:seed;
+equation forall m1:bitstring, m2:bitstring, r:keyseed, r1: seed, r2:seed;
 	(enc(m1,kgen(r),r1) = enc(m2,kgen(r),r2)) = (m1 = m2).
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall y:nonce, z:tgs, t:key, u:mkey;
+equation forall y:nonce, z:tgs, t:key, u:mkey;
 	Z(concat1(t, u, y, z)) = Zconcat1.
-forall y:key, w:mkey, z:client; 
+equation forall y:key, w:mkey, z:client; 
 	Z(concat2(y, w, z)) = Zconcat2.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	Z(enc(m, kgen(r), r2)) = Z(m).
 
 equiv
@@ -76,9 +76,9 @@ fun mac2(bitstring, mkey):macs.
 fun check2(bitstring, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:bitstring, r:mkeyseed;
+equation forall m:bitstring, r:mkeyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:bitstring, r:mkeyseed;
+equation forall m:bitstring, r:mkeyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv

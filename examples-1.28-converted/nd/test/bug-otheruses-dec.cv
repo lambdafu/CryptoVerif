@@ -42,7 +42,7 @@ param qE, qD [noninteractive].
 fun enc(blocksize, key): blocksize.
 fun dec(blocksize, key): blocksize.
 
-forall m:blocksize, k:key; 
+equation forall m:blocksize, k:key; 
 	dec(enc(m, k), k) = m.
 
 equiv

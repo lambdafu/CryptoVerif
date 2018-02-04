@@ -43,6 +43,7 @@ let return_channel = (dummy_channel, None)
 %token FUN
 %token FORALL
 %token EQUATION
+%token BUILTIN
 %token PARAM
 %token PROBA
 %token TYPE
@@ -146,10 +147,10 @@ commonlibelem:
         { [EventDecl($2, [])] }
 |       EVENT IDENT LPAREN identlist RPAREN DOT
         { [EventDecl($2, $4)] }
-|	FORALL vartypelist SEMI term DOT 
-	{ [Statement($2, $4)] }
-|       EQUATION IDENT LPAREN identlist RPAREN DOT
-        { [BuiltinEquation($2, $4)] }
+|	EQUATION eqlist options DOT 
+	{ $2 }
+|       EQUATION BUILTIN IDENT LPAREN identlist RPAREN DOT
+        { [BuiltinEquation($3, $5)] }
 |       SET IDENT EQUAL IDENT DOT
         { [Setting($2,S $4)] }
 |       SET IDENT EQUAL INT DOT
@@ -190,10 +191,8 @@ lib:
         { (List.map (fun x -> (ChannelDecl(x))) $2) @ $4 }
 |       EQUIV eqname eqmember EQUIVLEFT probaf EQUIVRIGHT optpriority eqmember DOT lib
         { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
-|       COLLISION newlist FORALL vartypelist SEMI RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT lib
-        { (Collision($2, $4, $8, $11, $15)) :: $18 }
-|       COLLISION newlist RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT lib
-        { (Collision($2, [], $5, $8, $12)) :: $15 }
+|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT lib
+        { (Collision($2, $3, $6, $9, $13)) :: $16 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE lib RBRACE lib
         { (Define($2, $4, $7)) :: $9 }
 | 
@@ -358,6 +357,21 @@ nevartypelist:
         { [($1, $3)] }
 |       IDENT COLON IDENT COMMA nevartypelist
         { ($1, $3) :: $5 }
+
+forallvartype:
+        FORALL vartypelist SEMI
+        { $2 }
+|
+        { [] }
+
+/* Equations */
+
+eqlist:
+    forallvartype term  
+    { [Statement($1, $2)] }
+|   forallvartype term SEMI eqlist
+    { (Statement($1, $2))::$4 }
+
 
 funapp:
     IDENT
@@ -1151,10 +1165,8 @@ olib:
 	{ (PDef($2,$4,$7)) :: $9 }
 |       EQUIV eqname eqmember EQUIVLEFT oprobaf EQUIVRIGHT optpriority eqmember DOT olib
         { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
-|       COLLISION newlist FORALL vartypelist SEMI RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT olib
-        { (Collision($2, $4, $8, $11, $15)) :: $18 }
-|       COLLISION newlist RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT olib
-        { (Collision($2, [], $5, $8, $12)) :: $15 }
+|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT olib
+        { (Collision($2, $3, $6, $9, $13)) :: $16 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE olib RBRACE olib
         { (Define($2, $4, $7)) :: $9 }
 | 

@@ -54,11 +54,11 @@ fun concat3(host, pkey):sblocksize [data].
 fun concat4(host, spkey):sblocksize [data].
 fun pad(shkey):sblocksize [data].
 
-forall y:host,z:pkey,y2:shkey;
+equation forall y:host,z:pkey,y2:shkey;
 	concat3(y,z) <> pad(y2).
-forall y:host,z:pkey,y2:host,z2:spkey;	
+equation forall y:host,z:pkey,y2:host,z2:spkey;	
 	concat3(y,z) <> concat4(y2,z2).
-forall y:host,z:spkey,y2:shkey;
+equation forall y:host,z:spkey,y2:shkey;
         concat4(y,z) <> pad(y2).
 
 (* Public-key encryption (CCA2) *)

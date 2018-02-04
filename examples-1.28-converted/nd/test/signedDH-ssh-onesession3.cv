@@ -27,15 +27,15 @@ fun exp4(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z.
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   (exp3(exp4(a,x), y) = exp4(exp3(a,x), y)) = true.
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp1(exp2(a,x), y) = exp3(exp4(a,x), y).
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp2(exp1(a,x), y) = exp4(exp3(a,x), y).
 
 (* the CDH assumption *) 
@@ -55,7 +55,7 @@ equiv
       (z:G) nCDH -> false ).
 
 This does not work because the form z = exp1(exp2(g, y), x) does not appear.
-We need some equation exp1(exp2(...)) so that simplification makes it appear.
+We need some equation builtin exp1(exp2(...)) so that simplification makes it appear.
 *)
 equiv
   ! n new x: Z; new y: Z; (
@@ -89,7 +89,7 @@ equiv
 
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
-forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     
 proba Psign.

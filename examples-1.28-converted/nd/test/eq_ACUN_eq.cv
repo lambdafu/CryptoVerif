@@ -12,7 +12,7 @@ proof {
 
 fun xor(D,D):D.
 const neut:D.
-equation ACUN(xor,neut).
+equation builtin ACUN(xor,neut).
 
 set diffConstants = false.
 

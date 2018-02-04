@@ -34,16 +34,16 @@ fun concat3(key, mkey, nonce, server):maxenc [data]. 		       			(*for {SK, mSK,
 fun pad(client, timest):maxenc [data].
 fun padts(timest): maxenc [data].
 
-forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat2(y,w,z) <> concat1(t2,w2,y2,z2).
-forall t:key, w: mkey, y: nonce, z: server, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat3(t,w,y,z) <> concat1(t2,w2,y2,z2).
-forall z:client,t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(z,t) <> concat1(t2,w2,y2,z2).
-forall t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  padts(t) <> concat1(t2,w2,y2,z2).
-forall y:key, w:mkey, z:client, t2: key, w2: mkey, y2: nonce, z2: server;    concat2(y,w,z) <> concat3(t2,w2,y2,z2).
-forall y:key, w:mkey, z:client, t2: timest,  z2:client;    concat2(y,w,z) <> pad(z2,t2). 
-forall y:key, w:mkey, z:client, t2: timest;    concat2(y,w,z) <> padts(t2). 
-forall t:key, w: mkey, y: nonce, z: server, t2:timest, z2:client;  concat3(t,w,y,z) <> pad(z2, t2).
-forall t:key, w: mkey, y: nonce, z: server, t2:timest;  concat3(t,w,y,z) <> padts( t2).
-forall t: timest, z: client, t2: timest;  pad(z,t)<> padts(t2).
+equation forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat2(y,w,z) <> concat1(t2,w2,y2,z2).
+equation forall t:key, w: mkey, y: nonce, z: server, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat3(t,w,y,z) <> concat1(t2,w2,y2,z2).
+equation forall z:client,t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(z,t) <> concat1(t2,w2,y2,z2).
+equation forall t: timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  padts(t) <> concat1(t2,w2,y2,z2).
+equation forall y:key, w:mkey, z:client, t2: key, w2: mkey, y2: nonce, z2: server;    concat2(y,w,z) <> concat3(t2,w2,y2,z2).
+equation forall y:key, w:mkey, z:client, t2: timest,  z2:client;    concat2(y,w,z) <> pad(z2,t2). 
+equation forall y:key, w:mkey, z:client, t2: timest;    concat2(y,w,z) <> padts(t2). 
+equation forall t:key, w: mkey, y: nonce, z: server, t2:timest, z2:client;  concat3(t,w,y,z) <> pad(z2, t2).
+equation forall t:key, w: mkey, y: nonce, z: server, t2:timest;  concat3(t,w,y,z) <> padts( t2).
+equation forall t: timest, z: client, t2: timest;  pad(z,t)<> padts(t2).
 
 (* Shared-key encryption (CPA Stream cipher) *)
 
@@ -65,17 +65,17 @@ const  Zconcat3: maxenc.
 const  Zpad:maxenc.
 const  Zpadts: maxenc.
 
-forall m:maxenc, r:keyseed, r2:seed; 
+equation forall m:maxenc, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall y:nonce, z:tgs, t:key, u:mkey;
+equation forall y:nonce, z:tgs, t:key, u:mkey;
 	Z(concat1(t, u, y, z)) = Zconcat1.
-forall y:key, w:mkey, z:client; 
+equation forall y:key, w:mkey, z:client; 
 	Z(concat2(y, w, z)) = Zconcat2.
-forall  y:nonce, z:server, t:key, u:mkey;
+equation forall  y:nonce, z:server, t:key, u:mkey;
 	Z(concat3(t, u, y, z)) = Zconcat3.
-forall z:client, t:timest;
+equation forall z:client, t:timest;
         Z(pad(z,t)) = Zpad.
-forall t: timest;
+equation forall t: timest;
         Z(padts(t)) = Zpadts.
 					    
 
@@ -96,9 +96,9 @@ fun mac2(maxmac, mkey):macs.
 fun check2(maxmac, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 						   
@@ -197,8 +197,8 @@ query secret b1 [onesession].
    Useful to avoid expanding if, which is necessary for this proof. *)
 
 fun test(bool, maxenc, maxenc):maxenc.
-forall x:maxenc,y:maxenc; test(true,x,y) = x.
-forall x:maxenc,y:maxenc; test(false,x,y) = y.
+equation forall x:maxenc,y:maxenc; test(true,x,y) = x.
+equation forall x:maxenc,y:maxenc; test(false,x,y) = y.
 
 
 

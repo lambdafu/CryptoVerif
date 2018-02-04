@@ -7,22 +7,22 @@ fun exp'(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z. 
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 (* injectivity *)
 
-forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
-forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* collision between products *)
 
 fun mult'(Z,Z): Z. 
-equation commut(mult').
+equation builtin commut(mult').
 collision new x1: Z; new x2: Z; new x3: Z; new x4: Z; return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return((x1 = x3 && x2 = x4) || (x1 = x4 && x2 = x3) || ((x1 = x2 || x3 = x4) && mult'(x1,x2) = mult'(x3,x4))). 
 
 (* replace a random group element with an exponentiation, and conversely *)
@@ -124,7 +124,7 @@ equiv
 
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
-forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     
 proba Psign.

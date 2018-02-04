@@ -33,7 +33,7 @@ param nH [noninteractive].
 
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
-forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     
 proba Psign.

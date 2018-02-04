@@ -5,7 +5,7 @@ type D.
 fun mult(D,D):D.
 fun inv(D):D.
 const neut:D.
-equation commut_group(mult,inv,neut).
+equation builtin commut_group(mult,inv,neut).
 
 fun h(D):bitstring.
 fun g(D,D,D): bitstring.

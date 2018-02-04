@@ -149,8 +149,8 @@ expand Xor(hasht, xor, zero).
    Useful to avoid expanding if, which is necessary for this proof. *)
 
 fun test(bool, hasht, hasht):hasht.
-forall x:hasht,y:hasht; test(true,x,y) = x.
-forall x:hasht,y:hasht; test(false,x,y) = y.
+equation forall x:hasht,y:hasht; test(true,x,y) = x.
+equation forall x:hasht,y:hasht; test(false,x,y) = y.
 
 (* Queries *)
 

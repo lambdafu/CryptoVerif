@@ -129,23 +129,23 @@ fun pad(client, timest):maxenc [data].
 fun padts(timest):maxenc [data].							
 fun concat6(client, pkey, spkey, signature, timest, nonce, signature, client, tgs, nonce):maxmac [data].   
 
-forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;        	  concat5(y,x,z) <> concat4(t2,y2,x2,z2).
-forall t:key, y: nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs;  concat8(t,y,x,z) <> concat4(t2,y2,x2,z2).
-forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	 	  pad(z,t) <> concat4(t2,y2,x2,z2).
-forall t: timest, t2:key, y2:nonce, x2:timest, z2:tgs;  			  padts(t) <> concat4(t2,y2,x2,z2).
-forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server;   	  concat5(y,x,z) <> concat8(t2,y2,x2,z2).
-forall y:key, x:timest, z:client, t2: timest, z2:client;    			  concat5(y,x,z) <> pad(z2,t2). 
-forall y:key, x:timest, z:client, t2: timest;    				  concat5(y,x,z) <> padts(t2). 
-forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  		  concat8(t,y,x,z) <> pad(z2,t2).
-forall t:key, y:nonce, x:timest, z:server, t2:timest;  				  concat8(t,y,x,z) <> padts(t2).
-forall t: timest, z: client, t2: timest;   					  pad(z,t)<> padts(t2).
+equation forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;        	  concat5(y,x,z) <> concat4(t2,y2,x2,z2).
+equation forall t:key, y: nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs;  concat8(t,y,x,z) <> concat4(t2,y2,x2,z2).
+equation forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	 	  pad(z,t) <> concat4(t2,y2,x2,z2).
+equation forall t: timest, t2:key, y2:nonce, x2:timest, z2:tgs;  			  padts(t) <> concat4(t2,y2,x2,z2).
+equation forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server;   	  concat5(y,x,z) <> concat8(t2,y2,x2,z2).
+equation forall y:key, x:timest, z:client, t2: timest, z2:client;    			  concat5(y,x,z) <> pad(z2,t2). 
+equation forall y:key, x:timest, z:client, t2: timest;    				  concat5(y,x,z) <> padts(t2). 
+equation forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  		  concat8(t,y,x,z) <> pad(z2,t2).
+equation forall t:key, y:nonce, x:timest, z:server, t2:timest;  				  concat8(t,y,x,z) <> padts(t2).
+equation forall t: timest, z: client, t2: timest;   					  pad(z,t)<> padts(t2).
 
-forall k1:protkey, y:macs, z2:client, y2:pkey, x2:spkey; 		  	  concat3(k1,y) <> concat1(z2,y2,x2).
-forall k1:protkey, y:macs, z2: nonce, t2:timest; 			  	  concat3(k1,y) <> padno(t2,z2).
-forall t:timest, y:nonce, z2:client, y2:pkey, x2:spkey;				  padno(t,y) <> concat1(z2,y2,x2).
-forall k1:protkey, y:macs, z2:kas, y2:pkey, x2:spkey;		  		  concat3(k1,y) <> concat7(z2,y2,x2).
-forall t:timest, y:nonce, z2:kas, y2:pkey, x2:spkey; 	     			  padno(t,y) <> concat7(z2,y2,x2).
-forall z2:client, y2:pkey, x2:spkey, z:kas, y:pkey, x:spkey;		  	  concat1(z2,y2,x2) <> concat7(z,y,x).
+equation forall k1:protkey, y:macs, z2:client, y2:pkey, x2:spkey; 		  	  concat3(k1,y) <> concat1(z2,y2,x2).
+equation forall k1:protkey, y:macs, z2: nonce, t2:timest; 			  	  concat3(k1,y) <> padno(t2,z2).
+equation forall t:timest, y:nonce, z2:client, y2:pkey, x2:spkey;				  padno(t,y) <> concat1(z2,y2,x2).
+equation forall k1:protkey, y:macs, z2:kas, y2:pkey, x2:spkey;		  		  concat3(k1,y) <> concat7(z2,y2,x2).
+equation forall t:timest, y:nonce, z2:kas, y2:pkey, x2:spkey; 	     			  padno(t,y) <> concat7(z2,y2,x2).
+equation forall z2:client, y2:pkey, x2:spkey, z:kas, y:pkey, x:spkey;		  	  concat1(z2,y2,x2) <> concat7(z,y,x).
 
 
 
@@ -176,15 +176,15 @@ const Zconcat5:maxenc.
 const Zconcat8:maxenc.
 const     Zpad:maxenc.
 const   Zpadts:maxenc. 
-forall m:key, y:nonce, x:timest, z:tgs; 
+equation forall m:key, y:nonce, x:timest, z:tgs; 
     Z2(concat4(m,y,x,z)) = Zconcat4.
-forall y:key, x:timest, z:client; 
+equation forall y:key, x:timest, z:client; 
     Z2(concat5(y,x,z)) = Zconcat5.
-forall t:key, y:nonce, x:timest, z:server;
+equation forall t:key, y:nonce, x:timest, z:server;
     Z2(concat8(t, y, x, z)) = Zconcat8.
-forall z:client, t:timest;
+equation forall z:client, t:timest;
         Z2(pad(z,t)) = Zpad.
-forall t: timest;
+equation forall t: timest;
         Z2(padts(t)) = Zpadts.
 
 (* Collision-resistance for hmac: *)
@@ -234,7 +234,7 @@ const ipad:key.
 
 fun hmac(maxmac, key, collisionkey):macs.
 
-forall m:maxmac, k:key, collkey:collisionkey; hmac(m,k,collkey) = h(collkey, concath1(xor(k, opad), h(collkey, concath2(xor(k, ipad), m)))).
+equation forall m:maxmac, k:key, collkey:collisionkey; hmac(m,k,collkey) = h(collkey, concath1(xor(k, opad), h(collkey, concath2(xor(k, ipad), m)))).
 (* Pseudorandom function (PRF) for key derivation
    The definition included in the CryptoVerif library uses a key generation function for the PRF.
    Here, we don't, so we adapt that definition instead of reusing the macro directly *)

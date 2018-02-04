@@ -24,11 +24,11 @@ equiv
   ! n new y: G; gen_Oracle() := return(y).
 
 fun mult(Z,Z): Z.
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 fun dot(G,G): G.
@@ -44,7 +44,7 @@ fun invdot(G,G): G.
 
 (* invdot is the left-inverse of dot *)
 
-forall a:G, b:G;
+equation forall a:G, b:G;
   invdot(a, dot(a,b)) = b.
 
 (* the DDH assumption *) 
@@ -64,7 +64,7 @@ fun choose(bool,G,G): G.
 
 (* choose(b,M,N) = if b then M else N *)
 
-forall x:bool, y:G, z:G;
+equation forall x:bool, y:G, z:G;
   (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
 
 (* query *)

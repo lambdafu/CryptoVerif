@@ -39,8 +39,8 @@ expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbo
    of the same length, consisting only of zeroes. *)
 const Z1:maxenc.
 const Z2:maxenc.
-forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
-forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
+equation forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
+equation forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
 
 (* Mac *)
 

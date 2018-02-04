@@ -4,7 +4,7 @@ param N, N'.
 
 fun enc(bitstring, bitstring): bitstring.
 fun dec(bitstring, bitstring): bitstring.
-forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
+equation forall x:bitstring, k:bitstring; dec(enc(x,k),k) = (x,k).
 
 const const0, const1: bitstring.
 

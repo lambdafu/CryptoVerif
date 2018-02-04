@@ -2996,7 +2996,7 @@ let inside_expand = ref false
 let decl_changes = function
     (ParamDecl _ | ProbabilityDecl _ | TableDecl _ | TypeDecl _ 
   | ConstDecl _ | ChannelDecl _ | Setting _ | LetFun _ | EventDecl _
-  | Statement _ | BuiltinEquation _ | Proofinfo _ | Implementation _
+  | BuiltinEquation _ | Proofinfo _ | Implementation _
   | Define _ | Expand _),_ -> ()
   | FunDecl((s1,ext1),l,(sr,extr),f_options),ext0 ->
       List.iter (fun (sopt, extopt) ->
@@ -3011,6 +3011,8 @@ let decl_changes = function
 	  else
 	    Parsing_helper.input_error ("Unknown function option " ^ sopt) extopt
 	      ) f_options
+  | Statement s,ext0 ->
+      Changes.add_change ext0 (ChEquation s)
   | EqStatement s,ext0 ->
       Changes.add_change ext0 (ChEquiv s)
   | Collision s,ext0 ->

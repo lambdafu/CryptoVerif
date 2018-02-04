@@ -17,11 +17,11 @@ fun concat1(nonce, host):bitstring [data].
 fun concat2(nonce, nonce):bitstring [data].
 fun concat3(key, host):bitstring [data].
 
-forall y:key,z:host,y2:nonce,z2:host;
+equation forall y:key,z:host,y2:nonce,z2:host;
 	concat3(y,z) <> concat1(y2,z2).
-forall z:nonce,t:nonce,y2:nonce,z2:host;
+equation forall z:nonce,t:nonce,y2:nonce,z2:host;
 	concat2(z,t) <> concat1(y2,z2).
-forall z:nonce,t:nonce,y2:key,z2:host;
+equation forall z:nonce,t:nonce,y2:key,z2:host;
 	concat2(z,t) <> concat3(y2,z2).
 
 (* Here I ignore the fact that public-key encryption works on a block and
@@ -47,16 +47,16 @@ const Znonce:nonce.
 const Zhost:host.
 const Zkey:key.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, pkgen(r), r2), skgen(r)) = m.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = m.
 
-forall y:nonce,z:host;
+equation forall y:nonce,z:host;
 	Z(concat1(y,z)) = concat1(Znonce,Zhost).
-forall y:nonce,z:nonce;
+equation forall y:nonce,z:nonce;
 	Z(concat2(y,z)) = concat2(Znonce,Znonce).
-forall y:key,z:host; 
+equation forall y:key,z:host; 
 	Z(concat3(y,z)) = concat3(Zkey,Zhost).
 
 equiv
@@ -90,9 +90,9 @@ fun sskgen2(keyseed):key.
 fun spkgen2(keyseed):key.
 fun check2(bitstring, key, signature): bool.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
 
 equiv

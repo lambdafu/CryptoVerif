@@ -50,9 +50,9 @@ fun Dcpa2(ctcpa,skeycpa):bitstringbot.
 
 fun injbotcpa(ptcpa):bitstringbot [data].
 
-forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
+equation forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
 	Dcpa(Ecpa(m,pkgencpa(r),r2),skgencpa(r)) = injbotcpa(m).
-forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
+equation forall m:ptcpa, r:keyseedcpa, r2:seedcpa;
 	Dcpa2(Ecpa2(m,pkgencpa2(r),r2),skgencpa2(r)) = injbotcpa(m).
 
 const Zcpa:ptcpa.

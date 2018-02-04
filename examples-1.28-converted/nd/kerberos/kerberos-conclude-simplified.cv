@@ -28,8 +28,8 @@ query secret b1 [onesession].
 
 fun test(bool, maxenc, maxenc):maxenc.
 
-forall b:bool, x:maxenc, y:maxenc; Z(test(b,x,y)) = test(b,Z(x),Z(y)).
-forall b:bool, x:maxenc; test(b,x,x) = x.
+equation forall b:bool, x:maxenc, y:maxenc; Z(test(b,x,y)) = test(b,Z(x),Z(y)).
+equation forall b:bool, x:maxenc; test(b,x,x) = x.
 
 (* Encryption Oracle *)
 

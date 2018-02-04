@@ -63,7 +63,7 @@ fun check(macinput, mkey, macres): bool.
 
 fun mac2(macinput, mkey):macres.
 
-forall m:macinput, k:mkey;
+equation forall m:macinput, k:mkey;
         check(m, k, mac(m, k)).
 
 equiv(suf_cma(mac))
@@ -121,7 +121,7 @@ fun build_ka_certif(t_id, G): bitstring [data].
 (* The ATN entities check that the certificate contains the appropriate type of
    keys by examining the key usage extension, so they distinguish signing
    keys from key agreement keys *)
-forall x1: t_id, x2: tStd_pkey, y1: t_id, y2: G;
+equation forall x1: t_id, x2: tStd_pkey, y1: t_id, y2: G;
        build_s_certif(x1,x2) <> build_ka_certif(y1,y2).
 
 (* Key derivation function, considered as a random oracle *)
@@ -165,7 +165,7 @@ fun buildKDF_MAC_arg(mac_key, t_id, t_id): KDF_arg [data].
 
 (* buildKDF_XUV_arg starts with 0x00, buildKDF_MAC_arg starts with 0x01,
    so they are always different. *)
-forall x1: tStd_sign, x2:t_Rand32, y1: mac_key, y2: t_id, y3: t_id;
+equation forall x1: tStd_sign, x2:t_Rand32, y1: mac_key, y2: t_id, y3: t_id;
        buildKDF_XUV_arg(x1,x2) <> buildKDF_MAC_arg(y1,y2,y3).
 
 (* Tables of message counters

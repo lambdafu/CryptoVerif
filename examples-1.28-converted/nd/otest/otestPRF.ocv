@@ -43,7 +43,7 @@ fun xor(L,L): L.
 
 (* the theory of xor implies several propositions *)
 
-forall x:L, y:L; xor(x, xor(x,y)) = y.
+equation forall x:L, y:L; xor(x, xor(x,y)) = y.
 
 equiv
   foreach i <= n do x <-R L; OX(y: L) := return(xor(x,y))
@@ -54,7 +54,7 @@ fun choose(bool,L,L): L.
 
 (* choose(b,M,N) = if b then M else N *)
 
-forall x:bool, y:L, z:L;
+equation forall x:bool, y:L, z:L;
   (x && choose(x,y,z) = y) || (not(x) && choose(x,y,z) = z).
 
 const reject:L.

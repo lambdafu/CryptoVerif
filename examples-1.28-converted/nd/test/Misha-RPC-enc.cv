@@ -40,7 +40,7 @@ expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, 
 
 fun key2bs(key): bitstring [data].
 fun bs2key(bitstring): key.
-forall k: key;
+equation forall k: key;
   bs2key(key2bs(k)) = k.
 
 (* Concatenation and parsing *)
@@ -49,10 +49,10 @@ fun concat1(bitstring, bitstring): bitstring [data].
 fun parse1(bitstring): bitstring.
 fun parse2(bitstring): bitstring.
 
-forall x:bitstring, y:bitstring;
+equation forall x:bitstring, y:bitstring;
   parse1(concat1(x, y)) = x.
 
-forall x:bitstring, y:bitstring;
+equation forall x:bitstring, y:bitstring;
   parse2(concat1(x, y)) = y.
 
 (* Events and queries *)

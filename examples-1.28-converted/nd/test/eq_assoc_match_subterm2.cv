@@ -3,11 +3,11 @@ type D.
 (* set interactiveMode = true. *)
 
 fun concat(D,D):D.
-equation assoc(concat).
+equation builtin assoc(concat).
 
 fun g(D,D,D): D.
 
-forall x:D, y:D; concat(x,concat(y,x)) = g(x,y,x).
+equation forall x:D, y:D; concat(x,concat(y,x)) = g(x,y,x).
 const zero, one, two, three: D. 
 
 channel c.

@@ -11,7 +11,7 @@ proof {
 
 fun concat(D,D):D.
 const empty:D.
-equation ACU(concat,empty).
+equation builtin ACU(concat,empty).
 
 const zero, one, two: D. 
 

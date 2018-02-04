@@ -4,7 +4,7 @@ type D.
 
 fun xor(D,D):D.
 const neut:D.
-equation ACUN(xor,neut).
+equation builtin ACUN(xor,neut).
 
 fun h(D):bitstring.
 fun g(D,D,D): bitstring.

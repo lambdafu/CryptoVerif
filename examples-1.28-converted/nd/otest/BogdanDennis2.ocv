@@ -15,12 +15,12 @@ fun f'(pkey, D):D.
 fun f(pkey,D):D.
 fun invf(skey,D):D.
 fun xor(bool,bool):bool.
-equation commut(xor).
+equation builtin commut(xor).
 
-forall r:seed,x:D; invf(skgen(r),f(pkgen(r),x))=x.
+equation forall r:seed,x:D; invf(skgen(r),f(pkgen(r),x))=x.
 (* forall r:seed,y:D; f(pkgen(r),invf(skgen(r),y))=y. *)
-forall pk:pkey,x:D,x':D; (f(pk,x)=f(pk,x'))=(x=x').
-forall b:bool,b':bool; xor(xor(b,b'),b')=b.
+equation forall pk:pkey,x:D,x':D; (f(pk,x)=f(pk,x'))=(x=x').
+equation forall b:bool,b':bool; xor(xor(b,b'),b')=b.
 
 equiv
   foreach i_f <= n_f do r <-R seed; (

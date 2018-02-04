@@ -23,7 +23,7 @@ type macs [fixed].
 fun concat1(nonce, nonce, host, host):bitstring [data].
 fun concat2(nonce, key):bitstring [data].
 
-forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
 
 (* Shared-key encryption (CPA Stream cipher) *)
 
@@ -44,11 +44,11 @@ const Znonce:nonce.
 const Zhost:host.
 const Zkey:key.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall y:nonce,z:nonce,t:host,u:host; 
+equation forall y:nonce,z:nonce,t:host,u:host; 
 	Z(concat1(y,z,t,u)) = concat1(Znonce,Znonce,Zhost,Zhost).
-forall y:nonce,z:key; 
+equation forall y:nonce,z:key; 
 	Z(concat2(y,z)) = concat2(Znonce,Zkey).
 
 equiv
@@ -68,9 +68,9 @@ fun mac2(bitstring, key):macs.
 fun check2(bitstring, key, macs): bool.
 fun mkgen2(keyseed):key.
 
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv

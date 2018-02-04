@@ -119,7 +119,7 @@ fun check(macinput, mkey, macres): bool.
 
 fun mac2(macinput, mkey):macres.
 
-forall m:macinput, k:mkey;
+equation forall m:macinput, k:mkey;
 	check(m, k, mac(m, k)).
 
 equiv(suf_cma(mac))
@@ -147,7 +147,7 @@ param N, N2.
 fun enc(ekey, t_ctr, bitstring): bitstring.
 fun dec(ekey, bitstring): bitstring.
 
-forall k: ekey, ctr: t_ctr, msg: bitstring;
+equation forall k: ekey, ctr: t_ctr, msg: bitstring;
       dec(k, enc(k, ctr, msg)) = msg.
 
 (* encryption is IND-CPA provided ctr is distinct
@@ -179,17 +179,17 @@ fun incr(int):int.
 (* test(b,x,y) returns x when b = true and y when b is false *)
 
 fun test(bool, bitstring, bitstring): bitstring.
-forall x:bitstring,y:bitstring; test(true,x,y) = x.
-forall x:bitstring,y:bitstring; test(false,x,y) = y.
-forall b:bool,x:bitstring; test(b,x,x) = x.
-forall b:bool,x:bitstring,y:bitstring; Zero(test(b,x,y)) = test(b,Zero(x),Zero(y)).
+equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
+equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
+equation forall b:bool,x:bitstring; test(b,x,x) = x.
+equation forall b:bool,x:bitstring,y:bitstring; Zero(test(b,x,y)) = test(b,Zero(x),Zero(y)).
 
 
 fun concat3(prin,prin,G):bitstring [data].
 fun concat4(prin,prin,G,G): bitstring [data].
 fun concatmsg(prin,prin,G,bitstring):bitstring [data].
 
-forall x1:prin,x2:prin,x3:G,y1:prin,y2:prin,y3:G,y4:G;
+equation forall x1:prin,x2:prin,x3:G,y1:prin,y2:prin,y3:G,y4:G;
   concat3(x1,x2,x3) <> concat4(y1,y2,y3,y4).
 
 param Nsend, Nrecv.

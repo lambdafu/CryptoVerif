@@ -35,7 +35,7 @@ type blocksizebot [bounded].
 fun concat1(host, host, nonce):blocksize [data].
 fun concat2(host, pkey):blocksize [data].
 
-forall x:host, y:host, z:nonce, x2:host, y2:pkey;
+equation forall x:host, y:host, z:nonce, x2:host, y2:pkey;
 	concat1(x,y,z) <> concat2(x2,y2).
 
 (* Signatures *)
@@ -53,9 +53,9 @@ fun sskgen2(keyseed):skey.
 fun spkgen2(keyseed):pkey.
 fun check2(blocksize, pkey, signature): bool.
 
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
 
 

@@ -11,7 +11,7 @@ proof {
 
 fun concat(D,D):D.
 const empty:D.
-equation assocU(concat,empty).
+equation builtin assocU(concat,empty).
 
 const zero, one, two: D. 
 

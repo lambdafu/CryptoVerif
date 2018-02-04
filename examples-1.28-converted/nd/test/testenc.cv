@@ -30,24 +30,24 @@ fun mf(skey, seed):seed.
 
 (* mf is the inverse of f *)
 
-forall r:keyseed, x:seed; mf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:keyseed, x:seed; mf(skgen(r), f(pkgen(r), x)) = x.
 
 (* f is the inverse of mf *)
 
-forall r:keyseed, x:seed; f(pkgen(r), mf(skgen(r), x)) = x.
+equation forall r:keyseed, x:seed; f(pkgen(r), mf(skgen(r), x)) = x.
 
 (* injectivity of f *)
 
-forall k:pkey, x:seed, x':seed; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:seed, x':seed; (f(k,x) = f(k,x')) = (x = x').
 
 (* injectivity of mf *)
 
-forall k:skey, x:seed, x':seed; (mf(k,x) = mf(k,x')) = (x = x').
+equation forall k:skey, x:seed, x':seed; (mf(k,x) = mf(k,x')) = (x = x').
 
 (* f/mf are inverse permutations; use this to remove some
    occurrences of mf in equality tests *)
 
-forall r:keyseed, x:seed, x':seed; 
+equation forall r:keyseed, x:seed, x':seed; 
 	(x' = mf(skgen(r),x)) = (f(pkgen(r),x') = x).
 
 (* We can permute the distribution, for uniformly distributed random
@@ -104,17 +104,17 @@ equiv
 (* Xor *)
 
 fun xor(hasht,hasht):hasht.
-equation commut(xor).
+equation builtin commut(xor).
 
-forall x:hasht,y:hasht; xor(x, xor(x,y)) = y.
-forall x:hasht,y:hasht,z:hasht; (xor(x,z) = xor(y,z)) = (x = y).
+equation forall x:hasht,y:hasht; xor(x, xor(x,y)) = y.
+equation forall x:hasht,y:hasht,z:hasht; (xor(x,z) = xor(y,z)) = (x = y).
 
 fun xor'(hasht,hasht):hasht.
-equation commut(xor').
-forall x:hasht,y:hasht,a:hasht; (xor(x,y) = a) =
+equation builtin commut(xor').
+equation forall x:hasht,y:hasht,a:hasht; (xor(x,y) = a) =
 (y = xor'(x, a)).
-forall x:hasht,y:hasht; xor'(x, xor'(x,y)) = y.
-forall x:hasht,y:hasht,z:hasht; (xor'(x,z) = xor'(y,z)) = (x = y).
+equation forall x:hasht,y:hasht; xor'(x, xor'(x,y)) = y.
+equation forall x:hasht,y:hasht,z:hasht; (xor'(x,z) = xor'(y,z)) = (x = y).
 equiv
   ! nx new a: hasht; gen_Oracle_1(x: hasht) := return(xor'(a,x))
 <=(0)=>
@@ -129,8 +129,8 @@ equiv
    Useful to avoid expanding if, which is necessary for this proof. *)
 
 fun test(bool, hasht, hasht):hasht.
-forall x:hasht,y:hasht; test(true,x,y) = x.
-forall x:hasht,y:hasht; test(false,x,y) = y.
+equation forall x:hasht,y:hasht; test(true,x,y) = x.
+equation forall x:hasht,y:hasht; test(false,x,y) = y.
 
 (* Queries *)
 

@@ -5,7 +5,7 @@ type D.
 fun mult(D,D):D.
 fun inv(D):D.
 const neut:D.
-equation group(mult,inv,neut).
+equation builtin group(mult,inv,neut).
 
 fun f(D):bitstring.
 fun h(D):bitstring.
@@ -13,12 +13,12 @@ fun g(D,D,D): bitstring.
 fun i(D):bitstring.
 fun j(D):bitstring.
 
-forall x:D, y:D, z:D; f(mult(x,mult(y,z))) = g(x,y,z).
-forall x:D, y:D; h(mult(x,mult(y,x))) = g(x,y,x).
+equation forall x:D, y:D, z:D; f(mult(x,mult(y,z))) = g(x,y,z).
+equation forall x:D, y:D; h(mult(x,mult(y,x))) = g(x,y,x).
 
 const zero, one, two, three: D. 
-forall x:D, y:D; i(mult(zero,mult(x,mult(y,one)))) = g(x,y,x).
-forall x:D, y:D; j(mult(zero,mult(x,mult(one,y)))) = g(x,y,x).
+equation forall x:D, y:D; i(mult(zero,mult(x,mult(y,one)))) = g(x,y,x).
+equation forall x:D, y:D; j(mult(zero,mult(x,mult(one,y)))) = g(x,y,x).
 
 channel c.
 

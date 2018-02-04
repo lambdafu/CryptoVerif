@@ -3,12 +3,12 @@ type D.
 (* set interactiveMode = true. *)
 
 fun concat(D,D):D.
-equation AC(concat).
+equation builtin AC(concat).
 
 fun g(D): D.
 
 const zero, one, two, three: D. 
-forall x:D; concat(zero,concat(x,zero)) = g(x).
+equation forall x:D; concat(zero,concat(x,zero)) = g(x).
 
 channel c.
 

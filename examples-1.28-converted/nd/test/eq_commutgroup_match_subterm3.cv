@@ -5,12 +5,12 @@ type D.
 fun mult(D,D):D.
 fun inv(D):D.
 const neut:D.
-equation commut_group(mult,inv,neut).
+equation builtin commut_group(mult,inv,neut).
 
 fun g(D,D,D): D.
 
 const zero, one, two, three: D. 
-forall x:D, y:D; mult(zero,mult(x,mult(y,one))) = g(x,y,x).
+equation forall x:D, y:D; mult(zero,mult(x,mult(y,one))) = g(x,y,x).
 
 channel c.
 

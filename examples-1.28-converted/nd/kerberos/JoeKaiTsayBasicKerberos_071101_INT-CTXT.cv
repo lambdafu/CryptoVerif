@@ -27,16 +27,16 @@ fun concat3(key, nonce, timest, server):maxenc [data].       	(* neededfor {SK, 
 fun pad(client, timest):maxenc [data].
 fun padts(timest): maxenc [data].
 
-forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;		concat2(y,x,z) <> concat1(t2,y2,x2,z2).
-forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
-forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	   pad(z,t) <> concat1(t2,y2,x2,z2).
-forall t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;   		   padts(t) <> concat1(t2,y2,x2,z2).
-forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server; concat2(y,x,z) <> concat3(t2,y2,x2,z2).
-forall y:key, x:timest, z:client, t2:timest, z2:client;    		   concat2(y,x,z) <> pad(z2,t2). 
-forall y:key, x:timest, z:client, t2:timest;    			   concat2(y,x,z) <> padts(t2). 
-forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  	   concat3(t,y,x,z) <> pad(z2,t2).
-forall t:key, y:nonce, x:timest, z:server, t2:timest;  			   concat3(t,y,x,z) <> padts( t2).
-forall t:timest, z:client, t2:timest;  					   pad(z,t)<> padts(t2).
+equation forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;		concat2(y,x,z) <> concat1(t2,y2,x2,z2).
+equation forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
+equation forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	   pad(z,t) <> concat1(t2,y2,x2,z2).
+equation forall t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;   		   padts(t) <> concat1(t2,y2,x2,z2).
+equation forall y:key, x:timest, z:client, t2: key, y2:nonce, x2:timest, z2:server; concat2(y,x,z) <> concat3(t2,y2,x2,z2).
+equation forall y:key, x:timest, z:client, t2:timest, z2:client;    		   concat2(y,x,z) <> pad(z2,t2). 
+equation forall y:key, x:timest, z:client, t2:timest;    			   concat2(y,x,z) <> padts(t2). 
+equation forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;  	   concat3(t,y,x,z) <> pad(z2,t2).
+equation forall t:key, y:nonce, x:timest, z:server, t2:timest;  			   concat3(t,y,x,z) <> padts( t2).
+equation forall t:timest, z:client, t2:timest;  					   pad(z,t)<> padts(t2).
 
 
 (* Shared-key encryption (CPA Stream cipher) *)
@@ -52,7 +52,7 @@ fun enc2(maxenc,key,seed): bitstring.
 fun kgen2(keyseed): key.
 
 fun injbot(maxenc): bitstringbot [data].
-forall x:maxenc; injbot(x) <> bottom.
+equation forall x:maxenc; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
 fun    Z(maxenc):maxenc.
@@ -62,17 +62,17 @@ const  Zconcat3: maxenc.
 const  Zpad:maxenc.
 const  Zpadts: maxenc.
 
-forall m:maxenc, r:keyseed, r2:seed; 
+equation forall m:maxenc, r:keyseed, r2:seed; 
 	dec(enc(m,kgen(r),r2),kgen(r)) = injbot(m).
-forall y:nonce, x:timest, z:tgs, t:key;
+equation forall y:nonce, x:timest, z:tgs, t:key;
 	Z(concat1(t,y,x,z)) = Zconcat1.
-forall y:key, x:timest, z:client; 
+equation forall y:key, x:timest, z:client; 
 	Z(concat2(y,x,z)) = Zconcat2.
-forall  y:nonce, x:timest, z:server, t:key;
+equation forall  y:nonce, x:timest, z:server, t:key;
 	Z(concat3(t,y,x,z)) = Zconcat3.
-forall z:client, t:timest;
+equation forall z:client, t:timest;
         Z(pad(z,t)) = Zpad.
-forall t: timest;
+equation forall t: timest;
         Z(padts(t)) = Zpadts.
 					    
 

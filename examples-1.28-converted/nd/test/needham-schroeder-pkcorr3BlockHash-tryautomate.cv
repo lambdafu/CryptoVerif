@@ -66,11 +66,11 @@ fun concat2(nonce, nonce, host):blocksize [data].
 fun concat3(pkey, host):sblocksize [data].
 fun pad(nonce):blocksize [data].
 
-forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
+equation forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
 	concat2(z,t,u) <> concat1(y2,z2).
-forall y:nonce,y2:nonce,z2:host;
+equation forall y:nonce,y2:nonce,z2:host;
 	pad(y) <> concat1(y2,z2).
-forall z:nonce,t:nonce,u:host,y2:nonce;
+equation forall z:nonce,t:nonce,u:host,y2:nonce;
 	concat2(z,t,u) <> pad(y2).
 
 (* Public-key encryption (CCA2) *)
@@ -92,9 +92,9 @@ fun injbot(blocksize):blocksizebot [data].
 
 const Z:blocksize.
 
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
 
 equiv
@@ -130,9 +130,9 @@ fun sskgen2(skeyseed):sskey.
 fun spkgen2(skeyseed):spkey.
 fun check2(sblocksize, spkey, signature): bool.
 
-forall m:sblocksize, r:skeyseed, r2:sseed; 
+equation forall m:sblocksize, r:skeyseed, r2:sseed; 
 	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
-forall m:sblocksize, r:skeyseed, r2:sseed; 
+equation forall m:sblocksize, r:skeyseed, r2:sseed; 
 	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
 
 equiv

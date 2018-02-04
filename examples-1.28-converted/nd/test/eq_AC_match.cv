@@ -3,7 +3,7 @@ type D.
 (* set interactiveMode = true. *)
 
 fun concat(D,D):D.
-equation AC(concat).
+equation builtin AC(concat).
 
 fun f(D):bitstring.
 fun h(D):bitstring.
@@ -12,13 +12,13 @@ fun i(D):bitstring.
 fun j(D):bitstring.
 fun k(D,D):bitstring.
 
-forall x:D, y:D, z:D; f(concat(x,concat(y,z))) = g(x,y,z).
-forall x:D, y:D; h(concat(x,concat(y,x))) = g(x,y,x).
+equation forall x:D, y:D, z:D; f(concat(x,concat(y,z))) = g(x,y,z).
+equation forall x:D, y:D; h(concat(x,concat(y,x))) = g(x,y,x).
 
 const zero, one, two, three: D. 
-forall x:D, y:D; i(concat(zero,concat(x,concat(y,one)))) = g(x,y,x).
-forall x:D, y:D; j(concat(zero,concat(x,concat(one,y)))) = g(x,y,x).
-forall x:D, y:D; k(x, concat(zero,concat(x,y))) = g(x,y,x).
+equation forall x:D, y:D; i(concat(zero,concat(x,concat(y,one)))) = g(x,y,x).
+equation forall x:D, y:D; j(concat(zero,concat(x,concat(one,y)))) = g(x,y,x).
+equation forall x:D, y:D; k(x, concat(zero,concat(x,y))) = g(x,y,x).
 
 channel c.
 

@@ -40,7 +40,7 @@ expand IND_CPA_sym_enc(keyseed, key, maxenc, maxmac, seed, kgen, enc, dec, injbo
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 const Zconcat1:maxenc.
-forall y:tag, h:host, z:nonce; 
+equation forall y:tag, h:host, z:nonce; 
 	Z(concat1(y,h,z)) = Zconcat1.
 
 (* Mac *)

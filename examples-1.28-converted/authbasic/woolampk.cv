@@ -35,7 +35,7 @@ type blocksizebot [bounded].
 fun pad(nonce):blocksize [data].
 fun concat2(host, pkey):blocksize [data].
 
-forall z:nonce, x2:host, y2:pkey;
+equation forall z:nonce, x2:host, y2:pkey;
 	pad(z) <> concat2(x2,y2).
 
 (* Signatures *)

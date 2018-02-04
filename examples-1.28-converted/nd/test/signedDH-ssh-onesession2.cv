@@ -25,11 +25,11 @@ fun exp2(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z.
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 (* the CDH assumption *) 
@@ -49,7 +49,7 @@ equiv
       (z:G) nCDH -> false ).
 
 This does not work because the form z = exp1(exp2(g, y), x) does not appear.
-We need some equation exp1(exp2(...)) so that simplification makes it appear.
+We need some equation builtin exp1(exp2(...)) so that simplification makes it appear.
 *)
 equiv
   ! n new x: Z; new y: Z; (
@@ -83,7 +83,7 @@ equiv
 
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
-forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     
 proba Psign.

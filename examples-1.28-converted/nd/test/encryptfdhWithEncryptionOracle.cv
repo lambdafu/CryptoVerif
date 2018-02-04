@@ -37,9 +37,9 @@ fun f(pkey, seed):seed.
 fun f2(pkey, seed):seed.
 fun mf(skey, seed):seed.
 
-forall r:keyseed, x:seed; mf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:keyseed, x:seed; mf(skgen(r), f(pkgen(r), x)) = x.
 
-forall k:pkey, x:seed, x2:seed; (f(k,x) = f(k,x2)) = (x = x2).
+equation forall k:pkey, x:seed, x2:seed; (f(k,x) = f(k,x2)) = (x = x2).
 
 (*
 equiv !N new y:seed; (k:pkey) -> y
@@ -91,7 +91,7 @@ equiv
 (* Xor *)
 
 fun xor(hasht,hasht):hasht.
-equation commut(xor).
+equation builtin commut(xor).
 
 equiv
   ! N new a: hasht; gen_Oracle_1(x: hasht) := return(xor(a,x))
@@ -102,8 +102,8 @@ equiv
    Useful to avoid expanding if, which is necessary for this proof. *)
 
 fun test(bool, hasht, hasht):hasht.
-forall x:hasht,y:hasht; test(true,x,y) = x.
-forall x:hasht,y:hasht; test(false,x,y) = y.
+equation forall x:hasht,y:hasht; test(true,x,y) = x.
+equation forall x:hasht,y:hasht; test(false,x,y) = y.
 
 (* Queries *)
 

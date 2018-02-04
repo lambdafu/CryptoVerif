@@ -40,16 +40,16 @@ fun dec(bitstring, skey): blocksize.
 
 fun injbot(blocksize):bitstringbot [data].
 
-forall m:blocksize, r:skey, r2:seed; 
+equation forall m:blocksize, r:skey, r2:seed; 
 	dec(enc(m, pkgen(r), r2), r) = m.
 
-forall r1:skey, r2:skey; 
+equation forall r1:skey, r2:skey; 
 	((pkgen(r1)=pkgen(r2))=(r1=r2)).
 
 	
 fun iinjbot(bitstringbot):blocksize [data].
 
-forall b:blocksize; iinjbot(injbot(b)) = b.
+equation forall b:blocksize; iinjbot(injbot(b)) = b.
 
 (* Signatures *)
 

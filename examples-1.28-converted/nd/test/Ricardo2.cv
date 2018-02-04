@@ -38,9 +38,9 @@ fun injbot(blocksize):blocksizebot [data].
 
 const Z:blocksize.
 
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
 
 equiv

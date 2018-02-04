@@ -1,8 +1,8 @@
-forall x:bool; not(not(x)) = x.
-forall x:bool,y:bool; (not(x && y)) = (not(x) || not(y)).
-forall x:bool,y:bool; (not(x || y)) = (not(x) && not(y)).
-forall ; not(true) = false.
-forall ; not(false) = true.
+equation forall x:bool; not(not(x)) = x.
+equation forall x:bool,y:bool; (not(x && y)) = (not(x) || not(y)).
+equation forall x:bool,y:bool; (not(x || y)) = (not(x) && not(y)).
+equation not(true) = false.
+equation not(false) = true.
 
 const bottom:bitstringbot.
 
@@ -64,8 +64,8 @@ fun injbot(cleartext):bitstringbot [compos].
    of the same length, consisting only of zeroes. *)
 fun Z(cleartext):cleartext.
 
-forall x:cleartext; injbot(x) <> bottom.
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall x:cleartext; injbot(x) <> bottom.
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
 
 equiv(ind_cpa(enc))
@@ -120,13 +120,13 @@ fun enc2(cleartext, key, seed): ciphertext.
 fun kgen2(keyseed):key.
 
 fun injbot(cleartext):bitstringbot [compos].
-forall x:cleartext; injbot(x) <> bottom.
+equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Z(cleartext):cleartext.
 
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
 
 	(* IND-CPA *)
@@ -190,13 +190,13 @@ fun kgen2(keyseed):key.
 fun dec2(ciphertext, key): bitstringbot.
 
 fun injbot(cleartext):bitstringbot [compos].
-forall x:cleartext; injbot(x) <> bottom.
+equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Z(cleartext):cleartext.
 
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
 
 	(* IND-CCA2 *)
@@ -246,9 +246,9 @@ fun dec(ciphertext, key): bitstringbot.
 fun dec2(ciphertext, key): bitstringbot.
 
 fun injbot(cleartext):bitstringbot [compos].
-forall x:cleartext; injbot(x) <> bottom.
+equation forall x:cleartext; injbot(x) <> bottom.
 
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
 
 	(* INT-PTXT *)
@@ -313,13 +313,13 @@ fun kgen2(keyseed):key.
 fun dec2(ciphertext, key): bitstringbot.
 
 fun injbot(cleartext):bitstringbot [compos].
-forall x:cleartext; injbot(x) <> bottom.
+equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Z(cleartext):cleartext.
 
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
 
 	(* IND-CCA2 *)
@@ -401,7 +401,7 @@ fun enc(blocksize, key): blocksize.
 fun kgen(keyseed):key.
 fun dec(blocksize, key): blocksize.
 
-forall m:blocksize, r:keyseed; 
+equation forall m:blocksize, r:keyseed; 
 	dec(enc(m, kgen(r)), kgen(r)) = m.
 
 equiv(sprp(enc))
@@ -456,7 +456,7 @@ fun enc(blocksize, key): blocksize.
 fun kgen(keyseed):key.
 fun dec(blocksize, key): blocksize.
 
-forall m:blocksize, r:keyseed; 
+equation forall m:blocksize, r:keyseed; 
 	dec(enc(m, kgen(r)), kgen(r)) = m.
 
 equiv(prp(enc))
@@ -508,7 +508,7 @@ param Ne, Nd, Nck.
 fun enc(cipherkey, blocksize, key): blocksize.
 fun dec(cipherkey, blocksize, key): blocksize.
 
-forall ck:cipherkey, m:blocksize, k:key; 
+equation forall ck:cipherkey, m:blocksize, k:key; 
 	dec(ck, enc(ck, m, k), k) = m.
 
 equiv(icm(enc))
@@ -577,9 +577,9 @@ fun mac2(macinput, mkey):macres.
 fun check2(macinput, mkey, macres): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:macinput, r:mkeyseed;
+equation forall m:macinput, r:mkeyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:macinput, r:mkeyseed;
+equation forall m:macinput, r:mkeyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv(uf_cma(mac))
@@ -646,7 +646,7 @@ fun mkgen(mkeyseed):mkey.
 fun mac2(macinput, mkey):macres.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:macinput, r:mkeyseed;
+equation forall m:macinput, r:mkeyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
 
 equiv(suf_cma(mac))
@@ -723,9 +723,9 @@ fun injbot(cleartext):bitstringbot [compos].
 
 const Z:cleartext.
 
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot(m).
-forall m:cleartext, r:keyseed, r2:seed; 
+equation forall m:cleartext, r:keyseed, r2:seed; 
 	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
 
 equiv(ind_cca2(enc))
@@ -809,9 +809,9 @@ fun skgen2(keyseed):skey.
 fun pkgen2(keyseed):pkey.
 fun check2(signinput, pkey, signature): bool.
 
-forall m:signinput, r:keyseed, r2:seed; 
+equation forall m:signinput, r:keyseed, r2:seed; 
 	check(m, pkgen(r), sign(m, skgen(r), r2)) = true.
-forall m:signinput, r:keyseed, r2:seed; 
+equation forall m:signinput, r:keyseed, r2:seed; 
 	check2(m, pkgen2(r), sign2(m, skgen2(r), r2)) = true.
 
 equiv(uf_cma(sign))
@@ -908,9 +908,9 @@ fun skgen2(keyseed):skey.
 fun pkgen2(keyseed):pkey.
 fun check2(signinput, pkey, signature): bool.
 
-forall m:signinput, r:keyseed, r2:seed; 
+equation forall m:signinput, r:keyseed, r2:seed; 
 	check(m, pkgen(r), sign(m, skgen(r), r2)) = true.
-forall m:signinput, r:keyseed, r2:seed; 
+equation forall m:signinput, r:keyseed, r2:seed; 
 	check2(m, pkgen2(r), sign2(m, skgen2(r), r2)) = true.
 
 equiv(suf_cma(sign))
@@ -1140,24 +1140,24 @@ fun exp'(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z. 
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 (* injectivity *)
 
-forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
-forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* collision between products *)
 
 collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
   return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
 
-forall x:Z, y:Z, y':Z; 
+equation forall x:Z, y:Z, y':Z; 
   (mult(x,y) = mult(x,y')) = (y = y').
 
 (* replace a random group element with an exponentiation, and conversely *)
@@ -1251,24 +1251,24 @@ fun exp'(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z. 
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 (* injectivity *)
 
-forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
-forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* collision between products *)
 
 collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
   return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
 
-forall x:Z, y:Z, y':Z; 
+equation forall x:Z, y:Z, y':Z; 
   (mult(x,y) = mult(x,y')) = (y = y').
 
 (* replace a random group element with an exponentiation, and conversely *)
@@ -1380,19 +1380,19 @@ fun exp'(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z. 
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp'(exp'(a,x), y) = exp'(a, mult(x,y)).
 
 (* injectivity *)
 
-forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
-forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* collision between products *)
 
@@ -1402,7 +1402,7 @@ collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z;
 collision x1 <-R Z; x2 <-R Z; 
   return(mult(x1,x1) = mult(x2,x2)) <=(1/|Z|)=> return(false). 
 
-forall x:Z, y:Z, y':Z; 
+equation forall x:Z, y:Z, y':Z; 
   (mult(x,y) = mult(x,y')) = (y = y').
 
 (* replace a random group element with an exponentiation, and conversely *)
@@ -1555,29 +1555,29 @@ fun exp'(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z. 
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp'(exp'(a,x), y) = exp'(a, mult(x,y)).
 
 (* injectivity *)
 
-forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
-forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* When the group has prime order, 
 exp(x,y) = exp(x',y) implies y = y' (provided y is not a multiple
 of this prime; if y is a correctly generated secret key, that cannot
 happen) *)
 
-forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
-forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
+equation forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
+equation forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
 
-forall x:G, y:Z, y':Z; (exp(x,y) = exp(x,y')) = (y = y').
+equation forall x:G, y:Z, y':Z; (exp(x,y) = exp(x,y')) = (y = y').
 
 (* collision between products *)
 
@@ -1587,7 +1587,7 @@ collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z;
 collision x1 <-R Z; x2 <-R Z; 
   return(mult(x1,x1) = mult(x2,x2)) <=(1/|Z|)=> return(false). 
 
-forall x:Z, y:Z, y':Z; 
+equation forall x:Z, y:Z, y':Z; 
   (mult(x,y) = mult(x,y')) = (y = y').
 
 (* replace a random group element with an exponentiation, and conversely *)
@@ -1796,25 +1796,25 @@ fun invf(skey, D):D.
 
 (* invf is the inverse of f *)
 
-forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
 
 (* f is the inverse of invf *)
 
-forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
+equation forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
 
 (* Injectivity of f *)
 
-forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
-forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
 
 (* injectivity of invf *)
 
-forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
+equation forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
 
 (* f/invf are inverse permutations; use this to remove some
    occurrences of invf in equality tests *)
 
-forall r:seed, x:D, x':D; 
+equation forall r:seed, x:D, x':D; 
 	(x' = invf(skgen(r),x)) = (f(pkgen(r),x') = x).
 
 (* We can permute the distribution, for uniformly distributed random
@@ -1871,25 +1871,25 @@ fun invf(skey, D):D.
 
 (* invf is the inverse of f *)
 
-forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
 
 (* f is the inverse of invf *)
 
-forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
+equation forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
 
 (* Injectivity of f *)
 
-forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
-forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
 
 (* injectivity of invf *)
 
-forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
+equation forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
 
 (* f/invf are inverse permutations; use this to remove some
    occurrences of invf in equality tests *)
 
-forall r:seed, x:D, x':D; 
+equation forall r:seed, x:D, x':D; 
 	(x' = invf(skgen(r),x)) = (f(pkgen(r),x') = x).
 
 (* We can permute the distribution, for uniformly distributed random
@@ -1969,25 +1969,25 @@ fun concat(Dow,Dr):D [compos].
 
 (* invf is the inverse of f *)
 
-forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
 
 (* f is the inverse of invf *)
 
-forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
+equation forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
 
 (* Injectivity of f *)
 
-forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
-forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
 
 (* injectivity of invf *)
 
-forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
+equation forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
 
 (* f/invf are inverse permutations; use this to remove some
    occurrences of invf in equality tests *)
 
-forall r:seed, x:D, x':D; 
+equation forall r:seed, x:D, x':D; 
 	(x' = invf(skgen(r),x)) = (f(pkgen(r),x') = x).
 
 (* We can permute the distribution, for uniformly distributed random
@@ -2081,7 +2081,7 @@ param nx.
 
 fun xor(D,D):D.
 const zero: D.
-equation ACUN(xor,zero).
+equation builtin ACUN(xor,zero).
 
 (* Xor is a one-time pad *)
 

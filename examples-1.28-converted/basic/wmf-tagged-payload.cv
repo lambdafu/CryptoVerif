@@ -30,16 +30,16 @@ expand IND_CPA_INT_CTXT_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, enc
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 const Zconcat:maxenc.
-forall x:tag,h:host,k:key; 
+equation forall x:tag,h:host,k:key; 
 	Z(concat(x,h,k)) = Zconcat.
 
 const Zpayload:maxenc.
-forall x:payload; Z(pad(x)) = Zpayload.
+equation forall x:payload; Z(pad(x)) = Zpayload.
 
 
 fun test(bool, payload, payload):payload.
-forall x:payload, y:payload; test(true, x,y) = x.
-forall x:payload, y:payload; test(false, x,y) = y.
+equation forall x:payload, y:payload; test(true, x,y) = x.
+equation forall x:payload, y:payload; test(false, x,y) = y.
 
 
 (* Queries *)

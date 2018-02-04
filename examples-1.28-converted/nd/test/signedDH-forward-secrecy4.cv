@@ -62,7 +62,7 @@ channel hc1, hc2.
 
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
-forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     
 proba Psign.
@@ -1260,7 +1260,7 @@ hence A corrupted. Contradiction.
 
 The current implementation of elsefind facts is not sufficient to do the above reasoning.
 From @7_kb_367[@i_176[j]] defined, we get the elsefind fact
-forall j' <= N, not(defined(hostB[j'], Aga[j'], Agb[j'], kA[j']) && ((hostB[j'] = B) && ((Aga[j'] = Bga[@i_176[j]]) && (Agb[j'] = Bgb[@i_176[j]]))))
+equation forall j' <= N, not(defined(hostB[j'], Aga[j'], Agb[j'], kA[j']) && ((hostB[j'] = B) && ((Aga[j'] = Bga[@i_176[j]]) && (Agb[j'] = Bgb[@i_176[j]]))))
 We instantiate with j' = j.
 We then need to prove that, if hostB[j], Aga[j], Agb[j], or kA[j] are defined after @7_kb_367[@i_176[j]], we have
 not(((hostB[j] = B) && ((Aga[j] = Bga[@i_176[j]]) && (Agb[j] = Bgb[@i_176[j]])))).

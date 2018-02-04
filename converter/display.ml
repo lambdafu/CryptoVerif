@@ -379,17 +379,21 @@ let display_term t = display_term_paren AllInfix AllProcess t
 
 (* Statements *)
 
-let display_statement (bl, t) =
-  print_string "forall ";
-  display_list display_binder_with_type bl;
-  print_string "; ";
-  display_term t;
-  print_newline()
-
-(* Equivalences *)
-
 let display_pterm ((p : Ptree.term), ext) =
   copy ext
+
+let display_statement (bl, t) =
+  print_string "equation ";
+  if bl <> [] then
+    begin
+      print_string "forall ";
+      display_list (fun ((x,_),(t,_)) -> print_string (x^": "^t)) bl;
+      print_string "; "
+    end;
+  display_pterm t;
+  print_string "."
+
+(* Equivalences *)
 
 let display_ppattern ((pat : Ptree.pattern), ext) =
   copy ext

@@ -234,7 +234,10 @@ more transformations with the square variant.
       DONE update default.ocvl
       
       DONE update documentation.
-      
+
+      TO DO TO DO equation -> equation builtin
+      forall ...; M -> equation forall ...; M
+
    h) Revise examples manually to use the new crypto library
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).

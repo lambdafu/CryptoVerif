@@ -27,13 +27,13 @@ fun exp2(G,Z): G.
 const g:G.
 
 fun mult(Z,Z): Z.
-equation commut(mult).
+equation builtin commut(mult).
 
 (* exponents multiply *)
 
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp1(exp2(a,x), y) = exp(a, mult(x,y)).
-forall a:G, x:Z, y:Z;
+equation forall a:G, x:Z, y:Z;
   exp2(exp1(a,x), y) = exp(a, mult(x,y)).
 
 (* the DDH assumption *) 
@@ -106,7 +106,7 @@ equiv
 
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
-forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     
 proba Psign.

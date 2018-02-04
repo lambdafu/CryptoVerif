@@ -32,7 +32,7 @@ equiv(prf_upd_key_iv )
 
 fun xor(key, seqn): nonce_t.
 
-forall k: key, n: seqn, n': seqn;
+equation forall k: key, n: seqn, n': seqn;
        (xor(k, n) = xor(k,n')) = (n = n').
 
 (* AEAD *)
@@ -48,9 +48,9 @@ fun Z(bitstring): bitstring.
 
 (* injbot is the natural injection from bitstring to bitstring union bottom *)
 fun injbot(bitstring):bitstringbot [data].
-forall x:bitstring; injbot(x) <> bottom.
+equation forall x:bitstring; injbot(x) <> bottom.
 
-forall k: key, nonce: nonce_t, msg: bitstring;
+equation forall k: key, nonce: nonce_t, msg: bitstring;
       AEAD_decrypt(k, nonce, AEAD_encrypt(k, nonce, msg)) = injbot(msg).
 
 fun AEAD_encrypt'(key, nonce_t, bitstring): bitstring.
@@ -71,11 +71,11 @@ equiv
 (* Test function *)
 
 fun test(bool, bitstring, bitstring): bitstring.
-forall x:bitstring,y:bitstring; test(true,x,y) = x.
-forall x:bitstring,y:bitstring; test(false,x,y) = y.
-forall b:bool,x:bitstring; test(b,x,x) = x.
+equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
+equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
+equation forall b:bool,x:bitstring; test(b,x,x) = x.
 
-forall b:bool,x:bitstring,y:bitstring; 
+equation forall b:bool,x:bitstring,y:bitstring; 
        Z(test(b, x, y)) = test(b, Z(x), Z(y)).
 
 (* Tables used to record previously used sequence numbers,

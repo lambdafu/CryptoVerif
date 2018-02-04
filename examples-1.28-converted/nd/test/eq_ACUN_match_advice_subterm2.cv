@@ -4,7 +4,7 @@ type D [fixed].
 
 fun xor(D,D):D.
 const neut:D.
-equation ACUN(xor,neut).
+equation builtin ACUN(xor,neut).
 
 fun h(D):bitstring.
 fun g(D): D.
@@ -21,7 +21,7 @@ equiv
   ! n ! n' O(y: D) := return(g(y)).
 
 fun xor2(D,D):D.
-equation ACUN(xor2,neut).
+equation builtin ACUN(xor2,neut).
 equiv
   ! n new r1: D; new r2: D; ! n' O() := return(xor2(r1,xor2(one,r2)))
 <=(Peq)=>

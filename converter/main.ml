@@ -129,6 +129,7 @@ open Lexing
 let apply_change = function
     Replace s -> Display.print_string s
   | Remove -> ()
+  | ChEquation s -> Display.display_statement s
   | ChEquiv e -> Display.display_equiv e
   | ChCollision c -> Display.display_collision c
   | ChQuery q -> Display.display_queries q

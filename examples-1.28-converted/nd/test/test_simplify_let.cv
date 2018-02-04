@@ -4,7 +4,7 @@ fun f1(bitstring, bitstring): bitstring [data].
 fun f2(bitstring): bitstring [data].
 fun f3(bitstring): bitstring [data].
 
-forall x: bitstring; f2(x) <> f3(x).
+equation forall x: bitstring; f2(x) <> f3(x).
 
 process
 	in(c, x: bitstring);

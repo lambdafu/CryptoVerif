@@ -23,7 +23,7 @@ type maxenc [bounded].
 fun concat1(nonce, nonce, host, host):maxenc [data].
 fun concat2(nonce, key):maxenc [data].
 
-forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
 
 (* Shared-key encryption (IND-CCA2 + INT-PTXT Stream cipher) *)
 
@@ -35,9 +35,9 @@ expand IND_CCA2_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, enc, dec, i
    of the same length, consisting only of zeroes. *)
 const Zconcat1:maxenc.
 const Zconcat2:maxenc.
-forall y:nonce,z:nonce,t:host,u:host; 
+equation forall y:nonce,z:nonce,t:host,u:host; 
 	Z(concat1(y,z,t,u)) = Zconcat1.
-forall y:nonce,z:key; 
+equation forall y:nonce,z:key; 
 	Z(concat2(y,z)) = Zconcat2.
 
 (* Queries *)

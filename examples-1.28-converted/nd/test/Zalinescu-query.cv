@@ -27,10 +27,10 @@ expand UF_CMA_mac(keyseed, key, bitstring,
                   hmacsha1Verify, Pmac).
 
 (* other assumptions *)
-forall x:bitstring,y:bitstring,z:bitstring;
+equation forall x:bitstring,y:bitstring,z:bitstring;
   QueryRequestTag(x)<>QueryResponseTag(y,z).
 
-forall x:bitstring,y:bitstring,z:bitstring;
+equation forall x:bitstring,y:bitstring,z:bitstring;
   QueryRequest(x)<>QueryResponse(y,z).
 
 

@@ -13,7 +13,7 @@ proof {
 fun mult(D,D):D.
 const neut:D.
 fun inv(D):D.
-equation group(mult,inv,neut).
+equation builtin group(mult,inv,neut).
 
 set diffConstants = false.
 

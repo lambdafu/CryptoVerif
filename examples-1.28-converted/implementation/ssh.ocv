@@ -33,8 +33,8 @@ letfun pad(m:bitstring) = r <-R pad_rand; padr(m, r).
 fun unpad(bitstring): bitstringbot.
 
 fun injbot(bitstring): bitstringbot [data].
-forall x: bitstring; injbot (x) <> bottom.
-forall x: bitstring, r: pad_rand;
+equation forall x: bitstring; injbot (x) <> bottom.
+equation forall x: bitstring, r: pad_rand;
        unpad(padr(x, r)) = injbot(x).
 
 (* utils *)
@@ -73,7 +73,7 @@ fun mac(bitstring, mkey): macres.
 fun check_mac(bitstring, mkey, macres): bool.
 fun mkgen(mkeyseed): mkey.
 
-forall m: bitstring, r: mkeyseed;
+equation forall m: bitstring, r: mkeyseed;
 	check_mac(m, mkgen(r), mac(m, mkgen(r))).
 
 (* symmetric encryption *)
@@ -82,7 +82,7 @@ fun kgen(symkeyseed): symkey.
 fun enc(bitstring, symkey, iv): bitstring.
 fun dec(bitstring, symkey, iv): bitstringbot.
 
-forall m: bitstring, r: symkeyseed, r2: iv;
+equation forall m: bitstring, r: symkeyseed, r2: iv;
     dec(enc(m, kgen(r), r2), kgen(r), r2) = injbot (m).
 
 (*hash function *)
@@ -126,7 +126,7 @@ letfun genEKS(hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash(gen(hk, k, h1,
 letfun genMKC(hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash(gen(hk, k, h1, tag_MKC, h2)).
 letfun genMKS(hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash(gen(hk, k, h1, tag_MKS, h2)).
 
-forall k: G, h1: hash, c: tag, h2: hash, x1: bitstring, x2: bitstring, x3: bitstring, x4: bitstring, x5: spkey, x6: G, x7: G, x8: G;
+equation forall k: G, h1: hash, c: tag, h2: hash, x1: bitstring, x2: bitstring, x3: bitstring, x4: bitstring, x5: spkey, x6: G, x7: G, x8: G;
    concat4(k, h1, c, h2) <> concat8(x1, x2, x3, x4, x5, x6, x7, x8).
 
 (* key table *)

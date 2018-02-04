@@ -32,7 +32,7 @@ fun enc'(blocksize, key): blocksize.
 fun kgen(keyseed):key.
 fun dec(blocksize, key): blocksize.
 
-forall m:blocksize, r:keyseed; 
+equation forall m:blocksize, r:keyseed; 
 	dec(enc(m, kgen(r)), kgen(r)) = m.
 
 equiv

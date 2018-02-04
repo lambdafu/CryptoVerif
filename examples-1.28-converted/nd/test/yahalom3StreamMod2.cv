@@ -103,9 +103,9 @@ fun concat1(host, key, nonce, nonce):bitstring [data].
 fun concat2(host, key):bitstring [data].
 fun concat3(host, nonce, nonce):bitstring [data].
 
-forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
-forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:nonce,t2:nonce; concat1(y,z,t,u) <> concat3(y2,z2,t2).
-forall y:host,z:key,y2:host,z2:nonce,t2:nonce; concat2(y,z) <> concat3(y2,z2,t2).
+equation forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+equation forall y:host,z:key,t:nonce,u:nonce,y2:host,z2:nonce,t2:nonce; concat1(y,z,t,u) <> concat3(y2,z2,t2).
+equation forall y:host,z:key,y2:host,z2:nonce,t2:nonce; concat2(y,z) <> concat3(y2,z2,t2).
 
 fun nonceToBitstring(nonce):bitstring [data].
 
@@ -128,13 +128,13 @@ const Znonce:nonce.
 const Zhost:host.
 const Zkey:key.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall y:host,z:key,t:nonce,u:nonce; 
+equation forall y:host,z:key,t:nonce,u:nonce; 
 	Z(concat1(y,z,t,u)) = concat1(Zhost,Zkey,Znonce,Znonce).
-forall y:host,z:key; 
+equation forall y:host,z:key; 
 	Z(concat2(y,z)) = concat2(Zhost,Zkey).
-forall y:host,z:nonce,t:nonce; 
+equation forall y:host,z:nonce,t:nonce; 
 	Z(concat3(y,z,t)) = concat3(Zhost,Znonce,Znonce).
 
 equiv
@@ -154,9 +154,9 @@ fun mac2(bitstring, key):macs.
 fun check2(bitstring, key, macs): bool.
 fun mkgen2(keyseed):key.
 
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv

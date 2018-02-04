@@ -84,7 +84,7 @@ const zero: bitstring.
 letfun HKDF_extract_zero(HandshakeSecret: extracted) =
        HKDF_extract(HandshakeSecret, zero).
 
-forall l: label, h: hash; build_arg(l, h) <> zero.
+equation forall l: label, h: hash; build_arg(l, h) <> zero.
 
 (* Prove equivalence between processLeft and processRight *)
 

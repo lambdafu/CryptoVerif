@@ -22,10 +22,10 @@ fun mf(skey, E):D. (* Modified. the domain D -> E *)
 
 (* mf is the inverse of f *)
 
-forall r:seed, x:D; mf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:seed, x:D; mf(skgen(r), f(pkgen(r), x)) = x.
 
 (* Injectivity *)
-forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
 
 (* We can permute the distributions, for uniformly distributed random
    numbers x and y. Do that only when x is used in mf(skgen(r),x) *)

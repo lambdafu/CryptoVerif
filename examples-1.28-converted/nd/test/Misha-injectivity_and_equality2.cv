@@ -3,7 +3,7 @@ channel c.
 type nonce [fixed].
 
 fun f(nonce): bitstring [data].
-forall x: nonce, x': nonce;
+equation forall x: nonce, x': nonce;
   (f(x) = f(x')) = (x = x').
 
 fun g(nonce): nonce.

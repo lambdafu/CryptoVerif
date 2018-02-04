@@ -26,9 +26,9 @@ fun concat1(key, mkey, nonce, tgs):maxenc [data]. 					(* needed for {AK, mAK, n
 fun concat2(key, mkey, client):maxenc [data].  						(* needed for TGT and ST *)
 fun pad(client, timest):maxenc [data].
 
-forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat2(y,w,z) <> concat1(t2,w2,y2,z2).
-forall  y:client, w:timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(y,w) <> concat1(t2,w2,y2,z2).
-forall y:key, w:mkey, z:client, t2:client, w2:timest;  concat2(y,w,z) <> pad(t2,w2).
+equation forall y:key, w:mkey, z:client, t2:key, w2:mkey, y2:nonce, z2:tgs;  concat2(y,w,z) <> concat1(t2,w2,y2,z2).
+equation forall  y:client, w:timest, t2:key, w2:mkey, y2:nonce, z2:tgs;  pad(y,w) <> concat1(t2,w2,y2,z2).
+equation forall y:key, w:mkey, z:client, t2:client, w2:timest;  concat2(y,w,z) <> pad(t2,w2).
 
 (* Shared-key encryption (CPA Stream cipher) *)
 
@@ -49,13 +49,13 @@ const  Zconcat2:maxenc.
 const  Zconst3: maxenc.
 const  Zpad:maxenc.
 
-forall m:maxenc, r:keyseed, r2:seed; 
+equation forall m:maxenc, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall y:nonce, z:tgs, t:key, u:mkey;
+equation forall y:nonce, z:tgs, t:key, u:mkey;
 	Z(concat1(t, u, y, z)) = Zconcat1.
-forall y:key, w:mkey, z:client; 
+equation forall y:key, w:mkey, z:client; 
 	Z(concat2(y, w, z)) = Zconcat2.
-forall z:client, t:timest;
+equation forall z:client, t:timest;
         Z(pad(z,t)) = Zpad.
 					    
 
@@ -76,9 +76,9 @@ fun mac2(maxmac, mkey):macs.
 fun check2(maxmac, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
-forall m:maxmac, r:mkeyseed;
+equation forall m:maxmac, r:mkeyseed;
 	check2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 						   

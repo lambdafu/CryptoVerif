@@ -111,9 +111,9 @@ letfun HKDF_extract_zero(EarlySecret: extracted) =
        HKDF_extract(EarlySecret, zero_hash).
 
 
-forall l: label, h: hash, e: elt; build_arg(l, h) <> elt2bitstring(e).
-forall l: label, h: hash; build_arg(l, h) <> zero_hash.
-forall e: elt; elt2bitstring(e) <> zero_hash. (* TO DO: check *)
+equation forall l: label, h: hash, e: elt; build_arg(l, h) <> elt2bitstring(e).
+equation forall l: label, h: hash; build_arg(l, h) <> zero_hash.
+equation forall e: elt; elt2bitstring(e) <> zero_hash. (* TO DO: check *)
 
 (* Prove equivalence between processLeft and processRight *)
 

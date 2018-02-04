@@ -125,26 +125,26 @@ fun concat8(econst, nonce, nonce) : prpcblocksize [data]. (* used for f1 (MAC) *
 fun concat9(econst, nonce) :prpcblocksize [data]. (*used for f2 - f5 *)
 
 
-forall x:nonce, y:ue, z:sn,  v:nonce;
+equation forall x:nonce, y:ue, z:sn,  v:nonce;
         concat2(x,y,z) <> concat5(v).
 
-forall x:nonce, y:ue, z:sn, u:nonce, v:prpcblocksize, w:prpcblocksize, t:sn;
+equation forall x:nonce, y:ue, z:sn, u:nonce, v:prpcblocksize, w:prpcblocksize, t:sn;
        concat2(x,y,z) <> concat6(u,v,w,t).
 
-forall x:nonce, y:ue, z:sn, s:nonce, u: prpcblocksize, u': prpcblocksize, v:nonce, w:prpcblocksize, q:nonce,  t:prpcblocksize;
+equation forall x:nonce, y:ue, z:sn, s:nonce, u: prpcblocksize, u': prpcblocksize, v:nonce, w:prpcblocksize, q:nonce,  t:prpcblocksize;
        concat2(x,y,z) <> concat7(s,u,u',v,w,q,t).
 
 
-forall  y: nonce, u:nonce, v:prpcblocksize, w:prpcblocksize, t:sn;
+equation forall  y: nonce, u:nonce, v:prpcblocksize, w:prpcblocksize, t:sn;
        concat5(y) <> concat6(u,v,w,t).
 
-forall y: nonce, s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize;
+equation forall y: nonce, s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize;
        concat5(y) <> concat7(s,u,u',v,w,r,t).
 
-forall x:nonce, y:prpcblocksize,z:prpcblocksize, q:sn, s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize;
+equation forall x:nonce, y:prpcblocksize,z:prpcblocksize, q:sn, s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize;
        concat6(x,y,z,q) <> concat7(s,u,u',v,w,r,t).
 
-forall x:econst, y:nonce, z:nonce, u:econst, v: nonce;
+equation forall x:econst, y:nonce, z:nonce, u:econst, v: nonce;
        concat8(x,y,z) <> concat9(u,v).
 
 
@@ -160,11 +160,11 @@ expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec,
    of the same length, consisting only of zeroes. *)
 const Zconcat2:bitstring.
 const Zconcat7:bitstring.
-forall x:nonce, y:ue,z:sn; 
+equation forall x:nonce, y:ue,z:sn; 
 	Z(concat2(x,y,z)) = Zconcat2.
-forall  s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize; 
+equation forall  s:nonce, u: prpcblocksize, u':  prpcblocksize, v:nonce, w:prpcblocksize, r:nonce, t:prpcblocksize; 
 	Z(concat7(s,u,u',v,w,r,t)) = Zconcat7.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	Z(enc(m, kgen(r), r2)) = Z(m).
 
 (* Mac *)

@@ -3,7 +3,7 @@ type D.
 (* set interactiveMode = true. *)
 
 fun concat(D,D):D.
-equation AC(concat).
+equation builtin AC(concat).
 
 fun f(D):bitstring.
 fun h(D):bitstring.

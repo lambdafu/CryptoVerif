@@ -9,7 +9,7 @@ proof {
 }
 
 fun concat(D,D):D.
-equation assoc(concat).
+equation builtin assoc(concat).
 
 const zero, one, two: D. 
 

@@ -34,7 +34,7 @@ type tag [bounded].
 fun concat1(tag, nonce):bitstring [data].
 fun concat2(tag, host, macs, bitstring):bitstring [data].
 
-forall x:tag, y:nonce, x2:tag, y2:host, m2:macs, z2:bitstring;
+equation forall x:tag, y:nonce, x2:tag, y2:host, m2:macs, z2:bitstring;
 	concat1(x,y) <> concat2(x2,y2,m2,z2).
 
 (* Shared-key encryption (CPA Stream cipher) *)
@@ -47,11 +47,11 @@ expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec,
    of the same length, consisting only of zeroes. *)
 fun Zconcat2(bitstring):bitstring.
 const Zconcat1:bitstring.
-forall y:tag, z:nonce; 
+equation forall y:tag, z:nonce; 
 	Z(concat1(y,z)) = Zconcat1.
-forall y:tag, z:host, m:macs, u:bitstring; 
+equation forall y:tag, z:host, m:macs, u:bitstring; 
 	Z(concat2(y,z,m,u)) = Zconcat2(Z(u)).
-forall x:bitstring, k:key, r:seed;
+equation forall x:bitstring, k:key, r:seed;
 	Z(enc(x,k,r)) = Z(x).
 
 (* Mac *)

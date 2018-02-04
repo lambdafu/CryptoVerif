@@ -21,15 +21,15 @@ fun concat1(nonce, host, mkey, key, macs, bitstring):bitstring [data].
 fun concat2(host, nonce):bitstring [data].
 fun concat3(mkey, key, host, nonce):bitstring [data].
 
-forall m:mkey,y:key,z:host,t:nonce,m2:mkey,y2:nonce,z2:host,t2:key,u2:macs,v2:bitstring;
+equation forall m:mkey,y:key,z:host,t:nonce,m2:mkey,y2:nonce,z2:host,t2:key,u2:macs,v2:bitstring;
 	concat3(m,y,z,t) <> concat1(y2,z2,m2,t2,u2,v2).
-forall z:host,t:nonce,y2:nonce,z2:host,m2:mkey,t2:key,u2:macs,v2:bitstring;
+equation forall z:host,t:nonce,y2:nonce,z2:host,m2:mkey,t2:key,u2:macs,v2:bitstring;
 	concat2(z,t) <> concat1(y2,z2,m2,t2,u2,v2).
-forall z:host,t:nonce,m2:mkey,y2:key,z2:host,t2:nonce;
+equation forall z:host,t:nonce,m2:mkey,y2:key,z2:host,t2:nonce;
 	concat2(z,t) <> concat3(m2,y2,z2,t2).
 
 fun minusone(nonce):nonce [data].
-forall x:nonce; minusone(x) <> x.
+equation forall x:nonce; minusone(x) <> x.
 
 fun nonceToBitstring(nonce):bitstring [data].
 
@@ -52,15 +52,15 @@ fun Zconcat1(bitstring):bitstring.
 const Zconcat2:bitstring.
 const Zconcat3:bitstring.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall y:nonce,z:host,m:mkey,t:key,v:macs,u:bitstring;
+equation forall y:nonce,z:host,m:mkey,t:key,v:macs,u:bitstring;
 	Z(concat1(y,z,m,t,v,u)) = Zconcat1(Z(u)).
-forall y:host,z:nonce; 
+equation forall y:host,z:nonce; 
 	Z(concat2(y,z)) = Zconcat2.
-forall m:mkey,y:key,z:host,t:nonce; 
+equation forall m:mkey,y:key,z:host,t:nonce; 
 	Z(concat3(m,y,z,t)) = Zconcat3.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	Z(enc(m, kgen(r), r2)) = Z(m).
 
 equiv

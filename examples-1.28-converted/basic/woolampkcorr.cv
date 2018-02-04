@@ -27,7 +27,7 @@ type blocksizebot [bounded].
 fun concat1(host, host, nonce):blocksize [data].
 fun concat2(host, pkey):blocksize [data].
 
-forall x:host, y:host, z:nonce, x2:host, y2:pkey;
+equation forall x:host, y:host, z:nonce, x2:host, y2:pkey;
 	concat1(x,y,z) <> concat2(x2,y2).
 
 (* Signatures *)

@@ -5,7 +5,7 @@ type D [fixed].
 fun mult(D,D):D.
 fun inv(D):D.
 const neut:D.
-equation group(mult,inv,neut).
+equation builtin group(mult,inv,neut).
 
 fun h(D):bitstring.
 fun g(D): D.
@@ -23,7 +23,7 @@ equiv
 
 fun mult2(D,D):D.
 fun inv2(D):D.
-equation group(mult2,inv2,neut).
+equation builtin group(mult2,inv2,neut).
 equiv
   ! n new r1: D; new r2: D; ! n' O() := return(mult2(r1,mult2(one,r2)))
 <=(Peq)=>

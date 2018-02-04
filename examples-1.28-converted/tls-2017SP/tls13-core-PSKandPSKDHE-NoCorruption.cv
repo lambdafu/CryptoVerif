@@ -222,7 +222,7 @@ fun ServerFinishedLogInfo(bitstring,bitstring): bitstring [data].
 fun ClientBeforeFinishedLogInfo(bitstring, bitstring): bitstring [data].
 fun ClientFinishedLogInfo(bitstring, bitstring): bitstring [data].
 
-forall cr: nonce, l: bitstring, cr': nonce, gx: elt, l': bitstring;
+equation forall cr: nonce, l: bitstring, cr': nonce, gx: elt, l': bitstring;
        ClientHelloBinderLogInfo(cr,l) <> ClientHelloBinderLogInfoDHE(cr',gx,l').
 
 (* Secrecy of the key *)

@@ -4,11 +4,11 @@ type D.
 
 fun xor(D,D):D.
 const neut:D.
-equation ACUN(xor,neut).
+equation builtin ACUN(xor,neut).
 
 fun g(D,D,D): D.
 
-forall x:D, y:D, z:D; xor(x,xor(y,z)) = g(x,y,z).
+equation forall x:D, y:D, z:D; xor(x,xor(y,z)) = g(x,y,z).
 const zero, one, two, three, four: D. 
 const zero', one', two', three', four': D. 
 

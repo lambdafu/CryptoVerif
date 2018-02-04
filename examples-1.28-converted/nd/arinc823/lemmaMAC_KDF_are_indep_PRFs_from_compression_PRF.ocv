@@ -211,24 +211,24 @@ fun second_part(t_SHA256_out): tXsecond.
 fun concat_parts(tXfirst, tXsecond): t_SHA256_out [data].
 fun concatSHA1_pad(tXsecond, t_id, t_id, byte): t_SHA1_block [data].
 
-forall k: mac_key, count: t_count, algo_cst: byte, algo_num: byte, 
+equation forall k: mac_key, count: t_count, algo_cst: byte, algo_num: byte, 
        X: t_SHA256_out, U: t_id, V: t_id, keylength:byte;  
        first_block(concatKDF(k, count, concatSI(algo_cst, algo_num, X, U, V, keylength))) =
        concatSHA1(k, concatSHA1_2(count, algo_cst, algo_num, first_part(X))).
 
-forall k: mac_key, count: t_count, algo_cst: byte, algo_num: byte, 
+equation forall k: mac_key, count: t_count, algo_cst: byte, algo_num: byte, 
        X: t_SHA256_out, U: t_id, V: t_id, keylength:byte;  
        second_block(concatKDF(k, count, concatSI(algo_cst, algo_num, X, U, V, keylength))) =
        concatSHA1_pad(second_part(X), U, V, keylength).
 
-forall X1: t_SHA256_out, X2: t_SHA256_out;
+equation forall X1: t_SHA256_out, X2: t_SHA256_out;
        (first_part(X1) = first_part(X2) && second_part(X1) = second_part(X2)) = (X1 = X2).
 
-forall X: t_SHA256_out;
+equation forall X: t_SHA256_out;
        concat_parts(first_part(X), second_part(X)) = X.
-forall X1: tXfirst, X2: tXsecond;
+equation forall X1: tXfirst, X2: tXsecond;
        first_part(concat_parts(X1,X2)) = X1.
-forall X1: tXfirst, X2: tXsecond;
+equation forall X1: tXfirst, X2: tXsecond;
        second_part(concat_parts(X1,X2)) = X2.
 
 (* concat_truncate256 concatenates its two 160 bits arguments

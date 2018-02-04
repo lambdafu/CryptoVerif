@@ -39,9 +39,9 @@ expand IND_CCA2_INT_PTXT_sym_enc(keyseed, key, maxenc, bitstring, seed, kgen, en
 const Z1:maxenc.
 const Z2:maxenc.
 
-forall u:tag, x:nonce, y:nonce, z:host, t:host; 
+equation forall u:tag, x:nonce, y:nonce, z:host, t:host; 
 	Z(tagf(u,concat1(x,y,z,t))) = Z1.
-forall u:tag, x:nonce, y:key; 
+equation forall u:tag, x:nonce, y:key; 
 	Z(tagf(u,concat2(x,y))) = Z2.
 
 (* Note: the system applies first INT-PTXT, then IND-CCA2 on the same key.

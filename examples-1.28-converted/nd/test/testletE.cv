@@ -19,7 +19,7 @@ fun enc'(bitstring, key, seed): bitstring.
 fun kgen(keyseed):key.
 fun dec(bitstring, key): bitstring.
 
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = m.
 
 const Z: bitstring.
@@ -37,7 +37,7 @@ fun mac'(bitstring, key):macs.
 fun check(bitstring, key, macs): bool.
 fun mkgen(keyseed):key.
 
-forall m:bitstring, r:keyseed;
+equation forall m:bitstring, r:keyseed;
 	check(m, mkgen(r), mac(m, mkgen(r))).
 
 equiv

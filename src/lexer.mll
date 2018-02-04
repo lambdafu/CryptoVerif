@@ -21,6 +21,7 @@ let common_keywords =
   "param", PARAM;
   "forall", FORALL;
   "equation", EQUATION;
+  "builtin", BUILTIN;
   "proba", PROBA;
   "type", TYPE;
   "equiv", EQUIV;

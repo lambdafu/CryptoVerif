@@ -13,7 +13,7 @@ proof {
 fun mult(D,D):D.
 const neut:D.
 fun inv(D):D.
-equation commut_group(mult,inv,neut).
+equation builtin commut_group(mult,inv,neut).
 
 set diffConstants = false.
 

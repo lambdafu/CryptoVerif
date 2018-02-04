@@ -49,12 +49,12 @@ fun Z(maxenc):maxenc.
 const Z1:maxenc.
 const Z2:maxenc.
 
-forall m:maxenc, r:keyseed, r2:seed; 
+equation forall m:maxenc, r:keyseed, r2:seed; 
 	dec(enc(m, kgen(r), r2), kgen(r)) = injbot(m).
-forall m:maxenc, r:keyseed, r2:seed; 
+equation forall m:maxenc, r:keyseed, r2:seed; 
 	dec2(enc2(m, kgen2(r), r2), kgen2(r)) = injbot(m).
-forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
-forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
+equation forall u:tag, x:nonce, y:nonce, z:host, t:host; Z(tagf(u,concat1(x,y,z,t))) = Z1.
+equation forall u:tag, x:nonce, y:key; Z(tagf(u,concat2(x,y))) = Z2.
 
 equiv
   ! N2 new r: keyseed; ! N new r2: seed; gen_Oracle(x: maxenc) := return(enc(x, kgen(r), r2))

@@ -73,6 +73,8 @@ rule token = parse
        (* The keyword "define" becomes "def" *)
        if s = "define" then
          Changes.add_change (extent lexbuf) (Replace "def");
+       if s = "equation" then
+         Changes.add_change (extent lexbuf) (Replace "equation builtin");
        try
 	 Hashtbl.find keyword_table s
        with Not_found ->

@@ -53,7 +53,7 @@ fun mtoc(mstring): cleartext [uniform].
 
 (* This would allow it to verify, but it's not generally true: *)
 (*
-forall x: mstring;
+equation forall x: mstring;
   ctom(mtoc(x)) = x.
 *)
 

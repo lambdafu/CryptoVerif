@@ -59,17 +59,17 @@ fun concat6(host, pkey, spkey, signature, nonce, signature, host, host, nonce): 
 fun pad(nonce): sblocksize [data]. (* needed to sign nonce n2*)
 
 (* inequalities of outputs of two different concat functions when they output the same types : *) 
-forall k: key, v: host, w2: key, y2: nonce, z2: host;
+equation forall k: key, v: host, w2: key, y2: nonce, z2: host;
 	concat5(k,v) <> concat4(w2,y2,z2).
-forall k: key, v: host, w2: host, y2: pkey,z2: spkey, s2: signature,t2: nonce, u2: signature, x2: host, a2: host, b2: nonce;
+equation forall k: key, v: host, w2: host, y2: pkey,z2: spkey, s2: signature,t2: nonce, u2: signature, x2: host, a2: host, b2: nonce;
 	concat5(k,v) <> concat6(w2,y2,z2,s2,t2,u2,x2,a2,b2). 
-forall k: key,n:nonce, v: host, w2: host, y2: pkey,z2: spkey, s2: signature,t2: nonce, u2: signature, x2: host, a2: host, b2: nonce;
+equation forall k: key,n:nonce, v: host, w2: host, y2: pkey,z2: spkey, s2: signature,t2: nonce, u2: signature, x2: host, a2: host, b2: nonce;
 	concat4(k,n,v) <> concat6(w2,y2,z2,s2,t2,u2,x2,a2,b2).
-forall k1:key, k2:mkey, y:checksum, z2:host, y2:pkey, x2:spkey;
+equation forall k1:key, k2:mkey, y:checksum, z2:host, y2:pkey, x2:spkey;
 	concat3(k1,k2,y) <> concat1(z2,y2, x2).
-forall k1:key, k2:mkey, y:checksum, z2: nonce;
+equation forall k1:key, k2:mkey, y:checksum, z2: nonce;
 	concat3(k1, k2,y) <> pad(z2).
-forall  y:nonce, z2:host, y2:pkey, x2:spkey;
+equation forall  y:nonce, z2:host, y2:pkey, x2:spkey;
 	pad(y) <> concat1(z2,y2, x2).
 
 
@@ -94,9 +94,9 @@ fun injbot1(blocksize):blocksizebot [data].
 
 const Z:blocksize.
 
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec(enc(m, pkgen(r), r2), skgen(r)) = injbot1(m).
-forall m:blocksize, r:keyseed, r2:seed; 
+equation forall m:blocksize, r:keyseed, r2:seed; 
 	dec2(enc2(m, pkgen2(r), r2), skgen2(r)) = injbot1(m).
 
 equiv
@@ -131,9 +131,9 @@ fun sskgen2(skeyseed):sskey.
 fun spkgen2(skeyseed):spkey.
 fun check2(sblocksize, spkey, signature): bool.
 
-forall m:sblocksize, r:skeyseed, r2:sseed; 
+equation forall m:sblocksize, r:skeyseed, r2:sseed; 
 	check(m, spkgen(r), sign(m, sskgen(r), r2)) = true.
-forall m:sblocksize, r:skeyseed, r2:sseed; 
+equation forall m:sblocksize, r:skeyseed, r2:sseed; 
 	check2(m, spkgen2(r), sign2(m, sskgen2(r), r2)) = true.
 
 equiv
@@ -175,14 +175,14 @@ const Zconcat4:bitstring.
 const Zconcat5: bitstring.
 const Zconct6: bitstring.
 
-forall m:bitstring, r:symkeyseed, r2:symseed; 
+equation forall m:bitstring, r:symkeyseed, r2:symseed; 
 	decsym(encsym(m, kgen(r), r2), kgen(r)) = injbot2(m).
 
-forall m:key,y:nonce,z:host; 
+equation forall m:key,y:nonce,z:host; 
 	Z2(concat4(m,y,z)) = Zconcat4.
-forall y:key,z:host; 
+equation forall y:key,z:host; 
 	Z2(concat5(y,z)) = Zconcat5.
-forall m:bitstring, r:symkeyseed, r2:symseed; 
+equation forall m:bitstring, r:symkeyseed, r2:symseed; 
 	Z2(encsym(m, kgen(r), r2)) = Z2(m).
 
 equiv
@@ -204,9 +204,9 @@ fun mac2(bitstring, mkey):macs.
 fun checkmac2(bitstring, mkey, macs): bool.
 fun mkgen2(mkeyseed):mkey.
 
-forall m:bitstring, r:mkeyseed;
+equation forall m:bitstring, r:mkeyseed;
 	checkmac(m, mkgen(r), mac(m, mkgen(r))).
-forall m:bitstring, r:mkeyseed;
+equation forall m:bitstring, r:mkeyseed;
 	checkmac2(m, mkgen2(r), mac2(m, mkgen2(r))).
 
 equiv

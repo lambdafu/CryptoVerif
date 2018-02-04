@@ -20,7 +20,7 @@ type macs [fixed].
 
 fun concat1(nonce, host, key, macs, bitstring):bitstring [data].
 fun concat3(key, host):bitstring [data].
-forall y:key,z:host,y2:nonce,z2:host,t2:key,u2:macs,v2:bitstring;
+equation forall y:key,z:host,y2:nonce,z2:host,t2:key,u2:macs,v2:bitstring;
 	concat3(y,z) <> concat1(y2,z2,t2,u2,v2).
 
 (* Shared-key encryption (CPA Stream cipher) *)
@@ -33,11 +33,11 @@ expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec,
    of the same length, consisting only of zeroes. *)
 fun Zconcat1(bitstring):bitstring.
 const Zconcat3:bitstring.
-forall y:nonce,z:host,t:key,v:macs,u:bitstring;
+equation forall y:nonce,z:host,t:key,v:macs,u:bitstring;
 	Z(concat1(y,z,t,v,u)) = Zconcat1(Z(u)).
-forall y:key,z:host; 
+equation forall y:key,z:host; 
 	Z(concat3(y,z)) = Zconcat3.
-forall m:bitstring, r:keyseed, r2:seed; 
+equation forall m:bitstring, r:keyseed, r2:seed; 
 	Z(enc(m, kgen(r), r2)) = Z(m).
 
 (* Mac *)

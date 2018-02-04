@@ -18,7 +18,7 @@ val display_binder : binder -> unit
 val display_repl_index : repl_index -> unit
 val display_var : binder -> term list -> unit
 val display_term : term -> unit
-val display_statement : statement -> unit
+val display_statement : Ptree.statement -> unit
 val display_pattern : pattern -> unit
 val display_equiv : Ptree.eqstatement -> unit
 val display_collision : Ptree.collision -> unit

@@ -5,11 +5,11 @@ type D.
 fun mult(D,D):D.
 fun inv(D):D.
 const neut:D.
-equation group(mult,inv,neut).
+equation builtin group(mult,inv,neut).
 
 fun g(D,D,D): D.
 
-forall x:D, y:D; mult(x,mult(y,x)) = g(x,y,x).
+equation forall x:D, y:D; mult(x,mult(y,x)) = g(x,y,x).
 const zero, one, two, three: D. 
 
 channel c.

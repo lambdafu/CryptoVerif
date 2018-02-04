@@ -27,9 +27,9 @@ fun f(pkey, hasht):hasht.
 fun f'(pkey, hasht):hasht.
 fun mf(skey, hasht):hasht.
 
-forall r:keyseed, x:hasht; mf(skgen(r), f(pkgen(r), x)) = x.
+equation forall r:keyseed, x:hasht; mf(skgen(r), f(pkgen(r), x)) = x.
 
-forall k:pkey, x:hasht, x':hasht; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:hasht, x':hasht; (f(k,x) = f(k,x')) = (x = x').
 
 (*
 equiv !N new y:hasht; (k:pkey) -> y

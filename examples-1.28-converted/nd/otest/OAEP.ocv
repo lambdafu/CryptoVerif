@@ -170,8 +170,8 @@ expand Xor(Dr, xorDr, zeroDr).
    Useful to avoid expanding if, which is necessary for this proof. *)
 
 fun test(bool, Dm, Dm):Dm.
-forall x:Dm,y:Dm; test(true,x,y) = x.
-forall x:Dm,y:Dm; test(false,x,y) = y.
+equation forall x:Dm,y:Dm; test(true,x,y) = x.
+equation forall x:Dm,y:Dm; test(false,x,y) = y.
 
 (* Queries *)
 

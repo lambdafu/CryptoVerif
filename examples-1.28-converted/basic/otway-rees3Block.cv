@@ -22,7 +22,7 @@ type keyseed [fixed].
 fun concat1(nonce, nonce, host, host):blocksize [data].
 fun concat2(nonce, key):blocksize [data].
 
-forall y:nonce,z:nonce,t:host,u:host,y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+equation forall y:nonce,z:nonce,t:host,u:host,y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
 
 (* Shared-key encryption (Block cipher) *)
 
