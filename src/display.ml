@@ -381,9 +381,13 @@ let display_term t = display_term_paren AllInfix AllProcess t
 (* Statements *)
 
 let display_statement (bl, t) =
-  print_string "forall ";
-  display_list display_binder_with_type bl;
-  print_string "; ";
+  print_string "equation ";
+  if bl <> [] then
+    begin
+      print_string "forall ";
+      display_list display_binder_with_type bl;
+      print_string "; ";
+    end;
   display_term t;
   print_newline()
 
