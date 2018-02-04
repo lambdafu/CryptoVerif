@@ -38,14 +38,19 @@ let display_error mess (loc_start, loc_end) =
       mess
 
 let line_position (loc_start, loc_end) =
+  let ch_start = loc_start.pos_cnum - loc_start.pos_bol +1 in
+  let ch_end = loc_end.pos_cnum - loc_end.pos_bol+1 in
   if loc_start.pos_lnum = loc_end.pos_lnum then
-    Printf.sprintf "line %d, characters %d-%d"
-      loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
-      (loc_end.pos_cnum - loc_end.pos_bol+1)
+    if ch_start = ch_end then
+      Printf.sprintf "line %d, character %d"
+	loc_start.pos_lnum ch_start
+    else
+      Printf.sprintf "line %d, characters %d-%d"
+	loc_start.pos_lnum ch_start ch_end
   else
     Printf.sprintf "line %d, character %d - line %d, character %d"
-      loc_start.pos_lnum (loc_start.pos_cnum - loc_start.pos_bol +1)
-      loc_end.pos_lnum (loc_end.pos_cnum - loc_end.pos_bol+1)
+      loc_start.pos_lnum ch_start
+      loc_end.pos_lnum ch_end
       
 let in_file_position (def_start,_) ((loc_start, _) as extent) =
   if loc_start.pos_cnum = -1 then

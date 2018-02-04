@@ -346,12 +346,6 @@ newarg: /* For compatibility with ProVerif; ignored by CryptoVerif */
 | LBRACKET neidentlist RBRACKET
     { Some ($2) }
 
-vartypelist:
-
-        { [] }
-|       nevartypelist
-        { $1 }
-
 nevartypelist:
         IDENT COLON IDENT
         { [($1, $3)] }
@@ -359,7 +353,7 @@ nevartypelist:
         { ($1, $3) :: $5 }
 
 forallvartype:
-        FORALL vartypelist SEMI
+        FORALL nevartypelist SEMI
         { $2 }
 |
         { [] }
