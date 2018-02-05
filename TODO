@@ -82,6 +82,10 @@ replication indices in commands may require other changes.
    through parametric processes.
    DONE
    
+   c bis)  equation -> equation builtin
+      forall ...; M -> equation forall ...; M
+   DONE
+   
    d) For variables with global references (secrecy & public variables
    in queries), allow them to be defined several times, but with the
    same type and in different branches of if/let/find.
@@ -144,6 +148,8 @@ That should be sufficient for modules that want to read the variable.
    DONE compos -> data
    DONE decompos -> projection
    DONE equiv name(id) -> equiv(name(id)) / equiv name -> equiv(name)
+   DONE equation -> equation builtin
+      forall ...; M -> equation forall ...; M   
    DONE syntax of equiv, collision uses the oracle front-end syntax
    even in the channels front-end
    DONE syntax of queries; generate the correct "public_vars ..."
@@ -235,10 +241,7 @@ more transformations with the square variant.
       
       DONE update documentation.
 
-      TO DO TO DO equation -> equation builtin
-      forall ...; M -> equation forall ...; M
-
-   h) Revise examples manually to use the new crypto library
+   h) TO DO (Benjamin) Revise examples manually to use the new crypto library
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
 
@@ -274,12 +277,14 @@ We could probably push this idea for noninterf x among S.
    [unchanged] restrictions are shared between both sides.
 
    TO DO in ProVerif (branch compat_cryptoverif)
-   - Allow get, insert, event in terms (by expansion).
+   - DONE Allow get, insert, event in terms (by expansion).
    - DONE Use a <-R T as a synonym of new a: T,
       x [:T] <- M as a synonym of let x[:T] = M in,
       foreach i <= N do as a synonym of ! i <= N
      0 and yield are synonym, that's already done.
-   - allow (and ignore) CV implementation annotations in PV
+   - DONE allow (and ignore) CV implementation annotations in PV
+      [All the above is still to test and document
+      New keywords: implementation, foreach, do]
    - allow conjunctions of events before ==>
    - query secret <variable> public_vars ... [options]
    public_vars x1, ..., xn can be encoded by adding an output
