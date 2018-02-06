@@ -1,4 +1,4 @@
-xIn general, original files are in examples-1.28/<dirname>
+In general, original files are in examples-1.28/<dirname>
 and the converted files are to be put in examples/<dirname>.
 (There are exceptions mentioned below.)
 
@@ -21,12 +21,12 @@ encrypt-then-MAC.
 * Remove "3Block" or "3Stream" from the filenames of converted files
 
 denning-sacco-corr3Block.cv (OK)
-needham-schroeder-pk3BlockAuth.cv
-needham-schroeder-pkcorr3BlockAuth.cv
-needham-schroeder-pkcorr3BlockKeyHash2.cv
-needham-schroeder-pkcorr3BlockKeyHash.cv
-needham-schroeder-pkcorr3BlockKeyNa.cv
-needham-schroeder-pkcorr3BlockKeyNb.cv
+needham-schroeder-pk3BlockAuth.cv (OK)
+needham-schroeder-pkcorr3BlockAuth.cv (OK)
+needham-schroeder-pkcorr3BlockKeyHash2.cv (OK)
+needham-schroeder-pkcorr3BlockKeyHash.cv (OK)
+needham-schroeder-pkcorr3BlockKeyNa.cv (OK)
+needham-schroeder-pkcorr3BlockKeyNb.cv (OK)
 needham-schroeder-sk3StreamAuth.cv
 needham-schroeder-sk3Stream.cv
 needham-schroeder-sk3StreamFull.cv
