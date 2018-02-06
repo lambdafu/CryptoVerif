@@ -1,0 +1,159 @@
+(* Signed Diffie-Hellman protocol
+   This file proves a forward secrecy property. *)
+param N, N2.
+
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize [bounded].
+type signature [bounded].
+
+type Z [large,bounded].
+type G [large,bounded].
+type D [fixed].
+
+proof {
+success; (* prove query x:G, y:G, k:D, k':D; event endB(A, B, x, y, k) && endA(A, B, x, y, k') ==> k = k'. *)
+crypto uf_cma_corrupt(sign) rkA;
+success; (* prove query x:G, y:G, k:D; event inj:endB(A, B, x, y, k) ==> inj:endA(A, B, x, y, k) || evAcorrupted. *)
+crypto uf_cma_corrupt(sign) rkB;
+success; (* prove query x:G, y:G, k:D; event inj:endA(A, B, x, y, k) ==> inj:beginB(A, B, x, y) || evBcorrupted. *)
+crypto rom(h);
+crypto cdh(exp) a_1 b_1;
+simplify;
+success
+}
+
+(* CDH assumption *)
+proba pCDH.
+expand CDH(G, Z, g, exp, mult, pCDH).
+
+(* Hash in the random oracle model *)
+type hashkey [fixed].
+expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
+
+param nH [noninteractive].
+channel hc1, hc2.
+let processH(hk:hashkey) = ! nH in(hc1, x: G); out(hc2, h(hk,x)).
+
+(* Concatenation helper functions *)
+fun concatA(host, host, G, G):blocksize [compos].
+fun concatB(host, host, G, G):blocksize [compos].
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+
+(* Signatures *)
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_proba_signature(keyseed, pkey, skey, blocksize, signature, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+(* Peers *)
+const A,B:host.
+
+(* Queries and Events *)
+query secret kA_secret.
+
+event endA(host, host, G, G, D).
+event beginB(host, host, G, G).
+event endB(host, host, G, G, D).
+event evAcorrupted.
+event evBcorrupted.
+
+query x:G, y:G, k:D; inj-event(endA(A, B, x, y, k)) ==> inj-event(beginB(A, B, x, y)) || event(evBcorrupted) public_vars kA_secret.
+query x:G, y:G, k:D; inj-event(endB(A, B, x, y, k)) ==> inj-event(endA(A, B, x, y, k)) || event(evAcorrupted) public_vars kA_secret.
+query x:G, y:G, k:D, k':D; event(endB(A, B, x, y, k)) && event(endA(A, B, x, y, k')) ==> (k = k') public_vars kA_secret.
+
+(* Channels and Processes *)
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cA7, cA8, cB1, cB2, cB3, cB4, cB5, cB6, cH, cHret, cK, cCorruptA, cCorruptB.
+
+let processA(hk:hashkey, skA:skey) =
+  in(cA1, (hostB: host));
+  new a:Z;
+  let Aga:G = exp(g,a) in
+  out(cA2, (A, hostB, Aga));
+  in(cA3, (=A, =hostB, Agb:G, s:signature));
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  let pkhostB = Rkey[j2] in
+  if check(concatB(A, hostB, Aga, Agb), pkhostB, s) then
+  let sA = sign(concatA(A, hostB, Aga, Agb), skA) in
+  let gab = exp(Agb, a) in
+  let kA: D = h(hk, gab) in
+  event endA(A, hostB, Aga, Agb, kA);
+  out(cA4, sA);
+  (* OK *)
+  in(cA5, ());
+  if hostB = B then
+  (if defined(Acorrupted) then out(cA6, kA) else
+   if defined(Bcorrupted) then out(cA6, kA) else
+   let kA_secret:D = kA)
+  else
+   out(cA6, kA).
+
+let corruptA(skA:skey) =
+  in(cCorruptA, ());
+  let Acorrupted:bool = true in
+  event evAcorrupted;
+  out(cCorruptA, skA).
+
+let processB(hk:hashkey, skB:skey) =
+  in(cB1, (hostA:host, =B, Bga:G));
+  new b:Z;
+  let Bgb = exp(g,b) in
+  event beginB(hostA, B, Bga, Bgb);
+  out(cB2, (hostA, B, Bgb, sign(concatB(hostA, B, Bga, Bgb), skB)));
+  in(cB3, s:signature);
+  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
+  let pkhostA = Rkey[j2] in
+  if check(concatA(hostA, B, Bga, Bgb), pkhostA, s) then
+  let gab = exp(Bga, b) in
+  let kB = h(hk, gab) in
+  event endB(hostA, B, Bga, Bgb, kB);
+  (* OK *)
+  if hostA = A then
+    (find j <= N suchthat defined(hostB[j], Aga[j], Agb[j], kA[j]) &&
+         hostB[j] = B && Aga[j] = Bga && Agb[j] = Bgb then
+       (* Here, there is a A partner of this instance of B;
+          the secrecy of the key is proved at A *)
+       yield
+     else
+       (* There is no A partner of this B, we can leak the key.
+          Note that this can never happen when A is not corrupted
+	  by the correspondence. So we could in fact always leak kB here
+	  without testing for the corruption.
+       if defined(Acorrupted) then out(cB4, kB) else
+       if defined(Bcorrupted) then *) out(cB4, kB))
+  else
+    out(cB4, kB).
+
+let corruptB(skB:skey) =
+  in(cCorruptB, ());
+  let Bcorrupted:bool = true in
+  event evBcorrupted;
+  out(cCorruptB, skB).
+
+let processK(pkA:pkey, pkB:pkey) =
+  !N2
+  in(cK, (Khost: host, Kkey: pkey));
+  let Rkey:pkey =
+		if Khost = B then pkB else
+		if Khost = A then pkA else
+		Kkey.
+
+process
+	in(start, ());
+	new hk: hashkey;
+	new rkA : keyseed;
+	let skA = skgen(rkA) in
+	let pkA = pkgen(rkA) in
+	new rkB : keyseed;
+	let skB = skgen(rkB) in
+	let pkB = pkgen(rkB) in
+	out(cstart, (pkA, pkB));
+	((!N processA(hk,skA)) | (!N processB(hk,skB)) | processH(hk) | processK(pkA,pkB) | corruptA(skA) | corruptB(skB))
+
+(* EXPECTED
+All queries proved.
+2.380s (user 2.316s + system 0.064s), max rss 169936K
+END *)
