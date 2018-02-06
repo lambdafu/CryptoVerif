@@ -966,6 +966,7 @@ let help() =
   print_string (
   "List of available commands\n" ^
   "remove_assign useless        : remove useless assignments\n" ^
+  "remove_assign findcond       : remove useless assignments and assignments in conditions of \"find\"\n" ^
   "remove_assign binder <ident> : remove assignments on variable <ident>\n" ^
   "remove_assign all            : remove all assignments (not recommended)\n" ^
  (if (!Settings.front_end) == Settings.Channels then
@@ -1459,7 +1460,7 @@ let rec interpret_command interactive state = function
       | "interactive" ->
 	  check_no_args command ext args;
 	  if interactive then 
-	    raise (Error("Command interactive not allowed when already in interactive mode", dummy_ext));
+	    raise (Error("Command interactive not allowed when already in interactive mode", ext));
 	  begin
 	    match interactive_loop state with
 	      CSuccess s -> s
