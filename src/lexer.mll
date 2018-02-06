@@ -174,7 +174,7 @@ and interactive_command = parse
       Com_elem (get_string ()) } 
 | [ ' ' '\009' '\012' ] +
      { interactive_command lexbuf }
-| [ ^ '\"' ' ' '\009' '\012' ';' ] +
+| ([ ^ '\"' ' ' '\009' '\012' ';' '(' ')' '=' ] +) | "(" | ")" | "="
      { Com_elem (Lexing.lexeme lexbuf) }
 | ';' { Com_sep }
 | eof { Com_end }
