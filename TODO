@@ -248,7 +248,9 @@ more transformations with the square variant.
    h-bis) Remove "compos" and "decompos" to keep only
    "data" and "projection"?
    
-   i) At this point, I could make a release
+   i) Version in message for --help
+      Update scripts test, distrib, ...
+      At this point, I could make a release
 
    j) Encode more ProVerif queries in CryptoVerif
 choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
