@@ -67,10 +67,9 @@ event partA(host, bitstring).
 event fullB(host, nonce, bitstring).
 event partB(host, bitstring).
 
-query x:bitstring; inj-event(partA(B, x)) ==> inj-event(partB(A, x)).
-query x:bitstring, k:nonce; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)).
-
 query secret keyA.
+query x:bitstring; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) public_vars keyA.
+query x:bitstring, k:nonce; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) public_vars keyA.
 query x:bitstring, k:nonce, k':nonce;
 	event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') public_vars keyA.
 

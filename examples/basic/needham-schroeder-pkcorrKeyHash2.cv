@@ -60,9 +60,6 @@ expand UF_CMA_proba_signature(skeyseed, spkey, sskey, sblocksize, signature, ssk
 (* Hash function, random oracle model *)
 type hashkey [fixed].
 expand ROM_hash(hashkey, bitstring, shkey, hash, hashoracle, qH).
-(* param qH [noninteractive].
-channel hc1, hc2.
-let hashoracle = ! qH in(hc1, x: bitstring); out(hc2, hash(hk,x)). *)
 
 (* Peers *)
 const A : host.
@@ -76,9 +73,9 @@ event partA(host, bitstring).
 event fullB(host, bitstring).
 event partB(host, bitstring).
 
-query x:bitstring; inj-event(partA(B, x)) ==> inj-event(partB(A, x)).
-query x:bitstring; inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
 query secret keyA.
+query x:bitstring; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) public_vars keyA.
+query x:bitstring; inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)) public_vars keyA.
 
 (*
 
