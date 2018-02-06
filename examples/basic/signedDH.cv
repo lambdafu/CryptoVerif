@@ -21,10 +21,6 @@ expand CDH(G, Z, g, exp, mult, pCDH).
 type hashkey [fixed].
 expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
 
-param nH [noninteractive].
-channel hc1, hc2.
-let processH(hk:hashkey) = ! nH in(hc1, x: G); out(hc2, h(hk,x)).
-
 (* Concatenation helper functions *)
 fun concatA(host, host, G, G):blocksize [compos].
 fun concatB(host, host, G, G):blocksize [compos].
@@ -110,7 +106,7 @@ process
 	let skB = skgen(rkB) in
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
-   ((!N processA(hk,skA)) | (!N processB(hk,skB)) | processH(hk) | processK(pkA,pkB))
+   ((!N processA(hk,skA)) | (!N processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB))
 
 
 (* EXPECTED
