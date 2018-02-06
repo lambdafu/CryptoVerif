@@ -1,15 +1,15 @@
-In general, original files are in examples-1.28/<dirname>
+xIn general, original files are in examples-1.28/<dirname>
 and the converted files are to be put in examples/<dirname>.
 (There are exceptions mentioned below.)
 
 examples-1.28/basic/
 
-pfdh.cv
-runex.cv
-signedDH.cv
-signedDH-DDH-auto.cv
-signedDH-DDH.cv
-signedDH-forward-secrecy.cv
+pfdh.cv (OK)
+runex.cv (OK)
+signedDH.cv (OK)
+signedDH-DDH-auto.cv (OK)
+signedDH-DDH.cv (OK)
+signedDH-forward-secrecy.cv (OK)
 
 ----------------------------------------------------
 examples-1.28/authbasic/
@@ -20,7 +20,7 @@ encrypt-then-MAC.
 * Put converted file in examples/basic
 * Remove "3Block" or "3Stream" from the filenames of converted files
 
-denning-sacco-corr3Block.cv
+denning-sacco-corr3Block.cv (OK)
 needham-schroeder-pk3BlockAuth.cv
 needham-schroeder-pkcorr3BlockAuth.cv
 needham-schroeder-pkcorr3BlockKeyHash2.cv
