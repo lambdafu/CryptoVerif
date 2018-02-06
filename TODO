@@ -245,6 +245,11 @@ more transformations with the square variant.
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
 
+      Missing public_vars!
+      examples/basic/needham-schroeder-pkcorrKeyNa.cv
+      examples/basic/needham-schroeder-pkcorrKeyNb.cv
+      examples/basic/needham-schroeder-pkcorrKeyHash*.cv
+      
    h-bis) Remove "compos" and "decompos" to keep only
    "data" and "projection"?
    
