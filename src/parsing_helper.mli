@@ -3,6 +3,7 @@ type extent
 exception Error of string * extent
 
 val dummy_ext : extent
+val merge_ext : extent -> extent -> extent
 val extent : Lexing.lexbuf -> extent
 val parse_extent : unit -> extent
 val set_start : Lexing.lexbuf -> extent -> unit

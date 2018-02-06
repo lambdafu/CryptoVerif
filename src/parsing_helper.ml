@@ -12,6 +12,8 @@ exception Error of string * extent
 
 let dummy_ext = (Lexing.dummy_pos, Lexing.dummy_pos)
 
+let merge_ext (p1,_) (_,p2) = (p1,p2)
+
 let extent lexbuf = 
   (Lexing.lexeme_start_p lexbuf,
    Lexing.lexeme_end_p lexbuf)
