@@ -43,53 +43,12 @@ echo TEST
 echo
 output=test`date '+%Y.%m.%d-%H_%M_%S'`
 (
-for i in examples/*.cv
+for i in examples/basic/*.cv examples/obasic/*.ocv examples/kerberos/*.cv
 do
 	analyze $i "" $i tests/$output
 done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-
-
-echo
-echo AUTHTEST
-echo
-output=auth`date '+%Y.%m.%d-%H_%M_%S'`
-(for i in authexamples/*.cv
-do
-	analyze $i "" $i tests/$output
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-
-
-echo
-echo OTEST
-echo
-output=otest`date '+%Y.%m.%d-%H_%M_%S'`
-(
-for i in oexamples/*.ocv
-do
-    analyze $i "-in oracles" $i tests/$output
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-
-
-if [ -d ../../dev/web/webperso/cryptoverif/kerberos ]
-then
-echo
-echo WEB
-echo
-output=web`date '+%Y.%m.%d-%H_%M_%S'`
-(
-for i in ../../dev/web/webperso/cryptoverif/kerberos/*.cv
-do
-	analyze $i "" $i tests/$output
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-fi
 
 
 if [ -d examplesnd ]
@@ -104,7 +63,7 @@ echo
 echo CHANNELS FRONTEND
 echo
 
-for i in examplesnd/test/* examplesnd/kerberos/* examplesnd/implem/*.cv examplesnd/arinc823/*.cv implementation/wlsk/woolamskcorr_tbl.cv
+for i in examplesnd/test/* implementation/wlsk/woolamskcorr_tbl.cv
 do
     if [ -f $i ]
     then
@@ -116,7 +75,7 @@ echo
 echo ORACLES FRONTEND
 echo
 
-for i in examplesnd/otest/* examplesnd/implem/*.ocv examplesnd/arinc823/*.ocv implementation/nspk/nspk3tbl.ocv implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key-*.ocv
+for i in examplesnd/otest/* implementation/nspk/nspk3tbl.ocv implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key-*.ocv
 do
     if [ -f $i ]
     then

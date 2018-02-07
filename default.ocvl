@@ -1156,9 +1156,7 @@ expand SUF_CMA_proba_mac_r(mkey, macinput, macres, mac_seed, mac, mac_r, check, 
    keyseed: type of key seeds, must be "bounded" (to be able to generate random numbers from it), typically "fixed" and "large".
    pkey: type of public keys, must be "bounded"
    skey: type of secret keys, must be "bounded"
-   cleartext: type of cleartexts, must be "bounded" or "fixed" 
-      (the encryptions of *all* cleartexts of any length
-       are assumed to be indistinguishable from each other).
+   cleartext: type of cleartexts
    ciphertext: type of ciphertexts
    enc_seed: type of random coins for encryption (must be "bounded"; omitted in the second version of the macro).
 
@@ -1215,7 +1213,7 @@ equiv(ind_cca2(enc))
 	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
            foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r),r1))) |
        foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
-     <=((N3 * N + N4) * Penc(time + (N4+N-1) * time(enc_r) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r)), N2))=> 
+     <=((N3 * N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2))=> 
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() := return(pkgen2(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) :=
@@ -1243,7 +1241,7 @@ equiv(ind_cca2_partial(enc))
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
            foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) [useful_change] := return(enc_r(x1, pkgen(r),r1)))
-     <=((N3 * N) * Penc(time + (N-1) * time(enc_r) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r)), N2))=> [manual]
+     <=((N3 * N) * Penc(time + (N-1) * time(enc_r, maxlength(x1)) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, maxlength(x1))), N2))=> [manual]
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) :=

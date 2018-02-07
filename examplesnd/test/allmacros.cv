@@ -54,7 +54,7 @@ expand SUF_CMA_proba_mac_r(mkey, macinput, macres, seed, mac3', mac3_r', check3'
 
 type pkey [bounded].
 type skey [bounded].
-type cleartextb [bounded].
+type cleartextb.
 proba Penccoll.
 expand IND_CCA2_public_key_enc(keyseed, pkey, skey, cleartextb, ciphertext, skgen, pkgen, enc11, dec11, injbot11, Z11, Penc, Penccoll).
 expand IND_CCA2_public_key_enc_r(keyseed, pkey, skey, cleartextb, ciphertext, seed, skgen', pkgen', enc11', enc11_r', dec11', injbot11', Z11', Penc, Penccoll).
