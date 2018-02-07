@@ -844,8 +844,9 @@ value in each call to encryption. A typical example is AES-GCM.
    $\vn{injbot}(\vn{cleartext}): \texttt{bitstringbot}$ is the natural
   injection from $\vn{cleartext}$ to \texttt{bitstringbot}.
 
-   $\vn{Z}: \vn{cleartext}$ is a constant cleartext. The encryption scheme is assumed to
-   encrypt a block, so that the length of the cleartext is not leaked.
+   $\vn{Z}(\vn{cleartext}): \vn{cleartext}$ is the function that
+  returns for each cleartext a cleartext of the same length consisting
+  only of zeroes.
 
    $\vn{Penc}(t, N)$ is the probability of breaking the IND-CCA2 property
    in time $t$ for one key and $N$ decryption queries.

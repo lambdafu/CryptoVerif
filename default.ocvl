@@ -1168,7 +1168,7 @@ expand SUF_CMA_proba_mac_r(mkey, macinput, macres, mac_seed, mac, mac_r, check, 
    enc_r: encryption function that takes coins as argument (omitted in the second version of the macro).
    dec: decryption function
    injbot: natural injection from cleartext to bitstringbot
-   Z: a constant cleartext
+   Z: function that returns for each cleartext a cleartext of the same length consisting only of zeroes.
 
    Penc(t, N): probability of breaking the IND-CCA2 property
    in time t for one key and N decryption queries.
@@ -1176,8 +1176,8 @@ expand SUF_CMA_proba_mac_r(mkey, macinput, macres, mac_seed, mac, mac_r, check, 
 
    The types keyseed, pkey, skey, cleartext, ciphertext, enc_seed and the
    probabilities Penc, Penccoll must be declared before this macro is
-   expanded. The functions pkgen, skgen, enc, enc_r, dec, injbot, and the
-   constant Z are declared by this macro. They must not be declared
+   expanded. The functions pkgen, skgen, enc, enc_r, dec, injbot, and Z
+   are declared by this macro. They must not be declared
    elsewhere, and they can be used only after expanding the macro. 
 *)
 
@@ -1200,7 +1200,9 @@ letfun enc(m: cleartext, pk: pkey) =
 
 fun injbot(cleartext):bitstringbot [compos].
 
-const Z:cleartext.
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
 
 equation forall m:cleartext, r:keyseed, r2:enc_seed; 
 	dec(enc_r(m, pkgen(r), r2), skgen(r)) = injbot(m).
@@ -1221,12 +1223,12 @@ equiv(ind_cca2(enc))
 		find j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
 		y[j] = pkgen2(r) && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r))) |
 	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
-			m1:ciphertext <- enc_r2(Z, pkgen2(r), r1);
+			m1:ciphertext <- enc_r2(Z(x1), pkgen2(r), r1);
 			return(m1)) |
        foreach i4 <= N4 do Oenc2(x:cleartext, y:pkey) :=
 		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
 			(r2 <-R enc_seed; 
-			m2:ciphertext <- enc_r2(Z, y, r2);
+			m2:ciphertext <- enc_r2(Z(x), y, r2);
 			return(m2))
 		else r3 <-R enc_seed; return(enc_r(x,y,r3)).
 
@@ -1248,7 +1250,7 @@ equiv(ind_cca2_partial(enc))
                 find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) else
 		return(dec(m, skgen(r))) |
 	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
-			m1:ciphertext <- enc_r2(Z, pkgen(r), r1);
+			m1:ciphertext <- enc_r2(Z(x1), pkgen(r), r1);
 			return(m1)).
 
 collision r1 <-R keyseed; r2 <-R keyseed; 

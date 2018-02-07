@@ -53,6 +53,7 @@ Version 1.29
   - Probabilistic primitives choose random coins internally
   (using "letfun"), so the user does not have to choose them
   explicitly.
+  - IND-CCA2 public-key encryption may leak the length of the cleartext.
   - Added equivalences that allow to transform manually only some
   occurrences of encryption for IND-CCA2 encryption,
   of decryption for INT-PTXT encryption,

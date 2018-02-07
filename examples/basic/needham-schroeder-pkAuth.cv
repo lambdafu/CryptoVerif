@@ -50,6 +50,9 @@ proba Penc.
 proba Penccoll.
 expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
 
+const Zblocksize: blocksize.
+equation forall x: blocksize; Z(x) = Zblocksize.
+
 (* Signatures *)
 proba Psign.
 proba Psigncoll.
