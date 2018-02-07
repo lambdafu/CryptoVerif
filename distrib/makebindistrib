@@ -27,7 +27,7 @@ mkdir $DESTD
 sed s/VERSION/$VERSION/g\;s/YEAR/$YEAR/g distrib/READMEBIN > $DESTD/READMEBIN
 cp CHANGES LICENSE default.cvl default.ocvl test $DESTD
 
-mkdir $DESTD/docs $DESTD/examples $DESTD/authexamples $DESTD/oexamples $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
+mkdir $DESTD/converter $DESTD/docs $DESTD/examples $DESTD/examples/basic $DESTD/examples/obasic $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
 
 cd docs
 latex manual.tex
@@ -49,8 +49,9 @@ cp implementation/ssh/README $DESTD/implementation/ssh
 cp implementation/nspk/build.sh $DESTD/implementation/nspk
 cp implementation/wlsk/build.sh $DESTD/implementation/wlsk
 cp implementation/ssh/build.sh $DESTD/implementation/ssh
+cp converter/default-*.*cvl $DESTD/converter/
 
-for i in implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/* oexamples/* authexamples/*
+for i in implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/*
 do
 	if [ -f $i ] 
 	then	
@@ -60,7 +61,10 @@ done
 
 cp $DESTD/implementation/crypto_real.ml $DESTD/implementation/crypto.ml
 
+mv src/version.ml src/version.ml-tmp
+(cat distrib/head.ml;echo "let version = \""$VERSION\") > src/version.ml
 ./build
+mv src/version.ml-tmp src/version.ml
 
 cp cryptoverif.exe $DESTD
 

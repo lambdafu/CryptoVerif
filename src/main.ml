@@ -196,4 +196,4 @@ let _ =
                        ),
           "<directory> \tif \"-impl\" is given, the generated files will be placed in this directory (Default: .)";
     ]
-    anal_file "Cryptoverif. Cryptographic protocol verifier, by Bruno Blanchet\nCopyright ENS-CNRS, distributed under the CeCILL-B license"
+    anal_file ("Cryptoverif " ^ Version.version ^ ". Cryptographic protocol verifier, by Bruno Blanchet\nCopyright ENS-CNRS, distributed under the CeCILL-B license")
