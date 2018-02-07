@@ -20,3 +20,8 @@ process
 	in(c, f: bitstring);
 	let f = f in
 	out(c, f_1(f))
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.020s + system 0.020s), max rss 20048K
+END *)

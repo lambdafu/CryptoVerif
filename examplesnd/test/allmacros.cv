@@ -142,3 +142,8 @@ expand AEAD_from_AEAD_nonce(key, cleartext, ciphertext, add_data, enc16, dec16, 
 
 channel c1, c2.
 process in(c1, ()); out(c2, ())
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.020s + system 0.020s), max rss 20048K
+END *)

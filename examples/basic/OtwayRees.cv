@@ -137,6 +137,6 @@ process
 	 (! N2 processK(Kas, Kbs)))
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyB, keyA; inj-event(fullA(B, k, x)) ==> inj-event(partB(A, x)) with public variables keyB, keyA; inj-event(fullA(B, k, x)) ==> inj-event(fullB(A, k, x)) with public variables keyB, keyA; inj-event(partB(A, x)) ==> inj-event(partA(B, x)) with public variables keyB, keyA.
+RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(partB(A, x)) with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(fullB(A, k, x)) with public variables keyA, keyB; inj-event(partB(A, x)) ==> inj-event(partA(B, x)) with public variables keyA, keyB.
 2.400s (user 2.390s + system 0.010s), max rss 104816K
 END *)

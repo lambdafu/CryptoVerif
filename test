@@ -45,7 +45,10 @@ output=test`date '+%Y.%m.%d-%H_%M_%S'`
 (
 for i in examples/basic/*.cv examples/obasic/*.ocv examples/kerberos/*.cv
 do
+    if [ -f $i ]
+    then
 	analyze $i "" $i tests/$output
+    fi
 done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output

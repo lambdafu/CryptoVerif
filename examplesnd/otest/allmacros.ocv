@@ -141,3 +141,8 @@ expand AEAD_from_Enc_then_MAC(emkey, cleartext, ciphertext, add_data, enc15, dec
 expand AEAD_from_AEAD_nonce(key, cleartext, ciphertext, add_data, enc16, dec16, injbot16, Z16, Penc, Pencctxt).
 
 process O() := return()
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.020s + system 0.020s), max rss 20048K
+END *)
