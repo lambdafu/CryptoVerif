@@ -245,16 +245,11 @@ more transformations with the square variant.
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
 
-      Missing public_vars!
-      examples/basic/needham-schroeder-pkcorrKeyNa.cv
-      examples/basic/needham-schroeder-pkcorrKeyNb.cv
-      examples/basic/needham-schroeder-pkcorrKeyHash*.cv
       
    h-bis) Remove "compos" and "decompos" to keep only
    "data" and "projection"?
    
-   i) Version in message for --help
-      Update scripts test, distrib, ...
+   i) Update scripts test, distrib, ... with all examples
       At this point, I could make a release
 
    j) Encode more ProVerif queries in CryptoVerif
@@ -292,6 +287,7 @@ We could probably push this idea for noninterf x among S.
    - DONE allow (and ignore) CV implementation annotations in PV
       [All the above is still to test and document
       New keywords: implementation, foreach, do]
+   - display the version number in help message
    - allow conjunctions of events before ==>
    - query secret <variable> public_vars ... [options]
    public_vars x1, ..., xn can be encoded by adding an output
