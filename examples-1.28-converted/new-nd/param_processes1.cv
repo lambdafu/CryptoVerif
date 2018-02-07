@@ -162,6 +162,6 @@ process
 	 (! N2 processK(Kas, mKas, Kbs, mKbs)))
 
 (* EXPECTED
-Error: new at line 159, character 44 - line 159, character 73 should not occur in argument of a parametric input process
+Error: new should not occur in argument of a parametric input process
 xtime: error in child process (status : 512)
 END *)
