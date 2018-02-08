@@ -287,7 +287,7 @@ We could probably push this idea for noninterf x among S.
    - DONE allow (and ignore) CV implementation annotations in PV
       [All the above is still to test and document
       New keywords: implementation, foreach, do]
-   - display the version number in help message
+   - DONE display the version number in help message
    - allow conjunctions of events before ==>
    - query secret <variable> public_vars ... [options]
    public_vars x1, ..., xn can be encoded by adding an output
