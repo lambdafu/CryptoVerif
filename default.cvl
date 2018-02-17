@@ -2404,7 +2404,7 @@ equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
 equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* When the group has prime order, 
-exp(x,y) = exp(x',y) implies y = y' (provided y is not a multiple
+exp(x,y) = exp(x',y) implies x = x' (provided y is not a multiple
 of this prime; if y is a correctly generated secret key, that cannot
 happen) *)
 
@@ -2981,7 +2981,7 @@ equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
 equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
 
 (* When the group has prime order, 
-exp(x,y) = exp(x',y) implies y = y' (provided y is not a multiple
+exp(x,y) = exp(x',y) implies x = x' (provided y is not a multiple
 of this prime; if y is a correctly generated secret key, that cannot
 happen) *)
 
