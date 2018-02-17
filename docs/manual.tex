@@ -1086,7 +1086,7 @@ defines a collision-resistant hash function.
    $\texttt{ow}(f)$, which corresponds to one-wayness, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand OW\_trapdoor\_perm\_RSR(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation, with random self-reducibility. The arguments are the same as above, but the probability of breaking one-wayness is bound more precisely. This macro defines the equivalences $\texttt{remove\_invf}(f)$ as above and $\texttt{ow\_rsr}(f)$.
+\item $\texttt{expand OW\_trapdoor\_perm\_RSR(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation, with random self-reducibility. The arguments are the same as above, but the probability of breaking one-wayness is bounded more precisely. This macro defines the equivalences $\texttt{remove\_invf}(f)$ as above and $\texttt{ow\_rsr}(f)$.
 
 \item $\texttt{expand set\_PD\_OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{Dow}, \vn{Dr}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{concat}, \vn{P\_PD\_OW}\texttt{).}$ defines a set partial-domain one-way trapdoor permutation.
 
@@ -1567,7 +1567,7 @@ file, it is generally necessary to put the lists between quotes:
 \item $\texttt{insert\string_event }e\ occ$ replaces the subprocess at
 occurrence $occ$ with the event $\texttt{event }e$. The games may
 be distinguished if and only if the event $e$ is executed, and CryptoVerif
-then tries to bound the probability of executing that event.
+then tries to find a bound for the probability of executing that event.
 One should use the command \texttt{show\string_game occ} to determine
 which occurrence number $occ$ corresponds to the program point where
 one wants to insert the event. The occurrence number $occ$ must
