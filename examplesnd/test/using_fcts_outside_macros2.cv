@@ -1,0 +1,35 @@
+(* The process can use the identifiers enc_seed_4 and enc_r_4
+defined by the expansion of the macro IND_CPA_sym_enc, even 
+though they are not passed as parameters.
+That's not good.
+
+Version with nested macros. *)
+
+type key [large,fixed].
+type cleartext.
+type ciphertext.
+
+proba Penc.
+
+def macro(key, cleartext, ciphertext, enc_x, dec, injbot, Z, Penc) {
+
+expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc).
+
+letfun enc_x(x: cleartext, k: key) =
+       (* Here: enc_seed_4 and enc_r_4 used, defined internally by the macro above *)
+       new r: enc_seed_4; enc_r_4(x, k, r).
+
+}
+
+expand macro(key, cleartext, ciphertext, enc_x, dec, injbot, Z, Penc).
+
+channel c.
+
+process
+	in(c, x: cleartext); new k: key; out(c, enc_x(x,k))
+
+(* EXPECTED
+All queries proved.
+0.127s (elapsed: user + system + other processes)
+END *)
+

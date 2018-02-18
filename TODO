@@ -164,6 +164,13 @@ That should be sufficient for modules that want to read the variable.
    recordid. So it would be enough to remove such global declarations
    coming from macros without appearing in arguments from the
    environment when the macro ends.
+   The same problem also occurs for nested macros! (An identifier
+   defined in an inner macro can be used in an outer macro without
+   being passed as parameter.) And the solution above does not work
+   with the current expansion of inner macros at the definition.
+   Moreover, there is another problem: see
+   examplesnd/test/bad_ren.cv
+   => I need a full revision of macro expansion.
 
    f) write a converter from the old front-end to the new one.
    Changes in the converter:
