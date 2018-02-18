@@ -1,0 +1,25 @@
+(* Clash of identifiers between dec_2 (argument of expand IND_CPA_sym_enc)
+   and the renaming of dec (variable in the main process).
+
+   This is because record_id records identifiers defined in the definition
+   of the macro, not in its expansion. So it records dec, not dec_2,
+   which allows variables to be later renamed into dec_2. *)
+
+type key [large,fixed].
+type cleartext.
+type ciphertext.
+
+proba Penc.
+
+expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec_2, injbot, Z, Penc).
+
+channel c.
+
+process
+	(in(c, dec: ciphertext); new k: key; out(c, dec_2(dec, k))) | (in(c, dec: cleartext); out(c, dec))
+
+(* EXPECTED
+All queries proved.
+0.127s (elapsed: user + system + other processes)
+END *)
+
