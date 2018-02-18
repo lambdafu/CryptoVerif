@@ -1274,21 +1274,22 @@ let get_id_n s =
    stored in a hash table. *)
 let vcounter = ref (Hashtbl.create 7)
 
-type var_num_state = (string, int) Hashtbl.t
-
-let get_var_num_state() = Hashtbl.copy (!vcounter)
-
-let set_var_num_state x =
-  vcounter := x
-    
-(* The maximum xxx such N_xxx occurs and xxx does not come from vcounter *)
-let max_source_idx = ref 0
-
 (* Set of pairs (s,n) used, stored in a hash table. 
    All pairs (s,n) where 0 < n <= !vcounter(s) are considered as always used,
    so we need not add them to the hash table.
    All pairs (s,n) in [used_ids] satisfy [n <= !max_source_idx] *)
-let used_ids = Hashtbl.create 7
+let used_ids = ref (Hashtbl.create 7)
+
+type var_num_state = (string, int) Hashtbl.t * (string * int, unit) Hashtbl.t
+
+let get_var_num_state() = (Hashtbl.copy (!vcounter), Hashtbl.copy (!used_ids))
+
+let set_var_num_state (x,y) =
+  vcounter := x;
+  used_ids := y
+    
+(* The maximum xxx such N_xxx occurs and xxx does not come from vcounter *)
+let max_source_idx = ref 0
 
 (* [record_id s ext] records the identifier [s] so that it will not be reused elsewhere.
    [record_id] must be called only before calls to [fresh_id] or [new_var_name], so that
@@ -1299,16 +1300,16 @@ let used_ids = Hashtbl.create 7
 let record_id s ext =
   let (_,n) as s_n = get_id_n s in
   if n > !max_source_idx then max_source_idx := n;
-  if Hashtbl.mem used_ids s_n then
+  if Hashtbl.mem (!used_ids) s_n then
     ()
   else
-    Hashtbl.add used_ids s_n ()
+    Hashtbl.add (!used_ids) s_n ()
     
 (* [new_var_name s] creates a fresh pair [(s,n)] using [!vcounter(s)]. *) 
 
 let rec new_var_name_counter counter s =
   let n = counter+1 in
-  if (n <= !max_source_idx) && (Hashtbl.mem used_ids (s,n)) then
+  if (n <= !max_source_idx) && (Hashtbl.mem (!used_ids) (s,n)) then
     new_var_name_counter n s
   else
     n
@@ -1327,14 +1328,14 @@ let new_var_name s =
 let fresh_id s =
   let ((s',n) as s_n) = get_id_n s in
   let counter = (try Hashtbl.find (!vcounter) s' with Not_found -> 0) in
-  if ((n != 0) && (n <= counter)) || (Hashtbl.mem used_ids s_n) then
+  if ((n != 0) && (n <= counter)) || (Hashtbl.mem (!used_ids) s_n) then
     let n' = new_var_name_counter counter s' in
     Hashtbl.replace (!vcounter) s' n';
     s' ^ "_" ^ (string_of_int n')
   else
     begin
       if n > !max_source_idx then max_source_idx := n;
-      Hashtbl.add used_ids s_n ();
+      Hashtbl.add (!used_ids) s_n ();
       s
     end
 
@@ -1345,12 +1346,12 @@ let fresh_id s =
 
 let fresh_id_keep_s s =
   let ((s',n) as s_n) = get_id_n s in
-  if (n != 0) || (Hashtbl.mem used_ids s_n) then 
+  if (n != 0) || (Hashtbl.mem (!used_ids) s_n) then 
     new_var_name s'
   else
     begin
       (* n = 0, so no need to increase max_source_idx, it is already >= n *)
-      Hashtbl.add used_ids s_n ();
+      Hashtbl.add (!used_ids) s_n ();
       s_n
     end
         

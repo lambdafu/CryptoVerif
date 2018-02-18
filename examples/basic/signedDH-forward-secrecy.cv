@@ -21,7 +21,7 @@ success; (* prove query x:G, y:G, k:D; event inj:endB(A, B, x, y, k) ==> inj:end
 crypto uf_cma_corrupt(sign) rkB;
 success; (* prove query x:G, y:G, k:D; event inj:endA(A, B, x, y, k) ==> inj:beginB(A, B, x, y) || evBcorrupted. *)
 crypto rom(h);
-crypto cdh(exp) Aa Bb;
+crypto cdh(exp) a b;
 simplify;
 success
 }
@@ -66,15 +66,15 @@ channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cA7, cA8, cB1, cB2, cB3, cB
 
 let processA(hk:hashkey, skA:skey) =
   in(cA1, (hostB: host));
-  new Aa:Z;
-  let Aga:G = exp(g,Aa) in
+  new a:Z;
+  let Aga:G = exp(g,a) in
   out(cA2, (A, hostB, Aga));
   in(cA3, (=A, =hostB, Agb:G, s:signature));
   find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
   let pkhostB = Rkey[j2] in
   if check(concatB(A, hostB, Aga, Agb), pkhostB, s) then
   let sA = sign(concatA(A, hostB, Aga, Agb), skA) in
-  let gab = exp(Agb, Aa) in
+  let gab = exp(Agb, a) in
   let kA: D = h(hk, gab) in
   event endA(A, hostB, Aga, Agb, kA);
   out(cA4, sA);
@@ -95,15 +95,15 @@ let corruptA(skA:skey) =
 
 let processB(hk:hashkey, skB:skey) =
   in(cB1, (hostA:host, =B, Bga:G));
-  new Bb:Z;
-  let Bgb = exp(g,Bb) in
+  new b:Z;
+  let Bgb = exp(g,b) in
   event beginB(hostA, B, Bga, Bgb);
   out(cB2, (hostA, B, Bgb, sign(concatB(hostA, B, Bga, Bgb), skB)));
   in(cB3, s:signature);
   find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
   let pkhostA = Rkey[j2] in
   if check(concatA(hostA, B, Bga, Bgb), pkhostA, s) then
-  let gab = exp(Bga, Bb) in
+  let gab = exp(Bga, b) in
   let kB = h(hk, gab) in
   event endB(hostA, B, Bga, Bgb, kB);
   (* OK *)

@@ -223,11 +223,11 @@ That should be sufficient for modules that want to read the variable.
       (by resetting the counters to their state before the equivalence)
       both in CV and in the converter. 
 
-      TO DO Variables are also created when expanding macros,
-      that uses some names, and it seems a bit more difficult to
-      reuse them in the process.
-      I could consider the identifiers introduced during renaming of
-      equiv, equation, and collision statements as local, by storing
+      DONE Variables are also created when expanding macros,
+      that uses some names, and I can now reuse them in the process.
+      I consider the identifiers introduced during renaming of
+      equiv, equation, collision, and letfun statements as local
+      (except the function defined by letfun itself), by storing
       the renaming state at the beginning of these statements and
       restoring it at the end. Renaming state = the table of indices
       in terms.ml plus the renaming table in syntax.ml.

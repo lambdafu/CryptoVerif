@@ -1806,6 +1806,10 @@ let rec check_term_nobe env = function
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
 
 let check_statement env (l,t) =
+  (* Note: This function uses check_binder_list, which calls
+     Terms.create_binder0, so it does not rename the variables.
+     That is why I do not save and restore the variable
+     numbering state. *)
   let (env',l') = check_binder_list env l in
   let t' = check_term_nobe env' t in
   begin
@@ -2559,6 +2563,10 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
 (* Check collision statement *)
 
 let check_collision env (restr, forall, t1, proba, t2) =
+  (* Note: This function uses check_binder_list, which calls
+     Terms.create_binder0, so it does not rename the variables.
+     That is why I do not save and restore the variable
+     numbering state. *)
   set_binder_env empty_binder_env;
   let (env',restr') = check_binder_list env restr in
   List.iter2 (fun b (_,(_,ext)) ->
@@ -2946,6 +2954,13 @@ and check_oprocess defined_refs cur_array env prog = function
 
 let rename_table = ref StringMap.empty
 
+let get_rename_state() =
+  (!rename_table, Terms.get_var_num_state())
+
+let set_rename_state (rename_tbl, var_num_state) =
+  rename_table := rename_tbl;
+  Terms.set_var_num_state var_num_state
+    
 let rename_ident i = 
   try
     StringMap.find i (!rename_table)
@@ -3126,19 +3141,45 @@ let rename_decl = function
   | EventDecl(s1, l) ->
       EventDecl(rename_ie s1, List.map rename_ie l)
   | Statement(l, t) ->
-      Statement(List.map (fun (i,t) -> (rename_ie i, rename_ie t)) l,
-		rename_term t)
+      (* Variables created in the statement are local, 
+         I can reuse their names later *)
+      let rename_state = get_rename_state() in
+      let renamed_statement =
+	Statement(List.map (fun (i,t) -> (rename_ie i, rename_ie t)) l,
+		  rename_term t)
+      in
+      set_rename_state rename_state;
+      renamed_statement
   | BuiltinEquation(eq_categ, l_fun_symb) ->
       BuiltinEquation(eq_categ, List.map rename_ie l_fun_symb)
   | EqStatement(n, l,r,p,options) ->
-      EqStatement(rename_eqname n, rename_eqmember l, rename_eqmember r, rename_probaf p, options)
+      let n' = rename_eqname n in
+      (* Variables created in the statement are local, 
+         I can reuse their names later *)
+      let rename_state = get_rename_state() in
+      let renamed_eq_statement =
+	EqStatement(n', rename_eqmember l, rename_eqmember r, rename_probaf p, options)
+      in
+      set_rename_state rename_state;
+      renamed_eq_statement
   | Collision(restr, forall,  t1, p, t2) ->
-      Collision(List.map (fun (x,t) -> (rename_ie x, rename_ie t)) restr,
-		List.map (fun (x,t) -> (rename_ie x, rename_ie t)) forall,
-		rename_term t1,
-		rename_probaf p,
-		rename_term t2)
+      (* Variables created in the statement are local, 
+         I can reuse their names later *)
+      let rename_state = get_rename_state() in
+      let renamed_coll_statement =
+	Collision(List.map (fun (x,t) -> (rename_ie x, rename_ie t)) restr,
+		  List.map (fun (x,t) -> (rename_ie x, rename_ie t)) forall,
+		  rename_term t1,
+		  rename_probaf p,
+		  rename_term t2)
+      in
+      set_rename_state rename_state;
+      renamed_coll_statement      
   | Query (vars, l) ->
+      (* For queries, some variables are local (those in correspondence
+         queries), but some are global (those in secrecy queries and
+         public variables). For simplicity, I do not allow reusing
+         the same names for any of these variables *)
       Query(List.map (fun (x,t) -> (rename_ie x, rename_ty t)) vars,
 	    List.map rename_query l)
   | PDef(s,vardecl,p) ->
@@ -3160,9 +3201,19 @@ let rename_decl = function
       Implementation(List.map rename_impl ilist)
   | TableDecl (id, tlist) ->
       TableDecl(rename_ie id, List.map rename_ie tlist)
-  | LetFun(name,l,t) -> 
-      LetFun(rename_ie name,List.map (fun (b,t) -> (rename_ie b,rename_ty t)) l,rename_term t)
-
+  | LetFun(name,l,t) ->
+      (* The defined function is global, it must not be reused *)
+      let name' = rename_ie name in
+      (* Variables created in the statement are local, 
+         I can reuse their names later *)
+      let rename_state = get_rename_state() in
+      let renamed_letfun_statement =
+	LetFun(name',
+	       List.map (fun (b,t) -> (rename_ie b,rename_ty t)) l,
+	       rename_term t)
+      in
+      set_rename_state rename_state;
+      renamed_letfun_statement      
 	
 
 let apply argl paraml already_def def =
