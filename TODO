@@ -142,6 +142,29 @@ That should be sufficient for modules that want to read the variable.
    of if/let/find/get? I need to choose replication indices in the pass
    check_process1.
 
+   TO DO  Function symbols defined inside macros (without appearing as
+   argument) may in fact be used in the script, if one guesses how
+   they are renamed by macro expansion. This is not
+   logical. Advantage: that allows parsing intermediate games using
+   those symbols. A nicer way to achieve that would be to pass all
+   names as arguments of macros, but that may be a bit painful. We
+   could have two sets of macros. That's probably the best. But if we
+   change the set of macros during a proof, we may need to revise
+   variable numbers, etc.
+   TO DO (later) In practice, when I really want to read
+   intermediate games, CryptoVerif should create a specific
+   environment from the initial game, containing all functions (even
+   those local to macros) as well as constants cst_<type> and events
+   introduced by CryptoVerif.
+
+   TO DO Find a way to avoid clashes between names in the script and
+   names local to macros. The problem appears only for global
+   declarations that are not defined in the script. Local variables
+   are renamed. And correctly declared globals are reserved by
+   recordid. So it would be enough to remove such global declarations
+   coming from macros without appearing in arguments from the
+   environment when the macro ends.
+
    f) write a converter from the old front-end to the new one.
    Changes in the converter:
    DONE define -> def
@@ -200,9 +223,14 @@ That should be sufficient for modules that want to read the variable.
       (by resetting the counters to their state before the equivalence)
       both in CV and in the converter. 
 
-      NOTE Variables are also created when expanding macros,
+      TO DO Variables are also created when expanding macros,
       that uses some names, and it seems a bit more difficult to
       reuse them in the process.
+      I could consider the identifiers introduced during renaming of
+      equiv, equation, and collision statements as local, by storing
+      the renaming state at the beginning of these statements and
+      restoring it at the end. Renaming state = the table of indices
+      in terms.ml plus the renaming table in syntax.ml.
 
       NOTE Changes in occurrence numbers may be due to reorganizations
       of parallel compositions.
