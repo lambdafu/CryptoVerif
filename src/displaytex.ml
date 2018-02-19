@@ -536,6 +536,13 @@ let display_pub_vars pub_vars =
       display_list display_binder pub_vars;
       print_string "$"
     end
+
+let display_pub_vars_math_mode pub_vars =
+  if pub_vars <> [] then
+    begin
+      print_string "\\textrm{ with public variables }";
+      display_list display_binder pub_vars
+    end
       
 let display_one_set = function
     SetProba r ->
@@ -543,7 +550,7 @@ let display_one_set = function
   | SetEvent(f, g, pub_vars, _) ->
       print_id "\\Pr[\\kw{event}\\ \\kwf{" f.f_name "}\\textrm{ in game }";
       print_string (string_of_int g.game_number);
-      display_pub_vars pub_vars;
+      display_pub_vars_math_mode pub_vars;
       print_string "]"
 
 let rec display_set = function
