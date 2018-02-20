@@ -168,6 +168,7 @@ type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list
 	  | Query of (ident * ty(*type*)) list * query list
 	  | Define of ident * ident list * decl list
 	  | Expand of ident * ident list
+	  | Expanded of ident list * decl list
 	  | Proofinfo of ident list list
           | Implementation of impl list
           | TableDecl of ident * ident list

@@ -1,7 +1,8 @@
-(* The process can use the identifiers enc_seed_4 and enc_r_4
+(* The process can use the identifiers enc_seed and enc_r
 defined by the expansion of the macro IND_CPA_sym_enc, even 
 though they are not passed as parameters.
-That's not good. *)
+That's not good.
+Now fixed: enc_seed and enc_r are considered not defined after the macro. *)
 
 type key [large,fixed].
 type cleartext.
@@ -14,11 +15,11 @@ expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc).
 channel c.
 
 process
-	in(c, x: cleartext); new k: key; (*out(c, enc(x,k))*)
-	new r: enc_seed_4; out(c, enc_r_4(x, k, r))
+	in(c, x: cleartext); new k: key; (* out(c, enc(x,k))*)
+	new r: enc_seed; out(c, enc_r(x, k, r))
 
 (* EXPECTED
-All queries proved.
-0.127s (elapsed: user + system + other processes)
+Error: enc_seed not defined.
+xtime: error in child process (status : 512)
 END *)
 

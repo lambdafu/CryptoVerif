@@ -83,6 +83,9 @@ let current_location = ref InProcess
 
 (* Declarations *)
 
+type macro_elem =
+    Macro of Ptree.ident list * Ptree.decl list * string list * macro_elem Stringmap.StringMap.t
+    
 let macrotable = ref StringMap.empty
 let statements = ref ([]: statement list)
 let collisions = ref ([]: collision list)
@@ -3196,7 +3199,9 @@ let rename_decl = function
   | Define((s1,ext1),argl,def) ->
       input_error "macro definitions are not allowed inside macro definitions" ext1
   | Expand((s1,ext1),argl) ->
-      internal_error "macro-expansion inside a macro should have been expanded at macro definition point" 
+      Expand((s1,ext1), List.map rename_ie argl)
+  | Expanded _ ->
+      internal_error "expanded macros should be subject to renaming"
   | Implementation(ilist) ->
       Implementation(List.map rename_impl ilist)
   | TableDecl (id, tlist) ->
@@ -3341,11 +3346,13 @@ let rec check_one = function
 	if (!opt) land Settings.tyopt_CHOOSABLE != 0 then
 	  begin
 	    try
-	      let (paraml, def, already_def) = StringMap.find "move_array_internal_macro" (!macrotable) in
+	      let Macro(paraml, def, already_def, _) = StringMap.find "move_array_internal_macro" (!macrotable) in
 	      if List.length paraml != 1 then
 		input_error ("Macro move_array_internal_macro should expect one argument but expects " ^ (string_of_int (List.length paraml)) ^ " arguments.") ext1;
 	      let old_equivalences = !equivalences in
+	      let old_env = !env in
 	      List.iter check_one (apply [(s1,ext1)] paraml already_def def);
+	      env := old_env;
 	      match !equivalences with
 		[] -> input_error ("Macro move_array_internal_macro should define an equivalence.") ext1
 	      |	(eq::rest) ->
@@ -3543,46 +3550,31 @@ let rec check_one = function
                t.tblfile <- Some file;
         ) impl;
       implementation := impl @ (!implementation)
-  | Define((s1,ext1),argl,def) ->
-      if StringMap.mem s1 (!macrotable) then
-	input_error ("Macro " ^ s1 ^ " already defined.") ext1
-      else
-	(* Expand macro calls inside macro definitions
-	   Because this is done at macro definition point, this requires that
-	   the macros used inside the definition be defined before, which
-	   is a safe requirement. (It prevents recursive macros, in particular.) *)
-	let rec expand_inside_macro = function 
-	    Define((s,ext),_,_)::l -> 
-	      input_error "macro definitions are not allowed inside macro definitions" ext
-	  | Expand((s2,ext2), argl2)::l ->
-	      begin
-		try 
-		  let (paraml2, def2, already_def2) = StringMap.find s2 (!macrotable) in
-		  if List.length argl2 != List.length paraml2 then
-		    input_error ("Macro " ^ s2 ^ " expects " ^ (string_of_int (List.length paraml2)) ^
-				 " arguments, but is here given " ^ (string_of_int (List.length argl2)) ^ " arguments.") ext2;
-		  (apply argl2 paraml2 already_def2 def2) @ (expand_inside_macro l)
-		with Not_found ->
-		  input_error ("Macro " ^ s2 ^ " not defined.") ext2
-	      end
-	  | a::l -> a::(expand_inside_macro l)
-	  | [] -> []
-	in
-	let def = expand_inside_macro def in
-	let already_def = ref [] in
-	StringMap.iter (fun s _ -> already_def := s :: (!already_def)) (!env);
-	macrotable := StringMap.add s1 (argl, def, !already_def) (!macrotable)
-  | Expand((s1,ext1),argl) ->
-      begin
-	try 
-	  let (paraml, def, already_def ) = StringMap.find s1 (!macrotable) in
-	  if List.length argl != List.length paraml then
-	    input_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
-			 " arguments, but is here given " ^ (string_of_int (List.length argl)) ^ " arguments.") ext1;
-	  List.iter check_one (apply argl paraml already_def def)
-	with Not_found ->
-	  input_error ("Macro " ^ s1 ^ " not defined.") ext1
-      end
+  | Define _ ->
+      internal_error "macros should have been expanded"
+  | Expand((s,ext),_) ->
+      input_error "macros should have been expanded, and the macro move_array_internal_macro should not contain expansions of other macros" ext
+  | Expanded(argl, l) ->
+      let env_before = !env in
+      List.iter check_one l;
+      let env_after = !env in
+      (* After expanding a macro, we keep in the environment only the 
+         identifiers passed as argument to the macro.
+	 The identifiers internal to the macro are considered as not defined.
+	 They are renamed to identifiers different from existing declarations
+	 during macro expansion, but they could clash with identifiers
+	 used without proper definition. They would then be erroneously
+	 considered as defined. *)
+      env := env_before;
+      List.iter (fun (arg,_) ->
+	if StringMap.mem arg env_before then
+	  ()
+	else
+	  try
+	    let argval = StringMap.find arg env_after in
+	    env := StringMap.add arg argval (!env)
+	  with Not_found -> ()
+	      ) argl
 
 let rec check_all (l,p) = 
   List.iter check_one l;
@@ -3885,32 +3877,99 @@ let check_query = function
 let get_impl ()=
   StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles []
 
+let declares = function
+  | ParamDecl((s,ext), _)
+  | ProbabilityDecl(s,ext)
+  | TableDecl((s,ext),_)
+  | TypeDecl((s,ext),_)
+  | ConstDecl((s,ext),_)
+  | ChannelDecl(s,ext)
+  | FunDecl((s,ext),_,_,_)
+  | LetFun((s,ext),_,_)
+  | EventDecl((s,ext), _)
+  | PDef((s,ext),_,_) ->
+      Some (s,ext)
+  | _ -> None
+    
 let rec record_ids l = 
-   List.iter (function
-    | ParamDecl((s,ext), _)
-    | ProbabilityDecl(s,ext)
-    | TableDecl((s,ext),_)
-    | TypeDecl((s,ext),_)
-    | ConstDecl((s,ext),_)
-    | ChannelDecl(s,ext)
-    | FunDecl((s,ext),_,_,_)
-    | LetFun((s,ext),_,_)
-    | EventDecl((s,ext), _)
-    | PDef((s,ext),_,_) ->
-	Terms.record_id s ext
-    | Define((s,ext),_,def) ->
-	record_ids def
-    | _ -> ()
+  List.iter (fun decl ->
+    match declares decl with
+      Some (s,ext) -> Terms.record_id s ext
+    | None -> ()
 	  ) l
-   
+
+(* [add_already_def argl expanded_macro already_def] adds to [already_def]
+   the identifiers defined in [expanded_macro] that also occur in [argl].
+   [argl] is supposed to represent the arguments of the macro before expansion.
+   The idenfifiers in [argl] defined by the macro can be used after the
+   macro. This function is useful to compute the value of [already_def]
+   after the macro. *)
+
+let rec add_already_def argl expanded_macro already_def =
+  match expanded_macro with
+    [] -> already_def
+  | a::l ->
+      let already_def' = 
+	match declares a with
+	| Some (s,_) ->
+	    if List.exists (fun (s',_) -> s' = s) argl then
+	      s::already_def
+	    else
+	      already_def
+	| None ->
+	    already_def
+      in
+      add_already_def argl l already_def'
+    
+let rec expand_macros macro_table already_def = function
+    [] -> []
+  | a::l ->
+      match a with
+      | Expanded _ ->
+	  Parsing_helper.internal_error "Expanded macros should not occur initially"
+      | Define((s1,ext1),argl,def) ->
+	  if StringMap.mem s1 macro_table then
+	    input_error ("Macro " ^ s1 ^ " already defined.") ext1
+          else
+	    let macro_table' = StringMap.add s1 (Macro(argl, def, already_def, macro_table)) macro_table in
+	    (* Store the new macro table globally 
+	       This is ok before macro definitions cannot be included inside macros, so macro_table' contains all macros defined so far. *)
+	    macrotable := macro_table';
+	    expand_macros macro_table' already_def l
+      | Expand((s1,ext1),argl) ->
+          begin
+	    try 
+	      let Macro(paraml, def, old_already_def, old_macro_table) = StringMap.find s1 macro_table in
+	      if List.length argl != List.length paraml then
+		input_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
+			     " arguments, but is here given " ^ (string_of_int (List.length argl)) ^ " arguments.") ext1;
+	      let applied_macro = apply argl paraml old_already_def def in
+	      record_ids applied_macro;
+	      let expanded_macro = expand_macros old_macro_table old_already_def applied_macro in
+	      let already_def_after_macro = add_already_def argl expanded_macro already_def in
+	      Expanded(argl, expanded_macro)::(expand_macros macro_table already_def_after_macro l)
+	    with Not_found ->
+	      input_error ("Macro " ^ s1 ^ " not defined.") ext1
+	  end
+      | _ ->
+	  let already_def' = 
+	    match declares a with
+	      Some(s,_) -> s::already_def
+	    | None -> already_def
+	  in
+	  a::(expand_macros macro_table already_def' l)
+
 let read_file f =
   try 
-    let ((l,_) as p) = parse_with_lib f in
+    let (l,p) = parse_with_lib f in
     env := init_env();
   (* Record top-level identifiers, to make sure that we will not need to 
      rename them. *)
     record_ids l;
-    let (p',_,_) = check_all p in
+    let already_def = ref [] in
+    StringMap.iter (fun s _ -> already_def := s :: (!already_def)) (!env);
+    let l' = expand_macros StringMap.empty (!already_def) l in
+    let (p',_,_) = check_all (l',p) in
     let _ = count_occ_events p' in
     (!statements, !collisions, !equivalences, !move_new_eq,
      List.map check_query (!queries_parse), !proof, (get_impl ()), p')
