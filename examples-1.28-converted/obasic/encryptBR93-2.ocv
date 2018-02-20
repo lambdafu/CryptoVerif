@@ -13,9 +13,9 @@ proof {
   crypto rom(hash2);
   crypto rom(hash);
   remove_assign binder pk;
-  crypto ow(f) r_3 x_6;
+  crypto ow(f) r_3 x_7;
   show_game;
-  crypto remove_xor(xor) r_9;
+  crypto remove_xor(xor) r_6;
   success
 }
 

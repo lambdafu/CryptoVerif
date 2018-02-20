@@ -7,15 +7,15 @@ channel io1, io2, io3, io4, io5, io6, io7, io8, io9, io10,
 proof {
       crypto uf_cma_corrupt(sign) kseed;
       out_game "g1.out" occ;
-      insert 478 "find j' <= N1 suchthat defined(gx_1[j']) && gx_5 = gx_1[j'] then";
+      insert 478 "find j' <= N1 suchthat defined(gx_1[j']) && gx_4 = gx_1[j'] then";
       SArename gy_2;
       out_game "g2.out" occ;
-      insert 42 "find j <= N6 suchthat defined(gy_4[j], gx_5[j]) && gx_1 = gx_5[j] && gy = gy_4[j] then";
+      insert 42 "find j <= N6 suchthat defined(gy_4[j], gx_4[j]) && gx_1 = gx_4[j] && gy = gy_4[j] then";
       crypto rom(HKDF_extract_zero);
       remove_assign binder s;
       remove_assign binder s_3;
       simplify;
-      crypto gdh(exp) "variables: x_4 -> a_1, y_8 -> b_1 .";
+      crypto gdh(exp) "variables: x_5 -> a, y_6 -> b .";
       auto
 (*    crypto prf(HKDF_expand) *;
       crypto extractor1(HKDF_extract) *;

@@ -14,7 +14,7 @@ crypto enc;
 show_game occ;
 insert 767 "find j <= NU suchthat defined(X_9[j]) && X_9[j] = X_s then";
 show_game occ;
-insert 908 "find nj <= qH1, nk <= qD suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_3[nj], rd_2[nk], m_2[nk], kd_1[nk]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (m_2[nk] = re_1) && (rd_2[nk] = x14[nj]) && (auth_s = r1_3[nj]) && (kd_1[nk] = pw) then";
+insert 908 "find nj <= qH1, nk <= qD suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], r1_2[nj], rd_1[nk], m_2[nk], kd_1[nk]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (m_2[nk] = re) && (rd_1[nk] = x14[nj]) && (auth_s = r1_2[nj]) && (kd_1[nk] = pw) then";
 show_game occ;
 insert_event Auth 955;
 (* set debugElsefindFacts = true; *)

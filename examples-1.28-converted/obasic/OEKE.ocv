@@ -11,7 +11,7 @@ crypto rom(h1);
 show_game occ;
 insert 169 "find j <= NU suchthat defined(X_9[j]) && X_9[j] = X_s then"; (* just after OS2(..):= *)
 show_game occ;
-insert 304 "find jh <= qH1 suchthat defined(xx1[jh], xx2[jh], xx3[jh], xx4[jh], r_4[jh]) && (U = xx1[jh]) && (S = xx2[jh]) && (X_s = xx3[jh]) && (Y_8 = xx4[jh]) && (auth_s = r_4[jh]) then"; (* beginning of the "else" branch of the just inserted find *)
+insert 304 "find jh <= qH1 suchthat defined(xx1[jh], xx2[jh], xx3[jh], xx4[jh], r_2[jh]) && (U = xx1[jh]) && (S = xx2[jh]) && (X_s = xx3[jh]) && (Y_8 = xx4[jh]) && (auth_s = r_2[jh]) then"; (* beginning of the "else" branch of the just inserted find *)
 show_game occ;
 insert_event Auth 337; (* "then" branch of the just inserted find *)
 simplify;
@@ -25,20 +25,20 @@ SArename Y_u;
 auto;
 set uniqueBranchReorganize = true;
 show_game;
-move array X_14; (* variable chosen at the end of OC2 and not used immediately *)
-move binder r_2;
+move array X_4; (* variable chosen at the end of OC2 and not used immediately *)
+move binder r;
 show_game;
-merge_arrays X_10 Y_9;
+merge_arrays X Y;
 merge_branches;
-move array X_11; (* variable chosen in OP and not used immediately *)
+move array X_1; (* variable chosen in OP and not used immediately *)
 (*show_game;
-merge_arrays X_10 Y_..;
+merge_arrays X Y_..;
 merge_branches;*)
-move array X_13; (* variable chosen in OS1 and not used immediately *)
+move array X_3; (* variable chosen in OS1 and not used immediately *)
 (*show_game;
-merge_arrays X_10 Y_..;*)
+merge_arrays X Y_..;*)
 show_game occ;
-insert 111 "find jh' <= qH1, jd <= qD suchthat defined(xx1[jh'], xx2[jh'], xx3[jh'], xx4[jh'], r_4[jh'], m_2[jd], kd_1[jd], X_10[jd]) && (m_2[jd] = re_1) && (U = xx1[jh']) && (S = xx2[jh']) && (X_s = xx3[jh']) && (xx4[jh'] = X_10[jd]) && (auth_s = r_4[jh'])  && (kd_1[jd] = pw) then";
+insert 111 "find jh' <= qH1, jd <= qD suchthat defined(xx1[jh'], xx2[jh'], xx3[jh'], xx4[jh'], r_2[jh'], m_2[jd], kd_1[jd], X[jd]) && (m_2[jd] = re) && (U = xx1[jh']) && (S = xx2[jh']) && (X_s = xx3[jh']) && (xx4[jh'] = X[jd]) && (auth_s = r_2[jh'])  && (kd_1[jd] = pw) then";
 show_game occ;
 insert_event Auth2 158;
 simplify;

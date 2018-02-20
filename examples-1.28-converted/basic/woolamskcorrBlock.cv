@@ -22,7 +22,7 @@ SArename Rkey;
 crypto sprp(enc) rKbs;
 crypto sprp(enc) rKas;
 show_game;
-SArename "r2_3";
+SArename "r2_2";
 success
 }
 

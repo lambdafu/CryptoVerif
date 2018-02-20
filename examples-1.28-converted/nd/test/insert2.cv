@@ -6,7 +6,7 @@
 proof {
   show_game occ;
   insert_event bad 276;
-  insert 203 "let k = Kkey[j2_2] in";
+  insert 203 "let k = Kkey[j2_3] in";
   show_game occ;
   insert 241 "let k' = SKkey[j2_4] in";
   show_game

@@ -10,7 +10,7 @@ independent from this random function. *)
 proof {
       auto;
       show_game;
-      SArename r2_2;
+      SArename r2_1;
       auto
       }
 

@@ -4,9 +4,9 @@ proof {
 show_game;
 crypto hash;
 remove_assign binder pk;
-crypto f r_1;
+crypto f r;
 show_game;
-crypto xor r_4;
+crypto xor r_3;
 success
 }
 

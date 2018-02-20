@@ -10,19 +10,19 @@
 proof {
       auto;
       show_game occ;
-      insert 27 "if defined(x_2[u_3], y_10[u_3], r_4[u_3]) && (u_1 = u_1[u_3]) && (v = v[u_3]) then";
+      insert 27 "if defined(x_1[u_2], y_9[u_2], r_3[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";
       show_game occ;
       insert_event e2 90;
       insert_event e3 79;
       show_game occ;
-      replace 50 "x_2[u_3]";
-      SArename x_6;
+      replace 50 "x_1[u_2]";
+      SArename x;
       simplify;
       auto;
       show_game occ;
-      replace 45 "y_10[u_3]";
+      replace 45 "y_9[u_2]";
       auto;
-      remove_assign binder x_2;
+      remove_assign binder x_1;
       merge_branches;
       success
 }

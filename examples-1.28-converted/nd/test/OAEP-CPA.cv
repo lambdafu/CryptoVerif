@@ -7,11 +7,11 @@ proof {
       insert_event bad1 31;
       show_game occ;
       insert_event bad2 59;
-      crypto remove_xor(xorDr) r_6;
-      crypto remove_xor(xorDow) r_8;      
+      crypto remove_xor(xorDr) r_1;
+      crypto remove_xor(xorDow) r_3;      
       remove_assign binder pk;
       show_game;
-      crypto pd_ow(f) r_3 r_9 r_10;
+      crypto pd_ow(f) r_4 r_6 r_7;
       success
 }
 

@@ -1339,18 +1339,22 @@ let fresh_id s =
       s
     end
 
-(* [fresh_id_keep_s s] creates a fresh pair [(s,n)] corresponding to 
-   identifier [s], preferably the pair [(s,0)], which displays exactly as [s],
-   if possible, that is, if [s] does not end with _number and this pair is
-   not already used. Otherwise, create a fresh pair using [new_var_name] *) 
+(* [fresh_id_keep_s s] creates a fresh pair [(s',n)] corresponding to 
+   identifier [s], preferably one that display as [s] itself. 
+   If [s] is already used, create a fresh identifier by changing 
+   the number suffix of [s], or adding a number suffix to [s] if 
+   there is none, using [new_var_name] *) 
 
 let fresh_id_keep_s s =
   let ((s',n) as s_n) = get_id_n s in
-  if (n != 0) || (Hashtbl.mem (!used_ids) s_n) then 
-    new_var_name s'
+  let counter = (try Hashtbl.find (!vcounter) s' with Not_found -> 0) in
+  if ((n != 0) && (n <= counter)) || (Hashtbl.mem (!used_ids) s_n) then
+    let n' = new_var_name_counter counter s' in
+    Hashtbl.replace (!vcounter) s' n';
+    (s', n')
   else
     begin
-      (* n = 0, so no need to increase max_source_idx, it is already >= n *)
+      if n > !max_source_idx then max_source_idx := n;
       Hashtbl.add (!used_ids) s_n ();
       s_n
     end

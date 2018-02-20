@@ -46,10 +46,10 @@ proof {
   auto;
   show_game;
   SArename "RAND_2";
-  SArename "r2_13";
-  SArename "r2_12";
+  SArename "r2_10";
+  SArename "r2_9";
   show_game;
-  move array "r2_31";
+  move array "r2_28";
   success
 }
 (* The command move array "@22_r2_466" delays the choice of @22_r2_466

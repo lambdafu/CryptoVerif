@@ -17,7 +17,7 @@ proof {
 
       (*secrecy of the key*)
       show_game occ;
-      insert 218 "find w <= N suchthat defined(idCS[w], idSS[w], cookieCS[w], nsCS[w], cookieSS[w], eS[w], fS[w], r_10[w]) && ((idCC = idCS[w]) && ((idSC = idSS[w]) && (((cookieCC = cookieCS[w]) && (negotiation_string = nsCS[w])) && (((cookieSC = cookieSS[w]) && (nsSC = negotiation_string)) && ((eC = eS[w]) && ((fC = fS[w]))))))) then";
+      insert 218 "find w <= N suchthat defined(idCS[w], idSS[w], cookieCS[w], nsCS[w], cookieSS[w], eS[w], fS[w], r_5[w]) && ((idCC = idCS[w]) && ((idSC = idSS[w]) && (((cookieCC = cookieCS[w]) && (negotiation_string = nsCS[w])) && (((cookieSC = cookieSS[w]) && (nsSC = negotiation_string)) && ((eC = eS[w]) && ((fC = fS[w]))))))) then";
        insert 53 "find v <= N suchthat defined (eC[v]) && eC[v]=eS then";
       simplify;
       set elsefindFactsInSimplify = true; (* Reactivate elsefindFactsInSimplify because it is needed in the proof. *)

@@ -55,18 +55,13 @@ equiv
 (* The difference of probability is the probability of collision between two
 random numbers in blocksize among the N+N2 chosen random numbers. *)
 
-channel c1, c2, c3, c4.
-
- 
-
-
 }
 
 expand ICM_cipher_oldotheruses(passwd, G, enc, dec, enc_dec_oracle, qE, qD).
 
 (* Queries *)
 
-channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp,
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, cp, c1_1, c2_1, c3_1, c4_1,
 	start, finish.
 
 const U : host.

@@ -7,9 +7,9 @@ proof {
   crypto group_to_exp_strict(exp) *;
   SArename s;
   show_game occ;
-  replace 59 "exp(y_1, x_7)";
-  replace 44 "exp(y_1, x_6[u_5])";
-  replace 23 "exp(y_1, x_7[u_6])";
+  replace 59 "exp(y_1, x_5)";
+  replace 44 "exp(y_1, x_4[u_4])";
+  replace 23 "exp(y_1, x_5[u_5])";
   crypto gdh(exp);
   success
 }

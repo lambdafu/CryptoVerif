@@ -59,19 +59,19 @@ proof {
       crypto SHA256_comp_star_cAU;
       (* Prove that KDF128 is a PRF *)
       out_game "g1.out";
-      crypto SHA1_comp_prf r3_3;
+      crypto SHA1_comp_prf r3_2;
       simplify;
       remove_assign useless;
       show_game occ;
       replace 227 "first_part(X3[ri_12])";
       simplify; 
-      merge_arrays r2_3 r2_4;
+      merge_arrays r2_2 r2_3;
       merge_branches; 
       crypto truncate128;
       (* Prove that KDF256 is a PRF *)
       set uniqueBranchReorganize = false;
-      crypto SHA1_comp_prf r3_2;
       crypto SHA1_comp_prf r3_1;
+      crypto SHA1_comp_prf r3;
       simplify;
       (* The second hash function reuses a previous result exactly
          when the first one does. We remove the cases in which the
@@ -94,7 +94,7 @@ proof {
       show_game occ;
       replace 71 "first_part(X2[ri_16])";
       simplify;
-      merge_arrays k_3 k_4;
+      merge_arrays k_2 k_3;
       merge_branches;
       remove_assign useless;
       auto

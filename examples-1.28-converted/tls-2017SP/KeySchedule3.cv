@@ -11,7 +11,7 @@ are indistinguishable from independent random functions. *)
 proof {
       auto;
       show_game;
-      SArename r2_3;
+      SArename r2_2;
       auto
       }
 

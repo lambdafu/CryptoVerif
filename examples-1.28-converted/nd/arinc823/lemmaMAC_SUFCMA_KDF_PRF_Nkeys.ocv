@@ -57,12 +57,12 @@ We could probably get rid of the factor 4.
 
 proof {
       show_game occ;
-      insert 31 "if mac_1 = MAC(k_1,mv) then";
+      insert 31 "if mac_1 = MAC(k,mv) then";
       simplify;
       merge_branches;
       auto;
       show_game;
-      move array r1_2;
+      move array r1_1;
       success
 }
 
