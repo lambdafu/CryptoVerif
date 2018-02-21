@@ -164,6 +164,6 @@ return();
 
 
 (* EXPECTED
-All queries proved.
-2.452s (user 2.340s + system 0.112s), max rss 134176K
+Error: h1x not defined
+xtime: error in child process (status : 512)
 END *)
