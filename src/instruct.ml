@@ -556,18 +556,25 @@ let display_state final state =
       end
   in
   (* Display the state *)
-  if final && ((!Settings.proof_output) <> "") then
+  if final && ((!Settings.proof_output) <> "" || (!Settings.tex_output) <> "") then
     begin
-      print_string ("Outputting proof in " ^ (!Settings.proof_output));
-      print_newline();
-      Display.file_out (!Settings.proof_output) (fun () ->
-	Display.display_state state');
+      if (!Settings.proof_output) <> "" then
+	begin
+	  print_string ("Outputting proof in " ^ (!Settings.proof_output));
+	  print_newline();
+	  Display.file_out (!Settings.proof_output) (fun () ->
+	    Display.display_state state')
+	end;
+      if (!Settings.tex_output) <> "" then
+	begin
+	  print_string ("Outputting latex proof in " ^ (!Settings.tex_output));
+	  print_newline();
+	  Displaytex.display_state state';
+	end;
       Display.display_conclusion state'
     end
   else
     Display.display_state state';
-  if final && ((!Settings.tex_output) <> "") then
-    Displaytex.display_state state';
   (* Undo the proof of AbsentQuery *)
   state.game.current_queries <- old_queries;
   List.iter (function 
