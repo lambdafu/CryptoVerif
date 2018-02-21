@@ -534,7 +534,7 @@ and is_full_proba query_list = function
 	Some _ -> true
       |	None -> false
 
-let display_state tex state =
+let display_state final state =
   (* AbsentQuery is proved in the current state, if present *)
   let old_queries = state.game.current_queries in
   let state' = 
@@ -556,8 +556,17 @@ let display_state tex state =
       end
   in
   (* Display the state *)
-  Display.display_state state';
-  if tex && ((!Settings.tex_output) <> "") then
+  if final && ((!Settings.proof_output) <> "") then
+    begin
+      print_string ("Outputting proof in " ^ (!Settings.proof_output));
+      print_newline();
+      Display.file_out (!Settings.proof_output) (fun () ->
+	Display.display_state state');
+      Display.display_conclusion state'
+    end
+  else
+    Display.display_state state';
+  if final && ((!Settings.tex_output) <> "") then
     Displaytex.display_state state';
   (* Undo the proof of AbsentQuery *)
   state.game.current_queries <- old_queries;

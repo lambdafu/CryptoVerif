@@ -8,7 +8,8 @@ type frontend =
 let get_implementation = ref false
 
 let out_dir = ref "."
-
+let proof_output = ref ""
+    
 let front_end = ref Channels
 
 let lib_name = ref "default"

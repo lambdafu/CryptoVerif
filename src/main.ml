@@ -181,6 +181,8 @@ let _ =
       "<filename> \tchoose library file";
       "-tex", Arg.String (fun s -> Settings.tex_output := s),
       "<filename> \tchoose TeX output file";
+      "-oproof", Arg.String (fun s -> Settings.proof_output := s),
+      "<filename> \toutput the proof in this file";
       "-in", Arg.String (function 
 	  "channels" -> Settings.front_end := Settings.Channels
 	| "oracles" -> Settings.front_end := Settings.Oracles

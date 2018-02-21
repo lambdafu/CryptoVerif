@@ -96,6 +96,8 @@ Version 1.29
   when they use the default CryptoVerif 1.28 library.
   (This command should be run in the main CryptoVerif directory.)
   Otherwise, use the converted library built by ./convert.
+- Option -oproof <filename> to output the proof in <filename>
+  instead of displaying it on the standard output.
 
 Version 1.28
 

@@ -6,7 +6,8 @@ type frontend =
 
 val get_implementation : bool ref
 val out_dir : string ref
-
+val proof_output : string ref
+    
 val front_end : frontend ref
 
 val lib_name : string ref

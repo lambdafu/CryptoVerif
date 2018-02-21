@@ -2019,6 +2019,21 @@ let rec remove_duplicate_states seen_list = function
       let (seen_list', r') = remove_dup seen_list r s in
       remove_duplicate_states (s::seen_list') r'
 
+let display_conclusion s =
+  let initial_queries = get_initial_queries s in
+  (* List the unproved queries *)
+  let rest = List.filter (function (q, poptref,_) -> (!poptref) == None) initial_queries in
+  let rest' = List.filter (function (AbsentQuery, _),_,_ -> false | _ -> true) rest in
+  if rest = [] then
+    print_string "All queries proved.\n"
+  else if rest' != [] then
+    begin
+      print_string "RESULT Could not prove ";
+      display_list_sep "; " (fun (q, _,_) -> display_query q) rest;
+      print_string ".\n"
+    end
+
+	
 let display_state s =
   (* Display the proof tree *)
   times_to_display := [];
@@ -2055,16 +2070,5 @@ let display_state s =
   times_to_display := [];
 
   (* List the unproved queries *)
-  let rest = List.filter (function (q, poptref,_) -> (!poptref) == None) initial_queries in
-  let rest' = List.filter (function (AbsentQuery, _),_,_ -> false | _ -> true) rest in
-  if rest = [] then
-    print_string "All queries proved.\n"
-  else if rest' != [] then
-    begin
-      print_string "RESULT Could not prove ";
-      display_list_sep "; " (fun (q, _,_) -> display_query q) rest;
-      print_string ".\n"
-    end
-
-  
+  display_conclusion s
 

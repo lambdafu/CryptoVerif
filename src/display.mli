@@ -74,4 +74,4 @@ val remove_duplicate_states : state list -> state list -> state list
 
 
 val display_state : state -> unit
-
+val display_conclusion : state -> unit
