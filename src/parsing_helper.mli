@@ -20,7 +20,9 @@ val in_file_position : extent -> extent -> string
 
 (*String parsing*)
 val clear_buffer : unit -> unit
-val get_string : unit -> string
+val get_string : unit -> string * extent
+val set_start_pos : Lexing.lexbuf -> unit
+val set_end_pos : Lexing.lexbuf -> unit
 val add_char : char -> unit
 val char_backslash : char -> char
 

@@ -640,6 +640,6 @@ type impl_process = string * impl_opt list * inputprocess
 (* Type for interactive commands *)
 
 type command =
-    Com_elem of string
+    Com_elem of (string * Parsing_helper.extent)
   | Com_sep
   | Com_end

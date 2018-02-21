@@ -1476,7 +1476,7 @@ and interactive_loop state =
   let lexbuf = Lexing.from_string s in
   let rec command_from_lexbuf state com_accu lexbuf =
     match Lexer.interactive_command lexbuf with
-      Com_elem s -> command_from_lexbuf state ((s, Parsing_helper.extent lexbuf)::com_accu) lexbuf
+      Com_elem s -> command_from_lexbuf state (s::com_accu) lexbuf
     | Com_sep ->
 	let state' = 
 	  if com_accu != [] then

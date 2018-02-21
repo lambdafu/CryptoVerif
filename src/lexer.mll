@@ -90,8 +90,9 @@ rule token = parse
 | '\"'    
     { 
       clear_buffer ();
+      set_start_pos lexbuf;
       string lexbuf;
-      STRING (get_string (),extent lexbuf) } 
+      STRING (get_string ()) } 
 
 | ([ '0'-'9' ]) +
     { 
@@ -150,7 +151,7 @@ and comment = parse
 | _ { comment lexbuf }
 
 and string = parse 
-| '\"' { () }
+| '\"' { set_end_pos lexbuf }
 | '\\' ['\\' '\'' '"' 'n' 't' 'b' 'r']
       { 
         add_char (char_backslash (Lexing.lexeme_char lexbuf 1));
@@ -175,6 +176,6 @@ and interactive_command = parse
 | [ ' ' '\009' '\012' ] +
      { interactive_command lexbuf }
 | ([ ^ '\"' ' ' '\009' '\012' ';' '(' ')' '=' ] +) | "(" | ")" | "="
-     { Com_elem (Lexing.lexeme lexbuf) }
+     { Com_elem (Lexing.lexeme lexbuf, extent lexbuf) }
 | ';' { Com_sep }
 | eof { Com_end }

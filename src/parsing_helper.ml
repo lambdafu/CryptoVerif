@@ -94,14 +94,21 @@ let user_error mess =
 (* Helper functions to lex strings *)
     
 let buf = Buffer.create 64
+let start_pos = ref Lexing.dummy_pos
+let end_pos = ref Lexing.dummy_pos
 
+(* The position of the beginning of a string is just after the opening quotation mark *)
+let set_start_pos lexbuf = start_pos := Lexing.lexeme_end_p lexbuf
+(* The position of the end of a string is just before the closing quotation mark *)
+let set_end_pos lexbuf = end_pos := Lexing.lexeme_start_p lexbuf
+    
 let clear_buffer () =
   Buffer.reset buf
 
 let get_string () =
   let s = Buffer.contents buf in
   clear_buffer ();
-  s
+  (s, (!start_pos, !end_pos))
 
 let add_char c =
   Buffer.add_char buf c
