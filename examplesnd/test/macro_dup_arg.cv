@@ -17,3 +17,8 @@ process
   new two: two_t;
   let pff = blubber(one, two) in
   out(c1, pff)
+
+(* EXPECTED
+Error: Macro contains twice the argument bar. It already appears at line 4, characters 15-18
+xtime: error in child process (status : 512)
+END *)

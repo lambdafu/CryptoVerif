@@ -165,10 +165,9 @@ let anal_file s =
               print_newline();
               Display.display_process p;
             *)
-            let _ = Instruct.execute_any_crypto proof 
+            Instruct.do_proof proof 
 	      { game = g; 
-	        prev_state = None } in
-              () 
+	        prev_state = None } 
         end
   with End_of_file ->
     print_string "End of file.\n"

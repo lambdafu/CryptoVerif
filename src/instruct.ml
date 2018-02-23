@@ -618,15 +618,14 @@ let rec insert_sort sorted = function
       (* Insert a into sorted' *)
       insert_elem a sorted'
 
-
+(* [execute_any_crypto_rec1 state] returns
+   - [CSuccess state'] when the proof of all properties succeeded.
+   - [CFailure ...] otherwise
+   The proof is not displayed. *)
 let rec execute_any_crypto_rec1 state =
   let (state', is_done) =  issuccess_with_advise state in
   if is_done then
-    begin
-      print_string "===================== Proof starts =======================\n";
-      display_state true state';
-      (CSuccess state', state)
-    end
+    (CSuccess state', state)
   else
     let equiv_list = insert_sort [] (!Settings.equivs) in
     let rec apply_equivs = function
@@ -651,6 +650,10 @@ let rec execute_any_crypto_rec1 state =
     in
     apply_equivs equiv_list
 
+(* [execute_any_crypto state] returns
+   - [CSuccess state'] when the proof of all properties succeeded.
+   - [CFailure ...] otherwise
+   The proof is displayed in case [CFailure] and not displayed in case [CSuccess]. *)
 let execute_any_crypto state =
   (* Always begin with find/if/let expansion *)
   try
@@ -664,12 +667,14 @@ let execute_any_crypto state =
     end;
     res
   with Backtrack ->
+    print_string "===================== Proof starts =======================\n";
     display_state true state;
     CFailure []
 	    
 (* Interactive prover *)
 
 exception End of state
+exception EndSuccess of state
 
 let add accu b =
   let s = Display.binder_to_string b in
@@ -1049,6 +1054,15 @@ let map_type (s,ext) ext_s =
   with Not_found ->
     raise (Error("Unknown type size " ^ s, ext))
 
+(* [interpret_command interactive state command] runs the command [command]
+   in state [state]. 
+   Returns the new state.
+   Raises 
+   - [Error _] in case of error
+   - [End state'] in case it terminated by "quit" in state [state']
+   - [EndSuccess state'] in case it terminated with all properties proved in state [state']
+   *)
+      
 let rec interpret_command interactive state = function
   | [] -> 
       if interactive then 
@@ -1287,11 +1301,7 @@ let rec interpret_command interactive state = function
 	  check_no_args command ext args;
 	  let (state', is_done) = issuccess_with_advise state in
 	  if is_done then
-	    begin
-	      print_string "===================== Proof starts =======================\n";
-	      display_state true state';
-	      raise (End state')
-	    end
+	    raise (EndSuccess state')
 	  else
 	    begin
 	      print_string "Sorry, the following queries remain unproved:\n";
@@ -1392,7 +1402,7 @@ let rec interpret_command interactive state = function
 	      let (res, state') = execute_any_crypto_rec1 state in
 	      match res with
 		CFailure l -> state'
-	      | CSuccess state' -> raise (End state')
+	      | CSuccess state' -> raise (EndSuccess state')
 	    with Backtrack ->
 	      print_string "Returned to same state after failure of proof with backtracking.\n";
 	      state
@@ -1486,6 +1496,9 @@ let rec interpret_command interactive state = function
 	  if interactive then help();
 	  raise (Error("Unknown command", ext))
 
+(* [interactive_loop state] runs the interactive prover starting from [state].
+   Returns [CSuccess state'] when the prover terminated by "quit" in state [state']
+   Raises [EndSuccess state'] when the prover terminated with all properties proved in state [state'] *)
 and interactive_loop state =
   print_string "Please enter a command: ";
   let s = read_line() in
@@ -1509,27 +1522,30 @@ and interactive_loop state =
   in
   try 
     interactive_loop (command_from_lexbuf state [] lexbuf)
-  with End s ->
-    CSuccess s
+  with
+    End s ->
+      CSuccess s
   | Error(mess, extent) ->
       Parsing_helper.display_error mess extent;
       interactive_loop state
 
+(* [execute_proofinfo proof state] runs the proof [proof] in state [state].
+   Returns [CSuccess state'] where [state'] is the state reached after the proof.
+   (In case of failure of some proof step, the program terminates.) *)
 let rec execute_proofinfo proof state =
   match proof with
     [] -> 
-      print_string "===================== Proof starts =======================\n";
-      display_state true state;
       CSuccess state
   | com::rest -> 
       try
 	execute_proofinfo rest (interpret_command false state com)
-      with End s ->
-	CSuccess s
+      with
+	End s | EndSuccess s->
+	  CSuccess s
       |	Error(mess, extent) ->
 	  Parsing_helper.input_error mess extent
 
-let execute_any_crypto proof state =
+let do_proof proof state =
   if (!Settings.tex_output) <> "" then
     Displaytex.start();
   let r = 
@@ -1537,10 +1553,19 @@ let execute_any_crypto proof state =
       Some pr -> execute_proofinfo pr (expand_simplify state)
     | None ->
 	if !Settings.interactive_mode then
-	  interactive_loop (expand_simplify state)
+	  try
+	    interactive_loop (expand_simplify state)
+	  with EndSuccess s -> CSuccess s
 	else
 	  execute_any_crypto state
   in
+  begin
+    match r with
+      CSuccess state' ->
+	print_string "===================== Proof starts =======================\n";
+	display_state true state'
+    | CFailure _ -> ()
+  end;
   if (!Settings.tex_output) <> "" then
-    Displaytex.stop();
-  r
+    Displaytex.stop()
+
