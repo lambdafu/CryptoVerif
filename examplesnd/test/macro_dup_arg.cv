@@ -1,0 +1,19 @@
+type one_t [bounded,large].
+type two_t [bounded,large].
+
+def foo_macro(bar, bar, fun_name) {
+
+fun fun_name(bar, bar) : bar.
+
+}
+
+expand foo_macro(one_t, two_t, blubber).
+
+channel c0, c1.
+
+process
+  in(c0, ());
+  new one: one_t;
+  new two: two_t;
+  let pff = blubber(one, two) in
+  out(c1, pff)

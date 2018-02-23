@@ -3920,7 +3920,18 @@ let rec add_already_def argl expanded_macro already_def =
 	    already_def
       in
       add_already_def argl l already_def'
-    
+
+let rec check_no_dup = function
+    [] -> ()
+  | (arg,ext)::l ->
+      List.iter (fun (arg',ext') ->
+	if arg = arg' then
+	  input_error ("Macro contains twice the argument " ^ arg ^
+		       ". It already appears at " ^
+		       (in_file_position ext' ext)) ext'
+	    ) l;
+      check_no_dup l
+	
 let rec expand_macros macro_table already_def = function
     [] -> []
   | a::l ->
@@ -3931,11 +3942,14 @@ let rec expand_macros macro_table already_def = function
 	  if StringMap.mem s1 macro_table then
 	    input_error ("Macro " ^ s1 ^ " already defined.") ext1
           else
-	    let macro_table' = StringMap.add s1 (Macro(argl, def, already_def, macro_table)) macro_table in
-	    (* Store the new macro table globally 
-	       This is ok before macro definitions cannot be included inside macros, so macro_table' contains all macros defined so far. *)
-	    macrotable := macro_table';
-	    expand_macros macro_table' already_def l
+	    begin
+	      check_no_dup argl;
+	      let macro_table' = StringMap.add s1 (Macro(argl, def, already_def, macro_table)) macro_table in
+	      (* Store the new macro table globally 
+		 This is ok before macro definitions cannot be included inside macros, so macro_table' contains all macros defined so far. *)
+	      macrotable := macro_table';
+	      expand_macros macro_table' already_def l
+	    end
       | Expand((s1,ext1),argl) ->
           begin
 	    try 
