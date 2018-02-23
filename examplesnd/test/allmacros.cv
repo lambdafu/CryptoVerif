@@ -98,33 +98,44 @@ type G [bounded, large].
 type tZ [bounded, large].
 proba pCDH.
 expand CDH(G, tZ, g, exp, mult, pCDH).
+expand CDH_all_args(G, tZ, g', exp', exp'', mult', pCDH).
 
 proba pDDH.
 expand DDH(G, tZ, g2, exp2, mult2, pDDH).
+expand DDH_all_args(G, tZ, g2', exp2', exp2'', mult2', pDDH).
 
 proba pGDH.
 expand GDH(G, tZ, g3, exp3, mult3, pGDH).
+expand GDH_all_args(G, tZ, g3', exp3', exp3'', mult3', pGDH).
 
 expand GDH_prime_order(G, tZ, g4, exp4, mult4, pGDH).
+expand GDH_prime_order_all_args(G, tZ, g4', exp4', exp4'', mult4', pGDH).
 
 expand square_CDH(G, tZ, g5, exp5, mult5, pCDH).
+expand square_CDH_all_args(G, tZ, g5', exp5', exp5'', mult5', pCDH).
 
 expand square_DDH(G, tZ, g6, exp6, mult6, pDDH).
+expand square_DDH_all_args(G, tZ, g6', exp6', exp6'', mult6', pDDH).
 
 expand square_GDH(G, tZ, g7, exp7, mult7, pGDH).
+expand square_GDH_all_args(G, tZ, g7', exp7', exp7'', mult7', pGDH).
 
 expand square_GDH_prime_order(G, tZ, g8, exp8, mult8, pGDH).
+expand square_GDH_prime_order_all_args(G, tZ, g8', exp8', exp8'', mult8', pGDH).
 
 type D [bounded]. 
 proba POW.
 expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen8, skgen8, f8, invf8, POW).
+expand OW_trapdoor_perm_all_args(seed, pkey, skey, D, pkgen8', pkgen8'', skgen8', f8', f8'', invf8', POW).
 
 expand OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen9, skgen9, f9, invf9, POW).
+expand OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen9', pkgen9'', skgen9', f9', f9'', invf9', POW).
 
 type Dow [bounded].
 type Dr [bounded].
 proba P_PD_OW.
 expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen10, skgen10, f10, invf10, concat10, P_PD_OW).
+expand set_PD_OW_trapdoor_perm_all_args(seed, pkey, skey, D, Dow, Dr, pkgen10', pkgen10'', skgen10', f10', f10'', invf10', concat10', P_PD_OW).
 
 type input.
 type output [bounded].

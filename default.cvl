@@ -1985,6 +1985,7 @@ let hashoracle(k: key) =
 
    g: a generator of the group
    exp: the exponentiation function
+   exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents, product modulo q in
    {1, ..., q-1}, i.e. in the group (Z/qZ)*
 
@@ -1997,7 +1998,7 @@ let hashoracle(k: key) =
 
 *)
 
-def CDH(G, Z, g, exp, mult, pCDH) {
+def CDH_all_args(G, Z, g, exp, exp', mult, pCDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2087,6 +2088,12 @@ equiv(cdh(exp))
 
 }
 
+def CDH(G, Z, g, exp, mult, pCDH) {
+
+expand CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
+
+}
+
 (* Decisional Diffie-Hellman 
    G: type of group elements (must be "bounded" and "large", of cardinal 
    a prime q)
@@ -2095,6 +2102,7 @@ equiv(cdh(exp))
 
    g: a generator of the group
    exp: the exponentiation function
+   exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents, product modulo q in
    {1, ..., q-1}, i.e. in the group (Z/qZ)*
 
@@ -2106,7 +2114,7 @@ equiv(cdh(exp))
    only after expanding the macro.
 *)
 
-def DDH(G, Z, g, exp, mult, pDDH) {
+def DDH_all_args(G, Z, g, exp, exp', mult, pDDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2214,6 +2222,12 @@ equiv(ddh(exp))
 
 }
 
+def DDH(G, Z, g, exp, mult, pDDH) {
+
+expand DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
+
+}
+
 (* Gap Diffie-Hellman 
    G: type of group elements (must be "bounded" and "large", of cardinal 
    a prime q)
@@ -2222,6 +2236,7 @@ equiv(ddh(exp))
 
    g: a generator of the group
    exp: the exponentiation function
+   exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents, product modulo q in
    {1, ..., q-1}, i.e. in the group (Z/qZ)*
 
@@ -2234,7 +2249,7 @@ equiv(ddh(exp))
 
 *)
 
-def GDH(G, Z, g, exp, mult, pGDH) {
+def GDH_all_args(G, Z, g, exp, exp', mult, pGDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2407,7 +2422,13 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-def GDH_prime_order(G, Z, g, exp, mult, pGDH) {
+def GDH(G, Z, g, exp, mult, pGDH) {
+
+expand GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
+
+}
+
+def GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2616,6 +2637,12 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
+def GDH_prime_order(G, Z, g, exp, mult, pGDH) {
+
+expand GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
+
+}
+
 (* square Computational Diffie-Hellman and Computational Diffie-Hellman.
 
    When the group is of prime order, the square CDH assumption is
@@ -2629,6 +2656,7 @@ equiv(gdh(exp))
 
    g: a generator of the group
    exp: the exponentiation function
+   exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents, product modulo q in
    {1, ..., q-1}, i.e. in the group (Z/qZ)*
 
@@ -2641,7 +2669,7 @@ equiv(gdh(exp))
 
 *)
 
-def square_CDH(G, Z, g, exp, mult, pCDH) {
+def square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2719,6 +2747,13 @@ equiv(cdh(exp))
 
 }
 
+def square_CDH(G, Z, g, exp, mult, pCDH) {
+
+expand square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
+
+}
+
+
 (* square Decisional Diffie-Hellman and Decisional Diffie-Hellman
 
    G: type of group elements (must be "bounded" and "large", of cardinal 
@@ -2728,6 +2763,7 @@ equiv(cdh(exp))
 
    g: a generator of the group
    exp: the exponentiation function
+   exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents, product modulo q in
    {1, ..., q-1}, i.e. in the group (Z/qZ)*
 
@@ -2739,7 +2775,7 @@ equiv(cdh(exp))
    only after expanding the macro.
 *)
 
-def square_DDH(G, Z, g, exp, mult, pDDH) {
+def square_DDH_all_args(G, Z, g, exp, exp', mult, pDDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2827,6 +2863,12 @@ equiv(ddh(exp))
 
 }
 
+def square_DDH(G, Z, g, exp, mult, pDDH) {
+
+expand square_DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
+
+}
+
 (* square Gap Diffie-Hellman and Gap Diffie-Hellman.
 
    When the group is of prime order, the square GDH assumption is
@@ -2840,6 +2882,7 @@ equiv(ddh(exp))
 
    g: a generator of the group
    exp: the exponentiation function
+   exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents, product modulo q in
    {1, ..., q-1}, i.e. in the group (Z/qZ)*
 
@@ -2852,7 +2895,7 @@ equiv(ddh(exp))
 
 *)
 
-def square_GDH(G, Z, g, exp, mult, pGDH) {
+def square_GDH_all_args(G, Z, g, exp, exp', mult, pGDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2977,7 +3020,13 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-def square_GDH_prime_order(G, Z, g, exp, mult, pGDH) {
+def square_GDH(G, Z, g, exp, mult, pGDH) {
+
+expand square_GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
+
+}
+
+def square_GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -3123,6 +3172,12 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
+def square_GDH_prime_order(G, Z, g, exp, mult, pGDH) {
+
+expand square_GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
+
+}
+
 (********************************* Miscellaneous ***************************)
 
 (* One-way trapdoor permutation 
@@ -3136,6 +3191,7 @@ equiv(gdh(exp))
    f: the permutation (taking as argument the public key)
    invf: the inverse permutation of f (taking as argument the secret key,
          i.e. the trapdoor)
+   pkgen', f': symbols that replace pkgen and f respectively after game transformation
 
    POW(t): probability of breaking the one-wayness property
    in time t, for one key and one permuted value.
@@ -3146,7 +3202,7 @@ equiv(gdh(exp))
    they can be used only after expanding the macro. 
 *)
 
-def OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW) {
+def OW_trapdoor_perm_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, f, f', invf, POW) {
 
 param nK, nF, n1.
 
@@ -3216,11 +3272,17 @@ equiv(ow(f))
 
 }
 
+def OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW) {
+
+expand OW_trapdoor_perm_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, f, f', invf, POW).
+
+}
+
 (* One-way trapdoor permutation, with random self-reducibility. 
    Same as above, but with a smaller probability of attack
 *)
 
-def OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW) {
+def OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, f, f', invf, POW) {
 
 param nK, nF, n1.
 
@@ -3290,6 +3352,12 @@ equiv(ow_rsr(f))
 
 }
 
+def OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW) {
+
+expand OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, f, f', invf, POW).
+
+}
+
 (* Set partial-domain one-way trapdoor permutation 
    seed: type of random seeds to generate keys, must be "bounded", typically "fixed"
    pkey: type of public keys, must be "bounded"
@@ -3306,6 +3374,7 @@ equiv(ow_rsr(f))
    invf: the inverse permutation of f (taking as argument the secret key,
          i.e. the trapdoor)
    concat(Dow, Dr):D is bitstring concatenation
+   pkgen', f': symbols that replace pkgen and f respectively after game transformation
 
    P_PD_OW(t,l): probability of breaking the set partial-domain one-wayness property
    in time t, for one key, one permuted value, and l tries.
@@ -3316,7 +3385,7 @@ equiv(ow_rsr(f))
    they can be used only after expanding the macro. 
 *)
 
-def set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW) {
+def set_PD_OW_trapdoor_perm_all_args(seed, pkey, skey, D, Dow, Dr, pkgen, pkgen', skgen, f, f', invf, concat, P_PD_OW) {
 
 param nK, nF, n1.
 
@@ -3387,6 +3456,12 @@ equiv(pd_ow(f))
 		   if defined(kr) then return(xow' = xow) else return(false) |
 		 Oxow() := let kow:bool = true in return(xow) |
 		 Oxr() := let kr:bool = true in return(xr))).
+
+}
+
+def set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW) {
+
+expand set_PD_OW_trapdoor_perm_all_args(seed, pkey, skey, D, Dow, Dr, pkgen, pkgen', skgen, f, f', invf, concat, P_PD_OW).
 
 }
 
