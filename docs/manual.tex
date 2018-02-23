@@ -221,12 +221,16 @@ and modifying them as desired. Here is a list of the predefined primitives.
    for use in the \texttt{crypto} command in interactive proofs
    (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand IND\_CPA\_sym\_enc\_r(}\vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+\item $\texttt{expand IND\_CPA\_sym\_enc\_all\_args(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r}, \vn{enc\_r}',
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+  with three additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{enc\_r}'$ is the symbol that replaces $\vn{enc\_r}$ after game transformation.
 
 \item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{enc},
@@ -276,12 +280,16 @@ and modifying them as desired. Here is a list of the predefined primitives.
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
-\item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc\_r(}\vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+\item $\texttt{expand IND\_CPA\_INT\_CTXT\_sym\_enc\_all\_args(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r}, \vn{enc\_r}',
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$  is similar to the above,
-  with two additional arguments. 
+  with three additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{enc\_r}'$ is the symbol that replaces $\vn{enc\_r}$ after game transformation.
 
 \item $\texttt{expand AEAD(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{enc},
@@ -334,12 +342,17 @@ authenticated encryption scheme with additional data.
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
-\item $\texttt{expand AEAD\_r(}\vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
+\item $\texttt{expand AEAD\_all\_args(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r}, \vn{enc\_r}',
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+  with three additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{add\_data}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{enc\_r}'$ is the symbol that replaces $\vn{enc\_r}$ after game transformation.
+
 
 \item $\texttt{expand AEAD\_nonce(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{nonce}, \vn{enc},
@@ -395,6 +408,13 @@ value in each call to encryption. A typical example is AES-GCM.
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
+\item $\texttt{expand AEAD\_nonce\_all\_args(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{add\_data}, \vn{nonce}, \vn{enc}, \vn{enc}',
+  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencctxt}\texttt{).}$ is similar to the above with one additional argument.
+
+  $\vn{enc}'$ is the symbol that replaces $\vn{enc}$ after game transformation.
+
+
 \item $\texttt{expand IND\_CCA2\_sym\_enc(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{enc},
   \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ defines a
@@ -447,12 +467,17 @@ value in each call to encryption. A typical example is AES-GCM.
    oracle $\vn{Oenc\_unchanged}$, and the ones that have already been transformed
    by a previous application of this equivalence to oracle $\vn{Oenc\_unchanged}'$.
 
-\item $\texttt{expand IND\_CCA2\_sym\_enc\_r(}\vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
-  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+\item $\texttt{expand IND\_CCA2\_sym\_enc\_all\_args(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r}, \vn{enc\_r}',
+  \vn{dec}, \vn{dec}', \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}\texttt{).}$ is similar to the above,
+  with four additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{enc\_r}'$ and $\vn{dec}'$ are the symbols that replace $\vn{enc\_r}$ and $\vn{dec}$ respectively after game transformation.
+
 
 \item $\texttt{expand INT\_PTXT\_sym\_enc(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{enc},
@@ -502,12 +527,16 @@ value in each call to encryption. A typical example is AES-GCM.
    already been transformed by a previous application of this
    equivalence to oracle $\vn{Odec\_unchanged}'$.
 
-\item $\texttt{expand INT\_PTXT\_sym\_enc\_r(}\vn{key},
+\item $\texttt{expand INT\_PTXT\_sym\_enc\_all\_args(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
-  \vn{dec}, \vn{injbot}, \ab \vn{Pencptxt}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+  \vn{dec}, \vn{dec}', \vn{injbot}, \ab \vn{Pencptxt}\texttt{).}$ is similar to the above,
+  with three additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{dec}'$ is the symbol that replaces $\vn{dec}$ after game transformation.
 
 \item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc(}\vn{key},
   \vn{cleartext}, \vn{ciphertext}, \vn{enc},
@@ -601,12 +630,17 @@ value in each call to encryption. A typical example is AES-GCM.
    which is much easier to use for CryptoVerif, so we recommend
    using the latter property when possible.
 
-\item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc\_r(}\vn{key},
-  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r},
-  \vn{dec}, \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencptxt}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+\item $\texttt{expand IND\_CCA2\_INT\_PTXT\_sym\_enc\_all\_args(}\vn{key},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{enc}, \vn{enc\_r}, \vn{enc\_r}',
+  \vn{dec},  \vn{dec}', \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab \vn{Pencptxt}\texttt{).}$ is similar to the above,
+  with four additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{key}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{enc\_r}'$ and $\vn{dec}'$ are the symbols that replace $\vn{enc\_r}$ and $\vn{dec}$ respectively after game transformation.
+
 
 \item $\texttt{expand SPRP\_cipher(}\vn{key},
   \vn{blocksize}, \vn{enc}, \vn{dec}, \vn{Penc}\texttt{).}$
@@ -778,6 +812,12 @@ value in each call to encryption. A typical example is AES-GCM.
    he wants to transform to the oracle $\vn{Ocheck}$ and the ones
    he does not want to transform to the oracle $\vn{Ocheck\_unchanged}$.
 
+\item $\texttt{expand SUF\_CMA\_det\_mac\_all\_args(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac}, \vn{mac}', \vn{check},
+  \vn{Pmac}\texttt{).}$ is similar to the above, with one additional argument.
+
+  $\vn{mac}'$ is the symbol that replaces $\vn{mac}$ after game transformation.
+
 \item $\texttt{expand UF\_CMA\_proba\_mac(}\vn{mkey},
   \vn{macinput}, \vn{macres}, \vn{mac}, \vn{check},
   \vn{Pmac}\texttt{).}$ defines a UF-CMA (unforgeable under chosen
@@ -791,12 +831,16 @@ value in each call to encryption. A typical example is AES-GCM.
    \texttt{crypto} command (see Section~\ref{sec:interact}),
    similarly to $\texttt{SUF\_CMA\_det\_mac}$.
 
-\item $\texttt{expand UF\_CMA\_proba\_mac\_r(}\vn{mkey},
-  \vn{macinput}, \vn{macres}, \vn{mac\_seed}, \vn{mac}, \vn{mac\_r}, \vn{check},
-  \vn{Pmac}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+\item $\texttt{expand UF\_CMA\_proba\_mac\_all\_args(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac\_seed}, \vn{mac}, \vn{mac\_r}$, $\vn{mac\_r}'$, $\vn{check}$, $\vn{check}',
+  \ab \vn{Pmac}\texttt{).}$ is similar to the above,
+  with four additional arguments. 
+
   $\vn{mac\_seed}$ is the type of random coins for MAC, must be \texttt{bounded}.
+
   $\vn{mac\_r}(\vn{macinput}, \vn{mkey}, \vn{mac\_seed}): \vn{macres}$ is the MAC function that takes coins as argument (instead of generating them internally).
+
+  $\vn{mac\_r}'$ and $\vn{check}'$ are the symbols that replace $\vn{mac\_r}$ and $\vn{check}$ respectively after game transformation.
 
 \item $\texttt{expand SUF\_CMA\_proba\_mac(}\vn{mkey},
   \vn{macinput}, \vn{macres}, \vn{mac}, \vn{check},
@@ -811,12 +855,16 @@ value in each call to encryption. A typical example is AES-GCM.
    \texttt{crypto} command (see Section~\ref{sec:interact}),
    similarly to $\texttt{SUF\_CMA\_det\_mac}$.
 
-\item $\texttt{expand SUF\_CMA\_proba\_mac\_r(}\vn{mkey},
-  \vn{macinput}, \vn{macres}, \vn{mac\_seed}, \vn{mac}, \vn{mac\_r}, \vn{check},
+\item $\texttt{expand SUF\_CMA\_proba\_mac\_all\_args(}\vn{mkey},
+  \vn{macinput}, \vn{macres}, \vn{mac\_seed}, \vn{mac}, \ab \vn{mac\_r}, \ab \vn{mac\_r}', \ab \vn{check}, \ab
   \vn{Pmac}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+  with three additional arguments. 
+
   $\vn{mac\_seed}$ is the type of random coins for MAC, must be \texttt{bounded}.
+
   $\vn{mac\_r}(\vn{macinput}, \vn{mkey}, \vn{mac\_seed}): \vn{macres}$ is the MAC function that takes coins as argument (instead of generating them internally).
+
+  $\vn{mac\_r}'$ is the symbol that replaces $\vn{mac\_r}$ after game transformation.
 
 \item $\texttt{expand IND\_CCA2\_public\_key\_enc(}\vn{keyseed}, \vn{pkey}, \vn{skey},
   \vn{cleartext}, \vn{ciphertext}, \vn{skgen}, \vn{pkgen}, \ab \vn{enc}, \ab
@@ -872,12 +920,16 @@ value in each call to encryption. A typical example is AES-GCM.
    of a message with the encryption of zeroes for only some occurrences of
    encryption under the considered key, the ones in which the public key appears explicitly.
 
-\item $\texttt{expand IND\_CCA2\_public\_key\_enc\_r(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \vn{skgen}, \vn{pkgen}, \ab \vn{enc}, \ab \vn{enc\_r}, \ab
-  \vn{dec}, \ab \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab\vn{Penccoll}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+\item $\texttt{expand IND\_CCA2\_public\_key\_enc\_all\_args(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{cleartext}, \vn{ciphertext}, \vn{enc\_seed}, \ab \vn{skgen}, \ab \vn{skgen}', \ab \vn{pkgen}, \ab \vn{pkgen}', \ab \vn{enc}, \ab \vn{enc\_r}, \ab \vn{enc\_r}', \ab
+  \vn{dec}, \ab \vn{dec}', \ab \vn{injbot}, \ab \vn{Z}, \ab \vn{Penc}, \ab\vn{Penccoll}\texttt{).}$ is similar to the above,
+  with six additional arguments. 
+
   $\vn{enc\_seed}$ is the type of random coins for encryption, must be \texttt{bounded}.
+
   $\vn{enc\_r}(\vn{cleartext}, \vn{pkey}, \vn{enc\_seed}): \vn{ciphertext}$ is the encryption function that takes coins as argument (instead of generating them internally).
+
+  $\vn{pkgen}'$, $\vn{skgen}'$, $\vn{enc\_r}'$, and $\vn{dec}'$ are the symbols that replace $\vn{pkgen}$, $\vn{skgen}$, $\vn{enc\_r}$ and $\vn{dec}$ respectively after game transformation.
 
 \item $\texttt{expand UF\_CMA\_det\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
   \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
@@ -931,6 +983,12 @@ value in each call to encryption. A typical example is AES-GCM.
    user to transform only some occurrences of the signature verification into a 
    lookup in the signed messages, the ones in which the public key appears explicitly.  
 
+\item $\texttt{expand UF\_CMA\_det\_signature\_all\_args(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{skgen}, \ab \vn{skgen}', \ab \vn{pkgen}, \ab \vn{pkgen}', \ab \vn{sign}, \ab \vn{sign}', \ab
+  \vn{check}, \ab \vn{check}', \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above with four additional arguments.
+
+  $\vn{pkgen}'$, $\vn{skgen}'$, $\vn{sign}'$, and $\vn{check}'$ are the symbols that replace $\vn{pkgen}$, $\vn{skgen}$, $\vn{sign}$ and $\vn{check}$ respectively after game transformation.
+
 \item $\texttt{expand SUF\_CMA\_det\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
   \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
   \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
@@ -947,8 +1005,14 @@ value in each call to encryption. A typical example is AES-GCM.
    $\texttt{suf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
+\item $\texttt{expand SUF\_CMA\_det\_signature\_all\_args(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{skgen}, \ab \vn{skgen}', \ab \vn{pkgen}, \ab \vn{pkgen}', \ab \vn{sign}, \ab \vn{sign}', \ab
+  \vn{check}, \ab \vn{check}', \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above with four additional arguments.
+
+  $\vn{pkgen}'$, $\vn{skgen}'$, $\vn{sign}'$, and $\vn{check}'$ are the symbols that replace $\vn{pkgen}$, $\vn{skgen}$, $\vn{sign}$ and $\vn{check}$ respectively after game transformation.
+
 \item $\texttt{expand UF\_CMA\_proba\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+  \vn{signinput}, \vn{signature}, \ab \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab
   \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
   UF-CMA (strongly unforgeable under chosen message attacks)
   probabilistic signature scheme.
@@ -961,15 +1025,19 @@ value in each call to encryption. A typical example is AES-GCM.
    $\texttt{uf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand UF\_CMA\_proba\_signature\_r(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{signinput}, \vn{signature}, \vn{sign\_seed}, \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab \vn{sign\_r}, \ab
-  \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+\item $\texttt{expand UF\_CMA\_proba\_signature\_all\_args(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \vn{sign\_seed}, \ab \vn{skgen}, \ab \vn{skgen}', \ab \vn{pkgen}, \ab \vn{pkgen}', \ab \vn{sign}, \ab \vn{sign\_r}, \ab \vn{sign\_r}', \ab
+  \vn{check}, \ab \vn{check}', \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above,
+  with six additional arguments. 
+
   $\vn{sign\_seed}$ is the type of random coins for signature, must be \texttt{bounded}.
+
   $\vn{sign\_r}(\vn{signinput}, \vn{skey}, \vn{sign\_seed}): \vn{signature}$ is the signature function that takes coins as argument (instead of generating them internally).
 
+  $\vn{pkgen}'$, $\vn{skgen}'$, $\vn{sign\_r}'$, and $\vn{check}'$ are the symbols that replace $\vn{pkgen}$, $\vn{skgen}$, $\vn{sign\_r}$ and $\vn{check}$ respectively after game transformation.
+
 \item $\texttt{expand SUF\_CMA\_proba\_signature(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{signinput}, \vn{signature}, \vn{skgen}, \vn{pkgen}, \ab \vn{sign}, \ab
+  \vn{signinput}, \ab \vn{signature}, \ab \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab
   \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ defines a
   SUF-CMA (strongly unforgeable under chosen message attacks)
   probabilistic signature scheme.
@@ -982,12 +1050,16 @@ value in each call to encryption. A typical example is AES-GCM.
    $\texttt{suf\_cma\_corrupt\_partial}(\vn{sign})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-\item $\texttt{expand SUF\_CMA\_proba\_signature\_r(}\vn{keyseed}, \vn{pkey}, \vn{skey},
-  \vn{signinput}, \vn{signature}, \vn{sign\_seed}, \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab \vn{sign\_r}, \ab
+\item $\texttt{expand SUF\_CMA\_proba\_signature\_all\_args(}\vn{keyseed}, \vn{pkey}, \vn{skey},
+  \vn{signinput}, \vn{signature}, \ab \vn{sign\_seed}, \ab \vn{skgen}, \ab \vn{pkgen}, \ab \vn{sign}, \ab \vn{sign\_r}, \ab
   \vn{check}, \ab \vn{Psign}, \ab\vn{Psigncoll}\texttt{).}$ is similar to the above,
-  with two additional arguments. 
+  with six additional arguments. 
+
   $\vn{sign\_seed}$ is the type of random coins for signature, must be \texttt{bounded}.
+
   $\vn{sign\_r}(\vn{signinput}, \vn{skey}, \vn{sign\_seed}): \vn{signature}$ is the signature function that takes coins as argument (instead of generating them internally).
+
+  $\vn{pkgen}'$, $\vn{skgen}'$, $\vn{sign\_r}'$, and $\vn{check}'$ are the symbols that replace $\vn{pkgen}$, $\vn{skgen}$, $\vn{sign\_r}$ and $\vn{check}$ respectively after game transformation.
 
 \item $\texttt{expand ROM\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$
 defines a hash function in the random oracle model.
@@ -1158,7 +1230,7 @@ defines a pseudo-random function.
    (see Section~\ref{sec:interact}).
 
 \item $\texttt{expand\ CDH(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{PCDH}\texttt{).}$ defines a group that satisfies the computational
+  p\texttt{).}$ defines a group that satisfies the computational
   Diffie-Hellman assumption.
 
    $G$: type of group elements (must be \texttt{bounded} and \texttt{large}, of cardinal a prime $q$).
@@ -1173,7 +1245,7 @@ defines a pseudo-random function.
    $\vn{mult}$: the multiplication function for exponents, product modulo $q$ in
    $\{1, \ldots, q-1\}$, i.e. in the group $(\mathbb{Z}/q\mathbb{Z})^*$.
 
-   $\vn{PCDH}$: the probability of breaking the CDH assumption for one pair of
+   $p$: the probability of breaking the considered property, here the CDH assumption, for one pair of
    exponents.
 
    The types $G$ and $Z$ and the probability $\vn{PCDH}$ must be
@@ -1200,7 +1272,7 @@ $\texttt{cdh}(\vn{exp})$ equivalence.)
 \end{itemize}
 
 \item $\texttt{expand\ square\_CDH(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{pCDH}\texttt{).}$ defines a group that satisfies the square
+  p\texttt{).}$ defines a group that satisfies the square
   computational Diffie-Hellman assumption (as well as the computational 
   Diffie-Hellman assumption). When the group has prime order,
   the computational Diffie-Hellman assumption is equivalent to the
@@ -1209,41 +1281,39 @@ $\texttt{cdh}(\vn{exp})$ equivalence.)
   The interface is the same as for \texttt{CDH} above.
 
 \item $\texttt{expand\ DDH(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{PDDH}\texttt{).}$ defines a group that satisfies the decisional
+  p\texttt{).}$ defines a group that satisfies the decisional
   Diffie-Hellman assumption. The arguments are the same as for
-  \texttt{CDH} above, except that the probability $\vn{PCDH}$ is
-  replaced with $\vn{PDDH}$. This macro defines the same equivalences
+  \texttt{CDH} above. This macro defines the same equivalences
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{ddh}(\vn{exp})$.
 
 \item $\texttt{expand\ square\_DDH(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{PDDH}\texttt{).}$ defines a group that satisfies the square decisional
+  p\texttt{).}$ defines a group that satisfies the square decisional
   Diffie-Hellman assumption (as well as the decisional
   Diffie-Hellman assumption). The interface is the same as for \texttt{DDH} above.
 
 \item $\texttt{expand\ GDH(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{PGDH}\texttt{).}$ defines a group that satisfies the gap
+  p\texttt{).}$ defines a group that satisfies the gap
   Diffie-Hellman assumption. The arguments are the same as for
-  \texttt{CDH} above, except that the probability $\vn{PCDH}$ is
-  replaced with $\vn{PGDH}$. This macro defines the same equivalences
+  \texttt{CDH} above. This macro defines the same equivalences
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{gdh}(\vn{exp})$.
 
 \item
   $\texttt{expand\ square\_GDH(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{PGDH}\texttt{).}$
+  p\texttt{).}$
   defines a group that satisfies the square gap Diffie-Hellman
   assumption (as well as the gap Diffie-Hellman assumption). The
   interface is the same as for \texttt{GDH} above.
 
 \item $\texttt{expand\ GDH\_prime\_order(}G, Z, g, \vn{exp}, \vn{mult},
-  \vn{PGDH}\texttt{).}$ defines a group that satisfies the gap
+  p\texttt{).}$ defines a group that satisfies the gap
   Diffie-Hellman assumption and has prime order. The interface is 
   the same as for \texttt{GDH} above.
 
 \item
   $\texttt{expand\ square\_GDH\_prime\_order(}G, Z, g, \vn{exp},
-  \vn{mult}, \vn{PGDH}\texttt{).}$
+  \vn{mult}, p\texttt{).}$
   defines a group that satisfies the square gap Diffie-Hellman
   assumption, the gap Diffie-Hellman assumption, and has prime
   order. The interface is the same as for \texttt{GDH} above.
