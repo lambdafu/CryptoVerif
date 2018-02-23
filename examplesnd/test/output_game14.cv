@@ -1,0 +1,377 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type key [fixed].
+type maxenc [bounded].
+
+(* A function f(x1...xn) is declared [compos] when:
+   - it is injective
+   - the values of x1...xn are computable in polynomial time from f(x1...xn) *)
+
+fun concat1(nonce, nonce, host, host):maxenc [compos].
+fun concat2(nonce, key):maxenc [compos].
+
+equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+
+(* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+type seed [fixed].
+expand IND_CPA_INT_CTXT_sym_enc_all_args(key, maxenc, bitstring, seed, enc, enc_r, enc_r', dec, injbot, Z, Penc, Pencctxt).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+const Zconcat2:maxenc.
+equation forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = Zconcat1.
+equation forall y:nonce,z:key; 
+	Z(concat2(y,z)) = Zconcat2.
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, cAK, cBK.
+
+const A : host.
+const B : host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+event partA(host, bitstring).
+event partB(host, bitstring).
+event partB2(host, bitstring).
+event fullA(host, key, bitstring).
+event fullB(host, key, bitstring).
+
+query secret keyB.
+query secret keyA.
+query x:bitstring;
+	event(partB(A,x)) ==> event(partA(B,x)) public_vars keyA, keyB.
+(*
+query x:bitstring;
+	inj-event(partB(A,x)) ==> inj-event(partA(B,x)) public_vars keyA, keyB.
+query k:key, x:bitstring;
+	inj-event(fullA(B,k,x)) ==> inj-event(fullB(A,k,x)) public_vars keyA, keyB.
+*)
+query k:key, x:bitstring;
+	inj-event(fullA(B,k,x)) ==> inj-event(partB2(A,x)) public_vars keyA, keyB.
+(*
+query k:key, x:bitstring;
+	inj-event(fullA(B,k,x)) ==> inj-event(partB(A,x)) public_vars keyA, keyB.
+query k:key, k':key, x:bitstring;
+	event(fullB(A,k,x)) && event(fullA(B,k',x)) ==> k = k' public_vars keyA, keyB. 
+*)
+
+const cst_key: key.
+
+process 
+       in(start, ());
+       new Kas_1: key;
+       new Kbs_1: key;
+       out(c13, ());
+       ((
+         ! i <= N
+         in(c1[i], hb_1: host);
+         new M_1: nonce;
+         new Na_1: nonce;
+         let m: maxenc = concat1(Na_1, M_1, A, hb_1) in
+         new r: seed;
+         let z_2: bitstring = enc_r(m, Kas_1, r) in
+         event partA(hb_1, (M_1, A, hb_1));
+         out(c2[i], (M_1, A, hb_1, z_2));
+         in(c3[i], (=M_1, ea2_2: bitstring));
+         find u_48 = ri_48 <= N suchthat defined(k_16[ri_48], u_39[ri_48], z[ri_48]) && (z[ri_48] = ea2_2) then
+         (
+           if i = u_39[u_48] then
+           event fullA(hb_1, k_16[u_48], (M_1, A, hb_1));
+           out(c11[i], acceptA(hb_1));
+           in(cAK[i], ());
+           out(cAK[i], k_16[u_48])
+         )
+         orfind u_47 = ri_47 <= N suchthat defined(k_16[ri_47], u_39[ri_47], z_1[ri_47]) && (z_1[ri_47] = ea2_2) then
+         (
+           if i = u_39[u_47] then
+           event fullA(hb_1, k_16[u_47], (M_1, A, hb_1));
+           out(c11[i], acceptA(hb_1));
+           in(cAK[i], ());
+           out(cAK[i], k_16[u_47])
+         )
+         orfind u_46 = ri_46 <= N suchthat defined(z_2[ri_46]) && (z_2[ri_46] = ea2_2) then
+           yield
+         orfind u_43 = ri_43 <= N suchthat defined(k_14[ri_43], u_18[ri_43], z_5[ri_43]) && (z_5[ri_43] = ea2_2) then
+         (
+           if i = u_18[u_43] then
+           event fullA(hb_1, k_14[u_43], (M_1, A, hb_1));
+           out(c11[i], acceptA(hb_1));
+           in(cAK[i], ());
+           out(cAK[i], k_14[u_43])
+         )
+         orfind u_42 = ri_42 <= N suchthat defined(k_15[ri_42], u_25[ri_42], z_6[ri_42]) && (z_6[ri_42] = ea2_2) then
+         (
+           if i = u_25[u_42] then
+           event fullA(hb_1, k_15[u_42], (M_1, A, hb_1));
+           let keyA: key = k_15[u_42] in
+           out(c11[i], acceptA(hb_1))
+         )
+       ) | (
+         ! i_1 <= N
+         in(c4[i_1], (M_2: nonce, ha_1: host, =B, ea: bitstring));
+         new Nb_1: nonce;
+         let m_1: maxenc = concat1(Nb_1, M_2, ha_1, B) in
+         new r_1: seed;
+         let z_8: bitstring = enc_r(m_1, Kbs_1, r_1) in
+         event partB2(ha_1, (M_2, ha_1, B));
+         out(c5[i_1], (M_2, ha_1, B, ea, z_8));
+         in(c6[i_1], (=M_2, ea2_3: bitstring, eb2: bitstring));
+         find u_84 = ri_84 <= N suchthat defined(k_15[ri_84], u_77[ri_84], z_7[ri_84]) && (z_7[ri_84] = eb2) then
+         (
+           if i_1 = u_77[u_84] then
+           event partB(ha_1, (M_2, ha_1, B));
+           let keyB: key = k_15[u_84] in
+           out(c7[i_1], (M_2, ea2_3, acceptB(ha_1)))
+         )
+         orfind u_83 = ri_83 <= N suchthat defined(z_8[ri_83]) && (z_8[ri_83] = eb2) then
+           yield
+         orfind u_82 = ri_82 <= N suchthat defined(k_9[ri_82], u_53[ri_82], z_9[ri_82]) && (z_9[ri_82] = eb2) then
+         (
+           if i_1 = u_53[u_82] then
+           event partB(ha_1, (M_2, ha_1, B));
+           out(c7[i_1], (M_2, ea2_3, acceptB(ha_1)));
+           in(cBK[i_1], ());
+           out(cBK[i_1], k_9[u_82])
+         )
+         orfind u_80 = ri_80 <= N suchthat defined(k_12[ri_80], u_65[ri_80], z_11[ri_80]) && (z_11[ri_80] = eb2) then
+         (
+           if i_1 = u_65[u_80] then
+           event partB(ha_1, (M_2, ha_1, B));
+           out(c7[i_1], (M_2, ea2_3, acceptB(ha_1)));
+           in(cBK[i_1], ());
+           out(cBK[i_1], k_12[u_80])
+         )
+         orfind u_79 = ri_79 <= N suchthat defined(k_12[ri_79], u_71[ri_79], z_12[ri_79]) && (z_12[ri_79] = eb2) then
+         (
+           if i_1 = u_71[u_79] then
+           event partB(ha_1, (M_2, ha_1, B));
+           out(c7[i_1], (M_2, ea2_3, acceptB(ha_1)));
+           in(cBK[i_1], ());
+           out(cBK[i_1], k_12[u_79])
+         )
+       ) | (
+         ! i_2 <= N
+         in(c9[i_2], (M_3: nonce, ha_2: host, hb_2: host, ea1_1: bitstring, eb1: bitstring));
+         find jA_1 = jA <= N2 suchthat defined(Kkey[jA], Rkey_1[jA], Khost[jA]) && (ha_2 = Khost[jA]) then
+         (
+           find jB_1 = jB <= N2 suchthat defined(Kkey[jB], Rkey_1[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kkey[jA_1]) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kkey[jB_1]) in
+             new k_8: key;
+             let m_2: maxenc = concat2(Na_2, k_8) in
+             new r_4: seed;
+             let e1: bitstring = enc_r(m_2, Kkey[jA_1], r_4) in
+             let m_3: maxenc = concat2(Nb_2, k_8) in
+             new r_5: seed;
+             let e2_1: bitstring = enc_r(m_3, Kkey[jB_1], r_5) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Rkey_2[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kkey[jA_1]) in
+             find u_54 = ri_54 <= N suchthat defined(z_7[ri_54]) && (z_7[ri_54] = eb1) then
+               yield
+             orfind u_53 = ri_53 <= N suchthat defined(Nb_1[ri_53], ha_1[ri_53], M_2[ri_53], z_8[ri_53]) && (z_8[ri_53] = eb1) then
+             (
+               if (M_3 = M_2[u_53]) && (ha_2 = ha_1[u_53]) then
+               let Nb_2: nonce = Nb_1[u_53] in
+               new k_9: key;
+               let m_2: maxenc = concat2(Na_2, k_9) in
+               new r_6: seed;
+               let e1: bitstring = enc_r(m_2, Kkey[jA_1], r_6) in
+               let m_3: maxenc = concat2(Nb_1[u_53], k_9) in
+               new r_7: seed;
+               let z_9: bitstring = enc_r(m_3, Kbs_1, r_7) in
+               out(c10[i_2], (M_3, e1, z_9))
+             )
+             orfind u_52 = ri_52 <= N suchthat defined(z_9[ri_52]) && (z_9[ri_52] = eb1) then
+               yield
+             orfind u_50 = ri_50 <= N suchthat defined(z_11[ri_50]) && (z_11[ri_50] = eb1) then
+               yield
+             orfind u_49 = ri_49 <= N suchthat defined(z_12[ri_49]) && (z_12[ri_49] = eb1) then
+               yield
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Rkey_3[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+             yield
+         )
+         orfind jA_1 = jA <= N2 suchthat defined(Rkey_2[jA], Khost[jA]) && (ha_2 = Khost[jA]) then
+         (
+           find jB_1 = jB <= N2 suchthat defined(Rkey_1[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+             yield
+           orfind jB_1 = jB <= N2 suchthat defined(Rkey_2[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             find u_72 = ri_72 <= N suchthat defined(z_7[ri_72]) && (z_7[ri_72] = ea1_1) then
+               yield
+             orfind u_71 = ri_71 <= N suchthat defined(Nb_1[ri_71], ha_1[ri_71], M_2[ri_71], z_8[ri_71]) && (z_8[ri_71] = ea1_1) then
+             (
+               if (M_3 = M_2[u_71]) && (ha_2 = ha_1[u_71]) then
+               let Na_2: nonce = Nb_1[u_71] in
+               find u_66 = ri_66 <= N suchthat defined(z_7[ri_66]) && (z_7[ri_66] = eb1) then
+                 yield
+               orfind u_65 = ri_65 <= N suchthat defined(Nb_1[ri_65], ha_1[ri_65], M_2[ri_65], z_8[ri_65]) && (z_8[ri_65] = eb1) then
+               (
+                 if (M_3 = M_2[u_65]) && (ha_2 = ha_1[u_65]) then
+                 let Nb_2: nonce = Nb_1[u_65] in
+                 new k_12: key;
+                 let m_2: maxenc = concat2(Nb_1[u_71], k_12) in
+                 new r_12: seed;
+                 let z_12: bitstring = enc_r(m_2, Kbs_1, r_12) in
+                 let m_3: maxenc = concat2(Nb_1[u_65], k_12) in
+                 new r_13: seed;
+                 let z_11: bitstring = enc_r(m_3, Kbs_1, r_13) in
+                 out(c10[i_2], (M_3, z_12, z_11))
+               )
+               orfind u_64 = ri_64 <= N suchthat defined(z_9[ri_64]) && (z_9[ri_64] = eb1) then
+                 yield
+               orfind u_62 = ri_62 <= N suchthat defined(z_11[ri_62]) && (z_11[ri_62] = eb1) then
+                 yield
+               orfind u_61 = ri_61 <= N suchthat defined(z_12[ri_61]) && (z_12[ri_61] = eb1) then
+                 yield
+             )
+             orfind u_70 = ri_70 <= N suchthat defined(z_9[ri_70]) && (z_9[ri_70] = ea1_1) then
+               yield
+             orfind u_68 = ri_68 <= N suchthat defined(z_11[ri_68]) && (z_11[ri_68] = ea1_1) then
+               yield
+             orfind u_67 = ri_67 <= N suchthat defined(z_12[ri_67]) && (z_12[ri_67] = ea1_1) then
+               yield
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Rkey_3[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+             yield
+         )
+         orfind jA_1 = jA <= N2 suchthat defined(Rkey_3[jA], Khost[jA]) && (ha_2 = Khost[jA]) then
+         (
+           find jB_1 = jB <= N2 suchthat defined(Kkey[jB], Rkey_1[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             find u_20 = ri_20 <= N suchthat defined(z[ri_20]) && (z[ri_20] = ea1_1) then
+               yield
+             orfind u_19 = ri_19 <= N suchthat defined(z_1[ri_19]) && (z_1[ri_19] = ea1_1) then
+               yield
+             orfind u_18 = ri_18 <= N suchthat defined(Na_1[ri_18], hb_1[ri_18], M_1[ri_18], z_2[ri_18]) && (z_2[ri_18] = ea1_1) then
+             (
+               if (M_3 = M_1[u_18]) && (hb_2 = hb_1[u_18]) then
+               let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kkey[jB_1]) in
+               new k_14: key;
+               let m_2: maxenc = concat2(Na_1[u_18], k_14) in
+               new r_16: seed;
+               let z_5: bitstring = enc_r(m_2, Kas_1, r_16) in
+               let m_3: maxenc = concat2(Nb_2, k_14) in
+               new r_17: seed;
+               let e2_1: bitstring = enc_r(m_3, Kkey[jB_1], r_17) in
+               out(c10[i_2], (M_3, z_5, e2_1))
+             )
+             orfind u_15 = ri_15 <= N suchthat defined(z_5[ri_15]) && (z_5[ri_15] = ea1_1) then
+               yield
+             orfind u_14 = ri_14 <= N suchthat defined(z_6[ri_14]) && (z_6[ri_14] = ea1_1) then
+               yield
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Rkey_2[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             find u_27 = ri_27 <= N suchthat defined(z[ri_27]) && (z[ri_27] = ea1_1) then
+               yield
+             orfind u_26 = ri_26 <= N suchthat defined(z_1[ri_26]) && (z_1[ri_26] = ea1_1) then
+               yield
+             orfind u_25 = ri_25 <= N suchthat defined(Na_1[ri_25], hb_1[ri_25], M_1[ri_25], z_2[ri_25]) && (z_2[ri_25] = ea1_1) then
+             (
+               if (M_3 = M_1[u_25]) && (hb_2 = hb_1[u_25]) then
+               find u_78 = ri_78 <= N suchthat defined(z_7[ri_78]) && (z_7[ri_78] = eb1) then
+                 yield
+               orfind u_77 = ri_77 <= N suchthat defined(Nb_1[ri_77], ha_1[ri_77], M_2[ri_77], z_8[ri_77]) && (z_8[ri_77] = eb1) then
+               (
+                 if (M_3 = M_2[u_77]) && (ha_2 = ha_1[u_77]) then
+                 let Nb_2: nonce = Nb_1[u_77] in
+                 new k_15: key;
+                 let m_2: maxenc = concat2(Na_1[u_25], k_15) in
+                 new r_18: seed;
+                 let z_6: bitstring = enc_r(m_2, Kas_1, r_18) in
+                 let m_3: maxenc = concat2(Nb_1[u_77], k_15) in
+                 new r_19: seed;
+                 let z_7: bitstring = enc_r(m_3, Kbs_1, r_19) in
+                 out(c10[i_2], (M_3, z_6, z_7))
+               )
+               orfind u_76 = ri_76 <= N suchthat defined(z_9[ri_76]) && (z_9[ri_76] = eb1) then
+                 yield
+               orfind u_74 = ri_74 <= N suchthat defined(z_11[ri_74]) && (z_11[ri_74] = eb1) then
+                 yield
+               orfind u_73 = ri_73 <= N suchthat defined(z_12[ri_73]) && (z_12[ri_73] = eb1) then
+                 yield
+             )
+             orfind u_22 = ri_22 <= N suchthat defined(z_5[ri_22]) && (z_5[ri_22] = ea1_1) then
+               yield
+             orfind u_21 = ri_21 <= N suchthat defined(z_6[ri_21]) && (z_6[ri_21] = ea1_1) then
+               yield
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Rkey_3[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             find u_41 = ri_41 <= N suchthat defined(z[ri_41]) && (z[ri_41] = ea1_1) then
+               yield
+             orfind u_40 = ri_40 <= N suchthat defined(z_1[ri_40]) && (z_1[ri_40] = ea1_1) then
+               yield
+             orfind u_39 = ri_39 <= N suchthat defined(Na_1[ri_39], hb_1[ri_39], M_1[ri_39], z_2[ri_39]) && (z_2[ri_39] = ea1_1) then
+             (
+               if (M_3 = M_1[u_39]) && (hb_2 = hb_1[u_39]) then
+               find u_34 = ri_34 <= N suchthat defined(z[ri_34]) && (z[ri_34] = eb1) then
+                 yield
+               orfind u_33 = ri_33 <= N suchthat defined(z_1[ri_33]) && (z_1[ri_33] = eb1) then
+                 yield
+               orfind u_32 = ri_32 <= N suchthat defined(Na_1[ri_32], z_2[ri_32]) && (z_2[ri_32] = eb1) then
+               (
+                 if u_39 = u_32 then
+                 new k_16: key;
+                 let m_2: maxenc = concat2(Na_1[u_39], k_16) in
+                 new r_20: seed;
+                 let z_1: bitstring = enc_r(m_2, Kas_1, r_20) in
+                 let m_3: maxenc = concat2(Na_1[u_32], k_16) in
+                 new r_21: seed;
+                 let z: bitstring = enc_r(m_3, Kas_1, r_21) in
+                 out(c10[i_2], (M_3, z_1, z))
+               )
+               orfind u_29 = ri_29 <= N suchthat defined(z_5[ri_29]) && (z_5[ri_29] = eb1) then
+                 yield
+               orfind u_28 = ri_28 <= N suchthat defined(z_6[ri_28]) && (z_6[ri_28] = eb1) then
+                 yield
+             )
+             orfind u_36 = ri_36 <= N suchthat defined(z_5[ri_36]) && (z_5[ri_36] = ea1_1) then
+               yield
+             orfind u_35 = ri_35 <= N suchthat defined(z_6[ri_35]) && (z_6[ri_35] = ea1_1) then
+               yield
+           )
+         )
+       ) | (
+         ! i_3 <= N2
+         in(c8[i_3], (Khost: host, Kkey: key));
+         if Khost = A then
+         (
+           let Rkey_3: key = cst_key
+         )
+         else
+           if Khost = B then
+           (
+             let Rkey_2: key = cst_key
+           )
+           else
+             let Rkey_1: key = cst_key
+       ))
+
+(* EXPECTED
+All queries proved.
+2.400s (user 2.390s + system 0.010s), max rss 104816K
+END *)

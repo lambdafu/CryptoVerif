@@ -1,0 +1,274 @@
+(* Version with possibly dishonest participants.
+   Using two series of function symbols to prevent repeated applications
+   of the same cryptographic rule.
+*)
+
+param N.
+param N2.
+param N3.
+
+type nonce [large,fixed].
+type host [bounded].
+type key [fixed].
+type maxenc [bounded].
+
+(* A function f(x1...xn) is declared [compos] when:
+   - it is injective
+   - the values of x1...xn are computable in polynomial time from f(x1...xn) *)
+
+fun concat1(nonce, nonce, host, host):maxenc [compos].
+fun concat2(nonce, key):maxenc [compos].
+
+equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
+
+(* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
+
+proba Penc.
+proba Pencctxt.
+
+type seed [fixed].
+expand IND_CPA_INT_CTXT_sym_enc_all_args(key, maxenc, bitstring, seed, enc, enc_r, enc_r', dec, injbot, Z, Penc, Pencctxt).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+const Zconcat2:maxenc.
+equation forall y:nonce,z:nonce,t:host,u:host; 
+	Z(concat1(y,z,t,u)) = Zconcat1.
+equation forall y:nonce,z:key; 
+	Z(concat2(y,z)) = Zconcat2.
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	start, cAK, cBK.
+
+const A : host.
+const B : host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+event partA(host, bitstring).
+event partB(host, bitstring).
+event partB2(host, bitstring).
+event fullA(host, key, bitstring).
+event fullB(host, key, bitstring).
+
+query secret keyB.
+query secret keyA.
+query x:bitstring;
+	event(partB(A,x)) ==> event(partA(B,x)) public_vars keyA, keyB.
+(*
+query x:bitstring;
+	inj-event(partB(A,x)) ==> inj-event(partA(B,x)) public_vars keyA, keyB.
+query k:key, x:bitstring;
+	inj-event(fullA(B,k,x)) ==> inj-event(fullB(A,k,x)) public_vars keyA, keyB.
+*)
+query k:key, x:bitstring;
+	inj-event(fullA(B,k,x)) ==> inj-event(partB2(A,x)) public_vars keyA, keyB.
+(*
+query k:key, x:bitstring;
+	inj-event(fullA(B,k,x)) ==> inj-event(partB(A,x)) public_vars keyA, keyB.
+query k:key, k':key, x:bitstring;
+	event(fullB(A,k,x)) && event(fullA(B,k',x)) ==> k = k' public_vars keyA, keyB. 
+*)
+
+const cst_key: key.
+
+process 
+       in(start, ());
+       new Kas_1: key;
+       new Kbs_1: key;
+       out(c13, ());
+       ((
+         ! i <= N
+         in(c1[i], hb_1: host);
+         new M_1: nonce;
+         new Na_1: nonce;
+         let m: maxenc = concat1(Na_1, M_1, A, hb_1) in
+         new r: seed;
+         let ea1: bitstring = enc_r(m, Kas_1, r) in
+         event partA(hb_1, (M_1, A, hb_1));
+         out(c2[i], (M_1, A, hb_1, ea1));
+         in(c3[i], (=M_1, ea2_2: bitstring));
+         let injbot(concat2(=Na_1, k_2: key)) = dec(ea2_2, Kas_1) in
+         event fullA(hb_1, k_2, (M_1, A, hb_1));
+         if hb_1 = B then
+         (
+           let keyA: key = k_2 in
+           out(c11[i], acceptA(hb_1))
+         )
+         else
+           out(c11[i], acceptA(hb_1));
+           in(cAK[i], ());
+           out(cAK[i], k_2)
+       ) | (
+         ! i_1 <= N
+         in(c4[i_1], (M_2: nonce, ha_1: host, =B, ea: bitstring));
+         new Nb_1: nonce;
+         let m_1: maxenc = concat1(Nb_1, M_2, ha_1, B) in
+         new r_1: seed;
+         let e2: bitstring = enc_r(m_1, Kbs_1, r_1) in
+         event partB2(ha_1, (M_2, ha_1, B));
+         out(c5[i_1], (M_2, ha_1, B, ea, e2));
+         in(c6[i_1], (=M_2, ea2_3: bitstring, eb2: bitstring));
+         let injbot(concat2(=Nb_1, k_4: key)) = dec(eb2, Kbs_1) in
+         event partB(ha_1, (M_2, ha_1, B));
+         if ha_1 = A then
+         (
+           let keyB: key = k_4 in
+           out(c7[i_1], (M_2, ea2_3, acceptB(ha_1)))
+         )
+         else
+           out(c7[i_1], (M_2, ea2_3, acceptB(ha_1)));
+           in(cBK[i_1], ());
+           out(cBK[i_1], k_4)
+       ) | (
+         ! i_2 <= N
+         in(c9[i_2], (M_3: nonce, ha_2: host, hb_2: host, ea1_1: bitstring, eb1: bitstring));
+  	 find jA_1 = jA <= N2 suchthat defined(Kkey[jA], Rkey_1[jA], Khost[jA]) && (ha_2 = Khost[jA]) then
+         (
+           find jB_1 = jB <= N2 suchthat defined(Kkey[jB], Rkey_1[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kkey[jA_1]) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kkey[jB_1]) in
+             new k_8: key;
+             let m_2: maxenc = concat2(Na_2, k_8) in
+             new r_4: seed;
+             let e1: bitstring = enc_r(m_2, Kkey[jA_1], r_4) in
+             let m_3: maxenc = concat2(Nb_2, k_8) in
+             new r_5: seed;
+             let e2_1: bitstring = enc_r(m_3, Kkey[jB_1], r_5) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Kbs_1, Rkey_2[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kkey[jA_1]) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kbs_1) in
+             new k_9: key;
+             let m_2: maxenc = concat2(Na_2, k_9) in
+             new r_6: seed;
+             let e1: bitstring = enc_r(m_2, Kkey[jA_1], r_6) in
+             let m_3: maxenc = concat2(Nb_2, k_9) in
+             new r_7: seed;
+             let e2_1: bitstring = enc_r(m_3, Kbs_1, r_7) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Kas_1, Rkey_3[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kkey[jA_1]) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kas_1) in
+             new k_10: key;
+             let m_2: maxenc = concat2(Na_2, k_10) in
+             new r_8: seed;
+             let e1: bitstring = enc_r(m_2, Kkey[jA_1], r_8) in
+             let m_3: maxenc = concat2(Nb_2, k_10) in
+             new r_9: seed;
+             let e2_1: bitstring = enc_r(m_3, Kas_1, r_9) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+         )
+         orfind jA_1 = jA <= N2 suchthat defined(Kbs_1, Rkey_2[jA], Khost[jA]) && (ha_2 = Khost[jA]) then
+         (
+           find jB_1 = jB <= N2 suchthat defined(Kkey[jB], Rkey_1[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kbs_1) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kkey[jB_1]) in
+             new k_11: key;
+             let m_2: maxenc = concat2(Na_2, k_11) in
+             new r_10: seed;
+             let e1: bitstring = enc_r(m_2, Kbs_1, r_10) in
+             let m_3: maxenc = concat2(Nb_2, k_11) in
+             new r_11: seed;
+             let e2_1: bitstring = enc_r(m_3, Kkey[jB_1], r_11) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Kbs_1, Rkey_2[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kbs_1) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kbs_1) in
+             new k_12: key;
+             let m_2: maxenc = concat2(Na_2, k_12) in
+             new r_12: seed;
+             let e1: bitstring = enc_r(m_2, Kbs_1, r_12) in
+             let m_3: maxenc = concat2(Nb_2, k_12) in
+             new r_13: seed;
+             let e2_1: bitstring = enc_r(m_3, Kbs_1, r_13) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Kas_1, Rkey_3[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kbs_1) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kas_1) in
+             new k_13: key;
+             let m_2: maxenc = concat2(Na_2, k_13) in
+             new r_14: seed;
+             let e1: bitstring = enc_r(m_2, Kbs_1, r_14) in
+             let m_3: maxenc = concat2(Nb_2, k_13) in
+             new r_15: seed;
+             let e2_1: bitstring = enc_r(m_3, Kas_1, r_15) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+         )
+         orfind jA_1 = jA <= N2 suchthat defined(Kas_1, Rkey_3[jA], Khost[jA]) && (ha_2 = Khost[jA]) then
+         (
+           find jB_1 = jB <= N2 suchthat defined(Kkey[jB], Rkey_1[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kas_1) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kkey[jB_1]) in
+             new k_14: key;
+             let m_2: maxenc = concat2(Na_2, k_14) in
+             new r_16: seed;
+             let e1: bitstring = enc_r(m_2, Kas_1, r_16) in
+             let m_3: maxenc = concat2(Nb_2, k_14) in
+             new r_17: seed;
+             let e2_1: bitstring = enc_r(m_3, Kkey[jB_1], r_17) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Kbs_1, Rkey_2[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kas_1) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kbs_1) in
+             new k_15: key;
+             let m_2: maxenc = concat2(Na_2, k_15) in
+             new r_18: seed;
+             let e1: bitstring = enc_r(m_2, Kas_1, r_18) in
+             let m_3: maxenc = concat2(Nb_2, k_15) in
+             new r_19: seed;
+             let e2_1: bitstring = enc_r(m_3, Kbs_1, r_19) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+           orfind jB_1 = jB <= N2 suchthat defined(Kas_1, Rkey_3[jB], Khost[jB]) && (hb_2 = Khost[jB]) then
+           (
+             let injbot(concat1(Na_2: nonce, =M_3, =ha_2, =hb_2)) = dec(ea1_1, Kas_1) in
+             let injbot(concat1(Nb_2: nonce, =M_3, =ha_2, =hb_2)) = dec(eb1, Kas_1) in
+             new k_16: key;
+             let m_2: maxenc = concat2(Na_2, k_16) in
+             new r_20: seed;
+             let e1: bitstring = enc_r(m_2, Kas_1, r_20) in
+             let m_3: maxenc = concat2(Nb_2, k_16) in
+             new r_21: seed;
+             let e2_1: bitstring = enc_r(m_3, Kas_1, r_21) in
+             out(c10[i_2], (M_3, e1, e2_1))
+           )
+         )
+       ) | (
+         ! i_3 <= N2
+         in(c8[i_3], (Khost: host, Kkey: key));
+         if Khost = A then
+         (
+           let Rkey_3: key = cst_key
+         )
+         else
+           if Khost = B then
+           (
+             let Rkey_2: key = cst_key
+           )
+           else
+             let Rkey_1: key = cst_key
+       ))
+
+(* EXPECTED
+All queries proved.
+2.400s (user 2.390s + system 0.010s), max rss 104816K
+END *)
