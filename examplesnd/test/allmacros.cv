@@ -9,28 +9,29 @@ type seed [bounded].
 proba Penc.
 
 expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc).
-expand IND_CPA_sym_enc_r(key, cleartext, ciphertext, seed, enc', enc_r', dec', injbot', Z', Penc).
+expand IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, seed, enc', enc_r', enc_r'', dec', injbot', Z', Penc).
 
 proba Pencctxt.
 expand IND_CPA_INT_CTXT_sym_enc(key, cleartext, ciphertext, enc2, dec2, injbot2, Z2, Penc, Pencctxt).
-expand IND_CPA_INT_CTXT_sym_enc_r(key, cleartext, ciphertext, seed, enc2', enc2_r', dec2', injbot2', Z2', Penc, Pencctxt).
+expand IND_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc2', enc2_r', enc_r2'', dec2', injbot2', Z2', Penc, Pencctxt).
 
 type add_data.
 expand AEAD(key, cleartext, ciphertext, add_data, enc3, dec3, injbot3, Z3, Penc, Pencctxt).
-expand AEAD_r(key, cleartext, ciphertext, add_data, seed, enc3', enc3_r', dec3', injbot3', Z3', Penc, Pencctxt).
+expand AEAD_all_args(key, cleartext, ciphertext, add_data, seed, enc3', enc3_r', enc_r3'', dec3', injbot3', Z3', Penc, Pencctxt).
 
 type nonce.
 expand AEAD_nonce(key, cleartext, ciphertext, add_data, nonce, enc4, dec4, injbot4, Z4, Penc, Pencctxt).
+expand AEAD_nonce_all_args(key, cleartext, ciphertext, add_data, nonce, enc4', enc4'', dec4', injbot4', Z4', Penc, Pencctxt).
 
 expand IND_CCA2_sym_enc(key, cleartext, ciphertext, enc5, dec5, injbot5, Z5, Penc).
-expand IND_CCA2_sym_enc_r(key, cleartext, ciphertext, seed, enc5', enc5_r', dec5', injbot5', Z5', Penc).
+expand IND_CCA2_sym_enc_all_args(key, cleartext, ciphertext, seed, enc5', enc5_r', enc5_r'', dec5', dec5'', injbot5', Z5', Penc).
 
 proba Pencptxt.
 expand INT_PTXT_sym_enc(key, cleartext, ciphertext, enc6, dec6, injbot6, Pencptxt).
-expand INT_PTXT_sym_enc_r(key, cleartext, ciphertext, seed, enc6', enc6_r', dec6', injbot6', Pencptxt).
+expand INT_PTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc6', enc6_r', dec6', dec6'', injbot6', Pencptxt).
 
 expand IND_CCA2_INT_PTXT_sym_enc(key, cleartext, ciphertext, enc7, dec7, injbot7, Z7, Penc, Pencptxt).
-expand IND_CCA2_INT_PTXT_sym_enc_r(key, cleartext, ciphertext, seed, enc7', enc7_r', dec7', injbot7', Z7', Penc, Pencptxt).
+expand IND_CCA2_INT_PTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc7', enc7_r', enc7_r'', dec7', dec7'', injbot7', Z7', Penc, Pencptxt).
 
 type blocksize [fixed,large].
 expand SPRP_cipher(key, blocksize, enc8, dec8, Penc).
@@ -45,33 +46,36 @@ type macinput.
 type macres.
 proba Pmac.
 expand SUF_CMA_det_mac(mkey, macinput, macres, mac, check, Pmac).
+expand SUF_CMA_det_mac_all_args(mkey, macinput, macres, mac', mac'', check', Pmac).
 
 expand UF_CMA_proba_mac(mkey, macinput, macres, mac2, check2, Pmac).
-expand UF_CMA_proba_mac_r(mkey, macinput, macres, seed, mac2', mac2_r', check2', Pmac).
+expand UF_CMA_proba_mac_all_args(mkey, macinput, macres, seed, mac2', mac2_r', mac2_r'', check2', check2'', Pmac).
 
 expand SUF_CMA_proba_mac(mkey, macinput, macres, mac3, check3, Pmac).
-expand SUF_CMA_proba_mac_r(mkey, macinput, macres, seed, mac3', mac3_r', check3', Pmac).
+expand SUF_CMA_proba_mac_all_args(mkey, macinput, macres, seed, mac3', mac3_r', mac3_r'', check3', Pmac).
 
 type pkey [bounded].
 type skey [bounded].
 type cleartextb.
 proba Penccoll.
 expand IND_CCA2_public_key_enc(keyseed, pkey, skey, cleartextb, ciphertext, skgen, pkgen, enc11, dec11, injbot11, Z11, Penc, Penccoll).
-expand IND_CCA2_public_key_enc_r(keyseed, pkey, skey, cleartextb, ciphertext, seed, skgen', pkgen', enc11', enc11_r', dec11', injbot11', Z11', Penc, Penccoll).
+expand IND_CCA2_public_key_enc_all_args(keyseed, pkey, skey, cleartextb, ciphertext, seed, skgen', skgen'', pkgen', pkgen'', enc11', enc11_r', enc11_r'', dec11', dec11'', injbot11', Z11', Penc, Penccoll).
 
 type signinput.
 type signature.
 proba Psign.
 proba Psigncoll.
 expand UF_CMA_det_signature(keyseed, pkey, skey, signinput, signature, skgen4, pkgen4, sign4, check4, Psign, Psigncoll).
+expand UF_CMA_det_signature_all_args(keyseed, pkey, skey, signinput, signature, skgen4', skgen4'', pkgen4', pkgen4'', sign4', sign4'', check4', check4'', Psign, Psigncoll).
 
 expand SUF_CMA_det_signature(keyseed, pkey, skey, signinput, signature, skgen5, pkgen5, sign5, check5, Psign, Psigncoll).
+expand SUF_CMA_det_signature_all_args(keyseed, pkey, skey, signinput, signature, skgen5', skgen5'', pkgen5', pkgen5'', sign5', sign5'', check5', check5'', Psign, Psigncoll).
 
 expand UF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen6, pkgen6, sign6, check6, Psign, Psigncoll).
-expand UF_CMA_proba_signature_r(keyseed, pkey, skey, signinput, signature, seed, skgen6', pkgen6', sign6', sign6_r', check6', Psign, Psigncoll).
+expand UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, seed, skgen6', skgen6'', pkgen6', pkgen6'', sign6', sign6_r', sign6_r'', check6', check6'', Psign, Psigncoll).
 
 expand SUF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen7, pkgen7, sign7, check7, Psign, Psigncoll).
-expand SUF_CMA_proba_signature_r(keyseed, pkey, skey, signinput, signature, seed, skgen7', pkgen7', sign7', sign7_r', check7', Psign, Psigncoll).
+expand SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, seed, skgen7', skgen7'', pkgen7', pkgen7'', sign7', sign7_r', sign7_r'', check7', check7'', Psign, Psigncoll).
 
 type hashinput.
 type hashoutput [bounded,large].
