@@ -142,7 +142,7 @@ That should be sufficient for modules that want to read the variable.
    of if/let/find/get? I need to choose replication indices in the pass
    check_process1.
 
-   TO DO To allow parsing intermediate games using symbols local
+   DONE To allow parsing intermediate games using symbols local
    to macros, have a second set of macros that passes all
    symbols as arguments. (The macros *_r can be replaced by macros of
    this second set.) Note that if we change the set of macros during a
