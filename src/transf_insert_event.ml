@@ -43,7 +43,10 @@ and replace_oprocess count occ premp p =
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
 
 let insert_event occ s g =
-  let f = { f_name = s;
+  let s' = Terms.fresh_id s in
+  if s' <> s then
+    print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
+  let f = { f_name = s';
 	    f_type = [Settings.t_bitstring],Settings.t_bool;
 	    f_cat = Event;
 	    f_options = 0;

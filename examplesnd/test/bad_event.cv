@@ -1,0 +1,26 @@
+(* The identifier e is already used, it should be renamed before inserting 
+   the event. *)
+
+type key [large,fixed].
+type cleartext.
+type ciphertext.
+
+proba Penc.
+
+proof {
+    show_game occ;
+    insert_event e 4
+    }
+
+expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc).
+
+channel c.
+
+process
+	(in(c, ct: ciphertext); new e: key; out(c, dec(ct, e))) | (in(c, ct: cleartext); out(c, ct))
+
+(* EXPECTED
+All queries proved.
+0.127s (elapsed: user + system + other processes)
+END *)
+
