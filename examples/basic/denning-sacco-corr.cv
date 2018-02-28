@@ -30,6 +30,16 @@ proof {
   auto
 }
 
+(*
+
+Authentication in one direction only.
+There is no injectivity (replay attack possible).
+The certificates are not authenticated because our definition of
+signatures allows the adversary to forge a second signature for
+a message that has been signed.
+
+*)
+
 param N.
 param N2.
 param N3.
@@ -49,17 +59,17 @@ type blocksizebot [bounded].
 type sblocksize [bounded].
 type shkey [fixed]. (* distributed key *)
 
-fun concat1(shkey, signature):blocksize [data].
+fun concat1(shkey, host, host, signature):blocksize [data].
+fun concat2(shkey, host, host):sblocksize [data].
 fun concat3(host, pkey):sblocksize [data].
 fun concat4(host, spkey):sblocksize [data].
-fun pad(shkey):sblocksize [data].
 
-equation forall y:host,z:pkey,y2:shkey;
-	concat3(y,z) <> pad(y2).
+equation forall y:host,z:pkey,y2:shkey,z2:host,t2:host;
+        concat3(y,z) <> concat2(y2,z2,t2).
 equation forall y:host,z:pkey,y2:host,z2:spkey;
 	concat3(y,z) <> concat4(y2,z2).
-equation forall y:host,z:spkey,y2:shkey;
-        concat4(y,z) <> pad(y2).
+equation forall y:host,z:spkey,y2:shkey,z2:host,t2:host;
+        concat4(y,z) <> concat2(y2,z2,t2).
 
 (* Public-key encryption (CCA2) *)
 
@@ -103,12 +113,13 @@ query x: bitstring, k: shkey;
   event(fullB(A, k, x)) ==> event(fullA(B, k, x)) public_vars keyA.
 query k': shkey, x: bitstring, k: shkey;
   event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') public_vars keyA.
+
 let processA(pkA: spkey, skA: sskey, pkS: spkey) =
 	in(c1, (=A, =pkA, cert1:signature, hostX: host, pkX:pkey, cert2:signature));
 	if check(concat4(A, pkA), pkS, cert1) then
 	if check(concat3(hostX, pkX), pkS, cert2) then
 	new k:shkey;
-	let m1enc = enc(concat1(k, sign(pad(k), skA)), pkX) in
+	let m1enc = enc(concat1(k, A, hostX, sign(concat2(k, A, hostX), skA)), pkX) in
 	let m1 = (A, pkA, cert1, hostX, pkX, cert2, m1enc) in
 	(* Last message and OK *)
 	event fullA(hostX, k, (A, pkA, hostX, pkX, m1enc));
@@ -121,8 +132,8 @@ let processB(pkB: pkey, skB: skey, pkS: spkey) =
 	in(c3, (hostY:host, pkY:spkey, cert1:signature, =B, =pkB, cert2:signature, m:bitstring));
 	if check(concat4(hostY, pkY), pkS, cert1) then
 	if check(concat3(B, pkB), pkS, cert2) then
-        let injbot(concat1(k, s)) = dec(m,skB) in
-	if check(pad(k), pkY, s) then
+        let injbot(concat1(k, =hostY, =B, s)) = dec(m,skB) in
+	if check(concat2(k, hostY, B), pkY, s) then
 	(* OK *)
 	event fullB(hostY, k, (hostY, pkY, B, pkB, m));
         if hostY = A then
@@ -175,6 +186,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
+RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
 1.240s (user 1.240s + system 0.000s), max rss 60416K
 END *)
