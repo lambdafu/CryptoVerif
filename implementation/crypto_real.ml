@@ -89,9 +89,6 @@ let pad_inv scheme s =
 
 (* Symmetric encryption *)
 
-let sym_kgen b = 
-  b
-
 (*f should be of the form, for example,
   Cryptokit.Cipher.aes ~mode:Cryptokit.Cipher.CBC ~pad:Cryptokit.Padding.length
   for an AES CBC padded with length padding scheme *)
@@ -124,9 +121,6 @@ let sym_r_dec iv_size f msg key =
     sym_dec (f ?iv:(Some rd)) m key
         
 (* MAC handling *)
-
-let mac_kgen k=
-  k
 
 (*f should be of the form, for example,
   Cryptokit.MAC.hmac_sha1

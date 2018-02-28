@@ -76,7 +76,6 @@ let inv_dummy3 a x =
 
 let pad _ _ = dummy1 "pad"
 let pad_inv _ = inv_dummy1 "pad"
-let sym_kgen = id
 let sym_enc _ =dummy2 "sym_enc"
 let sym_dec _ msg k =
   try 
@@ -90,7 +89,6 @@ let sym_r_dec _ _ msg k =
       if k=k' then Some m else None 
   with _ -> None
 
-let mac_kgen=id
 let mac _=dummy2 "mac"
 let mac_check _ m k mac =
   try

@@ -33,10 +33,7 @@ val pad : Cryptokit.Padding.scheme -> int -> string -> string
 val pad_inv : Cryptokit.Padding.scheme -> string -> string
 
 (*Symmetric encryption
-  [sym_kgen]: key generation function, takes random coins and returns 
-  the key (in fact, it is the identity) *)
-val sym_kgen : string -> string
-(* [sym_r_enc f] is the encryption function
+   [sym_r_enc f] is the encryption function
    [sym_r_enc f msg key rd] returns the ciphertext, where 
    - [f] is a function that defines the encryption scheme. A recommended choice
    is Cryptokit.Cipher.aes ~mode:Cryptokit.Cipher.CBC ~pad:Cryptokit.Padding.length
@@ -62,10 +59,7 @@ val sym_r_enc : (?iv:string -> string -> Cryptokit.Cipher.direction -> Cryptokit
 val sym_r_dec : int -> (?iv:string -> string -> Cryptokit.Cipher.direction -> Cryptokit.transform) -> string -> string -> string option
 
 (* MAC
-   [mac_kgen]: key generation function, takes random coins and returns 
-   the key (in fact, it is the identity) *)
-val mac_kgen : string -> string
-(* [mac f] is the MAC function
+   [mac f] is the MAC function
    [mac f msg key] returns the MAC, where
    [f] is the underlying Cryptokit MAC function (e.g. Cryptokit.MAC.hmac_sha1 for HMAC SHA1)
    [msg] is the message to MAC
