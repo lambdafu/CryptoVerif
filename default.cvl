@@ -352,7 +352,7 @@ equiv(ind_cpa(enc))
      <=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(x), maxlength(d), maxlength(n)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
        foreach i2 <= N2 do k <-R key; 
        	       foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) := 
-      	       	       find i <= N suchthat defined(n[i],r[i]) && n = n[i] then
+      	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
 	               	   event_abort repeated_nonce
 	      	       else
 		           let r: ciphertext = enc'(Z(x), d, k, n) in
@@ -369,7 +369,7 @@ equiv(int_ctxt(enc))
      <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3*time(dec,maxlength(y),maxlength(c_d),maxlength(c_n))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
       foreach i2 <= N2 do k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
-      	       	       find i <= N suchthat defined(n[i],r[i]) && n = n[i] then
+      	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
 	               	   event_abort repeated_nonce
 	      	       else
 		           let r: ciphertext = enc(x, d, k, n) in
