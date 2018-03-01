@@ -136,7 +136,7 @@ let processH =
 	out(c13, ()) };
 	(* Each participant can play the roles of the initiator and 
 	   the responder *)
-   	((! N processInit(A, kAS, mkAS)) | (! N processResp(A, kAS, mkAS))).
+   	((! i <= N processInit(A, kAS, mkAS)) | (! i <= N processResp(A, kAS, mkAS))).
     
 
 let processK =
@@ -157,9 +157,9 @@ let processS =
 
 
 process 
-	((! Nh processH) |
-	 (! N processS) |
-	 (! N2 processK))
+	((! i <= Nh processH) |
+	 (! i <= N processS) |
+	 (! i <= N2 processK))
 
 (* EXPECTED
 All queries proved.
