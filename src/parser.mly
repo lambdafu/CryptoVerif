@@ -53,7 +53,6 @@ let return_channel = (dummy_channel, None)
 %token LET
 %token QUERY
 %token SECRET
-%token SECRET1
 %token PUBLICVARS
 %token AND
 %token OR
