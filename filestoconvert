@@ -19,6 +19,9 @@ Notes:
 encrypt-then-MAC.
 * Put converted file in examples/basic
 * Remove "3Block" or "3Stream" from the filenames of converted files
+* To prepare for compatibility with ProVerif,
+  replace !N P with !i<=N P
+  replace find with tables (insert, get)
 
 denning-sacco-corr3Block.cv (OK)
 needham-schroeder-pk3BlockAuth.cv (OK)

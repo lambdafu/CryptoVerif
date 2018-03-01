@@ -37,6 +37,8 @@ equation forall y:nonce,z:nonce,t:host,u:host;
 equation forall y:nonce,z:key; 
 	Z(concat2(y,z)) = Zconcat2.
 
+table keys(host, key).
+
 (* Queries *)
 
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
@@ -108,17 +110,14 @@ let processB(Kbs: key) =
 
 let processK(Kas: key, Kbs: key) =
 	in(c8, (Khost: host, Kkey: key));
-	let Rkey:key = 
-		if Khost = A then Kas else
-		if Khost = B then Kbs else
-		Kkey.
+	if Khost = A then insert keys(A,Kas) else
+	if Khost = B then insert keys(B,Kbs) else
+	insert keys(Khost,Kkey).
 
 let processS =
 	in(c9, (M: nonce, ha: host, hb: host, ea1: bitstring, eb1: bitstring));
-	find jA <= N2 suchthat defined(Rkey[jA], Khost[jA]) && (ha = Khost[jA]) then
-	let kas = Rkey[jA] in
-	find jB <= N2 suchthat defined(Rkey[jB], Khost[jB]) && (hb = Khost[jB]) then
-	let kbs = Rkey[jB] in
+	get keys(=ha, kas) in
+	get keys(=hb, kbs) in
 	let injbot(concat1(Na, =M, =ha, =hb)) = dec(ea1, kas) in
 	let injbot(concat1(Nb, =M, =ha, =hb)) = dec(eb1, kbs) in
 	new k: key;
@@ -131,10 +130,10 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(c13, ());
-	((! N processA(Kas)) |
-	 (! N processB(Kbs)) | 
-	 (! N processS) |
-	 (! N2 processK(Kas, Kbs)))
+	((! iA <= N processA(Kas)) |
+	 (! iB <= N processB(Kbs)) | 
+	 (! iS <= N processS) |
+	 (! iK <= N2 processK(Kas, Kbs)))
 
 (* EXPECTED
 RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(partB(A, x)) with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(fullB(A, k, x)) with public variables keyA, keyB; inj-event(partB(A, x)) ==> inj-event(partA(B, x)) with public variables keyA, keyB.

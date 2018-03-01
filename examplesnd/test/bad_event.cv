@@ -20,7 +20,6 @@ process
 	(in(c, ct: ciphertext); new e: key; out(c, dec(ct, e))) | (in(c, ct: cleartext); out(c, ct))
 
 (* EXPECTED
-All queries proved.
 0.127s (elapsed: user + system + other processes)
 END *)
 

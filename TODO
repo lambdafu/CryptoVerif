@@ -317,10 +317,9 @@ We could probably push this idea for noninterf x among S.
       foreach i <= N do as a synonym of ! i <= N
      0 and yield are synonym, that's already done.
    - DONE allow (and ignore) CV implementation annotations in PV
-      [All the above is still to test and document
-      New keywords: implementation, foreach, do]
    - DONE display the version number in help message
-   - allow conjunctions of events before ==>
+   - DONE allow conjunctions of events before ==>
+      [New keywords: implementation, foreach, do, public_vars, secret]
    - query secret <variable> public_vars ... [options]
    public_vars x1, ..., xn can be encoded by adding an output
    of xi on a public channel just after the definition of xi for
