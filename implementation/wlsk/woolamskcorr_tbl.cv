@@ -29,7 +29,7 @@ type maxmac [bounded].
 
 table keytbl (key, mkey, host).
 
-fun concat1(tag, host, nonce):maxenc [compos].
+fun concat1(tag, host, nonce):maxenc [data].
 
 (* Shared-key encryption (CPA Stream cipher) *)
 
@@ -53,8 +53,8 @@ expand SUF_CMA_det_mac(mkey, maxmac, macs, mac, check, Pmac).
    Participants honest(...) are honest, dishonest(...) are dishonest *)
 
 type hname.
-fun honest(hname):host [compos].
-fun dishonest(hname):host [compos].
+fun honest(hname):host [data].
+fun dishonest(hname):host [data].
 
 equation forall x1:hname, x2:hname; honest(x1) <> dishonest(x2).
 
@@ -99,31 +99,31 @@ implementation table keytbl = "keytbl";
                fun check = "(mac_check Cryptokit.MAC.hmac_sha1)".
                
 
-let processInit(A: host, kAS: key, mkAS: mkey) =
+let processInit(A1: host, kAS1: key, mkAS1: mkey) =
     WLSK_Init {
 	in(c1, hostB2:host); (* Choose the responder *)
 	event beginA(hostB2);
-	out(c2, A);
+	out(c2, A1);
 	in(c3, n:nonce);
-	event beginAfull(hostB2, A, n);
-	let e1 = enc(concat1(tag3, hostB2, n), kAS) in
-	out(c4, (e1, mac(e1, mkAS)))}.
+	event beginAfull(hostB2, A1, n);
+	let e1 = enc(concat1(tag3, hostB2, n), kAS1) in
+	out(c4, (e1, mac(e1, mkAS1)))}.
 
-let processResp(A: host, kAS: key, mkAS: mkey) =
+let processResp(A2: host, kAS2: key, mkAS2: mkey) =
     WLSK_Resp {
 	in(c5, hostA2:host);
 	new N:nonce;
 	out(c6, N);
 	in(c7, (m:maxmac, macm:macs));
-	out(c8, (hostA2, A, m, macm));
+	out(c8, (hostA2, A2, m, macm));
 	in(c9, (m2:maxmac, macm2:macs));
-	if check(m2, mkAS, macm2) then
-	if injbot(concat1(tag5, hostA2, N)) = dec(m2, kAS) then
+	if check(m2, mkAS2, macm2) then
+	if injbot(concat1(tag5, hostA2, N)) = dec(m2, kAS2) then
 	out(c10, ()) };
 	(* OK *)
 	in(c11, ());
 	let honest(x) = hostA2 in
-	event endB(A, hostA2, N).
+	event endB(A2, hostA2, N).
 
 let processH =
    WLSK_keygen [ kAS > wlsk_enc_key, mkAS > wlsk_mac_key, A > wlsk_id ] {

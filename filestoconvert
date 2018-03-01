@@ -69,7 +69,7 @@ Two of these files are already converted.
 
 ------------------------------------------------------
 
-cryptoverif/implementation/{ssh,nspk,wlsk}
+cryptoverif/implementation/{ssh,nspk}
 
 Note: convert these files in place
 For the files implementation/ssh/ssh-secrecy-key-*.ocv,
