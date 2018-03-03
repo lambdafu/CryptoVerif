@@ -644,7 +644,7 @@ query:
 optpublicvars:
     
     { [] }
-|   PUBLICVARS identlist
+|   PUBLICVARS neidentlist
     { $2 }
 
 procasterm:
