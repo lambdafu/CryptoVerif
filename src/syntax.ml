@@ -1023,7 +1023,7 @@ let rec expand_letfun_term cur_array env' t0 =
 	in
         let t1' = expand_letfun_term cur_array env'' t1 in
         let t2' = expand_letfun_term cur_array env' t2 in
-	Terms.build_term3 t0 (GetE(table, patl', topt', t1', t2'))
+	Terms.build_term3 t0 (GetE(table, List.rev patl', topt', t1', t2'))
     | InsertE(table, tl, t) ->
 	let tl' = List.map (expand_letfun_term cur_array env') tl in
 	let t' = expand_letfun_term cur_array env' t in
@@ -1032,13 +1032,14 @@ let rec expand_letfun_term cur_array env' t0 =
 and expand_letfun_pat cur_array env' = function
     PatVar (b) ->
       let b' = Terms.create_binder b.sname b.btype cur_array in
-        (PatVar (b'), (b,b')::env')
+      (PatVar (b'), (b,b')::env')
   | PatTuple (f,pl) ->
       let (pl',env'') = List.fold_left 
         (fun (pl',env'') p -> 
-           let (p,env''') = expand_letfun_pat cur_array env'' p in
-             (p::pl',env''')) ([],env') pl in
-        (PatTuple (f,List.rev pl'),env'')
+          let (p,env''') = expand_letfun_pat cur_array env'' p in
+          (p::pl',env''')) ([],env') pl
+      in
+      (PatTuple (f,List.rev pl'),env'')
   | PatEqual (t) ->
       let t' = expand_letfun_term cur_array env' t in
         (PatEqual (t'),env')
