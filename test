@@ -43,6 +43,13 @@ echo TEST
 echo
 output=test`date '+%Y.%m.%d-%H_%M_%S'`
 (
+for i in examples/basic/*.pcv 
+do
+    base=`basename -s .pcv $i`
+    m4 -DProVerif $i > $base.pv
+    m4 -DCryptoVerif $i > $base.cv
+done
+
 for i in examples/basic/*.cv examples/obasic/*.ocv examples/kerberos/*.cv
 do
     if [ -f $i ]
