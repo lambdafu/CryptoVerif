@@ -20,11 +20,11 @@ proba Pencctxt.
 expand IND_CPA_INT_CTXT_sym_enc_all_args(key, bitstring, bitstring, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc, Pencctxt).
 
 (* Concatenation functions *)
-fun concat1(nonce, host, key, bitstring):bitstring [compos].
-fun concat2(host, nonce):bitstring [compos].
-fun concat3(key, host):bitstring [compos].
+fun concat1(nonce, host, key, bitstring):bitstring [data].
+fun concat2(host, nonce):bitstring [data].
+fun concat3(key, host):bitstring [data].
 
-fun minusone(nonce):nonce [compos].
+fun minusone(nonce):nonce [data].
 
 ifdef(`CryptoVerif',`
 equation forall y:key,z:host,y2:nonce,z2:host,t2:key,v2:bitstring;
@@ -36,8 +36,9 @@ equation forall z:host,t:nonce,y2:key,z2:host;
 equation forall x:nonce; minusone(x) <> x.
 ')
 
-fun nonceToBitstring(nonce):bitstring [compos].
+fun nonceToBitstring(nonce):bitstring [data].
 
+ifdef(`CryptoVerif',`
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Zconcat1(bitstring):bitstring.
@@ -51,6 +52,10 @@ equation forall y:key,z:host;
 	Z(concat3(y,z)) = Zconcat3.
 equation forall m:bitstring, k:key, r: enc_seed;
 	Z(enc_r(m, k, r)) = Z(m).
+',`
+const Zbitstring:bitstring.
+equation forall x:bitstring; Z(x) = Zbitstring.
+')
 
 (* Peers *)
 const A : host.
