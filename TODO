@@ -273,6 +273,13 @@ more transformations with the square variant.
       
       DONE update documentation.
 
+      TO DO add "corrupt" oracles to INT-PTXT partial transformations.
+      Could I merge the equivalences suf_cma_corrupt and
+      suf_cma_corrupt_partial by giving higher priority to
+      the oracles that make a change? (So the application without
+      explicit indication of oracles change all occurrences as
+      before.)
+      
    h) TO DO (Benjamin) Revise examples manually to use the new crypto library
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
