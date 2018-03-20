@@ -275,10 +275,15 @@ $  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
-   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
-   and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
-   IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}). The equivalence $\texttt{int\_ctxt}(\vn{enc})$
+   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$,
+   $\texttt{int\_ctxt}(\vn{enc})$, and $\texttt{int\_ctxt\_corrupt}(\vn{enc})$ 
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). 
+   The first equivalence corresponds to the
+   IND-CPA property, the last two to the INT-CTXT property.
+   The equivalence $\texttt{int\_ctxt\_corrupt}(\vn{enc})$ is used when the
+   key may be corrupted. It is applied only manually.
+   The equivalence $\texttt{int\_ctxt}(\vn{enc})$
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
@@ -337,10 +342,15 @@ authenticated encryption scheme with additional data.
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
-   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
-   and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
-   IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}). The equivalence $\texttt{int\_ctxt}(\vn{enc})$
+   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$,
+   $\texttt{int\_ctxt}(\vn{enc})$, and $\texttt{int\_ctxt\_corrupt}(\vn{enc})$ 
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). 
+   The first equivalence corresponds to the
+   IND-CPA property, the last two to the INT-CTXT property.
+   The equivalence $\texttt{int\_ctxt\_corrupt}(\vn{enc})$ is used when the
+   key may be corrupted. It is applied only manually.
+   The equivalence $\texttt{int\_ctxt}(\vn{enc})$
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
@@ -403,10 +413,15 @@ value in each call to encryption. A typical example is AES-GCM.
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
 
-   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$
-   and $\texttt{int\_ctxt}(\vn{enc})$ corresponding respectively to the
-   IND-CPA and INT-CTXT properties, for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}). The equivalence $\texttt{int\_ctxt}(\vn{enc})$
+   This macro defines the equivalences named $\texttt{ind\_cpa}(\vn{enc})$,
+   $\texttt{int\_ctxt}(\vn{enc})$, and $\texttt{int\_ctxt\_corrupt}(\vn{enc})$ 
+   for use in the \texttt{crypto} command 
+   (see Section~\ref{sec:interact}). 
+   The first equivalence corresponds to the
+   IND-CPA property, the last two to the INT-CTXT property.
+   The equivalence $\texttt{int\_ctxt\_corrupt}(\vn{enc})$ is used when the
+   key may be corrupted. It is applied only manually.
+   The equivalence $\texttt{int\_ctxt}(\vn{enc})$
    should generally be applied before $\texttt{ind\_cpa}(\vn{enc})$,
    because $\texttt{int\_ctxt}(\vn{enc})$ eliminates the decryption oracle.
 
