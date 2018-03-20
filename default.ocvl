@@ -190,6 +190,19 @@ equiv(int_ctxt(enc))
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom)).
 
+equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do k <-R key; (
+      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
+	      Ocorrupt() [10] := return(k))
+     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
+      foreach i2 <= N2 do k <-R key [unchanged]; (
+      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) :=
+	      	      if defined(corrupt) then return(dec(y,k)) else
+		      find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom) |
+	      Ocorrupt() := let corrupt: bool = true in return(k)).
+
 }
 
 def IND_CPA_INT_CTXT_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc, Pencctxt) { 
@@ -276,6 +289,19 @@ equiv(int_ctxt(enc))
       foreach i2 <= N2 do k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) := find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom)).
+
+equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do k <-R key; (
+      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)) |
+	      Ocorrupt() [10] := return(k))
+     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc_r, maxlength(x), maxlength(d)) + N3*time(dec,maxlength(y),maxlength(c_d))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      foreach i2 <= N2 do k <-R key [unchanged]; (
+      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
+	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) :=
+	      	      if defined(corrupt) then return(dec(y,c_d,k)) else
+	      	      find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom) |
+	      Ocorrupt() := let corrupt: bool = true in return(k)).
 
 }
 
@@ -380,6 +406,30 @@ equiv(int_ctxt(enc))
 		          return(injbot(x[j]))
 	              else
 		          return(bottom)).
+
+equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do k <-R key; (
+      	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
+	              return(enc(x, d, k, n)) |
+	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
+	              return(dec(y,c_d,k,c_n)) |
+	      Ocorrupt() [10] := return(k))
+     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3*time(dec,maxlength(y),maxlength(c_d),maxlength(c_n))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      foreach i2 <= N2 do k <-R key [unchanged]; (
+      	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
+      	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
+	               	   event_abort repeated_nonce
+	      	       else
+		           let r: ciphertext = enc(x, d, k, n) in
+			   return(r) |
+	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) :=
+	      	      if defined(corrupt) then return(dec(y,c_d,k,c_n)) else
+	              find j <= N suchthat defined(x[j],d[j],n[j],r[j]) &&
+		              r[j] = y && d[j] = c_d && n[j] = c_n then
+		          return(injbot(x[j]))
+	              else
+		          return(bottom) |
+	      Ocorrupt() := let corrupt: bool = true in return(k)).
 
 }
 
