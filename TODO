@@ -1,3 +1,7 @@
+Use Terms.def_vars_and_facts_from_term in transf_simplify and
+transf_expand.
+
+
 0) Files that do not work
 
 - "Expanding and simplifying" is very slow in
@@ -279,7 +283,10 @@ more transformations with the square variant.
       the oracles that make a change? (So the application without
       explicit indication of oracles change all occurrences as
       before.)
-      
+      Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
+      left unchanged, without corrupting a.
+      (It can be computed as exp(exp(g,a),m) and exp(g,a) is public.)
+
    h) TO DO (Benjamin) Revise examples manually to use the new crypto library
    Use authenticated encryption as the symmetric encryption scheme
    for DY-like protocols (not encrypt-then-MAC or others).
