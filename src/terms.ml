@@ -2528,8 +2528,9 @@ let rec check_simple_term t =
       List.for_all check_simple_term l
   | ReplIndex _ -> true
   | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      false
+     false
 
+       
 let find_list_to_elsefind accu l =
   List.fold_left (fun ((fact_accu, else_find_accu) as accu) ((bl, def_list, t1,_):'a findbranch) ->
     if check_simple_term t1 then
@@ -2639,6 +2640,161 @@ and def_vars_pat_list accu = function
     [] -> accu
   | (a::l) -> def_vars_pat (def_vars_pat_list accu l) a
 
+(* [make_or_dnf f1 f2] computes the disjunctive normal form of [f1] or
+   [f2], assuming [f1] and [f2] are already in disjunctive normal
+   form. *)
+       
+let includes l1 l2 =
+  List.for_all (fun a1 ->
+      List.exists (equal_terms a1) l2
+    ) l1
+       
+let make_or_dnf f1 f2 =
+  let f1_filtered =
+    List.filter (fun l1 ->
+        not (List.exists (fun l2 -> includes l2 l1) f2)
+      ) f1
+  in
+  let f2_filtered =
+    List.filter (fun l2 ->
+        not (List.exists (fun l1 -> includes l1 l2) f1_filtered)
+      ) f2
+  in
+  List.rev_append f1_filtered f2_filtered
+
+let rec make_or_dnf_list = function
+    [] -> []
+  | [a] -> a
+  | a::l -> make_or_dnf a (make_or_dnf_list l)
+                  
+(* [make_and_dnf f1 f2] computes the disjunctive normal form of [f1] and
+   [f2], assuming [f1] and [f2] are already in disjunctive normal
+   form. *)
+
+let make_and_conj_list l1 l2 =
+  let rec aux accu = function
+      [] -> accu
+    | (a::l) ->
+       if List.exists (equal_terms a) l2 then aux accu l else aux (a::accu) l
+  in
+  aux l2 l1
+                               
+let make_and_dnf f1 f2 =
+  let rec aux accu = function
+      [] -> accu
+    | (a::l) ->
+       aux (make_or_dnf (List.rev_map (make_and_conj_list a) f1) accu) l
+  in
+  aux [] f2
+  
+let rec make_and_dnf_list = function
+    [] -> [[]]
+  | [a] -> a
+  | a::l -> make_and_dnf a (make_and_dnf_list l)
+                         
+(* [make_not_dnf t] returns the negation of [t] in disjunctive normal
+form, assuming [t] is already in disjunctive normal
+form. Very inefficient in general, but hopefully we are not often
+in this case. *)
+
+let make_not_dnf f =
+  make_and_dnf_list
+    (List.map (fun l ->
+         make_or_dnf_list (List.map (fun a -> [[make_not a]]) l)
+       ) f)
+
+(* [f_defined] is a special function symbol used to represent
+   [defined] conditions inside terms *)
+    
+let f_defined = { f_name = "defined";
+		  f_type = [Settings.t_any], Settings.t_bool;
+		  f_cat = Std;
+		  f_options = 0;
+		  f_statements = [];
+		  f_collisions = [];
+		  f_eq_theories = NoEq;
+		  f_impl = No_impl;
+		  f_impl_inv = None }
+
+let is_defined t =
+  match t.t_desc with
+    FunApp(f,_) when f == f_defined -> true
+  | _ -> false
+
+let extract_br_from_defined t =
+  match t.t_desc with
+  | FunApp(f, [t]) when f == f_defined ->
+     binderref_from_term t
+  | _ ->
+     internal_error "defined(...) term expected in extract_br_from_defined"
+
+(* [extract_dnf t] derives a logical formula in disjunctive
+   normal form that is implied by [t] *)
+                    
+let rec extract_dnf t =
+  match t.t_desc with
+  | _ when is_false t ->
+     []
+  | _ when is_true t ->
+     [[]]
+  | FunApp(f, [t1; t2]) when f == Settings.f_and ->
+     make_and_dnf (extract_dnf t1) (extract_dnf t2)
+  | FunApp(f, [t1; t2]) when f == Settings.f_or ->
+     make_or_dnf (extract_dnf t1) (extract_dnf t2)
+  | FunApp(f, [t1]) when f == Settings.f_not ->
+     make_not_dnf (extract_dnf t1)
+  | Var(_,l) | FunApp(_,l) ->
+     if (List.for_all check_simple_term l) then [[t]] else [[]]
+  | ReplIndex _ -> [[t]]
+  | TestE(t1, t2, t3) ->
+     let f1 = extract_dnf t1 in
+     let f2 = extract_dnf t2 in
+     let f3 = extract_dnf t3 in
+     make_or_dnf (make_and_dnf f1 f2) (make_and_dnf (make_not_dnf f1) f3)
+  | FindE(l0,t3,_) ->
+     let f3 = extract_dnf t3 in
+     let f0 =
+       make_or_dnf_list
+         (List.map (fun (bl,def_list,t1,t2) ->
+              let f1 = extract_dnf t1 in
+              let f2 = extract_dnf t2 in
+              let accu = ref [] in
+	      List.iter (close_def_subterm accu) def_list;
+	      let def_list_subterms = !accu in 
+              let def_list_dnf = 
+                [List.map (fun br ->
+                    build_term_type Settings.t_bool (FunApp(f_defined, [term_from_binderref br]))) def_list_subterms]
+              in
+              make_and_dnf def_list_dnf (make_and_dnf f1 f2)
+            ) l0)
+     in
+     make_or_dnf f0 f3
+  | LetE(pat, t1, t2, topt) ->
+     let assign_dnf = [[make_equal (term_from_pat pat) t1]] in
+     let f2 = extract_dnf t2 in
+     let in_branch_dnf = make_and_dnf assign_dnf f2 in
+     begin
+       match pat with
+       | PatVar b -> in_branch_dnf
+       | _ ->
+          match topt with
+            Some t3 -> make_or_dnf in_branch_dnf (extract_dnf t3)
+          | None -> Parsing_helper.internal_error "else branch of let missing"
+     end
+  | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+     [[]]
+
+(* [info_from_term t] extracts a list of defined variables and a
+   list of facts implied by [t] *)
+       
+let info_from_term t =
+  try 
+    let sure_facts = intersect_list equal_terms (extract_dnf t) in
+    let (def, facts) = List.partition is_defined sure_facts in
+    (List.map extract_br_from_defined def, facts)
+  with Contradiction ->
+    ([], [make_false()])
+
 (* def_term is always called with  above_node.def_vars_at_def \subseteq def_vars
 def_term returns a node n'. In this node n', we always have n'.def_vars_at_def \subseteq def_vars
 Same property for def_term_list, def_term_def_list, def_pattern, def_pattern_list.
@@ -2675,12 +2831,17 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	   We need not take them into account to update elsefind_facts. *)
 	let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	let t1' = subst repl_indices (List.map term_from_binder vars) t1 in
-	let true_facts' =  t1' :: true_facts in
+        let (sure_def_list, sure_facts) = info_from_term t1' in
+	let true_facts' = List.rev_append sure_facts true_facts in
 	let accu = ref [] in
 	List.iter (close_def_subterm accu) def_list;
 	let def_list_subterms = !accu in 
 	let def_vars_t1 = def_list_subterms @ def_vars in
-       	let def_vars' = (subst_def_list repl_indices (List.map term_from_binder vars) def_list_subterms) @ def_vars in
+       	let def_vars' =
+          List.rev_append sure_def_list
+            (List.rev_append (subst_def_list repl_indices (List.map term_from_binder vars) def_list_subterms)
+               def_vars)
+        in
 	let above_node' = { above_node = above_node; binders = vars; 
 			    true_facts_at_def = true_facts'; 
 			    def_vars_at_def = def_vars';
@@ -2932,12 +3093,17 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	       We need not take them into account to update elsefind_facts. *)
 	    let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	    let t' = subst repl_indices (List.map term_from_binder vars) t in
-	    let true_facts' = t' :: true_facts in
+            let (sure_def_list, sure_facts) = info_from_term t' in
+	    let true_facts' = List.rev_append sure_facts true_facts in
 	    let accu = ref [] in
 	    List.iter (close_def_subterm accu) def_list;
 	    let def_list_subterms = !accu in 
 	    let def_vars_t = def_list_subterms @ def_vars in
-       	    let def_vars' = (subst_def_list repl_indices (List.map term_from_binder vars) def_list_subterms) @ def_vars in
+       	    let def_vars' =
+              List.rev_append sure_def_list
+                (List.rev_append (subst_def_list repl_indices (List.map term_from_binder vars) def_list_subterms)
+                   def_vars)
+            in
 	    let above_node' = { above_node = above_node; binders = vars; 
 				true_facts_at_def = true_facts'; 
 				def_vars_at_def = def_vars';
