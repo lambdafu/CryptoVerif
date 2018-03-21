@@ -426,7 +426,8 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_term_if rec_simplif pp cur_array true_facts t1 t2 t3
-  | _ -> 
+  | _ ->
+    try
       let def_vars = Facts.get_def_vars_at pp in
       let t3' = 
 	try
@@ -628,7 +629,11 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
 	      end;
 	    Terms.build_term t3'' (FindE([find_branch], t3'',find_info))
-
+    with Contradiction ->
+      (* The whole Find will never be executed.
+         We just use the else branch as a simplification *)
+      rec_simplif cur_array true_facts t3	
+	      
 (* Expand term to term. Useful for conditions of find when they cannot be expanded to processes.
    Guarantees the invariant that if/let/find/res terms occur only in
    - conditions of find
@@ -879,7 +884,8 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_if rec_simplif pp cur_array true_facts t1 p1 p2
-  | _ -> 
+  | _ ->
+    try
       let def_vars = Facts.get_def_vars_at pp in
       let p2' = 
 	if is_yield p2 then Terms.oproc_from_desc Yield else
@@ -1082,7 +1088,9 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DProcess p1))) :: (!current_pass_transfos);
 	      end;
 	    Terms.oproc_from_desc (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
-  
+    with Contradiction ->
+      (* The whole Find will never be executed *)
+      Terms.oproc_from_desc Yield
 
 	
 let simplify_event rec_simplif cur_array true_facts t p = 

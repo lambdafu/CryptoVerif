@@ -1012,7 +1012,8 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
 	  simplify_term_w_find cur_array true_facts (Terms.build_term2 t (TestE(t1,t2,t3)))
-      |	_ -> 
+      |	_ ->
+      try
       let def_vars = Facts.get_def_vars_at pp in
       let t3' = 
 	try
@@ -1259,6 +1260,10 @@ let rec simplify_term_w_find cur_array true_facts t =
 		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
 	      end;
 	    Terms.build_term2 t (FindE([find_branch], t3'',find_info))
+      with Contradiction ->
+	(* The whole Find will never be executed.
+           Use the else branch as a simplification *)
+	simplify_term_w_find cur_array true_facts t3
       end
 
   | LetE(pat,t1,t2,topt) ->
@@ -1543,7 +1548,8 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
 	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc2 p'  (Test(t1,p1,p2)))
-      |	_ -> 
+      |	_ ->
+      try
       let def_vars = Facts.get_def_vars_at pp in
       let p2' = 
 	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
@@ -1796,7 +1802,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DProcess p1))) :: (!current_pass_transfos);
 	      end;
 	    Terms.oproc_from_desc2 p' (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
-	
+
+      with Contradiction ->
+	(* The whole Find will never be executed *)
+	Terms.oproc_from_desc Yield
       end
   | Let(pat, t, p1, p2) ->
       begin
