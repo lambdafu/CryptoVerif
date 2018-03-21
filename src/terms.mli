@@ -428,6 +428,8 @@ val has_array_ref_non_exclude : binder -> bool
 
 val unionq : 'a list -> 'a list -> 'a list (* union using physical equality *)
 
+val def_vars_and_facts_from_term : term -> binderref list * term list
+    
 val map_empty : int Occ_map.occ_map
 val empty_comp_process : inputprocess -> unit
 (* [build_def_process] must be called before [build_compatible_defs] *)

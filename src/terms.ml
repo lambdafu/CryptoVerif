@@ -2829,21 +2829,22 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       List.iter (fun (bl,def_list,t1,t2) ->
 	let vars = List.map fst bl in
 	let repl_indices = List.map snd bl in
+	let vars_terms = List.map term_from_binder vars in
         (* The variables defined in t are variables defined in conditions of find,
 	   one cannot make array accesses to them, nor test their definition,
 	   so they will not appear in defined conditions of elsefind_facts.
 	   We need not take them into account to update elsefind_facts. *)
 	let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
-	let t1' = subst repl_indices (List.map term_from_binder vars) t1 in
-        let (sure_def_list, sure_facts) = def_vars_and_facts_from_term t1' in
-	let true_facts' = List.rev_append sure_facts true_facts in
+	let t1' = subst repl_indices vars_terms t1 in
+        let (sure_def_list_t1, sure_facts_t1) = def_vars_and_facts_from_term t1' in
+	let true_facts' = List.rev_append sure_facts_t1 true_facts in
 	let accu = ref [] in
 	List.iter (close_def_subterm accu) def_list;
 	let def_list_subterms = !accu in 
 	let def_vars_t1 = def_list_subterms @ def_vars in
        	let def_vars' =
-          List.rev_append sure_def_list
-            (List.rev_append (subst_def_list repl_indices (List.map term_from_binder vars) def_list_subterms)
+          List.rev_append sure_def_list_t1
+            (List.rev_append (subst_def_list repl_indices vars_terms def_list_subterms)
                def_vars)
         in
 	let above_node' = { above_node = above_node; binders = vars; 
@@ -3091,21 +3092,22 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let (fut_bindersl, fut_true_factsl) = find_l l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
+	    let vars_terms = List.map term_from_binder vars in
             (* The variables defined in t are variables defined in conditions of find,
 	       one cannot make array accesses to them, nor test their definition,
 	       so they will not appear in defined conditions of elsefind_facts.
 	       We need not take them into account to update elsefind_facts. *)
 	    let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
-	    let t' = subst repl_indices (List.map term_from_binder vars) t in
-            let (sure_def_list, sure_facts) = def_vars_and_facts_from_term t' in
-	    let true_facts' = List.rev_append sure_facts true_facts in
+	    let t' = subst repl_indices vars_terms t in
+            let (sure_def_list_t, sure_facts_t) = def_vars_and_facts_from_term t' in
+	    let true_facts' = List.rev_append sure_facts_t true_facts in
 	    let accu = ref [] in
 	    List.iter (close_def_subterm accu) def_list;
 	    let def_list_subterms = !accu in 
 	    let def_vars_t = def_list_subterms @ def_vars in
        	    let def_vars' =
-              List.rev_append sure_def_list
-                (List.rev_append (subst_def_list repl_indices (List.map term_from_binder vars) def_list_subterms)
+              List.rev_append sure_def_list_t
+                (List.rev_append (subst_def_list repl_indices vars_terms def_list_subterms)
                    def_vars)
             in
 	    let above_node' = { above_node = above_node; binders = vars; 

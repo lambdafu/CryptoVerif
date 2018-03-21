@@ -1990,13 +1990,15 @@ let rec infer_facts_fc cur_array true_facts t =
 	      let cur_array_cond = repl_indices @ cur_array in
 	      let vars_terms = List.map Terms.term_from_binder vars in
   	      infer_facts_fc cur_array_cond true_facts t1;
-	      let t1' = Terms.subst repl_indices (List.map Terms.term_from_binder vars) t1 in
-	      let true_facts' = t1' :: true_facts in
+	      let t1' = Terms.subst repl_indices vars_terms t1 in
+              let (sure_def_list_t1, sure_facts_t1) = Terms.def_vars_and_facts_from_term t1' in
+	      let true_facts' = List.rev_append sure_facts_t1 true_facts in
 	    (* Infer new facts *)	    
 	      try
 		let def_list' = Facts.reduced_def_list t.t_facts def_list in
 		let def_vars_cond = Facts.def_vars_from_defined find_node def_list' in
-		let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond in
+		let def_vars_accu = List.rev_append sure_def_list_t1
+		    (Terms.subst_def_list repl_indices vars_terms def_vars_cond) in
 		let cur_array_term = List.map Terms.term_from_repl_index cur_array in
 		let true_facts' = Terms.def_list_at_pp_facts true_facts' (DTerm t2) cur_array_term def_vars_accu in
 		let true_facts' = Terms.both_def_list_facts true_facts' def_vars def_vars_accu in
@@ -2105,13 +2107,15 @@ and infer_facts_o cur_array true_facts p' =
 	      let cur_array_cond = repl_indices @ cur_array in
 	      let vars_terms = List.map Terms.term_from_binder vars in
  	      infer_facts_fc cur_array_cond true_facts t;
-	      let t' = Terms.subst repl_indices (List.map Terms.term_from_binder vars) t in
-	      let true_facts' = t' :: true_facts in
+	      let t' = Terms.subst repl_indices vars_terms t in
+              let (sure_def_list_t, sure_facts_t) = Terms.def_vars_and_facts_from_term t' in
+	      let true_facts' = List.rev_append sure_facts_t true_facts in
 	    (* Infer new facts *)
 	      try
 		let def_list' = Facts.reduced_def_list p'.p_facts def_list in
 		let def_vars_cond = Facts.def_vars_from_defined find_node def_list' in
-		let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond in
+		let def_vars_accu = List.rev_append sure_def_list_t
+		    (Terms.subst_def_list repl_indices vars_terms def_vars_cond) in
 		let cur_array_term = List.map Terms.term_from_repl_index cur_array in
 		let true_facts' = Terms.def_list_at_pp_facts true_facts' (DProcess p1) cur_array_term def_vars_accu in
 		let true_facts' = Terms.both_def_list_facts true_facts' def_vars def_vars_accu in
