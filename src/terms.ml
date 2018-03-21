@@ -2756,17 +2756,21 @@ let rec extract_dnf t =
      let f0 =
        make_or_dnf_list
          (List.map (fun (bl,def_list,t1,t2) ->
-              let f1 = extract_dnf t1 in
-              let f2 = extract_dnf t2 in
-              let accu = ref [] in
-	      List.iter (close_def_subterm accu) def_list;
-	      let def_list_subterms = !accu in 
-              let def_list_dnf = 
-                [List.map (fun br ->
-                    build_term_type Settings.t_bool (FunApp(f_defined, [term_from_binderref br]))) def_list_subterms]
-              in
-              make_and_dnf def_list_dnf (make_and_dnf f1 f2)
-            ) l0)
+	   let vars_terms = List.map (fun (b,_) -> term_from_binder b) bl in
+	   let repl_indices = List.map snd bl in
+	   let t1' = subst repl_indices vars_terms t1 in
+           let f1 = extract_dnf t1' in
+           let f2 = extract_dnf t2 in
+           let accu = ref [] in
+	   List.iter (close_def_subterm accu) def_list;
+	   let def_list_subterms = !accu in
+	   let def_list_subterms = subst_def_list repl_indices vars_terms def_list_subterms in
+           let def_list_dnf = 
+             [List.map (fun br ->
+               build_term_type Settings.t_bool (FunApp(f_defined, [term_from_binderref br]))) def_list_subterms]
+           in
+           make_and_dnf def_list_dnf (make_and_dnf f1 f2)
+             ) l0)
      in
      make_or_dnf f0 f3
   | LetE(pat, t1, t2, topt) ->
@@ -2784,10 +2788,10 @@ let rec extract_dnf t =
   | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
      [[]]
 
-(* [info_from_term t] extracts a list of defined variables and a
+(* [def_vars_and_facts_from_term t] extracts a list of defined variables and a
    list of facts implied by [t] *)
        
-let info_from_term t =
+let def_vars_and_facts_from_term t =
   try 
     let sure_facts = intersect_list equal_terms (extract_dnf t) in
     let (def, facts) = List.partition is_defined sure_facts in
@@ -2831,7 +2835,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	   We need not take them into account to update elsefind_facts. *)
 	let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	let t1' = subst repl_indices (List.map term_from_binder vars) t1 in
-        let (sure_def_list, sure_facts) = info_from_term t1' in
+        let (sure_def_list, sure_facts) = def_vars_and_facts_from_term t1' in
 	let true_facts' = List.rev_append sure_facts true_facts in
 	let accu = ref [] in
 	List.iter (close_def_subterm accu) def_list;
@@ -3093,7 +3097,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	       We need not take them into account to update elsefind_facts. *)
 	    let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	    let t' = subst repl_indices (List.map term_from_binder vars) t in
-            let (sure_def_list, sure_facts) = info_from_term t' in
+            let (sure_def_list, sure_facts) = def_vars_and_facts_from_term t' in
 	    let true_facts' = List.rev_append sure_facts true_facts in
 	    let accu = ref [] in
 	    List.iter (close_def_subterm accu) def_list;
