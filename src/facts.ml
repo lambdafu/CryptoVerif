@@ -485,6 +485,7 @@ let apply_simplif_subterms_once simplif_root_or_prod_subterm simp_facts t =
       let t' = simplif_root_or_prod_subterm t in
       if !reduced then t' else 
       Terms.build_term2 t (FunApp(f, List.map simplif_rec l))
+	(* TO DO maybe problem when f is LetEqual *)
   | _ -> t
   in
   simplif_rec t
@@ -871,11 +872,14 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	      (* Reduce the RHS of the equality t = t' *)
               let (reduced_rhs, t1') = apply_sub1 simp_facts_tmp t' link in
 	      if reduced_lhs || reduced_rhs then
-		let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 		if not reduced_lhs then
+		  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 		  rhs_reduced := fact' :: (!rhs_reduced) 
 		else	    
 		  begin
+		    (* When the LHS is reduced, we cannot keep LetEqual, because
+		       the variable t may have been rewritten to something not a variable *)
+		    let fact' = Terms.make_equal t1 t1' in
 		    if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
 		      not_subst2_facts := fact' :: (!not_subst2_facts)
 		  end
@@ -905,11 +909,14 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	(* Reduce the RHS of the equality t = t' *)
 	let (reduced_rhs, t1') = apply_eq_st_coll1 depth simp_facts_tmp t' in
 	if reduced_lhs || reduced_rhs then
-	  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 	  if not reduced_lhs then
+	    let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 	    rhs_reduced := fact' :: (!rhs_reduced) 
 	  else	    
 	    begin
+	      (* When the LHS is reduced, we cannot keep LetEqual, because
+		 the variable t may have been rewritten to something not a variable *)
+	      let fact' = Terms.make_equal t1 t1' in
 	      if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
 		not_subst2_facts := fact' :: (!not_subst2_facts)
 	    end
@@ -933,7 +940,9 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	  rhs_reduced := t0 :: (!rhs_reduced) 
 	else	    
 	  begin
-	    let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t'])) in
+	    (* When the LHS is reduced, we cannot keep LetEqual, because
+	       the variable t may have been rewritten to something not a variable *)
+	    let fact' = Terms.make_equal t1 t' in
 	    if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
 	      not_subst2_facts := fact' :: (!not_subst2_facts)
 	  end
@@ -2399,6 +2408,7 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
       apply_colls reduce_rec_impossible add_accu t f.f_statements;
       apply_colls reduce_rec add_accu t f.f_collisions;
       apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
+	(* TO DO maybe problem when f is LetEqual *)
   | Var(b,l) -> 
       apply_eq add_accu t equalities;
       apply_list (fun l' -> add_accu (Terms.build_term2 t (Var(b, l')))) [] l
