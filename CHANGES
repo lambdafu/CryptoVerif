@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version 1.29
 
+- Improved simplification of terms, in particular in the presence
+  of boolean variables.
 - New front-end, for improved compatibility with ProVerif.
   The main syntax changes are as follows:
   - "define" becomes "def"

@@ -831,7 +831,11 @@ and add_fact depth dep_info simp_facts fact =
       | _ -> (subst2, fact'::facts, elsefind)
       end
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
-      simplif_add (depth+1) dep_info (add_fact (depth+1) dep_info simp_facts t1) t2
+     simplif_add (depth+1) dep_info (add_fact (depth+1) dep_info simp_facts t1) t2
+  | Var _ ->
+     subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal fact' (Terms.make_true()))
+  | FunApp(f,[{ t_desc = Var _ } as t1]) when f == Settings.f_not ->
+     subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 (Terms.make_false()))
   | _ -> 
       if Terms.is_false fact' then raise Contradiction else
       if Terms.is_true fact' then simp_facts else

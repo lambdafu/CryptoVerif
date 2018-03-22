@@ -3,6 +3,10 @@ equation forall x:bool,y:bool; (not(x && y)) = (not(x) || not(y)).
 equation forall x:bool,y:bool; (not(x || y)) = (not(x) && not(y)).
 equation not(true) = false.
 equation not(false) = true.
+equation forall x:bool; (x = true) = x.
+equation forall x:bool; (x <> false) = x.
+equation forall x:bool; (x <> true) = not(x).
+equation forall x:bool; (x = false) = not(x).
 
 const bottom:bitstringbot.
 
