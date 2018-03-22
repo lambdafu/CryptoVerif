@@ -1,0 +1,23 @@
+type psk_t [fixed].
+
+fun optional_psk(bool, psk_t, psk_t) : psk_t.
+
+equation forall x:psk_t, y:psk_t; optional_psk(true, x, y) = x.
+equation forall x:psk_t, y:psk_t; optional_psk(false, x, y) = y.
+equation forall x:psk_t, b:bool; optional_psk(b,x,x) = x.
+
+const psk_0: psk_t.
+
+channel c_start,c1, c2.
+
+process
+  in(c_start, (use_psk: bool));
+  new psk: psk_t;
+  if use_psk then
+  (
+    let foo: psk_t = optional_psk(use_psk, psk, psk_0) in
+    out(c1, foo)
+  ) else (
+    let foo: psk_t = optional_psk(use_psk, psk, psk_0) in
+    out(c2, foo)
+  )
