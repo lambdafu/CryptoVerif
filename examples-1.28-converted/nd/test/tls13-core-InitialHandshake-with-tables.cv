@@ -123,7 +123,7 @@ proof {
       out_game "g1.out" occ;
       (* After the first input in the server (which defines sgx), and new sr_???: nonce.
          gx is the value of gx in the client.  *)
-      insert 1695 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert 1688 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       (* gy_446 is the value of gy in the server *)
       SArename gy_1;
       out_game "g2.out" occ;

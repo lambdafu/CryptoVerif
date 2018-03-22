@@ -833,8 +833,12 @@ and add_fact depth dep_info simp_facts fact =
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
      simplif_add (depth+1) dep_info (add_fact (depth+1) dep_info simp_facts t1) t2
   | Var _ ->
+     (* If a boolean variable var is known to be true, add the
+        rewrite rule var -> true to subst *)
      subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal fact' (Terms.make_true()))
   | FunApp(f,[{ t_desc = Var _ } as t1]) when f == Settings.f_not ->
+     (* If not(var) is known to be true for a boolean variable var,
+        add the rewrite rule var -> false to subst *)
      subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 (Terms.make_false()))
   | _ -> 
       if Terms.is_false fact' then raise Contradiction else
