@@ -587,26 +587,31 @@ equiv(int_ptxt(enc))
 				z <- dec'(y, k);
                                 find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom)).
 
-(* Manual version, which can transform only some occurrences of decryption:
+(* Manual version, which supports corruption of the key and can transform 
+   only some occurrences of decryption:
    use oracle Odec_unchanged to discharge the occurrences of decryption
    that you do not want to transform.
    It renames only the decryption function symbol for the occurrences that are transformed,
    so it can be applied again to other occurrences. *)
 
-equiv(int_ptxt_partial(enc))
+equiv(int_ptxt_corrupt_partial(enc))
       foreach i2 <= N2 do k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
-	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) := return(dec(y',k)) |
-	      foreach i3 <= N3'' do Odec_unchanged'(y'':ciphertext) := return(dec'(y'',k))) 
+	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) [8] := return(dec(y',k)) |
+	      foreach i3 <= N3'' do Odec_unchanged'(y'':ciphertext) := return(dec'(y'',k)) |
+	      Ocorrupt() [10] := return(k)) 
      <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + (N3+N3'+N3'')*time(dec,max(maxlength(y), maxlength(y'),maxlength(y'')))), N, N3, N3'+N3'', maxlength(x), max(maxlength(y),maxlength(y'),maxlength(y''))))=> [manual,computational] 
       foreach i2 <= N2 do k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
-	      foreach i3 <= N3 do Odec(y:ciphertext) := 
-				z <- dec'(y, k);
-                                find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom) |
+	      foreach i3 <= N3 do Odec(y:ciphertext) :=
+		      z <- dec'(y, k);
+	      	      if defined(corrupt) then return(z) else
+                      find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom) |
 	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) := return(dec(y',k)) |
-	      foreach i3 <= N3'' do Odec_unchanged'(y'':ciphertext) := return(dec'(y'',k))).
+	      foreach i3 <= N3'' do Odec_unchanged'(y'':ciphertext) := return(dec'(y'',k)) |
+	      Ocorrupt() := let corrupt: bool = true in return(k)).
+
 }
 
 def INT_PTXT_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Pencptxt) { 
@@ -737,24 +742,28 @@ equiv(int_ptxt_after_ind_cca2(enc))
 				z <- dec'(y, k);
                                 find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom)).
 
-(* Manual version, which can transform only some occurrences of decryption:
+(* Manual version, which supports corruption of the key and can transform 
+   only some occurrences of decryption:
    use oracle Odec_unchanged to discharge the occurrences of decryption
    that you do not want to transform.
    It does not rename function symbols, so it can be applied again,
    and before or after IND-CCA2. *)
 
-equiv(int_ptxt_partial(enc))
+equiv(int_ptxt_corrupt_partial(enc))
       foreach i2 <= N2 do k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
-	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) := return(dec(y',k))) 
+	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) [8] := return(dec(y',k)) |
+	      Ocorrupt() [10] := return(k)) 
      <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + (N3+N3')*time(dec,max(maxlength(y),maxlength(y')))), N, N3, N3', maxlength(x), max(maxlength(y),maxlength(y'))))=> [manual,computational] 
       foreach i2 <= N2 do k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := 
-				z <- dec(y, k);
-                                find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom) |
-	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) := return(dec(y',k))).
+		      z <- dec(y, k);
+	      	      if defined(corrupt) then return(z) else
+                      find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom) |
+	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) := return(dec(y',k)) |
+	      Ocorrupt() := let corrupt: bool = true in return(k)).
 
 }
 

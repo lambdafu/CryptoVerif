@@ -532,13 +532,15 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Pencptxt}\texttt{).}$ defines an INT-PTXT (pla
 
    This macro defines the equivalences named
    $\texttt{int\_ptxt}(\vn{enc})$ and
-   $\texttt{int\_ptxt\_partial}(\vn{enc})$, for use in the
+   $\texttt{int\_ptxt\_corrupt\_partial}(\vn{enc})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).  While
    the equivalence $\texttt{ind\_ptxt}(\vn{enc})$ replaces all
    decryption with lookups in encryption queries, the equivalence
-   $\texttt{ind\_ptxt\_partial}(\vn{enc})$ replaces only some of them. 
+   $\texttt{ind\_ptxt\_corrupt\_partial}(\vn{enc})$ may replace only some of them
+   and supports corruption of the key. 
    The latter equivalence can be applied only manually.
-   The user should map the occurrences of decryption that he wants to
+   To transform only some occurrences of decryption, 
+   the user should map the occurrences of decryption that he wants to
    transform to oracle $\vn{Odec}$, the ones he wants to leave
    unchanged to oracle $\vn{Odec\_unchanged}$, and the ones that have
    already been transformed by a previous application of this
@@ -607,7 +609,7 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencptxt}\texttt{).}$ d
    $\texttt{ind\_cca2\_partial}(\vn{enc})$,
    $\texttt{int\_ptxt}(\vn{enc})$,
    $\texttt{int\_ptxt\_after\_ind\_cca2}(\vn{enc})$, and
-   $\texttt{int\_ptxt\_partial}(\vn{enc})$, for use in the
+   $\texttt{int\_ptxt\_corrupt\_partial}(\vn{enc})$, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}). 
    %
    The first three correspond to the IND-CCA2 property, the last three
@@ -622,9 +624,10 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencptxt}\texttt{).}$ d
    after applying the IND-CCA2 property.
    %
    The equivalences $\texttt{ind\_cca2\_partial}(\vn{enc})$ and
-   $\texttt{int\_ptxt\_partial}(\vn{enc})$ transform only some
-   occurrences of encryption and/or decryption.  They can be applied
-   only manually, in any order.
+   $\texttt{int\_ptxt\_corrupt\_partial}(\vn{enc})$ may transform only some
+   occurrences of encryption and/or decryption, and
+   $\texttt{int\_ptxt\_corrupt\_partial}(\vn{enc})$ supports corruption
+   of the key.  They can be applied only manually, in any order.
    %
    For $\texttt{ind\_cca2\_partial}(\vn{enc})$, the user should map
    the occurrences of encryption that he wants to transform to oracle

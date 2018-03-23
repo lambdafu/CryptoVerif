@@ -274,13 +274,19 @@ more transformations with the square variant.
       
       DONE update documentation.
 
-      TO DO add "corrupt" oracles to INT-PTXT partial transformations.
-      Could I merge the equivalences suf_cma_corrupt and
+      ABANDONED Could I merge the equivalences suf_cma_corrupt and
       suf_cma_corrupt_partial by giving higher priority to
       the oracles that make a change? (So the application without
       explicit indication of oracles change all occurrences as
-      before.)
-      Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
+      before.) => Not possible for various reasons:
+      - the MAC partial equivalences do not rename function symbols.
+        It is helpful to have another equivalence for corruption
+        that renames them, to avoid applying the MAC property again.
+      - the signature equivalences with corruption insist in
+        transforming all occurrences of check. It may be helpful to
+        have that. 
+      DONE add "corrupt" oracles to INT-PTXT partial transformations.
+      TO DO Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
       left unchanged, without corrupting a.
       (It can be computed as exp(exp(g,a),m) and exp(g,a) is public.)
 
