@@ -22,3 +22,9 @@ process
     let foo: psk_t = optional_psk(use_psk, psk, psk_0) in
     out(c2, foo)
   )
+
+(* EXPECTED
+All queries proved.
+0.127s (elapsed: user + system + other processes)
+END *)
+
