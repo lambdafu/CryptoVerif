@@ -485,7 +485,9 @@ let apply_simplif_subterms_once simplif_root_or_prod_subterm simp_facts t =
       let t' = simplif_root_or_prod_subterm t in
       if !reduced then t' else 
       Terms.build_term2 t (FunApp(f, List.map simplif_rec l))
-	(* TO DO maybe problem when f is LetEqual *)
+	(* [simplif_rec] always leaves variables unchanged.
+	   So if [f] is [LetEqual], its first argument is a variable before
+	   simplification and remains a variable after. *)
   | _ -> t
   in
   simplif_rec t
@@ -544,6 +546,12 @@ let reduced_subst = ref false
 
 let try_no_var = Terms.try_no_var
 let normalize = try_no_var
+
+let is_identity link =
+  match link.t_desc with
+    FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
+      Terms.equal_terms t t'
+  | _ -> false
 
 let rec apply_subst1 simp_facts t tsubst =
   match tsubst.t_desc with
@@ -837,10 +845,20 @@ and add_fact depth dep_info simp_facts fact =
      (* If a boolean variable var is known to be true, add the
         rewrite rule var -> true to subst *)
      subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal fact' (Terms.make_true()))
-  | FunApp(f,[{ t_desc = Var _ } as t1]) when f == Settings.f_not ->
-     (* If not(var) is known to be true for a boolean variable var,
-        add the rewrite rule var -> false to subst *)
-     subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 (Terms.make_false()))
+  | FunApp(f,[t1]) when f == Settings.f_not ->
+      let t1' = try_no_var simp_facts t1 in
+      begin
+	match t1'.t_desc with
+	| Var _ ->
+            (* If not(var) is known to be true for a boolean variable var,
+               add the rewrite rule var -> false to subst *)
+	    subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 (Terms.make_false()))
+	| _ ->
+	    (* not(true) and not(false) are already simplified,
+	       because the library of primitivs gives the equations not(true) = false and not(false) = true. *)
+	    let facts' = if List.exists (Terms.equal_terms fact') facts then facts else fact'::facts in
+	    (subst2, facts', elsefind)
+      end
   | _ -> 
       if Terms.is_false fact' then raise Contradiction else
       if Terms.is_true fact' then simp_facts else
@@ -848,12 +866,21 @@ and add_fact depth dep_info simp_facts fact =
       (subst2, facts', elsefind)
     end
 
+
+(* [subst_simplify2] reduces the equalities in [subst2] using the 
+   new substitution [link], and adds [link] to [subst2]. 
+
+   We have the following invariant: either
+   - [link] is a LetEqual, and the LHS of [link] could not be reduced
+     using LetEqual substitutions in [subst2], or
+   - the LHS of [link] has been simplified using [Terms.try_no_var].
+   For this reason, when I reduce the LHS of a LetEqual using [link],
+   the reduction never happens at the root, so that LHS remains
+   a variable and I can keep LetEqual. *)
+      
 and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
-  if (match link.t_desc with
-    FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-      Terms.equal_terms t t'
-  | _ -> false) then
-    (* The newly added substitution link is the identity, just ignore it *)
+  if is_identity link then
+    (* The newly added substitution [link] is the identity, just ignore it *)
     (subst2, facts, elsefind)
   else
   (* Reduce the equalities in [subst2] using the new [link] *)
@@ -872,14 +899,11 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	      (* Reduce the RHS of the equality t = t' *)
               let (reduced_rhs, t1') = apply_sub1 simp_facts_tmp t' link in
 	      if reduced_lhs || reduced_rhs then
+		let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 		if not reduced_lhs then
-		  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 		  rhs_reduced := fact' :: (!rhs_reduced) 
 		else	    
 		  begin
-		    (* When the LHS is reduced, we cannot keep LetEqual, because
-		       the variable t may have been rewritten to something not a variable *)
-		    let fact' = Terms.make_equal t1 t1' in
 		    if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
 		      not_subst2_facts := fact' :: (!not_subst2_facts)
 		  end
@@ -909,14 +933,11 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	(* Reduce the RHS of the equality t = t' *)
 	let (reduced_rhs, t1') = apply_eq_st_coll1 depth simp_facts_tmp t' in
 	if reduced_lhs || reduced_rhs then
+	  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 	  if not reduced_lhs then
-	    let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 	    rhs_reduced := fact' :: (!rhs_reduced) 
 	  else	    
 	    begin
-	      (* When the LHS is reduced, we cannot keep LetEqual, because
-		 the variable t may have been rewritten to something not a variable *)
-	      let fact' = Terms.make_equal t1 t1' in
 	      if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
 		not_subst2_facts := fact' :: (!not_subst2_facts)
 	    end
@@ -940,9 +961,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	  rhs_reduced := t0 :: (!rhs_reduced) 
 	else	    
 	  begin
-	    (* When the LHS is reduced, we cannot keep LetEqual, because
-	       the variable t may have been rewritten to something not a variable *)
-	    let fact' = Terms.make_equal t1 t' in
+	    let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t'])) in
 	    if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
 	      not_subst2_facts := fact' :: (!not_subst2_facts)
 	  end
@@ -1033,11 +1052,8 @@ and specialized_add_fact depth dep_info simp_facts fact =
     end
 
 and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
-  if (match link.t_desc with
-    FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-      Terms.equal_terms t t'
-  | _ -> false) then
-    (* The newly added substitution link is the identity, just ignore it *)
+  if is_identity link then
+    (* The newly added substitution [link] is the identity, just ignore it *)
     (subst2, facts, elsefind)
   else
   (* Reduce the equalities in [subst2] using the new [link].
@@ -2408,7 +2424,8 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
       apply_colls reduce_rec_impossible add_accu t f.f_statements;
       apply_colls reduce_rec add_accu t f.f_collisions;
       apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
-	(* TO DO maybe problem when f is LetEqual *)
+	(* We use this function for rewritting terms in the manual transformation
+	   "replace". LetEqual should never appear here. *)
   | Var(b,l) -> 
       apply_eq add_accu t equalities;
       apply_list (fun l' -> add_accu (Terms.build_term2 t (Var(b, l')))) [] l
