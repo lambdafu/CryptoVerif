@@ -1,7 +1,3 @@
-Use Terms.def_vars_and_facts_from_term in transf_simplify and
-transf_expand.
-
-
 0) Files that do not work
 
 - "Expanding and simplifying" is very slow in
@@ -56,6 +52,7 @@ replication indices in commands may require other changes.
    b.4) Use "query secret x [onesession]" instead of
    "query secret1 x".
    DONE
+   TO DO onesession -> cv_onesession. Ignore all options starting with pv_
 
    ABANDONED FOR NOW use "public_vars ..." as a query modifier, which modifies
    all queries of a group. That guarantees that all queries of a group
@@ -3141,3 +3138,7 @@ DONE 30/10/2017
 
 Support let (b, =b) = ... ?
 ABANDONED. This would be a bad idea. 
+
+Terms.def_vars_and_facts_from_term to exploit the information
+from complex conditions of find.
+DONE 23/3/2018

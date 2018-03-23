@@ -5,6 +5,8 @@ Version 1.29
 
 - Improved simplification of terms, in particular in the presence
   of boolean variables.
+- Exploit the information of complex conditions of find
+  (themselves containing let, if, or find).
 - New front-end, for improved compatibility with ProVerif.
   The main syntax changes are as follows:
   - "define" becomes "def"

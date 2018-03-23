@@ -473,13 +473,17 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      List.iter (fun b -> 
 		b.priority <- (!current_max_priority); 
 		priority_list := b :: (!priority_list)) vars;
-	      let (t1', facts_cond) =
+	      let (t1', facts_cond, def_vars_cond') =
 		match t1.t_desc with
 		  Var _ | FunApp _ ->
 		    let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
-		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list)
+		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond)
 		| _ -> 
-		    (t1, facts_from_elsefind_facts @ facts_def_list)
+                   let (sure_def_vars_t1, sure_facts_t1) = Terms.def_vars_and_facts_from_term t1 in
+                   let def_vars_t1 = Facts.def_vars_from_defined this_branch_node sure_def_vars_t1 in
+                   let facts_def_vars_t1 = Facts.facts_from_defined this_branch_node sure_def_vars_t1 in
+		   (t1, facts_def_vars_t1 @ sure_facts_t1 @ facts_from_elsefind_facts @ facts_def_list,
+                    def_vars_t1' @ def_vars_cond)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -493,7 +497,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      (* [def_vars_cond] contains the variables that are certainly defined 
 		 using repl_indices as indices. We substitute vars from them to obtain
 		 the variables certainly defined in the then branch. *)
-	      let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond in
+	      let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond' in
 	      (* [Terms.def_list_at_pp_fact] adds facts inferred from the knowledge 
 		 that the variables in [def_vars_accu] are defined
 	         at the current program point *)
@@ -928,13 +932,17 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      List.iter (fun b -> 
 		b.priority <- (!current_max_priority);
 		priority_list := b :: (!priority_list)) vars;
-	      let (t', facts_cond) =
+	      let (t', facts_cond, def_vars_cond') =
 		match t.t_desc with
 		  Var _ | FunApp _ ->
 		    let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
-		    (t', t' :: facts_from_elsefind_facts @ facts_def_list)
+		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond)
 		| _ -> 
-		    (t, facts_from_elsefind_facts @ facts_def_list)
+                    let (sure_def_vars_t, sure_facts_t) = Terms.def_vars_and_facts_from_term t in
+                    let def_vars_t = Facts.def_vars_from_defined this_branch_node sure_def_vars_t in
+                    let facts_def_vars_t = Facts.facts_from_defined this_branch_node sure_def_vars_t in
+		    (t, facts_def_vars_t @ sure_facts_t @ facts_from_elsefind_facts @ facts_def_list,
+                     def_vars_t @ def_vars_cond)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -949,7 +957,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      (* [def_vars_cond] contains the variables that are certainly defined 
 		 using repl_indices as indices. We substitute vars from them to obtain
 		 the variables certainly defined in the then branch. *)
-	      let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond in
+	      let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond' in
 	      (* [Terms.def_list_at_pp_facts] adds facts inferred from the knowledge 
 		 that the variables in [def_vars_accu] are defined
 	         at the current program point *)
