@@ -479,11 +479,12 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		    let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
 		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond)
 		| _ -> 
-                   let (sure_def_vars_t1, sure_facts_t1) = Terms.def_vars_and_facts_from_term t1 in
-                   let def_vars_t1 = Facts.def_vars_from_defined this_branch_node sure_def_vars_t1 in
-                   let facts_def_vars_t1 = Facts.facts_from_defined this_branch_node sure_def_vars_t1 in
-		   (t1, facts_def_vars_t1 @ sure_facts_t1 @ facts_from_elsefind_facts @ facts_def_list,
-                    def_vars_t1 @ def_vars_cond)
+                    let (sure_def_vars_t1, sure_facts_t1) = Terms.def_vars_and_facts_from_term t1 in
+		    let then_node = Facts.get_initial_history (DTerm t2) in
+                    let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
+                    let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
+		    (t1, facts_def_vars_t1 @ sure_facts_t1 @ facts_from_elsefind_facts @ facts_def_list,
+                     def_vars_t1 @ def_vars_cond)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -939,8 +940,9 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond)
 		| _ -> 
                     let (sure_def_vars_t, sure_facts_t) = Terms.def_vars_and_facts_from_term t in
-                    let def_vars_t = Facts.def_vars_from_defined this_branch_node sure_def_vars_t in
-                    let facts_def_vars_t = Facts.facts_from_defined this_branch_node sure_def_vars_t in
+		    let then_node = Facts.get_initial_history (get_pp p1) in
+                    let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
+                    let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
 		    (t, facts_def_vars_t @ sure_facts_t @ facts_from_elsefind_facts @ facts_def_list,
                      def_vars_t @ def_vars_cond)
 	      in

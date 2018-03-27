@@ -1067,8 +1067,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 		| _ -> 
 		   let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
                    let (sure_def_vars_t1', sure_facts_t1') = Terms.def_vars_and_facts_from_term t1' in
-                   let def_vars_t1' = Facts.def_vars_from_defined this_branch_node sure_def_vars_t1' in
-                   let facts_def_vars_t1' = Facts.facts_from_defined this_branch_node sure_def_vars_t1' in
+		   let then_node = Facts.get_initial_history (DTerm t2) in
+                   let def_vars_t1' = Facts.def_vars_from_defined then_node sure_def_vars_t1' in
+                   let facts_def_vars_t1' = Facts.facts_from_defined then_node sure_def_vars_t1' in
 		   (t1', facts_def_vars_t1' @ sure_facts_t1' @ facts_from_elsefind_facts @ facts_def_list,
                     def_vars_t1' @ def_vars_cond)
 	      in
@@ -1604,8 +1605,9 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		| _ -> 
 		    let t' = simplify_term_w_find cur_array_cond true_facts_t t in
                     let (sure_def_vars_t', sure_facts_t') = Terms.def_vars_and_facts_from_term t' in
-                    let def_vars_t' = Facts.def_vars_from_defined this_branch_node sure_def_vars_t' in
-                    let facts_def_vars_t' = Facts.facts_from_defined this_branch_node sure_def_vars_t' in
+		    let then_node = Facts.get_initial_history (DProcess p1) in
+                    let def_vars_t' = Facts.def_vars_from_defined then_node sure_def_vars_t' in
+                    let facts_def_vars_t' = Facts.facts_from_defined then_node sure_def_vars_t' in
 		    (t', facts_def_vars_t' @ sure_facts_t' @ facts_from_elsefind_facts @ facts_def_list,
                      def_vars_t' @ def_vars_cond)
 	      in
