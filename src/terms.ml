@@ -2728,6 +2728,17 @@ let extract_br_from_defined t =
   | _ ->
      internal_error "defined(...) term expected in extract_br_from_defined"
 
+(* [filter_dnf var_list f] removes from [f] all references to variables in
+   [var_list] *)
+
+let filter_dnf var_list f =
+  let not_refers_to_var_list t =
+    not (List.exists (fun b -> refers_to b t) var_list)
+  in
+  make_or_dnf_list
+    (List.map (fun and_f ->
+        [List.filter not_refers_to_var_list and_f]) f)
+                    
 (* [extract_dnf t] derives a logical formula in disjunctive
    normal form that is implied by [t] *)
                     
@@ -2769,14 +2780,14 @@ let rec extract_dnf t =
              [List.map (fun br ->
                build_term_type Settings.t_bool (FunApp(f_defined, [term_from_binderref br]))) def_list_subterms]
            in
-           make_and_dnf def_list_dnf (make_and_dnf f1 f2)
+           filter_dnf (List.map fst bl) (make_and_dnf def_list_dnf (make_and_dnf f1 f2))
              ) l0)
      in
      make_or_dnf f0 f3
   | LetE(pat, t1, t2, topt) ->
      let assign_dnf = [[make_equal (term_from_pat pat) t1]] in
      let f2 = extract_dnf t2 in
-     let in_branch_dnf = make_and_dnf assign_dnf f2 in
+     let in_branch_dnf = filter_dnf (vars_from_pat [] pat) (make_and_dnf assign_dnf f2) in
      begin
        match pat with
        | PatVar b -> in_branch_dnf
