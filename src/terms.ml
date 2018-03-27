@@ -2767,27 +2767,29 @@ let rec extract_dnf t =
      let f0 =
        make_or_dnf_list
          (List.map (fun (bl,def_list,t1,t2) ->
-	   let vars_terms = List.map (fun (b,_) -> term_from_binder b) bl in
+	   let vars = List.map fst bl in
+	   let vars_terms = List.map term_from_binder vars in
 	   let repl_indices = List.map snd bl in
 	   let t1' = subst repl_indices vars_terms t1 in
-           let f1 = extract_dnf t1' in
-           let f2 = extract_dnf t2 in
+           let f1 = filter_dnf vars (extract_dnf t1') in
+           let f2 = filter_dnf vars (extract_dnf t2) in
            let accu = ref [] in
 	   List.iter (close_def_subterm accu) def_list;
 	   let def_list_subterms = !accu in
 	   let def_list_subterms = subst_def_list repl_indices vars_terms def_list_subterms in
-           let def_list_dnf = 
+           let def_list_dnf = filter_dnf vars
              [List.map (fun br ->
                build_term_type Settings.t_bool (FunApp(f_defined, [term_from_binderref br]))) def_list_subterms]
            in
-           filter_dnf (List.map fst bl) (make_and_dnf def_list_dnf (make_and_dnf f1 f2))
+           make_and_dnf def_list_dnf (make_and_dnf f1 f2)
              ) l0)
      in
      make_or_dnf f0 f3
   | LetE(pat, t1, t2, topt) ->
-     let assign_dnf = [[make_equal (term_from_pat pat) t1]] in
-     let f2 = extract_dnf t2 in
-     let in_branch_dnf = filter_dnf (vars_from_pat [] pat) (make_and_dnf assign_dnf f2) in
+      let vars = vars_from_pat [] pat in
+     let assign_dnf = filter_dnf vars [[make_equal (term_from_pat pat) t1]] in
+     let f2 = filter_dnf vars (extract_dnf t2) in
+     let in_branch_dnf = make_and_dnf assign_dnf f2 in
      begin
        match pat with
        | PatVar b -> in_branch_dnf
