@@ -45,7 +45,6 @@ proof {
       crypto uf_cma_corrupt(sign) kseedC;
       success;
       out_game "g3.out";
-      SArename r'_17;
       SArename r'_21;
       success
 }
