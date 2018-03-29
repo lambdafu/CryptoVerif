@@ -5,11 +5,11 @@
  *)
 
 proof {
-crypto int_ctxt(enc) Kas_1;
+crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' *)
 auto;
 out_game "g1.cv";
-crypto int_ctxt_corrupt(enc) k_9;
-success
+crypto int_ctxt_corrupt(enc) k_9; (* we need the _corrupt version because k_9 = keyA may leak *)
+success (* proves inj-event(partA(B,x)) ==> inj-event(partB(A,x))
 }
 
 param N.
