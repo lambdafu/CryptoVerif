@@ -5,7 +5,11 @@
  *)
 
 proof {
-   interactive
+crypto int_ctxt(enc) Kas_1;
+auto;
+out_game "g1.cv";
+crypto int_ctxt_corrupt(enc) k_9;
+success
 }
 
 param N.
@@ -14,7 +18,7 @@ param N3.
 
 type nonce [large,fixed].
 type host [bounded].
-type key [fixed].
+type key [fixed,large].
 type enc_seed [fixed].
 
 
@@ -75,11 +79,24 @@ event fullA(host, key, bitstring).
 event partB(host, bitstring).
 event fullB(host, key, bitstring).
 
-query x:bitstring; inj-event(partA(B,x)) ==> inj-event(partB(A,x)).
-query x:bitstring, k:key; inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)).
-query x:bitstring, k:key, k':key; event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k'.
+query x:bitstring; inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA.
+      (* This property is true, but the presence of event fullB prevents CryptoVerif from
+         proving it. It works after commenting out the properties that rely on this event
+	 and remain unproved.
+	 * It considers that the execution of event fullB leaks the key k,
+	 which is far from optimal.
+	 * Even with that, it should show that the key keyA = k cannot be defined
+	 or an event using k be executed (so k leaked to the adversary) before the decryption 
+	 using that key in A. There is some induction
+	 to find out the first session in which k is leaked. *)
+(* query x:bitstring, k:key; inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)) public_vars keyA. *)
+      (* This property is wrong for this script: 
+      	 after a first session, the adversary has keyA, 
+	 he can then replay the first message to B and 
+	 decrypt {NB}k and encrypt {NB-1}k. *)
+query x:bitstring, k:key, k':key; event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' public_vars keyA. 
 query secret keyA.
-query secret keyA [onesession].
+query secret keyA [onesession]. 
 
 (* Channels and Processes *)
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
@@ -157,11 +174,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of keyA, secrecy of keyA, event fullA(B, k, x) && fullB(A, k', x) ==> (k = k').
+RESULT Could not prove one-session secrecy of keyA; secrecy of keyA.
 5.580s (user 5.540s + system 0.040s), max rss 120656K
-
-RESULT Could not prove one-session secrecy of keyA; secrecy of keyA;
-   event(fullA(B, k, x)) && event(fullB(A, k', x)) ==> (k = k');
-   inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x));
-   inj-event(partA(B, x)) ==> inj-event(partB(A, x)).
 END *)
