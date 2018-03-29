@@ -210,7 +210,7 @@ exception NoMatch, like when matching fails. This facilitates the
 interaction with the matching functions, which are used as part of the
 test to see whether we can apply the transformation. *)
 
-(* Check that t does not contain new or event *)
+(* Check that [t] does not contain new or event *)
 
 let rec check_no_new_event t =
   match t.t_desc with
@@ -246,7 +246,7 @@ and check_no_new_event_pat = function
   | PatTuple(_,l) -> List.iter check_no_new_event_pat l
   | PatEqual t -> check_no_new_event t
 
-(* Check if t is an instance of term.
+(* Check if [t] is an instance of [term].
    Variables of term may be substituted by any term, except 
    - variables in name_list_g which must be kept, but may be indexed 
    (always the same indexes for all elements of name_list_g) 
@@ -262,9 +262,9 @@ and check_no_new_event_pat = function
    sense above.
  *)
 
-(* The flag global_sthg_discharged is useful to check that applying the
+(* The flag [global_sthg_discharged] is useful to check that applying the
 considered cryptographic transformation is useful; this is needed because
-otherwise the advice "SArenaming b" could be given when b is positions
+otherwise the advice [SArenaming b] could be given when [b] is in positions
 in which it will never be transformed *)
 let global_sthg_discharged = ref false
 let names_to_discharge = ref ([] : name_to_discharge_t)
@@ -273,7 +273,7 @@ let symbols_to_discharge = ref ([] : funsymb list)
 let is_name_to_discharge b =
   List.exists (fun (b', _) -> b' == b) (!names_to_discharge)
 
-(* Check if a variable in names_to_discharge occurs in t *)
+(* Check if a variable in [names_to_discharge] occurs in [t] *)
 
 let rec occurs_name_to_discharge t =
   match t.t_desc with
@@ -285,7 +285,7 @@ let rec occurs_name_to_discharge t =
   | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.occurs_name_to_discharge)"
       
-(* Check if a function symbol in fun_list occurs in t *)
+(* Check if a function symbol in [symbols_to_discharge] occurs in [t] *)
 
 let rec occurs_symbol_to_discharge t =
   match t.t_desc with
