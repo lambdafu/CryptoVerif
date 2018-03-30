@@ -7,6 +7,10 @@ Version 1.29
   of boolean variables.
 - Exploit the information of complex conditions of find
   (themselves containing let, if, or find).
+- During the crypto transformation, do not transform a random variable
+  that appears in an event and that is marked [unchanged] in the
+  transformation using an oracle with priority > priorityEventUnchangedRand
+  (default: 5), prefer leaving it unchanged.
 - New front-end, for improved compatibility with ProVerif.
   The main syntax changes are as follows:
   - "define" becomes "def"

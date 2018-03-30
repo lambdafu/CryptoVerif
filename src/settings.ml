@@ -42,6 +42,7 @@ let diff_constants = ref true
 let constants_not_tuple = ref true
 
 let use_known_equalities_crypto = ref true
+let priority_event_unchanged_rand = ref 5
     
 let expand_letxy = ref true
 
@@ -157,6 +158,7 @@ let do_set p v =
   | "maxAdvicePossibilitiesBeginning", I n -> max_advice_possibilities_beginning := n
   | "maxAdvicePossibilitiesEnd", I n -> max_advice_possibilities_end := n
   | "useKnownEqualitiesInCryptoTransform", _ -> parse_bool v use_known_equalities_crypto
+  | "priorityEventUnchangedRand", I n -> priority_event_unchanged_rand := n
   | "minAutoCollElim", S (s,_) -> 
       let r = parse_type_size s in
       if r <= 0 then raise Not_found;

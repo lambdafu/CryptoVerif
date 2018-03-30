@@ -1094,6 +1094,20 @@ When it is false, CryptoVerif just uses the variables as their
 appear in the game, and relies only on advice to replace variables
 with their values. 
 
+\item \texttt{set priorityEventUnchangedRand = $n$.} (default: 5)
+
+During the cryptographic transformation, variables that occur in event
+and are mapped to random variables marked \texttt{[unchanged]} in the
+equivalence can be left unchanged.
+
+Sometimes, it is also possible to transform the term that contains
+them using one of the oracles of the equivalence.
+
+This settings determines which option is chosen: CryptoVerif prefers
+leaving the variable unchanged rather than using an oracle with
+priority at least $n$. It prefers using an oracle with priority
+less than $n$ rather than leaving the variable unchanged.
+
 \item \texttt{set casesInCorresp = true.}\\
 \texttt{set casesInCorresp = false.}
 

@@ -491,25 +491,43 @@ let display_ins ins =
 (* State of the system when trying to map a function in an equivalence and
    a subterm of the process
 
-   (advised_ins: list of advised instructions, 
+    unchanged_names_useless: true when the term we want to transform
+    is in an event and the transformation has a penalty (ie priority)
+    greater than Settings.priority_event_unchanged_rand. In this case,
+    we do not set sthg_discharged when an unchanged restriction is
+    discharged.  Indeed, when only unchanged restrictions are
+    discharged, we prefer not applying the transformation and using
+    the fact that unchanged restrictions can occur in events.
+
+    advised_ins: list of advised instructions, 
     sthg_discharged, 
     names_to_discharge, 
     priority,
     lhs_array_ref_map: correspondence between variables and names/terms
-    name_indexes)
+    name_indexes
 
    *)
 
 type state_t =
-    { advised_ins : instruct list;
+    { (* Part of the state fixed at initialization *)
+      simp_facts : simp_facts;
+      all_names_exp_opt : (binder * restropt) list list;
+      mode : mode;
+      unchanged_names_useless : bool;
+      (* Part of the state updated during check_instance_of_rec *)
+      advised_ins : instruct list;
       sthg_discharged : bool;
       names_to_discharge : name_to_discharge_t;
       priority : int;
       lhs_array_ref_map : ((binder * term list) * term) list;
       name_indexes : ((binder * term list) * term list) list }
 
-let init_state = 
-  { advised_ins = [];
+let init_state simp_facts all_names_exp_opt mode where_info priority = 
+  { simp_facts = simp_facts;
+    all_names_exp_opt = all_names_exp_opt;
+    mode = mode;
+    unchanged_names_useless = (where_info = Event) && (priority >= !Settings.priority_event_unchanged_rand);
+    advised_ins = [];
     sthg_discharged  = false;
     names_to_discharge = [];
     priority = 0;
@@ -583,16 +601,16 @@ let is_var_inst t =
 (* In check_instance_of_rec, mode = AllEquiv for the root symbol of functions marked [all] 
    in the equivalence. Only in this case a function symbol can be discharged. *)
 
-let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t state =
+let rec check_instance_of_rec next_f term t state =
   match (term.t_desc, t.t_desc) with
   | FunApp(f,l), FunApp(f',l') when f == f' ->
       let state' = 
-	if (mode == AllEquiv) && (List.memq f (!symbols_to_discharge)) then
+	if (state.mode == AllEquiv) && (List.memq f (!symbols_to_discharge)) then
 	  { state with sthg_discharged = true }
 	else
 	  state
       in
-      Terms.match_funapp_advice (check_instance_of_rec simp_facts all_names_exp_opt mode) explicit_value_state (get_var_link all_names_exp_opt) is_var_inst next_f simp_facts term t state'
+      Terms.match_funapp_advice check_instance_of_rec explicit_value_state (get_var_link state.all_names_exp_opt) is_var_inst next_f state.simp_facts term t state'
   | FunApp(f,l), FunApp(_,_) -> 
       raise NoMatch
 	(* Might work after rewriting with an equation *)
@@ -600,7 +618,7 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
       begin
 	(* Try to use the known facts to replace the variable 
 	   with its value *)
-      let t' = Terms.try_no_var simp_facts t in
+      let t' = Terms.try_no_var state.simp_facts t in
       match t'.t_desc with
 	Var _ ->
 	  if (!no_advice_mode) || (not (List.exists (function 
@@ -611,7 +629,7 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
 	  else
             (* suggest assignment expansion on b *)
 	    next_f { state with advised_ins = Terms.add_eq (explicit_value b) state.advised_ins }
-      |	_ -> check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t' state
+      |	_ -> check_instance_of_rec next_f term t' state
       end
   | FunApp _, ReplIndex _ -> raise NoMatch
   | FunApp(f,l), (TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _) ->
@@ -629,7 +647,7 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
 	  (* (b,l) is not mapped yet *)
             begin
               try
-                let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) all_names_exp_opt in
+                let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) state.all_names_exp_opt in
 		let name_group = List.map fst name_group_opt in
                 match t.t_desc with
                   Var(b',l') ->
@@ -682,7 +700,10 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
 				    print_string ("Variable " ^ (Display.binder_to_string b') ^ " occurs in some event and may be changed by the cryptographic transformation.\n");
 				  raise NoMatch
 				end;
-			      { state' with sthg_discharged = true }
+			      if (bopt == Unchanged) && state'.unchanged_names_useless then
+				state'
+			      else
+				{ state' with sthg_discharged = true }
                             with Not_found ->
 			      if !stop_mode then 
 				begin
@@ -786,7 +807,7 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
 			  let state' = { state with lhs_array_ref_map = ((b,l), t)::state.lhs_array_ref_map } in
                           (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  try
-			    let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) all_names_exp_opt in
+			    let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) state.all_names_exp_opt in
 			    let name_group = List.map fst name_group_opt in
 			    let group_head = List.hd name_group in
 			    let bopt = List.assq b name_group_opt in
@@ -802,7 +823,10 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
 				      print_string ("Variable " ^ (Display.binder_to_string b') ^ " occurs in some event and may be changed by the cryptographic transformation.\n");
 				    raise NoMatch
 				  end;
-				{ state' with sthg_discharged = true }
+				if (bopt == Unchanged) && state'.unchanged_names_useless then
+				  state'
+				else
+				  { state' with sthg_discharged = true }
                               with Not_found ->
 				if !stop_mode then 
 				  begin
@@ -836,7 +860,7 @@ let rec check_instance_of_rec simp_facts all_names_exp_opt mode next_f term t st
 			  with Not_found ->
 			    Display.display_binder b;
 			    print_string " not in ";
-			    Display.display_list (Display.display_list (fun (b,_) -> Display.display_binder b)) all_names_exp_opt;
+			    Display.display_list (Display.display_list (fun (b,_) -> Display.display_binder b)) state.all_names_exp_opt;
 			    Parsing_helper.internal_error "Array reference in the left-hand side of an equivalence should always be a reference to a restriction"
 			end
                     end
@@ -857,7 +881,7 @@ let list_to_term_opt f = function
    [check_instance_of] tests whether [t] is an instance of [term].
    It calls [next_f] in case of success, and raises NoMatch in case of failure. *) 
 
-let check_instance_of simp_facts next_f comp_neut all_names_exp_opt mode term t =
+let check_instance_of state0 next_f comp_neut term t =
   if (!Settings.debug_cryptotransf) > 5 then
     begin
       print_string "Check instance of ";
@@ -869,7 +893,7 @@ let check_instance_of simp_facts next_f comp_neut all_names_exp_opt mode term t 
   let next_f product_rest state =
     if not state.sthg_discharged then raise NoMatch;
     if state.advised_ins == [] then
-      check_distinct_links state.lhs_array_ref_map all_names_exp_opt;
+      check_distinct_links state.lhs_array_ref_map state.all_names_exp_opt;
     if (!Settings.debug_cryptotransf) > 4 then
       begin
 	print_string "check_instance_of ";
@@ -891,30 +915,30 @@ let check_instance_of simp_facts next_f comp_neut all_names_exp_opt mode term t 
   in
   match term.t_desc with
     FunApp(f,[_;_]) when f.f_eq_theories != NoEq && f.f_eq_theories != Commut &&
-      not ((mode == AllEquiv) && (List.memq f (!symbols_to_discharge))) ->
+      not ((state0.mode == AllEquiv) && (List.memq f (!symbols_to_discharge))) ->
       (* f is a binary function with an equational theory that is
 	 not commutativity -> it is a product-like function;
 	 when f has to be discharged, we cannot match a subproduct, 
 	 because occurrences of f would remain, so we can use the
 	 default case below. *)
       let l = Terms.simp_prod Terms.simp_facts_id (ref false) f term in
-      let l' = Terms.simp_prod simp_facts (ref false) f t in
+      let l' = Terms.simp_prod state0.simp_facts (ref false) f t in
       begin
 	match f.f_eq_theories with
 	  NoEq | Commut -> Parsing_helper.internal_error "Transf_crypto.check_instance_of: cases NoEq, Commut should have been eliminated"
 	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
-	    Terms.match_AC_advice (check_instance_of_rec simp_facts all_names_exp_opt mode) 
-	      explicit_value_state (get_var_link all_names_exp_opt) is_var_inst
+	    Terms.match_AC_advice check_instance_of_rec  
+	      explicit_value_state (get_var_link state0.all_names_exp_opt) is_var_inst
 	      (fun rest state' -> 
 		let product_rest =
 		  match rest, comp_neut with
 		    [], None -> None
 		  | _ -> Some (f, list_to_term_opt f rest, None, comp_neut)
 		in
-		next_f product_rest state') simp_facts f false false true l l' init_state
+		next_f product_rest state') state0.simp_facts f false false true l l' state0
 	| Assoc | AssocN _ | Group _ -> 
-	    Terms.match_assoc_advice_subterm (check_instance_of_rec simp_facts all_names_exp_opt mode) 
-	      explicit_value_state (get_var_link all_names_exp_opt) is_var_inst
+	    Terms.match_assoc_advice_subterm check_instance_of_rec  
+	      explicit_value_state (get_var_link state0.all_names_exp_opt) is_var_inst
 	      (fun rest_left rest_right state' ->
 		let product_rest =
 		  match rest_left, rest_right, comp_neut with
@@ -923,7 +947,7 @@ let check_instance_of simp_facts next_f comp_neut all_names_exp_opt mode term t 
 		      Some (f, list_to_term_opt f rest_left, 
 			    list_to_term_opt f rest_right, comp_neut)
 		in
-		next_f product_rest state') simp_facts f l l' init_state
+		next_f product_rest state') state0.simp_facts f l l' state0
       end
   | _ -> 
       (* When f is a symbol to discharge in mode [all],
@@ -941,18 +965,18 @@ let check_instance_of simp_facts next_f comp_neut all_names_exp_opt mode term t 
 	    Some(f, None, None, comp_neut)
 	| _ -> assert false
       in
-      check_instance_of_rec simp_facts all_names_exp_opt mode (next_f product_rest) term t init_state 
+      check_instance_of_rec (next_f product_rest) term t state0 
 
 (* Check whether t is an instance of a subterm of term
    Useful when t is just a test (if/find) or an assignment,
    so that by syntactic transformations of the game, we may
    arrange so that a superterm of t is an instance of term *)
 
-let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term t =
+let rec check_instance_of_subterms state0 next_f term t =
   let next_f_internal state =
     if not state.sthg_discharged then raise NoMatch;
     if state.advised_ins == [] then
-      check_distinct_links state.lhs_array_ref_map all_names_exp_opt;
+      check_distinct_links state.lhs_array_ref_map state.all_names_exp_opt;
     if (!Settings.debug_cryptotransf) > 5 then
       begin
 	print_string "check_instance_of_subterms ";
@@ -981,23 +1005,23 @@ let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term
   match t.t_desc with
     FunApp(prod,[_;_]) when prod.f_eq_theories != NoEq && prod.f_eq_theories != Commut ->
       begin
-	let l' = Terms.simp_prod simp_facts (ref false) prod t in
+	let l' = Terms.simp_prod state0.simp_facts (ref false) prod t in
 	let state = 
 	  match term.t_desc with
 	    FunApp(prod',_) when prod' == prod ->
-	      if (mode == AllEquiv) && (List.memq prod (!symbols_to_discharge)) then
-		{ init_state with sthg_discharged = true }
+	      if (state0.mode == AllEquiv) && (List.memq prod (!symbols_to_discharge)) then
+		{ state0 with sthg_discharged = true }
 	      else
-		init_state
-	  | _ -> init_state
+		state0
+	  | _ -> state0
 	in
 	match prod.f_eq_theories with
 	  NoEq | Commut -> Parsing_helper.internal_error "Transf_crypto.check_instance_of_subterms: cases NoEq, Commut should have been eliminated"
 	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
 	    let match_AC allow_full l =
-	      Terms.match_AC_advice (check_instance_of_rec simp_facts all_names_exp_opt mode) 
-		explicit_value_state (get_var_link all_names_exp_opt) 
-		is_var_inst (fun _ state -> next_f_internal state) simp_facts
+	      Terms.match_AC_advice check_instance_of_rec 
+		explicit_value_state (get_var_link state.all_names_exp_opt) 
+		is_var_inst (fun _ state -> next_f_internal state) state.simp_facts
 		prod true allow_full false l l' state
 	    in
 	    let rec check_instance_of_list = function
@@ -1045,9 +1069,9 @@ let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term
 	    check_instance_of_subterms_rec false term
 	| Assoc | AssocN _ | Group _ -> 
 	    let match_assoc allow_full l =
-	      Terms.match_assoc_advice_pat_subterm (check_instance_of_rec simp_facts all_names_exp_opt mode) 
-		explicit_value_state (get_var_link all_names_exp_opt) 
-		is_var_inst next_f_internal simp_facts prod allow_full l l' state
+	      Terms.match_assoc_advice_pat_subterm check_instance_of_rec 
+		explicit_value_state (get_var_link state.all_names_exp_opt) 
+		is_var_inst next_f_internal state.simp_facts prod allow_full l l' state
 	    in
 	    let rec check_instance_of_list = function
 		[] -> raise NoMatch
@@ -1108,7 +1132,7 @@ let rec check_instance_of_subterms simp_facts next_f all_names_exp_opt mode term
 	  [] -> raise NoMatch
 	| term::l ->
 	    try
-	      check_instance_of_rec simp_facts all_names_exp_opt mode next_f_internal term t init_state
+	      check_instance_of_rec next_f_internal term t state0
 	    with NoMatch ->
 	      try 
 		check_instance_of_subterms_rec term
@@ -2136,7 +2160,8 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		  raise NoMatch
 	end;
 	try
-	  check_instance_of simp_facts (fun product_rest state -> 
+	  let state0 = init_state simp_facts (!equiv_names_lhs_opt) mode where_info priority in
+	  check_instance_of state0 (fun product_rest state -> 
 	    let old_map = !map in
 	    let vcounter = Terms.get_var_num_state() in
 	    match checks all_names_lhs current_exp product_rest where_info cur_array defined_refs torg state with
@@ -2359,7 +2384,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 	    | NotComplete(to_do) ->
 		transform_to_do := merge_ins to_do (!transform_to_do);
 		true
-		  ) comp_neut (!equiv_names_lhs_opt) mode res_term t 
+		  ) comp_neut res_term t 
 
 	with NoMatch ->
 	  if (!Settings.debug_cryptotransf) > 5 then
@@ -2371,12 +2396,15 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 	    (* When t is just under a test (if/find) or an assignment,
 	       try subterms of res_term *)
 	  if ta_above != [] then
-	    (* When ta_above != [], comp_neut = None, so torg = t *)
-	    check_instance_of_subterms simp_facts (fun state -> 
-	      match checks all_names_lhs current_exp None where_info cur_array defined_refs t state with
-		Success(to_do,_,_,_,_,_,_,_,_,_) |  AdviceNeeded(to_do) | NotComplete(to_do) ->
-		  transform_to_do := merge_ins (and_ins1 (ta_above,0,[]) to_do) (!transform_to_do)
-		       ) (!equiv_names_lhs_opt) mode res_term t;
+	    begin
+	      (* When ta_above != [], comp_neut = None, so torg = t *)
+	      let state0 = init_state simp_facts (!equiv_names_lhs_opt) mode where_info priority in
+	      check_instance_of_subterms state0 (fun state -> 
+		match checks all_names_lhs current_exp None where_info cur_array defined_refs t state with
+		  Success(to_do,_,_,_,_,_,_,_,_,_) |  AdviceNeeded(to_do) | NotComplete(to_do) ->
+		    transform_to_do := merge_ins (and_ins1 (ta_above,0,[]) to_do) (!transform_to_do)
+			 ) res_term t
+	    end;
 	  raise NoMatch
 	    ) (!accu_exp)
       in

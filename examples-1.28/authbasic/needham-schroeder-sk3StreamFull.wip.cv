@@ -9,7 +9,7 @@ crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B
 auto;
 out_game "g1.cv";
 crypto int_ctxt_corrupt(enc) k_9; (* we need the _corrupt version because k_9 = keyA may leak *)
-success (* proves inj-event(partA(B,x)) ==> inj-event(partB(A,x))
+success (* proves inj-event(partA(B,x)) ==> inj-event(partB(A,x)) *)
 }
 
 param N.
@@ -89,7 +89,7 @@ query x:bitstring; inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars k
 	 or an event using k be executed (so k leaked to the adversary) before the decryption 
 	 using that key in A. There is some induction
 	 to find out the first session in which k is leaked. *)
-(* query x:bitstring, k:key; inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)) public_vars keyA. *)
+query x:bitstring, k:key; inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)) public_vars keyA. 
       (* This property is wrong for this script: 
       	 after a first session, the adversary has keyA, 
 	 he can then replay the first message to B and 
@@ -174,6 +174,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of keyA; secrecy of keyA.
+RESULT Could not prove one-session secrecy of keyA; secrecy of keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
 5.580s (user 5.540s + system 0.040s), max rss 120656K
 END *)

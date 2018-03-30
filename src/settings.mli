@@ -40,6 +40,7 @@ val diff_constants : bool ref
 val constants_not_tuple : bool ref 
 
 val use_known_equalities_crypto : bool ref
+val priority_event_unchanged_rand : int ref
     
 val expand_letxy : bool ref
 
