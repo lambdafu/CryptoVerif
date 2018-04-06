@@ -369,6 +369,15 @@ We could probably push this idea for noninterf x among S.
    ProVerif can stop or automatically separate the queries when the
    "public_var ..." qualifiers of several queries in a group are
    incompatible (that is, different).
+      TO DO reset occurrences either during encoding of the process
+   or just after (using a function that just resets occurrences
+   without creating variables)
+      TO DO how are variables arguments of letfun, defined in letfun,
+      arguments of processes treated? (can they be used in
+      "query secret" and in "public_vars"? what does CryptoVerif?
+      Do the same in ProVerif. I think there is at least one problem:
+      variables defined as arguments of processes may disappear in the
+      final process and thus be ignored by "query secret" and in "public_vars".)
    - allow replication indices in events (replication indices
    correspond to the session identifiers of ProVerif)
       
