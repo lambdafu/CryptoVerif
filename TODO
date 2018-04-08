@@ -382,7 +382,16 @@ We could probably push this idea for noninterf x among S.
       Looking at the source, CryptoVerif ignores all variables of
       letfun, arguments and others. It takes into account the
       arguments of output processes, but yields an error in case
-      an argument of an input process is referenced in a query.)
+      an argument of an input process is referenced in a query.
+      Would it be better to allow referencing variables of letfun
+      in find and queries in CV?
+      In ProVerif, the arguments of letfun are directly replaced
+      with their values during expansion, so they disappear.
+      The variables/names bound inside letfun remain and can be
+      referenced in queries.
+      The arguments of processes are sometimes kept as "let",
+      sometimes directly substituted, so they may or not be used
+      in queries... => I must change that.)
    - allow replication indices in events (replication indices
    correspond to the session identifiers of ProVerif)
       
