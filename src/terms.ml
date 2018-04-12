@@ -1245,16 +1245,19 @@ let vcounter = ref (Hashtbl.create 7)
    All pairs (s,n) in [used_ids] satisfy [n <= !max_source_idx] *)
 let used_ids = ref (Hashtbl.create 7)
 
-type var_num_state = (string, int) Hashtbl.t * (string * int, unit) Hashtbl.t
+(* The maximum xxx such N_xxx occurs and xxx does not come from vcounter *)
+let max_source_idx = ref 0
 
-let get_var_num_state() = (Hashtbl.copy (!vcounter), Hashtbl.copy (!used_ids))
+type var_num_state = int * (string, int) Hashtbl.t * (string * int, unit) Hashtbl.t
 
-let set_var_num_state (x,y) =
+let get_var_num_state() =
+  (!max_source_idx, Hashtbl.copy (!vcounter), Hashtbl.copy (!used_ids))
+
+let set_var_num_state (n,x,y) =
+  max_source_idx := n;
   vcounter := x;
   used_ids := y
     
-(* The maximum xxx such N_xxx occurs and xxx does not come from vcounter *)
-let max_source_idx = ref 0
 
 (* [record_id s ext] records the identifier [s] so that it will not be reused elsewhere.
    [record_id] must be called only before calls to [fresh_id] or [new_var_name], so that
@@ -1265,10 +1268,8 @@ let max_source_idx = ref 0
 let record_id s ext =
   let (_,n) as s_n = get_id_n s in
   if n > !max_source_idx then max_source_idx := n;
-  if Hashtbl.mem (!used_ids) s_n then
-    ()
-  else
-    Hashtbl.add (!used_ids) s_n ()
+  (* Adds s_n to used_ids if it is not already in *)
+  Hashtbl.replace (!used_ids) s_n ()
     
 (* [new_var_name s] creates a fresh pair [(s,n)] using [!vcounter(s)]. *) 
 
