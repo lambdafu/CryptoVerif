@@ -1,0 +1,19 @@
+(* There is a clash: the variable x should be private the macro,
+   but I reference it in the query outside the macro, and CryptoVerif
+   does not complain that x is not defined. *)
+
+
+def macro(P, c, t) {
+
+let P = new x:t; out(c, x).
+
+}
+
+channel pub.
+type t [fixed].
+
+expand macro(P, pub, t).
+
+query secret x.
+
+process in(pub, ()); P

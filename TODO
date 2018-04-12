@@ -170,6 +170,12 @@ That should be sufficient for modules that want to read the variable.
    examplesnd/test/bad_ren.cv
    => I need a full revision of macro expansion.
 
+   TO DO There is still a possibility of clash between names of variables
+   in macros (in processes and letfun) and names of variables used
+   in queries or in array references. See
+   examplesnd/test/clash_macro_global_var*.cv
+   I really need to fix this bug.
+
    f) write a converter from the old front-end to the new one.
    Changes in the converter:
    DONE define -> def
@@ -384,7 +390,7 @@ We could probably push this idea for noninterf x among S.
       arguments of output processes, but yields an error in case
       an argument of an input process is referenced in a query.
       Would it be better to allow referencing variables of letfun
-      in find and queries in CV?
+      in find and queries in CV? => Yes, now done.
       In ProVerif, the arguments of letfun are directly replaced
       with their values during expansion, so they disappear.
       The variables/names bound inside letfun remain and can be

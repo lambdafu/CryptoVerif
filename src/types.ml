@@ -177,7 +177,6 @@ and funcats =
   | Or
   | And
   | Event (* Function symbols for events *)
-  | LetFunTerm of binder list * term
 
 and impl_name =
     Func of string

@@ -139,6 +139,18 @@ let rec check_array_type_list ext pel el cur_array creation_array =
   | _ ->
       input_error ("Unexpected number of array specifiers") ext
 
+let merge_types t1 t2 ext =
+  if t1 == Settings.t_any then
+    t2
+  else if t2 == Settings.t_any then
+    t1
+  else 
+    begin
+      if t1 != t2 then
+	Parsing_helper.input_error "All branches of if/let/find/get should yield the same type" ext;
+      t1
+    end
+	
 (**** First pass: build binder_env ****)
 
 (* Check terms *)
@@ -163,18 +175,6 @@ let pinstruct_name = function
   | PInsertE _ -> "insert"
   | PQEvent _ -> "query event"
     
-let rec check_simple_term1 ref = function
-  | PIdent _, _ -> ()
-  | (PArray(_,l) | PFunApp(_,l) | PTuple(l)), _ ->
-      List.iter (check_simple_term1 ref) l
-  | (PEqual(t1,t2) | PDiff(t1,t2) | PAnd(t1,t2) | POr(t1,t2)), _ ->
-      check_simple_term1 ref t1; check_simple_term1 ref t2
-  | t, ext ->
-      Parsing_helper.input_error ((pinstruct_name t) ^ " should not occur in " ^ ref) ext
-
-let check_br1 (_,tl) = 
-  List.iter (check_simple_term1 "defined conditions") tl
-
 let add_var_list env in_find_cond cur_array bindl =
   List.fold_left (fun env (s, tyopt) ->
     if in_find_cond then
@@ -186,39 +186,108 @@ let add_var_list env in_find_cond cur_array bindl =
 	    ) env bindl
 
 
-(* [check_term1 binder_env in_find_cond cur_array t] returns
+(* [check_term1 binder_env in_find_cond cur_array env t] returns
    a binder environment containing the variables of [binder_env]
    plus those defined by [t]. 
    [in_find_cond] is true when [t] is in a condition of find or get. *)
-    
-let rec check_term1 binder_env in_find_cond cur_array = function
-    PIdent (s, ext), ext2 -> binder_env
-  | (PArray(_, tl) | PFunApp(_, tl) | PTuple(tl)), ext -> 
-      check_term_list1 binder_env in_find_cond cur_array tl
+
+(* [check_term1]/[check_process1] use the environment [env] only to lookup types,
+   parameters, processes, and letfun. We still add variables and replication indices
+   to [env], so that the right [letfun]s are visible, but we use dummy
+   variables. *)
+let dummy_var = Terms.create_binder "@dummy" Settings.t_any []
+  
+let rec check_args1 env = function
+    [] -> env
+  | ((s1, ext1), tyb)::rvardecl ->
+      let env' = StringMap.add s1 (EVar dummy_var) env in
+      check_args1 env' rvardecl  
+
+let rec check_term1 binder_env in_find_cond cur_array env = function
+    PIdent (s, ext), ext2 -> 
+      begin
+	try 
+	  match StringMap.find s env with
+	  | ELetFun(f, env', vardecl, t) ->
+	      if fst (f.f_type) = [] then
+		begin
+		  assert (vardecl == []);
+                (*expand letfun functions*)
+		  if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
+		    binder_env
+		  else
+                    check_term1 binder_env in_find_cond cur_array env' t
+		end
+	      else
+		input_error (s ^ " has no arguments but expects some") ext
+	  | _ -> binder_env
+	with Not_found -> binder_env
+      end
+  | (PArray(_, tl) | PTuple(tl)), ext -> 
+      check_term_list1 binder_env in_find_cond cur_array env tl
+  | PFunApp((s,ext), tl), ext2 -> 
+      let env_args = check_term_list1 binder_env in_find_cond cur_array env tl in
+      begin
+      try 
+	match StringMap.find s env with
+	  EFunc(f) -> env_args
+	| ELetFun(f, env', vardecl, t) ->
+            (*expand letfun functions*)
+            if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
+	      env_args
+            else
+	      begin
+		if List.length vardecl != List.length tl then
+		  Parsing_helper.input_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
+		let env'' = check_args1 env' vardecl in
+		let env_args_vars =
+		  List.fold_left (fun binder_env ((s1,ext1), ty) ->
+		    let (ty',_) = get_ty env' ty in
+		    add_in_env1 binder_env s1 ty' cur_array
+		      ) env_args vardecl
+		in
+		check_term1 env_args_vars in_find_cond cur_array env'' t 
+	      end
+	| _ -> input_error (s ^ " should be a function") ext
+      with Not_found ->
+	input_error (s ^ " not defined") ext
+      end
   | PTestE(t1, t2, t3), ext ->
       union_both
-	(check_term1 binder_env in_find_cond cur_array t1)
+	(check_term1 binder_env in_find_cond cur_array env t1)
 	(union_exclude
-	   (check_term1 empty_binder_env in_find_cond cur_array t2)
-	   (check_term1 empty_binder_env in_find_cond cur_array t3))
+	   (check_term1 empty_binder_env in_find_cond cur_array env t2)
+	   (check_term1 empty_binder_env in_find_cond cur_array env t3))
   | PFindE(l0,t3,_), ext ->
-      let env_branches = ref (check_term1 empty_binder_env in_find_cond cur_array t3) in
+      let env_branches = ref (check_term1 empty_binder_env in_find_cond cur_array env t3) in
       let env_common = ref binder_env in
       List.iter (fun (bl_ref, bl,def_list,t1,t2) ->
-	let bl_repl_index = 
-	  List.map (fun ((s0,ext0),(s1,ext1),(s2,ext2)) ->
-	    let p = get_param (!env) s2 ext2 in
+	let rec add env_cond env_then = function
+	    [] -> (env_cond,env_then,[])
+	  | ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
+	    let p = get_param env s2 ext2 in
 	    let t = type_for_param p in
 	    (* Create a replication index *)
-	    Terms.create_repl_index s1 t
-	      ) bl
+	    let b = Terms.create_repl_index s1 t in
+	    let env_cond' = StringMap.add s1 (EReplIndex b) env_cond in
+	    let env_then' = StringMap.add s0 (EVar dummy_var) env_then in
+	    let (env_cond'',env_then'',bl') = add env_cond' env_then' bl in
+	    (env_cond'',env_then'',b::bl')
 	in
+	let (env_cond, env_then, bl_repl_index) = add env env bl in 
 	bl_ref := bl_repl_index;
 	let cur_array' = bl_repl_index @ cur_array in
-	(* The defined condition defines no variable *)
-	List.iter check_br1 def_list;
+	(* The defined condition defines no variable.
+	   However, in case there is a letfun in it, it is complicated to
+	   know whether we will manage to expand it into a simple term.
+	   Moreover, the next pass requires the binders to be in binder_env,
+	   otherwise, it causes an internal error, because it checks that the
+	   term is simple after converting it, not before. So we add the binders
+	   in binder_env in that case. Referencing them is an error since [in_find_cond = true]. *)
+	List.iter (fun (b,l) ->
+	  env_common := check_term_list1 (!env_common) true cur_array' env_cond l) def_list;
 	(* The condition is evaluated in all branches *)
-	env_common := check_term1 (!env_common) true cur_array' t1;
+	env_common := check_term1 (!env_common) true cur_array' env_cond t1;
 	(* The then branch and the variables storing the found indices
            are used only in the successful branch *)
 	env_branches := union_exclude (!env_branches)
@@ -230,67 +299,71 @@ let rec check_term1 binder_env in_find_cond cur_array = function
 		 add_in_env1 env s0 t cur_array
 	       else 
 		 add_in_env1error env error_find_index_in_equiv s0
-		   ) (check_term1 empty_binder_env in_find_cond cur_array t2) bl_repl_index bl)
+		   ) (check_term1 empty_binder_env in_find_cond cur_array env_then t2) bl_repl_index bl)
 	     ) l0;
       union_both (!env_common) (!env_branches)
   | PLetE(pat, t1, t2, topt), ext ->
-      let (env_pat, bindl) = check_pattern1 binder_env in_find_cond cur_array false pat in
-      let env_cond_pat = check_term1 env_pat in_find_cond cur_array t1 in
-      let env_in = check_term1 empty_binder_env in_find_cond cur_array t2 in
-      let env_else = 
+      let (binder_env_pat, env_pat, bindl) = check_pattern1 binder_env in_find_cond cur_array env false pat in
+      let binder_env_cond_pat = check_term1 binder_env_pat in_find_cond cur_array env t1 in
+      let binder_env_in = check_term1 empty_binder_env in_find_cond cur_array env_pat t2 in
+      let binder_env_else = 
 	match topt with
 	  None -> empty_binder_env
-	| Some t3 -> check_term1 empty_binder_env in_find_cond cur_array t3
+	| Some t3 -> check_term1 empty_binder_env in_find_cond cur_array env t3
       in
-      union_both env_cond_pat
+      union_both binder_env_cond_pat
 	(union_exclude
-	   (add_var_list env_in in_find_cond cur_array bindl)
-	   env_else)
+	   (add_var_list binder_env_in in_find_cond cur_array bindl)
+	   binder_env_else)
   | PResE((s1,ext1),(s2,ext2),t), ext ->
-      let ty' = get_type (!env) s2 ext2 in
-      let env_new = 
+      let ty' = get_type env s2 ext2 in
+      let binder_env_new = 
 	if in_find_cond then
 	  add_in_env1error binder_env error_find_cond s1
 	else
 	  add_in_env1 binder_env s1 ty' cur_array
       in
-      check_term1 env_new in_find_cond cur_array t
+      let env_new = StringMap.add s1 (EVar dummy_var) env in
+      check_term1 binder_env_new in_find_cond cur_array env_new t
   | PEventAbortE(id), ext -> binder_env
-  | PEventE(t,p), _ ->
-      let env_t = check_term1 binder_env in_find_cond cur_array t in
-      check_term1 env_t in_find_cond cur_array p
+  | PEventE((PFunApp((s,ext0),tl), ext),p), _ ->
+      let binder_env_tl = check_term_list1 binder_env in_find_cond cur_array env tl in
+      check_term1 binder_env_tl in_find_cond cur_array env p
+  | PEventE _, ext2 ->
+      input_error "events should be function applications" ext2
   | PGetE(tbl, patlist, topt, p1, p2), _ ->
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
 	 We must appropriately forbid array accesses to the variables they define,
 	 so we set [in_find_cond] to true for them. *)
-      let (env_pat, bindl) = check_pattern_list1 binder_env true cur_array false patlist in
-      let env_cond_pat = 
+      let (binder_env_pat, env_pat, bindl) =
+	check_pattern_list1 binder_env true cur_array env false patlist in
+      let binder_env_cond_pat = 
 	match topt with
-	  Some t -> check_term1 env_pat true cur_array t
-	| None -> env_pat
+	  Some t -> check_term1 binder_env_pat true cur_array env_pat t
+	| None -> binder_env_pat
       in
-      let env_in = check_term1 empty_binder_env in_find_cond cur_array p1 in
-      let env_else = check_term1 empty_binder_env in_find_cond cur_array p2 in
+      let binder_env_in = check_term1 empty_binder_env in_find_cond cur_array env_pat p1 in
+      let binder_env_else = check_term1 empty_binder_env in_find_cond cur_array env p2 in
       union_both
-	env_cond_pat
+	binder_env_cond_pat
 	(union_exclude
-	   (add_var_list env_in true cur_array bindl)
-	   env_else)
+	   (add_var_list binder_env_in true cur_array bindl)
+	   binder_env_else)
   | PInsertE(tbl,tlist,p),_ ->
-      let env_tlist = check_term_list1 binder_env in_find_cond cur_array tlist in
-      check_term1 env_tlist in_find_cond cur_array p
+      let env_tlist = check_term_list1 binder_env in_find_cond cur_array env tlist in
+      check_term1 env_tlist in_find_cond cur_array env p
   | (PEqual(t1,t2) | PDiff(t1,t2) | PAnd(t1,t2) | POr(t1,t2)), ext ->
-      let env_t1 = check_term1 binder_env in_find_cond cur_array t1 in
-      check_term1 env_t1 in_find_cond cur_array t2
+      let env_t1 = check_term1 binder_env in_find_cond cur_array env t1 in
+      check_term1 env_t1 in_find_cond cur_array env t2
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
 
-and check_term_list1 binder_env in_find_cond cur_array = function
+and check_term_list1 binder_env in_find_cond cur_array env = function
     [] -> binder_env
   | t::l ->
-      let env_t = check_term1 binder_env in_find_cond cur_array t in
-      check_term_list1 env_t in_find_cond cur_array l
+      let env_t = check_term1 binder_env in_find_cond cur_array env t in
+      check_term_list1 env_t in_find_cond cur_array env l
 
 (* Check pattern
    [check_pattern1 binder_env in_find_cond cur_array needtype pat] returns
@@ -306,32 +379,33 @@ and check_term_list1 binder_env in_find_cond cur_array = function
    from the outside; in this case, when the pattern is a variable,
    its type must be explicitly given. *)
 
-and check_pattern1 binder_env in_find_cond cur_array needtype = function
+and check_pattern1 binder_env in_find_cond cur_array env needtype = function
     PPatVar ((s1,ext1), tyopt), _ ->
       begin
+	let env' = StringMap.add s1 (EVar dummy_var) env in
 	match tyopt with
 	  None -> 
 	    if needtype then
 	      input_error "type needed for this variable" ext1
 	    else
-	      (binder_env, [s1, None])
+	      (binder_env, env', [s1, None])
 	| Some ty ->
-	    let (ty',_) = get_ty (!env) ty in
-	    (binder_env, [s1, Some ty'])
+	    let (ty',_) = get_ty env ty in
+	    (binder_env, env', [s1, Some ty'])
       end
   | PPatTuple l, _ ->
-      check_pattern_list1 binder_env in_find_cond cur_array true l
+      check_pattern_list1 binder_env in_find_cond cur_array env true l
   | PPatFunApp(f,l), _ ->
-      check_pattern_list1 binder_env in_find_cond cur_array false l
+      check_pattern_list1 binder_env in_find_cond cur_array env false l
   | PPatEqual t, _ ->
-      (check_term1 binder_env in_find_cond cur_array t, [])
+      (check_term1 binder_env in_find_cond cur_array env t, env, [])
 
-and check_pattern_list1 binder_env in_find_cond cur_array needtype = function
-    [] -> (binder_env, [])
+and check_pattern_list1 binder_env in_find_cond cur_array env needtype = function
+    [] -> (binder_env, env, [])
   | pat1::patl ->
-      let (env1, bind1) = check_pattern1 binder_env in_find_cond cur_array needtype pat1 in
-      let (envl1, bindl) = check_pattern_list1 env1 in_find_cond cur_array needtype patl in
-      (envl1, bind1 @ bindl)
+      let (binder_env1, env1, bind1) = check_pattern1 binder_env in_find_cond cur_array env needtype pat1 in
+      let (binder_env1l, env1l, bindl) = check_pattern_list1 binder_env1 in_find_cond cur_array env1 needtype patl in
+      (binder_env1l, env1l, bind1 @ bindl)
 	
 (* Check equivalence statements *)
 
@@ -343,9 +417,9 @@ let check_binderi1 cur_array binder_env ((s1,ext1),tyb) =
   let (ty, _) = get_ty (!env) tyb in
   add_in_env1 binder_env s1 ty cur_array
 
-let rec check_fungroup1 cur_array binder_env = function
+let rec check_fungroup1 cur_array env binder_env = function
     PReplRestr((repl_index_ref, idopt, (rep,ext)), restrlist, funlist) ->
-      let pn = get_param (!env) rep ext in
+      let pn = get_param env rep ext in
       let t = type_for_param pn in 
       let b = Terms.create_repl_index
 	  (match idopt with 
@@ -354,12 +428,23 @@ let rec check_fungroup1 cur_array binder_env = function
       in
       repl_index_ref := Some b;
       let cur_array' = b :: cur_array in
-      let env_funlist = List.fold_left (check_fungroup1 cur_array') binder_env funlist in
+      let env' =
+	match idopt with
+	  None -> env
+	| Some(id,ext) -> StringMap.add id (EReplIndex b) env
+      in
+      let env'' = List.fold_left (fun env ((s1,ext1),(s2,ext2),opt) ->
+	StringMap.add s1 (EVar dummy_var) env) env' restrlist
+      in
+      let env_funlist = List.fold_left (check_fungroup1 cur_array' env'') binder_env funlist in
       List.fold_left (check_binder1 cur_array') env_funlist restrlist
   | PFun(_, arglist, tres, _) ->
+      let env' = List.fold_left (fun env ((s1,ext1),tyb) ->
+	StringMap.add s1 (EVar dummy_var) env) env arglist
+      in
       List.fold_left (check_binderi1 cur_array) 
 	(add_find := false;
-	 let env_res = check_term1 binder_env false cur_array tres in
+	 let env_res = check_term1 binder_env false cur_array env' tres in
 	 add_find := true;
 	 env_res) arglist
 
@@ -395,12 +480,12 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
       else
 	add_in_env1 binder_env s1 t cur_array
 
-let rec check_rm_fungroup1 cur_array binder_env plm_fg lm_fg rm_fg =
+let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
   match (plm_fg, lm_fg, rm_fg) with
     PReplRestr(_, prestrlist0, pfunlist0),
     ReplRestr(_, restrlist0, funlist0),
     PReplRestr((repl_index_ref, idopt, (rep,ext)), restrlist, funlist) ->
-      let pn = get_param (!env) rep ext in
+      let pn = get_param env rep ext in
       let t = type_for_param pn in 
       let b = Terms.create_repl_index
 	  (match idopt with 
@@ -411,44 +496,55 @@ let rec check_rm_fungroup1 cur_array binder_env plm_fg lm_fg rm_fg =
       let cur_array' = b :: cur_array in
       if List.length funlist != List.length funlist0 then
 	input_error "Different number of functions in left and right sides of equivalence" ext;
+      let env' =
+	match idopt with
+	  None -> env
+	| Some(id,ext) -> StringMap.add id (EReplIndex b) env
+      in
+      let env'' = List.fold_left (fun env ((s1,ext1),(s2,ext2),opt) ->
+	StringMap.add s1 (EVar dummy_var) env) env' restrlist
+      in
       List.fold_left (check_rm_restr1 cur_array' (List.combine prestrlist0 restrlist0)) 
-	(check_rm_fungroup_list1 cur_array' binder_env pfunlist0 funlist0 funlist) restrlist
+	(check_rm_fungroup_list1 cur_array' env'' binder_env pfunlist0 funlist0 funlist) restrlist
   | _, _, PFun(_, arglist, tres, _) ->
+      let env' = List.fold_left (fun env ((s1,ext1),tyb) ->
+	StringMap.add s1 (EVar dummy_var) env) env arglist
+      in
       List.fold_left (check_binderi1 cur_array) 
 	(add_find := false;
-	 let env_res = check_term1 binder_env false cur_array tres in
+	 let env_res = check_term1 binder_env false cur_array env' tres in
 	 add_find := true;
 	 env_res) arglist
   | _, _, PReplRestr((_, _, (_,ext)), _,_) ->
       input_error "Left member is a function, right member is a replication" ext
 
-and check_rm_fungroup_list1 cur_array binder_env pfunlist0 funlist0 funlist =
+and check_rm_fungroup_list1 cur_array env binder_env pfunlist0 funlist0 funlist =
   match pfunlist0, funlist0, funlist with
     [],[],[] -> binder_env
   | a1::r1, a2::r2, a3::r3 ->
-      let env_a = check_rm_fungroup1 cur_array binder_env a1 a2 a3 in
-      check_rm_fungroup_list1 cur_array env_a r1 r2 r3
+      let env_a = check_rm_fungroup1 cur_array env binder_env a1 a2 a3 in
+      check_rm_fungroup_list1 cur_array env env_a r1 r2 r3
   | _ -> Parsing_helper.internal_error "Lists should have same length in check_rm_fungroup_list1"
 	   
 let rec check_rm_funmode_list binder_env pfunlist0 funlist0 funlist =
   match pfunlist0, funlist0, funlist with
     [],[],[] -> binder_env
   | (plm_fg,_,_) ::r1, (lm_fg,_)::r2, (fg, _, _):: r3 ->
-      let env_a = check_rm_fungroup1 [] binder_env plm_fg lm_fg fg in
+      let env_a = check_rm_fungroup1 [] (!env) binder_env plm_fg lm_fg fg in
       check_rm_funmode_list env_a r1 r2 r3
   | _ -> Parsing_helper.internal_error "Lists should have same length in check_rm_funmode_list"
 
 (* Check process *)
 
-let rec check_process1 binder_env cur_array = function
+let rec check_process1 binder_env cur_array env = function
   | PBeginModule (_,p),_ ->
-      check_process1 binder_env cur_array p
+      check_process1 binder_env cur_array env p
   | PNil, _ -> binder_env
   | PPar(p1,p2), _ -> 
-      let env_p1 = check_process1 binder_env cur_array p1 in
-      check_process1 env_p1 cur_array p2
+      let env_p1 = check_process1 binder_env cur_array env p1 in
+      check_process1 env_p1 cur_array env p2
   | PRepl(repl_index_ref,idopt,(s2,ext2),p), _ ->
-      let pn = get_param (!env) s2 ext2 in
+      let pn = get_param env s2 ext2 in
       let t = type_for_param pn in 
       let b = Terms.create_repl_index
 	  (match idopt with 
@@ -456,116 +552,138 @@ let rec check_process1 binder_env cur_array = function
 	    | Some(id,ext) -> id) t 
       in
       repl_index_ref := Some b;
-      check_process1 binder_env (b::cur_array) p
-  | PInput(c, pat, p), _ ->
-      let (pat_env, bindl) = check_pattern1 binder_env false cur_array true pat in
-      let env_cont_pat = check_oprocess1 pat_env cur_array p in
-      add_var_list env_cont_pat false cur_array bindl
-  | PLetDef((s,ext), args), _ ->
-      let (env', vardecl, p) = get_process (!env) s ext in
-      List.iter (check_simple_term1 "argument of a parametric input process") args;
-      (* I will not be able to make array references to the arguments of the process. That's too tricky because we need to move the definition of these variables to an output process above or below. *)
-      let env_var = 
-	List.fold_left (fun binder_env ((s1,ext1), ty) ->
-	  let _ = get_ty (!env) ty in
-	  add_in_env1error binder_env error_in_input_process s1
-	    ) binder_env vardecl
+      let env' =
+	match idopt with
+	  None -> env
+	| Some(id,ext) -> StringMap.add id (EReplIndex b) env
       in
-      check_process1 env_var cur_array p
+      check_process1 binder_env (b::cur_array) env' p
+  | PInput(c, pat, p), _ ->
+      let (binder_pat_env, env_pat, bindl) = check_pattern1 binder_env false cur_array env true pat in
+      let binder_env_cont_pat = check_oprocess1 binder_pat_env cur_array env_pat p in
+      add_var_list binder_env_cont_pat false cur_array bindl
+  | PLetDef((s,ext), args), _ ->
+      let (env', vardecl, p) = get_process env s ext in
+      let binder_env' = check_term_list1 binder_env false cur_array env args in
+      let env'' = check_args1 env' vardecl in
+      (* I will not be able to make array references to the arguments of the process. That's too tricky because we need to move the definition of these variables to an output process above or below. *)
+      let binder_env_var = 
+	List.fold_left (fun binder_env ((s1,ext1), ty) ->
+	  let _ = get_ty env' ty in
+	  add_in_env1error binder_env error_in_input_process s1
+	    ) binder_env' vardecl
+      in
+      check_process1 binder_env_var cur_array env'' p
   | _, ext ->
       input_error "input process expected" ext
 
-and check_oprocess1 binder_env cur_array = function
+and check_oprocess1 binder_env cur_array env = function
   | PYield, _ | PEventAbort(_), _ -> binder_env
   | PRestr((s1,ext1),(s2,ext2),p), _ ->
-      let t = get_type (!env) s2 ext2 in
-      let env_new = add_in_env1 binder_env s1 t cur_array in
-      check_oprocess1 env_new cur_array p
+      let t = get_type env s2 ext2 in
+      let binder_env_new = add_in_env1 binder_env s1 t cur_array in
+      let env_new = StringMap.add s1 (EVar dummy_var) env in
+      check_oprocess1 binder_env_new cur_array env_new p
   | PLetDef((s,ext), args), _ ->
-      let (env', vardecl, p) = get_process (!env) s ext in
-      let env_args = check_term_list1 binder_env false cur_array args in
+      let (env', vardecl, p) = get_process env s ext in
+      let env'' = check_args1 env' vardecl in
+      let env_args = check_term_list1 binder_env false cur_array env args in
       let env_args_vars =
 	List.fold_left (fun binder_env ((s1,ext1), ty) ->
-	  let (ty',_) = get_ty (!env) ty in
+	  let (ty',_) = get_ty env' ty in
 	  add_in_env1 binder_env s1 ty' cur_array
 	    ) env_args vardecl
       in
-      check_oprocess1 env_args_vars cur_array p
+      check_oprocess1 env_args_vars cur_array env'' p
   | PTest(t,p1,p2), _ ->
       union_both
-	(check_term1 binder_env false cur_array t)
+	(check_term1 binder_env false cur_array env t)
 	(union_exclude
-	   (check_oprocess1 empty_binder_env cur_array p1)
-	   (check_oprocess1 empty_binder_env cur_array p2))
+	   (check_oprocess1 empty_binder_env cur_array env p1)
+	   (check_oprocess1 empty_binder_env cur_array env p2))
   | PFind(l0,p2,_), _ ->
-      let env_branches = ref (check_oprocess1 empty_binder_env cur_array p2) in
+      let env_branches = ref (check_oprocess1 empty_binder_env cur_array env p2) in
       let env_common = ref binder_env in
       List.iter (fun (bl_ref,bl,def_list,t,p1) ->
-	let bl_repl_index = 
-	  List.map (fun ((s0,ext0),(s1,ext1),(s2,ext2)) ->
-	    let p = get_param (!env) s2 ext2 in
+	let rec add env_cond env_then = function
+	    [] -> (env_cond,env_then,[])
+	  | ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
+	    let p = get_param env s2 ext2 in
 	    let t = type_for_param p in
 	    (* Create a replication index *)
-	    Terms.create_repl_index s1 t
-	      ) bl
+	    let b = Terms.create_repl_index s1 t in
+	    let env_cond' = StringMap.add s1 (EReplIndex b) env_cond in
+	    let env_then' = StringMap.add s0 (EVar dummy_var) env_then in
+	    let (env_cond'',env_then'',bl') = add env_cond' env_then' bl in
+	    (env_cond'',env_then'',b::bl')
 	in
+	let (env_cond, env_then, bl_repl_index) = add env env bl in 
 	bl_ref := bl_repl_index;
 	let cur_array' = bl_repl_index @ cur_array in
-	(* The defined condition defines no variable *)
-	List.iter check_br1 def_list;
+	(* The defined condition defines no variable.
+	   However, in case there is a letfun in it, it is complicated to
+	   know whether we will manage to expand it into a simple term.
+	   Moreover, the next pass requires the binders to be in binder_env,
+	   otherwise, it causes an internal error, because it checks that the
+	   term is simple after converting it, not before. So we add the binders
+	   in binder_env in that case. Referencing them is an error since [in_find_cond = true]. *)
+	List.iter (fun (b,l) ->
+	  env_common := check_term_list1 (!env_common) true cur_array' env_cond l) def_list;
 	(* The condition is evaluated in all branches *)
-	env_common := check_term1 (!env_common) true cur_array' t;
+	env_common := check_term1 (!env_common) true cur_array' env_cond t;
 	(* The then branch and the variables storing the found indices
            are used only in the successful branch *)
 	env_branches := union_exclude (!env_branches)
 	     (List.fold_left2 (fun env ri ((s0,ext0),_,_) ->
 	       let t = ri.ri_type in
 	       add_in_env1 env s0 t cur_array
-		 ) (check_oprocess1 empty_binder_env cur_array p1) bl_repl_index bl)
+		 ) (check_oprocess1 empty_binder_env cur_array env_then p1) bl_repl_index bl)
 	     ) l0;
       union_both (!env_common) (!env_branches)
   | POutput(b,c,t2,p), _ ->
-      let env_t = check_term1 binder_env false cur_array t2 in
-      check_process1 env_t cur_array p
+      let env_t = check_term1 binder_env false cur_array env t2 in
+      check_process1 env_t cur_array env p
   | PLet(pat, t, p1, p2), _ ->
-      let (env_pat, bindl) = check_pattern1 binder_env false cur_array false pat in
-      let env_cond_pat = check_term1 env_pat false cur_array t in
-      let env_in = check_oprocess1 empty_binder_env cur_array p1 in
-      let env_else = check_oprocess1 empty_binder_env cur_array p2  in
-      union_both env_cond_pat
+      let (binder_env_pat, env_pat, bindl) = check_pattern1 binder_env false cur_array env false pat in
+      let binder_env_cond_pat = check_term1 binder_env_pat false cur_array env t in
+      let binder_env_in = check_oprocess1 empty_binder_env cur_array env_pat p1 in
+      let binder_env_else = check_oprocess1 empty_binder_env cur_array env p2  in
+      union_both binder_env_cond_pat
 	(union_exclude
-	   (add_var_list env_in false cur_array bindl)
-	   env_else)
-  | PEvent(t,p), _ ->
-      let env_t = check_term1 binder_env false cur_array t in
-      check_oprocess1 env_t cur_array p
+	   (add_var_list binder_env_in false cur_array bindl)
+	   binder_env_else)
+  | PEvent((PFunApp((s,ext0),tl), ext),p), _ ->
+      let env_tl = check_term_list1 binder_env false cur_array env tl in
+      check_oprocess1 env_tl cur_array env p
+  | PEvent _, ext2 ->
+      input_error "events should be function applications" ext2
   | PGet(tbl, patlist, topt, p1, p2), _ ->
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
 	 We must appropriately forbid array accesses to the variables they define,
 	 so we set [in_find_cond] to true for them. *)
-      let (env_pat, bindl) = check_pattern_list1 binder_env true cur_array false patlist in
-      let env_cond_pat = 
+      let (binder_env_pat, env_pat, bindl) = check_pattern_list1 binder_env true cur_array env false patlist in
+      let binder_env_cond_pat = 
 	match topt with
-	  Some t -> check_term1 env_pat true cur_array t
-	| None -> env_pat
+	  Some t -> check_term1 binder_env_pat true cur_array env_pat t
+	| None -> binder_env_pat
       in
-      let env_in = check_oprocess1 empty_binder_env cur_array p1 in
-      let env_else = check_oprocess1 empty_binder_env cur_array p2 in
+      let binder_env_in = check_oprocess1 empty_binder_env cur_array env_pat p1 in
+      let binder_env_else = check_oprocess1 empty_binder_env cur_array env p2 in
       union_both
-	env_cond_pat
+	binder_env_cond_pat
 	(union_exclude
-	   (add_var_list env_in true cur_array bindl)
-	   env_else)
+	   (add_var_list binder_env_in true cur_array bindl)
+	   binder_env_else)
   | PInsert(tbl,tlist,p),_ ->
-      let env_tlist = check_term_list1 binder_env false cur_array tlist in
-      check_oprocess1 env_tlist cur_array p
+      let env_tlist = check_term_list1 binder_env false cur_array env tlist in
+      check_oprocess1 env_tlist cur_array env p
   | _, ext -> 
       input_error "non-input process expected" ext
 
 (**************************************************************)
 
-(* I decided to do checks one after the another to easily disable just one of
+(* I decided to do checks one after the other to easily disable just one of
    them. *)
 
 (* Build a list of returns corresponding to an oracle/channel name.
@@ -867,7 +985,7 @@ let add_in_env_letfun env s ext t =
   if (StringMap.mem s env) then
     input_warning ("identifier " ^ s ^ " rebound") ext;
   let b = Terms.create_binder0 s t [] in
-  (StringMap.add s (EVar b) env, b)	
+  StringMap.add s (EVar b) env
 
 (* Check that t does not contain if/find/let/new/event/get/insert *)
 
@@ -951,111 +1069,50 @@ and check_no_new_event_insert_pat ext is_get = function
 
 (* Check terms *)
 
-let rec expand_letfun_term cur_array env' t0 =
-  match t0.t_desc with
-      Var (b,tl) ->
-        (
-          try 
-            let b'=List.assq b env' in
-            Terms.term_from_binder b'
-          with
-              Not_found -> Parsing_helper.internal_error "binder not found in environment"
-        )
-    | ReplIndex _ ->
-	Parsing_helper.internal_error "Replication index unexpected in expand_letfun_term"
-    | FunApp (f,tl) ->
-        let tl' = List.map (expand_letfun_term cur_array env') tl in
-	Terms.build_term3 t0 (FunApp (f,tl'))
-    | TestE (t1,t2,t3) ->
-	Terms.build_term3 t0
-          (TestE (expand_letfun_term cur_array env' t1,
-                  expand_letfun_term cur_array env' t2,
-                  expand_letfun_term cur_array env' t3))
-    | FindE _ -> Parsing_helper.internal_error "in expand_letfun_term, find elements should not appear"
-    | LetE (pat, t1, t2, topt) ->
-        let (pat',env'') = expand_letfun_pat cur_array env' pat in
-        let t1' = expand_letfun_term cur_array env' t1 in
-        let t2' = expand_letfun_term cur_array env'' t2 in
-        let topt' = 
-          (match topt with 
-            Some t ->
-              Some (expand_letfun_term cur_array env' t)
-          | None -> None)
-	in
-	Terms.build_term3 t0 (LetE (pat', t1', t2', topt'))
-    | ResE (b, t) ->
-        let b' = Terms.create_binder b.sname b.btype cur_array in
-        Terms.build_term3 t0 (ResE (b', expand_letfun_term cur_array ((b,b')::env') t))
-    | EventAbortE f ->
-	Terms.build_term3 t0 (EventAbortE(f))
-    | EventE(t,p) ->
-	begin
-	  match t.t_desc with
-	    FunApp(f, _::tl) ->
-	      (* Events must be function applications.
-		 The first argument is the tuple of replication indices.
-		 Update it now. *)
-	      let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	      event_type_list := (f, tupf) :: (!event_type_list);
-	      let tcur_array =
-		Terms.new_term Settings.t_bitstring t0.t_loc
-		  (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
-	      in
-              let tl' = List.map (expand_letfun_term cur_array env') tl in
-	      let t' =
-		Terms.build_term3 t (FunApp(f, tcur_array::tl'))
-	      in
-	      Terms.build_term3 t0 (EventE(t', expand_letfun_term cur_array env' p))
-	  | _ ->
-	      internal_error "Events must be function applications"
-	end
-    | GetE(table, patl, topt, t1,t2) ->
-        let (patl',env'') = List.fold_left 
-            (fun (pl',env'') p -> 
-              let (p,env''') = expand_letfun_pat cur_array env'' p in
-              (p::pl',env''')) ([],env') patl
-	in
-        let topt' = 
-          (match topt with 
-            Some t ->
-              Some (expand_letfun_term cur_array env'' t)
-          | None -> None)
-	in
-        let t1' = expand_letfun_term cur_array env'' t1 in
-        let t2' = expand_letfun_term cur_array env' t2 in
-	Terms.build_term3 t0 (GetE(table, List.rev patl', topt', t1', t2'))
-    | InsertE(table, tl, t) ->
-	let tl' = List.map (expand_letfun_term cur_array env') tl in
-	let t' = expand_letfun_term cur_array env' t in
-	Terms.build_term3 t0 (InsertE(table, tl', t'))
-	
-and expand_letfun_pat cur_array env' = function
-    PatVar (b) ->
-      let b' = Terms.create_binder b.sname b.btype cur_array in
-      (PatVar (b'), (b,b')::env')
-  | PatTuple (f,pl) ->
-      let (pl',env'') = List.fold_left 
-        (fun (pl',env'') p -> 
-          let (p,env''') = expand_letfun_pat cur_array env'' p in
-          (p::pl',env''')) ([],env') pl
-      in
-      (PatTuple (f,List.rev pl'),env'')
-  | PatEqual (t) ->
-      let t' = expand_letfun_term cur_array env' t in
-        (PatEqual (t'),env')
+(* when t is a variable b0 with current repl. ind. and
+   b has no array accesses, use b0 instead of b *)
+let add_in_env_reuse_var env s ext ty cur_array t =
+  match t.t_desc with
+    Var(b0,l) when Terms.is_args_at_creation b0 l ->
+      begin
+	if (StringMap.mem s env) then
+	  input_warning ("identifier " ^ s ^ " rebound") ext;
+	match get_global_binder_if_possible s with
+	  Some b -> 
+	    (StringMap.add s (EVar b) env, [PatVar b, t])
+	| None ->
+	    (StringMap.add s (EVar b0) env, [])
+      end
+  | ReplIndex b0 ->
+      begin
+	if (StringMap.mem s env) then
+	  input_warning ("identifier " ^ s ^ " rebound") ext;
+	match get_global_binder_if_possible s with
+	  Some b -> 
+	    (StringMap.add s (EVar b) env, [PatVar b, t])
+	| None ->
+	    (StringMap.add s (EReplIndex b0) env, [])
+      end
+  | _ ->
+      let (env', b) = add_in_env env s ext ty cur_array in
+      (env', [PatVar b, t])
+    
 
-let expand_letfun cur_array bl tl t =
-  (* Create a term let bl' = tl in t[bl\bl'] *)
-  let rec expand_letfun_rec env' bl tl = 
-    match (bl,tl) with
-        [],[] -> expand_letfun_term cur_array env' t
-      | b::bl',t'::tl' -> 
-          let b' = Terms.create_binder b.sname b.btype cur_array in
-          let t1 = expand_letfun_rec ((b,b')::env')  bl' tl' in
-          Terms.build_term3 t (LetE (PatVar(b'),t',t1,None))
-      | _,_ -> Parsing_helper.internal_error "expand_letfun: bl and tl do not have the same size"
-  in
-    expand_letfun_rec [] bl tl
+let rec check_args cur_array env vardecl args =
+  match (vardecl, args) with
+    [], [] -> (env, [])
+  | [], _ | _, [] ->
+      Parsing_helper.internal_error "Syntax.check_args vardecl and args should have the same length"
+  | ((s1, ext1), tyb)::rvardecl, t::rargs ->
+      let ty = t.t_type in 
+      let (ty', ext2) = get_ty env tyb in
+      if ty != ty' then
+	input_error ("Process or letfun expects an argument of type " ^ ty'.tname ^ " but is here given an argument of type " ^ ty.tname) t.t_loc;
+      let (env',letopt) = add_in_env_reuse_var env s1 ext1 ty' cur_array t in
+      (* when t is a variable b0 with current repl. ind. and
+	 b has no array accesses, use b0 instead of b *)
+      let (env'', rlets) = check_args cur_array env' rvardecl rargs in
+      (env'', letopt @ rlets)
 
 exception RemoveFindBranch
     
@@ -1070,17 +1127,19 @@ let rec check_term defined_refs_opt cur_array env = function
 	    Terms.new_term b.ri_type ext2 (ReplIndex(b))
 	| EFunc(f) -> 
 	    if fst (f.f_type) = [] then
-              (*expand letfun functions*)
-              let t'= Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
-              begin
-              match f.f_cat with
-                  LetFunTerm (bl,t) ->
-                    if (!Settings.get_implementation && f.f_impl <> No_impl) then
-                      t'
-                    else
-                      expand_letfun cur_array bl [] t
-                | _ -> t'
-              end
+              Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
+	    else
+	      input_error (s ^ " has no arguments but expects some") ext
+	| ELetFun(f, env', vardecl, t) ->
+	    if fst (f.f_type) = [] then
+	      begin
+		assert (vardecl == []);
+                (*expand letfun functions*)
+		if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
+                  Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
+		else
+                  check_term (Some []) cur_array env' t
+	      end
 	    else
 	      input_error (s ^ " has no arguments but expects some") ext
 	| _ -> input_error (s ^ " should be a variable or a function") ext
@@ -1117,16 +1176,20 @@ let rec check_term defined_refs_opt cur_array env = function
 	match StringMap.find s env with
 	  EFunc(f) ->
 	    check_type_list ext2 tl tl' (fst f.f_type);
-	    let t' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
-              begin
-              match f.f_cat with
-                  LetFunTerm (bl,t) ->
-                    if (!Settings.get_implementation && f.f_impl <> No_impl) then
-                      t'
-                    else
-                      expand_letfun cur_array bl tl' t
-                | _ -> t'
-              end
+	    Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) 
+	| ELetFun(f, env', vardecl, t) ->
+	    check_type_list ext2 tl tl' (fst f.f_type);
+            (*expand letfun functions*)
+            if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
+              Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
+            else
+	      begin
+		if List.length vardecl != List.length tl then
+		  Parsing_helper.input_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
+		let (env'', lets) = check_args cur_array env' vardecl tl' in
+		let t' = check_term (Some []) cur_array env'' t in
+		Terms.put_lets_term lets t' None
+	      end
 	| _ -> input_error (s ^ " should be a function") ext
       with Not_found ->
 	input_error (s ^ " not defined") ext
@@ -1141,9 +1204,8 @@ let rec check_term defined_refs_opt cur_array env = function
       let t2' = check_term defined_refs_opt cur_array env t2 in
       let t3' = check_term defined_refs_opt cur_array env t3 in
       check_type (snd t1) t1' Settings.t_bool;
-      if (t2'.t_type != t3'.t_type) && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "Both branches of a test should yield the same type" ext;
-      Terms.new_term t2'.t_type ext (TestE(t1', t2', t3'))
+      let t_common = merge_types t2'.t_type t3'.t_type ext in
+      Terms.new_term t_common ext (TestE(t1', t2', t3'))
   | PLetE(pat, t1, t2, topt), ext ->
       let t1' = check_term defined_refs_opt cur_array env t1 in
       let (env', pat') = check_pattern defined_refs_opt cur_array env (Some t1'.t_type) pat in
@@ -1154,13 +1216,12 @@ let rec check_term defined_refs_opt cur_array env = function
 	| None, (PPatVar _, _) -> None
 	| None, _ -> Parsing_helper.input_error "When a let in an expression has no else part, it must be of the form let x = M in M'" ext
       in
-      begin
+      let t_common = 
 	match topt' with
-	  None -> ()
-	| Some t3' -> if (t2'.t_type != t3'.t_type)  && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
-	    input_error "Both branches of a let should return the same type" ext
-      end;
-      Terms.new_term t2'.t_type ext (LetE(pat', t1', t2', topt'))
+	  None -> t2'.t_type
+	| Some t3' -> merge_types t2'.t_type t3'.t_type ext
+      in
+      Terms.new_term t_common ext (LetE(pat', t1', t2', topt'))
   | PResE((s1,ext1),(s2,ext2),t), ext ->
       let ty = get_type env s2 ext2 in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
@@ -1189,6 +1250,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	    let (env'',bl') = add env' bl in
 	    (env'',b::bl')
       in
+      let t_common = ref t3'.t_type in
       let l0' = List.fold_left (fun accu (bl_ref,bl,def_list,t1,t2) ->
 	try 
 	  let (env', bl') = add env bl in
@@ -1210,14 +1272,13 @@ let rec check_term defined_refs_opt cur_array env = function
 	  check_no_new_event_insert (snd t1) false t1';
 	  let t2' = check_term defined_refs_opt_t2 cur_array env' t2 in
 	  check_type (snd t1) t1' Settings.t_bool;
-	  if (t2'.t_type != t3'.t_type)  && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
-	    Parsing_helper.input_error "All branches of a if or find should return the same type" ext;
+	  t_common := merge_types (!t_common) t2'.t_type ext;
 	  (bl_bin, def_list', t1', t2')::accu
 	with RemoveFindBranch ->
 	  accu
 	    ) [] l0 
       in
-      Terms.new_term t3'.t_type ext (FindE(List.rev l0', t3', !find_info))
+      Terms.new_term (!t_common) ext (FindE(List.rev l0', t3', !find_info))
   | PEventAbortE(s,ext2), ext ->
       begin
       try 
@@ -1267,9 +1328,8 @@ let rec check_term defined_refs_opt cur_array env = function
 	    Some t'
       in
       let p1' = check_term defined_refs_opt cur_array env' p1 in
-      if (p1'.t_type != p2'.t_type) && (p1'.t_type != Settings.t_any) && (p2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "Both branches of a get should yield the same type" ext2;
-      Terms.new_term p1'.t_type ext2 (GetE(tbl, patl',topt',p1', p2'))
+      let t_common = merge_types p1'.t_type p2'.t_type ext2 in
+      Terms.new_term t_common ext2 (GetE(tbl, patl',topt',p1', p2'))
           
   | PInsertE((id,ext),tl,p),ext2 ->
       let tbl = get_table env id ext in
@@ -1366,31 +1426,24 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
       let (env', l') = check_pattern_list defined_refs_opt cur_array env tl l in
       let tl' = List.map get_type_for_pattern l' in
       (env', PatTuple(Settings.get_tuple_fun tl', l'))
-  | PPatFunApp((s,ext),l), ext2 -> 
+  | PPatFunApp((s,ext),l), ext2 ->
+      let f = get_function_no_letfun env s ext in
+      if (f.f_options land Settings.fopt_COMPOS) == 0 then
+	input_error "Only [data] functions are allowed in patterns" ext;
       begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	      input_error "Only [data] functions are allowed in patterns" ext;
-	    begin
-	      match tyoptres with
-		None -> ()
-	      |	Some ty ->
-		  if ty != snd f.f_type then
-		    input_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
-	    end;
-	    if List.length (fst f.f_type) != List.length l then
-	      input_error ("Function " ^ f.f_name ^ " expects " ^ 
-			   (string_of_int (List.length (fst f.f_type))) ^ 
-			   " arguments but is here applied to " ^  
-			   (string_of_int (List.length l)) ^ " arguments") ext;
-	    let (env', l') = check_pattern_list defined_refs_opt cur_array env (List.map (fun t -> Some t) (fst f.f_type)) l in
-	    (env', PatTuple(f, l'))
-	| _ -> input_error (s ^ " should be a function") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
+	match tyoptres with
+	  None -> ()
+	| Some ty ->
+	    if ty != snd f.f_type then
+	      input_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
+      end;
+      if List.length (fst f.f_type) != List.length l then
+	input_error ("Function " ^ f.f_name ^ " expects " ^ 
+		     (string_of_int (List.length (fst f.f_type))) ^ 
+		     " arguments but is here applied to " ^  
+		     (string_of_int (List.length l)) ^ " arguments") ext;
+      let (env', l') = check_pattern_list defined_refs_opt cur_array env (List.map (fun t -> Some t) (fst f.f_type)) l in
+      (env', PatTuple(f, l'))
   | PPatEqual t, ext ->
       let t' = check_term defined_refs_opt cur_array env t in
       begin
@@ -1415,268 +1468,171 @@ and check_pattern_list defined_refs_opt cur_array env lty l =
 
 (* Check letfun terms *)
 
-let rec check_term_letfun env = function
+let rec get_type_letfun env = function
     PIdent (s, ext), ext2 ->
       begin
       try 
 	match StringMap.find s env with
 	  EVar(b) -> 
-	    Terms.new_term b.btype ext2
-	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
-	| EFunc(f) -> 
+	    b.btype
+	| EReplIndex(b) ->
+	    b.ri_type
+	| EFunc(f) | ELetFun(f,_,_,_) -> 
 	    if fst (f.f_type) = [] then
-              (*expand letfun functions*)
-              let t'= Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
-              begin
-              match f.f_cat with
-                  LetFunTerm (bl,t) ->
-                    if (!Settings.get_implementation && f.f_impl <> No_impl) then
-                      t'
-                    else
-                      t
-                | _ -> t'
-              end
+	      snd f.f_type
 	    else
 	      input_error (s ^ " has no arguments but expects some") ext
 	| _ -> input_error (s ^ " should be a variable or a function") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	(* Can be an array reference. I cannot determine its type *)
+	Settings.t_any
       end
   | PFunApp((s,ext), tl),ext2 ->
-      let tl' = List.map (check_term_letfun env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-	    check_type_list ext2 tl tl' (fst f.f_type);
-	    let t' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
-              begin
-              match f.f_cat with
-                  LetFunTerm (bl,t) ->
-                    if (!Settings.get_implementation && f.f_impl <> No_impl) then
-                      t'
-                    else
-                      subst3 (List.combine bl tl') t
-                | _ -> t'
-              end
-	| _ -> input_error (s ^ " should be a function") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
+      let f = get_function_or_letfun env s ext in
+      snd f.f_type
   | PTuple(tl), ext2 ->
-      let tl' = List.map (check_term_letfun env) tl in
-      let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
-      check_type_list ext2 tl tl' (fst f.f_type);
-      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
-  | PTestE(t1, t2, t3), ext ->
-      let t1' = check_term_letfun env t1 in
-      let t2' = check_term_letfun env t2 in
-      let t3' = check_term_letfun env t3 in
-      check_type (snd t1) t1' Settings.t_bool;
-      if (t2'.t_type != t3'.t_type) && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "Both branches of a test should yield the same type" ext;
-      Terms.new_term t2'.t_type ext (TestE(t1', t2', t3'))
+      Settings.t_bitstring
+  | PTestE(_, t2, t3), ext ->
+      let t = get_type_letfun env t3 in
+      if t == Settings.t_any then
+	get_type_letfun env t2
+      else
+	t
+  | PGetE((id,ext),patl,_,t2,t3), ext2 ->
+      let t = get_type_letfun env t3 in
+      if t == Settings.t_any then
+	let tbl = get_table env id ext in
+	let env' = check_pattern_list_letfun env (List.map (fun x->Some x) tbl.tbltype) patl in
+	get_type_letfun env' t2
+      else
+	t
   | PLetE(pat, t1, t2, topt), ext ->
-      let t1' = check_term_letfun env t1 in
-      let (env', pat') = check_pattern_letfun env (Some t1'.t_type) pat in
-      let t2' = check_term_letfun env' t2 in
-      let topt' = 
-	match topt, pat with
-	  Some t3, _ -> Some (check_term_letfun env t3)
-	| None, (PPatVar _, _) -> None
-	| None, _ -> Parsing_helper.input_error "When a let in an expression has no else part, it must be of the form let x = M in M'" ext
-      in
-      begin
-	match topt' with
-	  None -> ()
-	| Some t3' -> if (t2'.t_type != t3'.t_type)  && (t2'.t_type != Settings.t_any) && (t3'.t_type != Settings.t_any) then
-	    input_error "Both branches of a let should return the same type" ext
-      end;
-      Terms.new_term t2'.t_type ext (LetE(pat', t1', t2', topt'))
+      let ty_t1 = get_type_letfun env t1 in
+      let env' = check_pattern_letfun env (Some ty_t1) pat in
+      let t = get_type_letfun env' t2 in
+      if t == Settings.t_any then
+	begin
+	  match topt with
+	    None -> t
+	  | Some t3 -> get_type_letfun env t3
+	end
+      else
+	t
   | PResE((s1,ext1),(s2,ext2),t), ext ->
       let ty = get_type env s2 ext2 in
-      if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
-	input_error ("Cannot choose randomly a bitstring from " ^ ty.tname) ext2;
-      let (env',b) = add_in_env_letfun env s1 ext1 ty in
-      let t' = check_term_letfun env' t in
-      Terms.new_term t'.t_type ext (ResE(b, t'))
-  | (PFindE _ | PArray _), ext ->
-      input_error "Find and array references are forbidden in letfun terms" ext
+      let env' = add_in_env_letfun env s1 ext1 ty in
+      get_type_letfun env' t
+  | PFindE (l0,t3,_ ), ext ->
+      let t = get_type_letfun env t3 in
+      if t == Settings.t_any then
+	let rec aux = function
+	    [] -> Settings.t_any
+	  | (_,bl,_,_,t2)::r ->
+	      let rec add env = function
+		  [] -> env
+		| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
+		    let p = get_param env s2 ext2 in
+		    let env' = add_in_env_letfun env s0 ext0 (type_for_param p) in
+		    add env' bl 
+	      in
+	      let env' = add env bl in
+	      let t = get_type_letfun env' t2 in
+	      if t == Settings.t_any then
+		aux r
+	      else
+		t
+	in
+	aux l0
+      else
+	t
+  | PArray _, ext ->
+      (* I cannot determine the type of an array reference here. 
+	 It is not too serious, I'll give a warning in case
+	 I cannot determine the type of the whole letfun. *)
+      Settings.t_any
   | PEventAbortE(s,ext2), ext ->
-      begin
-      try 
-	match StringMap.find s env with
-	  EEvent(f) ->
-	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
-	    Terms.new_term Settings.t_any ext (EventAbortE(f))
-	| _ -> input_error (s ^ " should be an event") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
-  | PEventE((PFunApp((s,ext0),tl), ext), p), ext2 ->
-      begin
-        try 
-	  match StringMap.find s env with
-	      EEvent(f) ->
-	        let tl' = List.map (check_term_letfun env) tl in
-	        check_type_list ext tl tl' (List.tl (fst f.f_type));
-		(* We do not know the replication indices yet.
-	           They will be updated later, in expand_letfun_term *)
-	        let tupf = Settings.get_tuple_fun [] in
-	        let tcur_array =
-		  Terms.new_term Settings.t_bitstring ext2
-		    (FunApp(tupf, []))
-	        in
-	        let p' = check_term_letfun env p in
-                let event =
-		  Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
-		in
-	        Terms.new_term p'.t_type ext2 (EventE(event, p'))
-	    | _ -> input_error (s ^ " should be an event") ext0
-        with Not_found ->
-	  input_error (s ^ " not defined") ext0
-      end
-  | PEventE _, ext2 ->
-      input_error "events should be function applications" ext2
-  | PGetE((id,ext),patl,topt,p1,p2),ext2 -> 
-      let tbl = get_table env id ext in
-      let p2' = check_term_letfun env p2 in
-      let (env', patl') = check_pattern_list_letfun env (List.map (fun x->Some x) tbl.tbltype) patl in
-      let topt' = 
-	match topt with 
-	  None -> None 
-	| Some t -> 
-	    let t' = check_term_letfun env' t in
-	    check_no_new_event_insert (snd t) true t';
-	    check_type (snd t) t' Settings.t_bool;
-	    Some t'
-      in
-      let p1' = check_term_letfun env' p1 in
-      if (p1'.t_type != p2'.t_type) && (p1'.t_type != Settings.t_any) && (p2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "Both branches of a get should yield the same type" ext2;
-      Terms.new_term p1'.t_type ext2 (GetE(tbl, patl',topt',p1', p2'))
-          
-  | PInsertE((id,ext),tl,p),ext2 ->
-      let tbl = get_table env id ext in
-      let tl' = List.map (check_term_letfun env) tl in
-      check_type_list ext2 tl tl' tbl.tbltype;
-      let p' = check_term_letfun env p in
-      Terms.new_term p'.t_type ext2 (InsertE(tbl, tl', p'))
-            
-  | PEqual(t1,t2), ext ->
-      let t1' = check_term_letfun env t1 in
-      let t2' = check_term_letfun env t2 in
-      if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "= expects expressions of the same type" ext;
-      Terms.make_equal_ext ext t1' t2'
-  | PDiff(t1,t2), ext ->
-      let t1' = check_term_letfun env t1 in
-      let t2' = check_term_letfun env t2 in
-      if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "<> expects expressions of the same type" ext;
-      Terms.make_diff_ext ext t1' t2'
-  | PAnd(t1,t2), ext ->
-      let t1' = check_term_letfun env t1 in
-      let t2' = check_term_letfun env t2 in
-      check_type (snd t1) t1' Settings.t_bool;
-      check_type (snd t2) t2' Settings.t_bool;
-      Terms.make_and_ext ext t1' t2'
-  | POr(t1,t2), ext ->
-      let t1' = check_term_letfun env t1 in
-      let t2' = check_term_letfun env t2 in
-      check_type (snd t1) t1' Settings.t_bool;
-      check_type (snd t2) t2' Settings.t_bool;
-      Terms.make_or_ext ext t1' t2'
+      Settings.t_any
+  | (PEventE(_, p) | PInsertE(_,_,p)), ext2 ->
+      get_type_letfun env p
+  | (PEqual _ | PDiff _ | PAnd _ | POr _), ext ->
+      Settings.t_bool
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
 
 and check_pattern_letfun env tyoptres = function
     PPatVar ((s1,ext1), tyopt), _ ->
       begin
-	match tyopt, tyoptres with
-	  None, None ->
-	    input_error "type needed for this variable" ext1
-	| None, Some ty -> 
-	    let (env',b) = add_in_env_letfun env s1 ext1 ty in
-	    (env', PatVar b)
-	| Some tyb, None -> 
-	    let (ty',ext2) = get_ty env tyb in
-	    begin
-	      match ty'.tcat with
-		Interv _ -> input_error "Cannot input a term of interval type or extract one from a tuple" ext2
-	        (* This condition simplifies greatly the theory:
-	           otherwise, one needs to compute which channels the adversary
-	           knows...
-		   8/12/2017: I no longer understand this comment, and I am
-		   wondering if I could relax this condition. *)
-	      |	_ -> ()
-	    end;
-	    let (env',b) = add_in_env_letfun env s1 ext1 ty' in
-	    (env', PatVar b)	    
-	| Some tyb, Some ty ->
-	    let (ty',ext2) = get_ty env tyb in
-	    if ty != ty' then
-	      input_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
-	    let (env',b) = add_in_env_letfun env s1 ext1 ty' in
-	    (env', PatVar b)
+       match tyopt, tyoptres with
+         None, None ->
+           input_error "type needed for this variable" ext1
+       | None, Some ty ->
+           add_in_env_letfun env s1 ext1 ty 
+       | Some tyb, None ->
+           let (ty',ext2) = get_ty env tyb in
+           begin
+             match ty'.tcat with
+               Interv _ -> input_error "Cannot input a term of interval type or extract one from a tuple" ext2
+               (* This condition simplifies greatly the theory:
+                  otherwise, one needs to compute which channels the adversary
+                  knows...
+                  8/12/2017: I no longer understand this comment, and I am
+                  wondering if I could relax this condition. *)
+             | _ -> ()
+           end;
+           add_in_env_letfun env s1 ext1 ty' 
+       | Some tyb, Some ty ->
+           let (ty',ext2) = get_ty env tyb in
+           if ty != ty' then
+             input_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
+           add_in_env_letfun env s1 ext1 ty' 
       end
   | PPatTuple l, ext ->
       begin
-	match tyoptres with
-	  None -> ()
-	| Some ty ->
-	    if ty != Settings.t_bitstring then
-	      input_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
+       match tyoptres with
+         None -> ()
+       | Some ty ->
+           if ty != Settings.t_bitstring then
+             input_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
       end;
       let tl = List.map (fun _ -> None) l in
-      let (env', l') = check_pattern_list_letfun env tl l in
-      let tl' = List.map get_type_for_pattern l' in
-      (env', PatTuple(Settings.get_tuple_fun tl', l'))
-  | PPatFunApp((s,ext),l), ext2 -> 
+      check_pattern_list_letfun env tl l 
+  | PPatFunApp((s,ext),l), ext2 ->
+      let f = get_function_no_letfun env s ext in
+      if (f.f_options land Settings.fopt_COMPOS) == 0 then
+        input_error "Only [data] functions are allowed in patterns" ext;
       begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	      input_error "Only [data] functions are allowed in patterns" ext;
-	    begin
-	      match tyoptres with
-		None -> ()
-	      |	Some ty ->
-		  if ty != snd f.f_type then
-		    input_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
-	    end;
-	    if List.length (fst f.f_type) != List.length l then
-	      input_error ("Function " ^ f.f_name ^ " expects " ^ 
-			   (string_of_int (List.length (fst f.f_type))) ^ 
-			   " arguments but is here applied to " ^  
-			   (string_of_int (List.length l)) ^ " arguments") ext;
-	    let (env', l') = check_pattern_list_letfun env (List.map (fun t -> Some t) (fst f.f_type)) l in
-	    (env', PatTuple(f, l'))
-	| _ -> input_error (s ^ " should be a function") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
-  | PPatEqual t, ext ->
-      let t' = check_term_letfun env t in
-      begin
-	match tyoptres with
-	  None -> ()
-	| Some ty ->
-	    if (t'.t_type != ty)  && (t'.t_type != Settings.t_any) && (ty != Settings.t_any) then
-	      input_error ("Pattern has type " ^ (t'.t_type).tname ^ " and should be of type " ^ ty.tname) ext
+        match tyoptres with
+          None -> ()
+        | Some ty ->
+            if ty != snd f.f_type then
+              input_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
       end;
-      (env, PatEqual t')
+      if List.length (fst f.f_type) != List.length l then
+        input_error ("Function " ^ f.f_name ^ " expects " ^
+                     (string_of_int (List.length (fst f.f_type))) ^
+                     " arguments but is here applied to " ^
+                     (string_of_int (List.length l)) ^ " arguments") ext;
+      check_pattern_list_letfun env (List.map (fun t -> Some t) (fst f.f_type)) l 
+  | PPatEqual t, ext ->
+      let ty_t = get_type_letfun env t in
+      begin
+       match tyoptres with
+         None -> ()
+       | Some ty ->
+           if (ty_t != ty)  && (ty_t != Settings.t_any) && (ty != Settings.t_any) then
+             input_error ("Pattern has type " ^ ty_t.tname ^ " and should be of type " ^ ty.tname) ext
+      end;
+      env
 
-and check_pattern_list_letfun env lty l = 
+and check_pattern_list_letfun env lty l =
   match lty, l with
-    [], [] -> (env,[])
+    [], [] -> env
   | (ty::lty),(a::l) ->
-      let env', l' = check_pattern_list_letfun env lty l in
-      let env'', a' = check_pattern_letfun env' ty a in
-      (env'', a'::l')
+      let env' = check_pattern_list_letfun env lty l in
+      check_pattern_letfun env' ty a 
   | _ -> Parsing_helper.internal_error "Lists have different length in check_pattern_list"
 
+ 
 (* Check channels *)
 
 let channel_env = (Hashtbl.create 7: (string, channel) Hashtbl.t)
@@ -1746,35 +1702,18 @@ let rec check_term_nobe env = function
 	    Terms.new_term b.btype ext2
 	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
 	| EFunc(f) ->
-            begin 
-              match f.f_cat with 
-                  LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                | _ ->
-      	            if fst (f.f_type) = [] then
-	              Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
-	            else
-	              input_error (s ^ " has no arguments but expects some") ext
-            end
-	| _ -> input_error (s ^ " should be a variable or a function") ext
+      	    if fst (f.f_type) = [] then
+	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
+	    else
+	      input_error (s ^ " has no arguments but expects some") ext
+	| _ -> input_error (s ^ " should be a variable or a function (letfun forbidden)") ext
       with Not_found -> input_error (s ^ " not defined") ext
       end
   | PFunApp((s,ext), tl),ext2 ->
       let tl' = List.map (check_term_nobe env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-            begin
-              match f.f_cat with
-                LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-              | _ ->
-	          check_type_list ext2 tl tl' (fst f.f_type);
-	          Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
-            end
-	  | _ -> input_error (s ^ " should be a function") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
+      let f = get_function_no_letfun env s ext in
+      check_type_list ext2 tl tl' (fst f.f_type);
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term_nobe env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
@@ -1828,13 +1767,7 @@ let check_statement env (l,t) =
 
 (* Check builtin equation statements *)
 
-let get_fun env (s,ext) =
-  try 
-    match StringMap.find s env with
-      EFunc(f) -> f
-    | _ -> input_error (s ^ " should be a function") ext
-  with Not_found ->
-    input_error (s ^ " not defined") ext
+let get_fun env (s,ext) = get_function_no_letfun env s ext
 
 let check_builtin_eq env (eq_categ, ext) l_fun_symb =
   let l_fun = List.map (get_fun env) l_fun_symb in
@@ -1937,16 +1870,11 @@ let rec check_term_proba env = function
 	    Terms.new_term b.btype ext2
 	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
 	| EFunc(f) ->
-            begin
-              match f.f_cat with
-                | LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                | _->
-	            if fst (f.f_type) = [] then
-		      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
-	            else
-	              input_error (s ^ " has no arguments but expects some") ext
-            end
-	| _ -> input_error (s ^ " should be a variable or a function") ext
+	    if fst (f.f_type) = [] then
+	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
+	    else
+	      input_error (s ^ " has no arguments but expects some") ext
+	| _ -> input_error (s ^ " should be a variable or a function (letfun forbidden)") ext
       with Not_found -> 
 	let b = get_global_binder "outside its scope" (s,ext) in
 	let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in
@@ -1954,21 +1882,9 @@ let rec check_term_proba env = function
       end
   | PFunApp((s,ext), tl),ext2 ->
       let tl' = List.map (check_term_proba env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	    EFunc(f) ->
-              begin
-                match f.f_cat with
-                  LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                | _->
-	            check_type_list ext2 tl tl' (fst f.f_type);
-	            Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
-              end
-	  | _ -> input_error (s ^ " should be a function") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
+      let f = get_function_no_letfun env s ext in
+      check_type_list ext2 tl tl' (fst f.f_type);
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term_proba env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
@@ -2147,37 +2063,15 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in
 	match action with
 	  PAFunApp(s,ext') ->
-	    begin
-	    try 
-	      match StringMap.find s env with
-	      | EFunc f -> 
-                  begin
-                    match f.f_cat with
-                        LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                      | _ ->
-		          let pl' = check_types ext pl pl' (fst f.f_type) in
-		            (ActTime(AFunApp f, pl'), Some(0, 1, 0))
-                  end
-	      | _ -> input_error (s ^ " should be a function symbol") ext'
-	    with Not_found ->
-	      input_error (s ^ " is not defined") ext'
-	    end
+	    let f = get_function_no_letfun env s ext' in
+	    let pl' = check_types ext pl pl' (fst f.f_type) in
+	    (ActTime(AFunApp f, pl'), Some(0, 1, 0))
 	| PAPatFunApp(s,ext') ->
-	    begin
-	    try 
-	      match StringMap.find s env with
-	      | EFunc f -> 
-                  begin
-                    match f.f_cat with
-                        LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                      | _ ->
-		          let pl' = check_types ext pl pl' (fst f.f_type) in
-		            (ActTime(APatFunApp f, pl'), Some(0, 1, 0))
-                  end
-	      | _ -> input_error (s ^ " should be a function symbol") ext'
-	    with Not_found ->
-	      input_error (s ^ " is not defined") ext'
-	    end
+	    let f = get_function_no_letfun env s ext' in
+	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
+	      input_error "Only [data] functions are allowed in patterns" ext';
+	    let pl' = check_types ext pl pl' (fst f.f_type) in
+	    (ActTime(APatFunApp f, pl'), Some(0, 1, 0))
 	| PACompare(s,ext') ->
 	    let t = get_type_or_param env s ext' in
 	    let pl' = check_types ext pl pl' [t] in
@@ -2241,16 +2135,11 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	try 
 	  match StringMap.find s env with
 	  | EFunc f -> 
-              begin
-                match f.f_cat with
-                    LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                  | _ ->
-	              let pl' = check_types ext pl pl' (fst f.f_type) in
-	                if (snd f.f_type).toptions land Settings.tyopt_BOUNDED != 0 then
-		          (TypeMaxlength (snd f.f_type), Some(0,0,1))
-	                else
-		          (Length(f, pl'), Some(0,0,1))
-              end
+	      let pl' = check_types ext pl pl' (fst f.f_type) in
+	      if (snd f.f_type).toptions land Settings.tyopt_BOUNDED != 0 then
+		(TypeMaxlength (snd f.f_type), Some(0,0,1))
+	      else
+		(Length(f, pl'), Some(0,0,1))
 	  | EType t ->
 	      if pl != [] then
 		input_error "the length of a type should have no additional argument" ext';
@@ -2258,7 +2147,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
 		(TypeMaxlength t, Some(0,0,1))
 	      else
 		input_error "the length of a type is allowed only when the type is bounded" ext'
-	  | _ -> input_error (s ^ " should be a function symbol or a type") ext'
+	  | _ -> input_error (s ^ " should be a function symbol (letfun forbidden) or a type") ext'
 	with Not_found ->
 	  input_error (s ^ " is not defined") ext'
       end
@@ -2534,7 +2423,7 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
   let seen_repl = ref [] in
   let seen_ch = ref [] in
   set_binder_env 
-    (List.fold_left (fun env (fg, _, _) -> check_fungroup1 [] env fg) empty_binder_env mem1); (* Builds binder_env *)
+    (List.fold_left (fun binder_env (fg, _, _) -> check_fungroup1 [] (!env) binder_env fg) empty_binder_env mem1); (* Builds binder_env *)
   let count_exist = ref 0 in
   let mem1' = List.map (fun (fg, mode, ext) ->
     let res = (check_lm_fungroup2 [] [] (!env) seen_ch seen_repl fg,
@@ -2667,51 +2556,6 @@ let add_role ((id,ext),opt) ip =
       input_error ("Role " ^ id ^ " has already been defined") ext
   with Not_found ->
     impl_roles := StringMap.add id (ip,check_opt opt) !impl_roles
-
-(* when t is a variable b0 with current repl. ind. and
-   b has no array accesses, use b0 instead of b *)
-let add_in_env_reuse_var env s ext ty cur_array t =
-  match t.t_desc with
-    Var(b0,l) when Terms.is_args_at_creation b0 l ->
-      begin
-	if (StringMap.mem s env) then
-	  input_warning ("identifier " ^ s ^ " rebound") ext;
-	match get_global_binder_if_possible s with
-	  Some b -> 
-	    (StringMap.add s (EVar b) env, [PatVar b, t])
-	| None ->
-	    (StringMap.add s (EVar b0) env, [])
-      end
-  | ReplIndex b0 ->
-      begin
-	if (StringMap.mem s env) then
-	  input_warning ("identifier " ^ s ^ " rebound") ext;
-	match get_global_binder_if_possible s with
-	  Some b -> 
-	    (StringMap.add s (EVar b) env, [PatVar b, t])
-	| None ->
-	    (StringMap.add s (EReplIndex b0) env, [])
-      end
-  | _ ->
-      let (env', b) = add_in_env env s ext ty cur_array in
-      (env', [PatVar b, t])
-    
-
-let rec check_args cur_array env vardecl args =
-  match (vardecl, args) with
-    [], [] -> (env, [])
-  | [], _ | _, [] ->
-      Parsing_helper.internal_error "Syntax.check_args vardecl and args should have the same length"
-  | ((s1, ext1), tyb)::rvardecl, t::rargs ->
-      let ty = t.t_type in 
-      let (ty', ext2) = get_ty env tyb in
-      if ty != ty' then
-	input_error ("Process expects an argument of type " ^ ty'.tname ^ " but is here given an argument of type " ^ ty.tname) t.t_loc;
-      let (env',letopt) = add_in_env_reuse_var env s1 ext1 ty' cur_array t in
-      (* when t is a variable b0 with current repl. ind. and
-	 b has no array accesses, use b0 instead of b *)
-      let (env'', rlets) = check_args cur_array env' rvardecl rargs in
-      (env'', letopt @ rlets)
 
 let rec check_process defined_refs cur_array env prog = function
     PBeginModule (a,p), ext ->
@@ -3210,16 +3054,14 @@ let rename_decl = function
   | LetFun(name,l,t) ->
       (* The defined function is global, it must not be reused *)
       let name' = rename_ie name in
-      (* Variables created in the statement are local, 
-         I can reuse their names later *)
-      let rename_state = get_rename_state() in
-      let renamed_letfun_statement =
-	LetFun(name',
-	       List.map (fun (b,t) -> (rename_ie b,rename_ty t)) l,
-	       rename_term t)
-      in
-      set_rename_state rename_state;
-      renamed_letfun_statement      
+      (* Variables created in the statement are also global, 
+	 because I can make array references to them,
+	 as well as references in queries.
+         I cannot reuse their names later *)
+      LetFun(name',
+	     List.map (fun (b,t) -> (rename_ie b,rename_ty t)) l,
+	     rename_term t)
+
 	
 
 let apply argl paraml already_def def =
@@ -3427,24 +3269,27 @@ let rec check_one = function
                                     f_impl = No_impl;
                                     f_impl_inv = None })
   | LetFun((s1,ext1), l, s2) ->
-      let (bl, tl,env')=
-        List.fold_right (fun ((s1, ext1), tyb) (bl,tl,env') ->
-                           if (StringMap.mem s1 env') then
-                             Parsing_helper.input_error ("The name "^s1^" already defined before cannot be used here") ext1
-                           else
-                             let (t,_) = get_ty env' tyb in
-                             let (env'',b)=add_in_env_letfun env' s1 ext1 t in
-                               (b::bl,t::tl,env'')) l ([],[],!env) in
-      let t = check_term_letfun env' s2 in
-        add_not_found s1 ext1 (EFunc{ f_name = s1;
-                                      f_type = tl, t.t_type;
-                                      f_cat  = LetFunTerm(bl,t);
-				      f_options = 0;
-				      f_statements = [];
-				      f_collisions = [];
-				      f_eq_theories = NoEq;
-                                      f_impl = No_impl;
-                                      f_impl_inv = None })
+      let (tl,env')=
+        List.fold_right (fun ((s1, ext1), tyb) (tl,env') ->
+          if (StringMap.mem s1 env') then
+            Parsing_helper.input_error ("The name "^s1^" already defined before cannot be used here") ext1
+          else
+            let (t,_) = get_ty env' tyb in
+            let env'' = add_in_env_letfun env' s1 ext1 t in
+            (t::tl,env'')) l ([],!env)
+      in
+      let ty = get_type_letfun env' s2 in
+      if (!Settings.get_implementation) && (ty == Settings.t_any) then
+	input_warning "Could not determine the result type of letfun. I may generate an implementation for a script that does not typecheck. Please run CryptoVerif without generating an implementation to typecheck the script." ext1;
+      add_not_found s1 ext1 (ELetFun({ f_name = s1;
+                                       f_type = tl, ty;
+                                       f_cat  = Std;
+				       f_options = 0;
+				       f_statements = [];
+				       f_collisions = [];
+				       f_eq_theories = NoEq;
+                                       f_impl = No_impl;
+                                       f_impl_inv = None }, !env, l, s2))
           
   | EventDecl((s1,ext1), l) ->
       let l' = List.map (fun (s,ext) ->
@@ -3531,13 +3376,13 @@ let rec check_one = function
                (* Parse options *)
                write_type_options typ opts
            | Function((f,ext),(i,ext1),fopts) ->
-               let fu=get_function !env f ext in
+               let fu=get_function_or_letfun !env f ext in
 	       if fu.f_impl != No_impl then
 		 Parsing_helper.input_error ("Function " ^ f ^ " already has implementation informations") ext;
                 fu.f_impl <- Func i;
                write_fun_options fu fopts
            | Constant((f,ext),(i,ext')) ->
-               let fu=get_function !env f ext in
+               let fu=get_function_or_letfun !env f ext in
  	       if fu.f_impl != No_impl then
 		 Parsing_helper.input_error ("Function " ^ f ^ " already has implementation informations") ext;
                if (fst fu.f_type <> []) then
@@ -3580,7 +3425,7 @@ let rec check_one = function
 let rec check_all (l,p) = 
   List.iter check_one l;
   current_location := InProcess;
-  set_binder_env (check_process1 empty_binder_env [] p); (* Builds binder_env *)
+  set_binder_env (check_process1 empty_binder_env [] (!env) p); (* Builds binder_env *)
   let result = check_process [] [] (!env) None p in
   check_process2 p; (* Checks oracles that finish roles contain only
                        one return *)
@@ -3767,40 +3612,23 @@ let rec check_term_query2 env = function
 	    check_type (snd x) x' Settings.t_bool;	    
 	    QTerm x'
 	| EFunc(f) ->
-            begin
-              match f.f_cat with
-                  LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                | _ ->
-	            if fst (f.f_type) = [] then
-	              let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
-	              check_type (snd x) x' Settings.t_bool;
-	              QTerm x'
-	            else
-	              input_error (s ^ " has no arguments but expects some") ext
-            end
-	| _ -> input_error (s ^ " should be a variable or a function") ext
+	    if fst (f.f_type) = [] then
+	      let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, [])) in
+	      check_type (snd x) x' Settings.t_bool;
+	      QTerm x'
+	    else
+	      input_error (s ^ " has no arguments but expects some") ext
+	| _ -> input_error (s ^ " should be a variable or a function (letfun forbidden)") ext
       with Not_found -> 
 	input_error (s ^ " not defined") ext
       end
   | (PFunApp((s,ext), tl),ext2) as x ->
       let tl' = List.map (check_term_nobe env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-            begin
-              match f.f_cat with
-                  LetFunTerm _ -> input_error ("Letfun are not accepted here") ext
-                | _ ->
-                    check_type_list ext2 tl tl' (fst f.f_type);
-	            let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
-	            check_type (snd x) x' Settings.t_bool;
-	            QTerm x'
-            end
-	| _ -> input_error (s ^ " should be a function") ext
-      with Not_found ->
-	input_error (s ^ " not defined") ext
-      end
+      let f = get_function_no_letfun env s ext in
+      check_type_list ext2 tl tl' (fst f.f_type);
+      let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
+      check_type (snd x) x' Settings.t_bool;
+      QTerm x'
   | PQEvent(inj, (PFunApp((s,ext), tl), ext2)),ext3 ->
       let tl' = List.map (check_term_nobe env) tl in
       begin
@@ -3902,7 +3730,7 @@ let rec record_ids l =
 (* [add_already_def argl expanded_macro already_def] adds to [already_def]
    the identifiers defined in [expanded_macro] that also occur in [argl].
    [argl] is supposed to represent the arguments of the macro before expansion.
-   The idenfifiers in [argl] defined by the macro can be used after the
+   The identifiers in [argl] defined by the macro can be used after the
    macro. This function is useful to compute the value of [already_def]
    after the macro. *)
 

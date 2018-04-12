@@ -1411,7 +1411,9 @@ the argument and the result of $f$ must be of types marked
   $x_i\texttt{:} T_i$ when $x_i$ is of type $[1,N_i]$, where $N_i$ is
   a parameter, declared by $\texttt{param }N_i$.)
 
-  The term $M$ must not contain $\texttt{find}$ constructs.
+  Variables defined inside $\texttt{letfun}$ can be used in array references
+  and in queries, provided the process after expansion of $\texttt{letfun}$
+  satisfies the required conditions for that.
 
 \item $\texttt{const}\ \neseq{ident}\texttt{:}\nonterm{ident}\texttt{.}$
 

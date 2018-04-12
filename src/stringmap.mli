@@ -15,6 +15,7 @@ type env_entry =
   | EVar of binder
   | EReplIndex of repl_index
   | EChannel of channel
+  | ELetFun of Types.funsymb * env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.term_e
   | EProcess of env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
   | ETable of table
 
@@ -29,7 +30,8 @@ val get_ty : env_type -> Ptree.ty(*type*) -> typet * Parsing_helper.extent
 val get_process : env_type -> string -> Parsing_helper.extent ->
   env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
 val get_table : env_type -> string -> Parsing_helper.extent -> table
-val get_function : env_type -> string -> Parsing_helper.extent -> funsymb
+val get_function_no_letfun : env_type -> string -> Parsing_helper.extent -> funsymb
+val get_function_or_letfun : env_type -> string -> Parsing_helper.extent -> funsymb
 
 (* Global binder environment *)
 

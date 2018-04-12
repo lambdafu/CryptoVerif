@@ -26,6 +26,7 @@ type env_entry =
   | EVar of Types.binder
   | EReplIndex of Types.repl_index
   | EChannel of Types.channel
+  | ELetFun of Types.funsymb * env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.term_e
   | EProcess of env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
   | ETable of Types.table
 
@@ -77,13 +78,20 @@ let get_process env s ext =
   | _ -> input_error (s ^ " should be a process.") ext
   with Not_found -> input_error (s ^ " not defined.") ext
 
-let get_function env s ext =
+let get_function_no_letfun env s ext =
   try
   match StringMap.find s env with
     EFunc f -> f
-  | _ -> input_error (s ^ " should be a function.") ext
+  | _ -> input_error (s ^ " should be a function (letfun forbidden).") ext
   with Not_found -> input_error (s ^ " not defined.") ext
 
+let get_function_or_letfun env s ext =
+  try
+  match StringMap.find s env with
+    EFunc f -> f
+  | ELetFun(f, _, _, _) -> f
+  | _ -> input_error (s ^ " should be a function (letfun allowed).") ext
+  with Not_found -> input_error (s ^ " not defined.") ext
 
 (* Global binder environment *)
 

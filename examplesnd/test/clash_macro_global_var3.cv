@@ -1,0 +1,19 @@
+(* There is a clash: the variable x should be private the macro,
+   but I reference it in an array reference outside the macro, and CryptoVerif
+   does not complain that x is not defined. *)
+
+
+def macro(f, t) {
+
+letfun f = new x:t; x.
+
+}
+
+channel pub.
+type t [fixed].
+
+expand macro(f, t).
+
+query secret z.
+
+process (in(pub, z: t); out(pub, f)) | (in(pub, ()); if defined(x) then out(pub, ()))
