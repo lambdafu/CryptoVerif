@@ -176,6 +176,8 @@ That should be sufficient for modules that want to read the variable.
    examplesnd/test/clash_macro_global_var*.cv
    I really need to fix this bug.
 
+   TO DO [test and document repl indices as args for events and tables] allow replication indices in arguments of letfun and tables.
+
    f) write a converter from the old front-end to the new one.
    Changes in the converter:
    DONE define -> def

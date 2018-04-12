@@ -3156,7 +3156,9 @@ let rec check_one = function
   | ProbabilityDecl(s,ext) ->
       add_not_found s ext (EProba{ prname = s })
   | TableDecl((s,ext),st) ->
-      add_not_found s ext (ETable ({ tblname = s; tbltype = List.map (fun (s,ext)   -> get_type (!env) s ext) st; tblfile = None }))
+      add_not_found s ext (ETable ({ tblname = s;
+				     tbltype = List.map (fun (s,ext) -> get_type_or_param (!env) s ext) st;
+				     tblfile = None }))
   | TypeDecl((s1,ext1),options) ->
 	let opt = ref 0 in
 	let size = ref Settings.tysize_SMALL in
