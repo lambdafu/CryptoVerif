@@ -170,7 +170,7 @@ That should be sufficient for modules that want to read the variable.
    examplesnd/test/bad_ren.cv
    => I need a full revision of macro expansion.
 
-   TO DO There is still a possibility of clash between names of variables
+   DONE There is still a possibility of clash between names of variables
    in macros (in processes and letfun) and names of variables used
    in queries or in array references. See
    examplesnd/test/clash_macro_global_var*.cv
@@ -400,7 +400,8 @@ We could probably push this idea for noninterf x among S.
       The arguments of processes are sometimes kept as "let",
       sometimes directly substituted, so they may or not be used
       in queries... => I must change that.)
-   - allow replication indices in events (replication indices
+   - allow replication indices in events, tables, and arguments of
+   processes and letfun (replication indices
    correspond to the session identifiers of ProVerif)
       
 4) Small details

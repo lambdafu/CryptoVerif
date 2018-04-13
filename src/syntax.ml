@@ -2436,7 +2436,6 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
     | _ -> res
     ) mem1
   in
-  Display.display_eqmember mem1';
   (* The probability formula must be checked in the binder_env for the
      left-hand side of the equivalence. Arguments of Maxlength may use
      variables of the left-hand side of the equivalence. *)
@@ -3047,8 +3046,6 @@ let rename_decl = function
       input_error "macro definitions are not allowed inside macro definitions" ext1
   | Expand(s1,argl) ->
       Expand(s1, List.map rename_ie argl)
-  | Expanded _ ->
-      internal_error "expanded macros should not be subject to renaming"
   | Implementation(ilist) ->
       Implementation(List.map rename_impl ilist)
   | TableDecl (id, tlist) ->
@@ -3404,27 +3401,6 @@ let rec check_one = function
       internal_error "macros should have been expanded"
   | Expand((s,ext),_) ->
       input_error "macros should have been expanded, and the macro move_array_internal_macro should not contain expansions of other macros" ext
-  | Expanded(argl, l) ->
-      let env_before = !env in
-      List.iter check_one l;
-      let env_after = !env in
-      (* After expanding a macro, we keep in the environment only the 
-         identifiers passed as argument to the macro.
-	 The identifiers internal to the macro are considered as not defined.
-	 They are renamed to identifiers different from existing declarations
-	 during macro expansion, but they could clash with identifiers
-	 used without proper definition. They would then be erroneously
-	 considered as defined. *)
-      env := env_before;
-      List.iter (fun (arg,_) ->
-	if StringMap.mem arg env_before then
-	  ()
-	else
-	  try
-	    let argval = StringMap.find arg env_after in
-	    env := StringMap.add arg argval (!env)
-	  with Not_found -> ()
-	      ) argl
 
 let rec check_all (l,p) = 
   List.iter check_one l;
@@ -3725,9 +3701,7 @@ let declares = function
   | _ -> None
     
 let rec record_ids l = 
-  List.iter (function
-    | Expanded(_,decllist) -> record_ids decllist
-    | decl ->
+  List.iter (fun decl ->
 	match declares decl with
 	  Some (s,ext) -> Terms.record_id s ext
 	| None -> ()
@@ -3771,8 +3745,6 @@ let rec expand_macros macro_table already_def = function
     [] -> []
   | a::l ->
       match a with
-      | Expanded _ ->
-	  Parsing_helper.internal_error "Expanded macros should not occur initially"
       | Define((s1,ext1),argl,def) ->
 	  if StringMap.mem s1 macro_table then
 	    input_error ("Macro " ^ s1 ^ " already defined.") ext1
@@ -3793,10 +3765,9 @@ let rec expand_macros macro_table already_def = function
 		input_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
 			     " arguments, but is here given " ^ (string_of_int (List.length argl)) ^ " arguments.") ext1;
 	      let applied_macro = apply argl paraml old_already_def def in
-	      record_ids applied_macro;
 	      let expanded_macro = expand_macros old_macro_table old_already_def applied_macro in
 	      let already_def_after_macro = add_already_def argl expanded_macro already_def in
-	      Expanded(argl, expanded_macro)::(expand_macros macro_table already_def_after_macro l)
+	      expanded_macro @ (expand_macros macro_table already_def_after_macro l)
 	    with Not_found ->
 	      input_error ("Macro " ^ s1 ^ " not defined.") ext1
 	  end
@@ -4094,8 +4065,6 @@ let collect_id_decl accu = function
   | Proofinfo _ | Define _ -> ()
   | Expand(_, argl) ->
       List.iter (add_id accu) argl
-  | Expanded _ ->
-      internal_error "expanded macros should not be subject to collect_id"
   | Implementation ilist ->
       List.iter (collect_id_impl accu) ilist
   | LetFun(name,l,t) ->
