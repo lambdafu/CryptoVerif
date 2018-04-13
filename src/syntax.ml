@@ -2436,6 +2436,7 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
     | _ -> res
     ) mem1
   in
+  Display.display_eqmember mem1';
   (* The probability formula must be checked in the binder_env for the
      left-hand side of the equivalence. Arguments of Maxlength may use
      variables of the left-hand side of the equivalence. *)
@@ -2906,7 +2907,8 @@ let rec rename_proc (p, ext) =
 let rename_act = function
     PAFunApp i -> PAFunApp (rename_ie i)
   | PAPatFunApp i -> PAPatFunApp (rename_ie i)
-  | (PAReplIndex | PAArrayAccess _ | PACompare _ |
+  | PACompare i -> PACompare (rename_ie i)
+  | (PAReplIndex | PAArrayAccess _ |
      PAAnd | PAOr | PANewChannel | PAIf | PAFind _ | PAIn _) as x -> x
   | PAAppTuple l -> PAAppTuple (List.map rename_ie l)
   | PAPatTuple l -> PAPatTuple (List.map rename_ie l)
@@ -2972,19 +2974,15 @@ let rename_impl = function
       Function(rename_ie name,f,fo)
   | Constant(name,c) ->
       Constant(rename_ie name,c)
-  | ImplTable(tbl,file) -> ImplTable(rename_ie tbl,file)
+  | ImplTable(tbl,file) ->
+      ImplTable(rename_ie tbl,file (* TO DO I might want to rename the file to have a different file for each expansion of the macro. Then the file should probably not be between quotes in the input file *))
 
 let rename_decl = function
-    ParamDecl((s,ext), options) ->
-      ParamDecl((rename_ident s, ext), options)
-  | ProbabilityDecl(s,ext) ->
-      ProbabilityDecl(rename_ident s, ext)
-  | TypeDecl(s,options) ->
-      TypeDecl(rename_ie s, options)
-  | ConstDecl(s1,s2) ->
-      ConstDecl(rename_ie s1, rename_ie s2)
-  | ChannelDecl(s1,ext1) ->
-      ChannelDecl(rename_ident s1, ext1)
+    ParamDecl(s, options) -> ParamDecl(rename_ie s, options)
+  | ProbabilityDecl s -> ProbabilityDecl(rename_ie s)
+  | TypeDecl(s,options) -> TypeDecl(rename_ie s, options)
+  | ConstDecl(s1,s2) -> ConstDecl(rename_ie s1, rename_ie s2)
+  | ChannelDecl(s) -> ChannelDecl(rename_ie s)
   | Setting((p,ext),v) -> Setting((p,ext),v)
   | FunDecl(s1,l,sr,f_options) ->
       FunDecl(rename_ie s1,
@@ -3045,12 +3043,12 @@ let rename_decl = function
 	    input_error "Proof indications not allowed in macros" ext
 	| _ -> internal_error "empty proof"
       end
-  | Define((s1,ext1),argl,def) ->
+  | Define((_,ext1),_,_) ->
       input_error "macro definitions are not allowed inside macro definitions" ext1
-  | Expand((s1,ext1),argl) ->
-      Expand((s1,ext1), List.map rename_ie argl)
+  | Expand(s1,argl) ->
+      Expand(s1, List.map rename_ie argl)
   | Expanded _ ->
-      internal_error "expanded macros should be subject to renaming"
+      internal_error "expanded macros should not be subject to renaming"
   | Implementation(ilist) ->
       Implementation(List.map rename_impl ilist)
   | TableDecl (id, tlist) ->
@@ -3727,10 +3725,12 @@ let declares = function
   | _ -> None
     
 let rec record_ids l = 
-  List.iter (fun decl ->
-    match declares decl with
-      Some (s,ext) -> Terms.record_id s ext
-    | None -> ()
+  List.iter (function
+    | Expanded(_,decllist) -> record_ids decllist
+    | decl ->
+	match declares decl with
+	  Some (s,ext) -> Terms.record_id s ext
+	| None -> ()
 	  ) l
 
 (* [add_already_def argl expanded_macro already_def] adds to [already_def]
@@ -3781,7 +3781,7 @@ let rec expand_macros macro_table already_def = function
 	      check_no_dup argl;
 	      let macro_table' = StringMap.add s1 (Macro(argl, def, already_def, macro_table)) macro_table in
 	      (* Store the new macro table globally 
-		 This is ok before macro definitions cannot be included inside macros, so macro_table' contains all macros defined so far. *)
+		 This is ok because macro definitions cannot be included inside macros, so macro_table' contains all macros defined so far. *)
 	      macrotable := macro_table';
 	      expand_macros macro_table' already_def l
 	    end
@@ -3809,6 +3809,9 @@ let rec expand_macros macro_table already_def = function
 	  a::(expand_macros macro_table already_def' l)
 
 
+(* Collect all identifiers 
+   This is to avoid clashes during macro expansion *)
+		
 let add_id accu (s,ext) =
   if not (List.mem s (!accu)) then
     accu := s :: (!accu)
@@ -3983,17 +3986,144 @@ let rec collect_id_proc accu (proc,ext) =
       add_id accu id;
       List.iter (collect_id_beginmodule_opt accu) opt;
       collect_id_proc accu p
+
+let collect_id_act accu = function
+  | PAFunApp i | PAPatFunApp i | PACompare i | PANew i -> add_id accu i
+  | PAReplIndex | PAArrayAccess _ 
+  | PAAnd | PAOr | PANewChannel | PAIf | PAFind _ | PAIn _ -> ()
+  | PAAppTuple l | PAPatTuple l -> List.iter (add_id accu) l
+  | PAOut (l, t) -> List.iter (add_id accu) l; add_id accu t
+
+let rec collect_id_probaf accu (p,ext) =
+  match p with
+  | PAdd(p1,p2) | PSub(p1,p2) | PProd(p1,p2) | PDiv(p1,p2) ->
+      collect_id_probaf accu p1;
+      collect_id_probaf accu p2
+  | PMax l ->
+      List.iter (collect_id_probaf accu) l
+  | PPIdent i | PCount i | PCard i | PEpsRand i
+  | PPColl1Rand i | PPColl2Rand i ->
+      add_id accu i
+  | PPFun(i,l) | PLength(i,l) ->
+      add_id accu i;
+      List.iter (collect_id_probaf accu) l
+  | PPZero | PCst _ | PFloatCst _ | PTime | PEpsFind -> ()
+  | PActTime(act, l) ->
+      collect_id_act accu act;
+      List.iter (collect_id_probaf accu) l
+  | PMaxlength t ->
+      collect_id_term accu t
+  | PLengthTuple(il,l) ->
+      List.iter (add_id accu) il;
+      List.iter (collect_id_probaf accu) l
+
+let rec collect_id_fungroup accu = function
+    PReplRestr((_, iopt, i), restr, funs) ->
+      begin
+	match iopt with
+	  None -> ()
+	| Some i -> add_id accu i
+      end;
+      List.iter (fun (x,t,opt) -> add_id accu x; add_id accu t) restr;
+      List.iter (collect_id_fungroup accu) funs
+  | PFun(i, larg, r, n) ->
+      add_id accu i;
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) larg;
+      collect_id_term accu r
+
+let collect_id_eqname accu = function
+    CstName _ | NoName -> ()
+  | ParName(_,p) -> add_id accu p
+
+let collect_id_eqmember accu (l,ext) =
+  List.iter (fun (fg, mode, ext) -> collect_id_fungroup accu fg) l
+
+let collect_id_query accu = function
+    PQSecret(i,pub_vars,options) ->
+      add_id accu i;
+      List.iter (add_id accu) pub_vars
+  | PQEventQ(decl,t1,t2,pub_vars) ->
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) decl;
+      collect_id_term accu t1;
+      collect_id_term accu t2;
+      List.iter (add_id accu) pub_vars
+
+let collect_id_impl accu = function
+  | Type(i,_,_) | Function(i,_,_) | Constant(i,_) ->
+      add_id accu i
+  | ImplTable(i,file) ->
+      add_id accu i; add_id accu file
+
+let collect_id_decl accu = function
+  | ParamDecl(i,_) | ProbabilityDecl i | TypeDecl(i,_) | ChannelDecl i ->
+      add_id accu i
+  | ConstDecl(i1,i2) ->
+      add_id accu i1;
+      add_id accu i2
+  | Setting _ -> ()
+  | FunDecl(s1,l,sr,f_options) ->
+      add_id accu s1;
+      List.iter (add_id accu) l;
+      add_id accu sr
+  | EventDecl(s1,l) | TableDecl(s1,l) ->
+      add_id accu s1;
+      List.iter (add_id accu) l
+  | Statement(l,t) ->
+      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) l;
+      collect_id_term accu t
+  | BuiltinEquation(eq_categ, l_fun_symb) ->
+      List.iter (add_id accu) l_fun_symb
+  | EqStatement(n, l,r,p,options) ->
+      collect_id_eqname accu n;
+      collect_id_eqmember accu l;
+      collect_id_eqmember accu r;
+      collect_id_probaf accu p
+  | Collision(restr, forall,  t1, p, t2) ->
+      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
+      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
+      collect_id_term accu t1;
+      collect_id_probaf accu p;
+      collect_id_term accu t2
+  | Query (vars, l) ->
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) vars;
+      List.iter (collect_id_query accu) l
+  | PDef(s,vardecl,p) ->
+      add_id accu s;
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) vardecl;
+      collect_id_proc accu p
+  | Proofinfo _ | Define _ -> ()
+  | Expand(_, argl) ->
+      List.iter (add_id accu) argl
+  | Expanded _ ->
+      internal_error "expanded macros should not be subject to collect_id"
+  | Implementation ilist ->
+      List.iter (collect_id_impl accu) ilist
+  | LetFun(name,l,t) ->
+      add_id accu name;
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) l;
+      collect_id_term accu t
+
+let record_all_ids (l,p) =
+  let accu = ref [] in
+  List.iter (collect_id_decl accu) l;
+  collect_id_proc accu p;
+  List.iter (fun i -> Terms.record_id i dummy_ext) (!accu)
+
 	
 let read_file f =
   try 
     let (l,p) = parse_with_lib f in
     env := init_env();
-  (* Record top-level identifiers, to make sure that we will not need to 
-     rename them. *)
-    record_ids l;
+    let rename_state = Terms.get_var_num_state() in
+    (* Record all identifiers, to avoid any clash during macro expansion *)
+    record_all_ids (l,p);
     let already_def = ref [] in
     StringMap.iter (fun s _ -> already_def := s :: (!already_def)) (!env);
     let l' = expand_macros StringMap.empty (!already_def) l in
+    Terms.set_var_num_state rename_state;
+    (* Record top-level identifiers, to make sure that we will not need to 
+       rename them. *)
+    record_ids l';
     let (p',_,_) = check_all (l',p) in
     let _ = count_occ_events p' in
     (!statements, !collisions, !equivalences, !move_new_eq,

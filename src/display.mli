@@ -27,6 +27,7 @@ val display_statement : statement -> unit
 val display_pattern : pattern -> unit
 val display_proba : int -> probaf -> unit
 val display_set : setf list -> unit
+val display_eqmember : eqmember -> unit
 val display_equiv : equiv_nm -> unit
 val display_equiv_with_name : equiv_nm -> unit
 val display_oprocess : string -> process -> unit

@@ -17,3 +17,8 @@ expand macro(P, pub, t).
 query secret x.
 
 process in(pub, ()); P
+
+(* EXPECTED
+Error: x not defined
+xtime: error in child process (status : 512)
+END *)

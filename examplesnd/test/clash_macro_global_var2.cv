@@ -17,3 +17,8 @@ expand macro(P, pub, t).
 query secret z.
 
 process (in(pub, z: t); P) | (in(pub, ()); if defined(x) then out(pub, ()))
+
+(* EXPECTED
+Error: x not defined
+xtime: error in child process (status : 512)
+END *)
