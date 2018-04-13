@@ -1427,7 +1427,9 @@ given).
 
 $\texttt{table}\ \mathit{tbl}\texttt{(}T_1, \ldots, T_n\texttt{).}$
 declares the table $\mathit{tbl}$, whose elements are tuples of
-type $T_1, \ldots, T_n$. Elements can be inserted in the table
+type $T_1, \ldots, T_n$. Types $T_i$ may be replaced with
+parameters $N_i$, to declare a table that contains
+a replication index of type $[1,N_i]$. Elements can be inserted in the table
 by $\texttt{insert}\ \mathit{tbl}\texttt{(}M_1, \ldots, M_n\texttt{)}$
 and the table can be read using $\texttt{get}$.
 
@@ -1443,7 +1445,10 @@ $c_1, \ldots, c_n$.
 $\texttt{event}\ e\texttt{(}T_1, \ldots, T_n\texttt{)}\texttt{.}$
 declares an event $e$ that takes arguments of types $T_1, \ldots, T_n$.
 When there are no arguments, we can simply declare 
-$\texttt{event}\ e\texttt{.}$
+$\texttt{event}\ e\texttt{.}$ Types $T_i$ may be replaced with
+parameters $N_i$, to declare an event that takes as argument
+a replication index of type $[1,N_i]$.
+
 
 \item $\texttt{let}\ \nonterm{ident}[\texttt{(}\seq{vartypeb}\texttt{)}]\texttt{ = }\oprocess\texttt{.}$\\
 $\texttt{let}\ \nonterm{ident}[\texttt{(}\seq{vartypeb}\texttt{)}]\texttt{ = }\iprocess\texttt{.}$
