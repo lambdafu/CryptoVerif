@@ -176,7 +176,7 @@ That should be sufficient for modules that want to read the variable.
    examplesnd/test/clash_macro_global_var*.cv
    I really need to fix this bug.
 
-   TO DO [test and document repl indices as args for events and tables] allow replication indices in arguments of letfun and tables.
+   TO DO [test] allow replication indices in arguments of letfun and tables.
 
    f) write a converter from the old front-end to the new one.
    Changes in the converter:
@@ -294,7 +294,7 @@ more transformations with the square variant.
         transforming all occurrences of check. It may be helpful to
         have that. 
       DONE add "corrupt" oracles to INT-PTXT partial transformations.
-      TO DO Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
+      TO DO [test] Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
       left unchanged, without corrupting a.
       (It can be computed as exp(exp(g,a),m) and exp(g,a) is public.)
 
