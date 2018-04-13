@@ -181,7 +181,7 @@ query y': bitstring, x: bitstring, w: bitstring, y: bitstring, z: bitstring;
 
 (* Theorem 9, KAS completes sesssion
    Secrecy of the coin b1 *)
-query secret b1 [onesession].	 
+query secret b1 [cv_onesession].	 
 
 (* Code for the client C *)
 

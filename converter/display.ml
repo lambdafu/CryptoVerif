@@ -1118,7 +1118,7 @@ let display_query = function
     QSecret1 (b,l) -> 
       print_string "secret "; display_binder b; 
       display_pub_vars l;
-      print_string " [onesession]"
+      print_string " [cv_onesession]"
   | QSecret (b,l) -> 
       print_string "secret "; display_binder b; 
       display_pub_vars l

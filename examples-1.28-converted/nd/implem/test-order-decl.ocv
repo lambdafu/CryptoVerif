@@ -71,10 +71,10 @@ expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, ss
 
 (* Queries *)
 
-query secret NaA [onesession].
-query secret NaB [onesession].
-query secret NbA [onesession].
-query secret NbB [onesession].
+query secret NaA [cv_onesession].
+query secret NaB [cv_onesession].
+query secret NbA [cv_onesession].
+query secret NbB [cv_onesession].
 
 query secret NaA.
 query secret NaB.

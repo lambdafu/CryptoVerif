@@ -119,8 +119,8 @@ collision new r1: keyseed; new r2: keyseed; return(skgen2(r1) = skgen2(r2)) <=(P
 
 query secret keyA.
 query secret keyB.
-query secret keyA [onesession].
-query secret keyB [onesession].
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
 
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
 

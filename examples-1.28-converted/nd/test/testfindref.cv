@@ -113,8 +113,8 @@ This situation should be excluded and yield an error message *)
 query secret keyA.
 query secret keyB.
 
-query secret keyA [onesession].
-query secret keyB [onesession].
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
 
 channel c.
 const A : host.

@@ -45,7 +45,7 @@ expand Xor(hasht, xor, zero).
 
 (* Queries *)
 
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 channel c1, c2, c3, c4, c5, hstart, hret, start.
 

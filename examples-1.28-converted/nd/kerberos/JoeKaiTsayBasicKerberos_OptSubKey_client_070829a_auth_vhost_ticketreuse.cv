@@ -164,7 +164,7 @@ query y': maxmac, x: maxmac, w: maxmac, y: maxmac, z: maxmac;
 
 (* Secrecy of the optional key gernerated by client C *)					
 query secret OPkeyC. (* Secrecy  *)
- query secret OPkeyS [onesession]. (* Secrecy  *)
+ query secret OPkeyS [cv_onesession]. (* Secrecy  *)
 query secret OPkeyS. (*one-session secrecy*)
 	 
 

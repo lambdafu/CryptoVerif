@@ -38,8 +38,8 @@ expand SPRP_cipher(keyseed, key, blocksize, kgen, enc, dec, Penc).
 
 (* Queries *)
 
-query secret keyA [onesession].
-query secret keyB [onesession].
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
 query secret keyA.
 query secret keyB.
 

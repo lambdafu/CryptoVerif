@@ -115,7 +115,7 @@ equiv
 
 (* Queries *)
 
-query secret NaA [onesession].
+query secret NaA [cv_onesession].
 
 query secret NaA.
 

@@ -65,7 +65,7 @@ equation forall x:Dm,y:Dm; test(false,x,y) = y.
 
 (* Queries *)
 
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 channel c0, c1, c2.
 

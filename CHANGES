@@ -20,7 +20,7 @@ Version 1.29
     "equation builtin structure(id1, ..., idn)."
   - "forall x1:t1, ..., xn:tn; M." becomes
     "equation forall x1:t1, ..., xn:tn; M."
-  - "query secret1 x." becomes "query secret x [onesession]."
+  - "query secret1 x." becomes "query secret x [cv_onesession]."
   - The syntax of correspondences is now the ProVerif syntax:
     For instance, "query event e1(...) ==> e2(...)."
     becomes "query event(e1(...)) ==> event(e2(...))."

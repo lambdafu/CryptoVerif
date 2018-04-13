@@ -238,11 +238,11 @@ query secret resumption_secret_cDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_a
 query secret resumption_secret_sDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, cets_eems_c, cets_eems_s, cets_eems_cDHE, cets_eems_sDHE.
 
 query secret cets_eems_c public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_cDHE, cets_eems_sDHE.
-query secret cets_eems_s public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_cDHE, cets_eems_sDHE [onesession].
+query secret cets_eems_s public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_cDHE, cets_eems_sDHE [cv_onesession].
        (* We cannot prove secrecy because of the replay attack,
           but we can prove one-session secrecy *)
 query secret cets_eems_cDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s.
-query secret cets_eems_sDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s [onesession]. 
+query secret cets_eems_sDHE public_vars cs_ats_exp_c, cs_ats_exp_s, cs_ats_exp_cDHE, cs_ats_exp_sDHE, resumption_secret_c, resumption_secret_s, resumption_secret_cDHE, resumption_secret_sDHE, cets_eems_c, cets_eems_s [cv_onesession]. 
       (* We cannot prove secrecy because of the replay attack,
       	 but we can prove one-session secrecy *)
 

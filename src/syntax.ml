@@ -29,7 +29,22 @@ let parse filename =
     user_error ("File error: " ^ s ^ "\n")
 
 let parse_lib filename =
-  let filename = filename ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl") in
+  let filename =
+    if Terms.ends_with filename ".cvl" then
+      begin
+	if (!Settings.front_end) != Settings.Channels then
+	  user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
+	filename
+      end
+    else if Terms.ends_with filename ".ocvl" then
+      begin
+	if (!Settings.front_end) == Settings.Channels then
+	  user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
+	filename
+      end
+    else
+      filename ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl")
+  in
   try
     let ic = open_in filename in
     let lexbuf = Lexing.from_channel ic in
@@ -3665,10 +3680,14 @@ let check_query = function
     PQSecret (i, pub_vars, options) ->
       let onesession = ref false in
       List.iter (fun (s,ext) ->
-	if s = "onesession" then
+	if Terms.starts_with s "pv_" then
+	  () (* Ignore ProVerif options *)
+	else if s = "real_or_random" || s = "cv_real_or_random" then
+	  () (* real-or-random secrecy is the default *)
+	else if s = "cv_onesession" then
 	  onesession := true
 	else
-	  input_error "The only allowed option for secret is onesession" ext) options;
+	  input_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
       QSecret (get_global_binder "in a secrecy query" i,
 	       get_qpubvars pub_vars, !onesession)
   | PQEventQ (vl,t1,t2, pub_vars) -> 

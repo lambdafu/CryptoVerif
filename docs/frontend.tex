@@ -1820,17 +1820,22 @@ that occur in correspondence queries that follow. (We use $x_i \texttt{<=} N_i$ 
   a parameter, declared by $\texttt{param }N_i$.) Second, we give the queries themselves. The available queries $Q_i$ are as follows:
 \begin{itemize}
 
-\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[onesession]}$: 
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]$: show that the array $x$ is indistinguishable
+from an array of independent random numbers (by several test queries),
+even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
+In the vocabulary of~\cite{BlanchetEPrint05}, this is secrecy.
+
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[cv\_onesession]}$: 
 show that any element of the array $x$ 
 cannot be distinguished from a random number (by a single test query),
 even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
 In the vocabulary of~\cite{BlanchetEPrint05}, this is one-session
 secrecy.
 
-\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]$: show that the array $x$ is indistinguishable
-from an array of independent random numbers (by several test queries),
-even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
-In the vocabulary of~\cite{BlanchetEPrint05}, this is secrecy.
+In addition to the option \texttt{cv\_onesession}, the options \texttt{real\_or\_random},
+\texttt{cv\_real\_or\_random} and all options starting with \texttt{pv\_} are also allowed,
+but ignored. Real-or-random secrecy is the default for CryptoVerif and
+the options starting with \texttt{pv\_} are for ProVerif.
 
 \item $M \texttt{ ==> } M'$.
 The system shows that, for all values of variables that occur in $M$,

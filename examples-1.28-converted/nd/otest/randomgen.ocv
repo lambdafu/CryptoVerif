@@ -35,7 +35,7 @@ equiv
 <=(0)=>
   foreach i1 <= n1 do w <-R np1bits; OGet() := return(w).
 
-query secret w [onesession].
+query secret w [cv_onesession].
 
 
 (* G(x) = 

@@ -61,7 +61,7 @@ collision new r1: keyseed; new r2: keyseed; return(skgen2(r1) = skgen2(r2)) <=(P
 
 (* Queries *)
 
-query secret NaA [onesession].
+query secret NaA [cv_onesession].
 
 query secret NaA.
 

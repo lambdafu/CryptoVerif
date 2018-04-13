@@ -78,7 +78,7 @@ query x: bitstring, k: key;
 query k': key, x: bitstring, k: key;
   event(fullA(B, k, x)) && event(fullB(A, k', x)) ==> (k = k') public_vars keyA.
 
-query secret keyA [onesession].
+query secret keyA [cv_onesession].
 query secret keyA.
 
 

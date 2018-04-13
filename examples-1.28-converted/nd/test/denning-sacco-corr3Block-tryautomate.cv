@@ -143,8 +143,8 @@ collision new r1: skeyseed; new r2: skeyseed; return(sskgen2(r1) = sskgen2(r2)) 
 
 (* Queries *)
 
-query secret keyA [onesession].
-query secret keyB [onesession].
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
 query secret keyA.
 (* query secret keyB. *)
 

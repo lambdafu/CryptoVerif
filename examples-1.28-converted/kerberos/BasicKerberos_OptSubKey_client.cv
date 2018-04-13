@@ -185,7 +185,7 @@ query y': bitstring, x: bitstring, w: bitstring, y: bitstring, z: bitstring;
    Theorem 8, first bullet *)
 					
 query secret OPkeyC. (* Secrecy of OPkeyC *)
-query secret OPkeyS [onesession]. (* One-session secrecy of OPkeyS *)
+query secret OPkeyS [cv_onesession]. (* One-session secrecy of OPkeyS *)
 query secret OPkeyS. (* Secrecy of OPkeyS (not proved) *)
 
 (* Code for the client C *)

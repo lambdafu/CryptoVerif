@@ -265,7 +265,7 @@ query k': key, x: bitstring, k: key;
   event(fullC(K, k, x)) && event(fullK(C, k', x)) ==> (k = k') public_vars keyAK.
 
 (* Secrecy of the key AK *)
-query secret keyAK [onesession]. (* One-Session Secrecy *)
+query secret keyAK [cv_onesession]. (* One-Session Secrecy *)
 query secret keyAK. (* Secrecy  *)
 
 		

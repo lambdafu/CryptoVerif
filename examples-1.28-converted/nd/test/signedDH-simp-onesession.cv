@@ -41,7 +41,7 @@ These two problems could be considered bugs in the transformation mechanism,
 since not all possibilities are considered. 
 20/12/2009: PROBLEMS NOW FIXED, the equivalence below works.
 
-examplesnd/test/signedDH-simp-onesession-distinctexp considers a modified
+examplesnd/test/signedDH-simp-cv_onesession-distinctexp considers a modified
 equivalence that solves these problems.
 *) 
 

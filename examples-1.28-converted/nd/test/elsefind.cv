@@ -211,7 +211,7 @@ const S :server.
 
 (* Theorem 9, client completes sesssion
    Secrecy of the coin b1 *)
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 (* Key Usability : we want to check if the encryption scheme is still IND-CCA2 secure when using the key AK *)
 

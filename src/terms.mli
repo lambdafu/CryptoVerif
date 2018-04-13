@@ -1,5 +1,13 @@
 open Types
 
+(* Basic string functions *)
+
+(* [ends_with s sub] is true when the string [s] ends with [sub] *)
+val ends_with : string -> string -> bool
+    
+(* [starts_with s sub] is true when the string [s] starts with [sub] *)
+val starts_with : string -> string -> bool
+
 (* Basic list functions *)
 
 (* [repeat n x] returns a list containing [n] copies of [x] *)

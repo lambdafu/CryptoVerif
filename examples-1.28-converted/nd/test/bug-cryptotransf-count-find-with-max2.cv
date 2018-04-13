@@ -24,7 +24,7 @@ expand IND_CPA_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec,
 
 (* Queries *)
 
-query secret N_6 [onesession].
+query secret N_6 [cv_onesession].
 
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
 

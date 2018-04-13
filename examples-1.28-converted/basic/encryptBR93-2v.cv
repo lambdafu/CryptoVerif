@@ -240,7 +240,7 @@ equation forall x:hasht,y:hasht; test(false,x,y) = y.
 
 (* Queries *)
 
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 channel c5, c6, c7, c8, c9, hstart, hret, start.
 

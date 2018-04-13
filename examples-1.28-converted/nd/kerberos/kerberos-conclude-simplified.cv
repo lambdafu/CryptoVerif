@@ -18,7 +18,7 @@ fun Z(maxenc):maxenc.
 channel c1, c2, c3, start.
 
 
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 
 (* Key Usability : we want to check if the encryption scheme is still CCA2 secure when using the key SK *)

@@ -20,8 +20,8 @@ expand INT_PTXT_sym_enc(keyseed, key, bitstring, bitstring, seed, kgen, enc, dec
 
 (* Queries *)
 
-query secret k2 [onesession].
-query secret k3 [onesession].
+query secret k2 [cv_onesession].
+query secret k3 [cv_onesession].
 
 query secret k2.
 query secret k3.

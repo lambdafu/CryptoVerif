@@ -33,8 +33,8 @@ expand SUF_CMA_mac(mkeyseed, mkey, bitstring, macs, mkgen, mac, check, Pmac).
 
 (* Queries *)
 
-query secret k2 [onesession].
-query secret k3 [onesession].
+query secret k2 [cv_onesession].
+query secret k3 [cv_onesession].
 
 query secret k2.
 query secret k3.

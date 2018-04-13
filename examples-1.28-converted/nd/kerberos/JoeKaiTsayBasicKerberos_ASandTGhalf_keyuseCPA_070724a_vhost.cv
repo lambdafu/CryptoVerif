@@ -151,7 +151,7 @@ query y': maxmac, N: nonce, x': maxmac, y: maxmac, x: maxmac;
 
 
 (* Secrecy of the coin b1 *)
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 
 

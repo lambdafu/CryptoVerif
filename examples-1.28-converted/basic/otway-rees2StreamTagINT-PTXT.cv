@@ -58,8 +58,8 @@ equation forall u:tag, x:nonce, y:key;
 
 (* Queries *)
 
-query secret keyA [onesession].
-query secret keyB [onesession].
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
 
 query secret keyA.
 query secret keyB.

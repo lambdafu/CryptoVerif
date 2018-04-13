@@ -1,7 +1,7 @@
 (* The proof now fails.
 The problem occurred between 13 and 14 August 2011, at version 1.327
 of src/cryptotransf.ml.
-The problem is probably the same as in signedDH-simp-onesession-distinctexp
+The problem is probably the same as in signedDH-simp-cv_onesession-distinctexp
 *)
 
 (* Signed Diffie-Hellman protocol *)

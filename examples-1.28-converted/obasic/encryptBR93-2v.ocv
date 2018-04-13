@@ -67,7 +67,7 @@ equation forall x:hasht,y:hasht; test(false,x,y) = y.
 
 (* Queries *)
 
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 
 

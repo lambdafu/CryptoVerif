@@ -219,10 +219,10 @@ event endAuthHU(ue, nonce,  prpcblocksize).
 
 
 
-query secret keyU1 [onesession].
-query secret keyU2 [onesession].   (* secret1 keyUi cannot be shown as in UMTS there is no authentication of S to U *)
-query secret keyS1 [onesession].
-query secret keyS2 [onesession].   (* Only one-session secrecy can at most be proved, as we can't prevent replays (b/c we don't model increasing SQN) *)
+query secret keyU1 [cv_onesession].
+query secret keyU2 [cv_onesession].   (* secret1 keyUi cannot be shown as in UMTS there is no authentication of S to U *)
+query secret keyS1 [cv_onesession].
+query secret keyS2 [cv_onesession].   (* Only one-session secrecy can at most be proved, as we can't prevent replays (b/c we don't model increasing SQN) *)
 
 
 

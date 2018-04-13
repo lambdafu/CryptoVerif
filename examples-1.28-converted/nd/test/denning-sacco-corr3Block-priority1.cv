@@ -161,8 +161,8 @@ expand UF_CMA_signature_prio(skeyseed, spkey, sskey, sblocksize, signature, ssee
 
 (* Queries *)
 
-query secret keyA [onesession].
-query secret keyB [onesession].
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
 query secret keyA.
 query secret keyB.
 

@@ -275,7 +275,7 @@ query y': maxmac, x: maxmac, w: maxmac, y: maxmac, z: maxmac;
    Theorem 8, first bullet *)
 		
 query secret OPkeyC. (* Secrecy of OPkeyC  *)
-query secret OPkeyS [onesession]. (* One-session secrecy of OPkeyS  *)
+query secret OPkeyS [cv_onesession]. (* One-session secrecy of OPkeyS  *)
 query secret OPkeyS. (* Secrecy of OPkeyS (not proved) *)	 
 
 

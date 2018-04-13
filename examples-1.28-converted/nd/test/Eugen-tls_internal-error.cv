@@ -260,7 +260,7 @@ event endB(nonce).
 query na: nonce;
   event(endB(na)) ==> event(beginA(na)) public_vars sNa.
 
-query secret sNa [onesession].
+query secret sNa [cv_onesession].
 query secret sNa.
 
 

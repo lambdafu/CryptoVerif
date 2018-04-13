@@ -52,7 +52,7 @@ replication indices in commands may require other changes.
    b.4) Use "query secret x [onesession]" instead of
    "query secret1 x".
    DONE
-   TO DO onesession -> cv_onesession. Ignore all options starting with pv_
+   DONE onesession -> cv_onesession. Ignore all options starting with pv_
 
    ABANDONED FOR NOW use "public_vars ..." as a query modifier, which modifies
    all queries of a group. That guarantees that all queries of a group
@@ -334,6 +334,8 @@ We could probably push this idea for noninterf x among S.
    result of the two sides differs, and showing that event bad has
    a negligible probability of happening.
    [unchanged] restrictions are shared between both sides.
+
+   Also query secret x [reachability] (the adversary cannot compute x).
 
    TO DO in ProVerif (branch compat_cryptoverif)
    - DONE Allow get, insert, event in terms (by expansion).

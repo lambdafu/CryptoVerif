@@ -160,7 +160,7 @@ query y': maxmac, x: maxmac, w: maxmac, y: maxmac, z: maxmac;
   event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) public_vars b1.	 
 
 (* Secrecy of the coin b1 *)
-query secret b1 [onesession].
+query secret b1 [cv_onesession].
 
 
 

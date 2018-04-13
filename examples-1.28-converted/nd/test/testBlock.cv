@@ -43,8 +43,8 @@ equiv
 
 (* Queries *)
 
-query secret keyA [onesession].
-query secret k_1 [onesession].
+query secret keyA [cv_onesession].
+query secret k_1 [cv_onesession].
 
 channel c.
 const A : host.

@@ -1,14 +1,6 @@
 open Types
 
 let front_end_set = ref false
-let dir_sep = "/" (* Filename.dir_sep exists only in OCaml >= 3.11.2 and 
-		     OCaml MinGW exists only in OCaml 3.11.0... *)
-
-let ends_with s sub =
-  let l_s = String.length s in
-  let l_sub = String.length sub in
-  (l_s >= l_sub) && (String.sub s (l_s - l_sub) l_sub = sub)
-
 
 let do_implementation impl =
   let impl = 
@@ -18,10 +10,10 @@ let do_implementation impl =
       (fun (x,opt,p)->
          print_string ("Generating implementation for module "^x^"...\n");
          let (impl,intf)=Implementation.impl_translate p opt in
-         let f=open_out ((!Settings.out_dir)^dir_sep^x^".ml") in
+         let f=open_out ((!Settings.out_dir)^Filename.dir_sep^x^".ml") in
            output_string f impl;
            close_out f;
-           let f'=open_out ((!Settings.out_dir)^dir_sep^x^".mli") in
+           let f'=open_out ((!Settings.out_dir)^Filename.dir_sep^x^".mli") in
              output_string f' intf;
              close_out f';
              print_string ("Done.\n")
@@ -132,7 +124,7 @@ let anal_file s =
       (* Use the oracle front-end by default when the file name ends
 	 in .ocv *)
       let s_up = String.uppercase s in
-      if ends_with s_up ".OCV" then Settings.front_end := Settings.Oracles
+      if Terms.ends_with s_up ".OCV" then Settings.front_end := Settings.Oracles
     end;
   try
     let (statements, collisions, equivs, move_new_eq, queries, proof, impl, p) = Syntax.read_file s in

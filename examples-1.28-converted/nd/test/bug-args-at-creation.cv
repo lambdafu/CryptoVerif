@@ -47,7 +47,7 @@ expand UF_CMA_mac(mkeyseed, mkey, maxmac, macs, mkgen, mac, check, Pmac).
 
 (* Queries *)
 
-query secret keyA [onesession].
+query secret keyA [cv_onesession].
 query secret keyA.
 
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
