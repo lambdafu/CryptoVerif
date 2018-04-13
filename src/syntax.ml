@@ -2871,6 +2871,10 @@ and rename_pat = function
 
 and rename_br (b, tl) = (rename_ie b, List.map rename_term tl)
 
+let rename_beginmodule_opt = function
+    PWrite(b,file) -> PWrite(rename_ie b, rename_ie file)
+  | PRead(b,file) -> PRead(rename_ie b, rename_ie file)
+    
 let rec rename_proc (p, ext) = 
   let p' = match p with
     PNil -> PNil
@@ -2895,7 +2899,7 @@ let rec rename_proc (p, ext) =
   | PLet(pat, t, p1, p2) -> PLet(rename_pat pat, rename_term t, rename_proc p1, rename_proc p2)
   | PGet(id, patlist, sto, p1,p2) -> PGet(rename_ie id, List.map rename_pat patlist, (match sto with None -> None|Some t -> Some (rename_term t)), rename_proc p1, rename_proc p2)
   | PInsert(id, tlist, p) -> PInsert(rename_ie id, List.map rename_term tlist, rename_proc p)
-  | PBeginModule ((id,opt),p) -> PBeginModule ((id,opt),rename_proc p)
+  | PBeginModule ((id,opt),p) -> PBeginModule ((rename_ie id,List.map rename_beginmodule_opt opt),rename_proc p)
   in
     (p', ext)
 
@@ -3804,6 +3808,182 @@ let rec expand_macros macro_table already_def = function
 	  in
 	  a::(expand_macros macro_table already_def' l)
 
+
+let add_id accu (s,ext) =
+  if not (List.mem s (!accu)) then
+    accu := s :: (!accu)
+
+let collect_id_ty accu = function
+    Tid id | TBound id -> add_id accu id
+		   
+let rec collect_id_term accu (t,ext) =
+  match t with
+  | PIdent id -> add_id accu id
+  | PArray(id, tl) | PFunApp(id, tl) ->
+      add_id accu id;
+      List.iter (collect_id_term accu) tl
+  | PQEvent(_,t) -> collect_id_term accu t
+  | PTuple(tl) -> List.iter (collect_id_term accu) tl
+  | PTestE(t1,t2,t3) ->
+      collect_id_term accu t1;
+      collect_id_term accu t2;
+      collect_id_term accu t3
+  | PFindE(l0,t,_) ->
+      List.iter (fun (_,bl,def_list,t1,t2) ->
+	List.iter (fun (u,i,n) ->
+	  add_id accu u;
+	  add_id accu i;
+	  add_id accu n
+	    ) bl;
+	List.iter (fun (b,l) ->
+	  add_id accu b;
+	  List.iter (collect_id_term accu) l
+	    ) def_list;
+	collect_id_term accu t1;
+	collect_id_term accu t2
+	  ) l0;
+      collect_id_term accu t
+  | PLetE(pat, t1, t2, topt) ->
+      collect_id_pat accu pat;
+      collect_id_term accu t1;
+      collect_id_term accu t2;
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> collect_id_term accu t
+      end
+  | PResE(b,ty,t) ->
+      add_id accu b;
+      add_id accu ty;
+      collect_id_term accu t
+  | PEventAbortE e ->
+      add_id accu e
+  | PEventE(t,p) ->
+      collect_id_term accu t;
+      collect_id_term accu p
+  | PGetE(tbl, pat_list, topt, t1, t2) ->
+      add_id accu tbl;
+      List.iter (collect_id_pat accu) pat_list;
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> collect_id_term accu t
+      end;
+      collect_id_term accu t1;
+      collect_id_term accu t2
+  | PInsertE(tbl, tl, t) ->
+      add_id accu tbl;
+      List.iter (collect_id_term accu) tl;
+      collect_id_term accu t
+  | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) ->
+      collect_id_term accu t1;
+      collect_id_term accu t2
+      
+and collect_id_pat accu (pat,ext) =
+  match pat with
+    PPatVar(b,tyopt) ->
+      add_id accu b;
+      begin
+	match tyopt with
+	  None -> ()
+	| Some ty -> collect_id_ty accu ty
+      end
+  | PPatTuple(patl) ->
+      List.iter (collect_id_pat accu) patl
+  | PPatFunApp(f,patl) ->
+      add_id accu f;
+      List.iter (collect_id_pat accu) patl
+  | PPatEqual t ->
+      collect_id_term accu t
+
+let collect_id_ch accu (id, idlopt) =
+  add_id accu id;
+  match idlopt with
+    None -> ()
+  | Some idl -> List.iter (add_id accu) idl
+
+let collect_id_beginmodule_opt accu = function
+    PWrite(b,file) | PRead(b,file) ->
+      add_id accu b;
+      add_id accu file
+	
+let rec collect_id_proc accu (proc,ext) =
+  match proc with
+    PNil | PYield -> ()
+  | PEventAbort e ->
+      add_id accu e
+  | PPar(p1,p2) ->
+      collect_id_proc accu p1;
+      collect_id_proc accu p2
+  | PRepl(_,iopt,n,p) ->
+      begin
+	match iopt with
+	  None -> ()
+	| Some i -> add_id accu i
+      end;
+      add_id accu n;
+      collect_id_proc accu p
+  | PRestr(b,ty,p) ->
+      add_id accu b;
+      add_id accu ty;
+      collect_id_proc accu p
+  | PLetDef(id, tl) ->
+      add_id accu id;
+      List.iter (collect_id_term accu) tl
+  | PTest(t,p1,p2) ->
+      collect_id_term accu t;
+      collect_id_proc accu p1;
+      collect_id_proc accu p2
+  | PFind(l0,p,_) ->
+      List.iter (fun (_,bl,def_list,t,p1) ->
+	List.iter (fun (u,i,n) ->
+	  add_id accu u;
+	  add_id accu i;
+	  add_id accu n
+	    ) bl;
+	List.iter (fun (b,l) ->
+	  add_id accu b;
+	  List.iter (collect_id_term accu) l
+	    ) def_list;
+	collect_id_term accu t;
+	collect_id_proc accu p1
+	  ) l0;
+      collect_id_proc accu p
+  | PEvent(t,p) ->
+      collect_id_term accu t;
+      collect_id_proc accu p
+  | PInput(ch,pat,p) ->
+      collect_id_ch accu ch;
+      collect_id_pat accu pat;
+      collect_id_proc accu p
+  | POutput(_,ch,t,p) ->
+      collect_id_ch accu ch;
+      collect_id_term accu t;
+      collect_id_proc accu p
+  | PLet(pat, t, p1, p2) ->
+      collect_id_pat accu pat;
+      collect_id_term accu t;
+      collect_id_proc accu p1;
+      collect_id_proc accu p2
+  | PGet(tbl, pat_list, topt, p1, p2) ->
+      add_id accu tbl;
+      List.iter (collect_id_pat accu) pat_list;
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> collect_id_term accu t
+      end;
+      collect_id_proc accu p1;
+      collect_id_proc accu p2
+  | PInsert(tbl, tl, p) ->
+      add_id accu tbl;
+      List.iter (collect_id_term accu) tl;
+      collect_id_proc accu p
+  | PBeginModule((id, opt), p) ->
+      add_id accu id;
+      List.iter (collect_id_beginmodule_opt accu) opt;
+      collect_id_proc accu p
+	
 let read_file f =
   try 
     let (l,p) = parse_with_lib f in
