@@ -4105,9 +4105,8 @@ let read_file f =
     let rename_state = Terms.get_var_num_state() in
     (* Record all identifiers, to avoid any clash during macro expansion *)
     record_all_ids (l,p);
-    let already_def = ref [] in
-    StringMap.iter (fun s _ -> already_def := s :: (!already_def)) (!env);
-    let l' = expand_macros StringMap.empty (!already_def) l in
+    let already_def = StringMap.fold (fun s _ already_def -> s :: already_def) (!env) [] in
+    let l' = expand_macros StringMap.empty already_def l in
     Terms.set_var_num_state rename_state;
     (* Record top-level identifiers, to make sure that we will not need to 
        rename them. *)
