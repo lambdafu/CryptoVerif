@@ -3706,17 +3706,17 @@ let get_impl ()=
   StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles []
 
 let declares = function
-  | ParamDecl((s,ext), _)
-  | ProbabilityDecl(s,ext)
-  | TableDecl((s,ext),_)
-  | TypeDecl((s,ext),_)
-  | ConstDecl((s,ext),_)
-  | ChannelDecl(s,ext)
-  | FunDecl((s,ext),_,_,_)
-  | LetFun((s,ext),_,_)
-  | EventDecl((s,ext), _)
-  | PDef((s,ext),_,_) ->
-      Some (s,ext)
+  | ParamDecl(id, _)
+  | ProbabilityDecl id
+  | TableDecl(id,_)
+  | TypeDecl(id,_)
+  | ConstDecl(id,_)
+  | ChannelDecl id
+  | FunDecl(id,_,_,_)
+  | LetFun(id,_,_)
+  | EventDecl(id, _)
+  | PDef(id,_,_) ->
+      Some id
   | _ -> None
     
 let rec record_ids l = 
