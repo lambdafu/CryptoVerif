@@ -43,7 +43,7 @@ echo TEST
 echo
 output=test`date '+%Y.%m.%d-%H_%M_%S'`
 (
-for i in examples/basic/*.pcv 
+for i in examples/*/*.pcv 
 do
     base=`dirname $i`/`basename -s .pcv $i`
     m4 -DProVerif $i > $base.pv
