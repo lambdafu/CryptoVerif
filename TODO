@@ -382,8 +382,8 @@ We could probably push this idea for noninterf x among S.
       DONE reset occurrences either during encoding of the process
    or just after (using a function that just resets occurrences
    without creating variables)
-      TO DO how are variables arguments of letfun, defined in letfun,
-      arguments of processes treated? (can they be used in
+      TO DO [test] how are variables arguments of letfun, defined in letfun,
+      arguments of processes treated? Can they be used in
       "query secret" and in "public_vars"? what does CryptoVerif?
       Do the same in ProVerif. I think there is at least one problem:
       variables defined as arguments of processes may disappear in the
@@ -401,7 +401,11 @@ We could probably push this idea for noninterf x among S.
       referenced in queries.
       The arguments of processes are sometimes kept as "let",
       sometimes directly substituted, so they may or not be used
-      in queries... => I must change that.)
+      in queries... => I must change that.
+      Now, ProVerif adds a let for arguments of processes when
+      they are used in queries. It writes an error message when
+      variables defined in terms are referenced in queries (because
+      the expansion of terms may change when they are defined).
    - allow replication indices in events, tables, and arguments of
    processes and letfun (replication indices
    correspond to the session identifiers of ProVerif)
