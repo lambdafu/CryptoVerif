@@ -22,15 +22,20 @@ type hashkey [fixed].
 expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
 
 (* Concatenation helper functions *)
-fun concatA(host, host, G, G):blocksize [compos].
-fun concatB(host, host, G, G):blocksize [compos].
-equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
-   concatA(x,y,z,t) <> concatB(x',y',z',t').
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+
+ifdef(`CryptoVerif',`
+equation forall x:host, y:host, z:G, t:G, x2:host, y2:host, z2:G, t2:G;
+   concatA(x,y,z,t) <> concatB(x2,y2,z2,t2).
+')
 
 (* Signatures *)
 proba Psign.
 proba Psigncoll.
 expand UF_CMA_proba_signature(keyseed, pkey, skey, blocksize, signature, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+table keys(host, pkey).
 
 (* Peers *)
 const A,B:host.
@@ -55,8 +60,7 @@ let processA(hk:hashkey, skA:skey) =
   let ga = exp(g,a) in
   out(cA2, (A, hostB, ga));
   in(cA3, (=A, =hostB, gb:G, s:signature));
-  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
-  let pkhostB = Rkey[j2] in
+  get keys(=hostB, pkhostB) in
   if check(concatB(A, hostB, ga, gb), pkhostB, s) then
   let gab = exp(gb, a) in
   let kA = h(hk, gab) in
@@ -76,8 +80,7 @@ let processB(hk:hashkey, skB:skey) =
   event beginB(hostA, B, ga, gb);
   out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB)));
   in(cB3, s:signature);
-  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
-  let pkhostA = Rkey[j2] in
+  get keys(=hostA, pkhostA) in
   if check(concatA(hostA, B, ga, gb), pkhostA, s) then
   let gab = exp(ga, b) in
   let kB = h(hk, gab) in
@@ -89,12 +92,11 @@ let processB(hk:hashkey, skB:skey) =
    out(cB4, kB).
 
 let processK(pkA:pkey, pkB:pkey) =
-  !N2
+  !iK <= N2
   in(cK, (Khost: host, Kkey: pkey));
-  let Rkey:pkey =
-		if Khost = B then pkB else
-		if Khost = A then pkA else
-		Kkey.
+  if Khost = B then insert keys(B, pkB) else
+  if Khost = A then insert keys(A, pkA) else
+  insert keys(Khost, Kkey).
 
 process
 	in(start, ());
@@ -106,7 +108,7 @@ process
 	let skB = skgen(rkB) in
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
-   ((!N processA(hk,skA)) | (!N processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB))
+   ((!iA <= N processA(hk,skA)) | (!iA <= N processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB))
 
 
 (* EXPECTED
