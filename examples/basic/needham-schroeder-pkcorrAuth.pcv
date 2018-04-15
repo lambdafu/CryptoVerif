@@ -33,17 +33,19 @@ type blocksizebot [bounded].
 type sblocksize [bounded].
 
 (* Concatenation functions *)
-fun concat1(nonce, host):blocksize [compos].
-fun concat2(nonce, nonce, host):blocksize [compos].
-fun concat3(pkey, host):sblocksize [compos].
-fun pad(nonce):blocksize [compos].
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce, host):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun pad(nonce):blocksize [data].
 
+ifdef(`CryptoVerif',`
 equation forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
 	concat2(z,t,u) <> concat1(y2,z2).
 equation forall y:nonce,y2:nonce,z2:host;
 	pad(y) <> concat1(y2,z2).
 equation forall z:nonce,t:nonce,u:host,y2:nonce;
 	concat2(z,t,u) <> pad(y2).
+')
 
 (* Public-key encryption (CCA2) *)
 proba Penc.
@@ -57,6 +59,8 @@ equation forall x: blocksize; Z(x) = Zblocksize.
 proba Psign.
 proba Psigncoll.
 expand UF_CMA_proba_signature(skeyseed, spkey, sskey, sblocksize, signature, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+table keys(host, pkey).
 
 (* Peers *)
 const A : host.
@@ -114,17 +118,17 @@ let processB(skB:skey, pkS:spkey) =
 	event fullB(hostY, (m, m2, m3));
 	out(c17, acceptB(hostY)).
 
-let processK(pkA:pkey, pkB:pkey)=
+let processK(pkA:pkey, pkB:pkey) =
 	in(c12, (Khost: host, Kkey: pkey));
-	let Rkey:pkey =
-		if Khost = A then pkA else
-		if Khost = B then pkB else
-		Kkey.
+	if Khost = A then insert keys(A, pkA) else
+	if Khost = B then insert keys(B, pkB) else
+	insert keys(Khost, Kkey).
 
 let processS(skS:sskey) =
 	in(c13, (h1: host, h2: host));
-	find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = h2) then
-	out(c14, (Rkey[j2], h2, sign(concat3(Rkey[j2], h2), skS))).
+	get keys(=h2, pk2) in
+	new r3: sseed;
+	out(c14, (pk2, h2, sign(concat3(pk2, h2), skS))).
 
 process
 	in(start, ());
@@ -138,10 +142,10 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c15, (pkA, pkB, pkS));
-	((! N processA(skA,pkS)) |
-	 (! N processB(skB,pkS)) |
-	 (! N processS(skS)) |
-	 (! N2 processK(pkA,pkB)))
+	((! iA <= N processA(skA,pkS)) |
+	 (! iB <= N processB(skB,pkS)) |
+	 (! iS <= N processS(skS)) |
+	 (! iK <= N2 processK(pkA,pkB)))
 
 
 (* EXPECTED
