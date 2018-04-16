@@ -413,7 +413,7 @@ We could probably push this idea for noninterf x among S.
       they are used in queries. It writes an error message when
       variables defined in terms are referenced in queries (because
       the expansion of terms may change when they are defined).
-      TO DO document new queries
+      DONE document new queries
    - allow replication indices in events, tables, and arguments of
    processes and letfun (replication indices
    correspond to the session identifiers of ProVerif)
