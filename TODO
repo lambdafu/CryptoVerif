@@ -297,8 +297,13 @@ more transformations with the square variant.
       TO DO [test] Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
       left unchanged, without corrupting a.
       (It can be computed as exp(exp(g,a),m) and exp(g,a) is public.)
-      TO DO ROM...all_args and ICM...all_args with variables and channel of
-      oracles as arguments.
+      ABANDONED ROM...all_args and ICM...all_args with variables and channel of
+      oracles as arguments. 
+         Was used by B. Lipp for wireguard, but in fact he also adds the
+         random r created by the hash oracle, and that's the only
+         variable really useful. Adding random variables created by
+         equivalences to all macros _all_args would be too heavy, I think.
+         
 
    h) TO DO (Benjamin) Revise examples manually to use the new crypto library
    Use authenticated encryption as the symmetric encryption scheme
