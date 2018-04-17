@@ -3272,7 +3272,14 @@ let rec check_one = function
 	    end
 	  else if sopt = "compos" || sopt = "data" then 
 	    opt := (!opt) lor Settings.fopt_COMPOS
-	  else
+	  else if sopt = "typeConverter" then
+            begin
+              (* for compatibility with ProVerif *)
+	      if List.length l' != 1 then
+	        input_error "only unary functions can be declared \"typeConverter\"" extopt;
+	      opt := (!opt) lor Settings.fopt_COMPOS
+            end 
+          else
 	    Parsing_helper.input_error ("Unknown function option " ^ sopt) extopt
 	      ) f_options;
       add_not_found s1 ext1 (EFunc{ f_name = s1;
