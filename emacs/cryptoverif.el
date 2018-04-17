@@ -72,7 +72,7 @@
 
 (defvar pcv-kw '("new" "out" "channel" "if" "then" "else" "fun" "param" "forall" "equation" "proba" "type" "process" "let" "in" "query" "secret" "public_vars" "const" "set"  "event" "yield" "event_abort" "inj-event" "foreach" "do" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "suchthat" "not") "Cryptoverif and ProVerif common keywords")
 
-(defvar pcv-bad-kw '("among" "choice" "clauses" "diff" "elimtrue" "find" "orfind" "equivalence" "fail" "free" "noninterf" "nounif" "or" "otherwise" "phase" "pred" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "time" "maxlength" "length" "max" "newChannel" "return") "CryptoVerif- or ProVerif-only keywords")
+(defvar pcv-bad-kw '("among" "choice" "clauses" "diff" "elimtrue" "find" "orfind" "equivalence" "fail" "free" "noninterf" "nounif" "or" "otherwise" "phase" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "time" "maxlength" "length" "max" "newChannel" "return") "CryptoVerif- or ProVerif-only keywords")
 
 (defvar pcv-builtin '("noninteractive" "bounded" "fixed" "large" "password" ;;type options (ignored in PV)
 		      "data" "projection" "uniform" "typeConverter" ;; function options
