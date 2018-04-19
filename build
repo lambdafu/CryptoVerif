@@ -11,9 +11,9 @@ ocamllex lexer.mll
 
 case X$1 in
     Xnative | X )
-	ocamlopt -o ../cryptoverif $SRC;;
+	ocamlopt -o ../cryptoverif unix.cmxa $SRC;;
     Xdebug )
-	ocamlc -g -o ../cryptoverif $SRC;;
+	ocamlc -g -o ../cryptoverif unix.cma $SRC;;
     Xprofile )
 	ocamlopt -I /usr/include -o ../cryptoverif str.cmxa unix.cmxa profileprim.c profile.mli profile.ml $SRC;;
     *)

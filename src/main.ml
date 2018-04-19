@@ -115,10 +115,22 @@ let record_collision ((_, _, t1, _,t2) as collision) =
 
 let first_file = ref true
 
-let anal_file s =
+let anal_file s0 =
   if not (!first_file) then
     Parsing_helper.user_error "You can analyze a single CryptoVerif file for each run of CryptoVerif.\nPlease rerun CryptoVerif with your second file.";
   first_file := false;
+  let s =
+    (* Preprocess .pcv files with m4 *)
+    let s_up = String.uppercase s0 in
+    if Terms.ends_with s_up ".PCV" then
+      let s' = Filename.temp_file "cv" ".cv" in
+      let res = Unix.system("m4 -DCryptoVerif " ^ s0 ^ " > " ^ s') in
+      match res with
+        WEXITED 0 -> s'
+      | _ -> Parsing_helper.user_error ("Preprocessing of " ^ s0 ^ " by m4 failed.")
+    else
+      s0
+  in
   if not (!front_end_set) then
     begin
       (* Use the oracle front-end by default when the file name ends
@@ -133,6 +145,7 @@ let anal_file s =
     Check.check_def_process_main p;
     let equivs = List.map Check.check_equiv equivs in
     let new_new_eq = List.map (fun (ty, eq) -> (ty, Check.check_equiv eq)) move_new_eq in
+    let _ = 
       if (!Settings.get_implementation) then
         do_implementation impl
       else
@@ -161,6 +174,10 @@ let anal_file s =
 	      { game = g; 
 	        prev_state = None } 
         end
+    in
+    (* Remove the preprocessed temporary file when everything went well *)
+    if s0 <> s then
+      Unix.unlink s
   with End_of_file ->
     print_string "End of file.\n"
     | e ->
