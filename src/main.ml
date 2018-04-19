@@ -126,7 +126,7 @@ let anal_file s0 =
       let s' = Filename.temp_file "cv" ".cv" in
       let res = Unix.system("m4 -DCryptoVerif " ^ s0 ^ " > " ^ s') in
       match res with
-        WEXITED 0 -> s'
+        Unix.WEXITED 0 -> s'
       | _ -> Parsing_helper.user_error ("Preprocessing of " ^ s0 ^ " by m4 failed.")
     else
       s0
