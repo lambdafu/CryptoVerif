@@ -140,7 +140,7 @@ table Tkey(tgs, key).
 table Skey(tgs, server, key). 
 
 table table_aT(bitstring).
-table table_keyCAK(key).
+table table_tested_key(key).
 
 (* Final accept messages *)						
 
@@ -234,13 +234,10 @@ let processC(Kc: key) =
 	out(c10, acceptC3(hostS));
 	(* OK *)
 	in(c26, ());
-	if hostT =T then
-	(
-	insert table_keyCAK(AK)
-	)
+	if hostT = T then
+	  insert table_tested_key(AK)
 	else
-	(
-	out(cC, AK)).
+	  out(cC, AK).
 
 		
 (* Code for registering the keys *)
@@ -353,10 +350,10 @@ process
 	(
 	in(c24, ());
 	  new b1:bool;					(* let b1 in {0,1} *)
-     	  get table_keyCAK(keyCAK) in (* pick an exchanged key AK at RANDOM  *)
+     	  get table_tested_key(tested_key) in (* pick an exchanged key AK at RANDOM  *)
      	  out(c25, ());						
-      	  ( ! iE <= qE processOE(b1, keyCAK)) |
-	  ( ! iD <= qD processOD(keyCAK))
+      	  ( ! iE <= qE processOE(b1, tested_key)) |
+	  ( ! iD <= qD processOD(tested_key))
      	 )
 	 
         )
