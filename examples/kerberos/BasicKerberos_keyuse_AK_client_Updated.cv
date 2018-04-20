@@ -56,7 +56,9 @@ of the CeCILL license and that you accept its terms.
 
 
 
-(* basic Kerberos 5, all 3 rounds, consider key usability of AK after client completes session, client and TGS are restricted not to take outputs by the encryption oracle, authentication will partly fail as expected *)
+(* basic Kerberos 5, all 3 rounds, consider key usability of AK after client completes session, client and TGS are restricted not to take outputs by the encryption oracle, authentication will partly fail as expected 
+
+There is not much hope to prove the key usability in ProVerif, because it overapproximates the execution of else branches of get (it considers that they may always be executed). So we focus only on CryptoVerif. *)
 
 param N.
 param N2.
@@ -78,11 +80,11 @@ type timest [fixed].
 
 (* Message construction functions *)
 
-fun concat1(key, nonce, timest, tgs):maxenc [compos]. 		
-fun concat2(key, timest, client):maxenc [compos].  		
-fun concat3(key, nonce, timest, server):maxenc [compos].       	
-fun pad(client, timest):maxenc [compos].
-fun padts(timest): maxenc [compos].
+fun concat1(key, nonce, timest, tgs):maxenc [data]. 		
+fun concat2(key, timest, client):maxenc [data].  		
+fun concat3(key, nonce, timest, server):maxenc [data].       	
+fun pad(client, timest):maxenc [data].
+fun padts(timest): maxenc [data].
 
 equation forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;		concat2(y,x,z) <> concat1(t2,y2,x2,z2).
 equation forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
