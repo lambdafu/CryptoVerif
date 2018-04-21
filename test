@@ -38,6 +38,14 @@ function analyze()
 
 mkdir -p tests
 
+for k in key_AK key_SK
+do
+    for loc in loc1 loc2 loc3
+    do
+	m4 -D$k -D$loc examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv > examples/kerberos/BasicKerberos_keyuse.$k.$loc.cv
+    done
+done
+
 echo
 echo TEST
 echo

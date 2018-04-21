@@ -15,3 +15,8 @@ query event(Pexecuted) ==> false.
 process
     (in(c, y: bitstring); if false then P(y)) |
     (in(c, z: bitstring); if defined(x) && z = x then event Pexecuted())
+
+(* EXPECTED
+All queries proved.
+0.127s (elapsed: user + system + other processes)
+END *)
