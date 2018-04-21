@@ -1,0 +1,17 @@
+(* Just to check that the expansion of P creates
+   a "let x = y" so that x can be correctly referenced.
+   It's ok. *)
+
+channel c.
+
+
+let P(x: bitstring) =
+    out(c, x).
+
+event Pexecuted.
+
+query event(Pexecuted) ==> false.
+
+process
+    (in(c, y: bitstring); if false then P(y)) |
+    (in(c, z: bitstring); if defined(x) && z = x then event Pexecuted())
