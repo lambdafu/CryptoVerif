@@ -55,7 +55,10 @@ for i in examples/basic/*.pcv examples/basic/*.cv examples/obasic/*.ocv examples
 do
     if [ -f $i ]
     then
-	analyze $i "" $i tests/$output
+	case $i in
+	    *.m4.cv) ;;
+	    *)       analyze $i "" $i tests/$output;;
+	esac
     fi
 done
 ) | tee tests/res-$output
