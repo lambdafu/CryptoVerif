@@ -4292,7 +4292,35 @@ let get_advised_info initial_user_info advised_transfo n =
       let var_list' = List.fold_left add_vl var_list advised_transfo in
       if var_list' == [] then
 	names_to_discharge
-	(* I tried the following, but it breaks some examples.
+	(* I tried the following, but it breaks some examples,
+	   especially with public-key encryption.
+	   Explanation: in the example examples-1.28-converted/basic/denning-sacco-corr3Block-auto.cv
+
+	   With the code above, we have:
+Trying equivalence ind_cca2(enc)... Failed.
+Doing remove assignments of binder pkB... Done.
+Doing remove assignments of binder skB... Done.
+Trying equivalence ind_cca2(enc) with rkB, r2_3... Failed.
+Doing SA rename Rkey... Done.
+...
+
+	   With the code below:
+Trying equivalence ind_cca2(enc)... Failed.
+Doing remove assignments of binder pkB... Done.
+Doing remove assignments of binder skB... Done.
+Trying equivalence ind_cca2(enc) with r2_3... Failed:
+Random variables: r2_3 -> r2
+The transformation did not use the useful_change oracles, or oracles deemed useful by default.
+	   CV uses the oracle enc(m,pk,r), which is not marked [useful_change]
+	   => the transformation fails.
+	   Above, the additional name rkB leads to advising SArename Rkey.
+	   That makes the transformation succeed.
+	   The reason why it fails may be that the last element of 
+	   names_to_discharge is not always the one that was inserted first by 
+	   try_with_restr_list. (In the example, try_with_restr_list probably
+	   started with rkB and added r2_3 because of the [all] option
+	   on the oracle enc(m,pk,r).)
+
         begin
 	  match names_to_discharge with
 	  | [] -> []
