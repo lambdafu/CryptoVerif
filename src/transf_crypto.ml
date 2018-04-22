@@ -4263,8 +4263,52 @@ let events_proba_queries events =
     (proba, query)
       ) events)
 
-let get_advised_info n =
-  VarList(List.map fst n, !stop_mode)
+let get_advised_info initial_user_info advised_transfo n =
+  let names_to_discharge = List.map fst n in
+  let var_map, var_list, stop =
+    match initial_user_info with
+      VarList(vl, stop) -> ([], vl, stop)
+    | Detailed(Some (var_map, vl, stop), _) -> (var_map, vl, stop)
+    | Detailed(None, _) -> ([], [], false)
+  in
+  let var_list' = 
+    if stop then
+      var_list
+    else
+      (* If we advise SArenaming for a name to discharge, put it in
+         the list of the variables if it is not already there.
+	 When we retry the transformation, it will be retried for one
+	 of the SArenamed versions. 
+	 I do not add all names_to_discharge because only some of
+	 them may be used after SArenaming. (Some may be linked to
+	 a definition of the SArenamed variable that we cannot transform.) *)
+      let add_vl var_list = function
+	    SArenaming b ->
+	      if (not (List.memq b var_list))
+		  && (not (List.exists (fun (b', _) -> b' == b) var_map))
+		  && (List.memq b names_to_discharge) then b::var_list else var_list
+	| _ -> var_list
+      in
+      let var_list' = List.fold_left add_vl var_list advised_transfo in
+      if var_list' == [] then
+	begin
+	  match names_to_discharge with
+	    [] -> var_list'
+	  | _ -> names_to_discharge
+	      (* I tried the following, but it breaks some examples.
+
+		 Just put the first name to discharge found, if there is none.
+                 The rest will be reconstructed when we reapply the transformation.
+		 It may be different after applying the advice 
+	      [List.hd (List.rev names_to_discharge)] *)
+	end
+      else
+	var_list'
+  in
+  if var_map == [] then
+    VarList(var_list', stop)
+  else
+    Detailed(Some(var_map, var_list', stop), None)
   (* 
      I tried to pass the name mapping to the next try, 
      but it did not work well: that name mapping may in fact be wrong.
@@ -4332,7 +4376,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 	  if ((!Settings.debug_cryptotransf) > 0) && (l != []) then 
 	    print_string "Advice given\n";
 	  Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
-	  TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info n, l)) l, failure_reasons)
+	  TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info user_info l n, l)) l, failure_reasons)
     end
   else
     begin
@@ -4365,7 +4409,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 	    if (!Settings.debug_cryptotransf) > 0 then 
 	      print_string "Advice given\n";
 	    Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
-            TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info n, l)) to_do, [])
+            TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info user_info l n, l)) to_do, [])
 	  end
       with OneFailure failure_reason -> 
 	Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
