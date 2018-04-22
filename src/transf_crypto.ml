@@ -4267,7 +4267,7 @@ let get_advised_info initial_user_info advised_transfo n =
   let names_to_discharge = List.map fst n in
   let var_map, var_list, stop =
     match initial_user_info with
-      VarList(vl, stop) -> ([], vl, stop)
+    | VarList(vl, stop) -> ([], vl, stop)
     | Detailed(Some (var_map, vl, stop), _) -> (var_map, vl, stop)
     | Detailed(None, _) -> ([], [], false)
   in
@@ -4283,25 +4283,25 @@ let get_advised_info initial_user_info advised_transfo n =
 	 them may be used after SArenaming. (Some may be linked to
 	 a definition of the SArenamed variable that we cannot transform.) *)
       let add_vl var_list = function
-	    SArenaming b ->
-	      if (not (List.memq b var_list))
-		  && (not (List.exists (fun (b', _) -> b' == b) var_map))
-		  && (List.memq b names_to_discharge) then b::var_list else var_list
+	| SArenaming b ->
+	    if (not (List.memq b var_list))
+		&& (not (List.exists (fun (b', _) -> b' == b) var_map))
+		&& (List.memq b names_to_discharge) then b::var_list else var_list
 	| _ -> var_list
       in
       let var_list' = List.fold_left add_vl var_list advised_transfo in
       if var_list' == [] then
-	begin
+	names_to_discharge
+	(* I tried the following, but it breaks some examples.
+        begin
 	  match names_to_discharge with
-	    [] -> var_list'
-	  | _ -> names_to_discharge
-	      (* I tried the following, but it breaks some examples.
-
-		 Just put the first name to discharge found, if there is none.
+	  | [] -> []
+	  | _ -> 
+	      [* Just put the first name to discharge found, if there is some.
                  The rest will be reconstructed when we reapply the transformation.
-		 It may be different after applying the advice 
-	      [List.hd (List.rev names_to_discharge)] *)
-	end
+		 It may be different after applying the advice *]
+	      [List.hd (List.rev names_to_discharge)] 
+	end *)
       else
 	var_list'
   in
