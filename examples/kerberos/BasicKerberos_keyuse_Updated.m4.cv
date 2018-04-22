@@ -56,7 +56,7 @@ of the CeCILL license and that you accept its terms.
 
 
 
-(* basic Kerberos 5, all 3 rounds, consider key usability of AK after client completes session, client and TGS are restricted not to take outputs by the encryption oracle, authentication will partly fail as expected 
+(* basic Kerberos 5, all 3 rounds, consider key usability of AK or SK; participants are restricted not to take outputs by the encryption oracle; for key usability of AK, authentication will partly fail as expected.
 
 There is not much hope to prove the key usability in ProVerif, because it overapproximates the execution of else branches of get (it considers that they may always be executed). So we focus only on CryptoVerif. *)
 
