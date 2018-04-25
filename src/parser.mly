@@ -6,6 +6,7 @@ open Ptree
 exception Syntax
 
 let cst_true = (PIdent ("true", dummy_ext), dummy_ext)
+let cst_false = (PIdent ("false", dummy_ext), dummy_ext)
 
 let dummy_channel = ("@dummy_channel", dummy_ext)
 
@@ -640,7 +641,10 @@ query:
     { PQSecret ($2,$3,$4) }
 |   term IMPLIES term optpublicvars
     { PQEventQ([], $1, $3, $4) }
-
+|   term optpublicvars
+    { (* "M" interpreted as "M ==> false" as in ProVerif *)
+      PQEventQ([], $1, cst_false, $2) }
+    
 optpublicvars:
     
     { [] }
