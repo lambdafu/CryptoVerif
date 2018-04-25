@@ -121,7 +121,8 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phqt \nonterm{event}\\
 &\phqt \nonterm{simpleterm}\\
 &\nonterm{query} ::= \texttt{secret }\nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\ [\texttt{[onesession]}]\\
-&\phq \nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \texttt{ ==> }\nonterm{queryterm}\ [\texttt{public\_vars}\ \seq{ident}]
+&\phq \nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \texttt{ ==> }\nonterm{queryterm}\ [\texttt{public\_vars}\ \seq{ident}]\\
+&\phq \nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \ [\texttt{public\_vars}\ \seq{ident}]
 \end{align*}
 \caption{Grammar for terms, patterns, and queries}
 \label{fig:syntax1}
@@ -1878,6 +1879,8 @@ replications of the same types.
 The $\texttt{inj-event}$ marker must
 occur either both before and after $\texttt{==>}$ or not at all. (Otherwise,
 the query would be equivalent to a non-injective correspondence.)
+
+\item $M$. This query is an abbreviation for $M \texttt{ ==> false}$.
 
 \end{itemize}
 
