@@ -523,11 +523,17 @@ proof {
   remove_assign binder se_r_20;
   remove_assign binder se_r_21;
   remove_assign binder se_r_22;
-  set noAdviceCrypto = true; (* The definition of GDH tends to advise remove_assign
-                                to discharge x = exp(g,mult(a,m)) 
-                                when in fact it should use oracle OA2 to discharge
-				the smaller term exp(g,mult(a,m)).
-				We use this setting to avoid that.  *)
+  (* With the definition of GDH with oracles OA2/OB2, CryptoVerif needs to 
+     be very precisely guided: 
+     - we need to specify which variables are mapped to a and which
+     are mapped to b, because it may discharge x = exp(g, mult(a, a[j]))
+     may calling OA2(m) = exp(g, mult(a, m)) with m = a[j] discharged 
+     by corrupting a[j], which is bad.
+     - we need to give lots of SArename/remove_assign because otherwise
+     it tries to many different advises and takes forever to find the right 
+     one (it may use OA2/OB2 to discharge things that be discharged 
+     in other ways as well).
+     *)
   crypto gdh(exp) "variables: S_r_priv_1 -> a, E_i_priv_5 -> b, S_i_priv_2 -> b, E_r_priv_2 -> a .";
   success;
   out_game "g8_dot.out.cv";
@@ -551,7 +557,7 @@ proof {
      won't continue. *)
   out_game "g10.out.cv" occ;
   crypto int_ctxt_corrupt(enc) k_10; (* TODO maybe they had the same name before *)
-  crypto int_ctxt_corrupt(enc) k_19;
+  crypto int_ctxt_corrupt(enc) k_18;
   success; (* - initiator can authenticate the second protocol message
                 sent by the responder,
               - initiator can authenticate a transport data message sent

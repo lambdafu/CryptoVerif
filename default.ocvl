@@ -2384,8 +2384,7 @@ param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
 
 equiv(gdh(exp))
     foreach ia <= na do a <-R Z; (
-      OA() := return(exp(g,a)) |
-      OA2(m:Z) := return(exp(g,mult(m,a))) |
+      OA() := return(exp(g,a)) | 
       Oa() [10] := return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
       foreach iaDDH2 <= naDDH2 do ODDHa2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', a)) |
@@ -2399,7 +2398,6 @@ equiv(gdh(exp))
     ) |
     foreach ib <= nb do b <-R Z; (
       OB() := return(exp(g,b)) |
-      OB2(m:Z) := return(exp(g,mult(m,b))) |
       Ob() [10] := return(b) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := return(m = exp(m', b)) |
       foreach ibDDH2 <= nbDDH2 do ODDHb2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', b)) |
@@ -2417,7 +2415,6 @@ equiv(gdh(exp))
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
-      OA2(m:Z) := return(exp'(g,mult(m,a))) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
               if defined(ka) then return(m = exp'(m', a)) else 
@@ -2458,7 +2455,6 @@ equiv(gdh(exp))
     ) |
     foreach ib <= nb do b <-R Z [unchanged]; (
       OB() := return(exp'(g,b)) |
-      OB2(m:Z) := return(exp'(g,mult(m,b))) |
       Ob() := let kb:bool = true in return(b) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
               if defined(kb) then return(m = exp'(m', b)) else 
@@ -2578,7 +2574,6 @@ param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
 equiv(gdh(exp))
     foreach ia <= na do a <-R Z; (
       OA() := return(exp(g,a)) | 
-      OA2(m:Z) := return(exp(g,mult(m,a))) |
       Oa() [10] := return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
       foreach iaDDH2 <= naDDH2 do ODDHa2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', a)) |
@@ -2592,7 +2587,6 @@ equiv(gdh(exp))
     ) |
     foreach ib <= nb do b <-R Z; (
       OB() := return(exp(g,b)) |
-      OB2(m:Z) := return(exp(g,mult(m,b))) |
       Ob() [10] := return(b) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := return(m = exp(m', b)) |
       foreach ibDDH2 <= nbDDH2 do ODDHb2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', b)) |
@@ -2610,7 +2604,6 @@ equiv(gdh(exp))
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
-      OA2(m:Z) := return(exp'(g,mult(m,a))) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
               if defined(ka) then return(m = exp'(m', a)) else 
@@ -2671,7 +2664,6 @@ equiv(gdh(exp))
     ) |
     foreach ib <= nb do b <-R Z [unchanged]; (
       OB() := return(exp'(g,b)) |
-      OB2(m:Z) := return(exp'(g,mult(m,b))) |
       Ob() := let kb:bool = true in return(b) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
               if defined(kb) then return(m = exp'(m', b)) else 
@@ -2802,7 +2794,7 @@ param na, naDDH, nb, nbDDH.
 equiv(cdh(exp))
     foreach ia <= na do a <-R Z; (
       OA() := return(exp(g,a)) | 
-      Oa() [3] := return(a) |
+      Oa() [10] := return(a) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a)))
     )
 <=(#ODDHa * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) * pCDH(time + (na + #ODDHa) * time(exp)))=> [computational]
@@ -2910,7 +2902,7 @@ param na, naDH, nb, nbDH.
 equiv(ddh(exp))
     foreach ia <= na do a <-R Z; (
       OA() := return(exp(g,a)) | 
-      Oa() [3] := return (a) |
+      Oa() [10] := return (a) |
       foreach iaDH <= naDH do ODHa(j<=na) [useful_change] := return (exp(g, mult(a[j], a)))
     )
 <=(#ODHa * na * na * pDDH(time + (na + #ODHa) * time(exp)))=>
@@ -3038,8 +3030,7 @@ param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
 
 equiv(gdh(exp))
     foreach ia <= na do a <-R Z; (
-      OA() := return(exp(g,a)) |
-      OA2(m:Z) := return(exp(g,mult(m,a))) |      
+      OA() := return(exp(g,a)) | 
       Oa() [10] := return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
@@ -3051,7 +3042,6 @@ equiv(gdh(exp))
 	   #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
-      OA2(m:Z) := return(exp'(g,mult(m,a))) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
               if defined(ka) then return(m = exp'(m', a)) else 
@@ -3182,7 +3172,6 @@ param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
 equiv(gdh(exp))
     foreach ia <= na do a <-R Z; (
       OA() := return(exp(g,a)) | 
-      OA2(m:Z) := return(exp(g,mult(m,a))) |
       Oa() [10] := return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
@@ -3194,7 +3183,6 @@ equiv(gdh(exp))
 	   #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
-      OA2(m:Z) := return(exp'(g,mult(m,a))) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
               if defined(ka) then return(m = exp'(m', a)) else 
