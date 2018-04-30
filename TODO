@@ -294,9 +294,10 @@ more transformations with the square variant.
         transforming all occurrences of check. It may be helpful to
         have that. 
       DONE add "corrupt" oracles to INT-PTXT partial transformations.
-      TO DO [test] Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
+      ABANDONED Modify GDH to allow m -> exp(g, mult(m,a)) as an oracle,
       left unchanged, without corrupting a.
       (It can be computed as exp(exp(g,a),m) and exp(g,a) is public.)
+      I tried but it needs too much advice (see examplesnd/notest/wireguard-modified-GDH.cv)
       ABANDONED ROM...all_args and ICM...all_args with variables and channel of
       oracles as arguments. 
          Was used by B. Lipp for wireguard, but in fact he also adds the
