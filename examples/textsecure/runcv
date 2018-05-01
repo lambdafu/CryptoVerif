@@ -19,7 +19,7 @@ tail -n 2 $1.out
 for prot in NO_REPLAY_PROT REPLAY_PROT
 do
 
-for sessions in AB-BA AA
+for sessions in AA #AB-BA AA
 do
 for prop in STD FS
 do
