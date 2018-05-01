@@ -255,6 +255,7 @@ ifdef(`loc1',`(* key usability in client *)
     ')
 ')
 	.
+	
 (* Code for registering the keys *)
 
 let processCKEY(Kc: key) =                       
