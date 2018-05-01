@@ -63,13 +63,7 @@ undeniable-sig.ocv
 ------------------------------------------------------
 examples-1.28/kerberos/ (OK)
 ------------------------------------------------------
-
-cryptoverif/implementation/{ssh,nspk}
-
-Note: convert these files in place
-For the files implementation/ssh/ssh-secrecy-key-*.ocv,
-use a single master file ssh-secrecy-key.m4.ocv
-from which all these files would be generated (using the m4 preprocessor).
+cryptoverif/implementation/{ssh,nspk} (OK)
 ------------------------------------------------------
 
 examples-1.28/textsecure

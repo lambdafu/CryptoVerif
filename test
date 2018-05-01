@@ -47,6 +47,13 @@ do
     done
 done
 
+for key in IVCC IVSC EKCC EKSC MKCC MKSC
+do
+    m4 -DONEKEY=$key implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key-$key.ocv
+done
+m4 implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key.ocv
+
+
 echo
 echo TEST
 echo
