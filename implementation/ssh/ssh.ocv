@@ -9,7 +9,6 @@ type hashkey [bounded].
 type hash [fixed, large].
 type signature [bounded].
 type block [fixed].
-type sseed [fixed].
 type skeyseed [large, fixed].
 type sskey [bounded, large].
 type spkey [bounded, large].
@@ -131,7 +130,6 @@ table trusted_hosts(spkey).
 (* implementation *)
 
 implementation 
-	       type sseed = 160;
 	       type Z = "string" [random = "(dh_rand dh_group14)" ];
 	       type cookie = 128;
                type iv = 128;

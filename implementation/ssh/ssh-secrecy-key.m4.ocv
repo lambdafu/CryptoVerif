@@ -1,5 +1,7 @@
-set elsefindFactsInSimplify = true.
 set mergeBranches = false.
+
+ifdef(`ONEKEY',`
+set elsefindFactsInSimplify = true.
 
 proof {
       success;
@@ -20,6 +22,40 @@ proof {
       crypto cdh(exp);
       auto
 }
+',`
+set elsefindFactsInSimplify = false.
+    (* I need to use this setting because otherwise, the simplification after crypto rom(h)
+       is too slow. I still need to reactive elsefindFactsInSimplify later, 
+       because it is needed in the proof. *)
+
+proof {
+      success;
+      (*prove authentication*)
+      show_game occ;
+      insert 439 "let concat8(a1, a2, a3, a4, a5, a6, a7, a8) = x_2 in"; (* in OH, at the beginning *)
+      show_game occ;
+      insert 449 "let concat4(b1, b2, b3, b4) = x_2 in"; (* in the else branch of the "let" inserted above *) 
+      crypto rom(h);
+      crypto uf_cma(sign);
+      success;
+
+      (*secrecy of the key*)
+      show_game occ;
+      insert 218 "find w <= N suchthat defined(idCS[w], idSS[w], cookieCS[w], nsCS[w], cookieSS[w], eS[w], fS[w], r_15[w]) && ((idCC = idCS[w]) && ((idSC = idSS[w]) && (((cookieCC = cookieCS[w]) && (negotiation_string = nsCS[w])) && (((cookieSC = cookieSS[w]) && (nsSC = negotiation_string)) && ((eC = eS[w]) && ((fC = fS[w]))))))) then";
+      insert 53 "find v <= N suchthat defined (eC[v]) && eC[v]=eS then";
+      simplify;
+      set elsefindFactsInSimplify = true; (* Reactivate elsefindFactsInSimplify because it is needed in the proof. *)
+      crypto cdh(exp);
+      crypto hash_to_symkey_random;
+      crypto hash_to_symkey_random;
+      crypto hash_to_iv_random;
+      crypto hash_to_iv_random;    
+      crypto hash_to_mackey_random;
+      crypto hash_to_mackey_random;  
+      success
+}
+
+')
 
 param N.
 
@@ -145,18 +181,39 @@ table trusted_hosts(spkey).
 
 (* Secret *)
 
+ifdef(`ONEKEY',`
 query secret ONEKEY.
-
+',`
+query secret IVCC.
+query secret IVSC.
+query secret EKCC.
+query secret EKSC.
+query secret MKCC.
+query secret MKSC.
+')
 (* Authentication property *)
 
 event endC(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
 event endS(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
 
+ifdef(`ONEKEY', `
+(* Having the variables IVCC, IVSC, IVCS, IVSS, EKCC, EKSC, EKCS, EKSS, MKCC, MKSC, MKCS, MKSS public is very costly.
+   It is the same problem as when we prove secrecy of all keys at the same time.
+   So we make these variables public only when we prove secrecy of all keys at the same time. *)
 query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash;
       inj-event(endC(idC, idS, initC, initS, pk, x, y, K, H)) ==> inj-event(endS(idC, idS, initC, initS, pk, x, y, K, H)).
 
-query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K': G, H': hash;
-      event(endC(idC, idS, initC, initS, pk, x, y, K, H)) && event(endS(idC, idS, initC, initS, pk, x, y, K', H')) ==> K = K' && H = H'.
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K2: G, H2: hash;
+      event(endC(idC, idS, initC, initS, pk, x, y, K, H)) && event(endS(idC, idS, initC, initS, pk, x, y, K2, H2)) ==> K = K2 && H = H2.
+',`
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash;
+      inj-event(endC(idC, idS, initC, initS, pk, x, y, K, H)) ==> inj-event(endS(idC, idS, initC, initS, pk, x, y, K, H))
+      public_vars IVCC, IVSC, EKCC, EKSC, MKCC, MKSC.
+
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K2: G, H2: hash;
+      event(endC(idC, idS, initC, initS, pk, x, y, K, H)) && event(endS(idC, idS, initC, initS, pk, x, y, K2, H2)) ==> K = K2 && H = H2
+      public_vars IVCC, IVSC, EKCC, EKSC, MKCC, MKSC.
+')
 
 (* Server *)
 
