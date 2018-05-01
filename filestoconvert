@@ -61,15 +61,7 @@ OEKE.ocv
 undeniable-sig.ocv
 
 ------------------------------------------------------
-examples-1.28/kerberos/
-
-BasicKerberos*Updated.cv
-
-PublicKeyKerberos*TwoCertRegister2.cv
-Note: Name the converted files PublicKeyKerberos*Updated.cv
-
-Two of these files are already converted.
-
+examples-1.28/kerberos/ (OK)
 ------------------------------------------------------
 
 cryptoverif/implementation/{ssh,nspk}

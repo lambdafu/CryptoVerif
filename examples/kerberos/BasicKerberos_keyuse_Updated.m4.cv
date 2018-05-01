@@ -124,7 +124,7 @@ equation forall t: timest;
 					    
 (* Channel declarations *)
 
-channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, c26, c27, c28,c29, start, c_key_use1, c_key_use2, cT.
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, start, start2, c_key_use1, c_key_use2.
 
 (* Host names for honest hosts *)
 
@@ -358,20 +358,20 @@ equation forall b:bool, x:maxenc; test(b,x,x) = x.
 (* Encryption Oracle *)
 
 let processOE(b1sec: bool, k1: key) =
-	in(c21,(m1:maxenc, m2:maxenc));
+	in(c30,(m1:maxenc, m2:maxenc));
 	if Z(m1) = Z(m2) then
     	let menc = test(b1sec,m1,m2) in
     	let aT:bitstring = enc(menc,k1) in
 	insert table_aT(aT);
-    	out(c22, aT).
+    	out(c31, aT).
 
 (* Decryption Oracle *) 
 
 let processOD(k1: key) =
-        in(c23, a:bitstring);
+        in(c32, a:bitstring);
 	get table_aT(=a) in yield else
     	let m = dec(a, k1) in
-    	out(c24, m).					
+    	out(c33, m).					
 
 (* Main process, which generates long-term keys and runs the various processes *)
 
@@ -380,7 +380,7 @@ process
 	new Kc: key;	(* Kc = enc key between client C and KAS K *)
 	new Kt: key;	(* Kt = enc key between KAS K and TGS *)
 	new Ks: key;	(* Ks = enc key between TGS T and server S *)
-	out(c25, ());
+	out(start2, ());
 	(
      	(! iC <= N processC(Kc)) | 
      	(! iK <= N processK) |

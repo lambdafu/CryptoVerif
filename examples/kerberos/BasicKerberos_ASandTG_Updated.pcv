@@ -278,6 +278,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove event fullTC(C, S, N, k', x', z', v, y) && fullCT(T, S, N, k, x, z, y) ==> (k = k').
+RESULT Could not prove event(fullTC(C, S, N, k', x', z', v, y)) && event(fullCT(T, S, N, k, x, z, y)) ==> (k = k') with public variables keySK, keyTSK.
 1.110s (user 1.090s + system 0.020s), max rss 76864K
 END *)
