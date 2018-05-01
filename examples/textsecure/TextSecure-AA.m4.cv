@@ -309,7 +309,7 @@ ifdef(`FS',`
       
           if x_pubB = pubB && x_pubBsign = pubBsign then
       	  (
-	      (* Alice talks to Bob *)
+	      (* Alice talks to Bob (= Alice herself in this file) *)
               if checksign(sephPubAB, x_pubBsign, signature) then
               (* Check that m1 and m2 have the same length *)
               if Zero(m1) = Zero(m2) then
@@ -321,7 +321,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant (or to Alice herself) *)
+              (* Alice talks to a dishonest participant *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -350,7 +350,7 @@ ifdef(`FS',`
       
 	  if x_pubB = pubB && x_pubBsign = pubBsign then
           (
-	      (* Alice talks to Bob *)
+	      (* Alice talks to Bob (= Alice herself in this file) *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      (* CryptoVerif will show that this case actually never happens *)
               (* Check that m1 and m2 have the same length *)
@@ -363,7 +363,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant (or to Alice herself) *)
+              (* Alice talks to a dishonest participant *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -407,7 +407,7 @@ ifdef(`FS',`
       	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
           if x_pubB = pubB && x_pubBsign = pubBsign then
       	  (
-	      (* Alice talks to Bob *)
+	      (* Alice talks to Bob (= Alice herself in this file) *)
       	      if checksign(sephPubAB, x_pubBsign, signature) then
               (* Check that m1 and m2 have the same length *)
       	      if Zero(m1) = Zero(m2) then
@@ -419,7 +419,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant (or to Alice herself) *)
+              (* Alice talks to a dishonest participant *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -446,7 +446,7 @@ ifdef(`FS',`
       	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
           if x_pubB = pubB && x_pubBsign = pubBsign then
       	  (
-	      (* Alice talks to Bob *)
+	      (* Alice talks to Bob (= Alice herself in this file) *)
       	      if checksign(sephPubAB, x_pubBsign, signature) then
 	      (* CryptoVerif will show that this case actually never happens *)
               (* Check that m1 and m2 have the same length *)
@@ -459,7 +459,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant (or to Alice herself) *)
+              (* Alice talks to a dishonest participant *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
