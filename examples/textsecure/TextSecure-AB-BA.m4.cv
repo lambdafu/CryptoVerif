@@ -53,7 +53,7 @@ remove_assign binder g2n10;
 remove_assign binder g1n11;
 remove_assign binder g1n12;
 simplify;
-crypto gdh(gexp) "variables: secA -> @4_a, secB -> @4_b, sephSecAB1 -> @4_b, ephSecAB1 -> @4_b, ephSecBA1 -> @4_a, ephSecBA1' -> @4_a, ephSecBA2 -> @4_a, ephSecBA2' -> @4_a  .";
+crypto gdh(gexp) "variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a  .";
 simplify;
 crypto rckey *;
 crypto prf(hmacprf) *;
@@ -143,8 +143,8 @@ expand AEAD(emkey, bitstring, bitstring, t_data, enc, dec, injbot, Zero, Penc, P
 fun test(bool, bitstring, bitstring): bitstring.
 equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
 equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
-equation forall b:bool,x:bitstring; test(b,x,x) = x.
-equation forall b:bool,x:bitstring,y:bitstring; Zero(test(b,x,y)) = test(b,Zero(x),Zero(y)).
+equation forall b0:bool,x:bitstring; test(b0,x,x) = x.
+equation forall b0:bool,x:bitstring,y:bitstring; Zero(test(b0,x,y)) = test(b0,Zero(x),Zero(y)).
 
 const const1: bitstring.
 fun concat5(G,pkey,G,pkey,G):t_data [data].
@@ -174,19 +174,19 @@ event Recv3(G, pkey, G, pkey, G, G, G, bitstring).
 *)
 
 ifdef(`FS',`',`
-query a:G,as:pkey,b:G,bs:pkey,sb:G,ob:G,a1:G,a2:G,m:bitstring;
-      inj-event(Recv(a,as,b,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a,as,b,bs,sb,ob,a1,a2,m))
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,a2:G,m:bitstring;
+      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob,a1,a2,m))
       public_vars secb.
-query a:G,as:pkey,b:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
-      event(Recv3(a,as,b,bs,sb,a1,a2,m)) ==> event(Send3(a,as,b,bs,sb,a1,a2,m))
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
+      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb,a1,a2,m))
       public_vars secb.
 
 (* Without the anti-replay countermeasure, CryptoVerif should not
    prove the following query, because there is a replay attack.
    With the countermeasure, the replay attack disappears,
    so CryptoVerif should prove this query *)
-query a:G,as:pkey,b:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
-      inj-event(Recv3(a,as,b,bs,sb,a1,a2,m)) ==> inj-event(Send3(a,as,b,bs,sb,a1,a2,m))
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
+      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb,a1,a2,m))
       public_vars secb.
 ')
 
@@ -195,7 +195,7 @@ query secret secb.
 (* Bob generating prekeys and running the protocol, with Alice
    or with any other participant *)
 
-let SendAKE_Bob =
+let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, pubA: G, secB: Z, pubB: G, secBsign: skey, pubBsign: pkey) =
    (* Signed prekey *)
    in(ch1, ());
    new sephSecAB1: Z;
@@ -226,7 +226,7 @@ let SendAKE_Bob =
      let ckBA' = get_ckey(rckBA') in
 
      let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-     let injbot(msg) = dec(kENC, msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA')) in
+     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
      event Recv(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
    ) else (
      let g1n2 = gexp(x_pubA,sephSecAB1) in
@@ -263,7 +263,7 @@ ifdef(`REPLAY_PROT',`
      let ckBA' = get_ckey(rckBA') in
 
      let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-     let injbot(msg) = dec(kENC, msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA')) in
+     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
      event Recv3(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
    ) else (
      let g1n4 = gexp(x_pubA,sephSecAB1) in
@@ -281,7 +281,7 @@ ifdef(`REPLAY_PROT',`
 (* Alice using prekeys and sending a message to a participant (Bob or other).
    The received arguments x_pubB:G, x_pubBsign:pkey choose Alice's interlocutor. *)
 
-let RecvAKE_Alice =
+let RecvAKE_Alice(hk2: hashkey2, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
    (* Key exchange + send message m1 or m2 *)
    in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,(m1: bitstring, m2:bitstring)));
 ifdef(`FS',`
@@ -322,8 +322,8 @@ ifdef(`FS',`
               (* Check that m1 and m2 have the same length *)
               if Zero(m1) = Zero(m2) then
               (* Send either m1 or m2 depending on the value of b *)
-              let msg = test(secb, m1, m2) in
-              let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+              let msg = test(secb1, m1, m2) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
               event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
               out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
           )
@@ -333,7 +333,7 @@ ifdef(`FS',`
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
-              let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
               out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
           )
       )
@@ -364,8 +364,8 @@ ifdef(`FS',`
               (* Check that m1 and m2 have the same length *)
               if Zero(m1) = Zero(m2) then
               (* Send either m1 or m2 depending on the value of b *)
-              let msg = test(secb, m1, m2) in
-              let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+              let msg = test(secb1, m1, m2) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
               event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
               out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
           )
@@ -375,13 +375,13 @@ ifdef(`FS',`
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
-              let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
               out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
           )
       ).
 
 
-let RecvAKE_Alice_3DH =
+let RecvAKE_Alice_3DH(hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
    (* Key exchange + send message m1 or m2 *)
    in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,(m1: bitstring, m2:bitstring)));
 ifdef(`FS',`
@@ -420,8 +420,8 @@ ifdef(`FS',`
               (* Check that m1 and m2 have the same length *)
       	      if Zero(m1) = Zero(m2) then
       	      (* Send either m1 or m2 depending on the value of b *)
-      	      let msg = test(secb, m1, m2) in
-	      let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+      	      let msg = test(secb1, m1, m2) in
+	      let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
 	      event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
       	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
           )
@@ -431,7 +431,7 @@ ifdef(`FS',`
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
-	      let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+	      let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
       	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
           )
       )
@@ -460,8 +460,8 @@ ifdef(`FS',`
               (* Check that m1 and m2 have the same length *)
       	      if Zero(m1) = Zero(m2) then
       	      (* Send either m1 or m2 depending on the value of b *)
-      	      let msg = test(secb, m1, m2) in
-	      let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+      	      let msg = test(secb1, m1, m2) in
+	      let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
 	      event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
       	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
           )
@@ -471,7 +471,7 @@ ifdef(`FS',`
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
-	      let cipher = enc(kENC, msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA')) in
+	      let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
       	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
           )
       ).
@@ -480,7 +480,7 @@ ifdef(`FS',`
 (* Alice generating prekeys and running the protocol, with any participant.
    I am not proving security properties for these sessions. *)
 
-let SendAKE_Alice =
+let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, hk6: hashkey6, secA: Z, secAsign: skey) =
    (* Signed prekey *)
    in(ch17, ());
    new sephSecAB: Z;
@@ -537,7 +537,7 @@ ifdef(`FS',`
 (* Bob using prekeys and sending a message to any participant.
    I am not proving security properties for these sessions. *)
 
-let RecvAKE_Bob =
+let RecvAKE_Bob(hk2: hashkey2, hk6: hashkey6, secB: Z) =
    (* Key exchange *)
    in(ch27,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G));
 ifdef(`FS',`
@@ -564,7 +564,7 @@ ifdef(`FS',`
       out(ch28,(ephSecBA, ephSecBA', rckBA')).
    (* The adversary can perform the message exchange *)
 
-let RecvAKE_Bob_3DH =
+let RecvAKE_Bob_3DH(hk3: hashkey3, hk6: hashkey6, secB: Z) =
    (* Key exchange *)
    in(ch29,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign));
 ifdef(`FS',`
@@ -592,7 +592,7 @@ ifdef(`FS',`
 
 (* Corruption for forward secrecy *)
 
-let corrupt =
+let corrupt(secA: Z, secAsign:skey, secB: Z, secBsign: skey) =
   in(cCorrupt, ()); 
   let corrupted:bool = true in
   out(cCorrupt, (secA, secAsign, secB, secBsign)).
@@ -605,10 +605,10 @@ process
     new hk3: hashkey3;
     new hk4: hashkey4;
     new hk6: hashkey6;
-    new secA:Z;
-    let pubA = gexp(g,secA) in
-    new secB:Z;
-    let pubB = gexp(g,secB) in
+    new secA0:Z;
+    let pubA = gexp(g,secA0) in
+    new secB0:Z;
+    let pubB = gexp(g,secB0) in
     new signAseed: keyseed;
     let secAsign = skgen(signAseed) in
     let pubAsign = pkgen(signAseed) in
@@ -617,16 +617,16 @@ process
     let pubBsign = pkgen(signBseed) in
     out(outprin,(pubA, pubAsign, pubB, pubBsign));
     (
-      (!Nsend SendAKE_Bob)
-    | (!Nrecv RecvAKE_Alice)
-    | (!Nrecv3 RecvAKE_Alice_3DH)
-    | (!Nsend2 SendAKE_Alice)
-    | (!Nrecv5 RecvAKE_Bob)
-    | (!Nrecv6 RecvAKE_Bob_3DH) 
+      (!Nsend SendAKE_Bob(hk2, hk3, hk4, hk6, pubA, secB0, pubB, secBsign, pubBsign))
+    | (!Nrecv RecvAKE_Alice(hk2, hk4, hk6, secA0, pubA, pubAsign, pubB, pubBsign, secb))
+    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, hk4, hk6, secA0, pubA, pubAsign, pubB, pubBsign, secb))
+    | (!Nsend2 SendAKE_Alice(hk2, hk3, hk6, secA0, secAsign))
+    | (!Nrecv5 RecvAKE_Bob(hk2, hk6, secB0))
+    | (!Nrecv6 RecvAKE_Bob_3DH(hk3, hk6, secB0)) 
 ifdef(`FS',`
-    | corrupt
+    | corrupt(secA0, secAsign, secB0, secBsign)
 ')
-    | hashoracle2 | hashoracle3 | hashoracle4 | hashoracle6)
+    | hashoracle2(hk2) | hashoracle3(hk3) | hashoracle4(hk4) | hashoracle6(hk6))
 
 
 ifdef(`REPLAY_PROT',`
