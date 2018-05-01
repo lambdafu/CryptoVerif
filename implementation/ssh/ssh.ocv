@@ -13,43 +13,41 @@ type sseed [fixed].
 type skeyseed [large, fixed].
 type sskey [bounded, large].
 type spkey [bounded, large].
-type mkeyseed [fixed].
 type mkey [bounded, large].
 type macinput [bounded].
 type macres [large].
 type iv [fixed, large].
 type symkey [fixed, large].
-type symkeyseed [fixed, large].
 
-fun skp(spkey,sskey): bitstring [compos].
+fun skp(spkey,sskey): bitstring [data].
 
 type Z [large, bounded]. (*mpint = ssh string (size+string payload). MSB. 8 bits per byte. where 0=empty string, >0=first bit=0, <0=first bit=1,at beginning no useless 00 or FF. *)
 type G [large, bounded]. (*mpint*)
 
-fun bitstring_of_G(G): bitstring [compos].
+fun bitstring_of_G(G): bitstring [data].
 
 fun padr(bitstring,pad_rand): bitstring.
 letfun pad(m:bitstring) = r <-R pad_rand; padr(m, r).
 fun unpad(bitstring): bitstringbot.
 
-fun injbot(bitstring): bitstringbot [compos].
-forall x: bitstring; injbot (x) <> bottom.
-forall x: bitstring, r: pad_rand;
+fun injbot(bitstring): bitstringbot [data].
+equation forall x: bitstring; injbot (x) <> bottom.
+equation forall x: bitstring, r: pad_rand;
        unpad(padr(x, r)) = injbot(x).
 
 (* utils *)
 
 fun get_size(bitstring): uint32.
 
-fun concatm(tag, bitstring): bitstring [compos].
-fun concatKEXINIT(cookie, bitstring): bitstring [compos].
-fun concat8(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G): bitstring [compos].
-fun concatKEXDHREPLY(spkey, G, signature): bitstring [compos].
+fun concatm(tag, bitstring): bitstring [data].
+fun concatKEXINIT(cookie, bitstring): bitstring [data].
+fun concat8(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G): bitstring [data].
+fun concatKEXDHREPLY(spkey, G, signature): bitstring [data].
 fun concat(bitstring, bitstring): bitstring.
-fun concatnm(uint32, bitstring): bitstring [compos].
-fun concatem(bitstring, macres): bitstring [compos].
+fun concatnm(uint32, bitstring): bitstring [data].
+fun concatem(bitstring, macres): bitstring [data].
 fun check_algorithms(bitstring): bool.
-fun block_of_hash(hash): block [compos].
+fun block_of_hash(hash): block [data].
 
 const negotiation_string: bitstring.
 const tag_kexdh_init: tag.
@@ -71,26 +69,24 @@ letfun message(x: Z) = exp(g, x).
 
 fun mac(bitstring, mkey): macres.
 fun check_mac(bitstring, mkey, macres): bool.
-fun mkgen(mkeyseed): mkey.
 
-forall m: bitstring, r: mkeyseed;
-	check_mac(m, mkgen(r), mac(m, mkgen(r))).
+equation forall m: bitstring, k: mkey;
+	check_mac(m, k, mac(m, k)).
 
 (* symmetric encryption *)
 
-fun kgen(symkeyseed): symkey.
 fun enc(bitstring, symkey, iv): bitstring.
 fun dec(bitstring, symkey, iv): bitstringbot.
 
-forall m: bitstring, r: symkeyseed, r2: iv;
-    dec(enc(m, kgen(r), r2), kgen(r), r2) = injbot (m).
+equation forall m: bitstring, k: symkey, r2: iv;
+    dec(enc(m, k, r2), k, r2) = injbot (m).
 
 (*hash function *)
 
 param qH [noninteractive].
 proba Phash.
 
-expand CollisionResistant_hash(hashkey, bitstring, hash, h, Phash).
+expand CollisionResistant_hash(hashkey, bitstring, hash, h, hashoracle, Phash).
 
 
 (* signature *)
@@ -98,11 +94,9 @@ expand CollisionResistant_hash(hashkey, bitstring, hash, h, Phash).
 proba Psign.
 proba Psigncoll.
 
-expand UF_CMA_signature(skeyseed, spkey, sskey, block, signature, sseed, sskgen, spkgen, signr, check, Psign, Psigncoll).
+expand UF_CMA_proba_signature(skeyseed, spkey, sskey, block, signature, sskgen, spkgen, sign, check, Psign, Psigncoll).
 
 letfun kgen_s () = r <-R skeyseed; skp(spkgen(r), sskgen(r)).
-
-letfun sign(m: block, sk: sskey) = r <-R sseed; signr(m, sk, r).
 
 (* utils *)
 
@@ -117,7 +111,7 @@ fun iv_of_hash (hash): iv.
 fun symkey_of_hash (hash): symkey.
 fun mkey_of_hash (hash): mkey.
 
-fun concat4(G, hash, tag, hash): bitstring [compos].
+fun concat4(G, hash, tag, hash): bitstring [data].
 letfun gen(hk:hashkey, k:G, h1:hash, c:tag, h2:hash) = h(hk, concat4(k, h1, c, h2)).
 letfun genIVC(hk:hashkey, k:G, h1:hash, h2:hash) = iv_of_hash(gen(hk, k, h1, tag_IVC, h2)).
 letfun genIVS(hk:hashkey, k:G, h1:hash, h2:hash) = iv_of_hash(gen(hk, k, h1, tag_IVS, h2)).
@@ -126,7 +120,7 @@ letfun genEKS(hk:hashkey, k:G, h1:hash, h2:hash) = symkey_of_hash(gen(hk, k, h1,
 letfun genMKC(hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash(gen(hk, k, h1, tag_MKC, h2)).
 letfun genMKS(hk:hashkey, k:G, h1:hash, h2:hash) = mkey_of_hash(gen(hk, k, h1, tag_MKS, h2)).
 
-forall k: G, h1: hash, c: tag, h2: hash, x1: bitstring, x2: bitstring, x3: bitstring, x4: bitstring, x5: spkey, x6: G, x7: G, x8: G;
+equation forall k: G, h1: hash, c: tag, h2: hash, x1: bitstring, x2: bitstring, x3: bitstring, x4: bitstring, x5: spkey, x6: G, x7: G, x8: G;
    concat4(k, h1, c, h2) <> concat8(x1, x2, x3, x4, x5, x6, x7, x8).
 
 (* key table *)
@@ -193,13 +187,15 @@ implementation
 event endC(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
 event endS(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
 
-query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash; event inj: endC(idC, idS, initC, initS, pk, x, y, K, H) ==> inj:endS(idC, idS, initC, initS, pk, x, y, K, H).
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash;
+      inj-event(endC(idC, idS, initC, initS, pk, x, y, K, H)) ==> inj-event(endS(idC, idS, initC, initS, pk, x, y, K, H)).
 
-query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K': G, H': hash; event endC(idC, idS, initC, initS, pk, x, y, K, H) && endS(idC, idS, initC, initS, pk, x, y, K', H') ==> K = K' && H = H'.
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K': G, H': hash;
+      event(endC(idC, idS, initC, initS, pk, x, y, K, H)) && event(endS(idC, idS, initC, initS, pk, x, y, K', H')) ==> K = K' && H = H'.
 
 (* Server *)
 
-let processS =
+let processS(hk: hashkey, pkS: spkey, skS: sskey) =
 SSH_S {
       negotiationS() :=
 	  (* Returning KEX_INIT to client *)
@@ -259,7 +255,7 @@ SSH_S {
 
 (* Client *)
 
-let processC =
+let processC(hk: hashkey) =
 SSH_C {
         negotiationC() :=
 	     (* Returning KEX_INIT to the server *)
@@ -315,13 +311,13 @@ SSH_C {
 (* Key generation *)
 
 process 
-   SSH_Keygen [ hk > hk, pkS > pkS, skS > skS ] {
+   SSH_Keygen [ hk0 > hk, pkS0 > pkS, skS0 > skS ] {
 	Ostart() :=
-	hk <-R hashkey;
-        let skp(pkS: spkey,skS: sskey) = kgen_s() in
-        insert trusted_hosts(pkS);
-        return (pkS,hk)};
-        ((foreach iA <= N do processS) | (foreach iB <= N do processC))
+	hk0 <-R hashkey;
+        let skp(pkS0: spkey,skS0: sskey) = kgen_s() in
+        insert trusted_hosts(pkS0);
+        return (pkS0)};
+        ((foreach iA <= N do run processS(hk0, pkS0, skS0)) | (foreach iB <= N do run processC(hk0)) | run hashoracle(hk0))
 
 (* EXPECTED
 All queries proved.
