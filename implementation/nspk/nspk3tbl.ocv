@@ -10,7 +10,7 @@ The proof is as follows: *)
 
 proof {
 show_game;
-crypto uf_cma(sign_r) k_232;
+crypto uf_cma(sign) ks;
 auto
 }
 
@@ -24,11 +24,9 @@ type host [bounded].
 type pkey [bounded].
 type skey [bounded].
 type keyseed [large,fixed].
-type seed [fixed].
 type spkey [bounded].
 type sskey [bounded].
 type skeyseed [large,fixed].
-type sseed [fixed].
 type signature [bounded].
 type blocksize [fixed].
 type blocksizebot [bounded].
@@ -39,10 +37,8 @@ type keypair [bounded].
 type skeypair [bounded].
 
 
-implementation type sseed=64;
-               type skeyseed=64;
+implementation type skeyseed=64;
                type keyseed=64;
-               type seed=64;
                type nonce=64;
                type host="string" [serial = "id", "id"];
                type pkey="pkey" [serial = "pkey_to","pkey_from"];
@@ -60,20 +56,20 @@ set diffConstants = false.
 const hostnameA: hostname.
 const hostnameB: hostname.
 
-fun concat1(nonce, host):blocksize [compos].
-fun concat2(nonce, nonce, host):blocksize [compos].
-fun concat3(pkey, host):sblocksize [compos].
-fun concat4(hostname, role):host [compos].
-fun pad(nonce):blocksize [compos].
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce, host):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun concat4(hostname, role):host [data].
+fun pad(nonce):blocksize [data].
 
-fun kp(pkey,skey):keypair [compos].
-fun skp(spkey,sskey):skeypair [compos].
+fun kp(pkey,skey):keypair [data].
+fun skp(spkey,sskey):skeypair [data].
 
-forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
+equation forall z:nonce,t:nonce,u:host,y2:nonce,z2:host;
 	concat2(z,t,u) <> concat1(y2,z2).
-forall y:nonce,y2:nonce,z2:host;
+equation forall y:nonce,y2:nonce,z2:host;
 	pad(y) <> concat1(y2,z2).
-forall z:nonce,t:nonce,u:host,y2:nonce;
+equation forall z:nonce,t:nonce,u:host,y2:nonce;
 	concat2(z,t,u) <> pad(y2).
 
 (* Public-key encryption (IND-CCA2) *)
@@ -81,14 +77,17 @@ forall z:nonce,t:nonce,u:host,y2:nonce;
 proba Penc.
 proba Penccoll.
 
-expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, seed, skgen, pkgen, enc_r, dec, injbot, Z, Penc, Penccoll).
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, blocksize, bitstring, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+
+const Zblocksize: blocksize.
+equation forall x: blocksize; Z(x) = Zblocksize.
 
 (* Signatures *)
 
 proba Psign.
 proba Psigncoll.
 
-expand UF_CMA_signature(skeyseed, spkey, sskey, sblocksize, signature, sseed, sskgen, spkgen, sign_r, check, Psign, Psigncoll).
+expand UF_CMA_proba_signature(skeyseed, spkey, sskey, sblocksize, signature, sskgen, spkgen, sign, check, Psign, Psigncoll).
 
 (* Queries *)
 
@@ -98,25 +97,22 @@ event beginB(host, host, nonce, nonce).
 event endB(host, host, nonce, nonce).
 
 query x:host, y:host, na:nonce, nb:nonce;
-	event endA(x,y,na,nb) ==> beginB(x,y,na,nb).
+	event(endA(x,y,na,nb)) ==> event(beginB(x,y,na,nb)).
 query x:host, y:host, na:nonce, nb:nonce;
-	event endB(x,y,na,nb) ==> beginA(x,y,na,nb).
+	event(endB(x,y,na,nb)) ==> event(beginA(x,y,na,nb)).
 query x:host, y:host, na:nonce, nb:nonce;
-	event inj:endA(x,y,na,nb) ==> inj:beginB(x,y,na,nb).
+	inj-event(endA(x,y,na,nb)) ==> inj-event(beginB(x,y,na,nb)).
 query x:host, y:host, na:nonce, nb:nonce;
-	event inj:endB(x,y,na,nb) ==> inj:beginA(x,y,na,nb).
+	inj-event(endB(x,y,na,nb)) ==> inj-event(beginA(x,y,na,nb)).
 
 const roleA:role.
 const roleB:role.
-forall ; roleA <> roleB.
+equation roleA <> roleB.
 
 (*implementation*)
 
 letfun kgen() =  k <-R keyseed;  kp (pkgen(k) ,skgen(k) ).
-letfun kgen_s() =  k <-R skeyseed;  skp (spkgen(k) ,sskgen(k) ).
-
-letfun enc(msg: blocksize, k: pkey) = r <-R seed; enc_r(msg, k, r).
-letfun sign(msg: sblocksize, k: sskey) = r <-R sseed; sign_r(msg, k, r).
+letfun kgen_s() =  ks <-R skeyseed;  skp (spkgen(ks) ,sskgen(ks) ).
 
 implementation fun concat1="concat_str_str" [inverse = "unconcat_str_str"];
                fun concat2="concat_str_str_str" [inverse =  "unconcat_str_str_str"];
@@ -139,7 +135,7 @@ implementation fun concat1="concat_str_str" [inverse = "unconcat_str_str"];
 
 
 
-let processA =
+let processA(pkS: spkey) =
 (* Key generation for A *)
 ONS_AGenKey [ pkA > pkA, skA > skA, A > idA ] 
 {
@@ -169,7 +165,7 @@ ONS_A {
 	if defined(B) && (hostX = B) then
 	event endA(A, hostX, Na, Nb).
 
-let processB =
+let processB(pkS: spkey) =
 (* Key generation for B *)
 ONS_BGenKey [ pkB > pkB, skB > skB, B > idB] 
 {
@@ -205,7 +201,7 @@ let processK =
            if defined (A,B,pkA,pkB) && (Khost <> A) && (Khost <> B) then 
                  insert keytbl(Khost,Kkey).
 
-let processS =
+let processS(skS: sskey) =
 (* The certificate server. It receives a pair of host names (h1,h2)
    and returns a certificate for h2. h1 is expected to be the host that
    asks for the certificate. *) 
@@ -216,14 +212,14 @@ ONS_S {
 
 process 
 (* This module generates keys for the certificate server *)
-ONS_Keygen [pkS > pkS, skS > skS ] {
+ONS_Keygen [pkS0 > pkS, skS0 > skS ] {
     OStart() :=
-        let skp (pkS:spkey,skS:sskey) = kgen_s () in
-	return (pkS)};
-	(processA |
-	 processB | 
-         (foreach i <= N do processS) |
-	 (foreach i <= N2 do processK))
+        let skp (pkS0:spkey,skS0:sskey) = kgen_s () in
+	return (pkS0)};
+	(run processA(pkS0) |
+	 run processB(pkS0) | 
+         (foreach i <= N do run processS(skS0)) |
+	 (foreach i <= N2 do run processK))
 
 (* EXPECTED
 All queries proved.
