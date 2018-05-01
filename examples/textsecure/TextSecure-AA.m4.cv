@@ -184,15 +184,15 @@ query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
 
 query secret secb.
 
-(* Alice generating prekeys and running the protocol with herself
-   or with dishonest participants. *)
+(* Bob generating prekeys and running the protocol, with Alice
+   or with any other participant *)
 
-let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, secAsign: skey, pubAsign: pkey) =
+let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, pubA: G, secB: Z, pubB: G, secBsign: skey, pubBsign: pkey) =
    (* Signed prekey *)
    in(ch1, ());
    new sephSecAB1: Z;
    let sephPubAB1: G = gexp(g, sephSecAB1) in
-   let signature = sign(sephPubAB1, secAsign) in
+   let signature = sign(sephPubAB1, secBsign) in
    out(ch2, (sephPubAB1,signature));
    ((
    ! Nsignedprekey
@@ -203,77 +203,77 @@ let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, se
    out(ch4, ephPubAB);
    (* 2nd part of key exchange, 
       using prekey ephPubAB and signed prekey sephPubAB1 *)
-   in(ch5, (x_pubB:G,x_pubBsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-      if x_pubB = pubA then
-      (
-      let g1n1 = gexp(pubA,sephSecAB1) in
-      let g2n1 = gexp(ephPubBA, secA) in
-      let g3n1 = gexp(ephPubBA, sephSecAB1) in
-      let g4n1 = gexp(ephPubBA, ephSecAB1) in
-      let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n1, g2n1, g3n1, g4n1) in
+   in(ch5, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
+   if x_pubA = pubA then
+   (
+     let g1n1 = gexp(pubA,sephSecAB1) in
+     let g2n1 = gexp(ephPubBA, secB) in
+     let g3n1 = gexp(ephPubBA, sephSecAB1) in
+     let g4n1 = gexp(ephPubBA, ephSecAB1) in
+     let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n1, g2n1, g3n1, g4n1) in
 
-      let sharedn1 = gexp(ephPubBA', sephSecAB1) in
-      let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn1) in
-      let rkBA' = get_rkey(rckBA') in
-      let ckBA' = get_ckey(rckBA') in
+     let sharedn1 = gexp(ephPubBA', sephSecAB1) in
+     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn1) in
+     let rkBA' = get_rkey(rckBA') in
+     let ckBA' = get_ckey(rckBA') in
 
-      let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-      let injbot(msg) = dec(msgenc, concat5(x_pubB,x_pubBsign, pubA,pubAsign,ephPubBA'), kENC) in
-      event Recv(x_pubB,x_pubBsign, pubA,pubAsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
-      )
-      else
-      (
-      let g1n2 = gexp(x_pubB,sephSecAB1) in
-      let g2n2 = gexp(ephPubBA, secA) in
-      let g3n2 = gexp(ephPubBA, sephSecAB1) in
-      let g4n2 = gexp(ephPubBA, ephSecAB1) in
-      let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n2, g2n2, g3n2, g4n2) in
-      let sharedn2 = gexp(ephPubBA', sephSecAB1) in
-      let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn2) in
-      out(ch6, (ephPubBA', rckBA'))
-      )
+     let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
+     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
+     event Recv(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
+   ) else (
+     let g1n2 = gexp(x_pubA,sephSecAB1) in
+     let g2n2 = gexp(ephPubBA, secB) in
+     let g3n2 = gexp(ephPubBA, sephSecAB1) in
+     let g4n2 = gexp(ephPubBA, ephSecAB1) in
+     let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n2, g2n2, g3n2, g4n2) in
+
+     let sharedn2 = gexp(ephPubBA', sephSecAB1) in
+     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn2) in
+     out(ch6, (ephPubBA', rckBA'))
+     (* The adversary can continue the protocol *)
+   )
    )|(
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
-   in(ch7, (x_pubB:G,x_pubBsign:pkey,ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-      if x_pubB = pubA then
-      (
+   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
+   if x_pubA = pubA then
+   (
 ifdef(`REPLAY_PROT',`
-      (* Protection against replays *)
-      get replaycache(=x_pubB, =ephPubBA) in yield else
-      insert replaycache(x_pubB, ephPubBA);
+     (* Protection against replays *)
+     get replaycache(=x_pubA, =ephPubBA) in yield else
+     insert replaycache(x_pubA, ephPubBA);
 ')
-      let g1n3 = gexp(pubA,sephSecAB1) in
-      let g2n3 = gexp(ephPubBA, secA) in
-      let g3n3 = gexp(ephPubBA, sephSecAB1) in
-      let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n3, g2n3, g3n3) in
 
-      let sharedn3 = gexp(ephPubBA', sephSecAB1) in
-      let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn3) in
-      let rkBA' = get_rkey(rckBA') in
-      let ckBA' = get_ckey(rckBA') in
+     let g1n3 = gexp(pubA,sephSecAB1) in
+     let g2n3 = gexp(ephPubBA, secB) in
+     let g3n3 = gexp(ephPubBA, sephSecAB1) in
+     let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n3, g2n3, g3n3) in
 
-      let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-      let injbot(msg) = dec(msgenc, concat5(x_pubB,x_pubBsign,pubA,pubAsign,ephPubBA'), kENC) in
-      event Recv3(x_pubB,x_pubBsign,pubA,pubAsign,sephPubAB1,ephPubBA,ephPubBA',msg)
-      )
-      else
-      (
-      let g1n4 = gexp(x_pubB,sephSecAB1) in
-      let g2n4 = gexp(ephPubBA, secA) in
-      let g3n4 = gexp(ephPubBA, sephSecAB1) in
-      let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n4, g2n4, g3n4) in
-      let sharedn4 = gexp(ephPubBA', sephSecAB1) in
-      let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn4) in
-      out(ch8, (ephPubBA', rckBA'))
-      )
+     let sharedn3 = gexp(ephPubBA', sephSecAB1) in
+     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn3) in
+     let rkBA' = get_rkey(rckBA') in
+     let ckBA' = get_ckey(rckBA') in
+
+     let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
+     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
+     event Recv3(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
+   ) else (
+     let g1n4 = gexp(x_pubA,sephSecAB1) in
+     let g2n4 = gexp(ephPubBA, secB) in
+     let g3n4 = gexp(ephPubBA, sephSecAB1) in
+     let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n4, g2n4, g3n4) in
+
+     let sharedn4 = gexp(ephPubBA', sephSecAB1) in
+     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn4) in
+     out(ch8, (ephPubBA', rckBA'))
+     (* The adversary can continue the protocol *)
+   )
    )).
 
-
-(* Alice using prekeys and sending a message to a participant (herself or other).
+(* Alice using prekeys and sending a message to a participant (Bob or other).
    The received arguments x_pubB:G, x_pubBsign:pkey choose Alice's interlocutor. *)
 
-let RecvAKE_Alice(hk2: hashkey2, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, secb1: bool) =
+let RecvAKE_Alice(hk2: hashkey2, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
    (* Key exchange + send message m1 or m2 *)
    in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,(m1: bitstring, m2:bitstring)));
 ifdef(`FS',`
@@ -288,7 +288,7 @@ ifdef(`FS',`
 	 because it avoids having to use occurrence and variable numbers in the proof.
 	 The code is the same in both branches, except that some variables are 
 	 renamed. *)
-      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubA then
+      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubB then
       (
           new ephSecBA1: Z;
       	  let ephPubBA = gexp(g, ephSecBA1) in
@@ -307,9 +307,9 @@ ifdef(`FS',`
 
           let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
       
-          if x_pubB = pubA && x_pubBsign = pubAsign then
+          if x_pubB = pubB && x_pubBsign = pubBsign then
       	  (
-	      (* Alice talks to herself *)
+	      (* Alice talks to Bob *)
               if checksign(sephPubAB, x_pubBsign, signature) then
               (* Check that m1 and m2 have the same length *)
               if Zero(m1) = Zero(m2) then
@@ -321,7 +321,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant *)
+              (* Alice talks to a dishonest participant (or to Alice herself) *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -348,9 +348,9 @@ ifdef(`FS',`
 
       	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
       
-	  if x_pubB = pubA && x_pubBsign = pubAsign then
+	  if x_pubB = pubB && x_pubBsign = pubBsign then
           (
-	      (* Alice talks to herself *)
+	      (* Alice talks to Bob *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      (* CryptoVerif will show that this case actually never happens *)
               (* Check that m1 and m2 have the same length *)
@@ -363,7 +363,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant *)
+              (* Alice talks to a dishonest participant (or to Alice herself) *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -373,7 +373,7 @@ ifdef(`FS',`
       ).
 
 
-let RecvAKE_Alice_3DH(hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, secb1: bool) =
+let RecvAKE_Alice_3DH(hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
    (* Key exchange + send message m1 or m2 *)
    in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,(m1: bitstring, m2:bitstring)));
 ifdef(`FS',`
@@ -388,7 +388,7 @@ ifdef(`FS',`
 	 because it avoids having to use occurrence and variable numbers in the proof.
 	 The code is the same in both branches, except that some variables are 
 	 renamed. *)
-      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubA then
+      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubB then
       (
           new ephSecBA2: Z;
       	  let ephPubBA = gexp(g, ephSecBA2) in
@@ -405,9 +405,9 @@ ifdef(`FS',`
       	  let ckBA' = get_ckey(rckBA') in
 
       	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-          if x_pubB = pubA && x_pubBsign = pubAsign then
+          if x_pubB = pubB && x_pubBsign = pubBsign then
       	  (
-	      (* Alice talks to herself *)
+	      (* Alice talks to Bob *)
       	      if checksign(sephPubAB, x_pubBsign, signature) then
               (* Check that m1 and m2 have the same length *)
       	      if Zero(m1) = Zero(m2) then
@@ -419,7 +419,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant *)
+              (* Alice talks to a dishonest participant (or to Alice herself) *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -444,9 +444,9 @@ ifdef(`FS',`
       	  let ckBA' = get_ckey(rckBA') in
 
       	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-          if x_pubB = pubA && x_pubBsign = pubAsign then
+          if x_pubB = pubB && x_pubBsign = pubBsign then
       	  (
-	      (* Alice talks to herself *)
+	      (* Alice talks to Bob *)
       	      if checksign(sephPubAB, x_pubBsign, signature) then
 	      (* CryptoVerif will show that this case actually never happens *)
               (* Check that m1 and m2 have the same length *)
@@ -459,7 +459,7 @@ ifdef(`FS',`
           )
           else
           (
-              (* Alice talks to a dishonest participant *)
+              (* Alice talks to a dishonest participant (or to Alice herself) *)
               if checksign(sephPubAB, x_pubBsign, signature) then
 	      if m1 = m2 then
 	      let msg = m1 in
@@ -467,6 +467,7 @@ ifdef(`FS',`
       	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
           )
       ).
+
 
 (* Corruption for forward secrecy *)
 
@@ -489,9 +490,9 @@ process
     let pubAsign = pkgen(signAseed) in
     out(outprin,(pubA, pubAsign));
     (
-      (!Nsend SendAKE_Alice(hk2, hk3, hk4, hk6, secA0, pubA, secAsign, pubAsign))
-    | (!Nrecv RecvAKE_Alice(hk2, hk4, hk6, secA0, pubA, pubAsign, secb))
-    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, hk4, hk6, secA0, pubA, pubAsign, secb))
+      (!Nsend SendAKE_Bob(hk2, hk3, hk4, hk6, pubA, secA0, pubA, secAsign, pubAsign))
+    | (!Nrecv RecvAKE_Alice(hk2, hk4, hk6, secA0, pubA, pubAsign, pubA, pubAsign, secb))
+    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, hk4, hk6, secA0, pubA, pubAsign, pubA, pubAsign, secb))
 ifdef(`FS',`
     | corrupt(secA0, secAsign)
 ')
