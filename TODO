@@ -176,7 +176,7 @@ That should be sufficient for modules that want to read the variable.
    examplesnd/test/clash_macro_global_var*.cv
    I really need to fix this bug.
 
-   TO DO [test] allow replication indices in arguments of letfun and tables.
+   DONE allow replication indices in arguments of letfun and tables.
 
    f) write a converter from the old front-end to the new one.
    Changes in the converter:
@@ -359,15 +359,15 @@ We could probably push this idea for noninterf x among S.
    public_vars x1, ..., xn can be encoded by adding an output
    of xi on a public channel just after the definition of xi for
    i=1,...,n.
-      P1) For syntactic secrecy:
+      DONE P1) For syntactic secrecy:
    Could be encoded as follows: add an event x_contains(x) just after
    the definition of x, and use the query x_contains(v) && attacker(v)
    ==> false.
-      P2) For indistinguishability from random: add 
+      DONE P2) For indistinguishability from random: add 
       new rand: Tx; out(pub, choice[x,rand])
       just after the definition of x.
       (It needs to be separated from all other queries.)
-      P3) For one-session indistinguishability from random: add
+      ABANDONED P3) For one-session indistinguishability from random: add
       insert Tblx(x)
       just after the definition of x and add a process
       get Tblx(x) in new rand: Tx; out(pub, choice[x,rand])
