@@ -80,7 +80,7 @@ of MACs and signatures.
 
 ------------------------------------------------------
 
-examples-1.28/arinc823
+examples-1.28/arinc823 (IN PROGRESS)
 
 These examples add primitives defined in arinc823prim.cvl to the
 standard library of primitives. arinc823prim.cvl needs to be converted
