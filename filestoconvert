@@ -65,14 +65,7 @@ examples-1.28/kerberos/ (OK)
 ------------------------------------------------------
 cryptoverif/implementation/{ssh,nspk} (OK)
 ------------------------------------------------------
-
-examples-1.28/textsecure
-
-These examples use a specific library of crypto primitives (TextSecure.cvl),
-but it should now be possible to use the new standard library of primitives
-instead.
-They use the m4 preprocessor to generate the CryptoVerif models
-from 3 master files, using the script "runcv".
+examples-1.28/textsecure (OK)
 ------------------------------------------------------
 
 examples-1.28/tls-tech-report
