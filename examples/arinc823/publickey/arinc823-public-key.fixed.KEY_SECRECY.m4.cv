@@ -9,9 +9,9 @@ proof {
       (* Apply UF-CMA assumption on signatures used for
       	 certificates. *)
       crypto uf_cma(signcert) seedCA;
-      (* Apply SUF-CMA assumption on signatures under dU and dV. *)
-      crypto suf_cma_corrupt(sign) dV;
-      crypto suf_cma_corrupt(sign) dU;
+      (* Apply SUF-CMA assumption on signatures under dU0 and dV0. *)
+      crypto suf_cma_corrupt(sign) dV0;
+      crypto suf_cma_corrupt(sign) dU0;
       (* Apply random oracle assumption on KDF256 and KDF128.
       	 After these transformations, the games compare
 	 the arguments of key generation functions with arguments

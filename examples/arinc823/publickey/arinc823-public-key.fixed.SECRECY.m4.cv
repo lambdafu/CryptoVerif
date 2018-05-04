@@ -1,186 +1,40 @@
 (* ARINC 823 
 AMS protocol using private/public keys
 described in Attachment 7 of the ARINC specification 823 Part I. 
-CryptoVerif model.
-
-In case replay protection is added for the Init_REQ and Init_IND 
-messages, try to prove injective correspondences. *)
+CryptoVerif model. *)
 
 (**** Proof indications ****)
 
-ifdef(`NO_COMPROMISE',`
 proof {
       (* Apply UF-CMA assumption on signatures used for
-      	 certificates *)
-      crypto uf_cma(signcert) seedCA;
-      (* Apply SUF-CMA assumption on signatures under dU0 and dV0. *)
-      crypto suf_cma(sign) dV0;
-      crypto suf_cma(sign) dU0;
-      (* The previous steps guarantee that when we talk to U (resp V),
-      	 the message really comes from U (resp V).
-	 Hence, we can already prove some basic freshness and
-	 authentication properties for the AMS_Init_IND,
-	 AMS_Init_REQ, and AMS_Init_RSP messages. *)
-      success;
+      	 certificates.
+	 Since we prove forward secrecy, we use the version
+	 that allows the key to be corrupted. *)
+      crypto uf_cma_corrupt(signcert) seedCA;
+      (* Apply SUF-CMA assumption on signatures under dU0 and dV0.
+      	 Since we prove forward secrecy, we use the version
+	 that allows the key to be corrupted. *)
+      crypto suf_cma_corrupt(sign) dV0;
+      crypto suf_cma_corrupt(sign) dU0;
       (* Apply random oracle assumption on KDF256 and KDF128.
       	 After these transformations, the games compare
 	 the arguments of key generation functions with arguments
 	 in previous calls to these functions.
 	 Hence there are comparisons between values of Z_UV1, Z_UV2,
-	 and values coming from the adversary. *)      
-      crypto rom(KDF256_128);
-      (* Rename each definition of the variables Z_UV1 and Z_UV2 to a distinct name.
-      	 This is useful so that we can next replace some 
-	 of these variables with their values and not others *)
-      SArename Z_UV1;
-      SArename Z_UV2;
-      (* Output the current game in the file g1.out.
-      	 We use this file to determine the actual names used for
-	 renaming Z_UV1 and Z_UV2 at the previous steps. *)
-      out_game "g1.out";
-      (* Replace variables Z_UV1_... and Z_UV2_... that contain
-      	 exp(g, mult(eU_..., eV)) with their values. Those values
-	 cannot be computed by the adversary, as we will show using the
-	 CDH assumption below.
-	 Other variables Z_UV1_... and Z_UV2_... contain 
-	 exp(X, eV) or exp(X, eU_...) where X is something that
-	 comes from the adversary. Hence potentially these variables
-	 Z_UV1_.../Z_UV2_... can be computed by the adversary. *) 
-      remove_assign binder Z_UV1_6;
-      remove_assign binder Z_UV1_4;
-      remove_assign binder Z_UV1_2;
-      remove_assign binder Z_UV2_2;
-      remove_assign binder Z_UV2_3;
-      remove_assign binder Z_UV2_4;
-      (* Apply the CDH assumption.
-      	 This step replaces comparisons m = exp(g, mult(eU_..., eV))
-	 that always fail with false. *)
-      crypto cdh(exp) "variables: eU_1 -> a, eU_2 -> a, eU_3 -> a, eV -> b";
-      (* We continue with the automatic proof strategy.
-      	 In particular, this step applies the security
-	 assumption on the MAC, in order to prove message
-	 authentication. *)
-      auto
-}
-')
-
-ifdef(`COMPROMISE_U',`
-proof {
-      (* Apply UF-CMA assumption on signatures used for
-      	 certificates *)
-      crypto uf_cma(signcert) seedCA;
-      (* Apply SUF-CMA assumption on signatures under dV.
-      	 Since dU0 is compromised, applying the security of
-	 signatures under dU0 does not help. *)
-      crypto suf_cma(sign) dV0;
-      (* The previous step shows that a message signed
-      	 under dV really comes from V. Hence, we can already
-	 show the freshness of the AMS_Init_IND and AMS_Init_RSP messages. *)
-      success;
-      (* Output the current game in the file g1.out, with occurrence numbers.
-      	 We use this file to determine the next instructions to apply. *)
-      out_game "g1.out" occ;
-      (* The following instruction inserts a "find" after defining RU_1, Ux_9, and 
-      	 MAClen_1 in the ground process. 
-       	 This "find" distinguishes whether that RU_1 comes from an aircraft session in 
-	 which the aircraft wants to talk to V and has the corresponding MAC length or not.
-	 It replaces the application of suf_cma(sign) dU0, which yields nothing
-	 when dU0 is compromised. *)
-      insert 7236 "find j <= Naircraft suchthat defined(RU[j], Vx_1[j], MAClen[j]) && RU_1 = RU[j] && Ux_9 = U && Vx_1[j] = V && MAClen_1 = MAClen[j] then";
-      (* Distinguish whether the aircraft talks to V or not, 
-	 for all three MAC lengths *)
-      insert 4829 "if Vx_1 = V then";
-      insert 2453 "if Vx_1 = V then";
-      insert 77 "if Vx_1 = V then";
-      (* Rename each definition of eV to a distinct name. 
-      	 In particular, the variable eV containing the ephemeral used by V 
-	 to talk to U in a session with matching parameters as checked by the "find"
-	 introduced above will have a name different from the variable eV
-	 used by V to talk to the adversary. *)
-      SArename eV;
-      (* Rename each definition of RU to a distinct name.
-      	 This is useful so that CryptoVerif knows from which
-	 definition of RU each value comes. It can then replace
-	 RU_498 with its value as needed. *)
-      SArename RU;
-      (* Apply random oracle assumption on KDF256 and KDF128.
-      	 After these transformations, the games compare
-	 the arguments of key generation functions with arguments
-	 in previous calls to these functions.
-	 Hence there are comparisons between values of Z_UV1, Z_UV2,
-	 and values coming from the adversary. *)      
-      crypto rom(KDF256_128);
-      (* Rename each definition of the variables Z_UV1 and Z_UV2 to a distinct name.
-      	 This is useful so that we can next replace some 
-	 of these variables with their values and not others *)
-      SArename Z_UV1;
-      SArename Z_UV2;
-      (* Output the current game in the file g1.out.
-      	 We use this file to determine the actual names used for
-	 renaming Z_UV1 and Z_UV2 at the previous steps. *)
-      out_game "g2.out";
-      (* Replace variables Z_UV1_... and Z_UV2_... that contain
-      	 exp(g, mult(eU_..., eV)) with their values. Those values
-	 cannot be computed by the adversary, as we will show using the
-	 CDH assumption below.
-	 Other variables Z_UV1_... and Z_UV2_... contain 
-	 exp(X, eV) or exp(X, eU_...) where X is something that
-	 comes from the adversary. Hence potentially these variables
-	 Z_UV1_.../Z_UV2_... can be computed by the adversary. *) 
-      remove_assign binder Z_UV1_9; (* search "let Z_UV1"; use the variables Z_UV1_nn = exp(g, mult(eU.., eV..[..])) *)
-      remove_assign binder Z_UV1_6;
-      remove_assign binder Z_UV1_3;
-      remove_assign binder Z_UV2_1;
-      remove_assign binder Z_UV2_2;
-      remove_assign binder Z_UV2_3;
-      (* Apply the CDH assumption.
-      	 This step replaces comparisons m = exp(g, mult(eU_..., eV))
-	 that always fail with false. *)
-      crypto cdh(exp) "variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_2 -> b .";
-      auto
-}
-')
-
-ifdef(`COMPROMISE_V',`
-proof {
-      (* Apply UF-CMA assumption on signatures used for
-      	 certificates *)
-      crypto uf_cma(signcert) seedCA;
-      (* Apply SUF-CMA assumption on signatures under dU0.
-      	 Since dV0 is compromised, applying the security of
-	 signatures under dV0 does not help. *)
-      crypto suf_cma(sign) dU0;
-      (* The previous step shows that a message signed
-      	 under dU0 really comes from U. Hence, we can already
-	 show the freshness of the AMS_Init_REQ message. *)
-      success;
-      (* Apply random oracle assumption on KDF256 and KDF128.
-      	 After these transformations, the games compare
-	 the arguments of key generation functions with arguments
-	 in previous calls to these functions.
-	 Hence there are comparisons between values of Z_UV1, Z_UV2,
-	 and values coming from the adversary. *)      
+	 and values coming from the adversary. *)
       crypto rom(KDF256_128);
       (* Replace occurrences of Z_UV1 and Z_UV2 with their values.
-      	 This step makes comparisons m = exp(g, eU.eV) and other comparisons
+      	 This step makes comparisons m = exp(g, dU.dV) and other comparisons
 	 with exponentials appear. *)
       remove_assign binder Z_UV1;
       remove_assign binder Z_UV2;
-      (* Rename each definition of eV to a distinct name. 
-      	 In particular, the variable eV containing the ephemeral used by V 
-	 to talk to U in a session with matching parameters as checked by the "find"
-	 introduced above will have a name different from the variable eV
-	 used by V to talk to the adversary.
-	 This allows CryptoVerif to distinguish these two cases. *)
-      SArename eV;
       (* Use the automatic proof strategy.
-      	 In particular, this step applies the Gap Diffie-Hellman
-	 assumption and the security assumption on the MAC.
-	 It shows absence of unknown key share attacks and
-	 message authentication for messages from U to V. *)
-      auto (* crypto gdh(exp) & crypto suf_cma_truncated<nn>_mac * *)
+      	 In particular, the step will apply the Gap Diffie-Hellman
+	 assumption and the assumptions on the MAC and encryption,
+	 to show secrecy of the messages. *)
+      auto
+       (* crypto gdh(exp) ... *)
 }
-')
 
 (**** Declarations of types, constants, and function symbols ****)
 
@@ -205,13 +59,8 @@ const U, V: t_id.
 type Z [bounded, large].
 type G [bounded, large].
 
-ifdef(`COMPROMISE_V',`
 proba pGDH.
 expand GDH_prime_order(G, Z, g, exp, mult, pGDH).
-',`
-proba pCDH.
-expand CDH(G, Z, g, exp, mult, pCDH).
-')
 
 (* AMS Message elements *)
 
@@ -279,10 +128,8 @@ const MAClen32, MAClen64, MAClen128: t_MAClen.
 const HMAC_SHA256: t_AuthAlgo.
 const NULL_enc, AES128_CFB128: t_EncAlgo.
 
-fun get_common_enc_algo(t_EncAlgo): t_EncAlgo.
-(* The protocol satisfies authentication independently of the definition of this function.
-   letfun get_common_enc_algo(enc_algo: t_EncAlgo) = 
-      if enc_algo = AES128_CFB128 then AES128_CFB128 else NULL_enc. *)
+letfun get_common_enc_algo(enc_algo: t_EncAlgo) = 
+      if enc_algo = AES128_CFB128 then AES128_CFB128 else NULL_enc.
 
 (* Policy types *)
 
@@ -296,12 +143,9 @@ fun get_policy(t_policy_id, bitstring): t_AMS_Policy.
 	determine the expected policy to apply to the message msg 
 	from the message msg itself and the policy identifier policy_id. *)
 
-fun get_protect_mode(t_AMS_Policy, t_EncAlgo): t_AMS_Policy.
-(* The protocol satisfies authentication independently of the definition of this function.
-   letfun get_protect_mode(policy: t_AMS_Policy, enc_algo: t_EncAlgo) =
+letfun get_protect_mode(policy: t_AMS_Policy, enc_algo: t_EncAlgo) =
        if enc_algo = NULL_enc && policy = BOTH then AUTH else policy.
-
-   If the security policy specifies the BOTH protection mode
+(* If the security policy specifies the BOTH protection mode
    and the selected encryption is NULL, then ProtectMode is set to AUTH.
    In all other cases, ProtectMode is the protection mode
    specified in the security policy. *)
@@ -333,6 +177,7 @@ const Count_unspecified: t_Count.
 
 type mac_key [large, fixed].
 
+
 proba PPRF. 
       (* PPRF(t, qMAC, l, qKDF256, qKDF128) is the probability of 
          distinguishing MAC, KDF256, and KDF128 from independent pseudo-random
@@ -355,11 +200,12 @@ const CstDN: byte. (* 0x00 *)
 const CstUP: byte. (* 0x01 *)
 fun buildIVdata(byte, t_Count): t_IVdata [data].
 
-expand encryption_IV_no_hyp(enc_key, t_IVdata, E', D').
+proba Penc.
+	(* Penc(t, N, l) is the probability of breaking the IND-CPA property of encryption
+	   in time t, with N queries to the left-right encryption oracle, of length at most l
+	   (for one encryption key). *)
 
-(* encryption is IND-CPA provided IVdata is distinct
-   for each encryption --- This property is needed only for
-   secrecy. *)
+expand encryption_IV_IND_CPA(enc_key, t_IVdata, E', D', Zero, Penc).
 
 (* ECDSA Signatures (SUF_CMA) *)
 
@@ -389,25 +235,21 @@ expand ROM_hash_quad(hash_key1, G, t_SHA256_out, t_id, t_id, mac_enc_key, KDF256
 
 (* Generating a single random key of type mac_enc_key and splitting it into
    a MAC key and an encryption key is equivalent to generating a
-   random MAC key and a random encryption key.
-   We need to apply this equivalence even if the key of type mac_enc_key
-   is also used as a whole, for proving absence of UKS attacks. *)
+   random MAC key and a random encryption key. *)
 
 fun get_kmac(mac_enc_key): mac_key.
 fun get_kenc(mac_enc_key): enc_key.
-fun concat_mac_enc_key(mac_key, enc_key): mac_enc_key [data].
 
 param N.
 
 equiv(eq_mac_enc_key)
-      !N new r: mac_enc_key; (O1() [useful_change] := return(get_kmac(r)) |
-      	    	              O2() [useful_change] := return(get_kenc(r)) |
-			      O3() := return(r))
+      !N new r: mac_enc_key; (O1() := return(get_kmac(r)) |
+      	    	              O2() := return(get_kenc(r)))
     <=(0)=>
-      !N new r1: mac_key; new r2: enc_key;
-         (O1() := return(r1) |
-      	  O2() := return(r2) |
-	  O3() := return(concat_mac_enc_key(r1,r2))).
+      !N (O1() := new r1: mac_key; return(r1) |
+      	  O2() := new r2: enc_key; return(r2)).
+
+
 
 (* Certificates *)
 
@@ -489,25 +331,8 @@ table received_Init_REQ_table(t_id, t_AMS_Time, signature).
 
 (* Authenticity of the payload messages, when the policy is not NONE *)
 
-event send_msgU(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event send_msgV(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event recv_msgU(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event recv_msgV(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-
-ifdef(`COMPROMISE_V',`',`
-query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, policy: t_AMS_Policy, 
-      enc: t_EncAlgo, count: t_Count, msg: bitstring;
-      inj-event(recv_msgU(U, V, tU, sU, randV, policy_id, policy, enc, count, msg)) ==>
-      policy = get_policy(policy_id, msg) && 
-      (inj-event(send_msgV(V, U, tU, sU, randV, policy_id, policy, enc, count, msg)) || policy = NONE).
-')
-ifdef(`COMPROMISE_U',`',`
-query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, policy: t_AMS_Policy, 
-      enc: t_EncAlgo, count: t_Count, msg: bitstring;
-      inj-event(recv_msgV(V, U, tU, sU, randV, policy_id, policy, enc, count, msg)) ==>
-      policy = get_policy(policy_id, msg) && 
-      (inj-event(send_msgU(U, V, tU, sU, randV, policy_id, policy, enc, count, msg)) || policy = NONE).
-')
+event send_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
+event recv_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
 
 (* Freshness of the AMS_Init_REQ message; 
    authentication of the aircraft to the ground entity *)
@@ -515,41 +340,10 @@ query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, po
 event send_Init_REQ(t_id, t_id, bitstring, signature, t_AMS_Time).
 event recv_Init_REQ(t_id, t_id, bitstring, signature, t_AMS_Time, t_AMS_Time).
 
-ifdef(`COMPROMISE_U',`',`
-ifdef(`REPLAY_PROT',`
-query x: bitstring, sU: signature, tU: t_AMS_Time, tV: t_AMS_Time;
-      inj-event(recv_Init_REQ(V, U, x, sU, tU, tV)) ==>
-      check_time(tU, tV) && inj-event(send_Init_REQ(U, V, x, sU, tU)).
-',`
-query x: bitstring, sU: signature, tU: t_AMS_Time, tV: t_AMS_Time;
-      event(recv_Init_REQ(V, U, x, sU, tU, tV)) ==>
-      check_time(tU, tV) && event(send_Init_REQ(U, V, x, sU, tU)).
-')
-')
-
 (* Authentication of the ground entity to the aircraft *)
 
 event send_Init_RSP(t_id, t_id, bitstring, signature, signature, t_Rand32, t_AMS_Time, t_AMS_Time, mac_key, enc_key).
 event recv_Init_RSP(t_id, t_id, bitstring, signature, signature, t_Rand32, t_AMS_Time, mac_key, enc_key).
-
-ifdef(`COMPROMISE_V',`',`
-query x: bitstring, sV: signature, sU: signature, RandV: t_Rand32, tU: t_AMS_Time, tV: t_AMS_Time, KMAC_UV: mac_key,
-      KENC_UV: enc_key;
-      inj-event(recv_Init_RSP(U, V, x, sV, sU, RandV, tU, KMAC_UV, KENC_UV)) ==>
-      check_time(tU, tV) && inj-event(send_Init_RSP(V, U, x, sV, sU, RandV, tU, tV, KMAC_UV, KENC_UV)).
-')
-
-(* Detection of bilateral UKS attacks *)
-
-query Ux: t_id, Vx: t_id, x: bitstring, sV: signature, sU: signature, RandV: t_Rand32, tU: t_AMS_Time, tV: t_AMS_Time, KMAC_UV: mac_key, KENC_UV: enc_key,
-      Ux2: t_id, Vx2: t_id, x2: bitstring, sV2: signature, sU2: signature, RandV2: t_Rand32, tU2: t_AMS_Time, KMAC_UV2: mac_key;
-      event(send_Init_RSP(Vx, Ux, x, sV, sU, RandV, tU, tV, KMAC_UV, KENC_UV)) &&
-      event(recv_Init_RSP(Ux2, Vx2, x2, sV2, sU2, RandV2, tU2, KMAC_UV2, KENC_UV)) ==> Ux = Ux2 && Vx = Vx2.
-
-query Ux: t_id, Vx: t_id, x: bitstring, sV: signature, sU: signature, RandV: t_Rand32, tU: t_AMS_Time, tV: t_AMS_Time, KMAC_UV: mac_key, KENC_UV: enc_key,
-      Ux2: t_id, Vx2: t_id, x2: bitstring, sV2: signature, sU2: signature, RandV2: t_Rand32, tU2: t_AMS_Time, KENC_UV2: enc_key;
-      event(send_Init_RSP(Vx, Ux, x, sV, sU, RandV, tU, tV, KMAC_UV, KENC_UV)) &&
-      event(recv_Init_RSP(Ux2, Vx2, x2, sV2, sU2, RandV2, tU2, KMAC_UV, KENC_UV2)) ==> Ux = Ux2 && Vx = Vx2.
 
 (* Freshness of the AMS_Init_IND message (ground-initiated trigger);
    authentication of the ground entity to the aircraft *)
@@ -557,19 +351,27 @@ query Ux: t_id, Vx: t_id, x: bitstring, sV: signature, sU: signature, RandV: t_R
 event send_Init_IND(t_id, t_id, bitstring, signature, t_AMS_Time).
 event recv_Init_IND(t_id, t_id, bitstring, signature, t_AMS_Time, t_AMS_Time).
 
-ifdef(`COMPROMISE_V',`',`
-ifdef(`REPLAY_PROT',`
-query x: bitstring, sV: signature, tV: t_AMS_Time, tU: t_AMS_Time;
-      inj-event(recv_Init_IND(U, V, x, sV, tV, tU)) ==>
-      check_time(tV, tU) && inj-event(send_Init_IND(V, U, x, sV, tV)).
-',`
-query x: bitstring, sV: signature, tV: t_AMS_Time, tU: t_AMS_Time;
-      event(recv_Init_IND(U, V, x, sV, tV, tU)) ==>
-      check_time(tV, tU) && event(send_Init_IND(V, U, x, sV, tV)).
-')
-')
+(* Secrecy *)
 
-(* Secrecy -- see arinc823-public-key.fixed.SECRECY.cv *)
+fun test(bool, bitstring, bitstring): bitstring.
+equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
+equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
+equation forall b:bool,x:bitstring; test(b,x,x) = x.
+
+fun test_policy(bool, t_AMS_Policy, t_AMS_Policy): t_AMS_Policy.
+equation forall x:t_AMS_Policy,y:t_AMS_Policy; test_policy(true,x,y) = x.
+equation forall x:t_AMS_Policy,y:t_AMS_Policy; test_policy(false,x,y) = y.
+equation forall b:bool,x:t_AMS_Policy; test_policy(b,x,x) = x.
+
+equation forall policy_id:t_policy_id,b:bool,x:bitstring,y:bitstring; 
+       get_policy(policy_id, test(b, x, y)) = test_policy(b, get_policy(policy_id, x), get_policy(policy_id, y)).
+
+equation forall comp_algo: t_comp_algo, encode_algo: t_encode_algo, b:bool,x:bitstring,y:bitstring; 
+       Zero(compress(comp_algo, encode(encode_algo, test(b, x, y)))) =
+       test(b, Zero(compress(comp_algo, encode(encode_algo, x))),
+       	       Zero(compress(comp_algo, encode(encode_algo, y)))).
+
+query secret b.
 
 (**** The protocol ****)
 
@@ -577,22 +379,17 @@ param Naircraft, Nground, Nground_init, Nground_init_react, Ncert_server, Nmessa
 channel c_gen1, c_gen2, c_aircraft0, c_aircraft0', c_aircraft1, c_aircraft2, c_aircraft3, c_aircraft4, 
 	c_ground1, c_ground2, c_ground_initiated_trigger1, c_ground_initiated_trigger2,
 	c_aircraft_react_ground_initiated_trigger1, c_aircraft_react_ground_initiated_trigger2,
-	c_cert_server1, c_cert_server2,
+	c_cert_server1, c_cert_server2, c_comp,
 	choicechannel, pub.
 
 (* The process tunnel_protocol models the secure session data exchange
    (Attachment 7, Section 7.3) *)
 
-let tunnel_protocolU(current_session_id: session_ids,
-    		    ams_pid: t_AMS_PID, common_comp_algo_id: t_AMS_elem, policy_id: t_policy_id,
-    	            tU: t_AMS_Time, sU: signature, RandV: t_Rand32, KMAC_UV: mac_key, KENC_UV: enc_key,
-    	            MAClen: t_MAClen, common_enc_algo: t_EncAlgo, sid: t_SID, 
-		    dir_send: byte, dir_recv: byte,
-		    my_id: t_id, other_id: t_id) =
+let tunnel_protocol =
 (
     (* Sender side *)
     ! Nmessage
-    in(choicechannel, (AMS_payload: bitstring, 
+    in(choicechannel, (AMS_payload1: bitstring, AMS_payload2: bitstring,
     		       encode_alg: t_encode_algo, comp_algo: t_comp_algo,
 		       ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, 
 		       count: t_Count, cmd: t_Cmd));
@@ -604,24 +401,37 @@ let tunnel_protocolU(current_session_id: session_ids,
 			  - Abort_IND in case A03 (Abort) *)
     (* We never send two messages with the same count, in the same session. *)
     get sent_count_table(=current_session_id, =count) in yield else
-    let policy_req = get_policy(policy_id, AMS_payload) in
-    event send_msgU(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
+    (* Secrecy is possible only when the two messages have policy BOTH;
+       in particular we require the two messages to have the same policy *)
+    let policy_req = get_policy(policy_id, AMS_payload1) in
+    if policy_req = get_policy(policy_id, AMS_payload2) then
+    let actual_comp_algo = select_common_compression(common_comp_algo_id, comp_algo) in
+    let encoded_payload1 = encode(encode_alg, AMS_payload1) in
+    let compressed_payload1 = compress(actual_comp_algo, encoded_payload1) in
+    let encoded_payload2 = encode(encode_alg, AMS_payload2) in
+    let compressed_payload2 = compress(actual_comp_algo, encoded_payload2) in
+    (* We prove secrecy for messages exchanged between U and V,
+       with policy BOTH and of the same compressed payload length. *)
+    if (((my_id = U && other_id = V) || (my_id = V && other_id = U)) &&
+        policy_req = BOTH && Zero(compressed_payload1) = Zero(compressed_payload2) && not(is_compromised)) || 
+	(AMS_payload1 = AMS_payload2) then
+    let AMS_payload = test(b, AMS_payload1, AMS_payload2) in
+    event send_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
     (* D01 *)
     if policy_req = NONE then
        out(pub, AMS_payload)
     else
     (* D/X02 *)
     let encoded_payload = encode(encode_alg, AMS_payload) in
-    let actual_comp_algo = select_common_compression(common_comp_algo_id, comp_algo) in
     let compressed_payload = compress(actual_comp_algo, encoded_payload) in
     insert sent_count_table(current_session_id, count);
     (* D/X03 *)
     let protect_mode = get_protect_mode(policy_req, common_enc_algo) in
     let encrypted_AMS_payload =
-       if protect_mode = AUTH then
-          compressed_payload
-       else 
+       if protect_mode = BOTH then
           E'(KENC_UV, buildIVdata(dir_send, count), compressed_payload)
+       else 
+          compressed_payload
     in
     (* D/X04 *)
     let ams_id = buildAMS_id1(ams_dstaddr, ams_imi, ams_pid) in
@@ -646,7 +456,7 @@ let tunnel_protocolU(current_session_id: session_ids,
       (* Policy check not explicit in the description of the protocol p 135, but
          mentioned  p 29-30, and essential for security *)
       if get_policy(policy_id, AMS_Data_IND) = NONE then
-      event recv_msgU(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
+      event recv_msg(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
     )
     else
     (* D/X06 *)
@@ -666,10 +476,10 @@ let tunnel_protocolU(current_session_id: session_ids,
     (* Message accepted *)
     (* D/X09 *)
     let compressed_payload = 
-    	if protect_mode = AUTH then
-           encrypted_AMS_payload
-        else
+    	if protect_mode = BOTH then
 	   D'(KENC_UV, buildIVdata(dir_recv, MsgCount), encrypted_AMS_payload)
+        else
+           encrypted_AMS_payload
     in
     (* D/X10 *)
     let encoded_payload = decompress(compression, compressed_payload) in
@@ -678,114 +488,16 @@ let tunnel_protocolU(current_session_id: session_ids,
        mentioned  p 29-30 *)
     let policy_req = get_policy(policy_id, AMS_payload) in
     if protect_mode = get_protect_mode(policy_req, common_enc_algo) then
-    event recv_msgU(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
-).
-
-let tunnel_protocolV(current_session_id: session_ids,
-    		    ams_pid: t_AMS_PID, common_comp_algo_id: t_AMS_elem, policy_id: t_policy_id,
-    	            tU: t_AMS_Time, sU: signature, RandV: t_Rand32, KMAC_UV: mac_key, KENC_UV: enc_key,
-    	            MAClen: t_MAClen, common_enc_algo: t_EncAlgo, sid: t_SID, 
-		    dir_send: byte, dir_recv: byte,
-		    my_id: t_id, other_id: t_id) =
-(
-    (* Sender side *)
-    ! Nmessage
-    in(choicechannel, (AMS_payload: bitstring, 
-    		       encode_alg: t_encode_algo, comp_algo: t_comp_algo,
-		       ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, 
-		       count: t_Count, cmd: t_Cmd));
-		       (* cmd can be
-		       	  - Data_IND / DataCnf_IND in case D04
-			  - Info_IND in case X04
-			  - Release_REQ in case R03 (Confirmed release)
-			  - Release_RSP+ / Release_RSP- in case R12 (reply to a confirmed release request)
-			  - Abort_IND in case A03 (Abort) *)
-    (* We never send two messages with the same count, in the same session. *)
-    get sent_count_table(=current_session_id, =count) in yield else
-    let policy_req = get_policy(policy_id, AMS_payload) in
-    event send_msgV(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
-    (* D01 *)
-    if policy_req = NONE then
-       out(pub, AMS_payload)
-    else
-    (* D/X02 *)
-    let encoded_payload = encode(encode_alg, AMS_payload) in
-    let actual_comp_algo = select_common_compression(common_comp_algo_id, comp_algo) in
-    let compressed_payload = compress(actual_comp_algo, encoded_payload) in
-    insert sent_count_table(current_session_id, count);
-    (* D/X03 *)
-    let protect_mode = get_protect_mode(policy_req, common_enc_algo) in
-    let encrypted_AMS_payload =
-       if protect_mode = AUTH then
-          compressed_payload
-       else 
-          E'(KENC_UV, buildIVdata(dir_send, count), compressed_payload)
-    in
-    (* D/X04 *)
-    let ams_id = buildAMS_id1(ams_dstaddr, ams_imi, ams_pid) in
-    let ams_header = buildAMS_Header(false, protect_mode, encode_alg, sid, actual_comp_algo, cmd) in
-    let AMS_Data_IND_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Rest(encrypted_AMS_payload, count)) in
-    let TBP_AMS_Data_IND = buildMAC_arg(my_id, other_id, AMS_Data_IND_prefix) in
-    let mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Data_IND) in
-    let AMS_Data_IND = concat(AMS_Data_IND_prefix, mac) in
-    (* D/X05 *)
-    out(pub, AMS_Data_IND)
-)
-|
-(
-    (* Receiver side *)
-    ! Nmessage
-    in(pub, (clear:bool, AMS_Data_IND: bitstring));
-    	    (* clear is true when the received message is not AMS-protected.
-	       This is determined using the ACARS label:
-	       there are specific Px ACARS labels for AMS protected messages (cf p. 58) *)
-    if clear then
-    (
-      (* Policy check not explicit in the description of the protocol p 135, but
-         mentioned  p 29-30, and essential for security *)
-      if get_policy(policy_id, AMS_Data_IND) = NONE then
-      event recv_msgV(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
-    )
-    else
-    (* D/X06 *)
-    let (AMS_Data_IND_prefix: bitstring, mac: bitstring) = split_message(MAClen, AMS_Data_IND) in
-    (* The MAC checking of step D/X08 is moved here to facilitate verification *)
-    let TBP_AMS_Data_IND = buildMAC_arg(other_id, my_id, AMS_Data_IND_prefix) in
-    if mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Data_IND) then
-    let buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Rest(encrypted_AMS_payload, MsgCount)) = AMS_Data_IND_prefix in
-    let buildAMS_Header(R1, protect_mode, encode_alg, sid, compression, cmd) = ams_header in
-    (* D/X07 *)
-    (* D/X08 *)
-    (* Check on the message count is slightly weaker than the check
-       given in the specification: we just discard the message if a message
-       with the same count has already been received in the same session. *)
-    get received_count_table(=current_session_id, =MsgCount) in yield else
-    insert received_count_table(current_session_id, MsgCount);
-    (* Message accepted *)
-    (* D/X09 *)
-    let compressed_payload = 
-    	if protect_mode = AUTH then
-           encrypted_AMS_payload
-        else
-	   D'(KENC_UV, buildIVdata(dir_recv, MsgCount), encrypted_AMS_payload)
-    in
-    (* D/X10 *)
-    let encoded_payload = decompress(compression, compressed_payload) in
-    let AMS_payload = decode(encode_alg, encoded_payload) in
-    (* Policy check not explicit in the description of the protocol p 137, but
-       mentioned  p 29-30 *)
-    let policy_req = get_policy(policy_id, AMS_payload) in
-    if protect_mode = get_protect_mode(policy_req, common_enc_algo) then
-    event recv_msgV(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
+    event recv_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
 ).
 
 (* Secure session initiation, aircraft-initiated (Attachement 7, Section 7.2.1) *)
 
-let aircraft_fixed_MAClen(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey, MAClen: t_MAClen) =
+let aircraft_fixed_MAClen =
     in(c_aircraft1, (Vx: t_id, software_part_number: t_software_part_number, policy_id: t_policy_id, 
     	      algo_bits: t_algo_bits, encode_alg: t_encode_algo, cert_or_query: t_AMS_elem,
 	      ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, sid: t_SID, 
-	      tU: t_AMS_Time, enc_algo: t_EncAlgo (* either NULL_enc or AES128_CFB128, depending on whether the aircraft supports encryption *)));
+	      tU: t_AMS_Time));
     (* Choose a session id *)
     new current_session_id: session_ids;
     (* Message 1, N01 *)
@@ -799,7 +511,7 @@ let aircraft_fixed_MAClen(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey, MACle
     (* N02 *)
     let ams_id = buildAMS_id1(ams_dstaddr, ams_imi, ams_pid1) in
     let ams_header = buildAMS_Header(false, SIGN, encode_alg, sid, comp_OFF, Init_REQ) in
-    let alg_ID_U = algo(MAClen, HMAC_SHA256, enc_algo) in
+    let alg_ID_U = algo(MAClen, HMAC_SHA256, AES128_CFB128) in
     let AMS_Init_REQ_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Init(encoded_payload, alg_ID_U, tU)) in
     let TBP_AMS_Init_REQ = buildMAC_arg(U, Vx, AMS_Init_REQ_prefix) in
     new r: seed;
@@ -843,16 +555,24 @@ let aircraft_fixed_MAClen(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey, MACle
        the aircraft entity executes an airline configurable unavailable action,
        which is ignored here. *)
     (* Message accepted, secure session established *)
+    (* Parameters for the process tunnel_protocol *)
+    let ams_pid = ams_pid1 in
+    let dir_send = CstDN in
+    let dir_recv = CstUP in
+    let my_id = U in
+    let other_id = Vx in
+    let is_compromised = if defined(compromised) then true else false in
     out(c_aircraft4, ());
-    tunnel_protocolU(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
-         tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstDN, CstUP, U, Vx).
+    tunnel_protocol.
+    (*tunnel_protocol(ams_pid1, common_comp_algo_id, policy_id,
+      tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstDN, CstUP, U, Vx)*)
 
-let aircraft(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey) = 
+let aircraft = 
     (in(c_aircraft0, MAClen: t_MAClen); 
      if MAClen = MAClen32 || MAClen = MAClen64 || MAClen = MAClen128 then 
-     out(c_aircraft0', ()); aircraft_fixed_MAClen(hk, hk1, dU, pkCA, MAClen)). 
+     out(c_aircraft0', ()); aircraft_fixed_MAClen). 
 
-let ground(hk: hash_key, hk1: hash_key1, dV: Z, pkCA: pkey) = 
+let ground = 
     in(c_ground1, (gd_algo_bits: t_algo_bits, tV: t_AMS_Time, 
             app_data: bitstring, encode_alg: t_encode_algo, comp_algo: t_comp_algo,
             AMS_Init_REQ: bitstring, certU: bitstring));
@@ -921,13 +641,20 @@ ifdef(`REPLAY_PROT',`
     let AMS_Init_RSP = build_msg_Init(AMS_Init_RSP_prefix, sV) in
     (* N13 *)
     event send_Init_RSP(V, Ux, AMS_Init_RSP_prefix, sV, sU, RandV, tU, tV, KMAC_UV, KENC_UV);
+    (* Parameters for the process tunnel_protocol *)
+    let ams_pid = ams_pid1 in
+    let dir_send = CstUP in
+    let dir_recv = CstDN in
+    let my_id = V in
+    let other_id = Ux in
+    let is_compromised = if defined(compromised) then true else false in 
     out(c_ground2, AMS_Init_RSP);
-    tunnel_protocolV(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
-      tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstUP, CstDN, V, Ux).
+    tunnel_protocol. (* tunnel_protocol(ams_pid1, common_comp_algo_id, policy_id,
+       tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstUP, CstDN, V, Ux)*)
 
 (* Ground-initiated trigger (Attachment 7, Section 7.2.2). *)
 
-let ground_initiated_trigger(dV: Z) =
+let ground_initiated_trigger =
     in(c_ground_initiated_trigger1, (opt_certV: bitstring, Ux: t_id, encode_alg: t_encode_algo, MAClen: t_MAClen, tV: t_AMS_Time));
     (* G01 *)
     let ams_payload = concat_AMS_element(buildAMS40_entity_id(Ux,V), opt_certV) in 
@@ -945,7 +672,7 @@ let ground_initiated_trigger(dV: Z) =
     event send_Init_IND(V, Ux, AMS_Init_IND_prefix, sV, tV);
     out(c_ground_initiated_trigger2, AMS_Init_IND).
 
-let aircraft_react_ground_initiated_trigger(pkCA: pkey) =
+let aircraft_react_ground_initiated_trigger =
     (* G04 *)
     in(c_aircraft_react_ground_initiated_trigger1, (tU: t_AMS_Time, AMS_Init_IND: bitstring, certV: bitstring));
     let build_msg_Init(AMS_Init_IND_prefix, sV) = AMS_Init_IND in
@@ -974,15 +701,24 @@ ifdef(`REPLAY_PROT',`
 (* Certificate server, to allow the adversary to create its own
    participants *)
 
-let cert_server(sCA: skey) =
+let cert_server =
     in(c_cert_server1, (h: t_id, pk: G));
     if h <> U && h <> V then
     out(c_cert_server2, cert(h, pk, sCA)).
+
+(* Compromise keys (for forward secrecy) *)
+
+let compromise =
+    in(c_comp, ());
+    let compromised: bool = true in
+    out(c_comp, (dU, dV, sCA)).
 
 (* Putting the whole system together *)
 
 process 
 	in(c_gen1, ());
+	(* Bit b for secrecy *)
+	new b0: bool;
 	(* CA private and public keys *)
 	new seedCA: keyseed;
 	let sCA = skgen(seedCA) in
@@ -998,33 +734,16 @@ process
 	(* Keys that models the choice of hash functions *)
 	new hk: hash_key; new hk1: hash_key1; 
 	(* Publish the public keys and certificates, and hash key for the collision resistant hash function *)
-	out(c_gen2, (pkCA, QU, QV, certU, certV
-ifdef(`COMPROMISE_U',`, dU0')
-ifdef(`COMPROMISE_V',`, dV0')
-	));
-	((! Naircraft aircraft(hk, hk1, dU0, pkCA)) | 
-	 (! Nground ground(hk, hk1, dV0, pkCA)) | 
-	 (! Nground_init ground_initiated_trigger(dV0)) | 
-	 (! Nground_init_react aircraft_react_ground_initiated_trigger(pkCA)) |
-	 (! Ncert_server cert_server(sCA)) |
+	out(c_gen2, (pkCA, QU, QV, certU, certV));
+	((! Naircraft aircraft) | 
+	 (! Nground ground) | 
+	 (! Nground_init ground_initiated_trigger) | 
+	 (! Nground_init_react aircraft_react_ground_initiated_trigger) | 
+	 (! Ncert_server cert_server) |
 	 SHA256_oracle(hk) |
-	 KDF256_128_oracle(hk1))
+	 KDF256_128_oracle(hk1) | compromise)
 
-ifdef(`COMPROMISE_U',`
 (* EXPECTED
 All queries proved.
-536.834s (user 536.682s + system 0.152s), max rss 1903632K
+3305.887s (user 3305.119s + system 0.768s), max rss 4957968K
 END *)
-')
-ifdef(`COMPROMISE_V',`
-(* EXPECTED
-All queries proved.
-279.325s (user 279.173s + system 0.152s), max rss 1305904K
-END *)
-')
-ifdef(`NO_COMPROMISE',`
-(* EXPECTED
-All queries proved.
-363.555s (user 363.427s + system 0.128s), max rss 1369424K
-END *)
-')
