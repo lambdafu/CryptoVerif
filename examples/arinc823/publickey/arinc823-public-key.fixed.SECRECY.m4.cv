@@ -371,7 +371,7 @@ equation forall comp_algo: t_comp_algo, encode_algo: t_encode_algo, b:bool,x:bit
        test(b, Zero(compress(comp_algo, encode(encode_algo, x))),
        	       Zero(compress(comp_algo, encode(encode_algo, y)))).
 
-query secret b.
+query secret b0.
 
 (**** The protocol ****)
 
@@ -385,7 +385,12 @@ channel c_gen1, c_gen2, c_aircraft0, c_aircraft0', c_aircraft1, c_aircraft2, c_a
 (* The process tunnel_protocol models the secure session data exchange
    (Attachment 7, Section 7.3) *)
 
-let tunnel_protocol =
+let tunnel_protocol(current_session_id: session_ids,
+    		    ams_pid: t_AMS_PID, common_comp_algo_id: t_AMS_elem, policy_id: t_policy_id,
+    	            tU: t_AMS_Time, sU: signature, RandV: t_Rand32, KMAC_UV: mac_key, KENC_UV: enc_key,
+    	            MAClen: t_MAClen, common_enc_algo: t_EncAlgo, sid: t_SID, 
+		    dir_send: byte, dir_recv: byte,
+		    my_id: t_id, other_id: t_id, b: bool, is_compromised: bool) =
 (
     (* Sender side *)
     ! Nmessage
@@ -493,7 +498,7 @@ let tunnel_protocol =
 
 (* Secure session initiation, aircraft-initiated (Attachement 7, Section 7.2.1) *)
 
-let aircraft_fixed_MAClen =
+let aircraft_fixed_MAClen(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey, MAClen: t_MAClen, b: bool) =
     in(c_aircraft1, (Vx: t_id, software_part_number: t_software_part_number, policy_id: t_policy_id, 
     	      algo_bits: t_algo_bits, encode_alg: t_encode_algo, cert_or_query: t_AMS_elem,
 	      ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, sid: t_SID, 
@@ -555,24 +560,17 @@ let aircraft_fixed_MAClen =
        the aircraft entity executes an airline configurable unavailable action,
        which is ignored here. *)
     (* Message accepted, secure session established *)
-    (* Parameters for the process tunnel_protocol *)
-    let ams_pid = ams_pid1 in
-    let dir_send = CstDN in
-    let dir_recv = CstUP in
-    let my_id = U in
-    let other_id = Vx in
     let is_compromised = if defined(compromised) then true else false in
     out(c_aircraft4, ());
-    tunnel_protocol.
-    (*tunnel_protocol(ams_pid1, common_comp_algo_id, policy_id,
-      tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstDN, CstUP, U, Vx)*)
+    tunnel_protocol(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
+         tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstDN, CstUP, U, Vx, b, is_compromised).
 
-let aircraft = 
-    (in(c_aircraft0, MAClen: t_MAClen); 
+let aircraft(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey, b: bool) = 
+     in(c_aircraft0, MAClen: t_MAClen); 
      if MAClen = MAClen32 || MAClen = MAClen64 || MAClen = MAClen128 then 
-     out(c_aircraft0', ()); aircraft_fixed_MAClen). 
+     out(c_aircraft0', ()); aircraft_fixed_MAClen(hk, hk1, dU, pkCA, MAClen, b). 
 
-let ground = 
+let ground(hk: hash_key, hk1: hash_key1, dV: Z, pkCA: pkey, b: bool) = 
     in(c_ground1, (gd_algo_bits: t_algo_bits, tV: t_AMS_Time, 
             app_data: bitstring, encode_alg: t_encode_algo, comp_algo: t_comp_algo,
             AMS_Init_REQ: bitstring, certU: bitstring));
@@ -641,20 +639,14 @@ ifdef(`REPLAY_PROT',`
     let AMS_Init_RSP = build_msg_Init(AMS_Init_RSP_prefix, sV) in
     (* N13 *)
     event send_Init_RSP(V, Ux, AMS_Init_RSP_prefix, sV, sU, RandV, tU, tV, KMAC_UV, KENC_UV);
-    (* Parameters for the process tunnel_protocol *)
-    let ams_pid = ams_pid1 in
-    let dir_send = CstUP in
-    let dir_recv = CstDN in
-    let my_id = V in
-    let other_id = Ux in
     let is_compromised = if defined(compromised) then true else false in 
     out(c_ground2, AMS_Init_RSP);
-    tunnel_protocol. (* tunnel_protocol(ams_pid1, common_comp_algo_id, policy_id,
-       tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstUP, CstDN, V, Ux)*)
+    tunnel_protocol(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
+      tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstUP, CstDN, V, Ux, b, is_compromised).
 
 (* Ground-initiated trigger (Attachment 7, Section 7.2.2). *)
 
-let ground_initiated_trigger =
+let ground_initiated_trigger(dV: Z) =
     in(c_ground_initiated_trigger1, (opt_certV: bitstring, Ux: t_id, encode_alg: t_encode_algo, MAClen: t_MAClen, tV: t_AMS_Time));
     (* G01 *)
     let ams_payload = concat_AMS_element(buildAMS40_entity_id(Ux,V), opt_certV) in 
@@ -672,7 +664,7 @@ let ground_initiated_trigger =
     event send_Init_IND(V, Ux, AMS_Init_IND_prefix, sV, tV);
     out(c_ground_initiated_trigger2, AMS_Init_IND).
 
-let aircraft_react_ground_initiated_trigger =
+let aircraft_react_ground_initiated_trigger(pkCA: pkey) =
     (* G04 *)
     in(c_aircraft_react_ground_initiated_trigger1, (tU: t_AMS_Time, AMS_Init_IND: bitstring, certV: bitstring));
     let build_msg_Init(AMS_Init_IND_prefix, sV) = AMS_Init_IND in
@@ -701,14 +693,14 @@ ifdef(`REPLAY_PROT',`
 (* Certificate server, to allow the adversary to create its own
    participants *)
 
-let cert_server =
+let cert_server(sCA: skey) =
     in(c_cert_server1, (h: t_id, pk: G));
     if h <> U && h <> V then
     out(c_cert_server2, cert(h, pk, sCA)).
 
 (* Compromise keys (for forward secrecy) *)
 
-let compromise =
+let compromise(dU: Z, dV: Z, sCA: skey) =
     in(c_comp, ());
     let compromised: bool = true in
     out(c_comp, (dU, dV, sCA)).
@@ -735,13 +727,13 @@ process
 	new hk: hash_key; new hk1: hash_key1; 
 	(* Publish the public keys and certificates, and hash key for the collision resistant hash function *)
 	out(c_gen2, (pkCA, QU, QV, certU, certV));
-	((! Naircraft aircraft) | 
-	 (! Nground ground) | 
-	 (! Nground_init ground_initiated_trigger) | 
-	 (! Nground_init_react aircraft_react_ground_initiated_trigger) | 
-	 (! Ncert_server cert_server) |
+	((! Naircraft aircraft(hk, hk1, dU0, pkCA, b0)) | 
+	 (! Nground ground(hk, hk1, dV0, pkCA, b0)) | 
+	 (! Nground_init ground_initiated_trigger(dV0)) | 
+	 (! Nground_init_react aircraft_react_ground_initiated_trigger(pkCA)) |
+	 (! Ncert_server cert_server(sCA)) |
 	 SHA256_oracle(hk) |
-	 KDF256_128_oracle(hk1) | compromise)
+	 KDF256_128_oracle(hk1) | compromise(dU0, dV0, sCA))
 
 (* EXPECTED
 All queries proved.

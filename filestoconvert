@@ -79,15 +79,7 @@ into SUF_CMA_mac_key_first
 of MACs and signatures.
 
 ------------------------------------------------------
-
-examples-1.28/arinc823 (IN PROGRESS)
-
-These examples add primitives defined in arinc823prim.cvl to the
-standard library of primitives. arinc823prim.cvl needs to be converted
-to the new syntax, because the primitives are too specific to
-include them in the standard library. (The automatic converter may help.)
-These examples use the m4 preprocessor to generate the CryptoVerif models
-from several master files, using the script "gen".
+examples-1.28/arinc823 (OK)
 ------------------------------------------------------
 
 examples-1.28/icao9880-May2017
