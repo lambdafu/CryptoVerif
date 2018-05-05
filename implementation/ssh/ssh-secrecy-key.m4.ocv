@@ -304,7 +304,14 @@ process
         return (pkS0)};
         ((foreach iA <= N do run processS(hk0,pkS0,skS0)) | (foreach iB <= N do run processC(hk0)) | run hashoracle(hk0))
 
+ifdef(`ONEKEY',`
 (* EXPECTED
 All queries proved.
 0.568s (user 0.552s + system 0.016s), max rss 101664K
 END *)
+',`
+(* EXPECTED
+All queries proved.
+574.392s (user 573.904s + system 0.488s), max rss 1168128K
+END *)
+')
