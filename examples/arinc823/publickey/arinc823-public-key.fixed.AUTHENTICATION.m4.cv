@@ -583,6 +583,14 @@ channel c_gen1, c_gen2, c_aircraft0, c_aircraft0', c_aircraft1, c_aircraft2, c_a
 (* The process tunnel_protocol models the secure session data exchange
    (Attachment 7, Section 7.3) *)
 
+(* We write two copies of the tunnel protocol, one for the aircraft and one for the ground entity, 
+   with events named differently (send_msgU, recv_msgU for the aircraft, send_msgV, recv_msgV for the ground entity)
+   because in injective correspondences, the same event cannot appear twice in the same branch of 
+   if/let/find. 
+   Another possible encoding would be to put the aircraft and the ground entity in 2 branches of a "if" 
+   instead of in parallel. In this case, we can avoid copying the tunnel protocol. 
+   This is what we did in the shared-key protocol. *)
+
 let tunnel_protocolU(current_session_id: session_ids,
     		    ams_pid: t_AMS_PID, common_comp_algo_id: t_AMS_elem, policy_id: t_policy_id,
     	            tU: t_AMS_Time, sU: signature, RandV: t_Rand32, KMAC_UV: mac_key, KENC_UV: enc_key,
