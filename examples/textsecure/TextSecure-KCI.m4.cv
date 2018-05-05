@@ -468,7 +468,7 @@ All queries proved.
 END *)
 ',`
 (* EXPECTED
-RESULT Could not prove event inj:Recv3(a, as, b, bs, sb, a1, a2, m) ==> inj:Send3(a, as, b, bs, sb, a1, a2, m).
+RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)).
 159.836s (user 159.296s + system 0.540s), max rss 3167280K
 END *)
 ')

@@ -42,7 +42,7 @@ echo
 echo TEXTSECURE
 echo
 output=textsecure`date '+%Y.%m.%d-%H_%M_%S'`
-dir=../papers/2017EuroSP-KobeissiBhargavanBlanchet/scripts/cv
+dir=examples/textsecure
 (
 for prot in NO_REPLAY_PROT REPLAY_PROT
 do
@@ -52,39 +52,25 @@ do
 for prop in STD FS
 do
 m4 -D$prop -D$prot $dir/TextSecure-$sessions.m4.cv > $dir/TextSecure-$sessions.$prop.$prot.cv
-analyze TextSecure-$sessions.$prop.$prot "-lib $dir/TextSecure" $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
+analyze TextSecure-$sessions.$prop.$prot "" $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
 done
 done
 
 m4 -D$prot $dir/TextSecure-KCI.m4.cv > $dir/TextSecure-KCI.$prot.cv
-analyze TextSecure-KCI.$prot "-lib $dir/TextSecure" $dir/TextSecure-KCI.$prot.cv tests/$output
+analyze TextSecure-KCI.$prot "" $dir/TextSecure-KCI.$prot.cv tests/$output
 
 done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 
 
-echo
-echo TLS 1.3 conference version
-echo
-output=tls`date '+%Y.%m.%d-%H_%M_%S'`
-dir=../papers/2017SP-BhargavanBlanchetKobeissi/scripts
-
-cat default.cvl $dir/tls-primitives.cvl > $dir/tls-lib.cvl
-
-(
-for i in HKDFexpand KeySchedule1 KeySchedule2 KeySchedule3 tls13-core-InitialHandshake-LeakKeysIfCorrupted tls13-core-InitialHandshake-SecrecyServerSide tls13-core-InitialHandshake-Secrecy0.5RTT tls13-core-PSKandPSKDHE-NoCorruption tls13-core-RecordProtocol
-do
-analyze $i "-lib $dir/tls-lib" $dir/$i.cv tests/$output
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+# The TLS conference version is tested only as a converted example.
 
 echo
 echo TLS 1.3 tech report version
 echo
 output=tlsx`date '+%Y.%m.%d-%H_%M_%S'`
-dir=../../repos/ProtoTLS/cv
+dir=examples/tls13
 
 cat default.cvl $dir/tls-primitives.cvl > $dir/tls-lib.cvl
 
@@ -100,9 +86,9 @@ echo
 echo ARINC 823
 echo
 output=arinc`date '+%Y.%m.%d-%H_%M_%S'`
-dir=../papers/2017CSF-Blanchet/scripts
-dirs=$dir/sharedkey/computational
-dirp=$dir/publickey/computational
+dir=examples/arinc823
+dirs=$dir/sharedkey
+dirp=$dir/publickey
 
 cat default.cvl $dir/arinc823prim.cvl > $dir/arinc823.cvl
 
@@ -163,7 +149,7 @@ echo
 echo ICAO 9880 IV, May 2017
 echo
 output=icao9880-May17-`date '+%Y.%m.%d-%H_%M_%S'`
-dir=../projects/2014ANRAirbus/ICAO9880-May2017/computational
+dir=../../../../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational
 (
     for i in AirGround GroundGround AirGround-Fixed
     do
@@ -177,6 +163,7 @@ echo SSH secrecy key
 echo
 output=ssh`date '+%Y.%m.%d-%H_%M_%S'`
 (
+m4 implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key.ocv    
 analyze ssh-secrecy-key "-in oracles" implementation/ssh/ssh-secrecy-key.ocv tests/$output
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output

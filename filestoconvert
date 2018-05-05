@@ -82,4 +82,4 @@ of MACs and signatures.
 examples-1.28/arinc823 (OK)
 ------------------------------------------------------
 
-examples-1.28/icao9880-May2017
+examples-1.28/icao9880-May2017 (OK - done outside the CryptoVerif distribution because I am not going to release this example now.)
