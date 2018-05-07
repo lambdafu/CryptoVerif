@@ -1,0 +1,114 @@
+(* This file proves properties of the record protocol,
+assuming the client and server initially share a random
+traffic secret. *)
+
+
+type key [fixed, large].
+type seqn [fixed].
+type nonce_t [fixed, large].
+type nocolltype [fixed, large].
+
+param N, Nk, Ne, Nd, Ns, NSr, Nr.
+
+(* We use the lemma proved in HKDFexpand.cv *)
+
+fun HKDF_expand_upd_label(key): key.
+fun HKDF_expand_key_label(key): key.
+fun HKDF_expand_iv_label(key): key.
+
+proba Pprf_upd_key_iv.
+
+equiv(prf_upd_key_iv)
+      !N new r: key; (O1() := return(HKDF_expand_upd_label(r)) |
+      	      	      O2() := return(HKDF_expand_key_label(r)) |
+		      O3() := return(HKDF_expand_iv_label(r)))
+    <=(N * Pprf_upd_key_iv(time + (N-1)*(time(HKDF_expand_upd_label) + time(HKDF_expand_key_label) + time(HKDF_expand_iv_label))))=>
+      !N (O1() := new r1: key; return(r1) |
+      	  O2() := new r2: key; return(r2) |
+	  O3() := new r3: key; return(r3)).
+
+(* Injectivity of xor *)
+
+fun xor(key, seqn): nonce_t.
+
+equation forall k: key, n: seqn, n': seqn;
+       (xor(k, n) = xor(k,n')) = (n = n').
+
+(* AEAD, with empty additional data *)
+
+type add_data.
+const nil: add_data.
+
+proba Penc.
+proba Pencctxt.
+
+(* encryption is IND-CPA and INT-CTXT provided the nonce is distinct
+   for each encryption *)
+expand AEAD_nonce(key, bitstring, bitstring, add_data, nonce_t, enc, dec, injbot, Z, Penc, Pencctxt).
+
+letfun AEAD_encrypt(k: key, n: nonce_t, m: bitstring) =
+   enc(m, nil, k, n).
+letfun AEAD_decrypt(k: key, n: nonce_t, c: bitstring) =
+   dec(c, nil, k, n).
+
+(* Test function *)
+
+fun test(bool, bitstring, bitstring): bitstring.
+equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
+equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
+equation forall b:bool,x:bitstring; test(b,x,x) = x.
+
+equation forall b:bool,x:bitstring,y:bitstring; 
+       Z(test(b, x, y)) = test(b, Z(x), Z(y)).
+
+(* Tables used to record previously used sequence numbers,
+   to avoid reusing them *)
+
+table table_count_send(seqn).
+table table_count_recv(nocolltype, seqn).
+
+(* Message authenticity 
+   For bad keys, this means that no message can be received *)
+
+event received(seqn, bitstring).
+
+query count: seqn, msg: bitstring;
+      event(received(count, msg)) ==> false
+      public_vars traffic_secret_Nplus1.
+
+(* Secrecy of updated key *)
+
+query secret traffic_secret_Nplus1.
+
+channel io1, io2, io3, io4, io5, io6, io7, io8.
+
+let receive(k: key, iv: key) =
+    !isr <= NSr
+    in(io3, ());
+    new sessionid: nocolltype; (* used to make sure that for different sessions
+    		   	       	  of the receiver (that is, for different values of isr)
+				  a different table is used *)
+    out(io4, ());
+    !Nr
+    in(io7, (cipher: bitstring, count: seqn));
+    (* Make sure that count has not been used before in this session *)
+    get table_count_recv(=sessionid, =count) in yield else
+    insert table_count_recv(sessionid, count);
+    let nonce = xor(iv, count) in
+    let injbot(clear) = AEAD_decrypt(k, nonce, cipher) in
+    event received(count, clear).    
+    
+
+process
+	in(io1, ());
+	new traffic_secret_N: key;
+	let traffic_secret_Nplus1: key = HKDF_expand_upd_label(traffic_secret_N) in
+	let k = HKDF_expand_key_label(traffic_secret_N) in
+	let iv = HKDF_expand_iv_label(traffic_secret_N) in
+	out(io2, ());
+	receive(k, iv)
+
+(* EXPECTED
+All queries proved.
+0.036s (user 0.028s + system 0.008s), max rss 30032K
+END *)
