@@ -1,0 +1,114 @@
+(* This file proves that, when the handshake secret hs is a fresh random value,
+log_1 -> derive-secret(hs, client_hts, log_1)
+      || derive-secret(hs, server_hts, log_1)
+is indistinguishable from a random function and 
+\hkdfextract(hs, 0) is indistinguishable from a fresh random value 
+independent from this random function. *)
+
+(* Proof indications *)
+
+proof {
+      auto;
+      show_game;
+      SArename r_2;
+      move binder hk_3;
+      auto
+      }
+
+
+type extracted [large, fixed].
+type key [large, fixed].
+type two_keys [large, fixed].
+type label.
+
+param N, N3.
+
+(* HMAC is a PRF *)
+
+proba Pprf.
+expand PRF(extracted, bitstring, key, HMAC, Pprf).
+
+(* Hash is a collision resistant hash function *)
+
+type hashkey [large,fixed].
+type hash [fixed].
+proba Phash.
+expand CollisionResistant_hash(hashkey, bitstring, hash, Hash, Hash_oracle, Phash).
+
+(* Derive_secret(Secret, Label, Messages) =
+   HKDF_expand_label(Secret, Label, Hash(Messages), Hash.length) =
+   HKDF_expand(Secret, [Hash.length, "TLS 1.3, " + Label, Hash(Messages)], Hash.length) =
+   HMAC(Secret, [Hash.length, "TLS 1.3, " + Label, Hash(Messages), 0x00])
+
+We define build_arg(Label, Hash) = [Length, "TLS 1.3, " + Label, Hash, 0x00].
+*)
+
+fun build_arg(label, hash): bitstring [data].
+
+letfun HKDF_expand_label(Secret: extracted, Label: label, HashValue: hash) =
+       HMAC(Secret, build_arg(Label, HashValue)).
+
+letfun Derive_secret(hk: hashkey, Secret: extracted, Label: label, Messages: bitstring) = 
+       HKDF_expand_label(Secret, Label, Hash(hk, Messages)).
+
+letfun HKDF_extract(Salt: extracted, Ikm: bitstring) =
+       HMAC(Salt, Ikm).
+
+fun concat(key, key): two_keys [data].
+
+equiv(concat)
+      !N new r1: key; new r2: key; O() := return(concat(r1, r2))
+      <=(0)=>
+      !N new r: two_keys; O() := return(r).
+
+(* Labels *)
+
+const client_hts : label. (* hts = handshake traffic secret *)
+const server_hts : label.
+
+(* Concatenation of client_handshake_traffic_secret and server_handshake_traffic_secret *)
+
+letfun Derive_Secret_cs_hts(hk: hashkey, HandshakeSecret: extracted, log: bitstring) =
+       concat(Derive_secret(hk, HandshakeSecret, client_hts, log),
+              Derive_secret(hk, HandshakeSecret, server_hts, log)).
+
+(* Master Secret *)
+
+const zero: bitstring.
+
+letfun HKDF_extract_zero(HandshakeSecret: extracted) =
+       HKDF_extract(HandshakeSecret, zero).
+
+equation forall l: label, h: hash; build_arg(l, h) <> zero.
+
+(* Prove equivalence between processLeft and processRight *)
+
+query secret b.
+
+channel start, c1, c2, c3.
+
+let processLeft(hk: hashkey) =
+    !N3 in(c1, ()); new hs: extracted; out(c1, ());
+    ((!N in(c2, log0: bitstring); out(c2, Derive_Secret_cs_hts(hk, hs, log0))) |
+     in(c3, ()); out(c3, HKDF_extract_zero(hs))).
+
+let processRight =
+    !N3 in(c1, ()); out(c1, ());
+    ((!N in(c2, log1: bitstring);
+    	 find[unique] j <= N suchthat defined(log1[j], r[j]) && log1 = log1[j] then
+	      out(c2, r[j])
+	 else
+	      new r: two_keys; out(c2, r)) |
+     (in(c3, ()); new r': key; out(c3, r'))).
+
+process
+	in(start, ());
+	new b: bool;
+	new hk: hashkey; (* This key models the choice of the collision resistant hash function *)
+	if b then out(start, ()); (processLeft(hk) | Hash_oracle(hk))
+	     else out(start, ()); (processRight | Hash_oracle(hk))
+	     
+(* EXPECTED
+All queries proved.
+0.028s (user 0.024s + system 0.004s), max rss 33808K
+END *)
