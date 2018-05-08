@@ -1,0 +1,97 @@
+(* Undeniable signature scheme of 
+   http://www.di.ens.fr/~pointche/Documents/Papers/2001_pkc.pdf
+   Section 4.2 *)
+
+proof {
+  crypto rom(H);
+  crypto group_to_exp_strict(exp) *;
+  SArename s;
+  show_game occ;
+  replace 60 "exp(y, x_7)";
+  replace 45 "exp(y, x_6[u_4])";
+  replace 24 "exp(y, x_7[u_5])";
+  crypto gdh(exp);
+  success
+}
+
+param NS, NC.
+
+type Z [large,bounded].
+type G [large,bounded].
+
+
+(* Gap Diffie-Hellman problem *)
+
+proba pGDH.
+expand GDH(G, Z, g, exp, mult, pGDH).
+
+(* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
+
+type hashkey [large,fixed].
+
+def ROM_hash_exp(key, hashinput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):G.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
+         foreach ieq <= Neq do Oeq(x':hashinput, e:Z, r':G) := return(exp(hash(k,x'),e) = r'))
+       <=(#Oeq / |G|)=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x:hashinput) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R G; return(r) |
+         foreach ieq <= Neq do Oeq(x':hashinput, e:Z, r':G) := 
+           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(exp(r[u], e) = r') else
+	   return(false)).
+
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x:hashinput) :=
+	return(hash(k,x)).
+
+}
+
+expand ROM_hash_exp(hashkey, bitstring, H, hashoracle, NH).
+
+(* Query *)
+
+event forgery.
+
+query event(forgery) ==> false.
+
+let Psign(hk: hashkey, x: Z) =
+        OS(m:bitstring) :=
+	h <- H(hk, m);
+	s: G <- exp(h, x);
+	return(s).
+
+let Pconfirm(hk: hashkey, x: Z) =
+        OC(m': bitstring, s': G) :=
+	if (exp(H(hk, m'), x) = s') then
+	       (find j <= NS suchthat defined(m[j],s[j]) && m' = m[j] && s' = s[j] then 
+	          return(true)
+		else 
+		  event forgery;
+		  return(true)
+               )
+	else 
+		return(false).
+		(* The zero-knowledge proof is omitted *)
+
+process
+	Ostart() :=
+	hk <-R hashkey;
+        x <-R Z;
+       	let y = exp(g, x) in
+	return(y);
+	(foreach iS <= NS do run Psign(hk, x) | foreach iC <= NS do run Pconfirm(hk, x) | run hashoracle(hk))
+
+(* EXPECTED
+All queries proved.
+0.036s (user 0.032s + system 0.004s), max rss 19968K
+END *)
