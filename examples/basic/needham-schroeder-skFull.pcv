@@ -4,6 +4,8 @@
    properties. The secrecy is wrong, because of key confirmation messages.
  *)
 
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
 proof {
 crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' *)
 auto;
@@ -37,7 +39,7 @@ fun nonceToBitstring(nonce):bitstring [data].
 
 
 (* Internal structure of terms only are considered in Cryptoverif *)
-(* ifdef(`CryptoVerif',` *)
+ifdef(`CryptoVerif',`
 equation forall y:key,z:host,y2:nonce,z2:host,t2:key,v2:bitstring;
 	concat3(y,z) <> concat1(y2,z2,t2,v2).
 equation forall z:host,t:nonce,y2:nonce,z2:host,t2:key,v2:bitstring;
@@ -60,12 +62,12 @@ equation forall y:key,z:host;
 	Z(concat3(y,z)) = Zconcat3.
 equation forall m:bitstring, k:key, r: enc_seed;
 	Z(enc_r(m, k, r)) = Z(m).
-(*
+
 ',`
 const Zbitstring:bitstring.
 equation forall x:bitstring; Z(x) = Zbitstring.
 ')
-*)
+
 
 (* Peers *)
 const A : host.
@@ -80,23 +82,16 @@ event partB(host, bitstring).
 event fullB(host, key, bitstring).
 
 query x:bitstring; inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA.
-      (* This property is true, but the presence of event fullB prevents CryptoVerif from
-         proving it. It works after commenting out the properties that rely on this event
-	 and remain unproved.
-	 * It considers that the execution of event fullB leaks the key k,
-	 which is far from optimal.
-	 * Even with that, it should show that the key keyA = k cannot be defined
-	 or an event using k be executed (so k leaked to the adversary) before the decryption 
-	 using that key in A. There is some induction
-	 to find out the first session in which k is leaked. *)
 query x:bitstring, k:key; inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)) public_vars keyA. 
       (* This property is wrong for this script: 
-      	 after a first session, the adversary has keyA, 
-	 he can then replay the first message to B and 
-	 decrypt {NB}k and encrypt {NB-1}k. *)
+      	 after a first session, the adversary has keyA = k, 
+	 he can then replay the first message to B, 
+	 decrypt {NB}k, and encrypt {NB-1}k. *)
 query x:bitstring, k:key, k':key; event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' public_vars keyA. 
 query secret keyA.
-query secret keyA [onesession]. 
+query secret keyA [cv_onesession]. 
+      (* Key keyA is not secret in the computational sense 
+      	 because it is used for encrypting and decrypting messages *)
 
 (* Channels and Processes *)
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
@@ -104,10 +99,10 @@ channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
 
 let processA(Kas:key) =
 	in(c1, h: host);
-   new Na: nonce;
-   out(c3, (A, h, Na)); (* To server *)
-   in(c4, m2: bitstring); (* From server *)
-   let injbot(concat1(=Na, =h, k, m)) = dec(m2, Kas) in
+   	new Na: nonce;
+   	out(c3, (A, h, Na)); (* To server *)
+   	in(c4, m2: bitstring); (* From server *)
+   	let injbot(concat1(=Na, =h, k, m)) = dec(m2, Kas) in
 	out(c5, m); (* To B *)
 	in(c15, e4:bitstring); (* From B *)
 	let injbot(nonceToBitstring(Nb)) = dec(e4, k) in
@@ -145,7 +140,7 @@ let processB(Kbs:key) =
 table keys(host, key).
 
 let processK(Kas:key, Kbs:key) =
-	in(c9, (Khost: host, Kkey: key));
+   in(c9, (Khost: host, Kkey: key));
    if Khost = A then
       insert keys(A,Kas)
    else if Khost = B then
@@ -167,7 +162,7 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(start, ());
-   ((! iA <= N processA(Kas)) |
+    	((! iA <= N processA(Kas)) |
 	 (! iB <= N processB(Kbs)) |
 	 (! iS <= N processS) |
 	 (! iK <= N2 processK(Kas,Kbs)))
