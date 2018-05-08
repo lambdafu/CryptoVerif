@@ -12,12 +12,12 @@ type host [bounded].
 type key [fixed].
 type maxenc [bounded].
 
-(* A function f(x1...xn) is declared [compos] when:
+(* A function f(x1...xn) is declared [data] when:
    - it is injective
    - the values of x1...xn are computable in polynomial time from f(x1...xn) *)
 
-fun concat1(nonce, nonce, host, host):maxenc [compos].
-fun concat2(nonce, key):maxenc [compos].
+fun concat1(nonce, nonce, host, host):maxenc [data].
+fun concat2(nonce, key):maxenc [data].
 
 equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
 
