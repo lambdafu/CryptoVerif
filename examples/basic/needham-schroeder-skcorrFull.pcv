@@ -65,14 +65,13 @@ const Zbitstring:bitstring.
 equation forall x:bitstring; Z(x) = Zbitstring.
 ')
 
-(* Queries *)
-
-channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
-	c15, c16, c17, start, cAK, cBK.
+(* Peers *)
 const A : host.
 const B : host.
 fun acceptA(host):bitstring.
 fun acceptB(host):bitstring.
+
+(* Queries and Events *)
 
 event partA(host, bitstring).
 event fullA(host, key, bitstring).
@@ -91,6 +90,9 @@ query secret keyA [cv_onesession].
       (* Key keyA is not secret in the computational sense 
       	 because it is used for encrypting and decrypting messages *)
 
+(* Channels and Processes *)
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, 
+	c15, c16, c17, start, cAK, cBK.
 
 let processA(Kas:key) =
 	in(c1, (h: host, bm: bitstring)); (* From B - just forwarded, no authentication *)

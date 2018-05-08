@@ -35,10 +35,10 @@ needham-schroeder-sk3Stream.cv (OK)
 needham-schroeder-sk3StreamFull.cv (OK)
 needham-schroeder-skcorr3StreamAuth.cv (OK)
 needham-schroeder-skcorr3Stream.cv (OK)
-needham-schroeder-skcorr3StreamFull.cv
-woolampkcorr.cv
-woolampkcorrSimp.cv
-woolampk.cv
+needham-schroeder-skcorr3StreamFull.cv (OK)
+woolampkcorr.cv (OK)
+woolampkcorrSimp.cv (OK)
+woolampk.cv (OK)
 woolampkWeaksign-corr.cv
 woolampkWeaksign.cv
 woolamskcorr.cv
