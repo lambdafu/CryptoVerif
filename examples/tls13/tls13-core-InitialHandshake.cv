@@ -37,7 +37,7 @@ proof {
       out_game "g1.out" occ;
       (* After the first input in the server (which defines sgx), and new sr_???: nonce.
          gx is the value of gx in the client.  *)
-      insert 1525 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert 1693 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       (* gy_1 is the value of gy in the server *)
       SArename gy_1;
       out_game "g2.out" occ;
@@ -486,9 +486,7 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
         )
         else false
     in
-    let client_term_log = (cr,cgx,sr,cgy,log0,log1,scv,m) in
-    let client_term_keys = (client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, c_sats, ems) in
-    event ClientTerm1((client_term_log,certS),final_log,(client_term_keys,resumption_secret));
+    event ClientTerm1((cr,cgx,sr,cgy,log0,certS,log1,scv,m),final_log,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, c_sats, ems,resumption_secret));
     if honestsession then
     (
         (* The client is talking to the honest server, which is not corrupted
@@ -501,8 +499,8 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
 	   - composition with the record protocol with secret c_cats (ClientAccept is event e1)
 	   - composition with the handshake with pre-shared key with secret c_resumption_secret (ClientAccept is event e1)
 	    *)
-        event ClientTerm(client_term_log,client_term_keys);
-	event ClientAccept((client_term_log,certS,final_log),(client_term_keys,resumption_secret),i1);
+        event ClientTerm((cr,cgx,sr,cgy,log0,log1,scv,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, c_sats, ems));
+	event ClientAccept((cr,cgx,sr,cgy,log0,certS,log1,scv,m,final_log),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, c_sats, ems,resumption_secret),i1);
 	let c_cats: key = cats in
 	let c_ems: key = ems in
 	let c_resumption_secret: key = resumption_secret in
@@ -519,7 +517,7 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
 	   with no security claim, by eliminating private communications *)
 	out(io7, (final_mess, (resumption_secret, cats, c_sats, ems))).
 
-let ServerAfter05RTT1(certS: certificate, pkC: certificate, sgx: elt, masterSecret: extracted, sfl: bitstring, cfk: key, cats: key, sats: key, ems: key, server_accept_log: bitstring, server_accept_keys: bitstring) =
+let ServerAfter05RTT1(pkC: certificate, masterSecret: extracted, sfl: bitstring, cr: nonce, sgx: elt, sr: nonce, sgy: elt, log0: bitstring, certS: certificate, log1: bitstring, scv: bitstring, m: bitstring, client_hk: key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key, cats: key, sats: key, ems: key) =
    in(io26,clientfinished: bitstring);
    let ((resumption_secret: key, =true), honestsession: bool) = 
        let ClientFinishedAuthIn(log2, certC, ccv, cfin) = clientfinished in
@@ -560,7 +558,7 @@ let ServerAfter05RTT1(certS: certificate, pkC: certificate, sgx: elt, masterSecr
    let s_resumption_secret1: key = resumption_secret in
    let s_cats1 : key = cats in
    let s_ems1 : key = ems in
-   event ServerTerm1((server_accept_log,certS),clientfinished,(server_accept_keys,s_resumption_secret1));
+   event ServerTerm1((cr,sgx,sr,sgy,log0,certS,log1,scv,m),clientfinished,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats1, sats, s_ems1,s_resumption_secret1));
    if honestsession then
 	  (* By the correspondence ServerTerm ==> ClientAccept, the client has the same key.
 	     The secrecy is proved at the client. 
@@ -568,7 +566,7 @@ let ServerAfter05RTT1(certS: certificate, pkC: certificate, sgx: elt, masterSecr
 	     We perform 2 compositions here:
 	       - composition with the record protocol with secret c_cats (ServerTerm is event e2)
 	       - composition with the handshake with pre-shared key with secret c_resumption_secret (ServerTerm is event e2) *)
-	  event ServerTerm((server_accept_log,certS,clientfinished),(server_accept_keys,s_resumption_secret1));
+	  event ServerTerm((cr,sgx,sr,sgy,log0,certS,log1,scv,m,clientfinished),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats1, sats, s_ems1,s_resumption_secret1));
 	  out(io27, ())
    else
 	  (* Output the secrets.
@@ -581,7 +579,7 @@ let ServerAfter05RTT1(certS: certificate, pkC: certificate, sgx: elt, masterSecr
 	     with no security claim, by eliminating private communications *)
 	  out(io28, (s_resumption_secret1, s_cats1, sats, s_ems1)).
 
-let ServerAfter05RTT2(certS: certificate, pkC: certificate, sgx: elt, masterSecret: extracted, sfl: bitstring, cfk: key, cats: key, sats: key, ems: key, server_accept_log: bitstring, server_accept_keys: bitstring) =
+let ServerAfter05RTT2(pkC: certificate, masterSecret: extracted, sfl: bitstring, cr: nonce, sgx: elt, sr: nonce, sgy: elt, log0: bitstring, certS: certificate, log1: bitstring, scv: bitstring, m: bitstring, client_hk: key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key, cats: key, sats: key, ems: key) =
    in(io26',clientfinished: bitstring);
    let ((resumption_secret: key, =true), honestsession: bool) = 
        let ClientFinishedAuthIn(log2, certC, ccv, cfin) = clientfinished in
@@ -622,7 +620,7 @@ let ServerAfter05RTT2(certS: certificate, pkC: certificate, sgx: elt, masterSecr
    let s_resumption_secret2: key = resumption_secret in
    let s_cats2 : key = cats in
    let s_ems2 : key = ems in
-   event ServerTerm1((server_accept_log,certS),clientfinished,(server_accept_keys,s_resumption_secret2));
+   event ServerTerm1((cr,sgx,sr,sgy,log0,certS,log1,scv,m),clientfinished,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats2, sats, s_ems2,s_resumption_secret2));
    if honestsession then
 	  (* By the correspondence ServerTerm ==> ClientAccept, the client has the same key.
 	     The secrecy is proved at the client. 
@@ -630,7 +628,7 @@ let ServerAfter05RTT2(certS: certificate, pkC: certificate, sgx: elt, masterSecr
 	     We perform 2 compositions here:
 	       - composition with the record protocol with secret c_cats (ServerTerm is event e2)
 	       - composition with the handshake with pre-shared key with secret c_resumption_secret (ServerTerm is event e2) *)
-	  event ServerTerm((server_accept_log,certS,clientfinished),(server_accept_keys,s_resumption_secret2));
+	  event ServerTerm((cr,sgx,sr,sgy,log0,certS,log1,scv,m,clientfinished),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats2, sats, s_ems2,s_resumption_secret2));
 	  out(io27', ())
    else
 	  (* Output the secrets.
@@ -664,17 +662,15 @@ let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) =
    let cats = get_client_ats(cs_ats_exp) in
    let sats = get_server_ats(cs_ats_exp) in
    let ems = get_exporter_ms(cs_ats_exp) in
-   let server_accept_log = (cr,sgx,sr,sgy,log0,log1,scv,m) in
-   let server_accept_keys = (client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, sats, ems) in
    (* 0.5 RTT. 
       We have security when the Diffie-Hellman share comes from the client *)
    find j <= N1 suchthat defined(cgx[j]) && sgx = cgx[j] then
    (
       (* We compose with the record protocol with secret s_sats (ServerAccept is event e1) *)
-      event ServerAccept(server_accept_log,server_accept_keys, i6);
+      event ServerAccept((cr,sgx,sr,sgy,log0,log1,scv,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, sats, ems), i6);
       let s_sats: key = sats in
       out(io25,(ServerCertificateVerifyOut(scv), ServerFinishedOut(m)));
-      ServerAfter05RTT1(certS, pkC, sgx, masterSecret, s_sfl, cfk, cats, sats, ems, server_accept_log, server_accept_keys)
+      ServerAfter05RTT1(pkC, masterSecret, s_sfl, cr,sgx,sr,sgy,log0,certS,log1,scv,m, client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems)
    )
    else
       (* We leak sats.
@@ -682,7 +678,7 @@ let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) =
 	 ServerFinished messages, and runs the record protocol sender-side with sats,
 	 with no security claim, by eliminating private communications *)
       out(io25', ((ServerCertificateVerifyOut(scv), ServerFinishedOut(m)), sats));
-      ServerAfter05RTT2(certS, pkC, sgx, masterSecret, s_sfl, cfk, cats, sats, ems, server_accept_log, server_accept_keys).
+      ServerAfter05RTT2(pkC, masterSecret, s_sfl, cr,sgx,sr,sgy,log0,certS,log1,scv,m, client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems).
 
 
 (* Corruption for forward secrecy *)
