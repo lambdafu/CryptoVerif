@@ -49,7 +49,6 @@ proof {
       remove_assign binder s_2;
       simplify;
       crypto gdh(exp) "variables: x_3 -> a, y_7 -> b .";
-      interactive;
       crypto prf2 *;
       crypto client_server_hts *;
       crypto prf_fin_key_iv *;
@@ -259,23 +258,21 @@ equation forall scvl: bitstring, m: bitstring, ccl: bitstring, ccv: bitstring;
      - server side: 
         s_sats
         s_cats, s_ems, s_resumption_secret
-	The variables of the last line are duplicated, with indices 1 and 2
-	because the code after 0.5-RTT in the server is duplicated.
    All these variables are considered public, except that when we prove the secrecy
    of one such variable, this variable and the corresponding 
    variable on the other side are not public. *)
 
 (* We prove secrecy of sats server side when the ServerFinished message is sent. *)
 query secret s_sats public_vars c_cats, c_ems, c_resumption_secret, 
-      	     	    		s_cats1, s_cats2, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	    		s_cats, s_ems, s_resumption_secret.
 
 (* We prove secrecy of cats, ems, resumption_secret client side at the end of the protocol. *)
 query secret c_cats public_vars c_sats, c_ems, c_resumption_secret, 
-      	     	    		s_sats, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	    		s_sats, s_ems, s_resumption_secret.
 query secret c_ems public_vars c_cats, c_sats, c_resumption_secret, 
-      	     	   	       s_cats1, s_cats2, s_sats, s_resumption_secret1, s_resumption_secret2.
+      	     	   	       s_cats, s_sats, s_resumption_secret.
 query secret c_resumption_secret public_vars c_cats, c_sats, c_ems, 
-      	     			 	     s_cats1, s_cats2, s_sats, s_ems1, s_ems2.
+      	     			 	     s_cats, s_sats, s_ems.
 
 (* Authentication of the server to the client *)
 
@@ -285,14 +282,14 @@ event ServerAccept(bitstring,bitstring,N6).
 query log4: bitstring, keys: bitstring, i <= N6;
       inj-event(ClientTerm(log4, keys)) ==> inj-event(ServerAccept(log4, keys, i))
       public_vars c_cats, c_sats, c_ems, c_resumption_secret, 
-      	     	  s_cats1, s_cats2, s_sats, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	  s_cats, s_sats, s_ems, s_resumption_secret.
 
 query log4: bitstring, s_keys: bitstring, s_keys': bitstring, i <= N6, i' <= N6;
       event(ServerAccept(log4, s_keys, i)) &&
       event(ServerAccept(log4, s_keys', i')) ==>
 	    i = i'
       public_vars c_cats, c_sats, c_ems, c_resumption_secret, 
-      	     	  s_cats1, s_cats2, s_sats, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	  s_cats, s_sats, s_ems, s_resumption_secret.
 
 (* Correspondence client to server *)
 
@@ -302,14 +299,14 @@ event ClientAccept(bitstring,bitstring, N1).
 query log7: bitstring, keys: bitstring, i <= N1;
       inj-event(ServerTerm(log7, keys)) ==> inj-event(ClientAccept(log7, keys, i))
       public_vars c_cats, c_sats, c_ems, c_resumption_secret, 
-      	     	  s_cats1, s_cats2, s_sats, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	  s_cats, s_sats, s_ems, s_resumption_secret.
 
 query log7: bitstring, c_keys: bitstring, c_keys': bitstring, i <= N1, i' <= N1;
       event(ClientAccept(log7, c_keys, i)) &&
       event(ClientAccept(log7, c_keys', i')) ==>
 	    i = i'
       public_vars c_cats, c_sats, c_ems, c_resumption_secret, 
-      	     	  s_cats1, s_cats2, s_sats, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	  s_cats, s_sats, s_ems, s_resumption_secret.
 
 (* Unique channel identifier 
    As explained in the paper, we manually prove that 
@@ -324,7 +321,7 @@ query sfl: bitstring, c_cfl: bitstring, s_cfl: bitstring, c_keys: bitstring, s_k
       event(ClientTerm1(sfl, c_cfl, c_keys)) && event(ServerTerm1(sfl, s_cfl, s_keys)) ==>
       c_cfl = s_cfl && c_keys = s_keys
       public_vars c_cats, c_sats, c_ems, c_resumption_secret, 
-      	     	  s_cats1, s_cats2, s_sats, s_ems1, s_ems2, s_resumption_secret1, s_resumption_secret2.
+      	     	  s_cats, s_sats, s_ems, s_resumption_secret.
 
 
 letfun send_client_hello() = 
@@ -555,10 +552,10 @@ let ServerAfter05RTT1(pkC: certificate, masterSecret: extracted, sfl: bitstring,
        else
            ((zero_key, false), false)
    in
-   let s_resumption_secret1: key = resumption_secret in
-   let s_cats1 : key = cats in
-   let s_ems1 : key = ems in
-   event ServerTerm1((cr,sgx,sr,sgy,log0,certS,log1,scv,m),clientfinished,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats1, sats, s_ems1,s_resumption_secret1));
+   let s_resumption_secret: key = resumption_secret in
+   let s_cats : key = cats in
+   let s_ems : key = ems in
+   event ServerTerm1((cr,sgx,sr,sgy,log0,certS,log1,scv,m),clientfinished,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats, sats, s_ems,s_resumption_secret));
    if honestsession then
 	  (* By the correspondence ServerTerm ==> ClientAccept, the client has the same key.
 	     The secrecy is proved at the client. 
@@ -566,18 +563,18 @@ let ServerAfter05RTT1(pkC: certificate, masterSecret: extracted, sfl: bitstring,
 	     We perform 2 compositions here:
 	       - composition with the record protocol with secret c_cats (ServerTerm is event e2)
 	       - composition with the handshake with pre-shared key with secret c_resumption_secret (ServerTerm is event e2) *)
-	  event ServerTerm((cr,sgx,sr,sgy,log0,certS,log1,scv,m,clientfinished),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats1, sats, s_ems1,s_resumption_secret1));
+	  event ServerTerm((cr,sgx,sr,sgy,log0,certS,log1,scv,m,clientfinished),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats, sats, s_ems,s_resumption_secret));
 	  out(io27, ())
    else
 	  (* Output the secrets.
 	     We do not prove security for these sessions
 
 	     We compose with a process that runs 
-	       - the record protocol receiver-side for s_cats1,
+	       - the record protocol receiver-side for s_cats,
 	       - the record protocol sender side for sats and 
-	       - the server-side handshake with pre-shared key for s_resumption_secret1,
+	       - the server-side handshake with pre-shared key for s_resumption_secret,
 	     with no security claim, by eliminating private communications *)
-	  out(io28, (s_resumption_secret1, s_cats1, sats, s_ems1)).
+	  out(io28, (s_resumption_secret, s_cats, sats, s_ems)).
 
 let ServerAfter05RTT2(pkC: certificate, masterSecret: extracted, sfl: bitstring, cr: nonce, sgx: elt, sr: nonce, sgy: elt, log0: bitstring, certS: certificate, log1: bitstring, scv: bitstring, m: bitstring, client_hk: key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key, cats: key, sats: key, ems: key) =
    in(io26',clientfinished: bitstring);
@@ -617,10 +614,10 @@ let ServerAfter05RTT2(pkC: certificate, masterSecret: extracted, sfl: bitstring,
        else
            ((zero_key, false), false)
    in
-   let s_resumption_secret2: key = resumption_secret in
-   let s_cats2 : key = cats in
-   let s_ems2 : key = ems in
-   event ServerTerm1((cr,sgx,sr,sgy,log0,certS,log1,scv,m),clientfinished,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats2, sats, s_ems2,s_resumption_secret2));
+   let s_resumption_secret: key = resumption_secret in
+   let s_cats: key = cats in
+   let s_ems: key = ems in
+   event ServerTerm1((cr,sgx,sr,sgy,log0,certS,log1,scv,m),clientfinished,(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats, sats, s_ems,s_resumption_secret));
    if honestsession then
 	  (* By the correspondence ServerTerm ==> ClientAccept, the client has the same key.
 	     The secrecy is proved at the client. 
@@ -628,18 +625,18 @@ let ServerAfter05RTT2(pkC: certificate, masterSecret: extracted, sfl: bitstring,
 	     We perform 2 compositions here:
 	       - composition with the record protocol with secret c_cats (ServerTerm is event e2)
 	       - composition with the handshake with pre-shared key with secret c_resumption_secret (ServerTerm is event e2) *)
-	  event ServerTerm((cr,sgx,sr,sgy,log0,certS,log1,scv,m,clientfinished),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats2, sats, s_ems2,s_resumption_secret2));
+	  event ServerTerm((cr,sgx,sr,sgy,log0,certS,log1,scv,m,clientfinished),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats, sats, s_ems,s_resumption_secret));
 	  out(io27', ())
    else
 	  (* Output the secrets.
 	     We do not prove security for these sessions
 
 	     We compose with a process that runs 
-	       - the record protocol receiver-side for s_cats2,
+	       - the record protocol receiver-side for s_cats,
 	       - the record protocol sender side for sats and 
-	       - the server-side handshake with pre-shared key for s_resumption_secret2,
+	       - the server-side handshake with pre-shared key for s_resumption_secret,
 	     with no security claim, by eliminating private communications *)
-	  out(io28', (s_resumption_secret2, s_cats2, sats, s_ems2)).
+	  out(io28', (s_resumption_secret, s_cats, sats, s_ems)).
 
 let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) = 
  !i6 <= N6
