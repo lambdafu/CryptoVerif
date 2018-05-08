@@ -1,5 +1,4 @@
 (* Needham Schroeder shared key protocol.
-   Corrected version.
    With messages of key confirmation, in order to prove correspondence
    properties. The secrecy is wrong, because of key confirmation messages.
  *)

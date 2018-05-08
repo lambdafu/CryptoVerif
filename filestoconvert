@@ -30,10 +30,10 @@ needham-schroeder-pkcorr3BlockKeyHash2.cv (OK)
 needham-schroeder-pkcorr3BlockKeyHash.cv (OK)
 needham-schroeder-pkcorr3BlockKeyNa.cv (OK)
 needham-schroeder-pkcorr3BlockKeyNb.cv (OK)
-needham-schroeder-sk3StreamAuth.cv
-needham-schroeder-sk3Stream.cv
+needham-schroeder-sk3StreamAuth.cv (OK)
+needham-schroeder-sk3Stream.cv (OK)
 needham-schroeder-sk3StreamFull.cv (OK)
-needham-schroeder-skcorr3StreamAuth.cv
+needham-schroeder-skcorr3StreamAuth.cv (OK)
 needham-schroeder-skcorr3Stream.cv
 needham-schroeder-skcorr3StreamFull.cv
 woolampkcorr.cv
