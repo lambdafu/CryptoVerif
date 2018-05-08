@@ -1456,3 +1456,8 @@ process
    (corrupt_S_r(S_r_priv)) |
    (corrupt_psk(Q))
   )
+
+(* EXPECTED
+All queries proved.
+1205.778s (elapsed: user + system + other processes)
+END *)
