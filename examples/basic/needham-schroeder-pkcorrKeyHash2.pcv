@@ -1,5 +1,7 @@
 (* Needham Schroeder public key protocol. *)
 
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
 (* In order to determine the proof, use interactive mode:
    set interactiveMode = true.
 The proof is as follows: *)

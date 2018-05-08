@@ -4,6 +4,8 @@
    hypothesis of random self-reducibility.
  *)
 
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
 (*
 set interactiveMode = true.
 

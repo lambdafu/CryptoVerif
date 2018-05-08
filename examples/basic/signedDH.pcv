@@ -1,4 +1,7 @@
 (* Signed Diffie-Hellman protocol *)
+
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
 param N, N2.
 
 type host [bounded].

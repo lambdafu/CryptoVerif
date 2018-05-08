@@ -1,3 +1,5 @@
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
 (* Trivial running example for conference paper. *)
 param N.
 param N2.

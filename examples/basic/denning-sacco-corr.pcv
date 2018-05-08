@@ -1,4 +1,4 @@
-(* Denning-Sacco key distribution protocol. (original, flawed version) *)
+(* Denning-Sacco key distribution protocol. (corrected version) *)
 
 (*
 Secrecy of keyA is wrong here, because the adversary can register the
