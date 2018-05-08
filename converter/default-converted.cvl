@@ -63,7 +63,7 @@ fun dec(ciphertext, key): bitstringbot.
 fun enc2(cleartext, key, seed): ciphertext.
 fun kgen2(keyseed):key.
 
-fun injbot(cleartext):bitstringbot [compos].
+fun injbot(cleartext):bitstringbot [data].
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Z(cleartext):cleartext.
@@ -123,7 +123,7 @@ fun dec(ciphertext, key): bitstringbot.
 fun enc2(cleartext, key, seed): ciphertext.
 fun kgen2(keyseed):key.
 
-fun injbot(cleartext):bitstringbot [compos].
+fun injbot(cleartext):bitstringbot [data].
 equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
@@ -193,7 +193,7 @@ fun enc2(cleartext, key, seed): ciphertext.
 fun kgen2(keyseed):key.
 fun dec2(ciphertext, key): bitstringbot.
 
-fun injbot(cleartext):bitstringbot [compos].
+fun injbot(cleartext):bitstringbot [data].
 equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
@@ -249,7 +249,7 @@ fun dec(ciphertext, key): bitstringbot.
 
 fun dec2(ciphertext, key): bitstringbot.
 
-fun injbot(cleartext):bitstringbot [compos].
+fun injbot(cleartext):bitstringbot [data].
 equation forall x:cleartext; injbot(x) <> bottom.
 
 equation forall m:cleartext, r:keyseed, r2:seed; 
@@ -316,7 +316,7 @@ fun enc2(cleartext, key, seed): ciphertext.
 fun kgen2(keyseed):key.
 fun dec2(ciphertext, key): bitstringbot.
 
-fun injbot(cleartext):bitstringbot [compos].
+fun injbot(cleartext):bitstringbot [data].
 equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
@@ -723,7 +723,7 @@ fun skgen2(keyseed):skey.
 fun pkgen2(keyseed):pkey.
 fun dec2(ciphertext, skey): bitstringbot.
 
-fun injbot(cleartext):bitstringbot [compos].
+fun injbot(cleartext):bitstringbot [data].
 
 const Z:cleartext.
 
@@ -1969,7 +1969,7 @@ fun skgen(seed):skey.
 fun f(pkey, D):D.
 fun f'(pkey, D):D.
 fun invf(skey, D):D.
-fun concat(Dow,Dr):D [compos].
+fun concat(Dow,Dr):D [data].
 
 (* invf is the inverse of f *)
 

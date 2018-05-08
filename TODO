@@ -311,7 +311,7 @@ more transformations with the square variant.
    for DY-like protocols (not encrypt-then-MAC or others).
 
       
-   h-bis) Remove "compos" and "decompos" to keep only
+   h-bis) DONE Remove "compos" and "decompos" to keep only
    "data" and "projection"?
    
    i) Update scripts test, distrib, ... with all examples

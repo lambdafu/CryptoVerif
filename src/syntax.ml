@@ -3254,11 +3254,11 @@ let rec check_one = function
       in
       let opt = ref 0 in
       List.iter (fun (sopt, extopt) ->
-	  if sopt = "decompos" || sopt = "projection" then 
+	  if sopt = "projection" then 
 	    begin
 	      opt := (!opt) lor Settings.fopt_DECOMPOS;
 	      if List.length l' != 1 then
-		Parsing_helper.input_error "A [decompos] or [projection] function should be unary" extopt
+		Parsing_helper.input_error "A [projection] function should be unary" extopt
 	    end
 	  else if sopt = "uniform" then
 	    begin
@@ -3270,7 +3270,7 @@ let rec check_one = function
 	      if (List.hd l').toptions land Settings.tyopt_CHOOSABLE == 0 then
 		Parsing_helper.input_error "A uniform function should have an argument that can be randomly chosen" extopt
 	    end
-	  else if sopt = "compos" || sopt = "data" then 
+	  else if sopt = "data" then 
 	    opt := (!opt) lor Settings.fopt_COMPOS
 	  else if sopt = "typeConverter" then
             begin

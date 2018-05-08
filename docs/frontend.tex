@@ -310,13 +310,13 @@ The pattern $p$ can be:
 
 \item $f\texttt{(}p_1, \ldots, p_n\texttt{)}$ 
 where the function symbol $f$ is declared 
-\texttt{[compos]} or \texttt{[data]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
+\texttt{[data]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
 for some $M_1, \ldots, M_n$ that match $p_1, \ldots, p_n$.
 (The poly-injectivity of $f$ allows us to compute possible
 values $M_1, \ldots, M_n$ of its arguments from the value of $M$, and to check
 whether $M$ is equal to the resulting value of $f(M_1, \ldots, M_n)$.) 
 
-\item $\texttt{(}p_1, \ldots, p_n\texttt{)}$ tuples, which are particular \texttt{[compos]}
+\item $\texttt{(}p_1, \ldots, p_n\texttt{)}$ tuples, which are particular \texttt{[data]}
 functions encoding unambiguously the values of $p_1, \ldots, p_n$
 and their type.
 
@@ -545,13 +545,13 @@ The pattern $p$ can be:
 
 \item $f\texttt{(}p_1, \ldots, p_n\texttt{)}$ 
 where the function symbol $f$ is declared 
-\texttt{[compos]} or \texttt{[data]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
+\texttt{[data]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
 for some $M_1, \ldots, M_n$ that match $p_1, \ldots, p_n$.
 (The poly-injectivity of $f$ allows us to compute possible
 values $M_1, \ldots, M_n$ of its arguments from the value of $M$, and to check
 whether $M$ is equal to the resulting value of $f(M_1, \ldots, M_n)$.) 
 
-\item $\texttt{(}p_1, \ldots, p_n\texttt{)}$ tuples, which are particular \texttt{[compos]}
+\item $\texttt{(}p_1, \ldots, p_n\texttt{)}$ tuples, which are particular \texttt{[data]}
 functions encoding unambiguously the values of $p_1, \ldots, p_n$
 and their type.
 
@@ -1381,18 +1381,18 @@ Optionally, the declaration of a function may be followed by options
 between brackets. These options can be:
 \begin{itemize}
 
-\item \texttt{compos} or equivalently \texttt{[data]} means that $f$ is injective and that its
+\item \texttt{[data]} means that $f$ is injective and that its
 inverses can be computed in polynomial time: $f(x_1, \ldots, x_m) = y$
 implies for $i \in \{1, \ldots, m\}$, $x_i = f_i^{-1}(y)$ for some 
 functions $f_i^{-1}$. (In the vocabulary of~\cite{BlanchetEPrint05},
 $f$ is poly-injective.) $f$ can then be used for pattern matching.
 
-\item \texttt{decompos} or equivalently \texttt{[projection]} means that $f$ is an inverse of a poly-injective
+\item \texttt{[projection]} means that $f$ is an inverse of a poly-injective
 function. $f$ must be unary. (Thanks to the pattern matching construct, one can
-in general avoid completely the declaration of \texttt{decompos} functions,
-by just declaring the corresponding poly-injective function \texttt{compos}.)
+in general avoid completely the declaration of \texttt{projection} functions,
+by just declaring the corresponding poly-injective function \texttt{data}.)
 
-\item \texttt{uniform} means that $f$ maps the default distribution
+\item \texttt{[uniform]} means that $f$ maps the default distribution
 of its argument into the default distribution of its result. $f$ must be unary;
 the argument and the result of $f$ must be of types marked 
 {\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
