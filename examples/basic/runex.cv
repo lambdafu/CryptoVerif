@@ -12,7 +12,7 @@ type keyseed [fixed].
 type seed [fixed].
 type macs [bounded].
 
-fun keyToBitstring(key):bitstring [compos].
+fun keyToBitstring(key):bitstring [data].
 
 (* Shared-key generation *)
 expand keygen(keyseed, key, kgen).
