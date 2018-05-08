@@ -23,7 +23,7 @@ type key [fixed,large].
 type enc_seed [fixed].
 
 
-(* Shared-key encryption (CPA Stream cipher) *)
+(* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
 proba Penc.
 proba Pencctxt.
 expand IND_CPA_INT_CTXT_sym_enc_all_args(key, bitstring, bitstring, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc, Pencctxt).
@@ -96,7 +96,7 @@ query secret keyA [cv_onesession].
 channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
 	c15, c16, c17, start, cAK, cBK.
 
-let processA(Kas:key) =
+let processA(Kas: key) =
 	in(c1, h: host);
    	new Na: nonce;
    	out(c3, (A, h, Na)); (* To server *)
@@ -117,7 +117,7 @@ let processA(Kas:key) =
 	out(c16, (e5, acceptA(h))); in(cAK, ()); out(cAK, k)
 	).
 
-let processB(Kbs:key) =
+let processB(Kbs: key) =
 	in(c8, m4: bitstring);
 	let injbot(concat3(k, h)) = dec(m4, Kbs) in
 	new Nb:nonce;

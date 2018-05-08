@@ -19,7 +19,7 @@ type host [bounded].
 type key [fixed].
 type enc_seed [fixed].
 
-(* Shared-key encryption (CPA Stream cipher) *)
+(* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
 
 proba Penc.
 proba Pencctxt.
@@ -77,7 +77,7 @@ query secret keyA.
 query secret keyA [cv_onesession]. 
 
 
-let processA(Kas:key) =
+let processA(Kas: key) =
 	in(c1, h: host);
         new Na: nonce;
         out(c2, (A, h, Na));
