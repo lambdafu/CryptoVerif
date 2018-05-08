@@ -59,26 +59,3 @@ OAEP-CPA.ocv
 OEKE.ocv
 undeniable-sig.ocv
 
-------------------------------------------------------
-examples-1.28/kerberos/ (OK)
-------------------------------------------------------
-cryptoverif/implementation/{ssh,nspk} (OK)
-------------------------------------------------------
-examples-1.28/textsecure (OK)
-------------------------------------------------------
-
-examples-1.28/tls-tech-report
-
-These examples add a few primitives defined in tls-primitives.cvl
-to the standard library of primitives. I am hesitating between two
-options:
-- continue using these macros, just renaming SUF_CMA_mac_nokgen
-into SUF_CMA_mac_key_first
-- use the standard crypto library, after reordering the arguments
-of MACs and signatures.
-
-------------------------------------------------------
-examples-1.28/arinc823 (OK)
-------------------------------------------------------
-
-examples-1.28/icao9880-May2017 (OK - done outside the CryptoVerif distribution because I am not going to release this example now.)

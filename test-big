@@ -72,12 +72,10 @@ echo
 output=tlsx`date '+%Y.%m.%d-%H_%M_%S'`
 dir=examples/tls13
 
-cat default.cvl $dir/tls-primitives.cvl > $dir/tls-lib.cvl
-
 (
 for i in HKDFexpand KeySchedule1 KeySchedule2 KeySchedule3 tls13-core-InitialHandshake tls13-core-InitialHandshake-1RTTonly tls13-core-PSKandPSKDHE-NoCorruption tls13-core-RecordProtocol tls13-core-RecordProtocol-0RTT tls13-core-RecordProtocol-0RTT-badkey
 do
-analyze $i "-lib $dir/tls-lib" $dir/$i.cv tests/$output
+analyze $i "" $dir/$i.cv tests/$output
 done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
