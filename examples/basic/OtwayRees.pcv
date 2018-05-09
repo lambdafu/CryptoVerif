@@ -19,9 +19,7 @@ type maxenc [bounded].
 fun concat1(nonce, nonce, host, host):maxenc [data].
 fun concat2(nonce, key):maxenc [data].
 
-ifdef(`CryptoVerif',`
 equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u) <> concat2(y2,z2).
-')
 
 (* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
 

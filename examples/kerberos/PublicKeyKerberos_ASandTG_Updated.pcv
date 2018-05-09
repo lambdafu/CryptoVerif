@@ -123,7 +123,6 @@ fun pad(client, timest):maxenc [data].
 fun padts(timest):maxenc [data].							
 fun concat6(client, pkey, spkey, signature, timest, nonce, signature, client, tgs, nonce):maxmac [data].   
 
-ifdef(`CryptoVerif', `
 equation forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;        	  concat5(y,x,z) <> concat4(t2,y2,x2,z2).
 equation forall t:key, y: nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs;  concat8(t,y,x,z) <> concat4(t2,y2,x2,z2).
 equation forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;  	 	  pad(z,t) <> concat4(t2,y2,x2,z2).
@@ -141,7 +140,6 @@ equation forall t:timest, y:nonce, z2:client, y2:pkey, x2:spkey;				  padno(t,y)
 equation forall k1:protkey, y:macs, z2:kas, y2:pkey, x2:spkey;		  		  concat3(k1,y) <> concat7(z2,y2,x2).
 equation forall t:timest, y:nonce, z2:kas, y2:pkey, x2:spkey; 	     			  padno(t,y) <> concat7(z2,y2,x2).
 equation forall z2:client, y2:pkey, x2:spkey, z:kas, y:pkey, x:spkey;		  	  concat1(z2,y2,x2) <> concat7(z,y,x).
-')
 
 
 (* Public-key encryption (IND-CCA2): *)

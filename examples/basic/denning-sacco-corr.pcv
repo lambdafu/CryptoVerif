@@ -64,14 +64,12 @@ fun concat2(shkey, host, host):sblocksize [data].
 fun concat3(host, pkey):sblocksize [data].
 fun concat4(host, spkey):sblocksize [data].
 
-ifdef(`CryptoVerif',`
 equation forall y:host,z:pkey,y2:shkey,z2:host,t2:host;
         concat3(y,z) <> concat2(y2,z2,t2).
 equation forall y:host,z:pkey,y2:host,z2:spkey;
 	concat3(y,z) <> concat4(y2,z2).
 equation forall y:host,z:spkey,y2:shkey,z2:host,t2:host;
         concat4(y,z) <> concat2(y2,z2,t2).
-')
 
 (* Public-key encryption (CCA2) *)
 

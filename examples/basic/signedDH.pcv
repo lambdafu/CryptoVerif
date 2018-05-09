@@ -28,10 +28,8 @@ expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
 fun concatA(host, host, G, G):blocksize [data].
 fun concatB(host, host, G, G):blocksize [data].
 
-ifdef(`CryptoVerif',`
 equation forall x:host, y:host, z:G, t:G, x2:host, y2:host, z2:G, t2:G;
    concatA(x,y,z,t) <> concatB(x2,y2,z2,t2).
-')
 
 (* Signatures *)
 proba Psign.

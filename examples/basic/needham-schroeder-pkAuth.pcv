@@ -37,14 +37,12 @@ fun concat2(nonce, nonce):blocksize [data].
 fun concat3(pkey, host):sblocksize [data].
 fun pad(nonce):blocksize [data].
 
-ifdef(`CryptoVerif',`
 equation forall z:nonce,t:nonce,y2:nonce,z2:host;
 	concat2(z,t) <> concat1(y2,z2).
 equation forall y:nonce,y2:nonce,z2:host;
 	pad(y) <> concat1(y2,z2).
 equation forall z:nonce,t:nonce,y2:nonce;
 	concat2(z,t) <> pad(y2).
-')
 
 (* Public-key encryption (CCA2) *)
 proba Penc.

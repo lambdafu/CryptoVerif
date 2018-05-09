@@ -80,7 +80,6 @@ fun concat3(key, nonce, timest, server):maxenc [data].
 fun pad(client, timest):maxenc [data].
 fun padts(timest): maxenc [data].
 
-ifdef(`CryptoVerif',`
 equation forall y:key, x:timest, z:client, t2:key, y2:nonce, x2:timest, z2:tgs;      concat2(y,x,z) <> concat1(t2,y2,x2,z2).
 equation forall t:key, y:nonce, x:timest, z:server, t2:key, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
 equation forall z:client, t:timest, t2:key, y2:nonce, x2:timest, z2:tgs;         pad(z,t) <> concat1(t2,y2,x2,z2).
@@ -91,7 +90,6 @@ equation forall y:key, x:timest, z:client, t2:timest;                    concat2
 equation forall t:key, y:nonce, x:timest, z:server, t2:timest, z2:client;        concat3(t,y,x,z) <> pad(z2,t2).
 equation forall t:key, y:nonce, x:timest, z:server, t2:timest;               concat3(t,y,x,z) <> padts( t2).
 equation forall t:timest, z:client, t2:timest;                       pad(z,t)<> padts(t2).
-')
 
 (* Shared-key encryption (IND-CPA and INT-CTXT Stream cipher) *)
 
