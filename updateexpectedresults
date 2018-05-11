@@ -1,0 +1,59 @@
+#!/bin/bash
+
+if [ -x ./xtime ]
+then
+    PROG=./xtime
+else
+    PROG=
+fi
+
+CRYPTOVERIF="./cryptoverif"
+
+# The arguments of analyze are
+# $1 = protocol name
+# $2 = CryptoVerif program
+
+function analyze()
+{
+    echo -n PROTOCOL $1 " "
+    $PROG $2 $1 > tmp.out 2>&1
+    egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
+    awk '/EXPECTED/, /END/ { print $0; }' $1 | grep -v EXPECTED | grep -v END > tmp.old
+    grep -v user tmp.old > tmp.oldres
+    grep -v user tmp.res > tmp.actualres
+    if diff -q -b tmp.oldres tmp.actualres >/dev/null
+    then 
+	echo OK
+	# I am still replacing the result to update the runtime
+	awk 'BEGIN { out=1; } /EXPECTED/ { out=0; } { if (out==1) { print $0; } }' $1 > tmp.resremoved
+	echo '(* EXPECTED' >> tmp.resremoved
+	cat tmp.res >> tmp.resremoved
+	echo 'END *)' >> tmp.resremoved
+	mv tmp.resremoved $1
+    else
+	if grep -q 'RESULT Could not prove' tmp.actualres
+	then
+	    echo Replacing result
+	    awk 'BEGIN { out=1; } /EXPECTED/ { out=0; } { if (out==1) { print $0; } }' $1 > tmp.resremoved
+	    echo '(* EXPECTED' >> tmp.resremoved
+	    cat tmp.res >> tmp.resremoved
+	    echo 'END *)' >> tmp.resremoved
+	    mv tmp.resremoved $1
+	else
+	    echo WARNING: Different error messages
+	    echo Old
+	    cat tmp.oldres
+	    echo New
+	    cat tmp.actualres
+	fi
+    fi
+}
+
+for i in implementation/wlsk/woolamskcorr_tbl.cv examplesnd/otest/*.ocv implementation/nspk/nspk3tbl.ocv implementation/ssh/ssh.ocv
+do
+    case $i in
+	*.m4.cv) ;;
+	*)       analyze $i "$CRYPTOVERIF"
+    esac
+done
+
