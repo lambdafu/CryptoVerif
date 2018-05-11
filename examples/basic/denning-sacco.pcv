@@ -176,5 +176,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
-1.240s (user 1.240s + system 0.000s), max rss 60416K
+0.620s (user 0.612s + system 0.008s), max rss 78848K
 END *)

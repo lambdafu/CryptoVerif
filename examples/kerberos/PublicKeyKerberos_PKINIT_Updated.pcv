@@ -410,5 +410,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(fullCK(K, T, N, k, w, x, y)) && event(fullKC(C, T, N, k', w, z, y)) ==> (k = k') with public variables keyAK.
-4.720s (user 4.704s + system 0.016s), max rss 244736K
+6.048s (user 5.956s + system 0.092s), max rss 198896K
 END *)

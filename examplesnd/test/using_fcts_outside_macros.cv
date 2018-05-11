@@ -22,4 +22,3 @@ process
 Error: enc_seed not defined.
 xtime: error in child process (status : 512)
 END *)
-

@@ -154,5 +154,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) with public variables keyA; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA.
-1.320s (user 1.320s + system 0.000s), max rss 68352K
+0.420s (user 0.408s + system 0.012s), max rss 68768K
 END *)

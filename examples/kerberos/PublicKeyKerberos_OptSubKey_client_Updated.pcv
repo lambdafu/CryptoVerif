@@ -465,5 +465,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove secrecy of OPkeyS.
-28.954s (user 28.906s + system 0.048s), max rss 667232K
+23.760s (user 23.592s + system 0.168s), max rss 323984K
 END *)
