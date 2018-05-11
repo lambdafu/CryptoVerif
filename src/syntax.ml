@@ -4015,12 +4015,13 @@ let rec collect_id_probaf accu (p,ext) =
       List.iter (collect_id_probaf accu) l
 
 let rec collect_id_fungroup accu = function
-    PReplRestr((_, iopt, i), restr, funs) ->
+    PReplRestr((_, iopt, n), restr, funs) ->
       begin
 	match iopt with
 	  None -> ()
 	| Some i -> add_id accu i
       end;
+      add_id accu n;
       List.iter (fun (x,t,opt) -> add_id accu x; add_id accu t) restr;
       List.iter (collect_id_fungroup accu) funs
   | PFun(i, larg, r, n) ->
