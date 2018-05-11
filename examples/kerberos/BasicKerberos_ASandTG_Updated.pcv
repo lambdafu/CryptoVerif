@@ -52,7 +52,6 @@ of the CeCILL license and that you accept its terms.
 
 *)
 
-(* Note: This file requires CryptoVerif version 1.29 or higher. *)
 
 
 (* basic Kerberos 5, first 2 rounds (AS_exchage and TG_exchange), consider authentication properties ans secrecy properties *)

@@ -1,0 +1,68 @@
+Analysis of the ARINC823 protocols.
+
+This directory contains all models used to verify the ARINC823
+protocols in CryptoVerif.
+
+- arinc823prim.cvl contains the declarations of primitives
+used by CryptoVerif, in addition to its standard library of primitives.
+- gen is a script that analyzes all files.
+- results is a summary of the results provided by this analysis.
+
+1. Directory "sharedkey": the shared-key protocol
+
+lemmaEnc.ocv: file for the proof of Appendix C
+lemmaMAC_KDF_are_indep_PRFs_from_compression_PRF.ocv:
+        file for the first proof of Appendix D
+lemmaMAC_KDF_are_indep_PRFs_from_compression_ROM.ocv:
+        file for the second proof of Appendix D
+lemmaMAC_SUFCMA_KDF_PRF.ocv: file for the proof of Appendix E
+lemmaMAC_collision_resistant.ocv: file for the proof of Appendix F
+
+arinc823-secret-key.$p.m4.cv are the master files from which all models 
+are generated using the m4 preprocessor. The generated files are
+arinc823-secret-key.$p.$r.cv where
+        $p is the property
+	   - AUTHENTICATION for authentication properties
+	   - KEY_SECRECY for secrecy of keys 
+	   - SECRECY for secrecy of messages 
+	   - UKS for no unknown key share attacks
+	$r determines the considered replay protection
+	   - ORIGINAL: no replay protection, original protocol
+	   - SINGLE_TU: U never starts two sessions with the same V and 
+	   timestamp tU
+	   - REPLAY_PROT: Our full replay protection
+
+2. Directory "publickey": the public-key protocol
+
+lemmaEnc.ocv: file for the proof of Appendix C
+
+arinc823-public-key.$p.m4.cv are the master files from which all other 
+models of the original protocol are generated using the m4 preprocessor. 
+The generated files are arinc823-public-key.$p.$r.cv where
+        $p is the property
+	   - SECRECY for secrecy of messages
+	   - AUTHENTICATION for authentication properties (including
+	   no unknown key share attacks)
+	   - KEY_SECRECY for secrecy of keys 
+	$r determines the considered replay protection
+	   - NOREPLAY_PROT: no replay protection, original protocol
+	   - REPLAY_PROT: Our full replay protection
+
+arinc823-public-key.fixed.AUTHENTICATION.m4.cv
+arinc823-public-key.fixed.KEY_SECRECY.m4.cv
+arinc823-public-key.fixed.SECRECY.m4.cv
+are the master files from which all models of our strengthened
+protocol are generated using the m4 preprocessor.  The generated files
+are
+        arinc823-public-key.SECRECY.REPLAY_PROT.cv 
+	  for forward secrecy of messages
+        arinc823-public-key.KEY_SECRECY.REPLAY_PROT.cv 
+          for key secrecy
+        arinc823-public-key.fixed.AUTHENTICATION.REPLAY_PROT.$c.cv
+	  for authentication, where $c determines the compromise scenario 
+	   - NO_COMPROMISE: no compromise
+	   - COMPROMISE_U for key compromise impersonation in which U is
+	   compromised.
+	   - COMPROMISE_V for key compromise impersonation in which V is
+	   compromised.
+

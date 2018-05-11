@@ -1,7 +1,7 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
-Version 1.29
+Version 2.00
 
 - Improved simplification of terms, in particular in the presence
   of boolean variables.
@@ -76,7 +76,7 @@ Version 1.29
   building authenticated encryption from encrypt-then-MAC,
   from AEAD, or from AEAD_nonce, and AEAD from encrypt-then-MAC
   or from AEAD_nonce.
-- An automatic converter from CryptoVerif 1.28 to CryptoVerif 1.29
+- An automatic converter from CryptoVerif 1.28 to CryptoVerif 2.00
   is provided. It converts the front-end changes, but not the changes
   in the cryptographic library. As a consequence, converted
   examples need to be run using a converted version of the old

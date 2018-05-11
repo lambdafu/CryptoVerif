@@ -51,7 +51,6 @@ of the CeCILL license and that you accept its terms.
 
 *)
 
-(* Note: This file requires CryptoVerif version 1.29 or higher. *)
 
 (* Public-key Kerberos 5, first 2 rounds (AS_exchange and TG_exchange), with PKINIT in public key mode (RFC 4556), consider authentication and secrecy queries *)
 

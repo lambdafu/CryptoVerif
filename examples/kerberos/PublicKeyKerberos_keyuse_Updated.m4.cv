@@ -51,7 +51,6 @@ of the CeCILL license and that you accept its terms.
 
 *)
 
-(* Note: This file requires CryptoVerif version 1.29 or higher. *)
 
 
 (* Public-key Kerberos 5, all three rounds, with PKINIT in public key mode (RFC 4556), consider key usability of AK after client completes session, client and TGS are restricted not to take outputs by the encryption oracle, authentication will partly fail as expected  *)
