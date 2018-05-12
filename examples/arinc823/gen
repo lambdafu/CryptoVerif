@@ -4,13 +4,6 @@
 TIMER=../../../xtime
 CRYPTOVERIF="../../../cryptoverif -lib ../arinc823"
 
-if [ -x $TIMER ]
-then
-    PROG=$TIMER
-else
-    PROG=
-fi
-
 ## Build the library of primitives for CryptoVerif
 
 cat ../../default.cvl arinc823prim.cvl > arinc823.cvl
@@ -18,6 +11,13 @@ cat ../../default.cvl arinc823prim.cvl > arinc823.cvl
 ## Analysis of the shared-key protocol, in CryptoVerif
 
 cd sharedkey
+
+if [ -x $TIMER ]
+then
+    PROG=$TIMER
+else
+    PROG=
+fi
 
 (
 for prop in SECRECY AUTHENTICATION UKS KEY_SECRECY 
