@@ -56,8 +56,8 @@ equiv !n new k:K; (Ok() := return(k) | !nH OH(x:G) := return (h(k,x)))
 
 (* signatures *)
 
-fun concatA(host, host, G, G):blocksize [compos].
-fun concatB(host, host, G, G):blocksize [compos].
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
 equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
    concatA(x,y,z,t) <> concatB(x',y',z',t').
     

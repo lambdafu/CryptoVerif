@@ -47,7 +47,7 @@ expand IND_CCA2_public_key_enc(keyseed_T, pkey, pkey, cleartext, mstring, seed_T
   Typecast
 ***************************)
 
-fun ctom(cleartext): mstring [compos, uniform].
+fun ctom(cleartext): mstring [data, uniform].
 
 fun mtoc(mstring): cleartext [uniform].
 
@@ -61,7 +61,7 @@ equation forall x: mstring;
   Concatenation and Parsing 
 ***************************)
 
-fun pad(nonce): mstring [compos, uniform].
+fun pad(nonce): mstring [data, uniform].
 
 (******************** 
   Query

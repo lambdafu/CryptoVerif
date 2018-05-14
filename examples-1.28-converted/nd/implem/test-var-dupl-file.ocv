@@ -55,11 +55,11 @@ implementation table keytbl="keytbl".
 
 
 fun get_hostname():hostname.
-fun concat1(nonce, host):blocksize [compos].
-fun concat2(nonce, nonce):blocksize [compos].
-fun concat3(pkey, host):sblocksize [compos].
-fun concat4(hostname, role):host [compos].
-fun pad(nonce):blocksize [compos].
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun concat4(hostname, role):host [data].
+fun pad(nonce):blocksize [data].
 
 equation forall z:nonce,t:nonce,y2:nonce,z2:host;
 	concat2(z,t) <> concat1(y2,z2).
@@ -69,7 +69,7 @@ equation forall z:nonce,t:nonce,y2:nonce;
 	concat2(z,t) <> pad(y2).
 
 const cstbitstring: bitstring.
-fun pad2(nonce): bitstring [compos].
+fun pad2(nonce): bitstring [data].
 
 (* Public-key encryption (IND-CCA2) *)
 

@@ -29,18 +29,18 @@ fun isconcat1(bitstring):bool.
 equation forall y:nonce,z:nonce,t:host,u:host; isconcat1(concat1(y,z,t,u)) = true.
 equation forall y:nonce,z:key; isconcat1(concat2(y,z)) = false.
 
-fun getnonce1(bitstring):nonce [decompos].
+fun getnonce1(bitstring):nonce [projection].
 equation forall y:nonce,z:nonce,t:host,u:host; getnonce1(concat1(y,z,t,u)) = y.
-fun getnonce2(bitstring):nonce [decompos].
+fun getnonce2(bitstring):nonce [projection].
 equation forall y:nonce,z:nonce,t:host,u:host; getnonce2(concat1(y,z,t,u)) = z.
-fun gethost1(bitstring):host [decompos].
+fun gethost1(bitstring):host [projection].
 equation forall y:nonce,z:nonce,t:host,u:host; gethost1(concat1(y,z,t,u)) = t.
-fun gethost2(bitstring):host [decompos].
+fun gethost2(bitstring):host [projection].
 equation forall y:nonce,z:nonce,t:host,u:host; gethost2(concat1(y,z,t,u)) = u.
 
-fun getnonce3(bitstring):nonce [decompos].
+fun getnonce3(bitstring):nonce [projection].
 equation forall y:nonce,z:key; getnonce3(concat2(y,z)) = y.
-fun getkey2(bitstring):key [decompos].
+fun getkey2(bitstring):key [projection].
 equation forall y:nonce,z:key; getkey2(concat2(y,z)) = z.
 
 (* Shared-key encryption (CPA Stream cipher) *)

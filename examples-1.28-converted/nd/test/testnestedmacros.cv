@@ -25,9 +25,9 @@ const tag2: tag.
 const tag3: tag.
 const tag4: tag.
 
-fun concat1(nonce, nonce, host, host):maxencnotag [compos].
-fun concat2(nonce, key):maxencnotag [compos].
-fun tagf(tag, maxencnotag):maxenc [compos].
+fun concat1(nonce, nonce, host, host):maxencnotag [data].
+fun concat2(nonce, key):maxencnotag [data].
+fun tagf(tag, maxencnotag):maxenc [data].
 
 (* Shared-key encryption (IND-CPA Stream cipher) *)
 

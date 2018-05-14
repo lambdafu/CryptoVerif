@@ -27,7 +27,7 @@ type maxmac [bounded].
 
 table keytbl (bitstring, host).
 
-fun concat1(tag, host, nonce):maxenc [compos].
+fun concat1(tag, host, nonce):maxenc [data].
 
 (* Shared-key encryption (CPA Stream cipher) *)
 
