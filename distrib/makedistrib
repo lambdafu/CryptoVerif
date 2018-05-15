@@ -47,7 +47,7 @@ cp implementation/nspk/build.sh $DESTD/implementation/nspk
 cp implementation/wlsk/build.sh $DESTD/implementation/wlsk
 cp implementation/ssh/build.sh $DESTD/implementation/ssh
 cp examples/arinc823/gen $DESTD/examples/arinc823
-cp examples/kerberos/*.pcv examples/kerberos/*.m4.cv $DESTD/kerberos
+cp examples/kerberos/*.pcv examples/kerberos/*.m4.cv $DESTD/examples/kerberos
 cp examples/textsecure/runcv $DESTD/examples/textsecure
 cp examples/tls13/runcv examples/tls13/README.md $DESTD/examples/tls13
 cp converter/build converter/default-*.*cvl $DESTD/converter/
