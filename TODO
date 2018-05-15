@@ -6,7 +6,24 @@
 - Try to understand why CV explodes on 
 2013Airbus/computatinonal_revised/arinc823-secret-key.KEY_SECRECY.ORIGINAL.cv
 when I add the commented out code in check_distinct.ml,
-to use elsefind facts.
+   to use elsefind facts.
+
+- examples/basic/needham-schroeder-skcorr.pcv
+  Example to improve in CV (show that A must have decrypted for B to
+  get his message)
+  That should allow to prove (inj-)event(fullB(A, k, x)) ==>
+  (inj-)event(fullA(B, k, x))
+  Similar remark for file examples/basic/needham-schroeder-sk.pcv and
+  query event(fullB(A, k, x)) ==> event(fullA(B, k, x))
+
+- examples/basic/needham-schroeder-pkcorrKeyN{a,b}.pcv
+  CV does not manage due to ordering pb (or to key Na/Nb leaked too early?)
+
+   I am wondering if the changes to guess the tested session,
+   event adv loses, etc would allow CV to prove the two examples above.
+   
+- ProVerif cannot reconstruct the attack against injectivity
+  in examples/cryptoverif/denning-sacco-corr.pcv
 
 1) Incompatible front-end, second step
 
