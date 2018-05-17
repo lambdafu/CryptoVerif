@@ -3424,15 +3424,23 @@ let rec check_one = function
   | Expand((s,ext),_) ->
       input_error "macros should have been expanded, and the macro move_array_internal_macro should not contain expansions of other macros" ext
 
-let rec check_all (l,p) = 
-  List.iter check_one l;
-  current_location := InProcess;
+let check_process_full p =
   set_binder_env (check_process1 empty_binder_env [] (!env) p); (* Builds binder_env *)
-  let result = check_process [] [] (!env) None p in
+  let (result,_,_) = check_process [] [] (!env) None p in
   check_process2 p; (* Checks oracles that finish roles contain only
                        one return *)
   warn_process_form p; (* Warns user if form of process is not optimal *)
   result
+ 
+	
+let rec check_all (l,p) = 
+  List.iter check_one l;
+  current_location := InProcess;
+  match p with
+    PSingleProcess p1 ->
+      SingleProcess(check_process_full p1)
+  | PEquivalence(p1,p2) ->
+      Equivalence(check_process_full p1, check_process_full p2)
 
 let new_bitstring_binder() = 
   let b = Terms.create_binder "!l" Settings.t_bitstring []
@@ -4102,7 +4110,14 @@ let collect_id_decl accu = function
 let record_all_ids (l,p) =
   let accu = ref [] in
   List.iter (collect_id_decl accu) l;
-  collect_id_proc accu p;
+  begin
+    match p with
+      PSingleProcess p1 -> 
+	collect_id_proc accu p1
+    | PEquivalence (p1, p2) ->
+	collect_id_proc accu p1;
+	collect_id_proc accu p2
+  end;
   List.iter (fun i -> Terms.record_id i dummy_ext) (!accu)
 
 	
@@ -4119,9 +4134,13 @@ let read_file f =
     (* Record top-level identifiers, to make sure that we will not need to 
        rename them. *)
     record_ids l';
-    let (p',_,_) = check_all (l',p) in
-    let _ = count_occ_events p' in
-    (!statements, !collisions, !equivalences, !move_new_eq,
-     List.map check_query (!queries_parse), !proof, (get_impl ()), p')
+    let p' = check_all (l',p) in
+    match p' with
+      SingleProcess p' ->
+	let _ = count_occ_events p' in
+	(!statements, !collisions, !equivalences, !move_new_eq,
+	 List.map check_query (!queries_parse), !proof, (get_impl ()), p')
+    | Equivalence(p1,p2) ->
+	Parsing_helper.user_error "Equivalence not supported yet"
   with Undefined(i,ext) ->
     input_error (i ^ " not defined") ext

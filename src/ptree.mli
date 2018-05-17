@@ -188,3 +188,7 @@ type crypto_transf_user_info =
   | PVarList of ident list * bool (* bool is true when the list ends with "."
 				    no other variable should be added by the transformation in this case *)
   | PDetailed of var_term_mapping list 
+
+type final_process =
+    PSingleProcess of process_e
+  | PEquivalence of process_e * process_e

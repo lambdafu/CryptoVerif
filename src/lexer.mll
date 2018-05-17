@@ -55,7 +55,8 @@ let common_keywords =
   "get", GET;
   "insert", INSERT;
   "table", TABLE;
-  "letfun", LETFUN
+  "letfun", LETFUN;
+  "equivalence", EQUIVALENCE
 ]  
     
 let keyword_table_channel =

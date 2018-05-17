@@ -103,6 +103,7 @@ let return_channel = (dummy_channel, None)
 %token TABLE
 %token LETFUN
 %token RUN
+%token EQUIVALENCE
   
 /* Precedence (from low to high) and associativities */
 %left BAR
@@ -115,13 +116,13 @@ let return_channel = (dummy_channel, None)
 %nonassoc REPL
     
 %start all
-%type <Ptree.decl list * Ptree.process_e> all
+%type <Ptree.decl list * Ptree.final_process> all
 
 %start lib
 %type <Ptree.decl list> lib
 
 %start oall
-%type <Ptree.decl list * Ptree.process_e> oall
+%type <Ptree.decl list * Ptree.final_process> oall
 
 %start olib
 %type <Ptree.decl list> olib
@@ -324,7 +325,9 @@ options:
 
 all:
         lib PROCESS process EOF
-	{ $1, $3 }
+        { $1, PSingleProcess $3 }
+|       lib EQUIVALENCE process process EOF
+        { $1, PEquivalence($3, $4) }
 
 identlist:
         
@@ -1171,5 +1174,7 @@ olib:
 
 oall:
         olib PROCESS oprocess EOF
-	{ $1, $3 }
+        { $1, PSingleProcess $3 }
+|       olib EQUIVALENCE oprocess oprocess EOF
+        { $1, PEquivalence($3, $4) }
 

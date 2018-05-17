@@ -642,3 +642,8 @@ type command =
     Com_elem of (string * Parsing_helper.extent)
   | Com_sep
   | Com_end
+
+type final_process =
+    SingleProcess of inputprocess
+  | Equivalence of inputprocess * inputprocess
+      
