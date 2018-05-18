@@ -373,6 +373,25 @@ have the same continuation.
       in several merged branches, it must not be used in the
       continuation after the merge.
       Otherwise, I need to push the merge after the usage of x first.
+
+* Other ideas to solve the same problem:
+   - Allow more game transformations on unexpanded games
+      (e.g. remove_assign, SArename, crypto). That would allow
+      applying possibly several rom + GDH without expanding the game, and then
+      expand the game afterwards, when some cases have been removed
+      thanks to GDH.
+      That might be easier to implement and perhaps also to use
+      (no need to move merge points manually, for instance),
+      but less powerful.
+   - Be able to consider a call to the hash function as a call to
+      the hash oracle given to the adversary. That could be useful
+      when we do not really about this call, e.g., when it is in
+      a session with a dishonest peer for which we do not prove
+      security. Hard with the current language. Perhaps with an oracle
+      call construct?
+      More generally, be able to consider several calls to a hash
+      oracle as a single case, like a call to a common subroutine,
+      when distinguishing the cases is useless.
       
       
 9) Add more comments, e.g. in terms.mli
