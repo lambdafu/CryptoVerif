@@ -58,6 +58,8 @@ let parse_lib filename =
 	  Parser.olib Lexer.token lexbuf
       with Parsing.Parse_error ->
         input_error "Syntax error" (extent lexbuf)
+      |	Error(s,ext) ->
+	  input_error s ext
     in
     close_in ic;
     ptree
