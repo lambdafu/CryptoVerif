@@ -27,6 +27,3 @@ fi
 
 cd ..
 
-cd converter
-./build
-cd ..
