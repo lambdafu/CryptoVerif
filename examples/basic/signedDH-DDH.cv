@@ -6,6 +6,7 @@ proof {
 crypto uf_cma(sign) rkA;
 crypto uf_cma(sign) rkB;
 crypto ddh(exp);
+interactive;
 auto
 }
 

@@ -25,6 +25,32 @@ when I add the commented out code in check_distinct.ml,
 - ProVerif cannot reconstruct the attack against injectivity
   in examples/cryptoverif/denning-sacco-corr.pcv
 
+0bis) Revision of DH regarding prime order
+
+(* injectivity *)
+
+equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+is useful to prove injective correspondences in signedDH-DDH*
+
+collision x <-R Z; y <-R Z;
+	  return(exp(g,x) = exp(g,y)) <=(Pcoll)=> return(false).
+collision x <-R Z; y <-R Z;
+	  return(exp'(g,x) = exp'(g,y)) <=(Pcoll)=> return(false).
+
+also works.
+
+collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
+  return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
+
+is useful for signed-DH.pcv
+In fact, exp(g,mult(a,b)) = exp(g,mult(a',b')) can also be simplified by CDH
+when a,b,a',b' are independent. Perhaps I should improve the model of CDH
+for that.
+
+Similarly, the squares can be simplified by square CDH.
+
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =
