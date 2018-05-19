@@ -49,7 +49,29 @@ In fact, exp(g,mult(a,b)) = exp(g,mult(a',b')) can also be simplified by CDH
 when a,b,a',b' are independent. Perhaps I should improve the model of CDH
 for that.
 
+exp(g,mult(a,b)) = exp(g,mult(a',b)), that is,
+exp(g,mult(a,b)) = exp(exp(g,b), a')
+
 Similarly, the squares can be simplified by square CDH.
+
+=> Done in CDH, GDH, do it in square CDH, square GDH.
+Check probability formulas.
+
+GDH prime order: we use the "prime order" assumption in GDH to simplify
+exp(m,b) = exp(exp(g,a),b) into m = exp(g,a)
+
+Without the prime order assumption, I could already strengthen the GDH
+assumption:
+ODDHa4 exp'(m,b[j]) = exp'(g, mult(b[j'], a))
+can be transformed into
+b[j] = b[j'] && exp'(m,b[j]) = exp'(g, mult(b[j], a))
+(When b[j] <> b[j'], an adversary that has m and b[j]
+but not b[j'] and a can compute exp'(m,b[j]) but not exp'(g, mult(b[j'], a)) )
+That already helps a lot because the case can be ruled out when
+b[j] <> b[j'].
+Furthermore, the GDH_prime_order case can be obtained by combining
+this plus the other properties in common_DH_prime_order
+without writing a specific equivalence.
 
 1) Incompatible front-end, second step
 
