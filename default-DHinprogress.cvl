@@ -2170,7 +2170,7 @@ equiv(exp'_to_group(exp))
 
 (* Computational Diffie-Hellman 
 
-   pCDH: the probability of breaking the CDH assumption
+   pCDH(t): the probability of breaking the CDH assumption in time t
    Other parameters as in common_DH.
 
    The types G and Z and the probability pCDH must be declared before
@@ -2266,7 +2266,7 @@ expand CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
 
 (* Decisional Diffie-Hellman 
 
-   pDDH: the probability of breaking the DDH assumption
+   pDDH(t): the probability of breaking the DDH assumption in time t
    Other parameters as in common_DH.
 
    The types G and Z and the probability pDDH must be declared before
@@ -2338,7 +2338,8 @@ expand DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
 
 (* Gap Diffie-Hellman 
 
-   pGDH: the probability of breaking the GDH assumption
+   pGDH(t, n): the probability of breaking the GDH assumption in time t,
+   with at most n calls to the DDH oracle.
    Other parameters as in common_DH.
 
    The types G and Z and the probability pGDH must be declared before
@@ -2498,7 +2499,7 @@ expand GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
    equivalent to the CDH assumption (but CryptoVerif can prove more
    using the square variant).
 
-   pCDH: the probability of breaking the square CDH assumption
+   pCDH(t): the probability of breaking the square CDH assumption in time t
    Other parameters as in common_DH.
 
    The types G and Z and the probability pCDH must be declared before
@@ -2542,7 +2543,7 @@ expand square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
 
 (* square Decisional Diffie-Hellman and Decisional Diffie-Hellman
 
-   pDDH: the probability of breaking the square DDH assumption
+   pDDH(t): the probability of breaking the square DDH assumption in time t
    Other parameters as in common_DH.
 
    The types G and Z and the probability pDDH must be declared before
@@ -2598,7 +2599,8 @@ expand square_DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
    equivalent to the GDH assumption (but CryptoVerif can prove more
    using the square variant).
 
-   pGDH: the probability of breaking the square GDH assumption
+   pGDH(t,n): the probability of breaking the square GDH assumption in time t,
+   with at most n calls to the DDH oracle.
    Other parameters as in common_DH.
 
    The types G and Z and the probability pGDH must be declared before

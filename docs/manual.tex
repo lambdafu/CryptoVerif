@@ -1263,8 +1263,8 @@ defines a pseudo-random function.
    $\vn{mult}$: the multiplication function for exponents, product modulo $q$ in
    $\{1, \ldots, q-1\}$, i.e. in the group $(\mathbb{Z}/q\mathbb{Z})^*$.
 
-   $p$: the probability of breaking the considered property, here the CDH assumption, for one pair of
-   exponents.
+   $p(t)$: the probability of breaking the considered property, here
+   the CDH assumption, for one pair of exponents, in time $t$.
 
    The types $G$ and $Z$ and the probability $\vn{PCDH}$ must be
    declared before this macro.  The functions $g$, $\vn{exp}$, and
@@ -1300,7 +1300,7 @@ $\texttt{cdh}(\vn{exp})$ equivalence.)
 
 \item $\texttt{expand\ DDH(}G, Z, g, \vn{exp}, \vn{mult},
   p\texttt{).}$ defines a group that satisfies the decisional
-  Diffie-Hellman assumption. The arguments are the same as for
+  Diffie-Hellman (DDH) assumption. The probability $p(t)$ is the probability of breaking the DDH assumption for one pair of exponents in time $t$. The arguments are the same as for
   \texttt{CDH} above. This macro defines the same equivalences
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{ddh}(\vn{exp})$.
@@ -1312,8 +1312,9 @@ with $\texttt{ddh}(\vn{exp})$.
 
 \item $\texttt{expand\ GDH(}G, Z, g, \vn{exp}, \vn{mult},
   p\texttt{).}$ defines a group that satisfies the gap
-  Diffie-Hellman assumption. The arguments are the same as for
-  \texttt{CDH} above. This macro defines the same equivalences
+  Diffie-Hellman (GDH) assumption. The arguments are the same as for
+  \texttt{CDH} above. The probability $p(t,n)$ is the probability of breaking
+  the GDH assumption for one pair of exponents in time $t$ with at most $n$ calls to the decisional Diffie-Hellman oracle. This macro defines the same equivalences
 as the \texttt{CDH} macro, except that $\texttt{cdh}(\vn{exp})$ is replaced
 with $\texttt{gdh}(\vn{exp})$.
 
