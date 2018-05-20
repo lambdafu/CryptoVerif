@@ -54,7 +54,7 @@ exp(g,mult(a,b)) = exp(exp(g,b), a')
 
 Similarly, the squares can be simplified by square CDH.
 
-=> Done in CDH, GDH, do it in square CDH, square GDH.
+=> Done in CDH, GDH, square CDH, do it in square GDH.
 Check probability formulas.
 
 GDH prime order: we use the "prime order" assumption in GDH to simplify

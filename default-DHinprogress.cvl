@@ -2524,7 +2524,7 @@ expand GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
    equivalent to the CDH assumption (but CryptoVerif can prove more
    using the square variant).
 
-   pCDH(t): the probability of breaking the square CDH assumption in time t
+   pCDH(t): the probability of breaking the (square or standard) CDH assumption in time t
    Other parameters as in common_DH.
 
    The types G and Z and the probability pCDH must be declared before
@@ -2538,23 +2538,50 @@ def square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
-(* the CDH assumption *) 
+(* the (square) CDH assumption *) 
 
-param na, naDDH, nb, nbDDH.
+param na, naDDH, naDDH2.
 
 equiv(cdh(exp))
     foreach ia <= na do a <-R Z; (
       OA() := return(exp(g,a)) | 
       Oa() [10] := return(a) |
-      foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a)))
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) [useful_change] :=
+      	      return(m = exp(g, mult(a[j], a))) |
+      foreach iaDDH2 <= naDDH2 do ODDHa2(ja'<=na,jb<=nb,jb'<=nb) [useful_change] :=
+      	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb'])))
     )
-<=(#ODDHa * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) * pCDH(time + (na + #ODDHa) * time(exp)))=> [computational]
+<=(#ODDHa * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) * pCDH(time + (na + #ODDHa) * time(exp)) +
+   #ODDHa2 * pCDH(time(exp) + time(mult)))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := 
       	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], a))) else 
-              if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false)
+              if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false) |
+      foreach iaDDH2 <= naDDH2 do ODDHa2(ja'<=na,jb<=nb,jb'<=nb) :=
+      	      return((a = a[ja'] && a[jb] = a[jb']) || (a = a[jb'] && a[jb] = a[ja']))
+      (* If ia <> ja' and ia <> jb', then the equality 
+      	 exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb'])) is impossible by
+      	 (square) CDH: consider an adversary that chooses a = a[ia]
+	 and does not know a[ja'] nor a[jb']. This adversary can compute
+	 exp(g, mult(a, a[jb])) (either it receives A = exp(g, a[jb]) if
+	 jb \in {ja', jb'} and computes exp(A, a), or it chooses a[jb]
+	 and computes exp(g, mult(a, a[jb])). By (square) CDH, it cannot compute
+	 exp(g, mult(a[ja'], a[jb'])), except with probability 
+	 at most pCDH(time(exp) + time(mult)), because this adversary
+	 computes one exponentiation and possibly one multiplication.
+
+	 Therefore ia \in {ja', jb'}. By symmetry, jb \in {ja', jb'},
+	 so { ia, jb } is included in {ja', jb'}. By symmetry again, 
+	 { ia, jb } = { ja', jb' }, so 
+	 (a = a[ja'] && a[jb] = a[jb']) || (a = a[jb'] && a[jb] = a[ja']).
+
+	 Each application of this oracle yields probability
+	 pCDH(time(exp) + time(mult)) (which application of CDH 
+	 is needed is determined from the indices in argument,
+	 one is always enough).
+      *)
     ).
 
 }
