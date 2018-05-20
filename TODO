@@ -73,6 +73,8 @@ Furthermore, the GDH_prime_order case can be obtained by combining
 this plus the other properties in common_DH_prime_order
 without writing a specific equivalence.
 
+Done in GDH, to do in square GDH
+
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =

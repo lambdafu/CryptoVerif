@@ -2072,13 +2072,13 @@ equation forall a:G, x:Z, y:Z;
 equation forall a:G, x:Z, y:Z;
   exp'(exp'(a,x), y) = exp'(a, mult(x,y)).
 
-(* TO DO the probability may not be 1/|Z| *)
+(* TO DO the probability may not be 1/|Z| 
 
 collision x <-R Z; y <-R Z;
 	  return(exp(g,x) = exp(g,y)) <=(1/|Z|)=> return(false).
 collision x <-R Z; y <-R Z;
 	  return(exp'(g,x) = exp'(g,y)) <=(1/|Z|)=> return(false).
-
+*)
 }
 
 (* common_DH_prime_order defines Diffie-Hellman assumptions that hold
@@ -2392,7 +2392,7 @@ equiv(gdh(exp))
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b))) |
       foreach ibDDH9 <= nbDDH9 do ODDHb9(jb'<=nb,ja<=na,ja'<=na) := return(exp(g, mult(a[ja], b)) = exp(g, mult(a[ja'], b[jb'])))
     )
-<=((#ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) *
+<=((#ODDHa + #ODDHa1 + #ODDHa4 + #ODDHa5 + #ODDHb + #ODDHb1 + #ODDHb6 + #ODDHb7) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) *
 	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
 	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8) +
@@ -2420,8 +2420,27 @@ equiv(gdh(exp))
       		= (m^b[j] = m'^a). *)
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
       	    (* Similar to ODDHa2 *)
-      foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) |
-      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) |
+      foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) :=
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
+	      if defined(ka) then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
+	      return(b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a))) |
+	    (* GDH always allows to compute exp(m, b[j]) = exp(g,mult(b[j'],a))
+	       as a particular case of ODDHa2.
+	       When a or b[j'] is leaked, that is all we use and we keep the value
+	       that occurs in the left-hand side exp'(m, b[j]) = exp'(g,mult(b[j'],a)).
+	       Otherwise, we distinguish two cases:
+	       - When b[j] = b[j'], we also keep the value of the left-hand side.
+	       - Otherwise, we apply the CDH assumption considering an adversary
+	         that knows b[j] and computes exp(m, b[j]). This adversary cannot
+	         compute exp(g,mult(b[j'],a)) by CDH, so the equality 
+	         exp(m, b[j]) = exp(g,mult(b[j'],a)) is false in this case.
+	       Hence, the equality exp(m, b[j]) = exp(g,mult(b[j'],a))
+	       reduces to b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a)). *)
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) :=
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
+	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
+	      return (a[j] = a && exp'(m,a) = exp'(g, mult(b[j'], a))) |
+	      (* This case is similar to ODDHa4. *)	      
       foreach iaDDH6 <= naDDH6 do ODDHa6(m:G, j'<=na,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(a[j'], a))) |
       foreach iaDDH7 <= naDDH7 do ODDHa7(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
             (* ODDHa4..7 are particular cases of ODDHa2 or ODDHa3, with m' = exp(g, b[j'])
@@ -2456,8 +2475,14 @@ equiv(gdh(exp))
       foreach ibDDH3 <= nbDDH3 do ODDHb3(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', b)) |
       foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(b[j'], b))) |
-      foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) |
-      foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) |
+      foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) :=
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
+	      if defined(kb) then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
+	      return(b[j] = b && exp'(m,b) = exp'(g, mult(a[j'], b))) |
+      foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) :=
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
+	      if defined(kb) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
+	      return(a[j] = a[j'] && exp'(m,a[j']) = exp'(g, mult(a[j'], b))) |
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
       	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
               if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
@@ -2482,7 +2507,7 @@ expand GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
 
 def GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH) {
 
-expand GDH(G, Z, g, exp, exp', mult).
+expand GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
 expand common_DH_prime_order(G, Z, g, exp, exp', mult).
 
 }
