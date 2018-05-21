@@ -111,6 +111,10 @@ collision x <-R Z; y <-R Z; forall X: G;
 does not!
 (Compare the game after the GDH transformation with these two collisions.)
 
+Check that the dependency analysis (FindCompos) does not use collision
+statements with random arguments to show that a term characterizes these
+random arguments.
+
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =
