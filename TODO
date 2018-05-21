@@ -78,6 +78,39 @@ Done in GDH, square GDH
 TO DO find what assumptions that come from the group are really
 useful in practice.
 
+For examples/tls13/tls13-core-InitialHandshake-1RTTonly.cv
+
+collision x <-R Z; forall Y: G independent of x;
+	  return(exp(g,x) = Y) <=(Pcoll)=> return(false).
+collision x <-R Z; y <-R Z; forall Z: G independent of y (or of x);
+	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false).
+
+They need independence assumptions! I should implement that.
+Syntactically, the independence could also be expressed by the
+ordering of the binders: e.g.
+collision x <-R Z; forall Z: G; y <-R Z; 
+	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false).
+would mean that Z may depend on x but does not depend on y.
+In general, that's a bit more limited than explicit independence
+assumptions, and less explicit for the user, so explicit independence
+assumptions may be better.
+
+The application of collision statements does not seem to fully
+exploit the commutativity of mult.
+In examples/tls13/tls13-core-InitialHandshake-1RTTonly.cv with 
+collision x <-R Z; y <-R Z;
+	  return(exp(g,x) = exp(g,y)) <=(1/|Z|)=> return(false).
+collision x <-R Z; y <-R Z;
+	  return(exp'(g,x) = exp'(g,y)) <=(1/|Z|)=> return(false).
+and the GDH assumption of default-DHinprogress.cvl (not prime order),
+collision x <-R Z; y <-R Z; forall X: G;
+	  return(exp'(X, x) = exp'(g, mult(y,x))) <=(0)=> return(X = exp'(g,y)).
+applies at a point where
+collision x <-R Z; y <-R Z; forall X: G;
+	  return(exp'(X, x) = exp'(g, mult(x,y))) <=(0)=> return(X = exp'(g,y)).
+does not!
+(Compare the game after the GDH transformation with these two collisions.)
+
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =

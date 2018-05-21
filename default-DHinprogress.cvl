@@ -2072,17 +2072,6 @@ equation forall a:G, x:Z, y:Z;
 equation forall a:G, x:Z, y:Z;
   exp'(exp'(a,x), y) = exp'(a, mult(x,y)).
 
-(* TO DO the probability may not be 1/|Z| 
-
-collision x <-R Z; y <-R Z;
-	  return(exp(g,x) = exp(g,y)) <=(1/|Z|)=> return(false).
-collision x <-R Z; y <-R Z;
-	  return(exp'(g,x) = exp'(g,y)) <=(1/|Z|)=> return(false).
-
-If I give the properties above, I must also eliminate collisions
-among products, otherwise the collisions among exp(g, mult(..,..))
-will be transformed into collisions among products and left unchanged.
-*)
 }
 
 (* common_DH_prime_order defines Diffie-Hellman assumptions that hold
