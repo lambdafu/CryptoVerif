@@ -2172,7 +2172,7 @@ equiv(exp'_to_group(exp))
    only after expanding the macro.
 *)
 
-def CDH_all_args(G, Z, g, exp, exp', mult, pCDH) {
+def CDH(G, Z, g, exp, exp', mult, pCDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
@@ -2251,12 +2251,6 @@ equiv(cdh(exp))
 
 }
 
-def CDH(G, Z, g, exp, mult, pCDH) {
-
-expand CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
-
-}
-
 (* Decisional Diffie-Hellman 
 
    pDDH(t): the probability of breaking the DDH assumption in time t
@@ -2268,7 +2262,7 @@ expand CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
    only after expanding the macro.
 *)
 
-def DDH_all_args(G, Z, g, exp, exp', mult, pDDH) {
+def DDH(G, Z, g, exp, exp', mult, pDDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
@@ -2323,12 +2317,6 @@ equiv(ddh(exp))
 
 }
 
-def DDH(G, Z, g, exp, mult, pDDH) {
-
-expand DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
-
-}
-
 (* Gap Diffie-Hellman 
 
    pGDH(t, n): the probability of breaking the GDH assumption in time t,
@@ -2342,7 +2330,7 @@ expand DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
 
 *)
 
-def GDH_all_args(G, Z, g, exp, exp', mult, pGDH) {
+def GDH(G, Z, g, exp, exp', mult, pGDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
@@ -2492,24 +2480,14 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-def GDH(G, Z, g, exp, mult, pGDH) {
-
-expand GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
-
-}
-
-def GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH) {
+(*
+def GDH_prime_order(G, Z, g, exp, exp', mult, pGDH) {
 
 expand GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
 expand common_DH_prime_order(G, Z, g, exp, exp', mult).
 
 }
-
-def GDH_prime_order(G, Z, g, exp, mult, pGDH) {
-
-expand GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
-
-}
+*)
 
 (* square Computational Diffie-Hellman and Computational Diffie-Hellman.
 
@@ -2527,7 +2505,7 @@ expand GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
 
 *)
 
-def square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH) {
+def square_CDH(G, Z, g, exp, exp', mult, pCDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
@@ -2579,13 +2557,6 @@ equiv(cdh(exp))
 
 }
 
-def square_CDH(G, Z, g, exp, mult, pCDH) {
-
-expand square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
-
-}
-
-
 (* square Decisional Diffie-Hellman and Decisional Diffie-Hellman
 
    pDDH(t): the probability of breaking the square DDH assumption in time t
@@ -2597,7 +2568,7 @@ expand square_CDH_all_args(G, Z, g, exp, exp', mult, pCDH).
    only after expanding the macro.
 *)
 
-def square_DDH_all_args(G, Z, g, exp, exp', mult, pDDH) {
+def square_DDH(G, Z, g, exp, exp', mult, pDDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
@@ -2632,12 +2603,6 @@ equiv(ddh(exp))
 
 }
 
-def square_DDH(G, Z, g, exp, mult, pDDH) {
-
-expand square_DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
-
-}
-
 (* square Gap Diffie-Hellman and Gap Diffie-Hellman.
 
    When the group is of prime order, the square GDH assumption is
@@ -2655,7 +2620,7 @@ expand square_DDH_all_args(G, Z, g, exp, exp', mult, pDDH).
 
 *)
 
-def square_GDH_all_args(G, Z, g, exp, exp', mult, pGDH) {
+def square_GDH(G, Z, g, exp, exp', mult, pGDH) {
 
 expand common_DH(G, Z, g, exp, exp', mult).
 
@@ -2740,24 +2705,14 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-def square_GDH(G, Z, g, exp, mult, pGDH) {
-
-expand square_GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
-
-}
-
-def square_GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH) {
+(*
+def square_GDH_prime_order(G, Z, g, exp, exp', mult, pGDH) {
 
 expand square_GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
 expand common_DH_prime_order(G, Z, g, exp, exp', mult).
 
 }
-
-def square_GDH_prime_order(G, Z, g, exp, mult, pGDH) {
-
-expand square_GDH_prime_order_all_args(G, Z, g, exp, exp', mult, pGDH).
-
-}
+*)
 
 (********************************* Miscellaneous ***************************)
 
