@@ -115,6 +115,14 @@ Check that the dependency analysis (FindCompos) does not use collision
 statements with random arguments to show that a term characterizes these
 random arguments.
 
+   Update the manual and default.ocvl with the changes made
+   in default-DHinprogress.cvl to allow "nonuniform" types.
+   ("bounded" is required to express the runtime of functions without
+   mentioning the length of the value in question; "nonuniform" can be
+   used when we just want to choose random numbers.)
+   "bounded, nonuniform" is also allowed, to have a non-uniform
+   distribution on a bounded type!
+   
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =
