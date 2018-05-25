@@ -19,7 +19,7 @@ param N, NX, Neq.
 equiv(move_array(T))
       foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
                       	        foreach ieq <= Neq do Oeq(X':T) := return(X' = X))
-<=(#Oeq / |T|)=> [manual,computational]
+<=(#Oeq * Pcoll1rand(T))=> [manual,computational]
       foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
               	       foreach ieq <= Neq do Oeq(X':T) := find[unique] j<=NX suchthat defined(Y[j]) then return(X' = Y[j]) else return(false)).
 
@@ -811,7 +811,7 @@ equiv(sprp(enc))
        foreach i3 <= N3 do k <-R key; (
        	       foreach i <= N do Oenc(x:blocksize) := return(enc(x, k)) |
 	       foreach i2 <= N2 do Odec(m:blocksize) := return(dec(m, k)))
-     <=(N3 * (Penc(time + (N3-1)*(N*time(enc) + N2*time(dec)), N, N2) + (N+N2)*(N+N2-1)/|blocksize|))=>
+     <=(N3 * (Penc(time + (N3-1)*(N*time(enc) + N2*time(dec)), N, N2) + (N+N2)*(N+N2-1)*Pcoll2rand(blocksize)))=>
        foreach i3 <= N3 do (
        	       foreach i <= N do Oenc(x:blocksize) :=
 		find[unique] j<=N suchthat defined(x[j],r2[j]) && x = x[j] then return(r2[j])
@@ -862,7 +862,7 @@ equation forall m:blocksize, k:key;
 equiv(prp(enc))
        foreach i3 <= N3 do k <-R key; 
        	       foreach i <= N do Oenc(x:blocksize) := return(enc(x, k))
-     <=(N3 * (Penc(time + (N3-1)*(N*time(enc)), N) + N * (N-1) / |blocksize|))=>
+     <=(N3 * (Penc(time + (N3-1)*(N*time(enc)), N) + N * (N-1) * Pcoll2rand(blocksize)))=>
        foreach i3 <= N3 do  
        	       foreach i <= N do Oenc(x:blocksize) := 
 		find[unique] j<=N suchthat defined(x[j],r2[j]) && x = x[j] then return(r2[j])
@@ -914,7 +914,7 @@ equiv(icm(enc))
        foreach ick <= Nck do ck <-R cipherkey;
          (foreach ie <= Ne do Oenc(me:blocksize, ke:key) := return(enc(ck, me, ke)) |
           foreach id <= Nd do Odec(md:blocksize, kd:key) := return(dec(ck, md, kd)))
-     <=((#Oenc+#Odec)*(#Oenc+#Odec-1)/|blocksize|)=> [computational]
+     <=((#Oenc+#Odec)*(#Oenc+#Odec-1)*Pcoll2rand(blocksize))=> [computational]
        foreach ick <= Nck do 
          (foreach ie <= Ne do Oenc(me:blocksize, ke:key) :=
 		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && me = me[j] && ke = ke[j] then return(re[j]) 
@@ -1900,7 +1900,7 @@ equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
          foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := return(r' = hash(k,x')))
-       <=(#Oeq / |hashoutput|)=> [computational]
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
       foreach ih <= Nh do 
         (foreach i <= N do OH(x:hashinput) := 
 	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r) |
@@ -1933,7 +1933,7 @@ equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH(x1:hashinput1,x2:hashinput2) := return(hash(k,x1,x2)) |
          foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2, r':hashoutput) := return(r' = hash(k,x1',x2')))
-       <=(#Oeq / |hashoutput|)=> [computational]
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
       foreach ih <= Nh do 
         (foreach i <= N do OH(x1:hashinput1,x2:hashinput2) := 
 	   find[unique] u <= N suchthat defined(x1[u],x2[u],r[u]) && x1 = x1[u] && x2 = x2[u] then return(r[u]) else r <-R hashoutput; return(r) |
@@ -1960,7 +1960,7 @@ equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3) := return(hash(k,x1,x2,x3)) |
          foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2,x3':hashinput3, r':hashoutput) := return(r' = hash(k,x1',x2',x3')))
-       <=(#Oeq / |hashoutput|)=> [computational]
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
       foreach ih <= Nh do 
         (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3) := 
 	   find[unique] u <= N suchthat defined(x1[u],x2[u],x3[u],r[u]) && x1 = x1[u] && x2 = x2[u] && x3 = x3[u] then return(r[u]) else r <-R hashoutput; return(r) |
@@ -1987,7 +1987,7 @@ equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3,x4: hashinput4) := return(hash(k,x1,x2,x3,x4)) |
          foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2,x3':hashinput3,x4':hashinput4, r':hashoutput) := return(r' = hash(k,x1',x2',x3',x4')))
-       <=(#Oeq / |hashoutput|)=> [computational]
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
       foreach ih <= Nh do 
         (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3,x4: hashinput4) := 
 	   find[unique] u <= N suchthat defined(x1[u],x2[u],x3[u],x4[u],r[u]) && x1 = x1[u] && x2 = x2[u] && x3 = x3[u] && x4 = x4[u] then return(r[u]) else r <-R hashoutput; return(r) |
