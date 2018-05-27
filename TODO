@@ -130,6 +130,8 @@ X = exp(g,y).(element of small order).
 Check that the dependency analysis (FindCompos) does not use collision
 statements with random arguments to show that a term characterizes these
 random arguments.
+OK: inside FindCompos, I use apply_eq_statements_at_root which applies
+only statements, not collisions, to simplify terms in find_compos_bin.
 
    Update the manual and default.ocvl with the changes made
    in default-DHinprogress.cvl to allow "nonuniform" types.
