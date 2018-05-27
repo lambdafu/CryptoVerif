@@ -111,6 +111,22 @@ collision x <-R Z; y <-R Z; forall X: G;
 does not!
 (Compare the game after the GDH transformation with these two collisions.)
 
+For curve25519, let q be the order of the base point g.
+let Z be the integers multiple of 8 modulo 8q.
+mult(x,y) = x.y mod 8q (remains multiple of 8)
+exp(a,y) = point a multiplied by y
+the choice of a secret key is non uniform in Z: choose among
+2^254 + 8n (n \in [0, 2^251-1]) that is 2^251 elements.
+
+Then we have injectivity:
+(exp(g,x) = exp(g,y)) = (x = y).
+
+mult(x,y) = mult(x',y) may imply x = x'.
+
+However, it is not true that exp(X, x) = exp(g, mult(x,y)) with random x,y
+implies X = exp(g,y), because one may also have
+X = exp(g,y).(element of small order).
+
 Check that the dependency analysis (FindCompos) does not use collision
 statements with random arguments to show that a term characterizes these
 random arguments.
@@ -481,6 +497,38 @@ have the same continuation.
       That might be easier to implement and perhaps also to use
       (no need to move merge points manually, for instance),
       but less powerful.
+
+      It should work well when we have a single ROM followed by
+      GDH or CDH, or several ROM each after a possibly common Diffie-Hellman.
+      But it probably does not work that well in case we have several ROMs
+      in sequence (e.g. it would not work well for TextSecure, or for Wireguard
+      without applying our indifferentiability result): the first ROM leads to
+
+      let result = find... then r[...] else new r: T; r in
+      H2(result, ...)
+
+      The second one yields
+
+      let result = find... then r[...] else new r: T; r in
+      find ... result = result[...] && ... then r2[...] else new r2:T2; r2
+
+      To simplify result = result[...], I need to distinguish cases at
+      least locally.
+
+      Perhaps it works better in the other order:
+
+      let result = H1(...) in
+      find ... result = result[...] && ... then r2[...] else new r2:T2; r2
+
+      remove_assign result
+
+      find ... H1(...) = H1(...) && ... then r2[...] else new r2:T2; r2
+
+      No, I think that's not good at all: that will yield many more occurrences
+      of H1 (each call to H1 is copied at each call to H2),
+      plus H1 now occurs in conditions of find so the transformations that
+      we can make are more limited.
+
    - Be able to consider a call to the hash function as a call to
       the hash oracle given to the adversary. That could be useful
       when we do not really about this call, e.g., when it is in
