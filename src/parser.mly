@@ -192,14 +192,33 @@ lib:
         { (List.map (fun x -> (ChannelDecl(x))) $2) @ $4 }
 |       EQUIV eqname eqmember EQUIVLEFT probaf EQUIVRIGHT optpriority eqmember DOT lib
         { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
-|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT lib
-        { (Collision($2, $3, $6, $9, $13)) :: $16 }
+|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT lib
+        { (Collision($2, $3, $6, $9, $13, $15)) :: $17 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE lib RBRACE lib
         { (Define($2, $4, $7)) :: $9 }
 | 
         { [] }
 
+indep_cond:
 
+    { [] }
+|   IF ne_indep_cond
+    { $2 }
+
+ne_indep_cond:
+    one_indep_cond
+    { [$1] }
+|   one_indep_cond AND ne_indep_cond
+    { $1 :: $3 }
+
+one_indep_cond:  
+    IDENT IDENT IDENT IDENT
+    { match $2, $3 with
+      | ("independent", _), ("of", _) -> ($1, $4)
+      | ("independent", _), (_, ext2) ->
+	  Parsing_helper.input_error "Syntax error" ext2
+      | (_, ext1), _ -> Parsing_helper.input_error "Syntax error" ext1
+    }
     
 
 impllist:
@@ -1165,8 +1184,8 @@ olib:
 	{ (PDef($2,$4,$7)) :: $9 }
 |       EQUIV eqname eqmember EQUIVLEFT oprobaf EQUIVRIGHT optpriority eqmember DOT olib
         { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
-|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN DOT olib
-        { (Collision($2, $3, $6, $9, $13)) :: $16 }
+|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT olib
+        { (Collision($2, $3, $6, $9, $13, $15)) :: $17 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE olib RBRACE olib
         { (Define($2, $4, $7)) :: $9 }
 | 

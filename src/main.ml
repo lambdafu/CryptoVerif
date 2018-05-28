@@ -70,7 +70,7 @@ let simplify_statement (vl, t) =
       else 
 	t
     in
-    let record_statement ((_, _, t1, _,t2) as statement) =
+    let record_statement ((_, _, t1, _,t2, _) as statement) =
       match t1.t_desc with
 	FunApp(f, l) -> 
 	  f.f_statements <- statement :: f.f_statements
@@ -95,14 +95,14 @@ let simplify_statement (vl, t) =
 	    Display.display_term t2;
 	    Parsing_helper.user_error ": all variables of the right-hand side should occur in the left-hand side.\n"
 	  end;	  
-	record_statement ([], vl, t1, Zero, t2)
+	record_statement ([], vl, t1, Zero, t2, [])
     | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
-	record_statement ([], vl, tnew, Zero, Terms.make_true());
-	record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false())
+	record_statement ([], vl, tnew, Zero, Terms.make_true(), []);
+	record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false(), [])
     | _ -> 
-	record_statement ([], vl, tnew, Zero, Terms.make_true())
+	record_statement ([], vl, tnew, Zero, Terms.make_true(), [])
 	  
-let record_collision ((_, _, t1, _,t2) as collision) =
+let record_collision ((_, _, t1, _,t2, _) as collision) =
   match t1.t_desc with
     FunApp(f, l) -> 
       f.f_collisions <- collision :: f.f_collisions

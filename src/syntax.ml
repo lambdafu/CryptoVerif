@@ -2472,7 +2472,12 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
 
 (* Check collision statement *)
 
-let check_collision env (restr, forall, t1, proba, t2) =
+let check_collision_var env (s, ext) =
+  match StringMap.find s env with
+    EVar(v) -> v
+  | _ -> input_error (s ^ " should be a variable") ext
+    
+let check_collision env (restr, forall, t1, proba, t2, indep_cond) =
   (* Note: This function uses check_binder_list, which calls
      Terms.create_binder0, so it does not rename the variables.
      That is why I do not save and restore the variable
@@ -2492,7 +2497,18 @@ let check_collision env (restr, forall, t1, proba, t2) =
   check_bit_string_type (snd t1) t1'.t_type;
   if t1'.t_type != t2'.t_type then 
     input_error "Both sides of a collision statement should have the same type" (snd t2);
-  collisions := (restr', forall', t1', proba', t2') :: (!collisions)
+  let indep_cond' = List.map (fun (((_, ext1) as v1), ((_, ext2) as v2)) ->
+    (* v1 independent of v2 *)
+    let v1' = check_collision_var env'' v1 in
+    let v2' = check_collision_var env'' v2 in
+    if not (List.memq v1' forall') then
+      input_error "independent variables should be bound by \"forall\"" ext1;
+    if not (List.memq v2' restr') then
+      input_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
+    (v1', v2')
+    ) indep_cond
+  in
+  collisions := (restr', forall', t1', proba', t2', indep_cond') :: (!collisions)
 
 
 (* Check process
@@ -3028,7 +3044,7 @@ let rename_decl = function
       in
       set_rename_state rename_state;
       renamed_eq_statement
-  | Collision(restr, forall,  t1, p, t2) ->
+  | Collision(restr, forall,  t1, p, t2, indep_cond) ->
       (* Variables created in the statement are local, 
          I can reuse their names later *)
       let rename_state = get_rename_state() in
@@ -3037,7 +3053,8 @@ let rename_decl = function
 		  List.map (fun (x,t) -> (rename_ie x, rename_ie t)) forall,
 		  rename_term t1,
 		  rename_probaf p,
-		  rename_term t2)
+		  rename_term t2,
+		  List.map (fun (v1,v2) -> (rename_ie v1, rename_ie v2)) indep_cond)
       in
       set_rename_state rename_state;
       renamed_coll_statement      
@@ -4086,12 +4103,13 @@ let collect_id_decl accu = function
       collect_id_eqmember accu l;
       collect_id_eqmember accu r;
       collect_id_probaf accu p
-  | Collision(restr, forall,  t1, p, t2) ->
+  | Collision(restr, forall,  t1, p, t2, indep_cond) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
       collect_id_term accu t1;
       collect_id_probaf accu p;
-      collect_id_term accu t2
+      collect_id_term accu t2;
+      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) indep_cond
   | Query (vars, l) ->
       List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) vars;
       List.iter (collect_id_query accu) l

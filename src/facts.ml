@@ -280,7 +280,9 @@ let rec check_indep_list = function
 
 let rec apply_collisions_at_root_once reduce_rec simp_facts final t = function
     [] -> raise NoMatch
-  | (restr, forall, redl, proba, redr)::other_coll ->
+  | (restr, forall, redl, proba, redr, indep_cond)::other_coll ->
+      (* TO DO handle indep_cond *)
+      assert (indep_cond == []);
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () -> 
 	  let t' = Terms.copy_term Terms.Links_Vars redr in

@@ -424,7 +424,7 @@ and statement = binder list * term
 (* Collision statements *)
 
 and collision = binder list(*restrictions*) * binder list(*forall*) *
-      term * probaf * term
+      term * probaf * term * (binder * binder) list(*independence conditions*)
 
 (* Queries *)
 

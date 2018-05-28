@@ -624,7 +624,7 @@ let reduced = ref false
    for statements, with try_no_var = Terms.try_no_var_id *)
 let rec apply_statements_at_root_once t = function
     [] -> t
-  | ([], _, redl, Zero, redr)::other_statements ->
+  | ([], _, redl, Zero, redr, [])::other_statements ->
       begin
 	try
 	  Facts.match_term Terms.simp_facts_id [] (fun () -> 
@@ -637,7 +637,7 @@ let rec apply_statements_at_root_once t = function
 	  Terms.cleanup();
 	  apply_statements_at_root_once t other_statements
       end
-  | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr)"
+  | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr, [])"
 
 (* Same as Facts.apply_reds but does not apply collisions, and 
    applies statements only at the root of the term *)
