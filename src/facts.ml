@@ -278,30 +278,53 @@ let rec check_indep_list = function
    in addition to the already known facts. It sets the flag [reduced]
    when [t] has really been modified. *)
 
-let rec apply_collisions_at_root_once reduce_rec simp_facts final t = function
+let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond)::other_coll ->
-      (* TO DO handle indep_cond *)
-      assert (indep_cond == []);
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () -> 
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
 	  let l_indep = check_indep_list restr in
-	  let redl' = Terms.copy_term Terms.Links_Vars redl in
 	  let restr_map = 
 	    List.map (fun restr1 ->
 	      match restr1.link with
 		TLink trestr -> (restr1,trestr)
-	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red"
+	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (1)"
 		    ) restr
 	  in
-	(* Cleanup early enough, so that the links that we create in this 
-	   collision do not risk to interfere with a later application of 
-	   the same collision in reduce_rec. *)
+	  (* Check independence conditions *)
+	  List.iter (fun (b1, b2) ->
+	    (* b1 must be independent of b2 *)
+	    let t1 = 
+	      match b1.link with
+		TLink t -> t
+	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
+	    in
+	    let br2 =
+	      match b2.link with
+		TLink { t_desc = Var(b,l) } -> (b,l)
+	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
+	    in
+	    match dep_info (IndepTest(t1, br2)) with
+	      None -> raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
+	    | Some t1' -> (* t1 may be transformed into a term t1' that is independent of br2
+			     Store it in the link for b1 *)
+		b1.link <- TLink t1'
+		     ) indep_cond;
+	  (* [redl'] is the instantiated version of [redl], using terms
+	     made independent as needed to apply the collision.
+	     Same for [redr']. That allows taking the replication indices
+	     introduced by [dep_info IndepTest] into account in the probability
+	     computation. *)
+	  let redl' = Terms.copy_term Terms.Links_Vars redl in
+	  let redr' = Terms.copy_term Terms.Links_Vars redr in
+	  (* Cleanup early enough, so that the links that we create in this 
+	     collision do not risk to interfere with a later application of 
+	     the same collision in reduce_rec. *)
 	  Terms.cleanup();
 	  let t'' =
 	    if l_indep == [] then
-		(* All restrictions are always independent, nothing to add *)
+	      (* All restrictions are always independent, nothing to add *)
 	      t' 
 	    else
 	      begin
@@ -336,14 +359,14 @@ let rec apply_collisions_at_root_once reduce_rec simp_facts final t = function
               (* Instead of storing the term t, I store the term obtained 
                  after the applications of try_no_var in match_term,
                  obtained by (Terms.copy_term redl) *)
-	      if not (Proba.add_proba_red redl' t' proba restr_map) then
+	      if not (Proba.add_proba_red redl' redr' proba restr_map) then
 		raise NoMatch
 	    end;
 	  t''
 	    ) redl t
       with NoMatch ->
 	Terms.cleanup();
-	apply_collisions_at_root_once reduce_rec simp_facts final t other_coll
+	apply_collisions_at_root_once reduce_rec dep_info simp_facts final t other_coll
 
 
 let reduce_rec_impossible t = assert false
@@ -353,20 +376,20 @@ let apply_statements_at_root_once simp_facts t =
     FunApp(f,_) ->
       begin
 	try 
-	  apply_collisions_at_root_once reduce_rec_impossible simp_facts (fun t' -> reduced := true; t') t f.f_statements 
+	  apply_collisions_at_root_once reduce_rec_impossible no_dependency_anal simp_facts (fun t' -> reduced := true; t') t f.f_statements 
 	with NoMatch -> t
       end
   | _ -> t
 
-let apply_statements_and_collisions_at_root_once reduce_rec simp_facts t =
+let apply_statements_and_collisions_at_root_once reduce_rec dep_info simp_facts t =
   match t.t_desc with
     FunApp(f,_) ->
       begin
 	try 
-	  apply_collisions_at_root_once reduce_rec_impossible simp_facts (fun t' -> reduced := true; t') t f.f_statements 
+	  apply_collisions_at_root_once reduce_rec_impossible no_dependency_anal simp_facts (fun t' -> reduced := true; t') t f.f_statements 
 	with NoMatch ->
 	  try 
-	    apply_collisions_at_root_once reduce_rec simp_facts (fun t' -> reduced := true; t') t f.f_collisions 
+	    apply_collisions_at_root_once reduce_rec dep_info simp_facts (fun t' -> reduced := true; t') t f.f_collisions 
 	  with NoMatch -> t
       end
   | _ -> t
@@ -523,10 +546,10 @@ let apply_eq_statements_subterms_once simp_facts t =
    the equality statements, and the collisions given in the input 
    file to all subterms of [t]. *)
 
-let apply_eq_statements_and_collisions_subterms_once reduce_rec simp_facts t =
+let apply_eq_statements_and_collisions_subterms_once reduce_rec dep_info simp_facts t =
   let t' = Terms.apply_eq_reds simp_facts reduced t in
   if !reduced then t' else 
-  apply_simplif_subterms_once (apply_statements_and_collisions_at_root_once reduce_rec simp_facts) simp_facts t
+  apply_simplif_subterms_once (apply_statements_and_collisions_at_root_once reduce_rec dep_info simp_facts) simp_facts t
 
 (* For debugging 
 let apply_eq_statements_and_collisions_subterms_once reduce_rec simp_facts t =
@@ -607,11 +630,11 @@ let rec apply_subst1 simp_facts t tsubst =
    the equalities in [simp_facts] to enable their application.
    Application is repeated until a fixpoint is reached. *)
 
-let rec apply_reds depth simp_facts t =
+let rec apply_reds depth dep_info simp_facts t =
   reduced := false;
-  let t' = apply_eq_statements_and_collisions_subterms_once (reduce_rec depth simp_facts) simp_facts t in
+  let t' = apply_eq_statements_and_collisions_subterms_once (reduce_rec depth simp_facts) dep_info simp_facts t in
   if !reduced then 
-    apply_reds (depth+1) simp_facts t' 
+    apply_reds (depth+1) dep_info simp_facts t' 
   else
     t
 
@@ -633,13 +656,13 @@ and apply_sub1 simp_facts t link =
    At most one reduction is done. When the reduction succeeds,
    it returns (true, reduced_term); otherwise, it returns (false, t). *)
 
-and apply_eq_st_coll1 depth simp_facts t =
+and apply_eq_st_coll1 depth dep_info simp_facts t =
   match t.t_desc with
     Var _ | ReplIndex _ ->
       (false, t)
   | FunApp _ ->
       reduced := false;
-      let t' = apply_eq_statements_and_collisions_subterms_once (reduce_rec depth simp_facts) simp_facts t in
+      let t' = apply_eq_statements_and_collisions_subterms_once (reduce_rec depth simp_facts) dep_info simp_facts t in
       (!reduced, t')
   | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in apply_eq_st_coll1"
 
@@ -699,7 +722,7 @@ and simplify_facts depth dep_info (subst2,facts,elsefind) t =
   (* not(true) is not simplified in add_fact, simplify it here *)
   let t' = 
     if !m then 
-      apply_reds depth (subst2,(!not_mod_facts),elsefind) t'
+      apply_reds depth dep_info (subst2,(!not_mod_facts),elsefind) t'
     else
       t'
   in  
@@ -931,9 +954,9 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
       FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
 	let simp_facts_tmp = (link :: (!subst2'') @ rest, facts, elsefind) in
 	(* Reduce the LHS of the equality t = t' *)
-	let (reduced_lhs, t1) = apply_eq_st_coll1 depth simp_facts_tmp t in
+	let (reduced_lhs, t1) = apply_eq_st_coll1 depth dep_info simp_facts_tmp t in
 	(* Reduce the RHS of the equality t = t' *)
-	let (reduced_rhs, t1') = apply_eq_st_coll1 depth simp_facts_tmp t' in
+	let (reduced_rhs, t1') = apply_eq_st_coll1 depth dep_info simp_facts_tmp t' in
 	if reduced_lhs || reduced_rhs then
 	  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
 	  if not reduced_lhs then
@@ -958,7 +981,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
     match t0.t_desc with
       FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
 	(* Reduce the LHS of the equality t = t' *)
-	let (reduced_lhs, t1) = apply_eq_st_coll1 depth simp_facts t in
+	let (reduced_lhs, t1) = apply_eq_st_coll1 depth dep_info simp_facts t in
 	if not reduced_lhs then
 	  rhs_reduced := t0 :: (!rhs_reduced) 
 	else	    
@@ -980,7 +1003,7 @@ and simplif_add depth dep_info simp_facts fact =
       print_string "simplif_add "; Display.display_term fact; 
       print_string " knowing\n"; display_facts simp_facts; print_newline();
     end;
-  let fact' = apply_reds depth simp_facts fact in
+  let fact' = apply_reds depth dep_info simp_facts fact in
   add_fact depth dep_info simp_facts fact'
 
 and simplif_add_list depth dep_info simp_facts = function
@@ -1095,7 +1118,7 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	match t0.t_desc with
 	  FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
 	    (* Reduce the RHS of the equality t = t' *)
-	    let (reduced, t1') = apply_eq_st_coll1 depth (link :: (!subst2'') @ rest, facts, elsefind) t' in
+	    let (reduced, t1') = apply_eq_st_coll1 depth dep_info (link :: (!subst2'') @ rest, facts, elsefind) t' in
 	    if reduced then
 	      let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
 	      rhs_reduced := fact' :: (!rhs_reduced)
@@ -1116,7 +1139,7 @@ and specialized_simplif_add depth dep_info simp_facts fact =
     end;
   let fact' = match fact.t_desc with
     FunApp(f,[t;t']) -> 
-      Terms.build_term_type Settings.t_bool (FunApp(f, [t;apply_reds depth simp_facts t']))
+      Terms.build_term_type Settings.t_bool (FunApp(f, [t;apply_reds depth dep_info simp_facts t']))
   | _ ->
       Parsing_helper.internal_error "specialized_add_fact: t = t' expected"
   in
@@ -1155,8 +1178,8 @@ let simplif_add_list dep_info s fl =
     raise Contradiction
 *)
 
-let apply_reds simp_facts t = 
-  apply_reds 0 simp_facts t
+let apply_reds dep_info simp_facts t = 
+  apply_reds 0 dep_info simp_facts t
 
 let simplif_add dep_info simp_facts fact =
   simplif_add 0 dep_info simp_facts fact
@@ -2080,7 +2103,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 			Some t' -> t'
 		      | None -> t
 		    in
-		    apply_reds simp_facts t 
+		    apply_reds dep_info simp_facts t 
 		  with Contradiction -> 
 		    Terms.make_false()
 	    end
@@ -2108,7 +2131,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 		    Some t' -> (* print_string "reduces into "; Display.display_term t';*) t'
 		  | None -> (* print_string "no change\n";*) t
 		in
-		apply_reds simp_facts t 
+		apply_reds dep_info simp_facts t 
 	      with Contradiction -> 
 		Terms.make_false()
 	    end
@@ -2146,7 +2169,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 			Some t' -> Terms.make_not t'
 		      | None -> t
 		    in
-		    apply_reds simp_facts t
+		    apply_reds dep_info simp_facts t
 		  with Contradiction -> 
 		    Terms.make_true()
 	    end
@@ -2174,13 +2197,13 @@ let rec simplify_term_rec dep_info simp_facts t =
 		    Some t' -> (* print_string "reduces into "; Display.display_term (Terms.make_not t');*) Terms.make_not t'
 		  | None -> (* print_string "no change\n";*) t
 		in
-		apply_reds simp_facts t 
+		apply_reds dep_info simp_facts t 
 	      with Contradiction -> 
 		Terms.make_true()
 	    end
 	| _ -> Parsing_helper.internal_error "Expecting a group or xor theory in Facts.add_fact"
       end
-  | _ -> apply_reds simp_facts t
+  | _ -> apply_reds dep_info simp_facts t
 
 let rec simplify_bool_subterms dep_info simp_facts t =
   if t.t_type == Settings.t_bool then
@@ -2192,7 +2215,7 @@ let rec simplify_bool_subterms dep_info simp_facts t =
     | _ -> t
 	
 let simplify_term dep_info simp_facts t = 
-  let t' = apply_reds simp_facts t in
+  let t' = apply_reds dep_info simp_facts t in
   simplify_bool_subterms dep_info simp_facts t'
 
 (***** [check_equal t t' simp_facts], defined below, 
@@ -2259,7 +2282,7 @@ let apply_eq add_accu t equalities =
 
 let apply_colls reduce_rec add_accu t colls = 
   try 
-    apply_collisions_at_root_once reduce_rec Terms.simp_facts_id (fun t' -> add_accu t'; raise NoMatch) t colls
+    apply_collisions_at_root_once reduce_rec no_dependency_anal Terms.simp_facts_id (fun t' -> add_accu t'; raise NoMatch) t colls
   with NoMatch -> ()
     
 (* [simp_eq_diff add_accu t] applies a bunch of simplifications specific 
@@ -2426,7 +2449,7 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
       apply_colls reduce_rec_impossible add_accu t f.f_statements;
       apply_colls reduce_rec add_accu t f.f_collisions;
       apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
-	(* We use this function for rewritting terms in the manual transformation
+	(* We use this function for rewriting terms in the manual transformation
 	   "replace". LetEqual should never appear here. *)
   | Var(b,l) -> 
       apply_eq add_accu t equalities;

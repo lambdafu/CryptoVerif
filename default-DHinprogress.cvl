@@ -2074,6 +2074,20 @@ equation forall a:G, x:Z, y:Z;
 
 }
 
+def common_DH_proba(G, Z, g, exp, exp', mult, PCollKey) {
+
+collision x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey)=> return(false) if Y independent of x.
+collision x <-R Z; forall Y: G;
+	  return(exp'(g, x) = Y) <=(PCollKey)=> return(false) if Y independent of x.
+
+collision x <-R Z; y <-R Z; forall Z: G;
+	  return(exp(g, mult(x,y)) = Z) <=(PCollKey)=> return(false) if Z independent of y.
+collision x <-R Z; y <-R Z; forall Z: G;
+	  return(exp'(g, mult(x,y)) = Z) <=(PCollKey)=> return(false) if Z independent of y.
+
+}
+
 (* common_DH_prime_order defines Diffie-Hellman assumptions that hold
    when
    - the group G has prime order q

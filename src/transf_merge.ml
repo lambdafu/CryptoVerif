@@ -708,7 +708,7 @@ let reduced = Facts.reduced
 let rec apply_reds simp_facts t =
   let t = reduce simp_facts t in
   reduced := false;
-  let t' = Facts.apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts) Terms.simp_facts_id t in
+  let t' = Facts.apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts) Facts.no_dependency_anal Terms.simp_facts_id t in
   if !reduced then 
     apply_reds simp_facts t' 
   else
@@ -818,7 +818,7 @@ and subst_simplify2 (subst2, facts, elsefind) link =
 	      (* Applying reductions here slows down simplification *)
 	      reduced := false;
 	      let simp_facts_tmp = (link :: (!subst2''), facts, elsefind) in
-	      let t1' = Facts.apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts_tmp) Terms.simp_facts_id (reduce simp_facts_tmp t') in
+	      let t1' = Facts.apply_eq_statements_and_collisions_subterms_once (reduce_rec simp_facts_tmp) Facts.no_dependency_anal Terms.simp_facts_id (reduce simp_facts_tmp t') in
 	      (t1, t1', red || (!reduced) || (!reduced_subst))
 	  | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in subst_simplify2"
 	in

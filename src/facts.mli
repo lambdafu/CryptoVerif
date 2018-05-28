@@ -15,7 +15,7 @@ val match_term : simp_facts -> binder list -> (unit -> 'a) -> term -> term -> un
 (* set to true by the functions below when they reduce the term *)
 val reduced : bool ref
 
-(* [apply_eq_statements_and_collisions_subterms_once reduce_rec try_no_var t] 
+(* [apply_eq_statements_and_collisions_subterms_once reduce_rec dep_info simp_facts t] 
    simplifies the term [t] using the equalities coming from the
    equational theories, the equality statements, and the collisions  
    given in the input file.
@@ -24,7 +24,7 @@ val reduced : bool ref
    when [t] has really been modified.
    [try_no_var t] must simplify the term [t] by replacing variables
    with their values according to currently known facts. *)
-val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> simp_facts -> term -> term
+val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> dep_anal -> simp_facts -> term -> term
 
 (* [apply_eq_statements_subterms_once try_no_var t] simplifies
    the term [t] using the equalities coming from the
@@ -32,12 +32,12 @@ val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) ->
    [try_no_var] is as above. *)
 val apply_eq_statements_subterms_once : simp_facts -> term -> term
 
-(* [apply_reds simp_facts t] applies all equalities coming from the
+(* [apply_reds dep_info simp_facts t] applies all equalities coming from the
    equational theories, equality statements, and collisions given in
    the input file to all subterms of the term [t], taking into account
    the equalities in [simp_facts] to enable their application.
    Application is repeated until a fixpoint is reached. *)
-val apply_reds : simp_facts -> term -> term
+val apply_reds : dep_anal -> simp_facts -> term -> term
 
 (* Display the facts. Mainly used for debugging *)
 val display_elsefind : elsefind_fact -> unit
