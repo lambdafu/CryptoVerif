@@ -651,8 +651,9 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
   | _ -> None
 
 
-(* [dependency_anal cur_array dep_info (CollisionTest(simp_facts, t1, t2))] 
-simplifies [t1 = t2] using dependency analysis.
+(* [dependency_anal cur_array dep_info = (indep_test, collision_test)]
+[collision_test simp_facts t1 t2] simplifies [t1 = t2] using dependency 
+analysis.
 It returns
 - [Some t'] when it simplified [t1 = t2] into [t'];
 - [None] when it could not simplify [t1 = t2]. 
@@ -660,38 +661,42 @@ It returns
 [dep_info] is the local dependency information (for module DepAnal2).
 [simp_facts] contains facts that are known to hold.
 
-[dependency_anal cur_array (IndepTest(t, (b,l))] 
-returns [Some t'] when [t'] is a term obtained from [t] by replacing
-array indices that depend on [b[l]] with fresh indices.
-[t'] does not depend on [b[l]].
+[indep_test t (b,l] 
+returns [Some (t', side_condition)] when [t'] is a term obtained from [t] 
+by replacing array indices that depend on [b[l]] with fresh indices.
+[t'] does not depend on [b[l]] when [side_condition] is true.
 Returns [None] if that is not possible.
 *)
 
-let dependency_anal cur_array dep_info = function
-  | IndepTest(t, (b,l)) ->
-      begin
-	let bdepinfo =
-	  if Terms.is_args_at_creation b l then
-	    DepAnal2.get_dep_info dep_info b
-	  else
-	    FindCompos.init_elem
-	in
-	try
-	  Some (FindCompos.is_indep (b,bdepinfo) t)
-	with Not_found -> None
-      end
-  | CollisionTest(simp_facts, t1, t2) -> 
-      let t1' = try_no_var_rec simp_facts t1 in
-      let t2' = try_no_var_rec simp_facts t2 in
-      let true_facts = true_facts_from_simp_facts simp_facts in
-      match try_two_directions (dependency_collision_rec2 cur_array true_facts dep_info) t1' t2' with
-	(Some _) as x -> x
-      | None ->
-	  repl_index_list := [];
-	  match try_two_directions (dependency_collision_rec3 cur_array true_facts) t1' t2' with
-	    (Some _) as x -> x
-	  | None ->
-	      try_two_directions (dependency_collision_rec1 cur_array true_facts) t1' t2'
+let dependency_anal cur_array dep_info = 
+  let indep_test t (b,l) =
+    begin
+      let bdepinfo =
+	if Terms.is_args_at_creation b l then
+	  DepAnal2.get_dep_info dep_info b
+	else
+	  FindCompos.init_elem
+      in
+      try
+	(* TO DO I could be more precise with a side condition *)
+	Some (FindCompos.is_indep (b,bdepinfo) t, Terms.make_true())
+      with Not_found -> None
+    end
+  in
+  let collision_test simp_facts t1 t2 = 
+    let t1' = try_no_var_rec simp_facts t1 in
+    let t2' = try_no_var_rec simp_facts t2 in
+    let true_facts = true_facts_from_simp_facts simp_facts in
+    match try_two_directions (dependency_collision_rec2 cur_array true_facts dep_info) t1' t2' with
+      (Some _) as x -> x
+    | None ->
+	repl_index_list := [];
+	match try_two_directions (dependency_collision_rec3 cur_array true_facts) t1' t2' with
+	  (Some _) as x -> x
+	| None ->
+	    try_two_directions (dependency_collision_rec1 cur_array true_facts) t1' t2'
+  in
+  (indep_test, collision_test)
 		
 (* Note on the elimination of collisions in find conditions:
    The find indices are replaced with fresh replication indices,

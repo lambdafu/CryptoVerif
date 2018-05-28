@@ -81,7 +81,10 @@ for each occ' occurrence of a variable in N'.
 
 *)
 
-let no_dependency_anal = fun _ -> None
+let no_dependency_anal = ((fun _ _ -> None), (fun _ _ _ -> None))
+
+let indep_test (dep_anal_indep_test, _) = dep_anal_indep_test
+let collision_test (_, dep_anal_collision_test) = dep_anal_collision_test
 
 (* [orient t1 t2] returns true when the equality t1 = t2
    can be oriented t1 -> t2. 
@@ -158,7 +161,7 @@ let prod_dep_anal eq_th dep_info simp_facts l1 l2 =
 	        (* We have product (List.rev seen) t l = t2.
 		   So t = product (inv (product (List.rev seen))) t2 (inv (product l)). *)
 	    let t' = Terms.make_inv_prod eq_th seen t2 l in
-	    match dep_info (CollisionTest(simp_facts, t, t')) with
+	    match collision_test dep_info simp_facts t t' with
 	      None -> find_orient t2 (t::seen) l
 	    | x -> x
       in
@@ -305,16 +308,18 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		TLink { t_desc = Var(b,l) } -> (b,l)
 	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
 	    in
-	    match dep_info (IndepTest(t1, br2)) with
+	    match indep_test dep_info t1 br2 with
 	      None -> raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
-	    | Some t1' -> (* t1 may be transformed into a term t1' that is independent of br2
-			     Store it in the link for b1 *)
+	    | Some (t1', side_condition) ->
+                (* t1 may be transformed into a term t1' that is independent of br2
+		   Store it in the link for b1
+		   TO DO take into account the side_condition; store it in the proba *)
 		b1.link <- TLink t1'
 		     ) indep_cond;
 	  (* [redl'] is the instantiated version of [redl], using terms
 	     made independent as needed to apply the collision.
 	     Same for [redr']. That allows taking the replication indices
-	     introduced by [dep_info IndepTest] into account in the probability
+	     introduced by [indep_test dep_info] into account in the probability
 	     computation. *)
 	  let redl' = Terms.copy_term Terms.Links_Vars redl in
 	  let redr' = Terms.copy_term Terms.Links_Vars redr in
@@ -808,7 +813,7 @@ and add_fact depth dep_info simp_facts fact =
 		  raise Contradiction
 	          (* Different constants are different *)
               | (_, _) -> 
-		  match dep_info (CollisionTest(simp_facts, t1', t2')) with
+		  match collision_test dep_info simp_facts t1' t2' with
 		    Some t' ->
 		      if Terms.is_false t' then
 			raise Contradiction
@@ -1060,7 +1065,7 @@ and specialized_add_fact depth dep_info simp_facts fact =
 	    raise Contradiction
 	          (* Different constants are different *)
 	| (_,_) -> 
-	    match dep_info (CollisionTest(simp_facts, t1, t2')) with
+	    match collision_test dep_info simp_facts t1 t2' with
 	      Some t' ->
 		if Terms.is_false t' then 
 		  raise Contradiction 
@@ -2099,7 +2104,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 		  try
 		    let _ = simplif_add dep_info simp_facts t' in
 		    let t = 
-		      match dep_info (CollisionTest(simp_facts, t1', t2')) with
+		      match collision_test dep_info simp_facts t1' t2' with
 			Some t' -> t'
 		      | None -> t
 		    in
@@ -2165,7 +2170,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 		  try
 		    let _ = simplif_add dep_info simp_facts (Terms.make_not t') in
 		    let t = 
-		      match dep_info (CollisionTest(simp_facts, t1', t2')) with
+		      match collision_test dep_info simp_facts t1' t2' with
 			Some t' -> Terms.make_not t'
 		      | None -> t
 		    in

@@ -590,11 +590,10 @@ type trans_res =
 
 type simp_facts = term list * term list * elsefind_fact list
 
-type indep_test =
-    IndepTest of term * binderref
-  | CollisionTest of simp_facts * term * term
+type dep_anal_indep_test = term -> binderref -> (term * term) option
+type dep_anal_collision_test = simp_facts -> term -> term -> term option
 
-type dep_anal = indep_test -> term option
+type dep_anal = dep_anal_indep_test * dep_anal_collision_test
 
 exception NoMatch
 exception Contradiction

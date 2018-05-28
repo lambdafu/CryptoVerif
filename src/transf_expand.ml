@@ -232,22 +232,28 @@ It returns
 - [Some t'] when it simplified [t1 = t2] into [t'];
 - [None] when it could not simplify [t1 = t2]. 
 [cur_array] is the list of current replication indices at [t1 = t2].
-[simp_facts] contains facts that are known to hold. *)
+[simp_facts] contains facts that are known to hold. 
 
-let dependency_anal cur_array = function
-  | IndepTest(t, (b,l)) ->
-      begin
-	try
-	  Some (FindCompos.is_indep (b,FindCompos.init_elem) t)
-	with Not_found -> None
-      end
-  | CollisionTest(simp_facts, t1, t2) ->
-      let t1' = try_no_var_rec simp_facts t1 in
-      let t2' = try_no_var_rec simp_facts t2 in
-      let true_facts = true_facts_from_simp_facts simp_facts in
-      repl_index_list := [];
-      Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array true_facts) t1' t2'
+TO DO comment needs update *)
 
+let dependency_anal cur_array =
+  let indep_test t (b,l) =
+    begin
+      try
+	(* TO DO I can be more precise by introducing a side condition *)
+	Some (FindCompos.is_indep (b,FindCompos.init_elem) t, Terms.make_true())
+      with Not_found -> None
+    end
+  in
+  let collision_test simp_facts t1 t2 =
+    let t1' = try_no_var_rec simp_facts t1 in
+    let t2' = try_no_var_rec simp_facts t2 in
+    let true_facts = true_facts_from_simp_facts simp_facts in
+    repl_index_list := [];
+    Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array true_facts) t1' t2'
+  in
+  (indep_test, collision_test)
+    
 (* Note on the elimination of collisions in find conditions:
    The find indices are replaced with fresh replication indices,
    so that we correctly take into account that

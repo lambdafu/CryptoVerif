@@ -424,40 +424,46 @@ let rec dependency_collision_rec cur_array true_facts t1 t2 t =
       Terms.find_some (dependency_collision_rec cur_array true_facts t1 t2) l
   | _ -> None
 
-(* [dependency_anal cur_array (CollisionTest(simp_facts, t1, t2))] 
-simplifies [t1 = t2] using dependency analysis.
+(* [dependency_anal cur_array = (indep_test, collision_test)]
+
+[collision_test simp_facts t1 t2] simplifies [t1 = t2] using dependency 
+analysis.
 It returns
 - [Some t'] when it simplified [t1 = t2] into [t'];
 - [None] when it could not simplify [t1 = t2]. 
 [cur_array] is the list of current replication indices at [t1 = t2].
 [simp_facts] contains facts that are known to hold. 
 
-[dependency_anal cur_array (IndepTest(t, (b,l))] 
-returns [Some t'] when [t'] is a term obtained from [t] by replacing
-array indices that depend on [b[l]] with fresh indices.
-[t'] does not depend on [b[l]].
+[indepTest t (b,l)] 
+returns [Some (t', side_condition)] when [t'] is a term obtained from [t] 
+by replacing array indices that depend on [b[l]] with fresh indices.
+[t'] does not depend on [b[l]] when [side_condition] is true.
 Returns [None] if that is not possible.
 *)
 
-let dependency_anal cur_array = function
-  | IndepTest(t, (b,l)) ->
-      if List.exists depends l then None else
-      begin
-	try 
-	  let collect_bargs = ref [] in
-	  get_dep_indices collect_bargs t;
-	  if (!collect_bargs) != [] then raise Depends;
-	  Some t
-	with Depends -> None
-      end
-  | CollisionTest(simp_facts, t1, t2) -> 
-      let t1' = try_no_var_rec simp_facts t1 in
-      let t2' = try_no_var_rec simp_facts t2 in
-      let true_facts = true_facts_from_simp_facts simp_facts in
-      match dependency_collision_rec cur_array true_facts t1' t2' t1' with
-	(Some _) as x -> x
-      | None -> dependency_collision_rec cur_array true_facts t2' t1' t2'
-
+let dependency_anal cur_array = 
+  let indep_test t (b,l) =
+    if List.exists depends l then None else
+    begin
+      try 
+	let collect_bargs = ref [] in
+	get_dep_indices collect_bargs t;
+	if (!collect_bargs) != [] then raise Depends;
+	  (* TO DO I could be more precise using a side condition *)
+	Some (t, Terms.make_true())
+      with Depends -> None
+    end
+  in
+  let collision_test simp_facts t1 t2 =
+    let t1' = try_no_var_rec simp_facts t1 in
+    let t2' = try_no_var_rec simp_facts t2 in
+    let true_facts = true_facts_from_simp_facts simp_facts in
+    match dependency_collision_rec cur_array true_facts t1' t2' t1' with
+      (Some _) as x -> x
+    | None -> dependency_collision_rec cur_array true_facts t2' t1' t2'
+  in
+  (indep_test, collision_test)
+    
 (* [almost_indep_test cur_array true_facts fact_info t] 
    checks that the result of test [t] does not depend on 
    variables in [dvar_list], up to negligible probability.

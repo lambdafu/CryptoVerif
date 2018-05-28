@@ -1074,41 +1074,44 @@ let rec dependency_collision_rec2bis cur_array true_facts order_assumptions ((de
 (* Dependency analysis taking into account the order of definition of the variables. 
    Here dep_info is a list of array ref defined after and a list of array ref defined before *)
 
-let dependency_anal_order_hyp cur_array order_assumptions dep_info = function
-  | IndepTest(t,(b,l)) ->
-      let (defl_after, defl_before) = dep_info in
-      if Terms.mem_binderref (b,l) defl_after then
-	begin
-	  try
-	    Some (FindCompos.is_indep (b, (None, defl_before)) t)
-	  with Not_found -> None
-	end
-      else
-	None
-  | CollisionTest(simp_facts, t1, t2) ->
-      let t1' = try_no_var_rec simp_facts t1 in
-      let t2' = try_no_var_rec simp_facts t2 in
-      let true_facts = true_facts_from_simp_facts simp_facts in
-      if (!Settings.debug_elsefind_facts) then
-	begin
-	  print_string "dependency_anal_order_hyp: ";
-	  Display.display_term t1; print_string ", ";
-	  Display.display_term t2; print_newline ();
-	  print_string "simplified t1,t2=";
-	  Display.display_term t1'; print_string ", ";
-	  Display.display_term t2'; print_newline ();
-	end;
-      let b =   
-	(dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t1' t2' t1') ||
-	(dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t2' t1' t2')
-      in
-      if (!Settings.debug_elsefind_facts) then
-	begin
-	  print_string (if b then "Result: true" else "Result: false");
-	  print_newline ()
-	end;
-      if b then Some (Terms.make_false()) else None
-
+let dependency_anal_order_hyp cur_array order_assumptions dep_info =
+  let indep_test t (b,l) =
+    let (defl_after, defl_before) = dep_info in
+    if Terms.mem_binderref (b,l) defl_after then
+      begin
+	try
+	  Some (FindCompos.is_indep (b, (None, defl_before)) t, Terms.make_true())
+	with Not_found -> None
+      end
+    else
+      None
+  in
+  let collision_test simp_facts t1 t2 =
+    let t1' = try_no_var_rec simp_facts t1 in
+    let t2' = try_no_var_rec simp_facts t2 in
+    let true_facts = true_facts_from_simp_facts simp_facts in
+    if (!Settings.debug_elsefind_facts) then
+      begin
+	print_string "dependency_anal_order_hyp: ";
+	Display.display_term t1; print_string ", ";
+	Display.display_term t2; print_newline ();
+	print_string "simplified t1,t2=";
+	Display.display_term t1'; print_string ", ";
+	Display.display_term t2'; print_newline ();
+      end;
+    let b =   
+      (dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t1' t2' t1') ||
+      (dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t2' t1' t2')
+    in
+    if (!Settings.debug_elsefind_facts) then
+      begin
+	print_string (if b then "Result: true" else "Result: false");
+	print_newline ()
+      end;
+    if b then Some (Terms.make_false()) else None
+  in
+  (indep_test, collision_test)
+    
 (* [above_input_node n] returns the first node corresponding to
    an input above [n]. *)
 
