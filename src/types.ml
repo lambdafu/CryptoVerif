@@ -589,7 +589,12 @@ type trans_res =
   | TFailure of (equiv_nm * crypto_transf_user_info * instruct list) list * ((binder * binder) list * failure_reason) list
 
 type simp_facts = term list * term list * elsefind_fact list
-type dep_anal = simp_facts -> term -> term -> term option
+
+type indep_test =
+    IndepTest of term * binderref
+  | CollisionTest of simp_facts * term * term
+
+type dep_anal = indep_test -> term option
 
 exception NoMatch
 exception Contradiction
@@ -647,3 +652,4 @@ type final_process =
     SingleProcess of inputprocess
   | Equivalence of inputprocess * inputprocess
       
+    

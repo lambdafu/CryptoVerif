@@ -234,12 +234,19 @@ It returns
 [cur_array] is the list of current replication indices at [t1 = t2].
 [simp_facts] contains facts that are known to hold. *)
 
-let dependency_collision cur_array simp_facts t1 t2 = 
-  let t1' = try_no_var_rec simp_facts t1 in
-  let t2' = try_no_var_rec simp_facts t2 in
-  let true_facts = true_facts_from_simp_facts simp_facts in
-  repl_index_list := [];
-  Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array true_facts) t1' t2'
+let dependency_anal cur_array = function
+  | IndepTest(t, (b,l)) ->
+      begin
+	try
+	  Some (FindCompos.is_indep (b,FindCompos.init_elem) t)
+	with Not_found -> None
+      end
+  | CollisionTest(simp_facts, t1, t2) ->
+      let t1' = try_no_var_rec simp_facts t1 in
+      let t2' = try_no_var_rec simp_facts t2 in
+      let true_facts = true_facts_from_simp_facts simp_facts in
+      repl_index_list := [];
+      Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array true_facts) t1' t2'
 
 (* Note on the elimination of collisions in find conditions:
    The find indices are replaced with fresh replication indices,
@@ -251,7 +258,7 @@ let dependency_collision cur_array simp_facts t1 t2 =
 
 let prove_true cur_array simp_facts t =
   try
-    let _ = Facts.simplif_add (dependency_collision cur_array) simp_facts (Terms.make_not t) in
+    let _ = Facts.simplif_add (dependency_anal cur_array) simp_facts (Terms.make_not t) in
     false
   with Contradiction ->
     true
@@ -260,7 +267,7 @@ let rec get_tuple cur_array simp_facts t =
   if Terms.is_tuple t then t else
   let t' = Terms.try_no_var simp_facts t in
   if Terms.is_tuple t' then t' else
-  let t'' = Facts.simplify_term (dependency_collision cur_array) simp_facts t' in
+  let t'' = Facts.simplify_term (dependency_anal cur_array) simp_facts t' in
   if Terms.is_tuple t'' then t'' else
   match t''.t_desc with
     Var _ when (not (Terms.synt_equal_terms t' t'')) ->
@@ -306,12 +313,12 @@ let simplify_term_restr rec_simplif cur_array true_facts b p =
 let simplify_term_if rec_simplif pp cur_array true_facts t p1 p2 =
   try
     (* The facts that are true in the "else" branch *)
-    let true_facts' = Facts.simplif_add (dependency_collision cur_array) true_facts (Terms.make_not t) in
+    let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_not t) in
     (* Simplify the "else" branch *)
     let p2' = rec_simplif cur_array true_facts' p2 in
     try
       (* The facts that are true in the "then" branch *)
-      let true_facts' = Facts.simplif_add (dependency_collision cur_array) true_facts t in
+      let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts t in
       (* Simplify the "then" branch *)
       let p1' =  rec_simplif cur_array true_facts' p1 in
       Terms.build_term p1' (TestE(t, p1', p2'))
@@ -364,7 +371,7 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
 	      try
 		let true_facts_else =
 		  try
-		    Facts.simplif_add (dependency_collision cur_array) true_facts (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t) 
+		    Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t) 
 		  with Terms.NonLinearPattern -> true_facts
 		in
 		Some (rec_simplif cur_array true_facts_else t3)
@@ -384,14 +391,14 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
 	[] -> true_facts
       | (PatVar b, t)::l ->
 	  add_true_facts
-	    (Facts.simplif_add (dependency_collision cur_array) true_facts
+	    (Facts.simplif_add (dependency_anal cur_array) true_facts
 	       (Terms.make_let_equal (Terms.term_from_binder b) t)) l
       | (pat, t)::l ->
 	  add_true_facts
-	      (Facts.simplif_add (dependency_collision cur_array) true_facts 
+	      (Facts.simplif_add (dependency_anal cur_array) true_facts 
 		 (Terms.make_equal (Terms.term_from_pat pat) t)) l
     in
-    let true_facts_in = Facts.simplif_add (dependency_collision cur_array)
+    let true_facts_in = Facts.simplif_add (dependency_anal cur_array)
 	(add_true_facts true_facts' bind) test
     in
     let p1' = rec_simplif cur_array true_facts_in p1 in
@@ -402,7 +409,7 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
 	plet
       else
 	try
-	  let _ = Facts.simplif_add (dependency_collision cur_array) true_facts (Terms.make_not test) in
+	  let _ = Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_not test) in
 	  Terms.build_term plet (TestE(test, plet, Terms.get_else p2'))
 	with Contradiction ->
 	  plet
@@ -431,7 +438,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       let def_vars = Facts.get_def_vars_at pp in
       let t3' = 
 	try
-	  rec_simplif cur_array (add_elsefind (dependency_collision cur_array) def_vars true_facts l0) t3
+	  rec_simplif cur_array (add_elsefind (dependency_anal cur_array) def_vars true_facts l0) t3
 	with Contradiction ->
 	  (* The else branch of the find will never be executed
              => use some constant to simplify *)
@@ -457,7 +464,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
 	      let facts_def_list = Facts.facts_from_defined this_branch_node def_list in
-	      let true_facts_t1 = Facts.simplif_add_list (dependency_collision cur_array_cond) true_facts facts_def_list in
+	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
 		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
@@ -465,7 +472,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		else
 		  []
 	      in
-	      let true_facts_t1 = Facts.simplif_add_list (dependency_collision cur_array_cond) true_facts_t1 facts_from_elsefind_facts in
+	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts_t1 facts_from_elsefind_facts in
 	      (* Set priorities of variables defined by this find, 
 	         to orient rewrite rules preferably in the direction
 	         b[..] -> t where b \in bl *)
@@ -491,7 +498,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		 using repl_indices as indices. We substitute vars from them to obtain
 		 the facts that hold in the then branch.*)
 	      let facts_cond' = List.map (Terms.subst repl_indices vars_terms) facts_cond in
-	      let tf' = Facts.simplif_add_list (dependency_collision cur_array) true_facts facts_cond' in
+	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) true_facts facts_cond' in
 
 	      (* Check that the "defined" conditions can hold,
 		 if not remove the branch *)
@@ -504,21 +511,21 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	         at the current program point *)
 	      let cur_array_term = List.map Terms.term_from_repl_index cur_array in
 	      let new_facts = Terms.def_list_at_pp_facts [] (DTerm t2) cur_array_term def_vars_accu in
-	      let tf' = Facts.simplif_add_list (dependency_collision cur_array) tf' new_facts in
+	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts in
 	      (* [Terms.both_def_list_facts] adds facts inferred from the knowledge
 		 that all variables in [def_vars] and [def_vars_accu] are
 		 simultaneously defined. *)
 	      let tf' = 
 		if !Settings.detect_incompatible_defined_cond then
 		  let new_facts = Terms.both_def_list_facts [] def_vars def_vars_accu in
-		  Facts.simplif_add_list (dependency_collision cur_array) tf' new_facts 
+		  Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts 
 		else tf'
 	      in
 	      let def_vars' = 
 		(* Using def_vars_accu instead of def_list' is more precise *)
 	        def_vars_accu @ def_vars
 	      in
-	      let tf' = convert_elsefind (dependency_collision cur_array) def_vars' tf' in
+	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 	      let t2' = rec_simplif cur_array tf' t2 in
 
 	      (* Update the defined condition *)
@@ -540,7 +547,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		| _ -> false)
 	      then 
 		try 
-		  branch_succeeds find_branch (dependency_collision cur_array_cond) true_facts def_vars;
+		  branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
 		  find_branch :: l'
 		with SuccessBranch(subst, keep_bl) ->
 		  (* If the find has a single branch, which always succeeds, and the
@@ -752,12 +759,12 @@ let simplify_restr rec_simplif cur_array true_facts b p =
 let simplify_if rec_simplif pp cur_array true_facts t p1 p2 =
   try
     (* The facts that are true in the "else" branch *)
-    let true_facts' = Facts.simplif_add (dependency_collision cur_array) true_facts (Terms.make_not t) in
+    let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_not t) in
     (* Simplify the "else" branch *)
     let p2' = rec_simplif cur_array true_facts' p2 in
     try
       (* The facts that are true in the "then" branch *)
-      let true_facts' = Facts.simplif_add (dependency_collision cur_array) true_facts t in
+      let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts t in
       (* Simplify the "then" branch *)
       let p1' =  rec_simplif cur_array true_facts' p1 in
       (* Merge "if t then yield else yield" *)
@@ -825,7 +832,7 @@ let simplify_let rec_simplif1 rec_simplif2 is_yield2 pp cur_array true_facts pat
 	  try
 	    let true_facts_else =
 	      try
-		Facts.simplif_add (dependency_collision cur_array) true_facts (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t) 
+		Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t) 
 	      with Terms.NonLinearPattern -> true_facts
 	    in
 	    rec_simplif2 cur_array true_facts_else p2
@@ -840,14 +847,14 @@ let simplify_let rec_simplif1 rec_simplif2 is_yield2 pp cur_array true_facts pat
 	[] -> true_facts
       | (PatVar b, t)::l ->
 	  add_true_facts
-	    (Facts.simplif_add (dependency_collision cur_array) true_facts
+	    (Facts.simplif_add (dependency_anal cur_array) true_facts
 	       (Terms.make_let_equal (Terms.term_from_binder b) t)) l
       | (pat, t)::l ->
 	  add_true_facts
-	      (Facts.simplif_add (dependency_collision cur_array) true_facts 
+	      (Facts.simplif_add (dependency_anal cur_array) true_facts 
 		 (Terms.make_equal (Terms.term_from_pat pat) t)) l
     in
-    let true_facts_in = Facts.simplif_add (dependency_collision cur_array)
+    let true_facts_in = Facts.simplif_add (dependency_anal cur_array)
 	(add_true_facts true_facts' bind) test
     in
     let p1' = rec_simplif1 cur_array true_facts_in p1 in
@@ -895,7 +902,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       let p2' = 
 	if is_yield p2 then Terms.oproc_from_desc Yield else
 	try
-	  rec_simplif cur_array (add_elsefind (dependency_collision cur_array) def_vars true_facts l0) p2
+	  rec_simplif cur_array (add_elsefind (dependency_anal cur_array) def_vars true_facts l0) p2
 	with Contradiction ->
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
@@ -917,7 +924,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
 	      let facts_def_list = Facts.facts_from_defined this_branch_node def_list in
-	      let true_facts_t = Facts.simplif_add_list (dependency_collision cur_array_cond) true_facts facts_def_list in
+	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
 		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
@@ -925,7 +932,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		else
 		  []
 	      in
-	      let true_facts_t = Facts.simplif_add_list (dependency_collision cur_array_cond) true_facts_t facts_from_elsefind_facts in
+	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts_t facts_from_elsefind_facts in
 	      (* Set priorities of variables defined by this find, 
 	         to orient rewrite rules preferably in the direction
 	         b[..] -> t where b \in bl *)
@@ -952,7 +959,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		 the facts that hold in the then branch.
 		 Same substitution for the dependency info. *)
 	      let facts_cond' = List.map (Terms.subst repl_indices vars_terms) facts_cond in
-	      let tf' = Facts.simplif_add_list (dependency_collision cur_array) true_facts facts_cond' in
+	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) true_facts facts_cond' in
 
 	      (* Check that the "defined" conditions can hold,
 		 if not remove the branch *)
@@ -965,21 +972,21 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	         at the current program point *)
 	      let cur_array_term = List.map Terms.term_from_repl_index cur_array in
 	      let new_facts = Terms.def_list_at_pp_facts [] (get_pp p1) cur_array_term def_vars_accu in
-	      let tf' = Facts.simplif_add_list (dependency_collision cur_array) tf' new_facts in
+	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts in
 	      (* [Terms.both_def_list_facts] adds facts inferred from the knowledge
 		 that all variables in [def_vars] and [def_vars_accu] are
 		 simultaneously defined. *)
 	      let tf' = 
 		if !Settings.detect_incompatible_defined_cond then
 		  let new_facts = Terms.both_def_list_facts [] def_vars def_vars_accu in
-		  Facts.simplif_add_list (dependency_collision cur_array) tf' new_facts 
+		  Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts 
 		else tf'
 	      in
 	      let def_vars' = 
 		(* Using def_vars_accu instead of def_list' is more precise *)
 		def_vars_accu @ def_vars
 	      in
-	      let tf' = convert_elsefind (dependency_collision cur_array) def_vars' tf' in
+	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 	      
 	      let p1' = rec_simplif cur_array tf' p1 in
 
@@ -1002,7 +1009,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		| _ -> false)
 	      then 
 		try
-		  branch_succeeds find_branch (dependency_collision cur_array_cond) true_facts def_vars;
+		  branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
 		  find_branch :: l'
 		with SuccessBranch(subst, keep_bl) ->
 		  (* If the find has a single branch, which always succeeds, and the

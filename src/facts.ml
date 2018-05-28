@@ -81,7 +81,7 @@ for each occ' occurrence of a variable in N'.
 
 *)
 
-let no_dependency_anal = fun _ _ _ -> None
+let no_dependency_anal = fun _ -> None
 
 (* [orient t1 t2] returns true when the equality t1 = t2
    can be oriented t1 -> t2. 
@@ -158,7 +158,7 @@ let prod_dep_anal eq_th dep_info simp_facts l1 l2 =
 	        (* We have product (List.rev seen) t l = t2.
 		   So t = product (inv (product (List.rev seen))) t2 (inv (product l)). *)
 	    let t' = Terms.make_inv_prod eq_th seen t2 l in
-	    match dep_info simp_facts t t' with
+	    match dep_info (CollisionTest(simp_facts, t, t')) with
 	      None -> find_orient t2 (t::seen) l
 	    | x -> x
       in
@@ -785,7 +785,7 @@ and add_fact depth dep_info simp_facts fact =
 		  raise Contradiction
 	          (* Different constants are different *)
               | (_, _) -> 
-		  match dep_info simp_facts t1' t2' with
+		  match dep_info (CollisionTest(simp_facts, t1', t2')) with
 		    Some t' ->
 		      if Terms.is_false t' then
 			raise Contradiction
@@ -1037,7 +1037,7 @@ and specialized_add_fact depth dep_info simp_facts fact =
 	    raise Contradiction
 	          (* Different constants are different *)
 	| (_,_) -> 
-	    match dep_info simp_facts t1 t2' with
+	    match dep_info (CollisionTest(simp_facts, t1, t2')) with
 	      Some t' ->
 		if Terms.is_false t' then 
 		  raise Contradiction 
@@ -2076,7 +2076,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 		  try
 		    let _ = simplif_add dep_info simp_facts t' in
 		    let t = 
-		      match dep_info simp_facts t1' t2' with
+		      match dep_info (CollisionTest(simp_facts, t1', t2')) with
 			Some t' -> t'
 		      | None -> t
 		    in
@@ -2142,7 +2142,7 @@ let rec simplify_term_rec dep_info simp_facts t =
 		  try
 		    let _ = simplif_add dep_info simp_facts (Terms.make_not t') in
 		    let t = 
-		      match dep_info simp_facts t1' t2' with
+		      match dep_info (CollisionTest(simp_facts, t1', t2')) with
 			Some t' -> Terms.make_not t'
 		      | None -> t
 		    in

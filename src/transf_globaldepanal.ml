@@ -424,21 +424,39 @@ let rec dependency_collision_rec cur_array true_facts t1 t2 t =
       Terms.find_some (dependency_collision_rec cur_array true_facts t1 t2) l
   | _ -> None
 
-(* [dependency_collision cur_array simp_facts t1 t2] simplifies [t1 = t2]
-using dependency analysis.
+(* [dependency_anal cur_array (CollisionTest(simp_facts, t1, t2))] 
+simplifies [t1 = t2] using dependency analysis.
 It returns
 - [Some t'] when it simplified [t1 = t2] into [t'];
 - [None] when it could not simplify [t1 = t2]. 
 [cur_array] is the list of current replication indices at [t1 = t2].
-[simp_facts] contains facts that are known to hold. *)
+[simp_facts] contains facts that are known to hold. 
 
-let dependency_collision cur_array simp_facts t1 t2 = 
-  let t1' = try_no_var_rec simp_facts t1 in
-  let t2' = try_no_var_rec simp_facts t2 in
-  let true_facts = true_facts_from_simp_facts simp_facts in
-  match dependency_collision_rec cur_array true_facts t1' t2' t1' with
-    (Some _) as x -> x
-  | None -> dependency_collision_rec cur_array true_facts t2' t1' t2'
+[dependency_anal cur_array (IndepTest(t, (b,l))] 
+returns [Some t'] when [t'] is a term obtained from [t] by replacing
+array indices that depend on [b[l]] with fresh indices.
+[t'] does not depend on [b[l]].
+Returns [None] if that is not possible.
+*)
+
+let dependency_anal cur_array = function
+  | IndepTest(t, (b,l)) ->
+      if List.exists depends l then None else
+      begin
+	try 
+	  let collect_bargs = ref [] in
+	  get_dep_indices collect_bargs t;
+	  if (!collect_bargs) != [] then raise Depends;
+	  Some t
+	with Depends -> None
+      end
+  | CollisionTest(simp_facts, t1, t2) -> 
+      let t1' = try_no_var_rec simp_facts t1 in
+      let t2' = try_no_var_rec simp_facts t2 in
+      let true_facts = true_facts_from_simp_facts simp_facts in
+      match dependency_collision_rec cur_array true_facts t1' t2' t1' with
+	(Some _) as x -> x
+      | None -> dependency_collision_rec cur_array true_facts t2' t1' t2'
 
 (* [almost_indep_test cur_array true_facts fact_info t] 
    checks that the result of test [t] does not depend on 
@@ -596,8 +614,8 @@ let almost_indep_test cur_array t =
      use a more costly and more precise version *)
   try
     let true_facts = Facts.get_facts_at (DTerm t) in
-    let simp_facts = Facts.simplif_add_list (dependency_collision cur_array) ([],[],[]) true_facts in
-    let t' = Facts.simplify_term (dependency_collision cur_array) simp_facts t in
+    let simp_facts = Facts.simplif_add_list (dependency_anal cur_array) ([],[],[]) true_facts in
+    let t' = Facts.simplify_term (dependency_anal cur_array) simp_facts t in
     (*print_string ("At " ^ (string_of_int t.t_occ) ^ ", the term ");
     Display.display_term t;
     print_string " is simplified into ";
@@ -1074,7 +1092,7 @@ let rec almost_indep_fc cur_array t0 =
 		  begin
 		    try
                       let true_facts = Facts.get_facts_at (DTerm t0) in
-		      let simp_facts = Facts.simplif_add_list (dependency_collision cur_array) ([],[],[]) true_facts in
+		      let simp_facts = Facts.simplif_add_list (dependency_anal cur_array) ([],[],[]) true_facts in
                       if Terms.simp_equal_terms simp_facts true t1' t2' then
 			BothIndepB t1' 
                       else
@@ -1224,7 +1242,7 @@ let rec almost_indep_fc cur_array t0 =
 		    begin
 		      try 
 			let true_facts = Facts.get_facts_at (DTerm t0) in
-			let simp_facts = Facts.simplif_add_list (dependency_collision cur_array) ([],[],[]) true_facts in
+			let simp_facts = Facts.simplif_add_list (dependency_anal cur_array) ([],[],[]) true_facts in
 			if Terms.simp_equal_terms simp_facts true t1' t2' then
 			  BothIndepB t2' 
 			else
