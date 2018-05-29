@@ -352,7 +352,10 @@ let rec dependency_collision_rec cur_array true_facts t1 t2 t =
     Var(b,l) when not (List.exists depends l) ->
       begin
         try 
-          let (_,(_,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
+          let (_,(st,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
+	  if st = Any then
+	    (* [b] depends on [b0] but does not characterize it *)
+	    raise Depends;
           let check (b, (st, _)) tl =
             if Terms.equal_term_lists l tl then
               Some (st, CharacTypeOfVar b)
@@ -443,14 +446,27 @@ Returns [None] if that is not possible.
 
 let dependency_anal cur_array = 
   let indep_test t (b,l) =
+    (* [b] must be a restriction. The only case in which we have information 
+       is when [b] is [b0] ([main_var]). *)
+    if b != (!main_var) then None else
     if List.exists depends l then None else
     begin
       try 
 	let collect_bargs = ref [] in
 	get_dep_indices collect_bargs t;
-	if (!collect_bargs) != [] then raise Depends;
-	  (* TO DO I could be more precise using a side condition *)
-	Some (t, Terms.make_true())
+	if List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs) then
+	  (* t depends on b0[l] *)
+	  raise Depends;
+	let side_condition_proba = 
+	  Terms.make_and_list (List.map (fun l' ->
+	    Terms.make_or_list (List.map2 Terms.make_diff l l')
+	      ) (!collect_bargs))
+	in
+	let side_condition_term = List.map (fun l' -> 
+	  Terms.make_and_list (List.map2 Terms.make_equal l l')
+	    ) (!collect_bargs)
+	in
+	Some (t, side_condition_proba, side_condition_term)
       with Depends -> None
     end
   in

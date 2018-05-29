@@ -250,23 +250,41 @@ let match_term_root_or_prod_subterm simp_facts restr final next_f t t' =
 
 let reduced = ref false
 
-let rec check_indep v = function
+let rec indep_sc_term v = function
     [] -> []
   | v'::l ->
-      let l_indep = check_indep v l in
+      let l_indep = indep_sc_term v l in
       match v.link, v'.link with
 	TLink { t_desc = Var(b,l) }, TLink { t_desc = Var(b',l') } ->
 	  if b == b' then
 	    (Terms.make_and_list (List.map2 Terms.make_equal l l')):: l_indep
 	  else
 	    l_indep
-      |	_ -> Parsing_helper.internal_error "variables should be linked in check_indep"
+      |	_ -> Parsing_helper.internal_error "variables should be linked in indep_sc_term"
 	  
-let rec check_indep_list = function
+let rec indep_sc_term_list = function
     [] -> []
   | [v] -> []
   | (v::l) ->
-      (check_indep v l) @ (check_indep_list l)
+      (indep_sc_term v l) @ (indep_sc_term_list l)
+
+let rec indep_sc_proba v = function
+    [] -> Terms.make_true()
+  | v'::l ->
+      let sc = indep_sc_proba v l in
+      match v.link, v'.link with
+	TLink { t_desc = Var(b,l) }, TLink { t_desc = Var(b',l') } ->
+	  if b == b' then
+	    Terms.make_and (Terms.make_or_list (List.map2 Terms.make_diff l l')) sc
+	  else
+	    sc
+      |	_ -> Parsing_helper.internal_error "variables should be linked in indep_sc_proba"
+			      
+let rec indep_sc_proba_list = function
+    [] -> Terms.make_true()
+  | [v] -> Terms.make_true()
+  | (v::l) ->
+      Terms.make_and (indep_sc_proba v l) (indep_sc_proba_list l)
 
 (* [apply_collisions_at_root_once reduce_rec simp_facts final t collisions] 
    applies all collisions in the list [collisions] to the root of term [t].
@@ -287,7 +305,12 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () -> 
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
-	  let l_indep = check_indep_list restr in
+	  (* Compute the side condition that guarantees that all restrictions are independent *)
+	  let sc_term = ref (indep_sc_term_list restr) in
+	  let sc_proba = ref (indep_sc_proba_list restr) in
+	  if (!sc_term != []) && not (Terms.is_false redr) then
+	    (* Cannot encode a side condition when the result of the reduction is not "false" *)
+	    raise NoMatch;
 	  let restr_map = 
 	    List.map (fun restr1 ->
 	      match restr1.link with
@@ -310,10 +333,15 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    in
 	    match indep_test dep_info t1 br2 with
 	      None -> raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
-	    | Some (t1', side_condition) ->
+	    | Some (t1', side_condition_proba, side_condition_term) ->
+		if (side_condition_term != []) && not (Terms.is_false redr) then
+	          (* Cannot encode a side condition when the result of the reduction is not "false" *)
+		  raise NoMatch;
+		sc_term := side_condition_term @ (!sc_term);
+		sc_proba := Terms.make_and side_condition_proba (!sc_proba);
                 (* t1 may be transformed into a term t1' that is independent of br2
 		   Store it in the link for b1
-		   TO DO take into account the side_condition; store it in the proba *)
+		   TO DO store side condition in the proba *)
 		b1.link <- TLink t1'
 		     ) indep_cond;
 	  (* [redl'] is the instantiated version of [redl], using terms
@@ -328,8 +356,8 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     the same collision in reduce_rec. *)
 	  Terms.cleanup();
 	  let t'' =
-	    if l_indep == [] then
-	      (* All restrictions are always independent, nothing to add *)
+	    if (!sc_term) == [] then
+	      (* No side condition, nothing to add *)
 	      t' 
 	    else
 	      begin
@@ -356,7 +384,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		      end;
 		    reduced := reduced_tmp;
 		    Terms.make_and f t1
-		      ) l_indep)
+		      ) (!sc_term))
 	      end
 	  in
 	  if proba != Zero then

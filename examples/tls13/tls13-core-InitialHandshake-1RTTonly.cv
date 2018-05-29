@@ -43,6 +43,7 @@ proof {
       remove_assign binder s_2;
       simplify;
       crypto gdh(exp) "variables: x_3 -> a, y_6 -> b .";
+      out_game "g1_withindepcoll.cv";
       crypto prf2 *;
       crypto client_server_hts *;
       crypto prf_fin_key_iv *;
@@ -70,7 +71,9 @@ fun elt2bitstring(elt): bitstring [data].
    The considered groups are prime order. *)
 
 proba pGDH.
-expand GDH_prime_order(elt, key, G, exp, mult, pGDH).
+expand GDH(elt, key, G, exp, exp', mult, pGDH).
+proba PCollKey.
+expand common_DH_proba(elt, key, G, exp, exp', mult, PCollKey).
 
 letfun dh_keygen() =
    new x:key;

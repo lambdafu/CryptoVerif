@@ -679,7 +679,7 @@ let dependency_anal cur_array dep_info =
       in
       try
 	(* TO DO I could be more precise with a side condition *)
-	Some (FindCompos.is_indep (b,bdepinfo) t, Terms.make_true())
+	Some (FindCompos.is_indep (b,bdepinfo) t, Terms.make_true(), [])
       with Not_found -> None
     end
   in

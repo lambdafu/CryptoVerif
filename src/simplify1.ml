@@ -1080,7 +1080,7 @@ let dependency_anal_order_hyp cur_array order_assumptions dep_info =
     if Terms.mem_binderref (b,l) defl_after then
       begin
 	try
-	  Some (FindCompos.is_indep (b, (None, defl_before)) t, Terms.make_true())
+	  Some (FindCompos.is_indep (b, (None, defl_before)) t, Terms.make_true(), [])
 	with Not_found -> None
       end
     else

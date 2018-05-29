@@ -240,8 +240,19 @@ let dependency_anal cur_array =
   let indep_test t (b,l) =
     begin
       try
-	(* TO DO I can be more precise by introducing a side condition *)
-	Some (FindCompos.is_indep (b,FindCompos.init_elem) t, Terms.make_true())
+	let collect_bargs = ref [] in
+	let collect_bargs_sc = ref [] in
+	let t' = Simplify1.is_indep (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t in
+	let side_condition_proba = 
+	  Terms.make_and_list (List.map (fun l' ->
+	    Terms.make_or_list (List.map2 Terms.make_diff l l')
+	      ) (!collect_bargs_sc))
+	in
+	let side_condition_term = List.map (fun l' -> 
+	  Terms.make_and_list (List.map2 Terms.make_equal l l')
+	    ) (!collect_bargs)
+	in
+	Some (t', side_condition_proba, side_condition_term)
       with Not_found -> None
     end
   in
