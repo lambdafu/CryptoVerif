@@ -182,7 +182,7 @@ val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem 
    array indices that depend on [b0] are replaced with fresh replication indices
    (as in the transformation from [t] to the result of [is_indep]). *)
 val is_indep :
-  binder * term list * ((binder * 'a) list option * term list) *
+  binder * term list * 'a FindCompos.depinfo *
   term list list ref * term list list ref ->
   term -> term
 
@@ -204,6 +204,8 @@ val is_indep :
 val dependency_collision_rec3 :
   repl_index list -> term list -> term -> term -> term -> term option
 
+val indep_test : 'a FindCompos.depinfo -> dep_anal_indep_test
+      
 (* [try_two_directions f t1 t2] tries a dependency analysis [f]
    on both sides of [t1 = t2] *)
 val try_two_directions :

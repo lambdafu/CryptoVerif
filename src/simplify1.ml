@@ -1844,6 +1844,24 @@ let rec dependency_collision_rec3 cur_array true_facts t1 t2 t =
       Terms.find_some (dependency_collision_rec3 cur_array true_facts t1 t2) l
   | _ -> None
 
+let indep_test dep_info t (b,l) =
+  try
+    let collect_bargs = ref [] in
+    let collect_bargs_sc = ref [] in
+    let t' = is_indep (b,l,dep_info,collect_bargs,collect_bargs_sc) t in
+    let side_condition_proba = 
+      Terms.make_and_list (List.map (fun l' ->
+	Terms.make_or_list (List.map2 Terms.make_diff l l')
+	  ) (!collect_bargs_sc))
+    in
+    let side_condition_term = List.map (fun l' -> 
+      Terms.make_and_list (List.map2 Terms.make_equal l l')
+	) (!collect_bargs)
+    in
+    Some (t', side_condition_proba, side_condition_term)
+  with Not_found ->
+    None
+	
 (* [try_two_directions f t1 t2] *)
 	
 let try_two_directions f t1 t2 =

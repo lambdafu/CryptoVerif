@@ -237,25 +237,7 @@ It returns
 TO DO comment needs update *)
 
 let dependency_anal cur_array =
-  let indep_test t (b,l) =
-    begin
-      try
-	let collect_bargs = ref [] in
-	let collect_bargs_sc = ref [] in
-	let t' = Simplify1.is_indep (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t in
-	let side_condition_proba = 
-	  Terms.make_and_list (List.map (fun l' ->
-	    Terms.make_or_list (List.map2 Terms.make_diff l l')
-	      ) (!collect_bargs_sc))
-	in
-	let side_condition_term = List.map (fun l' -> 
-	  Terms.make_and_list (List.map2 Terms.make_equal l l')
-	    ) (!collect_bargs)
-	in
-	Some (t', side_condition_proba, side_condition_term)
-      with Not_found -> None
-    end
-  in
+  let indep_test = Simplify1.indep_test FindCompos.init_elem in
   let collision_test simp_facts t1 t2 =
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in

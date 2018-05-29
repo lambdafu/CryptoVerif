@@ -670,18 +670,13 @@ Returns [None] if that is not possible.
 
 let dependency_anal cur_array dep_info = 
   let indep_test t (b,l) =
-    begin
-      let bdepinfo =
-	if Terms.is_args_at_creation b l then
-	  DepAnal2.get_dep_info dep_info b
-	else
-	  FindCompos.init_elem
-      in
-      try
-	(* TO DO I could be more precise with a side condition *)
-	Some (FindCompos.is_indep (b,bdepinfo) t, Terms.make_true(), [])
-      with Not_found -> None
-    end
+    let bdepinfo =
+      if Terms.is_args_at_creation b l then
+	DepAnal2.get_dep_info dep_info b
+      else
+	FindCompos.init_elem
+    in
+    Simplify1.indep_test bdepinfo t (b,l)
   in
   let collision_test simp_facts t1 t2 = 
     let t1' = try_no_var_rec simp_facts t1 in
