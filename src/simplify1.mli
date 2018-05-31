@@ -181,7 +181,7 @@ val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem 
    [collect_bargs_sc] is a modified version of [collect_bargs] in which  
    array indices that depend on [b0] are replaced with fresh replication indices
    (as in the transformation from [t] to the result of [is_indep]). *)
-val is_indep :
+val is_indep : simp_facts -> 
   binder * term list * 'a FindCompos.depinfo *
   term list list ref * term list list ref ->
   term -> term
@@ -202,7 +202,7 @@ val is_indep :
    [cur_array] is the list of current replication indices.
    [true_facts] is a list of facts that are known to hold. *)
 val dependency_collision_rec3 :
-  repl_index list -> term list -> term -> term -> term -> term option
+  repl_index list -> simp_facts -> term -> term -> term -> term option
 
 val indep_test : 'a FindCompos.depinfo -> dep_anal_indep_test
       

@@ -445,7 +445,7 @@ Returns [None] if that is not possible.
 *)
 
 let dependency_anal cur_array = 
-  let indep_test t (b,l) =
+  let indep_test simp_facts t (b,l) =
     (* [b] must be a restriction. The only case in which we have information 
        is when [b] is [b0] ([main_var]). *)
     if b != (!main_var) then None else

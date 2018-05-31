@@ -81,7 +81,7 @@ for each occ' occurrence of a variable in N'.
 
 *)
 
-let no_dependency_anal = ((fun _ _ -> None), (fun _ _ _ -> None))
+let no_dependency_anal = ((fun _ _ _ -> None), (fun _ _ _ -> None))
 
 let indep_test (dep_anal_indep_test, _) = dep_anal_indep_test
 let collision_test (_, dep_anal_collision_test) = dep_anal_collision_test
@@ -303,14 +303,21 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond)::other_coll ->
       try
-	match_term_root_or_prod_subterm simp_facts restr final (fun () -> 
+	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
+          (* print_string "apply_collisions_at_root_once match succeeded\n";
+          print_string "at "; print_int t.t_occ; print_string ", ";
+          Display.display_term t; print_string " matches ";
+          Display.display_term redl; *)
 	  (* Compute the side condition that guarantees that all restrictions are independent *)
 	  let sc_term = ref (indep_sc_term_list restr) in
 	  let sc_proba = ref (indep_sc_proba_list restr) in
 	  if (!sc_term != []) && not (Terms.is_false redr) then
-	    (* Cannot encode a side condition when the result of the reduction is not "false" *)
-	    raise NoMatch;
+            begin
+	      (* Cannot encode a side condition when the result of the reduction is not "false" *)
+              (* print_string " indep restr side condition not supported\n"; *)
+	      raise NoMatch
+            end;
 	  let restr_map = 
 	    List.map (fun restr1 ->
 	      match restr1.link with
@@ -326,17 +333,23 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		TLink t -> t
 	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
 	    in
-	    let br2 =
+	    let (b,l) as br2 =
 	      match b2.link with
 		TLink { t_desc = Var(b,l) } -> (b,l)
 	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
 	    in
-	    match indep_test dep_info t1 br2 with
-	      None -> raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
+	    match indep_test dep_info simp_facts t1 br2 with
+	    | None ->
+               (* Display.display_term t1; print_string " depends on "; Display.display_var b l;
+               print_newline();*)
+               raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
 	    | Some (t1', side_condition_proba, side_condition_term) ->
-		if (side_condition_term != []) && not (Terms.is_false redr) then
+	       if (side_condition_term != []) && not (Terms.is_false redr) then
+                 begin
 	          (* Cannot encode a side condition when the result of the reduction is not "false" *)
-		  raise NoMatch;
+                   (* print_string " indep cond side condition not supported\n"; *)
+		   raise NoMatch
+                 end;
 		sc_term := side_condition_term @ (!sc_term);
 		sc_proba := Terms.make_and side_condition_proba (!sc_proba);
                 (* t1 may be transformed into a term t1' that is independent of br2
@@ -379,7 +392,8 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		    let t1 = reduce_rec f t in
 		    if not (!reduced) then 
 		      begin 
-			reduced := reduced_tmp; 
+			reduced := reduced_tmp;
+                        (* print_string "Could not simplify "; Display.display_term t; print_newline(); *)
 			raise NoMatch 
 		      end;
 		    reduced := reduced_tmp;
@@ -393,7 +407,10 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
                  after the applications of try_no_var in match_term,
                  obtained by (Terms.copy_term redl) *)
 	      if not (Proba.add_proba_red redl' redr' proba restr_map) then
-		raise NoMatch
+                begin
+                  (* print_string "Proba too large"; *)
+		  raise NoMatch
+                end
 	    end;
 	  t''
 	    ) redl t

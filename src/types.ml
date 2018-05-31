@@ -590,7 +590,7 @@ type trans_res =
 
 type simp_facts = term list * term list * elsefind_fact list
 
-type dep_anal_indep_test = term -> binderref -> (term * term * term list) option
+type dep_anal_indep_test = simp_facts -> term -> binderref -> (term * term * term list) option
 type dep_anal_collision_test = simp_facts -> term -> term -> term option
 
 type dep_anal = dep_anal_indep_test * dep_anal_collision_test

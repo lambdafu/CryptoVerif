@@ -1075,7 +1075,7 @@ let rec dependency_collision_rec2bis cur_array true_facts order_assumptions ((de
    Here dep_info is a list of array ref defined after and a list of array ref defined before *)
 
 let dependency_anal_order_hyp cur_array order_assumptions dep_info =
-  let indep_test t (b,l) =
+  let indep_test simp_facts t (b,l) =
     let (defl_after, defl_before) = dep_info in
     if Terms.mem_binderref (b,l) defl_after then
       begin
@@ -1762,10 +1762,10 @@ let same_oracle_call call1 call2 =
    array indices that depend on [b0] are replaced with fresh replication indices
    (as in the transformation from [t] to the result of [is_indep]). *)
 
-let rec is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
+let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
   Terms.build_term2 t
      (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (is_indep bdepinfo) l)
+	FunApp(f,l) -> FunApp(f, List.map (is_indep simp_facts bdepinfo) l)
       | ReplIndex(b) -> t.t_desc
       |	Var(b,l) ->
 	  if (List.exists (Terms.equal_terms t) nodep) then
@@ -1776,7 +1776,7 @@ let rec is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo
 	  then
 	    Var(b, List.map (fun t' ->
 	      try
-		is_indep bdepinfo t'
+		is_indep simp_facts bdepinfo t'
 	      with Not_found ->
 		Terms.term_from_repl_index (new_repl_index_term t')) l)
 	  else if b == b0 then
@@ -1787,7 +1787,7 @@ let rec is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo
 		let l' = 
 		  List.map (fun t' ->
 		  try
-		    is_indep bdepinfo t'
+		    is_indep simp_facts bdepinfo t'
 		  with Not_found ->
 		    Terms.term_from_repl_index (new_repl_index_term t')) l
 		in
@@ -1799,10 +1799,15 @@ let rec is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo
 		Var(b, l')
 	      end
 	  else
-	    raise Not_found
+            let t' = Terms.try_no_var simp_facts t in
+            if Terms.equal_terms t t' then
+	      raise Not_found
+            else
+              let t'' = is_indep simp_facts bdepinfo t' in
+              t''.t_desc
       | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
     
-let rec dependency_collision_rec3 cur_array true_facts t1 t2 t =
+let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
   let t_simp_ind = FindCompos.remove_array_index t in
   match t_simp_ind.t_desc, t.t_desc with
     Var(b,l_simp_ind), Var(b',l) when (Terms.is_restr b) && (Proba.is_large_term t) ->
@@ -1821,14 +1826,14 @@ let rec dependency_collision_rec3 cur_array true_facts t1 t2 t =
 	      try 
 		let collect_bargs = ref [] in
 		let collect_bargs_sc = ref [] in
-		let t2' = is_indep (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
+		let t2' = is_indep simp_facts (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
 		let side_condition = 
 		  Terms.make_and_list (List.map (fun l' ->
 		    Terms.make_or_list (List.map2 Terms.make_diff l l')
 		      ) (!collect_bargs_sc))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, true_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
+		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
 		  Some (Terms.make_or_list (List.map (fun l' ->   
 		    let t2'' = Terms.replace l' l t2 in
 		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
@@ -1841,14 +1846,14 @@ let rec dependency_collision_rec3 cur_array true_facts t1 t2 t =
        | _ -> None
       end 
   | _, FunApp(f,l) ->
-      Terms.find_some (dependency_collision_rec3 cur_array true_facts t1 t2) l
+      Terms.find_some (dependency_collision_rec3 cur_array simp_facts t1 t2) l
   | _ -> None
 
-let indep_test dep_info t (b,l) =
+let indep_test dep_info simp_facts t (b,l) =
   try
     let collect_bargs = ref [] in
     let collect_bargs_sc = ref [] in
-    let t' = is_indep (b,l,dep_info,collect_bargs,collect_bargs_sc) t in
+    let t' = is_indep simp_facts (b,l,dep_info,collect_bargs,collect_bargs_sc) t in
     let side_condition_proba = 
       Terms.make_and_list (List.map (fun l' ->
 	Terms.make_or_list (List.map2 Terms.make_diff l l')

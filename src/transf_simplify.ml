@@ -565,7 +565,7 @@ exception Restart of binder * game
    For [dependency_collision_rec2], [depinfo] contains the local
    dependency information. *)
 
-let rec dependency_collision_rec1 cur_array true_facts t1 t2 t =
+let rec dependency_collision_rec1 cur_array simp_facts t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (not (Terms.refers_to b t2)) ->
       begin
@@ -602,10 +602,10 @@ let rec dependency_collision_rec1 cur_array true_facts t1 t2 t =
 	    end
       end
   | FunApp(f,l) ->
-      Terms.find_some (dependency_collision_rec1 cur_array true_facts t1 t2) l
+      Terms.find_some (dependency_collision_rec1 cur_array simp_facts t1 t2) l
   | _ -> None
 
-let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
+let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (Terms.is_args_at_creation b l) ->
       begin
@@ -617,7 +617,7 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
-	      let t2' = Simplify1.is_indep (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      let t2' = Simplify1.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
 	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
                  In case b occurs in t2, we reason as follows:
                     1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
@@ -637,7 +637,7 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
 		    ) (!collect_bargs_sc))
 	      in
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      if add_term_collisions (cur_array, true_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
 		Some (Terms.make_or_list (List.map (fun l' ->   
 		  let t2'' = Terms.replace l' l t2 in
 		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
@@ -647,7 +647,7 @@ let rec dependency_collision_rec2 cur_array true_facts dep_info t1 t2 t =
 	    with Not_found -> None
       end 
   | FunApp(f,l) ->
-      Terms.find_some (dependency_collision_rec2 cur_array true_facts dep_info t1 t2) l
+      Terms.find_some (dependency_collision_rec2 cur_array simp_facts dep_info t1 t2) l
   | _ -> None
 
 
@@ -669,27 +669,26 @@ Returns [None] if that is not possible.
 *)
 
 let dependency_anal cur_array dep_info = 
-  let indep_test t (b,l) =
+  let indep_test simp_facts t (b,l) =
     let bdepinfo =
       if Terms.is_args_at_creation b l then
 	DepAnal2.get_dep_info dep_info b
       else
 	FindCompos.init_elem
     in
-    Simplify1.indep_test bdepinfo t (b,l)
+    Simplify1.indep_test bdepinfo simp_facts t (b,l)
   in
   let collision_test simp_facts t1 t2 = 
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in
-    let true_facts = true_facts_from_simp_facts simp_facts in
-    match try_two_directions (dependency_collision_rec2 cur_array true_facts dep_info) t1' t2' with
+    match try_two_directions (dependency_collision_rec2 cur_array simp_facts dep_info) t1' t2' with
       (Some _) as x -> x
     | None ->
 	repl_index_list := [];
-	match try_two_directions (dependency_collision_rec3 cur_array true_facts) t1' t2' with
+	match try_two_directions (dependency_collision_rec3 cur_array simp_facts) t1' t2' with
 	  (Some _) as x -> x
 	| None ->
-	    try_two_directions (dependency_collision_rec1 cur_array true_facts) t1' t2'
+	    try_two_directions (dependency_collision_rec1 cur_array simp_facts) t1' t2'
   in
   (indep_test, collision_test)
 		

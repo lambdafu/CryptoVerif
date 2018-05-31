@@ -241,9 +241,8 @@ let dependency_anal cur_array =
   let collision_test simp_facts t1 t2 =
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in
-    let true_facts = true_facts_from_simp_facts simp_facts in
     repl_index_list := [];
-    Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array true_facts) t1' t2'
+    Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array simp_facts) t1' t2'
   in
   (indep_test, collision_test)
     
