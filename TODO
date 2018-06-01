@@ -126,12 +126,33 @@ mult(x,y) = mult(x',y) may imply x = x'.
 However, it is not true that exp(X, x) = exp(g, mult(x,y)) with random x,y
 implies X = exp(g,y), because one may also have
 X = exp(g,y).(element of small order).
+CV infers that we cannot have  exp(X, x) = exp(g, mult(x,y))
+when X does not depend on y, from injectivity properties of exp(g,.)
+and mult(x,.) because exp(g, mult(x,y)) then characterizes y.
 
 Check that the dependency analysis (FindCompos) does not use collision
 statements with random arguments to show that a term characterizes these
 random arguments.
 OK: inside FindCompos, I use apply_eq_statements_at_root which applies
 only statements, not collisions, to simplify terms in find_compos_bin.
+
+gy_3 defined => else branch of 
+            find j' = j'_1 <= N1 suchthat defined(cr_1[j'_1], gx[j'_1]) && (sgx = gx[j'_1]) then
+in the server
+
+tls13core ... 1RTT-only example
+if gy_3[j] defined:
+- if gx[i] defined before sgx[j], then cr_1[i] defined before sgx[j], so
+before the "find j' = j'_1 <= N1 suchthat defined(cr_1[j'_1], gx[j'_1]) && (sgx = gx[j'_1]) then" with repl index j.
+Else branch taken => sgx[j] <> gx[i].
+- if gx[i] defined after sgx[j], x_3[i] also defined after sgx[j].
+gx[i] = exp'(G, x_3[i])
+sgx[j] does not depend on x_3[i].
+sgx[j] = gx[i] impossible by collision
+(exp'(G,x) = Y) <=()=> false if Y indep of x.
+
+src/transf_expand.ml:TO DO comment needs update *)
+src/facts.ml:              TO DO store side condition in the proba *)
 
    Update the manual and default.ocvl with the changes made
    in default-DHinprogress.cvl to allow "nonuniform" types.
