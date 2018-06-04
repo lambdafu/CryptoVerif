@@ -25,7 +25,10 @@ type D [fixed].
 
 (* DDH assumption *)
 proba pDDH.
-expand DDH(G, Z, g, exp, mult, pDDH).
+expand DDH(G, Z, g, exp, exp', mult, pDDH).
+proba PCollKey1.
+proba PCollKey2.
+expand common_DH_proba(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
 
 (* Hash entropy extractor *)
 proba pH.

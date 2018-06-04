@@ -31,7 +31,10 @@ success
 
 (* CDH assumption *)
 proba pCDH.
-expand CDH(G, Z, g, exp, mult, pCDH).
+expand CDH(G, Z, g, exp, exp', mult, pCDH).
+proba PCollKey1.
+proba PCollKey2.
+expand common_DH_proba(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
 
 (* Hash in the random oracle model *)
 type hashkey [fixed].

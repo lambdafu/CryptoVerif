@@ -207,13 +207,13 @@ type G [bounded, large].
 
 ifdef(`COMPROMISE_V',`
 proba pGDH.
-expand GDH(G, Z, g, exp, exp', mult, pGDH).
+expand GDH(G, Z, g, exp, exp2, mult, pGDH).
 ',`
 proba pCDH.
-expand CDH(G, Z, g, exp, exp', mult, pCDH).
+expand CDH(G, Z, g, exp, exp2, mult, pCDH).
 ')
 
-expand common_DH_prime_order(G, Z, g, exp, exp', mult).
+expand common_DH_prime_order(G, Z, g, exp, exp2, mult).
 
 (* AMS Message elements *)
 

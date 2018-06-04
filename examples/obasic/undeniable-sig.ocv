@@ -23,7 +23,9 @@ type G [large,bounded].
 (* Gap Diffie-Hellman problem *)
 
 proba pGDH.
-expand GDH(G, Z, g, exp, mult, pGDH).
+expand GDH(G, Z, g, exp, exp', mult, pGDH).
+proba PDist.
+expand common_DH_rand_group_exp(G, Z, g, exp, exp', mult, PDist).
 
 (* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
 
