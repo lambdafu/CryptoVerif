@@ -11,9 +11,9 @@ crypto rom(h1);
 show_game occ;
 insert 168 "find j <= NU suchthat defined(X[j]) && X[j] = X_s then"; (* just after OS2(..):= *)
 show_game occ;
-insert 303 "find jh <= qH1 suchthat defined(x1[jh], x2[jh], x3[jh], x4[jh], r_2[jh]) && (U = x1[jh]) && (S = x2[jh]) && (X_s = x3[jh]) && (Y = x4[jh]) && (auth_s = r_2[jh]) then"; (* beginning of the "else" branch of the just inserted find *)
+insert 305 "find jh <= qH1 suchthat defined(x1[jh], x2[jh], x3[jh], x4[jh], r_2[jh]) && (U = x1[jh]) && (S = x2[jh]) && (X_s = x3[jh]) && (Y = x4[jh]) && (auth_s = r_2[jh]) then"; (* beginning of the "else" branch of the just inserted find *)
 show_game occ;
-insert_event Auth 336; (* "then" branch of the just inserted find *)
+insert_event Auth 338; (* "then" branch of the just inserted find *)
 simplify;
 crypto icm(enc);
 show_game occ;
@@ -62,8 +62,8 @@ type host [bounded].
 (* Computational Diffie-Hellman *)
 
 proba pCDH.
-
-expand CDH(G, Z, g, exp, mult, pCDH).
+expand CDH(G, Z, g, exp, exp', mult, pCDH).
+expand common_DH_prime_order(G, Z, g, exp, exp', mult).
 
 (* Ideal cipher model *)
 
