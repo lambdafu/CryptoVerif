@@ -308,7 +308,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
           (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
-          Display.display_term redl; *)
+          Display.display_term redl; *) 
 	  (* Compute the side condition that guarantees that all restrictions are independent *)
 	  let sc_term = ref (indep_sc_term_list restr) in
 	  let sc_proba = ref (indep_sc_proba_list restr) in
@@ -341,12 +341,12 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    match indep_test dep_info simp_facts t1 br2 with
 	    | None ->
                (* Display.display_term t1; print_string " depends on "; Display.display_var b l;
-               print_newline();*)
+               print_newline(); *)
                raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
 	    | Some (t1', side_condition_proba, side_condition_term) ->
 	       if (side_condition_term != []) && not (Terms.is_false redr) then
                  begin
-	          (* Cannot encode a side condition when the result of the reduction is not "false" *)
+	           (* Cannot encode a side condition when the result of the reduction is not "false" *)
                    (* print_string " indep cond side condition not supported\n"; *)
 		   raise NoMatch
                  end;
@@ -716,6 +716,24 @@ and apply_eq_st_coll1 depth dep_info simp_facts t =
       (!reduced, t')
   | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in apply_eq_st_coll1"
 
+(* [apply_root_st_coll1 simp_facts t] applies all equalities coming from the
+   equality statements and collisions given in
+   the input file to the root of the term [t], taking into account
+   the equalities in [simp_facts] to enable their application.
+   At most one reduction is done. When the reduction succeeds,
+   it returns (true, reduced_term); otherwise, it returns (false, t).
+
+   It is applied only to equalities [t] in [subst_simplify2], so we do not need to check 
+   that [t] in [FunApp...]. 
+   TO DO For now, we do not use [Terms.apply_eq_reds] because this function
+   does not reduce only the root. It may be good to have a function for reducing
+   only the root. *)
+	
+and apply_root_st_coll1 depth dep_info simp_facts t =
+  reduced := false;
+  let t' = apply_statements_and_collisions_at_root_once (reduce_rec depth simp_facts) dep_info simp_facts t in
+  (!reduced, t')
+	
 (* [reduce_rec simp_facts f t] simplifies the term [t] knowing the fact [f] 
    in addition to the already known facts [simp_facts]. It sets the flag [reduced]
    when [t] has really been modified. *)
@@ -968,80 +986,60 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	begin
 	  match t0.t_desc with
 	    FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-	      let simp_facts_tmp = ((!subst2'') @ rest, facts, elsefind) in
-	      (* Reduce the LHS of the equality t = t' *)
-	      let (reduced_lhs, t1) = apply_sub1 simp_facts_tmp t link in
-	      (* Reduce the RHS of the equality t = t' *)
-              let (reduced_rhs, t1') = apply_sub1 simp_facts_tmp t' link in
-	      if reduced_lhs || reduced_rhs then
-		let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
-		if not reduced_lhs then
-		  rhs_reduced := fact' :: (!rhs_reduced) 
-		else	    
-		  begin
-		    if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
-		      not_subst2_facts := fact' :: (!not_subst2_facts)
-		  end
+	      let subst_tmp = (!subst2'') @ rest in
+	      let simp_facts_tmp = (subst_tmp, facts, elsefind) in
+	      let simp_facts_tmp2 = (link :: subst_tmp, facts, elsefind) in
+	      (* Reduce the LHS of the equality t = t' using the new [link] *)
+	      let (reduced_root_or_lhs, t1) = apply_sub1 simp_facts_tmp t link in
+              (* Reduce the LHS of the equality t = t' using statements and collisions 
+		 given in the input file, possibly using the new [link] to enable
+		 these reductions *)
+	      let (reduced_root_or_lhs, t1) =
+		if reduced_root_or_lhs then
+		  (reduced_root_or_lhs, t1)
+		else
+		  apply_eq_st_coll1 depth dep_info simp_facts_tmp2 t
+	      in
+              (* Reduce the root of the equality t = t' using statements and collisions 
+		 given in the input file, possibly using the new [link] to enable
+		 these reductions *)	      
+	      let (reduced_root_or_lhs, fact') =
+		if reduced_root_or_lhs
+		(* To avoid a stupid loop tranforming t into t = true or not(t) into t = false
+                   back and forth *) 
+	        || (Terms.is_true t) || (Terms.is_false t)
+	        || (Terms.is_true t') || (Terms.is_false t') then
+		  (reduced_root_or_lhs, Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t'])))
+		else
+		  apply_root_st_coll1 depth dep_info simp_facts_tmp2 t0
+	      in
+	      if reduced_root_or_lhs then
+		begin
+		  if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
+		    not_subst2_facts := fact' :: (!not_subst2_facts)
+		end
 	      else
-		subst2'' := t0 :: (!subst2'')
+	        (* Reduce the RHS of the equality t = t' using the new [link] *)
+		let (reduced_rhs, t1') = apply_sub1 simp_facts_tmp t' link in
+                (* Reduce the RHS of the equality t = t' using statements and collisions 
+		   given in the input file, possibly using the new [link] to enable
+		   these reductions *)
+		let (reduced_rhs, t1') =
+		  if reduced_rhs then
+		    (reduced_rhs, t1')
+		  else
+		    apply_eq_st_coll1 depth dep_info simp_facts_tmp2 t'
+		in
+		if reduced_rhs then
+		  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
+		  rhs_reduced := fact' :: (!rhs_reduced) 
+		else
+		  subst2'' := t0 :: (!subst2'')
 	  | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 	end;
 	apply_eq_st rest
   in
   apply_eq_st subst2;
-  let subst2 = !subst2'' in
-  let new_rhs_reduced = !rhs_reduced in
-  rhs_reduced := [];
-  subst2'' := [];
-  (* Reduce the equalities in [subst2] using statements and collisions 
-     given in the input file, possibly using the new [link] to enable
-     these reductions *)
-  let rec apply_eq_st = function
-      [] -> ()
-    | t0::rest ->
-	begin
-    match t0.t_desc with
-      FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-	let simp_facts_tmp = (link :: (!subst2'') @ rest, facts, elsefind) in
-	(* Reduce the LHS of the equality t = t' *)
-	let (reduced_lhs, t1) = apply_eq_st_coll1 depth dep_info simp_facts_tmp t in
-	(* Reduce the RHS of the equality t = t' *)
-	let (reduced_rhs, t1') = apply_eq_st_coll1 depth dep_info simp_facts_tmp t' in
-	if reduced_lhs || reduced_rhs then
-	  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1'])) in
-	  if not reduced_lhs then
-	    rhs_reduced := fact' :: (!rhs_reduced) 
-	  else	    
-	    begin
-	      if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
-		not_subst2_facts := fact' :: (!not_subst2_facts)
-	    end
-	else
-	  subst2'' := t0 :: (!subst2'')
-    | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
-	end;
-	apply_eq_st rest
-  in
-  apply_eq_st subst2;
-  let simp_facts = (link :: (!subst2''), !not_subst2_facts, elsefind) in
-  (* Reduce the LHS of equalities in [new_rhs_reduced] using statements and collisions 
-     given in the input file, possibly using the new [link] to enable
-     these reductions *)
-  List.iter (fun t0 -> 
-    match t0.t_desc with
-      FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-	(* Reduce the LHS of the equality t = t' *)
-	let (reduced_lhs, t1) = apply_eq_st_coll1 depth dep_info simp_facts t in
-	if not reduced_lhs then
-	  rhs_reduced := t0 :: (!rhs_reduced) 
-	else	    
-	  begin
-	    let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t'])) in
-	    if not (List.exists (Terms.equal_terms fact') (!not_subst2_facts)) then
-	      not_subst2_facts := fact' :: (!not_subst2_facts)
-	  end
-    | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
-	  ) new_rhs_reduced;
   let (subst2_added_rhs_reduced, facts_to_add, elsefind) =
     specialized_add_list depth dep_info (link :: (!subst2''), !not_subst2_facts, elsefind) (!rhs_reduced)
   in
@@ -1136,15 +1134,24 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
      is already reduced *)
   let subst2'' = ref [] in
   let rhs_reduced = ref [] in
-  let not_subst2_facts = ref facts in
   let rec apply_eq_st = function
       [] -> ()
     | t0::rest ->
 	begin
 	  match t0.t_desc with
 	    FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-	      (* Reduce the RHS of the equality t = t' *)
-              let (red, t1') = apply_sub1 ((!subst2'') @ rest, facts, elsefind) t' link in
+	      let tmp_subst = (!subst2'') @ rest in
+	      (* Reduce the RHS of the equality t = t' using [link] *)
+              let (red, t1') = apply_sub1 (tmp_subst, facts, elsefind) t' link in
+              (* Reduce the RHS of the equality t = t' using statements and collisions 
+		 given in the input file, possibly using the new [link] to enable
+		 these reductions *)
+	      let (red, t1') =
+		if red then
+		  (red, t1')
+		else
+		  apply_eq_st_coll1 depth dep_info (link :: tmp_subst, facts, elsefind) t'
+	      in
 	      if red then
 		let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
 		rhs_reduced := fact' :: (!rhs_reduced)
@@ -1155,31 +1162,7 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	apply_eq_st rest
   in
   apply_eq_st subst2;
-  let subst2 = !subst2'' in
-  subst2'' := [];
-  (* Reduce the equalities in [subst2] using statements and collisions 
-     given in the input file, possibly using the new [link] to enable
-     these reductions - Only the RHS is reduced since we know that the LHS
-     is already reduced *)
-  let rec apply_eq_st = function
-      [] -> ()
-    | t0::rest ->
-	begin
-	match t0.t_desc with
-	  FunApp(f, [t;t']) when f.f_cat == Equal || f.f_cat == LetEqual ->
-	    (* Reduce the RHS of the equality t = t' *)
-	    let (reduced, t1') = apply_eq_st_coll1 depth dep_info (link :: (!subst2'') @ rest, facts, elsefind) t' in
-	    if reduced then
-	      let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
-	      rhs_reduced := fact' :: (!rhs_reduced)
-	    else
-	      subst2'' := t0 :: (!subst2'')
-	| _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
-	end;
-	apply_eq_st rest
-  in
-  apply_eq_st subst2;
-  specialized_add_list depth dep_info (link :: (!subst2''), !not_subst2_facts, elsefind) (!rhs_reduced)
+  specialized_add_list depth dep_info (link :: (!subst2''), facts, elsefind) (!rhs_reduced)
 
 and specialized_simplif_add depth dep_info simp_facts fact =
   if (!Settings.debug_simplif_add_facts) then
