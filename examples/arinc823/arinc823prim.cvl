@@ -3,7 +3,7 @@
    - SUF-CMA signatures, with collision-resistance
 *)
 
-def joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+def joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH, PCollKey1, PCollKey2,
   signature, seed, sign, ver, Psign, Psigncoll)
 {
 const g: G.
@@ -27,51 +27,11 @@ equation builtin commut(mult).
 
 equation forall a: G, x: Z, y: Z; exp(exp(a,x), y) = exp(a, mult(x,y)).
 
-(* injectivity *)
+collision x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+collision x <-R Z; y <-R Z; forall Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
 
-equation forall x: Z, y: Z; (exp(g,x) = exp(g,y)) = (x = y).
-
-(* when the order of the group is a prime *)
-
-equation forall x: G, x': G, y: Z; (exp(x,y) = exp(x',y)) = (x = x').
-equation forall x: G, x': Z, y: Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
-
-(* collision between products *)
-
-collision new x1: Z; new x2: Z; new x3: Z; new x4: Z; return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
-
-collision new x1: Z; new x2: Z; return(mult(x1,x1) = mult(x2,x2)) <=(1/|Z|)=> return(false). 
-
-equation forall x: Z, y: Z, y': Z; (mult(x,y) = mult(x,y')) = (y = y').
-
-(* replace a random group element with an exponentiation, and conversely *)
-
-param N, N'.
-
-equiv(group_to_exp_strict(exp))
-  ! N new X: G; (
-    OX() := return(X) |
-    ! N' OXm(m: Z) [useful_change] := return(exp(X,m)))
-<=(0)=> [computational]
-  ! N new x: Z; (
-    OX() := return(exp(g,x)) |
-    ! N' OXm(m: Z) := return(exp(g,mult(x,m)))).
-
-(* This equivalence is very general, apply it only manually, because
-   otherwise it might be applied too often.  The equivalence above is
-   particular case applied only when X is inside exp, and good for
-   automatic proofs. *)
-
-equiv(group_to_exp(exp))
-  ! N new X: G; OX() := return(X)
-<=(0)=> [manual, computational]
-  ! N new x: Z; OX() := return(exp(g,x)).
-
-
-equiv(exp_to_group(exp))
-  ! N new x: Z; OX() := return(exp(g,x))
-<=(0)=> [computational]
-  ! N new X: G; OX() := return(X).
 
 (* the GDH assumption
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -155,7 +115,7 @@ equiv(gdh(exp))
 
 equation forall m: bitstring, r: Z, r2: seed; ver(exp(g,r), sign(r, m, r2), m) = true.
 
-param N2, N3, N4, NDDH1, NDDH2, NDDH3.
+param N, N2, N3, N4, NDDH1, NDDH2, NDDH3, NDDH4.
 
 equiv(suf_cma(sign))
   ! N3 new r: Z; (
@@ -164,7 +124,8 @@ equiv(suf_cma(sign))
     ! N Ocheck(m1: bitstring, si1: signature) := return(ver(exp(g,r), si1, m1)) |
     ! NDDH1 ODDH1(m2: G, m3: G) := return(m2 = exp(m3, r)) |
     ! NDDH2 ODDH2(m2: G, m3: Z) := return(m2 = exp(g, mult(m3, r))) |
-    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))))|
+    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))) |
+    ! NDDH4 ODDH4(m2: G, m3: G) := return(exp(m2, r) = exp(m3, r))) |
   ! N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := return(ver(y, si, m)) [all]
 <=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual, computational]
   ! N3 new r: Z [unchanged]; (
@@ -173,7 +134,8 @@ equiv(suf_cma(sign))
     ! N Ocheck(m1: bitstring, si1: signature) := find j <= N2 suchthat defined(x[j], s[j]) && m1 = x[j] && si1 = s[j] then return(true) else return(false) |
     ! NDDH1 ODDH1(m2: G, m3: G) := return(m2 = exp(m3, r)) |
     ! NDDH2 ODDH2(m2: G, m3: Z) := return(m2 = exp(g, mult(m3, r))) |
-    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))))|
+    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))) |
+    ! NDDH4 ODDH4(m2: G, m3: G) := return(exp(m2, r) = exp(m3, r))) |
   ! N4 Ocheck2(m: bitstring, y: G, si: signature) := find j <= N2, k <= N3 suchthat defined(x[j, k], s[j, k], r[k]) && y = exp(g,r[k]) && m = x[j,k] && si = s[j,k] then return(true) else find k <= N3 suchthat defined(r[k]) && (y = exp(g,r[k])) then return(false) else return(ver(y,si,m)).
 
 (* Collision resistance property
@@ -191,7 +153,7 @@ collision new k: Z; new r1: seed; new r2: seed; forall m1: bitstring, m2: bitstr
    - UF-CMA signatures, with collision-resistance
 *)
 
-def joint_GDH_UFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+def joint_GDH_UFCMA_collresistance(G, Z, g, exp, mult, pGDH, PCollKey1, PCollKey2,
   signature, seed, sign, ver, Psign, Psigncoll)
 {
 const g: G.
@@ -221,51 +183,10 @@ equation builtin commut(mult).
 
 equation forall a: G, x: Z, y: Z; exp(exp(a,x), y) = exp(a, mult(x,y)).
 
-(* injectivity *)
-
-equation forall x: Z, y: Z; (exp(g,x) = exp(g,y)) = (x = y).
-
-(* when the order of the group is a prime *)
-
-equation forall x: G, x': G, y: Z; (exp(x,y) = exp(x',y)) = (x = x').
-equation forall x: G, x': Z, y: Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
-
-(* collision between products *)
-
-collision new x1: Z; new x2: Z; new x3: Z; new x4: Z; return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
-
-collision new x1: Z; new x2: Z; return(mult(x1,x1) = mult(x2,x2)) <=(1/|Z|)=> return(false). 
-
-equation forall x: Z, y: Z, y': Z; (mult(x,y) = mult(x,y')) = (y = y').
-
-(* replace a random group element with an exponentiation, and conversely *)
-
-param N, N'.
-
-equiv(group_to_exp_strict(exp))
-  ! N new X: G; (
-    OX() := return(X) |
-    ! N' OXm(m: Z) [useful_change] := return(exp(X,m)))
-<=(0)=> [computational]
-  ! N new x: Z; (
-    OX() := return(exp(g,x)) |
-    ! N' OXm(m: Z) := return(exp(g,mult(x,m)))).
-
-(* This equivalence is very general, apply it only manually, because
-   otherwise it might be applied too often.  The equivalence above is
-   particular case applied only when X is inside exp, and good for
-   automatic proofs. *)
-
-equiv(group_to_exp(exp))
-  ! N new X: G; OX() := return(X)
-<=(0)=> [manual, computational]
-  ! N new x: Z; OX() := return(exp(g,x)).
-
-
-equiv(exp_to_group(exp))
-  ! N new x: Z; OX() := return(exp(g,x))
-<=(0)=> [computational]
-  ! N new X: G; OX() := return(X).
+collision x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+collision x <-R Z; y <-R Z; forall Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
 
 (* the GDH assumption
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -353,7 +274,7 @@ equation forall m: bitstring, r: Z, r2: seed; ver'(exp(g,r), sign'(r, m, r2), si
        the second signature is the received one,
        possibly altered since signatures are malleable *)
 
-param N2, N3, N4, NDDH1, NDDH2, NDDH3.
+param N, N2, N3, N4, NDDH1, NDDH2, NDDH3, NDDH4.
 
 equiv(uf_cma(sign))
   ! N3 new r: Z; (
@@ -362,7 +283,8 @@ equiv(uf_cma(sign))
     ! N Ocheck(m1: bitstring, si1: signature) := return(ver(exp(g,r), si1, m1)) |
     ! NDDH1 ODDH1(m2: G, m3: G) := return(m2 = exp(m3, r)) |
     ! NDDH2 ODDH2(m2: G, m3: Z) := return(m2 = exp(g, mult(m3, r))) |
-    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))))|
+    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))) |
+    ! NDDH4 ODDH4(m2: G, m3: G) := return(exp(m2, r) = exp(m3, r))) |
   ! N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := return(ver(y, si, m)) [all]
 <=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual, computational]
   ! N3 new r: Z [unchanged]; (
@@ -371,7 +293,8 @@ equiv(uf_cma(sign))
     ! N Ocheck(m1: bitstring, si1: signature) := find j <= N2 suchthat defined(x[j], s[j]) && m1 = x[j] && ver'(exp(g,r), s[j], si1, m1) then return(true) else return(false) |
     ! NDDH1 ODDH1(m2: G, m3: G) := return(m2 = exp(m3, r)) |
     ! NDDH2 ODDH2(m2: G, m3: Z) := return(m2 = exp(g, mult(m3, r))) |
-    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))))|
+    ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))) |
+    ! NDDH4 ODDH4(m2: G, m3: G) := return(exp(m2, r) = exp(m3, r))) |
   ! N4 Ocheck2(m: bitstring, y: G, si: signature) := find j <= N2, k <= N3 suchthat defined(x[j, k], s[j, k], r[k]) && y = exp(g,r[k]) && m = x[j,k] && ver'(y, s[j,k], si, m) then return(true) else find k <= N3 suchthat defined(r[k]) && (y = exp(g,r[k])) then return(false) else return(ver(y,si,m)).
 
 (* Collision resistance property

@@ -76,7 +76,10 @@ fun elt2bitstring(elt): bitstring [data].
    The considered groups are prime order. *)
 
 proba pGDH.
-expand GDH_prime_order(elt, key, G, exp, mult, pGDH).
+expand GDH(elt, key, G, exp, exp', mult, pGDH).
+proba PCollKey1.
+proba PCollKey2.
+expand common_DH_proba(elt, key, G, exp, exp', mult, PCollKey1, PCollKey2).
 
 letfun dh_keygen() =
    new x:key;

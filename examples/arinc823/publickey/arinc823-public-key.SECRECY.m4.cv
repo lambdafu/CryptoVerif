@@ -219,9 +219,9 @@ proba Psign.
 proba Psigncoll.
 
 ifdef(`REPLAY_PROT', `
-expand joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+expand joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH, PCollKey1, PCollKey2,
   signature, seed, sign, ver, Psign, Psigncoll).', `
-expand joint_GDH_UFCMA_collresistance(G, Z, g, exp, mult, pGDH,
+expand joint_GDH_UFCMA_collresistance(G, Z, g, exp, mult, pGDH, PCollKey1, PCollKey2,
   signature, seed, sign, ver, Psign, Psigncoll).')
 
 (* Hash function HASH is collision resistant *)

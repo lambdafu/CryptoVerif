@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TIME=../../xtime
-CV="../../cryptoverif"
+CV="../../cryptoverif -lib ../../default"
 
 # The argument of analyze is
 # $1 = file name (without .cv)

@@ -77,7 +77,8 @@ const alice, bob: prin.
 (* Gap Diffie-Hellman *)
 
 proba pGDH.
-expand GDH_prime_order(G, Z, g, gexp, mult, pGDH).
+expand GDH(G, Z, g, gexp, gexp', mult, pGDH).
+expand common_DH_prime_order(G, Z, g, gexp, gexp', mult).
 
 (* Generate initial rkey - 4DH *)
 

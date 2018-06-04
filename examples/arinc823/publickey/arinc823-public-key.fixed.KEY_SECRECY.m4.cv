@@ -54,7 +54,8 @@ type Z [bounded, large].
 type G [bounded, large].
 
 proba pGDH.
-expand GDH_prime_order(G, Z, g, exp, mult, pGDH).
+expand GDH(G, Z, g, exp, exp', mult, pGDH).
+expand common_DH_prime_order(G, Z, g, exp, exp', mult).
 
 (* AMS Message elements *)
 
