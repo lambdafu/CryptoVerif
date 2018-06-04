@@ -1512,6 +1512,9 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 		end;
 		  ) elsefind_facts;
 
+              (* Note: we re-add the facts that are already in simp_facts, 
+                 because the dependency information can allow further 
+                 simplifications on them as well. *)
               let (_,_,_) = Facts.simplif_add_list (dependency_anal_order_hyp cur_array order_assumptions dep_info) ([],[],[]) (t'::(!fact_accu)) in
                 if (!Settings.debug_elsefind_facts) then
                   begin
