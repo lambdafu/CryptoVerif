@@ -617,7 +617,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
-	      let t2' = Simplify1.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      let t2' = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
 	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
                  In case b occurs in t2, we reason as follows:
                     1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
@@ -676,7 +676,7 @@ let dependency_anal cur_array dep_info =
       else
 	FindCompos.init_elem
     in
-    Simplify1.indep_test bdepinfo simp_facts t (b,l)
+    Facts.default_indep_test bdepinfo simp_facts t (b,l)
   in
   let collision_test simp_facts t1 t2 = 
     let t1' = try_no_var_rec simp_facts t1 in
@@ -684,7 +684,7 @@ let dependency_anal cur_array dep_info =
     match try_two_directions (dependency_collision_rec2 cur_array simp_facts dep_info) t1' t2' with
       (Some _) as x -> x
     | None ->
-	repl_index_list := [];
+	Facts.repl_index_list := [];
 	match try_two_directions (dependency_collision_rec3 cur_array simp_facts) t1' t2' with
 	  (Some _) as x -> x
 	| None ->

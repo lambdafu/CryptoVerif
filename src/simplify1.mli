@@ -4,13 +4,6 @@ open Types
 
 (*** Computation of probabilities of collision between terms ***)
 
-(* map_find_indices creates new replication indices, to replace find indices in
-   probability computations.
-   These indices are stored in repl_index_list. *)
-val repl_index_list : (term * repl_index) list ref
-
-val new_repl_index_term : term -> repl_index
-
 (* Recorded term collisions *)
 val term_collisions :
   ((binderref * binderref) list * (* For each br1, br2 in this list, the collisions are eliminated only when br2 is defined before br1 *)
@@ -169,23 +162,6 @@ val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem 
 
 (*** Helper functions for simplification ***)
     
-(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a term independent of [b0[l0]] in which some array indices in [t] 
-   may have been replaced with fresh replication indices. 
-   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
-   [(dep,nodep)] is the dependency information:
-     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
-              or [None] when any variable may depend on [b0];
-     [nodep] is a list of terms that are known not to depend on [b0].
-   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
-   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
-   array indices that depend on [b0] are replaced with fresh replication indices
-   (as in the transformation from [t] to the result of [is_indep]). *)
-val is_indep : simp_facts -> 
-  binder * term list * 'a FindCompos.depinfo *
-  term list list ref * term list list ref ->
-  term -> term
-
 (* [dependency_collision_rec3 cur_array true_facts t1 t2 t] aims 
    to simplify [t1 = t2] by eliminating collisions
    using that randomly chosen values do not depend on other variables.
@@ -204,8 +180,6 @@ val is_indep : simp_facts ->
 val dependency_collision_rec3 :
   repl_index list -> simp_facts -> term -> term -> term -> term option
 
-val indep_test : 'a FindCompos.depinfo -> dep_anal_indep_test
-      
 (* [try_two_directions f t1 t2] tries a dependency analysis [f]
    on both sides of [t1 = t2] *)
 val try_two_directions :

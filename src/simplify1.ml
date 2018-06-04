@@ -1,24 +1,5 @@
 open Types
 
-(* Create fresh replication indices *)
-
-(* mapping from terms to fresh repl indexes *)
-let repl_index_list = ref []
-
-let new_repl_index_term t =
-  let rec find_repl_index = function
-      [] ->
-	let b' = Terms.create_repl_index "i2" t.t_type in
-	repl_index_list := (t,b') :: (!repl_index_list);
-	b'
-    | ((a,b')::l) ->
-	if Terms.equal_terms a t then b' else
-	find_repl_index l
-  in
-  find_repl_index (!repl_index_list)
-
-let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
-
 (* An element (t1, t2, b, lopt, T) in term_collisions means that
 the equality t1 = t2 was considered impossible; it has
 negligible probability because t1 depends on b[lopt] by 
@@ -32,7 +13,7 @@ let term_collisions = ref []
 let reset coll_elim g =
   Proba.reset coll_elim g;
   term_collisions := [];
-  repl_index_list := []
+  Facts.repl_index_list := []
 
 
 let any_term_name = "?"
@@ -220,7 +201,7 @@ let filter_indices_coll true_facts used_indices initial_indices =
       [] -> ()
     | first_index::rest_indices ->
 	List.iter (fun b -> 
-	  let b' = new_repl_index b in
+	  let b' = Facts.new_repl_index b in
 	  ri_link b (TLink (Terms.term_from_repl_index b')))
 	  (first_index::(!useless_indices));
 	let true_facts' = List.map (Terms.copy_term Terms.Links_RI) true_facts in
@@ -584,7 +565,7 @@ let rec is_indep ((b0, (dep,nodep)) as bdepinfo) t =
 	      try
 		is_indep bdepinfo t'
 	      with Not_found ->
-		Terms.term_from_repl_index (new_repl_index_term t')) l)
+		Terms.term_from_repl_index (Facts.new_repl_index_term t')) l)
 	  else
 	    raise Not_found
       | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
@@ -600,7 +581,7 @@ let rec remove_dep_array_index ((b0, (dep,nodep)) as bdepinfo) t =
 	  else 
 	    Var(b, List.map (fun t' -> 
 	      if depends bdepinfo t' then
-		Terms.term_from_repl_index (new_repl_index_term t')
+		Terms.term_from_repl_index (Facts.new_repl_index_term t')
 	      else
 		t') l)
       | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in remove_dep_array_index")
@@ -614,7 +595,7 @@ let rec remove_array_index t =
 	  Var(b, List.map (fun t' ->
 	    match t'.t_desc with
 	      ReplIndex(b') -> t'
-	    | _ -> Terms.term_from_repl_index (new_repl_index_term t')
+	    | _ -> Terms.term_from_repl_index (Facts.new_repl_index_term t')
 		  ) l)
       | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in remove_dep_array_index")
 
@@ -991,83 +972,6 @@ let rec try_no_var_rec depth simp_facts t =
 let try_no_var_rec simp_facts t =
   try_no_var_rec (!Settings.max_depth_try_no_var_rec) simp_facts t
 
-(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a term independent of [b0[l0]] in which some array indices in [t] 
-   may have been replaced with fresh replication indices. 
-   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
-   [(dep,nodep)] is the dependency information:
-     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
-              or [None] when any variable may depend on [b0];
-     [nodep] is a list of terms that are known not to depend on [b0].
-   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
-   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
-   array indices that depend on [b0] are replaced with fresh replication indices
-   (as in the transformation from [t] to the result of [is_indep]). *)
-
-let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
-  Terms.build_term2 t
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (is_indep simp_facts bdepinfo) l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  if (List.exists (Terms.equal_terms t) nodep) then
-	    t.t_desc 
-	  else if (b != b0 && Terms.is_restr b) || (match dep with
-	      None -> false
-	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
-	  then
-	    Var(b, List.map (fun t' ->
-	      try
-		is_indep simp_facts bdepinfo t'
-	      with Not_found ->
-		Terms.term_from_repl_index (new_repl_index_term t')) l)
-	  else if b == b0 then
-	    if List.for_all2 Terms.equal_terms l0 l then
-	      raise Not_found 
-	    else 
-	      begin
-		let l' = 
-		  List.map (fun t' ->
-		  try
-		    is_indep simp_facts bdepinfo t'
-		  with Not_found ->
-		    Terms.term_from_repl_index (new_repl_index_term t')) l
-		in
-		if not (List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs)) then
-		  begin
-		    collect_bargs := l :: (!collect_bargs);
-		    collect_bargs_sc := l' :: (!collect_bargs_sc)
-		  end;
-		Var(b, l')
-	      end
-	  else
-            let t' = Terms.try_no_var simp_facts t in
-            if Terms.equal_terms t t' then
-	      raise Not_found
-            else
-              let t'' = is_indep simp_facts bdepinfo t' in
-              t''.t_desc
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
-
-                 
-let indep_test dep_info simp_facts t (b,l) =
-  try
-    let collect_bargs = ref [] in
-    let collect_bargs_sc = ref [] in
-    let t' = is_indep simp_facts (b,l,dep_info,collect_bargs,collect_bargs_sc) t in
-    let side_condition_proba = 
-      Terms.make_and_list (List.map (fun l' ->
-	Terms.make_or_list (List.map2 Terms.make_diff l l')
-	  ) (!collect_bargs_sc))
-    in
-    let side_condition_term = List.map (fun l' -> 
-      Terms.make_and_list (List.map2 Terms.make_equal l l')
-	) (!collect_bargs)
-    in
-    Some (t', side_condition_proba, side_condition_term)
-  with Not_found ->
-    None
-	
 (* Reasoning that depends on assumptions on the order of definition
    of variables. *)
 
@@ -1155,7 +1059,7 @@ let dependency_anal_order_hyp cur_array order_assumptions dep_info =
   let indep_test simp_facts t (b,l) =
     let (defl_after, defl_before) = dep_info in
     if Terms.mem_binderref (b,l) defl_after then
-      indep_test (None, defl_before) simp_facts t (b,l)
+      Facts.default_indep_test (None, defl_before) simp_facts t (b,l)
     else
       None
   in
@@ -1693,10 +1597,10 @@ let is_compatible_indices
 	really_used_indices1' := rest_really_used_indices1;
 	ri_link b (TLink (Terms.term_from_repl_index b'))
       with Not_found -> 
-	let b' = new_repl_index b in
+	let b' = Facts.new_repl_index b in
 	ri_link b (TLink (Terms.term_from_repl_index b'))
     else
-      let b' = new_repl_index b in
+      let b' = Facts.new_repl_index b in
       ri_link b (TLink (Terms.term_from_repl_index b'))
 	) all_indices2;
   let true_facts2' = List.map (Terms.copy_term Terms.Links_RI) true_facts2 in
@@ -1845,7 +1749,7 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
 	      try 
 		let collect_bargs = ref [] in
 		let collect_bargs_sc = ref [] in
-		let t2' = is_indep simp_facts (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
+		let t2' = Facts.is_indep simp_facts (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
 		let side_condition = 
 		  Terms.make_and_list (List.map (fun l' ->
 		    Terms.make_or_list (List.map2 Terms.make_diff l l')

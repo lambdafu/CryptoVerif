@@ -81,7 +81,103 @@ for each occ' occurrence of a variable in N'.
 
 *)
 
-let no_dependency_anal = ((fun _ _ _ -> None), (fun _ _ _ -> None))
+(* Create fresh replication indices *)
+
+(* mapping from terms to fresh repl indexes *)
+let repl_index_list = ref []
+
+let new_repl_index_term t =
+  let rec find_repl_index = function
+      [] ->
+	let b' = Terms.create_repl_index "i2" t.t_type in
+	repl_index_list := (t,b') :: (!repl_index_list);
+	b'
+    | ((a,b')::l) ->
+	if Terms.equal_terms a t then b' else
+	find_repl_index l
+  in
+  find_repl_index (!repl_index_list)
+
+let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
+
+(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+   returns a term independent of [b0[l0]] in which some array indices in [t] 
+   may have been replaced with fresh replication indices. 
+   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
+   [(dep,nodep)] is the dependency information:
+     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
+              or [None] when any variable may depend on [b0];
+     [nodep] is a list of terms that are known not to depend on [b0].
+   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
+   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
+   array indices that depend on [b0] are replaced with fresh replication indices
+   (as in the transformation from [t] to the result of [is_indep]). *)
+
+let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
+  Terms.build_term2 t
+     (match t.t_desc with
+	FunApp(f,l) -> FunApp(f, List.map (is_indep simp_facts bdepinfo) l)
+      | ReplIndex(b) -> t.t_desc
+      |	Var(b,l) ->
+	  if (List.exists (Terms.equal_terms t) nodep) then
+	    t.t_desc 
+	  else if (b != b0 && Terms.is_restr b) || (match dep with
+	      None -> false
+	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+	  then
+	    Var(b, List.map (fun t' ->
+	      try
+		is_indep simp_facts bdepinfo t'
+	      with Not_found ->
+		Terms.term_from_repl_index (new_repl_index_term t')) l)
+	  else if b == b0 then
+	    if List.for_all2 Terms.equal_terms l0 l then
+	      raise Not_found 
+	    else 
+	      begin
+		let l' = 
+		  List.map (fun t' ->
+		  try
+		    is_indep simp_facts bdepinfo t'
+		  with Not_found ->
+		    Terms.term_from_repl_index (new_repl_index_term t')) l
+		in
+		if not (List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs)) then
+		  begin
+		    collect_bargs := l :: (!collect_bargs);
+		    collect_bargs_sc := l' :: (!collect_bargs_sc)
+		  end;
+		Var(b, l')
+	      end
+	  else
+            let t' = Terms.try_no_var simp_facts t in
+            if Terms.equal_terms t t' then
+	      raise Not_found
+            else
+              let t'' = is_indep simp_facts bdepinfo t' in
+              t''.t_desc
+      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
+
+                 
+let default_indep_test dep_info simp_facts t (b,l) =
+  try
+    let collect_bargs = ref [] in
+    let collect_bargs_sc = ref [] in
+    let t' = is_indep simp_facts (b,l,dep_info,collect_bargs,collect_bargs_sc) t in
+    let side_condition_proba = 
+      Terms.make_and_list (List.map (fun l' ->
+	Terms.make_or_list (List.map2 Terms.make_diff l l')
+	  ) (!collect_bargs_sc))
+    in
+    let side_condition_term = List.map (fun l' -> 
+      Terms.make_and_list (List.map2 Terms.make_equal l l')
+	) (!collect_bargs)
+    in
+    Some (t', side_condition_proba, side_condition_term)
+  with Not_found ->
+    None
+	
+let no_dependency_anal = ((default_indep_test (None, [])), (fun _ _ _ -> None))
 
 let indep_test (dep_anal_indep_test, _) = dep_anal_indep_test
 let collision_test (_, dep_anal_collision_test) = dep_anal_collision_test

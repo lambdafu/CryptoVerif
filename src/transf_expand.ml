@@ -237,11 +237,11 @@ It returns
 TO DO comment needs update *)
 
 let dependency_anal cur_array =
-  let indep_test = Simplify1.indep_test FindCompos.init_elem in
+  let indep_test = Facts.default_indep_test FindCompos.init_elem in
   let collision_test simp_facts t1 t2 =
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in
-    repl_index_list := [];
+    Facts.repl_index_list := [];
     Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array simp_facts) t1' t2'
   in
   (indep_test, collision_test)

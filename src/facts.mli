@@ -43,6 +43,14 @@ val apply_reds : dep_anal -> simp_facts -> term -> term
 val display_elsefind : elsefind_fact -> unit
 val display_facts : simp_facts -> unit
 
+(* map_find_indices creates new replication indices, to replace find indices in
+   probability computations.
+   These indices are stored in repl_index_list. *)
+val repl_index_list : (term * repl_index) list ref
+
+val new_repl_index_term : term -> repl_index
+val new_repl_index : repl_index -> repl_index
+                                     
 (* A dependency analysis is a function of type 
    [dep_anal = simp_facts -> term -> term -> term option] 
    such that [dep_anal facts t1 t2] is [Some t'] when [t1 = t2] 
@@ -56,6 +64,25 @@ val display_facts : simp_facts -> unit
    Other dependency analyses are defined in simplify.ml.
  *)
 val no_dependency_anal : dep_anal
+
+(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+   returns a term independent of [b0[l0]] in which some array indices in [t] 
+   may have been replaced with fresh replication indices. 
+   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
+   [(dep,nodep)] is the dependency information:
+     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
+              or [None] when any variable may depend on [b0];
+     [nodep] is a list of terms that are known not to depend on [b0].
+   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
+   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
+   array indices that depend on [b0] are replaced with fresh replication indices
+   (as in the transformation from [t] to the result of [is_indep]). *)
+val is_indep : simp_facts -> 
+  binder * term list * ((binder * 'a) list option * term list) *
+  term list list ref * term list list ref ->
+  term -> term
+
+val default_indep_test : ((binder * 'a) list option * term list) -> dep_anal_indep_test
 
 (* [simplif_add dep_anal facts t] updates the facts by taking into
    account that the term [t] is true. It can use [dep_anal] to eliminate
