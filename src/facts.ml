@@ -86,6 +86,9 @@ for each occ' occurrence of a variable in N'.
 (* mapping from terms to fresh repl indexes *)
 let repl_index_list = ref []
 
+let reset_repl_index_list() =
+  repl_index_list := []
+    
 let new_repl_index_term t =
   let rec find_repl_index = function
       [] ->

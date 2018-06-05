@@ -27,53 +27,8 @@ when I add the commented out code in check_distinct.ml,
 
 0bis) Revision of DH regarding prime order
 
-(* injectivity *)
-
-equation forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
-equation forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
-
-is useful to prove injective correspondences in signedDH-DDH*
-
-collision x <-R Z; y <-R Z;
-	  return(exp(g,x) = exp(g,y)) <=(Pcoll)=> return(false).
-collision x <-R Z; y <-R Z;
-	  return(exp'(g,x) = exp'(g,y)) <=(Pcoll)=> return(false).
-
-also works.
-
-collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
-  return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
-
-is useful for signed-DH.pcv
-In fact, exp(g,mult(a,b)) = exp(g,mult(a',b')) can also be simplified by CDH
-when a,b,a',b' are independent. Perhaps I should improve the model of CDH
-for that.
-
-exp(g,mult(a,b)) = exp(g,mult(a',b)), that is,
-exp(g,mult(a,b)) = exp(exp(g,b), a')
-
-Similarly, the squares can be simplified by square CDH.
-
-=> Done in CDH, GDH, square CDH, square GDH.
 TO DO Check probability formulas.
-
-GDH prime order: we use the "prime order" assumption in GDH to simplify
-exp(m,b) = exp(exp(g,a),b) into m = exp(g,a)
-
-Without the prime order assumption, I could already strengthen the GDH
-assumption:
-ODDHa4 exp'(m,b[j]) = exp'(g, mult(b[j'], a))
-can be transformed into
-b[j] = b[j'] && exp'(m,b[j]) = exp'(g, mult(b[j], a))
-(When b[j] <> b[j'], an adversary that has m and b[j]
-but not b[j'] and a can compute exp'(m,b[j]) but not exp'(g, mult(b[j'], a)) )
-That already helps a lot because the case can be ruled out when
-b[j] <> b[j'].
-Furthermore, the GDH_prime_order case can be obtained by combining
-this plus the other properties in common_DH_prime_order
-without writing a specific equivalence.
-
-Done in GDH, square GDH
+PRF-ODH: probability formulas + comments
 
 TO DO find what assumptions that come from the group are really
 useful in practice.
@@ -86,14 +41,11 @@ collision x <-R Z; y <-R Z; forall Z: G independent of y (or of x);
 	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false).
 
 They need independence assumptions! I should implement that.
-Syntactically, the independence could also be expressed by the
-ordering of the binders: e.g.
-collision x <-R Z; forall Z: G; y <-R Z; 
-	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false).
-would mean that Z may depend on x but does not depend on y.
-In general, that's a bit more limited than explicit independence
-assumptions, and less explicit for the user, so explicit independence
-assumptions may be better.
+DONE, TO DO: document.
+
+Document new DH macros.
+
+Avoid prime order assumption in arinc pk fixed, textsecure, ... 
 
 The application of collision statements does not seem to fully
 exploit the commutativity of mult.

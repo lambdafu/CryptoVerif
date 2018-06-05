@@ -13,7 +13,7 @@ let term_collisions = ref []
 let reset coll_elim g =
   Proba.reset coll_elim g;
   term_collisions := [];
-  Facts.repl_index_list := []
+  Facts.reset_repl_index_list()
 
 
 let any_term_name = "?"

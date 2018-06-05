@@ -43,10 +43,11 @@ val apply_reds : dep_anal -> simp_facts -> term -> term
 val display_elsefind : elsefind_fact -> unit
 val display_facts : simp_facts -> unit
 
-(* map_find_indices creates new replication indices, to replace find indices in
-   probability computations.
-   These indices are stored in repl_index_list. *)
-val repl_index_list : (term * repl_index) list ref
+(* [new_repl_index_term] and [new_repl_index] create new replication 
+   indices, to replace find indices in probability computations.
+   These indices are stored in [repl_index_list], which can be reset by
+   [reset_repl_index_list]. *)
+val reset_repl_index_list : unit -> unit
 
 val new_repl_index_term : term -> repl_index
 val new_repl_index : repl_index -> repl_index

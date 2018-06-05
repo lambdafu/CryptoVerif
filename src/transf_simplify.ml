@@ -684,7 +684,7 @@ let dependency_anal cur_array dep_info =
     match try_two_directions (dependency_collision_rec2 cur_array simp_facts dep_info) t1' t2' with
       (Some _) as x -> x
     | None ->
-	Facts.repl_index_list := [];
+	Facts.reset_repl_index_list();
 	match try_two_directions (dependency_collision_rec3 cur_array simp_facts) t1' t2' with
 	  (Some _) as x -> x
 	| None ->
