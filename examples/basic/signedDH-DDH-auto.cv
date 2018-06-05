@@ -28,6 +28,9 @@ type D [fixed].
 (* the DDH assumption *)
 proba pDDH.
 expand DDH(G, Z, g, exp, exp', mult, pDDH).
+
+(* This collision assumption is needed to prove an injective
+   correspondence, because we use ephemerals to distinguish sessions. *)
 proba PCollKey1.
 proba PCollKey2.
 expand common_DH_proba(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
