@@ -598,16 +598,17 @@ type dep_anal = dep_anal_indep_test * dep_anal_collision_test
 (* A dependency analysis (type [dep_anal]) consists of a pair
 [(indep_test, collision_test)].
 
-[indepTest t (b,l)] 
-returns [Some (t', side_condition_proba, side_condition_term)] when [t'] is a term obtained from [t] 
-by replacing array indices that depend on [b[l]] with fresh indices.
+[indepTest simp_facts t (b,l)] 
+returns [Some (t', side_condition_proba, side_condition_term)] 
+when [t'] is a term obtained from [t] by replacing array indices that 
+depend on [b[l]] with fresh indices.
 [t'] does not depend on [b[l]] when a side condition is true.
 The side condition is present in 2 forms:
- - [side_condition_proba] is the side condition to include in the probability computation.
-   It uses fresh indices like [t']. It is a term.
- - [side_condition_term] is used in the simplified term that we include in the process.
-   It is a list of terms, such that the or of these terms corresponds to the negation
-   of the side condition.
+ - [side_condition_proba] is the side condition to include in the 
+   probability computation. It uses fresh indices like [t']. It is a term.
+ - [side_condition_term] is used in the simplified term that we include 
+   in the process. It is a list of terms, such that the or of these terms 
+   corresponds to the negation of the side condition.
 Returns [None] if that is not possible.
       
 [collision_test simp_facts t1 t2] simplifies [t1 = t2] using dependency 
@@ -615,7 +616,7 @@ analysis.
 It returns
 - [Some t'] when it simplified [t1 = t2] into [t'];
 - [None] when it could not simplify [t1 = t2]. 
-[cur_array] is the list of current replication indices at [t1 = t2].
+
 [simp_facts] contains facts that are known to hold. 
 *)
 

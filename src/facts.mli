@@ -52,17 +52,12 @@ val reset_repl_index_list : unit -> unit
 val new_repl_index_term : term -> repl_index
 val new_repl_index : repl_index -> repl_index
                                      
-(* A dependency analysis is a function of type 
-   [dep_anal = simp_facts -> term -> term -> term option] 
-   such that [dep_anal facts t1 t2] is [Some t'] when [t1 = t2] 
-   can be simplified into the term [t']
-   up to negligible probability, by eliminating collisions
-   between [t1] and [t2] using the results of some dependency analysis.
-   Otherwise, [dep_anal facts t1 t2] returns [None].
+(* See type [dep_anal] in [types.ml] for an explanation of dependency analysis.
 
-   [no_dependency_anal] is a particular dependency analysis that
-   does nothing, i.e. always returns [None].
-   Other dependency analyses are defined in simplify.ml.
+   [no_dependency_anal] is a particular dependency analysis that works
+   without any dependency information, so it can be used as a default.
+   Other dependency analyses are defined in [simplify1.ml], 
+   [transf_simplify.ml], etc.
  *)
 val no_dependency_anal : dep_anal
 
@@ -83,6 +78,25 @@ val is_indep : simp_facts ->
   term list list ref * term list list ref ->
   term -> term
 
+(* [default_indep_test (dep, nodep)] builds an independence test 
+   based on the dependency information provided by [(dep,nodep)]. 
+
+   [(dep,nodep)] is as in [is_indep] above.
+
+[default_indep_test (dep, nodep) simp_facts t (b,l)] 
+returns [Some (t', side_condition_proba, side_condition_term)] 
+when [t'] is a term obtained from [t] by replacing array indices that 
+depend on [b[l]] with fresh indices.
+[t'] does not depend on [b[l]] when a side condition is true.
+The side condition is present in 2 forms:
+ - [side_condition_proba] is the side condition to include in the 
+   probability computation. It uses fresh indices like [t']. It is a term.
+ - [side_condition_term] is used in the simplified term that we include 
+   in the process. It is a list of terms, such that the or of these terms 
+   corresponds to the negation of the side condition.
+Returns [None] if that is not possible.
+
+[simp_facts] contains facts that are known to hold.  *)
 val default_indep_test : ((binder * 'a) list option * term list) -> dep_anal_indep_test
 
 (* [simplif_add dep_anal facts t] updates the facts by taking into

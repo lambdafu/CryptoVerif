@@ -83,7 +83,7 @@ for each occ' occurrence of a variable in N'.
 
 (* Create fresh replication indices *)
 
-(* mapping from terms to fresh repl indexes *)
+(* mapping from terms to fresh replication indices *)
 let repl_index_list = ref []
 
 let reset_repl_index_list() =
@@ -179,9 +179,15 @@ let default_indep_test dep_info simp_facts t (b,l) =
     Some (t', side_condition_proba, side_condition_term)
   with Not_found ->
     None
-	
+
+(* [no_dependency_anal] is a particular dependency analysis that works
+   without any dependency information, so it can be used as a default. *)
+      
 let no_dependency_anal = ((default_indep_test (None, [])), (fun _ _ _ -> None))
 
+(* [indep_test] and [collision_test] extract the 2 functions
+   provided by a dependency analysis *)
+    
 let indep_test (dep_anal_indep_test, _) = dep_anal_indep_test
 let collision_test (_, dep_anal_collision_test) = dep_anal_collision_test
 
