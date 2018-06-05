@@ -45,7 +45,7 @@ DONE, TO DO: document.
 
 Document new DH macros.
 
-Avoid prime order assumption in arinc pk fixed, textsecure, ... 
+Avoid prime order assumption in textsecure => seems hard, ... 
 
 The application of collision statements does not seem to fully
 exploit the commutativity of mult.
