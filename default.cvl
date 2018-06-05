@@ -2539,15 +2539,6 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-(*
-def GDH_prime_order(G, Z, g, exp, exp', mult, pGDH) {
-
-expand GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
-expand common_DH_prime_order(G, Z, g, exp, exp', mult).
-
-}
-*)
-
 
 (* PRF-ODH assumption
    We propose two variants of PRF-ODH.
@@ -2585,21 +2576,6 @@ equiv(prf_odh(prf))
          find uaDH <= na2 suchthat defined(ka'[uaDH]) then event_abort ev_abort else
 	 find ubDH <= nb2, ub <= nb suchthat defined(kb'[ubDH, ub], a'[ubDH, ub]) && a'[ubDH, ub] = a then event_abort ev_abort else
          let ka:bool = true in return(a) |
-      foreach ia1 <= na1 do Oa1(ma1:G, xa1:prf_in) :=
-      	 find j' <= nb suchthat defined(b[j']) && ma1 = exp'(g, b[j']) then
-	 (
-	    (* In this case, that's the same as Oa2 *)
-	    let b'': Z = b[j'] in
-	    find u <= nb suchthat defined(kb[u],b[u]) && b'' = b[u] then (* b'' compromised *) return(prf(exp'(ma1, a), xa1)) else
-            if defined(ka) then (* a compromised *) return(prf(exp'(ma1, a), xa1)) else
-	    (* At this point, a and b'' are not compromised, and must never be compromised in the future *)
-	    let ka'': bool = true in
-            find vaDH <= na2 suchthat defined(b'[vaDH],xa2[vaDH],ca2[vaDH]) && b'' = b'[vaDH] && xa1 = xa2[vaDH] then return(ca2[vaDH]) else
-            find vbDH <= nb2, vb <= nb suchthat defined(b[vb], a'[vbDH, vb], xb2[vbDH, vb], cb2[vbDH, vb]) && b'' = b[vb] && a = a'[vbDH, vb] && xa1 = xb2[vbDH, vb] then return(cb2[vbDH, vb]) else
-	    ca1 <-R prf_out; return(ca1)
-	 )
-	 else
-	    return(prf(exp'(ma1, a), xa1)) |
       foreach ia2 <= na2 do Oa2(jb <= nb, xa2: prf_in) :=
       	 let b': Z = b[jb] in
 	 find u <= nb suchthat defined(kb[u],b[u]) && b' = b[u] then (* b' compromised *) return(prf(exp'(g, mult(b[jb], a)), xa2)) else
@@ -2616,21 +2592,6 @@ equiv(prf_odh(prf))
          find ubDH <= nb2 suchthat defined(kb'[ubDH]) then event_abort ev_abort else
 	 find uaDH <= na2, ua <= na suchthat defined(ka'[uaDH, ua], b'[uaDH, ua]) && b'[uaDH, ua] = b then event_abort ev_abort else
          let kb:bool = true in return(b) |
-      foreach ib1 <= nb1 do Ob1(mb1:G, xb1:prf_in) :=
-      	 find j' <= na suchthat defined(a[j']) && mb1 = exp'(g, a[j']) then
-	 (
-	    (* In this case, that's the same as Oa2 *)
-	    let a'': Z = a[j'] in
-	    find u <= na suchthat defined(ka[u],a[u]) && a'' = a[u] then (* a'' compromised *) return(prf(exp'(mb1, b), xb1)) else
-            if defined(kb) then (* b compromised *) return(prf(exp'(mb1, b), xb1)) else
-	    (* At this point, b and a'' are not compromised, and must never be compromised in the future *)
-	    let kb'': bool = true in
-            find vbDH <= nb2 suchthat defined(a'[vbDH],xb2[vbDH],cb2[vbDH]) && a'' = a'[vbDH] && xb1 = xb2[vbDH] then return(cb2[vbDH]) else
-            find vaDH <= na2, va <= na suchthat defined(a[va], b'[vaDH, va], xa2[vaDH, va], ca2[vaDH, va]) && a'' = a[va] && b = b'[vaDH, va] && xb1 = xa2[vaDH, va] then return(ca2[vaDH, va]) else
-	    cb1 <-R prf_out; return(cb1)
-	 )
-	 else
-	    return(prf(exp'(mb1, b), xb1)) |
       foreach ib2 <= nb2 do Ob2(ja <= na, xb2: prf_in) :=
       	 let a': Z = a[ja] in
 	 find u <= na suchthat defined(ka[u],a[u]) && a' = a[u] then (* a' compromised *) return(prf(exp'(g, mult(a[ja], b)), xb2)) else
@@ -2964,15 +2925,6 @@ equiv(gdh(exp))
     recognize that m = exp(g, mult(a[j], a)) in the game matches m =
     exp(m', a) in the equivalence. *)
 }
-
-(*
-def square_GDH_prime_order(G, Z, g, exp, exp', mult, pGDH) {
-
-expand square_GDH_all_args(G, Z, g, exp, exp', mult, pGDH).
-expand common_DH_prime_order(G, Z, g, exp, exp', mult).
-
-}
-*)
 
 (* square PRF-ODH and PRF-ODH
    These are "square" variants of PRF_ODH1 and PRF_ODH2 respectively. *)
