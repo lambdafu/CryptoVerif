@@ -41,7 +41,9 @@ proof {
 
       (*secrecy of the key*)
       show_game occ;
+      (* inserted just before the definition of KC *)
       insert 218 "find w <= N suchthat defined(idCS[w], idSS[w], cookieCS[w], nsCS[w], cookieSS[w], eS[w], fS[w], r_15[w]) && ((idCC = idCS[w]) && ((idSC = idSS[w]) && (((cookieCC = cookieCS[w]) && (negotiation_string = nsCS[w])) && (((cookieSC = cookieSS[w]) && (nsSC = negotiation_string)) && ((eC = eS[w]) && ((fC = fS[w]))))))) then";
+      (* inserted just before the definition of KS *)
       insert 53 "find v <= N suchthat defined (eC[v]) && eC[v]=eS then";
       simplify;
       set elsefindFactsInSimplify = true; (* Reactivate elsefindFactsInSimplify because it is needed in the proof. *)
@@ -116,8 +118,11 @@ const null_string: bitstring. (*the string of length 0 *)
 (*CDH*)
 
 proba pCDH.
-
 expand CDH(G, Z, g, exp, exp', mult, pCDH).
+
+proba pCollKey1.
+proba pCollKey2.
+expand common_DH_proba(G, Z, g, exp, exp', mult, pCollKey1, pCollKey2).
 
 letfun message(x: Z) = exp(g, x).
 
