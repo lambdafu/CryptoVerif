@@ -91,8 +91,11 @@ expand ROM_hash_triple(key, hashinput1, hashinput2, hashinput3, hashoutput, hash
 type hashinput4.
 expand ROM_hash_quad(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash4, hashoracle4, qH4).
 
+type hashinput5.
+expand ROM_hash_quint(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash5, hashoracle5, qH5).
+
 proba Phash.
-expand CollisionResistant_hash(key, hashinput, hashoutput, hash5, hashoracle5, Phash).
+expand CollisionResistant_hash(key, hashinput, hashoutput, hash6, hashoracle6, Phash).
 
 type G [bounded, large].
 type tZ [bounded, large].

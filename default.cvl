@@ -1917,8 +1917,8 @@ let hashoracle(k: key) =
 
 }
 
-(* ROM_hash_pair, ROM_hash_triple, and ROM_hash_quad are similar
-   to ROM_hash, for random oracle with 2, 3, and 4 arguments
+(* ROM_hash_pair, ROM_hash_triple, ROM_hash_quad, and ROM_hash_quint are similar
+   to ROM_hash, for random oracle with 2, 3, 4, and 5 arguments
    respectively. Letting N be the number of arguments of the oracle,
    hashinput1...hashinputN are the types of the inputs of the hash function
 *)
@@ -2001,6 +2001,33 @@ let hashoracle(k: key) =
         foreach iH <= qH do
 	in(ch1, (x1:hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4));
 	out(ch2, hash(k,x1,x2,x3,x4)).
+
+}
+
+def ROM_hash_quint(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3,x4: hashinput4, x5: hashinput5) := return(hash(k,x1,x2,x3,x4,x5)) |
+         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2,x3':hashinput3,x4':hashinput4, x5':hashinput5, r':hashoutput) := return(r' = hash(k,x1',x2',x3',x4',x5')))
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3,x4: hashinput4, x5: hashinput5) := 
+	   find[unique] u <= N suchthat defined(x1[u],x2[u],x3[u],x4[u],x5[u],r[u]) && x1 = x1[u] && x2 = x2[u] && x3 = x3[u] && x4 = x4[u] && x5 = x5[u] then return(r[u]) else r <-R hashoutput; return(r) |
+         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2,x3':hashinput3,x4':hashinput4, x5':hashinput5, r':hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u],x2[u],x3[u],x4[u],x5[u],r[u]) && x1' = x1[u] && x2' = x2[u] && x3' = x3[u] && x4' = x4[u] && x5' = x5[u] then return(r' = r[u]) else
+	   return(false)).
+
+param qH [noninteractive].
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1:hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5));
+	out(ch2, hash(k,x1,x2,x3,x4,x5)).
 
 }
 
@@ -2218,6 +2245,70 @@ equiv(exp'_to_group(exp))
       foreach iX <= N do x <-R Z; OX() := return(exp'(g,x))
 <=(0)=> [computational]
       foreach iX <= N do X <-R G; OX() := return(X).
+
+}
+
+def common_DH_curve25519(G, Z, g, exp, exp', mult, pow8, zero, PCollKey) {
+
+(* For curve25519, let q be the order of the base point g.
+let Z be the non-zero integers multiple of 8 modulo 8q.
+mult(x,y) = x.y mod 8q (remains multiple of 8)
+exp(a,y) = point a multiplied by y
+the choice of a secret key is non uniform in Z: choose among
+2^254 + 8n (n \in [0, 2^251-1]) that is 2^251 elements. *)
+
+fun pow8(G):G.
+const zero:G.
+
+(* TO DO comments in common_DH_curve25519 need updates *)
+
+equation forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (pow8(x) = pow8(x')).
+equation forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (pow8(x) = pow8(exp(g,x'))).
+
+equation pow8(g) <> zero.
+equation forall x:G, y:Z; (exp(x,y) = zero) = (pow8(x) = zero).
+equation forall x:G, y:Z; (exp(x,y) <> zero) = (pow8(x) <> zero).
+
+equation forall x:G, x':G, y:Z, y':Z; (exp(x,y) = exp(x',y')) = ((y = y') || (pow8(x) = zero)) if pow8(x) = pow8(x').
+equation forall x:G, x':Z, y:Z, y':Z; (exp(x,y) = exp(g, mult(x',y'))) = (y = y') if pow8(x) = pow8(exp(g,x')).
+equation forall x:G, x':Z, y:Z, y':G; (exp(x,y) = exp(y',x')) = (pow8(exp(g,y)) = pow8(y')) if pow8(x) = pow8(exp(g,x')).
+
+(* Injectivity:  *)
+
+equation forall x:G, y:Z, y':Z; (exp(x,y) = exp(x,y')) = ((y = y') || (pow8(x) = zero)).
+equation forall x:G, y:Z, y':Z; (exp'(x,y) = exp'(x,y')) = ((y = y') || (pow8(x) = zero)).
+
+(* collision between products *)
+
+(* The collision x.y = z happens when x = z/y
+   (y is invertible since we work in (Z/qZ)* with q prime).
+   Since z/y is independent of x, this has probability
+   1/|Z| to happen. *)
+collision x <-R Z; forall y: Z, z: Z; 
+  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent of x && z independent of x. 
+
+(* In (Z/qZ)*, half of the elements are square, and each square
+   has 2 square roots. If y is not a square, the equality x.x = y is false.
+   If y is a square y = z.z, then x.x = z.z iff x = z or x = -z (mod q),
+   so with probability 2/|Z|. *) 
+collision x <-R Z; forall y: Z; 
+  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent of x. 
+
+(* x is invertible since we work in (Z/qZ)* with q prime *)
+equation forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* PCollKey = 1/2^251 *)
+
+collision x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey)=> return(false) if Y independent of x.
+collision x <-R Z; forall Y: G;
+	  return(exp'(g, x) = Y) <=(PCollKey)=> return(false) if Y independent of x.
+
+collision x <-R Z; y <-R Z; forall Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey)=> return(false) if Y independent of y.
+collision x <-R Z; y <-R Z; forall Y: G;
+	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey)=> return(false) if Y independent of y.
 
 }
 

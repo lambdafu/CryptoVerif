@@ -1917,8 +1917,8 @@ let hashoracle(k: key) =
 
 }
 
-(* ROM_hash_pair, ROM_hash_triple, and ROM_hash_quad are similar
-   to ROM_hash, for random oracle with 2, 3, and 4 arguments
+(* ROM_hash_pair, ROM_hash_triple, ROM_hash_quad, and ROM_hash_quint are similar
+   to ROM_hash, for random oracle with 2, 3, 4, and 5 arguments
    respectively. Letting N be the number of arguments of the oracle,
    hashinput1...hashinputN are the types of the inputs of the hash function
 *)
@@ -2001,6 +2001,33 @@ let hashoracle(k: key) =
         foreach iH <= qH do
 	OH(x1:hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4) :=
 	return(hash(k,x1,x2,x3,x4)).
+
+}
+
+def ROM_hash_quint(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3,x4: hashinput4, x5: hashinput5) := return(hash(k,x1,x2,x3,x4,x5)) |
+         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2,x3':hashinput3,x4':hashinput4, x5':hashinput5, r':hashoutput) := return(r' = hash(k,x1',x2',x3',x4',x5')))
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2,x3:hashinput3,x4: hashinput4, x5: hashinput5) := 
+	   find[unique] u <= N suchthat defined(x1[u],x2[u],x3[u],x4[u],x5[u],r[u]) && x1 = x1[u] && x2 = x2[u] && x3 = x3[u] && x4 = x4[u] && x5 = x5[u] then return(r[u]) else r <-R hashoutput; return(r) |
+         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2,x3':hashinput3,x4':hashinput4, x5':hashinput5, r':hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u],x2[u],x3[u],x4[u],x5[u],r[u]) && x1' = x1[u] && x2' = x2[u] && x3' = x3[u] && x4' = x4[u] && x5' = x5[u] then return(r' = r[u]) else
+	   return(false)).
+
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x1:hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5) :=
+	return(hash(k,x1,x2,x3,x4,x5)).
 
 }
 
