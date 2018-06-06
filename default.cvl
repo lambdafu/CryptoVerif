@@ -2148,7 +2148,7 @@ equiv(exp'_to_group(exp))
    for the results to apply.
 
    All arguments must be defined before, possibly via common_DH or another
-   Diffie-Hellma macro. 
+   Diffie-Hellman macro. 
 *)
 
 def common_DH_prime_order(G, Z, g, exp, exp', mult) {
@@ -2168,18 +2168,19 @@ equation forall x:G, y:Z, y':Z; (exp'(x,y) = exp'(x,y')) = (y = y').
 
 (* collision between products *)
 
-(* The collision x1.x2 = x3.x4 happens when x4 = x1.x2/x3
-   (x3 is invertible since we work in (Z/qZ)* with q prime).
-   Since the random choices are independent, this has probability
+(* The collision x.y = z happens when x = z/y
+   (y is invertible since we work in (Z/qZ)* with q prime).
+   Since z/y is independent of x, this has probability
    1/|Z| to happen. *)
-collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
-  return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
+collision x <-R Z; forall y: Z, z: Z; 
+  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent of x && z independent of x. 
 
 (* In (Z/qZ)*, half of the elements are square, and each square
-   has 2 square roots. x1 and x2 are square roots of the same element,
-   so they are either equal or opposite (mod q). *) 
-collision x1 <-R Z; x2 <-R Z; 
-  return(mult(x1,x1) = mult(x2,x2)) <=(2/|Z|)=> return(false). 
+   has 2 square roots. If y is not a square, the equality x.x = y is false.
+   If y is a square y = z.z, then x.x = z.z iff x = z or x = -z (mod q),
+   so with probability 2/|Z|. *) 
+collision x <-R Z; forall y: Z; 
+  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent of x. 
 
 (* x is invertible since we work in (Z/qZ)* with q prime *)
 equation forall x:Z, y:Z, y':Z; 
