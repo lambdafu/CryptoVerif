@@ -1765,7 +1765,7 @@ let rec check_term_nobe env = function
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
 
-let check_statement env (l,t) =
+let check_statement env (l,t,side_cond) =
   (* Note: This function uses check_binder_list, which calls
      Terms.create_binder0, so it does not rename the variables.
      That is why I do not save and restore the variable
@@ -1780,7 +1780,9 @@ let check_statement env (l,t) =
     | _ -> ()
   end;
   check_type (snd t) t' Settings.t_bool;
-  statements := (l',t') :: (!statements)
+  let side_cond' = check_term_nobe env' side_cond in
+  check_type (snd side_cond) side_cond' Settings.t_bool;
+  statements := (l',t',side_cond') :: (!statements)
 
 (* Check builtin equation statements *)
 
@@ -2477,7 +2479,7 @@ let check_collision_var env (s, ext) =
     EVar(v) -> v
   | _ -> input_error (s ^ " should be a variable") ext
     
-let check_collision env (restr, forall, t1, proba, t2, indep_cond) =
+let check_collision env (restr, forall, t1, proba, t2, (indep_cond, side_cond)) =
   (* Note: This function uses check_binder_list, which calls
      Terms.create_binder0, so it does not rename the variables.
      That is why I do not save and restore the variable
@@ -2508,7 +2510,9 @@ let check_collision env (restr, forall, t1, proba, t2, indep_cond) =
     (v1', v2')
     ) indep_cond
   in
-  collisions := (restr', forall', t1', proba', t2', indep_cond') :: (!collisions)
+  let side_cond' = check_term_nobe env'' side_cond in
+  check_type (snd side_cond) side_cond' Settings.t_bool;
+  collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond') :: (!collisions)
 
 
 (* Check process
@@ -3022,13 +3026,13 @@ let rename_decl = function
 	      rename_ie sr,f_options)
   | EventDecl(s1, l) ->
       EventDecl(rename_ie s1, List.map rename_ie l)
-  | Statement(l, t) ->
+  | Statement(l, t, side_cond) ->
       (* Variables created in the statement are local, 
          I can reuse their names later *)
       let rename_state = get_rename_state() in
       let renamed_statement =
 	Statement(List.map (fun (i,t) -> (rename_ie i, rename_ie t)) l,
-		  rename_term t)
+		  rename_term t, rename_term side_cond)
       in
       set_rename_state rename_state;
       renamed_statement
@@ -3044,7 +3048,7 @@ let rename_decl = function
       in
       set_rename_state rename_state;
       renamed_eq_statement
-  | Collision(restr, forall,  t1, p, t2, indep_cond) ->
+  | Collision(restr, forall,  t1, p, t2, (indep_cond, side_cond)) ->
       (* Variables created in the statement are local, 
          I can reuse their names later *)
       let rename_state = get_rename_state() in
@@ -3054,7 +3058,8 @@ let rename_decl = function
 		  rename_term t1,
 		  rename_probaf p,
 		  rename_term t2,
-		  List.map (fun (v1,v2) -> (rename_ie v1, rename_ie v2)) indep_cond)
+		  (List.map (fun (v1,v2) -> (rename_ie v1, rename_ie v2)) indep_cond,
+		   rename_term side_cond))
       in
       set_rename_state rename_state;
       renamed_coll_statement      
@@ -4093,9 +4098,10 @@ let collect_id_decl accu = function
   | EventDecl(s1,l) | TableDecl(s1,l) ->
       add_id accu s1;
       List.iter (add_id accu) l
-  | Statement(l,t) ->
+  | Statement(l,t,side_cond) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) l;
-      collect_id_term accu t
+      collect_id_term accu t;
+      collect_id_term accu side_cond
   | BuiltinEquation(eq_categ, l_fun_symb) ->
       List.iter (add_id accu) l_fun_symb
   | EqStatement(n, l,r,p,options) ->
@@ -4103,13 +4109,14 @@ let collect_id_decl accu = function
       collect_id_eqmember accu l;
       collect_id_eqmember accu r;
       collect_id_probaf accu p
-  | Collision(restr, forall,  t1, p, t2, indep_cond) ->
+  | Collision(restr, forall,  t1, p, t2, (indep_cond, side_cond)) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
       collect_id_term accu t1;
       collect_id_probaf accu p;
       collect_id_term accu t2;
-      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) indep_cond
+      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) indep_cond;
+      collect_id_term accu side_cond
   | Query (vars, l) ->
       List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) vars;
       List.iter (collect_id_query accu) l

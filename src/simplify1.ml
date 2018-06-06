@@ -605,10 +605,18 @@ let reduced = ref false
    for statements, with try_no_var = Terms.try_no_var_id *)
 let rec apply_statements_at_root_once t = function
     [] -> t
-  | ([], _, redl, Zero, redr, [])::other_statements ->
+  | ([], _, redl, Zero, redr, [], side_cond)::other_statements ->
       begin
 	try
-	  Facts.match_term Terms.simp_facts_id [] (fun () -> 
+	  Facts.match_term Terms.simp_facts_id [] (fun () ->
+	    (* check side condition *)
+	    if not (Terms.is_true side_cond) then
+	      begin
+		let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
+		if not (Terms.is_true (Terms.apply_eq_reds Terms.simp_facts_id (ref false) side_cond' )) then
+		  raise NoMatch
+	      end;
+	    (* perform reduction *)
 	    let t' = Terms.copy_term Terms.Links_Vars redr in
 	    Terms.cleanup();
 	    reduced := true;
@@ -618,7 +626,7 @@ let rec apply_statements_at_root_once t = function
 	  Terms.cleanup();
 	  apply_statements_at_root_once t other_statements
       end
-  | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr, [])"
+  | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr, [], side_cond)"
 
 (* Same as Facts.apply_reds but does not apply collisions, and 
    applies statements only at the root of the term *)

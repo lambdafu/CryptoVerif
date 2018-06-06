@@ -380,7 +380,7 @@ let display_term t = display_term_paren AllInfix AllProcess t
 
 (* Statements *)
 
-let display_statement (bl, t) =
+let display_statement (bl, t, side_cond) =
   print_string "equation ";
   if bl <> [] then
     begin
@@ -389,6 +389,11 @@ let display_statement (bl, t) =
       print_string "; ";
     end;
   display_term t;
+  if not (Terms.is_true side_cond) then
+    begin
+      print_string " if ";
+      display_term side_cond
+    end;
   print_newline()
 
 (* Equivalences *)

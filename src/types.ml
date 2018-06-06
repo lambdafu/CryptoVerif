@@ -419,12 +419,13 @@ and equiv_nm = equiv * (binder * binder * def_check) list
 
 (* Logical statements *)
 
-and statement = binder list * term
+and statement = binder list * term * term(*side condition*)
 
 (* Collision statements *)
 
 and collision = binder list(*restrictions*) * binder list(*forall*) *
       term * probaf * term * (binder * binder) list(*independence conditions*)
+      * term(*side condition*)
 
 (* Queries *)
 

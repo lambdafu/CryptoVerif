@@ -64,7 +64,7 @@ and process_e = process * Parsing_helper.extent
 
 (* Logical statements (most often equations) *)
 
-type statement = (ident * ident(*type*)) list * term_e
+type statement = (ident * ident(*type*)) list * term_e * term_e
 
 (* Equivalence statements *)
 
@@ -122,7 +122,7 @@ type eqstatement = Types.eqname * eqmember * eqmember * probabilityf_e * (int * 
 
 (* Collisions *)
 
-type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * (ident * ident) list(*independent conditions*)
+type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * ((ident * ident) list(*independent conditions*) * term_e(*side condition*))
 
 
 

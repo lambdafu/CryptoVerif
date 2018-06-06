@@ -31,7 +31,26 @@ let rec get_vars accu t =
       List.iter (get_vars accu) l
   | _ -> Parsing_helper.internal_error "statement terms should contain only Var and FunApp\n"
 
-let simplify_statement (vl, t) =
+let record_statement ((_, _, t1, _,t2, _, _) as statement) =
+  match t1.t_desc with
+    FunApp(f, l) -> 
+      f.f_statements <- statement :: f.f_statements
+  | _ -> 
+      print_string "Statement ";
+      Display.display_term t1;
+      print_string " = ";
+      Display.display_term t2;
+      print_string " ignored: the left-hand side should start with a function symbol.\n"
+
+let display_statement t side_cond =
+  Display.display_term t;
+  if not (Terms.is_true side_cond) then
+    begin
+      print_string " if ";
+      Display.display_term side_cond
+    end
+	
+let simplify_statement (vl, t, side_cond) =
   let glob_reduced = ref false in
   let rec reduce_rec t =
     let reduced = ref false in
@@ -44,65 +63,57 @@ let simplify_statement (vl, t) =
     else t
   in
   let t' = reduce_rec t in
+  let side_cond' = reduce_rec side_cond in
   if Terms.is_true t' then 
     begin
       print_string "Warning: statement ";
-      Display.display_term t;
+      display_statement t side_cond;
       print_string " removed using the equational theory.\n"
     end
   else if Terms.is_false t' then
     begin
       print_string "Error: statement ";
-      Display.display_term t;
+      display_statement t side_cond;
       Parsing_helper.user_error " contradictory.\n"
     end
+  else if Terms.is_false side_cond' then
+    begin
+      print_string "Warning: statement ";
+      display_statement t side_cond;
+      print_string " removed using the equational theory: side condition always false.\n"
+    end
   else
-    let tnew = 
+    begin
       if !glob_reduced then 
 	begin
 	  print_string "Statement ";
-	  Display.display_term t;
+	  display_statement t side_cond;
 	  print_string " simplified into ";
-	  Display.display_term t';
-	  print_string " using the equational theory.\n";
-	  t'
-	  end
-      else 
-	t
-    in
-    let record_statement ((_, _, t1, _,t2, _) as statement) =
-      match t1.t_desc with
-	FunApp(f, l) -> 
-	  f.f_statements <- statement :: f.f_statements
+	  display_statement t' side_cond';
+	  print_string " using the equational theory.\n"
+	end;
+      match t'.t_desc with
+	FunApp(f, [t1;t2]) when f.f_cat == Equal ->
+	  let vars = ref [] in
+	  get_vars vars t2;
+	  get_vars vars side_cond';
+	  if not (List.for_all (fun b ->
+	    Terms.refers_to b t1
+	      ) (!vars)) then
+	    begin
+	      print_string "Error in simplified statement ";
+	      display_statement t' side_cond';
+	      Parsing_helper.user_error ": all variables of the right-hand side and of the side condition should occur in the left-hand side.\n"
+	    end;	  
+	  record_statement ([], vl, t1, Zero, t2, [], side_cond')
+      | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
+	  record_statement ([], vl, t', Zero, Terms.make_true(), [], side_cond');
+	  record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false(), [], side_cond')
       | _ -> 
-	  print_string "Statement ";
-	  Display.display_term t1;
-	  print_string " = ";
-	  Display.display_term t2;
-	  print_string " ignored: the left-hand side should start with a function symbol.\n"
-    in
-    match tnew.t_desc with
-      FunApp(f, [t1;t2]) when f.f_cat == Equal ->
-	let vars = ref [] in
-	get_vars vars t2;
-	if not (List.for_all (fun b ->
-	  Terms.refers_to b t1
-	  ) (!vars)) then
-	  begin
-	    print_string "Error in simplified statement ";
-	    Display.display_term t1;
-	    print_string " = ";
-	    Display.display_term t2;
-	    Parsing_helper.user_error ": all variables of the right-hand side should occur in the left-hand side.\n"
-	  end;	  
-	record_statement ([], vl, t1, Zero, t2, [])
-    | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
-	record_statement ([], vl, tnew, Zero, Terms.make_true(), []);
-	record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false(), [])
-    | _ -> 
-	record_statement ([], vl, tnew, Zero, Terms.make_true(), [])
+	  record_statement ([], vl, t', Zero, Terms.make_true(), [], side_cond')
+    end
 	  
-let record_collision ((_, _, t1, _,t2, _) as collision) =
+let record_collision ((_, _, t1, _,t2, _, _) as collision) =
   match t1.t_desc with
     FunApp(f, l) -> 
       f.f_collisions <- collision :: f.f_collisions

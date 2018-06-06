@@ -406,9 +406,17 @@ let rec indep_sc_proba_list = function
 
 let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
-  | (restr, forall, redl, proba, redr, indep_cond)::other_coll ->
+  | (restr, forall, redl, proba, redr, indep_cond, side_cond)::other_coll ->
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
+	  (* check side condition *)
+	  if not (Terms.is_true side_cond) then
+	    begin
+	      let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
+	      if not (Terms.is_true (Terms.apply_eq_reds simp_facts (ref false) side_cond' )) then
+		raise NoMatch
+	    end;
+	  (* reduced term *)
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
           (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";

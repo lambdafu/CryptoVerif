@@ -201,15 +201,17 @@ lib:
 
 indep_cond:
 
-    { [] }
+    { [], cst_true }
 |   IF ne_indep_cond
     { $2 }
 
 ne_indep_cond:
     one_indep_cond
-    { [$1] }
+    { [$1], cst_true }
+|   term 
+    { [], $1 }
 |   one_indep_cond AND ne_indep_cond
-    { $1 :: $3 }
+    { let (indep_list, t) = $3 in ($1 :: indep_list, t) }
 
 one_indep_cond:  
     IDENT IDENT IDENT IDENT
@@ -383,12 +385,18 @@ forallvartype:
 /* Equations */
 
 eqlist:
+    one_eq  
+    { [$1] }
+|   one_eq SEMI eqlist
+    { $1::$3 }
+
+one_eq:
     forallvartype term  
-    { [Statement($1, $2)] }
-|   forallvartype term SEMI eqlist
-    { (Statement($1, $2))::$4 }
-
-
+    { Statement($1, $2, cst_true) }
+|   forallvartype term IF term
+    { Statement($1, $2, $4) }
+    
+    
 funapp:
     IDENT
     { PFunApp($1, []), parse_extent() }

@@ -365,11 +365,16 @@ let display_term t = display_term_paren AllInfix AllProcess t
 
 (* Statements *)
 
-let display_statement (bl, t) =
+let display_statement (bl, t, side_cond) =
   print_string "$\\kw{forall}\\ ";
   display_list display_binder_with_type bl;
   print_string "; ";
   display_term t;
+  if not (Terms.is_true side_cond) then
+    begin
+      print_string "\\ \\kw{if}\\ ";
+      display_term side_cond
+    end;
   print_string "$\\\\\n"
 
 (* Equivalences *)
