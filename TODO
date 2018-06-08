@@ -38,15 +38,24 @@ useful in practice.
 For examples/tls13/tls13-core-InitialHandshake-1RTTonly.cv
 
 collision x <-R Z; forall Y: G independent of x;
-	  return(exp(g,x) = Y) <=(Pcoll)=> return(false).
-collision x <-R Z; y <-R Z; forall Z: G independent of y (or of x);
-	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false).
+	  return(exp(g,x) = Y) <=(Pcoll)=> return(false) if Y independent of x.
+collision x <-R Z; y <-R Z; forall Z: G;
+	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false) if Z independent of y (or of x).
 
 They need independence assumptions! I should implement that.
-DONE, TO DO: document.
+DONE, TO DO: document (conditions may also include a term).
+Document conditional statements (equation ..).
 
+   common_DH_proba => DH_proba_collision
+   common_DH_prime_order => DH_good_group
+   common_DH_rand_group_exp => DH_dist_random_group_element_vs_exponent
+   common_DH_curve25519 => less specific name (also for 448, etc), comments
+
+   TextSecure: revise proof.
+   probability needs GDH with equality pow8(..) = pow8(..)
+   
 Document new DH macros.
-
+   
 Avoid prime order assumption in textsecure => seems hard, ... 
 
 The application of collision statements does not seem to fully
