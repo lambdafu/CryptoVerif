@@ -52,7 +52,7 @@ Document conditional statements (equation ..).
    common_DH_curve25519 => less specific name (also for 448, etc), comments
 
    TextSecure: revise proof.
-   probability needs GDH with equality pow8(..) = pow8(..)
+   probably needs GDH with equality pow8(..) = pow8(..)
    
 Document new DH macros.
    
