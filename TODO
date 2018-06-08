@@ -506,16 +506,32 @@ have the same continuation.
       plus H1 now occurs in conditions of find so the transformations that
       we can make are more limited.
 
+   - Have an indifferentiability toolbox:
+      - Oracles with disjoint domains => independent oracles
+      - Concatenation of independent oracles => single oracle
+      - Truncation of random oracle
+      - Chaining:
+         a) H2(H1(x),y) => H(x,y)
+	 b) y = H1(x); concat(y, H2(x,y)) => H(x) (HKDF)
+	 c) Wireguard chaining (cf B Lipp's master thesis)
+      
+      Implement that in CV?
+      Combined with the previous idea, that should solve most cases!
+      In particular, it solves the case of ROMs in sequence that was
+      problematic for the previous idea.
+
    - Be able to consider a call to the hash function as a call to
       the hash oracle given to the adversary. That could be useful
-      when we do not really about this call, e.g., when it is in
+      when we do not really care about this call, e.g., when it is in
       a session with a dishonest peer for which we do not prove
       security. Hard with the current language. Perhaps with an oracle
       call construct?
+      Problem: that would be as if we give the arguments of the oracle to
+      the adversary.
       More generally, be able to consider several calls to a hash
       oracle as a single case, like a call to a common subroutine,
       when distinguishing the cases is useless.
-      
+
       
 9) Add more comments, e.g. in terms.mli
 
