@@ -22,14 +22,13 @@ val reduced : bool ref
    [reduce_rec f t] must simplify the term [t] knowing the fact [f] 
    in addition to the already known facts. It sets the flag [reduced]
    when [t] has really been modified.
-   [try_no_var t] must simplify the term [t] by replacing variables
-   with their values according to currently known facts. *)
+   [simp_facts] contains facts that are known to hold. *)
 val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> dep_anal -> simp_facts -> term -> term
 
-(* [apply_eq_statements_subterms_once try_no_var t] simplifies
+(* [apply_eq_statements_subterms_once simp_facts t] simplifies
    the term [t] using the equalities coming from the
    equational theories and the equality statements given in the input file.
-   [try_no_var] is as above. *)
+   [simp_facts] is as above. *)
 val apply_eq_statements_subterms_once : simp_facts -> term -> term
 
 (* [apply_reds dep_info simp_facts t] applies all equalities coming from the
