@@ -69,11 +69,11 @@ const alice, bob: prin.
 
 (* Gap Diffie-Hellman *)
 
-proba pGDH.
-expand square_GDH(G8, Z, g8, gexpdiv8, gexpdiv8', mult, pGDH).
 (* expand common_DH_prime_order(G, Z, g, gexp, gexp', mult). *)
 proba PCollKey.
 expand common_DH_curve25519(G8, Z, g8, gexpdiv8, gexpdiv8', mult, G, g, gexp, pow8, G8toG, zero, PCollKey).
+proba pGDH.
+expand square_GDH(G8, Z, g8, gexpdiv8, gexpdiv8', mult, pGDH).
 
 (* Generate enc key - 4DH *)
 
