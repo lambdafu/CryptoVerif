@@ -631,6 +631,16 @@ let rec apply_statements_at_root_once t = function
 (* Same as Facts.apply_reds but does not apply collisions, and 
    applies statements only at the root of the term *)
 let rec apply_eq_statements_at_root t =
+  let old_reduced = !Facts.reduced in
+  Facts.reduced := false;
+  let t' = Facts.apply_eq_statements_subterms_once Terms.simp_facts_id t in
+  let reduced = !Facts.reduced in
+  Facts.reduced := old_reduced;
+  if reduced then apply_eq_statements_at_root t' else t
+  (* TO DO now applies statements everywhere in the term.
+     A heuristic to be faster might be to apply statements at the root when it is an equality, everywhere otherwise. 
+
+     old code follows:
   reduced := false;
   let t' = Terms.apply_eq_reds Terms.simp_facts_id reduced t in
   if !reduced then apply_eq_statements_at_root t' else 
@@ -640,7 +650,7 @@ let rec apply_eq_statements_at_root t =
     | _ -> t
   in
   if !reduced then apply_eq_statements_at_root t' else t
-
+*)
 
 (* find_compos b t returns true when t characterizes b: only one
 value of b can yield a certain value of t *)
