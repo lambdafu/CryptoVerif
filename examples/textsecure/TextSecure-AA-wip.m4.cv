@@ -7,7 +7,7 @@ set useKnownEqualitiesInCryptoTransform = false.
 set autoRemoveIfFindCond = false.
 set autoMove = false.
 set uniqueBranchReorganize = false.
-
+set mergeBranches = false.
 
 proof {
 out_game "g0.cv";
@@ -15,7 +15,7 @@ crypto uf_cma_corrupt(sign);
 crypto rom(H4);
 crypto rom(H5);
 out_game "g1.out";
-ifdef(`FS',`',`
+(*ifdef(`FS',`',`
 remove_assign binder g1n1;
 remove_assign binder g2n1;
 remove_assign binder g3n1;
@@ -45,10 +45,10 @@ remove_assign binder g2n6;
 remove_assign binder g3n6;
 remove_assign binder sharedn6;
 remove_assign binder g1n7;
-remove_assign binder g1n8;
+remove_assign binder g1n8;*)
 simplify;
 out_game "g1.5.cv";
-crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
+crypto gdh(gexpdiv8) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
 simplify;
 out_game "g2.cv";
 auto
@@ -59,6 +59,7 @@ type emkey [fixed,large].
 
 type Z [bounded,large]. (* Exponents *)
 type G [bounded,large]. (* Diffie-Hellman group *)
+type G8 [bounded,large]. (* Diffie-Hellman group *)
 
 (* Type of principals *)
 type prin [bounded].
@@ -69,10 +70,10 @@ const alice, bob: prin.
 (* Gap Diffie-Hellman *)
 
 proba pGDH.
-expand square_GDH(G, Z, g, gexp, gexp', mult, pGDH).
+expand square_GDH(G8, Z, g8, gexpdiv8, gexpdiv8', mult, pGDH).
 (* expand common_DH_prime_order(G, Z, g, gexp, gexp', mult). *)
 proba PCollKey.
-expand common_DH_curve25519(G, Z, g, gexp, gexp', mult, pow8, zero, PCollKey).
+expand common_DH_curve25519(G8, Z, g8, gexpdiv8, gexpdiv8', mult, G, g, gexp, pow8, G8toG, zero, PCollKey).
 
 (* Generate enc key - 4DH *)
 
@@ -441,7 +442,22 @@ process
 ifdef(`FS',`
     | corrupt(secA0, secAsign)
 ')
-    | hashoracle2(hk2) | hashoracle3(hk3))
+    | (!qH2
+      in(ch2, (x1: G, x2:G, x3:G, x4:G, x5:G));
+      let G8toG(x1') = x1 in
+      let G8toG(x2') = x2 in
+      let G8toG(x3') = x3 in
+      let G8toG(x4') = x4 in
+      let G8toG(x5') = x5 in
+      out(ch2, H5(hk2, x1, x2, x3, x4, x5)))
+    | (!qH3
+      in(ch3, (x1: G, x2:G, x3:G, x4:G));
+      let G8toG(x1') = x1 in
+      let G8toG(x2') = x2 in
+      let G8toG(x3') = x3 in
+      let G8toG(x4') = x4 in
+      out(ch3, H4(hk3, x1, x2, x3, x4)))
+(*hashoracle2(hk2) | hashoracle3(hk3)*))
 
 ifdef(`REPLAY_PROT',`
 ifdef(`STD',`

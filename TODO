@@ -55,6 +55,7 @@ Document conditional statements (equation ..).
    probably needs GDH with equality pow8(..) = pow8(..)
    
 Document new DH macros.
+Update ProVerif crypto library with new DH definitions
    
 Avoid prime order assumption in textsecure => seems hard, ... 
 
