@@ -2285,6 +2285,9 @@ equation builtin commut(mult).
 fun pow8(G):G8.
 fun G8toG(G8): G [data].
 
+equation forall x:G8, x':G8;
+   (pow8(G8toG(x)) = pow8(G8toG(x'))) = (x = x'). 
+
 const zero:G.
 const zero8:G8.
 equation zero = G8toG(zero8).
