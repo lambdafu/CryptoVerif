@@ -10,6 +10,7 @@ set uniqueBranchReorganize = false.
 
 
 proof {
+out_game "g0.cv";
 crypto uf_cma_corrupt(sign);
 crypto rom(H4);
 crypto rom(H5);
@@ -177,9 +178,9 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
    (* 2nd part of key exchange, 
       using prekey ephPubAB and signed prekey sephPubAB1 *)
    in(ch5, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-   if x_pubA = pubA then
+   if pow8(x_pubA) = pow8(pubA) then
    (
-     let g1n1 = gexp(pubA,sephSecAB1) in
+     let g1n1 = gexp(x_pubA,sephSecAB1) in
      let g2n1 = gexp(ephPubBA, secB) in
      let g3n1 = gexp(ephPubBA, sephSecAB1) in
      let g4n1 = gexp(ephPubBA, ephSecAB1) in
@@ -187,8 +188,8 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
      if (g1n1 <> zero) && (g2n1 <> zero) && (g3n1 <> zero) && (g4n1 <> zero) && (sharedn1 <> zero) then
      let kENC = H5(hk2, g1n1, g2n1, g3n1, g4n1, sharedn1) in
 
-     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
-     event Recv(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
+     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
+     event Recv(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
    ) else (
      let g1n2 = gexp(x_pubA,sephSecAB1) in
      let g2n2 = gexp(ephPubBA, secB) in
@@ -204,7 +205,7 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
    in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-   if x_pubA = pubA then
+   if pow8(x_pubA) = pow8(pubA) then
    (
 ifdef(`REPLAY_PROT',`
      (* Protection against replays *)
@@ -212,14 +213,14 @@ ifdef(`REPLAY_PROT',`
      insert replaycache(x_pubA, ephPubBA);
 ')
 
-     let g1n3 = gexp(pubA,sephSecAB1) in
+     let g1n3 = gexp(x_pubA,sephSecAB1) in
      let g2n3 = gexp(ephPubBA, secB) in
      let g3n3 = gexp(ephPubBA, sephSecAB1) in
      let sharedn3 = gexp(ephPubBA', sephSecAB1) in
      if (g1n3 <> zero) && (g2n3 <> zero) && (g3n3 <> zero) && (sharedn3 <> zero) then
      let kENC = H4(hk3, g1n3, g2n3, g3n3,sharedn3) in
-     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
-     event Recv3(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
+     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
+     event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
    ) else (
      let g1n4 = gexp(x_pubA,sephSecAB1) in
      let g2n4 = gexp(ephPubBA, secB) in
@@ -251,7 +252,7 @@ ifdef(`FS',`
 	 because it avoids having to use occurrence and variable numbers in the proof.
 	 The code is the same in both branches, except that some variables are 
 	 renamed. *)
-      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubB then
+      find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB) = pow8(sephPubAB1[j]) && pow8(x_pubB) = pow8(pubB) then
       (
           new ephSecBA1: Z;
       	  let ephPubBA = gexp(g, ephSecBA1) in
@@ -262,6 +263,7 @@ ifdef(`FS',`
 	  new ephSecBA1': Z;
       	  let ephPubBA' = gexp(g, ephSecBA1') in
       	  let sharedn5 = gexp(sephPubAB, ephSecBA1') in
+	  if (g1n5 <> zero) && (g2n5 <> zero) && (g3n5 <> zero) && (g4n5 <> zero) && (sharedn5 <> zero) then
       	  let kENC = H5(hk2, g1n5, g2n5, g3n5, g4n5,sharedn5) in
       
           if x_pubB = pubB && x_pubBsign = pubBsign then
@@ -297,6 +299,7 @@ ifdef(`FS',`
           new ephSecBA': Z;
       	  let ephPubBA' = gexp(g, ephSecBA') in
       	  let sharedn7 = gexp(sephPubAB, ephSecBA') in
+	  if (g1n7 <> zero) && (g2n7 <> zero) && (g3n7 <> zero) && (g4n7 <> zero) && (sharedn7 <> zero) then
       	  let kENC = H5(hk2, g1n7, g2n7, g3n7, g4n7,sharedn7) in
       
 	  if x_pubB = pubB && x_pubBsign = pubBsign then
@@ -339,7 +342,7 @@ ifdef(`FS',`
 	 because it avoids having to use occurrence and variable numbers in the proof.
 	 The code is the same in both branches, except that some variables are 
 	 renamed. *)
-      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubB then
+      find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB) = pow8(sephPubAB1[j]) && pow8(x_pubB) = pow8(pubB) then
       (
           new ephSecBA2: Z;
       	  let ephPubBA = gexp(g, ephSecBA2) in
@@ -350,6 +353,7 @@ ifdef(`FS',`
 	  new ephSecBA2': Z;
       	  let ephPubBA' = gexp(g, ephSecBA2') in
       	  let sharedn6 = gexp(sephPubAB, ephSecBA2') in
+	  if (g1n6 <> zero) && (g2n6 <> zero) && (g3n6 <> zero) && (sharedn6 <> zero) then
       	  let kENC = H4(hk3, g1n6, g2n6, g3n6,sharedn6) in
 
 	  if x_pubB = pubB && x_pubBsign = pubBsign then
@@ -384,6 +388,7 @@ ifdef(`FS',`
 	  new ephSecBA': Z;
       	  let ephPubBA' = gexp(g, ephSecBA') in
       	  let sharedn8 = gexp(sephPubAB, ephSecBA') in
+	  if (g1n8 <> zero) && (g2n8 <> zero) && (g3n8 <> zero) && (sharedn8 <> zero) then
       	  let kENC = H4(hk3, g1n8, g2n8, g3n8,sharedn8) in
 
 	  if x_pubB = pubB && x_pubBsign = pubBsign then
