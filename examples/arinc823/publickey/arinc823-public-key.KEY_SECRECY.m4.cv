@@ -229,6 +229,9 @@ type signature [bounded].
 proba Psign.
 proba Psigncoll.
 
+proba PCollKey1.
+proba PCollKey2.
+
 ifdef(`REPLAY_PROT', `
 expand joint_GDH_SUFCMA_collresistance(G, Z, g, exp, mult, pGDH, PCollKey1, PCollKey2,
   signature, seed, sign, ver, Psign, Psigncoll).', `
