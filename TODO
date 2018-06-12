@@ -115,7 +115,6 @@ sgx[j] does not depend on x_3[i].
 sgx[j] = gx[i] impossible by collision
 (exp'(G,x) = Y) <=()=> false if Y indep of x.
 
-src/transf_expand.ml:TO DO comment needs update *)
 src/facts.ml:              TO DO store side condition in the proba *)
 
    Update the manual and default.ocvl with the changes made

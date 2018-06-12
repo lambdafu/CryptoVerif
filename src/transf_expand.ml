@@ -226,15 +226,8 @@ let reset coll_elim g =
   priority_list := [];
   Simplify1.reset coll_elim g
 
-(* [dependency_collision cur_array simp_facts t1 t2] simplifies [t1 = t2]
-using dependency analysis.
-It returns
-- [Some t'] when it simplified [t1 = t2] into [t'];
-- [None] when it could not simplify [t1 = t2]. 
-[cur_array] is the list of current replication indices at [t1 = t2].
-[simp_facts] contains facts that are known to hold. 
-
-TO DO comment needs update *)
+(* [dependency_anal cur_array] provides a dependency analysis.
+   See type [dep_anal] in types.ml *)
 
 let dependency_anal cur_array =
   let indep_test = Facts.default_indep_test FindCompos.init_elem in
@@ -663,6 +656,9 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
 	(fun cur_array true_facts li ->
 	  context cur_array true_facts (Terms.build_term t (Var(b,li))))
   | ReplIndex _ -> context cur_array true_facts t
+    (* optimize the expansion of && and ||:
+       when the first argument is false (resp. true), 
+       I do not need to compute the other one. *)
   | FunApp(f, [t1;t2]) when f == Settings.f_and ->
      pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
          if Terms.is_false t1' then
@@ -1167,6 +1163,9 @@ let rec expand_term cur_array true_facts t context =
 	(fun cur_array true_facts li ->
 	  context cur_array true_facts (Terms.build_term t (Var(b,li))))
   | ReplIndex _ -> context cur_array true_facts t
+    (* optimize the expansion of && and ||:
+       when the first argument is false (resp. true), 
+       I do not need to compute the other one. *)
   | FunApp(f, [t1;t2]) when f == Settings.f_and ->
      expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
          if Terms.is_false t1' then
