@@ -663,6 +663,34 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
 	(fun cur_array true_facts li ->
 	  context cur_array true_facts (Terms.build_term t (Var(b,li))))
   | ReplIndex _ -> context cur_array true_facts t
+  | FunApp(f, [t1;t2]) when f == Settings.f_and ->
+     pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
+         if Terms.is_false t1' then
+           context cur_array true_facts t1'
+         else if Terms.is_true t1' then
+           pseudo_expand_term_rec cur_array true_facts t2
+         else
+	   pseudo_expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
+               if Terms.is_false t2' then
+                 context cur_array true_facts t2'
+               else if Terms.is_true t2' then
+                 context cur_array true_facts t1'
+               else
+	         context cur_array true_facts (Terms.build_term t (FunApp(f,[t1';t2'])))))
+  | FunApp(f, [t1;t2]) when f == Settings.f_or ->
+     pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
+         if Terms.is_true t1' then
+           context cur_array true_facts t1'
+         else if Terms.is_false t1' then
+           pseudo_expand_term_rec cur_array true_facts t2
+         else
+	   pseudo_expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
+               if Terms.is_true t2' then
+                 context cur_array true_facts t2'
+               else if Terms.is_false t2' then
+                 context cur_array true_facts t1'
+               else
+	         context cur_array true_facts (Terms.build_term t (FunApp(f,[t1';t2'])))))
   | FunApp(f,l) ->
       pseudo_expand_term_list cur_array true_facts l
 	(fun cur_array true_facts li ->
@@ -1139,6 +1167,34 @@ let rec expand_term cur_array true_facts t context =
 	(fun cur_array true_facts li ->
 	  context cur_array true_facts (Terms.build_term t (Var(b,li))))
   | ReplIndex _ -> context cur_array true_facts t
+  | FunApp(f, [t1;t2]) when f == Settings.f_and ->
+     expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
+         if Terms.is_false t1' then
+           context cur_array true_facts t1'
+         else if Terms.is_true t1' then
+           expand_term_rec cur_array true_facts t2
+         else
+	   expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
+               if Terms.is_false t2' then
+                 context cur_array true_facts t2'
+               else if Terms.is_true t2' then
+                 context cur_array true_facts t1'
+               else
+	         context cur_array true_facts (Terms.build_term t (FunApp(f,[t1';t2'])))))
+  | FunApp(f, [t1;t2]) when f == Settings.f_or ->
+     expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
+         if Terms.is_true t1' then
+           context cur_array true_facts t1'
+         else if Terms.is_false t1' then
+           expand_term_rec cur_array true_facts t2
+         else
+	   expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
+               if Terms.is_true t2' then
+                 context cur_array true_facts t2'
+               else if Terms.is_false t2' then
+                 context cur_array true_facts t1'
+               else
+	         context cur_array true_facts (Terms.build_term t (FunApp(f,[t1';t2'])))))
   | FunApp(f,l) ->
       expand_term_list cur_array true_facts l
 	(fun cur_array true_facts li ->
