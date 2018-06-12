@@ -1413,7 +1413,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 		 definition of b'[tl'], then we have not(t1). *)
 
               let (subst, facts, _) = simp_facts in
-	      let fact_accu = ref (subst@facts) in
+	      let fact_accu = ref [] in
 	      let elsefind_facts = collect_eff future_vars in
 	      List.iter (fun ((b',tl'), (bl, def_list, t1)) ->
 		(* The "elsefind" fact (bl, def_list, t1) holds
@@ -1436,8 +1436,15 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 
               (* Note: we re-add the facts that are already in simp_facts, 
                  because the dependency information can allow further 
-                 simplifications on them as well. *)
-              let (_,_,_) = Facts.simplif_add_list (dependency_anal_order_hyp cur_array order_assumptions dep_info) ([],[],[]) (t'::(!fact_accu)) in
+                 simplifications on them as well. 
+		 We add [t'] last, so that we can already exploit 
+		 the values of variables known previously when using
+		 the dependency analysis on [t']. *)
+	      let dep_anal = dependency_anal_order_hyp cur_array order_assumptions dep_info in
+              let simp_facts1 = Facts.simplif_add_list dep_anal ([],[],[]) subst in
+	      let simp_facts2 = Facts.simplif_add_list dep_anal simp_facts1 facts in
+	      let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts2 (!fact_accu) in
+	      let _ = Facts.simplif_add_list dep_anal simp_facts3 [t'] in
                 if (!Settings.debug_elsefind_facts) then
                   begin
                     Settings.debug_simplif_add_facts := false;
