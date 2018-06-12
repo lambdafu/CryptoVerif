@@ -141,19 +141,19 @@ event Recv3(G, pkey, G, pkey, G, G, G, bitstring).
 *)
 
 ifdef(`FS',`',`
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,sb2:G,ob2:G,a12:G,a2:G,m:bitstring;
-      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb2,ob2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12) 
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,ob2:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob2,a12,a2,m)) && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12) 
       public_vars secb.
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,sb2:G,a12:G,a2:G,m:bitstring;
-      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(a1) = pow8(a12) 
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
+      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb,a12,a2,m)) && pow8(a1) = pow8(a12) 
       public_vars secb.
 
 (* Without the anti-replay countermeasure, CryptoVerif should not
    prove the following query, because there is a replay attack.
    With the countermeasure, the replay attack disappears,
    so CryptoVerif should prove this query *)
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,sb2:G,a12:G,a2:G,m:bitstring;
-      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(a1) = pow8(a12)
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb,a12,a2,m)) && pow8(a1) = pow8(a12)
       public_vars secb.
 ')
 
