@@ -2578,10 +2578,6 @@ equiv(gdh(exp))
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
-              if defined(ka) then return(m = exp'(m', a)) else 
-              find u<=nb suchthat defined(b[u],kb[u]) && m' = exp'(g,b[u]) then return(m = exp'(m', a)) else
-	      find u<=nb suchthat defined(b[u]) && m' = exp'(g,b[u]) then return(false) else
-                (* by CDH, if neither a nor b[u] are leaked, then m = exp(g, b[u]*a) is impossible *)
 	      return(m = exp'(m', a))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
 		   as it is DDH(g, exp(g,a), m', m) *) |
@@ -2641,10 +2637,6 @@ equiv(gdh(exp))
       OB() := return(exp'(g,b)) |
       Ob() := let kb:bool = true in return(b) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
-              if defined(kb) then return(m = exp'(m', b)) else 
-              find u<=na suchthat defined(a[u],ka[u]) && m' = exp'(g,a[u]) then return(m = exp'(m', b)) else
-	      find u<=na suchthat defined(a[u]) && m' = exp'(g,a[u]) then return(false) else
-                (* by CDH, if neither a[u] nor b are leaked, then m = exp(g, a[u]*b) is impossible *)
 	      return(m = exp'(m', b))
 		(* GDH allows to compute m = exp(m',b) for any m and m', without leaking b *) |
       foreach ibDDH2 <= nbDDH2 do ODDHb2(m:G, m':G,j<=nb) := return(exp'(m,b[j]) = exp'(m', b)) |
@@ -2740,6 +2732,9 @@ equiv(prf_odh(prf))
 	 
 }
 
+
+(* WARNING! PRF_ODH2 cannot be used with curve25519
+   (incorrect comparison ma1 = exp'(g, b[j']) ) *)
 
 def PRF_ODH2(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
 
@@ -3009,10 +3004,6 @@ equiv(gdh(exp))
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
-              if defined(ka) then return(m = exp'(m', a)) else 
-              find u<=na suchthat defined(a[u],ka[u]) && m' = exp'(g,a[u]) then return(m = exp'(m', a)) else
-	      find u<=na suchthat defined(a[u]) && m' = exp'(g,a[u]) then return(false) else
-                (* by CDH, if neither a nor a[u] are leaked, then m = exp(g, a[u]*a) is impossible *)
 	      return(m = exp'(m', a))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
 		   as it is DDH(g, exp(g,a), m', m) *) |
