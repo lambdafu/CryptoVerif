@@ -601,8 +601,10 @@ let rec remove_array_index t =
 
 let reduced = ref false
 
-(* This is a specialized version of Facts.apply_collisions_at_root_once
-   for statements, with try_no_var = Terms.try_no_var_id *)
+(* OLD CODE
+   This is a specialized version of Facts.apply_collisions_at_root_once
+   for statements, with try_no_var = Terms.try_no_var_id 
+
 let rec apply_statements_at_root_once t = function
     [] -> t
   | ([], _, redl, Zero, redr, [], side_cond)::other_statements ->
@@ -628,19 +630,10 @@ let rec apply_statements_at_root_once t = function
       end
   | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr, [], side_cond)"
 
-(* Same as Facts.apply_reds but does not apply collisions, and 
-   applies statements only at the root of the term *)
-let rec apply_eq_statements_at_root t =
-  let old_reduced = !Facts.reduced in
-  Facts.reduced := false;
-  let t' = Facts.apply_eq_statements_subterms_once Terms.simp_facts_id t in
-  let reduced = !Facts.reduced in
-  Facts.reduced := old_reduced;
-  if reduced then apply_eq_statements_at_root t' else t
-  (* TO DO now applies statements everywhere in the term.
-     A heuristic to be faster might be to apply statements at the root when it is an equality, everywhere otherwise. 
+   Same as Facts.apply_reds but does not apply collisions, and 
+   applies statements only at the root of the term 
 
-     old code follows:
+let rec apply_eq_statements_at_root t =
   reduced := false;
   let t' = Terms.apply_eq_reds Terms.simp_facts_id reduced t in
   if !reduced then apply_eq_statements_at_root t' else 
@@ -650,7 +643,22 @@ let rec apply_eq_statements_at_root t =
     | _ -> t
   in
   if !reduced then apply_eq_statements_at_root t' else t
-*)
+
+ *)
+
+(* Same as Facts.apply_reds but does not apply collisions
+   and does not use facts known at the current program point.
+   NOTE: the impact on the runtime of applying statements
+   everywhere and not only at the root seems acceptable.
+   If faster code is needed, a heuristic might be to apply 
+   statements at the root when it is an equality, everywhere otherwise.*)
+let rec apply_eq_statements t =
+  let old_reduced = !Facts.reduced in
+  Facts.reduced := false;
+  let t' = Facts.apply_eq_statements_subterms_once Terms.simp_facts_id t in
+  let reduced = !Facts.reduced in
+  Facts.reduced := old_reduced;
+  if reduced then apply_eq_statements t' else t
 
 (* find_compos b t returns true when t characterizes b: only one
 value of b can yield a certain value of t *)
@@ -707,7 +715,7 @@ and find_compos_bin_l check b_st b' l1 l2 =
     [],[] -> None
   | (a1::l1,a2::l2) ->
       begin
-      match find_compos_bin check b_st b' (apply_eq_statements_at_root (Terms.make_equal a1 a2)) with
+      match find_compos_bin check b_st b' (apply_eq_statements (Terms.make_equal a1 a2)) with
 	None -> find_compos_bin_l check b_st b' l1 l2
       |	Some(_, charac_type) -> Some(Compos,charac_type)
       end
@@ -796,7 +804,7 @@ let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
           print_newline ()
         end;
 
-      let f1 = apply_eq_statements_at_root (Terms.make_equal t t') in
+      let f1 = apply_eq_statements (Terms.make_equal t t') in
       let r = 
 	match find_compos_bin check b_st b' f1 with
 	  None -> None
