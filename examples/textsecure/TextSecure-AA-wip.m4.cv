@@ -48,6 +48,9 @@ remove_assign binder g1n7;
 remove_assign binder g1n8;*)
 simplify;
 out_game "g1.5.cv";
+remove_assign binder sephPubAB1;
+simplify;
+out_game "g1.6.cv";
 crypto gdh(gexpdiv8) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
 simplify;
 out_game "g2.cv";

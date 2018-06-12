@@ -953,7 +953,7 @@ and equal_pats simp_facts p1 p2 =
    is already normalized.
  *)
 
-and apply_subst_list_fun simp_facts t seen = function
+and apply_subst_list_fun simp_facts t froot seen = function
     [] -> t
   | tsubst::rest -> 
      match tsubst.t_desc with
@@ -968,12 +968,22 @@ and apply_subst_list_fun simp_facts t seen = function
 	      with redl = H(H(M)) is still present, it will call 
 	      simp_equal_terms [...] false H(M) H(H(M)),
 	      which again calls normalize on H(M). *)
-	   let (_,facts,elsefind) = simp_facts in
-	   let simp_facts' = (List.rev_append seen rest, facts,elsefind) in
-           if simp_equal_terms simp_facts' false t redl then 
+	   let applies =
+	     (* optimization: avoid reconstructing [simp_facts] when 
+		[redl->redr] clearly cannot apply to [t] *)
+	     match redl.t_desc with
+	       FunApp(froot', _) when froot == froot' ||
+	       (froot.f_eq_theories != NoEq && froot.f_eq_theories != Commut) ||
+	       (froot'.f_eq_theories != NoEq && froot'.f_eq_theories != Commut) ->
+		 let (_,facts,elsefind) = simp_facts in
+		 let simp_facts' = (List.rev_append seen rest, facts,elsefind) in
+		 simp_equal_terms1 simp_facts' t redl
+	     | _ -> false
+	   in
+	   if applies then 
 	     redr
-           else
-	     apply_subst_list_fun simp_facts t (tsubst::seen) rest
+	   else
+	     apply_subst_list_fun simp_facts t froot (tsubst::seen) rest
          end
      | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 
@@ -992,7 +1002,7 @@ and apply_subst_list_fun simp_facts t seen = function
 and normalize ((subst2, _, _) as simp_facts) t =
   match t.t_desc with
     FunApp(f,l) ->
-      apply_subst_list_fun simp_facts t [] subst2
+      apply_subst_list_fun simp_facts t f [] subst2
   | Var _ | ReplIndex _ -> 
       normalize_var subst2 t 
   | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
