@@ -46,6 +46,7 @@ remove_assign binder g3n6;
 remove_assign binder sharedn6;
 remove_assign binder g1n7;
 remove_assign binder g1n8;*)
+set useKnownEqualitiesWithFunctionsInMatching = true;
 simplify;
 out_game "g1.5.cv";
 crypto gdh(gexpdiv8) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
