@@ -145,7 +145,11 @@ when it adds sephPubAB1[j] = G8toG(gexpdiv8(g8, sephSecAB1[j])).
 
 workaround: remove_assign sephPubAB1[j].
 or add t' last ?
+   DONE mention in CHANGES?
 
+document set useKnownEqualitiesWithFunctionsInMatching
+
+   
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =

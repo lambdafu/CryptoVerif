@@ -5058,11 +5058,25 @@ let rec match_term_list match_term next_f l l' state =
       match_term (match_term_list match_term next_f l l') a a' state
   | _ -> Parsing_helper.internal_error "Different lengths in match_term_list"
 
+(* [normalize_opt simp_facts t] normalizes [t] either 
+   by calling [try_no_var] (just normalizes variables)
+   or by calling [normalize] (normalizes variables and function 
+   applications), depending on the current settings.
+   The former is faster, but the latter is useful in
+   some cases, when applying a known equality on functions
+   is needed. *)
+
+let normalize_opt simp_facts t =
+  if !Settings.normalize_in_match_funapp then
+    normalize simp_facts t
+  else
+    try_no_var simp_facts t
+                                       
 (* Match function application *)
 
 let match_funapp match_term get_var_link match_error simp_facts next_f t t' state =
   if t.t_type != t'.t_type then match_error() else
-  let t'' = normalize simp_facts t' in
+  let t'' = normalize_opt simp_facts t' in
   match t.t_desc, t''.t_desc with
   | FunApp(f, [t1;t2]), FunApp(f', [t1';t2']) when 
     f == f' && (f.f_cat == Equal || f.f_cat == Diff) ->
@@ -5071,7 +5085,7 @@ let match_funapp match_term get_var_link match_error simp_facts next_f t t' stat
 	   symbols. *)
       begin
 	match (match get_prod_list try_no_var_id [t1;t2] with
-	         NoEq -> get_prod_list (normalize simp_facts) [t1';t2']
+	         NoEq -> get_prod_list (normalize_opt simp_facts) [t1';t2']
 	       | x -> x)
 	with
 	  ACUN(xor,_) ->
@@ -5103,7 +5117,7 @@ let match_funapp match_term get_var_link match_error simp_facts next_f t t' stat
 	      try
 		match_assoc_up_to_roll [] l2'
 	      with NoMatch ->
-		let l3' = List.rev (List.map (compute_inv (normalize simp_facts) (ref false) (prod, inv, neut)) l2') in
+		let l3' = List.rev (List.map (compute_inv (normalize_opt simp_facts) (ref false) (prod, inv, neut)) l2') in
 		match_assoc_up_to_roll [] l3'
 	    end
 	| _ -> 
@@ -5122,7 +5136,7 @@ let match_funapp match_term get_var_link match_error simp_facts next_f t t' stat
           match_term (match_term next_f t2 t1') t1 t2' state
       end
   | FunApp({f_eq_theories = (Group(f,inv',n) | CommutGroup(f,inv',n)) } as inv, [t]), _ when inv' == inv ->
-      let t''inv = compute_inv (normalize simp_facts) (ref false) (f,inv,n) t'' in
+      let t''inv = compute_inv (normalize_opt simp_facts) (ref false) (f,inv,n) t'' in
       match_term next_f t t''inv state
   | FunApp(f,[_;_]),_ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
       (* f is a binary function with an equational theory that is
@@ -5716,8 +5730,8 @@ let match_funapp_advice match_term explicit_value get_var_link is_var_inst next_
 	   function symbols: = and <> are also commutative function
 	   symbols. *)
       begin
-	match (match get_prod_list (normalize simp_facts) [t1;t2] with
-	         NoEq -> get_prod_list (normalize simp_facts) [t1';t2']
+	match (match get_prod_list (normalize_opt simp_facts) [t1;t2] with
+	         NoEq -> get_prod_list (normalize_opt simp_facts) [t1';t2']
 	       | x -> x)
 	with
 	  ACUN(xor,_) ->
@@ -5749,7 +5763,7 @@ let match_funapp_advice match_term explicit_value get_var_link is_var_inst next_
 	      try
 		match_assoc_up_to_roll [] l2'
 	      with NoMatch ->
-		let l3' = List.rev (List.map (compute_inv (normalize simp_facts) (ref false) (prod, inv, neut)) l2') in
+		let l3' = List.rev (List.map (compute_inv (normalize_opt simp_facts) (ref false) (prod, inv, neut)) l2') in
 		match_assoc_up_to_roll [] l3'
 	    end
 	| _ -> 
@@ -5768,7 +5782,7 @@ let match_funapp_advice match_term explicit_value get_var_link is_var_inst next_
           match_term (match_term next_f t2 t1') t1 t2' state
       end
   | FunApp({f_eq_theories = (Group(f,inv',n) | CommutGroup(f,inv',n)) } as inv, [t]), _ when inv' == inv ->
-      let t''inv = compute_inv (normalize simp_facts) (ref false) (f,inv,n) t' in
+      let t''inv = compute_inv (normalize_opt simp_facts) (ref false) (f,inv,n) t' in
       match_term next_f t t''inv state
   | FunApp(f,[_;_]),_ when f.f_eq_theories != NoEq && f.f_eq_theories != Commut ->
       (* f is a binary function with an equational theory that is

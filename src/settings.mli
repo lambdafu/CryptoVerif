@@ -41,7 +41,9 @@ val constants_not_tuple : bool ref
 
 val use_known_equalities_crypto : bool ref
 val priority_event_unchanged_rand : int ref
-    
+
+val normalize_in_match_funapp : bool ref
+                                        
 val expand_letxy : bool ref
 
 val max_advice_possibilities_beginning : int ref
