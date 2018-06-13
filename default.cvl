@@ -2475,7 +2475,7 @@ equiv(gdh(exp))
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b))) |
       foreach ibDDH9 <= nbDDH9 do ODDHb9(jb'<=nb,ja<=na,ja'<=na) := return(exp(g, mult(a[ja], b)) = exp(g, mult(a[ja'], b[jb'])))
     )
-<=((#ODDHa + #ODDHa1 + #ODDHa4 + #ODDHa5 + #ODDHb + #ODDHb1 + #ODDHb6 + #ODDHb7) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) *
+<=((#ODDHa + #ODDHa4 + #ODDHa5 + #ODDHb + #ODDHb6 + #ODDHb7) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) *
 	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
 	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8) +
@@ -2900,7 +2900,7 @@ equiv(gdh(exp))
       foreach iaDDH2 <= naDDH2 do ODDHa2(ja'<=na,jb<=na,jb'<=na) :=
       	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb'])))
     ) 
-<=((#ODDHa1 + #ODDHa5) * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) *
+<=(#ODDHa5 * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) *
 	   pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5) +
    #ODDHa2 * pGDH(time(exp) + time(mult), 0))=> [computational]
