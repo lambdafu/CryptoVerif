@@ -59,7 +59,7 @@ val add_elim_collisions : binder -> binder -> bool
    eliminate collisions, and false otherwise. (In the latter case,
    the probability is obviously not counted, and the collisions must
    not be eliminated by the caller.) *)
-val add_proba_red : term -> term -> probaf -> (binder * term) list -> bool
+val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bool
 
 (* [reset coll_elim g] initializes probability counting.
    [g] is the whole game. [coll_elim] is the list of arguments of the

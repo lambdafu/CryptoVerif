@@ -175,10 +175,10 @@ let rec collect_array_indexes accu t =
   | FunApp(f,l) -> List.iter (collect_array_indexes accu) l
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_array_indexes"
 
-let add_proba_red t1 t2 proba tl =
+let add_proba_red t1 t2 side_cond proba tl =
   let proba = instan_time proba in
-  let equal (t1',t2',proba',tl') =
-     (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') && (Terms.equal_probaf proba proba')
+  let equal (t1',t2',side_cond',proba',tl') =
+     (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') && (Terms.equal_terms side_cond side_cond') && (Terms.equal_probaf proba proba')
   in
   if not (List.exists equal (!red_proba)) then
     begin
@@ -186,7 +186,7 @@ let add_proba_red t1 t2 proba tl =
       List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
       if is_small_enough_collision (!accu) then
 	begin
-	  red_proba := (t1,t2,proba,tl) :: (!red_proba);
+	  red_proba := (t1,t2,side_cond,proba,tl) :: (!red_proba);
 	  true
 	end
       else
@@ -195,11 +195,16 @@ let add_proba_red t1 t2 proba tl =
   else
     true
 
-let proba_for_red_proba t1 t2 proba tl =
+let proba_for_red_proba t1 t2 side_cond proba tl =
   print_string "Reduced ";
   Display.display_term t1;
   print_string " to ";
   Display.display_term t2;
+  if not (Terms.is_true side_cond) then
+    begin
+      print_string " where ";
+      Display.display_term side_cond
+    end;
   print_string " Probability: ";  
   let accu = ref [] in
   List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
@@ -226,7 +231,7 @@ let final_add_proba coll_list =
   in
   List.iter (fun (b1,b2) -> add_proba (proba_for_collision b1 b2))
     (!eliminated_collisions);
-  List.iter (fun (t1,t2,proba,tl) -> add_proba (proba_for_red_proba t1 t2 proba tl))
+  List.iter (fun (t1,t2,side_cond,proba,tl) -> add_proba (proba_for_red_proba t1 t2 side_cond proba tl))
     (!red_proba);
   List.iter add_proba coll_list;
   let r = Polynom.polynom_to_probaf (Polynom.probaf_to_polynom (!proba)) in

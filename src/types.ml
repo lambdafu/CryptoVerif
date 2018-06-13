@@ -496,7 +496,7 @@ and ins_updater = (instruct -> instruct list) option
 and to_do_t = (instruct list * int * name_to_discharge_t) list
 
 and simplify_internal_info_t = 
-    (binder * binder) list * (term * term * probaf * (binder * term) list) list
+    (binder * binder) list * (term * term * term * probaf * (binder * term) list) list
 
 (* Detailed game transformations. Used to record what transformations 
    have been done. *)

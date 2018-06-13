@@ -409,19 +409,6 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
   | (restr, forall, redl, proba, redr, indep_cond, side_cond)::other_coll ->
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
-	  (* check side condition *)
-	  if not (Terms.is_true side_cond) then
-	    begin
-	      let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
-	      if not (Terms.is_true (Terms.apply_eq_reds simp_facts (ref false) side_cond' )) then
-		raise NoMatch
-	    end;
-	  (* reduced term *)
-	  let t' = Terms.copy_term Terms.Links_Vars redr in
-          (* print_string "apply_collisions_at_root_once match succeeded\n";
-          print_string "at "; print_int t.t_occ; print_string ", ";
-          Display.display_term t; print_string " matches ";
-          Display.display_term redl; *) 
 	  (* Compute the side condition that guarantees that all restrictions are independent *)
 	  let sc_term = ref (indep_sc_term_list restr) in
 	  let sc_proba = ref (indep_sc_proba_list restr) in
@@ -431,12 +418,38 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
               (* print_string " indep restr side condition not supported\n"; *)
 	      raise NoMatch
             end;
-	  let restr_map = 
-	    List.map (fun restr1 ->
+	  (* check side condition [side_cond] *)
+	  if not (Terms.is_true side_cond) then
+	    begin
+	      let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
+	      if not (Terms.is_true (Terms.apply_eq_reds simp_facts (ref false) side_cond' )) then
+		raise NoMatch;
+	      sc_proba := Terms.make_and side_cond' (!sc_proba)
+	    end;
+	  (* reduced term *)
+	  let t' = Terms.copy_term Terms.Links_Vars redr in
+          (* print_string "apply_collisions_at_root_once match succeeded\n";
+          print_string "at "; print_int t.t_occ; print_string ", ";
+          Display.display_term t; print_string " matches ";
+          Display.display_term redl; *) 
+	  (* There is one instance of the collision problem for each value of
+	     the variables in [restr_indep_map] i.e. restrictions and 
+	     variables with independence conditions. The number of values
+	     of other variables does not matter: the adversary breaks the
+	     collision problem when it finds values of other variables such 
+	     that [redl <> redr and side_cond]. it can make as many attempts
+	     as he wishes and can test by himself whether his attempt succeeds.
+	     *)
+	  let restr_indep_map =
+	    (List.map (fun (b1, b2) ->
+	      match b1.link with
+		TLink t -> (b1,t)
+	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)") indep_cond) @
+	    (List.map (fun restr1 ->
 	      match restr1.link with
 		TLink trestr -> (restr1,trestr)
 	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (1)"
-		    ) restr
+		    ) restr)
 	  in
 	  (* Check independence conditions *)
 	  List.iter (fun (b1, b2) ->
@@ -518,8 +531,12 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    begin
               (* Instead of storing the term t, I store the term obtained 
                  after the applications of try_no_var in match_term,
-                 obtained by (Terms.copy_term redl) *)
-	      if not (Proba.add_proba_red redl' redr' proba restr_map) then
+                 obtained by (Terms.copy_term redl)
+
+		 We pass the side condition [sc_proba] for probability
+		 counting. Several collisions with different [sc_proba]
+		 need to be counted several times.  *)
+	      if not (Proba.add_proba_red redl' redr' (!sc_proba) proba restr_indep_map) then
                 begin
                   (* print_string "Proba too large"; *)
 		  raise NoMatch
