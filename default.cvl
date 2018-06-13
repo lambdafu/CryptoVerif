@@ -2900,7 +2900,7 @@ equiv(gdh(exp))
       foreach iaDDH2 <= naDDH2 do ODDHa2(ja'<=na,jb<=na,jb'<=na) :=
       	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb'])))
     ) 
-<=(#ODDHa5 * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) *
+<=((#ODDHa + #ODDHa5) * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) *
 	   pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5) +
    #ODDHa2 * pGDH(time(exp) + time(mult), 0))=> [computational]
