@@ -187,7 +187,6 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
      let g3n1 = gexp(ephPubBA, sephSecAB1) in
      let g4n1 = gexp(ephPubBA, ephSecAB1) in
      let sharedn1 = gexp(ephPubBA', sephSecAB1) in
-     if (g1n1 <> zero) && (g2n1 <> zero) && (g3n1 <> zero) && (g4n1 <> zero) && (sharedn1 <> zero) then
      let kENC = H5(hk2, g1n1, g2n1, g3n1, g4n1, sharedn1) in
 
      let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
@@ -198,7 +197,6 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
      let g3n2 = gexp(ephPubBA, sephSecAB1) in
      let g4n2 = gexp(ephPubBA, ephSecAB1) in
      let sharedn2 = gexp(ephPubBA', sephSecAB1) in
-     if (g1n2 <> zero) && (g2n2 <> zero) && (g3n2 <> zero) && (g4n2 <> zero) && (sharedn2 <> zero) then
      let kENC = H5(hk2, g1n2, g2n2, g3n2, g4n2, sharedn2) in
      out(ch6, (ephPubBA', kENC))
      (* The adversary can continue the protocol *)
@@ -219,7 +217,6 @@ ifdef(`REPLAY_PROT',`
      let g2n3 = gexp(ephPubBA, secB) in
      let g3n3 = gexp(ephPubBA, sephSecAB1) in
      let sharedn3 = gexp(ephPubBA', sephSecAB1) in
-     if (g1n3 <> zero) && (g2n3 <> zero) && (g3n3 <> zero) && (sharedn3 <> zero) then
      let kENC = H4(hk3, g1n3, g2n3, g3n3,sharedn3) in
      let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
      event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
@@ -228,7 +225,6 @@ ifdef(`REPLAY_PROT',`
      let g2n4 = gexp(ephPubBA, secB) in
      let g3n4 = gexp(ephPubBA, sephSecAB1) in
      let sharedn4 = gexp(ephPubBA', sephSecAB1) in
-     if (g1n4 <> zero) && (g2n4 <> zero) && (g3n4 <> zero) && (sharedn4 <> zero) then
      let kENC = H4(hk3, g1n4, g2n4, g3n4, sharedn4) in
 
      out(ch8, (ephPubBA', kENC))
@@ -265,7 +261,6 @@ ifdef(`FS',`
 	  new ephSecBA1': Z;
       	  let ephPubBA' = gexp(g, ephSecBA1') in
       	  let sharedn5 = gexp(sephPubAB, ephSecBA1') in
-	  if (g1n5 <> zero) && (g2n5 <> zero) && (g3n5 <> zero) && (g4n5 <> zero) && (sharedn5 <> zero) then
       	  let kENC = H5(hk2, g1n5, g2n5, g3n5, g4n5,sharedn5) in
       
           if x_pubB = pubB && x_pubBsign = pubBsign then
@@ -301,7 +296,6 @@ ifdef(`FS',`
           new ephSecBA': Z;
       	  let ephPubBA' = gexp(g, ephSecBA') in
       	  let sharedn7 = gexp(sephPubAB, ephSecBA') in
-	  if (g1n7 <> zero) && (g2n7 <> zero) && (g3n7 <> zero) && (g4n7 <> zero) && (sharedn7 <> zero) then
       	  let kENC = H5(hk2, g1n7, g2n7, g3n7, g4n7,sharedn7) in
       
 	  if x_pubB = pubB && x_pubBsign = pubBsign then
@@ -355,7 +349,6 @@ ifdef(`FS',`
 	  new ephSecBA2': Z;
       	  let ephPubBA' = gexp(g, ephSecBA2') in
       	  let sharedn6 = gexp(sephPubAB, ephSecBA2') in
-	  if (g1n6 <> zero) && (g2n6 <> zero) && (g3n6 <> zero) && (sharedn6 <> zero) then
       	  let kENC = H4(hk3, g1n6, g2n6, g3n6,sharedn6) in
 
 	  if x_pubB = pubB && x_pubBsign = pubBsign then
@@ -390,7 +383,6 @@ ifdef(`FS',`
 	  new ephSecBA': Z;
       	  let ephPubBA' = gexp(g, ephSecBA') in
       	  let sharedn8 = gexp(sephPubAB, ephSecBA') in
-	  if (g1n8 <> zero) && (g2n8 <> zero) && (g3n8 <> zero) && (sharedn8 <> zero) then
       	  let kENC = H4(hk3, g1n8, g2n8, g3n8,sharedn8) in
 
 	  if x_pubB = pubB && x_pubBsign = pubBsign then

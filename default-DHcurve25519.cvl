@@ -2310,11 +2310,15 @@ equation forall X:G8, y:Z, z:Z;
 (* TO DO comments in common_DH_curve25519 need updates *)
 
 equation forall x:G8, x':G8, y:Z; (expdiv8(x,y) = expdiv8(x',y)) = (x = x').
+equation forall x:G8, x':G8, y:Z; (expdiv8'(x,y) = expdiv8'(x',y)) = (x = x').
 equation forall x:G8, x':Z, y:Z; (expdiv8(x,y) = expdiv8(g8, mult(x',y))) = (x = pow8(G8toG(expdiv8(g8,x')))).
+equation forall x:G8, x':Z, y:Z; (expdiv8'(x,y) = expdiv8'(g8, mult(x',y))) = (x = pow8(G8toG(expdiv8'(g8,x')))).
 
 equation g8 <> zero8.
 equation forall x:G8, y:Z; (expdiv8(x,y) = zero8) = (x = zero8).
+equation forall x:G8, y:Z; (expdiv8'(x,y) = zero8) = (x = zero8).
 equation forall x:G8, y:Z; (expdiv8(x,y) <> zero8) = (x <> zero8).
+equation forall x:G8, y:Z; (expdiv8'(x,y) <> zero8) = (x <> zero8).
 
 equation forall x:G8, y:Z, y':Z; (expdiv8(x,y) = expdiv8(x,y')) = ((y = y') || (x = zero8)).
 equation forall x:G8, y:Z, y':Z; (expdiv8'(x,y) = expdiv8'(x,y')) = ((y = y') || (x = zero8)).

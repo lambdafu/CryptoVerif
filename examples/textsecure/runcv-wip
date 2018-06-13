@@ -23,7 +23,7 @@ for sessions in AA #AB-BA AA
 do
 for prop in STD #FS
 do
-m4 -D$prop -D$prot TextSecure-$sessions-wip.m4.cv > TextSecure-$sessions.$prop.$prot.cv
+m4 -D$prop -D$prot TextSecure-$sessions-wip-z.m4.cv > TextSecure-$sessions.$prop.$prot.cv
 analyze TextSecure-$sessions.$prop.$prot
 done
 done
