@@ -2300,6 +2300,8 @@ equation builtin commut(mult).
 fun pow_k(G):subG.
 fun subGtoG(subG): G [data].
 
+(* Inside subG, pow_k is invertible, because 0 < k < q and q is prime,
+   so k is prime to q, so k is invertible modulo q. *)
 equation forall x:subG, x':subG;
    (pow_k(subGtoG(x)) = pow_k(subGtoG(x'))) = (x = x'). 
 
@@ -2314,9 +2316,13 @@ equation pow_k(g) = g_k.
 fun exp(G, Z): G.  
 fun exp_div_k(subG,Z): subG.
 fun exp_div_k'(subG,Z): subG.
+
+(* X^y = (X^k)^(y/k) *)
 equation forall X:G, y:Z;
    exp(X,y) = subGtoG(exp_div_k(pow_k(X),y)).
 
+(* ((X^(y/k))^k)^(z/k) = X^(y.z/k) 
+   Used when expanding exp(exp(g,y),z). *)
 equation forall X:subG, y:Z, z:Z;
    exp_div_k(pow_k(subGtoG(exp_div_k(X,y))), z) = exp_div_k(X, mult(y,z)).
 equation forall X:subG, y:Z, z:Z;
