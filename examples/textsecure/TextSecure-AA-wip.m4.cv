@@ -68,11 +68,9 @@ type prin [bounded].
 (* Honest principals *)
 const alice, bob: prin.
 
-(* Gap Diffie-Hellman *)
+(* Gap Diffie-Hellman - curve25519 *)
 
-(* expand common_DH_prime_order(G, Z, g, gexp, gexp', mult). *)
-proba PCollKey.
-expand common_DH_curve25519(G8, Z, g8, gexpdiv8, gexpdiv8', mult, G, g, gexp, pow8, G8toG, zero, PCollKey).
+expand DH_prime_subgroup(G, Z, g, gexp, mult, G8, g8, gexpdiv8, gexpdiv8', pow8, G8toG, zero, zero8).
 proba pGDH.
 expand square_GDH(G8, Z, g8, gexpdiv8, gexpdiv8', mult, pGDH).
 
