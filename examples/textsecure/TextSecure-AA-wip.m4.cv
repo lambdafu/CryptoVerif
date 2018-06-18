@@ -202,30 +202,38 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
    )|(
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
-   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
+   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
    if pow8(x_pubA) = pow8(pubA) then
    (
 ifdef(`REPLAY_PROT',`
-     (* Protection against replays *)
-     get replaycache(=x_pubA, =ephPubBA) in yield else
-     insert replaycache(x_pubA, ephPubBA);
+     (* Protection against replays 
+     	It is important to use the ephemeral ephPubBA2 in the replay cache,
+	and not ephPubBA. 
+	With curve25519, there can be 8 ephemerals yielding the same 
+	Diffie-Hellman shared value, so a replay might be possible
+	with a different ephemeral. It is indeed possible with ephPubBA,
+	but not with ephPubBA2, because ephPubBA2 appears in the additional
+	data of authenticated by encryption, so a modified ephPubBA2
+	is rejected. *)
+     get replaycache(=x_pubA, =ephPubBA2) in yield else
+     insert replaycache(x_pubA, ephPubBA2);
 ')
 
      let g1n3 = gexp(x_pubA,sephSecAB1) in
      let g2n3 = gexp(ephPubBA, secB) in
      let g3n3 = gexp(ephPubBA, sephSecAB1) in
-     let sharedn3 = gexp(ephPubBA', sephSecAB1) in
+     let sharedn3 = gexp(ephPubBA2, sephSecAB1) in
      let kENC = H4(hk3, g1n3, g2n3, g3n3,sharedn3) in
-     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
-     event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
+     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA2), kENC) in
+     event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA2,msg)
    ) else (
      let g1n4 = gexp(x_pubA,sephSecAB1) in
      let g2n4 = gexp(ephPubBA, secB) in
      let g3n4 = gexp(ephPubBA, sephSecAB1) in
-     let sharedn4 = gexp(ephPubBA', sephSecAB1) in
+     let sharedn4 = gexp(ephPubBA2, sephSecAB1) in
      let kENC = H4(hk3, g1n4, g2n4, g3n4, sharedn4) in
 
-     out(ch8, (ephPubBA', kENC))
+     out(ch8, (ephPubBA2, kENC))
      (* The adversary can continue the protocol *)
    )
    )).
