@@ -2188,7 +2188,9 @@ exp(x,y) = exp(x',y) implies x = x', by raising both sides to y^{-1}.
 Note that y is invertible since it belongs to (Z/qZ)* with q prime. *)
 
 equation forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
+equation forall x:G, x':G, y:Z; (exp'(x,y) = exp'(x',y)) = (x = x').
 equation forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
+equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp(g,x')).
 
 (* Injectivity: Since G has prime order, all its elements x are generators.
    All elements x^y for y \in Z = { 1, ..., q-1 } are then distinct. *)
