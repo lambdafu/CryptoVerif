@@ -16,14 +16,14 @@ $TIME $CV $1.cv > $1.out
 tail -n 2 $1.out
 }
 
-for prot in NO_REPLAY_PROT REPLAY_PROT
+for prot in NO_REPLAY_PROT #REPLAY_PROT
 do
 
 for sessions in AA #AB-BA AA
 do
 for prop in STD #FS
 do
-m4 -D$prop -D$prot TextSecure-$sessions-wip.m4.cv > TextSecure-$sessions.$prop.$prot.cv
+m4 -D$prop -D$prot TextSecure-$sessions-wip2.m4.cv > TextSecure-$sessions.$prop.$prot.cv
 analyze TextSecure-$sessions.$prop.$prot
 done
 done
