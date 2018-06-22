@@ -2382,7 +2382,7 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 
 }
 
-def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, id, PCollKey1, PCollKey2, PCollKey3) {
+def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3) {
 
 fun exp(G,Z): G.
 fun expsub(subG,Z): subG.
@@ -2411,9 +2411,17 @@ equation forall a:subG, x:Z, y:Z;
 equation forall a:subG, x:Z, y:Z;
   expsub'(expsub'(a,x), y) = expsub'(a, mult(x,y)).
 
-(* identity function, used to avoid a loop in the next equation *)
-fun id(G):G.
-equation forall X:G, y:Z, Y:G; (exp(X,y) = Y) = ((* TO DO id(exp(X,y)) = id(Y) && *)pow_k(exp(X,y)) = pow_k(Y)).
+param n1,n2,n3.
+
+equiv(use_subgroup(exp))
+    foreach i1 <= n1 do O1(y:Z) := return(exp(g,y)) [all] | 
+    foreach i2 <= n2 do O2(X:G, y:Z) := return(exp(X,y)) [all] | 
+    foreach i3 <= n3 do O3(X:G, y:Z, Y:G) := return(exp(X,y) = Y) (* TO DO *)
+<=(0)=> [manual]
+    foreach i1 <= n1 do O1(y:Z) := return(exp(g,y)) | 
+    foreach i2 <= n2 do O2(X:G, y:Z) := return(exp(X,y)) | 
+    foreach i3 <= n3 do O3(X:G, y:Z, Y:G) := return((exp(X,y) = Y) && (pow_k(exp(X,y)) = pow_k(Y))).
+   
 
 equation forall X:G, y:Z; pow_k(exp(X,y)) = expsub(pow_k(X),y).
 
@@ -3117,7 +3125,7 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-def square_GDH_subgroup(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, id, pGDH) {
+def square_GDH_subgroup(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, pGDH) {
 
 (* the GDH assumption 
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
