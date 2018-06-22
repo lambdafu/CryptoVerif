@@ -2385,6 +2385,7 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3) {
 
 fun exp(G,Z): G.
+fun exp'(G,Z): G.
 fun expsub(subG,Z): subG.
 fun expsub'(subG,Z): subG.
 
@@ -2406,34 +2407,40 @@ equation pow_k(zero) = sub_zero.
 
 equation forall a:G, x:Z, y:Z;
   exp(exp(a,x), y) = exp(a, mult(x,y)).
+equation forall a:G, x:Z, y:Z;
+  exp'(exp(a,x), y) = exp'(a, mult(x,y)).
+equation forall a:G, x:Z, y:Z;
+  exp'(exp'(a,x), y) = exp'(a, mult(x,y)).
 equation forall a:subG, x:Z, y:Z;
   expsub(expsub(a,x), y) = expsub(a, mult(x,y)).
 equation forall a:subG, x:Z, y:Z;
   expsub'(expsub'(a,x), y) = expsub'(a, mult(x,y)).
 
-param n1,n2,n3.
+param na,n1,n2,n3.
 
 equiv(use_subgroup(exp))
-    foreach i1 <= n1 do O1(y:Z) := return(exp(g,y)) [all] | 
-    foreach i2 <= n2 do O2(X:G, y:Z) := return(exp(X,y)) [all] | 
-    foreach i3 <= n3 do O3(X:G, y:Z, Y:G) := return(exp(X,y) = Y) (* TO DO *)
+    foreach ia <= na do a <-R Z; (
+       foreach i1 <= n1 do O1() [10] := return(a) | 
+       foreach i2 <= n2 do O2(X:G, Y:G) [1] := return(exp(X,a) = Y) |
+       foreach i3 <= n3 do O3(Y:G) := return(exp(g,a) = Y))
 <=(0)=> [manual]
-    foreach i1 <= n1 do O1(y:Z) := return(exp(g,y)) | 
-    foreach i2 <= n2 do O2(X:G, y:Z) := return(exp(X,y)) | 
-    foreach i3 <= n3 do O3(X:G, y:Z, Y:G) := return((exp(X,y) = Y) && (pow_k(exp(X,y)) = pow_k(Y))).
-   
+    foreach ia <= na do a <-R Z; (
+       foreach i1 <= n1 do O1() := return(a) | 
+       foreach i2 <= n2 do O2(X:G, Y:G) := return((exp'(X,a) = Y) && (expsub(pow_k(X),a) = pow_k(Y))) |
+       foreach i3 <= n3 do O3(Y:G) := return(exp(g,a) = Y)).
+   (* using exp' in O2, to avoid that CryptoVerif understands that exp(X,a) = Y) implies expsub(pow_k(X),a) = pow_k(Y) using pow_k(exp(X,y)) = expsub(pow_k(X),y), and so removes the 2nd conjunct *)
 
 equation forall X:G, y:Z; pow_k(exp(X,y)) = expsub(pow_k(X),y).
 
 collision x <-R Z; forall Y: subG;
 	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
 collision x <-R Z; forall Y: subG;
-	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
 
 collision x <-R Z; y <-R Z; forall Y: subG;
 	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
 
 (* PCollKey3 is the proba that y = 0 modulo q *)
 collision y <-R Z; forall x:subG, x':subG; return(expsub(x,y) = expsub(x',y)) <=(PCollKey3)=> return(x = x').
