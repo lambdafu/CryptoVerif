@@ -50,10 +50,16 @@ remove_assign binder g1n8;*)
 set useKnownEqualitiesWithFunctionsInMatching = true;
 simplify;
 out_game "g1.5.cv";
-crypto gdh(gexp_sub) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
+crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
 simplify;
 out_game "g2.cv";
-auto
+auto;
+remove_assign binder m_54;
+remove_assign binder m'_30;
+remove_assign binder m_78;
+remove_assign binder m'_51;
+simplify;
+interactive
 }
 
 
@@ -76,7 +82,7 @@ proba PCollKey2.
 proba PCollKey3.
 expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, mult, subG, g_k, gexp_sub, gexp_sub', pow8, id, PCollKey1, PCollKey2, PCollKey3).
 proba pGDH.
-expand square_GDH(subG, Z, g_k, gexp_sub, gexp_sub', mult, pGDH).
+expand square_GDH_subgroup(G, Z, g, gexp, mult, subG, g_k, gexp_sub, gexp_sub', pow8, id, pGDH).
 
 (* Generate enc key - 4DH *)
 
