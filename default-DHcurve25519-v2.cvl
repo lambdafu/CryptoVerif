@@ -2389,11 +2389,12 @@ fun exp'(G,Z): G.
 fun expsub(subG,Z): subG.
 fun expsub'(subG,Z): subG.
 
+(* When secret keys are multiple of k, testing X^y <> zero does not rule out
+   elements of small order: X^y may yield an element of small order different
+   from zero. So we do not model the zero test. *)
+
 const g:G.
 const g_k: subG.
-
-const zero:G.
-const sub_zero:subG.
 
 fun mult(Z,Z): Z. 
 equation builtin commut(mult).
@@ -2401,7 +2402,6 @@ equation builtin commut(mult).
 fun pow_k(G):subG.
 
 equation pow_k(g) = g_k.
-equation pow_k(zero) = sub_zero.
 
 (* exponents multiply *)
 
