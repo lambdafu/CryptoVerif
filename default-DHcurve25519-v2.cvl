@@ -2382,7 +2382,7 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 
 }
 
-def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3) {
+def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, exp', mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2423,8 +2423,8 @@ equiv(use_subgroup(exp))
        foreach i1 <= n1 do O1() [10] := return(a) | 
        foreach i2 <= n2 do O2(X:G, Y:G) [1] := return(exp(X,a) = Y) |
        foreach i3 <= n3 do O3(Y:G) := return(exp(g,a) = Y))
-<=(0)=> [manual]
-    foreach ia <= na do a <-R Z; (
+<=(0)=> [manual, computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
        foreach i1 <= n1 do O1() := return(a) | 
        foreach i2 <= n2 do O2(X:G, Y:G) := return((exp'(X,a) = Y) && (expsub(pow_k(X),a) = pow_k(Y))) |
        foreach i3 <= n3 do O3(Y:G) := return(exp(g,a) = Y)).
@@ -3132,7 +3132,7 @@ equiv(gdh(exp))
     exp(m', a) in the equivalence. *)
 }
 
-def square_GDH_subgroup(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, pGDH) {
+def square_GDH_subgroup(G, Z, g, exp, exp', mult, subG, g_k, expsub, expsub', pow_k, pGDH) {
 
 (* the GDH assumption 
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -3141,13 +3141,31 @@ def square_GDH_subgroup(G, Z, g, exp, mult, subG, g_k, expsub, expsub', pow_k, p
     DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
     that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *)
 
-param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6.
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH5, naDDHG, naDDH1G, naDDH2G, naDDH3G, naDDH5G, naDDHG', naDDH1G', naDDH2G', naDDH3G', naDDH5G', naDDH2G'', naDDH3G'', naDDH5G'', naDDH5G3'.
 
 equiv(gdh(exp))
     foreach ia <= na do a <-R Z; (
       OAG() := return(exp(g,a)) | 
+      OAG'() := return(exp'(g,a)) | 
       OA() := return(expsub(g_k,a)) | 
       Oa() [10] := return(a) |
+      foreach iaDDH1G <= naDDH1G do ODDHa1G(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH3G <= naDDH3G do ODDHa3G(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G <= naDDH5G do ODDHa5G(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDHG  <= naDDHG  do ODDHaG(m:G, j<=na) := return(m = exp(g, mult(a[j], a))) |
+      foreach iaDDH2G <= naDDH2G do ODDHa2G(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH1G' <= naDDH1G' do ODDHa1G'(m:G, m':G) := return(m = exp'(m', a)) |
+      foreach iaDDH3G' <= naDDH3G' do ODDHa3G'(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
+      foreach iaDDH5G' <= naDDH5G' do ODDHa5G'(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDHG'  <= naDDHG'  do ODDHaG'(m:G, j<=na) := return(m = exp'(g, mult(a[j], a))) |
+      foreach iaDDH2G' <= naDDH2G' do ODDHa2G'(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp'(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH3G'' <= naDDH3G'' do ODDHa3G''(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G'' <= naDDH5G'' do ODDHa5G''(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH5G3' <= naDDH5G3' do ODDHa5G3'(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDH2G'' <= naDDH2G'' do ODDHa2G''(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:subG, m':subG) := return(m = expsub(m', a)) |
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:subG, m':subG,j<=na) := return(expsub(m,a[j]) = expsub(m', a)) |
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:subG, j'<=na,j<=na) [useful_change] := return(expsub(m,a[j]) = expsub(g_k, mult(a[j'], a))) |
@@ -3157,12 +3175,30 @@ equiv(gdh(exp))
     ) 
 <=((#ODDHa + #ODDHa5) * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) *
 	   pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp),
-	   #ODDHa1 + #ODDHa3 + #ODDHa5) +
+	   #ODDHa1 + #ODDHa3 + #ODDHa5(* TO DO add ddh oracles *)) +
    #ODDHa2 * pGDH(time(exp) + time(mult), 0))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OAG() := return(exp(g,a)) | 
+      OAG'() := return(exp'(g,a)) | 
       OA() := return(expsub'(g_k,a)) |
       Oa() := let ka:bool = true in return(a) |
+      foreach iaDDH1G <= naDDH1G do ODDHa1G(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH3G <= naDDH3G do ODDHa3G(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G <= naDDH5G do ODDHa5G(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDHG  <= naDDHG  do ODDHaG(m:G, j<=na) := return(m = exp(g, mult(a[j], a))) |
+      foreach iaDDH2G <= naDDH2G do ODDHa2G(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH1G' <= naDDH1G' do ODDHa1G'(m:G, m':G) := return(m = exp'(m', a)) |
+      foreach iaDDH3G' <= naDDH3G' do ODDHa3G'(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
+      foreach iaDDH5G' <= naDDH5G' do ODDHa5G'(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDHG'  <= naDDHG'  do ODDHaG'(m:G, j<=na) := return(m = exp'(g, mult(a[j], a))) |
+      foreach iaDDH2G' <= naDDH2G' do ODDHa2G'(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp'(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH3G'' <= naDDH3G'' do ODDHa3G''(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G'' <= naDDH5G'' do ODDHa5G''(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH5G3' <= naDDH5G3' do ODDHa5G3'(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDH2G'' <= naDDH2G'' do ODDHa2G''(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:subG, m':subG) := 
 	      return(m = expsub'(m', a))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,

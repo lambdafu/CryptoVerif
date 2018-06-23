@@ -56,13 +56,7 @@ out_game "g1.5.cv";
 crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
 simplify;
 out_game "g2.cv";
-auto;
-remove_assign binder m_54;
-remove_assign binder m'_30;
-remove_assign binder m_78;
-remove_assign binder m'_51;
-simplify;
-interactive
+auto
 }
 
 
@@ -83,9 +77,9 @@ const alice, bob: prin.
 proba PCollKey1.
 proba PCollKey2.
 proba PCollKey3.
-expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
+expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
 proba pGDH.
-expand square_GDH_subgroup(G, Z, g, gexp, mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
+expand square_GDH_subgroup(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
 
 (* Generate enc key - 4DH *)
 
@@ -154,19 +148,19 @@ event Recv3(G, pkey, G, pkey, G, G, G, bitstring).
 
 ifdef(`FS',`',`
 query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,ob2:G,a12:G,a2:G,m:bitstring;
-      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob2,a12,a2,m)) (*&& pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12) *)
+      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob2,a12,a2,m)) (* && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12)*)
       public_vars secb.
 query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
-      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb,a12,a2,m)) (* && pow8(a1) = pow8(a12) *)
+      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb,a12,a2,m)) (*&& pow8(a1) = pow8(a12)*)
       public_vars secb.
 
 (* Without the anti-replay countermeasure, CryptoVerif should not
    prove the following query, because there is a replay attack.
    With the countermeasure, the replay attack disappears,
    so CryptoVerif should prove this query *)
-(* query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
-      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb,a12,a2,m)) [* && pow8(a1) = pow8(a12) *]
-      public_vars secb.*)
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb,a12,a2,m)) (*&& pow8(a1) = pow8(a12) *)
+      public_vars secb.
 ')
 
 query secret secb.
