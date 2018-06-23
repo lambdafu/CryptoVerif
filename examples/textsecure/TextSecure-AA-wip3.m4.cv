@@ -3,68 +3,18 @@ Proves secrecy, forward secrecy, and message authenticity, including
 absence of replays for 4DH, or with a replay cache.
 *)
 
-set useKnownEqualitiesInCryptoTransform = false.
-set autoRemoveIfFindCond = false.
-set autoMove = false.
-set uniqueBranchReorganize = false.
 set mergeBranches = false.
-set casesInCorresp = false.
+set useKnownEqualitiesWithFunctionsInMatching = true.
 
 proof {
-out_game "g0.cv";
 crypto uf_cma_corrupt(sign);
 crypto rom(H4);
 crypto rom(H5);
-out_game "g1.out";
-(*ifdef(`FS',`',`
-remove_assign binder g1n1;
-remove_assign binder g2n1;
-remove_assign binder g3n1;
-remove_assign binder g4n1;
-remove_assign binder sharedn1;
-remove_assign binder g1n3;
-remove_assign binder g2n3;
-remove_assign binder g3n3;
-remove_assign binder sharedn3;
-')
-remove_assign binder g1n2;
-remove_assign binder g2n2;
-remove_assign binder g3n2;
-remove_assign binder g4n2;
-remove_assign binder sharedn2;
-remove_assign binder g1n4;
-remove_assign binder g2n4;
-remove_assign binder g3n4;
-remove_assign binder sharedn4;
-remove_assign binder g1n5;
-remove_assign binder g2n5;
-remove_assign binder g3n5;
-remove_assign binder g4n5;
-remove_assign binder sharedn5;
-remove_assign binder g1n6;
-remove_assign binder g2n6;
-remove_assign binder g3n6;
-remove_assign binder sharedn6;
-remove_assign binder g1n7;
-remove_assign binder g1n8;*)
-set useKnownEqualitiesWithFunctionsInMatching = true;
 simplify;
-out_game "g1.4.cv";
 crypto use_subgroup(gexp) secA0 sephSecAB1 ephSecAB1 ephSecBA1 ephSecBA1' ephSecBA2 ephSecBA2';
-out_state "s1.cv";
-out_game "g1.5.cv";
 crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
 simplify;
-out_game "g2.cv";
-auto;
-(* remove_assign Needed to remove a find branch because contradiction not found otherwise
-   Probably a bug that I should fix *)
-remove_assign binder m_105;
-remove_assign binder m'_75;
-remove_assign binder m_161;
-remove_assign binder m'_128;
-simplify;
-success
+auto
 }
 
 
@@ -85,9 +35,9 @@ const alice, bob: prin.
 proba PCollKey1.
 proba PCollKey2.
 proba PCollKey3.
-expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
+expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
 proba pGDH.
-expand square_GDH_subgroup(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
+expand square_GDH_subgroup(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
 
 (* Generate enc key - 4DH *)
 
@@ -217,30 +167,38 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
    )|(
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
-   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
+   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
    if pow8(x_pubA) = pow8(pubA) then
    (
 ifdef(`REPLAY_PROT',`
-     (* Protection against replays *)
-     get replaycache(=x_pubA, =ephPubBA) in yield else
-     insert replaycache(x_pubA, ephPubBA);
+     (* Protection against replays 
+     	It is important to use the ephemeral ephPubBA2 in the replay cache,
+	and not ephPubBA. 
+	With curve25519, there can be 8 ephemerals yielding the same 
+	Diffie-Hellman shared value, so a replay might be possible
+	with a different ephemeral. It is indeed possible with ephPubBA,
+	but not with ephPubBA2, because ephPubBA2 appears in the additional
+	data of authenticated by encryption, so a modified ephPubBA2
+	is rejected. *)
+     get replaycache(=x_pubA, =ephPubBA2) in yield else
+     insert replaycache(x_pubA, ephPubBA2);
 ')
 
      let g1n3 = gexp(x_pubA,sephSecAB1) in
      let g2n3 = gexp(ephPubBA, secB) in
      let g3n3 = gexp(ephPubBA, sephSecAB1) in
-     let sharedn3 = gexp(ephPubBA', sephSecAB1) in
+     let sharedn3 = gexp(ephPubBA2, sephSecAB1) in
      let kENC = H4(hk3, g1n3, g2n3, g3n3,sharedn3) in
-     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
-     event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
+     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA2), kENC) in
+     event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA2,msg)
    ) else (
      let g1n4 = gexp(x_pubA,sephSecAB1) in
      let g2n4 = gexp(ephPubBA, secB) in
      let g3n4 = gexp(ephPubBA, sephSecAB1) in
-     let sharedn4 = gexp(ephPubBA', sephSecAB1) in
+     let sharedn4 = gexp(ephPubBA2, sephSecAB1) in
      let kENC = H4(hk3, g1n4, g2n4, g3n4, sharedn4) in
 
-     out(ch8, (ephPubBA', kENC))
+     out(ch8, (ephPubBA2, kENC))
      (* The adversary can continue the protocol *)
    )
    )).
