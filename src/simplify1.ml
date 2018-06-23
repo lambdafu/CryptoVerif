@@ -1452,7 +1452,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
               let simp_facts1 = Facts.simplif_add_list dep_anal ([],[],[]) subst in
 	      let simp_facts2 = Facts.simplif_add_list dep_anal simp_facts1 facts in
 	      let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts2 (!fact_accu) in
-	      let _ = Facts.simplif_add_list dep_anal simp_facts3 [t'] in
+	      let _ = Facts.simplif_add dep_anal simp_facts3 t' in
                 if (!Settings.debug_elsefind_facts) then
                   begin
                     Settings.debug_simplif_add_facts := false;
