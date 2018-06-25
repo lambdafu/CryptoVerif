@@ -123,7 +123,13 @@ or add t' last ?
 
 document set useKnownEqualitiesWithFunctionsInMatching
 
-   
+implement implication statements and collisions, of the form:
+cond1 && ... && condn => concl
+cond1 && ... && condn =(proba)=> concl
+they add concl to the known facts when cond1, ..., condn
+are present.
+
+
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =
