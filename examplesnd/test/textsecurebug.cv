@@ -1,0 +1,503 @@
+(* Sessions Alice with herself.
+*)
+def DH_prime_subgroup_secret_keys_not_multiple_k_local(G, Z, g, exp, exp', mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+fun expsub(subG,Z): subG.
+fun expsub'(subG,Z): subG.
+
+(* When secret keys are multiple of k, testing X^y <> zero does not rule out
+   elements of small order: X^y may yield an element of small order different
+   from zero. So we do not model the zero test. *)
+
+const g:G.
+const g_k: subG.
+
+fun mult(Z,Z): Z. 
+equation builtin commut(mult).
+
+fun pow_k(G):subG.
+
+equation pow_k(g) = g_k.
+
+(* exponents multiply *)
+
+equation forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+equation forall a:G, x:Z, y:Z;
+  exp'(exp(a,x), y) = exp'(a, mult(x,y)).
+equation forall a:G, x:Z, y:Z;
+  exp'(exp'(a,x), y) = exp'(a, mult(x,y)).
+equation forall a:subG, x:Z, y:Z;
+  expsub(expsub(a,x), y) = expsub(a, mult(x,y)).
+equation forall a:subG, x:Z, y:Z;
+  expsub'(expsub'(a,x), y) = expsub'(a, mult(x,y)).
+
+param na,n1,n2,n3.
+
+equiv(use_subgroup(exp))
+    foreach ia <= na do a <-R Z; (
+       foreach i1 <= n1 do O1() [10] := return(a) | 
+       foreach i2 <= n2 do O2(X:G, Y:G) [1] := return(exp(X,a) = Y) |
+       foreach i3 <= n3 do O3(Y:G) := return(exp(g,a) = Y))
+<=(0)=> [manual, computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+       foreach i1 <= n1 do O1() := return(a) | 
+       foreach i2 <= n2 do O2(X:G, Y:G) := return((exp'(X,a) = Y) && (expsub(pow_k(X),a) = pow_k(Y))) |
+       foreach i3 <= n3 do O3(Y:G) := return(exp(g,a) = Y)).
+   (* using exp' in O2, to avoid that CryptoVerif understands that exp(X,a) = Y) implies expsub(pow_k(X),a) = pow_k(Y) using pow_k(exp(X,y)) = expsub(pow_k(X),y), and so removes the 2nd conjunct *)
+
+equation forall X:G, y:Z; pow_k(exp(X,y)) = expsub(pow_k(X),y).
+
+collision x <-R Z; forall Y: subG;
+	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+collision x <-R Z; forall Y: subG;
+	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+
+collision x <-R Z; y <-R Z; forall Y: subG;
+	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+collision x <-R Z; y <-R Z; forall Y: subG;
+	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+
+(* PCollKey3 is the proba that y = 0 modulo q *)
+collision y <-R Z; forall x:subG, x':subG; return(expsub(x,y) = expsub(x',y)) <=(PCollKey3)=> return(x = x').
+collision y <-R Z; forall x:subG, x':subG; return(expsub'(x,y) = expsub'(x',y)) <=(PCollKey3)=> return(x = x').
+
+collision y <-R Z; forall x:subG, x':Z; return(expsub(x,y) = expsub(g_k, mult(x',y))) <=(PCollKey3)=> return(x = expsub(g_k,x')).
+collision y <-R Z; forall x:subG, x':Z; return(expsub'(x,y) = expsub'(g_k, mult(x',y))) <=(PCollKey3)=> return(x = expsub'(g_k,x')).
+
+}
+
+def square_GDH_subgroup_local(G, Z, g, exp, exp', mult, subG, g_k, expsub, expsub', pow_k, pGDH) {
+
+(* the GDH assumption 
+    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+    negligible probability, even in the presence of a DDH oracle
+    DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
+    that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *)
+
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH5, naDDHG, naDDH1G, naDDH2G, naDDH3G, naDDH5G, naDDHG', naDDH1G', naDDH2G', naDDH3G', naDDH5G', naDDH2G'', naDDH3G'', naDDH5G'', naDDH5G3'.
+
+equiv(gdh(exp))
+    foreach ia <= na do a <-R Z; (
+      OAG() := return(exp(g,a)) | 
+      OAG'() := return(exp'(g,a)) | 
+      OA() := return(expsub(g_k,a)) | 
+      Oa() [10] := return(a) |
+      foreach iaDDH1G <= naDDH1G do ODDHa1G(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH3G <= naDDH3G do ODDHa3G(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G <= naDDH5G do ODDHa5G(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDHG  <= naDDHG  do ODDHaG(m:G, j<=na) := return(m = exp(g, mult(a[j], a))) |
+      foreach iaDDH2G <= naDDH2G do ODDHa2G(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH1G' <= naDDH1G' do ODDHa1G'(m:G, m':G) := return(m = exp'(m', a)) |
+      foreach iaDDH3G' <= naDDH3G' do ODDHa3G'(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
+      foreach iaDDH5G' <= naDDH5G' do ODDHa5G'(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDHG'  <= naDDHG'  do ODDHaG'(m:G, j<=na) := return(m = exp'(g, mult(a[j], a))) |
+      foreach iaDDH2G' <= naDDH2G' do ODDHa2G'(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp'(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH3G'' <= naDDH3G'' do ODDHa3G''(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G'' <= naDDH5G'' do ODDHa5G''(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH5G3' <= naDDH5G3' do ODDHa5G3'(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDH2G'' <= naDDH2G'' do ODDHa2G''(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:subG, m':subG) := return(m = expsub(m', a)) |
+      foreach iaDDH3 <= naDDH3 do ODDHa3(m:subG, m':subG,j<=na) := return(expsub(m,a[j]) = expsub(m', a)) |
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:subG, j'<=na,j<=na) [useful_change] := return(expsub(m,a[j]) = expsub(g_k, mult(a[j'], a))) |
+      foreach iaDDH  <= naDDH  do ODDHa(m:subG, j<=na) [useful_change] := return(m = expsub(g_k, mult(a[j], a))) |
+      foreach iaDDH2 <= naDDH2 do ODDHa2(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(expsub(g_k, mult(a, a[jb])) = expsub(g_k, mult(a[ja'], a[jb'])))
+    ) 
+<=((#ODDHa + #ODDHa5) * max(1, 7.4*#Oa) * max(1, 7.4*#Oa) *
+	   pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp),
+	   #ODDHa1 + #ODDHa3 + #ODDHa5(* TO DO add ddh oracles *)) +
+   #ODDHa2 * pGDH(time(exp) + time(mult), 0))=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OAG() := return(exp(g,a)) | 
+      OAG'() := return(exp'(g,a)) | 
+      OA() := return(expsub'(g_k,a)) |
+      Oa() := let ka:bool = true in return(a) |
+      foreach iaDDH1G <= naDDH1G do ODDHa1G(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH3G <= naDDH3G do ODDHa3G(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G <= naDDH5G do ODDHa5G(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDHG  <= naDDHG  do ODDHaG(m:G, j<=na) := return(m = exp(g, mult(a[j], a))) |
+      foreach iaDDH2G <= naDDH2G do ODDHa2G(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH1G' <= naDDH1G' do ODDHa1G'(m:G, m':G) := return(m = exp'(m', a)) |
+      foreach iaDDH3G' <= naDDH3G' do ODDHa3G'(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
+      foreach iaDDH5G' <= naDDH5G' do ODDHa5G'(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDHG'  <= naDDHG'  do ODDHaG'(m:G, j<=na) := return(m = exp'(g, mult(a[j], a))) |
+      foreach iaDDH2G' <= naDDH2G' do ODDHa2G'(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp'(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH3G'' <= naDDH3G'' do ODDHa3G''(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp(m', a)) |
+      foreach iaDDH5G'' <= naDDH5G'' do ODDHa5G''(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH5G3' <= naDDH5G3' do ODDHa5G3'(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp'(g, mult(a[j'], a))) |
+      foreach iaDDH2G'' <= naDDH2G'' do ODDHa2G''(ja'<=na,jb<=na,jb'<=na) :=
+      	      return(exp'(g, mult(a, a[jb])) = exp(g, mult(a[ja'], a[jb']))) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:subG, m':subG) := 
+	      return(m = expsub'(m', a))
+		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
+		   as it is DDH(g, exp(g,a), m', m) *) |
+      foreach iaDDH3 <= naDDH3 do ODDHa3(m:subG, m':subG,j<=na) := return(expsub'(m,a[j]) = expsub'(m', a)) |
+      	   (* GDH allows to compute exp(m, a[j]) = exp(m',a) for any m and m', 
+	      without leaking a, as it is DDH(exp(g,a), exp(g,a[j]), m, m')
+	      Indeed, 
+    	      D(exp(g,a),exp(g,a[j]),m,m') 
+      	        = (log_{g^a}(g^a[j]) * log_{g^a}(m) = log_{g^a}(m'))
+      		= (a[j]/a * log_g(m)/a = log_g(m')/a)
+      		= (a[j] * log_g(m) = a log_g(m'))
+      		= (m^a[j] = m'^a). *)
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:subG, j'<=na,j<=na) :=
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(expsub'(m,a[j]) = expsub'(g_k, mult(a[j'], a))) else
+	      if defined(ka) then return(expsub'(m,a[j]) = expsub'(g_k, mult(a[j'], a))) else
+	      return ((a[j] = a || a[j] = a[j']) && expsub'(m,a[j]) = expsub'(g_k, mult(a[j'], a))) |
+	    (* GDH always allows to compute exp(m, a[j]) = exp(g,mult(a[j'],a))
+	       as a particular case of ODDHa2.
+	       When a or a[j'] is leaked, that is all we use and we keep the value
+	       that occurs in the left-hand side exp'(m, a[j]) = exp'(g,mult(a[j'],a)).
+	       Otherwise, we distinguish two cases:
+	       - When a[j] = a[j'] or a[j] = a[j'], we keep the value
+	       that occurs in the left-hand side exp'(m, a[j]) = exp'(g,mult(a[j'],a)).
+	       - Otherwise, we apply the CDH assumption considering an adversary
+	         that knows a[j] and computes exp(m, a[j]). This adversary cannot
+	         compute exp(g,mult(a[j'],a)) by CDH, so the equality 
+	         exp(m, a[j]) = exp(g,mult(a[j'],a)) is false in this case.
+	       Hence, the equality exp(m, a[j]) = exp(g,mult(a[j'],a))
+	       reduces to (a[j] = a || a[j] = a[j']) && exp'(m, a[j]) = exp'(g,mult(a[j'],a)). *)
+      foreach iaDDH <= naDDH do ODDHa(m:subG, j<=na) := 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = expsub'(g_k, mult(a[j], a))) else 
+              if defined(ka) then return(m = expsub'(g_k, mult(a[j], a))) else return(false) |
+            (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption,
+	       provided a and a[j] are not leaked. *)
+      foreach iaDDH2 <= naDDH2 do ODDHa2(ja'<=na,jb<=na,jb'<=na) :=
+      	      return((a = a[ja'] && a[jb] = a[jb']) || (a = a[jb'] && a[jb] = a[ja']))
+	      (* See comment in square CDH. The probability is pGDH(time(exp)+time(mult),0) for each call
+	       	 to this oracle because the adversary against CDH computes at most one exponentiation and 
+	       	 one multiplication, and makes no call to the DDH oracle. *)
+    ).
+    (* We need to consider both forms m = exp(m', a) and m = exp(g,
+    mult(a[j], a)) in the equivalence, because, when m' is known to be
+    exp(g, a[j]), CryptoVerif is going to simplify m = exp(m', a) into
+    m = exp(g, mult(a[j], a)), and the procedure that tests whether a
+    term in the game matches a term in the equivalence would not
+    recognize that m = exp(g, mult(a[j], a)) in the game matches m =
+    exp(m', a) in the equivalence. *)
+}
+
+set useKnownEqualitiesInCryptoTransform = false.
+set autoRemoveIfFindCond = false.
+set autoMove = false.
+set uniqueBranchReorganize = false.
+set mergeBranches = false.
+set casesInCorresp = false.
+
+proof {
+out_game "g0.cv";
+crypto uf_cma_corrupt(sign);
+crypto rom(H5);
+out_game "g1.out";
+set useKnownEqualitiesWithFunctionsInMatching = true;
+simplify;
+out_game "g1.4.cv";
+crypto use_subgroup(gexp) secA0 sephSecAB1 ephSecAB1 ephSecBA1 ephSecBA1' ;
+out_game "g1.5.cv";
+crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a.";
+set debugSimplifAddFacts = true;
+simplify;
+out_game "g2.cv";
+set debugSimplifAddFacts = false;
+auto;
+(* remove_assign Needed to remove a find branch because contradiction not found otherwise
+   Probably a bug that I should fix *)
+remove_assign binder m_97;
+remove_assign binder m'_75;
+simplify;
+success
+}
+
+(* Double cause for the bug:
+
+- specialized_subst_simplify2 does not resimplify the known facts
+by calling simplif_add_list on them. Fixed by 
+  let (subst2_added_rhs_reduced, facts_to_add, elsefind) =
+    specialized_add_list depth dep_info (link :: (!subst2''), facts, elsefind) (!rhs_reduced)
+  in
+  simplif_add_list depth dep_info (subst2_added_rhs_reduced,[], elsefind) facts_to_add
+at the end of specialized_subst_simplify2.
+
+- the addition of a new substitution may lead to other substitutions
+being applicable, which is not fully tested in 
+Facts.subst_simplify2/specialized_subst_simplify2.
+As a result, the terms may not be fully normalized as expected.
+Below, in (m_97[ri_35] >>= gexp_sub'(g_k, secA0))
+the RHS should be normalized at the root. It is not: it can be reduced
+further by (gexp_sub'(m'_75, secA0) = pow8(x_pubA))
+knowing that (m'_75 >>= g_k). This is not detected when (m'_75 >>= g_k)
+is added last.
+Because of that, when testing m_97[ri_35] equals gexp_sub'(m'_75[ri_35], secA0),
+Terms.normalize normalizes the LHS to gexp_sub'(g_k, secA0) by
+(m_97[ri_35] >>= gexp_sub'(g_k, secA0))
+but the RHS to gexp_sub'(g_k, secA0) by (m'_75[ri_35] >>= g_k), 
+then to pow8(x_pubA) by (gexp_sub'(m'_75, secA0) = pow8(x_pubA)).
+So it fails the prove the equality.
+
+simplif_add (m_97[ri_35] <> gexp_sub'(m'_75[ri_35], secA0)) knowing
+Substitutions:
+(m_97[ri_35] >>= gexp_sub'(g_k, secA0))
+(gexp'(x_pubA, sephSecAB1) = gexp(x_pubA[ri_35], sephSecAB1))
+(m'_75 >>= g_k)
+(signature >>= sign_r2(gexp(g, sephSecAB1), skgen2(signAseed), r))
+(m_97 >>= pow8(x_pubA))
+(gexp_sub'(m'_75, secA0) = pow8(x_pubA))
+(m'_75[ri_35] >>= g_k)
+(pow8(x_pubA[ri_35]) = gexp_sub'(g_k, secA0))
+Facts:
+Elsefind:
+
+Adding (m_97[ri_35] <> gexp_sub'(m'_75[ri_35], secA0))
+
+*)
+
+
+type emkey [fixed,large]. 
+
+type Z [bounded,large]. (* Exponents *)
+type G [bounded,large]. (* Diffie-Hellman group *)
+type subG [bounded,large]. (* Diffie-Hellman group *)
+
+(* Type of principals *)
+type prin [bounded].
+
+(* Honest principals *)
+const alice, bob: prin.
+
+(* Gap Diffie-Hellman - curve25519 *)
+
+proba PCollKey1.
+proba PCollKey2.
+proba PCollKey3.
+expand DH_prime_subgroup_secret_keys_not_multiple_k_local(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
+proba pGDH.
+expand square_GDH_subgroup_local(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
+
+(* Generate enc key - 4DH *)
+
+type hashkey2 [large,fixed].
+expand ROM_hash_quint(hashkey2, G, G, G, G, G, emkey, H5, hashoracle2, qH2).
+
+(* End of key derivation functions *)
+
+(* Signatures *)
+
+type keyseed [large, fixed].
+type pkey [bounded].
+type skey [bounded].
+type t_sign.
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_proba_signature(keyseed, pkey, skey, G, t_sign, skgen, pkgen, sign, checksign, Psign, Psigncoll).
+
+(* AEAD *)
+
+type t_data.
+proba Penc.
+proba Pencctxt.
+
+expand AEAD(emkey, bitstring, bitstring, t_data, enc, dec, injbot, Zero, Penc, Pencctxt).
+
+(* test(b,x,y) returns x when b = true and y when b is false *)
+
+fun test(bool, bitstring, bitstring): bitstring.
+equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
+equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
+equation forall b0:bool,x:bitstring; test(b0,x,x) = x.
+equation forall b0:bool,x:bitstring,y:bitstring; Zero(test(b0,x,y)) = test(b0,Zero(x),Zero(y)).
+
+const const1: bitstring.
+fun concat5(G,pkey,G,pkey,G):t_data [data].
+
+
+param Nsend, Nrecv, Nrecv2, Nrecv3, Nrecv4, Nsignedprekey, Nsignedprekey2.
+channel start, ch0, recprin, outprin, chprin, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13, ch14, ch15, ch16, ch17, ch18, ch19, ch20, ch21, ch22, ch23, ch24, ch25, ch26, ch27, ch28, ch29, cCorrupt.
+
+(* Replay cache *)
+
+table replaycache(G, G).
+
+(* Security properties *)
+
+event Send(G, pkey, G, pkey, G, G, G, G, bitstring).
+event Recv(G, pkey, G, pkey, G, G, G, G, bitstring).
+(* Arguments of events 
+   - public keys of sender (DH and signature)
+   - public keys of receiver (DH and signature)
+   - signed ephemeral
+   - one-time ephemeral [for 4DH only]
+   - sender first ephemeral
+   - sender second ephemeral
+   - sent message
+*)
+
+
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,ob2:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob2,a12,a2,m)) && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12)
+      public_vars secb.
+
+query secret secb.
+
+(* Bob generating prekeys and running the protocol, with Alice
+   or with any other participant *)
+
+let SendAKE_Bob(hk2: hashkey2, pubA: G, secB: Z, pubB: G, secBsign: skey, pubBsign: pkey) =
+   (* Signed prekey *)
+   in(ch1, ());
+   new sephSecAB1: Z;
+   let sephPubAB1: G = gexp(g, sephSecAB1) in
+   let signature = sign(sephPubAB1, secBsign) in
+   out(ch2, (sephPubAB1,signature));
+   ((
+   ! Nsignedprekey
+   (* One-time prekey *)
+   in(ch3, ());
+   new ephSecAB1: Z;
+   let ephPubAB = gexp(g, ephSecAB1) in
+   out(ch4, ephPubAB);
+   (* 2nd part of key exchange, 
+      using prekey ephPubAB and signed prekey sephPubAB1 *)
+   in(ch5, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
+   if pow8(x_pubA) = pow8(pubA) then
+   (
+     let g1n1 = gexp(x_pubA,sephSecAB1) in
+     let g2n1 = gexp(ephPubBA, secB) in
+     let g3n1 = gexp(ephPubBA, sephSecAB1) in
+     let g4n1 = gexp(ephPubBA, ephSecAB1) in
+     let sharedn1 = gexp(ephPubBA', sephSecAB1) in
+     let kENC = H5(hk2, g1n1, g2n1, g3n1, g4n1, sharedn1) in
+
+     let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
+     event Recv(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
+   ) else (
+     let g1n2 = gexp(x_pubA,sephSecAB1) in
+     let g2n2 = gexp(ephPubBA, secB) in
+     let g3n2 = gexp(ephPubBA, sephSecAB1) in
+     let g4n2 = gexp(ephPubBA, ephSecAB1) in
+     let sharedn2 = gexp(ephPubBA', sephSecAB1) in
+     let kENC = H5(hk2, g1n2, g2n2, g3n2, g4n2, sharedn2) in
+     out(ch6, (ephPubBA', kENC))
+     (* The adversary can continue the protocol *)
+   )
+   )).
+
+(* Alice using prekeys and sending a message to a participant (Bob or other).
+   The received arguments x_pubB:G, x_pubBsign:pkey choose Alice's interlocutor. *)
+
+let RecvAKE_Alice(hk2: hashkey2, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
+   (* Key exchange + send message m1 or m2 *)
+   in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,(m1: bitstring, m2:bitstring)));
+
+      (* Case distinction 
+      	 We could introduce the case distinction as the first step of the proof.
+	 It is easier to include it already in the initial game,
+	 because it avoids having to use occurrence and variable numbers in the proof.
+	 The code is the same in both branches, except that some variables are 
+	 renamed. *)
+      find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB) = pow8(sephPubAB1[j]) && pow8(x_pubB) = pow8(pubB) then
+      (
+          new ephSecBA1: Z;
+      	  let ephPubBA = gexp(g, ephSecBA1) in
+      	  let g1n5 = gexp(sephPubAB, secA) in
+      	  let g2n5 = gexp(x_pubB, ephSecBA1) in
+      	  let g3n5 = gexp(sephPubAB, ephSecBA1) in
+      	  let g4n5 = gexp(ephPubAB, ephSecBA1) in
+	  new ephSecBA1': Z;
+      	  let ephPubBA' = gexp(g, ephSecBA1') in
+      	  let sharedn5 = gexp(sephPubAB, ephSecBA1') in
+      	  let kENC = H5(hk2, g1n5, g2n5, g3n5, g4n5,sharedn5) in
+      
+          if x_pubB = pubB && x_pubBsign = pubBsign then
+      	  (
+	      (* Alice talks to Bob (= Alice herself in this file) *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+              (* Check that m1 and m2 have the same length *)
+              if Zero(m1) = Zero(m2) then
+              (* Send either m1 or m2 depending on the value of b *)
+              let msg = test(secb1, m1, m2) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+              event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
+              out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
+          )
+          else
+          (
+              (* Alice talks to a dishonest participant *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+	      if m1 = m2 then
+	      let msg = m1 in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+              out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
+          )
+      )
+      else
+      (
+          new ephSecBA: Z;
+      	  let ephPubBA = gexp(g, ephSecBA) in
+      	  let g1n7 = gexp(sephPubAB, secA) in
+      	  let g2n7 = gexp(x_pubB, ephSecBA) in
+      	  let g3n7 = gexp(sephPubAB, ephSecBA) in
+      	  let g4n7 = gexp(ephPubAB, ephSecBA) in
+          new ephSecBA': Z;
+      	  let ephPubBA' = gexp(g, ephSecBA') in
+      	  let sharedn7 = gexp(sephPubAB, ephSecBA') in
+      	  let kENC = H5(hk2, g1n7, g2n7, g3n7, g4n7,sharedn7) in
+      
+	  if x_pubB = pubB && x_pubBsign = pubBsign then
+          (
+	      (* Alice talks to Bob (= Alice herself in this file) *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+	      (* CryptoVerif will show that this case actually never happens *)
+              (* Check that m1 and m2 have the same length *)
+              if Zero(m1) = Zero(m2) then
+              (* Send either m1 or m2 depending on the value of b *)
+              let msg = test(secb1, m1, m2) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+              event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
+              out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
+          )
+          else
+          (
+              (* Alice talks to a dishonest participant *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+	      if m1 = m2 then
+	      let msg = m1 in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+              out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
+          )
+      ).
+
+
+
+
+process
+    in(start, ());
+    new secb: bool;
+    new hk2: hashkey2;
+    new secA0:Z;
+    let pubA = gexp(g,secA0) in
+    new signAseed: keyseed;
+    let secAsign = skgen(signAseed) in
+    let pubAsign = pkgen(signAseed) in
+    out(outprin,(pubA, pubAsign));
+    (
+      (!Nsend SendAKE_Bob(hk2, pubA, secA0, pubA, secAsign, pubAsign))
+    | (!Nrecv RecvAKE_Alice(hk2, secA0, pubA, pubAsign, pubA, pubAsign, secb))
+    | hashoracle2(hk2))
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)) with public variables secb.
+39.424s (user 39.080s + system 0.344s), max rss 1387136K
+END *)
+
+
