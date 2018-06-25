@@ -243,6 +243,7 @@ but the RHS to gexp_sub'(g_k, secA0) by (m'_75[ri_35] >>= g_k),
 then to pow8(x_pubA) by (gexp_sub'(m'_75, secA0) = pow8(x_pubA)).
 So it fails the prove the equality.
 
+specialized_add_fact (m_97[ri_35] >>= gexp_sub'(g_k, secA0))
 simplif_add (m_97[ri_35] <> gexp_sub'(m'_75[ri_35], secA0)) knowing
 Substitutions:
 (m_97[ri_35] >>= gexp_sub'(g_k, secA0))
