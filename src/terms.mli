@@ -217,6 +217,8 @@ val replace : term list -> term list -> term -> term
    See facts.ml for additional information on [simp_facts]. *)
 val try_no_var : simp_facts -> term -> term
 
+val normalize : simp_facts -> term -> term
+    
 (* Identity function, to be used as placeholder for
    a term simplification function when we don't want to do
    any simplification *)
