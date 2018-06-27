@@ -9,12 +9,12 @@ proof {
 ifdef(`FS',`
 crypto uf_cma_corrupt(sign) signBseed;
 out_game "g1.cv" occ;
-insert ifdef(`REPLAY_PROT',`301',`278') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
-insert 84 "if pow8(x_pubA_2) = pow8(pubA) then";
+insert ifdef(`REPLAY_PROT',`303',`280') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+insert 86 "if pow8(x_pubA_1) = pow8(pubA) then";
 crypto rom(H5);
 out_game "g2.cv" occ;
-insert ifdef(`REPLAY_PROT',`4911',`4888') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
-insert 1359 "if pow8(x_pubA_3) = pow8(pubA) then";
+insert ifdef(`REPLAY_PROT',`4297',`4274') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+insert 1186 "if pow8(x_pubA_2) = pow8(pubA) then";
 ',`
 crypto uf_cma(sign) signBseed;
 out_game "g1.cv" occ;
@@ -208,8 +208,8 @@ let RecvAKE_Alice(hk2: hashkey2, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubB
    (* Key exchange + send message m1 or m2 *)
    in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,(m1: bitstring, m2:bitstring)));
 ifdef(`FS',`
-   if defined(corrupted) then 
-      (* The adversary can simulate Alice *)
+   if defined(Bcorrupted) then 
+      (* The adversary can simulate Alice, and I do not need to prove security *)
       out(ch10, ())
    else
 ')
@@ -251,8 +251,8 @@ let RecvAKE_Alice_3DH(hk3: hashkey3, secA: Z, pubA: G, pubAsign: pkey, pubB: G, 
    (* Key exchange + send message m1 or m2 *)
    in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,(m1: bitstring, m2:bitstring)));
 ifdef(`FS',`
-   if defined(corrupted) then 
-      (* The adversary can simulate Alice *)
+   if defined(Bcorrupted) then 
+      (* The adversary can simulate Alice, and I do not need to prove security *)
       out(ch12, ())
    else
 ')
@@ -292,6 +292,9 @@ ifdef(`FS',`
    I am not proving security properties for these sessions. *)
 
 let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, secA: Z, secAsign: skey) =
+ifdef(`FS',`
+   0.
+',`
    (* Signed prekey *)
    in(ch17, ());
    new sephSecAB: Z;
@@ -307,40 +310,29 @@ let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, secA: Z, secAsign: skey) =
    out(ch20, ephPubAB);
    (* 2nd part of key exchange, 
       using prekey ephPubAB and signed prekey sephPubAB *)
-   in(ch21, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-ifdef(`FS',`
-   if defined(corrupted) then 
-      (* The adversary can simulate Alice *)
-      out(ch22, (sephSecAB,ephSecAB))
-   else
-')
-     let g1n9 = gexp(x_pubA,sephSecAB) in
-     let g2n9 = gexp(ephPubBA, secA) in
-     let g3n9 = gexp(ephPubBA, sephSecAB) in
-     let g4n9 = gexp(ephPubBA, ephSecAB) in
-     let sharedn9 = gexp(ephPubBA', sephSecAB) in
-     let kENC = H5(hk2, g1n9, g2n9, g3n9, g4n9, sharedn9) in
+   in(ch21, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
+   let g1n9 = gexp(x_pubA,sephSecAB) in
+   let g2n9 = gexp(ephPubBA, secA) in
+   let g3n9 = gexp(ephPubBA, sephSecAB) in
+   let g4n9 = gexp(ephPubBA, ephSecAB) in
+   let sharedn9 = gexp(ephPubBA2, sephSecAB) in
+   let kENC = H5(hk2, g1n9, g2n9, g3n9, g4n9, sharedn9) in
 
-     out(ch23, (ephPubBA', kENC))
+   out(ch23, (ephPubBA2, kENC))
      (* The adversary can continue the protocol *)
    )|(
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
-   in(ch24, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-ifdef(`FS',`
-   if defined(corrupted) then 
-      (* The adversary can simulate Alice *)
-      out(ch25, sephSecAB)
-   else
-')
-     let g1n10 = gexp(x_pubA,sephSecAB) in
-     let g2n10 = gexp(ephPubBA, secA) in
-     let g3n10 = gexp(ephPubBA, sephSecAB) in
-     let sharedn10 = gexp(ephPubBA', sephSecAB) in
-     let kENC = H4(hk3, g1n10, g2n10, g3n10, sharedn10) in
-     out(ch26, (ephPubBA', kENC))
+   in(ch24, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
+   let g1n10 = gexp(x_pubA,sephSecAB) in
+   let g2n10 = gexp(ephPubBA, secA) in
+   let g3n10 = gexp(ephPubBA, sephSecAB) in
+   let sharedn10 = gexp(ephPubBA2, sephSecAB) in
+   let kENC = H4(hk3, g1n10, g2n10, g3n10, sharedn10) in
+   out(ch26, (ephPubBA2, kENC))
      (* The adversary can continue the protocol *)
    )).
+')
 
 (* Bob using prekeys and sending a message to any participant.
    I am not proving security properties for these sessions. *)
@@ -349,7 +341,7 @@ let RecvAKE_Bob(hk2: hashkey2, secB: Z) =
    (* Key exchange *)
    in(ch27,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G));
 ifdef(`FS',`
-   if defined(corrupted) then 
+   if defined(Bcorrupted) then 
       (* The adversary can simulate Bob *)
       out(ch28, ())
    else
@@ -374,7 +366,7 @@ let RecvAKE_Bob_3DH(hk3: hashkey3, secB: Z) =
    (* Key exchange *)
    in(ch29,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign));
 ifdef(`FS',`
-   if defined(corrupted) then 
+   if defined(Bcorrupted) then 
       (* The adversary can simulate Bob *)
       out(ch30, ())
    else
@@ -396,10 +388,10 @@ ifdef(`FS',`
 
 (* Corruption for forward secrecy *)
 
-let corrupt(secA: Z, secAsign:skey, secB: Z, secBsign: skey) =
+let corrupt(secB: Z, secBsign: skey) =
   in(cCorrupt, ()); 
-  let corrupted:bool = true in
-  out(cCorrupt, (secA, secAsign, secB, secBsign)).
+  let Bcorrupted:bool = true in
+  out(cCorrupt, (secB, secBsign)).
 
  
 process
@@ -417,7 +409,7 @@ process
     new signBseed: keyseed;
     let secBsign = skgen(signBseed) in
     let pubBsign = pkgen(signBseed) in
-    out(outprin,(pubA, pubAsign, pubB, pubBsign));
+    out(outprin,(pubA, pubAsign, pubB, pubBsign ifdef(`FS',`, secA0, secAsign')));
     (
       (!Nsend SendAKE_Bob(hk2, hk3, pubA, secB0, pubB, secBsign, pubBsign))
     | (!Nrecv RecvAKE_Alice(hk2, secA0, pubA, pubAsign, pubB, pubBsign, secb))
@@ -426,7 +418,7 @@ process
     | (!Nrecv5 RecvAKE_Bob(hk2, secB0))
     | (!Nrecv6 RecvAKE_Bob_3DH(hk3, secB0)) 
 ifdef(`FS',`
-    | corrupt(secA0, secAsign, secB0, secBsign)
+    | corrupt(secB0, secBsign)
 ')
     | hashoracle2(hk2) | hashoracle3(hk3))
 
