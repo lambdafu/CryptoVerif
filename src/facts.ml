@@ -1141,7 +1141,9 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	      in
 	      (* Reduce the LHS t of the equality t = t' at the root using other equalities
 		 when it is a function application, possibly using the new [link] to enable
-		 these reductions *)
+		 these reductions.
+		 No need to do that when t is a variable, because variable terms are fully
+		 normalized, not only at the root. *)
 	      let (reduced_root_or_lhs, t1) =
 		if reduced_root_or_lhs || (match t.t_desc with FunApp _ -> false | _ -> true) then
 		  (reduced_root_or_lhs, t1)
@@ -1182,7 +1184,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		   when it is a function application, possibly using the new [link] to enable
 		   these reductions *)
 		let (reduced_rhs, t1') =
-		  if reduced_rhs || (match t.t_desc with FunApp _ -> false | _ -> true) then
+		  if reduced_rhs || (match t'.t_desc with FunApp _ -> false | _ -> true) then
 		    (reduced_rhs, t1')
 		  else
 		    apply_sub_list simp_facts_tmp2 t' subst_tmp
@@ -1316,7 +1318,7 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
        		 when it is a function application, possibly using the new [link] to enable
 		 these reductions *)
 	      let (red, t1') =
-		if red || (match t.t_desc with FunApp _ -> false | _ -> true) then
+		if red || (match t'.t_desc with FunApp _ -> false | _ -> true) then
 		  (red, t1')
 		else
 		  apply_sub_list simp_facts_tmp2 t' tmp_subst

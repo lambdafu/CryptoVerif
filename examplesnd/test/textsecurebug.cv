@@ -203,16 +203,14 @@ simplify;
 out_game "g1.4.cv";
 crypto use_subgroup(gexp) secA0 sephSecAB1 ephSecAB1 ephSecBA1 ephSecBA1' ;
 out_game "g1.5.cv";
-set debugSimplifAddFacts = true;
 crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a.";
-set debugSimplifAddFacts = false;
 simplify;
 out_game "g2.cv";
 auto;
 (* remove_assign Needed to remove a find branch because contradiction not found otherwise
-   Probably a bug that I should fix *)
+   Probably a bug that I should fix. Now fixed.
 remove_assign binder m_97;
-remove_assign binder m'_75;
+remove_assign binder m'_75; *)
 simplify;
 success
 }

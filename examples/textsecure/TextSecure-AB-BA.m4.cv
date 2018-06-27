@@ -58,7 +58,9 @@ simplify;
 crypto rckey *;
 crypto prf(hmacprf) *;
 crypto rom(hkdf_zeroWhisperMessageKeys);
-auto
+crypto int_ctxt(enc) *;
+crypto ind_cpa(enc) *;
+success
 }
 
 
