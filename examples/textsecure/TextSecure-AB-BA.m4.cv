@@ -9,12 +9,12 @@ proof {
 ifdef(`FS',`
 crypto uf_cma_corrupt(sign) signBseed;
 out_game "g1.cv" occ;
-insert ifdef(`REPLAY_PROT',`347',`324') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
-insert 83 "if pow8(x_pubA_2) = pow8(pubA) then";
+insert ifdef(`REPLAY_PROT',`301',`278') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+insert 84 "if pow8(x_pubA_2) = pow8(pubA) then";
 crypto rom(H5);
 out_game "g2.cv" occ;
-insert ifdef(`REPLAY_PROT',`5307',`5284') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
-insert 1582 "if pow8(x_pubA_3) = pow8(pubA) then";
+insert ifdef(`REPLAY_PROT',`4911',`4888') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+insert 1359 "if pow8(x_pubA_3) = pow8(pubA) then";
 ',`
 crypto uf_cma(sign) signBseed;
 out_game "g1.cv" occ;
