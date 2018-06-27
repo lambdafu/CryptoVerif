@@ -24,11 +24,11 @@ do
 for prop in STD FS
 do
 m4 -D$prop -D$prot TextSecure-$sessions.m4.cv > TextSecure-$sessions.$prop.$prot.cv
-# analyze TextSecure-$sessions.$prop.$prot
+analyze TextSecure-$sessions.$prop.$prot
 done
 done
 
 m4 -D$prot TextSecure-KCI.m4.cv > TextSecure-KCI.$prot.cv
-# analyze TextSecure-KCI.$prot
+analyze TextSecure-KCI.$prot
 
 done
