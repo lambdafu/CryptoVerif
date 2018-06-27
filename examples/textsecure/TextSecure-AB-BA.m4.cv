@@ -293,6 +293,7 @@ ifdef(`FS',`
 
 let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, secA: Z, secAsign: skey) =
 ifdef(`FS',`
+   (* The adversary can simulate Alice, and I do not need to prove security *)
    0.
 ',`
    (* Signed prekey *)
