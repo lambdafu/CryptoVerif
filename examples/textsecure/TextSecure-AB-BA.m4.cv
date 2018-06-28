@@ -439,7 +439,7 @@ END *)
 ',`
 ifdef(`STD',`
 (* EXPECTED
-RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)) with public variables secb.
+RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
 197.484s (user 196.728s + system 0.756s), max rss 4174320K
 END *)
 ',`
