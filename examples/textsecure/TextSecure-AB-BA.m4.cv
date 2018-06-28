@@ -9,20 +9,28 @@ proof {
 ifdef(`FS',`
 crypto uf_cma_corrupt(sign) signBseed;
 out_game "g1.cv" occ;
+(* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
 insert ifdef(`REPLAY_PROT',`303',`280') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+(* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
 insert 86 "if pow8(x_pubA_1) = pow8(pubA) then";
 crypto rom(H5);
 out_game "g2.cv" occ;
+(* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
 insert ifdef(`REPLAY_PROT',`4297',`4274') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+(* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
 insert 1186 "if pow8(x_pubA_2) = pow8(pubA) then";
 ',`
 crypto uf_cma(sign) signBseed;
 out_game "g1.cv" occ;
+(* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
 insert ifdef(`REPLAY_PROT',`347',`324') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+(* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
 insert 83 "if pow8(x_pubA_2) = pow8(pubA) then";
 crypto rom(H5);
 out_game "g2.cv" occ;
+(* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
 insert ifdef(`REPLAY_PROT',`5307',`5284') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+(* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
 insert 1582 "if pow8(x_pubA_3) = pow8(pubA) then";
 ')
 crypto rom(H4);
