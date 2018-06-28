@@ -4,63 +4,36 @@ Proves message authenticity, including absence of replays
 for 4DH or with a replay cache.
 *)
 
-set useKnownEqualitiesInCryptoTransform = false.
-set autoRemoveIfFindCond = false.
-set autoMove = false.
+set useKnownEqualitiesWithFunctionsInMatching = true.
+set mergeBranches = false.
 
 proof {
-crypto rom(hkdf1_zeroWhisperRatchet4);
-crypto rom(hkdf1_zeroWhisperRatchet3);
-crypto rom(hkdf_sharedWhisperRatchet);
-out_game "g1.out";
-remove_assign binder g1n1;
-remove_assign binder g2n1;
-remove_assign binder g3n1;
-remove_assign binder g4n1;
-remove_assign binder sharedn1;
-remove_assign binder g1n2;
-remove_assign binder g2n2;
-remove_assign binder g3n2;
-remove_assign binder g4n2;
-remove_assign binder sharedn2;
-remove_assign binder g1n3;
-remove_assign binder g2n3;
-remove_assign binder g3n3;
-remove_assign binder sharedn3;
-remove_assign binder g1n4;
-remove_assign binder g2n4;
-remove_assign binder g3n4;
-remove_assign binder sharedn4;
-remove_assign binder g1n5;
-remove_assign binder g2n5;
-remove_assign binder g3n5;
-remove_assign binder g4n5;
-remove_assign binder sharedn5;
-remove_assign binder g1n6;
-remove_assign binder g2n6;
-remove_assign binder g3n6;
-remove_assign binder sharedn6;
-remove_assign binder g1n7;
-remove_assign binder g1n8;
-remove_assign binder g2n9;
-remove_assign binder g2n10;
-simplify;
-crypto gdh(gexp) "variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a .";
-simplify;
-crypto rckey *;
-crypto prf(hmacprf) *;
-crypto rom(hkdf_zeroWhisperMessageKeys);
+out_game "g1.cv" occ;
+(* Case distinction inserted after "in(ch9" in RecvAKE_Alice *)
+insert ifdef(`REPLAY_PROT',`346',`323') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+(* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
+insert 86 "if pow8(x_pubA_2) = pow8(pubA) then";
+crypto rom(H5);
+out_game "g2.cv" occ;
+(* Case distinction inserted after "in(ch11" in RecvAKE_Alice_3DH *)
+insert ifdef(`REPLAY_PROT',`2883',`2860') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+(* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
+insert 1389 "if pow8(x_pubA_3) = pow8(pubA) then";
+crypto rom(H4);
+out_game "g3.cv";
+crypto use_subgroup(gexp) secA0 secB0 sephSecAB1 ephSecAB1 ephSecBA1_2 ephSecBA1'_2 ephSecBA2_2 ephSecBA2'_2;
+crypto gdh(gexp) "variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1_2 -> a, ephSecBA1'_2 -> a, ephSecBA2_2 -> a, ephSecBA2'_2 -> a  .";
 crypto int_ctxt(enc) *;
-crypto ind_cpa(enc) *;
-success
+success;
+out_game "g4.cv"
 }
 
 
-type rkey [fixed,large]. 
-type ckey [fixed,large].
+type emkey [fixed,large]. 
 
 type Z [bounded,large]. (* Exponents *)
 type G [bounded,large]. (* Diffie-Hellman group *)
+type subG [bounded,large]. (* Diffie-Hellman group *)
 
 (* Type of principals *)
 type prin [bounded].
@@ -70,43 +43,22 @@ const alice, bob: prin.
 
 (* Gap Diffie-Hellman *)
 
+proba PCollKey1.
+proba PCollKey2.
+proba PCollKey3.
+expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
 proba pGDH.
-expand GDH(G, Z, g, gexp, gexp', mult, pGDH).
-expand common_DH_prime_order(G, Z, g, gexp, gexp', mult).
+expand GDH_subgroup(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
 
-(* Generate initial rkey - 4DH *)
+(* Generate enc key - 4DH *)
 
 type hashkey2 [large,fixed].
-expand ROM_hash_quad(hashkey2, G, G, G, G, rkey, hkdf1_zeroWhisperRatchet4, hashoracle2, qH2).
+expand ROM_hash_quint(hashkey2, G, G, G, G, G, emkey, H5, hashoracle2, qH2).
 
-(* Generate initial rkey - 3DH *)
+(* Generate enc key - 3DH *)
 
 type hashkey3 [large,fixed].
-expand ROM_hash_triple(hashkey3, G, G, G, rkey, hkdf1_zeroWhisperRatchet3, hashoracle3, qH3).
-
-(* Generate message keys: authenticated encryption keys *)
-
-type hashkey4 [large,fixed].
-type emkey [large,fixed].
-expand ROM_hash(hashkey4, ckey, emkey, hkdf_zeroWhisperMessageKeys, hashoracle4, qH4).
-
-(* Generate next rkey and ckey *)
-
-type hashkey6 [large,fixed].
-type rckey [large,fixed].
-expand ROM_hash_pair(hashkey6, rkey, G, rckey, hkdf_sharedWhisperRatchet, hashoracle6, qH6).
-
-(* Extraction of rkey and ckey from the pair *)
-
-fun get_rkey(rckey):rkey.
-fun get_ckey(rckey):ckey.
-
-param Nk.
-
-equiv(rckey)
-    !Nk new r:rckey; (O1():= return(get_rkey(r)) | O2():= return(get_ckey(r)))
-<=(0)=>
-    !Nk (O1():= new k1: rkey; return(k1) | O2():= new k2: ckey; return(k2)).
+expand ROM_hash_quad(hashkey3, G, G, G, G, emkey, H4, hashoracle3, qH3).
 
 (* End of key derivation functions *)
 
@@ -119,12 +71,6 @@ type t_sign.
 proba Psign.
 proba Psigncoll.
 expand UF_CMA_proba_signature(keyseed, pkey, skey, G, t_sign, skgen, pkgen, sign, checksign, Psign, Psigncoll).
-
-(* PRF without key generation *)
-
-proba Pprf.
-expand PRF(ckey, bitstring, ckey, hmacprf, Pprf).
-
 
 (* AEAD *)
 
@@ -169,17 +115,23 @@ event Recv3(G, pkey, G, pkey, G, G, G, bitstring).
    - sent message
 *)
 
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,a2:G,m:bitstring;
-      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob,a1,a2,m)).
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
-      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb,a1,a2,m)).
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,ob:G,a1:G,ob2:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb2,ob2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12).
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,a1:G,a12:G,a2:G,m:bitstring;
+      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(a1) = pow8(a12).
 
 (* Without the anti-replay countermeasure, CryptoVerif should not
    prove the following query, because there is a replay attack.
    With the countermeasure, the replay attack disappears,
    so CryptoVerif should prove this query *)
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
-      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb,a1,a2,m)).
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,a1:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(a1) = pow8(a12).
+
+(* In this file, we cannot prove that sb = sb2. This is because Bob's
+   signature key is compromised. The adversary can then forge a signature
+   of the signed ephemeral sb. The Diffie-Hellman key exchange just
+   guarantees that pow8(sb) = pow8(sb2), in case the secret keys
+   to which we raise sb/sb2 are multiple of 8. *)
 
 (* Since Bob's long-term keys are compromised, there is no
    hope of proving secrecy of a message sent by Alice to Bob:
@@ -188,7 +140,7 @@ query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a2:G,m:bitstring;
 (* Bob generating prekeys and running the protocol, with Alice
    or with any other participant *)
 
-let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, pubA: G, secB: Z, pubB: G, secBsign: skey, pubBsign: pkey) =
+let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsign: skey, pubBsign: pkey) =
    (* Signed prekey *)
    in(ch1, ());
    new sephSecAB1: Z;
@@ -205,193 +157,91 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, pubA
    (* 2nd part of key exchange, 
       using prekey ephPubAB and signed prekey sephPubAB1 *)
    in(ch5, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-   if x_pubA = pubA then
-   (
-     let g1n1 = gexp(pubA,sephSecAB1) in
-     let g2n1 = gexp(ephPubBA, secB) in
-     let g3n1 = gexp(ephPubBA, sephSecAB1) in
-     let g4n1 = gexp(ephPubBA, ephSecAB1) in
-     let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n1, g2n1, g3n1, g4n1) in
-
-     let sharedn1 = gexp(ephPubBA', sephSecAB1) in
-     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn1) in
-     let rkBA' = get_rkey(rckBA') in
-     let ckBA' = get_ckey(rckBA') in
-
-     let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
-     event Recv(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
-   ) else (
-     let g1n2 = gexp(x_pubA,sephSecAB1) in
-     let g2n2 = gexp(ephPubBA, secB) in
-     let g3n2 = gexp(ephPubBA, sephSecAB1) in
-     let g4n2 = gexp(ephPubBA, ephSecAB1) in
-     let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n2, g2n2, g3n2, g4n2) in
-
-     let sharedn2 = gexp(ephPubBA', sephSecAB1) in
-     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn2) in
-     out(ch6, (ephPubBA', rckBA'))
-     (* The adversary can continue the protocol *)
-   )
+   let g1n1 = gexp(x_pubA,sephSecAB1) in
+   let g2n1 = gexp(ephPubBA, secB) in
+   let g3n1 = gexp(ephPubBA, sephSecAB1) in
+   let g4n1 = gexp(ephPubBA, ephSecAB1) in
+   let sharedn1 = gexp(ephPubBA', sephSecAB1) in
+   let kENC = H5(hk2, g1n1, g2n1, g3n1, g4n1, sharedn1) in
+   let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
+   if pubA = x_pubA then
+     event Recv(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubAB,ephPubBA,ephPubBA',msg)
+   else
+     out(ch5, msg)
    )|(
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
-   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-   if x_pubA = pubA then
-   (
+   in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
 ifdef(`REPLAY_PROT',`
-     (* Protection against replays *)
-     get replaycache(=x_pubA, =ephPubBA) in yield else
-     insert replaycache(x_pubA, ephPubBA);
+   (* Protection against replays 
+     	It is important to use the ephemeral ephPubBA2 in the replay cache,
+	and not ephPubBA. 
+	With curve25519, there can be 8 ephemerals yielding the same 
+	Diffie-Hellman shared value, so a replay might be possible
+	with a different ephemeral. It is indeed possible with ephPubBA,
+	but not with ephPubBA2, because ephPubBA2 appears in the additional
+	data of authenticated by encryption, so a modified ephPubBA2
+	is rejected. *)
+   get replaycache(=x_pubA, =ephPubBA2) in yield else
+   insert replaycache(x_pubA, ephPubBA2);
 ')
 
-     let g1n3 = gexp(pubA,sephSecAB1) in
-     let g2n3 = gexp(ephPubBA, secB) in
-     let g3n3 = gexp(ephPubBA, sephSecAB1) in
-     let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n3, g2n3, g3n3) in
-
-     let sharedn3 = gexp(ephPubBA', sephSecAB1) in
-     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn3) in
-     let rkBA' = get_rkey(rckBA') in
-     let ckBA' = get_ckey(rckBA') in
-
-     let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-     let injbot(msg) = dec(msgenc, concat5(pubA, x_pubAsign, pubB, pubBsign, ephPubBA'), kENC) in
-     event Recv3(pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA',msg)
-   ) else (
-     let g1n4 = gexp(x_pubA,sephSecAB1) in
-     let g2n4 = gexp(ephPubBA, secB) in
-     let g3n4 = gexp(ephPubBA, sephSecAB1) in
-     let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n4, g2n4, g3n4) in
-
-     let sharedn4 = gexp(ephPubBA', sephSecAB1) in
-     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn4) in
-     out(ch8, (ephPubBA', rckBA')) 
-     (* The adversary can continue the protocol *)
-   )
+   let g1n3 = gexp(x_pubA,sephSecAB1) in
+   let g2n3 = gexp(ephPubBA, secB) in
+   let g3n3 = gexp(ephPubBA, sephSecAB1) in
+   let sharedn3 = gexp(ephPubBA2, sephSecAB1) in
+   let kENC = H4(hk3, g1n3, g2n3, g3n3, sharedn3) in
+   let injbot(msg) = dec(msgenc, concat5(x_pubA, x_pubAsign, pubB, pubBsign, ephPubBA2), kENC) in
+   if pubA = x_pubA then
+     event Recv3(x_pubA,x_pubAsign,pubB,pubBsign,sephPubAB1,ephPubBA,ephPubBA2,msg)
+   else
+     out(ch8, msg)
    )).
 
 (* Alice using prekeys and sending a message to a participant (Bob or other).
    The received arguments x_pubB:G, x_pubBsign:pkey choose Alice's interlocutor. *)
 
-let RecvAKE_Alice(hk2: hashkey2, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey) =
+let RecvAKE_Alice(hk2: hashkey2, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey) =
    (* Key exchange + send message msg *)
    in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,msg:bitstring));
-      (* Case distinction 
-      	 We could introduce the case distinction as the first step of the proof.
-	 It is easier to include it already in the initial game,
-	 because it avoids having to use occurrence and variable numbers in the proof.
-	 The code is the same in both branches, except that some variables are 
-	 renamed. *)
-      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubB then
-      (
-          new ephSecBA1: Z;
-      	  let ephPubBA = gexp(g, ephSecBA1) in
-      	  let g1n5 = gexp(sephPubAB, secA) in
-      	  let g2n5 = gexp(x_pubB, ephSecBA1) in
-      	  let g3n5 = gexp(sephPubAB, ephSecBA1) in
-      	  let g4n5 = gexp(ephPubAB, ephSecBA1) in
-      	  let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n5, g2n5, g3n5, g4n5) in
+   new ephSecBA1: Z;
+   let ephPubBA = gexp(g, ephSecBA1) in
+   let g1n5 = gexp(sephPubAB, secA) in
+   let g2n5 = gexp(x_pubB, ephSecBA1) in
+   let g3n5 = gexp(sephPubAB, ephSecBA1) in
+   let g4n5 = gexp(ephPubAB, ephSecBA1) in
+   new ephSecBA1': Z;
+   let ephPubBA' = gexp(g, ephSecBA1') in
+   let sharedn5 = gexp(sephPubAB, ephSecBA1') in
+   let kENC = H5(hk2, g1n5, g2n5, g3n5, g4n5, sharedn5) in
       
-	  new ephSecBA1': Z;
-      	  let ephPubBA' = gexp(g, ephSecBA1') in
-      	  let sharedn5 = gexp(sephPubAB, ephSecBA1') in
-      	  let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn5) in
-      	  let rkBA' = get_rkey(rckBA') in
-      	  let ckBA' = get_ckey(rckBA') in
+   if checksign(sephPubAB, x_pubBsign, signature) then
+   let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+   event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
+   out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher)).
 
-          let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-      
-          if checksign(sephPubAB, x_pubBsign, signature) then
-          let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
-          event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
-          out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
-      )
-      else
-      (
-          new ephSecBA: Z;
-      	  let ephPubBA = gexp(g, ephSecBA) in
-      	  let g1n7 = gexp(sephPubAB, secA) in
-      	  let g2n7 = gexp(x_pubB, ephSecBA) in
-      	  let g3n7 = gexp(sephPubAB, ephSecBA) in
-      	  let g4n7 = gexp(ephPubAB, ephSecBA) in
-      	  let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n7, g2n7, g3n7, g4n7) in
-      
-          new ephSecBA': Z;
-      	  let ephPubBA' = gexp(g, ephSecBA') in
-      	  let sharedn7 = gexp(sephPubAB, ephSecBA') in
-      	  let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn7) in
-      	  let rkBA' = get_rkey(rckBA') in
-      	  let ckBA' = get_ckey(rckBA') in
-
-      	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-      
-          if checksign(sephPubAB, x_pubBsign, signature) then
-          let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
-          event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
-          out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
-      ).
-
-
-let RecvAKE_Alice_3DH(hk3: hashkey3, hk4: hashkey4, hk6: hashkey6, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey) =
+let RecvAKE_Alice_3DH(hk3: hashkey3, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey) =
    (* Key exchange + send message msg *)
-   in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,msg:bitstring));
-      (* Case distinction 
-      	 We could introduce the case distinction as the first step of the proof.
-	 It is easier to include it already in the initial game,
-	 because it avoids having to use occurrence and variable numbers in the proof.
-	 The code is the same in both branches, except that some variables are 
-	 renamed. *)
-      find j <= Nsend suchthat defined (sephPubAB1[j]) && sephPubAB = sephPubAB1[j] && x_pubB = pubB then
-      (
-          new ephSecBA2: Z;
-      	  let ephPubBA = gexp(g, ephSecBA2) in
-      	  let g1n6 = gexp(sephPubAB, secA) in
-      	  let g2n6 = gexp(x_pubB, ephSecBA2) in
-      	  let g3n6 = gexp(sephPubAB, ephSecBA2) in
-      	  let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n6, g2n6, g3n6) in
+   in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,msg: bitstring));
+   new ephSecBA2: Z;
+   let ephPubBA = gexp(g, ephSecBA2) in
+   let g1n6 = gexp(sephPubAB, secA) in
+   let g2n6 = gexp(x_pubB, ephSecBA2) in
+   let g3n6 = gexp(sephPubAB, ephSecBA2) in
+   new ephSecBA2': Z;
+   let ephPubBA' = gexp(g, ephSecBA2') in
+   let sharedn6 = gexp(sephPubAB, ephSecBA2') in
+   let kENC = H4(hk3, g1n6, g2n6, g3n6, sharedn6) in
       
-	  new ephSecBA2': Z;
-      	  let ephPubBA' = gexp(g, ephSecBA2') in
-      	  let sharedn6 = gexp(sephPubAB, ephSecBA2') in
-      	  let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn6) in
-      	  let rkBA' = get_rkey(rckBA') in
-      	  let ckBA' = get_ckey(rckBA') in
-
-      	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-      	  if checksign(sephPubAB, x_pubBsign, signature) then
-	  let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
-	  event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
-      	  out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
-      )
-      else
-      (
-          new ephSecBA: Z;
-      	  let ephPubBA = gexp(g, ephSecBA) in
-      	  let g1n8 = gexp(sephPubAB, secA) in
-      	  let g2n8 = gexp(x_pubB, ephSecBA) in
-      	  let g3n8 = gexp(sephPubAB, ephSecBA) in
-      	  let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n8, g2n8, g3n8) in
-      
-	  new ephSecBA': Z;
-      	  let ephPubBA' = gexp(g, ephSecBA') in
-      	  let sharedn8 = gexp(sephPubAB, ephSecBA') in
-      	  let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn8) in
-      	  let rkBA' = get_rkey(rckBA') in
-      	  let ckBA' = get_ckey(rckBA') in
-
-      	  let kENC = hkdf_zeroWhisperMessageKeys(hk4, hmacprf(ckBA', const1)) in
-      	  if checksign(sephPubAB, x_pubBsign, signature) then
-	  let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
-	  event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
-      	  out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
-      ).
-
+   if checksign(sephPubAB, x_pubBsign, signature) then
+   let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+   event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
+   out(ch12,(pubA, ephPubBA, ephPubBA', cipher)).
 
 (* Alice generating prekeys and running the protocol, with any participant.
    I am not proving security properties for these sessions. *)
 
-let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, hk6: hashkey6, secA: Z, secAsign: skey) =
+let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, secA: Z, secAsign: skey) =
    (* Signed prekey *)
    in(ch17, ());
    new sephSecAB: Z;
@@ -407,29 +257,26 @@ let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, hk6: hashkey6, secA: Z, secAsign
    out(ch20, ephPubAB);
    (* 2nd part of key exchange, 
       using prekey ephPubAB and signed prekey sephPubAB *)
-   in(ch21, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-     let g1n9 = gexp(x_pubA,sephSecAB) in
-     let g2n9 = gexp(ephPubBA, secA) in
-     let g3n9 = gexp(ephPubBA, sephSecAB) in
-     let g4n9 = gexp(ephPubBA, ephSecAB) in
-     let rkAB = hkdf1_zeroWhisperRatchet4(hk2, g1n9, g2n9, g3n9, g4n9) in
+   in(ch21, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
+   let g1n9 = gexp(x_pubA,sephSecAB) in
+   let g2n9 = gexp(ephPubBA, secA) in
+   let g3n9 = gexp(ephPubBA, sephSecAB) in
+   let g4n9 = gexp(ephPubBA, ephSecAB) in
+   let sharedn9 = gexp(ephPubBA2, sephSecAB) in
+   let kENC = H5(hk2, g1n9, g2n9, g3n9, g4n9, sharedn9) in
 
-     let sharedn9 = gexp(ephPubBA', sephSecAB) in
-     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn9) in
-     out(ch22, (ephPubBA', rckBA'))
+   out(ch23, (ephPubBA2, kENC))
      (* The adversary can continue the protocol *)
    )|(
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
-   in(ch23, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA': G, msgenc: bitstring));
-     let g1n10 = gexp(x_pubA,sephSecAB) in
-     let g2n10 = gexp(ephPubBA, secA) in
-     let g3n10 = gexp(ephPubBA, sephSecAB) in
-     let rkAB = hkdf1_zeroWhisperRatchet3(hk3, g1n10, g2n10, g3n10) in
-
-     let sharedn10 = gexp(ephPubBA', sephSecAB) in
-     let rckBA' = hkdf_sharedWhisperRatchet(hk6,rkAB,sharedn10) in
-     out(ch24, (ephPubBA', rckBA'))
+   in(ch24, (x_pubA: G, x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
+   let g1n10 = gexp(x_pubA,sephSecAB) in
+   let g2n10 = gexp(ephPubBA, secA) in
+   let g3n10 = gexp(ephPubBA, sephSecAB) in
+   let sharedn10 = gexp(ephPubBA2, sephSecAB) in
+   let kENC = H4(hk3, g1n10, g2n10, g3n10, sharedn10) in
+   out(ch26, (ephPubBA2, kENC))
      (* The adversary can continue the protocol *)
    )).
 
@@ -443,8 +290,6 @@ process
     in(start, ());
     new hk2: hashkey2;
     new hk3: hashkey3;
-    new hk4: hashkey4;
-    new hk6: hashkey6;
     new secA0:Z;
     let pubA = gexp(g,secA0) in
     new secB0:Z;
@@ -457,11 +302,11 @@ process
     let pubBsign = pkgen(signBseed) in
     out(outprin,(pubA, pubAsign, pubB, pubBsign, secB0, secBsign));
     (
-      (!Nsend SendAKE_Bob(hk2, hk3, hk4, hk6, pubA, secB0, pubB, secBsign, pubBsign))
-    | (!Nrecv RecvAKE_Alice(hk2, hk4, hk6, secA0, pubA, pubAsign, pubB, pubBsign))
-    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, hk4, hk6, secA0, pubA, pubAsign, pubB, pubBsign))
-    | (!Nsend2 SendAKE_Alice(hk2, hk3, hk6, secA0, secAsign)) 
-    | hashoracle2(hk2) | hashoracle3(hk3) | hashoracle4(hk4) | hashoracle6(hk6))
+      (!Nsend SendAKE_Bob(hk2, hk3, pubA, secB0, pubB, secBsign, pubBsign))
+    | (!Nrecv RecvAKE_Alice(hk2, secA0, pubA, pubAsign, pubB, pubBsign))
+    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, secA0, pubA, pubAsign, pubB, pubBsign))
+    | (!Nsend2 SendAKE_Alice(hk2, hk3, secA0, secAsign)) 
+    | hashoracle2(hk2) | hashoracle3(hk3))
 
 
 ifdef(`REPLAY_PROT',`
@@ -471,7 +316,7 @@ All queries proved.
 END *)
 ',`
 (* EXPECTED
-RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)).
+RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))).
 159.836s (user 159.296s + system 0.540s), max rss 3167280K
 END *)
 ')
