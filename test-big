@@ -38,12 +38,15 @@ function analyze()
 
 mkdir -p tests
 
-echo
-echo TEXTSECURE
-echo
 output=textsecure`date '+%Y.%m.%d-%H_%M_%S'`
-dir=examples/textsecure
 (
+for dir in examples/textsecure examplesnd/textsecure
+do
+
+echo
+echo TEXTSECURE $dir
+echo
+
 for prot in NO_REPLAY_PROT REPLAY_PROT
 do
 
@@ -59,6 +62,7 @@ done
 m4 -D$prot $dir/TextSecure-KCI.m4.cv > $dir/TextSecure-KCI.$prot.cv
 analyze TextSecure-KCI.$prot "" $dir/TextSecure-KCI.$prot.cv tests/$output
 
+done
 done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
