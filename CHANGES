@@ -7,6 +7,7 @@ Version
   (Your protocol models that use Diffie-Hellman will need to be revised.)
 - Macro ROM_hash_quint for random oracles with 5 arguments.
 - Added optional side conditions in equation and collision statements.
+- New setting useKnownEqualitiesWithFunctionsInMatching.
 
 Version 2.00
 

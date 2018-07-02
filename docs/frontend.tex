@@ -1247,6 +1247,19 @@ is equal to another fact.
 It is a bit costly, so it is disabled by default
 (\texttt{useEqualitiesInSimplifyingFacts = false}).
 
+\item \texttt{set useKnownEqualitiesWithFunctionsInMatching = false.}\\
+\texttt{set useKnownEqualitiesWithFunctionsInMatching = true.}
+
+When \texttt{useKnownEqualitiesWithFunctionsInMatching = true}, CryptoVerif
+uses known equalities $M_1 = M_2$ where the root of $M_1$ is a function 
+application to normalize terms before testing whether they match
+an equation or collision statement or an oracle in a cryptographic
+transformation. That can allow to apply these statements or transformations
+more often.
+
+It is a bit costly, so it is disabled by default
+(\texttt{useKnownEqualitiesWithFunctionsInMatching = false}).
+
 \item \texttt{set maxReplaceDepth = $n$.} (default 20)
 
 Sets the maximum number of rewriting steps that are allowed 
