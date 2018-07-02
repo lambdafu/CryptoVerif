@@ -30,20 +30,6 @@ when I add the commented out code in check_distinct.ml,
 TO DO Check probability formulas.
 PRF-ODH: probability formulas + comments
 
-TO DO find what assumptions that come from the group are really
-useful in practice.
-
-For examples/tls13/tls13-core-InitialHandshake-1RTTonly.cv
-
-collision x <-R Z; forall Y: G independent of x;
-	  return(exp(g,x) = Y) <=(Pcoll)=> return(false) if Y independent of x.
-collision x <-R Z; y <-R Z; forall Z: G;
-	  return(exp(g, mult(x,y)) = Z) <=(Pcoll')=> return(false) if Z independent of y (or of x).
-
-They need independence assumptions! I should implement that.
-DONE, TO DO: document (conditions may also include a term).
-Document conditional statements (equation ..).
-
    common_DH_proba => DH_proba_collision
    common_DH_prime_order => DH_good_group
    common_DH_rand_group_exp => DH_dist_random_group_element_vs_exponent

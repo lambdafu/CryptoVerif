@@ -1461,21 +1461,32 @@ $P$. (We use $x_i \texttt{<=} N_i$ instead of
 When parsing a process, $\mathit{proc}(M_1, \dots, M_n)$ will be replaced with $P\{M_1/x_1, \dots, M_n/x_n\}$ when $P$ is an input process. In this case, the terms $M_1, \dots, M_n$ must contain only variables, replication indices, and function applications and the variables $x_1, \dots, x_n$ cannot have array accesses.
 The process $\mathit{proc}(M_1, \dots, M_n)$ will be replaced with $\texttt{let}$ $x_1 = M_1$ $\texttt{in}$ \dots $\texttt{let}$ $x_n = M_n$ $\texttt{in}$ $P$ when $P$ is an output process.
 
-\item $\texttt{equation }[\texttt{forall }\seq{vartype}\texttt{;}]\nonterm{simpleterm}\texttt{.}$
+\item $\texttt{equation }[\texttt{forall }\seq{vartype}\texttt{;}]\nonterm{simpleterm}\ [\texttt{if}\ \nonterm{simpleterm}]\texttt{.}$
 
 $\texttt{equation forall }x_1:T_1, \ldots, x_n:T_n\texttt{;}M\texttt{.}$ says
 that for all values of $x_1, \ldots, x_n$ in types $T_1, \ldots, T_n$
 respectively,
 $M$ is true. The term $M$ must be a simple term without array accesses.
+All bound variables $x_1, \dots, x_n$ must occur in $M$.
 %
 When $M$ is an equality $M_1 \eqt  M_2$, CryptoVerif uses this information
 for rewriting $M_1$ into $M_2$, so one must be careful of the orientation
-of the equality, in particular for termination.
+of the equality, in particular for termination. 
+In this case, all bound variables $x_1, \dots, x_n$ must occur in $M_1$,
+so that the target term $M_2$ is entirely determined knowing the instance of $M_1$.
 %
 When $M$ is an inequality, $M_1 \texttt{<>} M_2$, CryptoVerif rewrites
 $M_1 \eqt  M_2$ to false and $M_1 \texttt{<>} M_2$ to true.
 %
 Otherwise, it rewrites $M$ to true.
+
+$\texttt{equation forall }x_1:T_1, \ldots, x_n:T_n\texttt{;}M\texttt{ if }M'\texttt{.}$ says
+that for all values of $x_1, \ldots, x_n$ in types $T_1, \ldots, T_n$
+respectively such that $M'$ is true, we have that
+$M$ is true. The terms $M$ and $M'$ must be simple terms without array accesses.
+CryptoVerif tries to prove the precondition $M'$, and in case of success,
+rewrites terms as explained above. 
+
 
 \item $\texttt{equation builtin }\nonterm{eq\_name}\texttt{(}\neseq{ident}\texttt{).}$
 
@@ -1511,7 +1522,14 @@ the same type.
 \item 
 $\texttt{collision }\nonterm{res}^*
 [\texttt{forall }\seq{vartype}\texttt{;}]$\\
-\null\qquad $\texttt{return(}\nonterm{simpleterm}\texttt{) <=(}\nonterm{proba}\texttt{)=> return(}\nonterm{simpleterm}\texttt{).}$
+\null\qquad $\texttt{return(}\nonterm{simpleterm}\texttt{) <=(}\nonterm{proba}\texttt{)=> return(}\nonterm{simpleterm}\texttt{)}
+[\ \texttt{if}\ \nonterm{cond}]\texttt{.}$\\
+where
+\begin{align*}
+\nonterm{cond} &::= \nonterm{simpleterm}\\
+&\ \ \mid \ \nonterm{ident}\texttt{ independent of }\nonterm{ident}\\
+&\ \ \mid \ \nonterm{ident}\texttt{ independent of }\nonterm{ident}\texttt{ \&\& }\nonterm{cond}
+\end{align*}
 
 $\texttt{collision }\Resa{x_1}{T_1}\texttt{;}\ldots 
 \Resa{x_n}{T_n}\texttt{;}
@@ -1531,6 +1549,15 @@ loss $p$, when $x_1, \ldots, x_n$ are created by independent random
 number generations of types $T_1, \ldots, T_n$ respectively. One
 should be careful of the orientation of the equivalence, in particular
 for termination.
+
+$\texttt{collision }\Resa{x_1}{T_1}\texttt{;}\ldots 
+\Resa{x_n}{T_n}\texttt{;}
+\texttt{forall }y_1:T'_1, \ldots, y_m:T'_m\texttt{;}$\\
+$\null\qquad \texttt{return(}M_1\texttt{) <=(}p\texttt{)=> return(}M_2\texttt{) if $c$.}$\\
+means that the previous property holds when the condition $c$ is true, where
+$c$ is conjunction of independence conditions ``$y_i$ \texttt{independent of} $x_j$'',
+where $y_i$ is bound by  \texttt{forall} and $x_j$ is bound by \texttt{new},
+and of a simple term $M$. ($c$ may consist of just independence conditions, or just the term $M$, or both.)
 
 \ifchannels
 \item $\texttt{equiv}[\texttt{(}\nonterm{ident}[\texttt{(}\nonterm{ident}\texttt{)}]\texttt{)}]$\\

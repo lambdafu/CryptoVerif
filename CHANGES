@@ -3,7 +3,10 @@ of the cryptographic protocol verifier.
 
 Version
 
-- Macro ROM_hash_quint for random oracles with 5 arguments
+- Completely revised the modeling of Diffie-Hellman assumptions.
+  (Your protocol models that use Diffie-Hellman will need to be revised.)
+- Macro ROM_hash_quint for random oracles with 5 arguments.
+- Added optional side conditions in equation and collision statements.
 
 Version 2.00
 

@@ -1774,10 +1774,12 @@ let check_statement env (l,t,side_cond) =
   let t' = check_term_nobe env' t in
   begin
     match t'.t_desc with
-      FunApp(f, [t1;t2]) when f.f_cat == Equal ->
-	if not (List.for_all (fun b -> Terms.refers_to b t1) l') then
-	  input_error "In equality statements, all bound variables should occur in the left-hand side" (snd t)
-    | _ -> ()
+    | FunApp(f, [t1;t2]) when f.f_cat == Equal ->
+       if not (List.for_all (fun b -> Terms.refers_to b t1) l') then
+	 input_error "In equality statements, all bound variables should occur in the left-hand side" (snd t)
+    | _ ->
+       if not (List.for_all (fun b -> Terms.refers_to b t') l') then
+	 input_error "In statements, all bound variables should occur in the term" (snd t)
   end;
   check_type (snd t) t' Settings.t_bool;
   let side_cond' = check_term_nobe env' side_cond in
