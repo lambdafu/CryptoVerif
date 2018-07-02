@@ -30,8 +30,6 @@ when I add the commented out code in check_distinct.ml,
 TO DO Check probability formulas.
 PRF-ODH: probability formulas + comments
 
-TO DO document ROM_hash_quint
-   
 TO DO find what assumptions that come from the group are really
 useful in practice.
 

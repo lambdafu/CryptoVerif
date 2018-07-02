@@ -1108,7 +1108,8 @@ the choice of the hash function, must be \texttt{bounded}, typically
    $\texttt{expand ROM\_hash\_pair(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
    $\texttt{expand ROM\_hash\_triple(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
 $\texttt{expand ROM\_hash\_quad(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashinput4}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
-   define random oracles with 2, 3, and 4 arguments respectively, similarly to \texttt{ROM\_hash} above.
+$\texttt{expand ROM\_hash\_quint(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \vn{hashinput3}, \vn{hashinput4}, \vn{hashinput5}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+   define random oracles with 2, 3, 4, and 5 arguments respectively, similarly to \texttt{ROM\_hash} above.
    Letting $N$ be the number of arguments of the oracle,
    $\vn{hashinput1},\dots,\vn{hashinput}N$ are the types of the inputs of the hash function and
    $\vn{hash}(\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N): \vn{hashoutput}$ is the hash function.

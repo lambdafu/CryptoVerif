@@ -1,6 +1,10 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version
+
+- Macro ROM_hash_quint for random oracles with 5 arguments
+
 Version 2.00
 
 - Improved simplification of terms, in particular in the presence
