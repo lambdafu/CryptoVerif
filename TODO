@@ -75,38 +75,6 @@ sgx[j] does not depend on x_3[i].
 sgx[j] = gx[i] impossible by collision
 (exp'(G,x) = Y) <=()=> false if Y indep of x.
 
-
-   Update the manual and default.ocvl with the changes made
-   in default-DHinprogress.cvl to allow "nonuniform" types.
-   ("bounded" is required to express the runtime of functions without
-   mentioning the length of the value in question; "nonuniform" can be
-   used when we just want to choose random numbers.)
-   "bounded, nonuniform" is also allowed, to have a non-uniform
-   distribution on a bounded type!
-
-CV cannot exploit
-find j_4 = j <= Nsend suchthat defined(sephSecAB1[j]) && (pow8(sephPubAB_1) = pow8(sephPubAB1[j])) && (pow8(x_pubB_1) = pow8(pubA)) then
-
-else
-   new r_38...
-
-where sephPubAB1[j] = G8toG(gexpdiv8(g8, sephSecAB1[j]))
-to show that r_38 is defined, not((pow8(sephPubAB_1) = pow8(sephPubAB1[j])) && (pow8(x_pubB_1) = pow8(pubA)))
-assume sephPubAB1[j] defined after r_38, sephPubAB_1.
-pow8(sephPubAB_1) indep of sephSecAB1[j]
-pow8(sephPubAB1[j])) characterizes sephSecAB1[j]
-=> low proba of equality.
-But when adding the facts in get_fact_of_elsefind_fact
-pow8(sephPubAB_1) = pow8(sephPubAB1[j]) is added first
-and CV does not retest the collision between these terms
-when it adds sephPubAB1[j] = G8toG(gexpdiv8(g8, sephSecAB1[j])).
-
-workaround: remove_assign sephPubAB1[j].
-or add t' last ?
-   DONE mention in CHANGES?
-
-document set useKnownEqualitiesWithFunctionsInMatching
-
 implement implication statements and collisions, of the form:
 cond1 && ... && condn => concl
 cond1 && ... && condn =(proba)=> concl
@@ -3402,3 +3370,36 @@ statements with random arguments to show that a term characterizes these
 random arguments.
 OK: inside FindCompos, I use apply_eq_statements_at_root which applies
 only statements, not collisions, to simplify terms in find_compos_bin.
+
+document set useKnownEqualitiesWithFunctionsInMatching
+DONE
+
+      CV cannot exploit
+find j_4 = j <= Nsend suchthat defined(sephSecAB1[j]) && (pow8(sephPubAB_1) = pow8(sephPubAB1[j])) && (pow8(x_pubB_1) = pow8(pubA)) then
+
+else
+   new r_38...
+
+where sephPubAB1[j] = G8toG(gexpdiv8(g8, sephSecAB1[j]))
+to show that r_38 is defined, not((pow8(sephPubAB_1) = pow8(sephPubAB1[j])) && (pow8(x_pubB_1) = pow8(pubA)))
+assume sephPubAB1[j] defined after r_38, sephPubAB_1.
+pow8(sephPubAB_1) indep of sephSecAB1[j]
+pow8(sephPubAB1[j])) characterizes sephSecAB1[j]
+=> low proba of equality.
+But when adding the facts in get_fact_of_elsefind_fact
+pow8(sephPubAB_1) = pow8(sephPubAB1[j]) is added first
+and CV does not retest the collision between these terms
+when it adds sephPubAB1[j] = G8toG(gexpdiv8(g8, sephSecAB1[j])).
+
+workaround: remove_assign sephPubAB1[j].
+or add t' last ?
+   DONE (omitted in CHANGES)
+
+   Update the manual and default.ocvl with the changes made
+   in default-DHinprogress.cvl to allow "nonuniform" types.
+   ("bounded" is required to express the runtime of functions without
+   mentioning the length of the value in question; "nonuniform" can be
+   used when we just want to choose random numbers.)
+   "bounded, nonuniform" is also allowed, to have a non-uniform
+   distribution on a bounded type!
+DONE

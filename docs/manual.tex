@@ -189,7 +189,7 @@ $  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
   IND-CPA (indistinguishable under chosen plaintext attacks)
   probabilistic symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -240,7 +240,7 @@ $  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
   IND-CPA (indistinguishable under chosen plaintext attacks) and INT-CTXT (ciphertext integrity)
   probabilistic symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -303,7 +303,7 @@ $  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{add\_data}$, $\vn{enc}$,
 $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$ defines an
 authenticated encryption scheme with additional data.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -372,7 +372,7 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$ d
 authenticated encryption scheme with additional data, using a nonce that must have a different
 value in each call to encryption. A typical example is AES-GCM.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -438,7 +438,7 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
   IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks)
   probabilistic symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -501,7 +501,7 @@ $  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{enc}$,
 $  \vn{dec}$, $\vn{injbot}$, $\vn{Pencptxt}\texttt{).}$ defines an INT-PTXT (plaintext integrity)
   probabilistic symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -563,7 +563,7 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencptxt}\texttt{).}$ d
   IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks) and INT-PTXT (plaintext integrity)
   probabilistic symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{cleartext}$ is the type of cleartexts.
 
@@ -663,7 +663,7 @@ $  \vn{blocksize}$, $\vn{enc}$, $\vn{dec}$, $\vn{Penc}\texttt{).}$
   defines a SPRP (super-pseudo-random permutation) deterministic
   symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{blocksize}$ is the type of cleartexts and ciphertexts, 
    must be \texttt{fixed} and \texttt{large}.
@@ -698,7 +698,7 @@ $  \vn{blocksize}$, $\vn{enc}$, $\vn{dec}$, $\vn{Penc}\texttt{).}$
   defines a PRP (pseudo-random permutation) deterministic
   symmetric encryption scheme.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{enc}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{blocksize}$ is the type of cleartexts and ciphertexts, must be
    \texttt{fixed} and \texttt{large}.
@@ -732,12 +732,13 @@ $  \vn{blocksize}$, $\vn{enc}$, $\vn{dec}$, $\vn{Penc}\texttt{).}$
 $   \vn{dec}$, $\vn{enc\_dec\_oracle}$, $\vn{qE}$, $\vn{qD}\texttt{).}$
    defines a block cipher in the ideal cipher model.
 
-   $\vn{cipherkey}$ is the type of keys that correspond to the choice of the scheme, must be \texttt{bounded}, typically \texttt{fixed}.
+   $\vn{cipherkey}$ is the type of keys that correspond to the choice of the scheme, must be \texttt{bounded} or \texttt{nonuniform}, typically \texttt{fixed}.
 
    $\vn{key}$ is the type of keys (typically \texttt{large}).
 
    $\vn{blocksize}$ is type of the input and output of the cipher, 
-   must be \texttt{fixed} and \texttt{large}.
+   must be \texttt{bounded} or \texttt{nonuniform} (to be able to 
+   generate random numbers from it; typically \texttt{fixed}), and \texttt{large}.
    (The modeling of the ideal cipher model is not perfect in that, in
    order to encrypt a new message, one chooses a fresh random number,
    not necessarily different from previously generated random
@@ -788,9 +789,10 @@ $  \vn{Pmac}\texttt{).}$ defines an SUF-CMA (strongly unforgeable under chosen
   so that the MAC verification can also be written
   $\vn{mac}(k,m) = m'$.
 
-   $\vn{mkey}$ is the type of keys, must be \texttt{bounded} (to
-  be able to generate random numbers from it), typically
-  \texttt{fixed} and \texttt{large}.
+  $\vn{mkey}$ is the type of keys, must be \texttt{bounded} (to be
+  able to generate random numbers from it, and to talk about the
+  runtime of $\vn{mac}$ without mentioning the length of the key),
+  typically \texttt{fixed} and \texttt{large}.
 
    $\vn{macinput}$ is the type of inputs of MACs
 
@@ -887,7 +889,10 @@ $  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{skgen}$, $\vn{pkgen}$, $\vn{enc}$, $
   IND-CCA2 (indistinguishable under adaptive chosen ciphertext attacks)
   probabilistic public-key encryption scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+  $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded}
+  (to be able to generate random numbers from it, and to talk about
+  the runtime of $\vn{pkgen}$ without mentioning the length of the key),
+  typically \texttt{fixed} and \texttt{large}.
 
    $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
 
@@ -951,7 +956,8 @@ $  \vn{signinput}$, $\vn{signature}$, $\vn{skgen}$, $\vn{pkgen}$, $\vn{sign}$, $
   UF-CMA (unforgeable under chosen message attacks)
   deterministic signature scheme.
 
-   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about
+  the runtime of $\vn{pkgen}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
 
@@ -1082,7 +1088,7 @@ the choice of the hash function, must be \texttt{bounded}, typically
 
    $\vn{hashinput}$ is the type of the input of the hash function.
 
-   $\vn{hashoutput}$ is the type of the output of the hash function, must be \texttt{bounded} and \texttt{large}, typically \texttt{fixed}.
+   $\vn{hashoutput}$ is the type of the output of the hash function, must be \texttt{bounded} or \texttt{nonuniform} (typically \texttt{fixed}), and \texttt{large}.
 
    $\vn{hash}(\vn{key}, \vn{hashinput}): \vn{hashoutput}$ is the hash function.
 
@@ -1117,7 +1123,7 @@ $\texttt{expand ROM\_hash\_quint(}\vn{key}, \vn{hashinput1}, \vn{hashinput2}, \v
 \item $\texttt{expand CollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{Phash}\texttt{).}$
 defines a collision-resistant hash function.
 
-   $\vn{key}$ is the type of the key of the hash function, must be \texttt{bounded}, typically \texttt{fixed}.
+   $\vn{key}$ is the type of the key of the hash function, must be \texttt{bounded} or \texttt{nonuniform}, typically \texttt{fixed}.
 
    $\vn{hashinput}$ is the type of the input of the hash function.
 
@@ -1142,7 +1148,8 @@ defines a collision-resistant hash function.
 
 \item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.
 
-   $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about
+  the runtime of $\vn{pkgen}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
 
@@ -1178,7 +1185,8 @@ defines a collision-resistant hash function.
 
 \item $\texttt{expand set\_PD\_OW\_trapdoor\_perm(}\vn{seed}$, $\vn{pkey}$, $\vn{skey}$, $\vn{D}$, $\vn{Dow}$, $\vn{Dr}$, $\vn{pkgen}$, $\vn{skgen}$, $\vn{f}$, $\vn{invf}$, $\vn{concat}$, $\vn{P\_PD\_OW}\texttt{).}$ defines a set partial-domain one-way trapdoor permutation.
 
-   $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about
+  the runtime of $\vn{pkgen}$ without mentioning the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{pkey}$ is the type of public keys, must be \texttt{bounded}.
 
@@ -1227,7 +1235,7 @@ $\vn{pkgen}'$ and $\vn{f}'$ are the symbols that replace $\vn{pkgen}$ and $\vn{f
 \item $\texttt{expand PRF(}\vn{key}, \vn{input}, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ 
 defines a pseudo-random function.
 
-   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+   $\vn{key}$ is the type of keys, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about the runtime of $\vn{f}$ without mentioned the length of the key), typically \texttt{fixed} and \texttt{large}.
 
    $\vn{input}$ is the type of the input of the PRF.
 
@@ -1347,7 +1355,7 @@ $\texttt{expand\ }\langle\mathit{macro\ name}\rangle\texttt{\_all\_args(}G, Z, g
 \item $\texttt{expand\ Xor(}D, \vn{xor}, \vn{zero}\texttt{).}$ defines the
   function symbol $\vn{xor}$ to be exclusive or on the set of
   bitstrings $D$, where $\vn{zero}$ is the bitstring consisting only
-  of zeroes in $D$.
+  of zeroes in $D$. $D$ should be \texttt{fixed}.
 
   The type $D$ must be declared before this macro is expanded. The
   function $\vn{xor}$ and the constant $\vn{zero}$ are declared by
@@ -1362,7 +1370,7 @@ $\texttt{expand\ }\langle\mathit{macro\ name}\rangle\texttt{\_all\_args(}G, Z, g
 defines a key generation function $\vn{kgen}$. It can be used to add a key
 generation function to symmetric cryptographic primitives, if needed.
 
-$\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it), typically \texttt{fixed} and \texttt{large}.
+$\vn{keyseed}$ is the type of key seeds, must be \texttt{bounded} or \texttt{nonuniform} (to be able to generate random numbers from it), typically \texttt{fixed}, and \texttt{large}.
 
 $\vn{key}$ type of keys, must be \texttt{bounded}.
 

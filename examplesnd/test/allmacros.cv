@@ -38,8 +38,9 @@ expand SPRP_cipher(key, blocksize, enc8, dec8, Penc).
 
 expand PRP_cipher(key, blocksize, enc9, dec9, Penc).
 
-type cipherkey [bounded].
-expand ICM_cipher(cipherkey, key, blocksize, enc10, dec10, enc_dec_oracle, qE, qD).
+type cipherkey [nonuniform].
+type blocksize2 [nonuniform,large].
+expand ICM_cipher(cipherkey, key, blocksize2, enc10, dec10, enc_dec_oracle, qE, qD).
 
 type mkey [bounded].
 type macinput.

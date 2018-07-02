@@ -871,9 +871,9 @@ equiv(prp(enc))
 }
 
 (* Ideal Cipher Model
-   cipherkey: type of keys that correspond to the choice of the scheme, must be "bounded", typically "fixed".
+   cipherkey: type of keys that correspond to the choice of the scheme, must be "bounded" or "nonuniform", typically "fixed".
    key: type of keys (typically "large")
-   blocksize: type of the input and output of the cipher, must be "bounded" or "nonuniform" (to be able to generate random numbers from it, and to talk about the runtime of enc without mentioning the length of the block; typically "fixed") and "large".
+   blocksize: type of the input and output of the cipher, must be "bounded" or "nonuniform" (to be able to generate random numbers from it; typically "fixed") and "large".
    (The modeling of the ideal cipher model is not perfect in that, in
    order to encrypt a new message, one chooses a fresh random number,
    not necessarily different from previously generated random

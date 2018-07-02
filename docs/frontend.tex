@@ -1330,11 +1330,14 @@ subset of bitstrings plus $\bot$.
 a certain length $n$. In particular, the type is a finite set,
 so \texttt{fixed} implies \texttt{bounded}. 
 
-\item \texttt{nonuniform} means that random numbers may be chosen in the
-type with a non-uniform distribution. (When \texttt{nonuniform} is absent,
-random numbers are chosen using a uniform distribution for {\tt fixed} types,
-an almost uniform distribution for \texttt{bounded} types, and random values
-cannot be chosen among other types.)
+\item \texttt{nonuniform} means that random numbers may be chosen in
+  the type with a non-uniform distribution. (When \texttt{nonuniform}
+  is absent, random numbers are chosen using a uniform distribution
+  for {\tt fixed} types, an almost uniform distribution for
+  \texttt{bounded} types, and random values cannot be chosen among
+  other types. Note that \texttt{fixed, nonuniform} and
+  \texttt{bounded, nonuniform} are also allowed to have a non-uniform
+  distribution on a \texttt{fixed} or \texttt{bounded} type.)
 
 \item \texttt{large}, \texttt{password}, and \texttt{size$n$} indicate 
 the order of magnitude of the probability of collision $\texttt{Pcoll1rand}(T)$
