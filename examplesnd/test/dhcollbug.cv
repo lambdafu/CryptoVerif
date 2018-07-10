@@ -1,0 +1,45 @@
+type G [large,bounded].
+type Z [large, bounded].
+
+
+proba PCollKey1.
+proba PCollKey2.
+
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+proba PCDH.
+expand CDH(G, Z, g, exp, exp', mult, PCDH).
+
+proof {
+    crypto cdh(exp) a b
+    }
+
+param NA, NB, NT.
+channel c1, c2.
+
+let pA =
+    ! i <= NA
+    in(c1, ());
+    new a: Z;
+    new a': Z;
+    out(c2, a').
+    
+let pB =
+    ! i <= NB
+    in(c1, ());
+    new b: Z;
+    new b': Z;
+    out(c2, b').
+
+let ptest =
+    ! i <= NT
+    in(c1, (a1: Z, b1: Z, a2: Z, b2: Z));
+    find i1 <= NA suchthat defined(a[i1], a'[i1]) && a'[i1] = a1 then
+    find j1 <= NB suchthat defined(b[j1], b'[j1]) && b'[j1] = b1 then
+    find i2 <= NA suchthat defined(a[i2], a'[i2]) && a'[i2] = a2 then
+    find j2 <= NB suchthat defined(b[j2], b'[j2]) && b'[j2] = b2 then
+    if exp(g, mult(a[i1], b[j1])) = exp(g, mult(a[i2], b[j2])) then
+    out(c2, ()).
+ 
+process
+       pA | pB | ptest
