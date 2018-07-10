@@ -15,7 +15,7 @@ proof {
     }
 
 param NA, NB, NT.
-channel c1, c2.
+channel c1, c2, c3.
 
 let pA =
     ! i <= NA
@@ -39,7 +39,8 @@ let ptest =
     find i2 <= NA suchthat defined(a[i2], a'[i2]) && a'[i2] = a2 then
     find j2 <= NB suchthat defined(b[j2], b'[j2]) && b'[j2] = b2 then
     if exp(g, mult(a[i1], b[j1])) = exp(g, mult(a[i2], b[j2])) then
-    out(c2, ()).
+    out(c2, ())
+    else out(c3, ()).
  
 process
        pA | pB | ptest

@@ -515,16 +515,20 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		  (List.map (fun f ->
 		    let reduced_tmp = !reduced in
 		    reduced := false;
-		    let t1 = reduce_rec f t in
-		    if not (!reduced) then 
-		      begin 
-			reduced := reduced_tmp;
+		    try 
+		      let t1 = reduce_rec f t in
+		      if not (!reduced) then 
+			begin 
+			  reduced := reduced_tmp;
                         (* print_string "Could not simplify "; Display.display_term t; print_newline(); *)
-			raise NoMatch 
-		      end;
-		    reduced := reduced_tmp;
-		    Terms.make_and f t1
-		      ) (!sc_term))
+			  raise NoMatch 
+			end;
+		      reduced := reduced_tmp;
+		      Terms.make_and f t1
+		    with Contradiction ->
+		      (* [reduce_rec] may raise a contradiction when [f] can in fact not be true *)
+		      Terms.make_false()
+			) (!sc_term))
 	      end
 	  in
 	  if proba != Zero then
@@ -547,7 +551,6 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
       with NoMatch ->
 	Terms.cleanup();
 	apply_collisions_at_root_once reduce_rec dep_info simp_facts final t other_coll
-
 
 let reduce_rec_impossible t = assert false
 
