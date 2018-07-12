@@ -483,8 +483,10 @@ let rec check_indep_cond dep_info simp_facts false_redr = function
 	      begin
                 (* t1 may be transformed into a term t1' that is independent of br2
 		   Store it in the link for b1
-		   TO DO problem here in case I have several "independent of x" for the same x:
-                   the indices of x may be rewritten twice *)
+		   Note that in case there are several independence conditions
+		   on the same variable [b1], the linked term may be rewritten several
+		   times. This is why we compute the side conditions after all calls
+		   to [indep_test]. *)
 		b1.link <- TLink t1';
 		match side_condition with
 		  NoSideCond -> SC_True
@@ -527,7 +529,7 @@ let rec collect_bargs b accu t =
     FunApp(f, l) ->
       List.iter (collect_bargs b accu) l
   | Var(b', l) ->
-      if b == b' then
+      if (b == b') && not (List.exists (List.for_all2 Terms.equal_terms l) (!accu)) then
 	accu := l :: (!accu)
   | ReplIndex _ -> ()
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_bargs"
