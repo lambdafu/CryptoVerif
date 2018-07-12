@@ -161,22 +161,63 @@ let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) 
               t''.t_desc
       | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
 
+
+let replace_term_repl_index t =
+  let ri = new_repl_index_term t in
+  ri.ri_link <- TLink t;
+  Terms.term_from_repl_index ri
                  
+let rec make_indep simp_facts ((b0,l0,(dep,nodep),side_condition_needed) as bdepinfo) t =
+  Terms.build_term2 t
+     (match t.t_desc with
+	FunApp(f,l) -> FunApp(f, List.map (make_indep simp_facts bdepinfo) l)
+      | ReplIndex(b) -> t.t_desc
+      |	Var(b,l) ->
+	  (* reconstruct the initial term before replacing some indices with fresh indices *)
+	  let tinit = Terms.copy_term Terms.Links_RI t in
+	  if (List.exists (Terms.equal_terms tinit) nodep) then
+	    t.t_desc 
+	  else if (b != b0 && Terms.is_restr b) || (match dep with
+	      None -> false
+	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+	  then
+	    Var(b, List.map (fun t' ->
+	      try
+		make_indep simp_facts bdepinfo t'
+	      with Not_found ->
+		replace_term_repl_index t') l)
+	  else if b == b0 then
+	    (* reconstruct the initial lists before replacing some indices with fresh indices *)
+	    let l0init = List.map (Terms.copy_term Terms.Links_RI) l0 in
+	    let linit = List.map (Terms.copy_term Terms.Links_RI) l in
+	    if List.for_all2 Terms.equal_terms l0init linit then
+	      raise Not_found 
+	    else 
+	      begin
+		let l' = 
+		  List.map (fun t' ->
+		  try
+		    make_indep simp_facts bdepinfo t'
+		  with Not_found ->
+		    replace_term_repl_index t') l
+		in
+		side_condition_needed := true;
+		Var(b, l')
+	      end
+	  else
+            let t' = Terms.try_no_var simp_facts t in
+            if Terms.equal_terms t t' then
+	      raise Not_found
+            else
+              let t'' = make_indep simp_facts bdepinfo t' in
+              t''.t_desc
+      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
+
 let default_indep_test dep_info simp_facts t (b,l) =
   try
-    let collect_bargs = ref [] in
-    let collect_bargs_sc = ref [] in
-    let t' = is_indep simp_facts (b,l,dep_info,collect_bargs,collect_bargs_sc) t in
-    let side_condition_proba = 
-      Terms.make_and_list (List.map (fun l' ->
-	Terms.make_or_list (List.map2 Terms.make_diff l l')
-	  ) (!collect_bargs_sc))
-    in
-    let side_condition_term = List.map (fun l' -> 
-      Terms.make_and_list (List.map2 Terms.make_equal l l')
-	) (!collect_bargs)
-    in
-    Some (t', side_condition_proba, side_condition_term)
+    let side_condition_needed = ref false in
+    let t' = make_indep simp_facts (b,l,dep_info,side_condition_needed) t in
+    Some (t', if !side_condition_needed then SideCondToCompute else NoSideCond)
   with Not_found ->
     None
 
@@ -404,18 +445,167 @@ let rec indep_sc_proba_list = function
    in addition to the already known facts. It sets the flag [reduced]
    when [t] has really been modified. *)
 
+type sc_tree =
+    SC_And of sc_tree * sc_tree
+  | SC_Or of sc_tree * sc_tree
+  | SC_Fixed of term list * term list list
+  | SC_ToCompute of binder * binder
+  | SC_True
+  | SC_False
+	
+let rec check_indep_cond dep_info simp_facts false_redr = function
+    IC_Indep(b1, b2) ->
+      begin
+        (* b1 must be independent of b2 *)
+	let t1 = 
+	  match b1.link with
+	    TLink t -> t
+	  | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
+	in
+	let (b,l) as br2 =
+	  match b2.link with
+	    TLink { t_desc = Var(b,l) } -> (b,l)
+	  | _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
+	in
+	match indep_test dep_info simp_facts t1 br2 with
+	| None ->
+            Display.display_term t1; print_string " depends on "; Display.display_var b l;
+	     print_newline(); 
+            SC_False (* t1 may depend on br2; cannot apply the collision *)
+	| Some (t1', side_condition) ->
+	    if (side_condition != NoSideCond) && not false_redr then
+              begin
+	        (* Cannot encode a side condition when the result of the reduction is not "false" *)
+                print_string " indep cond side condition not supported\n"; 
+		SC_False
+              end
+	    else
+	      begin
+                (* t1 may be transformed into a term t1' that is independent of br2
+		   Store it in the link for b1
+		   TO DO problem here in case I have several "independent of x" for the same x:
+                   the indices of x may be rewritten twice *)
+		b1.link <- TLink t1';
+		match side_condition with
+		  NoSideCond -> SC_True
+		| SideCondToCompute -> SC_ToCompute(b1, b2)
+		| SideCondFixed(l, ll) -> SC_Fixed(l, ll)
+	      end
+      end
+  | IC_True ->
+      SC_True
+  | IC_And(c1,c2) ->
+      begin
+	let res1 = check_indep_cond dep_info simp_facts false_redr c1 in
+	let res2 = check_indep_cond dep_info simp_facts false_redr c2 in
+	match res1, res2 with
+	  SC_False, _ | _, SC_False -> SC_False
+	| SC_True, _ -> res2
+	| _, SC_True -> res1
+	| _ ->
+	    SC_And(res1, res2)
+      end
+  | IC_Or(c1, c2) ->
+      begin
+	let res1 = check_indep_cond dep_info simp_facts false_redr c1 in
+	let res2 = check_indep_cond dep_info simp_facts false_redr c2 in
+	match res1, res2 with
+	| SC_True, _ | _, SC_True -> SC_True
+	| SC_False, _ -> res2
+	| _, SC_False -> res1
+	| _ -> 
+	    SC_Or(res1, res2)
+      end
+
+let rec compute_and l1 = function
+    [] -> []
+  | e2::l2 ->
+      (List.map (fun e1 -> Terms.make_and e1 e2) l1) @ (compute_and l1 l2)
+
+let rec collect_bargs b accu t =
+  match t.t_desc with
+    FunApp(f, l) ->
+      List.iter (collect_bargs b accu) l
+  | Var(b', l) ->
+      if b == b' then
+	accu := l :: (!accu)
+  | ReplIndex _ -> ()
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_bargs"
+							 
+let rec make_side_cond = function
+    SC_True -> ([], Terms.make_true())
+  | SC_False ->
+      Parsing_helper.internal_error "false side condition should have been removed"
+  | SC_And(c1, c2) ->
+      let c1t, c1p = make_side_cond c1 in
+      let c2t, c2p = make_side_cond c2 in
+      (c1t @ c2t, Terms.make_and c1p c2p)
+  | SC_Or(c1, c2) ->
+      let c1t, c1p = make_side_cond c1 in
+      let c2t, c2p = make_side_cond c2 in
+      (compute_and c1t c2t, Terms.make_or c1p c2p)
+  | SC_Fixed(l, bargs) ->
+      let side_condition_proba = 
+	Terms.make_and_list (List.map (fun l' ->
+	  Terms.make_or_list (List.map2 Terms.make_diff l l')
+	    ) bargs)
+      in
+      let side_condition_term = List.map (fun l' -> 
+	Terms.make_and_list (List.map2 Terms.make_equal l l')
+	  ) bargs
+      in
+      (side_condition_term, side_condition_proba)
+  | SC_ToCompute(b1, b2) ->
+      let t1 = 
+	match b1.link with
+	  TLink t -> t
+	| _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
+      in
+      let (b,l) as br2 =
+	match b2.link with
+	  TLink { t_desc = Var(b,l) } -> (b,l)
+	| _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
+      in
+      let args = ref [] in
+      collect_bargs b args t1;
+      let bargs = !args in
+      let side_condition_proba = 
+	Terms.make_and_list (List.map (fun l' ->
+	  Terms.make_or_list (List.map2 Terms.make_diff l l')
+	    ) bargs)
+      in
+      let init_l = List.map (Terms.copy_term Terms.Links_RI) l in
+      let side_condition_term = List.map (fun l' ->
+	let init_l' = List.map (Terms.copy_term Terms.Links_RI) l' in
+	Terms.make_and_list (List.map2 Terms.make_equal init_l init_l')
+	  ) bargs
+      in
+      (side_condition_term, side_condition_proba)
+      
+let rec build_indep_map = function
+    IC_Indep(b1,b2) ->
+      begin
+	match b1.link with
+	  TLink t -> [(b1,t)]
+	| _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
+      end
+  | IC_And(c1, c2) | IC_Or(c1, c2) ->
+      (build_indep_map c1) @ (build_indep_map c2)
+  | IC_True -> []
+    
 let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond, side_cond)::other_coll ->
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
-	  (* Compute the side condition that guarantees that all restrictions are independent *)
+	  (* Compute the side condition that guarantees that all restrictions are independent
+	     TO DO may need to replace indices with fresh indices when they depend on the restrictions!!!! *)
 	  let sc_term = ref (indep_sc_term_list restr) in
 	  let sc_proba = ref (indep_sc_proba_list restr) in
 	  if (!sc_term != []) && not (Terms.is_false redr) then
             begin
 	      (* Cannot encode a side condition when the result of the reduction is not "false" *)
-              (* print_string " indep restr side condition not supported\n"; *)
+              print_string " indep restr side condition not supported\n"; 
 	      raise NoMatch
             end;
 	  (* check side condition [side_cond] *)
@@ -428,10 +618,10 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    end;
 	  (* reduced term *)
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
-          (* print_string "apply_collisions_at_root_once match succeeded\n";
+          print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
-          Display.display_term redl; *) 
+          Display.display_term redl; 
 	  (* There is one instance of the collision problem for each value of
 	     the variables in [restr_indep_map] i.e. restrictions and 
 	     variables with independence conditions. The number of values
@@ -441,10 +631,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     as he wishes and can test by himself whether his attempt succeeds.
 	     *)
 	  let restr_indep_map =
-	    (List.map (fun (b1, b2) ->
-	      match b1.link with
-		TLink t -> (b1,t)
-	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)") indep_cond) @
+	    (build_indep_map indep_cond) @
 	    (List.map (fun restr1 ->
 	      match restr1.link with
 		TLink trestr -> (restr1,trestr)
@@ -452,37 +639,17 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		    ) restr)
 	  in
 	  (* Check independence conditions *)
-	  List.iter (fun (b1, b2) ->
-	    (* b1 must be independent of b2 *)
-	    let t1 = 
-	      match b1.link with
-		TLink t -> t
-	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
-	    in
-	    let (b,l) as br2 =
-	      match b2.link with
-		TLink { t_desc = Var(b,l) } -> (b,l)
-	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
-	    in
-	    match indep_test dep_info simp_facts t1 br2 with
-	    | None ->
-               (* Display.display_term t1; print_string " depends on "; Display.display_var b l;
-               print_newline(); *)
-               raise NoMatch (* t1 may depend on br2; cannot apply the collision *)
-	    | Some (t1', side_condition_proba, side_condition_term) ->
-	       if (side_condition_term != []) && not (Terms.is_false redr) then
-                 begin
-	           (* Cannot encode a side condition when the result of the reduction is not "false" *)
-                   (* print_string " indep cond side condition not supported\n"; *)
-		   raise NoMatch
-                 end;
+	  begin
+	    match check_indep_cond dep_info simp_facts (Terms.is_false redr) indep_cond with
+	      SC_False ->
+		raise NoMatch (* independence conditions not satisfied *)
+	    | sc ->
+		let (side_condition_term, side_condition_proba) =
+		  make_side_cond sc
+		in
 		sc_term := side_condition_term @ (!sc_term);
-		sc_proba := Terms.make_and side_condition_proba (!sc_proba);
-                (* t1 may be transformed into a term t1' that is independent of br2
-		   Store it in the link for b1
-		   TO DO store side condition in the proba *)
-		b1.link <- TLink t1'
-		     ) indep_cond;
+		sc_proba := Terms.make_and side_condition_proba (!sc_proba)
+	  end;
 	  (* [redl'] is the instantiated version of [redl], using terms
 	     made independent as needed to apply the collision.
 	     Same for [redr']. That allows taking the replication indices
@@ -520,7 +687,8 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		      if not (!reduced) then 
 			begin 
 			  reduced := reduced_tmp;
-                        (* print_string "Could not simplify "; Display.display_term t; print_newline(); *)
+                          print_string "Could not simplify "; Display.display_term t; print_string " knowing ";
+			  Display.display_term f; print_newline(); 
 			  raise NoMatch 
 			end;
 		      reduced := reduced_tmp;
@@ -542,7 +710,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		 need to be counted several times.  *)
 	      if not (Proba.add_proba_red redl' redr' (!sc_proba) proba restr_indep_map) then
                 begin
-                  (* print_string "Proba too large"; *)
+                  print_string "Proba too large"; 
 		  raise NoMatch
                 end
 	    end;

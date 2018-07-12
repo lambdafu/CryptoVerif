@@ -23,6 +23,7 @@ type term = PIdent of ident
 	  | PDiff of term_e * term_e
 	  | POr of term_e * term_e
 	  | PAnd of term_e * term_e
+	  | PIndepOf of ident * ident
 
 and term_e = term * Parsing_helper.extent
 
@@ -122,7 +123,7 @@ type eqstatement = Types.eqname * eqmember * eqmember * probabilityf_e * (int * 
 
 (* Collisions *)
 
-type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * ((ident * ident) list(*independent conditions*) * term_e(*side condition*))
+type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * term_e(*side condition*)
 
 
 

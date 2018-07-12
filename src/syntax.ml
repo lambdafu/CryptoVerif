@@ -191,6 +191,7 @@ let pinstruct_name = function
   | PGetE _ -> "get"
   | PInsertE _ -> "insert"
   | PQEvent _ -> "query event"
+  | PIndepOf _ -> "independent of"
     
 let add_var_list env in_find_cond cur_array bindl =
   List.fold_left (fun env (s, tyopt) ->
@@ -375,7 +376,9 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
       check_term1 env_t1 in_find_cond cur_array env t2
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
-
+  | PIndepOf _, ext ->
+      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
+	
 and check_term_list1 binder_env in_find_cond cur_array env = function
     [] -> binder_env
   | t::l ->
@@ -1381,6 +1384,8 @@ let rec check_term defined_refs_opt cur_array env = function
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PIndepOf _, ext ->
+      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
 
 and check_br cur_array env ((_,ext) as id, tl) =
   try 
@@ -1575,6 +1580,8 @@ let rec get_type_letfun env = function
       Settings.t_bool
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PIndepOf _, ext ->
+      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
 
 and check_pattern_letfun env tyoptres = function
     PPatVar ((s1,ext1), tyopt), _ ->
@@ -1764,6 +1771,8 @@ let rec check_term_nobe env = function
       input_error "If, find, let, new, event, insert, get, and array references forbidden in forall statements" ext
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PIndepOf _, ext ->
+      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions, under && or ||" ext
 
 let check_statement env (l,t,side_cond) =
   (* Note: This function uses check_binder_list, which calls
@@ -1939,6 +1948,8 @@ let rec check_term_proba env = function
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
       Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PIndepOf _, ext ->
+      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
 
 
 (* TO DO we should output an error message when a term in a probability
@@ -2480,8 +2491,48 @@ let check_collision_var env (s, ext) =
   match StringMap.find s env with
     EVar(v) -> v
   | _ -> input_error (s ^ " should be a variable") ext
+
+let make_and_indep_cond c1 c2 =
+  match c1, c2 with
+    IC_True, _ -> c2
+  | _, IC_True -> c1
+  | _ -> IC_And(c1, c2)
+	
+let make_or_indep_cond c1 c2 =
+  match c1, c2 with
+    IC_True, _ | _, IC_True -> IC_True
+  | _ -> IC_Or(c1, c2)
+	
+let rec check_side_cond forall restr env = function
+  | PAnd(t1,t2), ext ->
+      let (indep_cond1, t1') = check_side_cond forall restr env t1 in
+      let (indep_cond2, t2') = check_side_cond forall restr env t2 in
+      (make_and_indep_cond indep_cond1 indep_cond2,
+       Terms.make_and_ext ext t1' t2')
+  | POr(t1,t2), ext ->
+      let (indep_cond1, t1') = check_side_cond forall restr env t1 in
+      let (indep_cond2, t2') = check_side_cond forall restr env t2 in
+      if indep_cond1 = IC_True && indep_cond2 = IC_True then
+	(IC_True, Terms.make_or_ext ext t1' t2')
+      else if (Terms.is_true t1') && (Terms.is_true t2') then
+	(make_or_indep_cond indep_cond1 indep_cond2, Terms.make_true())
+      else
+	Parsing_helper.input_error "Cannot mix terms and independence conditions in a disjunction" ext
+  | PIndepOf(((_, ext1) as v1), ((_, ext2) as v2)), ext ->
+      (* v1 independent of v2 *)
+      let v1' = check_collision_var env v1 in
+      let v2' = check_collision_var env v2 in
+      if not (List.memq v1' forall) then
+	input_error "independent variables should be bound by \"forall\"" ext1;
+      if not (List.memq v2' restr) then
+	input_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
+      (IC_Indep(v1', v2'), Terms.make_true())
+  | t ->
+      let t' = check_term_nobe env t in
+      check_type (snd t) t' Settings.t_bool;
+      (IC_True, t')
     
-let check_collision env (restr, forall, t1, proba, t2, (indep_cond, side_cond)) =
+let check_collision env (restr, forall, t1, proba, t2, side_cond) =
   (* Note: This function uses check_binder_list, which calls
      Terms.create_binder0, so it does not rename the variables.
      That is why I do not save and restore the variable
@@ -2501,19 +2552,7 @@ let check_collision env (restr, forall, t1, proba, t2, (indep_cond, side_cond)) 
   check_bit_string_type (snd t1) t1'.t_type;
   if t1'.t_type != t2'.t_type then 
     input_error "Both sides of a collision statement should have the same type" (snd t2);
-  let indep_cond' = List.map (fun (((_, ext1) as v1), ((_, ext2) as v2)) ->
-    (* v1 independent of v2 *)
-    let v1' = check_collision_var env'' v1 in
-    let v2' = check_collision_var env'' v2 in
-    if not (List.memq v1' forall') then
-      input_error "independent variables should be bound by \"forall\"" ext1;
-    if not (List.memq v2' restr') then
-      input_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
-    (v1', v2')
-    ) indep_cond
-  in
-  let side_cond' = check_term_nobe env'' side_cond in
-  check_type (snd side_cond) side_cond' Settings.t_bool;
+  let (indep_cond', side_cond') = check_side_cond forall' restr' env'' side_cond in
   collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond') :: (!collisions)
 
 
@@ -2897,6 +2936,7 @@ let rec rename_term (t,ext) =
   | PDiff(t1,t2) -> PDiff(rename_term t1, rename_term t2)
   | POr(t1,t2) -> POr(rename_term t1, rename_term t2)
   | PAnd(t1,t2) -> PAnd(rename_term t1, rename_term t2)
+  | PIndepOf(i1,i2) -> PIndepOf(rename_ie i1, rename_ie i2)
   in
   (t',ext)
 
@@ -3050,7 +3090,7 @@ let rename_decl = function
       in
       set_rename_state rename_state;
       renamed_eq_statement
-  | Collision(restr, forall,  t1, p, t2, (indep_cond, side_cond)) ->
+  | Collision(restr, forall,  t1, p, t2, side_cond) ->
       (* Variables created in the statement are local, 
          I can reuse their names later *)
       let rename_state = get_rename_state() in
@@ -3060,8 +3100,7 @@ let rename_decl = function
 		  rename_term t1,
 		  rename_probaf p,
 		  rename_term t2,
-		  (List.map (fun (v1,v2) -> (rename_ie v1, rename_ie v2)) indep_cond,
-		   rename_term side_cond))
+		  rename_term side_cond)
       in
       set_rename_state rename_state;
       renamed_coll_statement      
@@ -3912,7 +3951,10 @@ let rec collect_id_term accu (t,ext) =
   | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) ->
       collect_id_term accu t1;
       collect_id_term accu t2
-      
+  | PIndepOf(i1,i2) ->
+      add_id accu i1;
+      add_id accu i2
+	
 and collect_id_pat accu (pat,ext) =
   match pat with
     PPatVar(b,tyopt) ->
@@ -4111,13 +4153,12 @@ let collect_id_decl accu = function
       collect_id_eqmember accu l;
       collect_id_eqmember accu r;
       collect_id_probaf accu p
-  | Collision(restr, forall,  t1, p, t2, (indep_cond, side_cond)) ->
+  | Collision(restr, forall,  t1, p, t2, side_cond) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
       collect_id_term accu t1;
       collect_id_probaf accu p;
       collect_id_term accu t2;
-      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) indep_cond;
       collect_id_term accu side_cond
   | Query (vars, l) ->
       List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) vars;

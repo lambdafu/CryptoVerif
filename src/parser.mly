@@ -103,6 +103,7 @@ let return_channel = (dummy_channel, None)
 %token TABLE
 %token LETFUN
 %token RUN
+%token INDEPOF
 %token EQUIVALENCE
   
 /* Precedence (from low to high) and associativities */
@@ -201,26 +202,9 @@ lib:
 
 indep_cond:
 
-    { [], cst_true }
-|   IF ne_indep_cond
+    { cst_true }
+|   IF term
     { $2 }
-
-ne_indep_cond:
-    one_indep_cond
-    { [$1], cst_true }
-|   term 
-    { [], $1 }
-|   one_indep_cond AND ne_indep_cond
-    { let (indep_list, t) = $3 in ($1 :: indep_list, t) }
-
-one_indep_cond:  
-    IDENT IDENT IDENT IDENT
-    { match $2, $3 with
-      | ("independent", _), ("of", _) -> ($1, $4)
-      | ("independent", _), (_, ext2) ->
-	  Parsing_helper.input_error "Syntax error" ext2
-      | (_, ext1), _ -> Parsing_helper.input_error "Syntax error" ext1
-    }
     
 
 impllist:
@@ -456,7 +440,9 @@ term:
         { POr($1, $3), parse_extent() }
 |       term AND term
         { PAnd($1, $3), parse_extent() }
-
+|       IDENT INDEPOF IDENT
+        { PIndepOf($1, $3), parse_extent() }
+    
 vref:
     IDENT LBRACKET termseq RBRACKET
     { $1,$3 }

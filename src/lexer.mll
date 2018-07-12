@@ -140,6 +140,7 @@ rule token = parse
 | "<-R" { RANDOM }
 | '#' { COUNT }
 | "inj-event" { INJEVENT }
+| "independent-of" { INDEPOF }
 | eof { EOF }	
 | _ { raise (Error("Illegal character", extent lexbuf)) }
 

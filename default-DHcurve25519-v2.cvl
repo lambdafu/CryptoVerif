@@ -2112,14 +2112,14 @@ def DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
 expand DH_basic(G, Z, g, exp, exp', mult).
 
 collision x <-R Z; forall Y: G;
-	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: G;
-	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 
 collision x <-R Z; y <-R Z; forall Y: G;
-	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 collision x <-R Z; y <-R Z; forall Y: G;
-	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 
 }
 
@@ -2202,17 +2202,17 @@ equation forall x:G, y:Z, y':Z; (exp'(x,y) = exp'(x,y')) = (y = y').
 
 (* The collision x.y = z happens when x = z/y
    (y is invertible since we work in (Z/qZ)* with q prime).
-   Since z/y is independent of x, this has probability
+   Since z/y is independent-of x, this has probability
    1/|Z| to happen. *)
 collision x <-R Z; forall y: Z, z: Z; 
-  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent of x && z independent of x. 
+  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent-of x && z independent-of x. 
 
 (* In (Z/qZ)*, half of the elements are square, and each square
    has 2 square roots. If y is not a square, the equality x.x = y is false.
    If y is a square y = z.z, then x.x = z.z iff x = z or x = -z (mod q),
    so with probability 2/|Z|. *) 
 collision x <-R Z; forall y: Z; 
-  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent of x. 
+  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent-of x. 
 
 (* x is invertible since we work in (Z/qZ)* with q prime *)
 equation forall x:Z, y:Z, y':Z; 
@@ -2225,16 +2225,16 @@ equation forall x:Z, y:Z, y':Z;
    If Y independent of x, g^x = Y succeeds for one value of x, 
    so with probability 1/|Z|. 
 collision x <-R Z; forall Y: G;
-	  return(exp(g, x) = Y) <=(1/|Z|)=> return(false) if Y independent of x.
+	  return(exp(g, x) = Y) <=(1/|Z|)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: G;
-	  return(exp'(g, x) = Y) <=(1/|Z|)=> return(false) if Y independent of x.
+	  return(exp'(g, x) = Y) <=(1/|Z|)=> return(false) if Y independent-of x.
 
    If Y independent of y, g^(x.y) = Y succeeds for one value of y, 
    so with probability 1/|Z|. 
 collision x <-R Z; y <-R Z; forall Y: G;
-	  return(exp(g, mult(x,y)) = Y) <=(1/|Z|)=> return(false) if Y independent of y.
+	  return(exp(g, mult(x,y)) = Y) <=(1/|Z|)=> return(false) if Y independent-of y.
 collision x <-R Z; y <-R Z; forall Y: G;
-	  return(exp'(g, mult(x,y)) = Y) <=(1/|Z|)=> return(false) if Y independent of y.
+	  return(exp'(g, mult(x,y)) = Y) <=(1/|Z|)=> return(false) if Y independent-of y.
 *)
 
 (* replace a random group element with an exponentiation, and conversely.
@@ -2382,7 +2382,7 @@ equation forall x:subG, y:Z, y':Z; (exp_div_k'(x,y) = exp_div_k'(x,y')) = ((y = 
    Since z'/ky' is independent of x, this has probability
    1/|Z| to happen. *)
 collision x <-R Z; forall y: Z, z: Z; 
-  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent of x && z independent of x. 
+  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent-of x && z independent-of x. 
 
 (* x = kx', y = ky'.
    x^2 = y when kx'.kx' = ky' (mod kq), that is, x'^2 = y'/k (mod q).
@@ -2392,7 +2392,7 @@ collision x <-R Z; forall y: Z, z: Z;
    If y'/k is a square y'/k = z.z, then x'.x' = z.z iff x' = z or x' = -z (mod q),
    so with probability 2/|Z|. *) 
 collision x <-R Z; forall y: Z; 
-  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent of x. 
+  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent-of x. 
 
 (* x = k x'.
    xy = xy' means k x' y = k x' y' (mod kq), that is,
@@ -2405,14 +2405,14 @@ equation forall x:Z, y:Z, y':Z;
    to infer them from the equations above.
 
 collision x <-R Z; forall Y: subG;
-	  return(exp_div_k(g_k, x) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent of x.
+	  return(exp_div_k(g_k, x) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: subG;
-	  return(exp_div_k'(g_k, x) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent of x.
+	  return(exp_div_k'(g_k, x) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent-of x.
 
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(exp_div_k(g_k, mult(x,y)) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent of y.
+	  return(exp_div_k(g_k, mult(x,y)) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent-of y.
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(exp_div_k'(g_k, mult(x,y)) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent of y.
+	  return(exp_div_k'(g_k, mult(x,y)) = Y) <=(Pcoll1rand(Z))=> return(false) if Y independent-of y.
 
 *)
 
@@ -2516,14 +2516,14 @@ equation forall X:G, y:Z; pow_k(exp(X,y)) = expsub(pow_k(X),y).
 equation forall X:G, y:Z; pow_k(exp'(X,y)) = expsub'(pow_k(X),y).
 
 collision x <-R Z; forall Y: subG;
-	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: subG;
-	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 
 (* PCollKey3 is the probability that y = 0 modulo q.
    When y <> 0 modulo q, y is invertible modulo q *)

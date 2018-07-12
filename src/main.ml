@@ -105,7 +105,7 @@ let simplify_statement (vl, t, side_cond) =
 	      display_statement t' side_cond';
 	      Parsing_helper.user_error ": all variables of the right-hand side and of the side condition should occur in the left-hand side.\n"
 	    end;	  
-	  record_statement ([], vl, t1, Zero, t2, [], side_cond')
+	  record_statement ([], vl, t1, Zero, t2, IC_True, side_cond')
       | _ ->
 	  let vars = ref [] in
 	  get_vars vars side_cond';
@@ -117,10 +117,10 @@ let simplify_statement (vl, t, side_cond) =
 	      display_statement t' side_cond';
 	      Parsing_helper.user_error ": all variables of the side condition should occur in the term.\n"
 	    end;	  
-	  record_statement ([], vl, t', Zero, Terms.make_true(), [], side_cond');
+	  record_statement ([], vl, t', Zero, Terms.make_true(), IC_True, side_cond');
           match t'.t_desc with
           | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
-	     record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false(), [], side_cond')
+	     record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false(), IC_True, side_cond')
           | _ -> 
 	     ()
     end

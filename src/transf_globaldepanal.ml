@@ -457,16 +457,7 @@ let dependency_anal cur_array =
 	if List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs) then
 	  (* t depends on b0[l] *)
 	  raise Depends;
-	let side_condition_proba = 
-	  Terms.make_and_list (List.map (fun l' ->
-	    Terms.make_or_list (List.map2 Terms.make_diff l l')
-	      ) (!collect_bargs))
-	in
-	let side_condition_term = List.map (fun l' -> 
-	  Terms.make_and_list (List.map2 Terms.make_equal l l')
-	    ) (!collect_bargs)
-	in
-	Some (t, side_condition_proba, side_condition_term)
+	Some (t, if (!collect_bargs) == [] then NoSideCond else SideCondFixed(l, (!collect_bargs)))
       with Depends -> None
     end
   in

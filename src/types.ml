@@ -422,9 +422,14 @@ and equiv_nm = equiv * (binder * binder * def_check) list
 and statement = binder list * term * term(*side condition*)
 
 (* Collision statements *)
-
+and indep_cond =
+    IC_And of indep_cond * indep_cond
+  | IC_Or of indep_cond * indep_cond
+  | IC_True
+  | IC_Indep of binder * binder
+      
 and collision = binder list(*restrictions*) * binder list(*forall*) *
-      term * probaf * term * (binder * binder) list(*independence conditions*)
+      term * probaf * term * indep_cond(*independence conditions*)
       * term(*side condition*)
 
 (* Queries *)
@@ -591,7 +596,12 @@ type trans_res =
 
 type simp_facts = term list * term list * elsefind_fact list
 
-type dep_anal_indep_test = simp_facts -> term -> binderref -> (term * term * term list) option
+type dep_anal_side_cond =
+    NoSideCond
+  | SideCondToCompute
+  | SideCondFixed of term list * term list list
+      
+type dep_anal_indep_test = simp_facts -> term -> binderref -> (term * dep_anal_side_cond) option
 type dep_anal_collision_test = simp_facts -> term -> term -> term option
 
 type dep_anal = dep_anal_indep_test * dep_anal_collision_test
@@ -600,16 +610,15 @@ type dep_anal = dep_anal_indep_test * dep_anal_collision_test
 [(indep_test, collision_test)].
 
 [indepTest simp_facts t (b,l)] 
-returns [Some (t', side_condition_proba, side_condition_term)] 
+returns [Some (t', side_condition)] 
 when [t'] is a term obtained from [t] by replacing array indices that 
-depend on [b[l]] with fresh indices.
-[t'] does not depend on [b[l]] when a side condition is true.
-The side condition is present in 2 forms:
- - [side_condition_proba] is the side condition to include in the 
-   probability computation. It uses fresh indices like [t']. It is a term.
- - [side_condition_term] is used in the simplified term that we include 
-   in the process. It is a list of terms, such that the or of these terms 
-   corresponds to the negation of the side condition.
+depend on [b[l]] with fresh indices. These fresh indices are linked to 
+the term they replace.
+When [side_condition = NoSideCond], [t'] does not depend on [b[l]].
+When [side_condition = SideCondToCompute] is true, [t'] contains [b] itself.
+[t'] does not depend on [b[l]] when the indices of [b] in [t'] are different from [l].
+When [side_condition = SideCondFixed(l, [l1; ...; ln])], [t'] does not depend on [b[l]]
+when [l <> li] for all [i] in [[1;...;n]].
 Returns [None] if that is not possible.
       
 [collision_test simp_facts t1 t2] simplifies [t1 = t2] using dependency 
