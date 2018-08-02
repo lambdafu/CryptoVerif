@@ -452,9 +452,50 @@ type sc_tree =
   | SC_ToCompute of binder * binder
   | SC_True
   | SC_False
-	
+
+let make_indep_args dep_info simp_facts l brdep =
+  List.map (fun t ->
+    match indep_test dep_info simp_facts t brdep with
+      Some(t', NoSideCond) -> t'
+    | _ -> replace_term_repl_index t) l
+
+let check_indep_restr dep_info simp_facts false_redr b1 b2 =
+  let (((b1',l1) as br1), t1) =
+    match b1.link with
+    | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
+    | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (1)"
+  in
+  let (((b2',l2) as br2), t2) =
+    match b2.link with
+    | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
+    | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (2)"
+  in
+  if b1' == b2' then
+    begin
+      if not false_redr then
+	(* Cannot encode a side condition when the result of the reduction is not "false",
+	   and when b1' == b2', we are going to have a side condition *)
+	raise NoMatch;
+      let l1init = List.map (Terms.copy_term Terms.Links_RI) l1 in
+      let l2init = List.map (Terms.copy_term Terms.Links_RI) l2 in
+      if List.for_all2 Terms.equal_terms l1init l2init then
+	(* The restrictions are exactly the same, they cannot be independent *)
+	raise NoMatch
+    end;
+  (* Make sure that the arguments of the restrictions b1' / b2' 
+     are independent of each other *)
+  let l1' = make_indep_args dep_info simp_facts l1 br2 in
+  let l2' = make_indep_args dep_info simp_facts l2 br1 in
+  b1.link <- TLink(Terms.build_term2 t1 (Var(b1', l1')));
+  b2.link <- TLink(Terms.build_term2 t2 (Var(b2', l2')));
+  (* Side condition: when b1' == b2', l1 must be different of l2 *)
+  if b1' == b2' then
+    SC_ToCompute(b1, b2)
+  else
+    SC_True
+      
 let rec check_indep_cond dep_info simp_facts false_redr = function
-    IC_Indep(b1, b2) ->
+  | IC_Indep(b1, b2) ->
       begin
         (* b1 must be independent of b2 *)
 	let t1 = 
