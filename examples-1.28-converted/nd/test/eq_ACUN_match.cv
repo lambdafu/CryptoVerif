@@ -42,6 +42,6 @@ process in(c, ()); out(c, f(xor(zero, xor(one, two))));
 	in(c, ()); out(c, j(xor(xor(neut, one), xor(two, xor(one,neut)))))
 
 (* EXPECTED
-Error in simplified statement h(y) = g(x, y, x): all variables of the right-hand side should occur in the left-hand side.
+Error in simplified statement (h(y) = g(x, y, x)): all variables of the right-hand side and of the side condition should occur in the left-hand side.
 xtime: error in child process (status : 512)
 END *)

@@ -41,39 +41,6 @@ PRF-ODH: probability formulas + comments
 Document new DH macros.
 Update ProVerif crypto library with new DH definitions
 
-For curve25519, let q be the order of the base point g.
-let Z be the integers multiple of 8 modulo 8q.
-mult(x,y) = x.y mod 8q (remains multiple of 8)
-exp(a,y) = point a multiplied by y
-the choice of a secret key is non uniform in Z: choose among
-2^254 + 8n (n \in [0, 2^251-1]) that is 2^251 elements.
-
-Then we have injectivity:
-(exp(g,x) = exp(g,y)) = (x = y).
-
-mult(x,y) = mult(x',y) may imply x = x'.
-
-However, it is not true that exp(X, x) = exp(g, mult(x,y)) with random x,y
-implies X = exp(g,y), because one may also have
-X = exp(g,y).(element of small order).
-CV infers that we cannot have  exp(X, x) = exp(g, mult(x,y))
-when X does not depend on y, from injectivity properties of exp(g,.)
-and mult(x,.) because exp(g, mult(x,y)) then characterizes y.
-
-gy_3 defined => else branch of 
-            find j' = j'_1 <= N1 suchthat defined(cr_1[j'_1], gx[j'_1]) && (sgx = gx[j'_1]) then
-in the server
-
-tls13core ... 1RTT-only example
-if gy_3[j] defined:
-- if gx[i] defined before sgx[j], then cr_1[i] defined before sgx[j], so
-before the "find j' = j'_1 <= N1 suchthat defined(cr_1[j'_1], gx[j'_1]) && (sgx = gx[j'_1]) then" with repl index j.
-Else branch taken => sgx[j] <> gx[i].
-- if gx[i] defined after sgx[j], x_3[i] also defined after sgx[j].
-gx[i] = exp'(G, x_3[i])
-sgx[j] does not depend on x_3[i].
-sgx[j] = gx[i] impossible by collision
-(exp'(G,x) = Y) <=()=> false if Y indep of x.
 
 implement implication statements and collisions, of the form:
 cond1 && ... && condn => concl
@@ -3374,7 +3341,41 @@ only statements, not collisions, to simplify terms in find_compos_bin.
 document set useKnownEqualitiesWithFunctionsInMatching
 DONE
 
-      CV cannot exploit
+For curve25519, let q be the order of the base point g.
+let Z be the integers multiple of 8 modulo 8q.
+mult(x,y) = x.y mod 8q (remains multiple of 8)
+exp(a,y) = point a multiplied by y
+the choice of a secret key is non uniform in Z: choose among
+2^254 + 8n (n \in [0, 2^251-1]) that is 2^251 elements.
+
+Then we have injectivity:
+(exp(g,x) = exp(g,y)) = (x = y).
+
+mult(x,y) = mult(x',y) may imply x = x'.
+
+However, it is not true that exp(X, x) = exp(g, mult(x,y)) with random x,y
+implies X = exp(g,y), because one may also have
+X = exp(g,y).(element of small order).
+CV infers that we cannot have  exp(X, x) = exp(g, mult(x,y))
+when X does not depend on y, from injectivity properties of exp(g,.)
+and mult(x,.) because exp(g, mult(x,y)) then characterizes y.
+
+gy_3 defined => else branch of 
+            find j' = j'_1 <= N1 suchthat defined(cr_1[j'_1], gx[j'_1]) && (sgx = gx[j'_1]) then
+in the server
+
+tls13core ... 1RTT-only example
+if gy_3[j] defined:
+- if gx[i] defined before sgx[j], then cr_1[i] defined before sgx[j], so
+before the "find j' = j'_1 <= N1 suchthat defined(cr_1[j'_1], gx[j'_1]) && (sgx = gx[j'_1]) then" with repl index j.
+Else branch taken => sgx[j] <> gx[i].
+- if gx[i] defined after sgx[j], x_3[i] also defined after sgx[j].
+gx[i] = exp'(G, x_3[i])
+sgx[j] does not depend on x_3[i].
+sgx[j] = gx[i] impossible by collision
+(exp'(G,x) = Y) <=()=> false if Y indep of x.
+
+   CV cannot exploit
 find j_4 = j <= Nsend suchthat defined(sephSecAB1[j]) && (pow8(sephPubAB_1) = pow8(sephPubAB1[j])) && (pow8(x_pubB_1) = pow8(pubA)) then
 
 else

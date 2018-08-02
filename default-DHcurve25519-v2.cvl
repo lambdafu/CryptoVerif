@@ -2103,8 +2103,8 @@ equation forall a:G, x:Z, y:Z;
 
 (* DH_proba_collision says that the probability that exp(g, x) = Y for
    random x and Y independent of x is at most PCollKey1, and
-   the probability that exp(g, mult(x,y)) = Y for
-   random x,y and Y independent of y is at most PCollKey2.
+   the probability that exp(g, mult(x,y)) = Y with
+   random x and with y and Y independent of x is at most PCollKey2.
    The other arguments are as in DH_basic. *)
 
 def DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
@@ -2115,6 +2115,14 @@ collision x <-R Z; forall Y: G;
 	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: G;
 	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
+
+collision x <-R Z; forall y:Z, Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
+collision x <-R Z; forall y:Z, Y: G;
+	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
+
+(* Consequence of the previous equations (since x and y are independent of each other),
+   but CryptoVerif does not infer it. *)
 
 collision x <-R Z; y <-R Z; forall Y: G;
 	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
@@ -2202,10 +2210,13 @@ equation forall x:G, y:Z, y':Z; (exp'(x,y) = exp'(x,y')) = (y = y').
 
 (* The collision x.y = z happens when x = z/y
    (y is invertible since we work in (Z/qZ)* with q prime).
-   Since z/y is independent-of x, this has probability
+   Since z/y is independent of x, this has probability
    1/|Z| to happen. *)
 collision x <-R Z; forall y: Z, z: Z; 
   return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent-of x && z independent-of x. 
+
+collision x <-R Z; y <-R Z; forall z: Z; 
+  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if z independent-of x || z independent-of y. 
 
 (* In (Z/qZ)*, half of the elements are square, and each square
    has 2 square roots. If y is not a square, the equality x.x = y is false.
@@ -2380,9 +2391,12 @@ equation forall x:subG, y:Z, y':Z; (exp_div_k'(x,y) = exp_div_k'(x,y')) = ((y = 
    The collision x.y = z happens when kx'.ky' = kz' (mod kq), that is x'.ky' = z' (mod q), so x' = z'/ky' (mod q)
    (k and y' are invertible since they are in (Z/qZ)* with q prime).
    Since z'/ky' is independent of x, this has probability
-   1/|Z| to happen. *)
+   PColl1Rand(Z) to happen. *)
 collision x <-R Z; forall y: Z, z: Z; 
-  return(mult(x,y) = z) <=(1/|Z|)=> return(false) if y independent-of x && z independent-of x. 
+  return(mult(x,y) = z) <=(PColl1Rand(Z))=> return(false) if y independent-of x && z independent-of x. 
+
+collision x <-R Z; y <-R Z; forall z: Z; 
+  return(mult(x,y) = z) <=(PColl1Rand(Z))=> return(false) if z independent-of x || z independent-of y. 
 
 (* x = kx', y = ky'.
    x^2 = y when kx'.kx' = ky' (mod kq), that is, x'^2 = y'/k (mod q).
@@ -2390,9 +2404,9 @@ collision x <-R Z; forall y: Z, z: Z;
    In (Z/qZ)*, half of the elements are square, and each square
    has 2 square roots. If y'/k is not a square, the equality x'.x' = y'/k is false.
    If y'/k is a square y'/k = z.z, then x'.x' = z.z iff x' = z or x' = -z (mod q),
-   so with probability 2/|Z|. *) 
+   so with probability 2*PColl1Rand(Z). *) 
 collision x <-R Z; forall y: Z; 
-  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent-of x. 
+  return(mult(x,x) = y) <=(2*PColl1Rand(Z))=> return(false) if y independent-of x. 
 
 (* x = k x'.
    xy = xy' means k x' y = k x' y' (mod kq), that is,
@@ -2449,8 +2463,8 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 
    pow_k(G):subG. pow_k(x) = x^k.
 
-   PCollKey1 is the maximum probability that g^(kx) = Y for x random in Z and Y independent of x.
-   PCollKey2 is the maximum probability that g^(kxy) = Y for x,y random in Z and Y independent of x.
+   PCollKey1 is the maximum probability that g^(kx) = Y with x random in Z and with Y independent of x.
+   PCollKey2 is the maximum probability that g^(kxy) = Y with x random in Z and with y and Y independent of x.
    PCollKey3 is the probability that y = 0 modulo q for y random in Z.
 
    The types G, subG, and Z and the probabilities PCollKey1, PCollKey2, 
@@ -2519,6 +2533,11 @@ collision x <-R Z; forall Y: subG;
 	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: subG;
 	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
+
+collision x <-R Z; forall y:Z, Y: subG;
+	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
+collision x <-R Z; forall y:Z, Y: subG;
+	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
 
 collision x <-R Z; y <-R Z; forall Y: subG;
 	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
