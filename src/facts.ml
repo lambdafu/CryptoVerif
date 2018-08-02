@@ -396,42 +396,6 @@ let match_term_root_or_prod_subterm simp_facts restr final next_f t t' =
 
 let reduced = ref false
 
-let rec indep_sc_term v = function
-    [] -> []
-  | v'::l ->
-      let l_indep = indep_sc_term v l in
-      match v.link, v'.link with
-	TLink { t_desc = Var(b,l) }, TLink { t_desc = Var(b',l') } ->
-	  if b == b' then
-	    (Terms.make_and_list (List.map2 Terms.make_equal l l')):: l_indep
-	  else
-	    l_indep
-      |	_ -> Parsing_helper.internal_error "variables should be linked in indep_sc_term"
-	  
-let rec indep_sc_term_list = function
-    [] -> []
-  | [v] -> []
-  | (v::l) ->
-      (indep_sc_term v l) @ (indep_sc_term_list l)
-
-let rec indep_sc_proba v = function
-    [] -> Terms.make_true()
-  | v'::l ->
-      let sc = indep_sc_proba v l in
-      match v.link, v'.link with
-	TLink { t_desc = Var(b,l) }, TLink { t_desc = Var(b',l') } ->
-	  if b == b' then
-	    Terms.make_and (Terms.make_or_list (List.map2 Terms.make_diff l l')) sc
-	  else
-	    sc
-      |	_ -> Parsing_helper.internal_error "variables should be linked in indep_sc_proba"
-			      
-let rec indep_sc_proba_list = function
-    [] -> Terms.make_true()
-  | [v] -> Terms.make_true()
-  | (v::l) ->
-      Terms.make_and (indep_sc_proba v l) (indep_sc_proba_list l)
-
 (* [apply_collisions_at_root_once reduce_rec simp_facts final t collisions] 
    applies all collisions in the list [collisions] to the root of term [t].
    It calls the function [final] on each term obtained by applying a collision.
@@ -493,6 +457,20 @@ let check_indep_restr dep_info simp_facts false_redr b1 b2 =
     SC_ToCompute(b1, b2)
   else
     SC_True
+
+let rec indep_sc_restr dep_info simp_facts false_redr v = function
+    [] -> SC_True
+  | v'::l ->
+      let sc = indep_sc_restr dep_info simp_facts false_redr v l in
+      SC_And (sc, check_indep_restr dep_info simp_facts false_redr v v')
+      
+let rec indep_sc_restr_list dep_info simp_facts false_redr = function
+    [] -> SC_True
+  | [v] -> SC_True
+  | (v::l) ->
+      SC_And (indep_sc_restr dep_info simp_facts false_redr v l,
+	      indep_sc_restr_list dep_info simp_facts false_redr l)
+
       
 let rec check_indep_cond dep_info simp_facts false_redr = function
   | IC_Indep(b1, b2) ->
@@ -641,16 +619,14 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
   | (restr, forall, redl, proba, redr, indep_cond, side_cond)::other_coll ->
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
-	  (* Compute the side condition that guarantees that all restrictions are independent
-	     TO DO may need to replace indices with fresh indices when they depend on the restrictions!!!! *)
-	  let sc_term = ref (indep_sc_term_list restr) in
-	  let sc_proba = ref (indep_sc_proba_list restr) in
-	  if (!sc_term != []) && not (Terms.is_false redr) then
-            begin
-	      (* Cannot encode a side condition when the result of the reduction is not "false" *)
-              print_string " indep restr side condition not supported\n"; 
-	      raise NoMatch
-            end;
+	  (* Compute the side condition that guarantees that all restrictions are independent *)
+	  let false_redr = Terms.is_false redr in
+	  let sc_indep_restr = indep_sc_restr_list dep_info simp_facts false_redr restr in
+	  let (side_condition_term, side_condition_proba) =
+	    make_side_cond sc_indep_restr
+	  in
+	  let sc_term = ref side_condition_term in
+	  let sc_proba = ref side_condition_proba in
 	  (* check side condition [side_cond] *)
 	  if not (Terms.is_true side_cond) then
 	    begin
@@ -683,7 +659,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	  in
 	  (* Check independence conditions *)
 	  begin
-	    match check_indep_cond dep_info simp_facts (Terms.is_false redr) indep_cond with
+	    match check_indep_cond dep_info simp_facts false_redr indep_cond with
 	      SC_False ->
 		raise NoMatch (* independence conditions not satisfied *)
 	    | sc ->
