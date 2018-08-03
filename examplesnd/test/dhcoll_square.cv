@@ -1,0 +1,30 @@
+type G [large,bounded].
+type Z [large, bounded].
+
+
+proba PCollKey1.
+proba PCollKey2.
+
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+param NA, NT.
+channel c1, c2.
+
+let pA =
+    ! i <= NA
+    in(c1, ());
+    new a: Z;
+    out(c2, a).
+    
+let ptest =
+    ! i <= NT
+    in(c1, (a1: Z, b1: Z, a2: Z, b2: Z));
+    find i1 <= NA suchthat defined(a[i1]) && a[i1] = a1 then
+    find j1 <= NA suchthat defined(a[j1]) && a[j1] = b1 then
+    find i2 <= NA suchthat defined(a[i2]) && a[i2] = a2 then
+    find j2 <= NA suchthat defined(a[j2]) && a[j2] = b2 then
+    if exp(g, mult(a[i1], a[j1])) = exp(g, mult(a[i2], a[j2])) then
+    out(c2, ()).
+ 
+process
+       pA | ptest
