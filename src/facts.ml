@@ -423,7 +423,7 @@ let make_indep_args dep_info simp_facts l brdep =
       Some(t', NoSideCond) -> t'
     | _ -> replace_term_repl_index t) l
 
-let check_indep_restr dep_info simp_facts false_redr b1 b2 =
+let check_indep_restr dep_info simp_facts restr_may_be_equal false_redr b1 b2 =
   let (((b1',l1) as br1), t1) =
     match b1.link with
     | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
@@ -434,7 +434,7 @@ let check_indep_restr dep_info simp_facts false_redr b1 b2 =
     | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
     | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (2)"
   in
-  if b1' == b2' then
+  if (not restr_may_be_equal) && (b1' == b2') then
     begin
       if not false_redr then
 	(* Cannot encode a side condition when the result of the reduction is not "false",
@@ -453,23 +453,34 @@ let check_indep_restr dep_info simp_facts false_redr b1 b2 =
   b1.link <- TLink(Terms.build_term2 t1 (Var(b1', l1')));
   b2.link <- TLink(Terms.build_term2 t2 (Var(b2', l2')));
   (* Side condition: when b1' == b2', l1 must be different of l2 *)
-  if b1' == b2' then
+  if (not restr_may_be_equal) && (b1' == b2') then
     SC_ToCompute(b1, b2)
   else
     SC_True
 
-let rec indep_sc_restr dep_info simp_facts false_redr v = function
+let indices_indep_self dep_info simp_facts b =
+  let (((b',l) as br), t) =
+    match b.link with
+    | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
+    | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (1)"
+  in
+  (* Make sure that the arguments of the restrictions b'
+     are independent of b'[l] itself *)
+  let l' = make_indep_args dep_info simp_facts l br in
+  b.link <- TLink(Terms.build_term2 t (Var(b', l')))
+      
+let rec indep_sc_restr dep_info simp_facts restr_may_be_equal false_redr v = function
     [] -> SC_True
   | v'::l ->
-      let sc = indep_sc_restr dep_info simp_facts false_redr v l in
-      SC_And (sc, check_indep_restr dep_info simp_facts false_redr v v')
+      let sc = indep_sc_restr dep_info simp_facts restr_may_be_equal false_redr v l in
+      SC_And (sc, check_indep_restr dep_info simp_facts restr_may_be_equal false_redr v v')
       
-let rec indep_sc_restr_list dep_info simp_facts false_redr = function
+let rec indep_sc_restr_list dep_info simp_facts restr_may_be_equal false_redr = function
     [] -> SC_True
   | [v] -> SC_True
   | (v::l) ->
-      SC_And (indep_sc_restr dep_info simp_facts false_redr v l,
-	      indep_sc_restr_list dep_info simp_facts false_redr l)
+      SC_And (indep_sc_restr dep_info simp_facts restr_may_be_equal false_redr v l,
+	      indep_sc_restr_list dep_info simp_facts restr_may_be_equal false_redr l)
 
       
 let rec check_indep_cond dep_info simp_facts false_redr = function
@@ -616,12 +627,15 @@ let rec build_indep_map = function
     
 let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
-  | (restr, forall, redl, proba, redr, indep_cond, side_cond)::other_coll ->
+  | (restr, forall, redl, proba, redr, indep_cond, side_cond, restr_may_be_equal)::other_coll ->
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
-	  (* Compute the side condition that guarantees that all restrictions are independent *)
+	  (* Compute the side condition that guarantees that all restrictions are independent,
+	     if not [restr_may_be_equal]. Make sure that the indices of restrictions are
+	     independent of all restrictions *)
+	  List.iter (indices_indep_self dep_info simp_facts) restr;
 	  let false_redr = Terms.is_false redr in
-	  let sc_indep_restr = indep_sc_restr_list dep_info simp_facts false_redr restr in
+	  let sc_indep_restr = indep_sc_restr_list dep_info simp_facts restr_may_be_equal false_redr restr in
 	  let (side_condition_term, side_condition_proba) =
 	    make_side_cond sc_indep_restr
 	  in

@@ -4,8 +4,9 @@ type Z [large, bounded].
 
 proba PCollKey1.
 proba PCollKey2.
+proba PCollKey3.
 
-expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+expand square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2, PCollKey3).
 
 param NA, NT.
 channel c1, c2.

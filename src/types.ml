@@ -430,7 +430,7 @@ and indep_cond =
       
 and collision = binder list(*restrictions*) * binder list(*forall*) *
       term * probaf * term * indep_cond(*independence conditions*)
-      * term(*side condition*)
+      * term(*side condition*) * bool(*restrictions may be equal?*)
 
 (* Queries *)
 

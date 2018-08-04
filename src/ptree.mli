@@ -123,7 +123,7 @@ type eqstatement = Types.eqname * eqmember * eqmember * probabilityf_e * (int * 
 
 (* Collisions *)
 
-type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * term_e(*side condition*)
+type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * term_e(*side condition*) * ident list(*options*)
 
 
 

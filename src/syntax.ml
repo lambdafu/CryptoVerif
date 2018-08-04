@@ -2503,15 +2503,15 @@ let make_or_indep_cond c1 c2 =
     IC_True, _ | _, IC_True -> IC_True
   | _ -> IC_Or(c1, c2)
 	
-let rec check_side_cond forall restr env = function
+let rec check_side_cond restr_may_be_equal forall restr env = function
   | PAnd(t1,t2), ext ->
-      let (indep_cond1, t1') = check_side_cond forall restr env t1 in
-      let (indep_cond2, t2') = check_side_cond forall restr env t2 in
+      let (indep_cond1, t1') = check_side_cond restr_may_be_equal forall restr env t1 in
+      let (indep_cond2, t2') = check_side_cond restr_may_be_equal forall restr env t2 in
       (make_and_indep_cond indep_cond1 indep_cond2,
        Terms.make_and_ext ext t1' t2')
   | POr(t1,t2), ext ->
-      let (indep_cond1, t1') = check_side_cond forall restr env t1 in
-      let (indep_cond2, t2') = check_side_cond forall restr env t2 in
+      let (indep_cond1, t1') = check_side_cond restr_may_be_equal forall restr env t1 in
+      let (indep_cond2, t2') = check_side_cond restr_may_be_equal forall restr env t2 in
       if indep_cond1 = IC_True && indep_cond2 = IC_True then
 	(IC_True, Terms.make_or_ext ext t1' t2')
       else if (Terms.is_true t1') && (Terms.is_true t2') then
@@ -2522,7 +2522,9 @@ let rec check_side_cond forall restr env = function
       (* v1 independent of v2 *)
       let v1' = check_collision_var env v1 in
       let v2' = check_collision_var env v2 in
-      if not (List.memq v1' forall) then
+      (* With the option "restr_may_be_equal", independence conditions are allowed between restrictions
+	 so [v1'] may be bound by forall or restr, which is always the case: nothing to check in this case. *)
+      if (not restr_may_be_equal) && (not (List.memq v1' forall)) then
 	input_error "independent variables should be bound by \"forall\"" ext1;
       if not (List.memq v2' restr) then
 	input_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
@@ -2532,11 +2534,18 @@ let rec check_side_cond forall restr env = function
       check_type (snd t) t' Settings.t_bool;
       (IC_True, t')
     
-let check_collision env (restr, forall, t1, proba, t2, side_cond) =
+let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
   (* Note: This function uses check_binder_list, which calls
      Terms.create_binder0, so it does not rename the variables.
      That is why I do not save and restore the variable
      numbering state. *)
+  let restr_may_be_equal = ref false in
+  List.iter (fun (s,ext) ->
+    if s = "restrictions_may_be_equal" then
+      restr_may_be_equal := true
+    else
+      Parsing_helper.input_error "The only allowed option for collisions is restrictions_may_be_equal" ext
+    ) options;
   set_binder_env empty_binder_env;
   let (env',restr') = check_binder_list env restr in
   List.iter2 (fun b (_,(_,ext)) ->
@@ -2552,8 +2561,8 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond) =
   check_bit_string_type (snd t1) t1'.t_type;
   if t1'.t_type != t2'.t_type then 
     input_error "Both sides of a collision statement should have the same type" (snd t2);
-  let (indep_cond', side_cond') = check_side_cond forall' restr' env'' side_cond in
-  collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond') :: (!collisions)
+  let (indep_cond', side_cond') = check_side_cond (!restr_may_be_equal) forall' restr' env'' side_cond in
+  collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond', !restr_may_be_equal) :: (!collisions)
 
 
 (* Check process
@@ -3090,7 +3099,7 @@ let rename_decl = function
       in
       set_rename_state rename_state;
       renamed_eq_statement
-  | Collision(restr, forall,  t1, p, t2, side_cond) ->
+  | Collision(restr, forall,  t1, p, t2, side_cond, options) ->
       (* Variables created in the statement are local, 
          I can reuse their names later *)
       let rename_state = get_rename_state() in
@@ -3100,7 +3109,7 @@ let rename_decl = function
 		  rename_term t1,
 		  rename_probaf p,
 		  rename_term t2,
-		  rename_term side_cond)
+		  rename_term side_cond, options)
       in
       set_rename_state rename_state;
       renamed_coll_statement      
@@ -4153,7 +4162,7 @@ let collect_id_decl accu = function
       collect_id_eqmember accu l;
       collect_id_eqmember accu r;
       collect_id_probaf accu p
-  | Collision(restr, forall,  t1, p, t2, side_cond) ->
+  | Collision(restr, forall,  t1, p, t2, side_cond, options) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
       collect_id_term accu t1;

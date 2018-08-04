@@ -193,8 +193,8 @@ lib:
         { (List.map (fun x -> (ChannelDecl(x))) $2) @ $4 }
 |       EQUIV eqname eqmember EQUIVLEFT probaf EQUIVRIGHT optpriority eqmember DOT lib
         { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
-|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT lib
-        { (Collision($2, $3, $6, $9, $13, $15)) :: $17 }
+|       COLLISION newlist options forallvartype RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT lib
+        { (Collision($2, $4, $7, $10, $14, $16, $3)) :: $18 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE lib RBRACE lib
         { (Define($2, $4, $7)) :: $9 }
 | 
@@ -1178,8 +1178,8 @@ olib:
 	{ (PDef($2,$4,$7)) :: $9 }
 |       EQUIV eqname eqmember EQUIVLEFT oprobaf EQUIVRIGHT optpriority eqmember DOT olib
         { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
-|       COLLISION newlist forallvartype RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT olib
-        { (Collision($2, $3, $6, $9, $13, $15)) :: $17 }
+|       COLLISION newlist options forallvartype RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT olib
+        { (Collision($2, $4, $7, $10, $14, $16, $3)) :: $18 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE olib RBRACE olib
         { (Define($2, $4, $7)) :: $9 }
 | 

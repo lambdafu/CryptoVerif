@@ -2131,6 +2131,28 @@ collision x <-R Z; y <-R Z; forall Y: G;
 
 }
 
+def square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2, PCollKey3) {
+
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+(* TO DO explain *)
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey3)=> return(false) if Y independent-of x || Y independent-of y.
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
+	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey3)=> return(false) if Y independent-of x || Y independent-of y.
+
+(* TO DO explain *)
+collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
+          return(exp(g, mult(x1,y1)) = exp(g, mult(x2,y2))) <=(PCollKey3)=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
+collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
+          return(exp'(g, mult(x1,y1)) = exp'(g, mult(x2,y2))) <=(PCollKey3)=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
+
+}
+
 (* DH_dist_random_group_element_vs_exponent says that the probability
    of distringuishing a random group element from an exponentiation
    exp(g,x) with a random exponent is at most PDist.  The other
