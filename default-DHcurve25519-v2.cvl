@@ -2131,6 +2131,10 @@ collision x <-R Z; y <-R Z; forall Y: G;
 
 }
 
+(* square_DH_proba_collision is similar to DH_proba_collision, but additionally
+   says that the probability that exp(g, mult(x,x)) = Y with
+   random x and Y independent of x is at most PCollKey3, with PCollKey3 >= PCollKey2. *) 
+
 def square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2, PCollKey3) {
 
 expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
@@ -2141,7 +2145,7 @@ expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
    Hence this collision groups two cases:
    - x and y are different restrictions: 
      exp(g, mult(x,y)) = Y with y and Y independent of x or x and Y independent of y,
-     already seen in DH_proba_collision
+     already seen in DH_proba_collision; ok because PCollKey3 >= PCollKey2
    - x and y are the same restriction:
      exp(g, mult(x,x)) = Y with Y independent of x *)
 collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
@@ -2284,12 +2288,57 @@ collision x <-R Z; forall y: Z, z: Z;
 collision x <-R Z; y <-R Z; forall z: Z; 
   return(mult(x,y) = z) <=(1/|Z|)=> return(false) if z independent-of x || z independent-of y. 
 
-(* In (Z/qZ)*, half of the elements are square, and each square
-   has 2 square roots. If y is not a square, the equality x.x = y is false.
-   If y is a square y = z.z, then x.x = z.z iff x = z or x = -z (mod q),
+(* The next collision groups 2 cases:
+   - mult(x,y) = z with x, y independent of each other, seen above
+   - mult(x,x) = z. This case is justified as follows.
+   In (Z/qZ)*, half of the elements are square, and each square
+   has 2 square roots. If z is not a square, the equality x.x = z is false.
+   If z is a square z = x'.x', then x.x = x'.x' iff x = x' or x = -x' (mod q),
    so with probability 2/|Z|. *) 
-collision x <-R Z; forall y: Z; 
-  return(mult(x,x) = y) <=(2/|Z|)=> return(false) if y independent-of x. 
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall z: Z; 
+  return(mult(x,y) = z) <=(2/|Z|)=> return(false) if z independent-of x || z independent-of y. 
+
+(* The next collision is a consequence of the previous one, though this requires
+   some reasoning.
+   The restrictions x1,y1,x2,y2 may be either independent of each other or equal
+   (because the option "restrictions_may_be_equal" still makes sure that the 
+   array indices of x1,y1,x2,y2 do not depend on x1,y1,x2,y2). 
+   Hence x1 independent-of x2 actually implies that x2 is also independent of x1.
+   
+   The condition (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2)
+   yields 4 cases:
+   1/ x1 independent-of x2 and x1 independent-of y2
+   x2 and y2 independent of x1, so mult(x2,y2) independent of x1
+   Apply previous collision with z = mult(x2,y2)
+
+   2/ x1 independent-of x2 and y1 independent-of x2
+   x1 and y1 independent of x2, so mult(x1,y1) independent of x2
+   Apply previous collision with z = mult(x1,y1)
+
+   3/ y1 independent-of y2 and x1 independent-of y2
+   x1 and y1 independent of y2, so mult(x1,y1) independent of y2
+   Apply previous collision with z = mult(x1,y1)
+
+   4/ y1 independent-of y2 and y1 independent-of x2
+   x2 and y2 independent of y1, so mult(x2,y2) independent of y1
+   Apply previous collision with z = mult(x2,y2)
+
+   The formulation below allows CryptoVerif to replace 
+   mult(x1,y1) = mult(x2,y2)
+   with a condition corresponding to 
+   (x1 = x2 && y1 = y2) || (x1 = y2 && y1 = x2)
+   where = here means that they are the same restriction (i.e. same 
+   variable with the same indices). This condition is the negation
+   of the independence condition
+   (x1 independent-of x2 || y1 independent-of y2) &&
+   (x1 independent-of y2 || y1 independent-of x2).
+   It corresponds to the only case that makes the equality 
+   succeed with non-negligible probability.  *)
+collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
+  return(mult(x1,y1) = mult(x2,y2)) <=(2/|Z|)=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
 
 (* x is invertible since we work in (Z/qZ)* with q prime *)
 equation forall x:Z, y:Z, y':Z; 
@@ -2464,15 +2513,25 @@ collision x <-R Z; forall y: Z, z: Z;
 collision x <-R Z; y <-R Z; forall z: Z; 
   return(mult(x,y) = z) <=(PColl1Rand(Z))=> return(false) if z independent-of x || z independent-of y. 
 
-(* x = kx', y = ky'.
-   x^2 = y when kx'.kx' = ky' (mod kq), that is, x'^2 = y'/k (mod q).
+(* The next collision groups 2 cases:
+   - mult(x,y) = z with x, y independent of each other, seen above
+   - mult(x,x) = z. This case is justified as follows.
+   x = kx', z = kz'.
+   x^2 = z when kx'.kx' = kz' (mod kq), that is, x'^2 = z'/k (mod q).
    (k is invertible modulo q).
    In (Z/qZ)*, half of the elements are square, and each square
-   has 2 square roots. If y'/k is not a square, the equality x'.x' = y'/k is false.
-   If y'/k is a square y'/k = z.z, then x'.x' = z.z iff x' = z or x' = -z (mod q),
+   has 2 square roots. If z'/k is not a square, the equality x'.x' = z'/k is false.
+   If z'/k is a square z'/k = z''.z'', then x'.x' = z''.z'' iff x' = z'' or x' = -z'' (mod q),
    so with probability 2*PColl1Rand(Z). *) 
-collision x <-R Z; forall y: Z; 
-  return(mult(x,x) = y) <=(2*PColl1Rand(Z))=> return(false) if y independent-of x. 
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall z: Z; 
+  return(mult(x,y) = z) <=(2*PColl1Rand(Z))=> return(false) if z independent-of x || z independent-of y. 
+
+(* The next collision is a consequence of the previous one, 
+   as in DH_good_group *)
+collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
+  return(mult(x1,y1) = mult(x2,y2)) <=(2*PColl1Rand(Z))=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
 
 (* x = k x'.
    xy = xy' means k x' y = k x' y' (mod kq), that is,
