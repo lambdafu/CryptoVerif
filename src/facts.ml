@@ -499,14 +499,14 @@ let rec check_indep_cond dep_info simp_facts false_redr = function
 	in
 	match indep_test dep_info simp_facts t1 br2 with
 	| None ->
-            Display.display_term t1; print_string " depends on "; Display.display_var b l;
-	     print_newline(); 
+            (* Display.display_term t1; print_string " depends on "; Display.display_var b l;
+	       print_newline(); *)
             SC_False (* t1 may depend on br2; cannot apply the collision *)
 	| Some (t1', side_condition) ->
 	    if (side_condition != NoSideCond) && not false_redr then
               begin
 	        (* Cannot encode a side condition when the result of the reduction is not "false" *)
-                print_string " indep cond side condition not supported\n"; 
+                (* print_string " indep cond side condition not supported\n"; *)
 		SC_False
               end
 	    else
@@ -651,10 +651,10 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    end;
 	  (* reduced term *)
 	  let t' = Terms.copy_term Terms.Links_Vars redr in
-          print_string "apply_collisions_at_root_once match succeeded\n";
+          (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
-          Display.display_term redl; 
+          Display.display_term redl; *) 
 	  (* There is one instance of the collision problem for each value of
 	     the variables in [restr_indep_map] i.e. restrictions and 
 	     variables with independence conditions. The number of values
@@ -720,8 +720,8 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		      if not (!reduced) then 
 			begin 
 			  reduced := reduced_tmp;
-                          print_string "Could not simplify "; Display.display_term t; print_string " knowing ";
-			  Display.display_term f; print_newline(); 
+                          (* print_string "Could not simplify "; Display.display_term t; print_string " knowing ";
+			  Display.display_term f; print_newline(); *)
 			  raise NoMatch 
 			end;
 		      reduced := reduced_tmp;
@@ -743,7 +743,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		 need to be counted several times.  *)
 	      if not (Proba.add_proba_red redl' redr' (!sc_proba) proba restr_indep_map) then
                 begin
-                  print_string "Proba too large"; 
+                  (* print_string "Proba too large"; *)
 		  raise NoMatch
                 end
 	    end;
