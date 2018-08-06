@@ -4,7 +4,7 @@
 
 (defvar cryptoverif-kw '("independent-of" "new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "equivalence") "Cryptoverif keywords")
 
-(defvar cryptoverif-builtin '("noninteractive" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "cv_onesession" "real_or_random" "cv_real_or_random" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
+(defvar cryptoverif-builtin '("restrictions_may_be_equal" "noninteractive" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "cv_onesession" "real_or_random" "cv_real_or_random" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
 ;; build optimal regular expression from list of keywords
 ;; 'words if for taking full words only, not subwords
@@ -72,7 +72,7 @@
 
 (defvar pcv-kw '("new" "out" "channel" "if" "then" "else" "fun" "param" "forall" "equation" "proba" "type" "process" "let" "in" "query" "secret" "public_vars" "const" "set"  "event" "yield" "event_abort" "inj-event" "foreach" "do" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "suchthat" "not" "equivalence") "Cryptoverif and ProVerif common keywords")
 
-(defvar pcv-bad-kw '("independent-of" "among" "choice" "clauses" "diff" "elimtrue" "find" "orfind" "fail" "free" "noninterf" "nounif" "or" "otherwise" "phase" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "time" "maxlength" "length" "max" "newChannel" "return") "CryptoVerif- or ProVerif-only keywords")
+(defvar pcv-bad-kw '("independent-of" "lemma" "axiom" "among" "choice" "clauses" "diff" "elimtrue" "find" "orfind" "fail" "free" "noninterf" "nounif" "or" "otherwise" "phase" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "time" "maxlength" "length" "max" "newChannel" "return") "CryptoVerif- or ProVerif-only keywords")
 
 (defvar pcv-builtin '("noninteractive" "bounded" "fixed" "large" "password" "nonuniform" ;;type options (ignored in PV)
 		      "data" "projection" "uniform" "typeConverter" ;; function options
@@ -83,10 +83,12 @@
 (defvar pcv-bad-builtin '("commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" ;; equation builtin options in CV
 			  "manual" "computational" "unchanged" "exist" "all" "useful_change" ;; equiv options in CV
 			  "unique" ;; find option in CV
+			  "restrictions_may_be_equal" ;; collision option
 			  "private" ;; in PV
 			  "reachability" ;; query option not supported in CV
 			  "memberOptim" "decompData" "decompDataSelect" "block" ;; predicate options
 			  "attacker" "mess" ;; predicates
+			  "MaxSubset" "NoSat" "NoVerif" "ToDiscardSat" "ToDiscardVerif" "ToInstantiateVerif" ;; lemma/axiom options
 			  ) "CryptoVerif- or ProVerif-only builtins")
 
 ;; build optimal regular expression from list of keywords
