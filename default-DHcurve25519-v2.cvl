@@ -2590,17 +2590,19 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 
    PCollKey1 is the maximum probability that g^(kx) = Y with x random in Z and with Y independent of x.
    PCollKey2 is the maximum probability that g^(kxy) = Y with x random in Z and with y and Y independent of x.
-   PCollKey3 is the probability that y = 0 modulo q for y random in Z.
+   PCollKey3 is the maximum of PCollKey2 and 
+                the maximum probability that g^(kxx) = Y with x random in Z and with Y independent of x
+   PCollKey4 is the probability that y = 0 modulo q for y random in Z.
 
    The types G, subG, and Z and the probabilities PCollKey1, PCollKey2, 
-   PCollKey3 must be declared before this macro.  The
+   PCollKey3, PCollKey4 must be declared before this macro.  The
    functions g, exp, exp', expblock, mult, g_k, expsub, expsub', pow_k
    are defined by this macro. They must not be declared
    elsewhere, and they can be used only after expanding the macro.
 
 *)
 
-def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, exp', expblock, mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3) {
+def DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, exp, exp', expblock, mult, subG, g_k, expsub, expsub', pow_k, PCollKey1, PCollKey2, PCollKey3, PCollKey4) {
 
 fun exp(G,Z): G.
 fun exp'(G,Z): G.
@@ -2669,13 +2671,29 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 collision x <-R Z; y <-R Z; forall Y: subG;
 	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 
-(* PCollKey3 is the probability that y = 0 modulo q.
-   When y <> 0 modulo q, y is invertible modulo q *)
-collision y <-R Z; forall x:subG, x':subG; return(expsub(x,y) = expsub(x',y)) <=(PCollKey3)=> return(x = x').
-collision y <-R Z; forall x:subG, x':subG; return(expsub'(x,y) = expsub'(x',y)) <=(PCollKey3)=> return(x = x').
+(* See macro square_DH_proba_collision for comments *)
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
+	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey3)=> return(false) if Y independent-of x || Y independent-of y.
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
+	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey3)=> return(false) if Y independent-of x || Y independent-of y.
 
-collision y <-R Z; forall x:subG, x':Z; return(expsub(x,y) = expsub(g_k, mult(x',y))) <=(PCollKey3)=> return(x = expsub(g_k,x')).
-collision y <-R Z; forall x:subG, x':Z; return(expsub'(x,y) = expsub'(g_k, mult(x',y))) <=(PCollKey3)=> return(x = expsub'(g_k,x')).
+(* See macro square_DH_proba_collision for comments *)
+collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
+          return(expsub(g_k, mult(x1,y1)) = expsub(g_k, mult(x2,y2))) <=(PCollKey3)=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
+collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
+          return(expsub'(g_k, mult(x1,y1)) = expsub'(g_k, mult(x2,y2))) <=(PCollKey3)=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
+
+(* PCollKey4 is the probability that y = 0 modulo q.
+   When y <> 0 modulo q, y is invertible modulo q *)
+collision y <-R Z; forall x:subG, x':subG; return(expsub(x,y) = expsub(x',y)) <=(PCollKey4)=> return(x = x').
+collision y <-R Z; forall x:subG, x':subG; return(expsub'(x,y) = expsub'(x',y)) <=(PCollKey4)=> return(x = x').
+
+collision y <-R Z; forall x:subG, x':Z; return(expsub(x,y) = expsub(g_k, mult(x',y))) <=(PCollKey4)=> return(x = expsub(g_k,x')).
+collision y <-R Z; forall x:subG, x':Z; return(expsub'(x,y) = expsub'(g_k, mult(x',y))) <=(PCollKey4)=> return(x = expsub'(g_k,x')).
 
 }
 
