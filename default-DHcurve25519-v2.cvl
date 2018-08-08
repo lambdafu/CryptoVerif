@@ -3230,8 +3230,8 @@ equiv(gdh(exp))
       foreach ibDDH  <= nbDDH  do ODDHb(m:subG, j<=na) := return(m = expsub(g_k, mult(a[j], b))) |
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:subG,j<=nb) [3] := return(m = expsub(g_k,mult(b[j], b)))
     )
-<=((#ODDHa + #ODDHa4 + #ODDHa5 + #ODDHb + #ODDHb6 + #ODDHb7) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) *
-	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(expsub),
+<=((naDDH + naDDH4 + naDDH5 + nbDDH + nbDDH6 + nbDDH7) * na * nb * 
+	   pGDH(time + (na + nb + #ODDHa + #ODDHb - 3) * time(expsub),
 	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8 +
 	   #ODDHa1G + #ODDHa2G + #ODDHa3G + #ODDHa4G + #ODDHa5G + #ODDHa6G + #ODDHa7G + #ODDHaG + #ODDHa8G + #ODDHa9G +
@@ -3242,7 +3242,6 @@ equiv(gdh(exp))
 	   #ODDHb2G'' + #ODDHb3G'' + #ODDHb4G'' + #ODDHb5G'' + #ODDHb6G'' + #ODDHb7G'' + #ODDHb9G'' +
 	   #ODDHa4G3' + #ODDHa5G3' + #ODDHa6G3' + #ODDHa7G3' +
 	   #ODDHb4G3' + #ODDHb5G3' + #ODDHb6G3' + #ODDHb7G3'))=> [computational]
-	   (* TO DO check proba *)
     foreach ia <= na do a <-R Z [unchanged]; (
       OAG() := return(exp'(g,a)) | 
       OAG'() := return(expblock(g,a)) | 
