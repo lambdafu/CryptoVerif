@@ -16,15 +16,16 @@ type Z [large,bounded].
 type G [large,bounded].
 type D [fixed].
 
-(* CDH assumption *)
-proba pCDH.
-expand CDH(G, Z, g, exp, exp', mult, pCDH).
-
 (* This collision assumption is needed to prove an injective
    correspondence, because we use ephemerals to distinguish sessions. *)
 proba PCollKey1.
 proba PCollKey2.
-expand common_DH_proba(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+(* CDH assumption *)
+proba pCDH.
+expand CDH(G, Z, g, exp, exp', mult, pCDH).
+
 
 (* Hash in the random oracle model *)
 type hashkey [fixed].

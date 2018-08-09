@@ -23,15 +23,15 @@ type Z [large,bounded].
 type G [large,bounded].
 type D [fixed].
 
-(* DDH assumption *)
-proba pDDH.
-expand DDH(G, Z, g, exp, exp', mult, pDDH).
-
 (* This collision assumption is needed to prove an injective
    correspondence, because we use ephemerals to distinguish sessions. *)
 proba PCollKey1.
 proba PCollKey2.
-expand common_DH_proba(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+(* DDH assumption *)
+proba pDDH.
+expand DDH(G, Z, g, exp, exp', mult, pDDH).
 
 (* Hash entropy extractor *)
 proba pH.

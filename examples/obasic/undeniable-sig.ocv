@@ -22,10 +22,13 @@ type G [large,bounded].
 
 (* Gap Diffie-Hellman problem *)
 
+expand DH_basic(G, Z, g, exp, exp', mult).
+
 proba pGDH.
 expand GDH(G, Z, g, exp, exp', mult, pGDH).
+
 proba PDist.
-expand common_DH_rand_group_exp(G, Z, g, exp, exp', mult, PDist).
+expand DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist).
 
 (* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
 
