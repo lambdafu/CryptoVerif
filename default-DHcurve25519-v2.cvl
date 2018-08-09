@@ -3550,7 +3550,7 @@ equiv(gdh(exp))
     ) 
 <=(na * (naDDH + naDDH5) * pSQGDH(time + (na + #ODDHa - 2) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5) +
-   na * (na-1) * (naDDH + naDDH5) * pGDH(time + (na + #ODDHa - 2) * time(exp),
+   na * (na-1) * (naDDH + naDDH5) * pGDH(time + (na + #ODDHa - 3) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
@@ -3632,8 +3632,8 @@ equiv(gdh(exp))
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) [useful_change] := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
       foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a)))
     ) 
-<=((* TO DO *) (#ODDHa + #ODDHa5) * max(1, 4*#Oa) * max(1, 4*#Oa) *
-	   pGDH(time + (na + #ODDHa + #ODDHa1) * time(exp),
+<=((#ODDHa + na * naDDH5) * max(1, 27/4*#Oa*#Oa) * 
+	   pSQGDH(time + (na + #ODDHa) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
@@ -3738,7 +3738,7 @@ equiv(gdh(exp))
     ) 
 <=(na * (naDDH + naDDH5) * pSQGDH(time + (na + #ODDHa - 2) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5 + #ODDHa1G + #ODDHa3G + #ODDHa5G + #ODDHaG + #ODDHa2G + #ODDHa1G' + #ODDHa3G' + #ODDHa5G' + #ODDHaG' + #ODDHa2G' + #ODDHa3G'' + #ODDHa5G'' + #ODDHa5G3' + #ODDHa2G'') +
-   na * (na-1) * (naDDH + naDDH5) * pGDH(time + (na + #ODDHa - 2) * time(exp),
+   na * (na-1) * (naDDH + naDDH5) * pGDH(time + (na + #ODDHa - 3) * time(exp),
 	   #ODDHa1 + #ODDHa3 + #ODDHa5 + #ODDHa1G + #ODDHa3G + #ODDHa5G + #ODDHaG + #ODDHa2G + #ODDHa1G' + #ODDHa3G' + #ODDHa5G' + #ODDHaG' + #ODDHa2G' + #ODDHa3G'' + #ODDHa5G'' + #ODDHa5G3' + #ODDHa2G''))=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OAG() := return(exp'(g,a)) | 
