@@ -3629,7 +3629,7 @@ equiv(gdh(exp))
       Oa() [10] := return(a) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
-      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) [useful_change] := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) [useful_change] := return(exp(m,a) = exp(g, mult(a[j'], a[j]))) |
       foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a)))
     ) 
 <=((#ODDHa + na * naDDH5) * max(1, 27/4*#Oa*#Oa) * 
@@ -3652,22 +3652,22 @@ equiv(gdh(exp))
       		= (a[j] * log_g(m) = a log_g(m'))
       		= (m^a[j] = m'^a). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) :=
-      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
-	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
-	      return ((a[j] = a || a[j] = a[j']) && exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
-	    (* GDH always allows to compute exp(m, a[j]) = exp(g,mult(a[j'],a))
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a) = exp'(g, mult(a[j'], a[j]))) else
+	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a) = exp'(g, mult(a[j'], a[j]))) else
+	      return ((a = a[j] || a = a[j']) && exp'(m,a) = exp'(g, mult(a[j'], a[j]))) |
+	    (* GDH always allows to compute exp(m, a) = exp(g,mult(a[j'],a[j]))
 	       as a particular case of ODDHa2.
-	       When a or a[j'] is leaked, that is all we use and we keep the value
-	       that occurs in the left-hand side exp'(m, a[j]) = exp'(g,mult(a[j'],a)).
+	       When a[j] or a[j'] is leaked, that is all we use and we keep the value
+	       that occurs in the left-hand side exp'(m, a) = exp'(g,mult(a[j'],a[j])).
 	       Otherwise, we distinguish two cases:
-	       - When a[j] = a[j'] or a[j] = a[j'], we keep the value
-	       that occurs in the left-hand side exp'(m, a[j]) = exp'(g,mult(a[j'],a)).
+	       - When a = a[j] or a = a[j'], we keep the value
+	       that occurs in the left-hand side exp'(m, a) = exp'(g,mult(a[j'],a[j])).
 	       - Otherwise, we apply the CDH assumption considering an adversary
-	         that knows a[j] and computes exp(m, a[j]). This adversary cannot
-	         compute exp(g,mult(a[j'],a)) by CDH, so the equality 
-	         exp(m, a[j]) = exp(g,mult(a[j'],a)) is false in this case.
-	       Hence, the equality exp(m, a[j]) = exp(g,mult(a[j'],a))
-	       reduces to (a[j] = a || a[j] = a[j']) && exp'(m, a[j]) = exp'(g,mult(a[j'],a)). *)
+	         that knows a and computes exp(m, a). This adversary cannot
+	         compute exp(g,mult(a[j'],a[j])) by CDH, so the equality 
+	         exp(m, a) = exp(g,mult(a[j'],a[j])) is false in this case.
+	       Hence, the equality exp(m, a) = exp(g,mult(a[j'],a[j]))
+	       reduces to (a = a[j] || a = a[j']) && exp'(m, a) = exp'(g,mult(a[j'],a[j])). *)
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := 
       	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false) 
