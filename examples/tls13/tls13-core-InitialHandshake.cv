@@ -75,11 +75,12 @@ fun elt2bitstring(elt): bitstring [data].
 (* Gap Diffie-Hellman assumption.
    The considered groups are prime order. *)
 
-proba pGDH.
-expand GDH(elt, key, G, exp, exp', mult, pGDH).
 proba PCollKey1.
 proba PCollKey2.
-expand common_DH_proba(elt, key, G, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(elt, key, G, exp, exp', mult, PCollKey1, PCollKey2).
+
+proba pGDH.
+expand GDH(elt, key, G, exp, exp', mult, pGDH).
 
 letfun dh_keygen() =
    new x:key;

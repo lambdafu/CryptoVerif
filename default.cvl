@@ -2506,12 +2506,12 @@ equation forall x:subG, y:Z, y':Z; (exp_div_k'(x,y) = exp_div_k'(x,y')) = ((y = 
    The collision x.y = z happens when kx'.ky' = kz' (mod kq), that is x'.ky' = z' (mod q), so x' = z'/ky' (mod q)
    (k and y' are invertible since they are in (Z/qZ)* with q prime).
    Since z'/ky' is independent of x, this has probability
-   PColl1Rand(Z) to happen. *)
+   Pcoll1rand(Z) to happen. *)
 collision x <-R Z; forall y: Z, z: Z; 
-  return(mult(x,y) = z) <=(PColl1Rand(Z))=> return(false) if y independent-of x && z independent-of x. 
+  return(mult(x,y) = z) <=(Pcoll1rand(Z))=> return(false) if y independent-of x && z independent-of x. 
 
 collision x <-R Z; y <-R Z; forall z: Z; 
-  return(mult(x,y) = z) <=(PColl1Rand(Z))=> return(false) if z independent-of x || z independent-of y. 
+  return(mult(x,y) = z) <=(Pcoll1rand(Z))=> return(false) if z independent-of x || z independent-of y. 
 
 (* The next collision groups 2 cases:
    - mult(x,y) = z with x, y independent of each other, seen above
@@ -2522,14 +2522,14 @@ collision x <-R Z; y <-R Z; forall z: Z;
    In (Z/qZ)*, half of the elements are square, and each square
    has 2 square roots. If z'/k is not a square, the equality x'.x' = z'/k is false.
    If z'/k is a square z'/k = z''.z'', then x'.x' = z''.z'' iff x' = z'' or x' = -z'' (mod q),
-   so with probability 2*PColl1Rand(Z). *) 
+   so with probability 2*Pcoll1rand(Z). *) 
 collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall z: Z; 
-  return(mult(x,y) = z) <=(2*PColl1Rand(Z))=> return(false) if z independent-of x || z independent-of y. 
+  return(mult(x,y) = z) <=(2*Pcoll1rand(Z))=> return(false) if z independent-of x || z independent-of y. 
 
 (* The next collision is a consequence of the previous one, 
    as in DH_good_group *)
 collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
-  return(mult(x1,y1) = mult(x2,y2)) <=(2*PColl1Rand(Z))=> return(false)
+  return(mult(x1,y1) = mult(x2,y2)) <=(2*Pcoll1rand(Z))=> return(false)
 	    if (x1 independent-of x2 || y1 independent-of y2) &&
 	       (x1 independent-of y2 || y1 independent-of x2).
 
@@ -2742,8 +2742,8 @@ equiv(cdh(exp))
 
 (* Variant of CDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, so it is not correct for
-   curve25519 for instance. *)
+   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   so it is not correct for curve25519 for instance. *)
 
 def CDH_RSR(G, Z, g, exp, exp', mult, pCDH) {
 
@@ -2982,8 +2982,8 @@ equiv(gdh(exp))
 
 (* Variant of GDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, so it is not correct for
-   curve25519 for instance. *)
+   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   so it is not correct for curve25519 for instance. *)
 
 def GDH_RSR(G, Z, g, exp, exp', mult, pGDH) {
 
@@ -3438,8 +3438,8 @@ equiv(cdh(exp))
 
 (* Variant of square CDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, so it is not correct for
-   curve25519 for instance.
+   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   so it is not correct for curve25519 for instance.
 
    pSQCDH(t): the probability of breaking the square CDH assumption in time t
    Other arguments as in DH_basic.
@@ -3602,8 +3602,8 @@ equiv(gdh(exp))
 
 (* Variant of square GDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, so it is not correct for
-   curve25519 for instance.
+   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   so it is not correct for curve25519 for instance.
 
    pSQGDH(t,n): the probability of breaking the square GDH assumption in time t,
    with at most n calls to the DDH oracle.

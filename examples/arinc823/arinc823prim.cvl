@@ -28,9 +28,9 @@ equation builtin commut(mult).
 equation forall a: G, x: Z, y: Z; exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 collision x <-R Z; forall Y: G;
-	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; y <-R Z; forall Y: G;
-	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 
 
 (* the GDH assumption
@@ -72,8 +72,11 @@ equiv(gdh(exp))
     ! nbDDH8 ODDHb8(m: G, j <= nb) [3] := return(m = exp(g,mult(b[j], b))) |
     ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
     ! nbSign2 new r: seed; OSignb2(m: bitstring) := return(sign'(b, m, r)))
-<=((#ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * 
-	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
+    (* This probability formula uses random self reducibility.
+       So we assume that the secret keys are chosen uniformly in Z/qZ, 
+       where q is the order of g. *)
+<=((#ODDHa + #ODDHb) * 
+	   pGDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp),
 	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
@@ -184,9 +187,9 @@ equation builtin commut(mult).
 equation forall a: G, x: Z, y: Z; exp(exp(a,x), y) = exp(a, mult(x,y)).
 
 collision x <-R Z; forall Y: G;
-	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; y <-R Z; forall Y: G;
-	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 
 (* the GDH assumption
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -227,8 +230,11 @@ equiv(gdh(exp))
     ! nbDDH8 ODDHb8(m: G, j <= nb) [3] := return(m = exp(g,mult(b[j], b))) |
     ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
     ! nbSign2 new r: seed; OSignb2(m: bitstring) := return(sign'(b, m, r)))
-<=((#ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * 
-	   pGDH(time + (na + nb + #ODDHa + #ODDHa1 + #ODDHb + #ODDHb1) * time(exp),
+    (* This probability formula uses random self reducibility.
+       So we assume that the secret keys are chosen uniformly in Z/qZ, 
+       where q is the order of g. *)
+<=((#ODDHa + #ODDHb) * 
+	   pGDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp),
 	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (

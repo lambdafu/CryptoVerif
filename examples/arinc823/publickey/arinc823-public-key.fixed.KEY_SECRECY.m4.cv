@@ -53,12 +53,12 @@ const U, V: t_id.
 type Z [bounded, large].
 type G [bounded, large].
 
-proba pGDH.
-expand GDH(G, Z, g, exp, exp', mult, pGDH).
-
 proba PCollKey1.
 proba PCollKey2.
-expand common_DH_proba(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+proba pGDH.
+expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH).
 
 (* AMS Message elements *)
 
