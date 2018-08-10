@@ -100,32 +100,55 @@ expand CollisionResistant_hash(key, hashinput, hashoutput, hash6, hashoracle6, P
 
 type G [bounded, large].
 type tZ [bounded, large].
-proba pCDH.
-expand CDH(G, tZ, g, exp, exp', mult, pCDH).
+
 proba PCollKey1.
 proba PCollKey2.
-expand common_DH_proba(G, tZ, g, exp, exp', mult, PCollKey1, PCollKey2).
+proba PCollKey3.
+proba PCollKey4.
+expand DH_proba_collision(G, tZ, g, exp, exp', mult, PCollKey1, PCollKey2).
+
 proba PDist.
-expand common_DH_rand_group_exp(G, tZ, g, exp, exp', mult, PDist).
+expand DH_dist_random_group_element_vs_exponent(G, tZ, g, exp, exp', mult, PDist).
 
+proba pCDH.
+expand CDH(G, tZ, g, exp, exp', mult, pCDH).
+expand CDH_RSR(G, tZ, g, exp, exp', mult, pCDH).
 proba pDDH.
-expand DDH(G, tZ, g2, exp2, exp2', mult2, pDDH).
-expand common_DH_prime_order(G, tZ, g2, exp2, exp2', mult2).
-
+expand DDH(G, tZ, g, exp, exp', mult, pDDH).
 proba pGDH.
-expand GDH(G, tZ, g3, exp3, exp3', mult3, pGDH).
+expand GDH(G, tZ, g, exp, exp', mult, pGDH).
+expand GDH_RSR(G, tZ, g, exp, exp', mult, pGDH).
 
+proba pSQCDH.
+expand square_CDH(G, tZ, g, exp, exp', mult, pCDH, pSQCDH).
+expand square_CDH_RSR(G, tZ, g, exp, exp', mult, pSQCDH).
+proba pSQDDH.
+expand square_DDH(G, tZ, g, exp, exp', mult, pDDH, pSQDDH).
+proba pSQGDH.
+expand square_GDH(G, tZ, g, exp, exp', mult, pGDH, pSQGDH).
+expand square_GDH_RSR(G, tZ, g, exp, exp', mult, pSQGDH).
+
+(*
 proba pPRF_ODH.
 type prf_in.
 type prf_out [bounded].
 expand PRF_ODH1(G, tZ, prf_in, prf_out, g8, exp8, exp8', mult8, prf8, pPRF_ODH).
 expand PRF_ODH2(G, tZ, prf_in, prf_out, g9, exp9, exp9', mult9, prf9, pPRF_ODH).
-
-expand square_CDH(G, tZ, g5, exp5, exp5', mult5, pCDH).
-expand square_DDH(G, tZ, g6, exp6, exp6', mult6, pDDH).
-expand square_GDH(G, tZ, g7, exp7, exp7', mult7, pGDH).
 expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g10, exp10, exp10', mult10, prf10, pPRF_ODH).
 expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g11, exp11, exp11', mult11, prf11, pPRF_ODH).
+*)
+
+expand square_DH_proba_collision(G, tZ, g5, exp5, exp5', mult5, PCollKey1, PCollKey2, PCollKey3).
+expand DH_good_group(G, tZ, g6, exp6, exp6', mult6).
+type subG [bounded].
+expand DH_prime_subgroup_secret_keys_multiple_k(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero7, sub_zero).
+
+
+type subG3 [bounded].
+expand DH_prime_subgroup_secret_keys_not_multiple_k(G, tZ, g3, exp3, exp3', expblock, mult3, subG3, g_k3, expsub, expsub', pow_k3, PCollKey1, PCollKey2, PCollKey3, PCollKey4).
+expand GDH_subgroup(G, tZ, g3, exp3, exp3', expblock, mult3, subG3, g_k3, expsub, expsub', pow_k3, pGDH).
+expand square_GDH_subgroup(G, tZ, g3, exp3, exp3', expblock, mult3, subG3, g_k3, expsub, expsub', pow_k, pGDH, pSQGDH).
+
 
 type D [bounded]. 
 proba POW.
