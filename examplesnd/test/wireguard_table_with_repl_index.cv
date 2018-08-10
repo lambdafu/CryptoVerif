@@ -356,7 +356,17 @@ proba P_GDH.            (* probability of breaking the GDH assumption *)
    The public_key either encodes some value in a large prime-order group
    (which may have multiple equivalent encodings), or is an invalid
    value. *)
-expand GDH_prime_order_all_args(
+expand DH_good_group(
+  (* types *)
+  G_t,  (* Group elements *)
+  Z_t,  (* Exponents *)
+  (* variables *)
+  g,    (* a generator of the group *)
+  exp,  (* exponentiation function *)
+  exp', (* a symbol that replaces exp after game transformation *)
+  mult (* multiplication function for exponents *)
+).
+expand GDH(
   (* types *)
   G_t,  (* Group elements *)
   Z_t,  (* Exponents *)

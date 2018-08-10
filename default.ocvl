@@ -2670,9 +2670,9 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
 
 (* See macro square_DH_proba_collision for comments *)
-collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: subG;
 	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey3)=> return(false) if Y independent-of x || Y independent-of y.
-collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: G;
+collision x <-R Z; y <-R Z; [restrictions_may_be_equal] forall Y: subG;
 	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey3)=> return(false) if Y independent-of x || Y independent-of y.
 
 (* See macro square_DH_proba_collision for comments *)

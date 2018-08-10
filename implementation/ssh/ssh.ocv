@@ -58,8 +58,9 @@ const null_string: bitstring. (*the string of length 0 *)
 
 (*CDH*)
 
-proba pCDH.
+expand DH_basic(G, Z, g, exp, exp', mult).
 
+proba pCDH.
 expand CDH(G, Z, g, exp, exp', mult, pCDH).
 
 letfun message(x: Z) = exp(g, x).

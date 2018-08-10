@@ -61,10 +61,10 @@ type host [bounded].
 
 (* Computational Diffie-Hellman *)
 
-proba pCDH.
+expand DH_good_group(G, Z, g, exp, exp', mult).
 
+proba pCDH.
 expand CDH(G, Z, g, exp, exp', mult, pCDH).
-expand common_DH_prime_order(G, Z, g, exp, exp', mult).
 
 (* Ideal cipher model *)
 

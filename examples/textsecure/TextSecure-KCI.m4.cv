@@ -46,7 +46,8 @@ const alice, bob: prin.
 proba PCollKey1.
 proba PCollKey2.
 proba PCollKey3.
-expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3).
+proba PCollKey4.
+expand DH_prime_subgroup_secret_keys_not_multiple_k(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, PCollKey1, PCollKey2, PCollKey3, PCollKey4).
 proba pGDH.
 expand GDH_subgroup(G, Z, g, gexp, gexp', gexpblock, mult, subG, g_k, gexp_sub, gexp_sub', pow8, pGDH).
 

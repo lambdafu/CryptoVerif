@@ -51,14 +51,14 @@ equiv(use_subgroup(exp))
 equation forall X:G, y:Z; pow_k(exp(X,y)) = expsub(pow_k(X),y).
 
 collision x <-R Z; forall Y: subG;
-	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(expsub(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: subG;
-	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent of x.
+	  return(expsub'(g_k, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(expsub(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of y.
 collision x <-R Z; y <-R Z; forall Y: subG;
-	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent of y.
+	  return(expsub'(g_k, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of y.
 
 (* PCollKey3 is the proba that y = 0 modulo q *)
 collision y <-R Z; forall x:subG, x':subG; return(expsub(x,y) = expsub(x',y)) <=(PCollKey3)=> return(x = x').

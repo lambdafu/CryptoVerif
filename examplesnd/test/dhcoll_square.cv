@@ -11,6 +11,10 @@ expand square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2,
 param NA, NT.
 channel c1, c2.
 
+event bad.
+
+query event(bad).
+
 let pA =
     ! i <= NA
     in(c1, ());
@@ -25,7 +29,15 @@ let ptest =
     find i2 <= NA suchthat defined(a[i2]) && a[i2] = a2 then
     find j2 <= NA suchthat defined(a[j2]) && a[j2] = b2 then
     if exp(g, mult(a[i1], a[j1])) = exp(g, mult(a[i2], a[j2])) then
-    out(c2, ()).
+    (if not (((i1 = i2) && (j1 = j2)) || ((i1 = j2) && (j1 = i2))) then
+       event bad
+     else
+       out(c2, ())).
  
 process
        pA | ptest
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.016s + system 0.004s), max rss 44384K
+END *)
