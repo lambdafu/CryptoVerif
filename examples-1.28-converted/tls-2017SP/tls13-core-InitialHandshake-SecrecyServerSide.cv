@@ -37,8 +37,9 @@ proof {
       crypto client_server_hts *;
       crypto prf_fin_key_iv *;
       crypto prf3 *;
-      crypto suf_cma(mac) *; 
+      crypto suf_cma(mac) *;
       simplify;
+      crypto suf_cma(mac) *;
       success;
       crypto uf_cma_corrupt(sign) kseedC;
       success
