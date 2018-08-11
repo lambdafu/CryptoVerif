@@ -79,12 +79,12 @@ proof {
 	 the first one does or conversely, by replacing them with events.
 	 CryptoVerif will show that these events do not happen. *)
       show_game occ;
-      insert_event e1 1105;
+      insert_event e1 1103;
       simplify;
-      show_game occ;
+(*      show_game occ;
       insert_event e2 241;
       insert_event e3 196;
-      simplify;
+      simplify; *)
       remove_assign useless;
       set uniqueBranchReorganize = true;
       simplify; 
