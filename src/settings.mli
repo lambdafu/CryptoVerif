@@ -35,6 +35,7 @@ val elsefind_facts_in_simplify : bool ref
 val improved_fact_collection : bool ref
 val corresp_cases : bool ref
 val simplify_use_equalities_in_simplifying_facts : bool ref
+val re_reduce_root_sides : bool ref
     
 val diff_constants : bool ref
 val constants_not_tuple : bool ref 

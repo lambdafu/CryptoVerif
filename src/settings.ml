@@ -37,6 +37,7 @@ let elsefind_facts_in_simplify = ref true
 let improved_fact_collection = ref false
 let corresp_cases = ref true
 let simplify_use_equalities_in_simplifying_facts = ref false
+let re_reduce_root_sides = ref true
     
 let diff_constants = ref true
 let constants_not_tuple = ref true
@@ -171,6 +172,7 @@ let do_set p v =
   | "elsefindFactsInSimplify", _ -> parse_bool v elsefind_facts_in_simplify
   | "improvedFactCollection", _ -> parse_bool v improved_fact_collection
   | "useEqualitiesInSimplifyingFacts", _ -> parse_bool v simplify_use_equalities_in_simplifying_facts
+  | "reReduceRootSides", _ -> parse_bool v re_reduce_root_sides
   | "maxReplaceDepth", I n -> max_replace_depth := n
   | "maxAddFactDepth", I n -> max_depth_add_fact := n
   | "maxTryNoVarDepth", I n ->
