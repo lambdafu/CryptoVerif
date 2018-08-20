@@ -2200,7 +2200,7 @@ collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [restrictions_may_be_equal]
 }
 
 (* DH_dist_random_group_element_vs_exponent says that the probability
-   of distringuishing a random group element from an exponentiation
+   of distinguishing a random group element from an exponentiation
    exp(g,x) with a random exponent is at most PDist.  The other
    arguments are as in DH_basic and must all be defined before. *)
 
