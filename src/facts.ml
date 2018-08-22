@@ -1218,19 +1218,40 @@ and add_fact depth dep_info simp_facts fact =
 		f1 != f2 && (!Settings.diff_constants) ->
 		  raise Contradiction
 	          (* Different constants are different *)
-              | (_, _) -> 
-		  match collision_test dep_info simp_facts t1' t2' with
-		    Some t' ->
-		      if Terms.is_false t' then
-			raise Contradiction
-		      else
-			simplif_add (depth+1) dep_info simp_facts t'
-		  | None -> 
+              | (_, _) ->
+		  let default_add() =
 		      match orient_eq t1' t2' with
 			Some(t1'',t2'') -> 
 			  subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1'' t2'')
 		      | None ->
 			  (subst2, fact'::facts, elsefind)
+		  in		    
+		  match collision_test dep_info simp_facts t1' t2' with
+		    Some t' ->
+		      if Terms.is_false t' then
+			raise Contradiction
+		      else
+			begin
+			(* collision_test returns ||_i (side_condition && simplified version of t1' = t2') *)
+			match t'.t_desc with
+			| FunApp(f, [t1; t2]) when f == Settings.f_and ->
+			    (* There is a single case, t' = (side_condition && simplified version of t1' = t2')
+			       We avoid a loop in case the simplified version of t1' = t2' is actually t1' = t2'. *)
+			    if Terms.equal_terms t2 (Terms.make_equal t1' t2') then
+			      let simp_facts1 = default_add() in
+			      simplif_add (depth+1) dep_info simp_facts1 t1
+			    else
+			      simplif_add (depth+1) dep_info simp_facts t'
+			| FunApp(f, _) when f == Settings.f_or ->
+			    (* There are several cases. It will be difficult to exploit the disjunction,
+                               we at least add the equality t1' = t2' which may be easier to exploit. *)
+			    let simp_facts1 = default_add() in
+			    simplif_add (depth+1) dep_info simp_facts1 t'
+			| _ ->
+			    simplif_add (depth+1) dep_info simp_facts t'
+			end
+		  | None ->
+		      default_add()
 	    end
 	| (ACUN(prod, neut) | Group(prod, _, neut) | CommutGroup(prod, _, neut)) as eq_th -> 
 	    begin
