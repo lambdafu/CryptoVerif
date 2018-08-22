@@ -44,7 +44,8 @@ const zero_key: key.
 type extracted [large, fixed].
 const zero_extracted: extracted. 
 
-type elt [large, bounded].
+type Z [large, bounded, nonuniform].
+type elt [large, bounded, nonuniform].
 fun element2key(elt): key [data].
 fun elt2bitstring(elt): bitstring [data].
 
@@ -53,13 +54,13 @@ fun elt2bitstring(elt): bitstring [data].
 
 proba PCollKey1.
 proba PCollKey2.
-expand DH_proba_collision(elt, key, G, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(elt, Z, G, exp, exp', mult, PCollKey1, PCollKey2).
 
 proba pGDH.
-expand GDH(elt, key, G, exp, exp', mult, pGDH).
+expand GDH(elt, Z, G, exp, exp', mult, pGDH).
 
 letfun dh_keygen() =
-   new x:key;
+   new x:Z;
    (x,exp(G,x)).
 
 param N, N', N'', N2, N3, N4.
@@ -494,18 +495,18 @@ letfun check_client_finished(masterSecret: extracted, ccvl:bitstring,cfin:bitstr
 
 letfun send_client_hello1DHE() = 
    new cr:nonce;
-   new x:key;
+   new x:Z;
    let gx = exp(G,x) in
    (cr,x,gx).
 
-letfun send_client_hello2DHE(earlySecret: extracted, binder_key: key, cr: nonce, x:key, gx: elt, log1: bitstring, log1': bitstring) = 
+letfun send_client_hello2DHE(earlySecret: extracted, binder_key: key, cr: nonce, x:Z, gx: elt, log1: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
    let binder = mac(chbl,binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
    let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    (cr,x,gx, binder, chl, cets_eems).
 
-letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:key) = 
+letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:Z) = 
   let ServerHelloLogInfoDHE(chl,sr,gy,l2) = sil in
   (let s = exp(gy,x) in
    let handshakeSecret = HKDF_extract_DHE(earlySecret, s) in
@@ -529,7 +530,7 @@ letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, g
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
    let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    new sr:nonce;
-   new y: key;
+   new y: Z;
    let gy = exp(G,y) in
    let s = exp(gx,y) in
    let handshakeSecret = HKDF_extract_DHE(earlySecret,s) in   
@@ -664,12 +665,12 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
 let ClientDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
 !i2 <= N2
     in(dhe_io1,cdhe_log1: bitstring);
-    let (cr: nonce,  x: key, gx: elt) = send_client_hello1DHE() in
+    let (cr: nonce,  x: Z, gx: elt) = send_client_hello1DHE() in
     out(dhe_io1', (cr,gx));
     (* Give cr,gx to the adversary, so that it can compute binders for
        other PSKs (in cdhe_log1') and add them to the ClientHello message *) 
     in(dhe_io2', cdhe_log1': bitstring);
-    let (cdhe_cr:nonce,x:key,cgx:elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: two_keys) = 
+    let (cdhe_cr:nonce,x:Z,cgx:elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: two_keys) = 
        send_client_hello2DHE(earlySecret, binder_key, cr, x, gx, cdhe_log1, cdhe_log1') in
     insert cdhe_table(cdhe_cr, cgx, cdhe_log1, cdhe_binder, cdhe_log1');
     let cets = get_client_ets(cets_eems) in

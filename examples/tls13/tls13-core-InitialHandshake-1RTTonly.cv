@@ -63,7 +63,8 @@ const zero_key: key.
 type extracted [large, fixed].
 const zero_extracted: extracted. 
 
-type elt [large, bounded].
+type Z [large, bounded, nonuniform].
+type elt [large, bounded, nonuniform].
 fun element2key(elt): key [data].
 fun elt2bitstring(elt): bitstring [data].
 
@@ -72,13 +73,13 @@ fun elt2bitstring(elt): bitstring [data].
 
 proba PCollKey1.
 proba PCollKey2.
-expand DH_proba_collision(elt, key, G, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(elt, Z, G, exp, exp', mult, PCollKey1, PCollKey2).
 
 proba pGDH.
-expand GDH(elt, key, G, exp, exp', mult, pGDH).
+expand GDH(elt, Z, G, exp, exp', mult, pGDH).
 
 letfun dh_keygen() =
-   new x:key;
+   new x:Z;
    (x,exp(G,x)).
 
 param N, N', N2, N3, N4.
@@ -321,11 +322,11 @@ query sfl: bitstring, c_cfl: bitstring, s_cfl: bitstring, c_keys: bitstring, s_k
 
 letfun send_client_hello() = 
        new cr:nonce;
-       new x:key;
+       new x:Z;
        let gx = exp(G,x) in
        (cr,x,gx).
 
-letfun recv_server_hello(hk: hashkey, sil:bitstring, x:key) = 
+letfun recv_server_hello(hk: hashkey, sil:bitstring, x:Z) = 
   let ServerHelloLogInfo(cr,gx,sr,gy,l) = sil in
   (let s = exp(gy,x) in
    let handshakeSecret = HKDF_extract_ES(hk,s) in
@@ -363,7 +364,7 @@ letfun get_resumption_secret(masterSecret: extracted, cfl: bitstring) =
 
 letfun recv_client_hello(hk: hashkey, cr:nonce, gx:elt) = 
    new sr:nonce;
-   new y: key;
+   new y: Z;
    let gy = exp(G,y) in
    let s = exp(gx,y) in
    let handshakeSecret = HKDF_extract_ES(hk,s) in   
@@ -421,7 +422,7 @@ letfun check_client_finished_client_auth(masterSecret: extracted, sfl:bitstring,
 let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) = 
 !i1 <= N1
     in(io1,());
-    let (cr:nonce,x:key,cgx:elt) = send_client_hello() in
+    let (cr:nonce,x:Z,cgx:elt) = send_client_hello() in
     (* for 0-rtt  insert clientEphemeralKeys(cr,x,cgx); *)
     out(io2,ClientHello(cr,cgx));
     in(io3,ServerHelloIn(sr,cgy,log0));

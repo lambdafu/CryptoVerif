@@ -45,9 +45,9 @@ success
 
 type emkey [fixed,large]. 
 
-type Z [bounded,large]. (* Exponents *)
-type G [bounded,large]. (* Diffie-Hellman group *)
-type subG [bounded,large]. (* Diffie-Hellman group *)
+type Z [bounded,large,nonuniform]. (* Exponents *)
+type G [bounded,large,nonuniform]. (* Diffie-Hellman group *)
+type subG [bounded,large,nonuniform]. (* Diffie-Hellman group *)
 
 (* Type of principals *)
 type prin [bounded].
