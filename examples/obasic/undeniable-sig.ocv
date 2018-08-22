@@ -25,7 +25,7 @@ type G [large,bounded].
 expand DH_basic(G, Z, g, exp, exp', mult).
 
 proba pGDH.
-expand GDH(G, Z, g, exp, exp', mult, pGDH).
+expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH).
 
 proba PDist.
 expand DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist).

@@ -48,26 +48,26 @@ param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
 equiv(gdh(exp))
   ! na new a: Z; (
     OA() := return(exp(g,a)) |
-    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH2 ODDHa2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',a)) |
     ! naDDH3 ODDHa3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',a)) |
     ! naDDH4 ODDHa4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
     ! naDDH8 ODDHa8(m: G, j <= na) [3] := return(m = exp(g,mult(a[j], a))) |
     ! naSign new r: seed; OSigna(m: bitstring) := return(sign(a, m, r)) |
     ! naSign2 new r: seed; OSigna2(m: bitstring) := return(sign'(a, m, r)))|
   ! nb new b: Z; (
     OB() := return(exp(g,b)) |
-    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
     ! nbDDH3 ODDHb3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',b)) |
     ! nbDDH4 ODDHb4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(m = exp(g, mult(a[j], b))) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) [3] := return(m = exp(g,mult(b[j], b))) |
     ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
@@ -81,26 +81,26 @@ equiv(gdh(exp))
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
     OA() := return(exp(g,a)) |
-    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH2 ODDHa2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',a)) |
     ! naDDH3 ODDHa3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',a)) |
     ! naDDH4 ODDHa4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) := return(false) |
     ! naDDH8 ODDHa8(m: G, j <= na) := return(m = exp(g,mult(a[j], a))) |
     ! naSign OSigna(m: bitstring) := new r: seed; return(sign(a, m, r)) |
     ! naSign2 OSigna2(m: bitstring) := new r: seed; return(sign'(a, m, r)))|
   ! nb new b: Z [unchanged]; (
     OB() := return(exp(g,b)) |
-    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
     ! nbDDH3 ODDHb3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',b)) |
     ! nbDDH4 ODDHb4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(false) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) := return(m = exp(g,mult(b[j], b))) |
     ! nbSign OSignb(m: bitstring) := new r: seed; return(sign(b, m, r)) |
@@ -206,26 +206,26 @@ param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8,
 equiv(gdh(exp))
   ! na new a: Z; (
     OA() := return(exp(g,a)) |
-    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH2 ODDHa2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',a)) |
     ! naDDH3 ODDHa3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',a)) |
     ! naDDH4 ODDHa4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
     ! naDDH8 ODDHa8(m: G, j <= na) [3] := return(m = exp(g,mult(a[j], a))) |
     ! naSign new r: seed; OSigna(m: bitstring) := return(sign(a, m, r)) |
     ! naSign2 new r: seed; OSigna2(m: bitstring) := return(sign'(a, m, r)))|
   ! nb new b: Z; (
     OB() := return(exp(g,b)) |
-    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
     ! nbDDH3 ODDHb3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',b)) |
     ! nbDDH4 ODDHb4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(m = exp(g, mult(a[j], b))) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) [3] := return(m = exp(g,mult(b[j], b))) |
     ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
@@ -239,26 +239,26 @@ equiv(gdh(exp))
 	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
     OA() := return(exp(g,a)) |
-    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH2 ODDHa2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',a)) |
     ! naDDH3 ODDHa3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',a)) |
     ! naDDH4 ODDHa4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) := return(false) |
     ! naDDH8 ODDHa8(m: G, j <= na) := return(m = exp(g,mult(a[j], a))) |
     ! naSign OSigna(m: bitstring) := new r: seed; return(sign(a, m, r)) |
     ! naSign2 OSigna2(m: bitstring) := new r: seed; return(sign'(a, m, r)))|
   ! nb new b: Z [unchanged]; (
     OB() := return(exp(g,b)) |
-    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
     ! nbDDH3 ODDHb3(m: G, m': G, j <= na) := return(exp(m, a[j]) = exp(m',b)) |
     ! nbDDH4 ODDHb4(m: G, j' <= nb, j <= nb) := return(exp(m, b[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(false) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) := return(m = exp(g,mult(b[j], b))) |
     ! nbSign OSignb(m: bitstring) := new r: seed; return(sign(b, m, r)) |

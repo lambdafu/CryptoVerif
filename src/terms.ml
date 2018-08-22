@@ -772,14 +772,14 @@ and try_no_var (subst2, _, _) t =
 
 and simp_equal_terms simp_facts normalize_root t1 t2 = 
   if (simp_facts == simp_facts_id) || (not normalize_root) then
-    simp_equal_terms1 simp_facts t1 t2
+    simp_equal_terms1 simp_facts normalize_root t1 t2
   else
-    (simp_equal_terms1 simp_facts_id t1 t2) ||
+    (simp_equal_terms1 simp_facts_id true t1 t2) ||
     (let t1' = normalize simp_facts t1 in
     let t2' = normalize simp_facts t2 in
-    simp_equal_terms1 simp_facts t1' t2')
+    simp_equal_terms1 simp_facts normalize_root t1' t2')
 
-and simp_equal_terms1 simp_facts t1 t2 =
+and simp_equal_terms1 simp_facts normalize_root t1 t2 =
   match (t1.t_desc, t2.t_desc) with
     Var(b1,l1),Var(b2,l2) ->
       (b1 == b2) && (List.for_all2 equal_terms l1 l2)
@@ -841,7 +841,7 @@ and simp_equal_terms1 simp_facts t1 t2 =
         | FunApp(f2, [_;_]) when f2.f_eq_theories != NoEq && f2.f_eq_theories != Commut ->
             (* f2 is a binary function with an equational theory that is
 	       not commutativity nor inverse -> it is a product-like function *)
-            let l2 = simp_prod simp_facts (ref false) f2 t2 in
+            let l2 = simp_prod (if normalize_root then simp_facts else simp_facts_id) (ref false) f2 t2 in
             begin
 	      match l2 with
 	        [] -> simp_equal_terms simp_facts true t1 (build_term t2 (FunApp(get_neutral f2, [])))
@@ -854,13 +854,13 @@ and simp_equal_terms1 simp_facts t1 t2 =
   | FunApp(f1,[_;_]),_ when f1.f_eq_theories != NoEq && f1.f_eq_theories != Commut ->
       (* f1 is a binary function with an equational theory that is
 	 not commutativity nor inverse -> it is a product-like function *)
-      let l1 = simp_prod simp_facts (ref false) f1 t1 in
+      let l1 = simp_prod (if normalize_root then simp_facts else simp_facts_id) (ref false) f1 t1 in
       begin
 	match l1 with
 	  [] -> simp_equal_terms simp_facts true (build_term t1 (FunApp(get_neutral f1, []))) t2
 	| [t] -> simp_equal_terms simp_facts true t t2
 	| _ -> 
-	    let l2 = simp_prod simp_facts (ref false) f1 t2 in
+	    let l2 = simp_prod (if normalize_root then simp_facts else simp_facts_id) (ref false) f1 t2 in
 	    match f1.f_eq_theories with
 	      NoEq | Commut -> Parsing_helper.internal_error "equal_terms: cases NoEq, Commut should have been eliminated"
 	    | AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
@@ -882,7 +882,7 @@ and simp_equal_terms1 simp_facts t1 t2 =
   | _, FunApp(f2, [_;_]) when f2.f_eq_theories != NoEq && f2.f_eq_theories != Commut ->
       (* f2 is a binary function with an equational theory that is
 	 not commutativity nor inverse -> it is a product-like function *)
-      let l2 = simp_prod simp_facts (ref false) f2 t2 in
+      let l2 = simp_prod (if normalize_root then simp_facts else simp_facts_id) (ref false) f2 t2 in
       begin
 	match l2 with
 	  [] -> simp_equal_terms simp_facts true t1 (build_term t2 (FunApp(get_neutral f2, [])))
@@ -922,7 +922,7 @@ and simp_equal_terms1 simp_facts t1 t2 =
       Parsing_helper.internal_error "get and insert should not occur in simp_equal_terms"
   | _ -> false
 
-and equal_terms t1 t2 = simp_equal_terms1 simp_facts_id t1 t2
+and equal_terms t1 t2 = simp_equal_terms1 simp_facts_id true t1 t2
 
 and equal_def_lists def_list def_list' =
   equal_lists equal_binderref def_list def_list'
@@ -977,7 +977,7 @@ and apply_subst_list_fun simp_facts t froot seen = function
 	       (froot'.f_eq_theories != NoEq && froot'.f_eq_theories != Commut) ->
 		 let (_,facts,elsefind) = simp_facts in
 		 let simp_facts' = (List.rev_append seen rest, facts,elsefind) in
-		 simp_equal_terms1 simp_facts' t redl
+		 simp_equal_terms1 simp_facts' false t redl
 	     | _ -> false
 	   in
 	   if applies then 

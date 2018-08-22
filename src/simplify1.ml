@@ -980,7 +980,10 @@ let convert_elsefind dep_info def_vars ((_, _, elsefind) as simp_facts) =
   let true_facts_ref = ref [] in
   List.iter (fun (bl, def_list, t1) ->
     always_true_def_list_t true_facts_ref t1 simp_facts bl def_vars def_list
-      ) elsefind;
+    ) elsefind;
+  (* print_string "Convert_elsefind: found\n";
+  List.iter (fun t -> Display.display_term t; print_newline()) (!true_facts_ref);
+  print_newline(); *)
   Facts.simplif_add_list dep_info simp_facts (!true_facts_ref)
 
 

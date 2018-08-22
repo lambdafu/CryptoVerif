@@ -1397,7 +1397,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
 		  rhs_reduced := fact' :: (!rhs_reduced) 
 		else
-                  (* if t = t'', I can ignore it *) 
+                  (* if t = t', I can ignore it *) 
 		  if not (Terms.simp_equal_terms simp_facts_tmp2 false t t') then 
 		    subst2'' := t0 :: (!subst2'')
 	  | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
@@ -1509,6 +1509,8 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	      let simp_facts_tmp2 = (link :: tmp_subst, facts, elsefind) in
 	      (* Reduce the RHS of the equality t = t' using [link] *)
               let (red, t1') = apply_sub1 (tmp_subst, facts, elsefind) t' link in
+              (*if red && (Terms.equal_terms t' t1') then
+                print_string "Equal (1)\n";*)
               (* Reduce the RHS of the equality t = t' using statements and collisions 
 		 given in the input file, possibly using the new [link] to enable
 		 these reductions *)
@@ -1518,6 +1520,8 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		else
 		  apply_eq_st_coll1 depth dep_info simp_facts_tmp2 t'
 	      in
+              (*if red && (Terms.equal_terms t' t1') then
+                print_string "Equal (2)\n";*)
 	      (* Reduce the RHS t' of the equality t = t' at the root using other equalities
        		 when it is a function application, possibly using the new [link] to enable
 		 these reductions *)
@@ -1527,11 +1531,13 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		else
 		  apply_sub_list simp_facts_tmp2 t' tmp_subst
 	      in
+              (*if red && (Terms.equal_terms t' t1') then
+                print_string "Equal (3)\n";*)
 	      if red then
 		let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
 		rhs_reduced := fact' :: (!rhs_reduced)
 	      else
-                (* if t = t'', I can ignore it *) 
+                (* if t = t', I can ignore it *) 
 		if not (Terms.simp_equal_terms simp_facts_tmp2 false t t') then 
 		  subst2'' := t0 :: (!subst2'')
 	  | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
