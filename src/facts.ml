@@ -1539,10 +1539,17 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 	apply_eq_st rest
   in
   apply_eq_st subst2;
-  let (subst2_added_rhs_reduced, facts_to_add, elsefind) =
+  specialized_add_list depth dep_info (link :: (!subst2''), facts, elsefind) (!rhs_reduced)
+(* It is important not to call [simplif_add_list] as we did before in the following code,
+   because it may add substitutions that might reduce the LHS of substitutions to which
+   we will apply [specialized_add_list], which does not test reductions of the LHS.
+   [simplif_add_list] will be called afterwards in [subst_simplify2], when the calls
+   to [specialized_add_list] are finished.
+
+   let (subst2_added_rhs_reduced, facts_to_add, elsefind) =
     specialized_add_list depth dep_info (link :: (!subst2''), facts, elsefind) (!rhs_reduced)
   in
-  simplif_add_list depth dep_info (subst2_added_rhs_reduced,[], elsefind) facts_to_add
+  simplif_add_list depth dep_info (subst2_added_rhs_reduced,[], elsefind) facts_to_add *)
 
 and specialized_simplif_add depth dep_info simp_facts fact =
   if (!Settings.debug_simplif_add_facts) then
