@@ -1,3 +1,6 @@
+Macros ..._RSR require the exponents to be chosen uniformly in Z/qZ
+but DH_good_group chooses them uniformly in (Z/qZ)*...
+
 0) Files that do not work
 
 - "Expanding and simplifying" is very slow in

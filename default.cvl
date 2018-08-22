@@ -2242,7 +2242,7 @@ equiv(exp'_to_group(exp))
 
 (* DH_good_group defines Diffie-Hellman assumptions that hold
    when
-   - the group G has prime order q
+   - G is a group of prime order q, with the neutral element excluded.
    - the set of exponents Z is {1, ..., q-1}
    - g is a generator of G
    - mult is the product modulo q in {1, ..., q-1}, i.e. in the group (Z/qZ)*
@@ -2398,7 +2398,9 @@ equiv(exp'_to_group(exp))
 
 }
 
-(* 
+(* DH_prime_subgroup_secret_keys_multiple_k defines a Diffie-Hellman 
+   group with the following properties:
+
    G: type of group elements (must be "bounded" or "nonuniform", and "large")
    subG: type of subgroup elements (must be "bounded" or "nonuniform", and "large")
    Z: type of exponents (must be "bounded" or "nonuniform", and "large")
@@ -2557,7 +2559,10 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 
 }
 
-(* G: type of group elements (must be "bounded" or "nonuniform", and "large")
+(* DH_prime_subgroup_secret_keys_not_multiple_k defines a Diffie-Hellman 
+   group with the following properties:
+
+   G: type of group elements (must be "bounded" or "nonuniform", and "large")
    subG: type of subgroup elements (must be "bounded" or "nonuniform", and "large")
    Z: type of exponents (must be "bounded" or "nonuniform", and "large")
 
