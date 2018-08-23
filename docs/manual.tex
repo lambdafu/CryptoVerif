@@ -1443,8 +1443,8 @@ defines a pseudo-random function.
 
      \item $\texttt{expand\ CDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$ 
        is similar to \texttt{CDH}, but uses random self reducibility. It may yield lower probabilities but requires the exponents 
-       to be chosen uniformly in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order of $g$, 
-       so it is not correct for Curve25519 for instance.
+       to be chosen uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order of $g$, 
+       so it is not correct for usual implementations of Curve25519 for instance. (The proof is done using uniform choices in $\mathbb{Z}/q\mathbb{Z}$; we add the probability of distinguishing these choices from choices in $(\mathbb{Z}/q\mathbb{Z})^*$ so that the result also applies to choices in $(\mathbb{Z}/q\mathbb{Z})^*$, as assumed in \texttt{DH\_good\_group} and as often done in Diffie-Hellman implementations. Indeed, 0 is a bad secret key, since with a 0 secret key, the Diffie-Hellman shared secret is always the neutral element of the group, independently of the other public key.)
 
      \item $\texttt{expand\ DDH(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$
        says that the group $G$ satisfies the decisional Diffie-Hellman
@@ -1463,8 +1463,8 @@ defines a pseudo-random function.
 
      \item $\texttt{expand\ GDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$ 
        is similar to \texttt{GDH}, but uses random self reducibility. It may yield lower probabilities but requires the exponents 
-       to be chosen uniformly in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order of $g$, 
-       so it is not correct for Curve25519 for instance.
+       to be chosen uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order of $g$, 
+       so it is not correct for usual implementations of Curve25519 for instance.
 
      \item
        $\texttt{expand\ square\_CDH(}G, Z, g, \vn{exp}, \vn{exp}',
@@ -1495,8 +1495,8 @@ defines a pseudo-random function.
        Section~\ref{sec:interact}). It uses random self
        reducibility. It may yield lower probabilities than
        $\texttt{square\_CDH}$ but requires the exponents to be chosen
-       uniformly in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
-       of $g$, so it is not correct for Curve25519 for instance.
+       uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
+       of $g$, so it is not correct for usual implementations of Curve25519 for instance.
 
      \item
        $\texttt{expand\ square\_DDH(}G, Z, g, \vn{exp}, \vn{exp}',
@@ -1538,8 +1538,8 @@ defines a pseudo-random function.
        Section~\ref{sec:interact}). It uses random self
        reducibility. It may yield lower probabilities than
        $\texttt{square\_CDH}$ but requires the exponents to be chosen
-       uniformly in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
-       of $g$, so it is not correct for Curve25519 for instance.
+       uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
+       of $g$, so it is not correct for usual implementations of Curve25519 for instance.
 
      \end{itemize}
      All arguments of these macros must be defined before expanding the macro.

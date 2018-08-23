@@ -2747,7 +2747,7 @@ equiv(cdh(exp))
 
 (* Variant of CDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   to be chosen uniformly in (Z/qZ)^* or Z/qZ, where q is the order of g, 
    so it is not correct for curve25519 for instance. *)
 
 def CDH_RSR(G, Z, g, exp, exp', mult, pCDH) {
@@ -2767,7 +2767,7 @@ equiv(cdh(exp))
       Ob() [10] := return(b) |
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b)))
     )
-<=((#ODDHa + #ODDHb) * max(1, 4*#Oa) * max(1, 4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)))=> [computational]
+<=((#ODDHa + #ODDHb) * max(1, 4*#Oa) * max(1, 4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)) + (na + na) / |Z|)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -2990,7 +2990,7 @@ equiv(gdh(exp))
 
 (* Variant of GDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   to be chosen uniformly in (Z/qZ)^* or Z/qZ, where q is the order of g, 
    so it is not correct for curve25519 for instance. *)
 
 def GDH_RSR(G, Z, g, exp, exp', mult, pGDH) {
@@ -3033,7 +3033,7 @@ equiv(gdh(exp))
 <=((#ODDHa + #ODDHb + na * naDDH5 + nb * nbDDH6) * max(1, 4*#Oa) * max(1, 4*#Ob) *
 	   pGDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp),
 	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
-	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb8))=> [computational]
+	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb8) + (na + nb) / |Z|)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -3446,7 +3446,7 @@ equiv(cdh(exp))
 
 (* Variant of square CDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   to be chosen uniformly in (Z/qZ)* or Z/qZ, where q is the order of g, 
    so it is not correct for curve25519 for instance.
 
    pSQCDH(t): the probability of breaking the square CDH assumption in time t
@@ -3468,7 +3468,7 @@ equiv(cdh(exp))
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) [useful_change] :=
       	      return(m = exp(g, mult(a[j], a)))
     )
-<=(#ODDHa * max(1, 27/4*#Oa*#Oa) * pSQCDH(time + (na + #ODDHa) * time(exp)))=> [computational]
+<=(#ODDHa * max(1, 27/4*#Oa*#Oa) * pSQCDH(time + (na + #ODDHa) * time(exp)) + na / |Z|)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -3610,7 +3610,7 @@ equiv(gdh(exp))
 
 (* Variant of square GDH with random self reducibility. 
    It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in Z/qZ, where q is the order of g, 
+   to be chosen uniformly in (Z/qZ)* or Z/qZ, where q is the order of g, 
    so it is not correct for curve25519 for instance.
 
    pSQGDH(t,n): the probability of breaking the square GDH assumption in time t,
@@ -3642,7 +3642,7 @@ equiv(gdh(exp))
     ) 
 <=((#ODDHa + na * naDDH5) * max(1, 27/4*#Oa*#Oa) * 
 	   pSQGDH(time + (na + #ODDHa) * time(exp),
-	   #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
+	   #ODDHa1 + #ODDHa3 + #ODDHa5) + na / |Z|)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
