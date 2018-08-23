@@ -125,8 +125,10 @@ let new_repl_index_term t =
 
 let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
 
-(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a term independent of [b0[l0]] in which some array indices in [t] 
+(* [is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+   returns a pair of terms [(t1, t2)]:
+   - [t2] is a term equal to [t] using the equalities in [simp_facts]
+   - [t1] is a term independent of [b0[l0]] in which some array indices in [t2] 
    may have been replaced with fresh replication indices. 
    When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
    [(dep,nodep)] is the dependency information:
@@ -136,52 +138,55 @@ let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
    [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
    [collect_bargs_sc] is a modified version of [collect_bargs] in which  
    array indices that depend on [b0] are replaced with fresh replication indices
-   (as in the transformation from [t] to the result of [is_indep]). *)
+   (as in the transformation from [t2] to [t1]). *)
 
 let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
-  Terms.build_term2 t
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (is_indep simp_facts bdepinfo) l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  if (List.exists (Terms.equal_terms t) nodep) then
-	    t.t_desc 
-	  else if (b != b0 && Terms.is_restr b) || (match dep with
-	      None -> false
-	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
-	  then
-	    Var(b, List.map (fun t' ->
-	      try
-		is_indep simp_facts bdepinfo t'
-	      with Not_found ->
-		Terms.term_from_repl_index (new_repl_index_term t')) l)
-	  else if b == b0 then
-	    if List.for_all2 Terms.equal_terms l0 l then
-	      raise Not_found 
-	    else 
+  match t.t_desc with
+  | FunApp(f,l) ->
+      let l1, l2 = List.split (List.map (is_indep simp_facts bdepinfo) l) in
+      Terms.build_term2 t (FunApp(f, l1)), Terms.build_term2 t (FunApp(f, l2))
+  | ReplIndex(b) -> t, t
+  | Var(b,l) ->
+      if (List.exists (Terms.equal_terms t) nodep) then
+	t, t
+      else if (b != b0 && Terms.is_restr b) || (match dep with
+	None -> false
+      | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+      then
+	let l1, l2 = 
+	  List.split (List.map (fun t' ->
+	    try
+	      is_indep simp_facts bdepinfo t'
+	    with Not_found ->
+	      Terms.term_from_repl_index (new_repl_index_term t'), t') l)
+	in
+	Terms.build_term2 t (Var(b, l1)), Terms.build_term2 t (Var(b, l2))
+      else if b == b0 then
+	if List.for_all2 Terms.equal_terms l0 l then
+	  raise Not_found 
+	else 
+	  begin
+	    let l1, l2 = 
+	      List.split (List.map (fun t' ->
+		try
+		  is_indep simp_facts bdepinfo t'
+		with Not_found ->
+		  Terms.term_from_repl_index (new_repl_index_term t'), t') l)
+	    in
+	    if not (List.exists (List.for_all2 Terms.equal_terms l2) (!collect_bargs)) then
 	      begin
-		let l' = 
-		  List.map (fun t' ->
-		  try
-		    is_indep simp_facts bdepinfo t'
-		  with Not_found ->
-		    Terms.term_from_repl_index (new_repl_index_term t')) l
-		in
-		if not (List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs)) then
-		  begin
-		    collect_bargs := l :: (!collect_bargs);
-		    collect_bargs_sc := l' :: (!collect_bargs_sc)
-		  end;
-		Var(b, l')
-	      end
-	  else
-            let t' = Terms.try_no_var simp_facts t in
-            if Terms.equal_terms t t' then
-	      raise Not_found
-            else
-              let t'' = is_indep simp_facts bdepinfo t' in
-              t''.t_desc
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
+		collect_bargs := l2 :: (!collect_bargs);
+		collect_bargs_sc := l1 :: (!collect_bargs_sc)
+	      end;
+	    Terms.build_term2 t (Var(b, l1)), Terms.build_term2 t (Var(b, l2))
+	  end
+      else
+        let t' = Terms.try_no_var simp_facts t in
+        if Terms.equal_terms t t' then
+	  raise Not_found
+        else
+          is_indep simp_facts bdepinfo t'
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
 
 
 let replace_term_repl_index t =
@@ -190,50 +195,48 @@ let replace_term_repl_index t =
   Terms.term_from_repl_index ri
                  
 let rec make_indep simp_facts ((b0,l0,(dep,nodep),side_condition_needed) as bdepinfo) t =
-  Terms.build_term2 t
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (make_indep simp_facts bdepinfo) l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  (* reconstruct the initial term before replacing some indices with fresh indices *)
-	  let tinit = Terms.copy_term Terms.Links_RI t in
-	  if (List.exists (Terms.equal_terms tinit) nodep) then
-	    t.t_desc 
-	  else if (b != b0 && Terms.is_restr b) || (match dep with
-	      None -> false
-	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
-	  then
-	    Var(b, List.map (fun t' ->
-	      try
-		make_indep simp_facts bdepinfo t'
-	      with Not_found ->
-		replace_term_repl_index t') l)
-	  else if b == b0 then
-	    (* reconstruct the initial lists before replacing some indices with fresh indices *)
-	    let l0init = List.map (Terms.copy_term Terms.Links_RI) l0 in
-	    let linit = List.map (Terms.copy_term Terms.Links_RI) l in
-	    if List.for_all2 Terms.equal_terms l0init linit then
-	      raise Not_found 
-	    else 
-	      begin
-		let l' = 
-		  List.map (fun t' ->
-		  try
-		    make_indep simp_facts bdepinfo t'
-		  with Not_found ->
-		    replace_term_repl_index t') l
-		in
-		side_condition_needed := true;
-		Var(b, l')
-	      end
-	  else
-            let t' = Terms.try_no_var simp_facts t in
-            if Terms.equal_terms t t' then
-	      raise Not_found
-            else
-              let t'' = make_indep simp_facts bdepinfo t' in
-              t''.t_desc
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
+  match t.t_desc with
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (make_indep simp_facts bdepinfo) l))
+  | ReplIndex(b) -> t
+  | Var(b,l) ->
+      (* reconstruct the initial term before replacing some indices with fresh indices *)
+      let tinit = Terms.copy_term Terms.Links_RI t in
+      if (List.exists (Terms.equal_terms tinit) nodep) then
+	t
+      else if (b != b0 && Terms.is_restr b) || (match dep with
+	None -> false
+      | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+      then
+	Terms.build_term2 t (Var(b, List.map (fun t' ->
+	  try
+	    make_indep simp_facts bdepinfo t'
+	  with Not_found ->
+	    replace_term_repl_index t') l))
+      else if b == b0 then
+	(* reconstruct the initial lists before replacing some indices with fresh indices *)
+	let l0init = List.map (Terms.copy_term Terms.Links_RI) l0 in
+	let linit = List.map (Terms.copy_term Terms.Links_RI) l in
+	if List.for_all2 Terms.equal_terms l0init linit then
+	  raise Not_found 
+	else 
+	  begin
+	    let l' = 
+	      List.map (fun t' ->
+		try
+		  make_indep simp_facts bdepinfo t'
+		with Not_found ->
+		  replace_term_repl_index t') l
+	    in
+	    side_condition_needed := true;
+	    Terms.build_term2 t (Var(b, l'))
+	  end
+      else
+        let t' = Terms.try_no_var simp_facts t in
+        if Terms.equal_terms t t' then
+	  raise Not_found
+        else
+          make_indep simp_facts bdepinfo t'
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
 
 let default_indep_test dep_info simp_facts t (b,l) =
   try

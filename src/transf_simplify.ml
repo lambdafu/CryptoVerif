@@ -617,7 +617,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
-	      let t2' = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
 	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
                  In case b occurs in t2, we reason as follows:
                     1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
@@ -639,7 +639,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
 	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
 		Some (Terms.make_or_list (List.map (fun l' ->   
-		  let t2'' = Terms.replace l' l t2 in
+		  let t2'' = Terms.replace l' l t2_eq in
 		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
 		    ) (!collect_bargs)))
               else

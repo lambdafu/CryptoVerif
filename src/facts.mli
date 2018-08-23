@@ -60,8 +60,10 @@ val new_repl_index : repl_index -> repl_index
  *)
 val no_dependency_anal : dep_anal
 
-(* [is_indep ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a term independent of [b0[l0]] in which some array indices in [t] 
+(* [is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+   returns a pair of terms [(t1, t2)]:
+   - [t2] is a term equal to [t] using the equalities in [simp_facts]
+   - [t1] is a term independent of [b0[l0]] in which some array indices in [t2] 
    may have been replaced with fresh replication indices. 
    When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
    [(dep,nodep)] is the dependency information:
@@ -71,11 +73,11 @@ val no_dependency_anal : dep_anal
    [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
    [collect_bargs_sc] is a modified version of [collect_bargs] in which  
    array indices that depend on [b0] are replaced with fresh replication indices
-   (as in the transformation from [t] to the result of [is_indep]). *)
+   (as in the transformation from [t2] to [t1]). *)
 val is_indep : simp_facts -> 
   binder * term list * ((binder * 'a) list option * term list) *
   term list list ref * term list list ref ->
-  term -> term
+  term -> term * term
 
 (* [default_indep_test (dep, nodep)] builds an independence test 
    based on the dependency information provided by [(dep,nodep)]. 
