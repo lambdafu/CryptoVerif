@@ -81,6 +81,28 @@ for each occ' occurrence of a variable in N'.
 
 *)
 
+(* [equal_terms_normal simp_facts t1 t2] tests equality between terms
+   in subst, which are normalized as follows:
+   * when t1/t2 are variables Var/ReplIndex, they are normalized by the
+   other rewrite rules in subst
+   * when t1/t2 are function applications FunApp, they are normalized only
+   at the root by the other rewrite rules in subst.
+   * only Var/ReplIndex/FunApp are allowed in terms in subst.
+  *)
+    
+let equal_terms_normal simp_facts t1 t2 =
+  match t1.t_desc, t2.t_desc with
+    (Var _ | ReplIndex _), (Var _ | ReplIndex _) ->
+      (* Var/ReplIndex are fully normalized, I do not need to consider [simp_facts] *)
+      Terms.equal_terms t1 t2
+  | (Var _ | ReplIndex _), FunApp _
+  | FunApp _, (Var _ | ReplIndex _) ->
+      (* Terms are normalized at the root, so Var/ReplIndex cannot be equal to FunApp *)
+      false
+  | FunApp _, FunApp _ ->
+      Terms.simp_equal_terms simp_facts false t1 t2
+  | _ -> Parsing_helper.internal_error "terms in subst should be Var/FunApp/ReplIndex"
+    
 (* Create fresh replication indices *)
 
 (* mapping from terms to fresh replication indices *)
@@ -1419,7 +1441,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		  rhs_reduced := fact' :: (!rhs_reduced) 
 		else
                   (* if t = t', I can ignore it *) 
-		  if not (Terms.simp_equal_terms simp_facts_tmp2 false t t') then 
+		  if not (equal_terms_normal simp_facts_tmp2 t t') then 
 		    subst2'' := t0 :: (!subst2'')
 	  | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 	end;
@@ -1559,7 +1581,7 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		rhs_reduced := fact' :: (!rhs_reduced)
 	      else
                 (* if t = t', I can ignore it *) 
-		if not (Terms.simp_equal_terms simp_facts_tmp2 false t t') then 
+		if not (equal_terms_normal simp_facts_tmp2 t t') then 
 		  subst2'' := t0 :: (!subst2'')
 	  | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
 	end;
