@@ -443,6 +443,7 @@ and qterm =
 and query = 
   | QSecret of binder * binder list(*public variables*) * bool(*true when onesession*) 
   | QEventQ of (bool(*true when injective*) * term) list * qterm * binder list(*public variables*)
+  | QEquivalence of state * binder list(*public variables*)
   | AbsentQuery
   
 (* Instructions for modifying games *)
@@ -684,6 +685,7 @@ type command =
 
 type final_process =
     SingleProcess of inputprocess
-  | Equivalence of inputprocess * inputprocess
+  | Equivalence of inputprocess * inputprocess * binder list(*public variables*)
+  
       
     

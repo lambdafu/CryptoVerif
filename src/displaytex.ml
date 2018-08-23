@@ -1228,6 +1228,9 @@ let display_query (q,g) =
       display_pub_vars pub_vars
   | AbsentQuery ->
       Parsing_helper.internal_error "AbsentQuery should have been handled"
+  | QEquivalence (_, pub_vars) ->
+      print_string "indistinguishability from second input game";
+      display_pub_vars pub_vars
   end;
   if g.game_number <> 1 then
     print_string (" in game " ^ (string_of_int g.game_number))  

@@ -495,7 +495,8 @@ let collect_public_vars queries =
   List.iter (function 
       (QSecret (b',pub_vars,onesession),_),_,_ ->
 	add_pub_vars (b'::pub_vars)
-    | (QEventQ (t1,t2,pub_vars),_),_,_ ->
+    | (QEventQ (_,_,pub_vars),_),_,_ 
+    | (QEquivalence(_,pub_vars),_),_,_ ->
 	add_pub_vars pub_vars
     | (AbsentQuery,_),_,_ -> ()) queries
 
@@ -517,7 +518,7 @@ let rec event_occurs_in_qterm f = function
 let event_occurs_in_queries f q =
   List.exists (function
       _, _, popt when popt != None -> false (* I ignore already proved queries *)
-    | (QSecret _, _),_,_ -> false
+    | ((QSecret _ | QEquivalence _), _),_,_ -> false
     | (AbsentQuery, _),_,_ -> true
     | (QEventQ (l,r,_),_),_,_ ->
 	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||

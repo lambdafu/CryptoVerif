@@ -331,8 +331,8 @@ options:
 all:
         lib PROCESS process EOF
         { $1, PSingleProcess $3 }
-|       lib EQUIVALENCE process process EOF
-        { $1, PEquivalence($3, $4) }
+|       lib EQUIVALENCE process process optpublicvars EOF
+        { $1, PEquivalence($3, $4, $5) }
 
 identlist:
         
@@ -1188,6 +1188,6 @@ olib:
 oall:
         olib PROCESS oprocess EOF
         { $1, PSingleProcess $3 }
-|       olib EQUIVALENCE oprocess oprocess EOF
-        { $1, PEquivalence($3, $4) }
+|       olib EQUIVALENCE oprocess oprocess optpublicvars EOF
+        { $1, PEquivalence($3, $4, $5) }
 

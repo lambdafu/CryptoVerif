@@ -192,4 +192,4 @@ type crypto_transf_user_info =
 
 type final_process =
     PSingleProcess of process_e
-  | PEquivalence of process_e * process_e
+  | PEquivalence of process_e * process_e * ident list(*public variables*)

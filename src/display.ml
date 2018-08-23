@@ -1210,6 +1210,9 @@ let display_query3 = function
       print_string " ==> ";
       display_query2 t2;
       display_pub_vars pub_vars
+  | QEquivalence (_, pub_vars) ->
+      print_string "indistinguishability from second input game";
+      display_pub_vars pub_vars
 	
 let get_game_id g =
   if g.game_number = -1 then 

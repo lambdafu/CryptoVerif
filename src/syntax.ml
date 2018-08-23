@@ -3507,15 +3507,6 @@ let check_process_full p =
   result
  
 	
-let rec check_all (l,p) = 
-  List.iter check_one l;
-  current_location := InProcess;
-  match p with
-    PSingleProcess p1 ->
-      SingleProcess(check_process_full p1)
-  | PEquivalence(p1,p2) ->
-      Equivalence(check_process_full p1, check_process_full p2)
-
 let new_bitstring_binder() = 
   let b = Terms.create_binder "!l" Settings.t_bitstring []
   in
@@ -3793,6 +3784,18 @@ let check_query = function
 
 let get_impl ()=
   StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles []
+
+let rec check_all (l,p) = 
+  List.iter check_one l;
+  current_location := InProcess;
+  match p with
+    PSingleProcess p1 ->
+      SingleProcess(check_process_full p1)
+  | PEquivalence(p1,p2,pub_vars) ->
+      let p1' = check_process_full p1 in
+      let p2' = check_process_full p2 in
+      let pub_vars' =  get_qpubvars pub_vars in
+      Equivalence(p1', p2', pub_vars')
 
 let declares = function
   | ParamDecl(id, _)
@@ -4193,9 +4196,10 @@ let record_all_ids (l,p) =
     match p with
       PSingleProcess p1 -> 
 	collect_id_proc accu p1
-    | PEquivalence (p1, p2) ->
+    | PEquivalence (p1, p2, pub_vars) ->
 	collect_id_proc accu p1;
-	collect_id_proc accu p2
+	collect_id_proc accu p2;
+	List.iter (add_id accu) pub_vars	
   end;
   List.iter (fun i -> Terms.record_id i dummy_ext) (!accu)
 
@@ -4219,7 +4223,21 @@ let read_file f =
 	let _ = count_occ_events p' in
 	(!statements, !collisions, !equivalences, !move_new_eq,
 	 List.map check_query (!queries_parse), !proof, (get_impl ()), p')
-    | Equivalence(p1,p2) ->
-	Parsing_helper.user_error "Equivalence not supported yet"
+    | Equivalence(p1,p2,pub_vars) ->
+	if (!queries_parse) != [] then
+	  Parsing_helper.user_error "Queries are incompatible with equivalence\n";
+	if (!Settings.get_implementation) then
+	  Parsing_helper.user_error "Implementation is incompatible with equivalence\n";
+	let final_game =
+	  { proc = p2;
+	    game_number = -1;
+	    current_queries = [] }
+	in
+	let final_state =
+	  { game = final_game;
+	    prev_state = None }
+	in
+	(!statements, !collisions, !equivalences, !move_new_eq,
+	 [QEquivalence (final_state, pub_vars)], !proof, [], p1)
   with Undefined(i,ext) ->
     input_error (i ^ " not defined") ext
