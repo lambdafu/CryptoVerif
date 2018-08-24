@@ -519,8 +519,10 @@ let rec event_occurs_in_qterm f = function
 let event_occurs_in_queries f q =
   List.exists (function
       _, _, popt when popt != None -> false (* I ignore already proved queries *)
-    | ((QSecret _ | QEquivalence _ | QEquivalenceFinal _), _),_,_ -> false
-    | (AbsentQuery, _),_,_ -> true
+    | (QSecret _, _),_,_ -> false
+    | ((AbsentQuery | QEquivalence _ | QEquivalenceFinal _), _),_,_ ->
+       (* When I want to prove indistinguishability, keep all events *)
+       true
     | (QEventQ (l,r,_),_),_,_ ->
 	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||
 	(event_occurs_in_qterm f r)

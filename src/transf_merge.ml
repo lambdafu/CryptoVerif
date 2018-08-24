@@ -192,7 +192,7 @@ let rec equal_find_cond map t t' =
       (equal_find_cond map t3 t3')
   | FindE(l0,t3,find_info), FindE(l0',t3',find_info') ->
       (equal_find_cond map t3 t3') && (List.length l0 == List.length l0') &&
-      (find_info = find_info') (* TO DO change this test if find_info structure becomes richer *) &&
+      (Simplify1.is_unique l0 find_info = Simplify1.is_unique l0' find_info') (* TO DO change this test if find_info structure becomes richer *) &&
       (List.for_all2 (fun (bl, def_list, t, t1)
 	  (bl', def_list', t', t1') ->
 	    (* I don't check here that the types of the indices are the same, but
@@ -264,7 +264,7 @@ and equal_oprocess map p p' =
       (equal_oprocess map p p')
   | Find(l,p, find_info), Find(l',p', find_info') ->
       (equal_oprocess map p p') && (List.length l == List.length l') &&
-      (find_info = find_info') (* TO DO change this test if find_info structure becomes richer *) &&
+      (Simplify1.is_unique l find_info = Simplify1.is_unique l find_info') (* TO DO change this test if find_info structure becomes richer *) &&
       (List.for_all2 (fun 
 	(bl, def_list, t, p1)
 	  (bl', def_list', t', p1') ->

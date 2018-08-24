@@ -50,9 +50,34 @@ let enc3(k: enc_key, IV0: blocksize) =
     let c33 = xor(AES(k, c32), m33) in
     return(c31, c32, truncate(c33, l)).
 
-process
+equivalence
 	Ogen() :=
 	k <-R enc_key;
 	let IV0 = AES(k, Zero) in
 	return();
 	(run enc1(k, IV0) | run enc2(k, IV0) | run enc3(k, IV0))
+
+        Ogen() :=
+        return();
+        ((
+          Oenc1(IVdata1: blocksize, m1: blocksize, l_1: len) :=
+	  if defined(IVdata2) && IVdata1 = IVdata2 then event_abort repeatedIV else 
+    	  if defined(IVdata3) && IVdata1 = IVdata3 then event_abort repeatedIV else 
+          r_12 <-R blocksize;
+          return(truncate(r_12, l_1))
+        ) | (
+          Oenc2(IVdata2: blocksize, m21: blocksize, m22: blocksize, l_2: len) :=
+    	  if defined(IVdata1) && IVdata2 = IVdata1 then event_abort repeatedIV else 
+          if defined(IVdata3) && IVdata2 = IVdata3 then event_abort repeatedIV else 
+          r_11 <-R blocksize;
+          r_10 <-R blocksize;
+          return(r_11, truncate(r_10, l_2))
+        ) | (
+          Oenc3(IVdata3: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l_3: len) :=
+	  if defined(IVdata1) && IVdata3 = IVdata1 then event_abort repeatedIV else 
+    	  if defined(IVdata2) && IVdata3 = IVdata2 then event_abort repeatedIV else 
+          r_9 <-R blocksize;
+          r_8 <-R blocksize;
+          r_7 <-R blocksize;
+          return(r_9, r_8, truncate(r_7, l_3))
+        ))
