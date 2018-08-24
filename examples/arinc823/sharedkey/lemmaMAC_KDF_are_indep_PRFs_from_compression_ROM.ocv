@@ -33,6 +33,13 @@ P_SHA256_joint(t, N2, N) = (2 N N2^2 + 2 N1 N2 + N1 N2 N + 4 N2^2) / |mac_key|
 where N1 is the number of SHA256_comp queries from the adversary.
 *)
 
+proof {
+      auto;
+      simplify;
+      start_from_other_end;
+      auto
+      }
+
 (* Do not assume by default that all constants are 
    different. We shall say it explicitly when they are different *)
 
@@ -71,7 +78,7 @@ equation forall k: mac_key, x: mac_key; xor(padkey(k), ipad) <> concatSHA256(k, 
 
 param N, N2.
 
-process
+equivalence
 	Ostart() :=
 	hk1 <-R hashkey1;
 	return;
@@ -81,5 +88,22 @@ process
              (O2() := return(SHA256_comp(hk1, SHA256_init, xor(padkey(k), ipad)))) |
              foreach i <= N do 
                 O3(x: mac_key) := return(SHA256_comp(hk1, SHA256_init, concatSHA256(k, x))))) |
+	(* oracle for SHA256_comp *)
+        run SHA256_comp_oracle(hk1)
+
+	Ostart() :=
+	hk1 <-R hashkey1;
+	return;
+	(foreach i2 <= N2 do 
+	    Ogen() := return;
+	    ((O1() := r1 <-R t_SHA256_out; return(r1)) |
+             (O2() := r2 <-R t_SHA256_out; return(r2)) |
+             foreach i <= N do 
+                O3(x: mac_key) :=
+		        find[unique] j <= N suchthat defined(x[j],r3[j]) && x = x[j] then
+			     return(r3[j])
+			else
+			     r3 <-R t_SHA256_out;
+			     return(r3))) |
 	(* oracle for SHA256_comp *)
         run SHA256_comp_oracle(hk1)

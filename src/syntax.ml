@@ -4217,27 +4217,18 @@ let read_file f =
     (* Record top-level identifiers, to make sure that we will not need to 
        rename them. *)
     record_ids l';
-    let p' = check_all (l',p) in
-    match p' with
+    let final_p = check_all (l',p) in
+    match final_p with
       SingleProcess p' ->
 	let _ = count_occ_events p' in
 	(!statements, !collisions, !equivalences, !move_new_eq,
-	 List.map check_query (!queries_parse), !proof, (get_impl ()), p')
-    | Equivalence(p1,p2,pub_vars) ->
+	 List.map check_query (!queries_parse), !proof, (get_impl ()), final_p)
+    | Equivalence _ ->
 	if (!queries_parse) != [] then
 	  Parsing_helper.user_error "Queries are incompatible with equivalence\n";
 	if (!Settings.get_implementation) then
 	  Parsing_helper.user_error "Implementation is incompatible with equivalence\n";
-	let final_game =
-	  { proc = p2;
-	    game_number = -1;
-	    current_queries = [] }
-	in
-	let final_state =
-	  { game = final_game;
-	    prev_state = None }
-	in
 	(!statements, !collisions, !equivalences, !move_new_eq,
-	 [QEquivalence (final_state, pub_vars)], !proof, [], p1)
+	 [], !proof, [], final_p)
   with Undefined(i,ext) ->
     input_error (i ^ " not defined") ext

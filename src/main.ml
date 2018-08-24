@@ -162,9 +162,25 @@ let anal_file s0 =
       if Terms.ends_with s_up ".OCV" then Settings.front_end := Settings.Oracles
     end;
   try
-    let (statements, collisions, equivs, move_new_eq, queries, proof, impl, p) = Syntax.read_file s in
+    let (statements, collisions, equivs, move_new_eq, queries, proof, impl, final_p) = Syntax.read_file s in
     List.iter Check.check_def_eqstatement equivs;
     List.iter (fun (_,eq) -> Check.check_def_eqstatement eq) move_new_eq;
+    let (p, queries) = 
+      match final_p with
+      | SingleProcess p' -> (p', queries)
+      | Equivalence(p1,p2,pub_vars) ->
+         Check.check_def_process_main p2;
+	 let final_game =
+	   { proc = Terms.move_occ_process p2;
+	     game_number = -1;
+	     current_queries = [] }
+	 in
+	 let final_state =
+	   { game = final_game;
+	     prev_state = None }
+	 in
+	 (p1, [QEquivalence (final_state, pub_vars)])
+    in
     Check.check_def_process_main p;
     let equivs = List.map Check.check_equiv equivs in
     let new_new_eq = List.map (fun (ty, eq) -> (ty, Check.check_equiv eq)) move_new_eq in

@@ -670,7 +670,7 @@ and is_full_state query_list g state =
     true
   else
     match state.prev_state with
-      None -> Parsing_helper.internal_error "Game not found"
+      None -> Parsing_helper.internal_error "Success.is_full_state: Game not found"
     | Some(_, proba, _, s') ->
         (List.for_all (is_full_proba query_list) proba) &&
 	(is_full_state query_list g s')

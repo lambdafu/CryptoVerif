@@ -1,5 +1,5 @@
-(* The files lemmaMAC_collision_resistant.ocv and lemmaMAC_collision_resistant2.ocv 
-   show that, assuming HMAC-SHA256, KDF256, and KDF128 are
+(* This file lemmaMAC_collision_resistant.ocv
+   shows that, assuming HMAC-SHA256, KDF256, and KDF128 are
    independent pseudo-random functions (using the same key), HMAC-SHA256
    is collision-resistant. (The MAC key remains secret, but the adversary
    is allowed to make MAC queries.)

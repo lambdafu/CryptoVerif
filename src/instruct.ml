@@ -522,7 +522,7 @@ let rec is_full_state query_list g state =
     true
   else
     match state.prev_state with
-      None -> Parsing_helper.internal_error "Game not found"
+      None -> Parsing_helper.internal_error "Instruct.is_full_state: Game not found"
     | Some(_, proba, _, s') ->
         (List.for_all (is_full_proba query_list) proba) &&
 	(is_full_state query_list g s')
@@ -1297,6 +1297,20 @@ let rec interpret_command interactive state = function
 	  end
       | "start_from_other_end" ->
 	 check_no_args command ext args;
+         let rec remove_eq_query state =
+           state.game.current_queries <-
+             List.filter (function ((QEquivalence _,_),_, None) -> false | _ -> true)
+               state.game.current_queries;
+           match state.prev_state with
+             None -> ()
+           | Some(_,_,_,s') -> remove_eq_query s'
+         in
+         let rec add_query q state =
+           state.game.current_queries <- q :: state.game.current_queries;
+           match state.prev_state with
+             None -> ()
+           | Some(_,_,_,s') -> add_query q s'
+         in
          let (equivalence_q, other_q) =
            List.partition (function ((QEquivalence _,_),_, None) -> true | _ -> false) state.game.current_queries
          in
@@ -1305,16 +1319,13 @@ let rec interpret_command interactive state = function
            | [] ->
               raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
            | [(QEquivalence(state_other_end, pub_vars), g), _, None] ->
-              let state_this_end =
-                { state with
-                  game = { state.game with current_queries = other_q }}
-              in
+              remove_eq_query state;
+              let init_game_other_end = Display.get_initial_game state_other_end in
               let new_equivalence_q =
-                (QEquivalence(state_this_end, pub_vars), g), ref None, None
+                (QEquivalence(state, pub_vars), init_game_other_end), ref None, None
               in
-              { state_other_end with
-                game = { state_other_end.game with
-                         current_queries = new_equivalence_q :: state_other_end.game.current_queries }}
+              add_query new_equivalence_q state_other_end;
+              state_other_end
            | _ ->
               Parsing_helper.internal_error "There should be at most one equivalence query to prove"
          end
