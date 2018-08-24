@@ -60,24 +60,24 @@ equivalence
         Ogen() :=
         return();
         ((
-          Oenc1(IVdata1: blocksize, m1: blocksize, l_1: len) :=
+          Oenc1(IVdata1: blocksize, m1: blocksize, l: len) :=
 	  if defined(IVdata2) && IVdata1 = IVdata2 then event_abort repeatedIV else 
     	  if defined(IVdata3) && IVdata1 = IVdata3 then event_abort repeatedIV else 
-          r_12 <-R blocksize;
-          return(truncate(r_12, l_1))
+          c1 <-R blocksize;
+          return(truncate(c1, l))
         ) | (
-          Oenc2(IVdata2: blocksize, m21: blocksize, m22: blocksize, l_2: len) :=
+          Oenc2(IVdata2: blocksize, m21: blocksize, m22: blocksize, l: len) :=
     	  if defined(IVdata1) && IVdata2 = IVdata1 then event_abort repeatedIV else 
           if defined(IVdata3) && IVdata2 = IVdata3 then event_abort repeatedIV else 
-          r_11 <-R blocksize;
-          r_10 <-R blocksize;
-          return(r_11, truncate(r_10, l_2))
+          c21 <-R blocksize;
+          c22 <-R blocksize;
+          return(c21, truncate(c22, l))
         ) | (
-          Oenc3(IVdata3: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l_3: len) :=
+          Oenc3(IVdata3: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l: len) :=
 	  if defined(IVdata1) && IVdata3 = IVdata1 then event_abort repeatedIV else 
     	  if defined(IVdata2) && IVdata3 = IVdata2 then event_abort repeatedIV else 
-          r_9 <-R blocksize;
-          r_8 <-R blocksize;
-          r_7 <-R blocksize;
-          return(r_9, r_8, truncate(r_7, l_3))
+          c31 <-R blocksize;
+          c32 <-R blocksize;
+          c33 <-R blocksize;
+          return(c31, c32, truncate(c33, l))
         ))
