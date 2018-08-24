@@ -54,7 +54,18 @@ when I add the commented out code in check_distinct.ml,
 choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
 choosing new b:bool at the beginning and 
 replacing choice[M1,M2] with "if b then M1 else M2"
-We prove the secrecy of b.
+      We prove the secrecy of b.
+
+      Right-now, a common encoding can be obtained using a macro:
+
+      let b = choose_bit() in
+   -> letfun choose_bit() = choice[true,false] in ProVerif
+
+      query secret b.
+      letfun choose_bit() = new b: bool in CryptoVerif
+      
+      
+      
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
 receiving m1,m2 at the beginning 
