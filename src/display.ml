@@ -1199,19 +1199,22 @@ let rec display_query2 = function
       display_query2 t2;
       print_string ")"
 
+let rec get_initial_game s =
+  match s.prev_state with
+    None -> s.game
+  | Some(_,_,_,s') -> get_initial_game s'
+      
 let display_query3 = function
   | QSecret (b,pub_vars,onesession) ->
       if onesession then print_string "one-session ";
       print_string "secrecy of "; display_binder b;
       display_pub_vars pub_vars
-  | AbsentQuery -> Parsing_helper.internal_error "AbsentQuery should have been handled"
+  | AbsentQuery | QEquivalence _ ->
+      Parsing_helper.internal_error "AbsentQuery and QEquivalence should have been handled"
   | QEventQ(t1,t2, pub_vars) -> 
       display_query1 t1; 
       print_string " ==> ";
       display_query2 t2;
-      display_pub_vars pub_vars
-  | QEquivalence (_, pub_vars) ->
-      print_string "indistinguishability from second input game";
       display_pub_vars pub_vars
 	
 let get_game_id g =
@@ -1227,6 +1230,16 @@ let display_query (q,g) =
 	print_string ("indistinguishability from game " ^ (get_game_id g))  
       else
 	print_string "indistinguishability from the initial game"
+  | QEquivalence (state, pub_vars) ->
+      let g' = get_initial_game state in
+      if g.game_number = -1 || g'.game_number = -1 then
+	print_string "indistinguishability between two input games"
+      else
+	print_string ("indistinguishability between game " ^
+		      (string_of_int g.game_number) ^
+		      " and game " ^
+		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars
   | _ ->
       display_query3 q;
       if g.game_number <> 1 then
@@ -1589,12 +1602,20 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
 	  end
     ) pt.pt_sons))
 
-let compute_proba ((q0,g) as q) p s =
+let compute_proba_internal ((q0,g) as q) p s =
   let pt = build_proof_tree q p s in
   (* display_proof_tree "" pt; *)
   let start_queries = [InitQuery q0, g] in
   evaluate_proba start_queries g [] start_queries pt  
-  
+
+let compute_proba ((q0,g) as q) p s =
+  match q0 with
+  | QEquivalence(state,_) ->
+      let g' = get_initial_game state in
+      (compute_proba_internal (AbsentQuery,g) p s) @
+      (compute_proba_internal (AbsentQuery,g') [] state)
+  | _ -> compute_proba_internal q p s
+    
 let display_pat_simp t =
   print_string (match t with 
     DEqTest -> " (equality test)"
@@ -1984,10 +2005,9 @@ let rec display_state ins_next s =
 	  useful_occs := []
     end
 
-let rec get_initial_queries s =
-  match s.prev_state with
-    None -> s.game.current_queries
-  | Some(_,_,_,s') -> get_initial_queries s'
+
+let get_initial_queries s =
+  (get_initial_game s).current_queries
 
 let rec get_all_states_from_sequence accu g s =
   if s.game == g then accu else
@@ -2007,11 +2027,16 @@ and get_all_states_from_proba accu = function
 
 let rec get_all_states_from_queries = function
     [] -> []
-  | ((_,g), poptref,_)::r ->
+  | ((q,g), poptref,_)::r ->
       let accu = get_all_states_from_queries r in
+      let accu' =
+	match q with
+	| QEquivalence(s',_) -> s' :: accu
+	| _ -> accu
+      in
       match !poptref with
-	None -> accu
-      |	Some(p,s') -> get_all_states_from_sequence (s'::accu) g s'
+	None -> accu'
+      |	Some(p,s') -> get_all_states_from_sequence (s'::accu') g s'
 
 let rec remove_dup seen_list r s =
   let seen_list' = List.filter (fun s' -> s' != s) seen_list in

@@ -2225,3 +2225,17 @@ let merge_branches g =
   Simplify1.empty_improved_def_process false g.proc;
   result
     
+(**************** Test equality between two independent processes *****************)
+(* Used for testing success of the equivalence query *)
+    
+let collect_good_vars_fullprocess p =
+  let ok_vars = ref [] in
+  collect_def_vars_process ok_vars p;
+  List.map fst (!ok_vars)
+
+let equal_fullprocess p1 p2 =
+  equal_store_arrays (fun p p' ->
+    ok_arrays_first_branch := collect_good_vars_fullprocess p;
+    ok_arrays_second_branch := collect_good_vars_fullprocess p';
+    equal_process [] p p') Terms.simp_facts_id p1 p2
+

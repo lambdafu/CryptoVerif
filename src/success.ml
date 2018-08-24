@@ -551,6 +551,11 @@ let check_secrecy_memo b l =
     proved_one_session_secrets := (b, l, res) :: (!proved_one_session_secrets);
     res
 
+(* [check_equivalence state game] checks indistinguishability *)
+
+let check_equivalence state game =
+  (Transf_merge.equal_fullprocess game.proc state.game.proc, [])
+      
 (* [check_query q] proves the query [q]. 
    It returns [(true, proba)] when [q] holds up to probability [proba].
    It returns [(false, _)] when the proof of [q] failed.*)
@@ -577,8 +582,16 @@ let check_query event_accu = function
 	  end
 	else (false, [])
       else (false, [])
-  | ((QEventQ(t1,t2,pub_vars) as query),_) ->
-      let (r, proba) = Check_corresp.check_corresp event_accu (t1,t2,pub_vars) (!whole_game) in
+  | (AbsentQuery,_) -> (false, [])
+  | (query, _) ->
+      let (r, proba) =
+	match query with
+	| QEventQ(t1,t2,pub_vars) ->
+	    Check_corresp.check_corresp event_accu (t1,t2,pub_vars) (!whole_game)
+	| QEquivalence(state,pub_vars) ->
+	    check_equivalence state (!whole_game)
+	| _ -> assert false
+      in
       if r then
 	begin
 	  print_string "Proved query ";
@@ -592,7 +605,6 @@ let check_query event_accu = function
 	  (true, proba)
 	end
       else (false, [])
-  | (AbsentQuery,_) -> (false, [])	
 
 (* [check_query_list state qlist] takes a list of queries [qlist], tries to prove
    those that are not proved yet, and returns

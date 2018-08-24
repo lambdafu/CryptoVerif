@@ -22,3 +22,8 @@ val merge_arrays : (binder * Parsing_helper.extent) list list -> merge_mode -> g
    distinct, since [Terms.build_def_process] is called. *)
 
 val merge_branches : game_transformer
+
+(* [equal_fullprocess p1 p2] tests equality of two independent processes [p1] and [p2].
+   Used for testing success of the equivalence query *)
+
+val equal_fullprocess : inputprocess -> inputprocess -> bool
