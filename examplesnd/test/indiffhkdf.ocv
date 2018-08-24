@@ -1,0 +1,126 @@
+type hashkey1 [large, fixed].
+type input1.
+type output1 [large, fixed].
+
+type hashkey2 [large, fixed].
+type input2.
+type output2 [large, fixed].
+
+expand ROM_hash(hashkey1, input1, output1, H1, hashoracle1, qH1).
+expand ROM_hash_pair(hashkey2, output1, input2, output2, H2, hashoracle2, qH2).
+
+type hashkey3 [large, fixed].
+expand ROM_hash_pair(hashkey3, input1, input2, output2, H3, hashoracle3, qH3).
+(*
+proof {
+      show_game occ;
+      insert 33 "let r3 = H2(hk2, H1(hk1, x3), y3) in";
+      insert 11 "let r1 = H1(hk1, x) in";
+      show_game occ;
+      replace 50 r3;
+      replace 18 r1;
+      interactive
+
+
+
+      crypto rom(H1);
+      crypto rom(H2);
+      show_game;
+      move array r2;
+      show_game occ;
+      replace 274 "x_3[ri_12]";
+      replace 226 "x_1[ri_20]";
+      replace 202 "x_3[ri_9]";
+      replace 29 "x_1[ri_23]";
+      interactive  } *)
+
+equivalence
+    Ostart() :=
+    hk1 <-R hashkey1;
+    hk2 <-R hashkey2;
+    return();
+    ((foreach i <= qH1 do OH1(x: input1) := return(H1(hk1, x))) |
+     (foreach i <= qH2 do OH2(x2: output1, y2: input2) := return(H2(hk2, x2,y2))) |
+     (foreach i <= qH3 do
+      HComb(x3: input1, y3: input2) := return(H2(hk2, H1(hk1, x3), y3))))
+
+    Ostart() :=
+    hk3 <-R hashkey3;
+    return();
+    ((foreach i <= qH1 do OH1(x: input1) :=
+    	     find j <= qH1 suchthat defined(x[j],r[j]) && x = x[j] then
+	         return(r[j])
+             else
+	         r <-R output1;
+		 return(r)) |
+     (foreach i <= qH2 do OH2(x2: output1, y2: input2) :=
+     	     find k <= qH1 suchthat defined(x[k],r[k]) && r[k] = x2 then
+	         return(H3(hk3, x[k], y2))
+	     else
+		 find l <= qH2 suchthat defined(x2[l],y2[l],r2[l]) && x2 = x2[l] && y2 = y2[l] then
+		     return(r2[l])
+		 else
+		     r2 <-R output2;
+		     return(r2)) |
+     (foreach i <= qH3 do
+      HComb(x3: input1, y3: input2) := return(H3(hk3, x3, y3))))
+
+
+(*
+       Ostart() :=
+       return();
+       ((
+         foreach i <= qH1 do
+         OH1(x_1: input1) :=
+         find [unique] u_3 = ri_3 <= qH1 suchthat defined(r_1[ri_3], x_1[ri_3]) && (x_1 = x_1[ri_3]) then
+           return(r_1[u_3])
+         orfind u_23 = ri_23 <= qH1 suchthat defined(Y[ri_23], x_3[u_29[ri_23]]) && (x_1 = x_3[u_29[ri_23]] [*** x_1[ri_23] ***] ) then
+           return(Y[u_23])
+         else
+           find [unique] u_29 = ri_2 <= qH3 suchthat defined(r_4[ri_2], x_3[ri_2]) && (x_1 = x_3[ri_2]) then
+             Y <-R output1;
+             return(Y)
+           else
+             r_1 <-R output1;
+             return(r_1)
+       ) | (
+         foreach i_1 <= qH2 do
+         OH2(x_2: output1, y_1: input2) :=
+         find [unique] u_19 = ri_19 <= qH2 suchthat defined(r_3[ri_19], y_1[ri_19], x_2[ri_19]) && (x_2 = x_2[ri_19]) && (y_1 = y_1[ri_19]) then
+           return(r_3[u_19])
+         orfind u_25 = ri_21 <= qH1 suchthat defined(r_4[u_29[ri_21]], y_2[u_29[ri_21]], Y[ri_21]) && (x_2 = Y[ri_21]) && (y_1 = y_2[u_29[ri_21]]) then
+           return(r_4[u_29[u_25]])
+         orfind u_17 = ri_17 <= qH3 suchthat defined(r_5[ri_17], y_2[ri_17], r_1[u_36[ri_17]]) && (x_2 = r_1[u_36[ri_17]]) && (y_1 = y_2[ri_17]) then
+           return(r_5[u_17])
+         orfind u_16 = ri_16 <= qH3, u_24 = ri_22 <= qH1 suchthat defined(r_6[ri_16], y_2[ri_16], u_33[ri_16], Y[ri_22], u_29[ri_22]) && (u_29[ri_22] = u_33[ri_16]) && (x_2 = Y[ri_22]) && (y_1 = y_2[ri_16]) then
+           return(r_6[u_16])
+         else
+           r_3 <-R output2;
+           return(r_3)
+       ) | (
+         foreach i_2 <= qH3 do
+         HComb(x_3: input1, y_2: input2) :=
+         find [unique] u_34 = ri_1 <= qH1, u_11 = ri_11 <= qH2 suchthat defined(r_1[ri_1], x_1[ri_1], r_3[ri_11], y_1[ri_11], x_2[ri_11]) && (x_3 = x_1[ri_1]) && (r_1[ri_1] = x_2[ri_11]) && (y_2 = y_1[ri_11]) then
+           return(r_3[u_11])
+         orfind u_9 = ri_9 <= qH3 suchthat defined(r_5[ri_9], y_2[ri_9], x_1[u_36[ri_9]]) && (x_3 = x_1[u_36[ri_9]] [*** x_3[ri_9] ***]) && (y_2 = y_2[ri_9]) then
+           return(r_5[u_9])
+         orfind u_26 = ri_20 <= qH1, u_15 = ri_15 <= qH2 suchthat defined(r_3[ri_15], y_1[ri_15], Y[ri_20], x_2[ri_15], x_3[u_29[ri_20]]) && (x_3 = x_3[u_29[ri_20]] [*** x_1[ri_20] ***]) && (x_2[ri_15] = Y[ri_20]) && (y_2 = y_1[ri_15]) then
+           return(r_3[u_15])
+         orfind u_31 = ri <= qH3 suchthat defined(r_4[ri], y_2[ri], x_3[ri]) && (x_3 = x_3[ri]) && (y_2 = y_2[ri]) then
+           return(r_4[u_31])
+         orfind u_12 = ri_12 <= qH3 suchthat defined(r_6[ri_12], y_2[ri_12], x_3[u_33[ri_12]]) && (x_3 = x_3[u_33[ri_12]] [*** x_3[ri_12] ***]) && (y_2 = y_2[ri_12]) then
+           return(r_6[u_12])
+         else
+           find [unique] u_33 = ri <= qH3 suchthat defined(r_4[ri], x_3[ri]) && (x_3 = x_3[ri]) then
+             r_6 <-R output2;
+             return(r_6)
+           else
+             find [unique] u_36 = ri_1 <= qH1 suchthat defined(r_1[ri_1], x_1[ri_1]) && (x_3 = x_1[ri_1]) then
+               r_5 <-R output2;
+               return(r_5)
+             else
+               r_4 <-R output2;
+               return(r_4)
+       ))
+
+*)
