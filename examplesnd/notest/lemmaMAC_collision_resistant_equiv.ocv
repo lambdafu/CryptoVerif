@@ -1,0 +1,152 @@
+(* This file lemmaMAC_collision_resistant.ocv
+   shows that, assuming HMAC-SHA256, KDF256, and KDF128 are
+   independent pseudo-random functions (using the same key), HMAC-SHA256
+   is collision-resistant. (The MAC key remains secret, but the adversary
+   is allowed to make MAC queries.)
+
+More precisely, we prove equivalence:
+
+	!N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC2(k, m),
+	 ! qColl O_coll(m1: bitstring, m2: bitstring) [useful_change] := (MAC2(k, m1) = MAC2(k, m2)))
+<=(N * ((12 * qColl + 4 * qColl * qColl * N + 4 * qColl * N * qMAC + qMAC * qMAC * N) / |t_SHA256_out| +
+        2 * PPRF(time + (N-1) * (qMAC + 2 * qColl) * time(MAC, max(maxlength(m), maxlength(m2), maxlength(m1))), 
+                 qMAC + 2 * qColl, max(maxlength(m), maxlength(m2), maxlength(m1)), 0, 0)))=>
+	!N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC2(k, m),
+	 ! qColl O_coll(m1: bitstring, m2: bitstring) := (m1 = m2)).
+
+We prove the secrecy of bit b in the game below, 
+which implies this indistinguishability.
+
+Proved secrecy of b up to probability (12. * N * qColl + 4. * qColl * qColl * N * N + 4. * qColl * N * N * qMAC + qMAC * qMAC * N * N) / |t_SHA256_out| + 2. * N * PPRF(time(context for game 8) + time + (-1. * qMAC + N * qMAC + -2. * qColl + 2. * N * qColl) * time(MAC, max(maxlength(game 8: m), maxlength(game 8: m2), maxlength(game 8: m1))), qMAC + 2. * qColl, max(maxlength(game 8: m), maxlength(game 8: m2), maxlength(game 8: m1)), 0, 0)
+time(context for game 8) = qColl * N * time(= bitstring, maxlength(game 8: m1), maxlength(game 8: m2))
+
+Ignoring the time of equality checks, we get
+
+Proved secrecy of b up to probability 
+N * ((12 * qColl + 4 * qColl * qColl * N + 4 * qColl N * qMAC + qMAC * qMAC * N) / |t_SHA256_out| +
+     2 * PPRF(time + (N-1) * (qMAC + 2 * qColl) * time(MAC, max(maxlength(m), maxlength(m2), maxlength(m1))), 
+              qMAC + 2 * qColl, max(maxlength(m), maxlength(m2), maxlength(m1)), 0, 0))
+The factors N inside (...)/|t_SHA256_out| could actually be removed,
+as obtained by considering one key, and then inferring for N keys. 
+*)
+
+(* Do not assume by default that all constants are 
+   different. We shall say it explicitly when they are different *)
+
+set diffConstants = false.
+
+(**** Manual indications for the proof ****)
+
+proof {
+      show_game occ;
+      insert 25 "if m1 = m2 then";
+      show_game occ;
+      insert 49 "if MAC(k0,m1) = MAC(k0,m2) then";
+      simplify;
+      auto;
+      start_from_other_end;
+      show_game occ;
+      insert 25 "if m1_1 = m2_1 then";
+      simplify;
+      auto;
+      interactive
+}
+
+(**** Declarations of types, constants, and functions
+      with the associated assumptions ****)
+
+type mac_key [large, fixed]. (* 256 bits HMAC-SHA256 key *)
+type enc_key [large, fixed]. (* 128 bits AES key *)
+type t_SHA256_out [fixed, large]. (* 256 bits bitstrings *)
+type t_id [fixed].
+
+fun MAC(mac_key, bitstring): t_SHA256_out.
+fun KDF256(mac_key, t_SHA256_out, t_id, t_id): mac_key.
+fun KDF128(mac_key, t_SHA256_out, t_id, t_id): enc_key.
+
+param N, q, qMAC, qColl, qKDF256, qKDF128.
+
+(* Assumption:  HMAC-SHA256, KDF256, and KDF128 are
+independent pseudo-random functions (using the same key) *)
+
+proba PPRF.
+      (* PPRF(t, qMAC, l, qKDF256, qKDF128) is the probability of 
+         distinguishing MAC, KDF256, and KDF128 from independent pseudo-random
+	 functions in time t, with qMAC, qKDF256, qKDF128 queries to
+	 MAC, KDF256, and KDF128 respectively, with MAC queries of length
+	 at most l. *)
+
+equiv
+	foreach i <= q do
+	k <-R mac_key;
+	(foreach i <= qMAC do O_MAC(m: bitstring) := return(MAC(k, m)) |
+	 foreach i <= qKDF256 do O_KDF256(X: t_SHA256_out, U: t_id, V: t_id) :=
+	 	      	      	 return(KDF256(k, X, U, V)) |
+	 foreach i <= qKDF128 do O_KDF128(X: t_SHA256_out, U: t_id, V: t_id) :=
+	 	      	      	 return(KDF128(k, X, U, V)))
+<=(q * PPRF(time + (q-1)*(qMAC * time(MAC, maxlength(m)) + qKDF256 * time(KDF256) + qKDF128 * time(KDF128)), qMAC, maxlength(m), qKDF256, qKDF128))=>
+	foreach i <= q do
+	(foreach i <= qMAC do O_MAC(m: bitstring) := 
+	    find[unique] j1 <= qMAC suchthat defined(m[j1],r1[j1]) && m = m[j1] then
+		return(r1[j1])
+	    else 
+		r1 <-R t_SHA256_out;
+		return(r1)
+	 |
+	 foreach i <= qKDF256 do O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) :=
+	    find[unique] j2 <= qKDF256 suchthat defined(X2[j2],U2[j2],V2[j2],r2[j2]) && 
+	    	 X2 = X2[j2] && U2 = U2[j2] && V2 = V2[j2] then
+		return(r2[j2])
+	    else 
+		r2 <-R mac_key;
+		return(r2)
+	 |
+	 foreach i <= qKDF128 do O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) :=
+	    find[unique] j3 <= qKDF128 suchthat defined(X3[j3],U3[j3],V3[j3],r3[j3]) && 
+	    	 X3 = X3[j3] && U3 = U3[j3] && V3 = V3[j3] then
+		return(r3[j3])
+	    else 
+		r3 <-R enc_key;
+		return(r3)
+	 ).
+	
+(**** Initial games ****)
+
+(* HMAC-SHA256 oracle *)
+
+let PMAC(k: mac_key) =
+    foreach i <= qMAC do
+    O_MAC(m: bitstring) :=
+    return(MAC(k, m)).
+
+(* HMAC-SHA256 collision oracle *)
+
+let PColl1(k: mac_key) =
+    foreach i <= qColl do
+    O_Coll(m1: bitstring, m2: bitstring) :=
+    return(MAC(k, m1) = MAC(k, m2)).
+
+let PColl2(k: mac_key) =
+    foreach i <= qColl do
+    O_Coll(m1: bitstring, m2: bitstring) :=
+    return(m1 = m2).
+
+equivalence
+	foreach ik <= N do
+	Ogen() :=
+	k0 <-R mac_key;
+	return();
+	(run PMAC(k0) | run PColl1(k0))
+
+	foreach ik <= N do
+	Ogen() :=
+	k0 <-R mac_key;
+	return();
+	(run PMAC(k0) | run PColl2(k0))
+	
+(* EXPECTED
+All queries proved.
+0.052s (user 0.040s + system 0.012s), max rss 30960K
+END *)
