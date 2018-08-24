@@ -179,7 +179,10 @@ let anal_file s0 =
 	   { game = final_game;
 	     prev_state = None }
 	 in
-	 (p1, [QEquivalence (final_state, pub_vars)])
+         let final_state_after_minimal_transfos =
+           Instruct.execute_with_advise_last final_state ExpandIfFindGetInsert
+         in
+	 (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
     in
     Check.check_def_process_main p;
     let equivs = List.map Check.check_equiv equivs in
