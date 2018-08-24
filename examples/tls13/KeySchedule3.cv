@@ -12,7 +12,6 @@ proof {
       auto;
       show_game;
       SArename r_3;
-      move binder hk_3;
       auto
       }
 
@@ -81,8 +80,6 @@ letfun Derive_Secret_rms(hk: hashkey, MasterSecret: extracted, log: bitstring) =
 
 (* Prove equivalence between processLeft and processRight *)
 
-query secret b.
-
 channel start, c1, c2, c3.
 
 let processLeft(hk: hashkey) =
@@ -103,12 +100,14 @@ let processRight =
 	 else
 	      new r': key; out(c3, r'))).
 
-process
+equivalence
 	in(start, ());
-	new b: bool;
 	new hk: hashkey; (* This key models the choice of the collision resistant hash function *)
-	if b then out(start, ()); (processLeft(hk) | Hash_oracle(hk))
-	     else out(start, ()); (processRight | Hash_oracle(hk))
+	out(start, ()); (processLeft(hk) | Hash_oracle(hk))
+
+	in(start, ());
+	new hk: hashkey; (* This key models the choice of the collision resistant hash function *)
+	out(start, ()); (processRight | Hash_oracle(hk))
 	     
 (* EXPECTED
 All queries proved.

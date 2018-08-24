@@ -45,10 +45,8 @@ letfun HKDF_expand_l3(Secret: key) =
 
 (* Prove equivalence between processLeft and processRight *)
 
-query secret b.
-
 param N.
-channel start, c1, c2, c3, c4.
+channel c1, c2, c3, c4.
 
 let processLeft =
     !N in(c1, ()); new k: key; out(c1, ());
@@ -62,11 +60,9 @@ let processRight =
      (in(c3, ()); new r2: key; out(c3, r2)) |
      (in(c4, ()); new r3: key; out(c4, r3))).
     
-process
-	in(start, ());
-	new b: bool;
-	if b then out(start, ()); processLeft
-	     else out(start, ()); processRight
+equivalence
+	processLeft
+	processRight
 
 (* EXPECTED
 All queries proved.

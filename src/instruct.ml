@@ -1017,6 +1017,7 @@ let help() =
   "replace <occ> <term>         : replace term at occurrence <occ> with <term> (when equal)\n" ^
   "merge_arrays <ident> ...     : merge all given variables\n" ^
   "merge_branches               : merge find branches\n" ^
+  "start_from_other_end         : in equivalence proofs, transform the other game\n" ^
   "success                      : check the desired properties\n" ^
   "show_game                    : show the current game\n" ^
   "show_game occ                : show the current game with occurrences\n" ^
@@ -1294,6 +1295,29 @@ let rec interpret_command interactive state = function
 		else
 		  raise (Error("Several equivalences correspond to what you mention", ext_equiv))
 	  end
+      | "start_from_other_end" ->
+	 check_no_args command ext args;
+         let (equivalence_q, other_q) =
+           List.partition (function ((QEquivalence _,_),_, None) -> true | _ -> false) state.game.current_queries
+         in
+         begin
+           match equivalence_q with
+           | [] ->
+              raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
+           | [(QEquivalence(state_other_end, pub_vars), g), _, None] ->
+              let state_this_end =
+                { state with
+                  game = { state.game with current_queries = other_q }}
+              in
+              let new_equivalence_q =
+                (QEquivalence(state_this_end, pub_vars), g), ref None, None
+              in
+              { state_other_end with
+                game = { state_other_end.game with
+                         current_queries = new_equivalence_q :: state_other_end.game.current_queries }}
+           | _ ->
+              Parsing_helper.internal_error "There should be at most one equivalence query to prove"
+         end
       | "quit" ->
 	  check_no_args command ext args;
 	  raise (End state)
