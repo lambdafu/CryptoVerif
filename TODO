@@ -60,11 +60,19 @@ replacing choice[M1,M2] with "if b then M1 else M2"
 
       let b = choose_bit() in
    -> letfun choose_bit() = choice[true,false] in ProVerif
-
-      query secret b.
+   -> query secret b.
       letfun choose_bit() = new b: bool in CryptoVerif
       
-      
+      test(b, M1, M2) defined as a destructor in ProVerif.
+      either as function with a few properties (test(b,x,x) = x,
+      f(test(b,M1,M2)) = test(b,f(M1),f(M2)),...)
+      or as if b then M1 else M2 in CryptoVerif (leads to expansion).
+
+      But needs a test function for each type, while choice is
+      polymorphic in ProVerif. Better results would be obtained
+      by using choice as input, encoded in CryptoVerif by a special
+      test function with homomorphic properties and that can be
+      expanded to "if b then M1 else M2" when desired.
       
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
@@ -78,6 +86,17 @@ We could probably push this idea for noninterf x among S.
    Also have the query "equivalence P1 P2" (transform P1 and P2
    into the same game).
    -> DONE 24/08/2018 still to document
+
+   When I show that G1 is indistinguishable from G2, I transform
+   G1 and G2 into a common game G3. Now, this common game cannot
+   contain events introduced by Shoup Lemma during the proof,
+   because insert_event always introduces a fresh event, so
+   the same event cannot be introduced from both sides of the proof.
+   Would it be good to change that?
+   If I change it, do I need to count the probability of these
+   common Shoup events in G3 twice? If yes, that's less useful,
+   because I can do the proof without a common event in G3
+   by repeating the elimination of these events twice.
 
    Also allow "query equiv ..." to prove an equivalence
    presented exactly as CryptoVerif accepts assumptions on
