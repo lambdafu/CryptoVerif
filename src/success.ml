@@ -554,7 +554,7 @@ let check_secrecy_memo b l =
 (* [check_equivalence state game] checks indistinguishability *)
 
 let check_equivalence state game =
-  (Transf_merge.equal_fullprocess game.proc state.game.proc, [])
+  Transf_merge.equal_games game state.game
       
 (* [check_query q] proves the query [q]. 
    It returns [(true, proba)] when [q] holds up to probability [proba].

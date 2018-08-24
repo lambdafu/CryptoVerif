@@ -1619,10 +1619,16 @@ let compute_proba_internal ((q0,g) as q) p s =
 let compute_proba ((q0,g) as q) p s =
   match q0 with
   | QEquivalence(state,pub_vars) ->
-      print_string ("Game "^(string_of_int s.game.game_number)^" is the same as game "^(string_of_int state.game.game_number)^".\n");
-      let g' = get_initial_game state in
-      (compute_proba_internal (QEquivalenceFinal(s.game, pub_vars),g) p s) @
-      (compute_proba_internal (QEquivalenceFinal(state.game, pub_vars),g') [] state)
+     print_string ("Game "^(string_of_int s.game.game_number)^" is the same as game "^(string_of_int state.game.game_number));
+     if p <> [] then
+       begin
+         print_string " up to probability ";
+         display_proba 0 (proba_from_set p)
+       end;
+     print_string ".\n";
+     let g' = get_initial_game state in
+     (compute_proba_internal (QEquivalenceFinal(s.game, pub_vars),g) [] s) @ p @
+     (compute_proba_internal (QEquivalenceFinal(state.game, pub_vars),g') [] state)
   | AbsentQuery ->
       compute_proba_internal (QEquivalenceFinal(s.game, []), g) p s
   | _ -> compute_proba_internal q p s

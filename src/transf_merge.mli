@@ -23,7 +23,7 @@ val merge_arrays : (binder * Parsing_helper.extent) list list -> merge_mode -> g
 
 val merge_branches : game_transformer
 
-(* [equal_fullprocess p1 p2] tests equality of two independent processes [p1] and [p2].
+(* [equal_games g1 g2] tests equality of two independent games [g1] and [g2].
    Used for testing success of the equivalence query *)
 
-val equal_fullprocess : inputprocess -> inputprocess -> bool
+val equal_games : game -> game -> bool * setf list

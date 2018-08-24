@@ -1,0 +1,206 @@
+(* This file shows that, assuming HMAC-SHA256, KDF256, and KDF128 are
+   independent pseudo-random functions (using the same key), HMAC-SHA256
+   is SUF-CMA, and KDF256, and KDF128 are independent pseudo-random
+   functions. 
+
+This is a slight generalization of the well-known result that a PRF
+is a SUF-CMA MAC. More precisely, we prove the equivalence
+
+	!N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC(k, m),
+	 ! qVer O_Ver(mv: bitstring, mac: t_SHA256_out) := mac = MAC(k, mv),
+	 ! qKDF256 O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) := KDF256(k, X2, U2, V2),
+	 ! qKDF128 O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) := KDF128(k, X3, U3, V3))
+<=(N * (4 * qVer / |t_SHA256_out| + 
+        2 * PPRF(time + (N-1) * (qKDF128 * time(KDF128) + 
+       	 	     	         qKDF256 * time(KDF256) + 
+                                 (qMAC + qVer) * time(MAC, max(maxlength(m), maxlength(mv)))), 
+              qMAC + qVer, max(maxlength(m), maxlength(mv)), qKDF256, qKDF128)))=>
+	!N new k: mac_key;
+	(! qMAC O_mac(m: bitstring) := MAC2(k, m),
+	 ! qVer O_Ver(mv: bitstring, mac: t_SHA256_out) := 
+	    find j <= qMAC suchthat defined(m[j]) && mv = m[j] && mac = MAC2(k, mv) then
+    	    	true
+            else
+		false,
+         ! qKDF256 O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) := 
+	    find[unique] j2 <= qKDF256 suchthat defined(X2[j2], U2[j2], V2[j2], r2[j2]) && X2 = X2[j2] && U2 = U2[j2] && V2 = V2[j2] then
+                r2[j2]
+            else
+	        new r2: mac_key;
+		r2,
+	 ! qKDF128 O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) := 
+            find[unique] j3 <= qKDF128 suchthat defined(X3[j3], U3[j3], V3[j3], r3[j3]) && X3 = X3[j3] && U3 = U3[j3] && V3 = V3[j3] then
+                r3[j3]
+            else
+		new r3: enc_key;
+		r3).
+
+We prove the secrecy of bit b in the game below, 
+which implies this indistinguishability.
+
+Proved secrecy of b up to probability 4. * N * qVer / |t_SHA256_out| + 2. * N * PPRF(time(context for game 5) + time + (-1. * qKDF128 + N * qKDF128) * time(KDF128) + (-1. * qKDF256 + N * qKDF256) * time(KDF256) + (-1. * qMAC + N * qMAC + -1. * qVer + N * qVer) * time(MAC, max(maxlength(game 5: m), maxlength(game 5: mv))), qMAC + qVer, max(maxlength(game 5: m), maxlength(game 5: mv)), qKDF256, qKDF128)
+time(context for game 5) = qMAC * qVer * N * time(= bitstring, maxlength(game 5: mv), maxlength(game 5: m))
+
+Neglecting the time of equality checks, we get
+
+Proved secrecy of b up to probability 
+N * (4 * qVer / |t_SHA256_out| + 
+     2 * PPRF(time + (N-1) * (qKDF128 * time(KDF128) + 
+       	 	     	      qKDF256 * time(KDF256) + 
+                              (qMAC + qVer) * time(MAC, max(maxlength(m), maxlength(mv)))), 
+              qMAC + qVer, max(maxlength(m), maxlength(mv)), qKDF256, qKDF128))
+We could probably get rid of the factor 4.
+*)
+
+(**** Manual indications for the proof ****)
+
+proof {
+      show_game occ;
+      insert 27 "if mac = MAC(k0,mv) then";
+      simplify;
+      auto;
+      show_game;
+      move array r1_1;
+      start_from_other_end;
+      insert 27 "if mac_1 = MAC(k0_1, mv_1) then" ;
+      simplify;
+      auto;
+      show_game;
+      move array r1_3;      
+      success
+}
+
+
+(**** Declarations of types, constants, and functions
+      with the associated assumptions ****)
+
+type mac_key [large, fixed]. (* 256 bits HMAC-SHA256 key *)
+type enc_key [large, fixed]. (* 128 bits AES key *)
+type t_SHA256_out [fixed, large]. (* 256 bits bitstrings *)
+type t_id [fixed].
+
+fun MAC(mac_key, bitstring): t_SHA256_out.
+fun KDF256(mac_key, t_SHA256_out, t_id, t_id): mac_key.
+fun KDF128(mac_key, t_SHA256_out, t_id, t_id): enc_key.
+
+param N, q, qMAC, qVer, qKDF256, qKDF128.
+
+(* Assumption:  HMAC-SHA256, KDF256, and KDF128 are
+independent pseudo-random functions (using the same key) *)
+
+proba PPRF.
+      (* PPRF(t, qMAC, l, qKDF256, qKDF128) is the probability of 
+         distinguishing MAC, KDF256, and KDF128 from independent pseudo-random
+	 functions in time t, with qMAC, qKDF256, qKDF128 queries to
+	 MAC, KDF256, and KDF128 respectively, with MAC queries of length
+	 at most l. *)
+
+equiv
+	foreach i <= q do
+	k <-R mac_key;
+	(foreach i <= qMAC do O_MAC(m: bitstring) := return(MAC(k, m)) |
+	 foreach i <= qKDF256 do O_KDF256(X: t_SHA256_out, U: t_id, V: t_id) :=
+	 	      	      	 return(KDF256(k, X, U, V)) |
+	 foreach i <= qKDF128 do O_KDF128(X: t_SHA256_out, U: t_id, V: t_id) :=
+	 	      	      	 return(KDF128(k, X, U, V)))
+<=(q * PPRF(time + (q-1)*(qMAC * time(MAC, maxlength(m)) + qKDF256 * time(KDF256) + qKDF128 * time(KDF128)), qMAC, maxlength(m), qKDF256, qKDF128))=>
+	foreach i <= q do
+	(foreach i <= qMAC do O_MAC(m: bitstring) := 
+	    find[unique] j1 <= qMAC suchthat defined(m[j1],r1[j1]) && m = m[j1] then
+		return(r1[j1])
+	    else 
+		r1 <-R t_SHA256_out;
+		return(r1)
+	 |
+	 foreach i <= qKDF256 do O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) :=
+	    find[unique] j2 <= qKDF256 suchthat defined(X2[j2],U2[j2],V2[j2],r2[j2]) && 
+	    	 X2 = X2[j2] && U2 = U2[j2] && V2 = V2[j2] then
+		return(r2[j2])
+	    else 
+		r2 <-R mac_key;
+		return(r2)
+	 |
+	 foreach i <= qKDF128 do O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) :=
+	    find[unique] j3 <= qKDF128 suchthat defined(X3[j3],U3[j3],V3[j3],r3[j3]) && 
+	    	 X3 = X3[j3] && U3 = U3[j3] && V3 = V3[j3] then
+		return(r3[j3])
+	    else 
+		r3 <-R enc_key;
+		return(r3)
+	 ).
+
+	
+(**** Initial games ****)
+
+(* HMAC-SHA256 oracle *)
+
+let PMAC(k: mac_key) =
+    foreach i <= qMAC do
+    O_MAC(m: bitstring) :=
+    return(MAC(k, m)).
+
+(* HMAC-SHA256 verification oracle *)
+
+let PVer_1(k: mac_key) =
+    foreach i <= qVer do
+    O_Ver(mv: bitstring, mac: t_SHA256_out) :=
+    return(mac = MAC(k, mv)).
+
+let PVer_2(k: mac_key) =
+    foreach i <= qVer do
+    O_Ver(mv: bitstring, mac: t_SHA256_out) :=
+    find j <= qMAC suchthat defined(m[j]) && mv = m[j] && mac = MAC(k, mv) then
+        return(true)
+    else
+        return(false).
+
+(* KDF256 oracle: KDF(k; 256; SharedInfoMAC) *)
+
+let PKDF256_1(k: mac_key) =
+    foreach i <= qKDF256 do
+    O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) :=
+    return(KDF256(k, X2, U2, V2)).
+
+let PKDF256_2(k: mac_key) =
+    foreach i <= qKDF256 do
+    O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) :=
+    find[unique] j2 <= qKDF256 suchthat defined(X2[j2], U2[j2], V2[j2], r2[j2]) && X2 = X2[j2] && U2 = U2[j2] && V2 = V2[j2] then
+        return(r2[j2])
+    else
+	r2 <-R mac_key;
+	return(r2).
+
+(* KDF128 oracle: KDF(k; 128; SharedInfoENC) *)
+
+let PKDF128_1(k: mac_key) =
+    foreach i <= qKDF128 do
+    O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) :=
+    return(KDF128(k, X3, U3, V3)).
+
+let PKDF128_2(k: mac_key) =
+    foreach i <= qKDF128 do
+    O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) :=
+    find[unique] j3 <= qKDF128 suchthat defined(X3[j3], U3[j3], V3[j3], r3[j3]) && X3 = X3[j3] && U3 = U3[j3] && V3 = V3[j3] then
+        return(r3[j3])
+    else
+        r3 <-R enc_key;
+	return(r3).
+
+equivalence
+	foreach ik <= N do
+	Ogen() :=
+	k0 <-R mac_key;
+	return();
+	(run PMAC(k0) | run PVer_1(k0) | run PKDF256_1(k0) | run PKDF128_1(k0))
+
+	foreach ik <= N do
+	Ogen() :=
+	k0 <-R mac_key;
+	return();
+	(run PMAC(k0) | run PVer_2(k0) | run PKDF256_2(k0) | run PKDF128_2(k0))
+
+(* EXPECTED
+All queries proved.
+0.048s (user 0.036s + system 0.012s), max rss 34112K
+END *)

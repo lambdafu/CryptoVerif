@@ -684,11 +684,11 @@ let simp_equal_terms simp_facts t t' =
 let simp_equal_binderref simp_facts br br' =
   simp_equal_terms simp_facts (Terms.term_from_binderref br) (Terms.term_from_binderref br')
 
-let simp_equal_def_list simp_facts dl dl' = 
+let simp_equal_def_list simp_facts dl dl' =
   (List.for_all (fun br' -> List.exists (fun br -> simp_equal_binderref simp_facts br br') dl) dl') &&
   (List.for_all (fun br -> List.exists (fun br' -> simp_equal_binderref simp_facts br br') dl') dl) 
 
-
+    
 let rec orient t1 t2 = 
   match t1.t_desc, t2.t_desc with
     (Var(b,l), _) when
@@ -2233,9 +2233,19 @@ let collect_good_vars_fullprocess p =
   collect_def_vars_process ok_vars p;
   List.map fst (!ok_vars)
 
-let equal_fullprocess p1 p2 =
-  equal_store_arrays (fun p p' ->
-    ok_arrays_first_branch := collect_good_vars_fullprocess p;
-    ok_arrays_second_branch := collect_good_vars_fullprocess p';
-    equal_process [] p p') Terms.simp_facts_id p1 p2
-
+let equal_games g1 g2 =
+  (* We use [simp_facts_id] below since no fact holds at the beginning of the games.
+     For this reason, we use no known facts, and the probability [proba] should always be 0 *)
+  Terms.array_ref_process g1.proc;
+  Terms.array_ref_process g2.proc;
+  Proba.reset [] g1;
+  Simplify1.term_collisions := [];
+  let r = 
+    equal_store_arrays (fun p p' ->
+        ok_arrays_first_branch := collect_good_vars_fullprocess p;
+        ok_arrays_second_branch := collect_good_vars_fullprocess p';
+        equal_process [] p p') Terms.simp_facts_id g1.proc g2.proc
+  in
+  let proba = Simplify1.final_add_proba () in
+  Simplify1.term_collisions := [];
+  (r, proba)
