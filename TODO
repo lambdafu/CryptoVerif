@@ -25,33 +25,6 @@ when I add the commented out code in check_distinct.ml,
    I am wondering if the changes to guess the tested session,
    event adv loses, etc would allow CV to prove the two examples above.
    
-- ProVerif cannot reconstruct the attack against injectivity
-  in examples/cryptoverif/denning-sacco-corr.pcv
-
-0bis) Revision of DH regarding prime order
-
-TO DO Check probability formulas.
-PRF-ODH: probability formulas + comments
-
-   common_DH_proba => DH_proba_collision
-   common_DH_prime_order => DH_good_group
-   common_DH_rand_group_exp => DH_dist_random_group_element_vs_exponent
-   common_DH_curve25519 => less specific name (also for 448, etc), comments
-
-   TextSecure: revise proof.
-   probably needs GDH with equality pow8(..) = pow8(..)
-   
-Document new DH macros.
-Update ProVerif crypto library with new DH definitions
-
-
-implement implication statements and collisions, of the form:
-cond1 && ... && condn => concl
-cond1 && ... && condn =(proba)=> concl
-they add concl to the known facts when cond1, ..., condn
-are present.
-
-
 1) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =
@@ -93,6 +66,7 @@ We could probably push this idea for noninterf x among S.
 
    Also have the query "equivalence P1 P2" (transform P1 and P2
    into the same game).
+   -> DONE 24/08/2018 still to document
 
    Also allow "query equiv ..." to prove an equivalence
    presented exactly as CryptoVerif accepts assumptions on
@@ -105,6 +79,16 @@ We could probably push this idea for noninterf x among S.
 
    Also query secret x [reachability] (the adversary cannot compute x).
 
+2) 
+PRF-ODH: probability formulas + comments
+I think the changes to guess the tested session,
+event adv loses, etc would help for working with PRF-ODH
+
+implement implication statements and collisions, of the form:
+cond1 && ... && condn => concl
+cond1 && ... && condn =(proba)=> concl
+they add concl to the known facts when cond1, ..., condn
+are present.
       
 4) Small details
    
@@ -3407,3 +3391,23 @@ or add t' last ?
    "bounded, nonuniform" is also allowed, to have a non-uniform
    distribution on a bounded type!
 DONE
+
+   Revision of DH regarding prime order
+   Check probability formulas.
+
+   common_DH_proba => DH_proba_collision
+   common_DH_prime_order => DH_good_group
+   common_DH_rand_group_exp => DH_dist_random_group_element_vs_exponent
+   common_DH_curve25519 => less specific name (also for 448, etc), comments
+
+   TextSecure: revise proof.
+   probably needs GDH with equality pow8(..) = pow8(..)
+   
+Document new DH macros.
+Update ProVerif crypto library with new DH definitions
+DONE 23/08/2018
+
+- ProVerif cannot reconstruct the attack against injectivity
+  in examples/cryptoverif/denning-sacco-corr.pcv
+   Solved by V. Cheval
+   
