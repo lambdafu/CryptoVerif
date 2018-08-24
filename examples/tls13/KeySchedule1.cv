@@ -21,7 +21,6 @@ proof {
       auto;
       show_game;
       SArename r_2;
-      move binder hk_3;
       auto
       }
 
@@ -112,8 +111,6 @@ equation forall e: elt; elt2bitstring(e) <> zero_hash.
 
 (* Prove equivalence between processLeft and processRight *)
 
-query secret b.
-
 channel start, c1, c2, c3, c4, c5.
 
 let processLeft(hk: hashkey) =
@@ -138,12 +135,14 @@ let processRight =
 	      new r'': key; out(c4, r'')) |
      (in(c5, ()); new r''': key; out(c5, r'''))).
 
-process
+equivalence 
 	in(start, ());
-	new b: bool;
 	new hk: hashkey; (* This key models the choice of the collision resistant hash function *)
-	if b then out(start, ()); (processLeft(hk) | Hash_oracle(hk))
-	     else out(start, ()); (processRight | Hash_oracle(hk))
+	out(start, ()); (processLeft(hk) | Hash_oracle(hk))
+	
+	in(start, ());
+	new hk: hashkey; (* This key models the choice of the collision resistant hash function *)
+	out(start, ()); (processRight | Hash_oracle(hk))
 	     
 
 (* EXPECTED

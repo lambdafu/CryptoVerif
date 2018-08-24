@@ -1206,10 +1206,20 @@ let rec display_query2 = function
 let display_query (q,g) = 
   match q with 
     AbsentQuery -> 
-      if g.game_number <> 1 then
-	print_string ("indistinguishability from game " ^ (string_of_int g.game_number))  
+      print_string "indistinguishability from the final game"
+  | QEquivalence (state, pub_vars) ->
+      let g' = Display.get_initial_game state in
+      if g.game_number = -1 || g'.game_number = -1 then
+	print_string "indistinguishability between two input games"
       else
-	print_string "indistinguishability from the initial game"
+	print_string ("indistinguishability between game " ^
+		      (string_of_int g.game_number) ^
+		      " and game " ^
+		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars
+  | QEquivalenceFinal(g', pub_vars) ->
+      print_string ("indistinguishability from game " ^ (string_of_int g'.game_number)); 
+      display_pub_vars pub_vars
   | _ ->
   begin
   match q with 
@@ -1226,11 +1236,8 @@ let display_query (q,g) =
       display_query2 t2;
       print_string "$";
       display_pub_vars pub_vars
-  | AbsentQuery ->
-      Parsing_helper.internal_error "AbsentQuery should have been handled"
-  | QEquivalence (_, pub_vars) ->
-      print_string "indistinguishability from second input game";
-      display_pub_vars pub_vars
+  | AbsentQuery | QEquivalenceFinal _ | QEquivalence _ ->
+      Parsing_helper.internal_error "AbsentQuery and QEquivalence(Final) should have been handled"
   end;
   if g.game_number <> 1 then
     print_string (" in game " ^ (string_of_int g.game_number))  
@@ -1426,13 +1433,22 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
 	  end
     ) pt.Display.pt_sons))
 
-let compute_proba ((q0,g) as q) p s =
+let compute_proba_internal ((q0,g) as q) p s =
   let pt = Display.build_proof_tree q p s in
   (* display_proof_tree "" pt; *)
   let start_queries = [Display.InitQuery q0, g] in
   evaluate_proba start_queries g [] start_queries pt  
 
-
+let compute_proba ((q0,g) as q) p s =
+  match q0 with
+  | QEquivalence(state,pub_vars) ->
+      print_string ("Game "^(string_of_int s.game.game_number)^" is the same as game "^(string_of_int state.game.game_number)^".\\\\\n");
+      let g' = Display.get_initial_game state in
+      (compute_proba_internal (QEquivalenceFinal(s.game, pub_vars),g) p s) @
+      (compute_proba_internal (QEquivalenceFinal(state.game, pub_vars),g') [] state)
+  | AbsentQuery ->
+      compute_proba_internal (QEquivalenceFinal(s.game, []), g) p s
+  | _ -> compute_proba_internal q p s
 
 let display_pat_simp t =
   print_string (match t with 

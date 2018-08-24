@@ -1209,8 +1209,16 @@ let display_query3 = function
       if onesession then print_string "one-session ";
       print_string "secrecy of "; display_binder b;
       display_pub_vars pub_vars
-  | AbsentQuery | QEquivalence _ ->
-      Parsing_helper.internal_error "AbsentQuery and QEquivalence should have been handled"
+  | AbsentQuery | QEquivalenceFinal _ ->
+      Parsing_helper.internal_error "AbsentQuery and QEquivalenceFinal should have been handled"
+  | QEquivalence(state,pub_vars) ->
+      let g' = get_initial_game state in
+      if g'.game_number = -1 then
+	print_string "indistinguishability from other input game"
+      else
+	print_string ("indistinguishability from game " ^
+		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars      
   | QEventQ(t1,t2, pub_vars) -> 
       display_query1 t1; 
       print_string " ==> ";
@@ -1226,10 +1234,7 @@ let get_game_id g =
 let display_query (q,g) = 
   match q with 
     AbsentQuery -> 
-      if g.game_number <> 1 then
-	print_string ("indistinguishability from game " ^ (get_game_id g))  
-      else
-	print_string "indistinguishability from the initial game"
+      print_string "indistinguishability from the final game"
   | QEquivalence (state, pub_vars) ->
       let g' = get_initial_game state in
       if g.game_number = -1 || g'.game_number = -1 then
@@ -1239,6 +1244,9 @@ let display_query (q,g) =
 		      (string_of_int g.game_number) ^
 		      " and game " ^
 		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars
+  | QEquivalenceFinal(g', pub_vars) ->
+      print_string ("indistinguishability from game " ^ (get_game_id g')); 
       display_pub_vars pub_vars
   | _ ->
       display_query3 q;
@@ -1610,10 +1618,13 @@ let compute_proba_internal ((q0,g) as q) p s =
 
 let compute_proba ((q0,g) as q) p s =
   match q0 with
-  | QEquivalence(state,_) ->
+  | QEquivalence(state,pub_vars) ->
+      print_string ("Game "^(string_of_int s.game.game_number)^" is the same as game "^(string_of_int state.game.game_number)^".\n");
       let g' = get_initial_game state in
-      (compute_proba_internal (AbsentQuery,g) p s) @
-      (compute_proba_internal (AbsentQuery,g') [] state)
+      (compute_proba_internal (QEquivalenceFinal(s.game, pub_vars),g) p s) @
+      (compute_proba_internal (QEquivalenceFinal(state.game, pub_vars),g') [] state)
+  | AbsentQuery ->
+      compute_proba_internal (QEquivalenceFinal(s.game, []), g) p s
   | _ -> compute_proba_internal q p s
     
 let display_pat_simp t =

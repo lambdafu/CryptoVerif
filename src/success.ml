@@ -590,7 +590,10 @@ let check_query event_accu = function
 	    Check_corresp.check_corresp event_accu (t1,t2,pub_vars) (!whole_game)
 	| QEquivalence(state,pub_vars) ->
 	    check_equivalence state (!whole_game)
-	| _ -> assert false
+	| QEquivalenceFinal _ | AbsentQuery | QSecret _ ->
+	    (* AbsentQuery | QSecret _ handled above;
+	       QEquivalenceFinal should never happen *)
+	    assert false
       in
       if r then
 	begin

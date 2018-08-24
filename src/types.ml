@@ -444,6 +444,7 @@ and query =
   | QSecret of binder * binder list(*public variables*) * bool(*true when onesession*) 
   | QEventQ of (bool(*true when injective*) * term) list * qterm * binder list(*public variables*)
   | QEquivalence of state(*sequence of games transformations from final game*) * binder list(*public variables*)
+  | QEquivalenceFinal of game * binder list(*public variables*)
   | AbsentQuery
   
 (* Instructions for modifying games *)
