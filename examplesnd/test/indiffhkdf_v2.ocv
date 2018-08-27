@@ -1,0 +1,182 @@
+def ROM_hash_v2(key, hashinput, hashoutput, hash, hashoracle, qH) {
+
+param Nh, N, Neq, Neq2.
+
+fun hash(key, hashinput):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
+	 foreach ieq2 <= Neq2 do Oeq2(x1:hashinput, x2: hashinput) := return(hash(k,x1) = hash(k,x2)) |
+         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := return(r' = hash(k,x')))
+       <=((#Oeq + #Oeq2) * Pcoll1rand(hashoutput))=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x:hashinput) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r) |
+	 foreach ieq2 <= Neq2 do Oeq2(x1:hashinput, x2: hashinput) := return(x1 = x2) |
+         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := 
+           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(r' = r[u]) else
+	   return(false)).
+
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x:hashinput) :=
+	return(hash(k,x)).
+
+}
+
+def ROM_hash_pair_v2(key, hashinput1, hashinput2, hashoutput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput1, hashinput2):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2) := return(hash(k,x1,x2)) |
+         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2, r':hashoutput) := return(r' = hash(k,x1',x2')))
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2) := 
+	   find[unique] u <= N suchthat defined(x1[u],x2[u],r[u]) && x1 = x1[u] && x2 = x2[u] then return(r[u]) else r <-R hashoutput; return(r) |
+         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2, r':hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u],x2[u],r[u]) && x1' = x1[u] && x2' = x2[u] then return(r' = r[u]) else
+	   return(false)).
+
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x1:hashinput1, x2: hashinput2) :=
+	return(hash(k,x1,x2)).
+
+}
+
+
+
+type hashkey1 [large, fixed].
+type input1.
+type output1 [large, fixed].
+
+type hashkey2 [large, fixed].
+type input2.
+type output2 [large, fixed].
+
+expand ROM_hash_v2(hashkey1, input1, output1, H1, hashoracle1, qH1).
+expand ROM_hash_pair(hashkey2, output1, input2, output2, H2, hashoracle2, qH2).
+
+type hashkey3 [large, fixed].
+expand ROM_hash_pair(hashkey3, input1, input2, output2, H3, hashoracle3, qH3).
+
+proof {
+      start_from_other_end;
+      crypto rom(H3);
+      show_game;
+      start_from_other_end;
+      crypto rom(H2);
+      show_game;
+      remove_assign binder x1_6;
+      crypto rom(H1);
+      show_game occ;
+      insert 32 "find k <= qH1 suchthat defined(x[k], r_5[k]) && (r_5[k] = x2) then";
+      set mergeBranches = false;
+      simplify;
+      show_game;
+      SArename r_3;
+      show_game occ;
+      insert 9 "find u10 = ri10 <= qH1 suchthat defined(r_5[ri10], x[ri10]) && (x = x[ri10]) then";
+      simplify;
+      remove_assign useless;
+      show_game occ;
+      insert 88 "find u7 = ri7 <= qH2 suchthat defined(r_7[ri7], y2[ri7], x2[ri7]) && (x2 = x2[ri7]) && (y2 = y2[ri7]) then";
+      simplify;
+      remove_assign useless;
+      show_game
+      (* The only remaining problem is the test 
+          x_1[k_1] = x_1[k_1[ri_3]]
+         in the other game, which should be replaced with k_1 = k_1[ri_3]
+      ;
+      interactive *)
+ } 
+
+equivalence
+    Ostart() :=
+    hk1 <-R hashkey1;
+    hk2 <-R hashkey2;
+    return();
+    ((foreach i <= qH1 do OH1(x: input1) := return(H1(hk1, x))) |
+     (foreach i <= qH2 do OH2(x2: output1, y2: input2) := return(H2(hk2, x2,y2))) |
+     (foreach i <= qH3 do
+      HComb(x3: input1, y3: input2) := return(H2(hk2, H1(hk1, x3), y3))))
+
+    Ostart() :=
+    hk3 <-R hashkey3;
+    return();
+    ((foreach i <= qH1 do OH1(x: input1) :=
+    	     find j <= qH1 suchthat defined(x[j],r[j]) && x = x[j] then
+	         return(r[j])
+             else
+	         r <-R output1;
+		 return(r)) |
+     (foreach i <= qH2 do OH2(x2: output1, y2: input2) :=
+     	     find k <= qH1 suchthat defined(x[k],r[k]) && r[k] = x2 then
+	         return(H3(hk3, x[k], y2))
+	     else
+		 find l <= qH2 suchthat defined(x2[l],y2[l],r2[l]) && x2 = x2[l] && y2 = y2[l] then
+		     return(r2[l])
+		 else
+		     r2 <-R output2;
+		     return(r2)) |
+     (foreach i <= qH3 do
+      HComb(x3: input1, y3: input2) := return(H3(hk3, x3, y3))))
+
+
+(*
+
+Target game after rom(H3):
+
+      Ostart() :=
+      return();
+      ((
+        foreach i_3 <= qH1 do
+        OH1(x_1: input1) :=
+        find j_1 = j <= qH1 suchthat defined(x_1[j], r[j]) && (x_1 = x_1[j]) then
+          return(r[j_1])
+        else
+          r <-R output1;
+          return(r)
+      ) | (
+        foreach i_4 <= qH2 do
+        OH2(x2_1: output1, y2_1: input2) :=
+        find k_1 = k <= qH1 suchthat defined(x_1[k], r[k]) && (r[k] = x2_1) then
+          find [unique] u_3 = ri_3 <= qH2 suchthat defined(r_1[ri_3], y2_1[ri_3], x_1[k_1[ri_3]]) && (x_1[k_1] = x_1[k_1[ri_3]]) && (y2_1 = y2_1[ri_3]) then
+            return(r_1[u_3])
+          orfind u_2 = ri_2 <= qH3 suchthat defined(r_2[ri_2], y3_1[ri_2], x3_1[ri_2]) && (x_1[k_1] = x3_1[ri_2]) && (y2_1 = y3_1[ri_2]) then
+            return(r_2[u_2])
+          else
+            r_1 <-R output2;
+            return(r_1)
+        else
+          find l_1 = l <= qH2 suchthat defined(x2_1[l], y2_1[l], r2[l]) && (x2_1 = x2_1[l]) && (y2_1 = y2_1[l]) then
+            return(r2[l_1])
+          else
+            r2 <-R output2;
+            return(r2)
+      ) | (
+        foreach i_5 <= qH3 do
+        HComb(x3_1: input1, y3_1: input2) :=
+        find [unique] u_1 = ri_1 <= qH2 suchthat defined(r_1[ri_1], y2_1[ri_1], x_1[k_1[ri_1]]) && (x3_1 = x_1[k_1[ri_1]]) && (y3_1 = y2_1[ri_1]) then
+          return(r_1[u_1])
+        orfind u = ri <= qH3 suchthat defined(r_2[ri], y3_1[ri], x3_1[ri]) && (x3_1 = x3_1[ri]) && (y3_1 = y3_1[ri]) then
+          return(r_2[u])
+        else
+          r_2 <-R output2;
+          return(r_2)
+      ))
+
+
+
+
+*)

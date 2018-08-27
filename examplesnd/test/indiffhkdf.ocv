@@ -29,11 +29,25 @@ proof {
       simplify;
       SArename r_5;
       remove_assign useless;
+      (* Rewrite the "find"s to remove [unique] *)
       show_game occ;
-      replace 113 "x[j_2] = x3[u_33[j_2]] && y2 = y3[u_33[j_2]]";
+      insert 9 "find u7 = ri7 <= qH1 suchthat defined(r_3[ri7], x[ri7]) && (x = x[ri7]) then";
+      simplify;
+      remove_assign useless;
       show_game occ;
-      replace 90 "x[j_2] = x3[ri_21]"; (* Does not work *)
-      merge arrays r_6 r_7 r_8;
+      insert 23 "find u33 = ri6 <= qH3 suchthat defined(r_6[ri6], x3[ri6]) && (x = x3[ri6]) then";
+      simplify;
+      remove_assign useless;
+      show_game occ;
+      insert 59 "find u20 = ri20 <= qH3 suchthat defined(u33_1[j_2], u_33[j_2], u_33[j_2], r_8[ri20], y3[ri20], u_37[ri20]) && (u33_1[j_2] = u_37[ri20]) && (y2 = y3[ri20]) then orfind u21 = ri21 <= qH3 suchthat defined(r_7[ri21], y3[ri21], u_40[ri21]) && (j_2 = u_40[ri21]) && (y2 = y3[ri21]) then orfind  suchthat defined(u33_1[j_2], u_33[j_2], u_33[j_2], r_6[u33_1[j_2]], y3[u33_1[j_2]]) && (y2 = y3[u33_1[j_2]]) then orfind u23 = ri23 <= qH2 suchthat defined(r_10[ri23], y2[ri23], j_2[ri23]) && (j_2 = j_2[ri23]) && (y2 = y2[ri23]) then";
+      simplify;
+      remove_assign useless;
+      show_game occ;
+      insert 146 "find u23 = ri23 <= qH2 suchthat defined(r_11[ri23], y2[ri23], x2[ri23]) && (x2 = x2[ri23]) && (y2 = y2[ri23]) then";
+      simplify;
+      remove_assign useless;
+      show_game occ;
+      insert 
       interactive
 
 (*
