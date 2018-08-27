@@ -39,16 +39,15 @@ proof {
       simplify;
       remove_assign useless;
       show_game occ;
-      insert 59 "find u20 = ri20 <= qH3 suchthat defined(u33_1[j_2], u_33[j_2], u_33[j_2], r_8[ri20], y3[ri20], u_37[ri20]) && (u33_1[j_2] = u_37[ri20]) && (y2 = y3[ri20]) then orfind u21 = ri21 <= qH3 suchthat defined(r_7[ri21], y3[ri21], u_40[ri21]) && (j_2 = u_40[ri21]) && (y2 = y3[ri21]) then orfind  suchthat defined(u33_1[j_2], u_33[j_2], u_33[j_2], r_6[u33_1[j_2]], y3[u33_1[j_2]]) && (y2 = y3[u33_1[j_2]]) then orfind u23 = ri23 <= qH2 suchthat defined(r_10[ri23], y2[ri23], j_2[ri23]) && (j_2 = j_2[ri23]) && (y2 = y2[ri23]) then";
+      insert 59 "find u20 = ri20 <= qH3 suchthat defined(u33[j_2], u_33[j_2], u_33[j_2], r_8[ri20], y3[ri20], u_37[ri20]) && (u33[j_2] = u_37[ri20]) && (y2 = y3[ri20]) then orfind u21 = ri21 <= qH3 suchthat defined(r_7[ri21], y3[ri21], u_40[ri21]) && (j_2 = u_40[ri21]) && (y2 = y3[ri21]) then orfind  suchthat defined(u33[j_2], u_33[j_2], u_33[j_2], r_6[u33[j_2]], y3[u33[j_2]]) && (y2 = y3[u33[j_2]]) then orfind u23 = ri23 <= qH2 suchthat defined(r_10[ri23], y2[ri23], j_2[ri23]) && (j_2 = j_2[ri23]) && (y2 = y2[ri23]) then";
       simplify;
       remove_assign useless;
       show_game occ;
       insert 146 "find u23 = ri23 <= qH2 suchthat defined(r_11[ri23], y2[ri23], x2[ri23]) && (x2 = x2[ri23]) && (y2 = y2[ri23]) then";
       simplify;
       remove_assign useless;
-      show_game occ;
-      insert 
-      interactive
+      show_game occ(* ;
+      interactive*)
 
 (*
 
