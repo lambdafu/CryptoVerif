@@ -49,6 +49,8 @@ when I add the commented out code in check_distinct.ml,
    - Both in ProVerif and in CryptoVerif:
       remove the restriction that injective events are in different
       branches of if/find/let/get.
+      DONE in ProVerif by V. Cheval.
+      TODO in CryptoVerif
       
    - Encode more ProVerif queries in CryptoVerif
 choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
