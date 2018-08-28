@@ -1,0 +1,103 @@
+(* This file justifies the version of the ROM included in the crypto library
+from a version with only oracles OH and Oeq.
+However, the probability found by CryptoVerif is far larger than optimal. *)
+
+def ROM_hash_coll1(key, hashinput, hashoutput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
+         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := return(r' = hash(k,x')))
+       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x:hashinput) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r) |
+         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := 
+           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(r' = r[u]) else
+	   return(false)).
+
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x:hashinput) :=
+	return(hash(k,x)).
+
+}
+
+type hashkey [large, fixed].
+type input.
+type output [large, fixed].
+
+expand ROM_hash_coll1(hashkey, input, output, H, hashoracle, qH).
+
+param Nh, N, Neq, Ncoll.
+
+proof {
+      (* Insert a case distinction "if x1 = x2 then" at the beginning of Ocoll *)
+      show_game occ;
+      insert 43 "if x1 = x2 then";
+      simplify;
+      (* Apply rom(H) *)
+      crypto rom(H);
+      show_game;
+      (* Delay the creation of the variable r_2 not used immediately in Ocoll *)
+      move array r_2;
+      show_game;
+      (* Merge the two generations of random variables in OH *)      
+      merge_arrays r_1 Y;
+      (* Simplify the structure of "find" in Ocoll, in view of merging branches *)
+      show_game occ;
+      insert 112 "find riX_4 <= Ncoll, riX_2 <= N suchthat defined(r_3[riX_2], r_2[riX_4], x[riX_2], x1[riX_4]) && (x1 = x1[riX_4]) && (x2 = x[riX_2]) then orfind riX_6 <= N, riX <= Ncoll suchthat defined(r_3[riX_6], r_2[riX], x1[riX], x[riX_6]) && (x1 = x[riX_6]) && (x2 = x1[riX]) then orfind riX_6 <= N, riX_2 <= N suchthat defined(r_3[riX_2], r_3[riX_6], x[riX_2], x[riX_6]) && (x1 = x[riX_6]) && (x2 = x[riX_2]) then orfind riX_4 <= Ncoll, riX <= Ncoll suchthat defined(r_2[riX_4], r_2[riX], x1[riX], x1[riX_4]) && (x1 = x1[riX_4]) && (x2 = x1[riX]) then orfind riX_4 <= Ncoll suchthat defined(r_2[riX_4], x1[riX_4]) && (x1 = x1[riX_4]) then orfind riX_6 <= N suchthat defined(r_3[riX_6], x[riX_6]) && (x1 = x[riX_6]) then";
+      simplify;
+      remove_assign useless;
+      merge_branches;
+      (* Add a line X <- cst_output in branches that we want to merge and that do not contain it
+         (branches that return false in Ocoll and one branch in OH) *)
+      show_game occ;
+      insert 244 "r_4 <- cst_output";
+      insert 229 "r_4 <- cst_output";
+      insert 214 "r_4 <- cst_output";
+      insert 187 "r_4 <- cst_output";
+      insert 160 "r_4 <- cst_output";
+      insert 133 "r_4 <- cst_output";
+      insert 45 "r_5 <- cst_output";
+      (* Finally merge the branches *)
+      merge_branches;
+      remove_assign useless;
+      start_from_other_end;
+      (* In the final game, insert a case distinction 
+      "if x1_1 = x2_1 then" at the beginning of Ocoll,
+      similarly to what we did in the initial game. *)      
+      show_game occ;
+      insert 75 "if x1_1 = x2_1 then";
+      simplify;
+      (* Finally succeed *)
+      success
+}
+
+equivalence
+    foreach ih <= Nh do
+    Ostart() :=
+    hk <-R hashkey;
+    return();
+    ((foreach ih <= N do OH(x: input) := return(H(hk, x))) |
+     (foreach ieq <= Neq do Oeq(x': input, r': output) := return(r' = H(hk, x'))) |
+     (foreach icoll <= Ncoll do
+      Ocoll(x1: input, x2: input) := return(H(hk, x1) = H(hk, x2))))
+
+    foreach ih <= Nh do
+    Ostart() :=
+    return();
+    ((foreach ih <= N do OH(x: input) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R output; return(r)) |
+     (foreach ieq <= Neq do Oeq(x': input, r': output) := 
+           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(r' = r[u]) else
+	   return(false)) |
+     (foreach icoll <= Ncoll do
+      Ocoll(x1: input, x2: input) := return(x1 = x2)))
+      
