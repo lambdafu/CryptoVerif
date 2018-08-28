@@ -113,6 +113,11 @@ val app : funsymb -> term list -> term
 
 val is_args_at_creation : binder -> term list -> bool
 
+module HashedType : Hashtbl.HashedType with type t = typet 
+
+module TypeHashtbl : Hashtbl.S with type key = HashedType.t
+                                                   
+val cst_for_type_table : funsymb TypeHashtbl.t
 val cst_for_type : typet -> term
 
 val is_restr : binder -> bool
