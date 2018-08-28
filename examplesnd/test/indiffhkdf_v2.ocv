@@ -1,61 +1,3 @@
-def ROM_hash_v2(key, hashinput, hashoutput, hash, hashoracle, qH) {
-
-param Nh, N, Neq, Neq2.
-
-fun hash(key, hashinput):hashoutput.
-
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
-	 foreach ieq2 <= Neq2 do Oeq2(x1:hashinput, x2: hashinput) := return(hash(k,x1) = hash(k,x2)) |
-         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := return(r' = hash(k,x')))
-       <=((#Oeq + #Oeq2) * Pcoll1rand(hashoutput))=> [computational]
-      foreach ih <= Nh do 
-        (foreach i <= N do OH(x:hashinput) := 
-	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r) |
-	 foreach ieq2 <= Neq2 do Oeq2(x1:hashinput, x2: hashinput) := return(x1 = x2) |
-         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := 
-           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(r' = r[u]) else
-	   return(false)).
-
-param qH [noninteractive].
-
-let hashoracle(k: key) = 
-        foreach iH <= qH do
-	OH(x:hashinput) :=
-	return(hash(k,x)).
-
-}
-
-def ROM_hash_pair_v2(key, hashinput1, hashinput2, hashoutput, hash, hashoracle, qH) {
-
-param Nh, N, Neq.
-
-fun hash(key, hashinput1, hashinput2):hashoutput.
-
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2) := return(hash(k,x1,x2)) |
-         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2, r':hashoutput) := return(r' = hash(k,x1',x2')))
-       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
-      foreach ih <= Nh do 
-        (foreach i <= N do OH(x1:hashinput1,x2:hashinput2) := 
-	   find[unique] u <= N suchthat defined(x1[u],x2[u],r[u]) && x1 = x1[u] && x2 = x2[u] then return(r[u]) else r <-R hashoutput; return(r) |
-         foreach ieq <= Neq do Oeq(x1':hashinput1,x2':hashinput2, r':hashoutput) := 
-           find[unique] u <= N suchthat defined(x1[u],x2[u],r[u]) && x1' = x1[u] && x2' = x2[u] then return(r' = r[u]) else
-	   return(false)).
-
-param qH [noninteractive].
-
-let hashoracle(k: key) = 
-        foreach iH <= qH do
-	OH(x1:hashinput1, x2: hashinput2) :=
-	return(hash(k,x1,x2)).
-
-}
-
-
-
 type hashkey1 [large, fixed].
 type input1.
 type output1 [large, fixed].
@@ -64,11 +6,11 @@ type hashkey2 [large, fixed].
 type input2.
 type output2 [large, fixed].
 
-expand ROM_hash_v2(hashkey1, input1, output1, H1, hashoracle1, qH1).
-expand ROM_hash_pair(hashkey2, output1, input2, output2, H2, hashoracle2, qH2).
+expand ROM_hash(hashkey1, input1, output1, H1, hashoracle1, qH1).
+expand ROM_hash_2(hashkey2, output1, input2, output2, H2, hashoracle2, qH2).
 
 type hashkey3 [large, fixed].
-expand ROM_hash_pair(hashkey3, input1, input2, output2, H3, hashoracle3, qH3).
+expand ROM_hash_2(hashkey3, input1, input2, output2, H3, hashoracle3, qH3).
 
 proof {
       start_from_other_end;
@@ -90,7 +32,7 @@ proof {
       simplify;
       remove_assign useless;
       show_game occ;
-      insert 88 "find u7 = ri7 <= qH2 suchthat defined(r_7[ri7], y2[ri7], x2[ri7]) && (x2 = x2[ri7]) && (y2 = y2[ri7]) then";
+      insert 88 "find u7 = ri7 <= qH2 suchthat defined(r_9[ri7], y2[ri7], x2[ri7]) && (x2 = x2[ri7]) && (y2 = y2[ri7]) then";
       simplify;
       remove_assign useless;
       show_game
