@@ -241,7 +241,7 @@ fun concat_hash(t_AMS_Appendix, t_Rand32): bitstring [data].
 (* the concatenation of KDF256 and KDF128 is a random oracle *)
 type hash_key1 [large,fixed].
 type mac_enc_key [large,fixed].
-expand ROM_hash_quad(hash_key1, G, t_SHA256_out, t_id, t_id, mac_enc_key, KDF256_128, KDF256_128_oracle, qH).
+expand ROM_hash_4(hash_key1, G, t_SHA256_out, t_id, t_id, mac_enc_key, KDF256_128, KDF256_128_oracle, qH).
 
 (* Generating a single random key of type mac_enc_key and splitting it into
    a MAC key and an encryption key is equivalent to generating a
