@@ -1,6 +1,7 @@
 type front_end =
   | Channels
   | Oracles
+  | ProVerif
 
 let front_end = ref Channels
 
@@ -47,6 +48,23 @@ let print_macro macro n =
   aux 0
 
 let rom_hash_macro() =
+  if (!front_end) = ProVerif then
+"def ROM_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, qH) {
+    
+fun hash(key, $hashinput%$, $):hashoutput.
+
+param qH [noninteractive].
+channel ch1, ch2.
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, ($x%: hashinput%$, $));
+        out(ch2, hash(k, $x%$, $)).
+
+}
+
+"	
+  else
 "def ROM_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, qH) {
 
 param Nh, N, Neq, Ncoll.
@@ -56,15 +74,15 @@ fun hash(key, $hashinput%$, $):hashoutput.
 equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH($x%: hashinput%$, $) := return(hash(k, $x%$, $)) |
-         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r':hashoutput) := return(r' = hash(k, $x%'$, $)) |
+         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x%'$, $)) |
          foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
                  return(hash(k, $y%$, $) = hash(k, $z%$, $)))
        <=((#Oeq + #Ocoll) * Pcoll1rand(hashoutput))=> [computational]
       foreach ih <= Nh do 
-        (foreach i <= N do OH($x%:hashinput%$, $) := 
+        (foreach i <= N do OH($x%: hashinput%$, $) := 
 	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
            r <-R hashoutput; return(r) |
-         foreach ieq <= Neq do Oeq($x%':hashinput%$, $, r':hashoutput) := 
+         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := 
            find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x%' = x%[u]$ && $ then return(r' = r[u]) else
 	   return(false) |
          foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
@@ -76,12 +94,12 @@ param qH [noninteractive].\n\n"
 "channel ch1, ch2.
 let hashoracle(k: key) = 
         foreach iH <= qH do
-	in(ch1, ($x%:hashinput%$, $));
+	in(ch1, ($x%: hashinput%$, $));
         out(ch2, hash(k, $x%$, $))."
   else
 "let hashoracle(k: key) = 
         foreach iH <= qH do
-	OH($x%:hashinput%$, $) :=
+	OH($x%: hashinput%$, $) :=
         return(hash(k, $x%$, $)).")
   ^"\n\n}\n\n"
 
@@ -105,11 +123,12 @@ let bound s =
 let _ =
   Arg.parse
     [ "-out", Arg.String (function 
-	  "channels" -> front_end := Channels
-	| "oracles" -> front_end := Oracles
-	| _ ->
-           print_string "Command-line option -out expects argument either \"channels\" or \"oracles\".\n";
-           exit 2),
+	"channels" -> front_end := Channels
+      | "oracles" -> front_end := Oracles
+      | "proverif" -> front_end := ProVerif
+      | _ ->
+          print_string "Command-line option -out expects argument either \"channels\" or \"oracles\".\n";
+          exit 2),
       "channels / -out oracles \tchoose the front-end";
     ]
     bound ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  hashgen [options] n\nto print random oracle macro with n arguments\n  hashgen [options] n1 n2\nto print random oracle macros with n1 to n2 arguments\nOptions:")
