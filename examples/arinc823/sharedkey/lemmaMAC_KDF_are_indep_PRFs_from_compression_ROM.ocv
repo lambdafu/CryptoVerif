@@ -60,7 +60,7 @@ const SHA256_init: t_SHA256_out.
 fun concatSHA256(mac_key, mac_key): t_SHA256_block [data].
 
 (* SHA256 compression function = Random oracle *)
-expand ROM_hash_pair(hashkey1, t_SHA256_out, t_SHA256_block, t_SHA256_out, SHA256_comp, SHA256_comp_oracle, N1).
+expand ROM_hash_2(hashkey1, t_SHA256_out, t_SHA256_block, t_SHA256_out, SHA256_comp, SHA256_comp_oracle, N1).
 
 (* HMAC helper functions *)
 
