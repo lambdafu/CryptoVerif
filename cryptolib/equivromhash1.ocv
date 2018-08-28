@@ -1,0 +1,62 @@
+(* This file justifies the version of the ROM with OH and Oeq
+from a version with only oracle OH.
+However, the probability found by CryptoVerif is twice larger than optimal. *)
+
+def ROM_hash_0(key, hashinput, hashoutput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)))
+       <=(0)=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x:hashinput) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r)).
+	   
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x:hashinput) :=
+	return(hash(k,x)).
+
+}
+
+type hashkey [large, fixed].
+type input.
+type output [large, fixed].
+
+expand ROM_hash_0(hashkey, input, output, H, hashoracle, qH).
+
+param Nh, N, Neq.
+
+proof {
+      crypto rom(H);
+      show_game;
+      move array r_2;
+      show_game occ;
+      insert 78 "r_3 <- cst_output";
+      merge_branches;
+      remove_assign useless;
+      success
+}
+
+equivalence
+    foreach ih <= Nh do
+    Ostart() :=
+    hk <-R hashkey;
+    return();
+    ((foreach ih <= N do OH(x: input) := return(H(hk, x))) |
+     (foreach ieq <= Neq do Oeq(x': input, r': output) := return(r' = H(hk, x'))))
+
+    foreach ih <= Nh do
+    Ostart() :=
+    return();
+    ((foreach ih <= N do OH(x: input) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R output; return(r)) |
+     (foreach ieq <= Neq do Oeq(x': input, r': output) := 
+           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(r' = r[u]) else
+	   return(false)))
