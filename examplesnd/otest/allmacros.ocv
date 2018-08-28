@@ -84,16 +84,16 @@ expand ROM_hash(key, hashinput, hashoutput, hash, hashoracle, qH).
 
 type hashinput1.
 type hashinput2.
-expand ROM_hash_pair(key, hashinput1, hashinput2, hashoutput, hash2, hashoracle2, qH2).
+expand ROM_hash_2(key, hashinput1, hashinput2, hashoutput, hash2, hashoracle2, qH2).
 
 type hashinput3.
-expand ROM_hash_triple(key, hashinput1, hashinput2, hashinput3, hashoutput, hash3, hashoracle3, qH3).
+expand ROM_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash3, hashoracle3, qH3).
 
 type hashinput4.
-expand ROM_hash_quad(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash4, hashoracle4, qH4).
+expand ROM_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash4, hashoracle4, qH4).
 
 type hashinput5.
-expand ROM_hash_quint(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash5, hashoracle5, qH5).
+expand ROM_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash5, hashoracle5, qH5).
 
 proba Phash.
 expand CollisionResistant_hash(key, hashinput, hashoutput, hash6, hashoracle6, Phash).

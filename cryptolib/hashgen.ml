@@ -82,7 +82,7 @@ let hashoracle(k: key) =
 "let hashoracle(k: key) = 
         foreach iH <= qH do
 	OH($x%:hashinput%$, $) :=
-        return(hash(k, $x%$, $).")
+        return(hash(k, $x%$, $)).")
   ^"\n\n}\n\n"
 
 let args_seen = ref 0
@@ -97,7 +97,8 @@ let bound s =
       0 -> start := n; final := n
     | 1 -> final := n
     | _ -> print_string "You should at most give the starting number and the ending one.\n"; exit 2
-    end
+    end;
+    incr args_seen
   with _ ->
     print_string "All non-option arguments should be integers.\n"; exit 2 
      
@@ -111,7 +112,7 @@ let _ =
            exit 2),
       "channels / -out oracles \tchoose the front-end";
     ]
-    bound ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license")
+    bound ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  hashgen [options] n\nto print random oracle macro with n arguments\n  hashgen [options] n1 n2\nto print random oracle macros with n1 to n2 arguments\nOptions:")
 
 let _ =
   if !final < !start then

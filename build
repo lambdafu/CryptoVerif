@@ -27,3 +27,13 @@ fi
 
 cd ..
 
+cd cryptolib
+ocamlopt -o hashgen hashgen.ml
+
+./hashgen 1 10 > hashoracles.cvl
+./hashgen -out oracles 1 10 > hashoracles.ocvl
+
+cat commonlib.cvl hash_prefix.cvl hashoracles.cvl hash_suffix.cvl specific.cvl > ../default.cvl
+cat commonlib.cvl hash_prefix.cvl hashoracles.ocvl hash_suffix.cvl specific.ocvl > ../default.ocvl
+
+cd ..
