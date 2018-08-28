@@ -79,12 +79,12 @@ expand square_GDH(G, Z, g, gexp, gexp', mult, pGDH, pSQGDH).
 (* Generate initial rkey - 4DH *)
 
 type hashkey2 [large,fixed].
-expand ROM_hash_quad(hashkey2, G, G, G, G, rkey, hkdf1_zeroWhisperRatchet4, hashoracle2, qH2).
+expand ROM_hash_4(hashkey2, G, G, G, G, rkey, hkdf1_zeroWhisperRatchet4, hashoracle2, qH2).
 
 (* Generate initial rkey - 3DH *)
 
 type hashkey3 [large,fixed].
-expand ROM_hash_triple(hashkey3, G, G, G, rkey, hkdf1_zeroWhisperRatchet3, hashoracle3, qH3).
+expand ROM_hash_3(hashkey3, G, G, G, rkey, hkdf1_zeroWhisperRatchet3, hashoracle3, qH3).
 
 (* Generate message keys: authenticated encryption keys *)
 
@@ -96,7 +96,7 @@ expand ROM_hash(hashkey4, ckey, emkey, hkdf_zeroWhisperMessageKeys, hashoracle4,
 
 type hashkey6 [large,fixed].
 type rckey [large,fixed].
-expand ROM_hash_pair(hashkey6, rkey, G, rckey, hkdf_sharedWhisperRatchet, hashoracle6, qH6).
+expand ROM_hash_2(hashkey6, rkey, G, rckey, hkdf_sharedWhisperRatchet, hashoracle6, qH6).
 
 (* Extraction of rkey and ckey from the pair *)
 
