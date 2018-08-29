@@ -9,11 +9,11 @@ The proof is as follows: *)
 
 proof {
   show_game occ;
-  insert 21 "let concat(x_2',x_2'') = x_2 in";
+  insert 21 "let concat(x1_1',x1_1'') = x1_1 in";
   crypto rom(hash2);
   crypto rom(hash);
   remove_assign binder pk;
-  crypto ow(f) r x_4;
+  crypto ow(f) r x_2;
   show_game;
   crypto remove_xor(xor) r_6;
   success

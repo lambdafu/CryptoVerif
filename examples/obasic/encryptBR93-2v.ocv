@@ -11,7 +11,7 @@ The proof is as follows: *)
 proof {
 crypto rom(hash);
 show_game occ;
-insert 57 "let concat(x_2',x_2'') = x_2 in"; 
+insert 57 "let concat(x1_1',x1_1'') = x1_1 in"; 
        (* inserted just before "out(hc4, ...)" to distinguish 
           cases depending on whether xh2 is concat(...) or not *)
 crypto rom(hash2);
