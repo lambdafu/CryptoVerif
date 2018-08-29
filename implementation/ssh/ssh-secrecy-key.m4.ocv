@@ -7,9 +7,9 @@ proof {
       success;
       (*prove authentication*)
       show_game occ;
-      insert 354 "let concat8(a1, a2, a3, a4, a5, a6, a7, a8) = x_2 in"; (* in OH, at the beginning *)
+      insert 354 "let concat8(a1, a2, a3, a4, a5, a6, a7, a8) = x1_1 in"; (* in OH, at the beginning *)
       show_game occ;
-      insert 364 "let concat4(b1, b2, b3, b4) = x_2 in"; (* in the else branch of the "let" inserted above *) 
+      insert 364 "let concat4(b1, b2, b3, b4) = x1_1 in"; (* in the else branch of the "let" inserted above *) 
       crypto rom(h);
       crypto uf_cma(sign);
       success;
