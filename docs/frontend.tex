@@ -234,18 +234,27 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \label{fig:syntax3ch}
 \end{figure}
 
-The input file consists of a list of declarations followed by  
+The input file may consist of a list of declarations followed by  
 a process:
 \[\nonterm{declaration}^*\ {\tt process}\ \iprocess\]
+The process
+describes the considered security 
+protocol; the declarations specify in particular hypotheses on the 
+cryptographic primitives and the security properties to prove.
+
+Alternatively, the input may also consist of a list of declarations followed
+by an equivalence query:
+\[\nonterm{declaration}^*\ {\tt equivalence}\ \iprocess\ \iprocess\ [\texttt{public\_vars}\ \seq{ident}]\]
+The query ${\tt equivalence}\ Q_1\ Q_2$ tells CryptoVerif to show that
+the processes (games) $Q_1$ and $Q_2$ are computationally indistinguishable.
+When it is present, the indication $\texttt{public\_vars}\ x_1, \dots, x_n$
+means that the adversary has read access to the variables $x_1, \dots, x_n$.
+
 A library file (specified on the command-line by the
 {\tt -lib} option) consists of a list of declarations.
 Notations are summarized in Figure~\ref{fig:syntax0}
 and various syntactic elements are described in 
 Figures~\ref{fig:syntax1}, \ref{fig:syntax2}, and~\ref{fig:syntax3ch}.
-The process
-describes the considered security 
-protocol; the declarations specify in particular hypotheses on the 
-cryptographic primitives and the security properties to prove.
 
 Processes are described in a process calculus.
 In this calculus, terms represent computations on bitstrings. 

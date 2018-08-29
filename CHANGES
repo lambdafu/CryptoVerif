@@ -3,11 +3,14 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow proving indistinguishability between two games by
+  "equivalence G1 G2 [public_vars x1, ..., xn]"
 - Completely revised the modeling of Diffie-Hellman assumptions.
   (Your protocol models that use Diffie-Hellman will need to be revised.)
 - The macro from random oracles with n arguments is now named
   ROM_hash_n and is defined for n from 1 to 10. It optimizes the
   treatment of terms H(x1) = H(x2).
+  (Your protocol models that use random oracles may need to be revised.)
 - Added optional side conditions in equation and collision statements.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 
@@ -37,7 +40,7 @@ Version 2.00
     and "query event inj:e1(...) ==> inj:e2(...)."
     becomes "query inj-event(e1(...)) ==> inj-event(e2(...))."
     If there are public variables, they must be explicitly indicated
-    in the correspondences, by adding "pub_vars x1,...,xn" at the
+    in the correspondences, by adding "public_vars x1,...,xn" at the
     end of the query. (In previous versions, CryptoVerif
     implicitly considered as public variables in correspondences
     the variables on which secrecy queries were present.)
