@@ -87,7 +87,7 @@ We could probably push this idea for noninterf x among S.
 
    Also have the query "equivalence P1 P2" (transform P1 and P2
    into the same game).
-   -> DONE 24/08/2018 still to document
+   -> DONE 24/08/2018 
 
    When I show that G1 is indistinguishable from G2, I transform
    G1 and G2 into a common game G3. Now, this common game cannot

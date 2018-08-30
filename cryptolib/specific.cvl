@@ -76,7 +76,7 @@ equiv(icm(enc))
        foreach ick <= Nck do ck <-R cipherkey;
          (foreach ie <= Ne do Oenc(me:blocksize, ke:key) := return(enc(ck, me, ke)) |
           foreach id <= Nd do Odec(md:blocksize, kd:key) := return(dec(ck, md, kd)))
-     <=((#Oenc+#Odec)*(#Oenc+#Odec-1)*Pcoll2rand(blocksize))=> [computational]
+     <=((#Oenc+#Odec)*(#Oenc+#Odec-1)*Pcoll2rand(blocksize))=> 
        foreach ick <= Nck do 
          (foreach ie <= Ne do Oenc(me:blocksize, ke:key) :=
 		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && me = me[j] && ke = ke[j] then return(re[j]) 
