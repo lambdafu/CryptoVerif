@@ -162,6 +162,7 @@ let anal_file s0 =
       if Terms.ends_with s_up ".OCV" then Settings.front_end := Settings.Oracles
     end;
   try
+    Sys.catch_break true;
     let (statements, collisions, equivs, move_new_eq, queries, proof, impl, final_p) = Syntax.read_file s in
     List.iter Check.check_def_eqstatement equivs;
     List.iter (fun (_,eq) -> Check.check_def_eqstatement eq) move_new_eq;
@@ -220,10 +221,13 @@ let anal_file s0 =
     (* Remove the preprocessed temporary file when everything went well *)
     if s0 <> s then
       Unix.unlink s
-  with End_of_file ->
-    print_string "End of file.\n"
-    | e ->
-        Parsing_helper.internal_error (Printexc.to_string e)
+  with
+  | End_of_file ->
+      print_string "End of file.\n"
+  | Sys.Break ->
+      print_string "Stopped.\n"
+  | e ->
+      Parsing_helper.internal_error (Printexc.to_string e)
 
 let _ =
   Arg.parse

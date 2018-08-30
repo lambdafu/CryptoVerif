@@ -1563,6 +1563,9 @@ and interactive_loop state =
   | Error(mess, extent) ->
       Parsing_helper.display_error mess extent;
       interactive_loop state
+  | Sys.Break ->
+      print_string "Stopped. Restarting from the state before the last command.\n";
+      interactive_loop state
 
 (* [execute_proofinfo proof state] runs the proof [proof] in state [state].
    Returns [CSuccess state'] where [state'] is the state reached after the proof.
