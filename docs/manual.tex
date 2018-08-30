@@ -2076,6 +2076,19 @@ correspond to a term.
   which are used only for testing that branch $j$ has been executed.
   This allows the merge to succeed more often.
 
+\item \texttt{start\_from\_other\_end}: for proofs of indistinguishability
+  only (\texttt{equivalence}), instruct CryptoVerif to start transforming
+  from the other game. When your input file contains
+  $\texttt{equivalence}\ Q_1\ Q_2$, CryptoVerif initally works on the first  
+  process $Q_1$. When you issue the command \texttt{start\_from\_other\_end},
+  CryptoVerif stores your current state, and starts working from $Q_2$.
+  If you issue \texttt{start\_from\_other\_end} again, it will store
+  what you did from $Q_2$, and will restart working from the end of the
+  sequence that you built from $Q_1$. This command allows you to
+  alternate between the sequence that starts from $Q_1$ and the one that
+  starts from $Q_2$. The property is proved when both sequences end with the
+  same game (which you can check with the command \texttt{success}, as usual).
+  
 \item \texttt{quit}: terminate execution.
 
 \item \texttt{success}: test whether the desired properties are
