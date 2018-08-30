@@ -12,7 +12,7 @@ equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
          foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := return(r' = hash(k,x')))
-       <=(#Oeq * Pcoll1rand(hashoutput))=> [computational]
+       <=(#Oeq * Pcoll1rand(hashoutput))=> 
       foreach ih <= Nh do 
         (foreach i <= N do OH(x:hashinput) := 
 	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r) |

@@ -11,7 +11,7 @@ fun hash(key, hashinput):hashoutput.
 equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
         (foreach i <= N do OH(x:hashinput) := return(hash(k,x)))
-       <=(0)=> [computational]
+       <=(0)=> 
       foreach ih <= Nh do 
         (foreach i <= N do OH(x:hashinput) := 
 	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r)).
