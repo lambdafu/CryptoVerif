@@ -105,7 +105,7 @@ int main(argc, argv)
   system = (rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec * 1e-6) / nruns;
   printf("%.3fs (user %.3fs + system %.3fs), max rss %ldK\n",
          user + system, user, system,
-         rusage.ru_maxrss * getpagesize() / 1024);
+         rusage.ru_maxrss);
 #endif
   return 0;
 }

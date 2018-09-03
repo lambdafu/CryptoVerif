@@ -1275,6 +1275,15 @@ Sets the maximum number of rewriting steps that are allowed
 to prove that the new term is equal to the old one in a 
 \texttt{replace} transformation. 
 
+\item \texttt{set forgetOldGames = false.}\\
+\texttt{set forgetOldGames = true.}
+
+When \texttt{forgetOldGames = true}, old games are removed from memory after each
+cryptographic transformation or each interactive command.  
+That allows to save some memory, but prevents \texttt{undo}.
+The display of the games is saved into a temporary file to allow
+displaying the games at the end of the proof.
+
 \end{itemize}
 The default value is the first mentioned, except when explicitly specified.
 In most cases, the default values should be left as they are, except

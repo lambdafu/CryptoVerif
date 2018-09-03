@@ -4,6 +4,36 @@ open Parsing_helper
 (* For backtracking *)
 exception Backtrack
 
+let rec forget_games final_game state =
+  let g = state.game in
+  match g.proc with
+  | Forgotten _ -> ()
+  | RealProcess p ->
+     if g != final_game then
+       begin
+         let s = Filename.temp_file "game" ".cv" in
+         Display.file_out s dummy_ext (fun () ->
+             Display.display_process p);
+         let tex_s = 
+           if (!Settings.tex_output) <> "" then
+             let s = Filename.temp_file "game" ".tex" in
+             Displaytex.file_out s dummy_ext (fun () ->
+             Displaytex.display_process p);
+             Some s
+           else
+             None
+         in
+         g.proc <- Forgotten { text_display = s; tex_display = tex_s }
+       end;
+     match state.prev_state with
+     | None -> ()
+     | Some (_,_,_,s') -> forget_games final_game s'           
+       
+let forget_old_games state =
+  match state.prev_state with
+    None -> ()
+  | Some (_,_,_,s') -> forget_games state.game s'
+          
 let rec state_without_proof state =
   match state.prev_state with
     None -> state
@@ -622,33 +652,46 @@ let rec insert_sort sorted = function
    - [CSuccess state'] when the proof of all properties succeeded.
    - [CFailure ...] otherwise
    The proof is not displayed. *)
-let rec execute_any_crypto_rec1 state =
-  let (state', is_done) =  issuccess_with_advise state in
-  if is_done then
-    (CSuccess state', state)
-  else
-    let equiv_list = insert_sort [] (!Settings.equivs) in
-    let rec apply_equivs = function
-	[] -> 
-	  if !Settings.backtrack_on_crypto then
-	    begin
-	      print_string "Examined sequence:\n";
-	      display_short_state state';
-	      print_string "Backtracking...\n";
-	      raise Backtrack
-	    end
-	  else
-	    (CFailure [], state')
-      |	lequiv::rest_equivs ->
-	  execute_any_crypto_rec (function
-	      CSuccess state'' -> execute_any_crypto_rec1 state''
-	    | CFailure l -> execute_crypto_list (function 
-		  CFailure _ -> 
-		    apply_equivs rest_equivs
-		| CSuccess state''' ->
-		    execute_any_crypto_rec1 state''') (List. map (fun x -> (x, state', false)) l)) state' lequiv
-    in
-    apply_equivs equiv_list
+let rec execute_any_crypto_rec1 interactive state =
+  try 
+    let (state', is_done) =  issuccess_with_advise state in
+    if is_done then
+      (CSuccess state', state)
+    else
+      let equiv_list = insert_sort [] (!Settings.equivs) in
+      let rec apply_equivs = function
+        | [] -> 
+	   if !Settings.backtrack_on_crypto then
+	     begin
+	       print_string "Examined sequence:\n";
+	       display_short_state state';
+	       print_string "Backtracking...\n";
+	       raise Backtrack
+	     end
+	   else
+	     (CFailure [], state')
+        | lequiv::rest_equivs ->
+	   execute_any_crypto_rec (function
+	       | CSuccess state'' -> execute_any_crypto_rec1 interactive state''
+	       | CFailure l -> execute_crypto_list (function 
+		                   | CFailure _ -> 
+		                      apply_equivs rest_equivs
+		                   | CSuccess state''' ->
+                                      if !Settings.forget_old_games then
+                                        forget_old_games state''';
+		                      execute_any_crypto_rec1 interactive state''')
+                                 (List. map (fun x -> (x, state', false)) l)) state' lequiv
+      in
+      apply_equivs equiv_list
+  with
+  | Sys.Break ->
+     if interactive then
+       begin
+         print_string "Stopped. Restarting from last crypto transformation.\n";
+         (CFailure [], state)
+       end
+     else
+       raise Sys.Break
 
 (* [execute_any_crypto state] returns
    - [CSuccess state'] when the proof of all properties succeeded.
@@ -657,7 +700,7 @@ let rec execute_any_crypto_rec1 state =
 let execute_any_crypto state =
   (* Always begin with find/if/let expansion *)
   try
-    let (res, state') = execute_any_crypto_rec1 (expand_simplify state) in
+    let (res, state') = execute_any_crypto_rec1 false (expand_simplify state) in
     begin
       match res with
 	CFailure _ -> 
@@ -937,8 +980,13 @@ let do_equiv ext equiv (s,ext_s) state =
 
 
 let rec undo ext state n =
-  if n <= 0 then 
-    state
+  if n <= 0 then
+    begin
+      match state.game.proc with
+      | RealProcess _ -> state
+      | Forgotten _ ->
+         raise (Error("Cannot undo: game no longer in memory", ext))
+    end
   else
   match state.prev_state with
     None -> 
@@ -1046,6 +1094,7 @@ let help() =
   "undo                         : undo the last transformation\n" ^
   "undo <n>                     : undo the last n transformations\n" ^
   "restart                      : restart from the initial game\n" ^
+  "forget_old_games             : remove old games from memory, to have more space (prevents undo)\n" ^
   "quit                         : quit interactive mode\n" ^
   "help                         : display this help message\n" ^
   "?                            : display this help message\n")
@@ -1429,7 +1478,7 @@ let rec interpret_command interactive state = function
 	  check_no_args command ext args;
 	  begin
 	    try
-	      let (res, state') = execute_any_crypto_rec1 state in
+	      let (res, state') = execute_any_crypto_rec1 true state in
 	      match res with
 		CFailure l -> state'
 	      | CSuccess state' -> raise (EndSuccess state')
@@ -1510,6 +1559,10 @@ let rec interpret_command interactive state = function
 	    | Some (_,_,_,state') -> restart state'
 	  in
 	  expand_simplify (restart state)
+      | "forget_old_games" ->
+	  check_no_args command ext args;
+          forget_old_games state;
+          state
       | "help" | "?" when interactive ->
 	  check_no_args command ext args;
 	  help(); state
@@ -1526,6 +1579,12 @@ let rec interpret_command interactive state = function
 	  if interactive then help();
 	  raise (Error("Unknown command", ext))
 
+and interpret_command_forget interactive state command =
+  let state' = interpret_command interactive state command in
+  if !Settings.forget_old_games then
+    forget_old_games state';
+  state'
+                
 (* [interactive_loop state] runs the interactive prover starting from [state].
    Returns [CSuccess state'] when the prover terminated by "quit" in state [state']
    Raises [EndSuccess state'] when the prover terminated with all properties proved in state [state'] *)
@@ -1539,14 +1598,14 @@ and interactive_loop state =
     | Com_sep ->
 	let state' = 
 	  if com_accu != [] then
-	    interpret_command true state (List.rev com_accu)
+	    interpret_command_forget true state (List.rev com_accu)
 	  else
 	    state
 	in
 	command_from_lexbuf state' [] lexbuf
     | Com_end ->
 	if com_accu != [] then
-	  interpret_command true state (List.rev com_accu)
+	  interpret_command_forget true state (List.rev com_accu)
 	else
 	  state
   in
@@ -1567,16 +1626,16 @@ and interactive_loop state =
    (In case of failure of some proof step, the program terminates.) *)
 let rec execute_proofinfo proof state =
   match proof with
-    [] -> 
+  | [] -> 
       CSuccess state
   | com::rest -> 
-      try
-	execute_proofinfo rest (interpret_command false state com)
-      with
-	End s | EndSuccess s->
-	  CSuccess s
-      |	Error(mess, extent) ->
-	  Parsing_helper.input_error mess extent
+     try
+       execute_proofinfo rest (interpret_command_forget false state com)
+     with
+     | End s | EndSuccess s->
+	CSuccess s
+     | Error(mess, extent) ->
+	Parsing_helper.input_error mess extent
 
 let do_proof proof state =
   if (!Settings.tex_output) <> "" then

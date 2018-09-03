@@ -4454,4 +4454,11 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   equiv_names_lhs := [];
   equiv_names_lhs_flat := [];
   incompatible_terms := [];
+  gameeq_name_mapping := [];
+  user_term_mapping := None;
+  names_to_discharge := [];
+  symbols_to_discharge := [];
+  map := [];
+  introduced_events := [];
+  restr_to_put := [];
   result

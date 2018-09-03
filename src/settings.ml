@@ -14,6 +14,9 @@ let front_end = ref Channels
 
 let lib_name = ref "default"
 
+(* memory saving *)
+let forget_old_games = ref false
+                   
 (* debug settings *)
 let debug_instruct = ref false
 let debug_cryptotransf = ref 0
@@ -187,6 +190,7 @@ let do_set p v =
   | "debugSimplify", _ -> parse_bool v debug_simplify
   | "debugSimplifAddFacts", _ -> parse_bool v debug_simplif_add_facts
   | "debugCorresp", _ -> parse_bool v debug_corresp
+  | "forgetOldGames", _ -> parse_bool v forget_old_games
   | _ -> raise Not_found
 
 

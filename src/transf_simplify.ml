@@ -26,6 +26,16 @@ let reset coll_elim g =
   priority_list := [];
   Simplify1.reset coll_elim g
 
+let final_reset g_proc =
+  current_pass_transfos := [];
+  Terms.cleanup_array_ref();
+  Simplify1.empty_improved_def_process true g_proc;
+  whole_game := Terms.empty_game;
+  List.iter (fun b -> b.priority <- 0) (!priority_list);
+  priority_list := [];
+  failure_check_all_deps := [];
+  proba_state_at_beginning_iteration := (([],[]), [])
+                  
 (* Dependency analysis
    When M1 characterizes a part of x of a large type T
    and M2 does not depend on x, then M1 = M2 fails up to
@@ -2013,11 +2023,8 @@ let simplify_main coll_elim g =
   try
     let p' = simplify_process [] DepAnal2.init ([],[],[]) g_proc in
     let current_transfos = !current_pass_transfos in
-    current_pass_transfos := [];
-    Terms.cleanup_array_ref();
-    Simplify1.empty_improved_def_process true g_proc;
-    whole_game := Terms.empty_game;
-  (* I need to apply auto_sa_rename because I duplicate some code
+    final_reset g_proc;
+    (* I need to apply auto_sa_rename because I duplicate some code
      (for example when there is an || inside a test, or when
      I reorganize a find inside a condition of find). I may then
      duplicate assignments to variables inside conditions of find,
@@ -2025,9 +2032,9 @@ let simplify_main coll_elim g =
      definition. auto_sa_rename restores this invariant.
    *)
     if !Settings.changed then
-        let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
         (* Add probability for eliminated collisions *)
 	let proba = final_add_proba() in
+        let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
         (g',proba @ proba_sa_rename,renames @ [DSimplify(current_transfos)])
     else
 	begin
@@ -2035,9 +2042,7 @@ let simplify_main coll_elim g =
 	  (g,[],[])
 	end
   with Restart (b,g') ->
-    Terms.cleanup_array_ref();
-    Simplify1.empty_improved_def_process true g_proc;
-    whole_game := Terms.empty_game;
+    final_reset g_proc;
     (* Add probability for eliminated collisions *)
     let proba = final_add_proba() in
     (g', proba, [DGlobalDepAnal(b, !Proba.elim_collisions_on_password_occ)])

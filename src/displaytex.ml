@@ -1913,3 +1913,21 @@ let start() =
 let stop() =
   print_string postamble;
   close_out (!file)
+
+let file_out filename ext f =
+  let old_file = !file in
+  let out_file =
+    try
+      open_out filename
+    with Sys_error s ->
+      raise (Parsing_helper.Error("Cannot open file " ^ filename ^ ": " ^ s, ext))
+  in
+  file := out_file;
+  try 
+    f();
+    close_out out_file;
+    file := old_file
+  with x ->
+    close_out out_file;
+    file := old_file;
+    raise x

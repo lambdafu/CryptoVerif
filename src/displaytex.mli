@@ -21,3 +21,4 @@ val display_state : state -> unit
 val print_string : string -> unit
 val start : unit -> unit
 val stop : unit -> unit
+val file_out : string -> Parsing_helper.extent -> (unit -> unit) -> unit

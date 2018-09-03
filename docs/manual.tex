@@ -2176,6 +2176,13 @@ Allowed in \texttt{proof} environments, but not when one is
 already in interactive mode. Useful to start interactive mode
 after some proof steps.
 
+\item \texttt{forget\_old\_games}: removes games before the current one
+from memory. That allows to save some memory, but prevents \texttt{undo}.
+The display of the games is saved into a temporary file to allow
+displaying the games at the end of the proof.
+You can save more memory by applying this command systematically with
+the setting \texttt{set forgetOldGames = true}.
+
 \end{itemize}
 Ctrl-C allows to interrupt a command in interactive mode,
 and go back to the state before the beginning of this command.

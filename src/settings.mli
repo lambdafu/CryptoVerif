@@ -12,6 +12,9 @@ val front_end : frontend ref
 
 val lib_name : string ref
 
+(* memory saving *)
+val forget_old_games : bool ref
+                      
 (* debug settings *)
 val debug_instruct : bool ref
 val debug_cryptotransf : int ref
