@@ -13,6 +13,8 @@ Version
   (Your protocol models that use random oracles may need to be revised.)
 - Added optional side conditions in equation and collision statements.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
+- In interactive mode, Ctrl-C interrupts the current command.
+  (May not work under Windows.)
 
 Version 2.00
 
