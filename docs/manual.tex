@@ -2177,6 +2177,12 @@ already in interactive mode. Useful to start interactive mode
 after some proof steps.
 
 \end{itemize}
+Ctrl-C allows to interrupt a command in interactive mode,
+and go back to the state before the beginning of this command.
+This feature can be helpful when a command is very slow,
+to be able to try another command without waiting for the current command 
+to terminate. It may not work under Windows.
+
 The following indications can help finding a proof:
 \begin{itemize}
 
@@ -2189,7 +2195,8 @@ the security of primitives used in the first messages, before applying
 the security of primitives used in later messages.
 
 \end{itemize}
-Running CryptoVerif inside a text editor such as \texttt{emacs} can be
+Using a text editor such as \texttt{emacs} to look at games output
+by \texttt{out\_game} can be
 helpful, in order to use the search function to look for definitions
 or usages of variables in large games.  For example, when trying to
 prove secrecy of $x$, one may look for usages of $x$, for
