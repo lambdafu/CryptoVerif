@@ -2691,7 +2691,7 @@ and check_oprocess accu cur_array defined_refs p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let check_process old_to_do =
-  check_process old_to_do [] [] (!whole_game).proc 
+  check_process old_to_do [] [] (Terms.get_process (!whole_game)) 
 
 (* Additional checks for variables in the LHS that are accessed with indices given in argument *)
 
@@ -3877,7 +3877,7 @@ let rec map_probaf env = function
 	  List.assq p (! (fst env))
 	with Not_found ->
 	  seen_compat_info := [];
-	  let v = repl_count_process [] (ReplCount p) (!whole_game).proc in
+	  let v = repl_count_process [] (ReplCount p) (Terms.get_process (!whole_game)) in
 	  seen_compat_info := [];
 	  let v = formula_to_listlist v in
 	  let v' = countl_to_poly v in
@@ -3890,7 +3890,7 @@ let rec map_probaf env = function
 	  List.assq c (! (snd env))
 	with Not_found ->
 	  seen_compat_info := [];
-	  let v = repl_count_process [] (OracleCount c) (!whole_game).proc in
+	  let v = repl_count_process [] (OracleCount c) (Terms.get_process (!whole_game)) in
 	  seen_compat_info := [];
 	  let v = formula_to_listlist v in
 	  (*
@@ -4135,7 +4135,7 @@ type trans_res =
 | TFailurePrio of to_do_t * ((binder * binder) list * failure_reason) list
 
 let transfo_expand apply_equiv p q =
-  let g' = { proc = do_crypto_transform p; game_number = -1; current_queries = q } in
+  let g' = { proc = RealProcess (do_crypto_transform p); game_number = -1; current_queries = q } in
   let proba' = compute_proba apply_equiv in
   let ins' = [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
 						  (match !user_term_mapping with
@@ -4193,7 +4193,7 @@ let rec try_with_restr_list apply_equiv = function
 			print_newline()
 		      end;
 		    print_string "Transf. OK "; flush stdout;
-		    let (g',proba',ins') = transfo_expand apply_equiv (!whole_game).proc (!whole_game).current_queries in
+		    let (g',proba',ins') = transfo_expand apply_equiv (Terms.get_process (!whole_game)) (!whole_game).current_queries in
 		    whole_game_next := g';
 		    TSuccessPrio (proba', ins', g')
 		  end
@@ -4344,7 +4344,8 @@ The transformation did not use the useful_change oracles, or oracles deemed usef
   let n'' = List.filter (fun n1 -> not (List.exists (fun (n1',_) -> n1' == n1) (!gameeq_name_mapping))) n' in
   Detailed(Some(!gameeq_name_mapping, n'', !stop_mode), None) *)
 
-let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info ({ proc = p } as g) =
+let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info g =
+  let p = Terms.get_process g in
   let names = 
     match user_info with
       VarList(l, stop) ->

@@ -482,17 +482,18 @@ let rec do_sa_rename = function
 	(DSArenaming(b, b::b'::lb))::lr
 
 let remove_assignments remove_set g =
+  let g_proc = Terms.get_process g in
   done_sa_rename := [];
   done_transfos := [];
   let r = 
     if (remove_set == Minimal) || (remove_set = FindCond) then
-      remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g.proc
+      remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g_proc
     else
-      remove_assignments remove_set g.proc
+      remove_assignments remove_set g_proc
   in
   let sa_rename = !done_sa_rename in
   let transfos = !done_transfos in
   done_transfos := [];
   done_sa_rename := [];
-  ({ proc = r; game_number = -1; current_queries = g.current_queries }, [], (do_sa_rename sa_rename) @ transfos)
+  (Terms.build_transformed_game r g, [], (do_sa_rename sa_rename) @ transfos)
 

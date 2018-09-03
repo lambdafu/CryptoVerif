@@ -180,8 +180,9 @@ and simplify_oprocess p =
 let simplify_process g =
   current_pass_transfos := [];
   Proba.reset [] g;
-  Terms.build_def_process None g.proc;
-  let p' = simplify_process g.proc in
+  let g_proc = Terms.get_process g in
+  Terms.build_def_process None g_proc;
+  let p' = simplify_process g_proc in
   let simplif_transfos = 
     if (!current_pass_transfos) != [] then
       [DSimplify(!current_pass_transfos)]
@@ -193,7 +194,7 @@ let simplify_process g =
   (* Cannot cleanup here because it may delete information
      in the initial game, needed to compute the probabilities.
      Terms.empty_def_process g.proc; *)
-  ({ proc = p'; game_number = -1; current_queries = g.current_queries }, proba, simplif_transfos)
+  (Terms.build_transformed_game p' g, proba, simplif_transfos)
 
 (* Check that a term/binderref contains no if, let, find, new *)
     
@@ -1398,16 +1399,17 @@ and expand_oprocess cur_array true_facts p =
 let expand_main g =
   reset [] g;
   current_pass_transfos := [];
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None true g.proc;
-  let p' = expand_process [] ([],[],[]) g.proc in
+  let g_proc = Terms.get_process g in
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None true g_proc;
+  let p' = expand_process [] ([],[],[]) g_proc in
   let current_transfos = !current_pass_transfos in
   current_pass_transfos := [];
   Terms.cleanup_array_ref();
   let proba = final_add_proba() in
-  Simplify1.empty_improved_def_process true g.proc;
+  Simplify1.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
-  ({ proc = p'; game_number = -1; current_queries = g.current_queries },
+  (Terms.build_transformed_game p' g,
    proba, [DSimplify(current_transfos)])
     
 (* Main function for expansion of if and find
@@ -1424,7 +1426,7 @@ let expand_process g =
   print_string "Simplifying... "; flush stdout;
   let tmp_changed = !Settings.changed in
   let (g1, proba1, ins1) = simplify_process g0 in
-  g1.proc <- Terms.move_occ_process g1.proc;
+  Terms.move_occ_game g1;
   print_string "Expanding and simplifying... "; flush stdout;
   let (g2, proba2, ins2) = expand_main g1 in
   if !Settings.changed then 

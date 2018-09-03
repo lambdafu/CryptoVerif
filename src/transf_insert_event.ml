@@ -60,7 +60,7 @@ let insert_event occ s g =
   let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
   let premp = Terms.oproc_from_desc(EventAbort(f)) in
   let count = ref 0 in
-  let p' = replace_process count occ premp g.proc in
+  let p' = replace_process count occ premp (Terms.get_process g) in
   if (!count) = 0 then 
     raise (Parsing_helper.Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", Parsing_helper.dummy_ext))
   else if (!count > 1) then
@@ -68,7 +68,7 @@ let insert_event occ s g =
   else
     begin
       Settings.changed := true;
-      let g' = { proc = p'; game_number = -1; current_queries = [] } in
+      let g' = Terms.build_transformed_game p' g in
       let q_proof = ref None in
       let pub_vars = Settings.get_public_vars() in
       g'.current_queries <- ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g'), q_proof, None) :: g.current_queries;

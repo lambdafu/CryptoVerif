@@ -401,8 +401,19 @@ let iproc_from_desc3 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0;
 let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0;
 			     p_incompatible = map_empty; p_facts = None }
 
-let empty_game = { proc = iproc_from_desc Nil; game_number = -1; current_queries = [] }
-    
+let empty_game = { proc = RealProcess (iproc_from_desc Nil); game_number = -1; current_queries = [] }
+
+let get_process g =
+  match g.proc with
+  | RealProcess q -> q
+  | Forgotten _ ->
+     Parsing_helper.internal_error "Game forgotten"
+
+let build_transformed_game p g =
+  { proc = RealProcess p;
+    game_number = -1;
+    current_queries = g.current_queries }
+                                   
 (* Is a variable defined by a restriction ? *)
 
 let is_restr b =
@@ -1715,6 +1726,12 @@ and move_occ_oprocess p =
 let move_occ_process p =
   occ := 0;
   move_occ_process p
+
+let move_occ_game g =
+  match g.proc with
+  | RealProcess p ->
+     g.proc <- RealProcess (move_occ_process p)
+  | Forgotten _ -> ()
 
 (* Copy a term
    Preserves occurrences of the original term. This is useful so that

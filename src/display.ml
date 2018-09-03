@@ -17,14 +17,23 @@ let print_newline() =
   print_string "\n";
   flush (!output)
     
-let file_out filename f =
+let file_out filename ext f =
   let old_output = !output in
-  let file = open_out filename in
+  let file =
+    try
+      open_out filename
+    with Sys_error s ->
+      raise (Parsing_helper.Error("Cannot open file " ^ filename ^ ": " ^ s, ext))
+  in
   output := file;
-  f();
-  close_out file;
-  output := old_output
-
+  try 
+    f();
+    close_out file;
+    output := old_output
+  with x ->
+    close_out file;
+    output := old_output;
+    raise x
        
 let display_occurrences = ref false
 let useful_occs = ref []
@@ -1440,9 +1449,7 @@ let build_proof_tree ((q0,g0) as q) p s =
 		    let q' = (QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g) in
 
 		let sons_to_add =
-		  let pt_final_event_f_in_g = { pt_game = { proc = Terms.iproc_from_desc Nil; 
-							    game_number = -1;
-							    current_queries = [] } (* dummy_game *);
+		  let pt_final_event_f_in_g = { pt_game = Terms.empty_game (* dummy_game *);
 						pt_sons = [] }
 		  in
 		  [(Proof [q',p'], p', pt_final_event_f_in_g, ref[QEvent f, g])]
@@ -1451,9 +1458,7 @@ let build_proof_tree ((q0,g0) as q) p s =
 		  ) p
   in
   let sons_to_add =
-    let pt_final_proof = { pt_game = { proc = Terms.iproc_from_desc Nil; 
-				       game_number = -1;
-				       current_queries = [] } (* dummy_game *);
+    let pt_final_proof = { pt_game = Terms.empty_game (* dummy_game *);
 			   pt_sons = [] }
     in
     [(Proof [q,p], p, pt_final_proof, ref [InitQuery q0, g0])]
@@ -1948,6 +1953,27 @@ let mark_occs ins =
 
 let already_displayed = ref []
 
+let display_file s =
+  let f = open_in s in
+  let rec aux() =
+    print_string (input_line f);
+    print_newline();
+    aux()
+  in
+  begin
+    try 
+      aux ()
+    with End_of_file ->
+      ()
+  end;
+  close_in f
+                            
+let display_game_process g =
+  match g.proc with
+  | RealProcess q -> display_process q
+  | Forgotten sg -> display_file sg.text_display
+     
+                            
 let rec display_state ins_next s =
   if List.memq s (!already_displayed) then
     begin
@@ -1971,7 +1997,7 @@ let rec display_state ins_next s =
 	  print_int s.game.game_number;
 	  print_string " is\n";
 	  mark_occs ins_next;
-	  display_process s.game.proc;
+	  display_game_process s.game;
 	  useful_occs := []
       | Some (Proof ql, p, _, s') ->
 	  display_state ins_next s';
@@ -2018,7 +2044,7 @@ let rec display_state ins_next s =
 	  print_int s.game.game_number;
 	  print_string " is\n";
 	  mark_occs ins_next;
-	  display_process s.game.proc;
+	  display_game_process s.game;
 	  useful_occs := []
     end
 

@@ -352,8 +352,19 @@ and eqname =
   | NoName
 
 
+and stored_game =
+  { text_display: string; (*file storing displayed game*)
+    text_runtime: string; (*file storing game runtime*)
+    tex_display: string option; (*file storing displayed game in Latex*)
+    tex_runtime: string option (*file storing game runtime in Latex*)
+  }
+    
+and game_process =
+  | RealProcess of inputprocess
+  | Forgotten of stored_game
+
 and game = 
-    { mutable proc : inputprocess;
+    { mutable proc : game_process;
       mutable game_number : int;
       mutable current_queries : ((query * game) * proof_t ref * proof_t) list
 	(* [current_queries] contains, for each query:

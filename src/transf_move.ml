@@ -354,11 +354,12 @@ and move_new_let_reco move_set p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let move_new_let move_set g =
+  let g_proc = Terms.get_process g in
   done_transfos := [];
-  Terms.array_ref_process g.proc;
-  let r = move_new_let_rec move_set g.proc in
+  Terms.array_ref_process g_proc;
+  let r = move_new_let_rec move_set g_proc in
   Terms.cleanup_array_ref();
   let transfos = !done_transfos in
   done_transfos := [];
-  ({ proc = r; game_number = -1; current_queries = g.current_queries}, [], transfos)
+  (Terms.build_transformed_game r g, [], transfos)
 

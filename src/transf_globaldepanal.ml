@@ -1581,7 +1581,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
   dvar_list_changed := false;
   defvar_list_changed := false;
   defined_condition_update_needed := false;
-  let proc' = check_depend_process [] (!whole_game).proc in
+  let proc' = check_depend_process [] (Terms.get_process (!whole_game)) in
   if (!dvar_list_changed) || (!defvar_list_changed) then check_depend_iter init_proba_state else proc'
 
 (* [check_all_deps b0 init_proba_state g] is the entry point for calling 
@@ -1602,7 +1602,7 @@ let check_all_deps b0 init_proba_state g =
     dvar_list := [b0st];
     defvar_list := [];
     let proc' = check_depend_iter init_proba_state in
-    let res_game = { proc = proc'; game_number = -1; current_queries = g.current_queries } in
+    let res_game = Terms.build_transformed_game proc' g in
     if not (!local_changed) then
       begin
 	print_string "The global dependency analysis succeeded but did not make any change.\n";
@@ -1630,8 +1630,9 @@ let check_all_deps b0 init_proba_state g =
 
 let main b0 coll_elim g =
   Simplify1.reset coll_elim g;
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None false g.proc;
+  let g_proc = Terms.get_process g in
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None false g_proc;
   let dummy_term = Terms.term_from_binder b0 in
   let result = 
   if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
@@ -1651,6 +1652,6 @@ let main b0 coll_elim g =
 	(res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
     end
   in
-  Simplify1.empty_improved_def_process false g.proc;
+  Simplify1.empty_improved_def_process false g_proc;
   whole_game := Terms.empty_game;
   result

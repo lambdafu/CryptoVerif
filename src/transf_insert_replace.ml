@@ -733,6 +733,7 @@ and insert_inso count occ ins env cur_array p =
     r
 
 let insert_instruct occ ext_o s ext_s g =
+  let g_proc = Terms.get_process g in
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
   let ins = 
@@ -741,10 +742,10 @@ let insert_instruct occ ext_o s ext_s g =
     with
       Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
   in
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None false g.proc;
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None false g_proc;
   Hashtbl.clear hash_binders;
-  find_binders_rec g.proc;
+  find_binders_rec g_proc;
   let count = ref 0 in
   let env = ref (!Stringmap.env) in
   Terms.TypeHashtbl.iter (fun _ f ->
@@ -752,14 +753,14 @@ let insert_instruct occ ext_o s ext_s g =
     Terms.cst_for_type_table;
   let (p',_) = 
     try
-      insert_ins count occ ins (!env) [] g.proc 
+      insert_ins count occ ins (!env) [] g_proc 
     with Error(mess, extent) ->
       Terms.cleanup_array_ref();
       Hashtbl.clear hash_binders;
       raise (Error(mess, extent))
   in
   Terms.cleanup_array_ref();
-  Simplify1.empty_improved_def_process false g.proc;
+  Simplify1.empty_improved_def_process false g_proc;
   Hashtbl.clear hash_binders;
   if (!count) = 0 then 
     raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
@@ -768,7 +769,7 @@ let insert_instruct occ ext_o s ext_s g =
   else
     begin
       Settings.changed := true;
-      let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1; current_queries = g.current_queries } in
+      let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
       (g', proba, done_transfos @ [DInsertInstruct(s, occ)])
     end
      
@@ -994,6 +995,7 @@ and replace_to count env cur_array p =
   Terms.oproc_from_desc2 p p_desc'
 
 let replace_term occ ext_o s ext_s g =
+  let g_proc = Terms.get_process g in
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
   let rep_term = 
@@ -1002,10 +1004,10 @@ let replace_term occ ext_o s ext_s g =
     with
       Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
   in
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None true g.proc;
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None true g_proc;
   Hashtbl.clear hash_binders;
-  find_binders_rec g.proc;
+  find_binders_rec g_proc;
   whole_game := g;
   let count = ref (RepToDo (occ, ext_o, rep_term, ext_s)) in
   let env = ref (!Stringmap.env) in
@@ -1014,20 +1016,20 @@ let replace_term occ ext_o s ext_s g =
     Terms.cst_for_type_table;
   let p' = 
     try
-      replace_t count (!env) [] g.proc 
+      replace_t count (!env) [] g_proc 
     with Error(mess, extent) ->
       Terms.cleanup_array_ref();
       Hashtbl.clear hash_binders;
-      Terms.empty_comp_process g.proc;
+      Terms.empty_comp_process g_proc;
       raise (Error(mess, extent))
   in
   Terms.cleanup_array_ref();
   Hashtbl.clear hash_binders;
-  Simplify1.empty_improved_def_process true g.proc;
+  Simplify1.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   match !count with
     RepToDo _ ->
       raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
   | RepDone(sets,_,t,t',_) ->
       Settings.changed := true;
-      ({ proc = p'; game_number = -1; current_queries = g.current_queries  }, sets, [DReplaceTerm(t,t',occ)])
+      (Terms.build_transformed_game p' g, sets, [DReplaceTerm(t,t',occ)])

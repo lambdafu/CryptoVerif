@@ -354,7 +354,7 @@ let compute_runtime_for_context g equiv map_fun names_discharge =
   whole_game := g;
   get_time_map := map_fun;
   names_to_discharge := names_discharge;
-  let tp = time_process g.proc in
+  let tp = time_process (Terms.get_process g) in
   let t = 
     if (!Settings.ignore_small_times)>0 then
       tp
@@ -380,7 +380,7 @@ let compute_runtime_for g =
   whole_game := g;
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
-  let r = Polynom.polynom_to_probaf (time_process g.proc) in
+  let r = Polynom.polynom_to_probaf (time_process (Terms.get_process g)) in
   whole_game := Terms.empty_game;
   r
 

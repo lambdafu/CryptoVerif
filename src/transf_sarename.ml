@@ -364,7 +364,7 @@ and ren_out_oprocess b0 p =
 (* Main function for variable renaming into sa *)
 
 let sa_rename b0 g =
-  let p = g.proc in
+  let p = Terms.get_process g in
   (* cannot rename if b0 occurs in queries! 
      TO DO in fact, I could replace b0 = M with b' = M; b0 = b',
      replace all references to b0 with b', and apply sa_rename on b' *)
@@ -386,7 +386,7 @@ let sa_rename b0 g =
 	proba_accu := [];
 	Terms.empty_comp_process p';
 	Terms.empty_def_process p';
-	let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename { proc = p''; game_number = -1; current_queries = g.current_queries } in      
+	let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p'' g) in      
 	(g', proba @ probaSArename, renames @ [DSArenaming(b0,new_names)])
       end
     else

@@ -1580,8 +1580,9 @@ do that by calling merge_arrays again with argument the b'j.
 *)
 
 let merge_arrays bll mode g =
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None true g.proc;
+  let g_proc = Terms.get_process g in  
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None true g_proc;
   Proba.reset [] g;
   let old_merge_arrays = !Settings.merge_arrays in
   Settings.merge_arrays := false;
@@ -1648,7 +1649,7 @@ let merge_arrays bll mode g =
       in
       try
 	let bll_no_ext = List.map (List.map fst) bll in
-	let p' = merge_i (List.map (fun bl -> bl, List.hd bl) bll_no_ext, branch_vars) g.proc in
+	let p' = merge_i (List.map (fun bl -> bl, List.hd bl) bll_no_ext, branch_vars) g_proc in
 	(* If the variables have array references only at defined conditions,
 	   and no real merge has been done, the transformation is useless: 
 	   I would just use different variables to distinguish the branches. 
@@ -1658,25 +1659,25 @@ let merge_arrays bll mode g =
 	    ) bll) then
 	  begin
 	    Settings.changed := true;
-	    Terms.empty_comp_process g.proc;
+	    Terms.empty_comp_process g_proc;
 	    Settings.merge_arrays := old_merge_arrays;
 	    (* Display.display_process p'; *)
 	    let proba = Proba.final_add_proba [] in
-	    ({ proc = p'; game_number = -1; current_queries = g.current_queries }, proba, [DMergeArrays(bll,mode)])
+	    (Terms.build_transformed_game p' g, proba, [DMergeArrays(bll,mode)])
 	  end
 	else
 	  begin
-	    Simplify1.empty_improved_def_process true g.proc;
+	    Simplify1.empty_improved_def_process true g_proc;
 	    Settings.merge_arrays := old_merge_arrays;
 	    (g, [], [])
 	  end
       with 
 	Failed ->
-	  Simplify1.empty_improved_def_process true g.proc;
+	  Simplify1.empty_improved_def_process true g_proc;
 	  Settings.merge_arrays := old_merge_arrays;
 	  (g, [], [])
       | Error(mess,ext) ->
-	  Simplify1.empty_improved_def_process true g.proc;
+	  Simplify1.empty_improved_def_process true g_proc;
 	  Settings.merge_arrays := old_merge_arrays;
 	  raise (Error(mess,ext))
   
@@ -2181,13 +2182,14 @@ let display_merge = function
       
 
 let merge_branches g =
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None false g.proc;
+  let g_proc = Terms.get_process g in  
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None false g_proc;
   Proba.reset [] g;
   Simplify1.term_collisions := [];
   merges_to_do := [];
   merges_cannot_be_done := [];
-  collect_merges_i [] g.proc;
+  collect_merges_i [] g_proc;
   let result =
   if (!merges_to_do) == [] then
     (* No merge can be done *)
@@ -2199,7 +2201,7 @@ let merge_branches g =
       (* List.iter display_merge (!merges_to_do); *)
       if (!merges_to_do) != [] then
         (* Perform the possible merges *)
-	let p' = do_merges_i g.proc in
+	let p' = do_merges_i g_proc in
 	Settings.changed := true;
         (* TO DO if (!merges_cannot_be_done) != [], I should iterate to get up-to-date advice *)
 	let done_transfos = 
@@ -2211,7 +2213,7 @@ let merge_branches g =
 	merges_cannot_be_done := [];
 	let proba = Simplify1.final_add_proba () in
 	Simplify1.term_collisions := [];
-	({ proc = p'; game_number = -1; current_queries = g.current_queries }, proba, done_transfos)
+	(Terms.build_transformed_game p' g, proba, done_transfos)
       else
 	begin
 	  (* No change, but may advise MergeArrays *)
@@ -2222,7 +2224,7 @@ let merge_branches g =
 	end
     end
   in
-  Simplify1.empty_improved_def_process false g.proc;
+  Simplify1.empty_improved_def_process false g_proc;
   result
     
 (**************** Test equality between two independent processes *****************)
@@ -2234,17 +2236,19 @@ let collect_good_vars_fullprocess p =
   List.map fst (!ok_vars)
 
 let equal_games g1 g2 =
+  let g1_proc = Terms.get_process g1 in
+  let g2_proc = Terms.get_process g2 in
   (* We use [simp_facts_id] below since no fact holds at the beginning of the games.
      For this reason, we use no known facts, and the probability [proba] should always be 0 *)
-  Terms.array_ref_process g1.proc;
-  Terms.array_ref_process g2.proc;
+  Terms.array_ref_process g1_proc;
+  Terms.array_ref_process g2_proc;
   Proba.reset [] g1;
   Simplify1.term_collisions := [];
   let r = 
     equal_store_arrays (fun p p' ->
         ok_arrays_first_branch := collect_good_vars_fullprocess p;
         ok_arrays_second_branch := collect_good_vars_fullprocess p';
-        equal_process [] p p') Terms.simp_facts_id g1.proc g2.proc
+        equal_process [] p p') Terms.simp_facts_id g1_proc g2_proc
   in
   let proba = Simplify1.final_add_proba () in
   Simplify1.term_collisions := [];

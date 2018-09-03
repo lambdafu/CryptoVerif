@@ -391,7 +391,8 @@ and invo defined_refs p =
       invo defined_refs p
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
-let global_inv p =
+let global_inv g =
+  let p = Terms.get_process g in
   let _ = inv1 [] p in
   Terms.array_ref_process p;
   Terms.build_def_process None p;

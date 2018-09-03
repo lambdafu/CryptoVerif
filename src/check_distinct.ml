@@ -32,7 +32,7 @@ let collect_facts_list bindex index1 defs =
     
 let check_distinct b g =
   Proba.reset [] g;
-  Simplify1.improved_def_process None false g.proc;
+  Simplify1.improved_def_process None false (Terms.get_process g);
   let r_index1 = make_indexes b.args_at_creation in
   let r_index2 = make_indexes b.args_at_creation in
   let index1 = List.map Terms.term_from_repl_index r_index1 in

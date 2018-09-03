@@ -108,7 +108,9 @@ val iproc_from_desc3 : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc3 : process -> process_desc -> process
 
 val empty_game : game
-    
+val get_process : game -> inputprocess
+val build_transformed_game : inputprocess -> game -> game
+                   
 val app : funsymb -> term list -> term
 
 val is_args_at_creation : binder -> term list -> bool
@@ -392,7 +394,8 @@ val move_occ_br : binderref -> binderref
    inside the returned process are physically distinct, which is a 
    requirement for calling [Terms.build_def_process]. *)
 val move_occ_process : inputprocess -> inputprocess
-
+val move_occ_game : game -> unit
+                                         
 val term_from_pat : pattern -> term
 val get_type_for_pattern : pattern -> typet
 

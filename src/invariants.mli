@@ -2,4 +2,4 @@
    satisfies the needed invariants. Otherwise, an internal error
    occurs. *)
 
-val global_inv : Types.inputprocess -> unit
+val global_inv : Types.game -> unit

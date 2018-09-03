@@ -129,12 +129,12 @@ let execute_state_basic state i =
   if !Settings.debug_instruct then
     begin
       print_string " Resulting game:\n";
-      Display.display_process g'.proc
+      Display.display_game_process g'
     end;
   if !Settings.changed then
     begin
-      g'.proc <- Terms.move_occ_process g'.proc;
-      Invariants.global_inv g'.proc;
+      Terms.move_occ_game g';
+      Invariants.global_inv g';
       ({ game = g';
 	 prev_state = Some (i, proba, done_ins, state) }, ins_update)
     end
@@ -178,7 +178,7 @@ let rec execute_state state = function
 	if !Settings.debug_instruct then
 	  begin
 	    print_string " Resulting game after one simplification pass:\n";
-	    Display.display_process g'.proc
+	    Display.display_game_process g'
 	  end;
 	match done_ins with
 	  [] ->
@@ -189,8 +189,8 @@ let rec execute_state state = function
 	    (state, None)
 	| [DGlobalDepAnal _] ->
 	    (* Global dependency analysis done; iterate simplification the same number of times *)
-	    g'.proc <- Terms.move_occ_process g'.proc;
-	    Invariants.global_inv g'.proc;
+	    Terms.move_occ_game g';
+	    Invariants.global_inv g';
 	    let state' =  
 	      { game = g';
 		prev_state = Some (i, proba, done_ins, state) }
@@ -199,8 +199,8 @@ let rec execute_state state = function
 	    (state'', compos_ins_updater ins_updater ins_updater')
 	| _ ->
 	    (* Simplification done *)
-	    g'.proc <- Terms.move_occ_process g'.proc;
-	    Invariants.global_inv g'.proc;
+	    Terms.move_occ_game g';
+	    Invariants.global_inv g';
 	    let state' =  
 	      { game = g';
 		prev_state = Some (i, proba, done_ins, state) }
@@ -349,25 +349,25 @@ let crypto_transform no_advice equiv user_info state =
     TSuccess (proba,ins,g'') -> 
       if !Settings.debug_instruct then
 	begin
-	  Display.display_process state.game.proc;
+	  Display.display_game_process state.game;
 	  print_string "Applying ";
 	  Display.display_equiv_with_name equiv;
 	  Display.display_with_user_info user_info;
 	  print_string " succeeds. Resulting game:\n";
-	  Display.display_process g''.proc
+	  Display.display_game_process g''
 	end
       else
 	print_string "Succeeded.\n"; 
       flush stdout;
       (* Always expand FindE *)
-      g''.proc <- Terms.move_occ_process g''.proc;
-      Invariants.global_inv g''.proc;
+      Terms.move_occ_game g'';
+      Invariants.global_inv g'';
       CSuccess (simplify { game = g''; 
 			   prev_state = Some (CryptoTransf(equiv, user_info), proba, ins, state) })
   | TFailure (l,failure_reasons) ->
       if !Settings.debug_instruct then
 	begin
-	  Display.display_process state.game.proc;
+	  Display.display_game_process state.game;
 	  print_string "Applying ";
 	  Display.display_equiv_with_name equiv;
 	  Display.display_with_user_info user_info;
@@ -562,7 +562,7 @@ let display_state final state =
 	begin
 	  print_string ("Outputting proof in " ^ (!Settings.proof_output));
 	  print_newline();
-	  Display.file_out (!Settings.proof_output) (fun () ->
+	  Display.file_out (!Settings.proof_output) dummy_ext (fun () ->
 	    Display.display_state state')
 	end;
       if (!Settings.tex_output) <> "" then
@@ -779,8 +779,9 @@ and find_binders_reco accu p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let find_binders game =
+  let p = Terms.get_process game in
   let accu = Hashtbl.create 7 in
-  find_binders_rec accu game;
+  find_binders_rec accu p;
   accu 
 
 let find_binder binders (s,ext) =
@@ -881,11 +882,11 @@ let do_equiv ext equiv (s,ext_s) state =
 	| Ptree.PVarList(lb, stop) -> 
            (* When the list of binders lb ends with a ".", do not add more binders
               automatically *)
-	    let binders = find_binders state.game.proc in	      	  
+	    let binders = find_binders state.game in	      	  
 	    let lb' = List.map (find_binder binders) lb in
 	    VarList(lb',stop)
 	| Ptree.PDetailed l ->
-	    let binders = find_binders state.game.proc in	      	  
+	    let binders = find_binders state.game in	      	  
 	    let var_mapping = ref None in
 	    let term_mapping = ref None in
 	    List.iter (function
@@ -948,6 +949,18 @@ let rec undo ext state n =
       Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 
+let display_facts_at state occ_s ext2 =
+  try 
+    let occ = int_of_string occ_s in
+    (* First compute the facts, then display them *)
+    let g_proc = Terms.get_process state.game in
+    Simplify1.improved_def_process None true g_proc;
+    Facts.display_facts_at g_proc occ;
+    Simplify1.empty_improved_def_process true g_proc
+  with Failure _ ->
+    raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
+
+                                
 exception NthFailed
 	
 let nth l n =
@@ -1082,7 +1095,7 @@ let rec interpret_command interactive state = function
 	    | [("findcond", _)] -> execute_display_advise state (RemoveAssign FindCond)
 	    | [("all", _)] -> execute_display_advise state (RemoveAssign All)
 	    | [("binder",_); id] -> 
-		let binders = find_binders state.game.proc in
+		let binders = find_binders state.game in
 		execute_display_advise state (RemoveAssign (OneBinder (find_binder binders id)))
 	    | _ -> 
 		raise (Error("Allowed options for remove_assign are useless, all, binder x", full_extent ext args))
@@ -1096,11 +1109,11 @@ let rec interpret_command interactive state = function
 	    | [("random_noarrayref",_)] -> execute_display_advise state (MoveNewLet MNewNoArrayRef)
 	    | [("assign",_)] -> execute_display_advise state (MoveNewLet MLet)
 	    | [("binder",_); id] ->
-		let binders = find_binders state.game.proc in	      
+		let binders = find_binders state.game in	      
 		execute_display_advise state (MoveNewLet (MOneBinder (find_binder binders id)))
 	    | [("array",_); ((s,ext2) as id)] ->
 		begin
-		  let binders = find_binders state.game.proc in	      
+		  let binders = find_binders state.game in	      
 		  let b = find_binder binders id in
 		  if not (Proba.is_large b.btype) then
 		    raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
@@ -1184,7 +1197,7 @@ let rec interpret_command interactive state = function
 	  end
       | "merge_arrays" ->
 	  begin
-	    let binders = find_binders state.game.proc in
+	    let binders = find_binders state.game in
 	    if List.length args < 2 then 
 	      raise (Error("You should give at least two variables to merge", ext));
 	    let rec anal_r accu = function
@@ -1211,7 +1224,7 @@ let rec interpret_command interactive state = function
 	  begin
 	    match args with
 	    | [id] ->
-		let binders = find_binders state.game.proc in	      
+		let binders = find_binders state.game in	      
 		execute_display_advise state (SArenaming (find_binder binders id))
 	    | _ ->
 		raise (Error("SArename expects as argument the variable to rename", full_extent ext args))
@@ -1220,10 +1233,10 @@ let rec interpret_command interactive state = function
 	  begin
 	    match args with	  
 	    | [id] ->
-		let binders = find_binders state.game.proc in	      
+		let binders = find_binders state.game in	      
 		execute_display_advise state (GlobalDepAnal (find_binder binders id, []))
 	    | id :: ("coll_elim", _) :: l ->
-		let binders = find_binders state.game.proc in	      
+		let binders = find_binders state.game in	      
 		execute_display_advise state (GlobalDepAnal (find_binder binders id, List.map fst l))
 	    | _ ->
 		raise (Error("global_dep_anal expects as arguments the variable on which to perform the dependency analysis and optionally coll_elim <collisions to eliminate>", full_extent ext args))
@@ -1354,11 +1367,11 @@ let rec interpret_command interactive state = function
 	  begin
 	    match args with
 	    | [] ->
-		Display.display_process state.game.proc;
+		Display.display_game_process state.game;
 		state
 	    | [("occ",_)] ->
 		Display.display_occurrences := true;
-		Display.display_process state.game.proc;
+		Display.display_game_process state.game;
 		Display.display_occurrences := false;
 		state
 	    | _ ->
@@ -1372,30 +1385,21 @@ let rec interpret_command interactive state = function
 	  begin
 	    match args with
 	    | [(occ_s,ext2)] ->
-		begin
-		  try 
-		    let occ = int_of_string occ_s in
-	            (* First compute the facts, then display them *)
-		    Simplify1.improved_def_process None true state.game.proc;
-		    Facts.display_facts_at state.game.proc occ;
-		    Simplify1.empty_improved_def_process true state.game.proc;
-		    state
-		  with Failure _ ->
-		    raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
-		end
+               display_facts_at state occ_s ext2;
+               state
 	    | _ ->
 		raise (Error("show_facts expects as argument the occurrence at which true facts should be displayed", full_extent ext args))
 	  end
       | "out_game" ->
 	  begin
 	    match args with
-	    | [(s,_)] ->
-		Display.file_out s (fun () -> Display.display_process state.game.proc);
+	    | [(s, ext)] ->
+		Display.file_out s ext (fun () -> Display.display_game_process state.game);
 		state
-	    | [(s, _); ("occ",_)] ->
-		Display.file_out s (fun () ->
+	    | [(s, ext); ("occ",_)] ->
+		Display.file_out s ext (fun () ->
 		  Display.display_occurrences := true;
-		  Display.display_process state.game.proc;
+		  Display.display_game_process state.game;
 		  Display.display_occurrences := false);
 		state
 	    | _ ->
@@ -1404,8 +1408,8 @@ let rec interpret_command interactive state = function
       | "out_state" ->
 	  begin
 	    match args with
-	    | [(s, _)] ->
-		Display.file_out s (fun () ->
+	    | [(s, ext)] ->
+		Display.file_out s ext (fun () ->
 		  display_state false state);
 		state
 	    | _ ->
@@ -1414,19 +1418,10 @@ let rec interpret_command interactive state = function
       | "out_facts" ->
 	  begin
 	    match args with
-	    | [(s, _); (occ_s,ext2)] ->
-		begin
-		  try
-		    Display.file_out s (fun () ->
-		      let occ = int_of_string occ_s in
-	              (* First compute the facts, then display them *)
-		      Simplify1.improved_def_process None true state.game.proc;
-		      Facts.display_facts_at state.game.proc occ;
-		      Simplify1.empty_improved_def_process true state.game.proc);
-		    state
-		  with Failure _ ->
-		    raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
-		end
+	    | [(s, ext); (occ_s,ext2)] ->
+               Display.file_out s ext (fun () ->
+                   display_facts_at state occ_s ext2);
+               state
 	    | _ ->
 		raise (Error("out_facts expects as arguments the name of the file in which the facts will be output and the occurrence at which the true facts should be output", full_extent ext args))
 	  end

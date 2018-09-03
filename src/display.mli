@@ -1,6 +1,6 @@
 open Types
 
-val file_out : string -> (unit -> unit) -> unit
+val file_out : string -> Parsing_helper.extent -> (unit -> unit) -> unit
 
 val print_string : string -> unit
 val print_newline : unit -> unit  
@@ -31,7 +31,8 @@ val display_equiv : equiv_nm -> unit
 val display_equiv_with_name : equiv_nm -> unit
 val display_oprocess : string -> process -> unit
 val display_process : inputprocess -> unit
-
+val display_game_process : game -> unit
+                                        
 val display_bl_assoc : binder list -> unit
 val display_user_info : crypto_transf_user_info -> unit
 val display_with_user_info : crypto_transf_user_info -> unit

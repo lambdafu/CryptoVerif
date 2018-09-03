@@ -182,10 +182,11 @@ let rec do_sa_rename accu = function
       do_sa_rename (b_rename::accu) list_not_b
 
 let auto_sa_rename g =
-  Terms.array_ref_process g.proc;
-  let p' = auto_sa_rename_process g.proc in
+  let g_proc = Terms.get_process g in
+  Terms.array_ref_process g_proc;
+  let p' = auto_sa_rename_process g_proc in
   Terms.cleanup_array_ref();
   let sa_rename = !done_sa_rename in
   done_sa_rename := [];
-  ({ proc = p'; game_number = -1; current_queries = g.current_queries }, [], do_sa_rename [] sa_rename)
+  (Terms.build_transformed_game p' g, [], do_sa_rename [] sa_rename)
 

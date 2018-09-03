@@ -2023,8 +2023,6 @@ let rec check_types ext pl0 pl tl =
 		   "Unexpected number of arguments.") ext
 
 
-let dummy_game = { proc = Terms.iproc_from_desc Nil; game_number = -1; current_queries = [] }
-
 let rec check_probability_formula seen_ch seen_repl env = function
     PPIdent(s,ext), ext2 ->
       begin
@@ -2160,7 +2158,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
       if t'.t_type.toptions land Settings.tyopt_BOUNDED != 0 then
 	(TypeMaxlength(t'.t_type), Some (0,0,1))
       else
-	(Maxlength(dummy_game, t'), Some (0,0,1))
+	(Maxlength(Terms.empty_game, t'), Some (0,0,1))
   | PLength((s,ext'), pl), ext ->
       begin
 	let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in

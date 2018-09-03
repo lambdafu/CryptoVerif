@@ -172,7 +172,7 @@ let anal_file s0 =
       | Equivalence(p1,p2,pub_vars) ->
          Check.check_def_process_main p2;
 	 let final_game =
-	   { proc = Terms.move_occ_process p2;
+	   { proc = RealProcess (Terms.move_occ_process p2);
 	     game_number = -1;
 	     current_queries = [] }
 	 in
@@ -193,7 +193,7 @@ let anal_file s0 =
         do_implementation impl
       else
         begin
-          let g = { proc = Terms.move_occ_process p; game_number = 1; current_queries = [] } in
+          let g = { proc = RealProcess (Terms.move_occ_process p); game_number = 1; current_queries = [] } in
             let queries =
               if queries == [] then 
 	        [(AbsentQuery,g), ref None, None]

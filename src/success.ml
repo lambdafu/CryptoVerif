@@ -430,7 +430,7 @@ and check_usage_full_process seen_accu b lidx facts =
       raise Not_found
     end
   else
-    check_usage_process [] seen_accu b lidx facts (!whole_game).proc
+    check_usage_process [] seen_accu b lidx facts (Terms.get_process (!whole_game))
 
 
 let has_assign b =
@@ -698,16 +698,17 @@ and is_full_proba query_list = function
 let is_success state =
   let g = state.game in
   whole_game := g;
+  let g_proc = Terms.get_process g in
   proved_one_session_secrets := [];
   let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
-  Simplify1.improved_def_process (Some event_accu) true g.proc;
+  Simplify1.improved_def_process (Some event_accu) true g_proc;
   let (proved_queries, all_queries, all_proved) = check_query_list (!event_accu) state g.current_queries in
   g.current_queries <- all_queries; (* Updated queries *)
   List.iter (update_full_proof all_queries) all_queries;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
-  Simplify1.empty_improved_def_process true g.proc;
+  Simplify1.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   proved_queries, all_proved
 

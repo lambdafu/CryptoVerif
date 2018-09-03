@@ -2003,18 +2003,19 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
       simplify_oprocess cur_array dep_info_else true_facts_else pfalse
 
 let simplify_main coll_elim g =
+  let g_proc = Terms.get_process g in
   let tmp_changed = !Settings.changed in
   Settings.changed := false;
   reset coll_elim g;
   current_pass_transfos := [];
-  Terms.array_ref_process g.proc;
-  Simplify1.improved_def_process None true g.proc;
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None true g_proc;
   try
-    let p' = simplify_process [] DepAnal2.init ([],[],[]) g.proc in
+    let p' = simplify_process [] DepAnal2.init ([],[],[]) g_proc in
     let current_transfos = !current_pass_transfos in
     current_pass_transfos := [];
     Terms.cleanup_array_ref();
-    Simplify1.empty_improved_def_process true g.proc;
+    Simplify1.empty_improved_def_process true g_proc;
     whole_game := Terms.empty_game;
   (* I need to apply auto_sa_rename because I duplicate some code
      (for example when there is an || inside a test, or when
@@ -2024,7 +2025,7 @@ let simplify_main coll_elim g =
      definition. auto_sa_rename restores this invariant.
    *)
     if !Settings.changed then
-        let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename { proc = p'; game_number = -1; current_queries = g.current_queries } in
+        let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
         (* Add probability for eliminated collisions *)
 	let proba = final_add_proba() in
         (g',proba @ proba_sa_rename,renames @ [DSimplify(current_transfos)])
@@ -2035,7 +2036,7 @@ let simplify_main coll_elim g =
 	end
   with Restart (b,g') ->
     Terms.cleanup_array_ref();
-    Simplify1.empty_improved_def_process true g.proc;
+    Simplify1.empty_improved_def_process true g_proc;
     whole_game := Terms.empty_game;
     (* Add probability for eliminated collisions *)
     let proba = final_add_proba() in

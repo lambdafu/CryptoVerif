@@ -1719,6 +1719,29 @@ let display_detailed_ins = function
 
 let already_displayed = ref []
 
+let display_file s =
+  let f = open_in s in
+  let rec aux() =
+    print_string (input_line f);
+    print_string "\n";
+    aux()
+  in
+  begin
+    try 
+      aux ()
+    with End_of_file ->
+      ()
+  end;
+  close_in f
+
+let display_game_process g =
+  match g.proc with
+  | RealProcess q -> display_process q
+  | Forgotten sg ->
+     match sg.tex_display with
+     | Some s -> display_file s
+     | None -> Parsing_helper.internal_error "cannot display game in latex"
+           
 let rec display_state ins_next s =
   if List.memq s (!already_displayed) then
     begin
@@ -1735,7 +1758,7 @@ let rec display_state ins_next s =
 	  print_string "Initial state\\\\\n";
 	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
 	  Display.mark_occs ins_next;
-	  display_process s.game.proc;
+	  display_game_process s.game;
 	  Display.useful_occs := []
       | Some (Proof ql, p, _, s') ->
 	  display_state ins_next s';
@@ -1773,7 +1796,7 @@ let rec display_state ins_next s =
 	  print_string "yields\\\\\n\\\\\n";
 	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
 	  Display.mark_occs ins_next;
-	  display_process s.game.proc;
+	  display_game_process s.game;
 	  Display.useful_occs := []
     end
 
