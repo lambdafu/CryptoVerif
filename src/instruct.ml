@@ -1558,7 +1558,13 @@ let rec interpret_command interactive state = function
 	      None -> state
 	    | Some (_,_,_,state') -> restart state'
 	  in
-	  expand_simplify (restart state)
+	  let state' = restart state in 
+	  begin
+	    match state'.game.proc with
+	    | RealProcess _ -> expand_simplify state'
+	    | Forgotten _ ->
+		raise (Error("Cannot restart: game no longer in memory", ext))
+	  end
       | "forget_old_games" ->
 	  check_no_args command ext args;
           forget_old_games state;
