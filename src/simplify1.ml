@@ -1317,6 +1317,11 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	(* Contradiction may be raised when b can in fact not be defined. *)
 	[]
     in
+
+    (* [additional_disjuncts] stores additional disjuncts: 
+       we actually prove (!additional_disjuncts) || (not t') *)
+    let additional_disjuncts = ref [] in
+    
       if (!Settings.debug_elsefind_facts) then
         begin
           print_string "Elsefind_fact_vars_before:\n";
@@ -1336,14 +1341,42 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
             end;
 
 	  (* If the variable of br is defined at the definition of b, 
-	     remove the variables defined at the same time as (b,tl) and br
-	     from def_vars_before. (We are not sure that they are defined before br.) *)
+                * if the indices of br are the same as those of b[tl]
+                  of [Settings.else_find_no_additional_disjunct], then we
+	          remove the variables defined at the same time as (b,tl) and br
+	          from def_vars_before. (We are not sure that they are defined before br.)
+                * otherwise, we assume that the indices of br are different from
+                  those of b[tl], that is, [not((snd br) = tl)], to make sure that all variables in 
+                  def_vars_before are defined before br.
+                  Hence, we actually prove [not((snd br) = tl) => not(t')],
+                  that is, [((snd br) = tl) || not(t')], so we 
+                  add [(snd br) = tl] to [additional_disjuncts].
+                  [assumed_distinct_block] is true when we make this assumption. *)
 	  let vars_at_b = List.concat (List.map (fun n -> n.binders) b.def) in
-	  let def_vars_before = 
+	  let (def_vars_before, assumed_distinct_block) = 
 	    if List.memq (fst br) vars_at_b then
-	      Terms.setminus_binderref def_vars_before (List.map (fun b' -> (b', tl)) vars_at_b)
+              if (List.for_all2 Terms.equal_terms (snd br) tl) ||
+                   (!Settings.else_find_no_additional_disjunct)
+              then
+	        (Terms.setminus_binderref def_vars_before (List.map (fun b' -> (b', tl)) vars_at_b), false)
+              else
+                begin
+                  let disjunct = Terms.make_and_list (List.map2 Terms.make_equal (snd br) tl) in
+                  additional_disjuncts := disjunct::(!additional_disjuncts);
+                  if (!Settings.debug_elsefind_facts) then
+                    begin
+                      print_string "We assume that not(";
+                      Display.display_term disjunct;
+                      print_string ") so that ";
+	              Display.display_term (Terms.term_from_binderref br);
+	              print_string " is defined strictly after ";
+	              Display.display_term (Terms.term_from_binderref (b,tl));
+                      print_newline ()
+                    end;
+                  (def_vars_before, true)
+                end
 	    else
-	      def_vars_before
+	      (def_vars_before, false)
 	  in
 
 	  (* If br is in def_vars_before, br is defined before (b,tl), so the assumption 
@@ -1355,7 +1388,16 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
                 (* Compute variables that are defined after (b,tl):
 		   add to the future variables of br the variables defined between the previous input 
 		   point and the definition of br and after another definition of (b,_). *)
-              let future_binders = add_vars_until_binder_or_node n [b] (above_input_node n) n.future_binders in
+              let future_binders =
+                if assumed_distinct_block then
+                  (* we assumed that the indices of br are different from those of b[tl]
+                     and br is defined after b[l], so all variables from the input point before br
+                     to the definition of br and variables certainly defined after the definition of br
+                     are defined after b[tl] *)
+                  add_vars_until_binder_or_node n [] (above_input_node n) n.future_binders
+                else
+                  add_vars_until_binder_or_node n [b] (above_input_node n) n.future_binders
+              in
 	      let future_vars = Terms.subst_def_list (fst br).args_at_creation (snd br) (List.map Terms.binderref_from_binder future_binders) in
 
 	      (* Variables in [def_vars] are known to be defined.
@@ -1478,7 +1520,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
       then
         begin
           (* The term (not t') is true, add it *)
-          let t = Terms.make_not t' in
+          let t = Terms.make_or_list ((Terms.make_not t')::(!additional_disjuncts)) in
           term_accu := t :: (!term_accu);
           if (!Settings.debug_elsefind_facts) then
 	    begin

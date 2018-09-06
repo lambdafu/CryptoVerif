@@ -37,12 +37,14 @@ proof {
       remove_assign useless;
       show_game occ;
       replace 62 "y2 = x3[ri_8]";
-      show_game
-      (* The only remaining problem is the test 
+      show_game(* ;
+      interactive
+       The only remaining problem is the test 
           y2_1 = y2_1[ri_3]
-         in the other game, which should be replaced with u4_1 = u4_1[ri_3]
-      ;
-      interactive *)
+       in the other game, which should be replaced with u4_1 = u4_1[ri_3]
+       Do
+          insert 46 "find ri9 <= qH2 suchthat defined(r_6[ri9], y2[ri9]) && (y2 = y2[ri9]) then orfind ri8 <= qH3 suchthat defined(r_4[ri8], x3[ri8]) && (y2 = x3[ri8]) then"
+       and similar in other game *)
  } 
 
 equivalence
