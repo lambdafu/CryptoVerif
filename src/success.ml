@@ -143,7 +143,8 @@ let display_leaks_of b l =
 	  print_string (", which may depend on " ^ (Display.binder_to_string b))
   in
   display_list_sc display_leak l;
-  print_string ".\n"
+  print_string ".";
+  print_newline()
 
 let display_leaks b0 =
   print_string ("Proof of (one-session) secrecy of " ^ 
@@ -158,10 +159,12 @@ let display_leaks b0 =
     | NotOnlyRestr b' ->
 	print_string ("  " ^ (Display.binder_to_string b0) ^ " is defined from " ^ 
 		      (Display.binder_to_string b') ^
-		      ", which is not defined only by restrictions.\n")
+		        ", which is not defined only by restrictions.");
+        print_newline()
     | NotRestrOrAssign ->
 	print_string ("  " ^ (Display.binder_to_string b0) ^ 
-		      " is not defined only by restrictions or assignments.\n")
+		        " is not defined only by restrictions or assignments.");
+        print_newline()
       ) (!detected_leaks)
 
 
