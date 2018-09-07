@@ -16,6 +16,8 @@ proof {
       crypto rom(H3);
       crypto rom(H1);
       show_game occ;
+      (* At the beginning of OH2, distinguish whether the call OH2(x2_1,y2_1) 
+         is such that y2_1 = OH1(x2_1) for a previous call to OH1 [with index ri4] *)
       insert 32 "find u4 = ri4 <= qH1 suchthat defined(r_2[ri4], x_1[ri4]) && (y2_1 = x_1[ri4]) && (x2_1 = r_2[ri4]) then";
       simplify;
       merge_branches;
@@ -24,27 +26,42 @@ proof {
       start_from_other_end;
       crypto rom(H2);
       show_game;
+      (* remove_assign on x1_7 = H1(...) to make explicit tests H1(..) = .. 
+      	 which are nicely simplified by the equivalence rom(H1). *)
       remove_assign binder x1_7;
       crypto rom(H1);
       show_game occ;
+      (* At the beginning of OH2, distinguish whether the call OH2(x2,y2) 
+         is such that y2 = OH1(x2) for a previous call to OH1 [with index ri4],
+	 similarly to what we did in the other game. *)
       insert 32 "find u4 = ri4 <= qH1 suchthat defined(r_5[ri4], x[ri4]) && (y2 = x[ri4]) && (x2 = r_5[ri4]) then";
       simplify;
+      (* SArename r_3, the random result of OH2, to distinguish whether it is
+         created for a call that matches a previous call to OH1 
+	 (the "find" above succeeds) or not *)
       SArename r_3;
       remove_assign useless;
       show_game occ;
+      (* Rewrite the "find" to remove "[unique]", to match the other game *)
       insert 80 "find u9 = ri9 <= qH2 suchthat defined(r_7[ri9], y2[ri9], x2[ri9]) && (x2 = x2[ri9]) && (y2 = y2[ri9]) then";
       simplify;
       remove_assign useless;
       show_game occ;
-      replace 62 "y2 = x3[ri_8]";
-      show_game occ;
+      (* Rewrite the "find" to replace the condition 
+         (u4_1 = u4_1[ri_9]) with (y2 = y2[ri_9]) and 
+         (x3[ri_8] = x[u4_1]) with (y2 = x3[ri_8]), to match the other game.
+	 As a side-effect, [unique] is removed. 
+	 (We cannot insert "find[unique]", since that would 
+	 require us to prove uniqueness.) *)
       insert 46 "find ri9 <= qH2 suchthat defined(r_6[ri9], y2[ri9]) && (y2 = y2[ri9]) then orfind ri8 <= qH3 suchthat defined(r_4[ri8], x3[ri8]) && (y2 = x3[ri8]) then";
       simplify;
       remove_assign useless;
       show_game occ;
+      (* Rewrite x[u4_1[ri_7]]) into y2[ri_7], to match the other game *)
       replace 116 "y2[ri_7]";
       show_game;
       start_from_other_end;
+      (* Rewrite the "find" to remove "[unique]", as it was removed in the other game *)
       insert 46 "find ri3 <= qH2 suchthat defined(r[ri3], y2_1[ri3]) && (y2_1 = y2_1[ri3]) then orfind ri2 <= qH3 suchthat defined(r_1[ri2], x3_1[ri2]) && (y2_1 = x3_1[ri2]) then";
       simplify;
       remove_assign useless;
@@ -131,43 +148,5 @@ Target game after
 
 
 
-      Ostart() :=
-      return();
-      ((
-        foreach i_3 <= qH1 do
-        OH1(x_1: input1) :=
-        find [unique] u_5 = ri_5 <= qH1 suchthat defined(r_2[ri_5], x_1[ri_5]) && (x_1 = x_1[ri_5]) then
-          return(r_2[u_5])
-        else
-          r_2 <-R output1;
-          return(r_2)
-      ) | (
-        foreach i_4 <= qH2 do
-        OH2(x2_1: output1, y2_1: input1) :=
-        find u4 = ri4 <= qH1 suchthat defined(r_2[ri4], x_1[ri4]) && (y2_1 = x_1[ri4]) && (x2_1 = r_2[ri4]) then
-          find ri3 = ri3_1 <= qH2 suchthat defined(r[ri3_1], y2_1[ri3_1]) && (y2_1 = y2_1[ri3_1]) then
-            return(r[ri3])
-          orfind ri2 = ri2_1 <= qH3 suchthat defined(r_1[ri2_1], x3_1[ri2_1]) && (y2_1 = x3_1[ri2_1]) then
-            return(r_1[ri2])
-          else
-            r <-R output2;
-            return(r)
-        else
-          find l_1 = l <= qH2 suchthat defined(x2_1[l], y2_1[l], r2[l]) && (x2_1 = x2_1[l]) && (y2_1 = y2_1[l]) then
-            return(r2[l_1])
-          else
-            r2 <-R output2;
-            return(r2)
-      ) | (
-        foreach i_5 <= qH3 do
-        HComb(x3_1: input1) :=
-        find [unique] u_1 = ri_1 <= qH2 suchthat defined(r[ri_1], y2_1[ri_1]) && (x3_1 = y2_1[ri_1]) then
-          return(r[u_1])
-        orfind u = ri <= qH3 suchthat defined(r_1[ri], x3_1[ri]) && (x3_1 = x3_1[ri]) then
-          return(r_1[u])
-        else
-          r_1 <-R output2;
-          return(r_1)
-      ))
 
 *)
