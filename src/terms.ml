@@ -2696,13 +2696,27 @@ and def_vars_pat_list accu = function
     [] -> accu
   | (a::l) -> def_vars_pat (def_vars_pat_list accu l) a
 
+(* Facts *)
+	
+type fact_t =
+  | FTerm of term
+  | FDefined of binderref
+  | FElseFind of elsefind_fact
+
+let equal_facts f1 f2 =
+  match (f1,f2) with
+  | FTerm t1, FTerm t2 -> equal_terms t1 t2
+  | FDefined br1, FDefined br2 -> equal_binderref br1 br2
+  | FElseFind ef1, FElseFind ef2 -> equal_elsefind_facts ef1 ef2
+  | _ -> false
+
 (* [make_or_dnf f1 f2] computes the disjunctive normal form of [f1] or
    [f2], assuming [f1] and [f2] are already in disjunctive normal
    form. *)
-       
+
 let includes l1 l2 =
   List.for_all (fun a1 ->
-      List.exists (equal_terms a1) l2
+      List.exists (equal_facts a1) l2
     ) l1
        
 let make_or_dnf f1 f2 =
@@ -2731,7 +2745,7 @@ let make_and_conj_list l1 l2 =
   let rec aux accu = function
       [] -> accu
     | (a::l) ->
-       if List.exists (equal_terms a) l2 then aux accu l else aux (a::accu) l
+       if List.exists (equal_facts a) l2 then aux accu l else aux (a::accu) l
   in
   aux l2 l1
                                
@@ -2748,57 +2762,86 @@ let rec make_and_dnf_list = function
   | [a] -> a
   | a::l -> make_and_dnf a (make_and_dnf_list l)
                          
+(* [filter_dnf var_list f] removes from [f] all references to variables in
+   [var_list] *)
+
+let refers_to_fact b = function
+  | FTerm t -> refers_to b t
+  | FDefined br -> refers_to_br b br
+  | FElseFind(bl, def_list, t) ->
+      (List.exists (refers_to_br b) def_list) ||
+      (refers_to b t)
+	
+let filter_dnf var_list f =
+  let not_refers_to_var_list t =
+    not (List.exists (fun b -> refers_to_fact b t) var_list)
+  in
+  make_or_dnf_list
+    (List.map (fun and_f ->
+        [List.filter not_refers_to_var_list and_f]) f)
+
+(* [filter_dnf_ri ri_list f] removes from [f] all references to 
+   replication indices in [ri_list] *)
+
+let rec refers_to_ri ri0 t =
+  (match t.t_desc with
+  | ReplIndex ri -> 
+      (ri == ri0) ||
+      (match ri.ri_link with
+	TLink t -> refers_to_ri ri t
+      | _ -> false)
+  | _ -> false) ||
+  (exists_subterm (refers_to_ri ri0) (refers_to_ri_br ri0) (refers_to_ri_pat ri0) t)
+
+and refers_to_ri_br ri0 (_,l) =
+  List.exists (refers_to_ri ri0) l
+
+and refers_to_ri_pat ri0 pat =
+  exists_subpat (refers_to_ri ri0) (refers_to_ri_pat ri0) pat
+      
+let refers_to_ri_fact ri0 = function
+  | FTerm t -> refers_to_ri ri0 t
+  | FDefined br -> refers_to_ri_br ri0 br
+  | FElseFind(bl, def_list, t) ->
+      (List.exists (refers_to_ri_br ri0) def_list) ||
+      (refers_to_ri ri0 t)
+	
+let filter_dnf_ri ri_list f =
+  let not_refers_to_ri_list t =
+    not (List.exists (fun b -> refers_to_ri_fact b t) ri_list)
+  in
+  make_or_dnf_list
+    (List.map (fun and_f ->
+        [List.filter not_refers_to_ri_list and_f]) f)
+
 (* [make_not_dnf t] returns the negation of [t] in disjunctive normal
 form, assuming [t] is already in disjunctive normal
 form. Very inefficient in general, but hopefully we are not often
 in this case. *)
 
-let make_not_dnf f =
+let rec make_not_fact = function
+  | FTerm t -> [[FTerm (make_not t)]]
+  | FDefined br1 -> [[FElseFind([], [br1], make_true())]]
+  | FElseFind(bl, def_list,t) ->
+      let accu = ref [] in
+      List.iter (close_def_subterm accu) def_list;
+      let def_list_subterms = !accu in
+      let def_list_dnf = filter_dnf_ri bl
+	  [List.map (fun br -> FDefined(br)) def_list_subterms]
+      in
+      let t_dnf = filter_dnf_ri bl (extract_dnf t) in
+      make_and_dnf t_dnf def_list_dnf
+	
+and make_not_dnf f =
   make_and_dnf_list
     (List.map (fun l ->
-         make_or_dnf_list (List.map (fun a -> [[make_not a]]) l)
+         make_or_dnf_list (List.map make_not_fact l)
        ) f)
 
-(* [f_defined] is a special function symbol used to represent
-   [defined] conditions inside terms *)
-    
-let f_defined = { f_name = "defined";
-		  f_type = [Settings.t_any], Settings.t_bool;
-		  f_cat = Std;
-		  f_options = 0;
-		  f_statements = [];
-		  f_collisions = [];
-		  f_eq_theories = NoEq;
-		  f_impl = No_impl;
-		  f_impl_inv = None }
-
-let is_defined t =
-  match t.t_desc with
-    FunApp(f,_) when f == f_defined -> true
-  | _ -> false
-
-let extract_br_from_defined t =
-  match t.t_desc with
-  | FunApp(f, [t]) when f == f_defined ->
-     binderref_from_term t
-  | _ ->
-     internal_error "defined(...) term expected in extract_br_from_defined"
-
-(* [filter_dnf var_list f] removes from [f] all references to variables in
-   [var_list] *)
-
-let filter_dnf var_list f =
-  let not_refers_to_var_list t =
-    not (List.exists (fun b -> refers_to b t) var_list)
-  in
-  make_or_dnf_list
-    (List.map (fun and_f ->
-        [List.filter not_refers_to_var_list and_f]) f)
-                    
 (* [extract_dnf t] derives a logical formula in disjunctive
    normal form that is implied by [t] *)
                     
-let rec extract_dnf t =
+and extract_dnf t =
   match t.t_desc with
   | _ when is_false t ->
      []
@@ -2811,31 +2854,31 @@ let rec extract_dnf t =
   | FunApp(f, [t1]) when f == Settings.f_not ->
      make_not_dnf (extract_dnf t1)
   | Var(_,l) | FunApp(_,l) ->
-     if (List.for_all check_simple_term l) then [[t]] else [[]]
-  | ReplIndex _ -> [[t]]
+     if (List.for_all check_simple_term l) then [[FTerm t]] else [[]]
+  | ReplIndex _ -> [[FTerm t]]
   | TestE(t1, t2, t3) ->
      let f1 = extract_dnf t1 in
      let f2 = extract_dnf t2 in
      let f3 = extract_dnf t3 in
      make_or_dnf (make_and_dnf f1 f2) (make_and_dnf (make_not_dnf f1) f3)
   | FindE(l0,t3,_) ->
-     let f3 = extract_dnf t3 in
+      let else_find_dnf =
+	[List.map (fun (bl, def_list, t1, _) ->
+	  FElseFind(List.map snd bl, def_list, t1)) l0]
+      in
+     let f3 = make_and_dnf else_find_dnf (extract_dnf t3) in
      let f0 =
        make_or_dnf_list
          (List.map (fun (bl,def_list,t1,t2) ->
 	   let vars = List.map fst bl in
-	   let vars_terms = List.map term_from_binder vars in
 	   let repl_indices = List.map snd bl in
-	   let t1' = subst repl_indices vars_terms t1 in
-           let f1 = filter_dnf vars (extract_dnf t1') in
+           let f1 = filter_dnf_ri repl_indices (extract_dnf t1) in
            let f2 = filter_dnf vars (extract_dnf t2) in
            let accu = ref [] in
 	   List.iter (close_def_subterm accu) def_list;
 	   let def_list_subterms = !accu in
-	   let def_list_subterms = subst_def_list repl_indices vars_terms def_list_subterms in
-           let def_list_dnf = filter_dnf vars
-             [List.map (fun br ->
-               build_term_type Settings.t_bool (FunApp(f_defined, [term_from_binderref br]))) def_list_subterms]
+           let def_list_dnf = filter_dnf_ri repl_indices
+             [List.map (fun br -> FDefined br) def_list_subterms]
            in
            make_and_dnf def_list_dnf (make_and_dnf f1 f2)
              ) l0)
@@ -2843,7 +2886,7 @@ let rec extract_dnf t =
      make_or_dnf f0 f3
   | LetE(pat, t1, t2, topt) ->
       let vars = vars_from_pat [] pat in
-     let assign_dnf = filter_dnf vars [[make_equal (term_from_pat pat) t1]] in
+     let assign_dnf = filter_dnf vars [[FTerm (make_equal (term_from_pat pat) t1)]] in
      let f2 = filter_dnf vars (extract_dnf t2) in
      let in_branch_dnf = make_and_dnf assign_dnf f2 in
      begin
@@ -2859,12 +2902,21 @@ let rec extract_dnf t =
 
 (* [def_vars_and_facts_from_term t] extracts a list of defined variables and a
    list of facts implied by [t] *)
-       
+
+let partition_facts l =
+  List.fold_left (fun accu fact ->
+    let (facts, def_list, elsefind) = accu in
+    match fact with
+    | FTerm t -> (t::facts, def_list, elsefind)
+    | FDefined br -> (facts, br::def_list, elsefind)
+    | FElseFind ef -> (facts, def_list, ef::elsefind)) ([],[],[]) l
+	       
 let def_vars_and_facts_from_term t =
   try 
-    let sure_facts = intersect_list equal_terms (extract_dnf t) in
-    let (def, facts) = List.partition is_defined sure_facts in
-    (List.map extract_br_from_defined def, facts)
+    let sure_facts = intersect_list equal_facts (extract_dnf t) in
+    let (facts, def_list, elsefind) = partition_facts sure_facts in
+    (* TO DO return elsefind and use it *)
+    (def_list, facts)
   with Contradiction ->
     ([], [make_false()])
 
