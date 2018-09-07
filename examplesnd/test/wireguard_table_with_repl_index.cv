@@ -235,8 +235,6 @@ equation forall x:value_t, y:value_t, b:bool; Zero(test(b,x,y)) = test (b,Zero(x
 
 
 proof {
-  out_game "gB.out.cv";
-  success; (* nothing *)
   out_game "g1.out.cv" occ;
 
   (* In the initiator, distinguish the cases talking to an honest or
@@ -273,44 +271,26 @@ proof {
   crypto rom(rom3_intermediate);
   crypto rom(rom2);
   crypto rom(rom1);
-  success;
   out_game "g5.out.cv" occ;
 
   crypto gdh(exp) S_r_priv_1 E_i_priv_5 S_i_priv_2 E_r_priv_2;
-  success;
   out_game "g6.out.cv" occ;
-
+  interactive;
   crypto split_hashoutput *;
   out_game "g7.out.cv" occ;
   success; (* unknown key-share *)
   simplify;
   out_game "g8.out.cv" occ;
+  set noAdviceCrypto = true;
   crypto int_ctxt(enc) *;
-  out_game "g9.out.cv" occ;
-  success; (* some nonce reuse, correctness *)
-  simplify;
-  out_game "g11.out.cv" occ;
-  crypto ind_cpa(enc) *;
-  out_game "g12.out.cv" occ;
-  success; (* more nonce reuse *)
-  simplify;
-
   (* This covers, on the initiator's side, the case of honest S_r_pub
      but dishonest E_r_pub in the case of possible corruption of
      S_r_pub: The attacker can't produce a valid ciphertext in protocol
      message 2 (empty plaintext) if the key wasn't compromised, thus
      the decryption will fail on the initiator's side and the protocol
      won't continue. *)
-  out_game "g14.out.cv" occ;
   crypto int_ctxt_corrupt(enc) k_10; (* TODO maybe they had the same name before *)
   crypto int_ctxt_corrupt(enc) k_19;
-  out_game "g15.out.cv" occ;
-  success; (* - initiator can authenticate the second protocol message
-                sent by the responder,
-              - initiator can authenticate a transport data message sent
-                by the responder. *)
-  simplify;
-
   (* This covers, on the responder's side, the case of honest S_i_pub
      but dishonest E_i_pub in the case of possible corruption of
      S_i_pub: The attacker can't produce a valid ciphertext for
@@ -318,21 +298,13 @@ proof {
      compromised, thus the decryption will fail on the responder's side
      and the protocol won't continue. Especially the rcvd3 event will
      not be triggered. *)
-  out_game "g17.out.cv" occ;
   crypto int_ctxt_corrupt(enc) T_i_send_12;
-
-  out_game "g18.out.cv" occ;
-  success; (* - responder can authenticate a transport data message sent
-                by the initiator,
-              - responder can authenticate the third protocol message
-                sent by the initiator (key confirmation). *)
+  out_game "g9.out.cv" occ;
+  success; (* some nonce reuse, correctness *)
   simplify;
-
-  out_game "g20.out.cv" occ;
+  out_game "g11.out.cv" occ;
   crypto ind_cpa(enc) *;
-  success; (* secrecy of secret_bit (message indistinguishability) *)
-
-  interactive
+  success
 }
 
 (* set maxIterSimplif = 0. *)
