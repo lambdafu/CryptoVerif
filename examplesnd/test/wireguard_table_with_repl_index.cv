@@ -236,7 +236,6 @@ equation forall x:value_t, y:value_t, b:bool; Zero(test(b,x,y)) = test (b,Zero(x
 
 proof {
   out_game "g1.out.cv" occ;
-
   (* In the initiator, distinguish the cases talking to an honest or
      dishonest responder regarding its longterm public key. *)
   (* We want to have this case distinction after the check for corruption. *)
@@ -275,7 +274,7 @@ proof {
 
   crypto gdh(exp) S_r_priv_1 E_i_priv_5 S_i_priv_2 E_r_priv_2;
   out_game "g6.out.cv" occ;
-  interactive;
+  set elsefindFactsInSimplify = false;
   crypto split_hashoutput *;
   out_game "g7.out.cv" occ;
   success; (* unknown key-share *)
@@ -283,6 +282,7 @@ proof {
   out_game "g8.out.cv" occ;
   set noAdviceCrypto = true;
   crypto int_ctxt(enc) *;
+  success; (* correctness and some other correspondences *)
   (* This covers, on the initiator's side, the case of honest S_r_pub
      but dishonest E_r_pub in the case of possible corruption of
      S_r_pub: The attacker can't produce a valid ciphertext in protocol
@@ -300,14 +300,12 @@ proof {
      not be triggered. *)
   crypto int_ctxt_corrupt(enc) T_i_send_12;
   out_game "g9.out.cv" occ;
-  success; (* some nonce reuse, correctness *)
+  success; (* proves all remaining correspondences *)
   simplify;
   out_game "g11.out.cv" occ;
   crypto ind_cpa(enc) *;
-  success
+  success (* proves secrecy *)
 }
-
-(* set maxIterSimplif = 0. *)
 
 param N_parties.
 param N_resp_send, N_resp_recv.
@@ -576,12 +574,8 @@ fun nonce_to_counter(nonce_t) : counter_t [data].
   (* the counter would overflow. So basically we have a bijection
   (* between counter and nonce. *)
 
-(** pvexclude:begin **)
-(* TODO: ProVerif complains about this being not equations of
-   TODO: constructors. *)
 equation nonce_to_counter(nonce_0) = counter_0.
   (* nonce 0 and counter 0 relate *)
-(** pvexclude:end **)
 
 type msg_type_t [fixed]. (* 1 byte msg type field *)
 const msg_type_init2resp:    msg_type_t.
@@ -1422,10 +1416,8 @@ process
   new S_r_priv: Z_t;
   let S_r_pub = exp(g, S_r_priv) in
 
-(** pvexclude:begin **)
   (* Secret bit for the indistinguishability game. *)
   new secret_bit : bool;
-(** pvexclude:end **)
 
   (* hand over control to the attacker *)
   out(c_publickeys, (S_i_pub, S_r_pub));

@@ -13,6 +13,12 @@ Version
   (Your protocol models that use random oracles may need to be revised.)
 - Added optional side conditions in equation and collision statements.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
+- When "set inferUnique = true." is present, CryptoVerif
+  infers that "find" is unique, when possible.
+- Improve a bit the way CryptoVerif infers information for
+  "find"s that fails; can be disabled by
+  "set elsefindAdditionalDisjunct = false." See the documentation
+  of that setting in the manual for more details.
 - In interactive mode, Ctrl-C interrupts the current command.
   (May not work under Windows.)
 - Option "set forgetOldGames = true" and command "forget_old_games"
