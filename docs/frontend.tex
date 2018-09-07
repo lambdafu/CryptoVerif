@@ -983,6 +983,18 @@ we reorganize them.
 \end{itemize}
 When {\tt uniqueBranchReorganize = false}, these transformations are not performed. 
 
+\item \texttt{set inferUnique = false.}\\
+\texttt{set inferUnique = true.}
+
+When \texttt{inferUnique = true}, CryptoVerif tries to infer
+that a \texttt{find} that is not explicitly tagged \texttt{[unique]}
+is in fact unique, by showing that having several solutions
+for this \texttt{find} leads to a contradiction.
+When this proof succeeds, the \texttt{find} becomes {\tt find[unique]}.
+
+When \texttt{inferUnique = false}, CryptoVerif does not try to
+make such proofs and just exploits explicit \texttt{[unique]} tags.
+
 \item \texttt{set autoSARename = true.}\\
 \texttt{set autoSARename = false.}
 
@@ -1215,7 +1227,7 @@ We try to infer $\texttt{not}(t)$ from this fact.
 \item if each variable $y_j[M_{j1}, \ldots, M_{jl_j}]$ is defined before $x[M_1, \ldots, M_l]$,
 then $\texttt{not}(t)$ indeed holds by the fact above;
 \item for each $y_j[M_{j1}, \ldots, M_{jl_j}]$, 
-we assume that $y_j[M_{j1}, \ldots, M_{jl_j}]$ is defined after $x[M_1, \ldots, M_l]$
+we assume that $y_j[M_{j1}, \ldots, M_{jl_j}]$ is defined after or at the same time as $x[M_1, \ldots, M_l]$
 and try to prove $\texttt{not}(t)$.
 
 It this proof succeeds, we can infer that $\texttt{not}(t)$ holds
@@ -1233,6 +1245,20 @@ Similar to \texttt{elsefindFactsInReplace}, but applies in
 
 Similar to \texttt{elsefindFactsInReplace}, but applies in
 \texttt{success} operations. 
+
+\item \texttt{set elsefindAdditionalDisjunct = true.}\\
+\texttt{set elsefindAdditionalDisjunct = false.}
+
+When \texttt{elsefindAdditionalDisjunct = true}, the procedure that infers facts
+from false conditions of \texttt{find} (see \texttt{set elsefindFactsInReplace})
+is enriched: in case $y_j[M_{j1}, \ldots, M_{jl_j}]$ may be defined
+at the same time as $x[M_1, \ldots, M_l]$, we additionally assume
+that they have different indices, that is, $(M_{j1}, \ldots, M_{jl_j}) \neq (M_1, \ldots, M_l)$
+to eliminate this case. Therefore, we infer 
+$(M_{j1}, \ldots, M_{jl_j}) \neq (M_1, \ldots, M_l) \Rightarrow \texttt{not}(t)$
+or equivalently $(M_{j1}, \ldots, M_{jl_j}) = (M_1, \ldots, M_l) \vee \texttt{not}(t)$.
+This is typically more costly and more precise than the basic 
+procedure that just infers $\texttt{not}(t)$ when possible.
 
 \item \texttt{set improvedFactCollection = false.}\\
 \texttt{set improvedFactCollection = true.}

@@ -126,18 +126,18 @@ val simplif_add_list : dep_anal -> simp_facts -> term list -> simp_facts
    point [pp] *)
 val get_initial_history : program_point -> known_history option
 
-(* [def_vars_from_defined current_node def_list] returns the variables that
+(* [def_vars_from_defined current_history def_list] returns the variables that
    are known to be defined when the condition of a find with defined condition 
-   [def_list] holds. [current_node] is the node of the find, at which [def_list]
-   is tested (may be returned by [get_node]).
+   [def_list] holds. [current_history] is the known history at the find, at which [def_list]
+   is tested (may be returned by [get_initial_history]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
 val def_vars_from_defined : known_history option -> binderref list -> binderref list
 
-(* [facts_from_defined current_node def_list] returns the facts that
+(* [facts_from_defined current_history def_list] returns the facts that
    are known to hold when the condition of a find with defined condition 
-   [def_list] holds. [current_node] is the node of the find, at which [def_list]
-   is tested (may be returned by [get_node]).
+   [def_list] holds. [current_history] is the known history at the find, at which [def_list]
+   is tested (may be returned by [get_initial_history]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
 val facts_from_defined : known_history option -> binderref list -> term list

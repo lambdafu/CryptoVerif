@@ -35,7 +35,7 @@ val max_replace_depth : int ref
 val elsefind_facts_in_replace : bool ref
 val elsefind_facts_in_success : bool ref
 val elsefind_facts_in_simplify : bool ref
-val else_find_no_additional_disjunct : bool ref
+val else_find_additional_disjunct : bool ref
 val improved_fact_collection : bool ref
 val corresp_cases : bool ref
 val simplify_use_equalities_in_simplifying_facts : bool ref
@@ -59,7 +59,8 @@ val merge_branches : bool ref
 val merge_arrays : bool ref
 val unique_branch : bool ref
 val unique_branch_reorg : bool ref
-
+val infer_unique : bool ref
+                               
 val auto_sa_rename : bool ref
 val auto_remove_assign_find_cond : bool ref
 val auto_remove_if_find_cond : bool ref

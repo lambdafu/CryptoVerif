@@ -1044,6 +1044,7 @@ let rec simplify_term_w_find cur_array true_facts t =
       |	_ ->
       try
       let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
       let t3' = 
 	try
 	  simplify_term_w_find cur_array (add_elsefind (dependency_anal cur_array DepAnal2.init) def_vars true_facts l0) t3
@@ -1067,11 +1068,10 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_initial_history (DTerm t) in 
 	      let def_list' = Facts.reduced_def_list t.t_facts def_list in
-	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
+	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
-	      let facts_def_list = Facts.facts_from_defined this_branch_node def_list in
+	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond DepAnal2.init) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
@@ -1267,7 +1267,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    t3'
 	  end
 	else
-	  let find_info = is_unique l0' find_info in
+	  let find_info = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0' find_info in
 	  Terms.build_term2 t (FindE(l0', t3',find_info))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
@@ -1585,6 +1585,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
       |	_ ->
       try
       let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
       let p2' = 
 	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
 	try
@@ -1605,11 +1606,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_initial_history pp in 
 	      let def_list' = Facts.reduced_def_list p'.p_facts def_list in
-	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
+	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
-	      let facts_def_list = Facts.facts_from_defined this_branch_node def_list in
+	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond dep_info_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
@@ -1824,7 +1824,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      let find_info = is_unique l0' find_info in
+	      let find_info = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0' find_info in
 	      Terms.oproc_from_desc2 p' (Find(l0', p2', find_info))
 	  end
       with OneBranchProcess(find_branch) ->

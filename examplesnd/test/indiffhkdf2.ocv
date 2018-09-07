@@ -11,6 +11,9 @@ expand ROM_hash_2(hashkey2, output1, input1, output2, H2, hashoracle2, qH2).
 type hashkey3 [large, fixed].
 expand ROM_hash(hashkey3, input1, output2, H3, hashoracle3, qH3).
 
+set inferUnique = true.
+set uniqueBranchReorganize = false.
+
 proof {
       start_from_other_end;
       crypto rom(H3);
@@ -21,6 +24,7 @@ proof {
       merge_branches;
       remove_assign useless;
       show_game;
+      interactive;
       start_from_other_end;
       crypto rom(H2);
       show_game;

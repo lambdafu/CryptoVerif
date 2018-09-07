@@ -428,6 +428,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
   | _ ->
     try
       let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
       let t3' = 
 	try
 	  rec_simplif cur_array (add_elsefind (dependency_anal cur_array) def_vars true_facts l0) t3
@@ -451,11 +452,10 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_initial_history pp in 
 	      let def_list' = Facts.reduced_def_list (Terms.get_facts pp) def_list in
-	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
+	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
-	      let facts_def_list = Facts.facts_from_defined this_branch_node def_list in
+	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
@@ -922,6 +922,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
   | _ ->
     try
       let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
       let p2' = 
 	if is_yield p2 then Terms.oproc_from_desc Yield else
 	try
@@ -942,11 +943,10 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let this_branch_node = Facts.get_initial_history pp in 
 	      let def_list' = Facts.reduced_def_list (Terms.get_facts pp) def_list in
-	      let def_vars_cond = Facts.def_vars_from_defined this_branch_node def_list' in
+	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
 	      let true_facts = update_elsefind_with_def vars true_facts in
-	      let facts_def_list = Facts.facts_from_defined this_branch_node def_list in
+	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then

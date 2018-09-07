@@ -37,7 +37,7 @@ let max_replace_depth = ref 20
 let elsefind_facts_in_replace = ref true
 let elsefind_facts_in_success = ref true
 let elsefind_facts_in_simplify = ref true
-let else_find_no_additional_disjunct = ref false
+let else_find_additional_disjunct = ref true
 let improved_fact_collection = ref false
 let corresp_cases = ref true
 let simplify_use_equalities_in_simplifying_facts = ref false
@@ -64,7 +64,8 @@ let merge_branches = ref true
 let merge_arrays = ref true
 let unique_branch = ref true
 let unique_branch_reorg = ref true
-
+let infer_unique = ref false
+                              
 let auto_sa_rename = ref true
 let auto_remove_assign_find_cond = ref true
 let auto_remove_if_find_cond = ref true
@@ -147,6 +148,7 @@ let do_set p v =
   | "mergeArrays", _ -> parse_bool v merge_arrays
   | "uniqueBranch", _ -> parse_bool v unique_branch
   | "uniqueBranchReorganize", _ -> parse_bool v unique_branch_reorg
+  | "inferUnique", _ -> parse_bool v infer_unique
   | "autoSARename", _ -> parse_bool v auto_sa_rename
   | "autoRemoveAssignFindCond", _ -> parse_bool v auto_remove_assign_find_cond
   | "autoRemoveIfFindCond", _ -> parse_bool v auto_remove_if_find_cond
@@ -174,7 +176,7 @@ let do_set p v =
   | "elsefindFactsInReplace", _ -> parse_bool v elsefind_facts_in_replace
   | "elsefindFactsInSuccess", _ -> parse_bool v elsefind_facts_in_success
   | "elsefindFactsInSimplify", _ -> parse_bool v elsefind_facts_in_simplify
-  | "elsefindNoAdditionalDisjunct", _ -> parse_bool v else_find_no_additional_disjunct
+  | "elsefindAdditionalDisjunct", _ -> parse_bool v else_find_additional_disjunct
   | "improvedFactCollection", _ -> parse_bool v improved_fact_collection
   | "useEqualitiesInSimplifyingFacts", _ -> parse_bool v simplify_use_equalities_in_simplifying_facts
   | "reReduceRootSides", _ -> parse_bool v re_reduce_root_sides
