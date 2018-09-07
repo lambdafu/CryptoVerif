@@ -1,3 +1,11 @@
+(* This file shows the indifferentiability between
+   (x,y) -> H2(H1(x),y) and H3, where H1, H2, H3 are independent random oracles.
+
+   That is, it shows indistinguishability between
+   (H1, H2,  (x,y) -> H2(H1(x),y)) and
+   (H1', H2', H3)
+   where H1' and H2' simulate H1 and H2 respectively, using calls to H3. *)
+
 type hashkey1 [large, fixed].
 type input1.
 type output1 [large, fixed].
