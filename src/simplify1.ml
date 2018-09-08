@@ -1309,7 +1309,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
          In the other case, we must prove that \forall br \in def_list', 
 	 if br is defined after or at (b,tl), t' => Contradiction. *)
 
-    (* Variables defined before (b,tl) *)
+    (* Variables defined before or at the same time as (b,tl) *)
     let def_vars_before = 
       try 
         Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [Terms.binderref_from_binder b])
@@ -1380,7 +1380,9 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	  in
 
 	  (* If br is in def_vars_before, br is defined before (b,tl), so the assumption 
-	     that br is defined after (b,tl) never holds. *)
+	     that br is defined after (b,tl) never holds. 
+	     (due to the modification of def_vars_before above, br is never defined
+	     at the same time as (b,tl) when it is in def_vars_before) *)
 	  (Terms.mem_binderref br def_vars_before) || (
           let order_assumptions = [br,(b,tl)] in
           List.for_all (fun n -> (* for each definition def_node of br *)
@@ -1401,7 +1403,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	      let future_vars = Terms.subst_def_list (fst br).args_at_creation (snd br) (List.map Terms.binderref_from_binder future_binders) in
 
 	      (* Variables in [def_vars] are known to be defined.
-                 If they cannot be defined before [(b,tl)] or a binderref 
+                 If they cannot be defined before or at the same time as [(b,tl)] or a binderref 
 		 already in [future_vars], then they
 	         are certainly defined after [(b,tl)], so we can add them
 	         to [future_vars] *)
