@@ -4261,10 +4261,12 @@ let def_list_at_pp_facts fact_accu pp args def_list =
     List.fold_left (fun accu -> def_at_pp_add_fact accu pp args) fact_accu def_list
 
 (* [may_def_before (b,args) (b',args')] returns true when
-   [b[args]] may be defined before [b'[args']] *)
+   [b[args]] may be defined before or at the same time as [b'[args']] *)
 
-let may_def_before (b,args) (b',args') = 
-  (b == b') || 
+let may_def_before (b,args) (b',args') =
+  (* b defined at the same time as b' *)
+  (b == b') || (List.exists (fun n -> List.memq b n.binders) b'.def) ||
+  (* b[args] defined before b'[args'] *)
   (try
     let length_cur_array_b' = List.length args' in
     let suffix_l = map_max (fun n -> not_after_suffix_length_one_pp n.definition_success length_cur_array_b' b) b'.def in

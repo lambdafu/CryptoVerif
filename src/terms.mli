@@ -522,7 +522,7 @@ val def_list_at_pp_facts : term list -> program_point -> term list -> binderref 
 val both_pp_add_fact : term list ->
   term list * program_point -> term list * program_point -> term list
 (* [may_def_before (b,args) (b',args')] returns true when
-   [b[args]] may be defined before [b'[args']] *)
+   [b[args]] may be defined before or at the same time as [b'[args']] *)
 val may_def_before : binderref -> binderref -> bool
 
 (* Update args_at_creation: since variables in conditions of find have
