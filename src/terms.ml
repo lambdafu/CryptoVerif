@@ -6,6 +6,9 @@ let map_empty = Occ_map.empty
 let simp_facts_id = ([],[],[])
 let try_no_var_id t = t
 
+let add_else_find else_find' (facts, subst, else_find) =
+  (facts, subst, else_find' @ else_find)
+	    
 (* [ends_with s sub] is true when the string [s] ends with [sub] *)
 
 let ends_with s sub =
@@ -2863,8 +2866,14 @@ and extract_dnf t =
      make_or_dnf (make_and_dnf f1 f2) (make_and_dnf (make_not_dnf f1) f3)
   | FindE(l0,t3,_) ->
       let else_find_dnf =
-	[List.map (fun (bl, def_list, t1, _) ->
-	  FElseFind(List.map snd bl, def_list, t1)) l0]
+	make_and_dnf_list 
+	  (List.map (fun (bl, def_list, t1, _) ->
+	    if bl == [] && def_list == [] then
+	      make_not_dnf (extract_dnf t1)
+	    else if check_simple_term t1 then
+	      [[FElseFind(List.map snd bl, def_list, t1)]]
+	    else
+	      [[]]) l0)
       in
      let f3 = make_and_dnf else_find_dnf (extract_dnf t3) in
      let f0 =
@@ -2901,7 +2910,14 @@ and extract_dnf t =
      [[]]
 
 (* [def_vars_and_facts_from_term t] extracts a list of defined variables and a
-   list of facts implied by [t] *)
+   list of facts implied by [t]
+
+   [def_vars_and_facts_from_term] must be used only when [t] is a condition
+   of [find]: it collects [elsefind] facts without caring about variables
+   defined inside [t]. That's ok because variables defined in conditions
+   of [find] never appear in [defined] conditions.
+   If [def_vars_and_facts_from_term] were used for other terms, we might
+   have to update some of these [elsefind] facts. *)
 
 let partition_facts l =
   List.fold_left (fun accu fact ->
@@ -2914,11 +2930,9 @@ let partition_facts l =
 let def_vars_and_facts_from_term t =
   try 
     let sure_facts = intersect_list equal_facts (extract_dnf t) in
-    let (facts, def_list, elsefind) = partition_facts sure_facts in
-    (* TO DO return elsefind and use it *)
-    (def_list, facts)
+    partition_facts sure_facts
   with Contradiction ->
-    ([], [make_false()])
+    ([make_false()], [], [])
 
 (* def_term is always called with  above_node.def_vars_at_def \subseteq def_vars
 def_term returns a node n'. In this node n', we always have n'.def_vars_at_def \subseteq def_vars
@@ -2957,7 +2971,8 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	   We need not take them into account to update elsefind_facts. *)
 	let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	let t1' = subst repl_indices vars_terms t1 in
-        let (sure_def_list_t1, sure_facts_t1) = def_vars_and_facts_from_term t1' in
+        let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = def_vars_and_facts_from_term t1' in
+	let elsefind_facts_then = elsefind_t1 @ elsefind_facts'' in
 	let true_facts' = List.rev_append sure_facts_t1 true_facts in
 	let accu = ref [] in
 	List.iter (close_def_subterm accu) def_list;
@@ -2980,7 +2995,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	ignore(def_term event_accu (repl_indices @ cur_array) 
 		 (def_term_def_list event_accu cur_array above_node true_facts def_vars elsefind_facts'' def_list)
 		 true_facts def_vars_t1 elsefind_facts'' t1);
-	ignore(def_term event_accu cur_array above_node' true_facts' def_vars' elsefind_facts'' t2)) l0;
+	ignore(def_term event_accu cur_array above_node' true_facts' def_vars' elsefind_facts_then t2)) l0;
       ignore(def_term event_accu cur_array above_node true_facts_else def_vars elsefind_facts_else t3);
       above_node
   | LetE(pat, t1, t2, topt) ->
@@ -3220,7 +3235,8 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	       We need not take them into account to update elsefind_facts. *)
 	    let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	    let t' = subst repl_indices vars_terms t in
-            let (sure_def_list_t, sure_facts_t) = def_vars_and_facts_from_term t' in
+            let (sure_facts_t, sure_def_list_t, elsefind_t) = def_vars_and_facts_from_term t' in
+	    let elsefind_facts_then = elsefind_t @ elsefind_facts'' in
 	    let true_facts' = List.rev_append sure_facts_t true_facts in
 	    let accu = ref [] in
 	    List.iter (close_def_subterm accu) def_list;
@@ -3244,7 +3260,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 		     (def_term_def_list event_accu cur_array above_node true_facts def_vars elsefind_facts'' def_list)
 		     true_facts def_vars_t elsefind_facts'' t);
 	    let (fut_binders1, fut_true_facts1) = 
-	      def_oprocess event_accu cur_array above_node' true_facts' def_vars' elsefind_facts'' p1
+	      def_oprocess event_accu cur_array above_node' true_facts' def_vars' elsefind_facts_then p1
 	    in
 	    above_node'.future_binders <- fut_binders1;
 	    above_node'.future_true_facts <- fut_true_facts1;

@@ -144,7 +144,7 @@ let anal_file s0 =
   first_file := false;
   let s =
     (* Preprocess .pcv files with m4 *)
-    let s_up = String.uppercase s0 in
+    let s_up = String.uppercase_ascii s0 in
     if Terms.ends_with s_up ".PCV" then
       let s' = Filename.temp_file "cv" ".cv" in
       let res = Unix.system("m4 -DCryptoVerif " ^ s0 ^ " > " ^ s') in
@@ -158,7 +158,7 @@ let anal_file s0 =
     begin
       (* Use the oracle front-end by default when the file name ends
 	 in .ocv *)
-      let s_up = String.uppercase s in
+      let s_up = String.uppercase_ascii s in
       if Terms.ends_with s_up ".OCV" then Settings.front_end := Settings.Oracles
     end;
   try

@@ -1,5 +1,7 @@
 open Types
 
+val add_else_find : elsefind_fact list -> simp_facts -> simp_facts
+
 (* Basic string functions *)
 
 (* [ends_with s sub] is true when the string [s] ends with [sub] *)
@@ -195,6 +197,7 @@ val copy_elsefind : elsefind_fact -> elsefind_fact
    defined conditions and facts instead of terms. *)
 val subst : repl_index list -> term list -> term -> term
 val subst_def_list : repl_index list -> term list -> binderref list -> binderref list
+val subst_else_find : repl_index list -> term list -> elsefind_fact -> elsefind_fact
 val subst_simp_facts : repl_index list -> term list -> simp_facts -> simp_facts
 
 (* [subst3 l t] returns the term [t] after applying the substitution
@@ -446,7 +449,7 @@ val has_array_ref_non_exclude : binder -> bool
 
 val unionq : 'a list -> 'a list -> 'a list (* union using physical equality *)
 
-val def_vars_and_facts_from_term : term -> binderref list * term list
+val def_vars_and_facts_from_term : term -> term list * binderref list * elsefind_fact list
     
 val map_empty : int Occ_map.occ_map
 val empty_comp_process : inputprocess -> unit

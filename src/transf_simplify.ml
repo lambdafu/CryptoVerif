@@ -1088,26 +1088,28 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      List.iter (fun b -> 
 		b.priority <- (!current_max_priority); 
 		priority_list := b :: (!priority_list)) vars;
-	      let (t1', facts_cond, def_vars_cond') =
+	      let (t1', facts_cond, def_vars_cond', elsefind_cond) =
 		match t1.t_desc with
 		  Var _ | FunApp _ ->
 		    let t1' = simplify_term cur_array_cond DepAnal2.init false true_facts_t1 t1 in
-		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond)
+		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
 		   let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
-                   let (sure_def_vars_t1', sure_facts_t1') = Terms.def_vars_and_facts_from_term t1' in
+                   let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Terms.def_vars_and_facts_from_term t1' in
 		   let then_node = Facts.get_initial_history (DTerm t2) in
                    let def_vars_t1' = Facts.def_vars_from_defined then_node sure_def_vars_t1' in
                    let facts_def_vars_t1' = Facts.facts_from_defined then_node sure_def_vars_t1' in
 		   (t1', facts_def_vars_t1' @ sure_facts_t1' @ facts_from_elsefind_facts @ facts_def_list,
-                    def_vars_t1' @ def_vars_cond)
+                    def_vars_t1' @ def_vars_cond, elsefind_t1')
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
 		 using repl_indices as indices. We substitute vars from them to obtain
 		 the facts that hold in the then branch.*)
 	      let facts_cond' = List.map (Terms.subst repl_indices vars_terms) facts_cond in
-	      let tf' = Facts.simplif_add_list (dependency_anal cur_array DepAnal2.init) true_facts facts_cond' in
+	      let elsefind_cond' = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_cond in
+	      let tf' =  Terms.add_else_find elsefind_cond'
+		  (Facts.simplif_add_list (dependency_anal cur_array DepAnal2.init) true_facts facts_cond') in
 
 	      (* Check that the "defined" conditions can hold,
 		 if not remove the branch *)
@@ -1626,19 +1628,19 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      List.iter (fun b -> 
 		b.priority <- (!current_max_priority);
 		priority_list := b :: (!priority_list)) vars;
-	      let (t', facts_cond, def_vars_cond') =
+	      let (t', facts_cond, def_vars_cond', elsefind_cond) =
 		match t.t_desc with
 		  Var _ | FunApp _ ->
 		    let t' = simplify_term cur_array_cond dep_info_cond false true_facts_t t in
-		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond)
+		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
 		    let t' = simplify_term_w_find cur_array_cond true_facts_t t in
-                    let (sure_def_vars_t', sure_facts_t') = Terms.def_vars_and_facts_from_term t' in
+                    let (sure_facts_t', sure_def_vars_t', elsefind_t') = Terms.def_vars_and_facts_from_term t' in
 		    let then_node = Facts.get_initial_history (DProcess p1) in
                     let def_vars_t' = Facts.def_vars_from_defined then_node sure_def_vars_t' in
                     let facts_def_vars_t' = Facts.facts_from_defined then_node sure_def_vars_t' in
 		    (t', facts_def_vars_t' @ sure_facts_t' @ facts_from_elsefind_facts @ facts_def_list,
-                     def_vars_t' @ def_vars_cond)
+                     def_vars_t' @ def_vars_cond, elsefind_t')
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -1646,7 +1648,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		 the facts that hold in the then branch.
 		 Same substitution for the dependency info. *)
 	      let facts_cond' = List.map (Terms.subst repl_indices vars_terms) facts_cond in
-	      let tf' = Facts.simplif_add_list (dependency_anal cur_array dep_info_then) true_facts facts_cond' in
+	      let elsefind_cond' = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_cond in
+	      let tf' = Terms.add_else_find elsefind_cond'
+		  (Facts.simplif_add_list (dependency_anal cur_array dep_info_then) true_facts facts_cond')
+	      in
 
 	      (* Check that the "defined" conditions can hold,
 		 if not remove the branch *)

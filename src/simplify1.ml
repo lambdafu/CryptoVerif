@@ -2082,7 +2082,10 @@ let rec infer_facts_fc cur_array true_facts t =
 	      let vars_terms = List.map Terms.term_from_binder vars in
   	      infer_facts_fc cur_array_cond true_facts t1;
 	      let t1' = Terms.subst repl_indices vars_terms t1 in
-              let (sure_def_list_t1, sure_facts_t1) = Terms.def_vars_and_facts_from_term t1' in
+              let (sure_facts_t1, sure_def_list_t1, _) = Terms.def_vars_and_facts_from_term t1' in
+	      (* The "elsefind" facts inferred from [t1'] have 
+		 already been taken into account in the first collection of facts.
+		 I do not take them into account again here. *)
 	      let true_facts' = List.rev_append sure_facts_t1 true_facts in
 	    (* Infer new facts *)	    
 	      try
@@ -2199,7 +2202,10 @@ and infer_facts_o cur_array true_facts p' =
 	      let vars_terms = List.map Terms.term_from_binder vars in
  	      infer_facts_fc cur_array_cond true_facts t;
 	      let t' = Terms.subst repl_indices vars_terms t in
-              let (sure_def_list_t, sure_facts_t) = Terms.def_vars_and_facts_from_term t' in
+              let (sure_facts_t, sure_def_list_t, _) = Terms.def_vars_and_facts_from_term t' in
+	      (* The "elsefind" facts inferred from [t1'] have 
+		 already been taken into account in the first collection of facts.
+		 I do not take them into account again here. *)
 	      let true_facts' = List.rev_append sure_facts_t true_facts in
 	    (* Infer new facts *)
 	      try
