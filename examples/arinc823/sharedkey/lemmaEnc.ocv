@@ -56,3 +56,8 @@ process
 	let IV0 = AES(k, Zero) in
 	return();
 	(run enc1(k, IV0) | run enc2(k, IV0) | run enc3(k, IV0))
+
+(* EXPECTED
+All queries proved.
+5.238s (user 5.220s + system 0.012s), max rss 30960K
+END *)

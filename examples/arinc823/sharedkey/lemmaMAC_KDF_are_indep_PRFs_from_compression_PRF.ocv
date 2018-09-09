@@ -275,3 +275,8 @@ process
 	k <-R mac_key;
 	return();
 	(run PMAC(k) | run PKDF256(k) | run PKDF128(k))
+
+(* EXPECTED
+All queries proved.
+0.152s (user 0.140s + system 0.012s), max rss 30960K
+END *)

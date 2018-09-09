@@ -81,3 +81,8 @@ equivalence
           c33 <-R blocksize;
           return(c31, c32, truncate(c33, l))
         ))
+
+(* EXPECTED
+All queries proved.
+5.238s (user 5.220s + system 0.012s), max rss 30960K
+END *)

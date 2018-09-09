@@ -303,3 +303,8 @@ equivalence
            r3 <-R enc_key;
            return(r3)
        ))
+
+(* EXPECTED
+All queries proved.
+0.152s (user 0.140s + system 0.012s), max rss 30960K
+END *)
