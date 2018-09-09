@@ -186,6 +186,11 @@ val copy_pat : copy_transf -> pattern -> pattern
 val copy_def_list : copy_transf -> binderref list -> binderref list
 val copy_oprocess : copy_transf -> process -> process
 val copy_process : copy_transf -> inputprocess -> inputprocess
+    
+    (* The links define a substitution. 
+     We want to apply this substitution to the elsefind fact (bl, def_vars, t) as argument.
+     To avoid capture, the image of the substitution must not contain replication indices in bl.
+     For instance, the image of the substitution may be fresh replication indices. *)
 val copy_elsefind : elsefind_fact -> elsefind_fact
     
 (* [subst cur_array l t] returns the term [t] in which the replication

@@ -1956,8 +1956,20 @@ and subst cur_array l term =
   List.iter (fun b -> b.ri_link <- NoLink) cur_array;
   term'
 
-let copy_elsefind (bl, def_vars, t) = 
-  (bl, copy_def_list Links_RI def_vars, copy_term Links_RI t)
+let copy_elsefind (bl, def_vars, t) =
+  (* The links define a substitution. 
+     We want to apply this substitution to the elsefind fact (bl, def_vars, t).
+     bl binds variables; they will not be modified by the substitution.
+     To avoid capture, the image of the substitution must not contain replication indices in bl.
+     (The image of the substitution may be fresh replication indices.) *)
+  let old_links = List.map (fun ri ->
+    let link = ri.ri_link in
+    ri.ri_link <- NoLink;
+    (ri, link)) bl
+  in
+  let res = (bl, copy_def_list Links_RI def_vars, copy_term Links_RI t) in
+  List.iter (fun (ri, link) -> ri.ri_link <- link) old_links;
+  res
 
 let rec copy_process transf p = 
   iproc_from_desc3 p (
@@ -2027,10 +2039,17 @@ let subst_def_list cur_array l def_list =
   List.iter (fun b -> b.ri_link <- NoLink) cur_array;
   def_list'
 
-let subst_else_find cur_array l ((bl, _, _) as elsefind_fact) =
-  List.iter2 (fun b t -> if not (List.memq b bl) then b.ri_link <- (TLink t)) cur_array l;
-  let elsefind_fact' = copy_elsefind elsefind_fact in
-  List.iter (fun b -> if not (List.memq b bl) then b.ri_link <- NoLink) cur_array;
+let subst_else_find cur_array l (bl, def_list, t) =
+  (* First, we rename bl to fresh replication indices to avoid capture *)
+  let bl_ren = List.map (fun ri -> create_repl_index "@ri" ri.ri_type) bl in
+  List.iter2 (fun ri ri_ren -> ri.ri_link <- (TLink (term_from_repl_index ri_ren))) bl bl_ren;
+  let def_list_ren = copy_def_list Links_RI def_list in
+  let t_ren = copy_term Links_RI t in
+  List.iter (fun ri -> ri.ri_link <- NoLink) bl;
+  (* Then we substitute l for cur_array in the obtained elsefind fact *)
+  List.iter2 (fun b t -> b.ri_link <- (TLink t)) cur_array l;
+  let elsefind_fact' = (bl_ren, copy_def_list Links_RI def_list_ren, copy_term Links_RI t_ren) in
+  List.iter (fun b -> b.ri_link <- NoLink) cur_array;
   elsefind_fact'
 
 let subst_simp_facts cur_array l (substs, facts, elsefind) =

@@ -79,7 +79,7 @@ proof {
 	 the first one does or conversely, by replacing them with events.
 	 CryptoVerif will show that these events do not happen. *)
       show_game occ;
-      insert_event e1 1103;
+      insert_event e1 401;
       simplify;
 (*      show_game occ;
       insert_event e2 241;
@@ -97,7 +97,7 @@ proof {
       merge_arrays k_2 k_3;
       merge_branches;
       remove_assign useless;
-      auto
+      auto 
 }
 
 (**** Declarations of types, constants, and functions

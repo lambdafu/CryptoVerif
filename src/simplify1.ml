@@ -1271,19 +1271,9 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 
   (* transform the elsefind fact such that the variable (b,b.args_at_creation) 
      for the original fact corresponds to our variable (b,tl):
-     substitute b.args_at_creation with tl.
-
-     To avoid capture by the substitution, we first rename bl to 
-     fresh replication indices. *)
-  let bl_ren = List.map (fun ri -> Terms.create_repl_index "@ri" ri.ri_type) bl in
-  let bl_ren_terms = List.map Terms.term_from_repl_index bl_ren in
-  let def_list_ren = Terms.subst_def_list bl bl_ren_terms def_list in
-  let t1_ren = Terms.subst bl bl_ren_terms t1 in
-  
+     substitute b.args_at_creation with tl. *)
   let b_index = b.args_at_creation in
-  let bl = bl_ren in
-  let def_list = Terms.subst_def_list b_index tl def_list_ren in
-  let t1 = Terms.subst b_index tl t1_ren in
+  let (bl, def_list, t1) = Terms.subst_else_find b_index tl (bl, def_list, t1) in
 
   if (!Settings.debug_elsefind_facts) then
     begin
