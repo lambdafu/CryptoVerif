@@ -9,21 +9,21 @@
 
 proof {
       auto;
-      show_game occ;
-      insert 27 "if defined(x_1[u_2], y_9[u_2], r_3[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";
-      show_game occ;
-      insert_event e2 90;
-      insert_event e3 79;
-      show_game occ;
-      replace 50 "x_1[u_2]";
+      show_game;
       SArename x;
-      simplify;
-      auto;
+      SArename y;
       show_game occ;
-      replace 45 "y_9[u_2]";
+      insert 27 "if defined(y_41[u_2], u_1[u_2], v[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";
+      show_game occ;
+      insert_event e2 123;
+      insert_event e4 105;
+      simplify;
+      show_game occ;
+      replace 36 "x_1[u_3]";
+      show_game occ;
+      replace 40 "y_41[u_3]";
       auto;
       remove_assign binder x_1;
-      merge_branches;
       success
 }
 (* This proof requires a bit more advice than desired: it is normal
@@ -55,7 +55,7 @@ fun f(S,D): D.
 equiv
   ! n new s: S; ! m gen_Oracle(x: D) := return(f(s,x)) [all]
 <=(pPRF(time,n,m))=>
-  ! n ! m gen_Oracle(x: D) := find u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(r[u]) else new r: D; return(r).
+  ! n ! m gen_Oracle(x: D) := find [unique] u <= m suchthat defined(x[u], r[u]) && (x = x[u]) then return(r[u]) else new r: D; return(r).
 
 
 (* the theory of xor implies several propositions... *)
@@ -71,27 +71,14 @@ equiv
 <=(n * m * pAXUH(time))=>
   ! m ! n Oxorh(x: D, x': D, y: D) := return(x = x' && y = zero).
 
-(* query *)
-query secret b.
-
 channel dummy, start, c1, c2.
 
+equivalence
 (* The Luby-Rackoff construction *)
-
-
-
-(* The random function *)
-
-
-
-process
   in(start, ());
-new b: bool;
-new k: K;
-new s1: S;
-new s2: S;
-if b then
-(
+  new k: K;
+  new s1: S;
+  new s2: S;
   out(dummy, ());
   ! i_1 <= q
   in(c1[i_1], (u_1: D, v: D));
@@ -102,12 +89,13 @@ if b then
   let temp3: D = f(s2, x_1) in
   let y: D = xor(w, temp3) in
   out(c2[i_1], (x_1, y))
-)
-else
+
+(* The random function *)
+  in(start, ());
   out(dummy, ());
   ! i_2 <= q
   in(c1[i_2], (u': D, v': D));
-  find i_3 = i_4 <= q suchthat defined(u'[i_4], v'[i_4], x'[i_4], y'[i_4]) && (u' = u'[i_4]) && (v' = v'[i_4]) then
+  find[unique] i_3 = i_4 <= q suchthat defined(u'[i_4], v'[i_4], x'[i_4], y'[i_4]) && (u' = u'[i_4]) && (v' = v'[i_4]) then
     out(c2[i_2], (x'[i_3], y'[i_3]))
   else
     new x': D;
