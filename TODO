@@ -1,6 +1,12 @@
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.
 
+The improvements to ROM (H(..) = .. and H(..) = H(..)) could
+also apply to PRFs.
+We could also have PRFs with several arguments.
+We could add ROMs/PRFs with several results, returning a tuple of random
+values (though splitting a single random result works ok).
+
 
 0) Files that do not work
 
