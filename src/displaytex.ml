@@ -1588,7 +1588,11 @@ let display_simplif_step = function
 	print_string "$"; display_binder b; print_string "$ with $";
         display_term t; print_string "$") subst;
       print_string "\\\\\n" 
-
+  | SFindInferUnique(p) ->
+      print_string "\\qquad -- Inferred that find at ";
+      print_int (Terms.occ_from_pp p);
+      print_string " is [unique]\\\\\n" 
+                   
   | SLetElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of let at ";
       print_int (Terms.occ_from_pp p);

@@ -1770,7 +1770,13 @@ let display_simplif_step = function
       print_string ", substituting ";
       display_list (fun (b,t) -> display_binder b; print_string " with ";
         display_term t) subst;
-      print_newline() 
+      print_newline()
+  | SFindInferUnique(p) ->
+      print_string "    - Inferred that find at ";
+      print_int (Terms.occ_from_pp p);
+      print_string " is [unique]";
+      print_newline()     
+                   
   | SLetElseRemoved(p) ->
       print_string "    - Remove else branch of let at ";
       print_int (Terms.occ_from_pp p);
@@ -1911,7 +1917,7 @@ let mark_occs_simplif_step f_t = function
   | SFindBranchRemoved(p,_) | SFindSingleBranch(p,_) 
   | SFindRemoved(p) | SFindElseRemoved(p) | SFindBranchMerge(p, _) 
   | SFindtoTest(p) | SFindIndexKnown(p, _,_) 
-  | SFindDeflist(p, _,_)
+  | SFindDeflist(p, _,_) | SFindInferUnique(p) 
   | SLetElseRemoved(p) | SLetRemoved(p) | SLetSimplifyPattern(p, _) 
   | SResRemoved(p) | SResToAssign(p) -> mark_useful_occ_pp p
   | SFindinFindCondition(p, t) -> mark_useful_occ_pp p; f_t t

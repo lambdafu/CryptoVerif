@@ -1269,8 +1269,13 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    t3'
 	  end
 	else
-	  let find_info = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0' find_info in
-	  Terms.build_term2 t (FindE(l0', t3',find_info))
+	  let (find_info', change) = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0' find_info in
+          if change then
+            begin
+	      Settings.changed := true;
+	      current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
+            end;
+	  Terms.build_term2 t (FindE(l0', t3',find_info'))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
 	  ([],[],t1,t2) -> 
@@ -1829,8 +1834,13 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      let find_info = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0' find_info in
-	      Terms.oproc_from_desc2 p' (Find(l0', p2', find_info))
+	      let (find_info', change) = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0' find_info in
+              if change then
+                begin
+	          Settings.changed := true;
+	          current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
+                end;
+	      Terms.oproc_from_desc2 p' (Find(l0', p2', find_info'))
 	  end
       with OneBranchProcess(find_branch) ->
 	match find_branch with

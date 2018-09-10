@@ -212,7 +212,7 @@ val is_unique : 'a findbranch list -> find_info -> find_info
 (* [infer_unique g cur_array simp_facts def_vars dep_info current_history l0' find_info]
    tries to prove that there is single possible choice in the find with
    branches [l0'], and if so it returns the modified [find_info] equal to
-   [Unique]. 
+   [Unique]. It also returns a boolean set to true when a real change has been made.
 
    [g] is the current game
    [cur_array] the current replication indices
@@ -223,7 +223,7 @@ val is_unique : 'a findbranch list -> find_info -> find_info
    is tested (may be returned by [Facts.get_initial_history] *)
 val infer_unique : game -> repl_index list -> simp_facts -> binderref list ->
                    dep_anal -> known_history option ->
-                   'a findbranch list -> find_info -> find_info
+                   'a findbranch list -> find_info -> find_info * bool
                                                      
 (*** [improved_def_process event_accu compatible_needed p]
      Improved version of [Terms.build_def_process] that infers facts from 

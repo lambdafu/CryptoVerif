@@ -541,6 +541,7 @@ and simplify_ins =
   | SFindinFindBranch of program_point * program_point
   | SFindtoTest of program_point
   | SFindIndexKnown of program_point * program_point findbranch * (binder * term) list
+  | SFindInferUnique of program_point
   | SLetElseRemoved of program_point
   | SLetRemoved of program_point
   | SLetSimplifyPattern of program_point * let_transfo

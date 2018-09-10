@@ -1942,7 +1942,7 @@ let is_unique l0' find_info =
 (* [infer_unique g cur_array simp_facts def_vars dep_info current_history l0' find_info]
    tries to prove that there is single possible choice in the find with
    branches [l0'], and if so it returns the modified [find_info] equal to
-   [Unique]. 
+   [Unique]. It also returns a boolean set to true when a real change has been made.
 
    [g] is the current game
    [cur_array] the current replication indices
@@ -1954,10 +1954,10 @@ let is_unique l0' find_info =
 
 let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
   if not (!Settings.infer_unique) then
-    is_unique l0' find_info
+    (is_unique l0' find_info, false)
   else
     match is_unique l0' find_info with
-    | Unique -> Unique
+    | Unique -> (Unique, false)
     | Nothing ->
        let unique_branch (bl, def_list1, t1, _) =
          let repl_index1 = List.map snd bl in
@@ -2006,9 +2006,9 @@ let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
            in
            incompatible_branches l0')
        then
-         Unique
+         (Unique, true)
        else
-         Nothing
+         (Nothing, false)
          
 (* Infer more facts *)
 
