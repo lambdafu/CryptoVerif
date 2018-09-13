@@ -2,6 +2,8 @@
 
 open Types
 
+let expanded = ref true
+
 
 (* Invariant 1: single definition; two definitions of the same variable
 are in different branches of if/let/find.
@@ -19,65 +21,122 @@ let ok_cur_array cur_array b =
   if not (Terms.equal_lists (==) b.args_at_creation cur_array) then 
     Parsing_helper.internal_error ("Bad args_at_creation for " ^ (Display.binder_to_string b))
 
-let rec inv1t cur_array t =
+let rec inv1t_deflist cur_array t =
   match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> List.iter (inv1t cur_array) l
+  | Var(_,l) | FunApp(_,l) -> List.iter (inv1t_deflist cur_array) l
+  | ReplIndex b -> 
+     if not (List.memq b cur_array) then
+       Parsing_helper.internal_error ("When I refer to a replication index (" ^
+                                        (Display.repl_index_to_string b) ^
+                                          "), it should be an element of cur_array")
+  | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+     Parsing_helper.internal_error "If/let/new/find/event_abort/event/get/insert should not occur in deflist"
+
+                                  
+let rec inv1t_fc expect_expanded is_find_cond cur_array t =
+  match t.t_desc with
+    Var(_,l) | FunApp(_,l) -> inv1t_fc_list true is_find_cond cur_array l
   | ReplIndex b -> 
       if not (List.memq b cur_array) then
 	Parsing_helper.internal_error ("When I refer to a replication index (" ^
 				       (Display.repl_index_to_string b) ^
-				       "), it should be an element of cur_array")
+				         "), it should be an element of cur_array");
+      []
   | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "If/let/new/find/event_abort/event/get/insert should have been expanded"
+     if (!expanded) && expect_expanded then
+       Parsing_helper.internal_error "If/let/new/find/event_abort/event/get/insert should have been expanded"
+     else
+       match t.t_desc with
+       | Var _ | FunApp _ | ReplIndex _ -> assert false (* Handled above *)
+       | TestE(t1,p1,p2) ->
+          let def0 = inv1t_fc true is_find_cond cur_array t1 in
+          let def1 = inv1t_fc false is_find_cond cur_array p1 in
+          let def2 = inv1t_fc false is_find_cond cur_array p2 in
+          let def12 = Terms.unionq def1 def2 in
+          check_noninter def0 def12;
+          def0 @ def12
+       | ResE(b,p) ->
+          if is_find_cond then
+            Parsing_helper.internal_error "new should not appear in condition of find";
+          let def = inv1t_fc false is_find_cond cur_array p in
+          check_noninter def [b];
+          ok_cur_array cur_array b;
+          b :: def
+       | EventAbortE f ->
+          if is_find_cond then
+            Parsing_helper.internal_error "event_abort should not appear in condition of find";
+          []
+       | EventE(t,p) ->
+          if is_find_cond then
+            Parsing_helper.internal_error "event should not appear in condition of find";
+          let deft = inv1t_fc true is_find_cond cur_array t in
+          let defp = inv1t_fc false is_find_cond cur_array p in
+          check_noninter deft defp;
+          deft @ defp
+       | GetE _ | InsertE _ ->
+          Parsing_helper.internal_error "event, event_abort, get, insert should not appear as term"
+       | LetE(pat,t,p1,topt) ->
+          let deft = inv1t_fc true is_find_cond cur_array t in
+          let defpat = inv1pat is_find_cond cur_array pat in
+          check_noninter deft defpat;
+          let deftpat = deft @ defpat in
+          let def1 = inv1t_fc false is_find_cond cur_array p1 in
+          let def2 = Terms.vars_from_pat [] pat in
+          List.iter (ok_cur_array cur_array) def2;
+          check_noninter def1 def2;
+          let def3 = 
+	    match topt with
+	      Some p2 -> inv1t_fc false is_find_cond cur_array p2
+	    | None -> []
+          in
+          let deffin = Terms.unionq (def2 @ def1) def3 in
+          check_noninter deftpat deffin;
+          deftpat @ deffin
+       | FindE(l0,p3,_) ->
+          let def3 = inv1t_fc false is_find_cond cur_array p3 in
+          let accu = ref def3 in
+          List.iter (fun (bl,def_list,t,p) ->
+	      let vars = List.map fst bl in
+	      let repl_indices = List.map snd bl in
+	      List.iter (ok_cur_array cur_array) vars;
+	      let cur_array_cond = repl_indices @ cur_array in
+	      List.iter (fun (b,l) -> List.iter (inv1t_deflist cur_array_cond) l) def_list;
+	      let deft = inv1fc cur_array_cond t in
+	      let defp = inv1t_fc false is_find_cond cur_array p in
+	      check_noninter deft defp;
+	      check_noninter deft vars;
+	      check_noninter defp vars;
+	      accu := Terms.unionq (vars @ deft @ defp) (!accu)
+	    ) l0;
+          !accu
 
-let rec inv1fc cur_array t =
-  match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> inv1t cur_array t; []
-  | TestE(t1,p1,p2) ->
-      inv1t cur_array t1;
-      let def1 = inv1fc cur_array p1 in
-      let def2 = inv1fc cur_array p2 in
-      Terms.unionq def1 def2
-  | ResE(b,p) ->
-      Parsing_helper.internal_error "new should not appear as term"
-(*
-      let def = inv1fc cur_array p in
-      check_noninter def [b];
-      ok_cur_array cur_array b;
-      b :: def
-*)
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "event, event_abort, get, insert should not appear as term"
-  | LetE(pat,t,p1,topt) ->
-      inv1t cur_array t;
-      let def1 = inv1fc cur_array p1 in
-      let def2 = Terms.vars_from_pat [] pat in
-      List.iter (ok_cur_array cur_array) def2;
-      check_noninter def1 def2;
-      let def3 = 
-	match topt with
-	  Some p2 -> inv1fc cur_array p2
-	| None -> []
-      in
-      Terms.unionq (def2 @ def1) def3
-  | FindE(l0,p3,_) ->
-      let def3 = inv1fc cur_array p3 in
-      let accu = ref def3 in
-      List.iter (fun (bl,def_list,t,p) ->
-	let vars = List.map fst bl in
-	let repl_indices = List.map snd bl in
-	List.iter (ok_cur_array cur_array) vars;
-	let cur_array_cond = repl_indices @ cur_array in
-	List.iter (fun (b,l) -> List.iter (inv1t cur_array_cond) l) def_list;
-	let deft = inv1fc cur_array_cond t in
-	let defp = inv1fc cur_array p in
-	check_noninter deft defp;
-	check_noninter deft vars;
-	check_noninter defp vars;
-	accu := Terms.unionq (vars @ deft @ defp) (!accu)
-	) l0;
-      !accu
-      
+and inv1t_fc_list expect_expanded is_find_cond cur_array = function
+    [] -> []
+  | a::l ->
+     let defa = inv1t_fc expect_expanded is_find_cond cur_array a in
+     let defl = inv1t_fc_list expect_expanded is_find_cond cur_array l in
+     check_noninter defa defl;
+     defa @ defl
+
+and inv1pat is_find_cond cur_array = function
+  | PatVar b -> []
+  | PatTuple(_,l) -> inv1pat_list is_find_cond cur_array l
+  | PatEqual t -> inv1t_fc true is_find_cond cur_array t
+
+and inv1pat_list is_find_cond cur_array = function
+  | [] -> []
+  | a::l ->
+     let defa = inv1pat is_find_cond cur_array a in
+     let defl = inv1pat_list is_find_cond cur_array l in
+     check_noninter defa defl;
+     defa @ defl
+     
+                  
+and inv1fc cur_array t =
+  inv1t_fc false true cur_array t
+
+and inv1t cur_array t =
+  inv1t_fc true false cur_array t
 
 let rec inv1 cur_array p = 
   match p.i_desc with
@@ -90,12 +149,15 @@ let rec inv1 cur_array p =
   | Repl(b,p) ->
       inv1 (b::cur_array) p 
   | Input((c,tl),pat, p) ->
-      List.iter (inv1t cur_array) tl;
+      List.iter (inv1t_deflist cur_array) tl;
       let def1 = inv1o cur_array p in
+      let defpat = inv1pat false cur_array pat in 
       let def2 = Terms.vars_from_pat [] pat in
       List.iter (ok_cur_array cur_array) def2;
       check_noninter def1 def2;
-      def1 @ def2
+      let deffin = def1 @ def2 in
+      check_noninter defpat deffin;
+      defpat @ deffin
 
 and inv1o cur_array p =
   match p.p_desc with
@@ -106,20 +168,30 @@ and inv1o cur_array p =
       ok_cur_array cur_array b;
       b :: def
   | Test(t,p1,p2) ->
-      inv1t cur_array t;
+      let def0 = inv1t cur_array t in
       let def1 = inv1o cur_array p1 in
       let def2 = inv1o cur_array p2 in
-      Terms.unionq def1 def2
-  | EventP(t,p) -> 
-      inv1o cur_array p
+      let def12 = Terms.unionq def1 def2 in
+      check_noninter def0 def12;
+      def0 @ def12
+  | EventP(t,p) ->
+      let deft = inv1t cur_array t in
+      let defp = inv1o cur_array p in
+      check_noninter deft defp;
+      deft @ defp
   | Let(pat,t,p1,p2) ->
-      inv1t cur_array t;
+      let deft = inv1t cur_array t in
+      let defpat = inv1pat false cur_array pat in
+      check_noninter deft defpat;
+      let deftpat = deft @ defpat in
       let def1 = inv1o cur_array p1 in
       let def2 = Terms.vars_from_pat [] pat in
       List.iter (ok_cur_array cur_array) def2;
       check_noninter def1 def2;
       let def3 = inv1o cur_array p2 in
-      Terms.unionq (def2 @ def1) def3
+      let deffin = Terms.unionq (def2 @ def1) def3 in
+      check_noninter deftpat deffin;
+      deftpat @ deffin
   | Find(l0,p3,_) ->
       let def3 = inv1o cur_array p3 in
       let accu = ref def3 in
@@ -128,7 +200,7 @@ and inv1o cur_array p =
 	let repl_indices = List.map snd bl in
 	List.iter (ok_cur_array cur_array) vars;
 	let cur_array_cond = repl_indices @ cur_array in
-	List.iter (fun (b,l) -> List.iter (inv1t cur_array_cond) l) def_list;
+	List.iter (fun (b,l) -> List.iter (inv1t_deflist cur_array_cond) l) def_list;
 	let deft = inv1fc cur_array_cond t in
 	let defp = inv1o cur_array p in
 	check_noninter deft defp;
@@ -138,9 +210,13 @@ and inv1o cur_array p =
 	) l0;
       !accu
   | Output((c,tl),t,p) ->
-      List.iter (inv1t cur_array) tl;
-      inv1t cur_array t;
-      inv1 cur_array p
+      let deftl = inv1t_fc_list true false cur_array tl in
+      let deft = inv1t cur_array t in
+      let defp = inv1 cur_array p in
+      check_noninter deft defp;
+      check_noninter deft deftl;
+      check_noninter defp deftl;
+      deftl @ deft @ defp
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 
