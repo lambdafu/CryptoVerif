@@ -30,12 +30,12 @@ let rec inv1t_deflist cur_array t =
                                         (Display.repl_index_to_string b) ^
                                           "), it should be an element of cur_array")
   | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-     Parsing_helper.internal_error "If/let/new/find/event_abort/event/get/insert should not occur in deflist"
+     Parsing_helper.internal_error "If/let/new/find/event_abort/event/get/insert should not occur in deflist nor in channels of inputs"
 
                                   
-let rec inv1t_fc expect_expanded is_find_cond cur_array t =
+let rec inv1t_fc expect_expanded in_find_cond cur_array t =
   match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> inv1t_fc_list true is_find_cond cur_array l
+    Var(_,l) | FunApp(_,l) -> inv1t_fc_list true in_find_cond cur_array l
   | ReplIndex b -> 
       if not (List.memq b cur_array) then
 	Parsing_helper.internal_error ("When I refer to a replication index (" ^
@@ -49,51 +49,51 @@ let rec inv1t_fc expect_expanded is_find_cond cur_array t =
        match t.t_desc with
        | Var _ | FunApp _ | ReplIndex _ -> assert false (* Handled above *)
        | TestE(t1,p1,p2) ->
-          let def0 = inv1t_fc true is_find_cond cur_array t1 in
-          let def1 = inv1t_fc false is_find_cond cur_array p1 in
-          let def2 = inv1t_fc false is_find_cond cur_array p2 in
+          let def0 = inv1t_fc true in_find_cond cur_array t1 in
+          let def1 = inv1t_fc false in_find_cond cur_array p1 in
+          let def2 = inv1t_fc false in_find_cond cur_array p2 in
           let def12 = Terms.unionq def1 def2 in
           check_noninter def0 def12;
           def0 @ def12
        | ResE(b,p) ->
-          if is_find_cond then
+          if in_find_cond then
             Parsing_helper.internal_error "new should not appear in condition of find";
-          let def = inv1t_fc false is_find_cond cur_array p in
+          let def = inv1t_fc false in_find_cond cur_array p in
           check_noninter def [b];
           ok_cur_array cur_array b;
           b :: def
        | EventAbortE f ->
-          if is_find_cond then
+          if in_find_cond then
             Parsing_helper.internal_error "event_abort should not appear in condition of find";
           []
        | EventE(t,p) ->
-          if is_find_cond then
+          if in_find_cond then
             Parsing_helper.internal_error "event should not appear in condition of find";
-          let deft = inv1t_fc true is_find_cond cur_array t in
-          let defp = inv1t_fc false is_find_cond cur_array p in
+          let deft = inv1t_fc true in_find_cond cur_array t in
+          let defp = inv1t_fc false in_find_cond cur_array p in
           check_noninter deft defp;
           deft @ defp
        | GetE _ | InsertE _ ->
           Parsing_helper.internal_error "event, event_abort, get, insert should not appear as term"
        | LetE(pat,t,p1,topt) ->
-          let deft = inv1t_fc true is_find_cond cur_array t in
-          let defpat = inv1pat is_find_cond cur_array pat in
+          let deft = inv1t_fc true in_find_cond cur_array t in
+          let defpat = inv1pat in_find_cond cur_array pat in
           check_noninter deft defpat;
           let deftpat = deft @ defpat in
-          let def1 = inv1t_fc false is_find_cond cur_array p1 in
+          let def1 = inv1t_fc false in_find_cond cur_array p1 in
           let def2 = Terms.vars_from_pat [] pat in
           List.iter (ok_cur_array cur_array) def2;
           check_noninter def1 def2;
           let def3 = 
 	    match topt with
-	      Some p2 -> inv1t_fc false is_find_cond cur_array p2
+	      Some p2 -> inv1t_fc false in_find_cond cur_array p2
 	    | None -> []
           in
           let deffin = Terms.unionq (def2 @ def1) def3 in
           check_noninter deftpat deffin;
           deftpat @ deffin
        | FindE(l0,p3,_) ->
-          let def3 = inv1t_fc false is_find_cond cur_array p3 in
+          let def3 = inv1t_fc false in_find_cond cur_array p3 in
           let accu = ref def3 in
           List.iter (fun (bl,def_list,t,p) ->
 	      let vars = List.map fst bl in
@@ -102,7 +102,7 @@ let rec inv1t_fc expect_expanded is_find_cond cur_array t =
 	      let cur_array_cond = repl_indices @ cur_array in
 	      List.iter (fun (b,l) -> List.iter (inv1t_deflist cur_array_cond) l) def_list;
 	      let deft = inv1fc cur_array_cond t in
-	      let defp = inv1t_fc false is_find_cond cur_array p in
+	      let defp = inv1t_fc false in_find_cond cur_array p in
 	      check_noninter deft defp;
 	      check_noninter deft vars;
 	      check_noninter defp vars;
@@ -110,24 +110,24 @@ let rec inv1t_fc expect_expanded is_find_cond cur_array t =
 	    ) l0;
           !accu
 
-and inv1t_fc_list expect_expanded is_find_cond cur_array = function
+and inv1t_fc_list expect_expanded in_find_cond cur_array = function
     [] -> []
   | a::l ->
-     let defa = inv1t_fc expect_expanded is_find_cond cur_array a in
-     let defl = inv1t_fc_list expect_expanded is_find_cond cur_array l in
+     let defa = inv1t_fc expect_expanded in_find_cond cur_array a in
+     let defl = inv1t_fc_list expect_expanded in_find_cond cur_array l in
      check_noninter defa defl;
      defa @ defl
 
-and inv1pat is_find_cond cur_array = function
+and inv1pat in_find_cond cur_array = function
   | PatVar b -> []
-  | PatTuple(_,l) -> inv1pat_list is_find_cond cur_array l
-  | PatEqual t -> inv1t_fc true is_find_cond cur_array t
+  | PatTuple(_,l) -> inv1pat_list in_find_cond cur_array l
+  | PatEqual t -> inv1t_fc true in_find_cond cur_array t
 
-and inv1pat_list is_find_cond cur_array = function
+and inv1pat_list in_find_cond cur_array = function
   | [] -> []
   | a::l ->
-     let defa = inv1pat is_find_cond cur_array a in
-     let defl = inv1pat_list is_find_cond cur_array l in
+     let defa = inv1pat in_find_cond cur_array a in
+     let defl = inv1pat_list in_find_cond cur_array l in
      check_noninter defa defl;
      defa @ defl
      
@@ -235,13 +235,16 @@ definition
 - in terms, else branch of let can be omitted only when the pattern is a variable.
 *)
 
-let no_array_ref b =
-  if Terms.has_array_ref_q b then
-    Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have no array reference.");
-  match b.def with
-    [] -> Parsing_helper.internal_error ("No definition for " ^ (Display.binder_to_string b))
-  | [_] -> ()
-  | _::_::_ -> Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have a single definition.")
+let no_array_ref in_find_cond b =
+  if in_find_cond then
+    begin
+      if Terms.has_array_ref_q b then
+	Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have no array reference.");
+      match b.def with
+	[] -> Parsing_helper.internal_error ("No definition for " ^ (Display.binder_to_string b))
+      | [_] -> ()
+      | _::_::_ -> Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have a single definition.")
+    end
 
 let rec check_indices all_args args l =
   match args,l with
@@ -260,9 +263,9 @@ let rec check_indices all_args args l =
       end
   | _ -> Parsing_helper.internal_error "Variable indices have length different from args_at_creation"
 
-let rec invt defined_refs t =
+let rec invt_fc in_find_cond defined_refs t =
   match t.t_desc with
-    Var(b,l) ->
+  | Var(b,l) ->
       if not (Terms.mem_binderref (b,l) defined_refs) then
 	begin
 	  print_string "Variable access "; 
@@ -290,7 +293,7 @@ let rec invt defined_refs t =
 	  print_string ("Term type: " ^ t.t_type.tname ^ "\n");
 	  Parsing_helper.internal_error "Type error"
 	end;
-      List.iter (invt defined_refs) l
+      List.iter (invt_fc in_find_cond defined_refs) l
   | ReplIndex(b) ->
       if t.t_type != b.ri_type then
 	begin
@@ -321,57 +324,46 @@ let rec invt defined_refs t =
 	  print_string ("Term type: " ^ t.t_type.tname ^ "\n");
 	  Parsing_helper.internal_error "Type error"
 	end;
-      List.iter (invt defined_refs) l
-  | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "If/let/new/find/event/event_abort/get/insert should have been expanded"
-
-let rec invpat defined_refs = function
-    PatVar b -> b.btype
-  | PatTuple(f,l) ->
-      let tl = List.map (invpat defined_refs) l in
-      List.iter2 (fun t t' ->
-	if t != t' then
-	  Parsing_helper.internal_error "Type error: function argument in pattern") (fst f.f_type) tl;
-      snd f.f_type
-  | PatEqual t ->
-      invt defined_refs t;
-      t.t_type
-      
-let rec invfc defined_refs t =
-  match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> invt defined_refs t
+      List.iter (invt_fc in_find_cond defined_refs) l
   | ResE(b,t) ->
-      Parsing_helper.internal_error "new should not appear as term"
-(*
+      if in_find_cond then
+	Parsing_helper.internal_error "new should not appear in a condition of find";
       let ty = b.btype in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	Parsing_helper.internal_error ("Cannot choose randomly a bitstring from " ^ ty.tname ^ "\n");
-      no_array_ref b;
-      invfc ((b, b.args_at_creation)::defined_refs) t
-*)
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _  ->
-      Parsing_helper.internal_error "event, event_abort, get, insert should not appear as term"
+      no_array_ref in_find_cond b;
+      invt_fc in_find_cond ((Terms.binderref_from_binder b)::defined_refs) t
+  | EventAbortE _ ->
+      if in_find_cond then
+	Parsing_helper.internal_error "event_abort should not appear in a condition of find"
+  | EventE(t,p) ->
+      if in_find_cond then
+	Parsing_helper.internal_error "event should not appear in a condition of find";	
+      invt_fc in_find_cond defined_refs t;
+      invt_fc in_find_cond defined_refs p
+  | GetE _ | InsertE _  ->
+      Parsing_helper.internal_error "get, insert should not appear as terms"
   | TestE(t1,t2,t3) ->
-      invt defined_refs t1;
-      invfc defined_refs t2;
-      invfc defined_refs t3;
+      invt_fc in_find_cond defined_refs t1;
+      invt_fc in_find_cond defined_refs t2;
+      invt_fc in_find_cond defined_refs t3;
       if t2.t_type != t3.t_type then 
 	Parsing_helper.internal_error "Type error: branches of if with different types";
       if t1.t_type != Settings.t_bool then
 	Parsing_helper.internal_error "Type error: condition should have type bool"
   | LetE(pat, t, t2, topt) ->
-      let ty = invpat defined_refs pat in
+      let ty = invpat in_find_cond defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
-      List.iter no_array_ref bpat;
+      List.iter (no_array_ref in_find_cond) bpat;
       let defs = List.map Terms.binderref_from_binder bpat in
-      invt defined_refs t;
-      invfc (defs @ defined_refs) t2;
+      invt_fc in_find_cond defined_refs t;
+      invt_fc in_find_cond (defs @ defined_refs) t2;
       if ty != t.t_type then
 	Parsing_helper.internal_error "Type error: assigned pattern has different type than its value";
       begin
 	match topt with
 	  Some t3 -> 
-	    invfc defined_refs t3;
+	    invt_fc in_find_cond defined_refs t3;
 	    if t3.t_type != t2.t_type then
 	      Parsing_helper.internal_error "Type error: branches of let with different types"
 	| None -> 
@@ -380,7 +372,7 @@ let rec invfc defined_refs t =
 	    | _ -> Parsing_helper.internal_error "The else branch of let can be omitted only when the pattern is a variable"
       end
   | FindE(l0,t3,_) ->
-      invfc defined_refs t3;
+      invt_fc in_find_cond defined_refs t3;
       List.iter (fun (bl, def_list, t, t2) ->
 	List.iter (fun (b,b') ->
 	  if b.btype != b'.ri_type then
@@ -389,15 +381,33 @@ let rec invfc defined_refs t =
 	  Parsing_helper.internal_error "Type error: branches of find with different types";
 	if t.t_type != Settings.t_bool then
 	  Parsing_helper.internal_error "Type error: condition of find should have type bool";
-	List.iter no_array_ref (List.map fst bl);
+	List.iter (no_array_ref in_find_cond) (List.map fst bl);
 	let (defined_refs_t, defined_refs_t2) = Terms.defined_refs_find bl def_list defined_refs in
 	(* Check def_list and t *)
-	List.iter (fun br -> invt defined_refs_t (Terms.term_from_binderref br)) def_list;
-	invfc defined_refs_t t;
+	List.iter (fun br -> invt_fc in_find_cond defined_refs_t (Terms.term_from_binderref br)) def_list;
+	invt_fc true defined_refs_t t;
 	(* Check t2 *)
-	invfc defined_refs_t2 t2
+	invt_fc in_find_cond defined_refs_t2 t2
 	) l0
 
+and invpat in_find_cond defined_refs = function
+    PatVar b -> b.btype
+  | PatTuple(f,l) ->
+      let tl = List.map (invpat in_find_cond defined_refs) l in
+      List.iter2 (fun t t' ->
+	if t != t' then
+	  Parsing_helper.internal_error "Type error: function argument in pattern") (fst f.f_type) tl;
+      snd f.f_type
+  | PatEqual t ->
+      invt_fc in_find_cond defined_refs t;
+      t.t_type
+      
+let invfc defined_refs t =
+  invt_fc true defined_refs t
+
+let invt defined_refs t =
+  invt_fc false defined_refs t
+    
 let rec inv defined_refs p =
   match p.i_desc with
     Nil -> ()
@@ -408,7 +418,7 @@ let rec inv defined_refs p =
       inv defined_refs p
   | Input((c,tl),pat,p) ->
       List.iter (invt defined_refs) tl;
-      let _ = invpat defined_refs pat in
+      let _ = invpat false defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
       let defs = List.map Terms.binderref_from_binder bpat in
       invo (defs @ defined_refs) p
@@ -435,7 +445,7 @@ and invo defined_refs p =
       if t.t_type != Settings.t_bool then
 	Parsing_helper.internal_error "Type error: condition should have type bool"
   | Let(pat, t, p1, p2) ->
-      let ty = invpat defined_refs pat in
+      let ty = invpat false defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
       let defs = List.map Terms.binderref_from_binder bpat in
       invt defined_refs t;
