@@ -3,25 +3,23 @@ open Types
 (* When variable x is assigned at several places, 
    rename variable x into x1, ..., xn and duplicate code if necessary 
 
-This transformation assumes that LetE/FindE/TestE/ResE occur only in 
+When !expanded = true, 
+this transformation assumes that LetE/FindE/TestE/ResE occur only in 
 conditions of find, which is guaranteed after expansion.
-(In fact, Terms.copy_process and sa_process support them in all terms, 
-although that's not necessary.
-ren_out_process and Terms.build_compatible_defs support 
-LetE/FindE/TestE/ResE only in conditions of find.
-Otherwise, ren_out_process should call ren_out_find_cond for each term,
-and not only for find conditions.)
+When !expanded = false, it should work without this assumption.
+
 It also assumes that variables defined in conditions of find
 have no array references and do not occur in queries.
 *)
 
+let expanded = ref true
+       
 (* - First pass: look for assignments to x, give a new name to each of them,
    and rename the in-scope references to x with current session identifiers *)
    
 let image_name_list = ref []
 
-(* NOTE: when TestE/LetE/FindE/ResE are forbidden, sa_term is the identity *)
-let rec sa_term b0 t =
+let rec sa_find_cond b0 t =
   Terms.build_term t 
      (match t.t_desc with
 	Var(b,l) ->
@@ -31,8 +29,8 @@ let rec sa_term b0 t =
           FunApp(f, List.map (sa_term b0) l)
       | TestE(t1,t2,t3) ->
           TestE(sa_term b0 t1,
-		sa_term b0 t2,
-		sa_term b0 t3)
+		sa_find_cond b0 t2,
+		sa_find_cond b0 t3)
       | FindE(l0,t3,find_info) ->
 	  let l0' = List.map (fun (bl, def_list, t1, t2) ->
             if List.exists (fun (b,_) -> b == b0) bl then
@@ -50,26 +48,27 @@ let rec sa_term b0 t =
 	      (* def_list does not contain if/let/find/res so
 		 no change in it *)
               (bl, def_list, 
-               sa_term b0 t1,
-               sa_term b0 t2)) l0
+               sa_find_cond b0 t1,
+               sa_find_cond b0 t2)) l0
 	  in
-	  FindE(l0', sa_term b0 t3, find_info)
+	  FindE(l0', sa_find_cond b0 t3, find_info)
       |	LetE(pat, t1, t2, topt) ->
 	  let target_name = ref b0 in
 	  let pat' = sa_pat b0 target_name pat in
 	  if !target_name == b0 then
 	  (* b0 not defined in pat *)
-	    LetE(pat', t1, 
-		sa_term b0 t2, 
+	    LetE(pat', sa_term b0 t1, 
+		sa_find_cond b0 t2, 
 		match topt with
-		  Some t3 -> Some (sa_term b0 t3)
+		  Some t3 -> Some (sa_find_cond b0 t3)
 		| None -> None)
 	  else
-	    (* b0 defined in pat and renamed to !target_name *)
+	    (* b0 defined in pat and renamed to !target_name
+               b0 cannot be defined t1 nor in t2 in this case. *)
 	    LetE(pat', t1, 
 		Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, !target_name)) t2, 
 		match topt with
-		  Some t3 -> Some (sa_term b0 t3)
+		  Some t3 -> Some (sa_find_cond b0 t3)
 		| None -> None)
       |	ResE(b,t) ->
 	  if b == b0 then
@@ -77,16 +76,22 @@ let rec sa_term b0 t =
 	    image_name_list := b0' :: (!image_name_list);
 	    ResE(b0', Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, b0')) t)
 	  else
-	    ResE(b, sa_term b0 t)
-      |	EventAbortE _ ->
-          Parsing_helper.internal_error "Event should have been expanded"
+	    ResE(b, sa_find_cond b0 t)
+      |	EventAbortE f ->
+          EventAbortE f
       | EventE(t,p) ->
 	  EventE(sa_term b0 t,
-		 sa_term b0 p)
+		 sa_find_cond b0 p)
       | GetE _ | InsertE _ -> 
-	  Parsing_helper.internal_error "Get/Insert should not appear in Transf_sarename.sa_term"
+	  Parsing_helper.internal_error "Get/Insert should not appear in Transf_sarename.sa_find_cond"
 	    )
 
+and sa_term b0 t =
+  if !expanded then
+    t
+  else
+    sa_find_cond b0 t
+     
 and sa_pat b0 target_name = function
     PatVar b -> 
       if b == b0 then
@@ -154,7 +159,7 @@ and sa_oprocess b0 p =
 	  (* def_list does not contain if/let/find/res so
 	     no change in it *)
 	  (bl, def_list, 
-	   sa_term b0 t,
+	   sa_find_cond b0 t,
 	   sa_oprocess b0 p1)) l0
       in
       Find(l0', sa_oprocess b0 p2, find_info)
@@ -167,11 +172,12 @@ and sa_oprocess b0 p =
       let pat' = sa_pat b0 target_name pat in
       if !target_name == b0 then
 	(* b0 not defined in pat *)
-	Let(pat', t, 
+	Let(pat', sa_term b0 t, 
 	    sa_oprocess b0 p1, 
 	    sa_oprocess b0 p2)
       else
-	(* b0 defined in pat and renamed to !target_name *)
+	(* b0 defined in pat and renamed to !target_name
+           b0 cannot be defined in t nor in p1 in this case *)
 	Let(pat', t, 
 	    Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b0.args_at_creation, b0, !target_name)) p1, 
 	    sa_oprocess b0 p2)
@@ -273,12 +279,12 @@ let rec rename_finds p1rename b0 image_list args_list accu p =
 let rec ren_out_find_cond b0 t = 
   Terms.build_term t (
   match t.t_desc with
-    Var(b,l) -> Var(b, List.map (ren_out_find_cond b0) l)
+    Var(b,l) -> Var(b, List.map (ren_out_term b0) l)
   | ReplIndex(b) -> ReplIndex(b)
-  | FunApp(f,l) -> FunApp(f, List.map (ren_out_find_cond b0) l)
+  | FunApp(f,l) -> FunApp(f, List.map (ren_out_term b0) l)
   | ResE(b,p) -> ResE(b, ren_out_find_cond b0 p)
   | TestE(t,p1,p2) -> 
-      TestE(t,
+      TestE(ren_out_term b0 t,
 	   ren_out_find_cond b0 p1,
 	   ren_out_find_cond b0 p2)
   | FindE(l0, p2, find_info) ->
@@ -301,18 +307,36 @@ let rec ren_out_find_cond b0 t =
       FindE(ren_out_list l0, ren_out_find_cond b0 p2, find_info)
   | LetE(pat,t,p1,topt) ->
       begin
-      LetE(pat, t, ren_out_find_cond b0 p1,
+      LetE(ren_out_pat b0 pat, ren_out_term b0 t, ren_out_find_cond b0 p1,
 	  match topt with
             None -> None
           | Some p2 -> Some (ren_out_find_cond b0 p2))
       end
-  | EventAbortE _ | EventE _ ->
-      Parsing_helper.internal_error "Events should not occur in find conditions"
+  | EventAbortE f ->
+      EventAbortE f
+  | EventE(t,p) ->
+     EventE(ren_out_term b0 t, ren_out_find_cond b0 p)
   | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_sarename.ren_out_find_cond"
 	)
 
+and ren_out_term b0 t =
+  if !expanded then
+    t
+  else
+    ren_out_find_cond b0 t
 
+and ren_out_pat b0 pat =
+  if !expanded then
+    pat
+  else
+    let rec aux = function
+      | PatEqual t -> PatEqual (ren_out_find_cond b0 t)
+      | PatVar b -> PatVar b
+      | PatTuple(f,l) -> PatTuple(f, List.map aux l)
+    in
+    aux pat
+                      
 let rec ren_out_process b0 p = 
   Terms.iproc_from_desc (
   match p.i_desc with
@@ -321,7 +345,7 @@ let rec ren_out_process b0 p =
 		      ren_out_process b0 p2)
   | Repl(b,p) -> Repl(b, ren_out_process b0 p)
   | Input((c,tl),pat,p) ->
-      Input((c, tl), pat, ren_out_oprocess b0 p))
+      Input((c, List.map (ren_out_term b0) tl), ren_out_pat b0 pat, ren_out_oprocess b0 p))
 
 and ren_out_oprocess b0 p = 
   Terms.oproc_from_desc (
@@ -330,7 +354,7 @@ and ren_out_oprocess b0 p =
   | EventAbort f -> EventAbort f
   | Restr(b,p) -> Restr(b, ren_out_oprocess b0 p)
   | Test(t,p1,p2) -> 
-      Test(t,
+      Test(ren_out_term b0 t,
 	   ren_out_oprocess b0 p1,
 	   ren_out_oprocess b0 p2)
   | Find(l0, p2, find_info) ->
@@ -352,12 +376,12 @@ and ren_out_oprocess b0 p =
       in
       Find(ren_out_list l0, ren_out_oprocess b0 p2, find_info)
   | Output((c,tl),t2,p) ->
-      Output((c, tl),t2,ren_out_process b0 p)
+      Output((c, List.map (ren_out_term b0) tl),ren_out_term b0 t2,ren_out_process b0 p)
   | Let(pat,t,p1,p2) ->
-      Let(pat, t, ren_out_oprocess b0 p1,
+      Let(ren_out_pat b0 pat, ren_out_term b0 t, ren_out_oprocess b0 p1,
 	  ren_out_oprocess b0 p2)
   | EventP(t,p) ->
-      EventP(t, ren_out_oprocess b0 p)
+      EventP(ren_out_term b0 t, ren_out_oprocess b0 p)
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   )
 
