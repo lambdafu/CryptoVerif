@@ -95,7 +95,8 @@ We could probably push this idea for noninterf x among S.
    Also have the query "equivalence P1 P2" (transform P1 and P2
    into the same game).
    -> DONE 24/08/2018 
-
+      TO DO in ProVerif, allow "equivalence P1 P2 public_vars x1,...,xn".
+      
    When I show that G1 is indistinguishable from G2, I transform
    G1 and G2 into a common game G3. Now, this common game cannot
    contain events introduced by Shoup Lemma during the proof,
@@ -464,6 +465,8 @@ have the same continuation.
       of H1 (each call to H1 is copied at each call to H2),
       plus H1 now occurs in conditions of find so the transformations that
       we can make are more limited.
+      => Now much better with the improved ROM model that
+      simplifies H1(X) = H1(Y) into X = Y.
 
    - Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles

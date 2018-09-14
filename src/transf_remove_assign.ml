@@ -17,6 +17,8 @@ assigned at most once.
 
 Be careful of variables defined at several places!  *)
 
+let expanded = ref true
+       
 let replacement_def_list = ref []
 (* List of correspondences (b,b'), b = old binder, b' = new binder,
    for defined conditions. When b is used only in "defined" conditions,
@@ -27,6 +29,28 @@ let done_transfos = ref []
 
 let done_sa_rename = ref []
 
+let rec copiable t =
+  match t.t_desc with
+  | Var(_,l) | FunApp(_,l) ->
+     List.for_all copiable l
+  | ReplIndex _ -> true
+  | TestE(t1,t2,t3) ->
+     (copiable t1) && (copiable t2) && (copiable t3)
+  | LetE _ | FindE _ | ResE _ | EventE _ | EventAbortE _ ->
+     (* LetE and FindE are not copiable because that may 
+      * break the invariant that each variable is
+      * assigned at most once.
+      * ResE is not copiable because it may lead to creating
+      * several independent random values instead of one,
+      * and may also break the invariant that each variable is
+      * assigned at most once.
+      * Events are not copiable because that may change the
+      * moment at which the event is executed. 
+      *)
+     false
+  | GetE _ | InsertE _ ->
+     Parsing_helper.internal_error "Get/insert should not occur in terms"
+                         
 (* Function for assignment expansion for terms *)
 
 let put_one_let_term remove_set pat t p1 topt =
@@ -75,8 +99,7 @@ let put_one_let_term remove_set pat t p1 topt =
   | _ -> 
       Terms.build_term_type p1.t_type (LetE(pat, t, p1, topt))
 
-let expand_assign_term let_t remove_set
-    rec_simplif pat t p1 topt =
+let expand_assign_term let_t remove_set above_vars rec_simplif pat t p1 topt =
   try
     let (transfos, test, bind) = Terms.simplify_let_tuple (fun t -> t) pat t in
     (* Simplify the process topt if it will be used at least once *)
@@ -137,7 +160,7 @@ let rec find_replacement_for_def_proc remove_set b p =
   | EventP(_,p') -> find_replacement_for_def_proc remove_set b p'
   | _ -> raise Not_found
 
-(* [find_replacement_for_def remove_set above_vars p b] finds a variable that
+(* [find_replacement_for_def remove_set p b above_vars] finds a variable that
    can replace [b] in defined conditions (that is, a variable that is defined exactly when [b] is defined)
    in the variables [above_vars] or in the process [p]. 
    [b] and [above_vars] are defined exactly when [p] is executed.
@@ -320,12 +343,15 @@ let expand_assign let_p remove_set above_vars rec_simplif pat t p1 p2 =
 	Settings.changed := true;
 	done_transfos := (DLetSimplifyPattern(DProcess let_p, transfos)) :: (!done_transfos);
         (* Put the lets *)
-	let plet = rec_simplif above_vars (Terms.put_lets bind p1 p2) in
+	let plet = Terms.put_lets bind p1 p2 in
         (* Put the test *)
-	if Terms.is_true test then
-	  plet
-	else
-	  Terms.oproc_from_desc (Test(test, plet, rec_simplif [] p2))
+	let pfinal =
+          if Terms.is_true test then
+            plet
+	  else
+	    Terms.oproc_from_desc (Test(test, plet, p2))
+        in
+        rec_simplif above_vars pfinal
       end
     else
       expand_assign_one let_p remove_set above_vars rec_simplif pat t p1 p2
@@ -341,25 +367,25 @@ let several_def b =
     [] | [_] -> false
   | _::_::_ -> true
 
-let rec remove_assignments_term remove_set t =
+let rec remove_assignments_term remove_set above_vars t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term2 t (Var(b, List.map (remove_assignments_term remove_set) l))
+      Terms.build_term2 t (Var(b, List.map (remove_assignments_term remove_set above_vars) l))
   | ReplIndex i -> Terms.build_term2 t (ReplIndex i)
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map (remove_assignments_term remove_set) l))
+      Terms.build_term2 t (FunApp(f, List.map (remove_assignments_term remove_set above_vars) l))
   | TestE(t1,t2,t3) ->
-      Terms.build_term2 t (TestE(remove_assignments_term remove_set t1,
-		       remove_assignments_term remove_set t2,
-		       remove_assignments_term remove_set t3))
+      Terms.build_term2 t (TestE(remove_assignments_term remove_set above_vars t1,
+		                 remove_assignments_term remove_set [] t2,
+		                 remove_assignments_term remove_set [] t3))
   | FindE(l0, t3, find_info) ->
       Terms.build_term2 t (FindE(List.map (fun (bl, def_list, t1, t2) ->
-	                 (bl, List.map (remove_assignments_br remove_set) def_list,
-			  remove_assignments_term remove_set t1,
-			  remove_assignments_term remove_set t2)) l0,
-		       remove_assignments_term remove_set t3, find_info))
+	                             (bl, def_list,
+			              remove_assignments_term remove_set [] t1,
+			              remove_assignments_term remove_set [] t2)) l0,
+		                 remove_assignments_term remove_set [] t3, find_info))
   | LetE(pat,t1,t2,topt) ->
-      expand_assign_term t remove_set
+      expand_assign_term t remove_set above_vars
 	(remove_assignments_term remove_set)
 	pat t1 t2 topt
   | ResE(b,t) ->
@@ -369,16 +395,26 @@ let rec remove_assignments_term remove_set t =
 	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
 	  Settings.changed := true;
 	  done_sa_rename := (b,b') :: (!done_sa_rename);
-	  Terms.build_term2 t' (ResE(b', remove_assignments_term remove_set t'))
+          (* Allow using b' for testing whether a variable is defined *) 
+          b'.count_def <- 1;
+          let above_vars' = b' :: above_vars in
+	  Terms.build_term2 t' (ResE(b', remove_assignments_term remove_set above_vars' t'))
 	end
       else
-	Terms.build_term2 t (ResE(b, remove_assignments_term remove_set t))
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->      
-      Parsing_helper.internal_error "Event/Event_abort/Get/Insert should not appear in Transf_remove_assign.remove_assignments_term"
+	Terms.build_term2 t (ResE(b, remove_assignments_term remove_set (b::above_vars) t))
+  | EventAbortE f ->
+     t
+  | EventE(t1,p) ->
+     Terms.build_term2 t (EventE(remove_assignments_term remove_set above_vars t1,
+		                 remove_assignments_term remove_set above_vars p))
+  | GetE _ | InsertE _ ->      
+      Parsing_helper.internal_error "Get/Insert should not appear in Transf_remove_assign.remove_assignments_term"
 
-and remove_assignments_br remove_set (b,l) =
-  (b, List.map (remove_assignments_term remove_set) l)
-
+and remove_assignments_pat remove_set above_vars = function
+    (PatVar _) as pat -> pat
+  | PatEqual t -> PatEqual (remove_assignments_term remove_set above_vars t)
+  | PatTuple(f,l) -> PatTuple(f, List.map (remove_assignments_pat remove_set above_vars) l)
+    
 let rec remove_assignments_rec remove_set p = 
   Terms.iproc_from_desc (
   match p.i_desc with
@@ -389,8 +425,9 @@ let rec remove_assignments_rec remove_set p =
   | Repl(b,p) ->
       Repl(b,remove_assignments_rec remove_set p)
   | Input((c,tl),pat,p) ->
-      Input((c, List.map (remove_assignments_term remove_set) tl),pat, 
-	    remove_assignments_reco remove_set [] p))
+     Input((c, List.map (remove_assignments_term remove_set []) tl),
+           remove_assignments_pat remove_set [] pat, 
+	   remove_assignments_reco remove_set [] p))
 
 and remove_assignments_reco remove_set above_vars p =
   match p.p_desc with
@@ -411,27 +448,27 @@ and remove_assignments_reco remove_set above_vars p =
       else
 	Terms.oproc_from_desc (Restr(b,remove_assignments_reco remove_set (b::above_vars) p))
   | Test(t,p1,p2) ->
-      Terms.oproc_from_desc (Test(remove_assignments_term remove_set t, 
+      Terms.oproc_from_desc (Test(remove_assignments_term remove_set above_vars t, 
 	   remove_assignments_reco remove_set [] p1,
 	   remove_assignments_reco remove_set [] p2))
   | Find(l0,p2,find_info) ->
       Terms.oproc_from_desc 
 	(Find(List.map (fun (bl,def_list,t,p1) ->
 	     (bl, def_list, 
-	      remove_assignments_term remove_set t,
+	      remove_assignments_term remove_set [] t,
 	      remove_assignments_reco remove_set [] p1)) l0,
 	   remove_assignments_reco remove_set [] p2, find_info))
   | Output((c,tl),t2,p) ->
       Terms.oproc_from_desc 
-	(Output((c, List.map (remove_assignments_term remove_set) tl), 
-		remove_assignments_term remove_set t2,
+	(Output((c, List.map (remove_assignments_term remove_set above_vars) tl), 
+		remove_assignments_term remove_set above_vars t2,
 		remove_assignments_rec remove_set p))
   | Let(pat, t, p1, p2) ->
       let rec_simplif = remove_assignments_reco remove_set in
       expand_assign p remove_set above_vars rec_simplif pat t p1 p2
   | EventP(t,p) ->
       Terms.oproc_from_desc 
-	(EventP(remove_assignments_term remove_set t,
+	(EventP(remove_assignments_term remove_set above_vars t,
 		remove_assignments_reco remove_set above_vars p))
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
