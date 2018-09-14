@@ -351,6 +351,17 @@ let expand_assign let_p remove_set above_vars rec_simplif pat t p1 p2 =
 	  else
 	    Terms.oproc_from_desc (Test(test, plet, p2))
         in
+	(* Resimplify the transformed process.
+           Note that the simplified process may contain several copies of [p2].
+	   [p2] is then simplified several times. [above_vars = []] for
+	   all simplifications of [p2], since the else branch of let
+	   and then is always simplified with [above_vars = []].
+           The program still thinks that variables in [p2] are defined
+           as if [p2] existed only once, so sometimes it may think
+	   that they are defined once, when in fact they have several
+	   definitions after remove_assign. The only effect of this is
+	   that [replacement_def_list] may contain several entries for
+	   variables defined in [p2]. *) 
         rec_simplif above_vars pfinal
       end
     else
