@@ -112,8 +112,13 @@ let rec incompatible_def_term t =
       t::(def1 @ def2 @ def3 @ def4)
   | ResE(b,t) ->
       incompatible_def_term t
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
+  | EventAbortE _ -> [t]
+  | EventE(t1,p) ->
+      let deft1 = incompatible_def_term t1 in
+      let defp = incompatible_def_term p in
+      t :: deft1 @ defp
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get, insert should have been expanded"
 
 and incompatible_def_term_list = function
     [] -> []

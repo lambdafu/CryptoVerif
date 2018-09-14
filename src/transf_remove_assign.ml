@@ -1,24 +1,9 @@
 open Types
 
 (* Remove assignments 
-
-This transformation assumes that LetE/FindE/TestE/ResE occur only in 
-conditions of find, which is guaranteed after expansion.
-(In fact, it supports them as well in channel names, conditions of tests, events,
-outputs, although that's not necessary.)
-It also assumes (and checks) that variables defined in conditions of find
-have no array references and do not occur in queries.
-
-Note that it is important that there are no LetE or FindE in let
-expressions or in patterns! Otherwise, we should verify for each
-expression that we copy that it does not contain LetE or FindE: if we
-copy a LetE or FindE, we may break the invariant that each variable is
-assigned at most once.
-
+Supports If/let/find/new/event in terms.
 Be careful of variables defined at several places!  *)
 
-let expanded = ref true
-       
 let replacement_def_list = ref []
 (* List of correspondences (b,b'), b = old binder, b' = new binder,
    for defined conditions. When b is used only in "defined" conditions,
@@ -502,5 +487,6 @@ let remove_assignments remove_set g =
   let transfos = !done_transfos in
   done_transfos := [];
   done_sa_rename := [];
-  (Terms.build_transformed_game r g, [], (do_sa_rename sa_rename) @ transfos)
+  let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game r g) in      
+  (g', proba, renames @ (do_sa_rename sa_rename) @ transfos)
 
