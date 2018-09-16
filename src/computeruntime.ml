@@ -99,10 +99,11 @@ and time_term t =
       let tl = time_list time_term l in
       if (!Settings.ignore_small_times)>1 && 
 	((f==Settings.f_and) || (f==Settings.f_or) || (f==Settings.f_not) ||
-	 (f==Settings.get_tuple_fun []) || 
+	(f==Settings.get_tuple_fun []) ||
+	(f.f_cat == Event) ||
 	 ((l == []) && (Terms.equal_terms t (Terms.cst_for_type (snd f.f_type)))))
       then
-	(* Ignore &&, ||, not, (), cst_ty 
+	(* Ignore &&, ||, not, (), events, cst_ty 
 	   when (!Settings.ignore_small_times)>1 *)
 	tl
       else if (!Settings.ignore_small_times)>2  && 
@@ -191,10 +192,10 @@ and time_term t =
 	   (match topt with
 	     None -> Polynom.zero 
 	   | Some t2 -> time_term t2)))
-  | EventE(_,p) ->
-      (* Events can be ignored *) time_term p
+  | EventE(t,p) ->
+      Polynom.sum (time_term t) (time_term p)
   | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear in time_term"
-
+	
 and time_pat = function
     PatVar b -> 
       if (!Settings.ignore_small_times)>0 then
@@ -347,7 +348,7 @@ and time_oprocess p =
       Polynom.sum (time_pat pat) (Polynom.sum (time_term t) 
 	(Polynom.max (time_oprocess p1) (time_oprocess p2)))
   | EventP(t,p) ->
-      (* Events can be ignored Polynom.sum (time_term t) *) (time_oprocess p)
+      Polynom.sum (time_term t) (time_oprocess p)
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let compute_runtime_for_context g equiv map_fun names_discharge =
