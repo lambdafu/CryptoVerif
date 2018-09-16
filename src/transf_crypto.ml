@@ -2559,11 +2559,6 @@ let check_term where_info l c defined_refs t =
   with NoMatch ->
     fail (Term t)
 
-let rec check_pat cur_array accu defined_refs = function
-    PatVar b -> accu := (Terms.binderref_from_binder b)::(!accu); success_no_advice
-  | PatTuple (f,l) -> map_and_ins (check_pat cur_array accu defined_refs) l
-  | PatEqual t -> check_term ElseWhere [] cur_array defined_refs t
-
 let rec get_binders = function
     PatVar b -> 
       if !no_advice_mode then
@@ -2613,8 +2608,10 @@ let rec check_cterm t =
       if is_name_to_discharge b then
 	raise NoMatch;
       check_cterm t
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
+  | EventAbortE _ -> ()
+  | EventE(t,p) -> check_cterm t; check_cterm p
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get, insert should have been expanded"
 
 and check_cbr (_,l) =
   List.iter check_cterm l
@@ -2635,6 +2632,93 @@ let check_cterm t =
     fail (UntransformableTerm t)
 
 
+let rec check_any_term where_info ta_above accu cur_array defined_refs t =
+  if Terms.check_simple_term t then
+    and_ins (check_term where_info ta_above cur_array defined_refs t) accu
+  else
+    match t.t_desc with
+    | Var(b,l) ->
+	if is_name_to_discharge b then
+	  raise NoMatch;
+	check_any_term_list where_info [] accu cur_array defined_refs l
+    | ReplIndex _ -> assert false
+    | FunApp(f,l) ->
+	if List.memq f (!symbols_to_discharge) then
+	  raise NoMatch;
+	check_any_term_list where_info [] accu cur_array defined_refs l
+    | TestE(t1,t2,t3) ->
+	check_any_term where_info []
+	  (check_any_term where_info []
+	     (check_any_term where_info [] accu cur_array defined_refs t1)
+	     cur_array defined_refs t2)
+	  cur_array defined_refs t3
+    | FindE(l0,t3,_) ->
+	let accu_ref = ref (check_any_term where_info [] accu cur_array defined_refs t3) in
+	List.iter (fun (bl, def_list, t1, t2) ->
+	  List.iter (fun (b,_) ->
+	    if is_name_to_discharge b then
+	      raise NoMatch) bl;
+	  let repl_indices = List.map snd bl in
+	  let (defined_refs_t1, defined_refs_t2) = Terms.defined_refs_find bl def_list defined_refs in
+	  List.iter check_cbr def_list;
+	  accu_ref :=
+	     check_any_term where_info []
+	       (check_any_term FindCond [] (!accu_ref) (repl_indices @ cur_array) defined_refs_t1 t1)
+	       cur_array defined_refs_t2 t2
+	       ) l0;
+	!accu_ref
+    | LetE(pat,t1,t2,topt) ->
+	let vars = List.map Terms.binderref_from_binder (Terms.vars_from_pat [] pat) in
+	let ins_pat = check_pat where_info accu cur_array defined_refs pat in
+	let defined_refs' = vars @ defined_refs in
+	let ins_t = check_any_term where_info (get_binders pat) ins_pat cur_array defined_refs' t in
+	let ins_t2 = check_any_term where_info [] ins_t cur_array defined_refs' t2 in
+	begin
+	  match topt with
+	    None -> ins_t2
+	  | Some t3 -> check_any_term where_info [] ins_t2 cur_array defined_refs t3
+	end
+    | ResE(b,t) -> 
+	if is_name_to_discharge b then
+	  raise NoMatch;
+	check_any_term where_info [] accu cur_array ((Terms.binderref_from_binder b)::defined_refs) t
+    | EventAbortE _ -> accu
+    | EventE(t,p) ->
+        (* Event not allowed in conditions of Find *)
+	assert (where_info != FindCond);
+	check_any_term where_info []
+	  (check_event_term accu cur_array defined_refs t)
+	  cur_array defined_refs p
+    | GetE _ | InsertE _ ->
+	Parsing_helper.internal_error "get, insert should have been expanded"
+
+and check_pat where_info accu cur_array defined_refs = function
+    PatVar b -> accu
+  | PatTuple (f,l) -> check_pat_list where_info accu cur_array defined_refs l
+  | PatEqual t -> check_any_term where_info [] accu cur_array defined_refs t
+
+and check_pat_list where_info accu cur_array defined_refs = function
+    [] -> accu
+  | pat::l ->
+      check_pat_list where_info
+	(check_pat where_info accu cur_array defined_refs pat)
+	cur_array defined_refs l
+
+and check_event_term accu cur_array defined_refs t =
+  if Terms.check_simple_term t then
+    and_ins (check_term Event [] cur_array defined_refs t) accu
+  else
+    check_any_term ElseWhere [] accu cur_array defined_refs t
+	
+and check_any_term_list where_info ta_above accu cur_array defined_refs = function
+    [] -> accu
+  | (t::l) ->
+      check_any_term_list where_info ta_above
+	(check_any_term where_info ta_above accu cur_array defined_refs t)
+	cur_array defined_refs l
+    
+  
+      
 (* Conditions of find are transformed only if they
 do not contain if/let/find/new. By expansion, if they
 contain such a term, it is at the root. 
@@ -2643,11 +2727,6 @@ Therefore, we make sure that we do not transform terms
 that contain variables defined in conditions of find.
 This avoids creating array references to such variables.
 *)
-
-let rec check_find_cond cur_array defined_refs t =
-  match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> check_term FindCond [] cur_array defined_refs t 
-  | _ -> check_cterm t; success_no_advice
 
 let rec check_process accu cur_array defined_refs p =
   match p.i_desc with
@@ -2658,9 +2737,9 @@ let rec check_process accu cur_array defined_refs p =
       check_process accu (b::cur_array) defined_refs p
   | Input((c,tl),pat,p) ->
       List.iter check_cterm tl;
-      let accu' = ref [] in
-      let ins_pat = check_pat cur_array accu' defined_refs pat in
-      and_ins ins_pat (check_oprocess accu cur_array ((!accu') @ defined_refs) p)
+      let vars = List.map Terms.binderref_from_binder (Terms.vars_from_pat [] pat) in 
+      let ins_pat = check_pat ElseWhere accu cur_array defined_refs pat in
+      check_oprocess ins_pat cur_array (vars @ defined_refs) p
 
 and check_oprocess accu cur_array defined_refs p = 
   match p.p_desc with
@@ -2668,31 +2747,32 @@ and check_oprocess accu cur_array defined_refs p =
   | Restr(b,p) ->
       check_oprocess accu cur_array ((Terms.binderref_from_binder b)::defined_refs) p
   | Test(t,p1,p2) ->
-      and_ins (check_term ElseWhere [] cur_array defined_refs t)
-	(check_oprocess (check_oprocess accu cur_array defined_refs p1) cur_array defined_refs p2)
+      let accu' = check_any_term ElseWhere [] accu cur_array defined_refs t in
+      (check_oprocess (check_oprocess accu' cur_array defined_refs p1) cur_array defined_refs p2)
   | Find(l0, p2, _) ->
       let accu_ref = ref (check_oprocess accu cur_array defined_refs p2) in
       List.iter (fun (bl, def_list, t, p1) ->
 	let repl_indices = List.map snd bl in
 	let (defined_refs_t, defined_refs_p1) = Terms.defined_refs_find bl def_list defined_refs in
 	List.iter check_cbr def_list;
-	accu_ref := and_ins (check_find_cond (repl_indices @ cur_array) defined_refs_t t) 
-	     (check_oprocess (!accu_ref) cur_array defined_refs_p1 p1)) l0;
+	accu_ref :=
+	   check_oprocess
+	     (check_any_term FindCond [] (!accu_ref) (repl_indices @ cur_array) defined_refs_t t)
+	     cur_array defined_refs_p1 p1) l0;
       !accu_ref
   | Let(pat,t,p1,p2) ->
-      let accu' = ref [] in
-      let ins_pat = check_pat cur_array accu' defined_refs pat in
-      let defined_refs' = (!accu') @ defined_refs in
-      and_ins ins_pat
-	(and_ins (check_term ElseWhere (get_binders pat) cur_array defined_refs' t)
-	   (check_oprocess (check_oprocess accu cur_array defined_refs' p1) cur_array defined_refs p2))
+      let vars = List.map Terms.binderref_from_binder (Terms.vars_from_pat [] pat) in
+      let ins_pat = check_pat ElseWhere accu cur_array defined_refs pat in
+      let defined_refs' = vars @ defined_refs in
+      let ins_t = check_any_term ElseWhere (get_binders pat) ins_pat cur_array defined_refs' t in
+      check_oprocess (check_oprocess ins_t cur_array defined_refs' p1) cur_array defined_refs p2
   | Output((c,tl),t2,p) ->
-      and_ins (map_and_ins (check_term ElseWhere [] cur_array defined_refs) tl)
-	(and_ins (check_term ElseWhere [] cur_array defined_refs t2)
-	   (check_process accu cur_array defined_refs p))
+      let tl_ins = check_any_term_list ElseWhere [] accu cur_array defined_refs tl in
+      let t2_ins = check_any_term ElseWhere [] tl_ins cur_array defined_refs t2 in
+      check_process t2_ins cur_array defined_refs p
   | EventP(t,p) ->
-      and_ins (check_term Event [] cur_array defined_refs t)
-	(check_oprocess accu cur_array defined_refs p)
+     let t_ins = check_event_term accu cur_array defined_refs t in
+     check_oprocess t_ins cur_array defined_refs p
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let check_process old_to_do =
