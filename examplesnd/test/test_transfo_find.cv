@@ -1,0 +1,33 @@
+(* In CV 2.00, this example causes an internal error:
+   the transformation of f(x[i]) into new y: bool; g(y,x)
+   creates a restriction which should be inside the condition
+   of find and this is impossible.
+   This bug manifests as follows: the variable y is created
+   with args_at_creation as if it were inside the condition
+   of find, but the new is put outside the condition of 
+   find, leading to
+Internal error: Bad args_at_creation for y
+Please report bug to Bruno.Blanchet@inria.fr, including input file and output
+
+   Fixed by forbidding the transformation in this case.
+  *)
+
+param N.
+fun f(bitstring) : bitstring.
+fun g(bool, bitstring) : bitstring.
+
+equiv
+	!N O(x: bitstring) := return(f(x)) [all]
+	<=(0)=>
+	!N new y: bool; O(x: bitstring) := return(g(y,x)).
+
+channel c.
+
+process
+	!N in(c,x: bitstring); out(c, f(x));
+	in(c, x': bitstring); find i <= N suchthat defined(x[i]) && x' = f(x[i]) then out(c, true) else out(c, false)
+
+(* EXPECTED
+All queries proved.
+0.028s (user 0.020s + system 0.008s), max rss 44224K
+END *)

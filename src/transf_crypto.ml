@@ -1,5 +1,7 @@
 (* Transform the game using an equivalence coming from a cryptographic
-   primitive. This is the key operation. *)
+   primitive. This is the key operation. 
+   This transformation should support if/let/find/new/event inside terms.
+*)
 
 open Types
 
@@ -2019,7 +2021,21 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	    raise NoMatch
 	  end;
 	Terms.cleanup_array_ref();
-	check_no_new_event res_term'
+	check_no_new_event res_term';
+        (* When restrictions in the image have no corresponding
+	   restriction in the source process, we would like to put them
+           immediately before the transformed term. However, this
+           is not possible inside a condition of find, so we exclude 
+           this case. *)
+        match before_transfo_name_table with
+        | []::_ ->
+           if (List.hd after_transfo_name_table) != [] then
+             begin
+	       if (!Settings.debug_cryptotransf) > 4 then 
+	         print_string "The transformed term occurs in a condition of find, and the transformation may create restrictions just above the term, which is impossible inside a condition of find.\n";
+	       raise NoMatch
+             end
+        | _ -> ()
       end;
     
     match to_do with
@@ -2679,8 +2695,6 @@ let rec check_any_term where_info ta_above accu cur_array defined_refs t =
 	  | Some t3 -> check_any_term where_info [] ins_t2 cur_array defined_refs t3
 	end
     | ResE(b,t) -> 
-	if is_name_to_discharge b then
-	  raise NoMatch;
 	check_any_term where_info [] accu cur_array ((Terms.binderref_from_binder b)::defined_refs) t
     | EventAbortE _ -> accu
     | EventE(t,p) ->
@@ -2717,16 +2731,6 @@ and check_any_term_list where_info ta_above accu cur_array defined_refs = functi
 	(check_any_term where_info ta_above accu cur_array defined_refs t)
 	cur_array defined_refs l
     
-  
-      
-(* Conditions of find are transformed only if they
-do not contain if/let/find/new. By expansion, if they
-contain such a term, it is at the root. 
-
-Therefore, we make sure that we do not transform terms
-that contain variables defined in conditions of find.
-This avoids creating array references to such variables.
-*)
 
 let rec check_process accu cur_array defined_refs p =
   match p.i_desc with
@@ -3281,29 +3285,17 @@ and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = 
   | PatTuple (f,l) -> PatTuple (f,List.map (instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp) l)
   | PatEqual t -> PatEqual (instantiate_term cur_array in_find_cond (!loc_rename_ref) mapping one_exp t)
 
-let rec transform_pat = function
-    PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple (f,List.map transform_pat l)
-  | PatEqual t -> PatEqual (transform_term t)
-
-(* Conditions of find are transformed only if they
-do not contain if/let/find/new. By expansion, if they
-contain such a term, it is at the root. *)
-
-let transform_find_cond t =
-  match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> transform_term t
-  | TestE _ | FindE _ | LetE _ | ResE _ -> 
-      (* Terms if/let/find/new/event are never transformed *)
-      t
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
 
 let rec put_restr l p =
   match l with
     [] -> p
   | (a::l) -> Terms.oproc_from_desc (Restr(a, put_restr l p))
 
+let rec put_restr_term l t =
+  match l with
+  | [] -> t
+  | a::l -> Terms.build_term3 t (ResE(a, put_restr_term l t))
+                                    
 (*
 None: b is not a name to discharge
 Some l: b found as first element of a sequence of variables.
@@ -3356,6 +3348,68 @@ and update_def_list_term suppl_def_list t =
   | _ -> Parsing_helper.internal_error "If/find/let forbidden in defined condition of find"
 *)
 
+let rec transform_any_term t =
+  if Terms.check_simple_term t then
+    transform_term t
+  else
+    begin
+      if (!restr_to_put) != [] then
+        Parsing_helper.internal_error "restr_to_put should have been cleaned up";
+      let t' = transform_any_term_norestr t in
+      let t'' = put_restr_term (!restr_to_put) t' in
+      restr_to_put := [];
+      t''
+    end
+
+and transform_any_term_norestr t =
+  match t.t_desc with
+  | Var(b,l) ->
+     Terms.build_term2 t (Var(b, List.map transform_any_term l))
+  | ReplIndex i -> Terms.build_term2 t (ReplIndex i)
+  | FunApp(f,l) ->
+     Terms.build_term2 t (FunApp(f, List.map transform_any_term l))
+  | ResE(b,t') ->
+     (* Remove restriction when it is now useless *)
+     let t'' = transform_any_term t' in
+     begin
+       match find_b_rec b (!map) with
+       | None -> Terms.build_term2 t (ResE(b,t''))
+       | Some l ->
+	   put_restr_term l 
+	      (if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
+		 Terms.build_term2 t (LetE(PatVar b, Terms.cst_for_type b.btype, t'', None))
+              else
+		t'')
+     end
+  | TestE(t0, t1, t2) ->
+     Terms.build_term2 t (TestE(transform_any_term t0, 
+	                        transform_any_term t1,
+                                transform_any_term t2))
+  | FindE(l0, p2, find_info) ->
+     Terms.build_term2 t (FindE(List.map transform_term_find_branch l0, 
+	                        transform_any_term p2, find_info))
+  | LetE(pat,t0,t1,topt) ->
+     Terms.build_term2 t (LetE(transform_pat pat, transform_any_term t0, 
+	                       transform_any_term t1,
+                               match topt with
+                               | None -> None
+                               | Some t2 -> Some (transform_any_term t2)))
+  | EventE(t0,t1) ->
+     Terms.build_term2 t (EventE(transform_any_term t0,
+	                         transform_any_term t1))
+  | EventAbortE f -> Terms.build_term2 t (EventAbortE f)
+  | GetE _ | InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+
+and transform_term_find_branch (bl, def_list, t, p1) = 
+  let new_def_list = ref def_list in
+  List.iter (update_def_list new_def_list) def_list;
+  (bl, !new_def_list, transform_any_term t, transform_any_term p1) 
+
+and transform_pat = function
+  | PatVar b -> PatVar b
+  | PatTuple (f,l) -> PatTuple (f,List.map transform_pat l)
+  | PatEqual t -> PatEqual (transform_any_term t)
+
 let rec transform_process cur_array p =
   Terms.iproc_from_desc (
   match p.i_desc with
@@ -3401,28 +3455,28 @@ and transform_oprocess_norestr cur_array p =
 		p')
       end
   | Test(t,p1,p2) ->
-      Terms.oproc_from_desc (Test(transform_term t, 
+      Terms.oproc_from_desc (Test(transform_any_term t, 
 	   transform_oprocess cur_array p1, 
 	   transform_oprocess cur_array p2))
   | Find(l0, p2, find_info) ->
       Terms.oproc_from_desc (Find(List.map (transform_find_branch cur_array) l0, 
 	   transform_oprocess cur_array p2, find_info))
   | Let(pat,t,p1,p2) ->
-      Terms.oproc_from_desc (Let(transform_pat pat, transform_term t, 
+      Terms.oproc_from_desc (Let(transform_pat pat, transform_any_term t, 
 	  transform_oprocess cur_array p1, 
 	  transform_oprocess cur_array p2))
   | Output((c,tl),t2,p) ->
-      Terms.oproc_from_desc (Output((c, List.map transform_term tl), transform_term t2, 
+      Terms.oproc_from_desc (Output((c, List.map transform_any_term tl), transform_any_term t2, 
 	     transform_process cur_array p))
   | EventP(t,p) ->
-      Terms.oproc_from_desc (EventP(transform_term t,
+      Terms.oproc_from_desc (EventP(transform_any_term t,
 	     transform_oprocess cur_array p))
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 and transform_find_branch cur_array (bl, def_list, t, p1) = 
   let new_def_list = ref def_list in
   List.iter (update_def_list new_def_list) def_list;
-  (bl, !new_def_list, transform_find_cond t, transform_oprocess cur_array p1) 
+  (bl, !new_def_list, transform_any_term t, transform_oprocess cur_array p1) 
 
 and transform_oprocess cur_array p =
   if (!restr_to_put) != [] then
