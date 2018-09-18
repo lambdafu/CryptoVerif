@@ -294,7 +294,7 @@ the distinguisher interacts with independent random oracles $H'_i$ instead of $F
 \begin{lemma}\label{lem:disjdomain}
 If $H$ is a random oracle, then the functions $H_1, \dots, H_n$ defined 
 as $H$ on disjoint subsets $D_1, \dots, D_n$ of the domain $D$ of $H$ are $(t_D, \ab t_S, \ab q_H, \ab (q_{H_i})_{1 \leq i \leq n}, \ab (q'_{H_i})_{1 \leq i \leq n}, 0)$-indifferentiable
-from independent random oracles, where $t_S = {\cal O}(q_H)$ assuming one can determine in constant time to which subset $D_i$ an element belongs, and $q'_{H_i}$ is the number request to $H$ in domain $D_i$ made by the distinguisher. Hence $q'_{H_1} + \dots + q'_{H_n} \leq q_H$, so in the worst case $q'_{H_i}$ is bounded by $q_H$. 
+from independent random oracles, where $t_S = {\cal O}(q_H)$ assuming one can determine in constant time to which subset $D_i$ an element belongs, and $q'_{H_i}$ is the number of requests to $H$ in domain $D_i$ made by the distinguisher. Hence $q'_{H_1} + \dots + q'_{H_n} \leq q_H$, so in the worst case $q'_{H_i}$ is bounded by $q_H$. 
 \end{lemma}
 \begin{proof}
 Consider
