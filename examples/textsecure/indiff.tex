@@ -403,10 +403,11 @@ $G_4$ is indistinguishable up to probability $\epsilon'$
 from $G_5$ in which
 $\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ with $H_0 = S_{5,1}[\HKDF^5_n]$ and $H = S_{5,2}[\HKDF^5_n]$
 and $\HKDF_n = \HKDF^5_n$  is a random oracle, where
-the simulator for $\hmac$ calls $\HKDF_n$ at most $q_H \leq 2 q_{\hmac}$ times,
-%%NOTE: the factor 2 here is spurious: the same call to HKDF provides
-%%the results of H_j and H_{j+1} that are needed to simulate one call to HMAC.
-%%So in fact, the simulator for $\hmac$ calls $\HKDF_n$ at most $q_{\hmac}$ times.
+the simulator for $\hmac$ calls $\HKDF_n$ at most $q_H \leq 2 q_{\hmac}$
+times\footnote{The factor 2 here is spurious: the same call to $\HKDF_n$
+  provides the results of $H_j$ and $H_{j+1}$ that are needed to simulate
+  one call to $\hmac$. So in fact, the simulator for $\hmac$ calls
+  $\HKDF_n$ at most $q_{\hmac}$ times.},
 runs in time ${\cal O}(q_{\hmac} + q_{H_0} q_H) = {\cal O}(q_{\hmac}^2)$,
 and
 \ifapproxproba
