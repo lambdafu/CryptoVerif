@@ -1,15 +1,7 @@
 \documentclass[compsoc, conference, letterpaper, 10pt, times]{IEEEtran} 
 \usepackage{
 	color, url, amssymb, amsmath, amsthm, amsfonts, enumitem,
-	listings, caption, flexisym, stmaryrd, colortbl,
-	mathtools, syntax, mdframed, tikz, pgfplots
 }
-\usepackage[inference]{semantic}
-\usetikzlibrary{shapes,arrows,positioning,calc}
-
-\def\myparagraph#1{\vspace{0.3em}\noindent{\textbf{#1.}}}
-
-\newcommand{\laction}[2]{$\begin{array}{c}\mbox{\textrm{#1}}\\#2\end{array}$}
 \newcommand{\Z}{\mathbb{Z}}
 \newcommand{\Zp}{\mathbb{Z}_p}
 \newcommand{\M}{\mathbb{M}}
@@ -28,219 +20,12 @@
 \newcommand{\ck}{\mathit{ck}}
 \newcommand{\tg}{\mathit{tag}}
   
-\definecolor{dkblue}{rgb}{0,0.1,0.5} 
-\definecolor{dkgreen}{rgb}{0,0.4,0} 
-\definecolor{dkred}{rgb}{0.6,0,0} 
-\definecolor{linkColor}{rgb}{0,0,0.5}
-\definecolor{lightblue}{rgb}{0.92,0.95,1}
-
-\tikzstyle{decision} = [
-	diamond,
-	draw,
-	fill=blue!20,
-	text width=4.8em,
-	text badly centered,
-	node distance=3.5cm and 2cm,
-]
-\tikzstyle{block} = [
-	rectangle,
-	draw,
-	fill=white!20,
-	text width=5em,
-	text centered,
-	minimum height=4em
-]
-\tikzstyle{app} = [
-	rectangle,
-	draw,
-	fill=white!80!orange,
-	text width=8em,
-	text centered,
-	minimum height=4em,
-	node distance=1.4cm
-]
-\tikzstyle{protocol} = [
-	rectangle,
-	draw,
-	fill=white!40!orange,
-	text width=8em,
-	text centered,
-	minimum height=4em,
-	node distance=1.4cm
-]
-\tikzstyle{library} = [
-	rectangle,
-	draw,
-	fill=white!40!orange,
-	text width=8em,
-	text centered,
-	minimum height=4em,
-	node distance=1.4cm
-]
-\tikzstyle{line} = [
-	draw,
-	-latex'
-]
-\tikzstyle{stop} = [
-	rectangle,
-	draw,
-	fill=red!20,
-	text width=3em,
-	text centered,
-	rounded corners,
-	minimum height=3em,
-	node distance=2.8cm and 0cm
-]
-\tikzstyle{success} = [
-	rectangle,
-	draw,
-	fill=green!20,
-	text width=3em,
-	text centered,
-	rounded corners,
-	minimum height=3em,
-	node distance=1.3cm and 0cm
-]
-
-\newenvironment{prog}{\begin{array}[t]{@{}l@{}}}{\end{array}}
-
-\lstdefinelanguage{PV} {
-	morekeywords = [1]{true, false, among,choice, clauses, const, def, elimtrue, else, equation, event, query, expand, forall, free, fun, get, if, in, inj-event, insert, let, letfun, new, noninterf, not, nounif, out, param, phase, pred, proba, process, proof,putbegin, query, reduc, set, suchthat, table, then, type, weaksecret, yield,inj,typeConverter,data,private,block, decompData, decompDataSelect, memberOptim},
-	morecomment =[s]{(*}{*)},
-	sensitive=true,
-	literate={;?;}{$\,\hspace{15pt}\,$}3 {<-}{$\,\leftarrow\,$}2 {\\alpha}{$\alpha$}6 {->}{$\rightarrow$}3 {==>}{$\Longrightarrow$}3 {->*}{$\,\sarr{}\,$}3 {-p>}{$\,\arr P\,$}3 {-p>*}{$\,{\sarr P}\,$}4 {-e>}{$\,\arr e\,$}3 {-e>*}{$\,\sarr e\,$}4 {-s>}{$\,\arr s\,$}3 {-s>*}{$\,\sarr s\,$}4 {?,?}{{\sffamily\footnotesize\color{dkgreen} $\$$}}1, morestring=[b]"
-}
-
-\lstdefinelanguage{JavaScript}{
-  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, for, do, else, case, break, const},
-  keywordstyle=\color{dkblue},%\bfseries,
-  ndkeywords={class, export, boolean, throw, implements, import, this},
-  ndkeywordstyle=\color{dkblue},%\bfseries,
-  classoffset=2,
-  morekeywords={+,-,/,*,\%,^,\&,~, =, >,<, !, ?, :, (, )},
-  keywordstyle=\color{purple},
-  classoffset=0,
-  identifierstyle=\color{dkgreen},
-  sensitive=false,
-  extendedchars=true,
-  comment=[l]{//},
-  morecomment=[s]{/*}{*/},
-  commentstyle=\color{purple}\ttfamily,
-  stringstyle=\color{red}\ttfamily,
-  morestring=[b]',
-  morestring=[b]"
-}
-
-\lstset{language=JavaScript,
-  columns=[l]fullflexible,
-  texcl=true,
-  mathescape=true,
-  xleftmargin=2pt,
-  basicstyle=\footnotesize\ttfamily,
-  showspaces=false,
-  breaklines=false}
-
-\newcommand{\hbra}{
-	\hbox to \columnwidth{\vrule width0.3mm height 1.8mm depth-0.3mm
-	\leaders\hrule height1.8mm depth-1.5mm\hfill
-	\vrule width0.3mm height 1.8mm depth-0.3mm}
-}
-
-\newcommand{\hket}{
-	\hbox to \columnwidth{\vrule width0.3mm height1.5mm
-	\leaders\hrule height0.3mm\hfill
-	\vrule width0.3mm height1.5mm}
-}
-
-\newcommand{\hbras}{
-	\hbox to \hsize{\vrule width0.3mm height 1.8mm depth-0.3mm
-	\leaders\hrule height1.8mm depth-1.5mm\hfill
-	\vrule width0.3mm height 1.8mm depth-0.3mm}
-}
-
-\newcommand{\hkets}{
-	\hbox to \hsize{\vrule width0.3mm height1.5mm
-	\leaders\hrule height0.3mm\hfill
-	\vrule width0.3mm height1.5mm}
-}
-
-\newenvironment{display}[2][\ratio]{\vspace{-0.5ex}\begin{tabbing}
-	\small \hspace{1.5em} \= \hspace{#1\columnwidth-1.5em} \= \hspace{1.5em} \= \kill
-	\textbf{#2}\\[-.8ex] \hbra\\[-.8ex]
-}{\\[-.8ex]\hket \end{tabbing}\vspace{-1ex}}
-
-\newenvironment{operdisplay}[2][\ratio]{\vspace{-0.5ex} \begin{tabbing}
-\hspace{1.5em} \= \hspace{#1\columnwidth-1.5em} \= \hspace{1.5em} \= \kill
-    \textbf{\footnotesize#2}\\[-.8ex] \hbras \\[-.8ex]
-}{\\[-.8ex]\hkets \end{tabbing}\vspace{-1ex}}
-
-\newcommand{\ratio}{.35}
-\newcommand{\tm}[1]{\ensuremath{\mathsf{#1}}}
-\newcommand{\js}[1]{\mbox{\lstset{language=JavaScript}{\lstinline!#1!}}}
-\newcommand{\pv}[1]{\mbox{\lstset{language=PV}{\lstinline!#1!}}}
-\newcommand{\obj}[1]{\{#1\}}
-\newcommand{\vsem}[1]{{\cal V}\llbracket #1 \rrbracket}
-\newcommand{\esem}[1]{{\cal E}\llbracket #1 \rrbracket}
-\newcommand{\ssem}[1]{{\cal S}\llbracket #1 \rrbracket}
-\newcommand{\psem}[1]{{\cal P}\llbracket #1 \rrbracket}
-\newcommand{\msem}[1]{{\cal M}\llbracket #1 \rrbracket}
-\newcommand{\ftsem}[1]{{\cal F}\llbracket #1 \rrbracket}
-\newcommand{\csem}[1]{{\cal C}\llbracket #1 \rrbracket}
-\newcommand{\tsem}[1]{{\cal T}\llbracket #1 \rrbracket}
-\newcommand{\entry}[2]{\>$#1$\>\>#2}
-\newcommand{\clause}[2]{$#1$\>\>#2}
-\newcommand{\category}[2]{\clause{#1::=}{#2}}
-\newcommand{\subclause}[1]{\>\>\>#1}
-\newcommand{\redrule}[3]{$#1$\>\>$#2$\>\>\>#3}
-\newcommand{\labelledClause}[2]{%
-  $#1$%
-  \>\>(#2)%
-  \refstepcounter{rule}%
-  \addToLabel{(#2)}\label{#2}%
-}
-\newcommand{\labelledItem}[1]{#1\refstepcounter{rule}%
-  \addToLabel{#1}}
-
-\newcounter{rule}
-\renewcommand{\therule}{}
-
-\newcommand{\staterule}[4][]{%
-  \refstepcounter{rule}%
-  \addToLabel{(#2)}\label{#2}%
-  $\begin{array}[b]{@{}l@{}}%
-    \mbox{(#2)#1}\\%
-    \begin{array}{@{}c@{}}
-      #3\\
-      \hline
-      \raisebox{0ex}[2.5ex]{\strut}#4%
-    \end{array}
-  \end{array}$}
-
-\newcommand{\mathrule}[2]{%
-  \begin{array}{@{}c@{}}
-      #1\\
-      \hline
-      \raisebox{0ex}[2.5ex]{\strut}#2%
-  \end{array}}
-
 \newtheorem{lemma}{Lemma}
 \newtheorem{definition}{Definition}
 \makeatletter
 \newcommand{\pname}[1]{\item[#1.]\def\@currentlabel{#1}}
 \makeatother
 
-\newcommand{\Recv}{\mathsf{Recv}}
-\newcommand{\Send}{\mathsf{Send}}
-\newcommand{\Event}{\mathsf{event}}
-\newcommand{\Query}{\mathsf{query}}
-\newcommand{\Attacker}{\mathsf{attacker}}
-\newcommand{\Noninterf}{\mathsf{noninterf}}
-\newcommand{\InjEvent}{\mathsf{inj\text{-}event}}
-\newcommand{\Recvno}{\mathsf{Recv3}}
-\newcommand{\Sendno}{\mathsf{Send3}}
-\newcommand{\secb}{\mathit{secb}}
-\newcommand{\kwinj}{\mathbf{inj}}
-\newcommand{\kwsecret}{\mathbf{secret}}
 
 \newcommand{\hkdftwo}{\HKDF_2}
 \newcommand{\salt}{\mathit{salt}}
@@ -371,8 +156,105 @@ the truncation $H'$ of $H$ to length $l' < l$ is $(t_D, t_S, q_H, q_{H'}, q_H, 0
 %% which proves indifferentiability.
 \end{proof}
 
+\begin{lemma}\label{lem:hcomp1}
+If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_2 \rightarrow S'_2$ 
+are independent random oracles, then $H_3$ defined by $H_3(x,y) = H_2(H_1(x),y)$
+is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H_3}, q_{H_2}, \epsilon)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} q_{H_2})$ and $\epsilon = {\cal O}((q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|)$ and ${\cal O}$ just hides small constants.
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H_1$ and $H_2$ are independent random oracles,
+  and $H_3(x,y) = H_2(H_1(x),y)$, and
+\item the game $G_1$ in which 
+  $H_3$ is a random oracle;
+  two lists $L_1$ and $L_2$ are initially empty;
+  $H_1(x)$ returns $y$ if $(x,y) \in L_1$ for some $y$, 
+  and otherwise chooses a fresh random $r$ in $S'_1$,
+  adds $(x,r)$ to $L$ and returns $r$;
+  $H_2(y,z)$ returns $H_3(x,z)$ if $(x,y) \in L_1$ for some $x$,
+  otherwise returns $u$ if $((y,z),u) \in L_2$ for some $u$,
+  and otherwise chooses a fresh random $r$ in $S'_2$,
+  adds $((y,z),r)$ to $L_2$ and returns $r$.
+\end{itemize}
+CryptoVerif shows that these two games are indistinguishable,
+up to probability $\epsilon$ (file \texttt{indiff\_HKDF\_1.ocv}).
+\end{proof}
+
+\begin{lemma}\label{lem:hcomp2}
+If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_1 \rightarrow S'_2$ 
+are independent random oracles, then $H_1' = H_1$ and $H'_2$ defined by 
+$H'_2(x) = H_2(H_1(x),x)$ are $(t_D, t_S, (q_{H_1}, q_{H_2}), (q_{H'_1}, q_{H'_2}), (q_{H_1} + q_{H_2}, q_{H_2}), \epsilon)$-indifferentiable from independent random oracles, where $t_S = {\cal O}(q_{H_2})$ and $\epsilon = {\cal O}(q_{H_2}(q_{H_1}+q_{H'_1} + q_{H'_2})/|S'_1|)$ and ${\cal O}$ just hides small constants.
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H_1$ and $H_2$ are independent random oracles,
+  $H'_1(x) = H_1(x)$, and $H'_2(x) = H_2(H_1(x),x)$, and
+\item the game $G_1$ in which 
+  $H'_1$ and $H'_2$ are independent random oracles;
+  $H_1(x) = H'_1(x)$;
+  $H_2(y,z)$ returns $H'_2(z)$ if $y = H_1(z)$ and $H_3(y,z)$ otherwise,
+  where $H_3$ is a random oracle (independent of $H'_1$ and $H'_2$).
+\end{itemize}
+CryptoVerif shows that these two games are indistinguishable,
+up to probability $\epsilon$ (file \texttt{indiff\_HKDF\_2.ocv};
+the oracles $H_1$ and $H'_1$ are considered as a single oracle,
+which receives $q_{H_1}+q_{H'_1}$ queries in total).
+\end{proof}
 
 \section{Indifferentiability of HKDF}
+
+We suppose that $\hmac$ is a random oracle and we define
+\begin{align}
+\begin{split}
+&\HKDF_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = \hmac(\salt,\key)\\
+&\quad K_1 = \hmac(\prk, \info \| 0x00)\\
+&\quad K_i = \hmac(\prk, K_{i-1} \| \info \| i) \text{ for }2 \leq i \leq n
+\end{split}\label{eq:hkdf2}
+\end{align}
+where $i$ is a byte.
+
+Much like for HMAC in~\cite{Dodis12}, this function is not indifferentiable from a random oracle in general. Intuitively, the problem comes from a confusion between the first and the second (or third) call to $\hmac$, which makes it possible to generate $\prk$ by calling $\hkdftwo$ rather than $\hmac$. In more detail, let
+\begin{align*}
+&\prk \|\_ = \hkdftwo(s,k,\info)\\
+&\salt = \hmac(s,k)\\
+&x = \hmac(\prk,\info'\|0x00)\\
+&x' \|\_ = \hkdftwo(\salt,\info\|0x00,\info')
+\end{align*}
+where the notation $x_1 \|x_2 = \hkdftwo(s,k,\info)$
+denotes that $x_1$ consists of the first 256 bits of $\hkdftwo(s,k,\info)$ 
+and $x_2$ its last 256 bits.
+
+When $\hkdftwo$ is defined from $\hmac$ as above, we have 
+$\prk = \hmac(\prk', \info\|0x00)$ where $\prk' = \hmac(s,k) = \salt$,
+so $\prk = \hmac(\salt,\info\|0x00)$. Hence, $x' = \hmac(\prk,\info'\|0) = x$.
+However, when $\hkdftwo$ is a random oracle and $\hmac$ is defined
+from $\hkdftwo$, the simulator that computes $\hmac$ sees what seems
+to be two unrelated calls to $\hmac$. (It is unable to see that $\prk$
+is in fact related to the previous call $\salt = \hmac(s,k)$: we have 
+$\prk \|\_ = \hkdftwo(s,k,\info)$ but the simulator does not know which value
+of $\info$ it should use.) Therefore, the simulator can only return fresh random
+values for $\salt$ and $x$, and $x \neq x'$ in general.
+
+We can however recover the indifferentiability of $\hkdftwo$ under the 
+additional assumption that the three calls to $\hmac$ use disjoint domains.
+Let $\Ssalt$, $\Skey$, and $\Sinfo$ be the sets of possible values of $\salt$, 
+$\key$, and $\info$ respectively, and $\Smac$ the output of $\hmac$.
+
+\begin{lemma}\label{lem:hkdfindif}
+If $\Skey \cap (\Sinfo \| 0x00 \cup \Smac \| \Sinfo \| 0x01) = \emptyset$
+then $\HKDF_n$ with domain $\Ssalt \times \Skey \times \Sinfo$ is
+$(t_D, t_S, q_{\hmac}, q_{\HKDF_n}, q_S, \epsilon)$-indifferentiable from a random oracle,
+where $t_S = {\cal O}(q^2)$ and $\epsilon = {\cal O}(q^2/|\Smac|)$,
+and ${\cal O}$ just hides small constants.
+%TO DO revise constants
+\end{lemma}
+\begin{proof}
+
+\end{proof}
+
 
 \section{Application to TextSecure}
 
@@ -407,47 +289,7 @@ indifferentiable from independent random oracles.
 
 Theorem~4.4 in~\cite{Dodis12} shows that HMAC-SHA256 is then indifferentiable from a random oracle, provided the MAC keys are less than the block size of the hash function minus one, which is true here: the block size of SHA256 is 512 bits and the MAC keys are 256-bit long.
 
-In the four calls to $\HKDF$ that we consider, we did not make explicit 
-the length of the returned key material. This length is at most 512 bits, 
-so we can consider that $\HKDF$ is defined by truncation of the following function $\hkdftwo$ to the desired length:
-\begin{align}
-\begin{split}
-&\hkdftwo(\salt,\key,\info) = K_1 \| K_2 \text{ where}\\
-&\quad \prk = \hmac(\salt,\key)\\
-&\quad K_1 = \hmac(\prk, \info \| 0x00)\\
-&\quad K_2 = \hmac(\prk, K_1 \| \info \| 0x01)
-\end{split}\label{eq:hkdf2}
-\end{align}
-and $\HKDF(\key,\salt,\info)$ is a truncation of $\hkdftwo(\salt,\key,\info)$.
-Much like for HMAC in~\cite{Dodis12}, this function is not indifferentiable from a random oracle in general. Intuitively, the problem comes from a confusion between the first and the second (or third) call to $\hmac$, which makes it possible to generate $\prk$ by calling $\hkdftwo$ rather than $\hmac$. In more detail, let
-\begin{align*}
-&\prk \|\_ = \hkdftwo(s,k,i)\\
-&\salt = \hmac(s,k)\\
-&x = \hmac(\prk,\info\|0x00)\\
-&x' \|\_ = \hkdftwo(\salt,i\|0x00,\info)
-\end{align*}
-where the notation $x_1 \|x_2 = \hkdftwo(s,k,i)$
-denotes that $x_1$ consists of the first 256 bits of $\hkdftwo(s,k,i)$ 
-and $x_2$ its last 256 bits.
-
-When $\hkdftwo$ is defined from $\hmac$ as above, we have 
-$\prk = \hmac(\prk', i\|0x00)$ where $\prk' = \hmac(s,k) = \salt$,
-so $\prk = \hmac(\salt,i\|0x00)$. Hence, $x' = \hmac(\prk,\info\|0) = x$.
-However, when $\hkdftwo$ is a random oracle and $\hmac$ is defined
-from $\hkdftwo$, the simulator that computes $\hmac$ sees what seems
-to be two unrelated calls to $\hmac$. (It is unable to see that $\prk$
-is in fact related to the previous call $\salt = \hmac(s,k)$: we have 
-$\prk \|\_ = \hkdftwo(s,k,i)$ but the simulator does not know which value
-of $i$ it should use.) Therefore, the simulator can only return fresh random
-values for $\salt$ and $x$, and $x \neq x'$ in general.
-
-We can however recover the indifferentiability of $\hkdftwo$ under the 
-additional assumption that the three calls to $\hmac$ use disjoint domains.
-Let $\Ssalt$, $\Skey$, and $\Sinfo$ be the sets of possible values of $\salt$, 
-$\key$, and $\info$ respectively, and $\Smac$ the set of 256-bit bitstrings,
-output of $\hmac$.
-
-\begin{lemma}\label{lem:hkdfindif}
+\begin{lemma}
 If $\Skey \cap (\Sinfo \| 0x00 \cup \Smac \| \Sinfo \| 0x01) = \emptyset$
 and $\Ssalt$ consists of bitstrings of 256 bits,
 then $\hkdftwo$ with domain $\Ssalt \times \Skey \times \Sinfo$ is
