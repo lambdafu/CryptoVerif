@@ -159,7 +159,9 @@ the truncation $H'$ of $H$ to length $l' < l$ is $(t_D, t_S, q_H, q_{H'}, q_H, 0
 \begin{lemma}\label{lem:hcomp1}
 If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_2 \rightarrow S'_2$ 
 are independent random oracles, then $H_3$ defined by $H_3(x,y) = H_2(H_1(x),y)$
-is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H_3}, q_{H_2}, \epsilon)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} q_{H_2})$ and $\epsilon = {\cal O}((q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|)$ and ${\cal O}$ just hides small constants.
+is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H_3}, q_{H_2}, \epsilon)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} q_{H_2})$ and 
+$\epsilon = {\cal O}((q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|)$ and ${\cal O}$ just hides small constants.
+%$\epsilon = (2q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|$
 \end{lemma}
 \begin{proof}
 Consider
@@ -184,7 +186,9 @@ up to probability $\epsilon$ (file \texttt{indiff\_HKDF\_1.ocv}).
 \begin{lemma}\label{lem:hcomp2}
 If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_1 \rightarrow S'_2$ 
 are independent random oracles, then $H_1' = H_1$ and $H'_2$ defined by 
-$H'_2(x) = H_2(H_1(x),x)$ are $(t_D, t_S, (q_{H_1}, q_{H_2}), (q_{H'_1}, q_{H'_2}), (q_{H_1} + q_{H_2}, q_{H_2}), \epsilon)$-indifferentiable from independent random oracles, where $t_S = {\cal O}(q_{H_2})$ and $\epsilon = {\cal O}(q_{H_2}(q_{H_1}+q_{H'_1} + q_{H'_2})/|S'_1|)$ and ${\cal O}$ just hides small constants.
+$H'_2(x) = H_2(H_1(x),x)$ are $(t_D, t_S, (q_{H_1}, q_{H_2}), (q_{H'_1}, q_{H'_2}), (q_{H_1} + q_{H_2}, q_{H_2}), \epsilon)$-indifferentiable from independent random oracles, where $t_S = {\cal O}(q_{H_2})$ and 
+$\epsilon = {\cal O}(q_{H_2}(q_{H_1}+q_{H'_1} + q_{H'_2})/|S'_1|)$ and ${\cal O}$ just hides small constants.
+%$\epsilon = q_{H_2}(2q_{H_1}+2q_{H'_1} + q_{H'_2}+1)/|S'_1|$
 \end{lemma}
 \begin{proof}
 Consider
@@ -194,7 +198,7 @@ Consider
 \item the game $G_1$ in which 
   $H'_1$ and $H'_2$ are independent random oracles;
   $H_1(x) = H'_1(x)$;
-  $H_2(y,z)$ returns $H'_2(z)$ if $y = H_1(z)$ and $H_3(y,z)$ otherwise,
+  $H_2(y,z)$ returns $H'_2(z)$ if $y = H'_1(z)$ and $H_3(y,z)$ otherwise,
   where $H_3$ is a random oracle (independent of $H'_1$ and $H'_2$).
 \end{itemize}
 CryptoVerif shows that these two games are indistinguishable,
@@ -206,14 +210,14 @@ which receives $q_{H_1}+q_{H'_1}$ queries in total).
 \section{Indifferentiability of HKDF}
 
 We suppose that $\hmac$ is a random oracle and we define
-\begin{align}
+\begin{align*}
 \begin{split}
 &\HKDF_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
 &\quad \prk = \hmac(\salt,\key)\\
 &\quad K_1 = \hmac(\prk, \info \| 0x00)\\
-&\quad K_i = \hmac(\prk, K_{i-1} \| \info \| i) \text{ for }2 \leq i \leq n
-\end{split}\label{eq:hkdf2}
-\end{align}
+&\quad K_{i+1} = \hmac(\prk, K_i \| \info \| i) \text{ for }1 \leq i < n
+\end{split}
+\end{align*}
 where $i$ is a byte.
 
 Much like for HMAC in~\cite{Dodis12}, this function is not indifferentiable from a random oracle in general. Intuitively, the problem comes from a confusion between the first and the second (or third) call to $\hmac$, which makes it possible to generate $\prk$ by calling $\hkdftwo$ rather than $\hmac$. In more detail, let
@@ -244,15 +248,167 @@ Let $\Ssalt$, $\Skey$, and $\Sinfo$ be the sets of possible values of $\salt$,
 $\key$, and $\info$ respectively, and $\Smac$ the output of $\hmac$.
 
 \begin{lemma}\label{lem:hkdfindif}
-If $\Skey \cap (\Sinfo \| 0x00 \cup \Smac \| \Sinfo \| 0x01) = \emptyset$
+If $\Skey \cap (\Sinfo \| 0x00 \cup \bigcup_{i = 1}^{n-1}\Smac \| \Sinfo \| i) = \emptyset$
 then $\HKDF_n$ with domain $\Ssalt \times \Skey \times \Sinfo$ is
-$(t_D, t_S, q_{\hmac}, q_{\HKDF_n}, q_S, \epsilon)$-indifferentiable from a random oracle,
-where $t_S = {\cal O}(q^2)$ and $\epsilon = {\cal O}(q^2/|\Smac|)$,
+$(t_D, \ab t_S, \ab q_{\hmac}, \ab q_{\HKDF_n}, \ab 2q_{\hmac}, \ab \epsilon)$-indifferentiable from a random oracle,
+where $t_S = {\cal O}(q_{\hmac}^2)$ and $\epsilon = {\cal O}((q_{\hmac} + q_{\HKDF_n})^2/|\Smac|)$,
 and ${\cal O}$ just hides small constants.
-%TO DO revise constants
 \end{lemma}
 \begin{proof}
+Consider the game $G_0$ in which $\hmac$ is a random oracle and $\HKDF_n$
+is defined as above.
 
+By hypothesis, the different calls to $\hmac$ in the definition of 
+$\HKDF_n$ use disjoint domains (the last byte differs among the last
+$n$ calls to $\hmac$), so by Lemma~\ref{disjdomain}, $G_0$ is
+perfectly indistinguishable from $G_1$ in which
+$\hmac = S_1[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^1_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_1 = H_1(\prk, \info )\\
+&\quad K_{i+1} = H_{i+1}(\prk, K_i \| \info) \text{ for }1 \leq i < n
+\end{split}
+\end{align*}
+where $H_0, \dots, H_n$ are independent random oracles
+and the simulator $S_1$ calls $H_i$ $q_{H_i}$ times, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac})$.
+
+Slightly reorganizing the arguments of $H_i$, $G_1$ is
+perfectly indistinguishable from $G_2$ in which
+$\hmac = S_2[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^2_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_1 = H_1(\prk, \info )\\
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }1 \leq i < n
+\end{split}
+\end{align*}
+where $H_0, \dots, H_n$ are independent random oracles
+and the simulator $S_2$ calls $H_i$ $q_{H_i}$ times, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac})$.
+
+By Lemma~\ref{lem:hcomp2}, $G_2 = G_{3,1}$ is
+indistinguishable up to probability $\epsilon_2$ from $G_{3,2}$ in which
+$\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab H_3, \ab \ldots, \ab H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^{3,2}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_1 = H'_1(\prk, \info )\\
+&\quad K_2 = H'_2(\prk, \info )\\
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }2 \leq i < n
+\end{split}
+\end{align*}
+where $H_0, H'_1, H'_2, H_3, \dots, H_n$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ $q_{H_0}$ times,
+$H'_1$ $q_{H_1} + q_{H_2}$ times,
+$H'_2$ $q_{H_2}$ times, $H_i$ $q_{H_i}$ times for $i \geq 3$, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac} + q_{H_2})$; and
+$\epsilon_2 = {\cal O}(q_{H_2}(q_{H_1} + 2 q_{\HKDF_n})/|\Smac|)$.
+
+Repeating the same reasoning inductively, 
+$G_{3,j-1}$ is
+indistinguishable up to probability $\epsilon_{j}$ from $G_{3,j}$ in which
+$\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab \dots, \ab S_{3,j}[H'_{j-1}, H'_{j}], \ab H_{j+1}, \ab \ldots, \ab H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^{3,j}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_i = H'_i(\prk, \info )\text{ for }1 \leq i \leq j\\
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }j < i < n
+\end{split}
+\end{align*}
+where $H_0, H'_1, \dots, H'_{j}, H_{j+1}, \dots, H_n$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ $q_{H_0}$ times,
+$H'_i$ $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < j$,
+$H'_{j}$ $q_{H_{j}}$ times, $H_i$ $q_{H_i}$ times for $i > j$, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{j}})$; and
+$\epsilon_{j} = {\cal O}(q_{H_{j}}(q_{H_{j-1}} + 2 q_{\HKDF_n})/|\Smac|)$.
+%$\epsilon_{j} = (q_{H_{j}}(2q_{H_{j-1}} + 2q_{\HKDF_n}+q_{\HKDF_n}+1)/|\Smac|)$.
+
+For $j=n$, we obtain a game $G_{3,n}$  in which
+$\hmac = S_2[H_0, H'_1, S_{3,2}[H'_1, H'_2], \dots, S_{3,n}[H'_{n-1}, H'_{n}]]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^{3,n}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_i = H'_i(\prk, \info )\text{ for }1 \leq i \leq n
+\end{split}
+\end{align*}
+where $H_0, H'_1, \dots, H'_{n}$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ $q_{H_0}$ times,
+$H'_i$ $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < n$,
+$H'_{n}$ $q_{H_{n}}$ times, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{n}}) = {\cal O}(q_{\hmac})$.
+
+By Lemma~\ref{lem:concatenation}, $G_{3,n}$ is perfectly indistinguishable
+from $G_4$ in which
+$\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^4_n(\salt,\key,\info) = H(\prk, \info) \text{ where}\\
+&\quad \prk = H_0(\salt,\key)
+\end{split}
+\end{align*}
+where $H_0$ and $H$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ $q_{H_0}$ times,
+$H$ $q_H = \sum_{i = 1}^{n-1} (q_{H_i} + q_{H_{i+1}}) + q_{H_n} \leq 2 q_{\hmac}$ times,
+with $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac})$.
+
+By Lemma~\ref{lem:hcomp1}, 
+$G_4$ is indistinguishable up to probability $\epsilon'$
+from $G_5$ in which
+$\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ with $H_0 = S_{5,1}[\HKDF^5_n]$ and $H = S_{5,2}[\HKDF^5_n]$
+and $\HKDF_n = \HKDF^5_n$  is a random oracle, where
+the simulator for $\hmac$ calls $\HKDF_n$ at most $q_H \leq 2 q_{\hmac}$ times,
+%%NOTE: the factor 2 here is spurious: the same call to HKDF provides
+%%the results of H_j and H_{j+1} that are needed to simulate one call to HMAC.
+%%So in fact, the simulator for $\hmac$ calls $\HKDF_n$ at most $q_{\hmac}$ times.
+runs in time ${\cal O}(q_{\hmac} + q_{H_0} q_H) = {\cal O}(q_{\hmac}^2)$,
+and 
+\begin{align*}
+\epsilon' &= {\cal O}((q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|)\\
+& = {\cal O}((q_{\hmac}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|) \\
+&= {\cal O}((q_{\hmac} + q_{\HKDF_n})^2)/|\Smac|)\,.
+\end{align*}
+% \begin{align*}
+% \epsilon' &= (2q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|\\
+% & = (2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac| 
+% \end{align*}
+
+The probability of distinguishing $G_0$ from $G_5$ is then
+at most 
+\begin{align*}
+\epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
+&= {\cal O}\left(\left(\sum_{j=2}^n \frac{q_{H_{j}}(q_{H_{j-1}} + 2q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\left(\sum_{j=2}^n \frac{q_{H_{j}}(q_{\hmac} + 2q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\left(\frac{(\sum_{j=2}^nq_{H_{j}})(q_{\hmac} + 2 q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\left(\frac{q_{\hmac}(q_{\hmac} + 2 q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+\end{align*}
+%MORE DETAILED PROBA WITHOUT O:
+% \begin{align*}
+% \epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
+% &= \left(\sum_{j=2}^n \frac{q_{H_{j}}(2q_{H_{j-1}} + 3q_{\HKDF_n}+1)}{|\Smac|} \right) + \frac{2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
+% &= \frac{\left((\sum_{j=2}^n q_{H_{j}})(2q_{\hmac} + 3q_{\HKDF_n}+1) \right) + 2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
+% &= \frac{2q_{\hmac}^2 + 3q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\hmac}^2 +  q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
+% %because \sum_{j=2}^n q_{H_{j}} + q_{H_0} \leq q_{\hmac}
+% &= \frac{3q_{\hmac}^2 + 4q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\HKDF_n}^2}{|\Smac|}\\
+% &\leq \frac{(2q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|} 
+% \end{align*}
 \end{proof}
 
 
@@ -281,222 +437,13 @@ is derived as follows:
 where $c_1 = 0$ (256 bits), $c_2 = \text{"WhisperRatchet"}$,
 $c_3 = 0x01$, and $c_4 = \text{"WhisperMessageKeys"}$.
 
-
-
-We start from the assumption that the compression function underlying SHA256 is a random oracle, and show that the functions $H_1$ and $H_2$ are
-indifferentiable from independent random oracles.
+We start from the assumption that the compression function underlying
+SHA256 is a random oracle, and show that the functions $H_1$ and $H_2$
+are indifferentiable from independent random oracles.
 
 
 Theorem~4.4 in~\cite{Dodis12} shows that HMAC-SHA256 is then indifferentiable from a random oracle, provided the MAC keys are less than the block size of the hash function minus one, which is true here: the block size of SHA256 is 512 bits and the MAC keys are 256-bit long.
 
-\begin{lemma}
-If $\Skey \cap (\Sinfo \| 0x00 \cup \Smac \| \Sinfo \| 0x01) = \emptyset$
-and $\Ssalt$ consists of bitstrings of 256 bits,
-then $\hkdftwo$ with domain $\Ssalt \times \Skey \times \Sinfo$ is
-$(t_D, t_S, q, \epsilon)$-indifferentiable from a random oracle,
-where $\epsilon = {\cal O}(q^2/|\Smac|)$ and $t_S = {\cal O}(q^2)$,
-and ${\cal O}$ just hides small constants.
-\end{lemma}
-\begin{proof}
-Consider
-\begin{itemize}[leftmargin=*]
-\item  the game $G_0$ in which $\hmac$ is a random oracle and $\hkdftwo$ is 
-defined from $\hmac$ by~\eqref{eq:hkdf2}, and
-\item the game $G_1$ in which $\hkdftwo$ is a random oracle and $\hmac$ is
-defined as follows.
-
-Let $L$ be a list of pairs $((k,m),r)$ such that $r$ is the result of a previous call
-to $\hmac(k,m)$. The list $L$ is initially empty.
-
-$\hmac(k,m) =$
-\begin{enumerate}[leftmargin=*]
-\item\label{step:previousresult} if $((k,m),r) \in L$ for some $r$, then return $r$, else
-\item\label{step:firsthalf} if $((k_0,m_0),k) \in L$ for some $k_0 \in \Ssalt$ and $m_0 \in \Skey$, 
-and $m = \info \|0x00$ for some $\info \in \Sinfo$,
-then let $r \|\_ = \hkdftwo(k_0,m_0,\info)$, else
-\item\label{step:secondhalf} if $((k_0,m_0),k) \in L$ for some $k_0 \in \Ssalt$ and $m_0 \in \Skey$, 
-and $m = k_1 \| \info \|0x01$ for some $k_1 \in \Smac$ and $\info \in \Sinfo$,
-then let $k'_1 \| k'_2 =  \hkdftwo(k_0,m_0,\info)$;
-if $k'_1 = k_1$, then $r = k'_2$;
-\item\label{step:fresh} otherwise, let $r$ be a fresh random element of $\Smac$;
-\item\label{step:add} add $((k,m),r)$ to $L$;
-\item\label{step:return} return $r$.
-\end{enumerate}
-
-\end{itemize}
-We name \emph{direct} oracle calls to $\hkdftwo$ or $\hmac$ calls 
-that are done directly by the distinguisher, and \emph{indirect} oracle calls
-the calls to $\hmac$ done from inside $\hkdftwo$ (in $G_0$) and 
-the calls to $\hkdftwo$ done from inside $\hmac$ (in $G_1$).
-
-Let us show that these two games are indistinguishable as long as, 
-in $G_0$, 
-\begin{enumerate}[leftmargin=*]
-\pname{H1}\label{H1}$\hmac$ never returns the same result for different arguments, %HYP2.1
-\pname{H2}\label{H2}
-no fresh result of $\hmac$ is equal to the first argument of a previous call to $\hmac$, %HYP2.2
-\pname{H3}\label{H3}the distinguisher never calls $\hmac(k,m)$ where $k = \hmac(\salt,\key)$ has been called from inside $\hkdftwo$ but not directly by the distinguisher, %HYP2.3
-\pname{H4}\label{H4}
-and $\hmac(\prk,\info\|0x00)$ never returns a fresh $k_1$ such that $\hmac(\prk,k_1\|\info\|0x01)$ has been called (directly or indirectly) before, %HYP2.4
-\end{enumerate}
-and in $G_1$, 
-\begin{enumerate}[leftmargin=*]
-\pname{H5}\label{H5}
-there are no two elements $((k,m),r)$ and $((k',m'),r)$ in $L$ with $(k,m) \neq (k',m')$, %HYP1.1
-%\pname{H6}\label{H6}
-%no returned $r$ is equal to a previous $k$, %HYP1.2
-%%% In fact, as the proof is written, \ref{H2} is enough. 
-\pname{H6}\label{H7}
-if the distinguisher calls $\hmac(\prk, k_1\|\info\|0x01)$ with $((\salt,\key),\prk) \in L$ and $k_1\|\_ = \hkdftwo(\salt,\key,\info)$, then $\hkdftwo(\salt,\key,\info)$ has been called (directly or indirectly at step~\ref{step:firsthalf}) before the call to $\hmac(\prk, k_1\|\info\|0x01)$.
-\end{enumerate}
-We have the following invariant:
-\begin{enumerate}[leftmargin=*]
-\pname{P1}\label{P1} Given $\salt,\key$, there is at most one $\prk$ such that $((\salt,\key),\prk) \in L$.
-\end{enumerate}
-Indeed, when $L$ contains such an element, calls to
-$\hmac(\salt,\key)$ immediately return $\prk$ at
-step~\ref{step:previousresult}, and never add another element
-$((\salt,\key),\prk')$ to $L$.
-
-{\bf Case 1.} Suppose the distinguisher makes a direct oracle call to $\hkdftwo$ or $\hmac$ 
-with the same arguments as a previous direct call to the same oracle.
-Both $G_0$ and $G_1$ return the same result as in the previous call.
-
-\medskip
-{\bf Case 2.} Suppose the distinguisher makes a direct call to $\hmac(k,m)$
-with arguments that do not occur in a previous direct call to $\hmac$.
-
-{\bf Case 2.a)} In $G_0$, this $\hmac$ call has already been done as $\hmac(\salt,\key)$ from inside
-$\hkdftwo$.
-  In $G_0$, the result is $\prk = \hmac(\salt,\key)$, which is independent from previously
-  returned values, so it looks like a fresh random value to the distinguisher.
-In $G_1$, we cannot have $m = \info \| 0x00$ nor $m = k_1 \| \info \| 0x01$ because $m = \key \in \Skey$ which is disjoint from $\Sinfo \| 0x00$ and from $\Smac \| \Sinfo \| 0x01$, so $\hmac$ returns a fresh random value.
-
-{\bf Case 2.b)} In $G_0$, this $\hmac$ call has already been done as $\hmac(\prk,\info\|0x00)$ from inside
-$\hkdftwo(\salt, \key, \info)$. Hence $\hmac(k,m) = \hmac(\prk,\info\|0x00)$ is the first 256 bits of $\hkdftwo(\salt, \key, \info)$ and $\prk = \hmac(\salt,\key)$. 
-Since by~\ref{H3}, the distinguisher never calls
-$\hmac(k,m)$ where $k = \hmac(\salt,\key)$ has been called from inside
-$\hkdftwo$ but not directly by the distinguisher, %HYP2.3
-$\hmac(\salt,\key)$ has been called directly by the distinguisher.
-%
-In $G_1$, since $\hmac(\salt,\key)$ has been called, $((\salt,\key), \prk) \in L$,
-so $\hmac(k,m) = \hmac(\prk,\info\|0x00)$ returns the first 256 bits of $\hkdftwo(\salt, \key, \info)$ (step~\ref{step:firsthalf}), as in $G_0$.
-
-
-{\bf Case 2.c)} In $G_0$, this $\hmac$ call has already been done as $\hmac(\prk,K_1 \|\info\|0x01)$ from inside
-$\hkdftwo(\salt, \key, \info)$. Hence $\hmac(k,m) = \hmac(\prk,K_1 \|\info\|0x01)$ is the last 256 bits of $\hkdftwo(\salt, \key, \info)$, $\prk = \hmac(\salt,\key)$,
-and $K_1 = \hmac(\prk,\info\|0x00)$ is the first 256 bits of $\hkdftwo(\salt, \key, \info)$. As above, $\hmac(\salt,\key)$ has been called
-directly by the distinguisher.
-%
-In $G_1$, since $\hmac(\salt,\key)$ has been called, $((\salt,\key), \prk) \in L$,
-so, since $K_1$ is the first 256 bits of $\hkdftwo(\salt, \key, \info)$, 
-$\hmac(k,m) = \hmac(\prk,K_1 \|\info\|0x01)$ returns the last 256 bits of $\hkdftwo(\salt, \key, \info)$ (step~\ref{step:secondhalf}), as in $G_0$.
-
-{\bf Case 2.d)} In $G_0$, this $\hmac$ call has never been done, directly or indirectly.
-Hence, $\hmac$ returns a fresh random value.
-%
-In $G_1$, if $((\salt,\key),k) \in L$, then $\hmac$ may return the
-first or last 256 bits of $\hkdftwo(\salt,\key,\info)$. However, since
-$\hmac(k,m)$ has not been called from $\hkdftwo$ in $G_0$,
-$\hkdftwo(\salt,\key,\info)$ has not been called directly by the distinguisher,
-so the result of $\hmac$ always looks like a fresh random value to the
-distinguisher.
-
-\medskip 
-{\bf Case 3.} Suppose the distinguisher makes a direct call to $\hkdftwo(\salt,\key,\info)$
-with arguments that do not occur in a previous direct call to $\hkdftwo$.
-
-{\bf Case 3.a)} In $G_1$, this call to $\hkdftwo$ has already been done from $\hmac$.
-Hence $((\salt,\key),\prk) \in L$ and $\hmac(\prk, \info\|0x00)$ or
-$\hmac(\prk, k_1\|\info\|0x01)$ has been called. Since $((\salt,\key),\prk) \in L$,
-$\hmac(\salt,\key)$ has been called before the call to $\hmac(\prk, \info\|0x00)$ or
-$\hmac(\prk, k_1\|\info\|0x01)$, and it has returned $\prk$.
-
-{\bf Case 3.a) i)}
- Suppose that $\hmac(\prk, \info\|0x00)$ has been called and it returned $k'_1$,
-  and $\hmac(\prk, k_1'\|\info\|0x01)$ has not been called.
-  By step~\ref{step:firsthalf} of the definition of $\hmac$ in $G_1$, since by~\ref{H5}, the only element of $L$ of the form $(\_,\prk)$ is
-  $((\salt,\key),\prk)$, %HYP1.1
-  $\hmac(\prk, \info\|0x00)$ is the first 256 bits
-  of a previous call to $\hkdftwo(\salt,\key,\info)$. The current call to
-  $\hkdftwo(\salt,\key,\info)$ returns the same result, to its first 256 bits
-  are $\hmac(\prk, \info\|0x00)$. Its last 256 bits are independent from returned
-  random values. Indeed, if a call to $\hmac$ returns the last 256 bits of $\hkdftwo(\salt,\key,\info)$, then this call occurs in step~\ref{step:secondhalf} of $\hmac$, and it is $\hmac(\prk', m)$ with $((\salt,\key),\prk') \in L$, $m = k_1'' \|\info \|0x01$, and $k_1''$ is the first 256 bits of $\hkdftwo(\salt,\key,\info)$. By~\ref{P1}, $\prk'= \prk$. We have $k'_1 = k''_1$, so $\hmac(\prk', m)$ is $\hmac(\prk, k_1'\|\info\|0x01)$. But $\hmac(\prk, k_1'\|\info\|0x01)$ has not been called by hypothesis, so no previous call to $\hmac$ returns the last 256 bits of $\hkdftwo(\salt,\key,\info)$. So the last 256 bits of $\hkdftwo(\salt,\key,\info)$ look like a fresh random value.
-
-  In $G_0$, the first 256 bits of $\hkdftwo(\salt,\key,\info)$ are also  $\hmac(\prk, \info\|0x00)$, where $\prk = \hmac(\salt,\key)$. Furthermore, the last 256 bits of $\hkdftwo(\salt,\key,\info)$ are independent of previously returned values. Indeed, $\hmac(\prk, k_1'\|\info\|0x01)$ has not been called directly. Furthermore, it has not been called from previous calls to $\hkdftwo$, because, if $\hmac(\prk, k_1'\|\info\|0x01)$ had been called from $\hkdftwo(\salt',\key',\info')$, then by $\Skey \cap (\Sinfo \| 0x00 \cup \Smac \| \Sinfo \| 0x01) = \emptyset$, this call would be the last of the three calls to $\hmac$ in $\hkdftwo(\salt',\key',\info')$, $\prk = \hmac(\salt',\key')$, and $\info' = \info$. Since by~\ref{H1}, $\hmac$ never returns the same result for different arguments, %HYP2.1
-this would imply $\salt' = \salt$ and $\key' = \key$, contradicting that $\hkdftwo(\salt,\key,\info)$ has not been called before. Therefore, the last 256 bits of $\hkdftwo(\salt,\key,\info)$ look like a fresh random value.
-  
-{\bf Case 3.a) ii)}
-Suppose that $\hmac(\prk, \info\|0x00)$ has been called and it returned $k'_1$,
-  and $\hmac(\prk, k_1'\|\info\|0x01)$ has been called.
-  By definition of $\hmac$ in $G_1$, $\hmac(\prk, \info\|0x00)$ is the first 256
-  bits of $\hkdftwo(\salt,\key,\info)$ (step~\ref{step:firsthalf}) and $\hmac(\prk, k_1'\|\info\|0x01)$ is
-  its last 256 bits (step~\ref{step:secondhalf}), so $\hkdftwo(\salt,\key,\info) = k'_1 \| k'_2$
-  where $k'_1 = \hmac(\prk, \info\|0x00)$ and $k'_2 = \hmac(\prk, k_1'\|\info\|0x01)$.
-  %
-  In $G_0$, we have the same property by definition of $\hkdftwo$.
-  
-{\bf Case 3.a) iii)}
-Otherwise, $\hmac(\prk, \info\|0x00)$ has not been called.
-  
-If $\hkdftwo(\salt,\key,\info)$ had been called from step~\ref{step:firsthalf} of
-$\hmac$, then we would have called $\hmac(\prk', m)$ with
-$((\salt,\key),\prk') \in L$ and $m = \info \| 0x00$.
-Furthermore, by~\ref{P1}, $\prk' = \prk$, so we would have called $\hmac(\prk, \info\|0x00)$. Contradiction. So $\hkdftwo(\salt,\key,\info)$ has not been called from step~\ref{step:firsthalf} of $\hmac$.
-
-Therefore, $\hkdftwo(\salt,\key,\info)$ has been called from step~\ref{step:secondhalf} of $\hmac$. If $\hkdftwo(\salt,\key,\info)$ had been called at step~\ref{step:secondhalf} of $\hmac$ and its last 256 bits were returned, then the distinguisher would have called $\hmac(\prk', k'_1\|\info\|0x01)$ with $((\salt,\key),\prk') \in L$ and $k'_1 \|\_ = \hkdftwo(\salt, \key, \info)$. By~\ref{H7}, $\hkdftwo(\salt,\key,\info)$ would have been called before, either directly (excluded by hypothesis) or indirectly at step~\ref{step:firsthalf}. Then the distinguisher would have called $\hmac(\prk'', \info\|0x00)$ with $((\salt,\key),\prk') \in L$, so by~\ref{P1}, $\prk'' = \prk$, so this is excluded by hypothesis. Therefore, the last 256 bits of $\hkdftwo(\salt,\key,\info)$ were not returned at step~\ref{step:secondhalf}.
-
-We can then conclude that in $G_1$, the value of $\hkdftwo(\salt,\key,\info)$ is independent from previously returned values, so it looks like a fresh random value.
-
-In $G_0$, $\hmac(\salt,\key)$ has been called directly and returned $\prk$, $\hmac(\prk, \info\|0x00)$ has not been called directly.
-%
-If a previous call to $\hkdftwo(\salt',\key',\info')$ called $\hmac(\prk, \info\|0x00)$, then we would have $\info' = \info$ and $\prk = \hmac(\salt',\key')$. By~\ref{H1}, this would imply $\salt' = \salt$ and $\key' = \key$, so  $\hkdftwo(\salt,\key,\info)$ would have been called before, which is excluded by hypothesis. Therefore, $\hmac(\prk, \info\|0x00)$ has not been called before, directly or indirectly.
-%
-By~\ref{H4}, $\hmac(\prk, k_1 \|\info\|0x01)$ has not been called before, with $k_1 = \hmac(\prk, \info\|0x00)$.
-%
-Therefore, $\hmac(\prk, \info\|0x00)$ and $\hmac(\prk, k_1 \|\info\|0x01)$ have not been called before, so their result is independent from previously returned values. Hence $\hkdftwo(\salt,\key,\info)$ is independent from previously returned values, as in $G_1$.
-
-
-
-{\bf Case 3.b)} In $G_1$, this $\hkdftwo$ call has never been done, directly or indirectly.
-Hence $\hkdftwo$ returns a fresh random value.
-%
-In $G_0$, the result is obtained from calls to $\hmac$. The distinguisher has not made these
-calls to $\hmac$ directly calling $\hmac(\salt,\key)$ first, because otherwise the simulator for $\hmac$ in $G_1$ would have called $\hkdftwo(\salt,\key,\info)$. Furthermore, it cannot call $\hmac(\salt,\key)$ with result $\prk$ after calling $\hmac(\prk, \info\|0x00)$ or $\hmac(\prk, k_1 \|\info\|0x01)$ by~\ref{H2}.
-So the result of $\hkdftwo$ is independent of the result of direct $\hmac$ calls made by the distinguisher.
-Moreover, other calls to $\hkdftwo$ did not generate the same last two calls to $\hmac$, because by~\ref{H1}, the first call to $\hmac$, $\hmac(\salt,\key)$, never returns the same result for different arguments. %HYP2.1
-So the result looks like a fresh random value to the distinguisher.
-
-\bigskip
-The previous proof shows that the games $G_0$ and $G_1$ are indistinguishable
-assuming the hypotheses \ref{H1}--\ref{H7} hold. Let us bound the
-probability that they do not hold. Suppose that there are at most $q$ (direct or indirect) queries to $\hmac$.
-\begin{itemize}
-  
-\item The probability that \ref{H1} does not hold is at most the probability that among $q$ random values in $\Smac$, two of them collide, so it is at most $q^2/|\Smac|$.
-
-\item The probability that \ref{H2} does not hold is at most the probability that among $q$ random values in $\Smac$, one of them is equal to one among the $q$ first arguments of $\hmac$ queries, so it is also at most $q^2/|\Smac|$.
-
-\item When \ref{H3} does not hold, the distinguisher calls $\hmac(k,m)$ for a value $k$ that happens to be equal to $\hmac(\salt,\key)$, which is independent of the values the distinguisher has seen, since $\hmac(\salt,\key)$ has not been called directly by the distinguisher. There are at most $q$ values $\hmac(\salt,\key)$, and the distinguisher has $q$ attempts, so the probability that \ref{H3} does not hold is at most  $q^2/|\Smac|$.
-
-\item Similarly, when \ref{H4} does not hold, the fresh random value $\hmac(\prk, \info\|0x00)$ collides with a previously fixed $k_1$. There are at most $q$ values $\hmac(\prk, \info\|0x00)$ and at most $q$ values $k_1$, so the probability that \ref{H4} does not hold is at most  $q^2/|\Smac|$.
-
-\item Let us show that, if the random values $r$ chosen at step~\ref{step:fresh} are all distinct and distinct from first and second halves of $\hkdftwo$ results used in $\hmac$, then \ref{H5} holds. The proof is by induction on the sequence of calls of $\hmac$.
-%
-  If $((k,m),r)$ is added to $L$ and $r$ comes from a result of $\hkdftwo$ at step~\ref{step:firsthalf} or~\ref{step:secondhalf}, then $k$ determines $k_0,m_0$ uniquely by induction hypothesis, and $m$ determines $\info$ as well as which half of the result of $\hkdftwo$ is $r$, hence $r$ is uniquely determined from $k,m$, and distinct from elements chosen at step~\ref{step:fresh} by hypothesis.
-  %
-  If $((k,m),r)$ is added to $L$ and $r$ is chosen at step~\ref{step:fresh}, then $r$ is always distinct from elements already in $L$ by hypothesis.
-% 
-  This concludes the proof of our claim.
-  
-  From this claim, we can easily see that the probability that \ref{H5} does not hold is at most $q^2/|\Smac|$.
-
-\item When~\ref{H7} does not hold, the distinguisher calls $\hmac(\prk, k_1\|\info\|0x01)$ and $k_1$ happens to be equal to the first 256 bits of $\hkdftwo(\salt,\key,\info)$ which is independent from values returned to the distinguisher. 
-So the probability that \ref{H7} does not hold is at most  $q^2/|\Smac|$.  
-
-\end{itemize}
-Hence, the probability that the distinguisher distinguishes $G_0$ from $G_1$ is at most $6 q^2/|\Smac|$.
-\end{proof}
 
 The hypothesis of Lemma~\ref{lem:hkdfindif} is satisfied in our case
 because $\Skey$ consists of bitstrings of length 256 bits = 32 bytes or $3 \times 32 = 96$ bytes,
