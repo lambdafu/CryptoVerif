@@ -2,6 +2,9 @@
 \usepackage{
 	color, url, amssymb, amsmath, amsthm, amsfonts, enumitem,
 }
+
+\newif\ifapproxproba
+
 \newcommand{\Z}{\mathbb{Z}}
 \newcommand{\Zp}{\mathbb{Z}_p}
 \newcommand{\M}{\mathbb{M}}
@@ -159,9 +162,12 @@ the truncation $H'$ of $H$ to length $l' < l$ is $(t_D, t_S, q_H, q_{H'}, q_H, 0
 \begin{lemma}\label{lem:hcomp1}
 If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_2 \rightarrow S'_2$ 
 are independent random oracles, then $H_3$ defined by $H_3(x,y) = H_2(H_1(x),y)$
-is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H_3}, q_{H_2}, \epsilon)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} q_{H_2})$ and 
+is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H_3}, q_{H_2}, \epsilon)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} q_{H_2})$ and
+\ifapproxproba
 $\epsilon = {\cal O}((q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|)$ and ${\cal O}$ just hides small constants.
-%$\epsilon = (2q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|$
+\else
+$\epsilon = (2q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|$.
+\fi
 \end{lemma}
 \begin{proof}
 Consider
@@ -186,9 +192,12 @@ up to probability $\epsilon$ (file \texttt{indiff\_HKDF\_1.ocv}).
 \begin{lemma}\label{lem:hcomp2}
 If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_1 \rightarrow S'_2$ 
 are independent random oracles, then $H_1' = H_1$ and $H'_2$ defined by 
-$H'_2(x) = H_2(H_1(x),x)$ are $(t_D, t_S, (q_{H_1}, q_{H_2}), (q_{H'_1}, q_{H'_2}), (q_{H_1} + q_{H_2}, q_{H_2}), \epsilon)$-indifferentiable from independent random oracles, where $t_S = {\cal O}(q_{H_2})$ and 
+$H'_2(x) = H_2(H_1(x),x)$ are $(t_D, t_S, (q_{H_1}, q_{H_2}), (q_{H'_1}, q_{H'_2}), (q_{H_1} + q_{H_2}, q_{H_2}), \epsilon)$-indifferentiable from independent random oracles, where $t_S = {\cal O}(q_{H_2})$ and
+\ifapproxproba
 $\epsilon = {\cal O}(q_{H_2}(q_{H_1}+q_{H'_1} + q_{H'_2})/|S'_1|)$ and ${\cal O}$ just hides small constants.
-%$\epsilon = q_{H_2}(2q_{H_1}+2q_{H'_1} + q_{H'_2}+1)/|S'_1|$
+\else
+$\epsilon = q_{H_2}(2q_{H_1}+2q_{H'_1} + q_{H'_2}+1)/|S'_1|$.
+\fi
 \end{lemma}
 \begin{proof}
 Consider
@@ -251,8 +260,13 @@ $\key$, and $\info$ respectively, and $\Smac$ the output of $\hmac$.
 If $\Skey \cap (\Sinfo \| 0x00 \cup \bigcup_{i = 1}^{n-1}\Smac \| \Sinfo \| i) = \emptyset$
 then $\HKDF_n$ with domain $\Ssalt \times \Skey \times \Sinfo$ is
 $(t_D, \ab t_S, \ab q_{\hmac}, \ab q_{\HKDF_n}, \ab 2q_{\hmac}, \ab \epsilon)$-indifferentiable from a random oracle,
-where $t_S = {\cal O}(q_{\hmac}^2)$ and $\epsilon = {\cal O}((q_{\hmac} + q_{\HKDF_n})^2/|\Smac|)$,
+where $t_S = {\cal O}(q_{\hmac}^2)$ and
+\ifapproxproba
+$\epsilon = {\cal O}((q_{\hmac} + q_{\HKDF_n})^2/|\Smac|)$,
 and ${\cal O}$ just hides small constants.
+\else
+$\epsilon = (2q_{\hmac} + q_{\HKDF_n})^2/|\Smac|$,
+\fi
 \end{lemma}
 \begin{proof}
 Consider the game $G_0$ in which $\hmac$ is a random oracle and $\HKDF_n$
@@ -273,7 +287,7 @@ $\hmac = S_1[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
 \end{split}
 \end{align*}
 where $H_0, \dots, H_n$ are independent random oracles
-and the simulator $S_1$ calls $H_i$ $q_{H_i}$ times, with
+and the simulator $S_1$ calls $H_i$ at most $q_{H_i}$ times, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac})$.
 
@@ -290,7 +304,7 @@ $\hmac = S_2[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
 \end{split}
 \end{align*}
 where $H_0, \dots, H_n$ are independent random oracles
-and the simulator $S_2$ calls $H_i$ $q_{H_i}$ times, with
+and the simulator $S_2$ calls $H_i$ at most $q_{H_i}$ times, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac})$.
 
@@ -310,12 +324,18 @@ $\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab H_3, \ab \ldots, \ab H_
 \end{align*}
 where $H_0, H'_1, H'_2, H_3, \dots, H_n$ are independent random oracles;
 the simulator for $\hmac$ calls 
-$H_0$ $q_{H_0}$ times,
-$H'_1$ $q_{H_1} + q_{H_2}$ times,
-$H'_2$ $q_{H_2}$ times, $H_i$ $q_{H_i}$ times for $i \geq 3$, with
+$H_0$ at most $q_{H_0}$ times,
+$H'_1$ at most $q_{H_1} + q_{H_2}$ times,
+$H'_2$ at most $q_{H_2}$ times,
+$H_i$ at most $q_{H_i}$ times for $i \geq 3$, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac} + q_{H_2})$; and
+\ifapproxproba
 $\epsilon_2 = {\cal O}(q_{H_2}(q_{H_1} + 2 q_{\HKDF_n})/|\Smac|)$.
+\else
+$\epsilon_2 = q_{H_2}(2q_{H_1} + 3 q_{\HKDF_n} + 1)/|\Smac|$.
+%$\epsilon_2 = q_{H_2}(2q_{H_1} + 2 q_{\HKDF_n} + q_{\HKDF_n} + 1)/|\Smac|$.
+\fi
 
 Repeating the same reasoning inductively, there exists a simulator $S_{3,j}$ 
 for $H_j$ such that $G_{3,j-1}$ is
@@ -331,13 +351,18 @@ $\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab \dots, \ab S_{3,j}[H'_{
 \end{align*}
 where $H_0, H'_1, \dots, H'_{j}, H_{j+1}, \dots, H_n$ are independent random oracles;
 the simulator for $\hmac$ calls 
-$H_0$ $q_{H_0}$ times,
-$H'_i$ $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < j$,
-$H'_{j}$ $q_{H_{j}}$ times, $H_i$ $q_{H_i}$ times for $i > j$, with
+$H_0$ at most $q_{H_0}$ times,
+$H'_i$ at most $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < j$,
+$H'_{j}$ at most $q_{H_{j}}$ times,
+$H_i$ at most $q_{H_i}$ times for $i > j$, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{j}})$; and
+\ifapproxproba
 $\epsilon_{j} = {\cal O}(q_{H_{j}}(q_{H_{j-1}} + 2 q_{\HKDF_n})/|\Smac|)$.
+\else
+$\epsilon_{j} = q_{H_{j}}(2q_{H_{j-1}} + 3q_{\HKDF_n}+1)/|\Smac|$.
 %$\epsilon_{j} = (q_{H_{j}}(2q_{H_{j-1}} + 2q_{\HKDF_n}+q_{\HKDF_n}+1)/|\Smac|)$.
+\fi
 
 For $j=n$, we obtain a game $G_{3,n}$  in which
 $\hmac = S_2[H_0, H'_1, S_{3,2}[H'_1, H'_2], \dots, S_{3,n}[H'_{n-1}, H'_{n}]]$ and $\HKDF_n$ is defined by
@@ -350,9 +375,9 @@ $\hmac = S_2[H_0, H'_1, S_{3,2}[H'_1, H'_2], \dots, S_{3,n}[H'_{n-1}, H'_{n}]]$ 
 \end{align*}
 where $H_0, H'_1, \dots, H'_{n}$ are independent random oracles;
 the simulator for $\hmac$ calls 
-$H_0$ $q_{H_0}$ times,
-$H'_i$ $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < n$,
-$H'_{n}$ $q_{H_{n}}$ times, with
+$H_0$ at most $q_{H_0}$ times,
+$H'_i$ at most $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < n$,
+$H'_{n}$ at most $q_{H_{n}}$ times, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{n}}) = {\cal O}(q_{\hmac})$.
 
@@ -367,8 +392,8 @@ $\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots
 \end{align*}
 where $H_0$ and $H$ are independent random oracles;
 the simulator for $\hmac$ calls 
-$H_0$ $q_{H_0}$ times,
-$H$ $q_H = \sum_{i = 1}^{n-1} (q_{H_i} + q_{H_{i+1}}) + q_{H_n} \leq 2 q_{\hmac}$ times,
+$H_0$ at most $q_{H_0}$ times,
+$H$ at most $q_H = \sum_{i = 1}^{n-1} (q_{H_i} + q_{H_{i+1}}) + q_{H_n} \leq 2 q_{\hmac}$ times,
 with $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac})$.
 
@@ -383,19 +408,23 @@ the simulator for $\hmac$ calls $\HKDF_n$ at most $q_H \leq 2 q_{\hmac}$ times,
 %%the results of H_j and H_{j+1} that are needed to simulate one call to HMAC.
 %%So in fact, the simulator for $\hmac$ calls $\HKDF_n$ at most $q_{\hmac}$ times.
 runs in time ${\cal O}(q_{\hmac} + q_{H_0} q_H) = {\cal O}(q_{\hmac}^2)$,
-and 
+and
+\ifapproxproba
 \begin{align*}
 \epsilon' &= {\cal O}((q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|)\\
 & = {\cal O}((q_{\hmac}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|) \\
 &= {\cal O}((q_{\hmac} + q_{\HKDF_n})^2)/|\Smac|)\,.
 \end{align*}
-% \begin{align*}
-% \epsilon' &= (2q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|\\
-% & = (2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac| 
-% \end{align*}
+\else
+\begin{align*}
+\epsilon' &= (2q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|\\
+& = (2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac| 
+\end{align*}
+\fi
 
 The probability of distinguishing $G_0$ from $G_5$ is then
 at most 
+\ifapproxproba
 \begin{align*}
 \epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
 &= {\cal O}\left(\left(\sum_{j=2}^n \frac{q_{H_{j}}(q_{H_{j-1}} + 2q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
@@ -404,16 +433,24 @@ at most
 &= {\cal O}\left(\left(\frac{q_{\hmac}(q_{\hmac} + 2 q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
 &= {\cal O}\left(\frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
 \end{align*}
+\else
 %MORE DETAILED PROBA WITHOUT O:
-% \begin{align*}
-% \epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
-% &= \left(\sum_{j=2}^n \frac{q_{H_{j}}(2q_{H_{j-1}} + 3q_{\HKDF_n}+1)}{|\Smac|} \right) + \frac{2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
-% &= \frac{\left((\sum_{j=2}^n q_{H_{j}})(2q_{\hmac} + 3q_{\HKDF_n}+1) \right) + 2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
-% &= \frac{2q_{\hmac}^2 + 3q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\hmac}^2 +  q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
-% %because \sum_{j=2}^n q_{H_{j}} + q_{H_0} \leq q_{\hmac}
-% &= \frac{3q_{\hmac}^2 + 4q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\HKDF_n}^2}{|\Smac|}\\
-% &\leq \frac{(2q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|} 
-% \end{align*}
+\begin{align*}
+\epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
+&= \left(\sum_{j=2}^n \frac{q_{H_{j}}(2q_{H_{j-1}} + 3q_{\HKDF_n}+1)}{|\Smac|} \right) + {}\\
+&\qquad \frac{2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
+&= \frac{1}{|\Smac|}((\sum_{j=2}^n q_{H_{j}})(2q_{\hmac} + 3q_{\HKDF_n}+1) + {}\\[-1mm]
+&\qquad \qquad 2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)\\
+&= \frac{1}{|\Smac|}((q_{H_0} + \sum_{j=2}^n q_{H_{j}})\times 2q_{\hmac} + {}\\[-3mm]
+&\qquad\qquad (\sum_{j=2}^n q_{H_{j}})(3q_{\HKDF_n}+1) + q_{H_0}^2 + {}\\[-2mm]
+&\qquad\qquad q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)\\
+&= \frac{1}{|\Smac|}(2q_{\hmac}^2 + 3q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\hmac}^2 + {}\\[-3mm]
+&\qquad\qquad q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)\\
+%because \sum_{j=2}^n q_{H_{j}} + q_{H_0} \leq q_{\hmac}
+&= \frac{3q_{\hmac}^2 + 4q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\HKDF_n}^2}{|\Smac|}\\
+&\leq \frac{(2q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|} 
+\end{align*}
+\fi
 \end{proof}
 
 
