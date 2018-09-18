@@ -72,7 +72,7 @@ In the game $G_0 = D^{(F_i)_{1 \leq i \leq n},(H_j)_{1 \leq j \leq m}}$,
 the distinguisher interacts with the real functions $F_i$ and
 the random oracles $H_j$ from which the functions $F_i$ are defined.
 In the game $G_1 = D^{(H'_i)_{1 \leq i \leq n},S}$,
-the distinguisher interacts with independent random oracles $H'_i$ instead of $F_i$, and with a simulator $S$, which simulates the behavior of the random oracles $H_j$ using calls to $H'_i$. Indifferentiability means that these two games are indistinguishable.
+the distinguisher interacts with independent random oracles $H'_i$ instead of $F_i$, and with a simulator $S$, which simulates the behavior of the random oracles $H_j$ using calls to $H'_i$. (We may also present $S$ as $m$ simulators $S_j$ that each simulate a single random oracle $H_j$ using calls to $H'_i$, $1 \leq i \leq n$; these simulators share a common state.) Indifferentiability means that these two games are indistinguishable.
 
 \section{Indifferentiability Lemmas}
 
@@ -260,7 +260,8 @@ is defined as above.
 
 By hypothesis, the different calls to $\hmac$ in the definition of 
 $\HKDF_n$ use disjoint domains (the last byte differs among the last
-$n$ calls to $\hmac$), so by Lemma~\ref{lem:disjdomain}, $G_0$ is
+$n$ calls to $\hmac$), so by Lemma~\ref{lem:disjdomain}, there exists
+a simulator $S_1$ for $\hmac$ such that $G_0$ is
 perfectly indistinguishable from $G_1$ in which
 $\hmac = S_1[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
 \begin{align*}
@@ -276,7 +277,8 @@ and the simulator $S_1$ calls $H_i$ $q_{H_i}$ times, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac})$.
 
-Slightly reorganizing the arguments of $H_i$, $G_1$ is
+Slightly reorganizing the arguments of $H_i$, there exists a simulator $S_2$
+for $\hmac$ such that $G_1$ is
 perfectly indistinguishable from $G_2$ in which
 $\hmac = S_2[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
 \begin{align*}
@@ -292,7 +294,9 @@ and the simulator $S_2$ calls $H_i$ $q_{H_i}$ times, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac})$.
 
-By Lemma~\ref{lem:hcomp2}, $G_2 = G_{3,1}$ is
+By Lemma~\ref{lem:hcomp2}, there exists a simulator $S_{3,2}$ for $H_2$
+($H_1$ is simulated by $H'_1 = H_1$ itself)
+such that $G_2 = G_{3,1}$ is
 indistinguishable up to probability $\epsilon_2$ from $G_{3,2}$ in which
 $\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab H_3, \ab \ldots, \ab H_n]$ and $\HKDF_n$ is defined by
 \begin{align*}
@@ -313,8 +317,8 @@ $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time
 ${\cal O}(q_{\hmac} + q_{H_2})$; and
 $\epsilon_2 = {\cal O}(q_{H_2}(q_{H_1} + 2 q_{\HKDF_n})/|\Smac|)$.
 
-Repeating the same reasoning inductively, 
-$G_{3,j-1}$ is
+Repeating the same reasoning inductively, there exists a simulator $S_{3,j}$ 
+for $H_j$ such that $G_{3,j-1}$ is
 indistinguishable up to probability $\epsilon_{j}$ from $G_{3,j}$ in which
 $\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab \dots, \ab S_{3,j}[H'_{j-1}, H'_{j}], \ab H_{j+1}, \ab \ldots, \ab H_n]$ and $\HKDF_n$ is defined by
 \begin{align*}
@@ -352,7 +356,7 @@ $H'_{n}$ $q_{H_{n}}$ times, with
 $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{n}}) = {\cal O}(q_{\hmac})$.
 
-By Lemma~\ref{lem:concatenation}, $G_{3,n}$ is perfectly indistinguishable
+By Lemma~\ref{lem:concatenation}, there exist simulators $S_{4,j}$ ($1 \leq j \leq n$) for $H'_j$ such that $G_{3,n}$ is perfectly indistinguishable
 from $G_4$ in which
 $\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ and $\HKDF_n$ is defined by
 \begin{align*}
@@ -368,7 +372,8 @@ $H$ $q_H = \sum_{i = 1}^{n-1} (q_{H_i} + q_{H_{i+1}}) + q_{H_n} \leq 2 q_{\hmac}
 with $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
 ${\cal O}(q_{\hmac})$.
 
-By Lemma~\ref{lem:hcomp1}, 
+By Lemma~\ref{lem:hcomp1}, there exist simulators $S_{5,1}$ for $H_0$
+and $S_{5,2}$ for $H$ such that
 $G_4$ is indistinguishable up to probability $\epsilon'$
 from $G_5$ in which
 $\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ with $H_0 = S_{5,1}[\HKDF^5_n]$ and $H = S_{5,2}[\HKDF^5_n]$
