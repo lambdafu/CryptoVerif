@@ -260,7 +260,7 @@ is defined as above.
 
 By hypothesis, the different calls to $\hmac$ in the definition of 
 $\HKDF_n$ use disjoint domains (the last byte differs among the last
-$n$ calls to $\hmac$), so by Lemma~\ref{disjdomain}, $G_0$ is
+$n$ calls to $\hmac$), so by Lemma~\ref{lem:disjdomain}, $G_0$ is
 perfectly indistinguishable from $G_1$ in which
 $\hmac = S_1[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
 \begin{align*}
@@ -322,7 +322,7 @@ $\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab \dots, \ab S_{3,j}[H'_{
 &\HKDF^{3,j}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
 &\quad \prk = H_0(\salt,\key)\\
 &\quad K_i = H'_i(\prk, \info )\text{ for }1 \leq i \leq j\\
-&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }j < i < n
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }j \leq i < n
 \end{split}
 \end{align*}
 where $H_0, H'_1, \dots, H'_{j}, H_{j+1}, \dots, H_n$ are independent random oracles;
@@ -414,76 +414,86 @@ at most
 
 \section{Application to TextSecure}
 
-TO DO modified order of arguments of HKDF!!! ($c_1$/$\rk_{ab}$ is the salt,
-the first argument is the key)
-
-The encryption key for the first message is derived as follows:
-\begin{align*}
-&H_1(x_1, x_2, x_3, x_4, x_5) = k_{\e}\text{ where}\\
-&\quad  S \Leftarrow c_0 \| x_1 \| x_2 \| x_3 \| x_4\\
-&\quad  (\rk_{ba}, \ck_{ba}) \Leftarrow \HKDF_2(S, c_1, c_2)\\
-&\quad  (\rk_{ab}, \ck_{ab}) \Leftarrow \HKDF_2(x_5, \rk_{ba}, c_2)\\
-&\quad  k_{\e} \Leftarrow \truncate_l(\HKDF_2(\HMAC(\ck_{ab}, c_3), c_1, c_4))
-\end{align*}
+When there is a one-time prekey, the encryption key for 
+the first message is derived as follows:
+\[H_1(x_1, x_2, x_3, x_4, x_5) = F(c_0 \| x_1 \| x_2 \| x_3 \| x_4, x_5)\]
 When there is no one-time prekey, $x_4$ is omitted, thus the key
 is derived as follows:
+\[H_2(x_1, x_2, x_3, x_5) = F(c_0 \| x_1 \| x_2 \| x_3, x_5)\]
+where
 \begin{align*}
-&H_2(x_1, x_2, x_3, x_5) = k_{\e}\text{ where}\\
-&\quad  S \Leftarrow c_0 \| x_1 \| x_2 \| x_3\\
-&\quad  (\rk_{ba}, \ck_{ba}) \Leftarrow \HKDF_2(S, c_1, c_2)\\
-&\quad  (\rk_{ab}, \ck_{ab}) \Leftarrow \HKDF_2(x_5, \rk_{ba}, c_2)\\
-&\quad  k_{\e} \Leftarrow \truncate_l(\HKDF_2(\HMAC(\ck_{ab}, c_3), c_1, c_4))
+&F(S, x_5) = k_{\e}\text{ where}\\
+&\quad  (\rk_{ba}, \ck_{ba}) \Leftarrow \HKDF_2(c_1, S, c_2)\\
+&\quad  (\rk_{ab}, \ck_{ab}) \Leftarrow \HKDF_2(\rk_{ba}, x_5, c_2)\\
+&\quad  k_{\e} \Leftarrow \truncate_l(\HKDF_2(c_1, \HMAC(\ck_{ab}, c_3), c_1, c_4))
 \end{align*}
-where $c_1 = 0$ (256 bits), $c_2 = \text{"WhisperRatchet"}$,
+$c_0$ is a bitstring of 256 bits set to 1,
+%$0xff$ repeated 32 times,
+%https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb5e93b899a63de2dea9670e10/src/SessionBuilder.js lines 140--142
+$c_1 = 0$ (256 bits), $c_2 = \text{"WhisperRatchet"}$,
 $c_3 = 0x01$, and $c_4 = \text{"WhisperMessageKeys"}$.
 
 We start from the assumption that the compression function underlying
 SHA256 is a random oracle, and show that the functions $H_1$ and $H_2$
-are indifferentiable from independent random oracles.
+are indifferentiable from independent random oracles. In this proof,
+we use a lighter style than in the proof of Lemma~\ref{lem:hkdfindif}:
+we do not explicitly compute the runtime and probabilities.
 
 
 Theorem~4.4 in~\cite{Dodis12} shows that HMAC-SHA256 is then indifferentiable from a random oracle, provided the MAC keys are less than the block size of the hash function minus one, which is true here: the block size of SHA256 is 512 bits and the MAC keys are 256-bit long.
 
+The call $\HMAC(\ck_{ab}, c_3)$ uses a domain disjoint from the 
+calls to $\HMAC$ inside $\HKDF_2$ because $c_3$ is one byte, while
+$\key$ and $\info$ ($c_2$ or $c_4$) have greater length.
+By Lemma~\ref{lem:disjdomain}, we can consider $\HMAC$ in $\HMAC(\ck_{ab}, c_3)$
+as a random oracle independent of $\HMAC$ inside $\HKDF_2$. 
 
 The hypothesis of Lemma~\ref{lem:hkdfindif} is satisfied in our case
 because $\Skey$ consists of bitstrings of length 256 bits = 32 bytes or $3 \times 32 = 96$ bytes,
 $\Sinfo \| 0x00$ consists of bitstrings of length at most 31 bytes
-and $\Smac \| \Sinfo \| 0x01$ consists of bitstrings of length between 33 and 63 bytes.
+and $\Smac \| \Sinfo \| 0x01$ consists of bitstrings of length between 33 and 63 bytes. Hence, $\HKDF_2$ is indifferentiable from a random oracle.
 
-
-By combining Lemmas~\ref{lem:hkdfindif} and~\ref{lem:disjdomain}, we obtain that
+By Lemma~\ref{lem:disjdomain}, we obtain that
 \begin{align*}
-&x_1,x_2,x_3,x_4 \mapsto \hkdftwo(0, c_0 \| x_1 \| x_2 \| x_3 \| x_4, c_2)\\
-%&x \mapsto \hkdftwo(0, x, \text{"InitKey"})\\
-&x_1,x_2,x_3 \mapsto \hkdftwo(0, c_0 \| x_1 \| x_2 \| x_3, c_2)\\
+&S \mapsto \hkdftwo(c_1, S, c_2)\\
 &x,y \mapsto \hkdftwo(x,y,c_2)\\
- &x \mapsto \hkdftwo(0,x,c_4)
+&x \mapsto \hkdftwo(c_1,x,c_4)
 \end{align*}
 are indifferentiable from independent random oracles.
 The domains are disjoint 
-because different constants $c_2$ and $c_4$ are used and furthermore, the three cases that use $c_2$ differ by the length of their second argument ($4 \times 256 = 1024$ bits plus the length of $c_0$ for
-$x_1,x_2,x_3,x_4 \mapsto \hkdftwo(0, c_0 \| x_1 \| x_2 \| x_3 \| x_4, c_2)$,
-$3 \times 256 = 768$ bits plus the length of $c_0$ for 
-$x_1,x_2,x_3 \mapsto \hkdftwo(0, c_0 \| x_1 \| x_2 \| x_3, c_2)$, and 256 bits for $x,y \mapsto \hkdftwo(x,y,c_2)$).
-
-
-By combining Lemma~\ref{lem:truncation} with the previous results,
-we conclude that 
+because different constants $c_2$ and $c_4$ are used and furthermore, the two cases that use $c_2$ differ by the length of their second argument (4 or 5 times 256 bits for
+$S \mapsto \hkdftwo(c_1, S, c_2)$, and 256 bits for $x,y \mapsto \hkdftwo(x,y,c_2)$).
+Hence, we can replace $F$ with:
 \begin{align*}
-&x_1,x_2,x_3,x_4 \mapsto \HKDF(c_0 \| x_1 \| x_2 \| x_3 \| x_4, c_1, c_2)\\
-&x_1,x_2,x_3 \mapsto \HKDF(c_0 \| x_1 \| x_2 \| x_3, c_1, c_2)\\
-&x,y \mapsto \HKDF(x,y,c_2)\\
-&x \mapsto \HKDF(x,c_1,c_4)
-% &x_1,x_2,x_3,x_4 \mapsto \HKDF(0, x_1 \| x_2 \| x_3 \| x_4, c_2, 256)\\
-% %&x \mapsto \HKDF(0, x, \text{"InitKey"}, 256)\\
-% &x_1,x_2,x_3 \mapsto \HKDF(0, x_1 \| x_2 \| x_3, c_2, 256)\\
-% &x,y \mapsto \HKDF(x,y,c_2, 512)\\
-% &x \mapsto \HKDF(0,x,c_4, 384)
-\end{align*} 
-are indifferentiable from independent random oracles.
+&F(S, x_5) = k_{\e}\text{ where}\\
+&\quad  (\rk_{ba}, \ck_{ba}) \Leftarrow H_3(S)\\
+&\quad  (\rk_{ab}, \ck_{ab}) \Leftarrow H_4(\rk_{ba}, x_5)\\
+&\quad  k_{\e} \Leftarrow \truncate_l(H_5(H_6(\ck_{ab})))
+\end{align*}
+where $H_3, H_4, H_5, H_6$ are independent random oracles.
+
+By Lemmas~\ref{lem:splitting} and~\ref{lem:truncation},
+we can replace it with
+\begin{align*}
+&F(S, x_5) = k_{\e}\text{ where}\\
+&\quad  \rk_{ba} \Leftarrow H'_3(S)\\
+&\quad  \ck_{ab} \Leftarrow H'_4(\rk_{ba}, x_5)\\
+&\quad  k_{\e} \Leftarrow H'_5(H_6(\ck_{ab}))
+\end{align*}
+where $H'_3, H'_4, H'_5, H_6$ are independent random oracles.
+that is,
+\[F(S, x_5) = H'_5(H_6(H'_4(H'_3(S),x_5)))\]
+By Lemma~\ref{lem:hcomp1} applied 3 times (in the last two applications,
+the set $S_2$ consists of the empty bitstring), $F$ is indifferentiable
+from a random oracle.
+
+The calls to $F$ in $H_1$ and $H_2$ use disjoint domains 
+(the length of $S$ is different: respectively, 5 and 4 times 256 bits),
+so by Lemma~\ref{lem:disjdomain}, $H_1$ and $H_1$ are indifferentiable
+from independent random oracles.
 
 \bibliographystyle{IEEEtran}
-\bibliography{paper}
+\bibliography{biblio}
 
 
 \end{document}
