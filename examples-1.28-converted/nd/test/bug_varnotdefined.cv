@@ -4,7 +4,7 @@ crypto rom(hkdf1_init_key);
 crypto rom(hkdf1_zeroWhisperRatchet);
 crypto rom(hkdf_sharedWhisperRatchet);
 show_game;
-remove_assign binder x_8;
+remove_assign binder x;
 remove_assign binder g1;
 remove_assign binder g2;
 remove_assign binder g3;

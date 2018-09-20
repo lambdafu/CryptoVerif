@@ -10,7 +10,7 @@
 proof {
       auto;
       show_game;
-      SArename x;
+      SArename x_5;
       SArename y;
       show_game occ;
       insert 27 "if defined(y_41[u_2], u_1[u_2], v[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";

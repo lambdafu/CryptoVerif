@@ -46,8 +46,8 @@ proof {
   auto;
   show_game;
   SArename "RAND_2";
-  SArename "r2_10";
-  SArename "r2_9";
+  SArename "r2_7";
+  SArename "r2_8";
   show_game;
   move array "r2_28";
   success

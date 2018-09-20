@@ -79,7 +79,7 @@ proof {
 	 the first one does or conversely, by replacing them with events.
 	 CryptoVerif will show that these events do not happen. *)
       show_game occ;
-      insert_event e1 401;
+      insert_event e1 470;
       simplify;
 (*      show_game occ;
       insert_event e2 241;
@@ -92,7 +92,7 @@ proof {
       crypto concat_truncate256;
       crypto concat_truncate256;
       show_game occ;
-      replace 71 "first_part(X2[ri_16])";
+      replace 71 "first_part(X2[ri_32])";
       simplify;
       merge_arrays k_2 k_3;
       merge_branches;
