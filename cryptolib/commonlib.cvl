@@ -2294,6 +2294,13 @@ collision x <-R Z; y <-R Z; forall Y: subG;
 
 *)
 
+collision x <-R Z; forall X: subG, Y: subG;
+	  return(exp_div_k(X, x) = Y) <=(Pcoll1rand(Z))=> return((X = sub_zero) && (Y = sub_zero))
+	  if X independent-of x && Y independent-of x.
+collision x <-R Z; forall X: subG, Y: subG;
+	  return(exp_div_k'(X, x) = Y) <=(Pcoll1rand(Z))=> return((X = sub_zero) && (Y = sub_zero))
+	  if X independent-of x && Y independent-of x.
+
 }
 
 (* DH_prime_subgroup_secret_keys_not_multiple_k defines a Diffie-Hellman 
