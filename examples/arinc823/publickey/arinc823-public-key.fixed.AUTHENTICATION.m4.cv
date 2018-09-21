@@ -46,12 +46,12 @@ proof {
 	 exp(X, eV) or exp(X, eU_...) where X is something that
 	 comes from the adversary. Hence potentially these variables
 	 Z_UV1_.../Z_UV2_... can be computed by the adversary. *) 
-      remove_assign binder Z_UV1_6;
-      remove_assign binder Z_UV1_4;
-      remove_assign binder Z_UV1_2;
+      remove_assign binder Z_UV1_5;
+      remove_assign binder Z_UV1_3;
+      remove_assign binder Z_UV1_1;
+      remove_assign binder Z_UV2_1;
       remove_assign binder Z_UV2_2;
       remove_assign binder Z_UV2_3;
-      remove_assign binder Z_UV2_4;
       (* Apply the CDH assumption.
       	 This step replaces comparisons m = exp(g, mult(eU_..., eV))
 	 that always fail with false. *)
@@ -136,7 +136,7 @@ proof {
       (* Apply the CDH assumption.
       	 This step replaces comparisons m = exp(g, mult(eU_..., eV))
 	 that always fail with false. *)
-      crypto cdh(exp) "variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_2 -> b .";
+      crypto cdh(exp) "variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_1 -> b .";
       auto
 }
 ')

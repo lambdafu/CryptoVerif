@@ -46,11 +46,11 @@ ifdef(`REPLAY_PROT',`
 	 This is useful because we assume only UF-CMA signatures
 	 and not SUF-CMA signatures. There are three branches because
 	 of the three possible MAC lengths. *)
-      insert 14335 "find jx1 <= Naircraft suchthat defined(s_7[jx1], ams_id[jx1], encode_alg_3[jx1], sid_1[jx1], encoded_payload[jx1], MAClen[jx1], enc_algo_1[jx1], tU[jx1]) && (tU_1 = tU[jx1]) && (enc_algo_2 = enc_algo_1[jx1]) && (MAClen_1 = MAClen[jx1]) && (encoded_payload_3 = encoded_payload[jx1]) && (compression_2 = comp_OFF) && (sid_3 = sid_1[jx1]) && (encode_alg_7 = encode_alg_3[jx1]) && not(R1_2) && (ams_id_3 = ams_id[jx1]) && (s_7[jx1] = sU_1) then
+      insert 12749 "find jx1 <= Naircraft suchthat defined(s_7[jx1], ams_id[jx1], encode_alg_3[jx1], sid_1[jx1], encoded_payload[jx1], MAClen[jx1], enc_algo_1[jx1], tU[jx1]) && (tU_1 = tU[jx1]) && (enc_algo_2 = enc_algo_1[jx1]) && (MAClen_1 = MAClen[jx1]) && (encoded_payload_3 = encoded_payload[jx1]) && (compression_2 = comp_OFF) && (sid_3 = sid_1[jx1]) && (encode_alg_7 = encode_alg_3[jx1]) && not(R1_2) && (ams_id_3 = ams_id[jx1]) && (s_7[jx1] = sU_1) then
       	     	    orfind jx2 <= Naircraft suchthat defined(s_8[jx2], ams_id[jx2], encode_alg_3[jx2], sid_1[jx2], encoded_payload[jx2], MAClen[jx2], enc_algo_1[jx2], tU[jx2]) && (tU_1 = tU[jx2]) && (enc_algo_2 = enc_algo_1[jx2]) && (MAClen_1 = MAClen[jx2]) && (encoded_payload_3 = encoded_payload[jx2]) && (compression_2 = comp_OFF) && (sid_3 = sid_1[jx2]) && (encode_alg_7 = encode_alg_3[jx2]) && not(R1_2) && (ams_id_3 = ams_id[jx2]) && (s_8[jx2] = sU_1) then                    
 		    orfind jx3 <= Naircraft suchthat defined(s_9[jx3], ams_id[jx3], encode_alg_3[jx3], sid_1[jx3], encoded_payload[jx3], MAClen[jx3], enc_algo_1[jx3], tU[jx3]) && (tU_1 = tU[jx3]) && (enc_algo_2 = enc_algo_1[jx3]) && (MAClen_1 = MAClen[jx3]) && (encoded_payload_3 = encoded_payload[jx3]) && (compression_2 = comp_OFF) && (sid_3 = sid_1[jx3]) && (encode_alg_7 = encode_alg_3[jx3]) && not(R1_2) && (ams_id_3 = ams_id[jx3]) && (s_9[jx3] = sU_1) then";
       (* @35_r_1112 is the mac_enc_key chosen after this find *)
-      SArename r_24;
+      SArename r_22;
 ')
       (* Use the automatic proof strategy.
       	 This step applies the security assumptions on
