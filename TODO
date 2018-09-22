@@ -7,6 +7,11 @@ We could also have PRFs with several arguments.
 We could add ROMs/PRFs with several results, returning a tuple of random
 values (though splitting a single random result works ok).
 
+The dependency information computed by DepAnal2 at the definition
+of a variable x and saying that a certain term M does not depend on a certain
+variable y could also be used when x[M1...Ml] is know to be defined
+(after substituting M1...Ml for the current replication indices in M and y).
+
 
 0) Files that do not work
 
