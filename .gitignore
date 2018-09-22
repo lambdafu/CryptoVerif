@@ -36,6 +36,7 @@ converter/oparser.ml
 converter/oparser.mli
 
 cryptolib/hashgen
+cryptolib/hashgen.exe
 cryptolib/*.cmi
 cryptolib/*.cmx
 cryptolib/*.cmo
