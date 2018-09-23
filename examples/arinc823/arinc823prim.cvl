@@ -449,10 +449,16 @@ fun E''(enc_key, t_IVdata, bitstring): bitstring.
 event repeated_IVdata.
 param N, N2.
 
-equiv
-  ! N2 new k: enc_key; ! N Oenc(IVdata: t_IVdata, msg: bitstring) := return(E'(k, IVdata, msg))
+equiv(ind_cpa_diff_IV(E'))
+  ! N2 new k: enc_key; ! N Oenc(IVdata: t_IVdata, msg: bitstring) :=
+      return(E'(k, IVdata, msg))
 <=(N2 * Penc(time + (N2-1)*(N*time(E', maxlength(msg)) + N*time(Zero, maxlength(msg))), N, maxlength(msg)))=>
-  ! N2 new k: enc_key; ! N Oenc(IVdata: t_IVdata, msg: bitstring) := find i <= N suchthat defined(IVdata[i], r[i]) && (IVdata = IVdata[i]) then event_abort repeated_IVdata else let r: bitstring = E''(k, IVdata, Zero(msg)) in return(r).
+  ! N2 new k: enc_key; ! N Oenc(IVdata: t_IVdata, msg: bitstring) :=
+      find i <= N suchthat defined(IVdata[i], r[i]) && (IVdata = IVdata[i]) then
+          event_abort repeated_IVdata
+      else
+          let r: bitstring = E''(k, IVdata, Zero(msg)) in
+	  return(r).
 
 }
 
