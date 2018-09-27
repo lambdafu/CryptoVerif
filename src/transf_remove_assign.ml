@@ -234,12 +234,40 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                 if b.array_ref then
 		  begin
                     let p1'' = rec_simplif (b::above_vars) p1' in
-                    (* suggest to use "sa_rename b" before removing assignments *)
-		    if do_advise then Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise);
-                    (* Keep the definition so that out-of-scope array accesses are correct *)
-                    if subst_def then
-                      done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveNonArray)) :: (!done_transfos);
-                    make_assign pat t p1''
+		    if List.for_all (fun n ->
+		      (* Check that all definitions of b are "let b = t in ..." *)
+		      match n.definition with
+		      |	DProcess { p_desc = Let(PatVar b', t', _, _) } 
+		      | DTerm { t_desc = LetE(PatVar b', t', _, _) } ->
+			  b == b' && Terms.equal_terms t t'
+		      | _ -> false
+		      ) b.def
+		    then
+		      begin
+		        (* All definitions of b use the same term t.
+			   All references to the value of binder b will be removed *)
+			Terms.link b (TLink t);
+		        (* We may keep calls to defined(b), so keep a definition of b
+			   but its value does not matter *)
+			let t' = Terms.cst_for_type t.t_type in
+			if not (Terms.equal_terms t t') then 
+			  begin
+			    done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+			    Settings.changed := true
+			  end
+			else if subst_def then
+			  done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+			make_assign pat t' p1''
+		      end
+		    else
+		      begin
+                        (* suggest to use "sa_rename b" before removing assignments *)
+			if do_advise then Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise);
+                        (* Keep the definition so that out-of-scope array accesses are correct *)
+			if subst_def then
+			  done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveNonArray)) :: (!done_transfos);
+			make_assign pat t p1''
+		      end
 		  end
 		else if Settings.occurs_in_queries b then
                   begin

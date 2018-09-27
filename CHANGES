@@ -12,6 +12,9 @@ Version
   treatment of terms H(x1) = H(x2).
   (Your protocol models that use random oracles may need to be revised.)
 - Added optional side conditions in equation and collision statements.
+- When a variable x is defined at several places by the same
+  "let x = M in" and x has array accesses, remove_assign can now
+  replace x with M without performing "SArename x" first.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - When "set inferUnique = true." is present, CryptoVerif
   infers that "find" is unique, when possible.
