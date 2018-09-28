@@ -81,10 +81,10 @@ proof {
       show_game occ;
       insert_event e1 470;
       simplify;
-      show_game occ;
+      (* show_game occ;
       insert_event e2 156;
-      (* insert_event e3 196; *)
-      simplify; 
+      insert_event e3 196; 
+      simplify; *)
       remove_assign useless;
       set uniqueBranchReorganize = true;
       simplify; 

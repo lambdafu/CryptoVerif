@@ -10,20 +10,20 @@
 proof {
       auto;
       show_game;
-      SArename x_1;
+      SArename x_5;
       SArename y;
       show_game occ;
       insert 27 "if defined(y_41[u_2], u_1[u_2], v[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";
       show_game occ;
-      insert_event e2 118;
-      insert_event e4 101;
+      insert_event e2 123;
+      insert_event e4 105;
       simplify;
       show_game occ;
-      replace 36 "x_9[u_3]";
+      replace 36 "x_1[u_3]";
       show_game occ;
       replace 40 "y_41[u_3]";
       auto;
-      remove_assign binder x_9;
+      remove_assign binder x_1;
       success
 }
 (* This proof requires a bit more advice than desired: it is normal

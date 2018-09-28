@@ -262,7 +262,7 @@ proof {
      initiator longterm and ephemeral are honest). *)
   (* Just after in(c_resp2init_recv, both in the case of honest (second insert) and dishonest (first insert) S_r_pub.  *)
   (* commandline = grep -A 1 "in(c_resp2init_recv" g4.out.cv | tail -n 2 | tail -n 1 | sed -e 's/[^{]*{//' -e 's/}.*//' *)
-  insert 1128 "find j <= N_parties suchthat defined(E_r_pub_2[j]) && E_r_pub_recv_1 = E_r_pub_2[j] then";
+  insert 1122 "find j <= N_parties suchthat defined(E_r_pub_2[j]) && E_r_pub_recv_1 = E_r_pub_2[j] then";
   (* commandline = grep -A 1 "in(c_resp2init_recv" g4.out.cv | head -n 2 | tail -n 1 | sed -e 's/[^{]*{//' -e 's/}.*//' *)
   insert 177 "find j <= N_parties suchthat defined(E_r_pub_2[j]) && E_r_pub_recv_1 = E_r_pub_2[j] then";
   out_game "g4.out.cv" occ;

@@ -234,7 +234,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                 if b.array_ref then
 		  begin
                     let p1'' = rec_simplif (b::above_vars) p1' in
-		    if List.for_all (fun n ->
+		    if do_advise && List.for_all (fun n ->
 		      (* Check that all definitions of b are "let b = t in ..." *)
 		      match n.definition with
 		      |	DProcess { p_desc = Let(PatVar b', t', _, _) } 
