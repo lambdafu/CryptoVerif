@@ -705,12 +705,14 @@ let execute_any_crypto state =
       match res with
 	CFailure _ -> 
 	  print_string "===================== Proof starts =======================\n";
+	  flush stdout;
 	  display_state true state'
       |	CSuccess _ -> ()
     end;
     res
   with Backtrack ->
     print_string "===================== Proof starts =======================\n";
+    flush stdout;
     display_state true state;
     CFailure []
 	    
