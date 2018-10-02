@@ -3606,9 +3606,33 @@ let is_in_map exp =
 let rec is_transformed t =
   (is_in_map t) || 
   (match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> List.exists is_transformed l
-  | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> false)
+  | Var(_,l) | FunApp(_,l) -> List.exists is_transformed l
+  | ReplIndex _ -> false
+  | TestE(t1,t2,t3) ->
+      (is_transformed t1) || (is_transformed t2) || (is_transformed t3)
+  | FindE(l0, t3,_) ->
+      (is_transformed t3) ||
+      (List.exists (fun (bl, def_list, t1, t2) ->
+	(is_transformed t1) || (is_transformed t2)) l0)
+  | LetE(pat, t1, t2, topt) ->
+      (is_transformed_pat pat) ||
+      (is_transformed t1) || (is_transformed t2) ||
+      (match topt with
+      | None -> false
+      | Some t3 -> is_transformed t3)
+  | ResE(b,t) ->
+      is_transformed t
+  | EventAbortE _ -> false
+  | EventE(t1, t) ->
+      (is_transformed t1) || (is_transformed t)
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get, insert should have been expanded")
 
+and is_transformed_pat = function
+  | PatVar b -> false
+  | PatTuple(_,l) -> List.exists is_transformed_pat l
+  | PatEqual t -> is_transformed t
+    
 type count_get =
     ReplCount of param
   | OracleCount of channel
