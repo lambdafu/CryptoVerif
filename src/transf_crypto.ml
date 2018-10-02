@@ -3729,12 +3729,12 @@ let add_diff_branch cur_array f1 f2 =
   | _, FZero -> f1
   | _ -> FDiffBranch(cur_array, f1, f2)
 
-let rec repl_count_term true_facts accu b_repl t =
+let rec repl_count_term true_facts b_repl t =
   let accu' = 
     try 
-      add_elem (get_repl_from_map true_facts b_repl t) accu
+      FElem (get_repl_from_map true_facts b_repl t)
     with Not_found -> 
-      accu
+      FZero
   in
   match t.t_desc with
     FunApp(f,[t1;t2]) when f == Settings.f_and ->
@@ -3742,46 +3742,52 @@ let rec repl_count_term true_facts accu b_repl t =
 	(* t2 is evaluated only when t1 is true (otherwise, I know 
 	   that the conjunction is false without evaluating t2), so I 
 	   can add t1 to true_facts when dealing with t2 *)
-	repl_count_term true_facts (repl_count_term (t1::true_facts) accu' b_repl t2) b_repl t1
+	add accu'
+	  (add (repl_count_term true_facts b_repl t1)
+	     (repl_count_term (t1::true_facts) b_repl t2))
       else
 	(* t2 is not transformed. For increasing precision, I assume 
 	   that t2 is evaluated first, and then t1, so that t1 is evaluated 
 	   only when t2 is true *)
-	repl_count_term (t2::true_facts) accu' b_repl t1
+	add accu' (repl_count_term (t2::true_facts) b_repl t1)
   | FunApp(f,[t1;t2]) when f == Settings.f_or ->
       if is_transformed t2 then
 	(* t2 is evaluated only when t1 is false (otherwise, I know 
 	   that the disjunction is true without evaluating t2), so I 
 	   can add (not t1) to true_facts when dealing with t2 *)
-	repl_count_term true_facts (repl_count_term ((Terms.make_not t1)::true_facts) accu' b_repl t2) b_repl t1
+	add accu'
+	  (add (repl_count_term true_facts b_repl t1)
+	     (repl_count_term ((Terms.make_not t1)::true_facts) b_repl t2)) 
       else
 	(* t2 is not transformed. For increasing precision, I assume 
 	   that t2 is evaluated first, and then t1, so that t1 is evaluated 
 	   only when t2 is false *)
-	repl_count_term ((Terms.make_not t2)::true_facts) accu' b_repl t1
+	add accu' (repl_count_term ((Terms.make_not t2)::true_facts) b_repl t1)
   | Var(_,l) | FunApp(_,l) ->
-      repl_count_term_list true_facts accu' b_repl l
-  | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ -> 
-      (* find conditions that contain if/let/find/new are never transformed,
-	 so nothing to add for them *)
+      add accu' (repl_count_term_list true_facts b_repl l)
+  | ReplIndex _ | EventAbortE _ -> accu'
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventE _ -> 
+      (* TO DO handle these cases!!! *)
       accu'
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get, insert should have been expanded"
 
-and repl_count_term_list true_facts accu b_repl = function
-    [] -> accu
+and repl_count_term_list true_facts b_repl = function
+    [] -> FZero
   | (a::l) ->
-      repl_count_term_list true_facts (repl_count_term true_facts accu b_repl a) b_repl l
+      add (repl_count_term_list true_facts b_repl l)
+	(repl_count_term true_facts b_repl a) 
 
-let rec repl_count_pat accu b_repl = function
-    PatVar b -> accu
-  | PatTuple(_, l) -> repl_count_pat_list accu b_repl l
-  | PatEqual t ->  repl_count_term [] accu b_repl t
+and repl_count_pat b_repl = function
+    PatVar b -> FZero
+  | PatTuple(_, l) -> repl_count_pat_list b_repl l
+  | PatEqual t ->  repl_count_term [] b_repl t
 
-and repl_count_pat_list accu b_repl = function
-    [] -> accu
+and repl_count_pat_list b_repl = function
+    [] -> FZero
   | (a::l) ->
-      repl_count_pat_list (repl_count_pat accu b_repl a) b_repl l
+      add (repl_count_pat_list b_repl l)
+	(repl_count_pat b_repl a) 
 
 let rec repl_count_process cur_array b_repl p =
   match p.i_desc with
@@ -3791,16 +3797,20 @@ let rec repl_count_process cur_array b_repl p =
   | Repl(b,p) ->
       repl_count_process (b::cur_array) b_repl p
   | Input((c,tl),pat,p) ->
-      repl_count_term_list [] (repl_count_pat (repl_count_oprocess cur_array b_repl p) b_repl pat) b_repl tl
+      add (repl_count_term_list [] b_repl tl)
+	(add (repl_count_pat b_repl pat) (repl_count_oprocess cur_array b_repl p))
 
 and repl_count_oprocess cur_array b_repl p = 
   match p.p_desc with
     Yield | EventAbort _ -> FZero
   | Restr(_,p) -> repl_count_oprocess cur_array b_repl p
   | Test(t,p1,p2) ->
-      repl_count_term [] (add_diff_branch cur_array (repl_count_oprocess cur_array b_repl p1) (repl_count_oprocess cur_array b_repl p2)) b_repl t
+      add (repl_count_term [] b_repl t)
+	(add_diff_branch cur_array (repl_count_oprocess cur_array b_repl p1) (repl_count_oprocess cur_array b_repl p2)) 
   | Let(pat, t, p1, p2) ->
-      repl_count_term [] (repl_count_pat (add_diff_branch cur_array (repl_count_oprocess cur_array b_repl p1) (repl_count_oprocess cur_array b_repl p2)) b_repl pat) b_repl t
+      add (add (repl_count_term [] b_repl t)
+	     (repl_count_pat b_repl pat))
+	(add_diff_branch cur_array (repl_count_oprocess cur_array b_repl p1) (repl_count_oprocess cur_array b_repl p2)) 
   | Find(l0,p2, _) ->
       let rec find_lp = function
 	  [] -> repl_count_oprocess cur_array b_repl p2
@@ -3810,13 +3820,16 @@ and repl_count_oprocess cur_array b_repl p =
       let rec find_lt = function
 	  [] -> accu
 	| (_,_,t,_)::l -> 
-	    repl_count_term [] (find_lt l) b_repl t
+	    add (repl_count_term [] b_repl t) (find_lt l)
       in
       find_lt l0
   | Output((c,tl),t2,p) ->
-      repl_count_term_list [] (repl_count_term [] (repl_count_process cur_array b_repl p) b_repl t2) b_repl tl
+      add (repl_count_term_list [] b_repl tl)
+	(add (repl_count_term [] b_repl t2)
+	   (repl_count_process cur_array b_repl p))
   | EventP(t,p) -> 
-      repl_count_term [] (repl_count_oprocess cur_array b_repl p) b_repl t
+      add (repl_count_term [] b_repl t)
+	(repl_count_oprocess cur_array b_repl p) 
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 
