@@ -34,12 +34,6 @@ let forget_old_games state =
     None -> ()
   | Some (_,_,_,s') -> forget_games state.game s'
           
-let rec state_without_proof state =
-  match state.prev_state with
-    None -> state
-  | Some(Proof _,_,_,s) -> state_without_proof s
-  | Some(i,p,d,s) -> { state with prev_state = Some(i,p,d,state_without_proof s) }
-
 let eq_list l1 l2 =
   (List.for_all (fun x -> List.memq x l1) l2) &&
   (List.for_all (fun x -> List.memq x l2) l1)
@@ -451,7 +445,7 @@ let rec execute_crypto_list continue = function
 		  print_string "End of list\n";
 		  *)
 		  if l = [] then raise Backtrack;
-		  execute_crypto_list continue (List.map (fun (tr, st, first_try) -> (tr, state_without_proof st, first_try)) l)
+		  execute_crypto_list continue l
 		else
 		  raise Backtrack
 	    end
@@ -490,7 +484,7 @@ let rec execute_any_crypto_rec continue state = function
 		  List.iter Display.display_equiv equivs;
 		  print_string "End of list\n";
 		  *)
-		  execute_any_crypto_rec continue (state_without_proof state) equivs
+		  execute_any_crypto_rec continue state equivs
 		end
 	      else
 		raise Backtrack
