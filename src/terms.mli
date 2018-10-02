@@ -37,7 +37,11 @@ val lsuffix : int -> 'a list -> 'a list
    Raises an internal error if [l] contains fewer than [n] elements *)
 val remove_suffix : int -> 'a list -> 'a list
 
+(* [addq accu x] returns [accu] with [x] added if it is not already in 
+   (for physical equality) *)
 
+val addq : 'a list -> 'a -> 'a list
+    
 (* Intersection / Union *)
 
 (* [intersect eqtest l1 l2] returns the intersection of [l1] and [l2]

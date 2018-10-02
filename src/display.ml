@@ -2058,13 +2058,22 @@ let rec display_state ins_next s =
 let get_initial_queries s =
   (get_initial_game s).current_queries
 
-let rec get_all_states_from_sequence accu g s =
-  if s.game == g then accu else
+let rec reachable s s' =
+  (s == s') ||
+  (match s'.prev_state with
+    None -> false
+  | Some (_,_,_,s'') -> reachable s s'')
+    
+let rec get_all_states_from_sequence accu s =
   match s.prev_state with
     None -> accu
   | Some(_, proba, _, s') ->
-      get_all_states_from_sequence (get_all_states_from_proba accu proba) g s'
+      get_all_states_from_sequence (get_all_states_from_proba accu proba) s'
 
+and add_sequence accu s' =
+  if List.exists (reachable s') accu then accu else
+  get_all_states_from_sequence (s' :: accu) s'
+	
 and get_all_states_from_proba accu = function
     [] -> accu
   | (SetProba _)::r -> get_all_states_from_proba accu r
@@ -2072,7 +2081,7 @@ and get_all_states_from_proba accu = function
       let accu' = get_all_states_from_proba accu r in
       match !poptref with
 	None -> accu'
-      |	Some(p,s') -> get_all_states_from_sequence (s'::accu') g s'
+      |	Some(p,s') -> add_sequence accu' s'
 
 let rec get_all_states_from_queries = function
     [] -> []
@@ -2080,12 +2089,13 @@ let rec get_all_states_from_queries = function
       let accu = get_all_states_from_queries r in
       let accu' =
 	match q with
-	| QEquivalence(s',_) -> s' :: accu
+	| QEquivalence(s',_) ->
+	    add_sequence accu s'
 	| _ -> accu
       in
       match !poptref with
 	None -> accu'
-      |	Some(p,s') -> get_all_states_from_sequence (s'::accu') g s'
+      |	Some(p,s') -> add_sequence accu' s'
 
 let rec remove_dup seen_list r s =
   let seen_list' = List.filter (fun s' -> s' != s) seen_list in

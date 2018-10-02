@@ -66,6 +66,11 @@ let remove_suffix n l =
   let (res, _) = split (List.length l - n) l in
   res
 
+(* Adds an element if it is not already in (for physical equality) *)
+
+let addq accu b =
+  if List.memq b accu then accu else b::accu
+
 (* Compute intersections *)
 
 let mem eqtest a l = List.exists (eqtest a) l
@@ -2653,9 +2658,6 @@ let defined_refs_find bl def_list defined_refs =
   let defined_refs_branch = !accu in
   (defined_refs_cond, defined_refs_branch)
 
-let add_var accu b =
-  if List.memq b accu then accu else b::accu
-
 let rec unionq l1 = function
     [] -> l1
   | (a::l) -> 
@@ -2663,7 +2665,7 @@ let rec unionq l1 = function
       a::(unionq l1 l)
 
 let rec add_vars_from_pat accu = function
-    PatVar b -> add_var accu b
+    PatVar b -> addq accu b
   | PatEqual t -> accu
   | PatTuple (f,l) -> add_vars_from_pat_list accu l
 
@@ -2692,7 +2694,7 @@ let rec def_vars_term accu t =
       in
       def_vars_term (def_vars_pat (add_vars_from_pat (def_vars_term accu' t2) pat) pat) t1
   | ResE(b,t) ->
-      add_var (def_vars_term accu t) b
+      addq (def_vars_term accu t) b
   | EventAbortE _ -> accu
   | EventE(t,p) ->
       def_vars_term (def_vars_term accu p) t
