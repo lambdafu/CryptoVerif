@@ -246,12 +246,12 @@ proof {
   (* In the responder, distinguish the cases talking to an honest or
      dishonest initiator regarding its longterm public key. *)
   (* commandline = grep -A 1 "let injbot(G_to_bitstring(S_i_pub_recv_2: G_t))" g3.out.cv | tail -n 1 | sed -e 's/[^{]*{//' -e 's/}.*//' *)
-  insert 1884 "if S_i_pub_recv_2 = S_i_pub_1 then";
+  insert 1896 "if S_i_pub_recv_2 = S_i_pub_1 then";
   (* In the responder, find the initiator session that generated an
      honest ephemeral key, talking to an honest responder longterm key. *)
   (* just after the first in at the responder's side. *)
   (* commandline = grep -A 1 "in(c_init2resp_recv" g3.out.cv  | tail -n 1         | sed -e 's/[^{]*{//' -e 's/}.*//' *)
-  insert 1819 "find i <= N_parties suchthat defined(E_i_pub_5[i]) && E_i_pub_recv_2 = E_i_pub_5[i] then";
+  insert 1831 "find i <= N_parties suchthat defined(E_i_pub_5[i]) && E_i_pub_recv_2 = E_i_pub_5[i] then";
   (*
    *SArename E_r_pub;
    *)
