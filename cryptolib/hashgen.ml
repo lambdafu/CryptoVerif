@@ -102,7 +102,7 @@ equiv(rom(hash))
          foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x%'$, $)) |
          foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
                  return(hash(k, $y%$, $) = hash(k, $z%$, $)))
-       <=((#Oeq + #Ocoll) * Pcoll1rand(hashoutput))=>
+       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=>
       foreach ih <= Nh do 
         (foreach i <= N do OH($x%: hashinput%$, $) := 
 	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
