@@ -806,6 +806,12 @@ fun dec(blocksize, key): blocksize.
 
 equation forall m:blocksize, k:key; 
 	dec(enc(m, k), k) = m.
+equation forall m:blocksize, k:key; 
+	enc(dec(m, k), k) = m.
+equation forall m1:blocksize, m2:blocksize, k:key; 
+	(dec(m1, k) = dec(m2, k)) = (m1 = m2).
+equation forall m1:blocksize, m2:blocksize, k:key; 
+	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
 equiv(sprp(enc))
        foreach i3 <= N3 do k <-R key; (
@@ -858,6 +864,12 @@ fun dec(blocksize, key): blocksize.
 
 equation forall m:blocksize, k:key; 
 	dec(enc(m, k), k) = m.
+equation forall m:blocksize, k:key; 
+	enc(dec(m, k), k) = m.
+equation forall m1:blocksize, m2:blocksize, k:key; 
+	(dec(m1, k) = dec(m2, k)) = (m1 = m2).
+equation forall m1:blocksize, m2:blocksize, k:key; 
+	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
 equiv(prp(enc))
        foreach i3 <= N3 do k <-R key; 

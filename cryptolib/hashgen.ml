@@ -47,6 +47,8 @@ let print_macro macro n =
   in
   aux 0
 
+(* Random oracles *)
+    
 let rom_hash_prefix =
 "(******************************* Hash functions (ROM) ****************************)
 
@@ -132,6 +134,8 @@ let rom_hash_suffix =
 expand ROM_hash_1(key, hashinput, hashoutput, hash, hashoracle, qH).
 }\n\n"
 
+(* Collision-resistant hash functions *)
+    
 let coll_hash_prefix =
 "(* Collision resistant hash function 
    key: type of the key of the hash function, must be \"bounded\" or \"nonuniform\", typically \"fixed\"
@@ -189,7 +193,9 @@ let coll_hash_suffix =
 "def CollisionResistant_hash(key, hashinput, hashoutput, hash, hashoracle, Phash) {
 expand CollisionResistant_hash_1(key, hashinput, hashoutput, hash, hashoracle, Phash).
 }\n\n"
- 
+
+
+(* Ideal cipher model *)
 
 let icm() =
   if (!front_end) = ProVerif then
