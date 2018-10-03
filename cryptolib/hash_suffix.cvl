@@ -1,3 +1,0 @@
-def ROM_hash(key, hashinput, hashoutput, hash, hashoracle, qH) {
-expand ROM_hash_1(key, hashinput, hashoutput, hash, hashoracle, qH).
-}

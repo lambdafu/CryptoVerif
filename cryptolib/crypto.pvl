@@ -212,24 +212,6 @@ expand SPRP_cipher(key, blocksize, enc, dec, Penc).
 
 }
 
-def ICM_cipher(cipherkey, key, blocksize, enc, dec, enc_dec_oracle, qE, qD) {
-
-fun enc(cipherkey, blocksize, key): blocksize.
-fun dec(cipherkey, blocksize, key): blocksize.
-
-equation forall ck:cipherkey, m:blocksize, k:key; 
-	dec(ck, enc(ck, m, k), k) = m.
-equation forall ck:cipherkey, m:blocksize, r:keyseed; 
-	enc(ck, dec(ck, m, k), k) = m.
-
-param qE, qD [noninteractive].
-channel chE1, chE2, chD1, chD2.
-let enc_dec_oracle(ck: cipherkey) =
-    (foreach iE <= qE do in(chE1, (x:blocksize, ke:key)); out(chE2, enc(ck,x,ke)))
-  | (foreach iD <= qD do in(chD1, (m:blocksize, kd:key)); out(chD2, dec(ck,m,kd))). 
-
-}
-
 (*************************************** MACs ***************************************)
 (* MACs 
    These are strong in ProVerif; they still leak the MACed message,
@@ -423,19 +405,6 @@ def SUF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen, pk
 
 type sign_seed [bounded].
 expand SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll).
-
-}
-
-(*********************** Hash functions (collision resistant) **************)
-
-def CollisionResistant_hash(key, hashinput, hashoutput, hash, hashoracle, Phash) {
-
-fun hash(key, hashinput):hashoutput.
-
-channel ch1, ch2.
-let hashoracle(k: key) =
-    in(ch1, ());
-    out(ch2, k).
 
 }
 
