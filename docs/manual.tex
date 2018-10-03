@@ -1142,6 +1142,12 @@ defines a collision-resistant hash function.
    defined by this macro. They must not be declared elsewhere, and
    they can be used only after expanding the macro.
 
+ \item Similarly, for $N$ from 1 to 10, the macros\\
+   $\texttt{expand CollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
+   define collision-resistant hash functions with $N$ arguments, similarly to \texttt{CollisionResistant\_hash} above.
+   $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
+   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
+
 \item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.
 
    $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about
