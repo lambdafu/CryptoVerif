@@ -11,6 +11,8 @@ Version
   ROM_hash_n and is defined for n from 1 to 10. It optimizes the
   treatment of terms H(x1) = H(x2).
   (Your protocol models that use random oracles may need to be revised.)
+- Defined collision-resistant hash functions for up to 10 arguments.
+- Optimized treatment of enc(..) = .. in PRP, SPRP, and ICM. 
 - Added optional side conditions in equation and collision statements.
 - When a variable x is defined at several places by the same
   "let x = M in" and x has array accesses, remove_assign can now

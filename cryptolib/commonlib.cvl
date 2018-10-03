@@ -799,7 +799,7 @@ expand IND_CCA2_INT_PTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, 
 
 def SPRP_cipher(key, blocksize, enc, dec, Penc) {
 
-param N, N2, N3.
+param Ne, Nd, Necoll, Ndcoll, Nk.
 
 fun enc(blocksize, key): blocksize.
 fun dec(blocksize, key): blocksize.
@@ -814,19 +814,31 @@ equation forall m1:blocksize, m2:blocksize, k:key;
 	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
 equiv(sprp(enc))
-       foreach i3 <= N3 do k <-R key; (
-       	       foreach i <= N do Oenc(x:blocksize) := return(enc(x, k)) |
-	       foreach i2 <= N2 do Odec(m:blocksize) := return(dec(m, k)))
-     <=(N3 * (Penc(time + (N3-1)*(N*time(enc) + N2*time(dec)), N, N2) + (N+N2)*(N+N2-1)*Pcoll2rand(blocksize)))=>
-       foreach i3 <= N3 do (
-       	       foreach i <= N do Oenc(x:blocksize) :=
-		find[unique] j<=N suchthat defined(x[j],r2[j]) && x = x[j] then return(r2[j])
-		orfind j2<=N2 suchthat defined(r4[j2],m[j2]) && x = r4[j2] then return(m[j2])
-		else r2 <-R blocksize; return(r2) |
-	       foreach i2 <= N2 do Odec(m:blocksize) :=
-		find[unique] j<=N suchthat defined(x[j],r2[j]) && m = r2[j] then return(x[j]) 
-		orfind j2<=N2 suchthat defined(r4[j2],m[j2]) && m = m[j2] then return(r4[j2]) 
-		else r4 <-R blocksize; return(r4)).
+       foreach ik <= Nk do k <-R key; (
+       	       foreach ie <= Ne do Oenc(x:blocksize) := return(enc(x, k)) |
+	       foreach id <= Nd do Odec(m:blocksize) := return(dec(m, k)) |
+	       foreach iecoll <= Necoll do Oenccoll(x':blocksize, re': blocksize) := return(enc(x', k) = re') |
+	       foreach idcoll <= Ndcoll do Odeccoll(m':blocksize, rd': blocksize) := return(dec(m', k) = rd'))
+     <=(Nk * (Penc(time + (Nk-1)*((Ne+Necoll)*time(enc) + (Nd+Ndcoll)*time(dec)), Ne+Necoll, Nd+Ndcoll) +
+              (Ne+Nd)*(Ne+Nd-1) * Pcoll2rand(blocksize) +
+	      (Necoll + Ndcoll) * Pcoll1rand(blocksize)))=>
+       foreach ik <= Nk do (
+       	       foreach ie <= Ne do Oenc(x:blocksize) :=
+		find[unique] je<=Ne suchthat defined(x[je],re[je]) && x = x[je] then return(re[je])
+		orfind jd<=Nd suchthat defined(rd[jd],m[jd]) && x = rd[jd] then return(m[jd])
+		else re <-R blocksize; return(re) |
+	       foreach id <= Nd do Odec(m:blocksize) :=
+		find[unique] je<=Ne suchthat defined(x[je],re[je]) && m = re[je] then return(x[je]) 
+		orfind jd<=Nd suchthat defined(rd[jd],m[jd]) && m = m[jd] then return(rd[jd]) 
+		else rd <-R blocksize; return(rd) |
+	       foreach iecoll <= Necoll do Oenccoll(x':blocksize, re': blocksize) :=
+		find[unique] je<=Ne suchthat defined(x[je],re[je]) && x' = x[je] then return(re[je] = re')
+		orfind jd<=Nd suchthat defined(rd[jd],m[jd]) && x' = rd[jd] then return(m[jd] = re')
+		else return(false) |
+	       foreach idcoll <= Ndcoll do Odeccoll(m':blocksize, rd': blocksize) :=
+		find[unique] je<=Ne suchthat defined(x[je],re[je]) && m' = re[je] then return(x[je] = rd') 
+		orfind jd<=Nd suchthat defined(rd[jd],m[jd]) && m' = m[jd] then return(rd[jd] = rd') 
+		else return(false)).
 
 }
 
@@ -857,7 +869,7 @@ equiv(sprp(enc))
 
 def PRP_cipher(key, blocksize, enc, dec, Penc) {
 
-param N, N2, N3.
+param N, Ncoll, Nk.
 
 fun enc(blocksize, key): blocksize.
 fun dec(blocksize, key): blocksize.
@@ -872,14 +884,19 @@ equation forall m1:blocksize, m2:blocksize, k:key;
 	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
 equiv(prp(enc))
-       foreach i3 <= N3 do k <-R key; 
-       	       foreach i <= N do Oenc(x:blocksize) := return(enc(x, k))
-     <=(N3 * (Penc(time + (N3-1)*(N*time(enc)), N) + N * (N-1) * Pcoll2rand(blocksize)))=>
-       foreach i3 <= N3 do  
-       	       foreach i <= N do Oenc(x:blocksize) := 
-		find[unique] j<=N suchthat defined(x[j],r2[j]) && x = x[j] then return(r2[j])
-		else r2 <-R blocksize; return(r2).
-
+       foreach ik <= Nk do k <-R key; 
+       	       (foreach i <= N do Oenc(x:blocksize) := return(enc(x, k)) |
+	        foreach icoll <= Ncoll do Oenccoll(x':blocksize, re':blocksize) := return(enc(x', k) = re'))
+     <=(Nk * (Penc(time + (Nk-1)*((N+Ncoll)*time(enc)), N+Ncoll) +
+              N * (N-1) * Pcoll2rand(blocksize) +
+	      Ncoll * Pcoll1rand(blocksize)))=>
+       foreach ik <= Nk do  
+       	      (foreach i <= N do Oenc(x:blocksize) := 
+		find[unique] j<=N suchthat defined(x[j],re[j]) && x = x[j] then return(re[j])
+		else re <-R blocksize; return(re) |
+               foreach icoll <= Ncoll do Oenccoll(x':blocksize, re':blocksize) := 
+		find[unique] j<=N suchthat defined(x[j],re[j]) && x' = x[j] then return(re[j] = re')
+		else return(false)).
 }
 
 
