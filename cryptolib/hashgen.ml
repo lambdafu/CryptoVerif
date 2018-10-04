@@ -168,9 +168,7 @@ let hashoracle(k: key) =
 	in(ch1, ());
         out(ch2, k)).
 
-}
-
-"	
+}\n\n"	
   else
 "def CollisionResistant_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, Phash) {
 
@@ -194,7 +192,102 @@ let coll_hash_suffix =
 expand CollisionResistant_hash_1(key, hashinput, hashoutput, hash, hashoracle, Phash).
 }\n\n"
 
+(* Pseudo random functions *)
 
+let prf_prefix =
+  "(* Pseudo random function (PRF) 
+   key: type of keys, must be \"bounded\" (to be able to generate random numbers from it, and to talk about the runtime of f without mentioned the length of the key), typically \"fixed\" and \"large\".
+   input%: type of the %-th input of the PRF.
+   output: type of the output of the PRF, must be \"bounded\" or \"nonuniform\", typically \"fixed\".
+
+   f: PRF function
+
+   Pprf(t, N, l): probability of breaking the PRF property
+   in time t, for one key, N queries to the PRF of length at most l.
+
+   The types key, input, output and the probability Pprf must
+   be declared before this macro is expanded. The function f
+   is declared by this macro. It must not be declared elsewhere,
+   and it can be used only after expanding the macro.
+
+      *)\n\n"
+
+let prf_macro() =
+  if (!front_end) = ProVerif then
+"def PRF_%(key, $input%$, $, output, f, Pprf) {
+
+fun f(key, $input%$, $): output.
+
+}\n\n"
+  else
+"def PRF_%(key, $input%$, $, output, f, Pprf) {
+
+param N, N2.
+
+fun f(key, $input%$, $): output.
+
+equiv(prf(f))
+       foreach i2 <= N2 do k <-R key; foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $))
+     <=(N2 * Pprf(time + (N2-1)*N*time(f, $maxlength(x%)$, $), N, $maxlength(x%)$, $))=>
+       foreach i2 <= N2 do foreach i <= N do Of($x%:input%$, $) :=
+		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x% = x%[j])$ && $ then return(r[j])
+		else r <-R output; return(r).
+
+}\n\n"
+
+let prf_suffix =
+"def PRF(key, input, output, f, Pprf) {
+expand PRF_1(key, input, output, f, Pprf).
+}\n\n"
+
+(* PRF with large output, so we eliminate collisions on the output *)
+
+let prf_large_prefix =
+  "(* Pseudo random function (PRF) with large output.
+   The only difference with PRF is that we eliminate collisions on the output.
+   The interface is the same as for PRFs. *)\n\n"
+
+let prf_large_macro() =
+  if (!front_end) = ProVerif then
+"def PRF_large_%(key, $input%$, $, output, f, Pprf) {
+
+fun f(key, $input%$, $): output.
+
+}\n\n"
+  else
+"def PRF_large_%(key, $input%$, $, output, f, Pprf) {
+
+param N, Ncoll, Ncoll2, N2.
+
+fun f(key, $input%$, $): output.
+
+equiv(prf(f))
+       foreach i2 <= N2 do k <-R key; 
+               (foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $)) |
+                foreach icoll <= Ncoll do Ofcoll($x'%:input%$, $, r': output) := return(f(k, $x'%$, $) = r') |
+		foreach icoll2 <= Ncoll2 do Ofcoll2($y%:input%$, $, $z%:input%$, $) := return(f(k, $y%$, $) = f(k, $z%$, $)))
+     <=(N2 * (Pprf(time + (N2-1)*(N+Ncoll+2*Ncoll2)*time(f, $max(maxlength(x%), maxlength(x'%), maxlength(y%), maxlength(z%))$, $),
+		   N + Ncoll + 2*Ncoll2, 
+		   $max(maxlength(x%), maxlength(x'%), maxlength(y%), maxlength(z%))$, $) +
+	      Ncoll * Pcoll1rand(output) +
+              Ncoll2 * Pcoll2rand(output)))=>
+       foreach i2 <= N2 do 
+               (foreach i <= N do Of($x%:input%$, $) :=
+		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x% = x%[j])$ && $ then return(r[j])
+		else r <-R output; return(r) |
+                foreach icoll <= Ncoll do Ofcoll($x'%:input%$, $, r': output) := 
+		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x'% = x%[j])$ && $ then return(r[j] = r')
+		else return(false) |
+		foreach icoll2 <= Ncoll2 do Ofcoll2($y%:input%$, $, $z%:input%$, $) := 
+                return($(y% = z%)$ && $)).
+
+}\n\n"
+
+let prf_large_suffix =
+"def PRF_large(key, input, output, f, Pprf) {
+expand PRF_large_1(key, input, output, f, Pprf).
+}\n\n"
+  
 (* Ideal cipher model *)
 
 let icm() =
@@ -340,16 +433,31 @@ let _ =
       print_string "The 2nd argument should be larger than the first one.\n";
       exit 2
     end;
+  (* ROM *)
   print_string rom_hash_prefix;
   for n = !start to !final do
     print_macro (rom_hash_macro()) n
   done;
   print_string rom_hash_suffix;
+  (* Collision resistant hash *)
   print_string coll_hash_prefix;
   for n = !start to !final do
     print_macro (coll_hash_macro()) n
   done;
   print_string coll_hash_suffix;
+  (* PRF *)
+  print_string prf_prefix;
+  for n = !start to !final do
+    print_macro (prf_macro()) n
+  done;
+  print_string prf_suffix;
+  (* PRF with large output *)
+  print_string prf_large_prefix;
+  for n = !start to !final do
+    print_macro (prf_large_macro()) n
+  done;
+  print_string prf_large_suffix;
+  (* ICM *)
   print_string (icm())
   
     

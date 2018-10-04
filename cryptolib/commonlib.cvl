@@ -3895,38 +3895,6 @@ expand set_PD_OW_trapdoor_perm_all_args(seed, pkey, skey, D, Dow, Dr, pkgen, pkg
 
 }
 
-(* Pseudo random function (PRF) 
-   key: type of keys, must be "bounded" (to be able to generate random numbers from it, and to talk about the runtime of f without mentioned the length of the key), typically "fixed" and "large".
-   input: type of the input of the PRF.
-   output: type of the output of the PRF, must be "bounded" or "nonuniform", typically "fixed".
-
-   f: PRF function
-
-   Pprf(t, N, l): probability of breaking the PRF property
-   in time t, for one key, N queries to the PRF of length at most l.
-
-   The types key, input, output and the probability Pprf must
-   be declared before this macro is expanded. The function f
-   is declared by this macro. It must not be declared elsewhere,
-   and it can be used only after expanding the macro.
-
-*)
-
-def PRF(key, input, output, f, Pprf) {
-
-param N, N2.
-
-fun f(key, input): output.
-
-equiv(prf(f))
-       foreach i2 <= N2 do k <-R key; foreach i <= N do Of(x:input) := return(f(k, x))
-     <=(N2 * Pprf(time + (N2-1)*N*time(f, maxlength(x)), N, maxlength(x)))=>
-       foreach i2 <= N2 do foreach i <= N do Of(x:input) :=
-		find[unique] j<=N suchthat defined(x[j],r[j]) && x = x[j] then return(r[j])
-		else r <-R output; return(r).
-
-}
-
 (* Xor
    D: domain on which xor applies (should be "fixed")
    xor: the exclusive or function

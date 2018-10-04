@@ -1258,6 +1258,24 @@ defines a pseudo-random function.
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
+ \item Similarly, for $N$ from 1 to 10, the macros\\
+$\texttt{expand PRF\_$N$(}\vn{key}, \vn{input1}, \dots, \vn{input}N, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ \\
+define pseudo-random functions with $N$ arguments, similarly to \texttt{PRF} above.
+$\vn{input1}$, \dots, $\vn{input}N$ are the types of the inputs of the PRF and
+$\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
+
+\item $\texttt{expand PRF\_large(}\vn{key}, \vn{input}, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ 
+defines a pseudo-random function with a large output, that is, it optimizes the 
+definition by eliminating collisions between random output elements.
+Its interface is the same as the one of \texttt{PRF} above.
+
+ \item Similarly, for $N$ from 1 to 10, the macros\\
+$\texttt{expand PRF\_large\_$N$(}\vn{key}, \vn{input1}, \dots, \vn{input}N, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ \\
+define pseudo-random functions with $N$ arguments and a large output, 
+similarly to \texttt{PRF\_large} above.
+$\vn{input1}$, \dots, $\vn{input}N$ are the types of the inputs of the PRF and
+$\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
+
  \item The specification of Diffie-Hellman key agreements is typically composed of two or three macro expansions:
 
    \begin{itemize}

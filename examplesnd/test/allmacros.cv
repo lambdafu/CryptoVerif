@@ -97,6 +97,10 @@ expand ROM_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput
 
 proba Phash.
 expand CollisionResistant_hash(key, hashinput, hashoutput, hash6, hashoracle6, Phash).
+expand CollisionResistant_hash_2(key, hashinput1, hashinput2, hashoutput, hash7, hashoracle7, Phash).
+expand CollisionResistant_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash8, hashoracle8, Phash).
+expand CollisionResistant_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash9, hashoracle9, Phash).
+expand CollisionResistant_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash10, hashoracle10, Phash).
 
 type G [bounded, large].
 type tZ [bounded, large].
@@ -168,6 +172,21 @@ type input.
 type output [bounded].
 proba Pprf.
 expand PRF(key, input, output, f, Pprf).
+type input1.
+type input2.
+type input3.
+type input4.
+type input5.
+expand PRF_2(key, input1, input2, output, f2, Pprf).
+expand PRF_3(key, input1, input2, input3, output, f3, Pprf).
+expand PRF_4(key, input1, input2, input3, input4, output, f4, Pprf).
+expand PRF_5(key, input1, input2, input3, input4, input5, output, f5, Pprf).
+
+expand PRF_large(key, input, output, fl, Pprf).
+expand PRF_large_2(key, input1, input2, output, fl2, Pprf).
+expand PRF_large_3(key, input1, input2, input3, output, fl3, Pprf).
+expand PRF_large_4(key, input1, input2, input3, input4, output, fl4, Pprf).
+expand PRF_large_5(key, input1, input2, input3, input4, input5, output, fl5, Pprf).
 
 expand Xor(D, xor, zero).
 

@@ -479,14 +479,6 @@ def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH) {}
 def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH) {}
 def square_GDH_subgroup(G, Z, g, exp, exp', expblock, mult, subG, g_k, expsub, expsub', pow_k, pGDH, pSQGDH) {}
 
-(********************************* Miscellaneous ***************************)
-
-def PRF(key, input, output, f, Pprf) {
-
-fun f(key, input): output.
-
-}
-
 (* There is no good model of xor and one-way trapdoor permutations
    in ProVerif, so we omit these primitives. One-way trapdoor permutations 
    might be modeled as public-key encryption but that is not very satisfactory. *)

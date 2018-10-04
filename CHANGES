@@ -11,7 +11,10 @@ Version
   ROM_hash_n and is defined for n from 1 to 10. It optimizes the
   treatment of terms H(x1) = H(x2).
   (Your protocol models that use random oracles may need to be revised.)
-- Defined collision-resistant hash functions for up to 10 arguments.
+- Defined collision-resistant hash functions and PRFs for up to 10 arguments.
+- New macros PRF_large and PRF_large_n for n from 1 to 10,
+  representing a PRF with a large output, that is, it optimizes the 
+  definition by eliminating collisions between random output elements.
 - Optimized treatment of enc(..) = .. in PRP, SPRP, and ICM. 
 - Added optional side conditions in equation and collision statements.
 - When a variable x is defined at several places by the same
