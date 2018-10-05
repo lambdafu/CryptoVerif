@@ -1114,7 +1114,7 @@ let get_occ_of_line p ext regexp occ_loc n is_max =
     | At _ -> "-o"
   in
   let command = "grep " ^ grep_opt ^ " \"" ^ (escape regexp) ^ "\" " ^ s ^ " > " ^ sgrep in
-  print_string command; print_newline();
+  (* print_string command; print_newline(); *)
   if Sys.command(command) <> 0 then
     raise (Error("Grep error in looking for occurrence with regular expression " ^ regexp, ext));
   let l = get_line ext n is_max occ_loc sgrep in
