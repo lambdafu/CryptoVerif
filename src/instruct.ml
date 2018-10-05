@@ -993,60 +993,56 @@ let rec undo ext state n =
       Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 
-(* [get_line ext n is_max occ_loc filename] returns the [n]-th match of [filename].
+(* [get_line ext n is_max occ_loc regexp filename] returns 
+   the [n]-th match of [regexp] in [filename].
    If [is_max] is true, that line should be the last one.
-   If [occ_loc != After], [filename] is the output of "grep",
-   and we return the [n]-th line.
-   If [occ_loc == After], [filename] is the output of "grep -A 1",
-   and we return the line that follows the [n]-th match.
-   Contiguous matchings are an error. *)
+   If [occ_loc == Before], return the line that matches. 
+   If [occ_loc == After], return the line that follows the one that matches 
+   If [occ_loc == At _], return the substring that matches. *)
 	
 type occ_loc_t =
     Before
   | After
   | At of int
     
-let get_line ext n is_max occ_loc filename =
-  try 
+let get_line ext n is_max occ_loc regexp_str filename =
+  try
+    let regexp = Str.regexp regexp_str in
     let file = open_in filename in
     let rec aux n =
       assert (n>=1);
-      if n = 1 then
-	input_line file
-      else
-	begin
-	  ignore(input_line file);
-	  aux (n-1)
-	end
-    in
-    let rec aux_after n =
-      assert (n>=1);
-      if n = 1 then
-	begin
-	  ignore(input_line file);
-	  input_line file
-	end
-      else
-	begin
-	  ignore(input_line file);
-	  ignore(input_line file);
-	  if input_line file <> "--" then
-	    raise (Error("Contiguous macthings. Please make your regular expression more specific to avoid that.", ext));
-	  aux_after (n-1)
-	end
-    in
-    let result =
-      if occ_loc == After then
-	aux_after n
-      else
+      let line = input_line file in
+      if not (Str.string_match regexp line 0) then
 	aux n
+      else
+	(* Line matches *)
+	if n = 1 then
+	  match occ_loc with
+	  | Before -> line
+	  | After ->
+	      let next_line = input_line file in
+	      if is_max && (Str.string_match regexp next_line 0) then
+		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext));
+	      next_line
+	  | At _ ->
+	      Str.matched_string line
+	else
+	  aux (n-1)
     in
+    let result = aux n in
     if is_max then
       begin
 	try
-	  ignore(input_line file);
-	  close_in file;
-	  raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
+	  let rec check_no_further_match() =
+	    let line = input_line file in
+	    if Str.string_match regexp line 0 then
+	      begin
+		close_in file;
+		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
+	      end;
+	    check_no_further_match()
+	  in
+	  check_no_further_match()
 	with End_of_file ->
 	  ()
       end;
@@ -1075,24 +1071,6 @@ let get_nth_occ ext s n =
   with Not_found | Failure _ ->
     raise(Error("No occurrence number found", ext))
 
-let escape s =
-  let l = String.length s in
-  let rec aux n =
-    if (n+1 < l) &&  s.[n] = '\\' && (s.[n+1] = '\\' || s.[n+1] = '$' || s.[n+1] = '`' || s.[n+1] = '\"') then
-      (* Keep backslash escape sequences unchanged *)
-      (String.sub s n 2) ^ (aux (n+2)) 
-    else if n < l then
-      begin
-      if s.[n] = '\\' || s.[n] = '$' || s.[n] = '`' || s.[n] = '\"' then
-	(* Escape the characters backslash, dollar, backquote, quote *)
-	"\\" ^ (String.make 1 s.[n]) ^ (aux (n+1))
-      else 
-	(String.make 1 s.[n]) ^ (aux (n+1))
-      end
-    else
-      ""
-  in
-  aux 0
 
 (* [get_occ_of_line p ext regexp grep_opt n is_max] 
    returns the occurrence at the [n]-th line of the grep output
@@ -1106,18 +1084,7 @@ let get_occ_of_line p ext regexp occ_loc n is_max =
     Display.display_occurrences := true;
     Display.display_process p;
     Display.display_occurrences := false);
-  let sgrep = Filename.temp_file "game" ".grep" in
-  let grep_opt =
-    match occ_loc with
-      Before -> ""
-    | After -> "-A 1"
-    | At _ -> "-o"
-  in
-  let command = "grep " ^ grep_opt ^ " \"" ^ (escape regexp) ^ "\" " ^ s ^ " > " ^ sgrep in
-  (* print_string command; print_newline(); *)
-  if Sys.command(command) <> 0 then
-    raise (Error("Grep error in looking for occurrence with regular expression " ^ regexp, ext));
-  let l = get_line ext n is_max occ_loc sgrep in
+  let l = get_line ext n is_max occ_loc regexp s in
   let occ_num_in_line =
     match occ_loc with
     | At n -> n
@@ -1125,7 +1092,6 @@ let get_occ_of_line p ext regexp occ_loc n is_max =
   in
   let occ = get_nth_occ ext l occ_num_in_line in
   Unix.unlink s;
-  Unix.unlink sgrep;
   occ
 
 let int_of_cmd (num, ext) =
