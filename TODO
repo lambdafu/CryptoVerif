@@ -1,3 +1,5 @@
+Document designation of occurrences (CHANGES, manual)
+
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.
 

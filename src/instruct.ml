@@ -1032,7 +1032,7 @@ let get_line ext n is_max occ_loc filename =
 	  ignore(input_line file);
 	  if input_line file <> "--" then
 	    raise (Error("Contiguous macthings. Please make your regular expression more specific to avoid that.", ext));
-	  aux (n-1)
+	  aux_after (n-1)
 	end
     in
     let result =
@@ -1044,7 +1044,7 @@ let get_line ext n is_max occ_loc filename =
     if is_max then
       begin
 	try
-      ignore(input_line file);
+	  ignore(input_line file);
 	  close_in file;
 	  raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
 	with End_of_file ->
