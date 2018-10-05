@@ -993,17 +993,190 @@ let rec undo ext state n =
       Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 
-let display_facts_at state occ_s ext2 =
+(* [get_line ext n is_max occ_loc filename] returns the [n]-th match of [filename].
+   If [is_max] is true, that line should be the last one.
+   If [occ_loc != After], [filename] is the output of "grep",
+   and we return the [n]-th line.
+   If [occ_loc == After], [filename] is the output of "grep -A 1",
+   and we return the line that follows the [n]-th match.
+   Contiguous matchings are an error. *)
+	
+type occ_loc_t =
+    Before
+  | After
+  | At of int
+    
+let get_line ext n is_max occ_loc filename =
   try 
-    let occ = int_of_string occ_s in
-    (* First compute the facts, then display them *)
-    let g_proc = Terms.get_process state.game in
-    Simplify1.improved_def_process None true g_proc;
-    Facts.display_facts_at g_proc occ;
-    Simplify1.empty_improved_def_process true g_proc
-  with Failure _ ->
-    raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
+    let file = open_in filename in
+    let rec aux n =
+      assert (n>=1);
+      if n = 1 then
+	input_line file
+      else
+	begin
+	  ignore(input_line file);
+	  aux (n-1)
+	end
+    in
+    let rec aux_after n =
+      assert (n>=1);
+      if n = 1 then
+	begin
+	  ignore(input_line file);
+	  input_line file
+	end
+      else
+	begin
+	  ignore(input_line file);
+	  ignore(input_line file);
+	  if input_line file <> "--" then
+	    raise (Error("Contiguous macthings. Please make your regular expression more specific to avoid that.", ext));
+	  aux (n-1)
+	end
+    in
+    let result =
+      if occ_loc == After then
+	aux_after n
+      else
+	aux n
+    in
+    if is_max then
+      begin
+	try
+      ignore(input_line file);
+	  close_in file;
+	  raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
+	with End_of_file ->
+	  ()
+      end;
+    close_in file;
+    result
+  with
+  | End_of_file ->
+      raise(Error("Not enough matches for the regular expression you specified.", ext))
+  | Sys_error s ->
+      raise(Error("Sys_error: " ^ s, ext))
 
+
+let get_nth_occ ext s n =
+  try
+    let rec aux idx n =
+      assert (n>=1);
+      let start_idx = String.index_from s idx '{' in
+      let end_idx = String.index_from s start_idx '}' in
+      if n = 1 then
+	let occ_num = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
+	int_of_string occ_num
+      else
+	aux end_idx (n-1)
+    in
+    aux 0 n
+  with Not_found | Failure _ ->
+    raise(Error("No occurrence number found", ext))
+
+let escape s =
+  let l = String.length s in
+  let rec aux n =
+    if (n+1 < l) &&  s.[n] = '\\' && (s.[n+1] = '\\' || s.[n+1] = '$' || s.[n+1] = '`' || s.[n+1] = '\"') then
+      (* Keep backslash escape sequences unchanged *)
+      (String.sub s n 2) ^ (aux (n+2)) 
+    else if n < l then
+      begin
+      if s.[n] = '\\' || s.[n] = '$' || s.[n] = '`' || s.[n] = '\"' then
+	(* Escape the characters backslash, dollar, backquote, quote *)
+	"\\" ^ (String.make 1 s.[n]) ^ (aux (n+1))
+      else 
+	(String.make 1 s.[n]) ^ (aux (n+1))
+      end
+    else
+      ""
+  in
+  aux 0
+
+(* [get_occ_of_line p ext regexp grep_opt n is_max] 
+   returns the occurrence at the [n]-th line of the grep output
+   for regular expression [regexp] in the display of process [p].
+   If [is_max] is true, the [n]-th line should be the last one. 
+   [grep_opt] contains additional options to pass to grep. *)
+
+let get_occ_of_line p ext regexp occ_loc n is_max =
+  let s = Filename.temp_file "game" ".cv" in
+  Display.file_out s dummy_ext (fun () ->
+    Display.display_occurrences := true;
+    Display.display_process p;
+    Display.display_occurrences := false);
+  let sgrep = Filename.temp_file "game" ".grep" in
+  let grep_opt =
+    match occ_loc with
+      Before -> ""
+    | After -> "-A 1"
+    | At _ -> "-o"
+  in
+  let command = "grep " ^ grep_opt ^ " \"" ^ (escape regexp) ^ "\" " ^ s ^ " > " ^ sgrep in
+  print_string command; print_newline();
+  if Sys.command(command) <> 0 then
+    raise (Error("Grep error in looking for occurrence with regular expression " ^ regexp, ext));
+  let l = get_line ext n is_max occ_loc sgrep in
+  let occ_num_in_line =
+    match occ_loc with
+    | At n -> n
+    | _ -> 1
+  in
+  let occ = get_nth_occ ext l occ_num_in_line in
+  Unix.unlink s;
+  Unix.unlink sgrep;
+  occ
+
+let int_of_cmd (num, ext) =
+  try
+    int_of_string num
+  with Failure _ ->
+    raise (Error(num ^ " should be an integer", ext))
+
+    
+let parse_occ ext state command =
+  let p = Terms.get_process state.game in
+  match command with
+  | ("before", ext0) :: (regexp, ext) :: rest ->
+      (get_occ_of_line p ext regexp Before 1 true, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("before_nth", ext0) :: num :: (regexp, ext) :: rest ->
+      let n = int_of_cmd num in
+      (get_occ_of_line p ext regexp Before n false, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("after", ext0) :: (regexp, ext) :: rest ->
+      (get_occ_of_line p ext regexp After 1 true, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("after_nth", ext0) :: num :: (regexp, ext) :: rest ->
+      let n = int_of_cmd num in
+      (get_occ_of_line p ext regexp After n false, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("at", ext0) :: num_in_pat :: (regexp, ext) :: rest ->
+      let n_in_pat = int_of_cmd num_in_pat in
+      (get_occ_of_line p ext regexp (At n_in_pat) 1 true, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("at_nth", ext0) :: num :: num_in_pat :: (regexp, ext) :: rest ->
+      let n = int_of_cmd num in
+      let n_in_pat = int_of_cmd num_in_pat in
+      (get_occ_of_line p ext regexp (At n_in_pat) n false, Parsing_helper.merge_ext ext0 ext, rest)
+  | (s, ext) :: rest ->
+      let occ =
+	try
+	  int_of_string s
+	with Failure _ ->
+	  raise (Error(s ^ " should be an occurrence (<integer>, before <regexp>, before_nth <n> <regexp>, after <regexp>, after_nth <n> <regexp>, at <n in pat> <regexp>, at_nth <n> <n in pat> <regexp>)", ext))
+      in
+      (occ, ext, rest)
+  | [] ->
+      raise (Error("Missing occurrence", ext))
+
+      
+let display_facts_at state occ_cmd ext =
+  let (occ, _, rest) = parse_occ ext state occ_cmd in
+  if rest != [] then
+    raise (Error("The occurrence should be the last argument in show_facts/out_facts", ext));
+  (* First compute the facts, then display them *)
+  let g_proc = Terms.get_process state.game in
+  Simplify1.improved_def_process None true g_proc;
+  Facts.display_facts_at g_proc occ;
+  Simplify1.empty_improved_def_process true g_proc
+    
                                 
 exception NthFailed
 	
@@ -1188,7 +1361,7 @@ let rec interpret_command interactive state = function
       | "insert_event" ->
 	  begin
 	    match args with
-	    | [(s,ext1); (occ_s,ext2)] ->
+	    | (s,ext1) :: occ_cmd ->
 		begin
 		  try
 		    if String.length s = 0 then raise Not_found;
@@ -1196,47 +1369,34 @@ let rec interpret_command interactive state = function
 		    for i = 1 to String.length s - 1 do
 		      if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
 		    done;
-		    let occ = int_of_string occ_s in
+		    let (occ, _, rest) = parse_occ ext state occ_cmd in
+		    if rest != [] then
+		      raise(Error("In insert_event, the occurrence should be the last argument", ext1));
 		    execute_display_advise state (InsertEvent(s,occ))
 		  with 
 		    Not_found ->
 		      raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))
-		  | Failure _ ->
-		      raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))
-		  | Error(mess,_) ->
-	              (* Errors for insert_event always concern the occurrence *)
-		      raise (Error(mess, ext2))
 		end
 	    | _ ->
 		raise (Error("insert_event expects as arguments the name of the event to insert and the occurrence where it should be inserted", full_extent ext args))
 	  end
       | "insert" ->
 	  begin
-	    match args with
-	    | (occ_s,ext2) :: (((_, ext1)::_) as r) ->
-		begin
-		  try
-		    let ins_s = concat_strings r in
-		    let occ = int_of_string occ_s in
-		    execute_display_advise state (InsertInstruct(ins_s,ext1,occ,ext2))
-		  with Failure _ ->
-		    raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))	  
-		end
+	    let (occ, ext2, rest) = parse_occ ext state args in
+	    match rest with
+	    | (_, ext1) :: _ ->
+		let ins_s = concat_strings rest in
+		execute_display_advise state (InsertInstruct(ins_s,full_extent ext1 rest,occ,ext2))
 	    | _ ->
 		raise (Error("insert expects as arguments the occurrence where the instruction should be inserted and the instruction to insert", full_extent ext args))
 	  end
       | "replace" ->
 	  begin
-	    match args with
-	    | (occ_s,ext2) :: (((_, ext1)::_) as r) ->
-		begin
-		  try
-		    let ins_s = concat_strings r in
-		    let occ = int_of_string occ_s in
-		    execute_display_advise state (ReplaceTerm(ins_s,ext1,occ,ext2))
-		  with Failure _ ->
-		    raise (Error("occurrence " ^ occ_s ^ " should be an integer", ext2))	  
-		end
+	    let (occ, ext2, rest) = parse_occ ext state args in
+	    match rest with
+	    | (_, ext1) :: _ ->
+		let ins_s = concat_strings rest in
+		execute_display_advise state (ReplaceTerm(ins_s,full_extent ext1 rest,occ,ext2))
 	    | _ ->
 		raise (Error("replace expects as arguments the occurrence where the replacement should be done and the term to put at that occurrence", full_extent ext args))
 	  end
@@ -1427,14 +1587,8 @@ let rec interpret_command interactive state = function
 	  display_state false state;
 	  state
       | "show_facts" ->
-	  begin
-	    match args with
-	    | [(occ_s,ext2)] ->
-               display_facts_at state occ_s ext2;
-               state
-	    | _ ->
-		raise (Error("show_facts expects as argument the occurrence at which true facts should be displayed", full_extent ext args))
-	  end
+          display_facts_at state args ext;
+          state
       | "out_game" ->
 	  begin
 	    match args with
@@ -1463,9 +1617,9 @@ let rec interpret_command interactive state = function
       | "out_facts" ->
 	  begin
 	    match args with
-	    | [(s, ext); (occ_s,ext2)] ->
-               Display.file_out s ext (fun () ->
-                   display_facts_at state occ_s ext2);
+	    | (s, ext1) :: occ_cmd ->
+               Display.file_out s ext1 (fun () ->
+                   display_facts_at state occ_cmd ext);
                state
 	    | _ ->
 		raise (Error("out_facts expects as arguments the name of the file in which the facts will be output and the occurrence at which the true facts should be output", full_extent ext args))
