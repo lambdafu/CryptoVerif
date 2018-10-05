@@ -1012,9 +1012,8 @@ let get_line ext n is_max occ_loc regexp_str filename =
     let rec aux n =
       assert (n>=1);
       let line = input_line file in
-      if not (Str.string_match regexp line 0) then
-	aux n
-      else
+      try
+	let _ = Str.search_forward regexp line 0 in
 	(* Line matches *)
 	if n = 1 then
 	  match occ_loc with
@@ -1028,6 +1027,8 @@ let get_line ext n is_max occ_loc regexp_str filename =
 	      Str.matched_string line
 	else
 	  aux (n-1)
+      with Not_found ->
+	aux n
     in
     let result = aux n in
     if is_max then
