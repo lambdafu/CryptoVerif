@@ -953,10 +953,20 @@ identmapping:
 |   IDENT MAPSTO IDENT COMMA identmapping
     { ($1,$3)::$5 }
 
-intidentmapping:
-    INT MAPSTO IDENT
+occ:
+    INT
+    { POccInt($1) }
+| IDENT STRING /* "before regexp" or "after regexp" */
+    { POccIdRegexp($1, $2) }
+| IDENT INT STRING /* "before_nth n regexp", "after_nth n regexp", or "at m regexp" */
+    { POccIdNRegexp($1, $2, $3) }
+| IDENT INT INT STRING /* "at_nth n n' regexp" */
+    { POccIdNNRegexp($1, $2, $3, $4) }
+    
+occidentmapping:
+    occ MAPSTO IDENT
     { [$1,$3] }
-|   INT MAPSTO IDENT COMMA intidentmapping
+|   occ MAPSTO IDENT COMMA occidentmapping
     { ($1,$3)::$5 }
 
 detailedinfo:
@@ -964,9 +974,9 @@ detailedinfo:
     { PVarMapping($1, $3, false) }
 |   IDENT COLON identmapping DOT
     { PVarMapping($1, $3, true) }
-|   IDENT COLON intidentmapping
+|   IDENT COLON occidentmapping
     { PTermMapping($1, $3, false) }
-|   IDENT COLON intidentmapping DOT
+|   IDENT COLON occidentmapping DOT
     { PTermMapping($1, $3, true) }
 
 detailedinfolist:

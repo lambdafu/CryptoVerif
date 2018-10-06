@@ -20,6 +20,10 @@ Version
 - When a variable x is defined at several places by the same
   "let x = M in" and x has array accesses, remove_assign can now
   replace x with M without performing "SArename x" first.
+- Program points in proof instructions can now be designated
+  by "before <regexp>", "before_nth <n> <regexp>", "after <regexp>",
+  "after_nth <n> <regexp>", "at <n in regexp> <regexp>",
+  "at_nth <n> <n in regexp> <regexp>" in addition to occurrence numbers.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - When "set inferUnique = true." is present, CryptoVerif
   infers that "find" is unique, when possible.

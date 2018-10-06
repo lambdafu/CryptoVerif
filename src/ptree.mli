@@ -176,13 +176,20 @@ type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list
 
 type pall = decl list
 
+(* Occurrences *)
 
+type pocc =
+    POccInt of int
+  | POccIdRegexp of ident * ident
+  | POccIdNRegexp of ident * int * ident
+  | POccIdNNRegexp of ident * int * int * ident
+      
 (* User info for cryptographic transformation *)
 
 type var_term_mapping =
     PVarMapping of ident(*"variables"*) * (ident(*variable in game*) * ident(*variable in equivalence*)) list * bool (* bool is true when the list ends with "."
 				    no other variable should be added by the transformation in this case *)
-  | PTermMapping of ident(*"terms"*) * (int(*occurrence in game*) * ident(*oracle in equivalence*)) list * bool
+  | PTermMapping of ident(*"terms"*) * (pocc(*occurrence in game*) * ident(*oracle in equivalence*)) list * bool
 
 type crypto_transf_user_info =
     PRepeat

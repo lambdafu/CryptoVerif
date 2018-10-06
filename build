@@ -6,7 +6,7 @@ SRC="str.cmxa parsing_helper.mli parsing_helper.ml occ_map.mli occ_map.ml types.
 
 cd src
 
-ocamlyacc parser.mly
+ocamlyacc -v parser.mly
 ocamllex lexer.mll
 
 case X$1 in

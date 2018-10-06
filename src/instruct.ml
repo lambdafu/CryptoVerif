@@ -712,6 +712,169 @@ let execute_any_crypto state =
 	    
 (* Interactive prover *)
 
+(* [get_line ext n is_max occ_loc regexp filename] returns 
+   the [n]-th match of [regexp] in [filename].
+   If [is_max] is true, that line should be the last one.
+   If [occ_loc == Before], return the line that matches. 
+   If [occ_loc == After], return the line that follows the one that matches 
+   If [occ_loc == At _], return the substring that matches. *)
+	
+type occ_loc_t =
+    Before
+  | After
+  | At of int
+    
+let get_line ext n is_max occ_loc regexp_str filename =
+  try
+    let regexp = Str.regexp regexp_str in
+    let file = open_in filename in
+    let rec aux n =
+      assert (n>=1);
+      let line = input_line file in
+      try
+	let _ = Str.search_forward regexp line 0 in
+	(* Line matches *)
+	if n = 1 then
+	  match occ_loc with
+	  | Before -> line
+	  | After ->
+	      let next_line = input_line file in
+	      if is_max && (Str.string_match regexp next_line 0) then
+		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext));
+	      next_line
+	  | At _ ->
+	      Str.matched_string line
+	else
+	  aux (n-1)
+      with Not_found ->
+	aux n
+    in
+    let result = aux n in
+    if is_max then
+      begin
+	try
+	  let rec check_no_further_match() =
+	    let line = input_line file in
+	    if Str.string_match regexp line 0 then
+	      begin
+		close_in file;
+		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
+	      end;
+	    check_no_further_match()
+	  in
+	  check_no_further_match()
+	with End_of_file ->
+	  ()
+      end;
+    close_in file;
+    result
+  with
+  | End_of_file ->
+      raise(Error("Not enough matches for the regular expression you specified.", ext))
+  | Sys_error s ->
+      raise(Error("Sys_error: " ^ s, ext))
+
+
+let get_nth_occ ext s n =
+  try
+    let rec aux idx n =
+      assert (n>=1);
+      let start_idx = String.index_from s idx '{' in
+      let end_idx = String.index_from s start_idx '}' in
+      if n = 1 then
+	let occ_num = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
+	int_of_string occ_num
+      else
+	aux end_idx (n-1)
+    in
+    aux 0 n
+  with Not_found | Failure _ ->
+    raise(Error("No occurrence number found", ext))
+
+
+(* [get_occ_of_line p ext regexp grep_opt n is_max] 
+   returns the occurrence at the [n]-th line of the grep output
+   for regular expression [regexp] in the display of process [p].
+   If [is_max] is true, the [n]-th line should be the last one. 
+   [grep_opt] contains additional options to pass to grep. *)
+
+let get_occ_of_line p ext regexp occ_loc n is_max =
+  let s = Filename.temp_file "game" ".cv" in
+  Display.file_out s dummy_ext (fun () ->
+    Display.display_occurrences := true;
+    Display.display_process p;
+    Display.display_occurrences := false);
+  let l = get_line ext n is_max occ_loc regexp s in
+  let occ_num_in_line =
+    match occ_loc with
+    | At n -> n
+    | _ -> 1
+  in
+  let occ = get_nth_occ ext l occ_num_in_line in
+  Unix.unlink s;
+  occ
+
+let int_of_cmd (num, ext) =
+  try
+    int_of_string num
+  with Failure _ ->
+    raise (Error(num ^ " should be an integer", ext))
+
+    
+let parse_occ ext state command =
+  let p = Terms.get_process state.game in
+  match command with
+  | ("before", ext0) :: (regexp, ext) :: rest ->
+      (get_occ_of_line p ext regexp Before 1 true, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("before_nth", ext0) :: num :: (regexp, ext) :: rest ->
+      let n = int_of_cmd num in
+      (get_occ_of_line p ext regexp Before n false, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("after", ext0) :: (regexp, ext) :: rest ->
+      (get_occ_of_line p ext regexp After 1 true, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("after_nth", ext0) :: num :: (regexp, ext) :: rest ->
+      let n = int_of_cmd num in
+      (get_occ_of_line p ext regexp After n false, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("at", ext0) :: num_in_pat :: (regexp, ext) :: rest ->
+      let n_in_pat = int_of_cmd num_in_pat in
+      (get_occ_of_line p ext regexp (At n_in_pat) 1 true, Parsing_helper.merge_ext ext0 ext, rest)
+  | ("at_nth", ext0) :: num :: num_in_pat :: (regexp, ext) :: rest ->
+      let n = int_of_cmd num in
+      let n_in_pat = int_of_cmd num_in_pat in
+      (get_occ_of_line p ext regexp (At n_in_pat) n false, Parsing_helper.merge_ext ext0 ext, rest)
+  | (s, ext) :: rest ->
+      let occ =
+	try
+	  int_of_string s
+	with Failure _ ->
+	  raise (Error(s ^ " should be an occurrence (<integer>, before <regexp>, before_nth <n> <regexp>, after <regexp>, after_nth <n> <regexp>, at <n in pat> <regexp>, at_nth <n> <n in pat> <regexp>)", ext))
+      in
+      (occ, ext, rest)
+  | [] ->
+      raise (Error("Missing occurrence", ext))
+
+open Ptree
+	
+let interpret_occ state occ_exp =
+  let p = Terms.get_process state.game in
+  match occ_exp with
+  | POccIdRegexp(("before", ext0), (regexp, ext)) ->
+      get_occ_of_line p ext regexp Before 1 true
+  | POccIdNRegexp(("before_nth", ext0), n, (regexp, ext)) ->
+      get_occ_of_line p ext regexp Before n false
+  | POccIdRegexp(("after", ext0), (regexp, ext)) ->
+      get_occ_of_line p ext regexp After 1 true
+  | POccIdNRegexp(("after_nth", ext0), n, (regexp, ext)) ->
+      get_occ_of_line p ext regexp After n false
+  | POccIdNRegexp(("at", ext0), n_in_pat, (regexp, ext)) ->
+      get_occ_of_line p ext regexp (At n_in_pat) 1 true
+  | POccIdNNRegexp(("at_nth", ext0), n, n_in_pat, (regexp, ext))  ->
+      get_occ_of_line p ext regexp (At n_in_pat) n false
+  | POccInt(occ) ->
+      occ
+  | POccIdRegexp((s,ext),_) | POccIdNRegexp((s,ext),_,_) | POccIdNNRegexp((s,ext),_,_,_) ->
+      raise (Error(s ^ " should be the beginning of an occurrence (<integer>, before <regexp>, before_nth <n> <regexp>, after <regexp>, after_nth <n> <regexp>, at <n in pat> <regexp>, at_nth <n> <n in pat> <regexp>)", ext))
+
+
 exception End of state
 exception EndSuccess of state
 
@@ -951,7 +1114,7 @@ let do_equiv ext equiv (s,ext_s) state =
 		  if (!term_mapping) != None then
 		    raise (Error ("Term mapping already set", ext));
 		  term_mapping := Some (List.map (fun (occ,id_oracle) ->
-		    (occ, find_oracle id_oracle equiv)) map, stop)
+		    (interpret_occ state occ, find_oracle id_oracle equiv)) map, stop)
 		       ) l;
 	    Detailed (!var_mapping, !term_mapping)
       in
@@ -992,148 +1155,7 @@ let rec undo ext state n =
   | Some (ExpandIfFindGetInsert,_,_,_) ->
       Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
-
-(* [get_line ext n is_max occ_loc regexp filename] returns 
-   the [n]-th match of [regexp] in [filename].
-   If [is_max] is true, that line should be the last one.
-   If [occ_loc == Before], return the line that matches. 
-   If [occ_loc == After], return the line that follows the one that matches 
-   If [occ_loc == At _], return the substring that matches. *)
 	
-type occ_loc_t =
-    Before
-  | After
-  | At of int
-    
-let get_line ext n is_max occ_loc regexp_str filename =
-  try
-    let regexp = Str.regexp regexp_str in
-    let file = open_in filename in
-    let rec aux n =
-      assert (n>=1);
-      let line = input_line file in
-      try
-	let _ = Str.search_forward regexp line 0 in
-	(* Line matches *)
-	if n = 1 then
-	  match occ_loc with
-	  | Before -> line
-	  | After ->
-	      let next_line = input_line file in
-	      if is_max && (Str.string_match regexp next_line 0) then
-		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext));
-	      next_line
-	  | At _ ->
-	      Str.matched_string line
-	else
-	  aux (n-1)
-      with Not_found ->
-	aux n
-    in
-    let result = aux n in
-    if is_max then
-      begin
-	try
-	  let rec check_no_further_match() =
-	    let line = input_line file in
-	    if Str.string_match regexp line 0 then
-	      begin
-		close_in file;
-		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
-	      end;
-	    check_no_further_match()
-	  in
-	  check_no_further_match()
-	with End_of_file ->
-	  ()
-      end;
-    close_in file;
-    result
-  with
-  | End_of_file ->
-      raise(Error("Not enough matches for the regular expression you specified.", ext))
-  | Sys_error s ->
-      raise(Error("Sys_error: " ^ s, ext))
-
-
-let get_nth_occ ext s n =
-  try
-    let rec aux idx n =
-      assert (n>=1);
-      let start_idx = String.index_from s idx '{' in
-      let end_idx = String.index_from s start_idx '}' in
-      if n = 1 then
-	let occ_num = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
-	int_of_string occ_num
-      else
-	aux end_idx (n-1)
-    in
-    aux 0 n
-  with Not_found | Failure _ ->
-    raise(Error("No occurrence number found", ext))
-
-
-(* [get_occ_of_line p ext regexp grep_opt n is_max] 
-   returns the occurrence at the [n]-th line of the grep output
-   for regular expression [regexp] in the display of process [p].
-   If [is_max] is true, the [n]-th line should be the last one. 
-   [grep_opt] contains additional options to pass to grep. *)
-
-let get_occ_of_line p ext regexp occ_loc n is_max =
-  let s = Filename.temp_file "game" ".cv" in
-  Display.file_out s dummy_ext (fun () ->
-    Display.display_occurrences := true;
-    Display.display_process p;
-    Display.display_occurrences := false);
-  let l = get_line ext n is_max occ_loc regexp s in
-  let occ_num_in_line =
-    match occ_loc with
-    | At n -> n
-    | _ -> 1
-  in
-  let occ = get_nth_occ ext l occ_num_in_line in
-  Unix.unlink s;
-  occ
-
-let int_of_cmd (num, ext) =
-  try
-    int_of_string num
-  with Failure _ ->
-    raise (Error(num ^ " should be an integer", ext))
-
-    
-let parse_occ ext state command =
-  let p = Terms.get_process state.game in
-  match command with
-  | ("before", ext0) :: (regexp, ext) :: rest ->
-      (get_occ_of_line p ext regexp Before 1 true, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("before_nth", ext0) :: num :: (regexp, ext) :: rest ->
-      let n = int_of_cmd num in
-      (get_occ_of_line p ext regexp Before n false, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("after", ext0) :: (regexp, ext) :: rest ->
-      (get_occ_of_line p ext regexp After 1 true, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("after_nth", ext0) :: num :: (regexp, ext) :: rest ->
-      let n = int_of_cmd num in
-      (get_occ_of_line p ext regexp After n false, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("at", ext0) :: num_in_pat :: (regexp, ext) :: rest ->
-      let n_in_pat = int_of_cmd num_in_pat in
-      (get_occ_of_line p ext regexp (At n_in_pat) 1 true, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("at_nth", ext0) :: num :: num_in_pat :: (regexp, ext) :: rest ->
-      let n = int_of_cmd num in
-      let n_in_pat = int_of_cmd num_in_pat in
-      (get_occ_of_line p ext regexp (At n_in_pat) n false, Parsing_helper.merge_ext ext0 ext, rest)
-  | (s, ext) :: rest ->
-      let occ =
-	try
-	  int_of_string s
-	with Failure _ ->
-	  raise (Error(s ^ " should be an occurrence (<integer>, before <regexp>, before_nth <n> <regexp>, after <regexp>, after_nth <n> <regexp>, at <n in pat> <regexp>, at_nth <n> <n in pat> <regexp>)", ext))
-      in
-      (occ, ext, rest)
-  | [] ->
-      raise (Error("Missing occurrence", ext))
-
-      
 let display_facts_at state occ_cmd ext =
   let (occ, _, rest) = parse_occ ext state occ_cmd in
   if rest != [] then

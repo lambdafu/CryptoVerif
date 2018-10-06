@@ -1,4 +1,10 @@
-Document designation of occurrences (CHANGES, manual)
+Document designation of occurrences (manual)
+Occurrence number also appear
+- in simplify coll_elim x1...xn  (currently handled in proba.ml, is_large_term)
+  Change the syntax to e.g. variables: ...; types: ...; points:...
+  to allow unambiguous designation, and parse it in instruct.ml.
+- similarly, in global_dep_anal coll_elim x1...xn
+- in crypto terms:
 
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.
