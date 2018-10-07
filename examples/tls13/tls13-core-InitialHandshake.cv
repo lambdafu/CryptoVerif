@@ -48,7 +48,7 @@ proof {
       remove_assign binder s_1;
       remove_assign binder s_2;
       simplify;
-      crypto gdh(exp) "variables: x_2 -> a, y_7 -> b .";
+      crypto gdh(exp) [variables: x_2 -> a, y_7 -> b .];
       crypto prf2 *;
       crypto client_server_hts *;
       crypto prf_fin_key_iv *;

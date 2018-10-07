@@ -45,7 +45,7 @@ remove_assign binder sharedn6;
 remove_assign binder g1n7;
 remove_assign binder g1n8;
 simplify;
-crypto gdh(gexp) "variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a.";
+crypto gdh(gexp) [variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a .];
 simplify;
 crypto rckey *;
 crypto prf(hmacprf) *;

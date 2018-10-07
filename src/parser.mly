@@ -490,11 +490,13 @@ proof:
         { $1 :: $3 }
 
 proofoptsemi:
-    proof
-    { $1 }
-|   proof SEMI
-    { $1 }
-    
+        proofcommand
+	{ [$1] }
+|       proofcommand SEMI
+        { [$1] }
+|       proofcommand SEMI proofoptsemi
+        { $1 :: $3 }
+
 options:
         LBRACKET neidentlist RBRACKET
         { $2 }

@@ -694,13 +694,6 @@ type impl_opt = Read of binder * string | Write of binder * string
 
 type impl_process = string * impl_opt list * inputprocess
 
-(* Type for interactive commands *)
-
-type command =
-    Com_elem of (string * Parsing_helper.extent)
-  | Com_sep
-  | Com_end
-
 type final_process =
     SingleProcess of inputprocess
   | Equivalence of inputprocess * inputprocess * binder list(*public variables*)

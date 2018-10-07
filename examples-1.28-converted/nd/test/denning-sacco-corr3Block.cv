@@ -6,7 +6,7 @@
 proof {
   remove_assign binder skS;
   show_game occ;
-  crypto uf_cma(sign) "variables: rkS -> r; terms: 36 -> Ocheck, 44 -> Ocheck, 124 -> Ocheck, 134 -> Ocheck, 209 -> Osign, 242 -> Osign, 18 -> Opk";
+  crypto uf_cma(sign) [variables: rkS -> r; terms: 36 -> Ocheck, 44 -> Ocheck, 124 -> Ocheck, 134 -> Ocheck, 209 -> Osign, 242 -> Osign, 18 -> Opk];
   auto
 }
 

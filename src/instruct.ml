@@ -1147,33 +1147,6 @@ let nth l n =
   with _ ->
     raise NthFailed
 
-let rec concat_strings = function
-    [] -> ""
-  | [a,_] -> a
-  | ((a, _)::l) -> a ^ " " ^ (concat_strings l)
-
-let get_ext = function
-    [] -> dummy_ext
-  | (_,ext)::_ -> ext
-
-let full_extent ext l =
-  match l with
-    [] -> ext
-  | (a,ext1)::_ ->
-      let rec get_last_ext = function
-	| [] -> Parsing_helper.internal_error "List should not be empty in get_last_ext"
-	| [_,ext2] -> ext2 
-	| _::r -> get_last_ext r
-      in
-      let ext2 = get_last_ext l in
-      Parsing_helper.merge_ext ext1 ext2
-
-let check_no_args command ext args =
-  match args with
-    [] -> ()
-  | _ ->
-      raise (Error(command ^ " expects no argument", full_extent ext args))
-	
 let help() =
   print_string (
   "List of available commands\n" ^
@@ -1338,21 +1311,20 @@ let rec interpret_command interactive state = function
       simplify state
   | CCrypto(eqname, info, ext) ->
       begin
-	let (eq_name_opt, possible_equivs, ext_equiv) =
+	let (possible_equivs, ext_equiv) =
 	  match eqname with
-	    PNoName -> (None, !Settings.equivs, ext)
+	    PNoName -> (!Settings.equivs, ext)
 	  | PParName((n1, ext1), (n2,ext2)) -> 
 	      let s = n1 ^ "(" ^ n2 ^ ")" in
 	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
-	      (Some s, eq_list, Parsing_helper.merge_ext ext1 ext2)
+	      (eq_list, Parsing_helper.merge_ext ext1 ext2)
 	  | PN(n, s_ext) ->
 	      begin
-		let s = string_of_int n in
 		try
-		  (Some s, [nth (!Settings.equivs) (n - 1)], s_ext)
+		  ([nth (!Settings.equivs) (n - 1)], s_ext)
 		with 
 		  NthFailed ->
-		    raise (Error("Equivalence number " ^ s ^ " does not exist", s_ext))
+		    raise (Error("Equivalence number " ^ (string_of_int n) ^ " does not exist", s_ext))
 	      end
 	  | PCstName(s, s_ext) ->
 	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
@@ -1360,16 +1332,16 @@ let rec interpret_command interactive state = function
 		        (* if the equivalence is not found by its name, try the old way of finding it,
 		           by function symbol or probability name *)
 		let eq_list' = List.filter (find_equiv s) (!Settings.equivs) in
-		(Some s, eq_list', s_ext)
+		(eq_list', s_ext)
 	      else
-		(Some s, eq_list, s_ext)
+		(eq_list, s_ext)
 	in
 	match possible_equivs with
 	  [] -> raise (Error("No equivalence corresponds to the one you mention", ext_equiv))
 	| [equiv] -> 
 	    begin
-	      match eq_name_opt with
-		None -> 
+	      match eqname with
+		PNoName -> 
 		  if interactive then
 		    begin
 		      print_string "Applying ";
@@ -1380,7 +1352,7 @@ let rec interpret_command interactive state = function
 		    end
 		  else
 		    do_equiv ext equiv info state
-	      | Some _ -> do_equiv ext equiv info state
+	      | _ -> do_equiv ext equiv info state
 	    end
 	| _ -> 
 	    if interactive then
@@ -1391,12 +1363,12 @@ let rec interpret_command interactive state = function
 		let s = read_line() in
 		try
 		  let equiv = List.nth possible_equivs (int_of_string s - 1) in
-		  match eq_name_opt with
-		    None -> 
+		  match eqname with
+		    PNoName -> 
 		      print_string "Please enter variable and/or term mapping for this equivalence: ";
 		      let s = read_line() in
 		      do_equiv ext equiv (parse_equiv_info (s,dummy_ext)) state
-		  | Some _ -> do_equiv ext equiv info state
+		  | _ -> do_equiv ext equiv info state
 		with Failure _ -> 
 		  raise (Error("Incorrect number", dummy_ext))
 	      end

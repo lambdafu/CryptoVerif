@@ -55,7 +55,7 @@ proof {
       (* Apply the CDH assumption.
       	 This step replaces comparisons m = exp(g, mult(eU_..., eV))
 	 that always fail with false. *)
-      crypto cdh(exp) "variables: eU_1 -> a, eU_2 -> a, eU_3 -> a, eV -> b";
+      crypto cdh(exp) [variables: eU_1 -> a, eU_2 -> a, eU_3 -> a, eV -> b];
       (* We continue with the automatic proof strategy.
       	 In particular, this step applies the security
 	 assumption on the MAC, in order to prove message
@@ -136,7 +136,7 @@ proof {
       (* Apply the CDH assumption.
       	 This step replaces comparisons m = exp(g, mult(eU_..., eV))
 	 that always fail with false. *)
-      crypto cdh(exp) "variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_1 -> b .";
+      crypto cdh(exp) [variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_1 -> b .];
       auto
 }
 ')

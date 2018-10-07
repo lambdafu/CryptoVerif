@@ -22,7 +22,7 @@ insert 1389 "if pow8(x_pubA_3) = pow8(pubA) then";
 crypto rom(H4);
 out_game "g3.cv";
 crypto use_subgroup(gexp) secA0 secB0 sephSecAB1 ephSecAB1 ephSecBA1_2 ephSecBA1'_2 ephSecBA2_2 ephSecBA2'_2;
-crypto gdh(gexp) "variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1_2 -> a, ephSecBA1'_2 -> a, ephSecBA2_2 -> a, ephSecBA2'_2 -> a  .";
+crypto gdh(gexp) [variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1_2 -> a, ephSecBA1'_2 -> a, ephSecBA2_2 -> a, ephSecBA2'_2 -> a  .];
 crypto int_ctxt(enc) *;
 success;
 out_game "g4.cv"

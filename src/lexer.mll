@@ -230,16 +230,3 @@ and string = parse
         add_char (Lexing.lexeme_char lexbuf 0);
         string lexbuf 
       }
-
-and interactive_command = parse
-| '\"'    
-    { 
-      clear_buffer ();
-      string lexbuf;
-      Com_elem (get_string ()) } 
-| [ ' ' '\009' '\012' ] +
-     { interactive_command lexbuf }
-| ([ ^ '\"' ' ' '\009' '\012' ';' '(' ')' '=' ] +) | "(" | ")" | "="
-     { Com_elem (Lexing.lexeme lexbuf, extent lexbuf) }
-| ';' { Com_sep }
-| eof { Com_end }
