@@ -358,7 +358,7 @@ proofcommand:
     { CAllowed_collisions($2) }
 |   SET IDENT EQUAL IDENT
     { CSetting($2,S $4) }
-|   SET IDENT EQUAL INT DOT
+|   SET IDENT EQUAL INT 
     { CSetting($2,I $4) }
 |   AUTO
     { CAuto }
