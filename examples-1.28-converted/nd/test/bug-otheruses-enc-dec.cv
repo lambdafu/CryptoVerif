@@ -10,7 +10,7 @@ show_game occ;
 insert_event Encrypt 75; (* In the client, at the branch that tests pw = ke[...] *)
 simplify;
 simplify;
-simplify coll_elim pw;
+simplify coll_elim(variables: pw);
 auto
 }
 

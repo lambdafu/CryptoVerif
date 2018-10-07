@@ -47,7 +47,7 @@ insert 102 "find j <= NU suchthat defined(X_9[j]) && X_9[j] = X_s then";
 show_game occ;
 insert 144 "let Y' = dec(ck_1, Ystar, pw) in";
 show_game occ;
-replace 166 Y';
+replace 166 "Y'";
 show_game occ;
 insert 150 "find nj <= qH1 suchthat defined(x11[nj], x12[nj], x13[nj], x14[nj], x15[nj]) && (U = x11[nj]) && (S = x12[nj]) && (X_s = x13[nj]) && (Y' = x14[nj])  && (auth_s = h1(hk1, x11[nj], x12[nj], x13[nj], x14[nj], x15[nj])) then";
 show_game occ;

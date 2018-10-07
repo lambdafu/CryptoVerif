@@ -10,7 +10,7 @@ type nonce [large,fixed].
 type passwd [password,fixed].
 
 proof {
-simplify coll_elim pw
+simplify coll_elim(variables: pw)
 }
 
 (* Queries *)

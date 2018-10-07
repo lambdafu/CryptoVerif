@@ -1,6 +1,6 @@
 proof {
       show_game occ;
-      replace 18 x;
+      replace 18 "x";
       auto
 }
 

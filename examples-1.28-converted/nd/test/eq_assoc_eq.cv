@@ -4,7 +4,7 @@ type D.
 
 proof {
       show_game occ;
-      replace 3 concat(concat(zero,one),two);
+      replace 3 "concat(concat(zero,one),two)";
       show_game
 }
 

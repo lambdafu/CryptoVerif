@@ -4,10 +4,10 @@ type D.
 
 proof {
       show_game occ;
-      replace 3 xor(xor(two,one),zero);
+      replace 3 "xor(xor(two,one),zero)";
       show_game occ;
-      replace 23 xor(xor(zero, xor(one, one')), xor(zero', xor(two, two'))) = neut;
-      replace 23 xor(xor(one', two'), xor(zero', xor(one, two))) = zero
+      replace 23 "xor(xor(zero, xor(one, one')), xor(zero', xor(two, two'))) = neut";
+      replace 23 "xor(xor(one', two'), xor(zero', xor(one, two))) = zero"
 }
 
 fun xor(D,D):D.

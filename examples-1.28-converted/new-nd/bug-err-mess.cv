@@ -2,7 +2,7 @@
 
 proof {
 show_game occ;
-replace 72 x (* The message in out(c2, ...) *)
+replace 72 "x" (* The message in out(c2, ...) *)
 }
 
 param qS.

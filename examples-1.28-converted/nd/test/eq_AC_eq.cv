@@ -4,11 +4,11 @@ type D.
 
 proof {
       show_game occ;
-      replace 3 concat(concat(zero,one),two);
+      replace 3 "concat(concat(zero,one),two)";
       show_game;
-      replace 3 concat(concat(one,zero),two);
+      replace 3 "concat(concat(one,zero),two)";
       show_game;
-      replace 3 concat(concat(two,zero),one);
+      replace 3 "concat(concat(two,zero),one)";
       show_game
 }
 

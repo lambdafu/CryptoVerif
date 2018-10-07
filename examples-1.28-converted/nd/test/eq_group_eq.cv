@@ -4,10 +4,10 @@ type D.
 
 proof {
       show_game occ;
-      replace 3 mult(mult(zero,one),two);
+      replace 3 "mult(mult(zero,one),two)";
       show_game occ;
-      replace 23 mult(mult(zero, mult(one, two)), mult(zero, mult(one, two))) = neut;
-      replace 23 mult(mult(one, two), mult(zero, mult(one, two))) = inv(zero)
+      replace 23 "mult(mult(zero, mult(one, two)), mult(zero, mult(one, two))) = neut";
+      replace 23 "mult(mult(one, two), mult(zero, mult(one, two))) = inv(zero)"
 }
 
 fun mult(D,D):D.
