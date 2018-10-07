@@ -1023,9 +1023,10 @@ let find_restr (s,ext) ((_,lm,_,_,_,_),_) =
   with Not_found ->
     raise (Error("Random variable " ^ s ^ " not found in equivalence", ext))
     
-let parse_equiv_info (s, ext_s) =
+let get_equiv_info () =
+  print_string "Please enter variable and/or term mapping for this equivalence: ";
+  let s = read_line() in
   let lexbuf = Lexing.from_string s in
-  Parsing_helper.set_start lexbuf ext_s;
   try 
     Parser.cryptotransfinfo Lexer.token lexbuf
   with
@@ -1346,9 +1347,7 @@ let rec interpret_command interactive state = function
 		    begin
 		      print_string "Applying ";
 		      Display.display_equiv equiv; print_newline();
-		      print_string "Please enter variable and/or term mapping for this equivalence: ";
-		      let s = read_line() in
-		      do_equiv ext equiv (parse_equiv_info (s,dummy_ext)) state
+		      do_equiv ext equiv (get_equiv_info()) state
 		    end
 		  else
 		    do_equiv ext equiv info state
@@ -1364,10 +1363,7 @@ let rec interpret_command interactive state = function
 		try
 		  let equiv = List.nth possible_equivs (int_of_string s - 1) in
 		  match eqname with
-		    PNoName -> 
-		      print_string "Please enter variable and/or term mapping for this equivalence: ";
-		      let s = read_line() in
-		      do_equiv ext equiv (parse_equiv_info (s,dummy_ext)) state
+		    PNoName -> do_equiv ext equiv (get_equiv_info ()) state
 		  | _ -> do_equiv ext equiv info state
 		with Failure _ -> 
 		  raise (Error("Incorrect number", dummy_ext))

@@ -20,6 +20,20 @@ Version
 - When a variable x is defined at several places by the same
   "let x = M in" and x has array accesses, remove_assign can now
   replace x with M without performing "SArename x" first.
+- Revised parsing of proof commands. Incompatibilities:
+  * Variables and terms mappings should now be between brackets,
+    not between quotes in "crypto" commands, e.g.
+    crypto <equiv> [variables: ...; terms: ...]
+  * The formulas in "allowed_collisions" should not be between quotes
+  * The syntax for "coll_elim" indications in "simplify" and
+    "global_dep_anal" is now:
+    coll_elim(variables: x1,...,xn; types: t1, ..., tn; terms: occ1, ..., occn)
+  * Instructions in "insert", terms in "replace" must be
+    between quotes
+  * Identifiers in proof commands can optionally be between quotes
+    (useful for instance when they clash with a proof keyword)
+  * Regular expressions in occurrences (see next item) must be between quotes
+  * These are now the only allowed usages of quotes in proofs.
 - Program points in proof instructions can now be designated
   by "before <regexp>", "before_nth <n> <regexp>", "after <regexp>",
   "after_nth <n> <regexp>", "at <n in regexp> <regexp>",

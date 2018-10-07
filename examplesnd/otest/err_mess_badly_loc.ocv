@@ -43,7 +43,7 @@ show_game occ;
 insert_event Auth2 158;
 simplify;
 merge_branches;
-simplify coll_elim pw;
+simplify coll_elim(variables: pw);
 success
 }
 
