@@ -151,6 +151,83 @@ type impl = Type of ident * typeid * typeopt
           | Constant of ident * ident
           | ImplTable of ident * ident
 
+(* Occurrences *)
+
+type pocc =
+    POccInt of int
+  | POccBefore of ident
+  | POccAfter of ident
+  | POccBeforeNth of int * ident
+  | POccAfterNth of int * ident
+  | POccAt of int * ident
+  | POccAtNth of int * int * ident
+
+type poccext = pocc * Parsing_helper.extent
+	
+(* User info for cryptographic transformation *)
+
+type var_term_mapping =
+    PVarMapping of (ident(*variable in game*) * ident(*variable in equivalence*)) list * bool (* bool is true when the list ends with "."
+				    no other variable should be added by the transformation in this case *)
+  | PTermMapping of (pocc(*occurrence in game*) * ident(*oracle in equivalence*)) list * bool
+
+type crypto_transf_user_info =
+    PRepeat
+  | PVarList of ident list * bool (* bool is true when the list ends with "."
+				    no other variable should be added by the transformation in this case *)
+  | PDetailed of var_term_mapping list 
+
+type rem_opt_t =
+    RemCst of Types.rem_set
+  | RemBinder of ident
+
+type move_opt_t =
+    MoveCst of Types.move_set
+  | MoveBinder of ident
+  | MoveArray of ident
+
+type pcoll_elim_t =
+    PCollVars of ident list
+  | PCollTypes of ident list
+  | PCollTerms of pocc list
+
+type peqname = 
+    PCstName of ident
+  | PParName of ident * ident
+  | PNoName
+  | PN of int * Parsing_helper.extent
+	
+type command =
+    CInteractive of Parsing_helper.extent
+  | CHelp
+  | CForget_old_games
+  | CRestart of Parsing_helper.extent
+  | CUndo of int * Parsing_helper.extent
+  | CAllowed_collisions of ((ident * int) list * ident option) list
+  | CSetting of ident * pval
+  | CAuto
+  | COut_facts of ident * pocc
+  | COut_state of ident
+  | COut_game of ident * bool(*true when "occ"*)
+  | CShow_facts of pocc
+  | CShow_state
+  | CShow_game of bool(*true when "occ"*)
+  | CSuccesscom
+  | CQuit
+  | CStart_from_other_end of Parsing_helper.extent
+  | CCrypto of peqname * crypto_transf_user_info * Parsing_helper.extent
+  | CAll_simplify
+  | CGlobal_dep_anal of ident * pcoll_elim_t list
+  | CSArename of ident
+  | CMerge_branches
+  | CMerge_arrays of ident list list * Parsing_helper.extent
+  | CReplace of poccext * ident
+  | CInsert of poccext * ident
+  | CInsert_event of ident * poccext
+  | CSimplify of pcoll_elim_t list
+  | CMove of move_opt_t
+  | CRemove_assign of rem_opt_t
+	
 (* Declarations *)
 
 type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list(* options *)
@@ -169,33 +246,12 @@ type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list
 	  | Query of (ident * ty(*type*)) list * query list
 	  | Define of ident * ident list * decl list
 	  | Expand of ident * ident list
-	  | Proofinfo of ident list list
+	  | Proofinfo of command list * Parsing_helper.extent
           | Implementation of impl list
           | TableDecl of ident * ident list
           | LetFun of ident * (ident * ty) list * term_e
 
 type pall = decl list
-
-(* Occurrences *)
-
-type pocc =
-    POccInt of int
-  | POccIdRegexp of ident * ident
-  | POccIdNRegexp of ident * int * ident
-  | POccIdNNRegexp of ident * int * int * ident
-      
-(* User info for cryptographic transformation *)
-
-type var_term_mapping =
-    PVarMapping of ident(*"variables"*) * (ident(*variable in game*) * ident(*variable in equivalence*)) list * bool (* bool is true when the list ends with "."
-				    no other variable should be added by the transformation in this case *)
-  | PTermMapping of ident(*"terms"*) * (pocc(*occurrence in game*) * ident(*oracle in equivalence*)) list * bool
-
-type crypto_transf_user_info =
-    PRepeat
-  | PVarList of ident list * bool (* bool is true when the list ends with "."
-				    no other variable should be added by the transformation in this case *)
-  | PDetailed of var_term_mapping list 
 
 type final_process =
     PSingleProcess of process_e

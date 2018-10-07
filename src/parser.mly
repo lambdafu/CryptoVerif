@@ -105,6 +105,55 @@ let return_channel = (dummy_channel, None)
 %token RUN
 %token INDEPOF
 %token EQUIVALENCE
+
+  /* tokens for proofs */
+%token AT
+%token AT_NTH
+%token BEFORE
+%token BEFORE_NTH
+%token AFTER
+%token AFTER_NTH
+%token TERMS
+%token VARIABLES
+%token REMOVE_ASSIGN
+%token USELESS
+%token FINDCOND
+%token ALL
+%token BINDER
+%token MOVE
+%token NOARRAYREF
+%token RANDOM
+%token RANDOM_NOARRAYREF
+%token ASSIGN
+%token ARRAY
+%token SIMPLIFY
+%token COLL_ELIM
+%token INSERT_EVENT
+%token REPLACE
+%token MERGE_ARRAYS
+%token MERGE_BRANCHES
+%token SARENAME
+%token GLOBAL_DEP_ANAL
+%token ALL_SIMPLIFY
+%token CRYPTO
+%token START_FROM_OTHER_END
+%token QUIT
+%token SUCCESS
+%token SHOW_GAME
+%token OCC
+%token SHOW_STATE
+%token SHOW_FACTS
+%token OUT_GAME
+%token OUT_STATE
+%token OUT_FACTS
+%token AUTO
+%token ALLOWED_COLLISIONS
+%token UNDO
+%token RESTART
+%token FORGET_OLD_GAMES
+%token HELP
+%token INTERACTIVE
+%token TYPES      
   
 /* Precedence (from low to high) and associativities */
 %left BAR
@@ -137,8 +186,8 @@ let return_channel = (dummy_channel, None)
 %start term
 %type <Ptree.term_e> term
 
-%start allowed_coll
-%type <((Ptree.ident * int) list * Ptree.ident option) list> allowed_coll
+%start proofoptsemi
+%type <Ptree.command list> proofoptsemi
 
 %%
 
@@ -170,7 +219,7 @@ commonlibelem:
 |       TYPE IDENT options DOT 
         { [TypeDecl($2,$3)] }
 |       PROOF LBRACE proof RBRACE 
-        { [Proofinfo($3)] }
+        { [Proofinfo($3, parse_extent())] }
 |       IMPLEMENTATION impllist DOT 
         { [Implementation($2)] }
 |       TABLE IDENT LPAREN neidentlist RPAREN DOT 
@@ -286,42 +335,166 @@ progopt:
         { PRead($1,$3) }
 
 
-prooftoken:
+idst:
         IDENT
         { $1 }
 |       STRING
         { $1 }
-|       INT
-        { string_of_int $1, parse_extent() }
-|       MUL
-        { "*", parse_extent() }
-|       DOT
-        { ".", parse_extent() }
-|       SET
-        { "set", parse_extent() }
-|       INSERT
-        { "insert", parse_extent() }
-|       EQUAL
-        { "=", parse_extent() }
-|       COMMA
-        { ",", parse_extent() }
-|       LPAREN
-        { "(", parse_extent() }
-|       RPAREN
-        { ")", parse_extent() }
 
 proofcommand:
-        prooftoken
-        { [$1] }
-|       prooftoken proofcommand
-        { $1 :: $2 }
+    INTERACTIVE
+    { CInteractive(parse_extent()) }
+|   HELP
+    { CHelp }
+|   FORGET_OLD_GAMES
+    { CForget_old_games }
+|   RESTART
+    { CRestart(parse_extent()) }
+|   UNDO
+    { CUndo (1,parse_extent()) }
+|   UNDO INT
+    { CUndo ($2,parse_extent()) }
+|   ALLOWED_COLLISIONS allowed_coll
+    { CAllowed_collisions($2) }
+|   SET IDENT EQUAL IDENT
+    { CSetting($2,S $4) }
+|   SET IDENT EQUAL INT DOT
+    { CSetting($2,I $4) }
+|   AUTO
+    { CAuto }
+|   OUT_FACTS idst occ
+    { COut_facts($2, $3) }
+|   OUT_STATE idst
+    { COut_state($2) }
+|   OUT_GAME idst
+    { COut_game($2, false) }
+|   OUT_GAME idst OCC
+    { COut_game($2, true) }
+|   SHOW_FACTS occ
+    { CShow_facts($2) }
+|   SHOW_STATE
+    { CShow_state }
+|   SHOW_GAME
+    { CShow_game(false) }
+|   SHOW_GAME OCC
+    { CShow_game(true) }
+|   SUCCESS
+    { CSuccesscom }
+|   QUIT
+    { CQuit }
+|   START_FROM_OTHER_END
+    { CStart_from_other_end(parse_extent()) }
+|   CRYPTO
+    { CCrypto(PNoName, PVarList([], false), parse_extent()) }
+|   CRYPTO equiv cryptotransfinfo
+    { CCrypto($2, $3, parse_extent()) }
+|   ALL_SIMPLIFY
+    { CAll_simplify }
+|   GLOBAL_DEP_ANAL idst optcollelim
+    { CGlobal_dep_anal($2, $3) }
+|   SARENAME idst
+    { CSArename($2) }
+|   MERGE_BRANCHES
+    { CMerge_branches }
+|   MERGE_ARRAYS varlistlist
+    { CMerge_arrays($2, parse_extent()) }
+|   REPLACE occext STRING
+    { CReplace($2, $3) }
+|   INSERT occext STRING
+    { CInsert($2, $3) }
+|   INSERT_EVENT idst occext
+    { CInsert_event($2, $3) }
+|   SIMPLIFY optcollelim
+    { CSimplify($2) }
+|   MOVE move_opt
+    { CMove($2) }
+|   REMOVE_ASSIGN rem_opt
+    { CRemove_assign($2) }
 
+rem_opt:
+    USELESS
+    { RemCst(Minimal) }
+|   FINDCOND
+    { RemCst(FindCond) }
+|   ALL
+    { RemCst(All) }
+|   BINDER idst
+    { RemBinder($2) }
+    
+move_opt:
+    ALL
+    { MoveCst(MAll) }
+|   NOARRAYREF
+    { MoveCst(MNoArrayRef) }
+|   RANDOM
+    { MoveCst(MNew) }
+|   RANDOM_NOARRAYREF
+    { MoveCst(MNewNoArrayRef) }
+|   ASSIGN
+    { MoveCst(MLet) }
+|   BINDER idst
+    { MoveBinder($2) }
+|   ARRAY idst
+    { MoveArray($2) }
+    
+varlistlist:
+    neidentlistnosep
+    { [$1] }
+|   neidentlistnosep COMMA varlistlist
+    { $1 :: $3 }
+  
+equiv:
+    idst
+    { PCstName($1) }
+|   idst LPAREN idst RPAREN
+    { PParName($1, $3) }
+|   INT
+    { PN($1, parse_extent()) }
+    
+optcollelim:
+
+    { [] }
+|   COLL_ELIM LPAREN colleliminfo RPAREN
+    { $3 }
+
+colleliminfo:
+    onecolleliminfo
+    { [$1] }
+|   onecolleliminfo SEMI colleliminfo
+    { $1 :: $3 }
+    
+onecolleliminfo:
+    VARIABLES COLON neidstlist
+    { PCollVars($3) }
+|   TYPES COLON neidstlist
+    { PCollTypes($3) }
+|   TERMS COLON neocclist
+    { PCollTerms($3) }
+
+neocclist:
+    occ
+    { [$1] }
+|   occ COMMA neocclist
+    { $1::$3 }
+
+neidstlist:
+    idst
+    { [$1] }
+|   idst COMMA neidstlist
+    { $1 :: $3 }
+    
 proof:
         proofcommand
 	{ [$1] }
 |       proofcommand SEMI proof
         { $1 :: $3 }
 
+proofoptsemi:
+    proof
+    { $1 }
+|   proof SEMI
+    { $1 }
+    
 options:
         LBRACKET neidentlist RBRACKET
         { $2 }
@@ -922,9 +1095,9 @@ findlistins:
 /* Limits on elimination of collisions */
 
 factor:
-    IDENT
+    idst
     { ($1, 1) }
-|   IDENT POWER INT
+|   idst POWER INT
     { ($1, $3) }
 
 num:
@@ -934,7 +1107,7 @@ num:
     { [$1] }
 
 quot:
-    num DIV IDENT
+    num DIV idst
     { ($1, Some $3) }
 |   COLLISION MUL num
     { ($3, None) }
@@ -948,36 +1121,46 @@ allowed_coll:
 /* User information for the cryptographic transformation */
 
 identmapping:
-    IDENT MAPSTO IDENT
+    idst MAPSTO idst
     { [$1,$3] }
-|   IDENT MAPSTO IDENT COMMA identmapping
+|   idst MAPSTO idst COMMA identmapping
     { ($1,$3)::$5 }
 
 occ:
     INT
     { POccInt($1) }
-| IDENT STRING /* "before regexp" or "after regexp" */
-    { POccIdRegexp($1, $2) }
-| IDENT INT STRING /* "before_nth n regexp", "after_nth n regexp", or "at m regexp" */
-    { POccIdNRegexp($1, $2, $3) }
-| IDENT INT INT STRING /* "at_nth n n' regexp" */
-    { POccIdNNRegexp($1, $2, $3, $4) }
+| BEFORE STRING
+    { POccBefore($2) }
+| AFTER STRING 
+    { POccAfter($2) }
+| BEFORE_NTH INT STRING
+    { POccBeforeNth($2, $3) }
+| AFTER_NTH INT STRING
+    { POccAfterNth($2, $3) }
+| AT INT STRING
+    { POccAt($2, $3) }
+| AT_NTH INT INT STRING
+    { POccAtNth($2, $3, $4) }
+
+occext:
+    occ
+    { ($1, parse_extent()) }
     
 occidentmapping:
-    occ MAPSTO IDENT
+    occ MAPSTO idst
     { [$1,$3] }
-|   occ MAPSTO IDENT COMMA occidentmapping
+|   occ MAPSTO idst COMMA occidentmapping
     { ($1,$3)::$5 }
 
 detailedinfo:
-    IDENT COLON identmapping
-    { PVarMapping($1, $3, false) }
-|   IDENT COLON identmapping DOT
-    { PVarMapping($1, $3, true) }
-|   IDENT COLON occidentmapping
-    { PTermMapping($1, $3, false) }
-|   IDENT COLON occidentmapping DOT
-    { PTermMapping($1, $3, true) }
+    VARIABLES COLON identmapping
+    { PVarMapping($3, false) }
+|   VARIABLES COLON identmapping DOT
+    { PVarMapping($3, true) }
+|   TERMS COLON occidentmapping
+    { PTermMapping($3, false) }
+|   TERMS COLON occidentmapping DOT
+    { PTermMapping($3, true) }
 
 detailedinfolist:
     detailedinfo
@@ -986,9 +1169,9 @@ detailedinfolist:
     { $1::$3 }
 
 neidentlistnosep:
-        IDENT 
+        idst
         { [$1] }
-|       IDENT neidentlistnosep
+|       idst neidentlistnosep
         { $1 :: $2 }
 
 cryptotransfinfo:
@@ -1000,8 +1183,8 @@ cryptotransfinfo:
     { PVarList($1, false) }
 |   neidentlistnosep DOT
     { PVarList($1, true) }
-|   detailedinfolist
-    { PDetailed($1) }
+|   LBRACKET detailedinfolist RBRACKET
+    { PDetailed($2) }
 
 /* Oracle front-end */
 

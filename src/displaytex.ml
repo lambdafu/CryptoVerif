@@ -40,17 +40,15 @@ let print_id prefix s suffix =
   display_string s;
   print_string suffix
 
-let rec display_list f = function
+let rec display_list_sep sep f = function
     [] -> ()
   | [a] -> f a
-  | (a::l) -> f a; print_string ", ";
-      display_list f l
+  | (a::l) -> f a; print_string sep;
+      display_list_sep sep f l
 
-let rec display_list_break f = function
-    [] -> ()
-  | [a] -> f a
-  | (a::l) -> f a; print_string ", \\allowbreak ";
-      display_list_break f l
+let display_list f l = display_list_sep ", " f l
+
+let display_list_break f l = display_list_sep ", \\allowbreak " f l
 
 let rec remove_common_prefix l1 l2 = match (l1,l2) with
   ({t_desc = ReplIndex ri1}::l1',ri2::l2') when ri1 == ri2 -> 
@@ -1242,12 +1240,21 @@ let display_query (q,g) =
   if g.game_number <> 1 then
     print_string (" in game " ^ (string_of_int g.game_number))  
 
+let display_coll_elim = function
+    CollVars l ->
+      print_string "variables: ";
+      display_list_break (fun s -> print_id "$\\var{" s "}$") l
+  | CollTypes l ->
+      print_string "types: ";
+      display_list_break (fun s -> print_id "$\\kwt{" s "}$") l
+  | CollTerms l -> print_string "terms: "; display_list_break print_int l
+    
 let display_instruct = function
     ExpandIfFindGetInsert -> print_string "expand get, insert, if, let, find"
   | Simplify [] -> print_string "simplify"
   | Simplify l -> 
       print_string "simplify with collision elimination at ";
-      display_list display_string l
+      display_list_sep "; \\allowbreak " display_coll_elim l
   | GlobalDepAnal (b,l) ->
       print_string "global dependency analysis on $";
       display_binder b;
@@ -1255,7 +1262,7 @@ let display_instruct = function
       if l != [] then
 	begin
 	  print_string " with collision elimination at ";
-	  display_list print_string l
+	  display_list_sep "; \\allowbreak " display_coll_elim l
 	end
   | MoveNewLet s -> print_string "move\\ "; display_move_set s
   | RemoveAssign r -> print_string "remove assignments of "; display_rem_set r
@@ -1635,7 +1642,7 @@ let display_detailed_ins = function
       if coll_elim != [] then
 	begin
 	  print_string " with collision elimination at ";
-	  display_list display_string coll_elim
+	  display_list_sep "; \\allowbreak" display_coll_elim coll_elim
 	end;
       print_string "\\\\\n"
   | DLetSimplifyPattern(let_p, l) ->

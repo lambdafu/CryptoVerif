@@ -820,59 +820,26 @@ let int_of_cmd (num, ext) =
   with Failure _ ->
     raise (Error(num ^ " should be an integer", ext))
 
-    
-let parse_occ ext state command =
-  let p = Terms.get_process state.game in
-  match command with
-  | ("before", ext0) :: (regexp, ext) :: rest ->
-      (get_occ_of_line p ext regexp Before 1 true, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("before_nth", ext0) :: num :: (regexp, ext) :: rest ->
-      let n = int_of_cmd num in
-      (get_occ_of_line p ext regexp Before n false, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("after", ext0) :: (regexp, ext) :: rest ->
-      (get_occ_of_line p ext regexp After 1 true, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("after_nth", ext0) :: num :: (regexp, ext) :: rest ->
-      let n = int_of_cmd num in
-      (get_occ_of_line p ext regexp After n false, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("at", ext0) :: num_in_pat :: (regexp, ext) :: rest ->
-      let n_in_pat = int_of_cmd num_in_pat in
-      (get_occ_of_line p ext regexp (At n_in_pat) 1 true, Parsing_helper.merge_ext ext0 ext, rest)
-  | ("at_nth", ext0) :: num :: num_in_pat :: (regexp, ext) :: rest ->
-      let n = int_of_cmd num in
-      let n_in_pat = int_of_cmd num_in_pat in
-      (get_occ_of_line p ext regexp (At n_in_pat) n false, Parsing_helper.merge_ext ext0 ext, rest)
-  | (s, ext) :: rest ->
-      let occ =
-	try
-	  int_of_string s
-	with Failure _ ->
-	  raise (Error(s ^ " should be an occurrence (<integer>, before <regexp>, before_nth <n> <regexp>, after <regexp>, after_nth <n> <regexp>, at <n in pat> <regexp>, at_nth <n> <n in pat> <regexp>)", ext))
-      in
-      (occ, ext, rest)
-  | [] ->
-      raise (Error("Missing occurrence", ext))
-
+   
 open Ptree
 	
 let interpret_occ state occ_exp =
   let p = Terms.get_process state.game in
   match occ_exp with
-  | POccIdRegexp(("before", ext0), (regexp, ext)) ->
+  | POccBefore (regexp, ext) ->
       get_occ_of_line p ext regexp Before 1 true
-  | POccIdNRegexp(("before_nth", ext0), n, (regexp, ext)) ->
+  | POccBeforeNth(n, (regexp, ext)) ->
       get_occ_of_line p ext regexp Before n false
-  | POccIdRegexp(("after", ext0), (regexp, ext)) ->
+  | POccAfter(regexp, ext) ->
       get_occ_of_line p ext regexp After 1 true
-  | POccIdNRegexp(("after_nth", ext0), n, (regexp, ext)) ->
+  | POccAfterNth(n, (regexp, ext)) ->
       get_occ_of_line p ext regexp After n false
-  | POccIdNRegexp(("at", ext0), n_in_pat, (regexp, ext)) ->
+  | POccAt(n_in_pat, (regexp, ext)) ->
       get_occ_of_line p ext regexp (At n_in_pat) 1 true
-  | POccIdNNRegexp(("at_nth", ext0), n, n_in_pat, (regexp, ext))  ->
+  | POccAtNth(n, n_in_pat, (regexp, ext))  ->
       get_occ_of_line p ext regexp (At n_in_pat) n false
   | POccInt(occ) ->
       occ
-  | POccIdRegexp((s,ext),_) | POccIdNRegexp((s,ext),_,_) | POccIdNNRegexp((s,ext),_,_,_) ->
-      raise (Error(s ^ " should be the beginning of an occurrence (<integer>, before <regexp>, before_nth <n> <regexp>, after <regexp>, after_nth <n> <regexp>, at <n in pat> <regexp>, at_nth <n> <n in pat> <regexp>)", ext))
 
 
 exception End of state
@@ -1056,16 +1023,15 @@ let find_restr (s,ext) ((_,lm,_,_,_,_),_) =
   with Not_found ->
     raise (Error("Random variable " ^ s ^ " not found in equivalence", ext))
     
-let do_equiv ext equiv (s,ext_s) state = 
+let parse_equiv_info (s, ext_s) =
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
-  let parsed_user_info = 
-    try 
-      Parser.cryptotransfinfo Lexer.token lexbuf
-    with
-      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
+  try 
+    Parser.cryptotransfinfo Lexer.token lexbuf
+  with
+    Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
 
-  in
+let do_equiv ext equiv parsed_user_info state = 
   match parsed_user_info with
     Ptree.PRepeat ->
       let rec repeat_crypto equiv state = 
@@ -1092,11 +1058,12 @@ let do_equiv ext equiv (s,ext_s) state =
 	    let var_mapping = ref None in
 	    let term_mapping = ref None in
 	    List.iter (function
-		Ptree.PVarMapping((id,ext), map, stop) ->
-		  if id <>"variables" then
-		    raise (Error ("\"variables\" expected", ext));
-		  if (!var_mapping) != None then
-		    raise (Error ("Variable mapping already set", ext));
+		Ptree.PVarMapping(map, stop) ->
+		  let old_var_mapping, old_stop =
+		    match !var_mapping with
+		      None -> [], false
+		    | Some (l,_,old_stop) -> (l,old_stop) 
+		  in
 		  var_mapping := Some (List.fold_right (fun (id_g,id_equiv) accu ->
 		    let v_g = find_binder binders id_g in
 		    let v_equiv = find_restr id_equiv equiv in
@@ -1107,14 +1074,16 @@ let do_equiv ext equiv (s,ext_s) state =
 		    if List.exists (fun (v_g', _) -> v_g == v_g') accu then
 		      raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
 				    " mapped several times", snd id_g));
-		    (v_g, v_equiv)::accu) map [], [], stop)
-	      | Ptree.PTermMapping((id,ext),map,stop) ->
-		  if id <>"terms" then
-		    raise (Error ("\"terms\" expected", ext));
-		  if (!term_mapping) != None then
-		    raise (Error ("Term mapping already set", ext));
-		  term_mapping := Some (List.map (fun (occ,id_oracle) ->
-		    (interpret_occ state occ, find_oracle id_oracle equiv)) map, stop)
+		    (v_g, v_equiv)::accu) map old_var_mapping, [], stop || old_stop)
+	      | Ptree.PTermMapping(map,stop) ->
+		  let old_term_mapping, old_stop =
+		    match !term_mapping with
+		      None -> [], false
+		    | Some(l, old_stop) -> l, old_stop
+		  in
+		  term_mapping := Some ((List.map (fun (occ,id_oracle) ->
+		    (interpret_occ state occ, find_oracle id_oracle equiv)) map) @ old_term_mapping,
+					stop || old_stop)
 		       ) l;
 	    Detailed (!var_mapping, !term_mapping)
       in
@@ -1156,17 +1125,20 @@ let rec undo ext state n =
       Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 	
-let display_facts_at state occ_cmd ext =
-  let (occ, _, rest) = parse_occ ext state occ_cmd in
-  if rest != [] then
-    raise (Error("The occurrence should be the last argument in show_facts/out_facts", ext));
+let display_facts_at state occ_cmd =
+  let occ = interpret_occ state occ_cmd in
   (* First compute the facts, then display them *)
   let g_proc = Terms.get_process state.game in
   Simplify1.improved_def_process None true g_proc;
   Facts.display_facts_at g_proc occ;
   Simplify1.empty_improved_def_process true g_proc
     
-                                
+
+let interpret_coll_elim state = function
+  | PCollVars l -> CollVars(List.map fst l)
+  | PCollTypes l -> CollTypes(List.map fst l)
+  | PCollTerms l -> CollTerms(List.map (interpret_occ state) l)
+    
 exception NthFailed
 	
 let nth l n =
@@ -1257,7 +1229,7 @@ let help() =
   "help                         : display this help message\n" ^
   "?                            : display this help message\n")
 
-let map_param (s,ext) ext_s =
+let map_param (s,ext) =
   match s with
     "noninteractive" -> Settings.psize_NONINTERACTIVE
   | "passive" -> Settings.psize_PASSIVE
@@ -1269,7 +1241,7 @@ let map_param (s,ext) ext_s =
       with _ ->
 	raise (Error("Unknown parameter size " ^ s, ext))
 
-let map_type (s,ext) ext_s =   
+let map_type (s,ext) =   
   try
     Settings.parse_type_size s 
   with Not_found ->
@@ -1285,444 +1257,288 @@ let map_type (s,ext) ext_s =
    *)
       
 let rec interpret_command interactive state = function
-  | [] -> 
-      if interactive then 
-	begin
-	  help();
-	  raise (Error("Empty command", dummy_ext))
-	end
-      else
-	Parsing_helper.internal_error "Empty command"
-  | (command, ext) :: args ->
-      match command with
-	"remove_assign" ->
-	  begin
-	    match args with
-	      [("useless", _)] -> execute_display_advise state (RemoveAssign Minimal)
-	    | [("findcond", _)] -> execute_display_advise state (RemoveAssign FindCond)
-	    | [("all", _)] -> execute_display_advise state (RemoveAssign All)
-	    | [("binder",_); id] -> 
+  | CRemove_assign(arg) ->
+      begin
+	match arg with
+	| RemCst x -> execute_display_advise state (RemoveAssign x)
+	| RemBinder id ->
 		let binders = find_binders state.game in
 		execute_display_advise state (RemoveAssign (OneBinder (find_binder binders id)))
-	    | _ -> 
-		raise (Error("Allowed options for remove_assign are useless, all, binder x", full_extent ext args))
-	  end
-      | "move" ->
-	  begin
-	    match args with
-	      [("all",_)] -> execute_display_advise state (MoveNewLet MAll)
-	    | [("noarrayref",_)] -> execute_display_advise state (MoveNewLet MNoArrayRef)
-	    | [("random",_)] -> execute_display_advise state (MoveNewLet MNew)
-	    | [("random_noarrayref",_)] -> execute_display_advise state (MoveNewLet MNewNoArrayRef)
-	    | [("assign",_)] -> execute_display_advise state (MoveNewLet MLet)
-	    | [("binder",_); id] ->
-		let binders = find_binders state.game in	      
-		execute_display_advise state (MoveNewLet (MOneBinder (find_binder binders id)))
-	    | [("array",_); ((s,ext2) as id)] ->
-		begin
-		  let binders = find_binders state.game in	      
-		  let b = find_binder binders id in
-		  if not (Proba.is_large b.btype) then
-		    raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
- 		  if (b.btype.toptions land Settings.tyopt_CHOOSABLE) == 0 then
-		    raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
-		  try
-		    let equiv = List.assq b.btype (!Settings.move_new_eq) in
-		    match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([b],true)) state with
-		      CSuccess state' -> state'
-		    | CFailure l -> 
-			raise (Error ("Transformation \"move array\" failed", ext))
-		  with Not_found ->
-		    raise (Error("Transformation for \"move array\" not found, perhaps the macro move_array_internal_macro is not defined in your library", ext2))
-		end
-	    | _ -> raise (Error("Allowed options for move are all, noarrayref, random, random_noarrayref, assign, and binder x", full_extent ext args))
-	  end
-      | "simplify" ->
-	  begin
-	    match args with
-	    | [] ->
-		execute_display_advise state (Simplify [])
-	    | ("coll_elim", _) :: l ->
-		execute_display_advise state (Simplify (List.map fst l))
-	    | _ ->
-		raise (Error("simplify can have either no argument or the argument coll_elim <collisions to eliminate>", full_extent ext args))
-	  end
-      | "insert_event" ->
-	  begin
-	    match args with
-	    | (s,ext1) :: occ_cmd ->
-		begin
-		  try
-		    if String.length s = 0 then raise Not_found;
-		    if (s.[0] < 'A' || s.[0] >'Z') && (s.[0] < 'a' || s.[0] > 'z') then raise Not_found;
-		    for i = 1 to String.length s - 1 do
-		      if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
-		    done;
-		    let (occ, _, rest) = parse_occ ext state occ_cmd in
-		    if rest != [] then
-		      raise(Error("In insert_event, the occurrence should be the last argument", ext1));
-		    execute_display_advise state (InsertEvent(s,occ))
-		  with 
-		    Not_found ->
-		      raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))
-		end
-	    | _ ->
-		raise (Error("insert_event expects as arguments the name of the event to insert and the occurrence where it should be inserted", full_extent ext args))
-	  end
-      | "insert" ->
-	  begin
-	    let (occ, ext2, rest) = parse_occ ext state args in
-	    match rest with
-	    | (_, ext1) :: _ ->
-		let ins_s = concat_strings rest in
-		execute_display_advise state (InsertInstruct(ins_s,full_extent ext1 rest,occ,ext2))
-	    | _ ->
-		raise (Error("insert expects as arguments the occurrence where the instruction should be inserted and the instruction to insert", full_extent ext args))
-	  end
-      | "replace" ->
-	  begin
-	    let (occ, ext2, rest) = parse_occ ext state args in
-	    match rest with
-	    | (_, ext1) :: _ ->
-		let ins_s = concat_strings rest in
-		execute_display_advise state (ReplaceTerm(ins_s,full_extent ext1 rest,occ,ext2))
-	    | _ ->
-		raise (Error("replace expects as arguments the occurrence where the replacement should be done and the term to put at that occurrence", full_extent ext args))
-	  end
-      | "merge_arrays" ->
-	  begin
-	    let binders = find_binders state.game in
-	    if List.length args < 2 then 
-	      raise (Error("You should give at least two variables to merge", ext));
-	    let rec anal_r accu = function
-		[] -> [List.rev accu]
-	      | (",", ext)::r ->
-		  (List.rev accu) :: (anal_r [] r)
-	      | ((s, ext2)as id)::r ->
-		  let b = (find_binder binders id, ext2) in
-		  anal_r (b::accu) r
-	    in
-	    let bl = anal_r [] args in
-	    let fl = List.hd bl in
-	    if List.length fl < 2 then
-	      raise (Error("You should give at least two variables to merge", ext));
-	    List.iter (fun al ->
-	      if List.length al != List.length fl then
-		raise (Error("All lists of variables to merge should have the same length", ext))) bl;
-	    execute_display_advise state (MergeArrays(bl, MCreateBranchVar))
-	  end
-      | "merge_branches" ->
-	  check_no_args command ext args;
-	  execute_display_advise state MergeBranches
-      | "SArename" ->
-	  begin
-	    match args with
-	    | [id] ->
-		let binders = find_binders state.game in	      
-		execute_display_advise state (SArenaming (find_binder binders id))
-	    | _ ->
-		raise (Error("SArename expects as argument the variable to rename", full_extent ext args))
-	  end
-      | "global_dep_anal" ->
-	  begin
-	    match args with	  
-	    | [id] ->
-		let binders = find_binders state.game in	      
-		execute_display_advise state (GlobalDepAnal (find_binder binders id, []))
-	    | id :: ("coll_elim", _) :: l ->
-		let binders = find_binders state.game in	      
-		execute_display_advise state (GlobalDepAnal (find_binder binders id, List.map fst l))
-	    | _ ->
-		raise (Error("global_dep_anal expects as arguments the variable on which to perform the dependency analysis and optionally coll_elim <collisions to eliminate>", full_extent ext args))
-	  end
-      | "all_simplify" ->
-	  check_no_args command ext args;
-	  simplify state
-      | "crypto" ->
-	  begin
-	    let (eq_name_opt, possible_equivs, ext_equiv, binders) =
-	      match args with
-		[] -> (None, !Settings.equivs, ext, [])
-	      | ((n1, ext1) :: ("(",_) :: (n2,_) :: (")", ext4) :: lb) -> 
-		  let s = n1 ^ "(" ^ n2 ^ ")" in
-		  let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
-		  (Some s, eq_list, Parsing_helper.merge_ext ext1 ext4, lb)
-	      | (s, s_ext)::lb ->
-		  try 
-		    (Some s, [nth (!Settings.equivs) (int_of_string s - 1)], s_ext, lb)
-		  with 
-		    NthFailed ->
-		      raise (Error("Equivalence number " ^ s ^ " does not exist", s_ext))
-		  | Failure _ -> 
-		      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
-		      if eq_list = [] then
+      end
+  | CMove(arg) ->
+      begin
+	match arg with
+	| MoveCst x -> execute_display_advise state (MoveNewLet x)
+	| MoveBinder id ->
+	    let binders = find_binders state.game in	      
+	    execute_display_advise state (MoveNewLet (MOneBinder (find_binder binders id)))
+	| MoveArray((s,ext2) as id) ->
+	    begin
+	      let binders = find_binders state.game in	      
+	      let b = find_binder binders id in
+	      if not (Proba.is_large b.btype) then
+		raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
+ 	      if (b.btype.toptions land Settings.tyopt_CHOOSABLE) == 0 then
+		raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
+	      try
+		let equiv = List.assq b.btype (!Settings.move_new_eq) in
+		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([b],true)) state with
+		  CSuccess state' -> state'
+		| CFailure l -> 
+		    raise (Error ("Transformation \"move array\" failed", ext2))
+	      with Not_found ->
+		raise (Error("Transformation for \"move array\" not found, perhaps the macro move_array_internal_macro is not defined in your library", ext2))
+	    end
+      end
+  | CSimplify(coll_elim) -> 
+      execute_display_advise state (Simplify (List.map (interpret_coll_elim state) coll_elim))
+  | CInsert_event((s, ext1), (occ_cmd, ext)) ->
+      begin
+	try
+	  if String.length s = 0 then raise Not_found;
+	  if (s.[0] < 'A' || s.[0] >'Z') && (s.[0] < 'a' || s.[0] > 'z') then raise Not_found;
+	  for i = 1 to String.length s - 1 do
+	    if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
+	  done;
+	  let occ = interpret_occ state occ_cmd in
+	  execute_display_advise state (InsertEvent(s,occ))
+	with 
+	  Not_found ->
+	    raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))
+      end
+  | CInsert((occ_cmd, ext_o), (ins_s, ext_s)) ->
+      let occ = interpret_occ state occ_cmd in
+      execute_display_advise state (InsertInstruct(ins_s,ext_s,occ,ext_o))
+  | CReplace((occ_cmd, ext_o), (ins_s, ext_s)) ->
+      let occ = interpret_occ state occ_cmd in
+      execute_display_advise state (ReplaceTerm(ins_s,ext_s,occ,ext_o))
+  | CMerge_arrays(args, ext) ->
+      begin
+	let binders = find_binders state.game in
+	let bl = List.map (List.map (fun ((s, ext2)as id) ->
+	  (find_binder binders id, ext2))) args in
+	let fl = List.hd bl in
+	if List.length fl < 2 then
+	  raise (Error("You should give at least two variables to merge", ext));
+	List.iter (fun al ->
+	  if List.length al != List.length fl then
+	    raise (Error("All lists of variables to merge should have the same length", ext))) bl;
+	execute_display_advise state (MergeArrays(bl, MCreateBranchVar))
+      end
+  | CMerge_branches ->
+      execute_display_advise state MergeBranches
+  | CSArename(id) ->
+      let binders = find_binders state.game in	      
+      execute_display_advise state (SArenaming (find_binder binders id))
+  | CGlobal_dep_anal(id, coll_elim) ->
+      let binders = find_binders state.game in	      
+      execute_display_advise state
+	(GlobalDepAnal (find_binder binders id, List.map (interpret_coll_elim state) coll_elim))
+  | CAll_simplify ->
+      simplify state
+  | CCrypto(eqname, info, ext) ->
+      begin
+	let (eq_name_opt, possible_equivs, ext_equiv) =
+	  match eqname with
+	    PNoName -> (None, !Settings.equivs, ext)
+	  | PParName((n1, ext1), (n2,ext2)) -> 
+	      let s = n1 ^ "(" ^ n2 ^ ")" in
+	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
+	      (Some s, eq_list, Parsing_helper.merge_ext ext1 ext2)
+	  | PN(n, s_ext) ->
+	      begin
+		let s = string_of_int n in
+		try
+		  (Some s, [nth (!Settings.equivs) (n - 1)], s_ext)
+		with 
+		  NthFailed ->
+		    raise (Error("Equivalence number " ^ s ^ " does not exist", s_ext))
+	      end
+	  | PCstName(s, s_ext) ->
+	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
+	      if eq_list = [] then
 		        (* if the equivalence is not found by its name, try the old way of finding it,
 		           by function symbol or probability name *)
-			let eq_list' = List.filter (find_equiv s) (!Settings.equivs) in
-			(Some s, eq_list', s_ext, lb)
-		      else
-			(Some s, eq_list, s_ext, lb)
-	    in
-	    match possible_equivs with
-	      [] -> raise (Error("No equivalence corresponds to the one you mention", ext_equiv))
-	    | [equiv] -> 
-		begin
+		let eq_list' = List.filter (find_equiv s) (!Settings.equivs) in
+		(Some s, eq_list', s_ext)
+	      else
+		(Some s, eq_list, s_ext)
+	in
+	match possible_equivs with
+	  [] -> raise (Error("No equivalence corresponds to the one you mention", ext_equiv))
+	| [equiv] -> 
+	    begin
+	      match eq_name_opt with
+		None -> 
+		  if interactive then
+		    begin
+		      print_string "Applying ";
+		      Display.display_equiv equiv; print_newline();
+		      print_string "Please enter variable and/or term mapping for this equivalence: ";
+		      let s = read_line() in
+		      do_equiv ext equiv (parse_equiv_info (s,dummy_ext)) state
+		    end
+		  else
+		    do_equiv ext equiv info state
+	      | Some _ -> do_equiv ext equiv info state
+	    end
+	| _ -> 
+	    if interactive then
+	      begin
+		let n = ref 0 in
+		List.iter (fun equiv -> incr n; print_int (!n); print_string ". "; Display.display_equiv equiv; print_newline()) possible_equivs;
+		print_string "Please enter number of equivalence to consider: ";
+		let s = read_line() in
+		try
+		  let equiv = List.nth possible_equivs (int_of_string s - 1) in
 		  match eq_name_opt with
 		    None -> 
-		      if interactive then
-			begin
-			  print_string "Applying ";
-			  Display.display_equiv equiv; print_newline();
-			  print_string "Please enter variable and/or term mapping for this equivalence: ";
-			  let s = read_line() in
-			  do_equiv ext equiv (s,dummy_ext) state
-			end
-		      else
-			do_equiv ext equiv ("",dummy_ext) state
-		  | Some _ -> do_equiv ext equiv (concat_strings binders, get_ext binders) state
-		end
-	    | _ -> 
-		if interactive then
-		  begin
-		    let n = ref 0 in
-		    List.iter (fun equiv -> incr n; print_int (!n); print_string ". "; Display.display_equiv equiv; print_newline()) possible_equivs;
-		    print_string "Please enter number of equivalence to consider: ";
-		    let s = read_line() in
-		    try
-		      let equiv = List.nth possible_equivs (int_of_string s - 1) in
-		      match eq_name_opt with
-			None -> 
-			  print_string "Please enter variable and/or term mapping for this equivalence: ";
-			  let s = read_line() in
-			  do_equiv ext equiv (s,dummy_ext) state
-		      | Some _ -> do_equiv ext equiv (concat_strings binders, get_ext binders) state
-		    with Failure _ -> 
-		      raise (Error("Incorrect number", dummy_ext))
-		  end
-		else
-		  raise (Error("Several equivalences correspond to what you mention", ext_equiv))
-	  end
-      | "start_from_other_end" ->
-	 check_no_args command ext args;
-         let rec remove_eq_query state =
-           state.game.current_queries <-
-             List.filter (function ((QEquivalence _,_),_, None) -> false | _ -> true)
-               state.game.current_queries;
-           match state.prev_state with
-             None -> ()
-           | Some(_,_,_,s') -> remove_eq_query s'
-         in
-         let rec add_query q state =
-           state.game.current_queries <- q :: state.game.current_queries;
-           match state.prev_state with
-             None -> ()
-           | Some(_,_,_,s') -> add_query q s'
-         in
-         let (equivalence_q, other_q) =
-           List.partition (function ((QEquivalence _,_),_, None) -> true | _ -> false) state.game.current_queries
-         in
-         begin
-           match equivalence_q with
-           | [] ->
-              raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
-           | [(QEquivalence(state_other_end, pub_vars), g), _, None] ->
-              remove_eq_query state;
-              let init_game_other_end = Display.get_initial_game state_other_end in
-              let new_equivalence_q =
-                (QEquivalence(state, pub_vars), init_game_other_end), ref None, None
-              in
-              add_query new_equivalence_q state_other_end;
-              state_other_end
-           | _ ->
-              Parsing_helper.internal_error "There should be at most one equivalence query to prove"
-         end
-      | "quit" ->
-	  check_no_args command ext args;
-	  raise (End state)
-      | "success" ->
-	  check_no_args command ext args;
-	  let (state', is_done) = issuccess_with_advise state in
-	  if is_done then
-	    raise (EndSuccess state')
-	  else
-	    begin
-	      print_string "Sorry, the following queries remain unproved:\n";
-	      List.iter (fun (a, _, popt) ->
-		if popt == None then
-		  begin
-		    print_string "- ";
-		    Display.display_query a;
-		    print_newline()
-		  end
-		    ) state'.game.current_queries;
-	      state'
-	    end
-      | "show_game" ->
-	  begin
-	    match args with
-	    | [] ->
-		Display.display_game_process state.game;
-		state
-	    | [("occ",_)] ->
-		Display.display_occurrences := true;
-		Display.display_game_process state.game;
-		Display.display_occurrences := false;
-		state
-	    | _ ->
-		raise (Error("show_game expects either no argument or the argument \"occ\"", full_extent ext args))
-	  end
-      | "show_state" ->
-	  check_no_args command ext args;
-	  display_state false state;
+		      print_string "Please enter variable and/or term mapping for this equivalence: ";
+		      let s = read_line() in
+		      do_equiv ext equiv (parse_equiv_info (s,dummy_ext)) state
+		  | Some _ -> do_equiv ext equiv info state
+		with Failure _ -> 
+		  raise (Error("Incorrect number", dummy_ext))
+	      end
+	    else
+	      raise (Error("Several equivalences correspond to what you mention", ext_equiv))
+      end
+  | CStart_from_other_end(ext) ->
+      let rec remove_eq_query state =
+        state.game.current_queries <-
+           List.filter (function ((QEquivalence _,_),_, None) -> false | _ -> true)
+             state.game.current_queries;
+        match state.prev_state with
+          None -> ()
+        | Some(_,_,_,s') -> remove_eq_query s'
+      in
+      let rec add_query q state =
+        state.game.current_queries <- q :: state.game.current_queries;
+        match state.prev_state with
+          None -> ()
+        | Some(_,_,_,s') -> add_query q s'
+      in
+      let (equivalence_q, other_q) =
+        List.partition (function ((QEquivalence _,_),_, None) -> true | _ -> false) state.game.current_queries
+      in
+      begin
+        match equivalence_q with
+        | [] ->
+            raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
+        | [(QEquivalence(state_other_end, pub_vars), g), _, None] ->
+            remove_eq_query state;
+            let init_game_other_end = Display.get_initial_game state_other_end in
+            let new_equivalence_q =
+              (QEquivalence(state, pub_vars), init_game_other_end), ref None, None
+            in
+            add_query new_equivalence_q state_other_end;
+            state_other_end
+        | _ ->
+            Parsing_helper.internal_error "There should be at most one equivalence query to prove"
+      end
+  | CQuit ->
+      raise (End state)
+  | CSuccesscom ->
+      let (state', is_done) = issuccess_with_advise state in
+      if is_done then
+	raise (EndSuccess state')
+      else
+	begin
+	  print_string "Sorry, the following queries remain unproved:\n";
+	  List.iter (fun (a, _, popt) ->
+	    if popt == None then
+	      begin
+		print_string "- ";
+		Display.display_query a;
+		print_newline()
+	      end
+		) state'.game.current_queries;
+	  state'
+	end
+  | CShow_game(occ) ->
+      Display.display_occurrences := occ;
+      Display.display_game_process state.game;
+      Display.display_occurrences := false;
+      state
+  | CShow_state ->
+      display_state false state;
+      state
+  | CShow_facts(occ_cmd) ->
+      display_facts_at state occ_cmd;
+      state
+  | COut_game((s,ext), occ) ->
+      Display.file_out s ext (fun () ->
+	Display.display_occurrences := occ;
+	Display.display_game_process state.game;
+	Display.display_occurrences := false);
+      state
+  | COut_state(s,ext) ->
+      Display.file_out s ext (fun () ->
+	display_state false state);
+      state
+  | COut_facts((s, ext1), occ_cmd) ->
+      Display.file_out s ext1 (fun () ->
+        display_facts_at state occ_cmd);
+      state
+  | CAuto ->
+      begin
+	try
+	  let (res, state') = execute_any_crypto_rec1 true state in
+	  match res with
+	    CFailure l -> state'
+	  | CSuccess state' -> raise (EndSuccess state')
+	with Backtrack ->
+	  print_string "Returned to same state after failure of proof with backtracking.\n";
 	  state
-      | "show_facts" ->
-          display_facts_at state args ext;
-          state
-      | "out_game" ->
-	  begin
-	    match args with
-	    | [(s, ext)] ->
-		Display.file_out s ext (fun () -> Display.display_game_process state.game);
-		state
-	    | [(s, ext); ("occ",_)] ->
-		Display.file_out s ext (fun () ->
-		  Display.display_occurrences := true;
-		  Display.display_game_process state.game;
-		  Display.display_occurrences := false);
-		state
-	    | _ ->
-		raise (Error("out_game expects as arguments the name of the file in which the game will be output and optionally the argument \"occ\"", full_extent ext args))
-	  end
-      | "out_state" ->
-	  begin
-	    match args with
-	    | [(s, ext)] ->
-		Display.file_out s ext (fun () ->
-		  display_state false state);
-		state
-	    | _ ->
-		raise (Error("out_state expects as argument the name of the file in which the state will be output", full_extent ext args))
-	  end
-      | "out_facts" ->
-	  begin
-	    match args with
-	    | (s, ext1) :: occ_cmd ->
-               Display.file_out s ext1 (fun () ->
-                   display_facts_at state occ_cmd ext);
-               state
-	    | _ ->
-		raise (Error("out_facts expects as arguments the name of the file in which the facts will be output and the occurrence at which the true facts should be output", full_extent ext args))
-	  end
-      | "auto" ->
-	  check_no_args command ext args;
-	  begin
-	    try
-	      let (res, state') = execute_any_crypto_rec1 true state in
-	      match res with
-		CFailure l -> state'
-	      | CSuccess state' -> raise (EndSuccess state')
-	    with Backtrack ->
-	      print_string "Returned to same state after failure of proof with backtracking.\n";
-	      state
-	  end
-      | "set" ->
-	  begin
-	    match args with 
-	    | [s,ext1; "=",_; v,ext2] ->
-		begin
-		  try
-		    let pval =
-		      if (String.length v > 0) && ('0' <= v.[0]) && (v.[0] <= '9') then
-			Ptree.I (int_of_string v)
-		      else
-			Ptree.S (v, Parsing_helper.dummy_ext)
-		    in
-		    Settings.do_set s pval
-		  with
-		    Failure _ -> raise (Error("Value " ^ v ^ " is not an integer", ext2))
-		  | Not_found -> raise (Error("Unknown parameter or value", Parsing_helper.merge_ext ext1 ext2))
-		end;
-		state
-	    | _ ->
-		raise (Error("set expects arguments of the form <parameter> = <value>", full_extent ext args))
-	  end
-      | "allowed_collisions" ->
-	  begin
-	    match args with
-	    | (((_, ext_s) :: _) as r) ->
-		begin
-		  let coll_s = concat_strings r in
-		  let lexbuf = Lexing.from_string coll_s in
-		  Parsing_helper.set_start lexbuf ext_s;
-		  try 
-		    let coll = 
-		      Parser.allowed_coll Lexer.token lexbuf
-		    in
-		    Settings.allowed_collisions := [];
-		    Settings.allowed_collisions_collision := [];
-		    List.iter (fun (pl,topt) -> 
-		      let pl' = List.map (fun (p,exp) -> (map_param p ext_s, exp)) pl in
-		      match topt with
-			Some t -> Settings.allowed_collisions := (pl', map_type t ext_s) :: (!Settings.allowed_collisions)
-		      | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
-										   ) coll
-		  with
-		    Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
-		end;
-		state
-	    | _ ->
-		raise (Error("allowed_collisions expects at least one argument", full_extent ext args))
-	  end
-      | "undo" ->
-	  begin
-	    match args with
-	    | [] ->
-		undo ext state 1
-	    | [s,ext1] ->
-		begin
-		  try
-		    let v = int_of_string s in
-		    undo ext1 state v
-		  with
-		    Failure _ -> 
-		      raise (Error("Value " ^ s ^ " should be an integer", ext1))
-		end
-	    | _ ->
-		raise (Error("undo expects either no argument or one argument containing the number of steps to undo", full_extent ext args))
-	  end
-      | "restart" ->
-	  check_no_args command ext args;
-	  let rec restart state =
-	    match state.prev_state with
-	      None -> state
-	    | Some (_,_,_,state') -> restart state'
-	  in
-	  let state' = restart state in 
-	  begin
-	    match state'.game.proc with
-	    | RealProcess _ -> expand_simplify state'
-	    | Forgotten _ ->
-		raise (Error("Cannot restart: game no longer in memory", ext))
-	  end
-      | "forget_old_games" ->
-	  check_no_args command ext args;
-          forget_old_games state;
-          state
-      | "help" | "?" when interactive ->
-	  check_no_args command ext args;
-	  help(); state
-      | "interactive" ->
-	  check_no_args command ext args;
-	  if interactive then 
-	    raise (Error("Command interactive not allowed when already in interactive mode", ext));
-	  begin
-	    match interactive_loop state with
-	      CSuccess s -> s
-	    | _ -> Parsing_helper.internal_error "interactive_loop should return CSuccess _"
-	  end
-      | _ -> 
-	  if interactive then help();
-	  raise (Error("Unknown command", ext))
+      end
+  | CSetting((s,ext1), pval) ->
+      begin
+	try
+	  Settings.do_set s pval
+	with
+	| Not_found -> raise (Error("Unknown parameter or value", ext1))
+      end;
+      state
+  | CAllowed_collisions(coll) ->
+      begin
+	Settings.allowed_collisions := [];
+	Settings.allowed_collisions_collision := [];
+	List.iter (fun (pl,topt) -> 
+	  let pl' = List.map (fun (p,exp) -> (map_param p, exp)) pl in
+	  match topt with
+	    Some t -> Settings.allowed_collisions := (pl', map_type t) :: (!Settings.allowed_collisions)
+	  | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
+								       ) coll;
+	state
+      end
+  | CUndo(v, ext) ->
+      undo ext state v
+  | CRestart(ext) ->
+      let rec restart state =
+	match state.prev_state with
+	  None -> state
+	| Some (_,_,_,state') -> restart state'
+      in
+      let state' = restart state in 
+      begin
+	match state'.game.proc with
+	| RealProcess _ -> expand_simplify state'
+	| Forgotten _ ->
+	    raise (Error("Cannot restart: game no longer in memory", ext))
+      end
+  | CForget_old_games ->
+      forget_old_games state;
+      state
+  | CHelp ->
+      help(); state
+  | CInteractive(ext) ->
+      if interactive then 
+	raise (Error("Command interactive not allowed when already in interactive mode", ext));
+      begin
+	match interactive_loop state with
+	  CSuccess s -> s
+	| _ -> Parsing_helper.internal_error "interactive_loop should return CSuccess _"
+      end
 
 and interpret_command_forget interactive state command =
   let state' = interpret_command interactive state command in
@@ -1737,25 +1553,23 @@ and interactive_loop state =
   print_string "Please enter a command: ";
   let s = read_line() in
   let lexbuf = Lexing.from_string s in
-  let rec command_from_lexbuf state com_accu lexbuf =
-    match Lexer.interactive_command lexbuf with
-      Com_elem s -> command_from_lexbuf state (s::com_accu) lexbuf
-    | Com_sep ->
-	let state' = 
-	  if com_accu != [] then
-	    interpret_command_forget true state (List.rev com_accu)
-	  else
-	    state
-	in
-	command_from_lexbuf state' [] lexbuf
-    | Com_end ->
-	if com_accu != [] then
-	  interpret_command_forget true state (List.rev com_accu)
-	else
-	  state
+  Lexer.in_proof := true;
+  let commands =
+    try
+      Parser.proofoptsemi Lexer.token lexbuf
+    with Parsing.Parse_error ->
+      Lexer.in_proof := false;
+      raise (Error("Syntax error", extent lexbuf))
+  in
+  Lexer.in_proof := false;
+  let rec run_commands state = function
+    | [] -> state
+    | c1:: rest ->
+	let state' = interpret_command_forget true state c1 in
+	run_commands state' rest
   in
   try 
-    interactive_loop (command_from_lexbuf state [] lexbuf)
+    interactive_loop (run_commands state commands)
   with
     End s ->
       CSuccess s

@@ -32,4 +32,4 @@ val check_all_deps : binder ->
 
    When calling [main], the terms and processes in the input game must be physically
    distinct, since [Terms.build_def_process] is called.  *)
-val main : binder -> string list -> game_transformer
+val main : binder -> coll_elim_t list -> game_transformer

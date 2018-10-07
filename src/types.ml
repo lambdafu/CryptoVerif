@@ -6,6 +6,13 @@
 
 type ident = string * Parsing_helper.extent
 
+(* Collision elimination options *)
+      
+type coll_elim_t =
+    CollVars of string list
+  | CollTypes of string list
+  | CollTerms of int list	
+      
 (* integer parameter *)
 
 type param = { pname : string;
@@ -494,8 +501,8 @@ and crypto_transf_user_info =
 	
 and instruct =
     ExpandIfFindGetInsert
-  | Simplify of string list(*occurrences, variables, or types for collision elimination of password types*)
-  | GlobalDepAnal of binder * string list (* same as for Simplify *)
+  | Simplify of coll_elim_t list(*occurrences, variables, or types for collision elimination of password types*)
+  | GlobalDepAnal of binder * coll_elim_t list (* same as for Simplify *)
   | RemoveAssign of rem_set
   | SArenaming of binder
   | MoveNewLet of move_set
@@ -561,7 +568,7 @@ and detailed_instruct =
     DExpandGetInsert of table
   | DExpandIfFind
   | DSimplify of simplify_ins list
-  | DGlobalDepAnal of binder * string list
+  | DGlobalDepAnal of binder * coll_elim_t list
   | DLetSimplifyPattern of program_point * let_transfo
   | DRemoveAssign of binder * def_change * usage_change
   | DSArenaming of binder * binder list

@@ -1262,19 +1262,24 @@ let display_query (q,g) =
       if g.game_number <> 1 then
 	print_string (" in game " ^ (get_game_id g))  
 
+let display_coll_elim = function
+    CollVars l -> print_string "variables: "; display_list print_string l
+  | CollTypes l -> print_string "types: "; display_list print_string l 
+  | CollTerms l -> print_string "terms: "; display_list print_int l
+    
 let display_instruct = function
     ExpandIfFindGetInsert -> print_string "expand get, insert, if, let, find"
   | Simplify [] -> print_string "simplify"
   | Simplify l -> 
       print_string "simplify with collision elimination at ";
-      display_list print_string l
+      display_list_sep "; " display_coll_elim l
   | GlobalDepAnal (b,l) -> 
       print_string "global dependency analysis on ";
       display_binder b;
       if l != [] then
 	begin
 	  print_string " with collision elimination at ";
-	  display_list print_string l
+	  display_list_sep "; " display_coll_elim l
 	end
   | MoveNewLet s -> print_string "move "; display_move_set s
   | RemoveAssign r -> print_string "remove assignments of "; display_rem_set r
@@ -1818,7 +1823,7 @@ let display_detailed_ins = function
       if coll_elim != [] then
 	begin
 	  print_string " with collision elimination at ";
-	  display_list print_string coll_elim
+	  display_list_sep "; " display_coll_elim coll_elim
 	end;
       print_newline()
   | DLetSimplifyPattern(let_p, l) ->

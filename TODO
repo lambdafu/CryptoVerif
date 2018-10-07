@@ -5,6 +5,8 @@ Occurrence number also appear
   to allow unambiguous designation, and parse it in instruct.ml.
 - similarly, in global_dep_anal coll_elim x1...xn
 - in crypto terms:
+=> DONE, to test
+Avoid using a temporary file.
 
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.

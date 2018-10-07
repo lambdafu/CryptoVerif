@@ -17,7 +17,7 @@ val term_collisions :
    typet list (* The type(s) of the characterized part *)) list ref
 
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
-val reset : string list -> game -> unit
+val reset : coll_elim_t list -> game -> unit
 
 val any_term_pat : pattern -> term
 val matches_pair : term -> term -> term -> term -> bool

@@ -10,14 +10,17 @@ let elim_collisions_on_password_occ = ref []
 let is_large_term t =
   (is_large t.t_type) || 
   ((t.t_type.tsize >= 1) && 
-   (List.exists (fun s ->
-     try
-       int_of_string s = t.t_occ
-     with Failure _ ->
-       (s = t.t_type.tname) || 
-       (match t.t_desc with
-	 Var(b,l) -> s = Display.binder_to_string b (* if ... then begin print_string "occ "; print_int t.t_occ; print_newline(); true end else false *)
-       | _ -> false)
+   (List.exists (function
+     | CollVars l ->
+	 begin
+	   match t.t_desc with
+	     Var(b,_) ->
+	       let bname = Display.binder_to_string b in
+	       List.mem bname l
+	   | _ -> false
+	 end
+     | CollTypes l -> List.mem t.t_type.tname l
+     | CollTerms l -> List.mem t.t_occ l
 	 ) (!elim_collisions_on_password_occ)))
 
 (* 2. Cardinality functions *)

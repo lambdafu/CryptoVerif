@@ -8,7 +8,7 @@ val is_large : typet -> bool
 
 (* List of variables/types/occurrences that are considered to be large, even if
    only declared "password" *)
-val elim_collisions_on_password_occ : string list ref
+val elim_collisions_on_password_occ : coll_elim_t list ref
 
 (* Returns true when collisions should be eliminated on the considered term
    This includes two cases:
@@ -65,7 +65,7 @@ val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bo
    [g] is the whole game. [coll_elim] is the list of arguments of the
    "simplify" commands, which determines on which data of type marked 
    [passwd] we will eliminate collisions. *)
-val reset : string list -> game -> unit
+val reset : coll_elim_t list -> game -> unit
 
 (* [final_add_proba coll_list] computes the final probability of
    collisions. [coll_list] is a list of probabilities of complex collisions

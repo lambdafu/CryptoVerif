@@ -8,6 +8,6 @@ open Types
    distinct, by calling [Transf_auto_sa_rename.auto_sa_rename].
  *)
 
-val simplify_main : string list -> game_transformer
+val simplify_main : coll_elim_t list -> game_transformer
 
 

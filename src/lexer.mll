@@ -8,6 +8,8 @@ let create_hashtable size init =
   List.iter (fun (key,data) -> Hashtbl.add tbl key data) init;
   tbl
 
+let in_proof = ref false
+    
 let common_keywords =
 [ "new", NEW;
   "in", IN;
@@ -70,6 +72,59 @@ let keyword_table_oracle =
   create_hashtable 11
     (("newOracle", NEWORACLE)::("run", RUN)::common_keywords)
 
+let keyword_table_proof =
+  create_hashtable 11
+    [ "set", SET;
+      "insert", INSERT;
+      "at", AT;
+      "at_nth", AT_NTH;
+      "before", BEFORE;
+      "before_nth", BEFORE_NTH;
+      "after", AFTER;
+      "after_nth", AFTER_NTH;
+      "terms", TERMS;
+      "variables", VARIABLES;
+      "remove_assign", REMOVE_ASSIGN;
+      "useless", USELESS;
+      "findcond", FINDCOND;
+      "all", ALL;
+      "binder", BINDER;
+      "move", MOVE;
+      "noarrayref", NOARRAYREF;
+      "random", RANDOM;
+      "random_noarrayref", RANDOM_NOARRAYREF;
+      "assign", ASSIGN;
+      "array", ARRAY;
+      "simplify", SIMPLIFY;
+      "coll_elim", COLL_ELIM;
+      "insert_event", INSERT_EVENT;
+      "replace", REPLACE;
+      "merge_arrays", MERGE_ARRAYS;
+      "merge_branches", MERGE_BRANCHES;
+      "SArename", SARENAME;
+      "global_dep_anal", GLOBAL_DEP_ANAL;
+      "all_simplify", ALL_SIMPLIFY;
+      "crypto", CRYPTO;
+      "start_from_other_end", START_FROM_OTHER_END;
+      "quit", QUIT;
+      "success", SUCCESS;
+      "show_game", SHOW_GAME;
+      "occ", OCC;
+      "show_state", SHOW_STATE;
+      "show_facts", SHOW_FACTS;
+      "out_game", OUT_GAME;
+      "out_state", OUT_STATE;
+      "out_facts", OUT_FACTS;
+      "auto", AUTO;
+      "allowed_collisions", ALLOWED_COLLISIONS;
+      "undo", UNDO;
+      "restart", RESTART;
+      "forget_old_games", FORGET_OLD_GAMES;
+      "help", HELP;
+      "interactive", INTERACTIVE;
+      "types", TYPES
+    ]
+    
 }
 
 rule token = parse
@@ -78,12 +133,19 @@ rule token = parse
 | [ ' ' '\009' '\012' ] +
      { token lexbuf }
 | [ 'a'-'z' 'A'-'Z' ] (( [ 'a'-'z' 'A'-'Z' '_' '\192'-'\214' '\216'-'\246' '\248'-'\255' '\'' '0'-'9' ] )*)
-     { let s = Lexing.lexeme lexbuf in
-	 try
-	   Hashtbl.find
-	     (match !Settings.front_end with
+    { let s = Lexing.lexeme lexbuf in
+         try
+	   let keyword = Hashtbl.find
+	       (if !in_proof then
+		 keyword_table_proof
+	       else
+		 match !Settings.front_end with
 	       Settings.Channels -> keyword_table_channel
 	     | Settings.Oracles -> keyword_table_oracle) s
+	   in
+	   if keyword == PROOF then
+	     in_proof := true;
+	   keyword
          with Not_found ->
            IDENT (s, extent lexbuf)
      }
@@ -113,7 +175,7 @@ rule token = parse
 | '[' { LBRACKET }
 | ']' { RBRACKET }
 | '{' { LBRACE }
-| '}' { RBRACE }
+| '}' { in_proof := false; RBRACE }
 | '|' { BAR }
 | ';' { SEMI }
 | ':' { COLON }
@@ -139,6 +201,7 @@ rule token = parse
 | "<-" { LEFTARROW }
 | "<-R" { RANDOM }
 | '#' { COUNT }
+| '?' { HELP }
 | "inj-event" { INJEVENT }
 | "independent-of" { INDEPOF }
 | eof { EOF }	

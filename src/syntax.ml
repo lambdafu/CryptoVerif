@@ -109,7 +109,7 @@ let collisions = ref ([]: collision list)
 let equivalences = ref ([]: equiv list)
 let move_new_eq = ref ([]: (typet * equiv) list)
 let queries_parse = ref ([]: Ptree.query list)
-let proof = ref (None : Ptree.ident list list option)
+let proof = ref (None : Ptree.command list option)
 
 let implementation = ref ([]: Ptree.impl list)
 let impl_roles = ref StringMap.empty
@@ -3122,13 +3122,8 @@ let rename_decl = function
       PDef(rename_ie s,
 	   List.map (fun (x,t) -> (rename_ie x, rename_ty t)) vardecl,
 	   rename_proc p)
-  | Proofinfo(pr) ->
-      begin
-	match pr with
-	  ((_, ext)::_)::_ ->
-	    input_error "Proof indications not allowed in macros" ext
-	| _ -> internal_error "empty proof"
-      end
+  | Proofinfo(pr, ext) ->
+      input_error "Proof indications not allowed in macros" ext
   | Define((_,ext1),_,_) ->
       input_error "macro definitions are not allowed inside macro definitions" ext1
   | Expand(s1,argl) ->
@@ -3420,12 +3415,9 @@ let rec check_one = function
 	      ) l) @ (!queries_parse)
   | PDef((s1,ext1),vardecl,p) ->
       add_not_found s1 ext1 (EProcess (!env, vardecl, p))
-  | Proofinfo(pr) ->
+  | Proofinfo(pr, ext) ->
       if !proof != None then
-	match pr with
-	  ((_, ext)::_)::_ ->
-	    input_error "Proof indications already given before" ext
-	| _ -> internal_error "empty proof"
+	input_error "Several proof indications" ext
       else
 	proof := Some pr
   | Implementation(impl) ->
