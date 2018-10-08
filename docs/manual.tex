@@ -1825,12 +1825,16 @@ The program points can then be specified as follows:
   $\mathit{regexp}$ in the displayed game.
   There must be a single match for this
   regular expression, otherwise CryptoVerif shows an error message.
+  (With \texttt{at}, if the same line matches the regular expression
+  several times, it counts as several matches.)
 
 \item $\texttt{at\_nth }n\ n'\texttt{ "}\mathit{regexp}\texttt{"}$
   designates the program point at the $n'$-th occurrence number
   that occurs inside the string corresponding to the
   $n$-th match of the regular expression
   $\mathit{regexp}$ in the displayed game.
+  (With \texttt{at\_nth}, if the same line matches the regular expression
+  several times, it counts as several matches.)
 
 \end{itemize}
 Using an explicit integer to designate a program point is very unstable:

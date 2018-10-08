@@ -731,8 +731,10 @@ let get_line ext n is_max occ_loc regexp_str filename =
     let rec aux n =
       assert (n>=1);
       let line = input_line file in
+      aux_inside n 0 line
+    and aux_inside n start_in_line line =
       try
-	let _ = Str.search_forward regexp line 0 in
+	let match_pos = Str.search_forward regexp line start_in_line in
 	(* Line matches *)
 	if n = 1 then
 	  match occ_loc with
@@ -740,27 +742,31 @@ let get_line ext n is_max occ_loc regexp_str filename =
 	  | After ->
 	      let next_line = input_line file in
 	      if is_max && (Str.string_match regexp next_line 0) then
-		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext));
+		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with after_nth.", ext));
 	      next_line
 	  | At _ ->
+	      if is_max && (Str.string_match regexp line (match_pos+1)) then
+		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with at_nth.", ext));
 	      Str.matched_string line
 	else
-	  aux (n-1)
+	  match occ_loc with
+	  | At _ -> aux_inside (n-1) (match_pos+1) line
+	  | _ -> aux (n-1)
       with Not_found ->
 	aux n
-    in
+    in    
     let result = aux n in
     if is_max then
       begin
 	try
 	  let rec check_no_further_match() =
 	    let line = input_line file in
-	    if Str.string_match regexp line 0 then
-	      begin
-		close_in file;
-		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth or after_nth.", ext))
-	      end;
-	    check_no_further_match()
+	    try
+	      let _ = Str.search_forward regexp line 0 in
+	      close_in file;
+	      raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth, after_nth, or at_nth.", ext))
+	    with Not_found -> 
+	      check_no_further_match()
 	  in
 	  check_no_further_match()
 	with End_of_file ->
