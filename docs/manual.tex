@@ -1786,6 +1786,64 @@ The arguments are the same as for \texttt{AEAD} except that $\vn{Penc}(t, N, l)$
 \section{Interactive Mode}\label{sec:interact}
 
 In interactive mode, the user specifies transformations to perform.
+Some of the instructions take a program point (or occurrence)
+in the current game as argument.
+One should use the command \texttt{show\string_game occ}
+or \texttt{out\string_game $f$ occ} (mentioned below) to
+display the game with an occurrence number at each program point.
+The program points can then be specified as follows:
+\begin{itemize}
+\item an integer designates the program point labeled by that integer in
+  the displayed game.
+\item $\texttt{before "}\mathit{regexp}\texttt{"}$ designates the program
+  point at the beginning of the line that matches the regular expression
+  $\mathit{regexp}$. Regular expressions follow the syntax of regular expressions in the OCaml Str module, see
+  \url{https://caml.inria.fr/pub/docs/manual-ocaml-4.07/libref/Str.html}.
+  In regular expressions, blackslash ($\backslash$) must be escaped as $\backslash\backslash$, as in OCaml string literals.
+  There must be a single line that matches this
+  regular expression, otherwise CryptoVerif shows an error message.
+  
+\item $\texttt{after "}\mathit{regexp}\texttt{"}$ designates the program
+  point at the beginning of the line that follows the line
+  that matches the regular expression
+  $\mathit{regexp}$. 
+  There must be a single line that matches this
+  regular expression, otherwise CryptoVerif shows an error message.
+
+\item $\texttt{before\_nth }n\texttt{ "}\mathit{regexp}\texttt{"}$ designates the program
+  point at the beginning of the $n$-th line that matches the regular expression
+  $\mathit{regexp}$.  
+  
+\item $\texttt{after\_nth }n\texttt{ "}\mathit{regexp}\texttt{"}$
+  designates the program point at the beginning of the line that
+  follows the $n$-th line that matches the regular expression
+  $\mathit{regexp}$.
+
+\item $\texttt{at }n'\texttt{ "}\mathit{regexp}\texttt{"}$
+  designates the program point at the $n'$-th occurrence number
+  that occurs inside the string that matches the regular expression
+  $\mathit{regexp}$ in the displayed game.
+  There must be a single match for this
+  regular expression, otherwise CryptoVerif shows an error message.
+
+\item $\texttt{at\_nth }n\ n'\texttt{ "}\mathit{regexp}\texttt{"}$
+  designates the program point at the $n'$-th occurrence number
+  that occurs inside the string corresponding to the
+  $n$-th match of the regular expression
+  $\mathit{regexp}$ in the displayed game.
+
+\end{itemize}
+Using an explicit integer to designate a program point is very unstable:
+it changes if the verified protocol is slightly modified, or
+if a new version of CryptoVerif itself is used, which may transform
+games in a slightly different way.
+The other ways of designating program points are therefore preferable
+when possible.
+
+When an identifier is expected in an instruction, it is possible
+to put it between quotes. This is useful in particular for identifiers
+that clash with proof keywords.
+
 Here is a list of available instructions:
 \begin{itemize}
 
@@ -1855,16 +1913,15 @@ chosen before, and reuse the previously chosen value if this is true.)
 
 \item \texttt{simplify}: simplify the game.
 
-\item $\texttt{simplify coll\string_elim }x_1 \ldots x_n$: simplify the game,
+\item $\texttt{simplify coll\_elim(variables:}\ x_1, \ldots, x_n\texttt{; types:}t_1, \ldots, t_{n'}\texttt{; terms:}occ_1, \ldots, occ_{n''}\texttt{)}$: simplify the game,
 additionally allowing elimination of collisions on data of types with
-option \texttt{password} at the program points defined by $x_1, \ldots, x_n$.
-%
-The arguments $x_1, \ldots, x_n$ can be occurrence numbers in
-the program, variable names (meaning all occurrences of these
-variables), or types (meaning all data of those types).
-If one wants to specify occurrence numbers, one should use the command 
-\texttt{show\string_game occ} to determine which occurrence numbers
-correspond to the desired program points.
+option \texttt{password}, at all occurrences of variables
+$x_1, \ldots, x_n$, at all data of types $t_1, \ldots, t_{n'}$,
+and at the program points $occ_1, \ldots, occ_{n''}$.
+See above for how to specify the program points $occ_i$. 
+Some of the lists of variables, types, or terms may be omitted.
+In this case, the separating semi-colon \texttt{;} is obviously
+omitted as well. It is also possible to reorder or repeat these lists; the lists add up.
 
 \item $\texttt{global\_dep\_anal}\ x$ performs global dependency
   analysis on $x$: it computes all variables that depend on $x$, and
@@ -1873,16 +1930,22 @@ correspond to the desired program points.
   collisions. The tests are then simplified by eliminating these
   collisions, so that all dependencies on $x$ can be removed.
 
-$\texttt{global\_dep\_anal}\ x\ \texttt{coll\_elim}\ x_1 \ldots x_n$ 
+$\texttt{global\_dep\_anal}\ x\ \texttt{coll\_elim(variables:}\ x_1, \ldots, x_n\texttt{; types:}t_1, \ldots, t_{n'}\texttt{; terms:}occ_1, \ldots, occ_{n''}\texttt{)}$ 
 performs global dependency analysis on $x$, 
 additionally allowing elimination of collisions on data of types with
-option \texttt{password} at the program points defined by $x_1, \ldots, x_n$.
-The arguments $x_1, \ldots, x_n$ can be occurrence numbers in
-the program, variable names (meaning all 
-occurrences of these variables), or types (meaning all data of those types).
-One must allow elimination on $x$ independently of the occurrences, 
-so if $x$ is not large, $x$ or its type must be mentioned in $x_1, \ldots, x_n$;
-mentioning the occurrences of $x$ is not sufficient.
+option \texttt{password}, at all occurrences of variables
+$x_1, \ldots, x_n$, at all data of types $t_1, \ldots, t_{n'}$,
+and at the program points $occ_1, \ldots, occ_{n''}$.
+See above for how to specify the program points $occ_i$. 
+Some of the lists of variables, types, or terms may be omitted.
+In this case, the separating semi-colon \texttt{;} is obviously
+omitted as well. It is also possible to reorder or repeat these lists; the lists add up.
+
+One must allow elimination on $x$ independently of the program point, 
+so if $x$ is not large, $x$ must be mentioned in $x_1, \ldots, x_n$
+or its type must be mentioned in $t_1, \ldots, t_n$;
+mentioning the occurrences of $x$ in $occ_1, \ldots, occ_{n''}$
+is not sufficient.
 
 \item $\texttt{SArename }x$: When $x$ is defined at several places,
 rename $x$ to a different name for each definition. This is useful for
@@ -1938,8 +2001,8 @@ CryptoVerif may add other variable names if that seems necessary to perform
 the transformation.
 
 \item $\texttt{crypto }\nonterm{name}\ 
-\texttt{variables: }x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n
-\texttt{; terms: }o_1\texttt{->}O_1,\ldots,o_m\texttt{->}O_m$:
+\texttt{[variables: }x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n
+\texttt{; terms: }occ_1\texttt{->}O_1,\ldots,occ_m\texttt{->}O_m\texttt{]}$:
 apply a cryptographic transformation chosen as above, where
 \begin{itemize}
 
@@ -1950,10 +2013,11 @@ apply a cryptographic transformation chosen as above, where
   $x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n$ if needed, except when
   a dot is added at the end of this list.)
 
-\item $o_1, \ldots, o_m$ are occurrences of terms in the game, which
+\item $occ_1, \ldots, occ_m$ are program points at which terms 
   will be transformed using oracles $O_1, \ldots, O_m$ respectively of
-  the equivalence. (CryptoVerif may automatically add elements to the
-  list $o_1\texttt{->}O_1,\ldots,o_m\texttt{->}O_m$ if needed, except
+  the equivalence. See above for how to specify the program points $occ_i$. 
+  (CryptoVerif may automatically add elements to the
+  list $occ_1\texttt{->}O_1,\ldots,occ_m\texttt{->}O_m$ if needed, except
   when a dot is added at the end of this list.)
 
 \end{itemize}
@@ -1970,29 +2034,23 @@ as they are stored by CryptoVerif after macro expansion.
 
 One of the lists of variables or terms may be omitted.
 In this case, the separating semi-colon \texttt{;} is obviously
-omitted as well.
-
-When this command occurs in proof environment inside a CryptoVerif
-file, it is generally necessary to put the lists between quotes:
-\[\texttt{crypto }\nonterm{name}\ 
-\texttt{"variables: }x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n
-\texttt{; terms: }o_1\texttt{->}O_1,\ldots,o_m\texttt{->}O_m\texttt{"}\]
+omitted as well. It is also possible to reorder or repeat the
+\texttt{variables} and /or \texttt{terms} lists; the lists add up.
 
 \end{itemize}
 
 
 \item $\texttt{insert\string_event }e\ occ$ replaces the subprocess at
-occurrence $occ$ with the event $\texttt{event }e$. The games may
+program point $occ$ with the event $\texttt{event }e$. The games may
 be distinguished if and only if the event $e$ is executed, and CryptoVerif
 then tries to find a bound for the probability of executing that event.
-One should use the command \texttt{show\string_game occ} to determine
-which occurrence number $occ$ corresponds to the program point where
-one wants to insert the event. The occurrence number $occ$ must
+See above for how to specify the program point $occ$.
+The program point $occ$ must
 correspond to an output process (resp. oracle body in the oracles
 front-end).
 
-\item $\texttt{insert}\ occ\ ins$ inserts instruction $ins$ at
-occurrence $occ$. The instruction $ins$ can be 
+\item $\texttt{insert}\ occ\ \texttt{"}ins\texttt{"}$ inserts instruction $ins$ at
+program point $occ$. The instruction $ins$ can be 
 \begin{align*}
 &\texttt{new\ }\nonterm{vartype}\\
 &\texttt{if }\nonterm{cond}\texttt{ then}\\
@@ -2045,21 +2103,18 @@ by \texttt{set mergeBranches = false} when a case distinction is
 inserted, so that the operation is not immediately undone at the next
 simplification.
 
-One should use the command \texttt{show\string_game occ} to determine
-which occurrence number $occ$ corresponds to the program point where
-one wants to insert the instruction. The occurrence number $occ$ must
+See above for how to specify the program point $occ$. 
+The program point $occ$ must
 correspond to an output process (resp. oracle body in the oracles
 front-end).
 
-\item $\texttt{replace}\ occ\ term$ replaces the term at occurrence
+\item $\texttt{replace}\ occ\ \texttt{"}term\texttt{"}$ replaces the term at program point
   $occ$ with the term $term$. Obviously, CryptoVerif must be able to
   prove that these two terms are equal.
   These terms must not contain \texttt{if}, \texttt{let},
   \texttt{find}, \texttt{new}.
-One should use the command \texttt{show\string_game occ} to determine
-which occurrence number $occ$ corresponds to the program point where
-one wants to replace the term. The occurrence number $occ$ must
-correspond to a term.
+See above for how to specify the program point $occ$. 
+The program point $occ$ must correspond to a term.
 
 \item \texttt{merge\_branches} merges the branches of {\tt if}, {\tt
     find}, and {\tt let} when they execute equivalent code. Such a
@@ -2122,24 +2177,23 @@ Otherwise, wait for further instructions.
 \item \texttt{show\string_game}: display the current game.
 
 \item \texttt{show\string_game occ}: display the current game with
-  occurrences. Useful for some commands that require specifying a
-  program point; one can use the displayed numbers to specify program
-  points.
+  occurrence numbers. Useful for some commands that require specifying a
+  program point; see above for how program point are specified.
 
 \item \texttt{show\string_state}: display the whole sequence
 of games until the current game.
 
 \item $\texttt{show\string_facts}\ occ$: show the facts that are proved
-by CryptoVerif in the current game, at the program point of occurrence $occ$. 
+by CryptoVerif in the current game, at the program point $occ$. 
+See above for how to specify the program point $occ$.
 This command is mainly helpful for debugging.
 
 \item \texttt{out\string_game $f$}: output the current game to file $f$.
   (Be careful: file $f$ will be overwritten if it already exists.)
 
 \item \texttt{out\string_game $f$ occ}: output the current game with
-  occurrences to file $f$. Useful for some commands that require specifying a
-  program point; one can use the displayed numbers to specify program
-  points.
+  occurrence numbers to file $f$. Useful for some commands that require specifying a
+  program point; see above for how occurrences are specified.
   (Be careful: file $f$ will be overwritten if it already exists.)
 
 \item \texttt{out\string_state $f$}: output the whole sequence
@@ -2147,8 +2201,9 @@ of games until the current game to file $f$.
   (Be careful: file $f$ will be overwritten if it already exists.)
 
 \item $\texttt{out\string_facts}\ f\ occ$: output the facts that are proved
-  by CryptoVerif in the current game, at the program point of occurrence $occ$,
+  by CryptoVerif in the current game, at the program point $occ$,
   to file $f$. 
+See above for how to specify the program point $occ$.
 This command is mainly helpful for debugging.
   (Be careful: file $f$ will be overwritten if it already exists.)
 
@@ -2160,7 +2215,7 @@ sets parameters, as the \texttt{set} instruction in input files.
 
 \item \texttt{allowed\string_collisions} $\nonterm{formulas}$: 
 determine when to eliminate collisions. $\nonterm{formulas}$ is 
-a list of comma separated formulas of the form
+a comma-separated list of formulas of the form
 $\nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k} / \nonterm{tsize}$,
 where the exponents $n_i$ can be omitted when equal to 1;
 $\nonterm{psize}_i$ is an identifier that determines the size of a
@@ -2247,7 +2302,7 @@ program points in the previous game. These program points may not be
 completely accurate for the following reasons:
 \begin{itemize}
 \item When a step of the transformations transforms the same part of 
-the game as a previous step, the occurrence in the second step actually
+the game as a previous step, the program point in the second step actually
 refers to the code generated by the previous step, so it is not found
 in the previously displayed game.
 \item When a step transforms part of the game that was duplicated by
