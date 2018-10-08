@@ -777,18 +777,18 @@ let get_occ_of_line p ext regexp_str occ_loc n is_max =
 	    let match_pos = Str.search_forward regexp line start_in_line in
             (* Line matches *)
 	    if n = 1 then
-	      match occ_loc with
-	      | Before ->
-		  state := Found line;
-		  if not is_max then raise Stop
-	      | After ->
-		  state := After
-	      | At _ ->
-		  begin
+	      begin
+		match occ_loc with
+		| Before ->
+		    state := Found line;
+		    if not is_max then raise Stop
+		| After ->
+		    state := After
+		| At _ ->
 		    check_no_further_match is_max (match_pos+1) line;
 		    state := Found (Str.matched_string line);
 		    if not is_max then raise Stop
-		  end
+	      end
 	    else
 	      begin
 		state := (Looking (n-1));
