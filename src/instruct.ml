@@ -756,6 +756,19 @@ let get_occ_of_line p ext regexp_str occ_loc n is_max =
   let regexp = Str.regexp regexp_str in
   let state = ref (Looking n) in
   let buffer = Buffer.create 100 in
+  let check_no_further_match is_max start_in_line line =
+    (* if [is_max] is true, checks that there is no match
+       of the regular expression in line [line] after position
+       [start_in_line] *)
+    if is_max then
+      begin
+	try
+	  let _ = Str.search_forward regexp line start_in_line in
+	  raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth, after_nth, or at_nth.", ext))
+	with Not_found -> 
+	  ()
+      end
+  in
   let rec line_handler start_in_line line =
     match !state with
     | Looking n ->
@@ -772,8 +785,7 @@ let get_occ_of_line p ext regexp_str occ_loc n is_max =
 		  state := After
 	      | At _ ->
 		  begin
-		    if is_max && (Str.string_match regexp line (match_pos+1)) then
-		      raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with at_nth.", ext));
+		    check_no_further_match is_max (match_pos+1) line;
 		    state := Found (Str.matched_string line);
 		    if not is_max then raise Stop
 		  end
@@ -788,19 +800,11 @@ let get_occ_of_line p ext regexp_str occ_loc n is_max =
 	    ()
 	end
     | After ->
-	if is_max && (Str.string_match regexp line 0) then
-	  raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with after_nth.", ext));
+	check_no_further_match is_max 0 line;
 	state := Found line;
 	if not is_max then raise Stop
     | Found s ->
-	if is_max then
-	  begin
-	    try
-	      let _ = Str.search_forward regexp line 0 in
-	      raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth, after_nth, or at_nth.", ext))
-	    with Not_found -> 
-	      ()
-	  end
+	check_no_further_match is_max 0 line
   in
   let rec string_handler s =
     let l = Buffer.length buffer in
