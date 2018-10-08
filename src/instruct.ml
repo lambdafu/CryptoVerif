@@ -1543,25 +1543,25 @@ and interpret_command_forget interactive state command =
    Returns [CSuccess state'] when the prover terminated by "quit" in state [state']
    Raises [EndSuccess state'] when the prover terminated with all properties proved in state [state'] *)
 and interactive_loop state =
-  print_string "Please enter a command: ";
-  let s = read_line() in
-  let lexbuf = Lexing.from_string s in
-  Lexer.in_proof := true;
-  let commands =
-    try
-      Parser.proofoptsemi Lexer.token lexbuf
-    with Parsing.Parse_error ->
-      Lexer.in_proof := false;
-      raise (Error("Syntax error", extent lexbuf))
-  in
-  Lexer.in_proof := false;
-  let rec run_commands state = function
-    | [] -> state
-    | c1:: rest ->
-	let state' = interpret_command_forget true state c1 in
-	run_commands state' rest
-  in
   try 
+    print_string "Please enter a command: ";
+    let s = read_line() in
+    let lexbuf = Lexing.from_string s in
+    Lexer.in_proof := true;
+    let commands =
+      try
+	Parser.proofoptsemi Lexer.token lexbuf
+      with Parsing.Parse_error ->
+	Lexer.in_proof := false;
+	raise (Error("Syntax error", extent lexbuf))
+    in
+    Lexer.in_proof := false;
+    let rec run_commands state = function
+      | [] -> state
+      | c1:: rest ->
+	  let state' = interpret_command_forget true state c1 in
+	  run_commands state' rest
+    in
     interactive_loop (run_commands state commands)
   with
     End s ->
