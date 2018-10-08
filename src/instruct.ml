@@ -712,75 +712,9 @@ let execute_any_crypto state =
 	    
 (* Interactive prover *)
 
-(* [get_line ext n is_max occ_loc regexp filename] returns 
-   the [n]-th match of [regexp] in [filename].
-   If [is_max] is true, that line should be the last one.
-   If [occ_loc == Before], return the line that matches. 
-   If [occ_loc == After], return the line that follows the one that matches 
-   If [occ_loc == At _], return the substring that matches. *)
-	
-type occ_loc_t =
-    Before
-  | After
-  | At of int
-    
-let get_line ext n is_max occ_loc regexp_str filename =
-  try
-    let regexp = Str.regexp regexp_str in
-    let file = open_in filename in
-    let rec aux n =
-      assert (n>=1);
-      let line = input_line file in
-      aux_inside n 0 line
-    and aux_inside n start_in_line line =
-      try
-	let match_pos = Str.search_forward regexp line start_in_line in
-	(* Line matches *)
-	if n = 1 then
-	  match occ_loc with
-	  | Before -> line
-	  | After ->
-	      let next_line = input_line file in
-	      if is_max && (Str.string_match regexp next_line 0) then
-		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with after_nth.", ext));
-	      next_line
-	  | At _ ->
-	      if is_max && (Str.string_match regexp line (match_pos+1)) then
-		raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with at_nth.", ext));
-	      Str.matched_string line
-	else
-	  match occ_loc with
-	  | At _ -> aux_inside (n-1) (match_pos+1) line
-	  | _ -> aux (n-1)
-      with Not_found ->
-	aux n
-    in    
-    let result = aux n in
-    if is_max then
-      begin
-	try
-	  let rec check_no_further_match() =
-	    let line = input_line file in
-	    try
-	      let _ = Str.search_forward regexp line 0 in
-	      close_in file;
-	      raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth, after_nth, or at_nth.", ext))
-	    with Not_found -> 
-	      check_no_further_match()
-	  in
-	  check_no_further_match()
-	with End_of_file ->
-	  ()
-      end;
-    close_in file;
-    result
-  with
-  | End_of_file ->
-      raise(Error("Not enough matches for the regular expression you specified.", ext))
-  | Sys_error s ->
-      raise(Error("Sys_error: " ^ s, ext))
-
-
+(* [get_nth_occ ext s n] returns the [n]-th occurrence number
+   found in string [s]. *)
+      
 let get_nth_occ ext s n =
   try
     let rec aux idx n =
@@ -798,27 +732,108 @@ let get_nth_occ ext s n =
     raise(Error("No occurrence number found", ext))
 
 
-(* [get_occ_of_line p ext regexp grep_opt n is_max] 
-   returns the occurrence at the [n]-th line of the grep output
-   for regular expression [regexp] in the display of process [p].
-   If [is_max] is true, the [n]-th line should be the last one. 
-   [grep_opt] contains additional options to pass to grep. *)
+(* [get_occ_of_line p ext regexp_str occ_loc n is_max] 
+   returns the occurrence at the [n]-th match
+   for regular expression [regexp_str] in the display of process [p].
+   If [occ_loc == Before], return the line that matches. 
+   If [occ_loc == After], return the line that follows the one that matches 
+   If [occ_loc == At _], return the substring that matches.
+   If [is_max] is true, the [n]-th line should be the last one.  *)
 
-let get_occ_of_line p ext regexp occ_loc n is_max =
-  let s = Filename.temp_file "game" ".cv" in
-  Display.file_out s dummy_ext (fun () ->
-    Display.display_occurrences := true;
-    Display.display_process p;
-    Display.display_occurrences := false);
-  let l = get_line ext n is_max occ_loc regexp s in
-  let occ_num_in_line =
-    match occ_loc with
-    | At n -> n
-    | _ -> 1
+type occ_loc_t =
+    Before
+  | After
+  | At of int
+
+type occ_searcher_state_t =
+  | Looking of int (* [Looking n] means that we look for the [n]-th match *)
+  | After (* [After] means that we have just found the desired match, but we want to return the line after that match *)
+  | Found of string (* [Found s] means that we have found the desired match, it is [s] *)
+
+exception Stop (* raised when we do not need to look at the rest of the game *)
+	
+let get_occ_of_line p ext regexp_str occ_loc n is_max =
+  let regexp = Str.regexp regexp_str in
+  let state = ref (Looking n) in
+  let buffer = Buffer.create 100 in
+  let rec line_handler start_in_line line =
+    match !state with
+    | Looking n ->
+	begin
+	  try
+	    let match_pos = Str.search_forward regexp line start_in_line in
+            (* Line matches *)
+	    if n = 1 then
+	      match occ_loc with
+	      | Before ->
+		  state := Found line;
+		  if not is_max then raise Stop
+	      | After ->
+		  state := After
+	      | At _ ->
+		  begin
+		    if is_max && (Str.string_match regexp line (match_pos+1)) then
+		      raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with at_nth.", ext));
+		    state := Found (Str.matched_string line);
+		    if not is_max then raise Stop
+		  end
+	    else
+	      begin
+		state := (Looking (n-1));
+		match occ_loc with
+		| At _ -> line_handler (match_pos+1) line
+		| _ -> ()
+	      end
+	  with Not_found ->
+	    ()
+	end
+    | After ->
+	if is_max && (Str.string_match regexp line 0) then
+	  raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with after_nth.", ext));
+	state := Found line;
+	if not is_max then raise Stop
+    | Found s ->
+	if is_max then
+	  begin
+	    try
+	      let _ = Str.search_forward regexp line 0 in
+	      raise(Error("Several matches for the regular expression you specified. You should try specifying the occurence with before_nth, after_nth, or at_nth.", ext))
+	    with Not_found -> 
+	      ()
+	  end
   in
-  let occ = get_nth_occ ext l occ_num_in_line in
-  Unix.unlink s;
-  occ
+  let rec string_handler s =
+    let l = Buffer.length buffer in
+    Buffer.add_string buffer s;
+    try
+      let pos_ret = l + (String.index s '\n') in
+      (* "\n" found => we have an entire line in the buffer *)
+      let line = Buffer.sub buffer 0 pos_ret in
+      let rest = Buffer.sub buffer (pos_ret+1) (Buffer.length buffer-pos_ret-1) in
+      Buffer.clear buffer;
+      line_handler 0 line;
+      string_handler rest
+    with Not_found -> ()
+  in
+  begin
+    try 
+      Display.fun_out string_handler (fun () ->
+	Display.display_occurrences := true;
+	Display.display_process p;
+	Display.display_occurrences := false)
+    with Stop -> ()
+  end;
+  match !state with
+  | Looking _ | After ->
+      raise(Error("Not enough matches for the regular expression you specified.", ext))
+  | Found l ->
+      let occ_num_in_line =
+	match occ_loc with
+	| At n -> n
+	| _ -> 1
+      in
+      let occ = get_nth_occ ext l occ_num_in_line in
+      occ
 
 let int_of_cmd (num, ext) =
   try

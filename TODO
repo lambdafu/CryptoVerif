@@ -1,5 +1,3 @@
-Occ numbers: Avoid using a temporary file.
-
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.
 

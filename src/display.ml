@@ -1,11 +1,17 @@
 open Types
 
 (* Allow changing the output destination *)
-  
-let output = ref (stdout : out_channel)
 
+type dest_t =
+  | File of out_channel
+  | Func of (string -> unit)
+  
+let dest = ref (File stdout)
+    
 let print_string s =
-  output_string (!output) s
+  match !dest with
+  | File output -> output_string output s
+  | Func f -> f s
 
 let print_int i =
   print_string (string_of_int i)
@@ -15,26 +21,39 @@ let print_float f =
 
 let print_newline() =
   print_string "\n";
-  flush (!output)
+  match !dest with
+  | File output -> flush output
+  | Func _ -> ()
     
 let file_out filename ext f =
-  let old_output = !output in
+  let old_dest = !dest in
   let file =
     try
       open_out filename
     with Sys_error s ->
       raise (Parsing_helper.Error("Cannot open file " ^ filename ^ ": " ^ s, ext))
   in
-  output := file;
+  dest := File file;
   try 
     f();
     close_out file;
-    output := old_output
+    dest := old_dest
   with x ->
     close_out file;
-    output := old_output;
+    dest := old_dest;
     raise x
-       
+
+let fun_out out_f f =
+  let old_dest = !dest in
+  dest := Func out_f;
+  try 
+    f();
+    dest := old_dest
+  with x ->
+    dest := old_dest;
+    raise x
+  
+      
 let display_occurrences = ref false
 let useful_occs = ref []
 

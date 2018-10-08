@@ -1,7 +1,8 @@
 open Types
 
 val file_out : string -> Parsing_helper.extent -> (unit -> unit) -> unit
-
+val fun_out : (string -> unit) -> (unit -> unit) -> unit
+    
 val print_string : string -> unit
 val print_newline : unit -> unit  
 
