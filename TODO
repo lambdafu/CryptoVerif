@@ -829,11 +829,6 @@ simplify, move_new_let.
   becomes ambiguous.
   * when I simplify a term during expansion, the occurrence is not
   found in the initial game.
-- have a way to designate occurrences such as
-    - at "let x in[here]" (after the let in)
-    - at "[here]let x" (before the let)
-    - at "let x else[here]" (in the else branch of the let)
-  and similar for find/new/oracle def/...
 - HTML interface?
 - during manual proofs, have the tool suggest possible game
 transformations (via a command "suggestions", or in background
@@ -3468,3 +3463,10 @@ DONE
    We could add ROMs/PRFs with several results, returning a tuple of random
 values (though splitting a single random result works ok).
 ABANDONED
+
+- have a way to designate occurrences such as
+    - at "let x in[here]" (after the let in)
+    - at "[here]let x" (before the let)
+    - at "let x else[here]" (in the else branch of the let)
+  and similar for find/new/oracle def/...
+DONE (in a slightly different way)

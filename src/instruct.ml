@@ -1066,7 +1066,7 @@ let do_equiv ext equiv parsed_user_info state =
 	| CFailure l -> 
 	    execute_crypto_list (function 
 		CSuccess state'' -> repeat_crypto equiv state''
-	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; state) (List.map (fun x -> (x, state, false)) l) 
+	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; flush stdout; state) (List.map (fun x -> (x, state, false)) l) 
       in
       repeat_crypto equiv state
   | _ ->
