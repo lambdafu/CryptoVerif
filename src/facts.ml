@@ -1307,7 +1307,7 @@ and add_fact depth dep_info simp_facts fact =
 	    end
 	| _ -> Parsing_helper.internal_error "Expecting a group or xor theory in Facts.add_fact"
       end
-  | FunApp(f,[t1;t2]) when f.f_cat == ForAllDiff ->
+(*  | FunApp(f,[t1;t2]) when f.f_cat == ForAllDiff ->
       let t1' = try_no_var simp_facts t1 in
       let t2' = try_no_var simp_facts t2 in
       begin
@@ -1320,7 +1320,7 @@ and add_fact depth dep_info simp_facts fact =
 	  else
 	    (subst2, fact'::facts, elsefind)
       | _ -> (subst2, fact'::facts, elsefind)
-      end
+      end *)
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
      simplif_add (depth+1) dep_info (add_fact (depth+1) dep_info simp_facts t1) t2
   | Var _ ->

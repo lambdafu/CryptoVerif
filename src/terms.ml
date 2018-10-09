@@ -4792,6 +4792,25 @@ as well as equalities between products *)
       reduced := true;
       make_false()      
 
+(* simplify f(t1...tn) <> f(t1'...tn') with universally quantified variables *)
+  | FunApp(f,[t1;t2]) when f.f_cat == ForAllDiff ->
+      let t1' = try_no_var simp_facts t1 in
+      let t2' = try_no_var simp_facts t2 in
+      begin
+      match (t1'.t_desc, t2'.t_desc) with
+	(FunApp(f1,l1), FunApp(f2,l2)) when
+	(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
+	  let vars = ref [] in
+	  if List.for_all (single_occ_gvar vars) l1 && List.for_all (single_occ_gvar vars) l2 then
+	    begin
+	      reduced := true;
+	      make_or_list (List.map2 (fun t1' t2' -> apply_eq_reds simp_facts reduced (make_for_all_diff t1' t2')) l1 l2)
+	    end
+	  else
+	    t
+      | _ -> t
+      end
+
 (* Simplify subterms *)
   | FunApp(f,l) ->
       build_term2 t (FunApp(f, List.map (apply_eq_reds simp_facts reduced) l))
