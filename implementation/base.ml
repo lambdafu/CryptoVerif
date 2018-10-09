@@ -21,10 +21,9 @@ let input_string_from_file file =
   try
     let f = open_in_bin file in
     let n = in_channel_length f in
-    let buf = String.create n in
-    really_input f buf 0 n;
+    let s = really_input_string f n in
     close_in f;
-    buf
+    s
   with _ -> raise (Bad_file file)
 
 let output_string_to_file file s =
@@ -83,10 +82,10 @@ let char4_of_int s i n=
   let n1=(n lsr 16) land 255 in
   let n2=(n lsr  8) land 255 in
   let n3= n         land 255 in
-    s.[i]<-char_of_int n0;
-    s.[i+1]<-char_of_int n1;
-    s.[i+2]<-char_of_int n2;
-    s.[i+3]<-char_of_int n3
+    Bytes.set s i (char_of_int n0);
+    Bytes.set s (i+1) (char_of_int n1);
+    Bytes.set s (i+2) (char_of_int n2);
+    Bytes.set s (i+3) (char_of_int n3)
 
 let int_of_char4 s i=
   if String.length s < i+4 then
@@ -104,7 +103,7 @@ let compos (l:string list) : string =
     | s::l -> 4 + (String.length s) + tot_len l
   in
   let len = tot_len l in
-  let buf = String.create len in
+  let buf = Bytes.create len in
   char4_of_int buf 0 (List.length l);
   let rec repr i = function
       s::l -> 
@@ -115,7 +114,7 @@ let compos (l:string list) : string =
     | [] -> ()
   in
   repr 4 l;
-  buf
+  Bytes.unsafe_to_string buf
 
 let decompos b =
   let nb=int_of_char4 b 0 in
@@ -153,8 +152,7 @@ let get_from_table file filter =
 	  []
 	else
 	  let len = input_binary_int f in
-	  let s = String.create len in
-	  really_input f s 0 len;
+	  let s = really_input_string f len in
 	  s :: (read_rec (n-1))
       in
       let record = 
@@ -236,11 +234,11 @@ let i2osp x l =
     if (l < lmax && x>(1 lsl (8*l))) then 
       raise Integer_too_large
     else
-      let s = String.create l in
-        for i=0 to (l-1) do
-          s.[i] <- char_of_int ((x lsr (8*(l-i-1))) land 255)
-        done;
-        s
+      let s = Bytes.create l in
+      for i=0 to (l-1) do
+        Bytes.set s i (char_of_int ((x lsr (8*(l-i-1))) land 255))
+      done;
+      Bytes.unsafe_to_string s
   
 let rec osp2i s i l =
   if l = 1 then int_of_char s.[i]

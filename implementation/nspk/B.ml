@@ -8,9 +8,7 @@ let send ch s =
 
 let receive ch =
   let len = input_binary_int ch in
-  let s = String.create len in
-  really_input ch s 0 len;
-  s
+  really_input_string ch len
 
 let server_fun cert_server_addr init_in init_out =
   let m1 = receive init_in in

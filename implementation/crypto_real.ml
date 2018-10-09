@@ -76,15 +76,15 @@ let get_hostname = Unix.gethostname
 (* Padding functions *)
 
 let pad scheme size s =
-  let buf = String.create size in
+  let buf = Bytes.create size in
   let size=String.length s in
-    String.blit s 0 buf 0 size;
-    Cryptokit.wipe_string s;
-    scheme#pad buf size;
-    buf
+  String.blit s 0 buf 0 size;
+  Cryptokit.wipe_string s;
+  scheme#pad buf size;
+  Bytes.unsafe_to_string buf
 
 let pad_inv scheme s =
-  String.sub s 0 (scheme#strip s)
+  String.sub s 0 (scheme#strip (Bytes.unsafe_of_string s))
 
 
 (* Symmetric encryption *)
@@ -171,16 +171,19 @@ let mgf z l =
     done;
     Buffer.sub t 0 l
           
-        
-let sxor s1 s2 =
+
+let byte_sxor s1 s2 =
   if String.length s1 <> String.length s2 then
     raise Sxor
   else
-    let s=String.create (String.length s1) in
-      for i = 0 to ((String.length s1)-1) do
-        s.[i] <- char_of_int ((int_of_char s1.[i]) lxor (int_of_char s2.[i]))
-      done;
-      s
+    let s = Bytes.create (String.length s1) in
+    for i = 0 to ((String.length s1)-1) do
+      Bytes.set s i (char_of_int ((int_of_char s1.[i]) lxor (int_of_char s2.[i])))
+    done;
+    s
+    
+let sxor s1 s2 =
+  Bytes.unsafe_to_string (byte_sxor s1 s2)
 
 let eme_oaep_encode m p emLen =
   (*step1 :P<=2**61-1. OCaml strings can have at most 2**57 octets *)
@@ -292,9 +295,9 @@ let emsa_pss_encode sLen msg emBits =
       let ps = String.make (emLen - sLen - hLen - 2) '\000' in
       let db = ps^"\001"^salt in
       let dbMask = mgf h (emLen - hLen -1) in
-      let maskedDB = sxor db dbMask in
-        maskedDB.[0] <- set_leftmost_n_bits_to_zero maskedDB.[0] (8*emLen-emBits);
-        maskedDB^h^"\xbc"
+      let maskedDB = byte_sxor db dbMask in
+      Bytes.set maskedDB 0  (set_leftmost_n_bits_to_zero (Bytes.get maskedDB 0) (8*emLen-emBits));
+      (Bytes.unsafe_to_string maskedDB)^h^"\xbc"
 
 let emsa_pss_verify sLen m em emBits =
   let hLen = 20 in
@@ -314,21 +317,22 @@ let emsa_pss_verify sLen m em emBits =
                 false
               else
                 let dbMask = mgf h (emLen - hLen - 1) in
-                let db = sxor maskedDB dbMask in
-                  db.[0] <- set_leftmost_n_bits_to_zero db.[0] (8*emLen-emBits);
-                  let i = ref 0 in
-                  let b = ref true in
-                    while !b && !i < emLen - hLen - sLen - 2 do
-                      b := db.[!i] = '\000';
-                      incr i;
-                    done;
-                    if not !b then
-                      false
-                    else
-                      let salt = String.sub db (String.length db - sLen) sLen in
-                      let m' = "\000\000\000\000\000\000\000\000"^mHash^salt in
-                      let h' = Cryptokit.hash_string (Cryptokit.Hash.sha1 ()) m' in
-                        h = h'
+                let db = byte_sxor maskedDB dbMask in
+                Bytes.set db 0 (set_leftmost_n_bits_to_zero (Bytes.get db 0) (8*emLen-emBits));
+		let db = Bytes.unsafe_to_string db in
+                let i = ref 0 in
+                let b = ref true in
+                while !b && !i < emLen - hLen - sLen - 2 do
+                  b := db.[!i] = '\000';
+                  incr i;
+                done;
+                if not !b then
+                  false
+                else
+                  let salt = String.sub db (String.length db - sLen) sLen in
+                  let m' = "\000\000\000\000\000\000\000\000"^mHash^salt in
+                  let h' = Cryptokit.hash_string (Cryptokit.Hash.sha1 ()) m' in
+                  h = h'
 
 let rsassa_pss_sign sLen m sk =
   let em = emsa_pss_encode sLen m (sk.Cryptokit.RSA.size - 1) in

@@ -44,7 +44,7 @@ val rand_list : 'a list -> 'a
    [pos] in the string [s]. The integer takes 4 bytes. 
    [int_of_char4 s pos] reads the integer at position [pos]
    in the string [s]. *)
-val char4_of_int : string -> int -> int -> unit
+val char4_of_int : bytes -> int -> int -> unit
 val int_of_char4 : string -> int -> int
 
 (* [compos] concatenates bitstrings, with length indications,

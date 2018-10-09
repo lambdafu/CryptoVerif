@@ -168,7 +168,7 @@ let manage_client_msgs socks ch ch_to_oc fd_to_ic read_packet write_packet =
 
 let manage_data s fd_to_ic write_packet =
   let (ic,c) = Hashtbl.find fd_to_ic s in
-  let buf = String.create 1024 in
+  let buf = Bytes.create 1024 in
   let r = input ic buf 0 1024 in
     if r = 0 then
       begin
@@ -177,10 +177,11 @@ let manage_data s fd_to_ic write_packet =
       end
     else
       begin
-	let packet = ((string_of_char Ssh_crypto.tag_channel_data)^(Base.i2osp c 4)^(Ssh_crypto.ssh_string (String.sub buf 0 r))) in
+	let packet = ((string_of_char Ssh_crypto.tag_channel_data)^(Base.i2osp c 4)^(Ssh_crypto.ssh_string (Bytes.sub_string buf 0 r))) in
 	print ("Sending to client in tunnel: "^packet);	
 	write_packet packet
       end
+	
 let do_connect (read_packet,write_packet) rfd =
   let ch = ref 0 in
   let socks = ref [] in

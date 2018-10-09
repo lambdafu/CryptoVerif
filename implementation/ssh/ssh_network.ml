@@ -7,11 +7,9 @@ let resolve name =
     failwith ("Could not resolve "^name^".")
 
 let input_packet ic =
-  let buf1 = String.create 4 in
-  really_input ic buf1 0 4;
+  let buf1 = really_input_string ic 4 in
   let n = Base.int_of_char4 buf1 0 in
-  let buf2 = String.create n in
-  really_input ic buf2 0 n;
+  let buf2 = really_input_string ic n in
   buf1^buf2
 
 let output_packet oc s =
@@ -26,9 +24,7 @@ let rec chop s =
 
 let input_blocks ic size =
   if size <> 0 then
-    let buf=String.create size in
-      really_input ic buf 0 size;
-      buf
+    really_input_string ic size
   else
     ""
   
