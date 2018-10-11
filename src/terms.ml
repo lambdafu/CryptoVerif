@@ -2978,45 +2978,57 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       ignore(def_term event_accu cur_array above_node' true_facts' def_vars elsefind_facts' t2);
       ignore(def_term event_accu cur_array above_node' true_facts'' def_vars elsefind_facts' t3);
       above_node'
-  | FindE(l0,t3,_) ->
+  | FindE(l0,t3,find_info) ->
       let (true_facts_else, elsefind_facts_else) = 
 	find_list_to_elsefind (true_facts, elsefind_facts) l0
       in
-      List.iter (fun (bl,def_list,t1,t2) ->
-	let vars = List.map fst bl in
-	let repl_indices = List.map snd bl in
-	let vars_terms = List.map term_from_binder vars in
-        (* The variables defined in t are variables defined in conditions of find,
-	   one cannot make array accesses to them, nor test their definition,
-	   so they will not appear in defined conditions of elsefind_facts.
-	   We need not take them into account to update elsefind_facts. *)
-	let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
-	let t1' = subst repl_indices vars_terms t1 in
-        let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = def_vars_and_facts_from_term t1' in
-	let elsefind_facts_then = elsefind_t1 @ elsefind_facts'' in
-	let true_facts' = List.rev_append sure_facts_t1 true_facts in
-	let accu = ref [] in
-	List.iter (close_def_subterm accu) def_list;
-	let def_list_subterms = !accu in 
-	let def_vars_t1 = def_list_subterms @ def_vars in
-       	let def_vars' =
-          List.rev_append sure_def_list_t1
-            (List.rev_append (subst_def_list repl_indices vars_terms def_list_subterms)
-               def_vars)
-        in
-	let above_node' = { above_node = above_node; binders = vars; 
-			    true_facts_at_def = true_facts'; 
-			    def_vars_at_def = def_vars';
-			    elsefind_facts_at_def = elsefind_facts;
-			    future_binders = []; future_true_facts = []; 
-			    definition = DTerm t;
-			    definition_success = DTerm t2 } 
-	in
-	List.iter (fun b -> b.def <- above_node' :: b.def) vars;
-	ignore(def_term event_accu (repl_indices @ cur_array) 
-		 (def_term_def_list event_accu cur_array above_node true_facts def_vars elsefind_facts'' def_list)
-		 true_facts def_vars_t1 elsefind_facts'' t1);
-	ignore(def_term event_accu cur_array above_node' true_facts' def_vars' elsefind_facts_then t2)) l0;
+      let rec find_l seen = function
+	  [] -> ()
+	| ((bl,def_list,t1,t2) as cur_branch)::l ->
+	    find_l (cur_branch::seen) l;
+	    let vars = List.map fst bl in
+	    let repl_indices = List.map snd bl in
+	    let vars_terms = List.map term_from_binder vars in
+            (* The variables defined in t are variables defined in conditions of find,
+	       one cannot make array accesses to them, nor test their definition,
+	       so they will not appear in defined conditions of elsefind_facts.
+	       We need not take them into account to update elsefind_facts. *)
+	    let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
+	    let t1' = subst repl_indices vars_terms t1 in
+            let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = def_vars_and_facts_from_term t1' in
+	    let (true_facts, elsefind_facts_then) =
+	      if find_info == Unique then
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		find_list_to_elsefind (true_facts, elsefind_t1 @ elsefind_facts'') (List.rev_append seen l)
+	      else
+		(true_facts, elsefind_t1 @ elsefind_facts'')
+	    in
+	    let true_facts' = List.rev_append sure_facts_t1 true_facts in
+	    let accu = ref [] in
+	    List.iter (close_def_subterm accu) def_list;
+	    let def_list_subterms = !accu in 
+	    let def_vars_t1 = def_list_subterms @ def_vars in
+       	    let def_vars' =
+              List.rev_append sure_def_list_t1
+		(List.rev_append (subst_def_list repl_indices vars_terms def_list_subterms)
+		   def_vars)
+            in
+	    let above_node' = { above_node = above_node; binders = vars; 
+				true_facts_at_def = true_facts'; 
+				def_vars_at_def = def_vars';
+				elsefind_facts_at_def = elsefind_facts;
+				future_binders = []; future_true_facts = []; 
+				definition = DTerm t;
+				definition_success = DTerm t2 } 
+	    in
+	    List.iter (fun b -> b.def <- above_node' :: b.def) vars;
+	    ignore(def_term event_accu (repl_indices @ cur_array) 
+		     (def_term_def_list event_accu cur_array above_node true_facts def_vars elsefind_facts'' def_list)
+		     true_facts def_vars_t1 elsefind_facts'' t1);
+	    ignore(def_term event_accu cur_array above_node' true_facts' def_vars' elsefind_facts_then t2)
+      in
+      find_l [] l0;
       ignore(def_term event_accu cur_array above_node true_facts_else def_vars elsefind_facts_else t3);
       above_node
   | LetE(pat, t1, t2, topt) ->
@@ -3236,17 +3248,17 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       in
       (intersect (==) fut_binders1 fut_binders2, 
        intersect equal_terms fut_true_facts1 fut_true_facts2)
-  | Find(l0,p2,_) ->
+  | Find(l0,p2,find_info) ->
       let (true_facts', elsefind_facts') = 
 	find_list_to_elsefind (true_facts, elsefind_facts) l0
       in
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu cur_array above_node true_facts' def_vars elsefind_facts' p2
       in
-      let rec find_l = function
+      let rec find_l seen = function
 	  [] -> (fut_binders2, fut_true_facts2)
-	| (bl,def_list,t,p1)::l ->
-	    let (fut_bindersl, fut_true_factsl) = find_l l in
+	| ((bl,def_list,t,p1) as cur_branch)::l ->
+	    let (fut_bindersl, fut_true_factsl) = find_l (cur_branch::seen) l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let vars_terms = List.map term_from_binder vars in
@@ -3257,7 +3269,14 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let elsefind_facts'' = List.map (update_elsefind_with_def vars) elsefind_facts in
 	    let t' = subst repl_indices vars_terms t in
             let (sure_facts_t, sure_def_list_t, elsefind_t) = def_vars_and_facts_from_term t' in
-	    let elsefind_facts_then = elsefind_t @ elsefind_facts'' in
+	    let (true_facts, elsefind_facts_then) =
+	      if find_info == Unique then
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		find_list_to_elsefind (true_facts, elsefind_t @ elsefind_facts'') (List.rev_append seen l)
+	      else
+		(true_facts, elsefind_t @ elsefind_facts'')
+	    in
 	    let true_facts' = List.rev_append sure_facts_t true_facts in
 	    let accu = ref [] in
 	    List.iter (close_def_subterm accu) def_list;
@@ -3288,7 +3307,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    (intersect (==) (vars @ fut_binders1) fut_bindersl,
 	     intersect equal_terms fut_true_facts1 fut_true_factsl)
       in
-      find_l l0
+      find_l [] l0
   | Output((c,tl),t',p) ->
       let (above_node', elsefind_facts') = def_term_list_ef event_accu cur_array above_node true_facts def_vars elsefind_facts tl in
       let above_node'' = def_term event_accu cur_array above_node' true_facts def_vars elsefind_facts' t' in

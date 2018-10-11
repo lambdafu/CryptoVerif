@@ -1058,11 +1058,11 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Terms.cst_for_type t3.t_type
       in
-      let rec simplify_findl = function
+      let rec simplify_findl seen = function
 	  [] -> []
-	| (bl, def_list, t1, t2)::l ->
+	| ((bl, def_list, t1, t2) as cur_branch)::l ->
 	    begin
-	    let l' = simplify_findl l in
+	    let l' = simplify_findl (cur_branch::seen) l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let cur_array_cond = repl_indices @ cur_array in
@@ -1137,6 +1137,16 @@ let rec simplify_term_w_find cur_array true_facts t =
 	        def_vars_accu @ def_vars
 	      in
 	      let tf' = convert_elsefind (dependency_anal cur_array DepAnal2.init) def_vars' tf' in
+
+	      let tf' =
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		if find_info == Unique then 
+		  add_elsefind (dependency_anal cur_array DepAnal2.init) def_vars' tf' (List.rev_append seen l)
+		else
+		  tf'
+	      in
+
 	      let t2' = simplify_term_w_find cur_array tf' t2 in
 
 	      (* When i = M implied by def_list & t, remove i from bl
@@ -1261,7 +1271,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    end
       in
       try 
-	let l0' = simplify_findl l0 in
+	let l0' = simplify_findl [] l0 in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
@@ -1557,7 +1567,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      [] -> l0, p2
 	    | (((bl, def_list, t, p1) as br1)::r) ->
 		match p1.p_desc with
-		  Find(l3, p3, Unique) when (find_info == Unique) ->
+		  Find(l3, p3, Unique) ->
 		    List.iter (fun (b,_) ->
 		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
 		    let result = 
@@ -1568,7 +1578,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		    result
 		| _ -> expand_find (br1::seen) r
 	  in
-	  expand_find [] l0
+	  if find_info == Unique then
+	    expand_find [] l0
+	  else
+	    l0, p2
 	  with CannotExpand -> l0, p2
 	else
 	  l0, p2
@@ -1602,12 +1615,12 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
-      let rec simplify_findl dep_info_l1 l1 = 
+      let rec simplify_findl seen dep_info_l1 l1 = 
 	match (dep_info_l1,l1) with
 	  [],[] -> []
-	| (dep_info_cond::dep_info_then::dep_info_l),((bl, def_list, t, p1)::l) ->
+	| (dep_info_cond::dep_info_then::dep_info_l),(((bl, def_list, t, p1) as cur_branch)::l) ->
 	    begin
-	    let l' = simplify_findl dep_info_l l in
+	    let l' = simplify_findl (cur_branch::seen) dep_info_l l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let cur_array_cond = repl_indices @ cur_array in
@@ -1684,7 +1697,16 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		def_vars_accu @ def_vars
 	      in
 	      let tf' = convert_elsefind (dependency_anal cur_array dep_info_then) def_vars' tf' in
-	      
+
+	      let tf' =
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		if find_info == Unique then 
+		  add_elsefind (dependency_anal cur_array dep_info_then) def_vars' tf' (List.rev_append seen l)
+		else
+		  tf'
+	      in
+
                 if (!Settings.debug_simplify) then
                   begin
 	            Printf.printf "\n_________________\nOcc = %d : \n" p.p_occ;
@@ -1816,7 +1838,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	| _ -> Parsing_helper.internal_error "Different lengths in simplify/Find"
       in
       try
-	let l0' = simplify_findl dep_info_branches l0 in
+	let l0' = simplify_findl [] dep_info_branches l0 in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;

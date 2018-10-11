@@ -442,11 +442,11 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Terms.cst_for_type t3.t_type
       in
-      let rec simplify_findl = function
+      let rec simplify_findl seen = function
 	  [] -> []
-	| (bl, def_list, t1, t2)::l ->
+	| ((bl, def_list, t1, t2) as cur_branch)::l ->
 	    begin
-	    let l' = simplify_findl l in
+	    let l' = simplify_findl (cur_branch::seen) l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let cur_array_cond = repl_indices @ cur_array in
@@ -521,6 +521,16 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	        def_vars_accu @ def_vars
 	      in
 	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
+
+	      let tf' =
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		if find_info == Unique then 
+		  add_elsefind (dependency_anal cur_array) def_vars' tf' (List.rev_append seen l)
+		else
+		  tf'
+	      in
+
 	      let t2' = rec_simplif cur_array tf' t2 in
 
 	      (* Update the defined condition *)
@@ -601,7 +611,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    end
       in
       try 
-	let l0' = simplify_findl l0 in
+	let l0' = simplify_findl [] l0 in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
@@ -935,12 +945,12 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
-      let rec simplify_findl l1 = 
+      let rec simplify_findl seen l1 = 
 	match l1 with
 	  [] -> []
-	| ((bl, def_list, t, p1)::l) ->
+	| ((bl, def_list, t, p1) as cur_branch)::l ->
 	    begin
-	    let l' = simplify_findl l in
+	    let l' = simplify_findl (cur_branch::seen) l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let cur_array_cond = repl_indices @ cur_array in
@@ -1017,6 +1027,15 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      in
 	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 	      
+	      let tf' =
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		if find_info == Unique then 
+		  add_elsefind (dependency_anal cur_array) def_vars' tf' (List.rev_append seen l)
+		else
+		  tf'
+	      in
+
 	      let p1' = rec_simplif cur_array tf' p1 in
 
 	      (* Update the defined condition *)
@@ -1099,7 +1118,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	    end
       in
       try
-	let l0' = simplify_findl l0 in
+	let l0' = simplify_findl [] l0 in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;

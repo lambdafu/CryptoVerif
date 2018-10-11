@@ -41,6 +41,8 @@ Version
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - When "set inferUnique = true." is present, CryptoVerif
   infers that "find" is unique, when possible.
+- In a "find[unique]", when a branch succeeds, the other branches must
+  fail. We modified CryptoVerif to use that information.
 - Improve a bit the way CryptoVerif infers information for
   "find"s that fails; can be disabled by
   "set elsefindAdditionalDisjunct = false." See the documentation
