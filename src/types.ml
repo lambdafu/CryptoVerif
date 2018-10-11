@@ -554,6 +554,7 @@ and simplify_ins =
   | SLetSimplifyPattern of program_point * let_transfo
   | SResRemoved of program_point
   | SResToAssign of program_point
+  | SEventRemoved of program_point
 
 and def_change =
     DRemoveDef

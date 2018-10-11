@@ -1826,6 +1826,12 @@ let display_simplif_step = function
       print_string " into constant assignment";
       print_newline()
 
+  | SEventRemoved(p) ->
+      print_string "    - Removed event at ";
+      print_int (Terms.occ_from_pp p);
+      print_string " (no longer used in queries)";
+      print_newline()
+
 let display_detailed_ins = function
     DExpandGetInsert(t) -> 
       print_string "  - Expand get/insert for table ";
@@ -1943,7 +1949,7 @@ let mark_occs_simplif_step f_t = function
   | SFindtoTest(p) | SFindIndexKnown(p, _,_) 
   | SFindDeflist(p, _,_) | SFindInferUnique(p) 
   | SLetElseRemoved(p) | SLetRemoved(p) | SLetSimplifyPattern(p, _) 
-  | SResRemoved(p) | SResToAssign(p) -> mark_useful_occ_pp p
+  | SResRemoved(p) | SResToAssign(p) | SEventRemoved(p) -> mark_useful_occ_pp p
   | SFindinFindCondition(p, t) -> mark_useful_occ_pp p; f_t t
   | SFindinFindBranch(p,p') -> mark_useful_occ_pp p; mark_useful_occ_pp p'
 

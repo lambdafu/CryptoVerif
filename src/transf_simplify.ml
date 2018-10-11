@@ -1902,7 +1902,11 @@ and simplify_oprocess cur_array dep_info true_facts p =
       match t.t_desc with
 	FunApp(f,_) ->
 	  if not (Settings.event_occurs_in_queries f (!whole_game).current_queries) then
-	    simplify_oprocess cur_array (List.hd dep_info_list') true_facts p
+	    begin
+	      Settings.changed := true;
+	      current_pass_transfos := (SEventRemoved(pp)) :: (!current_pass_transfos);
+	      simplify_oprocess cur_array (List.hd dep_info_list') true_facts p
+	    end
 	  else
 	    Terms.oproc_from_desc2 p' (EventP(simplify_term cur_array dep_info false true_facts t,
 					  simplify_oprocess cur_array (List.hd dep_info_list') true_facts p))

@@ -1625,6 +1625,12 @@ let display_simplif_step = function
       print_string " into constant assignment";
       print_string "\\\\\n"
 
+  | SEventRemoved(p) ->
+      print_string "\\qquad -- Removed event at ";
+      print_int (Terms.occ_from_pp p);
+      print_string " (no longer used in queries)";
+      print_string "\\\\\n"
+	
 let display_detailed_ins = function
     DExpandGetInsert(t) -> 
       print_string "\\quad -- Expand get/insert for table $";
