@@ -3469,4 +3469,11 @@ ABANDONED
     - at "[here]let x" (before the let)
     - at "let x else[here]" (in the else branch of the let)
   and similar for find/new/oracle def/...
-DONE (in a slightly different way)
+      DONE (in a slightly different way)
+
+The occurrence designation "after" could work even if there is a line
+without occurrence before the next line with an occurrence, to allow
+    find ...
+    (
+{DESIRED OCC}
+DONE 12/10/2018

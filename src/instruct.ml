@@ -800,9 +800,16 @@ let get_occ_of_line p ext regexp_str occ_loc n is_max =
 	    ()
 	end
     | After ->
-	check_no_further_match is_max 0 line;
-	state := Found line;
-	if not is_max then raise Stop
+	begin
+	  check_no_further_match is_max 0 line;
+	  try
+	    let _ = get_nth_occ ext line 1 in
+	    state := Found line;
+	    if not is_max then raise Stop
+	  with Error _ ->
+	    (* No occurrence found on this line, try the next line *)
+	    ()
+	end
     | Found s ->
 	check_no_further_match is_max 0 line
   in

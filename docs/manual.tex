@@ -1804,8 +1804,8 @@ The program points can then be specified as follows:
   regular expression, otherwise CryptoVerif shows an error message.
   
 \item $\texttt{after "}\mathit{regexp}\texttt{"}$ designates the program
-  point at the beginning of the line that follows the line
-  that matches the regular expression
+  point at the beginning of the first line that has an occurrence number after 
+  the line that matches the regular expression
   $\mathit{regexp}$. 
   There must be a single line that matches this
   regular expression, otherwise CryptoVerif shows an error message.
@@ -1815,8 +1815,9 @@ The program points can then be specified as follows:
   $\mathit{regexp}$.  
   
 \item $\texttt{after\_nth }n\texttt{ "}\mathit{regexp}\texttt{"}$
-  designates the program point at the beginning of the line that
-  follows the $n$-th line that matches the regular expression
+  designates the program point at the beginning of the first line
+  that has an occurrence number after 
+  the $n$-th line that matches the regular expression
   $\mathit{regexp}$.
 
 \item $\texttt{at }n'\texttt{ "}\mathit{regexp}\texttt{"}$
