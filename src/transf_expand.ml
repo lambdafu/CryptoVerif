@@ -454,7 +454,6 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    try
 	      let def_list' = Facts.reduced_def_list (Terms.get_facts pp) def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
-	      let true_facts = update_elsefind_with_def vars true_facts in
 	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
@@ -491,9 +490,17 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		 the facts that hold in the then branch.*)
 	      let facts_cond' = List.map (Terms.subst repl_indices vars_terms) facts_cond in
 	      let elsefind_cond' = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_cond in
-	      let tf' = Terms.add_else_find elsefind_cond'
-		  (Facts.simplif_add_list (dependency_anal cur_array) true_facts facts_cond')
+	      let tf' =
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		if find_info == Unique then 
+		  add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
+		else
+		  true_facts
 	      in
+	      let tf' = Terms.add_else_find elsefind_cond' tf' in
+	      let tf' = update_elsefind_with_def vars tf' in
+	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' facts_cond' in
 
 	      (* Check that the "defined" conditions can hold,
 		 if not remove the branch *)
@@ -522,14 +529,6 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      in
 	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 
-	      let tf' =
-		(* When the find is Unique, I know that the other branches fail,
-		   so I can add the corresponding elsefind facts *)
-		if find_info == Unique then 
-		  add_elsefind (dependency_anal cur_array) def_vars' tf' (List.rev_append seen l)
-		else
-		  tf'
-	      in
 
 	      let t2' = rec_simplif cur_array tf' t2 in
 
@@ -958,7 +957,6 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	    try
 	      let def_list' = Facts.reduced_def_list (Terms.get_facts pp) def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
-	      let true_facts = update_elsefind_with_def vars true_facts in
 	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
 	      let facts_from_elsefind_facts =
@@ -996,9 +994,17 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		 Same substitution for the dependency info. *)
 	      let facts_cond' = List.map (Terms.subst repl_indices vars_terms) facts_cond in
 	      let elsefind_cond' = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_cond in
-	      let tf' = Terms.add_else_find elsefind_cond'
-		  (Facts.simplif_add_list (dependency_anal cur_array) true_facts facts_cond')
+	      let tf' =
+		(* When the find is Unique, I know that the other branches fail,
+		   so I can add the corresponding elsefind facts *)
+		if find_info == Unique then 
+		  add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
+		else
+		  true_facts
 	      in
+	      let tf' = Terms.add_else_find elsefind_cond' tf' in
+	      let tf' = update_elsefind_with_def vars tf' in
+	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' facts_cond' in
 
 	      (* Check that the "defined" conditions can hold,
 		 if not remove the branch *)
@@ -1027,14 +1033,6 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      in
 	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 	      
-	      let tf' =
-		(* When the find is Unique, I know that the other branches fail,
-		   so I can add the corresponding elsefind facts *)
-		if find_info == Unique then 
-		  add_elsefind (dependency_anal cur_array) def_vars' tf' (List.rev_append seen l)
-		else
-		  tf'
-	      in
 
 	      let p1' = rec_simplif cur_array tf' p1 in
 
