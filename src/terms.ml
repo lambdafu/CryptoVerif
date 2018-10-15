@@ -2965,7 +2965,7 @@ In the other cases, we use the induction hypothesis. *)
 let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_facts t =
   if (t.t_facts != None) then
     Parsing_helper.internal_error "Two terms physically equal: cannot compute facts correctly";
-  t.t_facts <- Some (cur_array, true_facts, elsefind_facts, def_vars, above_node);
+  t.t_facts <- Some (cur_array, true_facts, elsefind_facts, def_vars, [], [], above_node);
   match t.t_desc with
     Var(_,l) | FunApp(_,l) ->
       let (above_node', _) = def_term_list_ef event_accu cur_array above_node true_facts def_vars elsefind_facts l in
@@ -3161,7 +3161,7 @@ and def_pattern_list accu event_accu cur_array above_node true_facts def_vars el
 let rec def_process event_accu cur_array above_node true_facts def_vars p' =
   if p'.i_facts != None then
     Parsing_helper.internal_error "Two processes physically equal: cannot compute facts correctly";
-  p'.i_facts <- Some (cur_array, true_facts, [], def_vars, above_node);
+  p'.i_facts <- Some (cur_array, true_facts, [], def_vars, [], [], above_node);
   match p'.i_desc with
     Nil -> ()
   | Par(p1,p2) -> 
@@ -3205,7 +3205,9 @@ let rec def_process event_accu cur_array above_node true_facts def_vars p' =
 and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_facts p' =
   if p'.p_facts != None then
     Parsing_helper.internal_error "Two processes physically equal: cannot compute facts correctly";
-  p'.p_facts <- Some (cur_array, true_facts, elsefind_facts, def_vars, above_node);
+  p'.p_facts <- Some (cur_array, true_facts, elsefind_facts, def_vars, [], [], above_node);
+  let (fut_binders, fut_true_facts) as result =
+  begin
   match p'.p_desc with
     Yield -> 
       ([],[])
@@ -3386,6 +3388,10 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
   | Insert(tbl,tl,p) ->
       let (above_node', elsefind_facts') = def_term_list_ef event_accu cur_array above_node true_facts def_vars elsefind_facts tl in
       def_oprocess event_accu cur_array above_node' true_facts def_vars elsefind_facts' p
+  end
+  in
+  p'.p_facts <- Some (cur_array, true_facts, elsefind_facts, def_vars, fut_true_facts, fut_binders, above_node);
+  result
 
 let build_def_process event_accu p =
   empty_def_process p;
@@ -4183,7 +4189,7 @@ let incompatible_current_suffix_length history n =
   let cur_array =
     match get_facts pp with
       None -> raise Not_found
-    | Some(cur_array,_,_,_,_) -> cur_array
+    | Some(cur_array,_,_,_,_,_,_) -> cur_array
   in
   not_after_suffix_length_one_pp_one_node pp (List.length cur_array) n
 

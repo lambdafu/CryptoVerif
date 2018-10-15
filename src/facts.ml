@@ -1693,7 +1693,7 @@ let rec check_non_nested seen_fsymb seen_binders t =
 let get_initial_history pp =
   match Terms.get_facts pp with
     None -> None
-  | Some (cur_array,_,_,_,n) -> 
+  | Some (cur_array,_,_,_,_,_,n) -> 
       Some { current_point = pp;
 	     cur_array = List.map Terms.term_from_repl_index cur_array;
 	     current_node = n;
@@ -1780,7 +1780,7 @@ let get_def_vars_above2 history n =
    find are found by "def_vars". *)
 let reduced_def_list def_node_opt def_list =
   match def_node_opt with
-    Some (_, _, _, def_vars, def_node) ->
+    Some (_, _, _, def_vars, _, _, def_node) ->
       Terms.setminus_binderref def_list (def_vars @ (get_def_vars_above def_node))
   | None -> def_list
 
@@ -1943,7 +1943,7 @@ let facts_from_defined history def_list =
 
 let get_def_vars_at pp  = 
   match Terms.get_facts pp with
-    Some (_,_,_,def_vars,n) ->
+    Some (_,_,_,def_vars,_,_,n) ->
       let done_refs = ref (get_def_vars_above n) in
       let seen_refs = ref (def_vars @ (!done_refs)) in
       (* Note: def_vars contains n.def_vars_at_def *)
@@ -1958,7 +1958,7 @@ let get_def_vars_at pp  =
 let get_facts_at pp =
   match Terms.get_facts pp with
     None -> []
-  | Some(_,true_facts, _, def_vars, n) ->
+  | Some(_,true_facts, _, def_vars, _,_, n) ->
       let fact_accu = ref (filter_ifletfindres true_facts) in
       (* Note: def_vars contains n.def_vars_at_def *)
       let history = get_initial_history pp in
@@ -1971,10 +1971,10 @@ let get_facts_at pp =
 
 let get_def_vars_full_block pp  = 
   match Terms.get_facts pp with
-    Some (_,_,_,def_vars,n) ->
+    Some (_,_,_,def_vars,_,fut_binders,n) ->
       let done_refs =
 	ref (List.map Terms.binderref_from_binder
-	       (n.future_binders @ Terms.add_def_vars_node [] n))
+	       (fut_binders @ Terms.add_def_vars_node [] n))
       in
       let seen_refs = ref (def_vars @ (!done_refs)) in
       (* Note: def_vars contains n.def_vars_at_def *)
@@ -1989,8 +1989,8 @@ let get_def_vars_full_block pp  =
 let get_facts_full_block pp =
   match Terms.get_facts pp with
     None -> []
-  | Some(_,true_facts, _, def_vars, n) ->
-      let fact_accu = ref (filter_ifletfindres (n.future_true_facts @ true_facts)) in
+  | Some(_,true_facts, _, def_vars, fut_true_facts, _, n) ->
+      let fact_accu = ref (filter_ifletfindres (fut_true_facts @ true_facts)) in
       (* Note: def_vars contains n.def_vars_at_def *)
       let history = get_initial_history pp in
       List.iter (add_facts history fact_accu (ref def_vars) (ref [])) def_vars;
@@ -2002,7 +2002,7 @@ let get_facts_full_block pp =
 let get_elsefind_facts_at pp = 
   match Terms.get_facts pp with
     None -> []
-  | Some(_, _, elsefind_facts, _, _) -> elsefind_facts
+  | Some(_, _, elsefind_facts, _, _, _, _) -> elsefind_facts
 
 (* Functions useful to simplify def_list *)
 
@@ -2507,8 +2507,8 @@ let rec add_facts_cases history (fact_accu, fact_accu_cases) seen_refs done_refs
 let get_facts_full_block_cases pp  =
   match Terms.get_facts pp with
     None -> [],[]
-  | Some(_,true_facts, _, def_vars, n) ->
-      let fact_accu = ref (filter_ifletfindres (n.future_true_facts @ true_facts)) in
+  | Some(_,true_facts, _, def_vars, fut_true_facts, _, n) ->
+      let fact_accu = ref (filter_ifletfindres (fut_true_facts @ true_facts)) in
       let fact_accu_cases = ref [] in
       (* Note: def_vars contains n.def_vars_at_def *)
       let history = get_initial_history pp in

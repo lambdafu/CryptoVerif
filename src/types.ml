@@ -261,13 +261,17 @@ and term = { t_desc : term_desc;
 		   Program points are represented by their occurrence. *)
 	     mutable t_facts : fact_info }
 
-and fact_info = (repl_index list * term list * elsefind_fact list * binderref list * def_node) option
-      (* Some(cur_array, true_facts, elsefind, def_vars, def_node):
+and fact_info = (repl_index list * term list * elsefind_fact list * binderref list * term list * binder list * def_node) option
+      (* Some(cur_array, true_facts, elsefind, def_vars, future_true_facts, future_def_vars, def_node):
 	 cur_array = replication indices at the current program point
 	 true_facts = the facts that are true at the current program point
 	 elsefind = elsefind facts that are true at the current program point
 	 def_vars = the variables whose definition is guaranteed because
 	    of defined conditions above the current program point
+	 future_true_facts = the facts that are certainly true when the block
+	    containing the current program point is executed until the end
+         future_binders = variables whose definition is guaranteed when the block
+            containing the current program point is executed until the end
 	 def_node = the node immediately above the current program point *)
 
 and elsefind_fact = repl_index list * binderref list * term

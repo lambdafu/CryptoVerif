@@ -2035,15 +2035,15 @@ let convert_elsefind2 accu def_vars elsefind =
 
 let get_node = function
     None -> Parsing_helper.internal_error "t/i/p_facts should have been set"
-  | Some(_,_,_,_,n) ->
+  | Some(_,_,_,_,_,_,n) ->
       n
 
 let rec infer_facts_t true_facts t =
   begin
     match t.t_facts with
       None -> Parsing_helper.internal_error "t_facts should have been set"
-    | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
-	t.t_facts <- Some(cur_array, true_facts, elsefind, def_vars, n)
+    | Some (cur_array, true_facts_old, elsefind, def_vars, fut_true_facts, future_binders, n) ->
+	t.t_facts <- Some(cur_array, true_facts, elsefind, def_vars, fut_true_facts, future_binders, n)
   end;
   match t.t_desc with
     Var(_,l) | FunApp(_,l) -> List.iter (infer_facts_t true_facts) l
@@ -2058,8 +2058,8 @@ let rec infer_facts_pat true_facts = function
 let rec infer_facts_fc cur_array true_facts t =
   match t.t_facts with
     None -> Parsing_helper.internal_error "t_facts should have been set"
-  | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
-      t.t_facts <- Some(cur_array, true_facts, elsefind, def_vars, n);
+  | Some (cur_array, true_facts_old, elsefind, def_vars, fut_true_facts, future_binders, n) ->
+      t.t_facts <- Some(cur_array, true_facts, elsefind, def_vars, fut_true_facts, future_binders, n);
       match t.t_desc with
 	Var(_,l) | FunApp(_,l) -> List.iter (infer_facts_t true_facts) l
       | ReplIndex _ -> ()
@@ -2143,8 +2143,8 @@ let rec infer_facts_i cur_array true_facts p' =
   begin
     match p'.i_facts with
       None -> Parsing_helper.internal_error "i_facts should have been set"
-    | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
-	p'.i_facts <- Some(cur_array, true_facts, elsefind, def_vars, n)
+    | Some (cur_array, true_facts_old, elsefind, def_vars, fut_true_facts, future_binders, n) ->
+	p'.i_facts <- Some(cur_array, true_facts, elsefind, def_vars, fut_true_facts, future_binders, n)
   end;
   match p'.i_desc with
     Nil -> ()
@@ -2166,8 +2166,8 @@ and infer_facts_o cur_array true_facts p' =
   (* print_string "infer_facts_o occ "; print_int p'.p_occ; print_newline(); *)
   match p'.p_facts with
     None -> Parsing_helper.internal_error "p_facts should have been set"
-  | Some (cur_array, true_facts_old, elsefind, def_vars, n) ->
-      p'.p_facts <- Some(cur_array, true_facts, elsefind, def_vars, n);
+  | Some (cur_array, true_facts_old, elsefind, def_vars, fut_true_facts, future_binders, n) ->
+      p'.p_facts <- Some(cur_array, true_facts, elsefind, def_vars, fut_true_facts, future_binders, n);
       match p'.p_desc with
 	Yield -> ()
       |	EventAbort f ->

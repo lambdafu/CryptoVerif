@@ -175,8 +175,8 @@ let get_contradiction simp_facts def_vars elsefind_facts =
 
 let get_future_defvars fact_info new_end_sid =
   match Terms.get_facts fact_info with
-    Some (_,_,_,_,n) ->
-      List.map (fun b -> (b, new_end_sid)) n.future_binders
+    Some (_,_,_,_,_,fut_binders,_) ->
+      List.map (fun b -> (b, new_end_sid)) fut_binders
   | None -> []
   
 (* [add_inj known_facts fact' fact injinfo] performs the proof of injectivity.

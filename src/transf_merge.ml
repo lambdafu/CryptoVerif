@@ -546,7 +546,7 @@ and check_array_ref_oprocess in_scope curarray_suffix ok_vars p =
 
 let get_in_scope fact_info =
   match fact_info with
-    Some(_,_,_,_,n) -> Terms.add_def_vars_node [] n
+    Some(_,_,_,_,_,_,n) -> Terms.add_def_vars_node [] n
   | None -> Parsing_helper.internal_error "facts should have been set"
 
 (* [filter_good_vars l] starts from a list containing
@@ -1139,7 +1139,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
   let (source_to_target_list, br_vars) = rename_instr in
   let already_defined = 
     match Terms.get_facts pp with
-      Some (_, _, _, def_vars, def_node) ->
+      Some (_, _, _, def_vars, _, _, def_node) ->
         def_vars @ def_node.def_vars_at_def @ 
 	(List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) (Terms.add_def_vars_node [] def_node))
     | None -> Parsing_helper.internal_error "p_facts should have been defined"
