@@ -1,3 +1,5 @@
+Set future binders/true facts in terms in Terms.build_def_process
+
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.
 
@@ -6,7 +8,24 @@ of a variable x and saying that a certain term M does not depend on a certain
 variable y could also be used when x[M1...Ml] is know to be defined
 (after substituting M1...Ml for the current replication indices in M and y).
 
+Use simp_facts in FindCompos.is_indep (as in Facts.is_indep)
 
+Complete the list of independent terms in dependency analyses using
+simp_facts: 
+* Add to the list of values known to be independent,
+values that are equal to values already known to be independent.
+(Equality comes from simp_facts)
+* If f(M1...Mn) is independent and f is [data], then M1,...,Mn are independent.
+* If M is independent and is of the form C[x1...xn] where C consists of applications
+of function symbols and x1...xn are variables (possibly with indices).
+Let y1...yn, z1...zn be fresh variables (without indices).
+Simplify the equality C[y1...yn] = C[z1...zn].
+If the obtained result is C'[y_{i1}...y_{in'}] = C'[z_{i1}...z_{in'}],
+then C'[x1...xn] is independent.
+   (See ~/repos/verified-noise/WG.25519.AB.dyn.replay_prot.failure
+   Solved another way for the Wireguard case study.)
+
+   
 0) Files that do not work
 
 - "Expanding and simplifying" is very slow in

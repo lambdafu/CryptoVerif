@@ -107,11 +107,6 @@ sig
      dependency information of the variable [b]. *)
   val get_dep_info : dep_info -> binder -> elem_dep_info
 
-  (* [is_indep (b, depinfo) t] returns a term independent of [b]
-     in which some array indices in [t] may have been replaced with
-     fresh replication indices. When [t] depends on [b] by variables
-     that are not array indices, it raises [Not_found] *)
-  val is_indep : (binder * elem_dep_info) -> term -> term
 end
 = 
 struct
