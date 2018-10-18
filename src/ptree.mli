@@ -172,7 +172,7 @@ type var_term_mapping =
   | PTermMapping of (pocc(*occurrence in game*) * ident(*oracle in equivalence*)) list * bool
 
 type crypto_transf_user_info =
-    PRepeat
+    PRepeat of bool (* true when **, which means repeat without simplify in between *)
   | PVarList of ident list * bool (* bool is true when the list ends with "."
 				    no other variable should be added by the transformation in this case *)
   | PDetailed of var_term_mapping list 

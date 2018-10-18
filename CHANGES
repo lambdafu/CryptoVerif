@@ -38,6 +38,9 @@ Version
   by "before <regexp>", "before_nth <n> <regexp>", "after <regexp>",
   "after_nth <n> <regexp>", "at <n in regexp> <regexp>",
   "at_nth <n> <n in regexp> <regexp>" in addition to occurrence numbers.
+- New proof indication "crypto <equivalence> **" which applies repeatedly
+  the equivalence <equivalence>, simplifying only the final game
+  (while "crypto <equivalence> *" simplifies after each transformation).
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - When "set inferUnique = true." is present, CryptoVerif
   infers that "find" is unique, when possible.

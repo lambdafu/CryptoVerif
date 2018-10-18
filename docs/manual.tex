@@ -1987,6 +1987,12 @@ The transformation is applied as many times as possible. (In this
 case, the advised transformations are applied automatically even when
 \texttt{set autoAdvice = false}.)
 
+\item $\texttt{crypto }\nonterm{name}\ \texttt{**}$: similar to 
+$\texttt{crypto }\nonterm{name}\ \texttt{*}$, but the game is simplified
+only after the last cryptographic transformation instead of simplifying it
+after each transformation, for faster execution. This is recommended
+only for very simple cryptographic transformations.
+
 \item $\texttt{crypto }\nonterm{name}\ x_1\ \ldots\ x_n$: apply a cryptographic
 transformation chosen as above, where $x_1, \ldots, x_n$ are variable
 names of the game corresponding to random number generations 

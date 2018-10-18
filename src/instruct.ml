@@ -388,7 +388,7 @@ let crypto_transform no_advice equiv user_info state =
       (* Always expand FindE *)
       Terms.move_occ_game g'';
       Invariants.global_inv g'';
-      CSuccess (simplify { game = g''; 
+      CSuccess ({ game = g''; 
 			   prev_state = Some (CryptoTransf(equiv, user_info), proba, ins, state) })
   | TFailure (l,failure_reasons) ->
       if !Settings.debug_instruct then
@@ -475,7 +475,7 @@ let rec execute_any_crypto_rec continue state = function
 	CSuccess state' -> 
 	  begin
 	    try
-	      continue (CSuccess state')
+	      continue (CSuccess (simplify state'))
 	    with Backtrack ->
 	      if !Settings.backtrack_on_crypto then
 		begin
@@ -670,13 +670,14 @@ let rec execute_any_crypto_rec1 interactive state =
 	   execute_any_crypto_rec (function
 	       | CSuccess state'' -> execute_any_crypto_rec1 interactive state''
 	       | CFailure l -> execute_crypto_list (function 
-		                   | CFailure _ -> 
-		                      apply_equivs rest_equivs
-		                   | CSuccess state''' ->
-                                      if !Settings.forget_old_games then
-                                        forget_old_games state''';
-		                      execute_any_crypto_rec1 interactive state''')
-                                 (List. map (fun x -> (x, state', false)) l)) state' lequiv
+		   | CFailure _ -> 
+		       apply_equivs rest_equivs
+		   | CSuccess state''' ->
+		       let state''' = simplify state''' in
+                       if !Settings.forget_old_games then
+                         forget_old_games state''';
+		       execute_any_crypto_rec1 interactive state''')
+                     (List. map (fun x -> (x, state', false)) l)) state' lequiv
       in
       apply_equivs equiv_list
   with
@@ -1068,20 +1069,27 @@ let get_equiv_info () =
 
 let do_equiv ext equiv parsed_user_info state = 
   match parsed_user_info with
-    Ptree.PRepeat ->
+    Ptree.PRepeat(fast) ->
       let rec repeat_crypto equiv state = 
 	match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([],false)) state with
-	  CSuccess state' -> repeat_crypto equiv state'
+	  CSuccess state' ->
+	    let state' = if fast then state' else simplify state' in
+	    repeat_crypto equiv state'
 	| CFailure l -> 
 	    execute_crypto_list (function 
-		CSuccess state'' -> repeat_crypto equiv state''
+		CSuccess state'' ->
+		  let state'' = if fast then state'' else simplify state'' in
+		  repeat_crypto equiv state''
 	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; flush stdout; state) (List.map (fun x -> (x, state, false)) l) 
       in
-      repeat_crypto equiv state
+      let state1 = repeat_crypto equiv state in
+      (* In fast mode, we do not simplify between each crypto transformation,
+         but we simplify in the end *)
+      if fast then simplify state1 else state1
   | _ ->
       let user_info =
 	match parsed_user_info with
-	  Ptree.PRepeat -> Parsing_helper.internal_error "PRepeat should have been handled earlier"
+	  Ptree.PRepeat _ -> Parsing_helper.internal_error "PRepeat should have been handled earlier"
 	| Ptree.PVarList(lb, stop) -> 
            (* When the list of binders lb ends with a ".", do not add more binders
               automatically *)
@@ -1123,11 +1131,11 @@ let do_equiv ext equiv parsed_user_info state =
 	    Detailed (!var_mapping, !term_mapping)
       in
       match crypto_transform (!Settings.no_advice_crypto) equiv user_info state with
-	CSuccess state' -> state'
+	CSuccess state' -> simplify state'
       | CFailure l -> 
 	  if !Settings.auto_advice then
 	    execute_crypto_list (function 
-	      CSuccess state'' -> state''
+	      CSuccess state'' -> simplify state''
 	    | CFailure _ -> raise (Error ("Cryptographic transformation failed", ext))) (List.map (fun x -> (x, state, false)) l) 
 	  else
 	    begin
@@ -1291,7 +1299,7 @@ let rec interpret_command interactive state = function
 	      try
 		let equiv = List.assq b.btype (!Settings.move_new_eq) in
 		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([b],true)) state with
-		  CSuccess state' -> state'
+		  CSuccess state' -> simplify state'
 		| CFailure l -> 
 		    raise (Error ("Transformation \"move array\" failed", ext2))
 	      with Not_found ->

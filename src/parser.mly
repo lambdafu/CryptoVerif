@@ -1180,7 +1180,9 @@ cryptotransfinfo:
     
     { PVarList([],false) }
 |   MUL
-    { PRepeat }
+    { PRepeat(false) }
+|   MUL MUL
+    { PRepeat(true) }
 |   neidentlistnosep
     { PVarList($1, false) }
 |   neidentlistnosep DOT
