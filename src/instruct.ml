@@ -13,12 +13,14 @@ let rec forget_games final_game state =
        begin
          let s = Filename.temp_file "game" ".cv" in
          Display.file_out s dummy_ext (fun () ->
-             Display.display_process p);
+           Display.display_process p);
+	 at_exit (fun () -> Unix.unlink s);
          let tex_s = 
            if (!Settings.tex_output) <> "" then
              let s = Filename.temp_file "game" ".tex" in
              Displaytex.file_out s dummy_ext (fun () ->
-             Displaytex.display_process p);
+               Displaytex.display_process p);
+	     at_exit (fun () -> Unix.unlink s);
              Some s
            else
              None
