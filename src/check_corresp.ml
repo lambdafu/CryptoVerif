@@ -39,7 +39,7 @@ let get_var_link_g t () =
    The values of variables are stored as links inside [t].
    Raises [NoMatch] when the matching fails.
 
-   [known_facts] is a quintuple [(simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars_t1)]
+   [known_facts] is a quintuple [(simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars_t1)]
    where 
    - [simp_facts] is the set of facts that are known to hold, in simplified form, that is,
    [(substitutions, facts, elsefind facts)]
@@ -52,8 +52,8 @@ let get_var_link_g t () =
    [new_end_sid] is the list of replication indices at [e_i] as renamed in the proof of the correspondence.
    [fact_info] and [new_end_sid] are used to compute the variables defined after [e_i]
    in the same input...output block as [e_i].
-   - [injrepidxs] is the list of sequences of replication indices of injective events before the arrow
-   in the correspondence.
+   - [injrepidx_pps] is the list of sequences of replication indices and program points 
+   of injective events before the arrow in the correspondence.
    - [repl_indices] is the list of replication indices of all events before the arrow 
    in the correspondence.
    - [vars_t1] is the list of variables that occur before the arrow in the correspondence
@@ -169,12 +169,12 @@ let get_contradiction simp_facts def_vars elsefind_facts =
       print_string "Proved a contradiction\n";
     true
 
-(* [get_future_defvars fact_info new_end_sid] returns the list of variables
-   defined after the program point [fact_info] in the same input...output block,
+(* [get_future_defvars end_pp new_end_sid] returns the list of variables
+   defined after the program point [end_pp] in the same input...output block,
    with indices [new_end_sid]. *)
 
-let get_future_defvars fact_info new_end_sid =
-  match Terms.get_facts fact_info with
+let get_future_defvars end_pp new_end_sid =
+  match Terms.get_facts end_pp with
     Some (_,_,_,_,_,fut_binders,_) ->
       List.map (fun b -> (b, new_end_sid)) fut_binders
   | None -> []
@@ -193,22 +193,23 @@ let get_future_defvars fact_info new_end_sid =
    a list of pairs [(fact, inj_list)] where
    - [fact] is an injective "begin" event, as it is in the correspondence.
    - [inj_list] is information on the context in which [fact] was proved.
-   It is a list of quadruples [(simp_facts, elsefind_facts_list, injrepidxs, begin_sid)]:
+   It is a list of quadruples [(simp_facts, elsefind_facts_list, injrepidx_pps, begin_sid_occ)]:
      * [simp_facts] is a set of facts that hold, in simplified form.
      * [elsefind_facts_list] is information on elsefind facts that hold,
        as in [known_facts]
-     * [injrepidxs] is the list of sequences of replication indices of injective events before the arrow
-       in the correspondence.
-     * [begin_sid] is the list of replication indices at which the "begin" event [fact] was proved.
+     * [injrepidx_pps] is the list of sequences of replication indices and program points 
+       of injective events before the arrow in the correspondence.
+     * [begin_sid_occ] is the list of replication indices and occurrence 
+       at which the "begin" event [fact] was proved.
 
    To prove injectivity, we need to show that, if the injective events in [t1] are executed
    with different indices, then each injective event in [t2] is also executed with different
    indices. 
    Therefore, for each [(fact, inj_list)] in [injinfo], we consider two
    elements of [inj_list], 
-   [inj_elem = (simp_facts, elsefind_facts_list, injrepidxs, begin_sid_occ)]
-   [inj_elem' = (simp_facts', elsefind_facts_list', injrepidxs', begin_sid_occ')]
-   and show that [injrepidxs <> injrepidxs' && begin_sid_occ = begin_sid_occ' &&
+   [inj_elem = (simp_facts, elsefind_facts_list, injrepidx_pps, begin_sid_occ)]
+   [inj_elem' = (simp_facts', elsefind_facts_list', injrepidx_pps', begin_sid_occ')]
+   and show that [injrepidx_pps <> injrepidx_pps' && begin_sid_occ = begin_sid_occ' &&
    simp_facts && simp_facts' && elsefind_facts_list && elsefind_facts_list']
    leads to a contradiction.
    [check_inj_compat inj_elem inj_elem'] performs this check, with a minor
@@ -237,8 +238,8 @@ let get_future_defvars fact_info new_end_sid =
    corresponding to [else_info] and [else_info'] is executed last,
    and calling [get_contradiction]. *)
 let case_check facts 
-    (elsefind, fact_info, def_vars, new_end_sid)
-    (elsefind', fact_info', def_vars', new_end_sid') =
+    (elsefind, end_pp, def_vars, new_end_sid)
+    (elsefind', end_pp', def_vars', new_end_sid') =
   (* By the case distinction made before [case_check],
      we know that the events corresponding to these elsefind
      pieces of information are executed with different indices.
@@ -250,50 +251,50 @@ let case_check facts
      [check_inj_compat] in only one direction, so we must test both
      cases here.) *)
   let future_def_vars =
-    (* When [fact_info'] is after [fact_info] in the same input..output
-       block and we assume that the event at [fact_info'] is executed 
-       after the one at [fact_info], we are not sure that the full
-       input..output block of [fact_info] has been executed,
+    (* When [end_pp'] is after [end_pp] in the same input..output
+       block and we assume that the event at [end_pp'] is executed 
+       after the one at [end_pp], we are not sure that the full
+       input..output block of [end_pp] has been executed,
        so we are not sure that the future_defvars are really defined. *)
-    if Facts.is_before_same_block fact_info fact_info' then
+    if Facts.is_before_same_block end_pp end_pp' then
       []
     else
-      get_future_defvars fact_info new_end_sid
+      get_future_defvars end_pp new_end_sid
   in
   let future_def_vars' =
-    if Facts.is_before_same_block fact_info' fact_info then
+    if Facts.is_before_same_block end_pp' end_pp then
       []
     else
-      get_future_defvars fact_info' new_end_sid'
+      get_future_defvars end_pp' new_end_sid'
   in
-  (* The event corresponding to (elsefind, fact_info, def_vars, new_end_sid)
+  (* The event corresponding to (elsefind, end_pp, def_vars, new_end_sid)
      is executed before the one corresponding to 
-     (elsefind', fact_info', def_vars', new_end_sid').
+     (elsefind', end_pp', def_vars', new_end_sid').
      At the last of these two events, the variables in
      [future_def_vars @ def_vars @ def_vars'] are all defined,
      and [elsefind'] holds. *)
   (get_contradiction facts (future_def_vars @ def_vars @ def_vars') elsefind') &&
   (* Symmetrically, when the event corresponding to 
-     (elsefind', fact_info', def_vars', new_end_sid') 
+     (elsefind', end_pp', def_vars', new_end_sid') 
      is executed before the one corresponding to 
-     (elsefind, fact_info, def_vars, new_end_sid). *)
+     (elsefind, end_pp, def_vars, new_end_sid). *)
   (get_contradiction facts (future_def_vars' @ def_vars' @ def_vars) elsefind)
 
 let check_inj_compat
-    (simp_facts, elsefind_facts_list, injrepidxs, (begin_occ, begin_sid)) 
-    (facts', elsefind_facts_list', injrepidxs', (begin_occ', begin_sid')) =
+    (simp_facts, elsefind_facts_list, injrepidx_pps, (begin_occ, begin_sid)) 
+    (facts', elsefind_facts_list', injrepidx_pps', (begin_occ', begin_sid')) =
   Terms.auto_cleanup (fun () ->
     try
-      (* different end events: injrepidxs \neq injrepidxs' *)
+      (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
 	if List.exists2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
-	  Terms.occ_from_pp end_pp == Terms.occ_from_pp end_pp') injrepidxs injrepidxs' then
+	  Terms.occ_from_pp end_pp == Terms.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
 	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
-	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidxs injrepidxs'))) ::facts'
+	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
 	else
-	  (* When one end_occ is different from end_occ', we know that injrepidxs \neq injrepidxs'.
+	  (* When one end_occ is different from end_occ', we know that injrepidx_pps \neq injrepidx_pps'.
 	     However, we can still get information from the incompatibility of the program points end_pp/end_pp' *)
-	  List.fold_left2 Terms.both_pp_add_fact facts' injrepidxs injrepidxs'
+	  List.fold_left2 Terms.both_pp_add_fact facts' injrepidx_pps injrepidx_pps'
       in
       (* same begin events: (begin_occ, begin_sid) = (begin_occ', begin_sid') *)
       if begin_occ != begin_occ' then raise Contradiction;
@@ -312,7 +313,7 @@ let check_inj_compat
       ())
 
 
-let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fact' fact injinfo =
+let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars) fact' fact injinfo =
   match fact'.t_desc with
     FunApp(_, { t_desc = FunApp(_, begin_sid) }::_) ->
       begin
@@ -325,17 +326,17 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fa
 	(* The variables that we rename are variables that occur in the correspondence to prove.
            They do not occur in def_vars, so we need to rename only replication indices.
 	   Same comment for elsefind_facts. *)
-	let new_elsefind_facts_list =  List.map (function (elsefind, fact_info, def_vars, new_end_sid) ->
+	let new_elsefind_facts_list =  List.map (function (elsefind, end_pp, def_vars, new_end_sid) ->
 	  (List.map Terms.copy_elsefind elsefind,
-	   fact_info,
+	   end_pp,
 	   Terms.copy_def_list Terms.Links_RI def_vars,
 	   List.map (Terms.copy_term Terms.Links_RI_Vars) new_end_sid)
 	    ) elsefind_facts_list in
-	let new_injrepidxs =
+	let new_injrepidx_pps =
 	  List.map
 	    (function (end_sid, end_pp) ->
 	      (List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid, end_pp))
-	    injrepidxs
+	    injrepidx_pps
 	in
 	let new_begin_sid = List.map (Terms.copy_term Terms.Links_RI_Vars) begin_sid in
 	List.iter (fun b -> b.ri_link <- NoLink) repl_indices;
@@ -352,19 +353,19 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fa
 	      print_int (Terms.occ_from_pp end_pp); print_string ", ";
 	      Display.display_list Display.display_term end_sid
 	    in
-	    Display.display_list display_end_sid_occ injrepidxs;
+	    Display.display_list display_end_sid_occ injrepidx_pps;
 	    print_string "\nNew inj rep idxs:";
-	    Display.display_list display_end_sid_occ new_injrepidxs;
-	    print_string "\nBegin sid:";
-	    Display.display_list Display.display_term begin_sid;
-	    print_string "\nNew begin sid:";
-	    Display.display_list Display.display_term new_begin_sid;
+	    Display.display_list display_end_sid_occ new_injrepidx_pps;
+	    print_string "\nBegin occ, sid:";
+	    print_int begin_occ; print_string ", "; Display.display_list Display.display_term begin_sid;
+	    print_string "\nNew begin occ, sid:";
+	    print_int begin_occ; print_string ", "; Display.display_list Display.display_term new_begin_sid;
 	    print_string "\n\n";
 	  end;
         (* The new element [inj_elem] to be added to [inj_info] *)
-	let add_inj_info = (simp_facts, elsefind_facts_list, injrepidxs, (begin_occ, begin_sid)) in
+	let add_inj_info = (simp_facts, elsefind_facts_list, injrepidx_pps, (begin_occ, begin_sid)) in
         (* The new element [inj_elem] with variables renamed *)
-	let new_inj_info = (new_facts, new_elsefind_facts_list, new_injrepidxs, (begin_occ, new_begin_sid)) in
+	let new_inj_info = (new_facts, new_elsefind_facts_list, new_injrepidx_pps, (begin_occ, new_begin_sid)) in
 	
 	check_inj_compat add_inj_info new_inj_info;
 	try
@@ -557,16 +558,16 @@ let simplify_cases fact_accu fact_accu_cases =
   in
   remove_implied [] fact_accu_cases
 
-(* [get_facts_full_block_cases fact_info] returns the facts that
-   are known to hold when the program point [fact_info] is executed,
+(* [get_facts_full_block_cases end_pp] returns the facts that
+   are known to hold when the program point [end_pp] is executed,
    and the input...output block that contains it is executed until
    the end. *)
     
-let get_facts_full_block_cases fact_info =
+let get_facts_full_block_cases end_pp =
   if !Settings.corresp_cases then
-    Facts.get_facts_full_block_cases fact_info
+    Facts.get_facts_full_block_cases end_pp
   else
-    (Facts.get_facts_full_block fact_info, [])
+    (Facts.get_facts_full_block end_pp, [])
 
 (* [check_corresp event_accu corresp g] is the main function to prove
    correspondences. It proves the correspondence [corresp = t1 ==> t2] in the game [g],
@@ -602,8 +603,8 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
     Terms.link b (TLink (Terms.term_from_binder b'));
     b') (!vars_t1)
   in
-  let collect_facts1 next_f events_found facts def_vars elsefind_facts_list injrepidxs vars (is_inj,t) =
-    List.for_all (fun (t1',fact_info) ->
+  let collect_facts1 next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars (is_inj,t) =
+    List.for_all (fun (t1',end_pp) ->
       match t.t_desc,t1'.t_desc with
 	FunApp(f,idx::l),FunApp(f',idx'::l') ->
 	  if f == f' then
@@ -621,9 +622,9 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
 	      (* The adversary cannot prevent the end of the input...output block 
 		 from being executed, so we can collect true facts until the end 
 		 of the block. *)
-	      let (facts_common, facts_cases) = get_facts_full_block_cases fact_info in
-	      let elsefind_facts_common = Facts.get_elsefind_facts_at fact_info in
-	      let def_vars_common = Facts.get_def_vars_at fact_info in
+	      let (facts_common, facts_cases) = get_facts_full_block_cases end_pp in
+	      let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
+	      let def_vars_common = Facts.get_def_vars_at end_pp in
 
 	      (* Rename session identifiers in facts, variables, and elsefind facts *)
 	      List.iter2 (fun b t -> b.ri_link <- (TLink t)) bend_sid new_end_sid;
@@ -635,7 +636,7 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
 		 until the end of the block.
 		 However, we must still be careful when we apply elsefind facts,
 		 to use defined variables at the point of the elsefind facts. *)
-	      let new_def_vars = (get_future_defvars fact_info new_end_sid) @ def_vars_elsefind in
+	      let new_def_vars = (get_future_defvars end_pp new_end_sid) @ def_vars_elsefind in
 	      List.iter (fun b -> b.ri_link <- NoLink) bend_sid;
 
 	      if !Settings.debug_corresp then
@@ -682,9 +683,9 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
 		 We store the set of elsefind facts at each event in a different
 		 element of the list, to be able to distinguish such cases.
 
-		 In addition to the elsefind facts, we store the fact_info,
+		 In addition to the elsefind facts, we store the end_pp,
                  def_vars_elsefind and new_end_sid corresponding to this event. *)
-	      let elsefind_facts_list' = (new_elsefind_facts, fact_info, def_vars_elsefind, new_end_sid) :: elsefind_facts_list in
+	      let elsefind_facts_list' = (new_elsefind_facts, end_pp, def_vars_elsefind, new_end_sid) :: elsefind_facts_list in
 
 	      if !Settings.debug_corresp then
 		begin
@@ -700,9 +701,9 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
 	      let rec collect_facts_cases facts = function
 		  [] -> 
 		    if not is_inj then
-		      next_f events_found' facts def_vars' elsefind_facts_list injrepidxs (new_bend_sid @ vars)
+		      next_f events_found' facts def_vars' elsefind_facts_list injrepidx_pps (new_bend_sid @ vars)
 		    else
-		      next_f events_found' facts def_vars' elsefind_facts_list' ((new_end_sid, fact_info) :: injrepidxs) (new_bend_sid @ vars)
+		      next_f events_found' facts def_vars' elsefind_facts_list' ((new_end_sid, end_pp) :: injrepidx_pps) (new_bend_sid @ vars)
 		| f_disjunct::rest ->
 		    (* consider all possible cases in the disjunction *)
 		    List.for_all (fun fl ->
@@ -726,19 +727,19 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
       | _ -> Parsing_helper.internal_error "event expected in check_corresp"
 	    ) event_accu
   in
-  let rec collect_facts_list next_f events_found facts def_vars elsefind_facts_list injrepidxs vars = function
-      [] -> next_f events_found facts def_vars elsefind_facts_list injrepidxs vars
+  let rec collect_facts_list next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars = function
+      [] -> next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars
     | (a::l) -> 
         collect_facts1 
-          (fun events_found' facts' def_vars' elsefind_facts_list' injrepidxs' vars' -> 
-             collect_facts_list next_f events_found' facts' def_vars' elsefind_facts_list' injrepidxs' vars' l) 
-          events_found facts def_vars elsefind_facts_list injrepidxs vars a
+          (fun events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' -> 
+             collect_facts_list next_f events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' l) 
+          events_found facts def_vars elsefind_facts_list injrepidx_pps vars a
   in  
   let injinfo = ref [] in
   let r =
     (* The proof of the correspondence [t1 ==> t2] works in two steps:
        first, collect all facts that hold because [t1] is true *)
-    collect_facts_list (fun events_found' facts' def_vars' elsefind_facts_list' injrepidxs' vars' ->
+    collect_facts_list (fun events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' ->
       try 
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 
@@ -749,7 +750,7 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
 	  in
           let facts' = Facts.simplif_add_list Facts.no_dependency_anal facts' facts2 in
           (* second, prove [t2] from these facts *)
-	  check_term (fun injinfo' -> injinfo := injinfo'; true) (facts', elsefind_facts_list', injrepidxs', vars', vars_t1') (!injinfo) t2)
+	  check_term (fun injinfo' -> injinfo := injinfo'; true) (facts', elsefind_facts_list', injrepidx_pps', vars', vars_t1') (!injinfo) t2)
       with
 	NoMatchExplain e ->
 	  (* The proof failed. Explain why in a short message. *)
