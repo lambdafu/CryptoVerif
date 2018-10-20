@@ -319,11 +319,6 @@ table received_Init_REQ_table(t_id, t_AMS_Time, signature).
 
 (**** Security properties ****)
 
-(* Authenticity of the payload messages, when the policy is not NONE *)
-
-event send_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event recv_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-
 (* Freshness of the AMS_Init_REQ message; 
    authentication of the aircraft to the ground entity *)
 

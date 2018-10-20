@@ -42,6 +42,8 @@ Version
   the equivalence <equivalence>, simplifying only the final game
   (while "crypto <equivalence> *" simplifies after each transformation).
 - New setting useKnownEqualitiesWithFunctionsInMatching.
+- Allow several occurrences of the same injective event in the same
+  branch of if/let/find and under different replications. 
 - When "set inferUnique = true." is present, CryptoVerif
   infers that "find" is unique, when possible.
 - In a "find[unique]", when a branch succeeds, the other branches must

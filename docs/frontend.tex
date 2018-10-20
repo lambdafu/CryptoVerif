@@ -1973,11 +1973,6 @@ tuple of executed events $e_1(M_{11}, \allowbreak \ldots, M_{1m_1})$
 $\texttt{inj-event(}e'\texttt{(}M_1, \ldots, M_m\texttt{))}$ in $M'$ holds when it has been
 executed at least $N_1 \times \ldots \times N_n$ times.
 %
-When $e$ is preceded by $\texttt{inj-event}$ in a query, $e$ must occur at
-most once in each branch of $\texttt{if}$, $\texttt{find}$,
-$\texttt{let}$, and all occurrences of the same $e$ must be under
-replications of the same types.
-%
 The $\texttt{inj-event}$ marker must
 occur either both before and after $\texttt{==>}$ or not at all. (Otherwise,
 the query would be equivalent to a non-injective correspondence.)
