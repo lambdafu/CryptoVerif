@@ -1,7 +1,7 @@
 event e1.
 event e2.
 
-query inj-event(e1) ==> inj-event(e2).
+query inj-event(e2) ==> inj-event(e1).
 
 channel c.
 
