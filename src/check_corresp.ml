@@ -256,13 +256,15 @@ let case_check facts
        after the one at [end_pp], we are not sure that the full
        input..output block of [end_pp] has been executed,
        so we are not sure that the future_defvars are really defined. *)
-    if Facts.is_before_same_block end_pp end_pp' then
+    if (Terms.occ_from_pp end_pp != Terms.occ_from_pp end_pp') &&
+      (Facts.is_before_same_block end_pp end_pp') then
       []
     else
       get_future_defvars end_pp new_end_sid
   in
   let future_def_vars' =
-    if Facts.is_before_same_block end_pp' end_pp then
+    if (Terms.occ_from_pp end_pp != Terms.occ_from_pp end_pp') &&
+      (Facts.is_before_same_block end_pp' end_pp) then
       []
     else
       get_future_defvars end_pp' new_end_sid'

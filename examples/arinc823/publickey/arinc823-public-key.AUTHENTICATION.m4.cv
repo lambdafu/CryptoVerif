@@ -365,22 +365,20 @@ table received_Init_REQ_table(t_id, t_AMS_Time, signature).
 
 (* Authenticity of the payload messages, when the policy is not NONE *)
 
-event send_msgU(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event send_msgV(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event recv_msgU(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
-event recv_msgV(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
+event send_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
+event recv_msg(t_id, t_id, t_AMS_Time, signature, t_Rand32, t_policy_id, t_AMS_Policy, t_EncAlgo, t_Count, bitstring).
 
 query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, policy: t_AMS_Policy, 
       enc: t_EncAlgo, count: t_Count, msg: bitstring;
-      inj-event(recv_msgU(U, V, tU, sU, randV, policy_id, policy, enc, count, msg)) ==>
+      inj-event(recv_msg(U, V, tU, sU, randV, policy_id, policy, enc, count, msg)) ==>
       policy = get_policy(policy_id, msg) && 
-      (inj-event(send_msgV(V, U, tU, sU, randV, policy_id, policy, enc, count, msg)) || policy = NONE).
+      (inj-event(send_msg(V, U, tU, sU, randV, policy_id, policy, enc, count, msg)) || policy = NONE).
 
 query tU: t_AMS_Time, sU: signature, randV: t_Rand32, policy_id: t_policy_id, policy: t_AMS_Policy, 
       enc: t_EncAlgo, count: t_Count, msg: bitstring;
-      inj-event(recv_msgV(V, U, tU, sU, randV, policy_id, policy, enc, count, msg)) ==>
+      inj-event(recv_msg(V, U, tU, sU, randV, policy_id, policy, enc, count, msg)) ==>
       policy = get_policy(policy_id, msg) && 
-      (inj-event(send_msgU(U, V, tU, sU, randV, policy_id, policy, enc, count, msg)) || policy = NONE).
+      (inj-event(send_msg(U, V, tU, sU, randV, policy_id, policy, enc, count, msg)) || policy = NONE).
 
 (* Freshness of the AMS_Init_REQ message; 
    authentication of the aircraft to the ground entity *)
@@ -455,15 +453,7 @@ channel c_gen1, c_gen2, c_aircraft0, c_aircraft0', c_aircraft1, c_aircraft2, c_a
 (* The process tunnel_protocol models the secure session data exchange
    (Attachment 7, Section 7.3) *)
 
-(* We write two copies of the tunnel protocol, one for the aircraft and one for the ground entity, 
-   with events named differently (send_msgU, recv_msgU for the aircraft, send_msgV, recv_msgV for the ground entity)
-   because in injective correspondences, the same event cannot appear twice in the same branch of 
-   if/let/find. 
-   Another possible encoding would be to put the aircraft and the ground entity in 2 branches of a "if" 
-   instead of in parallel. In this case, we can avoid copying the tunnel protocol. 
-   This is what we did in the shared-key protocol. *)
-
-let tunnel_protocolU(current_session_id: session_ids,
+let tunnel_protocol(current_session_id: session_ids,
     		    ams_pid: t_AMS_PID, common_comp_algo_id: t_AMS_elem, policy_id: t_policy_id,
     	            tU: t_AMS_Time, sU: signature, RandV: t_Rand32, KMAC_UV: mac_key, KENC_UV: enc_key,
     	            MAClen: t_MAClen, common_enc_algo: t_EncAlgo, sid: t_SID, 
@@ -486,7 +476,7 @@ let tunnel_protocolU(current_session_id: session_ids,
     (* We never send two messages with the same count, in the same session. *)
     get sent_count_table(=current_session_id, =count) in yield else
     let policy_req = get_policy(policy_id, AMS_payload) in
-    event send_msgU(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
+    event send_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
     (* D01 *)
     if policy_req = NONE then
        out(pub, AMS_payload)
@@ -527,7 +517,7 @@ let tunnel_protocolU(current_session_id: session_ids,
       (* Policy check not explicit in the description of the protocol p 135, but
          mentioned  p 29-30, and essential for security *)
       if get_policy(policy_id, AMS_Data_IND) = NONE then
-      event recv_msgU(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
+      event recv_msg(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
     )
     else
     (* D/X06 *)
@@ -560,108 +550,9 @@ let tunnel_protocolU(current_session_id: session_ids,
        mentioned  p 29-30 *)
     let policy_req = get_policy(policy_id, AMS_payload) in
     if protect_mode = get_protect_mode(policy_req, common_enc_algo) then
-    event recv_msgU(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
+    event recv_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
 ).
 
-let tunnel_protocolV(current_session_id: session_ids,
-    		    ams_pid: t_AMS_PID, common_comp_algo_id: t_AMS_elem, policy_id: t_policy_id,
-    	            tU: t_AMS_Time, sU: signature, RandV: t_Rand32, KMAC_UV: mac_key, KENC_UV: enc_key,
-    	            MAClen: t_MAClen, common_enc_algo: t_EncAlgo, sid: t_SID, 
-		    dir_send: byte, dir_recv: byte,
-		    my_id: t_id, other_id: t_id) =
-(
-    (* Sender side *)
-    ! Nmessage
-    in(choicechannel, (AMS_payload: bitstring, 
-    		       encode_alg: t_encode_algo, comp_algo: t_comp_algo,
-		       ams_dstaddr: t_AMS_SuppAddr, ams_imi: t_AMS_IMI, 
-		       count: t_Count, cmd: t_Cmd));
-		       (* cmd can be
-		       	  - Data_IND / DataCnf_IND in case D04
-			  - Info_IND in case X04
-			  - Release_REQ in case R03 (Confirmed release)
-			  - Release_RSP+ / Release_RSP- in case R12 (reply to a confirmed release request)
-			  - Abort_IND in case A03 (Abort) *)
-    if ok_tunnel(cmd) then
-    (* We never send two messages with the same count, in the same session. *)
-    get sent_count_table(=current_session_id, =count) in yield else
-    let policy_req = get_policy(policy_id, AMS_payload) in
-    event send_msgV(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
-    (* D01 *)
-    if policy_req = NONE then
-       out(pub, AMS_payload)
-    else
-    (* D/X02 *)
-    let encoded_payload = encode(encode_alg, AMS_payload) in
-    let actual_comp_algo = select_common_compression(common_comp_algo_id, comp_algo) in
-    let compressed_payload = compress(actual_comp_algo, encoded_payload) in
-    insert sent_count_table(current_session_id, count);
-    (* D/X03 *)
-    let protect_mode = get_protect_mode(policy_req, common_enc_algo) in
-    let encrypted_AMS_payload =
-       if protect_mode = AUTH then
-          compressed_payload
-       else 
-          E'(KENC_UV, buildIVdata(dir_send, count), compressed_payload)
-    in
-    (* D/X04 *)
-    let ams_id = buildAMS_id1(ams_dstaddr, ams_imi, ams_pid) in
-    let ams_header = buildAMS_Header(false, protect_mode, encode_alg, sid, actual_comp_algo, cmd) in
-    let AMS_Data_IND_prefix = buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Rest(encrypted_AMS_payload, count)) in
-    let TBP_AMS_Data_IND = buildMAC_arg(my_id, other_id, AMS_Data_IND_prefix) in
-    let mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Data_IND) in
-    let AMS_Data_IND = concat(AMS_Data_IND_prefix, mac) in
-    (* D/X05 *)
-    out(pub, AMS_Data_IND)
-)
-|
-(
-    (* Receiver side *)
-    ! Nmessage
-    in(pub, (clear:bool, AMS_Data_IND: bitstring));
-    	    (* clear is true when the received message is not AMS-protected.
-	       This is determined using the ACARS label:
-	       there are specific Px ACARS labels for AMS protected messages (cf p. 58) *)
-    if clear then
-    (
-      (* Policy check not explicit in the description of the protocol p 135, but
-         mentioned  p 29-30, and essential for security *)
-      if get_policy(policy_id, AMS_Data_IND) = NONE then
-      event recv_msgV(my_id, other_id, tU, sU, RandV, policy_id, NONE, common_enc_algo, Count_unspecified, AMS_Data_IND)
-    )
-    else
-    (* D/X06 *)
-    let (AMS_Data_IND_prefix: bitstring, mac: bitstring) = split_message(MAClen, AMS_Data_IND) in
-    (* The MAC checking of step D/X08 is moved here to facilitate verification *)
-    let TBP_AMS_Data_IND = buildMAC_arg(other_id, my_id, AMS_Data_IND_prefix) in
-    if mac = sessionMAC(MAClen, KMAC_UV, TBP_AMS_Data_IND) then
-    let buildAMS_msg_prefix1(ams_id, ams_header, buildAMS_msg_prefix_Rest(encrypted_AMS_payload, MsgCount)) = AMS_Data_IND_prefix in
-    let buildAMS_Header(R1, protect_mode, encode_alg, sid, compression, cmd) = ams_header in
-    if ok_tunnel(cmd) then
-    (* D/X07 *)
-    (* D/X08 *)
-    (* Check on the message count is slightly weaker than the check
-       given in the specification: we just discard the message if a message
-       with the same count has already been received in the same session. *)
-    get received_count_table(=current_session_id, =MsgCount) in yield else
-    insert received_count_table(current_session_id, MsgCount);
-    (* Message accepted *)
-    (* D/X09 *)
-    let compressed_payload = 
-    	if protect_mode = AUTH then
-           encrypted_AMS_payload
-        else
-	   D'(KENC_UV, buildIVdata(dir_recv, MsgCount), encrypted_AMS_payload)
-    in
-    (* D/X10 *)
-    let encoded_payload = decompress(compression, compressed_payload) in
-    let AMS_payload = decode(encode_alg, encoded_payload) in
-    (* Policy check not explicit in the description of the protocol p 137, but
-       mentioned  p 29-30 *)
-    let policy_req = get_policy(policy_id, AMS_payload) in
-    if protect_mode = get_protect_mode(policy_req, common_enc_algo) then
-    event recv_msgV(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, MsgCount, AMS_payload)
-).
 
 (* Secure session initiation, aircraft-initiated (Attachement 7, Section 7.2.1) *)
 
@@ -726,7 +617,7 @@ let aircraft_fixed_MAClen(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey, MACle
        which is ignored here. *)
     (* Message accepted, secure session established *)
     out(c_aircraft4, ());
-    tunnel_protocolU(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
+    tunnel_protocol(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
          tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstDN, CstUP, U, Vx).
 
 let aircraft(hk: hash_key, hk1: hash_key1, dU: Z, pkCA: pkey) = 
@@ -800,7 +691,7 @@ ifdef(`REPLAY_PROT',`
     (* N13 *)
     event send_Init_RSP(V, Ux, AMS_Init_RSP_prefix, mac, sU, RandV, tU, tV, KMAC_UV, KENC_UV);
     out(c_ground2, AMS_Init_RSP);
-    tunnel_protocolV(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
+    tunnel_protocol(current_session_id, ams_pid1, common_comp_algo_id, policy_id,
       tU, sU, RandV, KMAC_UV, KENC_UV, MAClen, common_enc_algo, sid, CstUP, CstDN, V, Ux).
 
 (* Ground-initiated trigger (Attachment 7, Section 7.2.2). *)
