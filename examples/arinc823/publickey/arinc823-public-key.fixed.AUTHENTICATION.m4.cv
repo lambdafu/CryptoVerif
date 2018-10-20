@@ -86,12 +86,12 @@ proof {
 	 which the aircraft wants to talk to V and has the corresponding MAC length or not.
 	 It replaces the application of suf_cma(sign) dU0, which yields nothing
 	 when dU0 is compromised. *)
-      insert 7236 "find j <= Naircraft suchthat defined(RU[j], Vx_1[j], MAClen[j]) && RU_1 = RU[j] && Ux_9 = U && Vx_1[j] = V && MAClen_1 = MAClen[j] then";
+      insert after "let algo(MAClen_" "find j <= Naircraft suchthat defined(RU[j], Vx_1[j], MAClen[j]) && RU_1 = RU[j] && Ux_9 = U && Vx_1[j] = V && MAClen_1 = MAClen[j] then";
       (* Distinguish whether the aircraft talks to V or not, 
 	 for all three MAC lengths *)
-      insert 4829 "if Vx_1 = V then";
-      insert 2453 "if Vx_1 = V then";
-      insert 77 "if Vx_1 = V then";
+      insert after_nth 3 "in(c_aircraft1" "if Vx_1 = V then";
+      insert after_nth 2 "in(c_aircraft1" "if Vx_1 = V then";
+      insert after_nth 1 "in(c_aircraft1" "if Vx_1 = V then";
       (* Rename each definition of eV to a distinct name. 
       	 In particular, the variable eV containing the ephemeral used by V 
 	 to talk to U in a session with matching parameters as checked by the "find"
