@@ -206,9 +206,9 @@ let get_future_defvars fact_info new_end_sid =
    indices. 
    Therefore, for each [(fact, inj_list)] in [injinfo], we consider two
    elements of [inj_list], 
-   [inj_elem = (simp_facts, elsefind_facts_list, injrepidxs, begin_sid)]
-   [inj_elem' = (simp_facts', elsefind_facts_list', injrepidxs', begin_sid')]
-   and show that [injrepidxs <> injrepidxs' && begin_sid = begin_sid' &&
+   [inj_elem = (simp_facts, elsefind_facts_list, injrepidxs, begin_sid_occ)]
+   [inj_elem' = (simp_facts', elsefind_facts_list', injrepidxs', begin_sid_occ')]
+   and show that [injrepidxs <> injrepidxs' && begin_sid_occ = begin_sid_occ' &&
    simp_facts && simp_facts' && elsefind_facts_list && elsefind_facts_list']
    leads to a contradiction.
    [check_inj_compat inj_elem inj_elem'] performs this check, with a minor
@@ -227,8 +227,7 @@ let get_future_defvars fact_info new_end_sid =
    Only variables in t1/t2 have links.)
 
    *)
-
-
+	
 (* [case_check facts else_info else_info'] returns true when
    [facts && else_info && else_info'] leads to a contradiction,
    under the assumption that the events corresponding to 
@@ -250,8 +249,23 @@ let case_check facts
      elements, we already use the symmetry to perform the test of
      [check_inj_compat] in only one direction, so we must test both
      cases here.) *)
-  let future_def_vars = get_future_defvars fact_info new_end_sid in
-  let future_def_vars' = get_future_defvars fact_info' new_end_sid' in
+  let future_def_vars =
+    (* When [fact_info'] is after [fact_info] in the same input..output
+       block and we assume that the event at [fact_info'] is executed 
+       after the one at [fact_info], we are not sure that the full
+       input..output block of [fact_info] has been executed,
+       so we are not sure that the future_defvars are really defined. *)
+    if Facts.is_before_same_block fact_info fact_info' then
+      []
+    else
+      get_future_defvars fact_info new_end_sid
+  in
+  let future_def_vars' =
+    if Facts.is_before_same_block fact_info' fact_info then
+      []
+    else
+      get_future_defvars fact_info' new_end_sid'
+  in
   (* The event corresponding to (elsefind, fact_info, def_vars, new_end_sid)
      is executed before the one corresponding to 
      (elsefind', fact_info', def_vars', new_end_sid').
@@ -264,26 +278,35 @@ let case_check facts
      is executed before the one corresponding to 
      (elsefind, fact_info, def_vars, new_end_sid). *)
   (get_contradiction facts (future_def_vars' @ def_vars' @ def_vars) elsefind)
-    
+
 let check_inj_compat
-    (simp_facts, elsefind_facts_list, injrepidxs, begin_sid) 
-    (facts', elsefind_facts_list', injrepidxs', begin_sid') =
+    (simp_facts, elsefind_facts_list, injrepidxs, (begin_occ, begin_sid)) 
+    (facts', elsefind_facts_list', injrepidxs', (begin_occ', begin_sid')) =
   Terms.auto_cleanup (fun () ->
     try
-      let facts_with_inj1 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts' in
-      (* injrepidxs \neq injrepidxs' *)
-      let diff_fact = Terms.make_or_list (List.concat (List.map2 
-	(List.map2 Terms.make_diff) injrepidxs injrepidxs')) in
-      let facts_with_inj2 = Facts.simplif_add Facts.no_dependency_anal facts_with_inj1 diff_fact in
-      (* begin_sid = begin_sid' *)
+      (* different end events: injrepidxs \neq injrepidxs' *)
+      let facts'' =
+	if List.exists2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	  Terms.occ_from_pp end_pp == Terms.occ_from_pp end_pp') injrepidxs injrepidxs' then
+	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidxs injrepidxs'))) ::facts'
+	else
+	  (* When one end_occ is different from end_occ', we know that injrepidxs \neq injrepidxs'.
+	     However, we can still get information from the incompatibility of the program points end_pp/end_pp' *)
+	  List.fold_left2 Terms.both_pp_add_fact facts' injrepidxs injrepidxs'
+      in
+      (* same begin events: (begin_occ, begin_sid) = (begin_occ', begin_sid') *)
+      if begin_occ != begin_occ' then raise Contradiction;
       let eq_facts = List.map2 Terms.make_equal begin_sid begin_sid' in
-      let facts_with_inj3 = Facts.simplif_add_list Facts.no_dependency_anal facts_with_inj2 eq_facts in
+      (* Add all facts *)
+      let facts_with_inj1 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts'' in
+      let facts_with_inj2 = Facts.simplif_add_list Facts.no_dependency_anal facts_with_inj1 eq_facts in
       (* If we could not prove the injectivity so far,
          try to use elsefind facts to prove it.
 	 We distinguish cases depending on which event is executed
 	 with indices different in the two sequences of events
 	 before the arrow considered in the proof of injectivity. *)
-      if not (List.for_all2 (case_check facts_with_inj3) elsefind_facts_list elsefind_facts_list') then
+      if not (List.for_all2 (case_check facts_with_inj2) elsefind_facts_list elsefind_facts_list') then
 	raise NoMatch
     with Contradiction ->
       ())
@@ -293,6 +316,7 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fa
   match fact'.t_desc with
     FunApp(_, { t_desc = FunApp(_, begin_sid) }::_) ->
       begin
+	let begin_occ = fact'.t_occ in
 	let (subst, facts, _) = simp_facts in
 	let nsimpfacts = subst @ facts in 
 	List.iter (fun b -> b.ri_link <- TLink (Terms.term_from_repl_index (Terms.new_repl_index b))) repl_indices;
@@ -307,7 +331,12 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fa
 	   Terms.copy_def_list Terms.Links_RI def_vars,
 	   List.map (Terms.copy_term Terms.Links_RI_Vars) new_end_sid)
 	    ) elsefind_facts_list in
-	let new_injrepidxs = List.map (List.map (Terms.copy_term Terms.Links_RI_Vars)) injrepidxs in
+	let new_injrepidxs =
+	  List.map
+	    (function (end_sid, end_pp) ->
+	      (List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid, end_pp))
+	    injrepidxs
+	in
 	let new_begin_sid = List.map (Terms.copy_term Terms.Links_RI_Vars) begin_sid in
 	List.iter (fun b -> b.ri_link <- NoLink) repl_indices;
 	List.iter (fun b -> b.link <- NoLink) vars;
@@ -319,9 +348,13 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fa
 	    print_string "New facts\n";
 	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
 	    print_string "Inj rep idxs:";
-	    Display.display_list (Display.display_list Display.display_term) injrepidxs;
+	    let display_end_sid_occ (end_sid, end_pp) =
+	      print_int (Terms.occ_from_pp end_pp); print_string ", ";
+	      Display.display_list Display.display_term end_sid
+	    in
+	    Display.display_list display_end_sid_occ injrepidxs;
 	    print_string "\nNew inj rep idxs:";
-	    Display.display_list (Display.display_list Display.display_term) new_injrepidxs;
+	    Display.display_list display_end_sid_occ new_injrepidxs;
 	    print_string "\nBegin sid:";
 	    Display.display_list Display.display_term begin_sid;
 	    print_string "\nNew begin sid:";
@@ -329,9 +362,9 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidxs, repl_indices, vars) fa
 	    print_string "\n\n";
 	  end;
         (* The new element [inj_elem] to be added to [inj_info] *)
-	let add_inj_info = (simp_facts, elsefind_facts_list, injrepidxs, begin_sid) in
+	let add_inj_info = (simp_facts, elsefind_facts_list, injrepidxs, (begin_occ, begin_sid)) in
         (* The new element [inj_elem] with variables renamed *)
-	let new_inj_info = (new_facts, new_elsefind_facts_list, new_injrepidxs, new_begin_sid) in
+	let new_inj_info = (new_facts, new_elsefind_facts_list, new_injrepidxs, (begin_occ, new_begin_sid)) in
 	
 	check_inj_compat add_inj_info new_inj_info;
 	try
@@ -669,7 +702,7 @@ let check_corresp event_accu (t1,t2,pub_vars) g =
 		    if not is_inj then
 		      next_f events_found' facts def_vars' elsefind_facts_list injrepidxs (new_bend_sid @ vars)
 		    else
-		      next_f events_found' facts def_vars' elsefind_facts_list' (new_end_sid :: injrepidxs) (new_bend_sid @ vars)
+		      next_f events_found' facts def_vars' elsefind_facts_list' ((new_end_sid, fact_info) :: injrepidxs) (new_bend_sid @ vars)
 		| f_disjunct::rest ->
 		    (* consider all possible cases in the disjunction *)
 		    List.for_all (fun fl ->

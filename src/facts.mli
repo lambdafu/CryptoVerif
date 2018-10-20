@@ -122,6 +122,10 @@ val simplif_add_list : dep_anal -> simp_facts -> term list -> simp_facts
 (* 2. Compute the facts that hold and the variables that are defined
    at certain program points. *)
 
+(* [is_before_same_block pp pp'] is true when the program point [pp]
+   may be before [pp'] and in the same input...output block. *)
+val is_before_same_block : program_point -> program_point -> bool
+    
 (* [get_initial_history pp] gets the known_history corresponding to the program
    point [pp] *)
 val get_initial_history : program_point -> known_history option

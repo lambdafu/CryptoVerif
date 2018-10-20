@@ -1716,6 +1716,15 @@ let rec is_reachable_same_block n n' =
   else
     is_reachable_same_block n n'.above_node
 
+      (* [is_before_same_block pp pp'] is true when the program point [pp]
+   may be before [pp'] and in the same input...output block. *)
+	
+let is_before_same_block pp pp' =
+  match Terms.get_facts pp, Terms.get_facts pp' with
+  | Some(_,_,_,_,_,_,n), Some(_,_,_,_,_,_,n') ->
+      is_reachable_same_block n n'
+  | _ -> true
+
 let get_def_vars_above n =
   List.map Terms.binderref_from_binder (Terms.add_def_vars_node [] n)
 

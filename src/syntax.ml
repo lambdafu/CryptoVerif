@@ -114,8 +114,6 @@ let proof = ref (None : Ptree.command list option)
 let implementation = ref ([]: Ptree.impl list)
 let impl_roles = ref StringMap.empty
 
-let event_type_list = ref []
-
 (* Check types *)
 
 let check_type ext e t =
@@ -1318,7 +1316,6 @@ let rec check_term defined_refs_opt cur_array env = function
 	        let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
 	        check_type_list ext tl tl' (List.tl (fst f.f_type));
 	        let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	        event_type_list := (f, tupf) :: (!event_type_list);
 	        let tcur_array =
 		  Terms.new_term Settings.t_bitstring ext2
 		    (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
@@ -2838,7 +2835,6 @@ and check_oprocess defined_refs cur_array env prog = function
 	        let tl' = List.map (check_term (Some defined_refs) cur_array env) tl in
 	          check_type_list ext tl tl' (List.tl (fst f.f_type));
 	          let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	            event_type_list := (f, tupf) :: (!event_type_list);
 	          let tcur_array =
 		    Terms.new_term Settings.t_bitstring ext2
 		     (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
@@ -3502,141 +3498,6 @@ let new_bitstring_binder() =
   in
   Terms.term_from_binder b
 
-(* Check that when injective events occur several times, they
-   occur in different branches of if/find. *)
-
-let several_occ_events = ref []
-
-let rec sym_diff l1 = function
-    [] -> l1
-  | (a::l) ->
-      if List.memq a l1 then
-	begin
-	  several_occ_events := a :: (!several_occ_events);
-          sym_diff (List.filter (fun x -> x != a) l1) l
-	end
-      else
-	a::(sym_diff l1 l)
-
-let rec count_occ_eventst t =
-  match t.t_desc with
-    Var(_,tl) | FunApp(_, tl) ->
-      count_occ_eventstl tl
-  | ReplIndex _ -> []
-  | EventAbortE f -> [f]
-  | ResE(_,p) -> count_occ_eventst p
-  | TestE(t,p1,p2) ->
-      sym_diff (count_occ_eventst t)
-	(Terms.unionq (count_occ_eventst p1) (count_occ_eventst p2))
-  | FindE(l0,p2,_) ->
-      let l = ref (count_occ_eventst p2) in
-      List.iter (fun (_,_,_,p1) ->
-	(* There must be no events in conditions of find *)
-	l := Terms.unionq (!l) (count_occ_eventst p1)) l0;
-      (!l)
-  | LetE(pat,t,p1,p2opt) ->
-      sym_diff (count_occ_eventspat pat)
-	(sym_diff (count_occ_eventst t) 
-	   (let p1e = count_occ_eventst p1 in
-	   match p2opt with
-	     None -> p1e
-	   | Some p2 -> Terms.unionq p1e (count_occ_eventst p2)))
-  | GetE(_,patl,_,p1,p2) ->
-      (* There must be no event in the condition of get *)
-      sym_diff (count_occ_eventspatl patl)
-	(Terms.unionq (count_occ_eventst p1) (count_occ_eventst p2))
-  | InsertE(_,tl,p) ->
-      sym_diff (count_occ_eventstl tl) (count_occ_eventst p)
-  | EventE(t,p) -> 
-      let l = count_occ_eventst p in
-      match t.t_desc with
-	FunApp(f,tl) ->
-	  let l' =
-	    if List.memq f l then
-	      begin
-		several_occ_events := f :: (!several_occ_events);
-		l
-	      end
-	    else
-	      f :: l
-	  in
-	  sym_diff (count_occ_eventstl tl) l'
-      |	_ -> Parsing_helper.internal_error "Events must be function applications"
-
-and count_occ_eventstl = function
-    [] -> []
-  | (a::l) ->
-      sym_diff (count_occ_eventst a) (count_occ_eventstl l)
-
-and count_occ_eventspat = function
-    PatVar _ -> []
-  | PatTuple (f,patl) ->
-      count_occ_eventspatl patl
-  | PatEqual t ->
-      count_occ_eventst t
-
-and count_occ_eventspatl = function
-    [] -> []
-  | (a::l) ->
-      sym_diff (count_occ_eventspat a) (count_occ_eventspatl l)
-    
-let rec count_occ_events p = 
-  match p.i_desc with
-    Nil -> []
-  | Par(p1,p2) -> sym_diff (count_occ_events p1) (count_occ_events p2)
-  | Repl(_,p) -> count_occ_events p
-  | Input(_,pat,p) ->
-      (* There must be no events in channels *)
-      sym_diff (count_occ_eventspat pat) (count_occ_eventso p)
-
-and count_occ_eventso p = 
-  match p.p_desc with
-    Yield -> []
-  | EventAbort f -> [f]
-  | Restr(_,p) -> count_occ_eventso p
-  | Test(t,p1,p2) ->
-      sym_diff (count_occ_eventst t)
-	(Terms.unionq (count_occ_eventso p1) (count_occ_eventso p2))
-  | Find(l0,p2,_) ->
-      let l = ref (count_occ_eventso p2) in
-      List.iter (fun (_,_,_,p1) ->
-	(* There must be no events in conditions of find *)
-	l := Terms.unionq (!l) (count_occ_eventso p1)) l0;
-      (!l)
-  | Output(_,t,p) ->
-      (* There must be no events in channels *)
-      sym_diff (count_occ_eventst t) (count_occ_events p)
-  | Let(pat,t,p1,p2) ->
-      sym_diff (count_occ_eventspat pat)
-	(sym_diff (count_occ_eventst t) 
-	   (Terms.unionq (count_occ_eventso p1) (count_occ_eventso p2)))
-  | Get(_,patl,_,p1,p2) ->
-      (* There must be no event in the condition of get *)
-      sym_diff (count_occ_eventspatl patl)
-	(Terms.unionq (count_occ_eventso p1) (count_occ_eventso p2))
-  | Insert(_,tl,p) ->
-      sym_diff (count_occ_eventstl tl) (count_occ_eventso p)
-  | EventP(t,p) -> 
-      let l = count_occ_eventso p in
-      match t.t_desc with
-	FunApp(f,tl) ->
-	  let l' =
-	    if List.memq f l then
-	      begin
-		several_occ_events := f :: (!several_occ_events);
-		l
-	      end
-	    else
-	      f :: l
-	  in
-	  sym_diff (count_occ_eventstl tl) l'
-      |	_ -> Parsing_helper.internal_error "Events must be function applications"
-
-let diff_types f =
-  try
-    let t = List.assq f (!event_type_list) in
-    not (List.for_all (fun (f',t') -> (f' != f) || (t == t')) (!event_type_list))
-  with Not_found -> false
 
 let rec check_term_query1 env = function
   | PQEvent(inj, (PFunApp((s,ext), tl), ext2)),ext3 ->
@@ -3645,13 +3506,6 @@ let rec check_term_query1 env = function
       try 
 	match StringMap.find s env with
 	  EEvent(f) ->
-	    if inj then
-	      begin
-		if List.memq f (!several_occ_events) then
-		  input_error "Injective events should occur at most once in each branch of if/find/let" ext3;
-		if diff_types f then
-		  input_error "Injective events should be under replications of the same type" ext3
-	      end;
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
 	    [inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl'))]
 	| _ -> input_error (s ^ " should be an event") ext
@@ -3700,13 +3554,6 @@ let rec check_term_query2 env = function
       try 
 	match StringMap.find s env with
 	  EEvent(f) ->
-	    if inj then
-	      begin
-		if List.memq f (!several_occ_events) then
-		  input_error "Injective events should occur at most once in each branch of if/find/let" ext3;
-		if diff_types f then
-		  input_error "Injective events should be under replications of the same type" ext3
-	      end;
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
 	    QEvent (inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl')))
 	| _ -> input_error (s ^ " should be a an event") ext
@@ -4210,7 +4057,6 @@ let read_file f =
     let final_p = check_all (l',p) in
     match final_p with
       SingleProcess p' ->
-	let _ = count_occ_events p' in
 	(!statements, !collisions, !equivalences, !move_new_eq,
 	 List.map check_query (!queries_parse), !proof, (get_impl ()), final_p)
     | Equivalence _ ->
