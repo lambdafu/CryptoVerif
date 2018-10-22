@@ -1,3 +1,7 @@
+Improvements in TLS models (similar to Wireguard):
+- define option return types
+- use let concat(...) = ... for splitting random oracle results
+
 Set future binders/true facts in terms in Terms.build_def_process
 
 Allow insert find[unique], provided CryptoVerif manages to
