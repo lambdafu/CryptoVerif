@@ -75,12 +75,6 @@ when I add the commented out code in check_distinct.ml,
    arguments of processes and letfun (replication indices correspond
    to the session identifiers of ProVerif)
 
-   - Both in ProVerif and in CryptoVerif:
-      remove the restriction that injective events are in different
-      branches of if/find/let/get.
-      DONE in ProVerif by V. Cheval.
-      TODO in CryptoVerif
-      
    - Encode more ProVerif queries in CryptoVerif
 choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
 choosing new b:bool at the beginning and 
@@ -3500,3 +3494,10 @@ without occurrence before the next line with an occurrence, to allow
     (
 {DESIRED OCC}
 DONE 12/10/2018
+
+   - Both in ProVerif and in CryptoVerif:
+      remove the restriction that injective events are in different
+      branches of if/find/let/get.
+      DONE in ProVerif by V. Cheval.
+      DONE in CryptoVerif 20/10/2018
+      

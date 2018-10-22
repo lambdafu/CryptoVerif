@@ -2,9 +2,6 @@ cryptoverif
 xtime
 convert
 
-cryptoverif.exe
-xtime.exe
-convert.exe
 
 cryptoverif.pvl
 default.cvl
@@ -12,23 +9,20 @@ default.ocvl
 
 tests/*
 
+*.cmi
+*.cmx
+*.cmo
+*.o
 *~
-*/*~
-*/*/*~
+*.out
+*.result
+*.exe
 
-src/*.cmi
-src/*.cmx
-src/*.cmo
-src/*.o
 src/lexer.ml
 src/parser.ml
 src/parser.mli
 src/parser.output
 
-converter/*.cmi
-converter/*.cmx
-converter/*.cmo
-converter/*.o
 converter/lexer.ml
 converter/olexer.ml
 converter/parser.ml
@@ -37,11 +31,6 @@ converter/oparser.ml
 converter/oparser.mli
 
 cryptolib/hashgen
-cryptolib/hashgen.exe
-cryptolib/*.cmi
-cryptolib/*.cmx
-cryptolib/*.cmo
-cryptolib/*.o
 cryptolib/hashoracles.cvl
 cryptolib/hashoracles.ocvl
 cryptolib/hashoracles.pvl
@@ -121,14 +110,6 @@ implementation/ssh/ssh-secrecy-key-IVSC.ocv
 implementation/ssh/ssh-secrecy-key-MKCC.ocv
 implementation/ssh/ssh-secrecy-key-MKSC.ocv
 implementation/ssh/ssh-secrecy-key.ocv
-implementation/*/*.cmi
-implementation/*/*.cmx
-implementation/*/*.cmo
-implementation/*/*.o
-implementation/*.cmi
-implementation/*.cmx
-implementation/*.cmo
-implementation/*.o
 implementation/crypto.ml
 examples/textsecure/indiff.aux
 examples/textsecure/indiff.bbl
@@ -180,5 +161,4 @@ implementation/ssh/server
 
 tests
 
-*.cv
-*.out
+/*.cv
