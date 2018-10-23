@@ -46,7 +46,7 @@ proof {
       insert 66 "if MAC(k0,m1) = MAC(k0,m2) then";
       simplify;
       show_game occ;
-      replace 53 false;
+      replace 53 "false";
       auto
 }
 
