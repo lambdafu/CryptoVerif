@@ -42,6 +42,13 @@ before the corruption.
 (This remark comes from the proof of correctness in wireguard.)
 The same remark applies to other corruption cases.
 
+We could add a transformation that removes part of the code,
+by giving to the adversary all data that it needs in order
+to run that part of code by itself.
+It should adjust the probability computation by adding the runtime
+of the removed part to the runtime of the adversary.
+That allows to simplify the code.
+   
 0) Files that do not work
 
 - "Expanding and simplifying" is very slow in
