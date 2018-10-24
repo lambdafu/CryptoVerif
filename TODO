@@ -29,7 +29,19 @@ then C'[x1...xn] is independent.
    (See ~/repos/verified-noise/WG.25519.AB.dyn.replay_prot.failure
    Solved another way for the Wireguard case study.)
 
-   
+Currently, when applying the INT-CTXT-corrupt property, CV
+considers that when the key is already corrupted, nothing
+can be inferred from the success of decryption. It would in fact
+be possible to strengthen a bit this property: when the arguments
+of decryption other than the key (i.e. ciphertext, as well as
+associated data and nonce if any) do not depend on the key,
+we could apply the INT-CTXT-corrupt property as if the key were
+not corrupted yet. Intuitively, independence shows that
+we can reorganize the code so that the decryption occurs
+before the corruption.
+(This remark comes from the proof of correctness in wireguard.)
+The same remark applies to other corruption cases.
+
 0) Files that do not work
 
 - "Expanding and simplifying" is very slow in
