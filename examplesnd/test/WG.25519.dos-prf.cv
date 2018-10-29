@@ -3,10 +3,15 @@ it does not support corruptions for PRFs.
 It should be able to prove it using "guessing the test session",
 here guess u_1[i_Resp_t], and events "adversary loses".
 (u_1[i_Resp_t] = index i_Resp_C of the session that generated
-the tau_2 used in session i_Resp_T.)
+the tau2' used in session i_Resp_T.)
 Plus it would need to apply the PRF assumption *when the key
-is not corrupted yet*, in case tau_2 is fresh in the mac2 verification
-part. *)
+is not corrupted yet*, in case tau2' is fresh in the mac2 verification
+part. 
+On a second thought, guessing may not be necessary. What
+we really need is showing that the verification of mac2 fails
+when tau2' is fresh. CV cannot do it under the PRF assumption
+because tau2' might be corrupted later (when presenting 
+a message without cookie and the same Am). *)
 
 channel c_resp_0, c_resp_1, c_resp_2, c_resp_3, c_resp_4.
 
