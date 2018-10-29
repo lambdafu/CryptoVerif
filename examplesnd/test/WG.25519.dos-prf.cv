@@ -1,0 +1,62 @@
+(* CryptoVerif does not manage to prove this example, because
+it does not support corruptions for PRFs.
+It should be able to prove it using "guessing the test session",
+here guess u_1[i_Resp_t], and events "adversary loses".
+(u_1[i_Resp_t] = index i_Resp_C of the session that generated
+the tau_2 used in session i_Resp_T.)
+Plus it would need to apply the PRF assumption *when the key
+is not corrupted yet*, in case tau_2 is fresh in the mac2 verification
+part. *)
+
+channel c_resp_0, c_resp_1, c_resp_2, c_resp_3, c_resp_4.
+
+param N_Resp_R, N_Resp_C, N_Resp_T.
+
+type key_t [large, fixed].
+
+event generated_cookie(bitstring, key_t).
+event accepted_cookie(bitstring, key_t, bitstring, key_t).
+
+query Am: bitstring, tau: key_t, msgbeta: bitstring, mac2: key_t;
+      event(accepted_cookie(Am, tau, msgbeta, mac2)) ==>
+      event(generated_cookie(Am, tau)).
+      
+(* We assume that mac is a PRF,
+   because we use its output tau as a key for computing mac2,
+   and that key must be random. (SUF-CMA would not be sufficient.) *)
+
+proba Pprf.
+expand PRF(key_t, bitstring, key_t, mac, Pprf).
+
+process
+	! i_Resp_R <= N_Resp_R
+	in(c_resp_0, ());
+	(* The responder generates a new Rm every two minutes *)
+	new Rm: key_t;
+	out(c_resp_1, ());
+	((
+	   ! i_Resp_C <= N_Resp_C
+	   in(c_resp_2, Am': bitstring);
+	   (* The responder generates a cookie tau for Am'
+	      (concatenation of IP source address and UDP source port) *)
+	   let tau = mac(Rm, Am') in
+	   event generated_cookie(Am', tau);
+	   (* We give the cookie tau to the adversary.
+	      He can encrypt it and run the rest of the protocol. *)
+	   out(c_resp_3, tau)
+	)|(
+	   ! i_Resp_T <= N_Resp_T
+	   (* The responder receives a message msgbeta with a mac2 from
+	      Am2'. It verifies the mac2. *)
+	   in(c_resp_4, (Am2': bitstring, msgbeta: bitstring, mac2: key_t));
+	   let tau2' = mac(Rm, Am2') in
+	   if mac2 = mac(tau2', msgbeta) then
+	   event accepted_cookie(Am2', tau2', msgbeta, mac2) 
+	))
+
+(* DESIRED
+All queries proved.
+EXPECTED
+RESULT Could not prove event(accepted_cookie(Am, tau, msgbeta, mac2)) ==> event(generated_cookie(Am, tau)).
+0.079s (elapsed: user + system + other processes)
+*)
