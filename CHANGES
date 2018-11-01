@@ -365,7 +365,7 @@ Version 1.19
 Version 1.18
 
 - allow length(t) in probability formulas, where t is a bounded type.
-- replace restrictions with constant assignments when their value is not
+- replace random choices with constant assignments when their value is not
   used.
 - improved again the "replace" transformation, in particular to take into
   when one knows that constants are pairwise distinct.
@@ -531,7 +531,7 @@ if/let/find
 computed probability bounds.
 - when no query is present in the input file, try to simplify the game
 as much as possible (instead of stopping immediately).
-- "collision" now considers independent restrictions.
+- "collision" now considers independent random choices.
 - removed "otheruses" and "[unique]" (still accepted for backward compatibility 
 but ignored)
 - undone improvement of computation of probabilities when using 
@@ -598,7 +598,8 @@ the same output process.
 can be moved under a if/let/find in which x is used in a single branch.
 (The term t is then computed in fewer cases.)
 - minor improvements in the proof strategy (in particular, after SArename,
-rename variables defined by several restrictions and without array references).
+rename variables defined by several random choices and without array
+references).
 - possible to deactivate the merging of if/let/find branches by
 "set mergeBranches = false."
 - fixed bug in cryptographic transformation that could lead to referencing
