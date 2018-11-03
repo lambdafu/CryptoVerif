@@ -7,12 +7,15 @@ proof {
       insert_event bad1 32;
       show_game occ;
       insert_event bad2 60;
+      auto
+      (* The rest of the proof works automatically with priority 2 
+      for pkgen(r) in ow(f).
       crypto remove_xor(xorDr) r_5;
       crypto remove_xor(xorDow) r_7;      
-      remove_assign binder pk;
+      remove_assign binder pk; 
       show_game;
       crypto pd_ow(f) r_2 r_8 r_9;
-      success
+      success *)
 }
 
 param qS.

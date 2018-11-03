@@ -3687,7 +3687,7 @@ equiv(remove_invf(f))
 
 equiv(ow(f))
       foreach iK <= nK do r <-R seed; (
-	Opk() := return(pkgen(r)) |
+	Opk() [2] := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oy() := return(f(pkgen(r), x)) |
 		 foreach i1 <= n1 do Oeq   (x' : D) := return(x' = x) |
@@ -3767,7 +3767,7 @@ equiv(remove_invf(f))
 
 equiv(ow_rsr(f))
       foreach iK <= nK do r <-R seed; (
-	Opk() := return(pkgen(r)) |
+	Opk() [2] := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oy() := return(f(pkgen(r), x)) |
 		 foreach i1 <= n1 do Oeq   (x' : D) := return(x' = x) |
@@ -3871,7 +3871,7 @@ equiv(remove_invf(f))
 
 equiv(pd_ow(f))
       foreach iK <= nK do r <-R seed; (
-	Opk() := return(pkgen(r)) |
+	Opk() [2] := return(pkgen(r)) |
 	foreach iF <= nF do xow <-R Dow; xr <-R Dr; 
 		(Oy() := return(f(pkgen(r), concat(xow, xr))) |
 		 foreach i1 <= n1 do Oeq(xow' : Dow) := return(xow' = xow) |

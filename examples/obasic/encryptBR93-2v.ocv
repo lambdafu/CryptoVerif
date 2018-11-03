@@ -9,17 +9,26 @@ section 3.2: variant
 The proof is as follows: *)
 
 proof {
+insert after "OH_1(" "let concat(x1_1',x1_1'') = x1_1 in";
+crypto rom(hash2);
+auto
+}
+
+(* Old proof. The proof above is sufficient with 
+priority 2 for pkgen(r) in ow(f).
+proof {
 crypto rom(hash);
 show_game occ;
 insert 57 "let concat(x1_1',x1_1'') = x1_1 in"; 
-       (* inserted just before "out(hc4, ...)" to distinguish 
-          cases depending on whether xh2 is concat(...) or not *)
+       [* inserted just after "OH_1(...) := ..." to distinguish 
+          cases depending on whether x1_1 is concat(...) or not *]
 crypto rom(hash2);
 remove_assign binder pk;
 crypto ow(f) r; 
 crypto remove_xor(xor) *;
 success
 }
+*)
 
 param nx, qD.
 

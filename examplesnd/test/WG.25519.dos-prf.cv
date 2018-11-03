@@ -64,4 +64,4 @@ All queries proved.
 EXPECTED
 RESULT Could not prove event(accepted_cookie(Am, tau, msgbeta, mac2)) ==> event(generated_cookie(Am, tau)).
 0.079s (elapsed: user + system + other processes)
-*)
+END *)
