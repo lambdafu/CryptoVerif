@@ -167,9 +167,9 @@ echo
 echo ICAO 9880 IV, May 2017
 echo
 output=icao9880-May17-`date '+%Y.%m.%d-%H_%M_%S'`
-if [ -d ../../../../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational ]
+if [ -d ../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational ]
 then
-    dir=../../../../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational
+    dir=../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational
 else
     dir=$HOME/dev/projects/2014ANRAirbus/ICAO9880-May2017/computational
 fi

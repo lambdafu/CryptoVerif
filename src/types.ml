@@ -472,7 +472,7 @@ and query =
 (* For removal of assignments *)
 and rem_set =
     All
-  | OneBinder of binder
+  | Binders of binder list
   | FindCond
   | Minimal
 

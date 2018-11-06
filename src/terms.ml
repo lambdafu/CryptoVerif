@@ -191,7 +191,7 @@ let equal_mset mset1 mset2 =
 let equal_rset rset1 rset2 =
   match (rset1, rset2) with
     (All, All) | (Minimal, Minimal) | (FindCond, FindCond) -> true
-  | (OneBinder b1, OneBinder b2) -> b1 == b2
+  | (Binders l1, Binders l2) -> equal_lists (==) l1 l2
   | _ -> false
 
 let equal_merge_mode m1 m2 =

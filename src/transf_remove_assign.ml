@@ -59,7 +59,7 @@ let candidate_for_rem_assign refers in_find_cond remove_set b t p =
       match remove_set with
       | All ->  Remove true
       | FindCond when in_find_cond -> Remove true
-      | OneBinder b0 when b == b0 -> Remove true
+      | Binders l when List.memq b l -> Remove true
       | _ -> 
          match t.t_desc with
 	 | Var _ | ReplIndex _ when !Settings.expand_letxy -> Remove false

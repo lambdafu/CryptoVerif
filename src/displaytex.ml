@@ -1112,9 +1112,9 @@ let display_process p =
 
 let display_rem_set = function
     All -> print_string "all\\ binders"
-  | OneBinder b -> 
+  | Binders l -> 
       print_string "binder $";
-      display_binder b;
+      display_list_sep "\\ " display_binder l;
       print_string "$"
   | Minimal -> 
       print_string "useless"

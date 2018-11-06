@@ -462,7 +462,7 @@ let check_secrecy b pub_vars =
 	  if has_assign b' then
 	    begin
 	      add_leak (NotOnlyRestr b');
-	      advise := Terms.add_eq (RemoveAssign (OneBinder b')) (!advise)
+	      advise := Terms.add_eq (RemoveAssign (Binders [b'])) (!advise)
 	    end
 	  else if Terms.is_restr b' then
 	    begin

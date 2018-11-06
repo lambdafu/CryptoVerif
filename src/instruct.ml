@@ -49,11 +49,16 @@ let sa_rename_ins_updater b bl = function
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *)) as x -> [x]
-  | RemoveAssign (OneBinder b') ->
-      if b' == b then
-	List.map (fun b'' ->  RemoveAssign (OneBinder b'')) bl
-      else
-	[RemoveAssign (OneBinder b')]
+  | RemoveAssign (Binders l) ->
+      let rec scan_l = function
+	| [] -> []
+	| b' :: l ->
+	    if b' == b then
+	      bl @ (scan_l l)
+	    else
+	      b' :: (scan_l l)
+      in
+      [RemoveAssign (Binders (scan_l l))]
   | SArenaming b' -> 
       if b' == b then
 	 (* If b' == b, useless after SArenaming b *)
@@ -1279,7 +1284,7 @@ let rec interpret_command interactive state = function
 	| RemCst x -> execute_display_advise state (RemoveAssign x)
 	| RemBinder id ->
 		let binders = find_binders state.game in
-		execute_display_advise state (RemoveAssign (OneBinder (find_binder binders id)))
+		execute_display_advise state (RemoveAssign (Binders [find_binder binders id]))
       end
   | CMove(arg) ->
       begin

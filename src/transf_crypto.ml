@@ -355,7 +355,7 @@ let check_distinct_links lhs_array_ref_map bl =
  *)
 let explicit_value b =
   match b.def with
-    [] | [_] -> RemoveAssign (OneBinder b)
+    [] | [_] -> RemoveAssign (Binders [b])
   | _ -> SArenaming b
 
 (*
