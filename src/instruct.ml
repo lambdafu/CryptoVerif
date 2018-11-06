@@ -1279,17 +1279,17 @@ let rec interpret_command interactive state = function
       begin
 	match arg with
 	| RemCst x -> execute_display_advise state (RemoveAssign x)
-	| RemBinder id ->
+	| RemBinders l ->
 		let binders = find_binders state.game in
-		execute_display_advise state (RemoveAssign (Binders [find_binder binders id]))
+		execute_display_advise state (RemoveAssign (Binders (List.map (find_binder binders) l)))
       end
   | CMove(arg) ->
       begin
 	match arg with
 	| MoveCst x -> execute_display_advise state (MoveNewLet x)
-	| MoveBinder id ->
+	| MoveBinders l ->
 	    let binders = find_binders state.game in	      
-	    execute_display_advise state (MoveNewLet (MBinders [find_binder binders id]))
+	    execute_display_advise state (MoveNewLet (MBinders (List.map (find_binder binders) l)))
 	| MoveArray((s,ext2) as id) ->
 	    begin
 	      let binders = find_binders state.game in	      

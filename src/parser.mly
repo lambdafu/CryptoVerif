@@ -418,8 +418,8 @@ rem_opt:
     { RemCst(FindCond) }
 |   ALL
     { RemCst(All) }
-|   BINDER idst
-    { RemBinder($2) }
+|   BINDER neidentlistnosep
+    { RemBinders($2) }
     
 move_opt:
     ALL
@@ -432,8 +432,8 @@ move_opt:
     { MoveCst(MNewNoArrayRef) }
 |   ASSIGN
     { MoveCst(MLet) }
-|   BINDER idst
-    { MoveBinder($2) }
+|   BINDER neidentlistnosep
+    { MoveBinders($2) }
 |   ARRAY idst
     { MoveArray($2) }
     

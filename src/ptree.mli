@@ -179,11 +179,11 @@ type crypto_transf_user_info =
 
 type rem_opt_t =
     RemCst of Types.rem_set
-  | RemBinder of ident
+  | RemBinders of ident list
 
 type move_opt_t =
     MoveCst of Types.move_set
-  | MoveBinder of ident
+  | MoveBinders of ident list
   | MoveArray of ident
 
 type pcoll_elim_t =
