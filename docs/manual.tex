@@ -1866,11 +1866,20 @@ conditions of {\tt find}.
 by replacing variables with their values. This is not recommended:
 you should try to specify which assignments to remove more precisely.
 
-\item $\texttt{remove\string_assign binder}\ x$: remove assignments
-to $x$ by replacing $x$ with its value. When $x$ becomes unused,
-its definition is removed. When $x$ is used only in \texttt{defined} 
+\item $\texttt{remove\string_assign binder}\ x_1\ \dots\ x_n$: remove assignments
+to $x_1, \ldots, x_n$ by replacing $x_i$ with its value. When $x_i$ becomes unused,
+its definition is removed. When $x_i$ is used only in \texttt{defined} 
 tests after transformation, its definition is replaced with 
-a constant.
+a constant. The variables $x_i$ may also be regular expressions, 
+following the syntax of regular expressions in the OCaml Str module, see
+  \url{https://caml.inria.fr/pub/docs/manual-ocaml-4.07/libref/Str.html}.
+In this case, they designate all variables that match the regular expression.
+This is particularly helpful to designate all variables that come
+from the same initial name but have different numbers:
+\texttt{"$\mathit{name}$\_[0-9]*"}. Regular expressions 
+need to be put between quotes because they use characters that do
+not belong to ordinary identifiers. Blackslash ($\backslash$) must then be escaped 
+as $\backslash\backslash$, as in OCaml string literals.
 
 \item $\texttt{move }m$: Try to move instructions as follows:
 \begin{itemize}
@@ -1903,8 +1912,9 @@ without array accesses, when this is beneficial.
 \item \texttt{random\string_noarrayref}: move random number generations 
 without array accesses, when this is beneficial.
 \item \texttt{assign}: move assignments, when this is beneficial.
-\item $\texttt{binder }x$: move random number generations and assignments
-that define $x$ (even when this is not beneficial).
+\item $\texttt{binder }x_1\ \dots\ x_n$: move random number generations and assignments
+that define $x_1, \ldots, x_n$ (even when this is not beneficial).
+The variables $x_i$ may also be regular expressions.
 \item $\texttt{array }x$: move random number generations that define $x$
 when $x$ is of a {\tt large} and {\tt bounded} type and $x$ is not used in
 the process that defines it, until the next output after the definition of $x$.
@@ -1914,6 +1924,9 @@ transformed into {\tt find} instructions that test whether $x$ has been
 chosen before, and reuse the previously chosen value if this is true.)
 %Internally, this is implemented by calling a cryptographic transformation
 %defined in the library by the macro "move_array_internal_macro".
+The variables $x$ may also be a regular expression. 
+In this case, it designates all variables that match the regular expression;
+all these variables must have the same type.
 \end{itemize}
 
 \item \texttt{simplify}: simplify the game.
@@ -1952,9 +1965,18 @@ or its type must be mentioned in $t_1, \ldots, t_n$;
 mentioning the occurrences of $x$ in $occ_1, \ldots, occ_{n''}$
 is not sufficient.
 
+The variable $x$ may also be a regular expression.
+In this case, it designates all variables that match the regular expression,
+and the command \texttt{global\_dep\_anal} is executed for each of these variables in
+turn.
+
 \item $\texttt{SArename }x$: When $x$ is defined at several places,
 rename $x$ to a different name for each definition. This is useful for
 distinguishing cases depending on which definition of $x$ is used.
+The variable $x$ may also be a regular expression.
+In this case, it designates all variables that match the regular expression,
+and the command \texttt{SArename} is executed for each of these variables in
+turn.
 
 \item \texttt{all\string_simplify}: perform several simplifications 
 on the game, as if \texttt{simplify}, \texttt{move all}
@@ -2011,6 +2033,9 @@ other variable names to those already listed. If the dot is absent,
 CryptoVerif may add other variable names if that seems necessary to perform
 the transformation.
 
+The variables $x_i$ may also be regular expressions.
+In this case, they designate all variables that match the regular expression.
+
 \item $\texttt{crypto }\nonterm{name}\ 
 \texttt{[variables: }x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n
 \texttt{; terms: }occ_1\texttt{->}O_1,\ldots,occ_m\texttt{->}O_m\texttt{]}$:
@@ -2023,6 +2048,10 @@ apply a cryptographic transformation chosen as above, where
   may automatically add variables to the list
   $x_1\texttt{->}y_1,\ldots, x_n\texttt{->}y_n$ if needed, except when
   a dot is added at the end of this list.)
+
+The variables $x_i$ may also be regular expressions.
+In this case, they designate all variables that match the regular expression,
+and they are mapped to the same variable $y_i$ in the equivalence.
 
 \item $occ_1, \ldots, occ_m$ are program points at which terms 
   will be transformed using oracles $O_1, \ldots, O_m$ respectively of

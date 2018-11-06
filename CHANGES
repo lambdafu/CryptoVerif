@@ -41,6 +41,10 @@ Version
 - New proof indication "crypto <equivalence> **" which applies repeatedly
   the equivalence <equivalence>, simplifying only the final game
   (while "crypto <equivalence> *" simplifies after each transformation).
+- Allow several variables in commands "remove_assign binder <variables>"
+  and "move binder <variables>".
+- Allow designating several variables by a regular expression
+  in most proof commands.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - Allow several occurrences of the same injective event in the same
   branch of if/let/find and under different replications. 
