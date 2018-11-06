@@ -990,12 +990,32 @@ let find_binders game =
   find_binders_rec accu p;
   accu 
 
-let find_binder binders (s,ext) =
-  try
-    Hashtbl.find binders s
-  with Not_found -> 
-    raise (Error("Binder " ^ s ^ " not found", ext))
+let find_binder_list_one_id binders (s,ext) =
+  let regexp = Str.regexp s in
+  let found_ids =
+    Hashtbl.fold (fun id b accu ->
+      if Str.string_match regexp id 0 then
+	b::accu
+      else
+	accu) binders []
+  in
+  if found_ids == [] then
+    raise (Error("Binder " ^ s ^ " not found", ext));
+  found_ids
 
+let find_binder_list binders l =
+  let rec aux accu = function
+      [] -> accu
+    | a::l -> aux (List.rev_append (find_binder_list_one_id binders a) accu) l
+  in
+  aux [] l
+
+let find_binder binders ((s,ext) as id) =
+  let found_ids = find_binder_list_one_id binders id in
+  match found_ids with
+  | [b] -> b
+  | _ -> raise (Error("Regular expression " ^ s ^ " matches several identifiers", ext))
+      
 let rec find_funsymb f t =
   match t.t_desc with
     Var(b,l) -> List.exists (find_funsymb f) l
@@ -1096,7 +1116,7 @@ let do_equiv ext equiv parsed_user_info state =
            (* When the list of binders lb ends with a ".", do not add more binders
               automatically *)
 	    let binders = find_binders state.game in	      	  
-	    let lb' = List.map (find_binder binders) lb in
+	    let lb' = find_binder_list binders lb in
 	    VarList(lb',stop)
 	| Ptree.PDetailed l ->
 	    let binders = find_binders state.game in	      	  
@@ -1110,16 +1130,19 @@ let do_equiv ext equiv parsed_user_info state =
 		    | Some (l,_,old_stop) -> (l,old_stop) 
 		  in
 		  var_mapping := Some (List.fold_right (fun (id_g,id_equiv) accu ->
-		    let v_g = find_binder binders id_g in
+		    let v_g_l = find_binder_list_one_id binders id_g in
 		    let v_equiv = find_restr id_equiv equiv in
-		    if v_g.btype != v_equiv.btype then
-		      raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
-				    " should have the same type as " ^ 
-				    (Display.binder_to_string v_equiv), snd id_g));
-		    if List.exists (fun (v_g', _) -> v_g == v_g') accu then
-		      raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
-				    " mapped several times", snd id_g));
-		    (v_g, v_equiv)::accu) map old_var_mapping, [], stop || old_stop)
+		    List.iter (fun v_g ->
+		      if v_g.btype != v_equiv.btype then
+			raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
+				      " should have the same type as " ^ 
+				      (Display.binder_to_string v_equiv), snd id_g));
+		      if List.exists (fun (v_g', _) -> v_g == v_g') accu then
+			raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
+				      " mapped several times", snd id_g))
+			  ) v_g_l;
+		    List.rev_append (List.rev_map (fun v_g -> (v_g, v_equiv)) v_g_l) accu
+		      ) map old_var_mapping, [], stop || old_stop)
 	      | Ptree.PTermMapping(map,stop) ->
 		  let old_term_mapping, old_stop =
 		    match !term_mapping with
@@ -1281,7 +1304,7 @@ let rec interpret_command interactive state = function
 	| RemCst x -> execute_display_advise state (RemoveAssign x)
 	| RemBinders l ->
 		let binders = find_binders state.game in
-		execute_display_advise state (RemoveAssign (Binders (List.map (find_binder binders) l)))
+		execute_display_advise state (RemoveAssign (Binders (find_binder_list binders l)))
       end
   | CMove(arg) ->
       begin
@@ -1289,18 +1312,27 @@ let rec interpret_command interactive state = function
 	| MoveCst x -> execute_display_advise state (MoveNewLet x)
 	| MoveBinders l ->
 	    let binders = find_binders state.game in	      
-	    execute_display_advise state (MoveNewLet (MBinders (List.map (find_binder binders) l)))
+	    execute_display_advise state (MoveNewLet (MBinders (find_binder_list binders l)))
 	| MoveArray((s,ext2) as id) ->
 	    begin
 	      let binders = find_binders state.game in	      
-	      let b = find_binder binders id in
-	      if not (Proba.is_large b.btype) then
+	      let bl = find_binder_list_one_id binders id in
+	      let ty =
+		match bl with
+		| [] -> Parsing_helper.internal_error "At least one variable should be found"
+		| b::rest ->
+		    let ty = b.btype in
+		    if List.exists (fun b' -> b'.btype != ty) rest then
+		      raise (Error("In \"move array\", all identifiers should have the same type", ext2));
+		    ty
+	      in
+	      if not (Proba.is_large ty) then
 		raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
- 	      if (b.btype.toptions land Settings.tyopt_CHOOSABLE) == 0 then
+ 	      if (ty.toptions land Settings.tyopt_CHOOSABLE) == 0 then
 		raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
 	      try
-		let equiv = List.assq b.btype (!Settings.move_new_eq) in
-		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([b],true)) state with
+		let equiv = List.assq ty (!Settings.move_new_eq) in
+		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList(bl,true)) state with
 		  CSuccess state' -> simplify state'
 		| CFailure l -> 
 		    raise (Error ("Transformation \"move array\" failed", ext2))
@@ -1346,12 +1378,16 @@ let rec interpret_command interactive state = function
   | CMerge_branches ->
       execute_display_advise state MergeBranches
   | CSArename(id) ->
-      let binders = find_binders state.game in	      
-      execute_display_advise state (SArenaming (find_binder binders id))
+      let binders = find_binders state.game in
+      List.fold_left (fun state b ->
+	execute_display_advise state (SArenaming b))
+	state (find_binder_list_one_id binders id)
   | CGlobal_dep_anal(id, coll_elim) ->
+      let coll_elim' = List.map (interpret_coll_elim state) coll_elim in
       let binders = find_binders state.game in	      
-      execute_display_advise state
-	(GlobalDepAnal (find_binder binders id, List.map (interpret_coll_elim state) coll_elim))
+      List.fold_left (fun state b ->
+	execute_display_advise state (GlobalDepAnal (b, coll_elim')))
+	state (find_binder_list_one_id binders id)	
   | CAll_simplify ->
       simplify state
   | CCrypto(eqname, info, ext) ->
