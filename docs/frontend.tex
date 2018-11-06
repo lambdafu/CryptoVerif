@@ -1581,7 +1581,7 @@ the same type.
 
 \item 
 $\texttt{collision }\nonterm{res}^*
-[\texttt{[restrictions\_may\_be\_equal]}]
+[\texttt{[random\_choices\_may\_be\_equal]}]
 [\texttt{forall }\seq{vartype}\texttt{;}]$\\
 \null\qquad $\texttt{return(}\nonterm{simpleterm}\texttt{) <=(}\nonterm{proba}\texttt{)=> return(}\nonterm{simpleterm}\texttt{)}
 [\ \texttt{if}\ \nonterm{cond}]\texttt{.}$\\
@@ -1621,17 +1621,17 @@ $c$ is built by conjunctions or disjunctions of simple terms and independence co
 where $y_i$ is bound by  \texttt{forall} and $x_j$ is bound by \texttt{new}. (However, disjunctions cannot
 mix terms and independence conditions.)
 
-The option \texttt{[restrictions\_may\_be\_equal]}, when it is present, allows several 
+The option \texttt{[random\_choices\_may\_be\_equal]}, when it is present, allows several 
 random number generations among $x_1, \ldots, x_n$ to be the same, instead of being
 independent. One can then group, in a single \texttt{collision} statement, 
 situations in which $x_1, \ldots, x_n$ are the same or they are independent.
 The indices of the variables corresponding to $x_1, \ldots, x_n$
 in the game are still made independent of $x_1, \ldots, x_n$. 
 Hence, there are two cases: either $x_i$ is the same as $x_j$, or
-$x_i$ and $x_j$ are independent of each other. With the option \texttt{[restrictions\_may\_be\_equal]}, 
+$x_i$ and $x_j$ are independent of each other. With the option \texttt{[random\_choices\_may\_be\_equal]}, 
 the independence conditions can also be ``$x_i$ \texttt{independent-of} $x_j$'',
 where $x_i$ and $x_j$ are both bound by \texttt{new}. This condition
-then means $x_i$ and $x_j$ are different restrictions, so
+then means $x_i$ and $x_j$ are different random choices, so
 $x_j$ is also independent of $x_i$. 
 
 \ifchannels

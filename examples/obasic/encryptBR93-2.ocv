@@ -10,13 +10,17 @@ The proof is as follows: *)
 proof {
   show_game occ;
   insert 21 "let concat(x1_1',x1_1'') = x1_1 in";
+  auto
+  (* The rest of the proof is as follows. 
+  It works automatically with priority 2 for pkgen(r) in ow(f).
+
   crypto rom(hash2);
   crypto rom(hash);
   remove_assign binder pk;
   crypto ow(f) r x_2;
   show_game;
   crypto remove_xor(xor) r_6;
-  success
+  success *)
 }
 
 param nx, qD.

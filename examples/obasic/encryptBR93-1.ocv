@@ -4,7 +4,7 @@ section 3.1: E(x) = f(r) || H(r) xor x (CPA) *)
 
 (* In order to determine the proof, use interactive mode: 
    set interactiveMode = true.
-The proof is as follows: *)
+The proof is as follows: 
 
 proof {
 crypto rom(hash);
@@ -13,7 +13,8 @@ crypto ow(f) r;
 crypto remove_xor(xor) *;
 success
 }
-
+It works automatically with priority 2 for pkgen(r) in ow(f).
+*)
 param nx.
 
 type key [bounded].

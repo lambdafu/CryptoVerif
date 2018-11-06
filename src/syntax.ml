@@ -475,7 +475,7 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
       [] -> (false, Parsing_helper.dummy_ext)
     | ["unchanged", ext] -> (true, ext)
     | (_,ext)::_ -> 
-	input_error "The only allowed option for restrictions is [unchanged]" ext
+	input_error "The only allowed option for random choices is [unchanged]" ext
   in
   try
     (* When there is variable in the left-hand side with the same name, try to reuse that name *)
@@ -488,13 +488,13 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
     Not_found ->
       (* List.find failed *)
       if unchanged then 
-	input_error "When a restriction is marked [unchanged] in the right-hand side,\nthere should exist a corresponding restriction of the same name in the\nleft-hand side" ext
+	input_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
       else
 	add_in_env1 binder_env s1 t cur_array
   | Failure _ ->
       (* add_in_env1reusename failed *)
       if unchanged then 
-	input_error "When a restriction is marked [unchanged] in the right-hand side,\nthere should exist a single variable with that name" ext
+	input_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a single variable with that name" ext
       else
 	add_in_env1 binder_env s1 t cur_array
 
@@ -2339,7 +2339,7 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	 Restriction partly lifted, by completing sequences of names with names already in the map.
       if not (List.for_all (List.for_all (fun b -> Terms.refers_to b tres')) cur_restr) then
 	Parsing_helper.input_error ("In equivalences, each expression should use all names defined by\n" ^
-				    "restrictions above it. This is a simplifying restriction.") (snd tres);
+				    "random choices above it. This is a simplifying restriction.") (snd tres);
       *)
       check_bit_string_type (snd tres) tres'.t_type;
       List.iter2 (fun ((argname,ext),_) arg' ->
@@ -2374,11 +2374,11 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
 	      ) restrlist0 then
 	      opt' := Unchanged 
 	    else
-	      input_error "When a restriction is marked [unchanged] in the right-hand side,\nthere should exist a corresponding restriction of the same name in the\nleft-hand side" ext
+	      input_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
 	  else
 	    input_error "The option [unchanged] is allowed only for computational equivalences" ext
 	else
-	  input_error "The only allowed option for restrictions is [unchanged]" ext
+	  input_error "The only allowed option for random choices is [unchanged]" ext
 	  ) opt;
       let (env'',bl) = check_rm_restrlist options2 cur_array env' restrlist0 l in
       (env'', (b, !opt')::bl)
@@ -2517,7 +2517,7 @@ let rec check_side_cond restr_may_be_equal forall restr env = function
       (* v1 independent of v2 *)
       let v1' = check_collision_var env v1 in
       let v2' = check_collision_var env v2 in
-      (* With the option "restr_may_be_equal", independence conditions are allowed between restrictions
+      (* With the option "random_choices_may_be_equal", independence conditions are allowed between random choices
 	 so [v1'] may be bound by forall or restr, which is always the case: nothing to check in this case. *)
       if (not restr_may_be_equal) && (not (List.memq v1' forall)) then
 	input_error "independent variables should be bound by \"forall\"" ext1;
@@ -2536,10 +2536,10 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
      numbering state. *)
   let restr_may_be_equal = ref false in
   List.iter (fun (s,ext) ->
-    if s = "restrictions_may_be_equal" then
+    if s = "random_choices_may_be_equal" then
       restr_may_be_equal := true
     else
-      Parsing_helper.input_error "The only allowed option for collisions is restrictions_may_be_equal" ext
+      Parsing_helper.input_error "The only allowed option for collisions is random_choices_may_be_equal" ext
     ) options;
   set_binder_env empty_binder_env;
   let (env',restr') = check_binder_list env restr in
