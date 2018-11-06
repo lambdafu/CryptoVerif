@@ -228,7 +228,7 @@ let do_move_new move_set array_ref b =
     MAll | MNew -> true
   | MNoArrayRef | MNewNoArrayRef -> not array_ref
   | MLet -> false
-  | MOneBinder b' -> b == b'
+  | MBinders l -> List.memq b l
 
 (* The result of do_move_let can be:
    0: do not move
@@ -249,7 +249,7 @@ let do_move_let move_set array_ref b t =
 	   are array references. *)
       end
   | MNew | MNewNoArrayRef -> 0
-  | MOneBinder b' -> if b == b' then 2 else 0
+  | MBinders l -> if List.memq b l then 2 else 0
       (* When the user instructs the move on the binder b, we perform
 	 the move even if b has array references and/or we duplicate the let. *)
 
@@ -277,7 +277,7 @@ and move_new_let_reco move_set p =
 	Settings.changed := false;
 	beneficial := false;
 	let p'' = move_a_bindero (fun p_desc -> Restr(b, Terms.oproc_from_desc p_desc)) array_ref b p' in
-	if (!beneficial) || (match move_set with MOneBinder _ -> true | _ -> false) then
+	if (!beneficial) || (match move_set with MBinders _ -> true | _ -> false) then
 	  begin
 	    Settings.changed := (!Settings.changed) || tmp_changed;
 	    done_transfos := (DMoveNew b) :: (!done_transfos);
@@ -331,7 +331,7 @@ and move_new_let_reco move_set p =
 		    move_a_bindero (fun p_desc -> 
 		      Let(pat, t, Terms.oproc_from_desc p_desc, Terms.oproc_from_desc Yield)) array_ref b p1'
 		in
-		if (!beneficial) || (match move_set with MOneBinder _ -> true | _ -> false) then
+		if (!beneficial) || (match move_set with MBinders _ -> true | _ -> false) then
 		  begin
 		    Settings.changed := (!Settings.changed) || tmp_changed;
 		       done_transfos := (DMoveLet b) :: (!done_transfos);

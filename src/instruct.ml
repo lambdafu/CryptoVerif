@@ -43,6 +43,14 @@ let eq_list l1 l2 =
 let has_common_elem l1 l2 =
   List.exists (fun x -> List.memq x l1) l2
 
+let rec replace_list b bl = function
+  | [] -> []
+  | b' :: l ->
+      if b' == b then
+	bl @ (replace_list b bl l)
+      else
+	b' :: (replace_list b bl l)
+    
 let sa_rename_ins_updater b bl = function
     (ExpandIfFindGetInsert | Simplify _ | RemoveAssign(All) | 
      RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
@@ -50,26 +58,15 @@ let sa_rename_ins_updater b bl = function
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *)) as x -> [x]
   | RemoveAssign (Binders l) ->
-      let rec scan_l = function
-	| [] -> []
-	| b' :: l ->
-	    if b' == b then
-	      bl @ (scan_l l)
-	    else
-	      b' :: (scan_l l)
-      in
-      [RemoveAssign (Binders (scan_l l))]
+      [RemoveAssign (Binders (replace_list b bl l))]
   | SArenaming b' -> 
       if b' == b then
 	 (* If b' == b, useless after SArenaming b *)
 	[]
       else
 	[SArenaming b']
-  | MoveNewLet (MOneBinder b') -> 
-      if b' == b then
-	List.map (fun b'' -> MoveNewLet (MOneBinder b'')) bl
-      else
-	[MoveNewLet (MOneBinder b')]
+  | MoveNewLet (MBinders l) -> 
+      [MoveNewLet (MBinders (replace_list b bl l))]
   | GlobalDepAnal (b',l) ->
       if b' == b then
 	List.map (fun b'' -> GlobalDepAnal (b'',l)) bl
@@ -1292,7 +1289,7 @@ let rec interpret_command interactive state = function
 	| MoveCst x -> execute_display_advise state (MoveNewLet x)
 	| MoveBinder id ->
 	    let binders = find_binders state.game in	      
-	    execute_display_advise state (MoveNewLet (MOneBinder (find_binder binders id)))
+	    execute_display_advise state (MoveNewLet (MBinders [find_binder binders id]))
 	| MoveArray((s,ext2) as id) ->
 	    begin
 	      let binders = find_binders state.game in	      

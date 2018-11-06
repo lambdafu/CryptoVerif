@@ -482,7 +482,7 @@ and move_set =
   | MLet
   | MNew
   | MNewNoArrayRef
-  | MOneBinder of binder
+  | MBinders of binder list
 
 and merge_mode =
     MNoBranchVar

@@ -1127,9 +1127,9 @@ let display_move_set = function
   | MNew -> print_string "all\\ new's"
   | MNewNoArrayRef -> print_string "new's\\ without\\ array\\ references"
   | MLet -> print_string "all\\ let's"
-  | MOneBinder b -> 
+  | MBinders l -> 
       print_string "binder $";
-      display_binder b;
+      display_list_sep "\\ " display_binder l;
       print_string "$"
 
 let display_bl_assoc bl_assoc =

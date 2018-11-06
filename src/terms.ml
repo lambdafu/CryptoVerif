@@ -185,7 +185,7 @@ let equal_lists eq l1 l2 =
 
 let equal_mset mset1 mset2 =
   match (mset1, mset2) with
-    (MOneBinder b1, MOneBinder b2) -> b1 == b2
+    (MBinders l1, MBinders l2) -> equal_lists (==) l1 l2
   | x, y -> x == y
 
 let equal_rset rset1 rset2 =
