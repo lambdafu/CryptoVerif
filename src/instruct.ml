@@ -994,7 +994,7 @@ let find_binder_list_one_id binders (s,ext) =
   let regexp = Str.regexp s in
   let found_ids =
     Hashtbl.fold (fun id b accu ->
-      if Str.string_match regexp id 0 then
+      if (Str.string_match regexp id 0) && (Str.matched_string id = id) then
 	b::accu
       else
 	accu) binders []
