@@ -25,9 +25,9 @@ cd ..
 mkdir $DESTD
 
 sed s/VERSION/$VERSION/g\;s/YEAR/$YEAR/g README > $DESTD/README
-cp CHANGES LICENSE default.cvl default.ocvl build build.bat test $DESTD
+cp CHANGES LICENSE build build.bat test $DESTD
 
-mkdir $DESTD/docs $DESTD/examples $DESTD/examples/basic $DESTD/examples/obasic $DESTD/examples/kerberos $DESTD/examples/arinc823 $DESTD/examples/arinc823/sharedkey $DESTD/examples/arinc823/publickey $DESTD/examples/textsecure $DESTD/examples/tls13 $DESTD/src $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
+mkdir $DESTD/cryptolib $DESTD/docs $DESTD/examples $DESTD/examples/basic $DESTD/examples/obasic $DESTD/examples/kerberos $DESTD/examples/arinc823 $DESTD/examples/arinc823/sharedkey $DESTD/examples/arinc823/publickey $DESTD/examples/textsecure $DESTD/examples/tls13 $DESTD/src $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
 
 rm *~ */*~ */*/*~
 
@@ -52,7 +52,7 @@ cp examples/textsecure/runcv $DESTD/examples/textsecure
 cp examples/tls13/runcv examples/tls13/README.md $DESTD/examples/tls13
 
 
-for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv*
+for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv* cryptolib/hashgen.ml cryptolib/commonlib.cvl cryptolib/crypto.pvl cryptolib/*.ocv 
 do
         if [ -f $i ]
         then
