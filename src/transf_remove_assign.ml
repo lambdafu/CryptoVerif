@@ -455,37 +455,6 @@ and remove_assignments_reco remove_set above_vars p =
 		remove_assignments_reco remove_set above_vars p))
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
-(* - Main function for assignment removal *)
-
-let remove_assignments remove_set p =
-  Terms.build_def_process None p;
-  if !Terms.current_bound_vars != [] then
-    Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
-  Terms.array_ref_process p;
-  replacement_def_list := [];
-  (* - First pass: put links; split assignments of tuples if possible *)
-  let p' = remove_assignments_rec remove_set p in
-  (* - Second pass: copy the process following the links or replacing just one variable.
-       Be careful for array references: update the indexes properly  *)
-  let p'' = Terms.copy_process (Terms.Links_Vars_Args(!replacement_def_list)) p' in
-  Terms.cleanup();
-  Terms.cleanup_array_ref();
-  Terms.empty_def_process p;
-  replacement_def_list := [];
-  p''
-
-let rec remove_assignments_repeat n remove_set p =
-  let tmp_changed = !Settings.changed in
-  Settings.changed := false;
-  let p' = remove_assignments remove_set p in
-  if n != 1 && !Settings.changed then
-    remove_assignments_repeat (n-1) remove_set p'
-  else
-    begin
-      Settings.changed := tmp_changed;
-      p'
-    end
-
 let rec do_sa_rename = function
     [] -> []
   | ((b,b')::l) ->
@@ -501,20 +470,49 @@ let rec do_sa_rename = function
       else
 	(DSArenaming(b, b::b'::lb))::lr
 
+(* - Main function for assignment removal *)
+
 let remove_assignments remove_set g =
-  let g_proc = Terms.get_process g in
+  let p = Terms.get_process g in
   done_sa_rename := [];
   done_transfos := [];
-  let r = 
-    if (remove_set == Minimal) || (remove_set = FindCond) then
-      remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g_proc
-    else
-      remove_assignments remove_set g_proc
-  in
+  Terms.build_def_process None p;
+  if !Terms.current_bound_vars != [] then
+    Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
+  Terms.array_ref_process p;
+  replacement_def_list := [];
+  (* - First pass: put links; split assignments of tuples if possible *)
+  let p' = remove_assignments_rec remove_set p in
+  (* - Second pass: copy the process following the links or replacing just one variable.
+       Be careful for array references: update the indexes properly  *)
+  let p'' = Terms.copy_process (Terms.Links_Vars_Args(!replacement_def_list)) p' in
+  Terms.cleanup();
+  Terms.cleanup_array_ref();
+  Terms.empty_def_process p;
+  replacement_def_list := [];
   let sa_rename = !done_sa_rename in
   let transfos = !done_transfos in
   done_transfos := [];
   done_sa_rename := [];
-  let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game r g) in      
+  let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p'' g) in      
   (g', proba, renames @ (do_sa_rename sa_rename) @ transfos)
+
+let rec remove_assignments_repeat n remove_set g =
+  let tmp_changed = !Settings.changed in
+  Settings.changed := false;
+  let (g', proba, transfos) = remove_assignments remove_set g in
+  if n != 1 && !Settings.changed then
+    let (g'', proba', transfos') = remove_assignments_repeat (n-1) remove_set g' in
+    (g'', proba' @ proba, transfos' @ transfos)
+  else
+    begin
+      Settings.changed := tmp_changed;
+      (g', proba, transfos)
+    end
+
+let remove_assignments remove_set g =
+  if (remove_set == Minimal) || (remove_set = FindCond) then
+    remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g
+  else
+    remove_assignments remove_set g
 
