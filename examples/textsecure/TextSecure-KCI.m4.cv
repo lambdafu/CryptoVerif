@@ -135,8 +135,7 @@ query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,a1:G,a12:G,a2:G,m:bitstring;
 (* In this file, we cannot prove that sb = sb2. This is because Bob's
    signature key is compromised. The adversary can then forge a signature
    of the signed ephemeral sb. The Diffie-Hellman key exchange just
-   guarantees that pow8(sb) = pow8(sb2), in case the secret keys
-   to which we raise sb/sb2 are multiple of 8. *)
+   guarantees that pow8(sb) = pow8(sb2). *)
 
 (* Since Bob's long-term keys are compromised, there is no
    hope of proving secrecy of a message sent by Alice to Bob:
