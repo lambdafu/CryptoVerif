@@ -40,7 +40,7 @@ mkdir -p tests
 
 output=textsecure`date '+%Y.%m.%d-%H_%M_%S'`
 (
-for dir in examples/textsecure examplesnd/textsecure
+for dir in examples/textsecure examplesnd/textsecure examplesnd/textsecure-keys-not-normalized
 do
 
     echo
