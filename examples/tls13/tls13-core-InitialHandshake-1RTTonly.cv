@@ -31,13 +31,13 @@ proof {
       out_game "g1.out" occ;
       (* After the first input in the server (which defines sgx), and new sr_???: nonce.
          gx is the value of gx in the client.  *)
-      insert 1709 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert after "new sr_" "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       (* gy_1 is the value of gy in the server *)
       SArename gy_1;
       out_game "g2.out" occ;
       (* In the client, after "let sil_??? = ..." and before "let s_??? = exp(cgy, x_???)"
-      	 gy_603 is the first variable obtained by renaming gy_444 in the server *)
-      insert 56 "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
+      	 gy_2 is the first variable obtained by renaming gy_1 in the server *)
+      insert after_nth 1 "let sil_" "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
       crypto rom(HKDF_extract_ES);
       remove_assign binder s_1;
       remove_assign binder s_2;
@@ -45,10 +45,10 @@ proof {
       crypto gdh(exp) [variables: x_2 -> a, y_6 -> b .];
       out_game "g1_withindepcoll.cv";
       crypto prf2 *;
-      crypto client_server_hts *;
+      crypto splitter(client_server_hts) *;
       crypto prf_fin_key_iv *;
       crypto prf3 *;
-      crypto client_server_ats_exporter_ms *;
+      crypto splitter(cats_sats_ems) *;
       crypto suf_cma(mac) *; 
       simplify;
       success;
@@ -121,15 +121,7 @@ equiv(prf2)
 		else new r: two_keys; return(r) |
 	    O2() := new r': extracted; return(r')).
 
-fun get_client_hts(two_keys): key.
-fun get_server_hts(two_keys): key.
-
-equiv(client_server_hts)
-      !N new r: two_keys; (O1() := return(get_client_hts(r)) |
-      	    	           O2() := return(get_server_hts(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2)).
+expand random_split_2(two_keys, key, key, client_server_hts, reformat2).
 
 (* We use the lemma proved in KeySchedule3.cv *)
 
@@ -150,18 +142,7 @@ equiv(prf3)
 	        find[unique] j'<=N' suchthat defined(log'[j'],r'[j']) && log' = log'[j'] then return(r'[j'])
 		else new r': key; return(r')).      
 
-fun get_client_ats(three_keys): key.
-fun get_server_ats(three_keys): key.
-fun get_exporter_ms(three_keys): key.
-
-equiv(client_server_ats_exporter_ms)
-      !N new r: three_keys; (O1() := return(get_client_ats(r)) |
-      	    	             O2() := return(get_server_ats(r)) |
-			     O3() := return(get_exporter_ms(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2) |
-	  O3() := new r3: key; return(r3)).
+expand random_split_3(three_keys, key, key, key, cats_sats_ems, reformat3).
 
 (* We use the lemma proved in HKDFexpand.cv *)
 
@@ -320,29 +301,45 @@ query sfl: bitstring, c_cfl: bitstring, s_cfl: bitstring, c_keys: bitstring, s_k
       	     	  s_cats, s_sats, s_ems, s_resumption_secret.
 
 
+type send_client_hello_res_t.
+fun send_client_hello_succ(nonce, Z, elt): send_client_hello_res_t [data].
+
 letfun send_client_hello() = 
        new cr:nonce;
        new x:Z;
        let gx = exp(G,x) in
-       (cr,x,gx).
+       send_client_hello_succ(cr,x,gx).
 
+type keys_res_t.
+fun keys_succ(extracted, key, key, key, key, key, key): keys_res_t [data].
+const keys_fail: keys_res_t.
+equation forall x1: extracted, x2: key, x3: key, x4: key, x5: key, x6: key, x7: key;
+	 keys_succ(x1,x2,x3,x4,x5,x6,x7) <> keys_fail.
+	 
 letfun recv_server_hello(hk: hashkey, sil:bitstring, x:Z) = 
   let ServerHelloLogInfo(cr,gx,sr,gy,l) = sil in
   (let s = exp(gy,x) in
    let handshakeSecret = HKDF_extract_ES(hk,s) in
-   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
-   let client_hk = HKDF_expand_key_label(client_hts) in
-   let server_hk = HKDF_expand_key_label(server_hts) in
-   let client_hiv = HKDF_expand_iv_label(client_hts) in
-   let server_hiv = HKDF_expand_iv_label(server_hts) in
-   let cfk = HKDF_expand_fin_label(client_hts) in
-   let sfk = HKDF_expand_fin_label(server_hts) in
-   let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   (masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,true))
-  else (zero_extracted,zero_key,zero_key,zero_key,zero_key,zero_key,zero_key,false).
-   
+   let client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   (
+     let client_hk = HKDF_expand_key_label(client_hts) in
+     let server_hk = HKDF_expand_key_label(server_hts) in
+     let client_hiv = HKDF_expand_iv_label(client_hts) in
+     let server_hiv = HKDF_expand_iv_label(server_hts) in
+     let cfk = HKDF_expand_fin_label(client_hts) in
+     let sfk = HKDF_expand_fin_label(server_hts) in
+     let masterSecret = HKDF_extract_zero(handshakeSecret) in
+     keys_succ(masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk)
+   )
+   else keys_fail
+  )
+  else keys_fail.
+
+type recv_server_finished_res_t.
+fun recv_server_finished_succ(three_keys): recv_server_finished_res_t [data].
+const recv_server_finished_fail: recv_server_finished_res_t.
+equation forall x1: three_keys;
+	 recv_server_finished_succ(x1) <> recv_server_finished_fail.
 
 letfun recv_server_finished(si:bitstring, masterSecret:extracted, sfk: key,
        		            cert:certificate, s:bitstring, m:bitstring, 
@@ -351,16 +348,22 @@ letfun recv_server_finished(si:bitstring, masterSecret:extracted, sfk: key,
    let scvl = ServerCertificateVerifyLogInfo(scl,s) in
    let sfl = ServerFinishedLogInfo(scvl,m) in
    let cs_ats_exp = Derive_Secret_cs_ats_exp(masterSecret,sfl) in
-   (cs_ats_exp, verify(scl,cert,s) && mac(scvl,sfk) = m).
+   if verify(scl,cert,s) && mac(scvl,sfk) = m then
+      recv_server_finished_succ(cs_ats_exp)
+   else
+      recv_server_finished_fail.
 			   
 letfun send_client_certificate_verify(ccl:bitstring, sk:skey) = 
-   sign(ccl,sk).
+   sign(ccl, sk).
 
 letfun send_client_finished(log:bitstring, cfk:key) = 
-   mac(log,cfk).
+   mac(log, cfk).
 
 letfun get_resumption_secret(masterSecret: extracted, cfl: bitstring) =
    Derive_Secret_rms(masterSecret, cfl).
+
+type recv_client_hello_res_t.
+fun recv_client_hello_succ(nonce, elt, extracted): recv_client_hello_res_t [data].
 
 letfun recv_client_hello(hk: hashkey, cr:nonce, gx:elt) = 
    new sr:nonce;
@@ -368,12 +371,11 @@ letfun recv_client_hello(hk: hashkey, cr:nonce, gx:elt) =
    let gy = exp(G,y) in
    let s = exp(gx,y) in
    let handshakeSecret = HKDF_extract_ES(hk,s) in   
-   (sr,gy,handshakeSecret).
+   recv_client_hello_succ(sr,gy,handshakeSecret).
 
 letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) = 
-   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
+   let client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   (
    let client_hk = HKDF_expand_key_label(client_hts) in
    let server_hk = HKDF_expand_key_label(server_hts) in
    let client_hiv = HKDF_expand_iv_label(client_hts) in
@@ -381,26 +383,34 @@ letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) =
    let cfk = HKDF_expand_fin_label(client_hts) in
    let sfk = HKDF_expand_fin_label(server_hts) in
    let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   (client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, masterSecret).
+   keys_succ(masterSecret, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk)
+   )
+   else keys_fail.
 
 letfun send_server_certificate_verify(scl:bitstring,sk:skey) = 
-   sign(scl,sk).
+   sign(scl, sk).
 
 letfun send_server_finished(scvl:bitstring,sfk:key) = 
-   mac(scvl,sfk).
+   mac(scvl, sfk).
 
 letfun onertt_data_keys(masterSecret: extracted, sfl:bitstring) = 
    Derive_Secret_cs_ats_exp(masterSecret,sfl).
 
+type check_client_finished_res_t.
+fun check_client_finished_succ(key): check_client_finished_res_t [data].
+const check_client_finished_fail: check_client_finished_res_t.
+equation forall x1: key;
+	 check_client_finished_succ(x1) <> check_client_finished_fail.
+
 letfun check_client_finished_no_auth(masterSecret: extracted, sfl:bitstring,cfin:bitstring,cfk:key) = 
-   if mac(sfl,cfk) = cfin then
+   if mac(sfl, cfk) = cfin then
    (
        let cfl = ClientFinishedLogInfo(sfl, cfin) in
        let resumption_secret = Derive_Secret_rms(masterSecret, cfl) in
-       (resumption_secret, true)
+       check_client_finished_succ(resumption_secret)
    )
    else
-       (zero_key, false).
+       check_client_finished_fail.
 
 letfun check_client_finished_client_auth(masterSecret: extracted, sfl:bitstring,
 				    log2: bitstring, 
@@ -409,31 +419,27 @@ letfun check_client_finished_client_auth(masterSecret: extracted, sfl:bitstring,
 			    	    cfk:key) = 
    let ccl = ClientCertificateLogInfo(sfl,log2,certC) in
    let ccvl = ClientCertificateVerifyLogInfo(ccl,ccv) in
-   if verify(ccl,certC,ccv) && mac(ccvl,cfk) = cfin then
+   if verify(ccl,certC,ccv) && mac(ccvl, cfk) = cfin then
    (
       let cfl = ClientFinishedLogInfo(ccvl, cfin) in
       let resumption_secret = Derive_Secret_rms(masterSecret, cfl) in   
-      (resumption_secret, true)
+      check_client_finished_succ(resumption_secret)
    )
    else
-      (zero_key, false).
-
+      check_client_finished_fail.
 
 let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) = 
 !i1 <= N1
     in(io1,());
-    let (cr:nonce,x:Z,cgx:elt) = send_client_hello() in
+    let send_client_hello_succ(cr:nonce,x:Z,cgx:elt) = send_client_hello() in
     (* for 0-rtt  insert clientEphemeralKeys(cr,x,cgx); *)
     out(io2,ClientHello(cr,cgx));
     in(io3,ServerHelloIn(sr,cgy,log0));
     let sil = ServerHelloLogInfo(cr,cgx,sr,cgy,log0) in
-    let (masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key,=true) = recv_server_hello(hk,sil,x) in
+    let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = recv_server_hello(hk,sil,x) in
     out(io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(io5,(ServerFinishedIn(certS,scv,m,log1), ClientAuth: bool, log2: bitstring)); 
-    let (cs_ats_exp: three_keys,=true) = recv_server_finished(sil,masterSecret,sfk,certS,scv,m,log1) in   
-    let cats = get_client_ats(cs_ats_exp) in
-    let sats = get_server_ats(cs_ats_exp) in
-    let ems = get_exporter_ms(cs_ats_exp) in
+    let recv_server_finished_succ(cats_sats_ems(cats, sats, ems)) = recv_server_finished(sil,masterSecret,sfk,certS,scv,m,log1) in   
     let scl = ServerCertificateLogInfo(sil,certS,log1) in
     let scvl = ServerCertificateVerifyLogInfo(scl,scv) in
     let c_sfl : bitstring = ServerFinishedLogInfo(scvl,m) in
@@ -517,11 +523,11 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
 let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) = 
  !i6 <= N6
    in(io20,ClientHello(cr,sgx));
-   let (sr:nonce,sgy:elt,handshakeSecret:extracted) = recv_client_hello(hk,cr,sgx) in
+   let recv_client_hello_succ(sr:nonce,sgy:elt,handshakeSecret:extracted) = recv_client_hello(hk,cr,sgx) in
    out(io21,ServerHelloOut(sr,sgy));
    in(io22,log0:bitstring);
    let sil = ServerHelloLogInfo(cr,sgx,sr,sgy,log0) in
-   let (client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key, masterSecret: extracted) = onertt_hs_keys(sil,handshakeSecret) in
+   let keys_succ(masterSecret: extracted, client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key) = onertt_hs_keys(sil,handshakeSecret) in
    out(io23,(client_hk, server_hk, client_hiv, server_hiv));
    in(io24,log1:bitstring);
    (* The server is the honest server -- but the client can talk to other servers *)
@@ -531,14 +537,11 @@ let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) =
    let scvl = ServerCertificateVerifyLogInfo(scl,scv) in
    let m = send_server_finished(scvl,sfk) in
    let s_sfl: bitstring = ServerFinishedLogInfo(scvl,m) in
-   let cs_ats_exp = onertt_data_keys(masterSecret,s_sfl) in
-   let cats = get_client_ats(cs_ats_exp) in
-   let sats = get_server_ats(cs_ats_exp) in
-   let ems = get_exporter_ms(cs_ats_exp) in
+   let cats_sats_ems(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl) in
    event ServerAccept((cr,sgx,sr,sgy,log0,log1,scv,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, sats, ems),i6);
    out(io25,(ServerCertificateVerifyOut(scv), ServerFinishedOut(m)));
    in(io26,clientfinished: bitstring);
-   let ((resumption_secret: key, =true), honestsession: bool) = 
+   let (check_client_finished_succ(resumption_secret: key), honestsession: bool) = 
        let ClientFinishedAuthIn(log2, certC, ccv, cfin) = clientfinished in
        (
        	   let res = check_client_finished_client_auth(masterSecret,s_sfl,log2,certC,ccv,cfin,cfk) in
@@ -572,7 +575,7 @@ let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) =
            (res, honestsession)
        )
        else
-           ((zero_key, false), false)
+           (check_client_finished_fail, false)
    in
    let s_resumption_secret: key = resumption_secret in
    let s_cats : key = cats in
