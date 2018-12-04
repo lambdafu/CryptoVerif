@@ -45,10 +45,10 @@ proof {
       crypto gdh(exp) [variables: x_2 -> a, y_6 -> b .];
       out_game "g1_withindepcoll.cv";
       crypto prf2 *;
-      crypto splitter(client_server_hts) *;
+      crypto splitter(concat_client_server_hts) *;
       crypto prf_fin_key_iv *;
       crypto prf3 *;
-      crypto splitter(cats_sats_ems) *;
+      crypto splitter(concat_cats_sats_ems) *;
       crypto suf_cma(mac) *; 
       simplify;
       success;
@@ -121,7 +121,7 @@ equiv(prf2)
 		else new r: two_keys; return(r) |
 	    O2() := new r': extracted; return(r')).
 
-expand random_split_2(two_keys, key, key, client_server_hts, reformat2).
+expand random_split_2(two_keys, key, key, concat_client_server_hts, reformat2).
 
 (* We use the lemma proved in KeySchedule3.cv *)
 
@@ -142,7 +142,7 @@ equiv(prf3)
 	        find[unique] j'<=N' suchthat defined(log'[j'],r'[j']) && log' = log'[j'] then return(r'[j'])
 		else new r': key; return(r')).      
 
-expand random_split_3(three_keys, key, key, key, cats_sats_ems, reformat3).
+expand random_split_3(three_keys, key, key, key, concat_cats_sats_ems, reformat3).
 
 (* We use the lemma proved in HKDFexpand.cv *)
 
@@ -320,7 +320,7 @@ letfun recv_server_hello(hk: hashkey, sil:bitstring, x:Z) =
   let ServerHelloLogInfo(cr,gx,sr,gy,l) = sil in
   (let s = exp(gy,x) in
    let handshakeSecret = HKDF_extract_ES(hk,s) in
-   let client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   let concat_client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
    (
      let client_hk = HKDF_expand_key_label(client_hts) in
      let server_hk = HKDF_expand_key_label(server_hts) in
@@ -374,7 +374,7 @@ letfun recv_client_hello(hk: hashkey, cr:nonce, gx:elt) =
    recv_client_hello_succ(sr,gy,handshakeSecret).
 
 letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) = 
-   let client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   let concat_client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
    (
    let client_hk = HKDF_expand_key_label(client_hts) in
    let server_hk = HKDF_expand_key_label(server_hts) in
@@ -439,7 +439,7 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
     let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = recv_server_hello(hk,sil,x) in
     out(io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(io5,(ServerFinishedIn(certS,scv,m,log1), ClientAuth: bool, log2: bitstring)); 
-    let recv_server_finished_succ(cats_sats_ems(cats, sats, ems)) = recv_server_finished(sil,masterSecret,sfk,certS,scv,m,log1) in   
+    let recv_server_finished_succ(concat_cats_sats_ems(cats, sats, ems)) = recv_server_finished(sil,masterSecret,sfk,certS,scv,m,log1) in   
     let scl = ServerCertificateLogInfo(sil,certS,log1) in
     let scvl = ServerCertificateVerifyLogInfo(scl,scv) in
     let c_sfl : bitstring = ServerFinishedLogInfo(scvl,m) in
@@ -537,7 +537,7 @@ let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) =
    let scvl = ServerCertificateVerifyLogInfo(scl,scv) in
    let m = send_server_finished(scvl,sfk) in
    let s_sfl: bitstring = ServerFinishedLogInfo(scvl,m) in
-   let cats_sats_ems(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl) in
+   let concat_cats_sats_ems(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl) in
    event ServerAccept((cr,sgx,sr,sgy,log0,log1,scv,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats, sats, ems),i6);
    out(io25,(ServerCertificateVerifyOut(scv), ServerFinishedOut(m)));
    in(io26,clientfinished: bitstring);
