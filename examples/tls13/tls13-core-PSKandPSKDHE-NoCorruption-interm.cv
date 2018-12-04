@@ -23,7 +23,7 @@ param N1,N5,N6,
       N7,N8,N9,N10,N11,N12,
       N13,N14,N15,N16.
 
-(* The proof can be guided as follows, but the automatic proof strategy works. *)
+(* The proof can be guided as follows, but the automatic proof strategy works. 
 
 proof {
       crypto rom(HKDF_extract_zero_salt);
@@ -37,7 +37,7 @@ proof {
       auto
 }
 
-
+*)
 
 type key [large, fixed].
 const zero_key: key.
@@ -471,6 +471,9 @@ letfun get_resumption_secret(masterSecret: extracted, cfl: bitstring) =
 type recv_client_hello_res_t.
 fun recv_client_hello_succ(nonce, bitstring, two_keys): recv_client_hello_res_t [data].
 const recv_client_hello_fail: recv_client_hello_res_t.
+equation forall x1: nonce, x2: bitstring, x3: two_keys;
+	 recv_client_hello_succ(x1, x2, x3) <> recv_client_hello_fail.
+
 
 letfun recv_client_hello(earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
@@ -562,6 +565,9 @@ letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:Z) =
 type recv_client_helloDHE_res_t.
 fun recv_client_helloDHE_succ(nonce, elt, extracted, bitstring, two_keys): recv_client_helloDHE_res_t [data].
 const recv_client_helloDHE_fail: recv_client_helloDHE_res_t.
+equation forall x1: nonce, x2: elt, x3: extracted, x4: bitstring, x5: two_keys;
+	 recv_client_helloDHE_succ(x1, x2, x3, x4, x5) <> recv_client_helloDHE_fail.
+
 
 letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
