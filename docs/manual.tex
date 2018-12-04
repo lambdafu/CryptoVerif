@@ -1778,7 +1778,42 @@ The arguments are the same as for \texttt{AEAD} except that $\vn{Penc}(t, N, l)$
    ciphertexts of length at most $l'$, additional data for encryption
    of length at most $\vn{ld}$, and additional data for decryption of
    length at most $\vn{ld}'$.
+
+\item $\texttt{expand\ random\_split\_$N$(}\vn{input\_t}, \vn{part1\_t}, \dots,
+\vn{partN\_t}, \vn{concat}, \vn{reformat}\texttt{).}$ defines allows to split a random 
+value into $N$ values, for $N \leq 10$.
    
+  $\vn{input\_t}$: type of the input value
+
+  $\vn{part1\_t}, \dots, \vn{partN\_t}$: types of the output parts.
+
+  $\vn{concat}(\vn{part1\_t}, ..., \vn{partN\_t}): \vn{input\_t}$: function that takes 
+  $N$ parts as input and returns the corresponding value of type $\vn{input\_t}$
+  by concatenating the parts.
+
+  $\vn{reformat}(\vn{input\_t}): \vn{input\_t}$ reformats the input so
+  that it is suitable for a pattern-matching with
+  $\vn{concat}(\dots)$.  This function is the identity in CryptoVerif
+  but not in ProVerif. In ProVerif, pattern-matching a random value or
+  the result of a hash function with $\vn{concat}(\dots)$ would always
+  fail.
+
+  Usage to split a value $y$ of type $\vn{input\_t}$ into $N$ parts 
+  of types $\vn{part1\_t}, \dots, \vn{partN\_t}$:
+\[\texttt{let}\ \vn{concat}(x1, ..., xN) = \vn{reformat}(y)\ \texttt{in}\ \dots\]
+  or in CryptoVerif only:
+\[\texttt{let}\ \vn{concat}(x1, ..., xN) = y\ \texttt{in}\ \dots\]
+In CryptoVerif, this macro defines the equivalence named
+$\texttt{splitter}(\vn{concat})$ which replaces a random number
+generation in $\vn{input\_t}$ with the concatenation of $N$
+independent random number generations in
+$\vn{part1\_t}, \dots, \vn{partN\_t}$.
+
+$\vn{input\_t}$, $\vn{part1\_t}, \dots, \vn{partN\_t}$ must be defined
+before expanding this macro.  $\vn{concat}$ and $\vn{reformat}$ are
+defined by this macro. They must not be declared elsewhere, and they
+can be used only after expanding the macro.
+
 \end{itemize}
 
 \fussy

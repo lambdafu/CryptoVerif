@@ -399,19 +399,19 @@ else
     
 (* Split a value *)
 
-let split_prefix = "(* random_split_N defines functions to split a value into N values.
+let split_prefix = "(* random_split_N defines functions to split a random value into N values.
 
   input_t: type of the input value
   part%_t: types of the output parts
   concat(part1_t, ..., partN_t): input_t: function that takes N parts as input and returns the corresponding value.
-  reformat(input_t): input_t reformats the input so that it is suitable for a pattern_matching with concat(...).
+  reformat(input_t): input_t reformats the input so that it is suitable for a pattern-matching with concat(...).
      This function is the identity in CryptoVerif but not in ProVerif. In ProVerif, pattern-matching a random
      value or the result of a hash function with concat(...) would always fail.
   Usage: let concat(x1, ..., xN) = reformat(y) in ...
   or in CryptoVerif only: let concat(x1, ..., xN) = y in ...
 
   input_t and part%_t must be defined before.
-  concat is defined by this macro. *)\n\n"
+  concat and reformat are defined by this macro. *)\n\n"
 
 let split_macro() =
 if (!front_end) = ProVerif then
