@@ -37,23 +37,23 @@ proof {
       out_game "g1.out" occ;
       (* After the first input in the server (which defines sgx), and new sr_???: nonce.
          gx is the value of gx in the client.  *)
-      insert 1693 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert after "new sr_" "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       (* gy_1 is the value of gy in the server *)
       SArename gy_1;
       out_game "g2.out" occ;
       (* In the client, after "let sil_??? = ..." and before "let s_??? = exp(cgy, x_???)"
       	 gy_2 is the first variable obtained by renaming gy_1 in the server *)
-      insert 56 "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
+      insert after_nth 1 "let sil_" "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
       crypto rom(HKDF_extract_ES);
       remove_assign binder s_1;
       remove_assign binder s_2;
       simplify;
       crypto gdh(exp) [variables: x_2 -> a, y_7 -> b .];
       crypto prf2 *;
-      crypto client_server_hts *;
+      crypto splitter(client_server_hts) *;
       crypto prf_fin_key_iv *;
       crypto prf3 *;
-      crypto client_server_ats_exporter_ms *;
+      crypto splitter(cats_sats_ems) *;
       crypto suf_cma(mac) *; 
       simplify;
       success;
@@ -126,15 +126,7 @@ equiv(prf2)
 		else new r: two_keys; return(r) |
 	    O2() := new r': extracted; return(r')).
 
-fun get_client_hts(two_keys): key.
-fun get_server_hts(two_keys): key.
-
-equiv(client_server_hts)
-      !N new r: two_keys; (O1() := return(get_client_hts(r)) |
-      	    	           O2() := return(get_server_hts(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2)).
+expand random_split_2(two_keys, key, key, client_server_hts, reformat2).
 
 (* We use the lemma proved in KeySchedule3.cv *)
 
@@ -155,18 +147,7 @@ equiv(prf3)
 	        find[unique] j'<=N' suchthat defined(log'[j'],r'[j']) && log' = log'[j'] then return(r'[j'])
 		else new r': key; return(r')).      
 
-fun get_client_ats(three_keys): key.
-fun get_server_ats(three_keys): key.
-fun get_exporter_ms(three_keys): key.
-
-equiv(client_server_ats_exporter_ms)
-      !N new r: three_keys; (O1() := return(get_client_ats(r)) |
-      	    	             O2() := return(get_server_ats(r)) |
-			     O3() := return(get_exporter_ms(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2) |
-	  O3() := new r3: key; return(r3)).
+expand random_split_3(three_keys, key, key, key, cats_sats_ems, reformat3).
 
 (* We use the lemma proved in HKDFexpand.cv *)
 
@@ -347,17 +328,19 @@ letfun recv_server_hello(hk: hashkey, sil:bitstring, x:Z) =
   let ServerHelloLogInfo(cr,gx,sr,gy,l) = sil in
   (let s = exp(gy,x) in
    let handshakeSecret = HKDF_extract_ES(hk,s) in
-   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
-   let client_hk = HKDF_expand_key_label(client_hts) in
-   let server_hk = HKDF_expand_key_label(server_hts) in
-   let client_hiv = HKDF_expand_iv_label(client_hts) in
-   let server_hiv = HKDF_expand_iv_label(server_hts) in
-   let cfk = HKDF_expand_fin_label(client_hts) in
-   let sfk = HKDF_expand_fin_label(server_hts) in
-   let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   keys_succ(masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk))
+   let client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   (
+     let client_hk = HKDF_expand_key_label(client_hts) in
+     let server_hk = HKDF_expand_key_label(server_hts) in
+     let client_hiv = HKDF_expand_iv_label(client_hts) in
+     let server_hiv = HKDF_expand_iv_label(server_hts) in
+     let cfk = HKDF_expand_fin_label(client_hts) in
+     let sfk = HKDF_expand_fin_label(server_hts) in
+     let masterSecret = HKDF_extract_zero(handshakeSecret) in
+     keys_succ(masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk)
+   )
+   else keys_fail
+  )
   else keys_fail.
 
 type recv_server_finished_res_t.
@@ -399,9 +382,8 @@ letfun recv_client_hello(hk: hashkey, cr:nonce, gx:elt) =
    recv_client_hello_succ(sr,gy,handshakeSecret).
 
 letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) = 
-   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
+   let client_server_hts(client_hts, server_hts) = Derive_Secret_cs_hts(handshakeSecret,sil) in
+   (
    let client_hk = HKDF_expand_key_label(client_hts) in
    let server_hk = HKDF_expand_key_label(server_hts) in
    let client_hiv = HKDF_expand_iv_label(client_hts) in
@@ -409,7 +391,9 @@ letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) =
    let cfk = HKDF_expand_fin_label(client_hts) in
    let sfk = HKDF_expand_fin_label(server_hts) in
    let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   keys_succ(masterSecret, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk).
+   keys_succ(masterSecret, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk)
+   )
+   else keys_fail.
 
 letfun send_server_certificate_verify(scl:bitstring,sk:skey) = 
    sign(scl, sk).
@@ -464,10 +448,9 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
     let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = recv_server_hello(hk,sil,x) in
     out(io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(io5,(ServerFinishedIn(certS,scv,m,log1), ClientAuth: bool, log2: bitstring)); 
-    let recv_server_finished_succ(cs_ats_exp: three_keys) = recv_server_finished(sil,masterSecret,sfk,certS,scv,m,log1) in   
-    let cats = get_client_ats(cs_ats_exp) in
-    let c_sats : key = get_server_ats(cs_ats_exp) in
-    let ems = get_exporter_ms(cs_ats_exp) in
+    let recv_server_finished_succ(cats_sats_ems(cats, c_sats : key, ems)) =
+    	recv_server_finished(sil,masterSecret,sfk,certS,scv,m,log1)
+    in   
     let scl = ServerCertificateLogInfo(sil,certS,log1) in
     let scvl = ServerCertificateVerifyLogInfo(scl,scv) in
     let c_sfl : bitstring = ServerFinishedLogInfo(scvl,m) in
@@ -686,10 +669,7 @@ let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) =
    let scvl = ServerCertificateVerifyLogInfo(scl,scv) in
    let m = send_server_finished(scvl,sfk) in
    let s_sfl: bitstring = ServerFinishedLogInfo(scvl,m) in
-   let cs_ats_exp = onertt_data_keys(masterSecret,s_sfl) in
-   let cats = get_client_ats(cs_ats_exp) in
-   let sats = get_server_ats(cs_ats_exp) in
-   let ems = get_exporter_ms(cs_ats_exp) in
+   let cats_sats_ems(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl) in
    (* 0.5 RTT. 
       We have security when the Diffie-Hellman share comes from the client *)
    find j <= N1 suchthat defined(cgx[j]) && sgx = cgx[j] then

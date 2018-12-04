@@ -397,6 +397,53 @@ else
   | (foreach iD <= qD do Odec(m:blocksize, kd:key) := return(dec(ck,m,kd))).")
 ^"\n\n}\n\n"
     
+(* Split a value *)
+
+let split_prefix = "(* random_split_N defines functions to split a value into N values.
+
+  input_t: type of the input value
+  part%_t: types of the output parts
+  concat(part1_t, ..., partN_t): input_t: function that takes N parts as input and returns the corresponding value.
+  reformat(input_t): input_t reformats the input so that it is suitable for a pattern_matching with concat(...).
+     This function is the identity in CryptoVerif but not in ProVerif. In ProVerif, pattern-matching a random
+     value or the result of a hash function with concat(...) would always fail.
+  Usage: let concat(x1, ..., xN) = reformat(y) in ...
+  or in CryptoVerif only: let concat(x1, ..., xN) = y in ...
+
+  input_t and part%_t must be defined before.
+  concat is defined by this macro. *)\n\n"
+
+let split_macro() =
+if (!front_end) = ProVerif then
+  "def random_split_%(input_t, $part%_t$, $, concat, reformat) {
+
+  fun concat($part%_t$, $): input_t [data].
+
+  $fun get%(input_t): part%_t.$
+  $
+
+  letfun reformat(r: input_t) = concat($get%(r)$, $).
+
+}\n\n"
+else
+  "def random_split_%(input_t, $part%_t$, $, concat, reformat) {
+
+  fun concat($part%_t$, $): input_t [data].
+
+  letfun reformat(r: input_t) = r.
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do $part% <-R part%_t;$ $
+       Or() := return(concat($part%$, $)).
+
+}\n\n"
+    
+
+
 let args_seen = ref 0
 let start = ref 1
 let final = ref 1
@@ -458,6 +505,11 @@ let _ =
   done;
   print_string prf_large_suffix;
   (* ICM *)
-  print_string (icm())
-  
+  print_string (icm());
+  (* Split *)
+  print_string split_prefix;
+  for n = !start to !final do
+    print_macro (split_macro()) n
+  done
+
     
