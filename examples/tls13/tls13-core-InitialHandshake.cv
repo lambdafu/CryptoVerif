@@ -64,9 +64,7 @@ proof {
 
 
 type key [large, fixed].
-const zero_key: key.
 type extracted [large, fixed].
-const zero_extracted: extracted. 
 
 type Z [large, bounded, nonuniform].
 type elt [large, bounded, nonuniform].

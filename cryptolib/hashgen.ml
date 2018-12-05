@@ -404,9 +404,12 @@ let split_prefix = "(* random_split_N defines functions to split a random value 
   input_t: type of the input value
   part%_t: types of the output parts
   concat(part1_t, ..., partN_t): input_t: function that takes N parts as input and returns the corresponding value.
-  reformat(input_t): input_t reformats the input so that it is suitable for a pattern-matching with concat(...).
-     This function is the identity in CryptoVerif but not in ProVerif. In ProVerif, pattern-matching a random
-     value or the result of a hash function with concat(...) would always fail.
+  reformat(input_t): input_t reformats the input so that a pattern-matching with concat(...) always succeeds.
+     In ProVerif, pattern-matching a random value or the result of a
+     hash function with concat(...) would always fail, so this
+     reformatting is essential. In CryptoVerif, this reformating is
+     optional, but it allows CryptoVerif to realize that the
+     pattern-matching with concat always succeeds.
   Usage: let concat(x1, ..., xN) = reformat(y) in ...
   or in CryptoVerif only: let concat(x1, ..., xN) = y in ...
 
@@ -430,15 +433,20 @@ else
 
   fun concat($part%_t$, $): input_t [data].
 
-  letfun reformat(r: input_t) = r.
+  $fun get%(input_t): part%_t.$
+  $
+
+  letfun reformat(r: input_t) = concat($get%(r)$, $).
 
   param N.
   equiv(splitter(concat))
      foreach i <= N do r <-R input_t; 
-       Or() := return(r)
+       ($O%() := return(get%(r))$ | $ |
+        Or() := return(r))
     <=(0)=>
      foreach i <= N do $part% <-R part%_t;$ $
-       Or() := return(concat($part%$, $)).
+       ($O%() := return(part%)$ | $ |
+        Or() := return(concat($part%$, $))).
 
 }\n\n"
     
