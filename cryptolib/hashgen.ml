@@ -403,50 +403,43 @@ let split_prefix = "(* random_split_N defines functions to split a random value 
 
   input_t: type of the input value
   part%_t: types of the output parts
-  concat(part1_t, ..., partN_t): input_t: function that takes N parts as input and returns the corresponding value.
-  reformat(input_t): input_t reformats the input so that a pattern-matching with concat(...) always succeeds.
-     In ProVerif, pattern-matching a random value or the result of a
-     hash function with concat(...) would always fail, so this
-     reformatting is essential. In CryptoVerif, this reformating is
-     optional, but it allows CryptoVerif to realize that the
-     pattern-matching with concat always succeeds.
-  Usage: let concat(x1, ..., xN) = reformat(y) in ...
-  or in CryptoVerif only: let concat(x1, ..., xN) = y in ...
+  tuple_t: type of a tuple of the output parts
+  tuple(part1_t, ..., partN_t): tuple_t builds a tuple from N parts.
+  split(input_t): tuple_t splits the input into N parts and returns a tuple of these parts
+  Usage: let tuple(x1, ..., xN) = split(y) in ...
 
-  input_t and part%_t must be defined before.
-  concat and reformat are defined by this macro. *)\n\n"
+  input_t, part%_t, and tuple_t must be defined before.
+  tuple and split are defined by this macro. *)\n\n"
 
 let split_macro() =
 if (!front_end) = ProVerif then
-  "def random_split_%(input_t, $part%_t$, $, concat, reformat) {
+  "def random_split_%(input_t, $part%_t$, $, tuple_t, tuple, split) {
 
-  fun concat($part%_t$, $): input_t [data].
+  fun tuple($part%_t$, $): input_t [data].
 
   $fun get%(input_t): part%_t.$
   $
 
-  letfun reformat(r: input_t) = concat($get%(r)$, $).
+  letfun split(r: input_t) = tuple($get%(r)$, $).
 
 }\n\n"
 else
-  "def random_split_%(input_t, $part%_t$, $, concat, reformat) {
+  "def random_split_%(input_t, $part%_t$, $, tuple_t, tuple, split) {
 
-  fun concat($part%_t$, $): input_t [data].
+  fun tuple($part%_t$, $): tuple_t [data].
 
   $fun get%(input_t): part%_t.$
   $
 
-  letfun reformat(r: input_t) = concat($get%(r)$, $).
+  letfun split(r: input_t) = tuple($get%(r)$, $).
 
   param N.
-  equiv(splitter(concat))
+  equiv(splitter(split))
      foreach i <= N do r <-R input_t; 
-       ($O%() := return(get%(r))$ | $ |
-        Or() := return(r))
+       ($O%() := return(get%(r))$ | $)
     <=(0)=>
      foreach i <= N do $part% <-R part%_t;$ $
-       ($O%() := return(part%)$ | $ |
-        Or() := return(concat($part%$, $))).
+       ($O%() := return(part%)$ | $).
 
 }\n\n"
     
