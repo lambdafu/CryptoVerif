@@ -23,26 +23,24 @@ param N1,N5,N6,
       N7,N8,N9,N10,N11,N12,
       N13,N14,N15,N16.
 
-(* The proof can be guided as follows, but the automatic proof strategy works.
+(* The proof can be guided as follows, but the automatic proof strategy works. 
 
 proof {
       crypto rom(HKDF_extract_zero_salt);
       crypto prf1;
       crypto suf_cma(mac) *;
       crypto prf2 *;
-      crypto client_server_hts *;
+      crypto splitter(split2) *;
       crypto prf_fin_key_iv *;
       crypto prf3 *;
       crypto suf_cma(mac) *; 
       auto
 }
+
 *)
 
-
 type key [large, fixed].
-const zero_key: key.
 type extracted [large, fixed].
-const zero_extracted: extracted. 
 
 type Z [large, bounded, nonuniform].
 type elt [large, bounded, nonuniform].
@@ -75,7 +73,6 @@ expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH)
 (* We use the lemma proved in KeySchedule1.cv *)
 
 type two_keys [large,fixed].
-const zero_two_keys: two_keys.
 fun Derive_Secret_cets_eems(extracted, bitstring): two_keys.
 fun Derive_Secret_psk_binder_key(extracted): key.
 fun HKDF_extract_DHE(extracted, elt): extracted.
@@ -98,16 +95,6 @@ equiv(prf1)
 		else new r'': extracted; return(r'') |
       	    O4() := new r''': extracted; return(r''')).
 
-fun get_client_ets(two_keys): key.
-fun get_eems(two_keys): key.
-
-equiv(cets_eems)
-      !N new r: two_keys; (O1() := return(get_client_ets(r)) |
-      	    	           O2() := return(get_eems(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2)).
-
 (* We use the lemma proved in KeySchedule2.cv *)
 
 fun Derive_Secret_cs_hts(extracted,bitstring):two_keys.
@@ -125,15 +112,8 @@ equiv(prf2)
 		else new r: two_keys; return(r) |
 	    O2() := new r': extracted; return(r')).
 
-fun get_client_hts(two_keys): key.
-fun get_server_hts(two_keys): key.
-
-equiv(client_server_hts)
-      !N new r: two_keys; (O1() := return(get_client_hts(r)) |
-      	    	           O2() := return(get_server_hts(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2)).
+type tuple2keys_t. 
+expand random_split_2(two_keys, key, key, tuple2keys_t, tuple2keys, split2).
 
 (* We use the lemma proved in KeySchedule3.cv *)
 
@@ -154,18 +134,8 @@ equiv(prf3)
 	        find[unique] j'<=N' suchthat defined(log'[j'],r'[j']) && log' = log'[j'] then return(r'[j'])
 		else new r': key; return(r')).      
 
-fun get_client_ats(three_keys): key.
-fun get_server_ats(three_keys): key.
-fun get_exporter_ms(three_keys): key.
-
-equiv(client_server_ats_exporter_ms)
-      !N new r: three_keys; (O1() := return(get_client_ats(r)) |
-      	    	             O2() := return(get_server_ats(r)) |
-			     O3() := return(get_exporter_ms(r)))
-    <=(0)=>
-      !N (O1() := new r1: key; return(r1) |
-      	  O2() := new r2: key; return(r2) |
-	  O3() := new r3: key; return(r3)).
+type tuple3keys_t.
+expand random_split_3(three_keys, key, key, key, tuple3keys_t, tuple3keys, split3).
 
 (* We use the lemma proved in HKDFexpand.cv *)
 
@@ -413,28 +383,43 @@ letfun send_client_hello1() =
    new cr:nonce;
    cr.
 
+type send_client_hello2_res_t.
+fun send_client_hello2_succ(nonce, bitstring, bitstring, tuple2keys_t): send_client_hello2_res_t [data].
+
 letfun send_client_hello2(earlySecret: extracted, binder_key: key, cr: nonce, log1: bitstring, log1': bitstring) =
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
    let binder = mac(chbl, binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
    let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
-   (cr, binder, chl, cets_eems).
+   send_client_hello2_succ(cr, binder, chl, split2(cets_eems)).
 
+type keys_res_t.
+fun keys_succ(extracted, key, key, key, key, key, key): keys_res_t [data].
+const keys_fail: keys_res_t.
+equation forall x1: extracted, x2: key, x3: key, x4: key, x5: key, x6: key, x7: key;
+	 keys_succ(x1,x2,x3,x4,x5,x6,x7) <> keys_fail.
+	 
 letfun recv_server_hello(handshakeSecret: extracted, sil:bitstring) = 
   let ServerHelloLogInfo(chl,sr,l2) = sil in
-  (let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
-   let client_hk = HKDF_expand_key_label(client_hts) in
-   let server_hk = HKDF_expand_key_label(server_hts) in
-   let client_hiv = HKDF_expand_iv_label(client_hts) in
-   let server_hiv = HKDF_expand_iv_label(server_hts) in
-   let cfk = HKDF_expand_fin_label(client_hts) in
-   let sfk = HKDF_expand_fin_label(server_hts) in
-   let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   (masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,true))
-  else (zero_extracted,zero_key,zero_key,zero_key,zero_key,zero_key,zero_key,false).
+  (let tuple2keys(client_hts, server_hts) = split2(Derive_Secret_cs_hts(handshakeSecret,sil)) in
+   (let client_hk = HKDF_expand_key_label(client_hts) in
+    let server_hk = HKDF_expand_key_label(server_hts) in
+    let client_hiv = HKDF_expand_iv_label(client_hts) in
+    let server_hiv = HKDF_expand_iv_label(server_hts) in
+    let cfk = HKDF_expand_fin_label(client_hts) in
+    let sfk = HKDF_expand_fin_label(server_hts) in
+    let masterSecret = HKDF_extract_zero(handshakeSecret) in
+    keys_succ(masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk)
+   )
+   else keys_fail
+  )
+  else keys_fail.
    
+type recv_server_finished_res_t.
+fun recv_server_finished_succ(tuple3keys_t): recv_server_finished_res_t [data].
+const recv_server_finished_fail: recv_server_finished_res_t.
+equation forall x1: tuple3keys_t;
+	 recv_server_finished_succ(x1) <> recv_server_finished_fail.
 
 letfun recv_server_finished(sil:bitstring, masterSecret:extracted, sfk: key,
        		            m:bitstring, 
@@ -442,13 +427,22 @@ letfun recv_server_finished(sil:bitstring, masterSecret:extracted, sfk: key,
    let scvl = ServerBeforeFinishedLogInfo(sil, log3) in
    let sfl = ServerFinishedLogInfo(scvl,m) in
    let cs_ats_exp = Derive_Secret_cs_ats_exp(masterSecret,sfl) in
-   (cs_ats_exp, mac(scvl,sfk) = m).
+   if mac(scvl,sfk) = m then
+     recv_server_finished_succ(split3(cs_ats_exp))
+   else
+     recv_server_finished_fail.
 			   
 letfun send_client_finished(log:bitstring, cfk:key) = 
    mac(log,cfk).
 
 letfun get_resumption_secret(masterSecret: extracted, cfl: bitstring) =
    Derive_Secret_rms(masterSecret, cfl).
+
+type recv_client_hello_res_t.
+fun recv_client_hello_succ(nonce, bitstring, tuple2keys_t): recv_client_hello_res_t [data].
+const recv_client_hello_fail: recv_client_hello_res_t.
+equation forall x1: nonce, x2: bitstring, x3: tuple2keys_t;
+	 recv_client_hello_succ(x1, x2, x3) <> recv_client_hello_fail.
 
 letfun recv_client_hello(earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
@@ -457,15 +451,14 @@ letfun recv_client_hello(earlySecret: extracted, binder_key: key, cr:nonce, log1
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
    let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    new sr:nonce;
-   (sr,chl,cets_eems,true)
+   recv_client_hello_succ(sr,chl,split2(cets_eems))
    )
    else
-   (cr,chbl,zero_two_keys,false).
+   recv_client_hello_fail.
 
 letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) = 
-   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
+   let tuple2keys(client_hts, server_hts) = split2(Derive_Secret_cs_hts(handshakeSecret,sil)) in
+   (
    let client_hk = HKDF_expand_key_label(client_hts) in
    let server_hk = HKDF_expand_key_label(server_hts) in
    let client_hiv = HKDF_expand_iv_label(client_hts) in
@@ -473,55 +466,77 @@ letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) =
    let cfk = HKDF_expand_fin_label(client_hts) in
    let sfk = HKDF_expand_fin_label(server_hts) in
    let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   (client_hk, server_hk, client_hiv, server_hiv, cfk, sfk, masterSecret).
+   keys_succ(masterSecret, client_hk, server_hk, client_hiv, server_hiv, cfk, sfk)
+   )
+   else keys_fail.
 
 letfun send_server_finished(scvl:bitstring,sfk:key) = 
    mac(scvl, sfk).
 
 letfun onertt_data_keys(masterSecret: extracted, sfl:bitstring) = 
-   Derive_Secret_cs_ats_exp(masterSecret,sfl).
+   split3(Derive_Secret_cs_ats_exp(masterSecret,sfl)).
+
+type check_client_finished_res_t.
+fun check_client_finished_succ(key): check_client_finished_res_t [data].
+const check_client_finished_fail: check_client_finished_res_t.
+equation forall x1: key;
+	 check_client_finished_succ(x1) <> check_client_finished_fail.
 
 letfun check_client_finished(masterSecret: extracted, ccvl:bitstring,cfin:bitstring,cfk:key) = 
    if mac(ccvl,cfk) = cfin then
    (
        let cfl = ClientFinishedLogInfo(ccvl, cfin) in
        let resumption_secret = Derive_Secret_rms(masterSecret, cfl) in
-       (resumption_secret, true)
+       check_client_finished_succ(resumption_secret)
    )
    else
-       (zero_key, false).
+       check_client_finished_fail.
 
 (* Functions modified for the version with DHE *)
+
+type send_client_hello1DHE_res_t.
+fun send_client_hello1DHE_succ(nonce, Z, elt): send_client_hello1DHE_res_t [data].
 
 letfun send_client_hello1DHE() = 
    new cr:nonce;
    new x:Z;
    let gx = exp(G,x) in
-   (cr,x,gx).
+   send_client_hello1DHE_succ(cr,x,gx).
+
+type send_client_hello2DHE_res_t.
+fun send_client_hello2DHE_succ(nonce, Z, elt, bitstring, bitstring, tuple2keys_t): send_client_hello2DHE_res_t [data].
 
 letfun send_client_hello2DHE(earlySecret: extracted, binder_key: key, cr: nonce, x:Z, gx: elt, log1: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
    let binder = mac(chbl,binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
    let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
-   (cr,x,gx, binder, chl, cets_eems).
+   send_client_hello2DHE_succ(cr,x,gx, binder, chl, split2(cets_eems)).
 
 letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:Z) = 
   let ServerHelloLogInfoDHE(chl,sr,gy,l2) = sil in
   (let s = exp(gy,x) in
    let handshakeSecret = HKDF_extract_DHE(earlySecret, s) in
-   let cs_hts = Derive_Secret_cs_hts(handshakeSecret,sil) in
-   let client_hts = get_client_hts(cs_hts) in
-   let server_hts = get_server_hts(cs_hts) in
-   let client_hk = HKDF_expand_key_label(client_hts) in
-   let server_hk = HKDF_expand_key_label(server_hts) in
-   let client_hiv = HKDF_expand_iv_label(client_hts) in
-   let server_hiv = HKDF_expand_iv_label(server_hts) in
-   let cfk = HKDF_expand_fin_label(client_hts) in
-   let sfk = HKDF_expand_fin_label(server_hts) in
-   let masterSecret = HKDF_extract_zero(handshakeSecret) in
-   (masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,true))
-  else (zero_extracted,zero_key,zero_key,zero_key,zero_key,zero_key,zero_key,false).
+   let tuple2keys(client_hts, server_hts) = split2(Derive_Secret_cs_hts(handshakeSecret,sil)) in
+   (
+    let client_hk = HKDF_expand_key_label(client_hts) in
+    let server_hk = HKDF_expand_key_label(server_hts) in
+    let client_hiv = HKDF_expand_iv_label(client_hts) in
+    let server_hiv = HKDF_expand_iv_label(server_hts) in
+    let cfk = HKDF_expand_fin_label(client_hts) in
+    let sfk = HKDF_expand_fin_label(server_hts) in
+    let masterSecret = HKDF_extract_zero(handshakeSecret) in
+    keys_succ(masterSecret,client_hk,server_hk,client_hiv,server_hiv,cfk,sfk)
+   )
+   else keys_fail
+  )
+  else keys_fail.
+
+type recv_client_helloDHE_res_t.
+fun recv_client_helloDHE_succ(nonce, elt, extracted, bitstring, tuple2keys_t): recv_client_helloDHE_res_t [data].
+const recv_client_helloDHE_fail: recv_client_helloDHE_res_t.
+equation forall x1: nonce, x2: elt, x3: extracted, x4: bitstring, x5: tuple2keys_t;
+	 recv_client_helloDHE_succ(x1, x2, x3, x4, x5) <> recv_client_helloDHE_fail.
 
 letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
@@ -534,10 +549,10 @@ letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, g
    let gy = exp(G,y) in
    let s = exp(gx,y) in
    let handshakeSecret = HKDF_extract_DHE(earlySecret,s) in   
-   (sr,gy,handshakeSecret,chl,cets_eems,true)
+   recv_client_helloDHE_succ(sr,gy,handshakeSecret,chl,split2(cets_eems))
    )
    else
-   (cr,gx,zero_extracted,chbl,zero_two_keys,false).
+   recv_client_helloDHE_fail.
 
 
 
@@ -551,9 +566,8 @@ let Client(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
     (* Give cr to the adversary, so that it can compute binders for
        other PSKs (in c_log1') and add them to the ClientHello message *) 
     in(io2', c_log1': bitstring);
-    let (c_cr:nonce,c_binder: bitstring, chl: bitstring,cets_eems: two_keys) = send_client_hello2(earlySecret, binder_key, cr, c_log1, c_log1') in
-    let cets = get_client_ets(cets_eems) in
-    let c_eems: key = get_eems(cets_eems) in
+    let send_client_hello2_succ(c_cr:nonce,c_binder: bitstring, chl: bitstring,cets_eems: tuple2keys_t) = send_client_hello2(earlySecret, binder_key, cr, c_log1, c_log1') in
+    let tuple2keys(cets, c_eems: key) = cets_eems in
     event ClientEarlyAccept(c_cr, c_log1, c_binder);
     insert c_table(c_cr, c_log1, c_binder, c_log1'); 
     (* 0-RTT: We compose with tls13-core-RecordProtocol-0RTT.cv, 
@@ -564,13 +578,12 @@ let Client(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
     out(io2,ClientHelloOut(c_cr, c_binder));
     in(io3,ServerHelloIn(sr,log2));
     let sil = ServerHelloLogInfo(chl,sr,log2) in
-    let (masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key,=true) = recv_server_hello(handshakeSecret,sil) in
+    let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = recv_server_hello(handshakeSecret,sil) in
     out(io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(io5,(ServerFinishedIn(log3,m), ClientAuth: bool, log4: bitstring)); 
-    let (cs_ats_exp:three_keys,=true) = recv_server_finished(sil,masterSecret,sfk,m,log3) in   
-    let cats = get_client_ats(cs_ats_exp) in
-    let sats = get_server_ats(cs_ats_exp) in
-    let ems = get_exporter_ms(cs_ats_exp) in
+    let recv_server_finished_succ(tuple3keys(cats, sats, ems)) =
+      recv_server_finished(sil,masterSecret,sfk,m,log3)
+    in   
     let scvl = ServerBeforeFinishedLogInfo(sil,log3) in
     let c_sfl : bitstring = ServerFinishedLogInfo(scvl,m) in
     let ccvl = ClientBeforeFinishedLogInfo(c_sfl,log4) in
@@ -594,10 +607,10 @@ let Client(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
 let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
  !i6 <= N6
    in(io9,ClientHelloIn(s_cr: nonce,s_log1: bitstring,s_binder: bitstring,s_log1': bitstring));
-   let (sr:nonce,chl:bitstring,cets_eems: two_keys,=true) = 
+   let recv_client_hello_succ(sr:nonce,chl:bitstring,cets_eems: tuple2keys_t) = 
       recv_client_hello(earlySecret,binder_key,s_cr,s_log1,s_binder,s_log1') in
    event ServerEarlyTerm(s_cr, s_log1, s_binder);
-   let s_eems: key = get_eems(cets_eems) in
+   let tuple2keys(cets, s_eems: key) = cets_eems in
    out(io10,ServerHelloOut(sr));
    ((*  for 0-RTT *)
    (in(io11', ());
@@ -607,7 +620,7 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
 	 We compose with tls13-core-RecordProtocol-0RTT.cv,
 	 with secret c_cets
 	 (ServerEarlyTerm1 is event e2 - non-injective variant) *)
-	  let s_cets2: key = get_client_ets(cets_eems) in
+	  let s_cets2: key = cets in
           event ServerEarlyTerm1((s_cr, s_log1, s_binder, s_log1'), s_cets2);
 	  out(io12', ())
    else
@@ -615,7 +628,7 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
          The key will be secret and no message will actually be received on it.
          We compose with tls13-core-RecordProtocol-0RTT-badkey.cv,
 	 using the variant "single process with key reuse". *)
-	 let s_cets3: key = get_client_ets(cets_eems) in
+	 let s_cets3: key = cets in
 	 event ServerEarlyTerm2((s_cr, s_log1, s_binder, s_log1'), s_cets3);
          find us <= N6 suchthat defined(s_cr[us], s_log1[us], s_binder[us], s_log1'[us], s_cets1[us]) &&
               s_cr[us] = s_cr && s_log1[us] = s_log1 && s_binder[us] = s_binder && s_log1'[us] = s_log1'
@@ -630,16 +643,13 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
    | 
    in(io11,log2:bitstring);
    let sil = ServerHelloLogInfo(chl,sr,log2) in
-   let (client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key, masterSecret: extracted) = onertt_hs_keys(sil,handshakeSecret) in
+   let keys_succ(masterSecret: extracted, client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key) = onertt_hs_keys(sil,handshakeSecret) in
    out(io12,(client_hk, server_hk, client_hiv, server_hiv));
    in(io13,log3:bitstring);
    let scvl = ServerBeforeFinishedLogInfo(sil,log3) in
    let m = send_server_finished(scvl,sfk) in
    let s_sfl = ServerFinishedLogInfo(scvl,m) in
-   let cs_ats_exp = onertt_data_keys(masterSecret,s_sfl) in
-   let cats = get_client_ats(cs_ats_exp) in
-   let sats = get_server_ats(cs_ats_exp) in
-   let ems = get_exporter_ms(cs_ats_exp) in
+   let tuple3keys(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl) in
    (* We prove that s_sats is secret, already here for 0.5-RTT
       We then compose with the record protocol, with secret s_sats
       (ServerAccept is event e1) *)
@@ -648,7 +658,7 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
    out(io18,ServerFinishedOut(m));
    in(io19,ClientFinishedIn(log4, cfin));
    let ccvl = ClientBeforeFinishedLogInfo(s_sfl,log4) in
-   let (resumption_secret: key, =true) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
+   let check_client_finished_succ(resumption_secret: key) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
    event ServerTerm1((s_cr,s_log1,s_binder,s_log1',sr,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
    (* We prove that s_cats, s_ems, and s_resumption_secret are secret. *)
    let s_cats: key = cats in
@@ -662,19 +672,18 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
 
 (* PSKDHE *)
 
-let ClientDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
+let ClientDHE(earlySecret: extracted, binder_key: key) = 
 !i2 <= N2
     in(dhe_io1,cdhe_log1: bitstring);
-    let (cr: nonce,  x: Z, gx: elt) = send_client_hello1DHE() in
+    let send_client_hello1DHE_succ(cr: nonce,  x: Z, gx: elt) = send_client_hello1DHE() in
     out(dhe_io1', (cr,gx));
     (* Give cr,gx to the adversary, so that it can compute binders for
        other PSKs (in cdhe_log1') and add them to the ClientHello message *) 
     in(dhe_io2', cdhe_log1': bitstring);
-    let (cdhe_cr:nonce,x:Z,cgx:elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: two_keys) = 
+    let send_client_hello2DHE_succ(cdhe_cr:nonce,x:Z,cgx:elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: tuple2keys_t) = 
        send_client_hello2DHE(earlySecret, binder_key, cr, x, gx, cdhe_log1, cdhe_log1') in
     insert cdhe_table(cdhe_cr, cgx, cdhe_log1, cdhe_binder, cdhe_log1');
-    let cets = get_client_ets(cets_eems) in
-    let cdhe_eems: key = get_eems(cets_eems) in
+    let tuple2keys(cets, cdhe_eems: key) = cets_eems in
     event ClientEarlyAcceptDHE(cdhe_cr, cgx, cdhe_log1, cdhe_binder);
     (* 0-RTT: We compose with tls13-core-RecordProtocol-0RTT.cv, 
        with secret cdhe_cets 
@@ -684,14 +693,13 @@ let ClientDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracte
     out(dhe_io2,ClientHelloOutDHE(cdhe_cr,cgx,cdhe_binder));
     in(dhe_io3,ServerHelloInDHE(sr,cgy,log2));
     let sil = ServerHelloLogInfoDHE(chl,sr,cgy,log2) in
-    let (masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key,=true) = 
+    let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = 
        recv_server_helloDHE(earlySecret,sil,x) in
     out(dhe_io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(dhe_io5,(ServerFinishedIn(log3,m), ClientAuth: bool, log4: bitstring)); 
-    let (cs_ats_exp:three_keys,=true) = recv_server_finished(sil,masterSecret,sfk,m,log3) in   
-    let cats = get_client_ats(cs_ats_exp) in
-    let sats = get_server_ats(cs_ats_exp) in
-    let ems = get_exporter_ms(cs_ats_exp) in
+    let recv_server_finished_succ(tuple3keys(cats, sats, ems)) =
+      recv_server_finished(sil,masterSecret,sfk,m,log3)
+    in   
     let scvl = ServerBeforeFinishedLogInfo(sil,log3) in
     let c_sfl : bitstring = ServerFinishedLogInfo(scvl,m) in
     let ccvl = ClientBeforeFinishedLogInfo(c_sfl,log4) in
@@ -712,13 +720,13 @@ let ClientDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracte
     let cdhe_resumption_secret: key = resumption_secret in
     out(dhe_io6,ClientFinishedOut(cfin)).
 
-let ServerDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
+let ServerDHE(earlySecret: extracted, binder_key: key) = 
  !i7 <= N7
    in(dhe_io9,ClientHelloInDHE(sdhe_cr: nonce, sgx: elt, sdhe_log1: bitstring, sdhe_binder: bitstring, sdhe_log1': bitstring));
-   let (sr:nonce,sgy:elt,handshakeSecret:extracted, chl: bitstring, cets_eems: two_keys,=true) = 
+   let recv_client_helloDHE_succ(sr:nonce,sgy:elt,handshakeSecret:extracted, chl: bitstring, cets_eems: tuple2keys_t) = 
       recv_client_helloDHE(earlySecret,binder_key,sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1') in
    event ServerEarlyTermDHE(sdhe_cr,sgx,sdhe_log1,sdhe_binder);
-   let sdhe_eems: key = get_eems(cets_eems) in
+   let tuple2keys(cets, sdhe_eems: key) = cets_eems in
    out(dhe_io10,ServerHelloOutDHE(sr,sgy));
    ((*  for 0-RTT *)
    (in(dhe_io11', ());
@@ -728,7 +736,7 @@ let ServerDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracte
 	 We compose with tls13-core-RecordProtocol-0RTT.cv,
 	 with secret cdhe_cets
 	 (ServerEarlyTerm1 is event e2 - non-injective variant)  *)
-	  let sdhe_cets2: key = get_client_ets(cets_eems) in
+	  let sdhe_cets2: key = cets in
           event ServerEarlyTermDHE1((sdhe_cr, sgx, sdhe_log1, sdhe_binder, sdhe_log1'), sdhe_cets2);
 	  out(io12', ())
    else
@@ -736,7 +744,7 @@ let ServerDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracte
          The key will be secret and no message will actually be received on it.
          We compose with tls13-core-RecordProtocol-0RTT-badkey.cv,
 	 using the variant "single process with key reuse". *)
-	 let sdhe_cets3: key = get_client_ets(cets_eems) in
+	 let sdhe_cets3: key = cets in
 	 event ServerEarlyTermDHE2((sdhe_cr, sgx, sdhe_log1, sdhe_binder, sdhe_log1'), sdhe_cets3);
          find us <= N7 suchthat defined(sdhe_cr[us], sgx[us], sdhe_log1[us], sdhe_binder[us], sdhe_log1'[us], sdhe_cets1[us]) &&
               sdhe_cr[us] = sdhe_cr && sgx[us] = sgx && sdhe_log1[us] = sdhe_log1 && 
@@ -752,16 +760,13 @@ let ServerDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracte
    |
    in(dhe_io11,log2:bitstring);
    let sil = ServerHelloLogInfoDHE(chl,sr,sgy,log2) in
-   let (client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key, masterSecret: extracted) = onertt_hs_keys(sil,handshakeSecret) in
+   let keys_succ(masterSecret: extracted, client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key) = onertt_hs_keys(sil,handshakeSecret) in
    out(dhe_io12,(client_hk, server_hk, client_hiv, server_hiv));
    in(dhe_io13,log3:bitstring);
    let scvl = ServerBeforeFinishedLogInfo(sil,log3) in
    let m = send_server_finished(scvl,sfk) in
    let s_sfl = ServerFinishedLogInfo(scvl,m) in
-   let cs_ats_exp = onertt_data_keys(masterSecret,s_sfl) in
-   let cats = get_client_ats(cs_ats_exp) in
-   let sats = get_server_ats(cs_ats_exp) in
-   let ems = get_exporter_ms(cs_ats_exp) in
+   let tuple3keys(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl) in
    (* We prove that sdhe_sats is secret, already here for 0.5-RTT
       We then compose with the record protocol, with secret sdhe_sats
       (ServerAcceptDHE is event e1) *)
@@ -770,7 +775,7 @@ let ServerDHE(earlySecret: extracted, binder_key: key, handshakeSecret: extracte
    out(dhe_io18,ServerFinishedOut(m));
    in(dhe_io19,ClientFinishedIn(log4, cfin));
    let ccvl = ClientBeforeFinishedLogInfo(s_sfl,log4) in
-   let (resumption_secret: key, =true) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
+   let check_client_finished_succ(resumption_secret: key) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
    event ServerTerm1((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
    (* We prove that sdhe_cats, sdhe_ems, and sdhe_resumption_secret are secret 
       We compose with the record protocol for sdhe_cats and 
@@ -796,8 +801,8 @@ process
       (* handshake secret for the PSK variant without DHE *)
   out(io21,());
   ((in(io22, ()); out(io23, ()); 
-      ((in(io24, ()); out(io25, ()); (Client(earlySecret, binder_key, handshakeSecret) | ClientDHE(earlySecret, binder_key, handshakeSecret))) | 
-       (in(io26, ()); out(io27, ()); (Server(earlySecret, binder_key, handshakeSecret) | ServerDHE(earlySecret, binder_key, handshakeSecret))))) | 
+      ((in(io24, ()); out(io25, ()); (Client(earlySecret, binder_key, handshakeSecret) | ClientDHE(earlySecret, binder_key))) | 
+       (in(io26, ()); out(io27, ()); (Server(earlySecret, binder_key, handshakeSecret) | ServerDHE(earlySecret, binder_key))))) | 
    hashoracle(hk))
 
 
