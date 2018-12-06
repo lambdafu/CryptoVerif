@@ -1347,9 +1347,9 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
      \item $\texttt{expand\ DH\_good\_group(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}\texttt{).}$ defines a group $G$ like
        \texttt{DH\_basic}, with the following additional properties:
        $G$ is a group of prime order $q$, with the neutral element excluded, 
-       the set of exponents $Z$ is $\{1, ..., q-1\}$,
+       the set of exponents $Z$ is $\{1, \dots, q-1\}$,
        $g$ is a generator of $G$, 
-       $\vn{mult}$ is the product modulo $q$ in $\{1, ..., q-1\}$, i.e. in the group $(\mathbb{Z}/q\mathbb{Z})*$,
+       $\vn{mult}$ is the product modulo $q$ in $\{1, \dots, q-1\}$, i.e. in the group $(\mathbb{Z}/q\mathbb{Z})*$,
        the distributions of random choices in $Z$ and $G$ are uniform.
 
        It may not be obvious when an element is received on the network
@@ -1780,39 +1780,42 @@ The arguments are the same as for \texttt{AEAD} except that $\vn{Penc}(t, N, l)$
    length at most $\vn{ld}'$.
 
 \item $\texttt{expand\ random\_split\_$N$(}\vn{input\_t}, \vn{part1\_t}, \dots,
-\vn{partN\_t}, \vn{concat}, \vn{reformat}\texttt{).}$ defines allows to split a random 
+\vn{partN\_t}, \vn{tuple\_t}, \vn{tuple}, \vn{split}\texttt{).}$ defines allows to split a random 
 value into $N$ values, for $N \leq 10$.
    
   $\vn{input\_t}$: type of the input value
 
   $\vn{part1\_t}, \dots, \vn{partN\_t}$: types of the output parts.
 
-  $\vn{concat}(\vn{part1\_t}, ..., \vn{partN\_t}): \vn{input\_t}$: function that takes 
-  $N$ parts as input and returns the corresponding value of type $\vn{input\_t}$
-  by concatenating the parts.
+  $\vn{tuple\_t}$: type of a tuple of the output parts
 
-  $\vn{reformat}(\vn{input\_t}): \vn{input\_t}$ reformats the input so
-  that it is suitable for a pattern-matching with
-  $\vn{concat}(\dots)$.  This function is the identity in CryptoVerif
-  but not in ProVerif. In ProVerif, pattern-matching a random value or
-  the result of a hash function with $\vn{concat}(\dots)$ would always
-  fail.
+  $\vn{tuple}(\vn{part1\_t}, \dots, \vn{partN\_t}): \vn{tuple\_t}$: builds a tuple from $N$ parts.
 
-  Usage to split a value $y$ of type $\vn{input\_t}$ into $N$ parts 
-  of types $\vn{part1\_t}, \dots, \vn{partN\_t}$:
-\[\texttt{let}\ \vn{concat}(x1, ..., xN) = \vn{reformat}(y)\ \texttt{in}\ \dots\]
-  or in CryptoVerif only:
-\[\texttt{let}\ \vn{concat}(x1, ..., xN) = y\ \texttt{in}\ \dots\]
-In CryptoVerif, this macro defines the equivalence named
-$\texttt{splitter}(\vn{concat})$ which replaces a random number
-generation in $\vn{input\_t}$ with the concatenation of $N$
-independent random number generations in
-$\vn{part1\_t}, \dots, \vn{partN\_t}$.
+  $\vn{split}(\vn{input\_t}): \vn{tuple\_t}$ splits the input into $N$ parts and returns a tuple of these parts. 
+  The macro says that if $y$ is a random value in $\vn{input\_t}$, then
+$\vn{split}(y)$ is a tuple $\vn{tuple}(x1, \dots, xN)$ of $N$
+independent random values in $\vn{part1\_t}, \dots, \vn{partN\_t}$.
 
-$\vn{input\_t}$, $\vn{part1\_t}, \dots, \vn{partN\_t}$ must be defined
-before expanding this macro.  $\vn{concat}$ and $\vn{reformat}$ are
-defined by this macro. They must not be declared elsewhere, and they
-can be used only after expanding the macro.
+
+  To split a value $y$ of type $\vn{input\_t}$ into $N$ parts 
+  of types $\vn{part1\_t}, \dots, \vn{partN\_t}$, write:
+  \[\texttt{let}\ \vn{tuple}(x1, \dots, xN) = \vn{split}(y)\ \texttt{in}\ \dots\]
+  Note that a priori, CryptoVerif thinks that the pattern-matching
+  with $\vn{tuple}(x1, \dots, xN)$ may fail, and thus requires an
+  \texttt{else} branch when the \texttt{let} occurs in a term.
+  CryptoVerif realizes that the pattern-matching never fails when
+  it expands the definition of $\vn{split}$.
+  
+This macro defines the equivalence named
+$\texttt{splitter}(\vn{split})$ which replaces the splitting of a
+random number generation in $\vn{input\_t}$ with $N$ independent
+random number generations in $\vn{part1\_t}, \dots, \vn{partN\_t}$.
+
+$\vn{input\_t}$, $\vn{part1\_t}, \dots, \vn{partN\_t}$,
+$\vn{tuple\_t}$ must be defined before expanding this macro.
+$\vn{tuple}$ and $\vn{split}$ are defined by this macro. They must not
+be declared elsewhere, and they can be used only after expanding the
+macro.
 
 \end{itemize}
 
@@ -2159,7 +2162,7 @@ The obtained game must satisfy the required invariants (each variable
 is defined at most once in each branch of {\tt if}, {\tt find}, or {\tt let};
 each usage of a variable $x$ must be either $x$ without array index syntactically
 under its definition, inside a {\tt defined} condition of a find, or
-$x[M_1, ..., M_n]$ under a {\tt defined} condition that contains $x[M_1, ..., M_n]$ 
+$x[M_1, \dots, M_n]$ under a {\tt defined} condition that contains $x[M_1, \dots, M_n]$ 
 as a subterm). 
 %
 In case the inserted instruction is not appropriate, an error
