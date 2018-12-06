@@ -23,10 +23,9 @@ param N1,N5,N6,
       N7,N8,N9,N10,N11,N12,
       N13,N14,N15,N16.
 
-(* The proof can be guided as follows, but the automatic proof strategy works. *)
+(* The proof can be guided as follows, but the automatic proof strategy works. 
 
 proof {
-      out_game "init_interm3.cv";
       crypto rom(HKDF_extract_zero_salt);
       crypto prf1;
       crypto suf_cma(mac) *;
@@ -35,11 +34,10 @@ proof {
       crypto prf_fin_key_iv *;
       crypto prf3 *;
       crypto suf_cma(mac) *; 
-      out_game "final_interm3.cv";
       auto
 }
 
-
+*)
 
 type key [large, fixed].
 type extracted [large, fixed].
