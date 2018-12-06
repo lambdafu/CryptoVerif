@@ -1,7 +1,3 @@
-Improvements in TLS models (similar to Wireguard):
-- define option return types
-- use let concat(...) = ... for splitting random oracle results
-
 Set future binders/true facts in terms in Terms.build_def_process
 
 Allow insert find[unique], provided CryptoVerif manages to
@@ -3520,3 +3516,8 @@ DONE 12/10/2018
 examples/encryptBR93-1: 
         Automate (see new definition of onewayness in examplesnd/bug).
 DONE 3/11/2018 by adding priority [2] for pkgen(r) in ow(f).
+
+Improvements in TLS models (similar to Wireguard):
+- define option return types
+- use let concat(...) = ... for splitting random oracle results
+DONE 6/12/2018
