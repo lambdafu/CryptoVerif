@@ -415,7 +415,7 @@ let split_macro() =
 if (!front_end) = ProVerif then
   "def random_split_%(input_t, $part%_t$, $, tuple_t, tuple, split) {
 
-  fun tuple($part%_t$, $): input_t [data].
+  fun tuple($part%_t$, $): tuple_t [data].
 
   $fun get%(input_t): part%_t.$
   $
