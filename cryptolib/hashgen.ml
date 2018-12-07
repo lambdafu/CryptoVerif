@@ -399,7 +399,7 @@ else
     
 (* Split a value *)
 
-let split_prefix = "(* random_split_N defines functions to split a random value into N values.
+let split_prefix() = "(* random_split_N defines functions to split a random value into N values.
 
   input_t: type of the input value
   part%_t: types of the output parts
@@ -409,7 +409,15 @@ let split_prefix = "(* random_split_N defines functions to split a random value 
   Usage: let tuple(x1, ..., xN) = split(y) in ...
 
   input_t, part%_t, and tuple_t must be defined before.
-  tuple and split are defined by this macro. *)\n\n"
+  tuple and split are defined by this macro. " ^
+(if (!front_end) = ProVerif then
+"\n\n  This macro does not model that each xi leaks a part of y.
+  It is suitable to split the result of a hash function,
+  when you do not use that result in other ways and do not
+  prove strong secrecy properties on that result.
+  Other usages may not be sound. "
+else "") ^ 
+"*)\n\n"
 
 let split_macro() =
 if (!front_end) = ProVerif then
@@ -421,6 +429,8 @@ if (!front_end) = ProVerif then
   $
 
   letfun split(r: input_t) = tuple($get%(r)$, $).
+
+  reduc forall x: input_t; concat($get%(x)$, $) = x.
 
 }\n\n"
 else
@@ -508,7 +518,7 @@ let _ =
   (* ICM *)
   print_string (icm());
   (* Split *)
-  print_string split_prefix;
+  print_string (split_prefix());
   for n = !start to !final do
     print_macro (split_macro()) n
   done
