@@ -1468,40 +1468,59 @@ and simplify_oprocess cur_array dep_info true_facts p =
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc2 p' (EventAbort f)
   | Restr(b,p0) -> 
-      let true_facts = update_elsefind_with_def [b] true_facts in
-      let p1 = simplify_oprocess cur_array (List.hd dep_info_list') true_facts p0 in
-      if not ((Terms.has_array_ref_q b) || (Terms.refers_to_oprocess b p0)) then
-	begin
-	  Settings.changed := true;
-	  current_pass_transfos := (SResRemoved(pp)) :: (!current_pass_transfos);
-	  p1
-	end
-      else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b)) then
-	begin
-	  Settings.changed := true;
-	  current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
-	  Terms.oproc_from_desc2 p' (Let(PatVar b,  Terms.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
-	end
-      else
-	Terms.oproc_from_desc2 p' (Restr(b, p1))
+      begin
+	match p0.p_desc with
+	| EventAbort _ ->
+	    (* If we abort immediately after defining b, we will never
+	       read b, even through array accesses or queries *)
+	    p0
+	| _ ->
+	    let true_facts = update_elsefind_with_def [b] true_facts in
+	    let p1 = simplify_oprocess cur_array (List.hd dep_info_list') true_facts p0 in
+	    if not ((Terms.has_array_ref_q b) || (Terms.refers_to_oprocess b p0)) then
+	      begin
+		Settings.changed := true;
+		current_pass_transfos := (SResRemoved(pp)) :: (!current_pass_transfos);
+		p1
+	      end
+	    else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b)) then
+	      begin
+		Settings.changed := true;
+		current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
+		Terms.oproc_from_desc2 p' (Let(PatVar b,  Terms.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
+	      end
+	    else
+	      Terms.oproc_from_desc2 p' (Restr(b, p1))
+      end
   | Test(t, p1, p2) ->
       begin
-      let dep_info_branch = List.hd dep_info_list' in
-      let t' = simplify_term cur_array dep_info false true_facts t in
-      let t_or_and = Terms.or_and_form t' in
-      try
-	(* The facts that are true in the "else" branch *)
-	let true_facts' = Facts.simplif_add (dependency_anal cur_array dep_info) true_facts (Terms.make_not t') in
-	(* Simplify the "else" branch *)
-	let p2' = simplify_oprocess cur_array dep_info_branch true_facts' p2 in
-	simplify_if p' dep_info_branch cur_array true_facts p1 p2' t_or_and
-      with Contradiction ->
-	Settings.changed := true;
-	current_pass_transfos := (STestTrue(pp)) :: (!current_pass_transfos);	  	
-	simplify_oprocess cur_array dep_info_branch true_facts p1
+	match p1.p_desc, p2.p_desc with
+	| EventAbort f, EventAbort f' when f == f' ->
+	    p2
+	| _ -> 
+	    let dep_info_branch = List.hd dep_info_list' in
+	    let t' = simplify_term cur_array dep_info false true_facts t in
+	    let t_or_and = Terms.or_and_form t' in
+	    try
+	      (* The facts that are true in the [else] branch *)
+	      let true_facts' = Facts.simplif_add (dependency_anal cur_array dep_info) true_facts (Terms.make_not t') in
+	      (* Simplify the [else] branch *)
+	      let p2' = simplify_oprocess cur_array dep_info_branch true_facts' p2 in
+	      simplify_if p' dep_info_branch cur_array true_facts p1 p2' t_or_and
+	    with Contradiction ->
+	      Settings.changed := true;
+	      current_pass_transfos := (STestTrue(pp)) :: (!current_pass_transfos);	  	
+	      simplify_oprocess cur_array dep_info_branch true_facts p1
       end
   | Find(l0, p2, find_info) ->
       begin
+	match p2.p_desc with
+	| EventAbort f when List.for_all (fun (_,_,_,p1) ->
+	    match p1.p_desc with
+	    | EventAbort f' -> f == f'
+	    | _ -> false) l0 ->
+		p2
+	| _ -> 
       match dep_info_list' with
 	[] -> Parsing_helper.internal_error "Non empty dep_info_list' needed"
       |	dep_info_else :: dep_info_branches ->
@@ -1883,30 +1902,38 @@ and simplify_oprocess cur_array dep_info true_facts p =
       end
   | Let(pat, t, p1, p2) ->
       begin
-      let true_facts' = update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
-      match dep_info_list' with
-	[dep_info_in; dep_info_else] ->
-	  let t' = simplify_term cur_array dep_info (Terms.is_pat_tuple pat) true_facts t in
-	  begin
-	    try
-	      let true_facts_else =
-		try
-		  Facts.simplif_add (dependency_anal cur_array dep_info_else) true_facts (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t) 
-		with Terms.NonLinearPattern -> true_facts
-	      in
-	      simplify_let p' dep_info_else true_facts_else dep_info dep_info_in cur_array true_facts' p1 p2 t' pat
-	    with Contradiction ->
-	      if p2.p_desc != Yield then 
+	match pat, p1.p_desc, p2.p_desc with
+	(* If we abort immediately after defining variables, we will never
+	   read them, even through array accesses or queries *)
+	| PatVar _, EventAbort _, _ ->
+	    p1
+	| _, EventAbort f, EventAbort f' when f == f' ->
+	    p1
+	| _ -> 
+	    let true_facts' = update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
+	    match dep_info_list' with
+	      [dep_info_in; dep_info_else] ->
+		let t' = simplify_term cur_array dep_info (Terms.is_pat_tuple pat) true_facts t in
 		begin
-		  Settings.changed := true;
-		  current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
-		end;
-	      simplify_let p' dep_info_else true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat
-	  end
-      |	[dep_info_in] -> 
-	  let t' = simplify_term cur_array dep_info (Terms.is_pat_tuple pat) true_facts t in
-	  simplify_let p' dep_info true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat 
-      |	_ -> Parsing_helper.internal_error "Bad dep_info_list' in case Let"
+		  try
+		    let true_facts_else =
+		      try
+			Facts.simplif_add (dependency_anal cur_array dep_info_else) true_facts (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t) 
+		      with Terms.NonLinearPattern -> true_facts
+		    in
+		    simplify_let p' dep_info_else true_facts_else dep_info dep_info_in cur_array true_facts' p1 p2 t' pat
+		  with Contradiction ->
+		    if p2.p_desc != Yield then 
+		      begin
+			Settings.changed := true;
+			current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
+		      end;
+		    simplify_let p' dep_info_else true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat
+		end
+	    | [dep_info_in] -> 
+		let t' = simplify_term cur_array dep_info (Terms.is_pat_tuple pat) true_facts t in
+		simplify_let p' dep_info true_facts dep_info dep_info_in cur_array true_facts' p1 (Terms.oproc_from_desc Yield) t' pat 
+	    | _ -> Parsing_helper.internal_error "Bad dep_info_list' in case Let"
       end
   | Output((c,tl),t2,p) ->
       (* Remove all "Elsefind" facts since variables may be defined 

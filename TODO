@@ -274,20 +274,6 @@ in that session. Some difficulties:
    In fact, to give maximum power to the simplifications below,
    I should consider only two different EventAbort, "win" and "lose".
 
-   3/ I can use further simplifications for EventAbort: when I am
-   sure that an EventAbort will be reached in the current block,
-   I can remove the instructions before the EventAbort.
-   Examples:
-      let x = M in EventAbort e -> EventAbort e
-      let pat = M in EventAbort e else EventAbort e -> EventAbort e
-      new a; EventAbort e -> EventAbort e
-      if M then EventAbort e else EventAbort e -> EventAbort e
-      find ... then EventAbort e else EventAbort e -> EventAbort e.
-   The simplification for "if" is already implemented (merging of 
-   branches). The others may not be. In particular, the
-   simplifications for let, new, find are valid even if the
-   newly defined variable(s) have array accesses.
-
    4/ I should add a transformation that simplifies the game
    as much as possible taking into account that the adversary
    loses when the "required step" (see definition above) is not
@@ -3521,3 +3507,18 @@ Improvements in TLS models (similar to Wireguard):
 - define option return types
 - use let concat(...) = ... for splitting random oracle results
 DONE 6/12/2018
+
+   I can use further simplifications for EventAbort: when I am
+   sure that an EventAbort will be reached in the current block,
+   I can remove the instructions before the EventAbort.
+   Examples:
+      let x = M in EventAbort e -> EventAbort e
+      let pat = M in EventAbort e else EventAbort e -> EventAbort e
+      new a; EventAbort e -> EventAbort e
+      if M then EventAbort e else EventAbort e -> EventAbort e
+      find ... then EventAbort e else EventAbort e -> EventAbort e.
+   The simplification for "if" is already implemented (merging of 
+   branches). The others may not be. In particular, the
+   simplifications for let, new, find are valid even if the
+   newly defined variable(s) have array accesses.
+DONE 7/12/2018
