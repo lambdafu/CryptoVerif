@@ -1561,6 +1561,28 @@ let rec interpret_command interactive state = function
       end
   | CUndo(v, ext) ->
       undo ext state v
+  | CFocus(l) ->
+      let lparsed = List.concat (List.map (fun (s, ext_s) ->
+	let lexbuf = Lexing.from_string s in
+	Parsing_helper.set_start lexbuf ext_s;
+	let (vars, ql) = 
+	  try 
+	    Parser.focusquery Lexer.token lexbuf
+	  with
+	    Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
+	in
+	List.map (function
+	  PQEventQ(vars', t1, t2, pub_vars) ->
+	    assert(vars' == []);
+	    PQEventQ(vars, t1, t2, pub_vars)
+	| q -> q
+	      ) ql
+	  ) l)
+      in
+      let lq = List.map Syntax.check_query lparsed in
+      raise (Error("To implem", dummy_ext))      
+  | CUndoFocus ->
+      raise (Error("To implem", dummy_ext))
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with

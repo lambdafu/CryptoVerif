@@ -227,6 +227,8 @@ type command =
   | CSimplify of pcoll_elim_t list
   | CMove of move_opt_t
   | CRemove_assign of rem_opt_t
+  | CFocus of ident list
+  | CUndoFocus
 	
 (* Declarations *)
 

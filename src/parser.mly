@@ -154,7 +154,8 @@ let return_channel = (dummy_channel, None)
 %token HELP
 %token INTERACTIVE
 %token TYPES      
-  
+%token FOCUS
+      
 /* Precedence (from low to high) and associativities */
 %left BAR
 %right OR
@@ -189,6 +190,9 @@ let return_channel = (dummy_channel, None)
 %start proofoptsemi
 %type <Ptree.command list> proofoptsemi
 
+    %start focusquery
+    %type <(Ptree.ident * Ptree.ty(*type*)) list * Ptree.query list> focusquery
+    
 %%
 
 commonlibelem:
@@ -410,7 +414,11 @@ proofcommand:
     { CMove($2) }
 |   REMOVE_ASSIGN rem_opt
     { CRemove_assign($2) }
-
+|   FOCUS stringlistne
+    { CFocus($2) }
+|   UNDO FOCUS
+    { CUndoFocus }
+    
 rem_opt:
     USELESS
     { RemCst(Minimal) }
@@ -1056,6 +1064,13 @@ probaflist:
 |      probaf COMMA probaflist
        { $1 :: $3 }
 
+    /* Focus query */
+focusquery:
+|       QUERY vartypeilist SEMI queryseq 
+        { ($2, $4) }
+|       QUERY queryseq 
+        { ([], $2) }
+    
 /* Instructions, for manual insertion of an instruction in a game */
 
 instruct:

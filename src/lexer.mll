@@ -122,7 +122,8 @@ let keyword_table_proof =
       "forget_old_games", FORGET_OLD_GAMES;
       "help", HELP;
       "interactive", INTERACTIVE;
-      "types", TYPES
+      "types", TYPES;
+      "focus", FOCUS
     ]
     
 }
