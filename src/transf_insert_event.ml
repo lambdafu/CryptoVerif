@@ -67,6 +67,8 @@ let insert_event occ s g =
     raise (Parsing_helper.Error("Occurrence " ^ (string_of_int occ) ^ " ambiguous. You should use the command show_game occ to determine the desired occurrence.", Parsing_helper.dummy_ext))
   else
     begin
+      (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
+      Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
       Settings.changed := true;
       let g' = Terms.build_transformed_game p' g in
       let q_proof = ref None in

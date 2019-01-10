@@ -1288,6 +1288,42 @@ let map_type (s,ext) =
   with Not_found ->
     raise (Error("Unknown type size " ^ s, ext))
 
+(* Equality test for command focus *)
+
+let rec equal_terms_ren t1 t2 =
+  match t1.t_desc, t2.t_desc with
+  | Var(b1,l1), Var(b2,l2) ->
+      assert(l1 == [] && l2 == []);
+      begin
+	match b1.link, b2.link with
+	| NoLink, NoLink ->
+	    Terms.link b1 (TLink t2);
+	    Terms.link b2 (TLink t1)
+	| TLink { t_desc = Var(b2', []) },
+	    TLink { t_desc = Var(b1', []) } when b1' == b1 && b2' == b2 -> ()
+	| _ -> raise NoMatch
+      end
+  | FunApp(f1, l1), FunApp(f2, l2) ->
+      if f1 != f2 then raise NoMatch;
+      List.iter2 equal_terms_ren l1 l2
+  | _ -> raise NoMatch
+
+let rec equal_qterms_ren t1 t2 =
+  match t1, t2 with
+  | QEvent(b1, t1'), QEvent(b2, t2') ->
+      if b1 != b2 then raise NoMatch;
+      equal_terms_ren t1' t2'
+  | QTerm t1', QTerm t2' ->
+      equal_terms_ren t1' t2'
+  | QAnd(t1', t1''), QAnd(t2', t2'') ->
+      equal_qterms_ren t1' t2';
+      equal_qterms_ren t1'' t2''
+  | QOr(t1', t1''), QOr(t2', t2'') ->
+      equal_qterms_ren t1' t2';
+      equal_qterms_ren t1'' t2''
+  | _ -> raise NoMatch
+
+	
 (* [interpret_command interactive state command] runs the command [command]
    in state [state]. 
    Returns the new state.
