@@ -1323,6 +1323,33 @@ let rec equal_qterms_ren t1 t2 =
       equal_qterms_ren t1'' t2''
   | _ -> raise NoMatch
 
+let eq_pub_vars pv1 pv2 =
+  (List.for_all (fun b1 -> List.memq b1 pv2) pv1) &&
+  (List.for_all (fun b2 -> List.memq b2 pv1) pv2)
+	
+let equal_query q1 q2 =
+  match q1, q2 with
+  | QSecret(b1,pub_vars1,one_session1), QSecret(b2,pub_vars2,one_session2) ->
+      (b1 == b2) && (eq_pub_vars pub_vars1 pub_vars2) &&
+      (one_session1 = one_session2)
+  | QEventQ(hyp1, concl1, pub_vars1), QEventQ(hyp2, concl2, pub_vars2) ->
+      (eq_pub_vars pub_vars1 pub_vars2) &&
+      (Terms.auto_cleanup (fun () ->
+	try
+	  List.iter2 (fun (inj1,t1) (inj2,t2) ->
+	    if inj1 != inj2 then raise NoMatch;
+	    equal_terms_ren t1 t2) hyp1 hyp2;
+	  equal_qterms_ren concl1 concl2;
+	  true
+	with NoMatch ->
+	  false))
+  | QEquivalence(_, pub_vars1), QEquivalence(_, pub_vars2) ->
+      eq_pub_vars pub_vars1 pub_vars2
+  | QEquivalenceFinal(_, pub_vars1), QEquivalenceFinal(_, pub_vars2) ->
+      eq_pub_vars pub_vars1 pub_vars2
+  | AbsentQuery, AbsentQuery -> true
+  | _ -> false
+	
 	
 (* [interpret_command interactive state command] runs the command [command]
    in state [state]. 
