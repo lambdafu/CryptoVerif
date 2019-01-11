@@ -491,27 +491,27 @@ let get_inverse f n =
 
 (***************************************************************************)
 
-let public_vars = ref []
-
-let add_pub_vars pub_vars =
-  List.iter (fun b ->
-    if not (List.memq b (!public_vars)) then
-      public_vars := b :: (!public_vars)
-			    ) pub_vars
-    
-let collect_public_vars queries =
+let get_public_vars queries =
+  let public_vars = ref [] in
+  let add_pub_vars pub_vars =
+    List.iter (fun b ->
+      if not (List.memq b (!public_vars)) then
+	public_vars := b :: (!public_vars)
+			      ) pub_vars
+  in
   List.iter (function 
-      (QSecret (b',pub_vars,onesession),_),_,_ ->
+    | _, _, popt when popt != None -> () (* I ignore already proved queries *)
+    | (QSecret (b',pub_vars,onesession),_),_,_ ->
 	add_pub_vars (b'::pub_vars)
     | (QEventQ (_,_,pub_vars),_),_,_ 
     | (QEquivalence(_,pub_vars),_),_,_ 
     | (QEquivalenceFinal(_,pub_vars),_),_,_ ->
 	add_pub_vars pub_vars
-    | (AbsentQuery,_),_,_ -> ()) queries
-
-let get_public_vars() = !public_vars
+    | (AbsentQuery,_),_,_ -> ()) queries;
+  
+  !public_vars
     
-let occurs_in_queries b = List.memq b (!public_vars)
+let occurs_in_queries b q = List.memq b (get_public_vars q)
 
 let event_occurs_in_term f t = 
   match t.t_desc with

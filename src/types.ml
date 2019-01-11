@@ -375,7 +375,7 @@ and game_process =
 and game = 
     { mutable proc : game_process;
       mutable game_number : int;
-      mutable current_queries : ((query * game) * proof_t ref * proof_t) list
+      mutable current_queries : cur_queries_t
 	(* [current_queries] contains, for each query:
 	   [(query, game), proof_ref, proof] where
 	   the query [query] should be proved in game [game],
@@ -388,6 +388,8 @@ and game =
 	   has been bounded. Otherwise, [!proof_ref = None]. *)
     }
 
+and cur_queries_t = ((query * game) * proof_t ref * proof_t) list
+      
 and proof_t = (setf list * state) option
 
 and probaf = 

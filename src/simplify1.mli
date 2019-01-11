@@ -188,8 +188,8 @@ val try_two_directions :
 (* [needed_vars vars] returns true when some variables in [vars]
    have array accesses or are used in queries. That is, we must keep
    them even if they are not used in their scope. *)
-val needed_vars : binder list -> bool
-val needed_vars_in_pat : pattern -> bool
+val needed_vars : binder list -> cur_queries_t -> bool
+val needed_vars_in_pat : pattern -> cur_queries_t -> bool
 
 (* Add lets to a process or a term *)
 val add_let : process -> (binder * term) list -> process

@@ -1862,10 +1862,10 @@ let try_two_directions f t1 t2 =
    have array accesses or are used in queries. That is, we must keep
    them even if they are not used in their scope. *)
 	
-let needed_vars vars = List.exists Terms.has_array_ref_q vars
+let needed_vars vars q = List.exists (fun b -> Terms.has_array_ref_q b q) vars
 
-let needed_vars_in_pat pat =
-  needed_vars (Terms.vars_from_pat [] pat)
+let needed_vars_in_pat pat q =
+  needed_vars (Terms.vars_from_pat [] pat) q
 
 (* Add lets *)
 

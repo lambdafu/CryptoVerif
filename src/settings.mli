@@ -166,10 +166,9 @@ val get_inverse : funsymb -> int -> funsymb
 val equivs : equiv_nm list ref
 val move_new_eq : (typet * equiv_nm) list ref
 
-val collect_public_vars : ((query * game) * proof_t ref * proof_t) list -> unit
-val get_public_vars : unit -> binder list
-val occurs_in_queries : binder -> bool
-val event_occurs_in_queries : funsymb -> ((query * game) * proof_t ref * proof_t) list -> bool
+val get_public_vars : cur_queries_t -> binder list
+val occurs_in_queries : binder -> cur_queries_t -> bool
+val event_occurs_in_queries : funsymb -> cur_queries_t -> bool
 
 (* Set when a game is modified *)
 val changed : bool ref

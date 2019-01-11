@@ -3605,8 +3605,8 @@ let array_ref_eqside rm =
 let has_array_ref b =
   b.root_def_array_ref || b.array_ref
 
-let has_array_ref_q b =
-  (has_array_ref b) || (Settings.occurs_in_queries b)
+let has_array_ref_q b q =
+  (has_array_ref b) || (Settings.occurs_in_queries b q)
 
 (* Functions that compute count_exclude_array_ref.
    The goal is to be able to easily determine if a variable has array

@@ -558,7 +558,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
-		    (not (List.exists (fun b -> Terms.has_array_ref_q b || Terms.refers_to b t2') (List.map fst bl'))) then
+		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (def_list4 != []) && (List.length l0 = 1) 
