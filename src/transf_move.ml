@@ -9,6 +9,8 @@ open Types
    the number of cases in which it is computed.
   *)
 
+let whole_game = ref Terms.empty_game
+
 let done_transfos = ref []
 
 let beneficial = ref false
@@ -268,7 +270,7 @@ and move_new_let_reco move_set p =
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
-      let array_ref = Terms.has_array_ref_q b in
+      let array_ref = Terms.has_array_ref_q b (!whole_game).current_queries in
       if (not (do_move_new move_set array_ref b)) then
 	Terms.oproc_from_desc (Restr(b, move_new_let_reco move_set p))
       else
@@ -304,7 +306,7 @@ and move_new_let_reco move_set p =
       begin
 	match pat with
 	  PatVar b ->
-	    let array_ref = Terms.has_array_ref_q b in
+	    let array_ref = Terms.has_array_ref_q b (!whole_game).current_queries in
 	    let move_decision = do_move_let move_set array_ref b t in
 	    if move_decision = 0 then
 	      begin
@@ -355,11 +357,13 @@ and move_new_let_reco move_set p =
 
 let move_new_let move_set g =
   let g_proc = Terms.get_process g in
+  whole_game := g;
   done_transfos := [];
   Terms.array_ref_process g_proc;
   let r = move_new_let_rec move_set g_proc in
   Terms.cleanup_array_ref();
   let transfos = !done_transfos in
   done_transfos := [];
+  whole_game := Terms.empty_game;
   (Terms.build_transformed_game r g, [], transfos)
 

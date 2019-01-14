@@ -3,6 +3,8 @@ open Parsing_helper
 
 type 'a eqtester = 'a -> 'a -> bool
 
+let whole_game = ref Terms.empty_game
+    
 let cur_branch_var_list = ref []
     (* List of pairs (variable in current branch, variable in else branch)
        for variables with array references, a single definition, and
@@ -34,7 +36,7 @@ let ok_arrays_second_branch = ref []
 
 
 let has_array_ref b =
-  Terms.has_array_ref_non_exclude b || Settings.occurs_in_queries b
+  Terms.has_array_ref_non_exclude b || Settings.occurs_in_queries b (!whole_game).current_queries
 
 (* [merge_var next_f map b b'] records that variable [b] in the first branch to merge
    corresponds to variable [b'] in the second branch. 
@@ -46,7 +48,7 @@ let has_array_ref b =
 let merge_var next_f map b b' =
   if b == b' then
     next_f map
-  else if (b.btype != b'.btype) || (Settings.occurs_in_queries b) || (Settings.occurs_in_queries b') then
+  else if (b.btype != b'.btype) || (Settings.occurs_in_queries b (!whole_game).current_queries) || (Settings.occurs_in_queries b' (!whole_game).current_queries) then
     false
   else 
     let ar_b = Terms.has_array_ref_non_exclude b in
@@ -1580,7 +1582,8 @@ do that by calling merge_arrays again with argument the b'j.
 *)
 
 let merge_arrays bll mode g =
-  let g_proc = Terms.get_process g in  
+  let g_proc = Terms.get_process g in
+  whole_game := g;
   Terms.array_ref_process g_proc;
   Simplify1.improved_def_process None true g_proc;
   Proba.reset [] g;
@@ -1604,7 +1607,7 @@ let merge_arrays bll mode g =
 			(Display.binder_to_string b1), ext))
 	      ) br;
 	List.iter (fun (b, ext) -> 
-	  if Settings.occurs_in_queries b then
+	  if Settings.occurs_in_queries b (!whole_game).current_queries then
 	    raise(Error("For merging arrays, variable " ^
 			(Display.binder_to_string b) ^ 
 			" should not occur in queries", ext));
@@ -1669,16 +1672,19 @@ let merge_arrays bll mode g =
 	  begin
 	    Simplify1.empty_improved_def_process true g_proc;
 	    Settings.merge_arrays := old_merge_arrays;
+	    whole_game := Terms.empty_game;
 	    (g, [], [])
 	  end
       with 
 	Failed ->
 	  Simplify1.empty_improved_def_process true g_proc;
 	  Settings.merge_arrays := old_merge_arrays;
+	  whole_game := Terms.empty_game;
 	  (g, [], [])
       | Error(mess,ext) ->
 	  Simplify1.empty_improved_def_process true g_proc;
 	  Settings.merge_arrays := old_merge_arrays;
+	  whole_game := Terms.empty_game;
 	  raise (Error(mess,ext))
   
 (* Merge as many branches of if/let/find as possible.
@@ -2182,7 +2188,8 @@ let display_merge = function
       
 
 let merge_branches g =
-  let g_proc = Terms.get_process g in  
+  let g_proc = Terms.get_process g in
+  whole_game := g;
   Terms.array_ref_process g_proc;
   Simplify1.improved_def_process None false g_proc;
   Proba.reset [] g;
@@ -2225,6 +2232,7 @@ let merge_branches g =
     end
   in
   Simplify1.empty_improved_def_process false g_proc;
+  whole_game := Terms.empty_game;
   result
     
 (**************** Test equality between two independent processes *****************)
@@ -2238,6 +2246,7 @@ let collect_good_vars_fullprocess p =
 let equal_games g1 g2 =
   let g1_proc = Terms.get_process g1 in
   let g2_proc = Terms.get_process g2 in
+  whole_game := g1;
   (* We use [simp_facts_id] below since no fact holds at the beginning of the games.
      For this reason, we use no known facts, and the probability [proba] should always be 0 *)
   Terms.array_ref_process g1_proc;
@@ -2252,4 +2261,5 @@ let equal_games g1 g2 =
   in
   let proba = Simplify1.final_add_proba () in
   Simplify1.term_collisions := [];
+  whole_game := Terms.empty_game;
   (r, proba)

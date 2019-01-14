@@ -72,7 +72,7 @@ let advise = ref []
    of advised instructions [advise] *)
 
 let add_advice_sarename b =
-  if Settings.occurs_in_queries b then
+  if Settings.occurs_in_queries b (!whole_game).current_queries then
     ()
   else if !Settings.no_advice_globaldepanal then 
     begin
@@ -1561,7 +1561,7 @@ and check_depend_oprocess cur_array p =
 
 let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state) =
   List.iter (fun (b0, _) ->
-    if Settings.occurs_in_queries b0 then
+    if Settings.occurs_in_queries b0 (!whole_game).current_queries then
       begin
 	print_string ("The variable " ^ (Display.binder_to_string b0) ^ 
 		      " depends on " ^ (Display.binder_to_string (!main_var)) ^ 
@@ -1612,12 +1612,14 @@ let check_all_deps b0 init_proba_state g =
     dvar_list := [];
     defvar_list := [];
     vars_charac_type := [];
+    whole_game := Terms.empty_game;
     Some(res_game)
   with BadDep -> 
     (* Some cleanup to free memory *)
     dvar_list := [];
     defvar_list := [];
     vars_charac_type := [];
+    whole_game := Terms.empty_game;
     Terms.set_var_num_state vcounter; (* Forget variables when fails *)
     None
 
@@ -1653,5 +1655,4 @@ let main b0 coll_elim g =
     end
   in
   Simplify1.empty_improved_def_process false g_proc;
-  whole_game := Terms.empty_game;
   result

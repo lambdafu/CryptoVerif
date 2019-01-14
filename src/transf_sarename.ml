@@ -392,7 +392,7 @@ let sa_rename b0 g =
   (* cannot rename if b0 occurs in queries! 
      TO DO in fact, I could replace b0 = M with b' = M; b0 = b',
      replace all references to b0 with b', and apply sa_rename on b' *)
-  if Settings.occurs_in_queries b0 then (g, [], []) else
+  if Settings.occurs_in_queries b0 g.current_queries then (g, [], []) else
   begin
     image_name_list := [];
     proba_accu := [];

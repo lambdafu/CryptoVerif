@@ -5,6 +5,9 @@
 
 open Types
 
+let whole_game = ref Terms.empty_game
+let whole_game_next = ref Terms.empty_game
+
 exception OneFailure of failure_reason
 
 let display_failure_reason = function
@@ -685,7 +688,7 @@ let rec check_instance_of_rec next_f term t state =
 			      raise NoMatch
 			    end; 
 		          (* check that b' is not used in a query *)
-			  if Settings.occurs_in_queries b' then 
+			  if Settings.occurs_in_queries b' (!whole_game).current_queries then 
 			    begin
 			      if (!Settings.debug_cryptotransf) > 6 then
 				print_string ("Variable " ^ (Display.binder_to_string b') ^ " occurs in queries.\n");
@@ -804,7 +807,7 @@ let rec check_instance_of_rec next_f term t state =
 			      raise NoMatch
 			    end; 
 		          (* check that b' is not used in a query *)
-			  if Settings.occurs_in_queries b' then 
+			  if Settings.occurs_in_queries b' (!whole_game).current_queries then 
 			    begin
 			      if (!Settings.debug_cryptotransf) > 6 then
 				print_string ("Variable " ^ (Display.binder_to_string b') ^ " occurs in queries.\n");
@@ -1297,9 +1300,6 @@ let equiv = ref empty_equiv
 let equiv_names_lhs_opt = ref []
 let equiv_names_lhs = ref []
 let equiv_names_lhs_flat = ref []
-
-let whole_game = ref Terms.empty_game
-let whole_game_next = ref Terms.empty_game
 
 let incompatible_terms = ref []
 
@@ -4458,7 +4458,7 @@ let rec build_symbols_to_discharge = function
       build_symbols_to_discharge_term t
       
 let events_proba_queries events =
-  let pub_vars = Settings.get_public_vars() in
+  let pub_vars = Settings.get_public_vars (!whole_game).current_queries in
   List.split (List.map (fun f ->
     let q_proof = ref None in
     let proba = SetEvent(f, !whole_game_next, pub_vars, q_proof) in

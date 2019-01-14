@@ -895,7 +895,7 @@ let simplify_let rec_simplif1 rec_simplif2 is_yield2 pp cur_array true_facts pat
     let p1' = rec_simplif1 cur_array true_facts_in p1 in
     (* Merge if both branches are Yield and the variables are not needed *)
     if (p1'.p_desc == Yield) && (p2'.p_desc == Yield) &&
-      (List.for_all (fun (pat, _) -> not (needed_vars_in_pat pat)) bind) then
+      (List.for_all (fun (pat, _) -> not (needed_vars_in_pat pat (!whole_game).current_queries)) bind) then
       begin
 	Settings.changed := true;
 	current_pass_transfos := (SLetRemoved(pp)) :: (!current_pass_transfos);
@@ -1062,7 +1062,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
-		    (not (List.exists (fun b -> Terms.has_array_ref_q b || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
+		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (is_yield p2) && (def_list4 != []) && (List.length l0 = 1) 
@@ -1126,7 +1126,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	else
 	  begin
 	    if (p2'.p_desc == Yield) && (List.for_all (fun (bl,_,t,p1) ->
-	      (p1.p_desc == Yield) && (not (List.exists Terms.has_array_ref_q (List.map fst bl)))
+	      (p1.p_desc == Yield) && (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
 		) l0') then
 	      begin
 		Settings.changed := true;

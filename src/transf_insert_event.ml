@@ -72,7 +72,7 @@ let insert_event occ s g =
       Settings.changed := true;
       let g' = Terms.build_transformed_game p' g in
       let q_proof = ref None in
-      let pub_vars = Settings.get_public_vars() in
+      let pub_vars = Settings.get_public_vars g.current_queries in
       g'.current_queries <- ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g'), q_proof, None) :: g.current_queries;
       (g', [SetEvent(f, g', pub_vars, q_proof)], [DInsertEvent(f,occ)])
     end

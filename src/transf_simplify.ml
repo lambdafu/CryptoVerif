@@ -776,7 +776,7 @@ let rec simplify_pat cur_array dep_info true_facts = function
    invariant that if/let/find/new are at the root of find conditions.
 
    Another option would be to expand the obtained term by
-   Transform.final_pseudo_expand.
+   Transf_expand.final_pseudo_expand.
  *)
 
 exception CannotExpand
@@ -1214,7 +1214,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
-		    (not (List.exists (fun b -> Terms.has_array_ref_q b || Terms.refers_to b t2') (List.map fst bl'))) then
+		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (def_list4 != []) && (List.length l0 = 1) 
@@ -1332,13 +1332,13 @@ let rec simplify_term_w_find cur_array true_facts t =
   | ResE(b,t0) ->
       let true_facts = update_elsefind_with_def [b] true_facts in
       let t' = simplify_term_w_find cur_array true_facts t0 in
-      if not ((Terms.has_array_ref_q b) || (Terms.refers_to b t0)) then
+      if not ((Terms.has_array_ref_q b (!whole_game).current_queries) || (Terms.refers_to b t0)) then
 	begin
 	  Settings.changed := true;
 	  current_pass_transfos := (SResRemoved(pp)) :: (!current_pass_transfos);
 	  t'
 	end
-      else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b)) then
+      else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b (!whole_game).current_queries)) then
 	begin
 	  Settings.changed := true;
 	  current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
@@ -1477,13 +1477,13 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	| _ ->
 	    let true_facts = update_elsefind_with_def [b] true_facts in
 	    let p1 = simplify_oprocess cur_array (List.hd dep_info_list') true_facts p0 in
-	    if not ((Terms.has_array_ref_q b) || (Terms.refers_to_oprocess b p0)) then
+	    if not ((Terms.has_array_ref_q b (!whole_game).current_queries) || (Terms.refers_to_oprocess b p0)) then
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SResRemoved(pp)) :: (!current_pass_transfos);
 		p1
 	      end
-	    else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b)) then
+	    else if not (b.array_ref || b.std_ref || (Settings.occurs_in_queries b (!whole_game).current_queries)) then
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
@@ -1800,7 +1800,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
-		    (not (List.exists (fun b -> Terms.has_array_ref_q b || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
+		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (p2.p_desc == Yield) && (def_list4 != []) && (List.length l0 = 1) 
@@ -1865,7 +1865,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	else
 	  begin
 	    if (p2'.p_desc == Yield) && (List.for_all (fun (bl,_,t,p1) ->
-	      (p1.p_desc == Yield) && (not (List.exists Terms.has_array_ref_q (List.map fst bl)))
+	      (p1.p_desc == Yield) && (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
 		) l0') then
 	      begin
 		Settings.changed := true;
@@ -2054,7 +2054,7 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
       let ptrue' = simplify_oprocess cur_array dep_info_in true_facts' ptrue in
       (* Put the lets. There is no test *)
       if (ptrue'.p_desc == Yield) && (pfalse'.p_desc == Yield) &&
-	(List.for_all (fun (pat, _) -> not (needed_vars_in_pat pat)) bind) then
+	(List.for_all (fun (pat, _) -> not (needed_vars_in_pat pat (!whole_game).current_queries)) bind) then
 	begin
 	  Settings.changed := true;
 	  current_pass_transfos := (SLetRemoved(DProcess let_p)) :: (!current_pass_transfos);

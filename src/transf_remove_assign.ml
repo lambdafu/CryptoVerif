@@ -4,6 +4,8 @@ open Types
 Supports If/let/find/new/event in terms.
 Be careful of variables defined at several places!  *)
 
+let whole_game = ref Terms.empty_game
+
 let replacement_def_list = ref []
 (* List of correspondences (b,b'), b = old binder, b' = new binder,
    for defined conditions. When b is used only in "defined" conditions,
@@ -53,7 +55,7 @@ let candidate_for_rem_assign refers in_find_cond remove_set b t p =
        (Terms.refers_to b t)
   then DontRemove
   else
-    if not (refers b p || b.array_ref || Settings.occurs_in_queries b) then
+    if not (refers b p || b.array_ref || Settings.occurs_in_queries b (!whole_game).current_queries) then
       VariableUseless
     else
       match remove_set with
@@ -185,7 +187,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                 let p1' = copy (Terms.OneSubst(b,t,copy_changed)) p1 in
                 let subst_def = !copy_changed in (* Set to true if an occurrence of b has really been substituted *)
                 Settings.changed := (!Settings.changed) || subst_def;
-		if Settings.occurs_in_queries b then
+		if Settings.occurs_in_queries b (!whole_game).current_queries then
 		  begin
 		    (* if b occurs in queries then leave as it is *)
                     if subst_def then
@@ -269,7 +271,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 			make_assign pat t p1''
 		      end
 		  end
-		else if Settings.occurs_in_queries b then
+		else if Settings.occurs_in_queries b (!whole_game).current_queries then
                   begin
                     let p1'' = rec_simplif (b::above_vars) p1' in
 		    (* Cannot change definition if b occurs in queries *)
@@ -370,7 +372,7 @@ let rec remove_assignments_term in_find_cond remove_set above_vars t =
        (remove_assignments_term in_find_cond remove_set)
        pat t1 t2 topt
   | ResE(b,t) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b)) then
+      if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b (!whole_game).current_queries)) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
@@ -415,7 +417,7 @@ and remove_assignments_reco remove_set above_vars p =
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b)) then
+      if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b (!whole_game).current_queries)) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let p' = Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) p in
@@ -474,6 +476,7 @@ let rec do_sa_rename = function
 
 let remove_assignments remove_set g =
   let p = Terms.get_process g in
+  whole_game := g;
   done_sa_rename := [];
   done_transfos := [];
   Terms.build_def_process None p;
@@ -490,6 +493,7 @@ let remove_assignments remove_set g =
   Terms.cleanup_array_ref();
   Terms.empty_def_process p;
   replacement_def_list := [];
+  whole_game := Terms.empty_game;
   let sa_rename = !done_sa_rename in
   let transfos = !done_transfos in
   done_transfos := [];
