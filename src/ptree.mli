@@ -228,7 +228,7 @@ type command =
   | CMove of move_opt_t
   | CRemove_assign of rem_opt_t
   | CFocus of ident list
-  | CUndoFocus
+  | CUndoFocus of Parsing_helper.extent
 	
 (* Declarations *)
 

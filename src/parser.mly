@@ -417,7 +417,7 @@ proofcommand:
 |   FOCUS stringlistne
     { CFocus($2) }
 |   UNDO FOCUS
-    { CUndoFocus }
+    { CUndoFocus(parse_extent()) }
     
 rem_opt:
     USELESS

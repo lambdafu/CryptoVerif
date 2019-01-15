@@ -29,13 +29,23 @@ let rec forget_games final_game state =
        end;
      match state.prev_state with
      | None -> ()
+     | Some (_,_,[DFocus _],s') ->
+	 (* Do not forget the game just before a [focus] instruction *)
+	 forget_games s'.game s'
      | Some (_,_,_,s') -> forget_games final_game s'           
        
 let forget_old_games state =
   match state.prev_state with
     None -> ()
   | Some (_,_,_,s') -> forget_games state.game s'
-          
+
+
+let rec undo_focus ext state =
+  match state.prev_state with
+    None -> raise (Error("No previous focus command found", ext))
+  | Some (_,_,[DFocus _],s') -> s'
+  | Some (_,_,_,s') -> undo_focus ext s'
+	
 let eq_list l1 l2 =
   (List.for_all (fun x -> List.memq x l1) l2) &&
   (List.for_all (fun x -> List.memq x l2) l1)
@@ -654,8 +664,11 @@ let rec execute_any_crypto_rec1 interactive state =
   try 
     let (state', is_done) =  issuccess_with_advise state in
     if is_done then
-      (* TO DO undo focus when there is an inactive query *)
-      (CSuccess state', state)
+      begin
+	(* if List.exists 
+         TO DO undo focus when there is an inactive query *)
+	(CSuccess state', state)
+      end
     else
       let equiv_list = insert_sort [] (!Settings.equivs) in
       let rec apply_equivs = function
@@ -1646,8 +1659,8 @@ let rec interpret_command interactive state = function
       in
       let lq = List.map Syntax.check_query lparsed in
       raise (Error("To implem", dummy_ext))      
-  | CUndoFocus ->
-      raise (Error("To implem", dummy_ext))
+  | CUndoFocus(ext) ->
+      undo_focus ext state
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with
