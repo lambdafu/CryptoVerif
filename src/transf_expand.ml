@@ -12,8 +12,8 @@ let whole_game = ref Terms.empty_game
 let current_pass_transfos = ref []
 
 (* Priorities for orienting equalities into rewrite rules *)
-let current_max_priority = ref 0
-let priority_list = ref []
+let current_max_priority = Simplify1.current_max_priority
+let priority_list = Simplify1.priority_list
 
 let simplify_term t = 
   if (Terms.check_simple_term t) && (not (Terms.is_true t || Terms.is_false t)) then
@@ -734,7 +734,7 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
                      transformation *)
             if bl != [] || def_list != [] then
 	      expand_cond_find_list cur_array true_facts restl (fun cur_array true_facts li ->
-		context cur_array true_facts ((bl, def_list, final_pseudo_expand cur_array true_facts t1, t2)::li))
+		context cur_array true_facts ((bl, def_list, local_final_pseudo_expand cur_array true_facts t1, t2)::li))
 	    else
 	      pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1i ->
 		expand_cond_find_list cur_array true_facts restl (fun cur_array true_facts li ->
@@ -780,10 +780,22 @@ and pseudo_expand_pat_list cur_array true_facts l context =
 	pseudo_expand_pat_list cur_array true_facts l (fun cur_array true_facts l' ->
 	  context cur_array true_facts (a'::l')))
 	
-and final_pseudo_expand cur_array true_facts t =
+and local_final_pseudo_expand cur_array true_facts t =
   pseudo_expand_term cur_array true_facts t (fun cur_array true_facts t -> t)
 
+(* Version of final_pseudo_expand designed to be called from simplification
+   It carries over the environment used in simplification *)
 
+let final_pseudo_expand g cur_array true_facts t =
+  whole_game := g;
+  current_pass_transfos := [];
+  let res = local_final_pseudo_expand cur_array true_facts t in
+  whole_game := Terms.empty_game;
+  let final_res = (!current_pass_transfos, res) in
+  current_pass_transfos := [];
+  final_res
+  
+    
 (* Simplification of processes *)
 
 let simplify_restr rec_simplif cur_array true_facts b p =
@@ -1258,7 +1270,7 @@ let rec expand_term cur_array true_facts t context =
                      transformation *)
             if bl != [] || def_list != [] then
 	      expand_cond_find_list cur_array true_facts restl (fun cur_array true_facts li ->
-		context cur_array true_facts ((bl, def_list, final_pseudo_expand cur_array true_facts t1, t2)::li))
+		context cur_array true_facts ((bl, def_list, local_final_pseudo_expand cur_array true_facts t1, t2)::li))
 	    else
 	      expand_term cur_array true_facts t1 (fun cur_array true_facts t1i ->
 		 expand_cond_find_list cur_array true_facts restl (fun cur_array true_facts li -> context cur_array true_facts ((bl, def_list, t1i, t2)::li)))
@@ -1372,7 +1384,7 @@ and expand_oprocess cur_array true_facts p =
 		Settings.changed := true;
 		if bl != [] || def_list != [] then
 		  expand_find_list cur_array true_facts (fun cur_array true_facts rest_l' ->
-		    next_f cur_array true_facts ((bl, def_list, final_pseudo_expand cur_array true_facts t, p1)::rest_l')) rest_l
+		    next_f cur_array true_facts ((bl, def_list, local_final_pseudo_expand cur_array true_facts t, p1)::rest_l')) rest_l
 		else
 		  expand_term cur_array true_facts t (fun cur_array true_facts ti ->
 		    expand_find_list cur_array true_facts (fun cur_array true_facts rest_l' ->

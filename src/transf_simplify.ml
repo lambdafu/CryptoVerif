@@ -6,8 +6,8 @@ let whole_game = ref Terms.empty_game
 let current_pass_transfos = ref []
 
 (* Priorities for orienting equalities into rewrite rules *)
-let current_max_priority = ref 0
-let priority_list = ref []
+let current_max_priority = Simplify1.current_max_priority
+let priority_list = Simplify1.priority_list
 
 let proba_state_at_beginning_iteration = ref (([],[]), [])
 let failure_check_all_deps = ref []
@@ -920,7 +920,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  Settings.changed := true;
           current_pass_transfos := (STestEElim(t)) :: (!current_pass_transfos);
 	  let t' = Terms.make_or (Terms.make_and t1 t2) (Terms.make_and (Terms.make_not t1) t3) in
-	  simplify_term_w_find cur_array true_facts (Transf_expand.final_pseudo_expand cur_array true_facts t')
+	  let (transfos, t'') = Transf_expand.final_pseudo_expand (!whole_game) cur_array true_facts t' in
+	  current_pass_transfos := transfos @ (!current_pass_transfos);
+	  simplify_term_w_find cur_array true_facts t''
 	end
       else
       begin

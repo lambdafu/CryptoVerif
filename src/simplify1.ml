@@ -1,5 +1,9 @@
 open Types
 
+(* Priorities for orienting equalities into rewrite rules *)
+let current_max_priority = ref 0
+let priority_list = ref []
+
 (* An element (t1, t2, b, lopt, T) in term_collisions means that
 the equality t1 = t2 was considered impossible; it has
 negligible probability because t1 depends on b[lopt] by 

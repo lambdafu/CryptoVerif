@@ -2,6 +2,13 @@ open Types
 
 (* Helper functions for simplify, mergebranches, global_dep_anal, ... *)
 
+(* Priorities for orienting equalities into rewrite rules
+   Used by both transf_simplify and transf_expand. 
+   It is important that a single list is used, so that variables
+   with priority set are always in the priority list. *)
+val current_max_priority : int ref
+val priority_list : binder list ref
+    
 (*** Computation of probabilities of collision between terms ***)
 
 (* Recorded term collisions *)

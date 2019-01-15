@@ -15,5 +15,7 @@ open Types
 
 val expand_process : game_transformer
 
-val final_pseudo_expand : repl_index list -> simp_facts -> term -> term
+val final_pseudo_expand : game -> repl_index list -> simp_facts ->
+             term -> simplify_ins list * term
+		 
 
