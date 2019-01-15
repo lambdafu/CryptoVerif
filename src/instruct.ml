@@ -559,8 +559,8 @@ and is_full_proba query_list = function
     SetProba _ -> true
   | SetEvent(f,g,pub_vars,poptref) ->
       match !poptref with
-	Some _ -> true
-      |	None -> false
+	Proved _ -> true
+      |	ToProve | Inactive -> false
 
 let display_state final state =
   (* AbsentQuery is proved in the current state, if present *)
@@ -574,7 +574,7 @@ let display_state final state =
 	state.game.current_queries <-
 	   List.map (function 
 	       (AbsentQuery, g), poptref, popt -> 
-		 let proof = Some([], state) in
+		 let proof = Proved([], state) in
 		 if is_full_state old_queries g state then 
 		   poptref := proof;
 		 (AbsentQuery, g), poptref, proof
@@ -606,7 +606,7 @@ let display_state final state =
   (* Undo the proof of AbsentQuery *)
   state.game.current_queries <- old_queries;
   List.iter (function 
-      (AbsentQuery, g), poptref, popt -> poptref := None
+      (AbsentQuery, g), poptref, popt -> poptref := ToProve
     | _ -> ()) old_queries
 
 let rec display_short_state state =
@@ -654,6 +654,7 @@ let rec execute_any_crypto_rec1 interactive state =
   try 
     let (state', is_done) =  issuccess_with_advise state in
     if is_done then
+      (* TO DO undo focus when there is an inactive query *)
       (CSuccess state', state)
     else
       let equiv_list = insert_sort [] (!Settings.equivs) in
@@ -1517,7 +1518,7 @@ let rec interpret_command interactive state = function
   | CStart_from_other_end(ext) ->
       let rec remove_eq_query state =
         state.game.current_queries <-
-           List.filter (function ((QEquivalence _,_),_, None) -> false | _ -> true)
+           List.filter (function ((QEquivalence _,_),_, ToProve) -> false | _ -> true)
              state.game.current_queries;
         match state.prev_state with
           None -> ()
@@ -1530,17 +1531,17 @@ let rec interpret_command interactive state = function
         | Some(_,_,_,s') -> add_query q s'
       in
       let (equivalence_q, other_q) =
-        List.partition (function ((QEquivalence _,_),_, None) -> true | _ -> false) state.game.current_queries
+        List.partition (function ((QEquivalence _,_),_, ToProve) -> true | _ -> false) state.game.current_queries
       in
       begin
         match equivalence_q with
         | [] ->
             raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
-        | [(QEquivalence(state_other_end, pub_vars), g), _, None] ->
+        | [(QEquivalence(state_other_end, pub_vars), g), _, ToProve] ->
             remove_eq_query state;
             let init_game_other_end = Display.get_initial_game state_other_end in
             let new_equivalence_q =
-              (QEquivalence(state, pub_vars), init_game_other_end), ref None, None
+              (QEquivalence(state, pub_vars), init_game_other_end), ref ToProve, ToProve
             in
             add_query new_equivalence_q state_other_end;
             state_other_end
@@ -1552,12 +1553,13 @@ let rec interpret_command interactive state = function
   | CSuccesscom ->
       let (state', is_done) = issuccess_with_advise state in
       if is_done then
+	(* TO DO undo focus if inactive queries exist *)
 	raise (EndSuccess state')
       else
 	begin
 	  print_string "Sorry, the following queries remain unproved:\n";
 	  List.iter (fun (a, _, popt) ->
-	    if popt == None then
+	    if popt == ToProve then
 	      begin
 		print_string "- ";
 		Display.display_query a;

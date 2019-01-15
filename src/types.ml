@@ -379,18 +379,23 @@ and game =
 	(* [current_queries] contains, for each query:
 	   [(query, game), proof_ref, proof] where
 	   the query [query] should be proved in game [game],
-	   [proof = None] when it is not proved yet;
-	   [proof = Some(proba, state)] when it is proved up to probability [proba]
+	   [proof = ToProve] when it is not proved yet;
+	   [proof = Inactive] when a [focus] command indicated not 
+	   to focus on this query (it is left to proof in another branch).
+	   [proof = Proved(proba, state)] when it is proved up to probability [proba]
 	   using the sequence of games [state].
 	   However, the probability [proba] may depend on the probability of events
 	   introduced during the proof. 
 	   [proof_ref] is set to [proof] when the probability of all these events
-	   has been bounded. Otherwise, [!proof_ref = None]. *)
+	   has been bounded. Otherwise, [!proof_ref = ToProve]. *)
     }
 
 and cur_queries_t = ((query * game) * proof_t ref * proof_t) list
       
-and proof_t = (setf list * state) option
+and proof_t =
+  | Proved of setf list * state
+  | ToProve
+  | Inactive
 
 and probaf = 
     Proba of proba * probaf list

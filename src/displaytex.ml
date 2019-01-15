@@ -1834,8 +1834,8 @@ let display_state s =
   (* Display the probabilities of proved queries *)
   List.iter (fun (q,poptref,_) ->
     match !poptref with
-      None -> ()
-    | Some(p,s') -> 
+    | ToProve | Inactive -> ()
+    | Proved(p,s') -> 
         let p'' = compute_proba q p s' in
         print_string "RESULT Proved ";
         display_query q;
@@ -1857,7 +1857,7 @@ let display_state s =
   times_to_display := [];
 
   (* List the unproved queries *)
-  let rest = List.filter (function (q, poptref,_) -> (!poptref) == None) initial_queries in
+  let rest = List.filter (function (q, poptref,_) -> (!poptref) == ToProve || (!poptref) == Inactive) initial_queries in
   let rest' = List.filter (function (AbsentQuery, _),_,_ -> false | _ -> true) rest in
   if rest = [] then
     print_string "All queries proved.\\\\\n"

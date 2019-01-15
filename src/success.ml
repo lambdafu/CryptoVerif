@@ -623,13 +623,14 @@ let rec check_query_list event_accu state = function
   | ((a, poptref, popt)::l) ->
       let (l',l'',b) = check_query_list event_accu state l in
       match popt with
-	Some _ -> (* The query was already proved before *)
+      | Proved _ | Inactive -> (* The query was already proved before, 
+				  or is inactive *)
 	  (l', (a, poptref, popt)::l'', b)
-      |	None -> (* We need to prove the query *)
+      |	ToProve -> (* We need to prove the query *)
 	  let (res, proba) = check_query event_accu a in
 	  if res then 
 	    (* The query is proved *)
-	    ((a,proba)::l', (a,poptref,Some(proba, state))::l'', b) 
+	    ((a,proba)::l', (a,poptref,Proved(proba, state))::l'', b) 
 	  else 
 	    (* The query is not proved *)
 	    (l', (a, poptref,popt)::l'', false)
@@ -659,9 +660,9 @@ let is_event_query f g pub_vars = function
 
 let rec update_full_proof query_list ((_,g), poptref, popt) =
   match popt, !poptref with
-    Some(proba, state), None ->
+    Proved(proba, state), (ToProve | Inactive) ->
       if is_full_proof query_list g proba state then
-	poptref := Some(proba, state)
+	poptref := Proved(proba, state)
   | _ -> ()
 
 and is_full_proof query_list g proba state =
@@ -682,14 +683,14 @@ and is_full_proba query_list = function
     SetProba _ -> true
   | SetEvent(f,g,pub_vars, poptref) ->
       match !poptref with
-	Some _ -> true
-      |	None ->
+      | Proved _ -> true
+      |	Inactive | ToProve ->
 	  try
 	    let query = List.find (is_event_query f g pub_vars) query_list in
 	    update_full_proof query_list query;
 	    match !poptref with
-	      Some _ -> true
-	    | None -> false
+	    | Proved _ -> true
+	    | Inactive | ToProve -> false
 	  with Not_found -> false
     
 (* [is_success state] tries to prove queries that still need to be

@@ -1465,8 +1465,8 @@ let build_proof_tree ((q0,g0) as q) p s =
 	    | SetEvent(f,g, pub_vars, popt') ->
 		  (* Get the proof of the property "Event f is not executed in game g" *)
                 match !popt' with
-		  None -> raise (NotBoundEvent(f,g))
-		| Some(p',s') ->
+		| ToProve | Inactive -> raise (NotBoundEvent(f,g))
+		| Proved(p',s') ->
 		    (* Build the query that test for event f in game g *)
 		    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
 		    let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
@@ -2110,8 +2110,8 @@ and get_all_states_from_proba accu = function
   | (SetEvent(f,g,pub_vars,poptref)) :: r  ->
       let accu' = get_all_states_from_proba accu r in
       match !poptref with
-	None -> accu'
-      |	Some(p,s') -> add_sequence accu' s'
+      | ToProve | Inactive -> accu'
+      |	Proved(p,s') -> add_sequence accu' s'
 
 let rec get_all_states_from_queries = function
     [] -> []
@@ -2124,8 +2124,8 @@ let rec get_all_states_from_queries = function
 	| _ -> accu
       in
       match !poptref with
-	None -> accu'
-      |	Some(p,s') -> add_sequence accu' s'
+      | ToProve | Inactive -> accu'
+      |	Proved(p,s') -> add_sequence accu' s'
 
 let rec remove_dup seen_list r s =
   let seen_list' = List.filter (fun s' -> s' != s) seen_list in
@@ -2144,7 +2144,7 @@ let rec remove_duplicate_states seen_list = function
 let display_conclusion s =
   let initial_queries = get_initial_queries s in
   (* List the unproved queries *)
-  let rest = List.filter (function (q, poptref,_) -> (!poptref) == None) initial_queries in
+  let rest = List.filter (function (q, poptref,_) -> (!poptref) == ToProve || (!poptref) == Inactive) initial_queries in
   let rest' = List.filter (function (AbsentQuery, _),_,_ -> false | _ -> true) rest in
   if rest = [] then
     print_string "All queries proved.\n"
@@ -2168,8 +2168,8 @@ let display_state s =
   (* Display the probabilities of proved queries *)
   List.iter (fun (q,poptref,_) ->
     match !poptref with
-      None -> ()
-    | Some(p,s') -> 
+    | ToProve | Inactive -> ()
+    | Proved(p,s') -> 
         let p'' = compute_proba q p s' in
         print_string "RESULT Proved ";
         display_query q;

@@ -196,9 +196,9 @@ let anal_file s0 =
           let g = { proc = RealProcess (Terms.move_occ_process p); game_number = 1; current_queries = [] } in
             let queries =
               if queries == [] then 
-	        [(AbsentQuery,g), ref None, None]
+	        [(AbsentQuery,g), ref ToProve, ToProve]
               else
-	        List.map (fun q -> ((q,g), ref None, None)) queries in
+	        List.map (fun q -> ((q,g), ref ToProve, ToProve)) queries in
 	    g.current_queries <- queries;
             List.iter simplify_statement statements;
             List.iter record_collision collisions;

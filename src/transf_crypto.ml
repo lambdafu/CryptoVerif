@@ -4460,11 +4460,11 @@ let rec build_symbols_to_discharge = function
 let events_proba_queries events =
   let pub_vars = Settings.get_public_vars (!whole_game).current_queries in
   List.split (List.map (fun f ->
-    let q_proof = ref None in
+    let q_proof = ref ToProve in
     let proba = SetEvent(f, !whole_game_next, pub_vars, q_proof) in
     let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
     let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-    let query = ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), !whole_game_next), q_proof, None) in
+    let query = ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), !whole_game_next), q_proof, ToProve) in
     (proba, query)
       ) events)
 

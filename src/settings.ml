@@ -500,7 +500,7 @@ let get_public_vars queries =
 			      ) pub_vars
   in
   List.iter (function 
-    | _, _, popt when popt != None -> () (* I ignore already proved queries *)
+    | _, _, popt when popt != ToProve -> () (* I ignore already proved and inactive queries *)
     | (QSecret (b',pub_vars,onesession),_),_,_ ->
 	add_pub_vars (b'::pub_vars)
     | (QEventQ (_,_,pub_vars),_),_,_ 
@@ -526,7 +526,7 @@ let rec event_occurs_in_qterm f = function
 
 let event_occurs_in_queries f q =
   List.exists (function
-      _, _, popt when popt != None -> false (* I ignore already proved queries *)
+      _, _, popt when popt != ToProve -> false (* I ignore already proved and inactive queries *)
     | (QSecret _, _),_,_ -> false
     | ((AbsentQuery | QEquivalence _ | QEquivalenceFinal _), _),_,_ ->
        (* When I want to prove indistinguishability, keep all events *)
