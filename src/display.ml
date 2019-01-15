@@ -1237,8 +1237,10 @@ let display_query3 = function
       if onesession then print_string "one-session ";
       print_string "secrecy of "; display_binder b;
       display_pub_vars pub_vars
-  | AbsentQuery | QEquivalenceFinal _ ->
-      Parsing_helper.internal_error "AbsentQuery and QEquivalenceFinal should have been handled"
+  | AbsentQuery ->
+      print_string "indistinguishability from the final game"
+  | QEquivalenceFinal _ ->
+      Parsing_helper.internal_error "QEquivalenceFinal should have been handled"
   | QEquivalence(state,pub_vars) ->
       let g' = get_initial_game state in
       if g'.game_number = -1 then
@@ -1932,7 +1934,10 @@ let display_detailed_ins = function
 	    print_int t.t_occ
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
-      print_newline()      
+      print_newline()
+  | DFocus(ql) ->
+      print_string "  - Focusing on queries\n";
+      List.iter (fun q -> print_string "    - "; display_query3 q; print_newline()) ql
 
 let mark_useful_occ_p p = 
   useful_occs := p.p_occ :: (!useful_occs)
@@ -1956,7 +1961,7 @@ let mark_occs_simplif_step f_t = function
 let mark_occs1 f_p f_t = function
     DExpandGetInsert(_) | DExpandIfFind | DGlobalDepAnal _ 
   | DRemoveAssign _ | DSArenaming _ | DMoveNew(_) | DMoveLet(_) 
-  | DCryptoTransf _ | DMergeArrays _ -> ()
+  | DCryptoTransf _ | DMergeArrays _ | DFocus _ -> ()
   | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->
       useful_occs := occ :: (!useful_occs)
   | DSimplify(l) ->

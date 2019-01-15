@@ -1201,6 +1201,34 @@ let rec display_query2 = function
       display_query2 t2;
       print_string ")"
 
+let display_query3 = function
+  | QSecret (b,pub_vars,onesession) -> 
+      if onesession then print_string "one-session ";
+      print_string "secrecy of $"; 
+      display_binder b; 
+      print_string "$";
+      display_pub_vars pub_vars
+  | QEventQ(t1,t2,pub_vars) ->
+      print_string "$";
+      display_query1 t1;
+      print_string " \\Longrightarrow ";
+      display_query2 t2;
+      print_string "$";
+      display_pub_vars pub_vars
+  | AbsentQuery ->
+      print_string "indistinguishability from the final game"
+  | QEquivalenceFinal _ ->
+      Parsing_helper.internal_error "QEquivalenceFinal should have been handled"
+  | QEquivalence(state,pub_vars) ->
+      let g' = Display.get_initial_game state in
+      if g'.game_number = -1 then
+	print_string "indistinguishability from other input game"
+      else
+	print_string ("indistinguishability from game " ^
+		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars      
+
+	
 let display_query (q,g) = 
   match q with 
     AbsentQuery -> 
@@ -1219,26 +1247,9 @@ let display_query (q,g) =
       print_string ("indistinguishability from game " ^ (string_of_int g'.game_number)); 
       display_pub_vars pub_vars
   | _ ->
-  begin
-  match q with 
-  | QSecret (b,pub_vars,onesession) -> 
-      if onesession then print_string "one-session ";
-      print_string "secrecy of $"; 
-      display_binder b; 
-      print_string "$";
-      display_pub_vars pub_vars
-  | QEventQ(t1,t2,pub_vars) ->
-      print_string "$";
-      display_query1 t1;
-      print_string " \\Longrightarrow ";
-      display_query2 t2;
-      print_string "$";
-      display_pub_vars pub_vars
-  | AbsentQuery | QEquivalenceFinal _ | QEquivalence _ ->
-      Parsing_helper.internal_error "AbsentQuery and QEquivalence(Final) should have been handled"
-  end;
-  if g.game_number <> 1 then
-    print_string (" in game " ^ (string_of_int g.game_number))  
+      display_query3 q;
+      if g.game_number <> 1 then
+	print_string (" in game " ^ (string_of_int g.game_number))  
 
 let display_coll_elim = function
     CollVars l ->
@@ -1733,6 +1744,9 @@ let display_detailed_ins = function
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
       print_string "\\\\\n"      
+  | DFocus(ql) ->
+      print_string "\\quad -- Focusing on queries\\\\\n";
+      List.iter (fun q -> print_string "\\qquad -- "; display_query3 q; print_string "\\\\\n") ql
 
 let already_displayed = ref []
 
