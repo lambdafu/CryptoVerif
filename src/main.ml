@@ -204,7 +204,6 @@ let anal_file s0 =
             List.iter record_collision collisions;
             Settings.equivs := equivs;
             Settings.move_new_eq := new_new_eq;
-            Settings.collect_public_vars queries;
             
             (*
               List.iter Display.display_statement statements;

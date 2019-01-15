@@ -2,6 +2,8 @@
 
 open Types
 
+let whole_game = ref Terms.empty_game
+
 let expanded = ref true
 
 
@@ -238,7 +240,7 @@ definition
 let no_array_ref in_find_cond b =
   if in_find_cond then
     begin
-      if Terms.has_array_ref_q b then
+      if Terms.has_array_ref_q b (!whole_game).current_queries then
 	Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have no array reference.");
       match b.def with
 	[] -> Parsing_helper.internal_error ("No definition for " ^ (Display.binder_to_string b))
@@ -479,9 +481,11 @@ and invo defined_refs p =
 
 let global_inv g =
   let p = Terms.get_process g in
+  whole_game := g;
   let _ = inv1 [] p in
   Terms.array_ref_process p;
   Terms.build_def_process None p;
   inv [] p;
   Terms.cleanup_array_ref();
+  whole_game := Terms.empty_game;
   Terms.empty_def_process p

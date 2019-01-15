@@ -4,6 +4,8 @@ open Stringmap
 open Parsing_helper
 open Lexing
 
+let whole_game = ref Terms.empty_game
+
 (*
 Get the environment computed in syntax.ml/osyntax.ml.
 => Stringmap.env
@@ -194,7 +196,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
   try 
     match StringMap.find s_b env with
       EVar b -> 
-	if Terms.has_array_ref_q b then
+	if Terms.has_array_ref_q b (!whole_game).current_queries then
 	  raise (Error(s_b ^ " already defined and has array references or is used in queries", ext_b));
 	begin
 	  match ty_opt with
@@ -213,7 +215,7 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
 	FindCond -> raise (Error(s_b ^ " already defined in a find condition, so cannot have several definitions", ext_b))
       | NoDef -> raise (Error(s_b ^ " already exists and the fact that it is defined is tested", ext_b))
       | Std b ->
-	  if Terms.has_array_ref_q b then
+	  if Terms.has_array_ref_q b (!whole_game).current_queries then
 	    raise (Error(s_b ^ " already defined and has array references or is used in queries", ext_b));
 	  begin
 	    match ty_opt with
@@ -734,6 +736,7 @@ and insert_inso count occ ins env cur_array p =
 
 let insert_instruct occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in
+  whole_game := g;
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
   let ins = 
@@ -761,6 +764,7 @@ let insert_instruct occ ext_o s ext_s g =
   in
   Terms.cleanup_array_ref();
   Simplify1.empty_improved_def_process false g_proc;
+  whole_game := Terms.empty_game;
   Hashtbl.clear hash_binders;
   if (!count) = 0 then 
     raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
@@ -778,8 +782,6 @@ let insert_instruct occ ext_o s ext_s g =
 type state_ty =
     RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent 
   | RepDone of setf list * int * term * term * Parsing_helper.extent 
-
-let whole_game = ref Terms.empty_game
 
 let rec replace_tt count env facts cur_array t =
   match !count with
