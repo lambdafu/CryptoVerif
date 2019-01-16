@@ -665,9 +665,20 @@ let rec execute_any_crypto_rec1 interactive state =
     let (state', is_done) =  issuccess_with_advise state in
     if is_done then
       begin
-	(* if List.exists 
-         TO DO undo focus when there is an inactive query *)
-	(CSuccess state', state)
+	if List.exists (fun (_,_,popt) -> popt == Inactive) state.game.current_queries then
+	  begin
+            (* undo focus when there is an inactive query *)
+	    print_string "All active queries proved. Going back to the last focus command."; print_newline();
+	    let state'' =
+	      try
+		undo_focus dummy_ext state'
+	      with Error _ ->
+		Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus command"
+	    in
+	    execute_any_crypto_rec1 interactive state''
+	  end
+	else
+	  (CSuccess state', state)
       end
     else
       let equiv_list = insert_sort [] (!Settings.equivs) in
@@ -1566,8 +1577,22 @@ let rec interpret_command interactive state = function
   | CSuccesscom ->
       let (state', is_done) = issuccess_with_advise state in
       if is_done then
-	(* TO DO undo focus if inactive queries exist *)
-	raise (EndSuccess state')
+	begin
+	  if List.exists (fun (_,_,popt) -> popt == Inactive) state.game.current_queries then
+	    begin
+              (* undo focus when there is an inactive query *)
+	      print_string "All active queries proved. Going back to the last focus command."; print_newline();
+	      let state'' =
+		try
+		  undo_focus dummy_ext state'
+		with Error _ ->
+		  Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus command"
+	      in
+	      state''
+	    end
+	  else
+	    raise (EndSuccess state')
+	end
       else
 	begin
 	  print_string "Sorry, the following queries remain unproved:\n";
