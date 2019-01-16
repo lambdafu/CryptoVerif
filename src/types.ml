@@ -524,7 +524,8 @@ and instruct =
   | MergeArrays of (binder * Parsing_helper.extent) list list * merge_mode
   | MergeBranches
   | Proof of ((query * game) * setf list) list
-
+  | IFocus of query list
+	
 and ins_updater = (instruct -> instruct list) option
 
 and to_do_t = (instruct list * int * name_to_discharge_t) list
@@ -593,7 +594,6 @@ and detailed_instruct =
   | DMergeArrays of (binder * Parsing_helper.extent) list list * merge_mode
   | DMergeBranches of process * process list
   | DMergeBranchesE of term * term list
-  | DFocus of query list
 
 (* The type of game transformations: they take as input a game
 and return a triple (transformed game, probability difference,

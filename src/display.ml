@@ -1341,6 +1341,9 @@ let display_instruct = function
 	    print_string " up to probability ";
 	    display_set set
 	  end) ql
+  | IFocus ql ->
+      print_string "focus on queries";
+      List.iter (fun q -> print_string "\n  - "; display_query3 q) ql
       
 
 exception NotBoundEvent of funsymb * game
@@ -1935,9 +1938,6 @@ let display_detailed_ins = function
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
       print_newline()
-  | DFocus(ql) ->
-      print_string "  - Focusing on queries\n";
-      List.iter (fun q -> print_string "    - "; display_query3 q; print_newline()) ql
 
 let mark_useful_occ_p p = 
   useful_occs := p.p_occ :: (!useful_occs)
@@ -1961,7 +1961,7 @@ let mark_occs_simplif_step f_t = function
 let mark_occs1 f_p f_t = function
     DExpandGetInsert(_) | DExpandIfFind | DGlobalDepAnal _ 
   | DRemoveAssign _ | DSArenaming _ | DMoveNew(_) | DMoveLet(_) 
-  | DCryptoTransf _ | DMergeArrays _ | DFocus _ -> ()
+  | DCryptoTransf _ | DMergeArrays _ -> ()
   | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->
       useful_occs := occ :: (!useful_occs)
   | DSimplify(l) ->

@@ -1321,6 +1321,9 @@ let display_instruct = function
 	    display_set set;
 	    print_string "$"
 	  end) ql
+  | IFocus(ql) ->
+      print_string "focus on queries";
+      List.iter (fun q -> print_string "\\\\\n\\qquad -- "; display_query3 q) ql
 
 (* Explain probability formulas *)
 
@@ -1744,9 +1747,6 @@ let display_detailed_ins = function
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
       print_string "\\\\\n"      
-  | DFocus(ql) ->
-      print_string "\\quad -- Focusing on queries\\\\\n";
-      List.iter (fun q -> print_string "\\qquad -- "; display_query3 q; print_string "\\\\\n") ql
 
 let already_displayed = ref []
 

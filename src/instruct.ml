@@ -29,7 +29,7 @@ let rec forget_games final_game state =
        end;
      match state.prev_state with
      | None -> ()
-     | Some (_,_,[DFocus _],s') ->
+     | Some (IFocus _,_,_,s') ->
 	 (* Do not forget the game just before a [focus] instruction *)
 	 forget_games s'.game s'
      | Some (_,_,_,s') -> forget_games final_game s'           
@@ -43,7 +43,7 @@ let forget_old_games state =
 let rec undo_focus ext state =
   match state.prev_state with
     None -> raise (Error("No previous focus command found", ext))
-  | Some (_,_,[DFocus _],s') -> s'
+  | Some (IFocus _,_,_,s') -> s'
   | Some (_,_,_,s') -> undo_focus ext s'
 	
 let eq_list l1 l2 =
@@ -66,7 +66,7 @@ let sa_rename_ins_updater b bl = function
      RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
-     MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *)) as x -> [x]
+     MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) | IFocus _) as x -> [x]
   | RemoveAssign (Binders l) ->
       [RemoveAssign (Binders (replace_list b bl l))]
   | SArenaming b' -> 
@@ -141,8 +141,8 @@ let execute g ins =
 	Transf_merge.merge_arrays bll m g
     | MergeBranches ->
 	Transf_merge.merge_branches g
-    | CryptoTransf _ | Proof _ -> 
-	Parsing_helper.internal_error "CryptoTransf/Proof unexpected in execute"
+    | CryptoTransf _ | Proof _ | IFocus _ -> 
+	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
   (g', proba, done_ins, compos_sa_rename done_ins)
 
@@ -1683,7 +1683,32 @@ let rec interpret_command interactive state = function
 	  ) l)
       in
       let lq = List.map Syntax.check_query lparsed in
-      raise (Error("To implem", dummy_ext))      
+      let lqref = ref lq in
+      let queries' = List.map (fun (((q, g), poptref, popt) as qentry) ->
+	if popt = ToProve then
+	  let (equal_q, diff_q) = List.partition (equal_query q) (!lqref) in
+	  lqref := diff_q;
+	  match equal_q with
+	  | [] -> (* We do not focus on q *)
+	      ((q, g), poptref, Inactive)
+	  | [_] -> (* We focus on q *)
+	      ((q, g), poptref, ToProve)
+	  | _ ->
+	      print_string "Focus: the following queries designate the same query\n";
+	      List.iter (fun q -> print_string "  - "; Display.display_query3 q; print_newline()) equal_q;
+	      raise (Error("Focusing on several times the same query", dummy_ext))
+	else
+	  qentry) state.game.current_queries
+      in
+      if (!lqref) != [] then
+	begin
+	  print_string "Focus: the following query(ies) is(are) not found\n";
+	  List.iter (fun q -> print_string "  - "; Display.display_query3 q; print_newline()) (!lqref);
+	  raise (Error("Focus: query(ies) not found", dummy_ext));
+	end;
+      let game' = { state.game with current_queries = queries' } in
+      { game = game';
+	prev_state = Some(IFocus lq, [], [], state) }    
   | CUndoFocus(ext) ->
       undo_focus ext state
   | CRestart(ext) ->
