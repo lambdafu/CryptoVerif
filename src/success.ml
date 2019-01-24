@@ -620,9 +620,9 @@ let check_query event_accu = function
 
 let rec check_query_list event_accu state = function
     [] -> ([],[],true)
-  | ((a, poptref, popt)::l) ->
+  | (((a, poptref, popt) as q)::l) ->
       let (l',l'',b) = check_query_list event_accu state l in
-      match popt with
+      match Settings.get_query_status q with
       | Proved _ | Inactive -> (* The query was already proved before, 
 				  or is inactive *)
 	  (l', (a, poptref, popt)::l'', b)

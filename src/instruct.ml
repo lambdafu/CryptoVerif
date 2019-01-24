@@ -665,7 +665,7 @@ let rec execute_any_crypto_rec1 interactive state =
     let (state', is_done) =  issuccess_with_advise state in
     if is_done then
       begin
-	if List.exists (fun (_,_,popt) -> popt == Inactive) state.game.current_queries then
+	if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
 	  begin
             (* undo focus when there is an inactive query *)
 	    print_string "All active queries proved. Going back to the last focus command."; print_newline();
@@ -1578,7 +1578,7 @@ let rec interpret_command interactive state = function
       let (state', is_done) = issuccess_with_advise state in
       if is_done then
 	begin
-	  if List.exists (fun (_,_,popt) -> popt == Inactive) state.game.current_queries then
+	  if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
 	    begin
               (* undo focus when there is an inactive query *)
 	      print_string "All active queries proved. Going back to the last focus command."; print_newline();
@@ -1596,8 +1596,8 @@ let rec interpret_command interactive state = function
       else
 	begin
 	  print_string "Sorry, the following queries remain unproved:\n";
-	  List.iter (fun (a, _, popt) ->
-	    if popt == ToProve then
+	  List.iter (fun ((a, _, _) as q) ->
+	    if Settings.get_query_status q == ToProve then
 	      begin
 		print_string "- ";
 		Display.display_query a;
@@ -1685,7 +1685,7 @@ let rec interpret_command interactive state = function
       let lq = List.map Syntax.check_query lparsed in
       let lqref = ref lq in
       let queries' = List.map (fun (((q, g), poptref, popt) as qentry) ->
-	if popt = ToProve then
+	if Settings.get_query_status qentry = ToProve then
 	  let (equal_q, diff_q) = List.partition (equal_query q) (!lqref) in
 	  lqref := diff_q;
 	  match equal_q with
