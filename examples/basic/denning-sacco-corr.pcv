@@ -1,20 +1,9 @@
 (* Denning-Sacco key distribution protocol. (corrected version) *)
 
 (*
-Secrecy of keyA is wrong here, because the adversary can register the
-public signature key of A with another identity C. Then
-A sends (A, pkA, certA, B, pkB, certB, { {k}skA }pkB)
-the adversary sends to B (C, pkA, certC, B, pkB, certB, { {k}skA}pkB)
-which is ok, because pkA is also the public key of C, so
-B publishes k since he thinks it is a key with C.
-
-query k:shkey, x:bitstring;
-	event fullB(A,k,x) ==> fullA(B,k,x).
-is wrong due to the standard attack against Denning-Sacco.
-
-query k:shkey, k':shkey, x:bitstring;
-	event fullB(A,k,x) && fullA(B,k',x) ==> k = k'.
-is true.
+All queries are true except
+inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x))
+due to a replay attack.
 *)
 
 (* In order to determine the proof, use interactive mode:
