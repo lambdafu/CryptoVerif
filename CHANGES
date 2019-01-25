@@ -47,6 +47,14 @@ Version
   and "move binder <variables>".
 - Allow designating several variables by a regular expression
   in most proof commands.
+- New command
+    focus "query 1", ..., "query n"
+  to try proving only the mentioned queries. When they are all proved,
+  CryptoVerif goes back to the state before the last focus command, to try
+  proving the other queries.
+    undo focus
+  also goes back to the state before the last focus command, to try
+  proving remaining queries.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - Allow several occurrences of the same injective event in the same
   branch of if/let/find and under different replications. 
