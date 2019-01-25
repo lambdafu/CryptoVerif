@@ -1287,8 +1287,10 @@ let help() =
   "auto                         : try to terminate the proof automatically\n" ^
   "set <param> = <value>        : set the value of various parameters\n" ^
   "allowed_collisions <formulas>: determine when to eliminate collisions\n" ^
+  "focus \"query 1\", ..., \"query n\" : try proving only the mentioned queries\n" ^
   "undo                         : undo the last transformation\n" ^
   "undo <n>                     : undo the last n transformations\n" ^
+  "undo focus                   : go back until before the last focus command\n" ^
   "restart                      : restart from the initial game\n" ^
   "forget_old_games             : remove old games from memory, to have more space (prevents undo)\n" ^
   "quit                         : quit interactive mode\n" ^
