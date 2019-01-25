@@ -1687,12 +1687,14 @@ let rec interpret_command interactive state = function
       in
       let lq = List.map Syntax.check_query lparsed in
       let lqref = ref lq in
+      let made_inactive = ref false in
       let queries' = List.map (fun (((q, g), poptref, popt) as qentry) ->
 	if Settings.get_query_status qentry = ToProve then
 	  let (equal_q, diff_q) = List.partition (equal_query q) (!lqref) in
 	  lqref := diff_q;
 	  match equal_q with
 	  | [] -> (* We do not focus on q *)
+	      made_inactive := true;
 	      ((q, g), poptref, Inactive)
 	  | [_] -> (* We focus on q *)
 	      ((q, g), poptref, ToProve)
@@ -1709,6 +1711,8 @@ let rec interpret_command interactive state = function
 	  List.iter (fun q -> print_string "  - "; Display.display_query3 q; print_newline()) (!lqref);
 	  raise (Error("Focus: query(ies) not found", dummy_ext));
 	end;
+      if not (!made_inactive) then
+	raise (Error("Focus: useless command since all queries remain active", dummy_ext));
       let game' = { state.game with current_queries = queries' } in
       { game = game';
 	prev_state = Some(IFocus lq, [], [], state) }    
