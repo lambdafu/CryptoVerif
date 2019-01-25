@@ -1359,6 +1359,7 @@ let equal_query q1 q2 =
       (one_session1 = one_session2)
   | QEventQ(hyp1, concl1, pub_vars1), QEventQ(hyp2, concl2, pub_vars2) ->
       (eq_pub_vars pub_vars1 pub_vars2) &&
+      (List.length hyp1 == List.length hyp2) &&
       (Terms.auto_cleanup (fun () ->
 	try
 	  List.iter2 (fun (inj1,t1) (inj2,t2) ->
