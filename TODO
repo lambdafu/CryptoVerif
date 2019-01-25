@@ -296,6 +296,20 @@ in that session. Some difficulties:
    in order to prove other properties.
    That would allow a stronger use of item 4/ above, by focusing
    on some "required steps" only (possibly one).
+   DONE
+   notes:
+   - we cannot focus on an equivalence query.
+   This is not super useful, since anyway, we can prove equivalences
+   only last, when all events are removed. Furthermore, 
+   if we allowed proving equivalences with events in the middle,
+   focusing on the equivalence should not remove the events,
+   so it would not simplify the game anyway.
+   - TO DO right now, if I focus on a query whose proof depends on a
+   Shoup event e not proved yet, I may be able to prove the query,
+   but it will be forgotten when I do "undo focus". I should remember
+   the partial proof up to the point at which the event e was introduced.
+   (In doing that, remember that the proof of an event may depend
+   itself on other events...)
 
 * It does not work automatically with the logs as they presented.
 Investigate in more details why (perhaps a bad orientation of
