@@ -2321,10 +2321,26 @@ $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k}$
 where $p_i$ is a parameter of size at most $\nonterm{psize}_i$.
 By default, \texttt{collision} statements can always be applied.
 
+\item $\texttt{focus}\ \texttt{"}\nonterm{querydecl}\texttt{"}, \dots, \texttt{"}\nonterm{querydecl}\texttt{"}$ where
+  $\nonterm{querydecl} ::= \texttt{query }[\seq{vartypeb}\texttt{;}]\nonterm{query} (\texttt{;}\nonterm{query})^*$
+  follows the syntax of query declarations given in Section~\ref{sec:channels} without the final dot:
+  tell CryptoVerif to try to prove only the mentioned queries, ignoring all other queries.
+  That sometimes allows to simplify the game further (e.g. remove events that are not used in the queries on which we focus),
+  and may allow to prove the mentioned queries.
+  The queries are considered equal modulo renaming of variables declared in $\seq{vartypeb}$.
+  When the queries on which we focus are all proved,
+  CryptoVerif goes back to the state before the last \texttt{focus} command, to try
+  to prove the other queries.
+  \texttt{undo focus}
+  also goes back to the state before the last \texttt{focus} command, to try
+  to prove remaining queries.
+
 \item $\texttt{undo}$: undo the last transformation.
 
 \item $\texttt{undo}\ n$: undo the last $n$ transformations.
 
+\item $\texttt{undo\ focus}$: go back to the state before the last focus command.
+  
 \item \texttt{restart}: restart the proof from the beginning.
 (Still simplify automatically the first game.)
 

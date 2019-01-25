@@ -1914,7 +1914,7 @@ cryptographic primitives. Since such declarations are delicate to
 design, we recommend using predefined primitives listed in
 Section~\ref{sect:prim}, or copy-pasting declarations from examples.
 
-\item $\texttt{query }[\seq{vartypeb}\texttt{;}]\nonterm{query}\texttt{;} (\nonterm{query}\texttt{;})^* \texttt{.}$
+\item $\texttt{query }[\seq{vartypeb}\texttt{;}]\nonterm{query}(\texttt{;}\nonterm{query})^* \texttt{.}$
 
 The {\tt query} declaration indicates which security properties we 
 would like to prove. It is of the form $\texttt{query }x_1\texttt{:}T_1\texttt{,} \ldots\texttt{,} x_n\texttt{:}T_n\texttt{;} Q_1\texttt{;} \dots\texttt{;}Q_n$. First, we declare the types of all variables $x_1, \ldots, x_n$

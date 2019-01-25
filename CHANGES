@@ -49,12 +49,12 @@ Version
   in most proof commands.
 - New command
     focus "query 1", ..., "query n"
-  to try proving only the mentioned queries. When they are all proved,
+  to try to prove only the mentioned queries. When they are all proved,
   CryptoVerif goes back to the state before the last focus command, to try
-  proving the other queries.
+  to prove the other queries.
     undo focus
   also goes back to the state before the last focus command, to try
-  proving remaining queries.
+  to prove remaining queries.
 - New setting useKnownEqualitiesWithFunctionsInMatching.
 - Allow several occurrences of the same injective event in the same
   branch of if/let/find and under different replications. 
