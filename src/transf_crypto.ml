@@ -4464,7 +4464,7 @@ let events_proba_queries events =
     let proba = SetEvent(f, !whole_game_next, pub_vars, q_proof) in
     let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
     let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-    let query = ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), !whole_game_next), q_proof, ToProve) in
+    let query = ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), !whole_game_next), q_proof) in
     (proba, query)
       ) events)
 
@@ -4604,7 +4604,8 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
       match try_with_restr_list apply_equiv (!restr) with
 	TSuccessPrio(prob, ins, g') -> 
 	  let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
-	  g'.current_queries <- ev_q @ g'.current_queries;
+	  if ev_q != [] then
+	    g'.current_queries <- ev_q @ List.map (fun (q, poptref) -> (q, ref (!poptref))) g'.current_queries;
 	  TSuccess(prob @ ev_proba, ins, g')
       |	TFailurePrio (l,failure_reasons) -> 
 	  if ((!Settings.debug_cryptotransf) > 0) && (l != []) then 
@@ -4632,7 +4633,8 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 		let (g',proba',ins') = transfo_expand apply_equiv p g.current_queries in
 		whole_game_next := g';
 		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
-		g'.current_queries <- ev_q @ g'.current_queries;
+		if ev_q != [] then
+		  g'.current_queries <- ev_q @ List.map (fun (q, poptref) -> (q, ref (!poptref))) g'.current_queries;
 		TSuccess (ev_proba @ proba', ins', g')
 	      end
 	    else

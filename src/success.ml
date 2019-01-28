@@ -619,21 +619,24 @@ let check_query event_accu = function
     - a boolean which is true when all queries have been proved *)
 
 let rec check_query_list event_accu state = function
-    [] -> ([],[],true)
-  | (((a, poptref, popt) as q)::l) ->
-      let (l',l'',b) = check_query_list event_accu state l in
+    [] -> ([],true)
+  | (((a, poptref) as q)::l) ->
+      let (l',b) = check_query_list event_accu state l in
       match Settings.get_query_status q with
       | Proved _ | Inactive -> (* The query was already proved before, 
 				  or is inactive *)
-	  (l', (a, poptref, popt)::l'', b)
+	  (l',b)
       |	ToProve -> (* We need to prove the query *)
 	  let (res, proba) = check_query event_accu a in
-	  if res then 
-	    (* The query is proved *)
-	    ((a,proba)::l', (a,poptref,Proved(proba, state))::l'', b) 
+	  if res then
+	    begin
+	      (* The query is proved *)
+              poptref := Proved(proba, state);
+	      ((a,proba)::l', b)
+	    end
 	  else 
 	    (* The query is not proved *)
-	    (l', (a, poptref,popt)::l'', false)
+	    (l', false)
 
 (* [is_event_query f g pub_vars q] returns [true] when the query [q] is 
    [event f ==> false] (that is, "the event [f] can never be executed") 
@@ -658,40 +661,33 @@ let is_event_query f g pub_vars = function
    [update_full_proof] sets [poptref] to [proba] when the probability
    of these events has also been bounded. *)
 
-let rec update_full_proof query_list ((_,g), poptref, popt) =
-  match popt, !poptref with
-    Proved(proba, state), (ToProve | Inactive) ->
-      if is_full_proof query_list g proba state then
-	poptref := Proved(proba, state)
-  | _ -> ()
-
-and is_full_proof query_list g proba state =
-  (List.for_all (is_full_proba query_list) proba) &&
-  (is_full_state query_list g state)
-
-and is_full_state query_list g state =
-  if state.game == g then
-    true
-  else
-    match state.prev_state with
-      None -> Parsing_helper.internal_error "Success.is_full_state: Game not found"
-    | Some(_, proba, _, s') ->
-        (List.for_all (is_full_proba query_list) proba) &&
-	(is_full_state query_list g s')
-
-and is_full_proba query_list = function
+let is_full_proba = function
     SetProba _ -> true
   | SetEvent(f,g,pub_vars, poptref) ->
       match !poptref with
       | Proved _ -> true
-      |	Inactive | ToProve ->
-	  try
-	    let query = List.find (is_event_query f g pub_vars) query_list in
-	    update_full_proof query_list query;
-	    match !poptref with
-	    | Proved _ -> true
-	    | Inactive | ToProve -> false
-	  with Not_found -> false
+      |	Inactive | ToProve -> false
+
+let rec update_full_proof state =
+  match state.prev_state with
+    None -> ()
+  | Some(_, proba, _, s') ->
+      if List.for_all is_full_proba proba then
+	begin
+	  (* Transfer proved queries from [state] to the previous state [s'] *)
+	  List.iter (fun (q, poptref) ->
+	    if !poptref = ToProve then
+	      let poptref' = List.assq q state.game.current_queries in
+	      match !poptref' with
+	      | Proved(proba, state') ->
+		  if not (List.for_all is_full_proba proba) then
+		    Parsing_helper.internal_error "Final success proba should not contain events";
+		  poptref := !poptref'
+	      | _ -> ()
+		  ) s'.game.current_queries;
+	  update_full_proof s'
+	end
+
     
 (* [is_success state] tries to prove queries that still need to be
    proved in [state]. It updates the proofs of the queries inside
@@ -707,9 +703,8 @@ let is_success state =
   let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
   Simplify1.improved_def_process (Some event_accu) true g_proc;
-  let (proved_queries, all_queries, all_proved) = check_query_list (!event_accu) state g.current_queries in
-  g.current_queries <- all_queries; (* Updated queries *)
-  List.iter (update_full_proof all_queries) all_queries;
+  let (proved_queries, all_proved) = check_query_list (!event_accu) state g.current_queries in
+  update_full_proof state;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
   Simplify1.empty_improved_def_process true g_proc;

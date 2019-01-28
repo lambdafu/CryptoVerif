@@ -491,10 +491,8 @@ let get_inverse f n =
 
 (***************************************************************************)
 
-let get_query_status (_, poptref, popt) =
-  match !poptref with
-  | (Proved _) as status -> status
-  | _ -> popt
+let get_query_status (_, poptref) =
+  !poptref
       
 let get_public_vars queries =
   let public_vars = ref [] in
@@ -506,13 +504,13 @@ let get_public_vars queries =
   in
   List.iter (function 
     | q when get_query_status q != ToProve -> () (* I ignore already proved and inactive queries *)
-    | (QSecret (b',pub_vars,onesession),_),_,_ ->
+    | (QSecret (b',pub_vars,onesession),_),_ ->
 	add_pub_vars (b'::pub_vars)
-    | (QEventQ (_,_,pub_vars),_),_,_ 
-    | (QEquivalence(_,pub_vars),_),_,_ 
-    | (QEquivalenceFinal(_,pub_vars),_),_,_ ->
+    | (QEventQ (_,_,pub_vars),_),_
+    | (QEquivalence(_,pub_vars),_),_ 
+    | (QEquivalenceFinal(_,pub_vars),_),_ ->
 	add_pub_vars pub_vars
-    | (AbsentQuery,_),_,_ -> ()) queries;
+    | (AbsentQuery,_),_ -> ()) queries;
   
   !public_vars
     
@@ -532,11 +530,11 @@ let rec event_occurs_in_qterm f = function
 let event_occurs_in_queries f q =
   List.exists (function
       q when get_query_status q != ToProve -> false (* I ignore already proved and inactive queries *)
-    | (QSecret _, _),_,_ -> false
-    | ((AbsentQuery | QEquivalence _ | QEquivalenceFinal _), _),_,_ ->
+    | (QSecret _, _),_ -> false
+    | ((AbsentQuery | QEquivalence _ | QEquivalenceFinal _), _),_ ->
        (* When I want to prove indistinguishability, keep all events *)
        true
-    | (QEventQ (l,r,_),_),_,_ ->
+    | (QEventQ (l,r,_),_),_ ->
 	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||
 	(event_occurs_in_qterm f r)
 	  ) q

@@ -68,9 +68,9 @@ val proba_from_set : setf list -> probaf
 val proba_from_set_may_double : query * game -> setf list -> probaf
 
 val get_initial_game : state -> game
-val get_initial_queries : state -> ((query * game) * proof_t ref * proof_t) list
+val get_initial_queries : state -> cur_queries_t
 
-val get_all_states_from_queries : ((query * game) * proof_t ref * proof_t) list -> state list
+val get_all_states_from_queries : cur_queries_t -> state list
 
 val remove_duplicate_states : state list -> state list -> state list
 

@@ -2120,7 +2120,7 @@ and get_all_states_from_proba accu = function
 
 let rec get_all_states_from_queries = function
     [] -> []
-  | ((q,g), poptref,_)::r ->
+  | ((q,g), poptref)::r ->
       let accu = get_all_states_from_queries r in
       let accu' =
 	match q with
@@ -2149,14 +2149,14 @@ let rec remove_duplicate_states seen_list = function
 let display_conclusion s =
   let initial_queries = get_initial_queries s in
   (* List the unproved queries *)
-  let rest = List.filter (function (q, poptref,_) -> (!poptref) == ToProve || (!poptref) == Inactive) initial_queries in
-  let rest' = List.filter (function (AbsentQuery, _),_,_ -> false | _ -> true) rest in
+  let rest = List.filter (function (q, poptref) -> (!poptref) == ToProve || (!poptref) == Inactive) initial_queries in
+  let rest' = List.filter (function (AbsentQuery, _),_ -> false | _ -> true) rest in
   if rest = [] then
     print_string "All queries proved.\n"
   else if rest' != [] then
     begin
       print_string "RESULT Could not prove ";
-      display_list_sep "; " (fun (q, _,_) -> display_query q) rest;
+      display_list_sep "; " (fun (q, _) -> display_query q) rest;
       print_string ".\n"
     end
 
@@ -2171,7 +2171,7 @@ let display_state s =
   List.iter (fun s -> display_state [] s) states_to_display;  
   
   (* Display the probabilities of proved queries *)
-  List.iter (fun (q,poptref,_) ->
+  List.iter (fun (q,poptref) ->
     match !poptref with
     | ToProve | Inactive -> ()
     | Proved(p,s') -> 

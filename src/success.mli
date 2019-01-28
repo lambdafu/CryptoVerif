@@ -7,3 +7,5 @@ open Types
    which is true when all queries are proved. *)
 
 val is_success : state -> ((query * game) * setf list) list * bool
+
+val update_full_proof : state -> unit

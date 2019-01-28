@@ -390,7 +390,7 @@ and game =
 	   has been bounded. Otherwise, [!proof_ref = ToProve]. *)
     }
 
-and cur_queries_t = ((query * game) * proof_t ref * proof_t) list
+and cur_queries_t = ((query * game) * proof_t ref) list
       
 and proof_t =
   | Proved of setf list * state

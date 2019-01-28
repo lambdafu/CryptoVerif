@@ -555,42 +555,29 @@ let rec issuccess_with_advise state =
     else
       (state'', is_done'')
 
-let rec is_full_state query_list g state =
-  if state.game == g then
-    true
-  else
-    match state.prev_state with
-      None -> Parsing_helper.internal_error "Instruct.is_full_state: Game not found"
-    | Some(_, proba, _, s') ->
-        (List.for_all (is_full_proba query_list) proba) &&
-	(is_full_state query_list g s')
-
-and is_full_proba query_list = function
-    SetProba _ -> true
-  | SetEvent(f,g,pub_vars,poptref) ->
-      match !poptref with
-	Proved _ -> true
-      |	ToProve | Inactive -> false
-
+let rec undo_absent_query state =
+  List.iter (function 
+      (AbsentQuery, g), poptref -> poptref := ToProve
+    | _ -> ()) state.game.current_queries;
+  match state.prev_state with
+      None -> ()
+    | Some(_, _, _, s') -> undo_absent_query s'
+	
 let display_state final state =
   (* AbsentQuery is proved in the current state, if present *)
-  let old_queries = state.game.current_queries in
   let state' = 
-    let eq_queries = List.filter (function (AbsentQuery, _),_,_ -> true | _ -> false) state.game.current_queries in
+    let eq_queries = List.filter (function (AbsentQuery, _),_ -> true | _ -> false) state.game.current_queries in
     if eq_queries == [] then
       state
     else
       begin
-	state.game.current_queries <-
-	   List.map (function 
-	       (AbsentQuery, g), poptref, popt -> 
-		 let proof = Proved([], state) in
-		 if is_full_state old_queries g state then 
-		   poptref := proof;
-		 (AbsentQuery, g), poptref, proof
-	     | q -> q) old_queries;
+	List.iter (function 
+	  | (AbsentQuery, g), poptref -> 
+	      poptref := Proved([], state)
+	  | q -> ()) eq_queries;
+	Success.update_full_proof state;
 	{ game = state.game;
-	  prev_state = Some (Proof (List.map (fun (q, _, _) -> (q, [])) eq_queries), [], [], state) }
+	  prev_state = Some (Proof (List.map (fun (q, _) -> (q, [])) eq_queries), [], [], state) }
       end
   in
   (* Display the state *)
@@ -614,10 +601,7 @@ let display_state final state =
   else
     Display.display_state state';
   (* Undo the proof of AbsentQuery *)
-  state.game.current_queries <- old_queries;
-  List.iter (function 
-      (AbsentQuery, g), poptref, popt -> poptref := ToProve
-    | _ -> ()) old_queries
+  undo_absent_query state
 
 let rec display_short_state state =
   match state.prev_state with
@@ -1545,7 +1529,7 @@ let rec interpret_command interactive state = function
   | CStart_from_other_end(ext) ->
       let rec remove_eq_query state =
         state.game.current_queries <-
-           List.filter (function ((QEquivalence _,_),_, ToProve) -> false | _ -> true)
+           List.filter (function ((QEquivalence _,_),poptref) -> !poptref != ToProve | _ -> true)
              state.game.current_queries;
         match state.prev_state with
           None -> ()
@@ -1558,17 +1542,17 @@ let rec interpret_command interactive state = function
         | Some(_,_,_,s') -> add_query q s'
       in
       let (equivalence_q, other_q) =
-        List.partition (function ((QEquivalence _,_),_, ToProve) -> true | _ -> false) state.game.current_queries
+        List.partition (function ((QEquivalence _,_),poptref) -> !poptref = ToProve | _ -> false) state.game.current_queries
       in
       begin
         match equivalence_q with
         | [] ->
             raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
-        | [(QEquivalence(state_other_end, pub_vars), g), _, ToProve] ->
+        | [(QEquivalence(state_other_end, pub_vars), g), _] ->
             remove_eq_query state;
             let init_game_other_end = Display.get_initial_game state_other_end in
             let new_equivalence_q =
-              (QEquivalence(state, pub_vars), init_game_other_end), ref ToProve, ToProve
+              (QEquivalence(state, pub_vars), init_game_other_end), ref ToProve
             in
             add_query new_equivalence_q state_other_end;
             state_other_end
@@ -1599,7 +1583,7 @@ let rec interpret_command interactive state = function
       else
 	begin
 	  print_string "Sorry, the following queries remain unproved:\n";
-	  List.iter (fun ((a, _, _) as q) ->
+	  List.iter (fun ((a, _) as q) ->
 	    if Settings.get_query_status q == ToProve then
 	      begin
 		print_string "- ";
@@ -1688,16 +1672,16 @@ let rec interpret_command interactive state = function
       let lq = List.map Syntax.check_query lparsed in
       let lqref = ref lq in
       let made_inactive = ref false in
-      let queries' = List.map (fun (((q, g), poptref, popt) as qentry) ->
+      let queries' = List.map (fun (((q, g) as qg, poptref) as qentry) ->
 	if Settings.get_query_status qentry = ToProve then
 	  let (equal_q, diff_q) = List.partition (equal_query q) (!lqref) in
 	  lqref := diff_q;
 	  match equal_q with
 	  | [] -> (* We do not focus on q *)
 	      made_inactive := true;
-	      ((q, g), poptref, Inactive)
+	      (qg, ref Inactive)
 	  | [_] -> (* We focus on q *)
-	      ((q, g), poptref, ToProve)
+	      (qg, poptref)
 	  | _ ->
 	      print_string "Focus: the following queries designate the same query\n";
 	      List.iter (fun q -> print_string "  - "; Display.display_query3 q; print_newline()) equal_q;
