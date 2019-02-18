@@ -80,15 +80,12 @@
 		      "pred" "serial" "inverse" "random" ;; implementation options (ignored in PV)
 		      ) "Cryptoverif and ProVerif common builtins")
 
-(defvar pcv-bad-builtin '("commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" ;; equation builtin options in CV
-			  "manual" "computational" "unchanged" "exist" "all" "useful_change" ;; equiv options in CV
-			  "unique" ;; find option in CV
-			  "restrictions_may_be_equal" ;; collision option
+(defvar pcv-bad-builtin '(;; equation builtin/equiv/find/collision options in CV need not be marked in red since the keywords builtin, equiv, find, and collision are already marked in red
 			  "private" ;; in PV
 			  "reachability" ;; query option not supported in CV
 			  "memberOptim" "decompData" "decompDataSelect" "block" ;; predicate options
 			  "attacker" "mess" ;; predicates
-			  "MaxSubset" "NoSat" "NoVerif" "ToDiscardSat" "ToDiscardVerif" "ToInstantiateVerif" ;; lemma/axiom options
+			  ;; lemma/axiom/nounif options need not be marked in red since the keywords lemma, axiom, and nounif are already marked in red
 			  ) "CryptoVerif- or ProVerif-only builtins")
 
 ;; build optimal regular expression from list of keywords
