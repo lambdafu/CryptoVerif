@@ -166,7 +166,7 @@ fun hash(key, $hashinput%$, $):hashoutput.
 channel ch1, ch2.
 let hashoracle(k: key) = 
 	in(ch1, ());
-        out(ch2, k)).
+        out(ch2, k).
 
 }\n\n"	
   else
