@@ -1,0 +1,129 @@
+#!/bin/bash
+
+sourcefile=WG.25519.m4.cv
+sourcefileks=WG.25519.keysecrecy.m4.cv
+sourcefilecorrectness=WG.25519.correctness.m4.cv
+sourcefileidentityhiding=WG.25519.identityhiding.m4.cv
+sessions=$1
+shift
+pattern=WG.25519.$sessions
+patternks=WG.25519.keysecrecy.$sessions
+libraryfile=wireguard
+
+CRYPTOVERIFDIR=../..
+
+# Please update the next two lines to correspond to the location
+# of a timing program and of CryptoVerif on your computer.
+
+TIME=$CRYPTOVERIFDIR/xtime
+CV="$CRYPTOVERIFDIR/cryptoverif -lib wireguard"
+
+# Build wireguard.cvl
+
+ocamlopt -o hashgen hashgen.ml
+./hashgen 1 10 > hashoracles.cvl
+cat preamble.cvl $CRYPTOVERIFDIR/default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+
+# The argument of analyze is
+# $1 = file name (without .cv)
+
+function analyze()
+{
+  echo $1
+#  echo "$TIME $CV -oproof $1.cvres $1.cv > $1.out"
+  $TIME $CV -oproof $1.cvres $1.cv > $1.out
+  tail -n 2 $1.out
+}
+
+# main_correspondences includes queries:
+# * correctness
+# * key share
+# * authentication of second, third, and transport data in both directions
+# and excludes authentication of the first.
+#
+# replay_prot makes the authentication of the first message injective
+
+# dynamic_longterm_compromises
+# * excludes events for the first message
+# * includes compromise oracles for S_i and S_r
+
+# only_psk
+# * corrupts S_i and S_r statically. This means the ephemerals have to
+#   be corrupted separately with E_i_compr and E_r_compr.
+# * excludes the psk corruption oracle
+
+# * only_psk will publish the long-term private keys immediately.
+# * we cannot prove a correspondence on the first message if any
+#   longterm key is compromised.
+filename=WG.25519.dos
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+for replay_status in no_replay_prot replay_prot
+do
+
+filename=$pattern.correctness.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$replay_status $sourcefilecorrectness > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+# Identity hiding proved in the AB case only.
+filename=WG.25519.AB.identityhiding.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$replay_status -Dm4_E_r_compr $sourcefileidentityhiding > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+filename=$pattern.uniquesession_chbinding_weakUKS.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+filename=$pattern.only_psk.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+# The following is for the correspondence on the first message,
+# in the case where no long-term keys are compromised. We cannot prove
+# a correspondence on the first message in the case of any long-term
+# key compromise, so it's fine to separate this.
+filename=$pattern.1st_msg.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+
+# The following is for correspondences on the second, third, and
+# the transport data messages, message secrecy, and absence of unknown
+# key share attacks.
+for icompr in S_i_compr E_i_compr
+do
+    for rcompr in S_r_compr E_r_compr
+    do
+	filename=$pattern.$icompr.$rcompr.$replay_status
+	m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+	if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+    done
+done
+
+## Variant for key secrecy, without transport data messages. We actually
+## reprove most properties for this model
+
+filename=$patternks.uniquesession_chbinding_weakUKS.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+filename=$patternks.only_psk.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+filename=$patternks.1st_msg.$replay_status
+m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+
+for icompr in S_i_compr E_i_compr
+do
+    for rcompr in S_r_compr E_r_compr
+    do
+	filename=$patternks.$icompr.$rcompr.$replay_status
+	m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+	if [ "$1" == "false" ]; then echo "Skip analysis"; else analyze $filename; fi
+    done
+done
+
+
+done

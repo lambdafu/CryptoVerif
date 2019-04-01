@@ -1,0 +1,62 @@
+proof {
+      auto; (* does: crypto prf(mac) Rm; *)
+      crypto suf_cma_corrupt(mac2f) r_1;
+      move array r_1;
+      success
+      }
+
+channel c_resp_0, c_resp_1, c_resp_2, c_resp_3, c_resp_4.
+
+param N_Resp_R, N_Resp_C, N_Resp_T.
+
+type key_t [large, fixed].
+
+event generated_cookie(bitstring, N_Resp_R, key_t).
+event accepted_cookie(bitstring, N_Resp_R, key_t, bitstring, key_t).
+
+query Am: bitstring, iRm <= N_Resp_R, tau: key_t, msgbeta: bitstring, mac2: key_t;
+      event(accepted_cookie(Am, iRm, tau, msgbeta, mac2)) ==>
+      event(generated_cookie(Am, iRm, tau)).
+      
+(* We assume that the MAC that serves for generating the cookie is a PRF,
+   because we use its output tau as a key for computing mac2,
+   and that key must be random. (SUF-CMA would not be sufficient.) *)
+
+proba Pprf.
+expand PRF(key_t, bitstring, key_t, mac, Pprf).
+
+(* For mac2, we assume that the MAC is SUF-CMA.
+   CryptoVerif would not succeed with the PRF assumption,
+   because it is unable to handle corruptions for PRFs.
+   It can handle corruptions for SUF-CMA MACs.
+   It is well known that PRF => SUF_CMA, we obtain a proof
+   under the assumption that the MAC is a PRF. *)
+
+proba Pmac.
+expand SUF_CMA_det_mac(key_t, bitstring, key_t, mac2f, verify2f, Pmac).
+
+process
+	! i_Resp_R <= N_Resp_R
+	in(c_resp_0, ());
+	(* The responder generates a new Rm every two minutes *)
+	new Rm: key_t;
+	out(c_resp_1, ());
+	((
+	   ! i_Resp_C <= N_Resp_C
+	   in(c_resp_2, Am': bitstring);
+	   (* The responder generates a cookie tau for Am'
+	      (concatenation of IP source address and UDP source port) *)
+	   let tau = mac(Rm, Am') in
+	   event generated_cookie(Am', i_Resp_R, tau);
+	   (* We give the cookie tau to the adversary.
+	      He can encrypt it and run the rest of the protocol. *)
+	   out(c_resp_3, tau)
+	)|(
+	   ! i_Resp_T <= N_Resp_T
+	   (* The responder receives a message msgbeta with a mac2 from
+	      Am2'. It verifies the mac2. *)
+	   in(c_resp_4, (Am2': bitstring, msgbeta: bitstring, mac2: key_t));
+	   let tau2' = mac(Rm, Am2') in
+	   if mac2 = mac2f(msgbeta, tau2') then
+	   event accepted_cookie(Am2', i_Resp_R, tau2', msgbeta, mac2) 
+	))
