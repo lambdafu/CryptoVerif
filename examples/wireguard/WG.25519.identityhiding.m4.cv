@@ -954,3 +954,15 @@ else
    rom1_oracle(key_rom1) | rom2_oracle(key_rom2) | rom3_oracle(key_rom3) |
    hash_oracle(key_hash))
 )
+
+ifdef(`m4_replay_prot',`
+(* EXPECTED
+All queries proved.
+1060.836s (user 1060.608s + system 0.228s), max rss 138156K
+END *)
+',`
+(* EXPECTED
+All queries proved.
+93.172s (user 93.000s + system 0.172s), max rss 138284K
+*)
+')

@@ -749,3 +749,15 @@ process
 
 (* The adversary has all keys (long-term, ephemeral, psk), so it can run other sessions,
    including sessions with swapped initiator and responder, by itself. *)
+
+ifdef(`m4_replay_prot',`
+(* EXPECTED
+All queries proved.
+3.012s (user 2.984s + system 0.028s), max rss 29208K
+END *)
+',`
+(* EXPECTED
+All queries proved.
+2.484s (user 2.456s + system 0.028s), max rss 29328K
+END *)
+')

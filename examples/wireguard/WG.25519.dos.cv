@@ -60,3 +60,8 @@ process
 	   if mac2 = mac2f(msgbeta, tau2') then
 	   event accepted_cookie(Am2', i_Resp_R, tau2', msgbeta, mac2) 
 	))
+
+(* EXPECTED
+All queries proved.
+0.304s (user 0.288s + system 0.016s), max rss 21496K
+END *)

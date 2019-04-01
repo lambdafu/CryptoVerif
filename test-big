@@ -192,4 +192,113 @@ analyze ssh-secrecy-key "-in oracles" implementation/ssh/ssh-secrecy-key.ocv tes
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 
+echo
+echo WireGuard
+echo
+output=WG`date '+%Y.%m.%d-%H_%M_%S'`
+(
+    cd examples/wireguard
+    ocamlopt -o hashgen hashgen.ml
+    ./hashgen 1 10 > hashoracles.cvl
+    cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+    cd ../..
+
+    analyze WG.25519.dos "-lib examples/wireguard/wireguard" examples/wireguard/WG.25519.dos.cv tests/$output
+
+    sourcefilecorrectness=examples/wireguard/WG.25519.correctness.m4.cv
+    sourcefileidentityhiding=examples/wireguard/WG.25519.identityhiding.m4.cv
+    for replay_status in no_replay_prot replay_prot
+    do
+
+	modname=WG.25519.correctness.$replay_status
+	filename=examples/wireguard/$modname
+	m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$replay_status $sourcefilecorrectness > $filename.cv
+	analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+	# Identity hiding proved in the AB case only.
+	modname=WG.25519.AB.identityhiding.$replay_status
+	filename=examples/wireguard/$modname
+	m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$replay_status -Dm4_E_r_compr $sourcefileidentityhiding > $filename.cv
+	analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+    done
+
+    sourcefile=examples/wireguard/WG.25519.m4.cv
+    sourcefileks=examples/wireguard/WG.25519.keysecrecy.m4.cv
+    for sessions in AB AB-BA
+    do
+	pattern=WG.25519.$sessions
+	patternks=WG.25519.keysecrecy.$sessions
+	for replay_status in no_replay_prot replay_prot
+	do
+
+	    modname=$pattern.uniquesession_chbinding_weakUKS.$replay_status
+	    filename=examples/wireguard/$modname
+	    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+	    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+	    modname=$pattern.only_psk.$replay_status
+	    filename=examples/wireguard/$modname
+	    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+	    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+	    # The following is for the correspondence on the first message,
+	    # in the case where no long-term keys are compromised. We cannot prove
+	    # a correspondence on the first message in the case of any long-term
+	    # key compromise, so it's fine to separate this.
+	    modname=$pattern.1st_msg.$replay_status
+	    filename=examples/wireguard/$modname
+	    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+	    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+
+	    # The following is for correspondences on the second, third, and
+	    # the transport data messages, message secrecy, and absence of unknown
+	    # key share attacks.
+	    for icompr in S_i_compr E_i_compr
+	    do
+		for rcompr in S_r_compr E_r_compr
+		do
+		    modname=$pattern.$icompr.$rcompr.$replay_status
+		    filename=examples/wireguard/$modname
+		    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $filename.cv
+		    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+		done
+	    done
+	    
+	    ## Variant for key secrecy, without transport data messages. We actually
+	    ## reprove most properties for this model
+
+	    modname=$patternks.uniquesession_chbinding_weakUKS.$replay_status
+	    filename=examples/wireguard/$modname
+	    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+	    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+	    modname=$patternks.only_psk.$replay_status
+	    filename=examples/wireguard/$modname
+	    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+	    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+	    modname=$patternks.1st_msg.$replay_status
+	    filename=examples/wireguard/$modname
+	    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+	    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+
+	    for icompr in S_i_compr E_i_compr
+	    do
+		for rcompr in S_r_compr E_r_compr
+		do
+		    modname=$patternks.$icompr.$rcompr.$replay_status
+		    filename=examples/wireguard/$modname
+		    m4 --define="m4_name=$filename" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $filename.cv
+		    analyze $modname "-lib examples/wireguard/wireguard" $filename.cv tests/$output
+		done
+	    done
+	    
+	done
+    done
+
+    
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+
 rm tmp.*
