@@ -20,9 +20,12 @@ CV="$CRYPTOVERIFDIR/cryptoverif -lib wireguard"
 
 # Build wireguard.cvl
 
-ocamlopt -o hashgen hashgen.ml
-./hashgen 1 10 > hashoracles.cvl
-cat preamble.cvl $CRYPTOVERIFDIR/default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+if [ -f hashgen.ml ]
+then
+    ocamlopt -o hashgen hashgen.ml
+    ./hashgen 1 10 > hashoracles.cvl
+    cat preamble.cvl $CRYPTOVERIFDIR/default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+fi
 
 # The argument of analyze is
 # $1 = file name (without .cv)

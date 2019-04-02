@@ -198,9 +198,12 @@ echo
 output=WG`date '+%Y.%m.%d-%H_%M_%S'`
 (
     cd examples/wireguard
-    ocamlopt -o hashgen hashgen.ml
-    ./hashgen 1 10 > hashoracles.cvl
-    cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+    if [ -f hashgen.ml ]
+    then
+	ocamlopt -o hashgen hashgen.ml
+	./hashgen 1 10 > hashoracles.cvl
+	cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+    fi
     cd ../..
 
     analyze WG.25519.dos "-lib examples/wireguard/wireguard" examples/wireguard/WG.25519.dos.cv tests/$output
