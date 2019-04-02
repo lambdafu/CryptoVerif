@@ -1570,3 +1570,226 @@ ifdef(`m4_S_i_compr',` |
 ifdef(`m4_S_r_compr',` |
    corrupt_S_r(S_B_priv)')
   )
+
+ifdef(`m4_AB',`
+ifdef(`m4_replay_prot',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.AB.uniquesession_chbinding_weakUKS.replay_prot
+EXPECTED
+All queries proved.
+2.432s (user 2.424s + system 0.008s), max rss 32440K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.AB.only_psk.replay_prot
+EXPECTED
+All queries proved.
+22.372s (user 22.268s + system 0.104s), max rss 106284K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.AB.1st_msg.replay_prot
+EXPECTED
+All queries proved.
+18.036s (user 17.964s + system 0.072s), max rss 73060K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB.S_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+630.724s (user 629.856s + system 0.868s), max rss 695188K
+END *)
+',`
+(* WG.25519.AB.S_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+369.036s (user 368.684s + system 0.352s), max rss 233156K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB.E_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+353.380s (user 352.780s + system 0.600s), max rss 605452K
+END *)
+',`
+(* WG.25519.AB.E_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+29.688s (user 29.580s + system 0.108s), max rss 106316K
+END *)
+')
+')
+')
+')
+')
+',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.AB.uniquesession_chbinding_weakUKS.no_replay_prot
+EXPECTED
+All queries proved.
+1.992s (user 1.980s + system 0.012s), max rss 32464K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.AB.only_psk.no_replay_prot
+EXPECTED
+All queries proved.
+18.532s (user 18.432s + system 0.100s), max rss 93956K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.AB.1st_msg.no_replay_prot
+EXPECTED
+All queries proved.
+11.992s (user 11.928s + system 0.064s), max rss 73200K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+368.884s (user 368.044s + system 0.840s), max rss 694828K
+END *)
+',`
+(* WG.25519.AB.S_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+156.136s (user 155.808s + system 0.328s), max rss 204308K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB.E_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+206.560s (user 206.124s + system 0.436s), max rss 526028K
+END *)
+',`
+(* WG.25519.AB.E_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+21.772s (user 21.668s + system 0.104s), max rss 93832K
+END *)
+')
+')
+')
+')
+')
+')
+',`
+ifdef(`m4_replay_prot',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
+EXPECTED
+All queries proved.
+3.944s (user 3.912s + system 0.032s), max rss 40356K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.AB-BA.only_psk.replay_prot
+EXPECTED
+All queries proved.
+43.244s (user 43.024s + system 0.220s), max rss 203816K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.AB-BA.1st_msg.replay_prot
+EXPECTED
+All queries proved.
+70.616s (user 70.416s + system 0.200s), max rss 178680K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+838.780s (user 837.612s + system 1.168s), max rss 917352K
+END *)
+',`
+(* WG.25519.AB-BA.S_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+562.956s (user 562.512s + system 0.444s), max rss 305996K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB-BA.E_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+509.812s (user 508.924s + system 0.888s), max rss 913740K
+END *)
+',`
+(* WG.25519.AB-BA.E_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+54.036s (user 53.808s + system 0.228s), max rss 172924K
+END *)
+')
+')
+')
+')
+')
+',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
+EXPECTED
+All queries proved.
+3.256s (user 3.224s + system 0.032s), max rss 36092K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.AB-BA.only_psk.no_replay_prot
+EXPECTED
+All queries proved.
+34.796s (user 34.580s + system 0.216s), max rss 202240K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.AB-BA.1st_msg.no_replay_prot
+EXPECTED
+All queries proved.
+36.692s (user 36.524s + system 0.168s), max rss 157020K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB-BA.S_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+414.828s (user 413.716s + system 1.112s), max rss 797608K
+END *)
+',`
+(* WG.25519.AB-BA.S_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+189.308s (user 188.916s + system 0.392s), max rss 305920K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.AB-BA.E_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+259.348s (user 258.444s + system 0.904s), max rss 796372K
+END *)
+',`
+(* WG.25519.AB-BA.E_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+36.728s (user 36.552s + system 0.176s), max rss 156576K
+END *)
+')
+')
+')
+')
+')
+')
+')
+
