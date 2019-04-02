@@ -12,10 +12,15 @@ libraryfile=wireguard
 
 CRYPTOVERIFDIR=../..
 
-# Please update the next two lines to correspond to the location
+# Please update the next lines to correspond to the location
 # of a timing program and of CryptoVerif on your computer.
 
-TIME=$CRYPTOVERIFDIR/xtime
+if [ -x $CRYPTOVERIFDIR/xtime ]
+then
+    TIME=$CRYPTOVERIFDIR/xtime
+else
+    TIME=
+fi
 CV="$CRYPTOVERIFDIR/cryptoverif -lib wireguard"
 
 # Build wireguard.cvl
