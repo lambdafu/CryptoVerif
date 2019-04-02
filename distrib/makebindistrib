@@ -27,7 +27,7 @@ mkdir $DESTD
 sed s/VERSION/$VERSION/g\;s/YEAR/$YEAR/g distrib/READMEBIN > $DESTD/READMEBIN
 cp CHANGES LICENSE default.cvl default.ocvl test $DESTD
 
-mkdir $DESTD/docs $DESTD/examples $DESTD/examples/basic $DESTD/examples/obasic $DESTD/examples/kerberos $DESTD/examples/arinc823 $DESTD/examples/arinc823/sharedkey $DESTD/examples/arinc823/publickey $DESTD/examples/textsecure $DESTD/examples/tls13 $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
+mkdir $DESTD/docs $DESTD/examples $DESTD/examples/basic $DESTD/examples/obasic $DESTD/examples/kerberos $DESTD/examples/arinc823 $DESTD/examples/arinc823/sharedkey $DESTD/examples/arinc823/publickey $DESTD/examples/textsecure $DESTD/examples/tls13 $DESTD/examples/wireguard $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
 
 cd docs
 latex manual.tex
@@ -53,6 +53,14 @@ cp examples/arinc823/gen $DESTD/examples/arinc823
 cp examples/kerberos/*.pcv examples/kerberos/*.m4.cv $DESTD/examples/kerberos
 cp examples/textsecure/runcv $DESTD/examples/textsecure
 cp examples/tls13/runcv examples/tls13/README.md $DESTD/examples/tls13
+
+# Build wireguard.cvl
+cd examples/wireguard
+ocamlopt -o hashgen hashgen.ml
+./hashgen 1 10 > hashoracles.cvl
+cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > wireguard.cvl
+cd ../..
+cp examples/wireguard/wireguard.cvl examples/wireguard/runWG.25519 examples/wireguard/WG.25519.dos.cv examples/wireguard/*.m4.cv $DESTD/examples/wireguard
 
 for i in implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv*
 do
