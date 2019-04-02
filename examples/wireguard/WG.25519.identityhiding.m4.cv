@@ -966,5 +966,5 @@ END *)
 (* EXPECTED
 All queries proved.
 93.172s (user 93.000s + system 0.172s), max rss 138284K
-*)
+END *)
 ')
