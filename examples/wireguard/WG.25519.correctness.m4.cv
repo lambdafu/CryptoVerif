@@ -1,4 +1,6 @@
-(* This file generates several CryptoVerif scripts using the m4 preprocessor.
+(* Model of WireGuard written by Benjamin Lipp and Bruno Blanchet, Inria Paris.
+
+   This file generates several CryptoVerif scripts using the m4 preprocessor.
    It uses the following settings:
    m4_replay_prot    When this macro is defined, the first message is protected
    		     against replays using the timestamp.
