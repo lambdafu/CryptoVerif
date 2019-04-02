@@ -1517,3 +1517,225 @@ ifdef(`m4_S_i_compr',` |
 ifdef(`m4_S_r_compr',` |
    corrupt_S_r(S_B_priv)')
   )
+
+ifdef(`m4_AB',`
+ifdef(`m4_replay_prot',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.replay_prot
+EXPECTED
+All queries proved.
+1.148s (user 1.144s + system 0.004s), max rss 29184K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.keysecrecy.AB.only_psk.replay_prot
+EXPECTED
+All queries proved.
+3.976s (user 3.932s + system 0.044s), max rss 45608K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.keysecrecy.AB.1st_msg.replay_prot
+EXPECTED
+All queries proved.
+9.828s (user 9.756s + system 0.072s), max rss 64700K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+558.568s (user 558.092s + system 0.476s), max rss 266360K
+END *)
+',`
+(* WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+185.704s (user 185.500s + system 0.204s), max rss 120720K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+181.844s (user 181.564s + system 0.280s), max rss 178448K
+END *)
+',`
+(* WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+10.632s (user 10.568s + system 0.064s), max rss 64484K
+END *)
+')
+')
+')
+')
+')
+',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.no_replay_prot
+EXPECTED
+All queries proved.
+1.112s (user 1.096s + system 0.016s), max rss 26444K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.keysecrecy.AB.only_psk.no_replay_prot
+EXPECTED
+All queries proved.
+2.732s (user 2.692s + system 0.040s), max rss 45696K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.keysecrecy.AB.1st_msg.no_replay_prot
+EXPECTED
+All queries proved.
+6.360s (user 6.312s + system 0.048s), max rss 51752K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+303.896s (user 303.460s + system 0.436s), max rss 266124K
+END *)
+',`
+(* WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+76.504s (user 76.376s + system 0.128s), max rss 106188K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+87.296s (user 87.104s + system 0.192s), max rss 156932K
+END *)
+',`
+(* WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+7.364s (user 7.296s + system 0.068s), max rss 57860K
+END *)
+')
+')
+')
+')
+')
+')
+',`
+ifdef(`m4_replay_prot',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
+EXPECTED
+All queries proved.
+2.424s (user 2.412s + system 0.012s), max rss 36056K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.keysecrecy.AB-BA.only_psk.replay_prot
+EXPECTED
+All queries proved.
+11.132s (user 11.040s + system 0.092s), max rss 73480K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.keysecrecy.AB-BA.1st_msg.replay_prot
+EXPECTED
+All queries proved.
+56.772s (user 56.600s + system 0.172s), max rss 137720K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+980.008s (user 979.264s + system 0.744s), max rss 459472K
+END *)
+',`
+(* WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+717.760s (user 717.356s + system 0.404s), max rss 305720K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.replay_prot
+EXPECTED
+All queries proved.
+259.768s (user 259.400s + system 0.368s), max rss 232920K
+END *)
+',`
+(* WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.replay_prot
+EXPECTED
+All queries proved.
+27.352s (user 27.224s + system 0.128s), max rss 106124K
+END *)
+')
+')
+')
+')
+')
+',`
+ifdef(`m4_uniquesession_chbinding_weakUKS',`
+(* WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
+EXPECTED
+All queries proved.
+2.144s (user 2.132s + system 0.012s), max rss 35964K
+END *)
+',`
+ifdef(`m4_only_psk',`
+(* WG.25519.keysecrecy.AB-BA.only_psk.no_replay_prot
+EXPECTED
+All queries proved.
+8.088s (user 8.012s + system 0.076s), max rss 73612K
+END *)
+',`
+ifdef(`m4_first_msg_auth',`
+(* WG.25519.keysecrecy.AB-BA.1st_msg.no_replay_prot
+EXPECTED
+All queries proved.
+28.368s (user 28.224s + system 0.144s), max rss 127464K
+END *)
+',`
+ifdef(`m4_S_i_compr',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+470.488s (user 469.824s + system 0.664s), max rss 400852K
+END *)
+',`
+(* WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+202.236s (user 201.872s + system 0.364s), max rss 266116K
+END *)
+')
+',`
+ifdef(`m4_S_r_compr',`
+(* WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+112.812s (user 112.540s + system 0.272s), max rss 232972K
+END *)
+',`
+(* WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.no_replay_prot
+EXPECTED
+All queries proved.
+17.440s (user 17.336s + system 0.104s), max rss 94028K
+END *)
+')
+')
+')
+')
+')
+')
+')
