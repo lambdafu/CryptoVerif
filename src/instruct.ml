@@ -1361,6 +1361,41 @@ let equal_query q1 q2 =
       eq_pub_vars pub_vars1 pub_vars2
   | AbsentQuery, AbsentQuery -> true
   | _ -> false
+
+let success_command do_simplify state =
+  (* TO DO take into account do_simplify *)
+  let (state', is_done) = issuccess_with_advise state in
+  if is_done then
+    begin
+      if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
+	begin
+          (* undo focus when there is an inactive query *)
+	  print_string "All active queries proved. Going back to the last focus command."; print_newline();
+	  let state'' =
+	    try
+	      undo_focus dummy_ext state'
+	    with Error _ ->
+	      Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus command"
+	  in
+	  state''
+	end
+      else
+	raise (EndSuccess state')
+    end
+  else
+    begin
+      print_string "Sorry, the following queries remain unproved:\n";
+      List.iter (fun ((a, _) as q) ->
+	if Settings.get_query_status q == ToProve then
+	  begin
+	    print_string "- ";
+	    Display.display_query a;
+	    print_newline()
+	  end
+	    ) state'.game.current_queries;
+      state'
+    end
+
 	
 	
 (* [interpret_command interactive state command] runs the command [command]
@@ -1562,37 +1597,9 @@ let rec interpret_command interactive state = function
   | CQuit ->
       raise (End state)
   | CSuccesscom ->
-      let (state', is_done) = issuccess_with_advise state in
-      if is_done then
-	begin
-	  if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
-	    begin
-              (* undo focus when there is an inactive query *)
-	      print_string "All active queries proved. Going back to the last focus command."; print_newline();
-	      let state'' =
-		try
-		  undo_focus dummy_ext state'
-		with Error _ ->
-		  Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus command"
-	      in
-	      state''
-	    end
-	  else
-	    raise (EndSuccess state')
-	end
-      else
-	begin
-	  print_string "Sorry, the following queries remain unproved:\n";
-	  List.iter (fun ((a, _) as q) ->
-	    if Settings.get_query_status q == ToProve then
-	      begin
-		print_string "- ";
-		Display.display_query a;
-		print_newline()
-	      end
-		) state'.game.current_queries;
-	  state'
-	end
+      success_command None state
+  | CSuccessSimplify(collelim) ->
+      success_command (Some collelim) state
   | CShow_game(occ) ->
       Display.display_occurrences := occ;
       Display.display_game_process state.game;

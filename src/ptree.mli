@@ -213,6 +213,7 @@ type command =
   | CShow_state
   | CShow_game of bool(*true when "occ"*)
   | CSuccesscom
+  | CSuccessSimplify of pcoll_elim_t list
   | CQuit
   | CStart_from_other_end of Parsing_helper.extent
   | CCrypto of peqname * crypto_transf_user_info * Parsing_helper.extent

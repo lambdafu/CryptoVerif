@@ -384,6 +384,8 @@ proofcommand:
     { CShow_game(true) }
 |   SUCCESS
     { CSuccesscom }
+|   SUCCESS SIMPLIFY optcollelim
+    { CSuccessSimplify($3) }
 |   QUIT
     { CQuit }
 |   START_FROM_OTHER_END
