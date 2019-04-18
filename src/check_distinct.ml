@@ -30,7 +30,8 @@ let collect_facts_list bindex index1 defs =
     with Contradiction ->
       accu) [] defs
     
-let check_distinct b g =
+let check_distinct collector b g =
+  (* TO DO use collector *)
   Proba.reset [] g;
   Simplify1.improved_def_process None false (Terms.get_process g);
   let r_index1 = make_indexes b.args_at_creation in

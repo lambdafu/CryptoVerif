@@ -508,9 +508,9 @@ let rec execute_any_crypto_rec continue state = function
 	      CSuccess state' -> continue (CSuccess state')
 	    | CFailure l' -> continue (CFailure (l @ l'))) state equivs
 
-let rec issuccess_with_advise state = 
+let rec issuccess_with_advise collector state = 
   Settings.advise := [];
-  let (proved_queries, is_done) = Success.is_success state in
+  let (proved_queries, is_done) = Success.is_success collector state in
   let state' = 
     if proved_queries != [] then
       { game = state.game;
@@ -518,8 +518,14 @@ let rec issuccess_with_advise state =
     else
       state
   in
-  if is_done then
-    (state', true)
+  if is_done || (collector != None) then
+    (* We do not apply advice when doing [success simplify].
+       The goal is to simplify the game by removing useless code,
+       not necessarily to prove all queries.
+       Applying advice would be rather complicated, because it
+       is difficult to know whether the value of [collector]
+       after applying advice is better than the one without advice. *)
+    (state', is_done)
   else 
     let (state'', is_done'') = 
       if (!Settings.advise) != [] then
@@ -534,7 +540,7 @@ let rec issuccess_with_advise state =
 	  end;
 	let (state'',_) = execute_list_with_advise state' (!Settings.advise) in
 	if !Settings.changed then
-	  let (state_after_success, _) as result = issuccess_with_advise state'' in
+	  let (state_after_success, _) as result = issuccess_with_advise None state'' in
 	  if state_after_success == state'' then
 	    (* Nothing was proved by the call to issuccess_with_advise,
 	       undo the advised transformations *)
@@ -646,7 +652,7 @@ let rec insert_sort sorted = function
    The proof is not displayed. *)
 let rec execute_any_crypto_rec1 interactive state =
   try 
-    let (state', is_done) =  issuccess_with_advise state in
+    let (state', is_done) =  issuccess_with_advise None state in
     if is_done then
       begin
 	if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
@@ -1363,8 +1369,16 @@ let equal_query q1 q2 =
   | _ -> false
 
 let success_command do_simplify state =
-  (* TO DO take into account do_simplify *)
-  let (state', is_done) = issuccess_with_advise state in
+  (* [collector] collects facts that are known to hold when the adversary
+     wins, i.e. falsifies a query.
+     The list inside [collector] is a disjunction. *)
+  let collector =
+    if do_simplify = None then
+      None
+    else
+      Some (ref [])
+  in
+  let (state', is_done) = issuccess_with_advise collector state in
   if is_done then
     begin
       if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
@@ -1393,7 +1407,13 @@ let success_command do_simplify state =
 	    print_newline()
 	  end
 	    ) state'.game.current_queries;
-      state'
+      match do_simplify, collector with
+      |	Some coll_elim, Some coll_ref ->
+	  (* TO DO simplify *)
+	  state'
+      | None, None -> state'
+      | _ ->
+	  Parsing_helper.internal_error "Instruct.success_command: incoherent do_simplify and collector"
     end
 
 	

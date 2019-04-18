@@ -578,7 +578,7 @@ let get_facts_full_block_cases end_pp =
    executed. From the program point, we can recover the facts that hold,
    the variables that are defined, etc. *)
       
-let check_corresp event_accu (t1,t2,pub_vars) g =
+let check_corresp collector event_accu (t1,t2,pub_vars) g =
   Terms.auto_cleanup (fun () ->
 (* Dependency collision must be deactivated, because otherwise
    it may consider the equality between t1 and t1' below as an unlikely

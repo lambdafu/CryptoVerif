@@ -6,6 +6,6 @@ open Types
    associated probability of success of an attack) as well as boolean
    which is true when all queries are proved. *)
 
-val is_success : state -> ((query * game) * setf list) list * bool
+val is_success : (* TO DO 'a *) 'a list ref option -> state -> ((query * game) * setf list) list * bool
 
 val update_full_proof : state -> unit

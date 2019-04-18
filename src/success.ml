@@ -449,7 +449,8 @@ let has_assign b =
    It returns [(false, _)] when the proof of one-session secrecy
    of [b] failed. *)
 
-let check_secrecy b pub_vars =
+let check_secrecy collector b pub_vars =
+  (* TO DO use collector *)
   let ty = ref None in
   Simplify1.reset [] (!whole_game);
   advise := [];
@@ -543,33 +544,34 @@ let check_secrecy b pub_vars =
    when it is called several times with the same variable [b]
    and list [l]. *)
 
-let check_secrecy_memo b l =
+let check_secrecy_memo collector b l =
   try
     let (_,_,res) = List.find (fun (b',l',res) -> (b == b') && (Terms.equal_lists (==) l l')) 
 	(!proved_one_session_secrets) 
     in 
     res
   with Not_found ->
-    let res = check_secrecy b l in
+    let res = check_secrecy collector b l in
     proved_one_session_secrets := (b, l, res) :: (!proved_one_session_secrets);
     res
 
 (* [check_equivalence state game] checks indistinguishability *)
 
-let check_equivalence state game =
+let check_equivalence collector state game =
+  (* TO DO use collector *)
   Transf_merge.equal_games game state.game
       
 (* [check_query q] proves the query [q]. 
    It returns [(true, proba)] when [q] holds up to probability [proba].
    It returns [(false, _)] when the proof of [q] failed.*)
 
-let check_query event_accu = function
+let check_query collector event_accu = function
   | (QSecret (b,pub_vars,onesession),_) -> 
-      let (r1, proba1) = check_secrecy_memo b pub_vars in
+      let (r1, proba1) = check_secrecy_memo collector b pub_vars in
       if onesession then
 	(r1, proba1)
       else if r1 then
-	let (r2, proba2) = Check_distinct.check_distinct b (!whole_game) in
+	let (r2, proba2) = Check_distinct.check_distinct collector b (!whole_game) in
 	if r2 then
 	  begin
 	    let proba = proba1 @ proba2 in
@@ -590,9 +592,9 @@ let check_query event_accu = function
       let (r, proba) =
 	match query with
 	| QEventQ(t1,t2,pub_vars) ->
-	    Check_corresp.check_corresp event_accu (t1,t2,pub_vars) (!whole_game)
+	    Check_corresp.check_corresp collector event_accu (t1,t2,pub_vars) (!whole_game)
 	| QEquivalence(state,pub_vars) ->
-	    check_equivalence state (!whole_game)
+	    check_equivalence collector state (!whole_game)
 	| QEquivalenceFinal _ | AbsentQuery | QSecret _ ->
 	    (* AbsentQuery | QSecret _ handled above;
 	       QEquivalenceFinal should never happen *)
@@ -612,22 +614,22 @@ let check_query event_accu = function
 	end
       else (false, [])
 
-(* [check_query_list state qlist] takes a list of queries [qlist], tries to prove
+(* [check_query_list collector event_accu state qlist] takes a list of queries [qlist], tries to prove
    those that are not proved yet, and returns
     - the list of queries it proved with the associated probability of success of an attack.
     - the updated list of all queries with their proofs
     - a boolean which is true when all queries have been proved *)
 
-let rec check_query_list event_accu state = function
+let rec check_query_list collector event_accu state = function
     [] -> ([],true)
   | (((a, poptref) as q)::l) ->
-      let (l',b) = check_query_list event_accu state l in
+      let (l',b) = check_query_list collector event_accu state l in
       match Settings.get_query_status q with
       | Proved _ | Inactive -> (* The query was already proved before, 
 				  or is inactive *)
 	  (l',b)
       |	ToProve -> (* We need to prove the query *)
-	  let (res, proba) = check_query event_accu a in
+	  let (res, proba) = check_query collector event_accu a in
 	  if res then
 	    begin
 	      (* The query is proved *)
@@ -689,13 +691,13 @@ let rec update_full_proof state =
 	end
 
     
-(* [is_success state] tries to prove queries that still need to be
+(* [is_success collector state] tries to prove queries that still need to be
    proved in [state]. It updates the proofs of the queries inside
    [state] and returns the list of newly proved queries (with the
    associated probability of success of an attack) as well as boolean
    which is true when all queries are proved. *)
 
-let is_success state =
+let is_success collector state =
   let g = state.game in
   whole_game := g;
   let g_proc = Terms.get_process g in
@@ -703,7 +705,7 @@ let is_success state =
   let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
   Simplify1.improved_def_process (Some event_accu) true g_proc;
-  let (proved_queries, all_proved) = check_query_list (!event_accu) state g.current_queries in
+  let (proved_queries, all_proved) = check_query_list collector (!event_accu) state g.current_queries in
   update_full_proof state;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
