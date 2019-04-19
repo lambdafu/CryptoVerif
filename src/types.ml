@@ -512,7 +512,7 @@ and crypto_transf_user_info =
 	
 and instruct =
     ExpandIfFindGetInsert
-  | Simplify of coll_elim_t list(*occurrences, variables, or types for collision elimination of password types*)
+  | Simplify of known_when_adv_wins option * coll_elim_t list(*occurrences, variables, or types for collision elimination of password types*)
   | GlobalDepAnal of binder * coll_elim_t list (* same as for Simplify *)
   | RemoveAssign of rem_set
   | SArenaming of binder
@@ -609,6 +609,15 @@ and state =
     { game : game;
       prev_state : (instruct * setf list * detailed_instruct list * state) option }
 
+and simp_facts = term list * term list * elsefind_fact list
+
+(* Collector for known information when the adversary wins,
+   i.e. manages to falsify a query.
+   The top list is a disjunction *)
+      
+and known_when_adv_wins =
+    ((term list * program_point) list * simp_facts * binderref list) list
+
 (* Result of a cryptographic transformation *)
 type failure_reason =
     Term of term
@@ -625,8 +634,6 @@ type failure_reason =
 type trans_res =
     TSuccess of setf list * detailed_instruct list * game
   | TFailure of (equiv_nm * crypto_transf_user_info * instruct list) list * ((binder * binder) list * failure_reason) list
-
-type simp_facts = term list * term list * elsefind_fact list
 
 type dep_anal_side_cond =
     NoSideCond
@@ -700,13 +707,6 @@ type known_history =
       def_vars_in_different_blocks : (def_node list * term list) list;
       def_vars_maybe_in_same_block : (def_node list * term list) list }
 
-
-(* Collector for known information when the adversary wins,
-   i.e. manages to falsify a query.
-   The top list is a disjunction *)
-      
-type known_when_adv_wins =
-    ((term list * program_point) list * simp_facts * binderref list) list
 
       
 (* For the generation of implementations

@@ -127,7 +127,7 @@ let execute g ins =
     match ins with
       ExpandIfFindGetInsert -> 
 	compos_transf Transf_expand.expand_process (Transf_tables.reduce_tables g)
-    | Simplify l -> Transf_simplify.simplify_main l g
+    | Simplify(collector, l) -> Transf_simplify.simplify_main collector l g
     | GlobalDepAnal (b,l) -> Transf_globaldepanal.main b l g
     | MoveNewLet s -> Transf_move.move_new_let s g
     | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
@@ -195,7 +195,7 @@ let rec execute_state state = function
       if !Settings.changed then 
 	if !Settings.simplify_after_sarename then 
 	  let (state'', ins_updater') = execute_state_basic state' (default_remove_assign()) in
-	  let (state''', ins_updater'') = execute_state state'' (Simplify []) in
+	  let (state''', ins_updater'') = execute_state state'' (Simplify(None, [])) in
 	  (state''', compos_ins_updater (compos_ins_updater ins_updater ins_updater') ins_updater'')
 	else
 	  (state', ins_updater)
@@ -204,7 +204,7 @@ let rec execute_state state = function
 	  Settings.changed := tmp_changed;
 	  (state', ins_updater)
 	end
-  | (Simplify l) as i ->
+  | (Simplify _) as i ->
       (* Iterate Simplify (!Settings.max_iter_simplif) times *)
       let tmp_changed = !Settings.changed in
       Settings.changed := false;
@@ -357,7 +357,7 @@ let merge state =
   else
     state
 
-let simplify state = merge (execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify []))) (default_remove_assign()))
+let simplify state = merge (execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify(None,[])))) (default_remove_assign()))
 
 let expand_simplify state = simplify (execute_with_advise_last state ExpandIfFindGetInsert)
 
@@ -1409,8 +1409,8 @@ let success_command do_simplify state =
 	    ) state'.game.current_queries;
       match do_simplify, collector with
       |	Some coll_elim, Some coll_ref ->
-	  (* TO DO simplify *)
-	  state'
+	  (* simplify *)
+	  execute_display_advise state' (Simplify (Some !coll_ref, coll_elim))
       | None, None -> state'
       | _ ->
 	  Parsing_helper.internal_error "Instruct.success_command: incoherent do_simplify and collector"
@@ -1471,7 +1471,7 @@ let rec interpret_command interactive state = function
 	    end
       end
   | CSimplify(coll_elim) -> 
-      execute_display_advise state (Simplify (List.map (interpret_coll_elim state) coll_elim))
+      execute_display_advise state (Simplify (None, List.map (interpret_coll_elim state) coll_elim))
   | CInsert_event((s, ext1), (occ_cmd, ext)) ->
       begin
 	try
@@ -1618,8 +1618,8 @@ let rec interpret_command interactive state = function
       raise (End state)
   | CSuccesscom ->
       success_command None state
-  | CSuccessSimplify(collelim) ->
-      success_command (Some collelim) state
+  | CSuccessSimplify(coll_elim) ->
+      success_command (Some (List.map (interpret_coll_elim state) coll_elim)) state
   | CShow_game(occ) ->
       Display.display_occurrences := occ;
       Display.display_game_process state.game;

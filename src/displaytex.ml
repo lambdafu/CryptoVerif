@@ -1262,10 +1262,15 @@ let display_coll_elim = function
     
 let display_instruct = function
     ExpandIfFindGetInsert -> print_string "expand get, insert, if, let, find"
-  | Simplify [] -> print_string "simplify"
-  | Simplify l -> 
-      print_string "simplify with collision elimination at ";
-      display_list_sep "; \\allowbreak " display_coll_elim l
+  | Simplify(collector, l) ->
+      print_string "simplify";
+      if l != [] then
+	begin
+	  print_string " with collision elimination at ";
+	  display_list_sep "; \\allowbreak " display_coll_elim l
+	end;
+      if collector != None then
+	print_string " eliminating code unreachable when queries fail"
   | GlobalDepAnal (b,l) ->
       print_string "global dependency analysis on $";
       display_binder b;
