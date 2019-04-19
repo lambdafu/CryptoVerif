@@ -7,5 +7,5 @@ open Types
    it also returns the probability of collisions eliminated to reach that 
    result.
 *)
-val check_distinct :  (* TO DO 'a *) 'a list ref option ->
+val check_distinct :  known_when_adv_wins ref option ->
   binder -> game -> bool * setf list

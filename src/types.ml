@@ -700,6 +700,15 @@ type known_history =
       def_vars_in_different_blocks : (def_node list * term list) list;
       def_vars_maybe_in_same_block : (def_node list * term list) list }
 
+
+(* Collector for known information when the adversary wins,
+   i.e. manages to falsify a query.
+   The top list is a disjunction *)
+      
+type known_when_adv_wins =
+    ((term list * program_point) list * simp_facts * binderref list) list
+
+      
 (* For the generation of implementations
    type for a program : name, options, process *)
 

@@ -606,7 +606,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
     b') (!vars_t1)
   in
   let collect_facts1 next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars (is_inj,t) =
-    List.for_all (fun (t1',end_pp) ->
+    Terms.for_all_collector collector (fun (t1',end_pp) ->
       match t.t_desc,t1'.t_desc with
 	FunApp(f,idx::l),FunApp(f',idx'::l') ->
 	  if f == f' then
@@ -752,26 +752,27 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	  in
           let facts' = Facts.simplif_add_list Facts.no_dependency_anal facts' facts2 in
           (* second, prove [t2] from these facts *)
-	  check_term (fun injinfo' -> injinfo := injinfo'; true) (facts', elsefind_facts_list', injrepidx_pps', vars', vars_t1') (!injinfo) t2)
-      with
-	NoMatchExplain e ->
-	  (* The proof failed. Explain why in a short message. *)
-	  print_string "Proof of ";
-	  Display.display_query3 (QEventQ(t1,t2,pub_vars));
-	  print_string " failed:\n";
-	  print_string "  Found ";
-	  Display.display_list (fun t ->
-	    Display.display_term t;
-	    print_string " at ";
-	    print_int t.t_occ
-	      ) events_found';
-	  print_newline();
-	  print_string "  but could not prove ";
-	  display_explanation e;
-	  print_newline();	  
-	  false
-      |	Contradiction -> 
-	  true
+	  try
+	    check_term (fun injinfo' -> injinfo := injinfo'; true) (facts', elsefind_facts_list', injrepidx_pps', vars', vars_t1') (!injinfo) t2
+	  with NoMatchExplain e ->
+	    (* The proof failed. Explain why in a short message. *)
+	    print_string "Proof of ";
+	    Display.display_query3 (QEventQ(t1,t2,pub_vars));
+	    print_string " failed:\n";
+	    print_string "  Found ";
+	    Display.display_list (fun t ->
+	      Display.display_term t;
+	      print_string " at ";
+	      print_int t.t_occ
+		) events_found';
+	    print_newline();
+	    print_string "  but could not prove ";
+	    display_explanation e;
+	    print_newline();
+	    Terms.add_to_collector collector (List.map (fun (_, end_pp, _, new_end_sid) -> (new_end_sid, end_pp)) elsefind_facts_list', facts', def_vars');
+	    false)
+      with Contradiction -> 
+	true
 	  ) [] ([],[],[]) [] [] [] [] t1
   in
   if r then

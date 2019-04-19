@@ -29,9 +29,8 @@ let collect_facts_list bindex index1 defs =
       (d, collect_facts d bindex index1)::accu
     with Contradiction ->
       accu) [] defs
-    
+
 let check_distinct collector b g =
-  (* TO DO use collector *)
   Proba.reset [] g;
   Simplify1.improved_def_process None false (Terms.get_process g);
   let r_index1 = make_indexes b.args_at_creation in
@@ -43,8 +42,8 @@ let check_distinct collector b g =
   let d1withfacts = collect_facts_list bindex index1 b.def in
   let d2withfacts = collect_facts_list bindex index2 b.def in
   let r = 
-  List.for_all (fun (d1,(d1facts,d1def_vars,d1elsefind_facts)) ->
-    List.for_all (fun (d2,(d2facts,d2def_vars,d2elsefind_facts)) ->
+  Terms.for_all_collector collector (fun (d1,(d1facts,d1def_vars,d1elsefind_facts)) ->
+    Terms.for_all_collector collector (fun (d2,(d2facts,d2def_vars,d2elsefind_facts)) ->
       match d1.definition, d2.definition with
 	DProcess { p_desc = Restr _ }, DProcess { p_desc = Restr _} -> true
       | DProcess { p_desc = Restr _ }, 
@@ -68,7 +67,7 @@ let check_distinct collector b g =
 		    else
 		      []
 		  in
-		  ignore (Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2);
+		  let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2 in
 		  (* The following part is commented out because it is too costly. 
 
 		  let simp_facts2 = [code above] in
@@ -77,7 +76,8 @@ let check_distinct collector b g =
 		     Hence the elsefind facts at the let hold. 
 		  let (subst, facts, _) = simp_facts2 in
 		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
-		  ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
+		     ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
+		  Terms.add_to_collector collector ([(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);		  
 		  false
 		with Contradiction -> true
 		    )
@@ -109,7 +109,7 @@ let check_distinct collector b g =
 		    else
 		      []
 		  in
-		  ignore (Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2);
+		  let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2 in
 		  (* The following part is commented out because it is too costly. 
 
 		  let simp_facts2 = [code above] in
@@ -119,7 +119,8 @@ let check_distinct collector b g =
 		     Hence the elsefind facts at the 2nd let hold. 
 		  let (subst, facts, _) = simp_facts2 in
 		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
-		  ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
+		     ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
+		  Terms.add_to_collector collector ([(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);
 		  false
 		with Contradiction -> true
 		    )

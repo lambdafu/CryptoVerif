@@ -450,7 +450,14 @@ let has_assign b =
    of [b] failed. *)
 
 let check_secrecy collector b pub_vars =
-  (* TO DO use collector *)
+  let not_found_flag = ref false in (* Flag set to true instead of raising Not_found 
+				       when we want to examine all cases to fill the collector *)
+  let set_not_found() =
+    if collector = None then
+      raise Not_found
+    else
+      not_found_flag := true
+  in
   let ty = ref None in
   Simplify1.reset [] (!whole_game);
   advise := [];
@@ -463,6 +470,7 @@ let check_secrecy collector b pub_vars =
 	  if has_assign b' then
 	    begin
 	      add_leak (NotOnlyRestr b');
+	      Terms.add_to_collector collector ([], Terms.simp_facts_id, []);
 	      advise := Terms.add_eq (RemoveAssign (Binders [b'])) (!advise)
 	    end
 	  else if Terms.is_restr b' then
@@ -474,22 +482,24 @@ let check_secrecy collector b pub_vars =
 	      |	Some ty' -> if ty' != b'.btype then 
 		  Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " has definitions of different types"));
 	      try
-		let (lidx, facts) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition_success in
+		let (lidx, ((_, simp_facts, defined_refs, pp_list) as facts)) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition_success in
 		let rename = Terms.subst b.args_at_creation lidx in
-		check_usage_full_process [b'] b' (List.map rename l) facts
-	      with
-		Not_found ->
+		try
+		  check_usage_full_process [b'] b' (List.map rename l) facts
+		with Not_found ->
+		  Terms.add_to_collector collector (pp_list, simp_facts, defined_refs);
 		  if List.length b'.def > 1 then
 		    advise := Terms.add_eq (SArenaming b') (!advise)
 		  else
-		    raise Not_found
-	      |	Contradiction ->
-		  (* Current program point unreachable *)
-		  ()
+		    set_not_found()
+	      with Contradiction ->
+		(* Current program point unreachable *)
+		()
 	    end
 	  else
 	    begin
 	      add_leak (NotOnlyRestr b');
+	      Terms.add_to_collector collector ([], Terms.simp_facts_id, []);
 	      raise Not_found
 	    end
       |	DProcess { p_desc = Restr(_, _) } ->
@@ -501,15 +511,21 @@ let check_secrecy collector b pub_vars =
 	    try
 	      current_restr := Some b;
 	      public_vars := pub_vars;
-	      let (lidx, facts) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition_success in
-	      check_usage_full_process [b] b lidx facts
+	      let (lidx, ((_, simp_facts, defined_refs, pp_list) as facts)) = add_facts_at ([],([],[],[]),[],[]) b.args_at_creation [] d.definition_success in
+	      try 
+		check_usage_full_process [b] b lidx facts
+	      with Not_found ->
+		Terms.add_to_collector collector (pp_list, simp_facts, defined_refs);
+		set_not_found()
 	    with Contradiction ->
 	      (* Current program point unreachable *)
 	      ()
 	  end
       |	_ ->
 	  add_leak NotRestrOrAssign;
+	  Terms.add_to_collector collector ([], Terms.simp_facts_id, []);
 	  raise Not_found) b.def;
+    if !not_found_flag then raise Not_found;
     if (!advise) == [] then
       begin
 	print_string "Proved one-session secrecy of ";
@@ -558,7 +574,8 @@ let check_secrecy_memo collector b l =
 (* [check_equivalence state game] checks indistinguishability *)
 
 let check_equivalence collector state game =
-  (* TO DO use collector *)
+  (* The adversary may always win *)
+  Terms.add_to_collector collector ([], Terms.simp_facts_id, []);
   Transf_merge.equal_games game state.game
       
 (* [check_query q] proves the query [q]. 

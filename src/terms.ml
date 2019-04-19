@@ -9,6 +9,29 @@ let try_no_var_id t = t
 let add_else_find else_find' (facts, subst, else_find) =
   (facts, subst, else_find' @ else_find)
 	    
+let add_to_collector collector elem =
+  match collector with
+  | None -> ()
+  | Some coll_ref ->
+      coll_ref := elem :: (!coll_ref)
+
+(* [for_all_collector collector f l] computes [List.for_all f l]
+   but applies [f] to all elements of [l] in case [collector] 
+   is not [None] *)
+			    
+let for_all_collector collector =
+  if collector = None then
+    List.for_all
+  else
+    let rec aux f = function
+      | [] -> true
+      | a::l ->
+	  let av = f a in
+	  let lv = aux f l in
+	  av && lv
+    in
+    aux
+			    
 (* [ends_with s sub] is true when the string [s] ends with [sub] *)
 
 let ends_with s sub =

@@ -2,6 +2,10 @@ open Types
 
 val add_else_find : elsefind_fact list -> simp_facts -> simp_facts
 
+val add_to_collector : 'a list ref option -> 'a -> unit
+
+val for_all_collector : 'a option -> ('b -> bool) -> 'b list -> bool
+    
 (* Basic string functions *)
 
 (* [ends_with s sub] is true when the string [s] ends with [sub] *)
