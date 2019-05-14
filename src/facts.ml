@@ -190,6 +190,11 @@ let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) 
 
 
 let replace_term_repl_index t =
+  (* When t is already a replication index, leave it unchanged. 
+     This is important because we obtain the initial term
+     before replacement with replication indices by following
+     ri_link once. If we performed the replacement several times
+     for the same term, that would not work. *)
   match t.t_desc with
   | ReplIndex _ -> t
   | _ -> 
