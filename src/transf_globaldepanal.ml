@@ -446,20 +446,26 @@ Returns [None] if that is not possible.
 
 let dependency_anal cur_array = 
   let indep_test simp_facts t (b,l) =
-    (* [b] must be a restriction. The only case in which we have information 
-       is when [b] is [b0] ([main_var]). *)
-    if b != (!main_var) then None else
-    if List.exists depends l then None else
-    begin
-      try 
-	let collect_bargs = ref [] in
-	get_dep_indices collect_bargs t;
-	if List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs) then
+    let result = 
+      (* [b] must be a restriction. The only case in which we have information 
+	 is when [b] is [b0] ([main_var]). *)
+      if b != (!main_var) then None else
+      if List.exists depends l then None else
+      begin
+	try 
+	  let collect_bargs = ref [] in
+	  get_dep_indices collect_bargs t;
+	  if List.exists (List.for_all2 Terms.equal_terms l) (!collect_bargs) then
 	  (* t depends on b0[l] *)
-	  raise Depends;
-	Some (t, if (!collect_bargs) == [] then NoSideCond else SideCondFixed(l, (!collect_bargs)))
-      with Depends -> None
-    end
+	    raise Depends;
+	  Some (t, if (!collect_bargs) == [] then NoSideCond else SideCondFixed(l, (!collect_bargs)))
+	with Depends -> None
+      end
+    in
+    if result = None then
+      Facts.default_indep_test (None, []) simp_facts t (b,l)
+    else
+      result
   in
   let collision_test simp_facts t1 t2 =
     let t1' = try_no_var_rec simp_facts t1 in

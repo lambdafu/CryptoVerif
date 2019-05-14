@@ -190,9 +190,12 @@ let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) 
 
 
 let replace_term_repl_index t =
-  let ri = new_repl_index_term t in
-  ri.ri_link <- TLink t;
-  Terms.term_from_repl_index ri
+  match t.t_desc with
+  | ReplIndex _ -> t
+  | _ -> 
+      let ri = new_repl_index_term t in
+      ri.ri_link <- TLink t;
+      Terms.term_from_repl_index ri
                  
 let rec make_indep simp_facts ((b0,l0,(dep,nodep),side_condition_needed) as bdepinfo) t =
   match t.t_desc with
@@ -675,11 +678,19 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	      sc_proba := Terms.make_and side_cond' (!sc_proba)
 	    end;
 	  (* reduced term *)
-	  let t' = Terms.copy_term Terms.Links_Vars redr in
+	  let t' = Terms.copy_term Terms.Links_RI
+	      (Terms.copy_term Terms.Links_Vars redr)
+	  in
           (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
-          Display.display_term redl; *) 
+          Display.display_term redl;
+	  print_string " reduces into ";
+	  let redr' = Terms.copy_term Terms.Links_Vars redr in
+	  Display.display_term redr';
+	  print_string " instantiated ";
+	  Display.display_term t';
+	  print_newline(); *)
 	  (* There is one instance of the collision problem for each value of
 	     the variables in [restr_indep_map] i.e. restrictions and 
 	     variables with independence conditions. The number of values
