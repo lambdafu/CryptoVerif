@@ -1,6 +1,13 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version 2.01pl1
+
+- Fixed bug that could prevent the application of
+  collision statements with independence conditions
+  in some cases.
+- Fixed bug that could cause an internal error.
+
 Version 2.01
 
 - Allow proving indistinguishability between two games by
