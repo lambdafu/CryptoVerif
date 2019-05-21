@@ -54,7 +54,7 @@ https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb
    but done when generating a key pair:
 https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb5e93b899a63de2dea9670e10/src/curve25519_wrapper.js#L25
 *)
-expand DH_prime_subgroup_secret_keys_multiple_k(G, Z, g, gexp, mult, subG, g_8, gexp_div_8, gexp_div_8', pow8, subGtoG, zero, sub_zero).
+expand DH_X25519(G, Z, g, gexp, mult, subG, g_8, gexp_div_8, gexp_div_8', pow8, subGtoG, zero, sub_zero).
 proba pGDH.
 proba psquare_GDH.
 expand square_GDH(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, pGDH, psquare_GDH).
