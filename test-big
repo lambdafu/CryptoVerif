@@ -88,6 +88,25 @@ do
     
 done
 
+for dir in examplesnd/textsecure-X448 examplesnd/textsecure-single_coord_ladder
+do
+    echo
+    echo TEXTSECURE $dir
+    echo
+    
+    for prot in NO_REPLAY_PROT REPLAY_PROT
+    do	
+	for sessions in AB-BA #AA
+	do
+	    for prop in STD #FS
+	    do
+		m4 -D$prop -D$prot $dir/TextSecure-$sessions.m4.cv > $dir/TextSecure-$sessions.$prop.$prot.cv
+		analyze TextSecure-$sessions.$prop.$prot "" $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
+	    done
+	done
+    done    
+done
+
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 
