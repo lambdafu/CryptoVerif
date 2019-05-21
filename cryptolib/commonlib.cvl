@@ -2402,7 +2402,7 @@ equation pow_k(g) = g_k.
 
 fun ZnwtoZ(Znw): Z [data].
 
-equiv(excluded_weak_keys(Z))
+equiv(exclude_weak_keys(Z))
 foreach i<=N do O() := x <-R Z; return(x)
 <=(2*Pcoll1rand(Z))=>
 foreach i<=N do O() := y <-R Znw; return(ZnwtoZ(y)).
