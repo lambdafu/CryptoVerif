@@ -145,13 +145,7 @@ expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g11, exp11, exp11', mult11, prf11
 expand square_DH_proba_collision(G, tZ, g5, exp5, exp5', mult5, PCollKey1, PCollKey2, PCollKey3).
 expand DH_good_group(G, tZ, g6, exp6, exp6', mult6).
 type subG [bounded].
-expand DH_prime_subgroup_secret_keys_multiple_k(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero7, sub_zero).
-
-
-type subG3 [bounded].
-expand DH_prime_subgroup_secret_keys_not_multiple_k(G, tZ, g3, exp3, exp3', expblock, mult3, subG3, g_k3, expsub, expsub', pow_k3, PCollKey1, PCollKey2, PCollKey3, PCollKey4).
-expand GDH_subgroup(G, tZ, g3, exp3, exp3', expblock, mult3, subG3, g_k3, expsub, expsub', pow_k3, pGDH).
-expand square_GDH_subgroup(G, tZ, g3, exp3, exp3', expblock, mult3, subG3, g_k3, expsub, expsub', pow_k, pGDH, pSQGDH).
+expand DH_X25519(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero7, sub_zero).
 
 
 type D [bounded]. 
