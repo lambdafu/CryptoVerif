@@ -3,6 +3,11 @@ of the cryptographic protocol verifier.
 
 Version 2.01pl1
 
+- Revised models for elliptic curve Diffie-Hellman: removed
+  DH_prime_subgroup_secret_keys_multiple_k,
+  DH_prime_subgroup_secret_keys_not_multiple_k,
+  GDH_subgroup, and square_GDH_subgroup;
+  added DH_single_coord_ladder, DH_X25519, and DH_X448.
 - Fixed bug that could prevent the application of
   collision statements with independence conditions
   in some cases.

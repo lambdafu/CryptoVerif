@@ -2385,10 +2385,9 @@ collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
 (* DH_X25519 models Curve25519 as defined in RFC 7748.
 https://tools.ietf.org/html/rfc7748
    More generally, it supports the same curves as DH_single_coord_ladder
-   with the additional assumption that n_max < min(q,q'), so 
-   all secret keys are prime to qq'. Therefore, we do not need
-   to exclude weak secret keys, so the parameters Znw and ZnwtoZ 
-   are removed, and we use Z instead of Znw.
+   with the additional assumption that all secret keys are prime to qq'. 
+   Therefore, we do not need to exclude weak secret keys, so the
+   parameters Znw and ZnwtoZ are removed, and we use Z instead of Znw.
 
    Curve25519 satisfies these assumptions with
     - p = 2^{255}-19
