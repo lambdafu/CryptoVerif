@@ -2182,7 +2182,7 @@ equiv(exp'_to_group(exp))
 https://tools.ietf.org/html/rfc7748
    More generally, it supports a curve defined by the equation
    Y^2 = X^3 + A X^2 + X in the field F_p of non-zero integers modulo the 
-   large prime, where A^2 - 4 is not a square modulo p.
+   large prime p, where A^2 - 4 is not a square modulo p.
    This curve must form a commutative group of order kq where k is a 
    small integer and q is a large prime.
    Its quadratic twist must form a commutative group of order k'q' where k' 
