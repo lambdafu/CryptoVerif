@@ -69,12 +69,12 @@ do
 	    for prop in STD FS
 	    do
 		m4 -D$prop -D$prot $dir/TextSecure-$sessions.m4.cv > $dir/TextSecure-$sessions.$prop.$prot.cv
-		analyze TextSecure-$sessions.$prop.$prot $lib $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
+		analyze TextSecure-$sessions.$prop.$prot "$lib" $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
 	    done
 	done
 	
 	m4 -D$prot $dir/TextSecure-KCI.m4.cv > $dir/TextSecure-KCI.$prot.cv
-	analyze TextSecure-KCI.$prot $lib $dir/TextSecure-KCI.$prot.cv tests/$output
+	analyze TextSecure-KCI.$prot "$lib" $dir/TextSecure-KCI.$prot.cv tests/$output
 	
     done
 

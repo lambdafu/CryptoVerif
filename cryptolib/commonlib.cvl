@@ -2199,7 +2199,7 @@ equiv(exp'_to_group(exp))
    The Diffie-Hellman "exponentiation" is defined by 
       exp(X,y) = repr((red(X))^y).
    The secret keys are chosen uniformly in { kn | n \in [n_min,n_max] }
-   where 0 < n_min < n_max, n_max-n_min < q, and n_max-n_min < q'.
+   where n_min < n_max, n_max-n_min < q, and n_max-n_min < q'.
 
    Therefore the set of secret keys may contain a multiple of q (resp. q').
    Such keys are weak, in the sense that they yield 0 for all public
