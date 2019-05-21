@@ -2376,6 +2376,152 @@ collision x <-R Z; y <-R Z; y' <-R Z; [random_choices_may_be_equal]
 
 }
 
+(*
+
+
+*)
+
+def DH_X448(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
+
+fun mult(Znw,Znw): Znw. 
+equation builtin commut(mult).
+
+fun pow_k(G):subG.
+fun subGtoG(subG): G [data].
+
+equation forall x:subG, x':subG;
+   (pow_k(subGtoG(x)) = pow_k(subGtoG(x'))) = (x = x'). 
+
+const zero:G.
+const sub_zero:subG.
+equation zero = subGtoG(sub_zero).
+
+const g: G.
+const g_k:subG.
+equation pow_k(g) = g_k.
+
+fun ZnwtoZ(Znw): Z [data].
+
+equiv(excluded_weak_keys(Z))
+foreach i<=N do O() := x <-R Z; return(x)
+<=(2*Pcoll1rand(Z))=>
+foreach i<=N do O() := y <-R Znw; return(ZnwtoZ(y)).
+
+fun exp(G, Z): G.  
+fun exp_div_k(subG,Znw): subG.
+fun exp_div_k'(subG,Znw): subG.
+
+(* X^y = (X^k)^(y/k) *)
+equation forall X:G, y:Znw;
+   exp(X,ZnwtoZ(y)) = subGtoG(exp_div_k(pow_k(X),y)).
+
+(* ((X^(y/k))^k)^(z/k) = X^(y.z/k) 
+   Used when expanding exp(exp(g,y),z). *)
+equation forall X:subG, y:Znw, z:Znw;
+   exp_div_k(pow_k(subGtoG(exp_div_k(X,y))), z) = exp_div_k(X, mult(y,z)).
+equation forall X:subG, y:Znw, z:Znw;
+   exp_div_k'(pow_k(subGtoG(exp_div_k'(X,y))), z) = exp_div_k'(X, mult(y,z)).
+
+equation g_k <> sub_zero.
+equation forall x:subG, y:Znw; (exp_div_k(x,y) = sub_zero) = (x = sub_zero).
+equation forall x:subG, y:Znw; (exp_div_k'(x,y) = sub_zero) = (x = sub_zero).
+equation forall x:subG, y:Znw; (exp_div_k(x,y) <> sub_zero) = (x <> sub_zero).
+equation forall x:subG, y:Znw; (exp_div_k'(x,y) <> sub_zero) = (x <> sub_zero).
+
+equation forall x:subG; (pow_k(subGtoG(x)) = sub_zero) = (x = sub_zero).
+equation forall x:subG; (pow_k(subGtoG(x)) <> sub_zero) = (x <> sub_zero).
+
+equation forall x:subG, x':subG, y:Znw; (exp_div_k(x,y) = exp_div_k(x',y)) = (x = x').
+equation forall x:subG, x':subG, y:Znw; (exp_div_k'(x,y) = exp_div_k'(x',y)) = (x = x').
+
+(* exp_div_k(g_k, mult(x',y)) = exp_div_k'(X',y) where X' = pow_k(subGtoG(exp_div_k(g_k,x')),
+   we can show the next equalities using the previous ones *)
+equation forall x:subG, x':Znw, y:Znw; (exp_div_k(x,y) = exp_div_k(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k(g_k,x')))).
+equation forall x:subG, x':Znw, y:Znw; (exp_div_k'(x,y) = exp_div_k'(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k'(g_k,x')))).
+
+collision y <-R Znw; z <-R Znw; [random_choices_may_be_equal] forall X: subG;
+	  return(exp_div_k(X, y) = exp_div_k(X, z)) <=(Pcoll1rand(Znw))=> return((X = sub_zero) || (y = z)).
+collision y <-R Znw; z <-R Znw; [random_choices_may_be_equal] forall X: subG;
+	  return(exp_div_k'(X, y) = exp_div_k'(X, z)) <=(Pcoll1rand(Znw))=> return((X = sub_zero) || (y = z)).
+
+collision x <-R Znw; forall X: subG, Y: subG;
+	  return(exp_div_k(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
+	  if X independent-of x && Y independent-of x.
+collision x <-R Znw; forall X: subG, Y: subG;
+	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
+	  if X independent-of x && Y independent-of x.
+
+(* The next collision follows from the previous one and injectivity of
+   pow_k o subGtoG: 
+   pow_k(subGtoG(exp_div_k(g_k, y))) = X implies
+   pow_k(subGtoG(exp_div_k(g_k, y))) = pow_k(subGtoG(Y))
+   from some Y independent of y.
+   By injectivity of pow_k o subGtoG,
+   exp_div_k(g_k, y) = Y
+   By the collision above, this is false except with probability 2*Pcoll1rand(Znw)
+   since (g_k = sub_zero) && (Y = sub_zero) is false and g_k and Y are
+   independent of y. *)
+collision y <-R Znw; forall X: subG;
+	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Znw))=> return(false)
+	  if X independent-of y.
+collision y <-R Znw; forall X: subG;
+	  return(pow_k(subGtoG(exp_div_k'(g_k, y))) = X) <=(2*Pcoll1rand(Znw))=> return(false)
+	  if X independent-of y.
+
+(* The next collision follows as the one above, using the injectivity
+   of subGtoG. *)
+collision y <-R Znw; forall X: G;
+	  return(subGtoG(exp_div_k(g_k, y)) = X) <=(2*Pcoll1rand(Znw))=> return(false)
+	  if X independent-of y.
+collision y <-R Znw; forall X: G;
+	  return(subGtoG(exp_div_k'(g_k, y)) = X) <=(2*Pcoll1rand(Znw))=> return(false)
+	  if X independent-of y.
+
+
+
+collision x <-R Znw; forall y: Znw, X: subG; 
+  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
+
+collision x <-R Znw; forall y: Znw, X: subG; 
+  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
+
+(* The next collision is a consequence of the previous one *)
+collision x <-R Znw; y <-R Znw; forall X: subG; 
+  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
+
+collision x <-R Znw; y <-R Znw; forall X: subG; 
+  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
+
+
+
+collision x <-R Znw; y <-R Znw; [random_choices_may_be_equal] forall X: subG; 
+  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
+
+collision x <-R Znw; y <-R Znw; [random_choices_may_be_equal] forall X: subG; 
+  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
+
+(* The next collision is a consequence of the previous one, 
+   as in DH_good_group *)
+collision x1 <-R Znw; y1 <-R Znw; x2 <-R Znw; y2 <-R Znw; [random_choices_may_be_equal]
+  return(exp_div_k(g_k,mult(x1,y1)) = exp_div_k(g_k,mult(x2,y2))) <=(2*Pcoll1rand(Znw))=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
+
+collision x1 <-R Znw; y1 <-R Znw; x2 <-R Znw; y2 <-R Znw; [random_choices_may_be_equal]
+  return(exp_div_k'(g_k,mult(x1,y1)) = exp_div_k'(g_k,mult(x2,y2))) <=(2*Pcoll1rand(Znw))=> return(false)
+	    if (x1 independent-of x2 || y1 independent-of y2) &&
+	       (x1 independent-of y2 || y1 independent-of x2).
+
+
+collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
+  return(exp_div_k(g_k,mult(x,y)) = exp_div_k(g_k,mult(x,y'))) <=(Pcoll1rand(Znw))=> return(y = y').
+
+collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
+  return(exp_div_k'(g_k,mult(x,y)) = exp_div_k'(g_k,mult(x,y'))) <=(Pcoll1rand(Znw))=> return(y = y').
+
+
+}
+
 (* Computational Diffie-Hellman 
 
    pCDH(t): the probability of breaking the CDH assumption in time t
