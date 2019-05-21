@@ -49,7 +49,14 @@ output=textsecure`date '+%Y.%m.%d-%H_%M_%S'`
 (
 for dir in examples/textsecure examplesnd/textsecure examplesnd/textsecure-keys-not-normalized
 do
-
+    if [ $dir = examplesnd/textsecure-keys-not-normalized ]
+    then
+	cat default.cvl $dir/DH_EC_prime_subgroup.cvl > $dir/textsecure.cvl
+	lib="-lib examplesnd/textsecure-keys-not-normalized/textsecure"
+    else
+	lib=""
+    fi
+    
     echo
     echo TEXTSECURE $dir
     echo
@@ -62,12 +69,12 @@ do
 	    for prop in STD FS
 	    do
 		m4 -D$prop -D$prot $dir/TextSecure-$sessions.m4.cv > $dir/TextSecure-$sessions.$prop.$prot.cv
-		analyze TextSecure-$sessions.$prop.$prot "" $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
+		analyze TextSecure-$sessions.$prop.$prot $lib $dir/TextSecure-$sessions.$prop.$prot.cv tests/$output
 	    done
 	done
 	
 	m4 -D$prot $dir/TextSecure-KCI.m4.cv > $dir/TextSecure-KCI.$prot.cv
-	analyze TextSecure-KCI.$prot "" $dir/TextSecure-KCI.$prot.cv tests/$output
+	analyze TextSecure-KCI.$prot $lib $dir/TextSecure-KCI.$prot.cv tests/$output
 	
     done
 

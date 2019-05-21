@@ -172,13 +172,11 @@ param N_resp_send_sw, N_resp_recv_sw.
 param N_init_send_sw, N_init_recv_sw.
 
 (**** Gap Diffie-Hellman ****)
-type G_t [bounded,large].  (* type of Curve25519 elements (must be "bounded"
-                              and "large", of cardinal kq where q is a large prime
-			      and k = 8 is the cofactor) *)
-type G8_t [bounded,large]. (* type of the subgroup of G_t of order q *)
+type G_t [bounded,large].  (* type of public keys *)
+type G8_t [bounded,large]. (* type of { X^k, X \in F_p } *)
 fun G_to_bitstring(G_t): bitstring [data].
 type Z_t [bounded,large,nonuniform].   (* type of exponents (must be "bounded" and
-                               "large", is the set of non-zero multiples of k modulo kq.) *)
+                               "large", is the set of multiples of k prime to qq' modulo kqq'.) *)
 const dummy_z: Z_t.      (* placeholder when we do not compromise the ephemerals *)
 proba P_GDH.            (* probability of breaking the GDH assumption *)
 (* Page 7 in the Noise paper, rev 33:
@@ -186,12 +184,12 @@ proba P_GDH.            (* probability of breaking the GDH assumption *)
    (which may have multiple equivalent encodings), or is an invalid
    value. *)
 
-expand DH_prime_subgroup_secret_keys_multiple_k(
+expand DH_X25519(
   (* types *)
-  G_t,  (* Group elements *)
+  G_t,  (* Public keys *)
   Z_t,  (* Exponents *)
   (* variables *)
-  g,    (* a generator of the group *)
+  g,    (* base point *)
   exp,  (* exponentiation function *)
   mult, (* multiplication function for exponents *)
   G8_t,

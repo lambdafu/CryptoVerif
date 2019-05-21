@@ -4,10 +4,12 @@
 # of a timing program and of CryptoVerif on your computer.
 
 TIME=../../xtime
-CV="../../cryptoverif -lib ../../default"
+CV="../../cryptoverif -lib textsecure"
 
 # The argument of analyze is
 # $1 = file name (without .cv)
+
+cat ../../default.cvl DH_EC_prime_subgroup.cvl > textsecure.cvl
 
 function analyze()
 {
