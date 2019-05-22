@@ -2537,7 +2537,8 @@ collision x <-R Z; y <-R Z; y' <-R Z; [random_choices_may_be_equal]
 (* DH_X448 models Curve448 as defined in RFC 7748.
 https://tools.ietf.org/html/rfc7748
    More generally, it supports the same curves as DH_single_coord_ladder
-   with the additional assumption that q = -1 \mod 4, so -1 is not a 
+   with the additional assumptions that there is at most one secret key
+   multiple of q or q' and that q = -1 \mod 4, so -1 is not a 
    square modulo q. That allows to reduce some probabilities.
 
    This model is justified in https://hal.inria.fr/hal-02100345
@@ -2568,7 +2569,7 @@ param N.
 
 equiv(exclude_weak_keys(Z))
 foreach i<=N do x <-R Z; O() := return(x)
-<=(2*N*Pcoll1rand(Z))=>
+<=(N*Pcoll1rand(Z))=>
 foreach i<=N do x <-R Znw; O() := return(ZnwtoZ(x)).
 
 fun exp(G, Z): G.  
