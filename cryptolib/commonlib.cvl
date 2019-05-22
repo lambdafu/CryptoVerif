@@ -2216,23 +2216,23 @@ equiv(exp'_to_group(exp))
      Random choices in Z are done by choosing uniformly in 
      { kn | n \in [n_min,n_max] }, hence Pcoll1rand(Z) = 1/(n_max-n_min+1).
    ZnwtoZ is the injection from Znw to Z.
-   mult(x,y) = x.y mod kqq' (remains in Z)
+   mult(x,y) = x.y mod kqq' (remains in Znw)
 
    g_k = red(g)^k.
 
    exp(G, Z): G. exp(X,y) = repr((red(X))^y).
 
-   exp_div_k(subG,Z): subG. exp_div_k(X,y) = exp_div_k'(X,y) = X^(y/k)
+   exp_div_k(subG,Znw): subG. exp_div_k(X,y) = exp_div_k'(X,y) = X^(y/k)
    exp_div_k': symbol that replaces exp_div_k after game transformation
    pow_k(G):subG. pow_k(X) = red(X)^k.
 
    subGtoG is repr restricted to subG to G.
 
    zero is the public key 0.
-   sub_zero is zero, but as an element of subG.
+   sub_zero is 0, as an element of subG.
 
-   The types G, subG, and Z must be declared before this macro.  The
-   functions g, exp, mult, g_k, exp_div_k, exp_div_k', pow_k, subGtoG,
+   The types G, subG, Z, and Znw must be declared before this macro.  The
+   functions g, exp, mult, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG,
    zero, sub_zero are defined by this macro. They must not be declared
    elsewhere, and they can be used only after expanding the macro.
 
