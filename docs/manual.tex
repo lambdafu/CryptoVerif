@@ -1471,7 +1471,8 @@ This model is justified in~\cite{LippBlanchetBharagavanInria19}.
      \item $\texttt{expand\ DH\_X448}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models Curve448 as defined in RFC 7748
 (\url{https://tools.ietf.org/html/rfc7748}).
    More generally, it supports the same curves as \texttt{DH\_single\_coord\_ladder}
-   with the additional assumption that $q = -1 \mod 4$, so $-1$ is not a 
+   with the additional assumptions that there is at most one secret key
+   multiple of $q$ or $q'$, and that $q = -1 \mod 4$, so $-1$ is not a 
    square modulo $q$. That allows to reduce some probabilities.
    This model is justified in~\cite{LippBlanchetBharagavanInria19}.
 
