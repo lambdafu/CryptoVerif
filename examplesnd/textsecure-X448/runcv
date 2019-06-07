@@ -4,12 +4,10 @@
 # of a timing program and of CryptoVerif on your computer.
 
 TIME=../../xtime
-CV="../../cryptoverif -lib textsecure"
+CV="../../cryptoverif -lib ../../default"
 
 # The argument of analyze is
 # $1 = file name (without .cv)
-
-cat ../../default.cvl DH_EC_prime_subgroup.cvl > textsecure.cvl
 
 function analyze()
 {
@@ -21,16 +19,12 @@ tail -n 2 $1.out
 for prot in NO_REPLAY_PROT REPLAY_PROT
 do
 
-for sessions in AB-BA AA
+for sessions in AB-BA #AA
 do
-for prop in STD FS
+for prop in STD #FS
 do
 m4 -D$prop -D$prot TextSecure-$sessions.m4.cv > TextSecure-$sessions.$prop.$prot.cv
-# analyze TextSecure-$sessions.$prop.$prot
+analyze TextSecure-$sessions.$prop.$prot
 done
 done
-
-m4 -D$prot TextSecure-KCI.m4.cv > TextSecure-KCI.$prot.cv
-# analyze TextSecure-KCI.$prot
-
 done

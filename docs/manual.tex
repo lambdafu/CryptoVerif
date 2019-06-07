@@ -1371,58 +1371,110 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
          $\vn{exp'}(g,x)$ for a random $x \in Z$ with a random $X \in G$.
        \end{itemize}
 
-     \item $\texttt{expand\ DH\_prime\_subgroup\_secret\_keys\_multiple\_k}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ defines a Diffie-Hellman group with the following properties.
+\newcommand{\F}{\mathbb{F}}%
+\newcommand{\red}{\mathrm{red}}%
+\newcommand{\repr}{\mathrm{repr}}%
+\newcommand{\modop}{\mathbin{\mathrm{mod}}}%
 
-       $G$: type of group elements (must be \texttt{bounded} and \texttt{large}).   
-       $G$ is a group of cardinal $kq$, where $q$ is a large prime and $k$ is a small integer.
+     \item $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models an elliptic curve defined by the equation
+   $Y^2 = X^3 + A X^2 + X$ in the field $\F_p$ of non-zero integers modulo the 
+   large prime $p$, where $A^2 - 4$ is not a square modulo $p$.
+   This curve must form a commutative group of order $kq$ where $k$ is a 
+   small integer and $q$ is a large prime.
+   Its quadratic twist must form a commutative group of order $k'q'$ where $k'$
+   is a small integer and $q'$ is a large prime.
+   $k$ must be a multiple of $k'$.
+   We must use a single coordinate ladder defined as follows: we
+   consider the elliptic curve $E(\F_{p^2})$ defined by the equation $Y^2 =
+   X^3 + A X^2 + X$ in a quadratic extension $\F_{p^2}$ of $\F_p$, we define 
+   $X_0 : E(\F_{p^2}) \rightarrow \F_{p^2}$ by $X_0(\infty) = 0$ and $X_0(X,Y) = X$, and 
+   for $X \in \F_p$ and $y$ an integer, we define $X^y \in \F_p$ as $X^y = X_0(yQ)$
+   for all $Q \in E(\F_{p^2})$ such that $X_0(Q) = X$.
+   The value $g = X_0(g_0)$ represents the base point $g_0$, which must have order $q$.
+   The public keys (bitstrings) are mapped to elements of $\F_p$ by the function 
+   $\red$ and conversely, elements of $\F_p$ are mapped to public keys by
+   the function $\repr$, such that $\red \circ \repr$ is the identity.
+   The Diffie-Hellman ``exponentiation'' is defined by 
+      \[\exp(X,y) = \repr((\red(X))^y)\]
+   The secret keys are chosen uniformly in $\{ kn \mid n \in [n_{min},n_{max}] \}$
+   where $n_{min} < n_{max}$, $n_{max} - n_{min} < q$ and $n_{max} - n_{min} < q'$.
+   Therefore the set of secret keys may contain a multiple of $q$ (resp. $q'$).
+   Such keys are weak, in the sense that they yield 0 for all public
+   keys on the curve (resp. on the twist). We exclude them as a first step
+   in the proof, by applying the equivalence $\texttt{exclude\_weak\_keys}(Z)$
+   defined by this macro, automatically or with the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-       $\vn{subG}$: type of subgroup elements (must be \texttt{bounded} and \texttt{large}). 
-       $\vn{subG}$ is a subgroup of $G$ of cardinal $q$.
+This model is justified in~\cite{LippBlanchetBharagavanInria19}.
 
-       $Z$: type of exponents (must be \texttt{bounded} and \texttt{large}). 
-       $Z$ is the set of non-zero integers multiple of $k$ modulo $kq$.
+       $G$: type of public keys (must be \texttt{bounded} and \texttt{large}).
+
+       $\vn{subG}$: type of $\{ X^k \mid X \in F_p \}$  (must be \texttt{bounded} and \texttt{large}). 
+
+       $Z$, $\vn{Znw}$: type of exponents (must be \texttt{bounded}, \texttt{nonuniform}, and \texttt{large}). 
+   $\vn{Znw}$ is the set of integers multiple of $k$, prime to $qq'$ modulo $kqq'$, that is, exponents without weak keys.
+     Random choices in $\vn{Znw}$ are done by choosing uniformly in 
+     $\{ kn \mid n \in [n_{min},n_{max}], n$ prime to $qq' \}$.
+       $Z$ is the set of integers multiple of $k$ modulo $kqq'$, that is, exponents with weak keys. Random choices in $Z$ are done by choosing uniformly in 
+   $\{ kn \mid n \in [n_{min},n_{max}] \}$, hence $\texttt{Pcoll1rand}(Z) = 1/(n_{max}-n_{min}+1)$. 
        
-       $g$: an element of the group $G$, which generates the subgroup $\vn{subG}$.
+       $\vn{ZnwtoZ}(\vn{Znw}):Z$: injection from $\vn{Znw}$ to $Z$.
+
+       $g: G$: represents the base point.
 
        $\vn{exp}(G, Z): G$: the exponentiation function.  
        
-       $\vn{mult}(Z, Z): Z$: the multiplication function for exponents, defined as
-       $\vn{mult}(x,y) = x.y \mod kq$. (It remains multiple of $k$.)
+       $\vn{mult}(\vn{Znw}, \vn{Znw}): \vn{Znw}$: the multiplication function for exponents, defined as
+       $\vn{mult}(x,y) = x.y \mod kqq'$. (It remains in $\vn{Znw}$.)
 
-       $\vn{g\_k} = g^k$. It is an element of $\vn{subG}$, which generates $\vn{subG}$.
+       $\vn{g\_k} = \red(g)^k$. It is an element of $\vn{subG}$.
 
-       $\vn{exp\_div\_k}(\vn{subG},Z): \vn{subG}$ is defined by $\vn{exp\_div\_k}(X,y) = X^{y/k}$.
+       $\vn{exp\_div\_k}(\vn{subG},\vn{Znw}): \vn{subG}$ is defined by $\vn{exp\_div\_k}(X,y) = X^{y/k}$.
 
        $\vn{exp\_div\_k}'$: symbol that replaces $\vn{exp\_div\_k}$ after game transformation,
        with the same definition as $\vn{exp\_div\_k}$.
 
-       $\vn{pow\_k}(G):\vn{subG}$, defined by $\vn{pow\_k}(x) = x^k$.
+       $\vn{pow\_k}(G):\vn{subG}$, defined by $\vn{pow\_k}(x) = \red(x)^k$.
 
-       $\vn{subGtoG}(\vn{subG}):G$ is the natural injection from subG to G.
+       $\vn{subGtoG}(\vn{subG}):G$ is $\repr$ restricted to $\vn{subG}$.
 
-       $\vn{zero}$ is the neutral element of $G$.
+       $\vn{zero}: G$ is the public key 0.
        
-       $\vn{sub\_zero}$ is $\vn{zero}$, but as an element of $\vn{subG}$.
+       $\vn{sub\_zero}: \vn{subG}$ is 0, as an element of $\vn{subG}$.
 
-       The types $G$, $\vn{subG}$, and $Z$ must be declared before this macro.  The
-       functions $g$, $\vn{exp}$, $\vn{mult}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$,
+       The types $G$, $\vn{subG}$, $Z$, and $\vn{Znw}$ must be declared before this macro.  The
+       functions $g$, $\vn{exp}$, $\vn{mult}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$,
        $\vn{zero}$, $\vn{sub\_zero}$ are defined by this macro. They must not be declared
        elsewhere, and they can be used only after expanding the macro.
 
        When this macro is used, the Diffie-Hellman assumptions (detailed below)
        should be applied to the subgroup, that is,
-       $\texttt{expand\ }\vn{assumption}\texttt{(}\vn{subG}$, $Z$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$
+       $\texttt{expand\ }\vn{assumption}\texttt{(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$
 
-       For instance, these properties are satisfied by Curve25519 when
-       all secret keys are multiple of 8, which is true if RFC 7748 is
-       followed (\url{https://tools.ietf.org/html/rfc7748}). In this
-       case, $k = 8$ and the choice of a secret key is non uniform in
-       $Z$: secret keys are chosen uniformly among $2^{254} + 8n$
-       ($n \in [0, 2^{251}-1]$), that is, $2^{251}$ elements. So
-       the type $Z$ should be declared \texttt{nonuniform}
-       and we have $\texttt{Pcoll1rand}(Z) = 1/2^{251}$.
+
+     \item $\texttt{expand\ DH\_X25519}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models Curve25519 as defined in RFC 7748 (\url{https://tools.ietf.org/html/rfc7748}). It is justified in detail in~\cite{LippBlanchetBharagavanInria19}.
+   More generally, it supports the same curves as \texttt{DH\_single\_coord\_ladder}
+   with the additional assumption that all secret keys are prime to $qq'$. 
+   Therefore, we do not need to exclude weak secret keys, so the
+   parameters $\vn{Znw}$ and $\vn{ZnwtoZ}$ are removed, and we use $Z$ instead of $\vn{Znw}$.
+
+   Curve25519 satisfies these assumptions with
+   $p = 2^{255}-19$,
+   $k = 8$, $k' = 4$, $q = 2^{252} + \delta$ with $0 < \delta < 2^{128}$,
+      $q' = 2^{253} - 9 - 2\delta$,
+    $\red(X) = (X \modop 2^{255})\modop p$, $\repr(X)$ is the representation 
+      of $X$ as an element of $\{0, \dots, p-1\}$,
+    $n_{min} = 2^{251}$, and $n_{max} = 2^{252}-1$, so $\texttt{Pcoll1rand}(Z) = 2^{-251}$.
        (For simple examples that use Curve25519, using the macro 
        \texttt{DH\_proba\_collision} may also work.)
+
+     \item $\texttt{expand\ DH\_X448}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models Curve448 as defined in RFC 7748
+(\url{https://tools.ietf.org/html/rfc7748}).
+   More generally, it supports the same curves as \texttt{DH\_single\_coord\_ladder}
+   with the additional assumptions that there is at most one secret key
+   multiple of $q$ or $q'$, and that $q = -1 \mod 4$, so $-1$ is not a 
+   square modulo $q$. That allows to reduce some probabilities.
+   This model is justified in~\cite{LippBlanchetBharagavanInria19}.
 
      \end{itemize}
 
@@ -1432,7 +1484,8 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
      that the probability of distinguishing a random group element
      from an exponentiation $\vn{exp}(g,x)$ with a random exponent $x$
      is at most $\vn{PDist}$.  The other arguments are as in
-     \texttt{DH\_basic} and all arguments must be defined before.
+     \texttt{DH\_basic} and all arguments must be defined before 
+     expanding the macro.
 
    This macro defines the following equivalences for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}):
@@ -1451,8 +1504,10 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
 
      This macro can be used with any of the previous macros, except
      that it is useless with the macro \texttt{DH\_good\_group}, because this macro
-     already includes these properties with $\vn{PDist} = 0$. when the macro $\texttt{expand\ DH\_prime\_subgroup\_secret\_keys\_multiple\_k}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ is used, this macro should be applied to the subgroup:
-     $\texttt{expand\ DH\_dist\_random\_group\_element\_vs\_exponent(}\vn{subG}$, $Z$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\vn{Pdist}\texttt{).}$
+     already includes these properties with $\vn{PDist} = 0$. When the macro 
+$\texttt{DH\_single\_coord\_ladder}$, $\texttt{DH\_X25519}$, or $\texttt{DH\_X448}$ is used, this macro should be applied to the subgroup. For instance, with
+$\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$, it should be
+     $\texttt{expand\ DH\_dist\_random\_group\_element\_vs\_exponent(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\vn{Pdist}\texttt{).}$
      
    \item One from the following set of macros, which defines the Diffie-Hellman assumption itself:
      \begin{itemize}
@@ -1566,6 +1621,7 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
      
    \end{itemize}
 
+\iffalse
  \item Another possible set of macros for Diffie-Hellman assumptions is the following.
    \begin{itemize}
    \item $\texttt{expand\ DH\_prime\_subgroup\_secret\_keys\_not\_multiple\_k(}G$, $Z$, $g$, $\vn{exp}$, $\vn{exp}'$, $\vn{expblock}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{expsub}$, $\vn{expsub}'$, $\vn{pow\_k}$, $\vn{PCollKey1}$, $\vn{PCollKey2}$, $\vn{PCollKey3}$, $\vn{PCollKey4}\texttt{).}$ defines a Diffie-Hellman group with the following properties.
@@ -1660,7 +1716,7 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
      groups.
 
    \end{itemize}
-  
+\fi  
 \item $\texttt{expand\ Xor(}D, \vn{xor}, \vn{zero}\texttt{).}$ defines the
   function symbol $\vn{xor}$ to be exclusive or on the set of
   bitstrings $D$, where $\vn{zero}$ is the bitstring consisting only

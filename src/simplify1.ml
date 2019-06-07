@@ -1091,7 +1091,10 @@ let rec dependency_collision_rec2bis cur_array true_facts order_assumptions ((de
 let dependency_anal_order_hyp cur_array order_assumptions dep_info =
   let indep_test simp_facts t (b,l) =
     let (defl_after, defl_before) = dep_info in
-    if Terms.mem_binderref (b,l) defl_after then
+    (* reconstruct the initial list: indices may have been
+       replaced with fresh replication indices to make them independent *)
+    let linit = List.map (Terms.copy_term Terms.Links_RI) l in
+    if Terms.mem_binderref (b,linit) defl_after then
       Facts.default_indep_test (None, defl_before) simp_facts t (b,l)
     else
       None
