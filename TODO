@@ -1,3 +1,32 @@
+Improve FindCompos to exploit collisions (with non-zero probability)
+in order to prove injectivity.
+Currently, find_compos_bin works as follows:
+  if M = X, X is independent of x, and M determines x, then 
+  we bound the probability that M = X. "M determines x" 
+  is proved by building M' obtained from M by replacing all variables
+  that depend on x with fresh variables. In particular, x is
+  replaced by x'. We prove that M = M' implies x = x', using
+  only equations (no collision statements).
+It would be better to work as follows:
+  if M = X and X is independent of x, then there exists a term M',
+  obtained from M by replacing all variables that depend on x with 
+  fresh variables, such that M' = X and M' is independent of x.
+  Then the probability that M = X is bounded by the probability that
+  M = M'. The latter probability can be bounded using both
+  equations and collision statements.
+Note: the form chosen for M' is good when using equations/collisions
+that show injectivity, e.g. (f(y) = f(z)) = (y = z), but in general
+other forms of M' may perhaps be better? It still seems difficult to consider
+other forms of M'.
+The better definition of find_compos_bin would allow CV to infer
+the collisions
+collision y <-R Z; forall X: subG;
+	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Z))=> return(false)
+	  if X independent-of y.
++ the same with exp_div_k' instead of exp_div_k
++ the same with subGtoG instead of pow_k(subGtoG
+in DH_X25519, DH_X448, DH_single_coord_ladder.
+
 Set future binders/true facts in terms in Terms.build_def_process
 
 Allow insert find[unique], provided CryptoVerif manages to
