@@ -1318,10 +1318,11 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
        \vn{exp}', \vn{mult}, \vn{PCollKey1},
        \vn{PCollKey2}\texttt{).}$ defines a group $G$ like
        \texttt{DH\_basic}, with the following additional properties:
-       the probability that $\vn{exp}(g, x) = Y$ with random $x$ and
-       with $Y$ independent of $x$ is at most $\vn{PCollKey1}$, and
-       the probability that $\vn{exp}(g, \vn{mult}(x,y)) = Y$ with
-       random $x$ and with $y$ and $Y$ independent of $x$ is at most
+       the probability that $\vn{exp}(g, x) = Y$ where $x$ is random and
+       $Y$ is independent of $x$ is at most $\vn{PCollKey1}$, and
+       the probability that $\vn{exp}(g, \vn{mult}(x,y)) = Y$ where
+       $x$ and $y$ are independent random private keys and 
+       $Y$ is independent of $x$ or $y$ is at most
        $\vn{PCollKey2}$. These probabilities are negligible in most
        Diffie-Hellman groups, but need to be evaluated more precisely
        for using this property.
@@ -1335,8 +1336,8 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
      \item $\texttt{expand\ square\_DH\_proba\_collision(}G, Z, g, \vn{exp},
        \vn{exp}', \vn{mult}, \vn{PCollKey1},
        \vn{PCollKey2}$, $\vn{PCollKey3}\texttt{).}$ is similar to \texttt{DH\_proba\_collision}, but additionally
-   says that the probability that $\vn{exp}(g, \vn{mult}(x,x)) = Y$ with
-   random $x$ and with $Y$ independent of $x$ is at most $\vn{PCollKey3}$, with $\vn{PCollKey3} \geq \vn{PCollKey2}$.
+   says that the probability that $\vn{exp}(g, \vn{mult}(x,x)) = Y$ where
+   $x$ is random and $Y$ is independent of $x$ is at most $\vn{PCollKey3}$, with $\vn{PCollKey3} \geq \vn{PCollKey2}$.
        
        The types $G$ and $Z$ and the probabilities $\vn{PCollKey1}$, $\vn{PCollKey2}$, 
        and $\vn{PCollKey3}$ must be declared before this macro.  The
