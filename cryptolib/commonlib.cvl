@@ -1882,10 +1882,14 @@ collision x <-R Z; forall Y: G;
 collision x <-R Z; forall Y: G;
 	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 
+(* Removed: may not be true when y is a weak key,
+   plus exponents are always chosen randomly, so the collision below
+   should be sufficient.
 collision x <-R Z; forall y:Z, Y: G;
 	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
 collision x <-R Z; forall y:Z, Y: G;
 	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
+*)
 
 (* Consequence of the previous equations (since x and y are independent of each other),
    but CryptoVerif does not infer it. *)
