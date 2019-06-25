@@ -1867,10 +1867,15 @@ equation forall a:G, x:Z, y:Z;
 
 }
 
-(* DH_proba_collision says that the probability that exp(g, x) = Y for
-   random x and Y independent of x is at most PCollKey1, and
-   the probability that exp(g, mult(x,y)) = Y with
-   random x and with y and Y independent of x is at most PCollKey2.
+(* DH_proba_collision says that 
+   the probability that exp(g, x) = Y for random x and Y independent of x 
+   is at most PCollKey1, and
+   the probability that exp(g, mult(x,y)) = Y where x and y are independent 
+   random private keys and Y is independent of x or y is at most PCollKey2.
+   Note: we do not bound the probability that exp(g, mult(x,y)) = Y with
+   random x and with y and Y independent of x, because this probability
+   may be high when y is a weak private key. Moreover, exponents (such as y)
+   are always chosen randomly, so the properties above should be sufficient.
    The other arguments are as in DH_basic. *)
 
 def DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
@@ -1881,18 +1886,6 @@ collision x <-R Z; forall Y: G;
 	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
 collision x <-R Z; forall Y: G;
 	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
-
-(* Removed: may not be true when y is a weak key,
-   plus exponents are always chosen randomly, so the collision below
-   should be sufficient.
-collision x <-R Z; forall y:Z, Y: G;
-	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
-collision x <-R Z; forall y:Z, Y: G;
-	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x && y independent-of x.
-*)
-
-(* Consequence of the previous equations (since x and y are independent of each other),
-   but CryptoVerif does not infer it. *)
 
 collision x <-R Z; y <-R Z; forall Y: G;
 	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
