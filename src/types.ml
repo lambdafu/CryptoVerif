@@ -613,10 +613,19 @@ and simp_facts = term list * term list * elsefind_fact list
 
 (* Collector for known information when the adversary wins,
    i.e. manages to falsify a query.
-   The top list is a disjunction *)
+   The top list is a disjunction.
+   Each element of the list is a tuple 
+     (all_indices, pp_list, simp_facts, def_list)
+   where 
+   [all_indices] is the list of all replication indices that parameterize
+   the collected facts
+   [pp_list] is a list of program points that have been
+   executed with the associated replication indices,
+   [simp_facts] are facts are known to hold,
+   [def_list] is a list of variables known to be defined. *)
       
 and known_when_adv_wins =
-    ((term list * program_point) list * simp_facts * binderref list) list
+    (repl_index list * (term list * program_point) list * simp_facts * binderref list) list
 
 (* Result of a cryptographic transformation *)
 type failure_reason =

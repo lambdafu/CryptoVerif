@@ -769,7 +769,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	    print_string "  but could not prove ";
 	    display_explanation e;
 	    print_newline();
-	    Terms.add_to_collector collector (List.map (fun (_, end_pp, _, new_end_sid) -> (new_end_sid, end_pp)) elsefind_facts_list', facts', def_vars');
+	    Terms.add_to_collector collector (vars', List.map (fun (_, end_pp, _, new_end_sid) -> (new_end_sid, end_pp)) elsefind_facts_list', facts', def_vars');
 	    false)
       with Contradiction -> 
 	true

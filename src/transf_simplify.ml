@@ -48,7 +48,7 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
   | None -> false
   | Some l ->
       let def_list = Facts.get_def_vars_at pp in
-      List.for_all (fun (pp_list', simp_facts', def_list') ->
+      List.for_all (fun (all_indices', pp_list', simp_facts', def_list') ->
 	try 
 	  let (subst, facts, _) = simp_facts' in
 	  let nsimpfacts' = subst @ facts in 
@@ -58,6 +58,9 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
 	  let facts2 = Terms.both_def_list_facts facts1 def_list def_list' in
 	  let facts3 = Terms.def_list_pp facts2 (pp, cur_array) def_list' in
 	  let _ = Facts.simplif_add_list dep_anal simp_facts facts3 in
+	  (* let simp_facts3 = ... [above]
+             let facts4 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts3 (def_List @ def_list') in
+             let _ = Facts.simplif_add_list dep_anal simp_facts3 facts4 in *)
 	  false
 	with Contradiction ->
 	  true

@@ -77,7 +77,7 @@ let check_distinct collector b g =
 		  let (subst, facts, _) = simp_facts2 in
 		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
 		     ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
-		  Terms.add_to_collector collector ([(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);		  
+		  Terms.add_to_collector collector (r_index1 @ r_index2, [(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);		  
 		  false
 		with Contradiction -> true
 		    )
@@ -120,7 +120,7 @@ let check_distinct collector b g =
 		  let (subst, facts, _) = simp_facts2 in
 		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
 		     ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
-		  Terms.add_to_collector collector ([(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);
+		  Terms.add_to_collector collector (r_index1 @ r_index2, [(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);
 		  false
 		with Contradiction -> true
 		    )
