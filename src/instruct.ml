@@ -1368,6 +1368,29 @@ let equal_query q1 q2 =
   | AbsentQuery, AbsentQuery -> true
   | _ -> false
 
+(* For debugging: display information collected when the adversary wins *)
+	
+let display_collector coll =
+  print_string "When the adversary wins, one of the following cases holds: ";
+  List.iter (fun (all_indices, pp_list, simp_facts, def_list) ->
+    print_string "* \n";
+    print_string "indices: ";
+    Display.display_list Display.display_repl_index all_indices;
+    print_newline();
+    print_string "pp: ";
+    Display.display_list (fun (idx, pp) ->
+      print_int (Terms.occ_from_pp pp);
+      print_string "[";
+      Display.display_list Display.display_term idx;
+      print_string "]"
+	) pp_list;
+    print_newline();
+    Facts.display_facts simp_facts;
+    print_string "def vars: ";
+    Display.display_list (fun (b, l) -> Display.display_var b l) def_list;
+    print_newline()
+      ) coll
+	
 let success_command do_simplify state =
   (* [collector] collects facts that are known to hold when the adversary
      wins, i.e. falsifies a query.
@@ -1410,6 +1433,7 @@ let success_command do_simplify state =
       match do_simplify, collector with
       |	Some coll_elim, Some coll_ref ->
 	  (* simplify *)
+	  display_collector (!coll_ref);
 	  execute_display_advise state' (Simplify (Some !coll_ref, coll_elim))
       | None, None -> state'
       | _ ->

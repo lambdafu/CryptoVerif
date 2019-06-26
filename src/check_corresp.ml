@@ -571,6 +571,14 @@ let get_facts_full_block_cases end_pp =
   else
     (Facts.get_facts_full_block end_pp, [])
 
+(* [is_event_abort_pp pp] is true when the program point [pp]
+   is an [event_abort] instruction. *)
+
+let is_event_abort_pp = function
+  | DProcess ({ p_desc = EventAbort _ })
+  | DTerm ({ t_desc = EventAbortE _ }) -> true
+  | _ -> false
+      
 (* [check_corresp event_accu corresp g] is the main function to prove
    correspondences. It proves the correspondence [corresp = t1 ==> t2] in the game [g],
    using the information on events collected in [event_accu].
@@ -612,7 +620,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	  if f == f' then
 	    try
 	      let events_found' = t1' :: events_found in
-	      let end_sid = 
+	      let end_sid = (* TO DO end_sid is not computed correctly for event_abort *)
 		match idx'.t_desc with
 		  FunApp(_,lsid) -> lsid
 		| _ -> Parsing_helper.internal_error "Session ids should occur first in the arguments of events"
@@ -701,7 +709,8 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 		end;
 	      
 	      let rec collect_facts_cases facts = function
-		  [] -> 
+		  [] ->
+		    (* TO DO I need to collect all elsefind facts (as in elsefind_facts_list') even when non inj, for collector *)
 		    if not is_inj then
 		      next_f events_found' facts def_vars' elsefind_facts_list injrepidx_pps (new_bend_sid @ vars)
 		    else
@@ -769,7 +778,16 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	    print_string "  but could not prove ";
 	    display_explanation e;
 	    print_newline();
-	    Terms.add_to_collector collector (vars', List.map (fun (_, end_pp, _, new_end_sid) -> (new_end_sid, end_pp)) elsefind_facts_list', facts', def_vars');
+	    Terms.add_to_collector collector
+	      (vars', List.map (fun (_, end_pp, _, new_end_sid) -> (new_end_sid, end_pp)) elsefind_facts_list',
+	       List.fold_left (fun ((subst, facts, else_find) as simp_facts) (new_else_find, end_pp, _, _) ->
+		 (* When [end_pp] is [event_abort], nothing is executed after it,
+		    so the elsefind facts found at that point remain true. *)
+		 if is_event_abort_pp end_pp then
+		   (subst, facts, new_else_find @ else_find)
+		 else
+		   simp_facts
+		   ) facts' elsefind_facts_list', def_vars');
 	    false)
       with Contradiction -> 
 	true

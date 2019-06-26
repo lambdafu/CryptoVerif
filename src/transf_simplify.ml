@@ -47,20 +47,20 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
   match !known_when_adv_wins with
   | None -> false
   | Some l ->
+      let (subst, facts, _) = simp_facts in
+      let nsimpfacts = subst @ facts in 
       let def_list = Facts.get_def_vars_at pp in
+      let cur_array_t = List.map Terms.term_from_repl_index cur_array in
       List.for_all (fun (all_indices', pp_list', simp_facts', def_list') ->
 	try 
-	  let (subst, facts, _) = simp_facts' in
-	  let nsimpfacts' = subst @ facts in 
 	  let facts1 = List.fold_left (fun accu pp' ->
-	    Terms.both_pp_add_fact accu (cur_array, pp) pp') nsimpfacts' pp_list'
+	    Terms.both_pp_add_fact accu (cur_array_t, pp) pp') nsimpfacts pp_list'
 	  in
 	  let facts2 = Terms.both_def_list_facts facts1 def_list def_list' in
-	  let facts3 = Terms.def_list_pp facts2 (pp, cur_array) def_list' in
-	  let _ = Facts.simplif_add_list dep_anal simp_facts facts3 in
-	  (* let simp_facts3 = ... [above]
-             let facts4 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts3 (def_List @ def_list') in
-             let _ = Facts.simplif_add_list dep_anal simp_facts3 facts4 in *)
+	  let facts3 = Terms.def_list_pp facts2 (pp, cur_array_t) def_list' in
+	  let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts3 in
+	  let facts4 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts3 (def_list @ def_list') in
+	  let _ = Facts.simplif_add_list dep_anal simp_facts3 facts4 in 
 	  false
 	with Contradiction ->
 	  true
@@ -1495,10 +1495,13 @@ let rec simplify_process cur_array dep_info true_facts p =
 and simplify_oprocess cur_array dep_info true_facts p =
   (* print_string "Simplify occ "; print_int p.p_occ; print_newline(); *)
   if contradicts_known_when_adv_wins (dependency_anal cur_array dep_info)
-      (List.map Terms.term_from_repl_index cur_array, DProcess p)
-      true_facts
+      (cur_array, DProcess p) true_facts
   then
-    Terms.oproc_from_desc2 p (EventAbort Settings.e_adv_loses)
+    begin
+      Settings.changed := true;
+      (* TO DO current_pass_transfos := (   ) :: (!current_pass_transfos); *)
+      Terms.oproc_from_desc2 p (EventAbort Settings.e_adv_loses)
+    end
   else
   let (p', dep_info_list') = DepAnal2.update_dep_infoo cur_array dep_info true_facts p in
   let pp = DProcess p' in
