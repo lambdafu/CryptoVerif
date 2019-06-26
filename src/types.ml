@@ -567,7 +567,8 @@ and simplify_ins =
   | SResRemoved of program_point
   | SResToAssign of program_point
   | SEventRemoved of program_point
-
+  | SAdvLoses of program_point
+	
 and def_change =
     DRemoveDef
   | DKeepDefPoint

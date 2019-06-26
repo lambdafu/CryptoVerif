@@ -1499,7 +1499,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
   then
     begin
       Settings.changed := true;
-      (* TO DO current_pass_transfos := (   ) :: (!current_pass_transfos); *)
+      current_pass_transfos := (SAdvLoses(DProcess p)) :: (!current_pass_transfos);
       Terms.oproc_from_desc2 p (EventAbort Settings.e_adv_loses)
     end
   else
