@@ -1371,7 +1371,7 @@ let equal_query q1 q2 =
 (* For debugging: display information collected when the adversary wins *)
 	
 let display_collector coll =
-  print_string "When the adversary wins, one of the following cases holds: ";
+  print_string "When the adversary wins, one of the following cases holds:\n";
   List.iter (fun (all_indices, pp_list, simp_facts, def_list) ->
     print_string "* \n";
     print_string "indices: ";

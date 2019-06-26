@@ -3101,8 +3101,10 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       begin
 	match event_accu with
 	  None -> ()
-	| Some accu -> 
-	    let idx = build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
+	| Some accu ->
+	    let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
+	    let idx = build_term_type Settings.t_bitstring
+		(FunApp(tupf, List.map term_from_repl_index cur_array)) in
 	    let t' = build_term_type Settings.t_bool (FunApp(f, [idx])) in
 	    accu := (t', DTerm t) :: (!accu)
       end;
@@ -3242,7 +3244,9 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	match event_accu with
 	  None -> ()
 	| Some accu -> 
-	    let idx = build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
+	    let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
+	    let idx = build_term_type Settings.t_bitstring
+		(FunApp(tupf, List.map term_from_repl_index cur_array)) in
 	    let t = build_term_type Settings.t_bool (FunApp(f, [idx])) in
 	    accu := (t, DProcess p') :: (!accu)
       end;

@@ -620,7 +620,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	  if f == f' then
 	    try
 	      let events_found' = t1' :: events_found in
-	      let end_sid = (* TO DO end_sid is not computed correctly for event_abort *)
+	      let end_sid =
 		match idx'.t_desc with
 		  FunApp(_,lsid) -> lsid
 		| _ -> Parsing_helper.internal_error "Session ids should occur first in the arguments of events"
