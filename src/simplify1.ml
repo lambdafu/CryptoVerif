@@ -991,8 +991,8 @@ let convert_elsefind dep_info def_vars ((_, _, elsefind) as simp_facts) =
   Facts.simplif_add_list dep_info simp_facts (!true_facts_ref)
 
 
-let true_facts_from_simp_facts (facts, subst, else_find) =
-  subst @ facts
+let true_facts_from_simp_facts (subst, facts, else_find) =
+  subst @ facts 
 
 let rec try_no_var_rec depth simp_facts t =
   if depth = 0 then t else 

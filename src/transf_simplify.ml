@@ -47,8 +47,11 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
   match !known_when_adv_wins with
   | None -> false
   | Some l ->
-      let (subst, facts, _) = simp_facts in
-      let nsimpfacts = subst @ facts in 
+      (* We assume that the adversary wins after executing the current
+         program point [pp] with indices [cur_array], and we try to obtain
+	 a contradiction. The contradiction is obtained at the point at
+	 which the adversary wins. *)
+      let nsimpfacts = true_facts_from_simp_facts simp_facts in 
       let def_list = Facts.get_def_vars_at pp in
       let cur_array_t = List.map Terms.term_from_repl_index cur_array in
       List.for_all (fun (all_indices', pp_list', simp_facts', def_list') ->
@@ -59,8 +62,9 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
 	  let facts2 = Terms.both_def_list_facts facts1 def_list def_list' in
 	  let facts3 = Terms.def_list_pp facts2 (pp, cur_array_t) def_list' in
 	  let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts3 in
-	  let facts4 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts3 (def_list @ def_list') in
-	  let _ = Facts.simplif_add_list dep_anal simp_facts3 facts4 in 
+	  let simp_facts4 = Simplify1.convert_elsefind dep_anal (def_list @ def_list') simp_facts3 in
+	  let facts5 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
+	  let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
 	  false
 	with Contradiction ->
 	  true
