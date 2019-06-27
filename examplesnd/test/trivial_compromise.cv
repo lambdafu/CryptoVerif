@@ -1,8 +1,9 @@
-(* Example to test "success simplify" *)
+(* Example to test "success simplify".
+   It manages to use security of signatures in the presence of compromise,
+   without using ufcma_corrupt *)
 
 proof {
-  interactive;
-  success;
+  success simplify;
   auto
 }
 
