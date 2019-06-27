@@ -1433,7 +1433,8 @@ let success_command do_simplify state =
       match do_simplify, collector with
       |	Some coll_elim, Some coll_ref ->
 	  (* simplify *)
-	  display_collector (!coll_ref);
+	  if !Settings.debug_event_adv_loses then
+	    display_collector (!coll_ref);
 	  execute_display_advise state' (Simplify (Some !coll_ref, coll_elim))
       | None, None -> state'
       | _ ->

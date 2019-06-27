@@ -25,7 +25,8 @@ let debug_simplify = ref false
 let debug_elsefind_facts = ref false
 let debug_simplif_add_facts = ref false
 let debug_corresp = ref false
-
+let debug_event_adv_loses = ref false
+    
 (* To parse games output by CryptoVerif, 
 set this variable to true: such games may contain
 "defined" conditions on variables that are never defined. *)
@@ -194,6 +195,7 @@ let do_set p v =
   | "debugSimplify", _ -> parse_bool v debug_simplify
   | "debugSimplifAddFacts", _ -> parse_bool v debug_simplif_add_facts
   | "debugCorresp", _ -> parse_bool v debug_corresp
+  | "debugAdvLoses", _ -> parse_bool v debug_event_adv_loses
   | "forgetOldGames", _ -> parse_bool v forget_old_games
   | _ -> raise Not_found
 

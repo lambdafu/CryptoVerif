@@ -23,7 +23,8 @@ val debug_elsefind_facts : bool ref
 val debug_simplify : bool ref
 val debug_simplif_add_facts : bool ref
 val debug_corresp : bool ref
-
+val debug_event_adv_loses : bool ref
+    
 (* To parse games output by CryptoVerif, 
 set this variable to true: such games may contain
 "defined" conditions on variables that are never defined. *)
