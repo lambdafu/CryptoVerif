@@ -63,9 +63,12 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
 	  let facts3 = Terms.def_list_pp facts2 (pp, cur_array_t) def_list' in
 	  let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts3 in
 	  let simp_facts4 = Simplify1.convert_elsefind dep_anal (def_list @ def_list') simp_facts3 in
-	  let facts5 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
-	  let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
-	  false
+	  if !Settings.elsefind_facts_in_success_simplify then
+	    let facts5 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
+	    let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
+	    false
+	  else
+	    false
 	with Contradiction ->
 	  true
 	) l

@@ -303,6 +303,16 @@ in that session. Some difficulties:
    In fact, to give maximum power to the simplifications below,
    I should consider only two different EventAbort, "win" and "lose".
 
+   => Is it really correct to apply simplification several times
+   in "success simplify", always using the information collected
+   by success, even if a simplification already occurred in between?
+
+   => Use elsefind facts for "event e ==> false" as I already do
+   for "event_abort e ==> ..."?
+
+   => Sometimes, I derive a contradiction but I need to leave some
+   code. Would it be better to use AdvLoses instead of Yield?
+
    4/ I should add a transformation that simplifies the game
    as much as possible taking into account that the adversary
    loses when the "required step" (see definition above) is not

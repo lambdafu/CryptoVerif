@@ -38,6 +38,7 @@ let max_replace_depth = ref 20
 let elsefind_facts_in_replace = ref true
 let elsefind_facts_in_success = ref true
 let elsefind_facts_in_simplify = ref true
+let elsefind_facts_in_success_simplify = ref true
 let else_find_additional_disjunct = ref true
 let improved_fact_collection = ref false
 let corresp_cases = ref true
@@ -177,6 +178,7 @@ let do_set p v =
   | "elsefindFactsInReplace", _ -> parse_bool v elsefind_facts_in_replace
   | "elsefindFactsInSuccess", _ -> parse_bool v elsefind_facts_in_success
   | "elsefindFactsInSimplify", _ -> parse_bool v elsefind_facts_in_simplify
+  | "elsefindFactsInSuccessSimplify", _ -> parse_bool v elsefind_facts_in_success_simplify
   | "elsefindAdditionalDisjunct", _ -> parse_bool v else_find_additional_disjunct
   | "improvedFactCollection", _ -> parse_bool v improved_fact_collection
   | "useEqualitiesInSimplifyingFacts", _ -> parse_bool v simplify_use_equalities_in_simplifying_facts
