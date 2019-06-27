@@ -69,7 +69,12 @@ let contradicts_known_when_adv_wins dep_anal (cur_array, pp) simp_facts =
 	with Contradiction ->
 	  true
 	) l
-    
+
+let is_adv_loses p =
+  match p.p_desc with
+  | EventAbort f -> f == Settings.e_adv_loses
+  | _ -> false
+	
 (* Dependency analysis
    When M1 characterizes a part of x of a large type T
    and M2 does not depend on x, then M1 = M2 fails up to
@@ -1498,8 +1503,9 @@ let rec simplify_process cur_array dep_info true_facts p =
 
 and simplify_oprocess cur_array dep_info true_facts p =
   (* print_string "Simplify occ "; print_int p.p_occ; print_newline(); *)
-  if contradicts_known_when_adv_wins (dependency_anal cur_array dep_info)
-      (cur_array, DProcess p) true_facts
+  if (not (is_adv_loses p)) &&
+    (contradicts_known_when_adv_wins (dependency_anal cur_array dep_info)
+       (cur_array, DProcess p) true_facts)
   then
     begin
       Settings.changed := true;
