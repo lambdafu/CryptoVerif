@@ -613,7 +613,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
     Terms.link b (TLink (Terms.term_from_binder b'));
     b') (!vars_t1)
   in
-  let collect_facts1 next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars (is_inj,t) =
+  let collect_facts1 next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars collector_pp collector_elsefind_facts (is_inj,t) =
     Terms.for_all_collector collector (fun (t1',end_pp) ->
       match t.t_desc,t1'.t_desc with
 	FunApp(f,idx::l),FunApp(f',idx'::l') ->
@@ -697,6 +697,16 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
                  def_vars_elsefind and new_end_sid corresponding to this event. *)
 	      let elsefind_facts_list' = (new_elsefind_facts, end_pp, def_vars_elsefind, new_end_sid) :: elsefind_facts_list in
 
+	      let collector_pp' = (new_end_sid, end_pp) :: collector_pp in
+	      let collector_elsefind_facts' =
+		(* When [end_pp] is [event_abort], nothing is executed after it,
+		   so the elsefind facts found at that point remain true. *)
+		if is_event_abort_pp end_pp then
+		  new_elsefind_facts @ collector_elsefind_facts
+		else
+		  collector_elsefind_facts
+	      in
+	      
 	      if !Settings.debug_corresp then
 		begin
 		  print_string "Simplified cases:";
@@ -707,14 +717,14 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 		    ) new_facts_cases;
 		  print_newline()
 		end;
+
 	      
 	      let rec collect_facts_cases facts = function
 		  [] ->
-		    (* TO DO I need to collect all elsefind facts (as in elsefind_facts_list') even when non inj, for collector *)
 		    if not is_inj then
-		      next_f events_found' facts def_vars' elsefind_facts_list injrepidx_pps (new_bend_sid @ vars)
+		      next_f events_found' facts def_vars' elsefind_facts_list injrepidx_pps (new_bend_sid @ vars) collector_pp' collector_elsefind_facts'
 		    else
-		      next_f events_found' facts def_vars' elsefind_facts_list' ((new_end_sid, end_pp) :: injrepidx_pps) (new_bend_sid @ vars)
+		      next_f events_found' facts def_vars' elsefind_facts_list' ((new_end_sid, end_pp) :: injrepidx_pps) (new_bend_sid @ vars) collector_pp' collector_elsefind_facts'
 		| f_disjunct::rest ->
 		    (* consider all possible cases in the disjunction *)
 		    List.for_all (fun fl ->
@@ -738,19 +748,19 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
       | _ -> Parsing_helper.internal_error "event expected in check_corresp"
 	    ) event_accu
   in
-  let rec collect_facts_list next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars = function
-      [] -> next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars
+  let rec collect_facts_list next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars collector_pp collector_elsefind_facts = function
+      [] -> next_f events_found facts def_vars elsefind_facts_list injrepidx_pps vars collector_pp collector_elsefind_facts
     | (a::l) -> 
         collect_facts1 
-          (fun events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' -> 
-             collect_facts_list next_f events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' l) 
-          events_found facts def_vars elsefind_facts_list injrepidx_pps vars a
+          (fun events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' collector_pp' collector_elsefind_facts' -> 
+             collect_facts_list next_f events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' collector_pp' collector_elsefind_facts' l) 
+          events_found facts def_vars elsefind_facts_list injrepidx_pps vars collector_pp collector_elsefind_facts a
   in  
   let injinfo = ref [] in
   let r =
     (* The proof of the correspondence [t1 ==> t2] works in two steps:
        first, collect all facts that hold because [t1] is true *)
-    collect_facts_list (fun events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' ->
+    collect_facts_list (fun events_found' facts' def_vars' elsefind_facts_list' injrepidx_pps' vars' collector_pp' collector_elsefind_facts' ->
       try 
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 
@@ -778,20 +788,13 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	    print_string "  but could not prove ";
 	    display_explanation e;
 	    print_newline();
+	    let (subst, facts, else_find) = facts' in
 	    Terms.add_to_collector collector
-	      (vars', List.map (fun (_, end_pp, _, new_end_sid) -> (new_end_sid, end_pp)) elsefind_facts_list',
-	       List.fold_left (fun ((subst, facts, else_find) as simp_facts) (new_else_find, end_pp, _, _) ->
-		 (* When [end_pp] is [event_abort], nothing is executed after it,
-		    so the elsefind facts found at that point remain true. *)
-		 if is_event_abort_pp end_pp then
-		   (subst, facts, new_else_find @ else_find)
-		 else
-		   simp_facts
-		   ) facts' elsefind_facts_list', def_vars');
+	      (vars', collector_pp', (subst, facts, collector_elsefind_facts' @ else_find), def_vars');
 	    false)
       with Contradiction -> 
 	true
-	  ) [] ([],[],[]) [] [] [] [] t1
+	  ) [] ([],[],[]) [] [] [] [] [] [] t1
   in
   if r then
     (* Add probability for eliminated collisions *)
