@@ -846,14 +846,14 @@ let get_occ_of_line p ext regexp_str occ_loc n is_max =
       string_handler rest
     with Not_found -> ()
   in
+  Display.display_occurrences := true;
   begin
     try 
       Display.fun_out string_handler (fun () ->
-	Display.display_occurrences := true;
-	Display.display_process p;
-	Display.display_occurrences := false)
+	Display.display_process p)
     with Stop -> ()
   end;
+  Display.display_occurrences := false;
   match !state with
   | Looking _ | After ->
       raise(Error("Not enough matches for the regular expression you specified.", ext))

@@ -335,9 +335,15 @@ let rec invt_fc in_find_cond defined_refs t =
 	Parsing_helper.internal_error ("Cannot choose randomly a bitstring from " ^ ty.tname ^ "\n");
       no_array_ref in_find_cond b;
       invt_fc in_find_cond ((Terms.binderref_from_binder b)::defined_refs) t
-  | EventAbortE _ ->
+  | EventAbortE f ->
       if in_find_cond then
-	Parsing_helper.internal_error "event_abort should not appear in a condition of find"
+	Parsing_helper.internal_error "event_abort should not appear in a condition of find";
+      begin
+	match f.f_type with
+	  [t], t' when t == Settings.t_bitstring && t' == Settings.t_bool -> ()
+	| _ ->
+	    Parsing_helper.internal_error "Type error: badly typed event in event_abort"
+      end
   | EventE(t,p) ->
       if in_find_cond then
 	Parsing_helper.internal_error "event should not appear in a condition of find";	

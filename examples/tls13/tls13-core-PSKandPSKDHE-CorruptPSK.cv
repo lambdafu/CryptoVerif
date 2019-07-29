@@ -16,12 +16,26 @@ channel io1, io1', io2, io2', io3, io4, io5, io6, io7, io8, io9, io10,
 	dhe_io1, dhe_io1', dhe_io2, dhe_io2', dhe_io3, dhe_io4, dhe_io5, dhe_io6, dhe_io7, dhe_io8, dhe_io9, dhe_io10,
 	dhe_io11, dhe_io12, dhe_io13, dhe_io14, dhe_io15, dhe_io16, dhe_io17, dhe_io18, dhe_io19, dhe_io20,
 	dhe_io11', dhe_io12', dhe_io13', dhe_io14', 
-	dhe_io21, dhe_io22, dhe_io23, dhe_io24, dhe_io25, dhe_io26, dhe_io27, dhe_io28, dhe_io29, dhe_io30,
+	dhe_io21, dhe_io22, dhe_io23, dhe_io24, dhe_io25, dhe_io26, dhe_io27, dhe_io28, dhe_io29, dhe_io30, dhe_io31,
 	cCorrupt1, cCorrupt2.
 
 param N1,N5,N6,
       N7,N8,N9,N10,N11,N12,
       N13,N14,N15,N16.
+
+(* For a start, I separate the proof from the beginning between an auth.-like
+   property (for which we can ignore corruption) and the final properties 
+   we want to prove. *)
+
+proof {
+insert before_nth 3 "ClientTerm1" "find j3 <= N7 suchthat defined(s_sfl_dhe[j3]) && c_sfl = s_sfl_dhe[j3] then";
+insert_event client_break_auth before_nth 4 "ClientTerm1";
+insert before_nth 3 "ServerTerm1" "find j4 <= N2 suchthat defined(gx_1[j4], cets_eems_2[j4]) && (sgx = gx_1[j4]) then";
+insert_event server_break_auth before_nth 4 "ServerTerm1";
+focus "query event(client_break_auth)", "query event(server_break_auth)";
+interactive
+
+}
 
 (* The proof can be guided as follows, but the automatic proof strategy works. 
 
@@ -832,17 +846,31 @@ let ServerDHE(earlySecret: extracted, binder_key: key) =
          true
    in
    event ServerTerm1((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
-   (* We prove that sdhe_cats, sdhe_ems, and sdhe_resumption_secret are secret 
+   if honestsession then
+   (
+      (* We prove that sdhe_cats, sdhe_ems, and sdhe_resumption_secret are secret 
       We compose with the record protocol for sdhe_cats and 
       with the PSK/PSKDHE handshake for s_resumption_secret *)
-   let sdhe_cats: key = cats in
-   let sdhe_ems: key = ems in
-   let sdhe_resumption_secret: key = resumption_secret in
-   (* We compose 
+      let sdhe_cats: key = cats in
+      let sdhe_ems: key = ems in
+      let sdhe_resumption_secret: key = resumption_secret in
+      (* We compose 
       - with the record protocol with secret cdhe_cats (ServerTermDHE is event e2) and 
       - with the PSK/PSKDHE handshake with secret cdhe_resumption_secret (ServerTermDHE is event e2) *)
-   event ServerTermDHE((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m,log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,sdhe_cats,sdhe_sats,sdhe_ems,sdhe_resumption_secret));
-   out(dhe_io30, ())).
+      event ServerTermDHE((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m,log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,sdhe_cats,sdhe_sats,sdhe_ems,sdhe_resumption_secret));
+      out(dhe_io30, ())
+   )
+   else
+	  (* Output the secrets.
+	     We do not prove security for these sessions
+
+	     We compose with a process that runs 
+	       - the record protocol receiver-side for cats,
+	       - the record protocol sender side for sats and 
+	       - the server-side handshake with pre-shared key for resumption_secret,
+	     with no security claim, by eliminating private communications *)
+      out(dhe_io31, (resumption_secret, cats, sats, ems))   
+   ).
 
 let corruptPSK(psk: key) =
    in(cCorrupt1, ());

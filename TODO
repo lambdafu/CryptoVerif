@@ -1,3 +1,8 @@
+instruct.ml, command CFocus:
+Syntax.check_query may stop in case of error by calling
+input_error. That's not suitable in interactive mode,
+it should raise Error(..,..) instead of calling input_error.
+
 Improve FindCompos to exploit collisions (with non-zero probability)
 in order to prove injectivity.
 Currently, find_compos_bin works as follows:

@@ -56,7 +56,8 @@ let insert_event occ s g =
             f_impl = No_impl;
             f_impl_inv = None }
   in
-  let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
+  let b = Terms.create_binder "!l" Settings.t_bitstring [] in
+  let idx = Terms.term_from_binder b in
   let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
   let premp = Terms.oproc_from_desc(EventAbort(f)) in
   let count = ref 0 in
