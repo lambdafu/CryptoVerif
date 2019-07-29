@@ -32,7 +32,9 @@ insert before_nth 3 "ClientTerm1" "find j3 <= N7 suchthat defined(s_sfl_dhe[j3])
 insert_event client_break_auth before_nth 4 "ClientTerm1";
 insert before_nth 3 "ServerTerm1" "find j4 <= N2 suchthat defined(gx_1[j4], cets_eems_2[j4]) && (sgx = gx_1[j4]) then";
 insert_event server_break_auth before_nth 4 "ServerTerm1";
-focus "query event(client_break_auth)", "query event(server_break_auth)";
+success; (* just to be able to read the queries *)
+focus "query event(client_break_auth) public_vars sdhe_cets1, sdhe_eems, sdhe_cets3, sdhe_cets2, cdhe_eems, cdhe_cets, sdhe_resumption_secret, cdhe_resumption_secret, sdhe_ems, sdhe_sats, sdhe_cats, cdhe_ems, cdhe_sats, cdhe_cats", "query event(server_break_auth) public_vars cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems, sdhe_cets1";
+success simplify;
 interactive
 
 }
