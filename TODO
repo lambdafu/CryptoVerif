@@ -187,6 +187,11 @@ PRF-ODH: probability formulas + comments
 I think the changes to guess the tested session,
 event adv loses, etc would help for working with PRF-ODH
 
+What is the impact of weak group assumptions
+(e.g. curve25519/curve448) on PRF-ODH?
+Reprove PRF-ODH from ROM and CDH/GDH plus minimal assumptions on
+the group. Check that curve25519/curve448 satisfy these assumptions.
+      
 implement implication statements and collisions, of the form:
 cond1 && ... && condn => concl
 cond1 && ... && condn =(proba)=> concl
