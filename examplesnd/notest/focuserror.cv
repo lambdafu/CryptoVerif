@@ -1,0 +1,14 @@
+event e1(bitstring).
+
+proof {
+   interactive (* use the command: focus "query event(e1)"
+It should output an error message and ask for another command. *)
+   }
+
+query x: bitstring; event(e1(x)).
+
+channel c.
+
+process
+       in(c, x:bitstring);
+       event e1(x)

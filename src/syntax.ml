@@ -3,6 +3,12 @@ open Parsing_helper
 open Types
 open Terms
 
+let raise_error s ext =
+  raise (Error(s,ext))
+
+let user_error s =
+  raise (Error(s,dummy_ext))
+  
 (* Parse a file *)
 
 let parse filename =
@@ -17,16 +23,13 @@ let parse filename =
           Parser.all Lexer.token lexbuf
 	else
 	  Parser.oall Lexer.token lexbuf
-      with 
-	Parsing.Parse_error ->
-          input_error "Syntax error" (extent lexbuf)
-      |	Error(s,ext) ->
-	  input_error s ext
+      with Parsing.Parse_error ->
+        raise_error "Syntax error" (extent lexbuf)
     in
     close_in ic;
     ptree
   with Sys_error s ->
-    user_error ("File error: " ^ s ^ "\n")
+    user_error s
 
 let parse_lib filename =
   let filename =
@@ -57,14 +60,12 @@ let parse_lib filename =
 	else
 	  Parser.olib Lexer.token lexbuf
       with Parsing.Parse_error ->
-        input_error "Syntax error" (extent lexbuf)
-      |	Error(s,ext) ->
-	  input_error s ext
+        raise_error "Syntax error" (extent lexbuf)
     in
     close_in ic;
     ptree
   with Sys_error s ->
-    user_error ("File error: " ^ s ^ "\n")
+    user_error s 
 
 let parse_with_lib filename =
   let l1 = parse_lib (!Settings.lib_name) in
@@ -118,12 +119,12 @@ let impl_roles = ref StringMap.empty
 
 let check_type ext e t =
   if (e.t_type != t) && (e.t_type != Settings.t_any) && (t != Settings.t_any) then
-    input_error ("This expression has type " ^ e.t_type.tname ^ " but expects type " ^ t.tname) ext
+    raise_error ("This expression has type " ^ e.t_type.tname ^ " but expects type " ^ t.tname) ext
 
 let check_bit_string_type ext t =
   match t.tcat with
     BitString -> ()
-  | _ -> input_error "Some bitstring type expected" ext
+  | _ -> raise_error "Some bitstring type expected" ext
 
 let rec check_type_list ext pel el tl =
   match (pel, el, tl) with
@@ -132,7 +133,7 @@ let rec check_type_list ext pel el tl =
       check_type (snd pe) e t;
       check_type_list ext pel el tl
   | _ ->
-      input_error ("Unexpected number of arguments") ext
+      raise_error ("Unexpected number of arguments") ext
 
 let rec check_array_type_list ext pel el cur_array creation_array =
   match (pel, el, creation_array) with
@@ -142,17 +143,17 @@ let rec check_array_type_list ext pel el cur_array creation_array =
          completed with cur_array *)
       let n = (List.length cur_array) - (List.length creation_array) in
       if n < 0 then 
-	input_error "Unexpected number of array specifiers" ext;
+	raise_error "Unexpected number of array specifiers" ext;
       let cur_array_rest = skip n cur_array in
       if List.for_all2 (==) cur_array_rest creation_array then
 	List.map Terms.term_from_repl_index cur_array_rest
       else
-	input_error "Unexpected number of array specifiers" ext
+	raise_error "Unexpected number of array specifiers" ext
   | (pe::pel, e::el, t::tl) ->
       check_type (snd pe) e t.ri_type;
       e::(check_array_type_list ext pel el cur_array tl)
   | _ ->
-      input_error ("Unexpected number of array specifiers") ext
+      raise_error ("Unexpected number of array specifiers") ext
 
 let merge_types t1 t2 ext =
   if t1 == Settings.t_any then
@@ -162,7 +163,7 @@ let merge_types t1 t2 ext =
   else 
     begin
       if t1 != t2 then
-	Parsing_helper.input_error "All branches of if/let/find/get should yield the same type" ext;
+	raise_error "All branches of if/let/find/get should yield the same type" ext;
       t1
     end
 	
@@ -235,7 +236,7 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
                     check_term1 binder_env in_find_cond cur_array env' t
 		end
 	      else
-		input_error (s ^ " has no arguments but expects some") ext
+		raise_error (s ^ " has no arguments but expects some") ext
 	  | _ -> binder_env
 	with Not_found -> binder_env
       end
@@ -254,7 +255,7 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
             else
 	      begin
 		if List.length vardecl != List.length tl then
-		  Parsing_helper.input_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
+		  raise_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
 		let env'' = check_args1 env' vardecl in
 		let env_args_vars =
 		  List.fold_left (fun binder_env ((s1,ext1), ty) ->
@@ -264,9 +265,9 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
 		in
 		check_term1 env_args_vars in_find_cond cur_array env'' t 
 	      end
-	| _ -> input_error (s ^ " should be a function") ext
+	| _ -> raise_error (s ^ " should be a function") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | PTestE(t1, t2, t3), ext ->
       union_both
@@ -346,7 +347,7 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
       let binder_env_tl = check_term_list1 binder_env in_find_cond cur_array env tl in
       check_term1 binder_env_tl in_find_cond cur_array env p
   | PEventE _, ext2 ->
-      input_error "events should be function applications" ext2
+      raise_error "events should be function applications" ext2
   | PGetE(tbl, patlist, topt, p1, p2), _ ->
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
@@ -373,9 +374,9 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
       let env_t1 = check_term1 binder_env in_find_cond cur_array env t1 in
       check_term1 env_t1 in_find_cond cur_array env t2
   | PQEvent _,ext -> 
-      Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+      raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PIndepOf _, ext ->
-      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
+      raise_error "independent-of allowed only in side-conditions of collisions" ext
 	
 and check_term_list1 binder_env in_find_cond cur_array env = function
     [] -> binder_env
@@ -404,7 +405,7 @@ and check_pattern1 binder_env in_find_cond cur_array env needtype = function
 	match tyopt with
 	  None -> 
 	    if needtype then
-	      input_error "type needed for this variable" ext1
+	      raise_error "type needed for this variable" ext1
 	    else
 	      (binder_env, env', [s1, None])
 	| Some ty ->
@@ -469,13 +470,13 @@ let rec check_fungroup1 cur_array env binder_env = function
 let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
   let t = get_type (!env) s2 ext2 in
   if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
-    input_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
+    raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
   let (unchanged, ext) = 
     match opt with
       [] -> (false, Parsing_helper.dummy_ext)
     | ["unchanged", ext] -> (true, ext)
     | (_,ext)::_ -> 
-	input_error "The only allowed option for random choices is [unchanged]" ext
+	raise_error "The only allowed option for random choices is [unchanged]" ext
   in
   try
     (* When there is variable in the left-hand side with the same name, try to reuse that name *)
@@ -488,13 +489,13 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
     Not_found ->
       (* List.find failed *)
       if unchanged then 
-	input_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
+	raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
       else
 	add_in_env1 binder_env s1 t cur_array
   | Failure _ ->
       (* add_in_env1reusename failed *)
       if unchanged then 
-	input_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a single variable with that name" ext
+	raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a single variable with that name" ext
       else
 	add_in_env1 binder_env s1 t cur_array
 
@@ -513,7 +514,7 @@ let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
       repl_index_ref := Some b;
       let cur_array' = b :: cur_array in
       if List.length funlist != List.length funlist0 then
-	input_error "Different number of functions in left and right sides of equivalence" ext;
+	raise_error "Different number of functions in left and right sides of equivalence" ext;
       let env' =
 	match idopt with
 	  None -> env
@@ -534,7 +535,7 @@ let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
 	 add_find := true;
 	 env_res) arglist
   | _, _, PReplRestr((_, _, (_,ext)), _,_) ->
-      input_error "Left member is a function, right member is a replication" ext
+      raise_error "Left member is a function, right member is a replication" ext
 
 and check_rm_fungroup_list1 cur_array env binder_env pfunlist0 funlist0 funlist =
   match pfunlist0, funlist0, funlist with
@@ -593,7 +594,7 @@ let rec check_process1 binder_env cur_array env = function
       in
       check_process1 binder_env_var cur_array env'' p
   | _, ext ->
-      input_error "input process expected" ext
+      raise_error "input process expected" ext
 
 and check_oprocess1 binder_env cur_array env = function
   | PYield, _ | PEventAbort(_), _ -> binder_env
@@ -674,7 +675,7 @@ and check_oprocess1 binder_env cur_array env = function
       let env_tl = check_term_list1 binder_env false cur_array env tl in
       check_oprocess1 env_tl cur_array env p
   | PEvent _, ext2 ->
-      input_error "events should be function applications" ext2
+      raise_error "events should be function applications" ext2
   | PGet(tbl, patlist, topt, p1, p2), _ ->
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
@@ -697,7 +698,7 @@ and check_oprocess1 binder_env cur_array env = function
       let env_tlist = check_term_list1 binder_env false cur_array env tlist in
       check_oprocess1 env_tlist cur_array env p
   | _, ext -> 
-      input_error "non-input process expected" ext
+      raise_error "non-input process expected" ext
 
 (**************************************************************)
 
@@ -732,9 +733,9 @@ let rec build_return_list_aux h name = function
             (* This error should be catched by [check_process] *)
             match !Settings.front_end with
               | Settings.Channels ->
-                  input_error "Out present in input process part (implementation)" ext
+                  raise_error "Out present in input process part (implementation)" ext
               | Settings.Oracles ->
-                  input_error "Return present in oracle description part (implementation)" ext
+                  raise_error "Return present in oracle description part (implementation)" ext
     end
   | PInput(((name, _), _), _, p), _ ->
     build_return_list_aux h (Some name) p
@@ -846,14 +847,14 @@ let check_process2 p =
      the specification into an implementation, in the channel front-end. *)
   if (!Settings.get_implementation) || (!Settings.front_end = Settings.Oracles) then
     let h = build_return_list p in
-    check_role input_error h p;
-    check_role_continuity input_error p
+    check_role raise_error h p;
+    check_role_continuity raise_error p
   (* We could have a warning when we do not generate an implementation,
      as follows. However, in this case, we should also have a warning
      for other errors that happen at implementation time (e.g. type errors) 
   let error_function =
     if (!Settings.get_implementation) then
-      input_error
+      raise_error
     else
       input_warning
   in
@@ -1027,7 +1028,7 @@ let rec check_no_iffindletnewevent ref ext t =
       List.iter (check_no_iffindletnewevent ref ext) l
   | ReplIndex _ -> ()
   | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.input_error ((instruct_name t) ^ " at " ^ (in_file_position ext t.t_loc) ^
+      raise_error ((instruct_name t) ^ " at " ^ (in_file_position ext t.t_loc) ^
 				  " should not occur in "^ref) ext
 
 (* Check that t does not contain new, event, insert *)
@@ -1057,7 +1058,7 @@ let rec check_no_new_event_insert ext is_get t =
 	    [([],def_list,_,_)] -> ()
 	      (* This find is in fact a if, so ok *)
 	  | _ ->
-	      Parsing_helper.input_error ("find at " ^ (in_file_position ext t.t_loc) ^
+	      raise_error ("find at " ^ (in_file_position ext t.t_loc) ^
 					  " is not allowed in condition of get") ext
 	end; *)
       List.iter (fun (bl,def_list,t1,t2) ->
@@ -1076,7 +1077,7 @@ let rec check_no_new_event_insert ext is_get t =
       check_no_new_event_insert ext is_get t1;
       check_no_new_event_insert ext is_get t2
   | ResE _ | EventAbortE _ | EventE _ | InsertE _ -> 
-      Parsing_helper.input_error ((instruct_name t) ^ " at " ^ (in_file_position ext t.t_loc) ^
+      raise_error ((instruct_name t) ^ " at " ^ (in_file_position ext t.t_loc) ^
 				  " should not occur in condition of " ^
 				  (if is_get then "get" else "find")) ext
 
@@ -1125,7 +1126,7 @@ let rec check_args cur_array env vardecl args =
       let ty = t.t_type in 
       let (ty', ext2) = get_ty env tyb in
       if ty != ty' then
-	input_error ("Process or letfun expects an argument of type " ^ ty'.tname ^ " but is here given an argument of type " ^ ty.tname) t.t_loc;
+	raise_error ("Process or letfun expects an argument of type " ^ ty'.tname ^ " but is here given an argument of type " ^ ty.tname) t.t_loc;
       let (env',letopt) = add_in_env_reuse_var env s1 ext1 ty' cur_array t in
       (* when t is a variable b0 with current repl. ind. and
 	 b has no array accesses, use b0 instead of b *)
@@ -1147,7 +1148,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	    if fst (f.f_type) = [] then
               Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	    else
-	      input_error (s ^ " has no arguments but expects some") ext
+	      raise_error (s ^ " has no arguments but expects some") ext
 	| ELetFun(f, env', vardecl, t) ->
 	    if fst (f.f_type) = [] then
 	      begin
@@ -1159,8 +1160,8 @@ let rec check_term defined_refs_opt cur_array env = function
                   check_term (Some []) cur_array env' t
 	      end
 	    else
-	      input_error (s ^ " has no arguments but expects some") ext
-	| _ -> input_error (s ^ " should be a variable or a function") ext
+	      raise_error (s ^ " has no arguments but expects some") ext
+	| _ -> raise_error (s ^ " should be a variable or a function") ext
       with Not_found -> 
 	let b = get_global_binder "outside its scope" (s, ext) in
 	let tl'' = check_array_type_list ext2 [] [] cur_array b.args_at_creation in
@@ -1170,7 +1171,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	      None -> () (* We are in a [defined] condition: all array accesses are accepted *)
 	    | Some defined_refs ->
 		if not (List.exists (Terms.equal_binderref (b, tl'')) defined_refs) then
-		  input_error ("Variable "^s^" is referenced outside its scope. It should be guarded by a defined condition") ext
+		  raise_error ("Variable "^s^" is referenced outside its scope. It should be guarded by a defined condition") ext
 	  end;
 	Terms.new_term b.btype ext2 (Var(b,tl''))
       end
@@ -1184,7 +1185,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	    None -> () (* We are in a [defined] condition: all array accesses are accepted *)
 	  | Some defined_refs ->
 	      if not (List.exists (Terms.equal_binderref (b, tl'')) defined_refs) then
-		input_error "Array reference should be guarded by a defined condition" ext2
+		raise_error "Array reference should be guarded by a defined condition" ext2
 	end;
       Terms.new_term b.btype ext2 (Var(b,tl''))
   | PFunApp((s,ext), tl),ext2 ->
@@ -1203,14 +1204,14 @@ let rec check_term defined_refs_opt cur_array env = function
             else
 	      begin
 		if List.length vardecl != List.length tl then
-		  Parsing_helper.input_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
+		  raise_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
 		let (env'', lets) = check_args cur_array env' vardecl tl' in
 		let t' = check_term (Some []) cur_array env'' t in
 		Terms.put_lets_term lets t' None
 	      end
-	| _ -> input_error (s ^ " should be a function") ext
+	| _ -> raise_error (s ^ " should be a function") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
@@ -1232,7 +1233,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	match topt, pat with
 	  Some t3, _ -> Some (check_term defined_refs_opt cur_array env t3)
 	| None, (PPatVar _, _) -> None
-	| None, _ -> Parsing_helper.input_error "When a let in an expression has no else part, it must be of the form let x = M in M'" ext
+	| None, _ -> raise_error "When a let in an expression has no else part, it must be of the form let x = M in M'" ext
       in
       let t_common = 
 	match topt' with
@@ -1243,7 +1244,7 @@ let rec check_term defined_refs_opt cur_array env = function
   | PResE((s1,ext1),(s2,ext2),t), ext ->
       let ty = get_type env s2 ext2 in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
-	input_error ("Cannot choose randomly a bitstring from " ^ ty.tname) ext2;
+	raise_error ("Cannot choose randomly a bitstring from " ^ ty.tname) ext2;
       let (env',b) = add_in_env env s1 ext1 ty cur_array in
       let t' = check_term defined_refs_opt cur_array env' t in
       Terms.new_term t'.t_type ext (ResE(b, t'))
@@ -1257,7 +1258,7 @@ let rec check_term defined_refs_opt cur_array env = function
               Parsing_helper.input_warning "The [unique] option is primarily intended for use in declarations of primitives. If you use it in processes, you must guarantee yourself that this find will have a unique successful branch/index." ext_s
 	  end
         else
-          Parsing_helper.input_error "The only option allowed for find is unique" ext_s
+          raise_error "The only option allowed for find is unique" ext_s
         ) opt;
       let t3' = check_term defined_refs_opt cur_array env t3 in
       let rec add env = function
@@ -1304,9 +1305,9 @@ let rec check_term defined_refs_opt cur_array env = function
 	  EEvent(f) ->
 	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
 	    Terms.new_term Settings.t_any ext (EventAbortE(f))
-	| _ -> input_error (s ^ " should be an event") ext
+	| _ -> raise_error (s ^ " should be an event") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | PEventE((PFunApp((s,ext0),tl), ext), p), ext2 ->
       begin
@@ -1325,12 +1326,12 @@ let rec check_term defined_refs_opt cur_array env = function
 		  Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
 		in
 	        Terms.new_term p'.t_type ext2 (EventE(event, p'))
-	    | _ -> input_error (s ^ " should be an event") ext0
+	    | _ -> raise_error (s ^ " should be an event") ext0
         with Not_found ->
-	  input_error (s ^ " not defined") ext0
+	  raise_error (s ^ " not defined") ext0
       end
   | PEventE _, ext2 ->
-      input_error "events should be function applications" ext2
+      raise_error "events should be function applications" ext2
   | PGetE((id,ext),patl,topt,p1,p2),ext2 -> 
       let tbl = get_table env id ext in
       let p2' = check_term defined_refs_opt cur_array env p2 in
@@ -1359,13 +1360,13 @@ let rec check_term defined_refs_opt cur_array env = function
       let t1' = check_term defined_refs_opt cur_array env t1 in
       let t2' = check_term defined_refs_opt cur_array env t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "= expects expressions of the same type" ext;
+	raise_error "= expects expressions of the same type" ext;
       Terms.make_equal_ext ext t1' t2'
   | PDiff(t1,t2), ext ->
       let t1' = check_term defined_refs_opt cur_array env t1 in
       let t2' = check_term defined_refs_opt cur_array env t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "<> expects expressions of the same type" ext;
+	raise_error "<> expects expressions of the same type" ext;
       Terms.make_diff_ext ext t1' t2'
   | PAnd(t1,t2), ext ->
       let t1' = check_term defined_refs_opt cur_array env t1 in
@@ -1380,9 +1381,9 @@ let rec check_term defined_refs_opt cur_array env = function
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
-      Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+      raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PIndepOf _, ext ->
-      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
+      raise_error "independent-of allowed only in side-conditions of collisions" ext
 
 and check_br cur_array env ((_,ext) as id, tl) =
   try 
@@ -1398,7 +1399,7 @@ and check_br cur_array env ((_,ext) as id, tl) =
 	raise RemoveFindBranch
       end
     else
-      input_error (i ^ " not defined") ext
+      raise_error (i ^ " not defined") ext
 
 
 (* Check pattern *)
@@ -1408,7 +1409,7 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
       begin
 	match tyopt, tyoptres with
 	  None, None ->
-	    input_error "type needed for this variable" ext1
+	    raise_error "type needed for this variable" ext1
 	| None, Some ty -> 
 	    let (env',b) = add_in_env env s1 ext1 ty cur_array in
 	    (env', PatVar b)
@@ -1416,7 +1417,7 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	    let (ty',ext2) = get_ty env tyb in
 	    begin
 	      match ty'.tcat with
-		Interv _ -> input_error "Cannot input a term of interval type or extract one from a tuple" ext2
+		Interv _ -> raise_error "Cannot input a term of interval type or extract one from a tuple" ext2
 	        (* This condition simplifies greatly the theory:
 	           otherwise, one needs to compute which channels the adversary
 	           knows...
@@ -1429,7 +1430,7 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	| Some tyb, Some ty ->
 	    let (ty',ext2) = get_ty env tyb in
 	    if ty != ty' then
-	      input_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
+	      raise_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
 	    let (env',b) = add_in_env env s1 ext1 ty' cur_array in
 	    (env', PatVar b)
       end
@@ -1439,7 +1440,7 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	  None -> ()
 	| Some ty ->
 	    if ty != Settings.t_bitstring then
-	      input_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
+	      raise_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
       end;
       let tl = List.map (fun _ -> None) l in
       let (env', l') = check_pattern_list defined_refs_opt cur_array env tl l in
@@ -1448,16 +1449,16 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
   | PPatFunApp((s,ext),l), ext2 ->
       let f = get_function_no_letfun env s ext in
       if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	input_error "Only [data] functions are allowed in patterns" ext;
+	raise_error "Only [data] functions are allowed in patterns" ext;
       begin
 	match tyoptres with
 	  None -> ()
 	| Some ty ->
 	    if ty != snd f.f_type then
-	      input_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
+	      raise_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
       end;
       if List.length (fst f.f_type) != List.length l then
-	input_error ("Function " ^ f.f_name ^ " expects " ^ 
+	raise_error ("Function " ^ f.f_name ^ " expects " ^ 
 		     (string_of_int (List.length (fst f.f_type))) ^ 
 		     " arguments but is here applied to " ^  
 		     (string_of_int (List.length l)) ^ " arguments") ext;
@@ -1470,7 +1471,7 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	  None -> ()
 	| Some ty ->
 	    if (t'.t_type != ty)  && (t'.t_type != Settings.t_any) && (ty != Settings.t_any) then
-	      input_error ("Pattern has type " ^ (t'.t_type).tname ^ " and should be of type " ^ ty.tname) ext
+	      raise_error ("Pattern has type " ^ (t'.t_type).tname ^ " and should be of type " ^ ty.tname) ext
       end;
       (env, PatEqual t')
 
@@ -1500,8 +1501,8 @@ let rec get_type_letfun env = function
 	    if fst (f.f_type) = [] then
 	      snd f.f_type
 	    else
-	      input_error (s ^ " has no arguments but expects some") ext
-	| _ -> input_error (s ^ " should be a variable or a function") ext
+	      raise_error (s ^ " has no arguments but expects some") ext
+	| _ -> raise_error (s ^ " should be a variable or a function") ext
       with Not_found ->
 	(* Can be an array reference. I cannot determine its type *)
 	Settings.t_any
@@ -1576,23 +1577,23 @@ let rec get_type_letfun env = function
   | (PEqual _ | PDiff _ | PAnd _ | POr _), ext ->
       Settings.t_bool
   | PQEvent _,ext -> 
-      Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+      raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PIndepOf _, ext ->
-      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
+      raise_error "independent-of allowed only in side-conditions of collisions" ext
 
 and check_pattern_letfun env tyoptres = function
     PPatVar ((s1,ext1), tyopt), _ ->
       begin
        match tyopt, tyoptres with
          None, None ->
-           input_error "type needed for this variable" ext1
+           raise_error "type needed for this variable" ext1
        | None, Some ty ->
            add_in_env_letfun env s1 ext1 ty 
        | Some tyb, None ->
            let (ty',ext2) = get_ty env tyb in
            begin
              match ty'.tcat with
-               Interv _ -> input_error "Cannot input a term of interval type or extract one from a tuple" ext2
+               Interv _ -> raise_error "Cannot input a term of interval type or extract one from a tuple" ext2
                (* This condition simplifies greatly the theory:
                   otherwise, one needs to compute which channels the adversary
                   knows...
@@ -1604,7 +1605,7 @@ and check_pattern_letfun env tyoptres = function
        | Some tyb, Some ty ->
            let (ty',ext2) = get_ty env tyb in
            if ty != ty' then
-             input_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
+             raise_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
            add_in_env_letfun env s1 ext1 ty' 
       end
   | PPatTuple l, ext ->
@@ -1613,23 +1614,23 @@ and check_pattern_letfun env tyoptres = function
          None -> ()
        | Some ty ->
            if ty != Settings.t_bitstring then
-             input_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
+             raise_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
       end;
       let tl = List.map (fun _ -> None) l in
       check_pattern_list_letfun env tl l 
   | PPatFunApp((s,ext),l), ext2 ->
       let f = get_function_no_letfun env s ext in
       if (f.f_options land Settings.fopt_COMPOS) == 0 then
-        input_error "Only [data] functions are allowed in patterns" ext;
+        raise_error "Only [data] functions are allowed in patterns" ext;
       begin
         match tyoptres with
           None -> ()
         | Some ty ->
             if ty != snd f.f_type then
-              input_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
+              raise_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
       end;
       if List.length (fst f.f_type) != List.length l then
-        input_error ("Function " ^ f.f_name ^ " expects " ^
+        raise_error ("Function " ^ f.f_name ^ " expects " ^
                      (string_of_int (List.length (fst f.f_type))) ^
                      " arguments but is here applied to " ^
                      (string_of_int (List.length l)) ^ " arguments") ext;
@@ -1641,7 +1642,7 @@ and check_pattern_letfun env tyoptres = function
          None -> ()
        | Some ty ->
            if (ty_t != ty)  && (ty_t != Settings.t_any) && (ty != Settings.t_any) then
-             input_error ("Pattern has type " ^ ty_t.tname ^ " and should be of type " ^ ty.tname) ext
+             raise_error ("Pattern has type " ^ ty_t.tname ^ " and should be of type " ^ ty.tname) ext
       end;
       env
 
@@ -1674,25 +1675,25 @@ let check_process_channel cur_array env (((s, ext) as id), idx_opt) =
 	  None -> ()
 	| Some l ->
 	    if List.length l <> List.length cur_array then
-	      input_error "The indices of a channel should be the current replication indices" ext;
+	      raise_error "The indices of a channel should be the current replication indices" ext;
 	    List.iter2 (fun (id,ext) ri ->
 	      try
 		match StringMap.find id env with
 		  EReplIndex ri' ->
 		    if ri != ri' then
-		      input_error "The indices of a channel should be the current replication indices in the right order" ext
+		      raise_error "The indices of a channel should be the current replication indices in the right order" ext
 		| _ ->
-		    input_error (id ^ " should be a current replication index") ext
+		    raise_error (id ^ " should be a current replication index") ext
 	      with Not_found ->
-		input_error (id ^ " not defined") ext
+		raise_error (id ^ " not defined") ext
 	      ) l cur_array
       end;
       try 
 	match StringMap.find s env with
 	  EChannel(b) -> (b,List.map Terms.term_from_repl_index cur_array)
-	| _ -> input_error (s ^ " should be a channel") ext
+	| _ -> raise_error (s ^ " should be a channel") ext
       with Not_found -> 
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
     end
   else
     (check_channel_id id, List.map Terms.term_from_repl_index cur_array)
@@ -1726,9 +1727,9 @@ let rec check_term_nobe env = function
       	    if fst (f.f_type) = [] then
 	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	    else
-	      input_error (s ^ " has no arguments but expects some") ext
-	| _ -> input_error (s ^ " should be a variable or a function (letfun forbidden)") ext
-      with Not_found -> input_error (s ^ " not defined") ext
+	      raise_error (s ^ " has no arguments but expects some") ext
+	| _ -> raise_error (s ^ " should be a variable or a function (letfun forbidden)") ext
+      with Not_found -> raise_error (s ^ " not defined") ext
       end
   | PFunApp((s,ext), tl),ext2 ->
       let tl' = List.map (check_term_nobe env) tl in
@@ -1744,13 +1745,13 @@ let rec check_term_nobe env = function
       let t1' = check_term_nobe env t1 in
       let t2' = check_term_nobe env t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "= expects expressions of the same type" ext;
+	raise_error "= expects expressions of the same type" ext;
       Terms.make_equal_ext ext t1' t2'
   | PDiff(t1,t2), ext ->
       let t1' = check_term_nobe env t1 in
       let t2' = check_term_nobe env t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "<> expects expressions of the same type" ext;
+	raise_error "<> expects expressions of the same type" ext;
       Terms.make_diff_ext ext t1' t2'
   | PAnd(t1,t2), ext ->
       let t1' = check_term_nobe env t1 in
@@ -1765,11 +1766,11 @@ let rec check_term_nobe env = function
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
   | (PArray _ | PTestE _ | PFindE _ | PLetE _ | PResE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _), ext ->
-      input_error "If, find, let, new, event, insert, get, and array references forbidden in forall statements" ext
+      raise_error "If, find, let, new, event, insert, get, and array references forbidden in forall statements" ext
   | PQEvent _,ext -> 
-      Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+      raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PIndepOf _, ext ->
-      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions, under && or ||" ext
+      raise_error "independent-of allowed only in side-conditions of collisions, under && or ||" ext
 
 let check_statement env (l,t,side_cond) =
   (* Note: This function uses check_binder_list, which calls
@@ -1782,10 +1783,10 @@ let check_statement env (l,t,side_cond) =
     match t'.t_desc with
     | FunApp(f, [t1;t2]) when f.f_cat == Equal ->
        if not (List.for_all (fun b -> Terms.refers_to b t1) l') then
-	 input_error "In equality statements, all bound variables should occur in the left-hand side" (snd t)
+	 raise_error "In equality statements, all bound variables should occur in the left-hand side" (snd t)
     | _ ->
        if not (List.for_all (fun b -> Terms.refers_to b t') l') then
-	 input_error "In statements, all bound variables should occur in the term" (snd t)
+	 raise_error "In statements, all bound variables should occur in the term" (snd t)
   end;
   check_type (snd t) t' Settings.t_bool;
   let side_cond' = check_term_nobe env' side_cond in
@@ -1806,13 +1807,13 @@ let check_builtin_eq env (eq_categ, ext) l_fun_symb =
 	    begin
 	      match fst f.f_type with
 		[t1;t2] when t1 == t2 -> ()
-	      |	_ -> input_error "A commutative function should have two arguments of the same type" ext
+	      |	_ -> raise_error "A commutative function should have two arguments of the same type" ext
 	    end;
 	    if f.f_eq_theories = NoEq then
 	      f.f_eq_theories <- Commut
 	    else
-	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
-	| _ -> input_error "A commut declaration expects a single function symbol" ext
+	      raise_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> raise_error "A commut declaration expects a single function symbol" ext
       end
   | "assoc" | "AC" ->
       begin
@@ -1821,13 +1822,13 @@ let check_builtin_eq env (eq_categ, ext) l_fun_symb =
 	    begin
 	      match f.f_type with
 		([t1;t2], tres) when t1 == t2 && t1 == tres -> ()
-	      |	_ -> input_error ("An " ^ eq_categ ^ " function should have two arguments of the same type as the result") ext
+	      |	_ -> raise_error ("An " ^ eq_categ ^ " function should have two arguments of the same type as the result") ext
 	    end;
 	    if f.f_eq_theories = NoEq then
 	      f.f_eq_theories <- if eq_categ = "AC" then AssocCommut else Assoc
 	    else
-	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
-	| _ -> input_error ("An " ^ eq_categ ^ " declaration expects a single function symbol") ext
+	      raise_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> raise_error ("An " ^ eq_categ ^ " declaration expects a single function symbol") ext
       end
   | "assocU" | "ACU" ->
       begin
@@ -1836,13 +1837,13 @@ let check_builtin_eq env (eq_categ, ext) l_fun_symb =
 	    begin
 	      match f.f_type, n.f_type with
 		([t1;t2], tres), ([], tn) when t1 == t2 && t1 == tres && tn == tres -> ()
-	      |	_ -> input_error ("An " ^ eq_categ ^ " function should have two arguments of the same type as the result, and a constant neutral element of the same type") ext
+	      |	_ -> raise_error ("An " ^ eq_categ ^ " function should have two arguments of the same type as the result, and a constant neutral element of the same type") ext
 	    end;
 	    if f.f_eq_theories = NoEq then
 	      f.f_eq_theories <- if eq_categ = "ACU" then AssocCommutN(f,n) else AssocN(f,n)
 	    else
-	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
-	| _ -> input_error ("An " ^ eq_categ ^ " declaration expects a single function symbol") ext
+	      raise_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> raise_error ("An " ^ eq_categ ^ " declaration expects a single function symbol") ext
       end
   | "ACUN" ->
       begin
@@ -1851,13 +1852,13 @@ let check_builtin_eq env (eq_categ, ext) l_fun_symb =
 	    begin
 	      match f.f_type, n.f_type with
 		([t1;t2], tres), ([], tneut) when t1 == t2 && t1 == tres && tneut == tres -> ()
-	      |	_ -> input_error "An ACUN function should have two arguments, the result, and a constant neutral element of the same type" ext
+	      |	_ -> raise_error "An ACUN function should have two arguments, the result, and a constant neutral element of the same type" ext
 	    end;
 	    if f.f_eq_theories = NoEq then
 	      f.f_eq_theories <- ACUN(f,n)
 	    else
-	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
-	| _ -> input_error "An ACUN declaration expects two function symbols" ext
+	      raise_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	| _ -> raise_error "An ACUN declaration expects two function symbols" ext
       end  
   | "group" | "commut_group" ->
       begin
@@ -1866,12 +1867,12 @@ let check_builtin_eq env (eq_categ, ext) l_fun_symb =
 	    begin
 	      match f.f_type, inv.f_type, n.f_type with
 		([t1;t2], tres), ([invarg], invres), ([], tneut) when t1 == t2 && t1 == tres && invarg == tres && invres == tres && tneut == tres -> ()
-	      |	_ -> input_error "A group operation should be of type T,T -> T, with an inverse of type T -> T and a neutral element of type T" ext
+	      |	_ -> raise_error "A group operation should be of type T,T -> T, with an inverse of type T -> T and a neutral element of type T" ext
 	    end;
 	    if f.f_eq_theories != NoEq then
-	      input_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
+	      raise_error ("Function " ^ f.f_name ^ " already has an equational theory") ext
 	    else if inv.f_eq_theories != NoEq then
-	      input_error ("Function " ^ inv.f_name ^ " already has an equational theory") ext
+	      raise_error ("Function " ^ inv.f_name ^ " already has an equational theory") ext
 	    else
 	      begin
 		let eq_th = 
@@ -1882,9 +1883,9 @@ let check_builtin_eq env (eq_categ, ext) l_fun_symb =
 		f.f_eq_theories <- eq_th;
 		inv.f_eq_theories <- eq_th
 	      end
-	| _ -> input_error ("A " ^ eq_categ ^ " declaration expects 3 function symbols") ext
+	| _ -> raise_error ("A " ^ eq_categ ^ " declaration expects 3 function symbols") ext
       end  
-  | _ -> input_error ("Equational theory " ^ eq_categ ^ " not implemented") ext	
+  | _ -> raise_error ("Equational theory " ^ eq_categ ^ " not implemented") ext	
 
 (* Check equivalence statements *)
 
@@ -1900,8 +1901,8 @@ let rec check_term_proba env = function
 	    if fst (f.f_type) = [] then
 	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	    else
-	      input_error (s ^ " has no arguments but expects some") ext
-	| _ -> input_error (s ^ " should be a variable or a function (letfun forbidden)") ext
+	      raise_error (s ^ " has no arguments but expects some") ext
+	| _ -> raise_error (s ^ " should be a variable or a function (letfun forbidden)") ext
       with Not_found -> 
 	let b = get_global_binder "outside its scope" (s,ext) in
 	let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in
@@ -1918,18 +1919,18 @@ let rec check_term_proba env = function
       check_type_list ext2 tl tl' (fst f.f_type);
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | (PArray _ | PTestE _ | PLetE _ | PResE _ | PFindE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _), ext ->
-      Parsing_helper.input_error "Array accesses/if/let/find/new/event/get/insert not allowed in terms in probability formulas" ext
+      raise_error "Array accesses/if/let/find/new/event/get/insert not allowed in terms in probability formulas" ext
   | PEqual(t1,t2), ext ->
       let t1' = check_term_proba env t1 in
       let t2' = check_term_proba env t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "= expects expressions of the same type" ext;
+	raise_error "= expects expressions of the same type" ext;
       Terms.make_equal_ext ext t1' t2'
   | PDiff(t1,t2), ext ->
       let t1' = check_term_proba env t1 in
       let t2' = check_term_proba env t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
-	Parsing_helper.input_error "<> expects expressions of the same type" ext;
+	raise_error "<> expects expressions of the same type" ext;
       Terms.make_diff_ext ext t1' t2'
   | PAnd(t1,t2), ext ->
       let t1' = check_term_proba env t1 in
@@ -1944,9 +1945,9 @@ let rec check_term_proba env = function
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
-      Parsing_helper.input_error "event(...) and inj-event(...) allowed only in queries" ext
+      raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PIndepOf _, ext ->
-      Parsing_helper.input_error "independent-of allowed only in side-conditions of collisions" ext
+      raise_error "independent-of allowed only in side-conditions of collisions" ext
 
 
 (* TO DO we should output an error message when a term in a probability
@@ -1963,7 +1964,7 @@ let get_compatible ext d1 d2 =
   | _, None -> d1
   | Some(dp1,dt1,dl1),Some(dp2,dt2,dl2) -> 
       if (dp1 != dp2) || (dt1 != dt2) || (dl1 != dl2) then
-	input_error "values of incompatible dimensions" ext
+	raise_error "values of incompatible dimensions" ext
       else
 	d1
 
@@ -1987,12 +1988,12 @@ let rec check_types ext pl0 pl tl =
       let rec check_pt ty = function
 	  Maxlength(_,t) ->
 	    if t.t_type != ty then
-	      input_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
+	      raise_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
 			   "where p1...pn are probabilities pi ::= maxlength(ti) | length(fi, ...) | max(pi,pi)\n" ^
 			   "for terms ti or result of fi of types the non-bounded arguments of f.\n" ^ 
 			   "Type " ^ ty.tname ^ " expected, got " ^ t.t_type.tname ^ ".") ext
 	| TypeMaxlength(t) ->
-	    input_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
+	    raise_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
 			 "where p1...pn are probabilities pi ::= maxlength(ti) | length(fi, ...) | max(pi,pi)\n" ^
 			 "for terms ti or result of fi of types the non-bounded arguments of f.\n" ^ 
 			 "Unbounded type " ^ ty.tname ^ " expected, got bounded type " ^ t.tname ^ ".") ext
@@ -2000,13 +2001,13 @@ let rec check_types ext pl0 pl tl =
 	    List.iter (check_pt ty) l
 	| Length(f,l) ->
 	    if snd f.f_type != ty then
-	      input_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
+	      raise_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
 			   "where p1...pn are probabilities pi ::= maxlength(ti) | length(fi, ...) | max(pi,pi)\n" ^
 			   "for terms ti or result of fi of types the non-bounded arguments of f.\n" ^ 
 			   "Type " ^ ty.tname ^ " expected, got " ^ (snd f.f_type).tname ^ ".") ext
 	    
 	| _ ->
-	    input_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
+	    raise_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
 			 "where p1...pn are probabilities pi ::= maxlength(ti) | length(fi, ...) | max(pi,pi)\n" ^
 			 "for terms ti or result of fi of types the non-bounded arguments of f.\n" ^ 
 			 "maxlength or max expected.") ext
@@ -2014,7 +2015,7 @@ let rec check_types ext pl0 pl tl =
       check_pt ty pt;
       pt :: (check_types ext pl0' pl' tl')
   | _ -> 
-      input_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
+      raise_error ("In a probability formula, time/length should be of form time/length(f, p1, ..., pn)\n" ^
 		   "where p1...pn are probabilities pi ::= maxlength(ti) | length(fi, ...) | max(pi,pi)\n" ^
 		   "for terms ti or result of fi of types the non-bounded arguments of f.\n" ^ 
 		   "Unexpected number of arguments.") ext
@@ -2027,19 +2028,19 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	  match StringMap.find s env with
 	    EParam p -> 
 	      if not (List.exists (fun b -> p == Terms.param_from_type b) (!seen_repl)) then
-		input_error ("The parameter " ^s^ " should occur in each member of the equivalence") ext;
+		raise_error ("The parameter " ^s^ " should occur in each member of the equivalence") ext;
 	      Count p, Some(0, 0, 0)
 	  | EProba p -> Proba(p,[]), Some(1, 0, 0)
-	  | _ -> input_error (s ^ " should be a probability or a parameter") ext
+	  | _ -> raise_error (s ^ " should be a probability or a parameter") ext
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext
+	  raise_error (s ^ " is not defined") ext
       end
   | PCount(s,ext), ext2 ->
       begin
 	try
 	  OCount(List.find (fun ch -> ch.cname = s) seen_ch), Some(0, 0, 0)
 	with Not_found -> 
-	  input_error ("The oracle name " ^ s ^ " is not defined") ext
+	  raise_error ("The oracle name " ^ s ^ " is not defined") ext
       end
   | PPFun((s,ext), l), ext2 ->
       let l' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p )) l in
@@ -2052,9 +2053,9 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	try 
 	  match StringMap.find s env with
 	  | EProba p -> Proba(p,l'), Some(1, 0, 0)
-	  | _ -> input_error (s ^ " should be a probability") ext
+	  | _ -> raise_error (s ^ " should be a probability") ext
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext
+	  raise_error (s ^ " is not defined") ext
       end
   | PAdd(p1,p2), ext ->
       let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
@@ -2096,7 +2097,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	| PAPatFunApp(s,ext') ->
 	    let f = get_function_no_letfun env s ext' in
 	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	      input_error "Only [data] functions are allowed in patterns" ext';
+	      raise_error "Only [data] functions are allowed in patterns" ext';
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
 	    (ActTime(APatFunApp f, pl'), Some(0, 1, 0))
 	| PACompare(s,ext') ->
@@ -2169,14 +2170,14 @@ let rec check_probability_formula seen_ch seen_repl env = function
 		(Length(f, pl'), Some(0,0,1))
 	  | EType t ->
 	      if pl != [] then
-		input_error "the length of a type should have no additional argument" ext';
+		raise_error "the length of a type should have no additional argument" ext';
 	      if t.toptions land Settings.tyopt_BOUNDED != 0 then
 		(TypeMaxlength t, Some(0,0,1))
 	      else
-		input_error "the length of a type is allowed only when the type is bounded" ext'
-	  | _ -> input_error (s ^ " should be a function symbol (letfun forbidden) or a type") ext'
+		raise_error "the length of a type is allowed only when the type is bounded" ext'
+	  | _ -> raise_error (s ^ " should be a function symbol (letfun forbidden) or a type") ext'
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext'
+	  raise_error (s ^ " is not defined") ext'
       end
   | PLengthTuple(tl,pl), ext ->
       let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in
@@ -2201,10 +2202,10 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	      if t.toptions land Settings.tyopt_BOUNDED != 0 then
 		Card t, Some(-1, 0, 0)
 	      else
-		input_error (s ^ " should be bounded") ext'
-	  | _ -> input_error (s ^ " should be a type") ext'
+		raise_error (s ^ " should be bounded") ext'
+	  | _ -> raise_error (s ^ " should be a type") ext'
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext'
+	  raise_error (s ^ " is not defined") ext'
       end
   | PCst i, ext ->
       Cst (float_of_int i), Some(0, 0, 0)
@@ -2217,16 +2218,16 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	  match StringMap.find s env with
 	  | EType t -> 
 	      if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
-		input_error (s ^ " should be bounded or fixed, it should not be nonuniform") ext'
+		raise_error (s ^ " should be bounded or fixed, it should not be nonuniform") ext'
 	      else if t.toptions land Settings.tyopt_FIXED != 0 then
 		Zero, Some(1, 0, 0)
 	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
 		EpsRand t, Some(1, 0, 0)
 	      else
-		input_error (s ^ " should be bounded or fixed") ext'
-	  | _ -> input_error (s ^ " should be a type") ext'
+		raise_error (s ^ " should be bounded or fixed") ext'
+	  | _ -> raise_error (s ^ " should be a type") ext'
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext'
+	  raise_error (s ^ " is not defined") ext'
       end
   | PPColl1Rand(s,ext'), ext ->
       begin
@@ -2240,10 +2241,10 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
 		Add(Div(Cst 1.0, Card t), EpsRand t), Some(1, 0, 0)
 	      else 
-		input_error (s ^ " should be fixed, bounded, or nonuniform") ext'
-	  | _ -> input_error (s ^ " should be a type") ext'
+		raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
+	  | _ -> raise_error (s ^ " should be a type") ext'
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext'
+	  raise_error (s ^ " is not defined") ext'
       end
   | PPColl2Rand(s,ext'), ext ->
       begin
@@ -2257,10 +2258,10 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
 		Add(Div(Cst 1.0, Card t), EpsRand t), Some(1, 0, 0)
 	      else 
-		input_error (s ^ " should be fixed, bounded, or nonuniform") ext'
-	  | _ -> input_error (s ^ " should be a type") ext'
+		raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
+	  | _ -> raise_error (s ^ " should be a type") ext'
 	with Not_found ->
-	  input_error (s ^ " is not defined") ext'
+	  raise_error (s ^ " is not defined") ext'
       end
 
 let check_probability_formula2 seen_ch seen_repl env p =
@@ -2270,7 +2271,7 @@ let check_probability_formula2 seen_ch seen_repl env p =
       None -> ()
     | Some(dp,dt,dl) ->
 	if (dp != 1) || (dt != 0) || (dl != 0) then 
-	  input_error "The result of this formula is not a probability" (snd p)
+	  raise_error "The result of this formula is not a probability" (snd p)
   end;
   p'
 
@@ -2295,12 +2296,12 @@ let rec check_lm_restrlist cur_array env = function
   | ((s1,ext1),(s2,ext2),opt)::l ->
       let t = get_type env s2 ext2 in
       if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
-	input_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
+	raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
       begin
 	match opt with
 	  [] -> ()
 	| (_,ext3)::_ ->
-	    input_error ("Restrictions should have no options in the left-hand side of an equivalence") ext3
+	    raise_error ("Restrictions should have no options in the left-hand side of an equivalence") ext3
       end;
       let (env',b) = add_in_env env s1 ext1 t cur_array in
       let (env'',bl) = check_lm_restrlist cur_array env' l in
@@ -2316,7 +2317,7 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       let cur_array' = repl_count' :: cur_array in
       let (env',restrlist') = check_lm_restrlist cur_array' env restrlist in
       if List.memq repl_count'.ri_type (!seen_repl) then
-	Parsing_helper.input_error "In an equivalence, different functions must have a different number of repetitions" ext;
+	raise_error "In an equivalence, different functions must have a different number of repetitions" ext;
       seen_repl := repl_count'.ri_type :: (!seen_repl);
       let funlist' = List.map (check_lm_fungroup2 cur_array' (restrlist'::cur_restr) env' seen_ch seen_repl) funlist in
       (* Remove useless new *)
@@ -2325,34 +2326,34 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	begin
 	  match funlist' with
 	    [Fun _] -> ()
-	  | _ -> Parsing_helper.input_error "In equivalences, under a replication without new, there should be a single function" ext
+	  | _ -> raise_error "In equivalences, under a replication without new, there should be a single function" ext
 	end;
       ReplRestr(repl_count', restrlist'', funlist')
   | PFun(((s, ext) as ch), arglist, tres, (priority, options)) ->
       let ch' = check_channel_id ch in
       if List.memq ch' (!seen_ch) then
-	input_error ("Oracle name " ^ s ^ " already used in this equivalence") ext;
+	raise_error ("Oracle name " ^ s ^ " already used in this equivalence") ext;
       seen_ch := ch' :: (!seen_ch);
       let (env', arglist') = check_binder_list2 cur_array env arglist in
       let tres' = check_term (Some []) cur_array env' tres in
       (* Note: restriction. Could be lifted, but simplifies cryptotransf.ml greatly 
 	 Restriction partly lifted, by completing sequences of names with names already in the map.
       if not (List.for_all (List.for_all (fun b -> Terms.refers_to b tres')) cur_restr) then
-	Parsing_helper.input_error ("In equivalences, each expression should use all names defined by\n" ^
+	raise_error ("In equivalences, each expression should use all names defined by\n" ^
 				    "random choices above it. This is a simplifying restriction.") (snd tres);
       *)
       check_bit_string_type (snd tres) tres'.t_type;
       List.iter2 (fun ((argname,ext),_) arg' ->
 	if not (Terms.refers_to arg' tres') then
 	  if (!Settings.front_end) == Settings.Channels then
-            Parsing_helper.input_error ("Variable " ^ argname ^ " is not used in the result of the function") ext
+            raise_error ("Variable " ^ argname ^ " is not used in the result of the function") ext
 	  else
-	    Parsing_helper.input_error ("Variable " ^ argname ^ " is not used in the result of the oracle") ext
+	    raise_error ("Variable " ^ argname ^ " is not used in the result of the oracle") ext
 	      ) arglist arglist';
       let options' = ref StdOpt in
       List.iter (fun (s,ext) ->
 	if s = "useful_change" then options' := UsefulChange else
-	Parsing_helper.input_error ("Unrecognized option " ^ s ^ ". Only \"useful_change\" is allowed.") ext) options;
+	raise_error ("Unrecognized option " ^ s ^ ". Only \"useful_change\" is allowed.") ext) options;
       Fun(ch', arglist', tres', (priority, !options'))
 
 
@@ -2361,7 +2362,7 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
   | ((s1,ext1),(s2,ext2),opt)::l ->
       let t = get_type env s2 ext2 in
       if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
-	input_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
+	raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
       let (env',b) = add_in_env env s1 ext1 t cur_array in
       let opt' = ref NoOpt in
       List.iter (fun (s,ext) ->
@@ -2374,11 +2375,11 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
 	      ) restrlist0 then
 	      opt' := Unchanged 
 	    else
-	      input_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
+	      raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
 	  else
-	    input_error "The option [unchanged] is allowed only for computational equivalences" ext
+	    raise_error "The option [unchanged] is allowed only for computational equivalences" ext
 	else
-	  input_error "The only allowed option for random choices is [unchanged]" ext
+	  raise_error "The only allowed option for random choices is [unchanged]" ext
 	  ) opt;
       let (env'',bl) = check_rm_restrlist options2 cur_array env' restrlist0 l in
       (env'', (b, !opt')::bl)
@@ -2395,17 +2396,17 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
       let cur_array' = repl_count' :: cur_array in
       let (env',restrlist') = check_rm_restrlist options2 cur_array' env restrlist0 restrlist in
       if List.length funlist != List.length funlist0 then
-	input_error "Different number of functions in left and right sides of equivalence" ext;
+	raise_error "Different number of functions in left and right sides of equivalence" ext;
       if repl_count'.ri_type != repl_count0.ri_type then
-	input_error "Different number of repetitions in left and right members of equivalence" ext;
+	raise_error "Different number of repetitions in left and right members of equivalence" ext;
       ReplRestr(repl_count', restrlist', List.map2 (check_rm_fungroup2 options2 cur_array' env') funlist0 funlist)
   | Fun(ch0, arglist0, tres0, priority0), PFun((ch, ext), arglist, tres, _) ->
       let (env', arglist') = check_binder_list2 cur_array env arglist in
       if List.length arglist' != List.length arglist0 then
-	input_error "Argument lists have different lengths in left and right members of equivalence" (snd tres);
+	raise_error "Argument lists have different lengths in left and right members of equivalence" (snd tres);
       List.iter2 (fun b b' ->
 	if b.btype != b'.btype then
-	  input_error "Incompatible types of arguments between left and right members of equivalence" (snd tres)
+	  raise_error "Incompatible types of arguments between left and right members of equivalence" (snd tres)
 	    ) arglist' arglist0;
       let tres' = check_term (Some []) cur_array env' tres in
       (* Check that the type of the right member is the same as
@@ -2413,22 +2414,22 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
 	 so that after transformation, the process remains well-typed. *)
       check_type (snd tres) tres' tres0.t_type;
       if ch <> ch0.cname then
-	input_error "Oracle names should be the same in the left and right members of the equivalence" ext;
+	raise_error "Oracle names should be the same in the left and right members of the equivalence" ext;
       (* The priority is ignored in the right-hand side; one takes
          the priority of the left-hand side *)
       Fun(ch0, arglist', tres', priority0)
   | _, PReplRestr((_, _, (_,ext)), _,_) ->
-      input_error "Left member is a function, right member is a replication" ext
+      raise_error "Left member is a function, right member is a replication" ext
   | _, PFun(ch, arglist, tres, _) ->
-      input_error "Left member is a replication, right member is a function" (snd tres)
+      raise_error "Left member is a replication, right member is a function" (snd tres)
 
 let check_mode right = function
     Some (modes, ext) -> 
       if right then
-	Parsing_helper.input_error "Modes can be specified only in the left-hand side of an equivalence" ext;
+	raise_error "Modes can be specified only in the left-hand side of an equivalence" ext;
       if modes = "all" then AllEquiv else 
       if modes = "exist" then ExistEquiv else
-      Parsing_helper.input_error "Only modes all and exist can be specified" ext
+      raise_error "Only modes all and exist can be specified" ext
   | None -> ExistEquiv
 
 let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, options)) =
@@ -2441,11 +2442,11 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
       if !options' == StdEqopt then 
 	options' := ManualEqopt 
       else
-	Parsing_helper.input_error ("Conflicting options : you cannot specify both a priority and \"manual\"") ext 
+	raise_error ("Conflicting options : you cannot specify both a priority and \"manual\"") ext 
     else if s = "computational" then 
       options2' := Computational 
     else
-      Parsing_helper.input_error ("Unrecognized option " ^ s ^ ". Only \"manual\" is allowed.") ext
+      raise_error ("Unrecognized option " ^ s ^ ". Only \"manual\" is allowed.") ext
       ) options;
   let seen_repl = ref [] in
   let seen_ch = ref [] in
@@ -2458,7 +2459,7 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
     in
     match res with
       (ReplRestr(_,[],_), ExistEquiv) ->
-	input_error "In equivalences, a function without any name should always be in mode [all]" ext
+	raise_error "In equivalences, a function without any name should always be in mode [all]" ext
     | (_,ExistEquiv) -> incr count_exist; res
     | _ -> res
     ) mem1
@@ -2468,7 +2469,7 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
      variables of the left-hand side of the equivalence. *)
   let proba' = check_probability_formula2 (!seen_ch) seen_repl (!env) proba in
   (*if !count_exist > 1 then
-    input_error "In equivalences, there should be at most one function group without mode [all]" ext1;*)
+    raise_error "In equivalences, there should be at most one function group without mode [all]" ext1;*)
   set_binder_env
     (check_rm_funmode_list empty_binder_env mem1 mem1' mem2); (* Builds binder_env *)
   let mem2' = List.map2 (fun (fg0, _) (fg, mode, _) -> 
@@ -2485,7 +2486,7 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
 let check_collision_var env (s, ext) =
   match StringMap.find s env with
     EVar(v) -> v
-  | _ -> input_error (s ^ " should be a variable") ext
+  | _ -> raise_error (s ^ " should be a variable") ext
 
 let make_and_indep_cond c1 c2 =
   match c1, c2 with
@@ -2512,7 +2513,7 @@ let rec check_side_cond restr_may_be_equal forall restr env = function
       else if (Terms.is_true t1') && (Terms.is_true t2') then
 	(make_or_indep_cond indep_cond1 indep_cond2, Terms.make_true())
       else
-	Parsing_helper.input_error "Cannot mix terms and independence conditions in a disjunction" ext
+	raise_error "Cannot mix terms and independence conditions in a disjunction" ext
   | PIndepOf(((_, ext1) as v1), ((_, ext2) as v2)), ext ->
       (* v1 independent of v2 *)
       let v1' = check_collision_var env v1 in
@@ -2520,9 +2521,9 @@ let rec check_side_cond restr_may_be_equal forall restr env = function
       (* With the option "random_choices_may_be_equal", independence conditions are allowed between random choices
 	 so [v1'] may be bound by forall or restr, which is always the case: nothing to check in this case. *)
       if (not restr_may_be_equal) && (not (List.memq v1' forall)) then
-	input_error "independent variables should be bound by \"forall\"" ext1;
+	raise_error "independent variables should be bound by \"forall\"" ext1;
       if not (List.memq v2' restr) then
-	input_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
+	raise_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
       (IC_Indep(v1', v2'), Terms.make_true())
   | t ->
       let t' = check_term_nobe env t in
@@ -2539,23 +2540,23 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
     if s = "random_choices_may_be_equal" then
       restr_may_be_equal := true
     else
-      Parsing_helper.input_error "The only allowed option for collisions is random_choices_may_be_equal" ext
+      raise_error "The only allowed option for collisions is random_choices_may_be_equal" ext
     ) options;
   set_binder_env empty_binder_env;
   let (env',restr') = check_binder_list env restr in
   List.iter2 (fun b (_,(_,ext)) ->
     if b.btype.toptions land Settings.tyopt_CHOOSABLE == 0 then
-      input_error ("Cannot choose randomly a bitstring from " ^ b.btype.tname) ext
+      raise_error ("Cannot choose randomly a bitstring from " ^ b.btype.tname) ext
       ) restr' restr;
   let (env'',forall') = check_binder_list env' forall in
   let proba' = check_probability_formula2 [] (ref []) env'' proba in
   let t1' = check_term_nobe env'' t1 in
   if not (List.for_all (fun b -> Terms.refers_to b t1') (restr' @ forall')) then
-    input_error "In collision statements, all bound variables should occur in the left-hand side" (snd t1);
+    raise_error "In collision statements, all bound variables should occur in the left-hand side" (snd t1);
   let t2' = check_term_nobe env'' t2 in
   check_bit_string_type (snd t1) t1'.t_type;
   if t1'.t_type != t2'.t_type then 
-    input_error "Both sides of a collision statement should have the same type" (snd t2);
+    raise_error "Both sides of a collision statement should have the same type" (snd t2);
   let (indep_cond', side_cond') = check_side_cond (!restr_may_be_equal) forall' restr' env'' side_cond in
   collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond', !restr_may_be_equal) :: (!collisions)
 
@@ -2587,13 +2588,13 @@ let mergeres ext topt1 topt2 =
   try
     mergetypesopt topt1 topt2
   with IncompatibleTypes ->
-    input_error "Several branches of a process have incompatible return types" ext
+    raise_error "Several branches of a process have incompatible return types" ext
 
 let rec check_distinct ext l1 = function
     [] -> ()
   | (ch,_,_,_)::l -> 
       if List.exists (fun (ch',_,_,_) -> ch == ch') l1 then
-	input_error ("Duplicate definitions of oracle " ^ ch.cname) ext
+	raise_error ("Duplicate definitions of oracle " ^ ch.cname) ext
       else
 	check_distinct ext l1 l
 
@@ -2605,14 +2606,14 @@ let rec check_compatible ext l1 = function
       try
 	let (ch',tindex',targs',tres') = List.find (fun (ch',_,_,_) -> ch == ch') l1 in
 	if not (eqtypes tindex tindex') then
-	  input_error ("Definitions of oracle " ^ ch.cname ^ " with different replication indexes types") ext;
+	  raise_error ("Definitions of oracle " ^ ch.cname ^ " with different replication indexes types") ext;
 	if not (eqtypes targs targs') then
-	  input_error ("Definitions of oracle " ^ ch.cname ^ " with different argument types") ext;
+	  raise_error ("Definitions of oracle " ^ ch.cname ^ " with different argument types") ext;
 	try
 	  let tres'' = mergetypesopt tres tres' in
 	  (ch,tindex,targs,tres'') :: (List.filter (fun (ch',_,_,_) -> ch != ch') l1')
 	with IncompatibleTypes ->
-	  input_error ("Definitions of oracle " ^ ch.cname ^ " with different result types") ext
+	  raise_error ("Definitions of oracle " ^ ch.cname ^ " with different result types") ext
       with Not_found -> 
 	(ch,tindex,targs,tres)::l1'
       end
@@ -2635,14 +2636,14 @@ let check_opt opt =
 let add_role ((id,ext),opt) ip =
   try 
     let _=StringMap.find id !impl_roles in
-      input_error ("Role " ^ id ^ " has already been defined") ext
+      raise_error ("Role " ^ id ^ " has already been defined") ext
   with Not_found ->
     impl_roles := StringMap.add id (ip,check_opt opt) !impl_roles
 
 let rec check_process defined_refs cur_array env prog = function
     PBeginModule (a,p), ext ->
       if (prog <> None) then
-         input_error "Roles cannot be nested" ext
+         raise_error "Roles cannot be nested" ext
       else
         let (p,oracle,ip) = check_process defined_refs cur_array env (Some a) p in
           add_role a ip;
@@ -2675,7 +2676,7 @@ let rec check_process defined_refs cur_array env prog = function
         else
 	  begin
 	    if List.exists (fun (c',_,_,_) -> c' == c) oracle then
-	      input_error ("Duplicate definitions of oracle " ^ c.cname ^ 
+	      raise_error ("Duplicate definitions of oracle " ^ c.cname ^ 
 			   "\n(The second definition is located under the return of the first one.)") ext;
 	    match pat' with
 	        PatTuple(_,patl) ->
@@ -2688,7 +2689,7 @@ let rec check_process defined_refs cur_array env prog = function
   | PLetDef((s,ext),args), _ ->
       let (env', vardecl, p) = get_process env s ext in
       if List.length vardecl != List.length args then
-	Parsing_helper.input_error ("Process "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length args))^" argument(s)") ext;
+	raise_error ("Process "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length args))^" argument(s)") ext;
       let args' = List.map (check_term (Some defined_refs) cur_array env) args in
       (* Only simple terms (variables, replication indices, and function 
 	 applications) are allowed in arguments. *)
@@ -2709,7 +2710,7 @@ let rec check_process defined_refs cur_array env prog = function
 	(p_inst', oracles, ip_inst)
 	  )
   | _, ext ->
-      input_error "input process expected" ext
+      raise_error "input process expected" ext
 
 and check_oprocess defined_refs cur_array env prog = function
     PYield, _ -> (oproc_from_desc Yield, None, [], oproc_from_desc Yield)
@@ -2721,14 +2722,14 @@ and check_oprocess defined_refs cur_array env prog = function
 	    check_type_list ext [] [] (List.tl (fst f.f_type));
 	    let p_desc = EventAbort(f) in
 	    (oproc_from_desc p_desc, None, [], oproc_from_desc p_desc)
-	| _ -> input_error (s ^ " should be an event") ext
+	| _ -> raise_error (s ^ " should be an event") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | PRestr((s1,ext1),(s2,ext2),p), _ ->
       let t = get_type env s2 ext2 in
         if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
-	  input_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
+	  raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
         let (env',b) = add_in_env env s1 ext1 t cur_array in
         let (p', tres, oracle,ip') = check_oprocess defined_refs cur_array env' prog p in
           (oproc_from_desc (Restr(b, p')), tres, oracle,
@@ -2736,7 +2737,7 @@ and check_oprocess defined_refs cur_array env prog = function
   | PLetDef((s,ext), args), _ ->
       let (env', vardecl, p) = get_process env s ext in
       if List.length vardecl != List.length args then
-	Parsing_helper.input_error ("Process "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length args))^" argument(s)") ext;
+	raise_error ("Process "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length args))^" argument(s)") ext;
       let args' = List.map (check_term (Some defined_refs) cur_array env) args in
       let (env'', lets) = check_args cur_array env' vardecl args' in
       let (p', tres, oracle, ip')  = check_oprocess [] cur_array env'' prog p in
@@ -2760,7 +2761,7 @@ and check_oprocess defined_refs cur_array env prog = function
               Parsing_helper.input_warning "The [unique] option is primarily intended for use in declarations of primitives. If you use it in processes, you must guarantee yourself that this find will have a unique successful branch/index." ext_s
           end
 	else
-          Parsing_helper.input_error "The only option allowed for find is unique" ext_s
+          raise_error "The only option allowed for find is unique" ext_s
 	    ) opt;
       let (p2', tres2, oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
       let trescur = ref tres2 in
@@ -2799,11 +2800,11 @@ and check_oprocess defined_refs cur_array env prog = function
       let t2' = check_term (Some defined_refs) cur_array env t2 in
       begin
         match t2'.t_type.tcat with
-	  Interv _ -> input_error "Cannot output a term of interval type" (snd t2)
+	  Interv _ -> raise_error "Cannot output a term of interval type" (snd t2)
         |	_ -> ()
       end;
       if rt && prog = None then
-	input_error "Cannot close inexistent role" ext;
+	raise_error "Cannot close inexistent role" ext;
       let (p', oracle,ip'') = check_process defined_refs cur_array env (if rt then None else prog) p in
       let ip'=if rt then (iproc_from_desc Nil) else ip'' in
       if (!Settings.front_end) == Settings.Channels then
@@ -2846,9 +2847,9 @@ and check_oprocess defined_refs cur_array env prog = function
 	          (oproc_from_desc 
 	             (EventP(event, p')), tres, oracle,
                    oproc_from_desc (EventP(event, ip')))
-	    | _ -> input_error (s ^ " should be an event") ext0
+	    | _ -> raise_error (s ^ " should be an event") ext0
         with Not_found ->
-	  input_error (s ^ " not defined") ext0
+	  raise_error (s ^ " not defined") ext0
       end
   | PGet((id,ext),patl,topt,p1,p2),_ -> 
       let tbl = get_table env id ext in
@@ -2877,7 +2878,7 @@ and check_oprocess defined_refs cur_array env prog = function
            oproc_from_desc (Insert(tbl, t', ip')))
             
   | _, ext -> 
-      input_error "non-input process expected" ext
+      raise_error "non-input process expected" ext
         
 (* Macro expansion *)
 
@@ -3119,9 +3120,9 @@ let rename_decl = function
 	   List.map (fun (x,t) -> (rename_ie x, rename_ty t)) vardecl,
 	   rename_proc p)
   | Proofinfo(pr, ext) ->
-      input_error "Proof indications not allowed in macros" ext
+      raise_error "Proof indications not allowed in macros" ext
   | Define((_,ext1),_,_) ->
-      input_error "macro definitions are not allowed inside macro definitions" ext1
+      raise_error "macro definitions are not allowed inside macro definitions" ext1
   | Expand(s1,argl) ->
       Expand(s1, List.map rename_ie argl)
   | Implementation(ilist) ->
@@ -3156,7 +3157,7 @@ let apply argl paraml already_def def =
 
 let add_not_found s ext v =
   if StringMap.mem s (!env) then
-    input_error (s ^ " already defined.") ext
+    raise_error (s ^ " already defined.") ext
   else
     env := StringMap.add s v (!env)
 
@@ -3167,32 +3168,32 @@ let rec write_type_options typ = function
           match l with 
             | [ (pr,ext) ] -> 
                 if typ.timplsize != None then
-                  input_error ("Cannot set predicate for type "^typ.tname^".\n(Predicate already determined by the size.)") ext
+                  raise_error ("Cannot set predicate for type "^typ.tname^".\n(Predicate already determined by the size.)") ext
                 else
                   typ.tpredicate <- Some pr
             | _ ->
-                input_error "Wrong format for the pred option" ext
+                raise_error "Wrong format for the pred option" ext
         else
         if i = "serial" then
           match l with 
             | [(s,ext); (d,ext')] ->
                 typ.tserial <- Some(s,d)
             | _ ->
-                input_error "Wrong format for the serial option" ext
+                raise_error "Wrong format for the serial option" ext
         else
         if i = "random" then
           match l with
             | [ (r,ext) ] ->
                 if (typ.timplsize <> None) && (typ.toptions land Settings.tyopt_NONUNIFORM == 0) then
-                  input_error ("Cannot set random generator function for type "^typ.tname^".\n(Function already determined by the size and the generator is uniform.)") ext
+                  raise_error ("Cannot set random generator function for type "^typ.tname^".\n(Function already determined by the size and the generator is uniform.)") ext
                 else if typ.toptions land Settings.tyopt_CHOOSABLE == 0 then
-		  input_error ("One cannot generate random values from type  "^typ.tname^".\nYou should not specify the random generator.") ext
+		  raise_error ("One cannot generate random values from type  "^typ.tname^".\nYou should not specify the random generator.") ext
 		else
                   typ.trandom <- Some r
             | _ -> 
-                input_error "Wrong format for the random option" ext
+                raise_error "Wrong format for the random option" ext
         else
-          input_error ("Type option "^i^" not recognized") ext
+          raise_error ("Type option "^i^" not recognized") ext
       end;
       write_type_options typ l'
   | [] -> ()
@@ -3204,9 +3205,9 @@ let rec write_fun_options fu = function
           if (fu.f_options land Settings.fopt_COMPOS) <> 0 then
             fu.f_impl_inv <- Some(j)
           else
-            input_error (fu.f_name^" is not composable and an inverse is given.") ext' 
+            raise_error (fu.f_name^" is not composable and an inverse is given.") ext' 
         else
-          input_error ("Fun option "^i^" not recognized") ext
+          raise_error ("Fun option "^i^" not recognized") ext
       end;
       write_fun_options fu l'
   | [] -> ()
@@ -3225,9 +3226,9 @@ let rec check_one = function
 		if (String.sub sopt 0 4) <> "size" then raise Not_found;
 		int_of_string (String.sub sopt 4 (String.length sopt - 4))
 	      with _ ->
-		Parsing_helper.input_error ("Unknown parameter option " ^ sopt) extopt
+		raise_error ("Unknown parameter option " ^ sopt) extopt
 	    end
-	| _::_::_ -> Parsing_helper.input_error "Parameters accept a single size option" ext
+	| _::_::_ -> raise_error "Parameters accept a single size option" ext
       in
       add_not_found s ext (EParam{ pname = s; psize = size })
   | ProbabilityDecl(s,ext) ->
@@ -3248,10 +3249,10 @@ let rec check_one = function
 	      try
 		let r = Settings.parse_type_size sopt in
 		if (!size) <> Settings.tysize_SMALL then
-		  Parsing_helper.input_error ("Types options large, password, and size<n> are incompatible") ext1;
+		  raise_error ("Types options large, password, and size<n> are incompatible") ext1;
 		size := r
 	      with Not_found ->
-		Parsing_helper.input_error ("Unknown type option " ^ sopt) extopt
+		raise_error ("Unknown type option " ^ sopt) extopt
 	      ) options;
 	let ty = { tname = s1;
 		   tcat = BitString;
@@ -3270,16 +3271,16 @@ let rec check_one = function
 	    try
 	      let Macro(paraml, def, already_def, _) = StringMap.find "move_array_internal_macro" (!macrotable) in
 	      if List.length paraml != 1 then
-		input_error ("Macro move_array_internal_macro should expect one argument but expects " ^ (string_of_int (List.length paraml)) ^ " arguments.") ext1;
+		raise_error ("Macro move_array_internal_macro should expect one argument but expects " ^ (string_of_int (List.length paraml)) ^ " arguments.") ext1;
 	      let old_equivalences = !equivalences in
 	      let old_env = !env in
 	      List.iter check_one (apply [(s1,ext1)] paraml already_def def);
 	      env := old_env;
 	      match !equivalences with
-		[] -> input_error ("Macro move_array_internal_macro should define an equivalence.") ext1
+		[] -> raise_error ("Macro move_array_internal_macro should define an equivalence.") ext1
 	      |	(eq::rest) ->
 		  if rest != old_equivalences then
-		    input_error ("Macro move_array_internal_macro should define exactly one equivalence.") ext1;
+		    raise_error ("Macro move_array_internal_macro should define exactly one equivalence.") ext1;
 		  equivalences := old_equivalences;
 		  move_new_eq := (ty, eq) :: (!move_new_eq)
 	    with Not_found -> 
@@ -3307,7 +3308,7 @@ let rec check_one = function
 	try 
 	  Settings.do_set p v 
 	with Not_found -> 
-	  input_error  ("Bad setting " ^ p ^ "=" ^
+	  raise_error  ("Bad setting " ^ p ^ "=" ^
                         (match v with S (s,_) -> s | I n -> string_of_int n)) ext
       end
   | FunDecl((s1,ext1),l,(sr,extr),f_options) ->
@@ -3321,17 +3322,17 @@ let rec check_one = function
 	    begin
 	      opt := (!opt) lor Settings.fopt_DECOMPOS;
 	      if List.length l' != 1 then
-		Parsing_helper.input_error "A [projection] function should be unary" extopt
+		raise_error "A [projection] function should be unary" extopt
 	    end
 	  else if sopt = "uniform" then
 	    begin
 	      opt := (!opt) lor Settings.fopt_UNIFORM;
 	      if List.length l' != 1 then
-		Parsing_helper.input_error "A uniform function should be unary" extopt;
+		raise_error "A uniform function should be unary" extopt;
 	      if sr'.toptions land Settings.tyopt_CHOOSABLE == 0 then
-		Parsing_helper.input_error "A uniform function should have a result that can be randomly chosen" extopt;
+		raise_error "A uniform function should have a result that can be randomly chosen" extopt;
 	      if (List.hd l').toptions land Settings.tyopt_CHOOSABLE == 0 then
-		Parsing_helper.input_error "A uniform function should have an argument that can be randomly chosen" extopt
+		raise_error "A uniform function should have an argument that can be randomly chosen" extopt
 	    end
 	  else if sopt = "data" then 
 	    opt := (!opt) lor Settings.fopt_COMPOS
@@ -3339,11 +3340,11 @@ let rec check_one = function
             begin
               (* for compatibility with ProVerif *)
 	      if List.length l' != 1 then
-	        input_error "only unary functions can be declared \"typeConverter\"" extopt;
+	        raise_error "only unary functions can be declared \"typeConverter\"" extopt;
 	      opt := (!opt) lor Settings.fopt_COMPOS
             end 
           else
-	    Parsing_helper.input_error ("Unknown function option " ^ sopt) extopt
+	    raise_error ("Unknown function option " ^ sopt) extopt
 	      ) f_options;
       add_not_found s1 ext1 (EFunc{ f_name = s1;
 				    f_type = l',sr';
@@ -3358,7 +3359,7 @@ let rec check_one = function
       let (tl,env')=
         List.fold_right (fun ((s1, ext1), tyb) (tl,env') ->
           if (StringMap.mem s1 env') then
-            Parsing_helper.input_error ("The name "^s1^" already defined before cannot be used here") ext1
+            raise_error ("The name "^s1^" already defined before cannot be used here") ext1
           else
             let (t,_) = get_ty env' tyb in
             let env'' = add_in_env_letfun env' s1 ext1 t in
@@ -3413,7 +3414,7 @@ let rec check_one = function
       add_not_found s1 ext1 (EProcess (!env, vardecl, p))
   | Proofinfo(pr, ext) ->
       if !proof != None then
-	input_error "Several proof indications" ext
+	raise_error "Several proof indications" ext
       else
 	proof := Some pr
   | Implementation(impl) ->
@@ -3423,7 +3424,7 @@ let rec check_one = function
            | Type ((t,ext), tid, opts) ->
                let typ = get_type !env t ext in
 	       if typ.timplname != None then
-		 Parsing_helper.input_error ("Type " ^ t ^ " already has implementation informations") ext;
+		 raise_error ("Type " ^ t ^ " already has implementation informations") ext;
                begin
                  match tid with
                    TypeSize (size) -> 
@@ -3446,12 +3447,12 @@ let rec check_one = function
                            typ.trandom <- Some ("(rand_string "^(string_of_int (size/8))^")")
 			 end
                        else 
-			 Parsing_helper.input_error "Fixed-length types of size different from 1 and non-multiple of 8 not supported" ext
+			 raise_error "Fixed-length types of size different from 1 and non-multiple of 8 not supported" ext
                      end
                  | TypeName (n,ext) ->
                      begin
 		       if typ.toptions land Settings.tyopt_FIXED != 0 then
-			 Parsing_helper.input_error "The implementation of fixed types should be given by specifying their size" ext;
+			 raise_error "The implementation of fixed types should be given by specifying their size" ext;
                        typ.timplname <- Some(n);
                        typ.tpredicate <- Some ("always_true")
                      end
@@ -3461,28 +3462,28 @@ let rec check_one = function
            | Function((f,ext),(i,ext1),fopts) ->
                let fu=get_function_or_letfun !env f ext in
 	       if fu.f_impl != No_impl then
-		 Parsing_helper.input_error ("Function " ^ f ^ " already has implementation informations") ext;
+		 raise_error ("Function " ^ f ^ " already has implementation informations") ext;
                 fu.f_impl <- Func i;
                write_fun_options fu fopts
            | Constant((f,ext),(i,ext')) ->
                let fu=get_function_or_letfun !env f ext in
  	       if fu.f_impl != No_impl then
-		 Parsing_helper.input_error ("Function " ^ f ^ " already has implementation informations") ext;
+		 raise_error ("Function " ^ f ^ " already has implementation informations") ext;
                if (fst fu.f_type <> []) then
-                 input_error (fu.f_name^" is not a function without arguments.") ext
+                 raise_error (fu.f_name^" is not a function without arguments.") ext
                else
                  fu.f_impl <- Const i
            | ImplTable((tbl,ext),(file,ext')) ->
                let t=get_table !env tbl ext in
  	       if t.tblfile != None then
-		 Parsing_helper.input_error ("Table " ^ tbl ^ " already has implementation informations") ext;
+		 raise_error ("Table " ^ tbl ^ " already has implementation informations") ext;
                t.tblfile <- Some file;
         ) impl;
       implementation := impl @ (!implementation)
   | Define _ ->
       internal_error "macros should have been expanded"
   | Expand((s,ext),_) ->
-      input_error "macros should have been expanded, and the macro move_array_internal_macro should not contain expansions of other macros" ext
+      raise_error "macros should have been expanded, and the macro move_array_internal_macro should not contain expansions of other macros" ext
 
 let check_process_full p =
   set_binder_env (check_process1 empty_binder_env [] (!env) p); (* Builds binder_env *)
@@ -3508,15 +3509,15 @@ let rec check_term_query1 env = function
 	  EEvent(f) ->
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
 	    [inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl'))]
-	| _ -> input_error (s ^ " should be an event") ext
+	| _ -> raise_error (s ^ " should be an event") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | PQEvent _, ext ->
-      input_error "Events should be function applications" ext
+      raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
       (check_term_query1 env t1) @ (check_term_query1 env t2)
-  | _,ext2 -> input_error "the left-hand side of a correspondence query should be an event or a conjunction of events" ext2
+  | _,ext2 -> raise_error "the left-hand side of a correspondence query should be an event or a conjunction of events" ext2
 
 let rec check_term_query2 env = function
     (PIdent (s, ext), ext2) as x ->
@@ -3536,10 +3537,10 @@ let rec check_term_query2 env = function
 	      check_type (snd x) x' Settings.t_bool;
 	      QTerm x'
 	    else
-	      input_error (s ^ " has no arguments but expects some") ext
-	| _ -> input_error (s ^ " should be a variable or a function (letfun forbidden)") ext
+	      raise_error (s ^ " has no arguments but expects some") ext
+	| _ -> raise_error (s ^ " should be a variable or a function (letfun forbidden)") ext
       with Not_found -> 
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | (PFunApp((s,ext), tl),ext2) as x ->
       let tl' = List.map (check_term_nobe env) tl in
@@ -3556,12 +3557,12 @@ let rec check_term_query2 env = function
 	  EEvent(f) ->
 	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
 	    QEvent (inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl')))
-	| _ -> input_error (s ^ " should be a an event") ext
+	| _ -> raise_error (s ^ " should be a an event") ext
       with Not_found ->
-	input_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined") ext
       end
   | PQEvent _, ext ->
-      input_error "Events should be function applications" ext
+      raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
       QAnd(check_term_query2 env t1, check_term_query2 env t2)
   | POr(t1,t2), ext ->
@@ -3604,7 +3605,7 @@ let check_query = function
 	else if s = "cv_onesession" then
 	  onesession := true
 	else
-	  input_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
+	  raise_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
       QSecret (get_global_binder "in a secrecy query" i,
 	       get_qpubvars pub_vars, !onesession)
   | PQEventQ (vl,t1,t2, pub_vars) -> 
@@ -3614,9 +3615,9 @@ let check_query = function
       let has_inj_before_impl = List.exists (fun (b,_) -> b) t1' in
       let has_inj_after_impl = find_inj t2' in
       if has_inj_before_impl && not has_inj_after_impl then
-	input_error "In this query, inj: is present before ==> but not after ==>.\ninj: should be present either both before and after ==> or not at all." (snd t1);
+	raise_error "In this query, inj: is present before ==> but not after ==>.\ninj: should be present either both before and after ==> or not at all." (snd t1);
       if (not has_inj_before_impl) && has_inj_after_impl then
-	input_error "In this query, inj: is present after ==> but not before ==>.\ninj: should be present either both before and after ==> or not at all." (snd t2);
+	raise_error "In this query, inj: is present after ==> but not before ==>.\ninj: should be present either both before and after ==> or not at all." (snd t2);
       QEventQ(t1',t2', get_qpubvars pub_vars)
 
 let get_impl ()=
@@ -3683,7 +3684,7 @@ let rec check_no_dup = function
   | (arg,ext)::l ->
       List.iter (fun (arg',ext') ->
 	if arg = arg' then
-	  input_error ("Macro contains twice the argument " ^ arg ^
+	  raise_error ("Macro contains twice the argument " ^ arg ^
 		       ". It already appears at " ^
 		       (in_file_position ext' ext)) ext'
 	    ) l;
@@ -3695,7 +3696,7 @@ let rec expand_macros macro_table already_def = function
       match a with
       | Define((s1,ext1),argl,def) ->
 	  if StringMap.mem s1 macro_table then
-	    input_error ("Macro " ^ s1 ^ " already defined.") ext1
+	    raise_error ("Macro " ^ s1 ^ " already defined.") ext1
           else
 	    begin
 	      check_no_dup argl;
@@ -3710,14 +3711,14 @@ let rec expand_macros macro_table already_def = function
 	    try 
 	      let Macro(paraml, def, old_already_def, old_macro_table) = StringMap.find s1 macro_table in
 	      if List.length argl != List.length paraml then
-		input_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
+		raise_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
 			     " arguments, but is here given " ^ (string_of_int (List.length argl)) ^ " arguments.") ext1;
 	      let applied_macro = apply argl paraml old_already_def def in
 	      let expanded_macro = expand_macros old_macro_table old_already_def applied_macro in
 	      let already_def_after_macro = add_already_def argl expanded_macro already_def in
 	      expanded_macro @ (expand_macros macro_table already_def_after_macro l)
 	    with Not_found ->
-	      input_error ("Macro " ^ s1 ^ " not defined.") ext1
+	      raise_error ("Macro " ^ s1 ^ " not defined.") ext1
 	  end
       | _ ->
 	  let already_def' = 
@@ -4071,10 +4072,13 @@ let read_file f =
 	 remove_dup ql, !proof, (get_impl ()), final_p)
     | Equivalence _ ->
 	if (!queries_parse) != [] then
-	  Parsing_helper.user_error "Queries are incompatible with equivalence\n";
+	  user_error "Queries are incompatible with equivalence";
 	if (!Settings.get_implementation) then
-	  Parsing_helper.user_error "Implementation is incompatible with equivalence\n";
+	  user_error "Implementation is incompatible with equivalence";
 	(!statements, !collisions, !equivalences, !move_new_eq,
 	 [], !proof, [], final_p)
-  with Undefined(i,ext) ->
-    input_error (i ^ " not defined") ext
+  with
+  | Undefined(i,ext) ->
+      Parsing_helper.input_error (i ^ " not defined") ext
+  | Error(s, ext) ->
+      Parsing_helper.input_error s ext
