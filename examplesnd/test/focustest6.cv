@@ -1,0 +1,12 @@
+event e1.
+
+query event(e1).
+query event(e1).
+
+proof {
+   focus "query event(e1)"
+   }
+
+channel c.
+
+process in(c, ()); event e1

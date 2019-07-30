@@ -4057,8 +4057,18 @@ let read_file f =
     let final_p = check_all (l',p) in
     match final_p with
       SingleProcess p' ->
+	let ql = List.map check_query (!queries_parse) in
+	let rec remove_dup = function
+	    q::ql ->
+	      let ql' = remove_dup ql in 
+	      if List.exists (Terms.equal_query q) ql' then
+		ql'
+	      else
+		q::ql'
+	  | [] -> []
+	in
 	(!statements, !collisions, !equivalences, !move_new_eq,
-	 List.map check_query (!queries_parse), !proof, (get_impl ()), final_p)
+	 remove_dup ql, !proof, (get_impl ()), final_p)
     | Equivalence _ ->
 	if (!queries_parse) != [] then
 	  Parsing_helper.user_error "Queries are incompatible with equivalence\n";

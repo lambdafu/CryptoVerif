@@ -90,6 +90,8 @@ val exists_suboproc :
 
 
 val equal_lists : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
+val equal_query_any_pubvars : query -> query -> bool
+val equal_query : query -> query -> bool
 val equal_instruct : instruct -> instruct -> bool
 val add_eq : instruct -> instruct list -> instruct list
 
