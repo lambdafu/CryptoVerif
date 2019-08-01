@@ -200,87 +200,6 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
       (List.exists f_term tl) || (f p)
 
 	
-(* Equality tests *)
-
-let equal_lists eq l1 l2 =
-  (List.length l1 == List.length l2) && 
-  (List.for_all2 eq l1 l2)
-
-let equal_mset mset1 mset2 =
-  match (mset1, mset2) with
-    (MBinders l1, MBinders l2) -> equal_lists (==) l1 l2
-  | x, y -> x == y
-
-let equal_rset rset1 rset2 =
-  match (rset1, rset2) with
-    (All, All) | (Minimal, Minimal) | (FindCond, FindCond) -> true
-  | (Binders l1, Binders l2) -> equal_lists (==) l1 l2
-  | _ -> false
-
-let equal_merge_mode m1 m2 =
-  match (m1,m2) with
-    (MNoBranchVar, MNoBranchVar) | (MCreateBranchVar, MCreateBranchVar) -> true
-  | (MCreateBranchVarAtProc (pl1, cur_array1), MCreateBranchVarAtProc (pl2, cur_array2)) ->
-      (equal_lists (==) pl1 pl2) && (equal_lists (==) cur_array1 cur_array2)
-  | (MCreateBranchVarAtTerm (tl1, cur_array1), MCreateBranchVarAtTerm (tl2, cur_array2)) ->
-      (equal_lists (==) tl1 tl2) && (equal_lists (==) cur_array1 cur_array2)
-  | _ -> false
-
-let equal_query q1 q2 =
-  match (q1,q2) with
-    (QSecret (b1,l1,onesession1), QSecret (b2,l2,onesession2)) ->
-      (b1 == b2) && (equal_lists (==) l1 l2) && (onesession1 = onesession2)
-  | _ -> false
-
-let eq_pair (a1,b1) (a2,b2) =
-  a1 == a2 && b1 == b2
-	
-let equal_user_info i1 i2 =
-  match i1,i2 with
-    VarList(bl1,b1),VarList(bl2,b2) -> (equal_lists (==) bl1 bl2) && (b1 == b2)
-  | Detailed(vmopt1,tmopt1), Detailed(vmopt2,tmopt2) ->
-     (match vmopt1, vmopt2 with
-       None, None -> true
-     | Some(ml1,l1,b1), Some(ml2,l2,b2) ->
-	 (equal_lists eq_pair ml1 ml2) && (equal_lists (==) l1 l2) && (b1 == b2)
-     | _ -> false) &&
-      (match tmopt1, tmopt2 with
-	None, None -> true
-      | Some(ml1,b1), Some(ml2,b2) ->
-	  (equal_lists eq_pair ml1 ml2) && (b1 == b2)
-      | _ -> false)
-  | _ -> false
-	
-let equal_instruct i1 i2 =
-  match i1,i2 with
-    (ExpandIfFindGetInsert, ExpandIfFindGetInsert) -> true
-	(* We overapproximate by saying that simplify instructions
-	   are not equal when they contain known_when_adv_wins.
-	   Ok since we use equal_instruct to eliminate duplicates *)
-  | (Simplify(None, l1), Simplify(None, l2)) -> equal_lists (=) l1 l2
-  | (GlobalDepAnal (b1,l1), GlobalDepAnal (b2,l2)) -> (b1 == b2) && (equal_lists (=) l1 l2)
-  | (RemoveAssign rset1, RemoveAssign rset2) -> equal_rset rset1 rset2
-  | (SArenaming b1, SArenaming b2) -> b1 == b2
-  | (MoveNewLet mset1, MoveNewLet mset2) -> equal_mset mset1 mset2
-  | (CryptoTransf (eq1, bl1), CryptoTransf (eq2, bl2)) -> 
-      (eq1 == eq2) && (equal_user_info bl1 bl2)
-  | (InsertEvent(s1,n1), InsertEvent(s2,n2)) ->
-      (s1 = s2) && (n1 == n2)
-  | (InsertInstruct(s1,_,n1,_), InsertInstruct(s2,_,n2,_)) ->
-      (s1 = s2) && (n1 == n2)
-  | (ReplaceTerm(s1,_,n1,_), ReplaceTerm(s2,_,n2,_)) ->
-      (s1 = s2) && (n1 == n2)
-  | (MergeArrays(bl1,m1), MergeArrays(bl2,m2)) ->
-      (equal_lists (equal_lists (fun (b1,ext1) (b2, ext2) -> (b1 == b2) && (ext1 = ext2))) bl1 bl2) &&
-      (equal_merge_mode m1 m2)
-  | (MergeBranches, MergeBranches) -> true
-  | (Proof ql1, Proof ql2) ->
-      equal_lists (fun ((q1,n1),p1) ((q2,n2),p2) -> (equal_query q1 q2) && (n1 = n2) && (p1 = p2)) ql1 ql2
-  | _ -> false
-
-let add_eq a l =
-  if List.exists (equal_instruct a) l then l else a::l
-
 (* Create an interval type from a parameter *)
 
 let type_for_param_table = Hashtbl.create 7
@@ -492,7 +411,152 @@ let auto_cleanup f =
     current_bound_vars := tmp_bound_vars;
     raise x
 
-(* Equality *)
+(* Equality tests *)
+
+let equal_lists eq l1 l2 =
+  (List.length l1 == List.length l2) && 
+  (List.for_all2 eq l1 l2)
+
+let equal_mset mset1 mset2 =
+  match (mset1, mset2) with
+    (MBinders l1, MBinders l2) -> equal_lists (==) l1 l2
+  | x, y -> x == y
+
+let equal_rset rset1 rset2 =
+  match (rset1, rset2) with
+    (All, All) | (Minimal, Minimal) | (FindCond, FindCond) -> true
+  | (Binders l1, Binders l2) -> equal_lists (==) l1 l2
+  | _ -> false
+
+let equal_merge_mode m1 m2 =
+  match (m1,m2) with
+    (MNoBranchVar, MNoBranchVar) | (MCreateBranchVar, MCreateBranchVar) -> true
+  | (MCreateBranchVarAtProc (pl1, cur_array1), MCreateBranchVarAtProc (pl2, cur_array2)) ->
+      (equal_lists (==) pl1 pl2) && (equal_lists (==) cur_array1 cur_array2)
+  | (MCreateBranchVarAtTerm (tl1, cur_array1), MCreateBranchVarAtTerm (tl2, cur_array2)) ->
+      (equal_lists (==) tl1 tl2) && (equal_lists (==) cur_array1 cur_array2)
+  | _ -> false
+
+let rec equal_terms_ren t1 t2 =
+  match t1.t_desc, t2.t_desc with
+  | Var(b1,l1), Var(b2,l2) ->
+      assert(l1 == [] && l2 == []);
+      begin
+	match b1.link, b2.link with
+	| NoLink, NoLink ->
+	    link b1 (TLink t2);
+	    link b2 (TLink t1)
+	| TLink { t_desc = Var(b2', []) },
+	    TLink { t_desc = Var(b1', []) } when b1' == b1 && b2' == b2 -> ()
+	| _ -> raise NoMatch
+      end
+  | FunApp(f1, l1), FunApp(f2, l2) ->
+      if f1 != f2 then raise NoMatch;
+      List.iter2 equal_terms_ren l1 l2
+  | _ -> raise NoMatch
+
+let rec equal_qterms_ren t1 t2 =
+  match t1, t2 with
+  | QEvent(b1, t1'), QEvent(b2, t2') ->
+      if b1 != b2 then raise NoMatch;
+      equal_terms_ren t1' t2'
+  | QTerm t1', QTerm t2' ->
+      equal_terms_ren t1' t2'
+  | QAnd(t1', t1''), QAnd(t2', t2'') ->
+      equal_qterms_ren t1' t2';
+      equal_qterms_ren t1'' t2''
+  | QOr(t1', t1''), QOr(t2', t2'') ->
+      equal_qterms_ren t1' t2';
+      equal_qterms_ren t1'' t2''
+  | _ -> raise NoMatch
+
+let eq_pub_vars pv1 pv2 =
+  (List.for_all (fun b1 -> List.memq b1 pv2) pv1) &&
+  (List.for_all (fun b2 -> List.memq b2 pv1) pv2)
+	
+let equal_query_any_pubvars q1 q2 =
+  match q1, q2 with
+  | QSecret(b1,pub_vars1,one_session1), QSecret(b2,pub_vars2,one_session2) ->
+      (b1 == b2) && 
+      (one_session1 = one_session2)
+  | QEventQ(hyp1, concl1, pub_vars1), QEventQ(hyp2, concl2, pub_vars2) ->
+      (List.length hyp1 == List.length hyp2) &&
+      (auto_cleanup (fun () ->
+	try
+	  List.iter2 (fun (inj1,t1) (inj2,t2) ->
+	    if inj1 != inj2 then raise NoMatch;
+	    equal_terms_ren t1 t2) hyp1 hyp2;
+	  equal_qterms_ren concl1 concl2;
+	  true
+	with NoMatch ->
+	  false))
+  | QEquivalence _, QEquivalence _ 
+  | QEquivalenceFinal _, QEquivalenceFinal _
+  | AbsentQuery, AbsentQuery -> true
+  | _ -> false
+
+let equal_pubvars q1 q2 =
+  match q1, q2 with
+  | QSecret(_,pub_vars1,_), QSecret(_,pub_vars2,_) 
+  | QEventQ(_,_, pub_vars1), QEventQ(_,_, pub_vars2) 
+  | QEquivalence(_, pub_vars1), QEquivalence(_, pub_vars2) 
+  | QEquivalenceFinal(_, pub_vars1), QEquivalenceFinal(_, pub_vars2) ->
+      eq_pub_vars pub_vars1 pub_vars2
+  | AbsentQuery, AbsentQuery -> true
+  | _ -> false
+
+let equal_query q1 q2 =
+  (equal_query_any_pubvars q1 q2) &&
+  (equal_pubvars q1 q2)
+
+let eq_pair (a1,b1) (a2,b2) =
+  a1 == a2 && b1 == b2
+	
+let equal_user_info i1 i2 =
+  match i1,i2 with
+    VarList(bl1,b1),VarList(bl2,b2) -> (equal_lists (==) bl1 bl2) && (b1 == b2)
+  | Detailed(vmopt1,tmopt1), Detailed(vmopt2,tmopt2) ->
+     (match vmopt1, vmopt2 with
+       None, None -> true
+     | Some(ml1,l1,b1), Some(ml2,l2,b2) ->
+	 (equal_lists eq_pair ml1 ml2) && (equal_lists (==) l1 l2) && (b1 == b2)
+     | _ -> false) &&
+      (match tmopt1, tmopt2 with
+	None, None -> true
+      | Some(ml1,b1), Some(ml2,b2) ->
+	  (equal_lists eq_pair ml1 ml2) && (b1 == b2)
+      | _ -> false)
+  | _ -> false
+	
+let equal_instruct i1 i2 =
+  match i1,i2 with
+    (ExpandIfFindGetInsert, ExpandIfFindGetInsert) -> true
+	(* We overapproximate by saying that simplify instructions
+	   are not equal when they contain known_when_adv_wins.
+	   Ok since we use equal_instruct to eliminate duplicates *)
+  | (Simplify(None, l1), Simplify(None, l2)) -> equal_lists (=) l1 l2
+  | (GlobalDepAnal (b1,l1), GlobalDepAnal (b2,l2)) -> (b1 == b2) && (equal_lists (=) l1 l2)
+  | (RemoveAssign rset1, RemoveAssign rset2) -> equal_rset rset1 rset2
+  | (SArenaming b1, SArenaming b2) -> b1 == b2
+  | (MoveNewLet mset1, MoveNewLet mset2) -> equal_mset mset1 mset2
+  | (CryptoTransf (eq1, bl1), CryptoTransf (eq2, bl2)) -> 
+      (eq1 == eq2) && (equal_user_info bl1 bl2)
+  | (InsertEvent(s1,n1), InsertEvent(s2,n2)) ->
+      (s1 = s2) && (n1 == n2)
+  | (InsertInstruct(s1,_,n1,_), InsertInstruct(s2,_,n2,_)) ->
+      (s1 = s2) && (n1 == n2)
+  | (ReplaceTerm(s1,_,n1,_), ReplaceTerm(s2,_,n2,_)) ->
+      (s1 = s2) && (n1 == n2)
+  | (MergeArrays(bl1,m1), MergeArrays(bl2,m2)) ->
+      (equal_lists (equal_lists (fun (b1,ext1) (b2, ext2) -> (b1 == b2) && (ext1 = ext2))) bl1 bl2) &&
+      (equal_merge_mode m1 m2)
+  | (MergeBranches, MergeBranches) -> true
+  | (Proof ql1, Proof ql2) ->
+      equal_lists (fun ((q1,n1),p1) ((q2,n2),p2) -> (equal_query q1 q2) && (n1 = n2) && (p1 = p2)) ql1 ql2
+  | _ -> false
+
+let add_eq a l =
+  if List.exists (equal_instruct a) l then l else a::l
 
 (* [compute_inv try_no_var reduced (f, inv, n) t] returns a term equal to 
    [inv(t)]. 

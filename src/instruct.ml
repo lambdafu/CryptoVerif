@@ -1307,67 +1307,47 @@ let map_type (s,ext) =
 
 (* Equality test for command focus *)
 
-let rec equal_terms_ren t1 t2 =
-  match t1.t_desc, t2.t_desc with
-  | Var(b1,l1), Var(b2,l2) ->
-      assert(l1 == [] && l2 == []);
-      begin
-	match b1.link, b2.link with
-	| NoLink, NoLink ->
-	    Terms.link b1 (TLink t2);
-	    Terms.link b2 (TLink t1)
-	| TLink { t_desc = Var(b2', []) },
-	    TLink { t_desc = Var(b1', []) } when b1' == b1 && b2' == b2 -> ()
-	| _ -> raise NoMatch
-      end
-  | FunApp(f1, l1), FunApp(f2, l2) ->
-      if f1 != f2 then raise NoMatch;
-      List.iter2 equal_terms_ren l1 l2
-  | _ -> raise NoMatch
-
-let rec equal_qterms_ren t1 t2 =
-  match t1, t2 with
-  | QEvent(b1, t1'), QEvent(b2, t2') ->
-      if b1 != b2 then raise NoMatch;
-      equal_terms_ren t1' t2'
-  | QTerm t1', QTerm t2' ->
-      equal_terms_ren t1' t2'
-  | QAnd(t1', t1''), QAnd(t2', t2'') ->
-      equal_qterms_ren t1' t2';
-      equal_qterms_ren t1'' t2''
-  | QOr(t1', t1''), QOr(t2', t2'') ->
-      equal_qterms_ren t1' t2';
-      equal_qterms_ren t1'' t2''
-  | _ -> raise NoMatch
-
-let eq_pub_vars pv1 pv2 =
-  (List.for_all (fun b1 -> List.memq b1 pv2) pv1) &&
-  (List.for_all (fun b2 -> List.memq b2 pv1) pv2)
 	
-let equal_query q1 q2 =
-  match q1, q2 with
-  | QSecret(b1,pub_vars1,one_session1), QSecret(b2,pub_vars2,one_session2) ->
-      (b1 == b2) && (eq_pub_vars pub_vars1 pub_vars2) &&
-      (one_session1 = one_session2)
-  | QEventQ(hyp1, concl1, pub_vars1), QEventQ(hyp2, concl2, pub_vars2) ->
-      (eq_pub_vars pub_vars1 pub_vars2) &&
-      (List.length hyp1 == List.length hyp2) &&
-      (Terms.auto_cleanup (fun () ->
-	try
-	  List.iter2 (fun (inj1,t1) (inj2,t2) ->
-	    if inj1 != inj2 then raise NoMatch;
-	    equal_terms_ren t1 t2) hyp1 hyp2;
-	  equal_qterms_ren concl1 concl2;
-	  true
-	with NoMatch ->
-	  false))
-  | QEquivalence(_, pub_vars1), QEquivalence(_, pub_vars2) ->
-      eq_pub_vars pub_vars1 pub_vars2
-  | QEquivalenceFinal(_, pub_vars1), QEquivalenceFinal(_, pub_vars2) ->
-      eq_pub_vars pub_vars1 pub_vars2
-  | AbsentQuery, AbsentQuery -> true
+let empty_pubvars = function
+  | QSecret(_,[],_)
+  | QEventQ(_,_,[])
+  | QEquivalence(_,[])
+  | QEquivalenceFinal(_,[]) -> true
   | _ -> false
-
+  
+	
+let rec map_queries accu focusql allql =
+  match focusql with
+    [] -> accu
+  | q::restfocusql ->
+      let found_list = 
+	if empty_pubvars q then
+          (* When q has no public variables, we allow matching
+	     queries with any public variables, provided only one
+	     of them matches. Otherwise, we match the exact query *)
+	  let equal_q = List.filter (function (q',_),_ -> Terms.equal_query_any_pubvars q q') allql in
+	  match equal_q with
+	  | _::_::_ ->
+	      List.filter (function (q',_),_ -> Terms.equal_query q q') allql
+	  | _ -> equal_q
+	else
+	  List.filter (function (q',_),_ -> Terms.equal_query q q') allql
+      in
+      match found_list with
+      | [] -> (* Not found *)
+	  print_string "Focus: the following query is not found\n";
+	  print_string "  - "; Display.display_query3 q; print_newline();
+	  raise (Error("Focus: query not found", dummy_ext));
+      | [qentry] ->
+	  if List.memq qentry accu then
+	    begin
+	      print_string "Focus: the following query is already mentioned in the same focus command\n";
+	      print_string "  - "; Display.display_query3 q; print_newline();
+	      raise (Error("Focusing on several times the same query", dummy_ext))
+	    end;
+	  map_queries (qentry::accu) restfocusql allql
+      | _ -> Parsing_helper.internal_error "Duplicate query"
+	
 (* For debugging: display information collected when the adversary wins *)
 	
 let display_collector coll =
@@ -1722,31 +1702,20 @@ let rec interpret_command interactive state = function
 	  ) l)
       in
       let lq = List.map Syntax.check_query lparsed in
-      let lqref = ref lq in
+      let lqentries = map_queries [] lq state.game.current_queries in
       let made_inactive = ref false in
       let queries' = List.map (fun (((q, g) as qg, poptref) as qentry) ->
 	if Settings.get_query_status qentry = ToProve then
-	  let (equal_q, diff_q) = List.partition (equal_query q) (!lqref) in
-	  lqref := diff_q;
-	  match equal_q with
-	  | [] -> (* We do not focus on q *)
+	  if List.memq qentry lqentries then
+	    qentry
+	  else
+	    begin
 	      made_inactive := true;
 	      (qg, ref Inactive)
-	  | [_] -> (* We focus on q *)
-	      (qg, poptref)
-	  | _ ->
-	      print_string "Focus: the following queries designate the same query\n";
-	      List.iter (fun q -> print_string "  - "; Display.display_query3 q; print_newline()) equal_q;
-	      raise (Error("Focusing on several times the same query", dummy_ext))
+	    end
 	else
 	  qentry) state.game.current_queries
       in
-      if (!lqref) != [] then
-	begin
-	  print_string "Focus: the following query(ies) is(are) not found\n";
-	  List.iter (fun q -> print_string "  - "; Display.display_query3 q; print_newline()) (!lqref);
-	  raise (Error("Focus: query(ies) not found", dummy_ext));
-	end;
       if not (!made_inactive) then
 	raise (Error("Focus: useless command since all queries remain active", dummy_ext));
       let game' = { state.game with current_queries = queries' } in
