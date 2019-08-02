@@ -204,7 +204,7 @@ equiv(prf_odh(prf))
 }
 
 
-(* square PRF-ODH and PRF-ODH
+(* square PRF-ODH1 and PRF-ODH2
    These are "square" variants of PRF_ODH1 and PRF_ODH2 respectively. *)
 
 def square_PRF_ODH1(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
