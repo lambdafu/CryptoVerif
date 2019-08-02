@@ -4,6 +4,8 @@ of the cryptographic protocol verifier.
 Version
 
 - Added commands "tag t" and "undo t".
+- Public variables can be omitted in the "focus" command when
+  there is no ambiguity.
 - Removed a collision from DH_proba_collision and square_DH_proba_collision
   because it may not hold in case there are weak private keys.
 

@@ -1,4 +1,4 @@
-param N, N2, N3.
+param qPRFDH, qPRFDHa, qPRFDHb.
 
 type G [bounded,large].
 type Z [bounded,large].
@@ -44,9 +44,9 @@ equivalence
     return();
     ((OA() := return(exp(g,a))) |
      (OB() := return(exp(g,b))) |
-     (foreach i <= N do OPRFDH(x : T) := return(F(hk, exp(g, mult(a,b)), x))) |
-     (foreach i <= N2 do OPRFDHa(x : T, Y: G) := return(F(hk, exp(Y,a), x))) |
-     (foreach i <= N3 do OPRFDHb(x : T, X: G) := return(F(hk, exp(X,b), x))) |
+     (foreach i <= qPRFDH do OPRFDH(x : T) := return(F(hk, exp(g, mult(a,b)), x))) |
+     (foreach i <= qPRFDHa do OPRFDHa(x : T, Y: G) := return(F(hk, exp(Y,a), x))) |
+     (foreach i <= qPRFDHb do OPRFDHb(x : T, X: G) := return(F(hk, exp(X,b), x))) |
      run hashoracle(hk))
 
     Ogen() :=
@@ -57,13 +57,13 @@ equivalence
     return();
     ((OA() := return(exp'(g,a))) |
      (OB() := return(exp'(g,b))) |
-     (foreach i <= N do OPRFDH(x : T) := return(H(hk', x))) |
-     (foreach i <= N2 do OPRFDHa(x : T, Y: G) :=
+     (foreach i <= qPRFDH do OPRFDH(x : T) := return(H(hk', x))) |
+     (foreach i <= qPRFDHa do OPRFDHa(x : T, Y: G) :=
         if Y = exp'(g, b) then
 	  return(H(hk', x))
 	else
 	  return(F(hk, exp'(Y,a), x))) |
-     (foreach i <= N3 do OPRFDHb(x : T, X: G) :=
+     (foreach i <= qPRFDHb do OPRFDHb(x : T, X: G) :=
         if X = exp'(g, a) then
 	  return(H(hk', x))
 	else
