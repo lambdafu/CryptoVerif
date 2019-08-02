@@ -1,0 +1,37 @@
+param N.
+
+type G [bounded,large].
+type Z [bounded,large].
+
+proba pDDH.
+expand DH_basic(G, Z, g, exp, exp', mult).
+expand DDH(G, Z, g, exp, exp', mult, pDDH).
+
+type T.
+type T' [bounded,large].
+proba Pprf.
+expand PRF(G, T, T', F, Pprf).
+
+proof {
+    insert before_nth 1 "return" "let C = exp(g, mult(a,b)) in";
+    replace 34 "C";
+    auto }
+
+equivalence
+    Ogen() :=
+    a <-R Z;
+    b <-R Z;
+    return();
+    ((OA() := return(exp(g,a))) |
+     (OB() := return(exp(g,b))) |
+     (foreach i <= N do OPRFDH(x : T) := return(F(exp(g, mult(a,b)), x))))
+
+    Ogen() :=
+    a <-R Z;
+    b <-R Z;
+    return();
+    ((OA() := return(exp'(g,a))) |
+     (OB() := return(exp'(g,b))) |
+     (foreach i <= N do OPRFDH(x : T) :=
+        find[unique] j <= N suchthat defined(x[j],r[j]) && x = x[j] then return(r[j])
+	else r <-R T'; return(r)))
