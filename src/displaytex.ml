@@ -1796,6 +1796,11 @@ let rec display_state ins_next s =
       already_displayed := s :: (!already_displayed);
       match s.prev_state with
 	None -> 
+	  if s.game.game_number = -1 then
+	    begin
+	      incr Display.max_game_number;
+	      s.game.game_number <- !Display.max_game_number
+	    end;
 	  print_string "Initial state\\\\\n";
 	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
 	  Display.mark_occs ins_next;
@@ -1824,6 +1829,12 @@ let rec display_state ins_next s =
 	    Parsing_helper.internal_error "Proof step should have empty set of excluded traces"
       | Some (i,p,ins,s') ->
 	  display_state ins s';
+      (* Record the game number *)
+	  if s.game.game_number = -1 then
+	    begin
+	      incr Display.max_game_number;
+	      s.game.game_number <- !Display.max_game_number
+	    end;
 	  print_string "\\\\\nApplying ";
 	  display_instruct i;
 	  if p != [] then

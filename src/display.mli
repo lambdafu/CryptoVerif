@@ -14,6 +14,8 @@ val len_num : int -> int
 val useful_occs : int list ref
 val mark_occs : detailed_instruct list -> unit
 
+val max_game_number : int ref
+    
 val may_have_elset : term -> bool
 val may_have_elseo : process -> bool
     
