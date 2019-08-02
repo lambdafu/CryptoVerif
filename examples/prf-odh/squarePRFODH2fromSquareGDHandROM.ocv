@@ -1,0 +1,59 @@
+param N, N2, N3.
+
+type G [bounded,large].
+type Z [bounded,large].
+
+proba pGDH.
+proba pSqGDH.
+expand DH_basic(G, Z, g, exp, exp', mult).
+expand square_GDH(G, Z, g, exp, exp', mult, pGDH, pSqGDH).
+
+
+equation forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
+equation forall x:G, x':G, y:Z; (exp'(x,y) = exp'(x',y)) = (x = x').
+
+equation forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
+equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp'(g,x')).
+
+type hashkey [fixed].
+type T.
+type T' [bounded,large].
+expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qH).
+
+expand ROM_hash(hashkey, T, T', H, hashoracle', qH').
+
+proof {
+    insert after "OPRFDHa" "if Y = exp(g, a) then";
+    auto;
+    remove_assign binder "m'";
+    
+    start_from_other_end;
+    auto;
+    remove_assign binder "x1_10";
+    simplify;
+    remove_assign useless;
+    success }
+
+equivalence
+    Ogen() :=
+    hk <-R hashkey;
+    a <-R Z;
+    return();
+    ((OA() := return(exp(g,a))) |
+     (foreach i <= N do OPRFDH(x : T) := return(F(hk, exp(g, mult(a,a)), x))) |
+     (foreach i <= N2 do OPRFDHa(x : T, Y: G) := return(F(hk, exp(Y,a), x))) |
+     run hashoracle(hk))
+
+    Ogen() :=
+    hk <-R hashkey;
+    hk' <-R hashkey;
+    a <-R Z;
+    return();
+    ((OA() := return(exp'(g,a))) |
+     (foreach i <= N do OPRFDH(x : T) := return(H(hk', x))) |
+     (foreach i <= N2 do OPRFDHa(x : T, Y: G) :=
+        if Y = exp'(g, a) then
+	  return(H(hk', x))
+	else
+	  return(F(hk, exp'(Y,a), x))) |
+     run hashoracle(hk))
