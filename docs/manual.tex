@@ -2399,12 +2399,17 @@ By default, \texttt{collision} statements can always be applied.
   also goes back to the state before the last \texttt{focus} command, to try
   to prove remaining queries.
 
+\item $\texttt{tag }t$: tag the current state with tag $t$ (which can be an identifier or a string).
+  This is useful to mark the current state and be able to go back to that state with the command $\texttt{undo}\ t$.
+
 \item $\texttt{undo}$: undo the last transformation.
 
 \item $\texttt{undo}\ n$: undo the last $n$ transformations.
 
 \item $\texttt{undo\ focus}$: go back to the state before the last \texttt{focus} command.
   
+\item $\texttt{undo}\ t$: undo the transformations until the last state tagged $t$.
+
 \item \texttt{restart}: restart the proof from the beginning.
 (Still simplify automatically the first game.)
 
@@ -2414,7 +2419,12 @@ already in interactive mode. Useful to start interactive mode
 after some proof steps.
 
 \item \texttt{forget\_old\_games}: removes games before the current one
-from memory. That allows to save some memory, but prevents \texttt{undo}.
+from memory. That allows to save some memory, but prevents \texttt{undo}
+and $\texttt{undo}\ n$.
+However, tagged states are not removed from memory, so that the command
+$\texttt{undo}\ t$ where $t$ is a tag still works.
+Similarly, states before \texttt{focus} commands are not removed from 
+memory, so that the command $\texttt{undo\ focus}$ still works.
 The display of the games is saved into a temporary file to allow
 displaying the games at the end of the proof.
 You can save more memory by applying this command systematically with

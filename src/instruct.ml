@@ -9,7 +9,7 @@ let rec forget_games final_game state =
   match g.proc with
   | Forgotten _ -> ()
   | RealProcess p ->
-     if g != final_game then
+     if g != final_game && state.tag = None (* Do not forget tagged states *) then
        begin
          let s = Filename.temp_file "game" ".cv" in
          Display.file_out s dummy_ext (fun () ->
@@ -45,6 +45,14 @@ let rec undo_focus ext state =
     None -> raise (Error("No previous focus command found", ext))
   | Some (IFocus _,_,_,s') -> s'
   | Some (_,_,_,s') -> undo_focus ext s'
+
+let rec undo_tag s ext state =
+  match state.tag with
+  | Some s' when s = s' -> state
+  | _ ->
+      match state.prev_state with
+      | None -> raise (Error("State with tag " ^ s ^ " not found", ext))
+      | Some(_,_,_,state') -> undo_tag s ext state'
 	
 let eq_list l1 l2 =
   (List.for_all (fun x -> List.memq x l1) l2) &&
@@ -174,7 +182,8 @@ let execute_state_basic state i =
       Terms.move_occ_game g';
       Invariants.global_inv g';
       ({ game = g';
-	 prev_state = Some (i, proba, done_ins, state) }, ins_update)
+	 prev_state = Some (i, proba, done_ins, state);
+         tag = None }, ins_update)
     end
   else
     begin
@@ -231,7 +240,8 @@ let rec execute_state state = function
 	    Invariants.global_inv g';
 	    let state' =  
 	      { game = g';
-		prev_state = Some (i, proba, done_ins, state) }
+		prev_state = Some (i, proba, done_ins, state);
+	        tag = None }
 	    in
 	    let (state'', ins_updater') = iterate iter state' in
 	    (state'', compos_ins_updater ins_updater ins_updater')
@@ -241,7 +251,8 @@ let rec execute_state state = function
 	    Invariants.global_inv g';
 	    let state' =  
 	      { game = g';
-		prev_state = Some (i, proba, done_ins, state) }
+		prev_state = Some (i, proba, done_ins, state);
+	        tag = None }
 	    in
 	    if iter != 1 then
 	      let (state'', ins_updater') = iterate (iter-1) state' in
@@ -401,7 +412,8 @@ let crypto_transform no_advice equiv user_info state =
       Terms.move_occ_game g'';
       Invariants.global_inv g'';
       CSuccess ({ game = g''; 
-			   prev_state = Some (CryptoTransf(equiv, user_info), proba, ins, state) })
+		  prev_state = Some (CryptoTransf(equiv, user_info), proba, ins, state);
+		  tag = None })
   | TFailure (l,failure_reasons) ->
       if !Settings.debug_instruct then
 	begin
@@ -514,7 +526,8 @@ let rec issuccess_with_advise collector state =
   let state' = 
     if proved_queries != [] then
       { game = state.game;
-	prev_state = Some (Proof proved_queries, [], [], state) }
+	prev_state = Some (Proof proved_queries, [], [], state);
+        tag = None }
     else
       state
   in
@@ -583,7 +596,8 @@ let display_state final state =
 	  | q -> ()) eq_queries;
 	Success.update_full_proof state;
 	{ game = state.game;
-	  prev_state = Some (Proof (List.map (fun (q, _) -> (q, [])) eq_queries), [], [], state) }
+	  prev_state = Some (Proof (List.map (fun (q, _) -> (q, [])) eq_queries), [], [], state);
+	  tag = None }
       end
   in
   (* Display the state *)
@@ -1720,9 +1734,21 @@ let rec interpret_command interactive state = function
 	raise (Error("Focus: useless command since all queries remain active", dummy_ext));
       let game' = { state.game with current_queries = queries' } in
       { game = game';
-	prev_state = Some(IFocus lq, [], [], state) }    
+	prev_state = Some(IFocus lq, [], [], state);
+        tag = None }    
   | CUndoFocus(ext) ->
       undo_focus ext state
+  | CTag(s,ext) ->
+      begin
+	match state.tag with
+	| Some s' ->
+	    print_string ("Warning: current state was already tagged "^ s' ^". Cancelling that tag.\n")
+	| None -> ()
+      end;
+      state.tag <- Some s;
+      state
+  | CUndoTag(s,ext) ->
+      undo_tag s ext state
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with

@@ -155,6 +155,7 @@ let return_channel = (dummy_channel, None)
 %token INTERACTIVE
 %token TYPES      
 %token FOCUS
+%token TAG
       
 /* Precedence (from low to high) and associativities */
 %left BAR
@@ -358,6 +359,10 @@ proofcommand:
     { CUndo (1,parse_extent()) }
 |   UNDO INT
     { CUndo ($2,parse_extent()) }
+|   UNDO idst
+    { CUndoTag ($2) }
+|   TAG idst
+    { CTag ($2) }
 |   ALLOWED_COLLISIONS allowed_coll
     { CAllowed_collisions($2) }
 |   SET IDENT EQUAL IDENT

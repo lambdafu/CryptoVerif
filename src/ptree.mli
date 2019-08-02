@@ -230,6 +230,8 @@ type command =
   | CRemove_assign of rem_opt_t
   | CFocus of ident list
   | CUndoFocus of Parsing_helper.extent
+  | CTag of ident
+  | CUndoTag of ident
 	
 (* Declarations *)
 

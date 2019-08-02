@@ -123,7 +123,8 @@ let keyword_table_proof =
       "help", HELP;
       "interactive", INTERACTIVE;
       "types", TYPES;
-      "focus", FOCUS
+      "focus", FOCUS;
+      "tag", TAG
     ]
     
 }

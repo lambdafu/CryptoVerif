@@ -608,7 +608,8 @@ and game_transformer = game -> game * setf list * detailed_instruct list
 
 and state =
     { game : game;
-      prev_state : (instruct * setf list * detailed_instruct list * state) option }
+      prev_state : (instruct * setf list * detailed_instruct list * state) option;
+      mutable tag : string option }
 
 and simp_facts = term list * term list * elsefind_fact list
 

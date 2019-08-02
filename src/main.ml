@@ -178,7 +178,8 @@ let anal_file s0 =
 	 in
 	 let final_state =
 	   { game = final_game;
-	     prev_state = None }
+	     prev_state = None;
+	     tag = None }
 	 in
          let final_state_after_minimal_transfos =
            Instruct.execute_with_advise_last final_state ExpandIfFindGetInsert
@@ -214,7 +215,8 @@ let anal_file s0 =
             *)
             Instruct.do_proof proof 
 	      { game = g; 
-	        prev_state = None } 
+	        prev_state = None;
+	        tag = None } 
         end
     in
     (* Remove the preprocessed temporary file when everything went well *)
