@@ -4059,6 +4059,9 @@ let read_file f =
     match final_p with
       SingleProcess p' ->
 	let ql = List.map check_query (!queries_parse) in
+	(* Remove duplicate queries. They are useless, take time,
+	   and might cause an internal error with the current
+	   implementation of the command "focus". *)
 	let rec remove_dup = function
 	    q::ql ->
 	      let ql' = remove_dup ql in 
