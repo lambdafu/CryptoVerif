@@ -10,7 +10,7 @@ expand CDH(G, Z, g, exp, exp', mult, pCDH).
 type hashkey [fixed].
 type T.
 type T' [bounded,large].
-expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qH).
+expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qF).
 
 proof {
     auto;

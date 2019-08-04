@@ -17,21 +17,16 @@ equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp'(g,
 type hashkey [fixed].
 type T.
 type T' [bounded,large].
-expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qH).
+expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qF).
 
-expand ROM_hash(hashkey, T, T', H, hashoracle', qH').
+expand ROM_hash(hashkey, T, T', H, hashoracle', qH).
 
 proof {
-    insert after "OPRFDHa" "if Y = exp(g, b) then";
-    insert after "OPRFDHb" "if X = exp(g, a) then";
     auto;
-    remove_assign binder "m'_7";
-    remove_assign binder "m'_11";
-    
     start_from_other_end;
     auto;
-    remove_assign binder "x1_13";
-    remove_assign binder "x1_14";
+    remove_assign binder "x1_9";
+    remove_assign binder "x1_10";
     simplify;
     remove_assign useless;
     success }
@@ -41,12 +36,14 @@ equivalence
     hk <-R hashkey;
     a <-R Z;
     b <-R Z;
+    let A = exp(g,a) in
+    let B = exp(g,b) in
     return();
-    ((OA() := return(exp(g,a))) |
-     (OB() := return(exp(g,b))) |
+    ((OA() := return(A)) |
+     (OB() := return(B)) |
      (foreach i <= qPRFDH do OPRFDH(x : T) := return(F(hk, exp(g, mult(a,b)), x))) |
-     (foreach i <= qPRFDHa do OPRFDHa(x : T, Y: G) := return(F(hk, exp(Y,a), x))) |
-     (foreach i <= qPRFDHb do OPRFDHb(x : T, X: G) := return(F(hk, exp(X,b), x))) |
+     (foreach i <= qPRFDHa do OPRFDHa(x : T, Y: G) := if Y = B then return(bottom) else return(F(hk, exp(Y,a), x))) |
+     (foreach i <= qPRFDHb do OPRFDHb(x : T, X: G) := if X = A then return(bottom) else return(F(hk, exp(X,b), x))) |
      run hashoracle(hk))
 
     Ogen() :=
@@ -54,18 +51,20 @@ equivalence
     hk' <-R hashkey;
     a <-R Z;
     b <-R Z;
+    let A = exp'(g,a) in
+    let B = exp'(g,b) in
     return();
-    ((OA() := return(exp'(g,a))) |
-     (OB() := return(exp'(g,b))) |
+    ((OA() := return(A)) |
+     (OB() := return(B)) |
      (foreach i <= qPRFDH do OPRFDH(x : T) := return(H(hk', x))) |
      (foreach i <= qPRFDHa do OPRFDHa(x : T, Y: G) :=
-        if Y = exp'(g, b) then
-	  return(H(hk', x))
+        if Y = B then
+	  return(bottom)
 	else
 	  return(F(hk, exp'(Y,a), x))) |
      (foreach i <= qPRFDHb do OPRFDHb(x : T, X: G) :=
-        if X = exp'(g, a) then
-	  return(H(hk', x))
+        if X = A then
+	  return(bottom)
 	else
 	  return(F(hk, exp'(X,b), x))) |
      run hashoracle(hk))

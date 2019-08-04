@@ -18,18 +18,17 @@ equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp'(g,
 type hashkey [fixed].
 type T.
 type T' [bounded,large].
-expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qH).
+expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qF).
 
-expand ROM_hash(hashkey, T, T', H, hashoracle', qH').
+expand ROM_hash(hashkey, T, T', H, hashoracle', qH).
 
 proof {
-    insert after "OPRFDHa" "if Y = exp(g, a) then";
     auto;
-    remove_assign binder "m'";
     
     start_from_other_end;
     auto;
-    remove_assign binder "x1_10";
+    show_game;
+    remove_assign binder "x1_8";
     simplify;
     remove_assign useless;
     success }
@@ -38,22 +37,24 @@ equivalence
     Ogen() :=
     hk <-R hashkey;
     a <-R Z;
+    let A = exp(g,a) in
     return();
-    ((OA() := return(exp(g,a))) |
+    ((OA() := return(A)) |
      (foreach i <= N do OPRFDH(x : T) := return(F(hk, exp(g, mult(a,a)), x))) |
-     (foreach i <= N2 do OPRFDHa(x : T, Y: G) := return(F(hk, exp(Y,a), x))) |
+     (foreach i <= N2 do OPRFDHa(x : T, Y: G) := if Y = A then return(bottom) else return(F(hk, exp(Y,a), x))) |
      run hashoracle(hk))
 
     Ogen() :=
     hk <-R hashkey;
     hk' <-R hashkey;
     a <-R Z;
+    let A = exp'(g,a) in
     return();
-    ((OA() := return(exp'(g,a))) |
+    ((OA() := return(A)) |
      (foreach i <= N do OPRFDH(x : T) := return(H(hk', x))) |
      (foreach i <= N2 do OPRFDHa(x : T, Y: G) :=
-        if Y = exp'(g, a) then
-	  return(H(hk', x))
+        if Y = A then
+	  return(bottom)
 	else
 	  return(F(hk, exp'(Y,a), x))) |
      run hashoracle(hk))
