@@ -183,14 +183,9 @@ We could probably push this idea for noninterf x among S.
    Also query secret x [reachability] (the adversary cannot compute x).
 
 2) 
-PRF-ODH: probability formulas + comments
+PRF-ODH: document (probability formulas + comments OK)
 I think the changes to guess the tested session,
 event adv loses, etc would help for working with PRF-ODH
-
-What is the impact of weak group assumptions
-(e.g. curve25519/curve448) on PRF-ODH?
-Reprove PRF-ODH from ROM and CDH/GDH plus minimal assumptions on
-the group. Check that curve25519/curve448 satisfy these assumptions.
 
 implement implication statements and collisions, of the form:
 cond1 && ... && condn => concl
@@ -3587,3 +3582,9 @@ Syntax.check_query may stop in case of error by calling
 input_error. That's not suitable in interactive mode,
 it should raise Error(..,..) instead of calling input_error.
 FIXED 30/7/2019
+
+What is the impact of weak group assumptions
+(e.g. curve25519/curve448) on PRF-ODH?
+Reprove PRF-ODH from ROM and CDH/GDH plus minimal assumptions on
+the group. Check that curve25519/curve448 satisfy these assumptions.
+DONE ../8/2019
