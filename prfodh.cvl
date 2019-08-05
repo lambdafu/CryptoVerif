@@ -1,7 +1,6 @@
 (* PRF-ODH assumption
-   We propose two variants of PRF-ODH; these are preliminary models.
+   We propose two variants of PRF-ODH, PRF-ODH1 and PRF-ODH2 defined below.
    PRF-ODH1 is a consequence of CDH and ROM or of DDH and PRF. It corresponds to nnPRF-ODH in https://eprint.iacr.org/2017/517, but with several challenge queries using the same or different DH pairs and argument of the PRF.
-   PRF-ODH2 is a consequence of GDH and ROM. It corresponds to mmPRF-ODH in https://eprint.iacr.org/2017/517, but again with several challenge queries using the same or different DH pairs and argument of the PRF.
 
    G, Z, g, exp, exp', mult are as in DH_basic.
    prf: pseudo-random function that takes as argument a group
@@ -9,7 +8,7 @@
    prf_out.
    The type prf_out must be "bounded" or "nonuniform", and "large".
 
-   pPRF_ODH(t, n): probabibility of breaking the PRF-ODH assumption
+   pPRF_ODH(t, n): probability of breaking the PRF-ODH1 assumption
    in time t with n queries to the PRF (prf(g^ab, m)).
 
    The function prf is defined by this macro. It must not be declared
@@ -81,22 +80,18 @@ equiv(prf_odh(prf))
 (* PRF-ODH2 is a consequence of GDH and ROM. It corresponds to mmPRF-ODH in https://eprint.iacr.org/2017/517, but again with several challenge queries using the same or different DH pairs and argument of the PRF.
 
    G, Z, g, exp, exp', mult are as in DH_basic.
-   prf: pseudo-random function that takes as argument a group
+   prf(G, prf_in): prf_out: pseudo-random function that takes as argument a group
    element (in G) and an element in prf_in, and produces a result in 
    prf_out.
    The type prf_out must be "bounded" or "nonuniform", and "large".
 
-   pPRF_ODH(t, n, n'): probabibility of breaking the PRF-ODH assumption
+   pPRF_ODH(t, n, n'): probability of breaking the PRF-ODH2 assumption
    in time t with n queries to the PRF (prf(g^ab, m)) 
    and n' queries to prf(X^a, m) or prf(X^b, m).
 
    The function prf is defined by this macro. It must not be declared
    elsewhere, and it can be used only after expanding the macro.
-   All other arguments must be declared before this macro.
-
-   WARNING! PRF_ODH2 cannot be used with 
-   DH_prime_subgroup_secret_keys_multiple_k
-   (incorrect comparison ma1 = exp'(g, b[j']) ) *)
+   All other arguments must be declared before this macro. *)
 
 def PRF_ODH2(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
 
@@ -205,14 +200,29 @@ equiv(prf_odh(prf))
 }
 
 
-(* square PRF-ODH1 and PRF-ODH2
-   These are "square" variants of PRF_ODH1 and PRF_ODH2 respectively. *)
+(* square PRF-ODH1 and PRF-ODH1
+   This is a "square" variant of PRF_ODH1.
+
+   G, Z, g, exp, exp', mult are as in DH_basic.
+   prf: pseudo-random function that takes as argument a group
+   element (in G) and an element in prf_in, and produces a result in 
+   prf_out.
+   The type prf_out must be "bounded" or "nonuniform", and "large".
+
+   pPRF-ODH: probability of breaking the PRF-ODH1 assumption
+   in time t with n queries to the PRF (prf(g^ab, m)).
+   pSQPRF-ODH: probability of breaking the square PRF-ODH1 assumption
+   in time t with n queries to the PRF (prf(g^aa, m)).
+   
+   The function prf is defined by this macro. It must not be declared
+   elsewhere, and it can be used only after expanding the macro.
+   All other arguments must be declared before this macro. *)
 
 def square_PRF_ODH1(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH, pSQPRF_ODH) {
 
 fun prf(G, prf_in): prf_out.
 
-(* The (square) PRF-ODH assumption *)
+(* The (square) PRF-ODH1 assumption *)
 
 event ev_abort.
 
@@ -246,11 +256,31 @@ equiv(prf_odh(prf))
 }
 
 
+(* square PRF-ODH2 and PRF-ODH2
+   This is a "square" variant of PRF_ODH2.
+
+   G, Z, g, exp, exp', mult are as in DH_basic.
+   prf(G, prf_in): prf_out: pseudo-random function that takes as argument a group
+   element (in G) and an element in prf_in, and produces a result in 
+   prf_out.
+   The type prf_out must be "bounded" or "nonuniform", and "large".
+
+   pPRF_ODH(t, n, n'): probability of breaking the PRF-ODH2 assumption
+   in time t with n queries to the PRF (prf(g^ab, m)) 
+   and n' queries to prf(X^a, m) or prf(X^b, m).
+   pSQPRF_ODH(t, n, n'): probability of breaking the square PRF-ODH2 assumption
+   in time t with n queries to the PRF (prf(g^aa, m)) 
+   and n' queries to prf(X^a, m).
+
+   The function prf is defined by this macro. It must not be declared
+   elsewhere, and it can be used only after expanding the macro.
+   All other arguments must be declared before this macro. *)
+
 def square_PRF_ODH2(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH, pSQPRF_ODH) {
 
 fun prf(G, prf_in): prf_out.
 
-(* The (square) PRF-ODH assumption *)
+(* The (square) PRF-ODH2 assumption *)
 
 event ev_abort.
 
