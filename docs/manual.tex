@@ -1279,7 +1279,7 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
  \item The specification of Diffie-Hellman key agreements is typically composed of two or three macro expansions:
 
    \begin{itemize}
-   \item One from the following set of macros, which defines properties of group:
+   \item One from the following set of macros, which defines properties of the group:
      \begin{itemize}
      \item $\texttt{expand\ DH\_basic(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}\texttt{).}$ defines a group $G$.
 
@@ -1599,9 +1599,9 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
        \vn{mult}, p, \vn{sqp}\texttt{).}$
        says that the group $G$ satisfies the gap Diffie-Hellman (GDH)
        assumption and the square gap Diffie-Hellman assumption;
-       $p(t)$ is the probability of breaking the GDH assumption, for
+       $p(t,n)$ is the probability of breaking the GDH assumption, for
        one pair of exponents, in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle and $\vn{sqp}(t)$ is the
+       calls to the decisional Diffie-Hellman oracle and $\vn{sqp}(t,n)$ is the
        probability of breaking the square GDH assumption, for one pair
        of exponents, in time $t$ with at most $n$ 
        calls to the decisional Diffie-Hellman oracle.  This macro defines the equivalence
@@ -1612,7 +1612,7 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
      \item $\texttt{expand\ square\_GDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}',
        \vn{mult}, \vn{sqp}\texttt{).}$
        says that the group $G$ satisfies the square gap Diffie-Hellman assumption;
-       $\vn{sqp}(t)$ is the
+       $\vn{sqp}(t,n)$ is the
        probability of breaking the square GDH assumption, for one pair
        of exponents, in time $t$ with at most $n$ 
        calls to the decisional Diffie-Hellman oracle.  This macro defines the equivalence
@@ -1620,7 +1620,7 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
        GDH property, for use in the \texttt{crypto} command (see
        Section~\ref{sec:interact}). It uses random self
        reducibility. It may yield lower probabilities than
-       $\texttt{square\_CDH}$ but requires the exponents to be chosen
+       $\texttt{square\_GDH}$ but requires the exponents to be chosen
        uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
        of $g$, so it is not correct for usual implementations of Curve25519 for instance.
 
