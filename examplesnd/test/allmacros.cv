@@ -132,15 +132,16 @@ proba pSQGDH.
 expand square_GDH(G, tZ, g, exp, exp', mult, pGDH, pSQGDH).
 expand square_GDH_RSR(G, tZ, g, exp, exp', mult, pSQGDH).
 
-(*
+
 proba pPRF_ODH.
+proba pSQPRF_ODH.
 type prf_in.
 type prf_out [bounded].
-expand PRF_ODH1(G, tZ, prf_in, prf_out, g8, exp8, exp8', mult8, prf8, pPRF_ODH).
-expand PRF_ODH2(G, tZ, prf_in, prf_out, g9, exp9, exp9', mult9, prf9, pPRF_ODH).
-expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g10, exp10, exp10', mult10, prf10, pPRF_ODH).
-expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g11, exp11, exp11', mult11, prf11, pPRF_ODH).
-*)
+expand PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8, pPRF_ODH).
+expand PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9, pPRF_ODH).
+expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf10, pPRF_ODH, pSQPRF_ODH).
+expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf11, pPRF_ODH, pSQPRF_ODH).
+
 
 expand square_DH_proba_collision(G, tZ, g5, exp5, exp5', mult5, PCollKey1, PCollKey2, PCollKey3).
 expand DH_good_group(G, tZ, g6, exp6, exp6', mult6).
