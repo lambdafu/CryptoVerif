@@ -3394,7 +3394,7 @@ equiv(gdh(exp))
    prf: pseudo-random function that takes as argument a group
    element (in G) and an element in prf_in, and produces a result in 
    prf_out.
-   The type prf_out must be "bounded" or "nonuniform", and "large".
+   The type prf_out must be "bounded" or "nonuniform".
 
    pPRF_ODH(t, n): probability of breaking the PRF-ODH1 assumption
    in time t with n queries to the PRF (prf(g^ab, m)).
@@ -3471,7 +3471,7 @@ equiv(prf_odh(prf))
    prf(G, prf_in): prf_out: pseudo-random function that takes as argument a group
    element (in G) and an element in prf_in, and produces a result in 
    prf_out.
-   The type prf_out must be "bounded" or "nonuniform", and "large".
+   The type prf_out must be "bounded" or "nonuniform".
 
    pPRF_ODH(t, n, n'): probability of breaking the PRF-ODH2 assumption
    in time t with n queries to the PRF (prf(g^ab, m)) 
@@ -3595,7 +3595,7 @@ equiv(prf_odh(prf))
    prf: pseudo-random function that takes as argument a group
    element (in G) and an element in prf_in, and produces a result in 
    prf_out.
-   The type prf_out must be "bounded" or "nonuniform", and "large".
+   The type prf_out must be "bounded" or "nonuniform".
 
    pPRF-ODH: probability of breaking the PRF-ODH1 assumption
    in time t with n queries to the PRF (prf(g^ab, m)).
@@ -3651,7 +3651,7 @@ equiv(prf_odh(prf))
    prf(G, prf_in): prf_out: pseudo-random function that takes as argument a group
    element (in G) and an element in prf_in, and produces a result in 
    prf_out.
-   The type prf_out must be "bounded" or "nonuniform", and "large".
+   The type prf_out must be "bounded" or "nonuniform".
 
    pPRF_ODH(t, n, n'): probability of breaking the PRF-ODH2 assumption
    in time t with n queries to the PRF (prf(g^ab, m)) 

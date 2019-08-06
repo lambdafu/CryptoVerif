@@ -1624,8 +1624,58 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
        uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
        of $g$, so it is not correct for usual implementations of Curve25519 for instance.
 
+     \item $\texttt{expand\ PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH1 (pseudo-random function oracle Diffie-Hellman) assumption, which corresponds to PRF-ODHnn in~\cite{eprint2017:517}.
+       %
+       The pseudo-random function $\vn{prf}(G, \vn{prf\_in}): \vn{prf\_out}$ takes as argument a group element in $G$ and an element in $\vn{prf\_in}$, and produces a result in $\vn{prf\_out}$. The type $\vn{prf\_out}$ must be \texttt{bounded} or \texttt{nonuniform}.
+       %
+   This assumption means that an adversary that has 2 public Diffie-Hellman keys $\vn{exp}(g,a)$ and $\vn{exp}(g,b)$ for random $a$, $b$ cannot distinguish $x \mapsto \vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$ from a random function. A random function returns a fresh random value when it is called with a new argument and the previous result when it is called with the same argument as a previous call. The probability $p(t, n)$ is the probability of breaking the PRF-ODH1 assumption
+   in time $t$ with $n$ queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$.
+This macro defines the equivalence
+       $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the PRF-ODH1 property, for use in the \texttt{crypto} command (see
+       Section~\ref{sec:interact}).
+     \item $\texttt{expand\ PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH2 assumption, which corresponds to PRF-ODHmm in~\cite{eprint2017:517}.
+       %
+       The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
+       %
+       This assumption means that an adversary that has 2 public Diffie-Hellman keys $\vn{exp}(g,a)$ and $\vn{exp}(g,b)$ for random $a$, $b$ and has access to the oracles $(Y,x) \mapsto \vn{prf}(\vn{exp}(Y,a),x)$ and $(X,x) \mapsto \vn{prf}(\vn{exp}(X,b),x)$ cannot distinguish $x \mapsto \vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$ from a random function.
+The probability $p(t, n, n')$ is the probability of breaking the PRF-ODH2 assumption
+   in time $t$ with $n$ queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$ and $n'$ queries to $(Y,x) \mapsto \vn{prf}(\vn{exp}(Y,a),x)$ and $(X,x) \mapsto \vn{prf}(\vn{exp}(X,b),x)$ in total.
+This macro defines the equivalence
+       $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the PRF-ODH2 property, for use in the \texttt{crypto} command (see
+Section~\ref{sec:interact}).
+
+     \item $\texttt{expand\ square\_PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH1 assumption and the PRF-ODH1 assumption.
+       %
+       The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
+       %
+       The square PRF-ODH1 assumption means that an adversary that has a public Diffie-Hellman key $\vn{exp}(g,a)$ for random $a$ cannot distinguish $x \mapsto \vn{prf}(\vn{exp}(g,\vn{mult}(a,a)),x)$ from a random function.
+       %
+       The probability $\vn{sqp}(t, n)$ is the probability of
+       breaking the square PRF-ODH1 assumption in time $t$ with $n$
+       queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,a)),x)$.
+       %
+   The probability $p(t, n)$ is the probability of breaking the PRF-ODH1 assumption
+   in time $t$ with $n$ queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$.
+   This macro defines the equivalence
+       $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the square PRF-ODH1 and PRF-ODH1 properties, for use in the \texttt{crypto} command (see
+       Section~\ref{sec:interact}).
+     \item $\texttt{expand\ square\_PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH2 assumption and the PRF-ODH2 assumption.
+       %
+       The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
+       %
+       The square PRF-ODH2 assumption means that an adversary that has a public Diffie-Hellman key $\vn{exp}(g,a)$ for random $a$ and has access to the oracle $(Y,x) \mapsto \vn{prf}(\vn{exp}(Y,a),x)$ cannot distinguish $x \mapsto \vn{prf}(\vn{exp}(g,\vn{mult}(a,a)),x)$ from a random function.
+The probability $\vn{sqp}(t, n, n')$ is the probability of breaking the square PRF-ODH2 assumption
+   in time $t$ with $n$ queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,a)),x)$ and $n'$ queries to $(Y,x) \mapsto \vn{prf}(\vn{exp}(Y,a),x)$.
+       The probability $p(t, n, n')$ is the probability of breaking the PRF-ODH2 assumption
+   in time $t$ with $n$ queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$ and $n'$ queries to $(Y,x) \mapsto \vn{prf}(\vn{exp}(Y,a),x)$ and $(X,x) \mapsto \vn{prf}(\vn{exp}(X,b),x)$ in total.
+This macro defines the equivalence
+       $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the square PRF-ODH2 and PRF-ODH2 properties, for use in the \texttt{crypto} command (see
+Section~\ref{sec:interact}).
      \end{itemize}
-     All arguments of these macros must be defined before expanding the macro.
+     The argument $\vn{prf}$ of the PRF-ODH macros is defined by these
+     macros.  It must not be declared elsewhere, and it can be used
+     only after expanding the macro.  All other arguments of these
+     macros must be defined before expanding the macro.
      
    \end{itemize}
 
