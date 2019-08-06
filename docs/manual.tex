@@ -2366,6 +2366,8 @@ The program point $occ$ must correspond to a term.
 proved in the current game. If yes, display the proof and stop.
 Otherwise, wait for further instructions.
 
+\item \texttt{success simplify}: run \texttt{success} then \texttt{simplify}, with the following addition. The command \texttt{success} collects information that is known to be true when the adversary manages to break at least one of the desired properties. The first iteration of \texttt{simplify} removes parts of the game that contradict this information and replaces them with \texttt{event adv\_loses}.
+
 \item \texttt{show\string_game}: display the current game.
 
 \item \texttt{show\string_game occ}: display the current game with

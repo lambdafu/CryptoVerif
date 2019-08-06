@@ -183,8 +183,7 @@ We could probably push this idea for noninterf x among S.
    Also query secret x [reachability] (the adversary cannot compute x).
 
 2) 
-PRF-ODH: document (probability formulas + comments OK)
-I think the changes to guess the tested session,
+PRF-ODH: I think the changes to guess the tested session,
 event adv loses, etc would help for working with PRF-ODH
 
 implement implication statements and collisions, of the form:
@@ -256,8 +255,7 @@ part of the game that follows the definition of x.
 More generally, if the only property we want to prove is that "advwins"
 is unreachable and we can prove that x is not defined when "advwins" is
 reached, then we can insert an event "advloses" just after the 
-definitions of x. This is a particular case of point 4/ in the
-TLS item below.
+definitions of x. (This is done by "success simplify".)
 
 - TLS: github/ProtoTLS/cv/tls13-core.cv
 * It does not work with DDH. To make it work, 
@@ -291,40 +289,12 @@ in that session. Some difficulties:
    Still only those above the "required step" [defined below].
    Or allow the user to choose which replications will be guessed?)
 
-   2/ Use an EventAbort to represent that the adversary loses
-   when it takes a branch that does not execute the "required step",
-   that is, the end event when I prove a correspondence (easier to do
-   when each correspondence has a single end event),
-   the assignment to the variable when I prove secrecy.
-   Hence, there are two kinds of EventAbort:
-      - those in which the adversary wins when it is reached
-        (already used in cryptoverif)
-      - those in which the adversary loses when it is reached.
-   In fact, to give maximum power to the simplifications below,
-   I should consider only two different EventAbort, "win" and "lose".
-
+   Collection of facts in "success simplify":
    => Use elsefind facts for "event e ==> false" as I already do
    for "event_abort e ==> ..."?
 
    => Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
-
-   4/ I should add a transformation that simplifies the game
-   as much as possible taking into account that the adversary
-   loses when the "required step" (see definition above) is not
-   reached. Insert EventAbort in branches that do not reach it,
-   but not only: use facts inferred at the "required step" to infer
-   contradictions anywhere in the game and insert EventAbort
-   accordingly.
-   Example: at the "required step", I can prove that M is true.
-   If I have a test "if M then P else Q" somewhere (even in another
-   process in parallel), I can replace it with 
-   "if M then P else EventAbort lost".
-   In principle, this transformation could be applied even when 
-   the tested session is not guessed (in this case, I can insert
-   EventAbort only when the "required step" cannot be reached in
-   *any* session). It is much more powerful when it knows that
-   there is a single tested session.
 
 * It does not work automatically with the logs as they presented.
 Investigate in more details why (perhaps a bad orientation of
@@ -3590,3 +3560,35 @@ DONE ../8/2019
    by success, even if a simplification already occurred in between?
 FIXED 6/8/2019: use the collected information only in the first
 iteration.
+
+      PRF-ODH: document, probability formulas + comments
+DONE ../8/2019
+      
+   Use an EventAbort to represent that the adversary loses
+   when it takes a branch that does not execute the "required step",
+   that is, the end event when I prove a correspondence (easier to do
+   when each correspondence has a single end event),
+   the assignment to the variable when I prove secrecy.
+   Hence, there are two kinds of EventAbort:
+      - those in which the adversary wins when it is reached
+        (already used in cryptoverif)
+      - those in which the adversary loses when it is reached.
+DONE ../8/2019
+
+   I should add a transformation that simplifies the game
+   as much as possible taking into account that the adversary
+   loses when the "required step" (see definition above) is not
+   reached. Insert EventAbort in branches that do not reach it,
+   but not only: use facts inferred at the "required step" to infer
+   contradictions anywhere in the game and insert EventAbort
+   accordingly.
+   Example: at the "required step", I can prove that M is true.
+   If I have a test "if M then P else Q" somewhere (even in another
+   process in parallel), I can replace it with 
+   "if M then P else EventAbort lost".
+   In principle, this transformation could be applied even when 
+   the tested session is not guessed (in this case, I can insert
+   EventAbort only when the "required step" cannot be reached in
+   *any* session). It is much more powerful when it knows that
+   there is a single tested session.
+DONE ../8/2019
