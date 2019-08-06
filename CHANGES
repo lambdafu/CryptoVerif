@@ -3,6 +3,10 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Added several variants of the PRF-ODH assumption to the library
+  of cryptographic primitives.
+- Added command "success simplify".
+- Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".
 - Public variables can be omitted in the "focus" command when
   there is no ambiguity.
