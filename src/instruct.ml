@@ -220,13 +220,22 @@ let rec execute_state state = function
       print_string "Doing ";
       Display.display_instruct i;
       print_string "... "; flush stdout;
-      let rec iterate iter state =
+      let rec iterate i iter state =
 	let (g', proba, done_ins, ins_updater) = execute state.game i in
 	if !Settings.debug_instruct then
 	  begin
 	    print_string " Resulting game after one simplification pass:\n";
 	    Display.display_game_process g'
 	  end;
+	let i_next =
+	  match i with
+	  | Simplify(_,coll_elim) ->
+	      (* Drop the collected information in the next iteration,
+		 in case the first iteration modifies the game in
+		 ways that invalidate that information. *)
+	      Simplify(None, coll_elim)
+	  | _ -> i
+	in
 	match done_ins with
 	  [] ->
 	    (* No change in this pass *)
@@ -243,7 +252,7 @@ let rec execute_state state = function
 		prev_state = Some (i, proba, done_ins, state);
 	        tag = None }
 	    in
-	    let (state'', ins_updater') = iterate iter state' in
+	    let (state'', ins_updater') = iterate i_next iter state' in
 	    (state'', compos_ins_updater ins_updater ins_updater')
 	| _ ->
 	    (* Simplification done *)
@@ -255,7 +264,7 @@ let rec execute_state state = function
 	        tag = None }
 	    in
 	    if iter != 1 then
-	      let (state'', ins_updater') = iterate (iter-1) state' in
+	      let (state'', ins_updater') = iterate i_next (iter-1) state' in
 	      (state'', compos_ins_updater ins_updater ins_updater')
 	    else
 	      begin
@@ -265,7 +274,7 @@ let rec execute_state state = function
 		(state', ins_updater)
               end
       in
-      let result = iterate (!Settings.max_iter_simplif) state in
+      let result = iterate i (!Settings.max_iter_simplif) state in
       (* Transfer the local advice of Globaldepanal to the global advice in Settings.advise *)
       List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!Transf_globaldepanal.advise);
       Transf_globaldepanal.advise := [];

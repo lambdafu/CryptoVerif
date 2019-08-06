@@ -303,10 +303,6 @@ in that session. Some difficulties:
    In fact, to give maximum power to the simplifications below,
    I should consider only two different EventAbort, "win" and "lose".
 
-   => Is it really correct to apply simplification several times
-   in "success simplify", always using the information collected
-   by success, even if a simplification already occurred in between?
-
    => Use elsefind facts for "event e ==> false" as I already do
    for "event_abort e ==> ..."?
 
@@ -3588,3 +3584,9 @@ What is the impact of weak group assumptions
 Reprove PRF-ODH from ROM and CDH/GDH plus minimal assumptions on
 the group. Check that curve25519/curve448 satisfy these assumptions.
 DONE ../8/2019
+
+   => Is it really correct to apply simplification several times
+   in "success simplify", always using the information collected
+   by success, even if a simplification already occurred in between?
+FIXED 6/8/2019: use the collected information only in the first
+iteration.
