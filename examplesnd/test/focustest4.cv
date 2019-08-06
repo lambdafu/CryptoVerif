@@ -187,6 +187,6 @@ process
 
 
 (* EXPECTED
-Error: Focus: query(ies) not found
-xtime: error in child process (status : 512)
+RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
+0.188s (user 0.172s + system 0.016s), max rss 68000K
 END *)
