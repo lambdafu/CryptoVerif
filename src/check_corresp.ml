@@ -577,13 +577,23 @@ let is_event_abort_pp = function
   | DProcess ({ p_desc = EventAbort _ })
   | DTerm ({ t_desc = EventAbortE _ }) -> true
   | _ -> false
-      
+
+(* [is_event_false q] is true when the query [q] is of the
+   form [event(e) ==> false] *)
+
+let is_event_false = function
+  | [inj, { t_desc = FunApp(f,l) }], QTerm tfalse, _ ->
+      Terms.is_false tfalse &&
+      (not inj) &&
+      (f.f_cat == Event)
+  | _ -> false
+
 (* [check_corresp event_accu corresp g] is the main function to prove
    correspondences. It proves the correspondence [corresp = t1 ==> t2] in the game [g],
    using the information on events collected in [event_accu].
    ([event_accu] is a list of events and program points at which they are 
    executed. From the program point, we can recover the facts that hold,
-   the variables that are defined, etc. *)
+   the variables that are defined, etc.) *)
       
 let check_corresp collector event_accu (t1,t2,pub_vars) g =
   Terms.auto_cleanup (fun () ->
@@ -784,9 +794,49 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	    print_string "  but could not prove ";
 	    display_explanation e;
 	    print_newline();
-	    let (subst, facts, else_find) = facts' in
-	    Terms.add_to_collector collector
-	      (vars', collector_pp', (subst, facts, collector_elsefind_facts' @ else_find), def_vars');
+	    if collector != None then
+	      begin
+		let (facts', collector_elsefind_facts', def_vars') =
+		  (* For the query event e ==> false, we try to be a bit more precise.
+                     We collect the facts that are true at the event e (not at the end of the block),
+                     and use the elsefind facts at the event e.
+                     We already used the elsefind facts in case of event_abort e, 
+		     so we do not redo it in this case. *)
+		  if is_event_false (t1, t2, pub_vars) then
+		    match collector_pp' with
+		    | [new_end_sid, end_pp] ->
+			if is_event_abort_pp end_pp then
+			  (* No change when event_abort, because we already used the elsefind facts *)
+			  (facts', collector_elsefind_facts', def_vars')
+			else
+			  begin
+			  match Terms.get_facts end_pp with
+			  | Some(cur_array, _,_,_,_,_,_) ->
+			      let facts_common = Facts.get_facts_at end_pp in
+			      let def_vars_common = Facts.get_def_vars_at end_pp in
+			      let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
+	                      (* Rename session identifiers in facts, variables, and elsefind facts *)
+			      List.iter2 (fun b t -> b.ri_link <- (TLink t)) cur_array new_end_sid;
+			      let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts_common in
+			      let collector_elsefind_facts' = List.map Terms.copy_elsefind elsefind_facts_common in
+			      let def_vars' = Terms.copy_def_list Terms.Links_RI def_vars_common in
+			      List.iter (fun b -> b.ri_link <- NoLink) cur_array;
+			      let facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) new_facts) in
+			      (facts', collector_elsefind_facts', def_vars')
+			  | None ->
+			      (* We need to get [cur_array] to be able to perform the more precise computation.
+				 If we cannot get [cur_array], just use the information we have,
+				 without elsefind facts. That should not happen. *)
+			      (facts', collector_elsefind_facts', def_vars')
+			  end
+		    | _ -> Parsing_helper.internal_error "for query event e ==> false, collector_pp' should contain a single element"
+		  else
+		    (facts', collector_elsefind_facts', def_vars')
+		in
+		let (subst, facts, else_find) = facts' in
+		Terms.add_to_collector collector
+		  (vars', collector_pp', (subst, facts, collector_elsefind_facts' @ else_find), def_vars');
+	      end;
 	    false)
       with Contradiction -> 
 	true

@@ -2650,8 +2650,8 @@ For i<>j, not (defined(x[j]...) && cond && i <> j) is equivalent to
    not (defined(x[j]...) && cond) so it is true because it was true
    before the definition of x[i]. 
 
-[collect_ineq_def_list bl def_list] generates the inequalities
-[i <> j] where [i] is the current replication indices, the
+[collect_ineq_def_list bl args_at_creation def_list] generates the inequalities
+[i <> j] where [i = args_at_creation] is the current replication indices, the
 indices at which the variables in [bl] are newly defined,
 and [j] is the indices with which variables in [bl] occur in [def_list].
 
@@ -2661,10 +2661,7 @@ are the variables in [bl].
 *)
 
 
-let collect_ineq_def_list bl def_list =
-  (* all variables in [bl] have the same [args_at_creation],
-     corresponding to the current replication indices *)
-  let args_at_creation = (List.hd bl).args_at_creation in
+let collect_ineq_def_list bl args_at_creation def_list =
 
   let rec collect_ineq_term accu t =
     match t.t_desc with
@@ -2677,7 +2674,7 @@ let collect_ineq_def_list bl def_list =
 
   and collect_ineq_br accu (b,l) =
     if List.memq b bl then  
-      let new_fact = make_or_list (List.map2 (fun i t -> make_diff (term_from_repl_index i) t) args_at_creation l) in
+      let new_fact = make_or_list (List.map2 make_diff args_at_creation l) in
       List.fold_left collect_ineq_term (new_fact::accu) l
     else
       List.fold_left collect_ineq_term accu l
@@ -2687,7 +2684,10 @@ let collect_ineq_def_list bl def_list =
   
 let update_elsefind_with_def bl ((bl',def_list,t) as elsefind) =
   if bl == [] then elsefind else
-  let new_facts = collect_ineq_def_list bl def_list in
+  (* all variables in [bl] have the same [args_at_creation],
+     corresponding to the current replication indices *)
+  let args_at_creation = List.map term_from_repl_index (List.hd bl).args_at_creation in
+  let new_facts = collect_ineq_def_list bl args_at_creation def_list in
   if new_facts == [] then
     elsefind
   else

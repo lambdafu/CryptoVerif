@@ -1,3 +1,7 @@
+When I look for an occurrence, I could exploit the ordering of
+occurrences and the field max_occ to avoid traversing the whole
+game.
+
 Improve FindCompos to exploit collisions (with non-zero probability)
 in order to prove injectivity.
 Currently, find_compos_bin works as follows:
@@ -288,10 +292,6 @@ in that session. Some difficulties:
    (If there are several replications, guess values for all of them?
    Still only those above the "required step" [defined below].
    Or allow the user to choose which replications will be guessed?)
-
-   Collection of facts in "success simplify":
-   => Use elsefind facts for "event e ==> false" as I already do
-   for "event_abort e ==> ..."?
 
    => Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
@@ -3592,3 +3592,8 @@ DONE ../8/2019
    *any* session). It is much more powerful when it knows that
    there is a single tested session.
 DONE ../8/2019
+
+            Collection of facts in "success simplify":
+   => Use elsefind facts for "event e ==> false" as I already do
+   for "event_abort e ==> ..."?
+DONE 6/8/2019
