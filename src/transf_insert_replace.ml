@@ -6,6 +6,8 @@ open Lexing
 
 let whole_game = ref Terms.empty_game
 
+let has_unique_to_prove = ref false
+    
 (*
 Get the environment computed in syntax.ml/osyntax.ml.
 => Stringmap.env
@@ -494,7 +496,7 @@ let rec check_find_cond defined_refs cur_array env = function
 	match topt, pat with
 	  Some t3, _ -> Some (check_find_cond defined_refs cur_array env t3)
 	| None, (PPatVar _, _) -> None
-	| None, _ -> Parsing_helper.input_error "When a let in an expression has no else part, it must be of the form let x = M in M'" ext
+	| None, _ -> raise (Error("When a let in an expression has no else part, it must be of the form let x = M in M'", ext))
       in
       begin
 	match topt' with
@@ -517,8 +519,13 @@ let rec check_find_cond defined_refs cur_array env = function
   | PEventAbortE _, ext ->
       raise (Error("event_abort should not appear as term", ext))
   | PFindE(l0,t3,opt), ext ->
-      if opt != [] then
-	Parsing_helper.input_error "Options are not allowed for find in manually inserted instructions, because I cannot check that they are correct." ext;
+      let find_info =
+	match opt with
+	  ["unique",_] -> has_unique_to_prove := true; UniqueToProve
+	| [] -> Nothing
+	| _ ->
+	    raise (Error("The only option allowed for find is unique", ext))
+      in
       let rec add env = function
 	  [] -> (env,[])
 	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
@@ -553,7 +560,7 @@ let rec check_find_cond defined_refs cur_array env = function
 	  raise (Error("All branches of a if or find should return the same type", ext));
 	(bl_comb, def_list', t1', t2')) l0 
       in
-      Terms.new_term t3'.t_type ext (FindE(l0', t3', Nothing))
+      Terms.new_term t3'.t_type ext (FindE(l0', t3', find_info))
   | x -> check_term (Some defined_refs) cur_array env x
 
 
@@ -599,8 +606,13 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
 	  (Terms.oproc_from_desc (Let(pat', t', p', p')), def')
       end
   | PFind(l0, rest, opt) ->
-      if opt != [] then
-	Parsing_helper.input_error "Options are not allowed for find in manually inserted instructions, because I cannot check that they are correct." ext;
+      let find_info =
+	match opt with
+	  ["unique",_] -> has_unique_to_prove := true; UniqueToProve
+	| [] -> Nothing
+	| _ ->
+	    raise (Error("The only option allowed for find is unique", ext))
+      in
       is_yield rest;
       let def_accu = ref def in
       let rec add env = function
@@ -638,7 +650,7 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
 	def_accu := Terms.unionq bl' (!def_accu);
 	(List.combine bl' bl'', def_list', t1', p')) l0 
       in
-      (Terms.oproc_from_desc (Find(l0', p', Nothing)), !def_accu)
+      (Terms.oproc_from_desc (Find(l0', p', find_info)), !def_accu)
   | _ ->
       Parsing_helper.internal_error "Unexpected inserted instruction"
 
@@ -734,9 +746,90 @@ and insert_inso count occ ins env cur_array p =
   else
     r
 
+(* Prove that the inserted find[unique] are really unique *)
+
+let rec prove_uniquefc t =
+  match t.t_desc with
+    ResE(b,p) ->
+      Terms.build_term2 t (ResE(b, prove_uniquefc p))
+  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event, event_abort, get, insert should not occur as term"
+  | TestE(t1,t2,t3) ->
+      let t2' = prove_uniquefc t2 in
+      let t3' = prove_uniquefc t3 in
+      Terms.build_term2 t (TestE(t1,t2',t3'))
+  | LetE(pat,t1,t2,topt) ->
+      let t2' = prove_uniquefc t2 in
+      let topt' = 
+	match topt with
+	  None -> None
+	| Some t3 -> Some (prove_uniquefc t3)
+      in
+      Terms.build_term2 t (LetE(pat,t1,t2',topt'))
+  | FindE(l0,t3, find_info) ->
+      (* TO DO *)
+      let t3' = prove_uniquefc t3 in
+      let l0' = List.map (fun (bl, def_list, tc, p) ->
+	let p' = prove_uniquefc p in
+	let tc' = prove_uniquefc tc in
+	(bl, def_list, tc', p')
+	  ) l0 
+      in
+      Terms.build_term2 t (FindE(l0',t3',find_info))
+  | Var _ | FunApp _ | ReplIndex _ -> t 
+
+let rec prove_uniquei p =
+    Terms.iproc_from_desc3 p (
+    match p.i_desc with
+      Nil -> Nil
+    | Par(p1,p2) -> 
+	Par(prove_uniquei p1,
+	    prove_uniquei p2)
+    | Repl(b,p) ->
+	Repl(b, prove_uniquei p)
+    | Input(c, pat, p) ->
+	Input(c, pat, prove_uniqueo p))
+
+and prove_uniqueo p =
+  Terms.oproc_from_desc3 p (
+    match p.p_desc with
+      Yield -> Yield
+    | EventAbort f -> EventAbort f
+    | Restr(b,p) -> Restr(b, prove_uniqueo p)
+    | Test(t,p1,p2) -> Test(t, prove_uniqueo p1,
+			    prove_uniqueo p2)
+    | Find(l0,p2,find_info) ->
+	(* TO DO *)
+	Find(List.map (fun (bl,def_list,t,p1) ->
+	       (bl,def_list,prove_uniquefc t,
+	        prove_uniqueo p1)) l0,
+	     prove_uniqueo p2, find_info)
+    | Output(c,t,p) ->
+	Output(c,t,prove_uniquei p)
+    | Let(pat,t,p1,p2) ->
+	Let(pat,t,prove_uniqueo p1,
+	    prove_uniqueo p2)
+    | EventP(t,p) ->
+	EventP(t,prove_uniqueo p)
+    | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
+
+let prove_unique g =
+  let g_proc = Terms.get_process g in
+  whole_game := g;
+  Terms.array_ref_process g_proc;
+  Simplify1.improved_def_process None true g_proc;
+  Simplify1.reset [] g;
+  let p' = prove_uniquei g_proc in
+  let g' = Terms.build_transformed_game p' g in
+  Terms.cleanup_array_ref();
+  Simplify1.empty_improved_def_process true g_proc;
+  whole_game := Terms.empty_game;
+  (g', Simplify1.final_add_proba(), [])
+
 let insert_instruct occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in
   whole_game := g;
+  has_unique_to_prove := false; 
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
   let ins = 
@@ -774,7 +867,14 @@ let insert_instruct occ ext_o s ext_s g =
     begin
       Settings.changed := true;
       let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
-      (g', proba, done_transfos @ [DInsertInstruct(s, occ)])
+      if !has_unique_to_prove then
+	begin
+	  Terms.move_occ_game g';
+	  let (g'', proba', done_transfos') = prove_unique g' in
+	  (g'', proba' @ proba, done_transfos' @ done_transfos @  [DInsertInstruct(s, occ)])
+	end
+      else
+	(g', proba, done_transfos @ [DInsertInstruct(s, occ)])
     end
      
 (**** Replace a term with an equal term ****)

@@ -227,7 +227,7 @@ val is_unique : 'a findbranch list -> find_info -> find_info
    [def_vars] the variables known to be defined
    [dep_info] is a dependency analysis
    [current_history] is the known history at the find, at which [def_list]
-   is tested (may be returned by [Facts.get_initial_history] *)
+   is tested (may be returned by [Facts.get_initial_history]) *)
 val infer_unique : game -> repl_index list -> simp_facts -> binderref list ->
                    dep_anal -> known_history option ->
                    'a findbranch list -> find_info -> find_info * bool

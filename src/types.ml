@@ -63,6 +63,7 @@ type table = { tblname : string;
 type find_info =
     Nothing
   | Unique
+  | UniqueToProve (* Used when a find[unique] is inserted by the command "insert". CryptoVerif must prove that the find is really unique, the find_info becomes Unique when the proof is done. *)
 
 (* terms *)
 

@@ -1944,7 +1944,10 @@ let filter_deflist_indices bl def_list =
 let is_unique l0' find_info =
   match l0' with
     [([],_,_,_)] -> Unique
-  | _ -> find_info
+  | _ ->
+      match find_info with
+      | UniqueToProve -> Nothing
+      | _ -> find_info
 
 (* [infer_unique g cur_array simp_facts def_vars dep_info current_history l0' find_info]
    tries to prove that there is single possible choice in the find with
@@ -1957,7 +1960,7 @@ let is_unique l0' find_info =
    [def_vars] the variables known to be defined
    [dep_info] is a dependency analysis
    [current_history] is the known history at the find, at which [def_list]
-   is tested (may be returned by [Facts.get_initial_history] *)
+   is tested (may be returned by [Facts.get_initial_history]) *)
 
 let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
   if not (!Settings.infer_unique) then
@@ -1965,6 +1968,7 @@ let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
   else
     match is_unique l0' find_info with
     | Unique -> (Unique, false)
+    | UniqueToProve
     | Nothing ->
        let unique_branch (bl, def_list1, t1, _) =
          let repl_index1 = List.map snd bl in

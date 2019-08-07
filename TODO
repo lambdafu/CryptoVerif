@@ -1,3 +1,6 @@
+[IN PROGRESS] Allow insert find[unique], provided CryptoVerif manages to
+prove that the find is indeed unique.
+
 Improve FindCompos to exploit collisions (with non-zero probability)
 in order to prove injectivity.
 Currently, find_compos_bin works as follows:
@@ -29,12 +32,9 @@ in DH_X25519, DH_X448, DH_single_coord_ladder.
 
 Set future binders/true facts in terms in Terms.build_def_process
 
-Allow insert find[unique], provided CryptoVerif manages to
-prove that the find is indeed unique.
-
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
-variable y could also be used when x[M1...Ml] is know to be defined
+variable y could also be used when x[M1...Ml] is known to be defined
 (after substituting M1...Ml for the current replication indices in M and y).
 
 Use simp_facts in FindCompos.is_indep (as in Facts.is_indep)

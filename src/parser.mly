@@ -1093,8 +1093,8 @@ instruct:
       | (def_list, t) -> 
 	  PFind([(ref [], [], def_list, t, yield)], yield, []), parse_extent()
     }
-|   FIND findlistins
-    { PFind($2, (PYield, parse_extent()), []), parse_extent() }
+|   FIND options findlistins
+    { PFind($3, (PYield, parse_extent()), $2), parse_extent() }
 |   EVENT IDENT
     { PEvent((PFunApp($2, []), parse_extent()), (PYield, parse_extent())), parse_extent() }
 |   EVENT IDENT LPAREN termseq RPAREN 
