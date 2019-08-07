@@ -3,16 +3,20 @@ open Types
 (***** Manual insertion of abort event *****)
 
 let rec replace_process count occ premp p =
-  Terms.iproc_from_desc3 p (
-  match p.i_desc with
-    Nil -> Nil
-  | Par(p1,p2) -> 
-      Par(replace_process count occ premp p1,
-	  replace_process count occ premp p2)
-  | Repl(b,p) ->
-      Repl(b, replace_process count occ premp p)
-  | Input(c, pat, p) ->
-      Input(c, pat, replace_oprocess count occ premp p))
+  if (occ < p.i_occ) || (occ > p.i_max_occ) then
+    (* We are sure that [occ] is not inside [p] *) 
+    p
+  else
+    Terms.iproc_from_desc3 p (
+    match p.i_desc with
+      Nil -> Nil
+    | Par(p1,p2) -> 
+	Par(replace_process count occ premp p1,
+	    replace_process count occ premp p2)
+    | Repl(b,p) ->
+	Repl(b, replace_process count occ premp p)
+    | Input(c, pat, p) ->
+	Input(c, pat, replace_oprocess count occ premp p))
 
 and replace_oprocess count occ premp p =
   if p.p_occ == occ then
@@ -20,6 +24,9 @@ and replace_oprocess count occ premp p =
       incr count;
       premp
     end
+  else if (occ < p.p_occ) || (occ > p.p_max_occ) then
+    (* We are sure that [occ] is not inside [p] *) 
+    p
   else
     Terms.oproc_from_desc3 p (
     match p.p_desc with

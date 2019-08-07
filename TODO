@@ -1,7 +1,3 @@
-When I look for an occurrence, I could exploit the ordering of
-occurrences and the field max_occ to avoid traversing the whole
-game.
-
 Improve FindCompos to exploit collisions (with non-zero probability)
 in order to prove injectivity.
 Currently, find_compos_bin works as follows:
@@ -3597,3 +3593,8 @@ DONE ../8/2019
    => Use elsefind facts for "event e ==> false" as I already do
    for "event_abort e ==> ..."?
 DONE 6/8/2019
+
+When I look for an occurrence, I could exploit the ordering of
+occurrences and the field max_occ to avoid traversing the whole
+game.
+DONE 7/8/2019

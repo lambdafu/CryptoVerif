@@ -3056,7 +3056,7 @@ let display_fact_pp pp =
 let rec display_facts_at p occ =
   if p.i_occ = occ then
     display_fact_pp (DInputProcess p)
-  else
+  else if (p.i_occ <= occ) && (occ <= p.i_max_occ) (* if occ is not in this interval, we know that it does not occur in p, so we do nothing *) then
     match p.i_desc with
         Nil -> ()
       | Par (q,q') -> display_facts_at q occ;display_facts_at q' occ
@@ -3066,7 +3066,7 @@ let rec display_facts_at p occ =
 and display_facts_at_op p occ =
   if p.p_occ = occ then
     display_fact_pp (DProcess p)
-  else
+  else if (p.p_occ <= occ) && (occ <= p.p_max_occ) then
     match p.p_desc with
         Yield| EventAbort _ -> ()
       | Restr (_,p) -> display_facts_at_op p occ
@@ -3082,7 +3082,7 @@ and display_facts_at_op p occ =
 and display_facts_at_t t occ =
   if t.t_occ = occ then
     display_fact_pp (DTerm t)
-  else
+  else if (t.t_occ <= occ) && (occ <= t.t_max_occ) then
     match t.t_desc with
         Var (_,tl) -> List.iter (fun t -> display_facts_at_t t occ) tl
       | ReplIndex _ -> ()

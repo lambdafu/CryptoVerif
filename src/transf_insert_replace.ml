@@ -783,6 +783,15 @@ type state_ty =
     RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent 
   | RepDone of setf list * int * term * term * Parsing_helper.extent 
 
+let may_be_inside count min_occ max_occ =
+  match !count with
+  | RepToDo(occ,_,_,_) ->
+      (min_occ <= occ) && (occ <= max_occ)
+  | RepDone(_,occ,_,_,_) ->
+      if (min_occ <= occ) && (occ <= max_occ) then
+	Parsing_helper.internal_error "Ambiguous occurrence. That should never happen";
+      false
+
 let rec replace_tt count env facts cur_array t =
   match !count with
     RepToDo (occ, ext_o, ins, ext_s) when occ == t.t_occ ->
@@ -820,8 +829,11 @@ let rec replace_tt count env facts cur_array t =
       count := RepDone(Simplify1.final_add_proba(), occ, t, t', ext_o);
       t'
   | RepDone(_,occ,_,_,ext_o) when occ == t.t_occ -> 
-      raise (Error("Occurrence " ^ (string_of_int occ) ^ " ambiguous. You should use the command show_game occ to determine the desired occurrence.", ext_o))
-  | _ -> 
+      Parsing_helper.internal_error ("Occurrence " ^ (string_of_int occ) ^ " ambiguous. That should never happen")
+  | _ ->
+      if not (may_be_inside count t.t_occ t.t_max_occ) then
+	t
+      else
       Terms.build_term2 t 
 	(match t.t_desc with
 	  Var(b,l) -> Var(b, List.map (replace_tt count env facts cur_array) l)
@@ -847,13 +859,16 @@ let rec replace_tt count env facts cur_array t =
 	| FunApp(f,l) -> FunApp(f, List.map (replace_tt count env facts cur_array) l)
 	| ResE _ | TestE _ | LetE _ | FindE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
 	    Parsing_helper.internal_error "if/let/find/new/event/event_abort/get/insert should have been expanded in replace_term")
-
+	
 let rec replace_tpat count env cur_array = function
     PatVar b -> PatVar b
   | PatTuple(f,l) -> PatTuple(f, List.map (replace_tpat count env cur_array) l)
   | PatEqual t -> PatEqual(replace_tt count env [] cur_array t)
 
 and replace_tfind_cond count env cur_array t =
+  if not (may_be_inside count t.t_occ t.t_max_occ) then
+    t
+  else
   match t.t_desc with
     ResE(b,p) ->
       let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
@@ -912,6 +927,9 @@ and replace_tfind_cond count env cur_array t =
   | Var _ | FunApp _ | ReplIndex _ -> replace_tt count env [] cur_array t 
 
 let rec replace_t count env cur_array p =
+  if not (may_be_inside count p.i_occ p.i_max_occ) then
+    p
+  else
   let p_desc' =
   match p.i_desc with
     Nil -> Nil
@@ -931,6 +949,9 @@ let rec replace_t count env cur_array p =
   Terms.iproc_from_desc2 p p_desc'
 
 and replace_to count env cur_array p =
+  if not (may_be_inside count p.p_occ p.p_max_occ) then
+    p
+  else
   let p_desc' =
     match p.p_desc with
       Yield -> Yield
