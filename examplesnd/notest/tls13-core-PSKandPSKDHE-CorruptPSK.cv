@@ -35,25 +35,40 @@ insert_event server_break_auth before_nth 4 "ServerTerm1";
 success; (* just to be able to read the queries *)
 focus "query event(client_break_auth)", "query event(server_break_auth)";
 success simplify;
+crypto rom(HKDF_extract_zero_salt);
+crypto rom(Derive_Secret_psk_binder_key);
+crypto rom(HKDF_extract_zero1);
+crypto rom(HKDF_extract_DHE);
+crypto rom(Derive_Secret_cets_eems);
+crypto suf_cma(mac) *;
+crypto prf2 *;
+crypto splitter(split2) *;
+crypto prf_fin_key_iv *;
+crypto prf3 *;
+crypto suf_cma(mac) *; 
+success; (* All active queries proved. Going back to the last focus command. *)
+out_game "g1.out";
+insert after "new sr_" "find j' <= N2 suchthat defined(gx_1[j']) && sgx = gx_1[j'] then";
+(* gy_1 is the value of gy in the server *)
+SArename gy_1;
+out_game "g2.out";
+insert after_nth 1 "let sil_" "find j'' <= N7 suchthat defined(gy_2[j''], sgx[j'']) && gx_1 = sgx[j''] && cgy = gy_2[j''] then";
+crypto rom(HKDF_extract_DHE);
+remove_assign binder s;
+remove_assign binder s_1;
+simplify;
+crypto gdh(exp) [variables: x_3 -> a, y_13 -> b .];
+crypto prf2 *;
+crypto splitter(split2) *;
+crypto prf_fin_key_iv *;
+crypto prf3 *;
+crypto splitter(split3) *;
+crypto suf_cma(mac) *; 
+simplify;
+success;
 interactive
-
 }
 
-(* The proof can be guided as follows, but the automatic proof strategy works. 
-
-proof {
-      crypto rom(HKDF_extract_zero_salt);
-      crypto prf1;
-      crypto suf_cma(mac) *;
-      crypto prf2 *;
-      crypto splitter(split2) *;
-      crypto prf_fin_key_iv *;
-      crypto prf3 *;
-      crypto suf_cma(mac) *; 
-      auto
-}
-
-*)
 
 type key [large, fixed].
 type extracted [large, fixed].
@@ -86,9 +101,16 @@ type hashkey [large,fixed].
 
 expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
 
-(* We use the lemma proved in KeySchedule1.cv *)
-
 type two_keys [large,fixed].
+
+expand ROM_hash(hashkey, extracted, extracted, HKDF_extract_zero1, hashoracle2, qH2).
+expand ROM_hash_2(hashkey, extracted, elt, extracted, HKDF_extract_DHE, hashoracle3, qH3).
+expand ROM_hash(hashkey, extracted, key, Derive_Secret_psk_binder_key, hashoracle4, qH4).
+expand ROM_hash_2(hashkey, extracted, bitstring, two_keys, Derive_Secret_cets_eems, hashoracle5, qH5).
+
+
+(* We use the lemma proved in KeySchedule1.cv 
+
 fun Derive_Secret_cets_eems(extracted, bitstring): two_keys.
 fun Derive_Secret_psk_binder_key(extracted): key.
 fun HKDF_extract_DHE(extracted, elt): extracted.
@@ -110,7 +132,7 @@ equiv(prf1)
 	        find[unique] j''<=N'' suchthat defined(DHE[j''],r''[j'']) && DHE = DHE[j''] then return(r''[j''])
 		else new r'': extracted; return(r'') |
       	    O4() := new r''': extracted; return(r''')).
-
+*)
 (* We use the lemma proved in KeySchedule2.cv *)
 
 fun Derive_Secret_cs_hts(extracted,bitstring):two_keys.
@@ -222,39 +244,39 @@ table cdhe_table(nonce, elt, bitstring, bitstring, bitstring).
 (* Secrecy of the key *)
 
 (*
-query secret c_cats public_vars c_sats, c_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret c_sats public_vars c_cats, c_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret c_ems public_vars c_cats, c_sats, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret c_cats public_vars c_sats, c_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret c_sats public_vars c_cats, c_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret c_ems public_vars c_cats, c_sats, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
-query secret s_cats public_vars s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret s_sats public_vars s_cats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret s_ems public_vars s_cats, s_sats, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret s_cats public_vars s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret s_sats public_vars s_cats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret s_ems public_vars s_cats, s_sats, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
-query secret cdhe_cats public_vars cdhe_sats, cdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret cdhe_sats public_vars cdhe_cats, cdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret cdhe_ems public_vars cdhe_cats, cdhe_sats, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret cdhe_cats public_vars cdhe_sats, cdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret cdhe_sats public_vars cdhe_cats, cdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret cdhe_ems public_vars cdhe_cats, cdhe_sats, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
-query secret sdhe_cats public_vars sdhe_sats, sdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret sdhe_sats public_vars sdhe_cats, sdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret sdhe_ems public_vars sdhe_cats, sdhe_sats, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret sdhe_cats public_vars sdhe_sats, sdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret sdhe_sats public_vars sdhe_cats, sdhe_ems, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret sdhe_ems public_vars sdhe_cats, sdhe_sats, c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
-query secret c_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret s_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret cdhe_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret sdhe_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret c_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret s_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret cdhe_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret sdhe_resumption_secret public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 *)
 
-query secret cdhe_cats public_vars cdhe_sats, cdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret cdhe_sats public_vars cdhe_cats, cdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret cdhe_ems public_vars cdhe_cats, cdhe_sats, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret cdhe_cats public_vars cdhe_sats, cdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret cdhe_sats public_vars cdhe_cats, cdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret cdhe_ems public_vars cdhe_cats, cdhe_sats, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
-query secret sdhe_cats public_vars sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret sdhe_sats public_vars sdhe_cats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret sdhe_ems public_vars sdhe_cats, sdhe_sats, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret sdhe_cats public_vars sdhe_sats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret sdhe_sats public_vars sdhe_cats, sdhe_ems, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret sdhe_ems public_vars sdhe_cats, sdhe_sats, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
-query secret cdhe_resumption_secret public_vars cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-query secret sdhe_resumption_secret public_vars cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+query secret cdhe_resumption_secret public_vars cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
+query secret sdhe_resumption_secret public_vars cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 (* Authentication of the server to the client *)
 
@@ -264,13 +286,13 @@ event ServerAccept(bitstring,bitstring,N6).
 (*
 query log4: bitstring, keys: bitstring, i<=N6;
       inj-event(ClientTerm(log4, keys)) ==> inj-event(ServerAccept(log4, keys, i))
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 query log4: bitstring, s_keys: bitstring, s_keys': bitstring, i <= N6, i' <= N6;
       event(ServerAccept(log4, s_keys, i)) &&
       event(ServerAccept(log4, s_keys', i')) ==>
 	    i = i'
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 *)
 
 event ClientTermDHE(bitstring,bitstring).
@@ -278,13 +300,13 @@ event ServerAcceptDHE(bitstring,bitstring, N7).
 
 query log4: bitstring, keys: bitstring, i <= N7;
       inj-event(ClientTermDHE(log4, keys)) ==> inj-event(ServerAcceptDHE(log4, keys, i))
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *)cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *)cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 query log4: bitstring, s_keys: bitstring, s_keys': bitstring, i <= N7, i' <= N7;
       event(ServerAcceptDHE(log4, s_keys, i)) &&
       event(ServerAcceptDHE(log4, s_keys', i')) ==>
 	    i = i'
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 (* Authentication of the client to the server *)
 
@@ -294,13 +316,13 @@ event ClientAccept(bitstring,bitstring, N1).
 (*
 query log7: bitstring, keys: bitstring, i <= N1;
       inj-event(ServerTerm(log7, keys)) ==> inj-event(ClientAccept(log7, keys, i))
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 query log7: bitstring, c_keys: bitstring, c_keys': bitstring, i <= N1, i' <= N1;
       event(ClientAccept(log7, c_keys, i)) &&
       event(ClientAccept(log7, c_keys', i')) ==>
 	    i = i'
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets, s_eems, cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 *)
 
 event ServerTermDHE(bitstring,bitstring).
@@ -308,100 +330,29 @@ event ClientAcceptDHE(bitstring,bitstring, N2).
 
 query log7: bitstring, keys: bitstring, i <= N2;
       inj-event(ServerTermDHE(log7, keys)) ==> inj-event(ClientAcceptDHE(log7, keys, i))
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 query log7: bitstring, c_keys: bitstring, c_keys': bitstring, i <= N2, i' <= N2;
       event(ClientAcceptDHE(log7, c_keys, i)) &&
       event(ClientAcceptDHE(log7, c_keys', i')) ==>
 	    i = i'
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 (* Early authentication - these are limited authentication properties
    guaranteed by the MAC *)
 
 event ServerEarlyTerm(nonce,bitstring,bitstring).
 event ClientEarlyAccept(nonce,bitstring,bitstring).
-(*
-query cr: nonce, log1: bitstring, binder: bitstring;
-      event(ServerEarlyTerm(cr, log1, binder)) ==>
-      event(ClientEarlyAccept(cr, log1, binder))
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-*)
 
 event ServerEarlyTermDHE(nonce,elt,bitstring,bitstring).
 event ClientEarlyAcceptDHE(nonce,elt,bitstring,bitstring).
 
-query cr: nonce, gx: elt, log1: bitstring, binder: bitstring;
-      event(ServerEarlyTermDHE(cr, gx, log1, binder)) ==>
-      event(ClientEarlyAcceptDHE(cr, gx, log1, binder))
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
 
 (* We cannot prove injectivity because of the replay attack.
    We cannot prove that log1' is the same on the client and server sides
    (because it is not included in the MAC).
    As a result, the early keys cets and eems may also be different on the 
    client and server sides. *)
-
-(* Properties for 0-RTT for the PSK handshake
-   We focus on cets. We could prove similar properties for eems *)
-
-(* Case in which messages are not altered *) 
-event ServerEarlyTerm1(bitstring,key).
-event ClientEarlyAccept1(bitstring,key,N1).
-(*
-query log1: bitstring, cets: key, i <= N1;
-      event(ServerEarlyTerm1(log1, cets)) ==>
-      event(ClientEarlyAccept1(log1, cets, i))
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-
-query log1: bitstring, cets: key, cets': key, i <= N1, i' <= N1;
-      event(ClientEarlyAccept1(log1, cets, i)) &&
-      event(ClientEarlyAccept1(log1, cets', i')) ==> i = i'
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-
-query secret c_cets public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_eems, s_eems, s_cets3, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-*)
-
-(* Case in which messages are altered *) 
-event ServerEarlyTerm2(bitstring,key).
-(*
-query log1: bitstring, cets: key, cets': key;
-      event(ServerEarlyTerm2(log1, cets)) &&
-      event(ServerEarlyTerm2(log1, cets')) ==> cets = cets'
-      public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, c_cets, c_eems, s_cets2, s_cets3, s_eems, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-
-query secret s_cets1 public_vars c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, c_resumption_secret, s_resumption_secret, cdhe_resumption_secret, sdhe_resumption_secret, cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems, c_eems, s_eems, c_cets.
-*)
-
-(* Properties for 0-RTT for the PSKDHE handshake
-   We focus on cets. We could prove similar properties for eems *)
-
-(* Case in which messages are not altered *) 
-event ServerEarlyTermDHE1(bitstring,key).
-event ClientEarlyAcceptDHE1(bitstring,key,N2).
-
-query log1: bitstring, cets: key, i2 <= N2;
-      event(ServerEarlyTermDHE1(log1, cets)) ==>
-      event(ClientEarlyAcceptDHE1(log1, cets,i2))
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-
-query log1: bitstring, cets: key, cets': key, i <= N2, i' <= N2;
-      event(ClientEarlyAcceptDHE1(log1, cets, i)) &&
-      event(ClientEarlyAcceptDHE1(log1, cets', i')) ==> i = i'
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-
-query secret cdhe_cets public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_eems, c_cets, s_eems, s_cets2, s_cets3, *) cdhe_eems, sdhe_eems, sdhe_cets3.
-
-
-(* Case in which messages are altered *) 
-event ServerEarlyTermDHE2(bitstring,key).
-
-query log1: bitstring, cets: key, cets': key;
-      event(ServerEarlyTermDHE2(log1, cets)) &&
-      event(ServerEarlyTermDHE2(log1, cets')) ==> cets = cets'
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
-
-query secret sdhe_cets1 public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *)cdhe_resumption_secret, sdhe_resumption_secret, (*c_eems, c_cets, s_eems, s_cets2, s_cets3, *) cdhe_eems, sdhe_eems, cdhe_cets.
 
 
 (* Unique channel identifier *)
@@ -412,7 +363,7 @@ event ServerTerm1(bitstring, bitstring, bitstring).
 query sfl: bitstring, c_cfl: bitstring, s_cfl: bitstring, c_keys: bitstring, s_keys: bitstring;
       event(ClientTerm1(sfl, c_cfl, c_keys)) && event(ServerTerm1(sfl, s_cfl, s_keys)) ==>
       c_cfl = s_cfl && c_keys = s_keys
-      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets2, s_cets3, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets2, sdhe_cets3, sdhe_eems.
+      public_vars (*c_cats, c_sats, c_ems, s_cats, s_sats, s_ems, *) cdhe_cats, cdhe_sats, cdhe_ems, sdhe_cats, sdhe_sats, sdhe_ems, (*c_resumption_secret, s_resumption_secret, *) cdhe_resumption_secret, sdhe_resumption_secret, (*c_cets, c_eems, s_cets, s_eems, *) cdhe_cets, cdhe_eems, sdhe_cets, sdhe_eems.
 
 
 letfun send_client_hello1() = 
@@ -422,11 +373,11 @@ letfun send_client_hello1() =
 type send_client_hello2_res_t.
 fun send_client_hello2_succ(nonce, bitstring, bitstring, tuple2keys_t): send_client_hello2_res_t [data].
 
-letfun send_client_hello2(earlySecret: extracted, binder_key: key, cr: nonce, log1: bitstring, log1': bitstring) =
+letfun send_client_hello2(hk5: hashkey, earlySecret: extracted, binder_key: key, cr: nonce, log1: bitstring, log1': bitstring) =
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
    let binder = mac(chbl, binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
    send_client_hello2_succ(cr, binder, chl, split2(cets_eems)).
 
 type keys_res_t.
@@ -480,12 +431,12 @@ const recv_client_hello_fail: recv_client_hello_res_t.
 equation forall x1: nonce, x2: bitstring, x3: tuple2keys_t;
 	 recv_client_hello_succ(x1, x2, x3) <> recv_client_hello_fail.
 
-letfun recv_client_hello(earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
+letfun recv_client_hello(hk5: hashkey, earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
    if mac(chbl, binder_key) = binder then
    (
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
    new sr:nonce;
    recv_client_hello_succ(sr,chl,split2(cets_eems))
    )
@@ -542,17 +493,17 @@ letfun send_client_hello1DHE() =
 type send_client_hello2DHE_res_t.
 fun send_client_hello2DHE_succ(nonce, Z, elt, bitstring, bitstring, tuple2keys_t): send_client_hello2DHE_res_t [data].
 
-letfun send_client_hello2DHE(earlySecret: extracted, binder_key: key, cr: nonce, x:Z, gx: elt, log1: bitstring, log1': bitstring) = 
+letfun send_client_hello2DHE(hk5: hashkey, earlySecret: extracted, binder_key: key, cr: nonce, x:Z, gx: elt, log1: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
    let binder = mac(chbl,binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
    send_client_hello2DHE_succ(cr,x,gx, binder, chl, split2(cets_eems)).
 
-letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:Z) = 
+letfun recv_server_helloDHE(hk: hashkey, earlySecret: extracted, sil:bitstring, x:Z) = 
   let ServerHelloLogInfoDHE(chl,sr,gy,l2) = sil in
   (let s = exp(gy,x) in
-   let handshakeSecret = HKDF_extract_DHE(earlySecret, s) in
+   let handshakeSecret = HKDF_extract_DHE(hk, earlySecret, s) in
    let tuple2keys(client_hts, server_hts) = split2(Derive_Secret_cs_hts(handshakeSecret,sil)) in
    (
     let client_hk = HKDF_expand_key_label(client_hts) in
@@ -574,17 +525,17 @@ const recv_client_helloDHE_fail: recv_client_helloDHE_res_t.
 equation forall x1: nonce, x2: elt, x3: extracted, x4: bitstring, x5: tuple2keys_t;
 	 recv_client_helloDHE_succ(x1, x2, x3, x4, x5) <> recv_client_helloDHE_fail.
 
-letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
+letfun recv_client_helloDHE(hk: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
    if mac(chbl, binder_key) = binder then
    (
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
    new sr:nonce;
    new y: Z;
    let gy = exp(G,y) in
    let s = exp(gx,y) in
-   let handshakeSecret = HKDF_extract_DHE(earlySecret,s) in   
+   let handshakeSecret = HKDF_extract_DHE(hk,earlySecret,s) in   
    recv_client_helloDHE_succ(sr,gy,handshakeSecret,chl,split2(cets_eems))
    )
    else
@@ -594,7 +545,7 @@ letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, g
 
 (* PSK without DHE *)
 
-let Client(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
+let Client(hk5: hashkey, earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
 !i1 <= N1
     in(io1,c_log1: bitstring);
     let cr = send_client_hello1() in
@@ -602,15 +553,10 @@ let Client(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
     (* Give cr to the adversary, so that it can compute binders for
        other PSKs (in c_log1') and add them to the ClientHello message *) 
     in(io2', c_log1': bitstring);
-    let send_client_hello2_succ(c_cr:nonce,c_binder: bitstring, chl: bitstring,cets_eems: tuple2keys_t) = send_client_hello2(earlySecret, binder_key, cr, c_log1, c_log1') in
-    let tuple2keys(cets, c_eems: key) = cets_eems in
+    let send_client_hello2_succ(c_cr:nonce,c_binder: bitstring, chl: bitstring,cets_eems: tuple2keys_t) = send_client_hello2(hk5, earlySecret, binder_key, cr, c_log1, c_log1') in
+    let tuple2keys(c_cets: key, c_eems: key) = cets_eems in
     event ClientEarlyAccept(c_cr, c_log1, c_binder);
-    insert c_table(c_cr, c_log1, c_binder, c_log1'); 
-    (* 0-RTT: We compose with tls13-core-RecordProtocol-0RTT.cv, 
-       with secret c_cets
-       (ClientEarlyAccept1 is event e1 - non-injective variant). *)
-    event ClientEarlyAccept1((c_cr, c_log1, c_binder, c_log1'), cets, i1);
-    let c_cets: key = cets in
+    (* We drop 0-RTT since we can prove nothing more for it (no forward secrecy) *)
     out(io2,ClientHelloOut(c_cr, c_binder));
     in(io3,ServerHelloIn(sr,log2));
     let sil = ServerHelloLogInfo(chl,sr,log2) in
@@ -640,43 +586,15 @@ let Client(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
     let c_resumption_secret : key = resumption_secret in
     out(io6,ClientFinishedOut(cfin)).
 
-let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
+let Server(hk5: hashkey, earlySecret: extracted, binder_key: key, handshakeSecret: extracted) = 
  !i6 <= N6
    in(io9,ClientHelloIn(s_cr: nonce,s_log1: bitstring,s_binder: bitstring,s_log1': bitstring));
    let recv_client_hello_succ(sr:nonce,chl:bitstring,cets_eems: tuple2keys_t) = 
-      recv_client_hello(earlySecret,binder_key,s_cr,s_log1,s_binder,s_log1') in
+      recv_client_hello(hk5,earlySecret,binder_key,s_cr,s_log1,s_binder,s_log1') in
    event ServerEarlyTerm(s_cr, s_log1, s_binder);
-   let tuple2keys(cets, s_eems: key) = cets_eems in
+   let tuple2keys(s_cets: key, s_eems: key) = cets_eems in
    out(io10,ServerHelloOut(sr));
-   ((*  for 0-RTT *)
-   (in(io11', ());
-   get c_table(=s_cr, =s_log1, =s_binder, =s_log1') in
-      (* 1st case: messages from the client have not been altered.
-         The key is good
-	 We compose with tls13-core-RecordProtocol-0RTT.cv,
-	 with secret c_cets
-	 (ServerEarlyTerm1 is event e2 - non-injective variant) *)
-	  let s_cets2: key = cets in
-          event ServerEarlyTerm1((s_cr, s_log1, s_binder, s_log1'), s_cets2);
-	  out(io12', ())
-   else
-      (* 2nd case: messages from the client have been altered.
-         The key will be secret and no message will actually be received on it.
-         We compose with tls13-core-RecordProtocol-0RTT-badkey.cv,
-	 using the variant "single process with key reuse". *)
-	 let s_cets3: key = cets in
-	 event ServerEarlyTerm2((s_cr, s_log1, s_binder, s_log1'), s_cets3);
-         find us <= N6 suchthat defined(s_cr[us], s_log1[us], s_binder[us], s_log1'[us], s_cets1[us]) &&
-              s_cr[us] = s_cr && s_log1[us] = s_log1 && s_binder[us] = s_binder && s_log1'[us] = s_log1'
-         then
-	    (* We reuse a previous key s_cets1[us] *)
-	    out(io13', ())
-	 else
-	    (* Not a previous key; these keys s_cets1 will be secret
-	       and independent of each other *)
-	    let s_cets1: key = s_cets3 in
-	    out(io14', ()))
-   | 
+   (* We drop 0-RTT since we can prove nothing more for it (no forward secrecy) *)
    in(io11,log2:bitstring);
    let sil = ServerHelloLogInfo(chl,sr,log2) in
    let keys_succ(masterSecret: extracted, client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key) = onertt_hs_keys(sil,handshakeSecret) in
@@ -704,11 +622,11 @@ let Server(earlySecret: extracted, binder_key: key, handshakeSecret: extracted) 
       - with the record protocol with secret c_cats (ServerTerm is event e2) and 
       - with the PSK/PSKDHE handshake with secret c_resumption_secret (ServerTerm is event e2) *)
    event ServerTerm((s_cr,s_log1,s_binder,s_log1',sr,log2,log3,m,log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,s_cats,sats,s_ems,s_resumption_secret));
-   out(io30, ())).
+   out(io30, ()).
 
 (* PSKDHE *)
 
-let ClientDHE(earlySecret: extracted, binder_key: key) = 
+let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key) = 
 !i2 <= N2
     in(dhe_io1,cdhe_log1: bitstring);
     let send_client_hello1DHE_succ(cr: nonce,  x: Z, gx: elt) = send_client_hello1DHE() in
@@ -717,20 +635,15 @@ let ClientDHE(earlySecret: extracted, binder_key: key) =
        other PSKs (in cdhe_log1') and add them to the ClientHello message *) 
     in(dhe_io2', cdhe_log1': bitstring);
     let send_client_hello2DHE_succ(cdhe_cr:nonce,x:Z,cgx:elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: tuple2keys_t) = 
-       send_client_hello2DHE(earlySecret, binder_key, cr, x, gx, cdhe_log1, cdhe_log1') in
-    insert cdhe_table(cdhe_cr, cgx, cdhe_log1, cdhe_binder, cdhe_log1');
-    let tuple2keys(cets, cdhe_eems: key) = cets_eems in
+       send_client_hello2DHE(hk5, earlySecret, binder_key, cr, x, gx, cdhe_log1, cdhe_log1') in
+    let tuple2keys(cdhe_cets: key, cdhe_eems: key) = cets_eems in
     event ClientEarlyAcceptDHE(cdhe_cr, cgx, cdhe_log1, cdhe_binder);
-    (* 0-RTT: We compose with tls13-core-RecordProtocol-0RTT.cv, 
-       with secret cdhe_cets 
-       (ClientEarlyAcceptDHE1 is event e1 - non-injective variant). *)
-    event ClientEarlyAcceptDHE1((cdhe_cr, cgx, cdhe_log1, cdhe_binder, cdhe_log1'), cets, i2);
-    let cdhe_cets: key = cets in
+    (* We drop 0-RTT since we can prove nothing more for it (no forward secrecy) *)
     out(dhe_io2,ClientHelloOutDHE(cdhe_cr,cgx,cdhe_binder));
     in(dhe_io3,ServerHelloInDHE(sr,cgy,log2));
     let sil = ServerHelloLogInfoDHE(chl,sr,cgy,log2) in
     let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = 
-       recv_server_helloDHE(earlySecret,sil,x) in
+       recv_server_helloDHE(hk3,earlySecret,sil,x) in
     out(dhe_io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(dhe_io5,(ServerFinishedIn(log3,m), ClientAuth: bool, log4: bitstring)); 
     let recv_server_finished_succ(tuple3keys(cats, sats, ems)) =
@@ -780,44 +693,15 @@ let ClientDHE(earlySecret: extracted, binder_key: key) =
 	   with no security claim, by eliminating private communications *)
        out(dhe_io7, (ClientFinishedOut(cfin), (resumption_secret, cats, sats, ems))).
 
-let ServerDHE(earlySecret: extracted, binder_key: key) = 
+let ServerDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key) = 
  !i7 <= N7
    in(dhe_io9,ClientHelloInDHE(sdhe_cr: nonce, sgx: elt, sdhe_log1: bitstring, sdhe_binder: bitstring, sdhe_log1': bitstring));
    let recv_client_helloDHE_succ(sr:nonce,sgy:elt,handshakeSecret:extracted, chl: bitstring, cets_eems: tuple2keys_t) = 
-      recv_client_helloDHE(earlySecret,binder_key,sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1') in
+      recv_client_helloDHE(hk3,hk5,earlySecret,binder_key,sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1') in
    event ServerEarlyTermDHE(sdhe_cr,sgx,sdhe_log1,sdhe_binder);
-   let tuple2keys(cets, sdhe_eems: key) = cets_eems in
+   let tuple2keys(sdhe_cets: key, sdhe_eems: key) = cets_eems in
    out(dhe_io10,ServerHelloOutDHE(sr,sgy));
-   ((*  for 0-RTT *)
-   (in(dhe_io11', ());
-   get cdhe_table(=sdhe_cr, =sgx, =sdhe_log1, =sdhe_binder, =sdhe_log1') in
-      (* 1st case: messages from the client have not been altered.
-         The key is good
-	 We compose with tls13-core-RecordProtocol-0RTT.cv,
-	 with secret cdhe_cets
-	 (ServerEarlyTerm1 is event e2 - non-injective variant)  *)
-	  let sdhe_cets2: key = cets in
-          event ServerEarlyTermDHE1((sdhe_cr, sgx, sdhe_log1, sdhe_binder, sdhe_log1'), sdhe_cets2);
-	  out(io12', ())
-   else
-      (* 2nd case: messages from the client have been altered.
-         The key will be secret and no message will actually be received on it.
-         We compose with tls13-core-RecordProtocol-0RTT-badkey.cv,
-	 using the variant "single process with key reuse". *)
-	 let sdhe_cets3: key = cets in
-	 event ServerEarlyTermDHE2((sdhe_cr, sgx, sdhe_log1, sdhe_binder, sdhe_log1'), sdhe_cets3);
-         find us <= N7 suchthat defined(sdhe_cr[us], sgx[us], sdhe_log1[us], sdhe_binder[us], sdhe_log1'[us], sdhe_cets1[us]) &&
-              sdhe_cr[us] = sdhe_cr && sgx[us] = sgx && sdhe_log1[us] = sdhe_log1 && 
-              sdhe_binder[us] = sdhe_binder && sdhe_log1'[us] = sdhe_log1'
-         then
-	    (* We reuse a previous key sdhe_cets1[us] *)
-	    out(io13', ())
-	 else
-	    (* Not a previous key; these keys sdhe_cets1 will be secret
-	       and independent of each other *)
-	    let sdhe_cets1: key = sdhe_cets3 in
-	    out(io14', ()))
-   |
+   (* We drop 0-RTT since we can prove nothing more for it (no forward secrecy) *)
    in(dhe_io11,log2:bitstring);
    let sil = ServerHelloLogInfoDHE(chl,sr,sgy,log2) in
    let keys_succ(masterSecret: extracted, client_hk:key, server_hk: key, client_hiv: key, server_hiv: key, cfk: key, sfk: key) = onertt_hs_keys(sil,handshakeSecret) in
@@ -871,8 +755,7 @@ let ServerDHE(earlySecret: extracted, binder_key: key) =
 	       - the record protocol sender side for sats and 
 	       - the server-side handshake with pre-shared key for resumption_secret,
 	     with no security claim, by eliminating private communications *)
-      out(dhe_io31, (resumption_secret, cats, sats, ems))   
-   ).
+      out(dhe_io31, (resumption_secret, cats, sats, ems)).
 
 let corruptPSK(psk: key) =
    in(cCorrupt1, ());
@@ -883,18 +766,26 @@ let corruptPSK(psk: key) =
 
 process 
   in(io20,());
-  new hk: hashkey; (* Key that models the choice of the random oracle *)
+  new hk: hashkey; (* Key that models the choice of the random oracle HKDF_extract_zero_salt *)
+  new hk2: hashkey; (* Key that models the choice of the random oracle HKDF_extract_zero1 *)
+  new hk3: hashkey; (* Key that models the choice of the random oracle HKDF_extract_DHE *)
+  new hk4: hashkey; (* Key that models the choice of the random oracle Derive_Secret_psk_binder_key *)
+  new hk5: hashkey; (* Key that models the choice of the random oracle Derive_Secret_cets_eems *)
   new psk: key;
   let earlySecret = HKDF_extract_zero_salt(hk, psk) in
-  let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
-  let handshakeSecret = HKDF_extract_zero1(earlySecret) in
+  let binder_key = Derive_Secret_psk_binder_key(hk4, earlySecret) in
+  let handshakeSecret = HKDF_extract_zero1(hk2, earlySecret) in
       (* handshake secret for the PSK variant without DHE *)
   out(io21,());
   ((in(io22, ()); out(io23, ()); 
-      ((in(io24, ()); out(io25, ()); ((* Client(earlySecret, binder_key, handshakeSecret) | *) ClientDHE(earlySecret, binder_key))) | 
-       (in(io26, ()); out(io27, ()); ((* Server(earlySecret, binder_key, handshakeSecret) | *) ServerDHE(earlySecret, binder_key))) |
+      ((in(io24, ()); out(io25, ()); ((* Client(hk5,earlySecret, binder_key, handshakeSecret) | *) ClientDHE(hk3, hk5, earlySecret, binder_key))) | 
+       (in(io26, ()); out(io27, ()); ((* Server(hk5,earlySecret, binder_key, handshakeSecret) | *) ServerDHE(hk3, hk5, earlySecret, binder_key))) |
        corruptPSK(psk))) | 
-   hashoracle(hk))
+   hashoracle(hk) |
+   hashoracle2(hk2) |
+   hashoracle3(hk3) |
+   hashoracle4(hk4) |
+   hashoracle5(hk5))
 
 
 (* 
