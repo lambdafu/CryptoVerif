@@ -50,20 +50,12 @@ proof {
       insert 88 "find u7 = ri7 <= qH2 suchthat defined(r_9[ri7], y2[ri7], x2[ri7]) && (x2 = x2[ri7]) && (y2 = y2[ri7]) then";
       simplify;
       remove_assign useless;
-      show_game occ;
-      (* Rewrite the inner "find" in OH2 to remove [unique] because it will be removed in the other game *)
-      insert 40 "find ri7 <= qH2 suchthat defined(r_8[ri7], y2[ri7], k_2[ri7]) && (k_2 = k_2[ri7]) && (y2 = y2[ri7]) then orfind ri6 <= qH3 suchthat defined(r_4[ri6], y3[ri6], x3[ri6]) && (x3[ri6] = x[k_2]) && (y2 = y3[ri6]) then";
-      simplify;
-      remove_assign useless;
-      show_game;
       start_from_other_end;
       show_game occ;
       (* In the "then" branch of the first "find" of OH2,
          rewrite "find" to replace x_1[k_1] = x_1[k_1[ri_3]] with k_1 = k_1[ri_3].
-	 As a side-effect, it removes [unique].
-	 (We cannot insert "find[unique]", because that would require us to
-	 prove uniqueness.) *)
-      insert 40 "find ri3 <= qH2 suchthat defined(r_1[ri3], y2_1[ri3], x_1[k_1[ri3]]) && (k_1 = k_1[ri3]) && (y2_1 = y2_1[ri3]) then orfind ri2 <= qH3 suchthat defined(r_2[ri2], y3_1[ri2], x3_1[ri2]) && (x_1[k_1] = x3_1[ri2]) && (y2_1 = y3_1[ri2]) then ";
+	 (We can insert "find[unique]": CryptoVerif proves uniqueness.) *)
+      insert 40 "find[unique] ri3 <= qH2 suchthat defined(r_1[ri3], y2_1[ri3], x_1[k_1[ri3]]) && (k_1 = k_1[ri3]) && (y2_1 = y2_1[ri3]) then orfind ri2 <= qH3 suchthat defined(r_2[ri2], y3_1[ri2], x3_1[ri2]) && (x_1[k_1] = x3_1[ri2]) && (y2_1 = y3_1[ri2]) then ";
       simplify;
       remove_assign useless;
       show_game;

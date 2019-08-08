@@ -62,21 +62,13 @@ proof {
       (* Rewrite the "find" to replace the condition 
          (u4_1 = u4_1[ri_9]) with (y2 = y2[ri_9]) and 
          (x3[ri_8] = x[u4_1]) with (y2 = x3[ri_8]), to match the other game.
-	 As a side-effect, [unique] is removed. 
-	 (We cannot insert "find[unique]", since that would 
-	 require us to prove uniqueness.) *)
-      insert 46 "find ri9 <= qH2 suchthat defined(r_6[ri9], y2[ri9]) && (y2 = y2[ri9]) then orfind ri8 <= qH3 suchthat defined(r_4[ri8], x3[ri8]) && (y2 = x3[ri8]) then";
+	 (We can insert "find[unique]": CryptoVerif proves uniqueness.) *)
+      insert 46 "find[unique] ri9 <= qH2 suchthat defined(r_6[ri9], y2[ri9]) && (y2 = y2[ri9]) then orfind ri8 <= qH3 suchthat defined(r_4[ri8], x3[ri8]) && (y2 = x3[ri8]) then";
       simplify;
       remove_assign useless;
       show_game occ;
       (* Rewrite x[u4_1[ri_7]]) into y2[ri_7], to match the other game *)
       replace 116 "y2[ri_7]";
-      show_game;
-      start_from_other_end;
-      (* Rewrite the "find" to remove "[unique]", as it was removed in the other game *)
-      insert 46 "find ri3 <= qH2 suchthat defined(r[ri3], y2_1[ri3]) && (y2_1 = y2_1[ri3]) then orfind ri2 <= qH3 suchthat defined(r_1[ri2], x3_1[ri2]) && (y2_1 = x3_1[ri2]) then";
-      simplify;
-      remove_assign useless;
       show_game;
       success
  } 

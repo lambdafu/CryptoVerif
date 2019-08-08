@@ -1,0 +1,14 @@
+(* This insertion of find[unique] fails because the find is not really unique *)
+
+param N.
+
+channel c,d.
+
+proof {
+      insert after "in(d" "find[unique] j<=N suchthat defined(x[j]) && x[j] = y then"
+      }
+
+process
+	(!N in(c,x: bitstring); out(c,x))
+	|
+	(in(d,y:bitstring); out(d,y))
