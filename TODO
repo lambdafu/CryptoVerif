@@ -27,14 +27,14 @@ collision y <-R Z; forall X: subG;
 + the same with subGtoG instead of pow_k(subGtoG
 in DH_X25519, DH_X448, DH_single_coord_ladder.
 
+Use simp_facts in FindCompos.is_indep (as in Facts.is_indep)
+
 Set future binders/true facts in terms in Terms.build_def_process
 
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
 variable y could also be used when x[M1...Ml] is known to be defined
 (after substituting M1...Ml for the current replication indices in M and y).
-
-Use simp_facts in FindCompos.is_indep (as in Facts.is_indep)
 
 Complete the list of independent terms in dependency analyses using
 simp_facts: 
@@ -480,6 +480,35 @@ have the same continuation.
       => Now much better with the improved ROM model that
       simplifies H1(X) = H1(Y) into X = Y.
 
+      Transformations that already support unexpanded games:
+      - remove_assign
+      - sarename (flag expanded to set accordingly)
+      - crypto
+      - auto_sa_rename
+      - transf_tables [applied on the initial, unexpanded game]
+
+      Transformations and other code that do not support them:
+      - Simplify1.improved_def_process
+      - globaldepanal
+      - simplify (including depanal2) When simplify works on
+        unexpanded games, I could use it as the pre-expansion
+        simplification pass instead of using a specific transformation. 
+      - insert_event [here, the difference is that we could insert the
+        event in a term while currently we insert it only in a
+        process]
+      - insert
+      - replace
+      - merge
+      - move
+      - expand [should allow partial expansion guided by the user]
+      - success [minimal change needed: support events in terms]
+      - check_distinct [minimal change needed: allow RestrE in
+        addition to Restr]
+
+      May work without change:
+      - check_corresp
+         
+         
    - Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles
       - Concatenation of independent oracles => single oracle
