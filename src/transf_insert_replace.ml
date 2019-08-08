@@ -579,16 +579,16 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
 	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext_ty));
       let b = get_var false env (s_b, ext_b) (Some ty) cur_array in
       check_noninter def [b];
-      (Terms.oproc_from_desc (Restr(b, p')), b::def)
+      (Terms.new_oproc (Restr(b, p')) ext, b::def)
   | PEvent(t, rest) ->
       is_yield rest;
       let t' = check_term (Some defined_refs) cur_array env t in
-      (Terms.oproc_from_desc (EventP(t', p')), def)
+      (Terms.new_oproc (EventP(t', p')) ext, def)
   | PTest(t, rest1, rest2) ->
       is_yield rest1;
       is_yield rest2;
       let t' = check_term (Some defined_refs) cur_array env t in
-      (Terms.oproc_from_desc (Test(t', p', p')), def)
+      (Terms.new_oproc (Test(t', p', p')) ext, def)
   | PLet(pat, t, rest1, rest2) ->
       is_yield rest1;
       is_yield rest2;
@@ -601,9 +601,9 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
       begin
       match pat' with
 	PatVar b ->
-	  (Terms.oproc_from_desc (Let(pat', t', p', Terms.oproc_from_desc Yield)), def')
+	  (Terms.new_oproc (Let(pat', t', p', Terms.oproc_from_desc Yield)) ext, def')
       |	_ ->
-	  (Terms.oproc_from_desc (Let(pat', t', p', p')), def')
+	  (Terms.new_oproc (Let(pat', t', p', p')) ext, def')
       end
   | PFind(l0, rest, opt) ->
       let find_info =
@@ -650,7 +650,7 @@ let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
 	def_accu := Terms.unionq bl' (!def_accu);
 	(List.combine bl' bl'', def_list', t1', p')) l0 
       in
-      (Terms.oproc_from_desc (Find(l0', p', find_info)), !def_accu)
+      (Terms.new_oproc (Find(l0', p', find_info)) ext, !def_accu)
   | _ ->
       Parsing_helper.internal_error "Unexpected inserted instruction"
 
@@ -816,7 +816,7 @@ and prove_uniqueo p =
     | Test(t,p1,p2) -> Test(t, prove_uniqueo p1,
 			    prove_uniqueo p2)
     | Find(l0,p2,find_info) ->
-	let find_info' = prove_unique1 (DProcess p) l0 find_info Parsing_helper.dummy_ext (* TO DO p.p_loc *) in
+	let find_info' = prove_unique1 (DProcess p) l0 find_info p.p_loc in
 	Find(List.map (fun (bl,def_list,t,p1) ->
 	       (bl,def_list,prove_uniquefc t,
 	        prove_uniqueo p1)) l0,

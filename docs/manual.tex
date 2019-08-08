@@ -2248,7 +2248,7 @@ program point $occ$. The instruction $ins$ can be
 &\texttt{if }\nonterm{cond}\texttt{ then}\\
 &\texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
 &\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\\
-&\texttt{find }\nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
+&\texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
 \end{align*}
 or in the oracles front-end
 \begin{align*}
@@ -2257,7 +2257,7 @@ or in the oracles front-end
 &\texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
 &\nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}\\
 &\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\\
-&\texttt{find }\nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
+&\texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
 \end{align*}
 where $\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then}$
 

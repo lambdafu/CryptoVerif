@@ -8,6 +8,8 @@ Version
 - Added command "success simplify".
 - Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".
+- Allow inserting find[unique]. CryptoVerif tries to prove that it
+  is really unique; the insertion fails if that proof fails.
 - Public variables can be omitted in the "focus" command when
   there is no ambiguity.
 - Removed a collision from DH_proba_collision and square_DH_proba_collision

@@ -12,3 +12,8 @@ process
 	(!N in(c,x: bitstring); out(c,x))
 	|
 	(in(d,y:bitstring); out(d,y))
+
+(* EXPECTED
+Error: You inserted a find[unique] but I could not prove that it is really unique
+xtime: error in child process (status : 512)
+END *)

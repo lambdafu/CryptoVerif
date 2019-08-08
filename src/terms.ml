@@ -334,24 +334,30 @@ let app f l =
 
 (* Process from desc *)
 
-let iproc_from_desc d = { i_desc = d; i_occ = new_occ(); i_max_occ = 0; 
+let new_iproc d ext = { i_desc = d; i_occ = new_occ(); i_max_occ = 0; i_loc = ext;
+			i_incompatible = map_empty; i_facts = None }
+
+let new_oproc d ext = { p_desc = d; p_occ = new_occ(); p_max_occ = 0; p_loc = ext;
+			p_incompatible = map_empty; p_facts = None }
+
+let iproc_from_desc d = { i_desc = d; i_occ = new_occ(); i_max_occ = 0; i_loc = Parsing_helper.dummy_ext;
 			  i_incompatible = map_empty; i_facts = None }
 
-let oproc_from_desc d = { p_desc = d; p_occ = new_occ(); p_max_occ = 0;
+let oproc_from_desc d = { p_desc = d; p_occ = new_occ(); p_max_occ = 0; p_loc = Parsing_helper.dummy_ext;
 			  p_incompatible = map_empty; p_facts = None }
 
-let iproc_from_desc2 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0; 
+let iproc_from_desc2 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0; i_loc = p.i_loc;
 			     i_incompatible = p.i_incompatible; 
 			     i_facts = p.i_facts }
 
-let oproc_from_desc2 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0;
+let oproc_from_desc2 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0; p_loc = p.p_loc;
 			     p_incompatible = p.p_incompatible; 
 			     p_facts = p.p_facts }
 
-let iproc_from_desc3 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0; 
+let iproc_from_desc3 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0; i_loc = p.i_loc;
 			     i_incompatible = map_empty; i_facts = None }
 
-let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0;
+let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0; p_loc = p.p_loc;
 			     p_incompatible = map_empty; p_facts = None }
 
 let empty_game = { proc = RealProcess (iproc_from_desc Nil); game_number = -1; current_queries = [] }
@@ -1761,6 +1767,7 @@ let rec move_occ_process p =
   { i_desc = desc;
     i_occ = x_occ; 
     i_max_occ = !occ;
+    i_loc = p.i_loc;
     i_incompatible = map_empty; 
     i_facts = None }
 
@@ -1818,6 +1825,7 @@ and move_occ_oprocess p =
   { p_desc = desc;
     p_occ = x_occ;
     p_max_occ = !occ;
+    p_loc = p.p_loc;
     p_incompatible = map_empty; 
     p_facts = None }
 

@@ -112,6 +112,8 @@ val build_term3 : term -> term_desc -> term
 val build_term_type : typet -> term_desc -> term
 val new_term : typet -> Parsing_helper.extent -> term_desc -> term
     
+val new_iproc : inputprocess_desc -> Parsing_helper.extent -> inputprocess
+val new_oproc : process_desc -> Parsing_helper.extent -> process
 val iproc_from_desc : inputprocess_desc -> inputprocess
 val oproc_from_desc : process_desc -> process
 val iproc_from_desc2 : inputprocess -> inputprocess_desc -> inputprocess

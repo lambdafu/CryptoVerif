@@ -2648,13 +2648,13 @@ let rec check_process defined_refs cur_array env prog = function
         let (p,oracle,ip) = check_process defined_refs cur_array env (Some a) p in
           add_role a ip;
           (p,oracle,ip)
-  | PNil, _ -> (iproc_from_desc Nil, [], iproc_from_desc Nil)
+  | PNil, ext -> (new_iproc Nil ext, [], new_iproc Nil ext)
   | PPar(p1,p2), ext -> 
       let (p1',oracle1,ip1) = check_process defined_refs cur_array env prog p1 in
       let (p2',oracle2,ip2) = check_process defined_refs cur_array env prog p2 in
         check_distinct ext oracle1 oracle2;
-        (iproc_from_desc (Par(p1',p2')), oracle1 @ oracle2, iproc_from_desc (Par(ip1,ip2)))
-  | PRepl(repl_index_ref,idopt,(s2,ext2),p), _ ->
+        (new_iproc (Par(p1',p2')) ext, oracle1 @ oracle2, new_iproc (Par(ip1,ip2)) ext)
+  | PRepl(repl_index_ref,idopt,(s2,ext2),p), ext ->
       let b' = 
 	match !repl_index_ref with
 	  Some b -> b
@@ -2666,13 +2666,13 @@ let rec check_process defined_refs cur_array env prog = function
 	| Some(id,ext) -> StringMap.add id (EReplIndex b') env
       in
       let (p',oracle,ip) = check_process defined_refs (b'::cur_array) env' prog p in
-      (iproc_from_desc (Repl(b', p')), oracle, iproc_from_desc (Repl(b',ip)))
+      (new_iproc (Repl(b', p')) ext, oracle, new_iproc (Repl(b',ip)) ext)
   | PInput(t, pat, p), ext ->
       let ((c, _) as t') = check_process_channel cur_array env t in
       let (env', pat') = check_pattern (Some defined_refs) cur_array env None pat in
       let (p', tres, oracle,ip) = check_oprocess defined_refs cur_array env' prog p in
         if (!Settings.front_end) == Settings.Channels then
-	  (iproc_from_desc (Input(t', pat', p')), oracle, iproc_from_desc (Input(t',pat',ip)))
+	  (new_iproc (Input(t', pat', p')) ext, oracle, new_iproc (Input(t',pat',ip)) ext)
         else
 	  begin
 	    if List.exists (fun (c',_,_,_) -> c' == c) oracle then
@@ -2680,10 +2680,10 @@ let rec check_process defined_refs cur_array env prog = function
 			   "\n(The second definition is located under the return of the first one.)") ext;
 	    match pat' with
 	        PatTuple(_,patl) ->
-	          (iproc_from_desc (Input(t', pat', p')), 
+	          (new_iproc (Input(t', pat', p')) ext, 
 	           (c, List.map (fun ri -> ri.ri_type) cur_array, 
 		    List.map get_type_for_pattern patl, tres)::oracle,
-                   iproc_from_desc (Input(t',pat',ip)))
+                   new_iproc (Input(t',pat',ip)) ext)
 	      | _ -> internal_error "One can only have a tuple as argument"
 	  end
   | PLetDef((s,ext),args), _ ->
@@ -2713,27 +2713,27 @@ let rec check_process defined_refs cur_array env prog = function
       raise_error "input process expected" ext
 
 and check_oprocess defined_refs cur_array env prog = function
-    PYield, _ -> (oproc_from_desc Yield, None, [], oproc_from_desc Yield)
-  | PEventAbort(s,ext), _ -> 
+    PYield, ext -> (new_oproc Yield ext, None, [], new_oproc Yield ext)
+  | PEventAbort(s,ext), ext' -> 
       begin
       try 
 	match StringMap.find s env with
 	  EEvent(f) ->
 	    check_type_list ext [] [] (List.tl (fst f.f_type));
 	    let p_desc = EventAbort(f) in
-	    (oproc_from_desc p_desc, None, [], oproc_from_desc p_desc)
+	    (new_oproc p_desc ext', None, [], new_oproc p_desc ext')
 	| _ -> raise_error (s ^ " should be an event") ext
       with Not_found ->
 	raise_error (s ^ " not defined") ext
       end
-  | PRestr((s1,ext1),(s2,ext2),p), _ ->
+  | PRestr((s1,ext1),(s2,ext2),p), ext ->
       let t = get_type env s2 ext2 in
         if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	  raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
         let (env',b) = add_in_env env s1 ext1 t cur_array in
         let (p', tres, oracle,ip') = check_oprocess defined_refs cur_array env' prog p in
-          (oproc_from_desc (Restr(b, p')), tres, oracle,
-           oproc_from_desc (Restr(b, ip')))
+          (new_oproc (Restr(b, p')) ext, tres, oracle,
+           new_oproc (Restr(b, ip')) ext)
   | PLetDef((s,ext), args), _ ->
       let (env', vardecl, p) = get_process env s ext in
       if List.length vardecl != List.length args then
@@ -2748,9 +2748,9 @@ and check_oprocess defined_refs cur_array env prog = function
         check_type (snd t) t' Settings.t_bool;
         let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env prog p1 in
         let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
-          (oproc_from_desc (Test(t', p1', p2')),
+          (new_oproc (Test(t', p1', p2')) ext,
            mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
-           oproc_from_desc (Test(t', ip1', ip2')))
+           new_oproc (Test(t', ip1', ip2')) ext)
   | PFind(l0,p2,opt), ext ->
       let find_info = ref Nothing in
       List.iter (fun (s,ext_s) ->
@@ -2794,8 +2794,8 @@ and check_oprocess defined_refs cur_array env prog = function
 	  accu, iaccu
 	    ) ([],[]) l0
       in
-      (oproc_from_desc (Find(List.rev l0', p2',!find_info)), (!trescur), (!oraclecur),
-       oproc_from_desc (Find(List.rev il0',ip2', !find_info)))
+      (new_oproc (Find(List.rev l0', p2',!find_info)) ext, (!trescur), (!oraclecur),
+       new_oproc (Find(List.rev il0',ip2', !find_info)) ext)
   | POutput(rt,t1,t2,p), ext ->
       let t2' = check_term (Some defined_refs) cur_array env t2 in
       begin
@@ -2809,14 +2809,14 @@ and check_oprocess defined_refs cur_array env prog = function
       let ip'=if rt then (iproc_from_desc Nil) else ip'' in
       if (!Settings.front_end) == Settings.Channels then
 	let t1' = check_process_channel cur_array env t1 in
-	(oproc_from_desc (Output(t1', t2', p')), None, oracle,oproc_from_desc (Output(t1', t2', ip')))
+	(new_oproc (Output(t1', t2', p')) ext, None, oracle,new_oproc (Output(t1', t2', ip')) ext)
       else
 	begin
 	  match t2'.t_desc with
 	    FunApp(_,tl) ->
-	      (oproc_from_desc (Output((dummy_channel, []), t2', p')), 
+	      (new_oproc (Output((dummy_channel, []), t2', p')) ext, 
 	       Some (List.map (fun t -> t.t_type) tl), oracle,
-               oproc_from_desc (Output((dummy_channel, []), t2', ip')))
+               new_oproc (Output((dummy_channel, []), t2', ip')) ext)
 	  | _ -> 
 	      internal_error "One can only return a tuple"
 	end
@@ -2825,9 +2825,9 @@ and check_oprocess defined_refs cur_array env prog = function
       let (env', pat') = check_pattern (Some defined_refs) cur_array env (Some t'.t_type) pat in
       let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env' prog p1 in
       let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
-        (oproc_from_desc (Let(pat', t', p1', p2')), 
+        (new_oproc (Let(pat', t', p1', p2')) ext, 
          mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
-         oproc_from_desc (Let(pat', t', ip1', ip2')))
+         new_oproc (Let(pat', t', ip1', ip2')) ext)
   | PEvent((PFunApp((s,ext0),tl), ext), p), ext2 ->
       begin
         try 
@@ -2844,14 +2844,13 @@ and check_oprocess defined_refs cur_array env prog = function
                   let event =
 		    Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
 		  in
-	          (oproc_from_desc 
-	             (EventP(event, p')), tres, oracle,
-                   oproc_from_desc (EventP(event, ip')))
+	          (new_oproc (EventP(event, p')) ext2, tres, oracle,
+                   new_oproc (EventP(event, ip')) ext2)
 	    | _ -> raise_error (s ^ " should be an event") ext0
         with Not_found ->
 	  raise_error (s ^ " not defined") ext0
       end
-  | PGet((id,ext),patl,topt,p1,p2),_ -> 
+  | PGet((id,ext),patl,topt,p1,p2), ext' -> 
       let tbl = get_table env id ext in
       let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
       let (env', patl') = check_pattern_list (Some defined_refs) cur_array env (List.map (fun x->Some x) tbl.tbltype) patl in
@@ -2865,17 +2864,17 @@ and check_oprocess defined_refs cur_array env prog = function
 	    Some t'
       in
       let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env' prog p1 in
-        (oproc_from_desc (Get(tbl, patl',topt',p1', p2')),
+        (new_oproc (Get(tbl, patl',topt',p1', p2')) ext',
          mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
-         oproc_from_desc (Get(tbl, patl',topt',ip1', ip2')))
+         new_oproc (Get(tbl, patl',topt',ip1', ip2')) ext')
           
   | PInsert((id,ext),tl,p),ext2 ->
       let tbl = get_table env id ext in
       let t' = List.map (check_term (Some defined_refs) cur_array env) tl in
         check_type_list ext2 tl t' tbl.tbltype;
         let (p',tres,oracle,ip') = check_oprocess defined_refs cur_array env prog p in
-          (oproc_from_desc (Insert(tbl, t', p')), tres, oracle,
-           oproc_from_desc (Insert(tbl, t', ip')))
+          (new_oproc (Insert(tbl, t', p')) ext2, tres, oracle,
+           new_oproc (Insert(tbl, t', ip')) ext2)
             
   | _, ext -> 
       raise_error "non-input process expected" ext

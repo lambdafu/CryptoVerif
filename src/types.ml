@@ -298,6 +298,7 @@ and inputprocess =
     { i_desc : inputprocess_desc;
       i_occ : int;
       i_max_occ : int;
+      i_loc : Parsing_helper.extent;
       mutable i_incompatible : int Occ_map.occ_map; (* similar to t_incompatible *)
       mutable i_facts : fact_info }
 
@@ -317,6 +318,7 @@ and process =
     { p_desc : process_desc;
       p_occ : int;
       p_max_occ : int;
+      p_loc : Parsing_helper.extent;
       mutable p_incompatible : int Occ_map.occ_map; (* similar to t_incompatible *)
       mutable p_facts : fact_info }
 
