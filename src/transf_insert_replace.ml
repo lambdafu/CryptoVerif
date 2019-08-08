@@ -748,6 +748,23 @@ and insert_inso count occ ins env cur_array p =
 
 (* Prove that the inserted find[unique] are really unique *)
 
+let prove_unique1 pp l0 find_info ext =
+  match find_info with
+  | UniqueToProve ->
+      let cur_array =
+	match Terms.get_facts pp with
+	| Some(cur_array,_,_,_,_,_,_) -> cur_array
+	| None -> raise (Error("You inserted a find[unique] but I could not prove that it is really unique (missing information, should not happen)", ext))
+      in
+      let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id (Facts.get_facts_at pp) in
+      let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
+      if Simplify1.prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
+	Unique
+      else
+	raise (Error("You inserted a find[unique] but I could not prove that it is really unique", ext))
+  | _ -> find_info
+	
 let rec prove_uniquefc t =
   match t.t_desc with
     ResE(b,p) ->
@@ -767,7 +784,7 @@ let rec prove_uniquefc t =
       in
       Terms.build_term2 t (LetE(pat,t1,t2',topt'))
   | FindE(l0,t3, find_info) ->
-      (* TO DO *)
+      let find_info' = prove_unique1 (DTerm t) l0 find_info t.t_loc in
       let t3' = prove_uniquefc t3 in
       let l0' = List.map (fun (bl, def_list, tc, p) ->
 	let p' = prove_uniquefc p in
@@ -775,7 +792,7 @@ let rec prove_uniquefc t =
 	(bl, def_list, tc', p')
 	  ) l0 
       in
-      Terms.build_term2 t (FindE(l0',t3',find_info))
+      Terms.build_term2 t (FindE(l0',t3',find_info'))
   | Var _ | FunApp _ | ReplIndex _ -> t 
 
 let rec prove_uniquei p =
@@ -799,11 +816,11 @@ and prove_uniqueo p =
     | Test(t,p1,p2) -> Test(t, prove_uniqueo p1,
 			    prove_uniqueo p2)
     | Find(l0,p2,find_info) ->
-	(* TO DO *)
+	let find_info' = prove_unique1 (DProcess p) l0 find_info Parsing_helper.dummy_ext (* TO DO p.p_loc *) in
 	Find(List.map (fun (bl,def_list,t,p1) ->
 	       (bl,def_list,prove_uniquefc t,
 	        prove_uniqueo p1)) l0,
-	     prove_uniqueo p2, find_info)
+	     prove_uniqueo p2, find_info')
     | Output(c,t,p) ->
 	Output(c,t,prove_uniquei p)
     | Let(pat,t,p1,p2) ->

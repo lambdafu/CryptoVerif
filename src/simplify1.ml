@@ -1962,6 +1962,54 @@ let is_unique l0' find_info =
    [current_history] is the known history at the find, at which [def_list]
    is tested (may be returned by [Facts.get_initial_history]) *)
 
+let prove_unique g cur_array simp_facts def_vars dep_info node l0' =
+  let unique_branch (bl, def_list1, t1, _) =
+    let repl_index1 = List.map snd bl in
+    let repl_index1_term = List.map Terms.term_from_repl_index repl_index1 in
+    let repl_index2 = List.map Terms.new_repl_index repl_index1 in
+    let repl_index2_term = List.map Terms.term_from_repl_index repl_index2 in
+    let def_list2 = Terms.subst_def_list repl_index1 repl_index2_term def_list1 in
+    let t2 = Terms.subst repl_index1 repl_index2_term t1 in
+    try 
+      let def_vars1 = Facts.def_vars_from_defined node def_list1 in
+      let facts_def_list1 = Facts.facts_from_defined node def_list1 in
+      let def_vars2 = Facts.def_vars_from_defined node def_list2 in
+      let facts_def_list2 = Facts.facts_from_defined node def_list2 in
+      let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
+      let diff_ri1_ri2 = Terms.make_or_list (List.map2 Terms.make_diff repl_index1_term repl_index2_term) in
+      let simp_facts = Facts.simplif_add_list dep_info simp_facts (diff_ri1_ri2 :: t2 :: t1 :: facts_def_list1 @ facts_def_list2) in
+      let new_facts = get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
+      let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
+      false
+    with Contradiction -> true
+  in
+  let incompatible_branch (bl1, def_list1, t1, _) (bl2, def_list2_orig, t2_orig, _) =
+    let repl_index2_orig = List.map snd bl2 in
+    let repl_index2 = List.map Terms.new_repl_index repl_index2_orig in
+    let repl_index2_term = List.map Terms.term_from_repl_index repl_index2 in
+    let def_list2 = Terms.subst_def_list repl_index2_orig repl_index2_term def_list2_orig in
+    let t2 = Terms.subst repl_index2_orig repl_index2_term t2_orig in
+    try 
+      let def_vars1 = Facts.def_vars_from_defined node def_list1 in
+      let facts_def_list1 = Facts.facts_from_defined node def_list1 in
+      let def_vars2 = Facts.def_vars_from_defined node def_list2 in
+      let facts_def_list2 = Facts.facts_from_defined node def_list2 in
+      let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
+      let simp_facts = Facts.simplif_add_list dep_info simp_facts (t2 :: t1 :: facts_def_list1 @ facts_def_list2) in
+      let new_facts = get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
+      let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
+      false
+    with Contradiction -> true
+  in
+  (List.for_all unique_branch l0') &&
+  (let rec incompatible_branches = function
+    | [] | [_] -> true
+    | branch1 :: rest -> 
+        (List.for_all (incompatible_branch branch1) rest) &&
+        (incompatible_branches rest)
+  in
+  incompatible_branches l0')
+
 let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
   if not (!Settings.infer_unique) then
     (is_unique l0' find_info, false)
@@ -1970,53 +2018,7 @@ let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
     | Unique -> (Unique, false)
     | UniqueToProve
     | Nothing ->
-       let unique_branch (bl, def_list1, t1, _) =
-         let repl_index1 = List.map snd bl in
-         let repl_index1_term = List.map Terms.term_from_repl_index repl_index1 in
-         let repl_index2 = List.map Terms.new_repl_index repl_index1 in
-         let repl_index2_term = List.map Terms.term_from_repl_index repl_index2 in
-         let def_list2 = Terms.subst_def_list repl_index1 repl_index2_term def_list1 in
-         let t2 = Terms.subst repl_index1 repl_index2_term t1 in
-         try 
-           let def_vars1 = Facts.def_vars_from_defined node def_list1 in
-           let facts_def_list1 = Facts.facts_from_defined node def_list1 in
-           let def_vars2 = Facts.def_vars_from_defined node def_list2 in
-           let facts_def_list2 = Facts.facts_from_defined node def_list2 in
-           let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
-           let diff_ri1_ri2 = Terms.make_or_list (List.map2 Terms.make_diff repl_index1_term repl_index2_term) in
-           let simp_facts = Facts.simplif_add_list dep_info simp_facts (diff_ri1_ri2 :: t2 :: t1 :: facts_def_list1 @ facts_def_list2) in
-           let new_facts = get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
-           let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
-           false
-         with Contradiction -> true
-       in
-       let incompatible_branch (bl1, def_list1, t1, _) (bl2, def_list2_orig, t2_orig, _) =
-         let repl_index2_orig = List.map snd bl2 in
-         let repl_index2 = List.map Terms.new_repl_index repl_index2_orig in
-         let repl_index2_term = List.map Terms.term_from_repl_index repl_index2 in
-         let def_list2 = Terms.subst_def_list repl_index2_orig repl_index2_term def_list2_orig in
-         let t2 = Terms.subst repl_index2_orig repl_index2_term t2_orig in
-         try 
-           let def_vars1 = Facts.def_vars_from_defined node def_list1 in
-           let facts_def_list1 = Facts.facts_from_defined node def_list1 in
-           let def_vars2 = Facts.def_vars_from_defined node def_list2 in
-           let facts_def_list2 = Facts.facts_from_defined node def_list2 in
-           let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
-           let simp_facts = Facts.simplif_add_list dep_info simp_facts (t2 :: t1 :: facts_def_list1 @ facts_def_list2) in
-           let new_facts = get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
-           let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
-           false
-         with Contradiction -> true
-       in
-       if (List.for_all unique_branch l0') &&
-          (let rec incompatible_branches = function
-             | [] | [_] -> true
-             | branch1 :: rest -> 
-                (List.for_all (incompatible_branch branch1) rest) &&
-                  (incompatible_branches rest)
-           in
-           incompatible_branches l0')
-       then
+       if prove_unique g cur_array simp_facts def_vars dep_info node l0' then
          (Unique, true)
        else
          (Nothing, false)
