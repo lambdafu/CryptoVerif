@@ -15,7 +15,7 @@ channel io1, io1', io2, io2', io3, io4, io5, io6, io7, io8, io9, io10,
 	io21, io22, io23, io24, io25, io26, io27, io28, io29, io30,
 	dhe_io1, dhe_io1', dhe_io2, dhe_io2', dhe_io3, dhe_io4, dhe_io5, dhe_io6, dhe_io7, dhe_io8, dhe_io9, dhe_io10,
 	dhe_io11, dhe_io12, dhe_io13, dhe_io14, dhe_io15, dhe_io16, dhe_io17, dhe_io18, dhe_io19, dhe_io20,
-	dhe_io11', dhe_io12', dhe_io13', dhe_io14', 
+	dhe_io11', dhe_io12', dhe_io13', dhe_io14', dhe_io18', dhe_io19', 
 	dhe_io21, dhe_io22, dhe_io23, dhe_io24, dhe_io25, dhe_io26, dhe_io27, dhe_io28, dhe_io29, dhe_io30, dhe_io31,
 	cCorrupt1, cCorrupt2.
 
@@ -30,8 +30,8 @@ param N1,N5,N6,
 proof {
 insert before_nth 3 "ClientTerm1" "find j3 <= N7 suchthat defined(s_sfl_dhe[j3]) && c_sfl = s_sfl_dhe[j3] then";
 insert_event client_break_auth before_nth 4 "ClientTerm1";
-insert before_nth 3 "ServerTerm1" "find j4 <= N2 suchthat defined(gx_1[j4], cets_eems_2[j4]) && (sgx = gx_1[j4]) then";
-insert_event server_break_auth before_nth 4 "ServerTerm1";
+insert before_nth 2 "ServerAcceptDHE" "find j4 <= N2 suchthat defined(gx_1[j4]) && (sgx = gx_1[j4]) then";
+insert_event server_break_auth before_nth 3 "ServerAcceptDHE";
 simplify; (* expand the inserted c_sfl = s_sfl_dhe[j3] to make comparisons 
              between exponentials appear. Must be done early to take
 	     fully advantage of GDH. *)
@@ -67,8 +67,7 @@ crypto prf3 *;
 crypto splitter(split3) *;
 crypto suf_cma(mac) *; 
 simplify;
-success;
-interactive
+success
 }
 
 
@@ -656,17 +655,17 @@ let Server(hk5: hashkey, earlySecret: extracted, binder_key: key, handshakeSecre
 let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key) = 
 !i2 <= N2
     in(dhe_io1,cdhe_log1: bitstring);
-    let send_client_hello1DHE_succ(cr: nonce,  x: Z, gx: elt) = send_client_hello1DHE() in
-    out(dhe_io1', (cr,gx));
-    (* Give cr,gx to the adversary, so that it can compute binders for
+    let send_client_hello1DHE_succ(cr: nonce,  x: Z, cgx: elt) = send_client_hello1DHE() in
+    out(dhe_io1', (cr,cgx));
+    (* Give cr,cgx to the adversary, so that it can compute binders for
        other PSKs (in cdhe_log1') and add them to the ClientHello message *) 
     in(dhe_io2', cdhe_log1': bitstring);
-    let send_client_hello2DHE_succ(cdhe_cr:nonce,x:Z,cgx:elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: tuple2keys_t) = 
-       send_client_hello2DHE(hk5, earlySecret, binder_key, cr, x, gx, cdhe_log1, cdhe_log1') in
+    let send_client_hello2DHE_succ(cdhe_cr:nonce,x:Z,cgx':elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: tuple2keys_t) = 
+       send_client_hello2DHE(hk5, earlySecret, binder_key, cr, x, cgx, cdhe_log1, cdhe_log1') in
     let tuple2keys(cdhe_cets: key, cdhe_eems: key) = cets_eems in
-    event ClientEarlyAcceptDHE(cdhe_cr, cgx, cdhe_log1, cdhe_binder);
+    event ClientEarlyAcceptDHE(cdhe_cr, cgx', cdhe_log1, cdhe_binder);
     (* We drop 0-RTT since we can prove nothing more for it (no forward secrecy) *)
-    out(dhe_io2,ClientHelloOutDHE(cdhe_cr,cgx,cdhe_binder));
+    out(dhe_io2,ClientHelloOutDHE(cdhe_cr,cgx',cdhe_binder));
     in(dhe_io3,ServerHelloInDHE(sr,cgy,log2));
     let sil = ServerHelloLogInfoDHE(chl,sr,cgy,log2) in
     let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = 
@@ -693,7 +692,7 @@ let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
        )
        else true
     in
-    event ClientTerm1((cdhe_cr,cgx,cdhe_log1,cdhe_binder,cdhe_log1',sr,cgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
+    event ClientTerm1((cdhe_cr,cgx',cdhe_log1,cdhe_binder,cdhe_log1',sr,cgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
     if honestsession then
     (
        let cdhe_sats: key = sats in
@@ -702,8 +701,8 @@ let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
        - with the record protocol with secret sdhe_sats (ClientTermDHE is event e2)
        - with the record protocol with secret cdhe_cats (ClientAcceptDHE is event e1)
        - with the PSK/PSKDHE handshake with secret cdhe_resumption_secret (ClientAcceptDHE is event e1) *)
-       event ClientTermDHE((cdhe_cr,cgx,cdhe_log1,cdhe_binder,cdhe_log1',sr,cgy,log2,log3,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,cdhe_sats,ems));
-       event ClientAcceptDHE((cdhe_cr,cgx,cdhe_log1,cdhe_binder,cdhe_log1',sr,cgy,log2,log3,m,log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,cdhe_sats,ems,resumption_secret),i2);
+       event ClientTermDHE((cdhe_cr,cgx',cdhe_log1,cdhe_binder,cdhe_log1',sr,cgy,log2,log3,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,cdhe_sats,ems));
+       event ClientAcceptDHE((cdhe_cr,cgx',cdhe_log1,cdhe_binder,cdhe_log1',sr,cgy,log2,log3,m,log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,cdhe_sats,ems,resumption_secret),i2);
        let cdhe_cats: key = cats in
        let cdhe_ems: key = ems in
        let cdhe_resumption_secret: key = resumption_secret in
@@ -738,15 +737,6 @@ let ServerDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
    let m = send_server_finished(scvl,sfk) in
    let s_sfl_dhe : bitstring = ServerFinishedLogInfo(scvl,m) in
    let tuple3keys(cats, sats, ems) = onertt_data_keys(masterSecret,s_sfl_dhe) in
-   (* We prove that sdhe_sats is secret, already here for 0.5-RTT
-      We then compose with the record protocol, with secret sdhe_sats
-      (ServerAcceptDHE is event e1) *)
-   event ServerAcceptDHE((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems),i7);
-   let sdhe_sats: key = sats in
-   out(dhe_io18,ServerFinishedOut(m));
-   in(dhe_io19,ClientFinishedIn(log4, cfin));
-   let ccvl = ClientBeforeFinishedLogInfo(s_sfl_dhe,log4) in
-   let check_client_finished_succ(resumption_secret: key) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
    let honestsession =
       if defined(corruptedPSK) then
       (
@@ -758,9 +748,18 @@ let ServerDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
       else
          true
    in
-   event ServerTerm1((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
+   (* We prove that sdhe_sats is secret, already here for 0.5-RTT
+      We then compose with the record protocol, with secret sdhe_sats
+      (ServerAcceptDHE is event e1) *)
    if honestsession then
    (
+      event ServerAcceptDHE((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems),i7);
+      let sdhe_sats: key = sats in
+      out(dhe_io18,ServerFinishedOut(m));
+      in(dhe_io19,ClientFinishedIn(log4, cfin));
+      let ccvl = ClientBeforeFinishedLogInfo(s_sfl_dhe,log4) in
+      let check_client_finished_succ(resumption_secret: key) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
+      event ServerTerm1((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
       (* We prove that sdhe_cats, sdhe_ems, and sdhe_resumption_secret are secret 
       We compose with the record protocol for sdhe_cats and 
       with the PSK/PSKDHE handshake for s_resumption_secret *)
@@ -774,6 +773,15 @@ let ServerDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
       out(dhe_io30, ())
    )
    else
+      (* We leak sats.
+      	 We compose with a process that outputs the
+	 ServerFinished message, and runs the record protocol sender-side with sats,
+	 with no security claim, by eliminating private communications *)
+      out(dhe_io18',(ServerFinishedOut(m), sats));
+      in(dhe_io19',ClientFinishedIn(log4, cfin));
+      let ccvl = ClientBeforeFinishedLogInfo(s_sfl_dhe,log4) in
+      let check_client_finished_succ(resumption_secret: key) = check_client_finished(masterSecret,ccvl,cfin,cfk) in
+      event ServerTerm1((sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1',sr,sgy,log2,log3,m),(log4,cfin),(client_hk,server_hk,client_hiv,server_hiv,cfk,sfk,cats,sats,ems,resumption_secret));
 	  (* Output the secrets.
 	     We do not prove security for these sessions
 
