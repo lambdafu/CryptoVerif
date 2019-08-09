@@ -105,26 +105,42 @@ letfun dh_keygen() =
 
 param N, N', N'', N2, N3, N4.
 
-(* HKDF_extract_zero_salt, that is, HKDF_extract with salt argument 
-   0, is a random oracle. *)
 
 type hashkey [large,fixed].
-
-expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
-
 type two_keys [large,fixed].
 
+(* HKDF_extract_zero_salt(psk) = HKDF_extract(0,psk), that is, HKDF_extract with salt argument 
+   0, is a random oracle. *)
+expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
+
+(* HKDF_extract_zero1(EarlySecret) = HKDF_extract(EarlySecret,0) is a random oracle
+   Not used for now. *)
 expand ROM_hash(hashkey, extracted, extracted, HKDF_extract_zero1, hashoracle2, qH2).
+
+(* HKDF_extract_DHE(EarlySecret,dh_elt) is a random oracle *)
 expand ROM_hash_2(hashkey, extracted, elt, extracted, HKDF_extract_DHE, hashoracle3, qH3).
+
+(* Derive_Secret_psk_binder_key(EarlySecret) = Derive_secret(EarlySecret, "psk_binder_key", empty_log)
+   is a random oracle *)
 expand ROM_hash(hashkey, extracted, key, Derive_Secret_psk_binder_key, hashoracle4, qH4).
+
+(* Derive_Secret_cets_eems(EarlySecret, log) = 
+       concat(Derive_secret(EarlySecret, "client_ets", log),
+              Derive_secret(EarlySecret, "eems", log)) is a random oracle *)
 expand ROM_hash_2(hashkey, extracted, bitstring, two_keys, Derive_Secret_cets_eems, hashoracle5, qH5).
 
-(* TO DO justify oracles independent *)
+(* These oracles can be considered as independent random oracles, and 
+   independent from other PRFs that we use below, having distinct domains: 
+   PROBLEM: collision HKDF_extract_zero / HKDF_extract_zero1 !!!
+   The calls to DeriveSecret use different tags, and use a domain of HMAC 
+   different from the calls to HKDF_extract (different length).
+   The EarlySecret has a negligible probablity of being 0, we can exclude this value. 
+   The dh_elt is supposed to be different from 0. Can be achieved by excluding the 0 value for Curve25519. *)
 
 (* We use the lemma proved in KeySchedule2.cv *)
 
 fun Derive_Secret_cs_hts(extracted,bitstring):two_keys.
-fun HKDF_extract_zero(extracted):extracted.
+fun HKDF_extract_zero(extracted):extracted. (* HKDF_extract_zero(x) = HKDF_extract(x,0) *)
 
 
 proba Pprf2.
