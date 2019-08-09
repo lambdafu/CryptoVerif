@@ -32,7 +32,9 @@ insert before_nth 3 "ClientTerm1" "find j3 <= N7 suchthat defined(s_sfl_dhe[j3])
 insert_event client_break_auth before_nth 4 "ClientTerm1";
 insert before_nth 3 "ServerTerm1" "find j4 <= N2 suchthat defined(gx_1[j4], cets_eems_2[j4]) && (sgx = gx_1[j4]) then";
 insert_event server_break_auth before_nth 4 "ServerTerm1";
-success; (* just to be able to read the queries *)
+simplify; (* expand the inserted c_sfl = s_sfl_dhe[j3] to make comparisons 
+             between exponentials appear. Must be done early to take
+	     fully advantage of GDH. *)
 focus "query event(client_break_auth)", "query event(server_break_auth)";
 success simplify;
 crypto rom(HKDF_extract_zero_salt);
@@ -197,8 +199,33 @@ equiv(prf_fin_key_iv)
    It is easy to see that the combination is SUF-CMA provided the MAC is SUF-CMA 
    and the hash is collision resistant. *)
 
+(* Avoid the systematic transformation of 
+mac(m,k) = m' into check(m, k, m') 
+because it prevents the proof of some correspondences.
+(The equality between the arguments of two events is transformed
+into check, from which CryptoVerif does not infer back the equality
+when the MAC key is not secret.) *)
+
+def SUF_CMA_det_mac_v2(mkey, macinput, macres, mac, Pmac) {
+
+fun mac(macinput, mkey):macres.
+fun mac'(macinput, mkey):macres.
+
+equiv(suf_cma(mac))
+      foreach i3 <= N3 do k <-R mkey;(
+	 foreach i <= N do Omac(x: macinput) := return(mac(x, k)) |
+	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(mac(m, k) = ma))
+     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(mac,maxlength(m))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
+      foreach i3 <= N3 do k <-R mkey [unchanged];(
+	 foreach i <= N do Omac(x: macinput) := let ma2:macres = mac'(x, k) in return(ma2) |
+	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
+	    find j <= N suchthat defined(x[j], ma2[j]) && (m = x[j]) && ma = ma2[j] then return(true) else return(false)).
+
+}
+
+
 proba Pmac.
-expand SUF_CMA_det_mac(key, bitstring, bitstring, mac, check, Pmac).
+expand SUF_CMA_det_mac_v2(key, bitstring, bitstring, mac, (* check, *) Pmac).
 
 (* Message formats *)
 
