@@ -20,6 +20,7 @@ analyze KeySchedule3
 analyze tls13-core-InitialHandshake
 analyze tls13-core-InitialHandshake-1RTTonly
 analyze tls13-core-PSKandPSKDHE-NoCorruption
+analyze tls13-core-PSKDHE-CorruptPSK
 analyze tls13-core-RecordProtocol
 analyze tls13-core-RecordProtocol-0RTT
 analyze tls13-core-RecordProtocol-0RTT-badkey
