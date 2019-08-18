@@ -47,8 +47,11 @@ type elt [large, bounded, nonuniform].
 fun element2key(elt): key [data].
 fun elt2bitstring(elt): bitstring [data].
 
-(* Gap Diffie-Hellman assumption.
-   The considered groups are prime order. *)
+(* Gap Diffie-Hellman assumption. Moreover, 
+   the probability that exp(g, x) = Y for random x and Y independent of x 
+   is at most PCollKey1, and
+   the probability that exp(g, mult(x,y)) = Y where x and y are independent 
+   random private keys and Y is independent of x or y is at most PCollKey2. *)
 
 proba PCollKey1.
 proba PCollKey2.
