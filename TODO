@@ -520,7 +520,7 @@ if b2 is defined from b1 defined from b0,
 and I add a definition of b1, I need to update the probability for
 b2, and I can do that only if I have the probability for b2 as
 a function of the one for b1, using ProbaIndepOfVar b1.]
-DONE 23/8/2019 Added ProbaIndepOfVar
+DONE 23/8/2019 Added ProbaIndepCollOfVar
 
 WARNING: the "dep" component of bdepinfo does not have exactly
 the same meaning in DepAnal2 and in globaldepanal:
