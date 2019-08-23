@@ -142,6 +142,8 @@ let rec display_proba = function
 	  display_list display_proba pl
 	end;
       print_string ")"
+  | ProbaIndepCollOfVar b ->
+      print_string ("ProbaIndepCollOfVar(" ^ b.sname ^ "_" ^ (string_of_int b.vname) ^ ")")
 
 let rec display_monomial = function
     (coef, []) -> print_float coef

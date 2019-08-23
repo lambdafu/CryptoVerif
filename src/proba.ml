@@ -158,7 +158,7 @@ let rec instan_time = function
     AttTime -> Add(AttTime, Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)))
   | Time _ -> Parsing_helper.internal_error "unexpected time"
   | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
+     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | ProbaIndepCollOfVar _) as x -> x
   | Proba(p,l) -> Proba(p, List.map instan_time l)
   | ActTime(f,l) -> ActTime(f, List.map instan_time l)
   | Maxlength(n,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)

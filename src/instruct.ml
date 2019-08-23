@@ -1069,7 +1069,7 @@ let rec find_proba f = function
     Proba (p,_) -> f = p.prname
   | Count _ | OCount _ | Cst _ | Zero | Card _ | AttTime | Time _ 
   | ActTime _ | Maxlength _ |  TypeMaxlength _ | EpsFind | EpsRand _ 
-  | PColl1Rand _ | PColl2Rand _ -> false
+  | PColl1Rand _ | PColl2Rand _ | ProbaIndepCollOfVar _ -> false
   | Add(x,y) | Sub(x,y) | Mul(x,y) | Div(x,y) -> (find_proba f x) || (find_proba f y)
   | Max(l) | Length(_,l) -> List.exists (find_proba f) l
 
