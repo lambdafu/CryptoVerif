@@ -136,6 +136,16 @@ let is_indep = FindCompos.is_indep
 (* find_compos b t returns true when t characterizes b: only one
 value of b can yield a certain value of t *)
 
+  let subst dep t =
+    match dep with
+    | None -> t
+    | Some dl ->
+	Terms.auto_cleanup (fun () ->
+	  List.iter (fun (b, (_, (_, bt))) ->
+	    Terms.link b (TLink bt)) dl;
+	  Terms.copy_term Terms.Links_Vars t)
+	  
+    
 let check (b, (st, (bct, _))) l =
   if Terms.is_args_at_creation b l then
     Some (st, CharacType bct)
@@ -148,7 +158,7 @@ let find_compos_list ((b, (dep, nodep)) as var_depinfo) t =
   | None -> [(b,(Decompos, (b.btype, Terms.term_from_binder b)))]
   in
   match FindCompos.find_compos_list check var_depinfo seen_list' t with
-    Some(st, CharacType charac_type, t', b', (_,assign)) -> Some(st, charac_type, t', b', assign)
+    Some(st, CharacType charac_type, t') -> Some(st, charac_type, subst dep t')
   | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
   | None -> None
 
@@ -157,9 +167,6 @@ let find_compos_glob depinfo b t =
     Some(_, CharacType charac_type, t') -> Some(charac_type, t')
   | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
   | None -> None
-
-let subst b t t' =
-  Terms.copy_term (Terms.OneSubst(b,t,ref false)) t'
 
 exception Else
 
@@ -201,8 +208,8 @@ let rec check_assign2 bdepinfo = function
       end
   | PatEqual t ->
       match find_compos_list bdepinfo t with
-	Some (status, charac_type, t', b2, b2fromb) when Proba.is_large_term t ->
-	  Some (charac_type, subst b2 b2fromb t')
+	Some (status, charac_type, t') when Proba.is_large_term t ->
+	  Some (charac_type, t')
       |	_ ->
 	  None
 
@@ -272,12 +279,12 @@ let rec simplify_term cur_array dep_info true_facts t =
 	  | ((b, _) as bdepinfo)::restl ->
 	      let t1' = remove_dep_array_index bdepinfo t1 in
 	      match find_compos_list bdepinfo t1' with
-		Some(_, charac_type, t1'', b2, b2fromb) ->
+		Some(_, charac_type, t1'') ->
 		  begin
 		    try 
 		      let t2' = is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) (subst b2 b2fromb t1'') t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
+		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		    with Not_found ->
 		      try_dep_info restl
@@ -285,12 +292,12 @@ let rec simplify_term cur_array dep_info true_facts t =
 	      | None -> 
 		  let t2' = remove_dep_array_index bdepinfo t2 in
 		  match find_compos_list bdepinfo t2' with
-		  Some(_,charac_type, t2'', b2, b2fromb) ->
+		  Some(_,charac_type, t2'') ->
 		    begin
 		      try 
 			let t1' = is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) (subst b2 b2fromb t2'') t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
+			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		      with Not_found ->
 			try_dep_info restl
@@ -463,20 +470,10 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		    None -> bdepinfo
 		  | Some dl ->
                       match find_compos_list bdepinfo t with
-	                Some (st, charac_type, t', b2, b2fromb) -> 
-			  (b, (Some ((b',(st, (charac_type, subst b2 b2fromb t')))::dl), nodep))
-                      | None -> 
-			  let rec find_dep = function
-			      [] -> 
-				Parsing_helper.internal_error "t does not depend on b; this should have been detected by depends before"
-                                (*(b, (dep, (Terms.term_from_binder b')::nodep))*)
-			    | (b2, (_, (_, b2fromb)))::dep' ->
-				if Terms.refers_to b2 t then
-				  (b, (Some ((b', (Any, (b.btype, subst b2 b2fromb t)))::dl), nodep))
-				else
-				  find_dep dep'
-			  in
-			  find_dep dl
+	                Some (st, charac_type, t') -> 
+			  (b, (Some ((b', (st, (charac_type, t')))::dl), nodep))
+                      | None ->
+			  (b, (Some ((b', (Any, (b.btype, subst dep t)))::dl), nodep))
 		else
 		  (b, (dep, (Terms.term_from_binder b')::nodep))
                  ) dep_info 
@@ -496,8 +493,8 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		let t' = FindCompos.remove_dep_array_index bdepinfo t in
 		let pat' = remove_dep_array_index_pat bdepinfo pat in
 		match find_compos_list bdepinfo t' with
-		  Some (st, charac_type, t'', b2, b2fromb) ->
-		    check_assign1 cur_array true_facts (subst b2 b2fromb t'', Terms.term_from_pat pat', b, charac_type) bdepinfo st pat';
+		  Some (st, charac_type, t'') ->
+		    check_assign1 cur_array true_facts (t'', Terms.term_from_pat pat', b, charac_type) bdepinfo st pat';
 		    true
 		| None ->
 		    begin

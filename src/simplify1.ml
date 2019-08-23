@@ -529,7 +529,7 @@ val find_compos : ((binder * (status * 'a)) -> term list -> (status * charac_typ
    instead of a single variable [((b,(st,_)) as b_st)]. 
    It tries each variable in turn until it finds one for which [find_compos]
    succeeds. *)
-val find_compos_list : ((binder * (status * 'a)) -> term list -> (status * charac_type) option) -> (binder * 'a depinfo) -> (binder * (status * 'a)) list -> term -> (status * charac_type * term * binder * 'a) option
+val find_compos_list : ((binder * (status * 'a)) -> term list -> (status * charac_type) option) -> (binder * 'a depinfo) -> (binder * (status * 'a)) list -> term -> (status * charac_type * term) option
 
 end
 =
@@ -838,7 +838,7 @@ let find_compos_list check var_depinfo seen_list t =
   | (((b, (st, x)) as b_st)::l) -> 
       match find_compos check var_depinfo b_st t with
 	None -> test_l l
-      |	Some(st,charac_type,t') -> Some(st,charac_type,t',b,x)
+      |	res -> res
   in
   test_l seen_list
 

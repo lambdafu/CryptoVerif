@@ -116,7 +116,7 @@ module FindCompos :
     val find_compos_list :
       (binder * (status * 'a) -> term list -> (status * charac_type) option) ->
       (binder * 'a depinfo) -> (binder * (status * 'a)) list -> term ->
-      (status * charac_type * term * binder * 'a) option
+      (status * charac_type * term) option
   end
 
 (*** Treatment of "elsefind" facts ***)
