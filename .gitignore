@@ -166,6 +166,7 @@ implementation/ssh/add_key
 implementation/ssh/client
 implementation/ssh/keygen
 implementation/ssh/server
+examplesnd/textsecure-keys-not-normalized/textsecure.cvl
 
 tests
 
