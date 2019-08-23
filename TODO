@@ -27,8 +27,6 @@ collision y <-R Z; forall X: subG;
 + the same with subGtoG instead of pow_k(subGtoG
 in DH_X25519, DH_X448, DH_single_coord_ladder.
 
-Use simp_facts in FindCompos.is_indep (as in Facts.is_indep)
-
 Set future binders/true facts in terms in Terms.build_def_process
 
 The dependency information computed by DepAnal2 at the definition
@@ -3628,3 +3626,6 @@ DONE 7/8/2019
 Allow insert find[unique], provided CryptoVerif manages to
 prove that the find is indeed unique.
 DONE 8/8/2019
+
+Use simp_facts in FindCompos.is_indep (as in Facts.is_indep)
+DONE 23/8/2019

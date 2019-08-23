@@ -491,11 +491,11 @@ val init_elem : 'a depinfo
    [depinfo] is the dependency information for variable [b]. *)
 val depends : (binder * 'a depinfo) -> term -> bool
 
-(* [is_indep (b, depinfo) t] returns a term independent of [b]
+(* [is_indep simp_facts (b, depinfo) t] returns a term independent of [b]
    in which some array indices in [t] may have been replaced with
    fresh replication indices. When [t] depends on [b] by variables
    that are not array indices, it raises [Not_found] *)
-val is_indep : (binder * 'a depinfo) -> term -> term
+val is_indep : simp_facts -> (binder * 'a depinfo) -> term -> term
 
 (* [remove_dep_array_index (b, depinfo) t] returns a modified 
    version of [t] in which the array indices that depend on [b]
@@ -553,26 +553,29 @@ let rec depends ((b, (dep,nodep)) as bdepinfo) t =
        if/let/find/new occur.
        Parsing_helper.internal_error "If/let/find/new unexpected in DepAnal1.depends"*)
 
-let rec is_indep ((b0, (dep,nodep)) as bdepinfo) t =
-  Terms.build_term2 t
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (is_indep bdepinfo) l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  if (List.exists (Terms.equal_terms t) nodep) then
-	    t.t_desc 
-	  else if (b != b0 && Terms.is_restr b) || (match dep with
-	      None -> false
-	    | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
-	  then
-	    Var(b, List.map (fun t' ->
-	      try
-		is_indep bdepinfo t'
-	      with Not_found ->
-		Terms.term_from_repl_index (Facts.new_repl_index_term t')) l)
-	  else
-	    raise Not_found
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep")
+let rec is_indep simp_facts ((b0, (dep,nodep)) as bdepinfo) t =
+  match t.t_desc with
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (is_indep simp_facts bdepinfo) l))
+  | ReplIndex(b) -> t
+  | Var(b,l) ->
+      if (List.exists (Terms.equal_terms t) nodep) then
+	t 
+      else if (b != b0 && Terms.is_restr b) || (match dep with
+	None -> false
+      | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+      then
+	Terms.build_term2 t (Var(b, List.map (fun t' ->
+	  try
+	    is_indep simp_facts bdepinfo t'
+	  with Not_found ->
+	    Terms.term_from_repl_index (Facts.new_repl_index_term t')) l))
+      else
+        let t' = Terms.try_no_var simp_facts t in
+        if Terms.equal_terms t t' then
+	  raise Not_found
+        else
+          is_indep simp_facts bdepinfo t'
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
 
 let rec remove_dep_array_index ((b0, (dep,nodep)) as bdepinfo) t =
   Terms.build_term2 t 
@@ -1023,7 +1026,7 @@ let is_in_bl bl t =
    dep_info = (list of array ref defined later; list of array ref defined before)
  *)
 
-let rec dependency_collision_rec2bis cur_array true_facts order_assumptions ((defl_after, defl_before) as dep_info) t1 t2 t =
+let rec dependency_collision_rec2bis cur_array simp_facts order_assumptions ((defl_after, defl_before) as dep_info) t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Terms.mem_binderref (b,l) defl_after) && (Proba.is_large_term t) ->
       begin
@@ -1073,16 +1076,16 @@ let rec dependency_collision_rec2bis cur_array true_facts order_assumptions ((de
                 begin
                   print_string "FindCompos ok";print_newline ()
                 end;
-	      let t2' = FindCompos.is_indep (b, (None, defl_before)) t2 in
+	      let t2' = FindCompos.is_indep simp_facts (b, (None, defl_before)) t2 in
 	      (* add probability, if small enough. returns true if proba small enough, false otherwise *)
-	      add_term_collisions (cur_array, true_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') [charac_type]
+	      add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') [charac_type]
 	    with Not_found -> false
 	    end
 	| Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
 	| None -> false
       end 
   | FunApp(f,l) ->
-      List.exists (dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t1 t2) l
+      List.exists (dependency_collision_rec2bis cur_array simp_facts order_assumptions dep_info t1 t2) l
   | _ -> false
 
 (* Dependency analysis taking into account the order of definition of the variables. 
@@ -1102,7 +1105,6 @@ let dependency_anal_order_hyp cur_array order_assumptions dep_info =
   let collision_test simp_facts t1 t2 =
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in
-    let true_facts = true_facts_from_simp_facts simp_facts in
     if (!Settings.debug_elsefind_facts) then
       begin
 	print_string "dependency_anal_order_hyp: ";
@@ -1113,8 +1115,8 @@ let dependency_anal_order_hyp cur_array order_assumptions dep_info =
 	Display.display_term t2'; print_newline ();
       end;
     let b =   
-      (dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t1' t2' t1') ||
-      (dependency_collision_rec2bis cur_array true_facts order_assumptions dep_info t2' t1' t2')
+      (dependency_collision_rec2bis cur_array simp_facts order_assumptions dep_info t1' t2' t1') ||
+      (dependency_collision_rec2bis cur_array simp_facts order_assumptions dep_info t2' t1' t2')
     in
     if (!Settings.debug_elsefind_facts) then
       begin

@@ -72,11 +72,11 @@ module FindCompos :
        [depinfo] is the dependency information for variable [b]. *)
     val depends : binder * 'a depinfo -> term -> bool
 
-    (* [is_indep (b, depinfo) t] returns a term independent of [b]
+    (* [is_indep simp_facts (b, depinfo) t] returns a term independent of [b]
        in which some array indices in [t] may have been replaced with
        fresh replication indices. When [t] depends on [b] by variables
        that are not array indices, it raises [Not_found] *)
-    val is_indep : binder * 'a depinfo -> term -> term
+    val is_indep : simp_facts -> binder * 'a depinfo -> term -> term
 
     (* [remove_dep_array_index (b, depinfo) t] returns a modified 
        version of [t] in which the array indices that depend on [b]

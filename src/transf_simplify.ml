@@ -275,7 +275,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		Some(_, charac_type, t1'', b2, b2fromb) ->
 		  begin
 		    try 
-		      let t2' = is_indep bdepinfo t2 in
+		      let t2' = is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
 		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) (subst b2 b2fromb t1'') t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
@@ -288,7 +288,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		  Some(_,charac_type, t2'', b2, b2fromb) ->
 		    begin
 		      try 
-			let t1' = is_indep bdepinfo t1 in
+			let t1' = is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
 			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) (subst b2 b2fromb t2'') t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
