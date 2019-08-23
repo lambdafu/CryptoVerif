@@ -499,9 +499,29 @@ get_status b[l] =
 	   return st
 	 with Not_found -> Any
 
+Add a case "ProbaIndepOfVar b" in the probability formula
+associated to the Compos status,
+representing a probability p such that
+for all M independent of b0[l0], Pr[b[l] = M] <= p
+That replaces CharacTypeOfVar.
+But how are l0 and l determined?
+- l0 comes from l0opt in Compos, any index when l0opt = None
+- l coming from the status of b, which must itself be Compos?
+  When l0opt = None, l is any index.
+  When l0opt = Some l0, the status of b must be Compos(p_b, t_1, Some l0'),
+  which tells us b[args_at_creation] depends on b0[l0'].
+  Then l is such that l0 = l0'{l/args_at_creation}
+  Such an l exists, because it is how l0opt = Some l0 is computed.
+  p_b is initially "ProbaIndepOfVar b" and could be replaced with
+  the actual value when it has been computed from all definitions of b.
+[CANNOT AVOID THAT, even though I can compute the actual probability
+from dvar_list *before* the check_depend_process pass:
+if b2 is defined from b1 defined from b0,
+and I add a definition of b1, I need to update the probability for
+b2, and I can do that only if I have the probability for b2 as
+a function of the one for b1, using ProbaIndepOfVar b1.]
 
 
-   
 ====== End of the notes on the change in FindCompos
 
 Set future binders/true facts in terms in Terms.build_def_process
