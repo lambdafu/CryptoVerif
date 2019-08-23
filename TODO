@@ -521,6 +521,13 @@ and I add a definition of b1, I need to update the probability for
 b2, and I can do that only if I have the probability for b2 as
 a function of the one for b1, using ProbaIndepOfVar b1.]
 
+WARNING: the "dep" component of bdepinfo does not have exactly
+the same meaning in DepAnal2 and in globaldepanal:
+- In DepAnal2, the information applies only for x[args_at_creation]
+- In globaldepanal, it applies for any indices (by substituting
+the desired indices for args_at_creation)
+find_compos should take this point into account.
+
 
 ====== End of the notes on the change in FindCompos
 
