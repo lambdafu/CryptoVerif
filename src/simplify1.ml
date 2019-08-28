@@ -458,31 +458,6 @@ let final_add_proba() =
 
 module FindCompos : sig
 
-type status = Compos | Decompos | Any
-(* The status is
-   - [Compos] when a term [t] is obtained from a variable [b0] by first applying
-     poly-injective functions (functions marked [data]), then
-     functions that extract a part of their argument 
-     (functions marked [uniform]).
-   - [Decompos] when [t] is obtained from [b0] by applying functions
-     that extract a part of their argument (functions marked [uniform])
-   - [Any] in the other cases *)
-
-type charac_type =
-    CharacType of typet
-  | CharacTypeOfVar of binder
-
-type 'a depinfo =
-   (binder * (status * 'a)) list option * term list
-      (* The dependency information has two components (dep, nodep):
-	 If dep = Some l where l is a list of (variable, ...), such that it 
-	 is guaranteed only variables in this list depend on the considered 
-	 variable x[...].
-	 If dep = None, we have no information of this kind; any variable 
-	 may depend on x.
-	 nodep is a list of terms that are guaranteed not to depend on x[l].
-	 *)
-
 (* [init_elem] is the empty dependency information *)
 val init_elem : 'a depinfo
 
@@ -523,46 +498,43 @@ val remove_array_index : term -> term
    [st] is the status of [b];
    [c'] determines the type of the part of [b0] that [b] characterizes.
    It returns [None] otherwise. *)
-val find_compos : ((binder * (status * 'a)) -> term list -> (status * charac_type) option) -> (binder * 'a depinfo) -> (binder * (status * 'a)) -> term -> (status * charac_type * term) option
-
-(* [find_compos_list] is the same as [find_compos] but for a list of variables
-   instead of a single variable [((b,(st,_)) as b_st)]. 
-   It tries each variable in turn until it finds one for which [find_compos]
-   succeeds. *)
-val find_compos_list : ((binder * (status * 'a)) -> term list -> (status * charac_type) option) -> (binder * 'a depinfo) -> (binder * (status * 'a)) list -> term -> (status * charac_type * term) option
+val find_compos : ((binder * (depend_status * 'a)) -> term list -> (depend_status * charac_type) option) -> (binder * 'a depinfo) -> (binder * (status * 'a)) -> term -> (status * charac_type * term) option
 
 end
 =
 struct
 
-let init_elem = (None, [])
+  let init_elem =
+    { args_at_creation_only = false;
+      dep = [];
+      other_variables = true;
+      nodep = [] }
 
-let rec depends ((b, (dep,nodep)) as bdepinfo) t = 
+let rec depends ((b, depinfo) as bdepinfo) t = 
   match t.t_desc with
     FunApp(f,l) -> List.exists (depends bdepinfo) l
   | ReplIndex(b') -> false
   | Var(b',l) ->
-      (not (List.exists (Terms.equal_terms t) nodep)) && 
+      (not (List.exists (Terms.equal_terms t) depinfo.nodep)) && 
       ((
        ((b == b') || (not (Terms.is_restr b'))) &&
-       (match dep with
-	 None -> true
-       | Some dl -> List.exists (fun (b'',_) -> b'' == b') dl
-	  )) || (List.exists (depends bdepinfo) l))
+       (depinfo.other_variables ||
+        (List.exists (fun (b'',_) -> b'' == b') depinfo.dep))
+	  ) || (List.exists (depends bdepinfo) l))
   | _ -> true (*Rough overapproximation of the dependency analysis when
        if/let/find/new occur.
        Parsing_helper.internal_error "If/let/find/new unexpected in DepAnal1.depends"*)
 
-let rec is_indep simp_facts ((b0, (dep,nodep)) as bdepinfo) t =
+let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
   match t.t_desc with
   | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (is_indep simp_facts bdepinfo) l))
   | ReplIndex(b) -> t
   | Var(b,l) ->
-      if (List.exists (Terms.equal_terms t) nodep) then
+      if (List.exists (Terms.equal_terms t) depinfo.nodep) then
 	t 
-      else if (b != b0 && Terms.is_restr b) || (match dep with
-	None -> false
-      | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+      else if (b != b0 && Terms.is_restr b) ||
+      ((not depinfo.other_variables) &&
+       (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
       then
 	Terms.build_term2 t (Var(b, List.map (fun t' ->
 	  try
@@ -577,21 +549,20 @@ let rec is_indep simp_facts ((b0, (dep,nodep)) as bdepinfo) t =
           is_indep simp_facts bdepinfo t'
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
 
-let rec remove_dep_array_index ((b0, (dep,nodep)) as bdepinfo) t =
-  Terms.build_term2 t 
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map (remove_dep_array_index bdepinfo) l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  if (List.exists (Terms.equal_terms t) nodep) then
-	    t.t_desc 
-	  else 
-	    Var(b, List.map (fun t' -> 
-	      if depends bdepinfo t' then
-		Terms.term_from_repl_index (Facts.new_repl_index_term t')
-	      else
-		t') l)
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in remove_dep_array_index")
+let rec remove_dep_array_index ((b0, depinfo) as bdepinfo) t =
+  match t.t_desc with
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (remove_dep_array_index bdepinfo) l))
+  | ReplIndex(b) -> t
+  | Var(b,l) ->
+      if (List.exists (Terms.equal_terms t) depinfo.nodep) then
+	t 
+      else 
+	Terms.build_term2 t (Var(b, List.map (fun t' -> 
+	  if depends bdepinfo t' then
+	    Terms.term_from_repl_index (Facts.new_repl_index_term t')
+	  else
+	    t') l))
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in remove_dep_array_index"
 
 let rec remove_array_index t =
   Terms.build_term2 t 
@@ -670,15 +641,6 @@ let rec apply_eq_statements t =
 (* find_compos b t returns true when t characterizes b: only one
 value of b can yield a certain value of t *)
 
-type status = Compos | Decompos | Any
-
-type charac_type =
-    CharacType of typet
-  | CharacTypeOfVar of binder
-
-type 'a depinfo =
-  (binder * (status * 'a)) list option * term list
-
 let rec find_decompos_bin check ((b,_) as b_st) b' t t' =
   (Proba.is_large_term t || Proba.is_large_term t') && (t'.t_type == t.t_type) &&
   (match t.t_desc, t'.t_desc with
@@ -690,7 +652,7 @@ let rec find_decompos_bin check ((b,_) as b_st) b' t t' =
       List.exists2 (find_decompos_bin check b_st b') l l'
   | _ -> false)
   
-let rec find_compos_bin check ((b,(st,_)) as b_st) b' fact =
+let rec find_compos_bin (main_var, depinfo) fact =
   match fact.t_desc with
    FunApp(f,[t1;t2]) when f.f_cat == Equal ->
       begin
@@ -727,38 +689,102 @@ and find_compos_bin_l check b_st b' l1 l2 =
       |	Some(_, charac_type) -> Some(Compos,charac_type)
       end
   | _ -> Parsing_helper.internal_error "Lists of different lengths in find_compos_bin_l"
-      
-let rec subst depinfo assql t =
-  Terms.build_term2 t 
-     (match t.t_desc with
-        ReplIndex(b) -> ReplIndex(b)
-      | Var(b,l) -> Var(
-	  (try List.assq b (!assql) with Not_found ->
-            (* Do not rename variables that do not depend on the
-	       variable argument of find_compos *)
-	    if (Terms.is_restr b) (* Restrictions (other than the main variable, which is already present in the association list assql) do not depend on the argument of find_compos *)|| 
-	       (match depinfo with
-	         (Some dl,tl) ->
-		   (not (List.exists (fun (b',_) -> b' == b) dl)) ||
-		   (List.exists (Terms.equal_terms t) tl)
-	       | (None, tl) -> List.exists (Terms.equal_terms t) tl)
-	    then b else 
-	    let r = Terms.new_binder b in
-	    assql := (b,r)::(!assql);
-	    r), List.map (subst depinfo assql) l)
-      | FunApp(f,l) -> FunApp(f, List.map (subst depinfo assql) l)
-      |	_ -> Parsing_helper.internal_error "If, find, let, and new should not occur in subst")
 
-let rec find_decompos check ((b, _) as b_st) t =
-  (Proba.is_large_term t) && 
+let indep_binder b =
+  let b' = Terms.new_binder b in
+  let rec node = { above_node = node;
+		   binders = [b'];
+		   true_facts_at_def = [];
+		   def_vars_at_def = [];
+		   elsefind_facts_at_def = [];
+		   future_binders = []; future_true_facts = []; 
+		   definition = DNone; definition_success = DNone }
+  in
+  b'.def <- [node];
+  b'
+  
+let rec subst depinfo assql new_indep_terms t =
+  match t.t_desc with
+  | ReplIndex(b) -> t
+  | Var(b,l) -> 
+      (try
+	let b' = List.assq b (!assql) in
+	let res = Terms.build_term2 t (Var(b', List.map (subst depinfo assql new_indep_terms) l)) in
+	new_indep_terms := res :: (!new_indep_terms);
+	res
+      with Not_found ->
+        (* Do not rename variables that do not depend on the
+	   variable argument of find_compos *)
+	if (Terms.is_restr b) (* Restrictions (other than the main variable, which is already present in the association list assql) do not depend on the argument of find_compos *) ||
+	((not depinfo.other_variables) &&
+	 (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
+	then
+	  Terms.build_term2 t (Var(b, List.map (subst depinfo assql new_indep_terms) l))
+	else if List.exists (Terms.equal_terms t) depinfo.nodep then
+	  t
+	else 
+	  let r = indep_binder b in
+	  assql := (b,r)::(!assql);
+	  let res = Terms.build_term2 t (Var(r, List.map (subst depinfo assql new_indep_terms) l)) in
+	  new_indep_terms := res :: (!new_indep_terms);
+	  res)
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (subst depinfo assql new_indep_terms) l))
+  | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in subst"
+
+let ok_l0opt l0opt l0opt' = 
+  match l0opt, l0opt' with
+  | None,_ -> true
+  | Some l0, Some l0' ->
+      if Terms.equal_term_lists l0 l0' then
+	true
+      else
+	false
+  | Some _, None -> false
+
+let subst_l0opt b l l0opt =
+  match l0opt with
+  | None -> None
+  | Some l0 -> Some (List.map (Terms.subst b.args_at_creation l) l0)
+  
+let rec find_decompos (main_var, depinfo) l0opt t =
+  if Proba.is_large_term t then
   (match t.t_desc with
-    Var(b',l) when b == b' -> 
-      check b_st l != None
-  | FunApp(f,l) when (f.f_options land Settings.fopt_UNIFORM) != 0 ->
-      List.exists (find_decompos check b_st) l
-  | _ -> false)
+  | Var(b',l) when b' == main_var -> 
+      begin
+	match l0opt with
+	| Some l0 ->
+	    if Terms.equal_term_lists l l0 then
+	      Decompos(l0opt)
+	    else
+	      Any
+	| None ->
+	    Decompos(Some l)
+      end
+  | Var(b',l) (* b' != main_var *) ->
+      begin
+	try
+	  let (st, _,_) = List.assq b' depinfo.dep in
+	  if depinfo.args_at_creation_only then
+	    if Terms.is_args_at_creation b' l then
+	      match st with
+	      | Decompos(l0opt') ->
+		  if ok_l0opt l0opt l0opt' then Decompos(l0opt') else Any
+	      | _ -> Any
+	    else Any
+	  else
+	    match st with
+	    | Decompos(l0opt') ->
+		let l0opt' = subst_l0opt b' l l0opt' in
+		if ok_l0opt l0opt l0opt' then Decompos(l0opt') else Any
+	    | _ -> Any
+	with Not_found -> Any
+      end
+  | FunApp(f,[t']) when (f.f_options land Settings.fopt_UNIFORM) != 0 ->
+      find_decompos (main_var, depinfo) l0opt t'
+  | _ -> Any)
+  else Any
 
-let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
+let rec find_compos (main_var, depinfo) l0opt t =
   if (!Settings.debug_simplif_add_facts) then
     begin
       print_string "find_compos:t=";
@@ -766,26 +792,53 @@ let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
       print_newline ()
     end;
 
-  if st = Any then None else
   match t.t_desc with
-    Var(b',l) when b == b' -> 
+  | Var(b',l) when b' == main_var -> 
       begin
-	match check b_st l with
-	  None -> None
-	| Some(st, ch_ty) -> Some(st, ch_ty, t)
+	match l0opt with
+	| Some l0 ->
+	    if Terms.equal_term_lists l l0 then
+	      Decompos(l0opt)
+	    else
+	      Any
+	| None ->
+	    Decompos(Some l)
+      end
+  | Var(b',l) (* b' != main_var *) ->
+      begin
+	try
+	  let (st, _,_) = List.assq b' depinfo.dep in
+	  if depinfo.args_at_creation_only then
+	    if Terms.is_args_at_creation b' l then
+	      match st with
+	      | Any -> Any
+	      | Decompos(l0opt') ->
+		  if ok_l0opt l0opt l0opt' then Decompos(l0opt') else Any
+	      | Compos(proba, t_1, l0opt') ->
+		  if ok_l0opt l0opt l0opt' then Compos(proba, t_1, l0opt') else Any
+	    else Any
+	  else
+	    match st with
+	    | Any -> Any
+	    | Decompos(l0opt') ->
+		let l0opt' = subst_l0opt b' l l0opt' in
+		if ok_l0opt l0opt l0opt' then Decompos(l0opt') else Any
+	    | Compos(proba, t_1, l0opt') ->
+		let l0opt' = subst_l0opt b' l l0opt' in
+		if ok_l0opt l0opt l0opt' then Compos(proba, t_1, l0opt') else Any
+	with Not_found -> Any
       end
   | FunApp(f,l) when (f.f_options land Settings.fopt_COMPOS) != 0 ->
       begin
-	match find_compos_l check (main_var, depinfo) b_st l with
-	  None -> None
-	| Some(st, ch_ty, l') -> 
-	    Some(st, ch_ty, Terms.build_term2 t (FunApp(f,l')))
+	match find_compos_l (main_var, depinfo) l0opt l with
+	| None -> Any
+	| Some(probaf, l', l0opt') -> 
+	    Compos(probaf, Terms.build_term2 t (FunApp(f,l')), l0opt')
       end
-  | FunApp(f,l) when (f.f_options land Settings.fopt_UNIFORM) != 0 ->
-      if (Proba.is_large_term t) && (st = Decompos) && 
-	(List.exists (find_decompos check b_st) l)
-      then Some (Decompos, CharacType t.t_type, t)  else None
-  | Var _ -> None
+  | FunApp(f,[t']) when (f.f_options land Settings.fopt_UNIFORM) != 0 ->
+      if Proba.is_large_term t then
+	find_decompos (main_var, depinfo) l0opt t'
+      else Any
   | _ -> 
       (* In a simpler version, we would remove 
 	 find_compos_bin, find_compos_bin_l, find_decompos_bin, subst,
@@ -793,18 +846,14 @@ let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
 	 and replace this case with None
 	 *)
       let vcounter = Terms.get_var_num_state() in
-      let b' = Terms.new_binder b in
-      let init_subst = 
-	if main_var == b then 
-	  [(b,b')] 
-	else
-	  [(main_var, Terms.new_binder main_var); (b,b')]
-      in
-      let t' = subst depinfo (ref init_subst) t in
+      let main_var' = indep_binder main_var in
+      let init_subst = [(main_var,main_var')] in
+      let new_indep_terms = ref [] in
+      let t' = subst depinfo (ref init_subst) new_indep_terms t in
       if (!Settings.debug_simplif_add_facts) then
         begin
           print_string "_->b'=";
-          Display.display_binder b';
+          Display.display_binder main_var';
           print_string ", t'=";
           Display.display_term t';
           print_string ", depinfo=";
@@ -812,35 +861,30 @@ let rec find_compos check (main_var, depinfo) ((b,(st,_)) as b_st) t =
         end;
 
       let f1 = apply_eq_statements (Terms.make_equal t t') in
+      let new_depinfo =
+	{ depinfo with
+          nodep = (!new_indep_terms) @ depinfo.nodep }
+      in
       let r = 
-	match find_compos_bin check b_st b' f1 with
-	  None -> None
-	| Some(st,ch_ty) -> Some(st, ch_ty, t)
+	match find_compos_bin (main_var, new_depinfo) f1 with
+	  None -> Any
+	| Some(probaf, l0opt') -> Compos(probaf, t, l0opt')
       in
       Terms.set_var_num_state vcounter; (* Forget created variables *)
       r
 
-and find_compos_l check var_depinfo b_st = function
+and find_compos_l var_depinfo l0opt = function
     [] -> None
   | (a::l) ->
-      match find_compos check var_depinfo b_st a with
-	None -> 
+      match find_compos var_depinfo l0opt a with
+      |	Any -> 
 	  begin
-	    match find_compos_l check var_depinfo b_st l with
+	    match find_compos_l var_depinfo l0opt l with
 	      None -> None
 	    | Some(st, charac_type, l') -> Some(st, charac_type, (any_term a)::l')
 	  end
-      |	Some(_, charac_type, a') -> Some(Compos,charac_type, a'::List.map any_term l)
-
-let find_compos_list check var_depinfo seen_list t =
-  let rec test_l = function
-    [] -> None
-  | (((b, (st, x)) as b_st)::l) -> 
-      match find_compos check var_depinfo b_st t with
-	None -> test_l l
-      |	res -> res
-  in
-  test_l seen_list
+      |	Compos(probaf, a', l0opt') -> Some(probaf, a'::List.map any_term l, l0opt')
+      | Decompos(l0opt') -> Some(PColl1Rand a.t_type, a::List.map any_term l, l0opt')
 
 end
 
