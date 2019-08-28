@@ -97,6 +97,9 @@ Returns [None] if that is not possible.
 [simp_facts] contains facts that are known to hold.  *)
 val default_indep_test : 'a depinfo -> dep_anal_indep_test
 
+(* Empty dependency information *)
+val nodepinfo : 'a depinfo
+    
 (* [simplif_add dep_anal facts t] updates the facts by taking into
    account that the term [t] is true. It can use [dep_anal] to eliminate
    collisions. 

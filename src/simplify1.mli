@@ -41,9 +41,6 @@ val final_add_proba : unit -> setf list
 
 module FindCompos :
   sig
-    (* [init_elem] is the empty dependency information *)
-    val init_elem : 'a depinfo
-
     (* [depends (b, depinfo) t] returns [true] when the term [t]
        may depend on the variable [b]. 
        [depinfo] is the dependency information for variable [b]. *)

@@ -231,7 +231,7 @@ let reset coll_elim g =
    See type [dep_anal] in types.ml *)
 
 let dependency_anal cur_array =
-  let indep_test = Facts.default_indep_test FindCompos.init_elem in
+  let indep_test = Facts.default_indep_test Facts.nodepinfo in
   let collision_test simp_facts t1 t2 =
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in

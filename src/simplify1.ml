@@ -450,9 +450,6 @@ let final_add_proba() =
 
 module FindCompos : sig
 
-(* [init_elem] is the empty dependency information *)
-val init_elem : 'a depinfo
-
 (* [depends (b, depinfo) t] returns [true] when the term [t]
    may depend on the variable [b]. 
    [depinfo] is the dependency information for variable [b]. *)
@@ -497,12 +494,6 @@ val remove_array_index : term -> term
 end
 =
 struct
-
-  let init_elem =
-    { args_at_creation_only = false;
-      dep = [];
-      other_variables = true;
-      nodep = [] }
 
   let rec depends ((b, depinfo) as bdepinfo) t = 
     match t.t_desc with
@@ -1801,13 +1792,13 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
       assert (b == b');
       begin
 	let t1_simp_ind = FindCompos.remove_array_index t1 in
-	match FindCompos.extract_from_status t1_simp_ind (FindCompos.find_compos (b,FindCompos.init_elem) (Some l_simp_ind) t1_simp_ind) with
+	match FindCompos.extract_from_status t1_simp_ind (FindCompos.find_compos (b,Facts.nodepinfo) (Some l_simp_ind) t1_simp_ind) with
 	  Some(probaf, t1', _) -> 
 	    begin
 	      try 
 		let collect_bargs = ref [] in
 		let collect_bargs_sc = ref [] in
-		let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
+		let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,Facts.nodepinfo,collect_bargs,collect_bargs_sc) t2 in
 		let side_condition = 
 		  Terms.make_and_list (List.map (fun l' ->
 		    Terms.make_or_list (List.map2 Terms.make_diff l l')

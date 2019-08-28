@@ -679,7 +679,7 @@ let dependency_anal cur_array dep_info =
       if Terms.is_args_at_creation b l then
 	DepAnal2.get_dep_info dep_info b
       else
-	FindCompos.init_elem
+	Facts.nodepinfo
     in
     Facts.default_indep_test bdepinfo simp_facts t (b,l)
   in
