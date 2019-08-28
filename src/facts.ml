@@ -202,18 +202,18 @@ let replace_term_repl_index t =
       ri.ri_link <- TLink t;
       Terms.term_from_repl_index ri
                  
-let rec make_indep simp_facts ((b0,l0,(dep,nodep),side_condition_needed) as bdepinfo) t =
+let rec make_indep simp_facts ((b0,l0,depinfo,side_condition_needed) as bdepinfo) t =
   match t.t_desc with
   | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (make_indep simp_facts bdepinfo) l))
   | ReplIndex(b) -> t
   | Var(b,l) ->
       (* reconstruct the initial term before replacing some indices with fresh indices *)
       let tinit = Terms.copy_term Terms.Links_RI t in
-      if (List.exists (Terms.equal_terms tinit) nodep) then
+      if (List.exists (Terms.equal_terms tinit) depinfo.nodep) then
 	t
-      else if (b != b0 && Terms.is_restr b) || (match dep with
-	None -> false
-      | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+      else if (b != b0 && Terms.is_restr b) ||
+      ((not depinfo.other_variables) &&
+       (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
       then
 	Terms.build_term2 t (Var(b, List.map (fun t' ->
 	  try
@@ -256,8 +256,14 @@ let default_indep_test dep_info simp_facts t (b,l) =
 
 (* [no_dependency_anal] is a particular dependency analysis that works
    without any dependency information, so it can be used as a default. *)
+
+let nodepinfo =
+  { args_at_creation_only = false;
+    dep = [];
+    other_variables = true;
+    nodep = [] }
       
-let no_dependency_anal = ((default_indep_test (None, [])), (fun _ _ _ -> None))
+let no_dependency_anal = ((default_indep_test nodepinfo), (fun _ _ _ -> None))
 
 (* [indep_test] and [collision_test] extract the 2 functions
    provided by a dependency analysis *)

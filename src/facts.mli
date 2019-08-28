@@ -81,7 +81,7 @@ val is_indep : simp_facts ->
 
    [(dep,nodep)] is as in [is_indep] above.
 
-[default_indep_test (dep, nodep) simp_facts t (b,l)] 
+[default_indep_test depinfo simp_facts t (b,l)] 
 returns [Some (t', side_condition_proba, side_condition_term)] 
 when [t'] is a term obtained from [t] by replacing array indices that 
 depend on [b[l]] with fresh indices.
@@ -95,7 +95,7 @@ The side condition is present in 2 forms:
 Returns [None] if that is not possible.
 
 [simp_facts] contains facts that are known to hold.  *)
-val default_indep_test : ((binder * 'a) list option * term list) -> dep_anal_indep_test
+val default_indep_test : 'a depinfo -> dep_anal_indep_test
 
 (* [simplif_add dep_anal facts t] updates the facts by taking into
    account that the term [t] is true. It can use [dep_anal] to eliminate

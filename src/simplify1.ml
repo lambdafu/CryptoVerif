@@ -1064,11 +1064,17 @@ let rec dependency_collision_rec2bis cur_array simp_facts order_assumptions ((de
 let dependency_anal_order_hyp cur_array order_assumptions dep_info =
   let indep_test simp_facts t (b,l) =
     let (defl_after, defl_before) = dep_info in
+    let depinfo =
+      { args_at_creation_only = false;
+	dep = [];
+	other_variables = true;
+	nodep = defl_before }
+    in
     (* reconstruct the initial list: indices may have been
        replaced with fresh replication indices to make them independent *)
     let linit = List.map (Terms.copy_term Terms.Links_RI) l in
     if Terms.mem_binderref (b,linit) defl_after then
-      Facts.default_indep_test (None, defl_before) simp_facts t (b,l)
+      Facts.default_indep_test depinfo simp_facts t (b,l)
     else
       None
   in
