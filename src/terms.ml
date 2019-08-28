@@ -1177,6 +1177,7 @@ let rec equal_probaf p1 p2 =
   | EpsRand t, EpsRand t' -> t == t'
   | PColl1Rand t, PColl1Rand t' -> t == t'
   | PColl2Rand t, PColl2Rand t' -> t == t'
+  | ProbaIndepCollOfVar b, ProbaIndepCollOfVar b' -> b == b'
   | _ -> false
 
 let equal_elsefind_facts (bl1,def_list1,t1) (bl2,def_list2,t2) =

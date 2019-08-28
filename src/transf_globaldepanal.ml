@@ -88,12 +88,6 @@ exception BadDep
 
 type branch = Unreachable | OnlyThen | OnlyElse | BothDepB | BothIndepB of term
 
-let equal_charac_type c1 c2 =
-  match (c1,c2) with
-    CharacType t1, CharacType t2 -> t1 == t2
-  | CharacTypeOfVar b1, CharacTypeOfVar b2 -> b1 == b2
-  | _ -> false
-
 (* [get_type_from_charac seen_list c] determines which type(s) [c] refers to:
    when [c = CharacType t], it is [t];
    when [c = CharacTypeOfVar b], it is the type(s) of the part(s) of [b0] that [b] characterizes.
