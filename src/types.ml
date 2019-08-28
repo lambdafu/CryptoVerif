@@ -752,7 +752,7 @@ type depend_status =
   | Compos of probaf * term * term list option
   | Decompos of term list option
   | Any
-(* The status is
+(* The dependency status of a term [t] with respect to a variable [b0] is
    - [Compos(p, t_1, l0opt)]:
      - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
      - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
