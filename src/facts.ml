@@ -140,18 +140,18 @@ let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
    array indices that depend on [b0] are replaced with fresh replication indices
    (as in the transformation from [t2] to [t1]). *)
 
-let rec is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t =
+let rec is_indep simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t =
   match t.t_desc with
   | FunApp(f,l) ->
       let l1, l2 = List.split (List.map (is_indep simp_facts bdepinfo) l) in
       Terms.build_term2 t (FunApp(f, l1)), Terms.build_term2 t (FunApp(f, l2))
   | ReplIndex(b) -> t, t
   | Var(b,l) ->
-      if (List.exists (Terms.equal_terms t) nodep) then
+      if (List.exists (Terms.equal_terms t) depinfo.nodep) then
 	t, t
-      else if (b != b0 && Terms.is_restr b) || (match dep with
-	None -> false
-      | Some dl -> not (List.exists (fun (b',_) -> b' == b) dl))
+      else if (b != b0 && Terms.is_restr b) ||
+      ((not depinfo.other_variables) &&
+       (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
       then
 	let l1, l2 = 
 	  List.split (List.map (fun t' ->

@@ -60,9 +60,25 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
+let rec is_smaller_proba_type probaf type_bound =
+  match probaf with
+  | Add(p1,p2) ->
+      (is_smaller_proba_type p1 type_bound) &&
+      (is_smaller_proba_type p2 type_bound)
+  | Zero | EpsRand _ -> true
+  | Max(l) ->
+      List.for_all (fun p -> is_smaller_proba_type p type_bound) l
+  | PColl1Rand t | PColl2Rand t | Div(Cst 1.0, Card t) ->
+      t.tsize >= type_bound
+  | Proba _ -> (* We accept probabilities of collision statements *)
+      true
+  | _ ->
+      Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
+      
+	
 let is_small_enough_coll_elim (proba_l, proba_t) = 
   List.exists (fun (factor_bound, type_bound) ->
-    (proba_t.tsize >= type_bound) && 
+    (is_smaller_proba_type proba_t type_bound) && 
     (is_smaller proba_l factor_bound)
       ) (!Settings.allowed_collisions)
 
@@ -75,29 +91,31 @@ let whole_game = ref Terms.empty_game
 (* Probability of collision between a random value of type [t],
    and an independent value. The collision occurs [num] times. *)
 
-let pcoll1rand num t =
+let pcoll1rand t =
   if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
-    Polynom.p_mul(num, PColl1Rand t) 
-  else if t.toptions land Settings.tyopt_FIXED != 0 then
-    Polynom.p_div(num, card t)
-  else if t.toptions land Settings.tyopt_BOUNDED != 0 then
-    begin
-      if (!Settings.ignore_small_times) > 0 then
-	Polynom.p_div(num, card t)
-      else
-	Polynom.p_mul(num, Polynom.p_add(Polynom.p_div(Cst 1.0, card t), EpsRand t))
-    end
+    PColl1Rand t
   else
-    Parsing_helper.internal_error "Collisions eliminated with type that cannot be randomly chosen"
+    let p = Div(Cst 1.0, card t) in
+    if t.toptions land Settings.tyopt_FIXED != 0 then
+      p
+    else if t.toptions land Settings.tyopt_BOUNDED != 0 then
+      begin
+	if (!Settings.ignore_small_times) > 0 then
+	  p
+	else
+	  Add(p, EpsRand t)
+      end
+    else
+      Parsing_helper.internal_error "Collisions eliminated with type that cannot be randomly chosen"
 
 (* Probability of collision between two random values of type [t].
    The collision occurs [num] times. *)
 
-let pcoll2rand num t =
+let pcoll2rand t =
   if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
-    Polynom.p_mul(num, PColl2Rand t) 
+    PColl2Rand t 
   else 
-    pcoll1rand num t
+    pcoll1rand t
 
 (* An element (b1,b2) in eliminated_collisions means that we 
 have used the fact
@@ -112,7 +130,7 @@ let add_elim_collisions b1 b2 =
   in
   if not (List.exists equal (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, b1.btype) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, pcoll1rand b1.btype) then
 	begin
 	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
 	  true
@@ -129,14 +147,15 @@ let proba_for_collision b1 b2 =
   print_string " and ";
   Display.display_binder b2;
   print_string " Probability: ";
+  let p1 = pcoll2rand b1.btype in
   let p = 
     if b1 == b2 then
-      pcoll2rand (Polynom.p_mul(Cst 0.5,Polynom.p_mul(card_index b1, card_index b1))) b1.btype
+      Polynom.p_mul(Polynom.p_mul(Cst 0.5,Polynom.p_mul(card_index b1, card_index b1)),p1)
     else
       begin
         if b1.btype != b2.btype then
           Parsing_helper.internal_error "Collision between different types";
-        pcoll2rand (Polynom.p_mul(card_index b1, card_index b2)) b1.btype
+        Polynom.p_mul(Polynom.p_mul(card_index b1, card_index b2),p1)
       end
   in
   Display.display_proba 0 p;

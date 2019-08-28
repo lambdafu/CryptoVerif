@@ -60,22 +60,19 @@ val new_repl_index : repl_index -> repl_index
  *)
 val no_dependency_anal : dep_anal
 
-(* [is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
+(* [is_indep simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t] 
    returns a pair of terms [(t1, t2)]:
    - [t2] is a term equal to [t] using the equalities in [simp_facts]
    - [t1] is a term independent of [b0[l0]] in which some array indices in [t2] 
    may have been replaced with fresh replication indices. 
    When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
-   [(dep,nodep)] is the dependency information:
-     [dep] is either [Some dl] when only the variables in [dl] may depend on [b0]
-              or [None] when any variable may depend on [b0];
-     [nodep] is a list of terms that are known not to depend on [b0].
+   [depinfo] is the dependency information (see ['a depinfo] in types.ml):
    [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
    [collect_bargs_sc] is a modified version of [collect_bargs] in which  
    array indices that depend on [b0] are replaced with fresh replication indices
    (as in the transformation from [t2] to [t1]). *)
 val is_indep : simp_facts -> 
-  binder * term list * ((binder * 'a) list option * term list) *
+  binder * term list * 'a depinfo *
   term list list ref * term list list ref ->
   term -> term * term
 

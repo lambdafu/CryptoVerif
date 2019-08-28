@@ -310,7 +310,7 @@ let matches
     else
       None)
 
-let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt tl =
+let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt probaf =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
      are replaced with fresh indices, and these indices are not included in
@@ -329,10 +329,8 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   let collision_info = 
     (* If the probability used_indices/t for t in tl is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
-    if List.for_all (fun t -> 
-      Proba.is_small_enough_coll_elim (used_indices, t)
-	) tl then 
-      (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, tl)
+    if Proba.is_small_enough_coll_elim (used_indices, probaf) then 
+      (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, probaf)
     else
       (* Try to reduce the list of used indices. 
 	 The initial list of indices is a reordering of the list of all indices.
@@ -358,10 +356,8 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
       (* OLD: I can forget the facts without losing precision when I removed no index
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
-      if List.for_all (fun t -> 
-	Proba.is_small_enough_coll_elim (really_used_indices, t)
-	  ) tl then 
-	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, tl) 
+      if Proba.is_small_enough_coll_elim (really_used_indices, probaf) then 
+	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf) 
       else
 	(* Raises NoMatch when the probability is too large to be accepted *)
 	raise NoMatch
@@ -391,18 +387,14 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   with NoMatch -> 
     false
 
-let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, tl) =
+let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, probaf) =
   print_string "Eliminated collisions between ";
   Display.display_term t1;
   print_string " and ";
   Display.display_term t2;
   print_string " Probability: ";  
   let nindex = Polynom.p_prod (List.map (fun array_idx -> Proba.card array_idx.ri_type) really_used_indices) in
-  let p = 
-    match tl with
-      [t] -> Proba.pcoll1rand nindex t
-    | _ -> Polynom.p_sum (List.map (fun t -> Proba.pcoll1rand nindex t) tl)
-  in
+  let p = Polynom.p_mul(nindex, probaf) in
   Display.display_proba 0 p;
   print_newline();
   print_string "(";
@@ -429,8 +421,8 @@ let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really
     None ->   Display.display_binder b; print_string "[...]"
   | Some l -> Display.display_var b l 
   end;
-  print_string " of type(s) ";
-  Display.display_list (fun t -> print_string t.tname) tl;
+  print_string " with collision probability: ";
+  Display.display_proba 0 probaf;
   print_string ";\n ";
   Display.display_term t2;
   print_string " does not depend on ";
@@ -647,7 +639,7 @@ value of b can yield a certain value of t *)
 let extract_from_status t = function
   | Any -> None
   | Compos(probaf, t_1, l0opt') -> Some(probaf, t_1, l0opt')
-  | Decompos(l0opt') -> Some(PColl1Rand t.t_type, t, l0opt')
+  | Decompos(l0opt') -> Some(Proba.pcoll1rand t.t_type, t, l0opt')
 
 let indep_binder b =
   let b' = Terms.new_binder b in
@@ -1023,51 +1015,43 @@ let rec dependency_collision_rec2bis cur_array simp_facts order_assumptions ((de
 	    Display.display_term t1;print_string ", ";
 	    Display.display_term t2;
           end;
-          
-        let t' = FindCompos.remove_dep_array_index (b,(None, defl_before)) t in
+
+	let depinfo =
+	  { args_at_creation_only = false;
+	    dep = [];
+	    other_variables = true;
+	    nodep = defl_before }
+	in
+        let t' = FindCompos.remove_dep_array_index (b,depinfo) t in
         let l_after' = 
 	  match t'.t_desc with
 	    Var (_,l_after') -> l_after'
 	  | _ -> Parsing_helper.internal_error "t' must be a variable in dependency_collision_rec2bis"
 	in
-          if (!Settings.debug_elsefind_facts) then
-            begin
-              Display.display_term t;print_string " is restriction.";
-	      print_newline ();
-            end;
-	let t1' = FindCompos.remove_dep_array_index (b,(None, defl_before)) t1 in
-          if (!Settings.debug_elsefind_facts) then
-            begin
-              print_string "remove_dep_array_index t1=";
-	      Display.display_term t1';print_newline ()
-            end;
-	let check (b, (st, _)) l =
-          if (!Settings.debug_elsefind_facts) then
-            begin
-              print_string "check: b="; Display.display_binder b; 
-	      print_string ", l=";Display.display_list Display.display_term l;
-	      print_string ", l_after'=";Display.display_list Display.display_term l_after';
-	      print_newline ()
-            end;
-	  if List.for_all2 Terms.equal_terms l l_after' then
-	    Some (st, FindCompos.CharacType b.btype)
-	  else
-	    None
-	in
-	match FindCompos.find_compos check (b, (None, defl_before)) (b,(FindCompos.Decompos, b.btype)) t1' with
-	  Some(_, FindCompos.CharacType charac_type, t1'') -> 
+        if (!Settings.debug_elsefind_facts) then
+          begin
+            Display.display_term t;print_string " is restriction.";
+	    print_newline ();
+          end;
+	let t1' = FindCompos.remove_dep_array_index (b,depinfo) t1 in
+        if (!Settings.debug_elsefind_facts) then
+          begin
+            print_string "remove_dep_array_index t1=";
+	    Display.display_term t1';print_newline ()
+          end;
+	match FindCompos.extract_from_status t1' (FindCompos.find_compos (b, depinfo) (Some l_after') t1') with
+	| Some(probaf, t1'', _) -> 
 	    begin
 	    try 
               if (!Settings.debug_elsefind_facts) then
                 begin
                   print_string "FindCompos ok";print_newline ()
                 end;
-	      let t2' = FindCompos.is_indep simp_facts (b, (None, defl_before)) t2 in
+	      let t2' = FindCompos.is_indep simp_facts (b, depinfo) t2 in
 	      (* add probability, if small enough. returns true if proba small enough, false otherwise *)
-	      add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') [charac_type]
+	      add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') probaf
 	    with Not_found -> false
 	    end
-	| Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
 	| None -> false
       end 
   | FunApp(f,l) ->
@@ -1811,14 +1795,8 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
       assert (b == b');
       begin
 	let t1_simp_ind = FindCompos.remove_array_index t1 in
-	let check (b, (st, _)) tl =
-	  if List.for_all2 Terms.equal_terms tl l_simp_ind then
-	    Some (st, FindCompos.CharacType b.btype) 
-	  else 
-	    None
-	in
-	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
-	  Some(_, FindCompos.CharacType charac_type, t1') -> 
+	match FindCompos.extract_from_status t1_simp_ind (FindCompos.find_compos (b,FindCompos.init_elem) (Some l_simp_ind) t1_simp_ind) with
+	  Some(probaf, t1', _) -> 
 	    begin
 	      try 
 		let collect_bargs = ref [] in
@@ -1830,7 +1808,7 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
 		      ) (!collect_bargs_sc))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
+		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) probaf then
 		  Some (Terms.make_or_list (List.map (fun l' ->   
 		    let t2'' = Terms.replace l' l t2_eq in
 		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')

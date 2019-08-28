@@ -238,6 +238,8 @@ let p_mul(x,y) =
     Zero, _ | _, Zero | Cst 0.0, _ | _, Cst 0.0 -> Zero
   | Cst 1.0, a -> a
   | a, Cst 1.0 -> a
+  | Div(Cst 1.0,x'),_ -> Div(y,x')
+  | _,Div(Cst 1.0,y') -> Div(x,y')
   | _ -> Mul(x,y)
 
 let rec p_prod = function

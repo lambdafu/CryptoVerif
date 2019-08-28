@@ -21,7 +21,7 @@ val term_collisions :
    repl_index list * (* Reduced list of indices taking into account known facts *)
    term * term * (* The two colliding terms, t1 and t2 *)
    binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
-   typet list (* The type(s) of the characterized part *)) list ref
+   probaf (* The probability of one collision *)) list ref
 
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
@@ -32,7 +32,7 @@ val matches_pair : term -> term -> term -> term -> bool
 (* Adds a term collision *)
 val add_term_collisions :
   repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
-  binder -> term list option -> typet list -> bool
+  binder -> term list option -> probaf -> bool
 
 (* Computes the probability of term collisions *)
 val final_add_proba : unit -> setf list
@@ -41,29 +41,6 @@ val final_add_proba : unit -> setf list
 
 module FindCompos :
   sig
-    type status = Compos | Decompos | Any
-(* The status is
-   - [Compos] when a term [t] is obtained from a variable [b0] by first applying
-     poly-injective functions (functions marked [compos]), then
-     functions that extract a part of their argument 
-     (functions marked [uniform]).
-   - [Decompos] when [t] is obtained from [b0] by applying functions
-     that extract a part of their argument (functions marked [uniform])
-   - [Any] in the other cases *)
-
-    type charac_type =
-        CharacType of typet
-      | CharacTypeOfVar of binder
-    type 'a depinfo = (binder * (status * 'a)) list option * term list
-      (* The dependency information has two components (dep, nodep):
-	 If dep = Some l where l is a list of (variable, ...), such that it 
-	 is guaranteed only variables in this list depend on the considered 
-	 variable x[...].
-	 If dep = None, we have no information of this kind; any variable 
-	 may depend on x.
-	 nodep is a list of terms that are guaranteed not to depend on x[l].
-	 *)
-
     (* [init_elem] is the empty dependency information *)
     val init_elem : 'a depinfo
 
@@ -89,34 +66,25 @@ module FindCompos :
        with fresh indices. *) 
     val remove_array_index : term -> term
 
+    (* [find_compos (b0, depinfo) l0opt t] returns
+       the dependency status of the term [t] with respect to the variable [b0].
+       (See the definition of [depend_status] in types.ml for its meaning.)
+       [depinfo] is the dependency information we have for variable [b0].
+       (See the definition of ['a depinfo] in types.ml for its meaning.)
+       [l0opt = Some l0] means that we focus on the dependency of [t] with respect to the cell [b0[l0]]
+       [l0opt = None] means that we consider the dependency of [t] with respect to any cell of [b0]. *)
+    val find_compos : (binder * 'a depinfo) -> term list option -> term -> depend_status
 
-    (* [find_compos check (b0, depinfo) ((b,(st,_)) as b_st) t] returns
-       [Some(st', c, t')] when it could show that [t] characterizes a part of
-       [b] (which itself characterizes a part of [b0]).
-       [st'] is the status of [t] (Compos or Decompos; see above their meaning).
-       [c] determines the type of the part of [b0] that [t] characterizes.
-       [t'] is a modified version of [t] in which the parts that are not useful
-       to show that [t] characterizes a part of [b] are replaced with variables [?].
-       It returns [None] otherwise.
-
-       [check] is a function that checks the validity of the indices of [b] inside [t]:
-       [check b_st l] is called when [l] contains the array indices of [b] in [t];
-       it returns [Some(st,c')] when these array indices are accepted; 
-       [st] is the status of [b];
-       [c'] determines the type of the part of [b0] that [b] characterizes.
+    (* [extract_from_status t status] extracts information from the 
+       dependency status [status] of term [t].
+       It returns [Some(p, t_1, l0opt)] if
+       - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+       - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+       [t_1] is a modified version of [t] in which the parts that are not useful
+       to show this property are replaced with variables [?].
        It returns [None] otherwise. *)
-    val find_compos : (binder * (status * 'a) ->
-       term list -> (status * charac_type) option) -> (binder * 'a depinfo) ->
-      binder * (status * 'a) -> term -> (status * charac_type * term) option
+    val extract_from_status : term -> depend_status -> (probaf * term * term list option) option
 
-    (* [find_compos_list] is the same as [find_compos] but for a list of variables
-       instead of a single variable [((b,(st,_)) as b_st)]. 
-       It tries each variable in turn until it finds one for which [find_compos]
-       succeeds. *)
-    val find_compos_list :
-      (binder * (status * 'a) -> term list -> (status * charac_type) option) ->
-      (binder * 'a depinfo) -> (binder * (status * 'a)) list -> term ->
-      (status * charac_type * term) option
   end
 
 (*** Treatment of "elsefind" facts ***)
