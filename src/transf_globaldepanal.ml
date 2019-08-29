@@ -87,36 +87,60 @@ exception BadDep
 
 type branch = Unreachable | OnlyThen | OnlyElse | BothDepB | BothIndepB of term
 
-(* [get_type_from_charac seen_list c] determines which type(s) [c] refers to:
-   when [c = CharacType t], it is [t];
-   when [c = CharacTypeOfVar b], it is the type(s) of the part(s) of [b0] that [b] characterizes.
-   This function uses information in [dvar_list] to determine the type of the part of [b0] 
-   that variables characterize.
-   This function is used to compute [vars_charac_type]. 
-   [seen_list] stores to list of variables that already been seen during
-   recursive calls to [get_type_from_charac]. It serves to avoid an 
-   infinite loop. *)
+(* [expand_probaf f probaf] replaces [ProbaIndepCollOfVar b] with 
+   the corresponding actual probability, computed by calling [f b]. *)
 
-let rec get_type_from_charac seen_list = function
-    CharacType t -> [t]
-  | CharacTypeOfVar b -> 
-      if List.memq b seen_list then
-	begin
+let rec expand_probaf f = function
+    | (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Proba _ | ActTime _ | Maxlength _ | Length _ | Count _ | OCount _ |  Zero | AttTime | Time _) as x -> x
+    | ProbaIndepCollOfVar b -> f b
+    | Mul(x,y) -> Mul(expand_probaf f x, expand_probaf f y)
+    | Add(x,y) -> Add(expand_probaf f x, expand_probaf f y)
+    | Sub(x,y) -> Sub(expand_probaf f x, expand_probaf f y)
+    | Div(x,y) -> Div(expand_probaf f x, expand_probaf f y)
+    | Max(l) -> Max(List.map (expand_probaf f) l)
+
+(* [compute_probas()] computes the probabilities associated with each
+   [ProbaIndepCollOfVar b], for [b] in [dvar_list] *)
+	  
+let compute_probas() =
+  List.iter (fun (b, (_, _, (_, probaf_total_ref))) ->
+    probaf_total_ref := Unset) (!dvar_list);
+  let rec aux b =
+    let (_,_,(_,probaf_total_ref)) as bval = List.assq b (!dvar_list) in
+    aux_val bval;
+    match !probaf_total_ref with
+    | Set p -> p
+    | _ -> Parsing_helper.internal_error "probability should be set"
+	  
+  and aux_val (st,_,(proba_info_list, probaf_total_ref)) =
+    if st = Any then
+      assert (!probaf_total_ref = Unset)
+    else
+      match !probaf_total_ref with
+      | InProgress ->
 	  print_string "Loop in variable dependencies.\n";
 	  raise BadDep
-	end;
-      let (st, (proba_info_list,_,_)) = List.assq b (!dvar_list) in
-      List.concat (List.map (fun (_,_,charac_type) -> get_type_from_charac (b::seen_list) charac_type) (!proba_info_list))
+      | Set _ -> ()
+      | Unset ->
+	  probaf_total_ref := InProgress;
+	  let res =
+	    Polynom.p_sum (List.map (fun (_,_,probaf) ->
+	      expand_probaf aux probaf) (!proba_info_list))
+	  in
+	  probaf_total_ref := Set res
+  in
+  List.iter (fun (b, bval) -> ignore (aux_val bval)) (!dvar_list)
 
-(* [get_type_from_charac2 c] determines which type(s) [c] refers to,
-   like [get_type_from_charac], but it uses the information stored
-   in [vars_charac_type].
-   This function must be called only when [vars_charac_type] is up-to-date,
-   so [dvar_list] has not changed. *)
-      
-let get_type_from_charac2 = function
-    CharacType t -> [t]
-  | CharacTypeOfVar b -> List.assq b (!vars_charac_type)
+(* [get_val b] returns the probability corresponding to 
+   [ProbaIndepCollOfVar b]. It works only after having called
+   [compute_probas()]. *)
+    
+let get_val b =
+  let (_,_,(_,probaf_total_ref)) as bval = List.assq b (!dvar_list) in
+  match !probaf_total_ref with
+  | Set p -> p
+  | _ -> Parsing_helper.internal_error "probability should be set"
+ 
 
 (* [add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,c)] 
    takes into account the probability of collision between [t1] and [t2]. 
@@ -127,13 +151,13 @@ let get_type_from_charac2 = function
    [add_collisions_for_current_check_dependency] raises [BadDep] when the 
    obtained probability is too large, so this collision cannot be eliminated. *)
 
-let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,c) =
+let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf) =
   (* If [dvar_list] has changed, we are going to iterate any way,
      no need to compute probabilities. Furthermore, [vars_charac_type]
      may not be up-to-date wrt to [dvar_list], possibly leading to an error
      in [get_type_from_charac2]. *)
   if !dvar_list_changed then () else
-  let tl = get_type_from_charac2 c in
+  let probaf' = expand_probaf get_val probaf in
   (* Compute the used indices *)
   let used_indices_ref = ref [] in
   Proba.collect_array_indexes used_indices_ref t1;
@@ -146,14 +170,12 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	 is small enough that it can be accepted without 
 	 trying to eliminate some of the [used_indices].
 	 (The facts in [true_facts'] are used only for that.) *)
-      if List.for_all (fun t -> 
-	Proba.is_small_enough_coll_elim (used_indices, t)
-	  ) tl then
+      if Proba.is_small_enough_coll_elim (used_indices, probaf') then
 	[]
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
     in
-    if not (Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None tl) then
+    if not (Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf') then
       begin
 	print_string "Probability of collision between ";
 	Display.display_term t1;
@@ -180,14 +202,14 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
    collision is small enough so that the collision can be eliminated, and [false]
    otherwise. *)
 
-let add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1,t2,c) index_opt =
+let add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1,t2,probaf) index_opt =
   (* If [dvar_list] has changed, we are going to iterate any way,
      no need to compute probabilities. Furthermore, [vars_charac_type]
      may not be up-to-date wrt to [dvar_list], possibly leading to an error
      in [get_type_from_charac2]. *)
   if !dvar_list_changed then true else
-  let tl = get_type_from_charac2 c in
-  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt tl
+  let probaf' = expand_probaf get_val probaf in
+  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt probaf'
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -1570,12 +1592,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
     ) (!dvar_list);
   Proba.restore_state old_proba;
   Simplify1.term_collisions := old_term_collisions;
-  vars_charac_type :=
-      List.map (fun (b, (st, (proba_info_list,_,_))) -> 
-	(b, List.concat (List.map (fun (_,_,charac_type) -> 
-	  get_type_from_charac [b] charac_type
-	    ) (!proba_info_list)))
-	  ) (!dvar_list);
+  compute_probas();
   local_changed := false;
   dvar_list_changed := false;
   defvar_list_changed := false;
