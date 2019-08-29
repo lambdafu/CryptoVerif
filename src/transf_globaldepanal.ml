@@ -22,19 +22,24 @@ However, the other test let (...., x, =A) = r in if x = M then...
 yields a bad dependency (comparison with the small type A).
 *)
 
-open FindCompos
-
 let whole_game = ref Terms.empty_game
 
 (* The main variable on which we perform the dependency analysis (b0) *)
 let main_var = ref (Terms.create_binder0 "dummy" Settings.t_bitstring [])
 
+type probaf_total =
+  | Unset
+  | InProgress
+  | Set of probaf
+    
 (* List of variables that depend on the main variable b0.
-   The list contains triples (b, (status, (ref [(t1,t2,charac_type);...], ref args_opt))) 
+   The list contains elements (b, (depend_status, args_opt, (ref [(t1,t2,probaf);...], ref probaf_total))) 
    meaning that b depends on b0, 
    when args_opt is (Some l), b[args_at_creation] depends on b0[l]
    and on no other cell of b0
-   when args_opt is None, b may depend on any cell of b0. *)
+   when args_opt is None, b may depend on any cell of b0.
+
+   Corresponds to the field "dep" in `a depinfo *)
 let dvar_list = ref []
 
 (* The flag [dvar_list_changed] is set when [dvar_list] has been changed
@@ -42,19 +47,13 @@ let dvar_list = ref []
    is then needed. *)
 let dvar_list_changed = ref false
 
-(* List of variables know to be defined at some point *)
+(* List of variables known to be defined at some point *)
 let defvar_list = ref []
 
 (* The flag [defvar_list_changed] is set when [defvar_list] has been
    changed since the last iterattion. A new iteration of dependency analysis
    is then needed. *)
 let defvar_list_changed = ref false
-
-(* [vars_charac_type] associates to each variable [b] that depends on [b0]
-   a list of types, containing one type [t] for each way to compute [b] from [b0].
-   The value of [b] characterizes a part of [b0] of type [t], when [b] is computed
-   in that way from [b0]. *)
-let vars_charac_type = ref []
 
 (* The flag [local_changed] is set when the dependency analysis
    managed to simplify the game *)

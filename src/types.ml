@@ -771,6 +771,15 @@ type depend_status =
 
 type 'a depinfo =      
     { args_at_creation_only: bool; (* True when the field [dep] deals only with variables with indices args_at_creation *)
-      dep: (binder * (depend_status * term list option * 'a)) list; (* List of variables that depend on b0 *)
+      dep: (binder * (depend_status * term list option * 'a)) list; 
+          (* List of variables that depend on b0 
+             Each element of the list is (b, (depend_status, args_opt, x)), where
+             b is a variable that depends on b0.
+             depend_status is its dependency status as defined above.
+             When args_opt is (Some l), b[args_at_creation] depends on b0[l]
+             and on no other cell of b0.
+             When args_opt is None, b may depend on any cell of b0.
+             x is some additional information, which may differ between dependency analyses.
+             *)
       other_variables: bool; (* True when variables not in dep may also depend on b0 *)
       nodep: term list } (* List of terms that do not depend on b0 *)
