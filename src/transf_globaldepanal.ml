@@ -275,39 +275,14 @@ let rec add_defined_pat = function
    [l_opt'] is [Some l] when [t] characterizes a part of the cell [b0[l]]
            and [None] when [t] characterizes a part of some unknown cell of [b0]. *)
 
-let rec find_compos_rec t0 t =
-  match t.t_desc with
-    Var(b,l) when not (List.exists depends l) ->
-      begin
-        try 
-          let (_,(_,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
-          let check (b, (st, _)) tl =
-            if Terms.equal_term_lists l tl then
-              Some (st, CharacTypeOfVar b)
-            else
-              None
-          in
-          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t0 with
-	    Some(st,charac_type,t') -> 
-	      let l_opt' = 
-		match !charac_args_opt with
-		  None -> None
-		| Some b0_ind ->
-		    (* b[args_at_creation] characterizes b0[b0_ind] *)
-                    let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
-		    (* t0 characterizes b[l], so it characterizes b0[l'] *)
-		    Some l'
-	      in
-	      Some(st,charac_type,t',l_opt')
-	  | None -> None
-	with Not_found ->
-	  None
-      end
-  | FunApp(f,l) ->
-      Terms.find_some (find_compos_rec t0) l
-  | _ -> None
+let find_compos_list t =
+  let bdepinfo = ((!main_var), { args_at_creation_only = false;
+				 dep = (!dvar_list);
+				 other_variables = false;
+				 nodep = [] }) in
+  let t' = FindCompos.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
+  FindCompos.find_compos bdepinfo None t'
 
-let find_compos_list t = find_compos_rec t t
 
 
 (* This exception is raised by [get_dep_indices] when [t] actually depends on [b0]
@@ -331,8 +306,8 @@ let rec get_dep_indices collect_bargs t =
 	  assert (not(depends t'))
 	    ) l;
         try
-          let (_,(_,_,depend_args_opt)) = List.assq b (!dvar_list) in
-	  match !depend_args_opt with
+          let (_,depend_args_opt,_) = List.assq b (!dvar_list) in
+	  match depend_args_opt with
 	    Some b0_ind ->
 	      (* b[args_at_creation] depends only on b0[b0_ind] *)
 	      let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
@@ -591,33 +566,34 @@ let rec almost_indep_test cur_array true_facts fact_info t =
   | FunApp(f,[t1;t2]) 
     when ((f.f_cat == Equal) || (f.f_cat == Diff)) && (Proba.is_large_term t1 || Proba.is_large_term t2) ->
       begin
-	match find_compos_list t1 with
-	  Some(_, charac_type,t1',_) ->
+	match FindCompos.extract_from_status t1 (find_compos_list t1) with
+	| Some(probaf,t1',_) ->
 	    if depends t2 then
 	      BothDepB
 	    else 
 	      begin
                 (* add probability *)
-		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2, charac_type);
+		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2, probaf);
 		local_changed := true;
 		if (f.f_cat == Diff) then OnlyThen else OnlyElse
 	      end
-	| None -> match find_compos_list t2 with
-	    Some(_,charac_type,t2',_) ->
-	    if depends t1 then
-	      BothDepB
-	    else 
-	      begin
+	| None ->
+	    match FindCompos.extract_from_status t2 (find_compos_list t2) with
+	    | Some(probaf,t2',_) ->
+		if depends t1 then
+		  BothDepB
+		else 
+		  begin
                 (* add probability *)
-		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t2', t1, charac_type);
-		local_changed := true;
-		if (f.f_cat == Diff) then OnlyThen else OnlyElse
-	      end
-	  | None ->
-	      if depends t then 
-		BothDepB
-	      else
-		BothIndepB t
+		    add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t2', t1, probaf);
+		    local_changed := true;
+		    if (f.f_cat == Diff) then OnlyThen else OnlyElse
+		  end
+	    | None ->
+		if depends t then 
+		  BothDepB
+		else
+		  BothIndepB t
       end
   | _ ->
       if Terms.is_false t then
@@ -965,9 +941,9 @@ let rec check_assign2 tmp_bad_dep = function
 	    Some (charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
       end
   | PatEqual t ->
-      match find_compos_list t with
-	Some (status, charac_type,t',_) when Proba.is_large_term t ->
-	  Some(charac_type, t')
+      match FindCompos.extract_from_status t (find_compos_list t) with
+	Some (probaf,t',_) when Proba.is_large_term t ->
+	  Some(probaf, t')
       |	_ ->
 	begin
 	  if depends t then
