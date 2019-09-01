@@ -295,9 +295,10 @@ let find_compos t =
 				   other_variables = false;
 				   nodep = [] }) in
     let t' = FindCompos.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
-    FindCompos.find_compos bdepinfo None t'
+    let st = FindCompos.find_compos bdepinfo None t' in
+    (st, FindCompos.extract_from_status t' st)
   else
-    Any
+    (Any, None)
 
 
 
@@ -354,8 +355,8 @@ It returns
  *)
 
 let dependency_collision cur_array true_facts t1 t2 =
-  match FindCompos.extract_from_status t1 (find_compos t1) with
-  | Some(probaf, t1', charac_args_opt) ->
+  match find_compos t1 with
+  | _, Some(probaf, t1', charac_args_opt) ->
       begin
 	try 
 	  match charac_args_opt with
@@ -412,7 +413,7 @@ let dependency_collision cur_array true_facts t1 t2 =
 		None
 	with Depends -> None
       end
-  | None -> None
+  | _, None -> None
 
 
 (* [dependency_anal cur_array = (indep_test, collision_test)]
@@ -564,8 +565,8 @@ let rec almost_indep_test cur_array true_facts fact_info t =
   | FunApp(f,[t1;t2]) 
     when ((f.f_cat == Equal) || (f.f_cat == Diff)) && (Proba.is_large_term t1 || Proba.is_large_term t2) ->
       begin
-	match FindCompos.extract_from_status t1 (find_compos t1) with
-	| Some(probaf,t1',_) ->
+	match find_compos t1 with
+	| _, Some(probaf,t1',_) ->
 	    if depends t2 then
 	      BothDepB
 	    else 
@@ -575,9 +576,9 @@ let rec almost_indep_test cur_array true_facts fact_info t =
 		local_changed := true;
 		if (f.f_cat == Diff) then OnlyThen else OnlyElse
 	      end
-	| None ->
-	    match FindCompos.extract_from_status t2 (find_compos t2) with
-	    | Some(probaf,t2',_) ->
+	| _, None ->
+	    match find_compos t2 with
+	    | _, Some(probaf,t2',_) ->
 		if depends t1 then
 		  BothDepB
 		else 
@@ -587,7 +588,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
 		    local_changed := true;
 		    if (f.f_cat == Diff) then OnlyThen else OnlyElse
 		  end
-	    | None ->
+	    | _, None ->
 		if depends t then 
 		  BothDepB
 		else
@@ -663,33 +664,30 @@ let almost_indep_test cur_array t =
 
 let set_depend b t =
   let dvar_list_nob = List.filter (fun (b',_) -> b' != b) (!dvar_list) in
+  let aux_dep_args() =
+    let collect_bargs = ref [] in
+    try
+      get_dep_indices collect_bargs t;
+      match !collect_bargs with
+	[l] -> Some l (* [t] depends only on [b0[l]] *)
+      | [] -> Parsing_helper.internal_error "What?!? t characterizes b0 but it does not depend on b0!"
+      | _ -> None
+    with Depends -> None
+  in
   match find_compos t with
-    Some (st, charac_type,t1,new_charac_args_opt) ->
+  | _,None -> 
+      if depends t then
+	(* The variable [b] depends on [b0], but we do not have more precise information *)
+	dvar_list := (b, (Any, aux_dep_args(), (ref [], ref Unset))) :: dvar_list_nob
+      (* When [t] does not depend on [b0], we have nothing to do *)
+  | st, Some(probaf, t1, _) -> 
       (* [t] characterizes a part of [b0] *)
       let t2 = Terms.term_from_binder b in
-      let new_depend_args_opt =
-	let collect_bargs = ref [] in
-	try
-	  get_dep_indices collect_bargs t;
-	  match !collect_bargs with
-	    [l] -> Some l (* [t] depends only on [b0[l]] *)
-	  | [] -> Parsing_helper.internal_error "What?!? t characterizes b0 but it does not depend on b0!"
-	  | _ -> None
-	with Depends -> None
-      in
-      let charac_type' = 
-	if st = Decompos then CharacType b.btype else charac_type 
-      in
           (*print_string "Adding ";
             Display.display_binder b;
             print_newline();*)
-      let b_st =  (b,(st, (ref [t1, t2, charac_type'], ref new_charac_args_opt, ref new_depend_args_opt))) in
+      let b_st =  (b,(st, aux_dep_args(), (ref [t1, t2, probaf], ref Unset))) in
       dvar_list := b_st :: dvar_list_nob
-  | None -> 
-      if depends t then
-	(* The variable [b] depends on [b0], but we do not have more precise information *)
-	dvar_list := (b, (Any, (ref [], ref None, ref None))) :: dvar_list_nob
-      (* When [t] does not depend on [b0], we have nothing to do *)
 
 
 
@@ -700,12 +698,12 @@ let set_depend b t =
 
 let add_indep b =
   try 
-    let (st',_) = List.assq b (!dvar_list) in
+    let (st',depend_args_opt,_) = List.assq b (!dvar_list) in
     if st' != Any then
       begin
 	add_advice_sarename b;
 	dvar_list_changed := true;
-	dvar_list := (b, (Any, (ref [], ref None, ref None))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	dvar_list := (b, (Any, depend_args_opt, (ref [], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
       end
   with Not_found ->
     ()
@@ -1227,7 +1225,7 @@ let rec almost_indep_fc cur_array t0 =
 		 in an unspecified way *)
 	      let vars = Terms.vars_from_pat [] pat in
 	      dvar_list := 
-		 (List.map (fun b -> (b, (Any, (ref [], ref None, ref None)))) vars) @
+		 (List.map (fun b -> (b, (Any, None, (ref [], ref Unset)))) vars) @
 		 (List.filter (fun (b',_) -> not (List.memq b' vars)) (!dvar_list));
 	      let p1' = almost_indep_fc cur_array p1 in
 	      dvar_list := old_dvar_list;
@@ -1588,7 +1586,7 @@ let check_all_deps b0 init_proba_state g =
   try
     let dummy_term = Terms.term_from_binder b0 in
     let args_opt = Some (List.map Terms.term_from_repl_index b0.args_at_creation) in
-    let b0st = (b0, (Decompos, (ref [dummy_term, dummy_term, CharacType b0.btype], ref args_opt, ref args_opt))) in
+    let b0st = (b0, (Decompos(args_opt), args_opt, (ref [dummy_term, dummy_term, Proba.pcoll1rand b0.btype], ref Unset))) in
     dvar_list := [b0st];
     defvar_list := [];
     let proc' = check_depend_iter init_proba_state in
@@ -1601,14 +1599,12 @@ let check_all_deps b0 init_proba_state g =
     (* Some cleanup to free memory *)
     dvar_list := [];
     defvar_list := [];
-    vars_charac_type := [];
     whole_game := Terms.empty_game;
     Some(res_game)
   with BadDep -> 
     (* Some cleanup to free memory *)
     dvar_list := [];
     defvar_list := [];
-    vars_charac_type := [];
     whole_game := Terms.empty_game;
     Terms.set_var_num_state vcounter; (* Forget variables when fails *)
     None
