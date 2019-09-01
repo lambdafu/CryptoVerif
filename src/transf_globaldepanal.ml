@@ -275,13 +275,29 @@ let rec add_defined_pat = function
    [l_opt'] is [Some l] when [t] characterizes a part of the cell [b0[l]]
            and [None] when [t] characterizes a part of some unknown cell of [b0]. *)
 
-let find_compos_list t =
-  let bdepinfo = ((!main_var), { args_at_creation_only = false;
-				 dep = (!dvar_list);
-				 other_variables = false;
-				 nodep = [] }) in
-  let t' = FindCompos.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
-  FindCompos.find_compos bdepinfo None t'
+let rec should_try_find_compos t =
+  match t.t_desc with
+  | Var(b,l) ->
+      begin
+        try
+          let (st,_,_) = List.assq b (!dvar_list) in
+	  st != Any
+	with Not_found -> false
+      end
+  | FunApp(_,l) ->
+      List.exists should_try_find_compos l
+  | _ -> false
+	
+let find_compos t =
+  if should_try_find_compos t then
+    let bdepinfo = ((!main_var), { args_at_creation_only = false;
+				   dep = (!dvar_list);
+				   other_variables = false;
+				   nodep = [] }) in
+    let t' = FindCompos.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
+    FindCompos.find_compos bdepinfo None t'
+  else
+    Any
 
 
 
@@ -337,47 +353,33 @@ It returns
 (Initially, [t = t1], and recursive calls are made until [t] is just a variable.)
  *)
 
-let rec dependency_collision_rec cur_array true_facts t1 t2 t =
-  match t.t_desc with
-    Var(b,l) when not (List.exists depends l) ->
+let dependency_collision cur_array true_facts t1 t2 =
+  match FindCompos.extract_from_status t1 (find_compos t1) with
+  | Some(probaf, t1', charac_args_opt) ->
       begin
-        try 
-          let (_,(st,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
-	  if st = Any then
-	    (* [b] depends on [b0] but does not characterize it *)
-	    raise Depends;
-          let check (b, (st, _)) tl =
-            if Terms.equal_term_lists l tl then
-              Some (st, CharacTypeOfVar b)
-            else
-              None
-          in
-          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t1 with
-            Some(_, charac_type, t1') -> 
-	      begin
-		match !charac_args_opt with
-		  Some b0_ind ->
-		    (* b[args_at_creation] characterizes b0[b0_ind] *)
-                    let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
-		    (* t1 characterizes b[l], so it characterizes b0[l'] *)
-		    let collect_bargs = ref [] in
-		    get_dep_indices collect_bargs t2;
-		    if List.exists (List.for_all2 Terms.equal_terms l') (!collect_bargs) then
-		      (* If t2 depends on b0[l'], we cannot eliminate collisions *)
-	              raise Depends;
-		    let side_condition = 
-		      Terms.make_and_list (List.map (fun l'' ->
-			Terms.make_or_list (List.map2 Terms.make_diff l' l'')
-			  ) (!collect_bargs))
-		    in
-	            (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		    if add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1',t2,charac_type) (Some l') then
-		      let res = 
-			Terms.make_or_list (List.map (fun l'' ->   
-			let t2'' = Terms.replace l'' l' t2 in
-			Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l' l'')) (Terms.make_equal t1 t2'')
-			  ) (!collect_bargs))
-		      in
+	try 
+	  match charac_args_opt with
+	  | Some b0_ind ->
+	      (* t1 characterizes b0[b0_ind] *)
+	      let collect_bargs = ref [] in
+	      get_dep_indices collect_bargs t2;
+	      if List.exists (List.for_all2 Terms.equal_terms b0_ind) (!collect_bargs) then
+	        (* If t2 depends on b0[b0_ind], we cannot eliminate collisions *)
+		None
+	      else
+		let side_condition = 
+		  Terms.make_and_list (List.map (fun l'' ->
+		    Terms.make_or_list (List.map2 Terms.make_diff b0_ind l'')
+		      ) (!collect_bargs))
+		in
+	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+	        if add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1',t2,probaf) charac_args_opt then
+		  let res = 
+		    Terms.make_or_list (List.map (fun l'' ->   
+		      let t2'' = Terms.replace l'' b0_ind t2 in
+		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal b0_ind l'')) (Terms.make_equal t1 t2'')
+			) (!collect_bargs))
+		  in
 		      (*print_string "Simplified ";
 		      Display.display_term t1;
 		      print_string " = ";
@@ -385,37 +387,33 @@ let rec dependency_collision_rec cur_array true_facts t1 t2 t =
 		      print_string " into ";
 		      Display.display_term res;
 		      print_newline();*)
-		      Some res
-		    else
-		      None
-		| None -> 
-		    (* b[args_at_creation] characterizes b0 for some unknown indices *)
-		    let collect_bargs = ref [] in
-		    get_dep_indices collect_bargs t2;
-                    if !collect_bargs != [] then
-                      (* if [t2] depends on [b0], the dependency analysis fails to
-			 eliminate the required collisions *)
-		      None
-	            (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		    else if add_collisions_for_current_check_dependency2 cur_array true_facts (Terms.make_true()) (t1',t2,charac_type) None then
-		      begin
+		  Some res
+		else
+		  None
+	  | None -> 
+	      (* b[args_at_creation] characterizes b0 for some unknown indices *)
+	      let collect_bargs = ref [] in
+	      get_dep_indices collect_bargs t2;
+              if !collect_bargs != [] then
+                (* if [t2] depends on [b0], the dependency analysis fails to
+		   eliminate the required collisions *)
+		None
+	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+	      else if add_collisions_for_current_check_dependency2 cur_array true_facts (Terms.make_true()) (t1',t2,probaf) None then
+		begin
 		      (*print_string "Simplified ";
 		      Display.display_term t1;
 		      print_string " = ";
 		      Display.display_term t2;
 		      print_string " into false\n";*)
-		      Some (Terms.make_false())
-		      end
-		    else
-		      None
-	      end
-          | _ -> None
-	with Not_found | Depends -> 
-	  None
+		  Some (Terms.make_false())
+		end
+	      else
+		None
+	with Depends -> None
       end
-  | FunApp(f,l) ->
-      Terms.find_some (dependency_collision_rec cur_array true_facts t1 t2) l
-  | _ -> None
+  | None -> None
+
 
 (* [dependency_anal cur_array = (indep_test, collision_test)]
 
@@ -453,7 +451,7 @@ let dependency_anal cur_array =
       end
     in
     if result = None then
-      Facts.default_indep_test (None, []) simp_facts t (b,l)
+      Facts.default_indep_test Facts.nodepinfo simp_facts t (b,l)
     else
       result
   in
@@ -461,9 +459,9 @@ let dependency_anal cur_array =
     let t1' = try_no_var_rec simp_facts t1 in
     let t2' = try_no_var_rec simp_facts t2 in
     let true_facts = true_facts_from_simp_facts simp_facts in
-    match dependency_collision_rec cur_array true_facts t1' t2' t1' with
+    match dependency_collision cur_array true_facts t1' t2' with
       (Some _) as x -> x
-    | None -> dependency_collision_rec cur_array true_facts t2' t1' t2'
+    | None -> dependency_collision cur_array true_facts t2' t1'
   in
   (indep_test, collision_test)
     
@@ -566,7 +564,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
   | FunApp(f,[t1;t2]) 
     when ((f.f_cat == Equal) || (f.f_cat == Diff)) && (Proba.is_large_term t1 || Proba.is_large_term t2) ->
       begin
-	match FindCompos.extract_from_status t1 (find_compos_list t1) with
+	match FindCompos.extract_from_status t1 (find_compos t1) with
 	| Some(probaf,t1',_) ->
 	    if depends t2 then
 	      BothDepB
@@ -578,7 +576,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
 		if (f.f_cat == Diff) then OnlyThen else OnlyElse
 	      end
 	| None ->
-	    match FindCompos.extract_from_status t2 (find_compos_list t2) with
+	    match FindCompos.extract_from_status t2 (find_compos t2) with
 	    | Some(probaf,t2',_) ->
 		if depends t1 then
 		  BothDepB
@@ -665,7 +663,7 @@ let almost_indep_test cur_array t =
 
 let set_depend b t =
   let dvar_list_nob = List.filter (fun (b',_) -> b' != b) (!dvar_list) in
-  match find_compos_list t with
+  match find_compos t with
     Some (st, charac_type,t1,new_charac_args_opt) ->
       (* [t] characterizes a part of [b0] *)
       let t2 = Terms.term_from_binder b in
@@ -716,7 +714,7 @@ let add_indep b =
    [b] is defined as [t], by [let b = t in ...] *)
 
 let add_depend b t =
-  match find_compos_list t with
+  match find_compos t with
     Some (st, charac_type,t1,new_charac_args_opt) ->
       (* [t] characterizes a part of [b0] *)
       let t2 = Terms.term_from_binder b in
@@ -941,7 +939,7 @@ let rec check_assign2 tmp_bad_dep = function
 	    Some (charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
       end
   | PatEqual t ->
-      match FindCompos.extract_from_status t (find_compos_list t) with
+      match FindCompos.extract_from_status t (find_compos t) with
 	Some (probaf,t',_) when Proba.is_large_term t ->
 	  Some(probaf, t')
       |	_ ->
@@ -1174,7 +1172,7 @@ let rec almost_indep_fc cur_array t0 =
 	| _ ->
 	    let p2 = Terms.get_else p2opt in
 	    try
-	      match find_compos_list t' with
+	      match find_compos t' with
 		Some (st, charac_type,t',charac_args_opt) ->
 		  if check_assign1 cur_array (t', Terms.term_from_pat pat, charac_type) st pat then
 		    raise BothDep
@@ -1476,7 +1474,7 @@ and check_depend_oprocess cur_array p =
       Terms.oproc_from_desc (Let(PatVar b, t, p1', Terms.oproc_from_desc Yield))
   | Let(pat,t,p1,p2) ->
       begin
-	match find_compos_list t with
+	match find_compos t with
 	  Some (st, charac_type,t',charac_args_opt) ->
 	    if check_assign1 cur_array (t', Terms.term_from_pat pat, charac_type) st pat then
 	      begin
