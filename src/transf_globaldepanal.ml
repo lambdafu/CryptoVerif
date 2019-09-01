@@ -153,9 +153,9 @@ let get_val b =
 
 let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf) =
   (* If [dvar_list] has changed, we are going to iterate any way,
-     no need to compute probabilities. Furthermore, [vars_charac_type]
-     may not be up-to-date wrt to [dvar_list], possibly leading to an error
-     in [get_type_from_charac2]. *)
+     no need to compute probabilities. Furthermore, the probabilities 
+     in [dvar_list] may not be all set, possibly leading to an error
+     in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then () else
   let probaf' = expand_probaf get_val probaf in
   (* Compute the used indices *)
@@ -204,9 +204,9 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 
 let add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1,t2,probaf) index_opt =
   (* If [dvar_list] has changed, we are going to iterate any way,
-     no need to compute probabilities. Furthermore, [vars_charac_type]
-     may not be up-to-date wrt to [dvar_list], possibly leading to an error
-     in [get_type_from_charac2]. *)
+     no need to compute probabilities. Furthermore, the probabilities 
+     in [dvar_list] may not be all set, possibly leading to an error
+     in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
   Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt probaf'
@@ -338,7 +338,7 @@ let rec get_dep_indices collect_bargs t =
       end
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in get_dep_indices"
 
-(* [dependency_collision_rec cur_array true_facts t1 t2 t] simplifies [t1 = t2]
+(* [dependency_collision cur_array true_facts t1 t2] simplifies [t1 = t2]
 using dependency analysis. Basically, when [t1] characterizes a part of [b0]
 and [t2] does not depend on [b0], the equality has a negligible probability
 to hold, so it can be simplified into [false]. 
@@ -350,8 +350,6 @@ It returns
 - [None] when it could not simplify [t1 = t2]. 
 [cur_array] is the list of current replication indices at [t1 = t2].
 [true_facts] is a list of facts that are known to hold.
-[t] is a subterm of [t1] that contains the variable characterized by [t1].
-(Initially, [t = t1], and recursive calls are made until [t] is just a variable.)
  *)
 
 let dependency_collision cur_array true_facts t1 t2 =
@@ -711,6 +709,21 @@ let add_indep b =
 (* [add_depend b t] adds the information in [dvar_list] to record that 
    [b] is defined as [t], by [let b = t in ...] *)
 
+let combine_options b opt_old opt_new =
+  match opt_old, opt_new with
+    Some l1, Some l2 ->
+      if List.for_all2 Terms.equal_terms l1 l2 then opt_old else
+      begin
+	(* SArenaming b may allow to keep explicit indices characterized by [b] or on which [b] depends *)
+	add_advice_sarename b;
+	dvar_list_changed := true;
+	None
+      end
+  | None, _ -> opt_old
+  | _ -> 
+      dvar_list_changed := true;
+      None
+      
 let add_depend b t =
   match find_compos t with
     Some (st, charac_type,t1,new_charac_args_opt) ->
@@ -723,36 +736,8 @@ let add_depend b t =
       begin
 	try 
 	  let (st',(proba_info_list, charac_args_opt, depend_args_opt)) = List.assq b (!dvar_list) in
-	  begin
-	    match !charac_args_opt, new_charac_args_opt with
-	      Some l1, Some l2 ->
-		if List.for_all2 Terms.equal_terms l1 l2 then () else
-		begin
-		  (* SArenaming b may allow to keep explicit indices characterized by [b] *)
-		  add_advice_sarename b;
-		  dvar_list_changed := true;
-		  charac_args_opt := None
-		end
-	    | None, _ -> ()
-	    | _ -> 
-		dvar_list_changed := true;
-		charac_args_opt := None
-	  end;
-	  begin
-	    match !depend_args_opt, new_depend_args_opt with
-	      Some l1, Some l2 ->
-		if List.for_all2 Terms.equal_terms l1 l2 then () else
-		begin
-		  (* SArenaming b may allow to keep explicit indices of [b0] on which [b] depends *)
-		  add_advice_sarename b;
-		  dvar_list_changed := true;
-		  depend_args_opt := None
-		end
-	    | None, _ -> ()
-	    | _ -> 
-		dvar_list_changed := true;
-		depend_args_opt := None
-	  end;
+	  charac_args_opt := combine_options b (!charac_args_opt) new_charac_args_opt;
+	  depend_args_opt := combine_options b (!depend_args_opt) new_depend_args_opt;
 	  if st' = Any then () else
 	  if st != st' then
 	    begin
@@ -928,8 +913,8 @@ let rec check_assign2 tmp_bad_dep = function
 	    Some (charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
       end
   | PatEqual t ->
-      match FindCompos.extract_from_status t (find_compos t) with
-	Some (probaf,t',_) when Proba.is_large_term t ->
+      match find_compos t with
+	_, Some (probaf,t',_) when Proba.is_large_term t ->
 	  Some(probaf, t')
       |	_ ->
 	begin
