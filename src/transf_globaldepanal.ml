@@ -662,23 +662,23 @@ let almost_indep_test cur_array t =
    [b = t], so we need not combine that definition of [b] with definitions of [b]
    that may occur elsewhere. *)
 
+let aux_dep_args t =
+  let collect_bargs = ref [] in
+  try
+    get_dep_indices collect_bargs t;
+    match !collect_bargs with
+      [l] -> Some l (* [t] depends only on [b0[l]] *)
+    | [] -> Parsing_helper.internal_error "What?!? t characterizes b0 but it does not depend on b0!"
+    | _ -> None
+  with Depends -> None
+      
 let set_depend b t =
   let dvar_list_nob = List.filter (fun (b',_) -> b' != b) (!dvar_list) in
-  let aux_dep_args() =
-    let collect_bargs = ref [] in
-    try
-      get_dep_indices collect_bargs t;
-      match !collect_bargs with
-	[l] -> Some l (* [t] depends only on [b0[l]] *)
-      | [] -> Parsing_helper.internal_error "What?!? t characterizes b0 but it does not depend on b0!"
-      | _ -> None
-    with Depends -> None
-  in
   match find_compos t with
   | _,None -> 
       if depends t then
 	(* The variable [b] depends on [b0], but we do not have more precise information *)
-	dvar_list := (b, (Any, aux_dep_args(), (ref [], ref Unset))) :: dvar_list_nob
+	dvar_list := (b, (Any, aux_dep_args t, (ref [], ref Unset))) :: dvar_list_nob
       (* When [t] does not depend on [b0], we have nothing to do *)
   | st, Some(probaf, t1, _) -> 
       (* [t] characterizes a part of [b0] *)
@@ -686,7 +686,7 @@ let set_depend b t =
           (*print_string "Adding ";
             Display.display_binder b;
             print_newline();*)
-      let b_st =  (b,(st, aux_dep_args(), (ref [t1, t2, probaf], ref Unset))) in
+      let b_st =  (b,(st, aux_dep_args t, (ref [t1, t2, probaf], ref Unset))) in
       dvar_list := b_st :: dvar_list_nob
 
 
@@ -716,16 +716,7 @@ let add_depend b t =
     Some (st, charac_type,t1,new_charac_args_opt) ->
       (* [t] characterizes a part of [b0] *)
       let t2 = Terms.term_from_binder b in
-      let new_depend_args_opt =
-	let collect_bargs = ref [] in
-	try
-	  get_dep_indices collect_bargs t;
-	  match !collect_bargs with
-	    [l] -> Some l (* [t] depends only on [b0[l]] *)
-	  | [] -> Parsing_helper.internal_error "What?!? t characterizes b0 but it does not depend on b0!"
-	  | _ -> None
-	with Depends -> None
-      in
+      let new_depend_args_opt = aux_dep_args t in
       let charac_type' = 
 	if st = Decompos then CharacType b.btype else charac_type 
       in
