@@ -723,33 +723,13 @@ let combine_options b opt_old opt_new =
   | _ -> 
       dvar_list_changed := true;
       None
-      
-let add_depend b t =
-  match find_compos t with
-    Some (st, charac_type,t1,new_charac_args_opt) ->
-      (* [t] characterizes a part of [b0] *)
-      let t2 = Terms.term_from_binder b in
-      let new_depend_args_opt = aux_dep_args t in
-      let charac_type' = 
-	if st = Decompos then CharacType b.btype else charac_type 
-      in
-      begin
-	try 
-	  let (st',(proba_info_list, charac_args_opt, depend_args_opt)) = List.assq b (!dvar_list) in
-	  charac_args_opt := combine_options b (!charac_args_opt) new_charac_args_opt;
-	  depend_args_opt := combine_options b (!depend_args_opt) new_depend_args_opt;
-	  if st' = Any then () else
-	  if st != st' then
-	    begin
-	      add_advice_sarename b;
-	      dvar_list_changed := true;
-	      dvar_list := (b, (Any, (ref [], ref None, ref None))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
-	    end
-	  else if not (List.exists (fun (t1', t2', charac_type'') ->
-	    (matches_pair t1' t2' t1 t2) &&
-	    (equal_charac_type charac_type' charac_type'')) (!proba_info_list))
-	  then
-	    begin
+
+let add_proba_info (t1, t2, probaf) proba_info_list =
+  if not (List.exists (fun (t1', t2', probaf') ->
+    (matches_pair t1' t2' t1 t2) &&
+    (Terms.equal_probaf probaf probaf')) proba_info_list)
+  then
+    begin
 	      (* Above, I use "matches_pair" to check that t1 = t2 is
                  a particular case of the assignment t1' = t2' seen before.
                  If this is true, I have nothing to add.
@@ -774,38 +754,75 @@ let add_depend b t =
 	      print_string "Adding: ";
               display_proba_info (t1, t2, charac_type');
 	      *)
-	      dvar_list_changed := true;
-	      proba_info_list := (t1, t2, charac_type') :: (!proba_info_list)
-	    end
+      dvar_list_changed := true;
+      (t1, t2, probaf) :: proba_info_list
+    end
+  else
+    proba_info_list
+      
+let add_depend b t =
+  match find_compos t with
+  | new_st, Some (probaf,t1,new_charac_args_opt) ->
+      (* [t] characterizes a part of [b0] *)
+      let t2 = Terms.term_from_binder b in
+      let new_depend_args_opt = aux_dep_args t in
+      begin
+	try 
+	  let (st,depend_args_opt,(proba_info_list, probaf_total_ref)) = List.assq b (!dvar_list) in
+	  let depend_args_opt' = combine_options b depend_args_opt new_depend_args_opt in
+	  let (st', proba_info_list') =
+	    match st, new_st with
+	    | Any, Any -> Any, []
+	    | Any, _ ->
+		add_advice_sarename b;
+		Any, []
+	    | _, Any ->
+		add_advice_sarename b;
+		dvar_list_changed := true;
+		Any, []
+	    | Compos(_,_,charac_args_opt), _ ->
+		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
+		Compos(ProbaIndepCollOfVar b, t2, charac_args_opt'),
+		add_proba_info (t1, t2, probaf) (!proba_info_list)
+	    | Decompos(charac_args_opt), Compos _ ->
+		dvar_list_changed := true;
+		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
+		Compos(ProbaIndepCollOfVar b, t2, charac_args_opt'),
+		add_proba_info (t1, t2, probaf) (!proba_info_list)
+	    | Decompos(charac_args_opt), Decompos _ ->
+		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
+		Decompos(charac_args_opt'), 
+		add_proba_info (t1, t2, probaf) (!proba_info_list)
+	  in
+	  dvar_list := (b, (st', depend_args_opt', (ref proba_info_list', probaf_total_ref))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
 	with Not_found ->
           (*print_string "Adding ";
             Display.display_binder b;
             print_newline();*)
 	  if Terms.is_assign b then
 	    begin
-	      let b_st =  (b,(st, (ref [t1, t2, charac_type'], ref new_charac_args_opt, ref new_depend_args_opt))) in
+	      let b_st =  (b,(new_st, new_depend_args_opt, (ref [t1, t2, probaf], ref Unset))) in
       	      dvar_list := b_st :: (!dvar_list)
 	    end
 	  else
 	    begin
 	      add_advice_sarename b;
-	      dvar_list := (b, (Any, (ref [], ref None, ref None))) :: (!dvar_list)
+	      dvar_list := (b, (Any, None, (ref [], ref Unset))) :: (!dvar_list)
 	    end;
 	  dvar_list_changed := true
       end
-  | None -> 
+  | _, None -> 
       if depends t then
 	(* The variable [b] depends on [b0], but we do not have more precise information *)
 	begin
+	  let new_depend_args_opt = aux_dep_args t in
 	  try 
-	    let (st',_) = List.assq b (!dvar_list) in
-	    if st' != Any then
-	      begin
-		dvar_list_changed := true;
-		dvar_list := (b, (Any, (ref [], ref None, ref None))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
-	      end
+	    let (st',depend_args_opt, _) = List.assq b (!dvar_list) in
+	    let depend_args_opt' = combine_options b depend_args_opt new_depend_args_opt in
+	    if st' != Any then dvar_list_changed := true;
+	    dvar_list := (b, (Any, depend_args_opt', (ref [], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
 	  with Not_found ->
-	    dvar_list := (b, (Any, (ref [], ref None, ref None))) :: (!dvar_list);
+	    dvar_list := (b, (Any, new_depend_args_opt, (ref [], ref Unset))) :: (!dvar_list);
 	    dvar_list_changed := true
 	end
       else
