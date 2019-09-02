@@ -35,12 +35,23 @@ type probaf_total =
 (* List of variables that depend on the main variable b0.
    The list contains elements (b, (depend_status, args_opt, (ref [(t1,t2,probaf);...], ref probaf_total))) 
    meaning that b depends on b0, 
-   when args_opt is (Some l), b[args_at_creation] depends on b0[l]
-   and on no other cell of b0
-   when args_opt is None, b may depend on any cell of b0.
+   - [depend_status] is its dependency status (see [depend_status] in types.ml)
+   - When args_opt is (Some l), b[args_at_creation] depends on b0[l]
+     and on no other cell of b0.
+     When args_opt is None, b may depend on any cell of b0.
+   - The list [(t1,t2,probaf);...] contains one entry for each definition of [b] (by an assignment,
+     when the status of [b] is not [Any]):
+     [t1] is the term stored in [b]
+     [t2] is [b] itself.
+     [probaf] is an upper bound on the probability of collision 
+     between [t1] and a term independent of [b0].
+   - [probaf_total] is an upper bound on the probability of collision 
+     between [b[...]] and a term independent of [b0].
+     (It is set by [compute_probas()] when the list [dvar_list] is stable,
+     when the status of [b] is not [Any].)
 
    Corresponds to the field "dep" in `a depinfo *)
-let dvar_list = ref []
+let dvar_list = ref ([]: (binder * (depend_status * term list option * ((term * term * probaf) list ref * probaf_total ref))) list)
 
 (* The flag [dvar_list_changed] is set when [dvar_list] has been changed
    since the last iteration. A new iteration of dependency analysis 
@@ -48,7 +59,7 @@ let dvar_list = ref []
 let dvar_list_changed = ref false
 
 (* List of variables known to be defined at some point *)
-let defvar_list = ref []
+let defvar_list = ref ([]: binder list)
 
 (* The flag [defvar_list_changed] is set when [defvar_list] has been
    changed since the last iterattion. A new iteration of dependency analysis
@@ -142,9 +153,10 @@ let get_val b =
   | _ -> Parsing_helper.internal_error "probability should be set"
  
 
-(* [add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,c)] 
+(* [add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf)] 
    takes into account the probability of collision between [t1] and [t2]. 
-   [c] determines the type of the part of [b0] that [t1] characterizes.
+   [probaf] is an upper bound on the probability of collision 
+   between [t1] and [t2], for one execution.
    [true_facts] and [facts_info] indicate facts that are known to be true.
    These facts are used to optimize the computation of the probability
    (to get a smaller probability).
@@ -194,10 +206,13 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
    In [add_collisions_for_current_check_dependency2] the known facts are already computed
    in [true_facts].
    - In [add_collisions_for_current_check_dependency], any cell of [b0] may be 
-   characterized by [t1].
+   characterized by [t1] (i.e., for any term M that is independent of all cells
+   of [b0], the probability of collision between M and [t1] is bounded by [probaf]).
    In [add_collisions_for_current_check_dependency2], the particular cell of [b0]
-   characterized by [t1] may be indicated by [index_opt]. [side_condition] indicates
-   a condition needed to make sure that [t2] does not depend on this particular cell of [b0].
+   characterized by [t1] may be indicated by [index_opt] (i.e., when [index_opt = Some l],
+   for any term M that is independent of [b0[l]], the probability of collision 
+   between M and [t1] is bounded by [probaf]). [side_condition] indicates
+   a condition needed to make sure that [t2] does not depend on this particular cell [b0[l]] of [b0].
    - [add_collisions_for_current_check_dependency2] returns [true] when the probability of
    collision is small enough so that the collision can be eliminated, and [false]
    otherwise. *)
@@ -259,22 +274,12 @@ let rec add_defined_pat = function
   | PatTuple(f,l) -> List.iter add_defined_pat l
   | PatEqual _ -> ()
 
-(* [find_compos_list t] returns [Some(st,charac_type,t',l_opt')]
-   when [t] characterizes a part of [b0] of type determined by [charac_type]
-   (i.e. only one value of that part of [b0] can yield a certain value of [t];
-   [st] is 
-        - [Compos] when [t] is obtained from [b0] by first applying
-        poly-injective functions (functions marked [data]), then
-        functions that extract a part of their argument 
-        (functions marked [uniform]).
-        - [Decompos] when [t] is obtained from [b0] by applying functions
-        that extract a part of their argument (functions marked [uniform])
-   [t'] is a modified version of the term [t] in which the parts not
-   useful to show that [t] characterizes a part of [b0] are replaced with
-   fresh variables.
-   [l_opt'] is [Some l] when [t] characterizes a part of the cell [b0[l]]
-           and [None] when [t] characterizes a part of some unknown cell of [b0]. *)
-
+(* [should_try_find_compos t] returns [true] when it may be possible
+   to bound the probability of collision between [t] and terms
+   independent from [b0], using [FindCompos.find_compos]. It makes a quick 
+   test before calling [FindCompos.find_compos] which is more costly,
+   to speed up the implementation. *)
+	
 let rec should_try_find_compos t =
   match t.t_desc with
   | Var(b,l) ->
@@ -287,6 +292,18 @@ let rec should_try_find_compos t =
   | FunApp(_,l) ->
       List.exists should_try_find_compos l
   | _ -> false
+
+(* [find_compos t] returns the dependency status of the term
+   [t] with respect to the variable [b0 = !main_var].
+   It is returned in 2 forms, so that the result is a pair,
+   [(st, option_st)]:
+   [st] is the dependency status as defined in [depend_status] in types.ml
+   [option_st] is [Some(p, t_1, l0opt)] if
+     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+     [t_1] is a modified version of [t] in which the parts that are not useful
+     to show this property are replaced with variables [?].
+   It is [None] otherwise. *)
 	
 let find_compos t =
   if should_try_find_compos t then
@@ -340,9 +357,11 @@ let rec get_dep_indices collect_bargs t =
 
 (* [dependency_collision cur_array true_facts t1 t2] simplifies [t1 = t2]
 using dependency analysis. Basically, when [t1] characterizes a part of [b0]
+(i.e. for all terms M independent of [b0], the probability of collision between
+[t1] and M is bounded negligibly)
 and [t2] does not depend on [b0], the equality has a negligible probability
 to hold, so it can be simplified into [false]. 
-[dependency_collision_rec] extends this simplification to the case in which
+[dependency_collision] extends this simplification to the case in which
 [t1] characterizes a part of a certain cell of [b0] and [t2] does not depend
 on that cell, possibly by adding assumptions that certain array indices are different.
 It returns
@@ -653,6 +672,21 @@ let almost_indep_test cur_array t =
     (* The term [t] is in fact unreachable *)
     Unreachable
 
+
+(* [aux_dep_args t] must be called with a term [t] that depends on [b0].
+   It returns [Some l] when [t] depends only on [b0[l]].
+   It returns [None] when it is unable to compute such as [l]. *)
+      
+let aux_dep_args t =
+  let collect_bargs = ref [] in
+  try
+    get_dep_indices collect_bargs t;
+    match !collect_bargs with
+      [l] -> Some l (* [t] depends only on [b0[l]] *)
+    | [] -> Parsing_helper.internal_error "aux_dep_args t called with t independent of b0!"
+    | _ -> None
+  with Depends -> None
+      
 (* [set_depend b t] adds the information in [dvar_list] to record that 
    [b] is defined as [t], by [let b = t in ...] in a LetE term in a find condition.
    Since variables defined in conditions of find have no array accesses,
@@ -660,16 +694,6 @@ let almost_indep_test cur_array t =
    [b = t], so we need not combine that definition of [b] with definitions of [b]
    that may occur elsewhere. *)
 
-let aux_dep_args t =
-  let collect_bargs = ref [] in
-  try
-    get_dep_indices collect_bargs t;
-    match !collect_bargs with
-      [l] -> Some l (* [t] depends only on [b0[l]] *)
-    | [] -> Parsing_helper.internal_error "What?!? t characterizes b0 but it does not depend on b0!"
-    | _ -> None
-  with Depends -> None
-      
 let set_depend b t =
   let dvar_list_nob = List.filter (fun (b',_) -> b' != b) (!dvar_list) in
   match find_compos t with
@@ -686,8 +710,6 @@ let set_depend b t =
             print_newline();*)
       let b_st =  (b,(st, aux_dep_args t, (ref [t1, t2, probaf], ref Unset))) in
       dvar_list := b_st :: dvar_list_nob
-
-
 
 (* [add_indep b] adds the information that there is a definition of
    [b] that does not depend on [b0]. When there is another definition
@@ -706,9 +728,17 @@ let add_indep b =
   with Not_found ->
     ()
 
-(* [add_depend b t] adds the information in [dvar_list] to record that 
-   [b] is defined as [t], by [let b = t in ...] *)
-
+(* [combine_options b opt_old opt_new] combines optional values 
+   [opt_old], [opt_new] obtained from several definitions of [b],
+   where the optional values have the following meaning:
+   - [None] means any value
+   - [Some l] (where [l] is a list of terms) means that the value
+   is known to be [l].
+   Hence, two different values yield [None],
+   and [Some l] combined with itself is unchanged.
+   [dvar_list_changed] is set when the result is not equal
+   to the old value [opt_old]. *)
+      
 let combine_options b opt_old opt_new =
   match opt_old, opt_new with
     Some l1, Some l2 ->
@@ -723,6 +753,10 @@ let combine_options b opt_old opt_new =
   | _ -> 
       dvar_list_changed := true;
       None
+
+(* [add_proba_info one_info proba_info_list] adds [one_info] to [proba_info_list].
+   It tests whether [one_info] is already contained in [proba_info_list],
+   if not, it adds it and sets [dvar_list_changed]. *)
 
 let add_proba_info (t1, t2, probaf) proba_info_list =
   if not (List.exists (fun (t1', t2', probaf') ->
@@ -760,6 +794,10 @@ let add_proba_info (t1, t2, probaf) proba_info_list =
   else
     proba_info_list
       
+(* [add_depend b t] adds the information in [dvar_list] to record that 
+   [b] is defined as [t], by [let b = t in ...].
+   Sets [dvar_list_changed] if needed. *)
+
 let add_depend b t =
   match find_compos t with
   | new_st, Some (probaf,t1,new_charac_args_opt) ->
@@ -801,7 +839,13 @@ let add_depend b t =
             print_newline();*)
 	  if Terms.is_assign b then
 	    begin
-	      let b_st =  (b,(new_st, new_depend_args_opt, (ref [t1, t2, probaf], ref Unset))) in
+	      let st' =
+		match new_st with
+		| Compos(_,_,charac_args_opt) ->
+		    Compos(ProbaIndepCollOfVar b, t2, charac_args_opt)
+		| _ -> new_st
+	      in
+	      let b_st =  (b,(st', new_depend_args_opt, (ref [t1, t2, probaf], ref Unset))) in
       	      dvar_list := b_st :: (!dvar_list)
 	    end
 	  else
@@ -866,17 +910,14 @@ let rec convert_to_term = function
    up to negligible probability.
    Returns [true] when the let can take both branches
    [cur_array] is the list of current replication indices.
-   [proba_info = (t1,t2,charac_type)] when 
+   [proba_info = (t1,t2,probaf)] when 
       - [t1] is the assigned term in which useless parts have been replaced with fresh variables [?], 
       - [t2] is a term built from the pattern [pat], 
-      - [charac_type] determines the type of the part of [b0] characterized by the assigned term.
+      - [probaf] is the probability of collision between [t1] and [t2], when [t2] does not depend on [b0]
    [st] is 
-        - [Compos] when the assigned term is obtained from [b0] by first applying
-        poly-injective functions (functions marked [data]), then
-        functions that extract a part of their argument 
-        (functions marked [uniform]).
-        - [Decompos] when the assigned term is obtained from [b0] by applying functions
-        that extract a part of their argument (functions marked [uniform]) *)
+        - [Decompos(...)] when the assigned term is obtained from [b0] by applying functions
+        that extract a part of their argument (functions marked [uniform])
+        - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
 let rec check_assign1 cur_array ((t1,t2,probaf) as proba_info) st = function
     PatVar b ->
@@ -887,7 +928,8 @@ let rec check_assign1 cur_array ((t1,t2,probaf) as proba_info) st = function
 	| Decompos _ -> 
 	    List.for_all (fun pat ->
 	      (* The collision happens only on the sub-pattern [pat].
-		 We adjust the probability accordingly. *) 
+		 We adjust the probability accordingly.
+		 TO DO replace the useless parts of [t2] with fresh variables [?] *) 
 	      check_assign1 cur_array (t1, t2, Proba.pcoll1rand (Terms.get_type_for_pattern pat)) st pat) l
 	| _ ->
 	  try 
@@ -915,10 +957,9 @@ let rec check_assign1 cur_array ((t1,t2,probaf) as proba_info) st = function
 
 (* [check_assign2 tmp_bad_dep pat] is called to analyze the pattern [pat] of
    an input or of an assignment when the assigned term does not depend on [b0].
-   Returns [Some(charac_type, t')] when the let is always going to take the 
+   Returns [Some(probaf, t')] when the let is always going to take the 
    else branch up to negligible probability. [t'] is the term with which
-   the collision is eliminated and [charac_type] the type of the part of 
-   [t'] characterized by the value of the pattern.
+   the collision is eliminated and [probaf] the collision probability.
    Returns [None] when the let can take both branches 
    [tmp_bad_dep] is set to true when there is a bad dependency except when
    the let always takes the else branch. *)
