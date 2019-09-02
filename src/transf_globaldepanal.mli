@@ -20,7 +20,7 @@ val check_all_deps : binder ->
     ((binderref * binderref) list * term * term list *
        repl_index list * repl_index list *
        repl_index list * term * term * binder *
-       term list option * typet list) list -> 
+       term list option * probaf) list -> 
 	 game -> game option
 
 (* [main b0 coll_elim g] is the entry point for calling

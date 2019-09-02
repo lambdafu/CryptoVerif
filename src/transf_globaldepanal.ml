@@ -878,14 +878,18 @@ let rec convert_to_term = function
         - [Decompos] when the assigned term is obtained from [b0] by applying functions
         that extract a part of their argument (functions marked [uniform]) *)
 
-let rec check_assign1 cur_array proba_info st = function
+let rec check_assign1 cur_array ((t1,t2,probaf) as proba_info) st = function
     PatVar b ->
       true
   | (PatTuple(f,l)) as pat ->
-      if st == Decompos then
-	List.for_all (check_assign1 cur_array proba_info st) l
-      else
-	begin
+      begin
+	match st with
+	| Decompos _ -> 
+	    List.for_all (fun pat ->
+	      (* The collision happens only on the sub-pattern [pat].
+		 We adjust the probability accordingly. *) 
+	      check_assign1 cur_array (t1, t2, Proba.pcoll1rand (Terms.get_type_for_pattern pat)) st pat) l
+	| _ ->
 	  try 
 	    let t = convert_to_term pat in
 	    if (depends t) || (not (Proba.is_large_term t)) then
@@ -898,7 +902,7 @@ let rec check_assign1 cur_array proba_info st = function
 	      end
 	  with Not_found ->
 	    true
-	end
+      end
   | PatEqual t ->
       if (depends t) || (not (Proba.is_large_term t)) then
 	true
@@ -1164,8 +1168,8 @@ let rec almost_indep_fc cur_array t0 =
 	    let p2 = Terms.get_else p2opt in
 	    try
 	      match find_compos t' with
-		Some (st, charac_type,t',charac_args_opt) ->
-		  if check_assign1 cur_array (t', Terms.term_from_pat pat, charac_type) st pat then
+		st, Some (probaf,t',charac_args_opt) ->
+		  if check_assign1 cur_array (t', Terms.term_from_pat pat, probaf) st pat then
 		    raise BothDep
 		  else
 		    begin
@@ -1174,7 +1178,7 @@ let rec almost_indep_fc cur_array t0 =
 		      local_changed := true;
 		      almost_indep_fc cur_array p2
 		    end
-	      | None ->
+	      | _, None ->
 		  if depends t' then
 		    raise BothDep
 		  else
@@ -1466,8 +1470,8 @@ and check_depend_oprocess cur_array p =
   | Let(pat,t,p1,p2) ->
       begin
 	match find_compos t with
-	  Some (st, charac_type,t',charac_args_opt) ->
-	    if check_assign1 cur_array (t', Terms.term_from_pat pat, charac_type) st pat then
+	| st, Some (probaf,t',charac_args_opt) ->
+	    if check_assign1 cur_array (t', Terms.term_from_pat pat, probaf) st pat then
 	      begin
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
@@ -1489,7 +1493,7 @@ and check_depend_oprocess cur_array p =
 		local_changed := true;
 		check_depend_oprocess cur_array p2
 	      end
-	| None ->
+	| _, None ->
 	    if depends t then
 	      begin
 		(* Both branches may be taken, and the choice may depend on [b0]
