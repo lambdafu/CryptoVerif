@@ -1,3 +1,10 @@
+Simplify1.matches might forget some collisions that should in fact remain,
+when the variables have the same name in different collisions, but
+actually a different content -- perhaps taking the maximum of the probabilities,
+or requiring that the probabilities match, would solve the issue,
+as in this situation the two collisions are applied with different
+values of the indices for the common variables.
+
 Improve FindCompos to exploit collisions (with non-zero probability)
 in order to prove injectivity.
 Currently, find_compos_bin works as follows:
