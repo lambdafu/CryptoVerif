@@ -140,7 +140,7 @@ let compute_probas() =
 	  in
 	  probaf_total_ref := Set res
   in
-  List.iter (fun (b, bval) -> ignore (aux_val bval)) (!dvar_list)
+  List.iter (fun (b, bval) -> aux_val bval) (!dvar_list)
 
 (* [get_val b] returns the probability corresponding to 
    [ProbaIndepCollOfVar b]. It works only after having called

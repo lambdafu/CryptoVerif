@@ -89,6 +89,22 @@ let remove_suffix n l =
   let (res, _) = split (List.length l - n) l in
   res
 
+(** [assq_rest a l] returns the value associated with key [a] in the list of
+   pairs [l], as well as the list of other elements of [l]. That is,
+   [assq_rest a [ ...; (a,b); ...] = (b, lrest)]
+   if [(a,b)] is the leftmost binding of [a] in list [l] and
+   [lrest] is [l] with [(a,b)] removed, reversed.
+   Raise [Not_found] if there is no value associated with [a] in the
+   list [l]. Uses physical equality to compare keys. *)
+
+let assq_rest x l =
+  let rec aux seen x = function
+    | [] -> raise Not_found
+    | ((a,b) as elem)::l ->
+	if a == x then (b, seen) else aux (elem::seen) x l
+  in
+  aux [] x l 
+    
 (* Adds an element if it is not already in (for physical equality) *)
 
 let addq accu b =

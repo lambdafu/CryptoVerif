@@ -41,6 +41,15 @@ val lsuffix : int -> 'a list -> 'a list
    Raises an internal error if [l] contains fewer than [n] elements *)
 val remove_suffix : int -> 'a list -> 'a list
 
+(** [assq_rest a l] returns the value associated with key [a] in the list of
+   pairs [l], as well as the list of other elements of [l]. That is,
+   [assq_rest a [ ...; (a,b); ...] = (b, lrest)]
+   if [(a,b)] is the leftmost binding of [a] in list [l] and
+   [lrest] is [l] with [(a,b)] removed, reversed.
+   Raise [Not_found] if there is no value associated with [a] in the
+   list [l]. Uses physical equality to compare keys. *)
+val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
+
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)
 
