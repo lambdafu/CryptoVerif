@@ -251,8 +251,8 @@ This is more general than the two collisions and yields the same cardinal
 as t1 = t2. *)
 
 let matches 
-    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf)
-    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', probaf') =
+    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf, is_decompose)
+    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', probaf', is_decompose') =
   ri_auto_cleanup (fun () -> 
     if matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2' then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
@@ -260,7 +260,7 @@ let matches
       (* Check that we can remove the same indices using common_facts as with all facts *)
       if initial_indices == really_used_indices then
 	(* If we removed no index, this is certainly true *)
-	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf)
+	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf, is_decompose)
       else
       let really_used_indices'' = filter_indices_coll common_facts used_indices initial_indices in
       if Terms.equal_lists (==) really_used_indices really_used_indices'' then
@@ -274,7 +274,7 @@ let matches
 	  print_string "Common facts:\n";
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts; *)
-	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf)
+	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf, is_decompose)
 	end
       else
 	begin
@@ -310,7 +310,7 @@ let matches
     else
       None)
 
-let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt probaf =
+let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt probaf is_decompose =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
      are replaced with fresh indices, and these indices are not included in
@@ -330,7 +330,7 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
     (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
     if Proba.is_small_enough_coll_elim (used_indices, probaf) then 
-      (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, probaf)
+      (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, probaf, is_decompose)
     else
       (* Try to reduce the list of used indices. 
 	 The initial list of indices is a reordering of the list of all indices.
@@ -357,7 +357,7 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
       if Proba.is_small_enough_coll_elim (really_used_indices, probaf) then 
-	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf) 
+	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf, is_decompose) 
       else
 	(* Raises NoMatch when the probability is too large to be accepted *)
 	raise NoMatch
@@ -387,7 +387,7 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   with NoMatch -> 
     false
 
-let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, probaf) =
+let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, probaf, is_decompose) =
   print_string "Eliminated collisions between ";
   Display.display_term t1;
   print_string " and ";
@@ -414,15 +414,29 @@ let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really
       Display.display_term side_condition;
       print_string ", "
     end;
-  Display.display_term t1;
-  print_string " collides with a value independent of ";
-  begin
-  match lopt with
-    None ->   Display.display_binder b; print_string "[...]"
-  | Some l -> Display.display_var b l 
-  end;
-  print_string " with probability at most ";
-  Display.display_proba 0 probaf;
+  if is_decompose then
+    begin
+      Display.display_term t1;
+      print_string " is obtained from ";
+      begin
+	match lopt with
+	  None ->   Display.display_binder b; print_string "[...]"
+	| Some l -> Display.display_var b l 
+      end;
+      print_string " by possibly applying uniform functions"
+    end
+  else
+    begin
+      Display.display_term t1;
+      print_string " collides with a value independent of ";
+      begin
+	match lopt with
+	  None ->   Display.display_binder b; print_string "[...]"
+	| Some l -> Display.display_var b l 
+      end;
+      print_string " with probability at most ";
+      Display.display_proba 0 probaf;
+    end;
   print_string ";\n ";
   Display.display_term t2;
   print_string " does not depend on ";
@@ -1037,7 +1051,7 @@ let rec dependency_collision_rec2bis cur_array simp_facts order_assumptions ((de
                 end;
 	      let t2' = FindCompos.is_indep simp_facts (b, depinfo) t2 in
 	      (* add probability, if small enough. returns true if proba small enough, false otherwise *)
-	      add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') probaf
+	      add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') probaf false
 	    with Not_found -> false
 	    end
 	| None -> false
@@ -1802,7 +1816,7 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
 		      ) (!collect_bargs_sc))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) probaf then
+		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) probaf false then
 		  Some (Terms.make_or_list (List.map (fun l' ->   
 		    let t2'' = Terms.replace l' l t2_eq in
 		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')

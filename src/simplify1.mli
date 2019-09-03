@@ -21,7 +21,8 @@ val term_collisions :
    repl_index list * (* Reduced list of indices taking into account known facts *)
    term * term * (* The two colliding terms, t1 and t2 *)
    binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
-   probaf (* The probability of one collision *)) list ref
+   probaf (* The probability of one collision *) *
+   bool (* True when t1 is obtained from the random variable by uniform functions *)) list ref
 
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
@@ -32,7 +33,7 @@ val matches_pair : term -> term -> term -> term -> bool
 (* Adds a term collision *)
 val add_term_collisions :
   repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
-  binder -> term list option -> probaf -> bool
+  binder -> term list option -> probaf -> bool -> bool
 
 (* Computes the probability of term collisions *)
 val final_add_proba : unit -> setf list

@@ -125,7 +125,7 @@ struct
     
 (* checkassign1 is called when the assigned term depends on b with status st <> Any
    Raises Else when only the else branch of the let may be taken *)
-  let rec check_assign1 cur_array true_facts (t1, context_t2, b, probaf) bdep_info st pat =
+  let rec check_assign1 cur_array true_facts (t1, context_t2, b, probaf, is_decompose) bdep_info st pat =
     begin
       try 
 	let t = convert_to_term pat in
@@ -135,7 +135,7 @@ struct
 	else
 	  (* add probability *)
 	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
-	      t1 (context_t2 t') b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
+	      t1 (context_t2 t') b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf is_decompose then
 	    raise Else
       with Not_found ->
 	()
@@ -150,7 +150,7 @@ struct
 	      let res_type = snd f.f_type in
 	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
 	      let probaf' = Polynom.p_prod (probaf :: List.map (fun pat_other -> Card(Terms.get_type_for_pattern pat_other)) (List.rev_append seen rest)) in
-	      check_assign1 cur_array true_facts (t1, context_t2', b, probaf') bdep_info st pat;
+	      check_assign1 cur_array true_facts (t1, context_t2', b, probaf', true) bdep_info st pat;
 	      try_subpatterns (pat::seen) rest
 	in
 	try_subpatterns [] l
@@ -242,7 +242,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		    try 
 		      let t2' = is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf) then raise Not_found;
+		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		    with Not_found ->
 		      try_dep_info restl
@@ -254,7 +254,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		      try 
 			let t1' = is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf) then raise Not_found;
+			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		      with Not_found ->
 			try_dep_info restl
@@ -451,7 +451,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
               let status ((b, _) as bdepinfo) =
 		match find_compos bdepinfo t with
 		  st, Some (probaf, t'',_) ->
-		    check_assign1 cur_array true_facts (t'', (fun t2 -> t2), b, probaf) bdepinfo st pat;
+		    check_assign1 cur_array true_facts (t'', (fun t2 -> t2), b, probaf, false) bdepinfo st pat;
 		    true
 		| _, None ->
 		    begin
@@ -461,7 +461,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 			None -> ()
 		      |	Some(probaf, t1') ->
 			  (* Add probability *)
-			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
+			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false then
 			    raise Else
 		    end;
 		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
@@ -598,7 +598,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 		    ) (!collect_bargs_sc))
 	      in
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
+	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false then
 		Some (Terms.make_or_list (List.map (fun l' ->   
 		  let t2'' = Terms.replace l' l t2_eq in
 		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')

@@ -164,7 +164,7 @@ let get_val b =
    [add_collisions_for_current_check_dependency] raises [BadDep] when the 
    obtained probability is too large, so this collision cannot be eliminated. *)
 
-let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf) =
+let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf,is_decompose) =
   (* If [dvar_list] has changed, we are going to iterate any way,
      no need to compute probabilities. Furthermore, the probabilities 
      in [dvar_list] may not be all set, possibly leading to an error
@@ -188,7 +188,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
     in
-    if not (Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf') then
+    if not (Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf' is_decompose) then
       begin
 	print_string "Probability of collision between ";
 	Display.display_term t1;
@@ -225,7 +225,7 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt probaf'
+  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt probaf' false
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -590,7 +590,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
 	    else 
 	      begin
                 (* add probability *)
-		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2, probaf);
+		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2, probaf, false);
 		local_changed := true;
 		if (f.f_cat == Diff) then OnlyThen else OnlyElse
 	      end
@@ -602,7 +602,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
 		else 
 		  begin
                 (* add probability *)
-		    add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t2', t1, probaf);
+		    add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t2', t1, probaf, false);
 		    local_changed := true;
 		    if (f.f_cat == Diff) then OnlyThen else OnlyElse
 		  end
@@ -925,7 +925,7 @@ let rec convert_to_term = function
         that extract a part of their argument (functions marked [uniform])
         - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
-let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
+let rec check_assign1 cur_array (t1,context_t2,probaf,is_decompose) st pat =
   let may_take_in =
     try 
       let t = convert_to_term pat in
@@ -934,7 +934,7 @@ let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
       else
 	begin
 	  (* add probability *)
-	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
+	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf, is_decompose);
 	  false
 	end
     with Not_found ->
@@ -951,7 +951,7 @@ let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
 	      let res_type = snd f.f_type in
 	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
 	      let probaf' = Polynom.p_prod (probaf :: List.map (fun pat_other -> Card(Terms.get_type_for_pattern pat_other)) (List.rev_append seen rest)) in
-	      (check_assign1 cur_array (t1, context_t2', probaf') st pat)
+	      (check_assign1 cur_array (t1, context_t2', probaf', true) st pat)
 		&& (try_subpatterns (pat::seen) rest)
 	in
 	try_subpatterns [] l
@@ -1213,7 +1213,7 @@ let rec almost_indep_fc cur_array t0 =
 	    try
 	      match find_compos t' with
 		st, Some (probaf,t',_) ->
-		  if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
+		  if check_assign1 cur_array (t', (fun t2 -> t2), probaf, false) st pat then
 		    raise BothDep
 		  else
 		    begin
@@ -1232,7 +1232,7 @@ let rec almost_indep_fc cur_array t0 =
                         (* [t'] independent of [b0], the pattern characterizes [b0]
 			   => only the else branch can be taken up to negligible probability *)
 		        (* add probability *)
-			add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t1, t', charac_type);
+			add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t1, t', charac_type, false);
 			local_changed := true;
 			almost_indep_fc cur_array p2
 		    | None ->
@@ -1361,7 +1361,7 @@ let rec check_depend_process cur_array p' =
 	      cur_array
 	  in
 	  let t2 = Terms.term_from_binder b in
-	  add_collisions_for_current_check_dependency (cur_array, [], DInputProcess p') (t1, t2, charac_type);
+	  add_collisions_for_current_check_dependency (cur_array, [], DInputProcess p') (t1, t2, charac_type, false);
 	  local_changed := true;
 	  Terms.iproc_from_desc (Input((c, tl), PatVar b, Terms.oproc_from_desc Yield))
       |	None ->
@@ -1525,7 +1525,7 @@ and check_depend_oprocess cur_array p =
       begin
 	match find_compos t with
 	| st, Some (probaf,t',_) ->
-	    if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
+	    if check_assign1 cur_array (t', (fun t2 -> t2), probaf, false) st pat then
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
 	      bad_dep()
@@ -1549,7 +1549,7 @@ and check_depend_oprocess cur_array p =
                     (* [t] independent of [b0], the pattern characterizes [b0]
 		       => only the else branch can be taken up to negligible probability *)
 		    (* add probability *)
-		    add_collisions_for_current_check_dependency (cur_array, [], DProcess p) (t1, t, charac_type);
+		    add_collisions_for_current_check_dependency (cur_array, [], DProcess p) (t1, t, charac_type, false);
 		    local_changed := true;
 		    check_depend_oprocess cur_array p2
 		| None ->
