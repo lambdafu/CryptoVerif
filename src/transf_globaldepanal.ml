@@ -919,39 +919,46 @@ let rec convert_to_term = function
         that extract a part of their argument (functions marked [uniform])
         - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
-let rec check_assign1 cur_array ((t1,t2,probaf) as proba_info) st = function
+let rec check_assign1 cur_array (t1,context_t2,probaf) st = function
     PatVar b ->
       true
   | (PatTuple(f,l)) as pat ->
-      begin
-	match st with
-	| Decompos _ -> 
-	    List.for_all (fun pat ->
-	      (* The collision happens only on the sub-pattern [pat].
-		 We adjust the probability accordingly.
-		 TO DO replace the useless parts of [t2] with fresh variables [?] *) 
-	      check_assign1 cur_array (t1, t2, Proba.pcoll1rand (Terms.get_type_for_pattern pat)) st pat) l
-	| _ ->
-	  try 
-	    let t = convert_to_term pat in
-	    if (depends t) || (not (Proba.is_large_term t)) then
-	      true
-	    else
-	      begin
-	      (* add probability *)
-		add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) proba_info;
-		false
-	      end
-	  with Not_found ->
+      let may_take_else =
+      	try 
+	  let t = convert_to_term pat in
+	  if (depends t) || (not (Proba.is_large_term t)) then
 	    true
-      end
+	  else
+	    begin
+	      (* add probability *)
+	      add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
+	      false
+	    end
+	with Not_found ->
+	  true
+      in
+      if may_take_else then
+	match st with
+	| Decompos _ ->
+	    let rec try_subpatterns seen = function
+	      |	[] -> true
+	      | (pat::rest) ->	    
+	          (* The collision happens only on the sub-pattern [pat].
+		     We adjust the probability accordingly. *)
+		  let context_t2' t2 = context_t2 (Terms.build_term_type (snd f.f_type) (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
+		  (check_assign1 cur_array (t1, context_t2', Proba.pcoll1rand (Terms.get_type_for_pattern pat)) st pat)
+		    && (try_subpatterns (pat::seen) rest)
+	    in
+	    try_subpatterns [] l
+	| _ -> true
+      else false
   | PatEqual t ->
       if (depends t) || (not (Proba.is_large_term t)) then
 	true
       else
 	begin
 	  (* add probability *)
-	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) proba_info;
+	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
 	  false
 	end
 
@@ -1210,7 +1217,7 @@ let rec almost_indep_fc cur_array t0 =
 	    try
 	      match find_compos t' with
 		st, Some (probaf,t',charac_args_opt) ->
-		  if check_assign1 cur_array (t', Terms.term_from_pat pat, probaf) st pat then
+		  if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
 		    raise BothDep
 		  else
 		    begin
@@ -1512,7 +1519,7 @@ and check_depend_oprocess cur_array p =
       begin
 	match find_compos t with
 	| st, Some (probaf,t',charac_args_opt) ->
-	    if check_assign1 cur_array (t', Terms.term_from_pat pat, probaf) st pat then
+	    if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
 	      begin
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
