@@ -55,27 +55,11 @@ sig
    of b *)
 
   type dep_info 
-  type elem_dep_info = (typet * term) FindCompos.depinfo
+  type elem_dep_info = unit Types.depinfo
   (* The dependency information [dep_info] contains a list of
-     [(b, (dep, nodep))] that associates to each variable [b]
-     its dependency information [(dep,nodep)] of type [elem_dep_info]. 
-
-     [dep] is 
-     - either [None], when any variable may depend on [b];
-     - or [Some l], where [l] is a list variables [b'] that depend on [b], 
-     with their associated status, the type of the part of [b] 
-     that [b'] characterizes, and a term that describes how to 
-     compute [b'] from [b].
-     The status is
-      * [Compos] when [b'] is obtained from [b] by first applying
-        poly-injective functions (functions marked [data]), then
-        functions that extract a part of their argument 
-        (functions marked [uniform]).
-      * [Decompos] when [b'] is obtained from [b] by applying functions
-        that extract a part of their argument (functions marked [uniform])
-      * [Any] in the other cases
-     It is guaranteed that only the variables in [l] depend on [b].
-     [nodep] is a list of terms that do not depend on [b[b.args_at_creation]] *)
+     [(b, depinfo)] that associates to each variable [b]
+     its dependency information [depinfo] of type [elem_dep_info]. 
+     See type ['a depinfo] in types.ml for an explanation of this type. *)
 
   (* [init] is the empty dependency information *)
   val init : dep_info
@@ -83,7 +67,7 @@ sig
   (* find_compos_glob depinfo b t   returns Some ty when
      t characterizes a part of b of type ty, knowing the dependency
      information given in depinfo. Otherwise, returns None. *)
-  val find_compos_glob : elem_dep_info -> binder -> term -> (typet * term) option
+  val find_compos_glob : elem_dep_info -> binder -> term -> (probaf * term * term list option) option
 
   (* [update_dep_info] and [update_dep_infoo] update the dependency information
      inside processes.
@@ -114,28 +98,21 @@ end
 = 
 struct
 
-open FindCompos
+  type elem_dep_info = unit Types.depinfo
+  type dep_info = (binder * elem_dep_info) list
 
-type elem_dep_info = (typet * term) FindCompos.depinfo
-type dep_info = (binder * elem_dep_info) list
-      (* list of [(b, (dep, nodep))], where 
-     [dep] is 
-     - either [Some l], where [l] is a list variables [b'] that depend on [b], 
-     with their associated "find_compos" status, the type of the part of [b] 
-     that [b'] characterizes, and a term that describes how to 
-     compute [b'] from [b];
-     - or [None], when any variable may depend on [b].
-     [nodep] is a list of terms that do not depend on [b[b.args_at_creation]] *)
+  let init = []
 
-let init = []
-
-let depends = FindCompos.depends
-
-let is_indep = FindCompos.is_indep
+  let depends = FindCompos.depends
     
-(* find_compos b t returns true when t characterizes b: only one
-value of b can yield a certain value of t *)
+  let is_indep = FindCompos.is_indep
+    
+  let find_compos bdepinfo t =
+    let t' = FindCompos.remove_dep_array_index bdepinfo t in
+    let st = FindCompos.find_compos bdepinfo None t' in
+    (st, FindCompos.extract_from_status t' st)
 
+    
   let subst dep t =
     match dep with
     | None -> t
@@ -146,33 +123,17 @@ value of b can yield a certain value of t *)
 	  Terms.copy_term Terms.Links_Vars t)
 	  
     
-let check (b, (st, (bct, _))) l =
-  if Terms.is_args_at_creation b l then
-    Some (st, CharacType bct)
-  else
-    None
-
-let find_compos_list ((b, (dep, nodep)) as var_depinfo) t =
-  let seen_list' = match dep with
-    Some seen_list -> seen_list
-  | None -> [(b,(Decompos, (b.btype, Terms.term_from_binder b)))]
-  in
-  match FindCompos.find_compos_list check var_depinfo seen_list' t with
-    Some(st, CharacType charac_type, t') -> Some(st, charac_type, subst dep t')
-  | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
-  | None -> None
+let find_compos_list var_depinfo t =
+  FindCompos.find_compos var_depinfo None t 
 
 let find_compos_glob depinfo b t =
-  match FindCompos.find_compos check (b, depinfo) (b,(Decompos, (b.btype, Terms.term_from_binder b))) t with
-    Some(_, CharacType charac_type, t') -> Some(charac_type, t')
-  | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
-  | None -> None
+  FindCompos.extract_from_status t (FindCompos.find_compos (b, depinfo) (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t) 
 
 exception Else
 
 (* checkassign1 is called when the assigned term depends on b with status st
    Raises Else when only the else branch of the let may be taken *)
-let rec check_assign1 cur_array true_facts ((t1, t2, b, charac_type) as proba_info) bdep_info st pat =
+let rec check_assign1 cur_array true_facts ((t1, t2, b, probaf) as proba_info) bdep_info st pat =
   match pat with
     PatVar _ -> ()
   | PatTuple(f,l) ->
@@ -186,7 +147,7 @@ let rec check_assign1 cur_array true_facts ((t1, t2, b, charac_type) as proba_in
 	begin
 	  (* add probability *)
 	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
-	      t1 t2 b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+	      t1 t2 b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
 	    raise Else
 	end
 
@@ -203,13 +164,13 @@ let rec check_assign2 bdepinfo = function
       begin
         match check_assign2_list bdepinfo l with
 	  None -> None
-	| Some(charac_type, l') ->
-	    Some(charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
+	| Some(probaf, l') ->
+	    Some(probaf, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
       end
   | PatEqual t ->
-      match find_compos_list bdepinfo t with
-	Some (status, charac_type, t') when Proba.is_large_term t ->
-	  Some (charac_type, t')
+      match find_compos bdepinfo t with
+	_, Some (probaf, t', _) when Proba.is_large_term t ->
+	  Some (probaf, t')
       |	_ ->
 	  None
 
@@ -221,9 +182,9 @@ and check_assign2_list bdepinfo = function
 	  begin
 	    match check_assign2_list bdepinfo l with
 	      None -> None
-	    | Some(charac_type, l') -> Some(charac_type, (any_term_pat a)::l')
+	    | Some(probaf, l') -> Some(probaf, (any_term_pat a)::l')
 	  end
-      |	Some(charac_type, a') -> Some(charac_type, a'::(List.map any_term_pat l))
+      |	Some(probaf, a') -> Some(probaf, a'::(List.map any_term_pat l))
       
 let rec remove_dep_array_index_pat bdepinfo = function
     PatVar b -> PatVar b
@@ -277,32 +238,30 @@ let rec simplify_term cur_array dep_info true_facts t =
 	let rec try_dep_info = function
 	    [] -> t
 	  | ((b, _) as bdepinfo)::restl ->
-	      let t1' = remove_dep_array_index bdepinfo t1 in
-	      match find_compos_list bdepinfo t1' with
-		Some(_, charac_type, t1'') ->
+	      match find_compos bdepinfo t1 with
+		_, Some(probaf, t1'',_) ->
 		  begin
 		    try 
 		      let t2' = is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
+		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		    with Not_found ->
 		      try_dep_info restl
 		  end
-	      | None -> 
-		  let t2' = remove_dep_array_index bdepinfo t2 in
-		  match find_compos_list bdepinfo t2' with
-		  Some(_,charac_type, t2'') ->
+	      | _, None -> 
+		  match find_compos bdepinfo t2 with
+		  _, Some(probaf, t2'',_) ->
 		    begin
 		      try 
 			let t1' = is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
+			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		      with Not_found ->
 			try_dep_info restl
 		    end
-		| None ->
+		| _, None ->
 		    try_dep_info restl
 	in
 	try_dep_info dep_info
@@ -492,18 +451,18 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
               let status ((b, _) as bdepinfo) =
 		let t' = FindCompos.remove_dep_array_index bdepinfo t in
 		let pat' = remove_dep_array_index_pat bdepinfo pat in
-		match find_compos_list bdepinfo t' with
+		match FindCompos.extract_from_status t' (find_compos_list bdepinfo t') with
 		  Some (st, charac_type, t'') ->
 		    check_assign1 cur_array true_facts (t'', Terms.term_from_pat pat', b, charac_type) bdepinfo st pat';
 		    true
 		| None ->
 		    begin
 		      if depends bdepinfo t' then () else
-		      match check_assign2 bdepinfo pat' with
+		      match check_assign2 bdepinfo pat with
 			None -> ()
-		      |	Some(charac_type, t1') ->
+		      |	Some(probaf, t1') ->
 			  (* Add probability *)
-			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
 			    raise Else
 		    end;
 		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
@@ -574,15 +533,9 @@ let rec dependency_collision_rec1 cur_array simp_facts t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (not (Terms.refers_to b t2)) ->
       begin
-	let check (b, (st, _)) l' = 
-	  if List.for_all2 Terms.equal_terms l' l then
-	    Some (st, FindCompos.CharacTypeOfVar b) 
-	  else
-	    None
-	in
-	match FindCompos.find_compos check (b,(None, [])) (b,(FindCompos.Decompos, ref [FindCompos.CharacType b.btype])) t1 with
-	  None -> None
-	| Some _ -> 
+	match FindCompos.find_compos (b,Facts.nodepinfo) (Some l) t1 with
+	| Any -> None
+	| _ -> 
 	    if List.memq b (!failure_check_all_deps) then None else
 	    begin
 	      print_string "Doing global dependency analysis on ";
@@ -618,7 +571,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 	 let t1' = FindCompos.remove_dep_array_index (b,depinfo) t1 in
 	 match DepAnal2.find_compos_glob depinfo b t1' with
 	   None -> None
-	 | Some(charac_type, t1'') ->
+	 | Some(probaf, t1'',_) ->
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
@@ -642,7 +595,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 		    ) (!collect_bargs_sc))
 	      in
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
 		Some (Terms.make_or_list (List.map (fun l' ->   
 		  let t2'' = Terms.replace l' l t2_eq in
 		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')

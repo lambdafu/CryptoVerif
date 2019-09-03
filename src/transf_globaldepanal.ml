@@ -880,7 +880,10 @@ let add_depend b t =
    when [pat] does not bind variables.
    When [pat] binds variables, it raises [Not_found] 
 
-   TO DO is recovering t_facts and t_incompatible really useful? *)
+   Recovering t_facts and t_incompatible is useful, 
+   because we use the converted term as a program point [DTerm t]
+   in a call to [add_collisions_for_current_check_dependency] which
+   then recovers facts from the program point. *)
 
 let rec find_facts = function
     [] -> None
@@ -921,7 +924,7 @@ let rec convert_to_term = function
         that extract a part of their argument (functions marked [uniform])
         - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
-let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
+let rec check_assign1 cur_array (t1,context_t2) st pat =
   let may_take_else =
     try 
       let t = convert_to_term pat in
@@ -930,6 +933,11 @@ let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
       else
 	begin
 	  (* add probability *)
+	  let probaf =
+	    match st with
+	    | Compos(probaf,_,_) -> probaf
+	    | _ -> Proba.pcoll1rand t.t_type
+	  in
 	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
 	  false
 	end
@@ -943,10 +951,11 @@ let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
 	  | [] -> true
 	  | (pat::rest) ->	    
 	      (* The collision happens only on the sub-pattern [pat].
-		 We adjust the probability accordingly. *)
+		 The probability will be computed on the sub-pattern,
+		 since the status is [Decompos(...)]. *)
 	      let res_type = snd f.f_type in
 	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
-	      (check_assign1 cur_array (t1, context_t2', Proba.pcoll1rand res_type) st pat)
+	      (check_assign1 cur_array (t1, context_t2') st pat)
 		&& (try_subpatterns (pat::seen) rest)
 	in
 	try_subpatterns [] l
@@ -1207,8 +1216,8 @@ let rec almost_indep_fc cur_array t0 =
 	    let p2 = Terms.get_else p2opt in
 	    try
 	      match find_compos t' with
-		st, Some (probaf,t',charac_args_opt) ->
-		  if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
+		st, Some (_,t',_) ->
+		  if check_assign1 cur_array (t', (fun t2 -> t2)) st pat then
 		    raise BothDep
 		  else
 		    begin
@@ -1509,8 +1518,8 @@ and check_depend_oprocess cur_array p =
   | Let(pat,t,p1,p2) ->
       begin
 	match find_compos t with
-	| st, Some (probaf,t',charac_args_opt) ->
-	    if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
+	| st, Some (_,t',_) ->
+	    if check_assign1 cur_array (t', (fun t2 -> t2)) st pat then
 	      begin
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
