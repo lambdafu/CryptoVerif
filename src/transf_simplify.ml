@@ -64,10 +64,6 @@ sig
   (* [init] is the empty dependency information *)
   val init : dep_info
 
-  (* find_compos_glob depinfo b t   returns Some ty when
-     t characterizes a part of b of type ty, knowing the dependency
-     information given in depinfo. Otherwise, returns None. *)
-  val find_compos_glob : elem_dep_info -> binder -> term -> (probaf * term * term list option) option
 
   (* [update_dep_info] and [update_dep_infoo] update the dependency information
      inside processes.
@@ -94,6 +90,11 @@ sig
      dependency information of the variable [b]. *)
   val get_dep_info : dep_info -> binder -> elem_dep_info
 
+  (* find_compos_glob (b,depinfo) t   returns Some ty when
+     t characterizes a part of b of type ty, knowing the dependency
+     information given in depinfo. Otherwise, returns None. *)
+  val find_compos_glob : binder * elem_dep_info -> term -> (probaf * term * term list option) option
+
 end
 = 
 struct
@@ -107,9 +108,9 @@ struct
     
   let is_indep = FindCompos.is_indep
     
-  let find_compos bdepinfo t =
+  let find_compos ((b,_) as bdepinfo) t =
     let t' = FindCompos.remove_dep_array_index bdepinfo t in
-    let st = FindCompos.find_compos bdepinfo None t' in
+    let st = FindCompos.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t' in
     (st, FindCompos.extract_from_status t' st)
 
     
@@ -122,35 +123,54 @@ struct
 	    Terms.link b (TLink bt)) dl;
 	  Terms.copy_term Terms.Links_Vars t)
 	  
+  exception Else
+
+  let rec convert_to_term = function
+    | PatVar _ -> raise Not_found
+    | PatTuple(f,l) ->
+	let l' = List.map convert_to_term l in
+	Terms.build_term_type (snd f.f_type) (FunApp(f,l'))
+    | PatEqual t -> t
+
     
-let find_compos_list var_depinfo t =
-  FindCompos.find_compos var_depinfo None t 
-
-let find_compos_glob depinfo b t =
-  FindCompos.extract_from_status t (FindCompos.find_compos (b, depinfo) (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t) 
-
-exception Else
-
-(* checkassign1 is called when the assigned term depends on b with status st
+(* checkassign1 is called when the assigned term depends on b with status st <> Any
    Raises Else when only the else branch of the let may be taken *)
-let rec check_assign1 cur_array true_facts ((t1, t2, b, probaf) as proba_info) bdep_info st pat =
-  match pat with
-    PatVar _ -> ()
-  | PatTuple(f,l) ->
-      let st' = if st != Decompos then Any else st in
-      List.iter (check_assign1 cur_array true_facts proba_info bdep_info st') l
-  | PatEqual t ->
-      if (depends bdep_info t) || 
-        (not (Proba.is_large_term t)) || (st == Any) then
-	()
-      else
-	begin
+  let rec check_assign1 cur_array true_facts (t1, context_t2, b) bdep_info st pat =
+    begin
+      try 
+	let t = convert_to_term pat in
+	let t' = FindCompos.remove_dep_array_index bdep_info t in
+	if (depends bdep_info t') || (not (Proba.is_large_term t')) then
+	  ()
+	else
 	  (* add probability *)
+	  let probaf =
+	    match st with
+	    | Compos(probaf,_,_) -> probaf
+	    | _ -> Proba.pcoll1rand t.t_type
+	  in
 	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
-	      t1 t2 b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
+	      t1 (context_t2 t') b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
 	    raise Else
-	end
-
+      with Not_found ->
+	()
+    end;
+    match st, pat with
+    | Decompos _, PatTuple(f,l) ->
+	let rec try_subpatterns seen = function
+	  | [] -> ()
+	  | (pat::rest) ->	    
+	      (* The collision happens only on the sub-pattern [pat].
+		 The probability will be computed on the sub-pattern,
+		 since the status is [Decompos(...)]. *)
+	      let res_type = snd f.f_type in
+	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
+	      check_assign1 cur_array true_facts (t1, context_t2', b) bdep_info st pat;
+	      try_subpatterns (pat::seen) rest
+	in
+	try_subpatterns [] l
+    | _ -> ()
+	 
 (* check_assign2 is called when the assigned term does not depend on b
    Return None when both branches may be taken and
           Some(charac_type, t') when only the else branch of the let
@@ -186,13 +206,6 @@ and check_assign2_list bdepinfo = function
 	  end
       |	Some(probaf, a') -> Some(probaf, a'::(List.map any_term_pat l))
       
-let rec remove_dep_array_index_pat bdepinfo = function
-    PatVar b -> PatVar b
-  | PatTuple(f,l) ->
-      PatTuple(f, List.map (remove_dep_array_index_pat bdepinfo) l)
-  | PatEqual t ->
-      PatEqual (FindCompos.remove_dep_array_index bdepinfo t)
-
 let rec depends_pat bdepinfo = function
     PatVar _ ->
       false
@@ -283,13 +296,15 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
   | EventAbort f -> (Terms.oproc_from_desc2 p' (EventAbort f), [])
   | Restr(b,p) ->
       let b_term = Terms.term_from_binder b in
-      let dep_info' = List.map (fun (b', (dep, nodep)) -> (b', (dep, b_term::nodep))) dep_info in
+      let dep_info' = List.map (fun (b', depinfo) -> (b', { depinfo with nodep = b_term::depinfo.nodep })) dep_info in
       if Proba.is_large b.btype then
 	try 
 	  let def_vars = Facts.get_def_vars_at (DProcess p') in
 	  (Terms.oproc_from_desc (Restr(b,p)), 
-	   [(b, (Some [b, (Decompos, (b.btype, Terms.term_from_binder b))], 
-		 (List.map Terms.term_from_binderref def_vars))) :: dep_info' ])
+	   [(b, { args_at_creation_only = true;
+		  dep = [b, (Decompos(Some(List.map Terms.term_from_repl_index b.args_at_creation)), None, ())];
+		  other_variables = false;
+		  nodep = List.map Terms.term_from_binderref def_vars }) :: dep_info' ])
 	with Contradiction ->
 	  (* The current program point is unreachable, because it requires the definition
 	     of a variable that is never defined *)
@@ -311,9 +326,9 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	  update_dep_infoo cur_array dep_info true_facts p2
 	end
       else
-	let r = List.map (function ((b, (dep, nodep)) as bdepinfo) ->
+	let r = List.map (function ((b, depinfo) as bdepinfo) ->
 	  if depends bdepinfo t' then
-	    (b, (None, nodep))
+	    (b, { depinfo with other_variables = true })
 	  else
 	    bdepinfo) dep_info
 	in
@@ -391,18 +406,18 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	   in
 	   (* Dependence info for the condition *)
 	   let dep_info_cond = 
-	     List.map (fun ((b, (dep, nodep)) as bdepinfo) ->
-	       (b, (dep, (List.filter (fun t -> not (depends bdepinfo t)) nodep_add_cond) @ nodep))
+	     List.map (fun ((b, depinfo) as bdepinfo) ->
+	       (b, { depinfo with nodep = (List.filter (fun t -> not (depends bdepinfo t)) nodep_add_cond) @ depinfo.nodep})
 		 ) dep_info
 	   in
 	   (* Dependence info for the then branch.
 	      The replication indices of find are replaced with the corresponding variables. *)
 	   let dep_info_then = 
-	     List.map2 (fun dep1 ((b, (dep, nodep)) as bdepinfo) ->
+	     List.map2 (fun dep1 ((b, depinfo) as bdepinfo) ->
 	       if dep1 then
-		 (b, (None, nodep))
+		 (b, { depinfo with other_variables = true })
 	       else
-		 (b, (dep, (List.filter (fun t -> not (depends bdepinfo t)) nodep_add_then) @ nodep))
+		 (b, { depinfo with nodep = (List.filter (fun t -> not (depends bdepinfo t)) nodep_add_then) @ depinfo.nodep })
 		   ) dep_b dep_info
 	   in
 	   dep_info_cond :: dep_info_then :: accu
@@ -410,9 +425,9 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	 in
          (* Dependence info for the else branch *)
 	 let dep_info_else = List.map2 
-	     (fun dep1 ((b, (dep, nodep)) as bdepinfo) ->
+	     (fun dep1 ((b, depinfo) as bdepinfo) ->
 	       if dep1 then
-		 (b, (None, nodep))
+		 (b, { depinfo with other_variables = true })
 	       else
 		 bdepinfo) dep_b dep_info
 	 in
@@ -423,18 +438,18 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
         match pat with
           PatVar b' -> 
             let dep_info' = 
-              List.map (fun ((b, (dep, nodep)) as bdepinfo) ->
+              List.map (fun ((b, depinfo) as bdepinfo) ->
 		if depends bdepinfo t then
-		  match dep with
-		    None -> bdepinfo
-		  | Some dl ->
-                      match find_compos_list bdepinfo t with
-	                Some (st, charac_type, t') -> 
-			  (b, (Some ((b', (st, (charac_type, t')))::dl), nodep))
-                      | None ->
-			  (b, (Some ((b', (Any, (b.btype, subst dep t)))::dl), nodep))
+                  match FindCompos.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t with
+		  | Any ->
+		      if depinfo.other_variables then
+			bdepinfo
+		      else
+			(b, { depinfo with dep = (b', (Any,None,())) :: depinfo.dep })
+		  | st ->
+		      (b, { depinfo with dep = (b, (st,None,())) :: depinfo.dep })
 		else
-		  (b, (dep, (Terms.term_from_binder b')::nodep))
+		  (b, { depinfo with nodep = (Terms.term_from_binder b')::depinfo.nodep })
                  ) dep_info 
             in
 	    if p2.p_desc != Yield then 
@@ -449,14 +464,13 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	    try        
 	      (* status is true when the chosen branch may depend on b *)
               let status ((b, _) as bdepinfo) =
-		let t' = FindCompos.remove_dep_array_index bdepinfo t in
-		let pat' = remove_dep_array_index_pat bdepinfo pat in
-		match FindCompos.extract_from_status t' (find_compos_list bdepinfo t') with
-		  Some (st, charac_type, t'') ->
-		    check_assign1 cur_array true_facts (t'', Terms.term_from_pat pat', b, charac_type) bdepinfo st pat';
+		match find_compos bdepinfo t with
+		  st, Some (_, t'',_) ->
+		    check_assign1 cur_array true_facts (t'', (fun t2 -> t2), b) bdepinfo st pat;
 		    true
-		| None ->
+		| _, None ->
 		    begin
+		      let t' = FindCompos.remove_dep_array_index bdepinfo t in
 		      if depends bdepinfo t' then () else
 		      match check_assign2 bdepinfo pat with
 			None -> ()
@@ -468,11 +482,12 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
 	      in
 	      (* dependency information for the "in" and "else" branches *)
-	      let dep_info' = List.map (fun ((b, (dep, nodep)) as bdepinfo) ->
+	      let dep_info' = List.map (fun ((b, depinfo) as bdepinfo) ->
 		if status bdepinfo then
-		  (b, (None, nodep)), (b, (None, nodep))
+		  let bdepinfo' = (b, { depinfo with other_variables = true }) in
+		  (bdepinfo', bdepinfo')
 		else
-		  (b, (dep, bl_terms @ nodep)), bdepinfo
+		  (b, { depinfo with nodep = bl_terms @ depinfo.nodep }), bdepinfo
 		    ) dep_info
 	      in
 	      let dep_info1, dep_info2 = List.split dep_info' in
@@ -483,7 +498,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	      update_dep_infoo cur_array dep_info true_facts p2
       end
   | Output _ ->
-      (p', [List.map (fun (b, (dep, nodep)) -> (b, (None, nodep))) dep_info])
+      (p', [List.map (fun (b, depinfo) -> (b, { depinfo with other_variables = true })) dep_info])
   | EventP _ ->
       (p', [dep_info])
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
@@ -492,7 +507,11 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
     try 
       List.assq b dep_info
     with Not_found ->
-      (None, []) (* Not found *)
+      Facts.nodepinfo (* Not found *)
+
+  let find_compos_glob ((b, _) as b_depinfo) t =
+    let t' = FindCompos.remove_dep_array_index b_depinfo t in
+    FindCompos.extract_from_status t' (FindCompos.find_compos b_depinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t') 
 
 end (* Module DepAnal2 *)
 
@@ -568,8 +587,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (Terms.is_args_at_creation b l) ->
       begin
 	 let depinfo = DepAnal2.get_dep_info dep_info b in
-	 let t1' = FindCompos.remove_dep_array_index (b,depinfo) t1 in
-	 match DepAnal2.find_compos_glob depinfo b t1' with
+	 match DepAnal2.find_compos_glob (b,depinfo) t1 with
 	   None -> None
 	 | Some(probaf, t1'',_) ->
 	    try 

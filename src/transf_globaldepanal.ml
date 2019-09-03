@@ -925,7 +925,7 @@ let rec convert_to_term = function
         - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
 let rec check_assign1 cur_array (t1,context_t2) st pat =
-  let may_take_else =
+  let may_take_in =
     try 
       let t = convert_to_term pat in
       if (depends t) || (not (Proba.is_large_term t)) then
@@ -944,7 +944,7 @@ let rec check_assign1 cur_array (t1,context_t2) st pat =
     with Not_found ->
       true
   in
-  if may_take_else then
+  if may_take_in then
     match st, pat with
     | Decompos _, PatTuple(f,l) ->
 	let rec try_subpatterns seen = function
