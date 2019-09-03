@@ -251,8 +251,8 @@ This is more general than the two collisions and yields the same cardinal
 as t1 = t2. *)
 
 let matches 
-    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, tl)
-    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', tl') =
+    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf)
+    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', probaf') =
   ri_auto_cleanup (fun () -> 
     if matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2' then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
@@ -260,7 +260,7 @@ let matches
       (* Check that we can remove the same indices using common_facts as with all facts *)
       if initial_indices == really_used_indices then
 	(* If we removed no index, this is certainly true *)
-	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, tl)
+	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf)
       else
       let really_used_indices'' = filter_indices_coll common_facts used_indices initial_indices in
       if Terms.equal_lists (==) really_used_indices really_used_indices'' then
@@ -274,7 +274,7 @@ let matches
 	  print_string "Common facts:\n";
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts; *)
-	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, tl)
+	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf)
 	end
       else
 	begin
@@ -327,7 +327,7 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   let used_indices = !used_indices_ref in
   try
   let collision_info = 
-    (* If the probability used_indices/t for t in tl is small enough to eliminate collisions, return that probability.
+    (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
     if Proba.is_small_enough_coll_elim (used_indices, probaf) then 
       (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, probaf)
