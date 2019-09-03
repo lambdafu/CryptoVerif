@@ -137,6 +137,7 @@ let compute_probas() =
 	  let res =
 	    Polynom.p_sum (List.map (fun (_,_,probaf) ->
 	      expand_probaf aux probaf) proba_info_list)
+	      (* TO DO Would a maximum instead of a sum be also correct? *)
 	  in
 	  probaf_total_ref := Set res
   in

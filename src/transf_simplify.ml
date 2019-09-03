@@ -113,16 +113,6 @@ struct
     let st = FindCompos.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t' in
     (st, FindCompos.extract_from_status t' st)
 
-    
-  let subst dep t =
-    match dep with
-    | None -> t
-    | Some dl ->
-	Terms.auto_cleanup (fun () ->
-	  List.iter (fun (b, (_, (_, bt))) ->
-	    Terms.link b (TLink bt)) dl;
-	  Terms.copy_term Terms.Links_Vars t)
-	  
   exception Else
 
   let rec convert_to_term = function
