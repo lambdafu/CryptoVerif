@@ -415,13 +415,13 @@ let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really
       print_string ", "
     end;
   Display.display_term t1;
-  print_string " characterizes a part of ";
+  print_string " collides with a value independent of ";
   begin
   match lopt with
     None ->   Display.display_binder b; print_string "[...]"
   | Some l -> Display.display_var b l 
   end;
-  print_string " with collision probability: ";
+  print_string " with probability at most ";
   Display.display_proba 0 probaf;
   print_string ";\n ";
   Display.display_term t2;
@@ -623,9 +623,6 @@ let rec apply_eq_statements t =
   let reduced = !Facts.reduced in
   Facts.reduced := old_reduced;
   if reduced then apply_eq_statements t' else t
-
-(* find_compos b t returns true when t characterizes b: only one
-value of b can yield a certain value of t *)
 
 let extract_from_status t = function
   | Any -> None

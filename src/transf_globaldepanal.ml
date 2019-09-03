@@ -1517,24 +1517,23 @@ and check_depend_oprocess cur_array p =
       let p1' = check_depend_oprocess cur_array p1 in
       Terms.oproc_from_desc (Let(PatVar b, t, p1', Terms.oproc_from_desc Yield))
   | Let(pat,t,p1,p2) ->
+      let bad_dep() =
+	print_string ("At " ^ (string_of_int p.p_occ) ^ ", the assignment ");
+	Display.display_pattern pat;
+	print_string " = ";
+	Display.display_term t;
+	print_string " introduces a bad dependency:\nit may succeed or fail depending on the value of ";
+	print_string (Display.binder_to_string (!main_var));
+	print_string ".\n"; 
+	raise BadDep
+      in
       begin
 	match find_compos t with
 	| st, Some (_,t',_) ->
 	    if check_assign1 cur_array (t', (fun t2 -> t2)) st pat then
-	      begin
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
-		print_string ("At " ^ (string_of_int p.p_occ) ^ ", the assignment ");
-		Display.display_pattern pat;
-		print_string " = ";
-		Display.display_term t;
-		print_string " introduces a bad dependency:\nthe term ";
-		Display.display_term t;
-		print_string (" characterizes a part of " ^ (Display.binder_to_string (!main_var)) ^ " but the pattern ");
-		Display.display_pattern pat;
-		print_string " is not a variable and does not allow me to show that the assignment always fails.\n"; 
-		raise BadDep
-	      end
+	      bad_dep()
 	    else
 	      begin
                 (* [t] characterizes [b0], the pattern is independent of [b0]
@@ -1544,14 +1543,9 @@ and check_depend_oprocess cur_array p =
 	      end
 	| _, None ->
 	    if depends t then
-	      begin
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
-		print_string ("At " ^ (string_of_int t.t_occ) ^ ", the term ");
-		Display.display_term t;
-		print_string (" depends on " ^ (Display.binder_to_string (!main_var)) ^ " but does not characterize a part of it.\n");
-		raise BadDep
-	      end
+	      bad_dep()
 	    else
 	      begin
 		let tmp_bad_dep = ref false in
@@ -1566,14 +1560,9 @@ and check_depend_oprocess cur_array p =
 		| None ->
 		  begin
 		    if (!tmp_bad_dep) then
-		      begin
 		        (* Both branches may be taken, and the choice may depend on [b0]
 			   => dependency analysis fails *)
-			print_string ("At " ^ (string_of_int p.p_occ) ^ ", pattern of assignment ");
-			Display.display_pattern pat;
-			print_string (" depends on " ^ (Display.binder_to_string (!main_var)) ^ " but does not characterize a part of it.\n");
-			raise BadDep
-		      end;
+		      bad_dep();
 		    (* Both branches may be taken, but the test is independent of b0 *)
 		    let vars = Terms.vars_from_pat [] pat in
 		    List.iter add_indep vars;
