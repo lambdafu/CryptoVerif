@@ -93,7 +93,7 @@ let remove_suffix n l =
    pairs [l], as well as the list of other elements of [l]. That is,
    [assq_rest a [ ...; (a,b); ...] = (b, lrest)]
    if [(a,b)] is the leftmost binding of [a] in list [l] and
-   [lrest] is [l] with [(a,b)] removed, reversed.
+   [lrest] is [l] with [(a,b)] removed.
    Raise [Not_found] if there is no value associated with [a] in the
    list [l]. Uses physical equality to compare keys. *)
 
@@ -101,7 +101,7 @@ let assq_rest x l =
   let rec aux seen x = function
     | [] -> raise Not_found
     | ((a,b) as elem)::l ->
-	if a == x then (b, seen) else aux (elem::seen) x l
+	if a == x then (b, List.rev_append seen l) else aux (elem::seen) x l
   in
   aux [] x l 
     
