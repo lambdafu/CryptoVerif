@@ -33,7 +33,7 @@ type probaf_total =
   | Set of probaf
     
 (* List of variables that depend on the main variable b0.
-   The list contains elements (b, (depend_status, args_opt, (ref [(t1,t2,probaf);...], ref probaf_total))) 
+   The list contains elements (b, (depend_status, args_opt, ([(t1,t2,probaf);...], ref probaf_total))) 
    meaning that b depends on b0, 
    - [depend_status] is its dependency status (see [depend_status] in types.ml)
    - When args_opt is (Some l), b[args_at_creation] depends on b0[l]
@@ -51,7 +51,7 @@ type probaf_total =
      when the status of [b] is not [Any].)
 
    Corresponds to the field "dep" in `a depinfo *)
-let dvar_list = ref ([]: (binder * (depend_status * term list option * ((term * term * probaf) list ref * probaf_total ref))) list)
+let dvar_list = ref ([]: (binder * (depend_status * term list option * ((term * term * probaf) list * probaf_total ref))) list)
 
 (* The flag [dvar_list_changed] is set when [dvar_list] has been changed
    since the last iteration. A new iteration of dependency analysis 
@@ -136,7 +136,7 @@ let compute_probas() =
 	  probaf_total_ref := InProgress;
 	  let res =
 	    Polynom.p_sum (List.map (fun (_,_,probaf) ->
-	      expand_probaf aux probaf) (!proba_info_list))
+	      expand_probaf aux probaf) proba_info_list)
 	  in
 	  probaf_total_ref := Set res
   in
@@ -700,7 +700,7 @@ let set_depend b t =
   | _,None -> 
       if depends t then
 	(* The variable [b] depends on [b0], but we do not have more precise information *)
-	dvar_list := (b, (Any, aux_dep_args t, (ref [], ref Unset))) :: dvar_list_nob
+	dvar_list := (b, (Any, aux_dep_args t, ([], ref Unset))) :: dvar_list_nob
       (* When [t] does not depend on [b0], we have nothing to do *)
   | st, Some(probaf, t1, _) -> 
       (* [t] characterizes a part of [b0] *)
@@ -708,7 +708,7 @@ let set_depend b t =
           (*print_string "Adding ";
             Display.display_binder b;
             print_newline();*)
-      let b_st =  (b,(st, aux_dep_args t, (ref [t1, t2, probaf], ref Unset))) in
+      let b_st =  (b,(st, aux_dep_args t, ([t1, t2, probaf], ref Unset))) in
       dvar_list := b_st :: dvar_list_nob
 
 (* [add_indep b] adds the information that there is a definition of
@@ -723,7 +723,7 @@ let add_indep b =
       begin
 	add_advice_sarename b;
 	dvar_list_changed := true;
-	dvar_list := (b, (Any, depend_args_opt, (ref [], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	dvar_list := (b, (Any, depend_args_opt, ([], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
       end
   with Not_found ->
     ()
@@ -821,18 +821,18 @@ let add_depend b t =
 	    | Compos(_,_,charac_args_opt), _ ->
 		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
 		Compos(ProbaIndepCollOfVar b, t2, charac_args_opt'),
-		add_proba_info (t1, t2, probaf) (!proba_info_list)
+		add_proba_info (t1, t2, probaf) proba_info_list
 	    | Decompos(charac_args_opt), Compos _ ->
 		dvar_list_changed := true;
 		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
 		Compos(ProbaIndepCollOfVar b, t2, charac_args_opt'),
-		add_proba_info (t1, t2, probaf) (!proba_info_list)
+		add_proba_info (t1, t2, probaf) proba_info_list
 	    | Decompos(charac_args_opt), Decompos _ ->
 		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
 		Decompos(charac_args_opt'), 
-		add_proba_info (t1, t2, probaf) (!proba_info_list)
+		add_proba_info (t1, t2, probaf) proba_info_list
 	  in
-	  dvar_list := (b, (st', depend_args_opt', (ref proba_info_list', probaf_total_ref))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	  dvar_list := (b, (st', depend_args_opt', (proba_info_list', probaf_total_ref))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
 	with Not_found ->
           (*print_string "Adding ";
             Display.display_binder b;
@@ -845,13 +845,13 @@ let add_depend b t =
 		    Compos(ProbaIndepCollOfVar b, t2, charac_args_opt)
 		| _ -> new_st
 	      in
-	      let b_st =  (b,(st', new_depend_args_opt, (ref [t1, t2, probaf], ref Unset))) in
+	      let b_st =  (b,(st', new_depend_args_opt, ([t1, t2, probaf], ref Unset))) in
       	      dvar_list := b_st :: (!dvar_list)
 	    end
 	  else
 	    begin
 	      add_advice_sarename b;
-	      dvar_list := (b, (Any, None, (ref [], ref Unset))) :: (!dvar_list)
+	      dvar_list := (b, (Any, None, ([], ref Unset))) :: (!dvar_list)
 	    end;
 	  dvar_list_changed := true
       end
@@ -864,9 +864,9 @@ let add_depend b t =
 	    let (st',depend_args_opt, _) = List.assq b (!dvar_list) in
 	    let depend_args_opt' = combine_options b depend_args_opt new_depend_args_opt in
 	    if st' != Any then dvar_list_changed := true;
-	    dvar_list := (b, (Any, depend_args_opt', (ref [], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	    dvar_list := (b, (Any, depend_args_opt', ([], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
 	  with Not_found ->
-	    dvar_list := (b, (Any, new_depend_args_opt, (ref [], ref Unset))) :: (!dvar_list);
+	    dvar_list := (b, (Any, new_depend_args_opt, ([], ref Unset))) :: (!dvar_list);
 	    dvar_list_changed := true
 	end
       else
@@ -1263,7 +1263,7 @@ let rec almost_indep_fc cur_array t0 =
 		 in an unspecified way *)
 	      let vars = Terms.vars_from_pat [] pat in
 	      dvar_list := 
-		 (List.map (fun b -> (b, (Any, None, (ref [], ref Unset)))) vars) @
+		 (List.map (fun b -> (b, (Any, None, ([], ref Unset)))) vars) @
 		 (List.filter (fun (b',_) -> not (List.memq b' vars)) (!dvar_list));
 	      let p1' = almost_indep_fc cur_array p1 in
 	      dvar_list := old_dvar_list;
@@ -1624,7 +1624,7 @@ let check_all_deps b0 init_proba_state g =
   try
     let dummy_term = Terms.term_from_binder b0 in
     let args_opt = Some (List.map Terms.term_from_repl_index b0.args_at_creation) in
-    let b0st = (b0, (Decompos(args_opt), args_opt, (ref [dummy_term, dummy_term, Proba.pcoll1rand b0.btype], ref Unset))) in
+    let b0st = (b0, (Decompos(args_opt), args_opt, ([dummy_term, dummy_term, Proba.pcoll1rand b0.btype], ref Unset))) in
     dvar_list := [b0st];
     defvar_list := [];
     let proc' = check_depend_iter init_proba_state in
