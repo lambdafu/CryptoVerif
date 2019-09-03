@@ -878,7 +878,9 @@ let add_depend b t =
 
 (* [convert_to_term pat] converts the pattern [pat] into a term,
    when [pat] does not bind variables.
-   When [pat] binds variables, it raises [Not_found] *)
+   When [pat] binds variables, it raises [Not_found] 
+
+   TO DO is recovering t_facts and t_incompatible really useful? *)
 
 let rec find_facts = function
     [] -> None
@@ -910,49 +912,19 @@ let rec convert_to_term = function
    up to negligible probability.
    Returns [true] when the let can take both branches
    [cur_array] is the list of current replication indices.
-   [proba_info = (t1,t2,probaf)] when 
+   [proba_info = (t1,context_t2,probaf)] when 
       - [t1] is the assigned term in which useless parts have been replaced with fresh variables [?], 
-      - [t2] is a term built from the pattern [pat], 
+      - [context_t2] is a function from terms to terms that adds a context around the term corresponding to the pattern [pat] (it is the identity in the initial call, and is transformed in recursive calls on subpatterns of [pat]), 
       - [probaf] is the probability of collision between [t1] and [t2], when [t2] does not depend on [b0]
    [st] is 
         - [Decompos(...)] when the assigned term is obtained from [b0] by applying functions
         that extract a part of their argument (functions marked [uniform])
         - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
-let rec check_assign1 cur_array (t1,context_t2,probaf) st = function
-    PatVar b ->
-      true
-  | (PatTuple(f,l)) as pat ->
-      let may_take_else =
-      	try 
-	  let t = convert_to_term pat in
-	  if (depends t) || (not (Proba.is_large_term t)) then
-	    true
-	  else
-	    begin
-	      (* add probability *)
-	      add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
-	      false
-	    end
-	with Not_found ->
-	  true
-      in
-      if may_take_else then
-	match st with
-	| Decompos _ ->
-	    let rec try_subpatterns seen = function
-	      |	[] -> true
-	      | (pat::rest) ->	    
-	          (* The collision happens only on the sub-pattern [pat].
-		     We adjust the probability accordingly. *)
-		  let context_t2' t2 = context_t2 (Terms.build_term_type (snd f.f_type) (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
-		  (check_assign1 cur_array (t1, context_t2', Proba.pcoll1rand (Terms.get_type_for_pattern pat)) st pat)
-		    && (try_subpatterns (pat::seen) rest)
-	    in
-	    try_subpatterns [] l
-	| _ -> true
-      else false
-  | PatEqual t ->
+let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
+  let may_take_else =
+    try 
+      let t = convert_to_term pat in
       if (depends t) || (not (Proba.is_large_term t)) then
 	true
       else
@@ -961,6 +933,25 @@ let rec check_assign1 cur_array (t1,context_t2,probaf) st = function
 	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
 	  false
 	end
+    with Not_found ->
+      true
+  in
+  if may_take_else then
+    match st, pat with
+    | Decompos _, PatTuple(f,l) ->
+	let rec try_subpatterns seen = function
+	  | [] -> true
+	  | (pat::rest) ->	    
+	      (* The collision happens only on the sub-pattern [pat].
+		 We adjust the probability accordingly. *)
+	      let res_type = snd f.f_type in
+	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
+	      (check_assign1 cur_array (t1, context_t2', Proba.pcoll1rand res_type) st pat)
+		&& (try_subpatterns (pat::seen) rest)
+	in
+	try_subpatterns [] l
+    | _ -> true
+  else false
 
 (* [check_assign2 tmp_bad_dep pat] is called to analyze the pattern [pat] of
    an input or of an assignment when the assigned term does not depend on [b0].
