@@ -718,12 +718,12 @@ let set_depend b t =
 
 let add_indep b =
   try 
-    let (st',depend_args_opt,_) = List.assq b (!dvar_list) in
+    let ((st',depend_args_opt,_), dvar_list_nob) = Terms.assq_rest b (!dvar_list) in
     if st' != Any then
       begin
 	add_advice_sarename b;
 	dvar_list_changed := true;
-	dvar_list := (b, (Any, depend_args_opt, ([], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	dvar_list := (b, (Any, depend_args_opt, ([], ref Unset))) :: dvar_list_nob
       end
   with Not_found ->
     ()
@@ -806,7 +806,7 @@ let add_depend b t =
       let new_depend_args_opt = aux_dep_args t in
       begin
 	try 
-	  let (st,depend_args_opt,(proba_info_list, probaf_total_ref)) = List.assq b (!dvar_list) in
+	  let ((st,depend_args_opt,(proba_info_list, probaf_total_ref)), dvar_list_nob) = Terms.assq_rest b (!dvar_list) in
 	  let depend_args_opt' = combine_options b depend_args_opt new_depend_args_opt in
 	  let (st', proba_info_list') =
 	    match st, new_st with
@@ -832,7 +832,7 @@ let add_depend b t =
 		Decompos(charac_args_opt'), 
 		add_proba_info (t1, t2, probaf) proba_info_list
 	  in
-	  dvar_list := (b, (st', depend_args_opt', (proba_info_list', probaf_total_ref))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	  dvar_list := (b, (st', depend_args_opt', (proba_info_list', probaf_total_ref))) :: dvar_list_nob
 	with Not_found ->
           (*print_string "Adding ";
             Display.display_binder b;
@@ -861,10 +861,10 @@ let add_depend b t =
 	begin
 	  let new_depend_args_opt = aux_dep_args t in
 	  try 
-	    let (st',depend_args_opt, _) = List.assq b (!dvar_list) in
+	    let ((st',depend_args_opt, _), dvar_list_nob) = Terms.assq_rest b (!dvar_list) in
 	    let depend_args_opt' = combine_options b depend_args_opt new_depend_args_opt in
 	    if st' != Any then dvar_list_changed := true;
-	    dvar_list := (b, (Any, depend_args_opt', ([], ref Unset))) :: (List.filter (fun (b',_) -> b' != b) (!dvar_list))
+	    dvar_list := (b, (Any, depend_args_opt', ([], ref Unset))) :: dvar_list_nob
 	  with Not_found ->
 	    dvar_list := (b, (Any, new_depend_args_opt, ([], ref Unset))) :: (!dvar_list);
 	    dvar_list_changed := true
