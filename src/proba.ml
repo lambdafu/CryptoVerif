@@ -60,25 +60,49 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
-let rec is_smaller_proba_type probaf type_bound =
+let rec max_list f = function
+    [] -> min_int
+  | [a] -> f a
+  | a::l -> max (f a) (max_list f l)
+
+(* Addition and subtraction bounded by min_int and max_int,
+   so no overflow *)
+	
+let plus x y =
+  if y >= 0 then
+    if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
+  else (* y < 0 *)
+    if x <= min_int - y (* x + y <= min_int *) then min_int else x + y 
+
+let minus x y =
+  if y >= 0 then
+    if x <= min_int + y (* x - y <= min_int *) then min_int else x - y
+  else (* y < 0 *)
+    if x >= max_int + y (* x - y >= max_int *) then max_int else x - y
+
+let rec order_of_magnitude probaf =
   match probaf with
   | Add(p1,p2) ->
-      (is_smaller_proba_type p1 type_bound) &&
-      (is_smaller_proba_type p2 type_bound)
-  | Zero | EpsRand _ -> true
+      max (order_of_magnitude p1) (order_of_magnitude p2)
+  | Zero | EpsRand _ -> min_int
   | Max(l) ->
-      List.for_all (fun p -> is_smaller_proba_type p type_bound) l
-  | PColl1Rand t | PColl2Rand t | Div(Cst 1.0, Card t) ->
-      t.tsize >= type_bound
+      max_list order_of_magnitude l
+  | Cst _ -> 0
+  | PColl1Rand t | PColl2Rand t -> - t.tsize
+  | Card t -> t.tsize
+  | Div(p1, p2) ->
+      minus (order_of_magnitude p1) (order_of_magnitude p2)
+  | Mul(p1, p2) ->
+      plus (order_of_magnitude p1) (order_of_magnitude p2)
   | Proba _ -> (* We accept probabilities of collision statements *)
-      true
+      min_int
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
       
 	
 let is_small_enough_coll_elim (proba_l, proba_t) = 
   List.exists (fun (factor_bound, type_bound) ->
-    (is_smaller_proba_type proba_t type_bound) && 
+    (order_of_magnitude proba_t <= - type_bound) && 
     (is_smaller proba_l factor_bound)
       ) (!Settings.allowed_collisions)
 

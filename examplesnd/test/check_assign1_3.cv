@@ -1,0 +1,20 @@
+(* Caused an internal error because it took the cardinal of t2, not declared bounded/fixed *)
+
+type t1.
+type t2 [large].
+type nonce [fixed,large].
+
+fun concat(t1,t2):nonce [data].
+
+channel c,d.
+
+process
+	in(c, (a2:t2));
+	new b: nonce;
+	let concat(a1,=a2) = b in
+	out(d, b)
+
+(* EXPECTED
+All queries proved.
+0.060s (user 0.060s + system 0.000s), max rss 13708K
+END *)

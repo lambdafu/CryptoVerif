@@ -125,7 +125,7 @@ struct
     
 (* checkassign1 is called when the assigned term depends on b with status st <> Any
    Raises Else when only the else branch of the let may be taken *)
-  let rec check_assign1 cur_array true_facts (t1, context_t2, b) bdep_info st pat =
+  let rec check_assign1 cur_array true_facts (t1, context_t2, b, probaf) bdep_info st pat =
     begin
       try 
 	let t = convert_to_term pat in
@@ -134,11 +134,6 @@ struct
 	  ()
 	else
 	  (* add probability *)
-	  let probaf =
-	    match st with
-	    | Compos(probaf,_,_) -> probaf
-	    | _ -> Proba.pcoll1rand t.t_type
-	  in
 	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
 	      t1 (context_t2 t') b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf then
 	    raise Else
@@ -151,11 +146,11 @@ struct
 	  | [] -> ()
 	  | (pat::rest) ->	    
 	      (* The collision happens only on the sub-pattern [pat].
-		 The probability will be computed on the sub-pattern,
-		 since the status is [Decompos(...)]. *)
+		 We adjust the probability [probaf]. *)
 	      let res_type = snd f.f_type in
 	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
-	      check_assign1 cur_array true_facts (t1, context_t2', b) bdep_info st pat;
+	      let probaf' = Polynom.p_prod (probaf :: List.map (fun pat_other -> Card(Terms.get_type_for_pattern pat_other)) (List.rev_append seen rest)) in
+	      check_assign1 cur_array true_facts (t1, context_t2', b, probaf') bdep_info st pat;
 	      try_subpatterns (pat::seen) rest
 	in
 	try_subpatterns [] l
@@ -455,8 +450,8 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	      (* status is true when the chosen branch may depend on b *)
               let status ((b, _) as bdepinfo) =
 		match find_compos bdepinfo t with
-		  st, Some (_, t'',_) ->
-		    check_assign1 cur_array true_facts (t'', (fun t2 -> t2), b) bdepinfo st pat;
+		  st, Some (probaf, t'',_) ->
+		    check_assign1 cur_array true_facts (t'', (fun t2 -> t2), b, probaf) bdepinfo st pat;
 		    true
 		| _, None ->
 		    begin

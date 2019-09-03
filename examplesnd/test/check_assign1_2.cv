@@ -1,0 +1,25 @@
+(* There was a bug until CV 2.01pl1: 
+   It claimed that the probability of success of the assignment
+   let concat(a1,=a2) = b in 
+   is 1/|nonce|. It is in fact |t1|/|nonce|, which is larger:
+   it succeeds for any value of a1. *)
+
+
+type t1.
+type t2 [fixed,large].
+type nonce [fixed,large].
+
+fun concat(t1,t2):nonce [data].
+
+channel c,d.
+
+process
+	in(c, (a2:t2));
+	new b: nonce;
+	let concat(a1,=a2) = b in
+	out(d, b)
+
+(* EXPECTED
+All queries proved.
+0.060s (user 0.060s + system 0.000s), max rss 13708K
+END *)

@@ -925,7 +925,7 @@ let rec convert_to_term = function
         that extract a part of their argument (functions marked [uniform])
         - [Compos(...)] when for all [t'] independent of [b0[l]], Pr[t = t'] <= p *)
 
-let rec check_assign1 cur_array (t1,context_t2) st pat =
+let rec check_assign1 cur_array (t1,context_t2,probaf) st pat =
   let may_take_in =
     try 
       let t = convert_to_term pat in
@@ -934,11 +934,6 @@ let rec check_assign1 cur_array (t1,context_t2) st pat =
       else
 	begin
 	  (* add probability *)
-	  let probaf =
-	    match st with
-	    | Compos(probaf,_,_) -> probaf
-	    | _ -> Proba.pcoll1rand t.t_type
-	  in
 	  add_collisions_for_current_check_dependency (cur_array, [], (DTerm t)) (t1, context_t2 t, probaf);
 	  false
 	end
@@ -952,11 +947,11 @@ let rec check_assign1 cur_array (t1,context_t2) st pat =
 	  | [] -> true
 	  | (pat::rest) ->	    
 	      (* The collision happens only on the sub-pattern [pat].
-		 The probability will be computed on the sub-pattern,
-		 since the status is [Decompos(...)]. *)
+		 We adjust the probability [probaf] *)
 	      let res_type = snd f.f_type in
 	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
-	      (check_assign1 cur_array (t1, context_t2') st pat)
+	      let probaf' = Polynom.p_prod (probaf :: List.map (fun pat_other -> Card(Terms.get_type_for_pattern pat_other)) (List.rev_append seen rest)) in
+	      (check_assign1 cur_array (t1, context_t2', probaf') st pat)
 		&& (try_subpatterns (pat::seen) rest)
 	in
 	try_subpatterns [] l
@@ -1217,8 +1212,8 @@ let rec almost_indep_fc cur_array t0 =
 	    let p2 = Terms.get_else p2opt in
 	    try
 	      match find_compos t' with
-		st, Some (_,t',_) ->
-		  if check_assign1 cur_array (t', (fun t2 -> t2)) st pat then
+		st, Some (probaf,t',_) ->
+		  if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
 		    raise BothDep
 		  else
 		    begin
@@ -1529,8 +1524,8 @@ and check_depend_oprocess cur_array p =
       in
       begin
 	match find_compos t with
-	| st, Some (_,t',_) ->
-	    if check_assign1 cur_array (t', (fun t2 -> t2)) st pat then
+	| st, Some (probaf,t',_) ->
+	    if check_assign1 cur_array (t', (fun t2 -> t2), probaf) st pat then
 		(* Both branches may be taken, and the choice may depend on [b0]
 		   => dependency analysis fails *)
 	      bad_dep()

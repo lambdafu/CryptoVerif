@@ -1,0 +1,20 @@
+(* Check that CryptoVerif manages to show that the assignment fails *)
+
+
+type t1.
+type nonce [fixed,large].
+
+fun concat(t1,t1):nonce [data].
+
+channel c,d.
+
+process
+	in(c, (a1: t1, a2:t1));
+	new b: nonce;
+	let concat(=a1,=a2) = b in
+	out(d, b)
+
+(* EXPECTED
+All queries proved.
+0.060s (user 0.060s + system 0.000s), max rss 13708K
+END *)
