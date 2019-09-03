@@ -8,11 +8,15 @@ fun concat(t1,t2):nonce [data].
 
 channel c,d.
 
+event e1.
+
+query event(e1).
+
 process
 	in(c, (a2:t2));
 	new b: nonce;
 	let concat(a1,=a2) = b in
-	out(d, b)
+	event e1
 
 (* EXPECTED
 All queries proved.
