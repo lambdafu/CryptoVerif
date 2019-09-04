@@ -60,11 +60,6 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
-let rec max_list f = function
-    [] -> min_int
-  | [a] -> f a
-  | a::l -> max (f a) (max_list f l)
-
 (* Addition and subtraction bounded by min_int and max_int,
    so no overflow *)
 	
@@ -86,7 +81,7 @@ let rec order_of_magnitude probaf =
       max (order_of_magnitude p1) (order_of_magnitude p2)
   | Zero | EpsRand _ -> min_int
   | Max(l) ->
-      max_list order_of_magnitude l
+      Terms.max_list order_of_magnitude l
   | Cst _ -> 0
   | PColl1Rand t | PColl2Rand t -> - t.tsize
   | Card t -> t.tsize

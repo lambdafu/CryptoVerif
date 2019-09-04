@@ -50,9 +50,14 @@ val remove_suffix : int -> 'a list -> 'a list
    list [l]. Uses physical equality to compare keys. *)
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
+(* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
+val max_list : ('a -> int) -> 'a list -> int
+
+(* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
+val sum_list : ('a -> int) -> 'a list -> int
+    
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)
-
 val addq : 'a list -> 'a -> 'a list
     
 (* Intersection / Union *)

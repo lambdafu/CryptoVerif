@@ -105,6 +105,21 @@ let assq_rest x l =
   in
   aux [] x l 
     
+(* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
+
+let rec max_list f = function
+    [] -> min_int
+  | [a] -> f a
+  | a::l -> max (f a) (max_list f l)
+
+(* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
+	
+let rec sum_list f = function
+    [] -> 0
+  | [a] -> f a
+  | a::l -> (f a) + (sum_list f l)
+
+
 (* Adds an element if it is not already in (for physical equality) *)
 
 let addq accu b =
