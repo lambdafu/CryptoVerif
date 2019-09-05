@@ -760,31 +760,7 @@ current code is still correct in the more general case.
 
 MIDDLE PRIORITY
 
-15a) Optional: Write nicer code for dependency analysis, in particular
-FindCompos. Perhaps the type of the dependency information
-for a variable b0 could be
-{ args_at_creation_only: bool; (* True when the dep. info. deals only with variables with indices args_at_creation *)
-  dep: (binder * status * depend_args_opt * 'a) list (* List of variables that depend on b0 *)
-  other_variables: bool; (* True when variables not in dep may also depend on b0 *)
-  nodep: term list } (* List of terms that do not depend on b0 *)
-
-status =
-    Compos of charac_type * charac_args_opt
-  | Decompos of charac_type * charac_args_opt
-  | Any
-
-charac_args_opt = term list option
-(* When [Some l], means that b[args_at_creation] charactarizes a part of b0[l] *)
-
-depend_args_opt = term list option
-(* When [Some l], means that b[args_at_creation] depends only on b0[l] *)
-
-Still, it may be difficult to write FindCompos without first
-having to find out which variable subterm we want to characterize.
-(In DepAnal2, there are several possible b0.
- In the dependency_collision_rec3, we can consider all large restrictions...)
-
-15b) Strengthen the global dependency analysis like the proof of one-session
+15a) Strengthen the global dependency analysis like the proof of one-session
 secrecy; one could even use a single dependency analysis for both.
 (For instance, with the current code, in the case of forward secrecy,
 CryptoVerif may be able to prove secrecy of x, but not to prove that
@@ -794,7 +770,7 @@ does not use elsefind facts, does not compability of program points, ...)
 Group all dependency analyses into one stronger one?
 (That does not seem obvious to do.)
 
-15c) Since the speed of Terms.equal_terms is so important, it
+15b) Since the speed of Terms.equal_terms is so important, it
 is likely that a better structure for sets of terms,
 which would reduce the number of equality tests, would yield 
 a huge speedup.
@@ -4157,7 +4133,31 @@ the same meaning in DepAnal2 and in globaldepanal:
 the desired indices for args_at_creation)
 find_compos should take this point into account.
 
-See also item 15a) and to a lesser extent 15b).
+Older point:
+
+Write nicer code for dependency analysis, in particular
+FindCompos. Perhaps the type of the dependency information
+for a variable b0 could be
+{ args_at_creation_only: bool; (* True when the dep. info. deals only with variables with indices args_at_creation *)
+  dep: (binder * status * depend_args_opt * 'a) list (* List of variables that depend on b0 *)
+  other_variables: bool; (* True when variables not in dep may also depend on b0 *)
+  nodep: term list } (* List of terms that do not depend on b0 *)
+
+status =
+    Compos of charac_type * charac_args_opt
+  | Decompos of charac_type * charac_args_opt
+  | Any
+
+charac_args_opt = term list option
+(* When [Some l], means that b[args_at_creation] charactarizes a part of b0[l] *)
+
+depend_args_opt = term list option
+(* When [Some l], means that b[args_at_creation] depends only on b0[l] *)
+
+Still, it may be difficult to write FindCompos without first
+having to find out which variable subterm we want to characterize.
+(In DepAnal2, there are several possible b0.
+ In the dependency_collision_rec3, we can consider all large restrictions...)
 
 ====== End of the notes on the change in FindCompos
 DONE 5/9/2019, tests still to check
