@@ -1382,7 +1382,16 @@ let rec map_queries accu focusql allql =
 	    end;
 	  map_queries (qentry::accu) restfocusql allql
       | _ -> Parsing_helper.internal_error "Duplicate query"
-	
+
+let rec last_extent = function
+    [] -> Parsing_helper.internal_error "empty list in last_extent"
+  | [_, ext] -> ext
+  | _ ::l -> last_extent l
+
+let list_extent = function
+    [] -> Parsing_helper.internal_error "empty list in list_extent"
+  | ((_, first_ext)::_) as l -> Parsing_helper.merge_ext first_ext (last_extent l)
+	    
 (* For debugging: display information collected when the adversary wins *)
 	
 let display_collector coll =
@@ -1757,7 +1766,7 @@ let rec interpret_command interactive state = function
 	  qentry) state.game.current_queries
       in
       if not (!made_inactive) then
-	raise (Error("Focus: useless command since all queries remain active", dummy_ext));
+	raise (Error("Focus: useless command since all queries remain active", list_extent l));
       let game' = { state.game with current_queries = queries' } in
       { game = game';
 	prev_state = Some(IFocus (List.map fst lq), [], [], state);
