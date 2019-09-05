@@ -1342,7 +1342,7 @@ let empty_pubvars = function
 let rec map_queries accu focusql allql =
   match focusql with
     [] -> accu
-  | q::restfocusql ->
+  | (q, ext)::restfocusql ->
       let found_list = 
 	if empty_pubvars q then
           (* When q has no public variables, we allow matching
@@ -1359,18 +1359,39 @@ let rec map_queries accu focusql allql =
       match found_list with
       | [] -> (* Not found *)
 	  print_string "Focus: the following query is not found\n";
-	  print_string "  - "; Display.display_query3 q; print_newline();
-	  raise (Error("Focus: query not found", dummy_ext));
+	  print_string "  "; Display.display_query3 q; print_newline();
+	  raise (Error("Focus: query not found", ext));
       | [qentry] ->
+	  begin
+	    match Settings.get_query_status qentry with
+	    | Inactive ->
+		print_string "Focus: the following query is inactive:\n";
+		print_string "  "; Display.display_query3 q; print_newline();
+		raise (Error("You cannot focus on a query that is already inactive", ext))
+	    | Proved _ ->
+		print_string "Focus: the following query is already proved:\n";
+		print_string "  "; Display.display_query3 q; print_newline();
+		raise (Error("You cannot focus on a query that is already proved", ext))		
+	    | ToProve -> ()
+	  end;
 	  if List.memq qentry accu then
 	    begin
 	      print_string "Focus: the following query is already mentioned in the same focus command\n";
-	      print_string "  - "; Display.display_query3 q; print_newline();
-	      raise (Error("Focusing on several times the same query", dummy_ext))
+	      print_string "  "; Display.display_query3 q; print_newline();
+	      raise (Error("Focusing on several times the same query", ext))
 	    end;
 	  map_queries (qentry::accu) restfocusql allql
       | _ -> Parsing_helper.internal_error "Duplicate query"
-	
+
+let rec last_extent = function
+    [] -> Parsing_helper.internal_error "empty list in last_extent"
+  | [_, ext] -> ext
+  | _ ::l -> last_extent l
+
+let list_extent = function
+    [] -> Parsing_helper.internal_error "empty list in list_extent"
+  | ((_, first_ext)::_) as l -> Parsing_helper.merge_ext first_ext (last_extent l)
+	    
 (* For debugging: display information collected when the adversary wins *)
 	
 let display_collector coll =
@@ -1707,6 +1728,11 @@ let rec interpret_command interactive state = function
   | CUndo(v, ext) ->
       undo ext state v
   | CFocus(l) ->
+      (* Note: in case the query contains several subqueries:
+            query q1; ...; qn
+	 the extent that we provide will be the extent of the whole
+	 group of queries instead of the extent of each qi. This is
+	 not perfect, but better than nothing. *)
       let lparsed = List.concat (List.map (fun (s, ext_s) ->
 	let lexbuf = Lexing.from_string s in
 	Parsing_helper.set_start lexbuf ext_s;
@@ -1719,12 +1745,12 @@ let rec interpret_command interactive state = function
 	List.map (function
 	  PQEventQ(vars', t1, t2, pub_vars) ->
 	    assert(vars' == []);
-	    PQEventQ(vars, t1, t2, pub_vars)
-	| q -> q
+	    (PQEventQ(vars, t1, t2, pub_vars), ext_s)
+	| q -> (q, ext_s)
 	      ) ql
 	  ) l)
       in
-      let lq = List.map Syntax.check_query lparsed in
+      let lq = List.map (fun (q, ext) -> (Syntax.check_query q, ext)) lparsed in
       let lqentries = map_queries [] lq state.game.current_queries in
       let made_inactive = ref false in
       let queries' = List.map (fun (((q, g) as qg, poptref) as qentry) ->
@@ -1740,10 +1766,10 @@ let rec interpret_command interactive state = function
 	  qentry) state.game.current_queries
       in
       if not (!made_inactive) then
-	raise (Error("Focus: useless command since all queries remain active", dummy_ext));
+	raise (Error("Focus: useless command since all queries remain active", list_extent l));
       let game' = { state.game with current_queries = queries' } in
       { game = game';
-	prev_state = Some(IFocus lq, [], [], state);
+	prev_state = Some(IFocus (List.map fst lq), [], [], state);
         tag = None }    
   | CUndoFocus(ext) ->
       undo_focus ext state

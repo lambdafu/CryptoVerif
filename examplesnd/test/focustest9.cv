@@ -1,0 +1,18 @@
+event e1.
+event e2.
+
+query event(e1).
+query event(e2).
+
+proof {
+   focus "query event(e1)", "query event(e2)"
+   }
+
+channel c.
+
+process in(c, ()); event e1; event e2
+
+(* EXPECTED
+Error: Focus: useless command since all queries remain active
+xtime: error in child process (status : 512)
+END *)
