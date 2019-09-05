@@ -1359,13 +1359,25 @@ let rec map_queries accu focusql allql =
       match found_list with
       | [] -> (* Not found *)
 	  print_string "Focus: the following query is not found\n";
-	  print_string "  - "; Display.display_query3 q; print_newline();
+	  print_string "  "; Display.display_query3 q; print_newline();
 	  raise (Error("Focus: query not found", dummy_ext));
       | [qentry] ->
+	  begin
+	    match Settings.get_query_status qentry with
+	    | Inactive ->
+		print_string "Focus: the following query is inactive:\n";
+		print_string "  "; Display.display_query3 q; print_newline();
+		raise (Error("You cannot focus on a query that is already inactive", dummy_ext))
+	    | Proved _ ->
+		print_string "Focus: the following query is already proved:\n";
+		print_string "  "; Display.display_query3 q; print_newline();
+		raise (Error("You cannot focus on a query that is already proved", dummy_ext))		
+	    | ToProve -> ()
+	  end;
 	  if List.memq qentry accu then
 	    begin
 	      print_string "Focus: the following query is already mentioned in the same focus command\n";
-	      print_string "  - "; Display.display_query3 q; print_newline();
+	      print_string "  "; Display.display_query3 q; print_newline();
 	      raise (Error("Focusing on several times the same query", dummy_ext))
 	    end;
 	  map_queries (qentry::accu) restfocusql allql
