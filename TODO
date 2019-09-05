@@ -1,3 +1,7 @@
+- Compare test outputs (after rewriting FindCompos and dependency analyses)
+- Document the new usage of size estimates for
+let f(x,M) = M' in..xs
+
 Simplify1.matches might forget some collisions that should in fact remain,
 when the variables have the same name in different collisions, but
 actually a different content -- perhaps taking the maximum of the probabilities,
@@ -5,540 +9,8 @@ or requiring that the probabilities match, would solve the issue,
 as in this situation the two collisions are applied with different
 values of the indices for the common variables.
 
-Improve FindCompos to exploit collisions (with non-zero probability)
-in order to prove injectivity.
-Currently, find_compos_bin works as follows:
-  if M = X, X is independent of x, and M determines x, then 
-  we bound the probability that M = X. "M determines x" 
-  is proved by building M' obtained from M by replacing all variables
-  that depend on x with fresh variables. In particular, x is
-  replaced by x'. We prove that M = M' implies x = x', using
-  only equations (no collision statements).
-It would be better to work as follows:
-  if M = X and X is independent of x, then there exists a term M',
-  obtained from M by replacing all variables that depend on x with 
-  fresh variables, such that M' = X and M' is independent of x.
-  Then the probability that M = X is bounded by the probability that
-  M = M'. The latter probability can be bounded using both
-  equations and collision statements.
-Note: the form chosen for M' is good when using equations/collisions
-that show injectivity, e.g. (f(y) = f(z)) = (y = z), but in general
-other forms of M' may perhaps be better? It still seems difficult to consider
-other forms of M'.
-The better definition of find_compos_bin would allow CV to infer
-the collisions
-collision y <-R Z; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Z))=> return(false)
-	  if X independent-of y.
-+ the same with exp_div_k' instead of exp_div_k
-+ the same with subGtoG instead of pow_k(subGtoG
-in DH_X25519, DH_X448, DH_single_coord_ladder.
-
-Notes on the change in FindCompos:
-
-Difficulty: find_compos is used for computing some dependency information,
-storing that a variable characterizes another.
-If I change the interface of find_compos, I need to adapt that information as well.
-
-**** src/simplify1.ml:1068:	match FindCompos.find_compos check (b, (None, defl_before)) (b,(FindCompos.Decompos, b.btype)) t1' with
-
-	let check (b, (st, _)) l =
-          if (!Settings.debug_elsefind_facts) then
-            begin
-              print_string "check: b="; Display.display_binder b; 
-	      print_string ", l=";Display.display_list Display.display_term l;
-	      print_string ", l_after'=";Display.display_list Display.display_term l_after';
-	      print_newline ()
-            end;
-	  if List.for_all2 Terms.equal_terms l l_after' then
-	    Some (st, FindCompos.CharacType b.btype)
-	  else
-	    None
-	in
-	match FindCompos.find_compos check (b, (None, defl_before)) (b,(FindCompos.Decompos, b.btype)) t1' with
-	  Some(_, FindCompos.CharacType charac_type, t1'') -> 
-	    begin
-	    try 
-              if (!Settings.debug_elsefind_facts) then
-                begin
-                  print_string "FindCompos ok";print_newline ()
-                end;
-	      let t2' = FindCompos.is_indep (b, (None, defl_before)) t2 in
-	      (* add probability, if small enough. returns true if proba small enough, false otherwise *)
-	      add_term_collisions (cur_array, true_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') [charac_type]
-	    with Not_found -> false
-	    end
-	| Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
-	| None -> false
-
-
-**** src/simplify1.ml:1832:	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
-
-	let t1_simp_ind = FindCompos.remove_array_index t1 in
-	let check (b, (st, _)) tl =
-	  if List.for_all2 Terms.equal_terms tl l_simp_ind then
-	    Some (st, FindCompos.CharacType b.btype) 
-	  else 
-	    None
-	in
-	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
-	  Some(_, FindCompos.CharacType charac_type, t1') -> 
-	    begin
-	      try 
-		let collect_bargs = ref [] in
-		let collect_bargs_sc = ref [] in
-		let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
-		let side_condition = 
-		  Terms.make_and_list (List.map (fun l' ->
-		    Terms.make_or_list (List.map2 Terms.make_diff l l')
-		      ) (!collect_bargs_sc))
-		in
-	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
-		  Some (Terms.make_or_list (List.map (fun l' ->   
-		    let t2'' = Terms.replace l' l t2_eq in
-		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
-		      ) (!collect_bargs)))
-		else
-		  None
-	      with Not_found -> 
-		None
-	    end
-       | _ -> None
-
-**** src/transf_globaldepanal.ml:275:          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t0 with
-
-(* [find_compos_list t] returns [Some(st,charac_type,t',l_opt')]
-   when [t] characterizes a part of [b0] of type determined by [charac_type]
-   (i.e. only one value of that part of [b0] can yield a certain value of [t];
-   [st] is 
-        - [Compos] when [t] is obtained from [b0] by first applying
-        poly-injective functions (functions marked [data]), then
-        functions that extract a part of their argument 
-        (functions marked [uniform]).
-        - [Decompos] when [t] is obtained from [b0] by applying functions
-        that extract a part of their argument (functions marked [uniform])
-   [t'] is a modified version of the term [t] in which the parts not
-   useful to show that [t] characterizes a part of [b0] are replaced with
-   fresh variables.
-   [l_opt'] is [Some l] when [t] characterizes a part of the cell [b0[l]]
-           and [None] when [t] characterizes a part of some unknown cell of [b0]. *)
-
-let rec find_compos_rec t0 t =
-  match t.t_desc with
-    Var(b,l) when not (List.exists depends l) ->
-      begin
-        try 
-          let (_,(_,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
-          let check (b, (st, _)) tl =
-            if Terms.equal_term_lists l tl then
-              Some (st, CharacTypeOfVar b)
-            else
-              None
-          in
-          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t0 with
-	    Some(st,charac_type,t') -> 
-	      let l_opt' = 
-		match !charac_args_opt with
-		  None -> None
-		| Some b0_ind ->
-		    (* b[args_at_creation] characterizes b0[b0_ind] *)
-                    let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
-		    (* t0 characterizes b[l], so it characterizes b0[l'] *)
-		    Some l'
-	      in
-	      Some(st,charac_type,t',l_opt')
-	  | None -> None
-	with Not_found ->
-	  None
-      end
-  | FunApp(f,l) ->
-      Terms.find_some (find_compos_rec t0) l
-  | _ -> None
-
-let find_compos_list t = find_compos_rec t t
-
-Typical usage:
-
-        match find_compos_list t1 with
-	  Some(_, charac_type,t1',_) ->
-	    if depends t2 then
-	      BothDepB
-	    else 
-	      begin
-                (* add probability *)
-		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2, charac_type);
-		local_changed := true;
-		if (f.f_cat == Diff) then OnlyThen else OnlyElse
-	      end
-	| None -> ...
-
-**** src/transf_globaldepanal.ml:365:          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t1 with
-
-          let (_,(st,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
-	  if st = Any then
-	    (* [b] depends on [b0] but does not characterize it *)
-	    raise Depends;
-          let check (b, (st, _)) tl =
-            if Terms.equal_term_lists l tl then
-              Some (st, CharacTypeOfVar b)
-            else
-              None
-          in
-          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t1 with
-            Some(_, charac_type, t1') -> 
-	      begin
-		match !charac_args_opt with
-		  Some b0_ind ->
-		    (* b[args_at_creation] characterizes b0[b0_ind] *)
-                    let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
-		    (* t1 characterizes b[l], so it characterizes b0[l'] *)
-		    let collect_bargs = ref [] in
-		    get_dep_indices collect_bargs t2;
-		    if List.exists (List.for_all2 Terms.equal_terms l') (!collect_bargs) then
-		      (* If t2 depends on b0[l'], we cannot eliminate collisions *)
-	              raise Depends;
-		    let side_condition = 
-		      Terms.make_and_list (List.map (fun l'' ->
-			Terms.make_or_list (List.map2 Terms.make_diff l' l'')
-			  ) (!collect_bargs))
-		    in
-	            (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		    if add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1',t2,charac_type) (Some l') then
-		      let res = 
-			Terms.make_or_list (List.map (fun l'' ->   
-			let t2'' = Terms.replace l'' l' t2 in
-			Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l' l'')) (Terms.make_equal t1 t2'')
-			  ) (!collect_bargs))
-		      in
-		      (*print_string "Simplified ";
-		      Display.display_term t1;
-		      print_string " = ";
-		      Display.display_term t2;
-		      print_string " into ";
-		      Display.display_term res;
-		      print_newline();*)
-		      Some res
-		    else
-		      None
-		| None -> 
-		    (* b[args_at_creation] characterizes b0 for some unknown indices *)
-		    let collect_bargs = ref [] in
-		    get_dep_indices collect_bargs t2;
-                    if !collect_bargs != [] then
-                      (* if [t2] depends on [b0], the dependency analysis fails to
-			 eliminate the required collisions *)
-		      None
-	            (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		    else if add_collisions_for_current_check_dependency2 cur_array true_facts (Terms.make_true()) (t1',t2,charac_type) None then
-		      begin
-		      (*print_string "Simplified ";
-		      Display.display_term t1;
-		      print_string " = ";
-		      Display.display_term t2;
-		      print_string " into false\n";*)
-		      Some (Terms.make_false())
-		      end
-		    else
-		      None
-	      end
-          | _ -> None
-
-
-src/transf_simplify.ml:150:  match FindCompos.find_compos_list check var_depinfo seen_list' t with
-=> This is the only call to FindCompos.find_compos_list.
-Move it out of the FindCompos module and define it in transf_simplify.ml?
-
-let check (b, (st, (bct, _))) l =
-  if Terms.is_args_at_creation b l then
-    Some (st, CharacType bct)
-  else
-    None
-
-let find_compos_list ((b, (dep, nodep)) as var_depinfo) t =
-  let seen_list' = match dep with
-    Some seen_list -> seen_list
-  | None -> [(b,(Decompos, (b.btype, Terms.term_from_binder b)))]
-  in
-  match FindCompos.find_compos_list check var_depinfo seen_list' t with
-    Some(st, CharacType charac_type, t', b', (_,assign)) -> Some(st, charac_type, t', b', assign)
-  | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
-  | None -> None
-
-(* checkassign1 is called when the assigned term depends on b with status st
-   Raises Else when only the else branch of the let may be taken *)
-let rec check_assign1 cur_array true_facts ((t1, t2, b, charac_type) as proba_info) bdep_info st pat =
-  match pat with
-    PatVar _ -> ()
-  | PatTuple(f,l) ->
-      let st' = if st != Decompos then Any else st in
-      List.iter (check_assign1 cur_array true_facts proba_info bdep_info st') l
-  | PatEqual t ->
-      if (depends bdep_info t) || 
-        (not (Proba.is_large_term t)) || (st == Any) then
-	()
-      else
-	begin
-	  (* add probability *)
-	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
-	      t1 t2 b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
-	    raise Else
-	end
-
-(* check_assign2 is called when the assigned term does not depend on b
-   Return None when both branches may be taken and
-          Some(charac_type, t') when only the else branch of the let
-          may be taken. t' is the term with which the collision is
-          eliminated and charac_type is the type of the part of t'
-          characterized by the value of t' *)
-let rec check_assign2 bdepinfo = function
-    PatVar _ ->
-      None
-  | PatTuple(f,l) ->
-      begin
-        match check_assign2_list bdepinfo l with
-	  None -> None
-	| Some(charac_type, l') ->
-	    Some(charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
-      end
-  | PatEqual t ->
-      match find_compos_list bdepinfo t with
-	Some (status, charac_type, t', b2, b2fromb) when Proba.is_large_term t ->
-	  Some (charac_type, subst b2 b2fromb t')
-      |	_ ->
-	  None
-
-and check_assign2_list bdepinfo = function
-    [] -> None
-  | (a::l) ->
-      match check_assign2 bdepinfo a with
-	None -> 
-	  begin
-	    match check_assign2_list bdepinfo l with
-	      None -> None
-	    | Some(charac_type, l') -> Some(charac_type, (any_term_pat a)::l')
-	  end
-      |	Some(charac_type, a') -> Some(charac_type, a'::(List.map any_term_pat l))
-
-
-	      let t1' = remove_dep_array_index bdepinfo t1 in
-	      match find_compos_list bdepinfo t1' with
-		Some(_, charac_type, t1'', b2, b2fromb) ->
-		  begin
-		    try 
-		      let t2' = is_indep bdepinfo t2 in
-                      (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) (subst b2 b2fromb t1'') t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
-		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
-		    with Not_found ->
-		      try_dep_info restl
-		  end
-	      | None -> ...
-
-            let dep_info' = 
-              List.map (fun ((b, (dep, nodep)) as bdepinfo) ->
-		if depends bdepinfo t then
-		  match dep with
-		    None -> bdepinfo
-		  | Some dl ->
-                      match find_compos_list bdepinfo t with
-	                Some (st, charac_type, t', b2, b2fromb) -> 
-			  (b, (Some ((b',(st, (charac_type, subst b2 b2fromb t')))::dl), nodep))
-                      | None -> 
-			  let rec find_dep = function
-			      [] -> 
-				Parsing_helper.internal_error "t does not depend on b; this should have been detected by depends before"
-                                (*(b, (dep, (Terms.term_from_binder b')::nodep))*)
-			    | (b2, (_, (_, b2fromb)))::dep' ->
-				if Terms.refers_to b2 t then
-				  (b, (Some ((b', (Any, (b.btype, subst b2 b2fromb t)))::dl), nodep))
-				else
-				  find_dep dep'
-			  in
-			  find_dep dl
-		else
-		  (b, (dep, (Terms.term_from_binder b')::nodep))
-                 ) dep_info 
-            in
-
-	        let t' = FindCompos.remove_dep_array_index bdepinfo t in
-		let pat' = remove_dep_array_index_pat bdepinfo pat in
-		match find_compos_list bdepinfo t' with
-		  Some (st, charac_type, t'', b2, b2fromb) ->
-		    check_assign1 cur_array true_facts (subst b2 b2fromb t'', Terms.term_from_pat pat', b, charac_type) bdepinfo st pat';
-		    true
-		| None ->
-		    begin
-		      if depends bdepinfo t' then () else
-                      match check_assign2 bdepinfo pat' with
-			None -> ()
-		      |	Some(charac_type, t1') ->
-			  (* Add probability *)
-			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
-			    raise Else
-		    end;
-		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
-
-
-
-src/transf_simplify.ml:156:  match FindCompos.find_compos check (b, depinfo) (b,(Decompos, (b.btype, Terms.term_from_binder b))) t with
-
-(* Inside DepAnal2.
-   Same check as above *)
-
-let find_compos_glob depinfo b t =
-  match FindCompos.find_compos check (b, depinfo) (b,(Decompos, (b.btype, Terms.term_from_binder b))) t with
-    Some(_, CharacType charac_type, t') -> Some(charac_type, t')
-  | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
-  | None -> None
-
-(* Outside DepAnal2 *)
-
-	 let depinfo = DepAnal2.get_dep_info dep_info b in
-	 let t1' = FindCompos.remove_dep_array_index (b,depinfo) t1 in
-	 match DepAnal2.find_compos_glob depinfo b t1' with
-	   None -> None
-	 | Some(charac_type, t1'') ->
-	    try 
-	      let collect_bargs = ref [] in
-	      let collect_bargs_sc = ref [] in
-	      let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
-	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
-                 In case b occurs in t2, we reason as follows:
-                    1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
-                       We eliminate collisions under that additional condition, hence the equality 
-                       t1 = t2 is false in this case.
-                       We collect in collect_bargs the indices l_i of b in t2. Hence the additional
-                       condition is &&_(l_i in collect_bargs) l <> l_i. This condition is added
-                       as side_condition below.
-                    2/ Therefore, we can replace t1 = t2 with 
-	               (t1 = t2) && (||_(l_i in collect_bargs) l = l_i),
-	               which we rewrite
-                       ||_(l_i in collect_bargs) (l = l_i && t1 = t2 { l/l_i }) 
-		 *)
-	      let side_condition = 
-		Terms.make_and_list (List.map (fun l' ->
-		  Terms.make_or_list (List.map2 Terms.make_diff l l')
-		    ) (!collect_bargs_sc))
-	      in
-	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
-		Some (Terms.make_or_list (List.map (fun l' ->   
-		  let t2'' = Terms.replace l' l t2_eq in
-		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
-		    ) (!collect_bargs)))
-              else
-                None
-	    with Not_found -> None
-
-src/transf_simplify.ml:586:	match FindCompos.find_compos check (b,(None, [])) (b,(FindCompos.Decompos, ref [FindCompos.CharacType b.btype])) t1 with
-
-	let check (b, (st, _)) l' = 
-	  if List.for_all2 Terms.equal_terms l' l then
-	    Some (st, FindCompos.CharacTypeOfVar b) 
-	  else
-	    None
-	in
-	match FindCompos.find_compos check (b,(None, [])) (b,(FindCompos.Decompos, ref [FindCompos.CharacType b.btype])) t1 with
-	  None -> None
-	| Some _ -> 
-	    if List.memq b (!failure_check_all_deps) then None else
-	    begin
-	      print_string "Doing global dependency analysis on ";
-	      Display.display_binder b;
-	      print_string " inside simplify... "; flush stdout;
-	      let current_proba_state = Proba.get_current_state() in
-	      let current_term_collisions = !term_collisions in
-	      match Transf_globaldepanal.check_all_deps b (!proba_state_at_beginning_iteration) (!whole_game) with
-		None -> 
-		  (* global dependency analysis failed *)
-		  print_string "No change"; print_newline();
-		  Proba.restore_state current_proba_state;
-		  term_collisions := current_term_collisions;
-		  failure_check_all_deps := b :: (!failure_check_all_deps);
-		  None
-	      | Some(res_game) ->
-		  (* global dependency analysis succeeded. 
-                     Restart simplification from the result of global dep anal *)
-		  print_string "Done. Restarting simplify"; print_newline();
-		  Settings.changed := true;
-		  raise (Restart(b, res_game))
-	    end
-
-Three possible results:
-
-- Decompos(l0opt): [t] is obtained from [b0[l0]] by applying decomposition functions,
-  which extract part of their argument, when l0opt = Some l0.
-  [t] is obtained from [b0[l0']] by applying decomposition functions,
-  for some l0', when l0opt = None.
-- Compos(p, t_1, l0opt): for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
-  when l0opt = Some l0.
-  for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
-  when l0opt = None.
-  [t_1] is a modified version of [t] in which the parts that are not useful
-  to show this property are replaced with variables [?].
-  [p] is the probability for one test t = t'. It should be multiplied by
-  the number of executions outside of find_compos.
-  [p] replaces CharacType
-- Any: no property proved
-
-Decompos(l0opt) => Compos(PColl1Rand t.t_type, t, l0opt)
-
-The term "assign" in DepAnal2 that defines how to compute a variable from the
-initial dependency can be computed outside find_compos, by substituting
-all variables that depend on b0 with their values. (Put links for all
-these variables to speed up the substitution.)
-
-find_compos (b0, b0depinfo) l0opt t
-
-get_status b[l] =
-   if b = b0 then
-      if l0opt = Some l || l0opt = None then Decompos(l0opt) else Any
-   else
-      let (dep, nodep) = b0depinfo in
-      match dep with
-      | None -> Any
-      | Some ldep ->
-         try
-           let (st, _) = List.assq b ldep in
-	   substitute b.args_at_creation with l in l0opt in st
-	   if l0opt = Some l' , check that the resulting l0opt' is l'; if not, return Any
-	   return st
-	 with Not_found -> Any
-
-Add a case "ProbaIndepOfVar b" in the probability formula
-associated to the Compos status,
-representing a probability p such that
-for all M independent of b0[l0], Pr[b[l] = M] <= p
-That replaces CharacTypeOfVar.
-But how are l0 and l determined?
-- l0 comes from l0opt in Compos, any index when l0opt = None
-- l coming from the status of b, which must itself be Compos?
-  When l0opt = None, l is any index.
-  When l0opt = Some l0, the status of b must be Compos(p_b, t_1, Some l0'),
-  which tells us b[args_at_creation] depends on b0[l0'].
-  Then l is such that l0 = l0'{l/args_at_creation}
-  Such an l exists, because it is how l0opt = Some l0 is computed.
-  p_b is initially "ProbaIndepOfVar b" and could be replaced with
-  the actual value when it has been computed from all definitions of b.
-[CANNOT AVOID THAT, even though I can compute the actual probability
-from dvar_list *before* the check_depend_process pass:
-if b2 is defined from b1 defined from b0,
-and I add a definition of b1, I need to update the probability for
-b2, and I can do that only if I have the probability for b2 as
-a function of the one for b1, using ProbaIndepOfVar b1.]
-DONE 23/8/2019 Added ProbaIndepCollOfVar
-
-WARNING: the "dep" component of bdepinfo does not have exactly
-the same meaning in DepAnal2 and in globaldepanal:
-- In DepAnal2, the information applies only for x[args_at_creation]
-- In globaldepanal, it applies for any indices (by substituting
-the desired indices for args_at_creation)
-find_compos should take this point into account.
-
-See also item 15a) and to a lesser extent 15b).
-
-====== End of the notes on the change in FindCompos
+Apply collisions as well in the binary case of Simplify1.FindCompos.find_compos_gen
+(possibly by modifying function Simplify1.FindCompos.apply_eq_statements
 
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
@@ -4152,3 +3624,540 @@ all functions that need to access the internals of strings inside the
 same module. This has no cost in terms of performance.
 DONE: the type string is now immutable in OCaml, and our code has
 been revised to exploit that.
+
+========== Notes on the change in FindCompos:
+
+Improve FindCompos to exploit collisions (with non-zero probability)
+in order to prove injectivity.
+Currently, find_compos_bin works as follows:
+  if M = X, X is independent of x, and M determines x, then 
+  we bound the probability that M = X. "M determines x" 
+  is proved by building M' obtained from M by replacing all variables
+  that depend on x with fresh variables. In particular, x is
+  replaced by x'. We prove that M = M' implies x = x', using
+  only equations (no collision statements).
+It would be better to work as follows:
+  if M = X and X is independent of x, then there exists a term M',
+  obtained from M by replacing all variables that depend on x with 
+  fresh variables, such that M' = X and M' is independent of x.
+  Then the probability that M = X is bounded by the probability that
+  M = M'. The latter probability can be bounded using both
+  equations and collision statements.
+Note: the form chosen for M' is good when using equations/collisions
+that show injectivity, e.g. (f(y) = f(z)) = (y = z), but in general
+other forms of M' may perhaps be better? It still seems difficult to consider
+other forms of M'.
+The better definition of find_compos_bin would allow CV to infer
+the collisions
+collision y <-R Z; forall X: subG;
+	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Z))=> return(false)
+	  if X independent-of y.
++ the same with exp_div_k' instead of exp_div_k
++ the same with subGtoG instead of pow_k(subGtoG
+in DH_X25519, DH_X448, DH_single_coord_ladder.
+
+
+Difficulty: find_compos is used for computing some dependency information,
+storing that a variable characterizes another.
+If I change the interface of find_compos, I need to adapt that information as well.
+
+**** src/simplify1.ml:1068:	match FindCompos.find_compos check (b, (None, defl_before)) (b,(FindCompos.Decompos, b.btype)) t1' with
+
+	let check (b, (st, _)) l =
+          if (!Settings.debug_elsefind_facts) then
+            begin
+              print_string "check: b="; Display.display_binder b; 
+	      print_string ", l=";Display.display_list Display.display_term l;
+	      print_string ", l_after'=";Display.display_list Display.display_term l_after';
+	      print_newline ()
+            end;
+	  if List.for_all2 Terms.equal_terms l l_after' then
+	    Some (st, FindCompos.CharacType b.btype)
+	  else
+	    None
+	in
+	match FindCompos.find_compos check (b, (None, defl_before)) (b,(FindCompos.Decompos, b.btype)) t1' with
+	  Some(_, FindCompos.CharacType charac_type, t1'') -> 
+	    begin
+	    try 
+              if (!Settings.debug_elsefind_facts) then
+                begin
+                  print_string "FindCompos ok";print_newline ()
+                end;
+	      let t2' = FindCompos.is_indep (b, (None, defl_before)) t2 in
+	      (* add probability, if small enough. returns true if proba small enough, false otherwise *)
+	      add_term_collisions (cur_array, true_facts, order_assumptions, Terms.make_true()) t1'' t2' b (Some l_after') [charac_type]
+	    with Not_found -> false
+	    end
+	| Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
+	| None -> false
+
+
+**** src/simplify1.ml:1832:	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
+
+	let t1_simp_ind = FindCompos.remove_array_index t1 in
+	let check (b, (st, _)) tl =
+	  if List.for_all2 Terms.equal_terms tl l_simp_ind then
+	    Some (st, FindCompos.CharacType b.btype) 
+	  else 
+	    None
+	in
+	match FindCompos.find_compos check (b,FindCompos.init_elem) (b, (FindCompos.Decompos, b.btype)) t1_simp_ind with
+	  Some(_, FindCompos.CharacType charac_type, t1') -> 
+	    begin
+	      try 
+		let collect_bargs = ref [] in
+		let collect_bargs_sc = ref [] in
+		let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,FindCompos.init_elem,collect_bargs,collect_bargs_sc) t2 in
+		let side_condition = 
+		  Terms.make_and_list (List.map (fun l' ->
+		    Terms.make_or_list (List.map2 Terms.make_diff l l')
+		      ) (!collect_bargs_sc))
+		in
+	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) [charac_type] then
+		  Some (Terms.make_or_list (List.map (fun l' ->   
+		    let t2'' = Terms.replace l' l t2_eq in
+		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
+		      ) (!collect_bargs)))
+		else
+		  None
+	      with Not_found -> 
+		None
+	    end
+       | _ -> None
+
+**** src/transf_globaldepanal.ml:275:          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t0 with
+
+(* [find_compos_list t] returns [Some(st,charac_type,t',l_opt')]
+   when [t] characterizes a part of [b0] of type determined by [charac_type]
+   (i.e. only one value of that part of [b0] can yield a certain value of [t];
+   [st] is 
+        - [Compos] when [t] is obtained from [b0] by first applying
+        poly-injective functions (functions marked [data]), then
+        functions that extract a part of their argument 
+        (functions marked [uniform]).
+        - [Decompos] when [t] is obtained from [b0] by applying functions
+        that extract a part of their argument (functions marked [uniform])
+   [t'] is a modified version of the term [t] in which the parts not
+   useful to show that [t] characterizes a part of [b0] are replaced with
+   fresh variables.
+   [l_opt'] is [Some l] when [t] characterizes a part of the cell [b0[l]]
+           and [None] when [t] characterizes a part of some unknown cell of [b0]. *)
+
+let rec find_compos_rec t0 t =
+  match t.t_desc with
+    Var(b,l) when not (List.exists depends l) ->
+      begin
+        try 
+          let (_,(_,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
+          let check (b, (st, _)) tl =
+            if Terms.equal_term_lists l tl then
+              Some (st, CharacTypeOfVar b)
+            else
+              None
+          in
+          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t0 with
+	    Some(st,charac_type,t') -> 
+	      let l_opt' = 
+		match !charac_args_opt with
+		  None -> None
+		| Some b0_ind ->
+		    (* b[args_at_creation] characterizes b0[b0_ind] *)
+                    let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
+		    (* t0 characterizes b[l], so it characterizes b0[l'] *)
+		    Some l'
+	      in
+	      Some(st,charac_type,t',l_opt')
+	  | None -> None
+	with Not_found ->
+	  None
+      end
+  | FunApp(f,l) ->
+      Terms.find_some (find_compos_rec t0) l
+  | _ -> None
+
+let find_compos_list t = find_compos_rec t t
+
+Typical usage:
+
+        match find_compos_list t1 with
+	  Some(_, charac_type,t1',_) ->
+	    if depends t2 then
+	      BothDepB
+	    else 
+	      begin
+                (* add probability *)
+		add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2, charac_type);
+		local_changed := true;
+		if (f.f_cat == Diff) then OnlyThen else OnlyElse
+	      end
+	| None -> ...
+
+**** src/transf_globaldepanal.ml:365:          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t1 with
+
+          let (_,(st,(_,charac_args_opt,_))) as b_st = (b, List.assq b (!dvar_list)) in
+	  if st = Any then
+	    (* [b] depends on [b0] but does not characterize it *)
+	    raise Depends;
+          let check (b, (st, _)) tl =
+            if Terms.equal_term_lists l tl then
+              Some (st, CharacTypeOfVar b)
+            else
+              None
+          in
+          match FindCompos.find_compos check ((!main_var), (Some (!dvar_list), [])) b_st t1 with
+            Some(_, charac_type, t1') -> 
+	      begin
+		match !charac_args_opt with
+		  Some b0_ind ->
+		    (* b[args_at_creation] characterizes b0[b0_ind] *)
+                    let l' = List.map (Terms.subst b.args_at_creation l) b0_ind (* b0_ind{l/b.args_at_creation} *) in
+		    (* t1 characterizes b[l], so it characterizes b0[l'] *)
+		    let collect_bargs = ref [] in
+		    get_dep_indices collect_bargs t2;
+		    if List.exists (List.for_all2 Terms.equal_terms l') (!collect_bargs) then
+		      (* If t2 depends on b0[l'], we cannot eliminate collisions *)
+	              raise Depends;
+		    let side_condition = 
+		      Terms.make_and_list (List.map (fun l'' ->
+			Terms.make_or_list (List.map2 Terms.make_diff l' l'')
+			  ) (!collect_bargs))
+		    in
+	            (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+		    if add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1',t2,charac_type) (Some l') then
+		      let res = 
+			Terms.make_or_list (List.map (fun l'' ->   
+			let t2'' = Terms.replace l'' l' t2 in
+			Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l' l'')) (Terms.make_equal t1 t2'')
+			  ) (!collect_bargs))
+		      in
+		      (*print_string "Simplified ";
+		      Display.display_term t1;
+		      print_string " = ";
+		      Display.display_term t2;
+		      print_string " into ";
+		      Display.display_term res;
+		      print_newline();*)
+		      Some res
+		    else
+		      None
+		| None -> 
+		    (* b[args_at_creation] characterizes b0 for some unknown indices *)
+		    let collect_bargs = ref [] in
+		    get_dep_indices collect_bargs t2;
+                    if !collect_bargs != [] then
+                      (* if [t2] depends on [b0], the dependency analysis fails to
+			 eliminate the required collisions *)
+		      None
+	            (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+		    else if add_collisions_for_current_check_dependency2 cur_array true_facts (Terms.make_true()) (t1',t2,charac_type) None then
+		      begin
+		      (*print_string "Simplified ";
+		      Display.display_term t1;
+		      print_string " = ";
+		      Display.display_term t2;
+		      print_string " into false\n";*)
+		      Some (Terms.make_false())
+		      end
+		    else
+		      None
+	      end
+          | _ -> None
+
+
+src/transf_simplify.ml:150:  match FindCompos.find_compos_list check var_depinfo seen_list' t with
+=> This is the only call to FindCompos.find_compos_list.
+Move it out of the FindCompos module and define it in transf_simplify.ml?
+
+let check (b, (st, (bct, _))) l =
+  if Terms.is_args_at_creation b l then
+    Some (st, CharacType bct)
+  else
+    None
+
+let find_compos_list ((b, (dep, nodep)) as var_depinfo) t =
+  let seen_list' = match dep with
+    Some seen_list -> seen_list
+  | None -> [(b,(Decompos, (b.btype, Terms.term_from_binder b)))]
+  in
+  match FindCompos.find_compos_list check var_depinfo seen_list' t with
+    Some(st, CharacType charac_type, t', b', (_,assign)) -> Some(st, charac_type, t', b', assign)
+  | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
+  | None -> None
+
+(* checkassign1 is called when the assigned term depends on b with status st
+   Raises Else when only the else branch of the let may be taken *)
+let rec check_assign1 cur_array true_facts ((t1, t2, b, charac_type) as proba_info) bdep_info st pat =
+  match pat with
+    PatVar _ -> ()
+  | PatTuple(f,l) ->
+      let st' = if st != Decompos then Any else st in
+      List.iter (check_assign1 cur_array true_facts proba_info bdep_info st') l
+  | PatEqual t ->
+      if (depends bdep_info t) || 
+        (not (Proba.is_large_term t)) || (st == Any) then
+	()
+      else
+	begin
+	  (* add probability *)
+	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
+	      t1 t2 b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+	    raise Else
+	end
+
+(* check_assign2 is called when the assigned term does not depend on b
+   Return None when both branches may be taken and
+          Some(charac_type, t') when only the else branch of the let
+          may be taken. t' is the term with which the collision is
+          eliminated and charac_type is the type of the part of t'
+          characterized by the value of t' *)
+let rec check_assign2 bdepinfo = function
+    PatVar _ ->
+      None
+  | PatTuple(f,l) ->
+      begin
+        match check_assign2_list bdepinfo l with
+	  None -> None
+	| Some(charac_type, l') ->
+	    Some(charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
+      end
+  | PatEqual t ->
+      match find_compos_list bdepinfo t with
+	Some (status, charac_type, t', b2, b2fromb) when Proba.is_large_term t ->
+	  Some (charac_type, subst b2 b2fromb t')
+      |	_ ->
+	  None
+
+and check_assign2_list bdepinfo = function
+    [] -> None
+  | (a::l) ->
+      match check_assign2 bdepinfo a with
+	None -> 
+	  begin
+	    match check_assign2_list bdepinfo l with
+	      None -> None
+	    | Some(charac_type, l') -> Some(charac_type, (any_term_pat a)::l')
+	  end
+      |	Some(charac_type, a') -> Some(charac_type, a'::(List.map any_term_pat l))
+
+
+	      let t1' = remove_dep_array_index bdepinfo t1 in
+	      match find_compos_list bdepinfo t1' with
+		Some(_, charac_type, t1'', b2, b2fromb) ->
+		  begin
+		    try 
+		      let t2' = is_indep bdepinfo t2 in
+                      (* add probability; if too large to eliminate collisions, raise Not_found *)
+		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) (subst b2 b2fromb t1'') t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type]) then raise Not_found;
+		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
+		    with Not_found ->
+		      try_dep_info restl
+		  end
+	      | None -> ...
+
+            let dep_info' = 
+              List.map (fun ((b, (dep, nodep)) as bdepinfo) ->
+		if depends bdepinfo t then
+		  match dep with
+		    None -> bdepinfo
+		  | Some dl ->
+                      match find_compos_list bdepinfo t with
+	                Some (st, charac_type, t', b2, b2fromb) -> 
+			  (b, (Some ((b',(st, (charac_type, subst b2 b2fromb t')))::dl), nodep))
+                      | None -> 
+			  let rec find_dep = function
+			      [] -> 
+				Parsing_helper.internal_error "t does not depend on b; this should have been detected by depends before"
+                                (*(b, (dep, (Terms.term_from_binder b')::nodep))*)
+			    | (b2, (_, (_, b2fromb)))::dep' ->
+				if Terms.refers_to b2 t then
+				  (b, (Some ((b', (Any, (b.btype, subst b2 b2fromb t)))::dl), nodep))
+				else
+				  find_dep dep'
+			  in
+			  find_dep dl
+		else
+		  (b, (dep, (Terms.term_from_binder b')::nodep))
+                 ) dep_info 
+            in
+
+	        let t' = FindCompos.remove_dep_array_index bdepinfo t in
+		let pat' = remove_dep_array_index_pat bdepinfo pat in
+		match find_compos_list bdepinfo t' with
+		  Some (st, charac_type, t'', b2, b2fromb) ->
+		    check_assign1 cur_array true_facts (subst b2 b2fromb t'', Terms.term_from_pat pat', b, charac_type) bdepinfo st pat';
+		    true
+		| None ->
+		    begin
+		      if depends bdepinfo t' then () else
+                      match check_assign2 bdepinfo pat' with
+			None -> ()
+		      |	Some(charac_type, t1') ->
+			  (* Add probability *)
+			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+			    raise Else
+		    end;
+		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
+
+
+
+src/transf_simplify.ml:156:  match FindCompos.find_compos check (b, depinfo) (b,(Decompos, (b.btype, Terms.term_from_binder b))) t with
+
+(* Inside DepAnal2.
+   Same check as above *)
+
+let find_compos_glob depinfo b t =
+  match FindCompos.find_compos check (b, depinfo) (b,(Decompos, (b.btype, Terms.term_from_binder b))) t with
+    Some(_, CharacType charac_type, t') -> Some(charac_type, t')
+  | Some _ -> Parsing_helper.internal_error "CharacTypeOfVar should not be used in DepAnal2"
+  | None -> None
+
+(* Outside DepAnal2 *)
+
+	 let depinfo = DepAnal2.get_dep_info dep_info b in
+	 let t1' = FindCompos.remove_dep_array_index (b,depinfo) t1 in
+	 match DepAnal2.find_compos_glob depinfo b t1' with
+	   None -> None
+	 | Some(charac_type, t1'') ->
+	    try 
+	      let collect_bargs = ref [] in
+	      let collect_bargs_sc = ref [] in
+	      let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
+                 In case b occurs in t2, we reason as follows:
+                    1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
+                       We eliminate collisions under that additional condition, hence the equality 
+                       t1 = t2 is false in this case.
+                       We collect in collect_bargs the indices l_i of b in t2. Hence the additional
+                       condition is &&_(l_i in collect_bargs) l <> l_i. This condition is added
+                       as side_condition below.
+                    2/ Therefore, we can replace t1 = t2 with 
+	               (t1 = t2) && (||_(l_i in collect_bargs) l = l_i),
+	               which we rewrite
+                       ||_(l_i in collect_bargs) (l = l_i && t1 = t2 { l/l_i }) 
+		 *)
+	      let side_condition = 
+		Terms.make_and_list (List.map (fun l' ->
+		  Terms.make_or_list (List.map2 Terms.make_diff l l')
+		    ) (!collect_bargs_sc))
+	      in
+	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) [charac_type] then
+		Some (Terms.make_or_list (List.map (fun l' ->   
+		  let t2'' = Terms.replace l' l t2_eq in
+		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
+		    ) (!collect_bargs)))
+              else
+                None
+	    with Not_found -> None
+
+src/transf_simplify.ml:586:	match FindCompos.find_compos check (b,(None, [])) (b,(FindCompos.Decompos, ref [FindCompos.CharacType b.btype])) t1 with
+
+	let check (b, (st, _)) l' = 
+	  if List.for_all2 Terms.equal_terms l' l then
+	    Some (st, FindCompos.CharacTypeOfVar b) 
+	  else
+	    None
+	in
+	match FindCompos.find_compos check (b,(None, [])) (b,(FindCompos.Decompos, ref [FindCompos.CharacType b.btype])) t1 with
+	  None -> None
+	| Some _ -> 
+	    if List.memq b (!failure_check_all_deps) then None else
+	    begin
+	      print_string "Doing global dependency analysis on ";
+	      Display.display_binder b;
+	      print_string " inside simplify... "; flush stdout;
+	      let current_proba_state = Proba.get_current_state() in
+	      let current_term_collisions = !term_collisions in
+	      match Transf_globaldepanal.check_all_deps b (!proba_state_at_beginning_iteration) (!whole_game) with
+		None -> 
+		  (* global dependency analysis failed *)
+		  print_string "No change"; print_newline();
+		  Proba.restore_state current_proba_state;
+		  term_collisions := current_term_collisions;
+		  failure_check_all_deps := b :: (!failure_check_all_deps);
+		  None
+	      | Some(res_game) ->
+		  (* global dependency analysis succeeded. 
+                     Restart simplification from the result of global dep anal *)
+		  print_string "Done. Restarting simplify"; print_newline();
+		  Settings.changed := true;
+		  raise (Restart(b, res_game))
+	    end
+
+Three possible results:
+
+- Decompos(l0opt): [t] is obtained from [b0[l0]] by applying decomposition functions,
+  which extract part of their argument, when l0opt = Some l0.
+  [t] is obtained from [b0[l0']] by applying decomposition functions,
+  for some l0', when l0opt = None.
+- Compos(p, t_1, l0opt): for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+  when l0opt = Some l0.
+  for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+  when l0opt = None.
+  [t_1] is a modified version of [t] in which the parts that are not useful
+  to show this property are replaced with variables [?].
+  [p] is the probability for one test t = t'. It should be multiplied by
+  the number of executions outside of find_compos.
+  [p] replaces CharacType
+- Any: no property proved
+
+Decompos(l0opt) => Compos(PColl1Rand t.t_type, t, l0opt)
+
+The term "assign" in DepAnal2 that defines how to compute a variable from the
+initial dependency can be computed outside find_compos, by substituting
+all variables that depend on b0 with their values. (Put links for all
+these variables to speed up the substitution.)
+
+find_compos (b0, b0depinfo) l0opt t
+
+get_status b[l] =
+   if b = b0 then
+      if l0opt = Some l || l0opt = None then Decompos(l0opt) else Any
+   else
+      let (dep, nodep) = b0depinfo in
+      match dep with
+      | None -> Any
+      | Some ldep ->
+         try
+           let (st, _) = List.assq b ldep in
+	   substitute b.args_at_creation with l in l0opt in st
+	   if l0opt = Some l' , check that the resulting l0opt' is l'; if not, return Any
+	   return st
+	 with Not_found -> Any
+
+Add a case "ProbaIndepOfVar b" in the probability formula
+associated to the Compos status,
+representing a probability p such that
+for all M independent of b0[l0], Pr[b[l] = M] <= p
+That replaces CharacTypeOfVar.
+But how are l0 and l determined?
+- l0 comes from l0opt in Compos, any index when l0opt = None
+- l coming from the status of b, which must itself be Compos?
+  When l0opt = None, l is any index.
+  When l0opt = Some l0, the status of b must be Compos(p_b, t_1, Some l0'),
+  which tells us b[args_at_creation] depends on b0[l0'].
+  Then l is such that l0 = l0'{l/args_at_creation}
+  Such an l exists, because it is how l0opt = Some l0 is computed.
+  p_b is initially "ProbaIndepOfVar b" and could be replaced with
+  the actual value when it has been computed from all definitions of b.
+[CANNOT AVOID THAT, even though I can compute the actual probability
+from dvar_list *before* the check_depend_process pass:
+if b2 is defined from b1 defined from b0,
+and I add a definition of b1, I need to update the probability for
+b2, and I can do that only if I have the probability for b2 as
+a function of the one for b1, using ProbaIndepOfVar b1.]
+DONE 23/8/2019 Added ProbaIndepCollOfVar
+
+WARNING: the "dep" component of bdepinfo does not have exactly
+the same meaning in DepAnal2 and in globaldepanal:
+- In DepAnal2, the information applies only for x[args_at_creation]
+- In globaldepanal, it applies for any indices (by substituting
+the desired indices for args_at_creation)
+find_compos should take this point into account.
+
+See also item 15a) and to a lesser extent 15b).
+
+====== End of the notes on the change in FindCompos
+DONE 5/9/2019, tests still to check
