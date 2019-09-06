@@ -3339,7 +3339,7 @@ let rec check_one = function
 		begin
 		  List.iter (fun ty ->
 		    if ty.toptions land Settings.tyopt_BOUNDED == 0 then
-		      print_string ("Warning: due to the injective function " ^ s1 ^ ", the type " ^ ty.tname ^ " must be bounded. You should declare it as such (or revise the other declarations if it is not bounded).")
+		      print_string ("Warning: due to the injective function " ^ s1 ^ ", the type " ^ ty.tname ^ " must be bounded. You should declare it as such (or revise the other declarations if it is not bounded).\n")
 		    ) l'
 		end;
 	      if Terms.sum_list (fun ty -> ty.tsize) l' > sr'.tsize then

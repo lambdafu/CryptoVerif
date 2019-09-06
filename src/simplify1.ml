@@ -761,7 +761,7 @@ let rec find_compos_gen decompos_only allow_bin (main_var, depinfo) l0opt t =
       (* In a simpler version, we would remove 
 	 find_compos_bin, find_compos_bin_l, find_decompos_bin, subst,
 	 apply_statement2, apply_all_red2, apply_statements
-	 and replace this case with None
+	 and replace this case with Any
 	 *)
       let vcounter = Terms.get_var_num_state() in
       let main_var' = indep_binder main_var in
