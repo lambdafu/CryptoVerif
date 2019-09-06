@@ -741,7 +741,7 @@ let rec find_compos_gen decompos_only allow_bin (main_var, depinfo) l0opt t =
 	    | Compos(proba, t_1, l0opt') ->
 		if decompos_only then Any else
 		let l0opt' = subst_l0opt b' l l0opt' in
-		if ok_l0opt l0opt l0opt' then Compos(proba, t_1, l0opt') else Any
+		if ok_l0opt l0opt l0opt' then Compos(proba, Terms.subst b'.args_at_creation l t_1, l0opt') else Any
 	with Not_found -> Any
       end
   | FunApp(f,l) when (f.f_options land Settings.fopt_COMPOS) != 0 ->
