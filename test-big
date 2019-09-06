@@ -208,7 +208,7 @@ else
 fi
 
 (
-    for i in AirGround GroundGround AirGround-Fixed
+    for i in AirGround GroundGround AirGround-Fixed AirGround-nocheck GroundGround-nocheck AirGround-Fixed-nocheck
     do
 	analyze $i "" $dir/ATN-$i.cv tests/$output
     done
