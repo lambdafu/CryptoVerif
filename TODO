@@ -1,6 +1,3 @@
-- Compare test outputs (after rewriting FindCompos and dependency
-   analyses) - test-big still to compare, from WG
-
 Simplify1.matches might forget some collisions that should in fact remain,
 when the variables have the same name in different collisions, but
 actually a different content -- perhaps taking the maximum of the probabilities,
@@ -4203,4 +4200,4 @@ having to find out which variable subterm we want to characterize.
  In the dependency_collision_rec3, we can consider all large restrictions...)
 
 ====== End of the notes on the change in FindCompos
-DONE 5/9/2019, tests still to check
+DONE 5/9/2019
