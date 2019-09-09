@@ -11,9 +11,49 @@ values of the indices for the common variables.
 Apply collisions as well in the binary case of Simplify1.FindCompos.find_compos_gen
 (possibly by modifying function Simplify1.FindCompos.apply_eq_statements
 
-Generalize to collisions M = f(M1,...Mn) where M has status "decompos"
-wrt r and Mi is independent of r (like check_assign1, but f(M1,...Mn)
+Generalize to collisions M = f(M1...Mn) where f is data, M has status "decompos"
+wrt r, and Mi is independent of r for some i (like check_assign1, but f(M1,...Mn)
 is a term, not a pattern).
+That could even be more generalized:
+Pr[M = f(M1...Mn)] <= Pcoll1rand(T) * Prod_{Mi depends on r} |Ti|
+where f(T1...Tn):T. The formula above works even if all Mi depend on
+r. It also works if several Mi are independent of r.
+We just need to make sure that the resulting probability is small
+enough using the size estimate. The probability may be small enough
+even when all Mi depend on r, in case the image of f consists
+of a small subset of T.
+In case that estimate is too large, I can continue recursively
+in the Mi that depend on r: when they are of the form
+f'(...) for some f' that is "data", I can use some subterms of Mi
+instead of Mi itself.
+EVEN MORE GENERAL:
+Generalize is_indep so that it can replace some subterms (not only
+indices) that depend on r by ?. is_indep(M) returns
+- a term M' that does not depend on r
+- the number of values N that the ? variables can take in M'.
+To compute is_indep(f(M1...Mn)),
+- let T be the type of f(M1...Mn)
+- compute is_indep(Mi) = Mi', Ni
+- if \Prod Ni <= |T|, then return f(M1', ..., Mn'), \Prod Ni
+                      else return ?, |T|
+When find_compos(M1) returns Some(p, M1', ...)
+and is_indep(M2) returns (M2', n), we have
+Pr[M1 = M2] <= p * n and the eliminated collision is M1' = M2'.
+Use the size estimates to see whether "\Prod Ni < |T|" above
+and whether p * n is small enough.
+In the case of check_assign1, that's the same idea, the
+bound variables of the pattern (PatVar) being systematically
+converted into ? variables.
+  [The status of the term does not need to be Decompos]
+PROBLEM: that requires really good size estimates.
+If I do not trust the size estimates, I could use the following:
+In is_indep:
+- when f is [data], I know that \Prod Ni <= |T|.
+- when \Prod Ni = 1 (ie M1...Mn are really independent of r)
+  I know that \Prod Ni <= |T|.
+- otherwise, assume that \Prod Ni > |T|
+Require explicit declarations in allowed_collisions for
+p * n.
 
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
