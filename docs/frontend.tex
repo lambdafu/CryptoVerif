@@ -1422,6 +1422,16 @@ the collision is repeated at most $N$ times, where $N$ is a parameter of size 0.
 See the command $\texttt{allowed\_collisions}$ for more details.
 
 \end{enumerate}
+For collisions $f(M_1, \ldots, M_n) = M$ where 
+$f$ is declared by \texttt{fun $f(T_1, \ldots, T_n):T$ [data]},
+$M$ is obtained from 
+a random value $r$ by applying \texttt{uniform} functions, and
+$M_i$ is independent of $r$, 
+the probability of collision is $\texttt{Pcoll1rand}(T) \times \prod_{j \in \{ 1, ..., n \} \setminus \{i\}} |T_j|$.
+The associated ``type'' size is computed as $\mathit{size}(T) - \sum_{j \in \{ 1, ..., n \} \setminus \{i\}} \mathit{size}(T_j)$.
+(This computation is easily generalized to the case in which several \texttt{data} functions are applied instead of just $f$.)
+For this value to be correct, we must have $\sum_{j = 1}^n \mathit{size}(T_j) \leq \mathit{size}(T)$.
+CryptoVerif displays a warning when this inequality does not hold.
 
 \texttt{large} means that the type $T$ is large enough so that
 all collisions with random elements of $T$ can be eliminated. 

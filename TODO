@@ -1,6 +1,5 @@
-- Compare test outputs (after rewriting FindCompos and dependency analyses)
-- Document the new usage of size estimates for
-let f(x,M) = M' in..xs
+- Compare test outputs (after rewriting FindCompos and dependency
+   analyses) - test-big still to compare, from WG
 
 Simplify1.matches might forget some collisions that should in fact remain,
 when the variables have the same name in different collisions, but
@@ -11,6 +10,10 @@ values of the indices for the common variables.
 
 Apply collisions as well in the binary case of Simplify1.FindCompos.find_compos_gen
 (possibly by modifying function Simplify1.FindCompos.apply_eq_statements
+
+Generalize to collisions M = f(M1,...Mn) where M has status "decompos"
+wrt r and Mi is independent of r (like check_assign1, but f(M1,...Mn)
+is a term, not a pattern).
 
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
