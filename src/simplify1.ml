@@ -699,7 +699,7 @@ let subst_l0opt b l l0opt =
   | None -> None
   | Some l0 -> Some (List.map (Terms.subst b.args_at_creation l) l0)
   
-let rec find_compos_gen decompos_only allow_bin (main_var, depinfo) l0opt t =
+let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depinfo) l0opt t =
   if (!Settings.debug_simplif_add_facts) then
     begin
       print_string "find_compos:t=";
@@ -747,14 +747,14 @@ let rec find_compos_gen decompos_only allow_bin (main_var, depinfo) l0opt t =
   | FunApp(f,l) when (f.f_options land Settings.fopt_COMPOS) != 0 ->
       begin
 	if decompos_only then Any else
-	match find_compos_l allow_bin (main_var, depinfo) l0opt l with
+	match find_compos_l allow_bin var_depinfo l0opt l with
 	| None -> Any
 	| Some(probaf, l', l0opt') -> 
 	    Compos(probaf, Terms.build_term2 t (FunApp(f,l')), l0opt')
       end
   | FunApp(f,[t']) when (f.f_options land Settings.fopt_UNIFORM) != 0 ->
       if Proba.is_large_term t then
-	find_compos_gen true allow_bin (main_var, depinfo) l0opt t'
+	find_compos_gen true allow_bin var_depinfo l0opt t'
       else Any
   | _ ->
       if decompos_only || (not allow_bin) then Any else
@@ -804,23 +804,23 @@ and find_compos_l (* decompos_only = false *) allow_bin var_depinfo l0opt = func
 	  end
       |	Some(probaf, a', l0opt') -> Some(probaf, a'::List.map any_term l, l0opt')
 
-and find_compos_bin (main_var, depinfo) l0opt fact =
+and find_compos_bin var_depinfo l0opt fact =
   match fact.t_desc with
   | FunApp(f,[t1;t2]) when f.f_cat == Equal ->
-      if not (depends (main_var, depinfo) t2) then
-	extract_from_status t1 (find_compos_gen false false (main_var, depinfo) l0opt t1)
-      else if not (depends (main_var, depinfo) t1) then
-	extract_from_status t1 (find_compos_gen false false (main_var, depinfo) l0opt t2)
+      if not (depends var_depinfo t2) then
+	extract_from_status t1 (find_compos_gen false false var_depinfo l0opt t1)
+      else if not (depends var_depinfo t1) then
+	extract_from_status t1 (find_compos_gen false false var_depinfo l0opt t2)
       else None
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
       begin
-	match find_compos_bin (main_var, depinfo) l0opt t1 with
-	  None -> find_compos_bin (main_var, depinfo) l0opt t2
+	match find_compos_bin var_depinfo l0opt t1 with
+	  None -> find_compos_bin var_depinfo l0opt t2
 	| x -> x
       end
   | _ -> None
     
-let find_compos bdepinfo l0opt t = find_compos_gen false true bdepinfo l0opt t
+let find_compos var_depinfo l0opt t = find_compos_gen false true var_depinfo l0opt t
 
 end
 
