@@ -21,19 +21,24 @@ val term_collisions :
    repl_index list * (* Reduced list of indices taking into account known facts *)
    term * term * (* The two colliding terms, t1 and t2 *)
    binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
-   probaf (* The probability of one collision *) *
-   bool (* True when t1 is obtained from the random variable by uniform functions *)) list ref
+   (probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
+     typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
+     typet (* The type of t2 *) *
+     typet list (* indep_types: The list of types of subterms of t2 not replaced with variables [?].
+		   This list is valid only when [trust_size_estimates] is not set. In this case, 
+		   subterms of [t2] are replaced only under [data] functions,
+		   so that 
+		   product of |T| for T \in dep_types <= |type(t2)|/product of |T| for T \in indep_types*) )) list ref
 
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
 
-val any_term_pat : pattern -> term
 val matches_pair : term -> term -> term -> term -> bool
 
 (* Adds a term collision *)
 val add_term_collisions :
   repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
-  binder -> term list option -> probaf -> bool -> bool
+  binder -> term list option -> (probaf * typet list * typet * typet list) -> bool
 
 (* Computes the probability of term collisions *)
 val final_add_proba : unit -> setf list
@@ -47,11 +52,30 @@ module FindCompos :
        [depinfo] is the dependency information for variable [b]. *)
     val depends : binder * 'a depinfo -> term -> bool
 
-    (* [is_indep simp_facts (b, depinfo) t] returns a term independent of [b]
-       in which some array indices in [t] may have been replaced with
-       fresh replication indices. When [t] depends on [b] by variables
-       that are not array indices, it raises [Not_found] *)
-    val is_indep : simp_facts -> binder * 'a depinfo -> term -> term
+    (* [is_indep simp_facts (b, depinfo) t] returns a triple 
+       [(t', dep_types, indep_types)] where 
+       - [t'] is a term independent of [b] in which some array 
+       indices in [t] may have been replaced with
+       fresh replication indices, and some other subterms of [t] 
+       may have been replaced with variables [?].
+       - [dep_types] is the list of types of subterms of [t]
+       replaced with variables [?], so that the number of values
+       that [t] can take depending on [b] is at most 
+       the product of |T| for T \in dep_types (ignoring replication
+       indices).
+       - [indep_types] is the list of types of subterms of [t]
+       not replaced with variables [?]. This list is valid only
+       when [trust_size_estimates] is not set. In this case, 
+       subterms of [t] are replaced only under [data] functions,
+       so that 
+       product of |T| for T \in dep_types <= |type(t)|/product of |T| for T \in indep_types *)
+    val is_indep : simp_facts -> binder * 'a depinfo -> term -> term * typet list * typet list 
+
+    (* [is_indep_pat] is similar to [is_indep] but for patterns.
+       It converts the pattern into a term, replacing all 
+       variables bound by the pattern with [?]. *)
+    val is_indep_pat : simp_facts -> (binder * 'a depinfo) -> pattern -> term * typet list * typet list 
+ 	
 
     (* [remove_dep_array_index (b, depinfo) t] returns a modified 
        version of [t] in which the array indices that depend on [b]

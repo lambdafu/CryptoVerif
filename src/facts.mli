@@ -54,6 +54,7 @@ val new_repl_index : repl_index -> repl_index
 val any_term_name : string
 val any_term_from_type : typet -> term
 val any_term : term -> term
+val any_term_pat : pattern -> term
 val fresh_indep_term : term -> term * typet list * typet list
     
 (* See type [dep_anal] in [types.ml] for an explanation of dependency analysis.
@@ -66,11 +67,23 @@ val fresh_indep_term : term -> term * typet list * typet list
 val no_dependency_anal : dep_anal
 
 (* [is_indep simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a pair of terms [(t1, t2)]:
-   - [t2] is a term equal to [t] using the equalities in [simp_facts]
-   - [t1] is a term independent of [b0[l0]] in which some array indices in [t2] 
-   may have been replaced with fresh replication indices. 
-   When [t] depends on [b0[l0]] by variables that are not array indices, it raises [Not_found].
+   returns a quadruple [(t_indep, t_eq, dep_types, indep_types)]:
+   - [t_eq] is a term equal to [t] using the equalities in [simp_facts]
+   - [t_indep] is a term independent of [b0[l0]] in which some array indices in [t_eq] 
+   may have been replaced with fresh replication indices, and some other subterms of [t_eq] 
+   may have been replaced with variables [?]. 
+   - [dep_types] is the list of types of subterms of [t_eq]
+   replaced with variables [?], so that the number of values
+   that [t_eq] can take depending on [b] is at most 
+   the product of |T| for T \in dep_types (ignoring replication
+   indices).
+   - [indep_types] is the list of types of subterms of [t_eq]
+   not replaced with variables [?]. This list is valid only
+   when [trust_size_estimates] is not set. In this case, 
+   subterms of [t_eq] are replaced only under [data] functions,
+   so that 
+   product of |T| for T \in dep_types <= |type(t_eq)|/product of |T| for T \in indep_types
+
    [depinfo] is the dependency information (see ['a depinfo] in types.ml):
    [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
    [collect_bargs_sc] is a modified version of [collect_bargs] in which  
@@ -79,7 +92,7 @@ val no_dependency_anal : dep_anal
 val is_indep : simp_facts -> 
   binder * term list * 'a depinfo *
   term list list ref * term list list ref ->
-  term -> term * term
+  term -> term * term * typet list * typet list
 
 (* [default_indep_test (dep, nodep)] builds an independence test 
    based on the dependency information provided by [(dep,nodep)]. 

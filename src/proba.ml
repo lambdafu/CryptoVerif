@@ -85,21 +85,24 @@ let rec is_1_over_card_t ty = function
   | _ -> false
 		
 let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
-  if !Settings.trust_size_estimates then
-    let size_proba = Terms.plus (order_of_magnitude proba_t) (Terms.sum_list (fun ty -> ty.tsize) dep_types) in
+  try
+    let size_proba =
+      if !Settings.trust_size_estimates then
+	Terms.plus (order_of_magnitude proba_t) (Terms.sum_list (fun ty -> ty.tsize) dep_types)
+      else
+	if dep_types == [] then
+	  order_of_magnitude proba_t
+	else if is_1_over_card_t full_type proba_t then
+	  - (Terms.max_list (fun ty -> ty.tsize) indep_types)
+	else
+	  raise Not_found
+    in
     List.exists (fun (factor_bound, type_bound) ->
     (size_proba <= - type_bound) && 
     (is_smaller proba_l factor_bound)
 	) (!Settings.allowed_collisions)
-  else
-    if is_1_over_card_t full_type proba_t then
-      let size_proba = - (Terms.max_list (fun ty -> ty.tsize) indep_types) in
-      List.exists (fun (factor_bound, type_bound) ->
-	(size_proba <= - type_bound) && 
-	(is_smaller proba_l factor_bound)
-	  ) (!Settings.allowed_collisions)
-    else
-      false
+  with Not_found ->
+    false
 	
 let is_small_enough_collision proba_l =
   List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)

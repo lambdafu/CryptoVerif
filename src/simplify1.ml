@@ -1829,14 +1829,14 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
 	      try 
 		let collect_bargs = ref [] in
 		let collect_bargs_sc = ref [] in
-		let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,Facts.nodepinfo,collect_bargs,collect_bargs_sc) t2 in
+		let (t2', t2_eq, dep_types, indep_types) = Facts.is_indep simp_facts (b,l,Facts.nodepinfo,collect_bargs,collect_bargs_sc) t2 in
 		let side_condition = 
 		  Terms.make_and_list (List.map (fun l' ->
 		    Terms.make_or_list (List.map2 Terms.make_diff l l')
 		      ) (!collect_bargs_sc))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) probaf then
+		if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) (probaf, dep_types, t2.t_type, indep_types) then
 		  Some (Terms.make_or_list (List.map (fun l' ->   
 		    let t2'' = Terms.replace l' l t2_eq in
 		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
