@@ -51,7 +51,14 @@ In is_indep:
 - otherwise, assume that \Prod Ni > |T|
 Require explicit declarations in allowed_collisions for
 p * n.
-
+Or better: for f(f'(...),...) return a number of value
+estimate |T|/\Prod_{subterms M indep of r} |Type(M)|.
+This estimate is always greater than the real number of values.
+If |T| simplifies in the product with p, we obtain
+1 / \Prod_{subterms M indep of r} |Type(M)|
+If one of these types is large (= larger than the size estimate
+in allowed_collisions) we eliminate the collision.
+   
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
 variable y could also be used when x[M1...Ml] is known to be defined
