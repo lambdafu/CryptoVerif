@@ -50,7 +50,12 @@ val reset_repl_index_list : unit -> unit
 
 val new_repl_index_term : term -> repl_index
 val new_repl_index : repl_index -> repl_index
-                                     
+
+val any_term_name : string
+val any_term_from_type : typet -> term
+val any_term : term -> term
+val fresh_indep_term : term -> term * typet list * typet list
+    
 (* See type [dep_anal] in [types.ml] for an explanation of dependency analysis.
 
    [no_dependency_anal] is a particular dependency analysis that works

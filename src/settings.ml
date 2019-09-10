@@ -55,6 +55,8 @@ let normalize_in_match_funapp = ref false
                                         
 let expand_letxy = ref true
 
+let trust_size_estimates = ref false
+    
 (* Bound the number of advice possibilities in cryptotransf.ml
    Having too many of them does not help because we will need to try
    all of them and it will take a lot of time. *)
@@ -175,6 +177,7 @@ let do_set p v =
       let r = parse_type_size s in
       if r <= 0 then raise Not_found;
       tysize_MIN_Auto_Coll_Elim := r
+  | "trustSizeEstimates", _ -> parse_bool v trust_size_estimates
   | "elsefindFactsInReplace", _ -> parse_bool v elsefind_facts_in_replace
   | "elsefindFactsInSuccess", _ -> parse_bool v elsefind_facts_in_success
   | "elsefindFactsInSimplify", _ -> parse_bool v elsefind_facts_in_simplify

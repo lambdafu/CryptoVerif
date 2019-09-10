@@ -27,7 +27,7 @@ val card_index : binder -> probaf
 
 (* [is_small_enough_coll_elim (proba_l, proba)] tests if 
    [proba_l/proba] is considered small enough to eliminate collisions *)
-val is_small_enough_coll_elim : repl_index list * probaf -> bool
+val is_small_enough_coll_elim : repl_index list * (probaf * typet list * typet * typet list) -> bool
 
 (* [pcoll1rand t] is the probability of collision between a
    random value of type [t], and an independent value. *) 

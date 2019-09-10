@@ -53,6 +53,8 @@ val normalize_in_match_funapp : bool ref
                                         
 val expand_letxy : bool ref
 
+val trust_size_estimates : bool ref
+    
 val max_advice_possibilities_beginning : int ref
 val max_advice_possibilities_end : int ref
 

@@ -95,7 +95,8 @@ let rec order_of_magnitude probaf =
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
       
 	
-let is_small_enough_coll_elim (proba_l, proba_t) = 
+let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
+  (* TO DO !!! *) TODO
   List.exists (fun (factor_bound, type_bound) ->
     (order_of_magnitude proba_t <= - type_bound) && 
     (is_smaller proba_l factor_bound)
@@ -149,7 +150,7 @@ let add_elim_collisions b1 b2 =
   in
   if not (List.exists equal (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, pcoll1rand b1.btype) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, (pcoll1rand b1.btype, [], b1.btype, [b1.btype])) then
 	begin
 	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
 	  true

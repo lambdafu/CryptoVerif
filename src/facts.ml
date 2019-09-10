@@ -125,6 +125,30 @@ let new_repl_index_term t =
 
 let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
 
+let any_term_name = "?"
+let any_term_from_type t = 
+  let b' = Terms.create_binder0 any_term_name t [] in
+  let rec node = { above_node = node;
+		   binders = [b'];
+		   true_facts_at_def = [];
+		   def_vars_at_def = [];
+		   elsefind_facts_at_def = [];
+		   future_binders = []; future_true_facts = []; 
+		   definition = DNone; definition_success = DNone }
+  in
+  b'.def <- [node];
+  Terms.term_from_binder b'
+
+let any_term t = any_term_from_type t.t_type
+
+let any_term_pat pat = 
+  any_term_from_type (Terms.get_type_for_pattern pat)
+
+let fresh_indep_term t =
+  match t.t_type.tcat with
+  | BitString -> (any_term t, [t.t_type], [])
+  | Interv _ -> (Terms.term_from_repl_index (new_repl_index_term t), [], [t.t_type])
+    
 (* [is_indep simp_facts ((b0,l0,(dep,nodep),collect_bargs,collect_bargs_sc) as bdepinfo) t] 
    returns a pair of terms [(t1, t2)]:
    - [t2] is a term equal to [t] using the equalities in [simp_facts]
@@ -145,10 +169,10 @@ let rec is_indep simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as b
   | FunApp(f,l) ->
       let l1, l2 = List.split (List.map (is_indep simp_facts bdepinfo) l) in
       Terms.build_term2 t (FunApp(f, l1)), Terms.build_term2 t (FunApp(f, l2))
-  | ReplIndex(b) -> t, t
+  | ReplIndex(b) -> t, t, [], [t.t_type]
   | Var(b,l) ->
       if (List.exists (Terms.equal_terms t) depinfo.nodep) then
-	t, t
+	t, t, [], [t.t_type]
       else if (b != b0 && Terms.is_restr b) ||
       ((not depinfo.other_variables) &&
        (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
