@@ -104,6 +104,21 @@ let assq_rest x l =
 	if a == x then (b, List.rev_append seen l) else aux (elem::seen) x l
   in
   aux [] x l 
+
+(* Addition and subtraction bounded by min_int and max_int,
+   so no overflow *)
+	
+let plus x y =
+  if y >= 0 then
+    if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
+  else (* y < 0 *)
+    if x <= min_int - y (* x + y <= min_int *) then min_int else x + y 
+
+let minus x y =
+  if y >= 0 then
+    if x <= min_int + y (* x - y <= min_int *) then min_int else x - y
+  else (* y < 0 *)
+    if x >= max_int + y (* x - y >= max_int *) then max_int else x - y
     
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 
@@ -117,7 +132,7 @@ let rec max_list f = function
 let rec sum_list f = function
     [] -> 0
   | [a] -> f a
-  | a::l -> (f a) + (sum_list f l)
+  | a::l -> plus (f a) (sum_list f l)
 
 
 (* Adds an element if it is not already in (for physical equality) *)

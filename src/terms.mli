@@ -50,6 +50,11 @@ val remove_suffix : int -> 'a list -> 'a list
    list [l]. Uses physical equality to compare keys. *)
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
+(* Addition and subtraction bounded by min_int and max_int,
+   so no overflow *)
+val plus : int -> int -> int
+val minus : int -> int -> int
+    
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 val max_list : ('a -> int) -> 'a list -> int
 

@@ -60,21 +60,6 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
-(* Addition and subtraction bounded by min_int and max_int,
-   so no overflow *)
-	
-let plus x y =
-  if y >= 0 then
-    if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
-  else (* y < 0 *)
-    if x <= min_int - y (* x + y <= min_int *) then min_int else x + y 
-
-let minus x y =
-  if y >= 0 then
-    if x <= min_int + y (* x - y <= min_int *) then min_int else x - y
-  else (* y < 0 *)
-    if x >= max_int + y (* x - y >= max_int *) then max_int else x - y
-
 let rec order_of_magnitude probaf =
   match probaf with
   | Add(p1,p2) ->
@@ -86,22 +71,36 @@ let rec order_of_magnitude probaf =
   | PColl1Rand t | PColl2Rand t -> - t.tsize
   | Card t -> t.tsize
   | Div(p1, p2) ->
-      minus (order_of_magnitude p1) (order_of_magnitude p2)
+      Terms.minus (order_of_magnitude p1) (order_of_magnitude p2)
   | Mul(p1, p2) ->
-      plus (order_of_magnitude p1) (order_of_magnitude p2)
+      Terms.plus (order_of_magnitude p1) (order_of_magnitude p2)
   | Proba _ -> (* We accept probabilities of collision statements *)
       min_int
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
-      
-	
-let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
-  (* TO DO !!! *) TODO
-  List.exists (fun (factor_bound, type_bound) ->
-    (order_of_magnitude proba_t <= - type_bound) && 
-    (is_smaller proba_l factor_bound)
-      ) (!Settings.allowed_collisions)
 
+let rec is_1_over_card_t ty = function
+  | Add(p, EpsRand _) -> is_1_over_card_t ty p
+  | Div(Cst 1.0, Card ty') -> ty == ty'
+  | _ -> false
+		
+let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
+  if !Settings.trust_size_estimates then
+    let size_proba = Terms.plus (order_of_magnitude proba_t) (Terms.sum_list (fun ty -> ty.tsize) dep_types) in
+    List.exists (fun (factor_bound, type_bound) ->
+    (size_proba <= - type_bound) && 
+    (is_smaller proba_l factor_bound)
+	) (!Settings.allowed_collisions)
+  else
+    if is_1_over_card_t full_type proba_t then
+      let size_proba = - (Terms.max_list (fun ty -> ty.tsize) indep_types) in
+      List.exists (fun (factor_bound, type_bound) ->
+	(size_proba <= - type_bound) && 
+	(is_smaller proba_l factor_bound)
+	  ) (!Settings.allowed_collisions)
+    else
+      false
+	
 let is_small_enough_collision proba_l =
   List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
   
