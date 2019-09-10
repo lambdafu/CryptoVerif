@@ -43,6 +43,9 @@ bound variables of the pattern (PatVar) being systematically
 converted into ? variables.
   [The status of the term does not need to be Decompos]
 PROBLEM: that requires really good size estimates.
+TO DO Distinguish the estimate for the cardinal |T|
+from the one for the probability Pcoll1rand(T)/Pcoll2rand(T)
+for nonuniform types.
 If I do not trust the size estimates, I could use the following:
 In is_indep:
 - when f is [data], I know that \Prod Ni <= |T|.
