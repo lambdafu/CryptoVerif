@@ -12,23 +12,7 @@ val priority_list : binder list ref
 (*** Computation of probabilities of collision between terms ***)
 
 (* Recorded term collisions *)
-val term_collisions :
-  ((binderref * binderref) list * (* For each br1, br2 in this list, the collisions are eliminated only when br2 is defined before br1 *)
-   term * (* The collisions are eliminated only when this term is true *)
-   term list * (* Facts that are known to hold when the collision is eliminated *)
-   repl_index list * (* Indices that occur in colliding terms *) 
-   repl_index list * (* Indices at the program point of the collision *)
-   repl_index list * (* Reduced list of indices taking into account known facts *)
-   term * term * (* The two colliding terms, t1 and t2 *)
-   binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
-   (probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
-     typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
-     typet (* The type of t2 *) *
-     typet list (* indep_types: The list of types of subterms of t2 not replaced with variables [?].
-		   This list is valid only when [trust_size_estimates] is not set. In this case, 
-		   subterms of [t2] are replaced only under [data] functions,
-		   so that 
-		   product of |T| for T \in dep_types <= |type(t2)|/product of |T| for T \in indep_types*) )) list ref
+val term_collisions : collision_state ref
 
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit

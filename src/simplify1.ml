@@ -12,7 +12,7 @@ by [compos]/[data] functions, the types T are the types obtained after applying
 the [decompos]/[projection] functions (they are large types), 
 and t2 does not depend on b *)
 
-let term_collisions = ref []
+let term_collisions = ref ([]: collision_state)
 
 let reset coll_elim g =
   Proba.reset coll_elim g;
@@ -290,7 +290,10 @@ let matches
     else
       None)
 
-let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt probaf_mul_types =
+let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((probaf, dep_types, full_type, indep_types) as probaf_mul_types) =
+  match dep_types with
+  | [ty] when ty == full_type -> false (* Quickly eliminate a case in which the probability will always be too large: the term [t2] can take any value depending of [b] *) 
+  | _ -> 
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
      are replaced with fresh indices, and these indices are not included in

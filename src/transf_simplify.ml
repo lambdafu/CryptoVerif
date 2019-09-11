@@ -114,48 +114,7 @@ struct
     (st, FindCompos.extract_from_status t' st)
 
   exception Else
-
-  let rec convert_to_term = function
-    | PatVar _ -> raise Not_found
-    | PatTuple(f,l) ->
-	let l' = List.map convert_to_term l in
-	Terms.build_term_type (snd f.f_type) (FunApp(f,l'))
-    | PatEqual t -> t
-
-    
-(* checkassign1 is called when the assigned term depends on b with status st <> Any
-   Raises Else when only the else branch of the let may be taken *)
-  let rec check_assign1 cur_array true_facts (t1, context_t2, b, probaf, is_decompose) bdep_info st pat =
-    begin
-      try 
-	let t = convert_to_term pat in
-	let t' = FindCompos.remove_dep_array_index bdep_info t in
-	if (depends bdep_info t') || (not (Proba.is_large_term t')) then
-	  ()
-	else
-	  (* add probability *)
-	  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
-	      t1 (context_t2 t') b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf is_decompose then
-	    raise Else
-      with Not_found ->
-	()
-    end;
-    match st, pat with
-    | Decompos _, PatTuple(f,l) ->
-	let rec try_subpatterns seen = function
-	  | [] -> ()
-	  | (pat::rest) ->	    
-	      (* The collision happens only on the sub-pattern [pat].
-		 We adjust the probability [probaf]. *)
-	      let res_type = snd f.f_type in
-	      let context_t2' t2 = context_t2 (Terms.build_term_type res_type (FunApp(f, List.rev_append (List.map any_term_pat seen) (t2 :: (List.map any_term_pat rest))))) in
-	      let probaf' = Polynom.p_prod (probaf :: List.map (fun pat_other -> Card(Terms.get_type_for_pattern pat_other)) (List.rev_append seen rest)) in
-	      check_assign1 cur_array true_facts (t1, context_t2', b, probaf', true) bdep_info st pat;
-	      try_subpatterns (pat::seen) rest
-	in
-	try_subpatterns [] l
-    | _ -> ()
-	 
+    	 
 (* check_assign2 is called when the assigned term does not depend on b
    Return None when both branches may be taken and
           Some(charac_type, t') when only the else branch of the let
@@ -187,9 +146,9 @@ and check_assign2_list bdepinfo = function
 	  begin
 	    match check_assign2_list bdepinfo l with
 	      None -> None
-	    | Some(probaf, l') -> Some(probaf, (any_term_pat a)::l')
+	    | Some(probaf, l') -> Some(probaf, (Facts.any_term_pat a)::l')
 	  end
-      |	Some(probaf, a') -> Some(probaf, a'::(List.map any_term_pat l))
+      |	Some(probaf, a') -> Some(probaf, a'::(List.map Facts.any_term_pat l))
       
 let rec depends_pat bdepinfo = function
     PatVar _ ->
@@ -240,9 +199,9 @@ let rec simplify_term cur_array dep_info true_facts t =
 		_, Some(probaf, t1'',_) ->
 		  begin
 		    try 
-		      let t2' = is_indep true_facts bdepinfo t2 in
+		      let (t2', dep_types, indep_types) = is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false) then raise Not_found;
+		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types)) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		    with Not_found ->
 		      try_dep_info restl
@@ -252,9 +211,9 @@ let rec simplify_term cur_array dep_info true_facts t =
 		  _, Some(probaf, t2'',_) ->
 		    begin
 		      try 
-			let t1' = is_indep true_facts bdepinfo t1 in
+			let (t1', dep_types, indep_types) = is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false) then raise Not_found;
+			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t1.t_type, indep_types)) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		      with Not_found ->
 			try_dep_info restl
@@ -450,18 +409,20 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	      (* status is true when the chosen branch may depend on b *)
               let status ((b, _) as bdepinfo) =
 		match find_compos bdepinfo t with
-		  st, Some (probaf, t'',_) ->
-		    check_assign1 cur_array true_facts (t'', (fun t2 -> t2), b, probaf, false) bdepinfo st pat;
+		| _, Some (probaf, t'',_) ->
+		    let (t2', dep_types, indep_types) = FindCompos.is_indep_pat true_facts bdepinfo pat in
+		    if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
+			t'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation))
+			(probaf, dep_types, t.t_type, indep_types) then raise Else;
 		    true
 		| _, None ->
 		    begin
-		      let t' = FindCompos.remove_dep_array_index bdepinfo t in
-		      if depends bdepinfo t' then () else
 		      match check_assign2 bdepinfo pat with
-			None -> ()
+		      | None -> ()
 		      |	Some(probaf, t1') ->
+			  let (t2', dep_types, indep_types) = is_indep true_facts bdepinfo t in
 			  (* Add probability *)
-			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false then
+			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
 			    raise Else
 		    end;
 		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
@@ -578,7 +539,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
-	      let (t2', t2_eq) = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      let (t2', t2_eq, dep_types, indep_types) = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
 	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
                  In case b occurs in t2, we reason as follows:
                     1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
@@ -598,7 +559,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 		    ) (!collect_bargs_sc))
 	      in
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) probaf false then
+	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types) then
 		Some (Terms.make_or_list (List.map (fun l' ->   
 		  let t2'' = Terms.replace l' l t2_eq in
 		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
