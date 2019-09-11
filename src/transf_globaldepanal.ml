@@ -229,11 +229,6 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
 let depends t = 
   List.exists (fun (b, _) -> Terms.refers_to b t) (!dvar_list)
 
-let rec depends_pat = function
-    PatVar _ -> false
-  | PatTuple(_,l) -> List.exists depends_pat l
-  | PatEqual t -> depends t
-    
 (* [defined t] returns [true] when [t] may be defined *)
 
 let rec defined t =
@@ -903,50 +898,6 @@ let add_depend b t =
 	   but we do not have more precise information*)
 	add_indep b
 
-
-(* [check_assign2 tmp_bad_dep pat] is called to analyze the pattern [pat] of
-   an input or of an assignment when the assigned term does not depend on [b0].
-   Returns [Some(probaf, t')] when the let is always going to take the 
-   else branch up to negligible probability. [t'] is the term with which
-   the collision is eliminated and [probaf] the collision probability.
-   Returns [None] when the let can take both branches 
-   [tmp_bad_dep] is set to true when there is a bad dependency except when
-   the let always takes the else branch. *)
-
-let rec check_assign2 tmp_bad_dep = function
-    PatVar b ->
-      None
-  | PatTuple(f,l) ->
-      begin
-        match check_assign2_list tmp_bad_dep l with
-	  None -> None
-	| Some(charac_type, l') ->
-	    Some (charac_type, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
-      end
-  | PatEqual t ->
-      match find_compos t with
-	_, Some (probaf,t',_) when Proba.is_large_term t ->
-	  Some(probaf, t')
-      |	_ ->
-	begin
-	  if depends t then
-	    tmp_bad_dep := true;
-	  None
-	end
-
-and check_assign2_list tmp_bad_dep = function
-    [] -> None
-  | (a::l) ->
-      match check_assign2 tmp_bad_dep a with
-	None -> 
-	  begin
-	    match check_assign2_list tmp_bad_dep l with
-	      None -> None
-	    | Some(charac_type, l') -> Some(charac_type, (Facts.any_term_pat a)::l')
-	  end
-      |	Some(charac_type, a') -> Some(charac_type, a'::(List.map Facts.any_term_pat l))
-
-
 (* Independence test for find conditions, which may contain if/let/find *)
 
 
@@ -1170,9 +1121,8 @@ let rec almost_indep_fc cur_array t0 =
 		  else		    
 		    raise BothDep
 	      | _, None ->
-		  let tmp_bad_dep = ref false in
-		  match check_assign2 tmp_bad_dep pat with
-		  | Some(probaf, t2') ->
+		  match FindCompos.find_compos_pat find_compos pat with
+		  | Some(probaf, t2', _) ->
 		      let (t1', dep_types, indep_types) = is_indep t1 in
 		      if add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t2', t1', probaf, dep_types, t1.t_type, indep_types) then
 			begin
@@ -1185,7 +1135,7 @@ let rec almost_indep_fc cur_array t0 =
 			raise BothDep
 		  | None ->
 		      begin
-			if (!tmp_bad_dep) || (depends t1) then raise BothDep;
+			if (FindCompos.depends_pat depends pat) || (depends t1) then raise BothDep;
 		        (* Both branches may be taken, and the test is independent of b0 *)
 			let p1' = almost_indep_fc cur_array p1 in
 			let p2' = almost_indep_fc cur_array p2 in
@@ -1299,9 +1249,8 @@ let rec check_depend_process cur_array p' =
 	    raise BadDep
 	  end
 	    ) tl;
-      let tmp_bad_dep = ref false in
-      match check_assign2 tmp_bad_dep pat with
-      | Some(probaf, t1) -> 
+      match FindCompos.find_compos_pat find_compos pat with
+      | Some(probaf, t1, _) -> 
 	  (* The pattern matching of this input always fails *)
           (* Create a dummy variable for the input message *)
 	  let b = Terms.create_binder "dummy_input"
@@ -1323,7 +1272,7 @@ let rec check_depend_process cur_array p' =
 	    end
       |	None ->
 	begin
-	  if (!tmp_bad_dep) then
+	  if FindCompos.depends_pat depends pat then
 	    begin
 	      print_string ("At " ^ (string_of_int p'.i_occ) ^ ", pattern of input ");
 	      Display.display_pattern pat;
@@ -1495,9 +1444,8 @@ and check_depend_oprocess cur_array p =
 		   => dependency analysis fails *)
 	      bad_dep()
 	| _, None ->
-	    let tmp_bad_dep = ref false in
-	    match check_assign2 tmp_bad_dep pat with
-	    | Some(probaf, t2') ->
+	    match FindCompos.find_compos_pat find_compos pat with
+	    | Some(probaf, t2', _) ->
 		let (t1', dep_types, indep_types) = is_indep t in
                 (* [t] independent of [b0], the pattern characterizes [b0]
 		   => only the else branch can be taken up to negligible probability *)
@@ -1509,7 +1457,7 @@ and check_depend_oprocess cur_array p =
 		else
 		  bad_dep()
 	    | None ->
-		if (!tmp_bad_dep) || (depends t) then
+		if (FindCompos.depends_pat depends pat) || (depends t) then
 		  (* Both branches may be taken, and the choice may depend on [b0]
 		     => dependency analysis fails *)
 		  bad_dep();

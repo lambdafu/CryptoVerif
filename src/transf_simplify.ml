@@ -121,49 +121,6 @@ struct
 
   exception Else
     	 
-(* check_assign2 is called when the assigned term does not depend on b
-   Return None when both branches may be taken and
-          Some(charac_type, t') when only the else branch of the let
-          may be taken. t' is the term with which the collision is
-          eliminated and charac_type is the type of the part of t'
-          characterized by the value of t' *)
-let rec check_assign2 bdepinfo = function
-    PatVar _ ->
-      None
-  | PatTuple(f,l) ->
-      begin
-        match check_assign2_list bdepinfo l with
-	  None -> None
-	| Some(probaf, l') ->
-	    Some(probaf, Terms.build_term_type (snd f.f_type) (FunApp(f,l')))
-      end
-  | PatEqual t ->
-      match find_compos bdepinfo t with
-	_, Some (probaf, t', _) when Proba.is_large_term t ->
-	  Some (probaf, t')
-      |	_ ->
-	  None
-
-and check_assign2_list bdepinfo = function
-    [] -> None
-  | (a::l) ->
-      match check_assign2 bdepinfo a with
-	None -> 
-	  begin
-	    match check_assign2_list bdepinfo l with
-	      None -> None
-	    | Some(probaf, l') -> Some(probaf, (Facts.any_term_pat a)::l')
-	  end
-      |	Some(probaf, a') -> Some(probaf, a'::(List.map Facts.any_term_pat l))
-      
-let rec depends_pat bdepinfo = function
-    PatVar _ ->
-      false
-  | PatTuple(f,l) ->
-      List.exists (depends_pat bdepinfo) l
-  | PatEqual t ->
-      depends bdepinfo t
-
 let rec simplify_term cur_array dep_info true_facts t =
   match t.t_desc with
     FunApp(f,[t1;t2]) when f == Settings.f_and ->
@@ -423,15 +380,15 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		    true
 		| _, None ->
 		    begin
-		      match check_assign2 bdepinfo pat with
+		      match FindCompos.find_compos_pat (find_compos bdepinfo) pat with
 		      | None -> ()
-		      |	Some(probaf, t1') ->
+		      |	Some(probaf, t1', _) ->
 			  let (t2', dep_types, indep_types) = FindCompos.is_indep true_facts bdepinfo t in
 			  (* Add probability *)
 			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
 			    raise Else
 		    end;
-		    (depends bdepinfo t) || (depends_pat bdepinfo pat)
+		    (depends bdepinfo t) || (FindCompos.depends_pat (depends bdepinfo) pat)
 	      in
 	      (* dependency information for the "in" and "else" branches *)
 	      let dep_info' = List.map (fun ((b, depinfo) as bdepinfo) ->

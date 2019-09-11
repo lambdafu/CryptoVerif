@@ -445,6 +445,12 @@ module FindCompos : sig
    [depinfo] is the dependency information for variable [b]. *)
 val depends : (binder * 'a depinfo) -> term -> bool
 
+(* [depends_pat f_depends pat] takes as argument a depencency function [f_depends] for terms
+   ([f_depends t] returns true when the term [t] may depend on some variable [b] fixed from the context).
+   It extends it to patterns: [depends_pat f_depends pat] returns true when the pattern [pat]
+   may depend on [b]. *)
+val depends_pat : (term -> bool) -> pattern -> bool
+    
 (* [is_indep simp_facts (b, depinfo) t] returns a triple 
    [(t', dep_types, indep_types)] where 
    - [t'] is a term independent of [b] in which some array 
@@ -489,6 +495,14 @@ val remove_array_index : term -> term
    [l0opt = None] means that we consider the dependency of [t] with respect to any cell of [b0]. *)
   val find_compos : (binder * 'a depinfo) -> term list option -> term -> depend_status
 
+(* [find_compos_pat f_find_compos pat] takes a find_compos function [f_find_compos] for terms
+   ([f_find_compos t] returns the dependency status of the term [t], in two forms
+   - [depend_status] as defined in types.ml
+   - the status returned by [extract_from_status], defined below.)
+   It extends it to patterns: it returns the dependency status of the pattern [pat],
+   in the form returned by [extract_from_status], defined below. *)
+  val find_compos_pat : (term -> depend_status * (probaf * term * term list option) option) -> pattern -> (probaf * term * term list option) option
+      
   (* [extract_from_status t status] extracts information from the 
      dependency status [status] of term [t].
      It returns [Some(p, t_1, l0opt)] if
@@ -517,6 +531,14 @@ struct
     | _ -> true (*Rough overapproximation of the dependency analysis when
 		  if/let/find/new occur.
 		  Parsing_helper.internal_error "If/let/find/new unexpected in DepAnal1.depends"*)
+
+let rec depends_pat f_depends = function
+    PatVar _ ->
+      false
+  | PatTuple(f,l) ->
+      List.exists (depends_pat f_depends) l
+  | PatEqual t ->
+      f_depends t
 
 let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
   match t.t_desc with
@@ -844,6 +866,26 @@ and find_compos_bin var_depinfo l0opt fact =
   | _ -> None
     
 let find_compos var_depinfo l0opt t = find_compos_gen false true var_depinfo l0opt t
+
+let rec find_compos_pat f_find_compos = function
+  | PatVar _ -> None
+  | PatTuple(f,l) -> find_compos_pat_list f_find_compos f [] l
+  | PatEqual t ->
+      if Proba.is_large_term t then
+	snd (f_find_compos t)
+      else
+	None
+
+and find_compos_pat_list f_find_compos f seen = function
+    [] -> None
+  | (a::l) ->
+      match find_compos_pat f_find_compos a with
+      |	None -> 
+	  find_compos_pat_list f_find_compos f (a::seen) l 
+      |	Some(probaf, a', l0opt) ->
+	  let l' = List.rev_append (List.map Facts.any_term_pat seen) (a'::(List.map Facts.any_term_pat l)) in
+	  let t' = Terms.build_term_type (snd f.f_type) (FunApp(f,l')) in
+	  Some(probaf, t', l0opt)
 
 end
 
