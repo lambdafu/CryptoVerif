@@ -90,10 +90,18 @@ sig
      dependency information of the variable [b]. *)
   val get_dep_info : dep_info -> binder -> elem_dep_info
 
-  (* find_compos_glob (b,depinfo) t   returns Some ty when
-     t characterizes a part of b of type ty, knowing the dependency
-     information given in depinfo. Otherwise, returns None. *)
-  val find_compos_glob : binder * elem_dep_info -> term -> (probaf * term * term list option) option
+  (* [find_compos (b,depinfo) t] returns the dependency status of the term
+   [t] with respect to the variable [b0 = !main_var].
+   It is returned in 2 forms, so that the result is a pair,
+   [(st, option_st)]:
+   [st] is the dependency status as defined in [depend_status] in types.ml
+   [option_st] is [Some(p, t_1, l0opt)] if
+     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+     [t_1] is a modified version of [t] in which the parts that are not useful
+     to show this property are replaced with variables [?].
+   It is [None] otherwise. *)
+  val find_compos : binder * elem_dep_info -> term -> depend_status * (probaf * term * term list option) option
 
 end
 = 
@@ -455,10 +463,6 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
     with Not_found ->
       Facts.nodepinfo (* Not found *)
 
-  let find_compos_glob ((b, _) as b_depinfo) t =
-    let t' = FindCompos.remove_dep_array_index b_depinfo t in
-    FindCompos.extract_from_status t' (FindCompos.find_compos b_depinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t') 
-
 end (* Module DepAnal2 *)
 
 (* The exception [Restart(b,g)] is raised by [dependency_collision_rec1]
@@ -533,9 +537,9 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (Terms.is_args_at_creation b l) ->
       begin
 	 let depinfo = DepAnal2.get_dep_info dep_info b in
-	 match DepAnal2.find_compos_glob (b,depinfo) t1 with
-	   None -> None
-	 | Some(probaf, t1'',_) ->
+	 match DepAnal2.find_compos (b,depinfo) t1 with
+	 | _, None -> None
+	 | _, Some(probaf, t1'',_) ->
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
