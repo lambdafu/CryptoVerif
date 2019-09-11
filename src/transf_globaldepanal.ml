@@ -164,13 +164,14 @@ let get_val b =
    [add_collisions_for_current_check_dependency] raises [BadDep] when the 
    obtained probability is too large, so this collision cannot be eliminated. *)
 
-let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf,is_decompose) =
+let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf,dep_types,full_type,indep_types) =
   (* If [dvar_list] has changed, we are going to iterate any way,
      no need to compute probabilities. Furthermore, the probabilities 
      in [dvar_list] may not be all set, possibly leading to an error
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then () else
   let probaf' = expand_probaf get_val probaf in
+  let probaf_mul_types = (probaf',dep_types,full_type,indep_types) in
   (* Compute the used indices *)
   let used_indices_ref = ref [] in
   Proba.collect_array_indexes used_indices_ref t1;
@@ -183,12 +184,12 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	 is small enough that it can be accepted without 
 	 trying to eliminate some of the [used_indices].
 	 (The facts in [true_facts'] are used only for that.) *)
-      if Proba.is_small_enough_coll_elim (used_indices, probaf') then
+      if Proba.is_small_enough_coll_elim (used_indices, probaf_mul_types) then
 	[]
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
     in
-    if not (Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf' is_decompose) then
+    if not (Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf_mul_types) then
       begin
 	print_string "Probability of collision between ";
 	Display.display_term t1;
@@ -225,7 +226,7 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt probaf' false
+  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,[t2.t_type])
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -996,9 +997,9 @@ and check_assign2_list tmp_bad_dep = function
 	  begin
 	    match check_assign2_list tmp_bad_dep l with
 	      None -> None
-	    | Some(charac_type, l') -> Some(charac_type, (any_term_pat a)::l')
+	    | Some(charac_type, l') -> Some(charac_type, (Facts.any_term_pat a)::l')
 	  end
-      |	Some(charac_type, a') -> Some(charac_type, a'::(List.map any_term_pat l))
+      |	Some(charac_type, a') -> Some(charac_type, a'::(List.map Facts.any_term_pat l))
 
 
 (* Independence test for find conditions, which may contain if/let/find *)
