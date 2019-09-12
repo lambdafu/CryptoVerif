@@ -21,12 +21,12 @@ let reset coll_elim g =
   (* Remove the advice found in Transf_globaldepanal in previous iterations. 
      If advice is still useful, we will find it again at the next iteration. *)
   Transf_globaldepanal.advise := [];
-  proba_state_at_beginning_iteration := (Proba.get_current_state(), !term_collisions);
+  proba_state_at_beginning_iteration := (Proba.get_current_state(), !Depanal.term_collisions);
   failure_check_all_deps := [];
   current_max_priority := 0;
   List.iter (fun b -> b.priority <- 0) (!priority_list);
   priority_list := [];
-  Simplify1.reset coll_elim g
+  Depanal.reset coll_elim g
 
 let final_reset g_proc =
   current_pass_transfos := [];
@@ -112,12 +112,12 @@ struct
 
   let init = []
 
-  let depends = FindCompos.depends
+  let depends = Depanal.depends
     
   let find_compos ((b,_) as bdepinfo) t =
-    let t' = FindCompos.remove_dep_array_index bdepinfo t in
-    let st = FindCompos.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t' in
-    (st, FindCompos.extract_from_status t' st)
+    let t' = Depanal.remove_dep_array_index bdepinfo t in
+    let st = Depanal.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t' in
+    (st, Depanal.extract_from_status t' st)
 
   exception Else
     	 
@@ -162,9 +162,9 @@ let rec simplify_term cur_array dep_info true_facts t =
 		_, Some(probaf, t1'',_) ->
 		  begin
 		    try 
-		      let (t2', dep_types, indep_types) = FindCompos.is_indep true_facts bdepinfo t2 in
+		      let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types)) then raise Not_found;
+		      if not (Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types)) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		    with Not_found ->
 		      try_dep_info restl
@@ -174,9 +174,9 @@ let rec simplify_term cur_array dep_info true_facts t =
 		  _, Some(probaf, t2'',_) ->
 		    begin
 		      try 
-			let (t1', dep_types, indep_types) = FindCompos.is_indep true_facts bdepinfo t1 in
+			let (t1', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t1.t_type, indep_types)) then raise Not_found;
+			if not (Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t1.t_type, indep_types)) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
 		      with Not_found ->
 			try_dep_info restl
@@ -347,7 +347,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
             let dep_info' = 
               List.map (fun ((b, depinfo) as bdepinfo) ->
 		if depends bdepinfo t then
-                  match FindCompos.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t with
+                  match Depanal.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t with
 		  | Any ->
 		      if depinfo.other_variables then
 			bdepinfo
@@ -373,22 +373,22 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
               let status ((b, _) as bdepinfo) =
 		match find_compos bdepinfo t with
 		| _, Some (probaf, t'',_) ->
-		    let (t2', dep_types, indep_types) = FindCompos.is_indep_pat true_facts bdepinfo pat in
-		    if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
+		    let (t2', dep_types, indep_types) = Depanal.is_indep_pat true_facts bdepinfo pat in
+		    if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
 			t'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation))
 			(probaf, dep_types, t.t_type, indep_types) then raise Else;
 		    true
 		| _, None ->
 		    begin
-		      match FindCompos.find_compos_pat (find_compos bdepinfo) pat with
+		      match Depanal.find_compos_pat (find_compos bdepinfo) pat with
 		      | None -> ()
 		      |	Some(probaf, t1', _) ->
-			  let (t2', dep_types, indep_types) = FindCompos.is_indep true_facts bdepinfo t in
+			  let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t in
 			  (* Add probability *)
-			  if add_term_collisions (cur_array, true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
+			  if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
 			    raise Else
 		    end;
-		    (depends bdepinfo t) || (FindCompos.depends_pat (depends bdepinfo) pat)
+		    (depends bdepinfo t) || (Depanal.depends_pat (depends bdepinfo) pat)
 	      in
 	      (* dependency information for the "in" and "else" branches *)
 	      let dep_info' = List.map (fun ((b, depinfo) as bdepinfo) ->
@@ -457,7 +457,7 @@ let rec dependency_collision_rec1 cur_array simp_facts t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (not (Terms.refers_to b t2)) ->
       begin
-	match FindCompos.find_compos (b,Facts.nodepinfo) (Some l) t1 with
+	match Depanal.find_compos (b,Facts.nodepinfo) (Some l) t1 with
 	| Any -> None
 	| _ -> 
 	    if List.memq b (!failure_check_all_deps) then None else
@@ -466,13 +466,13 @@ let rec dependency_collision_rec1 cur_array simp_facts t1 t2 t =
 	      Display.display_binder b;
 	      print_string " inside simplify... "; flush stdout;
 	      let current_proba_state = Proba.get_current_state() in
-	      let current_term_collisions = !term_collisions in
+	      let current_term_collisions = !Depanal.term_collisions in
 	      match Transf_globaldepanal.check_all_deps b (!proba_state_at_beginning_iteration) (!whole_game) with
 		None -> 
 		  (* global dependency analysis failed *)
 		  print_string "No change"; print_newline();
 		  Proba.restore_state current_proba_state;
-		  term_collisions := current_term_collisions;
+		  Depanal.term_collisions := current_term_collisions;
 		  failure_check_all_deps := b :: (!failure_check_all_deps);
 		  None
 	      | Some(res_game) ->
@@ -498,7 +498,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 	    try 
 	      let collect_bargs = ref [] in
 	      let collect_bargs_sc = ref [] in
-	      let (t2', t2_eq, dep_types, indep_types) = Facts.is_indep simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      let (t2', t2_eq, dep_types, indep_types) = Depanal.is_indep_collect_args simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
 	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
                  In case b occurs in t2, we reason as follows:
                     1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
@@ -518,7 +518,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
 		    ) (!collect_bargs_sc))
 	      in
 	      (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      if add_term_collisions (cur_array, true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types) then
+	      if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts simp_facts, [], side_condition) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types) then
 		Some (Terms.make_or_list (List.map (fun l' ->   
 		  let t2'' = Terms.replace l' l t2_eq in
 		    Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
@@ -560,16 +560,16 @@ let dependency_anal cur_array dep_info =
     Facts.default_indep_test bdepinfo simp_facts t (b,l)
   in
   let collision_test simp_facts t1 t2 = 
-    let t1' = try_no_var_rec simp_facts t1 in
-    let t2' = try_no_var_rec simp_facts t2 in
-    match try_two_directions (dependency_collision_rec2 cur_array simp_facts dep_info) t1' t2' with
+    let t1' = Terms.try_no_var_rec simp_facts t1 in
+    let t2' = Terms.try_no_var_rec simp_facts t2 in
+    match Depanal.try_two_directions (dependency_collision_rec2 cur_array simp_facts dep_info) t1' t2' with
       (Some _) as x -> x
     | None ->
 	Facts.reset_repl_index_list();
-	match try_two_directions (dependency_collision_rec3 cur_array simp_facts) t1' t2' with
+	match Depanal.try_two_directions (Depanal.dependency_collision_rec3 cur_array simp_facts) t1' t2' with
 	  (Some _) as x -> x
 	| None ->
-	    try_two_directions (dependency_collision_rec1 cur_array simp_facts) t1' t2'
+	    Depanal.try_two_directions (dependency_collision_rec1 cur_array simp_facts) t1' t2'
   in
   (indep_test, collision_test)
 		
@@ -589,7 +589,7 @@ let contradicts_known_when_adv_wins (cur_array, pp) simp_facts =
          (* We cannot exploit information from DepAnal2 at the current program point because 
 	    it may no longer be true at the point at which the adversary wins. *)
       in
-      let nsimpfacts = true_facts_from_simp_facts simp_facts in 
+      let nsimpfacts = Facts.true_facts_from_simp_facts simp_facts in 
       let def_list = Facts.get_def_vars_at pp in
       let cur_array_t = List.map Terms.term_from_repl_index cur_array in
       List.for_all (fun (all_indices', pp_list', simp_facts', def_list') ->
@@ -2035,7 +2035,7 @@ let simplify_main collector coll_elim g =
    *)
     if !Settings.changed then
         (* Add probability for eliminated collisions *)
-	let proba = final_add_proba() in
+	let proba = Depanal.final_add_proba() in
         let (g',proba_sa_rename, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
         (g',proba @ proba_sa_rename,renames @ [DSimplify(current_transfos)])
     else
@@ -2046,5 +2046,5 @@ let simplify_main collector coll_elim g =
   with Restart (b,g') ->
     final_reset g_proc;
     (* Add probability for eliminated collisions *)
-    let proba = final_add_proba() in
+    let proba = Depanal.final_add_proba() in
     (g', proba, [DGlobalDepAnal(b, !Proba.elim_collisions_on_password_occ)])

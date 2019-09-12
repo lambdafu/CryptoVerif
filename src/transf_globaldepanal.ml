@@ -192,7 +192,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
     in
-    Simplify1.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf_mul_types
+    Depanal.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf_mul_types
   with Contradiction ->
     true
 
@@ -222,7 +222,7 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  Simplify1.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,[t2.t_type])
+  Depanal.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,[t2.t_type])
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -310,9 +310,9 @@ let current_bdepinfo() =
 let find_compos t =
   if should_try_find_compos t then
     let bdepinfo = current_bdepinfo() in
-    let t' = FindCompos.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
-    let st = FindCompos.find_compos bdepinfo None t' in
-    (st, FindCompos.extract_from_status t' st)
+    let t' = Depanal.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
+    let st = Depanal.find_compos bdepinfo None t' in
+    (st, Depanal.extract_from_status t' st)
   else
     (Any, None)
 
@@ -335,13 +335,13 @@ let find_compos t =
    so that 
    product of |T| for T \in dep_types <= |type(t)|/product of |T| for T \in indep_types *)
 let is_indep t =
-  FindCompos.is_indep Terms.simp_facts_id (current_bdepinfo()) t
+  Depanal.is_indep Terms.simp_facts_id (current_bdepinfo()) t
       
 (* [is_indep_pat] is similar to [is_indep] but for patterns.
    It converts the pattern into a term, replacing all 
    variables bound by the pattern with [?]. *)
 let is_indep_pat pat =
-  FindCompos.is_indep_pat Terms.simp_facts_id (current_bdepinfo()) pat
+  Depanal.is_indep_pat Terms.simp_facts_id (current_bdepinfo()) pat
 
 (* This exception is raised by [get_dep_indices] when [t] actually depends on [b0]
    for unspecified indices *)
@@ -498,9 +498,9 @@ let dependency_anal cur_array =
       result
   in
   let collision_test simp_facts t1 t2 =
-    let t1' = try_no_var_rec simp_facts t1 in
-    let t2' = try_no_var_rec simp_facts t2 in
-    let true_facts = true_facts_from_simp_facts simp_facts in
+    let t1' = Terms.try_no_var_rec simp_facts t1 in
+    let t2' = Terms.try_no_var_rec simp_facts t2 in
+    let true_facts = Facts.true_facts_from_simp_facts simp_facts in
     match dependency_collision cur_array true_facts t1' t2' with
       (Some _) as x -> x
     | None -> dependency_collision cur_array true_facts t2' t1'
@@ -782,7 +782,7 @@ let combine_options b opt_old opt_new =
 
 let add_proba_info (t1, t2, probaf) proba_info_list =
   if not (List.exists (fun (t1', t2', probaf') ->
-    (matches_pair t1' t2' t1 t2) &&
+    (Depanal.matches_pair t1' t2' t1 t2) &&
     (Terms.equal_probaf probaf probaf')) proba_info_list)
   then
     begin
@@ -1121,7 +1121,7 @@ let rec almost_indep_fc cur_array t0 =
 		  else		    
 		    raise BothDep
 	      | _, None ->
-		  match FindCompos.find_compos_pat find_compos pat with
+		  match Depanal.find_compos_pat find_compos pat with
 		  | Some(probaf, t2', _) ->
 		      let (t1', dep_types, indep_types) = is_indep t1 in
 		      if add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t2', t1', probaf, dep_types, t1.t_type, indep_types) then
@@ -1135,7 +1135,7 @@ let rec almost_indep_fc cur_array t0 =
 			raise BothDep
 		  | None ->
 		      begin
-			if (FindCompos.depends_pat depends pat) || (depends t1) then raise BothDep;
+			if (Depanal.depends_pat depends pat) || (depends t1) then raise BothDep;
 		        (* Both branches may be taken, and the test is independent of b0 *)
 			let p1' = almost_indep_fc cur_array p1 in
 			let p2' = almost_indep_fc cur_array p2 in
@@ -1249,7 +1249,7 @@ let rec check_depend_process cur_array p' =
 	    raise BadDep
 	  end
 	    ) tl;
-      match FindCompos.find_compos_pat find_compos pat with
+      match Depanal.find_compos_pat find_compos pat with
       | Some(probaf, t1, _) -> 
 	  (* The pattern matching of this input always fails *)
           (* Create a dummy variable for the input message *)
@@ -1272,7 +1272,7 @@ let rec check_depend_process cur_array p' =
 	    end
       |	None ->
 	begin
-	  if FindCompos.depends_pat depends pat then
+	  if Depanal.depends_pat depends pat then
 	    begin
 	      print_string ("At " ^ (string_of_int p'.i_occ) ^ ", pattern of input ");
 	      Display.display_pattern pat;
@@ -1444,7 +1444,7 @@ and check_depend_oprocess cur_array p =
 		   => dependency analysis fails *)
 	      bad_dep()
 	| _, None ->
-	    match FindCompos.find_compos_pat find_compos pat with
+	    match Depanal.find_compos_pat find_compos pat with
 	    | Some(probaf, t2', _) ->
 		let (t1', dep_types, indep_types) = is_indep t in
                 (* [t] independent of [b0], the pattern characterizes [b0]
@@ -1457,7 +1457,7 @@ and check_depend_oprocess cur_array p =
 		else
 		  bad_dep()
 	    | None ->
-		if (FindCompos.depends_pat depends pat) || (depends t) then
+		if (Depanal.depends_pat depends pat) || (depends t) then
 		  (* Both branches may be taken, and the choice may depend on [b0]
 		     => dependency analysis fails *)
 		  bad_dep();
@@ -1494,7 +1494,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
       end;
     ) (!dvar_list);
   Proba.restore_state old_proba;
-  Simplify1.term_collisions := old_term_collisions;
+  Depanal.term_collisions := old_term_collisions;
   compute_probas();
   local_changed := false;
   dvar_list_changed := false;
@@ -1548,7 +1548,7 @@ let check_all_deps b0 init_proba_state g =
    [g] is the full game to analyze. *)
 
 let main b0 coll_elim g =
-  Simplify1.reset coll_elim g;
+  Depanal.reset coll_elim g;
   let g_proc = Terms.get_process g in
   Terms.array_ref_process g_proc;
   Simplify1.improved_def_process None false g_proc;
@@ -1567,7 +1567,7 @@ let main b0 coll_elim g =
       None -> (g, [], []) 
     | Some(res_game) ->
 	Settings.changed := true;
-	let proba = Simplify1.final_add_proba() in
+	let proba = Depanal.final_add_proba() in
 	(res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
     end
   in

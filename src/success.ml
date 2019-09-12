@@ -459,7 +459,7 @@ let check_secrecy collector b pub_vars =
       not_found_flag := true
   in
   let ty = ref None in
-  Simplify1.reset [] (!whole_game);
+  Depanal.reset [] (!whole_game);
   advise := [];
   detected_leaks := [];
   try
@@ -534,7 +534,7 @@ let check_secrecy collector b pub_vars =
 	detected_leaks := [];
 	current_restr := None;
 	public_vars := [];
-	(true, Simplify1.final_add_proba())
+	(true, Depanal.final_add_proba())
       end
     else
       begin

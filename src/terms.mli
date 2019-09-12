@@ -163,6 +163,13 @@ val cleanup : unit -> unit
 val link : binder -> linktype -> unit
 val auto_cleanup : (unit -> 'a) -> 'a
 
+val current_bound_ri : repl_index list ref
+val ri_cleanup : unit -> unit
+val ri_link : repl_index -> linktype -> unit
+val cleanup_until : repl_index list -> repl_index list -> unit
+val ri_auto_cleanup : (unit -> 'a) -> 'a
+val ri_auto_cleanup_failure : (unit -> 'a) -> 'a
+    
 (* [max_occ] is the maximum occurrence number seen so far.
    It is used to determine the left margin in the display of games,
    so that there is enough space to display occurrence numbers in 
@@ -264,6 +271,9 @@ val replace : term list -> term list -> term -> term
 val try_no_var : simp_facts -> term -> term
 
 val normalize : simp_facts -> term -> term
+
+(* [try_no_var_rec] replaces variables with their values as much as possible *)
+val try_no_var_rec : simp_facts -> term -> term
     
 (* Identity function, to be used as placeholder for
    a term simplification function when we don't want to do

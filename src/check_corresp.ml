@@ -320,7 +320,7 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
     FunApp(_, { t_desc = FunApp(_, begin_sid) }::_) ->
       begin
 	let begin_occ = fact'.t_occ in
-	let nsimpfacts = Simplify1.true_facts_from_simp_facts simp_facts in 
+	let nsimpfacts = Facts.true_facts_from_simp_facts simp_facts in 
 	List.iter (fun b -> b.ri_link <- TLink (Terms.term_from_repl_index (Terms.new_repl_index b))) repl_indices;
 	List.iter (fun b -> b.link <- TLink (Terms.term_from_binder (Terms.new_binder b))) vars;
 	let new_facts = List.map (Terms.copy_term Terms.Links_RI_Vars) nsimpfacts in
@@ -607,7 +607,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
       print_string "Trying to prove ";
       Display.display_query (QEventQ(t1,t2,pub_vars), g)
     end;
-  Simplify1.reset [] g;
+  Depanal.reset [] g;
   let vars_t1 = ref [] in
   List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
   let vars_t1' = List.map (fun b ->
@@ -844,7 +844,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
   in
   if r then
     (* Add probability for eliminated collisions *)
-    (true, Simplify1.final_add_proba())
+    (true, Depanal.final_add_proba())
   else
     (false, [])
       )

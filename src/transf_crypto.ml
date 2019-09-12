@@ -3664,7 +3664,7 @@ let get_oracle_count c (c', ntopt, v) =
    *)
 type compat_info =
     NameTable of (binder * binder) list list
-  | CompatFacts of Simplify1.compat_info_elem * (Simplify1.compat_info_elem * bool) list ref
+  | CompatFacts of Depanal.compat_info_elem * (Depanal.compat_info_elem * bool) list ref
   | NoCompatInfo
 
 type formula =
@@ -3685,7 +3685,7 @@ let get_repl_from_map true_facts b_repl exp =
   match ntopt with
     None -> 
       let (v', compat_info_elem) = 
-	Simplify1.filter_indices exp true_facts one_exp.all_indices v
+	Depanal.filter_indices exp true_facts one_exp.all_indices v
       in
       let rec find_same_calls = function
 	  [] -> (* Not_found, add it *)
@@ -3696,7 +3696,7 @@ let get_repl_from_map true_facts b_repl exp =
 	    match !a with
 	      CompatFacts(compat_info2,_) -> 
 		begin
-		  match Simplify1.same_oracle_call compat_info_elem compat_info2 with
+		  match Depanal.same_oracle_call compat_info_elem compat_info2 with
 		    Some compat_info' ->
 		      (* Found *)
 		      a := CompatFacts(compat_info', ref []);
@@ -3886,7 +3886,7 @@ let filter_compat1 compat_info known_res lsum =
 	    try
 	      List.assq compat_info2 (!known_res)
 	    with Not_found ->
-	      let r = Simplify1.is_compatible_indices compat_info compat_info2 in
+	      let r = Depanal.is_compatible_indices compat_info compat_info2 in
 	      known_res2 := (compat_info, r) :: (!known_res2);
 	      r
 	end
@@ -4130,7 +4130,7 @@ let rec map_probaf env = function
   | Time _ -> Parsing_helper.internal_error "Unexpected time"
 
 let compute_proba ((_,_,_,set,_,_),_) =
-  Simplify1.reset [] (!whole_game);
+  Depanal.reset [] (!whole_game);
   let proba = 
     List.filter (function SetProba (Zero) -> false
       | _ -> true)
@@ -4142,7 +4142,7 @@ let compute_proba ((_,_,_,set,_,_),_) =
 	    Parsing_helper.internal_error "Event should not occur in probability formula") set)
   in
   (* Add the probabilities of the collisions eliminated to optimize the counts *)
-  let proba_coll = Simplify1.final_add_proba() in
+  let proba_coll = Depanal.final_add_proba() in
   proba @ proba_coll
 
 (* Main transformation function 

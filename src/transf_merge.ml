@@ -2193,7 +2193,7 @@ let merge_branches g =
   Terms.array_ref_process g_proc;
   Simplify1.improved_def_process None false g_proc;
   Proba.reset [] g;
-  Simplify1.term_collisions := [];
+  Depanal.term_collisions := [];
   merges_to_do := [];
   merges_cannot_be_done := [];
   collect_merges_i [] g_proc;
@@ -2218,8 +2218,8 @@ let merge_branches g =
 	in
 	merges_to_do := [];
 	merges_cannot_be_done := [];
-	let proba = Simplify1.final_add_proba () in
-	Simplify1.term_collisions := [];
+	let proba = Depanal.final_add_proba () in
+	Depanal.term_collisions := [];
 	(Terms.build_transformed_game p' g, proba, done_transfos)
       else
 	begin
@@ -2252,14 +2252,14 @@ let equal_games g1 g2 =
   Terms.array_ref_process g1_proc;
   Terms.array_ref_process g2_proc;
   Proba.reset [] g1;
-  Simplify1.term_collisions := [];
+  Depanal.term_collisions := [];
   let r = 
     equal_store_arrays (fun p p' ->
         ok_arrays_first_branch := collect_good_vars_fullprocess p;
         ok_arrays_second_branch := collect_good_vars_fullprocess p';
         equal_process [] p p') Terms.simp_facts_id g1_proc g2_proc
   in
-  let proba = Simplify1.final_add_proba () in
-  Simplify1.term_collisions := [];
+  let proba = Depanal.final_add_proba () in
+  Depanal.term_collisions := [];
   whole_game := Terms.empty_game;
   (r, proba)

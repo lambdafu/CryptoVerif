@@ -835,13 +835,13 @@ let prove_unique g =
   whole_game := g;
   Terms.array_ref_process g_proc;
   Simplify1.improved_def_process None true g_proc;
-  Simplify1.reset [] g;
+  Depanal.reset [] g;
   let p' = prove_uniquei g_proc in
   let g' = Terms.build_transformed_game p' g in
   Terms.cleanup_array_ref();
   Simplify1.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
-  (g', Simplify1.final_add_proba(), [])
+  (g', Depanal.final_add_proba(), [])
 
 let insert_instruct occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in
@@ -921,7 +921,7 @@ let rec replace_tt count env facts cur_array t =
       let t' = check_term (Some defined_refs) cur_array env ins in
       if t'.t_type != t.t_type then
 	raise (Error("You are trying to replace a term of type " ^ t.t_type.tname ^ " with a term of type " ^ t'.t_type.tname, ext_s));
-      Simplify1.reset [] (!whole_game);
+      Depanal.reset [] (!whole_game);
       let r = 
 	try 
 	  let facts' = Facts.get_facts_at (DTerm t) in
@@ -943,7 +943,7 @@ let rec replace_tt count env facts cur_array t =
       in
       if not r then
 	raise (Error("I cannot prove that the term you want to put is equal to the term at " ^ (string_of_int occ), ext_s));
-      count := RepDone(Simplify1.final_add_proba(), occ, t, t', ext_o);
+      count := RepDone(Depanal.final_add_proba(), occ, t, t', ext_o);
       t'
   | RepDone(_,occ,_,_,ext_o) when occ == t.t_occ -> 
       Parsing_helper.internal_error ("Occurrence " ^ (string_of_int occ) ^ " ambiguous. That should never happen")

@@ -225,7 +225,7 @@ let reset coll_elim g =
   current_max_priority := 0;
   List.iter (fun b -> b.priority <- 0) (!priority_list);
   priority_list := [];
-  Simplify1.reset coll_elim g
+  Depanal.reset coll_elim g
 
 (* [dependency_anal cur_array] provides a dependency analysis.
    See type [dep_anal] in types.ml *)
@@ -233,10 +233,10 @@ let reset coll_elim g =
 let dependency_anal cur_array =
   let indep_test = Facts.default_indep_test Facts.nodepinfo in
   let collision_test simp_facts t1 t2 =
-    let t1' = try_no_var_rec simp_facts t1 in
-    let t2' = try_no_var_rec simp_facts t2 in
+    let t1' = Terms.try_no_var_rec simp_facts t1 in
+    let t2' = Terms.try_no_var_rec simp_facts t2 in
     Facts.reset_repl_index_list();
-    Simplify1.try_two_directions (Simplify1.dependency_collision_rec3 cur_array simp_facts) t1' t2'
+    Depanal.try_two_directions (Depanal.dependency_collision_rec3 cur_array simp_facts) t1' t2'
   in
   (indep_test, collision_test)
     
@@ -1441,7 +1441,7 @@ let expand_main g =
   let current_transfos = !current_pass_transfos in
   current_pass_transfos := [];
   Terms.cleanup_array_ref();
-  let proba = final_add_proba() in
+  let proba = Depanal.final_add_proba() in
   Simplify1.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   (Terms.build_transformed_game p' g,

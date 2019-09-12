@@ -463,6 +463,48 @@ let auto_cleanup f =
     current_bound_vars := tmp_bound_vars;
     raise x
 
+(* Links for replication indices *)
+
+let current_bound_ri = ref []
+
+let ri_link v l =
+  current_bound_ri := v :: (!current_bound_ri);
+  v.ri_link <- l
+
+let ri_cleanup () =
+  List.iter (fun v -> v.ri_link <- NoLink) (!current_bound_ri);
+  current_bound_ri := []
+
+let rec cleanup_until l l' = 
+  if l' == l then () else
+  match l' with
+    [] -> Parsing_helper.internal_error "cleanup_until"
+  | (v::r) -> 
+      v.ri_link <- NoLink;
+      cleanup_until l r
+
+let ri_auto_cleanup f =
+  let tmp_bound_ri = !current_bound_ri in
+  current_bound_ri := [];
+  try
+    let r = f () in
+    List.iter (fun v -> v.ri_link <- NoLink) (!current_bound_ri);
+    current_bound_ri := tmp_bound_ri;
+    r
+  with x ->
+    List.iter (fun v -> v.ri_link <- NoLink) (!current_bound_ri);
+    current_bound_ri := tmp_bound_ri;
+    raise x
+
+let ri_auto_cleanup_failure f =
+  let tmp_bound_ri = !current_bound_ri in
+  try
+    f() 
+  with x ->
+    cleanup_until tmp_bound_ri (!current_bound_ri);
+    current_bound_ri := tmp_bound_ri;
+    raise x
+
 (* Equality tests *)
 
 let equal_lists eq l1 l2 =
@@ -1182,6 +1224,17 @@ and normalize ((subst2, _, _) as simp_facts) t =
       normalize_var subst2 t 
   | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
       t
+
+let rec try_no_var_rec depth simp_facts t =
+  if depth = 0 then t else 
+  let t' = try_no_var simp_facts t in(* Risk of non-termination? *)
+  match t'.t_desc with
+    FunApp(f,l) -> 
+      build_term2 t' (FunApp(f, List.map (try_no_var_rec (depth-1) simp_facts) l))
+  | _ -> t'
+
+let try_no_var_rec simp_facts t =
+  try_no_var_rec (!Settings.max_depth_try_no_var_rec) simp_facts t
 
 let equal_term_lists l1 l2 =
   equal_lists equal_terms l1 l2

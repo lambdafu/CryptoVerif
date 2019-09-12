@@ -3,6 +3,9 @@ open Types
 let filter_ifletfindres l =
   List.filter Terms.check_simple_term l
 
+let true_facts_from_simp_facts (subst, facts, else_find) =
+  subst @ facts 
+
 (* Display facts; for debugging *)
 
 let display_elsefind (bl, def_list, t) =
@@ -125,110 +128,6 @@ let new_repl_index_term t =
 
 let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
 
-let any_term_name = "?"
-let any_term_from_type t = 
-  let b' = Terms.create_binder0 any_term_name t [] in
-  let rec node = { above_node = node;
-		   binders = [b'];
-		   true_facts_at_def = [];
-		   def_vars_at_def = [];
-		   elsefind_facts_at_def = [];
-		   future_binders = []; future_true_facts = []; 
-		   definition = DNone; definition_success = DNone }
-  in
-  b'.def <- [node];
-  Terms.term_from_binder b'
-
-let any_term t = any_term_from_type t.t_type
-
-let any_term_pat pat = 
-  any_term_from_type (Terms.get_type_for_pattern pat)
-
-let fresh_indep_term t =
-  match t.t_type.tcat with
-  | BitString -> (any_term t, [t.t_type], [])
-  | Interv _ -> (Terms.term_from_repl_index (new_repl_index_term t), [], [t.t_type])
-    
-(* [is_indep simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a quadruple [(t_indep, t_eq, dep_types, indep_types)]:
-   - [t_eq] is a term equal to [t] using the equalities in [simp_facts]
-   - [t_indep] is a term independent of [b0[l0]] in which some array indices in [t_eq] 
-   may have been replaced with fresh replication indices, and some other subterms of [t_eq] 
-   may have been replaced with variables [?]. 
-   - [dep_types] is the list of types of subterms of [t_eq]
-   replaced with variables [?], so that the number of values
-   that [t_eq] can take depending on [b] is at most 
-   the product of |T| for T \in dep_types (ignoring replication
-   indices).
-   - [indep_types] is the list of types of subterms of [t_eq]
-   not replaced with variables [?]. This list is valid only
-   when [trust_size_estimates] is not set. In this case, 
-   subterms of [t_eq] are replaced only under [data] functions,
-   so that 
-   product of |T| for T \in dep_types <= |type(t_eq)|/product of |T| for T \in indep_types
-
-   [depinfo] is the dependency information (see the type ['a depinfo] in types.ml)
-   [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
-   [collect_bargs_sc] is a modified version of [collect_bargs] in which  
-   array indices that depend on [b0] are replaced with fresh replication indices
-   (as in the transformation from [t_eq] to [t_indep]). *)
-
-let fresh_indep_term2 t =
-  let (t_indep, t_dep_types, t_indep_types) = fresh_indep_term t in
-  (t_indep, t, t_dep_types, t_indep_types)
-
-	
-let rec is_indep simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t =
-  match t.t_desc with
-  | FunApp(f,l) ->
-      let (l_indep, l_eq, l_dep_types, l_indep_types) = is_indep_list simp_facts bdepinfo l in
-      if l_dep_types = [] || f.f_cat == Tuple ||
-      ((!Settings.trust_size_estimates) && t.t_type.tcat == BitString &&
-       Terms.sum_list (fun ty -> ty.tsize) l_dep_types <= t.t_type.tsize) then
-
-	Terms.build_term2 t (FunApp(f, l_indep)),
-	Terms.build_term2 t (FunApp(f, l_eq)), l_dep_types,
-	(if l_dep_types = [] then [t.t_type] else l_indep_types)
-      else
-	fresh_indep_term2 t
-  | ReplIndex(b) -> t, t, [], [t.t_type]
-  | Var(b,l) ->
-      if (List.exists (Terms.equal_terms t) depinfo.nodep) then
-	t, t, [], [t.t_type]
-      else if (b != b0 && Terms.is_restr b) ||
-      ((not depinfo.other_variables) &&
-       (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
-      then
-	let (l_indep, l_eq, _, _) = is_indep_list simp_facts bdepinfo l in
-	Terms.build_term2 t (Var(b, l_indep)), Terms.build_term2 t (Var(b, l_eq)), [], [t.t_type]
-      else if b == b0 then
-	if List.for_all2 Terms.equal_terms l0 l then
-	  fresh_indep_term2 t
-	else 
-	  begin
-	    let (l_indep, l_eq, _, _) = is_indep_list simp_facts bdepinfo l in
-	    if not (List.exists (List.for_all2 Terms.equal_terms l_eq) (!collect_bargs)) then
-	      begin
-		collect_bargs := l_eq :: (!collect_bargs);
-		collect_bargs_sc := l_indep :: (!collect_bargs_sc)
-	      end;
-	    Terms.build_term2 t (Var(b, l_indep)), Terms.build_term2 t (Var(b, l_eq)), [], [t.t_type]
-	  end
-      else
-        let t' = Terms.try_no_var simp_facts t in
-        if Terms.equal_terms t t' then
-	  fresh_indep_term2 t
-        else
-          is_indep simp_facts bdepinfo t'
-  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
-
-and is_indep_list simp_facts bdepinfo = function
-  | [] -> ([], [], [], [])
-  | (a::l) ->
-      let (a_indep, a_eq, a_dep_types, a_indep_types) = is_indep simp_facts bdepinfo a in
-      let (l_indep, l_eq, l_dep_types, l_indep_types) = is_indep_list simp_facts bdepinfo l in
-      (a_indep::l_indep, a_eq::l_eq, a_dep_types @ l_dep_types, a_indep_types @ l_indep_types)
-
 let replace_term_repl_index t =
   (* When t is already a replication index, leave it unchanged. 
      This is important because we obtain the initial term
@@ -284,7 +183,7 @@ let rec make_indep simp_facts ((b0,l0,depinfo,side_condition_needed) as bdepinfo
 	  raise Not_found
         else
           make_indep simp_facts bdepinfo t'
-  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in make_indep"
 
 let default_indep_test dep_info simp_facts t (b,l) =
   try
