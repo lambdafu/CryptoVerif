@@ -594,6 +594,16 @@ let rec display_proba level = function
       display_binder b;
       print_string ")"
 		      
+let rec display_monomial = function
+    (coef, []) -> print_float coef
+  | (coef, (elem, n)::l) -> display_monomial (coef, l);
+      print_string " * "; display_proba 3 elem; print_string " ^ "; print_int n
+
+let rec display_polynom = function
+    [] -> print_string "0"
+  | [a] -> display_monomial a
+  | (a::l) -> display_monomial a; print_string " + "; display_polynom l
+
 let display_pub_vars pub_vars =
   if pub_vars <> [] then
     begin

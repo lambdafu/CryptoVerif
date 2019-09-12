@@ -642,6 +642,12 @@ and simp_facts = term list * term list * elsefind_fact list
 and known_when_adv_wins =
     (repl_index list * (term list * program_point) list * simp_facts * binderref list) list
 
+(* Polynoms of probabilities *)
+
+type monomial = (probaf * int) list
+
+type polynom = (float * monomial) list
+      
 (* Result of a cryptographic transformation *)
 type failure_reason =
     Term of term

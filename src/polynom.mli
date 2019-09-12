@@ -2,8 +2,6 @@ open Types
 
 (* 1. Operations on polynoms *)
 
-type polynom
-
 val zero : polynom
 
 val sum : polynom -> polynom -> polynom
