@@ -180,7 +180,7 @@ let simplify_process g =
   current_pass_transfos := [];
   Proba.reset [] g;
   let g_proc = Terms.get_process g in
-  Terms.build_def_process None g_proc;
+  Def.build_def_process None g_proc;
   let p' = simplify_process g_proc in
   let simplif_transfos = 
     if (!current_pass_transfos) != [] then
@@ -419,7 +419,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
     [] ->
       rec_simplif cur_array true_facts t3
   | [([],def_list,t1,t2)] when
-    Facts.reduced_def_list (Terms.get_facts pp) def_list = [] && 
+    Facts.reduced_def_list (Incompatible.get_facts pp) def_list = [] && 
     (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
@@ -451,7 +451,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let def_list' = Facts.reduced_def_list (Terms.get_facts pp) def_list in
+	      let def_list' = Facts.reduced_def_list (Incompatible.get_facts pp) def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
 	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
@@ -476,7 +476,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		    let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
 		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Terms.def_vars_and_facts_from_term t1 in
+                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term t1 in
 		    let then_node = Facts.get_initial_history (DTerm t2) in
                     let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
                     let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
@@ -511,14 +511,14 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		 that the variables in [def_vars_accu] are defined
 	         at the current program point *)
 	      let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-	      let new_facts = Terms.def_list_at_pp_facts [] (DTerm t2) cur_array_term def_vars_accu in
+	      let new_facts = Incompatible.def_list_at_pp_facts [] (DTerm t2) cur_array_term def_vars_accu in
 	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts in
 	      (* [Terms.both_def_list_facts] adds facts inferred from the knowledge
 		 that all variables in [def_vars] and [def_vars_accu] are
 		 simultaneously defined. *)
 	      let tf' = 
 		if !Settings.detect_incompatible_defined_cond then
-		  let new_facts = Terms.both_def_list_facts [] def_vars def_vars_accu in
+		  let new_facts = Incompatible.both_def_list_facts [] def_vars def_vars_accu in
 		  Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts 
 		else tf'
 	      in
@@ -557,7 +557,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
-		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
+		    (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (def_list4 != []) && (List.length l0 = 1) 
@@ -937,7 +937,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
     [] ->
       rec_simplif cur_array true_facts p2
   | [([],def_list,t1,p1)] when
-    (Facts.reduced_def_list (Terms.get_facts pp) def_list = []) && 
+    (Facts.reduced_def_list (Incompatible.get_facts pp) def_list = []) && 
     (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
@@ -966,7 +966,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	    let cur_array_cond = repl_indices @ cur_array in
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
-	      let def_list' = Facts.reduced_def_list (Terms.get_facts pp) def_list in
+	      let def_list' = Facts.reduced_def_list (Incompatible.get_facts pp) def_list in
 	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
 	      let facts_def_list = Facts.facts_from_defined current_history def_list in
 	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
@@ -991,7 +991,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		    let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
 		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Terms.def_vars_and_facts_from_term t in
+                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term t in
 		    let then_node = Facts.get_initial_history (get_pp p1) in
                     let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
                     let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
@@ -1027,14 +1027,14 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		 that the variables in [def_vars_accu] are defined
 	         at the current program point *)
 	      let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-	      let new_facts = Terms.def_list_at_pp_facts [] (get_pp p1) cur_array_term def_vars_accu in
+	      let new_facts = Incompatible.def_list_at_pp_facts [] (get_pp p1) cur_array_term def_vars_accu in
 	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts in
 	      (* [Terms.both_def_list_facts] adds facts inferred from the knowledge
 		 that all variables in [def_vars] and [def_vars_accu] are
 		 simultaneously defined. *)
 	      let tf' = 
 		if !Settings.detect_incompatible_defined_cond then
-		  let new_facts = Terms.both_def_list_facts [] def_vars def_vars_accu in
+		  let new_facts = Incompatible.both_def_list_facts [] def_vars def_vars_accu in
 		  Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts 
 		else tf'
 	      in
@@ -1073,7 +1073,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
-		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
+		    (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (is_yield p2) && (def_list4 != []) && (List.length l0 = 1) 
@@ -1137,7 +1137,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	else
 	  begin
 	    if (p2'.p_desc == Yield) && (List.for_all (fun (bl,_,t,p1) ->
-	      (p1.p_desc == Yield) && (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
+	      (p1.p_desc == Yield) && (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
 		) l0') then
 	      begin
 		Settings.changed := true;
@@ -1434,12 +1434,12 @@ let expand_main g =
   reset [] g;
   current_pass_transfos := [];
   let g_proc = Terms.get_process g in
-  Terms.array_ref_process g_proc;
+  Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_process None true g_proc;
   let p' = expand_process [] ([],[],[]) g_proc in
   let current_transfos = !current_pass_transfos in
   current_pass_transfos := [];
-  Terms.cleanup_array_ref();
+  Array_ref.cleanup_array_ref();
   let proba = Depanal.final_add_proba() in
   Improved_def.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;

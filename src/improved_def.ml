@@ -73,7 +73,7 @@ let rec infer_facts_fc cur_array true_facts t =
 	      let vars_terms = List.map Terms.term_from_binder vars in
   	      infer_facts_fc cur_array_cond true_facts t1;
 	      let t1' = Terms.subst repl_indices vars_terms t1 in
-              let (sure_facts_t1, sure_def_list_t1, _) = Terms.def_vars_and_facts_from_term t1' in
+              let (sure_facts_t1, sure_def_list_t1, _) = Info_from_term.def_vars_and_facts_from_term t1' in
 	      (* The "elsefind" facts inferred from [t1'] have 
 		 already been taken into account in the first collection of facts.
 		 I do not take them into account again here. *)
@@ -85,8 +85,8 @@ let rec infer_facts_fc cur_array true_facts t =
 		let def_vars_accu = List.rev_append sure_def_list_t1
 		    (Terms.subst_def_list repl_indices vars_terms def_vars_cond) in
 		let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-		let true_facts' = Terms.def_list_at_pp_facts true_facts' (DTerm t2) cur_array_term def_vars_accu in
-		let true_facts' = Terms.both_def_list_facts true_facts' def_vars def_vars_accu in
+		let true_facts' = Incompatible.def_list_at_pp_facts true_facts' (DTerm t2) cur_array_term def_vars_accu in
+		let true_facts' = Incompatible.both_def_list_facts true_facts' def_vars def_vars_accu in
 		let true_facts' = convert_elsefind2 true_facts' (def_vars_accu @ def_vars) elsefind in
 		let node = get_node t2.t_facts in
 		node.true_facts_at_def <- true_facts';
@@ -193,7 +193,7 @@ and infer_facts_o cur_array true_facts p' =
 	      let vars_terms = List.map Terms.term_from_binder vars in
  	      infer_facts_fc cur_array_cond true_facts t;
 	      let t' = Terms.subst repl_indices vars_terms t in
-              let (sure_facts_t, sure_def_list_t, _) = Terms.def_vars_and_facts_from_term t' in
+              let (sure_facts_t, sure_def_list_t, _) = Info_from_term.def_vars_and_facts_from_term t' in
 	      (* The "elsefind" facts inferred from [t1'] have 
 		 already been taken into account in the first collection of facts.
 		 I do not take them into account again here. *)
@@ -205,8 +205,8 @@ and infer_facts_o cur_array true_facts p' =
 		let def_vars_accu = List.rev_append sure_def_list_t
 		    (Terms.subst_def_list repl_indices vars_terms def_vars_cond) in
 		let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-		let true_facts' = Terms.def_list_at_pp_facts true_facts' (DProcess p1) cur_array_term def_vars_accu in
-		let true_facts' = Terms.both_def_list_facts true_facts' def_vars def_vars_accu in
+		let true_facts' = Incompatible.def_list_at_pp_facts true_facts' (DProcess p1) cur_array_term def_vars_accu in
+		let true_facts' = Incompatible.both_def_list_facts true_facts' def_vars def_vars_accu in
 		let true_facts' = convert_elsefind2 true_facts' (def_vars_accu @ def_vars) elsefind in
 		let node = get_node p1.p_facts in
 		node.true_facts_at_def <- true_facts';
@@ -260,19 +260,19 @@ and infer_facts_o cur_array true_facts p' =
 in
 if !Settings.improved_fact_collection then
   begin
-    Terms.build_def_process None p;
-    Terms.build_compatible_defs p;
+    Def.build_def_process None p;
+    Incompatible.build_compatible_defs p;
     infer_facts_i [] [] p
   end
 else
   begin
-    Terms.build_def_process event_accu p;
+    Def.build_def_process event_accu p;
     if compatible_needed then
-      Terms.build_compatible_defs p
+      Incompatible.build_compatible_defs p
   end
 
 let empty_improved_def_process compatible_needed p =
-  Terms.empty_def_process p;
+  Def.empty_def_process p;
   if compatible_needed || (!Settings.improved_fact_collection)  then
-    Terms.empty_comp_process p
+    Incompatible.empty_comp_process p
 

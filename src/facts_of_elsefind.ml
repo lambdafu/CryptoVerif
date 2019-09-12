@@ -398,8 +398,8 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	         to [future_vars] *)
 	      let future_vars = 
 		List.fold_left (fun future_vars br' ->
-		  if (not (Terms.may_def_before br' (b,tl) &&
-			   List.for_all (Terms.may_def_before br') future_vars)) &&
+		  if (not (Incompatible.may_def_before br' (b,tl) &&
+			   List.for_all (Incompatible.may_def_before br') future_vars)) &&
 		     (not (Terms.mem_binderref br' future_vars)) 
 		  then
 		    br' :: future_vars

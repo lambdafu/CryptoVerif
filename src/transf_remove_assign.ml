@@ -372,7 +372,7 @@ let rec remove_assignments_term in_find_cond remove_set above_vars t =
        (remove_assignments_term in_find_cond remove_set)
        pat t1 t2 topt
   | ResE(b,t) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b (!whole_game).current_queries)) then
+      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!whole_game).current_queries)) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
@@ -417,7 +417,7 @@ and remove_assignments_reco remove_set above_vars p =
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Terms.has_array_ref_q b (!whole_game).current_queries)) then
+      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!whole_game).current_queries)) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let p' = Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) p in
@@ -479,10 +479,10 @@ let remove_assignments remove_set g =
   whole_game := g;
   done_sa_rename := [];
   done_transfos := [];
-  Terms.build_def_process None p;
+  Def.build_def_process None p;
   if !Terms.current_bound_vars != [] then
     Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
-  Terms.array_ref_process p;
+  Array_ref.array_ref_process p;
   replacement_def_list := [];
   (* - First pass: put links; split assignments of tuples if possible *)
   let p' = remove_assignments_rec remove_set p in
@@ -490,8 +490,8 @@ let remove_assignments remove_set g =
        Be careful for array references: update the indexes properly  *)
   let p'' = Terms.copy_process (Terms.Links_Vars_Args(!replacement_def_list)) p' in
   Terms.cleanup();
-  Terms.cleanup_array_ref();
-  Terms.empty_def_process p;
+  Array_ref.cleanup_array_ref();
+  Def.empty_def_process p;
   replacement_def_list := [];
   whole_game := Terms.empty_game;
   let sa_rename = !done_sa_rename in

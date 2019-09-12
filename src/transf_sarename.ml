@@ -252,7 +252,7 @@ let rec rename_find p1rename b0 image_list args accu ((bl,def_list,t,p1) as p) =
     [] -> accu
   | (b::l) ->
       let accu' = 
-	if List.for_all (function (b', args') -> (b' == b0) || (Terms.is_compatible (b,args) (b',args'))) def_list then
+	if List.for_all (function (b', args') -> (b' == b0) || (Incompatible.is_compatible (b,args) (b',args'))) def_list then
 	  let def_list' = List.map (Terms.copy_binder (Terms.Rename(args, b0, b))) def_list in
 	  let def_list'' = 
 	    if not (List.exists (fun (b',l') -> (b' == b0) && (List.for_all2 Terms.equal_terms l' args)) def_list) then
@@ -401,15 +401,15 @@ let sa_rename b0 g =
       begin
 	Settings.changed := true;
 	let p' = Terms.move_occ_process p' in 
-	Terms.build_def_process None p';
-	Terms.build_compatible_defs p';
+	Def.build_def_process None p';
+	Incompatible.build_compatible_defs p';
 	let p'' = ren_out_process b0 p' in
 	let new_names = !image_name_list in
 	let probaSArename = !proba_accu in
 	image_name_list := [];
 	proba_accu := [];
-	Terms.empty_comp_process p';
-	Terms.empty_def_process p';
+	Incompatible.empty_comp_process p';
+	Def.empty_def_process p';
 	let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p'' g) in      
 	(g', proba @ probaSArename, renames @ [DSArenaming(b0,new_names)])
       end
