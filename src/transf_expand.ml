@@ -1,5 +1,4 @@
 open Types
-open Simplify1
 
 (* Expand all if, let, and find in expressions, so that they occur only in 
    processes. 
@@ -12,8 +11,8 @@ let whole_game = ref Terms.empty_game
 let current_pass_transfos = ref []
 
 (* Priorities for orienting equalities into rewrite rules *)
-let current_max_priority = Simplify1.current_max_priority
-let priority_list = Simplify1.priority_list
+let current_max_priority = Facts.current_max_priority
+let priority_list = Facts.priority_list
 
 let simplify_term t = 
   if (Terms.check_simple_term t) && (not (Terms.is_true t || Terms.is_false t)) then
@@ -298,7 +297,7 @@ let count_branches test bind =
    on processes below. *)
 
 let simplify_term_restr rec_simplif cur_array true_facts b p =
-  let true_facts = update_elsefind_with_def [b] true_facts in
+  let true_facts = Facts.update_elsefind_with_def [b] true_facts in
   let p' = rec_simplif cur_array true_facts p in
   Terms.build_term p' (ResE(b, p'))
 
@@ -324,7 +323,7 @@ let simplify_term_if rec_simplif pp cur_array true_facts t p1 p2 =
     rec_simplif cur_array true_facts p1
 
 let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
-  let true_facts' = update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
+  let true_facts' = Facts.update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
   try
     let (transfos, test, bind) = Terms.simplify_let_tuple (get_tuple cur_array true_facts) pat t in
     let (test, bind) =
@@ -431,7 +430,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       let current_history = Facts.get_initial_history pp in 
       let t3' = 
 	try
-	  rec_simplif cur_array (add_elsefind (dependency_anal cur_array) def_vars true_facts l0) t3
+	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0) t3
 	with Contradiction ->
 	  (* The else branch of the find will never be executed
              => use some constant to simplify *)
@@ -494,12 +493,12 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
 		if find_info == Unique then 
-		  add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
+		  Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
 		else
 		  true_facts
 	      in
 	      let tf' = Terms.add_else_find elsefind_cond' tf' in
-	      let tf' = update_elsefind_with_def vars tf' in
+	      let tf' = Facts.update_elsefind_with_def vars tf' in
 	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' facts_cond' in
 
 	      (* Check that the "defined" conditions can hold,
@@ -527,7 +526,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		(* Using def_vars_accu instead of def_list' is more precise *)
 	        def_vars_accu @ def_vars
 	      in
-	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
+	      let tf' = Facts.convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 
 
 	      let t2' = rec_simplif cur_array tf' t2 in
@@ -551,16 +550,16 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		| _ -> false)
 	      then 
 		try 
-		  branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
+		  Facts.branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
 		  find_branch :: l'
-		with SuccessBranch(subst, keep_bl) ->
+		with Facts.SuccessBranch(subst, keep_bl) ->
 		  (* If the find has a single branch, which always succeeds, and the
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
 		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
 		    begin
-		      let def_list4 = filter_deflist_indices bl' def_list3 in
+		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (def_list4 != []) && (List.length l0 = 1) 
                           (* When def_list4 == [] or List.length l0 > 1, the change is recorded below *) then
 			begin
@@ -597,7 +596,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		      let def_list3 = !def_list_tmp in 
 		      let t1' = Terms.update_args_at_creation ((List.map snd keep_bl) @ cur_array) 
 			  (Terms.subst subst_repl_indices_source subst_repl_indices_target t1') in
-		      let t2' = add_let_term (Terms.subst3 subst t2') subst in
+		      let t2' = Facts.add_let_term (Terms.subst3 subst t2') subst in
 		      raise (OneBranchTerm(keep_bl, def_list3, t1', t2'))
 		    end
 	      else
@@ -799,7 +798,7 @@ let final_pseudo_expand g cur_array true_facts t =
 (* Simplification of processes *)
 
 let simplify_restr rec_simplif cur_array true_facts b p =
-  let true_facts = update_elsefind_with_def [b] true_facts in
+  let true_facts = Facts.update_elsefind_with_def [b] true_facts in
   let p' = rec_simplif cur_array true_facts p in
   Terms.oproc_from_desc (Restr(b, p'))
 
@@ -841,7 +840,7 @@ let is_yield_term_opt = function
 let is_yield_term t = false
       
 let simplify_let rec_simplif1 rec_simplif2 is_yield2 pp cur_array true_facts pat t p1 p2 =
-  let true_facts' = update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
+  let true_facts' = Facts.update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
   try
     let (transfos, test, bind) = Terms.simplify_let_tuple (get_tuple cur_array true_facts) pat t in
     let (test, bind) =
@@ -907,7 +906,7 @@ let simplify_let rec_simplif1 rec_simplif2 is_yield2 pp cur_array true_facts pat
     let p1' = rec_simplif1 cur_array true_facts_in p1 in
     (* Merge if both branches are Yield and the variables are not needed *)
     if (p1'.p_desc == Yield) && (p2'.p_desc == Yield) &&
-      (List.for_all (fun (pat, _) -> not (needed_vars_in_pat pat (!whole_game).current_queries)) bind) then
+      (List.for_all (fun (pat, _) -> not (Facts.needed_vars_in_pat pat (!whole_game).current_queries)) bind) then
       begin
 	Settings.changed := true;
 	current_pass_transfos := (SLetRemoved(pp)) :: (!current_pass_transfos);
@@ -950,7 +949,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       let p2' = 
 	if is_yield p2 then Terms.oproc_from_desc Yield else
 	try
-	  rec_simplif cur_array (add_elsefind (dependency_anal cur_array) def_vars true_facts l0) p2
+	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0) p2
 	with Contradiction ->
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
@@ -1010,12 +1009,12 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
 		if find_info == Unique then 
-		  add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
+		  Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
 		else
 		  true_facts
 	      in
 	      let tf' = Terms.add_else_find elsefind_cond' tf' in
-	      let tf' = update_elsefind_with_def vars tf' in
+	      let tf' = Facts.update_elsefind_with_def vars tf' in
 	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' facts_cond' in
 
 	      (* Check that the "defined" conditions can hold,
@@ -1043,7 +1042,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		(* Using def_vars_accu instead of def_list' is more precise *)
 		def_vars_accu @ def_vars
 	      in
-	      let tf' = convert_elsefind (dependency_anal cur_array) def_vars' tf' in
+	      let tf' = Facts.convert_elsefind (dependency_anal cur_array) def_vars' tf' in
 	      
 
 	      let p1' = rec_simplif cur_array tf' p1 in
@@ -1067,16 +1066,16 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		| _ -> false)
 	      then 
 		try
-		  branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
+		  Facts.branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
 		  find_branch :: l'
-		with SuccessBranch(subst, keep_bl) ->
+		with Facts.SuccessBranch(subst, keep_bl) ->
 		  (* If the find has a single branch, which always succeeds, and the
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
 		  if ((find_info == Unique) || (List.length l0 = 1)) && 
 		    (not (List.exists (fun b -> Terms.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
 		    begin
-		      let def_list4 = filter_deflist_indices bl' def_list3 in
+		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
 		      if (bl' != []) && (is_yield p2) && (def_list4 != []) && (List.length l0 = 1) 
                           (* When p2.p_desc != Yield or def_list4 == [] or List.length l0 > 1, the change is recorded below *) then
 			begin
@@ -1113,7 +1112,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		      let def_list3 = !def_list_tmp in 
 		      let t' = Terms.update_args_at_creation ((List.map snd keep_bl) @ cur_array) 
 			  (Terms.subst subst_repl_indices_source subst_repl_indices_target t') in
-		      let p1' = add_let (Terms.subst_oprocess3 subst p1') subst in
+		      let p1' = Facts.add_let (Terms.subst_oprocess3 subst p1') subst in
 		      raise (OneBranchProcess(keep_bl, def_list3, t', p1'))
 		    end
 	      else

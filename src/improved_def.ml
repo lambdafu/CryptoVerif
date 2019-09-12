@@ -11,7 +11,7 @@ let add_elsefind2 fact_accu def_vars l =
     | _,_,(Var _ | FunApp _) -> 
 	let bl' = List.map snd bl in
 	let true_facts_ref = ref accu in
-	Simplify1.always_true_def_list_t true_facts_ref t1 ([], [], []) bl' def_vars def_list;
+	Facts.always_true_def_list_t true_facts_ref t1 ([], [], []) bl' def_vars def_list;
 	(!true_facts_ref)
     | _ -> accu
 	  ) fact_accu l
@@ -19,7 +19,7 @@ let add_elsefind2 fact_accu def_vars l =
 let convert_elsefind2 accu def_vars elsefind =
   let true_facts_ref = ref accu in
   List.iter (fun (bl, def_list, t1) ->
-    Simplify1.always_true_def_list_t true_facts_ref t1 ([],[],[]) bl def_vars def_list
+    Facts.always_true_def_list_t true_facts_ref t1 ([],[],[]) bl def_vars def_list
       ) elsefind;
   (!true_facts_ref)
 

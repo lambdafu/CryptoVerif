@@ -160,7 +160,7 @@ let get_contradiction simp_facts def_vars elsefind_facts =
 	print_string "Defined variables:\n";
 	List.iter (fun (b,l) -> Display.display_var b l; print_newline()) def_vars
       end;
-    ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts');
+    ignore (Facts.convert_elsefind Facts.no_dependency_anal def_vars simp_facts');
     if !Settings.debug_corresp then
       print_string "Could not prove a contradiction\n";
     false

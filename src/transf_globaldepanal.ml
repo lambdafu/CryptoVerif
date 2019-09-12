@@ -1,5 +1,4 @@
 open Types
-open Simplify1
 
 (* Find all variables that depend on a certain variable [b0], provided
    these variables are not output (raises BadDep when some

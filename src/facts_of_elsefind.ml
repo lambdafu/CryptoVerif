@@ -277,7 +277,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
   let result = ref [] in
   begin
     try 
-      Simplify1.match_among_list (final_next3 bl def_list t1 result) simp_facts bl def_vars def_list
+      Facts.match_among_list (final_next3 bl def_list t1 result) simp_facts bl def_vars def_list
     with NoMatch -> ()
   end;
     
@@ -473,7 +473,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 		   (They are in [def_vars_before].) *)
 		begin
 		  try 
-		    Simplify1.match_among_list (final_next4 bl def_list t1 fact_accu) simp_facts bl def_vars_before def_list
+		    Facts.match_among_list (final_next4 bl def_list t1 fact_accu) simp_facts bl def_vars_before def_list
 		  with NoMatch -> ()
 		end;
 		  ) elsefind_facts;
