@@ -1551,7 +1551,7 @@ let main b0 coll_elim g =
   Depanal.reset coll_elim g;
   let g_proc = Terms.get_process g in
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None false g_proc;
+  Improved_def.improved_def_process None false g_proc;
   let dummy_term = Terms.term_from_binder b0 in
   let result = 
   if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
@@ -1571,5 +1571,5 @@ let main b0 coll_elim g =
 	(res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
     end
   in
-  Simplify1.empty_improved_def_process false g_proc;
+  Improved_def.empty_improved_def_process false g_proc;
   result

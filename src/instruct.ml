@@ -1235,9 +1235,9 @@ let display_facts_at state occ_cmd =
   let occ = interpret_occ state occ_cmd in
   (* First compute the facts, then display them *)
   let g_proc = Terms.get_process state.game in
-  Simplify1.improved_def_process None true g_proc;
+  Improved_def.improved_def_process None true g_proc;
   Facts.display_facts_at g_proc occ;
-  Simplify1.empty_improved_def_process true g_proc
+  Improved_def.empty_improved_def_process true g_proc
     
 
 let interpret_coll_elim state = function

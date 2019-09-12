@@ -4592,7 +4592,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   let vcounter = Terms.get_var_num_state() in
   List.iter (fun (fg, mode) ->
     if mode == AllEquiv then build_symbols_to_discharge fg) lm;
-  Simplify1.improved_def_process None false p;
+  Improved_def.improved_def_process None false p;
   if !Settings.optimize_let_vars then
     incompatible_terms := incompatible_defs p;
   let result = 
@@ -4653,7 +4653,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
     end
   in
   (* Cleanup to save memory *)
-  Simplify1.empty_improved_def_process false p;
+  Improved_def.empty_improved_def_process false p;
   whole_game := Terms.empty_game;
   whole_game_next := Terms.empty_game;
   equiv := empty_equiv;

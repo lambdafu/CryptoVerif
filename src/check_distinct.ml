@@ -32,7 +32,7 @@ let collect_facts_list bindex index1 defs =
 
 let check_distinct collector b g =
   Proba.reset [] g;
-  Simplify1.improved_def_process None false (Terms.get_process g);
+  Improved_def.improved_def_process None false (Terms.get_process g);
   let r_index1 = make_indexes b.args_at_creation in
   let r_index2 = make_indexes b.args_at_creation in
   let index1 = List.map Terms.term_from_repl_index r_index1 in
@@ -62,7 +62,7 @@ let check_distinct collector b g =
 		  let def_vars = List.rev_append d1def_vars d2def_vars in
 		  let facts2 = 
 		    if !Settings.elsefind_facts_in_success then
-		      Simplify1.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
+		      Facts_of_elsefind.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
 			def_vars
 		    else
 		      []
@@ -104,7 +104,7 @@ let check_distinct collector b g =
 		  let def_vars = List.rev_append d1def_vars d2def_vars in
 		  let facts2 = 
 		    if !Settings.elsefind_facts_in_success then
-		      Simplify1.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
+		      Facts_of_elsefind.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
 			def_vars
 		    else
 		      []

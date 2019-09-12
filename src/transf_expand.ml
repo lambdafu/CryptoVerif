@@ -459,7 +459,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
 		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
-		  Simplify1.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_cond'
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_cond'
 		else
 		  []
 	      in
@@ -618,7 +618,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    t3'
 	  end
 	else
-	  let find_info = is_unique l0' find_info in
+	  let find_info = Unique.is_unique l0' find_info in
 	  Terms.build_term t3' (FindE(l0', t3',find_info))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
@@ -974,7 +974,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
 		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
-		  Simplify1.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_cond'
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_cond'
 		else
 		  []
 	      in
@@ -1146,7 +1146,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      let find_info = is_unique l0' find_info in
+	      let find_info = Unique.is_unique l0' find_info in
 	      Terms.oproc_from_desc (Find(l0', p2', find_info))
 	  end
       with OneBranchProcess(find_branch) ->
@@ -1436,13 +1436,13 @@ let expand_main g =
   current_pass_transfos := [];
   let g_proc = Terms.get_process g in
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None true g_proc;
+  Improved_def.improved_def_process None true g_proc;
   let p' = expand_process [] ([],[],[]) g_proc in
   let current_transfos = !current_pass_transfos in
   current_pass_transfos := [];
   Terms.cleanup_array_ref();
   let proba = Depanal.final_add_proba() in
-  Simplify1.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   (Terms.build_transformed_game p' g,
    proba, [DSimplify(current_transfos)])

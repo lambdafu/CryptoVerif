@@ -759,7 +759,7 @@ let prove_unique1 pp l0 find_info ext =
       let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id (Facts.get_facts_at pp) in
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
-      if Simplify1.prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
+      if Unique.prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
 	Unique
       else
 	raise (Error("You inserted a find[unique] but I could not prove that it is really unique", ext))
@@ -834,12 +834,12 @@ let prove_unique g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None true g_proc;
+  Improved_def.improved_def_process None true g_proc;
   Depanal.reset [] g;
   let p' = prove_uniquei g_proc in
   let g' = Terms.build_transformed_game p' g in
   Terms.cleanup_array_ref();
-  Simplify1.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   (g', Depanal.final_add_proba(), [])
 
@@ -856,7 +856,7 @@ let insert_instruct occ ext_o s ext_s g =
       Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
   in
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None false g_proc;
+  Improved_def.improved_def_process None false g_proc;
   Hashtbl.clear hash_binders;
   find_binders_rec g_proc;
   let count = ref 0 in
@@ -873,7 +873,7 @@ let insert_instruct occ ext_o s ext_s g =
       raise (Error(mess, extent))
   in
   Terms.cleanup_array_ref();
-  Simplify1.empty_improved_def_process false g_proc;
+  Improved_def.empty_improved_def_process false g_proc;
   whole_game := Terms.empty_game;
   Hashtbl.clear hash_binders;
   if (!count) = 0 then 
@@ -928,7 +928,7 @@ let rec replace_tt count env facts cur_array t =
 	  let simp_facts = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (facts'@facts)) in
 	  let facts'' = 
 	    if !Settings.elsefind_facts_in_replace then
-	      Simplify1.get_facts_of_elsefind_facts (!whole_game) cur_array simp_facts defined_refs 
+	      Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array simp_facts defined_refs 
 	    else
 	      []
 	  in
@@ -1145,7 +1145,7 @@ let replace_term occ ext_o s ext_s g =
       Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
   in
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None true g_proc;
+  Improved_def.improved_def_process None true g_proc;
   Hashtbl.clear hash_binders;
   find_binders_rec g_proc;
   whole_game := g;
@@ -1165,7 +1165,7 @@ let replace_term occ ext_o s ext_s g =
   in
   Terms.cleanup_array_ref();
   Hashtbl.clear hash_binders;
-  Simplify1.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   match !count with
     RepToDo _ ->

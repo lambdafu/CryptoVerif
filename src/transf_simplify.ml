@@ -31,7 +31,7 @@ let reset coll_elim g =
 let final_reset g_proc =
   current_pass_transfos := [];
   Terms.cleanup_array_ref();
-  Simplify1.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   List.iter (fun b -> b.priority <- 0) (!priority_list);
   priority_list := [];
@@ -602,7 +602,7 @@ let contradicts_known_when_adv_wins (cur_array, pp) simp_facts =
 	  let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts3 in
 	  let simp_facts4 = Simplify1.convert_elsefind dep_anal (def_list @ def_list') simp_facts3 in
 	  if !Settings.elsefind_facts_in_success_simplify then
-	    let facts5 = Simplify1.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
+	    let facts5 = Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
 	    let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
 	    false
 	  else
@@ -873,7 +873,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    | (((bl, def_list, t', t2) as br1)::r) ->
 		let r' = expand_find r in 
 		match t'.t_desc with
-		  FindE(l2, t4, find_info') when Terms.is_false t4 && (is_unique l2 find_info' == Unique) ->
+		  FindE(l2, t4, find_info') when Terms.is_false t4 && (Unique.is_unique l2 find_info' == Unique) ->
 		    let result = 
 		      (List.map (fun (bl3, def_list3, t5, t6) ->
 			(* Replace references to variables in bl3 with the corresponding 
@@ -905,7 +905,7 @@ let rec simplify_term_w_find cur_array true_facts t =
       if (!done_expand) then
 	begin
 	  Settings.changed := true;
-	  let find_info = is_unique l0' find_info in
+	  let find_info = Unique.is_unique l0' find_info in
 	  Terms.build_term2 t (FindE(l0', t3, find_info))
 	end
       else
@@ -944,7 +944,7 @@ let rec simplify_term_w_find cur_array true_facts t =
       if l0' != l0 then
 	begin
 	  Settings.changed := true;
-	  let find_info = is_unique l0' find_info in
+	  let find_info = Unique.is_unique l0' find_info in
 	  Terms.build_term2 t (FindE(l0', t3', find_info))
 	end
       else
@@ -991,7 +991,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
 		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
-		  Simplify1.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_cond'
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_cond'
 		else
 		  []
 	      in
@@ -1197,7 +1197,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    t3'
 	  end
 	else
-	  let (find_info', change) = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0' find_info in
+	  let (find_info', change) = Unique.infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0' find_info in
           if change then
             begin
 	      Settings.changed := true;
@@ -1466,7 +1466,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	    | (((bl, def_list, t, p1) as br1)::r) ->
 		let r' = expand_find r in 
 		match t.t_desc with
-		  FindE(l2, t2, find_info') when Terms.is_false t2 && (is_unique l2 find_info' == Unique) ->
+		  FindE(l2, t2, find_info') when Terms.is_false t2 && (Unique.is_unique l2 find_info' == Unique) ->
 		    let result = 
 		      (List.map (fun (bl3, def_list3, t3, t4) ->
 			(* Replace references to variables in bl3 with the corresponding 
@@ -1498,7 +1498,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
       if (!done_expand) then
 	begin
 	  Settings.changed := true;
-	  let find_info = is_unique l0' find_info in
+	  let find_info = Unique.is_unique l0' find_info in
 	  Terms.oproc_from_desc2 p' (Find(l0', p2, find_info))
 	end
       else
@@ -1535,7 +1535,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
       if l0' != l0 then
 	begin
 	  Settings.changed := true;
-	  let find_info = is_unique l0' find_info in
+	  let find_info = Unique.is_unique l0' find_info in
 	  Terms.oproc_from_desc2 p' (Find(l0', p2', find_info))
 	end
       else
@@ -1579,7 +1579,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
 		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
-		  Simplify1.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_cond'
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_cond'
 		else
 		  []
 	      in
@@ -1803,7 +1803,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      let (find_info', change) = infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0' find_info in
+	      let (find_info', change) = Unique.infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0' find_info in
               if change then
                 begin
 	          Settings.changed := true;
@@ -2021,7 +2021,7 @@ let simplify_main collector coll_elim g =
   known_when_adv_wins := collector;
   current_pass_transfos := [];
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None true g_proc;
+  Improved_def.improved_def_process None true g_proc;
   try
     let p' = simplify_process [] DepAnal2.init ([],[],[]) g_proc in
     let current_transfos = !current_pass_transfos in

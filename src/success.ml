@@ -260,7 +260,7 @@ let rec check_usage_term cur_array seen_accu b lidx facts t =
 	    let (lidx', (all_indices, simp_facts, defined_refs, _)) = add_facts_at facts cur_array eq_index (DTerm t) in
 	    let facts2 = 
 	      if !Settings.elsefind_facts_in_success then
-		Simplify1.get_facts_of_elsefind_facts (!whole_game) all_indices simp_facts defined_refs 
+		Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) all_indices simp_facts defined_refs 
 	      else
 		[]
 	    in
@@ -721,12 +721,12 @@ let is_success collector state =
   proved_one_session_secrets := [];
   let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
-  Simplify1.improved_def_process (Some event_accu) true g_proc;
+  Improved_def.improved_def_process (Some event_accu) true g_proc;
   let (proved_queries, all_proved) = check_query_list collector (!event_accu) state g.current_queries in
   update_full_proof state;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
-  Simplify1.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_process true g_proc;
   whole_game := Terms.empty_game;
   proved_queries, all_proved
 

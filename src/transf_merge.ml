@@ -194,7 +194,7 @@ let rec equal_find_cond map t t' =
       (equal_find_cond map t3 t3')
   | FindE(l0,t3,find_info), FindE(l0',t3',find_info') ->
       (equal_find_cond map t3 t3') && (List.length l0 == List.length l0') &&
-      (Simplify1.is_unique l0 find_info = Simplify1.is_unique l0' find_info') (* TO DO change this test if find_info structure becomes richer *) &&
+      (Unique.is_unique l0 find_info = Unique.is_unique l0' find_info') (* TO DO change this test if find_info structure becomes richer *) &&
       (List.for_all2 (fun (bl, def_list, t, t1)
 	  (bl', def_list', t', t1') ->
 	    (* I don't check here that the types of the indices are the same, but
@@ -266,7 +266,7 @@ and equal_oprocess map p p' =
       (equal_oprocess map p p')
   | Find(l,p, find_info), Find(l',p', find_info') ->
       (equal_oprocess map p p') && (List.length l == List.length l') &&
-      (Simplify1.is_unique l find_info = Simplify1.is_unique l find_info') (* TO DO change this test if find_info structure becomes richer *) &&
+      (Unique.is_unique l find_info = Unique.is_unique l find_info') (* TO DO change this test if find_info structure becomes richer *) &&
       (List.for_all2 (fun 
 	(bl, def_list, t, p1)
 	  (bl', def_list', t', p1') ->
@@ -1585,7 +1585,7 @@ let merge_arrays bll mode g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None true g_proc;
+  Improved_def.improved_def_process None true g_proc;
   Proba.reset [] g;
   let old_merge_arrays = !Settings.merge_arrays in
   Settings.merge_arrays := false;
@@ -1670,19 +1670,19 @@ let merge_arrays bll mode g =
 	  end
 	else
 	  begin
-	    Simplify1.empty_improved_def_process true g_proc;
+	    Improved_def.empty_improved_def_process true g_proc;
 	    Settings.merge_arrays := old_merge_arrays;
 	    whole_game := Terms.empty_game;
 	    (g, [], [])
 	  end
       with 
 	Failed ->
-	  Simplify1.empty_improved_def_process true g_proc;
+	  Improved_def.empty_improved_def_process true g_proc;
 	  Settings.merge_arrays := old_merge_arrays;
 	  whole_game := Terms.empty_game;
 	  (g, [], [])
       | Error(mess,ext) ->
-	  Simplify1.empty_improved_def_process true g_proc;
+	  Improved_def.empty_improved_def_process true g_proc;
 	  Settings.merge_arrays := old_merge_arrays;
 	  whole_game := Terms.empty_game;
 	  raise (Error(mess,ext))
@@ -2191,7 +2191,7 @@ let merge_branches g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   Terms.array_ref_process g_proc;
-  Simplify1.improved_def_process None false g_proc;
+  Improved_def.improved_def_process None false g_proc;
   Proba.reset [] g;
   Depanal.term_collisions := [];
   merges_to_do := [];
@@ -2231,7 +2231,7 @@ let merge_branches g =
 	end
     end
   in
-  Simplify1.empty_improved_def_process false g_proc;
+  Improved_def.empty_improved_def_process false g_proc;
   whole_game := Terms.empty_game;
   result
     

@@ -10,13 +10,6 @@ Apply collisions as well in the binary case of Simplify1.FindCompos.find_compos_
 
 Put the basic proba functions of polynom.ml in a separate module? (to avoid confusion
 between proba fcts and polynom fcts)
-Put FindCompos in a separate file?
-Arrange so that the proba state also includes Simplify1.term_collisions?
-	term_collisions is used only with dependency analyses
-	the functions to add probabilities in this case need simplification of facts,
-	which uses more basic functions to add probabilities of collisions (those are in proba.ml)
-Or rather write a module for dependency analysis functions, which
-includes FindCompos, but also the functions to add the corresponding probabilities.
 Declare a type extracted_depend_status in types.ml and use it when possible
 (result of extract_from_status)
 
@@ -4235,3 +4228,12 @@ having to find out which variable subterm we want to characterize.
 
 ====== End of the notes on the change in FindCompos
 DONE 5/9/2019
+
+Put FindCompos in a separate file?
+Arrange so that the proba state also includes Simplify1.term_collisions?
+	term_collisions is used only with dependency analyses
+	the functions to add probabilities in this case need simplification of facts,
+	which uses more basic functions to add probabilities of collisions (those are in proba.ml)
+Or rather write a module for dependency analysis functions, which
+includes FindCompos, but also the functions to add the corresponding probabilities.
+DONE 12/9/2019
