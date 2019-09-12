@@ -138,9 +138,9 @@ and check_def_oprocess defined_refs p =
 (* - Main checking function for processes *)
 
 let check_def_process_main p =
-  Terms.build_def_process None p;
+  Def.build_def_process None p;
   check_def_process [] p;
-  Terms.empty_def_process p
+  Def.empty_def_process p
 
 (* - Main checking function for equivalence statements *)
 
@@ -163,7 +163,7 @@ let rec build_def_fungroup cur_array above_node = function
 			definition = DFunArgs; definition_success = DFunArgs } 
     in
     List.iter (fun b -> b.def <- above_node1 :: b.def) args;
-    ignore(Terms.def_term None cur_array above_node1 [] [] [] res)
+    ignore(Def.def_term None cur_array above_node1 [] [] [] res)
 
 let array_index_args args =
   List.filter (fun b -> match b.btype.tcat with
@@ -533,7 +533,7 @@ let rec check_rm_fungroup cur_array = function
 	  [] -> ([], body)
 	| (b::l) -> 
 	    let (b_inputs', body') = make_lets body l in
-	    if (*Terms.has_array_ref b*) (match b.btype.tcat with BitString -> true | Interv _ -> Terms.has_array_ref b) then
+	    if (*Terms.has_array_ref b*) (match b.btype.tcat with BitString -> true | Interv _ -> Array_ref.has_array_ref b) then
 	      let b' = Terms.new_binder b in
 	      (b'::b_inputs', 
 	       Terms.build_term_type body'.t_type (LetE(PatVar b, 
@@ -833,12 +833,12 @@ let check_equiv (n,lm,rm,p,opt,opt2) =
   (* Require that each function has a different number of repetitions.
      Then the typing guarantees that when several variables are referenced
      with the same array indexes, then these variables come from the same function. *)
-  Terms.array_ref_eqside rm;
+  Array_ref.array_ref_eqside rm;
   let rm' = List.map (fun (fg, mode) ->
     (check_rm_fungroup [] fg, mode)) rm
   in
   let rm'' = move_names_all lm' rm' in
-  Terms.cleanup_array_ref();
+  Array_ref.cleanup_array_ref();
   let restr_mapping = ref [] in
   build_restr_mapping restr_mapping lm' rm'';
   ((n,lm', rm'', p, opt,opt2), !restr_mapping)

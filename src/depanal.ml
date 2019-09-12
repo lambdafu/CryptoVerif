@@ -66,9 +66,9 @@ let rec match_term3 next_f t t' () =
 	end;
 	next_f()
     | Var(b,l), Var(b',l') when b == b' -> 
-	Terms.match_term_list match_term3 next_f l l' ()
+	Match_eq.match_term_list match_term3 next_f l l' ()
     | FunApp(f,l), FunApp(f',l') when f == f' ->
-	Terms.match_funapp match_term3 get_var_link Terms.default_match_error Terms.simp_facts_id next_f t t' ()
+	Match_eq.match_funapp match_term3 get_var_link Match_eq.default_match_error Terms.simp_facts_id next_f t t' ()
     | _ -> raise NoMatch
 	  )
 

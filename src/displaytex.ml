@@ -1524,19 +1524,19 @@ let display_simplif_step = function
       print_string "\\\\\n"
   | STestTrue(p) ->
       print_string "\\qquad -- Test at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " always true\\\\\n"
   | STestFalse(p) ->
       print_string "\\qquad -- Test at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " always false\\\\\n"
   | STestMerge(p) ->
       print_string "\\qquad -- Merge branches of test at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | STestOr(p) ->
       print_string ("\\qquad -- Expand $" ^ (if !nice_tex then "\\vee " else "\\|\\|") ^ "$ in test at ");
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | STestEElim(t) ->
       print_string "\\qquad -- Transformed test at ";
@@ -1546,19 +1546,19 @@ let display_simplif_step = function
       print_string "\\qquad -- Remove branch ";
       get_find_branch p br;
       print_string " in find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindSingleBranch(p,br) ->
       print_string "\\qquad -- A single branch always succeeds in find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindRemoved(p) ->
       print_string "\\qquad -- Find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " removed (else branch kept if any)\\\\\n"
   | SFindElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindBranchMerge(p, brl) ->
       if get_nbr_find_branch p = List.length brl then
@@ -1569,7 +1569,7 @@ let display_simplif_step = function
 	  display_list (get_find_branch p) brl;
 	  print_string " with else branch of find at ";
 	end;
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindDeflist(p, def_list, def_list') ->
       if def_list == [] then
@@ -1590,29 +1590,29 @@ let display_simplif_step = function
 	  print_string "$"
 	end;
       print_string " in find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindinFindCondition(p, t) ->
       print_string "\\qquad -- Simplified find at ";
       print_int t.t_occ;
       print_string " in condition of find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindinFindBranch(p,p') ->
       print_string "\\qquad -- Simplified find at ";
-      print_int (Terms.occ_from_pp p');
+      print_int (Incompatible.occ_from_pp p');
       print_string " in branch of find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SFindtoTest(p) ->
       print_string "\\qquad -- Transformed find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " into a test\\\\\n"
   | SFindIndexKnown(p, br, subst) ->
       print_string "\\qquad -- In branch ";
       get_find_branch p br;
       print_string " of find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string ", substituting ";
       display_list (fun (b,t) -> 
 	print_string "$"; display_binder b; print_string "$ with $";
@@ -1620,43 +1620,43 @@ let display_simplif_step = function
       print_string "\\\\\n" 
   | SFindInferUnique(p) ->
       print_string "\\qquad -- Inferred that find at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " is [unique]\\\\\n" 
                    
   | SLetElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of let at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SLetRemoved(p) ->
       print_string "\\qquad -- Remove let at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SLetSimplifyPattern(p, l) -> 
       print_string "\\qquad -- Simplify ";
       display_pat_simp_list l;
       print_string " at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
 
   | SResRemoved(p) ->
       print_string "\\qquad -- Remove random number generation at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
   | SResToAssign(p) ->
       print_string "\\qquad -- Transform unused random number generation at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " into constant assignment";
       print_string "\\\\\n"
 
   | SEventRemoved(p) ->
       print_string "\\qquad -- Removed event at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string " (no longer used in queries)";
       print_string "\\\\\n"
 	
   | SAdvLoses(p) ->
       print_string "\\qquad -- Adversary always loses at ";
-      print_int (Terms.occ_from_pp p);
+      print_int (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
 
 let display_detailed_ins = function
@@ -1683,7 +1683,7 @@ let display_detailed_ins = function
       print_string "\\quad -- Simplify ";
       display_pat_simp_list l;
       print_string " at ";
-      print_int (Terms.occ_from_pp let_p);
+      print_int (Incompatible.occ_from_pp let_p);
       print_string "\\\\\n"
   | DRemoveAssign(b, def_ch, usage_ch) ->
       print_string "\\quad -- Remove assignments on $";

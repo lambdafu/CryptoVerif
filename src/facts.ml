@@ -344,7 +344,7 @@ let rec match_term simp_facts restr next_f t t' () =
 	  end;
 	  next_f()
       | FunApp(f,l) ->
-	  Terms.match_funapp match_term_rec get_var_link Terms.default_match_error simp_facts next_f t t' ()
+	  Match_eq.match_funapp match_term_rec get_var_link Match_eq.default_match_error simp_facts next_f t t' ()
       | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _
       | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
 	  Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, get, insert, event, and event_abort should not occur in match_term"
@@ -363,10 +363,10 @@ let match_term_root_or_prod_subterm simp_facts restr final next_f t t' =
 	match f.f_eq_theories with
 	  NoEq | Commut -> Parsing_helper.internal_error "Facts.match_term_root_or_prod_subterm: cases NoEq, Commut should have been eliminated"
 	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
-	    Terms.match_AC (match_term simp_facts restr) (get_var_link restr) Terms.default_match_error (fun rest () -> 
+	    Match_eq.match_AC (match_term simp_facts restr) (get_var_link restr) Match_eq.default_match_error (fun rest () -> 
 	      final (Terms.make_prod f ((next_f())::rest))) simp_facts f true l l' ()
 	| Assoc | AssocN _ | Group _ -> 
-	    Terms.match_assoc_subterm (match_term simp_facts restr) (get_var_link restr) (fun rest_left rest_right () ->
+	    Match_eq.match_assoc_subterm (match_term simp_facts restr) (get_var_link restr) (fun rest_left rest_right () ->
 	      final (Terms.make_prod f (rest_left @ (next_f())::rest_right))) simp_facts f l l' ()
       end
   | _ ->
@@ -1652,7 +1652,7 @@ let rec check_non_nested seen_fsymb seen_binders t =
 (* Get the node from the p_facts field of a process / the t_facts field of a term *)
 
 let get_initial_history pp =
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     None -> None
   | Some (cur_array,_,_,_,_,_,n) -> 
       Some { current_point = pp;
@@ -1681,7 +1681,7 @@ let rec is_reachable_same_block n n' =
    may be before [pp'] and in the same input...output block. *)
 	
 let is_before_same_block pp pp' =
-  match Terms.get_facts pp, Terms.get_facts pp' with
+  match Incompatible.get_facts pp, Incompatible.get_facts pp' with
   | Some(_,_,_,_,_,_,n), Some(_,_,_,_,_,_,n') ->
       is_reachable_same_block n n'
   | _ -> true
@@ -1769,8 +1769,8 @@ let get_compatible_def_nodes history def_vars b l =
   List.filter (fun n ->
     (match history with
       None -> true
-    | Some h -> Terms.is_compatible_history (n,l) h) &&
-    (List.for_all (Terms.is_compatible_node (b,l) n) def_vars)
+    | Some h -> Incompatible.is_compatible_history (n,l) h) &&
+    (List.for_all (Incompatible.is_compatible_node (b,l) n) def_vars)
       ) b.def 
 
 (* [add_def_vars history def_vars_accu seen_refs br] adds in
@@ -1858,7 +1858,7 @@ let rec add_facts history fact_accu seen_refs done_refs ((b,l) as br) =
 	match history with
 	  None -> ()
 	| Some h ->
-	    fact_accu := Terms.facts_compatible_history (!fact_accu) (nodes_b_def, l) h
+	    fact_accu := Incompatible.facts_compatible_history (!fact_accu) (nodes_b_def, l) h
       end;
       let history = update_history history nodes_b_def l in
       let true_facts_at_def = filter_ifletfindres (Terms.intersect_list Terms.equal_terms (List.map (true_facts_from_node history) nodes_b_def)) in
@@ -1912,7 +1912,7 @@ let facts_from_defined history def_list =
    to be defined at program point [pp]. *)
 
 let get_def_vars_at pp  = 
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     Some (_,_,_,def_vars,_,_,n) ->
       let done_refs = ref (get_def_vars_above n) in
       let seen_refs = ref (def_vars @ (!done_refs)) in
@@ -1926,7 +1926,7 @@ let get_def_vars_at pp  =
    at program point [pp]. *)
 
 let get_facts_at pp =
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     None -> []
   | Some(_,true_facts, _, def_vars, _,_, n) ->
       let fact_accu = ref (filter_ifletfindres true_facts) in
@@ -1940,7 +1940,7 @@ let get_facts_at pp =
    program point [pp]. *)
 
 let get_def_vars_full_block pp  = 
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     Some (_,_,_,def_vars,_,fut_binders,n) ->
       let done_refs =
 	ref (List.map Terms.binderref_from_binder
@@ -1957,7 +1957,7 @@ let get_def_vars_full_block pp  =
    at the end of the input...output block containing program point [pp]. *)
 
 let get_facts_full_block pp =
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     None -> []
   | Some(_,true_facts, _, def_vars, fut_true_facts, _, n) ->
       let fact_accu = ref (filter_ifletfindres (fut_true_facts @ true_facts)) in
@@ -1970,7 +1970,7 @@ let get_facts_full_block pp =
    known to hold at program point [pp] *)
 
 let get_elsefind_facts_at pp = 
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     None -> []
   | Some(_, _, elsefind_facts, _, _, _, _) -> elsefind_facts
 
@@ -2434,7 +2434,7 @@ let rec add_facts_cases history (fact_accu, fact_accu_cases) seen_refs done_refs
 	  None -> true_facts_at_def_list'
 	| Some h ->
 	    List.map2 (fun fact_accu n ->
-	      Terms.facts_compatible_history fact_accu ([n], l) h
+	      Incompatible.facts_compatible_history fact_accu ([n], l) h
 		) true_facts_at_def_list' nodes_b_def
       in
       (* split into cases *)
@@ -2475,7 +2475,7 @@ let rec add_facts_cases history (fact_accu, fact_accu_cases) seen_refs done_refs
     end
 
 let get_facts_full_block_cases pp  =
-  match Terms.get_facts pp with
+  match Incompatible.get_facts pp with
     None -> [],[]
   | Some(_,true_facts, _, def_vars, fut_true_facts, _, n) ->
       let fact_accu = ref (filter_ifletfindres (fut_true_facts @ true_facts)) in
@@ -2650,7 +2650,7 @@ let is_in_bl bl t =
    have array accesses or are used in queries. That is, we must keep
    them even if they are not used in their scope. *)
 	
-let needed_vars vars q = List.exists (fun b -> Terms.has_array_ref_q b q) vars
+let needed_vars vars q = List.exists (fun b -> Array_ref.has_array_ref_q b q) vars
 
 let needed_vars_in_pat pat q =
   needed_vars (Terms.vars_from_pat [] pat) q
@@ -2933,7 +2933,7 @@ let apply_eq add_accu t equalities =
 	       after finding a solution. *)
 	      begin
 		try 
-		  Terms.match_AC match_term_novar get_var_link_novar Terms.default_match_error (fun rest () -> 
+		  Match_eq.match_AC match_term_novar get_var_link_novar Match_eq.default_match_error (fun rest () -> 
 		    add_accu (Terms.make_prod f (right::rest))) Terms.simp_facts_id f true l l' ()
 		with NoMatch -> ()
 	      end
@@ -2941,7 +2941,7 @@ let apply_eq add_accu t equalities =
 	    (* Try all possibilities *)
 	      begin
 		try
-		  Terms.match_assoc_subterm match_term_novar get_var_link_novar (fun rest_left rest_right () ->
+		  Match_eq.match_assoc_subterm match_term_novar get_var_link_novar (fun rest_left rest_right () ->
 		    add_accu (Terms.make_prod f (rest_left @ right::rest_right)); raise NoMatch) Terms.simp_facts_id f l l' ()
 		with NoMatch -> ()
 	      end
