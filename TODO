@@ -8,6 +8,28 @@ values of the indices for the common variables.
 Apply collisions as well in the binary case of Simplify1.FindCompos.find_compos_gen
 (possibly by modifying function Simplify1.FindCompos.apply_eq_statements
 
+Put the basic proba functions of polynom.ml in a separate module? (to avoid confusion
+between proba fcts and polynom fcts)
+Put FindCompos in a separate file?
+Arrange so that the proba state also includes Simplify1.term_collisions?
+	term_collisions is used only with dependency analyses
+	the functions to add probabilities in this case need simplification of facts,
+	which uses more basic functions to add probabilities of collisions (those are in proba.ml)
+Or rather write a module for dependency analysis functions, which
+includes FindCompos, but also the functions to add the corresponding probabilities.
+Declare a type extracted_depend_status in types.ml and use it when possible
+(result of extract_from_status)
+
+For counting of probabilities in FindCompos, for a collision
+M = M' where M characterizes b and M' is independent of b
+In case find_compos_bin, the fresh variables that I create should
+use as indices the list of indices of M'. However, that list of
+indices is not known at this point, so perhaps create a fresh replication
+index, use it for the indices of fresh variables for find_compos_bin,
+and replace later by the real list of indices when I have it?
+Or pass the indices of M' as argument? But for that, I need to know
+to indices introduced by is_indep.
+
 Generalize to collisions M = f(M1...Mn) where f is data, M has status "decompos"
 wrt r, and Mi is independent of r for some i (like check_assign1, but f(M1,...Mn)
 is a term, not a pattern).
@@ -46,6 +68,8 @@ PROBLEM: that requires really good size estimates.
 TO DO Distinguish the estimate for the cardinal |T|
 from the one for the probability Pcoll1rand(T)/Pcoll2rand(T)
 for nonuniform types.
+    tsize: int option
+    tpcoll: int option (* Use None when it is not set *)
 If I do not trust the size estimates, I could use the following:
 In is_indep:
 - when f is [data], I know that \Prod Ni <= |T|.
