@@ -16,7 +16,7 @@ let rec empty_comp_pattern = function
   | PatEqual t -> empty_comp_term t
 
 and empty_comp_term t =
-  t.t_incompatible <- Terms.map_empty;
+  t.t_incompatible <- Occ_map.empty;
   match t.t_desc with
     Var (_,l) | FunApp(_,l)-> List.iter empty_comp_term l
   | ReplIndex _ -> ()
@@ -59,7 +59,7 @@ and empty_comp_term t =
       empty_comp_term p
 
 let rec empty_comp_process p = 
-  p.i_incompatible <- Terms.map_empty;
+  p.i_incompatible <- Occ_map.empty;
   match p.i_desc with
     Nil -> ()
   | Par(p1,p2) -> 
@@ -73,7 +73,7 @@ let rec empty_comp_process p =
       empty_comp_oprocess p
 
 and empty_comp_oprocess p =
-  p.p_incompatible <- Terms.map_empty;
+  p.p_incompatible <- Occ_map.empty;
   match p.p_desc with
     Yield | EventAbort _ -> ()
   | Restr(b,p) ->
@@ -218,7 +218,7 @@ and compatible_def_oprocess cur_array_length current_incompatible p =
 
 
 let build_compatible_defs p = 
-  compatible_def_process 0 Terms.map_empty p
+  compatible_def_process 0 Occ_map.empty p
 
 (* [occ_from_pp pp] returns the occurrence of program point [pp] *)
 

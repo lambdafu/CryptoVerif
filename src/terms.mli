@@ -480,7 +480,6 @@ val add_def_vars_node : binder list -> def_node -> binder list
 
 val unionq : 'a list -> 'a list -> 'a list (* union using physical equality *)
 
-val map_empty : int Occ_map.occ_map
 (* Update args_at_creation: since variables in conditions of find have
 as args_at_creation the indices of the find, transformations of the
 find may lead to changes in these indices.  This function updates
