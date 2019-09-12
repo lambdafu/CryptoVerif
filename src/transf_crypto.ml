@@ -620,7 +620,7 @@ let rec check_instance_of_rec next_f term t state =
 	else
 	  state
       in
-      Terms.match_funapp_advice check_instance_of_rec explicit_value_state (get_var_link state.all_names_exp_opt) is_var_inst next_f state.simp_facts term t state'
+      Match_eq.match_funapp_advice check_instance_of_rec explicit_value_state (get_var_link state.all_names_exp_opt) is_var_inst next_f state.simp_facts term t state'
   | FunApp(f,l), FunApp(_,_) -> 
       raise NoMatch
 	(* Might work after rewriting with an equation *)
@@ -937,7 +937,7 @@ let check_instance_of state0 next_f comp_neut term t =
 	match f.f_eq_theories with
 	  NoEq | Commut -> Parsing_helper.internal_error "Transf_crypto.check_instance_of: cases NoEq, Commut should have been eliminated"
 	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
-	    Terms.match_AC_advice check_instance_of_rec  
+	    Match_eq.match_AC_advice check_instance_of_rec  
 	      explicit_value_state (get_var_link state0.all_names_exp_opt) is_var_inst
 	      (fun rest state' -> 
 		let product_rest =
@@ -947,7 +947,7 @@ let check_instance_of state0 next_f comp_neut term t =
 		in
 		next_f product_rest state') state0.simp_facts f false false true l l' state0
 	| Assoc | AssocN _ | Group _ -> 
-	    Terms.match_assoc_advice_subterm check_instance_of_rec  
+	    Match_eq.match_assoc_advice_subterm check_instance_of_rec  
 	      explicit_value_state (get_var_link state0.all_names_exp_opt) is_var_inst
 	      (fun rest_left rest_right state' ->
 		let product_rest =
@@ -1029,7 +1029,7 @@ let rec check_instance_of_subterms state0 next_f term t =
 	  NoEq | Commut -> Parsing_helper.internal_error "Transf_crypto.check_instance_of_subterms: cases NoEq, Commut should have been eliminated"
 	| AssocCommut | AssocCommutN _ | CommutGroup _ | ACUN _ ->
 	    let match_AC allow_full l =
-	      Terms.match_AC_advice check_instance_of_rec 
+	      Match_eq.match_AC_advice check_instance_of_rec 
 		explicit_value_state (get_var_link state.all_names_exp_opt) 
 		is_var_inst (fun _ state -> next_f_internal state) state.simp_facts
 		prod true allow_full false l l' state
@@ -1079,7 +1079,7 @@ let rec check_instance_of_subterms state0 next_f term t =
 	    check_instance_of_subterms_rec false term
 	| Assoc | AssocN _ | Group _ -> 
 	    let match_assoc allow_full l =
-	      Terms.match_assoc_advice_pat_subterm check_instance_of_rec 
+	      Match_eq.match_assoc_advice_pat_subterm check_instance_of_rec 
 		explicit_value_state (get_var_link state.all_names_exp_opt) 
 		is_var_inst next_f_internal state.simp_facts prod allow_full l l' state
 	    in
@@ -2012,15 +2012,15 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     if where_info == FindCond then
       begin
 	let ((_, lm, rm, _, _, _),name_mapping) = !equiv in 
-	Terms.array_ref_eqside rm;
+	Array_ref.array_ref_eqside rm;
 	let def_vars = get_def_vars [] res_term' in
-	if List.exists Terms.has_array_ref def_vars then
+	if List.exists Array_ref.has_array_ref def_vars then
 	  begin
 	    if (!Settings.debug_cryptotransf) > 4 then 
 	      print_string "The transformed term occurs in a condition of find, and the transformation may create finds on variables defined in the condition of find.\n";
 	    raise NoMatch
 	  end;
-	Terms.cleanup_array_ref();
+	Array_ref.cleanup_array_ref();
 	check_no_new_event res_term';
         (* When restrictions in the image have no corresponding
 	   restriction in the source process, we would like to put them
@@ -3539,13 +3539,13 @@ and update_def_list_simplifo p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 	
 let do_crypto_transform p = 
-  Terms.array_ref_process p;
+  Array_ref.array_ref_process p;
   let r = transform_process [] p in
-  Terms.cleanup_array_ref();
+  Array_ref.cleanup_array_ref();
   let r' =
     if !Settings.use_known_equalities_crypto then
       begin
-	Terms.build_def_process None r;
+	Def.build_def_process None r;
 	let r' = update_def_list_simplif r in
 	(* Cannot cleanup here because it may delete information
 	   in the initial game, needed to compute the probabilities.

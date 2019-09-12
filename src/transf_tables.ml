@@ -403,13 +403,13 @@ let transform_get p l =
 
 let reduce_tables g =
   let g_proc = Terms.get_process g in
-  Terms.array_ref_process g_proc;
+  Array_ref.array_ref_process g_proc;
   let (p,l) = transform_insert g_proc in
   let tables = ref [] in
   List.iter (fun (tbl,_) ->
     if not (List.memq tbl (!tables)) then tables := tbl :: (!tables)) l;
   let g1 = Terms.build_transformed_game (transform_get p l) g in
-  Terms.cleanup_array_ref();
+  Array_ref.cleanup_array_ref();
   let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename g1 in
   (g', proba, renames @ (List.map (fun tbl -> DExpandGetInsert tbl) (!tables)))
 

@@ -1549,7 +1549,7 @@ let check_all_deps b0 init_proba_state g =
 let main b0 coll_elim g =
   Depanal.reset coll_elim g;
   let g_proc = Terms.get_process g in
-  Terms.array_ref_process g_proc;
+  Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_process None false g_proc;
   let dummy_term = Terms.term_from_binder b0 in
   let result = 

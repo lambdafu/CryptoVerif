@@ -36,7 +36,7 @@ let ok_arrays_second_branch = ref []
 
 
 let has_array_ref b =
-  Terms.has_array_ref_non_exclude b || Settings.occurs_in_queries b (!whole_game).current_queries
+  Array_ref.has_array_ref_non_exclude b || Settings.occurs_in_queries b (!whole_game).current_queries
 
 (* [merge_var next_f map b b'] records that variable [b] in the first branch to merge
    corresponds to variable [b'] in the second branch. 
@@ -51,8 +51,8 @@ let merge_var next_f map b b' =
   else if (b.btype != b'.btype) || (Settings.occurs_in_queries b (!whole_game).current_queries) || (Settings.occurs_in_queries b' (!whole_game).current_queries) then
     false
   else 
-    let ar_b = Terms.has_array_ref_non_exclude b in
-    let ar_b' = Terms.has_array_ref_non_exclude b' in
+    let ar_b = Array_ref.has_array_ref_non_exclude b in
+    let ar_b' = Array_ref.has_array_ref_non_exclude b' in
     if (not ar_b) && (not ar_b') then
       next_f ((Terms.term_from_binder b,Terms.term_from_binder b')::map)
     else if (List.memq b (!ok_arrays_first_branch)) &&
@@ -892,7 +892,7 @@ let store_arrays_to_normal f =
     begin
       var_no_array_ref := [];
       all_branches_var_list := [];
-      Terms.cleanup_exclude_array_ref();
+      Array_ref.cleanup_exclude_array_ref();
       false
     end
   else if List.for_all (fun bl -> bl == []) (!all_branches_var_list) then
@@ -900,7 +900,7 @@ let store_arrays_to_normal f =
       let r' = not (List.exists has_array_ref (!var_no_array_ref)) in
       var_no_array_ref := [];
       all_branches_var_list := [];
-      Terms.cleanup_exclude_array_ref();
+      Array_ref.cleanup_exclude_array_ref();
       r'
     end 
   else 
@@ -918,7 +918,7 @@ let store_arrays_to_normal f =
       end;
       var_no_array_ref := [];
       all_branches_var_list := [];
-      Terms.cleanup_exclude_array_ref();
+      Array_ref.cleanup_exclude_array_ref();
       false
     end
   
@@ -1018,8 +1018,8 @@ let can_merge_all_branches_store_arrays eq_test above_p_facts true_facts l0 p3 =
   let in_scope = get_in_scope above_p_facts in
   List.iter (fun (bl, def_list, t1, p2) ->
     var_no_array_ref := (List.map fst bl) @ (!var_no_array_ref);
-    Terms.exclude_array_ref_def_list in_scope def_list;
-    Terms.exclude_array_ref_term in_scope t1) l0;
+    Array_ref.exclude_array_ref_def_list in_scope def_list;
+    Array_ref.exclude_array_ref_term in_scope t1) l0;
   List.for_all (fun (_, def_list, t1, p2) ->
     equal_store_arrays eq_test true_facts p2 p3) l0
 
@@ -1031,8 +1031,8 @@ let can_merge_all_branches eq_test above_p_facts true_facts l0 p3 =
 
 let can_merge_one_branch_store_arrays eq_test above_p_facts true_facts (bl, def_list, t1, p2) p3 =
   let in_scope = get_in_scope above_p_facts in
-  Terms.exclude_array_ref_def_list in_scope def_list;
-  Terms.exclude_array_ref_term in_scope t1;
+  Array_ref.exclude_array_ref_def_list in_scope def_list;
+  Array_ref.exclude_array_ref_term in_scope t1;
   var_no_array_ref := (List.map fst bl) @ (!var_no_array_ref);
   equal_store_arrays eq_test true_facts p2 p3
 
@@ -1140,7 +1140,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
     rename_instr l0 p3 =
   let (source_to_target_list, br_vars) = rename_instr in
   let already_defined = 
-    match Terms.get_facts pp with
+    match Incompatible.get_facts pp with
       Some (_, _, _, def_vars, _, _, def_node) ->
         def_vars @ def_node.def_vars_at_def @ 
 	(List.map (fun b -> (b, List.map Terms.term_from_repl_index b.args_at_creation)) (Terms.add_def_vars_node [] def_node))
@@ -1308,7 +1308,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
 		List.fold_left (fun accu br -> 
 		  List.fold_left (fun accu' (target_b,target_l) -> 
 		    let b = assq2 target_sv_brl sv_brl target_b in 
-		    Terms.both_def_add_fact accu' br (b,target_l)
+		    Incompatible.both_def_add_fact accu' br (b,target_l)
 		      ) accu target_new_def
 		  ) facts (!accu)
 	      in
@@ -1538,7 +1538,7 @@ let is_def_before (b1,_) (b,_) =
 
 let check_distinct_branch (b,ext) (b', ext') =
   try 
-    ignore (Terms.incompatible_suffix_length b b')
+    ignore (Incompatible.incompatible_suffix_length b b')
   with Not_found -> 
     raise(Error("For merging arrays, variable " ^
 		(Display.binder_to_string b) ^ 
@@ -1584,7 +1584,7 @@ do that by calling merge_arrays again with argument the b'j.
 let merge_arrays bll mode g =
   let g_proc = Terms.get_process g in
   whole_game := g;
-  Terms.array_ref_process g_proc;
+  Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_process None true g_proc;
   Proba.reset [] g;
   let old_merge_arrays = !Settings.merge_arrays in
@@ -1662,7 +1662,7 @@ let merge_arrays bll mode g =
 	    ) bll) then
 	  begin
 	    Settings.changed := true;
-	    Terms.empty_comp_process g_proc;
+	    Incompatible.empty_comp_process g_proc;
 	    Settings.merge_arrays := old_merge_arrays;
 	    (* Display.display_process p'; *)
 	    let proba = Proba.final_add_proba [] in
@@ -1871,11 +1871,11 @@ let rec collect_merges_find_cond cur_array t =
 	      if r then
 		merges_to_do := (MergeFindCond(t, [t3;t2]), 
 				 cur_array, !all_branches_var_list, !var_no_array_ref, 
-				 List.map (fun b -> (b, b.count_exclude_array_ref)) (!Terms.all_vars_exclude))
+				 List.map (fun b -> (b, b.count_exclude_array_ref)) (!Array_ref.all_vars_exclude))
 		   :: (!merges_to_do);
 	      var_no_array_ref := [];
 	      all_branches_var_list := [];
-	      Terms.cleanup_exclude_array_ref();
+	      Array_ref.cleanup_exclude_array_ref();
 	      collect_merges_find_cond cur_array t2;
 	      if not r then
 		collect_merges_find_cond ((List.map snd bl) @ cur_array) t1
@@ -1893,11 +1893,11 @@ let rec collect_merges_find_cond cur_array t =
 	    if r then
 	      merges_to_do := (MergeFindCond(t, t3 :: List.map (fun (_,_,_,t2) -> t2) l0), 
 			       cur_array, !all_branches_var_list, !var_no_array_ref, 
-			       List.map (fun b -> (b, b.count_exclude_array_ref)) (!Terms.all_vars_exclude))
+			       List.map (fun b -> (b, b.count_exclude_array_ref)) (!Array_ref.all_vars_exclude))
 		 :: (!merges_to_do);
 	    var_no_array_ref := [];
 	    all_branches_var_list := [];
-	    Terms.cleanup_exclude_array_ref();
+	    Array_ref.cleanup_exclude_array_ref();
 	    List.iter (fun (_,_,_,t2) -> collect_merges_find_cond cur_array t2) l0;
 	    if not r then
 	      List.iter (fun (bl,_,t1,_) -> collect_merges_find_cond ((List.map snd bl) @ cur_array) t1) l0
@@ -1977,11 +1977,11 @@ and collect_merges_o cur_array p =
 	      if r then
 	      merges_to_do := (MergeProcess(p, [p3;p2]), 
 			       cur_array, !all_branches_var_list, !var_no_array_ref, 
-			       List.map (fun b -> (b, b.count_exclude_array_ref)) (!Terms.all_vars_exclude))
+			       List.map (fun b -> (b, b.count_exclude_array_ref)) (!Array_ref.all_vars_exclude))
 		 :: (!merges_to_do);
 	      var_no_array_ref := [];
 	      all_branches_var_list := [];
-	      Terms.cleanup_exclude_array_ref();
+	      Array_ref.cleanup_exclude_array_ref();
 	      collect_merges_o cur_array p2;
 	      if not r then
 		collect_merges_find_cond ((List.map snd bl) @ cur_array) t1
@@ -1999,11 +1999,11 @@ and collect_merges_o cur_array p =
 	    if r then
 	      merges_to_do := (MergeProcess(p, p3 :: List.map (fun (_,_,_,p2) -> p2) l0), 
 			       cur_array, !all_branches_var_list, !var_no_array_ref, 
-			       List.map (fun b -> (b, b.count_exclude_array_ref)) (!Terms.all_vars_exclude))
+			       List.map (fun b -> (b, b.count_exclude_array_ref)) (!Array_ref.all_vars_exclude))
 		 :: (!merges_to_do);
 	    var_no_array_ref := [];
 	    all_branches_var_list := [];
-	    Terms.cleanup_exclude_array_ref();
+	    Array_ref.cleanup_exclude_array_ref();
 	    List.iter (fun (_,_,_,p2) -> collect_merges_o cur_array p2) l0;
 	    if not r then
 	      List.iter (fun (bl,_,t1,_) -> collect_merges_find_cond ((List.map snd bl) @ cur_array) t1) l0
@@ -2017,11 +2017,11 @@ and collect_merges_o cur_array p =
 (* Second step *)
 
 let rec remove_impossible_merges() =
-  Terms.all_vars_exclude := [];
+  Array_ref.all_vars_exclude := [];
   List.iter (fun (_,_,_,_,l) ->
     List.iter (fun (b,n) -> 
       b.count_exclude_array_ref <- b.count_exclude_array_ref + n;
-      Terms.all_vars_exclude := b :: (!Terms.all_vars_exclude)
+      Array_ref.all_vars_exclude := b :: (!Array_ref.all_vars_exclude)
 				       ) l
       ) (!merges_to_do);
   let need_to_iterate = ref false in
@@ -2033,7 +2033,7 @@ let rec remove_impossible_merges() =
 	merges_cannot_be_done := merge :: (!merges_cannot_be_done)
       end;
     not r) (!merges_to_do);
-  Terms.cleanup_exclude_array_ref();
+  Array_ref.cleanup_exclude_array_ref();
   if !need_to_iterate then
     remove_impossible_merges()
 
@@ -2190,7 +2190,7 @@ let display_merge = function
 let merge_branches g =
   let g_proc = Terms.get_process g in
   whole_game := g;
-  Terms.array_ref_process g_proc;
+  Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_process None false g_proc;
   Proba.reset [] g;
   Depanal.term_collisions := [];
@@ -2249,8 +2249,8 @@ let equal_games g1 g2 =
   whole_game := g1;
   (* We use [simp_facts_id] below since no fact holds at the beginning of the games.
      For this reason, we use no known facts, and the probability [proba] should always be 0 *)
-  Terms.array_ref_process g1_proc;
-  Terms.array_ref_process g2_proc;
+  Array_ref.array_ref_process g1_proc;
+  Array_ref.array_ref_process g2_proc;
   Proba.reset [] g1;
   Depanal.term_collisions := [];
   let r = 

@@ -202,14 +202,14 @@ let add_facts_at (all_indices, simp_facts0, defined_refs0, pp_list) cur_array ne
   let facts1 = List.map (Terms.subst cur_array lidx') (new_facts @ (Facts.get_facts_at pp)) in
   let new_pp = (lidx', pp) in
   (* Add facts inferred from the compatibility between [new_pp] and [pp_list] *)
-  let facts2 = List.fold_left (fun accu -> Terms.both_pp_add_fact accu new_pp) facts1 pp_list in
+  let facts2 = List.fold_left (fun accu -> Incompatible.both_pp_add_fact accu new_pp) facts1 pp_list in
   (* Add facts inferred from the compatibility between [defined_refs0] and [new_def_list] *)
-  let facts3 = Terms.both_def_list_facts facts2 defined_refs0 new_def_list in
+  let facts3 = Incompatible.both_def_list_facts facts2 defined_refs0 new_def_list in
   (* Add facts inferred from the compatibility between [new_pp] and [defined_refs1] *)
-  let facts4 = Terms.def_list_pp facts3 (pp, lidx') defined_refs1 in
+  let facts4 = Incompatible.def_list_pp facts3 (pp, lidx') defined_refs1 in
   (* Add facts inferred from the compatibility between [pp_list] and [new_def_list] *)
   let facts5 = List.fold_left (fun accu (lidx, pp0) -> 
-    Terms.def_list_pp accu (pp0, lidx) new_def_list) facts4 pp_list 
+    Incompatible.def_list_pp accu (pp0, lidx) new_def_list) facts4 pp_list 
   in
   let simp_facts1 = Terms.auto_cleanup (fun () -> 
     Facts.simplif_add_list Facts.no_dependency_anal simp_facts0 facts5) 

@@ -1403,7 +1403,7 @@ let display_collector coll =
     print_newline();
     print_string "pp: ";
     Display.display_list (fun (idx, pp) ->
-      print_int (Terms.occ_from_pp pp);
+      print_int (Incompatible.occ_from_pp pp);
       print_string "[";
       Display.display_list Display.display_term idx;
       print_string "]"

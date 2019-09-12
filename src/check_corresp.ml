@@ -75,7 +75,7 @@ let rec guess_by_matching simp_facts next_f t t' () =
       end;
       next_f()
   | FunApp _ ->
-      Terms.match_funapp (guess_by_matching simp_facts) get_var_link_g next_f simp_facts next_f t t' ()
+      Match_eq.match_funapp (guess_by_matching simp_facts) get_var_link_g next_f simp_facts next_f t t' ()
   | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event, event_abort, get, insert should not occur in guess_by_matching"
 
@@ -174,7 +174,7 @@ let get_contradiction simp_facts def_vars elsefind_facts =
    with indices [new_end_sid]. *)
 
 let get_future_defvars end_pp new_end_sid =
-  match Terms.get_facts end_pp with
+  match Incompatible.get_facts end_pp with
     Some (_,_,_,_,_,fut_binders,_) ->
       List.map (fun b -> (b, new_end_sid)) fut_binders
   | None -> []
@@ -256,14 +256,14 @@ let case_check facts
        after the one at [end_pp], we are not sure that the full
        input..output block of [end_pp] has been executed,
        so we are not sure that the future_defvars are really defined. *)
-    if (Terms.occ_from_pp end_pp != Terms.occ_from_pp end_pp') &&
+    if (Incompatible.occ_from_pp end_pp != Incompatible.occ_from_pp end_pp') &&
       (Facts.is_before_same_block end_pp end_pp') then
       []
     else
       get_future_defvars end_pp new_end_sid
   in
   let future_def_vars' =
-    if (Terms.occ_from_pp end_pp != Terms.occ_from_pp end_pp') &&
+    if (Incompatible.occ_from_pp end_pp != Incompatible.occ_from_pp end_pp') &&
       (Facts.is_before_same_block end_pp' end_pp) then
       []
     else
@@ -290,13 +290,13 @@ let check_inj_compat
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
 	if List.exists2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
-	  Terms.occ_from_pp end_pp == Terms.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
+	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
 	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
 	else
 	  (* When one end_occ is different from end_occ', we know that injrepidx_pps \neq injrepidx_pps'.
 	     However, we can still get information from the incompatibility of the program points end_pp/end_pp' *)
-	  List.fold_left2 Terms.both_pp_add_fact facts' injrepidx_pps injrepidx_pps'
+	  List.fold_left2 Incompatible.both_pp_add_fact facts' injrepidx_pps injrepidx_pps'
       in
       (* same begin events: (begin_occ, begin_sid) = (begin_occ', begin_sid') *)
       if begin_occ != begin_occ' then raise Contradiction;
@@ -351,7 +351,7 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
 	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
 	    print_string "Inj rep idxs:";
 	    let display_end_sid_occ (end_sid, end_pp) =
-	      print_int (Terms.occ_from_pp end_pp); print_string ", ";
+	      print_int (Incompatible.occ_from_pp end_pp); print_string ", ";
 	      Display.display_list Display.display_term end_sid
 	    in
 	    Display.display_list display_end_sid_occ injrepidx_pps;
@@ -674,7 +674,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 		  ) facts_cases;
 	          print_newline();
 		end;
-	      let new_facts = Terms.both_def_list_facts new_facts def_vars new_def_vars in
+	      let new_facts = Incompatible.both_def_list_facts new_facts def_vars new_def_vars in
 	      
 	      let facts1 = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal facts new_facts) in
 	      if !Settings.debug_corresp then
@@ -810,7 +810,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 			  (facts', collector_elsefind_facts', def_vars')
 			else
 			  begin
-			  match Terms.get_facts end_pp with
+			  match Incompatible.get_facts end_pp with
 			  | Some(cur_array, _,_,_,_,_,_) ->
 			      let facts_common = Facts.get_facts_at end_pp in
 			      let def_vars_common = Facts.get_def_vars_at end_pp in
