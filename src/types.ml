@@ -775,6 +775,16 @@ type depend_status =
 
    Decompos(l0opt) => Compos(PColl1Rand t.t_type, t, l0opt) *)
 
+type extracted_depend_status = (probaf * term * term list option) option
+  (* The dependency status of a term [t] with respect to a variable [b0] 
+     presented as follows:
+   - [Some(p, t_1, l0opt)] if
+     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+     [t_1] is a modified version of [t] in which the parts that are not useful
+     to show this property are replaced with variables [?].
+   - [None] otherwise. *)
+      
 type 'a depinfo =      
     { args_at_creation_only: bool; (* True when the field [dep] deals only with variables with indices args_at_creation *)
       dep: (binder * (depend_status * term list option * 'a)) list; 

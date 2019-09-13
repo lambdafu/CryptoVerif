@@ -297,14 +297,10 @@ let current_bdepinfo() =
 (* [find_compos t] returns the dependency status of the term
    [t] with respect to the variable [b0 = !main_var].
    It is returned in 2 forms, so that the result is a pair,
-   [(st, option_st)]:
+   [(st, extracted_st)]:
    [st] is the dependency status as defined in [depend_status] in types.ml
-   [option_st] is [Some(p, t_1, l0opt)] if
-     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
-     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
-     [t_1] is a modified version of [t] in which the parts that are not useful
-     to show this property are replaced with variables [?].
-   It is [None] otherwise. *)
+   [extracted_st] is the extracted dependency status as defined in 
+   [extracted_depend_status] in types.ml *)
 	
 let find_compos t =
   if should_try_find_compos t then

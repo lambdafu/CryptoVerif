@@ -110,20 +110,15 @@ val is_indep_collect_args : simp_facts ->
 (* [find_compos_pat f_find_compos pat] takes a find_compos function [f_find_compos] for terms
    ([f_find_compos t] returns the dependency status of the term [t], in two forms
    - [depend_status] as defined in types.ml
-   - the status returned by [extract_from_status], defined below.)
+   - [extracted_depend_status] also defined in types.ml.)
    It extends it to patterns: it returns the dependency status of the pattern [pat],
-   in the form returned by [extract_from_status], defined below. *)
-  val find_compos_pat : (term -> depend_status * (probaf * term * term list option) option) -> pattern -> (probaf * term * term list option) option
+   in the form of an [extracted_depend_status]. *)
+  val find_compos_pat : (term -> depend_status * extracted_depend_status) -> pattern -> extracted_depend_status
       
   (* [extract_from_status t status] extracts information from the 
-     dependency status [status] of term [t].
-     It returns [Some(p, t_1, l0opt)] if
-     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
-     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
-     [t_1] is a modified version of [t] in which the parts that are not useful
-     to show this property are replaced with variables [?].
-     It returns [None] otherwise. *)
-  val extract_from_status : term -> depend_status -> (probaf * term * term list option) option
+     dependency status [status] of term [t], and returns the
+     corresponding [extracted_depend_status], defined in types.ml. *)
+  val extract_from_status : term -> depend_status -> extracted_depend_status
 
 
 (* [dependency_collision_rec3 cur_array true_facts t1 t2 t] aims 

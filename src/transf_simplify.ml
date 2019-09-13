@@ -90,17 +90,14 @@ sig
   val get_dep_info : dep_info -> binder -> elem_dep_info
 
   (* [find_compos (b,depinfo) t] returns the dependency status of the term
-   [t] with respect to the variable [b0 = !main_var].
-   It is returned in 2 forms, so that the result is a pair,
-   [(st, option_st)]:
-   [st] is the dependency status as defined in [depend_status] in types.ml
-   [option_st] is [Some(p, t_1, l0opt)] if
-     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
-     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
-     [t_1] is a modified version of [t] in which the parts that are not useful
-     to show this property are replaced with variables [?].
-   It is [None] otherwise. *)
-  val find_compos : binder * elem_dep_info -> term -> depend_status * (probaf * term * term list option) option
+     [t] with respect to the variable [b0 = !main_var].
+     It is returned in 2 forms, so that the result is a pair,
+     [(st, extracted_st)]:
+     [st] is the dependency status as defined in [depend_status] in types.ml
+     [extracted_st] is the extracted dependency status as defined in 
+     [extracted_depend_status] in types.ml
+     *)
+  val find_compos : binder * elem_dep_info -> term -> depend_status * extracted_depend_status
 
 end
 = 
