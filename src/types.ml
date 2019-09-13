@@ -20,7 +20,8 @@ type param = { pname : string;
 
 (* probability *)
 
-type proba = { prname : string }
+type proba = { prname : string;
+	       pestimate : int }
 
 (* channel *)
 
@@ -31,7 +32,8 @@ type channel = { cname : string }
 type typet = { tname : string;
 	       tcat : ttcat;
 	       toptions : int;
-	       tsize : int; 
+	       tsize : int option;
+	       tpcoll : int option;
 	       (* The next fields are used for generating OCaml implementations *)
                mutable timplsize : int option; 
                  (* Number of bits of bitstrings of this type, when they have a fixed length *) 

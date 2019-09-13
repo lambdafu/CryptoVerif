@@ -1310,24 +1310,6 @@ let help() =
   "help                         : display this help message\n" ^
   "?                            : display this help message\n")
 
-let map_param (s,ext) =
-  match s with
-    "noninteractive" -> Settings.psize_NONINTERACTIVE
-  | "passive" -> Settings.psize_PASSIVE
-  | "small" -> Settings.psize_DEFAULT
-  | _ -> (* option "size<n>" where <n> is an integer *)
-      try
-	if (String.sub s 0 4) <> "size" then raise Not_found;
-	int_of_string (String.sub s 4 (String.length s - 4))
-      with _ ->
-	raise (Error("Unknown parameter size " ^ s, ext))
-
-let map_type (s,ext) =   
-  try
-    Settings.parse_type_size s 
-  with Not_found ->
-    raise (Error("Unknown type size " ^ s, ext))
-
 (* Equality test for command focus *)
 
 	
@@ -1718,9 +1700,9 @@ let rec interpret_command interactive state = function
 	Settings.allowed_collisions := [];
 	Settings.allowed_collisions_collision := [];
 	List.iter (fun (pl,topt) -> 
-	  let pl' = List.map (fun (p,exp) -> (map_param p, exp)) pl in
+	  let pl' = List.map (fun (p,exp) -> (Settings.parse_psize p, exp)) pl in
 	  match topt with
-	    Some t -> Settings.allowed_collisions := (pl', map_type t) :: (!Settings.allowed_collisions)
+	    Some t -> Settings.allowed_collisions := (pl', Settings.parse_pest t) :: (!Settings.allowed_collisions)
 	  | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
 								       ) coll;
 	state

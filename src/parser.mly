@@ -217,8 +217,8 @@ commonlibelem:
         { [Query([], $2)] }
 |       PARAM neidentlist options DOT
         { List.map (fun x -> (ParamDecl(x, $3))) $2 }
-|       PROBA IDENT DOT 
-        { [ProbabilityDecl($2)] }
+|       PROBA IDENT options DOT 
+        { [ProbabilityDecl($2, $3)] }
 |       CONST neidentlist COLON IDENT DOT 
         { List.map (fun x -> (ConstDecl(x,$4))) $2 }
 |       TYPE IDENT options DOT 

@@ -62,6 +62,17 @@ val max_list : ('a -> approx_int) -> 'a list -> approx_int
 
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
 val sum_list : ('a -> approx_int) -> 'a list -> approx_int
+
+(* [get_size ty] returns n such that the size of ty is 2^n *)
+val get_size : typet -> approx_int
+
+(* [get_pcoll1 ty] returns n such that the probability Pcoll1rand(ty)
+   of collision with a random element of the type [ty] is 2^n (n <= 0) *)
+val get_pcoll1 : typet -> approx_int
+
+(* [get_pcoll2 ty] returns n such that the probability Pcoll2rand(ty)
+   of collision between 2 random elements of the type [ty] is 2^n (n <= 0) *)
+val get_pcoll2 : typet -> approx_int    
     
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)

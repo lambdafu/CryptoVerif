@@ -3060,7 +3060,7 @@ let rename_impl = function
 
 let rename_decl = function
     ParamDecl(s, options) -> ParamDecl(rename_ie s, options)
-  | ProbabilityDecl s -> ProbabilityDecl(rename_ie s)
+  | ProbabilityDecl (s, options) -> ProbabilityDecl(rename_ie s, options)
   | TypeDecl(s,options) -> TypeDecl(rename_ie s, options)
   | ConstDecl(s1,s2) -> ConstDecl(rename_ie s1, rename_ie s2)
   | ChannelDecl(s) -> ChannelDecl(rename_ie s)
@@ -3217,28 +3217,26 @@ let rec check_one = function
       let size =
 	match options with
 	  [] -> Settings.psize_DEFAULT
-	| ["noninteractive",_] -> Settings.psize_NONINTERACTIVE
-	| ["passive",_] -> Settings.psize_PASSIVE
-	| [sopt,extopt] -> (* option "size<n>" where <n> is an integer *)
-	    begin
-	      try
-		if (String.sub sopt 0 4) <> "size" then raise Not_found;
-		int_of_string (String.sub sopt 4 (String.length sopt - 4))
-	      with _ ->
-		raise_error ("Unknown parameter option " ^ sopt) extopt
-	    end
+	| [opt_ext] -> Settings.parse_psize opt_ext
 	| _::_::_ -> raise_error "Parameters accept a single size option" ext
       in
       add_not_found s ext (EParam{ pname = s; psize = size })
-  | ProbabilityDecl(s,ext) ->
-      add_not_found s ext (EProba{ prname = s })
+  | ProbabilityDecl((s,ext), options) ->
+      let est =
+	match options with
+	  [] -> Settings.tysize_LARGE
+	| [opt_ext] -> Settings.parse_pest opt_ext
+	| _ ::_::_ -> raise_error "Probabilities accept a single estimate option" ext
+      in
+      add_not_found s ext (EProba{ prname = s; pestimate = est })
   | TableDecl((s,ext),st) ->
       add_not_found s ext (ETable ({ tblname = s;
 				     tbltype = List.map (fun (s,ext) -> get_type_or_param (!env) s ext) st;
 				     tblfile = None }))
   | TypeDecl((s1,ext1),options) ->
 	let opt = ref 0 in
-	let size = ref Settings.tysize_SMALL in
+	let size = ref None in
+	let pcoll = ref None in
 	List.iter (fun (sopt, extopt) ->
 	  match sopt with
 	    "fixed" -> opt := (!opt) lor Settings.tyopt_FIXED lor Settings.tyopt_BOUNDED
@@ -3246,17 +3244,47 @@ let rec check_one = function
 	  | "nonuniform" -> opt := (!opt) lor Settings.tyopt_NONUNIFORM
 	  | _ -> (* options large, password, size<n> *)
 	      try
-		let r = Settings.parse_type_size sopt in
-		if (!size) <> Settings.tysize_SMALL then
-		  raise_error ("Types options large, password, and size<n> are incompatible") ext1;
-		size := r
+		let rsize, rcoll = Settings.parse_type_size_pcoll sopt in
+		begin
+		  match !size, rsize with
+		  | None, rsize -> size := rsize
+		  | Some _, None -> ()
+		  | Some _, Some _ -> 
+		      raise_error ("Types options large, password, and size<n> are incompatible") ext1
+		end;
+		begin
+		  match !pcoll, rcoll with
+		  | None, rcoll -> pcoll := rcoll
+		  | Some _, None -> ()
+		  | Some _, Some _ ->
+		      raise_error ("Types options large, password, and pcoll<n> are incompatible") ext1
+		end
 	      with Not_found ->
 		raise_error ("Unknown type option " ^ sopt) extopt
-	      ) options;
+		  ) options;
+	if !opt land Settings.tyopt_NONUNIFORM == 0 then
+	  begin
+	    match !size, !pcoll with
+	    | Some _, None -> pcoll := !size
+	    | None, Some _ -> size := !pcoll
+	    | None, None -> ()
+	    | Some nsize, Some ncoll ->
+		if nsize != ncoll then
+		  raise_error "For uniform distributions, the estimate for size of the type and probability of collision should be equal" ext1
+	  end;
+	begin
+	  match !size, !pcoll with
+	  | Some nsize, Some ncoll ->
+	      if ncoll > nsize then
+		raise_error "The estimate for collision probability should be at least the estimate for the size of the type" ext1
+	      (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|T| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
+	  | _ -> ()
+	end;
 	let ty = { tname = s1;
 		   tcat = BitString;
 		   toptions = !opt;
 		   tsize = !size;
+		   tpcoll = !pcoll;
                    timplsize = None;
                    tpredicate = None;
                    timplname = None;
@@ -3342,7 +3370,7 @@ let rec check_one = function
 		      print_string ("Warning: due to the injective function " ^ s1 ^ ", the type " ^ ty.tname ^ " must be bounded. You should declare it as such (or revise the other declarations if it is not bounded).\n")
 		    ) l'
 		end;
-	      if Terms.sum_list (fun ty _ -> ty.tsize) l' High > sr'.tsize then
+	      if Terms.sum_list Terms.get_size l' Low > Terms.get_size sr' High then
 		input_warning ("The size estimates for the types of the arguments and result of function " ^ s1 ^ " are not coherent with this function being injective: the size estimate for the result should be at least the sum of the size estimates for the arguments. Fixing that would help CryptoVerif take better decisions on when to eliminate collisions.") ext1;
 	      opt := (!opt) lor Settings.fopt_COMPOS
 	    end
@@ -3647,7 +3675,7 @@ let rec check_all (l,p) =
 
 let declares = function
   | ParamDecl(id, _)
-  | ProbabilityDecl id
+  | ProbabilityDecl(id, _)
   | TableDecl(id,_)
   | TypeDecl(id,_)
   | ConstDecl(id,_)
@@ -3989,7 +4017,7 @@ let collect_id_impl accu = function
       add_id accu i; add_id accu file
 
 let collect_id_decl accu = function
-  | ParamDecl(i,_) | ProbabilityDecl i | TypeDecl(i,_) | ChannelDecl i ->
+  | ParamDecl(i,_) | ProbabilityDecl (i,_) | TypeDecl(i,_) | ChannelDecl i ->
       add_id accu i
   | ConstDecl(i1,i2) ->
       add_id accu i1;

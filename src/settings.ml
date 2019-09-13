@@ -94,16 +94,18 @@ let max_iter_removeuselessassign = ref 10
 
 let detect_incompatible_defined_cond = ref true
 
-let psize_NONINTERACTIVE = 20
-let psize_PASSIVE = 10
-let psize_DEFAULT = 0
+let psize_NONINTERACTIVE = 80 (* Eg. an attacker can make at most 2^80 hash computations *)
+let psize_PASSIVE = 30
+let psize_DEFAULT = psize_PASSIVE
+let psize_SMALL = 2 (* For active sessions, when the number of failed
+                        attempts is limited, e.g. max 4 attemtps then the
+                        card is blocked. *)
+    
+let tysize_LARGE = 256
+let tysize_PASSWORD = 20
 
-let tysize_LARGE = 20
-let tysize_PASSWORD = 10
-let tysize_SMALL = 0
-
-let tysize_MIN_Manual_Coll_Elim = ref 5
-let tysize_MIN_Auto_Coll_Elim = ref 15
+let tysize_MIN_Manual_Coll_Elim = ref 15
+let tysize_MIN_Auto_Coll_Elim = ref 80
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions
    of the form ([(psize1, n1); ...; (psizek,nk)], tsize) 
@@ -114,7 +116,7 @@ let tysize_MIN_Auto_Coll_Elim = ref 15
    The default value allows: anything/large type and 
    default parameter/password *) 
 let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE); 
-                               ([psize_DEFAULT, 1], tysize_PASSWORD) ]
+                               ([psize_SMALL, 1], tysize_PASSWORD) ]
 
 (* Similar to allowed_collisions but for "collision" statements:
    It consists of a list of probability descriptions
@@ -126,15 +128,48 @@ let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE);
    The default value allows any probability formula *)
 let allowed_collisions_collision = ref [ [max_int, max_int] ]
 
-let parse_type_size = function
-    "large" -> tysize_LARGE
-  | "password" -> tysize_PASSWORD
-  | s -> (* option size<n> *)
+let parse_type_size_pcoll = function
+  | "large" -> Some tysize_LARGE, Some tysize_LARGE
+  | "password" -> Some tysize_PASSWORD, Some tysize_PASSWORD
+  | s -> (* option size<n> or pcoll<n> *)
       try
-	if (String.sub s 0 4) <> "size" then raise Not_found;
-	int_of_string (String.sub s 4 (String.length s - 4))
+	if (String.sub s 0 4) = "size" then 
+	  Some (int_of_string (String.sub s 4 (String.length s - 4))), None
+	else if (String.sub s 0 5) = "pcoll" then
+	  None, Some (int_of_string (String.sub s 5 (String.length s - 5)))
+	else
+	  raise Not_found
       with _ -> raise Not_found
 
+let parse_pest (s, ext) =
+  match s with
+  | "large" -> tysize_LARGE
+  | "password" -> tysize_PASSWORD
+  | _ -> (* option pest<n> *)
+      try
+	if (String.sub s 0 4) = "pest" then
+	  int_of_string (String.sub s 4 (String.length s - 4))
+	else
+	  raise Not_found
+      with _ -> 
+	raise (Parsing_helper.Error("Unknown probability collision option "^s, ext))
+	  
+let parse_psize (s, ext) =
+  match s with
+  | "noninteractive" -> psize_NONINTERACTIVE
+  | "passive" -> psize_PASSIVE
+  | "default" -> psize_DEFAULT
+  | "small" -> psize_SMALL
+  | _ -> (* option "size<n>" where <n> is an integer *)
+      begin
+	try
+	  if (String.sub s 0 4) <> "size" then raise Not_found;
+	  int_of_string (String.sub s 4 (String.length s - 4))
+	with _ ->
+	  raise (Parsing_helper.Error("Unknown parameter option " ^ s, ext))
+      end
+	  
+	  
 let parse_bool v var =
   match v with
     S ("true",_) -> var := true
@@ -173,8 +208,8 @@ let do_set p v =
   | "useKnownEqualitiesInCryptoTransform", _ -> parse_bool v use_known_equalities_crypto
   | "priorityEventUnchangedRand", I n -> priority_event_unchanged_rand := n
   | "useKnownEqualitiesWithFunctionsInMatching", _ -> parse_bool v normalize_in_match_funapp
-  | "minAutoCollElim", S (s,_) -> 
-      let r = parse_type_size s in
+  | "minAutoCollElim", S s_ext -> 
+      let r = parse_pest s_ext in
       if r <= 0 then raise Not_found;
       tysize_MIN_Auto_Coll_Elim := r
   | "trustSizeEstimates", _ -> parse_bool v trust_size_estimates
@@ -236,7 +271,8 @@ as well as f_not *)
 let t_bitstring = { tname = "bitstring";
 		    tcat = BitString;
 		    toptions = 0;
-		    tsize = tysize_LARGE;
+		    tsize = Some max_int;
+		    tpcoll = None;
                     timplsize = None;
                     tpredicate = Some "always_true";
                     timplname = Some "string";
@@ -246,7 +282,8 @@ let t_bitstring = { tname = "bitstring";
 let t_bitstringbot = { tname = "bitstringbot";
 		       tcat = BitString;
 		       toptions = 0;
-		       tsize = tysize_LARGE;
+		       tsize = Some max_int;
+		       tpcoll = None;
                        timplsize = None;
                        tpredicate = Some "always_true";
                        timplname = Some "string option"; 
@@ -256,7 +293,8 @@ let t_bitstringbot = { tname = "bitstringbot";
 let t_bool = { tname = "bool";
 	       tcat = BitString;
 	       toptions = tyopt_FIXED + tyopt_BOUNDED;
-	       tsize = 0;
+	       tsize = Some 1;
+	       tpcoll = Some 1;
                timplsize = Some(1);
                tpredicate = Some "always_true";
                timplname = Some "bool";
@@ -268,7 +306,8 @@ let t_bool = { tname = "bool";
 let t_unit = { tname = "unit";
 	       tcat = BitString;
 	       toptions = tyopt_BOUNDED;
-	       tsize = 0;
+	       tsize = Some 0;
+	       tpcoll = Some 0;
                timplsize = None;
                tpredicate = None;
                timplname = None;
@@ -280,7 +319,8 @@ let t_unit = { tname = "unit";
 let t_any = { tname = "any";
 	      tcat = BitString;
 	      toptions = 0;
-	      tsize = 0;
+	      tsize = None;
+	      tpcoll = None;
               timplsize = None;
               tpredicate = None;
               timplname = None;
@@ -447,7 +487,8 @@ let get_tuple_fun tl =
 let t_interv = { tname ="[1,*]";
 		 tcat = Interv { pname = "N*"; psize = 0 };
 		 toptions = tyopt_BOUNDED;
-	         tsize = 0;
+	         tsize = None;
+		 tpcoll = None;
                  timplsize = None;
                  tpredicate = None;
                  timplname = None;

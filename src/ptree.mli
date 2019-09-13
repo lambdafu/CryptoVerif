@@ -238,7 +238,7 @@ type command =
 type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list(* options *)
           | EventDecl of ident * ident list(*types*) 
           | ParamDecl of ident * ident list(*options*)
-	  | ProbabilityDecl of ident
+	  | ProbabilityDecl of ident * ident list (*options*)
 	  | ConstDecl of ident * ident(*type*)
 	  | ChannelDecl of ident
 	  | TypeDecl of ident * ident list(*options*)

@@ -160,6 +160,36 @@ let rec sum_list f l approx =
   | a::lr -> plus (f a) (sum_list f lr) approx
 
 
+let get_size ty approx =
+  match ty.tsize, ty.tpcoll, approx with
+  | Some n, _, _ -> n
+  | None, _, High -> max_int
+  | None, None, Low -> 0
+  | None, Some ncoll, Low -> ncoll (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|ty| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
+
+let get_pcoll1 ty approx =
+  match ty.tsize, ty.tpcoll, approx with
+  | _, Some n, _ -> - n (* The probability of collision is about 2^{-n} *)
+  | None, None, Low -> min_int
+  | Some nsize, None, Low -> - nsize
+  | _, None, High -> 0 (* The probability is at most 1 = 2^0 *)
+
+let get_pcoll2 ty approx =
+  match ty.tsize, ty.tpcoll, approx with
+  | _, Some n, High -> - n (* The probability of collision Pcoll2rand(ty) is at most Pcoll1rand(ty) = 2^{-n} *)
+  | _, None, High -> 0 (* The probability is at most 1 = 2^0 *)
+  | None, _, Low -> min_int
+  | Some nsize, _, Low -> - nsize
+     (* The probability Pcoll2rand(ty) is at least 1/|ty| = 2^{-nsize}.
+        Let Pr[X = a] = 1/|ty| + p_a for all a \in ty.
+        sum_{a \in ty} p_a = 0 because sum_{a \in ty} Pr[X = a] = 1.
+	Pcoll2rand(ty) = sum_{a \in ty} Pr[X = a]^2
+                       = sum_{a \in ty} (1/|ty|+p_a)^2
+                       = sum_{a \in ty} (1/|ty|^2 + 2 p_a/|ty| + p_a^2)
+                       = 1/|ty| + 2/|ty|sum_{a \in ty} p_a + \sum_{a \in ty} p_a^2
+                       = 1/|ty| + \sum_{a \in ty} p_a^2 >= 1/|ty|     *)
+	
+	
 (* Adds an element if it is not already in (for physical equality) *)
 
 let addq accu b =
@@ -282,7 +312,8 @@ let type_for_param p =
     let t = { tname = "[1," ^ p.pname ^"]";
 	      tcat = Interv p;
 	      toptions = Settings.tyopt_BOUNDED;
-	      tsize = 0;
+	      tsize = Some p.psize;
+	      tpcoll = None;
               timplsize = None;
               tpredicate = None;
               timplname = None;

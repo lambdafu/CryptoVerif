@@ -3,13 +3,13 @@ open Types
 (* 1. Is a type large? (i.e. the inverse of its cardinal is negligible) *)
 
 let is_large t =
-  (t.tsize >= !Settings.tysize_MIN_Auto_Coll_Elim)
+  Terms.get_pcoll1 t High <= - !Settings.tysize_MIN_Auto_Coll_Elim
 
 let elim_collisions_on_password_occ = ref []
 
 let is_large_term t =
   (is_large t.t_type) || 
-  ((t.t_type.tsize >= 1) && 
+  ((Terms.get_pcoll1 t.t_type High <= - !Settings.tysize_MIN_Manual_Coll_Elim) && 
    (List.exists (function
      | CollVars l ->
 	 begin
@@ -64,18 +64,20 @@ let rec order_of_magnitude probaf approx  =
   match probaf with
   | Add(p1,p2) ->
       max (order_of_magnitude p1 approx) (order_of_magnitude p2 approx)
-  | Zero | EpsRand _ -> min_int
+  | Zero | EpsRand _ | EpsFind -> min_int
   | Max(l) ->
       Terms.max_list order_of_magnitude l approx
   | Cst _ -> 0
-  | PColl1Rand t | PColl2Rand t -> - t.tsize
-  | Card t -> t.tsize
+  | PColl1Rand t -> Terms.get_pcoll1 t approx
+  | PColl2Rand t -> Terms.get_pcoll2 t approx
+  | Card t -> Terms.get_size t approx
+  | Count p -> p.psize
   | Div(p1, p2) ->
       Terms.minus (order_of_magnitude p1) (order_of_magnitude p2) approx
   | Mul(p1, p2) ->
       Terms.plus (order_of_magnitude p1) (order_of_magnitude p2) approx
-  | Proba _ -> (* We accept probabilities of collision statements *)
-      min_int
+  | Proba (p,_) -> 
+      - p.pestimate
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
 
@@ -88,12 +90,12 @@ let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_ty
   try
     let size_proba =
       if !Settings.trust_size_estimates then
-	Terms.plus (order_of_magnitude proba_t) (Terms.sum_list (fun ty _ -> ty.tsize) dep_types) High
+	Terms.plus (order_of_magnitude proba_t) (Terms.sum_list Terms.get_size dep_types) High
       else
 	if dep_types == [] then
 	  order_of_magnitude proba_t High
 	else if is_1_over_card_t full_type proba_t then
-	  - (Terms.max_list (fun ty _ -> ty.tsize) indep_types Low)
+	  - (Terms.max_list Terms.get_size indep_types Low)
 	else
 	  raise Not_found
     in
