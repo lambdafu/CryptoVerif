@@ -60,20 +60,20 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
-let rec order_of_magnitude probaf =
+let rec order_of_magnitude probaf approx  =
   match probaf with
   | Add(p1,p2) ->
-      max (order_of_magnitude p1) (order_of_magnitude p2)
+      max (order_of_magnitude p1 approx) (order_of_magnitude p2 approx)
   | Zero | EpsRand _ -> min_int
   | Max(l) ->
-      Terms.max_list order_of_magnitude l
+      Terms.max_list order_of_magnitude l approx
   | Cst _ -> 0
   | PColl1Rand t | PColl2Rand t -> - t.tsize
   | Card t -> t.tsize
   | Div(p1, p2) ->
-      Terms.minus (order_of_magnitude p1) (order_of_magnitude p2)
+      Terms.minus (order_of_magnitude p1) (order_of_magnitude p2) approx
   | Mul(p1, p2) ->
-      Terms.plus (order_of_magnitude p1) (order_of_magnitude p2)
+      Terms.plus (order_of_magnitude p1) (order_of_magnitude p2) approx
   | Proba _ -> (* We accept probabilities of collision statements *)
       min_int
   | _ ->
@@ -88,12 +88,12 @@ let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_ty
   try
     let size_proba =
       if !Settings.trust_size_estimates then
-	Terms.plus (order_of_magnitude proba_t) (Terms.sum_list (fun ty -> ty.tsize) dep_types)
+	Terms.plus (order_of_magnitude proba_t) (Terms.sum_list (fun ty _ -> ty.tsize) dep_types) High
       else
 	if dep_types == [] then
-	  order_of_magnitude proba_t
+	  order_of_magnitude proba_t High
 	else if is_1_over_card_t full_type proba_t then
-	  - (Terms.max_list (fun ty -> ty.tsize) indep_types)
+	  - (Terms.max_list (fun ty _ -> ty.tsize) indep_types Low)
 	else
 	  raise Not_found
     in

@@ -51,15 +51,17 @@ val remove_suffix : int -> 'a list -> 'a list
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
 (* Addition and subtraction bounded by min_int and max_int,
-   so no overflow *)
-val plus : int -> int -> int
-val minus : int -> int -> int
+   so no overflow. They give the following guarantees:
+when approx = High, returned_result \in [min_int, max_int] and returned_result >= min(exact_result, max_int)
+when approx = Low, returned_result \in [min_int, max_int] and returned_result <= max(exact_result, min_int) *)
+val plus : approx_int -> approx_int -> approx_int
+val minus : approx_int -> approx_int -> approx_int
     
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
-val max_list : ('a -> int) -> 'a list -> int
+val max_list : ('a -> approx_int) -> 'a list -> approx_int
 
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
-val sum_list : ('a -> int) -> 'a list -> int
+val sum_list : ('a -> approx_int) -> 'a list -> approx_int
     
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)

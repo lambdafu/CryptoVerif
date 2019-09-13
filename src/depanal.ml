@@ -440,7 +440,7 @@ let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
       let (l_indep, l_dep_types, l_indep_types) = is_indep_list simp_facts bdepinfo l in
       if l_dep_types = [] || f.f_cat == Tuple ||
       ((!Settings.trust_size_estimates) && t.t_type.tcat == BitString &&
-       Terms.sum_list (fun ty -> ty.tsize) l_dep_types <= t.t_type.tsize) then
+       Terms.sum_list (fun ty _ -> ty.tsize) l_dep_types High <= t.t_type.tsize) then
 	Terms.build_term2 t (FunApp(f, l_indep)), l_dep_types,
 	(if l_dep_types = [] then [t.t_type] else l_indep_types)
       else
@@ -550,7 +550,7 @@ let rec is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_b
       let (l_indep, l_eq, l_dep_types, l_indep_types) = is_indep_list simp_facts bdepinfo l in
       if l_dep_types = [] || f.f_cat == Tuple ||
       ((!Settings.trust_size_estimates) && t.t_type.tcat == BitString &&
-       Terms.sum_list (fun ty -> ty.tsize) l_dep_types <= t.t_type.tsize) then
+       Terms.sum_list (fun ty _ -> ty.tsize) l_dep_types High <= t.t_type.tsize) then
 
 	Terms.build_term2 t (FunApp(f, l_indep)),
 	Terms.build_term2 t (FunApp(f, l_eq)), l_dep_types,

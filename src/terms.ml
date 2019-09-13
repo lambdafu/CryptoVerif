@@ -104,33 +104,60 @@ let assq_rest x l =
   aux [] x l 
 
 (* Addition and subtraction bounded by min_int and max_int,
-   so no overflow *)
+   so no overflow. It gives the following guarantees:
+when approx = High, returned_result \in [min_int, max_int] and returned_result >= min(exact_result, max_int)
+when approx = Low, returned_result \in [min_int, max_int] and returned_result <= max(exact_result, min_int)
+ *)
 	
-let plus x y =
+let aux_plus x y =
   if y >= 0 then
     if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
   else (* y < 0 *)
     if x <= min_int - y (* x + y <= min_int *) then min_int else x + y 
 
-let minus x y =
+let plus x y approx =
+  let x' = x approx in
+  let y' = y approx in
+  match approx with
+  | Low -> if x' = min_int || y' = min_int then min_int else aux_plus x' y'
+  | High -> if x' = max_int || y' = max_int then max_int else aux_plus x' y'
+    
+      
+let aux_minus x y =
   if y >= 0 then
     if x <= min_int + y (* x - y <= min_int *) then min_int else x - y
   else (* y < 0 *)
     if x >= max_int + y (* x - y >= max_int *) then max_int else x - y
-    
-(* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 
-let rec max_list f = function
+let reverse = function
+  | Low -> High
+  | High -> Low
+      
+let minus x y approx =
+  let x' = x approx in
+  let y' = y (reverse approx) in
+  match approx with
+  | Low -> if x' = min_int || y' = min_int then min_int else aux_minus x' y'
+  | High -> if x' = max_int || y' = max_int then max_int else aux_minus x' y'
+  
+      
+(* [max_list f l approx] is the maximum of [f x approx] for all [x] in [l] *)
+
+let rec max_list f l approx =
+  let rec aux = function
     [] -> min_int
-  | [a] -> f a
-  | a::l -> max (f a) (max_list f l)
-
+  | [a] -> f a approx
+  | a::lr -> max (f a approx) (aux lr)
+  in
+  aux l
+    
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
 	
-let rec sum_list f = function
+let rec sum_list f l approx =
+  match l with 
     [] -> 0
-  | [a] -> f a
-  | a::l -> plus (f a) (sum_list f l)
+  | [a] -> f a approx
+  | a::lr -> plus (f a) (sum_list f lr) approx
 
 
 (* Adds an element if it is not already in (for physical equality) *)

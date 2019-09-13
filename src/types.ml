@@ -817,3 +817,7 @@ type collision_state =
 		   subterms of [t2] are replaced only under [data] functions,
 		   so that 
 		   product of |T| for T \in dep_types <= |type(t2)|/product of |T| for T \in indep_types*) )) list
+
+type t_approx = Low | High
+
+type approx_int = t_approx -> int

@@ -20,12 +20,6 @@ to indices introduced by is_indep.
 Put the basic proba functions of polynom.ml in a separate module? (to avoid confusion
 between proba fcts and polynom fcts)
 
-plus/minus: when the mathematical result is >= max_int, make sure that
-the obtained result is at least max_int.
-Rather take as argument the direction in which we want to approximate:
-High: int_res \in [min_int, max_int] and int_res >= min(exact_res, max_int)
-Low: int_res \in [min_int, max_int] and int_res <= max(exact_res, min_int)
-
 Generalize to collisions M = f(M1...Mn) where f is data, M has status "decompos"
 wrt r, and Mi is independent of r for some i (like check_assign1, but f(M1,...Mn)
 is a term, not a pattern).
@@ -4240,3 +4234,10 @@ Arrange so that the proba state also includes Simplify1.term_collisions?
 Or rather write a module for dependency analysis functions, which
 includes FindCompos, but also the functions to add the corresponding probabilities.
 DONE 12/9/2019
+
+plus/minus: when the mathematical result is >= max_int, make sure that
+the obtained result is at least max_int.
+Rather take as argument the direction in which we want to approximate:
+High: int_res \in [min_int, max_int] and int_res >= min(exact_res, max_int)
+Low: int_res \in [min_int, max_int] and int_res <= max(exact_res, min_int)
+DONE 13/9/2019
