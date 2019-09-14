@@ -34,12 +34,13 @@ the value of tysize_MIN_Manual_Coll_Elim is still used in is_large_term...
 1/when trust_size_estimates=false:
   allowed_collisions
   allowed_collisions_collision
-  tysize_MIN_Manual_Coll_Elim
+  tysize_MIN_Manual_Coll_Elim => can be computed from allowed_collisions:
+       minimum type bound in allowed_collisions
 The default treatment of bounds is closer to asymptotic security:
 large types considered exponential, while parameters are always
 polynomial, so any product of parameters is acceptable.
 2/when trust_size_estimates=true:
-  tysize_MIN_Manual_Coll_Elim
+  tysize_MIN_Manual_Coll_Elim:  allowed_collisions max_proba pest<n>
 This is better for exact security.
 How to reflect that in the interface?
 
@@ -52,6 +53,9 @@ Case of negative values? (especially negative constants) Carry a sign?
      Use a float to represent that?
      Or a float for mantisse and an integer for exponent?
      Or an integer for mantisse and one for exponent?
+     Or sign*2^f, where sign is -1, 0, or 1, and f is a float?
+     (The latter may be simpler, since we need to look at the sign anyway
+     for division.)
 
 In facts.ml: Terms.get_pcoll1 b1.btype High <= -1
 or <= !Settings.tysize_MIN_Manual_Coll_Elim ? I used the latter for now.
