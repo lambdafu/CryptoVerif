@@ -59,7 +59,12 @@ Case of negative values? (especially negative constants) Carry a sign?
 
 In facts.ml: Terms.get_pcoll1 b1.btype High <= -1
 or <= !Settings.tysize_MIN_Manual_Coll_Elim ? I used the latter for now.
-   
+
+Allow giving an interval for size and probability estimates, e.g.
+size<min>_<max> pcoll<min>_<max> pest<min>_<max>?
+That would be fairly easy given how I use the estimates, but may
+not be essential.
+
 Put the basic proba functions of polynom.ml in a separate module? (to
 avoid confusion between proba fcts and polynom fcts)
 
