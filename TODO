@@ -35,14 +35,23 @@ the value of tysize_MIN_Manual_Coll_Elim is still used in is_large_term...
   allowed_collisions
   allowed_collisions_collision
   tysize_MIN_Manual_Coll_Elim
+The default treatment of bounds is closer to asymptotic security:
+large types considered exponential, while parameters are always
+polynomial, so any product of parameters is acceptable.
 2/when trust_size_estimates=true:
   tysize_MIN_Manual_Coll_Elim
+This is better for exact security.
 How to reflect that in the interface?
 
 Use log2(v) as estimate for Cst v?
 Increase the estimate by one if we add two equal estimates?
 Case Sub in Proba.order_of_magnitude?
 Case of negative values? (especially negative constants) Carry a sign?
+===> In Proba.order_of_magnitude,
+     Use interval arithmetic, with bounds (signed)mantisse*2^exponent.
+     Use a float to represent that?
+     Or a float for mantisse and an integer for exponent?
+     Or an integer for mantisse and one for exponent?
 
 In facts.ml: Terms.get_pcoll1 b1.btype High <= -1
 or <= !Settings.tysize_MIN_Manual_Coll_Elim ? I used the latter for now.
