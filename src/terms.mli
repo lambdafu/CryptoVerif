@@ -60,6 +60,8 @@ val minus : approx_int -> approx_int -> approx_int
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 val max_list : ('a -> approx_int) -> 'a list -> approx_int
 
+val min_list : ('a -> int) -> 'a list -> int
+    
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
 val sum_list : ('a -> approx_int) -> 'a list -> approx_int
 

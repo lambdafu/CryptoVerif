@@ -1697,16 +1697,24 @@ let rec interpret_command interactive state = function
       state
   | CAllowed_collisions(coll) ->
       begin
-	Settings.allowed_collisions := [];
-	Settings.allowed_collisions_collision := [];
-	List.iter (fun (pl,topt) -> 
-	  let pl' = List.map (fun (p,exp) -> (Settings.parse_psize p, exp)) pl in
-	  match topt with
-	    Some t -> Settings.allowed_collisions := (pl', Settings.parse_pest t) :: (!Settings.allowed_collisions)
-	  | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
-								       ) coll;
-	state
-      end
+	match coll with
+	| Allowed_Coll_Exact(proba_est) ->
+	    Settings.trust_size_estimates := true;
+	    Settings.tysize_MIN_Coll_Elim := Settings.parse_pest proba_est
+	| Allowed_Coll_Asympt(coll_list) ->
+	    Settings.allowed_collisions := [];
+	    Settings.allowed_collisions_collision := [];
+	    Settings.trust_size_estimates := false;
+	    List.iter (fun (pl,topt) -> 
+	      let pl' = List.map (fun (p,exp) -> (Settings.parse_psize p, exp)) pl in
+	      match topt with
+		Some t -> Settings.allowed_collisions := (pl', Settings.parse_pest t) :: (!Settings.allowed_collisions)
+	      | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
+									   ) coll_list;
+	    Settings.tysize_MIN_Coll_Elim :=
+	       Terms.min_list (fun (_, ty_size) -> ty_size) (!Settings.allowed_collisions)
+      end;
+      state
   | CUndo(v, ext) ->
       undo ext state v
   | CFocus(l) ->

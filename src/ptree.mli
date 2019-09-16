@@ -196,6 +196,10 @@ type peqname =
   | PParName of ident * ident
   | PNoName
   | PN of int * Parsing_helper.extent
+
+type allowed_coll_t = 
+  | Allowed_Coll_Asympt of ((ident * int) list * ident option) list
+  | Allowed_Coll_Exact of ident
 	
 type command =
     CInteractive of Parsing_helper.extent
@@ -203,7 +207,7 @@ type command =
   | CForget_old_games
   | CRestart of Parsing_helper.extent
   | CUndo of int * Parsing_helper.extent
-  | CAllowed_collisions of ((ident * int) list * ident option) list
+  | CAllowed_collisions of allowed_coll_t
   | CSetting of ident * pval
   | CAuto
   | COut_facts of ident * pocc

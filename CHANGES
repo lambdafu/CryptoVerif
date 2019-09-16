@@ -14,7 +14,6 @@ Version
   there is no ambiguity.
 - Removed a collision from DH_proba_collision and square_DH_proba_collision
   because it may not hold in case there are weak private keys.
-- Added setting trustSizeEstimates
 - Fixed bug in the display of game numbers in the Latex output
   (thanks to Mark Wooding)
 

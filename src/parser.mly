@@ -1136,12 +1136,18 @@ quot:
 |   COLLISION MUL num
     { ($3, None) }
 
-allowed_coll:
+allowed_coll_asymptotic:
     quot
     { [$1] }
-|   quot COMMA allowed_coll
+|   quot COMMA allowed_coll_asymptotic
     { $1 :: $3 }
 
+allowed_coll:
+    allowed_coll_asymptotic
+    { Allowed_Coll_Asympt($1) }
+|   idst
+    { Allowed_Coll_Exact($1) }
+    
 /* User information for the cryptographic transformation */
 
 identmapping:

@@ -9,7 +9,7 @@ let elim_collisions_on_password_occ = ref []
 
 let is_large_term t =
   (is_large t.t_type) || 
-  ((Terms.get_pcoll1 t.t_type High <= - !Settings.tysize_MIN_Manual_Coll_Elim) && 
+  ((Terms.get_pcoll1 t.t_type High <= - !Settings.tysize_MIN_Coll_Elim) && 
    (List.exists (function
      | CollVars l ->
 	 begin
@@ -76,8 +76,11 @@ let rec order_of_magnitude probaf approx  =
       Terms.minus (order_of_magnitude p1) (order_of_magnitude p2) approx
   | Mul(p1, p2) ->
       Terms.plus (order_of_magnitude p1) (order_of_magnitude p2) approx
-  | Proba (p,_) -> 
-      - p.pestimate
+  | Proba (p,_) ->
+      if !Settings.trust_size_estimates then
+	- p.pestimate
+      else
+	min_int (* Accept all collisions *)
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
 
@@ -87,27 +90,35 @@ let rec is_1_over_card_t ty = function
   | _ -> false
 		
 let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
-  try
-    let size_proba =
-      if !Settings.trust_size_estimates then
-	Terms.plus (order_of_magnitude proba_t) (Terms.sum_list Terms.get_size dep_types) High
-      else
+  if !Settings.trust_size_estimates then
+    Terms.plus (order_of_magnitude proba_t)
+      (Terms.plus (Terms.sum_list Terms.get_size dep_types)
+	 (Terms.sum_list (fun ri -> Terms.get_size ri.ri_type) proba_l)) High
+      <= - (!Settings.tysize_MIN_Coll_Elim)
+  else
+    try
+      let size_proba =
 	if dep_types == [] then
 	  order_of_magnitude proba_t High
 	else if is_1_over_card_t full_type proba_t then
 	  - (Terms.max_list Terms.get_size indep_types Low)
 	else
 	  raise Not_found
-    in
-    List.exists (fun (factor_bound, type_bound) ->
-    (size_proba <= - type_bound) && 
-    (is_smaller proba_l factor_bound)
-	) (!Settings.allowed_collisions)
-  with Not_found ->
-    false
+      in
+      List.exists (fun (factor_bound, type_bound) ->
+	(size_proba <= - type_bound) && 
+	(is_smaller proba_l factor_bound)
+	  ) (!Settings.allowed_collisions)
+    with Not_found ->
+      false
 	
-let is_small_enough_collision proba_l =
-  List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
+let is_small_enough_collision (proba_l, proba) =
+  if !Settings.trust_size_estimates then
+    Terms.plus (order_of_magnitude proba)
+	 (Terms.sum_list (fun ri -> Terms.get_size ri.ri_type) proba_l) High
+      <= - (!Settings.tysize_MIN_Coll_Elim)
+  else
+    List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
   
 
 let whole_game = ref Terms.empty_game
@@ -230,7 +241,7 @@ let add_proba_red t1 t2 side_cond proba tl =
     begin
       let accu = ref [] in
       List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
-      if is_small_enough_collision (!accu) then
+      if is_small_enough_collision (!accu, proba) then
 	begin
 	  red_proba := (t1,t2,side_cond,proba,tl) :: (!red_proba);
 	  true

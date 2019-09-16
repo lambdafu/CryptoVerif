@@ -55,8 +55,6 @@ let normalize_in_match_funapp = ref false
                                         
 let expand_letxy = ref true
 
-let trust_size_estimates = ref false
-    
 (* Bound the number of advice possibilities in cryptotransf.ml
    Having too many of them does not help because we will need to try
    all of them and it will take a lot of time. *)
@@ -104,7 +102,8 @@ let psize_SMALL = 2 (* For active sessions, when the number of failed
 let tysize_LARGE = 256
 let tysize_PASSWORD = 20
 
-let tysize_MIN_Manual_Coll_Elim = ref 15
+let trust_size_estimates = ref false
+let tysize_MIN_Coll_Elim = ref 15
 let tysize_MIN_Auto_Coll_Elim = ref 80
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions

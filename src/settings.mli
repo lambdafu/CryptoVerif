@@ -99,7 +99,7 @@ val tysize_LARGE : int
 val tysize_PASSWORD : int
 
 val tysize_MIN_Auto_Coll_Elim : int ref
-val tysize_MIN_Manual_Coll_Elim : int ref
+val tysize_MIN_Coll_Elim : int ref
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions
    of the form ([(psize1, n1); ...; (psizek,nk)], tsize) 

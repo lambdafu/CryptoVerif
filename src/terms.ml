@@ -150,6 +150,10 @@ let rec max_list f l approx =
   | a::lr -> max (f a approx) (aux lr)
   in
   aux l
+
+let rec min_list f = function
+  | [] -> max_int
+  | a::l -> min (f a) (min_list f l)
     
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
 	
