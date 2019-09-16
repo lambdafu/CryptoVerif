@@ -50,31 +50,35 @@ val remove_suffix : int -> 'a list -> 'a list
    list [l]. Uses physical equality to compare keys. *)
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
-(* Addition and subtraction bounded by min_int and max_int,
-   so no overflow. They give the following guarantees:
-when approx = High, returned_result \in [min_int, max_int] and returned_result >= min(exact_result, max_int)
-when approx = Low, returned_result \in [min_int, max_int] and returned_result <= max(exact_result, min_int) *)
-val plus : approx_int -> approx_int -> approx_int
-val minus : approx_int -> approx_int -> approx_int
+(* Addition of positive values bounded by max_int,
+   so no overflow.  *)
+val plus : int -> int -> int
     
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
-val max_list : ('a -> approx_int) -> 'a list -> approx_int
+val max_list : ('a -> int) -> 'a list -> int
 
+(* [min_list f l] is the minimum of [f x] for all [x] in [l] *)
 val min_list : ('a -> int) -> 'a list -> int
     
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
-val sum_list : ('a -> approx_int) -> 'a list -> approx_int
+val sum_list : ('a -> int) -> 'a list -> int
 
-(* [get_size ty] returns n such that the size of ty is 2^n *)
-val get_size : typet -> approx_int
+(* [get_size_low ty] and [get_size_high ty] return n such that 
+   the size of ty is at least (resp. at most) 2^n *)
+val get_size_low : typet -> int
+val get_size_high : typet -> int
 
-(* [get_pcoll1 ty] returns n such that the probability Pcoll1rand(ty)
-   of collision with a random element of the type [ty] is 2^n (n <= 0) *)
-val get_pcoll1 : typet -> approx_int
+(* [get_pcoll1_low ty] and [get_pcoll1_high ty] return n such 
+   that the probability Pcoll1rand(ty) of collision with a 
+   random element of the type [ty] is at least (resp. at most) 2^n (n <= 0) *)
+val get_pcoll1_low : typet -> int
+val get_pcoll1_high : typet -> int
 
-(* [get_pcoll2 ty] returns n such that the probability Pcoll2rand(ty)
-   of collision between 2 random elements of the type [ty] is 2^n (n <= 0) *)
-val get_pcoll2 : typet -> approx_int    
+(* [get_pcoll2_low ty] and [get_pcoll2_high ty] return n such 
+   that the probability Pcoll2rand(ty) of collision between 
+   2 random elements of the type [ty] is at least (resp. at most) 2^n (n <= 0) *)
+val get_pcoll2_low : typet -> int    
+val get_pcoll2_high : typet -> int    
     
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)

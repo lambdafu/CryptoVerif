@@ -3,13 +3,13 @@ open Types
 (* 1. Is a type large? (i.e. the inverse of its cardinal is negligible) *)
 
 let is_large t =
-  Terms.get_pcoll1 t High <= - !Settings.tysize_MIN_Auto_Coll_Elim
+  Terms.get_pcoll1_high t <= - !Settings.tysize_MIN_Auto_Coll_Elim
 
 let elim_collisions_on_password_occ = ref []
 
 let is_large_term t =
   (is_large t.t_type) || 
-  ((Terms.get_pcoll1 t.t_type High <= - !Settings.tysize_MIN_Coll_Elim) && 
+  ((Terms.get_pcoll1_high t.t_type <= - !Settings.tysize_MIN_Coll_Elim) && 
    (List.exists (function
      | CollVars l ->
 	 begin
@@ -60,29 +60,148 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
-let rec order_of_magnitude probaf approx  =
+(* We are using interval arithmetic *)
+
+let min_f = float_of_int min_int
+let max_f = float_of_int max_int
+let zero_interv = ((0, 0.0), (0, 0.0))
+let log2cst = log 2.0
+
+let bound r =
+  if r < min_f then min_f else if r > max_f then max_f else r
+      
+let log2 x = bound((log x)/. log2cst)
+    
+let log2_1p x = bound((log1p x)/. log2cst)
+
+let plus_low x y =
+  if x = min_f || y = min_f then min_f else bound(x +. y)
+
+let plus_high x y =
+  if x = max_f || y = max_f then max_f else bound(x +. y)
+
+let minus_low x =
+  if x = max_f then min_f else bound (-. x)
+
+let minus_high x =
+  if x = min_f then max_f else bound (-. x)
+
+
+let max_v ((s1, e1) as v1) ((s2, e2) as v2) =
+  if s2 > s1 then v2 else
+  if s1 > s2 then v1 else
+  (* s1 = s2 *)
+  match s1 with
+  | 1 -> if e1 > e2 then v1 else v2  
+  | -1 -> if e1 > e2 then v2 else v1
+  | 0 -> v1 (* v1 = v2 = 0.0 *)
+  | _ -> Parsing_helper.internal_error "unexpected sign"
+
+let min_v ((s1, e1) as v1) ((s2, e2) as v2) =
+  if s2 > s1 then v1 else
+  if s1 > s2 then v2 else
+  (* s1 = s2 *)
+  match s1 with
+  | 1 -> if e1 > e2 then v2 else v1  
+  | -1 -> if e1 > e2 then v1 else v2
+  | 0 -> v1 (* v1 = v2 = 0.0 *)
+  | _ -> Parsing_helper.internal_error "unexpected sign"
+
+let rec max_list f = function
+  | [] -> (-1, max_f), (-1, max_f)
+  | a::l ->
+      let (mina, maxa) = f a in
+      let (minl, maxl) = max_list f l in
+      (max_v mina minl, max_v maxa maxl)
+
+let add_v_low ((s1, e1) as v1) ((s2, e2) as v2) =
+  if s1 = 0 then v2 else
+  if s2 = 0 then v1 else
+  if e1 = e2 && s1 <> s2 then (0,0.0) else
+  if e1 >= e2 then
+    (* s1 * 2^e1 + s2 * 2^e2 = s1 * 2^e1 * (1 + s2/s1 * 2^{e2-e1})
+                             = s1 * 2^(e1 + log2(1 + s2/s1 * 2^{e2-e1})) *)
+    (s1, plus_low e1 (log2_1p (float_of_int s2 /. float_of_int s1 *. 2. ** (e2 -. e1))))
+  else
+    (* same as above, swapping v2 and v1 *)
+    (s2, plus_low e2 (log2_1p (float_of_int s1 /. float_of_int s2 *. 2. ** (e1 -. e2))))
+  
+let add_v_high ((s1, e1) as v1) ((s2, e2) as v2) =
+  if s1 = 0 then v2 else
+  if s2 = 0 then v1 else
+  if e1 = e2 && s1 <> s2 then (0,0.0) else
+  if e1 >= e2 then
+    (* s1 * 2^e1 + s2 * 2^e2 = s1 * 2^e1 * (1 + s2/s1 * 2^{e2-e1})
+                             = s1 * 2^(e1 + log2(1 + s2/s1 * 2^{e2-e1})) *)
+    (s1, plus_high e1 (log2_1p (float_of_int s2 /. float_of_int s1 *. 2. ** (e2 -. e1))))
+  else
+    (* same as above, swapping v2 and v1 *)
+    (s2, plus_high e2 (log2_1p (float_of_int s1 /. float_of_int s2 *. 2. ** (e1 -. e2))))
+	
+let add_interv (min1,max1) (min2,max2) =
+  (add_v_low min1 min2, add_v_high max1 max2)
+
+
+let mult_interv ((sign1min, e1min), (sign1max, e1max)) 
+    ((sign2min, e2min), (sign2max, e2max)) = TODO(* TO DO *)
+
+
+  
+    
+let rec order_of_magnitude_aux probaf =
   match probaf with
   | Add(p1,p2) ->
-      max (order_of_magnitude p1 approx) (order_of_magnitude p2 approx)
-  | Zero | EpsRand _ | EpsFind -> min_int
+      add_interv (order_of_magnitude_aux p1) (order_of_magnitude_aux p2)
+  | Sub(p1,p2) ->
+      let ((sign2min, e2min), (sign2max, e2max)) = order_of_magnitude_aux p2 in
+      add_interv (order_of_magnitude_aux p1) ((-sign2max, e2max), (-sign2min, e2min))
+  | Zero | EpsRand _ | EpsFind -> zero_interv
   | Max(l) ->
-      Terms.max_list order_of_magnitude l approx
-  | Cst _ -> 0
-  | PColl1Rand t -> Terms.get_pcoll1 t approx
-  | PColl2Rand t -> Terms.get_pcoll2 t approx
-  | Card t -> Terms.get_size t approx
-  | Count p -> p.psize
+      max_list order_of_magnitude_aux l 
+  | Cst x ->
+      if x = 0.0 then zero_interv else
+      if x < 0.0 then
+	let v = (-1, log2 (-. x)) in
+	(v,v)
+      else
+	let v = (1, log2 x) in
+	(v,v)
+  | PColl1Rand t ->
+      ((1, float_of_int (Terms.get_pcoll1_low t)),
+       (1, float_of_int (Terms.get_pcoll1_high t)))
+  | PColl2Rand t ->
+      ((1, float_of_int (Terms.get_pcoll2_low t)),
+       (1, float_of_int (Terms.get_pcoll2_high t)))
+  | Card t ->
+      ((1, float_of_int (Terms.get_size_low t)),
+       (1, float_of_int (Terms.get_size_high t)))
+  | Count p -> ((1, float_of_int p.psize), (1, float_of_int p.psize))
   | Div(p1, p2) ->
-      Terms.minus (order_of_magnitude p1) (order_of_magnitude p2) approx
+      let ((sign2min, e2min), (sign2max, e2max)) = order_of_magnitude_aux p2 in
+      if sign2min <= 0 && sign2max >= 0 then
+        ((-1, max_f), (1, max_f)) (* may divide by 0, can take any value *)
+      else (* sign2max = sign2min *)
+	mult_interv (order_of_magnitude_aux p1)
+	  ((sign2max, minus_low e2max), (sign2min, minus_high e2min))
+	(* s*2^e2min <= p2 <= s*2^e2max
+	   s*2^-e2max <= 1/p2 <= s*2^-e2min *)
   | Mul(p1, p2) ->
-      Terms.plus (order_of_magnitude p1) (order_of_magnitude p2) approx
+      mult_interv (order_of_magnitude_aux p1) (order_of_magnitude_aux p2)
   | Proba (p,_) ->
       if !Settings.trust_size_estimates then
-	- p.pestimate
+        let v = (1, float_of_int (- p.pestimate)) in
+	(v,v)
       else
-	min_int (* Accept all collisions *)
+	zero_interv (* Accept all collisions *)
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
+    
+let order_of_magnitude probaf =
+  let (_, (sign_max, exp_max)) = order_of_magnitude_aux probaf in
+  match sign_max with
+  | 1 -> int_of_float exp_max
+  | 0 | -1 -> min_int
+  | _ -> Parsing_helper.internal_error "unexpected sign"
 
 let rec is_1_over_card_t ty = function
   | Add(p, EpsRand _) -> is_1_over_card_t ty p
@@ -92,16 +211,16 @@ let rec is_1_over_card_t ty = function
 let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
   if !Settings.trust_size_estimates then
     Terms.plus (order_of_magnitude proba_t)
-      (Terms.plus (Terms.sum_list Terms.get_size dep_types)
-	 (Terms.sum_list (fun ri -> Terms.get_size ri.ri_type) proba_l)) High
+      (Terms.plus (Terms.sum_list Terms.get_size_high dep_types)
+	 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l))
       <= - (!Settings.tysize_MIN_Coll_Elim)
   else
     try
       let size_proba =
 	if dep_types == [] then
-	  order_of_magnitude proba_t High
+	  order_of_magnitude proba_t
 	else if is_1_over_card_t full_type proba_t then
-	  - (Terms.max_list Terms.get_size indep_types Low)
+	  - (Terms.max_list Terms.get_size_low indep_types)
 	else
 	  raise Not_found
       in
@@ -115,7 +234,7 @@ let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_ty
 let is_small_enough_collision (proba_l, proba) =
   if !Settings.trust_size_estimates then
     Terms.plus (order_of_magnitude proba)
-	 (Terms.sum_list (fun ri -> Terms.get_size ri.ri_type) proba_l) High
+	 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l)
       <= - (!Settings.tysize_MIN_Coll_Elim)
   else
     List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)

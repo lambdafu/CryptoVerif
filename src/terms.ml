@@ -103,53 +103,17 @@ let assq_rest x l =
   in
   aux [] x l 
 
-(* Addition and subtraction bounded by min_int and max_int,
-   so no overflow. It gives the following guarantees:
-when approx = High, returned_result \in [min_int, max_int] and returned_result >= min(exact_result, max_int)
-when approx = Low, returned_result \in [min_int, max_int] and returned_result <= max(exact_result, min_int)
- *)
+(* Addition of positive values bounded by max_int,
+   so no overflow.  *)
 	
-let aux_plus x y =
-  if y >= 0 then
-    if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
-  else (* y < 0 *)
-    if x <= min_int - y (* x + y <= min_int *) then min_int else x + y 
-
-let plus x y approx =
-  let x' = x approx in
-  let y' = y approx in
-  match approx with
-  | Low -> if x' = min_int || y' = min_int then min_int else aux_plus x' y'
-  | High -> if x' = max_int || y' = max_int then max_int else aux_plus x' y'
-    
+let plus x y =
+  if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
       
-let aux_minus x y =
-  if y >= 0 then
-    if x <= min_int + y (* x - y <= min_int *) then min_int else x - y
-  else (* y < 0 *)
-    if x >= max_int + y (* x - y >= max_int *) then max_int else x - y
+(* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 
-let reverse = function
-  | Low -> High
-  | High -> Low
-      
-let minus x y approx =
-  let x' = x approx in
-  let y' = y (reverse approx) in
-  match approx with
-  | Low -> if x' = min_int || y' = min_int then min_int else aux_minus x' y'
-  | High -> if x' = max_int || y' = max_int then max_int else aux_minus x' y'
-  
-      
-(* [max_list f l approx] is the maximum of [f x approx] for all [x] in [l] *)
-
-let rec max_list f l approx =
-  let rec aux = function
-    [] -> min_int
-  | [a] -> f a approx
-  | a::lr -> max (f a approx) (aux lr)
-  in
-  aux l
+let rec max_list f = function
+  | [] -> min_int
+  | a::lr -> max (f a) (max_list f lr)
 
 let rec min_list f = function
   | [] -> max_int
@@ -157,33 +121,39 @@ let rec min_list f = function
     
 (* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
 	
-let rec sum_list f l approx =
-  match l with 
-    [] -> 0
-  | [a] -> f a approx
-  | a::lr -> plus (f a) (sum_list f lr) approx
+let rec sum_list f = function
+  | [] -> 0
+  | a::l -> plus (f a) (sum_list f l) 
 
 
-let get_size ty approx =
-  match ty.tsize, ty.tpcoll, approx with
-  | Some n, _, _ -> n
-  | None, _, High -> max_int
-  | None, None, Low -> 0
-  | None, Some ncoll, Low -> ncoll (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|ty| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
+let get_size_high ty =
+  match ty.tsize with
+  | Some n -> n
+  | None -> max_int
 
-let get_pcoll1 ty approx =
-  match ty.tsize, ty.tpcoll, approx with
-  | _, Some n, _ -> - n (* The probability of collision is about 2^{-n} *)
-  | None, None, Low -> min_int
-  | Some nsize, None, Low -> - nsize
-  | _, None, High -> 0 (* The probability is at most 1 = 2^0 *)
+let get_size_low ty =
+  match ty.tsize, ty.tpcoll with
+  | Some n, _ -> n
+  | None, None -> 0
+  | None, Some ncoll -> ncoll (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|ty| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
 
-let get_pcoll2 ty approx =
-  match ty.tsize, ty.tpcoll, approx with
-  | _, Some n, High -> - n (* The probability of collision Pcoll2rand(ty) is at most Pcoll1rand(ty) = 2^{-n} *)
-  | _, None, High -> 0 (* The probability is at most 1 = 2^0 *)
-  | None, _, Low -> min_int
-  | Some nsize, _, Low -> - nsize
+let get_pcoll1_high ty =
+  match ty.tpcoll with
+  | Some n -> - n (* The probability of collision is about 2^{-n} *)
+  | None -> 0 (* The probability is at most 1 = 2^0 *)
+
+let get_pcoll1_low ty =
+  match ty.tsize, ty.tpcoll with
+  | _, Some n -> - n (* The probability of collision is about 2^{-n} *)
+  | None, None -> min_int
+  | Some nsize, None -> - nsize
+
+let get_pcoll2_high = get_pcoll1_high (* The probability of collision Pcoll2rand(ty) is at most Pcoll1rand(ty) *)
+
+let get_pcoll2_low ty =
+  match ty.tsize with
+  | None -> min_int
+  | Some nsize -> - nsize
      (* The probability Pcoll2rand(ty) is at least 1/|ty| = 2^{-nsize}.
         Let Pr[X = a] = 1/|ty| + p_a for all a \in ty.
         sum_{a \in ty} p_a = 0 because sum_{a \in ty} Pr[X = a] = 1.
@@ -1488,20 +1458,16 @@ let get_type_for_pattern = function
 
 (* Count the number of variables in a term *)
 
-let rec list_add f = function
-    [] -> 0
-  | a::l -> f a + list_add f l
-
 let rec count_var t =
   match t.t_desc with
-    FunApp(f,l) -> list_add count_var l
+    FunApp(f,l) -> sum_list count_var l
   | Var _ -> 1
   | ReplIndex _ -> 0
   | _ -> Parsing_helper.internal_error "Only Var/FunApp/ReplIndex expected in count_var"
 
 let rec size t =
   match t.t_desc with
-    FunApp(_,l) | Var(_,l) -> list_add size l
+    FunApp(_,l) | Var(_,l) -> sum_list size l
   | ReplIndex _ -> 1
   | _ -> Parsing_helper.internal_error "Only Var/FunApp/ReplIndex expected in size"
 

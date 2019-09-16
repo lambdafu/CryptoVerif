@@ -3370,7 +3370,7 @@ let rec check_one = function
 		      print_string ("Warning: due to the injective function " ^ s1 ^ ", the type " ^ ty.tname ^ " must be bounded. You should declare it as such (or revise the other declarations if it is not bounded).\n")
 		    ) l'
 		end;
-	      if Terms.sum_list Terms.get_size l' Low > Terms.get_size sr' High then
+	      if Terms.sum_list Terms.get_size_low l' > Terms.get_size_high sr' then
 		input_warning ("The size estimates for the types of the arguments and result of function " ^ s1 ^ " are not coherent with this function being injective: the size estimate for the result should be at least the sum of the size estimates for the arguments. Fixing that would help CryptoVerif take better decisions on when to eliminate collisions.") ext1;
 	      opt := (!opt) lor Settings.fopt_COMPOS
 	    end
