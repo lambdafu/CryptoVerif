@@ -60,7 +60,8 @@ let is_smaller proba_l factor_bound  =
   in
   ok_bound factor_bound_sort proba_l_sort
 
-(* We are using interval arithmetic *)
+(* We are using interval arithmetic, where bounds are represented
+   by pairs (sign, exp) meaning sign * 2^exp *)
 
 let min_f = float_of_int min_int
 let max_f = float_of_int max_int
@@ -86,26 +87,22 @@ let minus s x =
   else
     if x = max_f then min_f else bound (-. x)
 
-
-let max_v ((s1, e1) as v1) ((s2, e2) as v2) =
-  if s2 > s1 then v2 else
-  if s1 > s2 then v1 else
+(* [is_greater v1 v2] is true when [v1] is greater than [v2] *)
+let is_greater (s1, e1) (s2, e2) =
+  if s2 > s1 then false else
+  if s1 > s2 then true else
   (* s1 = s2 *)
   match s1 with
-  | 1 -> if e1 > e2 then v1 else v2  
-  | -1 -> if e1 > e2 then v2 else v1
-  | 0 -> v1 (* v1 = v2 = 0.0 *)
+  | 1 -> e1 > e2
+  | -1 -> e1 < e2
+  | 0 -> false
   | _ -> Parsing_helper.internal_error "unexpected sign"
+  
+let max_v v1 v2 =
+  if is_greater v1 v2 then v1 else v2
 
-let min_v ((s1, e1) as v1) ((s2, e2) as v2) =
-  if s2 > s1 then v1 else
-  if s1 > s2 then v2 else
-  (* s1 = s2 *)
-  match s1 with
-  | 1 -> if e1 > e2 then v2 else v1  
-  | -1 -> if e1 > e2 then v1 else v2
-  | 0 -> v1 (* v1 = v2 = 0.0 *)
-  | _ -> Parsing_helper.internal_error "unexpected sign"
+let min_v v1 v2 =
+  if is_greater v1 v2 then v2 else v1
 
 let rec max_list f = function
   | [] -> (-1, max_f), (-1, max_f)
@@ -177,7 +174,7 @@ let rec order_of_magnitude_aux probaf =
   | Card t ->
       ((1, float_of_int (Terms.get_size_low t)),
        (1, float_of_int (Terms.get_size_high t)))
-  | Count p -> ((1, float_of_int p.psize), (1, float_of_int p.psize))
+  | Count p -> let v = (1, float_of_int p.psize) in (v, v)
   | Div(p1, p2) ->
       let ((sign2min, e2min), (sign2max, e2max)) = order_of_magnitude_aux p2 in
       if sign2min <= 0 && sign2max >= 0 then
