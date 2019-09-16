@@ -74,17 +74,17 @@ let log2 x = bound((log x)/. log2cst)
     
 let log2_1p x = bound((log1p x)/. log2cst)
 
-let plus_low x y =
-  if x = min_f || y = min_f then min_f else bound(x +. y)
+let plus s x y =
+  if s > 0 then 
+    if x = max_f || y = max_f then max_f else bound(x +. y)
+  else
+    if x = min_f || y = min_f then min_f else bound(x +. y)
 
-let plus_high x y =
-  if x = max_f || y = max_f then max_f else bound(x +. y)
-
-let minus_low x =
-  if x = max_f then min_f else bound (-. x)
-
-let minus_high x =
-  if x = min_f then max_f else bound (-. x)
+let minus s x =
+  if s > 0 then
+    if x = min_f then max_f else bound (-. x)
+  else
+    if x = max_f then min_f else bound (-. x)
 
 
 let max_v ((s1, e1) as v1) ((s2, e2) as v2) =
@@ -114,39 +114,40 @@ let rec max_list f = function
       let (minl, maxl) = max_list f l in
       (max_v mina minl, max_v maxa maxl)
 
-let add_v_low ((s1, e1) as v1) ((s2, e2) as v2) =
+let add_v dir ((s1, e1) as v1) ((s2, e2) as v2) =
   if s1 = 0 then v2 else
   if s2 = 0 then v1 else
   if e1 = e2 && s1 <> s2 then (0,0.0) else
   if e1 >= e2 then
     (* s1 * 2^e1 + s2 * 2^e2 = s1 * 2^e1 * (1 + s2/s1 * 2^{e2-e1})
                              = s1 * 2^(e1 + log2(1 + s2/s1 * 2^{e2-e1})) *)
-    (s1, plus_low e1 (log2_1p (float_of_int s2 /. float_of_int s1 *. 2. ** (e2 -. e1))))
+    (s1, plus (s1*dir) e1 (log2_1p (float_of_int s2 /. float_of_int s1 *. 2. ** (e2 -. e1))))
   else
     (* same as above, swapping v2 and v1 *)
-    (s2, plus_low e2 (log2_1p (float_of_int s1 /. float_of_int s2 *. 2. ** (e1 -. e2))))
+    (s2, plus (s2*dir) e2 (log2_1p (float_of_int s1 /. float_of_int s2 *. 2. ** (e1 -. e2))))
   
-let add_v_high ((s1, e1) as v1) ((s2, e2) as v2) =
-  if s1 = 0 then v2 else
-  if s2 = 0 then v1 else
-  if e1 = e2 && s1 <> s2 then (0,0.0) else
-  if e1 >= e2 then
-    (* s1 * 2^e1 + s2 * 2^e2 = s1 * 2^e1 * (1 + s2/s1 * 2^{e2-e1})
-                             = s1 * 2^(e1 + log2(1 + s2/s1 * 2^{e2-e1})) *)
-    (s1, plus_high e1 (log2_1p (float_of_int s2 /. float_of_int s1 *. 2. ** (e2 -. e1))))
-  else
-    (* same as above, swapping v2 and v1 *)
-    (s2, plus_high e2 (log2_1p (float_of_int s1 /. float_of_int s2 *. 2. ** (e1 -. e2))))
 	
 let add_interv (min1,max1) (min2,max2) =
-  (add_v_low min1 min2, add_v_high max1 max2)
+  (add_v (-1) min1 min2, add_v 1 max1 max2)
 
+let mult_v dir (s1, e1) (s2, e2) =
+  let sign = s1*s2 in
+  if sign = 0 then (0, 0.0) else
+  (sign, plus (sign*dir) e1 e2)
+      
 
-let mult_interv ((sign1min, e1min), (sign1max, e1max)) 
-    ((sign2min, e2min), (sign2max, e2max)) = TODO(* TO DO *)
-
-
-  
+let mult_interv (min1,max1) (min2,max2) =
+  let v1min = mult_v (-1) min1 min2 in
+  let v2min = mult_v (-1) min1 max2 in
+  let v3min = mult_v (-1) max1 max2 in
+  let v4min = mult_v (-1) max1 min2 in
+  let min = min_v (min_v v1min v2min) (min_v v3min v4min) in
+  let v1max = mult_v 1 min1 min2 in
+  let v2max = mult_v 1 min1 max2 in
+  let v3max = mult_v 1 max1 max2 in
+  let v4max = mult_v 1 max1 min2 in
+  let max = max_v (max_v v1max v2max) (max_v v3max v4max) in
+  (min, max)
     
 let rec order_of_magnitude_aux probaf =
   match probaf with
@@ -183,7 +184,7 @@ let rec order_of_magnitude_aux probaf =
         ((-1, max_f), (1, max_f)) (* may divide by 0, can take any value *)
       else (* sign2max = sign2min *)
 	mult_interv (order_of_magnitude_aux p1)
-	  ((sign2max, minus_low e2max), (sign2min, minus_high e2min))
+	  ((sign2max, minus (-sign2max) e2max), (sign2min, minus sign2min e2min))
 	(* s*2^e2min <= p2 <= s*2^e2max
 	   s*2^-e2max <= 1/p2 <= s*2^-e2min *)
   | Mul(p1, p2) ->
@@ -200,7 +201,7 @@ let rec order_of_magnitude_aux probaf =
 let order_of_magnitude probaf =
   let (_, (sign_max, exp_max)) = order_of_magnitude_aux probaf in
   match sign_max with
-  | 1 -> int_of_float exp_max
+  | 1 -> int_of_float (ceil exp_max) 
   | 0 | -1 -> min_int
   | _ -> Parsing_helper.internal_error "unexpected sign"
 
