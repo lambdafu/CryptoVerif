@@ -49,7 +49,8 @@ success
 
 (* Parameter and type declarations *)
 
-param NU, NS, NP.
+param NU, NS [small].
+param NP [passive].
 
 type Z [large, bounded].
 type G [large, bounded].
