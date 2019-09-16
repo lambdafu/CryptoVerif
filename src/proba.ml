@@ -155,7 +155,8 @@ let rec order_of_magnitude_aux probaf =
   | Sub(p1,p2) ->
       let ((sign2min, e2min), (sign2max, e2max)) = order_of_magnitude_aux p2 in
       add_interv (order_of_magnitude_aux p1) ((-sign2max, e2max), (-sign2min, e2min))
-  | Zero | EpsRand _ | EpsFind -> zero_interv
+  | Zero -> zero_interv
+  | EpsRand _ | EpsFind -> let v = (1, min_f) in (v,v)
   | Max(l) ->
       max_list order_of_magnitude_aux l 
   | Cst x ->
