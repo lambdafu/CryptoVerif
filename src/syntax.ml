@@ -3265,9 +3265,12 @@ let rec check_one = function
 	    | Some _, None -> pcoll := !size
 	    | None, Some _ -> size := !pcoll
 	    | None, None -> ()
-	    | Some nsize, Some ncoll ->
-		if nsize <> ncoll then
-		  raise_error "For uniform distributions, the estimate for size of the type and probability of collision should be equal" ext1
+	    | Some (nsize_min, nsize_max), Some (ncoll_min, ncoll_max) ->
+		if nsize_min <> ncoll_min then
+		  raise_error "For uniform distributions, the estimate for size of the type and probability of collision should be equal" ext1;
+		if nsize_max <> ncoll_max && ncoll_max <> max_int (* pcoll<n> sets ncoll_max to max_int *) then
+		  raise_error "For uniform distributions, the estimate for size of the type and probability of collision should be equal" ext1;
+		pcoll := !size
 	  end;
 	begin
 	  match !size, !pcoll with
