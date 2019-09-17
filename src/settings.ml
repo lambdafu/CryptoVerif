@@ -103,7 +103,7 @@ let tysize_LARGE = 256
 let tysize_PASSWORD = 20
 
 let trust_size_estimates = ref false
-let tysize_MIN_Coll_Elim = ref 15
+let tysize_MIN_Coll_Elim = ref tysize_PASSWORD
 let tysize_MIN_Auto_Coll_Elim = ref 80
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions

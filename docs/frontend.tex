@@ -1201,10 +1201,14 @@ simpler games, and therefore increase its chances of success.
 When $n \leq 0$, repeats removal of useless assignments until a fixpoint 
 is reached.
 
-\item $\texttt{set minAutoCollElim = }\nonterm{s}{\tt .}$ (default \texttt{size15})
+\item $\texttt{set minAutoCollElim = }\nonterm{s}{\tt .}$ (default \texttt{pest80})
 
-Sets the minimum size of a type for which elimination of collisions is
-possible automatically. The size argument $\nonterm{s}$ can be \texttt{large}, \texttt{password}, or \texttt{size}$n$ (see the \texttt{type} declaration for their meaning).
+  Sets the maximum probability for which elimination of collisions is
+  possible automatically (which corresponds to a minimum cardinal for
+  the type, when the probability distribution is uniform).  The argument
+  $\nonterm{s}$ can be \texttt{large} (probability $2^{-256}$),
+  \texttt{password} (probability $2^{-20}$), or \texttt{pest}$n$
+  (probability $2^{-n}$; see also the \texttt{type} declaration).
 
 \item $\texttt{set maxAdvicePossibilitiesBeginning = }n_1{\tt .}$ (default \texttt{50})\\
 $\texttt{set maxAdvicePossibilitiesEnd = }n_2{\tt .}$ (default \texttt{10})
@@ -1323,7 +1327,7 @@ In most cases, the default values should be left as they are, except
 for {\tt interactiveMode}, which allows to perform 
 interactive proofs.
 
-\item $\texttt{param}\ \neseq{ident}\ [\texttt{[noninteractive]}\mid \texttt{[passive]} \mid \texttt{[size$n$]}]\texttt{.}$
+\item $\texttt{param}\ \neseq{ident}\ [\texttt{[noninteractive]}\mid \texttt{[passive]} \mid \texttt{[default]} \mid \texttt{[small]} \mid \texttt{[size$n$]}]\texttt{.}$
 
 $\texttt{param}\ n_1, \ldots, n_m\texttt{.}$ declares parameters $n_1, \ldots, n_m$.
 Parameters are used to represent the number of copies of replicated processes
@@ -1332,15 +1336,16 @@ In asymptotic analyses, they are polynomial in the security parameter.
 In exact security analyses, they appear in the formulas that express the
 probability of an attack.
 
-The options \texttt{[noninteractive]}, \texttt{[passive]}, or \texttt{[size$n$]}
-indicate to CryptoVerif an order of magnitude of the size of the parameter.
+The options \texttt{[noninteractive]}, \texttt{[passive]}, \texttt{[default]}, \texttt{[small]}, or \texttt{[size$n$]}
+indicate to CryptoVerif an order of magnitude of the parameter.
 %
 The option \texttt{[size$n$]} (where $n$ is a constant integer) indicates
-that the considered parameter has ``size $n$'': the larger the $n$, the
-larger the parameter is likely to be.
+the parameter is about $2^n$.
 CryptoVerif uses this
 information to optimize the computed probability bounds: when several
 bounds are correct, it chooses the smallest one.
+It also uses it to estimate the probability of collisions,
+and decide whether to eliminate the collision or not.
 
 The option \texttt{[noninteractive]} means that
 the queries bounded by the considered parameters can be made by the
@@ -1348,22 +1353,49 @@ adversary without interacting with the tested protocol, so the number
 of such queries is likely to be large.
 Parameters with option \texttt{[noninteractive]} are typically 
 used for bounding the number of calls to random oracles.
-\texttt{[noninteractive]} is equivalent to \texttt{[size20]}.
+\texttt{[noninteractive]} is equivalent to \texttt{[size80]}.
 
-The option \texttt{[passive]} means that the queries bounded by the
-considered parameters correspond to the adversary passively listening
-to sessions of the protocol that run as expected. Therefore, for such
-runs, the adversary is undetected. This number of runs is therefore
-likely to be larger than runs in which the adversary actively 
-interacts with the honest participants, when these participants stop 
-after a certain number of failed attempts.
-\texttt{[passive]} is equivalent to \texttt{[size10]}.
+The absence of option, the option \texttt{[default]}, and the option \texttt{[passive]} correspond
+to adversary interacting with the tested protocol without any limitation
+on the number of sessions. This can correspond to two situations:
+\begin{itemize}
+\item The protocol can start new sessions without limit even 
+  if it could detect that an active attack happened in previous sessions.
+\item The adversary listens passively to sessions of the protocol that
+  run as expected (hence the word \texttt{[passive]}). Therefore, for
+  such runs, the adversary is undetected.
+\end{itemize}
+No option, \texttt{[default]}, and \texttt{[passive]} are equivalent to \texttt{[size30]}.
 
-\item $\texttt{proba}\ \nonterm{ident}\texttt{.}$
+The option \texttt{[small]} should be used for sessions in which the
+adversary actively interacts with the honest participants and mounts
+detectable attacks, when these participants stop after a certain
+number of failed attempts (e.g. credit cards are blocked after 3 incorrect
+PINs).
+\texttt{[small]} is equivalent to \texttt{[size2]}.
+
+\item $\texttt{proba}\ \nonterm{ident}\ [\texttt{[$\nonterm{pest}$]}].$
 
 $\texttt{proba}\ p\texttt{.}$ declares a probability $p$.
 (Probabilities may be used as functions of other arguments,
 without explicit checking of these arguments.)
+When \texttt{[$\nonterm{pest}$]} is present, 
+it gives an estimate of the value of the probability:
+\texttt{pest$n$} for estimate $n$, where $n$ is an integer, means that the probability is about $2^{-n}$;
+\texttt{password} for estimate 20, i.e. probability $2^{-20}$;
+\texttt{large} for estimate 256, i.e. probability $2^{-256}$.
+When \texttt{[$\nonterm{pest}$]} is absent, \texttt{large} is the default.
+%
+When the probability $p$ appears in a \texttt{collision} statement and
+the command \texttt{allowed\_collisions pest$n'$} has been issued,
+CryptoVerif applies the \texttt{collision} statement only when the
+probability of collision (taking into account how many times it is
+applied) is less than $2^{-n'}$.
+The estimate is only used to decide whether to eliminate collisions or not.
+The probability formula output by CryptoVerif at the end of the proof
+remains correct even if the estimates are incorrect. However,
+incorrect estimates may have the consequence that, when evaluating
+this probability, its value is larger than desired.
 
 \item $\texttt{type}\ \nonterm{ident}\ [\texttt{[}\neseq{option}\texttt{]}]\texttt{.}$
 
@@ -1390,62 +1422,72 @@ so \texttt{fixed} implies \texttt{bounded}.
   \texttt{bounded, nonuniform} are also allowed to have a non-uniform
   distribution on a \texttt{fixed} or \texttt{bounded} type.)
 
-\item \texttt{large}, \texttt{password}, and \texttt{size$n$} indicate 
-the order of magnitude of the probability of collision $\texttt{Pcoll1rand}(T)$
-between a random element
-chosen according to the default probability distribution $D_T$ for the considered type $T$,
-and an independent element of type $T$. When the default distribution is uniform
-or almost uniform ({\tt fixed} and {\tt bounded} types), $\texttt{Pcoll1rand}(T) = \frac{1}{|T|}$,
-so these parameters give an order of magnitude of the cardinal of the type.
+\item \texttt{size$n$} indicates
+the order of magnitude of the cardinal of the type:
+\texttt{size$n$} means that its cardinal is about $2^n$,
+where $n$ is an integer
+(like the set of bitstrings of length $n$).
 
-The option \texttt{size$n$} (where $n$ is a constant integer) indicates
-that the considered type has ``size $n$'': the larger the $n$, the
-smaller the probability of collision $\texttt{Pcoll1rand}(T)$.
-When no size option is present, the type has size 0.
+\item \texttt{pcoll$n$} means that $\texttt{Pcoll1rand}(T)$ is about
+  $2^{-n}$, where $n$ is an integer.  ($\texttt{Pcoll1rand}(T)$ is the
+  probability of collision between a random element chosen according
+  to the default probability distribution $D_T$ for the considered
+  type $T$, and an independent element of type $T$.)
+
+  When the default distribution is uniform or almost uniform ({\tt
+    fixed} and {\tt bounded} types),
+  $\texttt{Pcoll1rand}(T) = \frac{1}{|T|}$, so CryptoVerif estimates
+  the probability of collision from the cardinal of the type and
+  conversely, so mentioning one of \texttt{size$n$} or
+  \texttt{pcoll$n$} is sufficient.
+
 CryptoVerif uses this information to determine whether collisions 
 with random elements of the considered type $T$ should be eliminated.
 For collisions to be eliminated, two conditions must be satisfied:
 \begin{enumerate}
 
-\item the size of the type must be at least \texttt{minAutoCollElim}
-(which is set by $\texttt{set minAutoCollElim = }n$; the default is 15),
-or the size of the type must be at least 1 and elimination of collisions
+\item $\texttt{Pcoll1rand}(T) \leq 2^{-n'}$, that is, $T$ has option
+  \texttt{pcoll$n$} with $n \geq n'$, where
+$n'$ is set by $\texttt{set minAutoCollElim = pest}n'$ 
+(the default is $n' = 80$),
+or elimination of collisions
 on this data has been manually requested by the command 
 $\texttt{simplify coll\string_elim }\ldots$.
 
-\item the probability of collision is at most one of the formulas
-specified by the command $\texttt{allowed\_collisions}$
-(used inside a {\tt proof} environment).
-By default, all collisions are eliminated for types of size at least 20,
-and collisions are eliminated for types of size at least 10 when
-the collision is repeated at most $N$ times, where $N$ is a parameter of size 0.
+\sloppy
+
+\item the probability of collision satisfies the conditions specified
+  by the command $\texttt{allowed\_collisions}$ (used inside a {\tt
+    proof} environment).  By default, collisions are eliminated when
+  \begin{itemize}
+\item either $\texttt{Pcoll1rand}(T) \leq 2^{-256}$ ($T$ has option
+  \texttt{pcoll$n$} with $n \geq 256$ or option \texttt{large})
+\item or
+  $\texttt{Pcoll1rand}(T) \leq 2^{-20}$ ($T$ has option
+  \texttt{pcoll$n$} with $n \geq 20$ or option \texttt{password}), the
+  collision is repeated at most $N$ times, and $N$ is a parameter of
+  size at most 2.  
+\end{itemize}
 See the command $\texttt{allowed\_collisions}$ for more details.
+\fussy
 
 \end{enumerate}
-For collisions $f(M_1, \ldots, M_n) = M$ where 
-$f$ is declared by \texttt{fun $f(T_1, \ldots, T_n):T$ [data]},
-$M$ is obtained from 
-a random value $r$ by applying \texttt{uniform} functions, and
-$M_i$ is independent of $r$, 
-the probability of collision is $\texttt{Pcoll1rand}(T) \times \prod_{j \in \{ 1, ..., n \} \setminus \{i\}} |T_j|$.
-The associated ``type'' size is computed as $\mathit{size}(T) - \sum_{j \in \{ 1, ..., n \} \setminus \{i\}} \mathit{size}(T_j)$.
-(This computation is easily generalized to the case in which several \texttt{data} functions are applied instead of just $f$.)
-For this value to be correct, we must have $\sum_{j = 1}^n \mathit{size}(T_j) \leq \mathit{size}(T)$.
-CryptoVerif displays a warning when this inequality does not hold.
 
-\texttt{large} means that the type $T$ is large enough so that
+\item \texttt{large} is equivalent to \texttt{size256}, \texttt{pcoll256}
+By default, \texttt{large} means that the type $T$ is large enough so that
 all collisions with random elements of $T$ can be eliminated. 
 (In asymptotic analyses, $\texttt{Pcoll1rand}(T)$ is negligible. 
 In exact security analyses, the
 probability of a collision is correctly expressed by the system.)
-\texttt{large} is equivalent to \texttt{size20}.
 
+\item \texttt{password} is equivalent to \texttt{size20}, \texttt{pcoll20}.
 \texttt{password} is intended for passwords in password-based
 security protocols. These passwords are taken in a dictionary whose
 size is much smaller than the size of a nonce for instance,
 so the probability of collisions among passwords is larger 
-than among data of \texttt{large} types.
-\texttt{password} is equivalent to \texttt{size10}.
+than among data of \texttt{large} types. CryptoVerif
+assumes that password are taken in a dictionary of about one 
+million ($2^{20}$) elements.
 
 \end{itemize}
 
@@ -2046,10 +2088,9 @@ The following identifiers are predefined:
 \begin{itemize}
 
 \item The type {\tt bitstring} is the type of all bitstrings.
-It is large.
 
 \item The type {\tt bitstringbot} is the type that contains
-all bitstrings and $\bot$. It is also large.
+all bitstrings and $\bot$.
 
 \item The type {\tt bool} is the type of boolean values, which consists
 of two constant bitstrings {\tt true} and {\tt false}.
@@ -2132,7 +2173,7 @@ where $X$ is chosen according to distribution $D_T$.
 collision between two independent random values of type $T$  
 chosen according to the default distribution $D_T$ for type $T$
 (when $T$ is \texttt{nonuniform}). We have
-\[\texttt{Pcoll2rand(}T\texttt{)} = \sum_{a \in T} \Pr[X = a]^2 \leq \texttt{Pcoll1rand(}T\texttt{)}\]
+\[\frac{1}{|T|} \leq \texttt{Pcoll2rand(}T\texttt{)} = \sum_{a \in T} \Pr[X = a]^2 \leq \texttt{Pcoll1rand(}T\texttt{)}\]
 where $X$ is chosen according to the default distribution $D_T$.
 
 \item $\texttt{time}$ designates the runtime of the environment (attacker).

@@ -2209,7 +2209,7 @@ and they are mapped to the same variable $y_i$ in the equivalence.
   will be transformed using oracles $O_1, \ldots, O_m$ respectively of
   the equivalence. See above for how to specify the program points $occ_i$. 
   (CryptoVerif may automatically add elements to the
-  list $occ_1\texttt{->}O_1,\ldots,occ_m\texttt{->}O_m$ if needed, except
+  list $occ_1\texttt{->}O_1,\ldots,\ab occ_m\texttt{->}O_m$ if needed, except
   when a dot is added at the end of this list.)
 
 \end{itemize}
@@ -2407,38 +2407,45 @@ terminate the proof automatically from the current game.
 \item $\texttt{set }\nonterm{parameter}\texttt{ = }\nonterm{value}$:
 sets parameters, as the \texttt{set} instruction in input files.
 
+\item \texttt{allowed\string_collisions} determines when to eliminate collisions. This command has two variants:
+\begin{itemize}
 \item \texttt{allowed\string_collisions} $\nonterm{formulas}$: 
-determine when to eliminate collisions. $\nonterm{formulas}$ is 
+$\nonterm{formulas}$ is 
 a comma-separated list of formulas of the form
 $\nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k} / \nonterm{tsize}$,
 where the exponents $n_i$ can be omitted when equal to 1;
 $\nonterm{psize}_i$ is an identifier that determines the size of a
-parameter: \texttt{size$n$} for parameters of size $n$,
-\texttt{small} for size 0, \texttt{passive} for size 10,
-\texttt{noninteractive} for size 20;
-$\nonterm{tsize}$ is an identifier that determines the size of a type:
-\texttt{size$n$} for types of size $n$,
-\texttt{small} for size 0, \texttt{password} for size 10,
-\texttt{large} for size 20. (See also the declarations \texttt{param}
-and \texttt{type} for explanations of sizes.)
+parameter: \texttt{size$n$} for parameters of size $n$, meaning that the parameter is at most $2^n$,
+\texttt{small} for size 2, \texttt{passive} or \texttt{default} for size 30,
+\texttt{noninteractive} for size 80;
+$\nonterm{pest}$ is an identifier that estimates a probability:
+\texttt{pest$n$} for estimate $n$, corresponding to probability $2^{-n}$,
+\texttt{password} for estimate 20, i.e. probability $2^{-20}$,
+\texttt{large} for estimate 256, i.e. probability $2^{-256}$. (See also the declarations \texttt{param}, \texttt{proba},
+and \texttt{type} for explanations of these estimates.)
 
 Collisions are eliminated when the probability that they generate
 is at most of the form  $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k} \times \texttt{Pcoll1rand}(T)$,
 where $p_i$ is a parameter of size at most $\nonterm{psize}_i$
-and $T$ is a type of size at least $\nonterm{tsize}$.
-By default, collisions are eliminated for $\textit{anything} \times \texttt{Pcoll1rand}(T)$ when $T$ is a \texttt{large} type,
-and for $p \times \texttt{Pcoll1rand}(T)$ when $p$ is \texttt{small} and $T$ is a \texttt{password} type.
+and $\texttt{Pcoll1rand}(T)$ is at most the probability estimated by $\nonterm{pest}$.
+By default, collisions are eliminated for $\textit{anything} \times \texttt{Pcoll1rand}(T)$ when $\texttt{Pcoll1rand}(T) \leq 2^{-256}$ (\texttt{large}),
+and for $p \times \texttt{Pcoll1rand}(T)$ when $p \leq 2^2$ (\texttt{small}) and $\texttt{Pcoll1rand}(T) \leq 2^{-20}$ (\texttt{password}).
 
 Additionally, $\nonterm{formulas}$ may also contain elements of the form
-$ \texttt{collision} \tttimes \nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k}$.
+$ \texttt{collision} \tttimes \nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \allowbreak \nonterm{psize}_k\texttt{\string^}{n_k}$.
 These formulas allow the transformation of terms by \texttt{collision} statements, provided 
 the number of times the collision statement is applied is at most 
 $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k}$
 where $p_i$ is a parameter of size at most $\nonterm{psize}_i$.
 By default, \texttt{collision} statements can always be applied.
 
+The default behavior is inspired by what happens in asymptotic security: \texttt{large} means that the probability of collision is asymptotically negligible, while the parameters are always polynomial, so $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k} \times \texttt{Pcoll1rand}(T)$ is negligible when $T$ is \texttt{large}. Similarly, probabilities given in collision statements are always negligible, while the parameters are always polynomial, so the probability obtained by applying $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k}$ times a collision statement remains negligible.
+
+\item \texttt{allowed\string_collisions} $\nonterm{pest}$, where $\nonterm{pest}$ is an identifier that estimates a probability, as above. Collisions are eliminated when the probability that they generate, taking into account how many times they are applied, is at most the probability specified by $\nonterm{pest}$. This behavior fits the exact security framework nicely: we eliminate collisions when they have a small enough probability.
+
+\end{itemize}
 \item $\texttt{focus}\ \texttt{"}\nonterm{querydecl}\texttt{"}, \dots, \texttt{"}\nonterm{querydecl}\texttt{"}$ where
-  $\nonterm{querydecl} ::= \texttt{query }[\seq{vartypeb}\texttt{;}]\nonterm{query} (\texttt{;}\nonterm{query})^*$
+  $\nonterm{querydecl} ::= \texttt{query }[\seq{vartypeb}\texttt{;}]\nonterm{query} (\texttt{;}\allowbreak\nonterm{query})^*$
   follows the syntax of query declarations given in Section~\ref{sec:channels} without the final dot:
   tell CryptoVerif to try to prove only the mentioned queries, ignoring all other queries.
   That sometimes allows to simplify the game further (e.g. remove events that are not used in the queries on which we focus),
