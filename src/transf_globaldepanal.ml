@@ -221,7 +221,7 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  Depanal.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,[t2.t_type])
+  Depanal.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,Some [t2.t_type])
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -1253,7 +1253,7 @@ let rec check_depend_process cur_array p' =
 	      cur_array
 	  in
 	  let t2 = Terms.term_from_binder b in
-	  if add_collisions_for_current_check_dependency (cur_array, [], DInputProcess p') (t1, t2, probaf, [], t2.t_type, [t2.t_type]) then
+	  if add_collisions_for_current_check_dependency (cur_array, [], DInputProcess p') (t1, t2, probaf, [], t2.t_type, Some [t2.t_type]) then
 	    begin
 	      local_changed := true;
 	      Terms.iproc_from_desc (Input((c, tl), PatVar b, Terms.oproc_from_desc Yield))
