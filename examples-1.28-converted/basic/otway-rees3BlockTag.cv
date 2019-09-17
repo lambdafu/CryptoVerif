@@ -11,11 +11,11 @@ param N2.
 param N3.
 
 (* Bitstrings of size exactly the block size *)
-type blocksize [size50,fixed].
-type blocksizeltag [size50,fixed].
+type blocksize [large,fixed].
+type blocksizeltag [fixed].
 
 type tag [bounded].
-type nonce [size20,fixed].
+type nonce [large,fixed].
 type host [bounded].
 type key [large,fixed].
 type keyseed [fixed].
