@@ -61,13 +61,28 @@ let is_smaller proba_l factor_bound  =
   ok_bound factor_bound_sort proba_l_sort
 
 (* We are using interval arithmetic, where bounds are represented
-   by pairs (sign, exp) meaning sign * 2^exp *)
+   by pairs (sign, exp) meaning sign * 2^exp. Hence, each value is
+   represented by an interval ((sign_min, exp_min), (sign_max, exp_max)),
+   meaning that sign_min * 2^exp_min <= v <= sign_max * 2^exp_max.
+   The exponents are constrained to be in the interval [min_f, max_f],
+   so min_f may in fact represent any value less than min_f,
+   and max_f may represent any value greater than max_f.
+
+   Invariants: 
+   sign_min, sign_max \in {-1, 0, 1}
+   exp_min, exp_max \in [min_f, max_f]
+   If sign_min = 0, then exp_min = 0.0; same for the max.
+   sign_min * 2^exp_min <= sign_max * 2^exp_max, so
+   - sign_min <= sign_max.
+   - If sign_min = sign_max = 1, then exp_min <= exp_max
+   - If sign_min = sign_max = -1, then exp_min >= exp_max *)
 
 let min_f = float_of_int min_int
 let max_f = float_of_int max_int
 let zero_interv = ((0, 0.0), (0, 0.0))
 let log2cst = log 2.0
 
+(* [bound r] makes sure that the result [r] is in the interval [min_f, max_f] *)
 let bound r =
   if r < min_f then min_f else if r > max_f then max_f else r
       
@@ -75,12 +90,37 @@ let log2 x = bound((log x)/. log2cst)
     
 let log2_1p x = bound((log1p x)/. log2cst)
 
+(* [plus s x y] adds the exponents [x] and [y], making sure that
+   the result is in the interval [min_f, max_f], and that it
+   represents an interval that contains the real value for sure.
+
+   The argument [s] is useful for the latter point.
+   - When [s > 0], the greater the result, the larger the interval
+   (either the result is used as upper bound of the interval and the
+   upper bound in question is positive, i.e. signmax = 1, 
+   or the result is used as lower bound of the interval and the
+   lower bound in question is negative, i.e. signmin = -1).
+   Hence if [x] or [y] is [max_f], since it may represent a value
+   larger than [max_f], the result is [max_f], even when [x + y < max_f]. 
+   - Symetrically, when [s < 0], the smaller the result, the larger 
+   the interval.
+   (either the result is used as upper bound of the interval and the
+   upper bound in question is negative, i.e. signmax = -1, 
+   or the result is used as lower bound of the interval and the
+   lower bound in question is positive, i.e. signmin = 1).
+   Hence, if [x] or [y] is [min_f], since it may represent a value
+   smaller than [min_f], the result is [min_f], even when [x + y > min_f]. 
+*)
 let plus s x y =
   if s > 0 then 
     if x = max_f || y = max_f then max_f else bound(x +. y)
   else
     if x = min_f || y = min_f then min_f else bound(x +. y)
 
+(* [minus s x] negates [x], making sure that
+   the result is in the interval [min_f, max_f], and that it
+   represents an interval that contains the real value for sure.
+   The argument [s] plays the same role as in [plus] above *)
 let minus s x =
   if s > 0 then
     if x = min_f then max_f else bound (-. x)
@@ -111,6 +151,11 @@ let rec max_list f = function
       let (minl, maxl) = max_list f l in
       (max_v mina minl, max_v maxa maxl)
 
+(* [add_v dir v1 v2] returns the interval bound corresponding to [v1 + v2],
+   when [v1], [v2] are bounds represented as pairs (sign,exp) meaning
+   sign * 2^exp.
+   [dir > 0] when the bound is an upper bound,
+   [dir < 0] when the bound is a lower bound. *)
 let add_v dir ((s1, e1) as v1) ((s2, e2) as v2) =
   if s1 = 0 then v2 else
   if s2 = 0 then v1 else
@@ -123,16 +168,23 @@ let add_v dir ((s1, e1) as v1) ((s2, e2) as v2) =
     (* same as above, swapping v2 and v1 *)
     (s2, plus (s2*dir) e2 (log2_1p (float_of_int s1 /. float_of_int s2 *. 2. ** (e1 -. e2))))
   
-	
+(* [add_interv i1 i2] returns the interval of x1 + x2, when
+   [x1 \in i1] and [x2 \in i2]. *)
 let add_interv (min1,max1) (min2,max2) =
   (add_v (-1) min1 min2, add_v 1 max1 max2)
 
+(* [mult_v dir v1 v2] returns the interval bound corresponding to [v1 * v2],
+   when [v1], [v2] are bounds represented as pairs (sign,exp) meaning
+   sign * 2^exp.
+   [dir > 0] when the bound is an upper bound,
+   [dir < 0] when the bound is a lower bound. *)
 let mult_v dir (s1, e1) (s2, e2) =
   let sign = s1*s2 in
   if sign = 0 then (0, 0.0) else
   (sign, plus (sign*dir) e1 e2)
       
-
+(* [mult_interv i1 i2] returns the interval of x1 * x2, when
+   [x1 \in i1] and [x2 \in i2]. *)
 let mult_interv (min1,max1) (min2,max2) =
   let v1min = mult_v (-1) min1 min2 in
   let v2min = mult_v (-1) min1 max2 in
@@ -145,7 +197,10 @@ let mult_interv (min1,max1) (min2,max2) =
   let v4max = mult_v 1 max1 min2 in
   let max = max_v (max_v v1max v2max) (max_v v3max v4max) in
   (min, max)
-    
+
+(* [order_of_magnitude_aux probaf] returns an interval
+   containing for sure the value of [probaf], given the estimates
+   provided by the user *)
 let rec order_of_magnitude_aux probaf =
   match probaf with
   | Add(p1,p2) ->
@@ -194,7 +249,9 @@ let rec order_of_magnitude_aux probaf =
 	zero_interv (* Accept all collisions *)
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
-    
+
+(* [order_of_magnitude probaf] returns an integer [n] such that
+   [probaf <= 2^n] ([n] is typically negative) *)
 let order_of_magnitude probaf =
   let (_, (sign_max, exp_max)) = order_of_magnitude_aux probaf in
   match sign_max with
@@ -202,6 +259,8 @@ let order_of_magnitude probaf =
   | 0 | -1 -> min_int
   | _ -> Parsing_helper.internal_error "unexpected sign"
 
+(* [is_1_over_card_t ty probaf] returns true when [probaf = 1/|ty|]
+   (up to probability eps_rand) *)
 let rec is_1_over_card_t ty = function
   | Add(p, EpsRand _) -> is_1_over_card_t ty p
   | Div(Cst 1.0, Card ty') -> ty == ty'
