@@ -3277,12 +3277,15 @@ let rec check_one = function
 	  | Some (nsize_min, nsize_max), Some (ncoll_min, ncoll_max) ->
 	      (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|T| = 1/2^{size estimate}, so pcoll estimate <= size estimate 
 	         2^nsize_min <= |T| <= 2^nsize_max
-		 => Pcoll1rand(T) >= 1/|T| >= 2^-nsize_max
-		 2^-ncoll_min >= Pcoll1rand(T) >= 2^-ncoll_max *)
-	      if ncoll_min > nsize_max then
+		 2^-ncoll_min >= Pcoll1rand(T) >= 2^-ncoll_max
+		 Pcoll1rand(T) >= 1/|T| 
+		 In case |T| = 2^nsize_min, we have 
+		 2^-ncoll_min >= Pcoll1rand(T) >= 1/|T| >= 2^-nsize_min
+		 so we must have ncoll_min <= nsize_min. *)
+	      if ncoll_min > nsize_min then
 		raise_error "The estimate for collision probability should be at most the estimate for the size of the type" ext1;
 	      if nsize_max <= ncoll_max then
-		pcoll := Some (ncoll_min, nsize_max) (* The previous error guarantees that ncoll_min <= nsize_max *)
+		pcoll := Some (ncoll_min, nsize_max) (* The previous error guarantees that ncoll_min <= nsize_min <= nsize_max *)
 	  | _ -> ()
 	end;
 	let ty = { tname = s1;

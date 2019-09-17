@@ -1,0 +1,8 @@
+type t [size10_20,pcoll5].
+
+process 0
+
+(* EXPECTED
+Error: For uniform distributions, the estimate for size of the type and probability of collision should be equal
+xtime: error in child process (status : 512)
+END *)

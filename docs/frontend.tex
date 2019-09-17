@@ -1475,14 +1475,15 @@ See the command $\texttt{allowed\_collisions}$ for more details.
 
 \end{enumerate}
 
-\item \texttt{large} is equivalent to \texttt{size256}, \texttt{pcoll256}
+\item \texttt{large} is equivalent to \texttt{size256\_4611686018427387903}, \texttt{pcoll256}, that is, $|T| \geq 2^{256}$ and $\texttt{Pcoll1rand}(T) \leq 2^{-256}$.
 By default, \texttt{large} means that the type $T$ is large enough so that
 all collisions with random elements of $T$ can be eliminated. 
 (In asymptotic analyses, $\texttt{Pcoll1rand}(T)$ is negligible. 
 In exact security analyses, the
 probability of a collision is correctly expressed by the system.)
 
-\item \texttt{password} is equivalent to \texttt{size20}, \texttt{pcoll20}.
+\item \texttt{password} is equivalent to \texttt{size20\_40}, \texttt{pcoll20},
+that is, $2^{20} \leq |T| \leq 2^{40}$ and $\texttt{Pcoll1rand}(T) \leq 2^{-20}$.
 \texttt{password} is intended for passwords in password-based
 security protocols. These passwords are taken in a dictionary whose
 size is much smaller than the size of a nonce for instance,

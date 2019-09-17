@@ -1,0 +1,8 @@
+type t [size10_20,pcoll15,nonuniform].
+
+process 0
+
+(* EXPECTED
+Error: The estimate for collision probability should be at most the estimate for the size of the type
+xtime: error in child process (status : 512)
+END *)
