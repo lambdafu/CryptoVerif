@@ -229,7 +229,7 @@ let rec order_of_magnitude_aux probaf =
   | Card t ->
       ((1, float_of_int (Terms.get_size_low t)),
        (1, float_of_int (Terms.get_size_high t)))
-  | Count p -> let v = (1, float_of_int p.psize) in (v, v)
+  | Count p -> (1,0.0),(1, float_of_int p.psize)
   | Div(p1, p2) ->
       let ((sign2min, e2min), (sign2max, e2max)) = order_of_magnitude_aux p2 in
       if sign2min <= 0 && sign2max >= 0 then
@@ -243,8 +243,7 @@ let rec order_of_magnitude_aux probaf =
       mult_interv (order_of_magnitude_aux p1) (order_of_magnitude_aux p2)
   | Proba (p,_) ->
       if !Settings.trust_size_estimates then
-        let v = (1, float_of_int (- p.pestimate)) in
-	(v,v)
+        (1, min_f), (1, float_of_int (- p.pestimate))
       else
 	zero_interv (* Accept all collisions *)
   | _ ->
@@ -342,7 +341,7 @@ let add_elim_collisions b1 b2 =
   in
   if not (List.exists equal (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, (pcoll1rand b1.btype, [], b1.btype, [b1.btype])) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, (pcoll2rand b1.btype, [], b1.btype, [b1.btype])) then
 	begin
 	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
 	  true

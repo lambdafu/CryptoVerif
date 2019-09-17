@@ -128,32 +128,40 @@ let rec sum_list f = function
 
 let get_size_high ty =
   match ty.tsize with
-  | Some n -> n
+  | Some (min, max) -> max
   | None -> max_int
 
 let get_size_low ty =
   match ty.tsize, ty.tpcoll with
-  | Some n, _ -> n
+  | Some (min, max), _ -> min
   | None, None -> 0
-  | None, Some ncoll -> ncoll (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|ty| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
+  | None, Some (ncoll_min, ncoll_max) -> ncoll_min (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|ty| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
 
+let minus s x =
+  if s > 0 then
+    if x = min_int then max_int else - x
+  else
+    if x = max_int then min_int else
+    if x = min_int then max_int else - x
+
+	
 let get_pcoll1_high ty =
   match ty.tpcoll with
-  | Some n -> - n (* The probability of collision is about 2^{-n} *)
+  | Some (min, max) -> minus 1 min (* The probability of collision is at most 2^{-min} *)
   | None -> 0 (* The probability is at most 1 = 2^0 *)
 
 let get_pcoll1_low ty =
   match ty.tsize, ty.tpcoll with
-  | _, Some n -> - n (* The probability of collision is about 2^{-n} *)
+  | _, Some (min, max) -> minus (-1) max (* The probability of collision is at least 2^{-max} *)
   | None, None -> min_int
-  | Some nsize, None -> - nsize
+  | Some (nsize_min, nsize_max), None -> minus (-1) nsize_max
 
 let get_pcoll2_high = get_pcoll1_high (* The probability of collision Pcoll2rand(ty) is at most Pcoll1rand(ty) *)
 
 let get_pcoll2_low ty =
   match ty.tsize with
   | None -> min_int
-  | Some nsize -> - nsize
+  | Some (nsize_min, nsize_max) -> minus (-1) nsize_max
      (* The probability Pcoll2rand(ty) is at least 1/|ty| = 2^{-nsize}.
         Let Pr[X = a] = 1/|ty| + p_a for all a \in ty.
         sum_{a \in ty} p_a = 0 because sum_{a \in ty} Pr[X = a] = 1.
@@ -286,7 +294,7 @@ let type_for_param p =
     let t = { tname = "[1," ^ p.pname ^"]";
 	      tcat = Interv p;
 	      toptions = Settings.tyopt_BOUNDED;
-	      tsize = Some p.psize;
+	      tsize = Some (0, p.psize);
 	      tpcoll = None;
               timplsize = None;
               tpredicate = None;

@@ -1340,7 +1340,7 @@ The options \texttt{[noninteractive]}, \texttt{[passive]}, \texttt{[default]}, \
 indicate to CryptoVerif an order of magnitude of the parameter.
 %
 The option \texttt{[size$n$]} (where $n$ is a constant integer) indicates
-the parameter is about $2^n$.
+the parameter is at most $2^n$.
 CryptoVerif uses this
 information to optimize the computed probability bounds: when several
 bounds are correct, it chooses the smallest one.
@@ -1381,9 +1381,9 @@ $\texttt{proba}\ p\texttt{.}$ declares a probability $p$.
 without explicit checking of these arguments.)
 When \texttt{[$\nonterm{pest}$]} is present, 
 it gives an estimate of the value of the probability:
-\texttt{pest$n$} for estimate $n$, where $n$ is an integer, means that the probability is about $2^{-n}$;
-\texttt{password} for estimate 20, i.e. probability $2^{-20}$;
-\texttt{large} for estimate 256, i.e. probability $2^{-256}$.
+\texttt{pest$n$} for estimate $n$, where $n$ is an integer, means that the probability is at most $2^{-n}$;
+\texttt{password} for estimate 20, i.e. probability at most $2^{-20}$;
+\texttt{large} for estimate 256, i.e. probability at most $2^{-256}$.
 When \texttt{[$\nonterm{pest}$]} is absent, \texttt{large} is the default.
 %
 When the probability $p$ appears in a \texttt{collision} statement and

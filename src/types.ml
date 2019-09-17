@@ -32,8 +32,8 @@ type channel = { cname : string }
 type typet = { tname : string;
 	       tcat : ttcat;
 	       toptions : int;
-	       tsize : int option;
-	       tpcoll : int option;
+	       tsize : (int * int) option; (* Some(min,max) means 2^min <= |T| <= 2^max *)
+	       tpcoll : (int * int) option; (* Some(min,max) means 2^-max <= Pcoll1rand(T) <= 2^-min *)
 	       (* The next fields are used for generating OCaml implementations *)
                mutable timplsize : int option; 
                  (* Number of bits of bitstrings of this type, when they have a fixed length *) 

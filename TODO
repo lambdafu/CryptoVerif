@@ -17,49 +17,6 @@ and replace later by the real list of indices when I have it?
 Or pass the indices of M' as argument? But for that, I need to know
 to indices introduced by is_indep.
 
-Use allowed_collisions to set "tysize_MIN_Manual_Coll_Elim" and
-set trust_size_estimates := true.
-Remove the setting trustSizeEstimates
-When !trust_size_estimates, compute the estimate for the whole
-probability (including replication bounds) and compare that to
-tysize_MIN_Manual_Coll_Elim.
-Document the recent changes of probability estimates
-Revert the converted examples Otway-Rees to their previous version
-without size<n>.
-Problem: setting tysize_MIN_Manual_Coll_Elim and trust_size_estimates
-together may lead to some strange effects when we set
-tysize_MIN_Manual_Coll_Elim and then go back to trust_size_estimates=false:
-the value of tysize_MIN_Manual_Coll_Elim is still used in is_large_term...
-===> There are two sets of parameters:
-1/when trust_size_estimates=false:
-  allowed_collisions
-  allowed_collisions_collision
-  tysize_MIN_Manual_Coll_Elim => can be computed from allowed_collisions:
-       minimum type bound in allowed_collisions
-The default treatment of bounds is closer to asymptotic security:
-large types considered exponential, while parameters are always
-polynomial, so any product of parameters is acceptable.
-2/when trust_size_estimates=true:
-  tysize_MIN_Manual_Coll_Elim:  allowed_collisions max_proba pest<n>
-This is better for exact security.
-How to reflect that in the interface?
-
-Use log2(v) as estimate for Cst v?
-Increase the estimate by one if we add two equal estimates?
-Case Sub in Proba.order_of_magnitude?
-Case of negative values? (especially negative constants) Carry a sign?
-===> In Proba.order_of_magnitude,
-     Use interval arithmetic, with bounds (signed)mantisse*2^exponent.
-     Use a float to represent that?
-     Or a float for mantisse and an integer for exponent?
-     Or an integer for mantisse and one for exponent?
-     Or sign*2^f, where sign is -1, 0, or 1, and f is a float?
-     (The latter may be simpler, since we need to look at the sign anyway
-     for division.)
-
-In facts.ml: Terms.get_pcoll1 b1.btype High <= -1
-or <= !Settings.tysize_MIN_Manual_Coll_Elim ? I used the latter for now.
-
 Allow giving an interval for size and probability estimates, e.g.
 size<min>_<max> pcoll<min>_<max> pest<min>_<max>?
 That would be fairly easy given how I use the estimates, but may
@@ -4290,3 +4247,41 @@ If |T| simplifies in the product with p, we obtain
 If one of these types is large (= larger than the size estimate
 in allowed_collisions) we eliminate the collision.
 DONE 13/9/2019
+
+   Use allowed_collisions to set "tysize_MIN_Manual_Coll_Elim" and
+set trust_size_estimates := true.
+Remove the setting trustSizeEstimates
+When !trust_size_estimates, compute the estimate for the whole
+probability (including replication bounds) and compare that to
+tysize_MIN_Manual_Coll_Elim.
+Document the recent changes of probability estimates
+===> There are two sets of parameters:
+1/when trust_size_estimates=false:
+  allowed_collisions
+  allowed_collisions_collision
+  tysize_MIN_Manual_Coll_Elim => can be computed from allowed_collisions:
+       minimum type bound in allowed_collisions
+The default treatment of bounds is closer to asymptotic security:
+large types considered exponential, while parameters are always
+polynomial, so any product of parameters is acceptable.
+2/when trust_size_estimates=true:
+  tysize_MIN_Manual_Coll_Elim:  allowed_collisions max_proba pest<n>
+This is better for exact security.
+
+Use log2(v) as estimate for Cst v?
+Increase the estimate by one if we add two equal estimates?
+Case Sub in Proba.order_of_magnitude?
+Case of negative values? (especially negative constants) Carry a sign?
+===> In Proba.order_of_magnitude,
+     Use interval arithmetic, with bounds (signed)mantisse*2^exponent.
+     Use a float to represent that?
+     Or a float for mantisse and an integer for exponent?
+     Or an integer for mantisse and one for exponent?
+     Or sign*2^f, where sign is -1, 0, or 1, and f is a float?
+     (The latter may be simpler, since we need to look at the sign anyway
+     for division.)
+DONE 17/9/2019
+   
+In facts.ml: Terms.get_pcoll1 b1.btype High <= -1
+or <= !Settings.tysize_MIN_Manual_Coll_Elim ? I used the latter for now.
+

@@ -96,7 +96,6 @@ val psize_SMALL : int
 
 (* Type sizes *)
 val tysize_LARGE : int
-val tysize_PASSWORD : int
 
 val tysize_MIN_Auto_Coll_Elim : int ref
 val tysize_MIN_Coll_Elim : int ref
@@ -116,7 +115,7 @@ val allowed_collisions : ((int * int) list * int) list ref
    (parameter of size <= psizek)^nk. *)
 val allowed_collisions_collision : (int * int) list list ref
 
-val parse_type_size_pcoll : string -> int option * int option
+val parse_type_size_pcoll : string * Parsing_helper.extent -> (int * int) option * (int * int) option
 val parse_pest : string * Parsing_helper.extent -> int
 val parse_psize : string * Parsing_helper.extent -> int
 

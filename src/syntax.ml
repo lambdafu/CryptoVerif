@@ -3243,25 +3243,22 @@ let rec check_one = function
 	  | "bounded" -> opt := (!opt) lor Settings.tyopt_BOUNDED
 	  | "nonuniform" -> opt := (!opt) lor Settings.tyopt_NONUNIFORM
 	  | _ -> (* options large, password, size<n> *)
-	      try
-		let rsize, rcoll = Settings.parse_type_size_pcoll sopt in
-		begin
-		  match !size, rsize with
-		  | None, rsize -> size := rsize
-		  | Some _, None -> ()
-		  | Some _, Some _ -> 
-		      raise_error ("Types options large, password, and size<n> are incompatible") ext1
-		end;
-		begin
-		  match !pcoll, rcoll with
-		  | None, rcoll -> pcoll := rcoll
-		  | Some _, None -> ()
-		  | Some _, Some _ ->
-		      raise_error ("Types options large, password, and pcoll<n> are incompatible") ext1
-		end
-	      with Not_found ->
-		raise_error ("Unknown type option " ^ sopt) extopt
-		  ) options;
+	      let rsize, rcoll = Settings.parse_type_size_pcoll (sopt, extopt) in
+	      begin
+		match !size, rsize with
+		| None, rsize -> size := rsize
+		| Some _, None -> ()
+		| Some _, Some _ -> 
+		    raise_error ("Types options large, password, size<n>, and size<min>_<max> are incompatible") ext1
+	      end;
+	      begin
+		match !pcoll, rcoll with
+		| None, rcoll -> pcoll := rcoll
+		| Some _, None -> ()
+		| Some _, Some _ ->
+		    raise_error ("Types options large, password, and pcoll<n> are incompatible") ext1
+	      end
+		) options;
 	if !opt land Settings.tyopt_NONUNIFORM == 0 then
 	  begin
 	    match !size, !pcoll with
@@ -3269,15 +3266,20 @@ let rec check_one = function
 	    | None, Some _ -> size := !pcoll
 	    | None, None -> ()
 	    | Some nsize, Some ncoll ->
-		if nsize != ncoll then
+		if nsize <> ncoll then
 		  raise_error "For uniform distributions, the estimate for size of the type and probability of collision should be equal" ext1
 	  end;
 	begin
 	  match !size, !pcoll with
-	  | Some nsize, Some ncoll ->
-	      if ncoll > nsize then
-		raise_error "The estimate for collision probability should be at least the estimate for the size of the type" ext1
-	      (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|T| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
+	  | Some (nsize_min, nsize_max), Some (ncoll_min, ncoll_max) ->
+	      (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|T| = 1/2^{size estimate}, so pcoll estimate <= size estimate 
+	         2^nsize_min <= |T| <= 2^nsize_max
+		 => Pcoll1rand(T) >= 1/|T| >= 2^-nsize_max
+		 2^-ncoll_min >= Pcoll1rand(T) >= 2^-ncoll_max *)
+	      if ncoll_min > nsize_max then
+		raise_error "The estimate for collision probability should be at most the estimate for the size of the type" ext1;
+	      if nsize_max <= ncoll_max then
+		pcoll := Some (ncoll_min, nsize_max) (* The previous error guarantees that ncoll_min <= nsize_max *)
 	  | _ -> ()
 	end;
 	let ty = { tname = s1;

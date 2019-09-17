@@ -100,10 +100,11 @@ let psize_SMALL = 2 (* For active sessions, when the number of failed
                         card is blocked. *)
     
 let tysize_LARGE = 256
-let tysize_PASSWORD = 20
+let tysize_PASSWORD_min = 20
+let tysize_PASSWORD_max = 40
 
 let trust_size_estimates = ref false
-let tysize_MIN_Coll_Elim = ref tysize_PASSWORD
+let tysize_MIN_Coll_Elim = ref tysize_PASSWORD_min
 let tysize_MIN_Auto_Coll_Elim = ref 80
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions
@@ -115,7 +116,7 @@ let tysize_MIN_Auto_Coll_Elim = ref 80
    The default value allows: anything/large type and 
    default parameter/password *) 
 let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE); 
-                               ([psize_SMALL, 1], tysize_PASSWORD) ]
+                               ([psize_SMALL, 1], tysize_PASSWORD_min) ]
 
 (* Similar to allowed_collisions but for "collision" statements:
    It consists of a list of probability descriptions
@@ -127,23 +128,36 @@ let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE);
    The default value allows any probability formula *)
 let allowed_collisions_collision = ref [ [max_int, max_int] ]
 
-let parse_type_size_pcoll = function
-  | "large" -> Some tysize_LARGE, Some tysize_LARGE
-  | "password" -> Some tysize_PASSWORD, Some tysize_PASSWORD
-  | s -> (* option size<n> or pcoll<n> *)
+let parse_type_size_pcoll (s, ext) =
+  match s with
+  | "large" -> Some (tysize_LARGE, max_int), Some (tysize_LARGE, max_int)
+  | "password" -> Some (tysize_PASSWORD_min, tysize_PASSWORD_max), Some (tysize_PASSWORD_min, tysize_PASSWORD_max)
+  | s -> (* option size<n>, size<min>_<max>, or pcoll<n> *)
       try
-	if (String.sub s 0 4) = "size" then 
-	  Some (int_of_string (String.sub s 4 (String.length s - 4))), None
+	if (String.sub s 0 4) = "size" then
+	  let s1 = String.sub s 4 (String.length s - 4) in
+	  try
+	    let pos_underscore = String.index s1 '_' in
+	    let smin = String.sub s1 0 pos_underscore in
+	    let smax = String.sub s1 (pos_underscore+1) (String.length s1-pos_underscore-1) in
+	    let min = int_of_string smin in
+	    let max = int_of_string smax in
+	    if min > max then
+	      raise (Parsing_helper.Error ("In option size<min>_<max>, <min> should be at most <max>", ext));
+	    Some (min, max), None
+	  with Not_found ->
+	    let v = int_of_string s1 in
+	    Some (v, v), None
 	else if (String.sub s 0 5) = "pcoll" then
-	  None, Some (int_of_string (String.sub s 5 (String.length s - 5)))
+	  None, Some (int_of_string (String.sub s 5 (String.length s - 5)), max_int)
 	else
 	  raise Not_found
-      with _ -> raise Not_found
+      with _ -> raise (Parsing_helper.Error ("Unknown type option " ^ s, ext))
 
 let parse_pest (s, ext) =
   match s with
   | "large" -> tysize_LARGE
-  | "password" -> tysize_PASSWORD
+  | "password" -> tysize_PASSWORD_min
   | _ -> (* option pest<n> *)
       try
 	if (String.sub s 0 4) = "pest" then
@@ -270,7 +284,7 @@ as well as f_not *)
 let t_bitstring = { tname = "bitstring";
 		    tcat = BitString;
 		    toptions = 0;
-		    tsize = Some max_int;
+		    tsize = Some (max_int, max_int);
 		    tpcoll = None;
                     timplsize = None;
                     tpredicate = Some "always_true";
@@ -281,7 +295,7 @@ let t_bitstring = { tname = "bitstring";
 let t_bitstringbot = { tname = "bitstringbot";
 		       tcat = BitString;
 		       toptions = 0;
-		       tsize = Some max_int;
+		       tsize = Some (max_int, max_int);
 		       tpcoll = None;
                        timplsize = None;
                        tpredicate = Some "always_true";
@@ -292,8 +306,8 @@ let t_bitstringbot = { tname = "bitstringbot";
 let t_bool = { tname = "bool";
 	       tcat = BitString;
 	       toptions = tyopt_FIXED + tyopt_BOUNDED;
-	       tsize = Some 1;
-	       tpcoll = Some 1;
+	       tsize = Some (1,1);
+	       tpcoll = Some (1,1);
                timplsize = Some(1);
                tpredicate = Some "always_true";
                timplname = Some "bool";
@@ -305,8 +319,8 @@ let t_bool = { tname = "bool";
 let t_unit = { tname = "unit";
 	       tcat = BitString;
 	       toptions = tyopt_BOUNDED;
-	       tsize = Some 0;
-	       tpcoll = Some 0;
+	       tsize = Some (0,0);
+	       tpcoll = Some (0,0);
                timplsize = None;
                tpredicate = None;
                timplname = None;
