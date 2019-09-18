@@ -4,7 +4,7 @@ val any_term_name : string
 val any_term_from_type : typet -> term
 val any_term : term -> term
 val any_term_pat : pattern -> term
-val fresh_indep_term : term -> term * typet list * typet list
+val fresh_indep_term : term -> term * typet list * typet list option
 
 (*** Computation of probabilities of collision between terms ***)
 
@@ -19,7 +19,7 @@ val matches_pair : term -> term -> term -> term -> bool
 (* Adds a term collision *)
 val add_term_collisions :
   repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
-  binder -> term list option -> (probaf * typet list * typet * typet list) -> bool
+  binder -> term list option -> (probaf * typet list * typet * typet list option) -> bool
 
 (* Computes the probability of term collisions *)
 val final_add_proba : unit -> setf list
@@ -36,7 +36,7 @@ val depends : (binder * 'a depinfo) -> term -> bool
 val depends_pat : (term -> bool) -> pattern -> bool
     
 (* [is_indep simp_facts (b, depinfo) t] returns a triple 
-   [(t', dep_types, indep_types)] where 
+   [(t', dep_types, indep_types_option)] where 
    - [t'] is a term independent of [b] in which some array 
    indices in [t] may have been replaced with
    fresh replication indices, and some other subterms of [t] 
@@ -46,18 +46,19 @@ val depends_pat : (term -> bool) -> pattern -> bool
    that [t] can take depending on [b] is at most 
    the product of |T| for T \in dep_types (ignoring replication
    indices).
-   - [indep_types] is the list of types of subterms of [t]
+   - [indep_types_option] is [Some indep_types] where
+   [indep_types] is the list of types of subterms of [t]
    not replaced with variables [?]. This list is valid only
-   when [trust_size_estimates] is not set. In this case, 
-   subterms of [t] are replaced only under [data] functions,
+   when subterms of [t] are replaced only under [data] functions,
    so that 
-   product of |T| for T \in dep_types <= |type(t)|/product of |T| for T \in indep_types *)
-val is_indep : simp_facts -> (binder * 'a depinfo) -> term -> term * typet list * typet list 
+   product of |T| for T \in dep_types <= |type(t)|/product of |T| for T \in indep_types
+   [indep_types_option = None] when this list of not valid. *)
+val is_indep : simp_facts -> (binder * 'a depinfo) -> term -> term * typet list * typet list option 
 
 (* [is_indep_pat] is similar to [is_indep] but for patterns.
    It converts the pattern into a term, replacing all 
    variables bound by the pattern with [?]. *)
-val is_indep_pat : simp_facts -> (binder * 'a depinfo) -> pattern -> term * typet list * typet list 
+val is_indep_pat : simp_facts -> (binder * 'a depinfo) -> pattern -> term * typet list * typet list option 
     
 (* [remove_dep_array_index (b, depinfo) t] returns a modified 
    version of [t] in which the array indices that depend on [b]
@@ -71,7 +72,7 @@ val remove_dep_array_index : (binder * 'a depinfo) -> term -> term
 val remove_array_index : term -> term
 
 (* [is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t] 
-   returns a quadruple [(t_indep, t_eq, dep_types, indep_types)]:
+   returns a quadruple [(t_indep, t_eq, dep_types, indep_types_option)]:
    - [t_eq] is a term equal to [t] using the equalities in [simp_facts]
    - [t_indep] is a term independent of [b0[l0]] in which some array indices in [t_eq] 
    may have been replaced with fresh replication indices, and some other subterms of [t_eq] 
@@ -81,12 +82,13 @@ val remove_array_index : term -> term
    that [t_eq] can take depending on [b] is at most 
    the product of |T| for T \in dep_types (ignoring replication
    indices).
-   - [indep_types] is the list of types of subterms of [t_eq]
+   - [indep_types_option] is [Some indep_types] where
+   [indep_types] is the list of types of subterms of [t]
    not replaced with variables [?]. This list is valid only
-   when [trust_size_estimates] is not set. In this case, 
-   subterms of [t_eq] are replaced only under [data] functions,
+   when subterms of [t] are replaced only under [data] functions,
    so that 
-   product of |T| for T \in dep_types <= |type(t_eq)|/product of |T| for T \in indep_types
+   product of |T| for T \in dep_types <= |type(t)|/product of |T| for T \in indep_types
+   [indep_types_option = None] when this list of not valid.
 
    [depinfo] is the dependency information (see ['a depinfo] in types.ml):
    [collect_bargs] collects the indices of [b0] (different from [l0]) on which [t] depends
@@ -96,7 +98,7 @@ val remove_array_index : term -> term
 val is_indep_collect_args : simp_facts -> 
   binder * term list * 'a depinfo *
   term list list ref * term list list ref ->
-  term -> term * term * typet list * typet list
+  term -> term * term * typet list * typet list option
 
 (* [find_compos (b0, depinfo) l0opt t] returns
    the dependency status of the term [t] with respect to the variable [b0].

@@ -814,8 +814,11 @@ type collision_state =
    (probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
      typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
      typet (* The type of t2 *) *
-     typet list (* indep_types: The list of types of subterms of t2 not replaced with variables [?].
-		   This list is valid only when [trust_size_estimates] is not set. In this case, 
-		   subterms of [t2] are replaced only under [data] functions,
-		   so that 
-		   product of |T| for T \in dep_types <= |type(t2)|/product of |T| for T \in indep_types*) )) list
+      typet list option (* indep_types_option: 
+	 indep_types_option = Some indep_types, where indep_types is 
+	 The list of types of subterms of t2 
+	 not replaced with variables [?].  This list is valid only
+	 when subterms of [t2] are replaced only under [data]
+	 functions, so that product of |T| for T \in dep_types <=
+	 |type(t2)|/product of |T| for T \in indep_types.  When it is
+	 not valid, indep_types_option = None. *) )) list

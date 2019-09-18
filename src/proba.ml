@@ -265,19 +265,29 @@ let rec is_1_over_card_t ty = function
   | Div(Cst 1.0, Card ty') -> ty == ty'
   | _ -> false
 		
-let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, indep_types)) =
+let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, opt_indep_types)) =
   if !Settings.trust_size_estimates then
-    Terms.plus (order_of_magnitude proba_t)
+    (Terms.plus (order_of_magnitude proba_t)
       (Terms.plus (Terms.sum_list Terms.get_size_high dep_types)
 	 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l))
-      <= - (!Settings.tysize_MIN_Coll_Elim)
+       <= - (!Settings.tysize_MIN_Coll_Elim))
+    ||
+      ((is_1_over_card_t full_type proba_t) &&
+       (match opt_indep_types with
+       | Some indep_types ->
+	   Terms.plus (order_of_magnitude (Div(Cst 1.0, Polynom.p_prod (List.map (fun ty -> Card ty) indep_types))))
+		 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l)
+	      <= - (!Settings.tysize_MIN_Coll_Elim)
+	  | None -> false))
   else
     try
       let size_proba =
 	if dep_types == [] then
 	  order_of_magnitude proba_t
 	else if is_1_over_card_t full_type proba_t then
-	  - (Terms.max_list Terms.get_size_low indep_types)
+	  match opt_indep_types with
+	  | Some indep_types -> - (Terms.max_list Terms.get_size_low indep_types)
+	  | None -> raise Not_found
 	else
 	  raise Not_found
       in
@@ -341,7 +351,7 @@ let add_elim_collisions b1 b2 =
   in
   if not (List.exists equal (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, (pcoll2rand b1.btype, [], b1.btype, [b1.btype])) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, (pcoll2rand b1.btype, [], b1.btype, None)) then
 	begin
 	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
 	  true

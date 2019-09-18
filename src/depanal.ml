@@ -23,8 +23,8 @@ let any_term_pat pat =
 
 let fresh_indep_term t =
   match t.t_type.tcat with
-  | BitString -> (any_term t, [t.t_type], [])
-  | Interv _ -> (Terms.term_from_repl_index (Facts.new_repl_index_term t), [], [t.t_type])
+  | BitString -> (any_term t, [t.t_type], Some [])
+  | Interv _ -> (Terms.term_from_repl_index (Facts.new_repl_index_term t), [], Some [t.t_type])
 
 (* An element (t1, t2, b, lopt, T) in term_collisions means that
 the equality t1 = t2 was considered impossible; it has
@@ -442,20 +442,22 @@ let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
       ((!Settings.trust_size_estimates) && t.t_type.tcat == BitString &&
        Terms.sum_list Terms.get_size_high l_dep_types <= Terms.get_size_high t.t_type) then
 	Terms.build_term2 t (FunApp(f, l_indep)), l_dep_types,
-	(if l_dep_types = [] then [t.t_type] else l_indep_types)
+	(if l_dep_types = [] then Some [t.t_type] else
+	if f.f_cat == Tuple then l_indep_types else
+	None)
       else
 	fresh_indep_term t
-  | ReplIndex(b) -> (t, [], [t.t_type])
+  | ReplIndex(b) -> (t, [], Some [t.t_type])
   | Var(b,l) ->
       if (List.exists (Terms.equal_terms t) depinfo.nodep) then
-	(t, [], [t.t_type]) 
+	(t, [], Some [t.t_type]) 
       else if (b != b0 && Terms.is_restr b) ||
       ((not depinfo.other_variables) &&
        (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
       then
 	(Terms.build_term2 t (Var(b, List.map (fun t' ->
 	  let (t'_indep, _, _) = is_indep simp_facts bdepinfo t' in
-	  t'_indep) l)), [], [t.t_type])
+	  t'_indep) l)), [], Some [t.t_type])
       else
         let t' = Terms.try_no_var simp_facts t in
         if Terms.equal_terms t t' then
@@ -465,26 +467,32 @@ let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
 
 and is_indep_list simp_facts bdepinfo = function
-  | [] -> ([], [], [])
+  | [] -> ([], [], Some [])
   | (a::l) ->
       let (a_indep, a_dep_types, a_indep_types) = is_indep simp_facts bdepinfo a in
       let (l_indep, l_dep_types, l_indep_types) = is_indep_list simp_facts bdepinfo l in
-      (a_indep::l_indep, a_dep_types @ l_dep_types, a_indep_types @ l_indep_types)
+      (a_indep::l_indep, a_dep_types @ l_dep_types,
+       match a_indep_types, l_indep_types with
+       | None, _ | _, None -> None
+       | Some a_i, Some l_i -> Some (a_i @ l_i))
 
 let rec is_indep_pat simp_facts bdepinfo = function
-  | PatVar b -> (any_term_from_type b.btype, [b.btype], [])
+  | PatVar b -> (any_term_from_type b.btype, [b.btype], Some [])
   | PatEqual t -> is_indep simp_facts bdepinfo t
   | PatTuple(f,l) ->
       let (l_indep, l_dep_types, l_indep_types) = is_indep_pat_list simp_facts bdepinfo l in
       Terms.build_term_type (snd f.f_type) (FunApp(f, l_indep)), l_dep_types,
-      (if l_dep_types = [] then [snd f.f_type] else l_indep_types)
+      (if l_dep_types = [] then Some [snd f.f_type] else l_indep_types)
 	
 and is_indep_pat_list simp_facts bdepinfo = function
-  | [] -> ([], [], [])
+  | [] -> ([], [], Some [])
   | (a::l) ->
       let (a_indep, a_dep_types, a_indep_types) = is_indep_pat simp_facts bdepinfo a in
       let (l_indep, l_dep_types, l_indep_types) = is_indep_pat_list simp_facts bdepinfo l in
-      (a_indep::l_indep, a_dep_types @ l_dep_types, a_indep_types @ l_indep_types)
+      (a_indep::l_indep, a_dep_types @ l_dep_types,
+       match a_indep_types, l_indep_types with
+       | None, _ | _, None -> None
+       | Some a_i, Some l_i -> Some (a_i @ l_i))
 
 
 let rec remove_dep_array_index ((b0, depinfo) as bdepinfo) t =
@@ -553,19 +561,20 @@ let rec is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_b
        Terms.sum_list Terms.get_size_high l_dep_types <= Terms.get_size_high t.t_type) then
 	Terms.build_term2 t (FunApp(f, l_indep)),
 	Terms.build_term2 t (FunApp(f, l_eq)), l_dep_types,
-	(if l_dep_types = [] then [t.t_type] else l_indep_types)
+	(if l_dep_types = [] then Some [t.t_type] else
+	if f.f_cat == Tuple then l_indep_types else None)
       else
 	fresh_indep_term2 t
-  | ReplIndex(b) -> t, t, [], [t.t_type]
+  | ReplIndex(b) -> t, t, [], Some [t.t_type]
   | Var(b,l) ->
       if (List.exists (Terms.equal_terms t) depinfo.nodep) then
-	t, t, [], [t.t_type]
+	t, t, [], Some [t.t_type]
       else if (b != b0 && Terms.is_restr b) ||
       ((not depinfo.other_variables) &&
        (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
       then
 	let (l_indep, l_eq, _, _) = is_indep_list simp_facts bdepinfo l in
-	Terms.build_term2 t (Var(b, l_indep)), Terms.build_term2 t (Var(b, l_eq)), [], [t.t_type]
+	Terms.build_term2 t (Var(b, l_indep)), Terms.build_term2 t (Var(b, l_eq)), [], Some [t.t_type]
       else if b == b0 then
 	if List.for_all2 Terms.equal_terms l0 l then
 	  fresh_indep_term2 t
@@ -577,7 +586,7 @@ let rec is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_b
 		collect_bargs := l_eq :: (!collect_bargs);
 		collect_bargs_sc := l_indep :: (!collect_bargs_sc)
 	      end;
-	    Terms.build_term2 t (Var(b, l_indep)), Terms.build_term2 t (Var(b, l_eq)), [], [t.t_type]
+	    Terms.build_term2 t (Var(b, l_indep)), Terms.build_term2 t (Var(b, l_eq)), [], Some [t.t_type]
 	  end
       else
         let t' = Terms.try_no_var simp_facts t in
@@ -588,11 +597,14 @@ let rec is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_b
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in is_indep"
 
 and is_indep_list simp_facts bdepinfo = function
-  | [] -> ([], [], [], [])
+  | [] -> ([], [], [], Some [])
   | (a::l) ->
       let (a_indep, a_eq, a_dep_types, a_indep_types) = is_indep_collect_args simp_facts bdepinfo a in
       let (l_indep, l_eq, l_dep_types, l_indep_types) = is_indep_list simp_facts bdepinfo l in
-      (a_indep::l_indep, a_eq::l_eq, a_dep_types @ l_dep_types, a_indep_types @ l_indep_types)
+      (a_indep::l_indep, a_eq::l_eq, a_dep_types @ l_dep_types,
+       match a_indep_types, l_indep_types with
+       | None, _ | _, None -> None
+       | Some a_i, Some l_i -> Some (a_i @ l_i))
 
 (* OLD CODE
    This is a specialized version of Facts.apply_collisions_at_root_once
