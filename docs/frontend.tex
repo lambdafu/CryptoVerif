@@ -1379,11 +1379,11 @@ PINs).
 $\texttt{proba}\ p\texttt{.}$ declares a probability $p$.
 (Probabilities may be used as functions of other arguments,
 without explicit checking of these arguments.)
-When \texttt{[$\nonterm{pest}$]} is present, 
+When \texttt{[$\nonterm{pest}$]} ({\sc p}robability {\sc est}imate) is present, 
 it gives an estimate of the value of the probability:
-\texttt{pest$n$} for estimate $n$, where $n$ is an integer, means that the probability is at most $2^{-n}$;
-\texttt{password} for estimate 20, i.e. probability at most $2^{-20}$;
-\texttt{large} for estimate 256, i.e. probability at most $2^{-256}$.
+\texttt{pest$n$}, where $n$ is an integer, means that the probability is at most $2^{-n}$;
+\texttt{password} is equivalent to \texttt{pest20}, i.e. probability at most $2^{-20}$;
+\texttt{large} is equivalent to \texttt{pest256}, i.e. probability at most $2^{-256}$.
 When \texttt{[$\nonterm{pest}$]} is absent, \texttt{large} is the default.
 %
 When the probability $p$ appears in a \texttt{collision} statement and
@@ -1428,10 +1428,9 @@ the order of magnitude of the cardinal of the type:
 where $n$ is an integer
 (like the set of bitstrings of length $n$).
 
-\texttt{size$\textit{min}$\_$\textit{max}$} means that  $2^{\textit{min}} \leq |T| \leq 2^{\textit{max}}$, where $\textit{min}$ and $\textit{max}$ are integers.
+\texttt{size$\mathit{min}$\_$\mathit{max}$} means that  $2^{\mathit{min}} \leq |T| \leq 2^{\mathit{max}}$, where $\mathit{min}$ and $\mathit{max}$ are integers.
 
-\item \texttt{pcoll$n$} means that $\texttt{Pcoll1rand}(T)$ is about
-  $2^{-n}$, where $n$ is an integer.  ($\texttt{Pcoll1rand}(T)$ is the
+\item \texttt{pcoll$n$} ({\sc p}robability of {\sc coll}ision) means that $\texttt{Pcoll1rand}(T) \leq 2^{-n}$, where $n$ is an integer.  ($\texttt{Pcoll1rand}(T)$ is the
   probability of collision between a random element chosen according
   to the default probability distribution $D_T$ for the considered
   type $T$, and an independent element of type $T$.)
@@ -1489,8 +1488,8 @@ security protocols. These passwords are taken in a dictionary whose
 size is much smaller than the size of a nonce for instance,
 so the probability of collisions among passwords is larger 
 than among data of \texttt{large} types. CryptoVerif
-assumes that password are taken in a dictionary of about one 
-million ($2^{20}$) elements.
+assumes that passwords are taken in a dictionary of between about one 
+million ($2^{20}$) and about one trillion ($2^{40}$) elements.
 
 \end{itemize}
 

@@ -2412,22 +2412,23 @@ sets parameters, as the \texttt{set} instruction in input files.
 \item \texttt{allowed\string_collisions} $\nonterm{formulas}$: 
 $\nonterm{formulas}$ is 
 a comma-separated list of formulas of the form
-$\nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k} / \nonterm{tsize}$,
+$\nonterm{psize}_1\texttt{\string^}{n_1} \tttimes \dots \tttimes \nonterm{psize}_k\texttt{\string^}{n_k} / \nonterm{pest}$,
 where the exponents $n_i$ can be omitted when equal to 1;
 $\nonterm{psize}_i$ is an identifier that determines the size of a
 parameter: \texttt{size$n$} for parameters of size $n$, meaning that the parameter is at most $2^n$,
 \texttt{small} for size 2, \texttt{passive} or \texttt{default} for size 30,
 \texttt{noninteractive} for size 80;
-$\nonterm{pest}$ is an identifier that estimates a probability:
-\texttt{pest$n$} for estimate $n$, corresponding to probability $2^{-n}$,
-\texttt{password} for estimate 20, i.e. probability $2^{-20}$,
-\texttt{large} for estimate 256, i.e. probability $2^{-256}$. (See also the declarations \texttt{param}, \texttt{proba},
+$\nonterm{pest}$ ({\sc p}robability {\sc est}imate) is an identifier 
+such that $1/\nonterm{pest}$ estimates a probability. It can take the following values:
+\texttt{pest$n$} means that the probability $1/\nonterm{pest}$ is at most $2^{-n}$;
+\texttt{password} is equivalent to \texttt{pest20}, i.e. the probability $1/\nonterm{pest}$ is at most $2^{-20}$;
+\texttt{large} is equivalent to \texttt{pest256}, i.e. the probability $1/\nonterm{pest}$ is at most $2^{-256}$. (See also the declarations \texttt{param}, \texttt{proba},
 and \texttt{type} for explanations of these estimates.)
 
-Collisions are eliminated when the probability that they generate
+Collisions are eliminated when their probability 
 is at most of the form  $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k} \times \texttt{Pcoll1rand}(T)$,
 where $p_i$ is a parameter of size at most $\nonterm{psize}_i$
-and $\texttt{Pcoll1rand}(T)$ is at most the probability estimated by $\nonterm{pest}$.
+and $\texttt{Pcoll1rand}(T)$ is at most the probability estimated by $1/\nonterm{pest}$.
 By default, collisions are eliminated for $\textit{anything} \times \texttt{Pcoll1rand}(T)$ when $\texttt{Pcoll1rand}(T) \leq 2^{-256}$ (\texttt{large}),
 and for $p \times \texttt{Pcoll1rand}(T)$ when $p \leq 2^2$ (\texttt{small}) and $\texttt{Pcoll1rand}(T) \leq 2^{-20}$ (\texttt{password}).
 
@@ -2441,7 +2442,9 @@ By default, \texttt{collision} statements can always be applied.
 
 The default behavior is inspired by what happens in asymptotic security: \texttt{large} means that the probability of collision is asymptotically negligible, while the parameters are always polynomial, so $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k} \times \texttt{Pcoll1rand}(T)$ is negligible when $T$ is \texttt{large}. Similarly, probabilities given in collision statements are always negligible, while the parameters are always polynomial, so the probability obtained by applying $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k}$ times a collision statement remains negligible.
 
-\item \texttt{allowed\string_collisions} $\nonterm{pest}$, where $\nonterm{pest}$ is an identifier that estimates a probability, as above. Collisions are eliminated when the probability that they generate, taking into account how many times they are applied, is at most the probability specified by $\nonterm{pest}$. This behavior fits the exact security framework nicely: we eliminate collisions when they have a small enough probability.
+\item \texttt{allowed\string_collisions} $\nonterm{pest}$, where $\nonterm{pest}$ estimates a probability: \texttt{pest$n$} means that the probability is at most $2^{-n}$;
+\texttt{password} is equivalent to \texttt{pest20}, i.e. probability at most $2^{-20}$;
+\texttt{large} is equivalent to \texttt{pest256}, i.e. probability at most $2^{-256}$. Collisions are eliminated when their probability, taking into account how many times they are applied, is at most the probability specified by $\nonterm{pest}$. This behavior fits the exact security framework nicely: we eliminate collisions when they have a small enough probability.
 
 \end{itemize}
 \item $\texttt{focus}\ \texttt{"}\nonterm{querydecl}\texttt{"}, \dots, \texttt{"}\nonterm{querydecl}\texttt{"}$ where
