@@ -99,7 +99,7 @@ let psize_SMALL = 2 (* For active sessions, when the number of failed
                         attempts is limited, e.g. max 4 attemtps then the
                         card is blocked. *)
     
-let tysize_LARGE = 256
+let tysize_LARGE = 160
 let tysize_PASSWORD_min = 20
 let tysize_PASSWORD_max = 40
 

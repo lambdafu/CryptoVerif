@@ -2422,14 +2422,14 @@ $\nonterm{pest}$ ({\sc p}robability {\sc est}imate) is an identifier
 such that $1/\nonterm{pest}$ estimates a probability. It can take the following values:
 \texttt{pest$n$} means that the probability $1/\nonterm{pest}$ is at most $2^{-n}$;
 \texttt{password} is equivalent to \texttt{pest20}, i.e. the probability $1/\nonterm{pest}$ is at most $2^{-20}$;
-\texttt{large} is equivalent to \texttt{pest256}, i.e. the probability $1/\nonterm{pest}$ is at most $2^{-256}$. (See also the declarations \texttt{param}, \texttt{proba},
+\texttt{large} is equivalent to \texttt{pest160}, i.e. the probability $1/\nonterm{pest}$ is at most $2^{-160}$. (See also the declarations \texttt{param}, \texttt{proba},
 and \texttt{type} for explanations of these estimates.)
 
 Collisions are eliminated when their probability 
 is at most of the form  $\textit{constant} \times p_1^{n_1} \times \dots \times p_k^{n_k} \times \texttt{Pcoll1rand}(T)$,
 where $p_i$ is a parameter of size at most $\nonterm{psize}_i$
 and $\texttt{Pcoll1rand}(T)$ is at most the probability estimated by $1/\nonterm{pest}$.
-By default, collisions are eliminated for $\textit{anything} \times \texttt{Pcoll1rand}(T)$ when $\texttt{Pcoll1rand}(T) \leq 2^{-256}$ (\texttt{large}),
+By default, collisions are eliminated for $\textit{anything} \times \texttt{Pcoll1rand}(T)$ when $\texttt{Pcoll1rand}(T) \leq 2^{-160}$ (\texttt{large}),
 and for $p \times \texttt{Pcoll1rand}(T)$ when $p \leq 2^2$ (\texttt{small}) and $\texttt{Pcoll1rand}(T) \leq 2^{-20}$ (\texttt{password}).
 
 Additionally, $\nonterm{formulas}$ may also contain elements of the form
@@ -2444,7 +2444,7 @@ The default behavior is inspired by what happens in asymptotic security: \texttt
 
 \item \texttt{allowed\string_collisions} $\nonterm{pest}$, where $\nonterm{pest}$ estimates a probability: \texttt{pest$n$} means that the probability is at most $2^{-n}$;
 \texttt{password} is equivalent to \texttt{pest20}, i.e. probability at most $2^{-20}$;
-\texttt{large} is equivalent to \texttt{pest256}, i.e. probability at most $2^{-256}$. Collisions are eliminated when their probability, taking into account how many times they are applied, is at most the probability specified by $\nonterm{pest}$. This behavior fits the exact security framework nicely: we eliminate collisions when they have a small enough probability.
+\texttt{large} is equivalent to \texttt{pest160}, i.e. probability at most $2^{-160}$. Collisions are eliminated when their probability, taking into account how many times they are applied, is at most the probability specified by $\nonterm{pest}$. This behavior fits the exact security framework nicely: we eliminate collisions when they have a small enough probability.
 
 \end{itemize}
 \item $\texttt{focus}\ \texttt{"}\nonterm{querydecl}\texttt{"}, \dots, \texttt{"}\nonterm{querydecl}\texttt{"}$ where

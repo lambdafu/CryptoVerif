@@ -1206,7 +1206,7 @@ is reached.
   Sets the maximum probability for which elimination of collisions is
   possible automatically (which corresponds to a minimum cardinal for
   the type, when the probability distribution is uniform).  The argument
-  $\nonterm{s}$ can be \texttt{large} (probability $2^{-256}$),
+  $\nonterm{s}$ can be \texttt{large} (probability $2^{-160}$),
   \texttt{password} (probability $2^{-20}$), or \texttt{pest}$n$
   (probability $2^{-n}$; see also the \texttt{type} declaration).
 
@@ -1383,7 +1383,7 @@ When \texttt{[$\nonterm{pest}$]} ({\sc p}robability {\sc est}imate) is present,
 it gives an estimate of the value of the probability:
 \texttt{pest$n$}, where $n$ is an integer, means that the probability is at most $2^{-n}$;
 \texttt{password} is equivalent to \texttt{pest20}, i.e. probability at most $2^{-20}$;
-\texttt{large} is equivalent to \texttt{pest256}, i.e. probability at most $2^{-256}$.
+\texttt{large} is equivalent to \texttt{pest160}, i.e. probability at most $2^{-160}$.
 When \texttt{[$\nonterm{pest}$]} is absent, \texttt{large} is the default.
 %
 When the probability $p$ appears in a \texttt{collision} statement and
@@ -1461,8 +1461,8 @@ $\texttt{simplify coll\string_elim }\ldots$.
   by the command $\texttt{allowed\_collisions}$ (used inside a {\tt
     proof} environment).  By default, collisions are eliminated when
   \begin{itemize}
-\item either $\texttt{Pcoll1rand}(T) \leq 2^{-256}$ ($T$ has option
-  \texttt{pcoll$n$} with $n \geq 256$ or option \texttt{large})
+\item either $\texttt{Pcoll1rand}(T) \leq 2^{-160}$ ($T$ has option
+  \texttt{pcoll$n$} with $n \geq 160$ or option \texttt{large})
 \item or
   $\texttt{Pcoll1rand}(T) \leq 2^{-20}$ ($T$ has option
   \texttt{pcoll$n$} with $n \geq 20$ or option \texttt{password}), the
@@ -1474,7 +1474,7 @@ See the command $\texttt{allowed\_collisions}$ for more details.
 
 \end{enumerate}
 
-\item \texttt{large} is equivalent to \texttt{size256\_4611686018427387903}, \texttt{pcoll256}, that is, $|T| \geq 2^{256}$ and $\texttt{Pcoll1rand}(T) \leq 2^{-256}$.
+\item \texttt{large} is equivalent to \texttt{size160\_4611686018427387903}, \texttt{pcoll160}, that is, $|T| \geq 2^{160}$ and $\texttt{Pcoll1rand}(T) \leq 2^{-160}$.
 By default, \texttt{large} means that the type $T$ is large enough so that
 all collisions with random elements of $T$ can be eliminated. 
 (In asymptotic analyses, $\texttt{Pcoll1rand}(T)$ is negligible. 
