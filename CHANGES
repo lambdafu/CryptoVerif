@@ -3,6 +3,23 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Revised the conditions for eliminating collisions:
+    - incompatible change: set minAutoCollElim = size<n> becomes
+      set minAutoCollElim = pest<n>
+    - incompatible change: in formulas for "allowed_collisions",
+      size<n> becomes pest<n>
+    - incompatible change: the default size of parameters (declaration
+      "param") is now equivalent to "passive" instead of "small".
+      If the number of sessions is limited to a very small number,
+      you now need to declare that explicitly with "param N [small]."
+    - incompatible change: for nonuniform types, the "size<n>" option
+      no longer bounds the probability of collision. You need to use the
+      "pcoll<n>" option for that.
+    - new command "allowed_collisions <proba. estimate>" in proof environment
+    - new options for "param": default, small
+    - new options for "type": size<min>_<max>, pcoll<n>
+    - an estimate of the value of the probability can now be given
+      for probabilities declared by the "proba" declaration.
 - Added several variants of the PRF-ODH assumption to the library
   of cryptographic primitives.
 - Added command "success simplify".
