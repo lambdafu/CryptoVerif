@@ -392,7 +392,7 @@ the same elimination of collisions in different games. I do it when the
 probability does not depend on the runtime of the game. Would that be ok
 even if it depends on it? *)
 
-let red_proba = ref []
+let red_proba = ref ([]: (term * term * term * probaf * (binder * term) list) list)
 
 let rec instan_time = function
     AttTime -> Add(AttTime, Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)))
