@@ -97,6 +97,9 @@ val psize_SMALL : int
 (* Type sizes *)
 val tysize_LARGE : int
 
+val min_exp : int
+val max_exp : int
+    
 val tysize_MIN_Auto_Coll_Elim : int ref
 val tysize_MIN_Coll_Elim : int ref
 (* Determines the probabilities that are considered small enough to 

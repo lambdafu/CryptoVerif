@@ -1,0 +1,12 @@
+type t [size10000].
+
+proof {
+      allowed_collisions "pest100000"
+      }
+
+process 0
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

@@ -106,6 +106,10 @@ let tysize_PASSWORD_max = 40
 let trust_size_estimates = ref false
 let tysize_MIN_Coll_Elim = ref tysize_PASSWORD_min
 let tysize_MIN_Auto_Coll_Elim = ref 80
+
+let max_exp = 1000000000
+let min_exp = -max_exp
+    
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions
    of the form ([(psize1, n1); ...; (psizek,nk)], tsize) 
@@ -128,9 +132,15 @@ let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE);
    The default value allows any probability formula *)
 let allowed_collisions_collision = ref [ [max_int, max_int] ]
 
+let check_exp v ext =
+  if v < 0 then
+    raise (Parsing_helper.Error ("Bounds should be greater or equal to 0", ext));
+  if v > max_exp then
+    raise (Parsing_helper.Error ("Bounds should be at most " ^ (string_of_int max_exp), ext))
+    
 let parse_type_size_pcoll (s, ext) =
   match s with
-  | "large" -> Some (tysize_LARGE, max_int), Some (tysize_LARGE, max_int)
+  | "large" -> Some (tysize_LARGE, max_exp), Some (tysize_LARGE, max_exp)
   | "password" -> Some (tysize_PASSWORD_min, tysize_PASSWORD_max), Some (tysize_PASSWORD_min, tysize_PASSWORD_max)
   | s -> (* option size<n>, size<min>_<max>, or pcoll<n> *)
       try
@@ -144,15 +154,22 @@ let parse_type_size_pcoll (s, ext) =
 	    let max = int_of_string smax in
 	    if min > max then
 	      raise (Parsing_helper.Error ("In option size<min>_<max>, <min> should be at most <max>", ext));
+	    check_exp min ext;
+	    check_exp max ext;
 	    Some (min, max), None
 	  with Not_found ->
 	    let v = int_of_string s1 in
+	    check_exp v ext;
 	    Some (v, v), None
 	else if (String.sub s 0 5) = "pcoll" then
-	  None, Some (int_of_string (String.sub s 5 (String.length s - 5)), max_int)
+	  let min = int_of_string (String.sub s 5 (String.length s - 5)) in
+	  check_exp min ext;
+	  None, Some (min, max_exp)
 	else
 	  raise Not_found
-      with _ -> raise (Parsing_helper.Error ("Unknown type option " ^ s, ext))
+      with
+      | (Parsing_helper.Error _) as x -> raise x
+      | _ -> raise (Parsing_helper.Error ("Unknown type option " ^ s, ext))
 
 let parse_pest (s, ext) =
   match s with
@@ -160,12 +177,13 @@ let parse_pest (s, ext) =
   | "password" -> tysize_PASSWORD_min
   | _ -> (* option pest<n> *)
       try
-	if (String.sub s 0 4) = "pest" then
-	  int_of_string (String.sub s 4 (String.length s - 4))
-	else
-	  raise Not_found
-      with _ -> 
-	raise (Parsing_helper.Error("Unknown probability collision option "^s, ext))
+	if (String.sub s 0 4) <> "pest" then raise Not_found;
+	let v = int_of_string (String.sub s 4 (String.length s - 4)) in
+	check_exp v ext;
+	v
+      with
+      | (Parsing_helper.Error _) as x -> raise x
+      | _ -> raise (Parsing_helper.Error("Unknown probability estimate option "^s^" (allowed options are large, password, and pest<n>)", ext))
 	  
 let parse_psize (s, ext) =
   match s with
@@ -174,13 +192,14 @@ let parse_psize (s, ext) =
   | "default" -> psize_DEFAULT
   | "small" -> psize_SMALL
   | _ -> (* option "size<n>" where <n> is an integer *)
-      begin
-	try
-	  if (String.sub s 0 4) <> "size" then raise Not_found;
-	  int_of_string (String.sub s 4 (String.length s - 4))
-	with _ ->
-	  raise (Parsing_helper.Error("Unknown parameter option " ^ s, ext))
-      end
+      try
+	if (String.sub s 0 4) <> "size" then raise Not_found;
+	let v = int_of_string (String.sub s 4 (String.length s - 4)) in
+	check_exp v ext;
+	v	  
+      with
+      | (Parsing_helper.Error _) as x -> raise x
+      | _ -> raise (Parsing_helper.Error("Unknown parameter option " ^ s^" (allowed options are noninteractive, passive, default, small, and size<n>)", ext))
 	  
 	  
 let parse_bool v var =
@@ -284,7 +303,7 @@ as well as f_not *)
 let t_bitstring = { tname = "bitstring";
 		    tcat = BitString;
 		    toptions = 0;
-		    tsize = Some (max_int, max_int);
+		    tsize = Some (max_exp, max_exp);
 		    tpcoll = None;
                     timplsize = None;
                     tpredicate = Some "always_true";
@@ -295,7 +314,7 @@ let t_bitstring = { tname = "bitstring";
 let t_bitstringbot = { tname = "bitstringbot";
 		       tcat = BitString;
 		       toptions = 0;
-		       tsize = Some (max_int, max_int);
+		       tsize = Some (max_exp, max_exp);
 		       tpcoll = None;
                        timplsize = None;
                        tpredicate = Some "always_true";

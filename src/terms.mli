@@ -50,9 +50,13 @@ val remove_suffix : int -> 'a list -> 'a list
    list [l]. Uses physical equality to compare keys. *)
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
-(* Addition of positive values bounded by max_int,
-   so no overflow.  *)
+(* Addition of integers bounded by max_exp.
+   The second argument must be >= 0, so that there is no overflow.  *)
 val plus : int -> int -> int
+
+(* [sum_list f l] is the sum of [f x] ([f x] >= 0) for all [x] in [l],
+   bounded by max_exp *)
+val sum_list : ('a -> int) -> 'a list -> int
     
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 val max_list : ('a -> int) -> 'a list -> int
@@ -60,9 +64,6 @@ val max_list : ('a -> int) -> 'a list -> int
 (* [min_list f l] is the minimum of [f x] for all [x] in [l] *)
 val min_list : ('a -> int) -> 'a list -> int
     
-(* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
-val sum_list : ('a -> int) -> 'a list -> int
-
 (* [get_size_low ty] and [get_size_high ty] return n such that 
    the size of ty is at least (resp. at most) 2^n *)
 val get_size_low : typet -> int

@@ -77,8 +77,8 @@ let is_smaller proba_l factor_bound  =
    - If sign_min = sign_max = 1, then exp_min <= exp_max
    - If sign_min = sign_max = -1, then exp_min >= exp_max *)
 
-let min_f = float_of_int min_int
-let max_f = float_of_int max_int
+let min_f = float_of_int Settings.min_exp
+let max_f = float_of_int Settings.max_exp
 let zero_interv = ((0, 0.0), (0, 0.0))
 let log2cst = log 2.0
 
@@ -255,7 +255,7 @@ let order_of_magnitude probaf =
   let (_, (sign_max, exp_max)) = order_of_magnitude_aux probaf in
   match sign_max with
   | 1 -> int_of_float (ceil exp_max) 
-  | 0 | -1 -> min_int
+  | 0 | -1 -> Settings.min_exp
   | _ -> Parsing_helper.internal_error "unexpected sign"
 
 (* [is_1_over_card_t ty probaf] returns true when [probaf = 1/|ty|]

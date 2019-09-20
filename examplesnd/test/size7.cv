@@ -1,0 +1,8 @@
+type t [size100000000000000000000000000000000000].
+
+process 0
+
+(* EXPECTED
+Error: Unknown type option size100000000000000000000000000000000000
+xtime: error in child process (status : 512)
+END *)

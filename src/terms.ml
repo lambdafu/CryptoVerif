@@ -103,12 +103,19 @@ let assq_rest x l =
   in
   aux [] x l 
 
-(* Addition of positive values bounded by max_int,
-   so no overflow.  *)
+(* Addition of integers bounded by max_exp.
+   The second argument must be >= 0, so that there is no overflow.  *)
 	
 let plus x y =
-  if x >= max_int - y (* x + y >= max_int *) then max_int else x + y
+  if x >= Settings.max_exp - y (* x + y >= max_exp *) then Settings.max_exp else x + y
       
+(* [sum_list f l] is the sum of [f x] for all [x] in [l],
+   bounded by max_exp*)
+	
+let rec sum_list f = function
+  | [] -> 0
+  | a::l -> plus (f a) (sum_list f l) 
+
 (* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
 
 let rec max_list f = function
@@ -119,17 +126,11 @@ let rec min_list f = function
   | [] -> max_int
   | a::l -> min (f a) (min_list f l)
     
-(* [sum_list f l] is the sum of [f x] for all [x] in [l] *)
-	
-let rec sum_list f = function
-  | [] -> 0
-  | a::l -> plus (f a) (sum_list f l) 
-
 
 let get_size_high ty =
   match ty.tsize with
   | Some (min, max) -> max
-  | None -> max_int
+  | None -> Settings.max_exp
 
 let get_size_low ty =
   match ty.tsize, ty.tpcoll with
@@ -137,31 +138,26 @@ let get_size_low ty =
   | None, None -> 0
   | None, Some (ncoll_min, ncoll_max) -> ncoll_min (* The maximum probability of collision with a random element, 1/2^{pcoll estimate} is at least 1/|ty| = 1/2^{size estimate}, so pcoll estimate <= size estimate *)
 
-let minus s x =
-  if s > 0 then
-    if x = min_int then max_int else - x
-  else
-    if x = max_int then min_int else
-    if x = min_int then max_int else - x
-
+(* Note: using just - x to take the opposite of x requires
+   min_exp = -max_exp *)
 	
 let get_pcoll1_high ty =
   match ty.tpcoll with
-  | Some (min, max) -> minus 1 min (* The probability of collision is at most 2^{-min} *)
+  | Some (min, max) -> - min (* The probability of collision is at most 2^{-min} *)
   | None -> 0 (* The probability is at most 1 = 2^0 *)
 
 let get_pcoll1_low ty =
   match ty.tsize, ty.tpcoll with
-  | _, Some (min, max) -> minus (-1) max (* The probability of collision is at least 2^{-max} *)
-  | None, None -> min_int
-  | Some (nsize_min, nsize_max), None -> minus (-1) nsize_max
+  | _, Some (min, max) -> - max (* The probability of collision is at least 2^{-max} *)
+  | None, None -> Settings.min_exp
+  | Some (nsize_min, nsize_max), None -> - nsize_max
 
 let get_pcoll2_high = get_pcoll1_high (* The probability of collision Pcoll2rand(ty) is at most Pcoll1rand(ty) *)
 
 let get_pcoll2_low ty =
   match ty.tsize with
-  | None -> min_int
-  | Some (nsize_min, nsize_max) -> minus (-1) nsize_max
+  | None -> Settings.min_exp
+  | Some (nsize_min, nsize_max) -> - nsize_max
      (* The probability Pcoll2rand(ty) is at least 1/|ty| = 2^{-nsize}.
         Let Pr[X = a] = 1/|ty| + p_a for all a \in ty.
         sum_{a \in ty} p_a = 0 because sum_{a \in ty} Pr[X = a] = 1.

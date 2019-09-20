@@ -1,0 +1,8 @@
+type t [size-1000000000000000].
+
+process 0
+
+(* EXPECTED
+Error: Syntax error
+xtime: error in child process (status : 512)
+END *)

@@ -1,0 +1,8 @@
+type t [size1000000000000000].
+
+process 0
+
+(* EXPECTED
+Error: Bounds should be at most 1000000000
+xtime: error in child process (status : 512)
+END *)
