@@ -15,7 +15,17 @@ indices is not known at this point, so perhaps create a fresh replication
 index, use it for the indices of fresh variables for find_compos_bin,
 and replace later by the real list of indices when I have it?
 Or pass the indices of M' as argument? But for that, I need to know
-to indices introduced by is_indep.
+to indices introduced by is_indep. I can know them by calling is_indep
+before find_compos.
+However, when I evaluate find_compos for expressions M in 
+let x = M, I do not know which independent term will be compared with x.
+So in this case, I cannot have the indices.
+So it is probably better to create a fresh replication
+index, use it for the indices of fresh variables for find_compos_bin,
+and replace later by the real list of indices when I have it...
+
+src/proba.ml:  | Maxlength(n,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)
+=> This comment is probably wrong now!!! Hence there might be a bug here...
 
 test "allowed_collisions pest<n>"
 "size<min>_<max>"
