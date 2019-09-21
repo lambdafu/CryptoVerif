@@ -1,0 +1,22 @@
+type key [large,fixed].
+type hashoutput.
+
+proba Phash.
+
+fun hash(key, bitstring):hashoutput.
+
+collision k <-R key; forall x1:bitstring, y1:bitstring;
+  return(hash(k, x1) = hash(k, y1)) <=(Phash(time, max(maxlength(x1),maxlength(y1))))=> return((x1 = y1)).
+
+channel ch1, ch2.
+let hashoracle(k: key) =
+    in(ch1, ());
+    out(ch2, k).
+
+channel c.
+
+process
+	in(c, ());
+        new k: key;
+	out(c, ());
+	(hashoracle(k) | in(c, (x: bitstring, y: bitstring)); out(c, hash(k,x) = hash(k,y)))
