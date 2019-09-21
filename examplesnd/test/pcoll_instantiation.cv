@@ -1,0 +1,28 @@
+def pseudo_CollisionResistant_hash(key, hashinput1, hashoutput, hash, hashoracle, Phash) {
+
+fun hash(key, hashinput1):hashoutput.
+
+collision k <-R key; forall x1:hashinput1, y1:hashinput1;
+  return(hash(k, x1) = hash(k, y1)) <=(Phash(time, max(maxlength(x1),maxlength(y1))))=> return((x1 = y1)).
+
+channel ch1, ch2.
+let hashoracle(k: key) =
+    in(ch1, ());
+    out(ch2, k).
+
+}
+
+type key [large,fixed].
+type hashout.
+
+proba Phash.
+
+expand pseudo_CollisionResistant_hash(key, bitstring, hashout, H, Horacle, Phash).
+
+channel c.
+
+process
+	in(c, ());
+        new k: key;
+	out(c, ());
+	(Horacle(k) | in(c, (x: bitstring, y: bitstring)); out(c, H(k,x) = H(k,y)))
