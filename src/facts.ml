@@ -602,7 +602,33 @@ let rec build_indep_map = function
   | IC_And(c1, c2) | IC_Or(c1, c2) ->
       (build_indep_map c1) @ (build_indep_map c2)
   | IC_True -> []
-    
+
+let restore_all_links state =
+  match !state with
+  | None -> ()
+  | Some (links, old_current_bound_vars) ->
+      assert (!Terms.current_bound_vars == []);
+      Terms.current_bound_vars := old_current_bound_vars;
+      List.iter (fun (b, t) ->
+	b.link <- TLink t) links;
+      (* We will not restore the same state again *)
+      state := None
+      
+let cleanup_store_all_links vars next_f =
+  let links = List.map (fun b ->
+    match b.link with
+    | NoLink -> Parsing_helper.internal_error "all variables should be linked in cleanup_store_all_links"
+    | TLink t -> b.link <- NoLink; (b, t)) vars
+  in
+  let old_current_bound_vars = !Terms.current_bound_vars in
+  Terms.current_bound_vars := [];
+  let state = ref (Some (links, old_current_bound_vars)) in
+  try
+    next_f state
+  with NoMatch ->
+    restore_all_links state;
+    raise NoMatch
+	
 let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond, side_cond, restr_may_be_equal)::other_coll ->
@@ -678,62 +704,71 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	  let redr' = Terms.copy_term Terms.Links_Vars redr in
 	  (* Cleanup early enough, so that the links that we create in this 
 	     collision do not risk to interfere with a later application of 
-	     the same collision in reduce_rec. *)
-	  Terms.cleanup();
-	  let t'' =
-	    if (!sc_term) == [] then
-	      (* No side condition, nothing to add *)
-	      t' 
-	    else
+	     the same collision in reduce_rec.
+	     Cleanup all links in [restr] and [forall], to be able to reuse the
+	     collision without interference. Some of those links may have been
+	     set above a [Terms.auto_cleanup] in [match_term], so it is
+	     not enough to cleanup using [Terms.cleanup()].
+	     Store the links to be able to restore them in case of subsequent
+	     failure (exception [NoMatch]) and before calling
+	     [Proba.add_proba_red] so that the lengths are correctly 
+	     instantiated in that function. *)
+	  cleanup_store_all_links (restr @ forall) (fun link_state ->
+	    let t'' =
+	      if (!sc_term) == [] then
+	        (* No side condition, nothing to add *)
+		t' 
+	      else
+		begin
+		  if not (Terms.is_false redr) then
+	            (* I can test conditions that make restrictions independent only
+		       when the result "redr" is false *)
+		    raise NoMatch;
+	            (* When redr is false, the result "If restrictions
+		       independent then redr else t" is equal to
+		       "(restrictions not independent) and t" which we
+		       simplify.  We keep the transformed value only
+		       when t has been reduced, because otherwise we
+		       might enter a loop (applying the collision to t
+		       over and over again). *)
+		  Terms.make_or_list 
+		    (List.map (fun f ->
+		      let reduced_tmp = !reduced in
+		      reduced := false;
+		      try 
+			let t1 = reduce_rec f t in
+			if not (!reduced) then 
+			  begin 
+			    reduced := reduced_tmp;
+                            (* print_string "Could not simplify "; Display.display_term t; print_string " knowing ";
+			       Display.display_term f; print_newline(); *)
+			    raise NoMatch 
+			  end;
+			reduced := reduced_tmp;
+			Terms.make_and f t1
+		      with Contradiction ->
+		        (* [reduce_rec] may raise a contradiction when [f] can in fact not be true *)
+			Terms.make_false()
+			  ) (!sc_term))
+		end
+	    in
+	    if proba != Zero then
 	      begin
-		if not (Terms.is_false redr) then
-	          (* I can test conditions that make restrictions independent only
-		     when the result "redr" is false *)
-		  raise NoMatch;
-	          (* When redr is false, the result "If restrictions
-		     independent then redr else t" is equal to
-		     "(restrictions not independent) and t" which we
-		     simplify.  We keep the transformed value only
-		     when t has been reduced, because otherwise we
-		     might enter a loop (applying the collision to t
-		     over and over again). *)
-		Terms.make_or_list 
-		  (List.map (fun f ->
-		    let reduced_tmp = !reduced in
-		    reduced := false;
-		    try 
-		      let t1 = reduce_rec f t in
-		      if not (!reduced) then 
-			begin 
-			  reduced := reduced_tmp;
-                          (* print_string "Could not simplify "; Display.display_term t; print_string " knowing ";
-			  Display.display_term f; print_newline(); *)
-			  raise NoMatch 
-			end;
-		      reduced := reduced_tmp;
-		      Terms.make_and f t1
-		    with Contradiction ->
-		      (* [reduce_rec] may raise a contradiction when [f] can in fact not be true *)
-		      Terms.make_false()
-			) (!sc_term))
-	      end
-	  in
-	  if proba != Zero then
-	    begin
-              (* Instead of storing the term t, I store the term obtained 
-                 after the applications of try_no_var in match_term,
-                 obtained by (Terms.copy_term redl)
-
-		 We pass the side condition [sc_proba] for probability
-		 counting. Several collisions with different [sc_proba]
-		 need to be counted several times.  *)
-	      if not (Proba.add_proba_red redl' redr' (!sc_proba) proba restr_indep_map) then
-                begin
-                  (* print_string "Proba too large"; *)
-		  raise NoMatch
-                end
-	    end;
-	  t''
+                (* Instead of storing the term t, I store the term obtained 
+                   after the applications of try_no_var in match_term,
+                   obtained by (Terms.copy_term redl)
+		   
+		   We pass the side condition [sc_proba] for probability
+		   counting. Several collisions with different [sc_proba]
+		   need to be counted several times.  *)
+		restore_all_links link_state;
+		if not (Proba.add_proba_red redl' redr' (!sc_proba) proba restr_indep_map) then
+                  begin
+                    (* print_string "Proba too large"; *)
+		    raise NoMatch
+                  end
+	      end;
+	    t'')
 	    ) redl t
       with NoMatch ->
 	Terms.cleanup();

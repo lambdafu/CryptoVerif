@@ -24,12 +24,6 @@ So it is probably better to create a fresh replication
 index, use it for the indices of fresh variables for find_compos_bin,
 and replace later by the real list of indices when I have it...
 
-src/proba.ml:  | Maxlength(n,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)
-=> This comment is wrong now!!! there is a bug here...
-see examplesnd/test/pcoll_instantiation.cv
-strange that it instantiates x1 but not y1. It should instantiate both,
-but given the bug, I would expect it to instantiate none.
-
 test "allowed_collisions pest<n>"
 "size<min>_<max>"
 
@@ -4302,3 +4296,10 @@ That would be fairly easy given how I use the estimates, but may
 not be essential.
 DONE for size<min>_<max>; for probabilities and size of parameters,
 we only give an upper bound.
+
+   src/proba.ml:  | Maxlength(n,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)
+=> This comment is wrong now!!! there is a bug here...
+see examplesnd/test/pcoll_instantiation.cv
+strange that it instantiates x1 but not y1. It should instantiate both,
+but given the bug, I would expect it to instantiate none.
+FIXED 23/9/2019
