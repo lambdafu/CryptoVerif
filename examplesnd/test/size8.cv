@@ -7,6 +7,6 @@ proof {
 process 0
 
 (* EXPECTED
-Error: Unknown type option size100000000000000000000000000000000000
+Error: Bounds should be greater or equal to 0
 xtime: error in child process (status : 512)
 END *)

@@ -1,3 +1,7 @@
+(* At some point, the lengths maxlength(x1),maxlength(y1) were 
+   not properly instantiated into maxlength(x),maxlength(y) when 
+   evaluating the collision probability *)
+
 def pseudo_CollisionResistant_hash(key, hashinput1, hashoutput, hash, hashoracle, Phash) {
 
 fun hash(key, hashinput1):hashoutput.
@@ -26,3 +30,8 @@ process
         new k: key;
 	out(c, ());
 	(Horacle(k) | in(c, (x: bitstring, y: bitstring)); out(c, H(k,x) = H(k,y)))
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
