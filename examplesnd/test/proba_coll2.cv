@@ -1,0 +1,25 @@
+type nonce [fixed,large].
+type noncepart1 [fixed,large].
+type noncepart2 [fixed,large].
+
+fun extract(nonce):noncepart1 [uniform].
+fun concat(noncepart1,noncepart2): nonce [data].
+
+channel c.
+
+proof {
+      undo 4;
+      global_dep_anal n
+      }
+
+process
+        in(c, (b: bool, x: noncepart2, y: nonce));
+	new n: nonce;
+	    let x' = if b then concat(extract(n),x) else n in
+	    let z = if x' = y then true else false in
+	out(c, z)
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
