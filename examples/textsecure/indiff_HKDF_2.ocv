@@ -22,7 +22,7 @@ type hashkey3 [large, fixed].
 expand ROM_hash(hashkey3, input1, output2, H3, hashoracle3, qH3').
 
 proof {
-      allowed_collisions noninteractive*small/large;
+      allowed_collisions noninteractive*default/large;
       		 (* prevent eliminating collisions with qH1^2/|output1| *)
       start_from_other_end;
       crypto rom(H3);
