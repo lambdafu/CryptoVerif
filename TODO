@@ -1,17 +1,3 @@
-Simplify1.matches might forget some collisions that should in fact remain,
-when the variables have the same name in different collisions, but
-actually a different content -- perhaps taking the maximum of the probabilities,
-or requiring that the probabilities match, would solve the issue,
-as in this situation the two collisions are applied with different
-values of the indices for the common variables.
-I do not manage to exhibit the bug:
-- in global_dep_anal, in case a variable has several definitions
-in the whole game, this is taken care of in its status using
-ProbaIndepCollOfVar and in Transf_globaldepanal.compute_probas.
-- in DepAnal2, the variables are replaced with their value.
-
-
-
 Apply collisions as well in the binary case of Simplify1.FindCompos.find_compos_gen
 (possibly by modifying function Simplify1.FindCompos.apply_eq_statements
 For counting of probabilities in FindCompos, for a collision
@@ -4310,3 +4296,16 @@ see examplesnd/test/pcoll_instantiation.cv
 strange that it instantiates x1 but not y1. It should instantiate both,
 but given the bug, I would expect it to instantiate none.
 FIXED 23/9/2019
+
+Simplify1.matches might forget some collisions that should in fact remain,
+when the variables have the same name in different collisions, but
+actually a different content -- perhaps taking the maximum of the probabilities,
+or requiring that the probabilities match, would solve the issue,
+as in this situation the two collisions are applied with different
+values of the indices for the common variables.
+I do not manage to exhibit the bug:
+- in global_dep_anal, in case a variable has several definitions
+in the whole game, this is taken care of in its status using
+ProbaIndepCollOfVar and in Transf_globaldepanal.compute_probas.
+- in DepAnal2, the variables are replaced with their value.
+FIXED 24/9/2019 For safety, merge collisions only when probabilities are equal

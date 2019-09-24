@@ -208,13 +208,38 @@ Then we replace both calls with
   for all indices in t1, t2 and common_facts such that common_facts holds, 
   eliminate collision t1 = t2
 This is more general than the two collisions and yields the same cardinal 
-as t1 = t2. *)
+as t1 = t2. 
+
+In principle, the variables in t1, t2 might have different definitions
+for different indices, yielding different collision probabilities.
+In this case, we should take the maximum of the probabilities
+when we merge several collisions. 
+In practice, this does not seem to happen:
+- in global_dep_anal, in case a variable has several definitions
+in the whole game, this is taken care of in its status using
+ProbaIndepCollOfVar and in Transf_globaldepanal.compute_probas.
+- in DepAnal2, the variables are replaced with their value.
+So equal terms implies same probabibility with the current definitions.
+
+For safety, I still compare the probabilities by [equal_probaf_mul_types]
+and avoid merging in case they are different.
+   *)
+
+let equal_probaf_mul_types (probaf, dep_types, full_type, indep_types)
+    (probaf', dep_types', full_type', indep_types') =
+  (Terms.equal_probaf probaf probaf') &&
+  (Terms.equal_lists (==) dep_types dep_types') &&
+  (full_type == full_type') &&
+  (match indep_types, indep_types' with
+  | None, None -> true
+  | Some l, Some l' -> Terms.equal_lists (==) l l'
+  | _ -> false)
 
 let matches 
     (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types)
     (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', probaf_mul_types') =
   Terms.ri_auto_cleanup (fun () -> 
-    if matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2' then
+    if (matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2') && (equal_probaf_mul_types probaf_mul_types probaf_mul_types') then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
       Terms.ri_cleanup();
       (* Check that we can remove the same indices using common_facts as with all facts *)
