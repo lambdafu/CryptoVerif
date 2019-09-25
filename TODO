@@ -537,6 +537,67 @@ have the same continuation.
       oracle as a single case, like a call to a common subroutine,
       when distinguishing the cases is useless.
 
+      A nice way to do that:
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
+         foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) := return(hash(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(hash(k, y1) = hash(k, z1)))
+       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1: hashinput1) := 
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(hash_dont_care(k, x1)) else
+           r <-R hashoutput; return(r) |
+	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(r[u]) else
+	   return(hash_dont_care(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(r' = hash_dont_care(k, x1)) else
+	   return(false) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(y1 = z1)).
+      
+This version distinguishes between useful calls (OH, Oeq) and useless ones (OHdont_care).
+Only the useful calls are transformed.
+
+
+Version 2:
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
+         foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) := return(hash(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(hash(k, y1) = hash(k, z1)))
+       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1: hashinput1) := 
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
+           r <-R hashoutput; return(r) |
+	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(event_abort collision) else
+	   return(hash_dont_care(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
+	   return(false) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(y1 = z1)).
+      
+This version executes event_abort collision in case of collision between a useful call (OH, Oeq) and a useless one (OHdont_care).
+I think it is better. Anyway, we will have to show the absence of such collisions. Using event_abort allows to remove
+immediately the code that happens after these collisions and thus simplifies the game considerably.
+Obviously, the user has to specify manually whether each call to hash is useful (OH, Oeq) or useless (OHdont_care),
+by specifying which oracle to use for each term.
+
+
       
 9) Add more comments, e.g. in terms.mli
 
