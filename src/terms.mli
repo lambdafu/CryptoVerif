@@ -58,7 +58,8 @@ val plus : int -> int -> int
    bounded by max_exp *)
 val sum_list : ('a -> int) -> 'a list -> int
     
-(* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
+(* [max_list f l] is the maximum of [f x] for all [x] in [l].
+   Assumes [f x >= 0]. When [l] is empty, the result is 0. *)
 val max_list : ('a -> int) -> 'a list -> int
 
 (* [min_list f l] is the minimum of [f x] for all [x] in [l] *)

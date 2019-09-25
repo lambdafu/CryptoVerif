@@ -116,10 +116,11 @@ let rec sum_list f = function
   | [] -> 0
   | a::l -> plus (f a) (sum_list f l) 
 
-(* [max_list f l] is the maximum of [f x] for all [x] in [l] *)
+(* [max_list f l] is the maximum of [f x] for all [x] in [l].
+   Assumes [f x >= 0]. *)
 
 let rec max_list f = function
-  | [] -> min_int
+  | [] -> 0
   | a::lr -> max (f a) (max_list f lr)
 
 let rec min_list f = function
