@@ -225,21 +225,11 @@ For safety, I still compare the probabilities by [equal_probaf_mul_types]
 and avoid merging in case they are different.
    *)
 
-let equal_probaf_mul_types (probaf, dep_types, full_type, indep_types)
-    (probaf', dep_types', full_type', indep_types') =
-  (Terms.equal_probaf probaf probaf') &&
-  (Terms.equal_lists (==) dep_types dep_types') &&
-  (full_type == full_type') &&
-  (match indep_types, indep_types' with
-  | None, None -> true
-  | Some l, Some l' -> Terms.equal_lists (==) l l'
-  | _ -> false)
-
 let matches 
     (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types)
     (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', probaf_mul_types') =
   Terms.ri_auto_cleanup (fun () -> 
-    if (matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2') && (equal_probaf_mul_types probaf_mul_types probaf_mul_types') then
+    if (matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2') && (Proba.equal_probaf_mul_types probaf_mul_types probaf_mul_types') then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
       Terms.ri_cleanup();
       (* Check that we can remove the same indices using common_facts as with all facts *)
@@ -317,7 +307,7 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   let collision_info = 
     (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
-    if Proba.is_small_enough_coll_elim (used_indices, probaf_mul_types) then 
+    if Proba.is_small_enough_coll_elim used_indices probaf_mul_types then 
       (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, probaf_mul_types)
     else
       (* Try to reduce the list of used indices. 
@@ -344,7 +334,7 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
       (* OLD: I can forget the facts without losing precision when I removed no index
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
-      if Proba.is_small_enough_coll_elim (really_used_indices, probaf_mul_types) then 
+      if Proba.is_small_enough_coll_elim really_used_indices probaf_mul_types then 
 	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types) 
       else
 	(* Raises NoMatch when the probability is too large to be accepted *)
@@ -375,17 +365,12 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   with NoMatch -> 
     false
 
-let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, (probaf, dep_types, _, _)) =
+let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, ((probaf, dep_types, _, _) as probaf_mul_types)) =
   print_string "Eliminated collisions between ";
   Display.display_term t1;
   print_string " and ";
   Display.display_term t2;
-  print_string " Probability: ";  
-  let lindex = List.map (fun array_idx -> Proba.card array_idx.ri_type) really_used_indices in
-  let ltypes = List.map (fun ty -> Card ty) dep_types in
-  let p = Polynom.p_prod (probaf :: ltypes @ lindex) in
-  Display.display_proba 0 p;
-  print_newline();
+  let p = Proba.proba_for really_used_indices probaf_mul_types in
   print_string "(";
   if order_assumptions != [] then
     begin
@@ -420,10 +405,10 @@ let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really
     None ->   Display.display_binder b; print_string "[...]"
   | Some l -> Display.display_var b l 
   end;
-  if ltypes != [] then
+  if dep_types != [] then
     begin
       print_string " but takes at most ";
-      Display.display_proba 0 (Polynom.p_prod ltypes);
+      Display.display_proba 0 (Polynom.p_prod (List.map (fun ty -> Card ty) dep_types));
       print_string " values"
     end;
   print_string ")\n";

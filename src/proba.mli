@@ -25,9 +25,9 @@ val card_index : binder -> probaf
 
 (* 3. Computation of probabilities of collisions *)
 
-(* [is_small_enough_coll_elim (proba_l, proba)] tests if 
-   [proba_l/proba] is considered small enough to eliminate collisions *)
-val is_small_enough_coll_elim : repl_index list * (probaf * typet list * typet * typet list option) -> bool
+(* [is_small_enough_coll_elim proba_l proba] tests if 
+   [proba_l * proba] is considered small enough to eliminate collisions *)
+val is_small_enough_coll_elim : repl_index list -> probaf_mul_types -> bool
 
 (* [pcoll1rand t] is the probability of collision between a
    random value of type [t], and an independent value. *) 
@@ -49,17 +49,44 @@ val collect_array_indexes : repl_index list ref -> term -> unit
    not be eliminated by the caller.) *)
 val add_elim_collisions : binder -> binder -> bool
 
-(* [add_proba_red t1 t2 proba tl] adds the probability change that
+(* [add_proba_red t1 t2 side_cond proba tl] adds the probability change that
    happens when reducing [t1] into [t2] using a "collision" statement.
+   [side_cond] is a side condition that must hold to be able to 
+   apply the "collision" statement.
    [proba] is the probability formula in that collision statement.
-   [tl] is the correspondence between the "new" in the collision statement
-   and the "new" in the process. 
+   [tl] is the correspondence between the "new" and variables with
+   independence conditions in the collision statement
+   and their value in the process. 
    Returns true when the probability is considered small enough to
    eliminate collisions, and false otherwise. (In the latter case,
    the probability is obviously not counted, and the collisions must
    not be eliminated by the caller.) *)
 val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bool
 
+(* [add_proba_red_inside t1 t2 side_cond ri_list probaf_mul_types] 
+   also adds the probability change that happens when reducing 
+   [t1] into [t2] using a "collision" statement.
+   [side_cond] is a side condition that must hold to be able to 
+   apply the "collision" statement.
+   The probability in question is the product of cardinals of
+   the types of indices in [ri_list] times the probability
+   multiplied by cardinals of types in [probaf_mul_types].
+   Returns true when the probability is considered small enough to
+   eliminate collisions, and false otherwise. (In the latter case,
+   the probability is obviously not counted, and the collisions must
+   not be eliminated by the caller.) *)
+val add_proba_red_inside : term -> term -> term -> repl_index list -> probaf_mul_types -> bool
+
+(* [equal_probaf_mul_types probaf_mul_types probaf_mul_types'] tests
+   equality between values of type [probaf_mul_types] *)
+val equal_probaf_mul_types : probaf_mul_types -> probaf_mul_types -> bool
+
+(* [proba_for ri_list probaf_mul_types] returns the probability equal
+   to the product of cardinals of the types of indices in [ri_list]
+   times the probability multiplied by cardinals of types in
+   [probaf_mul_types]. It also displays this probability. *)
+val proba_for : repl_index list -> probaf_mul_types -> probaf
+    
 (* [reset coll_elim g] initializes probability counting.
    [g] is the whole game. [coll_elim] is the list of arguments of the
    "simplify" commands, which determines on which data of type marked 

@@ -265,20 +265,24 @@ let rec is_1_over_card_t ty = function
   | Div(Cst 1.0, Card ty') -> ty == ty'
   | _ -> false
 		
-let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, opt_indep_types)) =
+let is_small_enough_coll_elim proba_l (proba_t, dep_types, full_type, opt_indep_types) =
+  (* The probability is
+     \prod_{ri \in proba_l} |ri.ri_type| * proba_t * \prod_{T \in dep_types} T *)
   if !Settings.trust_size_estimates then
+    let prod_proba_l = Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l in
     (Terms.plus (order_of_magnitude proba_t)
-      (Terms.plus (Terms.sum_list Terms.get_size_high dep_types)
-	 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l))
+       (Terms.plus (Terms.sum_list Terms.get_size_high dep_types) prod_proba_l)
        <= - (!Settings.tysize_MIN_Coll_Elim))
     ||
       ((is_1_over_card_t full_type proba_t) &&
        (match opt_indep_types with
        | Some indep_types ->
+	   (* proba_t = 1/|full_type| and \prod_{T \in dep_types} T <= |full_type| / \prod_{T \in indep_types} |T|
+	      so the probability is <= \prod_{ri \in proba_l} |ri.ri_type| / \prod_{T \in indep_types} |T| *)
 	   Terms.plus (order_of_magnitude (Div(Cst 1.0, Polynom.p_prod (List.map (fun ty -> Card ty) indep_types))))
-		 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l)
-	      <= - (!Settings.tysize_MIN_Coll_Elim)
-	  | None -> false))
+	     prod_proba_l
+	     <= - (!Settings.tysize_MIN_Coll_Elim)
+       | None -> false))
   else
     try
       let size_proba =
@@ -298,13 +302,11 @@ let is_small_enough_coll_elim (proba_l, (proba_t, dep_types, full_type, opt_inde
     with Not_found ->
       false
 	
-let is_small_enough_collision (proba_l, proba) =
+let is_small_enough_collision proba_l ((proba_t, dep_types, _, _) as probaf_mul_types) =
   if !Settings.trust_size_estimates then
-    Terms.plus (order_of_magnitude proba)
-	 (Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l)
-      <= - (!Settings.tysize_MIN_Coll_Elim)
+    is_small_enough_coll_elim proba_l probaf_mul_types
   else
-    List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision)
+    (dep_types == []) && (List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision))
   
 
 let whole_game = ref Terms.empty_game
@@ -351,7 +353,7 @@ let add_elim_collisions b1 b2 =
   in
   if not (List.exists equal (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, (pcoll2rand b1.btype, [], b1.btype, None)) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation) (pcoll2rand b1.btype, [], b1.btype, None) then
 	begin
 	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
 	  true
@@ -392,7 +394,7 @@ the same elimination of collisions in different games. I do it when the
 probability does not depend on the runtime of the game. Would that be ok
 even if it depends on it? *)
 
-let red_proba = ref ([]: (term * term * term * probaf * (binder * term) list) list)
+let red_proba = ref ([]: (term * term * term * repl_index list * probaf_mul_types) list)
 
 let rec instan_time = function
     AttTime -> Add(AttTime, Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)))
@@ -418,18 +420,32 @@ let rec collect_array_indexes accu t =
   | FunApp(f,l) -> List.iter (collect_array_indexes accu) l
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_array_indexes"
 
-let add_proba_red t1 t2 side_cond proba tl =
-  let proba = instan_time proba in
-  let equal (t1',t2',side_cond',proba',tl') =
-     (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') && (Terms.equal_terms side_cond side_cond') && (Terms.equal_probaf proba proba')
+let equal_probaf_mul_types (probaf, dep_types, full_type, indep_types)
+    (probaf', dep_types', full_type', indep_types') =
+  (Terms.equal_probaf probaf probaf') &&
+  (Terms.equal_lists (==) dep_types dep_types') &&
+  (full_type == full_type') &&
+  (match indep_types, indep_types' with
+  | None, None -> true
+  | Some l, Some l' -> Terms.equal_lists (==) l l'
+  | _ -> false)
+
+let equal_indices indices indices' =
+  (List.for_all (fun ri -> List.memq ri indices') indices) &&
+  (List.for_all (fun ri -> List.memq ri indices) indices')
+    
+let add_proba_red_inside t1 t2 side_cond indices probaf_mul_types =
+  let equal (t1',t2',side_cond',indices', probaf_mul_types') =
+    (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') &&
+    (Terms.equal_terms side_cond side_cond') &&
+    (equal_indices indices indices') &&
+    (equal_probaf_mul_types probaf_mul_types probaf_mul_types')
   in
   if not (List.exists equal (!red_proba)) then
     begin
-      let accu = ref [] in
-      List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
-      if is_small_enough_collision (!accu, proba) then
+      if is_small_enough_collision indices probaf_mul_types then
 	begin
-	  red_proba := (t1,t2,side_cond,proba,tl) :: (!red_proba);
+	  red_proba := (t1,t2,side_cond,indices,probaf_mul_types) :: (!red_proba);
 	  true
 	end
       else
@@ -438,7 +454,23 @@ let add_proba_red t1 t2 side_cond proba tl =
   else
     true
 
-let proba_for_red_proba t1 t2 side_cond proba tl =
+let add_proba_red t1 t2 side_cond proba tl =
+  let proba = instan_time proba in
+  let accu = ref [] in
+  List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
+  let indices = !accu in
+  add_proba_red_inside t1 t2 side_cond indices (proba, [], t1.t_type, None)
+
+let proba_for indices (probaf, dep_types, _, _) =
+  let lindex = List.map (fun array_idx -> card array_idx.ri_type) indices in
+  let ltypes = List.map (fun ty -> Card ty) dep_types in
+  let p = Polynom.p_prod (probaf :: ltypes @ lindex) in
+  print_string " Probability: ";  
+  Display.display_proba 0 p;
+  print_newline();
+  p
+    
+let proba_for_red_proba (t1, t2, side_cond, indices, probaf_mul_types) =
   print_string "Reduced ";
   Display.display_term t1;
   print_string " to ";
@@ -448,13 +480,7 @@ let proba_for_red_proba t1 t2 side_cond proba tl =
       print_string " where ";
       Display.display_term side_cond
     end;
-  print_string " Probability: ";  
-  let accu = ref [] in
-  List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
-  let p = Polynom.p_mul(proba, Polynom.p_prod (List.map (fun array_idx -> card array_idx.ri_type) (!accu))) in
-  Display.display_proba 0 p;
-  print_newline();
-  p
+  proba_for indices probaf_mul_types
 
 
 (* Initialization *)
@@ -474,7 +500,7 @@ let final_add_proba coll_list =
   in
   List.iter (fun (b1,b2) -> add_proba (proba_for_collision b1 b2))
     (!eliminated_collisions);
-  List.iter (fun (t1,t2,side_cond,proba,tl) -> add_proba (proba_for_red_proba t1 t2 side_cond proba tl))
+  List.iter (fun red_proba_info -> add_proba (proba_for_red_proba red_proba_info))
     (!red_proba);
   List.iter add_proba coll_list;
   let r = Polynom.polynom_to_probaf (Polynom.probaf_to_polynom (!proba)) in

@@ -545,9 +545,6 @@ and ins_updater = (instruct -> instruct list) option
 
 and to_do_t = (instruct list * int * name_to_discharge_t) list
 
-and simplify_internal_info_t = 
-    (binder * binder) list * (term * term * term * probaf * (binder * term) list) list
-
 (* Detailed game transformations. Used to record what transformations 
    have been done. *)
 
@@ -802,6 +799,19 @@ type 'a depinfo =
       other_variables: bool; (* True when variables not in dep may also depend on b0 *)
       nodep: term list } (* List of terms that do not depend on b0 *)
 
+type probaf_mul_types =
+    probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
+      typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
+      typet (* The type of t2 *) *
+      typet list option (* indep_types_option: 
+	 indep_types_option = Some indep_types, where indep_types is 
+	 The list of types of subterms of t2 
+	 not replaced with variables [?].  This list is valid only
+	 when subterms of [t2] are replaced only under [data]
+	 functions, so that product of |T| for T \in dep_types <=
+	 |type(t2)|/product of |T| for T \in indep_types.  When it is
+	 not valid, indep_types_option = None. *) 
+      
 type collision_state = 
   ((binderref * binderref) list * (* For each br1, br2 in this list, the collisions are eliminated only when br2 is defined before br1 *)
    term * (* The collisions are eliminated only when this term is true *)
@@ -811,14 +821,8 @@ type collision_state =
    repl_index list * (* Reduced list of indices taking into account known facts *)
    term * term * (* The two colliding terms, t1 and t2 *)
    binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
-   (probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
-     typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
-     typet (* The type of t2 *) *
-      typet list option (* indep_types_option: 
-	 indep_types_option = Some indep_types, where indep_types is 
-	 The list of types of subterms of t2 
-	 not replaced with variables [?].  This list is valid only
-	 when subterms of [t2] are replaced only under [data]
-	 functions, so that product of |T| for T \in dep_types <=
-	 |type(t2)|/product of |T| for T \in indep_types.  When it is
-	 not valid, indep_types_option = None. *) )) list
+   probaf_mul_types (* see above *)) list
+
+type simplify_internal_info_t = 
+    (binder * binder) list * (term * term * term * repl_index list * probaf_mul_types) list
+

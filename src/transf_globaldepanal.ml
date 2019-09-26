@@ -186,7 +186,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	 is small enough that it can be accepted without 
 	 trying to eliminate some of the [used_indices].
 	 (The facts in [true_facts'] are used only for that.) *)
-      if Proba.is_small_enough_coll_elim (used_indices, probaf_mul_types) then
+      if Proba.is_small_enough_coll_elim used_indices probaf_mul_types then
 	[]
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
