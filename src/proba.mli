@@ -104,4 +104,5 @@ val final_add_proba : probaf list -> setf list
    the collision eliminations done between [get_current_state] and 
    [restore_state]. *)
 val get_current_state : unit -> simplify_internal_info_t
+val get_and_empty_state : unit -> simplify_internal_info_t
 val restore_state : simplify_internal_info_t -> unit

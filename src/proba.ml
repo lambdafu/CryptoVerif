@@ -516,3 +516,9 @@ let get_current_state() =
 let restore_state (ac_coll, ac_red_proba) =
   eliminated_collisions := ac_coll;
   red_proba := ac_red_proba
+
+let get_and_empty_state() =
+  let res = (!eliminated_collisions, !red_proba) in
+  eliminated_collisions := [];
+  red_proba := [];
+  res

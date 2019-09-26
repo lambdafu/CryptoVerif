@@ -25,17 +25,33 @@ and replace later by the real list of indices when I have it...
       The proba state consists of
       * list of (b1,b2) corresponding to a proba
       pcoll2rand b1.btype * indices at creation of b1 and b2 * (0.5 if b1 == b2)
-      * list of (t1,t2,side_cond,proba,tl) corresponding to a proba
-      proba * array indices in tl
-
-      => replace tl with its collected array indices.
-      => additionally allow types as returned by is_indep: dep_types, full_type, indep_types
+      * list of (t1,t2,side_cond,indices,probaf_mul_types) corresponding to a proba
+      probaf_mul_types * product of |indices|
 
       In the first list, the indices at creation should not contain the fresh
       index created by find_compos. They are unaffected when we recreate
       the probability for collision.
-      In the second list, we need to replace the fresh index in tl with
-      the indices and ? variables of the term t_indep
+      In the second list, we need to replace the fresh index in indices with
+      the indices of the term t_indep and update probaf_mul_types
+      with (dep_types, indep_types_opt) from is_indep:
+
+      prod (dep_types, full_type, indep_types_opt) (dep_types', full_type', indep_types_opt') =
+        if dep_types == [] then
+	   (dep_types', full_type', indep_types_opt')
+	else if dep_types' == [] then
+	   (dep_types, full_type, indep_types_opt)
+	else
+	   match indep_types_opt, indep_types_opt' with
+	   | None, _ | _, None ->
+	       (dep_types @ dep_types', full_type, None) (* full_type does not matter *)
+	   | Some indep_types, Some indep_types' ->
+	       (* prod dep_types * prod dep_types' <= full_type * full_type' / (prod indep_types * prod indep_types') *)
+	       if List.memq full_type indep_types' then
+	          (dep_types @ dep_types', full_type', Some (indep_types @ indep_types' \ full_type))
+	       else if List.memq full_type' indep_types then
+	          (dep_types @ dep_types', full_type, Some (indep_types @ indep_types' \ full_type'))
+	       else
+	          (dep_types @ dep_types', full_type, None) (* full_type does not matter *)
 
       Use the following dependency analysis ([bdepinfo] is the argument given to [find_compos])
       to call [apply_reds depth (dependency_anal bdepinfo) simp_facts t]
