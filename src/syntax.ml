@@ -3288,6 +3288,15 @@ let rec check_one = function
 		pcoll := Some (ncoll_min, nsize_max) (* The previous error guarantees that ncoll_min <= nsize_min <= nsize_max *)
 	  | _ -> ()
 	end;
+	if !opt land Settings.tyopt_BOUNDED == 0 then
+	  begin
+	    match !size with
+	    | Some (_, nsize_max) when nsize_max < Settings.max_exp ->
+		(* The size estimate shows that the type is bounded *)
+		input_warning ("The size estimate shows that type "^ s1 ^" is bounded; adding the [bounded] option") ext1;
+		opt := Settings.tyopt_BOUNDED lor (!opt)
+	    | _ -> ()
+	  end;
 	let ty = { tname = s1;
 		   tcat = BitString;
 		   toptions = !opt;

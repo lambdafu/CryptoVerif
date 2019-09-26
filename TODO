@@ -16,6 +16,35 @@ So in this case, I cannot have the indices.
 So it is probably better to create a fresh replication
 index, use it for the indices of fresh variables for find_compos_bin,
 and replace later by the real list of indices when I have it...
+   - create fresh repl index (size0), use it as index for variables in
+   find_compos_bin
+   - start from an empty probability state.
+   - get the probability state at the end of find_compos, and
+      return as status: the fresh repl index, that probability state,
+      in addition to the probability already returned.
+      The proba state consists of
+      * list of (b1,b2) corresponding to a proba
+      pcoll2rand b1.btype * indices at creation of b1 and b2 * (0.5 if b1 == b2)
+      * list of (t1,t2,side_cond,proba,tl) corresponding to a proba
+      proba * array indices in tl
+
+      => replace tl with its collected array indices.
+      => additionally allow types as returned by is_indep: dep_types, full_type, indep_types
+
+      In the first list, the indices at creation should not contain the fresh
+      index created by find_compos. They are unaffected when we recreate
+      the probability for collision.
+      In the second list, we need to replace the fresh index in tl with
+      the indices and ? variables of the term t_indep
+
+      Use the following dependency analysis ([bdepinfo] is the argument given to [find_compos])
+      to call [apply_reds depth (dependency_anal bdepinfo) simp_facts t]
+
+let dependency_anal bdepinfo = 
+  let indep_test = Facts.default_indep_test bdepinfo in
+  let collision_test simp_facts t1 t2 = None in
+  (indep_test, collision_test)
+
 
 Put the basic proba functions of polynom.ml in a separate module? (to
 avoid confusion between proba fcts and polynom fcts)
