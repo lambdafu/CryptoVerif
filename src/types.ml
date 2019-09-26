@@ -751,54 +751,6 @@ type final_process =
   
       
     
-(* For the dependency analyses *)
-
-type depend_status =
-  | Compos of probaf * term * term list option
-  | Decompos of term list option
-  | Any
-(* The dependency status of a term [t] with respect to a variable [b0] is
-   - [Compos(p, t_1, l0opt)]:
-     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
-     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
-     [t_1] is a modified version of [t] in which the parts that are not useful
-     to show this property are replaced with variables [?].
-     [p] is the probability for one test t = t'. It should be multiplied by
-     the number of executions outside of find_compos.
-   - [Decompos(l0opt)]:
-     - when l0opt = Some l0, [t] is obtained from [b0[l0]] by applying functions
-     that extract a part of their argument (functions marked [uniform]);
-     - when l0opt = None, [t] is obtained from [b0[l0']] by applying decomposition 
-     functions, for some l0'.
-   - [Any] in the other cases 
-
-   Decompos(l0opt) => Compos(PColl1Rand t.t_type, t, l0opt) *)
-
-type extracted_depend_status = (probaf * term * term list option) option
-  (* The dependency status of a term [t] with respect to a variable [b0] 
-     presented as follows:
-   - [Some(p, t_1, l0opt)] if
-     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
-     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
-     [t_1] is a modified version of [t] in which the parts that are not useful
-     to show this property are replaced with variables [?].
-   - [None] otherwise. *)
-      
-type 'a depinfo =      
-    { args_at_creation_only: bool; (* True when the field [dep] deals only with variables with indices args_at_creation *)
-      dep: (binder * (depend_status * term list option * 'a)) list; 
-          (* List of variables that depend on b0 
-             Each element of the list is (b, (depend_status, args_opt, x)), where
-             b is a variable that depends on b0.
-             depend_status is its dependency status as defined above.
-             When args_opt is (Some l), b[args_at_creation] depends on b0[l]
-             and on no other cell of b0.
-             When args_opt is None, b may depend on any cell of b0.
-             x is some additional information, which may differ between dependency analyses.
-             *)
-      other_variables: bool; (* True when variables not in dep may also depend on b0 *)
-      nodep: term list } (* List of terms that do not depend on b0 *)
-
 type probaf_mul_types =
     probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
       typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
@@ -825,4 +777,54 @@ type collision_state =
 
 type simplify_internal_info_t = 
     (binder * binder) list * (term * term * term * repl_index list * probaf_mul_types) list
+
+(* For the dependency analyses *)
+
+type find_compos_probaf = probaf * unit (* WILL EVOLVE *)
+      
+type depend_status =
+  | Compos of find_compos_probaf * term * term list option
+  | Decompos of term list option
+  | Any
+(* The dependency status of a term [t] with respect to a variable [b0] is
+   - [Compos(p, t_1, l0opt)]:
+     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+     [t_1] is a modified version of [t] in which the parts that are not useful
+     to show this property are replaced with variables [?].
+     [p] is the probability for one test t = t'. It should be multiplied by
+     the number of executions outside of find_compos.
+   - [Decompos(l0opt)]:
+     - when l0opt = Some l0, [t] is obtained from [b0[l0]] by applying functions
+     that extract a part of their argument (functions marked [uniform]);
+     - when l0opt = None, [t] is obtained from [b0[l0']] by applying decomposition 
+     functions, for some l0'.
+   - [Any] in the other cases 
+
+   Decompos(l0opt) => Compos(PColl1Rand t.t_type, t, l0opt) *)
+
+type extracted_depend_status = (find_compos_probaf * term * term list option) option
+  (* The dependency status of a term [t] with respect to a variable [b0] 
+     presented as follows:
+   - [Some(p, t_1, l0opt)] if
+     - when l0opt = Some l0, for all [t'] independent of [b0[l0]], Pr[t = t'] <= p,
+     - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
+     [t_1] is a modified version of [t] in which the parts that are not useful
+     to show this property are replaced with variables [?].
+   - [None] otherwise. *)
+      
+type 'a depinfo =      
+    { args_at_creation_only: bool; (* True when the field [dep] deals only with variables with indices args_at_creation *)
+      dep: (binder * (depend_status * term list option * 'a)) list; 
+          (* List of variables that depend on b0 
+             Each element of the list is (b, (depend_status, args_opt, x)), where
+             b is a variable that depends on b0.
+             depend_status is its dependency status as defined above.
+             When args_opt is (Some l), b[args_at_creation] depends on b0[l]
+             and on no other cell of b0.
+             When args_opt is None, b may depend on any cell of b0.
+             x is some additional information, which may differ between dependency analyses.
+             *)
+      other_variables: bool; (* True when variables not in dep may also depend on b0 *)
+      nodep: term list } (* List of terms that do not depend on b0 *)
 

@@ -19,7 +19,7 @@ val matches_pair : term -> term -> term -> term -> bool
 (* Adds a term collision *)
 val add_term_collisions :
   repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
-  binder -> term list option -> (probaf * typet list * typet * typet list option) -> bool
+  binder -> term list option -> (find_compos_probaf * typet list * typet * typet list option) -> bool
 
 (* Computes the probability of term collisions *)
 val final_add_proba : unit -> setf list

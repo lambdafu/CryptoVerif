@@ -29,7 +29,7 @@ let main_var = ref (Terms.create_binder0 "dummy" Settings.t_bitstring [])
 type probaf_total =
   | Unset
   | InProgress
-  | Set of probaf
+  | Set of find_compos_probaf
     
 (* List of variables that depend on the main variable b0.
    The list contains elements (b, (depend_status, args_opt, ([(t1,t2,probaf);...], ref probaf_total))) 
@@ -50,7 +50,7 @@ type probaf_total =
      when the status of [b] is not [Any].)
 
    Corresponds to the field "dep" in `a depinfo *)
-let dvar_list = ref ([]: (binder * (depend_status * term list option * ((term * term * probaf) list * probaf_total ref))) list)
+let dvar_list = ref ([]: (binder * (depend_status * term list option * ((term * term * find_compos_probaf) list * probaf_total ref))) list)
 
 (* The flag [dvar_list_changed] is set when [dvar_list] has been changed
    since the last iteration. A new iteration of dependency analysis 
@@ -102,16 +102,21 @@ type branch = Unreachable | OnlyThen | OnlyElse | BothDepB | BothIndepB of term
 
 let rec expand_probaf f = function
     | (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Proba _ | ActTime _ | Maxlength _ | Length _ | Count _ | OCount _ |  Zero | AttTime | Time _) as x -> x
-    | ProbaIndepCollOfVar b -> f b
+    | ProbaIndepCollOfVar b -> let (proba, ()) = f b in proba
     | Mul(x,y) -> Mul(expand_probaf f x, expand_probaf f y)
     | Add(x,y) -> Add(expand_probaf f x, expand_probaf f y)
     | Sub(x,y) -> Sub(expand_probaf f x, expand_probaf f y)
     | Div(x,y) -> Div(expand_probaf f x, expand_probaf f y)
     | Max(l) -> Max(List.map (expand_probaf f) l)
 
+let expand_probaf f (p, ()) =  (expand_probaf f p, ()) (*TODO*)
+
 (* [compute_probas()] computes the probabilities associated with each
    [ProbaIndepCollOfVar b], for [b] in [dvar_list] *)
-	  
+
+let find_compos_probaf_sum l = (* TODO *)
+  (Polynom.p_sum (List.map fst l), ())
+    
 let compute_probas() =
   List.iter (fun (b, (_, _, (_, probaf_total_ref))) ->
     probaf_total_ref := Unset) (!dvar_list);
@@ -134,7 +139,7 @@ let compute_probas() =
       | Unset ->
 	  probaf_total_ref := InProgress;
 	  let res =
-	    Polynom.p_sum (List.map (fun (_,_,probaf) ->
+	    find_compos_probaf_sum (List.map (fun (_,_,probaf) ->
 	      expand_probaf aux probaf) proba_info_list)
 	      (* TO DO Would a maximum instead of a sum be also correct? *)
 	  in
@@ -173,7 +178,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  let probaf_mul_types = (probaf',dep_types,full_type,indep_types) in
+  let probaf_mul_types = (fst probaf'(*TODO*),dep_types,full_type,indep_types) in
   (* Compute the used indices *)
   let used_indices_ref = ref [] in
   Proba.collect_array_indexes used_indices_ref t1;
@@ -191,7 +196,8 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
     in
-    Depanal.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None probaf_mul_types
+    let proba_info = (probaf', dep_types,full_type,indep_types) in
+    Depanal.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None proba_info
   with Contradiction ->
     true
 
@@ -777,10 +783,13 @@ let combine_options b opt_old opt_new =
    It tests whether [one_info] is already contained in [proba_info_list],
    if not, it adds it and sets [dvar_list_changed]. *)
 
+let equal_find_compos_probaf (probaf,()) (probaf',()) (* TODO *) =
+  Terms.equal_probaf probaf probaf'
+	
 let add_proba_info (t1, t2, probaf) proba_info_list =
   if not (List.exists (fun (t1', t2', probaf') ->
     (Depanal.matches_pair t1' t2' t1 t2) &&
-    (Terms.equal_probaf probaf probaf')) proba_info_list)
+    (equal_find_compos_probaf probaf probaf')) proba_info_list)
   then
     begin
 	      (* Above, I use "matches_pair" to check that t1 = t2 is
@@ -817,6 +826,9 @@ let add_proba_info (t1, t2, probaf) proba_info_list =
    [b] is defined as [t], by [let b = t in ...].
    Sets [dvar_list_changed] if needed. *)
 
+let find_compos_proba_of_coll_var b = (*TODO*)
+  (ProbaIndepCollOfVar b, ())
+      
 let add_depend b t =
   match find_compos Terms.simp_facts_id t with
   | new_st, Some (probaf,t1,new_charac_args_opt) ->
@@ -839,12 +851,12 @@ let add_depend b t =
 		Any, []
 	    | Compos(_,_,charac_args_opt), _ ->
 		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
-		Compos(ProbaIndepCollOfVar b, t2, charac_args_opt'),
+		Compos(find_compos_proba_of_coll_var b, t2, charac_args_opt'),
 		add_proba_info (t1, t2, probaf) proba_info_list
 	    | Decompos(charac_args_opt), Compos _ ->
 		dvar_list_changed := true;
 		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
-		Compos(ProbaIndepCollOfVar b, t2, charac_args_opt'),
+		Compos(find_compos_proba_of_coll_var b, t2, charac_args_opt'),
 		add_proba_info (t1, t2, probaf) proba_info_list
 	    | Decompos(charac_args_opt), Decompos _ ->
 		let charac_args_opt' = combine_options b charac_args_opt new_charac_args_opt in
@@ -861,7 +873,7 @@ let add_depend b t =
 	      let st' =
 		match new_st with
 		| Compos(_,_,charac_args_opt) ->
-		    Compos(ProbaIndepCollOfVar b, t2, charac_args_opt)
+		    Compos(find_compos_proba_of_coll_var b, t2, charac_args_opt)
 		| _ -> new_st
 	      in
 	      let b_st =  (b,(st', new_depend_args_opt, ([t1, t2, probaf], ref Unset))) in
@@ -1507,6 +1519,9 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
    in previous passes of simplification.
    [g] is the full game to analyze. *)
 
+let init_find_compos_probaf b0 = (* TODO *)
+  (Proba.pcoll1rand b0.btype, ())
+    
 let check_all_deps b0 init_proba_state g =
   whole_game := g;
   main_var := b0;
@@ -1514,7 +1529,7 @@ let check_all_deps b0 init_proba_state g =
   try
     let dummy_term = Terms.term_from_binder b0 in
     let args_opt = Some (List.map Terms.term_from_repl_index b0.args_at_creation) in
-    let b0st = (b0, (Decompos(args_opt), args_opt, ([dummy_term, dummy_term, Proba.pcoll1rand b0.btype], ref Unset))) in
+    let b0st = (b0, (Decompos(args_opt), args_opt, ([dummy_term, dummy_term, init_find_compos_probaf b0], ref Unset))) in
     dvar_list := [b0st];
     defvar_list := [];
     let proc' = check_depend_iter init_proba_state in

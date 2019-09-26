@@ -285,7 +285,8 @@ let matches
     else
       None)
 
-let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((probaf, dep_types, full_type, indep_types) as probaf_mul_types) =
+let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((probaf, ()(*TODO*)), dep_types, full_type, indep_types) =
+  let probaf_mul_types = (probaf, dep_types, full_type, indep_types) in
   match dep_types with
   | [ty] when ty == full_type -> false (* Quickly eliminate a case in which the probability will always be too large: the term [t2] can take any value depending of [b] *) 
   | _ -> 
@@ -680,7 +681,7 @@ let rec apply_eq_statements t =
 let extract_from_status t = function
   | Any -> None
   | Compos(probaf, t_1, l0opt') -> Some(probaf, t_1, l0opt')
-  | Decompos(l0opt') -> Some(Proba.pcoll1rand t.t_type, t, l0opt')
+  | Decompos(l0opt') -> Some((Proba.pcoll1rand t.t_type, ()(* TODO *)), t, l0opt')
 
 let indep_binder b =
   let b' = Terms.new_binder b in
@@ -849,7 +850,7 @@ and find_compos_bin var_depinfo l0opt fact =
       if not (depends var_depinfo t2) then
 	extract_from_status t1 (find_compos_gen false false var_depinfo l0opt t1)
       else if not (depends var_depinfo t1) then
-	extract_from_status t1 (find_compos_gen false false var_depinfo l0opt t2)
+	extract_from_status t2 (find_compos_gen false false var_depinfo l0opt t2)
       else None
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
       begin
