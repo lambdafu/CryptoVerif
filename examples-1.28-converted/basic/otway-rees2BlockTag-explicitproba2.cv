@@ -1,0 +1,119 @@
+(* Version in which the participants only talk to A and B *)
+
+param N.
+param N2.
+param N3.
+
+proof {
+      allowed_collisions pest128;
+      auto
+      }
+
+(* Bitstrings of size exactly the block size *)
+type blocksize [size512,fixed].
+type blocksizeltag [size510,fixed].
+
+type tag [bounded,size2].
+type nonce [fixed, size187]. (* Nonces need to be at least 188 bits to eliminate collisions N^2/|nonce| 
+     	   	   	        => many properties are not proved with nonces of 187 bits *)
+type host [bounded,size32].
+type key [large,fixed].
+type keyseed [fixed].
+
+const tag1: tag.
+const tag2: tag.
+const tag3: tag.
+const tag4: tag.
+
+(* Concat1 and concat2 already include the necessary padding to reach the block size *)
+fun concat1(nonce, nonce, host, host):blocksizeltag [data].
+fun concat2(nonce, key):blocksizeltag [data].
+fun tagf(tag, blocksizeltag):blocksize [data].
+
+(* Shared-key encryption (Block cipher) *)
+
+proba Penc.
+
+expand SPRP_cipher(keyseed, key, blocksize, kgen, enc, dec, Penc).
+
+(* Queries *)
+
+query secret keyA [cv_onesession].
+query secret keyB [cv_onesession].
+query secret keyA.
+query secret keyB.
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, start, finish.
+const A : host.
+const B : host.
+
+event endA(host, host, nonce, key).
+event endB(host, host, nonce, key).
+event beginA(host, host, nonce).
+event beginB(host, host, nonce).
+
+query k: key, n: nonce, y: host, x: host;
+  event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) public_vars keyA, keyB.
+query k: key, n: nonce, y: host, x: host;
+  inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) public_vars keyA, keyB.
+
+
+
+
+
+
+
+	
+process 
+	in(start, ());
+new rKas: keyseed;
+let Kas: key = kgen(rKas) in
+new rKbs: keyseed;
+let Kbs: key = kgen(rKbs) in
+out(c9, ());
+((
+  ! i_1 <= N
+  in(start[i_1], ());
+  new M_1: nonce;
+  new Na_1: nonce;
+  event beginA(A, B, M_1);
+  let ea1: blocksize = enc(tagf(tag1, concat1(Na_1, M_1, A, B)), Kas) in
+  out(c1[i_1], (M_1, A, B, ea1));
+  in(c2[i_1], (=M_1, ea2_1: blocksize));
+  let tagf(=tag3, concat2(=Na_1, k_1: key)) = dec(ea2_1, Kas) in
+  event endA(A, B, M_1, k_1);
+  let keyA: key = k_1
+) | (
+  ! i_2 <= N
+  in(c3[i_2], (M_2: nonce, =A, =B, ea: blocksize));
+  new Nb_1: nonce;
+  event beginB(A, B, M_2);
+  let e2: blocksize = enc(tagf(tag2, concat1(Nb_1, M_2, A, B)), Kbs) in
+  out(c4[i_2], (M_2, A, B, ea, e2));
+  in(c5[i_2], (=M_2, ea2_2: blocksize, eb2: blocksize));
+  let tagf(=tag4, concat2(=Nb_1, k_2: key)) = dec(eb2, Kbs) in
+  out(c6[i_2], (M_2, ea2_2));
+  in(finish[i_2], ());
+  event endB(A, B, M_2, k_2);
+  let keyB: key = k_2
+) | (
+  ! i_3 <= N
+  in(c7[i_3], (M_3: nonce, =A, =B, ea1_1: blocksize, eb1: blocksize));
+  let tagf(=tag1, concat1(Na_2: nonce, =M_3, =A, =B)) = dec(ea1_1, Kas) in
+  let tagf(=tag2, concat1(Nb_2: nonce, =M_3, =A, =B)) = dec(eb1, Kbs) in
+  new k_3: key;
+  let e1: blocksize = enc(tagf(tag3, concat2(Na_2, k_3)), Kas) in
+  let e2_1: blocksize = enc(tagf(tag4, concat2(Nb_2, k_3)), Kbs) in
+  out(c8[i_3], (M_3, e1, e2_1))
+))
+
+
+
+(* EXPECTED
+RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB; inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) with public variables keyA, keyB; event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) with public variables keyA, keyB; event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) with public variables keyA, keyB; secrecy of keyB; secrecy of keyA.
+0.140s (user 0.128s + system 0.012s), max rss 43264K
+END *)
