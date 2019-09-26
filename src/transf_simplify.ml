@@ -89,7 +89,7 @@ sig
      dependency information of the variable [b]. *)
   val get_dep_info : dep_info -> binder -> elem_dep_info
 
-  (* [find_compos (b,depinfo) t] returns the dependency status of the term
+  (* [find_compos simp_facts (b,depinfo) t] returns the dependency status of the term
      [t] with respect to the variable [b0 = !main_var].
      It is returned in 2 forms, so that the result is a pair,
      [(st, extracted_st)]:
@@ -97,7 +97,7 @@ sig
      [extracted_st] is the extracted dependency status as defined in 
      [extracted_depend_status] in types.ml
      *)
-  val find_compos : binder * elem_dep_info -> term -> depend_status * extracted_depend_status
+  val find_compos : simp_facts -> binder * elem_dep_info -> term -> depend_status * extracted_depend_status
 
 end
 = 
@@ -110,9 +110,9 @@ struct
 
   let depends = Depanal.depends
     
-  let find_compos ((b,_) as bdepinfo) t =
+  let find_compos simp_facts ((b,_) as bdepinfo) t =
     let t' = Depanal.remove_dep_array_index bdepinfo t in
-    let st = Depanal.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t' in
+    let st = Depanal.find_compos simp_facts bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t' in
     (st, Depanal.extract_from_status t' st)
 
   exception Else
@@ -154,7 +154,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 	let rec try_dep_info = function
 	    [] -> t
 	  | ((b, _) as bdepinfo)::restl ->
-	      match find_compos bdepinfo t1 with
+	      match find_compos true_facts bdepinfo t1 with
 		_, Some(probaf, t1'',_) ->
 		  begin
 		    try 
@@ -166,7 +166,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		      try_dep_info restl
 		  end
 	      | _, None -> 
-		  match find_compos bdepinfo t2 with
+		  match find_compos true_facts bdepinfo t2 with
 		  _, Some(probaf, t2'',_) ->
 		    begin
 		      try 
@@ -343,7 +343,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
             let dep_info' = 
               List.map (fun ((b, depinfo) as bdepinfo) ->
 		if depends bdepinfo t then
-                  match Depanal.find_compos bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t with
+                  match Depanal.find_compos true_facts bdepinfo (Some (List.map Terms.term_from_repl_index b.args_at_creation)) t with
 		  | Any ->
 		      if depinfo.other_variables then
 			bdepinfo
@@ -367,7 +367,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	    try        
 	      (* status is true when the chosen branch may depend on b *)
               let status ((b, _) as bdepinfo) =
-		match find_compos bdepinfo t with
+		match find_compos true_facts bdepinfo t with
 		| _, Some (probaf, t'',_) ->
 		    let (t2', dep_types, indep_types) = Depanal.is_indep_pat true_facts bdepinfo pat in
 		    if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) 
@@ -376,7 +376,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		    true
 		| _, None ->
 		    begin
-		      match Depanal.find_compos_pat (find_compos bdepinfo) pat with
+		      match Depanal.find_compos_pat (find_compos true_facts bdepinfo) pat with
 		      | None -> ()
 		      |	Some(probaf, t1', _) ->
 			  let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t in
@@ -453,7 +453,7 @@ let rec dependency_collision_rec1 cur_array simp_facts t1 t2 t =
   match t.t_desc with
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (not (Terms.refers_to b t2)) ->
       begin
-	match Depanal.find_compos (b,Facts.nodepinfo) (Some l) t1 with
+	match Depanal.find_compos simp_facts (b,Facts.nodepinfo) (Some l) t1 with
 	| Any -> None
 	| _ -> 
 	    if List.memq b (!failure_check_all_deps) then None else
@@ -488,7 +488,7 @@ let rec dependency_collision_rec2 cur_array simp_facts dep_info t1 t2 t =
     Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) && (Terms.is_args_at_creation b l) ->
       begin
 	 let depinfo = DepAnal2.get_dep_info dep_info b in
-	 match DepAnal2.find_compos (b,depinfo) t1 with
+	 match DepAnal2.find_compos simp_facts (b,depinfo) t1 with
 	 | _, None -> None
 	 | _, Some(probaf, t1'',_) ->
 	    try 

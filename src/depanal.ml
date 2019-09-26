@@ -859,7 +859,7 @@ and find_compos_bin var_depinfo l0opt fact =
       end
   | _ -> None
     
-let find_compos var_depinfo l0opt t = find_compos_gen false true var_depinfo l0opt t
+let find_compos simp_facts var_depinfo l0opt t = find_compos_gen false true var_depinfo l0opt t
 
 let rec find_compos_pat f_find_compos = function
   | PatVar _ -> None
@@ -889,7 +889,7 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
       assert (b == b');
       begin
 	let t1_simp_ind = remove_array_index t1 in
-	match extract_from_status t1_simp_ind (find_compos (b,Facts.nodepinfo) (Some l_simp_ind) t1_simp_ind) with
+	match extract_from_status t1_simp_ind (find_compos simp_facts (b,Facts.nodepinfo) (Some l_simp_ind) t1_simp_ind) with
 	  Some(probaf, t1', _) -> 
 	    begin
 	      try 

@@ -302,11 +302,11 @@ let current_bdepinfo() =
    [extracted_st] is the extracted dependency status as defined in 
    [extracted_depend_status] in types.ml *)
 	
-let find_compos t =
+let find_compos simp_facts t =
   if should_try_find_compos t then
     let bdepinfo = current_bdepinfo() in
     let t' = Depanal.remove_dep_array_index bdepinfo t in (* Mostly for safety since no array variable should depend on (!main_var) *)
-    let st = Depanal.find_compos bdepinfo None t' in
+    let st = Depanal.find_compos simp_facts bdepinfo None t' in
     (st, Depanal.extract_from_status t' st)
   else
     (Any, None)
@@ -390,8 +390,8 @@ It returns
 [true_facts] is a list of facts that are known to hold.
  *)
 
-let dependency_collision cur_array true_facts t1 t2 =
-  match find_compos t1 with
+let dependency_collision cur_array simp_facts t1 t2 =
+  match find_compos simp_facts t1 with
   | _, Some(probaf, t1', charac_args_opt) ->
       begin
 	try 
@@ -410,6 +410,7 @@ let dependency_collision cur_array true_facts t1 t2 =
 		      ) (!collect_bargs))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+		let true_facts = Facts.true_facts_from_simp_facts simp_facts in
 	        if add_collisions_for_current_check_dependency2 cur_array true_facts side_condition (t1',t2,probaf) charac_args_opt then
 		  let res = 
 		    Terms.make_or_list (List.map (fun l'' ->   
@@ -436,7 +437,9 @@ let dependency_collision cur_array true_facts t1 t2 =
 		   eliminate the required collisions *)
 		None
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	      else if add_collisions_for_current_check_dependency2 cur_array true_facts (Terms.make_true()) (t1',t2,probaf) None then
+	      else
+		let true_facts = Facts.true_facts_from_simp_facts simp_facts in
+		if add_collisions_for_current_check_dependency2 cur_array true_facts (Terms.make_true()) (t1',t2,probaf) None then
 		begin
 		      (*print_string "Simplified ";
 		      Display.display_term t1;
@@ -495,10 +498,9 @@ let dependency_anal cur_array =
   let collision_test simp_facts t1 t2 =
     let t1' = Terms.try_no_var_rec simp_facts t1 in
     let t2' = Terms.try_no_var_rec simp_facts t2 in
-    let true_facts = Facts.true_facts_from_simp_facts simp_facts in
-    match dependency_collision cur_array true_facts t1' t2' with
+    match dependency_collision cur_array simp_facts t1' t2' with
       (Some _) as x -> x
-    | None -> dependency_collision cur_array true_facts t2' t1'
+    | None -> dependency_collision cur_array simp_facts t2' t1'
   in
   (indep_test, collision_test)
     
@@ -601,7 +603,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
   | FunApp(f,[t1;t2]) 
     when ((f.f_cat == Equal) || (f.f_cat == Diff)) && (Proba.is_large_term t1 || Proba.is_large_term t2) ->
       begin
-	match find_compos t1 with
+	match find_compos Terms.simp_facts_id t1 with
 	| _, Some(probaf,t1',_) ->
 	    let (t2', dep_types, indep_types) = is_indep t2 in 
 	    if add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t1', t2', probaf, dep_types, t2.t_type, indep_types) then
@@ -612,7 +614,7 @@ let rec almost_indep_test cur_array true_facts fact_info t =
 	    else
 	      BothDepB
 	| _, None ->
-	    match find_compos t2 with
+	    match find_compos Terms.simp_facts_id t2 with
 	    | _, Some(probaf,t2',_) ->
 		let (t1', dep_types, indep_types) = is_indep t1 in
 		if add_collisions_for_current_check_dependency (cur_array, true_facts, fact_info) (t2', t1, probaf, dep_types, t2.t_type, indep_types) then
@@ -713,7 +715,7 @@ let aux_dep_args t =
 
 let set_depend b t =
   let dvar_list_nob = List.filter (fun (b',_) -> b' != b) (!dvar_list) in
-  match find_compos t with
+  match find_compos Terms.simp_facts_id t with
   | _,None -> 
       if depends t then
 	(* The variable [b] depends on [b0], but we do not have more precise information *)
@@ -816,7 +818,7 @@ let add_proba_info (t1, t2, probaf) proba_info_list =
    Sets [dvar_list_changed] if needed. *)
 
 let add_depend b t =
-  match find_compos t with
+  match find_compos Terms.simp_facts_id t with
   | new_st, Some (probaf,t1,new_charac_args_opt) ->
       (* [t] characterizes a part of [b0] *)
       let t2 = Terms.term_from_binder b in
@@ -1103,7 +1105,7 @@ let rec almost_indep_fc cur_array t0 =
 	| _ ->
 	    let p2 = Terms.get_else p2opt in
 	    try
-	      match find_compos t1 with
+	      match find_compos Terms.simp_facts_id t1 with
 	      | _, Some (probaf,t1',_) ->
 		  let (t2', dep_types, indep_types) = is_indep_pat pat in
 		  if add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t1', t2', probaf, dep_types, t1.t_type, indep_types) then
@@ -1116,7 +1118,7 @@ let rec almost_indep_fc cur_array t0 =
 		  else		    
 		    raise BothDep
 	      | _, None ->
-		  match Depanal.find_compos_pat find_compos pat with
+		  match Depanal.find_compos_pat (find_compos Terms.simp_facts_id) pat with
 		  | Some(probaf, t2', _) ->
 		      let (t1', dep_types, indep_types) = is_indep t1 in
 		      if add_collisions_for_current_check_dependency (cur_array, [], DTerm t0) (t2', t1', probaf, dep_types, t1.t_type, indep_types) then
@@ -1244,7 +1246,7 @@ let rec check_depend_process cur_array p' =
 	    raise BadDep
 	  end
 	    ) tl;
-      match Depanal.find_compos_pat find_compos pat with
+      match Depanal.find_compos_pat (find_compos Terms.simp_facts_id) pat with
       | Some(probaf, t1, _) -> 
 	  (* The pattern matching of this input always fails *)
           (* Create a dummy variable for the input message *)
@@ -1424,7 +1426,7 @@ and check_depend_oprocess cur_array p =
 	raise BadDep
       in
       begin
-	match find_compos t with
+	match find_compos Terms.simp_facts_id t with
 	| _, Some (probaf,t1',_) ->
 	    let (t2', dep_types, indep_types) = is_indep_pat pat in
 	    if add_collisions_for_current_check_dependency (cur_array, [], DTerm t) (t1', t2', probaf, dep_types, t.t_type, indep_types) then
@@ -1439,7 +1441,7 @@ and check_depend_oprocess cur_array p =
 		   => dependency analysis fails *)
 	      bad_dep()
 	| _, None ->
-	    match Depanal.find_compos_pat find_compos pat with
+	    match Depanal.find_compos_pat (find_compos Terms.simp_facts_id) pat with
 	    | Some(probaf, t2', _) ->
 		let (t1', dep_types, indep_types) = is_indep t in
                 (* [t] independent of [b0], the pattern characterizes [b0]

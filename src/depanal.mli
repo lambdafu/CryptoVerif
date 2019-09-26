@@ -107,7 +107,7 @@ val is_indep_collect_args : simp_facts ->
    (See the definition of ['a depinfo] in types.ml for its meaning.)
    [l0opt = Some l0] means that we focus on the dependency of [t] with respect to the cell [b0[l0]]
    [l0opt = None] means that we consider the dependency of [t] with respect to any cell of [b0]. *)
-  val find_compos : (binder * 'a depinfo) -> term list option -> term -> depend_status
+  val find_compos : simp_facts -> (binder * 'a depinfo) -> term list option -> term -> depend_status
 
 (* [find_compos_pat f_find_compos pat] takes a find_compos function [f_find_compos] for terms
    ([f_find_compos t] returns the dependency status of the term [t], in two forms

@@ -56,7 +56,7 @@ let rec dependency_collision_rec2bis cur_array simp_facts order_assumptions ((de
             print_string "remove_dep_array_index t1=";
 	    Display.display_term t1';print_newline ()
           end;
-	match Depanal.extract_from_status t1' (Depanal.find_compos (b, depinfo) (Some l_after') t1') with
+	match Depanal.extract_from_status t1' (Depanal.find_compos simp_facts (b, depinfo) (Some l_after') t1') with
 	| Some(probaf, t1'', _) -> 
 	    begin
 	    try 
