@@ -639,8 +639,23 @@ immediately the code that happens after these collisions and thus simplifies the
 Obviously, the user has to specify manually whether each call to hash is useful (OH, Oeq) or useless (OHdont_care),
 by specifying which oracle to use for each term.
 
+I could push this idea further by having several oracles that call H, called OH1,...,OHk.
+When an argument to OHi is equal to an argument of OHj for i<>j, event_abort collision.
+Otherwise, compare the argument of OHi with the previous arguments of OHi.
+That allows to show a posteriori that there no collisions between arguments
+of OHi and OHj for i<>j without experiencing a big blow-up.
+Perhaps sometimes one oracle can collide with all others (or with several others),
+e.g. the oracle of the adversary... How to adapt the equivalence to the various
+cases? Perhaps enough to allow:
+- the dont_care oracle
+- the oracle that collides with all
+- OHi not colliding with OHj for i<>j, let's say 1<=i,j<=10.
 
-      
+One solution (but painful in practice) may be to allow the user to
+insert event_abort terms after the crypto transformation but before
+the expansion. => Anyway, I think that's a good thing to allow,
+and it should be easy.
+
 9) Add more comments, e.g. in terms.mli
 
 10) Make an up-to-date tech report describing CryptoVerif.
