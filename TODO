@@ -62,6 +62,11 @@ let dependency_anal bdepinfo =
   (indep_test, collision_test)
 
 
+Specify hidden_key_collision_resistance,
+preimage_resistance, hidden_key_preimage_resistance,
+second_preimage_resistance, hidden_key_second_preimage_resistance
+see https://eprint.iacr.org/2004/035
+
 Put the basic proba functions of polynom.ml in a separate module? (to
 avoid confusion between proba fcts and polynom fcts)
 
@@ -650,6 +655,10 @@ cases? Perhaps enough to allow:
 - the dont_care oracle
 - the oracle that collides with all
 - OHi not colliding with OHj for i<>j, let's say 1<=i,j<=10.
+
+The same idea applies to PRFs
+
+Distinguish ROM / ROM_large like I do for PRFs?
 
 One solution (but painful in practice) may be to allow the user to
 insert event_abort terms after the crypto transformation but before
