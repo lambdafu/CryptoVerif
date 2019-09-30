@@ -546,15 +546,25 @@ let equal_lists eq l1 l2 =
   (List.length l1 == List.length l2) && 
   (List.for_all2 eq l1 l2)
 
+let equal_lists_sets eq l1 l2 =
+  (* Verifies both inclusions for equality [eq] *)
+  (List.for_all (fun x1 -> List.exists (eq x1) l2) l1) &&
+  (List.for_all (fun x2 -> List.exists (eq x2) l1) l2)
+
+let equal_lists_sets_q l1 l2 =
+  (* Equivalent to [equal_lists_sets (==) l1 l2] *)
+  (List.for_all (fun x1 -> List.memq x1 l2) l1) &&
+  (List.for_all (fun x2 -> List.memq x2 l1) l2)
+
 let equal_mset mset1 mset2 =
   match (mset1, mset2) with
-    (MBinders l1, MBinders l2) -> equal_lists (==) l1 l2
+    (MBinders l1, MBinders l2) -> equal_lists_sets_q l1 l2
   | x, y -> x == y
 
 let equal_rset rset1 rset2 =
   match (rset1, rset2) with
     (All, All) | (Minimal, Minimal) | (FindCond, FindCond) -> true
-  | (Binders l1, Binders l2) -> equal_lists (==) l1 l2
+  | (Binders l1, Binders l2) -> equal_lists_sets_q l1 l2
   | _ -> false
 
 let equal_merge_mode m1 m2 =
@@ -599,10 +609,6 @@ let rec equal_qterms_ren t1 t2 =
       equal_qterms_ren t1'' t2''
   | _ -> raise NoMatch
 
-let eq_pub_vars pv1 pv2 =
-  (List.for_all (fun b1 -> List.memq b1 pv2) pv1) &&
-  (List.for_all (fun b2 -> List.memq b2 pv1) pv2)
-	
 let equal_query_any_pubvars q1 q2 =
   match q1, q2 with
   | QSecret(b1,pub_vars1,one_session1), QSecret(b2,pub_vars2,one_session2) ->
@@ -630,7 +636,7 @@ let equal_pubvars q1 q2 =
   | QEventQ(_,_, pub_vars1), QEventQ(_,_, pub_vars2) 
   | QEquivalence(_, pub_vars1), QEquivalence(_, pub_vars2) 
   | QEquivalenceFinal(_, pub_vars1), QEquivalenceFinal(_, pub_vars2) ->
-      eq_pub_vars pub_vars1 pub_vars2
+      equal_lists_sets_q pub_vars1 pub_vars2
   | AbsentQuery, AbsentQuery -> true
   | _ -> false
 

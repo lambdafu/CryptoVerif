@@ -344,18 +344,19 @@ let pcoll2rand t =
 have used the fact
 that collisions between b1 and b2 have negligible probability. *)
 
-let eliminated_collisions = ref [] 
+let eliminated_collisions = ref ([] : binder_coll_t list)
 
+let equal_coll (b1, b2) (b1',b2') =
+  ((b1 == b1') && (b2 == b2')) ||
+  ((b1 == b2') && (b2 == b1'))
+  
 let add_elim_collisions b1 b2 =
-  let equal (b1',b2') =
-           ((b1 == b1') && (b2 == b2')) ||
-           ((b1 == b2') && (b2 == b1'))
-  in
-  if not (List.exists equal (!eliminated_collisions)) then
+  let new_coll = (b1, b2) in
+  if not (List.exists (equal_coll new_coll) (!eliminated_collisions)) then
     begin
       if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation) (pcoll2rand b1.btype, [], b1.btype, None) then
 	begin
-	  eliminated_collisions := (b1, b2) :: (!eliminated_collisions);
+	  eliminated_collisions := new_coll :: (!eliminated_collisions);
 	  true
 	end
       else
@@ -394,7 +395,7 @@ the same elimination of collisions in different games. I do it when the
 probability does not depend on the runtime of the game. Would that be ok
 even if it depends on it? *)
 
-let red_proba = ref ([]: (term * term * term * repl_index list * probaf_mul_types) list)
+let red_proba = ref ([]: red_proba_t list)
 
 let rec instan_time = function
     AttTime -> Add(AttTime, Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)))
@@ -430,22 +431,20 @@ let equal_probaf_mul_types (probaf, dep_types, full_type, indep_types)
   | Some l, Some l' -> Terms.equal_lists (==) l l'
   | _ -> false)
 
-let equal_indices indices indices' =
-  (List.for_all (fun ri -> List.memq ri indices') indices) &&
-  (List.for_all (fun ri -> List.memq ri indices) indices')
+let equal_red
+    (t1,t2,side_cond,indices,probaf_mul_types)
+    (t1',t2',side_cond',indices', probaf_mul_types') =
+  (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') &&
+  (Terms.equal_terms side_cond side_cond') &&
+  (Terms.equal_lists_sets_q indices indices') &&
+  (equal_probaf_mul_types probaf_mul_types probaf_mul_types')
     
-let add_proba_red_inside t1 t2 side_cond indices probaf_mul_types =
-  let equal (t1',t2',side_cond',indices', probaf_mul_types') =
-    (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') &&
-    (Terms.equal_terms side_cond side_cond') &&
-    (equal_indices indices indices') &&
-    (equal_probaf_mul_types probaf_mul_types probaf_mul_types')
-  in
-  if not (List.exists equal (!red_proba)) then
+let add_proba_red_inside ((t1, t2, side_cond, indices, probaf_mul_types) as new_red) =
+  if not (List.exists (equal_red new_red) (!red_proba)) then
     begin
       if is_small_enough_collision indices probaf_mul_types then
 	begin
-	  red_proba := (t1,t2,side_cond,indices,probaf_mul_types) :: (!red_proba);
+	  red_proba := new_red :: (!red_proba);
 	  true
 	end
       else
@@ -459,7 +458,7 @@ let add_proba_red t1 t2 side_cond proba tl =
   let accu = ref [] in
   List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
   let indices = !accu in
-  add_proba_red_inside t1 t2 side_cond indices (proba, [], t1.t_type, None)
+  add_proba_red_inside (t1, t2, side_cond, indices, (proba, [], t1.t_type, None))
 
 let proba_for indices (probaf, dep_types, _, _) =
   let lindex = List.map (fun array_idx -> card array_idx.ri_type) indices in

@@ -775,8 +775,12 @@ type collision_state =
    binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
    probaf_mul_types (* see above *)) list
 
+type binder_coll_t = binder * binder 
+
+type red_proba_t = term * term * term * repl_index list * probaf_mul_types
+      
 type simplify_internal_info_t = 
-    (binder * binder) list * (term * term * term * repl_index list * probaf_mul_types) list
+    binder_coll_t list * red_proba_t list
       (* (random_var_coll_list, collision_statements_list)
 	 Each element of [random_var_coll_list], [b1,b2], means that we eliminated collisions
 	 between the random variables [b1] and [b2].

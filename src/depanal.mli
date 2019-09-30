@@ -6,6 +6,8 @@ val any_term : term -> term
 val any_term_pat : pattern -> term
 val fresh_indep_term : term -> term * typet list * typet list option
 
+val fresh_repl_index : unit -> repl_index
+    
 (*** Computation of probabilities of collision between terms ***)
 
 (* Recorded term collisions *)

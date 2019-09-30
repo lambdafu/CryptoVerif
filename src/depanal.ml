@@ -402,7 +402,7 @@ let add_term_collisions current_state t1 t2 b lopt (find_compos_probaf, dep_type
       in
       let old_proba_state = (!term_collisions, Proba.get_current_state()) in
       if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll' &&
-	List.for_all (fun (t1,t2,side_cond,indices,probaf_mul_types) -> Proba.add_proba_red_inside t1 t2 side_cond indices probaf_mul_types) proba_collision' &&
+	List.for_all Proba.add_proba_red_inside proba_collision' &&
 	List.for_all (add_term_collision current_state t1 t2 b lopt) proba_term_collisions' then
 	true
       else
@@ -468,23 +468,23 @@ let final_add_proba() =
   Proba.final_add_proba (List.map proba_for_term_collision (!term_collisions))
 
     
-  let rec depends ((b, depinfo) as bdepinfo) t = 
-    match t.t_desc with
-      FunApp(f,l) -> List.exists (depends bdepinfo) l
-    | ReplIndex(b') -> false
-    | Var(b',l) ->
-	(not (List.exists (Terms.equal_terms t) depinfo.nodep)) && 
-	((
-	 ((b == b') || (not (Terms.is_restr b'))) &&
-	 (depinfo.other_variables ||
-         (List.exists (fun (b'',_) -> b'' == b') depinfo.dep))
-	   ) || (List.exists (depends bdepinfo) l))
-    | _ -> true (*Rough overapproximation of the dependency analysis when
-		  if/let/find/new occur.
-		  Parsing_helper.internal_error "If/let/find/new unexpected in DepAnal1.depends"*)
+let rec depends ((b, depinfo) as bdepinfo) t = 
+  match t.t_desc with
+  | FunApp(f,l) -> List.exists (depends bdepinfo) l
+  | ReplIndex(b') -> false
+  | Var(b',l) ->
+      (not (List.exists (Terms.equal_terms t) depinfo.nodep)) && 
+      ((
+       ((b == b') || (not (Terms.is_restr b'))) &&
+       (depinfo.other_variables ||
+       (List.exists (fun (b'',_) -> b'' == b') depinfo.dep))
+	 ) || (List.exists (depends bdepinfo) l))
+  | _ -> true (*Rough overapproximation of the dependency analysis when
+		if/let/find/new occur.
+		Parsing_helper.internal_error "If/let/find/new unexpected in DepAnal1.depends"*)
 
 let rec depends_pat f_depends = function
-    PatVar _ ->
+  | PatVar _ ->
       false
   | PatTuple(f,l) ->
       List.exists (depends_pat f_depends) l

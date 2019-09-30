@@ -75,12 +75,16 @@ val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bo
    eliminate collisions, and false otherwise. (In the latter case,
    the probability is obviously not counted, and the collisions must
    not be eliminated by the caller.) *)
-val add_proba_red_inside : term -> term -> term -> repl_index list -> probaf_mul_types -> bool
+val add_proba_red_inside : red_proba_t -> bool
 
 (* [equal_probaf_mul_types probaf_mul_types probaf_mul_types'] tests
    equality between values of type [probaf_mul_types] *)
 val equal_probaf_mul_types : probaf_mul_types -> probaf_mul_types -> bool
 
+val equal_coll : binder_coll_t -> binder_coll_t -> bool
+
+val equal_red : red_proba_t -> red_proba_t -> bool
+    
 (* [proba_for ri_list probaf_mul_types] returns the probability equal
    to the product of cardinals of the types of indices in [ri_list]
    times the probability multiplied by cardinals of types in
