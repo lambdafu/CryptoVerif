@@ -201,8 +201,10 @@ let nodepinfo =
     dep = [];
     other_variables = true;
     nodep = [] }
-      
-let no_dependency_anal = ((default_indep_test nodepinfo), (fun _ _ _ -> None))
+
+let no_collision_test simp_facts t1 t2 = None
+    
+let no_dependency_anal = ((default_indep_test nodepinfo), no_collision_test)
 
 (* [indep_test] and [collision_test] extract the 2 functions
    provided by a dependency analysis *)

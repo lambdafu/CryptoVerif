@@ -66,7 +66,8 @@ Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,
 second_preimage_resistance, hidden_key_second_preimage_resistance
 see https://eprint.iacr.org/2004/035
-
+Specify IND$-CPA
+   
 Put the basic proba functions of polynom.ml in a separate module? (to
 avoid confusion between proba fcts and polynom fcts)
 

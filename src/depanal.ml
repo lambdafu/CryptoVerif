@@ -312,6 +312,12 @@ let subst_idx_collision_entry idx image
   let (ri_list',probaf_mul_types') = subst_idx_entry idx image (ri_list,probaf_mul_types) in
   (t1,t2,side_cond,ri_list',probaf_mul_types')
 
+let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
+  List.iter (check_no_index idx) ac_coll;
+  let ac_term_coll' = List.map (subst_idx_entry idx image) ac_term_coll in
+  let ac_red_proba' = List.map (subst_idx_collision_entry idx image) ac_red_proba in
+  (ac_term_coll', ac_coll, ac_red_proba')
+
 let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt (used_indices, probaf_mul_types) =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
@@ -387,14 +393,15 @@ let add_term_collisions current_state t1 t2 b lopt (find_compos_probaf, dep_type
   | [ty] when ty == full_type -> false (* Quickly eliminate a case in which the probability will always be too large: the term [t2] can take any value depending of [b] *) 
   | _ ->
       let (idx, proba_term_collisions, (proba_var_coll, proba_collision)) = find_compos_probaf in
-      List.iter (check_no_index idx) proba_var_coll;
       let idx_t2 = ref [] in
       Proba.collect_array_indexes idx_t2 t2;
       let image_idx = (!idx_t2, dep_types, full_type, indep_types) in
-      let proba_term_collisions' = List.map (subst_idx_entry idx image_idx) proba_term_collisions in
-      let proba_collision' = List.map (subst_idx_collision_entry idx image_idx) proba_collision in
+      let (proba_term_collisions', proba_var_coll', proba_collision') =
+	subst_idx_proba idx image_idx
+	  (proba_term_collisions, proba_var_coll, proba_collision)
+      in
       let old_proba_state = (!term_collisions, Proba.get_current_state()) in
-      if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll &&
+      if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll' &&
 	List.for_all (fun (t1,t2,side_cond,indices,probaf_mul_types) -> Proba.add_proba_red_inside t1 t2 side_cond indices probaf_mul_types) proba_collision' &&
 	List.for_all (add_term_collision current_state t1 t2 b lopt) proba_term_collisions' then
 	true
@@ -708,7 +715,7 @@ let rec apply_eq_statements_at_root t =
    NOTE: the impact on the runtime of applying statements
    everywhere and not only at the root seems acceptable.
    If faster code is needed, a heuristic might be to apply 
-   statements at the root when it is an equality, everywhere otherwise.*)
+   statements at the root when it is an equality, everywhere otherwise.
 let rec apply_eq_statements t =
   let old_reduced = !Facts.reduced in
   Facts.reduced := false;
@@ -716,7 +723,7 @@ let rec apply_eq_statements t =
   let reduced = !Facts.reduced in
   Facts.reduced := old_reduced;
   if reduced then apply_eq_statements t' else t
-
+*)
 
 let fresh_repl_index() =
   { ri_sname = "arg-idx";
@@ -735,8 +742,8 @@ let extract_from_status t = function
   | Compos(probaf, t_1, l0opt') -> Some(probaf, t_1, l0opt')
   | Decompos(l0opt') -> Some(find_compos_probaf_from_term t, t, l0opt')
 
-let indep_binder b =
-  let b' = Terms.new_binder b in
+let indep_term t b idx =
+  let b' = Terms.create_binder_internal b.sname 0 b.btype [idx] in
   let rec node = { above_node = node;
 		   binders = [b'];
 		   true_facts_at_def = [];
@@ -746,17 +753,22 @@ let indep_binder b =
 		   definition = DNone; definition_success = DNone }
   in
   b'.def <- [node];
-  b'
-  
-let rec subst depinfo assql new_indep_terms t =
+  Terms.build_term2 t (Var(b', [Terms.term_from_repl_index idx]))
+
+let rec assoc_eq t = function
+  | [] -> raise Not_found
+  | ((t',res)::l) ->
+      if Terms.equal_terms t t' then
+	res
+      else
+	assoc_eq t l
+    
+let rec subst depinfo assql idx new_indep_terms t =
   match t.t_desc with
   | ReplIndex(b) -> t
   | Var(b,l) -> 
       (try
-	let b' = List.assq b (!assql) in
-	let res = Terms.build_term2 t (Var(b', List.map (subst depinfo assql new_indep_terms) l)) in
-	new_indep_terms := res :: (!new_indep_terms);
-	res
+	assoc_eq t (!assql) 
       with Not_found ->
         (* Do not rename variables that do not depend on the
 	   variable argument of find_compos *)
@@ -764,16 +776,15 @@ let rec subst depinfo assql new_indep_terms t =
 	((not depinfo.other_variables) &&
 	 (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
 	then
-	  Terms.build_term2 t (Var(b, List.map (subst depinfo assql new_indep_terms) l))
+	  Terms.build_term2 t (Var(b, List.map (subst depinfo assql idx new_indep_terms) l))
 	else if List.exists (Terms.equal_terms t) depinfo.nodep then
 	  t
 	else 
-	  let r = indep_binder b in
-	  assql := (b,r)::(!assql);
-	  let res = Terms.build_term2 t (Var(r, List.map (subst depinfo assql new_indep_terms) l)) in
+	  let res = indep_term t b idx in
+	  assql := (t,res)::(!assql);
 	  new_indep_terms := res :: (!new_indep_terms);
 	  res)
-  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (subst depinfo assql new_indep_terms) l))
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (subst depinfo assql idx new_indep_terms) l))
   | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in subst"
 
 let ok_l0opt l0opt l0opt' = 
@@ -791,7 +802,7 @@ let subst_l0opt b l l0opt =
   | None -> None
   | Some l0 -> Some (List.map (Terms.subst b.args_at_creation l) l0)
   
-let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depinfo) l0opt t =
+let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depinfo) simp_facts l0opt t =
   if (!Settings.debug_simplif_add_facts) then
     begin
       print_string "find_compos:t=";
@@ -839,14 +850,14 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
   | FunApp(f,l) when (f.f_options land Settings.fopt_COMPOS) != 0 ->
       begin
 	if decompos_only then Any else
-	match find_compos_l allow_bin var_depinfo l0opt l with
+	match find_compos_l allow_bin var_depinfo simp_facts l0opt l with
 	| None -> Any
 	| Some(probaf, l', l0opt') -> 
 	    Compos(probaf, Terms.build_term2 t (FunApp(f,l')), l0opt')
       end
   | FunApp(f,[t']) when (f.f_options land Settings.fopt_UNIFORM) != 0 ->
       if Proba.is_large_term t then
-	find_compos_gen true allow_bin var_depinfo l0opt t'
+	find_compos_gen true allow_bin var_depinfo simp_facts l0opt t'
       else Any
   | _ ->
       if decompos_only || (not allow_bin) then Any else
@@ -856,63 +867,74 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	 and replace this case with Any
 	 *)
       let vcounter = Terms.get_var_num_state() in
-      let main_var' = indep_binder main_var in
-      let init_subst = [(main_var,main_var')] in
-      let new_indep_terms = ref [] in
-      let t' = subst depinfo (ref init_subst) new_indep_terms t in
+      let idx = fresh_repl_index() in
+      let new_indep_terms = ref depinfo.nodep in
+      let t' = subst depinfo (ref []) idx new_indep_terms t in
+      let new_depinfo =
+	{ depinfo with
+          nodep = (!new_indep_terms) }
+      in
       if (!Settings.debug_simplif_add_facts) then
         begin
-          print_string "_->b'=";
-          Display.display_binder main_var';
-          print_string ", t'=";
+          print_string "_->t'=";
           Display.display_term t';
           print_string ", depinfo=";
           print_newline ()
         end;
-
-      (* TO DO apply collisions as well and collect probas in probaf *)
-      let f1 = apply_eq_statements (Terms.make_equal t t') in
-      let new_depinfo =
-	{ depinfo with
-          nodep = (!new_indep_terms) @ depinfo.nodep }
+      let idx_t' = ref [] in
+      Proba.collect_array_indexes idx_t' t';
+      let old_proba_state = Proba.get_and_empty_state() in
+      let old_reduced = !Facts.reduced in
+      let dependency_anal = 
+	(Facts.default_indep_test new_depinfo, Facts.no_collision_test)
       in
+      let f1 = Facts.apply_reds dependency_anal simp_facts (Terms.make_equal t t') in
+      let (ac_coll, ac_red_proba) = Proba.get_current_state() in
+      Proba.restore_state old_proba_state;
+      Facts.reduced := old_reduced;
       let r = 
-	match find_compos_bin (main_var, new_depinfo) l0opt f1 with
+	match find_compos_bin (main_var, new_depinfo) simp_facts l0opt f1 with
 	  None -> Any
-	| Some(probaf, _, l0opt') -> Compos(probaf, t, l0opt')
+	| Some((idx', proba', (ac_coll', ac_red_proba')), _, l0opt') ->
+	    let image_idx' = (!idx_t', [], t.t_type, None) in
+	    let (proba'', ac_coll'', ac_red_proba'') = 
+	      subst_idx_proba idx' image_idx'
+		(proba', ac_coll', ac_red_proba')
+	    in
+	    Compos((idx, proba'', (ac_coll @ ac_coll'', ac_red_proba @ ac_red_proba'')), t, l0opt')
       in
       Terms.set_var_num_state vcounter; (* Forget created variables *)
       r
 
-and find_compos_l (* decompos_only = false *) allow_bin var_depinfo l0opt = function
+and find_compos_l (* decompos_only = false *) allow_bin var_depinfo simp_facts l0opt = function
     [] -> None
   | (a::l) ->
-      match extract_from_status a (find_compos_gen false allow_bin var_depinfo l0opt a) with
+      match extract_from_status a (find_compos_gen false allow_bin var_depinfo simp_facts l0opt a) with
       |	None -> 
 	  begin
-	    match find_compos_l allow_bin var_depinfo l0opt l with
+	    match find_compos_l allow_bin var_depinfo simp_facts l0opt l with
 	      None -> None
 	    | Some(probaf, l', l0opt') -> Some(probaf, (any_term a)::l', l0opt')
 	  end
       |	Some(probaf, a', l0opt') -> Some(probaf, a'::List.map any_term l, l0opt')
 
-and find_compos_bin var_depinfo l0opt fact =
+and find_compos_bin var_depinfo simp_facts l0opt fact =
   match fact.t_desc with
   | FunApp(f,[t1;t2]) when f.f_cat == Equal ->
       if not (depends var_depinfo t2) then
-	extract_from_status t1 (find_compos_gen false false var_depinfo l0opt t1)
+	extract_from_status t1 (find_compos_gen false false var_depinfo simp_facts l0opt t1)
       else if not (depends var_depinfo t1) then
-	extract_from_status t2 (find_compos_gen false false var_depinfo l0opt t2)
+	extract_from_status t2 (find_compos_gen false false var_depinfo simp_facts l0opt t2)
       else None
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
       begin
-	match find_compos_bin var_depinfo l0opt t1 with
-	  None -> find_compos_bin var_depinfo l0opt t2
+	match find_compos_bin var_depinfo simp_facts l0opt t1 with
+	  None -> find_compos_bin var_depinfo simp_facts l0opt t2
 	| x -> x
       end
   | _ -> None
     
-let find_compos simp_facts var_depinfo l0opt t = find_compos_gen false true var_depinfo l0opt t
+let find_compos simp_facts var_depinfo l0opt t = find_compos_gen false true var_depinfo simp_facts l0opt t
 
 let rec find_compos_pat f_find_compos = function
   | PatVar _ -> None

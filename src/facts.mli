@@ -60,7 +60,8 @@ val new_repl_index : repl_index -> repl_index
    without any dependency information, so it can be used as a default.
    Other dependency analyses are defined in [simplify1.ml], 
    [transf_simplify.ml], etc.
- *)
+   *)
+val no_collision_test : dep_anal_collision_test
 val no_dependency_anal : dep_anal
 
 (* [default_indep_test depinfo] builds an independence test 
