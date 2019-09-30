@@ -784,11 +784,11 @@ let combine_options b opt_old opt_new =
    if not, it adds it and sets [dvar_list_changed]. *)
 
 let equal_find_compos_probaf
-    (idx1, ac_term_coll1, (ac_coll1, ac_red_proba1))
-    (idx2, ac_term_coll2, (ac_coll2, ac_red_proba2)) =
+    (idx1, (ac_term_coll1, ac_coll1, ac_red_proba1))
+    (idx2, all_coll2) =
   let image_idx2 = ([idx1], [], Settings.t_bitstring (*dummy type*), None) in
   let (ac_term_coll2', ac_coll2', ac_red_proba2') =
-    Depanal.subst_idx_proba idx2 image_idx2 (ac_term_coll2, ac_coll2, ac_red_proba2)
+    Depanal.subst_idx_proba idx2 image_idx2 all_coll2
   in
   (Terms.equal_lists_sets Proba.equal_coll ac_coll1 ac_coll2') &&
   (Terms.equal_lists_sets Proba.equal_probaf_mul_types ac_term_coll1 ac_term_coll2') &&
@@ -836,7 +836,7 @@ let add_proba_info (t1, t2, probaf) proba_info_list =
 
 let find_compos_proba_of_coll_var b = 
   let ri = Depanal.fresh_repl_index() in
-  (ri, [ri::b.args_at_creation,ProbaIndepCollOfVar b (*TODO maybe add b.args_at_creation*),[],b.btype,None],([],[]))
+  (ri, ([ri::b.args_at_creation,ProbaIndepCollOfVar b (*TODO maybe add b.args_at_creation*),[],b.btype,None],[],[]))
       
 let add_depend b t =
   match find_compos Terms.simp_facts_id t with
@@ -1530,7 +1530,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
 
 let init_find_compos_probaf b0 = 
   let ri = Depanal.fresh_repl_index() in
-  (ri, [ri::b0.args_at_creation,Proba.pcoll1rand b0.btype,[],b0.btype,None],([],[]))
+  (ri, ([ri::b0.args_at_creation,Proba.pcoll1rand b0.btype,[],b0.btype,None],[],[]))
     
 let check_all_deps b0 init_proba_state g =
   whole_game := g;

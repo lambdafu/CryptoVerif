@@ -18,7 +18,9 @@ val reset : coll_elim_t list -> game -> unit
 
 val matches_pair : term -> term -> term -> term -> bool
 
-val subst_idx_proba : repl_index -> repl_index list * typet list * typet * typet list option -> probaf_mul_types list * binder_coll_t list * red_proba_t list -> probaf_mul_types list * binder_coll_t list * red_proba_t list 
+val subst_idx_proba : repl_index ->
+  repl_index list * typet list * typet * typet list option ->
+    all_coll_t -> all_coll_t
     
 (* Adds a term collision *)
 val add_term_collisions :

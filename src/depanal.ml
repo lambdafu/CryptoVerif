@@ -389,17 +389,15 @@ let add_term_collision (cur_array, true_facts, order_assumptions, side_condition
     false
 
       
-let add_term_collisions current_state t1 t2 b lopt (find_compos_probaf, dep_types, full_type, indep_types) =
+let add_term_collisions current_state t1 t2 b lopt ((idx, all_coll), dep_types, full_type, indep_types) =
   match dep_types with
   | [ty] when ty == full_type -> false (* Quickly eliminate a case in which the probability will always be too large: the term [t2] can take any value depending of [b] *) 
   | _ ->
-      let (idx, proba_term_collisions, (proba_var_coll, proba_collision)) = find_compos_probaf in
       let idx_t2 = ref [] in
       Proba.collect_array_indexes idx_t2 t2;
       let image_idx = (!idx_t2, dep_types, full_type, indep_types) in
       let (proba_term_collisions', proba_var_coll', proba_collision') =
-	subst_idx_proba idx image_idx
-	  (proba_term_collisions, proba_var_coll, proba_collision)
+	subst_idx_proba idx image_idx all_coll
       in
       let old_proba_state = (!term_collisions, Proba.get_current_state()) in
       if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll' &&
@@ -736,7 +734,7 @@ let find_compos_probaf_from_term t =
   let ri = fresh_repl_index() in
   let t_idx = ref [] in
   Proba.collect_array_indexes t_idx t;
-  (ri, [ri::(!t_idx),Proba.pcoll1rand t.t_type,[],t.t_type,None],([],[]))
+  (ri, ([ri::(!t_idx),Proba.pcoll1rand t.t_type,[],t.t_type,None],[],[]))
     
 let extract_from_status t = function
   | Any -> None
@@ -896,13 +894,13 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
       let r = 
 	match find_compos_bin (main_var, new_depinfo) simp_facts l0opt f1 with
 	  None -> Any
-	| Some((idx', proba', (ac_coll', ac_red_proba')), _, l0opt') ->
+	| Some((idx', (proba', ac_coll', ac_red_proba')), _, l0opt') ->
 	    let image_idx' = (!idx_t', [], t.t_type, None) in
 	    let (proba'', ac_coll'', ac_red_proba'') = 
 	      subst_idx_proba idx' image_idx'
 		(proba', ac_coll', ac_red_proba')
 	    in
-	    Compos((idx, proba'', (ac_coll @ ac_coll'', ac_red_proba @ ac_red_proba'')), t, l0opt')
+	    Compos((idx, (proba'', ac_coll @ ac_coll'', ac_red_proba @ ac_red_proba'')), t, l0opt')
       in
       Terms.set_var_num_state vcounter; (* Forget created variables *)
       r
