@@ -777,10 +777,34 @@ type collision_state =
 
 type simplify_internal_info_t = 
     (binder * binder) list * (term * term * term * repl_index list * probaf_mul_types) list
-
+      (* (random_var_coll_list, collision_statements_list)
+	 Each element of [random_var_coll_list], [b1,b2], means that we eliminated collisions
+	 between the random variables [b1] and [b2].
+	 Each element of [collision_statements_list], 
+	 [t1,t2,side_cond,ri_list, (probaf, dep_types, full_type, indep_types_option)],
+	 means that we rewrote [t1] into [t2] provided [side_cond] holds,
+	 using a collision statement. The corresponding probability difference
+	 is represented by [ri_list, (probaf, dep_types, full_type, indep_types_option)]
+	 which represents the product 
+	 \prod_{ri \in ri_list} |ri.ri_type| * probaf * \prod_{T \in dep_types} |T|.
+	 When indep_types_option = Some indep_types, 
+	 \prod_{T \in dep_types} |T| <= |full_type|/\prod{T \in indep_types} |T|.
+      *)
+      
 (* For the dependency analyses *)
 
-type find_compos_probaf = probaf * unit (* WILL EVOLVE *)
+type find_compos_probaf = repl_index * (repl_index list * probaf_mul_types) list * simplify_internal_info_t
+      (* (ri_arg, proba1, proba_other) 
+         [ri_arg] is a placeholder for the replication indices and variables 
+	 of the term [t'] below (independent of [b0[...]]),
+         [proba1] represents the probabilities found in the [find_compos] function itself
+         Each element of [proba1], [ri_list, (probaf, dep_types, full_type, indep_types_option)]
+	 represents the product 
+	 \prod_{ri \in ri_list} |ri.ri_type| * probaf * \prod_{T \in dep_types} |T|.
+	 When indep_types_option = Some indep_types, 
+	 \prod_{T \in dep_types} |T| <= |full_type|/\prod{T \in indep_types} |T|.
+         [simplify_internal_info_t] represents the probabilities found in applying 
+	 simplifications and collision statements in find_compos_bin. *)
       
 type depend_status =
   | Compos of find_compos_probaf * term * term list option

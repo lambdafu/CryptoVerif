@@ -359,6 +359,21 @@ let t_any = { tname = "any";
               tserial = None;
               trandom = None }
 
+let p_empty_idx = { pname = "0";
+		    psize = 0 }
+    
+let t_empty_idx = { tname = "empty-idx";
+	      tcat = Interv p_empty_idx;
+	      toptions = tyopt_BOUNDED;
+	      tsize = Some(0,0);
+	      tpcoll = Some(0,0);
+              timplsize = None;
+              tpredicate = None;
+              timplname = None;
+              tserial = None;
+              trandom = None }
+
+    
 
 (* Constants *)
 

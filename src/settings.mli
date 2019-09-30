@@ -153,7 +153,8 @@ val t_bool : typet
 val t_unit : typet
 (* For events in terms; they have a type compatible with any type*)
 val t_any : typet
-
+val t_empty_idx : typet
+    
 val c_true : funsymb
 val c_false : funsymb
 

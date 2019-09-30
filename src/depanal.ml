@@ -285,25 +285,40 @@ let matches
     else
       None)
 
-let add_term_collisions (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((probaf, ()(*TODO*)), dep_types, full_type, indep_types) =
-  let probaf_mul_types = (probaf, dep_types, full_type, indep_types) in
-  match dep_types with
-  | [ty] when ty == full_type -> false (* Quickly eliminate a case in which the probability will always be too large: the term [t2] can take any value depending of [b] *) 
-  | _ -> 
+let check_no_index idx (b1,b2) =
+  assert (not (List.memq idx b1.args_at_creation || List.memq idx b2.args_at_creation))
+
+let addq_list accu l =
+  List.fold_left Terms.addq accu l
+    
+let rec subst_idx idx ri_list' = function
+  | [] -> []
+  | (idx1::ri_list) ->
+      if idx1 == idx then
+	begin
+	  assert (not (List.memq idx ri_list));
+	  addq_list ri_list ri_list'
+	end
+      else
+	idx1::(subst_idx idx ri_list' ri_list)
+    
+let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types')
+    (ri_list,(probaf,dep_types, full_type, indep_types)) =
+  assert (dep_types == []);
+  (subst_idx idx ri_list' ri_list,(probaf,dep_types', full_type', indep_types'))
+  
+let subst_idx_collision_entry idx image
+    (t1,t2,side_cond,ri_list,probaf_mul_types) =
+  let (ri_list',probaf_mul_types') = subst_idx_entry idx image (ri_list,probaf_mul_types) in
+  (t1,t2,side_cond,ri_list',probaf_mul_types')
+
+let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt (used_indices, probaf_mul_types) =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
      are replaced with fresh indices, and these indices are not included in
      cur_array initially (cur_array contains the replication and find
      indices above the considered terms) *)
-  let all_indices_ref = ref cur_array in
-  Proba.collect_array_indexes all_indices_ref t1;
-  Proba.collect_array_indexes all_indices_ref t2;
-  let all_indices = !all_indices_ref in
-  (* Compute the used indices *)
-  let used_indices_ref = ref [] in
-  Proba.collect_array_indexes used_indices_ref t1;
-  Proba.collect_array_indexes used_indices_ref t2;
-  let used_indices = !used_indices_ref in
+  let all_indices = addq_list cur_array used_indices in
   try
   let collision_info = 
     (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
@@ -365,6 +380,30 @@ let add_term_collisions (cur_array, true_facts, order_assumptions, side_conditio
   true
   with NoMatch -> 
     false
+
+      
+let add_term_collisions current_state t1 t2 b lopt (find_compos_probaf, dep_types, full_type, indep_types) =
+  match dep_types with
+  | [ty] when ty == full_type -> false (* Quickly eliminate a case in which the probability will always be too large: the term [t2] can take any value depending of [b] *) 
+  | _ ->
+      let (idx, proba_term_collisions, (proba_var_coll, proba_collision)) = find_compos_probaf in
+      List.iter (check_no_index idx) proba_var_coll;
+      let idx_t2 = ref [] in
+      Proba.collect_array_indexes idx_t2 t2;
+      let image_idx = (!idx_t2, dep_types, full_type, indep_types) in
+      let proba_term_collisions' = List.map (subst_idx_entry idx image_idx) proba_term_collisions in
+      let proba_collision' = List.map (subst_idx_collision_entry idx image_idx) proba_collision in
+      let old_proba_state = (!term_collisions, Proba.get_current_state()) in
+      if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll &&
+	List.for_all (fun (t1,t2,side_cond,indices,probaf_mul_types) -> Proba.add_proba_red_inside t1 t2 side_cond indices probaf_mul_types) proba_collision' &&
+	List.for_all (add_term_collision current_state t1 t2 b lopt) proba_term_collisions' then
+	true
+      else
+	begin
+	  term_collisions := fst old_proba_state;
+	  Proba.restore_state (snd old_proba_state);
+	  false
+	end
 
 let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, ((probaf, dep_types, _, _) as probaf_mul_types)) =
   print_string "Eliminated collisions between ";
@@ -678,10 +717,23 @@ let rec apply_eq_statements t =
   Facts.reduced := old_reduced;
   if reduced then apply_eq_statements t' else t
 
+
+let fresh_repl_index() =
+  { ri_sname = "arg-idx";
+    ri_vname = 0;
+    ri_type = Settings.t_empty_idx;
+    ri_link = NoLink }
+    
+let find_compos_probaf_from_term t =
+  let ri = fresh_repl_index() in
+  let t_idx = ref [] in
+  Proba.collect_array_indexes t_idx t;
+  (ri, [ri::(!t_idx),(Proba.pcoll1rand t.t_type,[],t.t_type,None)],([],[]))
+    
 let extract_from_status t = function
   | Any -> None
   | Compos(probaf, t_1, l0opt') -> Some(probaf, t_1, l0opt')
-  | Decompos(l0opt') -> Some((Proba.pcoll1rand t.t_type, ()(* TODO *)), t, l0opt')
+  | Decompos(l0opt') -> Some(find_compos_probaf_from_term t, t, l0opt')
 
 let indep_binder b =
   let b' = Terms.new_binder b in
