@@ -178,12 +178,12 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  let probaf_mul_types = (fst probaf'(*TODO*),dep_types,full_type,indep_types) in
   (* Compute the used indices *)
   let used_indices_ref = ref [] in
   Proba.collect_array_indexes used_indices_ref t1;
   Proba.collect_array_indexes used_indices_ref t2;
   let used_indices = !used_indices_ref in
+  let probaf_mul_types = (used_indices, fst probaf'(*TODO*),dep_types,full_type,indep_types) in
   try
     let true_facts' = 
       (* We optimize the speed of the system by not computing
@@ -191,7 +191,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	 is small enough that it can be accepted without 
 	 trying to eliminate some of the [used_indices].
 	 (The facts in [true_facts'] are used only for that.) *)
-      if Proba.is_small_enough_coll_elim used_indices probaf_mul_types then
+      if Proba.is_small_enough_coll_elim probaf_mul_types then
 	[]
       else
 	true_facts @ (Facts.get_facts_at facts_info) 
@@ -783,10 +783,6 @@ let combine_options b opt_old opt_new =
    It tests whether [one_info] is already contained in [proba_info_list],
    if not, it adds it and sets [dvar_list_changed]. *)
 
-let equal_term_coll (indices1, probaf_mul_types1) (indices2, probaf_mul_types2) =
-  (Terms.equal_lists_sets_q indices1 indices2) &&
-  (Proba.equal_probaf_mul_types probaf_mul_types1 probaf_mul_types2)
-	
 let equal_find_compos_probaf
     (idx1, ac_term_coll1, (ac_coll1, ac_red_proba1))
     (idx2, ac_term_coll2, (ac_coll2, ac_red_proba2)) =
@@ -795,7 +791,7 @@ let equal_find_compos_probaf
     Depanal.subst_idx_proba idx2 image_idx2 (ac_term_coll2, ac_coll2, ac_red_proba2)
   in
   (Terms.equal_lists_sets Proba.equal_coll ac_coll1 ac_coll2') &&
-  (Terms.equal_lists_sets equal_term_coll ac_term_coll1 ac_term_coll2') &&
+  (Terms.equal_lists_sets Proba.equal_probaf_mul_types ac_term_coll1 ac_term_coll2') &&
   (Terms.equal_lists_sets Proba.equal_red ac_red_proba1 ac_red_proba2')
 	
 let add_proba_info (t1, t2, probaf) proba_info_list =
@@ -840,7 +836,7 @@ let add_proba_info (t1, t2, probaf) proba_info_list =
 
 let find_compos_proba_of_coll_var b = 
   let ri = Depanal.fresh_repl_index() in
-  (ri, [ri::b.args_at_creation,(ProbaIndepCollOfVar b (*TODO maybe add b.args_at_creation*),[],b.btype,None)],([],[]))
+  (ri, [ri::b.args_at_creation,ProbaIndepCollOfVar b (*TODO maybe add b.args_at_creation*),[],b.btype,None],([],[]))
       
 let add_depend b t =
   match find_compos Terms.simp_facts_id t with
@@ -1534,7 +1530,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
 
 let init_find_compos_probaf b0 = 
   let ri = Depanal.fresh_repl_index() in
-  (ri, [ri::b0.args_at_creation,(Proba.pcoll1rand b0.btype,[],b0.btype,None)],([],[]))
+  (ri, [ri::b0.args_at_creation,Proba.pcoll1rand b0.btype,[],b0.btype,None],([],[]))
     
 let check_all_deps b0 init_proba_state g =
   whole_game := g;

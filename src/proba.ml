@@ -265,7 +265,7 @@ let rec is_1_over_card_t ty = function
   | Div(Cst 1.0, Card ty') -> ty == ty'
   | _ -> false
 		
-let is_small_enough_coll_elim proba_l (proba_t, dep_types, full_type, opt_indep_types) =
+let is_small_enough_coll_elim (proba_l, proba_t, dep_types, full_type, opt_indep_types) =
   (* The probability is
      \prod_{ri \in proba_l} |ri.ri_type| * proba_t * \prod_{T \in dep_types} T *)
   if !Settings.trust_size_estimates then
@@ -302,9 +302,9 @@ let is_small_enough_coll_elim proba_l (proba_t, dep_types, full_type, opt_indep_
     with Not_found ->
       false
 	
-let is_small_enough_collision proba_l ((proba_t, dep_types, _, _) as probaf_mul_types) =
+let is_small_enough_collision ((proba_l, proba_t, dep_types, _, _) as probaf_mul_types) =
   if !Settings.trust_size_estimates then
-    is_small_enough_coll_elim proba_l probaf_mul_types
+    is_small_enough_coll_elim probaf_mul_types
   else
     (dep_types == []) && (List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision))
   
@@ -354,7 +354,7 @@ let add_elim_collisions b1 b2 =
   let new_coll = (b1, b2) in
   if not (List.exists (equal_coll new_coll) (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation) (pcoll2rand b1.btype, [], b1.btype, None) then
+      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, pcoll2rand b1.btype, [], b1.btype, None) then
 	begin
 	  eliminated_collisions := new_coll :: (!eliminated_collisions);
 	  true
@@ -421,8 +421,9 @@ let rec collect_array_indexes accu t =
   | FunApp(f,l) -> List.iter (collect_array_indexes accu) l
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_array_indexes"
 
-let equal_probaf_mul_types (probaf, dep_types, full_type, indep_types)
-    (probaf', dep_types', full_type', indep_types') =
+let equal_probaf_mul_types (indices, probaf, dep_types, full_type, indep_types)
+    (indices', probaf', dep_types', full_type', indep_types') =
+  (Terms.equal_lists_sets_q indices indices') &&
   (Terms.equal_probaf probaf probaf') &&
   (Terms.equal_lists (==) dep_types dep_types') &&
   (full_type == full_type') &&
@@ -432,17 +433,16 @@ let equal_probaf_mul_types (probaf, dep_types, full_type, indep_types)
   | _ -> false)
 
 let equal_red
-    (t1,t2,side_cond,indices,probaf_mul_types)
-    (t1',t2',side_cond',indices', probaf_mul_types') =
+    (t1,t2,side_cond,probaf_mul_types)
+    (t1',t2',side_cond',probaf_mul_types') =
   (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') &&
   (Terms.equal_terms side_cond side_cond') &&
-  (Terms.equal_lists_sets_q indices indices') &&
   (equal_probaf_mul_types probaf_mul_types probaf_mul_types')
     
-let add_proba_red_inside ((t1, t2, side_cond, indices, probaf_mul_types) as new_red) =
+let add_proba_red_inside ((t1, t2, side_cond, probaf_mul_types) as new_red) =
   if not (List.exists (equal_red new_red) (!red_proba)) then
     begin
-      if is_small_enough_collision indices probaf_mul_types then
+      if is_small_enough_collision probaf_mul_types then
 	begin
 	  red_proba := new_red :: (!red_proba);
 	  true
@@ -458,9 +458,9 @@ let add_proba_red t1 t2 side_cond proba tl =
   let accu = ref [] in
   List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
   let indices = !accu in
-  add_proba_red_inside (t1, t2, side_cond, indices, (proba, [], t1.t_type, None))
+  add_proba_red_inside (t1, t2, side_cond, (indices, proba, [], t1.t_type, None))
 
-let proba_for indices (probaf, dep_types, _, _) =
+let proba_for (indices, probaf, dep_types, _, _) =
   let lindex = List.map (fun array_idx -> card array_idx.ri_type) indices in
   let ltypes = List.map (fun ty -> Card ty) dep_types in
   let p = Polynom.p_prod (probaf :: ltypes @ lindex) in
@@ -469,7 +469,7 @@ let proba_for indices (probaf, dep_types, _, _) =
   print_newline();
   p
     
-let proba_for_red_proba (t1, t2, side_cond, indices, probaf_mul_types) =
+let proba_for_red_proba (t1, t2, side_cond, probaf_mul_types) =
   print_string "Reduced ";
   Display.display_term t1;
   print_string " to ";
@@ -479,7 +479,7 @@ let proba_for_red_proba (t1, t2, side_cond, indices, probaf_mul_types) =
       print_string " where ";
       Display.display_term side_cond
     end;
-  proba_for indices probaf_mul_types
+  proba_for probaf_mul_types
 
 
 (* Initialization *)

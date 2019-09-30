@@ -226,8 +226,8 @@ and avoid merging in case they are different.
    *)
 
 let matches 
-    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types)
-    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', really_used_indices', t1', t2', b', lopt', probaf_mul_types') =
+    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, t1, t2, b, lopt, ((really_used_indices, _,_,_,_) as probaf_mul_types))
+    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', t1', t2', b', lopt', probaf_mul_types') =
   Terms.ri_auto_cleanup (fun () -> 
     if (matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2') && (Proba.equal_probaf_mul_types probaf_mul_types probaf_mul_types') then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
@@ -235,7 +235,7 @@ let matches
       (* Check that we can remove the same indices using common_facts as with all facts *)
       if initial_indices == really_used_indices then
 	(* If we removed no index, this is certainly true *)
-	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types)
+	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
       else
       let really_used_indices'' = filter_indices_coll common_facts used_indices initial_indices in
       if Terms.equal_lists (==) really_used_indices really_used_indices'' then
@@ -249,7 +249,7 @@ let matches
 	  print_string "Common facts:\n";
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts; *)
-	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types)
+	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
 	end
       else
 	begin
@@ -303,14 +303,14 @@ let rec subst_idx idx ri_list' = function
 	idx1::(subst_idx idx ri_list' ri_list)
     
 let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types')
-    (ri_list,(probaf,dep_types, full_type, indep_types)) =
+    (ri_list,probaf,dep_types, full_type, indep_types) =
   assert (dep_types == []);
-  (subst_idx idx ri_list' ri_list,(probaf,dep_types', full_type', indep_types'))
+  (subst_idx idx ri_list' ri_list,probaf,dep_types', full_type', indep_types')
   
 let subst_idx_collision_entry idx image
-    (t1,t2,side_cond,ri_list,probaf_mul_types) =
-  let (ri_list',probaf_mul_types') = subst_idx_entry idx image (ri_list,probaf_mul_types) in
-  (t1,t2,side_cond,ri_list',probaf_mul_types')
+    (t1,t2,side_cond,probaf_mul_types) =
+  let probaf_mul_types' = subst_idx_entry idx image probaf_mul_types in
+  (t1,t2,side_cond,probaf_mul_types')
 
 let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
   List.iter (check_no_index idx) ac_coll;
@@ -318,7 +318,7 @@ let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
   let ac_red_proba' = List.map (subst_idx_collision_entry idx image) ac_red_proba in
   (ac_term_coll', ac_coll, ac_red_proba')
 
-let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt (used_indices, probaf_mul_types) =
+let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((used_indices, probaf, dep_types, full_type, indep_types_opt) as probaf_mul_types) =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
      are replaced with fresh indices, and these indices are not included in
@@ -329,8 +329,8 @@ let add_term_collision (cur_array, true_facts, order_assumptions, side_condition
   let collision_info = 
     (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
-    if Proba.is_small_enough_coll_elim used_indices probaf_mul_types then 
-      (order_assumptions, side_condition, [], used_indices, used_indices, used_indices, t1, t2, b, lopt, probaf_mul_types)
+    if Proba.is_small_enough_coll_elim probaf_mul_types then 
+      (order_assumptions, side_condition, [], used_indices, used_indices, t1, t2, b, lopt, probaf_mul_types)
     else
       (* Try to reduce the list of used indices. 
 	 The initial list of indices is a reordering of the list of all indices.
@@ -356,8 +356,9 @@ let add_term_collision (cur_array, true_facts, order_assumptions, side_condition
       (* OLD: I can forget the facts without losing precision when I removed no index
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
-      if Proba.is_small_enough_coll_elim really_used_indices probaf_mul_types then 
-	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, really_used_indices, t1, t2, b, lopt, probaf_mul_types) 
+      let probaf_mul_types' = (really_used_indices, probaf, dep_types, full_type, indep_types_opt) in
+      if Proba.is_small_enough_coll_elim probaf_mul_types' then 
+	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types') 
       else
 	(* Raises NoMatch when the probability is too large to be accepted *)
 	raise NoMatch
@@ -412,12 +413,12 @@ let add_term_collisions current_state t1 t2 b lopt (find_compos_probaf, dep_type
 	  false
 	end
 
-let proba_for_term_collision (order_assumptions, side_condition, _, _, _, really_used_indices, t1, t2, b, lopt, ((probaf, dep_types, _, _) as probaf_mul_types)) =
+let proba_for_term_collision (order_assumptions, side_condition, _, _, _, t1, t2, b, lopt, ((really_used_indices, probaf, dep_types, _, _) as probaf_mul_types)) =
   print_string "Eliminated collisions between ";
   Display.display_term t1;
   print_string " and ";
   Display.display_term t2;
-  let p = Proba.proba_for really_used_indices probaf_mul_types in
+  let p = Proba.proba_for probaf_mul_types in
   print_string "(";
   if order_assumptions != [] then
     begin
@@ -735,7 +736,7 @@ let find_compos_probaf_from_term t =
   let ri = fresh_repl_index() in
   let t_idx = ref [] in
   Proba.collect_array_indexes t_idx t;
-  (ri, [ri::(!t_idx),(Proba.pcoll1rand t.t_type,[],t.t_type,None)],([],[]))
+  (ri, [ri::(!t_idx),Proba.pcoll1rand t.t_type,[],t.t_type,None],([],[]))
     
 let extract_from_status t = function
   | Any -> None

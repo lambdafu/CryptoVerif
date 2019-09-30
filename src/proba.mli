@@ -25,9 +25,9 @@ val card_index : binder -> probaf
 
 (* 3. Computation of probabilities of collisions *)
 
-(* [is_small_enough_coll_elim proba_l proba] tests if 
-   [proba_l * proba] is considered small enough to eliminate collisions *)
-val is_small_enough_coll_elim : repl_index list -> probaf_mul_types -> bool
+(* [is_small_enough_coll_elim proba] tests if 
+   [proba] is considered small enough to eliminate collisions *)
+val is_small_enough_coll_elim : probaf_mul_types -> bool
 
 (* [pcoll1rand t] is the probability of collision between a
    random value of type [t], and an independent value. *) 
@@ -85,11 +85,10 @@ val equal_coll : binder_coll_t -> binder_coll_t -> bool
 
 val equal_red : red_proba_t -> red_proba_t -> bool
     
-(* [proba_for ri_list probaf_mul_types] returns the probability equal
-   to the product of cardinals of the types of indices in [ri_list]
-   times the probability multiplied by cardinals of types in
+(* [proba_for probaf_mul_types] returns the probability equal
+   to the probability multiplied by cardinals of types in
    [probaf_mul_types]. It also displays this probability. *)
-val proba_for : repl_index list -> probaf_mul_types -> probaf
+val proba_for : probaf_mul_types -> probaf
     
 (* [reset coll_elim g] initializes probability counting.
    [g] is the whole game. [coll_elim] is the list of arguments of the
