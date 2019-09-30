@@ -763,7 +763,7 @@ let rec assoc_eq t = function
       else
 	assoc_eq t l
     
-let rec subst depinfo assql idx new_indep_terms t =
+let rec subst ((main_var, depinfo) as var_depinfo) assql idx new_indep_terms t =
   match t.t_desc with
   | ReplIndex(b) -> t
   | Var(b,l) -> 
@@ -772,11 +772,11 @@ let rec subst depinfo assql idx new_indep_terms t =
       with Not_found ->
         (* Do not rename variables that do not depend on the
 	   variable argument of find_compos *)
-	if (Terms.is_restr b) (* Restrictions (other than the main variable, which is already present in the association list assql) do not depend on the argument of find_compos *) ||
+	if ((Terms.is_restr b) && (b != main_var))(* Restrictions (other than main_var) do not depend on main_var *) ||
 	((not depinfo.other_variables) &&
 	 (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
 	then
-	  Terms.build_term2 t (Var(b, List.map (subst depinfo assql idx new_indep_terms) l))
+	  Terms.build_term2 t (Var(b, List.map (subst var_depinfo assql idx new_indep_terms) l))
 	else if List.exists (Terms.equal_terms t) depinfo.nodep then
 	  t
 	else 
@@ -784,7 +784,7 @@ let rec subst depinfo assql idx new_indep_terms t =
 	  assql := (t,res)::(!assql);
 	  new_indep_terms := res :: (!new_indep_terms);
 	  res)
-  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (subst depinfo assql idx new_indep_terms) l))
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (subst var_depinfo assql idx new_indep_terms) l))
   | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in subst"
 
 let ok_l0opt l0opt l0opt' = 
@@ -869,7 +869,7 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
       let vcounter = Terms.get_var_num_state() in
       let idx = fresh_repl_index() in
       let new_indep_terms = ref depinfo.nodep in
-      let t' = subst depinfo (ref []) idx new_indep_terms t in
+      let t' = subst var_depinfo (ref []) idx new_indep_terms t in
       let new_depinfo =
 	{ depinfo with
           nodep = (!new_indep_terms) }
