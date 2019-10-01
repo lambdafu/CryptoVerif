@@ -531,10 +531,6 @@ let rec display_proba level = function
 	  display_list_break (display_proba 0) pl
 	end;
       print_string ")"
-  | ProbaIndepCollOfVar b ->
-      print_string "\\kw{ProbaIndepCollOfVar}(";
-      display_binder b;
-      print_string ")"
 
 let display_pub_vars pub_vars =
   if pub_vars <> [] then

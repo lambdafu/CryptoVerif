@@ -431,16 +431,6 @@ and probaf =
   | Maxlength of game * term
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
-  | ProbaIndepCollOfVar of binder (* [ProbaIndepOfVar b] represents a probability p such that
-				     for all M independent of b0[l0], Pr[b[l] = M] <= p.
-				     It is used only in global dependency analysis, where b0 is the main
-				     variable on which we perform the analysis.
-				     This element is used in a status Compos(proba, term, l0opt).
-				     When l0opt = None, l0 and l above are any index.
-				     Otherwise, l0opt = Some l0, 
-				     the status of b must be Compos(proba_b, term_b, Some l0'),
-				     which tells us b[args_at_creation] depends on b0[l0'].
-				     Then l is such that l0 = l0'{l/b.args_at_creation}. *)
 
 (* An element of type [setf list] represents a probability
    computed as the sum of the probabilities [proba] 
@@ -795,7 +785,21 @@ type simplify_internal_info_t = binder_coll_t list * red_proba_t list
       
 (* For the dependency analyses *)
 
-type all_coll_t = probaf_mul_types list * binder_coll_t list * red_proba_t list
+type term_coll_t =
+  | Fixed of probaf_mul_types
+  | ProbaIndepCollOfVar of binder * term list * repl_index list
+     (* [ProbaIndepOfVar b] represents a probability p such that
+	for all M independent of b0[l0], Pr[b[l] = M] <= p.
+	It is used only in global dependency analysis, where b0 is the main
+	variable on which we perform the analysis.
+	This element is used in a status Compos(proba, term, l0opt).
+	When l0opt = None, l0 and l above are any index.
+	Otherwise, l0opt = Some l0, 
+	the status of b must be Compos(proba_b, term_b, Some l0'),
+	which tells us b[args_at_creation] depends on b0[l0'].
+	Then l is such that l0 = l0'{l/b.args_at_creation}. *)
+      
+type all_coll_t = term_coll_t list * binder_coll_t list * red_proba_t list
       
 type find_compos_probaf = repl_index * all_coll_t
       (* (ri_arg, all_coll) 

@@ -306,16 +306,24 @@ let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types')
     (ri_list,probaf,dep_types, full_type, indep_types) =
   assert (dep_types == []);
   (subst_idx idx ri_list' ri_list,probaf,dep_types', full_type', indep_types')
-  
-let subst_idx_collision_entry idx image
+
+let subst_idx_term_coll_entry idx image = function
+  | Fixed probaf_mul_types -> Fixed (subst_idx_entry idx image probaf_mul_types)
+  | ProbaIndepCollOfVar(b, args, ri_list) ->
+      let (ri_list',dep_types', full_type', indep_types') = image in
+      assert(dep_types' == []);
+      let ri_list'' = subst_idx idx ri_list' ri_list in
+      ProbaIndepCollOfVar(b, args, ri_list'')
+    
+let subst_idx_red_proba_entry idx image
     (t1,t2,side_cond,probaf_mul_types) =
   let probaf_mul_types' = subst_idx_entry idx image probaf_mul_types in
   (t1,t2,side_cond,probaf_mul_types')
 
 let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
   List.iter (check_no_index idx) ac_coll;
-  let ac_term_coll' = List.map (subst_idx_entry idx image) ac_term_coll in
-  let ac_red_proba' = List.map (subst_idx_collision_entry idx image) ac_red_proba in
+  let ac_term_coll' = List.map (subst_idx_term_coll_entry idx image) ac_term_coll in
+  let ac_red_proba' = List.map (subst_idx_red_proba_entry idx image) ac_red_proba in
   (ac_term_coll', ac_coll, ac_red_proba')
 
 let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((used_indices, probaf, dep_types, full_type, indep_types_opt) as probaf_mul_types) =
@@ -402,7 +410,10 @@ let add_term_collisions current_state t1 t2 b lopt ((idx, all_coll), dep_types, 
       let old_proba_state = (!term_collisions, Proba.get_current_state()) in
       if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll' &&
 	List.for_all Proba.add_proba_red_inside proba_collision' &&
-	List.for_all (add_term_collision current_state t1 t2 b lopt) proba_term_collisions' then
+	List.for_all (function
+	  | Fixed probaf_mul_types -> add_term_collision current_state t1 t2 b lopt probaf_mul_types
+	  | ProbaIndepCollOfVar _ -> Parsing_helper.internal_error "ProbaIndepCollOfVar should have been instantiated"
+		) proba_term_collisions' then
 	true
       else
 	begin
@@ -734,7 +745,7 @@ let find_compos_probaf_from_term t =
   let ri = fresh_repl_index() in
   let t_idx = ref [] in
   Proba.collect_array_indexes t_idx t;
-  (ri, ([ri::(!t_idx),Proba.pcoll1rand t.t_type,[],t.t_type,None],[],[]))
+  (ri, ([Fixed(ri::(!t_idx),Proba.pcoll1rand t.t_type,[],t.t_type,None)],[],[]))
     
 let extract_from_status t = function
   | Any -> None

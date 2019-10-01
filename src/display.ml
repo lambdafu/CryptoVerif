@@ -589,10 +589,6 @@ let rec display_proba level = function
 	  display_list (display_proba 0) pl
 	end;
       print_string ")"
-  | ProbaIndepCollOfVar b ->
-      print_string "ProbaIndepCollOfVar(";
-      display_binder b;
-      print_string ")"
 		      
 let rec display_monomial = function
     (coef, []) -> print_float coef

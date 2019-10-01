@@ -4054,7 +4054,7 @@ let rec make_max = function
   | l -> Max(l)
 
 let rec map_probaf env = function
-    (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | ProbaIndepCollOfVar _) as x -> Polynom.probaf_to_polynom x
+    (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ ) as x -> Polynom.probaf_to_polynom x
   | Proba(p,l) -> Polynom.probaf_to_polynom (Proba(p, List.map (fun prob -> 
       Polynom.polynom_to_probaf (map_probaf env prob)) l))
   | ActTime(f, l) -> 
