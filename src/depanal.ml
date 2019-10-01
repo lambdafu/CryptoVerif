@@ -811,7 +811,34 @@ let subst_l0opt b l l0opt =
   match l0opt with
   | None -> None
   | Some l0 -> Some (List.map (Terms.subst b.args_at_creation l) l0)
+
+(* Replaces b.args_at_creation with l (or indices in l) in a probability *)
+
+let subst_args_ri_list b l ri_list =
+  List.fold_left2 (fun ri_list idx t ->
+    let ri_list' = ref [] in
+    Proba.collect_array_indexes ri_list' t;
+    subst_idx idx (!ri_list') ri_list
+      ) ri_list b.args_at_creation l 
+	
+let subst_args_probaf_mul_types b l (ri_list, probaf, dep_types, full_type, indep_types_opt) =
+  (subst_args_ri_list b l ri_list, probaf, dep_types, full_type, indep_types_opt)
+
+let subst_args_term_coll b l = function
+  | Fixed probaf_mul_types ->
+      Fixed(subst_args_probaf_mul_types b l probaf_mul_types)
+  | ProbaIndepCollOfVar(b',args,ri_list) ->
+      ProbaIndepCollOfVar(b',List.map (Terms.subst b.args_at_creation l) args,
+			  subst_args_ri_list b l ri_list)
   
+let subst_args_red_proba b l (t1,t2,side_cond,probaf_mul_types) =
+  (t1,t2,side_cond,subst_args_probaf_mul_types b l probaf_mul_types)
+	
+let subst_args_proba b l (ri_arg, (term_coll, var_coll, red_proba)) =
+  let term_coll' = List.map (subst_args_term_coll b l) term_coll in
+  let red_proba' = List.map (subst_args_red_proba b l) red_proba in
+  (ri_arg, (term_coll', var_coll, red_proba'))
+	
 let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depinfo) simp_facts l0opt t =
   if (!Settings.debug_simplif_add_facts) then
     begin
@@ -854,7 +881,8 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	    | Compos(proba, t_1, l0opt') ->
 		if decompos_only then Any else
 		let l0opt' = subst_l0opt b' l l0opt' in
-		if ok_l0opt l0opt l0opt' then Compos(proba, Terms.subst b'.args_at_creation l t_1, l0opt') else Any
+		let proba' = subst_args_proba b' l proba in
+		if ok_l0opt l0opt l0opt' then Compos(proba', Terms.subst b'.args_at_creation l t_1, l0opt') else Any
 	with Not_found -> Any
       end
   | FunApp(f,l) when (f.f_options land Settings.fopt_COMPOS) != 0 ->
