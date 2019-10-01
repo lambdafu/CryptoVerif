@@ -100,13 +100,38 @@ type branch = Unreachable | OnlyThen | OnlyElse | BothDepB | BothIndepB of term
 (* [expand_probaf f probaf] replaces [ProbaIndepCollOfVar b] with 
    the corresponding actual probability, computed by calling [f b]. *)
 
-let expand_probaf f p =  TODO (*raise Not_found *)
-
+let expand_probaf f (ri_arg, (ac_term_coll0, ac_var_coll0, ac_red_proba0)) =
+  let all_coll' =
+    List.fold_left (fun (ac_term_coll, ac_var_coll, ac_red_proba) term_coll ->
+      match term_coll with
+      | Fixed _ -> (term_coll ::  ac_term_coll, ac_var_coll, ac_red_proba)
+      | ProbaIndepCollOfVar(b, args, ri_list) ->
+	  let probaf_b = f b in
+	  let (ri_arg', all_coll1) = Depanal.subst_args_proba b args probaf_b in
+	  let image = (ri_list,[], Settings.t_bitstring (*dummy type*), None) in
+	  let (ac_term_coll1, ac_var_coll1, ac_red_proba1) =
+	    Depanal.subst_idx_proba ri_arg' image all_coll1
+	  in
+	  (ac_term_coll1 @ ac_term_coll, ac_var_coll1 @ ac_var_coll, ac_red_proba1 @ ac_red_proba)
+      ) ([], ac_var_coll0, ac_red_proba0) ac_term_coll0
+  in
+  (ri_arg, all_coll')
+    
 (* [compute_probas()] computes the probabilities associated with each
    [ProbaIndepCollOfVar b], for [b] in [dvar_list] *)
 
-let find_compos_probaf_sum l = TODO (*raise Not_found TODO 
-  (Polynom.p_sum (List.map fst l), ()) *)
+let find_compos_probaf_sum l =
+  let ri_arg = Depanal.fresh_repl_index() in
+  let image = ([ri_arg],[], Settings.t_bitstring (*dummy type*), None) in 
+  let all_coll' = 
+    List.fold_left (fun (ac_term_coll, ac_var_coll, ac_red_proba) (ri_arg1, all_coll1) ->
+      let (ac_term_coll1, ac_var_coll1, ac_red_proba1) =
+	Depanal.subst_idx_proba ri_arg1 image all_coll1
+      in
+      (ac_term_coll1 @ ac_term_coll, ac_var_coll1 @ ac_var_coll, ac_red_proba1 @ ac_red_proba)
+	) ([],[],[]) l
+  in
+  (ri_arg, all_coll')
     
 let compute_probas() =
   List.iter (fun (b, (_, _, (_, probaf_total_ref))) ->
