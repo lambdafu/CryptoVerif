@@ -193,13 +193,14 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
      in [dvar_list] may not be all set, possibly leading to an error
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
-  let probaf' = expand_probaf get_val probaf in
+  let (idx, all_coll) as probaf' = expand_probaf get_val probaf in
   (* Compute the used indices *)
-  let used_indices_ref = ref [] in
-  Proba.collect_array_indexes used_indices_ref t1;
-  Proba.collect_array_indexes used_indices_ref t2;
-  let used_indices = !used_indices_ref in
-  let probaf_mul_types = (used_indices, fst probaf'(*TODO*),dep_types,full_type,indep_types) in
+  let idx_t2 = ref [] in
+  Proba.collect_array_indexes idx_t2 t2;
+  let image_idx = (!idx_t2, dep_types, full_type, indep_types) in
+  let (proba_term_collisions', proba_var_coll', proba_collision') =
+    Depanal.subst_idx_proba idx image_idx all_coll
+  in
   try
     let true_facts' = 
       (* We optimize the speed of the system by not computing
@@ -207,7 +208,14 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	 is small enough that it can be accepted without 
 	 trying to eliminate some of the [used_indices].
 	 (The facts in [true_facts'] are used only for that.) *)
-      if Proba.is_small_enough_coll_elim probaf_mul_types then
+      if
+	(List.for_all (function
+	  | Fixed probaf_mul_types -> Proba.is_small_enough_coll_elim probaf_mul_types
+	  | ProbaIndepCollOfVar _ -> Parsing_helper.internal_error "ProbaIndepCollOfVar should have been instantiated by expand_probaf")
+	   proba_term_collisions') &&
+	(List.for_all (fun (_,_,_,probaf_mul_types) -> Proba.is_small_enough_coll_elim probaf_mul_types)
+	   proba_collision')
+      then
 	[]
       else
 	true_facts @ (Facts.get_facts_at facts_info) 

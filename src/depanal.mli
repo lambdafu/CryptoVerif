@@ -21,7 +21,9 @@ val matches_pair : term -> term -> term -> term -> bool
 val subst_idx_proba : repl_index ->
   repl_index list * typet list * typet * typet list option ->
     all_coll_t -> all_coll_t
-    
+
+val subst_args_proba : binder -> term list -> find_compos_probaf -> find_compos_probaf
+	
 (* Adds a term collision *)
 val add_term_collisions :
   repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
