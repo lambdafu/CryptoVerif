@@ -116,10 +116,11 @@ let expand_probaf f (ri_arg, (ac_term_coll0, ac_var_coll0, ac_red_proba0)) =
       ) ([], ac_var_coll0, ac_red_proba0) ac_term_coll0
   in
   (ri_arg, all_coll')
-    
-(* [compute_probas()] computes the probabilities associated with each
-   [ProbaIndepCollOfVar b], for [b] in [dvar_list] *)
 
+(* [find_compos_probaf_sum l] returns a structure [find_compos_probaf] 
+   representing the sum of the elements of [l], which is a list
+   of [find_compos_probaf]. *)
+    
 let find_compos_probaf_sum l =
   let ri_arg = Depanal.fresh_repl_index() in
   let image = ([ri_arg],[], Settings.t_bitstring (*dummy type*), None) in 
@@ -133,6 +134,9 @@ let find_compos_probaf_sum l =
   in
   (ri_arg, all_coll')
     
+(* [compute_probas()] computes the probabilities associated with each
+   [ProbaIndepCollOfVar b], for [b] in [dvar_list] *)
+
 let compute_probas() =
   List.iter (fun (b, (_, _, (_, probaf_total_ref))) ->
     probaf_total_ref := Unset) (!dvar_list);
@@ -807,6 +811,36 @@ let combine_options b opt_old opt_new =
    It tests whether [one_info] is already contained in [proba_info_list],
    if not, it adds it and sets [dvar_list_changed]. *)
 
+let display_find_compos_probaf (ri_arg, (ac_term_coll, ac_var_coll, ac_red_proba)) =
+  print_string "Index of independent term: "; Display.display_repl_index ri_arg; print_newline();
+  print_string "Term collisions:\n";
+  List.iter (function
+    | Fixed probaf_mul_types -> ignore (Proba.proba_for probaf_mul_types)
+    | ProbaIndepCollOfVar(b, args, ri) ->
+	print_string "Indep. coll of ";
+	Display.display_var b args;
+	print_string " ";
+	Display.display_list Display.display_repl_index ri;
+	print_newline()) ac_term_coll;
+  print_string "Variable collisions:\n";
+  List.iter (fun (b1,b2) ->
+    print_string " ";
+    ignore (Proba.proba_for_collision b1 b2)
+      ) ac_var_coll;
+  print_string "Application of collision statements:\n";
+  List.iter (fun red_proba ->
+    print_string " ";
+    ignore (Proba.proba_for_red_proba red_proba)
+      ) ac_red_proba
+    
+let display_proba_info (t1, t2, probaf) =
+  Display.display_term t1;
+  print_string ", ";
+  Display.display_term t2;
+  print_string ", ";
+  print_newline();
+  display_find_compos_probaf probaf
+
 let equal_term_coll term_coll1 term_coll2 =
   match term_coll1, term_coll2 with
   | Fixed probaf_mul_types1, Fixed probaf_mul_types2 ->
@@ -828,39 +862,25 @@ let equal_find_compos_probaf
   (Terms.equal_lists_sets Proba.equal_coll ac_coll1 ac_coll2') &&
   (Terms.equal_lists_sets equal_term_coll ac_term_coll1 ac_term_coll2') &&
   (Terms.equal_lists_sets Proba.equal_red ac_red_proba1 ac_red_proba2')
-	
-let add_proba_info (t1, t2, probaf) proba_info_list =
+
+let add_proba_info ((t1, t2, probaf) as proba_info) proba_info_list =
   if not (List.exists (fun (t1', t2', probaf') ->
     (Depanal.matches_pair t1' t2' t1 t2) &&
     (equal_find_compos_probaf probaf probaf')) proba_info_list)
   then
     begin
-	      (* Above, I use "matches_pair" to check that t1 = t2 is
-                 a particular case of the assignment t1' = t2' seen before.
-                 If this is true, I have nothing to add.
-                 (Testing equality (t1,t2) = (t1',t2') is not exactly 
-		 what we want because these terms may contain wildcards "?")
-	      Display.display_binder b;
-	      print_newline();
-	      let display_proba_info (t1', t2', charac_type'') =
-		Display.display_term t1';
-		print_string ", ";
-		Display.display_term t2';
-		print_string ", ";
-		begin
-		match charac_type'' with
-		  CharacType t -> print_string t.tname
-		| CharacTypeOfVar b -> Display.display_binder b
-		end;
-		print_newline()
-	      in
-	      print_string " Already present: ";
-	      List.iter display_proba_info (!proba_info_list);
-	      print_string "Adding: ";
-              display_proba_info (t1, t2, charac_type');
+      (* Above, I use "matches_pair" to check that t1 = t2 is
+         a particular case of the assignment t1' = t2' seen before.
+         If this is true, I have nothing to add.
+         (Testing equality (t1,t2) = (t1',t2') is not exactly 
+	 what we want because these terms may contain wildcards "?") 
+      print_string " Already present: ";
+      List.iter display_proba_info proba_info_list;
+      print_string "Adding: ";
+      display_proba_info proba_info;
 	      *)
       dvar_list_changed := true;
-      (t1, t2, probaf) :: proba_info_list
+      proba_info :: proba_info_list
     end
   else
     proba_info_list

@@ -426,10 +426,10 @@ let equal_probaf_mul_types (indices, probaf, dep_types, full_type, indep_types)
   (Terms.equal_lists_sets_q indices indices') &&
   (Terms.equal_probaf probaf probaf') &&
   (Terms.equal_lists (==) dep_types dep_types') &&
-  (full_type == full_type') &&
   (match indep_types, indep_types' with
   | None, None -> true
-  | Some l, Some l' -> Terms.equal_lists (==) l l'
+  | Some l, Some l' -> (* full_type does not matter when indep_types = None *)
+      (full_type == full_type') && (Terms.equal_lists (==) l l')
   | _ -> false)
 
 let equal_red

@@ -49,6 +49,10 @@ val collect_array_indexes : repl_index list ref -> term -> unit
    not be eliminated by the caller.) *)
 val add_elim_collisions : binder -> binder -> bool
 
+(* [proba_for_collision b1 b2] returns the probability of
+   collision between [b1] and [b2], and displays it. *)
+val proba_for_collision : binder -> binder -> probaf
+    
 (* [add_proba_red t1 t2 side_cond proba tl] adds the probability change that
    happens when reducing [t1] into [t2] using a "collision" statement.
    [side_cond] is a side condition that must hold to be able to 
@@ -63,13 +67,12 @@ val add_elim_collisions : binder -> binder -> bool
    not be eliminated by the caller.) *)
 val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bool
 
-(* [add_proba_red_inside t1 t2 side_cond ri_list probaf_mul_types] 
+(* [add_proba_red_inside (t1, t2, side_cond, probaf_mul_types)] 
    also adds the probability change that happens when reducing 
    [t1] into [t2] using a "collision" statement.
    [side_cond] is a side condition that must hold to be able to 
    apply the "collision" statement.
-   The probability in question is the product of cardinals of
-   the types of indices in [ri_list] times the probability
+   The probability in question is the probability
    multiplied by cardinals of types in [probaf_mul_types].
    Returns true when the probability is considered small enough to
    eliminate collisions, and false otherwise. (In the latter case,
@@ -77,6 +80,12 @@ val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bo
    not be eliminated by the caller.) *)
 val add_proba_red_inside : red_proba_t -> bool
 
+(* [proba_for_red_proba (t1, t2, side_cond, probaf_mul_types)]
+   returns the probability of reducing [t1] into [t2] 
+   using a "collision" statement, assuming [side_cond] holds,
+   as stored in [probaf_mul_types], and displays it. *)
+val proba_for_red_proba : red_proba_t -> probaf
+    
 (* [equal_probaf_mul_types probaf_mul_types probaf_mul_types'] tests
    equality between values of type [probaf_mul_types] *)
 val equal_probaf_mul_types : probaf_mul_types -> probaf_mul_types -> bool

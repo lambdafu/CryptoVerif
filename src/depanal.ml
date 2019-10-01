@@ -286,7 +286,8 @@ let matches
       None)
 
 let check_no_index idx (b1,b2) =
-  assert (not (List.memq idx b1.args_at_creation || List.memq idx b2.args_at_creation))
+  assert (not (List.memq idx b1.args_at_creation ||
+               List.memq idx b2.args_at_creation))
 
 let addq_list accu l =
   List.fold_left Terms.addq accu l
