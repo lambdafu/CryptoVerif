@@ -201,10 +201,30 @@ let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
     equal_find_compos_probaf probaf_inst probaf'
   with NoMatch -> false
 
-let matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2' =
+let rec lookup next_f t = function
+  | [] -> (* Not found *) next_f false
+  | a::l ->
+      try 
+	match_term3 (fun () -> (* Found *) next_f true) t a ()
+      with NoMatch ->
+	lookup next_f t l
+
+let rec find_common next_f accu l1 l2 =
+  match l1 with
+  | [] -> next_f accu
+  | t::l ->
+      lookup (fun found ->
+	let accu' = if found then t::accu else accu in
+	find_common next_f accu' l l2
+	  ) t l2
+	
+      
+let matches_term_coll
+    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
+    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', t1', t2', b', lopt', probaf_mul_types') =
   try 
     if (order_assumptions != []) && (order_assumptions' == []) then
-      false
+      raise Not_found
     else
       begin
 	match_term3 (match_term3 (match_term3 (fun () -> 
@@ -220,18 +240,16 @@ let matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_ass
 	      (List.for_all (fun (br1,br2) ->
 		List.exists (fun (br1',br2') ->
 		  (Terms.equal_terms br1 br1') && (Terms.equal_terms br2 br2')) order_assumptions') order_assumptions_instance)
-	  then raise NoMatch
+	  then raise NoMatch;
+	  let probaf_mul_types_inst = instantiate_probaf_mul_types probaf_mul_types in
+	  if not (Proba.equal_probaf_mul_types probaf_mul_types_inst probaf_mul_types') then
+	    (* For speed, we do not reconsider other ways to match the 3 terms,
+	       so we raise Not_found rather than NoMatch *)
+	    raise Not_found;
+	  find_common (fun common_facts -> common_facts) [] true_facts true_facts'
 	      ) side_condition side_condition') t2 t2') t1 t1' ();
-	true
       end
-  with NoMatch -> false
-
-let eq_terms3 t1 t2 =
-  try
-    match_term3 (fun () -> ()) t1 t2 ();
-    true
-  with NoMatch ->
-    false
+  with NoMatch -> raise Not_found
 
 let get_index_size b =
   match b.ri_type.tcat with
@@ -349,23 +367,22 @@ and avoid merging in case they are different.
    *)
 
 let matches 
-    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, t1, t2, b, lopt, ((really_used_indices, _,_,_,_) as probaf_mul_types))
-    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', t1', t2', b', lopt', probaf_mul_types') =
-  Terms.ri_auto_cleanup (fun () -> 
-    if (matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2') && (Proba.equal_probaf_mul_types probaf_mul_types probaf_mul_types') then
-      let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
-      (* TODO take into account instantiated indices in Proba.equal_probaf_mul_types probaf_mul_types probaf_mul_types'
-         + build a single substitution that matches in matches_pair_with_order_ass as well as for building the whole common_facts
-	 Same fix for other usages of eq_term3 as well as for matches_pair in src/transf_globaldepanal.ml *)
+    ((order_assumptions, side_condition, true_facts,
+      used_indices, initial_indices, t1, t2, b, lopt,
+      ((really_used_indices, _,_,_,_) as probaf_mul_types)) as coll)
+    coll' =
+  Terms.ri_auto_cleanup (fun () ->
+    try 
+      let common_facts = matches_term_coll coll coll' in
       Terms.ri_cleanup();
       (* Check that we can remove the same indices using common_facts as with all facts *)
       if initial_indices == really_used_indices then
 	(* If we removed no index, this is certainly true *)
 	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
       else
-      let really_used_indices'' = filter_indices_coll common_facts used_indices initial_indices in
-      if Terms.equal_lists (==) really_used_indices really_used_indices'' then
-	begin
+	let really_used_indices'' = filter_indices_coll common_facts used_indices initial_indices in
+	if Terms.equal_lists (==) really_used_indices really_used_indices'' then
+	  begin
 	  (*
 	  print_string "Simplify.matches ";
 	  Display.display_term t1;
@@ -375,10 +392,10 @@ let matches
 	  print_string "Common facts:\n";
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts; *)
-	  Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
-	end
-      else
-	begin
+	    Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
+	  end
+	else
+	  begin
 	  (*
 	  print_string "Simplify.matches ";
 	  Display.display_term t1;
@@ -406,10 +423,9 @@ let matches
 	  print_string "really_used_indices''\n";
 	  Display.display_list Display.display_binder really_used_indices'';
 	  print_newline();*)
-	  None
-	end
-    else
-      None)
+	    None
+	  end
+  with Not_found -> None)
 
 let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((used_indices, probaf, dep_types, full_type, indep_types_opt) as probaf_mul_types) =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing
@@ -1292,15 +1308,16 @@ let match_oracle_call
   Display.display_term t2;
     *)
   Terms.auto_cleanup(fun () ->
-    if eq_terms3 t1 t2 then
-      let common_facts = List.filter (fun f1 -> List.exists (fun f2 -> eq_terms3 f1 f2) true_facts2) true_facts1 in
-      Terms.ri_cleanup();
-      let proba_state = Proba.get_current_state() in
+    try
+      match_term3 (fun () -> 
+	let common_facts = find_common (fun common_facts -> common_facts) [] true_facts1 true_facts2 in
+	Terms.ri_cleanup();
+	let proba_state = Proba.get_current_state() in
       (* Check that we can remove the same indices using common_facts as with all facts *)
-      let really_used_indices1' = filter_indices_coll common_facts used_indices1 initial_indices1 in
-      let r1 = Terms.equal_lists (==) really_used_indices1 really_used_indices1' in
-      if r1 then
-	begin
+	let really_used_indices1' = filter_indices_coll common_facts used_indices1 initial_indices1 in
+	let r1 = Terms.equal_lists (==) really_used_indices1 really_used_indices1' in
+	if r1 then
+	  begin
 	  (*
 	  print_string "Simplify.same_oracle_call ";
 	  Display.display_term t1;
@@ -1311,10 +1328,10 @@ let match_oracle_call
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts;
 	  *)
-	  Some (t1, common_facts, all_indices1, initial_indices1, used_indices1, really_used_indices1)
-	end
-      else
-	begin
+	    Some (t1, common_facts, all_indices1, initial_indices1, used_indices1, really_used_indices1)
+	  end
+	else
+	  begin
 	  (*
 	  print_string "Simplify.same_oracle_call ";
 	  Display.display_term t1;
@@ -1341,19 +1358,18 @@ let match_oracle_call
 	  print_string "used_indices1\n";
 	  Display.display_list Display.display_term used_indices1;
 	  print_newline();*)
-	  Proba.restore_state proba_state;
-	  None
-	end
-    else
-      begin
-	(*
-	  print_string "Simplify.same_oracle_call ";
-	  Display.display_term t1;
-	  print_string " with ";
-	  Display.display_term t2;
-	  print_string " fails\n";*)
-	None
-      end
+	    Proba.restore_state proba_state;
+	    None
+	  end
+	  ) t1 t2 ()
+    with NoMatch ->
+      (*
+	print_string "Simplify.same_oracle_call ";
+	Display.display_term t1;
+	print_string " with ";
+	Display.display_term t2;
+	print_string " fails\n";*)
+      None
     )
 
 let same_oracle_call call1 call2 =
