@@ -1024,14 +1024,30 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
       Proba.collect_array_indexes idx_t' t';
       let old_proba_state = Proba.get_and_empty_state() in
       let old_reduced = !Facts.reduced in
-      let dependency_anal = 
-	(Facts.default_indep_test new_depinfo, Facts.no_collision_test)
+      let dependency_anal =
+	let indep_test simp_facts t (b,l) =
+	  let dep_info =
+	    if (b == main_var) &&
+	      (match l0opt with
+	      | None -> true
+	      | Some l0 -> Terms.equal_term_lists l0 l)
+	    then
+	      new_depinfo
+	    else
+	      Facts.nodepinfo
+	  in
+	  Facts.default_indep_test dep_info simp_facts t (b,l)
+	in
+	(indep_test, Facts.no_collision_test)
       in
       let f1 = Facts.apply_reds dependency_anal simp_facts (Terms.make_equal t t') in
       let (ac_coll, ac_red_proba) = Proba.get_current_state() in
       Proba.restore_state old_proba_state;
       Facts.reduced := old_reduced;
-      let r = 
+      let r =
+	if Terms.is_false f1 then
+	  Compos((idx, ([], ac_coll, ac_red_proba)), t, l0opt)
+	else
 	match find_compos_bin (main_var, new_depinfo) simp_facts l0opt f1 with
 	  None -> Any
 	| Some((idx', (proba', ac_coll', ac_red_proba')), _, l0opt') ->
@@ -1040,7 +1056,12 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	      subst_idx_proba idx' image_idx'
 		(proba', ac_coll', ac_red_proba')
 	    in
-	    Compos((idx, (proba'', ac_coll @ ac_coll'', ac_red_proba @ ac_red_proba'')), t, l0opt')
+	    (* Even if [l0opt'] is more precise than [l0opt], i.e.,
+	       [l0opt = None] and [l0opt' = Some(...)], I cannot
+	       exploit this information because I may have used that
+	       terms are independent of all [b0[...]] in 
+	       [Facts.apply_reds] above *)
+	    Compos((idx, (proba'', ac_coll @ ac_coll'', ac_red_proba @ ac_red_proba'')), t, l0opt)
       in
       Terms.set_var_num_state vcounter; (* Forget created variables *)
       r

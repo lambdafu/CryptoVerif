@@ -722,7 +722,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		t' 
 	      else
 		begin
-		  if not (Terms.is_false redr) then
+		  if not false_redr then
 	            (* I can test conditions that make restrictions independent only
 		       when the result "redr" is false *)
 		    raise NoMatch;

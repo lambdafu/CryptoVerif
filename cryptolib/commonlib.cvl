@@ -2313,33 +2313,6 @@ collision x <-R Znw; forall X: subG, Y: subG;
 	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
 	  if X independent-of x && Y independent-of x.
 
-(* The next collision follows from the previous one and injectivity of
-   pow_k o subGtoG: 
-   pow_k(subGtoG(exp_div_k(g_k, y))) = X implies
-   pow_k(subGtoG(exp_div_k(g_k, y))) = pow_k(subGtoG(Y))
-   from some Y independent of y.
-   By injectivity of pow_k o subGtoG,
-   exp_div_k(g_k, y) = Y
-   By the collision above, this is false except with probability 2*Pcoll1rand(Znw)
-   since (g_k = sub_zero) && (Y = sub_zero) is false and g_k and Y are
-   independent of y. *)
-collision y <-R Znw; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-collision y <-R Znw; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k'(g_k, y))) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-
-(* The next collision follows as the one above, using the injectivity
-   of subGtoG. *)
-collision y <-R Znw; forall X: G;
-	  return(subGtoG(exp_div_k(g_k, y)) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-collision y <-R Znw; forall X: G;
-	  return(subGtoG(exp_div_k'(g_k, y)) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-
-
 
 collision x <-R Znw; forall y: Znw, X: subG; 
   return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
@@ -2464,33 +2437,6 @@ collision x <-R Z; forall X: subG, Y: subG;
 collision x <-R Z; forall X: subG, Y: subG;
 	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Z))=> return((X = sub_zero) && (Y = sub_zero))
 	  if X independent-of x && Y independent-of x.
-
-(* The next collision follows from the previous one and injectivity of
-   pow_k o subGtoG: 
-   pow_k(subGtoG(exp_div_k(g_k, y))) = X implies
-   pow_k(subGtoG(exp_div_k(g_k, y))) = pow_k(subGtoG(Y))
-   from some Y independent of y.
-   By injectivity of pow_k o subGtoG,
-   exp_div_k(g_k, y) = Y
-   By the collision above, this is false except with probability 2*Pcoll1rand(Z)
-   since (g_k = sub_zero) && (Y = sub_zero) is false and g_k and Y are
-   independent of y. *)
-collision y <-R Z; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Z))=> return(false)
-	  if X independent-of y.
-collision y <-R Z; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k'(g_k, y))) = X) <=(2*Pcoll1rand(Z))=> return(false)
-	  if X independent-of y.
-
-(* The next collision follows as the one above, using the injectivity
-   of subGtoG. *)
-collision y <-R Z; forall X: G;
-	  return(subGtoG(exp_div_k(g_k, y)) = X) <=(2*Pcoll1rand(Z))=> return(false)
-	  if X independent-of y.
-collision y <-R Z; forall X: G;
-	  return(subGtoG(exp_div_k'(g_k, y)) = X) <=(2*Pcoll1rand(Z))=> return(false)
-	  if X independent-of y.
-
 
 
 collision x <-R Z; forall y: Z, X: subG; 
@@ -2617,33 +2563,6 @@ collision x <-R Znw; forall X: subG, Y: subG;
 collision x <-R Znw; forall X: subG, Y: subG;
 	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
 	  if X independent-of x && Y independent-of x.
-
-(* The next collision follows from the previous one and injectivity of
-   pow_k o subGtoG: 
-   pow_k(subGtoG(exp_div_k(g_k, y))) = X implies
-   pow_k(subGtoG(exp_div_k(g_k, y))) = pow_k(subGtoG(Y))
-   from some Y independent of y.
-   By injectivity of pow_k o subGtoG,
-   exp_div_k(g_k, y) = Y
-   By the collision above, this is false except with probability 2*Pcoll1rand(Znw)
-   since (g_k = sub_zero) && (Y = sub_zero) is false and g_k and Y are
-   independent of y. *)
-collision y <-R Znw; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k(g_k, y))) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-collision y <-R Znw; forall X: subG;
-	  return(pow_k(subGtoG(exp_div_k'(g_k, y))) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-
-(* The next collision follows as the one above, using the injectivity
-   of subGtoG. *)
-collision y <-R Znw; forall X: G;
-	  return(subGtoG(exp_div_k(g_k, y)) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-collision y <-R Znw; forall X: G;
-	  return(subGtoG(exp_div_k'(g_k, y)) = X) <=(2*Pcoll1rand(Znw))=> return(false)
-	  if X independent-of y.
-
 
 
 collision x <-R Znw; forall y: Znw, X: subG; 
