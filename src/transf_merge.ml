@@ -721,11 +721,18 @@ let rec apply_reds simp_facts t =
    when [t] has really been modified. *)
 
 and reduce_rec simp_facts f t =
-  Terms.auto_cleanup (fun () ->
-    let simp_facts' = simplif_add simp_facts f in
-    let t' = reduce simp_facts' t in
-    Facts.apply_eq_statements_subterms_once Terms.simp_facts_id t')
-  
+  let reduced_tmp = !reduced in
+  reduced := false;
+  let t'' =
+    Terms.auto_cleanup (fun () ->
+      let simp_facts' = simplif_add simp_facts f in
+      let t' = reduce simp_facts' t in
+      Facts.apply_eq_statements_subterms_once Terms.simp_facts_id t')
+  in
+  let red = !reduced in
+  reduced := reduced_tmp;
+  (t'', red)
+      
 and add_fact ((subst2, facts, elsefind) as simp_facts) fact =
   (* print_string "Adding "; Display.display_term fact; print_newline(); *)
   match fact.t_desc with

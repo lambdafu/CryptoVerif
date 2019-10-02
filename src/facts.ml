@@ -633,9 +633,27 @@ let cleanup_store_all_links vars next_f =
 	
 let reduce_rec_impossible t = assert false
 
-let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final (t: term) = function
+let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond, side_cond, restr_may_be_equal)::other_coll ->
+      let is_false t =
+	(* Test if the term [t] is equal to false *)
+	if reduce_rec == reduce_rec_impossible then
+	  Terms.is_false (Terms.apply_eq_reds simp_facts (ref false) t)
+	else
+	  cleanup_store_all_links (restr @ forall) (fun link_state ->
+	      let res = 
+		try
+		  let _ = reduce_rec t (Terms.make_true ()) 
+                   (* The second argument does not really matter.
+		      We just want to see if we get a contradiction by adding t' *)
+		  in
+		  false
+		with Contradiction -> true
+	      in
+	      restore_all_links link_state;
+	      res)
+      in
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
 	  (* reduced term *)
@@ -646,26 +664,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final (t: t
 	     if not [restr_may_be_equal]. Make sure that the indices of restrictions are
 	     independent of all restrictions *)
 	  List.iter (indices_indep_self dep_info simp_facts) restr;
-	  let false_redr =
-	    (Terms.is_false redr) ||
-	    ((restr != []) && (reduce_rec != reduce_rec_impossible) &&
-             (* Check if the reduced term is false in the particular application of
-	        the collision statement *)
-	    (cleanup_store_all_links (restr @ forall) (fun link_state ->
-	      let res = 
-		try
-		  let _ = reduce_rec t' (Terms.make_true ()) 
-                   (* The second argument does not really matter.
-		      We just want to see if we get a contradiction by adding t' *)
-		  in
-		  false
-		with Contradiction -> true
-	      in
-	      restore_all_links link_state;
-	      res
-	      )
-	    ))
-	  in
+	  let false_redr = (Terms.is_false redr) || ((restr != []) && (is_false t')) in
 	  let sc_indep_restr = indep_sc_restr_list dep_info simp_facts restr_may_be_equal false_redr restr in
 	  let (side_condition_term, side_condition_proba) =
 	    make_side_cond sc_indep_restr
@@ -676,7 +675,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final (t: t
 	  if not (Terms.is_true side_cond) then
 	    begin
 	      let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
-	      if not (Terms.is_true (Terms.apply_eq_reds simp_facts (ref false) side_cond' )) then
+	      if not (is_false (Terms.make_not side_cond')) then
 		raise NoMatch;
 	      sc_proba := Terms.make_and side_cond' (!sc_proba)
 	    end;

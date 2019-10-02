@@ -26,7 +26,7 @@ val reduced : bool ref
    in addition to the already known facts. It sets the flag [reduced]
    when [t] has really been modified.
    [simp_facts] contains facts that are known to hold. *)
-val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term) -> dep_anal -> simp_facts -> term -> term
+val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term * bool) -> dep_anal -> simp_facts -> term -> term
 
 (* [apply_eq_statements_subterms_once simp_facts t] simplifies
    the term [t] using the equalities coming from the
