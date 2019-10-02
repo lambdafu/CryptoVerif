@@ -72,10 +72,125 @@ let rec match_term3 next_f t t' () =
     | _ -> raise NoMatch
 	  )
 
-let matches_pair t1 t2 t1' t2' =
+let rec instantiate_ri_list accu = function
+  | [] -> accu
+  | ri::ri_list ->
+      match ri.ri_link with
+      | NoLink -> instantiate_ri_list (ri::accu) ri_list
+      | TLink t ->
+	  let l = ref accu in
+	  Proba.collect_array_indexes l t;
+	  instantiate_ri_list (!l) ri_list
+
+let rec instantiate_probaf = function
+  | Time(g,x) -> Time(g, instantiate_probaf x)
+  | (AttTime | Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
+     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
+  | Proba(p,l) -> Proba(p, List.map instantiate_probaf l)
+  | ActTime(f,l) -> ActTime(f, List.map instantiate_probaf l)
+  | Maxlength(g,t) -> Maxlength(g, Terms.copy_term Terms.Links_RI t)
+  | Length(f,l) -> Length(f, List.map instantiate_probaf l)
+  | Mul(x,y) -> Mul(instantiate_probaf x, instantiate_probaf y)
+  | Add(x,y) -> Add(instantiate_probaf x, instantiate_probaf y)
+  | Sub(x,y) -> Sub(instantiate_probaf x, instantiate_probaf y)
+  | Div(x,y) -> Div(instantiate_probaf x, instantiate_probaf y)
+  | Max(l) -> Max(List.map instantiate_probaf l)
+	    
+let instantiate_probaf_mul_types (ri_list, probaf, dep_types, full_type, opt_indep_types) =
+  (* Note: in case probaf refers to terms (via maxlength), we
+     might need to instantiate probaf as well. That is not
+     common for collisions, but I do it for safety. *)
+  (instantiate_ri_list [] ri_list, instantiate_probaf probaf, dep_types, full_type, opt_indep_types)
+
+let instantiate_term_coll = function
+  | Fixed probaf_mul_types ->
+      Fixed (instantiate_probaf_mul_types probaf_mul_types)
+  | ProbaIndepCollOfVar(b,args,ri_list) ->
+      ProbaIndepCollOfVar(b, List.map (Terms.copy_term Terms.Links_RI) args,
+			  instantiate_ri_list [] ri_list)
+
+let instantiate_red_proba (t1,t2,side_cond,probaf_mul_types) =
+  (Terms.copy_term Terms.Links_RI t1,
+   Terms.copy_term Terms.Links_RI t2,
+   Terms.copy_term Terms.Links_RI side_cond,
+   instantiate_probaf_mul_types probaf_mul_types)
+
+let instantiate_find_compos_probaf (ri_arg, (term_coll, var_coll, red_proba)) =
+  (ri_arg, (List.map instantiate_term_coll term_coll, var_coll,
+	    List.map instantiate_red_proba red_proba))
+
+let addq_list accu l =
+  List.fold_left Terms.addq accu l
+    
+let check_no_index idx (b1,b2) =
+  assert (not (List.memq idx b1.args_at_creation ||
+               List.memq idx b2.args_at_creation))
+
+let rec subst_idx idx ri_list' = function
+  | [] -> []
+  | (idx1::ri_list) ->
+      if idx1 == idx then
+	begin
+	  assert (not (List.memq idx ri_list));
+	  addq_list ri_list ri_list'
+	end
+      else
+	idx1::(subst_idx idx ri_list' ri_list)
+    
+let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types')
+    (ri_list,probaf,dep_types, full_type, indep_types) =
+  assert (dep_types == []);
+  (subst_idx idx ri_list' ri_list,probaf,dep_types', full_type', indep_types')
+
+let subst_idx_term_coll_entry idx image = function
+  | Fixed probaf_mul_types -> Fixed (subst_idx_entry idx image probaf_mul_types)
+  | ProbaIndepCollOfVar(b, args, ri_list) ->
+      let (ri_list',dep_types', full_type', indep_types') = image in
+      assert(dep_types' == []);
+      let ri_list'' = subst_idx idx ri_list' ri_list in
+      ProbaIndepCollOfVar(b, args, ri_list'')
+    
+let subst_idx_red_proba_entry idx image
+    (t1,t2,side_cond,probaf_mul_types) =
+  let probaf_mul_types' = subst_idx_entry idx image probaf_mul_types in
+  (t1,t2,side_cond,probaf_mul_types')
+
+let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
+  List.iter (check_no_index idx) ac_coll;
+  let ac_term_coll' = List.map (subst_idx_term_coll_entry idx image) ac_term_coll in
+  let ac_red_proba' = List.map (subst_idx_red_proba_entry idx image) ac_red_proba in
+  (ac_term_coll', ac_coll, ac_red_proba')
+
+let equal_term_coll term_coll1 term_coll2 =
+  match term_coll1, term_coll2 with
+  | Fixed probaf_mul_types1, Fixed probaf_mul_types2 ->
+      Proba.equal_probaf_mul_types probaf_mul_types1 probaf_mul_types2
+  | ProbaIndepCollOfVar(b1, args1, ri_list1), ProbaIndepCollOfVar(b2, args2, ri_list2) ->
+      (b1 == b2) &&
+      (Terms.equal_term_lists args1 args2) &&
+      (Terms.equal_lists_sets_q ri_list1 ri_list2)
+  | _ -> false
+      	
+let equal_find_compos_probaf
+    (idx1, (ac_term_coll1, ac_coll1, ac_red_proba1))
+    (idx2, all_coll2) =
+  let image_idx2 = ([idx1], [], Settings.t_bitstring (*dummy type*), None) in
+  let (ac_term_coll2', ac_coll2', ac_red_proba2') =
+    subst_idx_proba idx2 image_idx2 all_coll2
+  in
+  (Terms.equal_lists_sets Proba.equal_coll ac_coll1 ac_coll2') &&
+  (Terms.equal_lists_sets equal_term_coll ac_term_coll1 ac_term_coll2') &&
+  (Terms.equal_lists_sets Proba.equal_red ac_red_proba1 ac_red_proba2')
+
+	
+let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
   try
-    Terms.ri_auto_cleanup (match_term3 (match_term3 (fun () -> ()) t2 t2') t1 t1');
-    true
+    let probaf_inst = 
+      Terms.ri_auto_cleanup (match_term3 (match_term3 (fun () ->
+	instantiate_find_compos_probaf probaf
+	  ) t2 t2') t1 t1')
+    in
+    equal_find_compos_probaf probaf_inst probaf'
   with NoMatch -> false
 
 let matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2' =
@@ -287,48 +402,6 @@ let matches
 	end
     else
       None)
-
-let check_no_index idx (b1,b2) =
-  assert (not (List.memq idx b1.args_at_creation ||
-               List.memq idx b2.args_at_creation))
-
-let addq_list accu l =
-  List.fold_left Terms.addq accu l
-    
-let rec subst_idx idx ri_list' = function
-  | [] -> []
-  | (idx1::ri_list) ->
-      if idx1 == idx then
-	begin
-	  assert (not (List.memq idx ri_list));
-	  addq_list ri_list ri_list'
-	end
-      else
-	idx1::(subst_idx idx ri_list' ri_list)
-    
-let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types')
-    (ri_list,probaf,dep_types, full_type, indep_types) =
-  assert (dep_types == []);
-  (subst_idx idx ri_list' ri_list,probaf,dep_types', full_type', indep_types')
-
-let subst_idx_term_coll_entry idx image = function
-  | Fixed probaf_mul_types -> Fixed (subst_idx_entry idx image probaf_mul_types)
-  | ProbaIndepCollOfVar(b, args, ri_list) ->
-      let (ri_list',dep_types', full_type', indep_types') = image in
-      assert(dep_types' == []);
-      let ri_list'' = subst_idx idx ri_list' ri_list in
-      ProbaIndepCollOfVar(b, args, ri_list'')
-    
-let subst_idx_red_proba_entry idx image
-    (t1,t2,side_cond,probaf_mul_types) =
-  let probaf_mul_types' = subst_idx_entry idx image probaf_mul_types in
-  (t1,t2,side_cond,probaf_mul_types')
-
-let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
-  List.iter (check_no_index idx) ac_coll;
-  let ac_term_coll' = List.map (subst_idx_term_coll_entry idx image) ac_term_coll in
-  let ac_red_proba' = List.map (subst_idx_red_proba_entry idx image) ac_red_proba in
-  (ac_term_coll', ac_coll, ac_red_proba')
 
 let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((used_indices, probaf, dep_types, full_type, indep_types_opt) as probaf_mul_types) =
   (* Add the indices of t1,t2 to all_indices; some of them may be missing

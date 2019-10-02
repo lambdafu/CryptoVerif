@@ -841,32 +841,9 @@ let display_proba_info (t1, t2, probaf) =
   print_newline();
   display_find_compos_probaf probaf
 
-let equal_term_coll term_coll1 term_coll2 =
-  match term_coll1, term_coll2 with
-  | Fixed probaf_mul_types1, Fixed probaf_mul_types2 ->
-      Proba.equal_probaf_mul_types probaf_mul_types1 probaf_mul_types2
-  | ProbaIndepCollOfVar(b1, args1, ri_list1), ProbaIndepCollOfVar(b2, args2, ri_list2) ->
-      (b1 == b2) &&
-      (Terms.equal_term_lists args1 args2) &&
-      (Terms.equal_lists_sets_q ri_list1 ri_list2)
-  | _ -> false
-      
-	
-let equal_find_compos_probaf
-    (idx1, (ac_term_coll1, ac_coll1, ac_red_proba1))
-    (idx2, all_coll2) =
-  let image_idx2 = ([idx1], [], Settings.t_bitstring (*dummy type*), None) in
-  let (ac_term_coll2', ac_coll2', ac_red_proba2') =
-    Depanal.subst_idx_proba idx2 image_idx2 all_coll2
-  in
-  (Terms.equal_lists_sets Proba.equal_coll ac_coll1 ac_coll2') &&
-  (Terms.equal_lists_sets equal_term_coll ac_term_coll1 ac_term_coll2') &&
-  (Terms.equal_lists_sets Proba.equal_red ac_red_proba1 ac_red_proba2')
-
-let add_proba_info ((t1, t2, probaf) as proba_info) proba_info_list =
-  if not (List.exists (fun (t1', t2', probaf') ->
-    (Depanal.matches_pair t1' t2' t1 t2) &&
-    (equal_find_compos_probaf probaf probaf')) proba_info_list)
+let add_proba_info proba_info proba_info_list =
+  if not (List.exists (fun proba_info' ->
+    Depanal.matches_proba_info proba_info' proba_info) proba_info_list)
   then
     begin
       (* Above, I use "matches_pair" to check that t1 = t2 is
