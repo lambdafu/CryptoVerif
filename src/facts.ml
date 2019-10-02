@@ -631,16 +631,41 @@ let cleanup_store_all_links vars next_f =
     restore_all_links state;
     raise NoMatch
 	
-let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
+let reduce_rec_impossible t = assert false
+
+let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final (t: term) = function
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond, side_cond, restr_may_be_equal)::other_coll ->
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
+	  (* reduced term *)
+	  let t' = Terms.copy_term Terms.Links_RI
+	      (Terms.copy_term Terms.Links_Vars redr)
+	  in
 	  (* Compute the side condition that guarantees that all restrictions are independent,
 	     if not [restr_may_be_equal]. Make sure that the indices of restrictions are
 	     independent of all restrictions *)
 	  List.iter (indices_indep_self dep_info simp_facts) restr;
-	  let false_redr = Terms.is_false redr in
+	  let false_redr =
+	    (Terms.is_false redr) ||
+	    ((restr != []) && (reduce_rec != reduce_rec_impossible) &&
+             (* Check if the reduced term is false in the particular application of
+	        the collision statement *)
+	    (cleanup_store_all_links (restr @ forall) (fun link_state ->
+	      let res = 
+		try
+		  let _ = reduce_rec t' (Terms.make_true ()) 
+                   (* The second argument does not really matter.
+		      We just want to see if we get a contradiction by adding t' *)
+		  in
+		  false
+		with Contradiction -> true
+	      in
+	      restore_all_links link_state;
+	      res
+	      )
+	    ))
+	  in
 	  let sc_indep_restr = indep_sc_restr_list dep_info simp_facts restr_may_be_equal false_redr restr in
 	  let (side_condition_term, side_condition_proba) =
 	    make_side_cond sc_indep_restr
@@ -655,10 +680,6 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		raise NoMatch;
 	      sc_proba := Terms.make_and side_cond' (!sc_proba)
 	    end;
-	  (* reduced term *)
-	  let t' = Terms.copy_term Terms.Links_RI
-	      (Terms.copy_term Terms.Links_Vars redr)
-	  in
           (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
@@ -735,18 +756,14 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		       over and over again). *)
 		  Terms.make_or_list 
 		    (List.map (fun f ->
-		      let reduced_tmp = !reduced in
-		      reduced := false;
 		      try 
-			let t1 = reduce_rec f t in
-			if not (!reduced) then 
+			let (t1, red) = reduce_rec f t in
+			if not red then 
 			  begin 
-			    reduced := reduced_tmp;
                             (* print_string "Could not simplify "; Display.display_term t; print_string " knowing ";
 			       Display.display_term f; print_newline(); *)
 			    raise NoMatch 
 			  end;
-			reduced := reduced_tmp;
 			Terms.make_and f t1
 		      with Contradiction ->
 		        (* [reduce_rec] may raise a contradiction when [f] can in fact not be true *)
@@ -775,8 +792,6 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
       with NoMatch ->
 	Terms.cleanup();
 	apply_collisions_at_root_once reduce_rec dep_info simp_facts final t other_coll
-
-let reduce_rec_impossible t = assert false
 
 let apply_statements_at_root_once simp_facts t =
   match t.t_desc with
@@ -1101,13 +1116,21 @@ and apply_root_st_coll1 depth dep_info simp_facts t =
   (!reduced, t')
 	
 (* [reduce_rec simp_facts f t] simplifies the term [t] knowing the fact [f] 
-   in addition to the already known facts [simp_facts]. It sets the flag [reduced]
+   in addition to the already known facts [simp_facts]. It returns
+   the reduced term as well as a boolean that is true 
    when [t] has really been modified. *)
 
 and reduce_rec depth simp_facts f t = 
-  Terms.auto_cleanup (fun () ->
-    let simp_facts' = simplif_add (depth+1) no_dependency_anal simp_facts f in
-    apply_eq_statements_subterms_once simp_facts' t)   
+  let reduced_tmp = !reduced in
+  reduced := false;
+  let t' =
+    Terms.auto_cleanup (fun () ->
+      let simp_facts' = simplif_add (depth+1) no_dependency_anal simp_facts f in
+      apply_eq_statements_subterms_once simp_facts' t)
+  in
+  let red = !reduced in
+  reduced := reduced_tmp;
+  (t', red)
 
 (* Replaces each occurence of t in fact with true *)
 and replace_with_true modified simp_facts t fact =
