@@ -16,7 +16,7 @@ val term_collisions : collision_state ref
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
 
-val matches_pair : term -> term -> term -> term -> bool
+val matches_proba_info : term * term * find_compos_probaf -> term * term * find_compos_probaf -> bool
 
 val subst_idx_proba : repl_index ->
   repl_index list * typet list * typet * typet list option ->

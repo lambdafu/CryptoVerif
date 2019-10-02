@@ -190,6 +190,14 @@ let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
 	instantiate_find_compos_probaf probaf
 	  ) t2 t2') t1 t1')
     in
+    (* We do not instantiate terms that may occur in probaf
+       when they are not fully instantiated by the match on
+       [t1,t2]. 
+       That should be ok because all variable indices that
+       depend on [b0] are replaced with fresh indices before
+       [find_compos], so no further index is replaced by a fresh
+       index inside the simplifications made in [find_compos]. 
+       Hence all fresh indices should occur in [t1,t2]. *)
     equal_find_compos_probaf probaf_inst probaf'
   with NoMatch -> false
 
