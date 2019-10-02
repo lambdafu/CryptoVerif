@@ -231,6 +231,9 @@ let matches
   Terms.ri_auto_cleanup (fun () -> 
     if (matches_pair_with_order_ass order_assumptions side_condition t1 t2 order_assumptions' side_condition' t1' t2') && (Proba.equal_probaf_mul_types probaf_mul_types probaf_mul_types') then
       let common_facts = List.filter (fun f -> List.exists (fun f' -> eq_terms3 f f') true_facts') true_facts in
+      (* TODO take into account instantiated indices in Proba.equal_probaf_mul_types probaf_mul_types probaf_mul_types'
+         + build a single substitution that matches in matches_pair_with_order_ass as well as for building the whole common_facts
+	 Same fix for other usages of eq_term3 as well as for matches_pair in src/transf_globaldepanal.ml *)
       Terms.ri_cleanup();
       (* Check that we can remove the same indices using common_facts as with all facts *)
       if initial_indices == really_used_indices then
