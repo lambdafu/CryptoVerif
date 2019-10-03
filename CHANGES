@@ -29,6 +29,8 @@ Version
   is really unique; the insertion fails if that proof fails.
 - Public variables can be omitted in the "focus" command when
   there is no ambiguity.
+- Revised dependency analyses to eliminate more collisions.
+  Fixed some bugs in passing.
 - Removed a collision from DH_proba_collision and square_DH_proba_collision
   because it may not hold in case there are weak private keys.
 - Fixed bug in the display of game numbers in the Latex output
