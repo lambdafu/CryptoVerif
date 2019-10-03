@@ -743,7 +743,7 @@ type final_process =
     
 type probaf_mul_types =
     repl_index list (* List of replication indices *) *
-    probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
+      probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
       typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
       typet (* The type of t2 *) *
       typet list option (* indep_types_option: 
@@ -788,12 +788,13 @@ type simplify_internal_info_t = binder_coll_t list * red_proba_t list
 type term_coll_t =
   | Fixed of probaf_mul_types
   | ProbaIndepCollOfVar of binder * term list * repl_index list
-     (* [ProbaIndepOfVar b] represents a probability p such that
-	for all M independent of b0[l0], Pr[b[l] = M] <= p.
+     (* [ProbaIndepOfVar (b, args, ri_list)] represents a probability p such that
+	for all M independent of b0[l0], Pr[b[args] = M] <= p,
+	where the indices of M are [ri_list].
 	It is used only in global dependency analysis, where b0 is the main
 	variable on which we perform the analysis.
 	This element is used in a status Compos(proba, term, l0opt).
-	When l0opt = None, l0 and l above are any index.
+	When l0opt = None, l0 and args above are any index.
 	Otherwise, l0opt = Some l0, 
 	the status of b must be Compos(proba_b, term_b, Some l0'),
 	which tells us b[args_at_creation] depends on b0[l0'].
@@ -818,8 +819,8 @@ type depend_status =
      - when l0opt = None, for all [t'] independent of [b0[l]] for all [l], Pr[t = t'] <= p,
      [t_1] is a modified version of [t] in which the parts that are not useful
      to show this property are replaced with variables [?].
-     [p] is the probability for one test t = t'. It should be multiplied by
-     the number of executions outside of find_compos.
+     [p] is the probability for one test t = t'. The placeholder [ri_arg] inside [p]
+     should be replaced by the indices of the term [t'].
    - [Decompos(l0opt)]:
      - when l0opt = Some l0, [t] is obtained from [b0[l0]] by applying functions
      that extract a part of their argument (functions marked [uniform]);

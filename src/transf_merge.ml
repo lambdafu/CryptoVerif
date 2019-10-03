@@ -717,7 +717,8 @@ let rec apply_reds simp_facts t =
     t
 
 (* [reduce_rec simp_facts f t] simplifies the term [t] knowing the fact [f] 
-   in addition to the already known facts [simp_facts]. It sets the flag [reduced]
+   in addition to the already known facts [simp_facts]. It returns
+   the reduced term as well as a boolean that is true 
    when [t] has really been modified. *)
 
 and reduce_rec simp_facts f t =

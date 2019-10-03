@@ -23,7 +23,8 @@ val reduced : bool ref
    equational theories, the equality statements, and the collisions  
    given in the input file.
    [reduce_rec f t] must simplify the term [t] knowing the fact [f] 
-   in addition to the already known facts. It sets the flag [reduced]
+   in addition to the already known facts. It returns
+   the reduced term as well as a boolean that is true 
    when [t] has really been modified.
    [simp_facts] contains facts that are known to hold. *)
 val apply_eq_statements_and_collisions_subterms_once : (term -> term -> term * bool) -> dep_anal -> simp_facts -> term -> term

@@ -355,14 +355,16 @@ In principle, the variables in t1, t2 might have different definitions
 for different indices, yielding different collision probabilities.
 In this case, we should take the maximum of the probabilities
 when we merge several collisions. 
-In practice, this does not seem to happen:
-- in global_dep_anal, in case a variable has several definitions
-in the whole game, this is taken care of in its status using
-ProbaIndepCollOfVar and in Transf_globaldepanal.compute_probas.
+In practice:
 - in DepAnal2, the variables are replaced with their value.
-So equal terms implies same probabibility with the current definitions.
+So equal terms implies same probabibility.
+- in global_dep_anal, in case a variable has several definitions
+in the whole game, this was taken care of in its status using
+ProbaIndepCollOfVar and in Transf_globaldepanal.compute_probas.
+However, now these cases are registered as several collisions,
+so we could have different probabilities with the same terms.
 
-For safety, I still compare the probabilities by [equal_probaf_mul_types]
+I compare the probabilities by [equal_probaf_mul_types]
 and avoid merging in case they are different.
    *)
 

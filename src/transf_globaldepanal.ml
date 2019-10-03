@@ -161,7 +161,14 @@ let compute_probas() =
 	  let res =
 	    find_compos_probaf_sum (List.map (fun (_,_,probaf) ->
 	      expand_probaf aux probaf) proba_info_list)
-	      (* TO DO Would a maximum instead of a sum be also correct? *)
+	      (* Note that in case the sum contains several
+		 identical collisions, they will be merged,
+		 since they are registered as independent collisions.
+		 I think a maximum instead of a sum would be also correct:
+		 different definitions for the same variable
+		 imply different values of indices,
+		 so we never have two different collisions for the same 
+		 terms and indices.*)
 	  in
 	  probaf_total_ref := Set res
   in
