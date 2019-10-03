@@ -26,13 +26,18 @@ let fresh_indep_term t =
   | BitString -> (any_term t, [t.t_type], Some [])
   | Interv _ -> (Terms.term_from_repl_index (Facts.new_repl_index_term t), [], Some [t.t_type])
 
-(* An element (t1, t2, b, lopt, T) in term_collisions means that
-the equality t1 = t2 was considered impossible; it has
+(* An element (order_assumptions, side_cond, true_facts, used_indices, 
+initial_indices, t1, t2, b, lopt, probaf_mul_types) in term_collisions means that
+the equality [t1 = t2] was considered impossible, assuming that
+[order_assumptions] are satisfied: 
+For each (br1, br2) in [order_assumptions], br2 is defined before br1,
+[side_cond] is true, and the facts in [true_facts] hold; it has
 negligible probability because t1 depends on b[lopt] by 
 [decompos]/[projection] functions followed
-by [compos]/[data] functions, the types T are the types obtained after applying
-the [decompos]/[projection] functions (they are large types), 
-and t2 does not depend on b *)
+by [compos]/[data] functions and t2 does not depend on b[lopt].
+[probaf_mul_types] represents the probability of the collision.
+[used_indices] are indices that occur in [t1] and [t2].
+[initial_indices] are the indices at the program point of the collision. *)
 
 let term_collisions = ref ([]: collision_state)
 
@@ -50,7 +55,12 @@ let get_var_link t () =
     Var (v,[]) when v.sname==any_term_name -> Some(v.link, true)
   | ReplIndex (v) -> Some(v.ri_link, false)
   | _ -> None
-    
+
+(* [match_term3 next_f t t' ()] Calls [next_f()] when [t']
+   is an instance of [t], with any value for the [?] variables,
+   and values stored in links for replication indices.
+   It raises [NoMatch] when [t'] is not an instance of [t]. *)
+	
 let rec match_term3 next_f t t' () = 
   Terms.ri_auto_cleanup_failure (fun () ->
     match t.t_desc, t'.t_desc with
@@ -72,6 +82,9 @@ let rec match_term3 next_f t t' () =
     | _ -> raise NoMatch
 	  )
 
+(* The functions [instantiate_*] replace indices with their
+   value stored in links, inside probabilities *)
+    
 let rec instantiate_ri_list accu = function
   | [] -> accu
   | ri::ri_list ->
@@ -119,12 +132,24 @@ let instantiate_find_compos_probaf (ri_arg, (term_coll, var_coll, red_proba)) =
   (ri_arg, (List.map instantiate_term_coll term_coll, var_coll,
 	    List.map instantiate_red_proba red_proba))
 
+(* [addq_list accu l] adds [l] to [accu], removing duplicate elements *)
+    
 let addq_list accu l =
   List.fold_left Terms.addq accu l
+
+(* [check_no_index idx (b1,b2)] verifies that [idx]
+   is not a replication index at creation of [b1] or [b2]. *)
     
 let check_no_index idx (b1,b2) =
   assert (not (List.memq idx b1.args_at_creation ||
                List.memq idx b2.args_at_creation))
+
+(* The functions [subst_idx_* idx image ...] replace 
+   [idx] with its image [image = (ri_list,dep_types, full_type, indep_types_opt)]
+   corresponding to all indices [ri_list] and types of [?] variables [dep_types] in a term,
+   inside a probability.
+   When [indep_types_opt = Some indep_types], 
+   \prod_{T \in dep_types} |T| <= |full_type|/\prod{T \in indep_types} |T|. *)
 
 let rec subst_idx idx ri_list' = function
   | [] -> []
@@ -161,6 +186,10 @@ let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
   let ac_red_proba' = List.map (subst_idx_red_proba_entry idx image) ac_red_proba in
   (ac_term_coll', ac_coll, ac_red_proba')
 
+(* [equal_find_compos_probaf probaf1 probaf2] returns true when 
+   [probaf1] is equal to [probaf2] (of type [find_compos_probaf]).
+   [equal_term_coll] helps by computing equality on type [term_coll_t]. *)
+    
 let equal_term_coll term_coll1 term_coll2 =
   match term_coll1, term_coll2 with
   | Fixed probaf_mul_types1, Fixed probaf_mul_types2 ->
@@ -182,6 +211,12 @@ let equal_find_compos_probaf
   (Terms.equal_lists_sets equal_term_coll ac_term_coll1 ac_term_coll2') &&
   (Terms.equal_lists_sets Proba.equal_red ac_red_proba1 ac_red_proba2')
 
+(* [matches_proba_info (t1, t2, probaf) (t1', t2', probaf')]
+   returns true when [(t1', t2', probaf')] is instance of 
+   [(t1, t2, probaf)]. Then [(t1', t2', probaf')] does not 
+   need to be added if [(t1, t2, probaf)] is already present.
+   Used for various definitions of a variable with their
+   find_compos probability in Transf.global_dep_anal. *)
 	
 let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
   try
@@ -200,6 +235,19 @@ let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
        Hence all fresh indices should occur in [t1,t2]. *)
     equal_find_compos_probaf probaf_inst probaf'
   with NoMatch -> false
+
+(* [matches_term_coll coll1 coll2] returns the true facts of [coll1]
+   whose instance appear in [coll2], when [coll2] is an instance
+   of [coll1].
+   Otherwise, raises NoMatch
+
+   The functions [lookup] and [find_common] help computing the
+   commun true facts. 
+   [lookup next_f t l] calls [next_f true] when an instance of
+   [t] occurs in [l]. Otherwise, it calls [next_f false].
+   [find_common next_f [] l1 l2] calls [next_f common]
+   where [common] is the list of elements of [l1]
+   whose instance occurs in [l2]. *)
 
 let rec lookup next_f t = function
   | [] -> (* Not found *) next_f false
@@ -776,68 +824,6 @@ and is_indep_list simp_facts bdepinfo = function
        | None, _ | _, None -> None
        | Some a_i, Some l_i -> Some (a_i @ l_i))
 
-(* OLD CODE
-   This is a specialized version of Facts.apply_collisions_at_root_once
-   for statements, with try_no_var = Terms.try_no_var_id 
-
-let reduced = ref false
-
-let rec apply_statements_at_root_once t = function
-    [] -> t
-  | ([], _, redl, Zero, redr, [], side_cond)::other_statements ->
-      begin
-	try
-	  Facts.match_term Terms.simp_facts_id [] (fun () ->
-	    (* check side condition *)
-	    if not (Terms.is_true side_cond) then
-	      begin
-		let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
-		if not (Terms.is_true (Terms.apply_eq_reds Terms.simp_facts_id (ref false) side_cond' )) then
-		  raise NoMatch
-	      end;
-	    (* perform reduction *)
-	    let t' = Terms.copy_term Terms.Links_Vars redr in
-	    Terms.cleanup();
-	    reduced := true;
-	    t'
-	      ) redl t ()
-	with NoMatch ->
-	  Terms.cleanup();
-	  apply_statements_at_root_once t other_statements
-      end
-  | _ -> Parsing_helper.internal_error "statements should always be of the form ([], _, redl, Zero, redr, [], side_cond)"
-
-   Same as Facts.apply_reds but does not apply collisions, and 
-   applies statements only at the root of the term 
-
-let rec apply_eq_statements_at_root t =
-  reduced := false;
-  let t' = Terms.apply_eq_reds Terms.simp_facts_id reduced t in
-  if !reduced then apply_eq_statements_at_root t' else 
-  let t' =  
-    match t.t_desc with
-      FunApp(f,l) -> apply_statements_at_root_once t f.f_statements
-    | _ -> t
-  in
-  if !reduced then apply_eq_statements_at_root t' else t
-
- *)
-
-(* Same as Facts.apply_reds but does not apply collisions
-   and does not use facts known at the current program point.
-   NOTE: the impact on the runtime of applying statements
-   everywhere and not only at the root seems acceptable.
-   If faster code is needed, a heuristic might be to apply 
-   statements at the root when it is an equality, everywhere otherwise.
-let rec apply_eq_statements t =
-  let old_reduced = !Facts.reduced in
-  Facts.reduced := false;
-  let t' = Facts.apply_eq_statements_subterms_once Terms.simp_facts_id t in
-  let reduced = !Facts.reduced in
-  Facts.reduced := old_reduced;
-  if reduced then apply_eq_statements t' else t
-*)
-
 let fresh_repl_index() =
   { ri_sname = "arg-idx";
     ri_vname = 0;
@@ -915,7 +901,7 @@ let subst_l0opt b l l0opt =
   | None -> None
   | Some l0 -> Some (List.map (Terms.subst b.args_at_creation l) l0)
 
-(* Replaces b.args_at_creation with l (or indices in l) in a probability *)
+(* The functions [subst_args_* b l ...] replace b.args_at_creation with l (or indices in l) in a probability *)
 
 let subst_args_ri_list b l ri_list =
   List.fold_left2 (fun ri_list idx t ->

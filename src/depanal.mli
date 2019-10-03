@@ -16,12 +16,26 @@ val term_collisions : collision_state ref
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
 
+(* [matches_proba_info (t1, t2, probaf) (t1', t2', probaf')]
+   returns true when [(t1', t2', probaf')] is instance of 
+   [(t1, t2, probaf)]. Then [(t1', t2', probaf')] does not 
+   need to be added if [(t1, t2, probaf)] is already present.
+   Used for various definitions of a variable with their
+   find_compos probability in Transf.global_dep_anal. *)
 val matches_proba_info : term * term * find_compos_probaf -> term * term * find_compos_probaf -> bool
 
+(* [subst_idx_proba idx image collision_proba] replaces
+   [idx] with its image [image = (ri_list,dep_types, full_type, indep_types_opt)]
+   corresponding to all indices [ri_list] and types of [?] variables [dep_types] in a term,
+   inside a probability [collision_proba].
+   When [indep_types_opt = Some indep_types], 
+   \prod_{T \in dep_types} |T| <= |full_type|/\prod{T \in indep_types} |T|. *)
 val subst_idx_proba : repl_index ->
   repl_index list * typet list * typet * typet list option ->
     all_coll_t -> all_coll_t
 
+(* [subst_args_proba b l probaf] replaces [b.args_at_creation]
+   with [l] (or indices in [l]) in a probability [probaf] (of type [find_compos_probaf]) *)
 val subst_args_proba : binder -> term list -> find_compos_probaf -> find_compos_probaf
 	
 (* Adds a term collision *)
