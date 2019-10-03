@@ -466,9 +466,8 @@ let rec indep_sc_restr dep_info simp_facts restr_may_be_equal v = function
              (check_indep_restr dep_info simp_facts restr_may_be_equal v v')
       
 let rec indep_sc_restr_list dep_info simp_facts restr_may_be_equal = function
-    [] -> SC_True
-  | [v] -> SC_True
-  | (v::l) ->
+  | [] | [_] -> SC_True
+  | v::l ->
       sc_and (indep_sc_restr dep_info simp_facts restr_may_be_equal v l)
 	     (indep_sc_restr_list dep_info simp_facts restr_may_be_equal l)
 
@@ -621,24 +620,6 @@ let reduce_rec_impossible t = assert false
 let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
   | (restr, forall, redl, proba, redr, indep_cond, side_cond, restr_may_be_equal)::other_coll ->
-      let is_false t =
-	(* Test if the term [t] is equal to false *)
-	if reduce_rec == reduce_rec_impossible then
-	  Terms.is_false (Terms.apply_eq_reds simp_facts (ref false) t)
-	else
-	  cleanup_store_all_links (restr @ forall) (fun link_state ->
-	      let res = 
-		try
-		  let _ = reduce_rec t (Terms.make_true ()) 
-                   (* The second argument does not really matter.
-		      We just want to see if we get a contradiction by adding t' *)
-		  in
-		  false
-		with Contradiction -> true
-	      in
-	      restore_all_links link_state;
-	      res)
-      in
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
 	  (* Compute the side condition that guarantees that all restrictions are independent,
@@ -651,18 +632,6 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	  in
 	  let sc_term = ref side_condition_term in
 	  let sc_proba = ref side_condition_proba in
-	  (* check side condition [side_cond] *)
-	  if not (Terms.is_true side_cond) then
-	    begin
-	      let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
-	      if not (is_false (Terms.make_not side_cond')) then
-		raise NoMatch;
-	      sc_proba := Terms.make_and side_cond' (!sc_proba)
-	    end;
-	  (* reduced term *)
-	  let t' = Terms.copy_term Terms.Links_RI
-	      (Terms.copy_term Terms.Links_Vars redr)
-	  in
           (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
@@ -708,7 +677,11 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     computation. *)
 	  let redl' = Terms.copy_term Terms.Links_Vars redl in
 	  let redr' = Terms.copy_term Terms.Links_Vars redr in
-	  (* Cleanup early enough, so that the links that we create in this 
+	  let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
+	  (* Reduced term and side condition *)
+	  let t' = Terms.copy_term Terms.Links_RI redr' in
+	  let side_cond'' = Terms.copy_term Terms.Links_RI side_cond' in
+          (* Cleanup early enough, so that the links that we create in this 
 	     collision do not risk to interfere with a later application of 
 	     the same collision in reduce_rec.
 	     Cleanup all links in [restr] and [forall], to be able to reuse the
@@ -720,6 +693,26 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     [Proba.add_proba_red] so that the lengths are correctly 
 	     instantiated in that function. *)
 	  cleanup_store_all_links (restr @ forall) (fun link_state ->
+	    let is_false t =
+	      (* Test if the term [t] is equal to false *)
+	      if reduce_rec == reduce_rec_impossible then
+		Terms.is_false (Terms.apply_eq_reds simp_facts (ref false) t)
+	      else
+		try
+		  let _ = reduce_rec t (Terms.make_true ()) 
+                   (* The second argument does not really matter.
+		      We just want to see if we get a contradiction by adding t' *)
+		  in
+		  false
+		with Contradiction -> true
+	    in
+	    (* check side condition [side_cond] *)
+	    if not (Terms.is_true side_cond) then
+	      begin
+		if not (is_false (Terms.make_not side_cond'')) then
+		  raise NoMatch;
+		sc_proba := Terms.make_and side_cond' (!sc_proba)
+	      end;
 	    let t'' =
 	      if (!sc_term) == [] then
 	        (* No side condition, nothing to add *)
