@@ -657,7 +657,7 @@ cases? Perhaps enough to allow:
 - the oracle that collides with all
 - OHi not colliding with OHj for i<>j, let's say 1<=i,j<=10.
 
-The same idea applies to PRFs
+The same idea applies to PRFs, PRP, SPRP
 
 Distinguish ROM / ROM_large like I do for PRFs?
 

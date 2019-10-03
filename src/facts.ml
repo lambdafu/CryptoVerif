@@ -231,14 +231,14 @@ let rec orient t1 t2 =
   match t1.t_desc, t2.t_desc with
     (Var(b1,l1), Var(b2,l2)) when
     (not (Terms.refers_to b1 t2)) && (not (Terms.refers_to b2 t1)) &&
-    (not (Terms.is_restr b1 && Terms.get_pcoll1_high b1.btype <= !Settings.tysize_MIN_Coll_Elim)) &&
-    (not (Terms.is_restr b2 && Terms.get_pcoll1_high b2.btype <= !Settings.tysize_MIN_Coll_Elim)) ->
+    (not (Terms.is_restr b1 && Terms.get_pcoll1_high b1.btype <= - !Settings.tysize_MIN_Coll_Elim)) &&
+    (not (Terms.is_restr b2 && Terms.get_pcoll1_high b2.btype <= - !Settings.tysize_MIN_Coll_Elim)) ->
       (* Both orientations would be possible, try to discriminate using
          priorities *)
       b1.priority >= b2.priority
   | (Var(b,l), _) when
     (not (Terms.refers_to b t2)) && 
-    (not (Terms.is_restr b && Terms.get_pcoll1_high b.btype <= !Settings.tysize_MIN_Coll_Elim)) -> true
+    (not (Terms.is_restr b && Terms.get_pcoll1_high b.btype <= - !Settings.tysize_MIN_Coll_Elim)) -> true
   | (ReplIndex b1, ReplIndex b2) -> true
   | (Var(b1,l1), Var(b2,l2)) when b1 == b2 -> 
       List.for_all2 orient l1 l2
