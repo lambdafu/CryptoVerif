@@ -1,0 +1,33 @@
+type nonce [large, fixed].
+
+proba Pcoll.
+
+fun g(nonce,nonce,nonce): bool.
+
+collision x <-R nonce; y <-R nonce; forall z: nonce;
+	  return(g(x,y,z)) <=(Pcoll)=> return(false) if y = z.
+
+equation forall x:nonce; g(x,x,x) = false.
+
+channel c.
+param N.
+event bad.
+
+query event(bad) ==> false.
+
+process
+        (!N
+        in(c,());
+	x <-R nonce;
+	out(c,x))
+	|
+	(in(c,(a:nonce,b:nonce));
+	find j <= N suchthat defined(x[j]) && x[j] = a then
+	find k <= N suchthat defined(x[k]) && x[k] = b then
+	if g(x[j],x[k],x[k]) then
+	event bad)
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
