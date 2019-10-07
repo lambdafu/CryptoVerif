@@ -217,8 +217,10 @@ while no reduction is possible if one knows only i or only j.
 
 However, if we add the probabilities of the collisions that we apply,
 we are going to obtain 4*Pcoll1rand(Z) instead of 2*Pcoll1rand(Z).
-Is (1) correct with 2*Pcoll1rand(Z)? Probably not!!!
-Revise other probabilities that follow a similar reasoning as well.
+Is (1) correct with 2*Pcoll1rand(Z)?
+I think it's ok because the choice of whether X independent-of x or
+X independent-of y cannot itself depend on x or y.
+But that's tricky, and difficult to generalize using the idea above.
 
 - Links created by Facts.replace_term_repl_index are probably
 never removed. Is that a problem? Perhaps not.
