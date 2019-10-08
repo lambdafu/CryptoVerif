@@ -112,6 +112,29 @@ Distinguish ROM / ROM_large like I do for PRFs?
 
 
 HIGH PRIORITY
+
+   0) We cannot apply crypto transformations to equalities outside
+   the game itself, e.g. equalities obtained during proofs of
+   correspondences. In contrast, we can apply collision statements
+   to these equalities.
+
+   E.g. suppose H is *hidden-key* collision resistant
+   K = H(hk, (..., A,B))
+   We want to prove absence of UKS attacks, ie.
+   event(Aaccepts(K,A1,B1)) &&
+   event(Baccepts(K,A2,B2)) ==> A1=A2 && B1=B2.
+   We get
+   H(hk, (...,A1,B1)) = H(hk, (...,A2,B2))
+   since the key K is the same on both sides.
+   We should conclude A1=A2 && B1=B2 by
+   collision resistance of H, but cannot do that
+   because we cannot apply the crypto transformation
+   that defines hidden-key collision resistance
+   (which is particular needs to check that all
+   usages of hk are in H(hk, ...)).
+   It works with (public key) collision resistance
+   because it is a collision statement, which
+   does not need to check anything about hk.
    
 1) Incompatible front-end, second step
 
