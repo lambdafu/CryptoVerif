@@ -135,6 +135,26 @@ HIGH PRIORITY
    It works with (public key) collision resistance
    because it is a collision statement, which
    does not need to check anything about hk.
+
+   To solve this issue, we should allow applying crypto
+   transformations to expressions when the whole game is
+   is an instance of the LHS of the crypto transformation
+   with oracles that are left unchanged in the RHS.
+   Then only the target expression is modified.
+
+   Obviously, another way to solve this issue without modifying
+   CryptoVerif at all is to encode the correspondence
+   using tables (insert at event Aaccepts and Baccepts,
+   and have a process that executes event session(A1,B1,A2,B2) when it
+   read Aaccepts(K,A1,B1) and Baccepts(K,A2,B2) from the tables.
+   Then the equality test H(hk, (...,A1,B1)) = H(hk, (...,A2,B2))
+   is in the game itself.
+
+   The same issue also appears in the reductions done
+   for find_compos: showing the injectivity of
+   H(hk, ...) requires checking that hk is used only in
+   H(hk, ...). The trick above with tables does not work
+   in this case.
    
 1) Incompatible front-end, second step
 
