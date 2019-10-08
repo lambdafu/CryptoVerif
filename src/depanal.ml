@@ -842,7 +842,7 @@ let extract_from_status t = function
   | Decompos(l0opt') -> Some(find_compos_probaf_from_term t, t, l0opt')
 
 let indep_term t b idx =
-  let b' = Terms.create_binder_internal b.sname 0 b.btype [idx] in
+  let b' = Terms.create_binder_internal (b.sname ^ "-indep") 0 b.btype [idx] in
   let rec node = { above_node = node;
 		   binders = [b'];
 		   true_facts_at_def = [];
