@@ -841,8 +841,11 @@ let extract_from_status t = function
   | Compos(probaf, t_1, l0opt') -> Some(probaf, t_1, l0opt')
   | Decompos(l0opt') -> Some(find_compos_probaf_from_term t, t, l0opt')
 
+let indep_counter = ref 0
+	
 let indep_term t b idx =
-  let b' = Terms.create_binder_internal (b.sname ^ "-indep") 0 b.btype [idx] in
+  let b' = Terms.create_binder_internal (b.sname ^ "-indep") (!indep_counter) b.btype [idx] in
+  incr indep_counter;
   let rec node = { above_node = node;
 		   binders = [b'];
 		   true_facts_at_def = [];
@@ -994,6 +997,7 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	 and replace this case with Any
 	 *)
       let vcounter = Terms.get_var_num_state() in
+      indep_counter := 0;
       let idx = fresh_repl_index() in
       let new_indep_terms = ref depinfo.nodep in
       let t' = subst var_depinfo (ref []) idx new_indep_terms t in
