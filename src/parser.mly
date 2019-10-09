@@ -608,10 +608,8 @@ term:
         { PLetE($2,$4,$6,Some $8), parse_extent() }
 |       LET pattern EQUAL term IN term
         { PLetE($2,$4,$6,None), parse_extent() }
-| 	NEW IDENT newarg COLON IDENT SEMI term
-	{ PResE($2, $5, $7), parse_extent() }
-| 	IDENT RANDOM IDENT SEMI term
-	{ PResE($1, $3, $5), parse_extent() }
+| 	restr SEMI term
+	{ let (b,t) = $1 in PResE(b, t, $3), parse_extent() }
 |       EVENT_ABORT IDENT
         { PEventAbortE($2), parse_extent() }
 |       EVENT funapp newarg SEMI term
@@ -718,6 +716,13 @@ repl:
     { (Some $2, $4) }
 | FOREACH IDENT LEQ IDENT DO
     { (Some $2, $4) }
+
+restr:
+  NEW IDENT newarg COLON IDENT
+    { ($2, $5) }
+| IDENT RANDOM IDENT
+    { ($1, $3) }
+   
     
 process:
         progbegin process
@@ -734,10 +739,8 @@ process:
 	{ let x = $1 in
 	  if x = 0 then PNil, parse_extent() else 
           input_error ("The only integer in a process is 0 for the nil process") (parse_extent()) }
-| 	NEW IDENT newarg COLON IDENT optprocess
-	{ PRestr($2, $5, $6), parse_extent() }
-| 	IDENT RANDOM IDENT optprocess
-	{ PRestr($1, $3, $4), parse_extent() }
+| 	restr optprocess
+	{ let (b,t) = $1 in PRestr(b, t, $2), parse_extent() }
 |	IF findcond THEN process optelse
         { match $2 with
 	    ([], t) -> PTest(t, $4, $5), parse_extent()
@@ -877,10 +880,8 @@ procasterm:
         { PLetE($2,$4,$6,Some $8), parse_extent() }
 |       LET pattern EQUAL term IN procasterm
         { PLetE($2,$4,$6,None), parse_extent() }
-| 	NEW IDENT COLON IDENT SEMI procasterm
-	{ PResE($2, $4, $6), parse_extent() }
-| 	IDENT RANDOM IDENT SEMI procasterm
-	{ PResE($1, $3, $5), parse_extent() }
+| 	restr SEMI procasterm
+	{ let (b, t) = $1 in PResE(b, t, $3), parse_extent() }
 |       EVENT_ABORT IDENT
         { PEventAbortE($2), parse_extent() }
 
@@ -909,20 +910,24 @@ eqmember:
 |   funmode BAR eqmember
     { $1 :: (fst $3), parse_extent() }
 
-
-funmode:
+topfungroup:
     fungroup
+    { $1 }
+|   nenewlistfunlist
+    { let (news,r) = $1 in
+      PReplRestr(None, news, r) }
+    
+funmode:
+    topfungroup
     { $1,None, parse_extent() }
-|   fungroup LBRACKET IDENT RBRACKET
+|   topfungroup LBRACKET IDENT RBRACKET
     { $1,Some $3, parse_extent() }
 
 newlist:
     
     { [] }
-|   NEW IDENT COLON IDENT SEMI newlist
-    { ($2,$4)::$6 }
-|   IDENT RANDOM IDENT SEMI newlist
-    { ($1,$3)::$5 }
+|   restr SEMI newlist
+    { $1::$3 }
 
 funlist:
     fungroup
@@ -935,11 +940,13 @@ newlistfunlist:
     { [],[$1] }
 |   LPAREN funlist RPAREN
     { [],$2 }
-|   NEW IDENT COLON IDENT options SEMI newlistfunlist
-    { let (n,r) = $7 in (($2,$4,$5)::n), r }
-|   IDENT RANDOM IDENT options SEMI newlistfunlist
-    { let (n,r) = $6 in (($1,$3,$4)::n),r }
+|   restr options SEMI newlistfunlist
+    { let (b,t) = $1 in let (n,r) = $4 in ((b,t,$2)::n), r }
 
+nenewlistfunlist:
+    restr options SEMI newlistfunlist
+    { let (b,t) = $1 in let (n,r) = $4 in ((b,t,$2)::n), r }
+    
 optpriority:
     LBRACKET neidentlist RBRACKET LBRACKET INT RBRACKET 
     { $5, $2 }
@@ -975,8 +982,8 @@ fungroup:
     { PFun($1, $3, $7, $5) }
 |   repl newlistfunlist 
     { let (i,n) = $1 in let (news,r) = $2 in
-      PReplRestr((ref None, i, n), news, r) }
-
+      PReplRestr(Some(ref None, i, n), news, r) }
+    
 probaf:
         LPAREN probaf RPAREN
         { $2 }
@@ -1081,10 +1088,8 @@ focusquery:
 /* Instructions, for manual insertion of an instruction in a game */
 
 instruct:
-    NEW IDENT COLON IDENT 
-    { PRestr($2, $4, (PYield, parse_extent())), parse_extent() }
-|   IDENT RANDOM IDENT 
-    { PRestr($1, $3, (PYield, parse_extent())), parse_extent() }
+    restr 
+    { let (b,t) = $1 in PRestr(b, t, (PYield, parse_extent())), parse_extent() }
 |   IF findcond THEN
     { 
       let yield = (PYield, parse_extent()) in
@@ -1235,10 +1240,8 @@ oprocess:
 	{ let x = $1 in
 	  if x = 0 then PNil, parse_extent() else 
           input_error ("The only integer in a process is 0 for the nil process") (parse_extent()) }
-| 	NEW IDENT COLON IDENT optoprocess
-	{ PRestr($2, $4, $5), parse_extent() }
-| 	IDENT RANDOM IDENT optoprocess
-	{ PRestr($1, $3, $4), parse_extent() }
+| 	restr optoprocess
+	{ let (b,t) = $1 in PRestr(b, t, $2), parse_extent() }
 |	IF findcond THEN oprocess optoelse
         { match $2 with
 	    ([], t) -> PTest(t, $4, $5), parse_extent()

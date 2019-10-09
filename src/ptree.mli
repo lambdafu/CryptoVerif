@@ -112,7 +112,7 @@ type probabilityf =
 and probabilityf_e = probabilityf * Parsing_helper.extent
 
 type fungroup =
-    PReplRestr of (Types.repl_index option ref(*to store replication index*) * ident option(*index*) * ident(*repetitions*)) (*replication*) * 
+    PReplRestr of (Types.repl_index option ref(*to store replication index*) * ident option(*index*) * ident(*repetitions*)) (*replication*) option * 
 	(ident * ident(*type*) * ident list(*options*)) list(*restrictions*) * fungroup list
   | PFun of ident * (ident * ty) list(*inputs*) * term_e * (int(*priority*) * ident list(*options*))
 
