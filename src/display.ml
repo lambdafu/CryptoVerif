@@ -723,12 +723,17 @@ and display_procasterm_paren t =
 
 
 let rec display_fungroup indent = function
-    ReplRestr(repl, restr, funlist) ->
+    ReplRestr(repl_opt, restr, funlist) ->
       if (!Settings.front_end) == Settings.Oracles then
 	begin
-	  print_string "foreach ";
-	  display_repl_index_with_type repl;
-	  print_string " do ";
+	  begin
+	    match repl_opt with
+	    | Some repl -> 
+		print_string "foreach ";
+		display_repl_index_with_type repl;
+		print_string " do "
+	    | None -> ()
+	  end;
 	  List.iter (fun (b,opt) -> 
 	    display_binder_with_array b;
 	    print_string " <-R ";
@@ -739,9 +744,14 @@ let rec display_fungroup indent = function
 	end
       else
 	begin
-	  print_string "! ";
-	  display_repl_index_with_type repl;
-	  print_string " ";
+	  begin
+	    match repl_opt with
+	    | Some repl -> 
+		print_string "! ";
+		display_repl_index_with_type repl;
+		print_string " ";
+	    | None -> ()
+	  end;
 	  List.iter (fun (b,opt) -> 
 	    print_string "new ";
 	    display_binder_with_type b;

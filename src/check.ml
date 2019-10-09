@@ -144,8 +144,13 @@ let check_def_process_main p =
 
 (* - Main checking function for equivalence statements *)
 
+let add_cur_array repl_opt cur_array =
+  match repl_opt with
+  | Some repl -> repl::cur_array
+  | None -> cur_array
+    
 let rec build_def_fungroup cur_array above_node = function
-    ReplRestr(repl, restr, funlist) ->
+    ReplRestr(repl_opt, restr, funlist) ->
       let above_node2 = { above_node = above_node; 
 			  binders = List.map fst restr; 
 			  true_facts_at_def = []; def_vars_at_def = [];
@@ -154,7 +159,8 @@ let rec build_def_fungroup cur_array above_node = function
 			  definition = DFunRestr; definition_success = DFunRestr } 
       in
       List.iter (fun (b,_) -> b.def <- above_node2 :: b.def) restr;
-      List.iter (build_def_fungroup (repl::cur_array) above_node2) funlist
+      let cur_array' = add_cur_array repl_opt cur_array in
+      List.iter (build_def_fungroup cur_array' above_node2) funlist
   | Fun(ch, args, res, priority) ->
     let above_node1 = { above_node = above_node; binders = args; 
 			true_facts_at_def = []; def_vars_at_def = [];
@@ -524,9 +530,10 @@ and check_rm_pat allowed_index_seq = function
   | PatTuple (f,l) -> PatTuple (f,List.map (check_rm_pat allowed_index_seq) l)
   | PatEqual t -> PatEqual (check_rm_term allowed_index_seq t)
 
-let rec check_rm_fungroup cur_array = function
-    ReplRestr(repl, restr, funlist) ->
-      ReplRestr(repl, restr, List.map (check_rm_fungroup (repl::cur_array)) funlist)
+let rec check_rm_fungroup normalize cur_array = function
+    ReplRestr(repl_opt, restr, funlist) ->
+      let cur_array' = add_cur_array repl_opt cur_array in
+      ReplRestr(repl_opt, restr, List.map (check_rm_fungroup normalize cur_array') funlist)
   | Fun(ch, args, res, priority) ->
       let res = check_rm_term [cur_array] res in
       let rec make_lets body = function
@@ -542,7 +549,12 @@ let rec check_rm_fungroup cur_array = function
 	    else
 	      (b::b_inputs', body')
       in
-      let (args', res') = make_lets res args in
+      let (args', res') =
+	if normalize then
+          make_lets res args
+	else
+          (args, res)
+      in
       Fun(ch, args', res', priority)
 
 (* When there is a name just above a function in the left-hand side,
@@ -828,14 +840,22 @@ let build_restr_mapping restr_mapping lmg rmg =
   List.iter2 (fun (lm,_) (rm,_) -> 
     build_restr_mapping_fungroup restr_mapping lm rm) lmg rmg
 
-let check_equiv (n,lm,rm,p,opt,opt2) =
+let add_repl normalize equiv =
+  if normalize then
+    let (n,lm,rm,p,opt,opt2) = equiv in
+    TODO
+  else
+    equiv
+    
+let check_equiv normalize equiv =
+  let (n,lm,rm,p,opt,opt2) = add_repl normalize equiv in
   let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in
   (* Require that each function has a different number of repetitions.
      Then the typing guarantees that when several variables are referenced
      with the same array indexes, then these variables come from the same function. *)
   Array_ref.array_ref_eqside rm;
   let rm' = List.map (fun (fg, mode) ->
-    (check_rm_fungroup [] fg, mode)) rm
+    (check_rm_fungroup normalize [] fg, mode)) rm
   in
   let rm'' = move_names_all lm' rm' in
   Array_ref.cleanup_array_ref();

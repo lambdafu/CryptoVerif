@@ -187,8 +187,8 @@ let anal_file s0 =
 	 (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
     in
     Check.check_def_process_main p;
-    let equivs = List.map Check.check_equiv equivs in
-    let new_new_eq = List.map (fun (ty, eq) -> (ty, Check.check_equiv eq)) move_new_eq in
+    let equivs = List.map (Check.check_equiv true) equivs in
+    let new_new_eq = List.map (fun (ty, eq) -> (ty, Check.check_equiv true eq)) move_new_eq in
     let _ = 
       if (!Settings.get_implementation) then
         do_implementation impl

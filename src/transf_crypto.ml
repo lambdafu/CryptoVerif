@@ -1339,7 +1339,12 @@ let rec insert ch l r m p = function
 
 let rec collect_expressions accu accu_names_lm accu_names_rm accu_repl_rm mode lm rm = 
   match lm, rm with
-    ReplRestr(repl, restr, funlist), ReplRestr(repl', restr', funlist') ->
+    ReplRestr(repl_opt, restr, funlist), ReplRestr(repl_opt', restr', funlist') ->
+      let repl, repl' =
+	match repl_opt, repl_opt' with
+	| Some repl, Some repl' -> repl, repl'
+	| _ -> Parsing_helper.internal_error "replication missing in equiv, should have been added in check.ml"
+      in
       List.iter2 (fun fg fg' ->
         collect_expressions accu (restr :: accu_names_lm) (restr' :: accu_names_rm) (repl' :: accu_repl_rm) mode fg fg') funlist funlist'
   | Fun(ch, args, res, (priority, _)), Fun(ch', args', res', _) ->

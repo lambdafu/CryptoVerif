@@ -350,7 +350,7 @@ and restropt =
 and name_to_discharge_t = (binder * restropt ref) list
     
 and fungroup =
-    ReplRestr of repl_index(*replication*) * (binder * restropt) list(*restrictions*) * fungroup list
+    ReplRestr of repl_index(*replication*) option * (binder * restropt) list(*restrictions*) * fungroup list
   | Fun of channel * binder list(*inputs*) * term * (int(*priority*) * options)
 
 and eqmember = 

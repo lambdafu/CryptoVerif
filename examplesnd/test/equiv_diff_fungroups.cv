@@ -1,0 +1,58 @@
+type cleartext.
+type ciphertext.
+type keyseed [large,fixed].
+type pkey [bounded].
+type skey [bounded].
+type enc_seed [large,fixed].
+
+proba Penc.
+
+param N, N', N2, N3, N4.
+
+fun enc_r(cleartext, pkey, enc_seed): ciphertext.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(ciphertext, skey): bitstringbot.
+
+fun enc_r2(cleartext, pkey, enc_seed): ciphertext.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(ciphertext, skey): bitstringbot.
+
+letfun enc(m: cleartext, pk: pkey) =
+       r <-R enc_seed; enc_r(m,pk,r).
+
+fun injbot(cleartext):bitstringbot [data].
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+equation forall m:cleartext, r:keyseed, r2:enc_seed; 
+	dec(enc_r(m, pkgen(r), r2), skgen(r)) = injbot(m).
+equation forall m:cleartext, r:keyseed, r2:enc_seed; 
+	dec2(enc_r2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+
+equiv(ind_cca2(enc))
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() [2] := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
+           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r),r1))) |
+       foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
+     <=((N3 * N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2))=> 
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() := return(pkgen2(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) :=
+                find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) else
+		find j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
+		y[j] = pkgen2(r) && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r))) |
+	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+			m1:ciphertext <- enc_r2(Z(x1), pkgen2(r), r1);
+			return(m1)).
+
+process 0
+
+(* EXPECTED
+Error: Both sides of this equivalence should have the same number of function groups
+xtime: error in child process (status : 512)
+END *)

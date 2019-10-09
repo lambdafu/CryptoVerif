@@ -658,12 +658,17 @@ let rec display_procasterm t =
 
 
 let rec display_fungroup indent = function
-    ReplRestr(repl, restr, funlist) ->
+    ReplRestr(repl_opt, restr, funlist) ->
       if (!Settings.front_end) == Settings.Oracles then
 	begin
-	  print_string "\\kw{foreach}\\ ";
-	  display_repl_index_with_type repl;
-	  print_string "\\ \\kw{do}\\ ";
+	  begin
+	    match repl_opt with
+	    | Some repl ->
+		print_string "\\kw{foreach}\\ ";
+		display_repl_index_with_type repl;
+		print_string "\\ \\kw{do}\\ "
+	    | None -> ()
+	  end;
 	  List.iter (fun (b,opt) -> 
 	    display_binder_with_array b;
 	    print_id " \\getR \\kwt{" b.btype.tname "}"; 
@@ -673,22 +678,34 @@ let rec display_fungroup indent = function
 	end
       else if !nice_tex then
 	begin
-	  match repl.ri_type.tcat with
-	    Interv n -> 
-	      print_id "!^{\\kwp{" n.pname "}}\\ ";
-	      List.iter (fun (b,opt) -> 
-		print_string "\\kw{new}\\ ";
-		display_binder_with_type b;
-		if opt = Unchanged then
-		  print_string "\\ [unchanged]"; 
-		print_string ";\\ ") restr
-	  | _ -> Parsing_helper.internal_error "Interval type expected"
+	  begin
+	    match repl_opt with
+	    | Some repl ->
+		begin
+		match repl.ri_type.tcat with
+		| Interv n -> 
+		    print_id "!^{\\kwp{" n.pname "}}\\ ";
+		| _ -> Parsing_helper.internal_error "Interval type expected"
+		end
+	    | None -> ()
+	  end;
+	  List.iter (fun (b,opt) -> 
+	    print_string "\\kw{new}\\ ";
+	    display_binder_with_type b;
+	    if opt = Unchanged then
+	      print_string "\\ [unchanged]"; 
+	    print_string ";\\ ") restr
 	end
       else
 	begin
-	  print_string "!\\ ";
-	  display_repl_index_with_type repl;
-	  print_string "\\ ";
+	  begin
+	    match repl_opt with
+	    | Some repl ->
+		print_string "!\\ ";
+		display_repl_index_with_type repl;
+		print_string "\\ "
+	    | None -> ()
+	  end;
 	  List.iter (fun (b,opt) -> 
 	    print_string "\\kw{new}\\ ";
 	    display_binder_with_type b;

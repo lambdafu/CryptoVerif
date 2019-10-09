@@ -437,20 +437,27 @@ let check_binderi1 cur_array binder_env ((s1,ext1),tyb) =
   add_in_env1 binder_env s1 ty cur_array
 
 let rec check_fungroup1 cur_array env binder_env = function
-    PReplRestr((repl_index_ref, idopt, (rep,ext)), restrlist, funlist) ->
-      let pn = get_param env rep ext in
-      let t = type_for_param pn in 
-      let b = Terms.create_repl_index
-	  (match idopt with 
-	    None -> "i" 
-	  | Some(id,ext) -> id) t
-      in
-      repl_index_ref := Some b;
-      let cur_array' = b :: cur_array in
-      let env' =
-	match idopt with
-	  None -> env
-	| Some(id,ext) -> StringMap.add id (EReplIndex b) env
+    PReplRestr(repl_opt, restrlist, funlist) ->
+      let (cur_array', env') =
+	match repl_opt with
+	| Some (repl_index_ref, idopt, (rep,ext)) ->
+	    let pn = get_param env rep ext in
+	    let t = type_for_param pn in 
+	    let b = Terms.create_repl_index
+		(match idopt with 
+		  None -> "i" 
+		| Some(id,ext) -> id) t
+	    in
+	    repl_index_ref := Some b;
+	    let cur_array' = b :: cur_array in
+	    let env' =
+	      match idopt with
+		None -> env
+	      | Some(id,ext) -> StringMap.add id (EReplIndex b) env
+	    in
+	    (cur_array', env')
+	| None ->
+	    (cur_array, env)
       in
       let env'' = List.fold_left (fun env ((s1,ext1),(s2,ext2),opt) ->
 	StringMap.add s1 (EVar dummy_var) env) env' restrlist
@@ -501,24 +508,35 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
 
 let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
   match (plm_fg, lm_fg, rm_fg) with
-    PReplRestr(_, prestrlist0, pfunlist0),
+    PReplRestr(repl_opt0, prestrlist0, pfunlist0),
     ReplRestr(_, restrlist0, funlist0),
-    PReplRestr((repl_index_ref, idopt, (rep,ext)), restrlist, funlist) ->
-      let pn = get_param env rep ext in
-      let t = type_for_param pn in 
-      let b = Terms.create_repl_index
-	  (match idopt with 
-	    None -> "i" 
-	  | Some(id,ext) -> id) t
-      in
-      repl_index_ref := Some b;
-      let cur_array' = b :: cur_array in
-      if List.length funlist != List.length funlist0 then
-	raise_error "Different number of functions in left and right sides of equivalence" ext;
-      let env' =
-	match idopt with
-	  None -> env
-	| Some(id,ext) -> StringMap.add id (EReplIndex b) env
+    PReplRestr(repl_opt, restrlist, funlist) ->
+      let (cur_array', env') =
+	match repl_opt0, repl_opt with
+	| Some _, Some (repl_index_ref, idopt, (rep,ext)) ->
+	    let pn = get_param env rep ext in
+	    let t = type_for_param pn in 
+	    let b = Terms.create_repl_index
+		(match idopt with 
+		  None -> "i" 
+		| Some(id,ext) -> id) t
+	    in
+	    repl_index_ref := Some b;
+	    let cur_array' = b :: cur_array in
+	    if List.length funlist != List.length funlist0 then
+	      raise_error "Different number of functions in left and right sides of equivalence" ext;
+	    let env' =
+	      match idopt with
+		None -> env
+	      | Some(id,ext) -> StringMap.add id (EReplIndex b) env
+	    in
+	    (cur_array', env')
+	| None, None ->
+	    (cur_array, env)
+	| Some (_, _, (rep,ext)), None ->
+	    raise_error "Left member is a replication, right member has no replication" ext
+	| None, Some(_, _, (rep,ext)) ->
+	    raise_error "Right member is a replication, left member has no replication" ext	    
       in
       let env'' = List.fold_left (fun env ((s1,ext1),(s2,ext2),opt) ->
 	StringMap.add s1 (EVar dummy_var) env) env' restrlist
@@ -534,8 +552,13 @@ let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
 	 let env_res = check_term1 binder_env false cur_array env' tres in
 	 add_find := true;
 	 env_res) arglist
-  | _, _, PReplRestr((_, _, (_,ext)), _,_) ->
+  | _, _, PReplRestr(Some(_, _, (_,ext)), _,_) ->
       raise_error "Left member is a function, right member is a replication" ext
+  | _, _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
+      raise_error "Left member is a function, right member is a random number generation" ext1
+  | _, _, PReplRestr(None, [],_) ->
+      Parsing_helper.internal_error "PReplRestr with no replication and no new"
+      
 
 and check_rm_fungroup_list1 cur_array env binder_env pfunlist0 funlist0 funlist =
   match pfunlist0, funlist0, funlist with
@@ -2308,17 +2331,24 @@ let rec check_lm_restrlist cur_array env = function
       (env'', (b, NoOpt)::bl)
 
 let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
-    PReplRestr((repl_index_ref, _, (rep,ext)), restrlist, funlist) ->
-      let repl_count' = 
-	match !repl_index_ref with
-	  Some b -> b
-	| None -> Parsing_helper.internal_error "Repl index should have been initialized in check_lm_fungroup2"
+    PReplRestr(repl_opt, restrlist, funlist) ->
+      let (cur_array', repl_opt'  ) =
+	match repl_opt with
+	| Some(repl_index_ref, _, (rep,ext)) ->
+	    let repl_count' = 
+	      match !repl_index_ref with
+		Some b -> b
+	      | None -> Parsing_helper.internal_error "Repl index should have been initialized in check_lm_fungroup2"
+	    in
+	    let cur_array' = repl_count' :: cur_array in
+	    if List.memq repl_count'.ri_type (!seen_repl) then
+	      raise_error "In an equivalence, different functions must have a different number of repetitions" ext;
+	    seen_repl := repl_count'.ri_type :: (!seen_repl);
+	    (cur_array', Some repl_count')
+	| None ->
+	    (cur_array, None)
       in
-      let cur_array' = repl_count' :: cur_array in
       let (env',restrlist') = check_lm_restrlist cur_array' env restrlist in
-      if List.memq repl_count'.ri_type (!seen_repl) then
-	raise_error "In an equivalence, different functions must have a different number of repetitions" ext;
-      seen_repl := repl_count'.ri_type :: (!seen_repl);
       let funlist' = List.map (check_lm_fungroup2 cur_array' (restrlist'::cur_restr) env' seen_ch seen_repl) funlist in
       (* Remove useless new *)
       let restrlist'' = List.filter (fun (b,_) -> List.exists (Terms.refers_to_fungroup b) funlist') restrlist' in
@@ -2326,9 +2356,12 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	begin
 	  match funlist' with
 	    [Fun _] -> ()
-	  | _ -> raise_error "In equivalences, under a replication without new, there should be a single function" ext
+	  | _ ->
+	      match repl_opt with
+	      | Some(_, _, (rep,ext)) -> raise_error "In equivalences, under a replication without new, there should be a single function" ext
+	      | None -> Parsing_helper.internal_error "PReplRestr with no replication and no new"
 	end;
-      ReplRestr(repl_count', restrlist'', funlist')
+      ReplRestr(repl_opt', restrlist'', funlist')
   | PFun(((s, ext) as ch), arglist, tres, (priority, options)) ->
       let ch' = check_channel_id ch in
       if List.memq ch' (!seen_ch) then
@@ -2386,20 +2419,37 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
 
 let rec check_rm_fungroup2 options2 cur_array env fg0 fg = 
   match (fg0, fg) with
-    ReplRestr(repl_count0, restrlist0, funlist0),
-    PReplRestr((repl_index_ref, _, (rep,ext)), restrlist, funlist) ->
-      let repl_count' = 
-	match !repl_index_ref with
-	  Some b -> b
-	| None -> Parsing_helper.internal_error "Repl index should have been initialized in check_rm_fungroup2"
+    ReplRestr(repl_opt0, restrlist0, funlist0),
+    PReplRestr(repl_opt, restrlist, funlist) ->
+      let (cur_array', repl_opt') =
+	match repl_opt0, repl_opt with
+	| Some repl_count0, Some (repl_index_ref, _, (rep,ext)) ->
+	    let repl_count' = 
+	      match !repl_index_ref with
+		Some b -> b
+	      | None -> Parsing_helper.internal_error "Repl index should have been initialized in check_rm_fungroup2"
+	    in
+	    if repl_count'.ri_type != repl_count0.ri_type then
+	      raise_error "Different number of repetitions in left and right members of equivalence" ext;
+	    let cur_array' = repl_count' :: cur_array in
+	    (cur_array', Some repl_count')
+	| None, None ->
+	    (cur_array, None)
+	| _ ->
+	    Parsing_helper.internal_error "Replication present on one side only, should have been detected earlier"
       in
-      let cur_array' = repl_count' :: cur_array in
       let (env',restrlist') = check_rm_restrlist options2 cur_array' env restrlist0 restrlist in
       if List.length funlist != List.length funlist0 then
-	raise_error "Different number of functions in left and right sides of equivalence" ext;
-      if repl_count'.ri_type != repl_count0.ri_type then
-	raise_error "Different number of repetitions in left and right members of equivalence" ext;
-      ReplRestr(repl_count', restrlist', List.map2 (check_rm_fungroup2 options2 cur_array' env') funlist0 funlist)
+	begin
+	  let ext =
+	    match repl_opt, restrlist with
+	    | Some(_, _, (rep,ext)), _ -> ext
+	    | None, ((_,ext),_,_)::_ -> ext
+	    | None, [] -> Parsing_helper.internal_error "PReplRestr with no replication and no new"
+	  in
+	  raise_error "Different number of functions in left and right sides of equivalence" ext
+	end;
+      ReplRestr(repl_opt', restrlist', List.map2 (check_rm_fungroup2 options2 cur_array' env') funlist0 funlist)
   | Fun(ch0, arglist0, tres0, priority0), PFun((ch, ext), arglist, tres, _) ->
       let (env', arglist') = check_binder_list2 cur_array env arglist in
       if List.length arglist' != List.length arglist0 then
@@ -2418,8 +2468,12 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
       (* The priority is ignored in the right-hand side; one takes
          the priority of the left-hand side *)
       Fun(ch0, arglist', tres', priority0)
-  | _, PReplRestr((_, _, (_,ext)), _,_) ->
+  | _, PReplRestr(Some(_, _, (_,ext)), _,_) ->
       raise_error "Left member is a function, right member is a replication" ext
+  | _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
+      raise_error "Left member is a function, right member is a random number generation" ext1
+  | _, PReplRestr(None, [],_) ->
+      Parsing_helper.internal_error "PReplRestr with no replication and no new"
   | _, PFun(ch, arglist, tres, _) ->
       raise_error "Left member is a replication, right member is a function" (snd tres)
 
@@ -2452,15 +2506,15 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
   let seen_ch = ref [] in
   set_binder_env 
     (List.fold_left (fun binder_env (fg, _, _) -> check_fungroup1 [] (!env) binder_env fg) empty_binder_env mem1); (* Builds binder_env *)
-  let count_exist = ref 0 in
   let mem1' = List.map (fun (fg, mode, ext) ->
     let res = (check_lm_fungroup2 [] [] (!env) seen_ch seen_repl fg,
 	       check_mode false mode)
     in
     match res with
-      (ReplRestr(_,[],_), ExistEquiv) ->
-	raise_error "In equivalences, a function without any name should always be in mode [all]" ext
-    | (_,ExistEquiv) -> incr count_exist; res
+    | (ReplRestr(_,[],_), ExistEquiv) ->
+	raise_error "In equivalences, a function without any random variable should always be in mode [all]" ext
+    | (ReplRestr(None,_,_),_) when List.length mem1 > 1 ->
+	raise_error "One cannot write an equivalence with omitted replication at the root when it has several function groups" ext
     | _ -> res
     ) mem1
   in
@@ -2468,8 +2522,8 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
      left-hand side of the equivalence. Arguments of Maxlength may use
      variables of the left-hand side of the equivalence. *)
   let proba' = check_probability_formula2 (!seen_ch) seen_repl (!env) proba in
-  (*if !count_exist > 1 then
-    raise_error "In equivalences, there should be at most one function group without mode [all]" ext1;*)
+  if List.length mem1 <> List.length mem2 then
+    raise_error "Both sides of this equivalence should have the same number of function groups" ext2;
   set_binder_env
     (check_rm_funmode_list empty_binder_env mem1 mem1' mem2); (* Builds binder_env *)
   let mem2' = List.map2 (fun (fg0, _) (fg, mode, _) -> 
@@ -3021,11 +3075,17 @@ let rec rename_probaf (p,ext) =
   (p', ext)
 
 let rec rename_fungroup = function
-    PReplRestr((n, iopt, i), lres, lfg) ->
-      PReplRestr((ref None, 
+    PReplRestr(repl_opt, lres, lfg) ->
+      let repl_opt' =
+	match repl_opt with
+	| Some (n, iopt, i) ->
+	    Some (ref None, 
 		  (match iopt with
 		    None -> None
-		  | Some i1 -> Some (rename_ie i1)), rename_ie i),
+		  | Some i1 -> Some (rename_ie i1)), rename_ie i)
+	| None -> None
+      in
+      PReplRestr(repl_opt',
 		 List.map (fun (x,t,opt) -> (rename_ie x, rename_ie t,opt)) lres,
 		 List.map rename_fungroup lfg)
   | PFun(i, larg, r, n) ->
@@ -3996,13 +4056,18 @@ let rec collect_id_probaf accu (p,ext) =
       List.iter (collect_id_probaf accu) l
 
 let rec collect_id_fungroup accu = function
-    PReplRestr((_, iopt, n), restr, funs) ->
+  | PReplRestr(repl_opt, restr, funs) ->
       begin
-	match iopt with
-	  None -> ()
-	| Some i -> add_id accu i
+	match repl_opt with
+	| Some(_, iopt, n) ->
+	    begin
+	      match iopt with
+	      |	None -> ()
+	      | Some i -> add_id accu i
+	    end;
+	    add_id accu n
+	| None -> ()
       end;
-      add_id accu n;
       List.iter (fun (x,t,opt) -> add_id accu x; add_id accu t) restr;
       List.iter (collect_id_fungroup accu) funs
   | PFun(i, larg, r, n) ->
