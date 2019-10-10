@@ -385,5 +385,30 @@ let compute_runtime_for g =
   whole_game := Terms.empty_game;
   r
 
-
+let rec time_fungroup = function
+  | Fun(_,_,t,_) -> time_term t
+  | ReplRestr(repl_opt, restr_list, fun_list) ->
+      let tfun = time_list time_fungroup fun_list in
+      let tfun_restr =
+	if (!Settings.ignore_small_times)>0 then
+	  tfun
+	else
+	  Polynom.sum tfun
+	    (time_list (fun (b,_) ->
+	      Polynom.probaf_to_polynom 
+		(Add(ActTime(AArrayAccess (List.length b.args_at_creation), []),
+		     ActTime(ANew b.btype, [])))) restr_list)
+      in
+      match repl_opt with
+      | None -> tfun_restr
+      | Some b ->
+	  Polynom.product tfun_restr (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
+	 
+let compute_runtime_for_fungroup fg =
+  whole_game := Terms.empty_game; (* The game does not matter here,
+				     it will be instantiated when we 
+				     apply the crypto transformation *)
+  get_time_map := (fun t -> raise Not_found);
+  names_to_discharge := [];
+  Polynom.polynom_to_probaf (time_fungroup fg)  
 
