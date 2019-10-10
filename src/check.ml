@@ -917,15 +917,37 @@ let rec add_index_fungroup idx = function
   | Fun(c, inputs, t, opt) ->
       Fun(c, List.map (add_index_binder idx) inputs, add_index idx t, opt)
 
-let add_index_top t (restr_list,fun_list) =
+let rec add_index_proba idx = function
+  | (AttTime | Time _ | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
+  | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
+  | (OCount n) as p ->
+      print_string ("Warning: reference of oracle count #" ^ n.cname ^ " becomes less precise when adding a replication at the root of the equivalence.\n");
+      p
+  | Proba(p,l) -> Proba(p, List.map (add_index_proba idx) l)
+  | ActTime(f,l) -> ActTime(f, List.map (add_index_proba idx) l)
+  | Maxlength(n,t) -> Maxlength(n, add_index idx t)
+  | Length(f,l) -> Length(f, List.map (add_index_proba idx) l)
+  | Mul(x,y) -> Mul(add_index_proba idx x, add_index_proba idx y)
+  | Add(x,y) -> Add(add_index_proba idx x, add_index_proba idx y)
+  | Sub(x,y) -> Sub(add_index_proba idx x, add_index_proba idx y)
+  | Div(x,y) -> Div(add_index_proba idx x, add_index_proba idx y)
+  | Max(l) -> Max(List.map (add_index_proba idx) l)
+
+let add_index_setf_proba idx =
+  List.map (function
+    | SetProba p1 -> SetProba(add_index_proba idx p1)
+    | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula")
+		
+let add_index_top t (restr_list,fun_list,proba) =
   let idx = Terms.create_repl_index "i" t in
   let idxl = [idx] in
-  let (restr_list', fun_list') =
+  let (restr_list', fun_list', proba') =
     Terms.auto_cleanup (fun () ->
       (add_index_restr_list idxl restr_list,
-       List.map (add_index_fungroup idxl) fun_list))
+       List.map (add_index_fungroup idxl) fun_list,
+       add_index_setf_proba idxl proba))
   in
-  (Some idx, restr_list',fun_list')
+  (Some idx, restr_list',fun_list', proba')
   
 let add_repl normalize equiv =
   if normalize then
@@ -937,8 +959,10 @@ let add_repl normalize equiv =
 		      psize = Settings.psize_DEFAULT }
 	in
 	let t = Terms.type_for_param param in
-	let (lrepl_opt, lrestr_list',lfun_list') = add_index_top t (lrestr_list,lfun_list) in
-	let (rrepl_opt, rrestr_list',rfun_list') = add_index_top t (rrestr_list,rfun_list) in
+	(* The probability [p] may refer to variables in the LHS of the equivalence
+           (in arguments of maxlength). We add indices to these variables as well. *)
+	let (lrepl_opt, lrestr_list',lfun_list',p') = add_index_top t (lrestr_list,lfun_list,p) in
+	let (rrepl_opt, rrestr_list',rfun_list',_) = add_index_top t (rrestr_list,rfun_list, []) in
 	let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
 	let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
 	let time_add1 =
@@ -950,12 +974,12 @@ let add_repl normalize equiv =
 	let time_add =
 	  Polynom.p_mul((Sub(Count(param),Cst 1.0)), time_add1)
 	in
-	let p' = List.map (function
+	let p'' = List.map (function
 	  | SetProba p1 -> SetProba (Polynom.p_mul(Count param, Proba.instan_time time_add p1))
 	  | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula"
-		) p
+		) p'
 	in
-	let equiv' = (n,lm',rm',p',opt,opt2) in
+	let equiv' = (n,lm',rm',p'',opt,opt2) in
 	(* we must call [check_def_eqstatement] before using [close_def] *)
 	check_def_eqstatement equiv';
 	(* print_string "Obtained "; Display.display_equiv (equiv', []); *)
