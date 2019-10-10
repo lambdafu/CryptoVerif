@@ -557,7 +557,7 @@ let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
   | _, _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
       raise_error "Left member is a function, right member is a random number generation" ext1
   | _, _, PReplRestr(None, [],_) ->
-      Parsing_helper.internal_error "PReplRestr with no replication and no new"
+      Parsing_helper.internal_error "Left member is a function, right member is PReplRestr with no replication and no new"
       
 
 and check_rm_fungroup_list1 cur_array env binder_env pfunlist0 funlist0 funlist =
@@ -2330,8 +2330,15 @@ let rec check_lm_restrlist cur_array env = function
       let (env'',bl) = check_lm_restrlist cur_array env' l in
       (env'', (b, NoOpt)::bl)
 
+let rec get_fungroup_ext = function
+  | PReplRestr(Some(_, _, (rep,ext)), _, _) -> ext
+  | PReplRestr(None, ((_,ext),_,_)::_, _) -> ext
+  | PReplRestr(None, [], f1::_) -> get_fungroup_ext f1
+  | PReplRestr(None, [], []) -> Parsing_helper.internal_error "empty fungroup"
+  | PFun((_,ext),_,_,_) -> ext
+	
 let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
-    PReplRestr(repl_opt, restrlist, funlist) ->
+    PReplRestr(repl_opt, restrlist, funlist) as fg ->
       let (cur_array', repl_opt'  ) =
 	match repl_opt with
 	| Some(repl_index_ref, _, (rep,ext)) ->
@@ -2355,11 +2362,8 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       if restrlist'' == [] then
 	begin
 	  match funlist' with
-	    [Fun _] -> ()
-	  | _ ->
-	      match repl_opt with
-	      | Some(_, _, (rep,ext)) -> raise_error "In equivalences, under a replication without new, there should be a single function" ext
-	      | None -> Parsing_helper.internal_error "PReplRestr with no replication and no new"
+	  | [Fun _] -> ()
+	  | _ -> raise_error "In equivalences, under a replication without new, there should be a single function" (get_fungroup_ext fg)
 	end;
       ReplRestr(repl_opt', restrlist'', funlist')
   | PFun(((s, ext) as ch), arglist, tres, (priority, options)) ->
@@ -2440,15 +2444,7 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
       in
       let (env',restrlist') = check_rm_restrlist options2 cur_array' env restrlist0 restrlist in
       if List.length funlist != List.length funlist0 then
-	begin
-	  let ext =
-	    match repl_opt, restrlist with
-	    | Some(_, _, (rep,ext)), _ -> ext
-	    | None, ((_,ext),_,_)::_ -> ext
-	    | None, [] -> Parsing_helper.internal_error "PReplRestr with no replication and no new"
-	  in
-	  raise_error "Different number of functions in left and right sides of equivalence" ext
-	end;
+	raise_error "Different number of functions in left and right sides of equivalence" (get_fungroup_ext fg);
       ReplRestr(repl_opt', restrlist', List.map2 (check_rm_fungroup2 options2 cur_array' env') funlist0 funlist)
   | Fun(ch0, arglist0, tres0, priority0), PFun((ch, ext), arglist, tres, _) ->
       let (env', arglist') = check_binder_list2 cur_array env arglist in
@@ -2473,7 +2469,7 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
   | _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
       raise_error "Left member is a function, right member is a random number generation" ext1
   | _, PReplRestr(None, [],_) ->
-      Parsing_helper.internal_error "PReplRestr with no replication and no new"
+      Parsing_helper.internal_error "Left member is a function, right member is PReplRestr with no replication and no new"
   | _, PFun(ch, arglist, tres, _) ->
       raise_error "Left member is a replication, right member is a function" (snd tres)
 
@@ -2487,6 +2483,25 @@ let check_mode right = function
   | None -> ExistEquiv
 
 let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, options)) =
+  let mem2 =
+    match mem1, mem2 with
+    | [PReplRestr(None, _,_),_,_], _ ->
+	if List.for_all (fun (fg, mode, ext) ->
+	  mode == None (* The mode can only be specified in the LHS; I check that for safety *) &&
+	  match fg with
+	  | PReplRestr(None,_,_) -> false
+	  | _ -> true) mem2
+	then
+	  (* We have an implicit replication in the LHS but not in the RHS.
+             This cannot be correct, let's add an implicit replication with no "new" in the RHS.
+	     This is useful because the parser never considers implicit replications without "new".
+	     In the LHS, implicit replications must have a "new" so this is no problem. *)
+	  [PReplRestr(None, [], List.map (fun (fg, mode, ext) -> fg) mem2), None(*no mode specified*), ext2]
+	else
+	  (* In all other cases, leave the equivalence unchanged *)
+	  mem2
+    | _ -> mem2
+  in
   let var_num_state = Terms.get_var_num_state() in
   let options' = ref StdEqopt in
   let options2' = ref Decisional in

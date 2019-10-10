@@ -812,15 +812,14 @@ equation forall m1:blocksize, m2:blocksize, k:key;
 	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
 equiv(sprp(enc))
-       foreach ik <= Nk do k <-R key; (
+       k <-R key; (
        	       foreach ie <= Ne do Oenc(x:blocksize) := return(enc(x, k)) |
 	       foreach id <= Nd do Odec(m:blocksize) := return(dec(m, k)) |
 	       foreach iecoll <= Necoll do Oenccoll(x':blocksize, re': blocksize) := return(enc(x', k) = re') |
 	       foreach idcoll <= Ndcoll do Odeccoll(m':blocksize, rd': blocksize) := return(dec(m', k) = rd'))
-     <=(Nk * (Penc(time + (Nk-1)*((Ne+Necoll)*time(enc) + (Nd+Ndcoll)*time(dec)), Ne+Necoll, Nd+Ndcoll) +
-              (Ne+Nd)*(Ne+Nd-1) * Pcoll2rand(blocksize) +
-	      (Necoll + Ndcoll) * Pcoll1rand(blocksize)))=>
-       foreach ik <= Nk do (
+     <=(Penc(time, Ne+Necoll, Nd+Ndcoll) +
+        (Ne+Nd)*(Ne+Nd-1) * Pcoll2rand(blocksize) +
+	(Necoll + Ndcoll) * Pcoll1rand(blocksize))=>
        	       foreach ie <= Ne do Oenc(x:blocksize) :=
 		find[unique] je<=Ne suchthat defined(x[je],re[je]) && x = x[je] then return(re[je])
 		orfind jd<=Nd suchthat defined(rd[jd],m[jd]) && x = rd[jd] then return(m[jd])
@@ -836,7 +835,7 @@ equiv(sprp(enc))
 	       foreach idcoll <= Ndcoll do Odeccoll(m':blocksize, rd': blocksize) :=
 		find[unique] je<=Ne suchthat defined(x[je],re[je]) && m' = re[je] then return(x[je] = rd') 
 		orfind jd<=Nd suchthat defined(rd[jd],m[jd]) && m' = m[jd] then return(rd[jd] = rd') 
-		else return(false)).
+		else return(false).
 
 }
 
@@ -882,19 +881,18 @@ equation forall m1:blocksize, m2:blocksize, k:key;
 	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
 equiv(prp(enc))
-       foreach ik <= Nk do k <-R key; 
+       k <-R key; 
        	       (foreach i <= N do Oenc(x:blocksize) := return(enc(x, k)) |
 	        foreach icoll <= Ncoll do Oenccoll(x':blocksize, re':blocksize) := return(enc(x', k) = re'))
-     <=(Nk * (Penc(time + (Nk-1)*((N+Ncoll)*time(enc)), N+Ncoll) +
-              N * (N-1) * Pcoll2rand(blocksize) +
-	      Ncoll * Pcoll1rand(blocksize)))=>
-       foreach ik <= Nk do  
-       	      (foreach i <= N do Oenc(x:blocksize) := 
+     <=(Penc(time, N+Ncoll) +
+        N * (N-1) * Pcoll2rand(blocksize) +
+	Ncoll * Pcoll1rand(blocksize))=>
+       	       foreach i <= N do Oenc(x:blocksize) := 
 		find[unique] j<=N suchthat defined(x[j],re[j]) && x = x[j] then return(re[j])
 		else re <-R blocksize; return(re) |
                foreach icoll <= Ncoll do Oenccoll(x':blocksize, re':blocksize) := 
 		find[unique] j<=N suchthat defined(x[j],re[j]) && x' = x[j] then return(re[j] = re')
-		else return(false)).
+		else return(false).
 }
 
 

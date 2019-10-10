@@ -222,14 +222,14 @@ fun f(key, $input%$, $): output.
   else
 "def PRF_%(key, $input%$, $, output, f, Pprf) {
 
-param N, N2.
+param N.
 
 fun f(key, $input%$, $): output.
 
 equiv(prf(f))
-       foreach i2 <= N2 do k <-R key; foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $))
-     <=(N2 * Pprf(time + (N2-1)*N*time(f, $maxlength(x%)$, $), N, $maxlength(x%)$, $))=>
-       foreach i2 <= N2 do foreach i <= N do Of($x%:input%$, $) :=
+       k <-R key; foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $))
+     <=(Pprf(time, N, $maxlength(x%)$, $))=>
+       foreach i <= N do Of($x%:input%$, $) :=
 		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x% = x%[j])$ && $ then return(r[j])
 		else r <-R output; return(r).
 
@@ -262,24 +262,22 @@ param N, Ncoll, Ncoll2, N2.
 fun f(key, $input%$, $): output.
 
 equiv(prf(f))
-       foreach i2 <= N2 do k <-R key; 
+       k <-R key; 
                (foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $)) |
                 foreach icoll <= Ncoll do Ofcoll($x'%:input%$, $, r': output) := return(f(k, $x'%$, $) = r') |
 		foreach icoll2 <= Ncoll2 do Ofcoll2($y%:input%$, $, $z%:input%$, $) := return(f(k, $y%$, $) = f(k, $z%$, $)))
-     <=(N2 * (Pprf(time + (N2-1)*(N+Ncoll+2*Ncoll2)*time(f, $max(maxlength(x%), maxlength(x'%), maxlength(y%), maxlength(z%))$, $),
-		   N + Ncoll + 2*Ncoll2, 
-		   $max(maxlength(x%), maxlength(x'%), maxlength(y%), maxlength(z%))$, $) +
+     <=(Pprf(time, N + Ncoll + 2*Ncoll2, 
+	     $max(maxlength(x%), maxlength(x'%), maxlength(y%), maxlength(z%))$, $) +
 	      Ncoll * Pcoll1rand(output) +
-              Ncoll2 * Pcoll2rand(output)))=>
-       foreach i2 <= N2 do 
-               (foreach i <= N do Of($x%:input%$, $) :=
+              Ncoll2 * Pcoll2rand(output))=>
+                foreach i <= N do Of($x%:input%$, $) :=
 		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x% = x%[j])$ && $ then return(r[j])
 		else r <-R output; return(r) |
                 foreach icoll <= Ncoll do Ofcoll($x'%:input%$, $, r': output) := 
 		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x'% = x%[j])$ && $ then return(r[j] = r')
 		else return(false) |
 		foreach icoll2 <= Ncoll2 do Ofcoll2($y%:input%$, $, $z%:input%$, $) := 
-                return($(y% = z%)$ && $)).
+                return($(y% = z%)$ && $).
 
 }\n\n"
 

@@ -846,7 +846,8 @@ let add_index_binder idx b =
   match b.link with
   | TLink { t_desc = Var(b',_) } -> b'
   | NoLink ->
-      let b1 = Terms.create_binder b.sname b.btype (b.args_at_creation @ idx) in
+      let (s,n) = Terms.new_var_name b.sname in
+      let b1 = Terms.create_binder_internal s n b.btype (b.args_at_creation @ idx) in
       Terms.link b (TLink (Terms.term_from_binder b1));
       b1
   | _ -> Parsing_helper.internal_error "Variable should be mapped to a variable in add_index"
@@ -874,9 +875,7 @@ let rec add_index idx t =
 	  let def_list' = List.map (add_index_br idx) def_list in
 	  let t1' = add_index idx t1 in
 	  let bl' = List.map (fun (b,b') ->
-	    let b1 = Terms.create_binder b.sname b.btype (b.args_at_creation @ idx) in
-	    Terms.link b (TLink (Terms.term_from_binder b1));
-	    (b1, b')) bl 
+	    (add_index_binder idx b, b')) bl 
 	  in
 	  let t2' = add_index idx t2 in
 	  (bl', def_list', t1', t2')
@@ -959,6 +958,7 @@ let add_repl normalize equiv =
 	let equiv' = (n,lm',rm',p',opt,opt2) in
 	(* we must call [check_def_eqstatement] before using [close_def] *)
 	check_def_eqstatement equiv';
+	(* print_string "Obtained "; Display.display_equiv (equiv', []); *)
 	equiv'
     | _ ->
 	let missing_repl = function
@@ -986,4 +986,3 @@ let check_equiv normalize equiv =
   let restr_mapping = ref [] in
   build_restr_mapping restr_mapping lm' rm'';
   ((n,lm', rm'', p, opt,opt2), !restr_mapping)
-
