@@ -164,8 +164,6 @@ let anal_file s0 =
   try
     Sys.catch_break true;
     let (statements, collisions, equivs, move_new_eq, queries, proof, impl, final_p) = Syntax.read_file s in
-    List.iter Check.check_def_eqstatement equivs;
-    List.iter (fun (_,eq) -> Check.check_def_eqstatement eq) move_new_eq;
     let (p, queries) = 
       match final_p with
       | SingleProcess p' -> (p', queries)
@@ -187,8 +185,6 @@ let anal_file s0 =
 	 (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
     in
     Check.check_def_process_main p;
-    let equivs = List.map (Check.check_equiv true) equivs in
-    let new_new_eq = List.map (fun (ty, eq) -> (ty, Check.check_equiv true eq)) move_new_eq in
     let _ = 
       if (!Settings.get_implementation) then
         do_implementation impl
@@ -204,7 +200,7 @@ let anal_file s0 =
             List.iter simplify_statement statements;
             List.iter record_collision collisions;
             Settings.equivs := equivs;
-            Settings.move_new_eq := new_new_eq;
+            Settings.move_new_eq := move_new_eq;
             
             (*
               List.iter Display.display_statement statements;

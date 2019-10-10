@@ -107,8 +107,8 @@ type macro_elem =
 let macrotable = ref StringMap.empty
 let statements = ref ([]: statement list)
 let collisions = ref ([]: collision list)
-let equivalences = ref ([]: equiv list)
-let move_new_eq = ref ([]: (typet * equiv) list)
+let equivalences = ref ([]: equiv_nm list)
+let move_new_eq = ref ([]: (typet * equiv_nm) list)
 let queries_parse = ref ([]: Ptree.query list)
 let proof = ref (None : Ptree.command list option)
 
@@ -2544,7 +2544,12 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
   let mem2' = List.map2 (fun (fg0, _) (fg, mode, _) -> 
     check_rm_fungroup2 (!options2') [] (!env) fg0 fg, check_mode true mode) mem1' mem2 
   in
-  equivalences := (name, mem1',mem2', (if proba' = Zero then [] else [SetProba proba' ]), !options', !options2') :: (!equivalences);
+  let equiv = (name, mem1',mem2', (if proba' = Zero then [] else [SetProba proba' ]), !options', !options2') in
+  (* Check.check_equiv creates new variables (in make_let).
+     They should not collide with variables in the equivalence,
+     so we do Check.check_equiv before resetting var_num_state *)
+  let equiv' = Check.check_equiv true equiv in
+  equivalences := equiv' :: (!equivalences);
   (* The variables defined in the equivalence are local,
      we can reuse the same numbers in other equivalences or
      in the process. *)

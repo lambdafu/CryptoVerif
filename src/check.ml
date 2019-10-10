@@ -980,8 +980,6 @@ let add_repl normalize equiv =
 		) p'
 	in
 	let equiv' = (n,lm',rm',p'',opt,opt2) in
-	(* we must call [check_def_eqstatement] before using [close_def] *)
-	check_def_eqstatement equiv';
 	(* print_string "Obtained "; Display.display_equiv (equiv', []); *)
 	equiv'
     | _ ->
@@ -996,7 +994,9 @@ let add_repl normalize equiv =
     equiv
     
 let check_equiv normalize equiv =
-  let (n,lm,rm,p,opt,opt2) = add_repl normalize equiv in
+  let (n,lm,rm,p,opt,opt2) as equiv' = add_repl normalize equiv in
+  (* we must call [check_def_eqstatement] before using [close_def] *)
+  check_def_eqstatement equiv'; 
   let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in
   (* Require that each function has a different number of repetitions.
      Then the typing guarantees that when several variables are referenced
