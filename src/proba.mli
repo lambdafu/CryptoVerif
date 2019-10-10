@@ -25,6 +25,10 @@ val card_index : binder -> probaf
 
 (* 3. Computation of probabilities of collisions *)
 
+(* [instan_time add_time p] adds [add_time] to the runtime of the
+   adversary in probability [p]. *)
+val instan_time : probaf -> probaf -> probaf
+    
 (* [is_small_enough_coll_elim proba] tests if 
    [proba] is considered small enough to eliminate collisions *)
 val is_small_enough_coll_elim : probaf_mul_types -> bool

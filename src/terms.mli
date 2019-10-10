@@ -205,7 +205,8 @@ val new_occ : unit -> int
 type var_num_state
 val get_var_num_state : unit -> var_num_state
 val set_var_num_state : var_num_state -> unit
-    
+
+val new_var_name : string -> string * int
 val record_id : string -> Parsing_helper.extent -> unit
 val fresh_id : string -> string
 val new_binder : binder -> binder

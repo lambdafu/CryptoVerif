@@ -300,9 +300,7 @@ let matches_term_coll
   with NoMatch -> raise Not_found
 
 let get_index_size b =
-  match b.ri_type.tcat with
-    Interv p -> p.psize
-  | BitString -> Parsing_helper.internal_error "I would expect indices to have interval type in get_index_size"
+  (Terms.param_from_type b.ri_type).psize
 
 let greater_size b1 b2 = compare (get_index_size b2) (get_index_size b1)
 

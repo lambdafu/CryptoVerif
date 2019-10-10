@@ -44,12 +44,10 @@ def keygen(keyseed, key, kgen) {
 
 fun kgen(keyseed): key.
 
-param N.
-
 equiv(keygen(kgen))
-    foreach i <= N do r <-R keyseed; Okey() := return(kgen(r))
+    r <-R keyseed; Okey() := return(kgen(r))
     <=(0)=>
-    foreach i <= N do k <-R key; Okey() := return(k).
+    k <-R key; Okey() := return(k).
 
 }
 
@@ -82,7 +80,7 @@ equiv(keygen(kgen))
 
 def IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc) { 
 
-param N, N2.
+param N.
 
 fun enc_r(cleartext, key, enc_seed): ciphertext.
 fun dec(ciphertext, key): bitstringbot.
@@ -103,11 +101,11 @@ equation forall m:cleartext, k:key, r:enc_seed;
 	dec(enc_r(m, k, r), k) = injbot(m).
 
 equiv(ind_cpa(enc))
-       foreach i2 <= N2 do k <-R key; 
+       k <-R key; 
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
 	       	       return(enc_r(x, k, r)) 
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
-       foreach i2 <= N2 do k <-R key; 
+     <=(Penc(time, N, maxlength(x)))=> 
+       k <-R key; 
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
 	       	       return(enc_r'(Z(x), k, r)).
 
@@ -175,32 +173,32 @@ equation forall m:cleartext, k:key, r:enc_seed;
 	(* IND-CPA *)
 
 equiv(ind_cpa(enc))
-       foreach i2 <= N2 do k <-R key; 
+       k <-R key; 
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
 	       	       return(enc_r(x, k, r))
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
-       foreach i2 <= N2 do k <-R key; 
+     <=(Penc(time, N, maxlength(x)))=> 
+       k <-R key; 
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
 	       	       return(enc_r'(Z(x), k, r)).
 
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)))
-     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
 	      Ocorrupt() [10] := return(k))
-     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) :=
 	      	      if defined(corrupt) then return(dec(y,k)) else
@@ -275,32 +273,32 @@ equation forall m:cleartext, d: add_data, k:key, r:enc_seed;
 	(* IND-CPA *)
 
 equiv(ind_cpa(enc))
-       foreach i2 <= N2 do k <-R key; 
+       k <-R key; 
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := 
 	       	       return(enc_r(x, d, k, r))
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc_r, maxlength(x), maxlength(d)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
-       foreach i2 <= N2 do k <-R key; 
+     <=(Penc(time, N, maxlength(x)))=> 
+       k <-R key; 
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := 
 	       	       return(enc_r'(Z(x), d, k, r)).
 
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)))
-     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc_r, maxlength(x), maxlength(d)) + N3*time(dec,maxlength(y),maxlength(c_d))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) := find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)) |
 	      Ocorrupt() [10] := return(k))
-     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc_r, maxlength(x), maxlength(d)) + N3*time(dec,maxlength(y),maxlength(c_d))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) :=
 	      	      if defined(corrupt) then return(dec(y,c_d,k)) else
@@ -376,11 +374,11 @@ event repeated_nonce.
 (* IND-CPA *)
 
 equiv(ind_cpa(enc))
-       foreach i2 <= N2 do k <-R key; 
+       k <-R key; 
        	       foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) := 
 	       	       return(enc(x, d, k, n))
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc, maxlength(x), maxlength(d), maxlength(n)) + N*time(Z, maxlength(x))), N, maxlength(x)))=> 
-       foreach i2 <= N2 do k <-R key; 
+     <=(Penc(time, N, maxlength(x)))=> 
+       k <-R key; 
        	       foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) := 
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
 	               	   event_abort repeated_nonce
@@ -391,13 +389,13 @@ equiv(ind_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
 	              return(enc(x, d, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
 	              return(dec(y,c_d,k,c_n)))
-     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3*time(dec,maxlength(y),maxlength(c_d),maxlength(c_n))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
 	               	   event_abort repeated_nonce
@@ -412,14 +410,14 @@ equiv(int_ctxt(enc))
 		          return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
 	              return(enc(x, d, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
 	              return(dec(y,c_d,k,c_n)) |
 	      Ocorrupt() [10] := return(k))
-     <=(N2 * Pencctxt(time + (N2-1)*(N*time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3*time(dec,maxlength(y),maxlength(c_d),maxlength(c_n))), N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
 	               	   event_abort repeated_nonce
@@ -495,11 +493,11 @@ equation forall m:cleartext, k:key, r:enc_seed;
 	(* IND-CCA2 *)
 
 equiv(ind_cca2(enc))
-       foreach i2 <= N2 do k <-R key; (
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
                foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,k)))
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, 0, N3, maxlength(x), maxlength(y)))=> 
-       foreach i2 <= N2 do k <-R key; (
+     <=(Penc(time, N, 0, N3, maxlength(x), maxlength(y)))=> 
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := z:ciphertext <- enc_r'(Z(x), k, r); return(z) |
 	       foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r[j],z[j]) && y = z[j] then return(injbot(x[j])) else return(dec'(y, k))).
 
@@ -510,13 +508,13 @@ equiv(ind_cca2(enc))
    so it can be applied again to other occurrences. *)
 
 equiv(ind_cca2_partial(enc))
-       foreach i2 <= N2 do k <-R key; (
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) [useful_change] := return(enc_r(x, k, r)) |
        	       foreach i <= N' do r' <-R enc_seed; Oenc_unchanged(x':cleartext) := return(enc_r(x', k, r')) |
        	       foreach i <= N'' do r'' <-R enc_seed; Oenc_unchanged'(x'':cleartext) := return(enc_r'(x'', k, r'')) |
                foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,k)))
-     <=(N2 * Penc(time + (N2-1)*((N+N'+N'')*time(enc_r, max(maxlength(x),maxlength(x'),maxlength(x''))) + (N+N'+N'')*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N'+N'', N3, max(maxlength(x),maxlength(x'),maxlength(x'')), maxlength(y)))=> [manual]
-       foreach i2 <= N2 do k <-R key; (
+     <=(Penc(time, N, N'+N'', N3, max(maxlength(x),maxlength(x'),maxlength(x'')), maxlength(y)))=> [manual]
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := z:ciphertext <- enc_r'(Z(x), k, r); return(z) |
        	       foreach i <= N' do r' <-R enc_seed; Oenc_unchanged(x':cleartext) := return(enc_r(x', k, r')) |
        	       foreach i <= N'' do r'' <-R enc_seed; Oenc_unchanged'(x'':cleartext) := return(enc_r'(x'', k, r'')) |
@@ -577,11 +575,11 @@ equation forall m:cleartext, k:key, r:enc_seed;
 	(* INT-PTXT *)
 
 equiv(int_ptxt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k))) 
-     <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, 0, maxlength(x), maxlength(y)))=> [computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencptxt(time, N, N3, 0, maxlength(x), maxlength(y)))=> [computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := 
 				z <- dec'(y, k);
@@ -595,14 +593,14 @@ equiv(int_ptxt(enc))
    so it can be applied again to other occurrences. *)
 
 equiv(int_ptxt_corrupt_partial(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
 	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) [8] := return(dec(y',k)) |
 	      foreach i3 <= N3'' do Odec_unchanged'(y'':ciphertext) := return(dec'(y'',k)) |
 	      Ocorrupt() [10] := return(k)) 
-     <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + (N3+N3'+N3'')*time(dec,max(maxlength(y), maxlength(y'),maxlength(y'')))), N, N3, N3'+N3'', maxlength(x), max(maxlength(y),maxlength(y'),maxlength(y''))))=> [manual,computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencptxt(time, N, N3, N3'+N3'', maxlength(x), max(maxlength(y),maxlength(y'),maxlength(y''))))=> [manual,computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) :=
 		      z <- dec'(y, k);
@@ -684,20 +682,20 @@ equation forall m:cleartext, k:key, r:enc_seed;
 	(* IND-CCA2 *)
 
 equiv(ind_cca2(enc))
-       foreach i2 <= N2 do k <-R key; (
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
                foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,k)))
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, 0, N3, maxlength(x), maxlength(y)))=> 
-       foreach i2 <= N2 do k <-R key; (
+     <=(Penc(time, N, 0, N3, maxlength(x), maxlength(y)))=> 
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := z:ciphertext <- enc_r'(Z(x), k, r); return(z) |
 	       foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r[j],z[j]) && y = z[j] then return(injbot(x[j])) else return(dec(y, k))).
 
 equiv(ind_cca2_after_int_ptxt(enc))
-       foreach i2 <= N2 do k <-R key; (
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
                foreach i3 <= N3 do Odec(y:ciphertext) := return(dec'(y,k)))
-     <=(N2 * Penc(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, 0, N3, maxlength(x), maxlength(y)))=> 
-       foreach i2 <= N2 do k <-R key; (
+     <=(Penc(time, N, 0, N3, maxlength(x), maxlength(y)))=> 
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := z:ciphertext <- enc_r'(Z(x), k, r); return(z) |
 	       foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r[j],z[j]) && y = z[j] then return(injbot(x[j])) else return(dec'(y, k))).
 
@@ -708,12 +706,12 @@ equiv(ind_cca2_after_int_ptxt(enc))
    and before or after INT-PTXT. *)
 
 equiv(ind_cca2_partial(enc))
-       foreach i2 <= N2 do k <-R key; (
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) [useful_change] := return(enc_r(x, k, r)) |
        	       foreach i <= N' do r' <-R enc_seed; Oenc_unchanged(x':cleartext) := return(enc_r(x', k, r')) |
                foreach i3 <= N3 do Odec(y:ciphertext) := return(dec(y,k)))
-     <=(N2 * Penc(time + (N2-1)*((N+N')*time(enc_r, max(maxlength(x),maxlength(x'))) + (N+N')*time(Z, maxlength(x)) + N3*time(dec,maxlength(y))), N, N', N3, max(maxlength(x),maxlength(x')), maxlength(y)))=> [manual]
-       foreach i2 <= N2 do k <-R key; (
+     <=(Penc(time, N, N', N3, max(maxlength(x),maxlength(x')), maxlength(y)))=> [manual]
+       k <-R key; (
        	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := z:ciphertext <- enc_r(Z(x), k, r); return(z) |
        	       foreach i <= N' do r' <-R enc_seed; Oenc_unchanged(x':cleartext) := return(enc_r(x', k, r')) |
 	       foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],r[j],z[j]) && y = z[j] then return(injbot(x[j])) else return(dec(y, k))).
@@ -721,22 +719,22 @@ equiv(ind_cca2_partial(enc))
 (* INT-PTXT *)
 
 equiv(int_ptxt(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k))) 
-     <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, 0, maxlength(x), maxlength(y)))=> [computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencptxt(time, N, N3, 0, maxlength(x), maxlength(y)))=> [computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := 
 				z <- dec'(y, k);
                                 find j <= N suchthat defined(x[j]) && z = injbot(x[j]) then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ptxt_after_ind_cca2(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r'(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k))) 
-     <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + N3*time(dec,maxlength(y))), N, N3, 0, maxlength(x), maxlength(y)))=> [computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencptxt(time, N, N3, 0, maxlength(x), maxlength(y)))=> [computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r'(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := 
 				z <- dec'(y, k);
@@ -750,13 +748,13 @@ equiv(int_ptxt_after_ind_cca2(enc))
    and before or after IND-CCA2. *)
 
 equiv(int_ptxt_corrupt_partial(enc))
-      foreach i2 <= N2 do k <-R key; (
+      k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
 	      foreach i3 <= N3' do Odec_unchanged(y':ciphertext) [8] := return(dec(y',k)) |
 	      Ocorrupt() [10] := return(k)) 
-     <=(N2 * Pencptxt(time + (N2-1)*(N*time(enc_r, maxlength(x)) + (N3+N3')*time(dec,max(maxlength(y),maxlength(y')))), N, N3, N3', maxlength(x), max(maxlength(y),maxlength(y'))))=> [manual,computational] 
-      foreach i2 <= N2 do k <-R key [unchanged]; (
+     <=(Pencptxt(time, N, N3, N3', maxlength(x), max(maxlength(y),maxlength(y'))))=> [manual,computational] 
+      k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := 
 		      z <- dec(y, k);
@@ -946,22 +944,22 @@ equation forall m:macinput, k:mkey, m':macres;
 	(mac(m,k) = m') = check(m, k, m').
 
 equiv(suf_cma(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do Omac(x: macinput) := return(mac(x, k)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do Omac(x: macinput) := let ma2:macres = mac'(x, k) in return(ma2) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
 	    find j <= N suchthat defined(x[j], ma2[j]) && (m = x[j]) && ma = ma2[j] then return(true) else return(false)).
 
 equiv(suf_cma_corrupt(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do Omac(x: macinput) [useful_change] := return(mac(x, k)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do Omac(x: macinput) := let ma2:macres = mac'(x, k) in return(ma2) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
 	    if defined(corrupt) then return(check(m, k, ma)) else
@@ -976,13 +974,13 @@ equiv(suf_cma_corrupt(mac))
    in case we want to transform a new occurrence of check. *)
 
 equiv(suf_cma_corrupt_partial(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do Omac(x: macinput) [useful_change] := return(mac(x, k)) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac,maxlength(x)) + (N2+N2')*time(check,max(maxlength(m),maxlength(m')),max(maxlength(ma), maxlength(ma')))), N, N2, N2', max(maxlength(x), max(maxlength(m),maxlength(m')))))=> [manual,computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, N2', max(maxlength(x), max(maxlength(m),maxlength(m')))))=> [manual,computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do Omac(x: macinput) := let ma2:macres = mac(x, k) in return(ma2) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
@@ -1042,22 +1040,22 @@ equation forall m:macinput, k:mkey, r:mac_seed;
 	check'(m, k, mac_r'(m, k, r)).
 
 equiv(uf_cma(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput):= return(mac_r(x, k, r)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac_r,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r'(x, k, r)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
 	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check'(x[j], k, ma) then return(true) else return(false)).
 
 equiv(uf_cma_corrupt(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r(x, k, r)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac_r,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r'(x, k, r)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
 	    if defined(corrupt) then return(check'(m, k, ma)) else
@@ -1072,13 +1070,13 @@ equiv(uf_cma_corrupt(mac))
    in case we want to transform a new occurrence of check. *)
 
 equiv(uf_cma_corrupt_partial(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r(x, k, r)) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac_r,maxlength(x)) + (N2+N2')*time(check,max(maxlength(m),maxlength(m')),max(maxlength(ma),maxlength(ma')))), N, N2, N2', max(maxlength(x), maxlength(m),maxlength(m'))))=> [manual,computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, N2', max(maxlength(x), maxlength(m),maxlength(m'))))=> [manual,computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r(x, k, r)) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
@@ -1139,22 +1137,22 @@ equation forall m:macinput, k:mkey, r:mac_seed;
 	check(m, k, mac_r(m, k, r)).
 
 equiv(suf_cma(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput):= return(mac_r(x, k, r)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac_r,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := let ma2:macres = mac_r'(x, k, r) in return(ma2) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
 	    find j <= N suchthat defined(x[j], ma2[j]) && (m = x[j]) && ma = ma2[j] then return(true) else return(false)).
 
 equiv(suf_cma_corrupt(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r(x, k, r)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac_r,maxlength(x)) + N2*time(check,maxlength(m),maxlength(ma))), N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := let ma2:macres = mac_r'(x, k, r) in return(ma2) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
 	    if defined(corrupt) then return(check(m, k, ma)) else
@@ -1169,13 +1167,13 @@ equiv(suf_cma_corrupt(mac))
    in case we want to transform a new occurrence of check. *)
 
 equiv(suf_cma_corrupt_partial(mac))
-      foreach i3 <= N3 do k <-R mkey;(
+      k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r(x, k, r)) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
-     <=(N3 * Pmac(time + (N3-1)*(N*time(mac_r,maxlength(x)) + (N2+N2')*time(check,max(maxlength(m),maxlength(m')),max(maxlength(ma),maxlength(ma')))), N, N2, N2', max(maxlength(x), maxlength(m), maxlength(m'))))=> [manual,computational]
-      foreach i3 <= N3 do k <-R mkey [unchanged];(
+     <=(Pmac(time, N, N2, N2', max(maxlength(x), maxlength(m), maxlength(m'))))=> [manual,computational]
+      k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := let ma2:macres = mac_r(x, k, r) in return(ma2) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) :=
@@ -1281,12 +1279,12 @@ equiv(ind_cca2(enc))
    so it can be applied again to other occurrences. *)
 
 equiv(ind_cca2_partial(enc))
-       foreach i3 <= N3 do r <-R keyseed; (
+       r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
            foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) [useful_change] := return(enc_r(x1, pkgen(r),r1)))
-     <=((N3 * N) * Penc(time + (N-1) * time(enc_r, maxlength(x1)) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, maxlength(x1))), N2))=> [manual]
-       foreach i3 <= N3 do r <-R keyseed; (
+     <=(N * Penc(time + (N-1) * time(enc_r, maxlength(x1)), N2))=> [manual]
+       r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) :=
                 find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) else
@@ -1409,13 +1407,13 @@ equiv(uf_cma_corrupt(sign))
    so it can be applied again to other occurrences. *)
 
 equiv(uf_cma_corrupt_partial(sign))
-       foreach i3 <= N3 do r <-R keyseed; (
+       r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Osign(x: signinput) [useful_change] := return(sign(x, skgen(r))) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
 	   Ocorrupt() [10] := return(r))
-     <=(N3 * Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [manual,computational]
-       foreach i3 <= N3 do r <-R keyseed [unchanged]; (
+     <=(Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)), N2, maxlength(x)))=> [manual,computational]
+       r <-R keyseed [unchanged]; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Osign(x: signinput) := return(sign(x, skgen(r))) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
@@ -1534,13 +1532,13 @@ equiv(suf_cma_corrupt(sign))
    so it can be applied again to other occurrences. *)
 
 equiv(suf_cma_corrupt_partial(sign))
-       foreach i3 <= N3 do r <-R keyseed; (
+       r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Osign(x: signinput) := return(sign(x, skgen(r))) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
 	   Ocorrupt() [10] := return(r))
-     <=(N3 * Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [manual,computational]
-       foreach i3 <= N3 do r <-R keyseed [unchanged]; (
+     <=(Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)), N2, maxlength(x)))=> [manual,computational]
+       r <-R keyseed [unchanged]; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Osign(x: signinput) := let s: signature = sign(x, skgen(r)) in return(s) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
@@ -1664,13 +1662,13 @@ equiv(uf_cma_corrupt(sign))
    so it can be applied again to other occurrences. *)
 
 equiv(uf_cma_corrupt_partial(sign))
-       foreach i3 <= N3 do r <-R keyseed; (
+       r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
 	   Ocorrupt() [10] := return(r))
-     <=(N3 * Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign_r, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [manual,computational]
-       foreach i3 <= N3 do r <-R keyseed [unchanged]; (
+     <=(Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)), N2, maxlength(x)))=> [manual,computational]
+       r <-R keyseed [unchanged]; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
@@ -1795,13 +1793,13 @@ equiv(suf_cma_corrupt(sign))
    so it can be applied again to other occurrences. *)
 
 equiv(suf_cma_corrupt_partial(sign))
-       foreach i3 <= N3 do r <-R keyseed; (
+       r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
 	   Ocorrupt() [10] := return(r))
-     <=(N3 * Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign_r, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [manual,computational]
-       foreach i3 <= N3 do r <-R keyseed [unchanged]; (
+     <=(Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)), N2, maxlength(x)))=> [manual,computational]
+       r <-R keyseed [unchanged]; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := let s: signature = sign_r(x, skgen(r), r2) in return(s) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
@@ -3706,13 +3704,13 @@ equation forall r:seed, x:D, x':D;
    numbers x. Do that only when x is used in invf(skgen(r),x) *)
 
 equiv(remove_invf(f))
-      foreach iK <= nK do r <-R seed; (
+      r <-R seed; (
 	Opk() := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oant() := return(invf(skgen(r),x)) | 
 	         Oim() := return(x)))
 <=(0)=> [computational]
-      foreach iK <= nK do r <-R seed [unchanged]; (
+      r <-R seed [unchanged]; (
 	Opk() := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oant() := return(x) |
@@ -3786,13 +3784,13 @@ equation forall r:seed, x:D, x':D;
    numbers x. Do that only when x is used in invf(skgen(r),x) *)
 
 equiv(remove_invf(f))
-      foreach iK <= nK do r <-R seed; (
+      r <-R seed; (
 	Opk() := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oant() := return(invf(skgen(r),x)) | 
 	         Oim() := return(x)))
 <=(0)=> [computational]
-      foreach iK <= nK do r <-R seed [unchanged]; (
+      r <-R seed [unchanged]; (
 	Opk() := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oant() := return(x) |
@@ -3890,13 +3888,13 @@ equation forall r:seed, x:D, x':D;
    numbers x. Do that only when x is used in invf(skgen(r),x) *)
 
 equiv(remove_invf(f))
-      foreach iK <= nK do r <-R seed; (
+      r <-R seed; (
 	Opk() := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oant() := return(invf(skgen(r),x)) | 
 	         Oim() := return(x)))
 <=(0)=> [computational]
-      foreach iK <= nK do r <-R seed [unchanged]; (
+      r <-R seed [unchanged]; (
 	Opk() := return(pkgen(r)) |
 	foreach iF <= nF do x <-R D; 
 		(Oant() := return(x) |

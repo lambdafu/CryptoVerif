@@ -397,8 +397,9 @@ even if it depends on it? *)
 
 let red_proba = ref ([]: red_proba_t list)
 
-let rec instan_time = function
-    AttTime -> Add(AttTime, Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)))
+let instan_time add_time p =
+  let rec instan_time = function
+    AttTime -> Add(AttTime, add_time)
   | Time _ -> Parsing_helper.internal_error "unexpected time"
   | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
      | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
@@ -411,7 +412,9 @@ let rec instan_time = function
   | Sub(x,y) -> Sub(instan_time x, instan_time y)
   | Div(x,y) -> Div(instan_time x, instan_time y)
   | Max(l) -> Max(List.map instan_time l)
-
+  in
+  instan_time p
+	
 let rec collect_array_indexes accu t =
   match t.t_desc with
     ReplIndex(b) ->
@@ -454,7 +457,7 @@ let add_proba_red_inside ((t1, t2, side_cond, probaf_mul_types) as new_red) =
     true
 
 let add_proba_red t1 t2 side_cond proba tl =
-  let proba = instan_time proba in
+  let proba = instan_time (Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game))) proba in
   let accu = ref [] in
   List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
   let indices = !accu in

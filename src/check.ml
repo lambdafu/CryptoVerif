@@ -840,10 +840,134 @@ let build_restr_mapping restr_mapping lmg rmg =
   List.iter2 (fun (lm,_) (rm,_) -> 
     build_restr_mapping_fungroup restr_mapping lm rm) lmg rmg
 
+(* Apply the lemma that infers !N G1 ~ !N G2 from G1 ~ G2 *)
+
+let add_index_binder idx b =
+  match b.link with
+  | TLink { t_desc = Var(b',_) } -> b'
+  | NoLink ->
+      let b1 = Terms.create_binder b.sname b.btype (b.args_at_creation @ idx) in
+      Terms.link b (TLink (Terms.term_from_binder b1));
+      b1
+  | _ -> Parsing_helper.internal_error "Variable should be mapped to a variable in add_index"
+    
+let rec add_index idx t =
+  match t.t_desc with
+  | Var(b,l) ->
+      Terms.build_term2 t (Var(add_index_binder idx b,
+			       (List.map (add_index idx) l) @
+			       (List.map Terms.term_from_repl_index idx)))
+  | ReplIndex b -> Terms.build_term2 t t.t_desc (* Must not be physically the same, for computation of facts *)
+  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (add_index idx) l))
+  | ResE(b,t1) ->
+      Terms.build_term2 t (ResE(add_index_binder idx b, add_index idx t1))
+  | EventAbortE _ -> Terms.build_term2 t t.t_desc (* Must not be physically the same, for computation of facts *)
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event/get/insert should not occur equivalences" 
+  | TestE(t1,t2,t3) ->
+      Terms.build_term2 t (TestE(add_index idx t1,
+				 add_index idx t2,
+				 add_index idx t3))
+  | FindE(l0,t3,find_info) ->
+      let l0' = 
+	List.map (fun (bl, def_list, t1, t2) ->
+	  let def_list' = List.map (add_index_br idx) def_list in
+	  let t1' = add_index idx t1 in
+	  let bl' = List.map (fun (b,b') ->
+	    let b1 = Terms.create_binder b.sname b.btype (b.args_at_creation @ idx) in
+	    Terms.link b (TLink (Terms.term_from_binder b1));
+	    (b1, b')) bl 
+	  in
+	  let t2' = add_index idx t2 in
+	  (bl', def_list', t1', t2')
+	  ) l0
+      in
+      Terms.build_term2 t (FindE(l0',
+				 add_index idx t3,
+				 find_info))
+  | LetE(pat, t1, t2, topt) ->
+      let t1' = add_index idx t1 in
+      let pat' = add_index_pat idx pat in
+      let t2' = add_index idx t2 in
+      let topt' = 
+	match topt with
+	  None -> None
+	| Some t3 -> Some (add_index idx t3)
+      in
+      Terms.build_term2 t (LetE(pat', t1', t2', topt'))
+
+and add_index_br idx (b,l) =
+  (add_index_binder idx b,
+   List.map (add_index idx) l @ (List.map Terms.term_from_repl_index idx))
+
+and add_index_pat idx = function
+    PatVar b ->
+      PatVar (add_index_binder idx b)
+  | PatTuple(f,l) ->
+      PatTuple(f, List.map (add_index_pat idx) l)
+  | PatEqual t ->
+      PatEqual (add_index idx t)
+      
+let add_index_restr_list idx =
+  List.map (fun (b, opt) -> (add_index_binder idx b, opt))
+
+let rec add_index_fungroup idx = function
+  | ReplRestr(repl_opt, restr_list, fun_list) ->
+      ReplRestr(repl_opt, add_index_restr_list idx restr_list,
+		List.map (add_index_fungroup idx) fun_list)
+  | Fun(c, inputs, t, opt) ->
+      Fun(c, List.map (add_index_binder idx) inputs, add_index idx t, opt)
+
+let add_index_top t (restr_list,fun_list) =
+  let idx = Terms.create_repl_index "i" t in
+  let idxl = [idx] in
+  let (restr_list', fun_list') =
+    Terms.auto_cleanup (fun () ->
+      (add_index_restr_list idxl restr_list,
+       List.map (add_index_fungroup idxl) fun_list))
+  in
+  (Some idx, restr_list',fun_list')
+  
 let add_repl normalize equiv =
   if normalize then
     let (n,lm,rm,p,opt,opt2) = equiv in
-    TODO
+    match lm,rm with
+    | [ReplRestr(None,lrestr_list,lfun_list),lmode], [ReplRestr(None,rrestr_list,rfun_list),rmode] ->
+	let name, counter = Terms.new_var_name "N" in
+	let param = { pname = name ^ (if counter != 0 then "_" ^ (string_of_int counter) else "");
+		      psize = Settings.psize_DEFAULT }
+	in
+	let t = Terms.type_for_param param in
+	let (lrepl_opt, lrestr_list',lfun_list') = add_index_top t (lrestr_list,lfun_list) in
+	let (rrepl_opt, rrestr_list',rfun_list') = add_index_top t (rrestr_list,rfun_list) in
+	let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
+	let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
+	let time_add1 =
+	  match opt2 with
+	  | Decisional -> Max [ Computeruntime.compute_runtime_for_fungroup (ReplRestr(None, lrestr_list',lfun_list'));
+				Computeruntime.compute_runtime_for_fungroup (ReplRestr(None, rrestr_list',rfun_list'))]
+	  | Computational -> Computeruntime.compute_runtime_for_fungroup (ReplRestr(None, lrestr_list',lfun_list'))
+	in
+	let time_add =
+	  Polynom.p_mul((Sub(Count(param),Cst 1.0)), time_add1)
+	in
+	let p' = List.map (function
+	  | SetProba p1 -> SetProba (Polynom.p_mul(Count param, Proba.instan_time time_add p1))
+	  | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula"
+		) p
+	in
+	let equiv' = (n,lm',rm',p',opt,opt2) in
+	(* we must call [check_def_eqstatement] before using [close_def] *)
+	check_def_eqstatement equiv';
+	equiv'
+    | _ ->
+	let missing_repl = function
+	  | ReplRestr(None,restr_list,fun_list),mode -> true
+	  | _ -> false
+	in
+	if (List.exists missing_repl lm) || (List.exists missing_repl rm) then
+	  Parsing_helper.internal_error "Bad missing replications; should have been detected in syntax.ml";
+	equiv
   else
     equiv
     

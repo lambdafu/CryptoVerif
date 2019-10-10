@@ -443,12 +443,11 @@ else
 
   letfun split(r: input_t) = tuple($get%(r)$, $).
 
-  param N.
   equiv(splitter(split))
-     foreach i <= N do r <-R input_t; 
+     r <-R input_t; 
        ($O%() := return(get%(r))$ | $)
     <=(0)=>
-     foreach i <= N do $part% <-R part%_t;$ $
+     $part% <-R part%_t;$ $
        ($O%() := return(part%)$ | $).
 
 }\n\n"
