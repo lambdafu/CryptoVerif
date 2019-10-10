@@ -846,8 +846,9 @@ let add_index_binder idx b =
   match b.link with
   | TLink { t_desc = Var(b',_) } -> b'
   | NoLink ->
-      let (s,n) = Terms.new_var_name b.sname in
-      let b1 = Terms.create_binder_internal s n b.btype (b.args_at_creation @ idx) in
+      (* Reusing exactly the same name as in the original equivalence
+	 Useful for detect correctly [unchanged] variables. *)
+      let b1 = Terms.create_binder_internal b.sname b.vname b.btype (b.args_at_creation @ idx) in
       Terms.link b (TLink (Terms.term_from_binder b1));
       b1
   | _ -> Parsing_helper.internal_error "Variable should be mapped to a variable in add_index"
