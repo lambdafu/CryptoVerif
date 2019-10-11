@@ -996,6 +996,7 @@ let add_repl normalize equiv =
     
 let check_equiv normalize equiv =
   let (n,lm,rm,p,opt,opt2) as equiv' = add_repl normalize equiv in
+  print_string "Obtained "; Display.display_equiv (equiv', []);
   (* we must call [check_def_eqstatement] before using [close_def] *)
   check_def_eqstatement equiv'; 
   let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in

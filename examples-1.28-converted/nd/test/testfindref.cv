@@ -68,9 +68,9 @@ equation forall y:nonce,z:nonce,t:host,u:host;
 equation forall y:nonce,z:key; 
 	Z(concat2(y,z)) = concat2(Znonce,Zkey).
 
-equiv  !N new r: keyseed; !N2 Oenc(x:bitstring) := new r2: seed; return(enc(x, kgen(r), r2))
+equiv  !N new r: keyseed; !N2 new r2: seed; Oenc(x:bitstring) := return(enc(x, kgen(r), r2))
      <=(N * Penc(N2))=> 
-       !N new r: keyseed; !N2 Oenc(x:bitstring) := new r2: seed; return(enc2(Z(x), kgen2(r), r2)).
+       !N new r: keyseed; !N2 new r2: seed; Oenc(x:bitstring) := return(enc2(Z(x), kgen2(r), r2)).
 
 (* Mac *)
 

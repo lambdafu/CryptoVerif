@@ -110,6 +110,9 @@ Distinguish ROM / ROM_large like I do for PRFs?
    proved by a hybrid argument.
    (Check that this result also applies to [computatiional] equivalences.)
 
+Bug: the new proba refers to variables in the game after the transformation,
+in t_Q. That's not taken into account properly.
+
 
 HIGH PRIORITY
 
