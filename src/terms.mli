@@ -164,6 +164,9 @@ val iproc_from_desc3 : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc3 : process -> process_desc -> process
 
 val empty_game : game
+(* Used the designate the LHS and RHS of an equivalence *)
+val lhs_game : game
+val rhs_game : game
 val get_process : game -> inputprocess
 val build_transformed_game : inputprocess -> game -> game
                    

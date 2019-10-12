@@ -2179,7 +2179,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
       if t'.t_type.toptions land Settings.tyopt_BOUNDED != 0 then
 	(TypeMaxlength(t'.t_type), Some (0,0,1))
       else
-	(Maxlength(Terms.empty_game, t'), Some (0,0,1))
+	(Maxlength(Terms.lhs_game, t'), Some (0,0,1))
   | PLength((s,ext'), pl), ext ->
       begin
 	let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in

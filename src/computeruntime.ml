@@ -404,11 +404,13 @@ let rec time_fungroup = function
       | Some b ->
 	  Polynom.product tfun_restr (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
 	 
-let compute_runtime_for_fungroup fg =
-  whole_game := Terms.empty_game; (* The game does not matter here,
+let compute_runtime_for_fungroup g fg =
+  whole_game := g; (* The game does not matter here,
 				     it will be instantiated when we 
 				     apply the crypto transformation *)
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
-  Polynom.polynom_to_probaf (time_fungroup fg)  
+  let res = Polynom.polynom_to_probaf (time_fungroup fg) in
+  whole_game := Terms.empty_game;
+  res
 

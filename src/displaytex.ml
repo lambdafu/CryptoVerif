@@ -502,7 +502,11 @@ let rec display_proba level = function
   | Maxlength(g,t) ->
       print_string "\\kw{maxlength}(";
       if g.game_number>=0 then
-	print_string ("\\mathit{game}\\ " ^ (string_of_int g.game_number) ^ ": ");
+	print_string ("\\mathit{game}\\ " ^ (string_of_int g.game_number) ^ ": ")
+      else if g == Terms.lhs_game then
+	print_string "\\mathit{LHS}: "
+      else if g == Terms.rhs_game then
+	print_string "\\mathit{RHS}: ";
       display_term t;
       print_string ")"
   | TypeMaxlength(ty) ->

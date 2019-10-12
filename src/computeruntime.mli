@@ -8,4 +8,4 @@ val compute_runtime_for_context : game -> equiv_nm ->
 
 val compute_runtime_for : game -> probaf
 
-val compute_runtime_for_fungroup : fungroup -> probaf
+val compute_runtime_for_fungroup : game -> fungroup -> probaf

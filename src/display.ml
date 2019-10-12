@@ -558,7 +558,11 @@ let rec display_proba level = function
 	  print_string "game ";
 	  print_int g.game_number;
 	  print_string ": "
-	end;
+	end
+      else if g == Terms.lhs_game then
+	print_string "LHS: "
+      else if g == Terms.rhs_game then
+	print_string "RHS: ";
       display_term t;
       print_string ")"
   | TypeMaxlength(ty) ->

@@ -926,7 +926,9 @@ let rec add_index_proba idx = function
       p
   | Proba(p,l) -> Proba(p, List.map (add_index_proba idx) l)
   | ActTime(f,l) -> ActTime(f, List.map (add_index_proba idx) l)
-  | Maxlength(n,t) -> Maxlength(n, add_index idx t)
+  | Maxlength(g,t) ->
+      assert (g == Terms.lhs_game);
+      Maxlength(g, add_index idx t)
   | Length(f,l) -> Length(f, List.map (add_index_proba idx) l)
   | Mul(x,y) -> Mul(add_index_proba idx x, add_index_proba idx y)
   | Add(x,y) -> Add(add_index_proba idx x, add_index_proba idx y)
@@ -949,7 +951,25 @@ let add_index_top t (restr_list,fun_list,proba) =
        add_index_setf_proba idxl proba))
   in
   (Some idx, restr_list',fun_list', proba')
-  
+
+let instan_time add_time p =
+  let rec instan_time = function
+    AttTime -> Add(AttTime, add_time)
+  | Time _ -> Parsing_helper.internal_error "unexpected time"
+  | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
+     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Maxlength _) as x -> x
+  | Proba(p,l) -> Proba(p, List.map instan_time l)
+  | ActTime(f,l) -> ActTime(f, List.map instan_time l)
+  | Length(f,l) -> Length(f, List.map instan_time l)
+  | Mul(x,y) -> Mul(instan_time x, instan_time y)
+  | Add(x,y) -> Add(instan_time x, instan_time y)
+  | Sub(x,y) -> Sub(instan_time x, instan_time y)
+  | Div(x,y) -> Div(instan_time x, instan_time y)
+  | Max(l) -> Max(List.map instan_time l)
+  in
+  instan_time p
+
+    
 let add_repl normalize equiv =
   if normalize then
     let (n,lm,rm,p,opt,opt2) = equiv in
@@ -968,15 +988,15 @@ let add_repl normalize equiv =
 	let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
 	let time_add1 =
 	  match opt2 with
-	  | Decisional -> Max [ Computeruntime.compute_runtime_for_fungroup (ReplRestr(None, lrestr_list',lfun_list'));
-				Computeruntime.compute_runtime_for_fungroup (ReplRestr(None, rrestr_list',rfun_list'))]
-	  | Computational -> Computeruntime.compute_runtime_for_fungroup (ReplRestr(None, lrestr_list',lfun_list'))
+	  | Decisional -> Max [ Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'));
+				Computeruntime.compute_runtime_for_fungroup Terms.rhs_game (ReplRestr(None, rrestr_list',rfun_list'))]
+	  | Computational -> Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'))
 	in
 	let time_add =
 	  Polynom.p_mul((Sub(Count(param),Cst 1.0)), time_add1)
 	in
 	let p'' = List.map (function
-	  | SetProba p1 -> SetProba (Polynom.p_mul(Count param, Proba.instan_time time_add p1))
+	  | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
 	  | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula"
 		) p'
 	in
@@ -996,7 +1016,6 @@ let add_repl normalize equiv =
     
 let check_equiv normalize equiv =
   let (n,lm,rm,p,opt,opt2) as equiv' = add_repl normalize equiv in
-  print_string "Obtained "; Display.display_equiv (equiv', []);
   (* we must call [check_def_eqstatement] before using [close_def] *)
   check_def_eqstatement equiv'; 
   let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in

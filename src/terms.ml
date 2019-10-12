@@ -443,6 +443,10 @@ let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0; p_loc =
 
 let empty_game = { proc = RealProcess (iproc_from_desc Nil); game_number = -1; current_queries = [] }
 
+(* Used the designate the LHS and RHS of an equivalence *)
+let lhs_game = { proc = RealProcess (iproc_from_desc Nil); game_number = -2; current_queries = [] }
+let rhs_game = { proc = RealProcess (iproc_from_desc Nil); game_number = -3; current_queries = [] }
+    
 let get_process g =
   match g.proc with
   | RealProcess q -> q

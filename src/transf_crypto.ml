@@ -4065,12 +4065,20 @@ let rec map_probaf env = function
   | ActTime(f, l) -> 
       Polynom.probaf_to_polynom (ActTime(f, List.map (fun prob -> 
       Polynom.polynom_to_probaf (map_probaf env prob)) l))
-  | Maxlength(n,t) ->
+  | Maxlength(g,t) ->
       let accu = ref [] in
       List.iter (fun map -> 
 	List.iter (fun one_exp -> 
 	  try
-	    let lt = Computeruntime.make_length_term (!whole_game) (rename_term map one_exp t) in
+	    let game =
+	      if g == Terms.lhs_game then
+		!whole_game
+	      else if g == Terms.rhs_game then
+		!whole_game_next
+	      else
+		Parsing_helper.internal_error "Maxlength should refer to the LHS or the RHS of the equivalence"
+	    in
+	    let lt = Computeruntime.make_length_term game (rename_term map one_exp t) in
 	    if not (List.exists (Terms.equal_probaf lt) (!accu)) then
 	      accu := lt :: (!accu) 
 	  with Not_found -> 
@@ -4346,6 +4354,7 @@ type trans_res =
 
 let transfo_expand apply_equiv p q =
   let g' = { proc = RealProcess (do_crypto_transform p); game_number = -1; current_queries = q } in
+  whole_game_next := g';
   let proba' = compute_proba apply_equiv in
   let ins' = [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
 						  (match !user_term_mapping with
@@ -4404,7 +4413,6 @@ let rec try_with_restr_list apply_equiv = function
 		      end;
 		    print_string "Transf. OK "; flush stdout;
 		    let (g',proba',ins') = transfo_expand apply_equiv (Terms.get_process (!whole_game)) (!whole_game).current_queries in
-		    whole_game_next := g';
 		    TSuccessPrio (proba', ins', g')
 		  end
 		else
@@ -4636,7 +4644,6 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 		  end;
 		print_string "Transf. OK "; flush stdout;
 		let (g',proba',ins') = transfo_expand apply_equiv p g.current_queries in
-		whole_game_next := g';
 		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
 		if ev_q != [] then
 		  g'.current_queries <- ev_q @ List.map (fun (q, poptref) -> (q, ref (!poptref))) g'.current_queries;

@@ -405,7 +405,7 @@ let instan_time add_time p =
      | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
   | Proba(p,l) -> Proba(p, List.map instan_time l)
   | ActTime(f,l) -> ActTime(f, List.map instan_time l)
-  | Maxlength(n,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)
+  | Maxlength(_,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)
   | Length(f,l) -> Length(f, List.map instan_time l)
   | Mul(x,y) -> Mul(instan_time x, instan_time y)
   | Add(x,y) -> Add(instan_time x, instan_time y)
