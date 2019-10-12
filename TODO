@@ -886,7 +886,40 @@ invariant that indices contain only Var elements, which is true
 in the current version of CryptoVerif -> need to check that the
 current code is still correct in the more general case.
 
+14b) Oracle calculus:
+Instead of the current calculus, use a higher order calculus,
+similar to the *simply typed* lambda calculus, with functions,
+tuples and bitstring types.
+Primitives are first-order constant functions, axomatized.
+The adversary is a variable function, received as input
+by the protocol (or the adversary is not written and takes
+the protocol as argument).
+Some functions can be called only once (write it in their
+type?).
+This calculus can then be expanded into the current input/output calculus.
+Each channel corresponds to an occurrence in the type of the adversary.
+Whether we make an input or an output depends on the polarity
+of the type.
+- applying a known function is beta reduced
+- applying a primitive is left as it is
+- applying a variable function (adversary) is encoded by
+  * outputting the bitstring arguments
+  * defining in parallel after the output
+    the known functions passed as arguments, under replication
+    when they can be called several times
+  * ignoring the variable functions passed as argument
+  * inputting the result of the function
+- receiving a variable function as argument is replaced
+  with inputting nothing.
 
+Write
+"match M with 
+ | f(p1...pn) -> ..."
+instead of
+"let f(p1...pn) = M in ... "?
+
+When we generate an implementation, we make the reverse translation:
+we translate the input/output calculus into OCaml, functional calculus.
 
 MIDDLE PRIORITY
 
