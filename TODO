@@ -110,13 +110,10 @@ Distinguish ROM / ROM_large like I do for PRFs?
    proved by a hybrid argument.
    (Check that this result also applies to [computatiional] equivalences.)
 
-Bug: the new proba refers to variables in the game after the transformation,
-in t_Q. That's not taken into account properly.
-
 
 HIGH PRIORITY
 
-   0) We cannot apply crypto transformations to equalities outside
+   1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
    correspondences. In contrast, we can apply collision statements
    to these equalities.
@@ -159,7 +156,7 @@ HIGH PRIORITY
    H(hk, ...). The trick above with tables does not work
    in this case.
    
-1) Incompatible front-end, second step
+2) Incompatible front-end, second step
 
    - if ... then .. !i<=N ..let x =
             else .. !i<=N ..let x =
@@ -234,79 +231,12 @@ We could probably push this idea for noninterf x among S.
       
    Also query secret x [reachability] (the adversary cannot compute x).
 
-2) 
+3) 
 PRF-ODH: I think "success simplify" and "focus" 
 would help for working with PRF-ODH
 => Benjamin Lipp will look at that
       
-4) Small details
-
-- Infer (1)
-collision x <-R Z; y <-R Z; forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if X independent-of x || X independent-of y. 
-from (2)
-collision x <-R Z; forall y: Z, X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if y independent-of x && X independent-of x. 
-The idea would be to apply several times collisions to collect
-side conditions, and then try to reduce the term using all side conditions.
-E.g. x <-R Z; y <-R Z; 
-exp_div_k(g_k,mult(x[i],y[j])) = X
-becomes
-i = (index of x in X) && exp_div_k(g_k,mult(x[i],y[j])) = X
-by applying the collision (2) with x,y,X
-then
-i = (index of x in X) && j = (index of y in X) && exp_div_k(g_k,mult(x[i],y[j])) = X
-by applying the collision (2) with y,x,X for x,y,X.
-Then we must reduce the equality exp_div_k(g_k,mult(x[i],y[j])) = X
-knowing the values of i and j. Such a reduction may succeed
-while no reduction is possible if one knows only i or only j.
-
-However, if we add the probabilities of the collisions that we apply,
-we are going to obtain 4*Pcoll1rand(Z) instead of 2*Pcoll1rand(Z).
-Is (1) correct with 2*Pcoll1rand(Z)?
-I think it's ok because the choice of whether X independent-of x or
-X independent-of y cannot itself depend on x or y.
-But that's tricky, and difficult to generalize using the idea above.
-
-- Links created by Facts.replace_term_repl_index are probably
-never removed. Is that a problem? Perhaps not.
-
-- Set future binders/true facts in terms in Terms.build_def_process
-
-- (OPTIONAL) In Terms.build_def_process, collect facts known to be true at the
-   end of a term. After "Event_abort" the execution does not continue,
-   so everything is true. Hence for instance, after
-   "if t1 then t2 else event_abort e", t1 is true and the facts
-   guaranteed by t2 are true.
-   WARNING: This does not allow saying that t1 and the facts
-   guaranteed by t2 are true in the future_facts!
-   That would not be correct in the proof of correspondences:
-   the correspondence needs to be proved even if the game terminates
-   with abort.
-   
-- When "collision" statements are used in the simplification that
-follows a cryptographic transformation, the simplified game is not
-displayed, and as a result, the corresponding times are printed as:
-time(context for game -1) which is not good, especially when there
-are several such games involved...
-
-- Better exploit compatibility tests:
-* improve case distinctions in Facts.add_facts, version for
-  the proof of correspondences: when I assume that a variable
-  is defined at a certain point, this implies that other variables
-  are also defined at certain points and not others.
-  This requires testing compatibility between program points.
-
-- Keep more information about the crypto transformation to perform,
-to reuse it after applying advice (at least the mapping of names)
-
-- implement implication statements and collisions, of the form:
-cond1 && ... && condn => concl
-cond1 && ... && condn =(proba)=> concl
-they add concl to the known facts when cond1, ..., condn
-are present.
-
-5) Guess the tested session; event adversary loses/adversary wins; ...
+4) Guess the tested session; event adversary loses/adversary wins; ...
    
 - Support authentication via
     A -> B: {N_A, A}_{pkB}
@@ -395,106 +325,13 @@ in that session. Some difficulties:
 Investigate in more details why (perhaps a bad orientation of
 equalities?), and fix it.
 
-6) extend "move array" such that the equality
+5) extend "move array" such that the equality
 test is replaced with any function f(X,z) such that when
 X is a fresh random number, f(X,z) = g(z) up to small proba.
 This extension could be applied directly to the ROM as well.
+(useful for AuthA, OAEP CCA2, ... see below these examples)
 
-
-7) Support for equations:
-
-- example examplesnd/Herzog-encryption-modes/non_terminating/cbc_mac.ocv
-           @4_r2_62 <-R block;
-           @4_x_61: block <- xor(@4_r2_62, b2_44);
-           find [unique] @i_67 = @ri_66 <= N_ver suchthat defined(@4_x_61[@ri_66], @4_r2_60[@ri_66]) && (@4_x_61 = @4_x_61[@ri_66]) then
-	   ...
-	   else @4_r2_60 <-R block
-The test @4_x_61 = @4_x_61[@ri_66] always fails:
- * @ri_66 cannot be equal the current index, because @4_r2_60 is not defined yet
- * when @ri_66 is not equal to the current index, 
-@4_x_61 = @4_x_61[@ri_66] means 
-@4_r2_62 = xor(b2_44, xor(@4_r2_62[@ri_66], b2_44[@ri_66]))
-and the RHS does not depend on @4_r2_62 (because it is chosen after the
-other elements are defined)
-so the collision can be eliminated.
-
-There are also collisions that should be eliminated in the example
-examplesnd/Herzog-encryption-modes/non_terminating/ccm_one_block_cpa.ocv
-
-3/7/2015: I improved elimination of collisions. It works for NSSK,
-but not for these examples...
-6/7/2015: This particular collision is eliminated with
-crypto aes_enc
-SArename @4_x_61
-The current reasoning done by CryptoVerif is as follows:
-   After SArename, the collision becomes @4_x_100 = @4_x_100[@ri_66]
-   and we know that @4_x_100 = xor(@4_r2_62, b2_44).
-   (The SArenaming is necessary to have that, because there are
-   other assignments to @4_x_61 with a different formula.)
-   By replacing @4_x_100 with its value and rewriting we get
-   @4_r2_62 = xor(xor(@4_r2_62[@ri_66], b2_44[@ri_66]), b2_44)
-   The elimination of collisions distinguishes two cases.
-   When @ri_66 is different from the current index, the RHS does not
-   depend on @4_r2_62, so we can eliminate the collision and transform
-   the equality into
-   (@ri_66 = current_index) && (@4_r2_62 = xor(xor(@4_r2_62, b2_44), b2_44))
-   that is
-   @ri_66 = current_index
-   which requires defined(@4_r2_60[current_index]), which is impossible.
-It would be possible to eliminate this collision without doing the
-SArename, by reasoning as follows:
-   Inside the dependency analysis (DepAnal2), notice that @ri_66 
-   cannot be the current index, because it would require
-   defined(@4_r2_60[current_index]), which is impossible.
-   From that, infer that @4_x_61[@ri_66] must be defined before
-   @4_r2_62, so @4_x_61[@ri_66] does not depend on @4_r2_62.
-   Hence the equality @4_x_61 = @4_x_61[@ri_66], that is,
-   xor(@4_r2_62, b2_44) = @4_x_61[@ri_66] implies
-   @4_r2_62 = xor(@4_x_61[@ri_66], b2_44)
-   and the RHS does not depend on @4_r2_62.
-
-A simpler version would be to show that CBC-MAC is a PRF, see
-examplesnd/Herzog-encryption-modes/non_terminating/cbc_mac_prf.ocv
-but even that is hard! (One needs to eliminate collisions between
-b1 and xor(tag1[i], b2[i])...)
-Improving global dependency analysis by using term simplification
-in Transf_globaldepanal.almost_indep_test could help.
-
-After improvement in elimination of collisions, the following example
-is slower:
-PROTOCOL examplesnd/test/needham-schroeder-pk3  OK
-Slower: old=2.030 new=28.202
-
-- possible case studies:
-  * OAEP, ZAEP and variants
-for the proof that OAEP is IND-CCA2:
-It seems to need an extension of "move array" in which the equality
-test is replaced with any function f(X,z) such that when
-X is a fresh random number, f(X,z) = g(z) up to small proba.
-This extension could be applied directly to the ROM.
-This function cannot currently be written directly in the LHS
-of an equivalence because it uses pattern matching.
-See examplesnd/otest/OAEP.ocv
-  * SK3 V. Shoup and A. Rubin. Session key distribution using smart
-cards. In Advances in Cryptology, EUROCRYPT, volume 1070/1996 of LNCS,
-pages 321–331. Springer, 1996
-  * NSL-XOR (cf
-   http://www.infsec.uni-trier.de/publications/paper/KuestersTruderung-arXiv-0808-0634v1-2008.pdf)
-  * CCA API (cf same paper as above)
-  * RA. Bull and D. Otway. The authentication protocol. Technical
-Report DRA/CIS3/PROJ/CORBA/SC/1/CSM/436-04/03,
-Defence Research Agency, Malvern, UK, 1997.
-
-- it would be nice to be able to say explicitly whether a variable
-can be instantiated by the neutral element or not.
-I think the default should be that it cannot: taking the neutral
-element often leads to a useless degenerate case.
-
-- transf_merge.ml: should I modify orient as in facts.ml?
-That's not clear because the orientation function is different
-and allows orienting f(...) -> f(...)
-
-8) Sometimes, the size of the game tends to explode. To avoid that, we
+6) Sometimes, the size of the game tends to explode. To avoid that, we
 could use constructs that allow comon continuations for several
 branches:
 
@@ -640,7 +477,16 @@ then C'[x1...xn] is independent.
       and it should be easy.
       In this case, I could stop after having done insert_event
       in the list above.
-         
+
+Note: When "collision" statements are used in the simplification that
+follows a cryptographic transformation, the simplified game is not
+displayed, and as a result, the corresponding times are printed as:
+time(context for game -1) which is not good, especially when there
+are several such games involved...
+==> Will be solved by considering crypto, simplify, expand as
+separate transformations (and thus allowing non-expanded
+intermediate games)
+
    - Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles
       - Concatenation of independent oracles => single oracle
@@ -655,11 +501,48 @@ then C'[x1...xn] is independent.
       In particular, it solves the case of ROMs in sequence that was
       problematic for the previous idea.
 
+7) More generally, allow some reordering of instructions:
+- move "let"s up, when that reduces the number of occurrences of
+  crypto primitives to compute. Risk: we may compute the expression
+  more often if we cross tests.
+  We could do more with array references: when an expression depends
+  on x1[j],...,xn[j] and x1...xn are defined in the same block of code,
+  we could precompute the expression after defining x1...xn.
+  Risky, except if the expression is always computed, for example if
+  it is already computed just after the definition of x1...xn.
+- move "new"s (and, if necessary for that, "let"s) down, when that
+  allows distinguishing cases (i.e. when we cross a if/find)
+  Risk when I move "let"s: duplicating computations, which make the
+  size of the game explode.
+- move "let"s down when the computed value is used only in a single
+  branch of a if/find (or in not all branches of if/find)
+Terms in "let"s can be split to do that.
 
+Rather: More fine-grained user guidance:
+- Reorder instructions (moving "new" up can be useful, see fdh below;
+also for merging of branches until we do some auto reordering),
+- decide to expand "if x then m1 else m2" or to keep it as "test(x,m1,m2)",
+- perhaps decide to merge or not each if/let/find when the branches execute
+the same code, ...
 
-9) Add more comments, e.g. in terms.mli
+8) common subexpression elimination
+examplesnd/JoeKaiTsayBasicKerberos_071122_INT-CTXT:
+Kerberos: to handle "keyderivation" for all keys, use some common
+subexpression elimination to avoid recomputing several times the same
+key. (This transfo is the contrary to "move_new". Choose when to apply
+each transformation. Perhaps use common subexpression elimination when
+the considered expression does not depend on the replication index.)
+==> Simpler and better: rely on user guidance. Have an instruction
+that allows replacing all terms equal to the definition of x
+with x. (Apply it also with indices.)
 
-10) Make an up-to-date tech report describing CryptoVerif.
+9) improved merging of find branches
+auto-reorder the instructions in the branches to merge,
+so that they are in the same order.
+
+10) Add more comments, e.g. in terms.mli
+
+11) Make an up-to-date tech report describing CryptoVerif.
 With respect to EPrint 2005/401, the following changes are needed:
 
     * Move to exact security (use the definitions of CSF'12;
@@ -776,62 +659,103 @@ I still think that the new semantics is much cleaner.
 
    * Document [unchanged], [computational]
 
+12) Make a tutorial
+
+MIDDLE PRIORITY
+
+13) Strengthen the global dependency analysis like the proof of one-session
+secrecy; one could even use a single dependency analysis for both.
+(For instance, with the current code, in the case of forward secrecy,
+CryptoVerif may be able to prove secrecy of x, but not to prove that
+x cannot be computed by the adversary, because it would need to show
+x = x' is impossible by global dependency analysis, but that analysis
+does not use elsefind facts, does not use compability of program points, ...)
+Group all dependency analyses into one stronger one?
+(That does not seem obvious to do.)
+
+14) We could add a transformation that removes part of the code,
+by giving to the adversary all data that it needs in order
+to run that part of code by itself.
+It should adjust the probability computation by adding the runtime
+of the removed part to the runtime of the adversary.
+That allows to simplify the code.
    
-11) work on forward secrecy (dynamic corruptions)
-   -> improve the proof of secrecy, to allow proving secrecy of some cells of an
-   array, even if other cells are leaked.
-   - in simplify, expand find in conditions of find even if the inner find
-   is not unique, when the outer find is unique. The resulting find is not 
-   unique.
-   - examplesnd/signedDH-forward-secrecy4.cv requires a distinction
-   depending on the order in which variables are defined.
-   DONE 21/7/2015
-   - examplesnd/signedDH-forward-secrecy3.cv additionally requires
-   an extension of the proof of secrecy, to support
-      if .. then out(c, s) else let secret = s
-   that is, some cells of s are secret, others are leaked.
-   Show that the usage of s[i] in which secrecy is required cannot
-   be executed for j=i when s[j] is leaked. Some similarity with
-   Simplify.CompatibleDefs: Simplify.CompatibleDefs tests
-   compatibility between two program points ("defined" test and 
-   variable definition); here we would also like to test compability
-   between two program points (s used as secret and s leaked).
-   DONE 28/7/2015
+15) Since the speed of Terms.equal_terms is so important, it
+is likely that a better structure for sets of terms,
+which would reduce the number of equality tests, would yield 
+a huge speedup.
+In fact, perhaps not that much: Terms.equal_terms seems to take
+6-10% of the time (when considering only commutative fct symbols), 
+so optimizing equality tests would save at most that time.
+However, Facts.simplif_add[_list] seems to take most of time (60%),
+optimizing it might yield good speedups.
+Facts.apply_eq_statements_and_collisions_subterms_once seems to be the costly part.
 
-12) prove the AuthA protocol:
-   - simplified version in which I split the hash function H into 
-     3 hash functions (see examplesnd/AuthA-split-hash.ocv).
-     Needs an extension of "move array" in which the equality
-     test is replaced with any function f(X,z) such that when
-     X is a fresh random number, f(X,z) = g(z) up to small proba.
-     The same extension could also be applied to ROM_hash and
-     ICM_encrypt (PRF? SPRP?).
-   - normal version (see examplesnd/AuthA.ocv) additionally needs
-        - case distinction depending on the order in which variables 
-        are defined
-        - improvement in simplification: CryptoVerif does not orient
-        some equations...
+I could optimize Facts.try_no_var by storing its result in the term,
+together with the substitution list (to reuse it only when the
+substitution list is unchanged). To be efficient, I would need to
+avoid making useless copies of terms, so that terms are as often
+as possible physically equal.
 
-13) Design a language for representing deductions of facts
-in simplification (and in replace, success...). 
-Generate new facts using three sources:
-- the CryptoVerif deduction engine, which should be enriched
-so that each deduced fact is accompanied with the corresponding
-deduction (proof), and its probability
-- deductions manually done by the user
-- possibly deductions produced by external tools (SMT solvers?)
-Have a common verification procedure for all these deductions.
-Then we can handle all equational theories at the cost of manual
-proofs. Manual proofs may also allow us to perform case distinctions, and
-to orient equations in a way the automatic proof strategy does not
-find.
-The certification of the system is simplified since we just have
-to certify the verification procedure.
-I could then count only the eliminated collisions that appear  
-in the proof, not the collisions eliminated but that did not finally
-lead to a transformation of the game.
+16) Interface improvements:
+- Perhaps omit the display of games between remove_assign useless, 
+simplify, move_new_let.
+- the lines are sometimes much too long in Latex output
+- detailed description of the transformations:
+  * when simplification modifies several times the same term/process,
+  the occurrence after the first modification is no longer found in the
+  initial game
+  * when a simplification step duplicates code, the occurrence
+  becomes ambiguous.
+  * when I simplify a term during expansion, the occurrence is not
+  found in the initial game.
+- HTML interface?
+- during manual proofs, have the tool suggest possible game
+transformations (via a command "suggestions", or in background
+while it is waiting for the user to type his command)
 
-14) Support for loops and mutable state.
+17) Files that could benefit from improvements:
+
+examples/fdh,pfdh: we cannot allow the hash oracle do be called
+before generating r, because we need r to be defined in the hash
+oracle, after some game transformations.
+We should start from a game like
+       in(hstart, ()); new hk: hashkey; out(hret, ());
+       ((!hashoracle) | (kgen ; (!sign | !verify)))
+A key r chosen in kgen is needed in hashoracle after a game
+transformation. In this case, we should move the generation of r
+upwards; it would end up being generated in the same block as hk,
+and we could then apply the game transformation as desired.
+
+examplesnd/needham-schroeder-pkcorr3Block-improve-secrecyNa.cv:
+One could prove the secrecy of NaA/NaB by improving the 
+dependency analysis: there are equality tests between Na_270 and
+values that do not depend on it (see that file for details).
+
+examplesnd/Misha-injectivity_and_equality.cv:
+there is an equality x = g(x') that cannot be oriented because
+x is defined by "new", and it should be oriented.
+4/09/2013: now works manually; it would still be nice
+to make it work automatically.
+
+EKE:
+- In Simplify1.is_compatible_indices, exploit defined variables using 
+CompatibleDefs2.check_compatible2_deflist to show that indices are
+incompatible.
+- In Simplify1.same_oracle_call, use a form of antiunification, 
+to show that more calls are in fact calls to the same oracle.
+- new proof of EKE in oexamples/OEKE.ocv. In the probability, there is now a term
+  (2 qH0 + 3 qH1) pCDH(...). Try to reduce it to (qH0 + qH1) pCDH(...)
+
+- "Expanding and simplifying" is very slow in
+~/dev/projects/2014ANRAirbus/ICAO9880-May2017/computational/ATN_functions.cv
+
+- Try to understand why CV explodes on 
+2013Airbus/computatinonal_revised/arinc823-secret-key.KEY_SECRECY.ORIGINAL.cv
+when I add the commented out code in check_distinct.ml,
+   to use elsefind facts.
+
+18) Support for loops and mutable state.
 This allows support for stateful crypto primitives.
 Also useful in many other situations.
 
@@ -886,7 +810,7 @@ invariant that indices contain only Var elements, which is true
 in the current version of CryptoVerif -> need to check that the
 current code is still correct in the more general case.
 
-14b) Oracle calculus:
+19) Oracle calculus:
 Instead of the current calculus, use a higher order calculus,
 similar to the *simply typed* lambda calculus, with functions,
 tuples and bitstring types.
@@ -923,182 +847,196 @@ instead of
 When we generate an implementation, we make the reverse translation:
 we translate the input/output calculus into OCaml, functional calculus.
 
-MIDDLE PRIORITY
-
-15a) Strengthen the global dependency analysis like the proof of one-session
-secrecy; one could even use a single dependency analysis for both.
-(For instance, with the current code, in the case of forward secrecy,
-CryptoVerif may be able to prove secrecy of x, but not to prove that
-x cannot be computed by the adversary, because it would need to show
-x = x' is impossible by global dependency analysis, but that analysis
-does not use elsefind facts, does not compability of program points, ...)
-Group all dependency analyses into one stronger one?
-(That does not seem obvious to do.)
-
-15b) Since the speed of Terms.equal_terms is so important, it
-is likely that a better structure for sets of terms,
-which would reduce the number of equality tests, would yield 
-a huge speedup.
-In fact, perhaps not that much: Terms.equal_terms seems to take
-6-10% of the time (when considering only commutative fct symbols), 
-so optimizing equality tests would save at most that time.
-However, Facts.simplif_add[_list] seems to take most of time (60%),
-optimizing it might yield good speedups.
-Facts.apply_eq_statements_and_collisions_subterms_once seems to be the costly part.
-
-I could optimize Facts.try_no_var by storing its result in the term,
-together with the substitution list (to reuse it only when the
-substitution list is unchanged). To be efficient, I would need to
-avoid making useless copies of terms, so that terms are as often
-as possible physically equal.
-
-16) Proof strategy improvements:
-- transmit priorities to instruct.ml, so that they can be taken into 
-account for choosing between different game transformations.
-(useful for automating signedDH-DDH? for automating forward secrecy?)
-In signedDH-DDH.cv, with the automatic proof strategy, we apply
-uf_cma(sign) rkB, then DDH succeeds (but using too many calls to the
-oracles Oa/Ob that leak a/b), while we should rather apply
-uf_cma(sign) rkA.
-We should prefer applying uf_cma(sign) rkA although it needs advice,
-rather than DDH which succeeds immediately but with bad oracles.
-   We would need priorities even for transformations that succeed.
-   A problem is that signatures also do not have a very good priority
-   level, because Opk has priority 2 and Ocheck2 has priority 3,
-   to make sure that Ocheck is preferred. Even after applying advice,
-   these oracles are called, but that's not a problem for signatures.
-signedDH-DDH.cv seems to work with backtracking, that's probably
-a better solution (or try to get the right order using the depth
-as suggested below).
-- try to order the game transformations that are tried according to 
-a "depth": outer crypto primitives are transformed first.
-- when a crypto transformation generates several advice possibilities:
-   (many transformations, high priority)....(few transformations, low priority)
-  CryptoVerif tries first the option (many transformations, high priority);
-  if it fails, it tries (few transformations, low priority) but this second option
-  will very probably regenerate as advice the advised transformations of the
-  option (many transformations, high priority), which is stupid...
-- when a crypto transformation advises syntactic transformations, on the
-retry of the crypto transformation, try to know which of the syntactic
-transformations were really helpful, and retry with those transformations only?
-- when manually specifying a crypto transformation, be able to specify the
-name mapping, not only the list of names?
-- apply the "User advice" (generated for instance when failing to
-prove a correspondence in "success", see end of Facts.check_corresp),
-for instance when I can do nothing else.
-
-
-17) Interface improvements:
-- Perhaps omit the display of games between remove_assign useless, 
-simplify, move_new_let.
-- the lines are sometimes much too long in Latex output
-- detailed description of the transformations:
-  * when simplification modifies several times the same term/process,
-  the occurrence after the first modification is no longer found in the
-  initial game
-  * when a simplification step duplicates code, the occurrence
-  becomes ambiguous.
-  * when I simplify a term during expansion, the occurrence is not
-  found in the initial game.
-- HTML interface?
-- during manual proofs, have the tool suggest possible game
-transformations (via a command "suggestions", or in background
-while it is waiting for the user to type his command)
-
-18) common subexpression elimination
-examplesnd/JoeKaiTsayBasicKerberos_071122_INT-CTXT:
-Kerberos: to handle "keyderivation" for all keys, use some common
-subexpression elimination to avoid recomputing several times the same
-key. (This transfo is the contrary to "move_new". Choose when to apply
-each transformation. Perhaps use common subexpression elimination when
-the considered expression does not depend on the replication index.)
-
-19) improved merging of find branches
-auto-reorder the instructions in the branches to merge,
-so that they are in the same order.
-
-20) in case arguments of differents forms that can still collide
-are given to a hash function, it may be useful to transform
-automatically x = f(M1,...,Mn) where f is [compos] into 
-let f(x1...xn) = x in x1=M1 && ... && xn=Mn
-Partly done in srcnd/transform_compos_equal_term_into_let.diff
-But, for it to work properly, I would need to improve the way
-simplification handles find conditions of the form
-let f(x1...xn) = x in x1=M1 && ... && xn=Mn
-(Currently, this fact is mostly ignored.)
-
-
-21) Files that could benefit from improvements:
-
-examples/fdh,pfdh: we cannot allow the hash oracle do be called
-before generating r, because we need r to be defined in the hash
-oracle, after some game transformations.
-We should start from a game like
-       in(hstart, ()); new hk: hashkey; out(hret, ());
-       ((!hashoracle) | (kgen ; (!sign | !verify)))
-A key r chosen in kgen is needed in hashoracle after a game
-transformation. In this case, we should move the generation of r
-upwards; it would end up being generated in the same block as hk,
-and we could then apply the game transformation as desired.
-
-examplesnd/needham-schroeder-pkcorr3Block-improve-secrecyNa.cv:
-One could prove the secrecy of NaA/NaB by improving the 
-dependency analysis: there are equality tests between Na_270 and
-values that do not depend on it (see that file for details).
-
-examplesnd/Misha-injectivity_and_equality.cv:
-there is an equality x = g(x') that cannot be oriented because
-x is defined by "new", and it should be oriented.
-4/09/2013: now works manually; it would still be nice
-to make it work automatically.
-
-EKE:
-- In Simplify1.is_compatible_indices, exploit defined variables using 
-CompatibleDefs2.check_compatible2_deflist to show that indices are
-incompatible.
-- In Simplify1.same_oracle_call, use a form of antiunification, 
-to show that more calls are in fact calls to the same oracle.
-- new proof of EKE in oexamples/OEKE.ocv. In the probability, there is now a term
-  (2 qH0 + 3 qH1) pCDH(...). Try to reduce it to (qH0 + qH1) pCDH(...)
-
-- "Expanding and simplifying" is very slow in
-~/dev/projects/2014ANRAirbus/ICAO9880-May2017/computational/ATN_functions.cv
-
-- Try to understand why CV explodes on 
-2013Airbus/computatinonal_revised/arinc823-secret-key.KEY_SECRECY.ORIGINAL.cv
-when I add the commented out code in check_distinct.ml,
-   to use elsefind facts.
-
-22) More generally, allow some reordering of instructions:
-- move "let"s up, when that reduces the number of occurrences of
-  crypto primitives to compute. Risk: we may compute the expression
-  more often if we cross tests.
-  We could do more with array references: when an expression depends
-  on x1[j],...,xn[j] and x1...xn are defined in the same block of code,
-  we could precompute the expression after defining x1...xn.
-  Risky, except if the expression is always computed, for example if
-  it is already computed just after the definition of x1...xn.
-- move "new"s (and, if necessary for that, "let"s) down, when that
-  allows distinguishing cases (i.e. when we cross a if/find)
-  Risk when I move "let"s: duplicating computations, which make the
-  size of the game explode.
-- move "let"s down when the computed value is used only in a single
-  branch of a if/find (or in not all branches of if/find)
-Terms in "let"s can be split to do that.
-
-More fine-grained user guidance? Reorder instructions, decide to
-expand "if x then m1 else m2" or to keep it as "test(x,m1,m2)",
-decide to merge or not each if/let/find when the branches execute
-the same code, ...
-
-23) We could add a transformation that removes part of the code,
-by giving to the adversary all data that it needs in order
-to run that part of code by itself.
-It should adjust the probability computation by adding the runtime
-of the removed part to the runtime of the adversary.
-That allows to simplify the code.
-   
 LOW PRIORITY:
+
+20) Small details
+
+- Infer (1)
+collision x <-R Z; y <-R Z; forall X: subG; 
+  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if X independent-of x || X independent-of y. 
+from (2)
+collision x <-R Z; forall y: Z, X: subG; 
+  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if y independent-of x && X independent-of x. 
+The idea would be to apply several times collisions to collect
+side conditions, and then try to reduce the term using all side conditions.
+E.g. x <-R Z; y <-R Z; 
+exp_div_k(g_k,mult(x[i],y[j])) = X
+becomes
+i = (index of x in X) && exp_div_k(g_k,mult(x[i],y[j])) = X
+by applying the collision (2) with x,y,X
+then
+i = (index of x in X) && j = (index of y in X) && exp_div_k(g_k,mult(x[i],y[j])) = X
+by applying the collision (2) with y,x,X for x,y,X.
+Then we must reduce the equality exp_div_k(g_k,mult(x[i],y[j])) = X
+knowing the values of i and j. Such a reduction may succeed
+while no reduction is possible if one knows only i or only j.
+
+However, if we add the probabilities of the collisions that we apply,
+we are going to obtain 4*Pcoll1rand(Z) instead of 2*Pcoll1rand(Z).
+Is (1) correct with 2*Pcoll1rand(Z)?
+I think it's ok because the choice of whether X independent-of x or
+X independent-of y cannot itself depend on x or y.
+But that's tricky, and difficult to generalize using the idea above.
+
+- Links created by Facts.replace_term_repl_index are probably
+never removed. Is that a problem? Perhaps not.
+
+- Set future binders/true facts in terms in Terms.build_def_process
+
+- (OPTIONAL) In Terms.build_def_process, collect facts known to be true at the
+   end of a term. After "Event_abort" the execution does not continue,
+   so everything is true. Hence for instance, after
+   "if t1 then t2 else event_abort e", t1 is true and the facts
+   guaranteed by t2 are true.
+   WARNING: This does not allow saying that t1 and the facts
+   guaranteed by t2 are true in the future_facts!
+   That would not be correct in the proof of correspondences:
+   the correspondence needs to be proved even if the game terminates
+   with abort.
+   
+- Better exploit compatibility tests:
+* improve case distinctions in Facts.add_facts, version for
+  the proof of correspondences: when I assume that a variable
+  is defined at a certain point, this implies that other variables
+  are also defined at certain points and not others.
+  This requires testing compatibility between program points.
+
+- Keep more information about the crypto transformation to perform,
+to reuse it after applying advice (at least the mapping of names)
+
+- implement implication statements and collisions, of the form:
+cond1 && ... && condn => concl
+cond1 && ... && condn =(proba)=> concl
+they add concl to the known facts when cond1, ..., condn
+are present.
+
+21) work on forward secrecy (dynamic corruptions)
+   -> improve the proof of secrecy, to allow proving secrecy of some cells of an
+   array, even if other cells are leaked.
+   - in simplify, expand find in conditions of find even if the inner find
+   is not unique, when the outer find is unique. The resulting find is not 
+   unique.
+   - examplesnd/signedDH-forward-secrecy4.cv requires a distinction
+   depending on the order in which variables are defined.
+   DONE 21/7/2015
+   - examplesnd/signedDH-forward-secrecy3.cv additionally requires
+   an extension of the proof of secrecy, to support
+      if .. then out(c, s) else let secret = s
+   that is, some cells of s are secret, others are leaked.
+   Show that the usage of s[i] in which secrecy is required cannot
+   be executed for j=i when s[j] is leaked. Some similarity with
+   Simplify.CompatibleDefs: Simplify.CompatibleDefs tests
+   compatibility between two program points ("defined" test and 
+   variable definition); here we would also like to test compability
+   between two program points (s used as secret and s leaked).
+   DONE 28/7/2015
+
+22) prove the AuthA protocol:
+   - simplified version in which I split the hash function H into 
+     3 hash functions (see examplesnd/AuthA-split-hash.ocv).
+     Needs an extension of "move array" in which the equality
+     test is replaced with any function f(X,z) such that when
+     X is a fresh random number, f(X,z) = g(z) up to small proba.
+     The same extension could also be applied to ROM_hash and
+     ICM_encrypt (PRF? SPRP?).
+   - normal version (see examplesnd/AuthA.ocv) additionally needs
+        - case distinction depending on the order in which variables 
+        are defined
+        - improvement in simplification: CryptoVerif does not orient
+        some equations...
+
+23) Support for equations:
+
+- example examplesnd/Herzog-encryption-modes/non_terminating/cbc_mac.ocv
+           @4_r2_62 <-R block;
+           @4_x_61: block <- xor(@4_r2_62, b2_44);
+           find [unique] @i_67 = @ri_66 <= N_ver suchthat defined(@4_x_61[@ri_66], @4_r2_60[@ri_66]) && (@4_x_61 = @4_x_61[@ri_66]) then
+	   ...
+	   else @4_r2_60 <-R block
+The test @4_x_61 = @4_x_61[@ri_66] always fails:
+ * @ri_66 cannot be equal the current index, because @4_r2_60 is not defined yet
+ * when @ri_66 is not equal to the current index, 
+@4_x_61 = @4_x_61[@ri_66] means 
+@4_r2_62 = xor(b2_44, xor(@4_r2_62[@ri_66], b2_44[@ri_66]))
+and the RHS does not depend on @4_r2_62 (because it is chosen after the
+other elements are defined)
+so the collision can be eliminated.
+
+There are also collisions that should be eliminated in the example
+examplesnd/Herzog-encryption-modes/non_terminating/ccm_one_block_cpa.ocv
+
+3/7/2015: I improved elimination of collisions. It works for NSSK,
+but not for these examples...
+6/7/2015: This particular collision is eliminated with
+crypto aes_enc
+SArename @4_x_61
+The current reasoning done by CryptoVerif is as follows:
+   After SArename, the collision becomes @4_x_100 = @4_x_100[@ri_66]
+   and we know that @4_x_100 = xor(@4_r2_62, b2_44).
+   (The SArenaming is necessary to have that, because there are
+   other assignments to @4_x_61 with a different formula.)
+   By replacing @4_x_100 with its value and rewriting we get
+   @4_r2_62 = xor(xor(@4_r2_62[@ri_66], b2_44[@ri_66]), b2_44)
+   The elimination of collisions distinguishes two cases.
+   When @ri_66 is different from the current index, the RHS does not
+   depend on @4_r2_62, so we can eliminate the collision and transform
+   the equality into
+   (@ri_66 = current_index) && (@4_r2_62 = xor(xor(@4_r2_62, b2_44), b2_44))
+   that is
+   @ri_66 = current_index
+   which requires defined(@4_r2_60[current_index]), which is impossible.
+It would be possible to eliminate this collision without doing the
+SArename, by reasoning as follows:
+   Inside the dependency analysis (DepAnal2), notice that @ri_66 
+   cannot be the current index, because it would require
+   defined(@4_r2_60[current_index]), which is impossible.
+   From that, infer that @4_x_61[@ri_66] must be defined before
+   @4_r2_62, so @4_x_61[@ri_66] does not depend on @4_r2_62.
+   Hence the equality @4_x_61 = @4_x_61[@ri_66], that is,
+   xor(@4_r2_62, b2_44) = @4_x_61[@ri_66] implies
+   @4_r2_62 = xor(@4_x_61[@ri_66], b2_44)
+   and the RHS does not depend on @4_r2_62.
+
+A simpler version would be to show that CBC-MAC is a PRF, see
+examplesnd/Herzog-encryption-modes/non_terminating/cbc_mac_prf.ocv
+but even that is hard! (One needs to eliminate collisions between
+b1 and xor(tag1[i], b2[i])...)
+Improving global dependency analysis by using term simplification
+in Transf_globaldepanal.almost_indep_test could help.
+
+After improvement in elimination of collisions, the following example
+is slower:
+PROTOCOL examplesnd/test/needham-schroeder-pk3  OK
+Slower: old=2.030 new=28.202
+
+- possible case studies:
+  * OAEP, ZAEP and variants
+for the proof that OAEP is IND-CCA2:
+It seems to need an extension of "move array" in which the equality
+test is replaced with any function f(X,z) such that when
+X is a fresh random number, f(X,z) = g(z) up to small proba.
+This extension could be applied directly to the ROM.
+This function cannot currently be written directly in the LHS
+of an equivalence because it uses pattern matching.
+See examplesnd/otest/OAEP.ocv
+  * SK3 V. Shoup and A. Rubin. Session key distribution using smart
+cards. In Advances in Cryptology, EUROCRYPT, volume 1070/1996 of LNCS,
+pages 321–331. Springer, 1996
+  * NSL-XOR (cf
+   http://www.infsec.uni-trier.de/publications/paper/KuestersTruderung-arXiv-0808-0634v1-2008.pdf)
+  * CCA API (cf same paper as above)
+  * RA. Bull and D. Otway. The authentication protocol. Technical
+Report DRA/CIS3/PROJ/CORBA/SC/1/CSM/436-04/03,
+Defence Research Agency, Malvern, UK, 1997.
+
+- it would be nice to be able to say explicitly whether a variable
+can be instantiated by the neutral element or not.
+I think the default should be that it cannot: taking the neutral
+element often leads to a useless degenerate case.
+
+- transf_merge.ml: should I modify orient as in facts.ml?
+That's not clear because the orientation function is different
+and allows orienting f(...) -> f(...)
 
 24) Currently, when applying the INT-CTXT-corrupt property, CV
 considers that when the key is already corrupted, nothing
@@ -1180,6 +1118,74 @@ defined by a restriction/let/... and similar usages.
 
 35) Put the basic proba functions of polynom.ml in a separate module? (to
 avoid confusion between proba fcts and polynom fcts)
+
+36) Design a language for representing deductions of facts
+in simplification (and in replace, success...). 
+Generate new facts using three sources:
+- the CryptoVerif deduction engine, which should be enriched
+so that each deduced fact is accompanied with the corresponding
+deduction (proof), and its probability
+- deductions manually done by the user
+- possibly deductions produced by external tools (SMT solvers?)
+Have a common verification procedure for all these deductions.
+Then we can handle all equational theories at the cost of manual
+proofs. Manual proofs may also allow us to perform case distinctions, and
+to orient equations in a way the automatic proof strategy does not
+find.
+The certification of the system is simplified since we just have
+to certify the verification procedure.
+I could then count only the eliminated collisions that appear  
+in the proof, not the collisions eliminated but that did not finally
+lead to a transformation of the game.
+
+37) in case arguments of differents forms that can still collide
+are given to a hash function, it may be useful to transform
+automatically x = f(M1,...,Mn) where f is [compos] into 
+let f(x1...xn) = x in x1=M1 && ... && xn=Mn
+Partly done in srcnd/transform_compos_equal_term_into_let.diff
+But, for it to work properly, I would need to improve the way
+simplification handles find conditions of the form
+let f(x1...xn) = x in x1=M1 && ... && xn=Mn
+(Currently, this fact is mostly ignored.)
+==> This problem can be solved by manually introducing a
+case distinction "let f(x1...xn) = x in" in the hash oracle.
+
+38) Proof strategy improvements:
+- transmit priorities to instruct.ml, so that they can be taken into 
+account for choosing between different game transformations.
+(useful for automating signedDH-DDH? for automating forward secrecy?)
+In signedDH-DDH.cv, with the automatic proof strategy, we apply
+uf_cma(sign) rkB, then DDH succeeds (but using too many calls to the
+oracles Oa/Ob that leak a/b), while we should rather apply
+uf_cma(sign) rkA.
+We should prefer applying uf_cma(sign) rkA although it needs advice,
+rather than DDH which succeeds immediately but with bad oracles.
+   We would need priorities even for transformations that succeed.
+   A problem is that signatures also do not have a very good priority
+   level, because Opk has priority 2 and Ocheck2 has priority 3,
+   to make sure that Ocheck is preferred. Even after applying advice,
+   these oracles are called, but that's not a problem for signatures.
+signedDH-DDH.cv seems to work with backtracking, that's probably
+a better solution (or try to get the right order using the depth
+as suggested below).
+- try to order the game transformations that are tried according to 
+a "depth": outer crypto primitives are transformed first.
+- when a crypto transformation generates several advice possibilities:
+   (many transformations, high priority)....(few transformations, low priority)
+  CryptoVerif tries first the option (many transformations, high priority);
+  if it fails, it tries (few transformations, low priority) but this second option
+  will very probably regenerate as advice the advised transformations of the
+  option (many transformations, high priority), which is stupid...
+- when a crypto transformation advises syntactic transformations, on the
+retry of the crypto transformation, try to know which of the syntactic
+transformations were really helpful, and retry with those transformations only?
+- when manually specifying a crypto transformation, be able to specify the
+name mapping, not only the list of names?
+- apply the "User advice" (generated for instance when failing to
+prove a correspondence in "success", see end of Facts.check_corresp),
+for instance when I can do nothing else.
+==> Anyway, I think manual guidance will not be avoided for non-trivial
+examples.
 
 =========================================================================
 
