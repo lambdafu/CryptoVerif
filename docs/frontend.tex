@@ -190,9 +190,9 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\nonterm{ffindbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\funbody\\
 %
 &\fungroup ::= \nonterm{ident}\texttt{(}\seq{vartypeb}\texttt{) }[\texttt{[}n\texttt{]}]\ [\texttt{[useful\_change]}]\texttt{ := }\funbody\\
-&\phf \nonterm{repl}\ \nonterm{res}^*\ 
+&\phf [\nonterm{repl}]\ \nonterm{res}^*\ 
 \fungroup\\
-&\phf \nonterm{repl}\ \nonterm{res}^*\ 
+&\phf [\nonterm{repl}]\ \nonterm{res}^*\ 
 \texttt{(}\fungroup \texttt{ | }\ldots\texttt{ | }\fungroup\texttt{)}\\
 &\funmode ::= \fungroup\ [\texttt{[exist]}]\\
 &\phfm \fungroup \texttt{ [all]}
@@ -1737,7 +1737,7 @@ CryptoVerif applies the transformation defined by the equivalence
 only when at least one \texttt{[useful\_change]} function is called in the game.
 
 \item $\texttt{!} i \leqt  N\ \Resa{y_1}{T'_1}\texttt{;}
-\ldots \Resa{y_m}{T'_m} \texttt{;} \texttt{(}FG_1, \ldots,
+\ldots \Resa{y_m}{T'_m} \texttt{;} \texttt{(}FG_1\texttt{|} \ldots \texttt{|}
 FG_n\texttt{)}$ represents $N$ copies of a process that picks fresh
 random numbers $y_1$, \ldots, $y_m$ of types $T'_1, \ldots, T'_m$
 respectively, and makes available the functions described in $FG_1,
@@ -1746,6 +1746,13 @@ identifier $i$ cannot be referred to explicitly in the process; it is
 used only implicitly as array index of variables defined under
 $\texttt{!} i \leqt  N$.  The replication $\texttt{!} i
 \leqt  N$ can be abbreviated $\texttt{!} N$.
+
+The replication $\texttt{!} i \leqt  N$ can be omitted 
+only at the root of the equivalence, when it contains
+a single $\omode$ on the left-hand side, and a single $\ogroup$
+on the right-hand side. CryptoVerif then automatically
+adds a replication internally, and adjusts the probability
+accordingly.
 
 \end{itemize}
 CryptoVerif uses such equivalences to transform processes that call

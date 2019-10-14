@@ -103,13 +103,6 @@ Distinguish ROM / ROM_large like I do for PRFs?
    a negligible probability of happening.
    [unchanged] restrictions are shared between both sides.
 
-3) Allow entering assumptions as "equiv ..." without a replication
-   at the top of each side. In this case, add the replication automatically
-   by the following result:
-   P <=(p)=> Q  implies  !N P <=(N p{time + (N-1)max(t_P,t_Q)/time})=> !N Q
-   proved by a hybrid argument.
-   (Check that this result also applies to [computatiional] equivalences.)
-
 
 HIGH PRIORITY
 
@@ -4564,3 +4557,12 @@ let dependency_anal bdepinfo =
   let collision_test simp_facts t1 t2 = None in
   (indep_test, collision_test)
 DONE 3/10/2019
+
+Allow entering assumptions as "equiv ..." without a replication
+   at the top of each side. In this case, add the replication automatically
+   by the following result:
+   P <=(p)=> Q  implies  !N P <=(N p{time + (N-1)max(t_P,t_Q)/time})=> !N Q
+   proved by a hybrid argument.
+For [computational] equivalences,
+   P <=(p)=> Q  implies  !N P <=(N p{time + (N-1)t_P/time})=> !N Q
+DONE 14/10/2019

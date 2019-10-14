@@ -29,6 +29,9 @@ Version
   is really unique; the insertion fails if that proof fails.
 - Public variables can be omitted in the "focus" command when
   there is no ambiguity.
+- Replications (i.e. "! N" or "foreach i <= N do") can be omitted
+  at the root of equiv declarations that contain a single group
+  of oracles. CryptoVerif adds them internally.
 - Revised dependency analyses to eliminate more collisions.
   Fixed some bugs in passing.
 - Removed a collision from DH_proba_collision and square_DH_proba_collision
