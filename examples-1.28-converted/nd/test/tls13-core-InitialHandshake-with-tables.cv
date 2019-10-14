@@ -134,7 +134,7 @@ proof {
       remove_assign binder s;
       remove_assign binder s_3;
       simplify;
-      crypto gdh(exp) [variables: x_5-> a, y_7 -> b .];
+      crypto gdh(exp) [variables: x_5-> a, y_5 -> b .];
       crypto prf2 *;
       crypto client_server_hts *;
       crypto prf_fin_key_iv *;

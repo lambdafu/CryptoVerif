@@ -15,7 +15,7 @@ proof {
       remove_assign binder s;
       remove_assign binder s_3;
       simplify;
-      crypto gdh(exp) [variables: x_5 -> a, y_6 -> b .];
+      crypto gdh(exp) [variables: x_5 -> a, y_3 -> b .];
       auto
 (*    crypto prf(HKDF_expand) *;
       crypto extractor1(HKDF_extract) *;
