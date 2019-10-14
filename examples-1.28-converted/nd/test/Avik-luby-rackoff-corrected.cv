@@ -10,10 +10,10 @@
 proof {
       auto;
       show_game;
-      SArename x_5;
+      SArename x_2;
       SArename y;
       show_game occ;
-      insert 27 "if defined(y_23[u_2], u_1[u_2], v[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";
+      insert 27 "if defined(y_22[u_2], u_1[u_2], v[u_2]) && (u_1 = u_1[u_2]) && (v = v[u_2]) then";
       show_game occ;
       insert_event e2 123;
       insert_event e4 105;
@@ -21,8 +21,9 @@ proof {
       show_game occ;
       replace 36 "x_1[u_3]";
       show_game occ;
-      replace 40 "y_23[u_3]";
+      replace 40 "y_22[u_3]";
       auto;
+      show_game;
       remove_assign binder x_1;
       success
 }
