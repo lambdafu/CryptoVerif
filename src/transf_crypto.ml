@@ -4372,6 +4372,9 @@ let transfo_expand apply_equiv p q =
   in
   print_string "Transf. done "; flush stdout;
   let (g'', proba'', ins'') = Transf_expand.expand_process g' in
+  whole_game_next := g''; (* TODO When the expansion will be considered as a separate transformation,
+			     whole_game_next should be the one after auto_sa_rename (here and above!).
+			     The probability should be rewritten to refer to variables after auto_sa_rename *)
   (g'', proba'' @ proba', ins'' @ ins')
 	
 let rec try_with_restr_list apply_equiv = function
