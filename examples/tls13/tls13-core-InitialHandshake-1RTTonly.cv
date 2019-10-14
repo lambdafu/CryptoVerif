@@ -42,7 +42,7 @@ proof {
       remove_assign binder s_1;
       remove_assign binder s_2;
       simplify;
-      crypto gdh(exp) [variables: x_2 -> a, y_6 -> b .];
+      crypto gdh(exp) [variables: x_2 -> a, y_4 -> b .];
       out_game "g1_withindepcoll.cv";
       crypto prf2 *;
       crypto splitter(split2) *;

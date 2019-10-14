@@ -38,9 +38,9 @@ proof {
       start_from_other_end;
       crypto rom(H2);
       show_game;
-      (* remove_assign on x1_7 = H1(...) to make explicit tests H1(..) = .. 
+      (* remove_assign on x1_4 = H1(...) to make explicit tests H1(..) = .. 
       	 which are nicely simplified by the equivalence rom(H1). *)
-      remove_assign binder x1_7;
+      remove_assign binder x1_4;
       crypto rom(H1);
       show_game occ;
       (* At the beginning of OH2, distinguish whether the call OH2(x2,y2) 
