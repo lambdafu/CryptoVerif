@@ -6,6 +6,8 @@ val fun_out : (string -> unit) -> (unit -> unit) -> unit
 val print_string : string -> unit
 val print_newline : unit -> unit  
 
+val get_game_id : game -> string
+    
 val display_occurrences : bool ref
 val display_arrays : bool ref
 val display_list : ('a -> unit) -> 'a list -> unit

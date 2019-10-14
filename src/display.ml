@@ -485,6 +485,12 @@ let display_action = function
 
 let times_to_display = ref []
 
+let get_game_id g =
+  if g.game_number = -1 then 
+    "[not shown yet]" 
+  else 
+    string_of_int g.game_number
+
 let rec display_proba level = function
     Proba(p,l) -> 
       print_string p.prname;
@@ -535,7 +541,7 @@ let rec display_proba level = function
   | Time(g,t)->
 	begin
 	  print_string "time(context for game ";
-	  print_int g.game_number;
+	  print_string (get_game_id g);
 	  print_string ")";
 	  try
 	    ignore (List.assq g (!times_to_display))
@@ -553,16 +559,16 @@ let rec display_proba level = function
       print_string ")"
   | Maxlength(g,t) ->
       print_string "maxlength(";
-      if g.game_number>=0 then
-	begin
-	  print_string "game ";
-	  print_int g.game_number;
-	  print_string ": "
-	end
-      else if g == Terms.lhs_game then
+      if g == Terms.lhs_game then
 	print_string "LHS: "
       else if g == Terms.rhs_game then
-	print_string "RHS: ";
+	print_string "RHS: "
+      else 
+	begin
+	  print_string "game ";
+	  print_string (get_game_id g);
+	  print_string ": "
+	end;
       display_term t;
       print_string ")"
   | TypeMaxlength(ty) ->
@@ -618,7 +624,7 @@ let display_one_set = function
       print_string "Pr[event ";
       print_string f.f_name;
       print_string " in game ";
-      print_int g.game_number;
+      print_string (get_game_id g);
       display_pub_vars pub_vars;
       print_string "]"
 
@@ -1279,12 +1285,6 @@ let display_query3 = function
       display_query2 t2;
       display_pub_vars pub_vars
 	
-let get_game_id g =
-  if g.game_number = -1 then 
-    "[game not shown yet]" 
-  else 
-    string_of_int g.game_number
-
 let display_query (q,g) = 
   match q with 
     AbsentQuery -> 
@@ -1409,7 +1409,7 @@ type proof_tree =
 (* For debugging *)
 
 let rec display_proof_tree indent pt =
-  print_string (indent ^ "Game " ^ (string_of_int pt.pt_game.game_number) ^"\n");
+  print_string (indent ^ "Game " ^ (get_game_id pt.pt_game) ^"\n");
   let display_son indent_next (i, p, pt_son, ql) =
     begin
       match i with
@@ -1423,7 +1423,7 @@ let rec display_proof_tree indent pt =
     display_list (function
 	(InitQuery _, _) -> print_string "Initial query"
       |	(QEvent f, g) -> print_string "Event "; print_string f.f_name; 
-	  print_string " in game "; print_int g.game_number) (!ql);
+	  print_string " in game "; print_string (get_game_id g)) (!ql);
     print_newline();    
     display_proof_tree indent_next pt_son
   in
@@ -1540,7 +1540,7 @@ let display_adv ql game =
   match ql_initq with
     [InitQuery q0,g0] ->
       print_string "Adv[Game ";
-      print_int game.game_number;
+      print_string (get_game_id game);
       print_string ": ";
       display_query (q0,g0);
       if ql_no_initq != [] then
@@ -1551,7 +1551,7 @@ let display_adv ql game =
       print_string "]"
   | [] ->
       print_string "Pr[Game ";
-      print_int game.game_number;
+      print_string (get_game_id game);
       print_string ": ";
       display_or_list ql_no_initq;
       print_string "]"
@@ -1682,7 +1682,7 @@ let compute_proba_internal ((q0,g) as q) p s =
 let compute_proba ((q0,g) as q) p s =
   match q0 with
   | QEquivalence(state,pub_vars) ->
-     print_string ("Game "^(string_of_int s.game.game_number)^" is the same as game "^(string_of_int state.game.game_number));
+     print_string ("Game "^(get_game_id s.game)^" is the same as game "^(get_game_id state.game));
      if p <> [] then
        begin
          print_string " up to probability ";
@@ -2055,7 +2055,7 @@ let rec display_state ins_next s =
     begin
       print_string "===================== New branch =====================\n";
       print_string "Game "; 
-      print_int s.game.game_number;
+      print_string (get_game_id s.game);
       print_string " [Already displayed]\n";
     end
   else
@@ -2224,7 +2224,7 @@ let display_state s =
   (* Display the runtimes *)
   List.iter (fun (g,t) ->
     print_string "RESULT time(context for game ";
-    print_int g.game_number;
+    print_string (get_game_id g);
     print_string ") = ";
     display_proba 0 t;
     print_newline()

@@ -4027,21 +4027,30 @@ let rec countl_to_poly_aux accu = function
 
 let countl_to_poly l = countl_to_poly_aux Polynom.zero l
 
-let rec rename_term map one_exp t =
+let rec rename_term before map one_exp t =
   match t.t_desc with
     FunApp(f,l) -> 
-      Terms.build_term t (FunApp(f, List.map (rename_term map one_exp) l))
+      Terms.build_term t (FunApp(f, List.map (rename_term before map one_exp) l))
   | Var(b,l) -> 
       begin
 	if not (Terms.is_args_at_creation b l) then
           Parsing_helper.internal_error "Unexpected variable reference in rename_term";
-	try
-	  List.assq b one_exp.before_transfo_input_vars_exp
-	with Not_found ->
-	  Terms.term_from_binder (List.assq b map.before_transfo_restr)
+	if before then
+	  try
+	    List.assq b one_exp.before_transfo_input_vars_exp
+	  with Not_found ->
+	    Terms.term_from_binder (List.assq b map.before_transfo_restr)
 	    (* Raises Not_found when the variable is not found.
 	       In this case, the considered expression has no contribution 
 	       to the maximum length. *)
+	else
+	  try
+	    List.assq b one_exp.after_transfo_input_vars_exp
+	  with Not_found ->
+	    try
+	      Terms.term_from_binder (List.assq b one_exp.after_transfo_let_vars)
+	    with Not_found ->
+		Terms.term_from_binder (List.assq b map.after_transfo_restr)
       end
   | _ -> Parsing_helper.internal_error "If/let/find/res and replication indices not allowed in rename_term"
 	(* Replication indices cannot occur because 
@@ -4070,15 +4079,15 @@ let rec map_probaf env = function
       List.iter (fun map -> 
 	List.iter (fun one_exp -> 
 	  try
-	    let game =
+	    let (game, before) =
 	      if g == Terms.lhs_game then
-		!whole_game
+		!whole_game, true
 	      else if g == Terms.rhs_game then
-		!whole_game_next
+		!whole_game_next, false
 	      else
 		Parsing_helper.internal_error "Maxlength should refer to the LHS or the RHS of the equivalence"
 	    in
-	    let lt = Computeruntime.make_length_term game (rename_term map one_exp t) in
+	    let lt = Computeruntime.make_length_term game (rename_term before map one_exp t) in
 	    if not (List.exists (Terms.equal_probaf lt) (!accu)) then
 	      accu := lt :: (!accu) 
 	  with Not_found -> 

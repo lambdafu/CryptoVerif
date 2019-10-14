@@ -988,8 +988,15 @@ let add_repl normalize equiv =
 	let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
 	let time_add1 =
 	  match opt2 with
-	  | Decisional -> Max [ Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'));
-				Computeruntime.compute_runtime_for_fungroup Terms.rhs_game (ReplRestr(None, rrestr_list',rfun_list'))]
+	  | Decisional ->
+	      let lhs_time = Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list')) in
+	      let rhs_time = Computeruntime.compute_runtime_for_fungroup Terms.rhs_game (ReplRestr(None, rrestr_list',rfun_list')) in
+	      begin
+		match lhs_time, rhs_time with
+		| Zero, _ -> rhs_time
+		| _, Zero -> lhs_time
+		| _ -> Max [ lhs_time; rhs_time ]
+	      end
 	  | Computational -> Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'))
 	in
 	let time_add =

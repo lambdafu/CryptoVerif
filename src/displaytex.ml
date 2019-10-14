@@ -483,7 +483,7 @@ let rec display_proba level = function
   | AttTime ->
       print_string "\\kw{time}"
   | Time(g,t) ->
-      print_string ("\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (string_of_int g.game_number) ^ ")");
+      print_string ("\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (Display.get_game_id g) ^ ")");
       begin
 	try
 	  ignore (List.assq g (!times_to_display))
@@ -501,12 +501,12 @@ let rec display_proba level = function
       print_string ")"
   | Maxlength(g,t) ->
       print_string "\\kw{maxlength}(";
-      if g.game_number>=0 then
-	print_string ("\\mathit{game}\\ " ^ (string_of_int g.game_number) ^ ": ")
-      else if g == Terms.lhs_game then
+      if g == Terms.lhs_game then
 	print_string "\\mathit{LHS}: "
       else if g == Terms.rhs_game then
-	print_string "\\mathit{RHS}: ";
+	print_string "\\mathit{RHS}: "
+      else
+	print_string ("\\mathit{game}\\ " ^ (Display.get_game_id g) ^ ": ");
       display_term t;
       print_string ")"
   | TypeMaxlength(ty) ->
@@ -556,7 +556,7 @@ let display_one_set = function
       display_proba 0 r
   | SetEvent(f, g, pub_vars, _) ->
       print_id "\\Pr[\\kw{event}\\ \\kwf{" f.f_name "}\\textrm{ in game }";
-      print_string (string_of_int g.game_number);
+      print_string (Display.get_game_id g);
       display_pub_vars_math_mode pub_vars;
       print_string "]"
 
@@ -1265,12 +1265,12 @@ let display_query (q,g) =
 		      (string_of_int g'.game_number));
       display_pub_vars pub_vars
   | QEquivalenceFinal(g', pub_vars) ->
-      print_string ("indistinguishability from game " ^ (string_of_int g'.game_number)); 
+      print_string ("indistinguishability from game " ^ (Display.get_game_id g')); 
       display_pub_vars pub_vars
   | _ ->
       display_query3 q;
       if g.game_number <> 1 then
-	print_string (" in game " ^ (string_of_int g.game_number))  
+	print_string (" in game " ^ (Display.get_game_id g))  
 
 let display_coll_elim = function
     CollVars l ->
@@ -1368,7 +1368,7 @@ let display_adv ql game =
   match ql_initq with
     [Display.InitQuery q0,g0] ->
       print_string "\\mathsf{Adv}[\\mathrm{Game}\\ ";
-      print_int game.game_number;
+      print_string (Display.get_game_id game);
       print_string ": $";
       display_query (q0,g0);
       print_string "$";
@@ -1380,7 +1380,7 @@ let display_adv ql game =
       print_string "]"
   | [] ->
       print_string "\\Pr[\\mathrm{Game}\\ ";
-      print_int game.game_number;
+      print_string (Display.get_game_id game);
       print_string ": ";
       display_or_list ql_no_initq;
       print_string "]"
@@ -1489,7 +1489,7 @@ let compute_proba_internal ((q0,g) as q) p s =
 let compute_proba ((q0,g) as q) p s =
   match q0 with
   | QEquivalence(state,pub_vars) ->
-      print_string ("Game "^(string_of_int s.game.game_number)^" is the same as game "^(string_of_int state.game.game_number)^".\\\\\n");
+      print_string ("Game "^(Display.get_game_id s.game)^" is the same as game "^(Display.get_game_id state.game)^".\\\\\n");
       let g' = Display.get_initial_game state in
       (compute_proba_internal (QEquivalenceFinal(s.game, pub_vars),g) p s) @
       (compute_proba_internal (QEquivalenceFinal(state.game, pub_vars),g') [] state)
@@ -1809,7 +1809,7 @@ let rec display_state ins_next s =
     begin
       print_string "===================== New branch =====================\n";
       print_string "Game "; 
-      print_int s.game.game_number;
+      print_string (Display.get_game_id s.game);
       print_string " [Already displayed]\n";
     end
   else
@@ -1823,7 +1823,7 @@ let rec display_state ins_next s =
 	      s.game.game_number <- !Display.max_game_number
 	    end;
 	  print_string "Initial state\\\\\n";
-	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
+	  print_string ("Game " ^ (Display.get_game_id s.game) ^ " is\\\\\n");
 	  Display.mark_occs ins_next;
 	  display_game_process s.game;
 	  Display.useful_occs := []
@@ -1867,7 +1867,7 @@ let rec display_state ins_next s =
 	  print_string "\\\\\n";
 	  List.iter display_detailed_ins (List.rev ins);
 	  print_string "yields\\\\\n\\\\\n";
-	  print_string ("Game " ^ (string_of_int s.game.game_number) ^ " is\\\\\n");
+	  print_string ("Game " ^ (Display.get_game_id s.game) ^ " is\\\\\n");
 	  Display.mark_occs ins_next;
 	  display_game_process s.game;
 	  Display.useful_occs := []
@@ -1906,7 +1906,7 @@ let display_state s =
 
   (* Display the runtimes *)
   List.iter (fun (g,t) ->
-    print_string ("RESULT $\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (string_of_int g.game_number) ^ ") = ");
+    print_string ("RESULT $\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (Display.get_game_id g) ^ ") = ");
     display_proba 0 t;
     print_string "$\\\\\n"
     ) (List.rev (!times_to_display));
