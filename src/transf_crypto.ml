@@ -1340,9 +1340,9 @@ let rec insert ch l r m p = function
 let rec collect_expressions accu accu_names_lm accu_names_rm accu_repl_rm mode lm rm = 
   match lm, rm with
     ReplRestr(repl_opt, restr, funlist), ReplRestr(repl_opt', restr', funlist') ->
-      let repl, repl' =
+      let repl' =
 	match repl_opt, repl_opt' with
-	| Some repl, Some repl' -> repl, repl'
+	| Some _, Some repl' -> repl'
 	| _ -> Parsing_helper.internal_error "replication missing in equiv, should have been added in check.ml"
       in
       List.iter2 (fun fg fg' ->
@@ -4157,7 +4157,7 @@ let compute_proba ((_,_,_,set,_,_),_) =
     List.filter (function SetProba (Zero) -> false
       | _ -> true)
       (List.map (function 
-	  SetProba r -> 
+	  SetProba r ->
 	    let probaf' =  map_probaf (ref [], ref []) r in
 	    SetProba (Polynom.polynom_to_probaf probaf')
 	| SetEvent _ -> 

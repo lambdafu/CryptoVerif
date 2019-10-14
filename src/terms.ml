@@ -282,11 +282,22 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
 	
 (* Create an interval type from a parameter *)
 
-let type_for_param_table = Hashtbl.create 7
+module ParamHash =
+  struct
+    type t = param
+    let equal = (==) (* using physical equality for parameters.
+	                important because in Check.add_repl we may create
+                        a fresh parameter with an already used name *)
+    let hash = Hashtbl.hash
+  end
+
+module ParamHashtbl = Hashtbl.Make(ParamHash)
+	
+let type_for_param_table = ParamHashtbl.create 7
 
 let type_for_param p =
   try 
-    Hashtbl.find type_for_param_table p 
+    ParamHashtbl.find type_for_param_table p 
   with Not_found ->
     let t = { tname = "[1," ^ p.pname ^"]";
 	      tcat = Interv p;
@@ -299,7 +310,7 @@ let type_for_param p =
               tserial = None;
               trandom = None }
     in
-    Hashtbl.add type_for_param_table p t;
+    ParamHashtbl.add type_for_param_table p t;
     t
 
 (* Get a parameter from an interval type *)
