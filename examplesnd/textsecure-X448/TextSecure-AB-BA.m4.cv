@@ -17,7 +17,7 @@ crypto uf_cma(sign) signBseed;
 ')
 out_game "g11.cv" occ;
 (* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
-insert before "new x_15: Z" "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+insert before "new x_9: Z" "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
 ifdef(`FS',`
 insert after "in(ch5" "if pow8(x_pubA_1) = pow8(pubA) then";
@@ -28,7 +28,7 @@ insert after "in(ch1_1" "let (subGtoG(x1'), subGtoG(x2'), subGtoG(x3'), subGtoG(
 crypto rom(H5);
 out_game "g2.cv" occ;
 (* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
-insert before "new x_13: Z" "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+insert before "new x_7: Z" "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
 ifdef(`FS',`
 insert after "in(ch7" "if pow8(x_pubA_2) = pow8(pubA) then";
@@ -38,7 +38,7 @@ insert after "in(ch7" "if pow8(x_pubA_3) = pow8(pubA) then";
 insert after "in(ch1_2" "let (subGtoG(x1_1'), subGtoG(x2_1'), subGtoG(x3_1'), subGtoG(x4_1')) = (x1_1,x2_1,x3_1,x4_1) in"; 
 crypto rom(H4);
 out_game "g3.cv";
-crypto gdh(gexp_div_8) [variables: x_19 -> a, x_18 -> b, x_17 -> b, x_16 -> b, x_15 -> a, x_14 -> a, x_13 -> a, x_12 -> a  .];
+crypto gdh(gexp_div_8) [variables: x_13 -> a, x_12 -> b, x_11 -> b, x_10 -> b, x_9 -> a, x_8 -> a, x_7 -> a, x_6 -> a  .];
 crypto int_ctxt(enc) *;
 crypto ind_cpa(enc) *;
 success
