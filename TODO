@@ -1,5 +1,28 @@
 TO DO next
 
+0) Allow non-expanded games (some transformations will not be supported
+on non-expanded games; they will display a message and leave the game
+unchanged).
+Separate the transformations crypto / simplify (non-expanded) / expand.
+
+Simplify1.improved_def_process does not support non-expanded games,
+just fall back to the standard def_process
+
+Allow insert_event in terms.
+
+Note: When "collision" statements are used in the simplification that
+follows a cryptographic transformation, the simplified game is not
+displayed, and as a result, the corresponding times are printed as:
+time(context for game -1) which is not good, especially when there
+are several such games involved...
+==> Will be solved by considering crypto, simplify, expand as
+separate transformations (and thus allowing non-expanded
+intermediate games)
+
+Use new_occ only in terms.move_occ; otherwise, use -1,
+and display [occ not set] if it is used.
+Track all remaining [occ not set] to avoid them.
+
 1) Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,
 second_preimage_resistance, hidden_key_second_preimage_resistance
@@ -470,15 +493,6 @@ then C'[x1...xn] is independent.
       and it should be easy.
       In this case, I could stop after having done insert_event
       in the list above.
-
-Note: When "collision" statements are used in the simplification that
-follows a cryptographic transformation, the simplified game is not
-displayed, and as a result, the corresponding times are printed as:
-time(context for game -1) which is not good, especially when there
-are several such games involved...
-==> Will be solved by considering crypto, simplify, expand as
-separate transformations (and thus allowing non-expanded
-intermediate games)
 
    - Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles
