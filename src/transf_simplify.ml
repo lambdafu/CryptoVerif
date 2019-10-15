@@ -259,7 +259,11 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	    else 
 	      begin
 		if Terms.is_true t' && def_list == [] then always_then := true;
-		if not (Terms.equal_terms t t') then Settings.changed := true;
+		if not (Terms.equal_terms t t') then
+		  begin
+		    Settings.changed := true;
+		    current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos)
+		  end;
 		(bl, def_list, t', p1)::l'
 	      end
        in
