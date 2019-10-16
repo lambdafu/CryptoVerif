@@ -1,10 +1,5 @@
 TO DO next
 
-CryptoVerif is sometimes much slower with automatic addition of replication
-on top of equivalences (e.g. TextSecure). I don't understand why.
-Occurrencesare sometimes much higher. That may be partly due to
-the different probability formula, but I think it does not explain everything...
-
 0) Allow non-expanded games (some transformations will not be supported
 on non-expanded games; they will display a message and leave the game
 unchanged).

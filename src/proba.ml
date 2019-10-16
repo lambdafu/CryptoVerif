@@ -310,7 +310,8 @@ let is_small_enough_collision ((proba_l, proba_t, dep_types, _, _) as probaf_mul
   
 
 let whole_game = ref Terms.empty_game
-
+let time_for_whole_game = ref None
+    
 (* Probability of collision between a random value of type [t],
    and an independent value. The collision occurs [num] times. *)
 
@@ -397,9 +398,16 @@ even if it depends on it? *)
 
 let red_proba = ref ([]: red_proba_t list)
 
-let instan_time add_time p =
-  let rec instan_time = function
-    AttTime -> Add(AttTime, add_time)
+let get_time() =
+  match !time_for_whole_game with
+  | Some t -> t
+  | None ->
+      let t = Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)) in
+      time_for_whole_game := Some t;
+      t
+    
+let rec instan_time = function
+    AttTime -> Add(AttTime, get_time())
   | Time _ -> Parsing_helper.internal_error "unexpected time"
   | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
      | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
@@ -412,8 +420,6 @@ let instan_time add_time p =
   | Sub(x,y) -> Sub(instan_time x, instan_time y)
   | Div(x,y) -> Div(instan_time x, instan_time y)
   | Max(l) -> Max(List.map instan_time l)
-  in
-  instan_time p
 	
 let rec collect_array_indexes accu t =
   match t.t_desc with
@@ -457,7 +463,7 @@ let add_proba_red_inside ((t1, t2, side_cond, probaf_mul_types) as new_red) =
     true
 
 let add_proba_red t1 t2 side_cond proba tl =
-  let proba = instan_time (Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game))) proba in
+  let proba = instan_time proba in
   let accu = ref [] in
   List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
   let indices = !accu in
@@ -489,6 +495,7 @@ let proba_for_red_proba (t1, t2, side_cond, probaf_mul_types) =
 
 let reset coll_elim g =
   whole_game := g;
+  time_for_whole_game := None;
   elim_collisions_on_password_occ := coll_elim;
   eliminated_collisions := [];
   red_proba := []
@@ -510,6 +517,7 @@ let final_add_proba coll_list =
   red_proba := [];
   elim_collisions_on_password_occ := [];
   whole_game := Terms.empty_game;
+  time_for_whole_game := None;
   if r == Zero then [] else [ SetProba r ]
 
 let get_current_state() =
