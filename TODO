@@ -23,6 +23,11 @@ Use new_occ only in terms.move_occ; otherwise, use -1,
 and display [occ not set] if it is used.
 Track all remaining [occ not set] to avoid them.
 
+Keep max_occ in o/iproc_from_desc2?
+I could do it in DepAnal2. Not sure if it's ok elsewhere.
+Perhaps elsewhere I do not need to preserve occurrences at all,
+so I could use o/iproc_from_desc.
+
 1) Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,
 second_preimage_resistance, hidden_key_second_preimage_resistance
