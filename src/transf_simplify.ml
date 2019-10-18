@@ -193,15 +193,14 @@ let update_dep_info cur_array dep_info true_facts p = dep_info
 let rec update_dep_infoo cur_array dep_info true_facts p' =
   let pp = DProcess p' in
   match p'.p_desc with
-    Yield -> (Terms.oproc_from_desc2 p' Yield, [])
-  | EventAbort f -> (Terms.oproc_from_desc2 p' (EventAbort f), [])
+    Yield | EventAbort _ -> (p', [])
   | Restr(b,p) ->
       let b_term = Terms.term_from_binder b in
       let dep_info' = List.map (fun (b', depinfo) -> (b', { depinfo with nodep = b_term::depinfo.nodep })) dep_info in
       if Proba.is_large b.btype then
 	try 
 	  let def_vars = Facts.get_def_vars_at (DProcess p') in
-	  (Terms.oproc_from_desc (Restr(b,p)), 
+	  (p', 
 	   [(b, { args_at_creation_only = true;
 		  dep = [b, (Decompos(Some(List.map Terms.term_from_repl_index b.args_at_creation)), None, ())];
 		  other_variables = false;
@@ -211,7 +210,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	     of a variable that is never defined *)
 	  (Terms.oproc_from_desc2 p' Yield, [])
       else
-	(Terms.oproc_from_desc2 p' (Restr(b,p)), [dep_info'])
+	(p', [dep_info'])
   | Test(t,p1,p2) ->
       let t' = simplify_term cur_array dep_info true_facts t in
       if Terms.is_true t' then
@@ -338,7 +337,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	       else
 		 bdepinfo) dep_b dep_info
 	 in
-         (Terms.oproc_from_desc2 p' (Find(l0',(if !always_then then Terms.oproc_from_desc Yield else p2), find_info)), dep_info_else :: dep_info_branches)
+         (Terms.oproc_from_desc2 p' (Find(l0',(if !always_then then Terms.oproc_from_desc2 p2 Yield else p2), find_info)), dep_info_else :: dep_info_branches)
        end
   | Let(pat, t, p1, p2) ->
       begin
@@ -359,12 +358,17 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		  (b, { depinfo with nodep = (Terms.term_from_binder b')::depinfo.nodep })
                  ) dep_info 
             in
-	    if p2.p_desc != Yield then 
-	      begin
-		Settings.changed := true;
-		current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
-	      end;
-            (Terms.oproc_from_desc2 p' (Let(pat, t, p1, Terms.oproc_from_desc Yield)), [dep_info'])
+	    let p'' = 
+	      if p2.p_desc != Yield then 
+		begin
+		  Settings.changed := true;
+		  current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
+		  Terms.oproc_from_desc2 p' (Let(pat, t, p1, Terms.oproc_from_desc2 p2 Yield))
+		end
+	      else
+		p'
+	    in
+            (p'', [dep_info'])
         | _ -> 
             let bl = Terms.vars_from_pat [] pat in
             let bl_terms = List.map Terms.term_from_binder bl in
@@ -400,7 +404,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		    ) dep_info
 	      in
 	      let dep_info1, dep_info2 = List.split dep_info' in
-              (Terms.oproc_from_desc2 p' (Let(pat, t, p1, p2)), [dep_info1; dep_info2])
+              (p', [dep_info1; dep_info2])
 	    with Else ->         
 	      Settings.changed := true;
 	      current_pass_transfos := (SLetRemoved(pp)) :: (!current_pass_transfos);	      
