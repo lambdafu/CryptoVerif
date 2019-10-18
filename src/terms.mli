@@ -440,6 +440,12 @@ val make_for_all_diff : term -> term -> term
 val make_true : unit -> term
 val make_false : unit -> term
 
+val make_true_at : term -> term
+val make_false_at : term -> term
+val make_and_at : term -> term -> term -> term
+val make_or_at : term -> term -> term -> term
+val make_not_at : term -> term -> term
+    
 val or_and_form : term -> term
 
 val is_tuple : term -> bool

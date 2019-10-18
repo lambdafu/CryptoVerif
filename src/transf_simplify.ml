@@ -127,9 +127,9 @@ let rec simplify_term cur_array dep_info true_facts t =
 	  let true_facts2 = Facts.simplif_add Facts.no_dependency_anal true_facts t1 in
 	  let t2' = simplify_term cur_array dep_info true_facts2 t2 in
 	  let true_facts1 = Facts.simplif_add Facts.no_dependency_anal true_facts t2' in
-	  Terms.make_and (simplify_term cur_array dep_info true_facts1 t1)  t2'
+	  Terms.make_and_at t (simplify_term cur_array dep_info true_facts1 t1)  t2'
 	with Contradiction ->
-	  Terms.make_false()
+	  Terms.make_false_at t
       end
   | FunApp(f,[t1;t2]) when f == Settings.f_or ->
       (* We simplify t2 knowing (not t1) and t1 knowing (not t2), 
@@ -139,15 +139,13 @@ let rec simplify_term cur_array dep_info true_facts t =
 	  let true_facts2 = Facts.simplif_add Facts.no_dependency_anal true_facts (Terms.make_not t1) in
 	  let t2' = simplify_term cur_array dep_info true_facts2 t2 in
 	  let true_facts1 = Facts.simplif_add Facts.no_dependency_anal true_facts (Terms.make_not t2') in
-	  Terms.make_or (simplify_term cur_array dep_info true_facts1 t1) t2' 
+	  Terms.make_or_at t (simplify_term cur_array dep_info true_facts1 t1) t2' 
 	with Contradiction ->
-	  Terms.make_true()
+	  Terms.make_true_at t
       end
   | FunApp(f,[t1]) when f == Settings.f_not ->
       let t' = simplify_term cur_array dep_info true_facts t1 in
-      if Terms.is_false t' then Terms.make_true() else
-      if Terms.is_true t' then Terms.make_false() else
-      Terms.make_not t'
+      Terms.make_not_at t t'
   | FunApp(f,[t1;t2]) 
     when ((f.f_cat == Equal) || (f.f_cat == Diff)) && (Proba.is_large_term t1 || Proba.is_large_term t2) ->
       begin
@@ -161,7 +159,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		      let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
 		      if not (Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types)) then raise Not_found;
-		      if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
+		      if (f.f_cat == Diff) then Terms.make_true_at t else Terms.make_false_at t
 		    with Not_found ->
 		      try_dep_info restl
 		  end
@@ -173,7 +171,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 			let (t1', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
 			if not (Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, [], Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t1.t_type, indep_types)) then raise Not_found;
-			if (f.f_cat == Diff) then Terms.make_true() else Terms.make_false()
+			if (f.f_cat == Diff) then Terms.make_true_at t else Terms.make_false_at t
 		      with Not_found ->
 			try_dep_info restl
 		    end
@@ -262,9 +260,11 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		if not (Terms.equal_terms t t') then
 		  begin
 		    Settings.changed := true;
-		    current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos)
-		  end;
-		(bl, def_list, t', p1)::l'
+		    current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos);
+		    (bl, def_list, t', p1)::l'
+		  end
+		else
+		  (bl, def_list, t, p1)::l'
 	      end
        in
        let l0' = simplify_find l0 in

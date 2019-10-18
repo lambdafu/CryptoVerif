@@ -22,8 +22,6 @@ intermediate games)
 Use new_occ only in terms.move_occ; otherwise, use -1,
 and display [occ not set] if it is used.
 Track all remaining [occ not set] to avoid them.
-==> preserve occurrences in module DepAnal2, because they are
-then used in simplify.
 
 1) Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,
@@ -4582,3 +4580,7 @@ Allow entering assumptions as "equiv ..." without a replication
 For [computational] equivalences,
    P <=(p)=> Q  implies  !N P <=(N p{time + (N-1)t_P/time})=> !N Q
 DONE 14/10/2019
+
+preserve occurrences in module DepAnal2, because they are
+then used in simplify.
+DONE 18/10/2019

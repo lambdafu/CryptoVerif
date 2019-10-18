@@ -2472,7 +2472,7 @@ let make_and_list = function
     [] -> make_true()
   | [a] -> a
   | (a::l) -> List.fold_left make_and a l
-
+	
 let rec split_and accu t = 
   match t.t_desc with
     FunApp(f, [t1;t2]) when f == Settings.f_and ->
@@ -2531,6 +2531,36 @@ let make_diff t t' = make_diff_ext Parsing_helper.dummy_ext t t'
 
 let make_for_all_diff t t' =
   build_term_type Settings.t_bool (FunApp(Settings.f_comp ForAllDiff t.t_type t'.t_type, [t;t']))
+
+let build_term_at t desc =
+  { t_desc = desc;
+    t_type = t.t_type;
+    t_occ = t.t_occ;
+    t_max_occ = t.t_max_occ;
+    t_loc = t.t_loc;
+    t_incompatible = t.t_incompatible;
+    t_facts = t.t_facts }
+
+let make_true_at t0 =
+  build_term_at t0 (FunApp(Settings.c_true, []))
+  
+let make_false_at t0 =
+  build_term_at t0 (FunApp(Settings.c_false, []))
+
+let make_and_at t0 t t' =
+  if (is_true t) || (is_false t') then t' else
+  if (is_true t') || (is_false t) then t else
+  build_term_at t0 (FunApp(Settings.f_and, [t;t']))
+
+let make_or_at t0 t t' =
+  if (is_false t) || (is_true t') then t' else
+  if (is_false t') || (is_true t) then t else
+  build_term_at t0 (FunApp(Settings.f_or, [t;t']))
+
+let make_not_at t0 t =
+  if is_false t then make_true_at t0 else
+  if is_true t then make_false_at t0 else
+  build_term_at t0 (FunApp(Settings.f_not, [t]))
 
 (* Put a term in the form or (and (...)) *)
 
