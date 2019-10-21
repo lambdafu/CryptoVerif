@@ -340,15 +340,15 @@ and execute_list_with_advise state = function
       let (state2, ins_update2) = execute_list_with_advise state1 (apply_ins_updater_list ins_update1 l) in
       (state2, compos_ins_updater ins_update1 ins_update2)
 
-let execute_with_advise_last state i = 
+let execute_with_advise_last i state = 
   (* No need to update next instructions, so we can ignore the ins_updater *)
   let (state', _) = execute_with_advise state i in
   state'
 
 
-let execute_display_advise state i =
+let execute_display_advise i state =
   if !Settings.auto_advice then
-    execute_with_advise_last state i 
+    execute_with_advise_last i state 
   else
     let tmp_changed0 = !Settings.changed in
     Settings.changed := false;
@@ -369,32 +369,46 @@ type trans_res =
 
 let move_new_let state =
   if !Settings.auto_move then
-    execute_with_advise_last state (MoveNewLet MAll)
+    execute_with_advise_last (MoveNewLet MAll) state
   else
     state
 
 let remove_assign_no_sa_rename state =
   let tmp_auto_sa_rename = !Settings.auto_sa_rename in
   Settings.auto_sa_rename := false;
-  let state' = execute_with_advise_last state (default_remove_assign()) in
+  let state' = execute_with_advise_last (default_remove_assign()) state in
   Settings.auto_sa_rename := tmp_auto_sa_rename;
   state'
 
 let merge state =
   if !Settings.merge_branches then
-    execute_with_advise_last state MergeBranches
+    execute_with_advise_last MergeBranches state
   else
     state
 
 let expand state =
-  execute_with_advise_last state Expand
+  execute_with_advise_last Expand state
       
-let simplify state = merge (execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify(None,[])))) (default_remove_assign()))
+let simplify state =
+  state
+  |> remove_assign_no_sa_rename
+  |> execute_with_advise_last (Simplify(None,[]))
+  |> move_new_let
+  |> execute_with_advise_last (default_remove_assign())
+  |> merge
 
 let crypto_simplify state =
-  simplify (expand (execute_with_advise_last state SimplifyNonexpanded))
+  state
+  |> execute_with_advise_last SimplifyNonexpanded
+  |> expand
+  |> simplify
     
-let initial_expand_simplify state = simplify (expand (execute_with_advise_last (execute_with_advise_last state ExpandGetInsert) SimplifyNonexpanded))
+let initial_expand_simplify state =
+  state
+  |> execute_with_advise_last ExpandGetInsert
+  |> execute_with_advise_last SimplifyNonexpanded
+  |> expand
+  |> simplify
 
 let display_failure_reasons failure_reasons =
   if failure_reasons == [] then
@@ -1455,7 +1469,7 @@ let success_command do_simplify state =
 	  (* simplify *)
 	  if !Settings.debug_event_adv_loses then
 	    display_collector (!coll_ref);
-	  execute_display_advise state' (Simplify (Some !coll_ref, coll_elim))
+	  execute_display_advise (Simplify (Some !coll_ref, coll_elim)) state'
       | None, None -> state'
       | _ ->
 	  Parsing_helper.internal_error "Instruct.success_command: incoherent do_simplify and collector"
@@ -1476,18 +1490,18 @@ let rec interpret_command interactive state = function
   | CRemove_assign(arg) ->
       begin
 	match arg with
-	| RemCst x -> execute_display_advise state (RemoveAssign x)
+	| RemCst x -> execute_display_advise (RemoveAssign x) state 
 	| RemBinders l ->
 		let binders = find_binders state.game in
-		execute_display_advise state (RemoveAssign (Binders (find_binder_list binders l)))
+		execute_display_advise (RemoveAssign (Binders (find_binder_list binders l))) state 
       end
   | CMove(arg) ->
       begin
 	match arg with
-	| MoveCst x -> execute_display_advise state (MoveNewLet x)
+	| MoveCst x -> execute_display_advise (MoveNewLet x) state 
 	| MoveBinders l ->
 	    let binders = find_binders state.game in	      
-	    execute_display_advise state (MoveNewLet (MBinders (find_binder_list binders l)))
+	    execute_display_advise (MoveNewLet (MBinders (find_binder_list binders l))) state 
 	| MoveArray((s,ext2) as id) ->
 	    begin
 	      let binders = find_binders state.game in	      
@@ -1516,7 +1530,7 @@ let rec interpret_command interactive state = function
 	    end
       end
   | CSimplify(coll_elim) -> 
-      execute_display_advise state (Simplify (None, List.map (interpret_coll_elim state) coll_elim))
+      execute_display_advise (Simplify (None, List.map (interpret_coll_elim state) coll_elim)) state 
   | CInsert_event((s, ext1), (occ_cmd, ext)) ->
       begin
 	try
@@ -1526,17 +1540,17 @@ let rec interpret_command interactive state = function
 	    if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
 	  done;
 	  let occ = interpret_occ state occ_cmd in
-	  execute_display_advise state (InsertEvent(s,occ))
+	  execute_display_advise (InsertEvent(s,occ)) state 
 	with 
 	  Not_found ->
 	    raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))
       end
   | CInsert((occ_cmd, ext_o), (ins_s, ext_s)) ->
       let occ = interpret_occ state occ_cmd in
-      execute_display_advise state (InsertInstruct(ins_s,ext_s,occ,ext_o))
+      execute_display_advise (InsertInstruct(ins_s,ext_s,occ,ext_o)) state 
   | CReplace((occ_cmd, ext_o), (ins_s, ext_s)) ->
       let occ = interpret_occ state occ_cmd in
-      execute_display_advise state (ReplaceTerm(ins_s,ext_s,occ,ext_o))
+      execute_display_advise (ReplaceTerm(ins_s,ext_s,occ,ext_o)) state 
   | CMerge_arrays(args, ext) ->
       begin
 	let binders = find_binders state.game in
@@ -1548,20 +1562,20 @@ let rec interpret_command interactive state = function
 	List.iter (fun al ->
 	  if List.length al != List.length fl then
 	    raise (Error("All lists of variables to merge should have the same length", ext))) bl;
-	execute_display_advise state (MergeArrays(bl, MCreateBranchVar))
+	execute_display_advise (MergeArrays(bl, MCreateBranchVar)) state 
       end
   | CMerge_branches ->
-      execute_display_advise state MergeBranches
+      execute_display_advise MergeBranches state 
   | CSArename(id) ->
       let binders = find_binders state.game in
       List.fold_left (fun state b ->
-	execute_display_advise state (SArenaming b))
+	execute_display_advise (SArenaming b) state)
 	state (find_binder_list_one_id binders id)
   | CGlobal_dep_anal(id, coll_elim) ->
       let coll_elim' = List.map (interpret_coll_elim state) coll_elim in
       let binders = find_binders state.game in	      
       List.fold_left (fun state b ->
-	execute_display_advise state (GlobalDepAnal (b, coll_elim')))
+	execute_display_advise (GlobalDepAnal (b, coll_elim')) state)
 	state (find_binder_list_one_id binders id)	
   | CAll_simplify ->
       simplify state

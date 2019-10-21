@@ -181,7 +181,7 @@ let anal_file s0 =
 	     tag = None }
 	 in
          let final_state_after_minimal_transfos =
-           Instruct.execute_with_advise_last final_state ExpandGetInsert
+           Instruct.initial_expand_simplify final_state
          in
 	 (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
     in
