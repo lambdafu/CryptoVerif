@@ -70,7 +70,7 @@ let rec replace_list b bl = function
 	b' :: (replace_list b bl l)
     
 let sa_rename_ins_updater b bl = function
-    (ExpandGetInsert | Expand | Simplify _ | RemoveAssign(All) | 
+    (ExpandGetInsert | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
      RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
@@ -138,10 +138,9 @@ let execute g ins =
     | Expand ->
 	Transf_expand.expand_process g
     | Simplify(collector, l) ->
-	if g.expanded then
-	  Transf_simplify.simplify_main collector l g
-	else
-	  Transf_simplify_nonexpanded.main g
+	Transf_simplify.simplify_main collector l g
+    | SimplifyNonexpanded ->
+	Transf_simplify_nonexpanded.main g
     | GlobalDepAnal (b,l) -> Transf_globaldepanal.main b l g
     | MoveNewLet s -> Transf_move.move_new_let s g
     | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
@@ -219,7 +218,9 @@ let rec execute_state state = function
 	  Settings.changed := tmp_changed;
 	  (state', ins_updater)
 	end
-  | (Simplify _) as i ->
+  | Simplify _ when not state.game.expanded ->
+      execute_state_basic state SimplifyNonexpanded
+  | (Simplify _) as i when state.game.expanded ->
       (* Iterate Simplify (!Settings.max_iter_simplif) times *)
       let tmp_changed = !Settings.changed in
       Settings.changed := false;
@@ -389,9 +390,9 @@ let expand state =
 let simplify state = merge (execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify(None,[])))) (default_remove_assign()))
 
 let crypto_simplify state =
-  simplify (expand (execute_with_advise_last state (Simplify(None,[]))))
+  simplify (expand (execute_with_advise_last state SimplifyNonexpanded))
     
-let initial_expand_simplify state = simplify (expand (execute_with_advise_last (execute_with_advise_last state ExpandGetInsert) (Simplify(None,[]))))
+let initial_expand_simplify state = simplify (expand (execute_with_advise_last (execute_with_advise_last state ExpandGetInsert) SimplifyNonexpanded))
 
 let display_failure_reasons failure_reasons =
   if failure_reasons == [] then

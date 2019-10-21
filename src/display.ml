@@ -1324,6 +1324,8 @@ let display_instruct = function
 	end;
       if collector != None then
 	print_string " eliminating code unreachable when queries fail"
+  | SimplifyNonexpanded ->
+      print_string "simplify (non-expanded game)"
   | GlobalDepAnal (b,l) -> 
       print_string "global dependency analysis on ";
       display_binder b;

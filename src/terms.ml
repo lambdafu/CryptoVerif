@@ -692,6 +692,7 @@ let equal_instruct i1 i2 =
 	   are not equal when they contain known_when_adv_wins.
 	   Ok since we use equal_instruct to eliminate duplicates *)
   | (Simplify(None, l1), Simplify(None, l2)) -> equal_lists (=) l1 l2
+  | (SimplifyNonexpanded, SimplifyNonexpanded) -> true
   | (GlobalDepAnal (b1,l1), GlobalDepAnal (b2,l2)) -> (b1 == b2) && (equal_lists (=) l1 l2)
   | (RemoveAssign rset1, RemoveAssign rset2) -> equal_rset rset1 rset2
   | (SArenaming b1, SArenaming b2) -> b1 == b2

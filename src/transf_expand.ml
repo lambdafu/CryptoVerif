@@ -1287,6 +1287,10 @@ let expand_process g =
 	(g3, proba3 @ proba2, ins3 @ (DExpandIfFind :: ins2))
       end
     else
-      (g, [], [])
+      begin
+	(* Since we did not change anything, the initial game was already expanded *)
+	g.expanded <- true;
+	(g, [], [])
+      end
 
     
