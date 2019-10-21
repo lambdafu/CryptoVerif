@@ -4,11 +4,15 @@ TO DO next
 on non-expanded games; they will display a message and leave the game
 unchanged).
 Separate the transformations crypto / simplify (non-expanded) / expand.
+DONE 21/10/2019
 
 Simplify1.improved_def_process does not support non-expanded games,
 just fall back to the standard def_process
+DONE 21/10/2019
 
 Allow insert_event in terms.
+Allow insert, replace on non-expanded games.
+Test commands on non-expanded games!
 
 Note: When "collision" statements are used in the simplification that
 follows a cryptographic transformation, the simplified game is not
@@ -18,9 +22,11 @@ are several such games involved...
 ==> Will be solved by considering crypto, simplify, expand as
 separate transformations (and thus allowing non-expanded
 intermediate games)
+DONE 21/10/2019
 
 Use new_occ only in terms.move_occ; otherwise, use -1,
 and display [occ not set] if it is used.
+DONE 21/10/2019
 Track all remaining [occ not set] to avoid them.
 
 Keep max_occ in o/iproc_from_desc2?

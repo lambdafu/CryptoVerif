@@ -356,7 +356,7 @@ let repl_index_from_term t =
 let build_term t desc =
   { t_desc = desc;
     t_type = t.t_type;
-    t_occ = new_occ(); 
+    t_occ = -1; 
     t_max_occ = 0;
     t_loc = Parsing_helper.dummy_ext;
     t_incompatible = Occ_map.empty;
@@ -379,7 +379,7 @@ let build_term2 t desc =
 let build_term3 t desc =
   { t_desc = desc;
     t_type = t.t_type;
-    t_occ = new_occ();
+    t_occ = -1;
     t_max_occ = 0;
     t_loc = t.t_loc;
     t_incompatible = Occ_map.empty;
@@ -388,7 +388,16 @@ let build_term3 t desc =
 let build_term_type ty desc =
   { t_desc = desc;
     t_type = ty;
-    t_occ = new_occ();
+    t_occ = -1;
+    t_max_occ = 0;
+    t_loc = Parsing_helper.dummy_ext;
+    t_incompatible = Occ_map.empty;
+    t_facts = None }
+
+let build_term_type_occ ty occ desc =
+  { t_desc = desc;
+    t_type = ty;
+    t_occ = occ;
     t_max_occ = 0;
     t_loc = Parsing_helper.dummy_ext;
     t_incompatible = Occ_map.empty;
@@ -397,7 +406,7 @@ let build_term_type ty desc =
 let new_term ty ext desc =
   { t_desc = desc;
     t_type = ty;
-    t_occ = new_occ();
+    t_occ = -1;
     t_max_occ = 0;
     t_loc = ext;
     t_incompatible = Occ_map.empty;
@@ -426,16 +435,16 @@ let app f l =
 
 (* Process from desc *)
 
-let new_iproc d ext = { i_desc = d; i_occ = new_occ(); i_max_occ = 0; i_loc = ext;
+let new_iproc d ext = { i_desc = d; i_occ = -1; i_max_occ = 0; i_loc = ext;
 			i_incompatible = Occ_map.empty; i_facts = None }
 
-let new_oproc d ext = { p_desc = d; p_occ = new_occ(); p_max_occ = 0; p_loc = ext;
+let new_oproc d ext = { p_desc = d; p_occ = -1; p_max_occ = 0; p_loc = ext;
 			p_incompatible = Occ_map.empty; p_facts = None }
 
-let iproc_from_desc d = { i_desc = d; i_occ = new_occ(); i_max_occ = 0; i_loc = Parsing_helper.dummy_ext;
+let iproc_from_desc d = { i_desc = d; i_occ = -1; i_max_occ = 0; i_loc = Parsing_helper.dummy_ext;
 			  i_incompatible = Occ_map.empty; i_facts = None }
 
-let oproc_from_desc d = { p_desc = d; p_occ = new_occ(); p_max_occ = 0; p_loc = Parsing_helper.dummy_ext;
+let oproc_from_desc d = { p_desc = d; p_occ = -1; p_max_occ = 0; p_loc = Parsing_helper.dummy_ext;
 			  p_incompatible = Occ_map.empty; p_facts = None }
 
 let iproc_from_desc2 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0; i_loc = p.i_loc;

@@ -1732,7 +1732,13 @@ let get_nbr_find_branch p =
   | DTerm {t_desc = FindE(l,_,_)} -> List.length l
   | _ -> Parsing_helper.internal_error "Find expected in get_find_branch"
   
-	
+
+let print_occ occ =
+  if occ == -1 then
+    print_string "[occ not set]"
+  else
+    print_int occ
+      
 let display_simplif_step = function
     SReplaceTerm(t,t') -> 
       print_string "    - Replaced ";
@@ -1740,45 +1746,45 @@ let display_simplif_step = function
       print_string " with ";
       display_term t';
       print_string " at ";
-      print_int t.t_occ;
+      print_occ t.t_occ;
       print_newline()
   | STestTrue(p) ->
       print_string "    - Test at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " always true\n"
   | STestFalse(p) ->
       print_string "    - Test at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " always false\n"
   | STestMerge(p) ->
       print_string "    - Merge branches of test at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string "\n"
   | STestOr(p) ->
       print_string "    - Expand || in test at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string "\n"
   | STestEElim(t) ->
       print_string "    - Transformed test at ";
-      print_int t.t_occ;
+      print_occ t.t_occ;
       print_string " into a logical formula\n"
   | SFindBranchRemoved(p,br) -> 
       print_string "    - Remove branch ";
       get_find_branch p br;
       print_string " in find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindSingleBranch(p,br) ->
       print_string "    - A single branch always succeeds in find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindRemoved(p) ->
       print_string "    - Find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " removed (else branch kept if any)\n"
   | SFindElseRemoved(p) ->
       print_string "    - Remove else branch of find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindBranchMerge(p, brl) ->
       if get_nbr_find_branch p = List.length brl then
@@ -1789,7 +1795,7 @@ let display_simplif_step = function
 	  display_list (get_find_branch p) brl;
 	  print_string " with else branch of find at ";
 	end;
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindDeflist(p, def_list, def_list') ->
       if def_list == [] then
@@ -1805,73 +1811,73 @@ let display_simplif_step = function
       else 
 	display_list (fun (b,l) -> display_var b l) def_list';
       print_string " in find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindinFindCondition(p, t) ->
       print_string "    - Simplified find at ";
-      print_int t.t_occ;
+      print_occ t.t_occ;
       print_string " in condition of find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindinFindBranch(p,p') ->
       print_string "    - Simplified find at ";
-      print_int (Incompatible.occ_from_pp p');
+      print_occ (Incompatible.occ_from_pp p');
       print_string " in branch of find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SFindtoTest(p) ->
       print_string "    - Transformed find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " into a test\n"
   | SFindIndexKnown(p, br, subst) ->
       print_string "    - In branch ";
       get_find_branch p br;
       print_string " of find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string ", substituting ";
       display_list (fun (b,t) -> display_binder b; print_string " with ";
         display_term t) subst;
       print_newline()
   | SFindInferUnique(p) ->
       print_string "    - Inferred that find at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " is [unique]";
       print_newline()     
                    
   | SLetElseRemoved(p) ->
       print_string "    - Remove else branch of let at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SLetRemoved(p) ->
       print_string "    - Remove let at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SLetSimplifyPattern(p, l) -> 
       print_string "    - Simplify ";
       display_pat_simp_list l;
       print_string " at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
 
   | SResRemoved(p) ->
       print_string "    - Remove random number generation at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
   | SResToAssign(p) ->
       print_string "    - Transform unused random number generation at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " into constant assignment";
       print_newline()
 
   | SEventRemoved(p) ->
       print_string "    - Removed event at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_string " (no longer used in queries)";
       print_newline()
 
   | SAdvLoses(p) ->
       print_string "    - Adversary always loses at ";
-      print_int (Incompatible.occ_from_pp p);
+      print_occ (Incompatible.occ_from_pp p);
       print_newline()
 	
 let display_detailed_ins = function
@@ -1897,7 +1903,7 @@ let display_detailed_ins = function
       print_string "  - Simplify ";
       display_pat_simp_list l;
       print_string " at "; 
-      print_int (Incompatible.occ_from_pp let_p);
+      print_occ (Incompatible.occ_from_pp let_p);
       print_newline()
   | DRemoveAssign(b, def_ch, usage_ch) ->
       print_string "  - Remove assignments on ";
@@ -1940,18 +1946,18 @@ let display_detailed_ins = function
 	match (p.p_desc, l) with
 	  (Test _), _ ->
 	    print_string "  - Merge branches of test at ";
-	    print_int p.p_occ
+	    print_occ p.p_occ
 	| (Let _), _ ->
 	    print_string "  - Merge branches of let at ";
-	    print_int p.p_occ
+	    print_occ p.p_occ
 	| (Find(l0,_,_), l) when List.length l = List.length l0 + 1 ->
 	    print_string "  - Merge all branches of find at ";
-	    print_int p.p_occ	    
+	    print_occ p.p_occ	    
 	| (Find _), p1::r ->
 	    print_string "  - Merge branch(es) at ";
-	    display_list (fun p2 -> print_int p2.p_occ) r;
+	    display_list (fun p2 -> print_occ p2.p_occ) r;
 	    print_string " with else branch of find at ";
-	    print_int p.p_occ
+	    print_occ p.p_occ
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
       print_newline()            
@@ -1960,18 +1966,18 @@ let display_detailed_ins = function
 	match (t.t_desc, l) with
 	  (TestE _), _ ->
 	    print_string "  - Merge branches of test at ";
-	    print_int t.t_occ
+	    print_occ t.t_occ
 	| (LetE _), _ ->
 	    print_string "  - Merge branches of let at ";
-	    print_int t.t_occ
+	    print_occ t.t_occ
 	| (FindE(l0,_,_), l) when List.length l = List.length l0 + 1 ->
 	    print_string "  - Merge all branches of find at ";
-	    print_int t.t_occ	    
+	    print_occ t.t_occ	    
 	| (FindE _), t1::r ->
 	    print_string "  - Merge branch(es) at ";
-	    display_list (fun t2 -> print_int t2.t_occ) r;
+	    display_list (fun t2 -> print_occ t2.t_occ) r;
 	    print_string " with else branch of find at ";
-	    print_int t.t_occ
+	    print_occ t.t_occ
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
       print_newline()
