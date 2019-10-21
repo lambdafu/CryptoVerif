@@ -72,7 +72,8 @@ let auto_sa_rename = ref true
 let auto_remove_assign_find_cond = ref true
 let auto_remove_if_find_cond = ref true
 let auto_move = ref true
-
+let auto_expand = ref true
+    
 let optimize_let_vars = ref false
 
 let ignore_small_times = ref 3
@@ -224,6 +225,7 @@ let do_set p v =
   | "autoRemoveAssignFindCond", _ -> parse_bool v auto_remove_assign_find_cond
   | "autoRemoveIfFindCond", _ -> parse_bool v auto_remove_if_find_cond
   | "autoMove", _ -> parse_bool v auto_move
+  | "autoExpand", _ -> parse_bool v auto_expand
   | "optimizeVars", _ -> parse_bool v optimize_let_vars
   | "interactiveMode", _ -> parse_bool v interactive_mode
   | "autoAdvice", _ -> parse_bool v auto_advice

@@ -387,7 +387,10 @@ let merge state =
     state
 
 let expand state =
-  execute_with_advise_last Expand state
+  if !Settings.auto_expand then
+    execute_with_advise_last Expand state
+  else
+    state
       
 let simplify state =
   state

@@ -10,6 +10,8 @@ Simplify1.improved_def_process does not support non-expanded games,
 just fall back to the standard def_process
 DONE 21/10/2019
 
+Document command "expand", setting "autoExpand".
+
 Allow insert_event in terms.
 Allow insert, replace on non-expanded games.
 Test commands on non-expanded games!
