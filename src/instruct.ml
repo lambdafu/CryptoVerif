@@ -1711,12 +1711,17 @@ let rec interpret_command interactive state = function
       state
   | CAuto ->
       begin
+	(* In command "auto", we always auto_expand *)
+	let old_auto_expand = !Settings.auto_expand in
+	Settings.auto_expand := true;
 	try
 	  let (res, state') = execute_any_crypto_rec1 true state in
+	  Settings.auto_expand := old_auto_expand;
 	  match res with
 	    CFailure l -> state'
 	  | CSuccess state' -> raise (EndSuccess state')
 	with Backtrack ->
+	  Settings.auto_expand := old_auto_expand;
 	  print_string "Returned to same state after failure of proof with backtracking.\n";
 	  state
       end
