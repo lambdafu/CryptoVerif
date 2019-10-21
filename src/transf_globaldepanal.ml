@@ -1609,28 +1609,36 @@ let check_all_deps b0 init_proba_state g =
    [g] is the full game to analyze. *)
 
 let main b0 coll_elim g =
-  Depanal.reset coll_elim g;
-  let g_proc = Terms.get_process g in
-  Array_ref.array_ref_process g_proc;
-  Improved_def.improved_def_game None false g;
-  let dummy_term = Terms.term_from_binder b0 in
-  let result = 
-  if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
-    (g, [], []) 
+  if not g.expanded then
+    begin
+      print_string "Does not support non-expanded games. ";
+      (g,[],[])
+    end
   else
     begin
-    advise := [];
-    let res = check_all_deps b0 (([],[]),[]) g in
+      Depanal.reset coll_elim g;
+      let g_proc = Terms.get_process g in
+      Array_ref.array_ref_process g_proc;
+      Improved_def.improved_def_game None false g;
+      let dummy_term = Terms.term_from_binder b0 in
+      let result = 
+	if not ((Terms.is_restr b0) && (Proba.is_large_term dummy_term)) then
+	  (g, [], []) 
+	else
+	  begin
+	    advise := [];
+	    let res = check_all_deps b0 (([],[]),[]) g in
     (* Transfer the local advice to the global advice in Settings.advise *)
-    List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!advise);
-    advise := [];
-    match res with
-      None -> (g, [], []) 
-    | Some(res_game) ->
-	Settings.changed := true;
-	let proba = Depanal.final_add_proba() in
-	(res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
+	    List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!advise);
+	    advise := [];
+	    match res with
+	      None -> (g, [], []) 
+	    | Some(res_game) ->
+		Settings.changed := true;
+		let proba = Depanal.final_add_proba() in
+		(res_game, proba, [DGlobalDepAnal(b0,coll_elim)])
+	  end
+      in
+      Improved_def.empty_improved_def_game false g;
+      result
     end
-  in
-  Improved_def.empty_improved_def_game false g;
-  result

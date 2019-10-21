@@ -356,14 +356,21 @@ and move_new_let_reco move_set p =
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let move_new_let move_set g =
-  let g_proc = Terms.get_process g in
-  whole_game := g;
-  done_transfos := [];
-  Array_ref.array_ref_process g_proc;
-  let r = move_new_let_rec move_set g_proc in
-  Array_ref.cleanup_array_ref();
-  let transfos = !done_transfos in
-  done_transfos := [];
-  whole_game := Terms.empty_game;
-  (Terms.build_transformed_game r g, [], transfos)
-
+  if not g.expanded then
+    begin
+      print_string "Does not support non-expanded games. ";
+      (g,[],[])
+    end
+  else
+    begin
+      let g_proc = Terms.get_process g in
+      whole_game := g;
+      done_transfos := [];
+      Array_ref.array_ref_process g_proc;
+      let r = move_new_let_rec move_set g_proc in
+      Array_ref.cleanup_array_ref();
+      let transfos = !done_transfos in
+      done_transfos := [];
+      whole_game := Terms.empty_game;
+      (Terms.build_transformed_game r g, [], transfos)
+    end

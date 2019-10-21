@@ -631,6 +631,13 @@ let check_query collector event_accu = function
 	end
       else (false, [])
 
+let check_query collector event_accu a =
+  (* Does not support non-expanded games *)
+  if not (!whole_game).expanded then
+    (false,[])
+  else
+    check_query collector event_accu a
+	  
 (* [check_query_list collector event_accu state qlist] takes a list of queries [qlist], tries to prove
    those that are not proved yet, and returns
     - the list of queries it proved with the associated probability of success of an attack.

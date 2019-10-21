@@ -1590,6 +1590,13 @@ do that by calling merge_arrays again with argument the b'j.
 *)
 
 let merge_arrays bll mode g =
+  if not g.expanded then
+    begin
+      print_string "Does not support non-expanded games. ";
+      (g,[],[])
+    end
+  else
+    begin
   let g_proc = Terms.get_process g in
   whole_game := g;
   Array_ref.array_ref_process g_proc;
@@ -1694,7 +1701,8 @@ let merge_arrays bll mode g =
 	  Settings.merge_arrays := old_merge_arrays;
 	  whole_game := Terms.empty_game;
 	  raise (Error(mess,ext))
-  
+    end
+      
 (* Merge as many branches of if/let/find as possible.
    Simplify already does a bit of this, but this function is more powerful
 1st step: store the merges that may be done if array accesses are removed
@@ -2196,53 +2204,61 @@ let display_merge = function
       
 
 let merge_branches g =
-  let g_proc = Terms.get_process g in
-  whole_game := g;
-  Array_ref.array_ref_process g_proc;
-  Improved_def.improved_def_game None false g;
-  Proba.reset [] g;
-  Depanal.term_collisions := [];
-  merges_to_do := [];
-  merges_cannot_be_done := [];
-  collect_merges_i [] g_proc;
-  let result =
-  if (!merges_to_do) == [] then
-    (* No merge can be done *)
-    (g, [], [])
+  if not g.expanded then
+    begin
+      print_string "Does not support non-expanded games. ";
+      (g,[],[])
+    end
   else
     begin
-      (* See which merges can be done, if we remove enough array references *)
-      remove_impossible_merges();
-      (* List.iter display_merge (!merges_to_do); *)
-      if (!merges_to_do) != [] then
-        (* Perform the possible merges *)
-	let p' = do_merges_i g_proc in
-	Settings.changed := true;
-        (* TO DO if (!merges_cannot_be_done) != [], I should iterate to get up-to-date advice *)
-	let done_transfos = 
-	  List.map (function
-	      (MergeProcess(p,l),_,_,_,_) -> DMergeBranches(p,l)
-	    | (MergeFindCond(t,l),_,_,_,_) -> DMergeBranchesE(t,l)) (!merges_to_do)
-	in
-	merges_to_do := [];
-	merges_cannot_be_done := [];
-	let proba = Depanal.final_add_proba () in
-	Depanal.term_collisions := [];
-	(Terms.build_transformed_game p' g, proba, done_transfos)
-      else
-	begin
-	  (* No change, but may advise MergeArrays *)
-	  List.iter add_advice (!merges_cannot_be_done);
-	  merges_to_do := [];
-	  merges_cannot_be_done := [];
+      let g_proc = Terms.get_process g in
+      whole_game := g;
+      Array_ref.array_ref_process g_proc;
+      Improved_def.improved_def_game None false g;
+      Proba.reset [] g;
+      Depanal.term_collisions := [];
+      merges_to_do := [];
+      merges_cannot_be_done := [];
+      collect_merges_i [] g_proc;
+      let result =
+	if (!merges_to_do) == [] then
+          (* No merge can be done *)
 	  (g, [], [])
-	end
+	else
+	  begin
+            (* See which merges can be done, if we remove enough array references *)
+	    remove_impossible_merges();
+            (* List.iter display_merge (!merges_to_do); *)
+	    if (!merges_to_do) != [] then
+            (* Perform the possible merges *)
+	      let p' = do_merges_i g_proc in
+	      Settings.changed := true;
+        (* TO DO if (!merges_cannot_be_done) != [], I should iterate to get up-to-date advice *)
+	      let done_transfos = 
+		List.map (function
+		    (MergeProcess(p,l),_,_,_,_) -> DMergeBranches(p,l)
+		  | (MergeFindCond(t,l),_,_,_,_) -> DMergeBranchesE(t,l)) (!merges_to_do)
+	      in
+	      merges_to_do := [];
+	      merges_cannot_be_done := [];
+	      let proba = Depanal.final_add_proba () in
+	      Depanal.term_collisions := [];
+	      (Terms.build_transformed_game p' g, proba, done_transfos)
+	    else
+	      begin
+	        (* No change, but may advise MergeArrays *)
+		List.iter add_advice (!merges_cannot_be_done);
+		merges_to_do := [];
+		merges_cannot_be_done := [];
+		(g, [], [])
+	      end
+	  end
+      in
+      Improved_def.empty_improved_def_game false g;
+      whole_game := Terms.empty_game;
+      result
     end
-  in
-  Improved_def.empty_improved_def_game false g;
-  whole_game := Terms.empty_game;
-  result
-    
+      
 (**************** Test equality between two independent processes *****************)
 (* Used for testing success of the equivalence query *)
     
@@ -2252,6 +2268,8 @@ let collect_good_vars_fullprocess p =
   List.map fst (!ok_vars)
 
 let equal_games g1 g2 =
+  (* Does not support non-expanded games *)
+  if not (g1.expanded && g2.expanded) then (false, []) else
   let g1_proc = Terms.get_process g1 in
   let g2_proc = Terms.get_process g2 in
   whole_game := g1;

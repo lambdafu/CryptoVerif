@@ -844,6 +844,8 @@ let prove_unique g =
   (g', Depanal.final_add_proba(), [])
 
 let insert_instruct occ ext_o s ext_s g =
+  if not g.expanded then
+    raise (Error ("insert does not support non-expanded games", ext_s));
   let g_proc = Terms.get_process g in
   whole_game := g;
   has_unique_to_prove := false; 
@@ -1135,6 +1137,8 @@ and replace_to count env cur_array p =
   Terms.oproc_from_desc2 p p_desc'
 
 let replace_term occ ext_o s ext_s g =
+  if not g.expanded then
+    raise (Error ("replace does not support non-expanded games", ext_s));
   let g_proc = Terms.get_process g in
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;

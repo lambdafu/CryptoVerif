@@ -219,6 +219,8 @@ let rec execute_state state = function
 	  (state', ins_updater)
 	end
   | Simplify _ when not state.game.expanded ->
+      (* Fall back to SimplifyNonexpanded when the
+	 game is not expanded *)
       execute_state_basic state SimplifyNonexpanded
   | (Simplify _) as i when state.game.expanded ->
       (* Iterate Simplify (!Settings.max_iter_simplif) times *)

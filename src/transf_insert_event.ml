@@ -50,6 +50,8 @@ and replace_oprocess count occ premp p =
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
 
 let insert_event occ s g =
+  if not g.expanded then
+    raise (Parsing_helper.Error ("insert_event does not support non-expanded games", Parsing_helper.dummy_ext));
   let s' = Terms.fresh_id s in
   if s' <> s then
     print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
