@@ -1593,7 +1593,7 @@ let merge_arrays bll mode g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   Array_ref.array_ref_process g_proc;
-  Improved_def.improved_def_process None true g_proc;
+  Improved_def.improved_def_game None true g;
   Proba.reset [] g;
   let old_merge_arrays = !Settings.merge_arrays in
   Settings.merge_arrays := false;
@@ -1678,19 +1678,19 @@ let merge_arrays bll mode g =
 	  end
 	else
 	  begin
-	    Improved_def.empty_improved_def_process true g_proc;
+	    Improved_def.empty_improved_def_game true g;
 	    Settings.merge_arrays := old_merge_arrays;
 	    whole_game := Terms.empty_game;
 	    (g, [], [])
 	  end
       with 
 	Failed ->
-	  Improved_def.empty_improved_def_process true g_proc;
+	  Improved_def.empty_improved_def_game true g;
 	  Settings.merge_arrays := old_merge_arrays;
 	  whole_game := Terms.empty_game;
 	  (g, [], [])
       | Error(mess,ext) ->
-	  Improved_def.empty_improved_def_process true g_proc;
+	  Improved_def.empty_improved_def_game true g;
 	  Settings.merge_arrays := old_merge_arrays;
 	  whole_game := Terms.empty_game;
 	  raise (Error(mess,ext))
@@ -2199,7 +2199,7 @@ let merge_branches g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   Array_ref.array_ref_process g_proc;
-  Improved_def.improved_def_process None false g_proc;
+  Improved_def.improved_def_game None false g;
   Proba.reset [] g;
   Depanal.term_collisions := [];
   merges_to_do := [];
@@ -2239,7 +2239,7 @@ let merge_branches g =
 	end
     end
   in
-  Improved_def.empty_improved_def_process false g_proc;
+  Improved_def.empty_improved_def_game false g;
   whole_game := Terms.empty_game;
   result
     

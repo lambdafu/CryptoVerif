@@ -389,6 +389,7 @@ and ren_out_oprocess b0 p =
 
 let sa_rename b0 g =
   let p = Terms.get_process g in
+  expanded := g.expanded;
   (* cannot rename if b0 occurs in queries! 
      TO DO in fact, I could replace b0 = M with b' = M; b0 = b',
      replace all references to b0 with b', and apply sa_rename on b' *)

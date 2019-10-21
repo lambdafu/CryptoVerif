@@ -171,6 +171,7 @@ let anal_file s0 =
          Check.check_def_process_main p2;
 	 let final_game =
 	   { proc = RealProcess (Terms.move_occ_process p2);
+	     expanded = false;
 	     game_number = -1;
 	     current_queries = [] }
 	 in
@@ -190,7 +191,10 @@ let anal_file s0 =
         do_implementation impl
       else
         begin
-          let g = { proc = RealProcess (Terms.move_occ_process p); game_number = 1; current_queries = [] } in
+          let g = { proc = RealProcess (Terms.move_occ_process p);
+		    expanded = false;
+		    game_number = 1;
+		    current_queries = [] } in
             let queries =
               if queries == [] then 
 	        [(AbsentQuery,g), ref ToProve]

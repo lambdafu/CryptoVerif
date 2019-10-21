@@ -27,10 +27,10 @@ let reset coll_elim g =
   priority_list := [];
   Depanal.reset coll_elim g
 
-let final_reset g_proc =
+let final_reset g =
   current_pass_transfos := [];
   Array_ref.cleanup_array_ref();
-  Improved_def.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_game true g;
   whole_game := Terms.empty_game;
   List.iter (fun b -> b.priority <- 0) (!priority_list);
   priority_list := [];
@@ -2025,11 +2025,11 @@ let simplify_main collector coll_elim g =
   known_when_adv_wins := collector;
   current_pass_transfos := [];
   Array_ref.array_ref_process g_proc;
-  Improved_def.improved_def_process None true g_proc;
+  Improved_def.improved_def_game None true g;
   try
     let p' = simplify_process [] DepAnal2.init ([],[],[]) g_proc in
     let current_transfos = !current_pass_transfos in
-    final_reset g_proc;
+    final_reset g;
     (* I need to apply auto_sa_rename because I duplicate some code
      (for example when there is an || inside a test, or when
      I reorganize a find inside a condition of find). I may then
@@ -2048,7 +2048,7 @@ let simplify_main collector coll_elim g =
 	  (g,[],[])
 	end
   with Restart (b,g') ->
-    final_reset g_proc;
+    final_reset g;
     (* Add probability for eliminated collisions *)
     let proba = Depanal.final_add_proba() in
     (g', proba, [DGlobalDepAnal(b, !Proba.elim_collisions_on_password_occ)])

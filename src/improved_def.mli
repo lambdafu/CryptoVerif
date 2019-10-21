@@ -7,6 +7,6 @@ open Types
      Reverts to [Terms.build_def_process] when [Settings.improved_fact_collection = false].
      When [compatible_needed] is true, always initializes the [incompatible] field.
  ***)
-val improved_def_process : (term * program_point) list ref option -> bool -> inputprocess -> unit
+val improved_def_game : (term * program_point) list ref option -> bool -> game -> unit
 
-val empty_improved_def_process : bool -> inputprocess -> unit
+val empty_improved_def_game : bool -> game -> unit

@@ -379,6 +379,7 @@ and game_process =
 
 and game = 
     { mutable proc : game_process;
+      mutable expanded : bool;
       mutable game_number : int;
       mutable current_queries : cur_queries_t
 	(* [current_queries] contains, for each query:

@@ -1435,15 +1435,15 @@ let expand_main g =
   current_pass_transfos := [];
   let g_proc = Terms.get_process g in
   Array_ref.array_ref_process g_proc;
-  Improved_def.improved_def_process None true g_proc;
+  Improved_def.improved_def_game None true g;
   let p' = expand_process [] ([],[],[]) g_proc in
   let current_transfos = !current_pass_transfos in
   current_pass_transfos := [];
   Array_ref.cleanup_array_ref();
   let proba = Depanal.final_add_proba() in
-  Improved_def.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_game true g;
   whole_game := Terms.empty_game;
-  (Terms.build_transformed_game p' g,
+  (Terms.build_transformed_game ~expanded: true p' g,
    proba, [DSimplify(current_transfos)])
     
 (* Main function for expansion of if and find

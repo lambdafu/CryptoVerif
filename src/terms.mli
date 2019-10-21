@@ -168,7 +168,7 @@ val empty_game : game
 val lhs_game : game
 val rhs_game : game
 val get_process : game -> inputprocess
-val build_transformed_game : inputprocess -> game -> game
+val build_transformed_game : ?expanded: bool -> inputprocess -> game -> game
                    
 val app : funsymb -> term list -> term
 

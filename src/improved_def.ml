@@ -126,7 +126,7 @@ let rec infer_facts_fc cur_array true_facts t =
       |	ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
 	  Parsing_helper.internal_error "new, get, insert, event, event_abort should have been expanded in infer_facts_fc"
 
-let improved_def_process event_accu compatible_needed p =
+let improved_def_game event_accu compatible_needed g =
   
 let rec infer_facts_i cur_array true_facts p' =
   (* print_string "infer_facts_i occ "; print_int p'.i_occ; print_newline(); *)
@@ -258,7 +258,11 @@ and infer_facts_o cur_array true_facts p' =
       | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 in
-if !Settings.improved_fact_collection then
+let p = Terms.get_process g in
+(* [infer_facts_i] does not support non-expanded games,
+   so we fall back to the basic version when the game is 
+   not expanded. *)
+if (!Settings.improved_fact_collection) && g.expanded then
   begin
     Def.build_def_process None p;
     Incompatible.build_compatible_defs p;
@@ -271,8 +275,11 @@ else
       Incompatible.build_compatible_defs p
   end
 
-let empty_improved_def_process compatible_needed p =
+    
+let empty_improved_def_game compatible_needed g =
+  let p = Terms.get_process g in
   Def.empty_def_process p;
-  if compatible_needed || (!Settings.improved_fact_collection)  then
+  if compatible_needed ||
+     ((!Settings.improved_fact_collection) && g.expanded)  then
     Incompatible.empty_comp_process p
 

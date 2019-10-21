@@ -717,16 +717,15 @@ let rec update_full_proof state =
 let is_success collector state =
   let g = state.game in
   whole_game := g;
-  let g_proc = Terms.get_process g in
   proved_one_session_secrets := [];
   let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
-  Improved_def.improved_def_process (Some event_accu) true g_proc;
+  Improved_def.improved_def_game (Some event_accu) true g;
   let (proved_queries, all_proved) = check_query_list collector (!event_accu) state g.current_queries in
   update_full_proof state;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
-  Improved_def.empty_improved_def_process true g_proc;
+  Improved_def.empty_improved_def_game true g;
   whole_game := Terms.empty_game;
   proved_queries, all_proved
 

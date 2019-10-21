@@ -4,8 +4,6 @@ open Types
 
 let whole_game = ref Terms.empty_game
 
-let expanded = ref true
-
 
 (* Invariant 1: single definition; two definitions of the same variable
 are in different branches of if/let/find.
@@ -45,7 +43,7 @@ let rec inv1t_fc expect_expanded in_find_cond cur_array t =
 				         "), it should be an element of cur_array");
       []
   | ResE _ | FindE _ | TestE _ | LetE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-     if (!expanded) && expect_expanded then
+     if (!whole_game.expanded) && expect_expanded then
        Parsing_helper.internal_error "If/let/new/find/event_abort/event/get/insert should have been expanded"
      else
        match t.t_desc with

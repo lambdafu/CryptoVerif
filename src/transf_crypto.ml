@@ -4362,7 +4362,10 @@ type trans_res =
 | TFailurePrio of to_do_t * ((binder * binder) list * failure_reason) list
 
 let transfo_expand apply_equiv p q =
-  let g' = { proc = RealProcess (do_crypto_transform p); game_number = -1; current_queries = q } in
+  let g' = { proc = RealProcess (do_crypto_transform p);
+	     expanded = false;
+	     game_number = -1;
+	     current_queries = q } in
   whole_game_next := g';
   let proba' = compute_proba apply_equiv in
   let ins' = [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
@@ -4617,7 +4620,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   let vcounter = Terms.get_var_num_state() in
   List.iter (fun (fg, mode) ->
     if mode == AllEquiv then build_symbols_to_discharge fg) lm;
-  Improved_def.improved_def_process None false p;
+  Improved_def.improved_def_game None false g;
   if !Settings.optimize_let_vars then
     incompatible_terms := incompatible_defs p;
   let result = 
@@ -4677,7 +4680,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
     end
   in
   (* Cleanup to save memory *)
-  Improved_def.empty_improved_def_process false p;
+  Improved_def.empty_improved_def_game false g;
   whole_game := Terms.empty_game;
   whole_game_next := Terms.empty_game;
   equiv := empty_equiv;
