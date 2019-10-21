@@ -103,6 +103,7 @@ let keyword_table_proof =
       "merge_branches", MERGE_BRANCHES;
       "SArename", SARENAME;
       "global_dep_anal", GLOBAL_DEP_ANAL;
+      "expand", EXPAND;
       "all_simplify", ALL_SIMPLIFY;
       "crypto", CRYPTO;
       "start_from_other_end", START_FROM_OTHER_END;

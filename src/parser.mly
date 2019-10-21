@@ -399,6 +399,8 @@ proofcommand:
     { CCrypto(PNoName, PVarList([], false), parse_extent()) }
 |   CRYPTO equiv cryptotransfinfo
     { CCrypto($2, $3, parse_extent()) }
+|   EXPAND
+    { CExpand }
 |   ALL_SIMPLIFY
     { CAll_simplify }
 |   GLOBAL_DEP_ANAL idst optcollelim

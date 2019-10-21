@@ -221,6 +221,7 @@ type command =
   | CQuit
   | CStart_from_other_end of Parsing_helper.extent
   | CCrypto of peqname * crypto_transf_user_info * Parsing_helper.extent
+  | CExpand
   | CAll_simplify
   | CGlobal_dep_anal of ident * pcoll_elim_t list
   | CSArename of ident

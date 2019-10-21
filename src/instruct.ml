@@ -1576,7 +1576,9 @@ let rec interpret_command interactive state = function
       let binders = find_binders state.game in	      
       List.fold_left (fun state b ->
 	execute_display_advise (GlobalDepAnal (b, coll_elim')) state)
-	state (find_binder_list_one_id binders id)	
+	state (find_binder_list_one_id binders id)
+  | CExpand ->
+      execute_display_advise Expand state
   | CAll_simplify ->
       simplify state
   | CCrypto(eqname, info, ext) ->
