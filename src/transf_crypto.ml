@@ -6,6 +6,7 @@
 open Types
 
 let whole_game = ref Terms.empty_game
+let whole_game_middle = ref Terms.empty_game
 let whole_game_next = ref Terms.empty_game
 
 exception OneFailure of failure_reason
@@ -4083,7 +4084,7 @@ let rec map_probaf env = function
 	      if g == Terms.lhs_game then
 		!whole_game, true
 	      else if g == Terms.rhs_game then
-		!whole_game_next, false
+		!whole_game_middle, false
 	      else
 		Parsing_helper.internal_error "Maxlength should refer to the LHS or the RHS of the equivalence"
 	    in
@@ -4357,16 +4358,56 @@ let map_has_exist (((_, lm, _, _, _, _),_) as apply_equiv) map =
       with _ -> true) 
 	) map)
 
+(* Update [maxlength] inside probability formulas to take into account
+   renamings done by [ins] *)    
+    
+let rec update_max_length_probaf ins = function
+  | (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Count _ | OCount _ | Zero | AttTime | Time _) as x -> x
+  | Proba(p,l) -> Proba(p, List.map (update_max_length_probaf ins) l)
+  | ActTime(f, l) -> ActTime(f, List.map (update_max_length_probaf ins) l)
+  | Length(f,l) -> Length(f, List.map (update_max_length_probaf ins) l)
+  | Mul(x,y) -> Mul(update_max_length_probaf ins x, update_max_length_probaf ins y)
+  | Add(x,y) -> Add(update_max_length_probaf ins x, update_max_length_probaf ins y)
+  | Sub(x,y) -> Sub(update_max_length_probaf ins x, update_max_length_probaf ins y)
+  | Div(x,y) -> Div(update_max_length_probaf ins x, update_max_length_probaf ins y)
+  | Max(l) -> Max(List.map (update_max_length_probaf ins) l)
+  | (Maxlength(g,t)) as x ->
+      if g == !whole_game_middle then
+	match t.t_desc with
+	| Var(b,_) ->
+	    begin
+	      let rename_ins =
+		List.find_opt (function
+		  | DSArenaming(b0, targets) -> b == b0
+		  | _ -> false) ins
+	      in
+	      match rename_ins with
+	      | Some(DSArenaming(_, targets)) ->
+		  make_max (List.map (fun b -> Maxlength(!whole_game_next, Terms.term_from_binder b)) targets)
+	      | _ -> Maxlength(!whole_game_next, t)
+	    end
+	| ReplIndex _ -> Maxlength(!whole_game_next, t)
+	| _ -> Parsing_helper.internal_error "update_term: term in argument of maxlength should be a variable or a replication index"
+      else
+	x
+
+let update_maxlength ins proba =
+  List.map (function
+    | SetProba r -> SetProba (update_max_length_probaf ins r)
+    | SetEvent _ -> 
+	Parsing_helper.internal_error "Event should not occur in probability formula") proba
+
+    
 type trans_res =
   TSuccessPrio of setf list * detailed_instruct list * game
 | TFailurePrio of to_do_t * ((binder * binder) list * failure_reason) list
 
-let transfo_expand apply_equiv p q =
+let transfo_finish apply_equiv p q =
   let g' = { proc = RealProcess (do_crypto_transform p);
 	     expanded = false;
 	     game_number = -1;
 	     current_queries = q } in
-  whole_game_next := g';
+  whole_game_middle := g';
   let proba' = compute_proba apply_equiv in
   let ins' = [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
 						  (match !user_term_mapping with
@@ -4374,10 +4415,10 @@ let transfo_expand apply_equiv p q =
 						  | Some tm -> Some (tm, !no_other_term))))]
   in
   print_string "Transf. done "; flush stdout;
-  let (g'', proba'', ins'') = Transf_expand.expand_process g' in
-  whole_game_next := g''; (* TODO When the expansion will be considered as a separate transformation,
-			     whole_game_next should be the one after auto_sa_rename (here and above!).
-			     The probability should be rewritten to refer to variables after auto_sa_rename *)
+  let (g'', proba'', ins'') = Transf_auto_sa_rename.auto_sa_rename g' in
+  whole_game_next := g'';
+  (* Rewrite probability to refer to variables after auto_sa_rename *)
+  let proba' = update_maxlength ins'' proba' in
   (g'', proba'' @ proba', ins'' @ ins')
 	
 let rec try_with_restr_list apply_equiv = function
@@ -4427,7 +4468,7 @@ let rec try_with_restr_list apply_equiv = function
 			print_newline()
 		      end;
 		    print_string "Transf. OK "; flush stdout;
-		    let (g',proba',ins') = transfo_expand apply_equiv (Terms.get_process (!whole_game)) (!whole_game).current_queries in
+		    let (g',proba',ins') = transfo_finish apply_equiv (Terms.get_process (!whole_game)) (!whole_game).current_queries in
 		    TSuccessPrio (proba', ins', g')
 		  end
 		else
@@ -4658,7 +4699,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 		    print_newline()
 		  end;
 		print_string "Transf. OK "; flush stdout;
-		let (g',proba',ins') = transfo_expand apply_equiv p g.current_queries in
+		let (g',proba',ins') = transfo_finish apply_equiv p g.current_queries in
 		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
 		if ev_q != [] then
 		  g'.current_queries <- ev_q @ List.map (fun (q, poptref) -> (q, ref (!poptref))) g'.current_queries;
@@ -4682,6 +4723,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   (* Cleanup to save memory *)
   Improved_def.empty_improved_def_game false g;
   whole_game := Terms.empty_game;
+  whole_game_middle := Terms.empty_game;
   whole_game_next := Terms.empty_game;
   equiv := empty_equiv;
   equiv_names_lhs_opt := [];

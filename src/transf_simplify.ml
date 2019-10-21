@@ -2013,6 +2013,7 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
       simplify_oprocess cur_array dep_info_else true_facts_else pfalse
 
 let simplify_main collector coll_elim g =
+  assert(g.expanded);
   let g_proc = Terms.get_process g in
   let tmp_changed = !Settings.changed in
   Settings.changed := false;

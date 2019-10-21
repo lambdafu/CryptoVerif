@@ -517,7 +517,8 @@ and crypto_transf_user_info =
   | Detailed of var_mapping option * term_mapping option
 	
 and instruct =
-    ExpandIfFindGetInsert
+  | ExpandGetInsert
+  | Expand
   | Simplify of known_when_adv_wins option * coll_elim_t list(*occurrences, variables, or types for collision elimination of password types*)
   | GlobalDepAnal of binder * coll_elim_t list (* same as for Simplify *)
   | RemoveAssign of rem_set

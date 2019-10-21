@@ -686,7 +686,8 @@ let equal_user_info i1 i2 =
 	
 let equal_instruct i1 i2 =
   match i1,i2 with
-    (ExpandIfFindGetInsert, ExpandIfFindGetInsert) -> true
+  | (ExpandGetInsert, ExpandGetInsert) -> true
+  | (Expand, Expand) -> true
 	(* We overapproximate by saying that simplify instructions
 	   are not equal when they contain known_when_adv_wins.
 	   Ok since we use equal_instruct to eliminate duplicates *)

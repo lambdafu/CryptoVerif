@@ -1282,7 +1282,8 @@ let display_coll_elim = function
   | CollTerms l -> print_string "terms: "; display_list_break print_int l
     
 let display_instruct = function
-    ExpandIfFindGetInsert -> print_string "expand get, insert, if, let, find"
+    ExpandGetInsert -> print_string "expand get, insert"
+  | Expand -> print_string "expand"
   | Simplify(collector, l) ->
       print_string "simplify";
       if l != [] then

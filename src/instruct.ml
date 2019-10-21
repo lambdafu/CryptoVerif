@@ -70,7 +70,7 @@ let rec replace_list b bl = function
 	b' :: (replace_list b bl l)
     
 let sa_rename_ins_updater b bl = function
-    (ExpandIfFindGetInsert | Simplify _ | RemoveAssign(All) | 
+    (ExpandGetInsert | Expand | Simplify _ | RemoveAssign(All) | 
      RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
@@ -133,9 +133,15 @@ let compos_transf f (g, proba, done_ins) =
 let execute g ins =
   let (g', proba, done_ins) = 
     match ins with
-      ExpandIfFindGetInsert -> 
-	compos_transf Transf_expand.expand_process (Transf_tables.reduce_tables g)
-    | Simplify(collector, l) -> Transf_simplify.simplify_main collector l g
+      ExpandGetInsert -> 
+	Transf_tables.reduce_tables g
+    | Expand ->
+	Transf_expand.expand_process g
+    | Simplify(collector, l) ->
+	if g.expanded then
+	  Transf_simplify.simplify_main collector l g
+	else
+	  Transf_simplify_nonexpanded.main g
     | GlobalDepAnal (b,l) -> Transf_globaldepanal.main b l g
     | MoveNewLet s -> Transf_move.move_new_let s g
     | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
@@ -377,9 +383,15 @@ let merge state =
   else
     state
 
+let expand state =
+  execute_with_advise_last state Expand
+      
 let simplify state = merge (execute_with_advise_last (move_new_let (execute_with_advise_last (remove_assign_no_sa_rename state) (Simplify(None,[])))) (default_remove_assign()))
 
-let expand_simplify state = simplify (execute_with_advise_last state ExpandIfFindGetInsert)
+let crypto_simplify state =
+  simplify (expand (execute_with_advise_last state (Simplify(None,[]))))
+    
+let initial_expand_simplify state = simplify (expand (execute_with_advise_last (execute_with_advise_last state ExpandGetInsert) (Simplify(None,[]))))
 
 let display_failure_reasons failure_reasons =
   if failure_reasons == [] then
@@ -508,7 +520,7 @@ let rec execute_any_crypto_rec continue state = function
 	CSuccess state' -> 
 	  begin
 	    try
-	      continue (CSuccess (simplify state'))
+	      continue (CSuccess (crypto_simplify state'))
 	    with Backtrack ->
 	      if !Settings.backtrack_on_crypto then
 		begin
@@ -713,7 +725,7 @@ let rec execute_any_crypto_rec1 interactive state =
 		   | CFailure _ -> 
 		       apply_equivs rest_equivs
 		   | CSuccess state''' ->
-		       let state''' = simplify state''' in
+		       let state''' = crypto_simplify state''' in
                        if !Settings.forget_old_games then
                          forget_old_games state''';
 		       execute_any_crypto_rec1 interactive state''')
@@ -737,7 +749,7 @@ let rec execute_any_crypto_rec1 interactive state =
 let execute_any_crypto state =
   (* Always begin with find/if/let expansion *)
   try
-    let (res, state') = execute_any_crypto_rec1 false (expand_simplify state) in
+    let (res, state') = execute_any_crypto_rec1 false (initial_expand_simplify state) in
     begin
       match res with
 	CFailure _ -> 
@@ -1133,19 +1145,19 @@ let do_equiv ext equiv parsed_user_info state =
       let rec repeat_crypto equiv state = 
 	match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([],false)) state with
 	  CSuccess state' ->
-	    let state' = if fast then state' else simplify state' in
+	    let state' = if fast then state' else crypto_simplify state' in
 	    repeat_crypto equiv state'
 	| CFailure l -> 
 	    execute_crypto_list (function 
 		CSuccess state'' ->
-		  let state'' = if fast then state'' else simplify state'' in
+		  let state'' = if fast then state'' else crypto_simplify state'' in
 		  repeat_crypto equiv state''
 	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; flush stdout; state) (List.map (fun x -> (x, state, false)) l) 
       in
       let state1 = repeat_crypto equiv state in
       (* In fast mode, we do not simplify between each crypto transformation,
          but we simplify in the end *)
-      if fast then simplify state1 else state1
+      if fast then crypto_simplify state1 else state1
   | _ ->
       let user_info =
 	match parsed_user_info with
@@ -1194,11 +1206,11 @@ let do_equiv ext equiv parsed_user_info state =
 	    Detailed (!var_mapping, !term_mapping)
       in
       match crypto_transform (!Settings.no_advice_crypto) equiv user_info state with
-	CSuccess state' -> simplify state'
+	CSuccess state' -> crypto_simplify state'
       | CFailure l -> 
 	  if !Settings.auto_advice then
 	    execute_crypto_list (function 
-	      CSuccess state'' -> simplify state''
+	      CSuccess state'' -> crypto_simplify state''
 	    | CFailure _ -> raise (Error ("Cryptographic transformation failed", ext))) (List.map (fun x -> (x, state, false)) l) 
 	  else
 	    begin
@@ -1225,10 +1237,10 @@ let rec undo ext state n =
   match state.prev_state with
     None -> 
       raise (Error("Could not undo more steps than those already done", ext))
-  | Some (ExpandIfFindGetInsert,_,_, { prev_state = None }) ->
+  | Some (ExpandGetInsert,_,_, { prev_state = None }) ->
       raise (Error("Cannot undo the first expansion", ext))
-  | Some (ExpandIfFindGetInsert,_,_,_) ->
-      Parsing_helper.internal_error "ExpandIfFindGetInsert should occur only as first instruction"
+  | Some (ExpandGetInsert,_,_,_) ->
+      Parsing_helper.internal_error "ExpandGetInsert should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 	
 let display_facts_at state occ_cmd =
@@ -1493,7 +1505,7 @@ let rec interpret_command interactive state = function
 	      try
 		let equiv = List.assq ty (!Settings.move_new_eq) in
 		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList(bl,true)) state with
-		  CSuccess state' -> simplify state'
+		  CSuccess state' -> crypto_simplify state'
 		| CFailure l -> 
 		    raise (Error ("Transformation \"move array\" failed", ext2))
 	      with Not_found ->
@@ -1782,7 +1794,7 @@ let rec interpret_command interactive state = function
       let state' = restart state in 
       begin
 	match state'.game.proc with
-	| RealProcess _ -> expand_simplify state'
+	| RealProcess _ -> initial_expand_simplify state'
 	| Forgotten _ ->
 	    raise (Error("Cannot restart: game no longer in memory", ext))
       end
@@ -1861,11 +1873,11 @@ let do_proof proof state =
     Displaytex.start();
   let r = 
     match proof with
-      Some pr -> execute_proofinfo pr (expand_simplify state)
+      Some pr -> execute_proofinfo pr (initial_expand_simplify state)
     | None ->
 	if !Settings.interactive_mode then
 	  try
-	    interactive_loop (expand_simplify state)
+	    interactive_loop (initial_expand_simplify state)
 	  with EndSuccess s -> CSuccess s
 	else
 	  execute_any_crypto state
