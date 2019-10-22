@@ -2693,8 +2693,8 @@ let rec check_any_term where_info ta_above accu cur_array defined_refs t =
 	let vars = List.map Terms.binderref_from_binder (Terms.vars_from_pat [] pat) in
 	let ins_pat = check_pat where_info accu cur_array defined_refs pat in
 	let defined_refs' = vars @ defined_refs in
-	let ins_t = check_any_term where_info (get_binders pat) ins_pat cur_array defined_refs' t in
-	let ins_t2 = check_any_term where_info [] ins_t cur_array defined_refs' t2 in
+	let ins_t1 = check_any_term where_info (get_binders pat) ins_pat cur_array defined_refs' t1 in
+	let ins_t2 = check_any_term where_info [] ins_t1 cur_array defined_refs' t2 in
 	begin
 	  match topt with
 	    None -> ins_t2
