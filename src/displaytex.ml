@@ -1690,8 +1690,9 @@ let display_detailed_ins = function
       print_string "\\quad -- Expand get/insert for table $";
       display_table t;
       print_string "$\\\\\n"
-  | DExpandIfFind ->
-      print_string "\\quad -- Expand if/find/let\\\\\n"
+  | DExpandIfFind(l) ->
+      print_string "\\quad -- Expand if/find/let\\\\\n";
+      List.iter display_simplif_step (List.rev l)
   | DSimplify(l) ->
       print_string "\\quad -- Simplification pass\\\\\n";
       List.iter display_simplif_step (List.rev l)

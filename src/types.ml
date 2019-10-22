@@ -585,7 +585,7 @@ and usage_change =
 
 and detailed_instruct =
     DExpandGetInsert of table
-  | DExpandIfFind
+  | DExpandIfFind of simplify_ins list
   | DSimplify of simplify_ins list
   | DGlobalDepAnal of binder * coll_elim_t list
   | DLetSimplifyPattern of program_point * let_transfo

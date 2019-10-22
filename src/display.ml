@@ -1885,8 +1885,9 @@ let display_detailed_ins = function
       print_string "  - Expand get/insert for table ";
       display_table t;
       print_newline()
-  | DExpandIfFind ->
-      print_string "  - Expand if/find/let\n"
+  | DExpandIfFind(l) ->
+      print_string "  - Expand if/find/let\n";
+      List.iter display_simplif_step (List.rev l)
   | DSimplify(l) ->
       print_string "  - Simplification pass\n";
       List.iter display_simplif_step (List.rev l)
@@ -2003,12 +2004,12 @@ let mark_occs_simplif_step f_t = function
   | SFindinFindBranch(p,p') -> mark_useful_occ_pp p; mark_useful_occ_pp p'
 
 let mark_occs1 f_p f_t = function
-    DExpandGetInsert(_) | DExpandIfFind | DGlobalDepAnal _ 
+    DExpandGetInsert(_) | DGlobalDepAnal _ 
   | DRemoveAssign _ | DSArenaming _ | DMoveNew(_) | DMoveLet(_) 
   | DCryptoTransf _ | DMergeArrays _ -> ()
   | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->
       useful_occs := occ :: (!useful_occs)
-  | DSimplify(l) ->
+  | DExpandIfFind(l) | DSimplify(l) ->
       List.iter (mark_occs_simplif_step f_t) l
   | DLetSimplifyPattern(let_p, _) -> mark_useful_occ_pp let_p
   | DMergeBranches(p,l) ->

@@ -1263,7 +1263,7 @@ let expand_main g =
   Improved_def.empty_improved_def_game true g;
   whole_game := Terms.empty_game;
   (Terms.build_transformed_game ~expanded: true p' g,
-   proba, [DSimplify(current_transfos)])
+   proba, [DExpandIfFind(current_transfos)])
     
 (* Main function for expansion of if and find
    Call auto_sa_rename after expand_process, so that facts associated with 
@@ -1284,7 +1284,7 @@ let expand_process g =
     if !Settings.changed then 
       begin
 	let (g3, proba3, ins3) = Transf_auto_sa_rename.auto_sa_rename g2 in
-	(g3, proba3 @ proba2, ins3 @ (DExpandIfFind :: ins2))
+	(g3, proba3 @ proba2, ins3 @ ins2)
       end
     else
       begin
