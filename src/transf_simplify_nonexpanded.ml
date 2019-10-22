@@ -46,6 +46,7 @@ let rec filter_find tfind = function
       let t' = simplify_term t in
       if Terms.is_false t' then 
 	begin
+	  Settings.changed := true;
 	  current_pass_transfos := (SFindBranchRemoved(DTerm tfind,(bl, def_list, t, DTerm p))) :: (!current_pass_transfos);
 	  r' 
 	end
@@ -64,11 +65,13 @@ let rec simplify_cterm t =
       let t1' = simplify_term t1 in
       if Terms.is_true t1' then 
 	begin
+	  Settings.changed := true;
 	  current_pass_transfos := (STestTrue pp) :: (!current_pass_transfos);
 	  simplify_cterm t2
 	end
       else if Terms.is_false t1' then 
 	begin
+	  Settings.changed := true;
 	  current_pass_transfos := (STestFalse pp) :: (!current_pass_transfos);
 	  simplify_cterm t3
 	end
@@ -79,6 +82,7 @@ let rec simplify_cterm t =
       let l0 = filter_find t l0 in
       if l0 == [] then  
 	begin
+	  Settings.changed := true;
 	  current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
 	  simplify_cterm t3
 	end
