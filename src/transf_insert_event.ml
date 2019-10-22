@@ -1,5 +1,7 @@
 open Types
 
+(***** Manual insertion of abort event *****)
+
 type state =
     { mutable count : int;
       mutable need_expand : bool;
@@ -11,7 +13,6 @@ let no_insert_eventt state t =
   if (state.occ >= t.t_occ) && (state.occ <= t.t_max_occ) then
     raise (Parsing_helper.Error("Cannot insert an event in a condition of find or in a channel of input", state.ext_o))
   
-(***** Manual insertion of abort event *****)
 let rec insert_eventpat state = function
     PatVar b -> PatVar b
   | PatTuple(f,l) -> PatTuple(f, List.map (insert_eventpat state) l)
@@ -25,41 +26,41 @@ and insert_eventt state t =
       Terms.build_term_type Settings.t_any (EventAbortE(state.ev))
     end
   else if (state.occ < t.t_occ) || (state.occ > t.t_max_occ) then
+    (* We are sure that [occ] is not inside [t] *) 
     t
   else
-     Terms.build_term2 t (
-  match t.t_desc with
-  | Var(b,l) -> Var(b, List.map (insert_eventt state) l)
-  | ReplIndex b -> ReplIndex b
-  | FunApp(f,l) -> FunApp(f, List.map (insert_eventt state) l)
-  | ResE(b,p) -> ResE(b, insert_eventt state p)
-  | EventAbortE _ as x -> x
-  | EventE(t,p) -> EventE(insert_eventt state t,
-			  insert_eventt state p)
-  | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "get, insert should not occur as term"
-  | TestE(t1,t2,t3) ->
-      TestE(insert_eventt state t1,
-	    insert_eventt state t2,
-	    insert_eventt state t3)
-  | LetE(pat,t1,t2,topt) ->
-      let t2' = insert_eventt state t2 in
-      let topt' = 
-	match topt with
-	  None -> None
-	| Some t3 -> Some (insert_eventt state t3)
-      in
-      let pat' = insert_eventpat state pat  in
-      let t1' = insert_eventt state t1 in
-      LetE(pat',t1',t2',topt')
-  | FindE(l0,t3, find_info) ->
-      let t3' = insert_eventt state t3 in
-      let l0' = List.map (fun (bl, def_list, tc, p)  ->
-	no_insert_eventt state tc;
-	(bl, def_list, tc, insert_eventt state p)
-	  ) l0 
-      in
-      FindE(l0',t3',find_info))
+    Terms.build_term2 t (
+    match t.t_desc with
+    | Var(b,l) -> Var(b, List.map (insert_eventt state) l)
+    | (ReplIndex _ | EventAbortE _) as x -> x
+    | FunApp(f,l) -> FunApp(f, List.map (insert_eventt state) l)
+    | ResE(b,p) -> ResE(b, insert_eventt state p)
+    | EventE(t,p) -> EventE(insert_eventt state t,
+			    insert_eventt state p)
+    | GetE _ | InsertE _ ->
+	Parsing_helper.internal_error "get, insert should not occur as term"
+    | TestE(t1,t2,t3) ->
+	TestE(insert_eventt state t1,
+	      insert_eventt state t2,
+	      insert_eventt state t3)
+    | LetE(pat,t1,t2,topt) ->
+	let t2' = insert_eventt state t2 in
+	let topt' = 
+	  match topt with
+	    None -> None
+	  | Some t3 -> Some (insert_eventt state t3)
+	in
+	let pat' = insert_eventpat state pat  in
+	let t1' = insert_eventt state t1 in
+	LetE(pat',t1',t2',topt')
+    | FindE(l0,t3, find_info) ->
+	let t3' = insert_eventt state t3 in
+	let l0' = List.map (fun (bl, def_list, tc, p)  ->
+	  no_insert_eventt state tc;
+	  (bl, def_list, tc, insert_eventt state p)
+	    ) l0 
+	in
+	FindE(l0',t3',find_info))
 
 let rec insert_eventi state p =
   if (state.occ < p.i_occ) || (state.occ > p.i_max_occ) then
