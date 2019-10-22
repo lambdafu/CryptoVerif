@@ -369,47 +369,47 @@ type trans_res =
 
 let move_new_let state =
   if !Settings.auto_move then
-    execute_with_advise_last (MoveNewLet MAll) state
+    execute_display_advise (MoveNewLet MAll) state
   else
     state
 
 let remove_assign_no_sa_rename state =
   let tmp_auto_sa_rename = !Settings.auto_sa_rename in
   Settings.auto_sa_rename := false;
-  let state' = execute_with_advise_last (default_remove_assign()) state in
+  let state' = execute_display_advise (default_remove_assign()) state in
   Settings.auto_sa_rename := tmp_auto_sa_rename;
   state'
 
 let merge state =
   if !Settings.merge_branches then
-    execute_with_advise_last MergeBranches state
+    execute_display_advise MergeBranches state
   else
     state
 
 let expand state =
-  if !Settings.auto_expand then
-    execute_with_advise_last Expand state
+  if !Settings.auto_expand && not state.game.expanded then
+    execute_display_advise Expand state
   else
     state
       
 let simplify state =
   state
   |> remove_assign_no_sa_rename
-  |> execute_with_advise_last (Simplify(None,[]))
+  |> execute_display_advise (Simplify(None,[]))
   |> move_new_let
-  |> execute_with_advise_last (default_remove_assign())
+  |> execute_display_advise (default_remove_assign())
   |> merge
 
 let crypto_simplify state =
   state
-  |> execute_with_advise_last SimplifyNonexpanded
+  |> execute_display_advise SimplifyNonexpanded
   |> expand
   |> simplify
     
 let initial_expand_simplify state =
   state
-  |> execute_with_advise_last ExpandGetInsert
-  |> execute_with_advise_last SimplifyNonexpanded
+  |> execute_display_advise ExpandGetInsert
+  |> execute_display_advise SimplifyNonexpanded
   |> expand
   |> simplify
 
@@ -767,6 +767,9 @@ let rec execute_any_crypto_rec1 interactive state =
    - [CFailure ...] otherwise
    The proof is displayed in case [CFailure] and not displayed in case [CSuccess]. *)
 let execute_any_crypto state =
+  (* For the automatic proof strategy, we always use auto_expand and auto_advice *)
+  Settings.auto_expand := true;
+  Settings.auto_advice := true;
   (* Always begin with find/if/let expansion *)
   try
     let (res, state') = execute_any_crypto_rec1 false (initial_expand_simplify state) in
@@ -1543,7 +1546,7 @@ let rec interpret_command interactive state = function
 	    if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
 	  done;
 	  let occ = interpret_occ state occ_cmd in
-	  execute_display_advise (InsertEvent(s,occ,ext)) state 
+	  expand (execute_display_advise (InsertEvent(s,occ,ext)) state)
 	with 
 	  Not_found ->
 	    raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))
@@ -1711,17 +1714,21 @@ let rec interpret_command interactive state = function
       state
   | CAuto ->
       begin
-	(* In command "auto", we always auto_expand *)
+	(* In command "auto", we always use auto_expand and auto_advice *)
 	let old_auto_expand = !Settings.auto_expand in
+	let old_auto_advice = !Settings.auto_advice in
 	Settings.auto_expand := true;
+	Settings.auto_advice := true;
 	try
 	  let (res, state') = execute_any_crypto_rec1 true state in
 	  Settings.auto_expand := old_auto_expand;
+	  Settings.auto_advice := old_auto_advice;
 	  match res with
 	    CFailure l -> state'
 	  | CSuccess state' -> raise (EndSuccess state')
 	with Backtrack ->
 	  Settings.auto_expand := old_auto_expand;
+	  Settings.auto_advice := old_auto_advice;
 	  print_string "Returned to same state after failure of proof with backtracking.\n";
 	  state
       end
