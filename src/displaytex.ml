@@ -1314,7 +1314,7 @@ let display_instruct = function
       print_string "equivalence ";
       display_equiv_with_name e;
       display_with_user_info user_info
-  | InsertEvent(s,occ) ->
+  | InsertEvent(s,occ,_) ->
       print_id "insert event $\\kwf{" s "}$";
       print_string (" at occurrence " ^ (string_of_int occ))
   | InsertInstruct(s,ext_s,occ,ext_o) ->

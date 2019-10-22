@@ -145,7 +145,7 @@ let execute g ins =
     | MoveNewLet s -> Transf_move.move_new_let s g
     | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
     | SArenaming b -> Transf_sarename.sa_rename b g
-    | InsertEvent(s,occ) -> Transf_insert_event.insert_event occ s g
+    | InsertEvent(s,occ,ext_o) -> Transf_insert_event.insert_event occ ext_o s g
     | InsertInstruct(s,ext_s,occ,ext_o) -> 
 	Transf_insert_replace.insert_instruct occ ext_o s ext_s g
     | ReplaceTerm(s,ext_s,occ,ext_o) ->
@@ -1543,7 +1543,7 @@ let rec interpret_command interactive state = function
 	    if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
 	  done;
 	  let occ = interpret_occ state occ_cmd in
-	  execute_display_advise (InsertEvent(s,occ)) state 
+	  execute_display_advise (InsertEvent(s,occ,ext)) state 
 	with 
 	  Not_found ->
 	    raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))

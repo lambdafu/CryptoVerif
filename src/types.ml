@@ -526,7 +526,7 @@ and instruct =
   | SArenaming of binder
   | MoveNewLet of move_set
   | CryptoTransf of equiv_nm * crypto_transf_user_info
-  | InsertEvent of string(*event name*) * int(*occurrence of insertion*) 
+  | InsertEvent of string(*event name*) * int(*occurrence of insertion*) * Parsing_helper.extent
   | InsertInstruct of string(*instruction*) * Parsing_helper.extent * int (*occurrence of insertion*) * Parsing_helper.extent
   | ReplaceTerm of string(*term*) * Parsing_helper.extent * int (*occurrence of replacement*) * Parsing_helper.extent
   | MergeArrays of (binder * Parsing_helper.extent) list list * merge_mode

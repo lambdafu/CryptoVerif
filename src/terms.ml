@@ -708,7 +708,7 @@ let equal_instruct i1 i2 =
   | (MoveNewLet mset1, MoveNewLet mset2) -> equal_mset mset1 mset2
   | (CryptoTransf (eq1, bl1), CryptoTransf (eq2, bl2)) -> 
       (eq1 == eq2) && (equal_user_info bl1 bl2)
-  | (InsertEvent(s1,n1), InsertEvent(s2,n2)) ->
+  | (InsertEvent(s1,n1,_), InsertEvent(s2,n2,_)) ->
       (s1 = s2) && (n1 == n2)
   | (InsertInstruct(s1,_,n1,_), InsertInstruct(s2,_,n2,_)) ->
       (s1 = s2) && (n1 == n2)
