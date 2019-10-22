@@ -249,6 +249,9 @@ let no_array_ref in_find_cond b =
 let compatible_types t1 t2 =
   (t1 == Settings.t_any) || (t2 == Settings.t_any) || (t1 == t2)
 
+let is_subtype t1 t2 =
+  (t2 == Settings.t_any) || (t1 == t2)
+    
 let merge_types t1 t2 =
   if t1 == Settings.t_any then t2 else
   if t2 == Settings.t_any then t1 else
@@ -286,7 +289,7 @@ let rec invt_fc in_find_cond defined_refs t =
 	end;
       check_indices b.args_at_creation b.args_at_creation l;
       List.iter2 (fun arg p ->
-	if not (compatible_types arg.ri_type p.t_type) then
+	if not (is_subtype arg.ri_type p.t_type) then
 	  begin
 	    print_string "Variable access "; 
 	    Display.display_var b l; 
@@ -317,7 +320,7 @@ let rec invt_fc in_find_cond defined_refs t =
 	end
   | FunApp(f,l) ->
       List.iter2 (fun ty p ->
-	if not (compatible_types ty p.t_type) then
+	if not (is_subtype ty p.t_type) then
 	  begin
 	    print_string "Function application "; 
 	    Display.display_term t; 
@@ -343,12 +346,11 @@ let rec invt_fc in_find_cond defined_refs t =
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	Parsing_helper.internal_error ("Cannot choose randomly a bitstring from " ^ ty.tname ^ "\n");
       no_array_ref in_find_cond b;
-      assert (t.t_type == t'.t_type);
+      assert (is_subtype t.t_type t'.t_type);
       invt_fc in_find_cond ((Terms.binderref_from_binder b)::defined_refs) t'
   | EventAbortE f ->
       if in_find_cond then
 	Parsing_helper.internal_error "event_abort should not appear in a condition of find";
-      assert (t.t_type == Settings.t_any);
       begin
 	match f.f_type with
 	  [t], t' when t == Settings.t_bitstring && t' == Settings.t_bool -> ()
@@ -358,7 +360,7 @@ let rec invt_fc in_find_cond defined_refs t =
   | EventE(t',p) ->
       if in_find_cond then
 	Parsing_helper.internal_error "event should not appear in a condition of find";
-      assert(t.t_type == p.t_type);
+      assert(is_subtype t.t_type p.t_type);
       invt_fc in_find_cond defined_refs t';
       invt_fc in_find_cond defined_refs p
   | GetE _ | InsertE _  ->
@@ -369,9 +371,9 @@ let rec invt_fc in_find_cond defined_refs t =
       invt_fc in_find_cond defined_refs t3;
       if not (compatible_types t2.t_type t3.t_type) then 
 	Parsing_helper.internal_error "Type error: branches of if with different types";
-      if not (compatible_types t1.t_type Settings.t_bool) then
+      if not (is_subtype Settings.t_bool t1.t_type) then
 	Parsing_helper.internal_error "Type error: condition should have type bool";
-      assert(t.t_type == merge_types t2.t_type t3.t_type)
+      assert(is_subtype t.t_type (merge_types t2.t_type t3.t_type))
   | LetE(pat, t1, t2, topt) ->
       let ty = invpat in_find_cond defined_refs pat in
       let bpat = Terms.vars_from_pat [] pat in
@@ -387,10 +389,10 @@ let rec invt_fc in_find_cond defined_refs t =
 	    invt_fc in_find_cond defined_refs t3;
 	    if not (compatible_types t3.t_type t2.t_type) then
 	      Parsing_helper.internal_error "Type error: branches of let with different types";
-	    assert (t.t_type == merge_types t2.t_type t3.t_type)
+	    assert (is_subtype t.t_type (merge_types t2.t_type t3.t_type))
 	| None -> 
 	    match pat with
-	      PatVar _ -> assert (t.t_type == t2.t_type)
+	      PatVar _ -> assert (is_subtype t.t_type t2.t_type)
 	    | _ -> Parsing_helper.internal_error "The else branch of let can be omitted only when the pattern is a variable"
       end
   | FindE(l0,t3,_) ->
@@ -403,7 +405,7 @@ let rec invt_fc in_find_cond defined_refs t =
 	if not (compatible_types (!tfinal) t2.t_type) then
 	  Parsing_helper.internal_error "Type error: branches of find with different types";
 	tfinal := merge_types t2.t_type (!tfinal);
-	if not (compatible_types t.t_type Settings.t_bool) then
+	if not (is_subtype Settings.t_bool t.t_type) then
 	  Parsing_helper.internal_error "Type error: condition of find should have type bool";
 	List.iter (no_array_ref in_find_cond) (List.map fst bl);
 	let (defined_refs_t, defined_refs_t2) = Terms.defined_refs_find bl def_list defined_refs in
@@ -413,14 +415,14 @@ let rec invt_fc in_find_cond defined_refs t =
 	(* Check t2 *)
 	invt_fc in_find_cond defined_refs_t2 t2
 	  ) l0;
-      assert (t.t_type == !tfinal)
+      assert (is_subtype t.t_type (!tfinal))
 
 and invpat in_find_cond defined_refs = function
     PatVar b -> b.btype
   | PatTuple(f,l) ->
       let tl = List.map (invpat in_find_cond defined_refs) l in
       List.iter2 (fun t t' ->
-	if not (compatible_types t t') then
+	if not (is_subtype t t') then
 	  Parsing_helper.internal_error "Type error: function argument in pattern") (fst f.f_type) tl;
       snd f.f_type
   | PatEqual t ->
@@ -467,7 +469,7 @@ and invo defined_refs p =
       invt defined_refs t;
       invo defined_refs p1;
       invo defined_refs p2;
-      if not (compatible_types t.t_type Settings.t_bool) then
+      if not (is_subtype Settings.t_bool t.t_type) then
 	Parsing_helper.internal_error "Type error: condition should have type bool"
   | Let(pat, t, p1, p2) ->
       let ty = invpat false defined_refs pat in
@@ -484,7 +486,7 @@ and invo defined_refs p =
 	List.iter (fun (b,b') ->
 	  if b.btype != b'.ri_type then
 	    Parsing_helper.internal_error "Type error: different types for variable and replication index in find") bl;
-	if not (compatible_types t.t_type Settings.t_bool) then
+	if not (is_subtype Settings.t_bool t.t_type) then
 	  Parsing_helper.internal_error "Type error: condition of find should have type bool";
 	let (defined_refs_t, defined_refs_p1) = Terms.defined_refs_find bl def_list defined_refs in
 	(* Check def_list and t *)
