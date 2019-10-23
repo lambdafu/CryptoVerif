@@ -10,10 +10,10 @@ Simplify1.improved_def_process does not support non-expanded games,
 just fall back to the standard def_process
 DONE 21/10/2019
 
-Document command "expand", setting "autoExpand".
-
 Allow insert_event in terms.
-Allow insert, replace on non-expanded games.
+DONE 22/10/2019
+Allow replace on non-expanded games.
+DONE 23/10/2019
 Test commands on non-expanded games!
 
 Note: When "collision" statements are used in the simplification that
@@ -35,6 +35,9 @@ Keep max_occ in o/iproc_from_desc2?
 I could do it in DepAnal2. Not sure if it's ok elsewhere.
 Perhaps elsewhere I do not need to preserve occurrences at all,
 so I could use o/iproc_from_desc.
+
+rename mergeBranches into autoMergeBranches
+mergeArrays into autoMergeArrays
 
 1) Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,
@@ -229,6 +232,15 @@ replacing choice[M1,M2] with "if b then M1 else M2"
       by using choice as input, encoded in CryptoVerif by a special
       test function with homomorphic properties and that can be
       expanded to "if b then M1 else M2" when desired.
+      For the expansion of "test(b,M1,M2)" into
+      "if b then M1 else M2", use the "replace" command.
+      Extend it to accept "if" in the new term,
+      transform "if" into "test" before checking equality
+      with the old term.
+      When the new term contains "if", the resulting
+      is not expanded.
+      Call "expand" after "replace" to expand it when
+      auto_expand is set.
       
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
@@ -454,6 +466,9 @@ have the same continuation.
       - crypto
       - auto_sa_rename
       - transf_tables [applied on the initial, unexpanded game]
+      - insert_event [here, the difference is that we can insert the
+        event in a term]
+      - replace
 
       Transformations and other code that do not support them:
       - Simplify1.improved_def_process
@@ -485,11 +500,7 @@ then C'[x1...xn] is independent.
    Solved another way for the Wireguard case study.)
 [That point may be hard and costly, I could also abandon that.]
 
-      - insert_event [here, the difference is that we could insert the
-        event in a term while currently we insert it only in a
-        process]
       - insert
-      - replace
       - merge
       - move
       - expand [should allow partial expansion guided by the user]
@@ -499,13 +510,6 @@ then C'[x1...xn] is independent.
 
       May work without change:
       - check_corresp
-
-      One solution may be to allow the user to
-      insert event_abort terms after the crypto transformation but before
-      the expansion. => Anyway, I think that's a good thing to allow,
-      and it should be easy.
-      In this case, I could stop after having done insert_event
-      in the list above.
 
    - Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles
