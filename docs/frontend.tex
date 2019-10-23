@@ -1058,7 +1058,11 @@ This is also needed because some game transformations of CryptoVerif
 do not support non-expanded games (\texttt{global\_dep\_anal},
 \texttt{insert}, \texttt{merge\_arrays}, \texttt{merge\_branches}, \texttt{move};
 furthermore, \texttt{simplify} is weaker when it is applied
-to a non-expanded game).
+to a non-expanded game, and \texttt{success} fails to prove
+equivalence queries in non-expanded games and correspondence
+queries when the arguments of the considered events contain
+\texttt{if}, \texttt{let}, \texttt{find},
+\texttt{event}, \texttt{event\_abort}, or \texttt{new}).
 
 When {\tt false}, the transformation \texttt{expand} is never
 automatically executed.
