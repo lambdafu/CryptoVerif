@@ -470,6 +470,9 @@ have the same continuation.
       - insert_event [here, the difference is that we can insert the
         event in a term]
       - replace
+      - success (except equivalence queries)
+      - check_distinct 
+      - check_corresp
 
       Transformations and other code that do not support them:
       - Simplify1.improved_def_process
@@ -505,12 +508,7 @@ then C'[x1...xn] is independent.
       - merge
       - move
       - expand [should allow partial expansion guided by the user]
-      - success [minimal change needed: support events in terms]
-      - check_distinct [minimal change needed: allow RestrE in
-        addition to Restr]
-
-      May work without change:
-      - check_corresp
+      - success [equivalence queries]
 
    - Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles
@@ -551,7 +549,7 @@ also for merging of branches until we do some auto reordering),
 the same code, ...
 
 8) common subexpression elimination
-examplesnd/JoeKaiTsayBasicKerberos_071122_INT-CTXT:
+examples-1.28/nd/notest/JoeKaiTsayBasicKerberos_071122_INT-CTXT:
 Kerberos: to handle "keyderivation" for all keys, use some common
 subexpression elimination to avoid recomputing several times the same
 key. (This transfo is the contrary to "move_new". Choose when to apply
@@ -752,12 +750,12 @@ transformation. In this case, we should move the generation of r
 upwards; it would end up being generated in the same block as hk,
 and we could then apply the game transformation as desired.
 
-examplesnd/needham-schroeder-pkcorr3Block-improve-secrecyNa.cv:
+examples-1.28/nd/notest/needham-schroeder-pkcorr3Block-improve-secrecyNa.cv:
 One could prove the secrecy of NaA/NaB by improving the 
 dependency analysis: there are equality tests between Na_270 and
 values that do not depend on it (see that file for details).
 
-examplesnd/Misha-injectivity_and_equality.cv:
+examples-1.28-converted/nd/test/Misha-injectivity_and_equality.cv:
 there is an equality x = g(x') that cannot be oriented because
 x is defined by "new", and it should be oriented.
 4/09/2013: now works manually; it would still be nice
@@ -941,10 +939,10 @@ are present.
    - in simplify, expand find in conditions of find even if the inner find
    is not unique, when the outer find is unique. The resulting find is not 
    unique.
-   - examplesnd/signedDH-forward-secrecy4.cv requires a distinction
+   - examples-1.28-converted/nd/test/signedDH-forward-secrecy4.cv requires a distinction
    depending on the order in which variables are defined.
    DONE 21/7/2015
-   - examplesnd/signedDH-forward-secrecy3.cv additionally requires
+   - signedDH-forward-secrecy3.cv [No longer found!] additionally requires
    an extension of the proof of secrecy, to support
       if .. then out(c, s) else let secret = s
    that is, some cells of s are secret, others are leaked.
@@ -972,7 +970,7 @@ are present.
 
 23) Support for equations:
 
-- example examplesnd/Herzog-encryption-modes/non_terminating/cbc_mac.ocv
+- example examples-1.28/nd/Herzog-encryption-modes/non_terminating/cbc_mac.ocv
            @4_r2_62 <-R block;
            @4_x_61: block <- xor(@4_r2_62, b2_44);
            find [unique] @i_67 = @ri_66 <= N_ver suchthat defined(@4_x_61[@ri_66], @4_r2_60[@ri_66]) && (@4_x_61 = @4_x_61[@ri_66]) then
@@ -988,7 +986,7 @@ other elements are defined)
 so the collision can be eliminated.
 
 There are also collisions that should be eliminated in the example
-examplesnd/Herzog-encryption-modes/non_terminating/ccm_one_block_cpa.ocv
+examples-1.28/nd/Herzog-encryption-modes/non_terminating/ccm_one_block_cpa.ocv
 
 3/7/2015: I improved elimination of collisions. It works for NSSK,
 but not for these examples...
@@ -1023,7 +1021,7 @@ SArename, by reasoning as follows:
    and the RHS does not depend on @4_r2_62.
 
 A simpler version would be to show that CBC-MAC is a PRF, see
-examplesnd/Herzog-encryption-modes/non_terminating/cbc_mac_prf.ocv
+examples-1.28/nd/Herzog-encryption-modes/non_terminating/cbc_mac_prf.ocv
 but even that is hard! (One needs to eliminate collisions between
 b1 and xor(tag1[i], b2[i])...)
 Improving global dependency analysis by using term simplification
@@ -1031,7 +1029,7 @@ in Transf_globaldepanal.almost_indep_test could help.
 
 After improvement in elimination of collisions, the following example
 is slower:
-PROTOCOL examplesnd/test/needham-schroeder-pk3  OK
+PROTOCOL examples-1.28-converted/nd/test/needham-schroeder-pk3  OK
 Slower: old=2.030 new=28.202
 
 - possible case studies:
@@ -1043,7 +1041,7 @@ X is a fresh random number, f(X,z) = g(z) up to small proba.
 This extension could be applied directly to the ROM.
 This function cannot currently be written directly in the LHS
 of an equivalence because it uses pattern matching.
-See examplesnd/otest/OAEP.ocv
+See examples-1.28-converted/nd/otest/OAEP.ocv
   * SK3 V. Shoup and A. Rubin. Session key distribution using smart
 cards. In Advances in Cryptology, EUROCRYPT, volume 1070/1996 of LNCS,
 pages 321–331. Springer, 1996
@@ -1312,7 +1310,7 @@ may both be mapped to functions in the LHS of the crypto transformation,
 e.g. one-wayness. When the system thinks the transformation may succeed
 with advice, it does not try other possible choices.)
 
-examplesnd/denning-sacco-corr3Block-tryautomate
+examples-1.28-converted/nd/test/denning-sacco-corr3Block-tryautomate.cv
 	DONE follow SArename by a call to simplify
 
 ABANDONED
