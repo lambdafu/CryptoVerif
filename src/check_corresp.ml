@@ -627,6 +627,11 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
       match t.t_desc,t1'.t_desc with
 	FunApp(f,idx::l),FunApp(f',idx'::l') ->
 	  if f == f' then
+	    if not (List.for_all Terms.check_simple_term l') then
+	      (* Cannot make the proof when the arguments of the event in the process
+                 are not simple terms *)
+	      false
+	    else
 	    try
 	      let events_found' = t1' :: events_found in
 	      let end_sid =

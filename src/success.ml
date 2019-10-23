@@ -247,10 +247,12 @@ let rec collect_bargs args_accu b t =
    [ b[lidx] ] when [facts] holds. [seen_accu] contains the values of
    [b] already seen, to avoid loops. *)
 
-let rec check_usage_term cur_array seen_accu b lidx facts t =
+(* [used] is true when the result of the term [t] is really used.
+   [used] is false for arguments of events. *)
+let rec check_usage_term cur_array seen_accu b lidx facts used t =
   match t.t_desc with
     Var(b',l) ->
-      if b' == b then 
+      if used && (b' == b) then 
 	begin
 	  (* Dependency on b[l] 
 	     let 'rename' replace cur_array with fresh indices
@@ -276,106 +278,49 @@ let rec check_usage_term cur_array seen_accu b lidx facts t =
 	    raise Not_found
 	  with Contradiction -> ()
 	end;
-      List.iter (check_usage_term cur_array seen_accu b lidx facts) l
+      List.iter (check_usage_term cur_array seen_accu b lidx facts used) l
   | ReplIndex _ -> ()	
   | FunApp(f,l) ->
-      List.iter (check_usage_term cur_array seen_accu b lidx facts) l
+      List.iter (check_usage_term cur_array seen_accu b lidx facts used) l
   | TestE(t1,t2,t3) ->
-      check_usage_term cur_array seen_accu b lidx facts t1;
-      check_usage_term cur_array seen_accu b lidx facts t2;
-      check_usage_term cur_array seen_accu b lidx facts t3
+      check_usage_term cur_array seen_accu b lidx facts true t1;
+      check_usage_term cur_array seen_accu b lidx facts used t2;
+      check_usage_term cur_array seen_accu b lidx facts used t3
   | FindE(l0,t3,_) ->
       List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (_,l) -> List.iter (check_usage_term cur_array seen_accu b lidx facts) l) def_list;
-	check_usage_term cur_array seen_accu b lidx facts t1;
-	check_usage_term cur_array seen_accu b lidx facts t2) l0;
-      check_usage_term cur_array seen_accu b lidx facts t3
+	List.iter (fun (_,l) -> List.iter (check_usage_term cur_array seen_accu b lidx facts true) l) def_list;
+	check_usage_term cur_array seen_accu b lidx facts true t1;
+	check_usage_term cur_array seen_accu b lidx facts used t2) l0;
+      check_usage_term cur_array seen_accu b lidx facts used t3
   | LetE(PatVar b', t1, t2, _) ->
-      begin
-	try 
-	  let args_accu = ref [] in
-	  collect_bargs args_accu b t1;
-	  if (!args_accu) != [] then
-	    begin
-	      if List.memq b' seen_accu then
-		begin
-		  add_leak_for_current_restr (CyclicDep b');
-		  raise Not_found
-		end;
-	      List.iter (fun l ->
-	        (* b[l] occurs in t1, so the cells b'[lidx'] with lidx = l may
-		   depend on b[lidx]. We check that they do not leak information *)
-		begin
-		  try
-	            (* let 'rename' replace b'.args_at_creation with fresh indices
-	               facts' = facts union (rename get_facts_at t2.t_facts) union (lidx = rename l) 
-	               lidx' = rename b'.args_at_creation *)
-		    let eq_index = List.map2 Terms.make_equal lidx l in 
-		    let (lidx', facts') = add_facts_at facts cur_array eq_index (DTerm t2) in
-		    check_usage_full_process (b'::seen_accu) b' lidx' facts'
-		  with Contradiction -> 
-	              (* current program point unreachable *)
-		      ()
-		end;
-		List.iter (check_usage_term cur_array seen_accu b lidx facts) l
-		  ) (!args_accu)
-	    end
-	with TooComplex ->
-	  (* Either [t1] may depend on [b] in a too complex way.
-	     Check directly that it does not depend on [b]. *)
-	  check_usage_term cur_array seen_accu b lidx facts t1
-      end;
-      check_usage_term cur_array seen_accu b lidx facts t2
+      check_assign cur_array seen_accu b lidx facts b' t1 (DTerm t2);
+      check_usage_term cur_array seen_accu b lidx facts used t2
   | LetE(pat, t1, t2, topt) ->
       begin
 	check_usage_pat cur_array seen_accu b lidx facts pat;
-	check_usage_term cur_array seen_accu b lidx facts t1;
-	check_usage_term cur_array seen_accu b lidx facts t2;
+	check_usage_term cur_array seen_accu b lidx facts true t1;
+	check_usage_term cur_array seen_accu b lidx facts used t2;
 	match topt with
 	  None -> ()
-	| Some t3 -> check_usage_term cur_array seen_accu b lidx facts t3
+	| Some t3 -> check_usage_term cur_array seen_accu b lidx facts used t3
       end
   | ResE(b,t) ->
-      check_usage_term cur_array seen_accu b lidx facts t
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      check_usage_term cur_array seen_accu b lidx facts used t
+  | EventAbortE _ ->
+      ()
+  | EventE(t,p) ->
+      check_usage_term cur_array seen_accu b lidx facts false t;
+      check_usage_term cur_array seen_accu b lidx facts used p
+  | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "Event, event_abort, get, insert should have been expanded"
-      
+	
 and check_usage_pat cur_array seen_accu b lidx facts = function
     PatVar _ -> ()
   | PatTuple (f,l) -> List.iter (check_usage_pat cur_array seen_accu b lidx facts) l
-  | PatEqual t -> check_usage_term cur_array seen_accu b lidx facts t
+  | PatEqual t -> check_usage_term cur_array seen_accu b lidx facts true t
 
-and check_usage_process cur_array seen_accu b lidx facts p =
-  match p.i_desc with
-    Nil -> ()
-  | Par(p1,p2) -> 
-      check_usage_process cur_array seen_accu b lidx facts p1;
-      check_usage_process cur_array seen_accu b lidx facts p2
-  | Repl(ri,p) ->
-      check_usage_process (ri::cur_array) seen_accu b lidx facts p
-  | Input((c, tl), pat, p) ->
-      List.iter (check_usage_term cur_array seen_accu b lidx facts) tl;
-      check_usage_pat cur_array seen_accu b lidx facts pat;
-      check_usage_oprocess cur_array seen_accu b lidx facts p
-
-and check_usage_oprocess cur_array seen_accu b lidx facts p =
-  match p.p_desc with
-    Yield | EventAbort _ -> ()
-  | Restr(_,p) ->
-      check_usage_oprocess cur_array seen_accu b lidx facts p
-  | Test(t,p1,p2) ->
-      check_usage_term cur_array seen_accu b lidx facts t;
-      check_usage_oprocess cur_array seen_accu b lidx facts p1;
-      check_usage_oprocess cur_array seen_accu b lidx facts p2
-  | Find(l0,p2,_) ->
-      List.iter (fun (bl,def_list, t, p1) ->
-	List.iter (fun (_,l) -> 
-	  List.iter (check_usage_term cur_array seen_accu b lidx facts) l) def_list;
-	check_usage_term cur_array seen_accu b lidx facts t;
-	check_usage_oprocess cur_array seen_accu b lidx facts p1) l0;
-      check_usage_oprocess cur_array seen_accu b lidx facts p2
-  | Let(PatVar b', t, p1, _) ->
-      begin
+(* Check the assignment "let b' = t in" where program_point pp occurs just after this assignment *) 
+and check_assign cur_array seen_accu b lidx facts b' t pp =
 	try 
 	  let args_accu = ref [] in
 	  collect_bargs args_accu b t;
@@ -392,39 +337,69 @@ and check_usage_oprocess cur_array seen_accu b lidx facts p =
 		begin
 		  try
 	            (* let 'rename' replace b'.args_at_creation with fresh indices
-		       facts' = facts union (rename (get_facts_at p1.p_facts)) union (lidx = rename l)
+		       facts' = facts union (rename (get_facts_at pp)) union (lidx = rename l)
 		       lidx' = rename b'.args_at_creation *)
 		    let eq_index = List.map2 Terms.make_equal lidx l in 
-		    let (lidx', facts') = add_facts_at facts cur_array eq_index (DProcess p1) in
+		    let (lidx', facts') = add_facts_at facts cur_array eq_index pp in
 		    check_usage_full_process (b'::seen_accu) b' lidx' facts' 
 		  with Contradiction -> 
 	              (* Current program point unreachable *)
 		      ()
 		end;
-		List.iter (check_usage_term cur_array seen_accu b lidx facts) l
+		List.iter (check_usage_term cur_array seen_accu b lidx facts true) l
 		  ) (!args_accu)
 	    end
 	with TooComplex ->
 	  (* Either [t] does not depend on [b], or it may depend on [b]
 	     in a too complex way. Check directly that [t] does not depend on [b]. *)
-	  check_usage_term cur_array seen_accu b lidx facts t
-      end;
+	  check_usage_term cur_array seen_accu b lidx facts true t
+
+	
+and check_usage_process cur_array seen_accu b lidx facts p =
+  match p.i_desc with
+    Nil -> ()
+  | Par(p1,p2) -> 
+      check_usage_process cur_array seen_accu b lidx facts p1;
+      check_usage_process cur_array seen_accu b lidx facts p2
+  | Repl(ri,p) ->
+      check_usage_process (ri::cur_array) seen_accu b lidx facts p
+  | Input((c, tl), pat, p) ->
+      List.iter (check_usage_term cur_array seen_accu b lidx facts true) tl;
+      check_usage_pat cur_array seen_accu b lidx facts pat;
+      check_usage_oprocess cur_array seen_accu b lidx facts p
+
+and check_usage_oprocess cur_array seen_accu b lidx facts p =
+  match p.p_desc with
+    Yield | EventAbort _ -> ()
+  | Restr(_,p) ->
+      check_usage_oprocess cur_array seen_accu b lidx facts p
+  | Test(t,p1,p2) ->
+      check_usage_term cur_array seen_accu b lidx facts true t;
+      check_usage_oprocess cur_array seen_accu b lidx facts p1;
+      check_usage_oprocess cur_array seen_accu b lidx facts p2
+  | Find(l0,p2,_) ->
+      List.iter (fun (bl,def_list, t, p1) ->
+	List.iter (fun (_,l) -> 
+	  List.iter (check_usage_term cur_array seen_accu b lidx facts true) l) def_list;
+	check_usage_term cur_array seen_accu b lidx facts true t;
+	check_usage_oprocess cur_array seen_accu b lidx facts p1) l0;
+      check_usage_oprocess cur_array seen_accu b lidx facts p2
+  | Let(PatVar b', t, p1, _) ->
+      check_assign cur_array seen_accu b lidx facts b' t (DProcess p1);
       check_usage_oprocess cur_array seen_accu b lidx facts p1
   | Let(pat,t,p1,p2) ->
       check_usage_pat cur_array seen_accu b lidx facts pat;
-      check_usage_term cur_array seen_accu b lidx facts t;
+      check_usage_term cur_array seen_accu b lidx facts true t;
       check_usage_oprocess cur_array seen_accu b lidx facts p1;
       check_usage_oprocess cur_array seen_accu b lidx facts p2
   | Output((c, tl),t2,p) ->
-      List.iter (check_usage_term cur_array seen_accu b lidx facts) tl;
-      check_usage_term cur_array seen_accu b lidx facts t2;
+      List.iter (check_usage_term cur_array seen_accu b lidx facts true) tl;
+      check_usage_term cur_array seen_accu b lidx facts true t2;
       check_usage_process cur_array seen_accu b lidx facts p
   | EventP(t,p) ->
-      (* Events are ignored when checking secrecy
-	 This assumes that LetE/FindE have been expanded, so that
-	 they do not occur in t *)
+      check_usage_term cur_array seen_accu b lidx facts false t;
       check_usage_oprocess cur_array seen_accu b lidx facts p
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+  | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 and check_usage_full_process seen_accu b lidx facts =
   if List.memq b (!public_vars) then
@@ -464,9 +439,8 @@ let check_secrecy collector b pub_vars =
   detected_leaks := [];
   try
     List.iter (fun d -> 
-      match d.definition with
-	DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b',l) },_,_) }
-      |	DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b',l) },_,_) } ->
+      match Terms.def_kind d.definition with
+      | AssignDef(b',l) ->
 	  if has_assign b' then
 	    begin
 	      add_leak (NotOnlyRestr b');
@@ -502,7 +476,7 @@ let check_secrecy collector b pub_vars =
 	      Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
 	      raise Not_found
 	    end
-      |	DProcess { p_desc = Restr(_, _) } ->
+      |	RestrDef ->
 	  (match !ty with
 	    None -> ty := Some b.btype
 	  | Some ty' -> if ty' != b.btype then 
@@ -521,7 +495,7 @@ let check_secrecy collector b pub_vars =
 	      (* Current program point unreachable *)
 	      ()
 	  end
-      |	_ ->
+      |	OtherDef ->
 	  add_leak NotRestrOrAssign;
 	  Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
 	  raise Not_found) b.def;
@@ -631,13 +605,6 @@ let check_query collector event_accu = function
 	end
       else (false, [])
 
-let check_query collector event_accu a =
-  (* Does not support non-expanded games *)
-  if not (!whole_game).expanded then
-    (false,[])
-  else
-    check_query collector event_accu a
-	  
 (* [check_query_list collector event_accu state qlist] takes a list of queries [qlist], tries to prove
    those that are not proved yet, and returns
     - the list of queries it proved with the associated probability of success of an attack.

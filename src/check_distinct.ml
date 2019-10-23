@@ -44,30 +44,28 @@ let check_distinct collector b g =
   let r = 
   Terms.for_all_collector collector (fun (d1,(d1facts,d1def_vars,d1elsefind_facts)) ->
     Terms.for_all_collector collector (fun (d2,(d2facts,d2def_vars,d2elsefind_facts)) ->
-      match d1.definition, d2.definition with
-	DProcess { p_desc = Restr _ }, DProcess { p_desc = Restr _} -> true
-      | DProcess { p_desc = Restr _ }, 
-	    (DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b',l) },_,_)}
-	    |DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b',l) },_,_) }) ->
-		if not (Terms.is_restr b') then
-		  Parsing_helper.internal_error "restriction should be checked when testing secrecy";
-		(b != b') || 
-		(
-		try
-		  let eq_b = Terms.make_and_list 
-		      (List.map2 Terms.make_equal index1 (List.map (Terms.subst bindex index2) l))
-		  in
-		  let facts1 = diff_index :: eq_b :: (List.rev_append d1facts d2facts) in
-		  let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1 in
-		  let def_vars = List.rev_append d1def_vars d2def_vars in
-		  let facts2 = 
-		    if !Settings.elsefind_facts_in_success then
-		      Facts_of_elsefind.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
-			def_vars
-		    else
-		      []
-		  in
-		  let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2 in
+      match Terms.def_kind d1.definition, Terms.def_kind d2.definition with
+      |	RestrDef, RestrDef -> true
+      | RestrDef, AssignDef(b',l) -> 
+	  if not (Terms.is_restr b') then
+	    Parsing_helper.internal_error "restriction should be checked when testing secrecy";
+	  (b != b') || 
+	  (
+	  try
+	    let eq_b = Terms.make_and_list 
+		(List.map2 Terms.make_equal index1 (List.map (Terms.subst bindex index2) l))
+	    in
+	    let facts1 = diff_index :: eq_b :: (List.rev_append d1facts d2facts) in
+	    let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1 in
+	    let def_vars = List.rev_append d1def_vars d2def_vars in
+	    let facts2 = 
+	      if !Settings.elsefind_facts_in_success then
+		Facts_of_elsefind.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
+		  def_vars
+	      else
+		[]
+	    in
+	    let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2 in
 		  (* The following part is commented out because it is too costly. 
 
 		  let simp_facts2 = [code above] in
@@ -77,42 +75,37 @@ let check_distinct collector b g =
 		  let (subst, facts, _) = simp_facts2 in
 		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
 		     ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
-		  Terms.add_to_collector collector (r_index1 @ r_index2, [(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);		  
-		  false
-		with Contradiction -> true
-		    )
-      |	(DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b',l) },_,_)}
-        |DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b',l) },_,_) }), 
-		DProcess { p_desc = Restr _ } ->
+	    Terms.add_to_collector collector (r_index1 @ r_index2, [(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);		  
+	    false
+	  with Contradiction -> true
+	      )
+      |	AssignDef _, RestrDef ->
 	  true (* The symmetric case will be checked by the previous pattern *)
-      |	(DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b1',l1) },_,_)}
-        |DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b1',l1) },_,_) }),
-	  (DProcess {p_desc = Let(PatVar _,{ t_desc = Var(b2',l2) },_,_)}
-          |DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b2',l2) },_,_) }) ->
-		if not ((Terms.is_restr b1') && (Terms.is_restr b2')) then
-		  Parsing_helper.internal_error "restriction should be checked when testing secrecy";
-		(b1' != b2') || 
-		(
-		try
-		  let eq_b = Terms.make_and_list 
-		      (List.map2 Terms.make_equal 
-			 (List.map (Terms.subst bindex index1) l1) 
-			 (List.map (Terms.subst bindex index2) l2))
-		  in
-		  let facts1 = diff_index :: eq_b :: (List.rev_append d1facts d2facts) in
-		  let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1 in
-		  let def_vars = List.rev_append d1def_vars d2def_vars in
-		  let facts2 = 
-		    if !Settings.elsefind_facts_in_success then
-		      Facts_of_elsefind.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
-			def_vars
-		    else
-		      []
-		  in
-		  let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2 in
+      |	AssignDef(b1',l1), AssignDef(b2',l2) ->
+	  if not ((Terms.is_restr b1') && (Terms.is_restr b2')) then
+	    Parsing_helper.internal_error "restriction should be checked when testing secrecy";
+	  (b1' != b2') || 
+	  (
+	  try
+	    let eq_b = Terms.make_and_list 
+		(List.map2 Terms.make_equal 
+		   (List.map (Terms.subst bindex index1) l1) 
+		   (List.map (Terms.subst bindex index2) l2))
+	    in
+	    let facts1 = diff_index :: eq_b :: (List.rev_append d1facts d2facts) in
+	    let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts1 in
+	    let def_vars = List.rev_append d1def_vars d2def_vars in
+	    let facts2 = 
+	      if !Settings.elsefind_facts_in_success then
+		Facts_of_elsefind.get_facts_of_elsefind_facts g (r_index1 @ r_index2) simp_facts1 
+		  def_vars
+	      else
+		[]
+	    in
+	    let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts1 facts2 in
 		  (* The following part is commented out because it is too costly. 
 
-		  let simp_facts2 = [code above] in
+		     let simp_facts2 = [code above] in
 		     We assume that the 2nd Let is executed after the 1st one.
 		     The other case will be checked symmetrically since we
 		     scan the whole lists d1withfacts and d2withfacts
@@ -120,13 +113,13 @@ let check_distinct collector b g =
 		  let (subst, facts, _) = simp_facts2 in
 		  let simp_facts3 = (subst, facts, d2elsefind_facts) in
 		     ignore (Simplify1.convert_elsefind Facts.no_dependency_anal def_vars simp_facts3);*)
-		  Terms.add_to_collector collector (r_index1 @ r_index2, [(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);
-		  false
-		with Contradiction -> true
-		    )
-      | _ -> 
-	  Parsing_helper.internal_error "definition cases should be checked when testing secrecy"
-	  ) d2withfacts
+	    Terms.add_to_collector collector (r_index1 @ r_index2, [(index1, d1.definition); (index2, d2.definition)], simp_facts2, def_vars);
+	    false
+	  with Contradiction -> true
+	      )
+	| _ -> 
+	    Parsing_helper.internal_error "definition cases should be checked when testing secrecy"
+	      ) d2withfacts
       ) d1withfacts
   in
   (* Must not empty, because may be used by other queries;

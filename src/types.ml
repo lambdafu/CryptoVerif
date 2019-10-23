@@ -858,3 +858,10 @@ type 'a depinfo =
       other_variables: bool; (* True when variables not in dep may also depend on b0 *)
       nodep: term list } (* List of terms that do not depend on b0 *)
 
+
+(* Kinds of definitions of a variable *)
+
+type def_kind_t =
+  | AssignDef of binder * term list
+  | RestrDef
+  | OtherDef

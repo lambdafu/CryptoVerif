@@ -184,7 +184,8 @@ val cst_for_type : typet -> term
 
 val is_restr : binder -> bool
 val is_assign : binder -> bool
-
+val def_kind : program_point -> def_kind_t
+    
 val current_bound_vars : binder list ref
 val cleanup : unit -> unit
 val link : binder -> linktype -> unit

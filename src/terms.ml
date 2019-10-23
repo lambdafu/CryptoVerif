@@ -491,7 +491,7 @@ let is_restr b =
     print_string ("Warning: is_restr with empty def " ^ b.sname ^ "_" ^ (string_of_int b.vname) ^ "\n"); *)
   List.for_all (function 
       { definition = DProcess { p_desc = Restr _} } -> true
-    | { definition = DTerm ({ t_desc = ResE _}) } -> true
+    | { definition = DTerm { t_desc = ResE _} } -> true
     | { definition = DFunRestr } -> true
     | _ -> false) b.def
 
@@ -503,6 +503,15 @@ let is_assign b =
     | { definition = DTerm { t_desc = LetE _ }} -> true
     | _ -> false) b.def
 
+let def_kind = function
+  | DProcess { p_desc = Let(PatVar _,{ t_desc = Var(b',l) },_,_) }
+  | DTerm { t_desc = LetE(PatVar _, { t_desc = Var(b',l) },_,_) } ->
+      AssignDef(b',l)
+  | DProcess { p_desc = Restr _ } 
+  | DTerm { t_desc = ResE _} ->
+      RestrDef
+  | _ -> OtherDef
+	
 (* Links *)
 
 let current_bound_vars = ref []
