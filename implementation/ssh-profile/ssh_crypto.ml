@@ -45,12 +45,12 @@ let ssh_pad block_size payload =
   let padding_length = ms - (p + 5) in
   let packet_length = ms - 4 in
   let padding = Base.rand_string padding_length () in
-  let s = String.create ms in
+  let s = Bytes.create ms in
   Base.char4_of_int s 0 packet_length;
-  s.[4] <- char_of_int padding_length;
+  Bytes.set s 4 (char_of_int padding_length);
   String.blit payload 0 s 5 p;
   String.blit padding 0 s (5+p) padding_length;
-  s
+  Bytes.unsafe_to_string s
     
 let ssh_pad = Profile.f2 "ssh_pad" ssh_pad
 
@@ -394,7 +394,7 @@ let pkey_from_file s =
   else
     let i = String.index_from s 9 ' ' in
     let tr=Cryptokit.Base64.decode () in
-    tr#put_substring s 8 (i-8);
+    tr#put_substring (Bytes.of_string s) 8 (i-8);
     tr#finish;
     pkey_from tr#get_string
 

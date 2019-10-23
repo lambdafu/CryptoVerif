@@ -38,6 +38,7 @@ so I could use o/iproc_from_desc.
 
 rename mergeBranches into autoMergeBranches
 mergeArrays into autoMergeArrays
+DONE 23/10/2019
 
 1) Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,

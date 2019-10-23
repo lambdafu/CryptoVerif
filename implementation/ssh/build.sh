@@ -1,23 +1,24 @@
 #!/bin/sh
 
 CRYPTOKIT="-linkpkg -package cryptokit"
+SSH=implementation/ssh
 
 cd ../.. 
 echo Proving the protocol...
 echo First, proving authentication
-./cryptoverif implementation/ssh/ssh.ocv > implementation/ssh/ssh.out
-egrep '(RESULT|All)' implementation/ssh/ssh.out | grep -v "RESULT time"
+./cryptoverif $SSH/ssh.ocv > $SSH/ssh.out
+egrep '(RESULT|All)' $SSH/ssh.out | grep -v "RESULT time"
 echo "Second, proving secrecy of the exchanged keys: IVs, encryption keys, MAC keys"
 for key in IVCC IVSC EKCC EKSC MKCC MKSC
 do
-    m4 -DONEKEY=$key implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key-$key.ocv
-    ./cryptoverif implementation/ssh/ssh-secrecy-key-$key.ocv > implementation/ssh/ssh-secrecy-key-$key.out
-egrep '(RESULT|All)' implementation/ssh/ssh-secrecy-key-$key.out | grep -v "RESULT time"
+    m4 -DONEKEY=$key $SSH/ssh-secrecy-key.m4.ocv > $SSH/ssh-secrecy-key-$key.ocv
+    ./cryptoverif $SSH/ssh-secrecy-key-$key.ocv > $SSH/ssh-secrecy-key-$key.out
+    egrep '(RESULT|All)' $SSH/ssh-secrecy-key-$key.out | grep -v "RESULT time"
 done
 
 echo Generating implementation...
-./cryptoverif -impl -o implementation/ssh implementation/ssh/ssh.ocv
-cd implementation/ssh
+./cryptoverif -impl -o $SSH $SSH/ssh.ocv
+cd $SSH
 
 # rm hk pkS skS trusted_hosts
 

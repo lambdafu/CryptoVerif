@@ -5,6 +5,10 @@ First, compile cryptoverif, compile cryptokit.
 
 Running build.sh will then create four programs, described in the next section.
 
+Note: on windows, you need to use the cygwin port of OCaml.
+The Win32 port does not implement some functions needed in the Unix 
+OCaml library.
+
 Generated programs:
 ===================
 
@@ -50,13 +54,13 @@ Session:
 
 create a listening server on port 4000:
 on unix: nc -l 127.0.0.1 4000
-on cygwin: nc -l -p 4000
+on cygwin: nc -l 4000
 
 launch the server:
-./server 127.0.0.1 2222 username id_rsa.pub
+./server 127.0.0.1 2222 username ~/.ssh/id_rsa.pub
 
 launch the client to forward connections :
-./client 127.0.0.1 2222 username id_rsa 3000 127.0.0.1 4000
+./client 127.0.0.1 2222 username ~/.ssh/id_rsa 3000 127.0.0.1 4000
 
 then connect to the port 3000:
 nc 127.0.0.1 3000
@@ -67,12 +71,12 @@ Interoperability with OpenSSH:
 ------------------------------
 
 - Our client with the OpenSSH server:
-      nc -l 127.0.0.1 4000   (or on cygwin: nc -l -p 4000)
+      nc -l 127.0.0.1 4000   (or on cygwin: nc -l 4000)
       ./client 127.0.0.1 22 username ~/.ssh/id_rsa 3000 127.0.0.1 4000
       nc 127.0.0.1 3000
 
 - Our server with an OpenSSH client:
-      nc -l 127.0.0.1 4000   (or on cygwin: nc -l -p 4000)
+      nc -l 127.0.0.1 4000   (or on cygwin: nc -l 4000)
       ./server 127.0.0.1 2222 username ~/.ssh/id_rsa.pub
       ssh -p 2222 127.0.0.1 -N -L 3000:localhost:4000
       nc 127.0.0.1 3000

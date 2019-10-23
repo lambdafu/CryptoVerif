@@ -176,7 +176,7 @@ let manage_server_message read_packet ch_to_fd fd_to_ch socks =
       let (c,i)=parse_int r i in
       let (m,i)=parse_string r i in
       let sock=Hashtbl.find ch_to_fd c in
-      let sent = Unix.write sock m 0 (String.length m) in
+      let sent = Unix.write_substring sock m 0 (String.length m) in
         if sent <> String.length m then
           failwith "Could not write everything"
         else
@@ -189,9 +189,9 @@ let manage_server_message read_packet ch_to_fd fd_to_ch socks =
         
 let manage_client_data write_packet fd_to_ch s =
   let ch = Hashtbl.find fd_to_ch s in
-  let buf = String.create 1024 in
+  let buf = Bytes.create 1024 in
   let r = Unix.read s buf 0 1024 in
-  let packet = ((string_of_char Ssh_crypto.tag_channel_data)^(Base.i2osp ch 4)^(Ssh_crypto.ssh_string (String.sub buf 0 r))) in
+  let packet = ((string_of_char Ssh_crypto.tag_channel_data)^(Base.i2osp ch 4)^(Ssh_crypto.ssh_string (Bytes.sub_string buf 0 r))) in
 (*    print ("Sending to server in tunnel: "^packet);*)
     write_packet packet
 
