@@ -1,0 +1,98 @@
+(* encryption scheme by Bellare and Rogaway, Random Oracles are
+Practical: a Paradigm for Designing Efficient Protocols, CCS'93, 
+section 3.2: 
+	E(x) = f(r) || H(r) xor x || H2(r || x) 
+(CCA2) -- in progress *)
+
+(* set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+  show_game occ;
+  insert 21 "let concat(x1_1',x1_1'') = x1_1 in";
+  auto
+  (* The rest of the proof is as follows. 
+  It works automatically with priority 2 for pkgen(r) in ow(f).
+
+  crypto rom(hash2);
+  crypto rom(hash);
+  remove_assign binder pk;
+  crypto ow(f) r x_2;
+  show_game;
+  crypto remove_xor(xor) r_6;
+  success *)
+}
+
+param nx, qD.
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type hasht [large,fixed].
+type hasht2 [large,fixed].
+type seed [large,fixed]. 
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(keyseed, pkey, skey, seed, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, seed, hasht, hash, hashoracle, qH).
+
+(* Another hash function, random oracle model *)
+
+expand ROM_hash(hashkey, bitstring, hasht2, hash2, hashoracle2, qH2).
+
+fun concat(seed,hasht):bitstring [data].
+
+(* Xor *)
+
+expand Xor(hasht, xor, zero).
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, hasht, hasht):hasht.
+equation forall x:hasht,y:hasht; test(true,x,y) = x.
+equation forall x:hasht,y:hasht; test(false,x,y) = y.
+
+(* Queries *)
+
+query secret b1.
+
+
+let processT(hk: hashkey, hk2: hashkey, pk: pkey) = 
+	OT(m1:hasht, m2:hasht) :=
+	b1 <-R bool;
+	(* The next line is equivalent to an "if" that will not be
+	expanded. This is necessary for the system to succeed in
+	proving the protocol. *)
+	menc <- test(b1, m1, m2);
+	x <-R seed;
+	aT:seed <- f(pk,x);
+	bT:hasht <- xor(hash(hk,x), menc);
+	cT:hasht2 <- hash2(hk2,concat(x,menc));
+	return(aT,bT,cT).
+
+process 
+	Ohkgen() :=
+	hk <-R hashkey;
+	hk2 <-R hashkey;
+	return;	
+	(run hashoracle(hk) | run hashoracle2(hk2) | 
+	Ogen() :=
+	r <-R keyseed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	run processT(hk, hk2, pk))
+
+(* EXPECTED
+All queries proved.
+0.072s (user 0.056s + system 0.016s), max rss 55040K
+END *)
