@@ -66,7 +66,7 @@ let stop () =
      let end_time = t.tms_utime +. t.tms_stime in
      let ticks = prof_stop() in
 
-     let cmp i1 i2 = i1.self_ctr > i2.self_ctr in
+     let cmp i1 i2 = i1.self_ctr - i2.self_ctr in
 
      match !start_time with
      | Some(start_time) -> (
@@ -88,7 +88,7 @@ let stop () =
 	       (foi info.self_ctr *. sample /. foi info.ncalls *. 1000.)
 	       (foi info.total_ctr *. sample /. foi info.ncalls *. 1000.)
 	       (info.name)
-         ) (Sort.list cmp !funcs) ;
+         ) (List.sort cmp !funcs) ;
          printf "\n" ; flush Pervasives.stdout
        )
 
