@@ -931,8 +931,8 @@ all cases. The latter configuration often leads to replacing
 a term with a more complex one, in particular expanding {\tt let}
 definitions, thus duplicating their contents.
 
-\item \texttt{set mergeBranches = true.}\\
-\texttt{set mergeBranches = false.}
+\item \texttt{set autoMergeBranches = true.}\\
+\texttt{set autoMergeBranches = false.}
 
 When {\tt true}, the transformation {\tt merge\_branches} is applied
 after simplification, to merge branches of {\tt if}, {\tt let},
@@ -944,8 +944,8 @@ This is useful in particular when the test has been
 manually introduced in order to force CryptoVerif to
 distinguish cases.
 
-\item \texttt{set mergeArrays = true.}\\
-\texttt{set mergeArrays = false.}
+\item \texttt{set autoMergeArrays = true.}\\
+\texttt{set autoMergeArrays = false.}
 
 When {\tt true}, {\tt merge\_branches} advises {\tt merge\_arrays} commands
 to make the merging of branches of {\tt if}, {\tt find}, {\tt let}

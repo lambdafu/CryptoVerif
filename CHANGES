@@ -20,11 +20,17 @@ Version
     - new options for "type": size<min>_<max>, pcoll<n>
     - an estimate of the value of the probability can now be given
       for probabilities declared by the "proba" declaration.
+- Renamed the setting mergeBranches into autoMergeBranches
+  and the setting mergeArrays into autoMergeArrays.
 - Added several variants of the PRF-ODH assumption to the library
   of cryptographic primitives.
 - Added command "success simplify".
 - Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".
+- Expansion of if, let, find, new, event, event_abort terms into
+  processes is now considered as a separate transformation instead
+  of being integrated into the "crypto" transformation.
+  Added the command "expand" and the setting "set autoExpand = ...".
 - Allow inserting find[unique]. CryptoVerif tries to prove that it
   is really unique; the insertion fails if that proof fails.
 - Public variables can be omitted in the "focus" command when

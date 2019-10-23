@@ -216,19 +216,19 @@ let do_set p v =
   | "constantsNotTuple", _ -> parse_bool v constants_not_tuple 
   | "expandAssignXY", _ -> parse_bool v expand_letxy
   | "minimalSimplifications", _ -> parse_bool v minimal_simplifications 
-  | "mergeBranches", _ -> parse_bool v merge_branches
-  | "mergeArrays", _ -> parse_bool v merge_arrays
   | "uniqueBranch", _ -> parse_bool v unique_branch
   | "uniqueBranchReorganize", _ -> parse_bool v unique_branch_reorg
   | "inferUnique", _ -> parse_bool v infer_unique
+  | "autoMergeBranches", _ -> parse_bool v merge_branches
+  | "autoMergeArrays", _ -> parse_bool v merge_arrays
   | "autoSARename", _ -> parse_bool v auto_sa_rename
   | "autoRemoveAssignFindCond", _ -> parse_bool v auto_remove_assign_find_cond
   | "autoRemoveIfFindCond", _ -> parse_bool v auto_remove_if_find_cond
   | "autoMove", _ -> parse_bool v auto_move
   | "autoExpand", _ -> parse_bool v auto_expand
+  | "autoAdvice", _ -> parse_bool v auto_advice
   | "optimizeVars", _ -> parse_bool v optimize_let_vars
   | "interactiveMode", _ -> parse_bool v interactive_mode
-  | "autoAdvice", _ -> parse_bool v auto_advice
   | "noAdviceCrypto", _ -> parse_bool v no_advice_crypto
   | "noAdviceGlobalDepAnal", _ -> parse_bool v no_advice_globaldepanal
   | "backtrackOnCrypto", _ -> parse_bool v backtrack_on_crypto

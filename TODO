@@ -957,13 +957,13 @@ are present.
 
 22) prove the AuthA protocol:
    - simplified version in which I split the hash function H into 
-     3 hash functions (see examplesnd/AuthA-split-hash.ocv).
+     3 hash functions (see examples-1.28/nd/notest/AuthA-split-hash.ocv).
      Needs an extension of "move array" in which the equality
      test is replaced with any function f(X,z) such that when
      X is a fresh random number, f(X,z) = g(z) up to small proba.
      The same extension could also be applied to ROM_hash and
      ICM_encrypt (PRF? SPRP?).
-   - normal version (see examplesnd/AuthA.ocv) additionally needs
+   - normal version (see examples-1.28/nd/notest/AuthA.ocv) additionally needs
         - case distinction depending on the order in which variables 
         are defined
         - improvement in simplification: CryptoVerif does not orient

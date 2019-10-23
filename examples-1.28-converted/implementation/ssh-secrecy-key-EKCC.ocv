@@ -1,5 +1,5 @@
 set elsefindFactsInSimplify = true.
-set mergeBranches = false.
+set autoMergeBranches = false.
 
 proof {
       success;

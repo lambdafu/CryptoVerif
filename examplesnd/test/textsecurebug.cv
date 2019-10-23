@@ -190,7 +190,7 @@ set useKnownEqualitiesInCryptoTransform = false.
 set autoRemoveIfFindCond = false.
 set autoMove = false.
 set uniqueBranchReorganize = false.
-set mergeBranches = false.
+set autoMergeBranches = false.
 set casesInCorresp = false.
 
 proof {

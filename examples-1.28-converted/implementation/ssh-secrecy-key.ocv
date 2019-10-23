@@ -1,4 +1,4 @@
-set mergeBranches = false.
+set autoMergeBranches = false.
 set elsefindFactsInSimplify = false.
     (* I need to use this setting because otherwise, the simplification after crypto rom(h)
        is too slow. I still need to reactive elsefindFactsInSimplify later, 

@@ -64,7 +64,7 @@ The other combinations may not work.
 (* To speed up proofs of correspondences *)
 set casesInCorresp = false.
 (* To speed up the proof *)
-set mergeBranches = false.
+set autoMergeBranches = false.
 (* To save memory *)
 set forgetOldGames = true.
 

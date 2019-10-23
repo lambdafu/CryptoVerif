@@ -1,4 +1,4 @@
-set mergeBranches = false.
+set autoMergeBranches = false.
 
 ifdef(`ONEKEY',`
 set elsefindFactsInSimplify = true.

@@ -5,7 +5,7 @@ for 4DH or with a replay cache.
 *)
 
 set useKnownEqualitiesWithFunctionsInMatching = true.
-set mergeBranches = false.
+set autoMergeBranches = false.
 
 proof {
 out_game "g1.cv" occ;

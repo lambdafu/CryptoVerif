@@ -19,7 +19,7 @@ The proof indications need to be adapted to the various settings.
 (* To speed up proofs of correspondences *)
 set casesInCorresp = false.
 (* To speed up the proof *)
-set mergeBranches = false.
+set autoMergeBranches = false.
 (* To save memory *)
 set forgetOldGames = true.
 
