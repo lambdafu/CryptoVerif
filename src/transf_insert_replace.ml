@@ -914,6 +914,8 @@ let may_be_inside count min_occ max_occ =
 let rec replace_tt count env facts cur_array t =
   match !count with
     RepToDo (occ, ext_o, ins, ext_s) when occ == t.t_occ ->
+      if not (Terms.check_simple_term t) then
+	raise (Error("The term at " ^ (string_of_int occ) ^ "contains if, let, find, new, or event; you cannot replace it", ext_o));
       let defined_refs = 
 	try 
 	  Facts.get_def_vars_at (DTerm t)
@@ -956,7 +958,7 @@ let rec replace_tt count env facts cur_array t =
       Terms.build_term2 t 
 	(match t.t_desc with
 	  Var(b,l) -> Var(b, List.map (replace_tt count env facts cur_array) l)
-	| ReplIndex b -> ReplIndex b
+	| (ReplIndex _ | EventAbortE _) as x -> x
 	| FunApp(f,[t1;t2]) when f == Settings.f_and ->
 	    (* This is correct because the replacement is done either in t1 or in t2,
 	       but not in both! 
@@ -964,8 +966,8 @@ let rec replace_tt count env facts cur_array t =
 	       evaluated as t1 && t2, so that t2 is evaluated only when t1 holds.
 	       If the replacement is done in t1, we consider that the expression is
 	       evaluated as t2 && t1, so that t1 is evaluated only when t2 holds. *)
-	  FunApp(f, [replace_tt count env (t2::facts) cur_array t1;
-		 replace_tt count env (t1::facts) cur_array t2])
+	    FunApp(f, [ replace_tt count env (t2::facts) cur_array t1;
+			replace_tt count env (t1::facts) cur_array t2])
 	| FunApp(f,[t1;t2]) when f == Settings.f_or ->
 	    (* This is correct because the replacement is done either in t1 or in t2,
 	       but not in both! 
@@ -973,77 +975,72 @@ let rec replace_tt count env facts cur_array t =
 	       evaluated as t1 || t2, so that t2 is evaluated only when t1 is false.
 	       If the replacement is done in t1, we consider that the expression is
 	       evaluated as t2 || t1, so that t1 is evaluated only when t2 is false. *)
-	  FunApp(f, [replace_tt count env ((Terms.make_not t2)::facts) cur_array t1;
-		 replace_tt count env ((Terms.make_not t1)::facts) cur_array t2])
+	    FunApp(f, [ replace_tt count env ((Terms.make_not t2)::facts) cur_array t1;
+			replace_tt count env ((Terms.make_not t1)::facts) cur_array t2])
 	| FunApp(f,l) -> FunApp(f, List.map (replace_tt count env facts cur_array) l)
-	| ResE _ | TestE _ | LetE _ | FindE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-	    Parsing_helper.internal_error "if/let/find/new/event/event_abort/get/insert should have been expanded in replace_term")
-	
-let rec replace_tpat count env cur_array = function
-    PatVar b -> PatVar b
-  | PatTuple(f,l) -> PatTuple(f, List.map (replace_tpat count env cur_array) l)
-  | PatEqual t -> PatEqual(replace_tt count env [] cur_array t)
+	| ResE(b,p) ->
+	    let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
+	    ResE(b, replace_tt count env' facts cur_array p)
+	| EventE(t1,p) ->
+	    EventE(replace_tt count env facts cur_array t1,
+		   replace_tt count env facts cur_array p)
+	| GetE _ | InsertE _ ->
+	    Parsing_helper.internal_error "get, insert should not occur as term"
+	| TestE(t1,t2,t3) ->
+	    let t2' = replace_tt count env facts cur_array t2 in
+	    let t3' = replace_tt count env facts cur_array t3 in
+	    let t1' = replace_tt count env facts cur_array t1 in
+	    TestE(t1',t2',t3')
+	| LetE(pat,t1,t2,topt) ->
+	    let def2 = Terms.vars_from_pat [] pat in
+	    let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
+	    let t2' = replace_tt count env' facts cur_array t2 in
+	    let topt' = 
+	      match topt with
+		None -> None
+	      | Some t3 -> Some (replace_tt count env facts cur_array t3)
+	    in
+	    let pat' = replace_tpat count env facts cur_array pat  in
+	    let t1' = replace_tt count env facts cur_array t1 in
+	    LetE(pat',t1',t2',topt')
+	| FindE(l0,t3, find_info) ->
+	    let t3' = replace_tt count env facts cur_array t3 in
+	    let l0' = List.fold_right (fun (bl, def_list, tc, p) laccu ->
+	      let vars = List.map fst bl in
+	      let repl_indices = List.map snd bl in
+	      
+	      (* Compute the environment in the then branch p *)
+	      let env_p = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
+	      (* Compute the environment in the condition tc *)
+	      let env_tc = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
+	      let count_before = !count in
+	      let p' = replace_tt count env_p facts cur_array p in
+	      let tc' = replace_tt count env_tc facts cur_array tc in
+	      let count_after = !count in
+	      (* Update def_list if needed *)
+	      try 
+		let find_branch' = 
+		  match count_before, count_after with
+		    RepToDo _, RepDone _ -> 
+		      let already_defined = Facts.get_def_vars_at (DTerm t) in
+		      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t)) def_list in
+		      Facts.update_def_list_term already_defined newly_defined bl def_list tc' p'
+		  | _ -> (bl, def_list, tc', p')
+		in
+		find_branch' :: laccu
+	      with Contradiction ->
+	        (* The variables in the defined condition cannot be defined,
+		   I can just remove the branch *)
+		laccu
+		  ) l0 []
+	    in
+	    FindE(l0',t3',find_info))
 
-and replace_tfind_cond count env cur_array t =
-  if not (may_be_inside count t.t_occ t.t_max_occ) then
-    t
-  else
-  match t.t_desc with
-    ResE(b,p) ->
-      let env' = StringMap.add (Display.binder_to_string b) (EVar b) env in
-      Terms.build_term2 t (ResE(b, replace_tfind_cond count env' cur_array p))
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "event, event_abort, get, insert should not occur as term"
-  | TestE(t1,t2,t3) ->
-      let t2' = replace_tfind_cond count env cur_array t2 in
-      let t3' = replace_tfind_cond count env cur_array t3 in
-      let t1' = replace_tt count env [] cur_array t1 in
-      Terms.build_term2 t (TestE(t1',t2',t3'))
-  | LetE(pat,t1,t2,topt) ->
-      let def2 = Terms.vars_from_pat [] pat in
-      let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
-      let t2' = replace_tfind_cond count env' cur_array t2 in
-      let topt' = 
-	match topt with
-	  None -> None
-	| Some t3 -> Some (replace_tfind_cond count env cur_array t3)
-      in
-      let pat' = replace_tpat count env cur_array pat  in
-      let t1' = replace_tt count env [] cur_array t1 in
-      Terms.build_term2 t (LetE(pat',t1',t2',topt'))
-  | FindE(l0,t3, find_info) ->
-      let t3' = replace_tfind_cond count env cur_array t3 in
-      let l0' = List.fold_right (fun (bl, def_list, tc, p) laccu ->
-	let vars = List.map fst bl in
-	let repl_indices = List.map snd bl in
+and replace_tpat count env facts cur_array = function
+  | PatVar b -> PatVar b
+  | PatTuple(f,l) -> PatTuple(f, List.map (replace_tpat count env facts cur_array) l)
+  | PatEqual t -> PatEqual(replace_tt count env facts cur_array t)
 
-	(* Compute the environment in the then branch p *)
-	let env_p = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
-	(* Compute the environment in the condition tc *)
-	let env_tc = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
-	let count_before = !count in
-	let p' = replace_tfind_cond count env_p cur_array p in
-	let tc' = replace_tfind_cond count env_tc cur_array tc in
-	let count_after = !count in
-	(* Update def_list if needed *)
-	try 
-	  let find_branch' = 
-	    match count_before, count_after with
-	      RepToDo _, RepDone _ -> 
-		let already_defined = Facts.get_def_vars_at (DTerm t) in
-		let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t)) def_list in
-		Facts.update_def_list_term already_defined newly_defined bl def_list tc' p'
-	    | _ -> (bl, def_list, tc', p')
-	  in
-	  find_branch' :: laccu
-	with Contradiction ->
-	  (* The variables in the defined condition cannot be defined,
-             I can just remove the branch *)
-	  laccu
-	  ) l0 []
-      in
-      Terms.build_term2 t (FindE(l0',t3',find_info))
-  | Var _ | FunApp _ | ReplIndex _ -> replace_tt count env [] cur_array t 
 
 let rec replace_t count env cur_array p =
   if not (may_be_inside count p.i_occ p.i_max_occ) then
@@ -1061,7 +1058,7 @@ let rec replace_t count env cur_array p =
       let def2 = Terms.vars_from_pat [] pat in
       let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
       let p' = replace_to count env' cur_array p in
-      let pat' = replace_tpat count env cur_array pat in
+      let pat' = replace_tpat count env [] cur_array pat in
       let tl' = List.map (replace_tt count env [] cur_array) tl in
       Input((c,tl'),pat',p')
   in
@@ -1092,7 +1089,7 @@ and replace_to count env cur_array p =
 	let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env def2 in
 	let p1' = replace_to count env' cur_array p1 in
 	let p2' = replace_to count env cur_array p2 in
-	let pat' = replace_tpat count env cur_array pat  in
+	let pat' = replace_tpat count env [] cur_array pat  in
 	let t' = replace_tt count env [] cur_array t in
 	Let(pat',t',p1',p2')
     | Find(l0,p3,find_info) ->
@@ -1107,7 +1104,7 @@ and replace_to count env cur_array p =
 	  let env_t = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
 	  let count_before = !count in
 	  let p1' = replace_to count env_p1 cur_array p1 in
-	  let t' = replace_tfind_cond count env_t cur_array t in
+	  let t' = replace_tt count env_t [] cur_array t in
 	  let count_after = !count in
 	  (* Update def_list if needed *)
 	  try
@@ -1132,13 +1129,11 @@ and replace_to count env cur_array p =
 	let t' = replace_tt count env [] cur_array t in
 	let tl' = List.map (replace_tt count env [] cur_array) tl in
 	Output((c,tl'),t',p')
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+    | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
   Terms.oproc_from_desc2 p p_desc'
 
 let replace_term occ ext_o s ext_s g =
-  if not g.expanded then
-    raise (Error ("replace does not support non-expanded games", ext_s));
   let g_proc = Terms.get_process g in
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
