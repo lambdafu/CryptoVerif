@@ -583,6 +583,21 @@ with x. (Apply it also with indices.)
 auto-reorder the instructions in the branches to merge,
 so that they are in the same order.
 
+Instead of fully reordering, rather:
+- for variables defined by "let x = M" without array
+accesses, replace x with its value.
+- for variables defined by "new x" without array
+accesses, replace x with a special value "random_i"
+- for variables with array accesses, we know that
+their name must be preserved [not if the array accesses
+are local to one branch! perhaps treat it as "without"
+array access in this case?], so it is easier
+to match the definitions on both sides. We can reorder
+by delaying the definition of the variable in question
+as long as we can.
+- we will not reorder conditions (if, find, let with
+non-variable patterns), events, input, output, ...
+
 10) Add more comments, e.g. in terms.mli
 
 11) Make an up-to-date tech report describing CryptoVerif.
