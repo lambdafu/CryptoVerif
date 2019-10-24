@@ -91,14 +91,14 @@ equiv(rom(hash))
       foreach ih <= Nh do 
         (foreach i <= N do OH(x1: hashinput1) := 
 	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
-	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(hash_dont_care(k, x1)) else
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(hash(k, x1)) else
            r <-R hashoutput; return(r) |
 	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
 	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(r[u]) else
-	   return(hash_dont_care(k, x1dont_care)) |
+	   return(hash(k, x1dont_care)) |
          foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
            find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
-	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(r' = hash_dont_care(k, x1)) else
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(r' = hash(k, x1)) else
 	   return(false) |
          foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
                  return(y1 = z1)).
@@ -124,7 +124,7 @@ equiv(rom(hash))
            r <-R hashoutput; return(r) |
 	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
 	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(event_abort collision) else
-	   return(hash_dont_care(k, x1dont_care)) |
+	   return(hash(k, x1dont_care)) |
          foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
            find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
 	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
@@ -138,6 +138,10 @@ immediately the code that happens after these collisions and thus simplifies the
 Obviously, the user has to specify manually whether each call to hash is useful (OH, Oeq) or useless (OHdont_care),
 by specifying which oracle to use for each term.
 
+Note: if we keep the same function hash in the RHS of the equivalence, 
+we can apply the same equivalence again on the remaining calls to hash
+if needed.
+
 I could push this idea further by having several oracles that call H, called OH1,...,OHk.
 When an argument to OHi is equal to an argument of OHj for i<>j, event_abort collision.
 Otherwise, compare the argument of OHi with the previous arguments of OHi.
@@ -146,9 +150,15 @@ of OHi and OHj for i<>j without experiencing a big blow-up.
 Perhaps sometimes one oracle can collide with all others (or with several others),
 e.g. the oracle of the adversary... How to adapt the equivalence to the various
 cases? Perhaps enough to allow:
-- the dont_care oracle
-- the oracle that collides with all
-- OHi not colliding with OHj for i<>j, let's say 1<=i,j<=10.
+- the OHdont_care oracle, which executes event_abort collision in case of
+  collision with OHi, and returns hash(x) otherwise.
+- the OHdont_care_coll oracle, which returns ri in case of collision with OHi,
+  and returns hash(x) otherwise 
+- OHi, which executes event_abort collision in case of collision with OHj
+  with i<>j or OHdont_care, returns hash(x) in case of collision with
+  OHdont_care_coll, returns the previous ri in case of collision with a
+  previous call to OHi, and returns a fresh ri otherwise. 
+  let's say 1<=i,j<=10.
 
 The same idea applies to PRFs, PRP, SPRP
 
