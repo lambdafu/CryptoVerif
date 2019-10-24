@@ -67,7 +67,7 @@ let rec insert_eventi state p =
     (* We are sure that [occ] is not inside [p] *) 
     p
   else
-    Terms.iproc_from_desc3 p (
+    Terms.iproc_from_desc (
     match p.i_desc with
       Nil -> Nil
     | Par(p1,p2) -> 
@@ -90,7 +90,7 @@ and insert_evento state p =
     (* We are sure that [occ] is not inside [p] *) 
     p
   else
-    Terms.oproc_from_desc3 p (
+    Terms.oproc_from_desc (
     match p.p_desc with
       Yield -> Yield
     | EventAbort _ as x -> x

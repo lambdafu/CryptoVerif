@@ -796,7 +796,7 @@ let rec prove_uniquefc t =
   | Var _ | FunApp _ | ReplIndex _ -> t 
 
 let rec prove_uniquei p =
-    Terms.iproc_from_desc3 p (
+    Terms.iproc_from_desc_at p (
     match p.i_desc with
       Nil -> Nil
     | Par(p1,p2) -> 
@@ -808,7 +808,7 @@ let rec prove_uniquei p =
 	Input(c, pat, prove_uniqueo p))
 
 and prove_uniqueo p =
-  Terms.oproc_from_desc3 p (
+  Terms.oproc_from_desc_at p (
     match p.p_desc with
       Yield -> Yield
     | EventAbort f -> EventAbort f

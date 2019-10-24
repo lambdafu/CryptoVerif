@@ -447,12 +447,6 @@ let iproc_from_desc d = { i_desc = d; i_occ = -1; i_max_occ = 0; i_loc = Parsing
 let oproc_from_desc d = { p_desc = d; p_occ = -1; p_max_occ = 0; p_loc = Parsing_helper.dummy_ext;
 			  p_incompatible = Occ_map.empty; p_facts = None }
 
-let iproc_from_desc3 p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = 0; i_loc = p.i_loc;
-			     i_incompatible = Occ_map.empty; i_facts = None }
-
-let oproc_from_desc3 p d = { p_desc = d; p_occ = p.p_occ; p_max_occ = 0; p_loc = p.p_loc;
-			     p_incompatible = Occ_map.empty; p_facts = None }
-
 let iproc_from_desc_at p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = p.i_max_occ; i_loc = p.i_loc;
 			     i_incompatible = p.i_incompatible; 
 			     i_facts = p.i_facts }
@@ -2252,7 +2246,7 @@ let copy_elsefind (bl, def_vars, t) =
   res
 
 let rec copy_process transf p = 
-  iproc_from_desc3 p (
+  iproc_from_desc (
   match p.i_desc with
     Nil -> Nil
   | Par(p1,p2) ->
@@ -2266,7 +2260,7 @@ let rec copy_process transf p =
 	    copy_oprocess transf p))
 
 and copy_oprocess transf p =
-  oproc_from_desc3 p (
+  oproc_from_desc (
   match p.p_desc with
     Yield -> Yield
   | EventAbort f -> EventAbort f
