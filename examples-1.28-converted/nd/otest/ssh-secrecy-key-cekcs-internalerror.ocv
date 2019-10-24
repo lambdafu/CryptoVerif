@@ -15,14 +15,14 @@ proof {
       (*secrecy of the key*)
       show_game occ;
       insert 218 "find i' <= N suchthat defined(svc[i'], svs[i'], scC[i'], sns[i'], scS[i'], se[i'], sf[i'], KS[i'], r_6[i']) && ((cvc = svc[i']) && ((cvs = svs[i']) && (((ccC = scC[i']) && (negotiation_string = sns[i'])) && (((ccS = scS[i']) && (cns = negotiation_string)) && ((ce = se[i']) && ((cf = sf[i']))))))) then";
-      set mergeBranches = false;
+      set autoMergeBranches = false;
       simplify;
-      set mergeBranches = true;
+      set autoMergeBranches = true;
       simplify;
       insert 53 "find j <= N suchthat defined (ce[j]) && ce[j]=se then";
-      set mergeBranches = false;
+      set autoMergeBranches = false;
       simplify;
-      set mergeBranches = true;
+      set autoMergeBranches = true;
       simplify;
       crypto cdh(exp);
 

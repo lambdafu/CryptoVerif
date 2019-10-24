@@ -5,7 +5,7 @@
 (* set interactiveMode = true. *)
 
 (* 
-set mergeBranches = false
+set autoMergeBranches = false
 show_game occ
 insert 133 find j3<=N suchthat defined(hostB[j3],ga_62[j3]) && hostB[j3] = B && ga_62[j3] = ga_58 && hostA = A then
 OR

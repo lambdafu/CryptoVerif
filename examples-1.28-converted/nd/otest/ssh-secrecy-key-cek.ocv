@@ -1,7 +1,7 @@
 set elsefindFactsInSimplify = true.
 
 proof {
-      set mergeBranches = false;
+      set autoMergeBranches = false;
       success;
       (*prove authentication*)
       show_game occ;

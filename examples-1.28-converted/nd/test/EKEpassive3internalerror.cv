@@ -62,7 +62,7 @@ show_game
 show_game occ;
 insert 356 "find i1 <= qD, i2 <= qH1 suchthat defined(@2_m[i1], @2_kd[i1], @1_X_4357[i1], x11[i2], x12[i2], x13[i2], x14[i2]) && (@2_r2_74 = @2_m[i1]) && (U = x11[i2]) && (S = x12[i2]) && (X_s = x13[i2]) && (@1_X_4357[i1] = x14[i2]) && (pw = @2_kd[i1]) then";
 show_game;
-set mergeBranches = false;
+set autoMergeBranches = false;
 simplify;
 *)
 (* set interactiveMode = true. *)
