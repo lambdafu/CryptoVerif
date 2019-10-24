@@ -30,11 +30,23 @@ Use new_occ only in terms.move_occ; otherwise, use -1,
 and display [occ not set] if it is used.
 DONE 21/10/2019
 Track all remaining [occ not set] to avoid them.
-
-Keep max_occ in o/iproc_from_desc2?
-I could do it in DepAnal2. Not sure if it's ok elsewhere.
-Perhaps elsewhere I do not need to preserve occurrences at all,
-so I could use o/iproc_from_desc.
+- "Transformed test at ... into a logical formula"
+   case STestEElim in transf_simplify.ml
+   creates new terms with occurrence not set, which are then simplified.
+   Possible fixes:
+   - do the transformation into logical formula in the expand transfo
+     instead of simplify
+     pb: TestE may appear as a result of simplifying a FindE,
+     and in this case, STestEElim would not be done by expand,
+     until we redo a full expand, usually after a crypto transformation.
+   - have a notion of approximate occurrence; we would use the
+     occurrence of TestE as approximate occurrence for the new terms.
+     It would be displayed "at about ..."
+- When I transform let in transf_simplify:
+      let plet = Terms.put_lets bind ptrue pfalse in
+      let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
+      simplify_oprocess cur_array dep_info true_facts ptest
+The "let"s created by Terms.put_lets do not have a proper occurrence.
 
 rename mergeBranches into autoMergeBranches
 mergeArrays into autoMergeArrays

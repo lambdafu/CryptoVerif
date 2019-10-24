@@ -208,7 +208,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	with Contradiction ->
 	  (* The current program point is unreachable, because it requires the definition
 	     of a variable that is never defined *)
-	  (Terms.oproc_from_desc2 p' Yield, [])
+	  (Terms.oproc_from_desc_at p' Yield, [])
       else
 	(p', [dep_info'])
   | Test(t,p1,p2) ->
@@ -237,7 +237,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	    Settings.changed := true;
 	    current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos);
 	  end;
-	(Terms.oproc_from_desc2 p' (Test(t',p1,p2)), [r])
+	(Terms.oproc_from_desc_at p' (Test(t',p1,p2)), [r])
   | Find(l0,p2,find_info) ->
        let always_then = ref false in
        let rec simplify_find = function
@@ -337,7 +337,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	       else
 		 bdepinfo) dep_b dep_info
 	 in
-         (Terms.oproc_from_desc2 p' (Find(l0',(if !always_then then Terms.oproc_from_desc2 p2 Yield else p2), find_info)), dep_info_else :: dep_info_branches)
+         (Terms.oproc_from_desc_at p' (Find(l0',(if !always_then then Terms.oproc_from_desc_at p2 Yield else p2), find_info)), dep_info_else :: dep_info_branches)
        end
   | Let(pat, t, p1, p2) ->
       begin
@@ -363,7 +363,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		begin
 		  Settings.changed := true;
 		  current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
-		  Terms.oproc_from_desc2 p' (Let(pat, t, p1, Terms.oproc_from_desc2 p2 Yield))
+		  Terms.oproc_from_desc_at p' (Let(pat, t, p1, Terms.oproc_from_desc_at p2 Yield))
 		end
 	      else
 		p'
@@ -843,9 +843,18 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  Settings.changed := true;
           current_pass_transfos := (STestEElim(t)) :: (!current_pass_transfos);
 	  let t' = Terms.make_or (Terms.make_and t1 t2) (Terms.make_and (Terms.make_not t1) t3) in
-	  let (transfos, t'') = Transf_expand.final_pseudo_expand (!whole_game) cur_array true_facts t' in
-	  current_pass_transfos := transfos @ (!current_pass_transfos);
-	  simplify_term_w_find cur_array true_facts t''
+	  (* Put the occurrence of [t] at the root of [t'].
+	     The next line does it better than using [make_or_at] above,
+	     in case the "or" can be simplified. *)
+	  let t' = if t'.t_occ == -1 then Terms.build_term_at t t'.t_desc else t' in
+	  (* In case no expansion is needed, simplify [t'] directly,
+	     to preserve the occurrence *)
+	  if Terms.check_simple_term t' then
+	    simplify_term cur_array DepAnal2.init false true_facts t'
+	  else
+	    let (transfos, t'') = Transf_expand.final_pseudo_expand (!whole_game) cur_array true_facts t' in
+	    current_pass_transfos := transfos @ (!current_pass_transfos);
+	    simplify_term_w_find cur_array true_facts t''
 	end
       else
       begin
@@ -960,7 +969,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	                              (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
-	  simplify_term_w_find cur_array true_facts (Terms.build_term2 t (TestE(t1,t2,t3)))
+	  simplify_term_w_find cur_array true_facts (Terms.build_term_at t (TestE(t1,t2,t3)))
       |	_ ->
       try
       let def_vars = Facts.get_def_vars_at pp in
@@ -1368,7 +1377,7 @@ exception OneBranchProcess of process findbranch
 let rec simplify_process cur_array dep_info true_facts p = 
   (* print_string "Simplify occ "; print_int p.i_occ; print_newline(); *)
   let dep_info' = DepAnal2.update_dep_info cur_array dep_info true_facts p in
-  Terms.iproc_from_desc2 p (
+  Terms.iproc_from_desc (
   match p.i_desc with
     Nil -> Nil
   | Par(p1,p2) -> Par(simplify_process cur_array dep_info' true_facts p1,
@@ -1393,14 +1402,14 @@ and simplify_oprocess cur_array dep_info true_facts p =
     begin
       Settings.changed := true;
       current_pass_transfos := (SAdvLoses(DProcess p)) :: (!current_pass_transfos);
-      Terms.oproc_from_desc2 p (EventAbort Settings.e_adv_loses)
+      Terms.oproc_from_desc (EventAbort Settings.e_adv_loses)
     end
   else
   let (p', dep_info_list') = DepAnal2.update_dep_infoo cur_array dep_info true_facts p in
   let pp = DProcess p' in
   match p'.p_desc with
     Yield -> Terms.oproc_from_desc Yield
-  | EventAbort f -> Terms.oproc_from_desc2 p' (EventAbort f)
+  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p0) -> 
       begin
 	match p0.p_desc with
@@ -1421,10 +1430,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
-		Terms.oproc_from_desc2 p' (Let(PatVar b,  Terms.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
+		Terms.oproc_from_desc (Let(PatVar b,  Terms.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
 	      end
 	    else
-	      Terms.oproc_from_desc2 p' (Restr(b, p1))
+	      Terms.oproc_from_desc (Restr(b, p1))
       end
   | Test(t, p1, p2) ->
       begin
@@ -1503,7 +1512,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	begin
 	  Settings.changed := true;
 	  let find_info = Unique.is_unique l0' find_info in
-	  Terms.oproc_from_desc2 p' (Find(l0', p2, find_info))
+	  Terms.oproc_from_desc (Find(l0', p2, find_info))
 	end
       else
 
@@ -1540,7 +1549,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	begin
 	  Settings.changed := true;
 	  let find_info = Unique.is_unique l0' find_info in
-	  Terms.oproc_from_desc2 p' (Find(l0', p2', find_info))
+	  Terms.oproc_from_desc (Find(l0', p2', find_info))
 	end
       else
 
@@ -1551,7 +1560,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	                              (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
-	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc2 p'  (Test(t1,p1,p2)))
+	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc_at p' (Test(t1,p1,p2)))
       |	_ ->
       try
       let def_vars = Facts.get_def_vars_at pp in
@@ -1813,7 +1822,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	          Settings.changed := true;
 	          current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
                 end;
-	      Terms.oproc_from_desc2 p' (Find(l0', p2', find_info'))
+	      Terms.oproc_from_desc (Find(l0', p2', find_info'))
 	  end
       with OneBranchProcess(find_branch) ->
 	match find_branch with
@@ -1828,7 +1837,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Settings.changed := true;
 		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DProcess p1))) :: (!current_pass_transfos);
 	      end;
-	    Terms.oproc_from_desc2 p' (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
+	    Terms.oproc_from_desc (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
 
       with Contradiction ->
 	(* The whole Find will never be executed *)
@@ -1874,7 +1883,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
          between the output and the following input *)
       let (subst, facts, _) = true_facts in
       let true_facts' = (subst, facts, []) in
-      Terms.oproc_from_desc2 p' 
+      Terms.oproc_from_desc
 	(Output((c, List.map (fun t -> simplify_term cur_array dep_info false true_facts t) tl), 
 	     simplify_term cur_array dep_info false true_facts t2,
 	     simplify_process cur_array (List.hd dep_info_list') true_facts' p))
@@ -1889,7 +1898,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      simplify_oprocess cur_array (List.hd dep_info_list') true_facts p
 	    end
 	  else
-	    Terms.oproc_from_desc2 p' (EventP(simplify_term cur_array dep_info false true_facts t,
+	    Terms.oproc_from_desc (EventP(simplify_term cur_array dep_info false true_facts t,
 					  simplify_oprocess cur_array (List.hd dep_info_list') true_facts p))
       |	_ ->
 	  Parsing_helper.internal_error "Events must be function applications"
@@ -1922,7 +1931,7 @@ and simplify_if if_p dep_info cur_array true_facts ptrue pfalse t' =
 	    Terms.oproc_from_desc Yield
 	  end
 	else
-	  Terms.oproc_from_desc2 if_p (Test(t', ptrue', pfalse))
+	  Terms.oproc_from_desc (Test(t', ptrue', pfalse))
       with Contradiction ->
 	Settings.changed := true;
 	current_pass_transfos := (STestFalse(DProcess if_p)) :: (!current_pass_transfos);
@@ -1998,7 +2007,7 @@ and simplify_let let_p dep_info_else true_facts_else dep_info dep_info_in cur_ar
 	Terms.put_lets bind ptrue' pfalse'
     else
       let plet = Terms.put_lets bind ptrue pfalse in
-      let ptest = Terms.oproc_from_desc2 let_p (Test(test, plet, pfalse)) in
+      let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
       simplify_oprocess cur_array dep_info true_facts ptest
   with
     Terms.Impossible ->

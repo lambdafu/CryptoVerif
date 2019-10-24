@@ -159,10 +159,10 @@ val new_iproc : inputprocess_desc -> Parsing_helper.extent -> inputprocess
 val new_oproc : process_desc -> Parsing_helper.extent -> process
 val iproc_from_desc : inputprocess_desc -> inputprocess
 val oproc_from_desc : process_desc -> process
-val iproc_from_desc2 : inputprocess -> inputprocess_desc -> inputprocess
-val oproc_from_desc2 : process -> process_desc -> process
 val iproc_from_desc3 : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc3 : process -> process_desc -> process
+val iproc_from_desc_at : inputprocess -> inputprocess_desc -> inputprocess
+val oproc_from_desc_at : process -> process_desc -> process
 
 val empty_game : game
 (* Used the designate the LHS and RHS of an equivalence *)
@@ -442,6 +442,7 @@ val make_for_all_diff : term -> term -> term
 val make_true : unit -> term
 val make_false : unit -> term
 
+val build_term_at : term -> term_desc -> term
 val make_true_at : term -> term
 val make_false_at : term -> term
 val make_and_at : term -> term -> term -> term

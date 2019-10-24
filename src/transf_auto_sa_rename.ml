@@ -124,7 +124,7 @@ and auto_sa_rename_pat = function
   | PatEqual t -> PatEqual (auto_sa_rename_term t)
 
 let rec auto_sa_rename_process p = 
-  Terms.iproc_from_desc2 p (
+  Terms.iproc_from_desc_at p (
   match p.i_desc with
     Nil -> Nil
   | Par(p1,p2) -> Par(auto_sa_rename_process p1, 
@@ -138,7 +138,7 @@ let rec auto_sa_rename_process p =
       Input((c, tl'), pat', p'))
 
 and auto_sa_rename_oprocess p = 
-  Terms.oproc_from_desc2 p (
+  Terms.oproc_from_desc_at p (
   match p.p_desc with
     Yield -> Yield
   | EventAbort f -> EventAbort f

@@ -675,7 +675,7 @@ let rec insert_ins count occ ins env cur_array p =
       check_noninter def def2;
       (Input((c,tl),pat,p'), def @ def2)
   in
-  (Terms.iproc_from_desc2 p p_desc', def)
+  (Terms.iproc_from_desc_at p p_desc', def)
 
 and insert_inso count occ ins env cur_array p =
   let (p_desc', def) =
@@ -737,7 +737,7 @@ and insert_inso count occ ins env cur_array p =
 	(Output((c,tl),t,p'), def)
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
-  let r = (Terms.oproc_from_desc2 p p_desc', def) in
+  let r = (Terms.oproc_from_desc_at p p_desc', def) in
   if p.p_occ == occ then
     begin
       incr count;
@@ -1062,7 +1062,7 @@ let rec replace_t count env cur_array p =
       let tl' = List.map (replace_tt count env [] cur_array) tl in
       Input((c,tl'),pat',p')
   in
-  Terms.iproc_from_desc2 p p_desc'
+  Terms.iproc_from_desc_at p p_desc'
 
 and replace_to count env cur_array p =
   if not (may_be_inside count p.p_occ p.p_max_occ) then
@@ -1131,7 +1131,7 @@ and replace_to count env cur_array p =
 	Output((c,tl'),t',p')
     | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
-  Terms.oproc_from_desc2 p p_desc'
+  Terms.oproc_from_desc_at p p_desc'
 
 let replace_term occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in

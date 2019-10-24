@@ -1481,7 +1481,7 @@ let rec merge_i rename_instr p =
       let p'' = List.fold_left (add_def_var_proc rename_instr) p' pat_vars in
       Input((c,tl'),pat',p'')
   in
-  Terms.iproc_from_desc2 p p_desc'
+  Terms.iproc_from_desc_at p p_desc'
 
 and merge_o rename_instr p =
   let p_desc' =
@@ -1526,7 +1526,7 @@ and merge_o rename_instr p =
 	Output((c,tl'),t',p')
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
-  let p' = Terms.oproc_from_desc2 p p_desc' in
+  let p' = Terms.oproc_from_desc_at p p_desc' in
   let (_, br_vars) = rename_instr in
   match br_vars with
     CreateBranchVarAtProc(pl,bl) ->
@@ -2131,15 +2131,15 @@ let rec do_merges_i p =
   | Input(ch,pat, p) ->
       Input(ch,pat,do_merges_o p)
   in
-  Terms.iproc_from_desc2 p p_desc'
+  Terms.iproc_from_desc_at p p_desc'
 
 and do_merges_o p =
   match p.p_desc with
     Yield | EventAbort _ -> p
   | Restr(b,p1) ->    
-      Terms.oproc_from_desc2 p (Restr(b, do_merges_o p1))
+      Terms.oproc_from_desc_at p (Restr(b, do_merges_o p1))
   | EventP(t,p1) ->
-      Terms.oproc_from_desc2 p (EventP(t, do_merges_o p1))
+      Terms.oproc_from_desc_at p (EventP(t, do_merges_o p1))
   | Test(t,p1,p2) ->
       if List.exists (function
 	  (MergeProcess(p',_),_,_,_,_) -> p' == p
@@ -2150,7 +2150,7 @@ and do_merges_o p =
       else
 	let p1' = do_merges_o p1 in
 	let p2' = do_merges_o p2 in
-	Terms.oproc_from_desc2 p (Test(t,p1',p2'))
+	Terms.oproc_from_desc_at p (Test(t,p1',p2'))
   | Let(pat,t,p1,p2) ->
       if List.exists (function
 	  (MergeProcess(p',_),_,_,_,_) -> p' == p
@@ -2161,7 +2161,7 @@ and do_merges_o p =
       else
 	let p1' = do_merges_o p1 in
 	let p2' = do_merges_o p2 in
-	Terms.oproc_from_desc2 p (Let(pat, t,p1',p2'))
+	Terms.oproc_from_desc_at p (Let(pat, t,p1',p2'))
   | Find(l0,p3,find_info) ->
       let p3' = do_merges_o p3 in
       if List.exists (function
@@ -2183,10 +2183,10 @@ and do_merges_o p =
 	else
 	  let l0'' = List.map (fun (bl, def_list, t1, p2) ->
 	    (bl, def_list, do_merges_find_cond t1, do_merges_o p2)) l0' in
-	  Terms.oproc_from_desc2 p (Find(l0'',p3',find_info))
+	  Terms.oproc_from_desc_at p (Find(l0'',p3',find_info))
   | Output(ch,t,p1) ->
-      Terms.oproc_from_desc2 p (Output(ch, t, do_merges_i p1))
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+      Terms.oproc_from_desc_at p (Output(ch, t, do_merges_i p1))
+  | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let display_merge = function
     (MergeProcess(p,l),_,_,_,_) ->

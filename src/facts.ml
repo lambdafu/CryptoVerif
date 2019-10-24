@@ -2132,9 +2132,9 @@ let rec put_defined_cond_fc def_list t =
       let t3'' = add_def_cond_fc def_list_else t3' in
       let t' =
 	if def_list_then != [] then
-	  Terms.build_term2 t (FindE([([], def_list_then, t1, t2')], t3'', Nothing))
+	  Terms.build_term_at t (FindE([([], def_list_then, t1, t2')], t3'', Nothing))
 	else
-	  Terms.build_term2 t (TestE(t1, t2', t3''))
+	  Terms.build_term_at t (TestE(t1, t2', t3''))
       in
       (def_list_common, t')
   | FindE(l0, t3, find_info) ->
@@ -2146,11 +2146,11 @@ let rec put_defined_cond_fc def_list t =
 	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list1 def_list2), t1', t2')
 	  ) l0
       in
-      ([], Terms.build_term2 t (FindE(l0', t3'', find_info)))
+      ([], Terms.build_term_at t (FindE(l0', t3'', find_info)))
   | LetE(PatVar b, t1, t2, None) ->
       let def_list1 = put_defined_cond_t def_list t1 in
       let (def_list2, t2') = put_defined_cond_fc def_list t2 in
-      (Terms.union_binderref def_list1 def_list2, Terms.build_term2 t (LetE(PatVar b, t1, t2', None)))
+      (Terms.union_binderref def_list1 def_list2, Terms.build_term_at t (LetE(PatVar b, t1, t2', None)))
   | LetE(pat, t1, t2, Some t3) ->
       let def_list_pat = put_defined_cond_pat def_list pat in
       let def_list1 = put_defined_cond_t def_list t1 in
@@ -2164,12 +2164,12 @@ let rec put_defined_cond_fc def_list t =
       let def_list_else = Terms.setminus_binderref def_list3 def_list_common in
       let t2'' = add_def_cond_fc def_list_in t2' in
       let t3'' = add_def_cond_fc def_list_else t3' in
-      (def_list_common, Terms.build_term2 t (LetE(pat, t1, t2'', Some t3'')))
+      (def_list_common, Terms.build_term_at t (LetE(pat, t1, t2'', Some t3'')))
   | LetE _ -> 
       Parsing_helper.internal_error "When the pattern is not a variable, let should always have an else branch"
   | ResE(b, t1) ->
       let (def_list', t1') = put_defined_cond_fc def_list t1 in
-      (def_list', Terms.build_term2 t (ResE(b, t1')))
+      (def_list', Terms.build_term_at t (ResE(b, t1')))
   | EventAbortE _ -> ([], t)
   | EventE _ | GetE _ | InsertE _ -> Parsing_helper.internal_error "Event/Get/Insert not occur in Facts.put_defined_cond_fc"
 
@@ -2179,23 +2179,23 @@ let rec put_defined_cond_i def_list p =
   | Par(p1,p2) ->
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
       let (def_list2, p2') = put_defined_cond_i def_list p2 in
-      (Terms.union_binderref def_list1 def_list2, Terms.iproc_from_desc2 p (Par(p1',p2')))
+      (Terms.union_binderref def_list1 def_list2, Terms.iproc_from_desc_at p (Par(p1',p2')))
   | Repl(b,p1) ->
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
-      (def_list1, Terms.iproc_from_desc2 p (Repl(b,p1')))
+      (def_list1, Terms.iproc_from_desc_at p (Repl(b,p1')))
   | Input((c,tl), pat, p1) ->
       let def_listl = (List.map (put_defined_cond_t def_list) tl) in
       let def_list_pat = put_defined_cond_pat def_list pat in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let p1'' = add_def_cond_o def_list1 p1' in
-      (union_list (def_list_pat::def_listl), Terms.iproc_from_desc2 p (Input((c,tl), pat, p1'')))
+      (union_list (def_list_pat::def_listl), Terms.iproc_from_desc_at p (Input((c,tl), pat, p1'')))
 
 and put_defined_cond_o def_list p =
   match p.p_desc with
     Yield | EventAbort _ -> ([], p)
   | Restr(b,p1) ->
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (def_list1, Terms.oproc_from_desc2 p (Restr(b, p1')))
+      (def_list1, Terms.oproc_from_desc_at p (Restr(b, p1')))
   | Test(t, p1, p2) ->
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let (def_list2, p2') = put_defined_cond_o def_list p2 in
@@ -2207,9 +2207,9 @@ and put_defined_cond_o def_list p =
       let p2'' = add_def_cond_o def_list_else p2' in
       let p' =
 	if def_list_then != [] then
-	  Terms.oproc_from_desc2 p (Find([([], def_list_then, t, p1')], p2'', Nothing))
+	  Terms.oproc_from_desc_at p (Find([([], def_list_then, t, p1')], p2'', Nothing))
 	else
-	  Terms.oproc_from_desc2 p (Test(t, p1', p2''))
+	  Terms.oproc_from_desc_at p (Test(t, p1', p2''))
       in
       (def_list_common, p')
   | Find(l0, p2, find_info) ->
@@ -2221,16 +2221,16 @@ and put_defined_cond_o def_list p =
 	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list_t def_list1), t', p1')
 	  ) l0
       in
-      ([], Terms.oproc_from_desc2 p (Find(l0', p2'', find_info)))
+      ([], Terms.oproc_from_desc_at p (Find(l0', p2'', find_info)))
   | Output((c,tl), t, p1) ->
       let def_listl = (List.map (put_defined_cond_t def_list) tl) in
       let def_listt = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
-      (union_list (def_list1::def_listt::def_listl), Terms.oproc_from_desc2 p (Output((c,tl), t, p1')))
+      (union_list (def_list1::def_listt::def_listl), Terms.oproc_from_desc_at p (Output((c,tl), t, p1')))
   | Let(PatVar b, t, p1, p2) ->
       let def_list_t = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (Terms.union_binderref def_list_t def_list1, Terms.oproc_from_desc2 p (Let(PatVar b, t, p1', Terms.oproc_from_desc2 p2 Yield)))
+      (Terms.union_binderref def_list_t def_list1, Terms.oproc_from_desc_at p (Let(PatVar b, t, p1', Terms.oproc_from_desc_at p2 Yield)))
   | Let(pat, t, p1, p2) ->
       let def_list_pat = put_defined_cond_pat def_list pat in
       let def_list_t = put_defined_cond_t def_list t in
@@ -2244,11 +2244,11 @@ and put_defined_cond_o def_list p =
       let def_list_else = Terms.setminus_binderref def_list2 def_list_common in
       let p1'' = add_def_cond_o def_list_in p1' in
       let p2'' = add_def_cond_o def_list_else p2' in
-      (def_list_common, Terms.oproc_from_desc2 p (Let(pat, t, p1'', p2'')))
+      (def_list_common, Terms.oproc_from_desc_at p (Let(pat, t, p1'', p2'')))
   | EventP(t,p1) ->
       let def_listt = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (Terms.union_binderref def_listt def_list1, Terms.oproc_from_desc2 p (EventP(t,p1')))
+      (Terms.union_binderref def_listt def_list1, Terms.oproc_from_desc_at p (EventP(t,p1')))
   | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should have been expanded in Facts.put_defined_cond_o"
       
 (* [update_def_list_term already_defined newly_defined bl def_list tc' p'] 
@@ -2924,7 +2924,7 @@ let rec simplify_bool_subterms dep_info simp_facts t =
   else
     match t.t_desc with
       FunApp(f,l) ->
-	Terms.build_term2 t (FunApp(f, List.map (simplify_bool_subterms dep_info simp_facts) l))
+	Terms.build_term_at t (FunApp(f, List.map (simplify_bool_subterms dep_info simp_facts) l))
     | _ -> t
 	
 let simplify_term dep_info simp_facts t = 
