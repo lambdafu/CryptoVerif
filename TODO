@@ -15,6 +15,7 @@ DONE 22/10/2019
 Allow replace on non-expanded games.
 DONE 23/10/2019
 Test commands on non-expanded games!
+DONE 24/10/2019
 
 Note: When "collision" statements are used in the simplification that
 follows a cryptographic transformation, the simplified game is not
@@ -33,6 +34,8 @@ Track all remaining [occ not set] to avoid them.
 - "Transformed test at ... into a logical formula"
    case STestEElim in transf_simplify.ml
    creates new terms with occurrence not set, which are then simplified.
+   I have improved a bit by preserving the occurrence when the result of
+   STestEElim is a simple term.
    Possible fixes:
    - do the transformation into logical formula in the expand transfo
      instead of simplify
@@ -42,6 +45,11 @@ Track all remaining [occ not set] to avoid them.
    - have a notion of approximate occurrence; we would use the
      occurrence of TestE as approximate occurrence for the new terms.
      It would be displayed "at about ..."
+   - instead of expanding and further simplifying in the same pass,
+     force a full expansion pass after simplification in case STestEElim
+     does not yield a simple term.
+     Pb: much useless work since only a tiny part of the game
+     really needs to be expanded...
 - When I transform let in transf_simplify:
       let plet = Terms.put_lets bind ptrue pfalse in
       let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
