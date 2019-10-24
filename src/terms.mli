@@ -159,8 +159,6 @@ val new_iproc : inputprocess_desc -> Parsing_helper.extent -> inputprocess
 val new_oproc : process_desc -> Parsing_helper.extent -> process
 val iproc_from_desc : inputprocess_desc -> inputprocess
 val oproc_from_desc : process_desc -> process
-val iproc_from_desc3 : inputprocess -> inputprocess_desc -> inputprocess
-val oproc_from_desc3 : process -> process_desc -> process
 val iproc_from_desc_at : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc_at : process -> process_desc -> process
 
