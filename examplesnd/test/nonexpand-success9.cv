@@ -1,0 +1,24 @@
+set autoExpand = false.
+
+param N.
+
+type nonce [fixed,large].
+
+event e1(nonce).
+event e2(nonce).
+
+query secret x.
+
+channel c.
+
+proof {
+success
+}
+
+process
+   !N in(c,(b: bool, z: nonce, t:nonce)); let a = if b then event e1(z); z else t in new y: nonce; let x: nonce = y in event e2(if x = t then z else t); out(c, z)
+
+(* EXPECTED
+RESULT Could not prove secrecy of x.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

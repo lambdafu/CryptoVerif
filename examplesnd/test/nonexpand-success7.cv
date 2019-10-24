@@ -1,0 +1,24 @@
+set autoExpand = false.
+
+param N.
+
+type nonce [fixed,large].
+
+event e1(bitstring).
+event e2(nonce).
+
+query secret x.
+
+channel c.
+
+proof {
+success
+}
+
+process
+   !N in(c,(b: bool, z: bitstring, t:bitstring)); let a = if b then event e1(z); z else t in new y: nonce; let x: nonce = y in event e2(x); out(c, z)
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

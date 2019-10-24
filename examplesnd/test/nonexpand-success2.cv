@@ -1,0 +1,23 @@
+set autoExpand = false.
+
+param N.
+
+event e1(bitstring).
+event e2(bitstring).
+
+query x: bitstring; event(e2(x)) ==> event(e1(x)).
+
+channel c.
+
+proof {
+success
+}
+
+process
+   (!N in(c,(b:bool, x: bitstring, y: bitstring)); event e1(if b then x else x))
+   | (!N in(c,()); find j <= N suchthat defined(b[j],x[j],y[j]) then event e2(if b[j] then x[j] else x[j]))
+
+(* EXPECTED
+RESULT Could not prove event(e2(x)) ==> event(e1(x)).
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

@@ -1,0 +1,41 @@
+set autoExpand = false.
+
+type host.
+type key.
+
+const A: host.
+const kA: key.
+
+param N.
+
+channel c.
+
+event not_found.
+
+proof {
+SArename k''_1
+}
+
+process
+        (!N
+	in(c, (h: host,k: key));
+	let k' =
+	   if h = A then
+	     (let k'': key = kA in
+	      k'')
+	   else
+	     (let k'': key  = k in
+	      k'')
+	in
+	out(c, h))
+
+|
+	(!N
+	in(c, h': host);
+	let kH = find j <= N suchthat defined(h[j],k''[j]) && h[j] = h' then k''[j] else event_abort not_found in
+	out(c, kH))
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
