@@ -1,65 +1,5 @@
 TO DO next
 
-0) Allow non-expanded games (some transformations will not be supported
-on non-expanded games; they will display a message and leave the game
-unchanged).
-Separate the transformations crypto / simplify (non-expanded) / expand.
-DONE 21/10/2019
-
-Simplify1.improved_def_process does not support non-expanded games,
-just fall back to the standard def_process
-DONE 21/10/2019
-
-Allow insert_event in terms.
-DONE 22/10/2019
-Allow replace on non-expanded games.
-DONE 23/10/2019
-Test commands on non-expanded games!
-DONE 24/10/2019
-
-Note: When "collision" statements are used in the simplification that
-follows a cryptographic transformation, the simplified game is not
-displayed, and as a result, the corresponding times are printed as:
-time(context for game -1) which is not good, especially when there
-are several such games involved...
-==> Will be solved by considering crypto, simplify, expand as
-separate transformations (and thus allowing non-expanded
-intermediate games)
-DONE 21/10/2019
-
-Use new_occ only in terms.move_occ; otherwise, use -1,
-and display [occ not set] if it is used.
-DONE 21/10/2019
-Track all remaining [occ not set] to avoid them.
-- "Transformed test at ... into a logical formula"
-   case STestEElim in transf_simplify.ml
-   creates new terms with occurrence not set, which are then simplified.
-   I have improved a bit by preserving the occurrence when the result of
-   STestEElim is a simple term.
-   Possible fixes:
-   - do the transformation into logical formula in the expand transfo
-     instead of simplify
-     pb: TestE may appear as a result of simplifying a FindE,
-     and in this case, STestEElim would not be done by expand,
-     until we redo a full expand, usually after a crypto transformation.
-   - have a notion of approximate occurrence; we would use the
-     occurrence of TestE as approximate occurrence for the new terms.
-     It would be displayed "at about ..."
-   - instead of expanding and further simplifying in the same pass,
-     force a full expansion pass after simplification in case STestEElim
-     does not yield a simple term.
-     Pb: much useless work since only a tiny part of the game
-     really needs to be expanded...
-- When I transform let in transf_simplify:
-      let plet = Terms.put_lets bind ptrue pfalse in
-      let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
-      simplify_oprocess cur_array dep_info true_facts ptest
-The "let"s created by Terms.put_lets do not have a proper occurrence.
-
-rename mergeBranches into autoMergeBranches
-mergeArrays into autoMergeArrays
-DONE 23/10/2019
-
 1) Specify hidden_key_collision_resistance,
 preimage_resistance, hidden_key_preimage_resistance,
 second_preimage_resistance, hidden_key_second_preimage_resistance
@@ -150,15 +90,33 @@ of OHi and OHj for i<>j without experiencing a big blow-up.
 Perhaps sometimes one oracle can collide with all others (or with several others),
 e.g. the oracle of the adversary... How to adapt the equivalence to the various
 cases? Perhaps enough to allow:
-- the OHdont_care oracle, which executes event_abort collision in case of
-  collision with OHi, and returns hash(x) otherwise.
-- the OHdont_care_coll oracle, which returns ri in case of collision with OHi,
+- the OH oracle, which returns ri in case of collision with OHi,
   and returns hash(x) otherwise 
-- OHi, which executes event_abort collision in case of collision with OHj
-  with i<>j or OHdont_care, returns hash(x) in case of collision with
-  OHdont_care_coll, returns the previous ri in case of collision with a
+- the OH_cut oracle, which executes event_abort collision in case of
+  collision with OHi, and returns hash(x) otherwise.
+- OH_i, which executes event_abort collision in case of collision with OHj
+  with i<>j or OH_cut, returns hash(x) in case of collision with
+  OH, returns the previous ri in case of collision with a
   previous call to OHi, and returns a fresh ri otherwise. 
-  let's say 1<=i,j<=10.
+   let's say 1<=i,j<=10.
+
+- Oeq, which returns ri = r in case of collision with OHi,
+  and returns hash(x) = r otherwise
+- Oeq_cut, which executes event_abort collision in case of
+  collision with OHi, returns hash(x) = r otherwise
+- Oeq_i, which executes event_abort collision in case of collision with OHj
+  with i<>j or OH_cut, returns hash(x) = r in case of collision with
+  OH, returns the previous ri = r in case of collision
+  with OHi, and returns false otherwise
+
+[[Other option:
+- Oeq, which returns ri = r in case of collision with OHi,
+  returns hash(x) = r  in case of collision with OH_cut or
+  OH, and returns false otherwise
+- Oeq_cut, which executes event_abort collision in case of
+  collision with OHi, returns hash(x) = r in case of collision with
+  OH_cut or OH, and returns false otherwise
+]]
 
 The same idea applies to PRFs, PRP, SPRP
 
@@ -175,6 +133,32 @@ Distinguish ROM / ROM_large like I do for PRFs?
 
 
 HIGH PRIORITY
+
+0) Track all remaining [occ not set] to avoid them.
+- "Transformed test at ... into a logical formula"
+   case STestEElim in transf_simplify.ml
+   creates new terms with occurrence not set, which are then simplified.
+   I have improved a bit by preserving the occurrence when the result of
+   STestEElim is a simple term.
+   Possible fixes:
+   - do the transformation into logical formula in the expand transfo
+     instead of simplify
+     pb: TestE may appear as a result of simplifying a FindE,
+     and in this case, STestEElim would not be done by expand,
+     until we redo a full expand, usually after a crypto transformation.
+   - have a notion of approximate occurrence; we would use the
+     occurrence of TestE as approximate occurrence for the new terms.
+     It would be displayed "at about ..."
+   - instead of expanding and further simplifying in the same pass,
+     force a full expansion pass after simplification in case STestEElim
+     does not yield a simple term.
+     Pb: much useless work since only a tiny part of the game
+     really needs to be expanded...
+- When I transform let in transf_simplify:
+      let plet = Terms.put_lets bind ptrue pfalse in
+      let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
+      simplify_oprocess cur_array dep_info true_facts ptest
+The "let"s created by Terms.put_lets do not have a proper occurrence.
 
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
@@ -4645,3 +4629,39 @@ DONE 14/10/2019
 preserve occurrences in module DepAnal2, because they are
 then used in simplify.
 DONE 18/10/2019
+
+Allow non-expanded games (some transformations will not be supported
+on non-expanded games; they will display a message and leave the game
+unchanged).
+Separate the transformations crypto / simplify (non-expanded) / expand.
+DONE 21/10/2019
+
+Simplify1.improved_def_process does not support non-expanded games,
+just fall back to the standard def_process
+DONE 21/10/2019
+
+Allow insert_event in terms.
+DONE 22/10/2019
+Allow replace on non-expanded games.
+DONE 23/10/2019
+Test commands on non-expanded games!
+DONE 24/10/2019
+
+Note: When "collision" statements are used in the simplification that
+follows a cryptographic transformation, the simplified game is not
+displayed, and as a result, the corresponding times are printed as:
+time(context for game -1) which is not good, especially when there
+are several such games involved...
+==> Will be solved by considering crypto, simplify, expand as
+separate transformations (and thus allowing non-expanded
+intermediate games)
+DONE 21/10/2019
+
+Use new_occ only in terms.move_occ; otherwise, use -1,
+and display [occ not set] if it is used.
+DONE 21/10/2019
+
+rename mergeBranches into autoMergeBranches
+mergeArrays into autoMergeArrays
+DONE 23/10/2019
+

@@ -5,6 +5,17 @@ type front_end =
 
 let front_end = ref Channels
 
+let max_copy = ref 5
+    
+let copy f =
+  let rec aux n =
+    if n = !max_copy then
+ f n
+else
+(f n) ^ (aux (n+1))
+in 
+aux 1
+
 (* Inside [macro], % is replaced with n
    and [$format$sep$] is replaced with
    [format_1 sep ... sep format_n] where 
@@ -90,6 +101,18 @@ let hashoracle(k: key) =
 
 "	
   else
+    let collision s1 s2 =
+      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $, r"^s2^"[u]) && $x"^s1^"_% = x"^s2^"_%[u]$ && $ then"
+    in
+    let collision' s1 s2 =
+      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $, r"^s2^"[u]) && $x"^s1^"_%' = x"^s2^"_%[u]$ && $ then"
+    in
+    let collision_no_r s1 s2 =
+      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $) && $x"^s1^"_% = x"^s2^"_%[u]$ && $ then"
+    in
+    let collision_no_r' s1 s2 =
+      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $) && $x"^s1^"_%' = x"^s2^"_%[u]$ && $ then"
+    in
 "def ROM_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, qH) {
 
 param Nh, N, Neq, Ncoll.
@@ -112,6 +135,62 @@ equiv(rom(hash))
 	   return(false) |
          foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
                  return($y% = z%$ && $)).
+
+param Ncut, Neqcut"^(copy (fun k -> let sk = string_of_int k in ", N"^sk^", Neq"^sk))^".
+
+event ev_coll.
+
+equiv(rom_partial(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH($x_%: hashinput%$, $) := return(hash(k, $x_%$, $)) |
+         foreach i <= Ncut do OH_cut($xcut_%: hashinput%$, $) := return(hash(k, $xcut_%$, $)) |
+" ^ (copy (fun k -> let sk = string_of_int k in
+"         foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: hashinput%$, $) := return(hash(k, $x"^sk^"_%$, $)) |
+")) ^
+"         foreach ieq <= Neq do Oeq($x_%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x_%'$, $)) |
+         foreach ieq <= Neqcut do Oeq_cut($xcut_%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $xcut_%'$, $)) |
+" ^ (copy (fun k -> let sk = string_of_int k in
+"         foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x"^sk^"_%'$, $)) |
+")) ^
+"         foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
+                 return(hash(k, $y%$, $) = hash(k, $z%$, $)))
+       <=(("^(copy (fun k -> (if k > 1 then " + " else "") ^ ("#Oeq_"^string_of_int k)))^") * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH($x_%: hashinput%$, $) := 
+" ^ (copy (fun k' -> let sk' = string_of_int k' in
+"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision "" sk') ^" return(r"^sk'^"[u])\n"))^
+"          else return(hash(k, $x_%$, $)) |
+         foreach i <= Ncut do OH_cut($xcut_%: hashinput%$, $) := 
+" ^ (copy (fun k' -> let sk' = string_of_int k' in
+"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision "cut" sk') ^ " event_abort ev_coll\n"))^
+"          else return(hash(k, $xcut_%$, $)) |
+" ^ (copy (fun k -> let sk = string_of_int k in
+"        foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: hashinput%$, $) := 
+" ^ (copy (fun k' -> let sk' = string_of_int k' in
+"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision sk sk') ^ (if k = k' then " return(r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
+"          else find"^(collision_no_r sk "cut")^" event_abort ev_coll
+          else find"^(collision_no_r sk "")^" return(hash(k, $x"^sk^"_%$, $))
+          else r"^sk^" <-R hashoutput; return(r"^sk^") | \n"))^
+"        foreach ieq <= Neq do Oeq($x_%': hashinput%$, $, r': hashoutput) := 
+" ^ (copy (fun k' -> let sk' = string_of_int k' in
+"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' "" sk') ^" return(r' = r"^sk'^"[u])\n"))^
+"          else return(r' = hash(k, $x_%'$, $)) |
+        foreach ieq <= Neqcut do Oeq_cut($xcut_%': hashinput%$, $, r': hashoutput) := 
+" ^ (copy (fun k' -> let sk' = string_of_int k' in
+"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' "cut" sk') ^" event_abort ev_coll\n"))^
+"          else return(r' = hash(k, $xcut_%'$, $)) |
+" ^ (copy (fun k -> let sk = string_of_int k in
+"        foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': hashinput%$, $, r': hashoutput) := 
+" ^ (copy (fun k' -> let sk' = string_of_int k' in
+"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' sk sk') ^ (if k = k' then " return(r' = r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
+"          else find"^(collision_no_r' sk "cut")^" event_abort ev_coll
+          else find"^(collision_no_r' sk "")^" return(r' = hash(k, $x"^sk^"_%'$, $))
+          else return(false) |
+")) ^
+"        foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
+                 return($y% = z%$ && $)).
+
+
 
 param qH [noninteractive].\n\n"
   ^
@@ -476,9 +555,17 @@ let _ =
       | "oracles" -> front_end := Oracles
       | "proverif" -> front_end := ProVerif
       | _ ->
-          print_string "Command-line option -out expects argument either \"channels\" or \"oracles\".\n";
+          print_string "Command-line option -out expects argument either \"channels\", \"oracles\", or \"proverif\".\n";
           exit 2),
-      "channels / -out oracles \tchoose the front-end";
+      "channels / -out oracles / -out proverif \tchoose the front-end";
+      "-dist_oracles", Arg.Int (fun n ->
+	if n < 2 || n > 100 then
+	  begin
+	    print_string "Argument of -dist_oracles should be between 2 and 100.\n";
+	    exit 2
+	  end;
+	max_copy := n),
+      "<n>\tset the number of distinct oracles in ROM, PRF, ..."
     ]
     bound ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  hashgen [options] n\nto print random oracle macro with n arguments\n  hashgen [options] n1 n2\nto print random oracle macros with n1 to n2 arguments\nOptions:")
 
