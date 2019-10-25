@@ -169,7 +169,7 @@ equiv(rom_partial(hash))
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision sk sk') ^ (if k = k' then " return(r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
 "          else find"^(collision_no_r sk "cut")^" event_abort ev_coll
-          else find"^(collision_no_r sk "")^" return(hash(k, $x"^sk^"_%$, $))
+          else find"^(collision_no_r sk "")^" return(hash(k, $x_%[u]$, $))
           else r"^sk^" <-R hashoutput; return(r"^sk^") | \n"))^
 "        foreach ieq <= Neq do Oeq($x_%': hashinput%$, $, r': hashoutput) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
@@ -184,7 +184,7 @@ equiv(rom_partial(hash))
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' sk sk') ^ (if k = k' then " return(r' = r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
 "          else find"^(collision_no_r' sk "cut")^" event_abort ev_coll
-          else find"^(collision_no_r' sk "")^" return(r' = hash(k, $x"^sk^"_%'$, $))
+          else find"^(collision_no_r' sk "")^" return(r' = hash(k, $x_%[u]$, $))
           else return(false) |
 ")) ^
 "        foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
