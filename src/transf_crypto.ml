@@ -3300,7 +3300,7 @@ let rec put_restr l p =
 let rec put_restr_term l t =
   match l with
   | [] -> t
-  | a::l -> Terms.build_term3 t (ResE(a, put_restr_term l t))
+  | a::l -> Terms.build_term t (ResE(a, put_restr_term l t))
                                     
 (*
 None: b is not a name to discharge

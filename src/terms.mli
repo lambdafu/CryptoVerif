@@ -150,7 +150,6 @@ val binderref_from_binder : binder -> binderref
 val term_from_repl_index : repl_index -> term
 val build_term : term -> term_desc -> term
 val build_term2 : term -> term_desc -> term
-val build_term3 : term -> term_desc -> term
 val build_term_type : typet -> term_desc -> term
 val build_term_type_occ : typet -> int -> term_desc -> term
 val new_term : typet -> Parsing_helper.extent -> term_desc -> term

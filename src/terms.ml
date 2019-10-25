@@ -353,17 +353,23 @@ let repl_index_from_term t =
     ReplIndex(b) -> b
   | _ -> internal_error "Replication index term expected"
 
-let build_term t desc =
+let build_term_type_occ ty occ desc =
   { t_desc = desc;
-    t_type = t.t_type;
-    t_occ = -1; 
+    t_type = ty;
+    t_occ = occ;
     t_max_occ = 0;
     t_loc = Parsing_helper.dummy_ext;
     t_incompatible = Occ_map.empty;
     t_facts = None }
 
+let build_term_type ty desc =
+  build_term_type_occ ty (-1) desc
+
+let build_term t desc =
+  build_term_type t.t_type desc
+
 (* build_term2 is the same as build_term, except that it keeps the
-   occurrence of t. This is useful in particular so that occurrences
+   occurrence and location of t. This is useful in particular so that occurrences
    are kept in term manipulations by simplification, to be able to
    designate a term by occurrence *)
 
@@ -373,33 +379,6 @@ let build_term2 t desc =
     t_occ = t.t_occ;
     t_max_occ = 0;
     t_loc = t.t_loc;
-    t_incompatible = Occ_map.empty;
-    t_facts = None }
-
-let build_term3 t desc =
-  { t_desc = desc;
-    t_type = t.t_type;
-    t_occ = -1;
-    t_max_occ = 0;
-    t_loc = t.t_loc;
-    t_incompatible = Occ_map.empty;
-    t_facts = None }
-
-let build_term_type ty desc =
-  { t_desc = desc;
-    t_type = ty;
-    t_occ = -1;
-    t_max_occ = 0;
-    t_loc = Parsing_helper.dummy_ext;
-    t_incompatible = Occ_map.empty;
-    t_facts = None }
-
-let build_term_type_occ ty occ desc =
-  { t_desc = desc;
-    t_type = ty;
-    t_occ = occ;
-    t_max_occ = 0;
-    t_loc = Parsing_helper.dummy_ext;
     t_incompatible = Occ_map.empty;
     t_facts = None }
 
