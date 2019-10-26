@@ -65,8 +65,8 @@ let rom_hash_prefix =
 
 (* Hash function in the random oracle model
    key: type of the key of the hash function, which models the choice of the hash function, must be \"bounded\", typically \"fixed\"
-   hashinput%: type of the %-th input of the hash function
-   hashoutput: type of the output of the hash function, must be \"bounded\" or \"nonuniform\" (typically \"fixed\"), and \"large\".
+   input%: type of the %-th input of the hash function
+   output: type of the output of the hash function, must be \"bounded\" or \"nonuniform\" (typically \"fixed\"), and \"large\".
 
    hash: the hash function.
    WARNING: hash is a keyed hash function.
@@ -75,7 +75,7 @@ let rom_hash_prefix =
    by including the process hashoracle(k) where k is the key.
    qH is the number of calls to hashoracle.
 
-   The types key, hashinput%, and hashoutput must be declared before
+   The types key, input%, and output must be declared before
    this macro. The function hash, the process hashoracle, and
    the parameter qH are defined by this macro. They must not
    be declared elsewhere, and they can be used only after expanding the
@@ -85,16 +85,16 @@ let rom_hash_prefix =
 
 let rom_hash_macro() =
   if (!front_end) = ProVerif then
-"def ROM_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, qH) {
+"def ROM_hash_%(key, $input%$, $, output, hash, hashoracle, qH) {
     
-fun hash(key, $hashinput%$, $):hashoutput.
+fun hash(key, $input%$, $):output.
 
 param qH [noninteractive].
 channel ch1, ch2.
 
 let hashoracle(k: key) = 
         foreach iH <= qH do
-	in(ch1, ($x%: hashinput%$, $));
+	in(ch1, ($x%: input%$, $));
         out(ch2, hash(k, $x%$, $)).
 
 }
@@ -113,27 +113,27 @@ let hashoracle(k: key) =
     let collision_no_r' s1 s2 =
       " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $) && $x"^s1^"_%' = x"^s2^"_%[u]$ && $ then"
     in
-"def ROM_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, qH) {
+"def ROM_hash_%(key, $input%$, $, output, hash, hashoracle, qH) {
 
 param Nh, N, Neq, Ncoll.
 
-fun hash(key, $hashinput%$, $):hashoutput.
+fun hash(key, $input%$, $):output.
 
 equiv(rom(hash))
       foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x%: hashinput%$, $) := return(hash(k, $x%$, $)) |
-         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x%'$, $)) |
-         foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
+        (foreach i <= N do OH($x%: input%$, $) := return(hash(k, $x%$, $)) |
+         foreach ieq <= Neq do Oeq($x%': input%$, $, r': output) := return(r' = hash(k, $x%'$, $)) |
+         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
                  return(hash(k, $y%$, $) = hash(k, $z%$, $)))
-       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=>
+       <=(#Oeq * Pcoll1rand(output) + #Ocoll * Pcoll2rand(output))=>
       foreach ih <= Nh do 
-        (foreach i <= N do OH($x%: hashinput%$, $) := 
+        (foreach i <= N do OH($x%: input%$, $) := 
 	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
-           r <-R hashoutput; return(r) |
-         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := 
+           r <-R output; return(r) |
+         foreach ieq <= Neq do Oeq($x%': input%$, $, r': output) := 
            find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x%' = x%[u]$ && $ then return(r' = r[u]) else
 	   return(false) |
-         foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
+         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
                  return($y% = z%$ && $)).
 
 param Ncut, Neqcut"^(copy (fun k -> let sk = string_of_int k in ", N"^sk^", Neq"^sk))^".
@@ -142,52 +142,52 @@ event ev_coll.
 
 equiv(rom_partial(hash))
       foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x_%: hashinput%$, $) := return(hash(k, $x_%$, $)) |
-         foreach i <= Ncut do OH_cut($xcut_%: hashinput%$, $) := return(hash(k, $xcut_%$, $)) |
+        (foreach i <= N do OH($x_%: input%$, $) := return(hash(k, $x_%$, $)) |
+         foreach i <= Ncut do OH_cut($xcut_%: input%$, $) := return(hash(k, $xcut_%$, $)) |
 " ^ (copy (fun k -> let sk = string_of_int k in
-"         foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: hashinput%$, $) := return(hash(k, $x"^sk^"_%$, $)) |
+"         foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: input%$, $) := return(hash(k, $x"^sk^"_%$, $)) |
 ")) ^
-"         foreach ieq <= Neq do Oeq($x_%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x_%'$, $)) |
-         foreach ieq <= Neqcut do Oeq_cut($xcut_%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $xcut_%'$, $)) |
+"         foreach ieq <= Neq do Oeq($x_%': input%$, $, r': output) := return(r' = hash(k, $x_%'$, $)) |
+         foreach ieq <= Neqcut do Oeq_cut($xcut_%': input%$, $, r': output) := return(r' = hash(k, $xcut_%'$, $)) |
 " ^ (copy (fun k -> let sk = string_of_int k in
-"         foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x"^sk^"_%'$, $)) |
+"         foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': input%$, $, r': output) := return(r' = hash(k, $x"^sk^"_%'$, $)) |
 ")) ^
-"         foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
+"         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
                  return(hash(k, $y%$, $) = hash(k, $z%$, $)))
-       <=(("^(copy (fun k -> (if k > 1 then " + " else "") ^ ("#Oeq_"^string_of_int k)))^") * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
+       <=(("^(copy (fun k -> (if k > 1 then " + " else "") ^ ("#Oeq_"^string_of_int k)))^") * Pcoll1rand(output) + #Ocoll * Pcoll2rand(output))=> [manual]
       foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x_%: hashinput%$, $) := 
+        (foreach i <= N do OH($x_%: input%$, $) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision "" sk') ^" return(r"^sk'^"[u])\n"))^
 "          else return(hash(k, $x_%$, $)) |
-         foreach i <= Ncut do OH_cut($xcut_%: hashinput%$, $) := 
+         foreach i <= Ncut do OH_cut($xcut_%: input%$, $) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision "cut" sk') ^ " event_abort ev_coll\n"))^
 "          else return(hash(k, $xcut_%$, $)) |
 " ^ (copy (fun k -> let sk = string_of_int k in
-"        foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: hashinput%$, $) := 
+"        foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: input%$, $) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision sk sk') ^ (if k = k' then " return(r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
 "          else find"^(collision_no_r sk "cut")^" event_abort ev_coll
           else find"^(collision_no_r sk "")^" return(hash(k, $x_%[u]$, $))
-          else r"^sk^" <-R hashoutput; return(r"^sk^") | \n"))^
-"        foreach ieq <= Neq do Oeq($x_%': hashinput%$, $, r': hashoutput) := 
+          else r"^sk^" <-R output; return(r"^sk^") | \n"))^
+"        foreach ieq <= Neq do Oeq($x_%': input%$, $, r': output) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' "" sk') ^" return(r' = r"^sk'^"[u])\n"))^
 "          else return(r' = hash(k, $x_%'$, $)) |
-        foreach ieq <= Neqcut do Oeq_cut($xcut_%': hashinput%$, $, r': hashoutput) := 
+        foreach ieq <= Neqcut do Oeq_cut($xcut_%': input%$, $, r': output) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' "cut" sk') ^" event_abort ev_coll\n"))^
 "          else return(r' = hash(k, $xcut_%'$, $)) |
 " ^ (copy (fun k -> let sk = string_of_int k in
-"        foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': hashinput%$, $, r': hashoutput) := 
+"        foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': input%$, $, r': output) := 
 " ^ (copy (fun k' -> let sk' = string_of_int k' in
 "          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' sk sk') ^ (if k = k' then " return(r' = r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
 "          else find"^(collision_no_r' sk "cut")^" event_abort ev_coll
           else find"^(collision_no_r' sk "")^" return(r' = hash(k, $x_%[u]$, $))
           else return(false) |
 ")) ^
-"        foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
+"        foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
                  return($y% = z%$ && $)).
 
 
@@ -198,19 +198,19 @@ param qH [noninteractive].\n\n"
 "channel ch1, ch2.
 let hashoracle(k: key) = 
         foreach iH <= qH do
-	in(ch1, ($x%: hashinput%$, $));
+	in(ch1, ($x%: input%$, $));
         out(ch2, hash(k, $x%$, $))."
   else
 "let hashoracle(k: key) = 
         foreach iH <= qH do
-	OH($x%: hashinput%$, $) :=
+	OH($x%: input%$, $) :=
         return(hash(k, $x%$, $)).")
   ^"\n\n}\n\n"
 
 
 let rom_hash_suffix =
-"def ROM_hash(key, hashinput, hashoutput, hash, hashoracle, qH) {
-expand ROM_hash_1(key, hashinput, hashoutput, hash, hashoracle, qH).
+"def ROM_hash(key, input, output, hash, hashoracle, qH) {
+expand ROM_hash_1(key, input, output, hash, hashoracle, qH).
 }\n\n"
 
 (* Collision-resistant hash functions *)
@@ -218,8 +218,8 @@ expand ROM_hash_1(key, hashinput, hashoutput, hash, hashoracle, qH).
 let coll_hash_prefix =
 "(* Collision resistant hash function 
    key: type of the key of the hash function, must be \"bounded\" or \"nonuniform\", typically \"fixed\"
-   hashinput%: type of the %-th input of the hash function
-   hashoutput: type of the output of the hash function
+   input%: type of the %-th input of the hash function
+   output: type of the output of the hash function
 
    hash: the hash function.
    Phash: probability of breaking collision resistance.
@@ -228,7 +228,7 @@ let coll_hash_prefix =
    and immediately made available to the adversary, for instance by
    including the process hashoracle(k), where k is the key.
 
-   The types key, hashinput%, hashoutput, and the probability Phash
+   The types key, input%, output, and the probability Phash
    must be declared before this macro.  The function hash and the
    process hashoracle are defined by this macro. They must not be
    declared elsewhere, and they can be used only after expanding the
@@ -238,9 +238,9 @@ let coll_hash_prefix =
       
 let coll_hash_macro() =
   if (!front_end) = ProVerif then
-"def CollisionResistant_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, Phash) {
+"def CollisionResistant_hash_%(key, $input%$, $, output, hash, hashoracle, Phash) {
     
-fun hash(key, $hashinput%$, $):hashoutput.
+fun hash(key, $input%$, $):output.
 
 channel ch1, ch2.
 let hashoracle(k: key) = 
@@ -249,11 +249,11 @@ let hashoracle(k: key) =
 
 }\n\n"	
   else
-"def CollisionResistant_hash_%(key, $hashinput%$, $, hashoutput, hash, hashoracle, Phash) {
+"def CollisionResistant_hash_%(key, $input%$, $, output, hash, hashoracle, Phash) {
 
-fun hash(key, $hashinput%$, $):hashoutput.
+fun hash(key, $input%$, $):output.
 
-collision k <-R key; forall $x%:hashinput%$, $, $y%:hashinput%$, $;
+collision k <-R key; forall $x%:input%$, $, $y%:input%$, $;
   return(hash(k, $x%$, $) = hash(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n"
   ^
   (if (!front_end) = Channels then
@@ -267,8 +267,8 @@ let hashoracle(k: key) =
   ^ "\n\n}\n\n"
 
 let coll_hash_suffix =
-"def CollisionResistant_hash(key, hashinput, hashoutput, hash, hashoracle, Phash) {
-expand CollisionResistant_hash_1(key, hashinput, hashoutput, hash, hashoracle, Phash).
+"def CollisionResistant_hash(key, input, output, hash, hashoracle, Phash) {
+expand CollisionResistant_hash_1(key, input, output, hash, hashoracle, Phash).
 }\n\n"
 
 (* Pseudo random functions *)
