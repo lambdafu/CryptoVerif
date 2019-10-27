@@ -10,12 +10,12 @@ let max_copy = ref 5
 let copy f =
   let rec aux n =
     if n = !max_copy then
- f n
-else
-(f n) ^ (aux (n+1))
-in 
-aux 1
-
+      f n (string_of_int n)
+    else
+      (f n (string_of_int n)) ^ (aux (n+1))
+  in 
+  aux 1
+    
 (* Inside [macro], % is replaced with n
    and [$format$sep$] is replaced with
    [format_1 sep ... sep format_n] where 
@@ -59,6 +59,185 @@ let print_macro macro n =
   aux 0
 
 (* Random oracles *)
+
+let equiv_random_fun name proba is_large =
+  
+    (* Separator between oracle definitions *)
+    let osep = " |\n         " in
+    (* Oracle declaration for oracle name [ocur] *)
+    let odecl ocur is_eq =
+      "foreach i <= N"^ocur^" do O"^ocur^"($x"^ocur^"_%: input%$, $"^(if is_eq then ", r"^ocur^": output" else "") ^") := "
+    in
+    (* Find prefix *)
+    let find_pref k' =
+      if k' = 1 then "find[unique]" else "orfind"
+    in
+    (* Conditions of find: collision between the current call to [ocur] and a call to [other],
+       the found call is indexed by [u] 
+       First, when the oracle [other] chooses a fresh random r[other]. *)
+    let collision ocur other =
+      " u <= N"^other^" suchthat defined($x"^other^"_%[u]$, $, r"^other^"[u]) && $x"^ocur^"_% = x"^other^"_%[u]$ && $ then "
+    in
+    (* Second, when the oracle [other] makes no choice *)
+    let collision_no_r ocur other =
+      " u <= N"^other^" suchthat defined($x"^other^"_%[u]$, $) && $x"^ocur^"_% = x"^other^"_%[u]$ && $ then "
+    in
+    (* Possible oracle results *)
+    (* f of the current argument *)
+    let f_ret ocur =
+      "return(f(k, $x"^ocur^"_%$, $))"
+    in
+    (* Image by f returned by a previous call to [other] *)
+    let found_f_ret other =
+      "return(f(k, $x"^other^"_%[u]$, $))"
+    in
+    (* Fresh random value *)
+    let rand_ret ocur =
+      "r"^ocur^" <-R output; return(r"^ocur^")"
+    in
+    (* Random value returned by a previous call to [other] *)
+    let found_rand_ret other =
+      "return(r"^other^"[u])"
+    in
+    (* Equality between the output argument and f of the input argument *)
+    let eq_f_ret ocur =
+      "return(r"^ocur^" = f(k, $x"^ocur^"_%$, $))"
+    in
+    (* Equality between the output argument and the image by f returned by a previous call to [other] *)
+    let eq_found_f_ret ocur other =
+      "return(r"^ocur^" = f(k, $x"^other^"_%[u]$, $))"
+    in
+    (* Equality between the output argument and the random value returned by a previous call to [other] *)
+    let eq_out_ret ocur other =
+      "return(r"^ocur^" = r"^other^"[u])" 
+    in
+    let ev_ret = "event_abort ev_coll" in
+    let sum s1 s2 =
+      match s1,s2 with
+      | "","" -> "0"
+      | "",_ -> s2
+      | _,"" -> s1
+      | _ -> s1^" + "^s2
+    in
+    let ncalls =
+      if is_large then
+	"N + Neq + 2 * Ncoll"
+      else
+	"N"
+    in
+    let maxlength =
+      if is_large then
+	"$max(maxlength(x%), maxlength(xeq%), maxlength(y%), maxlength(z%))$, $"
+      else
+	"$maxlength(x%)$, $"
+    in
+    let proba_coll =
+      if is_large then "Neq * Pcoll1rand(output) + Ncoll * Pcoll2rand(output)" else ""
+    in
+    let ncalls_partial =
+      if is_large then
+	"N + Ncut + Neq + Neqcut"^
+	(copy (fun k sk -> " + N"^sk^" + Neq"^sk))^
+	" + 2 * Ncoll"
+      else
+	"N + Ncut "^(copy (fun k sk -> " + N"^sk))
+    in
+    let maxlength_partial =
+      if is_large then
+	"$max(maxlength(x_%), maxlength(xcut_%), maxlength(xeq_%), maxlength(xeqcut_%)"^
+	(copy (fun k sk -> ", maxlength(x"^sk^"_%), maxlength(xeq"^sk^"_%)"))^
+	", maxlength(y%), maxlength(z%))$, $"
+      else
+	"$max(maxlength(x_%), maxlength(xcut_%)"^
+	(copy (fun k sk -> ", maxlength(x"^sk^"_%)"))^")$, $"
+    in
+    let proba_coll_partial =
+      if is_large then
+	"("^(copy (fun k sk -> (if k > 1 then " + " else "") ^ ("Neq"^sk)))^") * Pcoll1rand(output) + Ncoll * Pcoll2rand(output)"
+      else
+	""
+    in
+"param N, Ncut"^(copy (fun k sk -> ", N"^sk))^".\n"^
+    (if is_large then
+      "param Neq, Neqcut"^(copy (fun k sk -> ", Neq"^sk))^", Ncoll.\n"
+    else "")^"
+
+fun f(key, $input%$, $):output.
+
+equiv("^name^"(f))
+      k <-R key;
+        (foreach i <= N do O($x%: input%$, $) := return(f(k, $x%$, $))"^(if is_large then " |
+         foreach ieq <= Neq do Oeq($xeq%: input%$, $, req: output) := return(req = f(k, $xeq%$, $)) |
+         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
+                 return(f(k, $y%$, $) = f(k, $z%$, $))" else "")^")
+       <=("^(sum (proba ncalls maxlength) proba_coll)^")=>
+         foreach i <= N do O($x%: input%$, $) := 
+	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
+           r <-R output; return(r)"^(if is_large then " |
+         foreach ieq <= Neq do Oeq($xeq%: input%$, $, req: output) := 
+           find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $xeq% = x%[u]$ && $ then return(req = r[u]) else
+	   return(false) |
+         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
+                 return($y% = z%$ && $)" else "")^".
+
+event ev_coll.
+
+equiv("^name^"_partial(f))
+      k <-R key;\n        ("
+			  ^(odecl "" false)^(f_ret "")
+			  ^osep^(odecl "cut" false)^(f_ret "cut")
+			  ^(copy (fun k ocur -> 
+			      osep^(odecl ocur false)^(f_ret ocur))) 
+			  ^(if is_large then
+			    osep^(odecl "eq" true)^(eq_f_ret "eq")
+			    ^osep^(odecl "eqcut" true)^(eq_f_ret "eqcut")
+			    ^(copy (fun k sk -> let ocur = "eq"^sk in
+			    osep^(odecl ocur true)^(eq_f_ret ocur)))
+^osep^"foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
+                 return(f(k, $y%$, $) = f(k, $z%$, $))" else "")^")
+       <=("^(sum (proba ncalls_partial maxlength_partial) proba_coll_partial)^")=> [manual]
+      k <-R key;\n        ("
+			  ^(odecl "" false)
+			  ^ (copy (fun k' other -> 
+			  "\n          "^(find_pref k') ^ (collision "" other) ^(found_f_ret other)))^
+			  "\n          else "^(f_ret "")
+
+			  ^osep^(odecl "cut" false)
+			  ^(copy (fun k' other -> 
+			  "\n          "^(find_pref k') ^ (collision "cut" other) ^ ev_ret))^
+			  "\n          else "^(f_ret "cut")
+
+			  ^(copy (fun k ocur -> 
+			  osep^(odecl ocur false)
+			  ^ (copy (fun k' other -> 
+			  "\n          "^(find_pref k') ^ (collision ocur other) ^ (if k = k' then found_rand_ret other else ev_ret)))^
+			  "\n          else find"^(collision_no_r ocur "cut")^ev_ret^
+                          "\n          else find"^(collision_no_r ocur "")^(found_f_ret "")^
+			  "\n          else "^(rand_ret ocur)))
+			      
+			  ^(if is_large then
+			    osep^(odecl "eq" true)
+			  ^(copy (fun k' other -> 
+			  "\n          "^(find_pref k') ^ (collision "eq" other) ^ (eq_out_ret "eq" other)))^
+			  "\n          else "^(eq_f_ret "eq")
+
+			  ^osep^(odecl "eqcut" true)
+			  ^(copy (fun k' other ->
+			  "\n          "^(find_pref k') ^ (collision "eqcut" other) ^ev_ret))^
+			  "\n          else "^(eq_f_ret "eqcut")
+								       
+			  ^ (copy (fun k sk -> let ocur = "eq"^sk in
+			  osep^(odecl ocur true)
+			  ^ (copy (fun k' other -> 
+			  "\n          "^(find_pref k') ^ (collision ocur other) ^ (if k = k' then eq_out_ret ocur other else ev_ret)))^
+			  "\n          else find"^(collision_no_r ocur "cut")^ev_ret^
+			  "\n          else find"^(collision_no_r ocur "")^(eq_found_f_ret ocur "")^
+			  "\n          else return(false)"))
+
+^osep^"foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
+                 return($y% = z%$ && $)" else "")^").\n\n"
+
+
     
 let rom_hash_prefix =
 "(******************************* Hash functions (ROM) ****************************)
@@ -66,7 +245,7 @@ let rom_hash_prefix =
 (* Hash function in the random oracle model
    key: type of the key of the hash function, which models the choice of the hash function, must be \"bounded\", typically \"fixed\"
    input%: type of the %-th input of the hash function
-   output: type of the output of the hash function, must be \"bounded\" or \"nonuniform\" (typically \"fixed\"), and \"large\".
+   output: type of the output of the hash function, must be \"bounded\" or \"nonuniform\" (typically \"fixed\").
 
    hash: the hash function.
    WARNING: hash is a keyed hash function.
@@ -83,134 +262,54 @@ let rom_hash_prefix =
 
  *)\n\n"
 
-let rom_hash_macro() =
-  if (!front_end) = ProVerif then
-"def ROM_hash_%(key, $input%$, $, output, hash, hashoracle, qH) {
+let rom_hash_large_prefix =
+"(* ROM with large output.
+    The only difference with ROM is that we eliminate collisions on the output.
+    The interface is the same as for ROMs. *)\n\n"
+  
     
-fun hash(key, $input%$, $):output.
+let rom_hash_macro is_large =
+  let large_st = if is_large then "_large" else "" in
+  if (!front_end) = ProVerif then
+"def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {
+    
+fun f(key, $input%$, $):output.
 
 param qH [noninteractive].
 channel ch1, ch2.
 
-let hashoracle(k: key) = 
+let f_oracle(k: key) = 
         foreach iH <= qH do
 	in(ch1, ($x%: input%$, $));
-        out(ch2, hash(k, $x%$, $)).
+        out(ch2, f(k, $x%$, $)).
 
 }
 
 "	
   else
-    let collision s1 s2 =
-      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $, r"^s2^"[u]) && $x"^s1^"_% = x"^s2^"_%[u]$ && $ then"
-    in
-    let collision' s1 s2 =
-      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $, r"^s2^"[u]) && $x"^s1^"_%' = x"^s2^"_%[u]$ && $ then"
-    in
-    let collision_no_r s1 s2 =
-      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $) && $x"^s1^"_% = x"^s2^"_%[u]$ && $ then"
-    in
-    let collision_no_r' s1 s2 =
-      " u <= N"^s2^" suchthat defined($x"^s2^"_%[u]$, $) && $x"^s1^"_%' = x"^s2^"_%[u]$ && $ then"
-    in
-"def ROM_hash_%(key, $input%$, $, output, hash, hashoracle, qH) {
+"def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {
 
-param Nh, N, Neq, Ncoll.
-
-fun hash(key, $input%$, $):output.
-
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x%: input%$, $) := return(hash(k, $x%$, $)) |
-         foreach ieq <= Neq do Oeq($x%': input%$, $, r': output) := return(r' = hash(k, $x%'$, $)) |
-         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return(hash(k, $y%$, $) = hash(k, $z%$, $)))
-       <=(#Oeq * Pcoll1rand(output) + #Ocoll * Pcoll2rand(output))=>
-      foreach ih <= Nh do 
-        (foreach i <= N do OH($x%: input%$, $) := 
-	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
-           r <-R output; return(r) |
-         foreach ieq <= Neq do Oeq($x%': input%$, $, r': output) := 
-           find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x%' = x%[u]$ && $ then return(r' = r[u]) else
-	   return(false) |
-         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return($y% = z%$ && $)).
-
-param Ncut, Neqcut"^(copy (fun k -> let sk = string_of_int k in ", N"^sk^", Neq"^sk))^".
-
-event ev_coll.
-
-equiv(rom_partial(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x_%: input%$, $) := return(hash(k, $x_%$, $)) |
-         foreach i <= Ncut do OH_cut($xcut_%: input%$, $) := return(hash(k, $xcut_%$, $)) |
-" ^ (copy (fun k -> let sk = string_of_int k in
-"         foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: input%$, $) := return(hash(k, $x"^sk^"_%$, $)) |
-")) ^
-"         foreach ieq <= Neq do Oeq($x_%': input%$, $, r': output) := return(r' = hash(k, $x_%'$, $)) |
-         foreach ieq <= Neqcut do Oeq_cut($xcut_%': input%$, $, r': output) := return(r' = hash(k, $xcut_%'$, $)) |
-" ^ (copy (fun k -> let sk = string_of_int k in
-"         foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': input%$, $, r': output) := return(r' = hash(k, $x"^sk^"_%'$, $)) |
-")) ^
-"         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return(hash(k, $y%$, $) = hash(k, $z%$, $)))
-       <=(("^(copy (fun k -> (if k > 1 then " + " else "") ^ ("#Oeq_"^string_of_int k)))^") * Pcoll1rand(output) + #Ocoll * Pcoll2rand(output))=> [manual]
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x_%: input%$, $) := 
-" ^ (copy (fun k' -> let sk' = string_of_int k' in
-"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision "" sk') ^" return(r"^sk'^"[u])\n"))^
-"          else return(hash(k, $x_%$, $)) |
-         foreach i <= Ncut do OH_cut($xcut_%: input%$, $) := 
-" ^ (copy (fun k' -> let sk' = string_of_int k' in
-"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision "cut" sk') ^ " event_abort ev_coll\n"))^
-"          else return(hash(k, $xcut_%$, $)) |
-" ^ (copy (fun k -> let sk = string_of_int k in
-"        foreach i <= N"^sk^" do OH_"^sk^"($x"^sk^"_%: input%$, $) := 
-" ^ (copy (fun k' -> let sk' = string_of_int k' in
-"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision sk sk') ^ (if k = k' then " return(r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
-"          else find"^(collision_no_r sk "cut")^" event_abort ev_coll
-          else find"^(collision_no_r sk "")^" return(hash(k, $x_%[u]$, $))
-          else r"^sk^" <-R output; return(r"^sk^") | \n"))^
-"        foreach ieq <= Neq do Oeq($x_%': input%$, $, r': output) := 
-" ^ (copy (fun k' -> let sk' = string_of_int k' in
-"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' "" sk') ^" return(r' = r"^sk'^"[u])\n"))^
-"          else return(r' = hash(k, $x_%'$, $)) |
-        foreach ieq <= Neqcut do Oeq_cut($xcut_%': input%$, $, r': output) := 
-" ^ (copy (fun k' -> let sk' = string_of_int k' in
-"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' "cut" sk') ^" event_abort ev_coll\n"))^
-"          else return(r' = hash(k, $xcut_%'$, $)) |
-" ^ (copy (fun k -> let sk = string_of_int k in
-"        foreach ieq <= Neq"^sk^" do Oeq_"^sk^"($x"^sk^"_%': input%$, $, r': output) := 
-" ^ (copy (fun k' -> let sk' = string_of_int k' in
-"          "^(if k' = 1 then "find[unique]" else "orfind") ^ (collision' sk sk') ^ (if k = k' then " return(r' = r"^sk'^"[u])" else " event_abort ev_coll")^"\n"))^
-"          else find"^(collision_no_r' sk "cut")^" event_abort ev_coll
-          else find"^(collision_no_r' sk "")^" return(r' = hash(k, $x_%[u]$, $))
-          else return(false) |
-")) ^
-"        foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return($y% = z%$ && $)).
-
-
-
+"^(equiv_random_fun "rom" (fun _ _ -> "") is_large)^"
 param qH [noninteractive].\n\n"
   ^
   (if (!front_end) = Channels then
 "channel ch1, ch2.
-let hashoracle(k: key) = 
+let f_oracle(k: key) = 
         foreach iH <= qH do
 	in(ch1, ($x%: input%$, $));
-        out(ch2, hash(k, $x%$, $))."
+        out(ch2, f(k, $x%$, $))."
   else
-"let hashoracle(k: key) = 
+"let f_oracle(k: key) = 
         foreach iH <= qH do
 	OH($x%: input%$, $) :=
-        return(hash(k, $x%$, $)).")
+        return(f(k, $x%$, $)).")
   ^"\n\n}\n\n"
 
 
-let rom_hash_suffix =
-"def ROM_hash(key, input, output, hash, hashoracle, qH) {
-expand ROM_hash_1(key, input, output, hash, hashoracle, qH).
+let rom_hash_suffix is_large =
+  let large_st = if is_large then "_large" else "" in
+"def ROM_hash"^large_st^"(key, input, output, f, f_oracle, qH) {
+expand ROM_hash"^large_st^"_1(key, input, output, f, f_oracle, qH).
 }\n\n"
 
 (* Collision-resistant hash functions *)
@@ -291,78 +390,28 @@ let prf_prefix =
 
       *)\n\n"
 
-let prf_macro() =
-  if (!front_end) = ProVerif then
-"def PRF_%(key, $input%$, $, output, f, Pprf) {
-
-fun f(key, $input%$, $): output.
-
-}\n\n"
-  else
-"def PRF_%(key, $input%$, $, output, f, Pprf) {
-
-param N.
-
-fun f(key, $input%$, $): output.
-
-equiv(prf(f))
-       k <-R key; foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $))
-     <=(Pprf(time, N, $maxlength(x%)$, $))=>
-       foreach i <= N do Of($x%:input%$, $) :=
-		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x% = x%[j])$ && $ then return(r[j])
-		else r <-R output; return(r).
-
-}\n\n"
-
-let prf_suffix =
-"def PRF(key, input, output, f, Pprf) {
-expand PRF_1(key, input, output, f, Pprf).
-}\n\n"
-
-(* PRF with large output, so we eliminate collisions on the output *)
-
 let prf_large_prefix =
   "(* Pseudo random function (PRF) with large output.
    The only difference with PRF is that we eliminate collisions on the output.
    The interface is the same as for PRFs. *)\n\n"
 
-let prf_large_macro() =
+let prf_macro is_large  =
+  let large_st = if is_large then "_large" else "" in
   if (!front_end) = ProVerif then
-"def PRF_large_%(key, $input%$, $, output, f, Pprf) {
+"def PRF"^large_st^"_%(key, $input%$, $, output, f, Pprf) {
 
 fun f(key, $input%$, $): output.
 
 }\n\n"
   else
-"def PRF_large_%(key, $input%$, $, output, f, Pprf) {
+    "def PRF"^large_st^"_%(key, $input%$, $, output, f, Pprf) {\n\n"
+    ^(equiv_random_fun "prf" (fun ncalls maxlength -> "Pprf(time, "^ncalls^", "^maxlength^")") is_large)
+    ^"\n\n}\n\n"
 
-param N, Ncoll, Ncoll2, N2.
-
-fun f(key, $input%$, $): output.
-
-equiv(prf(f))
-       k <-R key; 
-               (foreach i <= N do Of($x%:input%$, $) := return(f(k, $x%$, $)) |
-                foreach icoll <= Ncoll do Ofcoll($x'%:input%$, $, r': output) := return(f(k, $x'%$, $) = r') |
-		foreach icoll2 <= Ncoll2 do Ofcoll2($y%:input%$, $, $z%:input%$, $) := return(f(k, $y%$, $) = f(k, $z%$, $)))
-     <=(Pprf(time, N + Ncoll + 2*Ncoll2, 
-	     $max(maxlength(x%), maxlength(x'%), maxlength(y%), maxlength(z%))$, $) +
-	      Ncoll * Pcoll1rand(output) +
-              Ncoll2 * Pcoll2rand(output))=>
-                foreach i <= N do Of($x%:input%$, $) :=
-		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x% = x%[j])$ && $ then return(r[j])
-		else r <-R output; return(r) |
-                foreach icoll <= Ncoll do Ofcoll($x'%:input%$, $, r': output) := 
-		find[unique] j<=N suchthat defined($x%[j]$, $,r[j]) && $(x'% = x%[j])$ && $ then return(r[j] = r')
-		else return(false) |
-		foreach icoll2 <= Ncoll2 do Ofcoll2($y%:input%$, $, $z%:input%$, $) := 
-                return($(y% = z%)$ && $).
-
-}\n\n"
-
-let prf_large_suffix =
-"def PRF_large(key, input, output, f, Pprf) {
-expand PRF_large_1(key, input, output, f, Pprf).
+let prf_suffix is_large =
+  let large_st = if is_large then "_large" else "" in
+"def PRF"^large_st^"(key, input, output, f, Pprf) {
+expand PRF"^large_st^"_1(key, input, output, f, Pprf).
 }\n\n"
   
 (* Ideal cipher model *)
@@ -578,9 +627,15 @@ let _ =
   (* ROM *)
   print_string rom_hash_prefix;
   for n = !start to !final do
-    print_macro (rom_hash_macro()) n
+    print_macro (rom_hash_macro false) n
   done;
-  print_string rom_hash_suffix;
+  print_string (rom_hash_suffix false);
+  (* ROM with large output *)
+  print_string rom_hash_large_prefix;
+  for n = !start to !final do
+    print_macro (rom_hash_macro true) n
+  done;
+  print_string (rom_hash_suffix true);
   (* Collision resistant hash *)
   print_string coll_hash_prefix;
   for n = !start to !final do
@@ -590,15 +645,15 @@ let _ =
   (* PRF *)
   print_string prf_prefix;
   for n = !start to !final do
-    print_macro (prf_macro()) n
+    print_macro (prf_macro false) n
   done;
-  print_string prf_suffix;
+  print_string (prf_suffix false);
   (* PRF with large output *)
   print_string prf_large_prefix;
   for n = !start to !final do
-    print_macro (prf_large_macro()) n
+    print_macro (prf_macro true) n
   done;
-  print_string prf_large_suffix;
+  print_string (prf_suffix true);
   (* ICM *)
   print_string (icm());
   (* Split *)
