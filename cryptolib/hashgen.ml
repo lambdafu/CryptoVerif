@@ -370,7 +370,7 @@ let hidden_key_coll_hash_macro() =
     ^(if (!front_end = ProVerif) then "" else
       "param N, Ncoll.
 
-equiv 
+equiv(collision_res(f))
          k <-R key; 
           (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
            foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) [useful_change] := return(f(k, $x%$, $) = f(k, $y%$, $)))
@@ -422,7 +422,7 @@ let hidden_key_second_pre_hash_macro() =
     ^(if (!front_end = ProVerif) then "" else
       "param N, Ncoll.
 
-equiv 
+equiv(second_pre_res(f))
          k <-R key; 
           (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
            foreach i <= Nx do $x% <-R input%; $$ 
