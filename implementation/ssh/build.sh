@@ -15,6 +15,10 @@ do
     ./cryptoverif $SSH/ssh-secrecy-key-$key.ocv > $SSH/ssh-secrecy-key-$key.out
     egrep '(RESULT|All)' $SSH/ssh-secrecy-key-$key.out | grep -v "RESULT time"
 done
+echo "Version that uses indifferentiability to prove the secrecy of all keys in one step, fast"
+./cryptoverif $SSH/ssh-secrecy-key-indiff.ocv > $SSH/ssh-secrecy-key-indiff.out
+egrep '(RESULT|All)' $SSH/ssh-secrecy-key-indiff.out | grep -v "RESULT time"
+
 
 echo Generating implementation...
 ./cryptoverif -impl -o $SSH $SSH/ssh.ocv
