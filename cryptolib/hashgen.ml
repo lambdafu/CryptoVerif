@@ -349,9 +349,11 @@ expand CollisionResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
 
 
+(* Hidden key collision-resistant hash functions *)
+
 let hidden_key_coll_hash_prefix =
 "(* Hidden-key collision resistant hash function
-   The interface is the same as for collision-resistant hash functions, except for the addition of qH.
+   The interface is similar to collision-resistant hash functions, except for the addition of qH.
    WARNING: A hidden-key collision resistant hash function is a keyed hash function.
    The key must be generated once and for all at the beginning of the game,
    and the hash oracle must be made available to the adversary,
@@ -372,8 +374,8 @@ equiv
          k <-R key; 
           (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
            foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) [useful_change] := return(f(k, $x%$, $) = f(k, $y%$, $)))
-       <=(Phash(time, N))=>
-         k <-R key; 
+       <=(Phash(time, N))=> [computational]
+         k <-R key [unchanged]; 
           (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
            foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) := return($(x% = y%)$ && $)).\n\n")
     ^(call_f_oracle())
@@ -382,8 +384,95 @@ equiv
  let hidden_key_coll_hash_suffix =
 "def HiddenKeyCollisionResistant_hash(key, input, output, f, f_oracle, qH, Phash) {
 expand HiddenKeyCollisionResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
+    }\n\n"
+
+(* Second-preimage-resistant hash functions *)
+     
+let second_pre_hash_prefix =
+"(* Second-preimage-resistant hash function 
+    The interface is the same as for collision-resistant hash functions.
+ *)\n\n"
+      
+let second_pre_hash_macro() =
+"def SecondPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
+
+  fun f(key, $input%$, $):output.\n"
+    ^(if (!front_end = ProVerif) then "" else 
+      "collision k <-R key; $x% <-R input%; $$ forall $y%:input%$, $;
+	return(f(k, $x%$, $) = f(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n")	
+    ^(key_ret_oracle())
+    ^ "\n\n}\n\n"
+
+let second_pre_hash_suffix =
+"def SecondPreimageResistant_hash(key, input, output, f, f_oracle, Phash) {
+expand SecondPreimageResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
    
+(* Hidden-key second-preimage-resistant hash functions *)
+
+let hidden_key_second_pre_hash_prefix =
+"(* Hidden key second-preimage-resistant hash function 
+    The interface is the same as for hidden-key collision-resistant hash functions.
+ *)\n\n"
+
+let hidden_key_second_pre_hash_macro() =
+  "def HiddenKeySecondPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+
+  fun f(key, $input%$, $):output.\n"
+    ^(if (!front_end = ProVerif) then "" else
+      "param N, Ncoll.
+
+equiv 
+         k <-R key; 
+          (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
+           foreach i <= Nx do $x% <-R input%; $$ 
+              ($Ox%() := return(x%) | $$
+               foreach i <= Ncoll do Ocoll($y%:input%$, $) [useful_change] := return(f(k, $x%$, $) = f(k, $y%$, $))))
+       <=(Nx * Phash(time, N))=> [computational]
+         k <-R key [unchanged];
+          (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
+           foreach i <= Nx do $x% <-R input% [unchanged]; $$ 
+              ($Ox%() := return(x%) | $$
+               foreach i <= Ncoll do Ocoll($y%:input%$, $) [useful_change] :=  return($(x% = y%)$ && $))).\n\n")
+    ^(call_f_oracle())
+    ^ "\n\n}\n\n"
+
+ let hidden_key_second_pre_hash_suffix =
+"def HiddenKeySecondPreimageResistant_hash(key, input, output, f, f_oracle, qH, Phash) {
+expand HiddenKeySecondPreimageResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
+    }\n\n"
+
+(* Fixed hash second-preimage-resistant hash functions *)
+     
+let fixed_second_pre_hash_prefix =
+"(* Fixed-hash second-preimage-resistant hash function 
+   input%: type of the %-th input of the hash function
+   output: type of the output of the hash function
+
+   f(input...):output : the hash function. (It is not keyed.)
+   Phash: probability of breaking second-preimage resistance.
+
+   The types input%, output, and the probability Phash
+   must be declared before this macro.  The function f 
+   is defined by this macro. It must not be
+   declared elsewhere, and it can be used only after expanding the
+   macro.
+ *)\n\n"
+      
+let fixed_second_pre_hash_macro() =
+"def FixedSecondPreimageResistant_hash_%($input%$, $, output, f, Phash) {
+
+  fun f($input%$, $):output.\n"
+    ^(if (!front_end = ProVerif) then "" else 
+      "collision $x% <-R input%; $$ forall $y%:input%$, $;
+	return(f($x%$, $) = f($y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n")	
+    ^ "\n\n}\n\n"
+
+let fixed_second_pre_hash_suffix =
+"def FixedSecondPreimageResistant_hash(input, output, f, Phash) {
+expand FixedSecondPreimageResistant_hash_1(input, output, f, Phash).
+}\n\n"
+
 (* Pseudo random functions *)
 
 let prf_prefix =
@@ -655,6 +744,25 @@ let _ =
     print_macro (hidden_key_coll_hash_macro()) n
   done;
   print_string hidden_key_coll_hash_suffix;
+  (* Second-preimage-resistant hash *)
+  print_string second_pre_hash_prefix;
+  for n = !start to !final do
+    print_macro (second_pre_hash_macro()) n
+  done;
+  print_string second_pre_hash_suffix;
+  (* Hidden-key second-preimage-resistant hash *)
+  print_string hidden_key_second_pre_hash_prefix;
+  for n = !start to !final do
+    print_macro (hidden_key_second_pre_hash_macro()) n
+  done;
+  print_string hidden_key_second_pre_hash_suffix;
+  (* Fixed second-preimage-resistant hash *)
+  print_string fixed_second_pre_hash_prefix;
+  for n = !start to !final do
+    print_macro (fixed_second_pre_hash_macro()) n
+  done;
+  print_string fixed_second_pre_hash_suffix;
+  
   (* PRF *)
   print_string prf_prefix;
   for n = !start to !final do
