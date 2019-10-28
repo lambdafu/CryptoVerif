@@ -336,7 +336,7 @@ let coll_hash_prefix =
 let coll_hash_macro() =
 "def CollisionResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
 
-  fun f(key, $input%$, $):output.\n"
+fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else 
       "collision k <-R key; forall $x%:input%$, $, $y%:input%$, $;
 	return(f(k, $x%$, $) = f(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n")	
@@ -361,12 +361,12 @@ let hidden_key_coll_hash_prefix =
    qH is the number of calls to f_oracle. 
    Phash(t,N): probability of breaking collision resistance 
    for an adversary that runs in time at most t 
-   and calls the hash oracle at most N times. *) "
+   and calls the hash oracle at most N times. *)\n\n"
     
 let hidden_key_coll_hash_macro() =
   "def HiddenKeyCollisionResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
 
-  fun f(key, $input%$, $):output.\n"
+fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else
       "param N, Ncoll.
 
@@ -396,7 +396,7 @@ let second_pre_hash_prefix =
 let second_pre_hash_macro() =
 "def SecondPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
 
-  fun f(key, $input%$, $):output.\n"
+fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else 
       "collision k <-R key; $x% <-R input%; $$ forall $y%:input%$, $;
 	return(f(k, $x%$, $) = f(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n")	
@@ -418,7 +418,7 @@ let hidden_key_second_pre_hash_prefix =
 let hidden_key_second_pre_hash_macro() =
   "def HiddenKeySecondPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
 
-  fun f(key, $input%$, $):output.\n"
+fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else
       "param N, Nx, Ncoll.
 
@@ -433,7 +433,7 @@ equiv(second_pre_res(f))
           (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
            foreach i <= Nx do $x% <-R input% [unchanged]; $$ 
               ($Ox%() := return(x%) | $$
-               foreach i <= Ncoll do Ocoll($y%:input%$, $) [useful_change] :=  return($(x% = y%)$ && $))).\n\n")
+               foreach i <= Ncoll do Ocoll($y%:input%$, $) :=  return($(x% = y%)$ && $))).\n\n")
     ^(call_f_oracle())
     ^ "\n\n}\n\n"
 
@@ -462,11 +462,11 @@ let fixed_second_pre_hash_prefix =
 let fixed_second_pre_hash_macro() =
 "def FixedSecondPreimageResistant_hash_%($input%$, $, output, f, Phash) {
 
-  fun f($input%$, $):output.\n"
+fun f($input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else 
       "collision $x% <-R input%; $$ forall $y%:input%$, $;
 	return(f($x%$, $) = f($y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n")	
-    ^ "\n\n}\n\n"
+    ^ "}\n\n"
 
 let fixed_second_pre_hash_suffix =
 "def FixedSecondPreimageResistant_hash(input, output, f, Phash) {
