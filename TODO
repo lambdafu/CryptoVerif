@@ -1,9 +1,11 @@
 TO DO next
 
 1) Specify hidden_key_collision_resistance,
-preimage_resistance, hidden_key_preimage_resistance,
-second_preimage_resistance, hidden_key_second_preimage_resistance
-see https://eprint.iacr.org/2004/035
+DONE 28/10/2019
+
+preimage_resistance, hidden_key_preimage_resistance, fixed_hash_preimage_resistance
+second_preimage_resistance, hidden_key_second_preimage_resistance, fixed_hash_second_preimage_resistance
+see https://eprint.iacr.org/2004/035 (consider random challenge only)
 Specify IND$-CPA
 
       - Be able to consider a call to the hash function as a call to
@@ -118,7 +120,9 @@ cases? Perhaps enough to allow:
   OH_cut or OH, and returns false otherwise
 ]]
 
-The same idea applies to PRFs, PRP, SPRP, ICM
+The same idea applies to PRFs
+DONE 28/10/2019 [TODO: document the new equiv]
+TODO: PRP, SPRP, ICM
 
 Distinguish ROM / ROM_large like I do for PRFs?
 DONE 28/10/2019

@@ -179,7 +179,9 @@ let rec make_indep simp_facts ((b0,l0,depinfo,side_condition_needed) as bdepinfo
 	  end
       else
         let t' = Terms.try_no_var simp_facts t in
-        if Terms.equal_terms t t' then
+	(* The next test aims to avoid a loop. 
+           In particular, it avoids looping when t is a subterm of t' or t = t' *)
+        if Terms.refers_to b t' (*Terms.equal_terms t t'*) then
 	  raise Not_found
         else
           make_indep simp_facts bdepinfo t'

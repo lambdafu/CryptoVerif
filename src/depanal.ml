@@ -676,7 +676,9 @@ let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
 	  t'_indep) l)), [], Some [t.t_type])
       else
         let t' = Terms.try_no_var simp_facts t in
-        if Terms.equal_terms t t' then
+	(* The next test aims to avoid a loop. 
+           In particular, it avoids looping when t is a subterm of t' or t = t' *)
+        if Terms.refers_to b t' (*Terms.equal_terms t t'*) then
 	  fresh_indep_term t
         else
           is_indep simp_facts bdepinfo t'
@@ -806,7 +808,9 @@ let rec is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_b
 	  end
       else
         let t' = Terms.try_no_var simp_facts t in
-        if Terms.equal_terms t t' then
+	(* The next test aims to avoid a loop. 
+           In particular, it avoids looping when t is a subterm of t' or t = t' *)
+        if Terms.refers_to b t' (*Terms.equal_terms t t'*) then
 	  fresh_indep_term2 t
         else
           is_indep_collect_args simp_facts bdepinfo t'
