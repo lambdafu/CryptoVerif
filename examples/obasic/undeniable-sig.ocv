@@ -34,7 +34,7 @@ expand DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist)
 
 type hashkey [large,fixed].
 
-def ROM_hash_exp(key, hashinput, hash, hashoracle, qH) {
+def ROM_hash_large_exp(key, hashinput, hash, hashoracle, qH) {
 
 param Nh, N, Neq.
 
@@ -61,7 +61,7 @@ let hashoracle(k: key) =
 
 }
 
-expand ROM_hash_exp(hashkey, bitstring, H, hashoracle, NH).
+expand ROM_hash_large_exp(hashkey, bitstring, H, hashoracle, NH).
 
 (* Query *)
 

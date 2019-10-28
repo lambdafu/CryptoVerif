@@ -11,7 +11,7 @@ expand square_CDH(G, Z, g, exp, exp', mult, pCDH, pSqCDH).
 type hashkey [fixed].
 type T.
 type T' [bounded,large].
-expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qF).
+expand ROM_hash_large_2(hashkey, G, T, T', F, hashoracle, qF).
 
 proof {
     auto;

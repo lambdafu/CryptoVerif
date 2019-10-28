@@ -15,11 +15,11 @@ type output1 [large, fixed].
 type hashkey2 [large, fixed].
 type output2 [large, fixed].
 
-expand ROM_hash(hashkey1, input1, output1, H1, hashoracle1, qH1').
-expand ROM_hash_2(hashkey2, output1, input1, output2, H2, hashoracle2, qH2').
+expand ROM_hash_large(hashkey1, input1, output1, H1, hashoracle1, qH1').
+expand ROM_hash_large_2(hashkey2, output1, input1, output2, H2, hashoracle2, qH2').
 
 type hashkey3 [large, fixed].
-expand ROM_hash(hashkey3, input1, output2, H3, hashoracle3, qH3').
+expand ROM_hash_large(hashkey3, input1, output2, H3, hashoracle3, qH3').
 
 proof {
       allowed_collisions noninteractive*default/large;

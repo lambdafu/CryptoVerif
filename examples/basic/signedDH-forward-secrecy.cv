@@ -41,7 +41,7 @@ expand CDH(G, Z, g, exp, exp', mult, pCDH).
 
 (* Hash in the random oracle model *)
 type hashkey [fixed].
-expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
+expand ROM_hash_large(hashkey, G, D, h, hashoracle, qH).
 
 (* Concatenation helper functions *)
 fun concatA(host, host, G, G):blocksize [data].

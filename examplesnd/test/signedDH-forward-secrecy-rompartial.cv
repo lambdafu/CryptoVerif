@@ -23,9 +23,9 @@ crypto uf_cma_corrupt(sign) rkA;
 success; (* prove query x:G, y:G, k:D; event inj:endB(A, B, x, y, k) ==> inj:endA(A, B, x, y, k) || evAcorrupted. *)
 crypto uf_cma_corrupt(sign) rkB;
 success; (* prove query x:G, y:G, k:D; event inj:endA(A, B, x, y, k) ==> inj:beginB(A, B, x, y) || evBcorrupted. *)
-crypto rom_partial(h) [terms: 516 -> OH_1];
-(*SArename gab;
-remove_assign binder gab_7;*)
+crypto rom_partial(h) [terms: 516 -> O1];
+SArename gab;
+remove_assign binder gab_7;
 crypto cdh(exp) a b;
 success
 }
@@ -42,7 +42,7 @@ expand CDH(G, Z, g, exp, exp', mult, pCDH).
 
 (* Hash in the random oracle model *)
 type hashkey [fixed].
-expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
+expand ROM_hash_large(hashkey, G, D, h, hashoracle, qH).
 
 (* Concatenation helper functions *)
 fun concatA(host, host, G, G):blocksize [data].

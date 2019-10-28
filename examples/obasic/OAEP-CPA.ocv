@@ -37,9 +37,9 @@ expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, in
 
 type hashkey [fixed].
 
-expand ROM_hash(hashkey, Dr, Dow, G, hashoracleG, qG).
+expand ROM_hash_large(hashkey, Dr, Dow, G, hashoracleG, qG).
 
-expand ROM_hash(hashkey, Dow, Dr, H, hashoracleH, qH).
+expand ROM_hash_large(hashkey, Dow, Dr, H, hashoracleH, qH).
 
 (* concatenation *)
 type Dm.

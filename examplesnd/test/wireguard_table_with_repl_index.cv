@@ -44,7 +44,7 @@ let hashoracle(k: key_t) =
   written by Benjamin Lipp
 ***********************************************************************)
 
-def ROM_hash_pair_refactored(key, hashinput1, hashinput2, hashoutput, hash, hashoracle, r, x1, x2, qH) {
+def ROM_hash_large_pair_refactored(key, hashinput1, hashinput2, hashoutput, hash, hashoracle, r, x1, x2, qH) {
 
 param Nh, N, Neq.
 
@@ -84,7 +84,7 @@ let hashoracle(k: key) =
 
 }
 
-def ROM_hash_triple_refactored(key, hashinput1, hashinput2, hashinput3, hashoutput, hash, hashoracle, r, x1, x2, x3, qH) {
+def ROM_hash_large_triple_refactored(key, hashinput1, hashinput2, hashinput3, hashoutput, hash, hashoracle, r, x1, x2, x3, qH) {
 
 param Nh, N, Neq.
 
@@ -124,10 +124,10 @@ let hashoracle(k: key) =
 
 }
 
-def ROM_hash_seven(hashkey_t, hashinput1_t, hashinput2_t, hashinput3_t, hashinput4_t, hashinput5_t, hashinput6_t, hashinput7_t, hashoutput_t, part1_t, part2_t, part3_t, part4_t, hash, hash_wrapper, get_part1, get_part2, get_part3, get_part4, concat, hashoracle, part1, part2, part3, part4, r, x1, x2, x3, x4, x5, x6, x7, N_oracle_queries) {
+def ROM_hash_large_seven(hashkey_t, hashinput1_t, hashinput2_t, hashinput3_t, hashinput4_t, hashinput5_t, hashinput6_t, hashinput7_t, hashoutput_t, part1_t, part2_t, part3_t, part4_t, hash, hash_wrapper, get_part1, get_part2, get_part3, get_part4, concat, hashoracle, part1, part2, part3, part4, r, x1, x2, x3, x4, x5, x6, x7, N_oracle_queries) {
 
 (* Define what is necessary for the actual random oracle.
-   This is the same than ROM_hash, ROM_hash_pair, …, just
+   This is the same than ROM_hash_large, ROM_hash_large_pair, …, just
    for even more arguments. *)
 
 param Nh, N, Neq.
@@ -393,7 +393,7 @@ type hashoutput_t [large,fixed].
 const dummy_hashoutput: hashoutput_t.
 fun hashoutput_to_bitstring(hashoutput_t): bitstring [data].
 (* This models the derivation of a first intermediate symmetric key. *)
-expand ROM_hash_pair_refactored(
+expand ROM_hash_large_pair_refactored(
   (* types *)
   hashkey_t,   (* key of the hash function, models the choice of the
                (* hash function *)
@@ -416,7 +416,7 @@ expand ROM_hash_pair_refactored(
   N_qH1        (* number of queries to the oracle by the attacker *)
 ).
 (* This models the derivation of a second intermediate symmetric key. *)
-expand ROM_hash_triple_refactored(
+expand ROM_hash_large_triple_refactored(
   (* types *)
   hashkey_t,   (* key of the hash function, models the choice of the
                (* hash function *)
@@ -451,7 +451,7 @@ expand ROM_hash_triple_refactored(
    functions to retrieve the four individual parts and equivalence that
    shows that all the four parts are indepently random. *)
 type four_keys_t [large,fixed].
-expand ROM_hash_seven(
+expand ROM_hash_large_seven(
   (* types *)
   hashkey_t, (* Key of the hash function, models the choice of the hash
              (* function. *)

@@ -5,6 +5,10 @@ type front_end =
 
 let front_end = ref Channels
 
+(* [copy f] returns the concatenation of
+   [f n (string_of_int n)] for [n] from 1 to
+   [!max_copy] *) 
+    
 let max_copy = ref 5
     
 let copy f =
@@ -157,14 +161,13 @@ let equiv_random_fun name proba is_large =
       else
 	""
     in
-"param N, Ncut"^(copy (fun k sk -> ", N"^sk))^".\n"^
+    "param N, Ncut"^(copy (fun k sk -> ", N"^sk))^".\n"^
     (if is_large then
       "param Neq, Neqcut"^(copy (fun k sk -> ", Neq"^sk))^", Ncoll.\n"
-    else "")^"
-
-fun f(key, $input%$, $):output.
-
-equiv("^name^"(f))
+    else "")^
+    "\nfun f(key, $input%$, $):output.\n\n"^
+    (if (!front_end) = ProVerif then "" else 
+"equiv("^name^"(f))
       k <-R key;
         (foreach i <= N do O($x%: input%$, $) := return(f(k, $x%$, $))"^(if is_large then " |
          foreach ieq <= Neq do Oeq($xeq%: input%$, $, req: output) := return(req = f(k, $xeq%$, $)) |
@@ -199,7 +202,7 @@ equiv("^name^"_partial(f))
       k <-R key;\n        ("
 			  ^(odecl "" false)
 			  ^ (copy (fun k' other -> 
-			  "\n          "^(find_pref k') ^ (collision "" other) ^(found_f_ret other)))^
+			  "\n          "^(find_pref k') ^ (collision "" other) ^(found_rand_ret other)))^
 			  "\n          else "^(f_ret "")
 
 			  ^osep^(odecl "cut" false)
@@ -235,7 +238,7 @@ equiv("^name^"_partial(f))
 			  "\n          else return(false)"))
 
 ^osep^"foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return($y% = z%$ && $)" else "")^").\n\n"
+                 return($y% = z%$ && $)" else "")^").\n\n")
 
 
     
@@ -270,36 +273,19 @@ let rom_hash_large_prefix =
     
 let rom_hash_macro is_large =
   let large_st = if is_large then "_large" else "" in
-  if (!front_end) = ProVerif then
-"def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {
-    
-fun f(key, $input%$, $):output.
-
-param qH [noninteractive].
-channel ch1, ch2.
-
-let f_oracle(k: key) = 
-        foreach iH <= qH do
-	in(ch1, ($x%: input%$, $));
-        out(ch2, f(k, $x%$, $)).
-
-}
-
-"	
-  else
-"def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {
-
-"^(equiv_random_fun "rom" (fun _ _ -> "") is_large)^"
-param qH [noninteractive].\n\n"
-  ^
-  (if (!front_end) = Channels then
+  "def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {\n\n"^
+  (equiv_random_fun "rom" (fun _ _ -> "") is_large)^
+  "\nparam qH [noninteractive].\n"^
+  (if (!front_end) = Channels || (!front_end) = ProVerif then
 "channel ch1, ch2.
+
 let f_oracle(k: key) = 
         foreach iH <= qH do
 	in(ch1, ($x%: input%$, $));
         out(ch2, f(k, $x%$, $))."
   else
-"let f_oracle(k: key) = 
+"
+let f_oracle(k: key) = 
         foreach iH <= qH do
 	OH($x%: input%$, $) :=
         return(f(k, $x%$, $)).")
@@ -397,16 +383,9 @@ let prf_large_prefix =
 
 let prf_macro is_large  =
   let large_st = if is_large then "_large" else "" in
-  if (!front_end) = ProVerif then
-"def PRF"^large_st^"_%(key, $input%$, $, output, f, Pprf) {
-
-fun f(key, $input%$, $): output.
-
-}\n\n"
-  else
-    "def PRF"^large_st^"_%(key, $input%$, $, output, f, Pprf) {\n\n"
-    ^(equiv_random_fun "prf" (fun ncalls maxlength -> "Pprf(time, "^ncalls^", "^maxlength^")") is_large)
-    ^"\n\n}\n\n"
+  "def PRF"^large_st^"_%(key, $input%$, $, output, f, Pprf) {\n\n"^
+  (equiv_random_fun "prf" (fun ncalls maxlength -> "Pprf(time, "^ncalls^", "^maxlength^")") is_large)^
+  "\n\n}\n\n"
 
 let prf_suffix is_large =
   let large_st = if is_large then "_large" else "" in

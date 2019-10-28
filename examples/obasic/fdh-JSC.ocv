@@ -18,7 +18,7 @@ expand OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
 
 type hashkey [fixed].
 
-expand ROM_hash(hashkey, bitstring, D, hash, hashoracle, qH).
+expand ROM_hash_large(hashkey, bitstring, D, hash, hashoracle, qH).
 
 (* Queries *)
 

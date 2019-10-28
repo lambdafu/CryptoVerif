@@ -121,19 +121,19 @@ type two_keys [large,fixed].
 
 (* HKDF_extract_zero_salt(psk) = HKDF_extract(0,psk), that is, HKDF_extract with salt argument 
    0, is a random oracle. *)
-expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
+expand ROM_hash_large(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
 
 (* HKDF_extract_DHE(EarlySecret,dh_elt) is a random oracle *)
-expand ROM_hash_2(hashkey, extracted, elt, extracted, HKDF_extract_DHE, hashoracle3, qH3).
+expand ROM_hash_large_2(hashkey, extracted, elt, extracted, HKDF_extract_DHE, hashoracle3, qH3).
 
 (* Derive_Secret_psk_binder_key(EarlySecret) = Derive_secret(EarlySecret, "psk_binder_key", empty_log)
    is a random oracle *)
-expand ROM_hash(hashkey, extracted, key, Derive_Secret_psk_binder_key, hashoracle4, qH4).
+expand ROM_hash_large(hashkey, extracted, key, Derive_Secret_psk_binder_key, hashoracle4, qH4).
 
 (* Derive_Secret_cets_eems(EarlySecret, log) = 
        concat(Derive_secret(EarlySecret, "client_ets", log),
               Derive_secret(EarlySecret, "eems", log)) is a random oracle *)
-expand ROM_hash_2(hashkey, extracted, bitstring, two_keys, Derive_Secret_cets_eems, hashoracle5, qH5).
+expand ROM_hash_large_2(hashkey, extracted, bitstring, two_keys, Derive_Secret_cets_eems, hashoracle5, qH5).
 
 (* These oracles can be considered as independent random oracles, and 
    independent from other PRFs that we use below, having distinct domains: 

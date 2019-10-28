@@ -71,7 +71,7 @@ param N, N', N'', N2, N3, N4.
 
 type hashkey [large,fixed].
 
-expand ROM_hash(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
+expand ROM_hash_large(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
 
 (* We use the lemma proved in KeySchedule1.cv *)
 

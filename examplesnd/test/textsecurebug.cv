@@ -284,7 +284,7 @@ expand square_GDH_subgroup_local(G, Z, g, gexp, gexp', mult, subG, g_k, gexp_sub
 (* Generate enc key - 4DH *)
 
 type hashkey2 [large,fixed].
-expand ROM_hash_5(hashkey2, G, G, G, G, G, emkey, H5, hashoracle2, qH2).
+expand ROM_hash_large_5(hashkey2, G, G, G, G, G, emkey, H5, hashoracle2, qH2).
 
 (* End of key derivation functions *)
 

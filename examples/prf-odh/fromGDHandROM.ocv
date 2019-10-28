@@ -17,9 +17,9 @@ equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp'(g,
 type hashkey [fixed].
 type T.
 type T' [bounded,large].
-expand ROM_hash_2(hashkey, G, T, T', F, hashoracle, qF).
+expand ROM_hash_large_2(hashkey, G, T, T', F, hashoracle, qF).
 
-expand ROM_hash(hashkey, T, T', H, hashoracle', qH).
+expand ROM_hash_large(hashkey, T, T', H, hashoracle', qH).
 
 proof {
     auto;

@@ -32,7 +32,7 @@ expand OW_trapdoor_perm(keyseed, key, key, seed, pkgen, skgen, f, invf, POW).
 
 type hashkey [fixed].
 
-expand ROM_hash(hashkey, seed, hasht, hash, hashoracle, qH).
+expand ROM_hash_large(hashkey, seed, hasht, hash, hashoracle, qH).
 
 (* Xor *)
 

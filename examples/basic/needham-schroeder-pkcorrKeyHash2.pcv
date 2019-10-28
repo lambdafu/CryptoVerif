@@ -62,7 +62,7 @@ expand UF_CMA_proba_signature(skeyseed, spkey, sskey, sblocksize, signature, ssk
 
 (* Hash function, random oracle model *)
 type hashkey [fixed].
-expand ROM_hash(hashkey, bitstring, shkey, hash, hashoracle, qH).
+expand ROM_hash_large(hashkey, bitstring, shkey, hash, hashoracle, qH).
 
 table keys(host, pkey).
 

@@ -62,12 +62,12 @@ expand square_GDH(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, pGDH, psquare_GDH
 (* Generate enc key - 4DH *)
 
 type hashkey2 [large,fixed].
-expand ROM_hash_5(hashkey2, G, G, G, G, G, emkey, H5, hashoracle2, qH2).
+expand ROM_hash_large_5(hashkey2, G, G, G, G, G, emkey, H5, hashoracle2, qH2).
 
 (* Generate enc key - 3DH *)
 
 type hashkey3 [large,fixed].
-expand ROM_hash_4(hashkey3, G, G, G, G, emkey, H4, hashoracle3, qH3).
+expand ROM_hash_large_4(hashkey3, G, G, G, G, emkey, H4, hashoracle3, qH3).
 
 (* End of key derivation functions *)
 

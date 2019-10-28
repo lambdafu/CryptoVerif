@@ -49,11 +49,11 @@ expand OW_trapdoor_perm(keyseed, pkey, skey, seed, pkgen, skgen, f, invf, POW).
 
 type hashkey [fixed].
 
-expand ROM_hash(hashkey, seed, hasht, hash, hashoracle, qH).
+expand ROM_hash_large(hashkey, seed, hasht, hash, hashoracle, qH).
 
 (* Another hash function, random oracle model *)
 
-expand ROM_hash(hashkey, bitstring, hasht2, hash2, hashoracle2, qH2).
+expand ROM_hash_large(hashkey, bitstring, hasht2, hash2, hashoracle2, qH2).
 
 fun concat(seed,hasht):bitstring [data].
 

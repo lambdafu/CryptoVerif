@@ -128,7 +128,7 @@ letfun message(x: Z) = exp(g, x).
 
 (*hash function *)
 
-expand ROM_hash(hashkey, bitstring, hash, h, hashoracle, qH).
+expand ROM_hash_large(hashkey, bitstring, hash, h, hashoracle, qH).
 
 (* signature *)
 

@@ -63,7 +63,7 @@ crypto uf_cma(sign) rkCA;
 crypto uf_cma(sign) rkCs;
 crypto ind_cca2(penc) rkC;
 crypto uf_cma(sign) rkKs;
-crypto keyderivation;
+crypto prf(keyderivation);
 simplify;
 auto
 }

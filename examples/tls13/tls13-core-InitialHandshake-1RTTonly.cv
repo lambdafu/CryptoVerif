@@ -102,7 +102,7 @@ let hashoracle1(hk1: hashkey) = ! qH1 in(ch3, x:key); out(ch4, HKDF_extract_zero
 (* HKDF_extract_ES, that is, HKDF_extract with salt argument 
    Early_secret = HKDF_extract(0,0), is a random oracle. *)
 
-expand ROM_hash(hashkey, elt, extracted, HKDF_extract_ES, hashoracle, qH).
+expand ROM_hash_large(hashkey, elt, extracted, HKDF_extract_ES, hashoracle, qH).
 
 (* We use the lemma proved in KeySchedule2.cv *)
 
