@@ -118,10 +118,11 @@ cases? Perhaps enough to allow:
   OH_cut or OH, and returns false otherwise
 ]]
 
-The same idea applies to PRFs, PRP, SPRP
+The same idea applies to PRFs, PRP, SPRP, ICM
 
 Distinguish ROM / ROM_large like I do for PRFs?
-
+DONE 28/10/2019
+   
 2) allow "query equiv ..." to prove an equivalence
    presented exactly as CryptoVerif accepts assumptions on
    cryptographic primitives.

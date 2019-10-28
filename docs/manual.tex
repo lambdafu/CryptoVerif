@@ -1088,7 +1088,7 @@ the choice of the hash function, must be \texttt{bounded}, typically
 
    $\vn{hashinput}$ is the type of the input of the hash function.
 
-   $\vn{hashoutput}$ is the type of the output of the hash function, must be \texttt{bounded} or \texttt{nonuniform} (typically \texttt{fixed}), and \texttt{large}.
+   $\vn{hashoutput}$ is the type of the output of the hash function, must be \texttt{bounded} or \texttt{nonuniform} (typically \texttt{fixed}).
 
    $\vn{hash}(\vn{key}, \vn{hashinput}): \vn{hashoutput}$ is the hash function.
 
@@ -1110,9 +1110,14 @@ the choice of the hash function, must be \texttt{bounded}, typically
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
+\item $\texttt{expand ROM\_hash\_large(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$ defines a random oracle with a large output, that is, it optimizes the 
+definition by eliminating collisions between random output elements.
+Its interface is the same as the one of \texttt{ROM\_hash} above.
+
  \item Similarly, for $N$ from 1 to 10, the macros\\
    $\texttt{expand ROM\_hash\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
-   define random oracles with $N$ arguments, similarly to \texttt{ROM\_hash} above.
+   $\texttt{expand ROM\_hash\_large\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+   define random oracles with $N$ arguments, similarly to \texttt{ROM\_hash} and \texttt{ROM\_hash\_large} above.
    $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
    $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
 
@@ -1258,21 +1263,16 @@ defines a pseudo-random function.
    for use in the \texttt{crypto} command 
    (see Section~\ref{sec:interact}).
 
- \item Similarly, for $N$ from 1 to 10, the macros\\
-$\texttt{expand PRF\_$N$(}\vn{key}, \vn{input1}, \dots, \vn{input}N, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ \\
-define pseudo-random functions with $N$ arguments, similarly to \texttt{PRF} above.
-$\vn{input1}$, \dots, $\vn{input}N$ are the types of the inputs of the PRF and
-$\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
-
 \item $\texttt{expand PRF\_large(}\vn{key}, \vn{input}, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ 
 defines a pseudo-random function with a large output, that is, it optimizes the 
 definition by eliminating collisions between random output elements.
 Its interface is the same as the one of \texttt{PRF} above.
 
  \item Similarly, for $N$ from 1 to 10, the macros\\
+$\texttt{expand PRF\_$N$(}\vn{key}, \vn{input1}, \dots, \vn{input}N, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ \\
 $\texttt{expand PRF\_large\_$N$(}\vn{key}, \vn{input1}, \dots, \vn{input}N, \vn{output}, \vn{f}, \vn{Pprf}\texttt{).}$ \\
-define pseudo-random functions with $N$ arguments and a large output, 
-similarly to \texttt{PRF\_large} above.
+define pseudo-random functions with $N$ arguments, 
+similarly to \texttt{PRF} and \texttt{PRF\_large} above.
 $\vn{input1}$, \dots, $\vn{input}N$ are the types of the inputs of the PRF and
 $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
 
