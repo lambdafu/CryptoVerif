@@ -241,6 +241,32 @@ equiv("^name^"_partial(f))
                  return($y% = z%$ && $)" else "")^").\n\n")
 
 
+let call_f_oracle() =
+  "\nparam qH [noninteractive].\n"^
+  (if (!front_end) = Channels || (!front_end) = ProVerif then
+"channel ch1, ch2.
+
+let f_oracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, ($x%: input%$, $));
+        out(ch2, f(k, $x%$, $))."
+  else
+"
+let f_oracle(k: key) = 
+        foreach iH <= qH do
+	OH($x%: input%$, $) :=
+        return(f(k, $x%$, $)).")
+
+let key_ret_oracle() =     
+  (if (!front_end) = Channels || (!front_end) = ProVerif then
+"channel ch1, ch2.
+
+let f_oracle(k: key) =
+    in(ch1, ());
+    out(ch2, k)."
+  else
+"let f_oracle(k: key) =
+        OH() := return(k).")  
     
 let rom_hash_prefix =
 "(******************************* Hash functions (ROM) ****************************)
@@ -250,15 +276,15 @@ let rom_hash_prefix =
    input%: type of the %-th input of the hash function
    output: type of the output of the hash function, must be \"bounded\" or \"nonuniform\" (typically \"fixed\").
 
-   hash: the hash function.
-   WARNING: hash is a keyed hash function.
+   f: the hash function.
+   WARNING: f is a keyed hash function.
    The key must be generated once and for all at the beginning of the game 
    and the hash oracle must be made available to the adversary,
-   by including the process hashoracle(k) where k is the key.
-   qH is the number of calls to hashoracle.
+   by including the process f_oracle(k) where k is the key.
+   qH is the number of calls to f_oracle.
 
    The types key, input%, and output must be declared before
-   this macro. The function hash, the process hashoracle, and
+   this macro. The function f, the process f_oracle, and
    the parameter qH are defined by this macro. They must not
    be declared elsewhere, and they can be used only after expanding the
    macro.
@@ -275,21 +301,7 @@ let rom_hash_macro is_large =
   let large_st = if is_large then "_large" else "" in
   "def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {\n\n"^
   (equiv_random_fun "rom" (fun _ _ -> "") is_large)^
-  "\nparam qH [noninteractive].\n"^
-  (if (!front_end) = Channels || (!front_end) = ProVerif then
-"channel ch1, ch2.
-
-let f_oracle(k: key) = 
-        foreach iH <= qH do
-	in(ch1, ($x%: input%$, $));
-        out(ch2, f(k, $x%$, $))."
-  else
-"
-let f_oracle(k: key) = 
-        foreach iH <= qH do
-	OH($x%: input%$, $) :=
-        return(f(k, $x%$, $)).")
-  ^"\n\n}\n\n"
+  (call_f_oracle())^"\n\n}\n\n"
 
 
 let rom_hash_suffix is_large =
@@ -306,56 +318,72 @@ let coll_hash_prefix =
    input%: type of the %-th input of the hash function
    output: type of the output of the hash function
 
-   hash: the hash function.
+   f: the hash function.
    Phash: probability of breaking collision resistance.
    WARNING: A collision resistant hash function is a keyed hash function.
    The key must be generated once and for all at the beginning of the game,
    and immediately made available to the adversary, for instance by
-   including the process hashoracle(k), where k is the key.
+   including the process f_oracle(k), where k is the key.
 
    The types key, input%, output, and the probability Phash
-   must be declared before this macro.  The function hash and the
-   process hashoracle are defined by this macro. They must not be
+   must be declared before this macro.  The function f and the
+   process f_oracle are defined by this macro. They must not be
    declared elsewhere, and they can be used only after expanding the
    macro.
 
  *)\n\n"
       
 let coll_hash_macro() =
-  if (!front_end) = ProVerif then
-"def CollisionResistant_hash_%(key, $input%$, $, output, hash, hashoracle, Phash) {
-    
-fun hash(key, $input%$, $):output.
+"def CollisionResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
 
-channel ch1, ch2.
-let hashoracle(k: key) = 
-	in(ch1, ());
-        out(ch2, k).
-
-}\n\n"	
-  else
-"def CollisionResistant_hash_%(key, $input%$, $, output, hash, hashoracle, Phash) {
-
-fun hash(key, $input%$, $):output.
-
-collision k <-R key; forall $x%:input%$, $, $y%:input%$, $;
-  return(hash(k, $x%$, $) = hash(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n"
-  ^
-  (if (!front_end) = Channels then
-"channel ch1, ch2.
-let hashoracle(k: key) =
-    in(ch1, ());
-    out(ch2, k)."
-  else
-"let hashoracle(k: key) =
-        OH() := return(k).")
-  ^ "\n\n}\n\n"
+  fun f(key, $input%$, $):output.\n"
+    ^(if (!front_end = ProVerif) then "" else 
+      "collision k <-R key; forall $x%:input%$, $, $y%:input%$, $;
+	return(f(k, $x%$, $) = f(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $).\n\n")	
+    ^(key_ret_oracle())
+    ^ "\n\n}\n\n"
 
 let coll_hash_suffix =
-"def CollisionResistant_hash(key, input, output, hash, hashoracle, Phash) {
-expand CollisionResistant_hash_1(key, input, output, hash, hashoracle, Phash).
+"def CollisionResistant_hash(key, input, output, f, f_oracle, Phash) {
+expand CollisionResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
 
+
+let hidden_key_coll_hash_prefix =
+"(* Hidden-key collision resistant hash function
+   The interface is the same as for collision-resistant hash functions, except for the addition of qH.
+   WARNING: A hidden-key collision resistant hash function is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game,
+   and the hash oracle must be made available to the adversary,
+   by including the process f_oracle(k) where k is the key.
+   qH is the number of calls to f_oracle. 
+   Phash(t,N): probability of breaking collision resistance 
+   for an adversary that runs in time at most t 
+   and calls the hash oracle at most N times. *) "
+    
+let hidden_key_coll_hash_macro() =
+  "def HiddenKeyCollisionResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+
+  fun f(key, $input%$, $):output.\n"
+    ^(if (!front_end = ProVerif) then "" else
+      "param N, Ncoll.
+
+equiv 
+         k <-R key; 
+          (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
+           foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) [useful_change] := return(f(k, $x%$, $) = f(k, $y%$, $)))
+       <=(Ncoll * Phash(time, N + 2*(Ncoll-1)))=>
+         k <-R key; 
+          (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
+           foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) := return($(x% = y%)$ && $)).\n\n")
+    ^(call_f_oracle())
+    ^ "\n\n}\n\n"
+
+ let hidden_key_coll_hash_suffix =
+"def HiddenKeyCollisionResistant_hash(key, input, output, f, f_oracle, qH, Phash) {
+expand HiddenKeyCollisionResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
+}\n\n"
+   
 (* Pseudo random functions *)
 
 let prf_prefix =
@@ -621,6 +649,12 @@ let _ =
     print_macro (coll_hash_macro()) n
   done;
   print_string coll_hash_suffix;
+  (* Hidden-key collision resistant hash *)
+  print_string hidden_key_coll_hash_prefix;
+  for n = !start to !final do
+    print_macro (hidden_key_coll_hash_macro()) n
+  done;
+  print_string hidden_key_coll_hash_suffix;
   (* PRF *)
   print_string prf_prefix;
   for n = !start to !final do

@@ -107,6 +107,12 @@ expand CollisionResistant_hash_3(key, hashinput1, hashinput2, hashinput3, hashou
 expand CollisionResistant_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash9, hashoracle9, Phash).
 expand CollisionResistant_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash10, hashoracle10, Phash).
 
+expand HiddenKeyCollisionResistant_hash(key, hashinput, hashoutput, hash6h, hashoracle6h, qH6h, Phash).
+expand HiddenKeyCollisionResistant_hash_2(key, hashinput1, hashinput2, hashoutput, hash7h, hashoracle7h, qH7h, Phash).
+expand HiddenKeyCollisionResistant_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash8h, hashoracle8h, qH8h, Phash).
+expand HiddenKeyCollisionResistant_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash9h, hashoracle9h, qH9h, Phash).
+expand HiddenKeyCollisionResistant_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash10h, hashoracle10h, qH10h, Phash).
+
 type G [bounded, large].
 type tZ [bounded, large].
 
