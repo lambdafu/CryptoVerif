@@ -1169,6 +1169,10 @@ defines a hidden-key collision-resistant hash function. The interface is similar
    for an adversary that runs in time at most $t$ and calls the hash oracle
    at most $N$ times.
 
+   This macro defines the equivalence named
+   $\texttt{collision\_res}(\vn{hash})$ for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
  \item Similarly, for $N$ from 1 to 10, the macros\\
    $\texttt{expand HiddenKeyCollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
    define hidden-key collision-resistant hash functions with $N$ arguments, similarly to \texttt{HiddenKeyCollisionResistant\_hash} above.

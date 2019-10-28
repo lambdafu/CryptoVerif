@@ -420,17 +420,17 @@ let hidden_key_second_pre_hash_macro() =
 
   fun f(key, $input%$, $):output.\n"
     ^(if (!front_end = ProVerif) then "" else
-      "param N, Ncoll.
+      "param N, Nx, Ncoll.
 
 equiv(second_pre_res(f))
          k <-R key; 
-          (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
+          (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
            foreach i <= Nx do $x% <-R input%; $$ 
               ($Ox%() := return(x%) | $$
                foreach i <= Ncoll do Ocoll($y%:input%$, $) [useful_change] := return(f(k, $x%$, $) = f(k, $y%$, $))))
        <=(Nx * Phash(time, N))=> [computational]
          k <-R key [unchanged];
-          (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
+          (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
            foreach i <= Nx do $x% <-R input% [unchanged]; $$ 
               ($Ox%() := return(x%) | $$
                foreach i <= Ncoll do Ocoll($y%:input%$, $) [useful_change] :=  return($(x% = y%)$ && $))).\n\n")
