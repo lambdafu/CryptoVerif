@@ -372,7 +372,7 @@ equiv
          k <-R key; 
           (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
            foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) [useful_change] := return(f(k, $x%$, $) = f(k, $y%$, $)))
-       <=(Ncoll * Phash(time, N + 2*(Ncoll-1)))=>
+       <=(Phash(time, N))=>
          k <-R key; 
           (foreach i <= N do O($x%:input%$, $) := return(f(k, $x%$, $)) |
            foreach i <= Ncoll do Ocoll($x%:input%$, $, $y%:input%$, $) := return($(x% = y%)$ && $)).\n\n")

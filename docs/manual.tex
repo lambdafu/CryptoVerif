@@ -1153,6 +1153,29 @@ defines a collision-resistant hash function.
    $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
    $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
 
+\item $\texttt{expand HiddenKeyCollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}, \vn{Phash}\texttt{).}$
+defines a hidden-key collision-resistant hash function. The interface is similar to collision-resistant hash functions above. 
+
+   $\vn{hashoracle}$ is a process that provides a hash oracle to the adversary.
+   WARNING: A hidden-key collision resistant hash function is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game,
+   and the hash oracle for that key must be provided to the adversary
+   by including the process $\vn{hashoracle}(\vn{hk})$,
+   where $\vn{hk}$ is the key.
+
+   $\vn{qH}$ is the number of calls to the hash oracle provided by $\vn{hashoracle}$.
+
+   $\vn{Phash}(t,N)$ is the probability of breaking collision resistance,
+   for an adversary that runs in time at most $t$ and calls the hash oracle
+   at most $N$ times.
+
+ \item Similarly, for $N$ from 1 to 10, the macros\\
+   $\texttt{expand HiddenKeyCollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
+   define hidden-key collision-resistant hash functions with $N$ arguments, similarly to \texttt{HiddenKeyCollisionResistant\_hash} above.
+   $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
+   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
+
+
 \item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.
 
    $\vn{seed}$ is the type of key seeds, must be \texttt{bounded} (to be able to generate random numbers from it, and to talk about
