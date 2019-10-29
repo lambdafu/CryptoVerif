@@ -1080,7 +1080,7 @@ $  \vn{signinput}$, $\vn{signature}$, $\vn{skgen}$, $\vn{pkgen}$, $\vn{sign}$, $
   $\vn{pkgen}'$, $\vn{skgen}'$, $\vn{sign\_r}'$, and $\vn{check}'$ are the symbols that replace $\vn{pkgen}$, $\vn{skgen}$, $\vn{sign\_r}$ and $\vn{check}$ respectively after game transformation.
 
 \item $\texttt{expand ROM\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$
-defines a hash function in the random oracle model.
+defines a hash function in the random oracle model~\cite{Bellare93b}.
 
 $\vn{key}$ is the type of the key of the hash function, which models
 the choice of the hash function, must be \texttt{bounded}, typically 
@@ -1114,15 +1114,8 @@ the choice of the hash function, must be \texttt{bounded}, typically
 definition by eliminating collisions between random output elements.
 Its interface is the same as the one of \texttt{ROM\_hash} above.
 
- \item Similarly, for $N$ from 1 to 10, the macros\\
-   $\texttt{expand ROM\_hash\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
-   $\texttt{expand ROM\_hash\_large\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
-   define random oracles with $N$ arguments, similarly to \texttt{ROM\_hash} and \texttt{ROM\_hash\_large} above.
-   $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
-   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
-
 \item $\texttt{expand CollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{Phash}\texttt{).}$
-defines a collision-resistant hash function.
+defines a collision-resistant hash function~\cite{Rogaway04}, \cite[Section~8.2]{BellareCourse}.
 
    $\vn{key}$ is the type of the key of the hash function, must be \texttt{bounded} or \texttt{nonuniform}, typically \texttt{fixed}.
 
@@ -1139,7 +1132,9 @@ defines a collision-resistant hash function.
    by including the process $\vn{hashoracle}(\vn{hk})$,
    where $\vn{hk}$ is the key.
 
-   $\vn{Phash}$ is the probability of breaking collision resistance.
+   $\vn{Phash}(t)$ is the probability of breaking collision resistance,
+   for an adversary that runs in time at most $t$. ($t$ is the time
+   since the choice of the hash function, that is, of the key $\vn{hk}$.)
 
    The types $\vn{key}$, $\vn{hashinput}$, and $\vn{hashoutput}$ and
    the probability $\vn{Phash}$ must be declared before this macro.
@@ -1147,14 +1142,8 @@ defines a collision-resistant hash function.
    defined by this macro. They must not be declared elsewhere, and
    they can be used only after expanding the macro.
 
- \item Similarly, for $N$ from 1 to 10, the macros\\
-   $\texttt{expand CollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
-   define collision-resistant hash functions with $N$ arguments, similarly to \texttt{CollisionResistant\_hash} above.
-   $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
-   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
-
-\item $\texttt{expand HiddenKeyCollisionResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}, \vn{Phash}\texttt{).}$
-defines a hidden-key collision-resistant hash function. The interface is similar to collision-resistant hash functions above. 
+\item $\texttt{expand HiddenKeyCollisionResistant\_hash(}\vn{key}$, $\vn{hashinput}$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$
+defines a hidden-key collision-resistant hash function~\cite[Section~8.6]{BellareCourse}. It differs from collision-resistance in that the adversary is not allowed to access the key that defines the hash function; it is just allowed to query the hash oracle. The interface is similar to collision-resistant hash functions above. 
 
    $\vn{hashoracle}$ is a process that provides a hash oracle to the adversary.
    WARNING: A hidden-key collision resistant hash function is a keyed hash function.
@@ -1173,11 +1162,49 @@ defines a hidden-key collision-resistant hash function. The interface is similar
    $\texttt{collision\_res}(\vn{hash})$ for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
- \item Similarly, for $N$ from 1 to 10, the macros\\
+\item $\texttt{expand SecondPreimageResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{Phash}\texttt{).}$
+defines a second-preimage-resistant hash function~\cite{Rogaway04}. The interface is the same as for collision-resistant hash functions above. However, note that the argument type $\vn{hashinput}$ must be \texttt{bounded} or \texttt{nonuniform} so that one can generate random values in it. It is typically \texttt{fixed} and \texttt{large}.
+
+\item $\texttt{expand HiddenKeySecondPreimageResistant\_hash(}\vn{key}$, $\vn{hashinput}$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$
+defines a hidden-key second-preimage-resistant hash function. The interface is the same as for hidden-key collision-resistant hash functions above. However, note that the argument type $\vn{hashinput}$ must be \texttt{bounded} or \texttt{nonuniform} so that one can generate random values in it. It is typically \texttt{fixed} and \texttt{large}.
+
+   This macro defines the equivalence named
+   $\texttt{second\_pre\_res}(\vn{hash})$ for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+\item $\texttt{expand FixedSecondPreimageResistant\_hash(}\vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{Phash}\texttt{).}$
+defines a second-preimage-resistant hash function, for a hash function without key. (It can also be interpreted as a hash function with a fixed key as in~\cite{Rogaway04}, which we omit in our model.)
+
+$\vn{hashinput}$ is the type of the input of the hash function. It
+must be \texttt{bounded} or \texttt{nonuniform} so that one can
+generate random values in it. It is typically \texttt{fixed} and
+\texttt{large}.
+
+   $\vn{hashoutput}$ is the type of the output of the hash function.
+
+   $\vn{hash}(\vn{hashinput}): \vn{hashoutput}$ is the hash function.
+
+   $\vn{Phash}(t)$ is the probability of breaking second-preimage resistance,
+   for an adversary that runs in time at most $t$.
+
+   The types $\vn{hashinput}$, and $\vn{hashoutput}$ and the
+   probability $\vn{Phash}$ must be declared before this macro.  The
+   function $\vn{hash}$ is defined by this macro. It must not be
+   declared elsewhere, and it can be used only after expanding the
+   macro.
+
+  \item Similarly to the macros above, for $N$ from 1 to 10, the macros\\
+   $\texttt{expand ROM\_hash\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+   $\texttt{expand ROM\_hash\_large\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
+   $\texttt{expand CollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
    $\texttt{expand HiddenKeyCollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
-   define hidden-key collision-resistant hash functions with $N$ arguments, similarly to \texttt{HiddenKeyCollisionResistant\_hash} above.
+   $\texttt{expand SecondPreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand HiddenKeySecondPreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand FixedSecondPreimageResistant\_hash\_$N$(}\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{Phash}\texttt{).}$\\
+   define hash functions with $N$ arguments, with the same properties as above.
+
    $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
-   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
+   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function, except for $\texttt{FixedSecondPreimageResistant\_hash\_}N$, where $\vn{hash}(\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
 
 
 \item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.
