@@ -181,7 +181,7 @@ let rec make_indep simp_facts ((b0,l0,depinfo,side_condition_needed) as bdepinfo
         let t' = Terms.try_no_var simp_facts t in
 	(* The next test aims to avoid a loop. 
            In particular, it avoids looping when t is a subterm of t' or t = t' *)
-        if Terms.refers_to b t' (*Terms.equal_terms t t'*) then
+        if Terms.is_synt_subterm t t' then
 	  raise Not_found
         else
           make_indep simp_facts bdepinfo t'

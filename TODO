@@ -2,10 +2,13 @@ TO DO next
 
 1) Specify hidden_key_collision_resistance,
 DONE 28/10/2019
+second_preimage_resistance, hidden_key_second_preimage_resistance,
+   fixed_hash_second_preimage_resistance
+DONE 28/10/2019, still to test and document
 
 preimage_resistance, hidden_key_preimage_resistance, fixed_hash_preimage_resistance
-second_preimage_resistance, hidden_key_second_preimage_resistance, fixed_hash_second_preimage_resistance
 see https://eprint.iacr.org/2004/035 (consider random challenge only)
+
 Specify IND$-CPA
 
       - Be able to consider a call to the hash function as a call to

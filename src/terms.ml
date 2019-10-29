@@ -1452,6 +1452,13 @@ let rec is_subterm t1 t2 =
   | ReplIndex _ -> false
   | _ -> Parsing_helper.internal_error "is_subterm only for Var/FunApp/ReplIndex terms"
 
+let rec is_synt_subterm t1 t2 =
+  if synt_equal_terms t1 t2 then true else
+  match t2.t_desc with
+    Var(_,l) | FunApp(_,l) -> List.exists (is_synt_subterm t1) l
+  | ReplIndex _ -> false
+  | _ -> Parsing_helper.internal_error "is_synt_subterm only for Var/FunApp/ReplIndex terms"
+
 (* Compute the length of the longest common prefix *)
 
 let rec len_common_prefix l1 l2 =

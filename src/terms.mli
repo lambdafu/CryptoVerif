@@ -388,7 +388,8 @@ val equal_elsefind_facts : elsefind_fact -> elsefind_fact -> bool
 (* [is_subterm t1 t2] returns [true] when [t1] is a subterm of [t2]
    This function is allowed only for Var/FunApp/ReplIndex terms. *)
 val is_subterm : term -> term -> bool
-
+val is_synt_subterm : term -> term -> bool
+    
 (* [len_common_suffix l1 l2] returns the length of the longest 
    common suffix between lists of terms [l1] and [l2] *)
 val len_common_suffix : term list -> term list -> int
