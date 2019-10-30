@@ -28,14 +28,14 @@ fi
 cd ..
 
 cd cryptolib
-ocamlopt -o hashgen hashgen.ml
+ocamlopt -o cryptogen cryptogen.ml
 
-./hashgen 1 10 > hashoracles.cvl
-./hashgen -out oracles 1 10 > hashoracles.ocvl
-./hashgen -out proverif 1 10 > hashoracles.pvl
+./cryptogen 1 10 > gen.cvl
+./cryptogen -out oracles 1 10 > gen.ocvl
+./cryptogen -out proverif 1 10 > gen.pvl
 
-cat commonlib.cvl hashoracles.cvl > ../default.cvl
-cat commonlib.cvl hashoracles.ocvl > ../default.ocvl
-cat crypto.pvl hashoracles.pvl > ../cryptoverif.pvl
+cat commonlib.cvl gen.cvl > ../default.cvl
+cat commonlib.cvl gen.ocvl > ../default.ocvl
+cat crypto.pvl gen.pvl > ../cryptoverif.pvl
 
 cd ..
