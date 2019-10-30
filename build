@@ -30,9 +30,9 @@ cd ..
 cd cryptolib
 ocamlopt -o cryptogen cryptogen.ml
 
-./cryptogen 1 10 > gen.cvl
-./cryptogen -out oracles 1 10 > gen.ocvl
-./cryptogen -out proverif 1 10 > gen.pvl
+./cryptogen -args-from-to 1 10 all > gen.cvl
+./cryptogen -out oracles -args-from-to 1 10 all > gen.ocvl
+./cryptogen -out proverif -args-from-to 1 10 all > gen.pvl
 
 cat commonlib.cvl gen.cvl > ../default.cvl
 cat commonlib.cvl gen.ocvl > ../default.ocvl

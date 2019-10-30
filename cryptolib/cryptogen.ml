@@ -5,6 +5,9 @@ type front_end =
 
 let front_end = ref Channels
 
+let start = ref 1
+let final = ref 1
+
 (* [copy f] returns the concatenation of
    [f n (string_of_int n)] for [n] from 1 to
    [!max_copy] *) 
@@ -310,6 +313,15 @@ let rom_hash_suffix is_large =
 expand ROM_hash"^large_st^"_1(key, input, output, f, f_oracle, qH).
 }\n\n"
 
+let gen_rom is_large =
+  print_string (if is_large then rom_hash_large_prefix else rom_hash_prefix);
+  for n = !start to !final do
+    print_macro (rom_hash_macro is_large) n
+  done;
+  if !start = 1 then
+    print_string (rom_hash_suffix is_large)
+
+			   
 (* Collision-resistant hash functions *)
     
 let coll_hash_prefix =
@@ -347,6 +359,14 @@ let coll_hash_suffix =
 "def CollisionResistant_hash(key, input, output, f, f_oracle, Phash) {
 expand CollisionResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
+
+let gen_coll() =
+  print_string coll_hash_prefix;
+  for n = !start to !final do
+    print_macro (coll_hash_macro()) n
+  done;
+  if !start = 1 then
+    print_string coll_hash_suffix
 
 
 (* Hidden key collision-resistant hash functions *)
@@ -386,6 +406,14 @@ equiv(collision_res(f))
 expand HiddenKeyCollisionResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
     }\n\n"
 
+let gen_hidden_key_coll() =
+  print_string hidden_key_coll_hash_prefix;
+  for n = !start to !final do
+    print_macro (hidden_key_coll_hash_macro()) n
+  done;
+  if !start = 1 then
+    print_string hidden_key_coll_hash_suffix
+     
 (* Second-preimage-resistant hash functions *)
      
 let second_pre_hash_prefix =
@@ -407,7 +435,15 @@ let second_pre_hash_suffix =
 "def SecondPreimageResistant_hash(key, input, output, f, f_oracle, Phash) {
 expand SecondPreimageResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
-   
+
+let gen_second_pre() =
+  print_string second_pre_hash_prefix;
+  for n = !start to !final do
+    print_macro (second_pre_hash_macro()) n
+  done;
+  if !start = 1 then
+    print_string second_pre_hash_suffix
+    
 (* Hidden-key second-preimage-resistant hash functions *)
 
 let hidden_key_second_pre_hash_prefix =
@@ -442,6 +478,14 @@ equiv(second_pre_res(f))
 expand HiddenKeySecondPreimageResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
     }\n\n"
 
+let gen_hidden_key_second_pre() = 
+  print_string hidden_key_second_pre_hash_prefix;
+  for n = !start to !final do
+    print_macro (hidden_key_second_pre_hash_macro()) n
+  done;
+  if !start = 1 then
+    print_string hidden_key_second_pre_hash_suffix
+      
 (* Fixed hash second-preimage-resistant hash functions *)
      
 let fixed_second_pre_hash_prefix =
@@ -473,6 +517,14 @@ let fixed_second_pre_hash_suffix =
 expand FixedSecondPreimageResistant_hash_1(input, output, f, Phash).
 }\n\n"
 
+let gen_fixed_second_pre() =
+  print_string fixed_second_pre_hash_prefix;
+  for n = !start to !final do
+    print_macro (fixed_second_pre_hash_macro()) n
+  done;
+  if !start = 1 then
+    print_string fixed_second_pre_hash_suffix
+    
 (* Pseudo random functions *)
 
 let prf_prefix =
@@ -509,7 +561,15 @@ let prf_suffix is_large =
 "def PRF"^large_st^"(key, input, output, f, Pprf) {
 expand PRF"^large_st^"_1(key, input, output, f, Pprf).
 }\n\n"
-  
+
+let gen_prf is_large =
+  print_string (if is_large then prf_large_prefix else prf_prefix);
+  for n = !start to !final do
+    print_macro (prf_macro is_large) n
+  done;
+  if !start = 1 then
+    print_string (prf_suffix is_large)
+
 (* Ideal cipher model *)
 
 let icm() =
@@ -618,6 +678,9 @@ else
     (foreach iE <= qE do Oenc(x:blocksize, ke:key) := return(enc(ck,x,ke)))
   | (foreach iD <= qD do Odec(m:blocksize, kd:key) := return(dec(ck,m,kd))).")
 ^"\n\n}\n\n"
+
+let gen_icm() =
+  print_string (icm())
     
 (* Split a value *)
 
@@ -674,113 +737,93 @@ else
 
 }\n\n"
     
-
-
-let args_seen = ref 0
-let start = ref 1
-let final = ref 1
-                
-let bound s =
-  try
-    let n = int_of_string s in
-    begin
-    match !args_seen with
-      0 -> start := n; final := n
-    | 1 -> final := n
-    | _ -> print_string "You should at most give the starting number and the ending one.\n"; exit 2
-    end;
-    incr args_seen
-  with _ ->
-    print_string "All non-option arguments should be integers.\n"; exit 2 
-     
-let _ =
-  Arg.parse
-    [ "-out", Arg.String (function 
-	"channels" -> front_end := Channels
-      | "oracles" -> front_end := Oracles
-      | "proverif" -> front_end := ProVerif
-      | _ ->
-          print_string "Command-line option -out expects argument either \"channels\", \"oracles\", or \"proverif\".\n";
-          exit 2),
-      "channels / -out oracles / -out proverif \tchoose the front-end";
-      "-dist_oracles", Arg.Int (fun n ->
-	if n < 2 || n > 100 then
-	  begin
-	    print_string "Argument of -dist_oracles should be between 2 and 100.\n";
-	    exit 2
-	  end;
-	max_copy := n),
-      "<n>\tset the number of distinct oracles in ROM, PRF, ..."
-    ]
-    bound ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  hashgen [options] n\nto print random oracle macro with n arguments\n  hashgen [options] n1 n2\nto print random oracle macros with n1 to n2 arguments\nOptions:")
-
-let _ =
-  if !final < !start then
-    begin
-      print_string "The 2nd argument should be larger than the first one.\n";
-      exit 2
-    end;
-  (* ROM *)
-  print_string rom_hash_prefix;
-  for n = !start to !final do
-    print_macro (rom_hash_macro false) n
-  done;
-  print_string (rom_hash_suffix false);
-  (* ROM with large output *)
-  print_string rom_hash_large_prefix;
-  for n = !start to !final do
-    print_macro (rom_hash_macro true) n
-  done;
-  print_string (rom_hash_suffix true);
-  (* Collision resistant hash *)
-  print_string coll_hash_prefix;
-  for n = !start to !final do
-    print_macro (coll_hash_macro()) n
-  done;
-  print_string coll_hash_suffix;
-  (* Hidden-key collision resistant hash *)
-  print_string hidden_key_coll_hash_prefix;
-  for n = !start to !final do
-    print_macro (hidden_key_coll_hash_macro()) n
-  done;
-  print_string hidden_key_coll_hash_suffix;
-  (* Second-preimage-resistant hash *)
-  print_string second_pre_hash_prefix;
-  for n = !start to !final do
-    print_macro (second_pre_hash_macro()) n
-  done;
-  print_string second_pre_hash_suffix;
-  (* Hidden-key second-preimage-resistant hash *)
-  print_string hidden_key_second_pre_hash_prefix;
-  for n = !start to !final do
-    print_macro (hidden_key_second_pre_hash_macro()) n
-  done;
-  print_string hidden_key_second_pre_hash_suffix;
-  (* Fixed second-preimage-resistant hash *)
-  print_string fixed_second_pre_hash_prefix;
-  for n = !start to !final do
-    print_macro (fixed_second_pre_hash_macro()) n
-  done;
-  print_string fixed_second_pre_hash_suffix;
-  
-  (* PRF *)
-  print_string prf_prefix;
-  for n = !start to !final do
-    print_macro (prf_macro false) n
-  done;
-  print_string (prf_suffix false);
-  (* PRF with large output *)
-  print_string prf_large_prefix;
-  for n = !start to !final do
-    print_macro (prf_macro true) n
-  done;
-  print_string (prf_suffix true);
-  (* ICM *)
-  print_string (icm());
-  (* Split *)
+let gen_split() =
   print_string (split_prefix());
   for n = !start to !final do
     print_macro (split_macro()) n
   done
 
+let started = ref false
     
+let gen s =
+  started := true;
+  match s with
+  | "ROM_hash" -> gen_rom false
+  | "ROM_hash_large" -> gen_rom true
+  | "CollisionResistant_hash" -> gen_coll()
+  | "HiddenKeyCollisionResistant_hash" -> gen_hidden_key_coll()
+  | "SecondPreimageResistant_hash" -> gen_second_pre()
+  | "HiddenKeySecondPreimageResistant_hash" -> gen_hidden_key_second_pre()
+  | "FixedSecondPreimageResistant_hash" -> gen_fixed_second_pre()
+  | "PRF" -> gen_prf false
+  | "PRF_large" -> gen_prf true
+  | "ICM_cipher" -> gen_icm()
+  | "random_split" -> gen_split()
+  | "all" ->
+      gen_rom false;
+      gen_rom true;
+      gen_coll();
+      gen_hidden_key_coll();
+      gen_second_pre();
+      gen_hidden_key_second_pre();
+      gen_fixed_second_pre();
+      gen_prf false;
+      gen_prf true;
+      gen_icm();
+      gen_split()
+  | s ->
+      prerr_string ("Unknown primitive " ^s);
+      exit 2
+
+      
+let _ =
+  Arg.parse
+    [ "-out", Arg.String (function s ->
+      if !started then
+	begin
+	  prerr_string "Cannot change the front-end after having printed some primitives.\n";
+	  exit 2
+	end;
+      match s with
+	"channels" -> front_end := Channels
+      | "oracles" -> front_end := Oracles
+      | "proverif" -> front_end := ProVerif
+      | _ ->
+          prerr_string "Command-line option -out expects argument either \"channels\", \"oracles\", or \"proverif\".\n";
+          exit 2),
+      "channels / -out oracles / -out proverif \tchoose the front-end";
+      "-dist_oracles", Arg.Int (fun n ->
+	if n < 2 || n > 100 then
+	  begin
+	    prerr_string "Argument of -dist_oracles should be between 2 and 100.\n";
+	    exit 2
+	  end;
+	max_copy := n),
+      "<n>\tset the number of distinct oracles in ROM, PRF, ...";
+      "-args", Arg.Int (fun n ->
+	if n < 0 || n > 100 then
+	  begin
+	    prerr_string "Argument of -args should be between 1 and 100.\n";
+	    exit 2;
+	  end;
+	start := n; final := n),
+      "<n>\tgenerate primitives with <n> arguments (for primitives that support a variable number of arguments)";
+      "-args-from-to", Arg.Tuple
+	[ Arg.Int (fun n ->
+	  if n < 0 || n > 100 then
+	    begin
+	      prerr_string "Arguments of -args-from-to should be between 1 and 100.\n";
+	      exit 2;
+	    end;
+	  start := n);
+	  Arg.Int (fun n ->
+	  if n < !start || n > 100 then
+	    begin
+	      prerr_string "Arguments of -args-from-to should be between 1 and 100,\nand the second argument should be larger than the first one.\n";
+	      exit 2;
+	    end;
+	    final := n) ],
+	  "<min> <max>\tgenerate primitives with from <min> to <max> arguments"
+    ]
+    gen ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  cryptogen [options] <primitive>\nto print macro for the primitive <primitive>.\n\nAllowed primitives:\n  ROM_hash\n  ROM_hash_large\n  CollisionResistant_hash\n  HiddenKeyCollisionResistant_hash\n  SecondPreimageResistant_hash\n  HiddenKeySecondPreimageResistant_hash\n  FixedSecondPreimageResistant_hash\n  PRF\n  PRF_large\n  ICM_cipher\n  random_split\n  all (to print macros for all primitives above)\n\nOptions:")
+
