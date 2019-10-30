@@ -65,6 +65,15 @@ let print_macro macro n =
   in
   aux 0
 
+let var_arg_macro prefix macro suffix =
+  print_string prefix;
+  for n = !start to !final do
+    print_macro macro n
+  done;
+  if !start = 1 then
+    print_string suffix
+  
+    
 (* Random oracles *)
 
 let equiv_random_fun name proba is_large =
@@ -314,13 +323,10 @@ expand ROM_hash"^large_st^"_1(key, input, output, f, f_oracle, qH).
 }\n\n"
 
 let gen_rom is_large =
-  print_string (if is_large then rom_hash_large_prefix else rom_hash_prefix);
-  for n = !start to !final do
-    print_macro (rom_hash_macro is_large) n
-  done;
-  if !start = 1 then
-    print_string (rom_hash_suffix is_large)
-
+  var_arg_macro
+    (if is_large then rom_hash_large_prefix else rom_hash_prefix)
+    (rom_hash_macro is_large)
+    (rom_hash_suffix is_large)
 			   
 (* Collision-resistant hash functions *)
     
@@ -361,13 +367,7 @@ expand CollisionResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
 
 let gen_coll() =
-  print_string coll_hash_prefix;
-  for n = !start to !final do
-    print_macro (coll_hash_macro()) n
-  done;
-  if !start = 1 then
-    print_string coll_hash_suffix
-
+  var_arg_macro coll_hash_prefix (coll_hash_macro()) coll_hash_suffix
 
 (* Hidden key collision-resistant hash functions *)
 
@@ -407,12 +407,9 @@ expand HiddenKeyCollisionResistant_hash_1(key, input, output, f, f_oracle, qH, P
     }\n\n"
 
 let gen_hidden_key_coll() =
-  print_string hidden_key_coll_hash_prefix;
-  for n = !start to !final do
-    print_macro (hidden_key_coll_hash_macro()) n
-  done;
-  if !start = 1 then
-    print_string hidden_key_coll_hash_suffix
+  var_arg_macro hidden_key_coll_hash_prefix
+    (hidden_key_coll_hash_macro())
+    hidden_key_coll_hash_suffix
      
 (* Second-preimage-resistant hash functions *)
      
@@ -437,12 +434,7 @@ expand SecondPreimageResistant_hash_1(key, input, output, f, f_oracle, Phash).
 }\n\n"
 
 let gen_second_pre() =
-  print_string second_pre_hash_prefix;
-  for n = !start to !final do
-    print_macro (second_pre_hash_macro()) n
-  done;
-  if !start = 1 then
-    print_string second_pre_hash_suffix
+  var_arg_macro second_pre_hash_prefix (second_pre_hash_macro()) second_pre_hash_suffix
     
 (* Hidden-key second-preimage-resistant hash functions *)
 
@@ -479,12 +471,9 @@ expand HiddenKeySecondPreimageResistant_hash_1(key, input, output, f, f_oracle, 
     }\n\n"
 
 let gen_hidden_key_second_pre() = 
-  print_string hidden_key_second_pre_hash_prefix;
-  for n = !start to !final do
-    print_macro (hidden_key_second_pre_hash_macro()) n
-  done;
-  if !start = 1 then
-    print_string hidden_key_second_pre_hash_suffix
+  var_arg_macro hidden_key_second_pre_hash_prefix
+    (hidden_key_second_pre_hash_macro())
+    hidden_key_second_pre_hash_suffix
       
 (* Fixed hash second-preimage-resistant hash functions *)
      
@@ -518,12 +507,9 @@ expand FixedSecondPreimageResistant_hash_1(input, output, f, Phash).
 }\n\n"
 
 let gen_fixed_second_pre() =
-  print_string fixed_second_pre_hash_prefix;
-  for n = !start to !final do
-    print_macro (fixed_second_pre_hash_macro()) n
-  done;
-  if !start = 1 then
-    print_string fixed_second_pre_hash_suffix
+  var_arg_macro fixed_second_pre_hash_prefix
+    (fixed_second_pre_hash_macro())
+    fixed_second_pre_hash_suffix
     
 (* Pseudo random functions *)
 
@@ -563,12 +549,10 @@ expand PRF"^large_st^"_1(key, input, output, f, Pprf).
 }\n\n"
 
 let gen_prf is_large =
-  print_string (if is_large then prf_large_prefix else prf_prefix);
-  for n = !start to !final do
-    print_macro (prf_macro is_large) n
-  done;
-  if !start = 1 then
-    print_string (prf_suffix is_large)
+  var_arg_macro
+    (if is_large then prf_large_prefix else prf_prefix)
+    (prf_macro is_large)
+    (prf_suffix is_large)
 
 (* Ideal cipher model *)
 
@@ -738,10 +722,8 @@ else
 }\n\n"
     
 let gen_split() =
-  print_string (split_prefix());
-  for n = !start to !final do
-    print_macro (split_macro()) n
-  done
+  var_arg_macro (split_prefix()) (split_macro()) ""
+    
 
 let started = ref false
     
