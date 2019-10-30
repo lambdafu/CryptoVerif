@@ -510,7 +510,129 @@ let gen_fixed_second_pre() =
   var_arg_macro fixed_second_pre_hash_prefix
     (fixed_second_pre_hash_macro())
     fixed_second_pre_hash_suffix
-    
+
+(* Preimage-resistant hash function *)
+
+let pre_hash_prefix =
+"(* preimage-resistant hash function 
+    The interface is the same as for collision-resistant hash functions.
+ *)\n\n"
+
+let pre_hash_macro() = 
+  "def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+
+fun f(key, $input%$, $):output.\n\n"
+    ^(if (!front_end = ProVerif) then "" else
+      "param Nx, Neq.
+
+equiv(preimage_res(f))
+         k <-R key; 
+          (Ok() := return(k) |
+           foreach i <= Nx do $x% <-R input%; $$ 
+              (Oim() := f(k, $x%$, $) | 
+               foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
+               $Ox%() := return(x%)$ | $)
+  <=(Nx * Phash(time))=> 
+         k <-R key; 
+          (Ok() := return(k) |
+           foreach i <= Nx do $x% <-R input%; $$ 
+              (Oim() := f(k, $x%$, $) | 
+               foreach i <= Neq do Oeq($y%: input%$, $) := 
+                        let r = $(x% = y%)$ && $ in 
+                        find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
+               $Ox%() := let comp% = true in return(x%)$ | $).\n\n")
+    ^(key_ret_oracle())
+    ^ "}\n\n"
+
+let pre_hash_suffix =
+"def PreimageResistant_hash(key, input, output, f, f_oracle, Phash) {
+expand PreimageResistant_hash_1(key, input, output, f, f_oracle, Phash).
+    }\n\n"
+
+let gen_pre() = 
+  var_arg_macro pre_hash_prefix
+    (pre_hash_macro())
+    pre_hash_suffix
+
+(* Hidden-key preimage-resistant hash function *)
+
+let hidden_key_pre_hash_prefix =
+"(* Hidden key preimage-resistant hash function 
+    The interface is the same as for hidden-key collision-resistant hash functions.
+ *)\n\n"
+
+let hidden_key_pre_hash_macro() =
+  "def HiddenKeyPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+
+fun f(key, $input%$, $):output.\n\n"
+    ^(if (!front_end = ProVerif) then "" else
+      "param N, Nx, Neq.
+
+equiv(preimage_res(f))
+         k <-R key; 
+          (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
+           foreach i <= Nx do $x% <-R input%; $$ 
+              (Oim() := f(k, $x%$, $) | 
+               foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
+               $Ox%() := return(x%)$ | $)
+  <=(Nx * Phash(time, N))=> 
+         k <-R key; 
+          (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
+           foreach i <= Nx do $x% <-R input%; $$ 
+              (Oim() := f(k, $x%$, $) | 
+               foreach i <= Neq do Oeq($y%: input%$, $) := 
+                        let r = $(x% = y%)$ && $ in 
+                        find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
+               $Ox%() := let comp% = true in return(x%)$ | $).\n\n")
+    ^(call_f_oracle())
+    ^ "}\n\n"
+	
+let hidden_key_pre_hash_suffix =
+"def HiddenKeyPreimageResistant_hash(key, input, output, f, f_oracle, qH, Phash) {
+expand HiddenKeyPreimageResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
+    }\n\n"
+
+let gen_hidden_key_pre() = 
+  var_arg_macro hidden_key_pre_hash_prefix
+    (hidden_key_pre_hash_macro())
+    hidden_key_pre_hash_suffix
+
+(* Fixed preimage-resistant hash function *)
+
+let fixed_pre_hash_prefix =
+"(* Fixed-hash preimage-resistant hash function 
+    The interface is the same as for fixed-hash second-preimage-resistant hash functions.
+ *)\n\n"
+
+let fixed_pre_hash_macro() =
+"def FixedPreimageResistant_hash_%($input%$, $, output, f, Phash) {
+
+fun f($input%$, $):output.\n\n"
+    ^(if (!front_end = ProVerif) then "" else 
+    "param Neq.
+
+equiv(preimage_res(f))
+  $x% <- R input%; $$(Oim() := f($x%$, $) | 
+                      foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
+                      $Ox%() := return(x%)$ | $)
+  <=(Phash(time))=> 
+  $x% <- R input%; $$(Oim() := f($x%$, $) | 
+                      foreach i <= Neq do Oeq($y%: input%$, $) := 
+                        let r = $(x% = y%)$ && $ in 
+                        find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
+		      $Ox%() := let comp% = true in return(x%)$ | $).\n\n")
+      ^ "}\n\n"
+
+let fixed_pre_hash_suffix =
+"def FixedPreimageResistant_hash(input, output, f, Phash) {
+expand FixedPreimageResistant_hash_1(input, output, f, Phash).
+}\n\n"
+	  
+let gen_fixed_pre() =
+  var_arg_macro fixed_pre_hash_prefix
+    (fixed_pre_hash_macro())
+    fixed_pre_hash_suffix
+      
 (* Pseudo random functions *)
 
 let prf_prefix =
@@ -737,6 +859,9 @@ let gen s =
   | "SecondPreimageResistant_hash" -> gen_second_pre()
   | "HiddenKeySecondPreimageResistant_hash" -> gen_hidden_key_second_pre()
   | "FixedSecondPreimageResistant_hash" -> gen_fixed_second_pre()
+  | "PreimageResistant_hash" -> gen_pre()
+  | "HiddenKeyPreimageResistant_hash" -> gen_hidden_key_pre()
+  | "FixedPreimageResistant_hash" -> gen_fixed_pre()
   | "PRF" -> gen_prf false
   | "PRF_large" -> gen_prf true
   | "ICM_cipher" -> gen_icm()
@@ -749,6 +874,9 @@ let gen s =
       gen_second_pre();
       gen_hidden_key_second_pre();
       gen_fixed_second_pre();
+      gen_pre();
+      gen_hidden_key_pre();
+      gen_fixed_pre();
       gen_prf false;
       gen_prf true;
       gen_icm();
