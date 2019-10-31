@@ -1,141 +1,20 @@
 TO DO next
 
-1) Specify hidden_key_collision_resistance,
-DONE 28/10/2019
+1) Test hidden_key_collision_resistance,
 second_preimage_resistance, hidden_key_second_preimage_resistance,
    fixed_hash_second_preimage_resistance
-DONE 28/10/2019, still to test
-
 preimage_resistance, hidden_key_preimage_resistance,
    fixed_hash_preimage_resistance
-DONE 31/10/2019, still to test 
-see https://eprint.iacr.org/2004/035 (consider random challenge only)
 
 Specify IND$-CPA
 
-      - Be able to consider a call to the hash function as a call to
-      the hash oracle given to the adversary. That could be useful
-      when we do not really care about this call, e.g., when it is in
-      a session with a dishonest peer for which we do not prove
-      security. Hard with the current language. Perhaps with an oracle
-      call construct?
-      Problem: that would be as if we give the arguments of the oracle to
-      the adversary.
-      More generally, be able to consider several calls to a hash
-      oracle as a single case, like a call to a common subroutine,
-      when distinguishing the cases is useless.
-
-      A nice way to do that:
-
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
-         foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) := return(hash(k, x1dont_care)) |
-         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
-         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
-                 return(hash(k, y1) = hash(k, z1)))
-       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
-      foreach ih <= Nh do 
-        (foreach i <= N do OH(x1: hashinput1) := 
-	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
-	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(hash(k, x1)) else
-           r <-R hashoutput; return(r) |
-	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
-	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(r[u]) else
-	   return(hash(k, x1dont_care)) |
-         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
-           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
-	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(r' = hash(k, x1)) else
-	   return(false) |
-         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
-                 return(y1 = z1)).
-      
-This version distinguishes between useful calls (OH, Oeq) and useless ones (OHdont_care).
-Only the useful calls are transformed.
-
-
-Version 2:
-
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
-         foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) := return(hash(k, x1dont_care)) |
-         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
-         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
-                 return(hash(k, y1) = hash(k, z1)))
-       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
-      foreach ih <= Nh do 
-        (foreach i <= N do OH(x1: hashinput1) := 
-	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
-	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
-           r <-R hashoutput; return(r) |
-	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
-	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(event_abort collision) else
-	   return(hash(k, x1dont_care)) |
-         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
-           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
-	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
-	   return(false) |
-         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
-                 return(y1 = z1)).
-      
-This version executes event_abort collision in case of collision between a useful call (OH, Oeq) and a useless one (OHdont_care).
-I think it is better. Anyway, we will have to show the absence of such collisions. Using event_abort allows to remove
-immediately the code that happens after these collisions and thus simplifies the game considerably.
-Obviously, the user has to specify manually whether each call to hash is useful (OH, Oeq) or useless (OHdont_care),
-by specifying which oracle to use for each term.
-
-Note: if we keep the same function hash in the RHS of the equivalence, 
-we can apply the same equivalence again on the remaining calls to hash
-if needed.
-
-I could push this idea further by having several oracles that call H, called OH1,...,OHk.
-When an argument to OHi is equal to an argument of OHj for i<>j, event_abort collision.
-Otherwise, compare the argument of OHi with the previous arguments of OHi.
-That allows to show a posteriori that there no collisions between arguments
-of OHi and OHj for i<>j without experiencing a big blow-up.
-Perhaps sometimes one oracle can collide with all others (or with several others),
-e.g. the oracle of the adversary... How to adapt the equivalence to the various
-cases? Perhaps enough to allow:
-- the OH oracle, which returns ri in case of collision with OHi,
-  and returns hash(x) otherwise 
-- the OH_cut oracle, which executes event_abort collision in case of
-  collision with OHi, and returns hash(x) otherwise.
-- OH_i, which executes event_abort collision in case of collision with OHj
-  with i<>j or OH_cut, returns hash(x) in case of collision with
-  OH, returns the previous ri in case of collision with a
-  previous call to OHi, and returns a fresh ri otherwise. 
-   let's say 1<=i,j<=10.
-
-- Oeq, which returns ri = r in case of collision with OHi,
-  and returns hash(x) = r otherwise
-- Oeq_cut, which executes event_abort collision in case of
-  collision with OHi, returns hash(x) = r otherwise
-- Oeq_i, which executes event_abort collision in case of collision with OHj
-  with i<>j or OH_cut, returns hash(x) = r in case of collision with
-  OH, returns the previous ri = r in case of collision
-  with OHi, and returns false otherwise
-
-[[Other option:
-- Oeq, which returns ri = r in case of collision with OHi,
-  returns hash(x) = r  in case of collision with OH_cut or
-  OH, and returns false otherwise
-- Oeq_cut, which executes event_abort collision in case of
-  collision with OHi, returns hash(x) = r in case of collision with
-  OH_cut or OH, and returns false otherwise
-]]
-
-The same idea applies to PRFs
-DONE 28/10/2019 [TODO: document the new equiv]
-TODO: PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
+Document rom_partial / prf_partial
+Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
 variable position of the DH argument, equiv prf_odh_partial(prf)
 with variable number of prf oracles)
 
 Look at Tamarin paper to improve proverif DH model
 for curve25519/448/single_coord_ladder
-
-Distinguish ROM / ROM_large like I do for PRFs?
-DONE 28/10/2019
    
 2) allow "query equiv ..." to prove an equivalence
    presented exactly as CryptoVerif accepts assumptions on
@@ -146,6 +25,23 @@ DONE 28/10/2019
    a negligible probability of happening.
    [unchanged] restrictions are shared between both sides.
 
+3) extend "move array" such that the equality
+test is replaced with any function f(X,z) such that when
+X is a fresh random number, f(X,z) = g(z) up to small proba.
+This extension could be applied directly to the ROM as well.
+(useful for AuthA, OAEP CCA2, ... see below these examples)
+
+As a first step, that could easily be done by allowing the
+user to specify the desired functions f/g as an additional
+argument to "move array", checking that they satisfy the assumption,
+generating the corresponding equivalence as string,
+and parsing it.
+
+4) Extend depanal2 and simplify so that they apply to
+   non-expanded games (see point 6 in HIGH PRIORITY)
+5) Implement the "choice" construct in CryptoVerif
+   (see point 2 in HIGH PRIORITY)
+6) Guess the tested session (see point 4 in HIGH PRIORITY)
 
 HIGH PRIORITY
 
@@ -395,12 +291,6 @@ in that session. Some difficulties:
 * It does not work automatically with the logs as they presented.
 Investigate in more details why (perhaps a bad orientation of
 equalities?), and fix it.
-
-5) extend "move array" such that the equality
-test is replaced with any function f(X,z) such that when
-X is a fresh random number, f(X,z) = g(z) up to small proba.
-This extension could be applied directly to the ROM as well.
-(useful for AuthA, OAEP CCA2, ... see below these examples)
 
 6) Sometimes, the size of the game tends to explode. To avoid that, we
 could use constructs that allow comon continuations for several
@@ -4680,3 +4570,131 @@ rename mergeBranches into autoMergeBranches
 mergeArrays into autoMergeArrays
 DONE 23/10/2019
 
+Specify hidden_key_collision_resistance,
+DONE 28/10/2019
+second_preimage_resistance, hidden_key_second_preimage_resistance,
+   fixed_hash_second_preimage_resistance
+DONE 28/10/2019
+
+preimage_resistance, hidden_key_preimage_resistance,
+   fixed_hash_preimage_resistance
+DONE 31/10/2019
+see https://eprint.iacr.org/2004/035 (consider random challenge only)
+
+      - Be able to consider a call to the hash function as a call to
+      the hash oracle given to the adversary. That could be useful
+      when we do not really care about this call, e.g., when it is in
+      a session with a dishonest peer for which we do not prove
+      security. Hard with the current language. Perhaps with an oracle
+      call construct?
+      Problem: that would be as if we give the arguments of the oracle to
+      the adversary.
+      More generally, be able to consider several calls to a hash
+      oracle as a single case, like a call to a common subroutine,
+      when distinguishing the cases is useless.
+
+      A nice way to do that:
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
+         foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) := return(hash(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(hash(k, y1) = hash(k, z1)))
+       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1: hashinput1) := 
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(hash(k, x1)) else
+           r <-R hashoutput; return(r) |
+	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(r[u]) else
+	   return(hash(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(r' = hash(k, x1)) else
+	   return(false) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(y1 = z1)).
+      
+This version distinguishes between useful calls (OH, Oeq) and useless ones (OHdont_care).
+Only the useful calls are transformed.
+
+
+Version 2:
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
+         foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) := return(hash(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(hash(k, y1) = hash(k, z1)))
+       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=> [manual]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1: hashinput1) := 
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
+           r <-R hashoutput; return(r) |
+	 foreach i <= Ndont_care do OHdont_care(x1dont_care: hashinput1) :=
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1dont_care = x1[u] then return(event_abort collision) else
+	   return(hash(k, x1dont_care)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u])
+	   orfind u <= N suchthat defined(x1dont_care[u]) && x1 = x1dont_care[u] then return(event_abort collision) else
+	   return(false) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(y1 = z1)).
+      
+This version executes event_abort collision in case of collision between a useful call (OH, Oeq) and a useless one (OHdont_care).
+I think it is better. Anyway, we will have to show the absence of such collisions. Using event_abort allows to remove
+immediately the code that happens after these collisions and thus simplifies the game considerably.
+Obviously, the user has to specify manually whether each call to hash is useful (OH, Oeq) or useless (OHdont_care),
+by specifying which oracle to use for each term.
+
+Note: if we keep the same function hash in the RHS of the equivalence, 
+we can apply the same equivalence again on the remaining calls to hash
+if needed.
+
+I could push this idea further by having several oracles that call H, called OH1,...,OHk.
+When an argument to OHi is equal to an argument of OHj for i<>j, event_abort collision.
+Otherwise, compare the argument of OHi with the previous arguments of OHi.
+That allows to show a posteriori that there no collisions between arguments
+of OHi and OHj for i<>j without experiencing a big blow-up.
+Perhaps sometimes one oracle can collide with all others (or with several others),
+e.g. the oracle of the adversary... How to adapt the equivalence to the various
+cases? Perhaps enough to allow:
+- the OH oracle, which returns ri in case of collision with OHi,
+  and returns hash(x) otherwise 
+- the OH_cut oracle, which executes event_abort collision in case of
+  collision with OHi, and returns hash(x) otherwise.
+- OH_i, which executes event_abort collision in case of collision with OHj
+  with i<>j or OH_cut, returns hash(x) in case of collision with
+  OH, returns the previous ri in case of collision with a
+  previous call to OHi, and returns a fresh ri otherwise. 
+   let's say 1<=i,j<=10.
+
+- Oeq, which returns ri = r in case of collision with OHi,
+  and returns hash(x) = r otherwise
+- Oeq_cut, which executes event_abort collision in case of
+  collision with OHi, returns hash(x) = r otherwise
+- Oeq_i, which executes event_abort collision in case of collision with OHj
+  with i<>j or OH_cut, returns hash(x) = r in case of collision with
+  OH, returns the previous ri = r in case of collision
+  with OHi, and returns false otherwise
+
+[[Other option:
+- Oeq, which returns ri = r in case of collision with OHi,
+  returns hash(x) = r  in case of collision with OH_cut or
+  OH, and returns false otherwise
+- Oeq_cut, which executes event_abort collision in case of
+  collision with OHi, returns hash(x) = r in case of collision with
+  OH_cut or OH, and returns false otherwise
+]]
+
+The same idea applies to PRFs
+DONE 28/10/2019
+
+Distinguish ROM / ROM_large like I do for PRFs?
+DONE 28/10/2019
