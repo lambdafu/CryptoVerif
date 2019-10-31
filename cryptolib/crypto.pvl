@@ -458,7 +458,7 @@ expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, badKey).
 def DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist) {
 }
 
-(* The next two definitions define far fewer symbols than what they have as arguments.
+(* The next three definitions define far fewer symbols than what they have as arguments.
    They should still be sufficient for most protocols. *)
 
 def DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {

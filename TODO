@@ -8,7 +8,7 @@ DONE 28/10/2019, still to test
 
 preimage_resistance, hidden_key_preimage_resistance,
    fixed_hash_preimage_resistance
-DONE 31/10/2019, still to test and document
+DONE 31/10/2019, still to test 
 see https://eprint.iacr.org/2004/035 (consider random challenge only)
 
 Specify IND$-CPA
@@ -127,7 +127,12 @@ cases? Perhaps enough to allow:
 
 The same idea applies to PRFs
 DONE 28/10/2019 [TODO: document the new equiv]
-TODO: PRP, SPRP, ICM
+TODO: PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
+variable position of the DH argument, equiv prf_odh_partial(prf)
+with variable number of prf oracles)
+
+Look at Tamarin paper to improve proverif DH model
+for curve25519/448/single_coord_ladder
 
 Distinguish ROM / ROM_large like I do for PRFs?
 DONE 28/10/2019

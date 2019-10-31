@@ -1193,18 +1193,52 @@ generate random values in it. It is typically \texttt{fixed} and
    declared elsewhere, and it can be used only after expanding the
    macro.
 
+\item $\texttt{expand PreimageResistant\_hash(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{Phash}\texttt{).}$
+defines a preimage-resistant hash function~\cite{Rogaway04}. The interface is the same as for collision-resistant hash functions above. However, note that the argument type $\vn{hashinput}$ must be \texttt{bounded} or \texttt{nonuniform} so that one can generate random values in it. It is typically \texttt{fixed} and \texttt{large}.
+
+   This macro defines the equivalence named
+   $\texttt{preimage\_res}(\vn{hash})$ for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+$\texttt{expand PreimageResistant\_hash\_all\_args(}\vn{key}, \vn{hashinput}, \vn{hashoutput}, \vn{hash}$, $\vn{hash}'$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$ is similar, with an additional argument $\vn{hash}'$, which is a symbol that replaces $\vn{hash}$ after game transformation.
+
+\item $\texttt{expand HiddenKeyPreimageResistant\_hash(}\vn{key}$, $\vn{hashinput}$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$
+defines a hidden-key preimage-resistant hash function. The interface is the same as for hidden-key collision-resistant hash functions above. However, note that the argument type $\vn{hashinput}$ must be \texttt{bounded} or \texttt{nonuniform} so that one can generate random values in it. It is typically \texttt{fixed} and \texttt{large}.
+
+   This macro defines the equivalence named
+   $\texttt{preimage\_res}(\vn{hash})$ for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+$\texttt{expand HiddenKeyPreimageResistant\_hash\_all\_args(}\vn{key}$, $\vn{hashinput}$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hash}'$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$ is similar, with an additional argument $\vn{hash}'$, which is a symbol that replaces $\vn{hash}$ after game transformation.
+
+\item $\texttt{expand FixedPreimageResistant\_hash(}\vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{Phash}\texttt{).}$
+defines a preimage-resistant hash function, for a hash function without key. (It can also be interpreted as a hash function with a fixed key as in~\cite{Rogaway04}, which we omit in our model.)
+The interface is the same as for fixed second-preimage-resistant hash functions above.
+
+   This macro defines the equivalence named
+   $\texttt{preimage\_res}(\vn{hash})$ for use in the
+   \texttt{crypto} command (see Section~\ref{sec:interact}).
+
+$\texttt{expand FixedPreimageResistant\_hash\_all\_args(}\vn{hashinput}, \vn{hashoutput}, \vn{hash}, \vn{hash}', \vn{Phash}\texttt{).}$ is similar, with an additional argument $\vn{hash}'$, which is a symbol that replaces $\vn{hash}$ after game transformation.
+
   \item Similarly to the macros above, for $N$ from 1 to 10, the macros\\
    $\texttt{expand ROM\_hash\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
    $\texttt{expand ROM\_hash\_large\_$N$(}\vn{key}, \vn{hashinput1}, \dots, \vn{hashinput}N, \vn{hashoutput}, \vn{hash}, \vn{hashoracle}, \vn{qH}\texttt{).}$\\
    $\texttt{expand CollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
    $\texttt{expand HiddenKeyCollisionResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
    $\texttt{expand SecondPreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
-   $\texttt{expand HiddenKeySecondPreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand HiddenKeySecondPreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
    $\texttt{expand FixedSecondPreimageResistant\_hash\_$N$(}\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand PreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand PreimageResistant\_hash\_all\_args\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hash}'$, $\vn{hashoracle}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand HiddenKeyPreimageResistant\_hash\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand HiddenKeyPreimageResistant\_hash\_all\_args\_$N$(}\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hash}'$, $\vn{hashoracle}$, $\vn{qH}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand FixedPreimageResistant\_hash\_$N$(}\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{Phash}\texttt{).}$\\
+   $\texttt{expand FixedPreimageResistant\_hash\_all\_args\_$N$(}\vn{hashinput1}$, \dots, $\vn{hashinput}N$, $\vn{hashoutput}$, $\vn{hash}$, $\vn{hash}'$, $\vn{Phash}\texttt{).}$\\
    define hash functions with $N$ arguments, with the same properties as above.
 
    $\vn{hashinput1}$, \dots, $\vn{hashinput}N$ are the types of the inputs of the hash function and
-   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function, except for $\texttt{FixedSecondPreimageResistant\_hash\_}N$, where $\vn{hash}(\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
+   $\vn{hash}(\vn{key}$, $\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function, except for $\texttt{FixedSecondPreimageResistant\_hash\_}N$ and $\texttt{FixedPreimageResistant\_hash\_}N$, where $\vn{hash}(\vn{hashinput1}$, \dots, $\vn{hashinput}N):$ $\vn{hashoutput}$ is the hash function.
 
 
 \item $\texttt{expand OW\_trapdoor\_perm(}\vn{seed}, \vn{pkey}, \vn{skey}, \vn{D}, \vn{pkgen}, \vn{skgen}, \vn{f}, \vn{invf}, \vn{POW}\texttt{).}$ defines a one-way trapdoor permutation.

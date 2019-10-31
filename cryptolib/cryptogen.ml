@@ -553,7 +553,11 @@ def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
 let pre_hash_suffix =
 "def PreimageResistant_hash(key, input, output, f, f_oracle, Phash) {
 expand PreimageResistant_hash_1(key, input, output, f, f_oracle, Phash).
-    }\n\n"
+}
+
+def PreimageResistant_hash_all_args(key, input, output, f, f', f_oracle, Phash) {
+expand PreimageResistant_hash_all_args_1(key, input, output, f, f', f_oracle, Phash).
+}\n\n"
 
 let gen_pre() = 
   var_arg_macro pre_hash_prefix
@@ -602,7 +606,11 @@ def HiddenKeyPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH,
 let hidden_key_pre_hash_suffix =
 "def HiddenKeyPreimageResistant_hash(key, input, output, f, f_oracle, qH, Phash) {
 expand HiddenKeyPreimageResistant_hash_1(key, input, output, f, f_oracle, qH, Phash).
-    }\n\n"
+}
+
+def HiddenKeyPreimageResistant_hash_all_args(key, input, output, f, f', f_oracle, qH, Phash) {
+expand HiddenKeyPreimageResistant_hash_all_args_1(key, input, output, f, f', f_oracle, qH, Phash).
+}\n\n"
 
 let gen_hidden_key_pre() = 
   var_arg_macro hidden_key_pre_hash_prefix
@@ -644,6 +652,10 @@ def FixedPreimageResistant_hash_%($input%$, $, output, f, Phash) {
 let fixed_pre_hash_suffix =
 "def FixedPreimageResistant_hash(input, output, f, Phash) {
 expand FixedPreimageResistant_hash_1(input, output, f, Phash).
+}
+
+def FixedPreimageResistant_hash_all_args(input, output, f, f', Phash) {
+expand FixedPreimageResistant_hash_all_args_1(input, output, f, f', Phash).
 }\n\n"
 	  
 let gen_fixed_pre() =
