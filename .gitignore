@@ -1,6 +1,6 @@
-cryptoverif
-xtime
-convert
+/cryptoverif
+/xtime
+/convert
 
 
 cryptoverif.pvl
@@ -30,10 +30,10 @@ converter/parser.mli
 converter/oparser.ml
 converter/oparser.mli
 
-cryptolib/hashgen
-cryptolib/hashoracles.cvl
-cryptolib/hashoracles.ocvl
-cryptolib/hashoracles.pvl
+/cryptogen
+cryptolib/gen.cvl
+cryptolib/gen.ocvl
+cryptolib/gen.pvl
 
 
 docs/manual.aux
