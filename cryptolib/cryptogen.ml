@@ -544,7 +544,7 @@ equiv(preimage_res(f))
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
                $Ox%() := let comp%: bool = true in return(x%)$ | $)).\n\n")
     ^(key_ret_oracle())
-    ^ "}
+    ^ "\n\n}
 
 def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
   expand PreimageResistant_hash_all_args_%(key, $input%$, $, output, f, f', f_oracle, Phash).
@@ -593,7 +593,7 @@ equiv(preimage_res(f))
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
                $Ox%() := let comp%: bool = true in return(x%)$ | $)).\n\n")
     ^(call_f_oracle())
-    ^ "}
+    ^ "\n\n}
 
 def HiddenKeyPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
   expand HiddenKeyPreimageResistant_hash_all_args_%(key, $input%$, $, output, f, f', f_oracle, qH, Phash).

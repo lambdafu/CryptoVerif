@@ -77,7 +77,7 @@ mv src/version.ml src/version.ml-tmp
 ./build
 mv src/version.ml-tmp src/version.ml
 
-cp cryptoverif.exe $DESTD
+cp cryptoverif.exe cryptogen.exe $DESTD
 
 cd $DEST
 

@@ -28,11 +28,11 @@ fi
 cd ..
 
 cd cryptolib
-ocamlopt -o cryptogen cryptogen.ml
+ocamlopt -o ../cryptogen cryptogen.ml
 
-./cryptogen -args-from-to 1 10 all > gen.cvl
-./cryptogen -out oracles -args-from-to 1 10 all > gen.ocvl
-./cryptogen -out proverif -args-from-to 1 10 all > gen.pvl
+../cryptogen -args-from-to 1 10 all > gen.cvl
+../cryptogen -out oracles -args-from-to 1 10 all > gen.ocvl
+../cryptogen -out proverif -args-from-to 1 10 all > gen.pvl
 
 cat commonlib.cvl gen.cvl > ../default.cvl
 cat commonlib.cvl gen.ocvl > ../default.ocvl
