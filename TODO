@@ -13,6 +13,8 @@ Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
 variable position of the DH argument, equiv prf_odh_partial(prf)
 with variable number of prf oracles)
 
+Document the "cryptogen" program
+
 Look at Tamarin paper to improve proverif DH model
 for curve25519/448/single_coord_ladder
    
