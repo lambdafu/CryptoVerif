@@ -138,6 +138,24 @@ expand FixedSecondPreimageResistant_hash_3(rhashinput1, rhashinput2, rhashinput3
 expand FixedSecondPreimageResistant_hash_4(rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, sphash9f, Phash).
 expand FixedSecondPreimageResistant_hash_5(rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, sphash10f, Phash).
 
+expand PreimageResistant_hash(key, rhashinput, hashoutput, phash6, phashoracle6, Phash).
+expand PreimageResistant_hash_2(key, rhashinput1, rhashinput2, hashoutput, phash7, phashoracle7, Phash).
+expand PreimageResistant_hash_3(key, rhashinput1, rhashinput2, rhashinput3, hashoutput, phash8, phashoracle8, Phash).
+expand PreimageResistant_hash_4(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, phash9, phashoracle9, Phash).
+expand PreimageResistant_hash_5(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, phash10, phashoracle10, Phash).
+
+expand HiddenKeyPreimageResistant_hash(key, rhashinput, hashoutput, phash6h, phashoracle6h, pqH6h, Phash).
+expand HiddenKeyPreimageResistant_hash_2(key, rhashinput1, rhashinput2, hashoutput, phash7h, phashoracle7h, pqH7h, Phash).
+expand HiddenKeyPreimageResistant_hash_3(key, rhashinput1, rhashinput2, rhashinput3, hashoutput, phash8h, phashoracle8h, pqH8h, Phash).
+expand HiddenKeyPreimageResistant_hash_4(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, phash9h, phashoracle9h, pqH9h, Phash).
+expand HiddenKeyPreimageResistant_hash_5(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, phash10h, phashoracle10h, pqH10h, Phash).
+
+expand FixedPreimageResistant_hash(rhashinput, hashoutput, phash6f, Phash).
+expand FixedPreimageResistant_hash_2(rhashinput1, rhashinput2, hashoutput, phash7f, Phash).
+expand FixedPreimageResistant_hash_3(rhashinput1, rhashinput2, rhashinput3, hashoutput, phash8f, Phash).
+expand FixedPreimageResistant_hash_4(rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, phash9f, Phash).
+expand FixedPreimageResistant_hash_5(rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, phash10f, Phash).
+
 type G [bounded, large].
 type tZ [bounded, large].
 

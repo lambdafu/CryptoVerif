@@ -519,7 +519,7 @@ let pre_hash_prefix =
  *)\n\n"
 
 let pre_hash_macro() = 
-  "def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+  "def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
 
 fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else
@@ -529,18 +529,18 @@ equiv(preimage_res(f))
          k <-R key; 
           (Ok() := return(k) |
            foreach i <= Nx do $x% <-R input%; $$ 
-              (Oim() := f(k, $x%$, $) | 
+              (Oim() := return(f(k, $x%$, $)) | 
                foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
-               $Ox%() := return(x%)$ | $)
+               $Ox%() := return(x%)$ | $))
   <=(Nx * Phash(time))=> 
          k <-R key; 
           (Ok() := return(k) |
            foreach i <= Nx do $x% <-R input%; $$ 
-              (Oim() := f(k, $x%$, $) | 
+              (Oim() := return(f(k, $x%$, $)) | 
                foreach i <= Neq do Oeq($y%: input%$, $) := 
                         let r = $(x% = y%)$ && $ in 
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
-               $Ox%() := let comp% = true in return(x%)$ | $).\n\n")
+               $Ox%() := let comp%: bool = true in return(x%)$ | $)).\n\n")
     ^(key_ret_oracle())
     ^ "}\n\n"
 
@@ -572,18 +572,18 @@ equiv(preimage_res(f))
          k <-R key; 
           (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
            foreach i <= Nx do $x% <-R input%; $$ 
-              (Oim() := f(k, $x%$, $) | 
+              (Oim() := return(f(k, $x%$, $)) | 
                foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
-               $Ox%() := return(x%)$ | $)
+               $Ox%() := return(x%)$ | $))
   <=(Nx * Phash(time, N))=> 
          k <-R key; 
           (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
            foreach i <= Nx do $x% <-R input%; $$ 
-              (Oim() := f(k, $x%$, $) | 
+              (Oim() := return(f(k, $x%$, $)) | 
                foreach i <= Neq do Oeq($y%: input%$, $) := 
                         let r = $(x% = y%)$ && $ in 
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
-               $Ox%() := let comp% = true in return(x%)$ | $).\n\n")
+               $Ox%() := let comp%: bool = true in return(x%)$ | $)).\n\n")
     ^(call_f_oracle())
     ^ "}\n\n"
 	
@@ -612,15 +612,15 @@ fun f($input%$, $):output.\n\n"
     "param Neq.
 
 equiv(preimage_res(f))
-  $x% <- R input%; $$(Oim() := f($x%$, $) | 
+  $x% <-R input%; $$(Oim() := return(f($x%$, $)) | 
                       foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
                       $Ox%() := return(x%)$ | $)
   <=(Phash(time))=> 
-  $x% <- R input%; $$(Oim() := f($x%$, $) | 
+  $x% <-R input%; $$(Oim() := return(f($x%$, $)) | 
                       foreach i <= Neq do Oeq($y%: input%$, $) := 
                         let r = $(x% = y%)$ && $ in 
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
-		      $Ox%() := let comp% = true in return(x%)$ | $).\n\n")
+		      $Ox%() := let comp%: bool = true in return(x%)$ | $).\n\n")
       ^ "}\n\n"
 
 let fixed_pre_hash_suffix =
