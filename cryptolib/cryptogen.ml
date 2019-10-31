@@ -705,7 +705,7 @@ fun dec(cipherkey, blocksize, key): blocksize.
 
 equation forall ck:cipherkey, m:blocksize, k:key; 
 	dec(ck, enc(ck, m, k), k) = m.
-equation forall ck:cipherkey, m:blocksize, r:keyseed; 
+equation forall ck:cipherkey, m:blocksize, k:key; 
 	enc(ck, dec(ck, m, k), k) = m.
 
 param qE, qD [noninteractive].

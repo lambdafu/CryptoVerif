@@ -126,33 +126,37 @@ def AEAD_nonce_all_args(key, cleartext, ciphertext, add_data, nonce, enc, enc', 
 
 fun enc(cleartext, add_data, key, nonce): ciphertext.
 
-fun dec(ciphertext, add_data, key, nonce): cleartext
-reduc forall m:cleartext, d:add_data, k:key, r:nonce; 
-	dec(enc_r(m, d, k, n), d, k, n) = injbot(m)
-otherwise forall c:ciphertext, d:add_data, k:key, r:nonce;
+fun injbot(cleartext):bitstringbot [data].
+
+fun dec(ciphertext, add_data, key, nonce): bitstringbot
+reduc forall m:cleartext, d:add_data, k:key, n:nonce; 
+	dec(enc(m, d, k, n), d, k, n) = injbot(m)
+otherwise forall c:ciphertext, d:add_data, k:key, n:nonce;
         dec(c, d, k, n) = bottom.
 
 fun Z(cleartext):cleartext.
 
 (* The additional data is authenticated, but not encrypted, so it may leak *)
-reduc forall m:cleartext, d:add_data, r:nonce, k:key;
-        get_data(enc_r(m, d, k, r)) = d.
+reduc forall m:cleartext, d:add_data, n:nonce, k:key;
+        get_data(enc(m, d, k, n)) = d.
 
 (* The scheme is broken if the same nonce is used twice *)
+const dummy_key: key.
+
 fun break(ciphertext, ciphertext): key
-reduc forall m:cleartext, d:add_data, k:key, r:nonce;
-      break(enc_r(m, d, k, n),enc_r(m, d, k, n)) = dummy_key
-otherwise forall m:cleartext, d:add_data, m':cleartext, d':add_data, k:key, r:nonce;
-      break(enc_r(m, d, k, n),enc_r(m', d', k, n)) = k.
+reduc forall m:cleartext, d:add_data, k:key, n:nonce;
+      break(enc(m, d, k, n),enc(m, d, k, n)) = dummy_key
+otherwise forall m:cleartext, d:add_data, m':cleartext, d':add_data, k:key, n:nonce;
+      break(enc(m, d, k, n),enc(m', d', k, n)) = k.
       
 (* Encryption leaks Z(m), typically the length of m *) 
-reduc forall m:cleartext, d:add_data, r:nonce, k:key;  
-        leak(enc_r(m, d, k, r)) = Z(m).
+reduc forall m:cleartext, d:add_data, n:nonce, k:key;  
+        leak(enc(m, d, k, n)) = Z(m).
 (* Note: providing a good definition of Z in ProVerif is a problem *)
 
 (* Test equality of keys *)
-reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:nonce, r':nonce, y:key;  
-        keyeq(enc_r(x,d,y,r),enc_r(x',d',y,r')) = true.
+reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, n:nonce, n':nonce, y:key;  
+        keyeq(enc(x,d,y,n),enc(x',d',y,n')) = true.
 
 
 }
@@ -201,7 +205,7 @@ fun dec(blocksize, key): blocksize.
 
 equation forall m:blocksize, k:key; 
 	dec(enc(m, k), k) = m.
-equation forall m:blocksize, r:keyseed; 
+equation forall m:blocksize, k:key; 
 	enc(dec(m, k), k) = m.
 
 }
@@ -254,7 +258,7 @@ otherwise forall m:macinput, k:mkey, t:macres;
       check(m, k, t) = false.
 
 reduc forall m: macinput, k: mkey, r: mac_seed;
-      getmess(mac(m,k,r)) = m.
+      getmess(mac_r(m,k,r)) = m.
 
 letfun mac(m: macinput, k: mkey) =
     r <-R mac_seed; mac_r(m, k, r).

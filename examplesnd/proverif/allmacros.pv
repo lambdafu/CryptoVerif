@@ -1,0 +1,264 @@
+type keyseed [bounded].
+type key [bounded].
+
+expand keygen(keyseed, key, kgen).
+
+type cleartext.
+type ciphertext.
+type seed [bounded].
+proba Penc.
+
+expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc).
+expand IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, seed, enc', enc_r', enc_r'', dec', injbot', Z', Penc).
+
+proba Pencctxt.
+expand IND_CPA_INT_CTXT_sym_enc(key, cleartext, ciphertext, enc2, dec2, injbot2, Z2, Penc, Pencctxt).
+expand IND_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc2', enc2_r', enc_r2'', dec2', injbot2', Z2', Penc, Pencctxt).
+
+type add_data.
+expand AEAD(key, cleartext, ciphertext, add_data, enc3, dec3, injbot3, Z3, Penc, Pencctxt).
+expand AEAD_all_args(key, cleartext, ciphertext, add_data, seed, enc3', enc3_r', enc_r3'', dec3', injbot3', Z3', Penc, Pencctxt).
+
+type nonce.
+expand AEAD_nonce(key, cleartext, ciphertext, add_data, nonce, enc4, dec4, injbot4, Z4, Penc, Pencctxt).
+expand AEAD_nonce_all_args(key, cleartext, ciphertext, add_data, nonce, enc4', enc4'', dec4', injbot4', Z4', Penc, Pencctxt).
+
+expand IND_CCA2_sym_enc(key, cleartext, ciphertext, enc5, dec5, injbot5, Z5, Penc).
+expand IND_CCA2_sym_enc_all_args(key, cleartext, ciphertext, seed, enc5', enc5_r', enc5_r'', dec5', dec5'', injbot5', Z5', Penc).
+
+proba Pencptxt.
+(*
+expand INT_PTXT_sym_enc(key, cleartext, ciphertext, enc6, dec6, injbot6, Pencptxt).
+expand INT_PTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc6', enc6_r', dec6', dec6'', injbot6', Pencptxt).
+*)
+
+expand IND_CCA2_INT_PTXT_sym_enc(key, cleartext, ciphertext, enc7, dec7, injbot7, Z7, Penc, Pencptxt).
+expand IND_CCA2_INT_PTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc7', enc7_r', enc7_r'', dec7', dec7'', injbot7', Z7', Penc, Pencptxt).
+
+type blocksize [fixed,large].
+expand SPRP_cipher(key, blocksize, enc8, dec8, Penc).
+
+expand PRP_cipher(key, blocksize, enc9, dec9, Penc).
+
+type cipherkey [nonuniform].
+type blocksize2 [nonuniform,large].
+expand ICM_cipher(cipherkey, key, blocksize2, enc10, dec10, enc_dec_oracle, qE, qD).
+
+type mkey [bounded].
+type macinput.
+type macres.
+proba Pmac.
+expand SUF_CMA_det_mac(mkey, macinput, macres, mac, check, Pmac).
+expand SUF_CMA_det_mac_all_args(mkey, macinput, macres, mac', mac'', check', Pmac).
+
+expand UF_CMA_proba_mac(mkey, macinput, macres, mac2, check2, Pmac).
+expand UF_CMA_proba_mac_all_args(mkey, macinput, macres, seed, mac2', mac2_r', mac2_r'', check2', check2'', Pmac).
+
+expand SUF_CMA_proba_mac(mkey, macinput, macres, mac3, check3, Pmac).
+expand SUF_CMA_proba_mac_all_args(mkey, macinput, macres, seed, mac3', mac3_r', mac3_r'', check3', Pmac).
+
+type pkey [bounded].
+type skey [bounded].
+type cleartextb.
+proba Penccoll.
+expand IND_CCA2_public_key_enc(keyseed, pkey, skey, cleartextb, ciphertext, skgen, pkgen, enc11, dec11, injbot11, Z11, Penc, Penccoll).
+expand IND_CCA2_public_key_enc_all_args(keyseed, pkey, skey, cleartextb, ciphertext, seed, skgen', skgen'', pkgen', pkgen'', enc11', enc11_r', enc11_r'', dec11', dec11'', injbot11', Z11', Penc, Penccoll).
+
+type signinput.
+type signature.
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_det_signature(keyseed, pkey, skey, signinput, signature, skgen4, pkgen4, sign4, check4, Psign, Psigncoll).
+expand UF_CMA_det_signature_all_args(keyseed, pkey, skey, signinput, signature, skgen4', skgen4'', pkgen4', pkgen4'', sign4', sign4'', check4', check4'', Psign, Psigncoll).
+
+expand SUF_CMA_det_signature(keyseed, pkey, skey, signinput, signature, skgen5, pkgen5, sign5, check5, Psign, Psigncoll).
+expand SUF_CMA_det_signature_all_args(keyseed, pkey, skey, signinput, signature, skgen5', skgen5'', pkgen5', pkgen5'', sign5', sign5'', check5', check5'', Psign, Psigncoll).
+
+expand UF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen6, pkgen6, sign6, check6, Psign, Psigncoll).
+expand UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, seed, skgen6', skgen6'', pkgen6', pkgen6'', sign6', sign6_r', sign6_r'', check6', check6'', Psign, Psigncoll).
+
+expand SUF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen7, pkgen7, sign7, check7, Psign, Psigncoll).
+expand SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, seed, skgen7', skgen7'', pkgen7', pkgen7'', sign7', sign7_r', sign7_r'', check7', check7'', Psign, Psigncoll).
+
+type hashinput.
+type hashoutput [bounded,large].
+expand ROM_hash(key, hashinput, hashoutput, hash, hashoracle, qH).
+expand ROM_hash_large(key, hashinput, hashoutput, hashl, hashoraclel, qHl).
+
+type hashinput1.
+type hashinput2.
+expand ROM_hash_2(key, hashinput1, hashinput2, hashoutput, hash2, hashoracle2, qH2).
+expand ROM_hash_large_2(key, hashinput1, hashinput2, hashoutput, hash2l, hashoracle2l, qH2l).
+
+type hashinput3.
+expand ROM_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash3, hashoracle3, qH3).
+expand ROM_hash_large_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash3l, hashoracle3l, qH3l).
+
+type hashinput4.
+expand ROM_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash4, hashoracle4, qH4).
+expand ROM_hash_large_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash4l, hashoracle4l, qH4l).
+
+type hashinput5.
+expand ROM_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash5, hashoracle5, qH5).
+expand ROM_hash_large_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash5l, hashoracle5l, qH5l).
+
+proba Phash.
+expand CollisionResistant_hash(key, hashinput, hashoutput, hash6, hashoracle6, Phash).
+expand CollisionResistant_hash_2(key, hashinput1, hashinput2, hashoutput, hash7, hashoracle7, Phash).
+expand CollisionResistant_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash8, hashoracle8, Phash).
+expand CollisionResistant_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash9, hashoracle9, Phash).
+expand CollisionResistant_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash10, hashoracle10, Phash).
+
+expand HiddenKeyCollisionResistant_hash(key, hashinput, hashoutput, hash6h, hashoracle6h, qH6h, Phash).
+expand HiddenKeyCollisionResistant_hash_2(key, hashinput1, hashinput2, hashoutput, hash7h, hashoracle7h, qH7h, Phash).
+expand HiddenKeyCollisionResistant_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash8h, hashoracle8h, qH8h, Phash).
+expand HiddenKeyCollisionResistant_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash9h, hashoracle9h, qH9h, Phash).
+expand HiddenKeyCollisionResistant_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash10h, hashoracle10h, qH10h, Phash).
+
+type rhashinput [bounded].
+type rhashinput1 [bounded].
+type rhashinput2 [bounded].
+type rhashinput3 [bounded].
+type rhashinput4 [bounded].
+type rhashinput5 [bounded].
+
+expand SecondPreimageResistant_hash(key, rhashinput, hashoutput, sphash6, sphashoracle6, Phash).
+expand SecondPreimageResistant_hash_2(key, rhashinput1, rhashinput2, hashoutput, sphash7, sphashoracle7, Phash).
+expand SecondPreimageResistant_hash_3(key, rhashinput1, rhashinput2, rhashinput3, hashoutput, sphash8, sphashoracle8, Phash).
+expand SecondPreimageResistant_hash_4(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, sphash9, sphashoracle9, Phash).
+expand SecondPreimageResistant_hash_5(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, sphash10, sphashoracle10, Phash).
+
+expand HiddenKeySecondPreimageResistant_hash(key, rhashinput, hashoutput, sphash6h, sphashoracle6h, spqH6h, Phash).
+expand HiddenKeySecondPreimageResistant_hash_2(key, rhashinput1, rhashinput2, hashoutput, sphash7h, sphashoracle7h, spqH7h, Phash).
+expand HiddenKeySecondPreimageResistant_hash_3(key, rhashinput1, rhashinput2, rhashinput3, hashoutput, sphash8h, sphashoracle8h, spqH8h, Phash).
+expand HiddenKeySecondPreimageResistant_hash_4(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, sphash9h, sphashoracle9h, spqH9h, Phash).
+expand HiddenKeySecondPreimageResistant_hash_5(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, sphash10h, sphashoracle10h, spqH10h, Phash).
+
+expand FixedSecondPreimageResistant_hash(rhashinput, hashoutput, sphash6f, Phash).
+expand FixedSecondPreimageResistant_hash_2(rhashinput1, rhashinput2, hashoutput, sphash7f, Phash).
+expand FixedSecondPreimageResistant_hash_3(rhashinput1, rhashinput2, rhashinput3, hashoutput, sphash8f, Phash).
+expand FixedSecondPreimageResistant_hash_4(rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, sphash9f, Phash).
+expand FixedSecondPreimageResistant_hash_5(rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, sphash10f, Phash).
+
+expand PreimageResistant_hash(key, rhashinput, hashoutput, phash6, phashoracle6, Phash).
+expand PreimageResistant_hash_2(key, rhashinput1, rhashinput2, hashoutput, phash7, phashoracle7, Phash).
+expand PreimageResistant_hash_3(key, rhashinput1, rhashinput2, rhashinput3, hashoutput, phash8, phashoracle8, Phash).
+expand PreimageResistant_hash_4(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, phash9, phashoracle9, Phash).
+expand PreimageResistant_hash_5(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, phash10, phashoracle10, Phash).
+
+expand HiddenKeyPreimageResistant_hash(key, rhashinput, hashoutput, phash6h, phashoracle6h, pqH6h, Phash).
+expand HiddenKeyPreimageResistant_hash_2(key, rhashinput1, rhashinput2, hashoutput, phash7h, phashoracle7h, pqH7h, Phash).
+expand HiddenKeyPreimageResistant_hash_3(key, rhashinput1, rhashinput2, rhashinput3, hashoutput, phash8h, phashoracle8h, pqH8h, Phash).
+expand HiddenKeyPreimageResistant_hash_4(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, phash9h, phashoracle9h, pqH9h, Phash).
+expand HiddenKeyPreimageResistant_hash_5(key, rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, phash10h, phashoracle10h, pqH10h, Phash).
+
+expand FixedPreimageResistant_hash(rhashinput, hashoutput, phash6f, Phash).
+expand FixedPreimageResistant_hash_2(rhashinput1, rhashinput2, hashoutput, phash7f, Phash).
+expand FixedPreimageResistant_hash_3(rhashinput1, rhashinput2, rhashinput3, hashoutput, phash8f, Phash).
+expand FixedPreimageResistant_hash_4(rhashinput1, rhashinput2, rhashinput3, rhashinput4, hashoutput, phash9f, Phash).
+expand FixedPreimageResistant_hash_5(rhashinput1, rhashinput2, rhashinput3, rhashinput4, rhashinput5, hashoutput, phash10f, Phash).
+
+type G [bounded, large].
+type tZ [bounded, large].
+
+proba PCollKey1.
+proba PCollKey2.
+proba PCollKey3.
+proba PCollKey4.
+expand DH_proba_collision(G, tZ, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+proba PDist.
+expand DH_dist_random_group_element_vs_exponent(G, tZ, g, exp, exp', mult, PDist).
+
+proba pCDH.
+expand CDH(G, tZ, g, exp, exp', mult, pCDH).
+expand CDH_RSR(G, tZ, g, exp, exp', mult, pCDH).
+proba pDDH.
+expand DDH(G, tZ, g, exp, exp', mult, pDDH).
+proba pGDH.
+expand GDH(G, tZ, g, exp, exp', mult, pGDH).
+expand GDH_RSR(G, tZ, g, exp, exp', mult, pGDH).
+
+proba pSQCDH.
+expand square_CDH(G, tZ, g, exp, exp', mult, pCDH, pSQCDH).
+expand square_CDH_RSR(G, tZ, g, exp, exp', mult, pSQCDH).
+proba pSQDDH.
+expand square_DDH(G, tZ, g, exp, exp', mult, pDDH, pSQDDH).
+proba pSQGDH.
+expand square_GDH(G, tZ, g, exp, exp', mult, pGDH, pSQGDH).
+expand square_GDH_RSR(G, tZ, g, exp, exp', mult, pSQGDH).
+
+(*
+proba pPRF_ODH.
+proba pSQPRF_ODH.
+type prf_in.
+type prf_out [bounded].
+expand PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8, pPRF_ODH).
+expand PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9, pPRF_ODH).
+expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf10, pPRF_ODH, pSQPRF_ODH).
+expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf11, pPRF_ODH, pSQPRF_ODH).
+*)
+
+expand square_DH_proba_collision(G, tZ, g5, exp5, exp5', mult5, PCollKey1, PCollKey2, PCollKey3).
+expand DH_good_group(G, tZ, g6, exp6, exp6', mult6).
+type subG [bounded].
+(*
+expand DH_X25519(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero7, sub_zero).
+type tZnw [bounded].
+expand DH_X448(G, tZ, g8, exp8, mult8, subG, tZnw, ZnwtoZ, g_k2, exp_div_k2, exp_div_k2', pow_k2, subGtoG2, zero8, sub_zero2).
+expand DH_single_coord_ladder(G, tZ, g9, exp9, mult9, subG, tZnw, ZnwtoZ3, g_k3, exp_div_k3, exp_div_k3', pow_k3, subGtoG3, zero9, sub_zero3).
+
+type D [bounded]. 
+proba POW.
+expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen8, skgen8, f8, invf8, POW).
+expand OW_trapdoor_perm_all_args(seed, pkey, skey, D, pkgen8', pkgen8'', skgen8', f8', f8'', invf8', POW).
+
+expand OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen9, skgen9, f9, invf9, POW).
+expand OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen9', pkgen9'', skgen9', f9', f9'', invf9', POW).
+
+type Dow [bounded].
+type Dr [bounded].
+proba P_PD_OW.
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen10, skgen10, f10, invf10, concat10, P_PD_OW).
+expand set_PD_OW_trapdoor_perm_all_args(seed, pkey, skey, D, Dow, Dr, pkgen10', pkgen10'', skgen10', f10', f10'', invf10', concat10', P_PD_OW).
+*)
+
+type input.
+type output [bounded].
+proba Pprf.
+expand PRF(key, input, output, f, Pprf).
+type input1.
+type input2.
+type input3.
+type input4.
+type input5.
+expand PRF_2(key, input1, input2, output, f2, Pprf).
+expand PRF_3(key, input1, input2, input3, output, f3, Pprf).
+expand PRF_4(key, input1, input2, input3, input4, output, f4, Pprf).
+expand PRF_5(key, input1, input2, input3, input4, input5, output, f5, Pprf).
+
+expand PRF_large(key, input, output, fl, Pprf).
+expand PRF_large_2(key, input1, input2, output, fl2, Pprf).
+expand PRF_large_3(key, input1, input2, input3, output, fl3, Pprf).
+expand PRF_large_4(key, input1, input2, input3, input4, output, fl4, Pprf).
+expand PRF_large_5(key, input1, input2, input3, input4, input5, output, fl5, Pprf).
+(*
+expand Xor(D, xor, zero).
+*)
+type emkey [bounded].
+expand Auth_Enc_from_Enc_then_MAC(emkey, cleartext, ciphertext, enc12, dec12, injbot12, Z12, Penc, Pmac).
+
+expand AuthEnc_from_AEAD(key, cleartext, ciphertext, enc13, dec13, injbot13, Z13, Penc, Pencctxt).
+
+expand AuthEnc_from_AEAD_nonce(key, cleartext, ciphertext, enc14, dec14, injbot14, Z14, Penc, Pencctxt).
+
+expand AEAD_from_Enc_then_MAC(emkey, cleartext, ciphertext, add_data, enc15, dec15, injbot15, Z15, Penc, Pmac).
+
+expand AEAD_from_AEAD_nonce(key, cleartext, ciphertext, add_data, enc16, dec16, injbot16, Z16, Penc, Pencctxt).
+
+channel c1, c2.
+process in(c1, ()); out(c2, ())
+
+(* EXPECTED
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

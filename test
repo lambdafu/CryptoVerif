@@ -43,6 +43,29 @@ function analyze()
 	(echo -n "EXPECTED: "; grep user $TMP.expected ; echo -n "ACTUAL: "; grep user $TMP.res) | awk '/^EXPECTED:/ { expectedtime = substr($2, 0, length($2)-1); } /^ACTUAL:/ { actualtime = substr($2, 0, length($2)-1); } END { if (actualtime != "") { if (actualtime + 0 > expectedtime * 1.2 + 0.2) { print "Slower: old=" expectedtime " new=" actualtime}; if (actualtime + 0 < expectedtime * 0.8 - 0.2) { print "Faster: old=" expectedtime " new=" actualtime; } } }'
 }
 
+function analyzepv()
+{
+	echo -n PROTOCOL $1 " "
+	$PROG $HOME/proverif/proverif/proverif $2 $3 > $TMP.out 2>&1 
+	echo PROTOCOL $1 >> $4
+	cat $TMP.out >> $4
+	egrep \(PROTOCOL\|xtime\|Error\|user\) $TMP.out > $TMP.res 
+	awk '/EXPECTED/, /END/ { print $0; }' $3 | grep -v EXPECTED | grep -v END > $TMP.expected
+	grep -v user $TMP.expected > $TMP.expectedres
+	grep -v user $TMP.res > $TMP.actualres
+	if diff -q -b $TMP.expectedres $TMP.actualres >/dev/null
+	then 
+	    echo OK
+	else
+	    echo
+	    echo RESULTS DIFFER! Expected:
+	    cat  $TMP.expectedres
+	    echo Actual:
+	    cat $TMP.actualres
+	fi
+	(echo -n "EXPECTED: "; grep user $TMP.expected ; echo -n "ACTUAL: "; grep user $TMP.res) | awk '/^EXPECTED:/ { expectedtime = substr($2, 0, length($2)-1); } /^ACTUAL:/ { actualtime = substr($2, 0, length($2)-1); } END { if (actualtime != "") { if (actualtime + 0 > expectedtime * 1.2 + 0.2) { print "Slower: old=" expectedtime " new=" actualtime}; if (actualtime + 0 < expectedtime * 0.8 - 0.2) { print "Faster: old=" expectedtime " new=" actualtime; } } }'
+}
+
 mkdir -p tests
 
 for k in key_AK key_SK
@@ -59,6 +82,24 @@ do
     m4 -DONEKEY=$key implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key-$key.ocv
 done
 m4 implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key.ocv
+
+echo
+echo PROVERIF
+echo
+output=pv`date '+%Y.%m.%d-%H_%M_%S'`
+(
+for i in examplesnd/proverif/*.pv
+do
+    if [ -f $i ]
+    then
+	case $i in
+	    *.m4.cv) ;;
+	    *)       analyzepv $i "-lib cryptoverif.pvl" $i tests/$output;;
+	esac
+    fi
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 
 
 echo
