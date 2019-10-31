@@ -519,11 +519,13 @@ let pre_hash_prefix =
  *)\n\n"
 
 let pre_hash_macro() = 
-  "def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
+  "def PreimageResistant_hash_all_args_%(key, $input%$, $, output, f, f', f_oracle, Phash) {
 
 fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else
-      "param Nx, Neq.
+      "fun f'(key, $input%$, $):output.
+
+param Nx, Neq.
 
 equiv(preimage_res(f))
          k <-R key; 
@@ -536,13 +538,17 @@ equiv(preimage_res(f))
          k <-R key; 
           (Ok() := return(k) |
            foreach i <= Nx do $x% <-R input%; $$ 
-              (Oim() := return(f(k, $x%$, $)) | 
+              (Oim() := return(f'(k, $x%$, $)) | 
                foreach i <= Neq do Oeq($y%: input%$, $) := 
                         let r = $(x% = y%)$ && $ in 
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
                $Ox%() := let comp%: bool = true in return(x%)$ | $)).\n\n")
     ^(key_ret_oracle())
-    ^ "}\n\n"
+    ^ "}
+
+def PreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
+  expand PreimageResistant_hash_all_args_%(key, $input%$, $, output, f, f', f_oracle, Phash).
+}\n\n"
 
 let pre_hash_suffix =
 "def PreimageResistant_hash(key, input, output, f, f_oracle, Phash) {
@@ -562,11 +568,13 @@ let hidden_key_pre_hash_prefix =
  *)\n\n"
 
 let hidden_key_pre_hash_macro() =
-  "def HiddenKeyPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+  "def HiddenKeyPreimageResistant_hash_all_args_%(key, $input%$, $, output, f, f', f_oracle, qH, Phash) {
 
 fun f(key, $input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else
-      "param N, Nx, Neq.
+      "fun f'(key, $input%$, $):output.
+
+param N, Nx, Neq.
 
 equiv(preimage_res(f))
          k <-R key; 
@@ -579,13 +587,17 @@ equiv(preimage_res(f))
          k <-R key; 
           (foreach i <= N do O($z%:input%$, $) := return(f(k, $z%$, $)) |
            foreach i <= Nx do $x% <-R input%; $$ 
-              (Oim() := return(f(k, $x%$, $)) | 
+              (Oim() := return(f'(k, $x%$, $)) | 
                foreach i <= Neq do Oeq($y%: input%$, $) := 
                         let r = $(x% = y%)$ && $ in 
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
                $Ox%() := let comp%: bool = true in return(x%)$ | $)).\n\n")
     ^(call_f_oracle())
-    ^ "}\n\n"
+    ^ "}
+
+def HiddenKeyPreimageResistant_hash_%(key, $input%$, $, output, f, f_oracle, qH, Phash) {
+  expand HiddenKeyPreimageResistant_hash_all_args_%(key, $input%$, $, output, f, f', f_oracle, qH, Phash).
+}\n\n"
 	
 let hidden_key_pre_hash_suffix =
 "def HiddenKeyPreimageResistant_hash(key, input, output, f, f_oracle, qH, Phash) {
@@ -605,23 +617,29 @@ let fixed_pre_hash_prefix =
  *)\n\n"
 
 let fixed_pre_hash_macro() =
-"def FixedPreimageResistant_hash_%($input%$, $, output, f, Phash) {
+"def FixedPreimageResistant_hash_all_args_%($input%$, $, output, f, f', Phash) {
 
 fun f($input%$, $):output.\n\n"
     ^(if (!front_end = ProVerif) then "" else 
-    "param Neq.
+    "fun f'($input%$, $):output.
+
+param Neq.
 
 equiv(preimage_res(f))
   $x% <-R input%; $$(Oim() := return(f($x%$, $)) | 
                       foreach i <= Neq do Oeq($y%: input%$, $) := return($(x% = y%)$ && $) |
                       $Ox%() := return(x%)$ | $)
   <=(Phash(time))=> 
-  $x% <-R input%; $$(Oim() := return(f($x%$, $)) | 
+  $x% <-R input%; $$(Oim() := return(f'($x%$, $)) | 
                       foreach i <= Neq do Oeq($y%: input%$, $) := 
                         let r = $(x% = y%)$ && $ in 
                         find $suchthat defined(comp%) then return(r)$ orfind $ else return(false) |
 		      $Ox%() := let comp%: bool = true in return(x%)$ | $).\n\n")
-      ^ "}\n\n"
+      ^ "}
+
+def FixedPreimageResistant_hash_%($input%$, $, output, f, Phash) {
+  expand FixedPreimageResistant_hash_all_args_%($input%$, $, output, f, f', Phash).
+}\n\n"
 
 let fixed_pre_hash_suffix =
 "def FixedPreimageResistant_hash(input, output, f, Phash) {
