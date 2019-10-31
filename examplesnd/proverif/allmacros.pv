@@ -188,7 +188,6 @@ proba pSQGDH.
 expand square_GDH(G, tZ, g, exp, exp', mult, pGDH, pSQGDH).
 expand square_GDH_RSR(G, tZ, g, exp, exp', mult, pSQGDH).
 
-(*
 proba pPRF_ODH.
 proba pSQPRF_ODH.
 type prf_in.
@@ -197,17 +196,16 @@ expand PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8, pPRF_ODH).
 expand PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9, pPRF_ODH).
 expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf10, pPRF_ODH, pSQPRF_ODH).
 expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf11, pPRF_ODH, pSQPRF_ODH).
-*)
 
 expand square_DH_proba_collision(G, tZ, g5, exp5, exp5', mult5, PCollKey1, PCollKey2, PCollKey3).
 expand DH_good_group(G, tZ, g6, exp6, exp6', mult6).
 type subG [bounded].
-(*
+
 expand DH_X25519(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero7, sub_zero).
 type tZnw [bounded].
 expand DH_X448(G, tZ, g8, exp8, mult8, subG, tZnw, ZnwtoZ, g_k2, exp_div_k2, exp_div_k2', pow_k2, subGtoG2, zero8, sub_zero2).
 expand DH_single_coord_ladder(G, tZ, g9, exp9, mult9, subG, tZnw, ZnwtoZ3, g_k3, exp_div_k3, exp_div_k3', pow_k3, subGtoG3, zero9, sub_zero3).
-
+(*
 type D [bounded]. 
 proba POW.
 expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen8, skgen8, f8, invf8, POW).
