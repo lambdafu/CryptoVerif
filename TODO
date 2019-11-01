@@ -29,15 +29,33 @@ for curve25519/448/single_coord_ladder
 
 3) extend "move array" such that the equality
 test is replaced with any function f(X,z) such that when
-X is a fresh random number, f(X,z) = g(z) up to small proba.
+X is a fresh random number (i.e. z is independent of X), f(X,z) = g(z) up to small proba p.
+The equivalence is then:
+
+equiv(move_array(T))
+      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
+                      	        foreach ieq <= Neq do Oeq(z:T') := return(f(X,z))
+<=(#Oeq * p)=> [manual]
+      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
+              	       foreach ieq <= Neq do Oeq(z:T') := find[unique] j<=NX suchthat defined(Y[j]) then return(f(Y[j],z)) else return(g(z))).
+
+z:T' may in fact be several arguments.
+The functions f,g can be defined by terms containing several function applications.
+We can have several Oeq oracles, each with functions f/g and associated probability p.
+
 This extension could be applied directly to the ROM as well.
 (useful for AuthA, OAEP CCA2, ... see below these examples)
 
 As a first step, that could easily be done by allowing the
 user to specify the desired functions f/g as an additional
-argument to "move array", checking that they satisfy the assumption,
+argument to "move array", checking that they satisfy the
+assumption, which yields the probability p,
 generating the corresponding equivalence as string,
 and parsing it.
+
+For ROM, PRF, ..., I could extend cryptogen so that
+the user can specify functions used for collisions
+with their associated probability.
 
 4) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
