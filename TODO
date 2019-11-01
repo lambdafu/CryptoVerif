@@ -47,15 +47,21 @@ This extension could be applied directly to the ROM as well.
 (useful for AuthA, OAEP CCA2, ... see below these examples)
 
 As a first step, that could easily be done by allowing the
-user to specify the desired functions f/g as an additional
+user to specify the desired function f as an additional
 argument to "move array", checking that they satisfy the
-assumption, which yields the probability p,
+assumption, which yields the function g and the probability p
+by simplifying f(X,z) with X random and z indep of X,
 generating the corresponding equivalence as string,
 and parsing it.
 
 For ROM, PRF, ..., I could extend cryptogen so that
 the user can specify functions used for collisions
 with their associated probability.
+A possible syntax:
+z:T'; new X: T; f(X,z) <=(p)=> g(z)
+generalized to several z and terms instead of f/g.
+(Putting " new X: T" after "z:T'" suggests that
+z' is independent of X.)
 
 4) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
