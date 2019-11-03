@@ -17,7 +17,19 @@ Document the "cryptogen" program
 
 Look at Tamarin paper to improve proverif DH model
 for curve25519/448/single_coord_ladder
-   
+DH_good_group(high_t, Z, g_high, exp_high, exp_high', mult):
+  fun exp_high(high_t,Z):high_t.
+  const g_high.
+  equation exp_high(exp_high(g_high,x),y) = exp_high(exp_high(g_high,y),x).
+const id_low: low_t.
+const id_high: high_t.
+fun elem(low_t,high_t):G.
+g = elem(id_low,g_high).
+zero = elem(id_low,id_high).
+reduc changelow(elem(x,y),x') = elem(x',y).
+reduc exp(elem(x,id_high),n) = elem(id_low,id_high)
+otherwise exp(elem(x,y),n) = elem(id_low,exp_high(y,n))
+
 2) allow "query equiv ..." to prove an equivalence
    presented exactly as CryptoVerif accepts assumptions on
    cryptographic primitives.
