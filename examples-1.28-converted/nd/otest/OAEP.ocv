@@ -1,5 +1,44 @@
 (* OAEP scheme, proof of CCA2 security *)
 
+proof {
+insert before "let concatm" "if second(mz) = zero then";
+crypto rom(G);
+show_game occ;
+insert_event bad1 before "return{[0-9]*}({[0-9]*}r_5";
+insert_event bad3 161;
+crypto remove_xor(xorDow) r_5;
+success; (* secrecy of b1 *)
+remove_assign binder mz;
+crypto move_array_xorDow r_6;
+insert 144 "rx <- cst_Dow";
+merge_branches;
+crypto rom(H);
+replace 185 "xorDr(t, r_3)";
+insert_event bad2 before "return{[0-9]*}({[0-9]*}r_9";
+crypto remove_xor(xorDr) r_9;
+remove_assign binder r'_3;
+remove_assign binder r'_1;
+set useKnownEqualitiesInCryptoTransform = false;
+move array r_10;
+merge_arrays r_8 Y_2;
+set uniqueBranchReorganize = false;
+insert 164 "find u30 = ri_12 <= qD suchthat defined(r_10[ri_12], s'[ri_12]) && (s' = s'[ri_12]) then orfind u32 = ri_13 <= qH suchthat defined(r_12[ri_13], r_8[ri_13], x1_1[ri_13]) && (s' = x1_1[ri_13]) then";
+simplify;
+insert 180 "ry <- cst_Dr";
+insert 172 "ry <- cst_Dr";
+merge_branches;
+merge_branches;
+insert 93 "find u31 = ri_13 <= qH, u1 = ri_1 <= qG suchthat defined(r_8[ri_13], x1_1[ri_13], r_4[ri_1], x1[ri_1]) && c = f(pk, concat(x1_1[ri_13], xorDr(r_8[ri_13], x1[ri_1]))) then";
+simplify;
+remove_assign useless;
+crypto pd_ow(f) r_2 r_7 r_11;
+success
+}
+
+
+
+
+
 (* set interactiveMode = true. *)
 
 (*
@@ -113,7 +152,7 @@ we insert events as mentioned below:
              )
            )
        )
-
+show
 we can then apply
 crypto remove_xor(xorDr) "@10_r_135";
 crypto remove_xor(xorDow) "@9_r_153";
@@ -146,26 +185,41 @@ expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, in
 
 type hashkey [fixed].
 
-expand ROM_hash(hashkey, Dr, Dow, G).
-param qG [noninteractive].
+expand ROM_hash(hashkey, Dr, Dow, G, Goracle, qG).
 
-
-expand ROM_hash(hashkey, Dow, Dr, H).
-param qH [noninteractive].
-
+expand ROM_hash(hashkey, Dow, Dr, H, Horacle, qH).
 
 (* concatenation *)
-type Dm.
-type Dz [large].
+type Dm [fixed].
+type Dz [fixed,large].
 
 fun concatm(Dm,Dz):Dow [data].
 const zero: Dz.
+
+fun second(Dow):Dz.
+equation forall x:Dm, y:Dz; second(concatm(x,y)) = y.
 
 (* Xor *)
 
 expand Xor(Dow, xorDow, zeroDow).
 expand Xor(Dr, xorDr, zeroDr).
 
+param NX, Neq.
+
+equiv(move_array_xorDow)
+      X <-R Dow; (foreach iX <= NX do OX() := return(X) |
+      	          foreach ieq <= Neq do Oeq(X':Dow) := return(second(xorDow(X', X)) = zero))
+<=(Neq * Pcoll1rand(Dz))=> [manual]
+      foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R Dow; return(Y) |
+      foreach ieq <= Neq do Oeq(X':Dow) := find[unique] j<=NX suchthat defined(Y[j]) then return(second(xorDow(X', Y[j])) = zero) else return(false).
+(*
+equiv(move_array_xorDr)
+      X <-R Dr; (foreach iX <= NX do OX() := return(X) |
+      	          foreach ieq <= Neq do Oeq(X':Dr,X'':Dr) := return(second(xorDr(X', X)) = zero))
+<=(Neq * Pcoll1rand(Dz))=> [manual]
+      foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R Dr; return(Y) |
+      foreach ieq <= Neq do Oeq(X':Dr) := find[unique] j<=NX suchthat defined(Y[j]) then return(second(xorDr(X', Y[j])) = zero) else return(false).
+*)
 (* Implementing a test as a function.
    Useful to avoid expanding if, which is necessary for this proof. *)
 
@@ -186,25 +240,19 @@ process
 	Ogen() :=
 hkh <-R hashkey;
 hkg <-R hashkey;
-r_4 <-R seed;
-pk: pkey <- pkgen(r_4);
-sk: skey <- skgen(r_4);
+r <-R seed;
+pk <- pkgen(r);
+sk <- skgen(r);
 return(pk);
-((
-  foreach iG <= qG do
-  OG(x_6: Dr) :=
-  return(G(hkg, x_6))
-) | (
-  foreach iH <= qH do
-  OH(x_7: Dow) :=
-  return(H(hkh, x_7))
-) | (
+( run Goracle(hkg)
+| run Horacle(hkh)
+| (
   OT(m1: Dm, m2: Dm) :=
   b1 <-R bool;
-  menc: Dm <- test(b1, m1, m2);
-  r_5 <-R Dr;
-  s: Dow <- xorDow(concatm(menc, zero), G(hkg, r_5));
-  t: Dr <- xorDr(r_5, H(hkh, s));
+  menc <- test(b1, m1, m2);
+  r <-R Dr;
+  s <- xorDow(concatm(menc, zero), G(hkg, r));
+  t <- xorDr(r, H(hkh, s));
   cT: D <- f(pk, concat(s, t));
   return(cT)
 ) | (
@@ -213,20 +261,17 @@ return(pk);
   if defined(cT) && (c = cT) then
     yield
   else
-    let concat(s_1: Dow, t_1: Dr) = invf(sk, c) in
-    r_6: Dr <- xorDr(t_1, H(hkh, s_1));
-    mz: Dow <- xorDow(s_1, G(hkg, r_6));
-    let concatm(m: Dm, =zero) = mz in
+    let concat(s': Dow, t': Dr) = invf(sk, c) in
+    r' <- xorDr(t', H(hkh, s'));
+    mz <- xorDow(s', G(hkg, r'));
+    let concatm(m, =zero) = mz in
     return(m)
 ))
 
 
 
 
-(* DESIRED
+(* EXPECTED
 All queries proved.
-END
-EXPECTED
-RESULT Could not prove one-session secrecy of b1.
 0.200s (user 0.196s + system 0.004s), max rss 50800K
 END *)
