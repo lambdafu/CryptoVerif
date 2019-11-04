@@ -1,0 +1,20 @@
+type key [fixed].
+type output [fixed].
+
+proba Phash.
+
+expand CollisionResistant_hash(key, bitstring, output, f, f_oracle, Phash).
+
+event bad.
+query event(bad) ==> false.
+
+channel c.
+
+process
+	in(c, ()); new hk: key; out(c, ());
+	(f_oracle(hk) | in(c, (x: bitstring, y: bitstring)); if (f(hk, x) = f(hk, y)) && (x <> y) then event bad)
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

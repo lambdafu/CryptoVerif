@@ -1,7 +1,6 @@
 TO DO next
 
-1) Test hidden_key_collision_resistance,
-second_preimage_resistance, hidden_key_second_preimage_resistance,
+1) Test second_preimage_resistance, hidden_key_second_preimage_resistance,
    fixed_hash_second_preimage_resistance
 preimage_resistance, hidden_key_preimage_resistance,
    fixed_hash_preimage_resistance
