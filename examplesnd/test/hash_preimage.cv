@@ -1,0 +1,25 @@
+type key [fixed].
+type input [fixed,large].
+type output [fixed].
+
+proba Phash.
+
+expand PreimageResistant_hash(key, input, output, f, f_oracle, Phash).
+
+event done.
+event sends.
+query event(done) ==> event(sends).
+
+channel c.
+
+process
+	in(c, ()); new hk: key; out(c, ());
+	(f_oracle(hk) |
+	in(c, ()); new s: input; out(c, f(hk, s));
+	((in(c, x: input); if x = s then event done)
+	|(in(c, ()); event sends; out(c, s))))
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
