@@ -1007,7 +1007,7 @@ X is a fresh random number, f(X,z) = g(z) up to small proba.
 This extension could be applied directly to the ROM.
 This function cannot currently be written directly in the LHS
 of an equivalence because it uses pattern matching.
-See examples-1.28-converted/nd/otest/OAEP.ocv
+See examples/obasic/OAEP.ocv
   * SK3 V. Shoup and A. Rubin. Session key distribution using smart
 cards. In Advances in Cryptology, EUROCRYPT, volume 1070/1996 of LNCS,
 pages 321–331. Springer, 1996

@@ -24,6 +24,9 @@ Version
   and the setting mergeArrays into autoMergeArrays.
 - Added several variants of the PRF-ODH assumption to the library
   of cryptographic primitives.
+- Added several assumptions on hash functions to the library
+  of cryptographic primitives: pre-image resistance, second-preimage
+  resistance.
 - Added command "success simplify".
 - Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".

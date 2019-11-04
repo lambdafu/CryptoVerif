@@ -1,4 +1,5 @@
-(* OAEP scheme, proof of CPA security *)
+(* OAEP scheme, proof of CPA security.
+   See OAEP.ocv for the proof of CCA2 security. *)
 
 proof {
       crypto rom(H);

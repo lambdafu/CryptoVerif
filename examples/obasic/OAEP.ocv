@@ -206,20 +206,16 @@ expand Xor(Dr, xorDr, zeroDr).
 
 param NX, Neq.
 
+(* TODO: Generalize the command "move array" to perform the following
+   transformation *)
+
 equiv(move_array_xorDow)
       X <-R Dow; (foreach iX <= NX do OX() := return(X) |
       	          foreach ieq <= Neq do Oeq(X':Dow) := return(second(xorDow(X', X)) = zero))
 <=(Neq * Pcoll1rand(Dz))=> [manual]
       foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R Dow; return(Y) |
       foreach ieq <= Neq do Oeq(X':Dow) := find[unique] j<=NX suchthat defined(Y[j]) then return(second(xorDow(X', Y[j])) = zero) else return(false).
-(*
-equiv(move_array_xorDr)
-      X <-R Dr; (foreach iX <= NX do OX() := return(X) |
-      	          foreach ieq <= Neq do Oeq(X':Dr,X'':Dr) := return(second(xorDr(X', X)) = zero))
-<=(Neq * Pcoll1rand(Dz))=> [manual]
-      foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R Dr; return(Y) |
-      foreach ieq <= Neq do Oeq(X':Dr) := find[unique] j<=NX suchthat defined(Y[j]) then return(second(xorDr(X', Y[j])) = zero) else return(false).
-*)
+
 (* Implementing a test as a function.
    Useful to avoid expanding if, which is necessary for this proof. *)
 
@@ -231,13 +227,8 @@ equation forall x:Dm,y:Dm; test(false,x,y) = y.
 
 query secret b1 [cv_onesession].
 
-
-
-
-	
-
 process 
-	Ogen() :=
+Ogen() :=
 hkh <-R hashkey;
 hkg <-R hashkey;
 r <-R seed;
@@ -267,9 +258,6 @@ return(pk);
     let concatm(m, =zero) = mz in
     return(m)
 ))
-
-
-
 
 (* EXPECTED
 All queries proved.
