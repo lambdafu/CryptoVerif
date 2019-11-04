@@ -829,9 +829,15 @@ type occ_searcher_state_t =
   | Found of string (* [Found s] means that we have found the desired match, it is [s] *)
 
 exception Stop (* raised when we do not need to look at the rest of the game *)
-	
-let get_occ_of_line p ext regexp_str occ_loc n is_max =
-  let regexp = Str.regexp regexp_str in
+
+let extract_regexp (s,ext) =
+  try
+    Str.regexp s
+  with Failure err ->
+    raise(Error("Incorrect regular expression: " ^ err, ext))
+    
+let get_occ_of_line p ((regexp_str, ext) as regexp_id) occ_loc n is_max =
+  let regexp = extract_regexp regexp_id in
   let state = ref (Looking n) in
   let buffer = Buffer.create 100 in
   let check_no_further_match is_max start_in_line line =
@@ -936,18 +942,18 @@ open Ptree
 let interpret_occ state occ_exp =
   let p = Terms.get_process state.game in
   match occ_exp with
-  | POccBefore (regexp, ext) ->
-      get_occ_of_line p ext regexp Before 1 true
-  | POccBeforeNth(n, (regexp, ext)) ->
-      get_occ_of_line p ext regexp Before n false
-  | POccAfter(regexp, ext) ->
-      get_occ_of_line p ext regexp After 1 true
-  | POccAfterNth(n, (regexp, ext)) ->
-      get_occ_of_line p ext regexp After n false
-  | POccAt(n_in_pat, (regexp, ext)) ->
-      get_occ_of_line p ext regexp (At n_in_pat) 1 true
-  | POccAtNth(n, n_in_pat, (regexp, ext))  ->
-      get_occ_of_line p ext regexp (At n_in_pat) n false
+  | POccBefore regexp_id ->
+      get_occ_of_line p regexp_id Before 1 true
+  | POccBeforeNth(n, regexp_id) ->
+      get_occ_of_line p regexp_id Before n false
+  | POccAfter regexp_id ->
+      get_occ_of_line p regexp_id After 1 true
+  | POccAfterNth(n, regexp_id) ->
+      get_occ_of_line p regexp_id After n false
+  | POccAt(n_in_pat, regexp_id) ->
+      get_occ_of_line p regexp_id (At n_in_pat) 1 true
+  | POccAtNth(n, n_in_pat, regexp_id)  ->
+      get_occ_of_line p regexp_id (At n_in_pat) n false
   | POccInt(occ) ->
       occ
 
@@ -1063,8 +1069,8 @@ let find_binders game =
   find_binders_rec accu p;
   accu 
 
-let find_binder_list_one_id binders (s,ext) =
-  let regexp = Str.regexp s in
+let find_binder_list_one_id binders ((s,ext) as regexp_id) =
+  let regexp = extract_regexp regexp_id in
   let found_ids =
     Hashtbl.fold (fun id b accu ->
       if (Str.string_match regexp id 0) && (Str.matched_string id = id) then
