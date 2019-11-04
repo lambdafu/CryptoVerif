@@ -1,5 +1,10 @@
 TO DO next
 
+0) Fix internal error in
+examplesnd/otest/internal_error_cryptotransf_useknownequalities.ocv
+
+Explain examples/obasic/OAEP.ocv
+
 1) extend "move array" such that the equality
 test is replaced with any function f(X,z) such that when
 X is a fresh random number (i.e. z is independent of X), f(X,z) = g(z) up to small proba p.
@@ -528,6 +533,67 @@ by delaying the definition of the variable in question
 as long as we can.
 - we will not reorder conditions (if, find, let with
 non-variable patterns), events, input, output, ...
+
+The above change would in particular allow to merge
+
+find ... then
+   XX
+else
+   x <- cst_T;
+   XX
+
+where x is used only in array accesses of conditions
+of find that get removed during the merge
+(see e.g. examples/obasic/OAEP.ocv).
+Currently, I need to manually add "x' <- cst_T" for some
+fresh x' to the first branch before merging.
+
+Another merge improvement useful for examples/obasic/OAEP.ocv:
+
+find ...C1... then
+    XX
+else
+  find ...C2... then
+     XX
+  else
+     XX
+
+gets merged in two steps. First
+
+find ...C1... then
+    XX
+else
+    XX
+
+then XX. It could in fact be merged in one step.
+This is important because
+
+find ...C1 (uses x)... then
+    XX
+else
+  find ...C2... then
+     XX
+  else
+     x <- cst_T;
+     XX
+
+does not get merged: the usage of x in C1 prevents the first
+merge step above. It could be merged if CryptoVerif was able to
+do it in one step. (Currently, I need to manually rewrite into
+
+find ...C1 (uses x)... then
+    XX
+orfind ...C2... then
+    XX
+else
+    x <- cst_T;
+    XX
+
+by inserting
+  find ...C1 (uses x)... then
+  orfind ...C2... then
+and simplifying, then add x' <- cst_T to the first two branches,
+then merge.)
 
 10) Add more comments, e.g. in terms.mli
 
