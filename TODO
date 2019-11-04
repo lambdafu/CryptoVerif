@@ -1,42 +1,6 @@
 TO DO next
 
-1) Test second_preimage_resistance, hidden_key_second_preimage_resistance,
-   fixed_hash_second_preimage_resistance
-
-Specify IND$-CPA
-
-Document rom_partial / prf_partial
-Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
-variable position of the DH argument, equiv prf_odh_partial(prf)
-with variable number of prf oracles)
-
-Document the "cryptogen" program
-
-Look at Tamarin paper to improve proverif DH model
-for curve25519/448/single_coord_ladder
-DH_good_group(high_t, Z, g_high, exp_high, exp_high', mult):
-  fun exp_high(high_t,Z):high_t.
-  const g_high.
-  equation exp_high(exp_high(g_high,x),y) = exp_high(exp_high(g_high,y),x).
-const id_low: low_t.
-const id_high: high_t.
-fun elem(low_t,high_t):G.
-g = elem(id_low,g_high).
-zero = elem(id_low,id_high).
-reduc changelow(elem(x,y),x') = elem(x',y).
-reduc exp(elem(x,id_high),n) = elem(id_low,id_high)
-otherwise exp(elem(x,y),n) = elem(id_low,exp_high(y,n))
-
-2) allow "query equiv ..." to prove an equivalence
-   presented exactly as CryptoVerif accepts assumptions on
-   cryptographic primitives.
-   Warning: be careful with [computational] equivalences:
-   proving them requires triggering an "event bad" when the
-   result of the two sides differs, and showing that event bad has
-   a negligible probability of happening.
-   [unchanged] restrictions are shared between both sides.
-
-3) extend "move array" such that the equality
+1) extend "move array" such that the equality
 test is replaced with any function f(X,z) such that when
 X is a fresh random number (i.e. z is independent of X), f(X,z) = g(z) up to small proba p.
 The equivalence is then:
@@ -72,11 +36,44 @@ generalized to several z and terms instead of f/g.
 (Putting " new X: T" after "z:T'" suggests that
 z' is independent of X.)
 
-4) Extend depanal2 and simplify so that they apply to
+Specify IND$-CPA
+
+Document rom_partial / prf_partial
+Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
+variable position of the DH argument, equiv prf_odh_partial(prf)
+with variable number of prf oracles)
+
+Document the "cryptogen" program
+
+Look at Tamarin paper to improve proverif DH model
+for curve25519/448/single_coord_ladder
+DH_good_group(high_t, Z, g_high, exp_high, exp_high', mult):
+  fun exp_high(high_t,Z):high_t.
+  const g_high.
+  equation exp_high(exp_high(g_high,x),y) = exp_high(exp_high(g_high,y),x).
+const id_low: low_t.
+const id_high: high_t.
+fun elem(low_t,high_t):G.
+g = elem(id_low,g_high).
+zero = elem(id_low,id_high).
+reduc changelow(elem(x,y),x') = elem(x',y).
+reduc exp(elem(x,id_high),n) = elem(id_low,id_high)
+otherwise exp(elem(x,y),n) = elem(id_low,exp_high(y,n))
+
+2) allow "query equiv ..." to prove an equivalence
+   presented exactly as CryptoVerif accepts assumptions on
+   cryptographic primitives.
+   Warning: be careful with [computational] equivalences:
+   proving them requires triggering an "event bad" when the
+   result of the two sides differs, and showing that event bad has
+   a negligible probability of happening.
+   [unchanged] restrictions are shared between both sides.
+
+3) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
-5) Implement the "choice" construct in CryptoVerif
+4) Implement the "choice" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
-6) Guess the tested session (see point 4 in HIGH PRIORITY)
+5) Guess the tested session (see point 4 in HIGH PRIORITY)
 
 HIGH PRIORITY
 

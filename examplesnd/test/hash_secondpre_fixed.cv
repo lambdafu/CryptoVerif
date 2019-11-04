@@ -1,0 +1,19 @@
+type input [fixed].
+type output [fixed].
+
+proba Phash.
+
+expand FixedSecondPreimageResistant_hash(input, output, f, Phash).
+
+event bad.
+query event(bad) ==> false.
+
+channel c.
+
+process
+	in(c, ()); new x: input; out(c, x); in(c, (y: input)); if (f(x) = f(y)) && (x <> y) then event bad
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
