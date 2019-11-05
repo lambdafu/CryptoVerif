@@ -41,10 +41,11 @@ z' is independent of X.)
 vars:types; new X:T; M1 <=(p)=> M2
 check
 - all elements of vars are pairwise distinct,
-   different from X, different from predefined identifiers (true, false, not, bottom, bitstring, bitstringbot, bool). They are distinct from
-   function symbols in M1,M2,p and types in [types].
-   Function symbols in M1,M2,p are distinct from types in [types] and predefined types (bitstring, bitstringbot, bool).
+   different from X, different from predefined identifiers (true, false, not, bottom, bitstring, bitstringbot, bool). They are distinct from types in [types].
    Types in [types] are different from predefined functions = true, false, not, bottom.
+   Identifiers in M1,M2,p  are distinct from types in [types] and predefined types (bitstring, bitstringbot, bool). Those in vars are considered as variables, the others as constants (fcts of arity 0).
+   Function symbols in M1,M2,p are distinct from vars and from types in [types] and predefined types (bitstring, bitstringbot, bool).
+   Functions are always used with the same arity. (Types are too hard to check.)
 - M1,M2 contain only PIdent, PFunApp, PEqual, PDiff, POr, PAnd
 - all vars and X occur in M1, and there are no other variables in M1
 - all variables of M2 are in vars.
