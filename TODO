@@ -38,6 +38,25 @@ generalized to several z and terms instead of f/g.
 (Putting " new X: T" after "z:T'" suggests that
 z' is independent of X.)
 
+vars:types; new X:T; M1 <=(p)=> M2
+check
+- all elements of vars are pairwise distinct,
+   different from X, different from predefined identifiers (true, false, not, bottom, bitstring, bitstringbot, bool). They are distinct from
+   function symbols in M1,M2,p and types in [types].
+   Function symbols in M1,M2,p are distinct from types in [types] and predefined types (bitstring, bitstringbot, bool).
+   Types in [types] are different from predefined functions = true, false, not, bottom.
+- M1,M2 contain only PIdent, PFunApp, PEqual, PDiff, POr, PAnd
+- all vars and X occur in M1, and there are no other variables in M1
+- all variables of M2 are in vars.
+- T is the output type of the hash function.
+- all variables in p are in vars.
+Rename all variables in vars and X to v_<oldname>
+all non-predefined functions in M1, M2, p to fun_<oldname>
+(predefined functions = true, false, not, bottom)
+all non-predefined types in types to t_<oldname>
+(predefined types = bitstring, bitstringbot, bool)
+Add all the renamed types and function symbols to the arguments of the macro.
+   
 Specify IND$-CPA
 
 Document rom_partial / prf_partial
