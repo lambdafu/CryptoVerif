@@ -1,7 +1,5 @@
 TO DO next
 
-0) Explain examples/obasic/OAEP.ocv
-
 1) extend "move array" such that the equality
 test is replaced with any function f(X,z) such that when
 X is a fresh random number (i.e. z is independent of X), f(X,z) = g(z) up to small proba p.
