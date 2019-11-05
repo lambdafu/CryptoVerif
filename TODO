@@ -21,7 +21,9 @@ This extension could be applied directly to the ROM as well.
 
 As a first step, that could easily be done by allowing the
 user to specify the desired function f as an additional
-argument to "move array", checking that they satisfy the
+argument to "move array" (actually, the user would write
+z:T'; new X:T; f(X,z), generalized to several z and a term 
+instead of f), checking that they satisfy the
 assumption, which yields the function g and the probability p
 by simplifying f(X,z) with X random and z indep of X,
 generating the corresponding equivalence as string,

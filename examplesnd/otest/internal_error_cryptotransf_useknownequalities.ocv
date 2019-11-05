@@ -247,10 +247,7 @@ return(pk);
 
 
 
-(* DESIRED
-All queries proved.
-END
-EXPECTED
-RESULT Could not prove one-session secrecy of b1.
-0.200s (user 0.196s + system 0.004s), max rss 50800K
+(* EXPECTED
+Error: Transformation "move array" failed
+xtime: error in child process (status : 512)
 END *)

@@ -67,8 +67,6 @@ crypto remove_xor(xorDr) r_9;
    r_10[..] = xorDr(..,..), useful for [move array r_10]. *)
 remove_assign binder r'_3;
 remove_assign binder r'_1;
-  (* This setting avoids useless replacements of variables with their values *)
-set useKnownEqualitiesInCryptoTransform = false;
 move array r_10;
 (* The previous transformation makes a variable Y_2 appear, which plays
    the same role as r_8, we merge them. *)
@@ -87,7 +85,6 @@ for CryptoVerif to perform the merge. It is more complicated, because
 we have two finds involved; we first need to transform them into a single find.
 TODO: Automate that.
 *)
-set uniqueBranchReorganize = false;
 insert 164 "find u30 = ri_12 <= qD suchthat defined(r_10[ri_12], s'[ri_12]) && (s' = s'[ri_12]) then orfind u32 = ri_13 <= qH suchthat defined(r_12[ri_13], r_8[ri_13], x1_1[ri_13]) && (s' = x1_1[ri_13]) then";
 simplify;
 insert 180 "ry <- cst_Dr";
