@@ -266,3 +266,13 @@ type pall = decl list
 type final_process =
     PSingleProcess of process_e
   | PEquivalence of process_e * process_e * ident list(*public variables*)
+
+type move_array_coll_t =
+    (ident * ident(*type*)) list(*bound variables*) *
+      (ident * ident(*type*))(*random variable*) *
+      term_e 
+
+type cryptogen_coll_t =
+    (ident * ident(*type*)) list(*bound variables*) *
+      (ident * ident(*type*))(*random variable*) *
+      term_e * probabilityf_e * term_e
