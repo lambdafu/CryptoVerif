@@ -1,9 +1,6 @@
 TO DO next
 
-0) Fix internal error in
-examplesnd/otest/internal_error_cryptotransf_useknownequalities.ocv
-
-Explain examples/obasic/OAEP.ocv
+0) Explain examples/obasic/OAEP.ocv
 
 1) extend "move array" such that the equality
 test is replaced with any function f(X,z) such that when
@@ -4796,3 +4793,7 @@ DONE 28/10/2019
 
 Distinguish ROM / ROM_large like I do for PRFs?
 DONE 28/10/2019
+
+Fix internal error in
+examplesnd/otest/internal_error_cryptotransf_useknownequalities.ocv
+FIXED 5/11/2019

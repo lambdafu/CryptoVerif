@@ -696,7 +696,8 @@ let rec check_instance_of_rec next_f term t state =
 			      raise NoMatch
 			    end;
 
-			  let state' = { state with lhs_array_ref_map = ((b,l), t):: state.lhs_array_ref_map } in
+			  (* See comment containing Terms.move_occ_term: elsewhere in this file *)
+			  let state' = { state with lhs_array_ref_map = ((b,l), Terms.move_occ_term t):: state.lhs_array_ref_map } in
                           (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  let bopt = List.assq b name_group_opt in
 			  let state'' = 
@@ -761,8 +762,17 @@ let rec check_instance_of_rec next_f term t state =
 			  print_string (" should have type " ^ b.btype.tname ^ " but has type " ^ t.t_type.tname ^ ".\n")
 			end;
 		      raise NoMatch
-		    end; 
-		  next_f { state with lhs_array_ref_map = ((b,l), t):: state.lhs_array_ref_map }
+		    end;
+		  (* Terms.move_occ_term: When [Settings.use_known_equalities_crypto] is true,
+		     a term that occurs elsewhere in the game may end up occurring inside the
+		     term [t] due to term copies made by [try_no_var]. 
+		     We use [Terms.move_occ_term] to make sure that it is not physically equal
+		     to the term that appears elsewhere in the game.
+		     Otherwise, CryptoVerif might use the information collected at the other
+		     occurrence of that term to transform it, and that may not be correct.
+		     Other occurrences of Terms.move_occ_term in this file come from the same
+		     reason. *)
+		  next_f { state with lhs_array_ref_map = ((b,l), Terms.move_occ_term t):: state.lhs_array_ref_map }
                 end
             end
       end
@@ -815,7 +825,8 @@ let rec check_instance_of_rec next_f term t state =
 			      raise NoMatch
 			    end;
 
-			  let state' = { state with lhs_array_ref_map = ((b,l), t)::state.lhs_array_ref_map } in
+			  (* See comment containing Terms.move_occ_term: elsewhere in this file *)
+			  let state' = { state with lhs_array_ref_map = ((b,l), Terms.move_occ_term t)::state.lhs_array_ref_map } in
                           (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  try
 			    let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) state.all_names_exp_opt in
@@ -881,7 +892,9 @@ let rec check_instance_of_rec next_f term t state =
 
 let list_to_term_opt f = function
     [] -> None
-  | l -> Some (Terms.make_prod f l)
+  | l ->
+      (* See comment containing Terms.move_occ_term: elsewhere in this file *)
+      Some (Terms.make_prod f (List.map Terms.move_occ_term l))
 
 (* [comp_neut] is a comparison to the neutral element (of the equational
    theory of the root function symbol of [t]), which should be added
@@ -2148,18 +2161,6 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 	  try 
 	    let facts = Facts.get_facts_at (DTerm t) in
 	    Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts 
-	  (* let simp_facts_ref = ref None in
-	  fun t1 ->
-	    match !simp_facts_ref with
-	      Some simp_facts ->
-		Facts.try_no_var simp_facts t1
-	    | None ->
-	        (* First compute the right facts *)
-		let facts = Facts.get_facts_at (DTerm t) in
-		let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
-		simp_facts_ref := Some simp_facts;
-		(* Simplify the term using the known facts *)
-	     Facts.try_no_var simp_facts t1 *)
 	  with Contradiction ->
 	    (* This term is in fact unreachable *)
 	    Terms.simp_facts_id
@@ -2966,6 +2967,26 @@ let rec transform_term t =
 	print_string " into ";
 	Display.display_term mapping.target_exp;
 	print_newline();
+	print_string "Arguments: ";
+	List.iter (fun (b,t) ->
+	  Display.display_binder b;
+	  print_string " -> ";
+	  Display.display_term t;
+	  print_newline()
+	    ) one_exp.after_transfo_input_vars_exp;
+        match one_exp.product_rest with
+	| None -> ()
+	| Some(prod, left_rest, right_rest, comp_neut) ->
+	    begin
+	      match left_rest with
+	      | None -> ()
+	      | Some t_left -> print_string "Left complement: "; Display.display_term t_left; print_newline()
+	    end;
+	    begin
+	      match right_rest with
+	      | None -> ()
+	      | Some t_right ->  print_string "Right complement: "; Display.display_term t_right; print_newline()
+	    end
       end;
     begin
       (* When restrictions in the image have no corresponding
@@ -2977,6 +2998,7 @@ let rec transform_term t =
       | _ -> ()
     end;
     let instance = Terms.move_occ_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp) in
+    let result = 
     match one_exp.product_rest with
       None -> instance
     | Some(prod, left_rest, right_rest, comp_neut) ->
@@ -2993,6 +3015,12 @@ let rec transform_term t =
 	match comp_neut with
 	  None -> instance_with_both_sides
 	| Some(eqdiff, neut) -> Terms.app eqdiff [instance_with_both_sides; neut]
+    in
+    if (!Settings.debug_cryptotransf) > 5 then
+      begin
+	print_string "yields "; Display.display_term result; print_newline()
+      end;
+    result
   with Not_found ->
     (* Mapping not found, the term is unchanged. Visit subterms *)
     Terms.build_term2 t 
