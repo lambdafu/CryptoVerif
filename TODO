@@ -96,6 +96,9 @@ be specified at expand time, because we may want to apply the equivalence with c
 automatically. That could be done by allowing expand to take other arguments
 than identifiers for internal macros:
   - int, e.g. for the number of arguments of hash functions, PRFs.
+  In fact, the best way to specify the number of arguments would be to allow tuples
+  of identifiers as argument of expand. We would then pass the tuple of input types
+  as argument of expand.
   - string, e.g. for collisions used in hash functions, PRFs, ...
 Only the *_partial equivalences are better generated at equiv time since they
 can be applied only manually, and that allows to generate the appropriate number
