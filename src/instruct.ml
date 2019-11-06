@@ -1514,7 +1514,7 @@ let rec interpret_command interactive state = function
 	| MoveBinders l ->
 	    let binders = find_binders state.game in	      
 	    execute_display_advise (MoveNewLet (MBinders (find_binder_list binders l))) state 
-	| MoveArray((s,ext2) as id) ->
+	| MoveArray(((s,ext2) as id), collisions) ->
 	    begin
 	      let binders = find_binders state.game in	      
 	      let bl = find_binder_list_one_id binders id in

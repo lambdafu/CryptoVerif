@@ -87,7 +87,7 @@ all non-predefined types in types to t_<oldname>
 (predefined types = bitstring, bitstringbot, bool)
 Add all the renamed types and function symbols to the arguments of the macro.
 
-Or would it better to generate the required macros on the fly, inside CryptoVerif itself?
+Or would it be better to generate the required macros on the fly, inside CryptoVerif itself?
 Some names of macros would then be internal, and not redefinable by the user.
 Advantages:
 - we can generate exactly what we need: any number of arguments, any number of oracles,
@@ -106,8 +106,34 @@ of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argumen
 Drawbacks:
 - we still need to generate a library for ProVerif; it will be more limited than the
 CryptoVerif internal macros
-- it is much harder for the user to modify the macros, as we did e.g. for Wireguard.
-(ROM_hash_refactored)
+Would it be possible to generalize used-defined macros to allow
+them to take tuples of identifiers as input, and expand the macro
+with the appropriate number of arguments?
+Possible syntax:
+(input__) for the tuple argument 
+list(input__, i, M) with identifiers xxx__i inside M generates a list of terms,
+accepted where a list of terms is expected (e.g. arguments of a function application)
+same for probas.
+list&&(input__, i, M) for the && of the list of terms list(input__, i, M)
+list||(input__, i, M) for the || of the list of terms list(input__, i, M)
+list(input__, i, x__i:T__i) for a list of variable declarations with their type
+list(input__, i, T__i) for a list of types (e.g. types of arguments of a function)
+Requires fairly big changes to the parser and syntax.ml...
+Or store the macro as a string at definition time, without parsing between { ... };
+at expansion, perform argument list transformation on that string, then
+parse the resulting string?
+Or argument list transformation together with parsing?
+(Everywhere the parser accepts a list, also accept a construct
+list(...) that directly returns the expanded list;
+everywhere the parser accepts an identifier, also accept
+ident%i.) 
+- it is much harder for the user to modify the macros, as we did
+e.g. for Wireguard.  (ROM_hash_refactored). For the purpose of
+ROM_hash_refactored, the simplest would be to name the variables
+and channels with suffix _f where f is the name of the hash function.
+That avoids name clashes and renames between several expansions
+of the macro. (Still need to call fresh_id to make sure that
+the final identifier is globally fresh.)
 
 
 Specify IND$-CPA

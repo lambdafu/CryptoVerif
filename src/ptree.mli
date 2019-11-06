@@ -184,7 +184,7 @@ type rem_opt_t =
 type move_opt_t =
     MoveCst of Types.move_set
   | MoveBinders of ident list
-  | MoveArray of ident
+  | MoveArray of ident * ident list
 
 type pcoll_elim_t =
     PCollVars of ident list

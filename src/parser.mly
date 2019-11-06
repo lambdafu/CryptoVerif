@@ -292,6 +292,12 @@ stringlistne:
 |       STRING COMMA stringlistne
         { $1::$3 }
 
+stringlist:
+    stringlistne
+    { $1 }
+|
+    { [] }
+
 typeopt:
         IDENT EQUAL stringlistne
         { $1,$3 }
@@ -454,8 +460,8 @@ move_opt:
     { MoveCst(MLet) }
 |   BINDER neidentlistnosep
     { MoveBinders($2) }
-|   ARRAY idst
-    { MoveArray($2) }
+|   ARRAY idst stringlist
+    { MoveArray($2,$3) }
     
 varlistlist:
     neidentlistnosep

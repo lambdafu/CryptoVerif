@@ -1729,11 +1729,14 @@ let add_in_env_nobe env s ext t =
       input_warning ("identifier " ^ s ^ " rebound") ext;
     (StringMap.add s (EVar b) env, b)
 
+let check_binder env ((s1,ext1),(s2,ext2)) =
+  let t = get_type env s2 ext2 in
+  add_in_env_nobe env s1 ext1 t
+      
 let rec check_binder_list env = function
     [] -> (env,[])
-  | ((s1,ext1),(s2,ext2))::l ->
-      let t = get_type env s2 ext2 in
-      let (env',b) = add_in_env_nobe env s1 ext1 t in
+  | id_ty::l ->
+      let (env',b) = check_binder env id_ty in
       let (env'',l') = check_binder_list env' l in
       (env'', b::l')
 
@@ -2635,6 +2638,18 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
   collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond', !restr_may_be_equal) :: (!collisions)
 
 
+let check_move_array_coll env (forall, ((_,(_,ext_restr_ty)) as restr), t) =
+  set_binder_env empty_binder_env;
+  let (env',forall') = check_binder_list env forall in
+  let (env'',restr') = check_binder env' restr in
+  if restr'.btype.toptions land Settings.tyopt_CHOOSABLE == 0 then
+    raise_error ("Cannot choose randomly a bitstring from " ^ restr'.btype.tname) ext_restr_ty;
+  let t' = check_term_nobe env'' t in
+  check_bit_string_type (snd t) t'.t_type;
+  if not (List.for_all (fun b -> Terms.refers_to b t') (restr' :: forall')) then
+    raise_error "In collision statements, all bound variables should occur in the left-hand side" (snd t);
+  (forall', restr', t')
+  
 (* Check process
    check_process returns the process, as well as a list of oracles with their
    types (oracle name, list of index types, list of args types, list of result types)

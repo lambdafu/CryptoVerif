@@ -865,3 +865,7 @@ type def_kind_t =
   | AssignDef of binder * term list
   | RestrDef
   | OtherDef
+
+(* Collision used in the "move array" command *)
+
+type move_array_collision = binder list * binder * term

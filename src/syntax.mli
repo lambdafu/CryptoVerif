@@ -5,3 +5,5 @@ val read_file : string -> (statement list) * (collision list) * (equiv_nm list) 
 (* Transform a parsed query into a query as used by CryptoVerif
    Raises Error in case of error. *)
 val check_query : Ptree.query -> query
+
+val check_move_array_coll : Stringmap.env_type -> Ptree.move_array_coll_t -> move_array_collision
