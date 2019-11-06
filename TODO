@@ -91,7 +91,15 @@ Or would it better to generate the required macros on the fly, inside CryptoVeri
 Some names of macros would then be internal, and not redefinable by the user.
 Advantages:
 - we can generate exactly what we need: any number of arguments, any number of oracles,
-collisions specified by the user at "equiv" time...
+collisions specified by the user at "equiv" time... -> no, the collisions should rather
+be specified at expand time, because we may want to apply the equivalence with collisions
+automatically. That could be done by allowing expand to take other arguments
+than identifiers for internal macros:
+  - int, e.g. for the number of arguments of hash functions, PRFs.
+  - string, e.g. for collisions used in hash functions, PRFs, ...
+Only the *_partial equivalences are better generated at equiv time since they
+can be applied only manually, and that allows to generate the appropriate number
+of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argument of equiv.
 Drawbacks:
 - we still need to generate a library for ProVerif; it will be more limited than the
 CryptoVerif internal macros
