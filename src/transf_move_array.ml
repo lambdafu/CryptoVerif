@@ -104,4 +104,26 @@ let move_array ext2 bl collisions =
 	coll'
 	  ) collisions
   in
-  ()
+  let nx = { pname = "NX";
+	     psize = Settings.psize_DEFAULT }
+  in
+  let tnx = Terms.type_for_param nx in
+  let counter = ref 1 in
+  let collisions_with_oracle = List.map (fun coll ->
+    let neq = { pname = "Neq"^(string_of_int (!counter));
+		psize = Settings.psize_DEFAULT }
+    in
+    let oeq = { cname = "Oeq"^(string_of_int (!counter)) } in
+    incr counter;
+    (neq, oeq, coll)) collisions
+  in
+  let x = Terms.create_binder0 "X" ty [] in
+  let iX1 = Terms.create_repl_index "iX" tnx in
+  let iX2 = Terms.create_repl_index "iX" tnx in
+  let oX = { cname = "OX" } in
+  let lhs = ReplRestr(None, [x, NoOpt],
+		      (ReplRestr(Some iX1, [], [Fun(oX, [], Terms.build_term_type ty (Var(x,[])), (0, StdOpt))]))::
+		      [(* TODO oracles for collisions; add repl index to the terms of the collision! *)])
+  in
+  
+    ()
