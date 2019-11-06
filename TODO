@@ -38,6 +38,35 @@ generalized to several z and terms instead of f/g.
 (Putting " new X: T" after "z:T'" suggests that
 z' is independent of X.)
 
+The oracle Ocoll could also be generalized:
+if new x1:T; new x2: T; forall zi:Ti; f(x1,x2,zi)
+simplifies into g(zi) when x1 = x2
+h(zi) when x1 and x2 are independent
+(zi may depend on x1,x2)
+then oracle
+Ocoll(a1:input,a2:input,zi:Ti) := f(h(k,a1),h(k,a2),zi)
+rewrites into
+Ocoll(a1:input,a2:input,zi:Ti) := if a1 = a2 then g(zi) else h(zi)
+
+It can be further generalized to more than 2 random values
+by considering the various equality cases between the random
+values and testing them on the arguments of the hash function
+in Ocoll on the RHS:
+new xi:T (i \in {1...n}); forall zk:Tk; f(xi,zk).
+Let P = { (i,j) \in {1...n}^2 | i<j }.
+For each S subset of P,
+f(xi,zk) simplifies into g_S(zk)
+when xi are random,
+for (i,j) \in S, xi = xj,
+for (i,j) \in P\S, xi is independent of xj,
+and zk may depend on xi.
+Then the oracle 
+Ocoll(ai:input,zk:Tk) := f(h(k,ai),zi)
+rewrites into
+Ocoll(ai:input,zk:Tk) := let S = {(i,j) \in P | ai=aj} in g_S(zk)
+that is, we test the equalities among the ai's to select
+the right simplified expression g_S(zk).
+
 vars:types; new X:T; M1 <=(p)=> M2
 check
 - all elements of vars are pairwise distinct,
