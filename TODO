@@ -57,7 +57,19 @@ all non-predefined functions in M1, M2, p to fun_<oldname>
 all non-predefined types in types to t_<oldname>
 (predefined types = bitstring, bitstringbot, bool)
 Add all the renamed types and function symbols to the arguments of the macro.
-   
+
+Or would it better to generate the required macros on the fly, inside CryptoVerif itself?
+Some names of macros would then be internal, and not redefinable by the user.
+Advantages:
+- we can generate exactly what we need: any number of arguments, any number of oracles,
+collisions specified by the user at "equiv" time...
+Drawbacks:
+- we still need to generate a library for ProVerif; it will be more limited than the
+CryptoVerif internal macros
+- it is much harder for the user to modify the macros, as we did e.g. for Wireguard.
+(ROM_hash_refactored)
+
+
 Specify IND$-CPA
 
 Document rom_partial / prf_partial
