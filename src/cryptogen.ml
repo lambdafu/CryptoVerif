@@ -925,9 +925,9 @@ let _ =
 	  exit 2
 	end;
       match s with
-	"channels" -> front_end := Channels; Settings.front_end := Settings.Channels
-      | "oracles" -> front_end := Oracles; Settings.front_end := Settings.Oracles
-      | "proverif" -> front_end := ProVerif; Settings.front_end := Settings.Channels
+	"channels" -> front_end := Channels
+      | "oracles" -> front_end := Oracles
+      | "proverif" -> front_end := ProVerif
       | _ ->
           prerr_string "Command-line option -out expects argument either \"channels\", \"oracles\", or \"proverif\".\n";
           exit 2),

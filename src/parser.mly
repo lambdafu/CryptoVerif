@@ -194,9 +194,6 @@ let return_channel = (dummy_channel, None)
     %start focusquery
     %type <(Ptree.ident * Ptree.ty(*type*)) list * Ptree.query list> focusquery
 
-    %start cryptogen_coll
-    %type <Ptree.cryptogen_coll_t> cryptogen_coll
-
     %start move_array_coll
     %type <Ptree.move_array_coll_t> move_array_coll
     
@@ -1235,10 +1232,6 @@ move_array_coll:
     forallvartype restr SEMI term
     { ($1, $2, $4) }
 
-cryptogen_coll:
-    forallvartype restr SEMI RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN
-    { ($1, $2, $6, $9, $13) }
-    
 /* Oracle front-end */
 
 oprocess:
