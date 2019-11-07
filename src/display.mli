@@ -25,6 +25,7 @@ val ends_with_underscore_number : string -> bool
 val binder_to_string : binder -> string
 val repl_index_to_string : repl_index -> string
 val display_binder : binder -> unit
+val display_binder_with_type : binder -> unit
 val display_repl_index : repl_index -> unit
 val display_var : binder -> term list -> unit
 val display_term : term -> unit

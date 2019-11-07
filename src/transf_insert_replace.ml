@@ -849,14 +849,7 @@ let insert_instruct occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   has_unique_to_prove := false; 
-  let lexbuf = Lexing.from_string s in
-  Parsing_helper.set_start lexbuf ext_s;
-  let ins = 
-    try 
-      Parser.instruct Lexer.token lexbuf
-    with
-      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
-  in
+  let ins = Syntax.parse_from_string Parser.instruct (s,ext_s) in
   Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_game None false g;
   Hashtbl.clear hash_binders;
@@ -1135,14 +1128,7 @@ and replace_to count env cur_array p =
 
 let replace_term occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in
-  let lexbuf = Lexing.from_string s in
-  Parsing_helper.set_start lexbuf ext_s;
-  let rep_term = 
-    try 
-      Parser.term Lexer.token lexbuf
-    with
-      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
-  in
+  let rep_term = Syntax.parse_from_string Parser.term (s,ext_s) in
   Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_game None true g;
   Hashtbl.clear hash_binders;

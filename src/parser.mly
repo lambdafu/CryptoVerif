@@ -196,6 +196,12 @@ let return_channel = (dummy_channel, None)
 
     %start move_array_coll
     %type <Ptree.move_array_coll_t> move_array_coll
+
+    %start cequiv
+    %type <Ptree.eqstatement> cequiv
+    
+    %start oequiv
+    %type <Ptree.eqstatement> oequiv
     
 %%
 
@@ -238,7 +244,11 @@ commonlibelem:
         { [LetFun($2,$4,$7)] }
 |       EXPAND IDENT LPAREN identlist RPAREN DOT
         { [Expand($2, $4)] }
-  
+
+cequiv:
+    EQUIV eqname eqmember EQUIVLEFT probaf EQUIVRIGHT optpriority eqmember DOT
+    { ($2, $3, $8, $5, $7) }
+    
 lib:
         commonlibelem lib
         { $1 @ $2 }
@@ -248,8 +258,8 @@ lib:
 	{ (PDef($2,$4,$7)) :: $9 }
 |       CHANNEL neidentlist DOT lib 
         { (List.map (fun x -> (ChannelDecl(x))) $2) @ $4 }
-|       EQUIV eqname eqmember EQUIVLEFT probaf EQUIVRIGHT optpriority eqmember DOT lib
-        { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
+|       cequiv lib
+        { (EqStatement $1) :: $2 }
 |       COLLISION newlist options forallvartype RETURN LPAREN term RPAREN EQUIVLEFT probaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT lib
         { (Collision($2, $4, $7, $10, $14, $16, $3)) :: $18 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE lib RBRACE lib
@@ -1412,6 +1422,10 @@ oprobaflist:
 |      oprobaf COMMA oprobaflist
        { $1 :: $3 }
 
+oequiv:
+    EQUIV eqname eqmember EQUIVLEFT oprobaf EQUIVRIGHT optpriority eqmember DOT
+    { ($2, $3, $8, $5, $7) }
+    
 olib:
         commonlibelem olib
         { $1 @ $2 }
@@ -1419,8 +1433,8 @@ olib:
 	{ (PDef($2,[],$4)) :: $6 }
 |	LET IDENT LPAREN vartypeilist RPAREN EQUAL oprocess DOT olib
 	{ (PDef($2,$4,$7)) :: $9 }
-|       EQUIV eqname eqmember EQUIVLEFT oprobaf EQUIVRIGHT optpriority eqmember DOT olib
-        { (EqStatement($2, $3, $8, $5, $7)) :: $10 }
+|       oequiv olib
+        { (EqStatement $1) :: $2 }
 |       COLLISION newlist options forallvartype RETURN LPAREN term RPAREN EQUIVLEFT oprobaf EQUIVRIGHT RETURN LPAREN term RPAREN indep_cond DOT olib
         { (Collision($2, $4, $7, $10, $14, $16, $3)) :: $18 }
 |       DEFINE IDENT LPAREN identlist RPAREN LBRACE olib RBRACE olib

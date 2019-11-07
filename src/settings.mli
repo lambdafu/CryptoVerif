@@ -176,7 +176,6 @@ val get_inverse : funsymb -> int -> funsymb
 
 (* Assumptions given in the input file *)
 val equivs : equiv_nm list ref
-val move_new_eq : (typet * equiv_nm) list ref
 
 val get_query_status : ((query * game) * proof_t ref) -> proof_t
 val get_public_vars : cur_queries_t -> binder list

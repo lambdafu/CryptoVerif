@@ -1162,11 +1162,7 @@ let find_restr (s,ext) ((_,lm,_,_,_,_),_) =
 let get_equiv_info () =
   print_string "Please enter variable and/or term mapping for this equivalence: ";
   let s = read_line() in
-  let lexbuf = Lexing.from_string s in
-  try 
-    Parser.cryptotransfinfo Lexer.token lexbuf
-  with
-    Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
+  Syntax.parse_from_string Parser.cryptotransfinfo (s, dummy_ext)
 
 let do_equiv ext equiv parsed_user_info state = 
   match parsed_user_info with
@@ -1518,27 +1514,11 @@ let rec interpret_command interactive state = function
 	    begin
 	      let binders = find_binders state.game in	      
 	      let bl = find_binder_list_one_id binders id in
-	      let ty =
-		match bl with
-		| [] -> Parsing_helper.internal_error "At least one variable should be found"
-		| b::rest ->
-		    let ty = b.btype in
-		    if List.exists (fun b' -> b'.btype != ty) rest then
-		      raise (Error("In \"move array\", all identifiers should have the same type", ext2));
-		    ty
-	      in
-	      if not (Proba.is_large ty) then
-		raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
- 	      if (ty.toptions land Settings.tyopt_CHOOSABLE) == 0 then
-		raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
-	      try
-		let equiv = List.assq ty (!Settings.move_new_eq) in
-		match crypto_transform (!Settings.no_advice_crypto) equiv (VarList(bl,true)) state with
-		  CSuccess state' -> crypto_simplify state'
-		| CFailure l -> 
-		    raise (Error ("Transformation \"move array\" failed", ext2))
-	      with Not_found ->
-		raise (Error("Transformation for \"move array\" not found, perhaps the macro move_array_internal_macro is not defined in your library", ext2))
+	      let equiv = Transf_move_array.move_array_equiv ext2 bl collisions in 
+	      match crypto_transform (!Settings.no_advice_crypto) equiv (VarList(bl,true)) state with
+		CSuccess state' -> crypto_simplify state'
+	      | CFailure l -> 
+		  raise (Error ("Transformation \"move array\" failed", ext2))
 	    end
       end
   | CSimplify(coll_elim) -> 
@@ -1775,14 +1755,7 @@ let rec interpret_command interactive state = function
 	 group of queries instead of the extent of each qi. This is
 	 not perfect, but better than nothing. *)
       let lparsed = List.concat (List.map (fun (s, ext_s) ->
-	let lexbuf = Lexing.from_string s in
-	Parsing_helper.set_start lexbuf ext_s;
-	let (vars, ql) = 
-	  try 
-	    Parser.focusquery Lexer.token lexbuf
-	  with
-	    Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
-	in
+	let (vars, ql) = Syntax.parse_from_string Parser.focusquery (s,ext_s) in
 	List.map (function
 	  PQEventQ(vars', t1, t2, pub_vars) ->
 	    assert(vars' == []);
@@ -1865,14 +1838,13 @@ and interactive_loop state =
   try 
     print_string "Please enter a command: ";
     let s = read_line() in
-    let lexbuf = Lexing.from_string s in
     Lexer.in_proof := true;
     let commands =
       try
-	Parser.proofoptsemi Lexer.token lexbuf
-      with Parsing.Parse_error ->
+	Syntax.parse_from_string Parser.proofoptsemi (s, dummy_ext)
+      with e ->
 	Lexer.in_proof := false;
-	raise (Error("Syntax error", extent lexbuf))
+	raise e
     in
     Lexer.in_proof := false;
     let rec run_commands state = function

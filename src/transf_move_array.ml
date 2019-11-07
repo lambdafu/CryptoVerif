@@ -2,20 +2,13 @@ open Types
 open Stringmap
 open Parsing_helper
   
-let parse_and_check_collision (s,ext_s) =
-  let lexbuf = Lexing.from_string s in
-  Parsing_helper.set_start lexbuf ext_s;
-  let coll = 
-    try 
-      Parser.move_array_coll Lexer.token lexbuf
-    with
-      Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
-  in
+let parse_and_check_collision var_X (s,ext_s) =
+  let coll = Syntax.parse_from_string Parser.move_array_coll (s, ext_s) in
   let env = ref (!Stringmap.env) in
   Terms.TypeHashtbl.iter (fun _ f ->
-      env := Stringmap.StringMap.add f.f_name (EFunc f) (!env))
+      env := StringMap.add f.f_name (EFunc f) (!env))
     Terms.cst_for_type_table;
-  let (forall, restr, t1) = Syntax.check_move_array_coll (!env) coll in
+  let (forall, restr, t1) = Syntax.check_move_array_coll (!env) var_X coll in
   let depinfo =
     { args_at_creation_only = true;
       dep = [restr, (Decompos(Some []), Some [], ())];
@@ -72,7 +65,13 @@ let parse_and_check_collision (s,ext_s) =
   (forall, restr, t1, proba, t2)
 
 
-let move_array ext2 bl collisions =
+let subst var img t =
+  Terms.auto_cleanup (fun () ->
+    Terms.link var (TLink img);
+    Terms.copy_term Links_Vars t)
+
+let move_array_equiv ext2 bl collisions =
+  let var_num_state = Terms.get_var_num_state() in
   let ty =
     match bl with
     | [] -> Parsing_helper.internal_error "At least one variable should be found"
@@ -84,46 +83,111 @@ let move_array ext2 bl collisions =
   in
   if (ty.toptions land Settings.tyopt_CHOOSABLE) == 0 then
     raise (Error("Transformation \"move array\" is allowed only for fixed, bounded, or nonuniform types",ext2));
+  let id_N = Terms.fresh_id "N" in
+  let param_N = { pname = id_N;
+		  psize = Settings.psize_DEFAULT }
+  in
+  let id_NX = Terms.fresh_id "NX" in
+  let param_NX = { pname = id_NX;
+		   psize = Settings.psize_DEFAULT }
+  in
+  let t_NX = Terms.type_for_param param_NX in
+  let idx = Terms.create_repl_index "ix" t_NX in
+  let var_X = Terms.create_binder "X" ty [] in
+  let id_X = Display.binder_to_string var_X in
+  let var_Y = Terms.create_binder "Y" ty [idx] in
+  let id_Y = Display.binder_to_string var_Y in
+  let var_j = Terms.create_binder "j" t_NX [] in
+  let term_j = Terms.term_from_binder var_j in
+  let id_j = Display.binder_to_string var_j in
+  let term_Y_j = Terms.term_from_binderref (var_Y, [term_j]) in
+  let id_T = ty.tname in
+  let id_OX = Terms.fresh_id "OX" in
   let collisions' =
     if collisions == [] then
       begin
 	if not (Proba.is_large ty) then
 	  raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
-	let b = Terms.create_binder0 "X'" ty [] in
-	let restr = Terms.create_binder0 "X" ty [] in
+	let b = Terms.create_binder "X'" ty [] in
+	let restr = var_X in
 	let t1 = Terms.make_equal (Terms.term_from_binder b) (Terms.term_from_binder restr) in
 	let t2 = Terms.make_false() in
 	let proba = Proba.pcoll1rand ty in
 	[[b],restr,t1,[SetProba proba],t2]
       end
     else
-      List.map (fun ((_,ext) as coll) ->
-	let (_,restr,_,_,_) as coll' = parse_and_check_collision coll in
-	if restr.btype != ty then
-	  raise (Error("Random values in collisions in \"move array\" should have the same type as the variable(s) we move", ext));
-	coll'
-	  ) collisions
+      List.map (parse_and_check_collision var_X) collisions
   in
-  let nx = { pname = "NX";
-	     psize = Settings.psize_DEFAULT }
-  in
-  let tnx = Terms.type_for_param nx in
-  let counter = ref 1 in
   let collisions_with_oracle = List.map (fun coll ->
-    let neq = { pname = "Neq"^(string_of_int (!counter));
-		psize = Settings.psize_DEFAULT }
+    (Terms.fresh_id "Neq", Terms.fresh_id "Oeq", coll)) collisions'
+  in
+  (* Create the equivalence as a string, inside a buffer *)
+  let b = Buffer.create 500 in
+  Display.fun_out (Buffer.add_string b) (fun () ->
+    Buffer.add_string b ("equiv !"^id_N^" "^id_X^" <-R "^id_T^"; (");
+    Buffer.add_string b ("!"^id_NX^" "^id_OX^"() := return("^id_X^")");
+    List.iter (fun (id_Neq, id_Oeq, (forall, restr, t1, _, _)) ->
+      Buffer.add_string b (" |\n !"^id_Neq^" "^id_Oeq^"(");
+      Display.display_list Display.display_binder_with_type forall;
+      Buffer.add_string b (") := return(");
+      Display.display_term t1;
+      Buffer.add_string b ")"
+	) collisions_with_oracle;
+    Buffer.add_string b ")\n<=(";
+    let first = ref true in
+    List.iter (fun (id_Neq, id_Oeq, (_, _, _, proba, _)) ->
+      if not (!first) then Buffer.add_string b " + ";
+      if proba != [] then
+	begin
+	  first := false;
+	  Buffer.add_string b ("#"^id_Oeq^" * (");
+	  Display.display_set proba;
+	  Buffer.add_string b ")"
+	end
+	) collisions_with_oracle;
+    if !first then Buffer.add_string b "0";
+    Buffer.add_string b ")=>\n     !N (";
+    Buffer.add_string b ("!"^id_NX^" "^id_OX^"() := find[unique] "^
+			 id_j^"<="^id_NX^" suchthat defined(");
+    Display.display_term term_Y_j;
+    Buffer.add_string b ") then return(";
+    Display.display_term term_Y_j;
+    Buffer.add_string b (") else "^id_Y^" <-R "^id_T^"; return("^id_Y^")");
+    List.iter (fun (id_Neq, id_Oeq, (forall, restr, t1, _, t2)) ->
+      Buffer.add_string b (" |\n !"^id_Neq^" "^id_Oeq^"(");
+      Display.display_list Display.display_binder_with_type forall;
+      Buffer.add_string b (") := find[unique] "^id_j^"<="^id_NX^" suchthat defined(");
+      Display.display_term term_Y_j;
+      Buffer.add_string b ") then return(";
+      Display.display_term (subst var_X term_Y_j t1);
+      Buffer.add_string b ") else return(";
+      Display.display_term t2;
+      Buffer.add_string b ")"
+	) collisions_with_oracle;
+  Buffer.add_string b ").\n"
+    );
+  let equiv_string = Buffer.contents b in
+  (* Debug *)
+  print_string equiv_string;
+  (* Parse the equivalence *)
+  let pequiv = Syntax.parse_from_string (if !Settings.front_end = Channels then Parser.cequiv else Parser.oequiv) (equiv_string, dummy_ext) in
+  (* Create the environment for checking the equivalence *)
+  let env = Stringmap.env in
+  let old_env = !env in
+  Terms.TypeHashtbl.iter (fun _ f ->
+      env := StringMap.add f.f_name (EFunc f) (!env))
+    Terms.cst_for_type_table;  
+  env := StringMap.add id_N (EParam param_N) (!env);
+  env := StringMap.add id_NX (EParam param_NX) (!env);
+  List.iter (fun (id_Neq, _, _) ->
+    let param_Neq = { pname = id_Neq;
+		      psize = Settings.psize_DEFAULT }
     in
-    let oeq = { cname = "Oeq"^(string_of_int (!counter)) } in
-    incr counter;
-    (neq, oeq, coll)) collisions
-  in
-  let x = Terms.create_binder0 "X" ty [] in
-  let iX1 = Terms.create_repl_index "iX" tnx in
-  let iX2 = Terms.create_repl_index "iX" tnx in
-  let oX = { cname = "OX" } in
-  let lhs = ReplRestr(None, [x, NoOpt],
-		      (ReplRestr(Some iX1, [], [Fun(oX, [], Terms.build_term_type ty (Var(x,[])), (0, StdOpt))]))::
-		      [(* TODO oracles for collisions; add repl index to the terms of the collision! *)])
-  in
-  
-    ()
+    env := StringMap.add id_Neq (EParam param_Neq) (!env)
+	 ) collisions_with_oracle;
+  (* Check the equivalence *)
+  let equiv = Syntax.check_eqstatement pequiv in
+  (* Restore the old environement and variable state *)
+  env := old_env;
+  Terms.set_var_num_state var_num_state;
+  equiv

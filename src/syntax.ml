@@ -9,6 +9,14 @@ let raise_error s ext =
 let user_error s =
   raise (Error(s,dummy_ext))
   
+let parse_from_string f (s, ext_s) =
+  let lexbuf = Lexing.from_string s in
+  Parsing_helper.set_start lexbuf ext_s;
+  try 
+    f Lexer.token lexbuf
+  with
+    Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
+
 (* Parse a file *)
 
 let parse filename =
@@ -108,7 +116,6 @@ let macrotable = ref StringMap.empty
 let statements = ref ([]: statement list)
 let collisions = ref ([]: collision list)
 let equivalences = ref ([]: equiv_nm list)
-let move_new_eq = ref ([]: (typet * equiv_nm) list)
 let queries_parse = ref ([]: Ptree.query list)
 let proof = ref (None : Ptree.command list option)
 
@@ -1729,18 +1736,14 @@ let add_in_env_nobe env s ext t =
       input_warning ("identifier " ^ s ^ " rebound") ext;
     (StringMap.add s (EVar b) env, b)
 
-let check_binder env ((s1,ext1),(s2,ext2)) =
-  let t = get_type env s2 ext2 in
-  add_in_env_nobe env s1 ext1 t
-      
 let rec check_binder_list env = function
     [] -> (env,[])
-  | id_ty::l ->
-      let (env',b) = check_binder env id_ty in
+  | ((s1,ext1),(s2,ext2))::l ->
+      let t = get_type env s2 ext2 in
+      let (env',b) = add_in_env_nobe env s1 ext1 t in
       let (env'',l') = check_binder_list env' l in
       (env'', b::l')
-
-
+	
 let rec check_term_nobe env = function
     PIdent (s, ext), ext2 ->
       begin
@@ -2552,11 +2555,11 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
      They should not collide with variables in the equivalence,
      so we do Check.check_equiv before resetting var_num_state *)
   let equiv' = Check.check_equiv true equiv in
-  equivalences := equiv' :: (!equivalences);
   (* The variables defined in the equivalence are local,
      we can reuse the same numbers in other equivalences or
      in the process. *)
-  Terms.set_var_num_state var_num_state
+  Terms.set_var_num_state var_num_state;
+  equiv' 
 
 (* Check collision statement *)
 
@@ -2638,10 +2641,35 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
   collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond', !restr_may_be_equal) :: (!collisions)
 
 
-let check_move_array_coll env (forall, ((_,(_,ext_restr_ty)) as restr), t) =
+(* For collision information in "move array" 
+   Be careful to always create fresh identifiers, so that the
+   identifiers in the printed equivalence are distinct. *)
+												       
+let check_binder_expect env b ((s,ext),(s2,ext2)) =
+  let t = get_type env s2 ext2 in
+  if b.btype != t then raise (Error("Random values in collisions in \"move array\" should have the same type as the variable(s) we move", ext2));
+  if (StringMap.mem s env) then
+    input_warning ("identifier " ^ s ^ " rebound") ext;
+  (StringMap.add s (EVar b) env, b)
+      
+let check_binder_moc env ((s,ext),(s2,ext2)) =
+  let t = get_type env s2 ext2 in
+  let b = Terms.create_binder s t [] in
+  if (StringMap.mem s env) then
+    input_warning ("identifier " ^ s ^ " rebound") ext;
+  (StringMap.add s (EVar b) env, b)
+
+let rec check_binder_list_moc env = function
+    [] -> (env,[])
+  | id_ty::l ->
+      let (env',b) = check_binder_moc env id_ty in
+      let (env'',l') = check_binder_list_moc env' l in
+      (env'', b::l')
+
+let check_move_array_coll env restr0 (forall, ((_,(_,ext_restr_ty)) as restr), t) =
   set_binder_env empty_binder_env;
-  let (env',forall') = check_binder_list env forall in
-  let (env'',restr') = check_binder env' restr in
+  let (env',forall') = check_binder_list_moc env forall in
+  let (env'',restr') = check_binder_expect env' restr0 restr in
   if restr'.btype.toptions land Settings.tyopt_CHOOSABLE == 0 then
     raise_error ("Cannot choose randomly a bitstring from " ^ restr'.btype.tname) ext_restr_ty;
   let t' = check_term_nobe env'' t in
@@ -3404,28 +3432,6 @@ let rec check_one = function
                    trandom = None }
 	in
 	add_not_found s1 ext1 (EType ty);
-	(* register the "move array" transformation for that type *)
-	if (!opt) land Settings.tyopt_CHOOSABLE != 0 then
-	  begin
-	    try
-	      let Macro(paraml, def, already_def, _) = StringMap.find "move_array_internal_macro" (!macrotable) in
-	      if List.length paraml != 1 then
-		raise_error ("Macro move_array_internal_macro should expect one argument but expects " ^ (string_of_int (List.length paraml)) ^ " arguments.") ext1;
-	      let old_equivalences = !equivalences in
-	      let old_env = !env in
-	      List.iter check_one (apply [(s1,ext1)] paraml already_def def);
-	      env := old_env;
-	      match !equivalences with
-		[] -> raise_error ("Macro move_array_internal_macro should define an equivalence.") ext1
-	      |	(eq::rest) ->
-		  if rest != old_equivalences then
-		    raise_error ("Macro move_array_internal_macro should define exactly one equivalence.") ext1;
-		  equivalences := old_equivalences;
-		  move_new_eq := (ty, eq) :: (!move_new_eq)
-	    with Not_found -> 
-	      (* Macro move_array_internal_macro not defined *)
-	      ()
-	  end
   | ConstDecl((s1,ext1),(s2,ext2)) ->
       let s2' = get_type (!env) s2 ext2 in
       add_not_found s1 ext1 (EFunc{ f_name = s1;
@@ -3548,7 +3554,7 @@ let rec check_one = function
       check_builtin_eq (!env) eq_categ l_fun_symb
   | EqStatement s ->
       current_location := InEquivalence;
-      check_eqstatement s
+      equivalences := (check_eqstatement s) :: (!equivalences)
   | Collision s ->
       check_collision (!env) s
   | Query (vars, l) ->
@@ -4226,14 +4232,14 @@ let read_file f =
 		q::ql'
 	  | [] -> []
 	in
-	(!statements, !collisions, !equivalences, !move_new_eq,
+	(!statements, !collisions, !equivalences,
 	 remove_dup ql, !proof, (get_impl ()), final_p)
     | Equivalence _ ->
 	if (!queries_parse) != [] then
 	  user_error "Queries are incompatible with equivalence";
 	if (!Settings.get_implementation) then
 	  user_error "Implementation is incompatible with equivalence";
-	(!statements, !collisions, !equivalences, !move_new_eq,
+	(!statements, !collisions, !equivalences,
 	 [], !proof, [], final_p)
   with
   | Undefined(i,ext) ->

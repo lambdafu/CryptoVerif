@@ -163,7 +163,7 @@ let anal_file s0 =
     end;
   try
     Sys.catch_break true;
-    let (statements, collisions, equivs, move_new_eq, queries, proof, impl, final_p) = Syntax.read_file s in
+    let (statements, collisions, equivs, queries, proof, impl, final_p) = Syntax.read_file s in
     let (p, queries) = 
       match final_p with
       | SingleProcess p' -> (p', queries)
@@ -204,7 +204,6 @@ let anal_file s0 =
             List.iter simplify_statement statements;
             List.iter record_collision collisions;
             Settings.equivs := equivs;
-            Settings.move_new_eq := move_new_eq;
             
             (*
               List.iter Display.display_statement statements;
