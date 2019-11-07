@@ -16,43 +16,33 @@ let parse_and_check_collision var_X (s,ext_s) =
       nodep = [] }
   in
   let bdepinfo = (restr, depinfo) in
-  let rec dependency_collision_rec t1 t2 t =
-    match t.t_desc with
-      Var(b,l) when (b == restr) && (Proba.is_large_term t) ->
-	begin
-	  assert (l == []);
-	  let t' = Depanal.remove_dep_array_index bdepinfo t in
-	  let st = Depanal.find_compos Terms.simp_facts_id bdepinfo (Some []) t' in
-	  match Depanal.extract_from_status t' st with
-	  | None -> None
-	  | Some(probaf, t1'',_) ->
-	      try 
-		let (t2', dep_types, indep_types) = Depanal.is_indep Terms.simp_facts_id bdepinfo t2 in
-	        (* We eliminate collisions because t1 characterizes restr and t2 does not depend on restr *)
-	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if Depanal.add_term_collisions ([], [], [], Terms.make_true()) t1'' t2' b (Some []) (probaf, dep_types, t2.t_type, indep_types) then
-		  Some (Terms.make_false())
-		else
-                  None
-	      with Not_found -> None
-	end 
-    | FunApp(f,l) ->
-	Terms.find_some (dependency_collision_rec t1 t2) l
-    | _ -> None
+  let dependency_collision t1 t2 _ =
+    if not (Proba.is_large restr.btype && Terms.refers_to restr t1) then None else
+    let t1' = Depanal.remove_dep_array_index bdepinfo t1 in
+    let st = Depanal.find_compos Terms.simp_facts_id bdepinfo (Some []) t1' in
+    match Depanal.extract_from_status t1' st with
+    | None -> None
+    | Some(probaf, t1'',_) ->
+	try 
+	  let (t2', dep_types, indep_types) = Depanal.is_indep Terms.simp_facts_id bdepinfo t2 in
+	  (* We eliminate collisions because t1 characterizes restr and t2 does not depend on restr *)
+	  (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
+	  if Depanal.add_term_collisions ([], [], [], Terms.make_true()) t1'' t2' restr (Some []) (probaf, dep_types, t2.t_type, indep_types) then
+	    Some (Terms.make_false())
+	  else
+            None
+	with Not_found -> None
   in
   let dependency_anal =
     let indep_test simp_facts t (b,l) =
       assert(l == []);
       let dep_info =
-	if (b == restr) then
-	  depinfo
-	else
-	  Facts.nodepinfo
+	if b == restr then depinfo else Facts.nodepinfo
       in
       Facts.default_indep_test dep_info simp_facts t (b,l)
     in
     let collision_test simp_facts t1 t2 =
-      Depanal.try_two_directions dependency_collision_rec t1 t2
+      Depanal.try_two_directions dependency_collision t1 t2
     in
     (indep_test, collision_test)
   in

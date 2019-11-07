@@ -30,7 +30,7 @@ success; (* secrecy of b1 *)
    remove_assign binder mz to make second(xorDow(.., r_6[u])) = zero
    appear. It is needed in crypto move_array_xorDow r_6. *)
 remove_assign binder mz;
-crypto move_array_xorDow r_6;
+move array r_6 "forall X': Dow; X <-R Dow; second(xorDow(X', X)) = zero";
 (* After that, the end of OD contains 
       find [unique] u_16 = ri <= qD suchthat defined(r_6[ri], r'[ri]) && (r' = r'[ri]) then
         yield
