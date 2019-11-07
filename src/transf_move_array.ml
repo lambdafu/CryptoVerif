@@ -123,49 +123,51 @@ let move_array_equiv ext2 bl collisions =
   in
   (* Create the equivalence as a string, inside a buffer *)
   let b = Buffer.create 500 in
-  Display.fun_out (Buffer.add_string b) (fun () ->
-    Buffer.add_string b ("equiv !"^id_N^" "^id_X^" <-R "^id_T^"; (");
-    Buffer.add_string b ("!"^id_NX^" "^id_OX^"() := return("^id_X^")");
+  let print = Buffer.add_string b in
+  Display.fun_out print (fun () ->
+    print ("equiv(move_array("^id_T^"))\n");
+    print ("      !"^id_N^" "^id_X^" <-R "^id_T^"; (");
+    print ("!"^id_NX^" "^id_OX^"() := return("^id_X^")");
     List.iter (fun (id_Neq, id_Oeq, (forall, restr, t1, _, _)) ->
-      Buffer.add_string b (" |\n !"^id_Neq^" "^id_Oeq^"(");
+      print (" |\n !"^id_Neq^" "^id_Oeq^"(");
       Display.display_list Display.display_binder_with_type forall;
-      Buffer.add_string b (") := return(");
+      print (") := return(");
       Display.display_term t1;
-      Buffer.add_string b ")"
+      print ")"
 	) collisions_with_oracle;
-    Buffer.add_string b ")\n<=(";
+    print ")\n<=(";
     let first = ref true in
     List.iter (fun (id_Neq, id_Oeq, (_, _, _, proba, _)) ->
-      if not (!first) then Buffer.add_string b " + ";
+      if not (!first) then print " + ";
       if proba != [] then
 	begin
 	  first := false;
-	  Buffer.add_string b ("#"^id_Oeq^" * (");
+	  print ("#"^id_Oeq^" * (");
 	  Display.display_set proba;
-	  Buffer.add_string b ")"
+	  print ")"
 	end
 	) collisions_with_oracle;
-    if !first then Buffer.add_string b "0";
-    Buffer.add_string b ")=>\n     !N (";
-    Buffer.add_string b ("!"^id_NX^" "^id_OX^"() := find[unique] "^
+    if !first then print "0";
+    print (")=>\n      !"^id_N^" (");
+    print ("!"^id_NX^" "^id_OX^"() := find[unique] "^
 			 id_j^"<="^id_NX^" suchthat defined(");
     Display.display_term term_Y_j;
-    Buffer.add_string b ") then return(";
+    print ") then return(";
     Display.display_term term_Y_j;
-    Buffer.add_string b (") else "^id_Y^" <-R "^id_T^"; return("^id_Y^")");
+    print (") else "^id_Y^" <-R "^id_T^"; return("^id_Y^")");
     List.iter (fun (id_Neq, id_Oeq, (forall, restr, t1, _, t2)) ->
-      Buffer.add_string b (" |\n !"^id_Neq^" "^id_Oeq^"(");
+      print (" |\n !"^id_Neq^" "^id_Oeq^"(");
       Display.display_list Display.display_binder_with_type forall;
-      Buffer.add_string b (") := find[unique] "^id_j^"<="^id_NX^" suchthat defined(");
+      print (") := find[unique] "^id_j^"<="^id_NX^" suchthat defined(");
       Display.display_term term_Y_j;
-      Buffer.add_string b ") then return(";
+      print ") then return(";
       Display.display_term (subst var_X term_Y_j t1);
-      Buffer.add_string b ") else return(";
+      print ") else return(";
       Display.display_term t2;
-      Buffer.add_string b ")"
+      print ")"
 	) collisions_with_oracle;
-  Buffer.add_string b ").\n"
-    );
+    print ").\n"
+      );
   let equiv_string = Buffer.contents b in
   (* Debug *)
   print_string equiv_string;

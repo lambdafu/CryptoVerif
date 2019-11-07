@@ -2489,6 +2489,7 @@ let check_mode right = function
   | None -> ExistEquiv
 
 let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, options)) =
+  current_location := InEquivalence;
   let mem2 =
     match mem1, mem2 with
     | [PReplRestr(None, _,_),_,_], _ ->
@@ -3553,7 +3554,6 @@ let rec check_one = function
   | BuiltinEquation(eq_categ, l_fun_symb) ->
       check_builtin_eq (!env) eq_categ l_fun_symb
   | EqStatement s ->
-      current_location := InEquivalence;
       equivalences := (check_eqstatement s) :: (!equivalences)
   | Collision s ->
       check_collision (!env) s
