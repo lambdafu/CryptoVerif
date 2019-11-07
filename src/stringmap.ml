@@ -1,5 +1,4 @@
 open Types
-open Ptree
 open Parsing_helper
 
 (* Environment.
@@ -18,17 +17,17 @@ module StringMap = Map.Make(String)
    Is a map from strings to the description of the ident *)
 
 type env_entry =
-    EFunc of Types.funsymb
-  | EEvent of Types.funsymb
-  | EParam of Types.param
-  | EProba of Types.proba
-  | EType of Types.typet
-  | EVar of Types.binder
-  | EReplIndex of Types.repl_index
-  | EChannel of Types.channel
-  | ELetFun of Types.funsymb * env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.term_e
+    EFunc of funsymb
+  | EEvent of funsymb
+  | EParam of param
+  | EProba of proba
+  | EType of typet
+  | EVar of binder
+  | EReplIndex of repl_index
+  | EChannel of channel
+  | ELetFun of funsymb * env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.term_e
   | EProcess of env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
-  | ETable of Types.table
+  | ETable of table
 
 and env_type = env_entry StringMap.t
 
@@ -66,8 +65,8 @@ let get_type_or_param env s ext =
   with Not_found -> input_error (s ^ " not defined.") ext
 
 let get_ty env = function
-    Tid (s2, ext2) -> (get_type env s2 ext2, ext2)
-  | TBound (s2, ext2) -> 
+    Ptree.Tid (s2, ext2) -> (get_type env s2 ext2, ext2)
+  | Ptree.TBound (s2, ext2) -> 
       let p = get_param env s2 ext2 in
       (Terms.type_for_param p, ext2)
       
