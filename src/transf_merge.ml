@@ -1115,7 +1115,7 @@ let add_def_var_find_cond rename_instr t b =
       begin
 	try
 	  let b2 = assq2 source_vars brl b in
-	  Terms.build_term t (LetE(PatVar b2, Terms.cst_for_type b2.btype, t, None))
+	  Terms.build_term t (LetE(PatVar b2, Stringmap.cst_for_type b2.btype, t, None))
 	with Not_found -> 
 	  t
       end
@@ -1127,7 +1127,7 @@ let add_def_var_proc rename_instr p b =
       begin
 	try
 	  let b2 = assq2 source_vars brl b in
-	  Terms.oproc_from_desc (Let(PatVar b2, Terms.cst_for_type b2.btype, p, Terms.oproc_from_desc Yield))
+	  Terms.oproc_from_desc (Let(PatVar b2, Stringmap.cst_for_type b2.btype, p, Terms.oproc_from_desc Yield))
 	with Not_found -> 
 	  p
       end
@@ -1452,7 +1452,7 @@ let rec merge_find_cond rename_instr t =
       begin
 	try
 	  let b = assq2 tl bl t in
-	  Terms.build_term t (LetE(PatVar b, Terms.cst_for_type b.btype, t', None))
+	  Terms.build_term t (LetE(PatVar b, Stringmap.cst_for_type b.btype, t', None))
 	with Not_found ->
 	  t'
       end
@@ -1533,7 +1533,7 @@ and merge_o rename_instr p =
       begin
 	try
 	  let b = assq2 pl bl p in
-	  Terms.oproc_from_desc (Let(PatVar b, Terms.cst_for_type b.btype, p', Terms.oproc_from_desc Yield))
+	  Terms.oproc_from_desc (Let(PatVar b, Stringmap.cst_for_type b.btype, p', Terms.oproc_from_desc Yield))
 	with Not_found ->
 	  p'
       end

@@ -4,11 +4,7 @@ open Parsing_helper
   
 let parse_and_check_collision var_X (s,ext_s) =
   let coll = Syntax.parse_from_string Parser.move_array_coll (s, ext_s) in
-  let env = ref (!Stringmap.env) in
-  Terms.TypeHashtbl.iter (fun _ f ->
-      env := StringMap.add f.f_name (EFunc f) (!env))
-    Terms.cst_for_type_table;
-  let (forall, restr, t1) = Syntax.check_move_array_coll (!env) var_X coll in
+  let (forall, restr, t1) = Syntax.check_move_array_coll (!Stringmap.env) var_X coll in
   let depinfo =
     { args_at_creation_only = true;
       dep = [restr, (Decompos(Some []), Some [], ())];
@@ -166,9 +162,6 @@ let move_array_equiv ext2 bl collisions =
   (* Create the environment for checking the equivalence *)
   let env = Stringmap.env in
   let old_env = !env in
-  Terms.TypeHashtbl.iter (fun _ f ->
-      env := StringMap.add f.f_name (EFunc f) (!env))
-    Terms.cst_for_type_table;  
   env := StringMap.add id_N (EParam param_N) (!env);
   env := StringMap.add id_NX (EParam param_NX) (!env);
   List.iter (fun (id_Neq, _, _) ->

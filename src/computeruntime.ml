@@ -101,7 +101,7 @@ and time_term t =
 	((f==Settings.f_and) || (f==Settings.f_or) || (f==Settings.f_not) ||
 	(f==Settings.get_tuple_fun []) ||
 	(f.f_cat == Event) ||
-	 ((l == []) && (Terms.equal_terms t (Terms.cst_for_type (snd f.f_type)))))
+	 ((l == []) && (Terms.equal_terms t (Stringmap.cst_for_type (snd f.f_type)))))
       then
 	(* Ignore &&, ||, not, (), events, cst_ty 
 	   when (!Settings.ignore_small_times)>1 *)
@@ -131,7 +131,7 @@ and time_term t =
 	  if List.memq b (!names_to_discharge) then
 	    Polynom.sum tt (Polynom.sum 
 	      (Polynom.probaf_to_polynom (ActTime(AArrayAccess (List.length b.args_at_creation), [])))
-              (time_term (Terms.cst_for_type b.btype)))
+              (time_term (Stringmap.cst_for_type b.btype)))
 	  else
 	    Polynom.sum tt (Polynom.probaf_to_polynom 
 	      (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []), ActTime(ANew b.btype, []))))
@@ -282,7 +282,7 @@ and time_oprocess p =
 	  if List.memq b (!names_to_discharge) then
 	    Polynom.sum tp (Polynom.sum 
 	      (Polynom.probaf_to_polynom (ActTime(AArrayAccess (List.length b.args_at_creation), [])))
-              (time_term (Terms.cst_for_type b.btype)))
+              (time_term (Stringmap.cst_for_type b.btype)))
 	  else
 	    Polynom.sum tp (Polynom.probaf_to_polynom 
 	      (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []), ActTime(ANew b.btype, []))))

@@ -3411,7 +3411,7 @@ and transform_any_term_norestr t =
        | Some l ->
 	   put_restr_term l 
 	      (if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
-		 Terms.build_term2 t (LetE(PatVar b, Terms.cst_for_type b.btype, t'', None))
+		 Terms.build_term2 t (LetE(PatVar b, Stringmap.cst_for_type b.btype, t'', None))
               else
 		t'')
      end
@@ -3484,7 +3484,7 @@ and transform_oprocess_norestr cur_array p =
 	| Some l ->
 	    put_restr l 
 	      (if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
-		Terms.oproc_from_desc (Let(PatVar b, Terms.cst_for_type b.btype, p', Terms.oproc_from_desc Yield))
+		Terms.oproc_from_desc (Let(PatVar b, Stringmap.cst_for_type b.btype, p', Terms.oproc_from_desc Yield))
               else
 		p')
       end

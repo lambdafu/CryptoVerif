@@ -2091,7 +2091,7 @@ let rec put_defined_cond_pat def_list = function
 	
 let add_def_cond_fc def_list t =
   if def_list != [] then
-    Terms.build_term t (FindE([([], def_list, Terms.make_true(), t)], Terms.cst_for_type t.t_type, Nothing))  
+    Terms.build_term t (FindE([([], def_list, Terms.make_true(), t)], Stringmap.cst_for_type t.t_type, Nothing))  
   else
     t
       

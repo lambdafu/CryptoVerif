@@ -165,7 +165,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                   replacement_def_list := (b, b') :: (!replacement_def_list);
                   rec_simplif above_vars p1
                 with Not_found ->
-		      let t' = Terms.cst_for_type t.t_type in
+		      let t' = Stringmap.cst_for_type t.t_type in
 		      if not (Terms.equal_terms t t') then 
                         begin
                           done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
@@ -206,7 +206,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                     replacement_def_list := (b, b') :: (!replacement_def_list);
                     rec_simplif above_vars p1'
                   with Not_found ->
-		    let t' = Terms.cst_for_type t.t_type in
+		    let t' = Stringmap.cst_for_type t.t_type in
 		    if not (Terms.equal_terms t t') then 
                       begin
                         done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
@@ -251,7 +251,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 			Terms.link b (TLink t);
 		        (* We may keep calls to defined(b), so keep a definition of b
 			   but its value does not matter *)
-			let t' = Terms.cst_for_type t.t_type in
+			let t' = Stringmap.cst_for_type t.t_type in
 			if not (Terms.equal_terms t t') then 
 			  begin
 			    done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
@@ -282,7 +282,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                 else if b.root_def_array_ref then
 		  (* We may keep calls to defined(b), so keep a definition of b
 		     but its value does not matter *)
-		  let t' = Terms.cst_for_type t.t_type in
+		  let t' = Stringmap.cst_for_type t.t_type in
 		  if not (Terms.equal_terms t t') then 
                     begin
                       done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);

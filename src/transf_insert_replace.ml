@@ -855,13 +855,9 @@ let insert_instruct occ ext_o s ext_s g =
   Hashtbl.clear hash_binders;
   find_binders_rec g_proc;
   let count = ref 0 in
-  let env = ref (!Stringmap.env) in
-  Terms.TypeHashtbl.iter (fun _ f ->
-      env := Stringmap.StringMap.add f.f_name (EFunc f) (!env))
-    Terms.cst_for_type_table;
   let (p',_) = 
     try
-      insert_ins count occ ins (!env) [] g_proc 
+      insert_ins count occ ins (!Stringmap.env) [] g_proc 
     with Error(mess, extent) ->
       Array_ref.cleanup_array_ref();
       Hashtbl.clear hash_binders;
@@ -1135,13 +1131,9 @@ let replace_term occ ext_o s ext_s g =
   find_binders_rec g_proc;
   whole_game := g;
   let count = ref (RepToDo (occ, ext_o, rep_term, ext_s)) in
-  let env = ref (!Stringmap.env) in
-  Terms.TypeHashtbl.iter (fun _ f ->
-      env := Stringmap.StringMap.add f.f_name (EFunc f) (!env))
-    Terms.cst_for_type_table;
   let p' = 
     try
-      replace_t count (!env) [] g_proc 
+      replace_t count (!Stringmap.env) [] g_proc 
     with Error(mess, extent) ->
       Array_ref.cleanup_array_ref();
       Hashtbl.clear hash_binders;

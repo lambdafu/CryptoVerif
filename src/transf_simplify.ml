@@ -985,7 +985,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  | _ ->
 	      Settings.changed := true;
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
-	      Terms.cst_for_type t3.t_type
+	      Stringmap.cst_for_type t3.t_type
       in
       let rec simplify_findl seen = function
 	  [] -> []
@@ -1229,7 +1229,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    let t3'' = 
 	      match t3'.t_desc with
 		FunApp(_,[]) -> t3'
-	      |	_ -> Terms.cst_for_type t3'.t_type 
+	      |	_ -> Stringmap.cst_for_type t3'.t_type 
 	    in
 	    if List.length l0 > 1 then 
 	      begin
@@ -1276,7 +1276,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	begin
 	  Settings.changed := true;
 	  current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
-	  Terms.build_term2 t (LetE(PatVar b,  Terms.cst_for_type b.btype, t', None))
+	  Terms.build_term2 t (LetE(PatVar b,  Stringmap.cst_for_type b.btype, t', None))
 	end
       else
 	Terms.build_term2 t (ResE(b, t'))
@@ -1430,7 +1430,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SResToAssign(pp)) :: (!current_pass_transfos);
-		Terms.oproc_from_desc (Let(PatVar b,  Terms.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
+		Terms.oproc_from_desc (Let(PatVar b,  Stringmap.cst_for_type b.btype, p1, Terms.oproc_from_desc Yield))
 	      end
 	    else
 	      Terms.oproc_from_desc (Restr(b, p1))

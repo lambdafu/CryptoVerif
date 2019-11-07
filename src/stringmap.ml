@@ -202,3 +202,41 @@ let get_global_binder_if_possible i =
     | _ -> None
   with Not_found ->
     internal_error ("Binder " ^ i ^ " should be in binder_env")
+
+(* Constant for each type
+   Add it to the environment env *)
+
+module HashedType =
+  struct
+    type t = Types.typet
+    let equal = (==)
+    (* The hash function must use only parts that are not modified,
+       otherwise, we may have the same element with several different hashes *)
+    let hash t = Hashtbl.hash t.tname
+  end
+
+module TypeHashtbl = Hashtbl.Make(HashedType)
+
+let cst_for_type_table = TypeHashtbl.create 7
+
+let cst_for_type ty =
+  let f = 
+    try
+      TypeHashtbl.find cst_for_type_table ty
+    with Not_found ->
+      let r = { f_name = Terms.fresh_id ("cst_" ^ ty.tname);
+		f_type = [],ty;
+		f_cat = Std;
+		f_options = 0;
+		f_statements = [];
+		f_collisions = [];
+		f_eq_theories = NoEq;
+                f_impl = No_impl;
+                f_impl_inv = None }
+      in
+      TypeHashtbl.add cst_for_type_table ty r;
+      env := StringMap.add r.f_name (EFunc r) (!env);
+      r
+  in
+  Terms.build_term_type ty (FunApp(f,[]))
+

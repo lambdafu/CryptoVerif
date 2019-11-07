@@ -577,7 +577,7 @@ let rec move_names_term add_names corresp_list t =
       if b.root_def_std_ref || b.root_def_array_ref then
 	let b' = Terms.new_binder b in
 	corresp_list := (b,b')::(!corresp_list);
-	Terms.build_term2 t (LetE(PatVar b', Terms.cst_for_type b.btype  , t', None))
+	Terms.build_term2 t (LetE(PatVar b', Stringmap.cst_for_type b.btype  , t', None))
       else
 	t'
   | LetE(pat, t1, t2, topt) ->

@@ -193,7 +193,7 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
 		| _ ->
 		    Settings.changed := true;
 		    current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
-		    Some (Terms.cst_for_type t3.t_type)
+		    Some (Stringmap.cst_for_type t3.t_type)
 	    end
     in
     (* Simplify the process p1 *)
@@ -258,7 +258,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	  | _ ->
 	      Settings.changed := true;
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
-	      Terms.cst_for_type t3.t_type
+	      Stringmap.cst_for_type t3.t_type
       in
       let rec simplify_findl seen = function
 	  [] -> []
@@ -450,7 +450,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    let t3'' = 
 	      match t3'.t_desc with
 		FunApp(_,[]) -> t3'
-	      |	_ -> Terms.cst_for_type t3'.t_type 
+	      |	_ -> Stringmap.cst_for_type t3'.t_type 
 	    in
 	    if List.length l0 > 1 then 
 	      begin
