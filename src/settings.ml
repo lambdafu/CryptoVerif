@@ -653,8 +653,6 @@ let event_occurs_in_queries f q =
 
 let equivs = ref []
 
-let move_new_eq = ref []
-
 (****************************************************************************)
 
 (* Set when a game is modified *)
