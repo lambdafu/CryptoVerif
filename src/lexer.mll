@@ -166,7 +166,7 @@ rule token = parse
       with Failure _ ->
 	raise (Error("Incorrect integer", extent lexbuf))
     }
-| ([ '0'-'9' ]) + '.' ([ '0'-'9' ])*
+| [ '0'-'9' ]+ ((('.' [ '0'-'9' ]*)? 'e' ['+' '-']? [ '0'-'9' ]+) |  '.' [ '0'-'9' ]+)
      { FLOAT (float_of_string(Lexing.lexeme lexbuf)) }
 | "(*" {
          comment lexbuf;

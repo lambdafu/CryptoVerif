@@ -17,7 +17,7 @@ let print_int i =
   print_string (string_of_int i)
     
 let print_float f =
-  print_string (string_of_float f)
+  print_string (Printf.sprintf "%g" f)
 
 let print_newline() =
   print_string "\n";

@@ -471,7 +471,7 @@ let rec display_proba level = function
       display_proba 3 y;
       if level > 3 then print_string ")"
   | Zero -> print_string "0"      
-  | Cst n -> print_string (string_of_float n)
+  | Cst n -> print_string (Printf.sprintf "%g" n)
   | Div(x,y) ->
       if level > 3 then print_string "(";
       display_proba 3 x;
