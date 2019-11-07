@@ -1,23 +1,23 @@
 (* OAEP scheme, proof of CCA2 security *)
 
 proof {
-(* We arrange so that the test in OD uses [second(mz) = zero]
-   instead of [let concatm(m, =zero) = mz in]. This is useful
-   because we cannot write [let concatm(m, =zero) = mz in] in
-   the LHS of an equivalence, and we need it for 
-   [move_array_xorDow]. *)
-insert before "let concatm" "if second(mz) = zero then";
+(* We arrange so that the test in OD uses [second(mz) = zeroDz]
+   instead of [let concatm(m, =zeroDz) = mz in]. This is useful
+   because we cannot write [let concatm(m, =zeroDz) = mz in] in
+   the LHS of an equivalence, and we need it internally to delay
+   the choice of [r_6] below. After the change, we can use:
+   [move array r_6 "forall X': Dz; X <-R Dow; second(X) = X'"]. *)
+insert before "let concatm" "if second(mz) = zeroDz then";
 (* Apply random oracle on G *)
 crypto rom(G);
 (* The cases in which the argument of G in Goracle
    or in OD is equal to the argument of G in OT (that is, r_3)
    in fact happen with negligible probability. We will prove that later.
    We insert events to remove that code. *)
-show_game occ;
 insert_event bad1 before "return{[0-9]*}({[0-9]*}r_5";
-insert_event bad3 161;
+insert_event bad3 164;
 (* After inserting these events, the result of G in OT (that is, r_5)
-   is only used in xorDow(concatm(menc, zero), r_5). We can replace 
+   is only used in xorDow(concatm(menc, zeroDz), r_5). We can replace 
    this xor with just a random value, thus removing the dependency
    on menc. *)
 crypto remove_xor(xorDow) r_5;
@@ -26,81 +26,89 @@ crypto remove_xor(xorDow) r_5;
    probability. *)
 success; (* secrecy of b1 *)
 (* We delay the choice of the random result of G in OD (r_6)
-   which is not used immediately. We first do 
-   remove_assign binder mz to make second(xorDow(.., r_6[u])) = zero
-   appear. It is needed in crypto move_array_xorDow r_6. *)
-remove_assign binder mz;
-move array r_6 "forall X': Dow; X <-R Dow; second(xorDow(X', X)) = zero";
+   which is not used immediately.
+   Mentioning the collision 
+   "forall X': Dz; X <-R Dow; second(X) = X'" allows CryptoVerif
+   to show that, when X is a fresh random value, [second(X) = X']
+   reduces to [false], so we do not need to choose [r_6] when
+   it appears in an expression of the form [second(r_6) = ...]. *)
+move array r_6 "forall X': Dz; X <-R Dow; second(X) = X'";
+simplify;
+(* Remove the assignment to X' because it appears in one of 2 branches
+   that other execute similar code.
+   TODO allow CryptoVerif to ignore that assignment when merging
+   the 2 branches *)
+remove_assign binder X';
+(* The previous [move array] transformation makes a variable Y appear, which plays
+   the same role as r_4, we merge them. *)
+merge_arrays r_4 Y;
 (* After that, the end of OD contains 
-      find [unique] u_16 = ri <= qD suchthat defined(r_6[ri], r'[ri]) && (r' = r'[ri]) then
-        yield
-      else
-        r_6: Dow <- cst_Dow
+            find [unique] u_15 = ri <= qD suchthat defined(r_6[ri], r'[ri]) && (r' = r'[ri]) then
+              yield
+            else
+              r_6: Dow <- cst_Dow
 and r_6 is used only in the condition of the find above.
 We can then drop the definition of r_6 and merge the two branches of find.
 For CryptoVerif to do the merge, we actually need to add a useless assignment
 in the then branch, so that it looks like the else branch. 
 TODO: avoid having to add this assignment.
 *)
-insert 144 "rx <- cst_Dow";
+insert 167 "rx <- cst_Dow";
 merge_branches;
 (* Apply random oracle on H *)
 crypto rom(H);
-(* Remove dependencies on r_9, the result of H in OT.
-   In OD, we replace r_9 with xorDr(t, r_3).
+(* Remove dependencies on r_10, the result of H in OT.
    In OH, the argument of H has a negligible probability of being
    equal to the argument of H in OT (r_7). We will prove that later.
-   We insert an event [bad2] to remove the code in this case, which returns r_9. *)
-replace 185 "xorDr(t, r_3)";
-insert_event bad2 before "return{[0-9]*}({[0-9]*}r_9";
-(* After that, r_9 is only used in xorDr(r_3, r_9).
+   We insert an event [bad2] to remove the code in this case, which returns r_10. *)
+insert_event bad2 before "return{[0-9]*}({[0-9]*}r_10";
+(* After that, r_10 is only used in xorDr(r_3, r_10).
    We can replace this xor with just a random value.
    That allows to perform a global dependency analysis on r_3 (argument of G in OT),
    which is only used in equality tests. These tests have a negligible
    probability of succeeding, which allows CryptoVerif to simplify the game
    and remove events [bad1] and [bad3]. [bad2] is still to remove later. *)
-crypto remove_xor(xorDr) r_9;
-(* We want to delay the choice of the result of H in OD, r_10, 
-   which is not used immediately, using [move array r_10].
-   We first replace [r'_3] and [r'_1] with their values to make comparisons
-   xorDr(.., r_10[..]) = .. appear, which can be rewritten into
-   r_10[..] = xorDr(..,..), useful for [move array r_10]. *)
-remove_assign binder r'_3;
-remove_assign binder r'_1;
-move array r_10;
-(* The previous transformation makes a variable Y_2 appear, which plays
-   the same role as r_8, we merge them. *)
-merge_arrays r_8 Y_2;
+crypto remove_xor(xorDr) r_10;
+(* We want to delay the choice of the result of H in OD, r_11, 
+   which is not used immediately, using [move array r_11].
+   We first replace [r'] with its value to make comparisons
+   xorDr(.., r_11[..]) = .. appear, which can be rewritten into
+   r_11[..] = xorDr(..,..), useful for [move array r_11]. *)
+remove_assign binder r';
+move array r_11;
+(* The previous transformation makes a variable Y_3 appear, which plays
+   the same role as r_9, we merge them. *)
+merge_arrays r_9 Y_3;
 (* The end of OD is then
-             find [unique] u_30 = ri_12 <= qD suchthat defined(r_10[ri_12], s'[ri_12]) && (s' = s'[ri_12]) then
-               yield
-             else
-               find [unique] u_32 = ri_13 <= qH suchthat defined(r_12[ri_13], r_8[ri_13], x1_1[ri_13]) && (s' = x1_1[ri_13]) then
-                 yield
-               else
-                 r_10: Dr <- cst_Dr
-where r_10 is used only in conditions of find that can be merged. So we could drop
-the definition of r_10. As above, we need to perform some manual rewriting
+            find [unique] u_29 = ri_12 <= qD suchthat defined(r_11[ri_12], s'[ri_12]) && (s' = s'[ri_12]) then
+              yield
+            else
+              find [unique] u_31 = ri_13 <= qH suchthat defined(r_13[ri_13], r_9[ri_13], x1_1[ri_13]) && (s' = x1_1[ri_13]) then
+                yield
+              else
+                r_11: Dr <- cst_Dr
+where r_11 is used only in conditions of find that can be merged. So we could drop
+the definition of r_11. As above, we need to perform some manual rewriting
 for CryptoVerif to perform the merge. It is more complicated, because
 we have two finds involved; we first need to transform them into a single find.
 TODO: Automate that.
 *)
-insert 164 "find u30 = ri_12 <= qD suchthat defined(r_10[ri_12], s'[ri_12]) && (s' = s'[ri_12]) then orfind u32 = ri_13 <= qH suchthat defined(r_12[ri_13], r_8[ri_13], x1_1[ri_13]) && (s' = x1_1[ri_13]) then";
+insert 167 "find u29 = ri_12 <= qD suchthat defined(r_11[ri_12], s'[ri_12]) && (s' = s'[ri_12]) then orfind u31 = ri_13 <= qH suchthat defined(r_13[ri_13], r_9[ri_13], x1_1[ri_13]) && (s' = x1_1[ri_13]) then";
 simplify;
-insert 180 "ry <- cst_Dr";
-insert 172 "ry <- cst_Dr";
+insert 183 "ry <- cst_Dr";
+insert 175 "ry <- cst_Dr";
 merge_branches;
 (* Still one merge to do in OD *)
 merge_branches;
 (* Avoid using [sk] by replacing the computation [let concat(s': Dow, t': Dr) = invf(sk, c) in]
-   and subsequent test on [s'] and [t']: [s' = x1_1[ri_13],t' = xorDr(r_8[ri_13], x1[ri_1])] 
+   and subsequent test on [s'] and [t']: [s' = x1_1[ri_13],t' = xorDr(r_9[ri_13], x1[ri_1])] 
    with a computation of [c] from [s',t']: [c = f(pk, concat(s',t'))] *)
-insert 93 "find u31 = ri_13 <= qH, u1 = ri_1 <= qG suchthat defined(r_8[ri_13], x1_1[ri_13], r_4[ri_1], x1[ri_1]) && c = f(pk, concat(x1_1[ri_13], xorDr(r_8[ri_13], x1[ri_1]))) then";
+insert 93 "find [unique] u30 = ri_13 <= qH, u1 = ri_1 <= qG suchthat defined(r_9[ri_13], x1_1[ri_13], r_4[ri_1], x1[ri_1]) && c = f(pk, concat(x1_1[ri_13], xorDr(r_9[ri_13], x1[ri_1]))) then";
 simplify;
 (* Remove the computation of [sk] completely *)
 remove_assign useless;
 (* We can then apply partial-domain onewayness *)
-crypto pd_ow(f) r_2 r_7 r_11;
+crypto pd_ow(f) r_2 r_7 r_12;
 (* Event [bad2] is now removed, we can conclude *)
 success
 }
@@ -134,27 +142,20 @@ type Dm [fixed].
 type Dz [fixed,large].
 
 fun concatm(Dm,Dz):Dow [data].
-const zero: Dz.
 
-fun second(Dow):Dz.
+fun second(Dow):Dz [uniform].
 equation forall x:Dm, y:Dz; second(concatm(x,y)) = y.
 
 (* Xor *)
 
 expand Xor(Dow, xorDow, zeroDow).
 expand Xor(Dr, xorDr, zeroDr).
+expand Xor(Dz, xorDz, zeroDz).
+
+equation forall x: Dow, y: Dow;
+     second(xorDow(x,y)) = xorDz(second(x),second(y)).
 
 param NX, Neq.
-
-(* TODO: Generalize the command "move array" to perform the following
-   transformation *)
-
-equiv(move_array_xorDow)
-      X <-R Dow; (foreach iX <= NX do OX() := return(X) |
-      	          foreach ieq <= Neq do Oeq(X':Dow) := return(second(xorDow(X', X)) = zero))
-<=(Neq * Pcoll1rand(Dz))=> [manual]
-      foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R Dow; return(Y) |
-      foreach ieq <= Neq do Oeq(X':Dow) := find[unique] j<=NX suchthat defined(Y[j]) then return(second(xorDow(X', Y[j])) = zero) else return(false).
 
 (* Implementing a test as a function.
    Useful to avoid expanding if, which is necessary for this proof. *)
@@ -182,7 +183,7 @@ return(pk);
   b1 <-R bool;
   menc <- test(b1, m1, m2);
   r <-R Dr;
-  s <- xorDow(concatm(menc, zero), G(hkg, r));
+  s <- xorDow(concatm(menc, zeroDz), G(hkg, r));
   t <- xorDr(r, H(hkh, s));
   cT: D <- f(pk, concat(s, t));
   return(cT)
@@ -195,7 +196,7 @@ return(pk);
     let concat(s': Dow, t': Dr) = invf(sk, c) in
     r' <- xorDr(t', H(hkh, s'));
     mz <- xorDow(s', G(hkg, r'));
-    let concatm(m, =zero) = mz in
+    let concatm(m, =zeroDz) = mz in
     return(m)
 ))
 
