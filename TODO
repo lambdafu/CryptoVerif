@@ -117,6 +117,20 @@ otherwise exp(elem(x,y),n) = elem(id_low,exp_high(y,n))
 4) Implement the "choice" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
 5) Guess the tested session (see point 4 in HIGH PRIORITY)
+6) Extend the "move" instruction to allow precisely moving
+   "let"/"new" from one point to another (when correct).
+   (see point 7 in HIGH PRIORITY)
+7) When x is defined by let x = M, have an instruction
+   that allows to replace M with x everywhere (including
+   with indices when we are sure that x is defined).
+   (see point 8 in HIGH PRIORITY)
+8) Improved merging of branches, by substituting
+   assignments and new without array accesses,
+   or delaying those with array accesses, and
+   merging several nested finds at once.
+   (see point 9 in HIGH PRIORITY)
+9) Tech report, tutorial
+   (see points 11, 12 in HIGH PRIORITY)
 
 HIGH PRIORITY
 
