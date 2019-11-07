@@ -1,42 +1,19 @@
 TO DO next
 
-1) extend "move array" such that the equality
-test is replaced with any function f(X,z) such that when
-X is a fresh random number (i.e. z is independent of X), f(X,z) = g(z) up to small proba p.
-The equivalence is then:
+0) Test more the new "move array"
 
-equiv(move_array(T))
-      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
-                      	        foreach ieq <= Neq do Oeq(z:T') := return(f(X,z))
-<=(#Oeq * p)=> [manual]
-      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
-              	       foreach ieq <= Neq do Oeq(z:T') := find[unique] j<=NX suchthat defined(Y[j]) then return(f(Y[j],z)) else return(g(z))).
+1) Instead of generating macros in cryptogen, and then loading
+them, allow some macros to be defined internally
+to CryptoVerif. We can then use "expand" on these macros
+without having an explicit "def", and we can do more than
+basic expansion.
 
-z:T' may in fact be several arguments.
-The functions f,g can be defined by terms containing several function applications.
-We can have several Oeq oracles, each with functions f/g and associated probability p.
+a) Check that the arguments of internal macros are correct
+before expanding. That is needed to avoid error messages
+that refer to the internal macro itself.
 
-This extension could be applied directly to the ROM as well.
-(useful for AuthA, OAEP CCA2, ... see below these examples)
-
-As a first step, that could easily be done by allowing the
-user to specify the desired function f as an additional
-argument to "move array" (actually, the user would write
-z:T'; new X:T; f(X,z), generalized to several z and a term 
-instead of f), checking that they satisfy the
-assumption, which yields the function g and the probability p
-by simplifying f(X,z) with X random and z indep of X,
-generating the corresponding equivalence as string,
-and parsing it.
-
-For ROM, PRF, ..., I could extend cryptogen so that
-the user can specify functions used for collisions
-with their associated probability.
-A possible syntax:
-z:T'; new X: T; f(X,z) <=(p)=> g(z)
-generalized to several z and terms instead of f/g.
-(Putting " new X: T" after "z:T'" suggests that
-z' is independent of X.)
+b) For ROM, PRF, ..., extend the Oeq oracle
+with a user-specified collision, as in transf_move_array.
 
 The oracle Ocoll could also be generalized:
 if new x1:T; new x2: T; forall zi:Ti; f(x1,x2,zi)
@@ -67,82 +44,48 @@ Ocoll(ai:input,zk:Tk) := let S = {(i,j) \in P | ai=aj} in g_S(zk)
 that is, we test the equalities among the ai's to select
 the right simplified expression g_S(zk).
 
-vars:types; new X:T; M1 <=(p)=> M2
-check
-- all elements of vars are pairwise distinct,
-   different from X, different from predefined identifiers (true, false, not, bottom, bitstring, bitstringbot, bool). They are distinct from types in [types].
-   Types in [types] are different from predefined functions = true, false, not, bottom.
-   Identifiers in M1,M2,p  are distinct from types in [types] and predefined types (bitstring, bitstringbot, bool). Those in vars are considered as variables, the others as constants (fcts of arity 0).
-   Function symbols in M1,M2,p are distinct from vars and from types in [types] and predefined types (bitstring, bitstringbot, bool).
-   Functions are always used with the same arity. (Types are too hard to check.)
-- M1,M2 contain only PIdent, PFunApp, PEqual, PDiff, POr, PAnd
-- all vars and X occur in M1, and there are no other variables in M1
-- all variables of M2 are in vars.
-- T is the output type of the hash function.
-- all variables in p are in vars.
-Rename all variables in vars and X to v_<oldname>
-all non-predefined functions in M1, M2, p to fun_<oldname>
-(predefined functions = true, false, not, bottom)
-all non-predefined types in types to t_<oldname>
-(predefined types = bitstring, bitstringbot, bool)
-Add all the renamed types and function symbols to the arguments of the macro.
+The desired collisions could appear as a string argument of 
+"expand".
 
-Or would it be better to generate the required macros on the fly, inside CryptoVerif itself?
-Some names of macros would then be internal, and not redefinable by the user.
-Advantages:
-- we can generate exactly what we need: any number of arguments, any number of oracles,
-collisions specified by the user at "equiv" time... -> no, the collisions should rather
-be specified at expand time, because we may want to apply the equivalence with collisions
-automatically. That could be done by allowing expand to take other arguments
-than identifiers for internal macros:
-  - int, e.g. for the number of arguments of hash functions, PRFs.
-  In fact, the best way to specify the number of arguments would be to allow tuples
-  of identifiers as argument of expand. We would then pass the tuple of input types
-  as argument of expand.
-  - string, e.g. for collisions used in hash functions, PRFs, ...
-Only the *_partial equivalences are better generated at equiv time since they
+c) Points a) and b) require that the declarations before the "expand"
+are already checked and included in the environment before
+performing expansion. This is currently not the case in syntax.ml,
+where we expand all macros before starting to check and include things
+in the environment. That could probably be changed.
+
+d) For functions with a variable number of arguments, allow tuples of
+identifiers as argument of expand. We would then pass the tuple of
+input types as argument of expand.
+For macros for which this is the only special point,
+reuse the code we have in cryptogen, with $repeat%...$sep$.
+
+e) For ROM, PRF, ... generate the *_partial equivalences at equiv time since they
 can be applied only manually, and that allows to generate the appropriate number
 of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argument of equiv.
-Drawbacks:
-- we still need to generate a library for ProVerif; it will be more limited than the
-CryptoVerif internal macros
-Would it be possible to generalize used-defined macros to allow
-them to take tuples of identifiers as input, and expand the macro
-with the appropriate number of arguments?
-Possible syntax:
-(input__) for the tuple argument 
-list(input__, i, M) with identifiers xxx__i inside M generates a list of terms,
-accepted where a list of terms is expected (e.g. arguments of a function application)
-same for probas.
-list&&(input__, i, M) for the && of the list of terms list(input__, i, M)
-list||(input__, i, M) for the || of the list of terms list(input__, i, M)
-list(input__, i, x__i:T__i) for a list of variable declarations with their type
-list(input__, i, T__i) for a list of types (e.g. types of arguments of a function)
-Requires fairly big changes to the parser and syntax.ml...
-Or store the macro as a string at definition time, without parsing between { ... };
-at expansion, perform argument list transformation on that string, then
-parse the resulting string?
-Or argument list transformation together with parsing?
-(Everywhere the parser accepts a list, also accept a construct
-list(...) that directly returns the expanded list;
-everywhere the parser accepts an identifier, also accept
-ident%i.) 
-- it is much harder for the user to modify the macros, as we did
-e.g. for Wireguard.  (ROM_hash_refactored). For the purpose of
-ROM_hash_refactored, the simplest would be to name the variables
-and channels with suffix _f where f is the name of the hash function.
-That avoids name clashes and renames between several expansions
-of the macro. (Still need to call fresh_id to make sure that
-the final identifier is globally fresh.)
-
-
-Specify IND$-CPA
 
 Document rom_partial / prf_partial
 Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
 variable position of the DH argument, equiv prf_odh_partial(prf)
 with variable number of prf oracles)
 
+f) To replace the macro ROM_hash_refactored that we use for Wireguard,
+name the variables and channels internal to the macro with suffix _f
+where f is the name of the hash function.
+That avoids name clashes and renames between several expansions
+of the macro. (Still need to call fresh_id to make sure that
+the final identifier is globally fresh.)
+
+g) Also extend ProVerif to support these internal macros.
+
+h) Generate the expansion of the macro as a string, then
+parse it.
+Have an option to display this expansion. That allows the user to
+play with it if needed.
+
+
+Specify IND$-CPA
+
+[OUTDATED: cryptogen will disappear if I do the above]
 Document the "cryptogen" program
 
 Look at Tamarin paper to improve proverif DH model
@@ -4895,3 +4838,30 @@ DONE 28/10/2019
 Fix internal error in
 examplesnd/otest/internal_error_cryptotransf_useknownequalities.ocv
 FIXED 5/11/2019
+
+extend "move array" such that the equality
+test is replaced with any function f(X,z) such that when
+X is a fresh random number (i.e. z is independent of X), f(X,z) = g(z) up to small proba p.
+The equivalence is then:
+
+equiv(move_array(T))
+      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
+                      	        foreach ieq <= Neq do Oeq(z:T') := return(f(X,z))
+<=(#Oeq * p)=> [manual]
+      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
+              	       foreach ieq <= Neq do Oeq(z:T') := find[unique] j<=NX suchthat defined(Y[j]) then return(f(Y[j],z)) else return(g(z))).
+
+z:T' may in fact be several arguments.
+The functions f,g can be defined by terms containing several function applications.
+We can have several Oeq oracles, each with functions f/g and associated probability p.
+
+As a first step, that could easily be done by allowing the
+user to specify the desired function f as an additional
+argument to "move array" (actually, the user would write
+z:T'; new X:T; f(X,z), generalized to several z and a term 
+instead of f), checking that they satisfy the
+assumption, which yields the function g and the probability p
+by simplifying f(X,z) with X random and z indep of X,
+generating the corresponding equivalence as string,
+and parsing it.
+DONE 7/11/2019
