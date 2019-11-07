@@ -10,21 +10,6 @@ equation forall x:bool; (x = false) = not(x).
 
 const bottom:bitstringbot.
 
-(* We define the equivalence used internally by the command "move array" *)
-
-def move_array_internal_macro(T) {
-
-param N, NX, Neq.
-
-equiv(move_array(T))
-      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
-                      	        foreach ieq <= Neq do Oeq(X':T) := return(X' = X))
-<=(#Oeq * Pcoll1rand(T))=> [manual]
-      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
-              	       foreach ieq <= Neq do Oeq(X':T) := find[unique] j<=NX suchthat defined(Y[j]) then return(X' = Y[j]) else return(false)).
-
-}
-
 (******************************** Key generation ************************************************)
 
 (* The symmetric primitives no longer include a key generation function.
