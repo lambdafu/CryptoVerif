@@ -1,0 +1,30 @@
+proof {
+      undo 2;
+      move array r "new y: T; f1(y)", "new y: T; f2(y)"
+}
+
+type T [fixed].
+
+fun f1(T):bool.
+fun f2(T):bool.
+
+proba pcoll.
+
+collision new r:T; return(f1(r)) <=(pcoll)=> return(true).
+collision new r:T; return(f2(r)) <=(pcoll)=> return(false).
+
+channel c.
+
+process
+	(in(c, ());
+	new r: T;
+	out(c, ()))
+	|
+	(in(c, ());
+	if defined(r) && f1(r) then
+	out(c, ()))
+	|
+	(in(c, ());
+	if defined(r) && f2(r) then
+	out(c, ()))
+

@@ -2155,15 +2155,35 @@ without array accesses, when this is beneficial.
 \item $\texttt{binder }x_1\ \dots\ x_n$: move random number generations and assignments
 that define $x_1, \ldots, x_n$ (even when this is not beneficial).
 The variables $x_i$ may also be regular expressions.
-\item $\texttt{array }x$: move random number generations that define $x$
-when $x$ is of a {\tt large} and {\tt bounded} type and $x$ is not used in
+\item $\texttt{array }x\ [\texttt{"}exp\texttt{", }\dots\texttt{, "}exp\texttt{"}]$: 
+move random number generations that define $x$
+when $x$ is of a {\tt bounded} or {\tt nonuniform} type and $x$ is not used in
 the process that defines it, until the next output after the definition of $x$.
 $x$ is then chosen at the point where it is really first used. 
 (Since this point may depend on the trace, the uses of $x$ are often
 transformed into {\tt find} instructions that test whether $x$ has been 
 chosen before, and reuse the previously chosen value if this is true.)
-%Internally, this is implemented by calling a cryptographic transformation
-%defined in the library by the macro "move_array_internal_macro".
+
+The expressions $\texttt{"}exp\texttt{"}$ allow the user to specify expressions
+that do no require the generation of $x$ when it has not been generated before,
+because the expression always yields the same result when $x$ is a fresh
+random value, up to negligible probability. More precisely, these expressions must be of the form
+\[[\texttt{forall }\seq{vartype}\texttt{;}]\ \Resavt\texttt{;}\ \nonterm{simpleterm}\]
+The expression can be $\texttt{forall }y_1:T_1, \dots, y_n:T_n\texttt{; new }x':T\texttt{; }M$,
+where $T$ is the type of $x$ and $y_1, \dots, y_n, x'$ are the variables of $M$.
+CryptoVerif tries to simplify $M$ into a term $M'$ that does not contain $x'$,
+assuming that $x'$ is random and $y_1, \dots, y_n$ are independent of $x'$.
+If it fails, the \texttt{move array} transformation fails.
+If it succeeds, the transformation can be performed, replacing
+$M\{x/x'\}$ with $M'$ instead of generating a fresh $x$.
+
+When no expression $\texttt{"}exp\texttt{"}$ is mentioned,
+the type of $x$ must be \texttt{large} and the expressions 
+that do no require the generation of $x$ are equality tests with 
+$x$, which are false up to negligible probability when $x$
+is a fresh random value. 
+%Internally, this is implemented by calling a cryptographic transformation.
+
 The variables $x$ may also be a regular expression. 
 In this case, it designates all variables that match the regular expression;
 all these variables must have the same type.

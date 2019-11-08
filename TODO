@@ -1,6 +1,6 @@
 TO DO next
 
-0) Test more and document the new "move array"
+0) Test more the new "move array"
 
 1) Instead of generating macros in cryptogen, and then loading
 them, allow some macros to be defined internally
@@ -43,6 +43,26 @@ rewrites into
 Ocoll(ai:input,zk:Tk) := let S = {(i,j) \in P | ai=aj} in g_S(zk)
 that is, we test the equalities among the ai's to select
 the right simplified expression g_S(zk).
+
+The case of one random value yields the following:
+new x:T; forall zk:Tk; f(x,zk).
+If f(x,zk) simplifies into g(zk)
+when x is random and zk may depend on x,
+then the oracle
+Ocoll(a:input,zk:Tk) := f(h(k,a),zi)
+rewrites into
+Ocoll(a:input,zk:Tk) := g(zk).
+
+This case does not seem useful for "move array"
+because, when f(xi,zk) simplifies when the xi are random
+and zk may depend on xi, that simplification can be applied
+before move array.
+Note that for ROM, we could also apply the simplifications
+coming from Ocoll and its extensions above *before*
+applying the ROM assumption, in a separate equiv,
+instead of applying them in the same equiv as the ROM
+assumption. That's what rom_partial does when we give it no
+[terms: ...] argument (it uses oracles O, Oeq, Ocoll).
 
 The desired collisions could appear as a string argument of 
 "expand".

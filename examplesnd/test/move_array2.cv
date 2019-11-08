@@ -1,0 +1,24 @@
+proof {
+      move array r "forall x: bool; new y: T; x = f1(y)"
+}
+
+type T [fixed].
+
+fun f1(T):bool.
+fun f2(T):bool.
+
+channel c.
+
+process
+	(in(c, ());
+	new r: T;
+	out(c, ()))
+	|
+	(in(c, ());
+	if defined(r) && f1(r) then
+	out(c, ()))
+	|
+	(in(c, ());
+	if defined(r) && f2(r) then
+	out(c, ()))
+

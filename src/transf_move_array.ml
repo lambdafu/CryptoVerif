@@ -58,7 +58,7 @@ let parse_and_check_collision var_X (s,ext_s) =
   let proba = Depanal.final_add_proba() in
   Depanal.reset [] (Terms.empty_game);
   if Terms.refers_to restr t2 then
-    raise (Error("Cannot eliminate the dependency on "^(Display.binder_to_string restr), ext_s));
+    raise (Error("Cannot eliminate the dependency on the random value when simplifying "^s, ext_s));
   (forall, restr, t1, proba, t2)
 
 

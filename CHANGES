@@ -30,6 +30,9 @@ Version
 - Added command "success simplify".
 - Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".
+- Extended the command "move array" to allow the user to specify expressions
+  for which it is not necessary to generate the random value,
+  so that the generation of the moved random value can be delayed further.
 - Expansion of if, let, find, new, event, event_abort terms into
   processes is now considered as a separate transformation instead
   of being integrated into the "crypto" transformation.
