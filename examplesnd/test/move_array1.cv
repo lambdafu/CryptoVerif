@@ -22,3 +22,7 @@ process
 	if defined(r) && f2(r) then
 	out(c, ()))
 
+(* EXPECTED
+Error: Random values in collisions in "move array" should have the same type as the variable(s) we move
+xtime: error in child process (status : 512)
+END *)

@@ -22,3 +22,7 @@ process
 	if defined(r) && f2(r) then
 	out(c, ()))
 
+(* EXPECTED
+Error: Cannot eliminate the dependency on the random value when simplifying forall x: bool; new y: T; x = f1(y)
+xtime: error in child process (status : 512)
+END *)
