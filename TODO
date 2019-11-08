@@ -79,6 +79,41 @@ are already checked and included in the environment before
 performing expansion. This is currently not the case in syntax.ml,
 where we expand all macros before starting to check and include things
 in the environment. That could probably be changed.
+It is done in this way in syntax.ml to record identifiers
+defined at top-level (even inside macros), before checking any element,
+so that we do not need to rename top-level identifiers and rather rename
+local identifiers.
+However, it seems that this may not be required: I think no local identifiers
+are renamed until the final process expansion, which anyway
+occurs after all top-level declarations, except in
+check_eqstatement, which resets the variable name state to its old
+value in the end. If I omit the initial record_id and record the ids
+at each declaration instead, the only point that this may change is that a local
+identifier to an equivalence may be the same as a function symbol or other
+top-level declaration that comes after the equivalence.
+Another reason is that, before expanding the macros, I record all
+ids used outside macros, so that, if an identifier inside a macro
+clashes with an identifier outside the macros, I rename the inside
+identifier. I reset the identifiers recorded for macro expansion
+after it is finished, before checking all elements, so that these
+identifiers can be used again as local identifiers.
+Ideas of solutions:
+- perhaps have two sets of identifiers, those recorded for macro
+expansion and those for renaming of local variables.
+(Also, I could perhaps be more precise and record only top-level
+identifiers in macro expansion, not local ones? I am almost
+already doing that during macro expansion with rename_*,
+via get_rename_state/set_rename_state.)
+- for internal macros, perform the expansion in several steps:
+during macro expansion, just find out the identifiers that need
+to be recorded immediately and the top-level declarations that
+need to be recorded before starting the checking;
+during the checking, perform the actual expansion, except
+for some "equiv", which are actually expanded when we execute the
+"equiv" command (for those, make sure identifiers do not vary too much
+at each expansion at the "equiv" command, perhaps by choosing the
+identifiers once and for all during the checking).
+The second idea seems to require fewer changes.
 
 d) For functions with a variable number of arguments, allow tuples of
 identifiers as argument of expand. We would then pass the tuple of

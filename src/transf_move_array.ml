@@ -168,6 +168,10 @@ let move_array_equiv ext2 bl collisions =
   let equiv_string = Buffer.contents b in
   (* Debug *)
   (* print_string equiv_string; *)
+  (* Restore the old variable state. That allows check_eqstatement
+     to reuse the same variable names. That function also saves and
+     restores the variable state. *)
+  Terms.set_var_num_state var_num_state;
   (* Parse the equivalence *)
   let pequiv = Syntax.parse_from_string (if !Settings.front_end = Channels then Parser.cequiv else Parser.oequiv) (equiv_string, dummy_ext) in
   (* Create the environment for checking the equivalence *)
@@ -183,7 +187,6 @@ let move_array_equiv ext2 bl collisions =
 	 ) collisions_with_oracle;
   (* Check the equivalence *)
   let equiv = Syntax.check_eqstatement pequiv in
-  (* Restore the old environement and variable state *)
+  (* Restore the old environment *)
   env := old_env;
-  Terms.set_var_num_state var_num_state;
   equiv
