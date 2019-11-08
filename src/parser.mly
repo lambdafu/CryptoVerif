@@ -166,6 +166,7 @@ let return_channel = (dummy_channel, None)
 %nonassoc EQUAL
 %nonassoc DIFF
 %nonassoc REPL
+%nonassoc UNARYMINUS
     
 %start all
 %type <Ptree.decl list * Ptree.final_process> all
@@ -1008,6 +1009,8 @@ fungroup:
 probaf:
         LPAREN probaf RPAREN
         { $2 }
+|       SUB probaf  %prec UNARYMINUS
+        { PSub((PPZero, parse_extent()), $2), parse_extent() }
 |       probaf ADD probaf
         { PAdd($1,$3), parse_extent() }
 |       probaf SUB probaf

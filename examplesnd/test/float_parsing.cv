@@ -1,0 +1,16 @@
+collision new x: bool; forall y: bool; return(x = y) <=(1.0 / |bool|)=> return(false).
+
+collision new x: bool; forall y: bool; return(x = y) <=(1000000000000000000000000000000000000.0 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1.0e10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1e10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1e+10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1.0e-10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1.0768760087786734786786278678672682687678e+64767856278 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1.0E10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1.e10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(1.E10 / |bool|)=> return(false).
+collision new x: bool; forall y: bool; return(x = y) <=(-1E1078562786378165726726786528657864736267467627678265762373462743657647856786235678562736476478634526576783267364278676276372634726752786578462786237862873462786762876734286 / |bool|)=> return(false).
+
+collision new x: bool; forall y: bool; return(x = y) <=(2.0/|bool| + -1.0 / |bool|)=> return(false).
+
+process 0
