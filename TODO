@@ -1,7 +1,5 @@
 TO DO next
 
-0) Test more the new "move array"
-
 1) Instead of generating macros in cryptogen, and then loading
 them, allow some macros to be defined internally
 to CryptoVerif. We can then use "expand" on these macros
