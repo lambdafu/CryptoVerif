@@ -42,7 +42,18 @@ let parse_and_check_collision var_X (s,ext_s) =
     in
     (indep_test, collision_test)
   in
-  Depanal.reset [] (Terms.empty_game);(* TODO may need to use a game that outputs t1 *)
+  (* Build a game in(c, forall); new restr; out(c, t1).
+     We use it to compute the runtime of the adversary when we simplify t1. *)
+  let c = {cname = "c"} in
+  let tuple = Settings.get_tuple_fun (List.map (fun b -> b.btype) forall) in
+  let p = Terms.iproc_from_desc
+      (Input((c,[]), PatTuple(tuple, List.map (fun b -> PatVar b) forall), Terms.oproc_from_desc
+	       (Restr(restr, Terms.oproc_from_desc
+			(Output((c,[]), t1, Terms.iproc_from_desc Nil))))))
+  in
+  let g = { proc = RealProcess p; expanded = true; game_number = -1; current_queries = [] } in
+  Depanal.reset [] g;
+  (* Try to simplify t1 *)
   let t2 = Facts.simplify_term dependency_anal Terms.simp_facts_id t1 in
   let proba = Depanal.final_add_proba() in
   Depanal.reset [] (Terms.empty_game);
