@@ -30,19 +30,21 @@ by considering the various equality cases between the random
 values and testing them on the arguments of the hash function
 in Ocoll on the RHS:
 new xi:T (i \in {1...n}); forall zk:Tk; f(xi,zk).
-Let P = { (i,j) \in {1...n}^2 | i<j }.
-For each S subset of P,
-f(xi,zk) simplifies into g_S(zk)
+For each equivalence relation R on {1...n},
+f(xi,zk) simplifies into g_R(zk)
 when xi are random,
-for (i,j) \in S, xi = xj,
-for (i,j) \in P\S, xi is independent of xj,
+for all i,j, if i R j, then xi = xj, else xi is independent of xj,
 and zk may depend on xi.
 Then the oracle 
 Ocoll(ai:input,zk:Tk) := f(h(k,ai),zi)
 rewrites into
-Ocoll(ai:input,zk:Tk) := let S = {(i,j) \in P | ai=aj} in g_S(zk)
+Ocoll(ai:input,zk:Tk) := let R be defined by (i R j iff ai=aj) in g_R(zk)
 that is, we test the equalities among the ai's to select
-the right simplified expression g_S(zk).
+the right simplified expression g_R(zk).
+
+The number of cases to consider (= number of equivalence
+relations on {1...n}) grows quickly with n.
+We could limit ourselves to n<=2 or n<=4, for instance.
 
 The case of one random value yields the following:
 new x:T; forall zk:Tk; f(x,zk).
