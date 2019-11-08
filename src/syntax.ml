@@ -2240,7 +2240,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
       Cst (float_of_int i), Some(0, 0, 0)
   | PFloatCst f, ext ->
       Cst f, Some(0, 0, 0)
-  | PEpsFind, ext -> EpsFind, Some(1, 0, 0)
+  | PEpsFind, ext -> (if (!Settings.ignore_small_times) > 0 then Zero else EpsFind), Some(1, 0, 0)
   | PEpsRand(s,ext'), ext ->
       begin
 	try 
@@ -2251,7 +2251,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	      else if t.toptions land Settings.tyopt_FIXED != 0 then
 		Zero, Some(1, 0, 0)
 	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
-		EpsRand t, Some(1, 0, 0)
+		(if (!Settings.ignore_small_times) > 0 then Zero else EpsRand t), Some(1, 0, 0)
 	      else
 		raise_error (s ^ " should be bounded or fixed") ext'
 	  | _ -> raise_error (s ^ " should be a type") ext'
@@ -2263,12 +2263,8 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	try 
 	  match StringMap.find s env with
 	  | EType t -> 
-	      if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
-		PColl1Rand t, Some(1, 0, 0)
-	      else if t.toptions land Settings.tyopt_FIXED != 0 then
-		Div(Cst 1.0, Card t), Some(1, 0, 0)
-	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
-		Add(Div(Cst 1.0, Card t), EpsRand t), Some(1, 0, 0)
+	      if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
+		Proba.pcoll1rand t, Some(1, 0, 0)
 	      else 
 		raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
 	  | _ -> raise_error (s ^ " should be a type") ext'
@@ -2280,12 +2276,8 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	try 
 	  match StringMap.find s env with
 	  | EType t -> 
-	      if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
-		PColl2Rand t, Some(1, 0, 0)
-	      else if t.toptions land Settings.tyopt_FIXED != 0 then
-		Div(Cst 1.0, Card t), Some(1, 0, 0)
-	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
-		Add(Div(Cst 1.0, Card t), EpsRand t), Some(1, 0, 0)
+	      if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
+		Proba.pcoll2rand t, Some(1, 0, 0)
 	      else 
 		raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
 	  | _ -> raise_error (s ^ " should be a type") ext'
