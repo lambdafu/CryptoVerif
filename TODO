@@ -36,7 +36,7 @@ when xi are random,
 for all i,j, if i R j, then xi = xj, else xi is independent of xj,
 and zk may depend on xi.
 Then the oracle 
-Ocoll(ai:input,zk:Tk) := f(h(k,ai),zi)
+Ocoll(ai:input,zk:Tk) := f(h(k,ai),zk)
 rewrites into
 Ocoll(ai:input,zk:Tk) := let R be defined by (i R j iff ai=aj) in g_R(zk)
 that is, we test the equalities among the ai's to select
@@ -51,7 +51,7 @@ new x:T; forall zk:Tk; f(x,zk).
 If f(x,zk) simplifies into g(zk)
 when x is random and zk may depend on x,
 then the oracle
-Ocoll(a:input,zk:Tk) := f(h(k,a),zi)
+Ocoll(a:input,zk:Tk) := f(h(k,a),zk)
 rewrites into
 Ocoll(a:input,zk:Tk) := g(zk).
 
