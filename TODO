@@ -44,7 +44,7 @@ the right simplified expression g_R(zk).
 
 The number of cases to consider (= number of equivalence
 relations on {1...n}) grows quickly with n.
-We could limit ourselves to n<=2 or n<=4, for instance.
+We could limit ourselves to n<=2.
 
 The case of one random value yields the following:
 new x:T; forall zk:Tk; f(x,zk).
@@ -68,6 +68,13 @@ assumption. That's what rom_partial does when we give it no
 
 The desired collisions could appear as a string argument of 
 "expand".
+
+It is useful to be able to specify collisions in "expand"
+in case we apply the transformations automatically,
+but we might also want to be able to modify the considered
+collisions during the proof, either by specifying
+them at the "equiv" command or by having a specific
+command to modify the collisions of an equivalence.
 
 c) Points a) and b) require that the declarations before the "expand"
 are already checked and included in the environment before
