@@ -167,7 +167,7 @@ let move_array_equiv ext2 bl collisions =
       );
   let equiv_string = Buffer.contents b in
   (* Debug *)
-  print_string equiv_string;
+  (* print_string equiv_string; *)
   (* Parse the equivalence *)
   let pequiv = Syntax.parse_from_string (if !Settings.front_end = Channels then Parser.cequiv else Parser.oequiv) (equiv_string, dummy_ext) in
   (* Create the environment for checking the equivalence *)
