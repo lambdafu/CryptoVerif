@@ -14,3 +14,8 @@ collision new x: bool; forall y: bool; return(x = y) <=(-1E107856278637816572672
 collision new x: bool; forall y: bool; return(x = y) <=(2.0/|bool| + -1.0 / |bool|)=> return(false).
 
 process 0
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
