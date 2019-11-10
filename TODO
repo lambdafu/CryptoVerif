@@ -146,6 +146,14 @@ play with it if needed.
 
 
 Specify IND$-CPA
+encryption IND-CPA [done]
+encryption IND-CPA + nonce
+encryption IND-CPA + INT_CTXT [done]
+encryption IND-CPA + INT_CTXT + nonce [done, test and document]
+AEAD [done]
+AEAD + nonce [done]
+redo all the above with IND$-CPA 
+
 
 [OUTDATED: cryptogen will disappear if I do the above]
 Document the "cryptogen" program
