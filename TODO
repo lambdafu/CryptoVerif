@@ -149,7 +149,7 @@ That does not allow to remove the "all_args" macros, because in
 this case, the goal is to give access to an internal
 identifier and reuse it in the process, so it *will* clash
 with already recorded identifiers. For that, we could imagine
-optional arguments of the macro given in the "def" (which syntax?),
+optional arguments of the macro given in the "def" (which syntax? "?id"?),
 and whose value may or may not be provided at "expand",
 possibly with the same syntax id1:id2, but without the restriction
 that id2 must not clash with already recorded identifiers.
@@ -161,6 +161,24 @@ parse it.
 Have an option to display this expansion. That allows the user to
 play with it if needed.
 
+i) Macros could also specify at "def" the expectations on the arguments,
+by the following syntax for arguments:
+"id" alone means that id must not already be declared.
+"?id" alone means that id must not already be declared, and it may or not
+be provided at expand. (optional identifiers cannot be already declared.)
+"type id [options]" where options may be choosable, uniform, fixed, bounded,
+which means that id must already be declared as a type, with the corresponding
+options true.
+"proba id"
+"param id"
+"channel id"
+"fun id(T1,...,Tn):T [options]" (allow letfun or not? could be specified by an option)
+"const id:T"
+"event id(T1,...,Tn)"
+"table id(T1,...,Tn)"
+"process id(T1,...,Tn)"
+In case the arguments provided at "expand" do not satisfy these conditions,
+the error message is located at the "expand", not inside "def".
 
 Specify IND$-CPA
 encryption IND-CPA [done]
