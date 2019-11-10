@@ -137,6 +137,23 @@ That avoids name clashes and renames between several expansions
 of the macro. (Still need to call fresh_id to make sure that
 the final identifier is globally fresh.)
 
+Moreover, I should more generally allow optional arguments:
+id1: id2
+where id1 is an identifier internal to the macro and id2
+is how it will be renamed during macro expansion.
+That requires id2 not to clash with already recorded
+identifiers.
+That can be done for both user-defined macros and internal
+macros.
+That does not allow to remove the "all_args" macros, because in
+this case, the goal is to give access to an internal
+identifier and reuse it in the process, so it *will* clash
+with already recorded identifiers. For that, we could imagine
+optional arguments of the macro given in the "def" (which syntax?),
+and whose value may or may not be provided at "expand",
+possibly with the same syntax id1:id2, but without the restriction
+that id2 must not clash with already recorded identifiers.
+
 g) Also extend ProVerif to support these internal macros.
 
 h) Generate the expansion of the macro as a string, then
