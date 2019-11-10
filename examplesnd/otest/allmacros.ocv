@@ -11,11 +11,14 @@ proba Penc.
 expand IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc).
 expand IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, seed, enc', enc_r', enc_r'', dec', injbot', Z', Penc).
 
+type nonce.
+expand IND_CPA_sym_enc_nonce(key, cleartext, ciphertext, nonce, encn, decn, injbotn, Zn, Penc).
+expand IND_CPA_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, encn', encn'', decn', injbotn', Zn', Penc).
+
 proba Pencctxt.
 expand IND_CPA_INT_CTXT_sym_enc(key, cleartext, ciphertext, enc2, dec2, injbot2, Z2, Penc, Pencctxt).
 expand IND_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, enc2', enc2_r', enc_r2'', dec2', injbot2', Z2', Penc, Pencctxt).
 
-type nonce.
 expand IND_CPA_INT_CTXT_sym_enc_nonce(key, cleartext, ciphertext, nonce, enc4n, dec4n, injbot4n, Z4n, Penc, Pencctxt).
 expand IND_CPA_INT_CTXT_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc4n', enc4n'', dec4n', injbot4n', Z4n', Penc, Pencctxt).
 
