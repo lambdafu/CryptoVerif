@@ -179,6 +179,12 @@ options true.
 "process id(T1,...,Tn)"
 In case the arguments provided at "expand" do not satisfy these conditions,
 the error message is located at the "expand", not inside "def".
+Note: in general, the types of all arguments may not be known
+at the macro definition point, e.g. if the macro takes as arguments
+two functions f and g used as f(g(x)), we just know that the argument
+of f must have the same type as the result of g, but we may not know
+which type it is. Declaring its type in the macro argument requires
+taking the type itself as another, additional argument to the macro.
 
 To avoid having to modify all macro declarations, we could transform
 a macro into
@@ -198,6 +204,13 @@ so that should not happen.)
 That will also be tricky for probability formulas, where bounded
 types are omitted. Can we make sure to correctly identify types
 that must be bounded? (That happens in the current macros.)
+in Syntax.check_types, when check_pt fails, that may be because
+ty should have been bounded, when it would have succeeded by omitting
+ty and possibly other types that should have been bounded.
+Same when we end with [],[],tl: all types in tl must be bounded,
+those that are not are in error, in particular the first element of tl.
+That seems to work well when the only possible error is that a type should
+be bounded.
 
 
 Specify IND$-CPA
