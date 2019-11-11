@@ -166,7 +166,7 @@ by the following syntax for arguments:
 "id" alone means that id must not already be declared.
 "?id" alone means that id must not already be declared, and it may or not
 be provided at expand. (optional identifiers cannot be already declared.)
-"type id [options]" where options may be choosable, uniform, fixed, bounded,
+"type id [options]" where options may be choosable, nonuniform, fixed, bounded,
 which means that id must already be declared as a type, with the corresponding
 options true.
 "proba id"
@@ -179,6 +179,26 @@ options true.
 "process id(T1,...,Tn)"
 In case the arguments provided at "expand" do not satisfy these conditions,
 the error message is located at the "expand", not inside "def".
+
+To avoid having to modify all macro declarations, we could transform
+a macro into
+Expanded(args, expanded macro)
+at expansion.
+Then when checking, check the expanded macro part normally.
+In case there is an error related to an identifier s,
+raise an exception that indicates the identifier explicitly
+IdentifierError(s, ..., ext).
+Catch that exception at the Expanded level, to
+add the location where the identifier s is passed to the macro
+(if s is an argument of the macro).
+That will not be perfect for type errors: it is not always obvious
+to relate them to the correct identifier. (But in the current macros,
+I pass only types, probabilities, and undeclared identifiers to macros,
+so that should not happen.)
+That will also be tricky for probability formulas, where bounded
+types are omitted. Can we make sure to correctly identify types
+that must be bounded? (That happens in the current macros.)
+
 
 Specify IND$-CPA
 encryption IND-CPA [done]
