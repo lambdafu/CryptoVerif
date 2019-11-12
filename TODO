@@ -153,6 +153,14 @@ optional arguments of the macro given in the "def" (which syntax? "?id"?),
 and whose value may or may not be provided at "expand",
 possibly with the same syntax id1:id2, but without the restriction
 that id2 must not clash with already recorded identifiers.
+However, that's not enough to cover all cases for "all_args":
+type enc_seed [bounded] should be declared by the macro
+when enc_seed is omitted. For that, we should have something
+like "?type id [options]" declares id with "type id [options]"
+when the argument id is omitted, otherwise uses the provided
+argument id' for id. Must id' be already declared with
+"type id' [options]" or can this declaration be added
+in case id' is not already declared?
 
 g) Also extend ProVerif to support these internal macros.
 
@@ -224,9 +232,9 @@ would be best, even if it requires more changes in macro files.
 
 Specify IND$-CPA
 encryption IND-CPA [done]
-encryption IND-CPA + nonce [done, to test and document]
+encryption IND-CPA + nonce [done, to test]
 encryption IND-CPA + INT_CTXT [done]
-encryption IND-CPA + INT_CTXT + nonce [done, to test and document]
+encryption IND-CPA + INT_CTXT + nonce [done, to test]
 AEAD [done]
 AEAD + nonce [done]
 redo all the above with IND$-CPA 
