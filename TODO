@@ -211,6 +211,12 @@ Same when we end with [],[],tl: all types in tl must be bounded,
 those that are not are in error, in particular the first element of tl.
 That seems to work well when the only possible error is that a type should
 be bounded.
+A drawback of this idea is that it cannot detect errors in declarations
+of arguments of macros that do not lead to erroneous expanded code.
+For instance, in the X25519 macro, Z should be nonuniform, bounded
+(because the exponents are chosen uniformly in a *subset* of Z),
+but the macro will be successfully expanded if Z is declared [fixed]
+or [bounded].
 
 
 Specify IND$-CPA
