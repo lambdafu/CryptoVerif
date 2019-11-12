@@ -237,7 +237,13 @@ encryption IND-CPA + INT_CTXT [done]
 encryption IND-CPA + INT_CTXT + nonce [done, to test]
 AEAD [done]
 AEAD + nonce [done]
-redo all the above with IND$-CPA 
+redo all the above with IND$-CPA: [done, to test and document]
+encryption IND$-CPA 
+encryption IND$-CPA + nonce
+encryption IND$-CPA + INT_CTXT
+encryption IND$-CPA + INT_CTXT + nonce
+AEAD IND$-CPA
+AEAD IND$-CPA + nonce
 
 
 [OUTDATED: cryptogen will disappear if I do the above]
