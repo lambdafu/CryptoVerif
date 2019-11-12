@@ -217,6 +217,9 @@ For instance, in the X25519 macro, Z should be nonuniform, bounded
 (because the exponents are chosen uniformly in a *subset* of Z),
 but the macro will be successfully expanded if Z is declared [fixed]
 or [bounded].
+I think the first option (with explicit declaration of the interface)
+would be best, even if it requires more changes in macro files.
+(Probably write a converter and polish manually.)
 
 
 Specify IND$-CPA

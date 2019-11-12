@@ -2178,10 +2178,13 @@ If it succeeds, the transformation can be performed, replacing
 $M\{x/x'\}$ with $M'$ instead of generating a fresh $x$.
 
 When no expression $\texttt{"}exp\texttt{"}$ is mentioned,
-the type of $x$ must be \texttt{large} and the expressions 
+the expressions 
 that do no require the generation of $x$ are equality tests with 
-$x$, which are false up to negligible probability when $x$
-is a fresh random value. 
+$x$, and the type $T$ of $x$ must be large enough, so that 
+collisions between $x$ and a value independent of $x$ can be eliminated
+($\texttt{Pcoll1rand}(T) \leq 2^{-n'}$, that is, $T$ has option
+  \texttt{pcoll$n$} with $n \geq n'$ where $n'$ is set by 
+$\texttt{set minAutoCollElim} = \texttt{pest}n'$; the default is $n' = 80$). 
 %Internally, this is implemented by calling a cryptographic transformation.
 
 The variables $x$ may also be a regular expression. 
@@ -2192,14 +2195,16 @@ all these variables must have the same type.
 \item \texttt{simplify}: simplify the game.
 
 \item $\texttt{simplify coll\_elim(variables:}\ x_1, \ldots, x_n\texttt{; types:}t_1, \ldots, t_{n'}\texttt{; terms:}occ_1, \ldots, occ_{n''}\texttt{)}$: simplify the game,
-additionally allowing elimination of collisions on data of types with
-option \texttt{password}, at all occurrences of variables
+additionally allowing elimination of collisions on data 
+at all occurrences of variables
 $x_1, \ldots, x_n$, at all data of types $t_1, \ldots, t_{n'}$,
 and at the program points $occ_1, \ldots, occ_{n''}$.
 See above for how to specify the program points $occ_i$. 
 Some of the lists of variables, types, or terms may be omitted.
 In this case, the separating semi-colon \texttt{;} is obviously
 omitted as well. It is also possible to reorder or repeat these lists; the lists add up.
+(The probability of the collision must still satisfy the
+condition given by \texttt{allowed\string_collisions}.)
 
 \item $\texttt{global\_dep\_anal}\ x$ performs global dependency
   analysis on $x$: it computes all variables that depend on $x$, and
@@ -2210,14 +2215,16 @@ omitted as well. It is also possible to reorder or repeat these lists; the lists
 
 $\texttt{global\_dep\_anal}\ x\ \texttt{coll\_elim(variables:}\ x_1, \ldots, x_n\texttt{; types:}t_1, \ldots, t_{n'}\texttt{; terms:}occ_1, \ldots, occ_{n''}\texttt{)}$ 
 performs global dependency analysis on $x$, 
-additionally allowing elimination of collisions on data of types with
-option \texttt{password}, at all occurrences of variables
+additionally allowing elimination of collisions on data 
+at all occurrences of variables
 $x_1, \ldots, x_n$, at all data of types $t_1, \ldots, t_{n'}$,
 and at the program points $occ_1, \ldots, occ_{n''}$.
 See above for how to specify the program points $occ_i$. 
 Some of the lists of variables, types, or terms may be omitted.
 In this case, the separating semi-colon \texttt{;} is obviously
 omitted as well. It is also possible to reorder or repeat these lists; the lists add up.
+(The probability of the collision must still satisfy the
+condition given by \texttt{allowed\string_collisions}.)
 
 One must allow elimination on $x$ independently of the program point, 
 so if $x$ is not large, $x$ must be mentioned in $x_1, \ldots, x_n$

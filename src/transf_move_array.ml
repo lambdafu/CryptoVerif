@@ -104,7 +104,7 @@ let move_array_equiv ext2 bl collisions =
     if collisions == [] then
       begin
 	if not (Proba.is_large ty) then
-	  raise (Error("Transformation \"move array\" is allowed only for large types", ext2));
+	  raise (Error("Transformation \"move array\" is allowed only for types large enough, so that collisions between a random element of the type and an independent value can be eliminated", ext2));
 	let b = Terms.create_binder "X'" ty [] in
 	let restr = var_X in
 	let t1 = Terms.make_equal (Terms.term_from_binder b) (Terms.term_from_binder restr) in
