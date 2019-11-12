@@ -184,8 +184,8 @@ and modifying them as desired. Here is a list of the predefined primitives.
 \begin{itemize}
 
 \item $\texttt{expand IND\_CPA\_sym\_enc(}\vn{key}$,
-$  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{enc}$$,
-$  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
+  $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{enc}$,
+  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
   IND-CPA (indistinguishable under chosen plaintext attacks)
   probabilistic symmetric encryption scheme.
 
@@ -235,8 +235,8 @@ $  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
   $\vn{enc\_r}'$ is the symbol that replaces $\vn{enc\_r}$ after game transformation.
 
 \item $\texttt{expand IND\_CPA\_sym\_enc\_nonce(}\vn{key}$,
-$  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{nonce}$, $\vn{enc}$$,
-$  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
+  $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{nonce}$, $\vn{enc}$,
+  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}\texttt{).}$ defines a
   IND-CPA (indistinguishable under chosen plaintext attacks)
   probabilistic symmetric encryption scheme using a nonce 
    (which must have a different value in each call to encryption)
@@ -542,6 +542,51 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$ i
 
   $\vn{enc}'$ is the symbol that replaces $\vn{enc}$ after game transformation.
 
+\item $\texttt{expand INDdollar\_CPA\_sym\_enc(}\vn{key}$,
+ $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{cipher\_stream}$, $\vn{enc}$,
+ $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}\texttt{).}$\\
+$\texttt{expand INDdollar\_CPA\_sym\_enc\_all\_args(}\vn{key}$,
+  $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{enc\_seed}$, $\vn{cipher\_stream}$, $\vn{enc}$, $\vn{enc\_r}$, 
+  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}\texttt{).}$\\
+$\texttt{expand INDdollar\_CPA\_sym\_enc\_nonce(}\vn{key}$,
+  $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{nonce}$, $\vn{cipher\_stream}$, $\vn{enc}$,
+  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}\texttt{).}$\\
+$\texttt{expand INDdollar\_CPA\_INT\_CTXT\_sym\_enc(}\vn{key}$,
+  $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{cipher\_stream}$, $\vn{enc}$,
+  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$\\
+$\texttt{expand INDdollar\_CPA\_INT\_CTXT\_sym\_enc\_all\_args(}\vn{key}$,
+$  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{enc\_seed}$, $\vn{cipher\_stream}$, $\vn{enc}$, $\vn{enc\_r}$
+$  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$\\
+$\texttt{expand INDdollar\_CPA\_INT\_CTXT\_sym\_enc\_nonce(}\vn{key}$,
+  $\vn{cleartext}$, $\vn{ciphertext}$, $\vn{nonce}$, $\vn{cipher\_stream}$, $\vn{enc}$,
+  $\vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$\\
+$\texttt{expand AEAD\_INDdollar\_CPA(}\vn{key}$,
+$  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{add\_data}$, $\vn{cipher\_stream}$, $\vn{enc}$,
+$  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$\\
+$\texttt{expand AEAD\_INDdollar\_CPA\_all\_args(}\vn{key}$,
+$  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{add\_data}$, $\vn{enc\_seed}$, $\vn{cipher\_stream}$, $\vn{enc}$, $\vn{enc\_r}$,
+$  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$\\
+$\texttt{expand AEAD\_INDdollar\_CPA\_nonce(}\vn{key}$,
+$  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{add\_data}$, $\vn{nonce}$, $\vn{cipher\_stream}$, $\vn{enc}$,
+$  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{enc\_len}$, $\vn{truncate}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$\\
+define macros similar to the ones above, but with the IND\$-CPA property instead of IND-CPA.
+IND\$-CPA means that the length of the ciphertext only depends on the length of the cleartext,
+and that the ciphertext is indistinguishable from a random bitstring of the same length.
+In comparison with the previous macros, they do not have the primed encryption argument ($\vn{enc\_r}'$ or $\vn{enc}'$), so the \texttt{\_all\_args} variant disappears for encryptions with a nonce since $\vn{enc}'$ was the only additional argument. They additionally have the following arguments:
+
+$\vn{cipher\_stream}$ is the type of unbounded streams (must be \texttt{nonuniform}).
+
+   $\vn{enc\_len}(\vn{cleartext}): \vn{ciphertext}$ is a function that returns, for each bitstring $x$, a bitstring of the same length as the encryption of $x$, consisting only of zeroes.
+
+   $\vn{truncate}(\vn{cipher\_stream}, \vn{ciphertext}): \vn{ciphertext}$ is the function such that $\vn{truncate}(s,x)$ is the truncation of $s$ to the length of $x$, where s is a stream of unbounded length.
+
+The type $\vn{cipher\_stream}$ must be declared before these macros are
+  expanded. The functions $\vn{enc\_len}$ and $\vn{truncate}$ are
+  declared by these macros. They must not be declared elsewhere, and
+  they can be used only after expanding one of the macros.
+
+These macros define the equivalence $\texttt{inddollar\_cpa}(\vn{enc})$
+instead of $\texttt{ind\_cpa}(\vn{enc})$.
 
 \item $\texttt{expand IND\_CCA2\_sym\_enc(}\vn{key}$,
 $  \vn{cleartext}$, $\vn{ciphertext}$, $\vn{enc}$,
