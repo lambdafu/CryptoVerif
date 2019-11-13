@@ -62,6 +62,48 @@ expand IND_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, e
 
 }
 
+def IND_CPA_INT_CTXT_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc, Pencctxt) { 
+
+fun enc(cleartext, key, nonce): ciphertext.
+
+fun injbot(cleartext):bitstringbot [data].
+
+fun dec(ciphertext, key, nonce): bitstringbot
+reduc forall m:cleartext, k:key, n:nonce; 
+	dec(enc(m, k, n), k, n) = injbot(m)
+otherwise forall c:ciphertext, k:key, n:nonce;
+        dec(c, k, n) = bottom.
+
+fun Z(cleartext):cleartext.
+
+(* The scheme is broken if the same nonce is used twice *)
+const dummy_key: key.
+
+fun break(ciphertext, ciphertext): key
+reduc forall m:cleartext, k:key, n:nonce;
+      break(enc(m, k, n),enc(m, k, n)) = dummy_key
+otherwise forall m:cleartext, m':cleartext, k:key, n:nonce;
+      break(enc(m, k, n),enc(m', k, n)) = k.
+      
+(* Encryption leaks Z(m), typically the length of m *) 
+reduc forall m:cleartext, n:nonce, k:key;  
+        leak(enc(m, k, n)) = Z(m).
+(* Note: providing a good definition of Z in ProVerif is a problem *)
+
+(* Test equality of keys *)
+reduc forall x:cleartext, x':cleartext, n:nonce, n':nonce, y:key;  
+        keyeq(enc(x,y,n),enc(x',y,n')) = true.
+
+}
+
+def IND_CPA_INT_CTXT_sym_enc_nonce(key, cleartext, ciphertext, nonce, enc, dec, injbot, Z, Penc, Pencctxt) {
+
+expand IND_CPA_INT_CTXT_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc, Pencctxt).
+
+}
+
+
+
 (* IND-CPA symmetric encryption *)
 
 def IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc) { 
@@ -78,6 +120,20 @@ def IND_CPA_sym_enc(key, cleartext, ciphertext, enc, dec, injbot, Z, Penc) {
 
 type enc_seed [bounded].
 expand IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc).
+
+}
+
+def IND_CPA_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc) { 
+
+expand IND_CPA_INT_CTXT_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc, Pencctxt).
+
+(* TO DO Malleability is hard to write without completely breaking the scheme... *)
+
+}
+
+def IND_CPA_sym_enc_nonce(key, cleartext, ciphertext, nonce, enc, dec, injbot, Z, Penc) {
+
+expand IND_CPA_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc).
 
 }
 
