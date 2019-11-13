@@ -1,18 +1,4 @@
 (* Model of WireGuard written by Benjamin Lipp and Bruno Blanchet, Inria Paris.
-
-   This file generates several CryptoVerif scripts using the m4 preprocessor.
-   It uses the following settings:
-
-   - Compromise settings:
-   m4_E_r_compr When this macro is defined, the ephemeral E_r_priv
-   		of the responder is compromised.
-
-   - Other settings:
-   m4_replay_prot    When this macro is defined, the first message is protected
-   		     against replays using the timestamp.
-   m4_zero_test      When this macro is defined, the process fails in case
-   		     a Diffie-Hellman shared secret is zero.
-The proof indications need to be adapted to the various settings.
 *)
 
 
@@ -25,44 +11,44 @@ set forgetOldGames = true.
 
 (* The macro m4_out_game outputs the current game to a file.
    The file name contains a number that is increased at each output. *)
-define(`m4_gamenumber', 0)
-define(`m4_out_game',`define(`m4_gamenumber', incr(m4_gamenumber))out_game "m4_name.m4_gamenumber.out.cv" occ')
+
+
 
 proof {
   set useKnownEqualitiesWithFunctionsInMatching = true;
   set elsefindFactsInSimplify = true;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.1.out.cv" occ;
   insert after_nth 1 "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_4[i]) && pow8(E_i_pub_rcvd_4) = pow8(E_i_pub_4[i]) then";
   insert after_nth 2 "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_5[i]) && pow8(E_i_pub_rcvd_5) = pow8(E_i_pub_5[i]) then";
   insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub_2[j]) && pow8(E_r_pub_rcvd_2) = pow8(E_r_pub_2[j]) then";
   insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub_3[j]) && pow8(E_r_pub_rcvd_3) = pow8(E_r_pub_3[j]) then";
   simplify;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.2.out.cv" occ;
   insert after_nth 1 "in(ch1_rom3" "let rom3_input(x1_rom3_2, G8_to_G(x2_rom3_2), G8_to_G(x3_rom3_2), x4_rom3_2, G8_to_G(x5_rom3_2), G8_to_G(x6_rom3_2), v_psk) = x_rom3_2 in";
   insert after_nth 2 "in(ch1_rom3" "let rom3_input(x1_rom3_3, G8_to_G(x2_rom3_3), G8_to_G(x3_rom3_3), x4_rom3_3, G8_to_G(x5_rom3_3), G8_to_G(x6_rom3_3), v_psk) = x_rom3_3 in";
   crypto rom(rom3_intermediate);
   crypto rom(rom3_intermediate);
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.3.out.cv" occ;
   insert after_nth 1 "in(ch1_rom2" "let rom2_input(x1_rom2_2, G8_to_G(x2_rom2_2), G8_to_G(x3_rom2_2)) = x_rom2_2 in";
   insert after_nth 2 "in(ch1_rom2" "let rom2_input(x1_rom2_3, G8_to_G(x2_rom2_3), G8_to_G(x3_rom2_3)) = x_rom2_3 in";
   crypto rom(rom2_intermediate);
   crypto rom(rom2_intermediate);
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.4.out.cv" occ;
   insert after_nth 1 "in(ch1_rom1" "let rom1_input(x1_rom1_2, G8_to_G(x2_rom1_2)) = x_rom1_2 in";
   insert after_nth 2 "in(ch1_rom1" "let rom1_input(x1_rom1_3, G8_to_G(x2_rom1_3)) = x_rom1_3 in";
   crypto rom(rom1_intermediate);
   crypto rom(rom1_intermediate);
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.5.out.cv" occ;
   crypto gdh(exp_div8) S_A1_priv S_A2_priv E_i_priv_6 E_i_priv_4 S_B1_priv S_B2_priv E_r_priv_6 E_r_priv_4;
   set useKnownEqualitiesWithFunctionsInMatching = false;
   set elsefindFactsInSimplify = false;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.6.out.cv" occ;
   crypto splitter(concat_four_keys) *;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.7.out.cv" occ;
   crypto int_ctxt(enc) *;
-  m4_out_game;
-  crypto ind_cpa(enc) *;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.8.out.cv" occ;
+  crypto inddollar_cpa(enc) *;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.9.out.cv" occ;
   (* Simplify code of the following form:
 
                 if S_i_pub_rcvd_4 = S_A1_pub then
@@ -79,15 +65,7 @@ proof {
      There are 3 such find with the same r_rom2_6 so we need to repeat the insertion
      3 times.
 *)
-ifdef(`m4_replay_prot',`
-  insert after_nth 3 "find \\[unique\\] u_118 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 2 "find \\[unique\\] u_118 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 1 "find \\[unique\\] u_118 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  merge_branches;
-  insert after_nth 3 "find \\[unique\\] u_93 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 2 "find \\[unique\\] u_93 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 1 "find \\[unique\\] u_93 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-',`
+
   insert after_nth 3 "find \\[unique\\] u_110 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
   insert after_nth 2 "find \\[unique\\] u_110 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
   insert after_nth 1 "find \\[unique\\] u_110 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
@@ -95,7 +73,7 @@ ifdef(`m4_replay_prot',`
   insert after_nth 3 "find \\[unique\\] u_85 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
   insert after_nth 2 "find \\[unique\\] u_85 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
   insert after_nth 1 "find \\[unique\\] u_85 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-')
+
   merge_branches;
   simplify;
 (* Simplify code of the form:
@@ -129,32 +107,26 @@ with "let r_rom1_6 = cst_key_t". To be able to merge, we add "let y = cst_key_t 
 in the two other branches of the find, and execute merge_branches.
 
 *)
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.10.out.cv" occ;
   move array r_rom1_6;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.11.out.cv" occ;
   merge_arrays r_rom1_8 Y;
-  m4_out_game;
-ifdef(`m4_replay_prot',`
-  insert after "find \\[unique\\] u_166" "let y = cst_key_t in";
-  insert after "orfind u_168" "let y = cst_key_t in";
-',`
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.12.out.cv" occ;
+
   insert after "find \\[unique\\] u_158" "let y = cst_key_t in";
   insert after "orfind u_160" "let y = cst_key_t in";
-')
+
   merge_branches;
 
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.13.out.cv" occ;
   move array r_rom1_1;
-  m4_out_game;
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.14.out.cv" occ;
   merge_arrays r_rom1_3 Y_2;
-  m4_out_game;
-ifdef(`m4_replay_prot',`
-  insert after "find \\[unique\\] u_141" "let y = cst_key_t in";
-  insert after "orfind u_143" "let y = cst_key_t in";
-',`
+  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.15.out.cv" occ;
+
   insert after "find \\[unique\\] u_133" "let y = cst_key_t in";
   insert after "orfind u_135" "let y = cst_key_t in";
-')
+
   merge_branches;
 
   remove_assign useless;
@@ -231,107 +203,16 @@ const empty_bitstring : bitstring. (* const value for the empty
 proba P_enc.
 proba P_encctxt.
 
-def AEAD_nonce_ADsecr_all_args(key, cleartext, ciphertext, add_data, nonce, enc, enc', dec, injbot, Z, Penc, Pencctxt) { 
+type cipher_stream [nonuniform].
 
-param N, N2, N3.
-
-fun enc(cleartext, add_data, key, nonce): ciphertext.
-fun dec(ciphertext, add_data, key, nonce): bitstringbot.
-
-fun enc'(cleartext, add_data, key, nonce): ciphertext.
-
-fun injbot(cleartext):bitstringbot [data].
-equation forall x:cleartext; injbot(x) <> bottom.
-
-(* The function Z returns for each bitstring, a bitstring
-   of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
-
-equation forall m:cleartext, d: add_data, k:key, n: nonce; 
-	dec(enc(m, d, k, n), d, k, n) = injbot(m).
-
-(* Event raised when some nonce is used several times
-   with the same key, which breaks security. *)
-event repeated_nonce.
-
-(* IND-CPA *)
-
-equiv(ind_cpa(enc))
-       k <-R key; 
-       	       foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) := 
-	       	       return(enc(x, d, k, n))
-     <=(Penc(time, N, maxlength(x)))=> 
-       k <-R key; 
-       	       foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) := 
-      	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
-	               	   event_abort repeated_nonce
-	      	       else
-		           let r: ciphertext = enc'(Z(x), Z(d), k, n) in
-			   return(r).
-
-	(* INT-CTXT *)
-
-equiv(int_ctxt(enc))
-      k <-R key; (
-      	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
-	              return(enc(x, d, k, n)) |
-	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
-	              return(dec(y,c_d,k,c_n)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
-      k <-R key [unchanged]; (
-      	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
-      	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
-	               	   event_abort repeated_nonce
-	      	       else
-		           let r: ciphertext = enc(x, d, k, n) in
-			   return(r) |
-	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) :=
-	              find j <= N suchthat defined(x[j],d[j],n[j],r[j]) &&
-		              r[j] = y && d[j] = c_d && n[j] = c_n then
-		          return(injbot(x[j]))
-	              else
-		          return(bottom)).
-
-equiv(int_ctxt_corrupt(enc))
-      k <-R key; (
-      	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
-	              return(enc(x, d, k, n)) |
-	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
-	              return(dec(y,c_d,k,c_n)) |
-	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
-      k <-R key [unchanged]; (
-      	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
-      	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
-	               	   event_abort repeated_nonce
-	      	       else
-		           let r: ciphertext = enc(x, d, k, n) in
-			   return(r) |
-	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) :=
-	      	      if defined(corrupt) then return(dec(y,c_d,k,c_n)) else
-	              find j <= N suchthat defined(x[j],d[j],n[j],r[j]) &&
-		              r[j] = y && d[j] = c_d && n[j] = c_n then
-		          return(injbot(x[j]))
-	              else
-		          return(bottom) |
-	      Ocorrupt() := let corrupt: bool = true in return(k)).
-
-}
-
-def AEAD_nonce_ADsecr(key, cleartext, ciphertext, add_data, nonce, enc, dec, injbot, Z, Penc, Pencctxt) {
-
-expand AEAD_nonce_ADsecr_all_args(key, cleartext, ciphertext, add_data, nonce, enc, enc', dec, injbot, Z, Penc, Pencctxt).
-
-}
-
-
-expand AEAD_nonce_ADsecr(
+expand AEAD_INDdollar_CPA_nonce(
   (* types *)
   key_t,     (* keys *)
   bitstring, (* plaintext *)
   bitstring, (* ciphertext *)
   bitstring, (* associated data *)
   nonce_t,   (* nonces *)
+  cipher_stream,
   (* functions *)
   enc,     (* encryption:
            (* enc(plaintext, additional data, key, nonce): ciphertext *)
@@ -341,6 +222,8 @@ expand AEAD_nonce_ADsecr(
              (* injbot(plaintext): bitstringbot *)
   Zero,      (* returns a plaintext of same length, consisting of zeros:
              (* Zero(plaintext): plaintext *)
+  enc_len,
+  truncate,
   (* probabilities *)
   P_enc,     (* breaking IND-CPA *)
   P_encctxt  (* breaking INT-CTXT *)
@@ -354,6 +237,39 @@ fun hashoutput_to_bitstring(hashoutput_t): bitstring [data].
 (* This models the derivation of a first intermediate symmetric key. *)
 type rom1_input_t.
 fun rom1_input(G_t, G_t): rom1_input_t [data].
+
+def ROM_hash_refactored(key, hashinput1, hashoutput, hash, hashoracle, r, x1, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1):hashoutput.
+
+equiv(rom(hash))
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x1: hashinput1) := return(hash(k, x1)) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := return(r' = hash(k, x1')) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(hash(k, y1) = hash(k, z1)))
+       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=>
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x1: hashinput1) := 
+	   find[unique] u <= N suchthat defined(x1[u], r[u]) && x1 = x1[u] then return(r[u]) else
+           r <-R hashoutput; return(r) |
+         foreach ieq <= Neq do Oeq(x1': hashinput1, r': hashoutput) := 
+           find[unique] u <= N suchthat defined(x1[u], r[u]) && x1' = x1[u] then return(r' = r[u]) else
+	   return(false) |
+         foreach icoll <= Ncoll do Ocoll(y1: hashinput1, z1: hashinput1) := 
+                 return(y1 = z1)).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1));
+        out(ch2, hash(k, x1)).
+
+}
 
 expand ROM_hash_refactored(
   (* types *)
@@ -452,6 +368,20 @@ expand ROM_hash_refactored(
 
 letfun rom3(hk: hashkey_t, e_i: G_t, es: G_t, ss: G_t, e_r: G_t, ee: G_t, se: G_t, v_psk: psk_t) =
   rom3_intermediate(hk, rom3_input(e_i, es, ss, e_r, ee, se, v_psk)).
+
+def split_4(input_t, part1_t, part2_t, part3_t, part4_t, concat, part1, part2, part3, part4) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t;
+       Or() := return(concat(part1, part2, part3, part4)).
+
+}
 
 expand split_4(
   (* types *)
@@ -597,6 +527,31 @@ letfun enc_bitstring(plaintext: bitstring, current_hash: hashoutput_t, k: key_t,
 (* Define a function for choosing from two attacker-provided plaintexts based
    on a bit. Also, defines some equations on it so CryptoVerif is able
    to reason about it. *)
+def boolean_choice(value_t, test) {
+
+fun test(bool, value_t, value_t) : value_t.
+
+equation forall x:value_t, y:value_t; test(true, x, y) = x.
+equation forall x:value_t, y:value_t; test(false, x, y) = y.
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, b:bool; test(b,x,x) = x.
+
+}
+
+(* Zero needs to be defined already, typically by the AEAD scheme that's
+ * expanded somewhere before.
+ *)
+def boolean_choice_for_encryption(value_t, Zero, test) {
+
+expand boolean_choice(value_t, test).
+
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, y:value_t, b:bool; Zero(test(b,x,y)) = test (b,Zero(x),Zero(y)).
+
+}
+
 expand boolean_choice_for_encryption(
   (* types *)
   bitstring,  (* type of the values *)
@@ -676,18 +631,18 @@ letfun prepare1(
   let H_i2: hashoutput_t = mix_hash_G(key_hash, H_i1, E_i_pub) in
 
   let es_i: G_t = DH(S_X_pub_rcvd, E_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if es_i = zero then prepare1fail else
-  ')
+  
   let k_i2: key_t = rom1(key_rom1, E_i_pub, es_i) in
 
   let static_i_enc: bitstring = enc_G(S_i_pub, H_i2, k_i2, nonce_0) in
   let H_i3: hashoutput_t = mix_hash_bitstring(key_hash, H_i2, static_i_enc) in
 
   let ss_i: G_t = DH(S_X_pub_rcvd, S_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if ss_i = zero then prepare1fail else
-  ')
+  
   let k_i3: key_t = rom2(key_rom2, E_i_pub, es_i, ss_i) in
 
   let timestamp_i_enc: bitstring = enc_timestamp(timestamp_i, H_i3, k_i3, nonce_0) in
@@ -715,9 +670,9 @@ letfun process1(
     let H_r2: hashoutput_t = mix_hash_G(key_hash, H_r1, E_i_pub_rcvd) in
 
     let es_r: G_t = DH(E_i_pub_rcvd, S_r_priv) in
-    ifdef(`m4_zero_test',`
+    
     if es_r = zero then process1fail else
-    ')
+    
     let k_r2: key_t = rom1(key_rom1, E_i_pub_rcvd, es_r) in
 
     let injbot(G_to_bitstring(S_i_pub_rcvd: G_t)) = dec_ad_hash(static_i_enc_rcvd, H_r2, k_r2, nonce_0) in
@@ -727,9 +682,9 @@ letfun process1(
         let H_r3: hashoutput_t = mix_hash_bitstring(key_hash, H_r2, static_i_enc_rcvd) in
 
         let ss_r: G_t = DH(S_i_pub_rcvd, S_r_priv) in
-        ifdef(`m4_zero_test',`
+        
         if ss_r = zero then process1fail else
-        ')
+        
         let k_r3: key_t = rom2(key_rom2, E_i_pub_rcvd, es_r, ss_r) in
 
         let injbot(timestamp_to_bitstring(timestamp_i_rcvd: timestamp_t)) = dec_ad_hash(timestamp_i_enc_rcvd, H_r3, k_r3, nonce_0) in
@@ -762,13 +717,13 @@ letfun prepare2(
   let E_r_pub: G_t = exp(g, E_r_priv) in
 
   let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
+  
   if ee_r = zero then prepare2fail else
-  ')
+  
   let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
+  
   if se_r = zero then prepare2fail else
-  ')
+  
 
   let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub) in
 
@@ -794,13 +749,13 @@ letfun process2(
           H_i4: hashoutput_t,
           es_i: G_t, ss_i: G_t, Q: psk_t) =
   let ee_i: G_t = DH(E_r_pub_rcvd, E_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if ee_i = zero then process2fail else
-  ')
+  
   let se_i: G_t = DH(E_r_pub_rcvd, S_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if se_i = zero then process2fail else
-  ')
+  
 
   let H_i5: hashoutput_t = mix_hash_G(key_hash, H_i4, E_r_pub_rcvd) in
 
@@ -896,15 +851,12 @@ let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key
         key_hash, key_rom1, key_rom2, allowed_peers, S_r_priv, S_r_pub,
         E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd) in
 
-ifdef(`m4_replay_prot',`
-    get rcvd_timestamps(=S_r_pub, =S_i_pub_rcvd, =timestamp_i_rcvd) in yield else
-    insert rcvd_timestamps(S_r_pub, S_i_pub_rcvd, timestamp_i_rcvd);
-')
+
 
     let prepare2succ(I_r: session_index_t, E_r_priv: Z_t, E_r_pub_sent: G_t, T_r_recv: key_t, T_r_send: key_t, H_r7: hashoutput_t, empty_bitstring_enc: bitstring) =
       prepare2(key_hash, key_rom3,
         S_i_pub_rcvd, E_i_pub_rcvd, H_r4, es_r, ss_r, Q) in
-    out(c_resp2init_send, (ifdef(`m4_E_r_compr',`E_r_priv',`dummy_z'), (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc), (T_r_recv, T_r_send))).
+    out(c_resp2init_send, (E_r_priv, (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc), (T_r_recv, T_r_send))).
 
 
 
@@ -956,14 +908,9 @@ else
    hash_oracle(key_hash))
 )
 
-ifdef(`m4_replay_prot',`
-(* EXPECTED
-All queries proved.
-1060.836s (user 1060.608s + system 0.228s), max rss 138156K
-END *)
-',`
+
 (* EXPECTED
 All queries proved.
 93.172s (user 93.000s + system 0.172s), max rss 138284K
 END *)
-')
+

@@ -27,6 +27,10 @@ Version
 - Added several assumptions on hash functions to the library
   of cryptographic primitives: pre-image resistance, second-preimage
   resistance.
+- Added several assumptions for symmetric encryption to the library
+  of cryptographic primitives: IND-CPA as well as IND-CPA and
+  INT-CTXT encryption with a nonce, schemes that satisfy IND$-CPA
+  instead of IND-CPA.
 - Added command "success simplify".
 - Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".

@@ -1,0 +1,73 @@
+(* Trivial running example for conference paper. *)
+param N.
+param N2.
+param N3.
+
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [fixed].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+
+fun keyToBitstring(key):bitstring [data].
+
+(* Shared-key generation *)
+expand keygen(keyseed, key, kgen).
+
+(* Shared-key encryption (CPA Stream cipher) *)
+proba Penc.
+type nonce.
+type cipher_stream [nonuniform].
+expand INDdollar_CPA_sym_enc_nonce(key, bitstring, bitstring, nonce, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zkey : bitstring.
+equation forall y:key;
+	Z(keyToBitstring(y)) = Zkey.
+
+(* Mac key generation *)
+expand keygen(mkeyseed, mkey, mkgen).
+
+(* Mac *)
+proba Pmac.
+expand SUF_CMA_proba_mac(mkey, bitstring, macs, mac, check, Pmac).
+
+(* Queries *)
+query secret k2 [cv_onesession].
+query secret k3 [cv_onesession].
+
+query secret k2.
+query secret k3.
+
+(* Channels and Processes *)
+channel cA, cB, start, c.
+
+let processA(Kab:key, mKab:mkey) =
+	in(cA, n: nonce);
+	find k <= N suchthat defined(n[k],k2[k]) && n[k] = n then yield else
+	new k2 : key;
+	let ea1 = enc(keyToBitstring(k2), Kab, n) in
+	out(cA, (ea1, mac((ea1,n), mKab))).
+
+let processB(Kab:key, mKab:mkey) =
+	in(cB, (ea:bitstring, na: nonce, ma:macs));
+	if check((ea,na), mKab, ma) then
+	let injbot(keyToBitstring(k3:key)) = dec(ea, Kab, na) in
+	out(cB, ()).
+
+process
+	in(start, ());
+	new rKab: keyseed;
+	let Kab = kgen(rKab) in
+	new rmKab: mkeyseed;
+	let mKab = mkgen(rmKab) in
+	out(c, ());
+	((! N processA(Kab,mKab)) |
+	 (! N processB(Kab,mKab)))
+
+(* EXPECTED
+RESULT Could not prove secrecy of k3.
+0.036s (user 0.020s + system 0.016s), max rss 46176K
+END *)

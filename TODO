@@ -213,24 +213,6 @@ with variable number of prf oracles)
 e) Also extend ProVerif to support these new macros.
 
 
-
-
-Specify IND$-CPA
-encryption IND-CPA [done]
-encryption IND-CPA + nonce [done, to test]
-encryption IND-CPA + INT_CTXT [done]
-encryption IND-CPA + INT_CTXT + nonce [done, to test]
-AEAD [done]
-AEAD + nonce [done]
-redo all the above with IND$-CPA: [done, to test]
-encryption IND$-CPA 
-encryption IND$-CPA + nonce
-encryption IND$-CPA + INT_CTXT
-encryption IND$-CPA + INT_CTXT + nonce
-AEAD IND$-CPA
-AEAD IND$-CPA + nonce
-
-
 [OUTDATED: cryptogen will disappear if I do the above]
 Document the "cryptogen" program
 
@@ -5069,3 +5051,19 @@ for some "equiv", which are actually expanded when we execute the
 at each expansion at the "equiv" command, perhaps by choosing the
 identifiers once and for all during the checking).
 The second idea seems to require fewer changes.
+
+Specify IND$-CPA
+encryption IND-CPA [done]
+encryption IND-CPA + nonce [done]
+encryption IND-CPA + INT_CTXT [done]
+encryption IND-CPA + INT_CTXT + nonce [done]
+AEAD [done]
+AEAD + nonce [done]
+redo all the above with IND$-CPA:
+encryption IND$-CPA [ok]
+encryption IND$-CPA + nonce [ok]
+encryption IND$-CPA + INT_CTXT [ok]
+encryption IND$-CPA + INT_CTXT + nonce [ok]
+AEAD IND$-CPA [ok]
+AEAD IND$-CPA + nonce [ok]
+DONE 13/11/2019
