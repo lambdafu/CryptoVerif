@@ -1,17 +1,135 @@
 TO DO next
 
-1) Instead of generating macros in cryptogen, and then loading
-them, allow some macros to be defined internally
-to CryptoVerif. We can then use "expand" on these macros
-without having an explicit "def", and we can do more than
-basic expansion.
+1) Extend macros.
 
-a) Check that the arguments of internal macros are correct
+new keywords: special, undeclared, list, string
+new token: list%
+reuse token: ? (HELP) perhaps rename it
+
+a) Check that the arguments of macros are correct
 before expanding. That is needed to avoid error messages
-that refer to the internal macro itself.
+that refer to inside the macro itself.
+
+The interface would be defined as follows:
+"id" alone means that id may or may not be declared, no constraint
+(useful for backward compatibility)
+"undeclared id" means that id must not already be declared.
+"type id [options]" where options may be choosable, nonuniform, fixed, bounded,
+which means that id must already be declared as a type, with the corresponding
+options true.
+"proba id"
+"param id"
+"channel id"
+"fun id(T1,...,Tn):T [options]" (allow letfun or not? could be specified by an option)
+"const id:T"
+"event id(T1,...,Tn)"
+"table id(T1,...,Tn)"
+"process id(T1,...,Tn)"
+"string id" The argument provided at expand should be a string "...", not an
+  identifier.
+  id is then mapped to this string.
+  id is then accepted only at very specific places that support strings,
+  e.g. in the options of "equiv(eqname) special eq_gen_name(args) (id1,...,idn) options".
+"list <decl>", where <decl> is any of the above, allows several arguments <decl>.
+  At expand, they are provided between parentheses.
+  If <decl> declares id, id is mapped to the whole list of arguments provided at "expand".
+  id is then accepted only at very specific places that support lists,
+  e.g. in the options of "equiv(eqname) special eq_gen_name(args) (id1,...,idn) options".
+"list% <decl>", where <decl> is any of the above except "list <decl>", allows several arguments <decl>.
+  At expand, they are provided between parentheses.
+  Used for macros with a variable number of arguments, see below c).
+  The number elements provided at expand fixes the number of arguments of the macro.
+  If there are several arguments "list% <decl>" at "def", they
+  must all be provided the same number of elements at "expand".
+  If <decl> declares id, id<n> is mapped to the <n>-th provided element at "expand". 
+"?<decl>", where <decl> is any of the above means that the argument is optional: it may or not
+be provided at expand. When it is provided, we check that its declaration satisfies the
+constraints given by <decl>. When it is not provided, an identifier is chosen and
+declared as required by <decl>. (That replaces the macros _all_args.)
+  To provide an optional argument at expand, write id1: id2, 
+where id1 is the optional identifier at "def" and id2
+is how it will be renamed during macro expansion.
+  The same syntax id1: id2 can also be used when id1 is not an argument
+of def, but an identifier internal to the macro. id1 is then renamed
+into id2 during macro expansion. That requires id2 not to clash with
+already recorded identifiers. (That avoids having to redefine a macro
+when we want to rename some identifiers that are not already included
+as arguments, as in ROM_hash_refactored.)
+
+In case the arguments provided at "expand" do not satisfy these conditions,
+the error message is located at the "expand", not inside "def".
+Note: in general, the types of all arguments may not be known
+at the macro definition point, e.g. if the macro takes as arguments
+two functions f and g used as f(g(x)), we just know that the argument
+of f must have the same type as the result of g, but we may not know
+which type it is. Declaring its type in the macro argument requires
+taking the type itself as another, additional argument to the macro.
+
+At expansion, we transform a macro into
+Expanded(macro name, args, expanded macro)
+where args is the interface specified at "def" with identifiers
+renamed as specified by "expand".
+Then when checking, we check that the interface "args" is satisfied,
+possibly adding declarations for some optional identifiers;
+then we check the "expanded macro" part normally.
+Additionally, in case there is an error related to an identifier s,
+raise an exception that indicates the identifier explicitly
+IdentifierError(s, ..., ext).
+Catch that exception at the Expanded level, to
+add the location where the identifier s is passed to the macro
+(if s is an argument of the macro).
+That improves the error messages for identifiers declared
+without explicit constraints at "def", even if it is not
+perfect (e.g. it is hard to relate type errors to the correct identifier).
+That will also be tricky for probability formulas, where bounded
+types are omitted. Can we make sure to correctly identify types
+that must be bounded? (That happens in the current macros.)
+in Syntax.check_types, when check_pt fails, that may be because
+ty should have been bounded, when it would have succeeded by omitting
+ty and possibly other types that should have been bounded.
+Same when we end with [],[],tl: all types in tl must be bounded,
+those that are not are in error, in particular the first element of tl.
+That seems to work well when the only possible error is that a type should
+be bounded.
+
+This idea cannot detect errors in declarations
+of arguments of macros that do not lead to erroneous expanded code.
+For instance, in the X25519 macro, Z should be nonuniform, bounded
+(because the exponents are chosen uniformly in a *subset* of Z),
+but the macro will be successfully expanded if Z is declared [fixed]
+or [bounded].
+So that each option carries positive information, the options for types
+should rather be:
+- choosable: says that we can choose an element randomly, without
+  information on the distribution
+- bounded: finite set of bitstrings, implies choosable
+- fixed: set of bitstrings of a certain length, implies bounded and choosable
+----
+- uniform: the distribution is uniform or quasi-uniform, implies choosable and bounded.
+Mapping with the current options:
+current	     	 	 -> new
+fixed			    fixed, uniform
+bounded			    bounded, uniform
+fixed, nonuniform	    fixed
+bounded, nonuniform	    bounded
+nonuniform                  choosable
+With the new options, the example of X25519 above does not work,
+unless we specify a way to require that the "uniform" bit is *not*
+set in the type declaration of Z.
 
 b) For ROM, PRF, ..., extend the Oeq oracle
 with a user-specified collision, as in transf_move_array.
+This is done by the following syntax, which generalizes "equiv":
+equiv(eqname) special <equiv_gen_name>(args) (id1, ..., idn) options
+The equivalence is generated when we execute the
+"equiv" command or when we automatically try the equivalence.
+In the latter case, we store the generated equivalence
+to reuse it in subsequent trys. We generate the equivalence
+as a string and parse. Have an option that allows the user
+to display it, so that it can play with it.
+(We make sure identifiers do not vary too much
+at each expansion at the "equiv" command, by choosing the
+identifiers id1,...,idn once and for all during macro checking).
 
 The oracle Ocoll could also be generalized:
 if new x1:T; new x2: T; forall zi:Ti; f(x1,x2,zi)
@@ -74,54 +192,16 @@ collisions during the proof, either by specifying
 them at the "equiv" command or by having a specific
 command to modify the collisions of an equivalence.
 
-c) Points a) and b) require that the declarations before the "expand"
-are already checked and included in the environment before
-performing expansion. This is currently not the case in syntax.ml,
-where we expand all macros before starting to check and include things
-in the environment. That could probably be changed.
-It is done in this way in syntax.ml to record identifiers
-defined at top-level (even inside macros), before checking any element,
-so that we do not need to rename top-level identifiers and rather rename
-local identifiers.
-However, it seems that this may not be required: I think no local identifiers
-are renamed until the final process expansion, which anyway
-occurs after all top-level declarations, except in
-check_eqstatement, which resets the variable name state to its old
-value in the end. If I omit the initial record_id and record the ids
-at each declaration instead, the only point that this may change is that a local
-identifier to an equivalence may be the same as a function symbol or other
-top-level declaration that comes after the equivalence.
-Another reason is that, before expanding the macros, I record all
-ids used outside macros, so that, if an identifier inside a macro
-clashes with an identifier outside the macros, I rename the inside
-identifier. I reset the identifiers recorded for macro expansion
-after it is finished, before checking all elements, so that these
-identifiers can be used again as local identifiers.
-Ideas of solutions:
-- perhaps have two sets of identifiers, those recorded for macro
-expansion and those for renaming of local variables.
-(Also, I could perhaps be more precise and record only top-level
-identifiers in macro expansion, not local ones? I am almost
-already doing that during macro expansion with rename_*,
-via get_rename_state/set_rename_state.)
-- for internal macros, perform the expansion in several steps:
-during macro expansion, just find out the identifiers that need
-to be recorded immediately and the top-level declarations that
-need to be recorded before starting the checking;
-during the checking, perform the actual expansion, except
-for some "equiv", which are actually expanded when we execute the
-"equiv" command (for those, make sure identifiers do not vary too much
-at each expansion at the "equiv" command, perhaps by choosing the
-identifiers once and for all during the checking).
-The second idea seems to require fewer changes.
-
-d) For functions with a variable number of arguments, allow tuples of
+c) For functions with a variable number of arguments, allow tuples of
 identifiers as argument of expand. We would then pass the tuple of
 input types as argument of expand.
 For macros for which this is the only special point,
 reuse the code we have in cryptogen, with $repeat%...$sep$.
+This is done by the syntax:
+def macroname(..., list% <decl>, ...) special variable_arguments
+"macrodefinition".
 
-e) For ROM, PRF, ... generate the *_partial equivalences at equiv time since they
+d) For ROM, PRF, ... generate the *_partial equivalences at equiv time since they
 can be applied only manually, and that allows to generate the appropriate number
 of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argument of equiv.
 
@@ -130,104 +210,9 @@ Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
 variable position of the DH argument, equiv prf_odh_partial(prf)
 with variable number of prf oracles)
 
-f) To replace the macro ROM_hash_refactored that we use for Wireguard,
-name the variables and channels internal to the macro with suffix _f
-where f is the name of the hash function.
-That avoids name clashes and renames between several expansions
-of the macro. (Still need to call fresh_id to make sure that
-the final identifier is globally fresh.)
+e) Also extend ProVerif to support these new macros.
 
-Moreover, I should more generally allow optional arguments:
-id1: id2
-where id1 is an identifier internal to the macro and id2
-is how it will be renamed during macro expansion.
-That requires id2 not to clash with already recorded
-identifiers.
-That can be done for both user-defined macros and internal
-macros.
-That does not allow to remove the "all_args" macros, because in
-this case, the goal is to give access to an internal
-identifier and reuse it in the process, so it *will* clash
-with already recorded identifiers. For that, we could imagine
-optional arguments of the macro given in the "def" (which syntax? "?id"?),
-and whose value may or may not be provided at "expand",
-possibly with the same syntax id1:id2, but without the restriction
-that id2 must not clash with already recorded identifiers.
-However, that's not enough to cover all cases for "all_args":
-type enc_seed [bounded] should be declared by the macro
-when enc_seed is omitted. For that, we should have something
-like "?type id [options]" declares id with "type id [options]"
-when the argument id is omitted, otherwise uses the provided
-argument id' for id. Must id' be already declared with
-"type id' [options]" or can this declaration be added
-in case id' is not already declared?
 
-g) Also extend ProVerif to support these internal macros.
-
-h) Generate the expansion of the macro as a string, then
-parse it.
-Have an option to display this expansion. That allows the user to
-play with it if needed.
-
-i) Macros could also specify at "def" the expectations on the arguments,
-by the following syntax for arguments:
-"id" alone means that id must not already be declared.
-"?id" alone means that id must not already be declared, and it may or not
-be provided at expand. (optional identifiers cannot be already declared.)
-"type id [options]" where options may be choosable, nonuniform, fixed, bounded,
-which means that id must already be declared as a type, with the corresponding
-options true.
-"proba id"
-"param id"
-"channel id"
-"fun id(T1,...,Tn):T [options]" (allow letfun or not? could be specified by an option)
-"const id:T"
-"event id(T1,...,Tn)"
-"table id(T1,...,Tn)"
-"process id(T1,...,Tn)"
-In case the arguments provided at "expand" do not satisfy these conditions,
-the error message is located at the "expand", not inside "def".
-Note: in general, the types of all arguments may not be known
-at the macro definition point, e.g. if the macro takes as arguments
-two functions f and g used as f(g(x)), we just know that the argument
-of f must have the same type as the result of g, but we may not know
-which type it is. Declaring its type in the macro argument requires
-taking the type itself as another, additional argument to the macro.
-
-To avoid having to modify all macro declarations, we could transform
-a macro into
-Expanded(args, expanded macro)
-at expansion.
-Then when checking, check the expanded macro part normally.
-In case there is an error related to an identifier s,
-raise an exception that indicates the identifier explicitly
-IdentifierError(s, ..., ext).
-Catch that exception at the Expanded level, to
-add the location where the identifier s is passed to the macro
-(if s is an argument of the macro).
-That will not be perfect for type errors: it is not always obvious
-to relate them to the correct identifier. (But in the current macros,
-I pass only types, probabilities, and undeclared identifiers to macros,
-so that should not happen.)
-That will also be tricky for probability formulas, where bounded
-types are omitted. Can we make sure to correctly identify types
-that must be bounded? (That happens in the current macros.)
-in Syntax.check_types, when check_pt fails, that may be because
-ty should have been bounded, when it would have succeeded by omitting
-ty and possibly other types that should have been bounded.
-Same when we end with [],[],tl: all types in tl must be bounded,
-those that are not are in error, in particular the first element of tl.
-That seems to work well when the only possible error is that a type should
-be bounded.
-A drawback of this idea is that it cannot detect errors in declarations
-of arguments of macros that do not lead to erroneous expanded code.
-For instance, in the X25519 macro, Z should be nonuniform, bounded
-(because the exponents are chosen uniformly in a *subset* of Z),
-but the macro will be successfully expanded if Z is declared [fixed]
-or [bounded].
-I think the first option (with explicit declaration of the interface)
-would be best, even if it requires more changes in macro files.
-(Probably write a converter and polish manually.)
 
 
 Specify IND$-CPA
@@ -5042,3 +5027,45 @@ This function cannot currently be written directly in the LHS
 of an equivalence because it uses pattern matching.
 See examples/obasic/OAEP.ocv
 Proof of OAEP DONE 7/11/2019
+
+OLD comments on macros
+c) Points a) and b) require that the declarations before the "expand"
+are already checked and included in the environment before
+performing expansion. This is currently not the case in syntax.ml,
+where we expand all macros before starting to check and include things
+in the environment. That could probably be changed.
+It is done in this way in syntax.ml to record identifiers
+defined at top-level (even inside macros), before checking any element,
+so that we do not need to rename top-level identifiers and rather rename
+local identifiers.
+However, it seems that this may not be required: I think no local identifiers
+are renamed until the final process expansion, which anyway
+occurs after all top-level declarations, except in
+check_eqstatement, which resets the variable name state to its old
+value in the end. If I omit the initial record_id and record the ids
+at each declaration instead, the only point that this may change is that a local
+identifier to an equivalence may be the same as a function symbol or other
+top-level declaration that comes after the equivalence.
+Another reason is that, before expanding the macros, I record all
+ids used outside macros, so that, if an identifier inside a macro
+clashes with an identifier outside the macros, I rename the inside
+identifier. I reset the identifiers recorded for macro expansion
+after it is finished, before checking all elements, so that these
+identifiers can be used again as local identifiers.
+Ideas of solutions:
+- perhaps have two sets of identifiers, those recorded for macro
+expansion and those for renaming of local variables.
+(Also, I could perhaps be more precise and record only top-level
+identifiers in macro expansion, not local ones? I am almost
+already doing that during macro expansion with rename_*,
+via get_rename_state/set_rename_state.)
+- for internal macros, perform the expansion in several steps:
+during macro expansion, just find out the identifiers that need
+to be recorded immediately and the top-level declarations that
+need to be recorded before starting the checking;
+during the checking, perform the actual expansion, except
+for some "equiv", which are actually expanded when we execute the
+"equiv" command (for those, make sure identifiers do not vary too much
+at each expansion at the "equiv" command, perhaps by choosing the
+identifiers once and for all during the checking).
+The second idea seems to require fewer changes.
