@@ -23,6 +23,22 @@ type nonce.
 expand AEAD_nonce(key, cleartext, ciphertext, add_data, nonce, enc4, dec4, injbot4, Z4, Penc, Pencctxt).
 expand AEAD_nonce_all_args(key, cleartext, ciphertext, add_data, nonce, enc4', enc4'', dec4', injbot4', Z4', Penc, Pencctxt).
 
+type cipher_stream [nonuniform].
+expand INDdollar_CPA_sym_enc(key, cleartext, ciphertext, cipher_stream, encd, decd, injbotd, Zd, enc_lend, truncated, Penc).
+expand INDdollar_CPA_sym_enc_all_args(key, cleartext, ciphertext, seed, cipher_stream, encd', enc_rd', decd', injbotd', Zd', enc_lend', truncated', Penc).
+
+expand INDdollar_CPA_sym_enc_nonce(key, cleartext, ciphertext, nonce, cipher_stream, encnd, decnd, injbotnd, Znd, enc_lennd, truncatend, Penc).
+
+expand INDdollar_CPA_INT_CTXT_sym_enc(key, cleartext, ciphertext, cipher_stream, enc2d, dec2d, injbot2d, Z2d, enc_len2d, truncate2d, Penc, Pencctxt).
+expand INDdollar_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, seed, cipher_stream, enc2d', enc2_rd', dec2d', injbot2d', Z2d', enc_len2d', truncate2', Penc, Pencctxt).
+
+expand INDdollar_CPA_INT_CTXT_sym_enc_nonce(key, cleartext, ciphertext, nonce, cipher_stream, enc4nd, dec4nd, injbot4nd, Z4nd, enc_len4nd, truncate4nd, Penc, Pencctxt).
+
+expand AEAD_INDdollar_CPA(key, cleartext, ciphertext, add_data, cipher_stream, enc3d, dec3d, injbot3d, Z3d, enc_len3d, truncate3d, Penc, Pencctxt).
+expand AEAD_INDdollar_CPA_all_args(key, cleartext, ciphertext, add_data, seed, cipher_stream, enc3d', enc3_rd', dec3d', injbot3d', Z3d', enc_len3d', truncate3', Penc, Pencctxt).
+
+expand AEAD_INDdollar_CPA_nonce(key, cleartext, ciphertext, add_data, nonce, cipher_stream, enc4d, dec4d, injbot4d, Z4d, enc_len4d, truncate4d, Penc, Pencctxt).
+
 expand IND_CCA2_sym_enc(key, cleartext, ciphertext, enc5, dec5, injbot5, Z5, Penc).
 expand IND_CCA2_sym_enc_all_args(key, cleartext, ciphertext, seed, enc5', enc5_r', enc5_r'', dec5', dec5'', injbot5', Z5', Penc).
 

@@ -223,6 +223,120 @@ expand AEAD_nonce_all_args(key, cleartext, ciphertext, add_data, nonce, enc, enc
 
 }
 
+(* IND$-CPA. In ProVerif, the only difference we model wrt to IND-CPA is that
+   additional data does not leak for AEAD. *)
+
+def INDdollar_CPA_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, cipher_stream, enc, enc_r, dec, injbot, Z, enc_len, truncate, Penc) { 
+
+expand IND_CPA_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc).
+
+}
+
+def INDdollar_CPA_sym_enc(key, cleartext, ciphertext, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc) { 
+
+type enc_seed [bounded].
+expand INDdollar_CPA_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, cipher_stream, enc, enc_r, dec, injbot, Z, enc_len, truncate, Penc).
+
+}
+
+def INDdollar_CPA_sym_enc_nonce(key, cleartext, ciphertext, nonce, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc) { 
+
+expand IND_CPA_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc). 
+
+}
+
+def INDdollar_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, cipher_stream, enc, enc_r, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt) { 
+
+expand IND_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc, Pencctxt).
+
+}
+
+def INDdollar_CPA_INT_CTXT_sym_enc(key, cleartext, ciphertext, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt) { 
+
+type enc_seed [bounded].
+expand INDdollar_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, cipher_stream, enc, enc_r, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt).
+
+}
+
+def INDdollar_CPA_INT_CTXT_sym_enc_nonce(key, cleartext, ciphertext, nonce, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt) { 
+
+expand IND_CPA_INT_CTXT_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, enc', dec, injbot, Z, Penc, Pencctxt).
+
+}
+
+def AEAD_INDdollar_CPA_all_args(key, cleartext, ciphertext, add_data, enc_seed, cipher_stream, enc, enc_r, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt) {
+
+fun enc_r(cleartext, add_data, key, enc_seed): ciphertext.
+fun injbot(cleartext):bitstringbot [data].
+
+fun dec(ciphertext, add_data, key): bitstringbot
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed; 
+	dec(enc_r(m, d, k, r), d, k) = injbot(m)
+otherwise forall c:ciphertext, d:add_data, k:key;
+        dec(c, d, k) = bottom.
+
+fun Z(cleartext):cleartext.
+
+(* The encryption function is probabilistic *)
+letfun enc(m: cleartext, d:add_data, k: key) =
+       r <-R enc_seed; enc_r(m, d, k, r).
+
+(* With IND$-CPA, the additional data does not leak *)
+
+(* Encryption leaks Z(m), typically the length of m *) 
+reduc forall m:cleartext, d:add_data, r:enc_seed, k:key;  
+        leak(enc_r(m, d, k, r)) = Z(m).
+(* Note: providing a good definition of Z in ProVerif is a problem *)
+
+(* Test equality of keys *)
+reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:enc_seed, r':enc_seed, y:key;  
+        keyeq(enc_r(x,d,y,r),enc_r(x',d',y,r')) = true.
+
+}
+
+def AEAD_INDdollar_CPA(key, cleartext, ciphertext, add_data, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt) { 
+
+type enc_seed [bounded].
+expand AEAD_INDdollar_CPA_all_args(key, cleartext, ciphertext, add_data, enc_seed, cipher_stream, enc, enc_r, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt).
+
+}
+
+def AEAD_INDdollar_CPA_nonce(key, cleartext, ciphertext, add_data, nonce, cipher_stream, enc, dec, injbot, Z, enc_len, truncate, Penc, Pencctxt) { 
+
+fun enc(cleartext, add_data, key, nonce): ciphertext.
+
+fun injbot(cleartext):bitstringbot [data].
+
+fun dec(ciphertext, add_data, key, nonce): bitstringbot
+reduc forall m:cleartext, d:add_data, k:key, n:nonce; 
+	dec(enc(m, d, k, n), d, k, n) = injbot(m)
+otherwise forall c:ciphertext, d:add_data, k:key, n:nonce;
+        dec(c, d, k, n) = bottom.
+
+fun Z(cleartext):cleartext.
+
+(* With IND$-CPA, the additional data does not leak *)
+
+(* The scheme is broken if the same nonce is used twice *)
+const dummy_key: key.
+
+fun break(ciphertext, ciphertext): key
+reduc forall m:cleartext, d:add_data, k:key, n:nonce;
+      break(enc(m, d, k, n),enc(m, d, k, n)) = dummy_key
+otherwise forall m:cleartext, d:add_data, m':cleartext, d':add_data, k:key, n:nonce;
+      break(enc(m, d, k, n),enc(m', d', k, n)) = k.
+      
+(* Encryption leaks Z(m), typically the length of m *) 
+reduc forall m:cleartext, d:add_data, n:nonce, k:key;  
+        leak(enc(m, d, k, n)) = Z(m).
+(* Note: providing a good definition of Z in ProVerif is a problem *)
+
+(* Test equality of keys *)
+reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, n:nonce, n':nonce, y:key;  
+        keyeq(enc(x,d,y,n),enc(x',d',y,n')) = true.
+
+}
+
 (* IND-CCA2 symmetric encryption *)
 
 def IND_CCA2_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, dec', injbot, Z, Penc) { 
