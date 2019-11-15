@@ -204,3 +204,11 @@ process
 All queries proved.
 12.328s (user 12.308s + system 0.020s), max rss 199408K
 END *)
+
+(* EXPECTPV
+RESULT secret keyA is true.
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
+RESULT inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)) public_vars keyA is true.
+RESULT event(fullB(A,k,x_1)) && event(fullA(B,k',x_1)) ==> k = k' public_vars keyA is true.
+0.156s (user 0.144s + system 0.012s), max rss 13368K
+END *)

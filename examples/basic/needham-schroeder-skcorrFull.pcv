@@ -174,3 +174,16 @@ process
 RESULT Could not prove one-session secrecy of keyA; secrecy of keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
 0.616s (user 0.608s + system 0.008s), max rss 82752K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA cannot be proved.
+RESULT (query encoded as inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)))
+RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) cannot be proved.)
+RESULT inj-event(fullB(A,k_3,x_2)) ==> inj-event(fullA(B,k_3,x_2)) public_vars keyA cannot be proved.
+RESULT (query encoded as inj-event(fullB(A,k_3,x_2)) ==> inj-event(fullA(B,k_3,x_2)))
+RESULT (even event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) cannot be proved.)
+RESULT event(fullA(B,k_4,x_3)) && event(fullB(A,k',x_3)) ==> k_4 = k' public_vars keyA is true.
+RESULT secret keyA is true.
+RESULT secret keyA is true.
+0.248s (user 0.240s + system 0.008s), max rss 15068K
+END *)

@@ -598,7 +598,9 @@ equation forall x:Z, y:Z;
 
 }
 
-(* slighly weaker model for Diffie-Hellman, with bad keys *)
+(* slighly weaker model for Diffie-Hellman, with bad keys
+   This model should be even weaker. (It should be weaker than
+   DH_single_coord_ladder and it is not...) *)
 
 def PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, badKey) {
 
@@ -632,15 +634,47 @@ def DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist) {
    They should still be sufficient for most protocols. *)
 
 def DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
-expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, zero).
+(* We represent curve elements as elem(low_t, subG), where 
+   low_t represents the low-order part and subG the high-order part.
+   This is freely inspired by the model used in Tamarin.
+
+   Functions may fail when an element of G is not elem(l,h).
+   This differs from CryptoVerif in which terms never fail,
+   but I do not immediately see a better way. *)
+type low_t.
+
+expand DH_good_group(subG, Z, g_high, exp_high, exp_high', mult).
+
+const id_low: low_t.
+const sub_zero: subG.
+fun elem(low_t,subG):G.
+
+letfun g = elem(id_low,g_high).
+letfun zero = elem(id_low,sub_zero).
+letfun subGtoG(x: subG) = elem(id_low, x).
+
+reduc forall x: low_t, y: subG, x': low_t; changelow(elem(x,y),x') = elem(x',y).
+
+fun exp(G, Z): G
+reduc forall x: low_t, n: Z; exp(elem(x,sub_zero),n) = elem(id_low,sub_zero)
+otherwise forall x: low_t, y: subG, n: Z; exp(elem(x,y),n) = elem(id_low,exp_high(y,n)).
+
+const k: Z.
+
+fun pow_k(G): subG
+reduc forall x: low_t; pow_k(elem(x,sub_zero)) = sub_zero
+otherwise forall x: low_t, y: subG; pow_k(elem(x,y)) = exp_high(y,k).
+
+letfun g_k = exp_high(g_high,k).
+
 }
 
 def DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
-expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, zero).
+expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
 }
 
 def DH_X448(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
-expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, zero).
+expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
 }
 
 (* The DH assumptions say nothing *)
@@ -649,13 +683,11 @@ def CDH_RSR(G, Z, g, exp, exp', mult, pCDH) {}
 def DDH(G, Z, g, exp, exp', mult, pDDH) {}
 def GDH(G, Z, g, exp, exp', mult, pGDH) {}
 def GDH_RSR(G, Z, g, exp, exp', mult, pGDH) {}
-def GDH_subgroup(G, Z, g, exp, exp', expblock, mult, subG, g_k, expsub, expsub', pow_k, pGDH) {}
 def square_CDH(G, Z, g, exp, exp', mult, pCDH, pSQCDH) {}
 def square_CDH_RSR(G, Z, g, exp, exp', mult, pSQCDH) {}
 def square_DDH(G, Z, g, exp, exp', mult, pDDH, pSQDDH) {}
 def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH) {}
 def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH) {}
-def square_GDH_subgroup(G, Z, g, exp, exp', expblock, mult, subG, g_k, expsub, expsub', pow_k, pGDH, pSQGDH) {}
 
 def PRF_ODH1(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
 fun prf(G, prf_in): prf_out.

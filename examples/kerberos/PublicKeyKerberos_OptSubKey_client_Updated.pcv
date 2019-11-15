@@ -467,3 +467,15 @@ process
 RESULT Could not prove secrecy of OPkeyS.
 23.760s (user 23.592s + system 0.168s), max rss 323984K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(fullCK(K,T,N,w,x_5,y_4)) ==> inj-event(fullKC(C,T,N,w,z_5,y_4)) public_vars OPkeyC,OPkeyS is true.
+RESULT event(partTC(C,x_5,y_4)) ==> event(partCT(T,x',y_4)) && event(fullKC(C,T,N,w,x_5,y'_1)) public_vars OPkeyC,OPkeyS is true.
+RESULT inj-event(fullCT(K,T,S,N,x_5,z_5,y_4)) ==> inj-event(fullTC(C,S,N,x',z',v_2,y_4)) public_vars OPkeyC,OPkeyS is true.
+RESULT event(partSC(C,z_5,y_4)) ==> event(partCS(S,T,x_5,y_4)) && event(fullTC(C,S,N,v_2,v',z_5,w)) public_vars OPkeyC,OPkeyS is true.
+RESULT event(fullCS(S,T,K,z_5,y_4,w)) ==> event(fullSC(C,x_5,y'_1,w)) public_vars OPkeyC,OPkeyS is true.
+RESULT secret OPkeyC is true.
+RESULT secret OPkeyS is true.
+RESULT secret OPkeyS is true.
+724.796s (user 723.812s + system 0.984s), max rss 2411636K
+END *)

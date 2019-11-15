@@ -31,6 +31,9 @@ Version
   of cryptographic primitives: IND-CPA as well as IND-CPA and
   INT-CTXT encryption with a nonce, schemes that satisfy IND$-CPA
   instead of IND-CPA.
+- Improved the models for curves 25519 and 448 in the ProVerif
+  library of cryptographic primitives, to be closer to what
+  CryptoVerif does.
 - Added command "success simplify".
 - Added setting elsefindFactsInSuccessSimplify.
 - Added commands "tag t" and "undo t".

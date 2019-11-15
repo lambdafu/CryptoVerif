@@ -49,8 +49,8 @@ function analyzepv()
 	$PROG $HOME/proverif/proverif/proverif $2 $3 > $TMP.out 2>&1 
 	echo PROTOCOL $1 >> $4
 	cat $TMP.out >> $4
-	egrep \(PROTOCOL\|xtime\|Error\|user\) $TMP.out > $TMP.res 
-	awk '/EXPECTED/, /END/ { print $0; }' $3 | grep -v EXPECTED | grep -v END > $TMP.expected
+	egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) $TMP.out > $TMP.res 
+	awk '/EXPECTPV/, /END/ { print $0; }' $3 | grep -v EXPECTPV | grep -v END > $TMP.expected
 	grep -v user $TMP.expected > $TMP.expectedres
 	grep -v user $TMP.res > $TMP.actualres
 	if diff -q -b $TMP.expectedres $TMP.actualres >/dev/null
@@ -88,18 +88,15 @@ echo PROVERIF
 echo
 output=pv`date '+%Y.%m.%d-%H_%M_%S'`
 (
-for i in examplesnd/proverif/*.pv
+for i in examples/*/*.pcv examplesnd/proverif/*.pv
 do
     if [ -f $i ]
     then
-	case $i in
-	    *.m4.cv) ;;
-	    *)       analyzepv $i "-lib cryptoverif.pvl" $i tests/$output;;
-	esac
+	    analyzepv $i "-lib cryptoverif.pvl" $i tests/$output
     fi
 done
 ) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
+egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 
 
 echo
@@ -133,7 +130,7 @@ echo
 echo CHANNELS FRONTEND
 echo
 
-for i in examplesnd/test/* implementation/wlsk/woolamskcorr_tbl.cv
+for i in examplesnd/test/* examplesnd/proverif/*.pcv implementation/wlsk/woolamskcorr_tbl.cv
 do
     if [ -f $i ]
     then

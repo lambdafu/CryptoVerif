@@ -71,3 +71,9 @@ process
 All queries proved.
 0.020s (user 0.016s + system 0.004s), max rss 46512K
 END *)
+
+(* EXPECTPV
+RESULT event(eB(x,y,z)) ==> event(eA(x,y,z)) is true.
+RESULT inj-event(eB(x,y,z)) ==> inj-event(eA(x,y,z)) is true.
+0.028s (user 0.020s + system 0.008s), max rss 10392K
+END *)

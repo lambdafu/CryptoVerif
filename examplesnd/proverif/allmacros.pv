@@ -283,6 +283,6 @@ expand AEAD_from_AEAD_nonce(key, cleartext, ciphertext, add_data, enc16, dec16, 
 channel c1, c2.
 process in(c1, ()); out(c2, ())
 
-(* EXPECTED
+(* EXPECTPV
 0.216s (user 0.212s + system 0.004s), max rss 95072K
 END *)

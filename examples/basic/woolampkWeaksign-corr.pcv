@@ -122,3 +122,8 @@ process
 All queries proved.
 0.072s (user 0.048s + system 0.024s), max rss 56064K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is true.
+0.024s (user 0.024s + system 0.000s), max rss 10544K
+END *)

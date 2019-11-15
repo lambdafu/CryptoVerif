@@ -478,3 +478,12 @@ process
 All queries proved.
 9.604s (user 9.568s + system 0.036s), max rss 324640K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(fullCK(K,T,N,w,x_4,y_4)) ==> inj-event(fullKC(C,T,N,w,z_4,y_4)) is true.
+RESULT event(partTC(C,x_4,y_4)) ==> event(partCT(T,x',y_4)) && event(fullKC(C,T,N,w,x_4,y'_1)) is true.
+RESULT inj-event(fullCT(K,T,S,N,x_4,z_4,y_4)) ==> inj-event(fullTC(C,S,N,x',z',v_2,y_4)) is true.
+RESULT event(partSC(C,z_4,y_4)) ==> event(partCS(S,T,x_4,y_4)) && event(fullTC(C,S,N,v_2,v',z_4,w)) is true.
+RESULT event(fullCS(S,T,K,z_4,y_4,w)) ==> event(fullSC(C,x_4,y'_1,w)) is true.
+742.808s (user 739.256s + system 3.552s), max rss 5795064K
+END *)

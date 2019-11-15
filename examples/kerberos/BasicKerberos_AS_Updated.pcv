@@ -211,3 +211,10 @@ process
 All queries proved.
 0.088s (user 0.084s + system 0.004s), max rss 58880K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(fullCK(K,T,N,k,x_3,y_3)) ==> inj-event(fullKC(C,T,N,k,z_4,y_3)) public_vars keyAK is true.
+RESULT event(fullCK(K,T,N,k,x_3,y_3)) && event(fullKC(C,T,N,k',x_3,y_3)) ==> k = k' public_vars keyAK is true.
+RESULT secret keyAK is true.
+0.060s (user 0.052s + system 0.008s), max rss 11516K
+END *)

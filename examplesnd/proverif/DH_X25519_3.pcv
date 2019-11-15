@@ -1,0 +1,24 @@
+type Z [large,bounded].
+type G [large,bounded].
+type subG [large,bounded].
+
+(* Let's use curve 25519 *)
+expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
+
+channel c.
+
+event bad.
+query event(bad) ==> false.
+
+process
+	in(c, (X: G, X': G, y:Z)); if exp(X,y) = exp(X',y) && pow_k(X) <> pow_k(X') then event bad
+
+(* EXPECTED
+All queries proved.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)
+
+(* EXPECTPV
+RESULT not event(bad) is true.
+0.216s (user 0.212s + system 0.004s), max rss 95072K
+END *)

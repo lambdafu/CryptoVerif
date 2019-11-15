@@ -149,3 +149,9 @@ process
 All queries proved.
 1.756s (user 1.748s + system 0.008s), max rss 103824K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
+RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is true.
+0.076s (user 0.076s + system 0.000s), max rss 12612K
+END *)

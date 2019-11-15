@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ -x ./xtime ]
+then
+    PROG=./xtime
+else
+    PROG=
+fi
+
+PROVERIF=$HOME/proverif/proverif/proverif
+
+for i in examples/*/*.pcv
+do
+	echo PROTOCOL $i
+	$PROG $PROVERIF -lib cryptoverif.pvl $i > tmp.out 2>&1
+	egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) tmp.out > tmp.res
+	echo >> $i
+	echo '(* EXPECTPV' >> $i
+	cat tmp.res >> $i
+	echo 'END *)' >> $i
+done

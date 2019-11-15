@@ -150,3 +150,10 @@ process
 RESULT Could not prove inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
 2.744s (user 2.736s + system 0.008s), max rss 114784K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
+RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is false.
+RESULT (even event(fullB(A,x_1)) ==> event(fullA(B,x_1)) is false.)
+0.164s (user 0.140s + system 0.024s), max rss 14236K
+END *)

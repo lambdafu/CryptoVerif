@@ -142,3 +142,10 @@ process
 All queries proved.
 0.728s (user 0.728s + system 0.000s), max rss 85808K
 END *)
+
+(* EXPECTPV
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) cannot be proved.
+RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) cannot be proved.)
+RESULT inj-event(fullB(A,x_2)) ==> inj-event(fullA(B,x_2)) is true.
+0.104s (user 0.080s + system 0.024s), max rss 12452K
+END *)

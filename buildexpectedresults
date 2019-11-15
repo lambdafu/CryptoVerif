@@ -7,65 +7,40 @@ else
     PROG=
 fi
 
-for i in otway-rees2Stream otway-rees2StreamTag otway-rees3Stream otway-rees3StreamTag otway-rees2Block otway-rees2BlockTag otway-rees3Block otway-rees3BlockTag yahalom3Stream yahalom3StreamMod yahalom3StreamMac needham-schroeder-sk3Stream needham-schroeder-skcorr3Stream needham-schroeder-skcorr3StreamAuth2 fdh fdh-JSC pfdh woolamsk woolamskcorr woolamskcorr_tbl denning-sacco3Block denning-sacco-corr3Block needham-schroeder-pk3Block needham-schroeder-pk3BlockHash needham-schroeder-pkcorr3Block needham-schroeder-pkcorr3BlockHash needham-schroeder-pk3BlockAuth needham-schroeder-pkcorr3BlockAuth encryptBR93-1 woolampk woolampkcorr woolamskcorrBlock encryptBR93-2v denning-sacco-corr3Block-auto needham-schroeder-pkcorr3BlockHash-auto wmf-tagged wmf-tagged-payload signedDH signedDH-DDH signedDH-forward-secrecy
+for k in key_AK key_SK
 do
-	echo PROTOCOL $i
-	$PROG ./cryptoverif examples/$i.cv > tmp.out 2>&1
-	egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
-	echo >> examples/$i.cv
-	echo '(* EXPECTED' >> examples/$i.cv
-	cat tmp.res >> examples/$i.cv
-	echo 'END *)' >> examples/$i.cv
+    for loc in loc1 loc2 loc3
+    do
+	m4 -D$k -D$loc examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv > examples/kerberos/BasicKerberos_keyuse.$k.$loc.cv
+	m4 -D$k -D$loc examples/kerberos/PublicKeyKerberos_keyuse_Updated.m4.cv > examples/kerberos/PublicKeyKerberos_keyuse.$k.$loc.cv
+    done
 done
 
-for i in otway-rees3Stream yahalom3Stream yahalom3StreamMod yahalom3StreamMac needham-schroeder-sk3Stream needham-schroeder-sk3StreamAuth needham-schroeder-sk3StreamFull needham-schroeder-skcorr3Stream needham-schroeder-skcorr3StreamAuth needham-schroeder-skcorr3StreamFull woolamsk woolamskcorr denning-sacco3Block denning-sacco-corr3Block needham-schroeder-pk3BlockAuth needham-schroeder-pkcorr3BlockAuth needham-schroeder-pkcorr3BlockKeyNa needham-schroeder-pkcorr3BlockKeyNb needham-schroeder-pkcorr3BlockKeyHash woolampk woolampkcorr woolampkWeaksign woolampkWeaksign-corr woolamskcorrBlock
+for key in IVCC IVSC EKCC EKSC MKCC MKSC
 do
-	echo PROTOCOL $i
-	$PROG ./cryptoverif authexamples/$i.cv > tmp.out 2>&1
-	egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
-	echo >> authexamples/$i.cv
-	echo '(* EXPECTED' >> authexamples/$i.cv
-	cat tmp.res >> authexamples/$i.cv
-	echo 'END *)' >> authexamples/$i.cv
+    m4 -DONEKEY=$key implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key-$key.ocv
 done
+m4 implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key.ocv
 
-for i in fdh.ocv fdh-JSC.ocv encryptBR93-1.ocv encryptBR93-2v.ocv signedDH.ocv  signedDH-DDH.ocv OEKE.ocv
-do
-    echo PROTOCOL $i
-    $PROG ./cryptoverif -in oracles oexamples/$i > tmp.out 2>&1
-    egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
-	echo >> ./oexamples/$i
-	echo '(* EXPECTED' >> oexamples/$i
-	cat tmp.res >> oexamples/$i
-	echo 'END *)' >> oexamples/$i
-done
 
-for i in ../../dev/cnrs/webperso/cryptoverif/kerberos/*.cv
-do
-	echo PROTOCOL $i
-	$PROG ./cryptoverif $i > tmp.out 2>&1
-    egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
-	echo >> $i
-	echo '(* EXPECTED' >> $i
-	cat tmp.res >> $i
-	echo 'END *)' >> $i
-done
-
-for i in examplesnd/test/* examplesnd/kerberos/* examplesnd/implem/*
+for i in examples/basic/*.pcv examples/basic/*.cv examples/obasic/*.ocv examples/kerberos/*.pcv examples/kerberos/*.cv examplesnd/test/* examplesnd/proverif/*.pcv implementation/wlsk/woolamskcorr_tbl.cv
 do
     if [ -f $i ]
     then
-	echo PROTOCOL $i
-	$PROG ./cryptoverif $i > tmp.out 2>&1
-	egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
-	echo >> $i
-	echo '(* EXPECTED' >> $i
-	cat tmp.res >> $i
-	echo 'END *)' >> $i
+	case $i in
+	    *.m4.cv) ;;
+	    *)	echo PROTOCOL $i
+		$PROG ./cryptoverif $i > tmp.out 2>&1
+		egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tmp.out > tmp.res
+		echo >> $i
+		echo '(* EXPECTED' >> $i
+		cat tmp.res >> $i
+		echo 'END *)' >> $i
+	esac
     fi
 done
 
-for i in examplesnd/otest/*
+for i in examplesnd/otest/* implementation/nspk/nspk3tbl.ocv implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key-*.ocv
 do
     if [ -f $i ]
     then
@@ -78,3 +53,4 @@ do
 	echo 'END *)' >> $i
     fi
 done
+

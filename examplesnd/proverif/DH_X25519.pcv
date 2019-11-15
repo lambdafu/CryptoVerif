@@ -2,6 +2,21 @@
 
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
+proof{
+insert before "new a" "if hostB = B then";
+SArename a;
+SArename ga;
+insert before "new b" "find j <= N suchthat defined(ga_3[j],hostB[j]) && pow_k(ga_1) = pow_k(ga_3[j]) && hostA = A && hostB[j] = B then";
+SArename b;
+SArename gb_2;
+crypto uf_cma(sign) rkA;
+crypto uf_cma(sign) rkB;
+success;
+insert after "in(ch1" "let subGtoG(xsub) = x1 in";
+crypto rom(h);
+auto
+}
+
 param N, N2.
 
 type host [bounded].
@@ -16,15 +31,13 @@ type Z [large,bounded].
 type G [large,bounded].
 type D [fixed].
 
-(* This collision assumption is needed to prove an injective
-   correspondence, because we use ephemerals to distinguish sessions. *)
-proba PCollKey1.
-proba PCollKey2.
-expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+(* Let's use curve 25519 *)
+type subG [large,bounded].
+expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
 
 (* CDH assumption *)
 proba pCDH.
-expand CDH(G, Z, g, exp, exp', mult, pCDH).
+expand CDH(subG, Z, g_k, exp_div_k, exp_div_k', mult, pCDH).
 
 
 (* Hash in the random oracle model *)
@@ -118,10 +131,9 @@ process
 	out(cstart, (pkA, pkB));
    ((!iA <= N processA(hk,skA)) | (!iA <= N processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB))
 
-
 (* EXPECTED
 All queries proved.
-29.652s (user 29.644s + system 0.008s), max rss 126816K
+0.892s (user 0.844s + system 0.048s), max rss 72196K
 END *)
 
 (* EXPECTPV
@@ -129,5 +141,5 @@ RESULT secret keyA is true.
 RESULT secret keyB is true.
 RESULT inj-event(endA(A,B,x,y)) ==> inj-event(beginB(A,B,x,y)) public_vars keyA,keyB is true.
 RESULT inj-event(endB(A,B,x,y)) ==> inj-event(endA(A,B,x,y)) public_vars keyA,keyB is true.
-0.180s (user 0.164s + system 0.016s), max rss 12152K
+0.652s (user 0.644s + system 0.008s), max rss 126816K
 END *)
