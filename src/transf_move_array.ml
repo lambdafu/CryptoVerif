@@ -65,7 +65,7 @@ let parse_and_check_collision var_X (s,ext_s) =
 let subst var img t =
   Terms.auto_cleanup (fun () ->
     Terms.link var (TLink img);
-    Terms.copy_term Links_Vars t)
+    Terms.copy_term Terms.Links_Vars t)
 
 let move_array_equiv ext2 bl collisions =
   let var_num_state = Terms.get_var_num_state() in
@@ -173,7 +173,7 @@ let move_array_equiv ext2 bl collisions =
      restores the variable state. *)
   Terms.set_var_num_state var_num_state;
   (* Parse the equivalence *)
-  let pequiv = Syntax.parse_from_string (if !Settings.front_end = Channels then Parser.cequiv else Parser.oequiv) (equiv_string, dummy_ext) in
+  let pequiv = Syntax.parse_from_string (if !Settings.front_end = Settings.Channels then Parser.cequiv else Parser.oequiv) (equiv_string, dummy_ext) in
   (* Create the environment for checking the equivalence *)
   let env = Stringmap.env in
   let old_env = !env in

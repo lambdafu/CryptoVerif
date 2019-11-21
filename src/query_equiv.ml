@@ -27,7 +27,7 @@ type channel_struct =
   | CFun of channel
 
 let new_channel() =
-  let cid = Terms.fresh_id (if !Settings.front_end = Channels then "c" else "O") in
+  let cid = Terms.fresh_id (if !Settings.front_end = Settings.Channels then "c" else "O") in
   { cname = cid } 
   
 let rec fungroup_build_ch_struct = function
@@ -42,7 +42,7 @@ let put_repl_in_restr_out_par cur_array' idx_opt c restr plist =
   let p = make_par plist in
   let in_ch = (c, List.map Terms.term_from_repl_index cur_array') in
   let out_ch =
-    if !Settings.front_end = Channels then
+    if !Settings.front_end = Settings.Channels then
       (c, List.map Terms.term_from_repl_index cur_array')
     else
       (dummy_channel, [])
@@ -66,7 +66,7 @@ let put_in cur_array c bl p =
 
 let put_out cur_array c t =
   let out_ch =
-    if !Settings.front_end = Channels then
+    if !Settings.front_end = Settings.Channels then
       (c, List.map Terms.term_from_repl_index cur_array)
     else
       (dummy_channel, [])
