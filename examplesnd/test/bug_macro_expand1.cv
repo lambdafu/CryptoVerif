@@ -1,0 +1,549 @@
+def BAD_UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll) {
+
+param N, N2, N3, N4.
+
+fun sign_r(signinput, skey, sign_seed): signature.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun check(signinput, pkey, signature): bool.
+
+fun sign_r2(signinput, skey, sign_seed): signature.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun check2(signinput, pkey, signature): bool.
+
+letfun sign(m: signinput, sk: skey) =
+       r <-R sign_seed; sign_r(m,sk,r).
+
+equation forall m:signinput, r:keyseed, r2:sign_seed; 
+	check(m, pkgen(r), sign_r(m, skgen(r), r2)) = true.
+equation forall m:signinput, r:keyseed, r2:sign_seed; 
+	check2(m, pkgen2(r), sign_r2(m, skgen2(r), r2)) = true.
+
+equiv(uf_cma(sign))
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() [2] := return(pkgen(r)) |
+	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
+	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := return(check(m1, pkgen(r), si1))) |
+       foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) [3] := return(check(m, y, si)) [all]
+     <=(N3 * Psign(time + (N4+N-1) * time(check, max(maxlength(m1), maxlength(m)), max(maxlength(si1), maxlength(si))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign_r, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [computational]
+       foreach i3 <= N3 do r <-R keyseed [unchanged]; (
+           Opk() := return(pkgen2(r)) |
+	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := return(sign_r2(x, skgen2(r), r2)) |
+	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
+                find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, pkgen2(r), si1) then return(true) else return(false)) |
+       foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) :=
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = pkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then return(true) else
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then return(false) else
+		return(check(m,y,si)).
+
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(pkgen(r1) = pkgen(r2)) <=(Psigncoll)=> return(false).
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(pkgen(r1) = pkgen2(r2)) <=(Psigncoll)=> return(false).
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(pkgen2(r1) = pkgen2(r2)) <=(Psigncoll)=> return(false).
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(skgen(r1) = skgen(r2)) <=(Psigncoll)=> return(false).
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(skgen(r1) = skgen2(r2)) <=(Psigncoll)=> return(false).
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(skgen2(r1) = skgen2(r2)) <=(Psigncoll)=> return(false).
+
+}
+
+(* ATN protocol
+CryptoVerif model by Bruno Blanchet, INRIA Paris.
+This version models two ground entities V1 and V2
+communicating with each other and with other participants. *)
+
+proof {
+      crypto uf_cma(CAsign);
+      crypto uf_cma(sign) *;
+      success
+}
+
+(**** Declarations of types, constants, and function symbols ****)
+
+(* Type for session ids, used internally in the model to distinguish
+   each session of the protocol. *)
+
+type session_ids [large, fixed].
+
+(* Type of 32 bits numbers *)
+
+type t_Rand32 [large, fixed]. 
+
+(* Ids 
+V1, V2 = ground entities *)
+
+type t_id.
+const V1, V2: t_id.
+
+(* The function is_air tells whether the entity is an aircraft or
+   a ground entity *)
+fun is_air(t_id): bool.
+equation is_air(V1) = false.
+equation is_air(V2) = false.
+
+(* Counter *)
+
+type t_Count [fixed].
+
+const Count1: t_Count.
+
+(* MAC *)
+
+proba Pmac.
+type mac_key [large, fixed]. (* 256 bits MAC key *)
+type tMAC [large, fixed]. (* 32 bits MAC *)
+
+expand SUF_CMA_det_mac(mac_key, bitstring, tMAC, mac, check, Pmac).
+
+(* EC Diffie-Hellman: Gap Diffie-Hellman assumption *)
+
+proba pGDH.
+type G [bounded,large].
+type Z [bounded,large].
+expand DH_basic(G, Z, g, exp, exp', mult).
+expand GDH(G, Z, g, exp, exp', mult, pGDH).
+
+(* Signatures ECDSA - standard strength *)
+
+proba PsignStd.
+proba PsigncollStd.
+type tStd_keyseed [fixed,large].
+type tStd_pkey [bounded].
+type tStd_skey [bounded].
+type tStd_sign.
+
+def UF_CMA_signature_collresistance(keyseed, pkey, skey, signinput, signature, skgen, pkgen, sign, check, Psign, Psigncoll) {
+
+type seed [large, fixed].
+
+expand BAD_UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll).
+
+(* Collision resistance property
+   This property holds for ECDSA signatures
+   sign(k, m1, r1) = sign(k, m2, r2) implies that r1.G and r2.G have 
+   the same first coordinate modulo n (the prime order of G), which has a negligible
+   probability of happening for independent random r1 and r2. *)
+
+collision new r: keyseed; new r1: seed; new r2: seed;
+	  forall x1: signinput, x2: signinput;
+	  return(sign_r(x1, skgen(r), r1) = sign_r(x2, skgen(r), r2)) <=(Psigncoll)=> return(false).
+
+collision new r: keyseed; new r1: seed; new r2: seed;
+	  forall x1: signinput, x2: signinput;
+	  (* BUG: sign_r2 should not be defined here!! 
+	     It is defined in BAD_UF_CMA_proba_signature_all_args, but not exported. *)
+	  return(sign_r2(x1, skgen2(r), r1) = sign_r2(x2, skgen2(r), r2)) <=(Psigncoll)=> return(false).
+
+(* Signatures generated with one key have a negligible
+   probability of verifying with another independent key *)
+
+collision new r1: keyseed; new r2: keyseed; new r: seed;
+          forall x1: signinput, x2: signinput;
+	  return(check2(x1, pkgen2(r1), sign_r2(x2, skgen2(r2), r))) <=(Psigncoll)=> return(false).
+(*
+This assumption is not a consequence of UF-CMA in general,
+because when
+s1 = sign2(x1, skgen2(r1), r0)
+s2 = sign2(x2, skgen2(r2), r) with x2 = f(s1)
+check2(x1, pkgen2(r1), s2,..) might succeed according to UF-CMA. 
+(The signature s1 on x1 is necessarily
+computed before the signature verification, due to the dependency 
+x2 = f(s1).)
+
+However, it is a reasonable assumption for ECDSA and many
+other signature schemes. *)
+
+(* When the signature is built honestly, the
+signature verification succeeds only when the message matches *)
+
+collision new r: keyseed; new r1: seed;
+          forall x: signinput, x1: signinput;
+	  return(check2(x, pkgen2(r), sign_r2(x1, skgen2(r), r1))) <=(Psigncoll)=> return(x1 = x).
+
+(* Again, this assumption is not a consequence of UF-CMA in general,
+because when
+s1 = sign2(x1, skgen2(r), r1)
+s2 = sign2(x2, skgen2(r), r2) with x2 = f(s1)
+check2(x, pkgen2(r), s2,..) might succeed with x = x1 or x = x2
+according to UF-CMA. (The signatures on x1 and x2 are necessarily
+computed before the signature verification, due to the dependency 
+x2 = f(s1).)
+
+However, it is a reasonable assumption for ECDSA and many
+other signature schemes. *)
+}
+
+expand UF_CMA_signature_collresistance(tStd_keyseed, tStd_pkey, tStd_skey, bitstring, tStd_sign, skgen, pkgen, sign, checksign, PsignStd, PsigncollStd).
+
+(* Signatures ECDSA - CA-strength *)
+
+proba PsignCA.
+proba PsigncollCA.
+type tCA_keyseed [fixed,large].
+type tCA_pkey [bounded].
+type tCA_skey [bounded].
+type tCA_sign.
+
+expand UF_CMA_proba_signature(tCA_keyseed, tCA_pkey, tCA_skey, bitstring, tCA_sign, CAskgen, CApkgen, CAsign, CAchecksign, PsignCA, PsigncollCA).
+
+(* Simplified model of certificates: 
+   it contains the identity and the public key *)
+fun build_s_certif(t_id, tStd_pkey): bitstring [data].
+fun build_ka_certif(t_id, G): bitstring [data].
+(* The ATN entities check that the certificate contains the appropriate type of
+   keys by examining the key usage extension, so they distinguish signing
+   keys from key agreement keys *)
+equation forall x1: t_id, x2: tStd_pkey, y1: t_id, y2: G;
+       build_s_certif(x1,x2) <> build_ka_certif(y1,y2).
+
+(* Time *)
+
+type t_Time [fixed].
+
+fun check_time(t_Time, t_Time): bool.
+     (* check_time(tU, tV) is not precisely defined in the
+     	specification; it is a local matter. *)
+
+(* UserData type *)
+
+type t_UserData.
+
+(* SDSAppendix type *)
+
+type t_SDSAppendix.
+type t_SDSAppendix_validity.
+type t_SDSAppendix_value.
+
+const no_validity: t_SDSAppendix_validity.
+fun random_validity(t_Rand32): t_SDSAppendix_validity [data].
+fun time_validity(t_Time): t_SDSAppendix_validity [data].
+
+equation forall RandV: t_Rand32;
+       no_validity <> random_validity(RandV).
+equation forall tU: t_Time;
+       no_validity <> time_validity(tU).
+equation forall RandV: t_Rand32, tU: t_Time;
+       random_validity(RandV) <> time_validity(tU).
+      
+
+fun ecdsa_Signature(tStd_sign): t_SDSAppendix_value [data].
+fun hmac_Tag(tMAC): t_SDSAppendix_value [data].
+
+equation forall sU: tStd_sign, m: tMAC;
+       ecdsa_Signature(sU) <> hmac_Tag(m).
+
+fun buildSDSAppendix(t_SDSAppendix_validity, t_SDSAppendix_value): t_SDSAppendix [data].
+
+(* SDSProtectSign type *)
+
+type t_SDSProtectSign.
+
+fun buildSDSProtectSign(t_UserData, t_SDSAppendix): t_SDSProtectSign [data].
+
+(* SDSEstablish type *)
+
+type t_SDSEstablish.
+
+fun buildSDSEstablish1(bitstring, bitstring, t_SDSAppendix): t_SDSEstablish [data].
+fun buildSDSEstablish2(t_SDSAppendix): t_SDSEstablish [data].
+
+(* SdsAPDU type *)
+
+type t_SdsAPDU.
+
+fun buildSdsAPDU1(t_UserData, t_id, t_id, t_SDSEstablish): t_SdsAPDU [data].
+fun buildSdsAPDU2(t_id, t_id, t_SDSProtectSign): t_SdsAPDU [data].
+
+(* Hash function AHASH is collision resistant *)
+
+type t_Hash [large, fixed]. (* output of AHASH *)
+
+type hash_key2 [large,fixed].
+proba Phash.
+expand CollisionResistant_hash(hash_key2, bitstring, t_Hash, AHASH, AHASH_oracle, Phash).
+
+fun build_AHASH_arg(t_SDSAppendix, t_Rand32): bitstring [data].
+
+(* Key derivation function KDF256, considered as a random oracle *)
+
+type KDF_arg.
+type hash_key [large, fixed].
+
+expand ROM_hash_2(hash_key, G, KDF_arg, mac_key, KDF256, KDF_oracle, qH).
+
+fun buildKDF_arg(t_Hash, t_id, t_id): KDF_arg [data].
+
+(* ATN Message elements *)
+
+fun buildData1(t_id, t_id, t_Time, t_UserData): bitstring [data].
+fun buildData2(t_UserData, t_Rand32, t_SDSAppendix): t_UserData [data].
+fun buildMACarg(t_id, t_id, t_Count, t_UserData) : bitstring [data].
+
+(* Tables of message counters
+   We simulate a distinct table for each session by
+   adding a unique session identifier as first argument. *)
+
+table received_count_table(session_ids, t_Count).
+table sent_count_table(session_ids, t_Count).
+
+(**** Security properties ****)
+
+(* Authentication of ground-ground messages *)
+
+event ground_accept(t_id, t_id, t_Time, t_Time, t_UserData).
+event ground_request(t_id, t_id, t_Time, t_UserData).
+
+query tV: t_Time, tU: t_Time, UserData: t_UserData;
+      event(ground_accept(V1, V2, tU, tV, UserData)) ==>
+         check_time(tU, tV) && event(ground_request(V1, V2, tU, UserData)).
+	 
+query tV: t_Time, tU: t_Time, UserData: t_UserData;
+      event(ground_accept(V2, V1, tU, tV, UserData)) ==>
+         check_time(tU, tV) && event(ground_request(V2, V1, tU, UserData)).
+	 
+query tV: t_Time, tU: t_Time, UserData: t_UserData;
+      event(ground_accept(V2, V2, tU, tV, UserData)) ==>
+         check_time(tU, tV) && event(ground_request(V2, V2, tU, UserData)).
+
+query tV: t_Time, tU: t_Time, UserData: t_UserData;
+      event(ground_accept(V1, V1, tU, tV, UserData)) ==>
+         check_time(tU, tV) && event(ground_request(V1, V1, tU, UserData)).
+
+(* Events for air-ground communication - not used in the ground-ground communication *)
+
+event resp_accept(t_id, t_id, t_Time, tStd_sign, t_Time, t_Rand32, tMAC, mac_key, t_UserData, t_UserData).
+event init_accept(t_id, t_id, t_Time, tStd_sign, t_Rand32, tMAC, mac_key, t_UserData, t_UserData).
+event init_request(t_id, t_id, t_Time, t_UserData).
+event send_msg(t_id, t_id, bitstring, t_Count, t_UserData).
+event recv_msg(t_id, t_id, bitstring, t_Count, t_UserData).
+
+(**** The protocol ****)
+
+param Ns_certif, Nka_certif, Nground_init1, Nground_init2, Nground_resp1, Nground_resp2, Nmessage.
+channel c_gen1, c_gen2, c_e1, c_e2,
+	c_ground1, c_ground2, c_ground3, c_ground4,
+	c_ground5, c_ground6, c_ground7, c_ground8, c_ground9,
+	c_certif1, c_certif2, c_certif3, c_certif4, 
+	choicechannel, pub.
+
+
+(* Tunnel 
+   arguments:
+   my_id
+   other_id
+   MacKeyUV
+   session_info = (tU, sU, RandV)
+   current_session_id
+   *)
+
+let tunnel_protocol(current_session_id: session_ids, my_id: t_id, other_id: t_id, MacKeyUV: mac_key, session_info: bitstring (* (tU, sU, RandV) *)) =
+(
+    (* Sender side *)
+    ! Nmessage
+    in(choicechannel, (UserData: t_UserData, 
+		       count: t_Count));
+    (* We never send two messages with the same count, in the same session. *)
+    get sent_count_table(=current_session_id, =count) in yield else
+    event send_msg(my_id, other_id, session_info, count, UserData);
+    insert sent_count_table(current_session_id, count);
+    let MACData = buildMACarg(my_id, other_id, count, UserData) in
+    let MAC = mac(MACData, MacKeyUV) in
+    let SDS_Appendix = buildSDSAppendix(no_validity, hmac_Tag(MAC)) in
+    let SDSProtectSign = buildSDSProtectSign(UserData, SDS_Appendix) in
+    let m = buildSdsAPDU2(my_id, other_id, SDSProtectSign) in
+    out(pub, m)
+)
+|
+(
+    (* Receiver side *)
+    ! Nmessage
+    in(pub, (m: t_SdsAPDU, (*count may be transmitted or inferred*)count: t_Count));
+    let buildSdsAPDU2(=my_id, =other_id, xSDSProtectSign) = m in
+    let buildSDSProtectSign(xUserData, xSDS_Appendix) = xSDSProtectSign in
+    let buildSDSAppendix(=no_validity, hmac_Tag(xMAC)) = xSDS_Appendix in
+    if check(buildMACarg(other_id, my_id, count, xUserData), MacKeyUV, xMAC) then
+    (* We never receive two messages with the same count, in the same session.
+       This is fairly implicit in the specification *)
+    get received_count_table(=current_session_id, =count) in yield else
+    insert received_count_table(current_session_id, count);
+    event recv_msg(my_id, other_id, session_info, count, xUserData)
+).
+
+
+(* Ground entity *)
+
+let ground_init(hk: hash_key, hk2: hash_key2, CApkey: tCA_pkey, V: t_id, Vs_certif: bitstring, Vka_certif: bitstring, Vskey: tStd_skey, Vx: Z) =
+    in(c_ground5, (UserData1: t_UserData,
+                   (* current time *)tV: t_Time,
+		   (* identity of the interlocutor *)xU: t_id,
+		   (* certificate for xU: the ground entity gets it from the certificate service *)DH_certif: bitstring));
+    (* Choose a session id *)
+    new current_session_id: session_ids;
+    if is_air(xU) then
+    (
+    (* Message 1, CM-4 *)
+    let ToBeSignedData = buildData1(V, xU, tV, UserData1) in
+    let sV = sign(ToBeSignedData, Vskey) in
+    let SDSAppendix = buildSDSAppendix(time_validity(tV), ecdsa_Signature(sV)) in
+    let SDSEstablish = buildSDSEstablish1(Vs_certif, Vka_certif, SDSAppendix) in
+    let m1 = buildSdsAPDU1(UserData1, V, xU, SDSEstablish) in
+    event init_request(V, xU, tV, UserData1);
+    out(c_ground6, m1);
+
+    (* Message 2 *)
+    in(c_ground7, m2: t_SdsAPDU);
+    let buildSdsAPDU1(xUserData2, =xU, =V, xSDSEstablish2) = m2 in
+    let buildSDSEstablish2(xSDS_Appendix2) = xSDSEstablish2 in
+    let buildSDSAppendix(random_validity(xRandU), hmac_Tag(xData2mac)) = xSDS_Appendix2 in
+    let (certif_content: bitstring, certif_sign: tCA_sign) = DH_certif in
+    if CAchecksign(certif_content, CApkey, certif_sign) then
+    let build_ka_certif(=xU, xUX) = certif_content in
+    let ZUV = exp(xUX, Vx) in
+    let XUV = AHASH(hk2, build_AHASH_arg(SDSAppendix, xRandU)) in
+    let MacKeyUV = KDF256(hk, ZUV, buildKDF_arg(XUV, xU, V)) in
+    let MACData2 = buildMACarg(xU, V, Count1, buildData2(xUserData2, xRandU, SDSAppendix)) in
+    if check(MACData2, MacKeyUV, xData2mac) then
+    insert received_count_table(current_session_id, Count1);
+    event init_accept(V, xU, tV, sV, xRandU, xData2mac, MacKeyUV, UserData1, xUserData2);
+    (* Tunnel arguments *)
+    out(c_ground8, ());
+    tunnel_protocol(current_session_id, V, xU, MacKeyUV, (tV, sV, xRandU))
+    )
+    else
+    (
+    (* ground-ground communication *)
+    let ToBeSignedData = buildData1(V, xU, tV, UserData1) in
+    let sV = sign(ToBeSignedData, Vskey) in
+    let SDSAppendix = buildSDSAppendix(time_validity(tV), ecdsa_Signature(sV)) in
+    let SDSEstablish = buildSDSEstablish2(SDSAppendix) in
+    let m1 = buildSdsAPDU1(UserData1, V, xU, SDSEstablish) in
+    event ground_request(V, xU, tV, UserData1);
+    out(c_ground9, m1)
+    ).
+
+let ground_resp(hk: hash_key, hk2: hash_key2, CApkey: tCA_pkey, V: t_id, Vs_certif: bitstring, Vka_certif: bitstring, Vskey: tStd_skey, Vx: Z) =
+    (* CM-7 *)
+    in(c_ground1, (* message from the aircraft *) (m1: t_SdsAPDU,
+                  (* data to send in 2nd message *) UserData2: t_UserData,
+                  (* current time *)tV: t_Time,
+		  (* certificates *)xUs_certif: bitstring, xUka_certif:bitstring));
+    (* Choose a session id *)
+    new current_session_id: session_ids;
+    let buildSdsAPDU1(xUserData1, xU, =V, xSDSEstablish) = m1 in
+    if is_air(xU) then
+    (
+    let buildSDSEstablish2(xSDSAppendix) = xSDSEstablish in
+    let buildSDSAppendix(time_validity(xtU), ecdsa_Signature(xsU)) = xSDSAppendix in
+
+    let (xUs_certif_content: bitstring, xUs_certif_sign: tCA_sign) = xUs_certif in
+    if CAchecksign(xUs_certif_content, CApkey, xUs_certif_sign) then
+    let (xUka_certif_content: bitstring, xUka_certif_sign: tCA_sign) = xUka_certif in
+    if CAchecksign(xUka_certif_content, CApkey, xUka_certif_sign) then
+    let build_s_certif(=xU, xUpkey) = xUs_certif_content in
+    if checksign(buildData1(xU, V, xtU, xUserData1), xUpkey, xsU) then
+    if check_time(xtU, tV) then
+    (* Compute session key *)
+    let build_ka_certif(=xU, xUX) = xUka_certif_content in
+    let ZUV = exp(xUX, Vx) in
+    new RandV: t_Rand32;
+    let XUV = AHASH(hk2, build_AHASH_arg(xSDSAppendix, RandV)) in
+    let MacKeyUV = KDF256(hk, ZUV, buildKDF_arg(XUV, xU, V)) in
+    (* Build message 2 *)
+    let MACData2 = buildMACarg(V, xU, Count1, buildData2(UserData2, RandV, xSDSAppendix)) in
+    let Data2mac = mac(MACData2, MacKeyUV) in
+    let SDSAppendix2 = buildSDSAppendix(random_validity(RandV), hmac_Tag(Data2mac)) in
+    let SDSEstablish2 = buildSDSEstablish1(Vs_certif, Vka_certif, SDSAppendix2) in
+    let m2 = buildSdsAPDU1(UserData2, V, xU, SDSEstablish2) in
+    insert sent_count_table(current_session_id, Count1);
+    event resp_accept(xU, V, xtU, xsU, tV, RandV, Data2mac, MacKeyUV, xUserData1, UserData2);
+    (* Output message *)
+    out(c_ground4, m2);
+    (* Tunnel *)
+    tunnel_protocol(current_session_id, V, xU, MacKeyUV, (xtU, xsU, RandV))
+    )
+    else
+    (
+    (* ground-ground communication *)
+    let buildSDSEstablish2(xSDSAppendix) = xSDSEstablish in
+    let buildSDSAppendix(time_validity(xtU), ecdsa_Signature(xsU)) = xSDSAppendix in
+
+    let (xUs_certif_content: bitstring, xUs_certif_sign: tCA_sign) = xUs_certif in
+    if CAchecksign(xUs_certif_content, CApkey, xUs_certif_sign) then
+    let build_s_certif(=xU, xUpkey) = xUs_certif_content in
+    if checksign(buildData1(xU, V, xtU, xUserData1), xUpkey, xsU) then
+    if check_time(xtU, tV) then
+    event ground_accept(xU, V, xtU, tV, xUserData1) 
+    ).
+   
+(* Allow the adversary to get certificates for its own keys *)
+
+let adv_s_certif(CAskey: tCA_skey) =
+    in(c_certif1, (id: t_id, pk: tStd_pkey));
+    if id <> V1 && id <> V2 then
+    let s_certif_content = build_s_certif(id, pk) in
+    let s_certif = (s_certif_content, CAsign(s_certif_content, CAskey)) in
+    out(c_certif2, s_certif).
+
+let adv_ka_certif(CAskey: tCA_skey) =
+    in(c_certif3, (id: t_id, pk: G));
+    if id <> V1 && id <> V2 then
+    let ka_certif_content = build_ka_certif(id, pk) in
+    let ka_certif = (ka_certif_content, CAsign(ka_certif_content, CAskey)) in
+    out(c_certif4, ka_certif).
+
+(* Putting the whole system together *)
+
+process 
+	in(c_gen1, ());
+        (* Generate the CA key pair *)
+	new CAkseed: tCA_keyseed;
+	let CApkey = CApkgen(CAkseed) in
+	let CAskey = CAskgen(CAkseed) in
+	(* Generate the signing key pair for V1 *)
+	new V1kseed: tStd_keyseed;
+	let V1pkey = pkgen(V1kseed) in
+	let V1skey = skgen(V1kseed) in
+	(* Generate a certificate for it *)
+	let V1s_certif_content = build_s_certif(V1, V1pkey) in
+        let V1s_certif = (V1s_certif_content, CAsign(V1s_certif_content, CAskey)) in
+	(* Generate the key agreement key pair for V1 *)
+	new V1x: Z;
+	let V1X = exp(g, V1x) in
+	(* Generate a certificate for it *)
+	let V1ka_certif_content = build_ka_certif(V1, V1X) in
+        let V1ka_certif = (V1ka_certif_content, CAsign(V1ka_certif_content, CAskey)) in
+	(* Generate the signing key pair for V2 *)
+	new V2kseed: tStd_keyseed;
+	let V2pkey = pkgen(V2kseed) in
+	let V2skey = skgen(V2kseed) in
+	(* Generate a certificate for it *)
+	let V2s_certif_content = build_s_certif(V2, V2pkey) in
+        let V2s_certif = (V2s_certif_content, CAsign(V2s_certif_content, CAskey)) in
+	(* Generate the key agreement key pair V2 *)
+	new V2x: Z;
+	let V2X = exp(g, V2x) in
+	(* Generate a certificate for it *)
+	let V2ka_certif_content = build_ka_certif(V2, V2X) in
+        let V2ka_certif = (V2ka_certif_content, CAsign(V2ka_certif_content, CAskey)) in
+        (* Hash key: models the choice of the hash function *)
+        new hk: hash_key;
+	new hk2: hash_key2;
+	out(c_gen2, (CApkey, V1pkey, V1s_certif, V2pkey, V2s_certif, V1X, V1ka_certif, V2X, V2ka_certif));
+	((! Nground_init1 ground_init(hk, hk2, CApkey, V1, V1s_certif, V1ka_certif, V1skey, V1x)) |
+	 (! Nground_resp1 ground_resp(hk, hk2, CApkey, V1, V1s_certif, V1ka_certif, V1skey, V1x)) |
+	 (! Nground_init2 ground_init(hk, hk2, CApkey, V2, V2s_certif, V2ka_certif, V2skey, V2x)) |
+	 (! Nground_resp2 ground_resp(hk, hk2, CApkey, V2, V2s_certif, V2ka_certif, V2skey, V2x)) |
+	 (! Ns_certif adv_s_certif(CAskey)) |
+	 (! Nka_certif adv_ka_certif(CAskey)) |
+	 AHASH_oracle(hk2) |
+	 KDF_oracle(hk))
+
+(* EXPECTED
+All queries proved.
+2.328s (user 2.316s + system 0.012s), max rss 117888K
+END *)

@@ -638,16 +638,6 @@ let rec check_query_list collector event_accu state = function
 	    (* The query is not proved *)
 	    (l', false)
 
-(* [is_event_query f g pub_vars q] returns [true] when the query [q] is 
-   [event f ==> false] (that is, "the event [f] can never be executed") 
-   in game [g] with public variables [pub_vars] *)
-
-let is_event_query f g pub_vars = function
-    ((QEventQ([false, { t_desc = FunApp(f',[{ t_desc = FunApp(f_tuple, []) }]) }], QTerm t_false, pub_vars'),g'), _,_) -> 
-      g == g' && f == f' && Terms.is_false t_false &&
-      Terms.equal_lists (==) pub_vars pub_vars'
-  | _ -> false 
-
 (* [update_full_proof query_list (q, poptref, popt)] updates [poptref]
    with the proof of query [q] when [q] is fully proved.
    Indeed, when we introduce events during the proof of a query [q],

@@ -2389,7 +2389,7 @@ expand SUF_CMA_det_signature_all_args(keyseed, pkey, skey, signinput, signature,
    the macro.  
 *)
 
-def UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll) {
+def UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, sign_r2, check, check2, Psign, Psigncoll) {
 
 param N, N2, N3, N4.
 
@@ -2488,7 +2488,7 @@ collision r1 <-R keyseed; r2 <-R keyseed;
 def UF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen, pkgen, sign, check, Psign, Psigncoll) {
 
 type sign_seed [bounded].
-expand UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll).
+expand UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, sign_r2, check, check2, Psign, Psigncoll).
 
 }
 
@@ -2520,7 +2520,7 @@ expand UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature
    the macro.  
 *)
 
-def SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll) {
+def SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, sign_r2, check, check2, Psign, Psigncoll) {
 
 param N, N2, N3, N4.
 
@@ -2619,7 +2619,7 @@ collision r1 <-R keyseed; r2 <-R keyseed;
 def SUF_CMA_proba_signature(keyseed, pkey, skey, signinput, signature, skgen, pkgen, sign, check, Psign, Psigncoll) {
 
 type sign_seed [bounded].
-expand SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, signr2, check, check2, Psign, Psigncoll).
+expand SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, sign_r2, check, check2, Psign, Psigncoll).
 
 }
 

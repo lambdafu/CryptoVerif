@@ -42,6 +42,14 @@ val apply_eq_statements_subterms_once : simp_facts -> term -> term
    Application is repeated until a fixpoint is reached. *)
 val apply_reds : dep_anal -> simp_facts -> term -> term
 
+(* [simplify_equal t1 t2] simplifies [t1 = t2].
+   Raises [Contradiction] when false.
+   Raises [Unchanged] when no simplification found.
+   Returns a pair of lists such that matching elements are equal terms 
+   otherwise. *)
+exception Unchanged
+val simplify_equal : term -> term -> term list * term list
+
 (* Display the facts. Mainly used for debugging *)
 val display_elsefind : elsefind_fact -> unit
 val display_facts : simp_facts -> unit

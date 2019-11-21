@@ -83,21 +83,6 @@ do
 done
 m4 implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key.ocv
 
-echo
-echo PROVERIF
-echo
-output=pv`date '+%Y.%m.%d-%H_%M_%S'`
-(
-for i in examples/*/*.pcv examplesnd/proverif/*.pv
-do
-    if [ -f $i ]
-    then
-	    analyzepv $i "-lib cryptoverif.pvl" $i tests/$output
-    fi
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-
 
 echo
 echo TEST
@@ -152,5 +137,20 @@ done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 fi
+
+echo
+echo PROVERIF
+echo
+output=pv`date '+%Y.%m.%d-%H_%M_%S'`
+(
+for i in examples/*/*.pcv examplesnd/proverif/*.pv examplesnd/proverif/*.pcv
+do
+    if [ -f $i ]
+    then
+	    analyzepv $i "-lib cryptoverif.pvl" $i tests/$output
+    fi
+done
+) | tee tests/res-$output
+egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) tests/$output > tests/sum-$output
 
 rm $TMP.*

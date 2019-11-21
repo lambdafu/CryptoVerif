@@ -2403,11 +2403,7 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
       List.iter (fun (s,ext) ->
 	if s = "unchanged" then 
 	  if options2 = Computational then
-	    if List.exists (fun (b',_) -> 
-	      (b.sname = b'.sname) &&
-	      (b.vname == b'.vname) &&
-	      (b.btype == b'.btype)
-	      ) restrlist0 then
+	    if List.exists (fun (b',_) -> Terms.equiv_same_vars b b') restrlist0 then
 	      opt' := Unchanged 
 	    else
 	      raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
@@ -2480,7 +2476,7 @@ let check_mode right = function
       raise_error "Only modes all and exist can be specified" ext
   | None -> ExistEquiv
 
-let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, options)) =
+let check_eqstatement normalize (name, (mem1, ext1), (mem2, ext2), proba, (priority, options)) =
   current_location := InEquivalence;
   let mem2 =
     match mem1, mem2 with
@@ -2547,7 +2543,7 @@ let check_eqstatement (name, (mem1, ext1), (mem2, ext2), proba, (priority, optio
   (* Check.check_equiv creates new variables (in make_let).
      They should not collide with variables in the equivalence,
      so we do Check.check_equiv before resetting var_num_state *)
-  let equiv' = Check.check_equiv true equiv in
+  let equiv' = Check.check_equiv normalize equiv in
   (* The variables defined in the equivalence are local,
      we can reuse the same numbers in other equivalences or
      in the process. *)
@@ -3531,22 +3527,13 @@ let rec check_one = function
       let l' = List.map (fun (s,ext) ->
 	get_type_or_param (!env) s ext) l 
       in
-      add_not_found s1 ext1 (EEvent{ f_name = s1;
-				     (* Add a bitstring argument to store the current indexes *)
-				     f_type = (Settings.t_bitstring :: l'),Settings.t_bool;
-				     f_cat = Event;
-				     f_options = 0;
-				     f_statements = [];
-				     f_collisions = [];
-				     f_eq_theories = NoEq;
-                                     f_impl = No_impl;
-                                     f_impl_inv = None })
+      add_not_found s1 ext1 (EEvent (Terms.create_event s1 l'))
   | Statement s ->
       check_statement (!env) s
   | BuiltinEquation(eq_categ, l_fun_symb) ->
       check_builtin_eq (!env) eq_categ l_fun_symb
   | EqStatement s ->
-      equivalences := (check_eqstatement s) :: (!equivalences)
+      equivalences := (check_eqstatement true s) :: (!equivalences)
   | Collision s ->
       check_collision (!env) s
   | Query (vars, l) ->
@@ -3776,12 +3763,42 @@ let rec check_all (l,p) =
   current_location := InProcess;
   match p with
     PSingleProcess p1 ->
-      SingleProcess(check_process_full p1)
+      let final_p = SingleProcess(check_process_full p1) in
+      let ql = List.map check_query (!queries_parse) in
+      (* Remove duplicate queries. They are useless, take time,
+	 and might cause an internal error with the current
+	 implementation of the command "focus". *)
+      let rec remove_dup = function
+	  q::ql ->
+	    let ql' = remove_dup ql in 
+	    if List.exists (Terms.equal_query q) ql' then
+	      ql'
+	    else
+	      q::ql'
+	| [] -> []
+      in
+      (!statements, !collisions, !equivalences,
+       remove_dup ql, !proof, (get_impl ()), final_p)
   | PEquivalence(p1,p2,pub_vars) ->
+      if (!queries_parse) != [] then
+	user_error "Queries are incompatible with equivalence";
+      if (!Settings.get_implementation) then
+	user_error "Implementation is incompatible with equivalence";
       let p1' = check_process_full p1 in
       let p2' = check_process_full p2 in
       let pub_vars' =  get_qpubvars pub_vars in
-      Equivalence(p1', p2', pub_vars')
+      let final_p = Equivalence(p1', p2', pub_vars') in
+      (!statements, !collisions, !equivalences,
+       [], !proof, [], final_p)
+  | PQueryEquiv equiv_statement ->
+      if (!queries_parse) != [] then
+	user_error "Queries are incompatible with query_equiv";
+      if (!Settings.get_implementation) then
+	user_error "Implementation is incompatible with query_equiv";
+      let equiv_statement' = check_eqstatement false equiv_statement in
+      let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
+      (!statements, !collisions, !equivalences,
+       queries, !proof, [], final_p)
 
 let declares = function
   | ParamDecl(id, _)
@@ -4190,7 +4207,12 @@ let record_all_ids (l,p) =
     | PEquivalence (p1, p2, pub_vars) ->
 	collect_id_proc accu p1;
 	collect_id_proc accu p2;
-	List.iter (add_id accu) pub_vars	
+	List.iter (add_id accu) pub_vars
+    | PQueryEquiv(n, l,r,p,options) ->
+	collect_id_eqname accu n;
+	collect_id_eqmember accu l;
+	collect_id_eqmember accu r;
+	collect_id_probaf accu p
   end;
   List.iter (fun i -> Terms.record_id i dummy_ext) (!accu)
 
@@ -4208,31 +4230,7 @@ let read_file f =
     (* Record top-level identifiers, to make sure that we will not need to 
        rename them. *)
     record_ids l';
-    let final_p = check_all (l',p) in
-    match final_p with
-      SingleProcess p' ->
-	let ql = List.map check_query (!queries_parse) in
-	(* Remove duplicate queries. They are useless, take time,
-	   and might cause an internal error with the current
-	   implementation of the command "focus". *)
-	let rec remove_dup = function
-	    q::ql ->
-	      let ql' = remove_dup ql in 
-	      if List.exists (Terms.equal_query q) ql' then
-		ql'
-	      else
-		q::ql'
-	  | [] -> []
-	in
-	(!statements, !collisions, !equivalences,
-	 remove_dup ql, !proof, (get_impl ()), final_p)
-    | Equivalence _ ->
-	if (!queries_parse) != [] then
-	  user_error "Queries are incompatible with equivalence";
-	if (!Settings.get_implementation) then
-	  user_error "Implementation is incompatible with equivalence";
-	(!statements, !collisions, !equivalences,
-	 [], !proof, [], final_p)
+    check_all (l',p)
   with
   | Undefined(i,ext) ->
       Parsing_helper.input_error (i ^ " not defined") ext

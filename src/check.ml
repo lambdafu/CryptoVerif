@@ -773,12 +773,8 @@ let rec check_corresp_uses b b' accu funlist funlist' =
 
 let find_assoc restr funlist b' bopt' funlist' =
   try
-    let (b,_) = List.find (fun (b,_) ->
-      (b.sname = b'.sname) &&
-      (b.vname == b'.vname) &&
-      (b.btype == b'.btype) &&
-      bopt' == Unchanged) restr 
-    in
+    if bopt' != Unchanged then raise Not_found;
+    let (b,_) = List.find (fun (b,_) -> Terms.equiv_same_vars b b') restr in
     (* b' is marked "unchanged"; a restriction with the same name 
        exists in the left-hand side.
        Try to associate it with b'; check that all functions that
@@ -1033,7 +1029,7 @@ let check_equiv normalize equiv =
   let rm' = List.map (fun (fg, mode) ->
     (check_rm_fungroup normalize [] fg, mode)) rm
   in
-  let rm'' = move_names_all lm' rm' in
+  let rm'' = if normalize then move_names_all lm' rm' else rm' in
   Array_ref.cleanup_array_ref();
   let restr_mapping = ref [] in
   build_restr_mapping restr_mapping lm' rm'';

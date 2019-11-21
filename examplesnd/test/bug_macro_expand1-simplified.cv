@@ -1,0 +1,45 @@
+def BAD_UF_CMA_proba_signature_all_args(skey, signinput, signature, signr2) {
+
+fun sign_r2(signinput, skey): signature.
+
+}
+
+(* Signatures ECDSA - standard strength *)
+
+proba PsigncollStd.
+type tStd_skey [bounded].
+type tStd_sign.
+
+def UF_CMA_signature_collresistance(skey, signinput, signature, Psigncoll) {
+
+expand BAD_UF_CMA_proba_signature_all_args(skey, signinput, signature, signr2).
+
+const sk0: skey.
+
+	  (* BUG: sign_r2 should not be defined here!! 
+	     It is defined in BAD_UF_CMA_proba_signature_all_args, but not exported. *)
+equation forall x: signinput, sk: skey; sign_r2(x,sk) = sign_r2(x,sk0).
+
+collision new sk: skey; 
+	  forall x1: signinput, x2: signinput;
+	  (* BUG: sign_r2 should not be defined here!! 
+	     It is defined in BAD_UF_CMA_proba_signature_all_args, but not exported. *)
+	  return(sign_r2(x1, sk) = sign_r2(x2, sk)) <=(Psigncoll)=> return(false).
+
+}
+
+expand UF_CMA_signature_collresistance(tStd_skey, bitstring, tStd_sign, PsigncollStd).
+
+
+(**** The protocol ****)
+
+channel c_gen1, c_gen2.
+
+process 
+	in(c_gen1, ());
+	out(c_gen2, ())
+
+(* EXPECTED
+All queries proved.
+2.328s (user 2.316s + system 0.012s), max rss 117888K
+END *)

@@ -105,7 +105,8 @@ let return_channel = (dummy_channel, None)
 %token RUN
 %token INDEPOF
 %token EQUIVALENCE
-
+%token QUERY_EQUIV
+  
   /* tokens for proofs */
 %token AT
 %token AT_NTH
@@ -545,7 +546,9 @@ all:
         { $1, PSingleProcess $3 }
 |       lib EQUIVALENCE process process optpublicvars EOF
         { $1, PEquivalence($3, $4, $5) }
-
+|       lib QUERY_EQUIV eqname eqmember EQUIVLEFT HELP EQUIVRIGHT optpriority eqmember EOF
+        { $1, PQueryEquiv($3, $4, $9, (PPZero,parse_extent()), $8) }
+    
 identlist:
         
         { [] }
@@ -1450,4 +1453,5 @@ oall:
         { $1, PSingleProcess $3 }
 |       olib EQUIVALENCE oprocess oprocess optpublicvars EOF
         { $1, PEquivalence($3, $4, $5) }
-
+|       olib QUERY_EQUIV eqname eqmember EQUIVLEFT HELP EQUIVRIGHT optpriority eqmember EOF
+        { $1, PQueryEquiv($3, $4, $9, (PPZero,parse_extent()), $8) }

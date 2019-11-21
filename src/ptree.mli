@@ -266,7 +266,8 @@ type pall = decl list
 type final_process =
     PSingleProcess of process_e
   | PEquivalence of process_e * process_e * ident list(*public variables*)
-
+  | PQueryEquiv of eqstatement
+	
 type move_array_coll_t =
     (ident * ident(*type*)) list(*bound variables*) *
       (ident * ident(*type*))(*random variable*) *

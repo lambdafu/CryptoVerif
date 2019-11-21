@@ -1500,22 +1500,21 @@ let build_proof_tree ((q0,g0) as q) p s =
 	  List.iter (function 
 	      SetProba _ -> ()
 	    | SetEvent(f,g, pub_vars, popt') ->
-		  (* Get the proof of the property "Event f is not executed in game g" *)
+		(* Get the proof of the property "Event f is not executed in game g" *)
                 match !popt' with
 		| ToProve | Inactive -> raise (NotBoundEvent(f,g))
 		| Proved(p',s') ->
-		    (* Build the query that test for event f in game g *)
-		    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
-		    let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-		    let q' = (QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g) in
+		    (* Build the query that tests for event f in game g *)
+		    let q' = (Terms.build_event_query f pub_vars, g) in
 
-		let sons_to_add =
-		  let pt_final_event_f_in_g = { pt_game = Terms.empty_game (* dummy_game *);
-						pt_sons = [] }
-		  in
-		  [(Proof [q',p'], p', pt_final_event_f_in_g, ref[QEvent f, g])]
-		in
-		build_pt_rec sons_to_add (QEvent f, g) s'
+		    let sons_to_add =
+		      let pt_final_event_f_in_g =
+			{ pt_game = Terms.empty_game (* dummy_game *);
+			  pt_sons = [] }
+		      in
+		      [(Proof [q',p'], p', pt_final_event_f_in_g, ref[QEvent f, g])]
+		    in
+		    build_pt_rec sons_to_add (QEvent f, g) s'
 		  ) p
   in
   let sons_to_add =

@@ -1,6 +1,13 @@
 #!/bin/bash
 
-TIME=../../xtime
+if [ -x ../../xtime ]
+then
+    TIME=../../xtime
+    LINES=2
+else
+    TIME=
+    LINES=1
+fi
 CV="../../cryptoverif -lib ../../default"
 
 # The argument of analyze is
@@ -10,7 +17,7 @@ function analyze()
 {
 echo $1
 $TIME $CV $1.cv > $1.out
-tail -n 2 $1.out
+tail -n $LINES $1.out
 }
 
 analyze HKDFexpand

@@ -38,7 +38,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt builtin}, {\tt channel}, 
 {\tt collision}, {\tt const}, {\tt def}, 
 {\tt defined}, {\tt do}, {\tt else}, {\tt eps\_find}, 
-{\tt eps\_rand}, {\tt equation}, {\tt equiv}, 
+{\tt eps\_rand}, {\tt equation}, {\tt equiv}, {\tt equivalence}, 
 {\tt event}, {\tt event\string_abort}, {\tt expand}, {\tt find}, 
 {\tt forall}, {\tt foreach}, {\tt fun}, 
 {\tt get}, {\tt if}, {\tt implementation}, {\tt in}, {\tt inj-event}, 
@@ -46,7 +46,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt new}, {\tt newChannel}, {\tt orfind}, 
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
-{\tt proof}, {\tt public\_vars}, {\tt query}, {\tt return},
+{\tt proof}, {\tt public\_vars}, {\tt query}, {\tt query\_equiv}, {\tt return},
 {\tt secret}, {\tt set}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}, {\tt yield}%
 
@@ -249,6 +249,42 @@ The query ${\tt equivalence}\ Q_1\ Q_2$ tells CryptoVerif to show that
 the processes (games) $Q_1$ and $Q_2$ are computationally indistinguishable.
 When it is present, the indication $\texttt{public\_vars}\ x_1, \dots, x_n$
 means that the adversary has read access to the variables $x_1, \dots, x_n$.
+
+Finally, the input may also be:
+\begin{align*}
+&\nonterm{declaration}^*\ {\tt query\_equiv}[\texttt{(}\nonterm{ident}[\texttt{(}\nonterm{ident}\texttt{)}]\texttt{)}]\\
+&\qquad \nonterm{omode}\ [\texttt{|}\ \ldots\ \texttt{|}\nonterm{omode}]\texttt{ <=(?)=> }
+[\texttt{[}n\texttt{]}]\ [\texttt{[}\neseq{option}\texttt{]}]\ \nonterm{ogroup}\ [\texttt{|}\ \ldots\ \texttt{|}\nonterm{ogroup}]
+\end{align*}
+The keyword {\tt query\_equiv} is followed by an indistinguishability property
+specified in the same syntax as assumptions on security primitives
+(see the declaration \texttt{equiv}), except that the probability of
+distinguishing the two sides is replaced with \texttt{?}. CryptoVerif
+is going to bound this probability, so we do not need to give it.
+\begin{itemize}
+
+\item When the option \texttt{[computational]} is absent,
+CryptoVerif then converts this assumption
+into an \texttt{equivalence} between two processes
+and tries to prove it.
+
+\item When the option \texttt{[computational]} is present,
+CryptoVerif then converts this assumption into the unreachability of
+an event triggered when the oracles on the two sides return different
+results. The unreachability of this event implies that both sides are
+indistinguishable.  In this case, the random values
+marked \texttt{[unchanged]} are shared between both sides, while the
+others are considered independent. In principle, any mapping from the
+random values of the left-hand side to the random values of the
+right-hand side could allow us to prove the desired
+indistinguishability property, as long as it preserves the probability
+distributions; however, CryptoVerif only supports the case in which
+some random values are equal on both sides and others are independent.
+
+\end{itemize}
+The goal of this query is to build modular proofs: we can prove
+a property using this query, and then use it as assumption
+in a subsequent proof by just copy-pasting it.
 
 A library file (specified on the command-line by the
 {\tt -lib} option) consists of a list of declarations.

@@ -761,35 +761,16 @@ and add_fact ((subst2, facts, elsefind) as simp_facts) fact =
       end
   | FunApp(f,[t1;t2]) when f.f_cat == Equal ->
       begin
-      match (t1.t_desc, t2.t_desc) with
-        (FunApp(f1,l1), FunApp(f2,l2)) when
-	f1.f_cat == Tuple && f2.f_cat == Tuple && f1 != f2 -> 
-	  raise Contradiction
-      | (FunApp(f1,l1), FunApp(f2,l2)) when
-	(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
+	try
+	  let (l1,l2) = Facts.simplify_equal t1 t2 in
 	  simplif_add_list simp_facts (List.map2 Terms.make_equal l1 l2)
-      | (Var(b1,l1), Var(b2,l2)) when
-	(Terms.is_restr b1) &&
-	(Proba.is_large_term t1 || Proba.is_large_term t2) && (b1 == b2) &&
-	(Proba.add_elim_collisions b1 b1) ->
-          (* add_proba (Div(Cst 1, Card b1.btype)); * number applications *)
-	  simplif_add_list simp_facts (List.map2 Terms.make_equal l1 l2)
-      | (Var(b1,l1), Var(b2,l2)) when
-	(Terms.is_restr b1) && (Terms.is_restr b2) &&
-	(Proba.is_large_term t1 || Proba.is_large_term t2) &&
-	(b1 != b2) && (Proba.add_elim_collisions b1 b2) ->
-	  raise Contradiction
-(*      | (_,_) when simp_facts t1 t2 ->
-	  raise Contradiction*)
-      | (FunApp(f1,[]), FunApp(f2,[]) ) when
-	f1 != f2 && (!Settings.diff_constants) ->
-	  raise Contradiction
-	  (* Different constants are different *)
-      | (_, _) when orient t1 t2 ->
-	  subst_simplify2 simp_facts (Terms.make_equal t1 t2)
-      | (_, _) when orient t2 t1 -> 
-	  subst_simplify2 simp_facts (Terms.make_equal t2 t1)
-      | _ -> (subst2, fact::facts, elsefind)
+	with Facts.Unchanged ->
+	  if orient t1 t2 then
+	    subst_simplify2 simp_facts fact
+	  else if orient t2 t1 then
+	    subst_simplify2 simp_facts (Terms.make_equal t2 t1)
+	  else
+	    (subst2, fact::facts, elsefind)
       end
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
       simplif_add (add_fact simp_facts t1) t2

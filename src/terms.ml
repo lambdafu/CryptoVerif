@@ -103,6 +103,15 @@ let assq_rest x l =
   in
   aux [] x l 
 
+(* [equiv_same_vars b b'] returns true when [b] and [b'] are
+   considered matching variables in the left and right-hand sides
+   of an equiv (same string name, same number, same type). *)
+
+let equiv_same_vars b b' =
+  (b.sname = b'.sname) &&
+  (b.vname == b'.vname) &&
+  (b.btype == b'.btype)
+    
 (* Addition of integers bounded by max_exp.
    The second argument must be >= 0, so that there is no overflow.  *)
 	
@@ -1694,6 +1703,30 @@ let create_repl_index s t =
     ri_type = t;
     ri_link = NoLink }
 
+(* Event *)
+
+let create_event s tyl =
+  { f_name = s;
+    (* Add a bitstring argument to store the current indices *)
+    f_type = Settings.t_bitstring :: tyl, Settings.t_bool;
+    f_cat = Event;
+    f_options = 0;
+    f_statements = [];
+    f_collisions = [];
+    f_eq_theories = NoEq;
+    f_impl = No_impl;
+    f_impl_inv = None }
+    
+let e_adv_loses =
+  let event_set = ref None in
+  fun () ->
+    match !event_set with
+    | None ->
+	let r = create_event (fresh_id "adv_loses") [] in
+	event_set := Some r;
+	r
+    | Some r -> r
+
 (* Create a term containing general variables that corresponds to a pattern *)
 
 exception NonLinearPattern
@@ -2681,7 +2714,14 @@ let simplify_let_tuple get_tuple pat t =
       | _ -> Parsing_helper.internal_error "Should have PatEqual") lbind_eq)
   in
   transfo_accu, test, pat_remaining
-  
+
+(* Build the query event(f) ==> false public_vars pub_vars *)
+    
+let build_event_query f pub_vars =
+  let b = create_binder "!l" Settings.t_bitstring [] in
+  let idx = term_from_binder b in
+  let t = build_term_type Settings.t_bool (FunApp(f, [idx])) in
+  QEventQ([false, t], QTerm (make_false()), pub_vars)
     
 (* Functions used for updating elsefind facts when a new variable
    is defined.

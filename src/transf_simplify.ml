@@ -617,7 +617,7 @@ let contradicts_known_when_adv_wins (cur_array, pp) simp_facts =
 
 let is_adv_loses p =
   match p.p_desc with
-  | EventAbort f -> f == Settings.e_adv_loses
+  | EventAbort f -> f == Terms.e_adv_loses()
   | _ -> false
 	
 (* Note on the elimination of collisions in find conditions:
@@ -1402,7 +1402,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
     begin
       Settings.changed := true;
       current_pass_transfos := (SAdvLoses(DProcess p)) :: (!current_pass_transfos);
-      Terms.oproc_from_desc (EventAbort Settings.e_adv_loses)
+      Terms.oproc_from_desc (EventAbort (Terms.e_adv_loses()))
     end
   else
   let (p', dep_info_list') = DepAnal2.update_dep_infoo cur_array dep_info true_facts p in

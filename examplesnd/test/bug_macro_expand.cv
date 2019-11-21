@@ -1,0 +1,23 @@
+def macro1() {
+    const sign_r2: bool.
+}
+
+
+def macro2(c11, c12) {
+    expand macro1().
+
+    (* Correctly detects that sign_r2 is not defined 
+    letfun c12 = sign_r2. *)
+
+    (* BUG: sign_r2 should not be defined here!! 
+       It is defined in macro1, but not exported. *)
+    equation c11 = sign_r2.
+}
+
+const c22: bool.
+
+expand macro2(c22, c12).
+
+channel c.
+
+process in(c, ()); out(c, c22)

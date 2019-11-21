@@ -50,6 +50,11 @@ val remove_suffix : int -> 'a list -> 'a list
    list [l]. Uses physical equality to compare keys. *)
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
+(* [equiv_same_vars b b'] returns true when [b] and [b'] are
+   considered matching variables in the left and right-hand sides
+   of an equiv (same string name, same number, same type). *)
+val equiv_same_vars : binder -> binder -> bool
+    
 (* Addition of integers bounded by max_exp.
    The second argument must be >= 0, so that there is no overflow.  *)
 val plus : int -> int -> int
@@ -211,6 +216,10 @@ val create_binder : string -> typet -> repl_index list -> binder
 val create_binder0 : string -> typet -> repl_index list -> binder
 val create_repl_index : string -> typet -> repl_index
 
+val create_event : string -> typet list -> funsymb
+val e_adv_loses : unit -> funsymb
+val build_event_query : funsymb -> binder list -> query
+    
 (* Copy a term, process, ..., substituting variables with their links.
    The substitution is performed in different ways, depending on
    the value of the argument [copy_transf]. *)

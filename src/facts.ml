@@ -966,6 +966,35 @@ let apply_eq_statements_and_collisions_subterms_once reduce_rec simp_facts t =
   t'
 *)
 
+(* [simplify_equal t1 t2] simplifies [t1 = t2].
+   Raises [Contradiction] when false.
+   Raises [Unchanged] when no simplification found.
+   Returns a pair of lists such that matching elements are equal terms 
+   otherwise. *)
+
+exception Unchanged
+    
+let simplify_equal t1 t2 =
+  match t1.t_desc, t2.t_desc with
+  | FunApp(f1,l1), FunApp(f2,l2) when
+    f1.f_cat == Tuple && f2.f_cat == Tuple && f1 != f2 -> 
+      raise Contradiction
+  | FunApp(f1,l1), FunApp(f2,l2) when
+    (f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
+      l1, l2
+  | Var(b1,l1), Var(b2,l2) when
+    (Terms.is_restr b1) && (Terms.is_restr b2) &&
+    (Proba.is_large_term t1  || Proba.is_large_term t2) &&
+    (Proba.add_elim_collisions b1 b2) ->
+      if b1 == b2 then
+	l1, l2
+      else
+	raise Contradiction
+  | FunApp(f1,[]), FunApp(f2,[]) when
+    f1 != f2 && (!Settings.diff_constants) ->
+      raise Contradiction
+  | _ -> raise Unchanged
+    
 (* Applying a substitution that maps x[M1,...,Mn] to M' *)
 
 let reduced_subst = ref false
@@ -1137,7 +1166,8 @@ and replace_with_true modified simp_facts t fact =
       | _ ->
 	  Parsing_helper.internal_error "Only Var, FunApp, ReplIndex should occur in facts in replace_with_true")
       (* ReplIndex can occur here because replication indices can occur as arguments of functions in events *)
-	  
+
+
 (* Simplify existing facts by knowing that the new term t is true, and then simplify the term t by knowing the facts are true *)
 and simplify_facts depth dep_info (subst2,facts,elsefind) t =
   let simp_facts = (subst2, [], elsefind) in 
@@ -1146,7 +1176,7 @@ and simplify_facts depth dep_info (subst2,facts,elsefind) t =
   List.iter
     (fun t' -> 
       let m = ref false in
-      let t''=replace_with_true m simp_facts t t' in
+      let t'' = replace_with_true m simp_facts t t' in
       if !m then 
 	mod_facts := t'' :: (!mod_facts)
       else
@@ -1169,10 +1199,8 @@ and simplify_facts depth dep_info (subst2,facts,elsefind) t =
 and add_fact depth dep_info simp_facts fact =
   if (!Settings.max_depth_add_fact > 0) && (depth > !Settings.max_depth_add_fact) then 
     begin
-      (*if (!Settings.debug_simplif_add_facts) then*)
-	begin
-	  print_string "Adding "; Display.display_term fact; print_string " stopped because too deep."; print_newline()
-	end;
+      print_string "Adding "; Display.display_term fact;
+      print_string " stopped because too deep."; print_newline();
       simp_facts 
     end
   else
@@ -1222,41 +1250,23 @@ and add_fact depth dep_info simp_facts fact =
 	with
 	  NoEq ->
 	    begin
-	      match (t1'.t_desc, t2'.t_desc) with
-		(FunApp(f1,l1), FunApp(f2,l2)) when
-		f1.f_cat == Tuple && f2.f_cat == Tuple && f1 != f2 -> 
-		  raise Contradiction
-	      | (FunApp(f1,l1), FunApp(f2,l2)) when
-		(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
-		  simplif_add_list (depth+1) dep_info simp_facts (List.map2 Terms.make_equal l1 l2)
-	      | (Var(b1,l1), Var(b2,l2)) when
-		(Terms.is_restr b1) &&
-		(Proba.is_large_term t1'  || Proba.is_large_term t2') && (b1 == b2) &&
-		(Proba.add_elim_collisions b1 b1) ->
-		  simplif_add_list (depth+1) dep_info simp_facts (List.map2 Terms.make_equal l1 l2)
-	      | (Var(b1,l1), Var(b2,l2)) when
-		(Terms.is_restr b1) && (Terms.is_restr b2) &&
-		(Proba.is_large_term t1' || Proba.is_large_term t2') &&
-		(b1 != b2) && (Proba.add_elim_collisions b1 b2)->
-		  raise Contradiction
-	      | (FunApp(f1,[]), FunApp(f2,[]) ) when
-		f1 != f2 && (!Settings.diff_constants) ->
-		  raise Contradiction
-	          (* Different constants are different *)
-              | (_, _) ->
-		  let default_add() =
-		      match orient_eq t1' t2' with
-			Some(t1'',t2'') -> 
-			  subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1'' t2'')
-		      | None ->
-			  (subst2, fact'::facts, elsefind)
-		  in		    
-		  match collision_test dep_info simp_facts t1' t2' with
-		    Some t' ->
-		      if Terms.is_false t' then
-			raise Contradiction
-		      else
-			begin
+	      try
+		let (l1, l2) = simplify_equal t1' t2' in
+		simplif_add_list (depth+1) dep_info simp_facts (List.map2 Terms.make_equal l1 l2)
+	      with Unchanged -> 
+		let default_add() =
+		  match orient_eq t1' t2' with
+		    Some(t1'',t2'') -> 
+		      subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1'' t2'')
+		  | None ->
+		      (subst2, fact'::facts, elsefind)
+		in		    
+		match collision_test dep_info simp_facts t1' t2' with
+		  Some t' ->
+		    if Terms.is_false t' then
+		      raise Contradiction
+		    else
+		      begin
 			(* collision_test returns ||_i (side_condition && simplified version of t1' = t2') *)
 			match t'.t_desc with
 			| FunApp(f, [t1; t2]) when f == Settings.f_and ->
@@ -1274,9 +1284,9 @@ and add_fact depth dep_info simp_facts fact =
 			    simplif_add (depth+1) dep_info simp_facts1 t'
 			| _ ->
 			    simplif_add (depth+1) dep_info simp_facts t'
-			end
-		  | None ->
-		      default_add()
+		      end
+		| None ->
+		    default_add()
 	    end
 	| (ACUN(prod, neut) | Group(prod, _, neut) | CommutGroup(prod, _, neut)) as eq_th -> 
 	    begin
@@ -1337,7 +1347,7 @@ and add_fact depth dep_info simp_facts fact =
 	    subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 (Terms.make_false()))
 	| _ ->
 	    (* not(true) and not(false) are already simplified,
-	       because the library of primitivs gives the equations not(true) = false and not(false) = true. *)
+	       because the library of primitives gives the equations not(true) = false and not(false) = true. *)
 	    let facts' = if List.exists (Terms.equal_terms fact') facts then facts else fact'::facts in
 	    (subst2, facts', elsefind)
       end
@@ -1497,39 +1507,21 @@ and specialized_add_fact depth dep_info simp_facts fact =
   | FunApp(f,[t1;t2]) when f.f_cat == Equal ->
       let t2' = normalize simp_facts t2 in
       begin
-	match (t1.t_desc, t2'.t_desc) with
-	  (FunApp(f1,l1), FunApp(f2,l2)) when
-	  f1.f_cat == Tuple && f2.f_cat == Tuple && f1 != f2 -> 
-	    raise Contradiction
-	| (FunApp(f1,l1), FunApp(f2,l2)) when
-	  (f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
-	    (subst2, (List.map2 Terms.make_equal l1 l2) @ facts, elsefind)
-	| (Var(b1,l1), Var(b2,l2)) when
-	  (Terms.is_restr b1) &&
-	  (Proba.is_large_term t1  || Proba.is_large_term t2') && (b1 == b2) &&
-	  (Proba.add_elim_collisions b1 b1) ->
-	    (subst2, (List.map2 Terms.make_equal l1 l2) @ facts, elsefind)
-	| (Var(b1,l1), Var(b2,l2)) when
-	  (Terms.is_restr b1) && (Terms.is_restr b2) &&
-	  (Proba.is_large_term t1 || Proba.is_large_term t2') &&
-	  (b1 != b2) && (Proba.add_elim_collisions b1 b2)->
-	    raise Contradiction
-	| (FunApp(f1,[]), FunApp(f2,[]) ) when
-	  f1 != f2 && (!Settings.diff_constants) ->
-	    raise Contradiction
-	          (* Different constants are different *)
-	| (_,_) -> 
-	    match collision_test dep_info simp_facts t1 t2' with
-	      Some t' ->
-		if Terms.is_false t' then 
-		  raise Contradiction 
-		else
-		  (subst2, t' :: facts, elsefind)
-	    | None ->
-		if not (Terms.is_subterm t1 t2') then
-		  specialized_subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 t2')
-		else
-		  (subst2, fact::facts, elsefind)
+	try
+	  let (l1,l2) = simplify_equal t1 t2' in
+	  (subst2, (List.map2 Terms.make_equal l1 l2) @ facts, elsefind)
+	with Unchanged ->
+	  match collision_test dep_info simp_facts t1 t2' with
+	    Some t' ->
+	      if Terms.is_false t' then 
+		raise Contradiction 
+	      else
+		(subst2, t' :: facts, elsefind)
+	  | None ->
+	      if not (Terms.is_subterm t1 t2') then
+		specialized_subst_simplify2 (depth+1) dep_info simp_facts (Terms.make_equal t1 t2')
+	      else
+		(subst2, fact::facts, elsefind)
       end
   | _ -> 
       Parsing_helper.internal_error "specialized_add_fact: t = t' expected"
@@ -2800,17 +2792,13 @@ let rec simplify_term_rec dep_info simp_facts t =
 	with
 	  NoEq ->
 	    begin
-	      match t1'.t_desc, t2'.t_desc with
-		(FunApp(f1,l1), FunApp(f2,l2)) when
-		(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
-		  simplify_term_rec dep_info simp_facts (Terms.make_and_list (List.map2 Terms.make_equal l1 l2))
-	      | (Var(b1,l1), Var(b2,l2)) when
-		(Terms.is_restr b1) &&
-		(Proba.is_large_term t1' || Proba.is_large_term t2') && (b1 == b2) &&
-		(Proba.add_elim_collisions b1 b1) ->
-                  (* add_proba (Div(Cst 1, Card b1.btype)); * number applications *)
-		  simplify_term_rec dep_info simp_facts (Terms.make_and_list (List.map2 Terms.make_equal l1 l2))
-	      | _ ->
+	      try
+		let (l1,l2) = simplify_equal t1' t2' in
+		simplify_term_rec dep_info simp_facts
+		  (Terms.make_and_list (List.map2 Terms.make_equal l1 l2))
+	      with
+	      | Contradiction -> Terms.make_false()
+	      | Unchanged ->
 		  try
 		    let _ = simplif_add dep_info simp_facts t' in
 		    let t = 
@@ -2865,18 +2853,13 @@ let rec simplify_term_rec dep_info simp_facts t =
 	with
 	  NoEq ->
 	    begin
-	      match t1'.t_desc, t2'.t_desc with
-		(FunApp(f1,l1), FunApp(f2,l2)) when
-		(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
-		  simplify_term_rec dep_info simp_facts (Terms.make_or_list (List.map2 Terms.make_diff l1 l2))
-		    
-	      | (Var(b1,l1), Var(b2,l2)) when
-		(Terms.is_restr b1) &&
-		(Proba.is_large_term t1' || Proba.is_large_term t2') && (b1 == b2) &&
-		(Proba.add_elim_collisions b1 b1) ->
-                (* add_proba (Div(Cst 1, Card b1.btype)); * number applications *)
-		  simplify_term_rec dep_info simp_facts (Terms.make_or_list (List.map2 Terms.make_diff l1 l2))
-	      | _ -> 
+	      try
+		let (l1,l2) = simplify_equal t1' t2' in
+		simplify_term_rec dep_info simp_facts
+		  (Terms.make_or_list (List.map2 Terms.make_diff l1 l2))
+	      with
+	      | Contradiction -> Terms.make_true()
+	      | Unchanged ->
 		  try
 		    let _ = simplif_add dep_info simp_facts (Terms.make_not t') in
 		    let t = 
@@ -2999,7 +2982,12 @@ let apply_colls reduce_rec add_accu t colls =
   try 
     apply_collisions_at_root_once reduce_rec no_dependency_anal Terms.simp_facts_id (fun t' -> add_accu t'; raise NoMatch) t colls
   with NoMatch -> ()
-    
+
+let apply_eq_statements_and_collisions_fun reduce_rec equalities add_accu t f =
+  apply_eq add_accu t equalities;
+  apply_colls reduce_rec_impossible add_accu t f.f_statements;
+  apply_colls reduce_rec add_accu t f.f_collisions
+      
 (* [simp_eq_diff add_accu t] applies a bunch of simplifications specific 
    to equalities to term [t].
    It calls the function [add_accu] on each obtained term. *)
@@ -3008,53 +2996,21 @@ let simp_eq_diff add_accu t =
   match t.t_desc with
   | FunApp(f, [t1;t2]) when f.f_cat == Equal ->
       begin
-      match (t1.t_desc, t2.t_desc) with
-	(FunApp(f1,l1), FunApp(f2,l2)) when
-	f1.f_cat == Tuple && f2.f_cat == Tuple && f1 != f2 -> 
-	  add_accu (Terms.make_false())
-      | (FunApp(f1,l1), FunApp(f2,l2)) when
-	(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
+	try
+	  let (l1,l2) = simplify_equal t1 t2 in
 	  add_accu (Terms.make_and_list (List.map2 Terms.make_equal l1 l2))
-      | (Var(b1,l1), Var(b2,l2)) when
-	(Terms.is_restr b1) &&
-	(Proba.is_large_term t1  || Proba.is_large_term t2) && (b1 == b2) &&
-	(Proba.add_elim_collisions b1 b1) ->
-	  add_accu (Terms.make_and_list (List.map2 Terms.make_equal l1 l2))
-      | (Var(b1,l1), Var(b2,l2)) when
-	(Terms.is_restr b1) && (Terms.is_restr b2) &&
-	(Proba.is_large_term t1 || Proba.is_large_term t2) &&
-	(b1 != b2) && (Proba.add_elim_collisions b1 b2)->
-	  add_accu (Terms.make_false())
-      | (FunApp(f1,[]), FunApp(f2,[]) ) when
-	f1 != f2 && (!Settings.diff_constants) ->
-	  add_accu (Terms.make_false())
-	          (* Different constants are different *)
-      |	_ -> ()
+	with
+	| Unchanged -> ()
+	| Contradiction -> add_accu (Terms.make_false())
       end
   | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
       begin
-      match (t1.t_desc, t2.t_desc) with
-	(FunApp(f1,l1), FunApp(f2,l2)) when
-	f1.f_cat == Tuple && f2.f_cat == Tuple && f1 != f2 -> 
-	  add_accu (Terms.make_true())
-      | (FunApp(f1,l1), FunApp(f2,l2)) when
-	(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
+	try
+	  let (l1,l2) = simplify_equal t1 t2 in
 	  add_accu (Terms.make_or_list (List.map2 Terms.make_diff l1 l2))
-      | (Var(b1,l1), Var(b2,l2)) when
-	(Terms.is_restr b1) &&
-	(Proba.is_large_term t1  || Proba.is_large_term t2) && (b1 == b2) &&
-	(Proba.add_elim_collisions b1 b1) ->
-	  add_accu (Terms.make_or_list (List.map2 Terms.make_diff l1 l2))
-      | (Var(b1,l1), Var(b2,l2)) when
-	(Terms.is_restr b1) && (Terms.is_restr b2) &&
-	(Proba.is_large_term t1 || Proba.is_large_term t2) &&
-	(b1 != b2) && (Proba.add_elim_collisions b1 b2)->
-	  add_accu (Terms.make_true())
-      | (FunApp(f1,[]), FunApp(f2,[]) ) when
-	f1 != f2 && (!Settings.diff_constants) ->
-	  add_accu (Terms.make_true())
-	          (* Different constants are different *)
-      |	_ -> ()
+	with
+	| Unchanged -> ()
+	| Contradiction -> add_accu (Terms.make_true())
       end
   | _ -> ()
 
@@ -3083,16 +3039,12 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
       (* We apply the statements only to subterms that are not products by f.
 	 Subterms that are products by f are already handled above
 	 using [match_term_root_or_prod_subterm]. *)
-      apply_eq add_accu t equalities;
-      apply_colls reduce_rec_impossible add_accu t f.f_statements;
-      apply_colls reduce_rec add_accu t f.f_collisions;
+      apply_eq_statements_and_collisions_fun reduce_rec equalities add_accu t f;
       let l = Terms.simp_prod Terms.simp_facts_id (ref false) f t in
       apply_list (fun l' -> add_accu (Terms.make_prod f l')) [] l
   | FunApp(f, ([t1;t2] as l)) when f.f_cat == Equal || f.f_cat == Diff ->
-      apply_eq add_accu t equalities;
       simp_eq_diff add_accu t;
-      apply_colls reduce_rec_impossible add_accu t f.f_statements;
-      apply_colls reduce_rec add_accu t f.f_collisions;
+      apply_eq_statements_and_collisions_fun reduce_rec equalities add_accu t f;
       begin
 	match Terms.get_prod_list Terms.try_no_var_id l with
 	  ACUN(xor, neut) ->
@@ -3117,9 +3069,7 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
 	    (* Simplify the term t' = t2.t1^-1 just on the product level.
 	       The simplification of smaller subterms has already been considered above. *)
 	    let t' = Terms.app prod [t2; Terms.app inv [t1]] in
-	    apply_eq rebuild_term t' equalities;
-	    apply_colls reduce_rec_impossible rebuild_term t' prod.f_statements;
-	    apply_colls reduce_rec rebuild_term t' prod.f_collisions
+	    apply_eq_statements_and_collisions_fun reduce_rec equalities rebuild_term t' prod
 	| Group(prod, inv, neut) ->
 	    let rebuild_term t'' =
 		  (* calls add_accu on a term equal to FunApp(f, [t'', neut]) *)
@@ -3141,9 +3091,7 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
 	      let t' = Terms.make_prod prod (rest' @ (List.rev seen')) in
 	      (* Simplify the term t' = t2.t1^-1 just on the product level.
 	         The simplification of smaller subterms is considered below. *)
-	      apply_eq rebuild_term t' equalities;
-	      apply_colls reduce_rec_impossible rebuild_term t' prod.f_statements;
-	      apply_colls reduce_rec rebuild_term t' prod.f_collisions;
+	      apply_eq_statements_and_collisions_fun reduce_rec equalities rebuild_term t' prod;
 	      match rest' with
 		[] -> ()
 	      | a::rest'' -> apply_up_to_roll (a::seen') rest''
@@ -3160,9 +3108,7 @@ let rec apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
 	    apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
       end
   | FunApp(f, l) ->
-      apply_eq add_accu t equalities;
-      apply_colls reduce_rec_impossible add_accu t f.f_statements;
-      apply_colls reduce_rec add_accu t f.f_collisions;
+      apply_eq_statements_and_collisions_fun reduce_rec equalities add_accu t f;
       apply_list (fun l' -> add_accu (Terms.build_term2 t (FunApp(f, l')))) [] l
 	(* We use this function for rewriting terms in the manual transformation
 	   "replace". LetEqual should never appear here. *)
@@ -3192,42 +3138,28 @@ let apply_eq_and_collisions_subterms_once reduce_rec equalities add_accu t =
    reduces [t'] and calls [test_equal_rewrite_left], which reduces [t].
 *)
 
-(* [test_equal_rewrite_left depth reduce_rec equalities seen_left_terms left_terms right_terms]
-   is true when a term in [left_terms] can be rewritten into a term in [right_terms] in
+(* [test_equal depth reduce_rec equalities seen_side1_terms side1_terms side2_terms]
+   raises [EqualityFound] when a term in [side1_terms] can be rewritten into a term in [side2_terms] in
    at most [depth] steps. 
-   [seen_left_terms] are terms already seen on the left, which do not need to be
+   Otherwise, it returns the list of terms obtained by rewritting [side1_terms] 
+   in at most [depth] steps, as well as [seen_side1_terms].
+   [seen_side1_terms] are terms already seen on side 1, which do not need to be
    considered any more. *)
 
-let rec test_equal_rewrite_left depth reduce_rec equalities seen_left_terms left_terms right_terms =
-  if List.exists (fun tleft ->
-    List.exists (Terms.equal_terms tleft) right_terms) left_terms then true else
-  if depth <= 0 then false else
-  let seen_terms = left_terms @ seen_left_terms in
+exception EqualityFound
+    
+let rec test_equal depth reduce_rec equalities seen_side1_terms side1_terms side2_terms =
+  let seen_terms = side1_terms @ seen_side1_terms in
+  if depth <= 0 then seen_terms else
   let new_terms = ref [] in
   List.iter (apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t' ->
+    if List.exists (Terms.equal_terms t') side2_terms then
+      raise EqualityFound;
     if (not (List.exists (Terms.equal_terms t') seen_terms)) &&
        (not (List.exists (Terms.equal_terms t') (!new_terms))) then
       new_terms := t' :: (!new_terms)
-			   )) left_terms;
-  test_equal_rewrite_left (depth-1) reduce_rec equalities seen_terms (!new_terms) right_terms
-
-(* [test_equal depth reduce_rec equalities t right_terms seen_right_terms] is true when
-   [t] is equal to a term in [right_terms] by at most [depth] rewriting steps. 
-   [seen_right_terms] are terms already seen on the right, which do not need to be
-   considered any more. *)
-
-let rec test_equal depth reduce_rec equalities t right_terms seen_right_terms =
-  if List.exists (fun tright ->
-    test_equal_rewrite_left depth reduce_rec equalities [] [t] right_terms) right_terms then true else
-  if depth <= 0 then false else
-  let seen_terms = right_terms @ seen_right_terms in
-  let new_terms = ref [] in
-  List.iter (apply_eq_and_collisions_subterms_once reduce_rec equalities (fun t' ->
-    if (not (List.exists (Terms.equal_terms t') seen_terms)) &&
-       (not (List.exists (Terms.equal_terms t') (!new_terms))) then
-      new_terms := t' :: (!new_terms)
-			   )) right_terms;
-  test_equal (depth-1) reduce_rec equalities t (!new_terms) seen_terms
+			   )) side1_terms;
+  test_equal (depth-1) reduce_rec equalities seen_terms (!new_terms) side2_terms
 
 (* [check_equal t t' simp_facts] returns true when [t] and [t'] are
    proved equal when the facts in [simp_facts] are true.
@@ -3237,19 +3169,25 @@ let rec test_equal depth reduce_rec equalities t right_terms seen_right_terms =
 let check_equal t t' simp_facts  =
     (Terms.simp_equal_terms simp_facts true t t') || 
     (Terms.simp_equal_terms simp_facts true (simplify_term no_dependency_anal simp_facts t) (simplify_term no_dependency_anal simp_facts t')) ||
-    (let equalities = ref [] in
-    let (subst, facts, elsefind) = simp_facts in
-    List.iter (fun t ->
+    (
+    let true_facts = true_facts_from_simp_facts simp_facts in
+    let equalities = List.fold_left (fun equalities t ->
       match t.t_desc with
 	FunApp(f,[t1;t2]) when f.f_cat == Equal || f.f_cat == LetEqual ->
-	  equalities := (t1,t2) :: (t2,t1) :: (!equalities)
+	  (t1,t2) :: (t2,t1) :: equalities
       |	FunApp(f,[t1;t2]) when f.f_cat == Diff -> 
-	  equalities := (t, Terms.make_true()) :: (Terms.make_equal t1 t2, Terms.make_false()) :: 
-	                (Terms.make_true(), t) :: (Terms.make_false(), Terms.make_equal t1 t2) :: (!equalities)
+	  (t, Terms.make_true()) :: (Terms.make_equal t1 t2, Terms.make_false()) :: 
+	  (Terms.make_true(), t) :: (Terms.make_false(), Terms.make_equal t1 t2) :: equalities
       |	_ -> 
-	  equalities := (t, Terms.make_true()) :: (Terms.make_true(), t) :: (!equalities)
-	) (subst @ facts);
-    test_equal (!Settings.max_replace_depth) (reduce_rec simp_facts) (!equalities) t [t'] []
+	  (t, Terms.make_true()) :: (Terms.make_true(), t) :: equalities
+								) [] true_facts
+    in
+    try
+      let t_rewrites = test_equal (!Settings.max_replace_depth) (reduce_rec simp_facts) equalities [] [t] [t'] in
+      let _ = test_equal (!Settings.max_replace_depth) (reduce_rec simp_facts) equalities [] [t'] t_rewrites in
+      false
+    with EqualityFound ->
+      true
     )
 
 

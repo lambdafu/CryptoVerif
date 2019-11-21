@@ -1370,10 +1370,8 @@ let rec collect_all_names accu lm rm =
     ReplRestr(_, restr, funlist), ReplRestr(_, restr', funlist') ->
       accu := (List.map (fun (b, _) -> 
 	(b, 
-	 if List.exists (fun (b',bopt') -> 
-	   (b.sname = b'.sname) &&
-	   (b.vname == b'.vname) &&
-	   (b.btype == b'.btype) &&
+	 if List.exists (fun (b',bopt') ->
+	   (Terms.equiv_same_vars b b') &&
 	   (bopt' == Unchanged)) restr' 
 	 then Unchanged else NoOpt
 	    )) restr) :: (!accu);
@@ -1981,10 +1979,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	      (* Try to reuse old binder when possible:
 		 marked unchanged and same string name, same number, and same type 
 		 b' = binder associated to b before the transformation *)
-	      let b' = snd (List.find (fun (bf_name, _) -> 
-		(b.sname = bf_name.sname) &&
-		(b.vname == bf_name.vname) &&
-		(b.btype == bf_name.btype)) nt)
+	      let b' = snd (List.find (fun (bf_name, _) -> Terms.equiv_same_vars b bf_name) nt)
 	      in
 	      (* If b is marked [unchanged], we reuse the old binder b'.
 		 Otherwise, we cannot reuse the old binder b', but we generate
@@ -4559,9 +4554,7 @@ let events_proba_queries events =
   List.split (List.map (fun f ->
     let q_proof = ref ToProve in
     let proba = SetEvent(f, !whole_game_next, pub_vars, q_proof) in
-    let idx = Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun [], [])) in
-    let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
-    let query = ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), !whole_game_next), q_proof) in
+    let query = ((Terms.build_event_query f pub_vars, !whole_game_next), q_proof) in
     (proba, query)
       ) events)
 

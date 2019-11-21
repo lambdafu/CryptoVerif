@@ -58,7 +58,8 @@ let common_keywords =
   "insert", INSERT;
   "table", TABLE;
   "letfun", LETFUN;
-  "equivalence", EQUIVALENCE
+  "equivalence", EQUIVALENCE;
+  "query_equiv", QUERY_EQUIV
 ]  
     
 let keyword_table_channel =

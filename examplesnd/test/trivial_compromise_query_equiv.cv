@@ -1,0 +1,64 @@
+(* Example to test "success simplify".
+   It manages to use security of signatures in the presence of compromise,
+   without using ufcma_corrupt
+   PROOF TO DO *)
+
+proof {
+  success simplify;
+  auto
+}
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type signature [bounded].
+type sign_seed [fixed].
+type signinput [fixed].
+
+(* Signatures *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signature, sign_seed, skgen, skgen2, pkgen, pkgen2, sign, sign_r, sign_r2, check, check2, Psign, Psigncoll).
+
+equation forall r:keyseed; pkgen2(r) = pkgen(r).
+equation forall r:keyseed; skgen2(r) = skgen(r).
+equation forall x: signinput, sk: skey, r2: sign_seed; sign_r2(x, sk, r2) = sign_r(x, sk, r2).
+equation forall m: signinput, y: pkey, si: signature; check2(m,y,si) = check(m,y,si).
+
+(* Query *)
+
+query_equiv(uf_cma_corrupt(sign))
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() [useful_change] [2] := return(pkgen(r)) |
+	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) [useful_change] := return(sign_r(x, skgen(r), r2)) |
+	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
+	   Ocorrupt() [10] := return(r)) |
+       foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) [3] := return(check(m, y, si)) [all]
+     <=(?)=> [manual,computational]
+       foreach i3 <= N3 do r <-R keyseed [unchanged]; (
+           Opk() := return(pkgen2(r)) |
+	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := return(sign_r2(x, skgen2(r), r2)) |
+	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
+	        if defined(corrupt) then return(check2(m1, pkgen2(r), si1)) else
+                find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, pkgen2(r), si1) then return(true) else return(false) |
+	   Ocorrupt() := let corrupt: bool = true in return(r)) |
+       foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) :=
+		find k <= N3 suchthat defined(r[k],corrupt[k]) && y = pkgen2(r[k]) then return(check2(m, y, si)) else
+		find j <= N2, k <= N3 suchthat defined(x[j,k],r[k]) && y = pkgen2(r[k]) && m = x[j,k] && check2(m, y, si) then return(true) else
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then return(false) else
+		return(check(m,y,si))
+
+
+(* DESIRED
+All queries proved.
+EXPECTED
+RESULT Could not prove event(distinguish) ==> false.
+0.032s (user 0.032s + system 0.008s), max rss 78848K
+END *)

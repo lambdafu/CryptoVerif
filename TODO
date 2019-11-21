@@ -1,8 +1,105 @@
 TO DO next
 
-1) Extend macros.
+Fix macro expansion bug, see examplesnd/test/bug_macro_expand*.cv .
 
-new keywords: special, undeclared, list, string
+In the ATN example (dev/projects/2014ANRAirbus/ICAO9880-May2017/computational/ATN-*),
+aren't some of the collision resistance assumptions on signatures
+in fact consequences of UF-CMA, at least when the keys are used
+correctly? Try to add them to the standard UF-CMA assumption,
+probably including them in the main UF-CMA equivalence.
+
+1) Extend "equiv".
+
+New keyword: special
+
+For ROM, PRF, ..., extend the Oeq oracle
+with a user-specified collision, as in transf_move_array.
+This is done by the following syntax, which generalizes "equiv":
+equiv(eqname) special <equiv_gen_name>(args) (id1, ..., idn) options
+The equivalence is generated when we execute the
+"crypto" command or when we automatically try the equivalence.
+When the crypto command does not modify the options,
+we store the generated equivalence
+to reuse it in subsequent trys. We generate the equivalence
+as a string and parse it. Have an option that allows the user
+to display it, so that it can play with it.
+(We make sure identifiers do not vary too much
+at each expansion at the "equiv" command, by choosing the
+identifiers id1,...,idn once and for all during macro checking).
+
+The oracle Ocoll could also be generalized:
+if new x1:T; new x2: T; forall zi:Ti; f(x1,x2,zi)
+simplifies into g(zi) when x1 = x2
+h(zi) when x1 and x2 are independent
+(zi may depend on x1,x2)
+then oracle
+Ocoll(a1:input,a2:input,zi:Ti) := f(h(k,a1),h(k,a2),zi)
+rewrites into
+Ocoll(a1:input,a2:input,zi:Ti) := if a1 = a2 then g(zi) else h(zi)
+
+It can be further generalized to more than 2 random values
+by considering the various equality cases between the random
+values and testing them on the arguments of the hash function
+in Ocoll on the RHS:
+new xi:T (i \in {1...n}); forall zk:Tk; f(xi,zk).
+For each equivalence relation R on {1...n},
+f(xi,zk) simplifies into g_R(zk)
+when xi are random,
+for all i,j, if i R j, then xi = xj, else xi is independent of xj,
+and zk may depend on xi.
+Then the oracle 
+Ocoll(ai:input,zk:Tk) := f(h(k,ai),zk)
+rewrites into
+Ocoll(ai:input,zk:Tk) := let R be defined by (i R j iff ai=aj) in g_R(zk)
+that is, we test the equalities among the ai's to select
+the right simplified expression g_R(zk).
+
+The number of cases to consider (= number of equivalence
+relations on {1...n}) grows quickly with n.
+We could limit ourselves to n<=2.
+
+The case of one random value yields the following:
+new x:T; forall zk:Tk; f(x,zk).
+If f(x,zk) simplifies into g(zk)
+when x is random and zk may depend on x,
+then the oracle
+Ocoll(a:input,zk:Tk) := f(h(k,a),zk)
+rewrites into
+Ocoll(a:input,zk:Tk) := g(zk).
+
+This case does not seem useful for "move array"
+because, when f(xi,zk) simplifies when the xi are random
+and zk may depend on xi, that simplification can be applied
+before move array.
+Note that for ROM, we could also apply the simplifications
+coming from Ocoll and its extensions above *before*
+applying the ROM assumption, in a separate equiv,
+instead of applying them in the same equiv as the ROM
+assumption. That's what rom_partial does when we give it no
+[terms: ...] argument (it uses oracles O, Oeq, Ocoll).
+
+The desired collisions could appear as a string argument of 
+"equiv" or "crypto".
+
+It is useful to be able to specify collisions in "expand"
+in case we apply the transformations automatically,
+but we also want to be able to modify the considered
+collisions during the proof, by specifying
+them at the "crypto" command.
+
+Generate the *_partial equivalences at equiv time since they
+can be applied only manually, and that allows to generate the appropriate number
+of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argument of equiv.
+
+Document rom_partial / prf_partial
+Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
+variable position of the DH argument, equiv prf_odh_partial(prf)
+with variable number of prf oracles)
+
+
+2) Extend macros.
+
+new keywords: undeclared, list, string
 new token: list%
 reuse token: ? (HELP) perhaps rename it
 
@@ -117,80 +214,6 @@ With the new options, the example of X25519 above does not work,
 unless we specify a way to require that the "uniform" bit is *not*
 set in the type declaration of Z.
 
-b) For ROM, PRF, ..., extend the Oeq oracle
-with a user-specified collision, as in transf_move_array.
-This is done by the following syntax, which generalizes "equiv":
-equiv(eqname) special <equiv_gen_name>(args) (id1, ..., idn) options
-The equivalence is generated when we execute the
-"equiv" command or when we automatically try the equivalence.
-In the latter case, we store the generated equivalence
-to reuse it in subsequent trys. We generate the equivalence
-as a string and parse. Have an option that allows the user
-to display it, so that it can play with it.
-(We make sure identifiers do not vary too much
-at each expansion at the "equiv" command, by choosing the
-identifiers id1,...,idn once and for all during macro checking).
-
-The oracle Ocoll could also be generalized:
-if new x1:T; new x2: T; forall zi:Ti; f(x1,x2,zi)
-simplifies into g(zi) when x1 = x2
-h(zi) when x1 and x2 are independent
-(zi may depend on x1,x2)
-then oracle
-Ocoll(a1:input,a2:input,zi:Ti) := f(h(k,a1),h(k,a2),zi)
-rewrites into
-Ocoll(a1:input,a2:input,zi:Ti) := if a1 = a2 then g(zi) else h(zi)
-
-It can be further generalized to more than 2 random values
-by considering the various equality cases between the random
-values and testing them on the arguments of the hash function
-in Ocoll on the RHS:
-new xi:T (i \in {1...n}); forall zk:Tk; f(xi,zk).
-For each equivalence relation R on {1...n},
-f(xi,zk) simplifies into g_R(zk)
-when xi are random,
-for all i,j, if i R j, then xi = xj, else xi is independent of xj,
-and zk may depend on xi.
-Then the oracle 
-Ocoll(ai:input,zk:Tk) := f(h(k,ai),zk)
-rewrites into
-Ocoll(ai:input,zk:Tk) := let R be defined by (i R j iff ai=aj) in g_R(zk)
-that is, we test the equalities among the ai's to select
-the right simplified expression g_R(zk).
-
-The number of cases to consider (= number of equivalence
-relations on {1...n}) grows quickly with n.
-We could limit ourselves to n<=2.
-
-The case of one random value yields the following:
-new x:T; forall zk:Tk; f(x,zk).
-If f(x,zk) simplifies into g(zk)
-when x is random and zk may depend on x,
-then the oracle
-Ocoll(a:input,zk:Tk) := f(h(k,a),zk)
-rewrites into
-Ocoll(a:input,zk:Tk) := g(zk).
-
-This case does not seem useful for "move array"
-because, when f(xi,zk) simplifies when the xi are random
-and zk may depend on xi, that simplification can be applied
-before move array.
-Note that for ROM, we could also apply the simplifications
-coming from Ocoll and its extensions above *before*
-applying the ROM assumption, in a separate equiv,
-instead of applying them in the same equiv as the ROM
-assumption. That's what rom_partial does when we give it no
-[terms: ...] argument (it uses oracles O, Oeq, Ocoll).
-
-The desired collisions could appear as a string argument of 
-"expand".
-
-It is useful to be able to specify collisions in "expand"
-in case we apply the transformations automatically,
-but we might also want to be able to modify the considered
-collisions during the proof, either by specifying
-them at the "equiv" command or by having a specific
-command to modify the collisions of an equivalence.
 
 c) For functions with a variable number of arguments, allow tuples of
 identifiers as argument of expand. We would then pass the tuple of
@@ -201,33 +224,15 @@ This is done by the syntax:
 def macroname(..., list% <decl>, ...) special variable_arguments
 "macrodefinition".
 
-d) For ROM, PRF, ... generate the *_partial equivalences at equiv time since they
-can be applied only manually, and that allows to generate the appropriate number
-of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argument of equiv.
-
-Document rom_partial / prf_partial
-Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
-variable position of the DH argument, equiv prf_odh_partial(prf)
-with variable number of prf oracles)
-
 e) Also extend ProVerif to support these new macros.
 
 
 [OUTDATED: cryptogen will disappear if I do the above]
 Document the "cryptogen" program
 
-2) allow "query equiv ..." to prove an equivalence
-   presented exactly as CryptoVerif accepts assumptions on
-   cryptographic primitives.
-   Warning: be careful with [computational] equivalences:
-   proving them requires triggering an "event bad" when the
-   result of the two sides differs, and showing that event bad has
-   a negligible probability of happening.
-   [unchanged] restrictions are shared between both sides.
-
 3) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
-4) Implement the "choice" construct in CryptoVerif
+4) Implement the "diff" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
 5) Guess the tested session (see point 4 in HIGH PRIORITY)
 6) Extend the "move" instruction to allow precisely moving
@@ -5068,3 +5073,13 @@ reduc changelow(elem(x,y),x') = elem(x',y).
 reduc exp(elem(x,id_high),n) = elem(id_low,id_high)
 otherwise exp(elem(x,y),n) = elem(id_low,exp_high(y,n))
 DONE 15/11/2019
+
+   allow "query_equiv ..." to prove an equivalence
+   presented exactly as CryptoVerif accepts assumptions on
+   cryptographic primitives.
+   Warning: be careful with [computational] equivalences:
+   proving them requires triggering an "event bad" when the
+   result of the two sides differs, and showing that event bad has
+   a negligible probability of happening.
+   [unchanged] restrictions are shared between both sides.
+DONE 20/11/2019

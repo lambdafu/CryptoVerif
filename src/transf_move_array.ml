@@ -186,7 +186,7 @@ let move_array_equiv ext2 bl collisions =
     env := StringMap.add id_Neq (EParam param_Neq) (!env)
 	 ) collisions_with_oracle;
   (* Check the equivalence *)
-  let equiv = Syntax.check_eqstatement pequiv in
+  let equiv = Syntax.check_eqstatement true pequiv in
   (* Restore the old environment *)
   env := old_env;
   equiv

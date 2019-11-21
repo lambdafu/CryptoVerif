@@ -41,8 +41,15 @@ and \texttt{channel} and \texttt{out} are not keywords.
 
 
 The input file consists of a list of declarations followed by 
-an oracle definition:
-\[\nonterm{declaration}^*\ {\tt process}\ \iprocess\]
+an oracle definition or an equivalence query:
+\begin{align*}
+&\nonterm{declaration}^*\ {\tt process}\ \iprocess\\[2mm]
+&\nonterm{declaration}^*\ {\tt equivalence}\ \iprocess\ \iprocess\ [\texttt{public\_vars}\ \seq{ident}]\\[2mm]
+&\nonterm{declaration}^*\ {\tt query\_equiv}[\texttt{(}\nonterm{ident}[\texttt{(}\nonterm{ident}\texttt{)}]\texttt{)}]\\
+&\qquad \nonterm{omode}\ [\texttt{|}\ \ldots\ \texttt{|}\nonterm{omode}]\texttt{ <=(?)=> }
+[\texttt{[}n\texttt{]}]\ [\texttt{[}\neseq{option}\texttt{]}]\ \nonterm{ogroup}\ [\texttt{|}\ \ldots\ \texttt{|}\nonterm{ogroup}]
+\end{align*}
+
 The syntax of processes is given in Figure~\ref{fig:syntax3or}.
 The calculus distinguishes two kinds of processes: oracle definitions
 $\iprocess$ define new oracles; oracle bodies $\oprocess$ return a

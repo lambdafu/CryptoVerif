@@ -12,4 +12,4 @@ val check_query : Ptree.query -> query
 
 val check_move_array_coll : Stringmap.env_type -> binder -> Ptree.move_array_coll_t -> move_array_collision
 
-val check_eqstatement : Ptree.eqstatement -> equiv_nm
+val check_eqstatement : bool -> Ptree.eqstatement -> equiv_nm

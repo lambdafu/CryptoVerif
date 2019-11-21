@@ -166,8 +166,6 @@ val f_not : funsymb
 
 val get_tuple_fun : typet list -> funsymb
 
-val e_adv_loses : funsymb
-    
 (*For precise computation of the runtime only*)
 val t_interv : typet
 val f_plus : funsymb

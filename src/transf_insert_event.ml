@@ -122,19 +122,9 @@ let insert_event occ ext_o s g =
   let s' = Terms.fresh_id s in
   if s' <> s then
     print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
-  let f = { f_name = s';
-	    f_type = [Settings.t_bitstring],Settings.t_bool;
-	    f_cat = Event;
-	    f_options = 0;
-	    f_statements = [];
-	    f_collisions = [];
-	    f_eq_theories = NoEq;
-            f_impl = No_impl;
-            f_impl_inv = None }
-  in
-  let b = Terms.create_binder "!l" Settings.t_bitstring [] in
-  let idx = Terms.term_from_binder b in
-  let t = Terms.build_term_type Settings.t_bool (FunApp(f, [idx])) in
+  let f = Terms.create_event s' [] in
+  let pub_vars = Settings.get_public_vars g.current_queries in
+  let query = Terms.build_event_query f pub_vars in
   let state =
     { need_expand = false;
       count = 0;
@@ -154,8 +144,7 @@ let insert_event occ ext_o s g =
       Settings.changed := true;
       let g' = Terms.build_transformed_game ~expanded:(g.expanded && (not state.need_expand)) p' g in
       let q_proof = ref ToProve in
-      let pub_vars = Settings.get_public_vars g.current_queries in
-      g'.current_queries <- ((QEventQ([false, t], QTerm (Terms.make_false()), pub_vars), g'), q_proof) ::
+      g'.current_queries <- ((query, g'), q_proof) ::
 	 (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
       (g', [SetEvent(f, g', pub_vars, q_proof)], [DInsertEvent(f,occ)])
     end

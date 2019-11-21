@@ -485,20 +485,6 @@ let f_not = { f_name = "not";
               f_impl_inv = None;
             }
 
-(* Event *)
-
-let e_adv_loses =
-  { f_name = "adv_loses";
-    f_type = [t_bitstring], t_bool;
-    f_cat = Event;
-    f_options = 0;
-    f_statements = [];
-    f_collisions = [];
-    f_eq_theories = NoEq;
-    f_impl = No_impl;
-    f_impl_inv = None }
-
-    
 (* Create tuple function of given type *)
 
 module HashedTypeList =
