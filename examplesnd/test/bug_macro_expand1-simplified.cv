@@ -40,6 +40,6 @@ process
 	out(c_gen2, ())
 
 (* EXPECTED
-All queries proved.
-2.328s (user 2.316s + system 0.012s), max rss 117888K
+Error: sign_r2_1 not defined.
+xtime: error in child process (status : 512)
 END *)

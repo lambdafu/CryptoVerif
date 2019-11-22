@@ -30,6 +30,6 @@ process
 	in(c, x: cleartext); new k: key; out(c, enc_x(x,k))
 
 (* EXPECTED
-Error: enc_seed not defined.
+Error: enc_seed_1 not defined.
 xtime: error in child process (status : 512)
 END *)

@@ -1,7 +1,5 @@
 TO DO next
 
-Fix macro expansion bug, see examplesnd/test/bug_macro_expand*.cv .
-
 In the ATN example (dev/projects/2014ANRAirbus/ICAO9880-May2017/computational/ATN-*),
 aren't some of the collision resistance assumptions on signatures
 in fact consequences of UF-CMA, at least when the keys are used

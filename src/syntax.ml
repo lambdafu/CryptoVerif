@@ -112,7 +112,6 @@ let current_location = ref InProcess
 type macro_elem =
     Macro of Ptree.ident list * Ptree.decl list * string list * macro_elem Stringmap.StringMap.t
     
-let macrotable = ref StringMap.empty
 let statements = ref ([]: statement list)
 let collisions = ref ([]: collision list)
 let equivalences = ref ([]: equiv_nm list)
@@ -3251,19 +3250,6 @@ let rename_decl = function
 	     List.map (fun (b,t) -> (rename_ie b,rename_ty t)) l,
 	     rename_term t)
 
-	
-
-let apply argl paraml already_def def =
-  rename_table := StringMap.empty;
-  List.iter (fun s -> 
-    rename_table := StringMap.add s s (!rename_table)) already_def;
-  List.iter2 (fun (a,_) (p,_) -> 
-    rename_table := StringMap.add p a (!rename_table)) argl paraml;
-  let def' = List.map rename_decl def in
-  rename_table := StringMap.empty;
-  def'
-
-
 (* Check declarations *)
 
 let add_not_found s ext v =
@@ -3854,46 +3840,60 @@ let rec check_no_dup = function
 		       (in_file_position ext' ext)) ext'
 	    ) l;
       check_no_dup l
-	
-let rec expand_macros macro_table already_def = function
-    [] -> []
-  | a::l ->
-      match a with
-      | Define((s1,ext1),argl,def) ->
-	  if StringMap.mem s1 macro_table then
-	    raise_error ("Macro " ^ s1 ^ " already defined.") ext1
-          else
-	    begin
-	      check_no_dup argl;
-	      let macro_table' = StringMap.add s1 (Macro(argl, def, already_def, macro_table)) macro_table in
-	      (* Store the new macro table globally 
-		 This is ok because macro definitions cannot be included inside macros, so macro_table' contains all macros defined so far. *)
-	      macrotable := macro_table';
-	      expand_macros macro_table' already_def l
-	    end
-      | Expand((s1,ext1),argl) ->
-          begin
-	    try 
-	      let Macro(paraml, def, old_already_def, old_macro_table) = StringMap.find s1 macro_table in
-	      if List.length argl != List.length paraml then
-		raise_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
-			     " arguments, but is here given " ^ (string_of_int (List.length argl)) ^ " arguments.") ext1;
-	      let applied_macro = apply argl paraml old_already_def def in
-	      let expanded_macro = expand_macros old_macro_table old_already_def applied_macro in
-	      let already_def_after_macro = add_already_def argl expanded_macro already_def in
-	      expanded_macro @ (expand_macros macro_table already_def_after_macro l)
-	    with Not_found ->
-	      raise_error ("Macro " ^ s1 ^ " not defined.") ext1
-	  end
-      | _ ->
-	  let already_def' = 
-	    match declares a with
-	      Some(s,_) -> s::already_def
-	    | None -> already_def
-	  in
-	  a::(expand_macros macro_table already_def' l)
 
+let rec apply_and_expand argl paraml macro_table already_def def =
+  let old_rename_table = !rename_table in
+  rename_table := StringMap.empty;
+  List.iter (fun s -> 
+    rename_table := StringMap.add s s (!rename_table)) already_def;
+  List.iter2 (fun (a,_) (p,_) -> 
+    rename_table := StringMap.add p a (!rename_table)) argl paraml;
+  let macro_state = (macro_table, already_def, []) in
+  let (_,_,def') = List.fold_left (fun macro_state decl ->
+    let decl' = rename_decl decl in
+    (* Expand the nested macro inside the current declaration [decl],
+       if any, before renaming the next declarations. 
+       That avoids a clash between global identifiers declared
+       in the nested macro (e.g. functions declared in the nested macro)
+       and local identifiers of the next declaration
+       (e.g. undeclared functions inside equation or equiv).*)
+    expand_macro_one_decl macro_state decl'
+      ) macro_state def
+  in
+  rename_table := old_rename_table;
+  def'
 
+and expand_macro_one_decl (macro_table, already_def, accu_decl) = function
+  | Define((s1,ext1),argl,def) ->
+      if StringMap.mem s1 macro_table then
+	raise_error ("Macro " ^ s1 ^ " already defined.") ext1
+      else
+	begin
+	  check_no_dup argl;
+	  let macro_table' = StringMap.add s1 (Macro(argl, def, already_def, macro_table)) macro_table in
+	  (macro_table', already_def, accu_decl)
+	end
+  | Expand((s1,ext1),argl) ->
+      begin
+	try 
+	  let Macro(paraml, def, old_already_def, old_macro_table) = StringMap.find s1 macro_table in
+	  if List.length argl != List.length paraml then
+	    raise_error ("Macro " ^ s1 ^ " expects " ^ (string_of_int (List.length paraml)) ^
+			 " arguments, but is here given " ^ (string_of_int (List.length argl)) ^ " arguments.") ext1;
+	  let expanded_macro = apply_and_expand argl paraml old_macro_table old_already_def def in
+	  let already_def_after_macro = add_already_def argl expanded_macro already_def in
+	  (macro_table, already_def_after_macro, expanded_macro @ accu_decl)
+	with Not_found ->
+	  raise_error ("Macro " ^ s1 ^ " not defined.") ext1
+      end
+  | a ->
+      let already_def' = 
+	match declares a with
+	  Some(s,_) -> s::already_def
+	| None -> already_def
+      in
+      (macro_table, already_def', a :: accu_decl)
+			
 (* Collect all identifiers 
    This is to avoid clashes during macro expansion *)
 		
@@ -4225,7 +4225,9 @@ let read_file f =
     (* Record all identifiers, to avoid any clash during macro expansion *)
     record_all_ids (l,p);
     let already_def = StringMap.fold (fun s _ already_def -> s :: already_def) (!env) [] in
-    let l' = expand_macros StringMap.empty already_def l in
+    let macro_state = (StringMap.empty, already_def, []) in
+    let (_,_,expanded_l) = List.fold_left expand_macro_one_decl macro_state l in
+    let l' = List.rev expanded_l in
     Terms.set_var_num_state rename_state;
     (* Record top-level identifiers, to make sure that we will not need to 
        rename them. *)

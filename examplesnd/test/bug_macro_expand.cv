@@ -12,6 +12,27 @@ def macro2(c11, c12) {
     (* BUG: sign_r2 should not be defined here!! 
        It is defined in macro1, but not exported. *)
     equation c11 = sign_r2.
+
+    (* The difference of behavior between [letfun] and [equation]
+       comes from a difference in the rename that is done
+       when the macro is applied.
+       equation uses local identifiers and allows reusing the
+       same identifiers after the equation has been renamed.
+       letfun uses global identifiers.
+       Hence, upon expansion of macro2, 
+         - if sign_r2 appears in letfun, it is renamed into
+       X (=sign_r2 in fact), and X can no longer be used 
+       as a fresh identifier. Therefore, upon expansion
+       of macro1, sign_r2 inside macro1 is renamed to
+       another identifier Y, and X is not defined at the letfun.
+         - if sign_r2 appears in equation, it is renamed into
+       X (=sign_r2 in fact), and X can be used again
+       as a fresh identifier.Therefore, upon expansion
+       of macro1, sign_r2 inside macro1 is renamed to
+       X again, and X is now defined at the equation.
+
+       The sign_r2 inside macro1 should never be renamed
+       to the same identifier as sign_r2 in macro2. *)
 }
 
 const c22: bool.
@@ -21,3 +42,8 @@ expand macro2(c22, c12).
 channel c.
 
 process in(c, ()); out(c, c22)
+
+(* EXPECTED
+Error: sign_r2_1 not defined.
+xtime: error in child process (status : 512)
+END *)
