@@ -120,9 +120,9 @@ output=tlsx`date '+%Y.%m.%d-%H_%M_%S'`
 dir=examples/tls13
 
 (
-for i in HKDFexpand KeySchedule1 KeySchedule2 KeySchedule3 tls13-core-InitialHandshake tls13-core-InitialHandshake-1RTTonly tls13-core-PSKandPSKDHE-NoCorruption tls13-core-PSKDHE-CorruptPSK tls13-core-RecordProtocol tls13-core-RecordProtocol-0RTT tls13-core-RecordProtocol-0RTT-badkey
+for i in $dir/*.cv
 do
-analyze $i "" $dir/$i.cv tests/$output
+analyze $i "" $i tests/$output
 done
 ) | tee tests/res-$output
 egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
