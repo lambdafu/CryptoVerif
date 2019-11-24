@@ -1,11 +1,5 @@
 TO DO next
 
-In the ATN example (dev/projects/2014ANRAirbus/ICAO9880-May2017/computational/ATN-*),
-aren't some of the collision resistance assumptions on signatures
-in fact consequences of UF-CMA, at least when the keys are used
-correctly? Try to add them to the standard UF-CMA assumption,
-probably including them in the main UF-CMA equivalence.
-
 1) Extend "equiv".
 
 New keyword: special
@@ -91,7 +85,16 @@ of OH/Oeq oracles by looking at the oracles mentioned in the [terms:...] argumen
 
 Document rom_partial / prf_partial
 Apply it to PRP, SPRP, ICM, PRF_ODH (variable number of arguments,
-variable position of the DH argument, equiv prf_odh_partial(prf)
+variable position of the DH argument [could be handled by having
+two variable-length lists: the list of arguments before the DH arguments
+and the list of arguments after. However, that requires allowing
+two lists of arguments of different lengths. What syntax could we
+use for that? 
+Perhaps use list% <n> or list$ <n> to describe the argument, where <n>
+is an integer and same <n> implies same number of elements in the list,
+and use that <n> to refer to it inside the macro: $<n>$<repeated text>$<sep>$
+means that <repeated text> is repeated as many times as there are
+elements in the list% <n> arguments.], equiv prf_odh_partial(prf)
 with variable number of prf oracles)
 
 
