@@ -176,5 +176,5 @@ process
 
 (* EXPECTED
 Error: References to replication indices not as array indices are forbidden
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

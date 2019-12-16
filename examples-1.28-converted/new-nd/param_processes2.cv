@@ -163,5 +163,5 @@ process
 
 (* EXPECTED
 Error: Process processB expects 2 argument(s), but is here given 1 argument(s)
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

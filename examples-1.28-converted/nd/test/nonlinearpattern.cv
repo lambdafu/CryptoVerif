@@ -10,5 +10,5 @@ process
 
 (* EXPECTED
 Error: Variable x is referenced outside its scope. It should be guarded by a defined condition
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

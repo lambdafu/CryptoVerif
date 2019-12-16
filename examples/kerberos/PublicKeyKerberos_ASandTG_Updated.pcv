@@ -73,11 +73,7 @@ instead.)
 
  *)
 
-param N.
-param N2.
-param N3.
-param N4.
-param N5.
+param NC, NC2, NC3, NK, NT, NS, NCC, NKC, NTK, NSK.
 
 type nonce [fixed,large].
 type client [bounded].
@@ -322,7 +318,7 @@ let processC(collkey: collisionkey, pkC: pkey, skC: skey, spkC: spkey, sskC: ssk
 	let injbot2(concat4(AK, =n1, tk, =hostT)) = dec(m24, k1') in		(* m24 = {AK, n1, t_K, T}_{k} if k1'=k *)
     	event fullCK(hostZ, hostT, n1, m21, TGT, m24);
     	out(c18, acceptC1(hostZ,hostT));
-    	! i3 <= N3
+    	! i3 <= NC2
 
     	in(c17, (hosT':tgs, hostS:server));					(* request service ticket for hostS from hostT *)
 	if hosT' = hostT then
@@ -449,19 +445,19 @@ process
 	let certC = sign(concat1(C, pkC, spkC), skCA) in
 	let certK = sign(concat7(K, pkK, spkK), skCA) in  (* Note: certK actually only needs to bind K's name to a public key for signing,  not for encryption. We just want certK and certC to have the same structure  *)
 	out(c25,(pkC, spkC, spkK, pkCA));
-    	((! iC <= N processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
-         (! iK <= N processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
-     	 (! iT <= N processT(Kt)) |
-     	 (! iCC <= N5 processCCERT(skCA, certC))|
-     	 (! iKC <= N5 processKCERT(skCA, certK))|
-     	 (! iTK <= N2 processTKEY(Kt)) |
-     	 (! iSK <= N2 processSKEY(Ks)) |
+    	((! iC <= NC processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
+         (! iK <= NK processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
+     	 (! iT <= NT processT(Kt)) |
+     	 (! iCC <= NCC processCCERT(skCA, certC))|
+     	 (! iKC <= NKC processKCERT(skCA, certK))|
+     	 (! iTK <= NTK processTKEY(Kt)) |
+     	 (! iSK <= NSK processSKEY(Ks)) |
      	 hashoracle(collkey))
 
 
 (* EXPECTED
 RESULT Could not prove event(fullCT(K, T, S, N, k, x, z, y)) && event(fullTC(C, S, N, k', x', z', v, y)) ==> (k = k') with public variables keySK, keyTSK.
-10.644s (user 10.612s + system 0.032s), max rss 252416K
+17.436s (user 17.364s + system 0.072s), max rss 136012K
 END *)
 
 (* EXPECTPV
@@ -471,5 +467,5 @@ RESULT inj-event(fullCT(K,T,S,N,k_1,x_4,z_4,y_4)) ==> inj-event(fullTC(C,S,N,k_1
 RESULT event(fullCT(K,T,S,N,k_1,x_4,z_4,y_4)) && event(fullTC(C,S,N,k',x',z',v_2,y_4)) ==> k_1 = k' public_vars keySK,keyTSK is true.
 RESULT secret keySK is true.
 RESULT secret keyTSK is true.
-99.288s (user 98.676s + system 0.612s), max rss 1585692K
+99.852s (user 99.196s + system 0.656s), max rss 1660640K
 END *)

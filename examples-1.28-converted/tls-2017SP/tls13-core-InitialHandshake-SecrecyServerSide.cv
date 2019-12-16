@@ -24,10 +24,10 @@ channel io1, io2, io3, io4, io5, io6, io7, io8, io9, io10,
 proof {
       crypto uf_cma_corrupt(sign) kseedS;
       out_game "g1.out" occ;
-      insert 1042 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert before "new y" "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       SArename gy_1;
       out_game "g2.out" occ;
-      insert 51 "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
+      insert before "let s:" "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
       crypto rom(HKDF_extract_ES);
       remove_assign binder s;
       remove_assign binder s_3;
@@ -515,5 +515,5 @@ out(io21, (pkS, pkC));
 
 (* EXPECTED
 All queries proved.
-49.800s (user 49.532s + system 0.268s), max rss 789200K
+79.008s (user 78.940s + system 0.068s), max rss 202640K
 END *)

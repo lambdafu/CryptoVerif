@@ -4399,15 +4399,18 @@ let rec update_max_length_probaf ins = function
 	match t.t_desc with
 	| Var(b,_) ->
 	    begin
-	      let rename_ins =
-		List.find_opt (function
-		  | DSArenaming(b0, targets) -> b == b0
-		  | _ -> false) ins
-	      in
-	      match rename_ins with
-	      | Some(DSArenaming(_, targets)) ->
-		  make_max (List.map (fun b -> Maxlength(!whole_game_next, Terms.term_from_binder b)) targets)
-	      | _ -> Maxlength(!whole_game_next, t)
+	      try 
+		let rename_ins =
+		  List.find (function
+		    | DSArenaming(b0, targets) -> b == b0
+		    | _ -> false) ins
+		in
+		match rename_ins with
+		| DSArenaming(_, targets) ->
+		    make_max (List.map (fun b -> Maxlength(!whole_game_next, Terms.term_from_binder b)) targets)
+		| _ -> assert false
+	      with Not_found -> 
+		Maxlength(!whole_game_next, t)
 	    end
 	| ReplIndex _ -> Maxlength(!whole_game_next, t)
 	| _ -> Parsing_helper.internal_error "update_term: term in argument of maxlength should be a variable or a replication index"

@@ -54,5 +54,5 @@ process 0
 
 (* EXPECTED
 Error: Both sides of this equivalence should have the same number of function groups
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

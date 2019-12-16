@@ -223,5 +223,5 @@ ONS_Keygen [pkS0 > pkS, skS0 > skS ] {
 
 (* EXPECTED
 All queries proved.
-1.840s (user 1.832s + system 0.008s), max rss 103744K
+2.784s (user 2.752s + system 0.032s), max rss 81712K
 END *)

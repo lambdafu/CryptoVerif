@@ -60,5 +60,5 @@ return(pk);
 
 (* EXPECTED
 Error: Definitions of oracle OT1 with different replication indexes types
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

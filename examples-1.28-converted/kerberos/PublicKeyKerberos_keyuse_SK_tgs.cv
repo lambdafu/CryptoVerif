@@ -499,5 +499,5 @@ out(c25, (pkC, spkC, spkK, pkCA));
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of b1.
-8.032s (user 7.936s + system 0.096s), max rss 173360K
+16.164s (user 16.144s + system 0.020s), max rss 50240K
 END *)

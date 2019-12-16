@@ -140,5 +140,5 @@ process
 
 (* EXPECTED
 Error: Incorrect array reference: argument index should have no indices
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

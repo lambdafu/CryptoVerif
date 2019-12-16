@@ -210,5 +210,5 @@ ONS_Keygen [pkS > pkS, skS > skS ] {
 
 (* EXPECTED
 Error: Type host already has implementation informations
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

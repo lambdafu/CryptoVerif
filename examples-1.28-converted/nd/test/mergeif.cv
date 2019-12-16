@@ -260,5 +260,5 @@ else
 
 (* EXPECTED
 All queries proved.
-0.028s (user 0.028s + system 0.000s), max rss 37024K
+0.020s (user 0.020s + system 0.000s), max rss 10732K
 END *)

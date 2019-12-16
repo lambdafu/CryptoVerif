@@ -237,5 +237,5 @@ out(c20, ());
 
 (* EXPECTED
 RESULT Could not prove event(partTC(C, k, mk, x, y)) ==> event(partCT(T, k, mk, x', y)).
-1.472s (user 1.460s + system 0.012s), max rss 78448K
+1.600s (user 1.584s + system 0.016s), max rss 21976K
 END *)

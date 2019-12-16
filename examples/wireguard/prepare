@@ -1,0 +1,101 @@
+#!/bin/bash
+set -e
+
+function file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+if [ -f hashgen.ml ]
+then
+    ocamlopt -o hashgen hashgen.ml
+    ./hashgen 1 10 > hashoracles.cvl
+    file_exists_or_abort preamble.cvl
+    file_exists_or_abort ../../default.cvl
+    file_exists_or_abort separator.cvl
+    file_exists_or_abort boolean_choice.cvl
+    cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > mylib.cvl
+fi
+
+file_exists_or_abort mylib.cvl
+
+sourcefilecorrectness=WG.25519.correctness.m4.cv
+sourcefileidentityhiding=WG.25519.identityhiding.m4.cv
+file_exists_or_abort $sourcefilecorrectness
+file_exists_or_abort $sourcefileidentityhiding
+for replay_status in no_replay_prot replay_prot
+do
+
+    modname=WG.25519.correctness.$replay_status
+    m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_$replay_status $sourcefilecorrectness > $modname.cv
+
+    # Identity hiding proved in the AB case only.
+    modname=WG.25519.AB.identityhiding.$replay_status
+    m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_$replay_status -Dm4_E_r_compr $sourcefileidentityhiding > $modname.cv
+done
+
+sourcefile=WG.25519.m4.cv
+sourcefileks=WG.25519.keysecrecy.m4.cv
+file_exists_or_abort $sourcefile
+file_exists_or_abort $sourcefileks
+for sessions in AB AB-BA
+do
+    pattern=WG.25519.$sessions
+    patternks=WG.25519.keysecrecy.$sessions
+    for replay_status in no_replay_prot replay_prot
+    do
+
+	modname=$pattern.uniquesession_chbinding_weakUKS.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+
+	modname=$pattern.only_psk.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+
+	# The following is for the correspondence on the first message,
+	# in the case where no long-term keys are compromised. We cannot prove
+	# a correspondence on the first message in the case of any long-term
+	# key compromise, so it's fine to separate this.
+	modname=$pattern.1st_msg.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+
+
+	# The following is for correspondences on the second, third, and
+	# the transport data messages, message secrecy, and absence of unknown
+	# key share attacks.
+	for icompr in S_i_compr E_i_compr
+	do
+	    for rcompr in S_r_compr E_r_compr
+	    do
+		modname=$pattern.$icompr.$rcompr.$replay_status
+		m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+	    done
+	done
+
+	## Variant for key secrecy, without transport data messages. We actually
+	## reprove most properties for this model
+
+	modname=$patternks.uniquesession_chbinding_weakUKS.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $modname.cv
+
+	modname=$patternks.only_psk.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $modname.cv
+
+	modname=$patternks.1st_msg.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $modname.cv
+
+	for icompr in S_i_compr E_i_compr
+	do
+	    for rcompr in S_r_compr E_r_compr
+	    do
+		modname=$patternks.$icompr.$rcompr.$replay_status
+		m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefileks > $modname.cv
+	    done
+	done
+
+    done
+done

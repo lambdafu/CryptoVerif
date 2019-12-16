@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+function file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+
+for k in key_AK key_SK
+do
+    for loc in loc1 loc2 loc3
+    do
+	sourcefile=BasicKerberos_keyuse_Updated.m4.cv
+	file_exists_or_abort $sourcefile
+	m4 -D$k -D$loc $sourcefile > BasicKerberos_keyuse.$k.$loc.cv
+
+	sourcefile=PublicKeyKerberos_keyuse_Updated.m4.cv
+	file_exists_or_abort $sourcefile
+	m4 -D$k -D$loc $sourcefile > PublicKeyKerberos_keyuse.$k.$loc.cv
+    done
+done

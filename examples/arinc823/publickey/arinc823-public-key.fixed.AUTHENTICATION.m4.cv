@@ -915,20 +915,20 @@ ifdef(`COMPROMISE_V',`, dV0')
 	 KDF256_128_oracle(hk1))
 
 ifdef(`COMPROMISE_U',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.AUTHENTICATION.m4.cv TAG: 1
 All queries proved.
-536.834s (user 536.682s + system 0.152s), max rss 1903632K
+943.872s (user 943.472s + system 0.400s), max rss 603040K
 END *)
 ')
 ifdef(`COMPROMISE_V',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.AUTHENTICATION.m4.cv TAG: 2
 All queries proved.
-279.325s (user 279.173s + system 0.152s), max rss 1305904K
+649.292s (user 649.056s + system 0.236s), max rss 456940K
 END *)
 ')
 ifdef(`NO_COMPROMISE',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.AUTHENTICATION.m4.cv TAG: 3
 All queries proved.
-363.555s (user 363.427s + system 0.128s), max rss 1369424K
+438.796s (user 438.688s + system 0.108s), max rss 348288K
 END *)
 ')

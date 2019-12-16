@@ -3,9 +3,7 @@
    properties.
  *)
 
-param N.
-param N2.
-param N3.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -124,20 +122,20 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(start, ());
-	((! iA <= N processA(Kas)) |
-	 (! iB <= N processB(Kbs)) |
-	 (! iS <= N processS) |
-	 (! iK <= N2 processK(Kas,Kbs)))
+	((! iA <= NA processA(Kas)) |
+	 (! iB <= NB processB(Kbs)) |
+	 (! iS <= NS processS) |
+	 (! iK <= NK processK(Kas,Kbs)))
 
 
 (* EXPECTED
 All queries proved.
-0.300s (user 0.288s + system 0.012s), max rss 72672K
+0.520s (user 0.476s + system 0.044s), max rss 63100K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) cannot be proved.
 RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) cannot be proved.)
 RESULT inj-event(fullB(A,x_2)) ==> inj-event(fullA(B,x_2)) is true.
-0.092s (user 0.092s + system 0.000s), max rss 12172K
+0.060s (user 0.048s + system 0.012s), max rss 12208K
 END *)

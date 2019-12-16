@@ -148,5 +148,5 @@ out(c15, (pkA, pkB, pkS));
 
 (* EXPECTED
 All queries proved.
-1.276s (user 1.236s + system 0.040s), max rss 81152K
+1.552s (user 1.540s + system 0.012s), max rss 22020K
 END *)

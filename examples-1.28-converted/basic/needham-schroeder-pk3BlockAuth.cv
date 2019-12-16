@@ -148,5 +148,5 @@ out(c15, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, na, nb)) ==> inj-event(beginA(x, y, na, nb)); event(endB(x, y, na, nb)) ==> event(beginA(x, y, na, nb)).
-1.624s (user 1.592s + system 0.032s), max rss 82016K
+1.936s (user 1.920s + system 0.016s), max rss 20264K
 END *)

@@ -311,5 +311,5 @@ out(c20, ());
 
 (* EXPECTED
 RESULT Could not prove event(fullTC(C, S, k, N, x, z, y)) && event(fullCT(T, S, k', N, x, z, y)) ==> (k = k').
-0.784s (user 0.760s + system 0.024s), max rss 99984K
+1.008s (user 0.992s + system 0.016s), max rss 26576K
 END *)

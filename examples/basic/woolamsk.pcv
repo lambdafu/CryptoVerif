@@ -16,9 +16,7 @@ Authentication in one direction only.
 by B to the server.
 *)
 
-param N.
-param N2.
-param N3.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -124,18 +122,18 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(c13, ());
-    	((! iA <= N processA(Kas)) |
-	 (! iB <= N processB(Kbs)) |
-	 (! iS <= N processS) |
-	 (! iK <= N2 processK(Kas,Kbs)))
+    	((! iA <= NA processA(Kas)) |
+	 (! iB <= NB processB(Kbs)) |
+	 (! iS <= NS processS) |
+	 (! iK <= NK processK(Kas,Kbs)))
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
-0.148s (user 0.132s + system 0.016s), max rss 62960K
+0.364s (user 0.340s + system 0.024s), max rss 51692K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is false.
 RESULT (even event(fullB(A,y)) ==> event(fullA(B,y)) is false.)
-0.044s (user 0.036s + system 0.008s), max rss 10808K
+0.024s (user 0.016s + system 0.008s), max rss 10756K
 END *)

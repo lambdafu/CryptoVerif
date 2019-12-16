@@ -1,28 +1,39 @@
-#!/bin/sh
+#!/bin/bash
+set -e
+
+function file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+file_exists_or_abort ssh-secrecy-key.m4.ocv
+file_exists_or_abort ssh.ocv
 
 CRYPTOKIT="-linkpkg -package cryptokit"
-SSH=implementation/ssh
 
-cd ../.. 
 echo Proving the protocol...
 echo First, proving authentication
-./cryptoverif $SSH/ssh.ocv > $SSH/ssh.out
-egrep '(RESULT|All)' $SSH/ssh.out | grep -v "RESULT time"
+../../cryptoverif ssh.ocv > ssh.out
+grep -E '(RESULT|All)' ssh.out | grep -v "RESULT time"
 echo "Second, proving secrecy of the exchanged keys: IVs, encryption keys, MAC keys"
 for key in IVCC IVSC EKCC EKSC MKCC MKSC
 do
-    m4 -DONEKEY=$key $SSH/ssh-secrecy-key.m4.ocv > $SSH/ssh-secrecy-key-$key.ocv
-    ./cryptoverif $SSH/ssh-secrecy-key-$key.ocv > $SSH/ssh-secrecy-key-$key.out
-    egrep '(RESULT|All)' $SSH/ssh-secrecy-key-$key.out | grep -v "RESULT time"
+    m4 -DONEKEY=$key ssh-secrecy-key.m4.ocv > ssh-secrecy-key-$key.ocv
+    ../../cryptoverif ssh-secrecy-key-$key.ocv > ssh-secrecy-key-$key.out
+    grep -E '(RESULT|All)' ssh-secrecy-key-$key.out | grep -v "RESULT time"
 done
 echo "Version that uses indifferentiability to prove the secrecy of all keys in one step, fast"
-./cryptoverif $SSH/ssh-secrecy-key-indiff.ocv > $SSH/ssh-secrecy-key-indiff.out
-egrep '(RESULT|All)' $SSH/ssh-secrecy-key-indiff.out | grep -v "RESULT time"
+../../cryptoverif ssh-secrecy-key-indiff.ocv > ssh-secrecy-key-indiff.out
+grep -E '(RESULT|All)' ssh-secrecy-key-indiff.out | grep -v "RESULT time"
 
 
 echo Generating implementation...
-./cryptoverif -impl -o $SSH $SSH/ssh.ocv
-cd $SSH
+../../cryptoverif -impl ssh.ocv
 
 # rm hk pkS skS trusted_hosts
 

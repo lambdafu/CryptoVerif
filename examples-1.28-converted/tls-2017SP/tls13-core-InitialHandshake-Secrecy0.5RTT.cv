@@ -25,10 +25,10 @@ set casesInCorresp = false.
 proof {
       crypto uf_cma_corrupt(sign) kseedS;
       out_game "g1.out" occ;
-      insert 1424 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert before "new y" "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       SArename gy_1;
       out_game "g2.out" occ;
-      insert 51 "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
+      insert before "let s:" "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
       crypto rom(HKDF_extract_ES);
       remove_assign binder s;
       remove_assign binder s_3;
@@ -537,5 +537,5 @@ out(io21, (pkS, pkC));
 
 (* EXPECTED
 All queries proved.
-33.052s (user 32.704s + system 0.348s), max rss 921184K
+57.852s (user 57.768s + system 0.084s), max rss 265104K
 END *)

@@ -1,0 +1,10 @@
+proof {
+out_game "x/xx.cv"
+}
+
+process 0
+
+(* EXPECTED
+Error: File name x/xx.cv is not allowed.
+xtime: error in child process (status : 2)
+END *)

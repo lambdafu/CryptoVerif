@@ -113,5 +113,5 @@ process
 
 (* EXPECTED
 Error: A uniform function should have a result that can be randomly chosen
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

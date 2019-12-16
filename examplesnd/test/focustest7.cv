@@ -190,5 +190,5 @@ process
 
 (* EXPECTED
 Error: You cannot focus on a query that is already inactive
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

@@ -15,5 +15,5 @@ process
 
 (* EXPECTED
 Error: new at line 9, characters 8-22 should not occur in condition of find
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

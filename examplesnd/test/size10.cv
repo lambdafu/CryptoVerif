@@ -8,5 +8,5 @@ process 0
 
 (* EXPECTED
 Error: Unknown probability estimate option pcoll100000 (allowed options are large, password, and pest<n>)
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

@@ -208,5 +208,5 @@ out(c7, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB.
-0.316s (user 0.292s + system 0.024s), max rss 54304K
+0.328s (user 0.328s + system 0.000s), max rss 12864K
 END *)

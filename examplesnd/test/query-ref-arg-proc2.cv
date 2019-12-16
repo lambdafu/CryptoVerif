@@ -140,5 +140,5 @@ process
 
 (* EXPECTED
 Error: Kas is referenced in a secrecy query and is defined several times in incompatible ways
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

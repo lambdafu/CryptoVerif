@@ -4,7 +4,7 @@
  *                                                           *
  *       Bruno Blanchet and David Cadé                       *
  *                                                           *
- *       Copyright (C) ENS, CNRS, INRIA, 2005-2017           *
+ *       Copyright (C) ENS, CNRS, INRIA, 2005-YEAR           *
  *                                                           *
  *************************************************************)
 

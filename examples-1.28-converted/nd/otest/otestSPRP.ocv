@@ -62,5 +62,5 @@ return();
 
 (* EXPECTED
 RESULT Could not prove event(endB(x)) ==> event(beginA(x)) with public variables k2, k3; secrecy of k3.
-0.032s (user 0.024s + system 0.008s), max rss 40272K
+0.020s (user 0.012s + system 0.008s), max rss 10532K
 END *)

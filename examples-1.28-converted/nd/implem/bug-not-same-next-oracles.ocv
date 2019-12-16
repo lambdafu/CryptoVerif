@@ -208,5 +208,5 @@ return(pkS);
 
 (* EXPECTED
 RESULT Could not prove secrecy of NbB; secrecy of NbA; secrecy of NaB; secrecy of NaA; one-session secrecy of NbB; one-session secrecy of NbA; one-session secrecy of NaB; one-session secrecy of NaA.
-2.468s (user 2.448s + system 0.020s), max rss 90256K
+3.196s (user 3.192s + system 0.004s), max rss 22080K
 END *)

@@ -116,5 +116,5 @@ out(finish, ());
    
 (* EXPECTED
 RESULT Could not prove event(client_accept(x, y)) ==> event(server_reply(x, y)).
-0.036s (user 0.028s + system 0.008s), max rss 36384K
+0.024s (user 0.024s + system 0.000s), max rss 10736K
 END *)

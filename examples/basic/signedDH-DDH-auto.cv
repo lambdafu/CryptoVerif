@@ -11,7 +11,7 @@ crypto ddh(exp);
 auto
 }
 *)
-param N, N2.
+param N, NA, NB, NK.
 
 type host.
 type keyseed [large,fixed].
@@ -78,7 +78,7 @@ let processA(skA:skey) =
   let ga = exp(g,a) in
   out(cA2, (A, hostB, ga));
   in(cA3, (=A, =hostB, gb:G, s:signature));
-  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  find j2 <= NK suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
   let pkhostB = Rkey[j2] in
   if check(concatB(A, hostB, ga, gb), pkhostB, s) then
   let gab = exp(gb, a) in
@@ -99,7 +99,7 @@ let processB(skB:skey) =
   event beginB(hostA, B, ga, gb);
   out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB)));
   in(cB3, s:signature);
-  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
+  find j2 <= NK suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
   let pkhostA = Rkey[j2] in
   if check(concatA(hostA, B, ga, gb), pkhostA, s) then
   let gab = exp(ga, b) in
@@ -112,7 +112,7 @@ let processB(skB:skey) =
    out(cB4, kB).
 
 let processK(pkA:pkey, pkB:pkey) =
-  !N2
+  !NK
   in(cK, (Khost: host, Kkey: pkey));
   let Rkey:pkey =
 		if Khost = B then pkB else
@@ -128,10 +128,10 @@ process
 	let skB = skgen(rkB) in
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
-	((!N processA(skA)) | (!N processB(skB)) | processK(pkA, pkB))
+	((!NA processA(skA)) | (!NB processB(skB)) | processK(pkA, pkB))
 
 
 (* EXPECTED
 All queries proved.
-0.288s (user 0.268s + system 0.020s), max rss 78496K
+0.492s (user 0.460s + system 0.032s), max rss 62108K
 END *)

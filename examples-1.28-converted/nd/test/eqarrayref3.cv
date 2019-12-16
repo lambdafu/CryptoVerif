@@ -140,5 +140,5 @@ process
 
 (* EXPECTED
 Error: This array index is used in another array reference and this is not supported yet
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

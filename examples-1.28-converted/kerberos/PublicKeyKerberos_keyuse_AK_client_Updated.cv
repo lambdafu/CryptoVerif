@@ -558,5 +558,5 @@ out(c25, (pkC, spkC, spkK, pkCA, collkey));
 
 (* EXPECTED
 RESULT Could not prove event(fullCS(S, T, K, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-20.048s (user 19.828s + system 0.220s), max rss 282928K
+33.876s (user 33.828s + system 0.048s), max rss 81616K
 END *)

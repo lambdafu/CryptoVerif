@@ -23,10 +23,7 @@ been signed, so the signature {A,B,N}_skA is not authenticated.
 
 *)
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -112,18 +109,18 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c13, (pkA, pkB, pkS));
-	((! iA <= N processA(skA)) |
-	 (! iB <= N processB(pkS)) | 
-	 (! iS <= N processS(skS)) |
-	 (! iK <= N2 processK(pkA,pkB)))
+	((! iA <= NA processA(skA)) |
+	 (! iB <= NB processB(pkS)) | 
+	 (! iS <= NS processS(skS)) |
+	 (! iK <= NK processK(pkA,pkB)))
 
 
 (* EXPECTED
 All queries proved.
-0.072s (user 0.048s + system 0.024s), max rss 56064K
+0.272s (user 0.260s + system 0.012s), max rss 47764K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is true.
-0.024s (user 0.024s + system 0.000s), max rss 10544K
+0.024s (user 0.024s + system 0.000s), max rss 10604K
 END *)

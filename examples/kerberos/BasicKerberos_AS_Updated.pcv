@@ -57,10 +57,7 @@ of the CeCILL license and that you accept its terms.
 (* basic Kerberos 5, first round only (AS_exchange), 
 consider authentication and  key secrecy properties *)
 
-param N.
-param N2.
-param N3.
-param N4.
+param NC, NC2, NC3, NK, NT, NS, NCK, NTK, NSK.
 
 type nonce [large,fixed].
 type kas [bounded].
@@ -201,20 +198,20 @@ process
 	new Kc: key;	(* Kc = enc key between client C and KAS K *)
 	new Kt: key;	(* Kt = enc key between TGS T and KAS K *)
 	out(c25, ());
-	((! iC <= N processC(Kc)) | 
-	 (! iK <= N processK) |
-	 (! iCK <= N2 processCKEY(Kc))|
-	 (! iTK <= N2 processTKEY(Kt)))
+	((! iC <= NC processC(Kc)) | 
+	 (! iK <= NK processK) |
+	 (! iCK <= NCK processCKEY(Kc))|
+	 (! iTK <= NTK processTKEY(Kt)))
 
 
 (* EXPECTED
 All queries proved.
-0.088s (user 0.084s + system 0.004s), max rss 58880K
+0.212s (user 0.196s + system 0.016s), max rss 47824K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullCK(K,T,N,k,x_3,y_3)) ==> inj-event(fullKC(C,T,N,k,z_4,y_3)) public_vars keyAK is true.
 RESULT event(fullCK(K,T,N,k,x_3,y_3)) && event(fullKC(C,T,N,k',x_3,y_3)) ==> k = k' public_vars keyAK is true.
 RESULT secret keyAK is true.
-0.060s (user 0.052s + system 0.008s), max rss 11516K
+0.044s (user 0.044s + system 0.000s), max rss 11508K
 END *)

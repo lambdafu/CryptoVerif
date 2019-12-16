@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+function file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+
+file_exists_or_abort ../converter/default-converted.cvl
+file_exists_or_abort tls-2017SP/tlsprim.cvl
+cat ../converter/default-converted.cvl tls-2017SP/tlsprim.cvl > mylib.cvl
+cp mylib.cvl mylib.ocvl

@@ -114,5 +114,5 @@ out(cPK, alpha);
 
 (* EXPECTED
 RESULT Could not prove secrecy of b.
-0.052s (user 0.044s + system 0.008s), max rss 38816K
+0.040s (user 0.036s + system 0.004s), max rss 11164K
 END *)

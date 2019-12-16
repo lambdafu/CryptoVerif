@@ -245,5 +245,5 @@ that error any more. However, it causes another error (see below).
 
 (* EXPECTED
 Error: Role ONS_A is defined after oracle OAGK that has more than one return (implementation)
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

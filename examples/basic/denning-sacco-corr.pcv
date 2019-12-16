@@ -29,10 +29,7 @@ a message that has been signed.
 
 *)
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB, NS, NSS, NK, NSK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -166,17 +163,17 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c7, (pkA, pkB, pkS));
-	((! i <= N processA(pkA, skA, pkS)) |
-	 (! i <= N processB(pkB, skB, pkS)) |
-	 (! i <= N processS(skS)) |
-	 (! i <= N processSS(skS)) |
-	 (! i <= N2 processK(pkB)) |
-	 (! i <= N2 processSK(pkA)))
+	((! i <= NA processA(pkA, skA, pkS)) |
+	 (! i <= NB processB(pkB, skB, pkS)) |
+	 (! i <= NS processS(skS)) |
+	 (! i <= NSS processSS(skS)) |
+	 (! i <= NK processK(pkB)) |
+	 (! i <= NSK processSK(pkA)))
 
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
-0.188s (user 0.172s + system 0.016s), max rss 68000K
+0.296s (user 0.280s + system 0.016s), max rss 52628K
 END *)
 
 (* EXPECTPV
@@ -186,5 +183,5 @@ RESULT (query encoded as inj-event(fullB(A,k_2,x_1)) ==> inj-event(fullA(B,k_2,x
 RESULT (but event(fullB(A,k_2,x_1)) ==> event(fullA(B,k_2,x_1)) is true.)
 RESULT event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) public_vars keyA is true.
 RESULT event(fullB(A,k_3,x_2)) && event(fullA(B,k',x_2)) ==> k_3 = k' public_vars keyA is true.
-0.208s (user 0.200s + system 0.008s), max rss 14192K
+0.140s (user 0.136s + system 0.004s), max rss 14196K
 END *)

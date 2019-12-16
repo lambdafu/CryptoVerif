@@ -108,7 +108,7 @@ equiv(rckey )
 
 (* MAC *)
 
-def SUF_CMA_mac_nokgen(mkey, macinput, macres, mac, check, Pmac) {
+def SUF_CMA_mac_nokgen_keylast(mkey, macinput, macres, mac, check, Pmac) {
 
 param N, N2, N3.
 
@@ -136,7 +136,7 @@ equiv(suf_cma(mac))
 
 type macres [fixed].
 proba Pmac.
-expand SUF_CMA_mac_nokgen(mkey, bitstring, macres, hmac, check, Pmac).
+expand SUF_CMA_mac_nokgen_keylast(mkey, bitstring, macres, hmac, check, Pmac).
 
 (* Encryption in counter mode *)
 
@@ -316,5 +316,5 @@ out(outprin, (pubA, pubB));
 
 (* EXPECTED
 RESULT Could not prove secrecy of secb; event(Recv(a, b, m)) ==> event(Send(a, b, m)) with public variables secb.
-1.892s (user 1.840s + system 0.052s), max rss 137488K
+1.920s (user 1.912s + system 0.008s), max rss 29248K
 END *)

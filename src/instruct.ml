@@ -68,7 +68,25 @@ let rec replace_list b bl = function
 	bl @ (replace_list b bl l)
       else
 	b' :: (replace_list b bl l)
-    
+
+let allowed_file_name s =
+  let rec allowed_chars s n =
+    (n >= String.length s) ||
+    (let c = s.[n] in
+    (c == '%' || c == '+' || c == '-' || c == '.' ||
+    (c >= '0' && c <= '9') || c == '=' ||
+    (c >= '@' && c <= 'Z') || c == '_' ||
+    (c >= 'a' && c <= 'z') || c == '~') && (allowed_chars s (n+1)))
+  in
+  s <> "" && s.[0] <> '.' &&
+  (allowed_chars s 0)
+
+let default_file_out s ext f =
+  if not (allowed_file_name s) then
+    raise (Error("File name " ^ s ^ " is not allowed.\nAllowed characters: 0-9A-Za-z%+-.=@_~\n. is not allowed as first character.", ext));
+  let filename = Filename.concat (!Settings.out_dir) s in
+  Display.file_out filename ext f
+		
 let sa_rename_ins_updater b bl = function
     (ExpandGetInsert | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
      RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
@@ -1685,17 +1703,17 @@ let rec interpret_command interactive state = function
       display_facts_at state occ_cmd;
       state
   | COut_game((s,ext), occ) ->
-      Display.file_out s ext (fun () ->
+      default_file_out s ext (fun () ->
 	Display.display_occurrences := occ;
 	Display.display_game_process state.game;
 	Display.display_occurrences := false);
       state
   | COut_state(s,ext) ->
-      Display.file_out s ext (fun () ->
+      default_file_out s ext (fun () ->
 	display_state false state);
       state
   | COut_facts((s, ext1), occ_cmd) ->
-      Display.file_out s ext1 (fun () ->
+      default_file_out s ext1 (fun () ->
         display_facts_at state occ_cmd);
       state
   | CAuto ->

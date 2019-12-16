@@ -157,5 +157,5 @@ out(c15, pkB);
 
 (* EXPECTED
 RESULT Could not prove secrecy of NaA; one-session secrecy of NaA.
-0.028s (user 0.028s + system 0.000s), max rss 37648K
+0.016s (user 0.012s + system 0.004s), max rss 10576K
 END *)

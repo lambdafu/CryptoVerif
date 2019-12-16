@@ -436,26 +436,26 @@ ifdef(`FS',`
 
 ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 1
 All queries proved.
-154.548s (user 154.032s + system 0.516s), max rss 3179936K
+65.108s (user 65.016s + system 0.092s), max rss 202512K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 2
 All queries proved.
-101.476s (user 101.000s + system 0.476s), max rss 2647440K
+43.380s (user 43.336s + system 0.044s), max rss 155512K
 END *)
 ')
 ',`
 ifdef(`STD',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 3
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
-197.484s (user 196.728s + system 0.756s), max rss 4174320K
+62.764s (user 62.700s + system 0.064s), max rss 202560K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 4
 All queries proved.
-105.172s (user 104.660s + system 0.512s), max rss 2406832K
+39.108s (user 39.036s + system 0.072s), max rss 155552K
 END *)
 ')
 ')

@@ -117,5 +117,5 @@ out(dummy[i_1], ());
 
 (* EXPECTED
 All queries proved.
-0.040s (user 0.036s + system 0.004s), max rss 36896K
+0.024s (user 0.024s + system 0.000s), max rss 10840K
 END *)

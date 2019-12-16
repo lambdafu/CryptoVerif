@@ -29,21 +29,7 @@ let for_all_collector collector =
 	  av && lv
     in
     aux
-			    
-(* [ends_with s sub] is true when the string [s] ends with [sub] *)
 
-let ends_with s sub =
-  let l_s = String.length s in
-  let l_sub = String.length sub in
-  (l_s >= l_sub) && (String.sub s (l_s - l_sub) l_sub = sub)
-
-(* [starts_with s sub] is true when the string [s] starts with [sub] *)
-
-let starts_with s sub =
-  let l_s = String.length s in
-  let l_sub = String.length sub in
-  (l_s >= l_sub) && (String.sub s 0 l_sub = sub)
-    
 (* Returns a list containing n times element x *)
 
 let rec repeat n x =

@@ -94,5 +94,5 @@ return(y_1);
 
 (* EXPECTED
 All queries proved.
-0.080s (user 0.064s + system 0.016s), max rss 41760K
+0.036s (user 0.032s + system 0.004s), max rss 12232K
 END *)

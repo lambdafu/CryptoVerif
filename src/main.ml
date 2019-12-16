@@ -6,18 +6,17 @@ let do_implementation impl =
   let impl = 
     Implementation.impl_check impl
   in
-    List.iter
-      (fun (x,opt,p)->
-         print_string ("Generating implementation for module "^x^"...\n");
-         let (impl,intf)=Implementation.impl_translate p opt in
-         let f=open_out ((!Settings.out_dir)^Filename.dir_sep^x^".ml") in
-           output_string f impl;
-           close_out f;
-           let f'=open_out ((!Settings.out_dir)^Filename.dir_sep^x^".mli") in
-             output_string f' intf;
-             close_out f';
-             print_string ("Done.\n")
-      ) impl
+    List.iter (fun (x,opt,p)->
+      print_string ("Generating implementation for module "^x^"...\n");
+      let (impl,intf)=Implementation.impl_translate p opt in
+      let f=open_out (Filename.concat (!Settings.out_dir) (x^".ml")) in
+      output_string f impl;
+      close_out f;
+      let f'=open_out (Filename.concat (!Settings.out_dir) (x^".mli")) in
+      output_string f' intf;
+      close_out f';
+      print_string ("Done.\n")
+	) impl
 
 
 (* Prepare the equation statements given by the user *)
@@ -138,19 +137,27 @@ let record_collision ((_, _, t1, _,t2, _, _, _) as collision) =
 
 let first_file = ref true
 
+let call_m4 input_file output_file =
+  let output_file_descr = Unix.openfile output_file [ Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC ] 0o600 in
+  let args = Array.make 3 "m4" in
+  args.(1) <- "-DCryptoVerif";
+  args.(2) <- input_file;
+  let (_,status) = Unix.waitpid [] (Unix.create_process "m4" args Unix.stdin output_file_descr Unix.stderr) in
+  Unix.close output_file_descr;
+  match status with
+  | Unix.WEXITED 0 -> ()
+  | _ -> Parsing_helper.user_error ("Preprocessing of " ^ input_file ^ " by m4 failed.")
+    
 let anal_file s0 =
   if not (!first_file) then
     Parsing_helper.user_error "You can analyze a single CryptoVerif file for each run of CryptoVerif.\nPlease rerun CryptoVerif with your second file.";
   first_file := false;
   let s =
     (* Preprocess .pcv files with m4 *)
-    let s_up = String.uppercase_ascii s0 in
-    if Terms.ends_with s_up ".PCV" then
+    if StringPlus.case_insensitive_ends_with s0 ".pcv" then
       let s' = Filename.temp_file "cv" ".cv" in
-      let res = Unix.system("m4 -DCryptoVerif " ^ s0 ^ " > " ^ s') in
-      match res with
-        Unix.WEXITED 0 -> s'
-      | _ -> Parsing_helper.user_error ("Preprocessing of " ^ s0 ^ " by m4 failed.")
+      call_m4 s0 s';
+      s'
     else
       s0
   in
@@ -158,8 +165,7 @@ let anal_file s0 =
     begin
       (* Use the oracle front-end by default when the file name ends
 	 in .ocv *)
-      let s_up = String.uppercase_ascii s in
-      if Terms.ends_with s_up ".OCV" then Settings.front_end := Settings.Oracles
+      if StringPlus.case_insensitive_ends_with s ".ocv" then Settings.front_end := Settings.Oracles
     end;
   try
     Sys.catch_break true;
@@ -231,7 +237,7 @@ let anal_file s0 =
 
 let _ =
   Arg.parse
-    [ "-lib", Arg.String (fun s -> Settings.lib_name := s),
+    [ "-lib", Arg.String (fun s -> Settings.lib_name := Some s),
       "<filename> \tchoose library file";
       "-tex", Arg.String (fun s -> Settings.tex_output := s),
       "<filename> \tchoose TeX output file";
@@ -250,6 +256,6 @@ let _ =
                           with
                               Sys_error _ -> Parsing_helper.user_error "Command-line option -o expects a directory"
                        ),
-          "<directory> \tif \"-impl\" is given, the generated files will be placed in this directory (Default: .)";
+          "<directory> \tthe generated files will be placed in this directory, for -impl, out_game, out_state, and out_facts (Default: .)";
     ]
     anal_file ("Cryptoverif " ^ Version.version ^ ". Cryptographic protocol verifier, by Bruno Blanchet\nCopyright ENS-CNRS, distributed under the CeCILL-B license")

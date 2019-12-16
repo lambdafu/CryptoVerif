@@ -152,5 +152,5 @@ out(c13, ());
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
-0.380s (user 0.364s + system 0.016s), max rss 56240K
+0.320s (user 0.304s + system 0.016s), max rss 14372K
 END *)

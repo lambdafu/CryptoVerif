@@ -98,5 +98,5 @@ return(pk);
 
 (* EXPECTED
 All queries proved.
-0.052s (user 0.036s + system 0.016s), max rss 38256K
+0.052s (user 0.048s + system 0.004s), max rss 11140K
 END *)

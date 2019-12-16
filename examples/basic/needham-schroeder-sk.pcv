@@ -10,9 +10,7 @@ crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B
 auto
 }
 
-param N.
-param N2.
-param N3.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -133,15 +131,15 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(c11, ());
-    	((! iA <= N processA(Kas)) |
-	 (! iB <= N processB(Kbs)) |
-	 (! iS <= N processS) |
-	 (! iK <= N2 processK(Kas,Kbs)))
+    	((! iA <= NA processA(Kas)) |
+	 (! iB <= NB processB(Kbs)) |
+	 (! iS <= NS processS) |
+	 (! iK <= NK processK(Kas,Kbs)))
 
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) with public variables keyA; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; event(partA(B, x)) ==> event(partB(A, x)) with public variables keyA.
-0.168s (user 0.168s + system 0.000s), max rss 67456K
+0.316s (user 0.304s + system 0.012s), max rss 55376K
 END *)
 
 (* EXPECTPV
@@ -156,5 +154,5 @@ RESULT (but event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) is true.)
 RESULT event(fullA(B,k_4,x_3)) && event(fullB(A,k',x_3)) ==> k_4 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.152s (user 0.128s + system 0.024s), max rss 12232K
+0.096s (user 0.080s + system 0.016s), max rss 12212K
 END *)

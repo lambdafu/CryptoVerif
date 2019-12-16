@@ -203,5 +203,5 @@ process
 
 (* EXPECTED
 Error: j is referenced in an array reference and is defined as an index of find in an equivalence
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

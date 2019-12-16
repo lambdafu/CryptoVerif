@@ -18,9 +18,7 @@ forwarded by B to the server without checking it.
 
 *)
 
-param N.
-param N2.
-param N3.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -108,17 +106,17 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(c13, ());
-    	((! iA <= N processA(Kas)) |
-	 (! iB <= N processB(Kbs)) |
-	 (! iS <= N processS) |
-	 (! iK <= N2 processK(Kas,Kbs)))
+    	((! iA <= NA processA(Kas)) |
+	 (! iB <= NB processB(Kbs)) |
+	 (! iS <= NS processS) |
+	 (! iK <= NK processK(Kas,Kbs)))
 
 (* EXPECTED
 All queries proved.
-0.096s (user 0.080s + system 0.016s), max rss 58624K
+0.264s (user 0.252s + system 0.012s), max rss 48568K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullB(A,y_1)) ==> inj-event(fullA(B,y_1)) is true.
-0.032s (user 0.032s + system 0.000s), max rss 10612K
+0.016s (user 0.012s + system 0.004s), max rss 10516K
 END *)

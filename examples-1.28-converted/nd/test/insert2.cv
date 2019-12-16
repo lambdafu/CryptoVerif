@@ -173,5 +173,5 @@ out(c7, (pkA, pkB, pkS));
 
 (* EXPECTED
 Error: The occurrence 241 at which you are inserting an instruction is in fact unreachable
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

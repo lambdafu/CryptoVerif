@@ -72,5 +72,5 @@ out(dummy[i_1], (g(a, b, y), h(a, y)))
 
 (* EXPECTED
 RESULT Could not prove secrecy of test.
-0.020s (user 0.012s + system 0.008s), max rss 42144K
+0.016s (user 0.012s + system 0.004s), max rss 10312K
 END *)

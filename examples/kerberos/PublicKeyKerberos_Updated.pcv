@@ -75,11 +75,7 @@ instead.)
 
  *)
 
-param N.
-param N2.
-param N3.
-param N4.
-param N5.
+param NC, NC2, NC3, NK, NT, NS, NCC, NKC, NTK, NSK.
 
 type nonce [fixed,large].
 type client [bounded].
@@ -331,7 +327,7 @@ let processC(collkey: collisionkey, pkC: pkey, skC: skey, spkC: spkey, sskC: ssk
 	event fullCK(hostZ, hostT, n1,  m21, TGT, m24);
 	out(c18, acceptC1(hostZ,hostT));
 
-	! i3 <= N3
+	! i3 <= NC2
         in(c17, (hosT':tgs, hostS:server));                 (* request service ticket for hostS from hostT *)   
     	if hosT' = hostT then
     	new n3:nonce;
@@ -344,7 +340,7 @@ let processC(collkey: collisionkey, pkC: pkey, skC: skey, spkC: spkey, sskC: ssk
 	event fullCT(hostZ, hostT, hostS, n3, TGT, e5, m7);
     	out(c19, acceptC2(hostT, hostS));
 
-	! i4 <= N4
+	! i4 <= NC3
         in(c20, hostS':server);                         (* request service from hostS *)
     	if hostS' = hostS then
     	new tc':timest;
@@ -461,14 +457,14 @@ process
     let certC = sign(concat1(C, pkC, spkC), skCA) in
     let certK = sign(concat7(K, pkK, spkK), skCA) in  (* Note: certK actually only needs to bind K's name to a public key for signing,  not for encryption. We just want certK and certC to have the same structure  *)
     out(c25,(pkC, spkC, spkK, pkCA));
-    ((! iC <= N processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
-     (! iK <= N processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
-     (! iT <= N processT(Kt)) |
-     (! iS <= N processS(Ks)) | 
-     (! iCC <= N5 processCCERT(skCA, certC))|
-     (! iKC <= N5 processKCERT(skCA, certK))|
-     (! iTK <= N2 processTKEY(Kt)) |
-     (! iSK <= N2 processSKEY(Ks)) |
+    ((! iC <= NC processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
+     (! iK <= NK processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
+     (! iT <= NT processT(Kt)) |
+     (! iS <= NS processS(Ks)) | 
+     (! iCC <= NCC processCCERT(skCA, certC))|
+     (! iKC <= NKC processKCERT(skCA, certK))|
+     (! iTK <= NTK processTKEY(Kt)) |
+     (! iSK <= NSK processSKEY(Ks)) |
      hashoracle(collkey))
 
 
@@ -476,7 +472,7 @@ process
 
 (* EXPECTED
 All queries proved.
-9.604s (user 9.568s + system 0.036s), max rss 324640K
+16.060s (user 16.020s + system 0.040s), max rss 136016K
 END *)
 
 (* EXPECTPV
@@ -485,5 +481,5 @@ RESULT event(partTC(C,x_4,y_4)) ==> event(partCT(T,x',y_4)) && event(fullKC(C,T,
 RESULT inj-event(fullCT(K,T,S,N,x_4,z_4,y_4)) ==> inj-event(fullTC(C,S,N,x',z',v_2,y_4)) is true.
 RESULT event(partSC(C,z_4,y_4)) ==> event(partCS(S,T,x_4,y_4)) && event(fullTC(C,S,N,v_2,v',z_4,w)) is true.
 RESULT event(fullCS(S,T,K,z_4,y_4,w)) ==> event(fullSC(C,x_4,y'_1,w)) is true.
-742.808s (user 739.256s + system 3.552s), max rss 5795064K
+720.516s (user 717.680s + system 2.836s), max rss 6304432K
 END *)

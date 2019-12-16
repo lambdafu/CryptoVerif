@@ -1,36 +1,56 @@
-#!/bin/sh
+#!/bin/bash
+set -e
+
+CWD=$(pwd)
+
+DIR=$(basename "$CWD")
+if [ "$DIR" != "distrib" ]
+then
+    echo "This script must be executed from within the 'distrib' directory."
+    exit 2
+fi
 
 VERSION=$1
 YEAR=`date +%Y`
 DEST=$HOME/cryptoverifreleases
-DESTD=$DEST/cryptoverif$VERSION
+DESTD="$DEST"/cryptoverif"$VERSION"
 
-echo Creating release of CryptoVerif version $VERSION
-
-if [ -d $DEST ]
+if [ -z "$1" ]
 then
-        echo
-else
-        echo Directory $DEST does not exist. Please create it.
-        exit 2
+    echo "Please indicate a version number as first argument."
+    exit 2
 fi
 
-if [ -d $DESTD ]
+
+if [ ! -d "$DEST" ]
 then
-        echo Directory $DESTD already exists. Please remove it.
-        exit 2
+    echo "Directory '$DEST' does not exist. Please create it."
+    exit 2
 fi
+
+if [ -d "$DESTD" ]
+then
+    echo "Directory '$DESTD' already exists. Please remove it."
+    exit 2
+fi
+
+echo "Creating release of CryptoVerif version '$VERSION'"
 
 cd ..
-mkdir $DESTD
+# We are now in the root directory of CryptoVerif.
 
-sed s/VERSION/$VERSION/g\;s/YEAR/$YEAR/g README > $DESTD/README
-cp CHANGES LICENSE build build.bat test $DESTD
-
-mkdir $DESTD/cryptolib $DESTD/docs $DESTD/examples $DESTD/examples/basic $DESTD/examples/obasic $DESTD/examples/kerberos $DESTD/examples/arinc823 $DESTD/examples/arinc823/sharedkey $DESTD/examples/arinc823/publickey $DESTD/examples/textsecure $DESTD/examples/tls13 $DESTD/examples/wireguard $DESTD/src $DESTD/tests $DESTD/emacs $DESTD/implementation $DESTD/implementation/nspk $DESTD/implementation/wlsk $DESTD/implementation/ssh
-
+set +e # Don't fail the script if there are no files to be removed.
 rm *~ */*~ */*/*~
+set -e
 
+# Build header file
+sed "s/YEAR/$YEAR/g" distrib/head.ml > distrib/head_year_tmp.ml
+
+# Build src/version.ml
+mv src/version.ml src/version.ml-tmp
+echo "let version = \"$VERSION\"" > src/version.ml
+
+# Build the manual
 cd docs
 pdflatex manual.tex
 bibtex manual
@@ -38,42 +58,92 @@ pdflatex manual.tex
 pdflatex manual.tex
 cd ..
 
-cp docs/manual.pdf $DESTD/docs
-cp emacs/* $DESTD/emacs
-cp implementation/nspk/README $DESTD/implementation/nspk
-cp implementation/wlsk/README $DESTD/implementation/wlsk
-cp implementation/ssh/README $DESTD/implementation/ssh
-cp implementation/nspk/build.sh $DESTD/implementation/nspk
-cp implementation/wlsk/build.sh $DESTD/implementation/wlsk
-cp implementation/ssh/build.sh $DESTD/implementation/ssh
-cp examples/arinc823/gen $DESTD/examples/arinc823
-cp examples/kerberos/*.pcv examples/kerberos/*.m4.cv $DESTD/examples/kerberos
-cp examples/textsecure/runcv $DESTD/examples/textsecure
-cp examples/tls13/runcv examples/tls13/README.md $DESTD/examples/tls13
-cp examples/wireguard/boolean_choice.cvl examples/wireguard/hashgen.ml examples/wireguard/preamble.cvl examples/wireguard/runWG.25519 examples/wireguard/separator.cvl examples/wireguard/WG.25519.dos.cv examples/wireguard/*.m4.cv $DESTD/examples/wireguard
+mkdir "$DESTD"
 
-for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv* cryptolib/commonlib.cvl cryptolib/crypto.pvl cryptolib/*.ocv 
+sed "s/VERSION/$VERSION/g;s/YEAR/$YEAR/g" README > "$DESTD"/README
+
+mkdir "$DESTD"/cryptolib "$DESTD"/docs "$DESTD"/examples "$DESTD"/examples/basic "$DESTD"/examples/obasic "$DESTD"/examples/kerberos "$DESTD"/examples/arinc823 "$DESTD"/examples/arinc823/sharedkey "$DESTD"/examples/arinc823/publickey "$DESTD"/examples/textsecure "$DESTD"/examples/tls13 "$DESTD"/examples/wireguard "$DESTD"/src "$DESTD"/tests "$DESTD"/emacs "$DESTD"/implementation "$DESTD"/implementation/nspk "$DESTD"/implementation/wlsk "$DESTD"/implementation/ssh
+
+for i in CHANGES LICENSE build build.bat test docs/manual.pdf emacs/* implementation/nspk/README implementation/wlsk/README implementation/ssh/README implementation/nspk/build.sh implementation/wlsk/build.sh implementation/ssh/build.sh implementation/ssh/prepare examples/arinc823/prepare examples/kerberos/prepare examples/kerberos/*.pcv examples/kerberos/*.m4.cv examples/textsecure/prepare examples/tls13/README.md examples/wireguard/boolean_choice.cvl examples/wireguard/hashgen.ml examples/wireguard/preamble.cvl examples/wireguard/prepare examples/wireguard/separator.cvl examples/wireguard/WG.25519.dos.cv examples/wireguard/*.m4.cv src/rusage.c
 do
-        if [ -f $i ]
-        then
-                cat distrib/head.ml $i > $DESTD/$i
-        fi
-done
-for i in src/*.mly 
-do
-        if [ -f $i ]
-        then
-                (echo "%{"; cat distrib/head.ml; echo "%}"; cat $i) > $DESTD/$i
-        fi
+    cp "$i" "$DESTD/$i"
 done
 
-(cat distrib/head.ml;echo "let version = \""$VERSION\") > $DESTD/src/version.ml
+for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv* cryptolib/commonlib.cvl cryptolib/crypto.pvl cryptolib/*.ocv
+do
+    if [ -f "$i" ]
+    then
+        cat distrib/head_year_tmp.ml "$i" > "$DESTD"/"$i"
+    fi
+done
 
-cp $DESTD/implementation/crypto_real.ml $DESTD/implementation/crypto.ml
+for i in src/*.mly
+do
+    if [ -f "$i" ]
+    then
+        (echo "%{"; cat distrib/head_year_tmp.ml; echo "%}"; cat "$i") > "$DESTD"/"$i"
+    fi
+done
 
-rm $DESTD/src/*lexer.ml $DESTD/src/*parser.ml $DESTD/src/*parser.mli $DESTD/src/profile.ml* 
+cp "$DESTD"/implementation/crypto_real.ml "$DESTD"/implementation/crypto.ml
 
-cd $DEST
-tar -czf $DEST/cryptoverif$VERSION.tar.gz cryptoverif$VERSION
-rm -r $DESTD
+rm "$DESTD"/src/*lexer.ml "$DESTD"/src/*parser.ml "$DESTD"/src/*parser.mli "$DESTD"/src/profile.ml*
 
+cd "$DEST"
+
+tar -czf "$DEST"/cryptoverif"$VERSION".tar.gz cryptoverif"$VERSION"
+rm -r "$DESTD"
+
+cd "$CWD"/..
+
+if uname -a | grep -E -q \(Cygwin\)\|\(MINGW\)
+then
+
+    echo "Creating binary release of CryptoVerif version '$VERSION'."
+    
+    # We are now in the root directory of CryptoVerif.
+    mkdir "$DESTD"
+    
+    # Build executables
+    ./build
+    
+    # Build wireguard.cvl
+    cd examples/wireguard
+    ./prepare
+    cd ../..
+
+    sed "s/VERSION/$VERSION/g;s/YEAR/$YEAR/g" distrib/READMEBIN > "$DESTD"/READMEBIN
+    
+    mkdir "$DESTD"/docs "$DESTD"/examples "$DESTD"/examples/basic "$DESTD"/examples/obasic "$DESTD"/examples/kerberos "$DESTD"/examples/arinc823 "$DESTD"/examples/arinc823/sharedkey "$DESTD"/examples/arinc823/publickey "$DESTD"/examples/textsecure "$DESTD"/examples/tls13 "$DESTD"/examples/wireguard "$DESTD"/tests "$DESTD"/emacs "$DESTD"/implementation "$DESTD"/implementation/nspk "$DESTD"/implementation/wlsk "$DESTD"/implementation/ssh
+    
+    for i in CHANGES LICENSE default.cvl default.ocvl cryptoverif.pvl test cryptoverif.exe cryptogen.exe analyze.exe addexpectedtags.exe docs/manual.pdf emacs/* implementation/nspk/README implementation/wlsk/README implementation/ssh/README implementation/nspk/build.sh implementation/wlsk/build.sh implementation/ssh/build.sh implementation/ssh/prepare examples/arinc823/prepare examples/kerberos/prepare examples/kerberos/*.pcv examples/kerberos/*.m4.cv examples/textsecure/prepare examples/tls13/README.md examples/wireguard/mylib.cvl examples/wireguard/prepare examples/wireguard/WG.25519.dos.cv examples/wireguard/*.m4.cv 
+    do
+	cp "$i" "$DESTD/$i"
+    done
+
+    for i in implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh*.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv*
+    do
+	if [ -f "$i" ]
+	then
+	    cat distrib/head_year_tmp.ml "$i" > "$DESTD"/"$i"
+	fi
+    done
+
+    cp "$DESTD"/implementation/crypto_real.ml "$DESTD"/implementation/crypto.ml
+    
+    cd "$DEST"
+    
+    zip -r "$DEST"/cryptoverifbin"$VERSION".zip cryptoverif"$VERSION"
+    rm -r "$DESTD"
+    
+else
+    echo Could not build Windows binary distribution.
+    echo You need to be under cygwin or mingw for that.
+fi
+
+# Remove temporary files
+cd "$CWD"/..
+mv src/version.ml-tmp src/version.ml
+rm distrib/head_year_tmp.ml
+
+cd "$CWD"

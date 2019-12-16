@@ -481,5 +481,5 @@ out(c25, (pkC, spkC, spkK, pkCA, collkey));
 
 (* EXPECTED
 RESULT Could not prove event(fullCT(K, T, S, N, k, x, z, y)) && event(fullTC(C, S, N, k', x', z', v, y)) ==> (k = k') with public variables keySK, keyTSK.
-8.400s (user 8.312s + system 0.088s), max rss 248496K
+11.644s (user 11.612s + system 0.032s), max rss 63628K
 END *)

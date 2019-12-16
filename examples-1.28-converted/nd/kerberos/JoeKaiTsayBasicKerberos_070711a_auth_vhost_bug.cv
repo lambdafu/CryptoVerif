@@ -293,5 +293,5 @@ out(c20, ());
 
 (* EXPECTED
 RESULT Could not prove event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, z, v', w))).
-3.592s (user 3.524s + system 0.068s), max rss 137136K
+3.896s (user 3.872s + system 0.024s), max rss 35928K
 END *)

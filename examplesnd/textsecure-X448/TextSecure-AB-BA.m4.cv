@@ -15,7 +15,7 @@ crypto uf_cma_corrupt(sign) signBseed;
 ',`
 crypto uf_cma(sign) signBseed;
 ')
-out_game "g11.cv" occ;
+out_game "g11.out.cv" occ;
 (* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
 insert before "new x_9: Z" "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
@@ -26,7 +26,7 @@ insert after "in(ch5" "if pow8(x_pubA_2) = pow8(pubA) then";
 ')
 insert after "in(ch1_1" "let (subGtoG(x1'), subGtoG(x2'), subGtoG(x3'), subGtoG(x4'), subGtoG(x5')) = (x1,x2,x3,x4,x5) in"; 
 crypto rom(H5);
-out_game "g2.cv" occ;
+out_game "g2.out.cv" occ;
 (* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
 insert before "new x_7: Z" "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
@@ -37,7 +37,7 @@ insert after "in(ch7" "if pow8(x_pubA_3) = pow8(pubA) then";
 ')
 insert after "in(ch1_2" "let (subGtoG(x1_1'), subGtoG(x2_1'), subGtoG(x3_1'), subGtoG(x4_1')) = (x1_1,x2_1,x3_1,x4_1) in"; 
 crypto rom(H4);
-out_game "g3.cv";
+out_game "g3.out.cv";
 crypto gdh(gexp_div_8) [variables: x_13 -> a, x_12 -> b, x_11 -> b, x_10 -> b, x_9 -> a, x_8 -> a, x_7 -> a, x_6 -> a  .];
 crypto int_ctxt(enc) *;
 crypto ind_cpa(enc) *;
@@ -441,24 +441,24 @@ ifdef(`FS',`
 
 ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-X448/TextSecure-AB-BA.m4.cv TAG: 1
 All queries proved.
-154.548s (user 154.032s + system 0.516s), max rss 3179936K
+64.604s (user 64.528s + system 0.076s), max rss 202608K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-X448/TextSecure-AB-BA.m4.cv TAG: 2
 All queries proved.
 101.476s (user 101.000s + system 0.476s), max rss 2647440K
 END *)
 ')
 ',`
 ifdef(`STD',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-X448/TextSecure-AB-BA.m4.cv TAG: 3
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
-197.484s (user 196.728s + system 0.756s), max rss 4174320K
+63.840s (user 63.716s + system 0.124s), max rss 202544K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-X448/TextSecure-AB-BA.m4.cv TAG: 4
 All queries proved.
 105.172s (user 104.660s + system 0.512s), max rss 2406832K
 END *)

@@ -7,5 +7,5 @@ process
 
 (* EXPECTED
 Error: This expression has type bitstring but expects type bool
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

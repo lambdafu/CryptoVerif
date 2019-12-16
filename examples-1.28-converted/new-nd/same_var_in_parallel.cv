@@ -167,5 +167,5 @@ process
 
 (* EXPECTED
 Error: keyA is referenced in public variables of a query and is defined several times in incompatible ways
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

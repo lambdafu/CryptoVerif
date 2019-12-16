@@ -10,7 +10,7 @@ val proof_output : string ref
     
 val front_end : frontend ref
 
-val lib_name : string ref
+val lib_name : string option ref
 
 (* memory saving *)
 val forget_old_games : bool ref

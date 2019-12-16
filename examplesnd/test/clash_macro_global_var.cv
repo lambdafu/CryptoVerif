@@ -20,5 +20,5 @@ process in(pub, ()); P
 
 (* EXPECTED
 Error: x not defined
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

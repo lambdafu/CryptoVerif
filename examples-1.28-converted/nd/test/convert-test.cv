@@ -21,5 +21,5 @@ out(c, (new x_1: nonce; x_1))
 
 (* EXPECTED
 All queries proved.
-0.016s (user 0.016s + system 0.000s), max rss 38448K
+0.012s (user 0.008s + system 0.004s), max rss 10248K
 END *)

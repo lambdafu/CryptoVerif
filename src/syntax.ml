@@ -39,22 +39,36 @@ let parse filename =
   with Sys_error s ->
     user_error s
 
-let parse_lib filename =
+let parse_lib filename_opt =
   let filename =
-    if Terms.ends_with filename ".cvl" then
-      begin
-	if (!Settings.front_end) != Settings.Channels then
-	  user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
-	filename
-      end
-    else if Terms.ends_with filename ".ocvl" then
-      begin
-	if (!Settings.front_end) == Settings.Channels then
-	  user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
-	filename
-      end
-    else
-      filename ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl")
+    match filename_opt with
+    | Some filename ->
+	if StringPlus.case_insensitive_ends_with filename ".cvl" then
+	  begin
+	    if (!Settings.front_end) != Settings.Channels then
+	      user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
+	    filename
+	  end
+	else if StringPlus.case_insensitive_ends_with filename ".ocvl" then
+	  begin
+	    if (!Settings.front_end) == Settings.Channels then
+	      user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
+	    filename
+	  end
+	else
+	  filename ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl")
+    | None ->
+	(* Use the default library *)
+	let filename = "default" ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl") in
+	if Sys.file_exists filename then
+	  filename
+	else
+	  (* Look for the default library also in the CryptoVerif directory *)
+	  let filename' = Filename.concat (Filename.dirname Sys.executable_name) filename in
+	  if Sys.file_exists filename' then
+	    filename'
+	  else
+	    user_error ("Could not find default library of primitives "^filename)
   in
   try
     let ic = open_in filename in
@@ -3719,7 +3733,7 @@ let check_query = function
     PQSecret (i, pub_vars, options) ->
       let onesession = ref false in
       List.iter (fun (s,ext) ->
-	if Terms.starts_with s "pv_" then
+	if StringPlus.starts_with s "pv_" then
 	  () (* Ignore ProVerif options *)
 	else if s = "real_or_random" || s = "cv_real_or_random" then
 	  () (* real-or-random secrecy is the default *)

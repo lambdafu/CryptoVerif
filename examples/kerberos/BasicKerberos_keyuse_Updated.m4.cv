@@ -59,11 +59,7 @@ of the CeCILL license and that you accept its terms.
 
 There is not much hope to prove the key usability in ProVerif, because it overapproximates the execution of else branches of get (it considers that they may always be executed). So we focus only on CryptoVerif. *)
 
-param N.
-param N2.
-param N3.
-param N4.
-param N5.
+param NC, NC2, NC3, NK, NT, NS, NCK, NTK, NSK.
 param qE.
 param qD.
 
@@ -214,7 +210,7 @@ let processC(Kc: key) =
 	event fullCK(hostT, n1, m, m2);
 	out(c18, acceptC1(K));
 
-	! i3 <= N3
+	! i3 <= NC2
     	in(c17, (hostT':tgs, hostS:server));				(* request service ticket for hostS from hostT *)
 	if hostT' = hostT then
 	new n3:nonce;
@@ -230,7 +226,7 @@ ifdef(`key_AK', `
 	event fullCT(hostT, hostS, n3, m, e5, m7);
 	out(c19, acceptC2(hostT, hostS));
 
-	! i4 <= N4
+	! i4 <= NC3
     	in(c20, hostS':server);						(* request service from hostS *)
 	if hostS' = hostS then      
 	new tc':timest;
@@ -381,13 +377,13 @@ process
 	new Ks: key;	(* Ks = enc key between TGS T and server S *)
 	out(start2, ());
 	(
-     	(! iC <= N processC(Kc)) | 
-     	(! iK <= N processK) |
-     	(! iT <= N processT(Kt)) |
-     	(! iS <= N processS(Ks)) |
-     	(! iCK <= N2 processCKEY(Kc)) |
-     	(! iTK <= N2 processTKEY(Kt)) |
-     	(! iSK <= N2 processSKEY(Ks)) |
+     	(! iC <= NC processC(Kc)) | 
+     	(! iK <= NK processK) |
+     	(! iT <= NT processT(Kt)) |
+     	(! iS <= NS processS(Ks)) |
+     	(! iCK <= NCK processCKEY(Kc)) |
+     	(! iTK <= NTK processTKEY(Kt)) |
+     	(! iSK <= NSK processSKEY(Ks)) |
 	(
 	in(c24, ());
 	  new b1:bool;					(* let b1 in {0,1} *)
@@ -401,14 +397,14 @@ process
 
 
 ifdef(`key_AK',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv TAG: 1
 RESULT Could not prove event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y2, w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v2, z, w))) with public variables b1.
-5.830s (user 5.810s + system 0.020s), max rss 116752K
+1.836s (user 1.820s + system 0.016s), max rss 92460K
 END *)
 ')
 ifdef(`key_SK',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv TAG: 2
 All queries proved.
-5.700s (user 5.690s + system 0.010s), max rss 132704K
+3.328s (user 3.292s + system 0.036s), max rss 92512K
 END *)
 ')

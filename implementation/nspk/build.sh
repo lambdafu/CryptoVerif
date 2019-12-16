@@ -1,16 +1,29 @@
-#!/bin/sh
+#!/bin/bash
+set -e
+
+function file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+file_exists_or_abort nspk3tbl.ocv
 
 CRYPTOKIT="-linkpkg -package cryptokit"
 
-cd ../.. 
 echo Proving the protocol...
-./cryptoverif implementation/nspk/nspk3tbl.ocv > implementation/nspk/nspk3tbl.out
-egrep '(RESULT|All)' implementation/nspk/nspk3tbl.out | grep -v "RESULT time"
+../../cryptoverif nspk3tbl.ocv > nspk3tbl.out
+grep -E '(RESULT|All)' nspk3tbl.out | grep -v "RESULT time"
 echo Generating implementation...
-./cryptoverif -impl -o implementation/nspk implementation/nspk/nspk3tbl.ocv 
-cd implementation/nspk
+../../cryptoverif -impl nspk3tbl.ocv 
 
+set +e
 rm idA idB idS pkA pkB pkS skA skB skS keytbl t tl
+set -e
 
 ocamlfind ocamlopt $CRYPTOKIT -I .. -o Skeygen ../base.mli ../base.ml ../crypto.mli ../crypto.ml ONS_Keygen.mli ONS_Keygen.ml Skeygen.ml
 ocamlfind ocamlopt $CRYPTOKIT -I .. -o Akeygen ../base.mli ../base.ml ../crypto.mli ../crypto.ml ONS_AGenKey.mli ONS_AGenKey.ml Akeygen.ml

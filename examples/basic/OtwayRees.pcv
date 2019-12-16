@@ -3,9 +3,7 @@
    of the same cryptographic rule.
 *)
 
-param N.
-param N2.
-param N3.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -130,14 +128,14 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(c13, ());
-	((! iA <= N processA(Kas)) |
-	 (! iB <= N processB(Kbs)) | 
-	 (! iS <= N processS) |
-	 (! iK <= N2 processK(Kas, Kbs)))
+	((! iA <= NA processA(Kas)) |
+	 (! iB <= NB processB(Kbs)) | 
+	 (! iS <= NS processS) |
+	 (! iK <= NK processK(Kas, Kbs)))
 
 (* EXPECTED
 RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(partB(A, x)) with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(fullB(A, k, x)) with public variables keyA, keyB; inj-event(partB(A, x)) ==> inj-event(partA(B, x)) with public variables keyA, keyB.
-1.064s (user 1.048s + system 0.016s), max rss 94432K
+1.352s (user 1.336s + system 0.016s), max rss 72176K
 END *)
 
 (* EXPECTPV
@@ -155,5 +153,5 @@ RESULT inj-event(fullA(B,k_4,x_2)) ==> inj-event(partB(A,x_2)) public_vars keyA,
 RESULT (query encoded as inj-event(fullA(B,k_4,x_2)) ==> inj-event(partB(A,x_2)))
 RESULT (even event(fullA(B,k_4,x_2)) ==> event(partB(A,x_2)) is false.)
 RESULT event(fullB(A,k_5,x_3)) && event(fullA(B,k',x_3)) ==> k_5 = k' public_vars keyA,keyB is false.
-0.400s (user 0.376s + system 0.024s), max rss 13368K
+0.232s (user 0.220s + system 0.012s), max rss 13400K
 END *)

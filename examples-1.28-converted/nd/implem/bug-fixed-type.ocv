@@ -208,5 +208,5 @@ ONS_Keygen [pkS > pkS, skS > skS ] {
 
 (* EXPECTED
 Error: The implementation of fixed types should be given by specifying their size
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

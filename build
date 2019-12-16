@@ -1,45 +1,80 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-SRC="parsing_helper.mli parsing_helper.ml occ_map.mli occ_map.ml types.ml ptree.mli settings.mli settings.ml parser.mli parser.ml lexer.ml terms.mli terms.ml array_ref.mli array_ref.ml incompatible.mli incompatible.ml info_from_term.mli info_from_term.ml def.mli def.ml match_eq.mli match_eq.ml stringmap.mli stringmap.ml polynom.mli polynom.ml display.mli display.ml  displaytex.mli displaytex.ml computeruntime.mli computeruntime.ml proba.mli proba.ml check.mli check.ml query_equiv.mli query_equiv.ml syntax.mli syntax.ml facts.mli facts.ml depanal.mli depanal.ml facts_of_elsefind.mli facts_of_elsefind.ml unique.mli unique.ml improved_def.mli improved_def.ml transf_auto_sa_rename.mli transf_auto_sa_rename.ml transf_simplify_nonexpanded.mli transf_simplify_nonexpanded.ml transf_expand.mli transf_expand.ml transf_sarename.mli transf_sarename.ml transf_remove_assign.mli transf_remove_assign.ml transf_move.mli transf_move.ml transf_insert_event.mli transf_insert_event.ml transf_globaldepanal.mli transf_globaldepanal.ml transf_merge.mli transf_merge.ml transf_simplify.mli transf_simplify.ml transf_crypto.mli transf_crypto.ml transf_insert_replace.mli transf_insert_replace.ml transf_tables.mli transf_tables.ml transf_move_array.mli transf_move_array.ml check_distinct.mli check_distinct.ml check_corresp.mli check_corresp.ml success.mli success.ml invariants.mli invariants.ml instruct.mli instruct.ml implementation.mli implementation.ml version.mli version.ml main.ml"
+SRC="parsing_helper.mli parsing_helper.ml occ_map.mli occ_map.ml types.ml ptree.mli settings.mli settings.ml parser.mli parser.ml lexer.ml stringPlus.mli stringPlus.ml terms.mli terms.ml array_ref.mli array_ref.ml incompatible.mli incompatible.ml info_from_term.mli info_from_term.ml def.mli def.ml match_eq.mli match_eq.ml stringmap.mli stringmap.ml polynom.mli polynom.ml display.mli display.ml  displaytex.mli displaytex.ml computeruntime.mli computeruntime.ml proba.mli proba.ml check.mli check.ml query_equiv.mli query_equiv.ml syntax.mli syntax.ml facts.mli facts.ml depanal.mli depanal.ml facts_of_elsefind.mli facts_of_elsefind.ml unique.mli unique.ml improved_def.mli improved_def.ml transf_auto_sa_rename.mli transf_auto_sa_rename.ml transf_simplify_nonexpanded.mli transf_simplify_nonexpanded.ml transf_expand.mli transf_expand.ml transf_sarename.mli transf_sarename.ml transf_remove_assign.mli transf_remove_assign.ml transf_move.mli transf_move.ml transf_insert_event.mli transf_insert_event.ml transf_globaldepanal.mli transf_globaldepanal.ml transf_merge.mli transf_merge.ml transf_simplify.mli transf_simplify.ml transf_crypto.mli transf_crypto.ml transf_insert_replace.mli transf_insert_replace.ml transf_tables.mli transf_tables.ml transf_move_array.mli transf_move_array.ml check_distinct.mli check_distinct.ml check_corresp.mli check_corresp.ml success.mli success.ml invariants.mli invariants.ml instruct.mli instruct.ml implementation.mli implementation.ml version.mli version.ml main.ml"
 
 SRCGEN="cryptogen.ml"
 
-cd src
+SRCANAL="rusage.c stringPlus.mli stringPlus.ml analyze.ml"
+SRCADDTAGS="stringPlus.mli stringPlus.ml addexpectedtags.ml"
 
-ocamlyacc -v parser.mly
-ocamllex lexer.mll
-
-case X$1 in
-    Xnative | X )
-	ocamlopt -o ../cryptoverif unix.cmxa str.cmxa $SRC
-	ocamlopt -o ../cryptogen $SRCGEN;;
-    Xdebug )
-	ocamlc -g -o ../cryptoverif unix.cma str.cma $SRC
-	ocamlc -g -o ../cryptogen $SRCGEN;;
-    Xprofile )
-	ocamlopt -I /usr/include -o ../cryptoverif str.cmxa unix.cmxa profileprim.c profile.mli profile.ml $SRC
-	ocamlopt -o ../cryptogen $SRCGEN;;
-    *)
-	echo Unknown option
-esac
-
-if [ -f xtime.c ]
+if uname -a | egrep -q \(Cygwin\)\|\(MINGW\)
 then
-    gcc -o ../xtime xtime.c
+    EXEC=.exe
+else
+    EXEC=
 fi
 
-cd ..
+case X$1 in
+    Xinstall )
+	cp cryptoverif$EXEC $2/bin/cryptoverif$EXEC
+	chmod +x $2/bin/cryptoverif$EXEC
+	cp cryptogen$EXEC $2/bin/cryptogen$EXEC
+	chmod +x $2/bin/cryptogen$EXEC
+	cp default.cvl default.ocvl $2/bin
+	mkdir -p $2/doc/cryptoverif 
+	mkdir -p $2/share/cryptoverif
+	cp -r examples $2/doc/cryptoverif/examples
+	cp -r implementation $2/doc/cryptoverif/implementation
+	cp docs/manual.pdf README LICENSE test cryptoverif.pvl analyze$EXEC addexpectedtags$EXEC $2/doc/cryptoverif
+	chmod +x $2/doc/cryptoverif/test
+	chmod +x $2/doc/cryptoverif/analyze$EXEC
+	chmod +x $2/doc/cryptoverif/addexpectedtags$EXEC
+	cp -r emacs $2/share/cryptoverif/emacs
+	cp cryptoverif.pvl $2/share/cryptoverif/cryptoverif.pvl;;
+    *)
+	cd src
+	
+	ocamlyacc -v parser.mly
+	ocamllex lexer.mll
+	
+	case X$1 in
+	    Xnative | X )
+		ocamlopt -o ../cryptoverif$EXEC unix.cmxa str.cmxa $SRC
+		ocamlopt -o ../cryptogen$EXEC $SRCGEN
+		ocamlopt -o ../analyze$EXEC unix.cmxa $SRCANAL
+		ocamlopt -o ../addexpectedtags$EXEC $SRCADDTAGS;;
+	    Xbyte )
+		ocamlc -o ../cryptoverif$EXEC unix.cma str.cma $SRC
+		ocamlc -o ../cryptogen$EXEC $SRCGEN
+		ocamlc -o ../analyze$EXEC -custom unix.cma $SRCANAL
+		ocamlc -o ../addexpectedtags$EXEC $SRCADDTAGS;;	
+	    Xdebug )
+		ocamlc -g -o ../cryptoverif$EXEC unix.cma str.cma $SRC
+		ocamlc -g -o ../cryptogen$EXEC $SRCGEN
+		ocamlc -g -o ../analyze$EXEC -custom unix.cma $SRCANAL
+		ocamlc -g -o ../addexpectedtags$EXEC $SRCADDTAGS;;
+	    Xprofile )
+		ocamlopt -I /usr/include -o ../cryptoverif$EXEC str.cmxa unix.cmxa profileprim.c profile.mli profile.ml $SRC
+		ocamlopt -o ../cryptogen$EXEC $SRCGEN
+		ocamlopt -o ../analyze$EXEC unix.cmxa $SRCANAL
+		ocamlopt -o ../addexpectedtags$EXEC $SRCADDTAGS;;
+	    *)
+		echo Unknown option
+	esac
 
-cd cryptolib
+	cd ..
+	
+	cd cryptolib
+	
+	../cryptogen$EXEC -args-from-to 1 10 all > gen.cvl
+	../cryptogen$EXEC -out oracles -args-from-to 1 10 all > gen.ocvl
+	../cryptogen$EXEC -out proverif -args-from-to 1 10 all > gen.pvl
+	
+	cat commonlib.cvl gen.cvl > ../default.cvl
+	cat commonlib.cvl gen.ocvl > ../default.ocvl
+	cat crypto.pvl gen.pvl > ../cryptoverif.pvl
 
-../cryptogen -args-from-to 1 10 all > gen.cvl
-../cryptogen -out oracles -args-from-to 1 10 all > gen.ocvl
-../cryptogen -out proverif -args-from-to 1 10 all > gen.pvl
-
-cat commonlib.cvl gen.cvl > ../default.cvl
-cat commonlib.cvl gen.ocvl > ../default.ocvl
-cat crypto.pvl gen.pvl > ../cryptoverif.pvl
-
-cd ..
+	cd ..;;
+esac

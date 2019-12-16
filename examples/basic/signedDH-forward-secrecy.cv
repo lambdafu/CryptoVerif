@@ -3,7 +3,7 @@
 
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
-param N, N2.
+param NA, NB, NK.
 
 type host [bounded].
 type keyseed [large,fixed].
@@ -79,7 +79,7 @@ let processA(hk:hashkey, skA:skey) =
   let Aga:G = exp(g,a) in
   out(cA2, (A, hostB, Aga));
   in(cA3, (=A, =hostB, Agb:G, s:signature));
-  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  find j2 <= NK suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
   let pkhostB = Rkey[j2] in
   if check(concatB(A, hostB, Aga, Agb), pkhostB, s) then
   let sA = sign(concatA(A, hostB, Aga, Agb), skA) in
@@ -109,7 +109,7 @@ let processB(hk:hashkey, skB:skey) =
   event beginB(hostA, B, Bga, Bgb);
   out(cB2, (hostA, B, Bgb, sign(concatB(hostA, B, Bga, Bgb), skB)));
   in(cB3, s:signature);
-  find j2 <= N2 suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
+  find j2 <= NK suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
   let pkhostA = Rkey[j2] in
   if check(concatA(hostA, B, Bga, Bgb), pkhostA, s) then
   let gab = exp(Bga, b) in
@@ -117,7 +117,7 @@ let processB(hk:hashkey, skB:skey) =
   event endB(hostA, B, Bga, Bgb, kB);
   (* OK *)
   if hostA = A then
-    (find j <= N suchthat defined(hostB[j], Aga[j], Agb[j], kA[j]) &&
+    (find j <= NA suchthat defined(hostB[j], Aga[j], Agb[j], kA[j]) &&
          hostB[j] = B && Aga[j] = Bga && Agb[j] = Bgb then
        (* Here, there is a A partner of this instance of B;
           the secrecy of the key is proved at A *)
@@ -139,7 +139,7 @@ let corruptB(skB:skey) =
   out(cCorruptB, skB).
 
 let processK(pkA:pkey, pkB:pkey) =
-  !N2
+  !NK
   in(cK, (Khost: host, Kkey: pkey));
   let Rkey:pkey =
 		if Khost = B then pkB else
@@ -156,9 +156,9 @@ process
 	let skB = skgen(rkB) in
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
-	((!N processA(hk,skA)) | (!N processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB) | corruptA(skA) | corruptB(skB))
+	((!NA processA(hk,skA)) | (!NB processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB) | corruptA(skA) | corruptB(skB))
 
 (* EXPECTED
 All queries proved.
-3.452s (user 3.396s + system 0.056s), max rss 141392K
+5.456s (user 5.416s + system 0.040s), max rss 92532K
 END *)

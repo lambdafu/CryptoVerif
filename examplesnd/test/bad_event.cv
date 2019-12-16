@@ -20,5 +20,5 @@ process
 	(in(c, ct: ciphertext); new e: key; out(c, dec(ct, e))) | (in(c, ct: cleartext); out(c, ct))
 
 (* EXPECTED
-0.020s (user 0.016s + system 0.004s), max rss 44384K
+0.164s (user 0.152s + system 0.012s), max rss 43984K
 END *)

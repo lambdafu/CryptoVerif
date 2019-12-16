@@ -12,9 +12,7 @@ crypto int_ctxt_corrupt(enc) k_9; (* we need the _corrupt version because k_9 = 
 success (* proves inj-event(partA(B,x)) ==> inj-event(partB(A,x)) *)
 }
 
-param N.
-param N2.
-param N3.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -164,15 +162,15 @@ process
 	new Kas: key;
 	new Kbs: key;
 	out(start, ());
-    	((! iA <= N processA(Kas)) |
-	 (! iB <= N processB(Kbs)) |
-	 (! iS <= N processS) |
-	 (! iK <= N2 processK(Kas,Kbs)))
+    	((! iA <= NA processA(Kas)) |
+	 (! iB <= NB processB(Kbs)) |
+	 (! iS <= NS processS) |
+	 (! iK <= NK processK(Kas,Kbs)))
 
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of keyA; secrecy of keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
-0.616s (user 0.608s + system 0.008s), max rss 82752K
+0.876s (user 0.856s + system 0.020s), max rss 72220K
 END *)
 
 (* EXPECTPV
@@ -185,5 +183,5 @@ RESULT (even event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) cannot be prove
 RESULT event(fullA(B,k_4,x_3)) && event(fullB(A,k',x_3)) ==> k_4 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.248s (user 0.240s + system 0.008s), max rss 15068K
+0.156s (user 0.148s + system 0.008s), max rss 14136K
 END *)

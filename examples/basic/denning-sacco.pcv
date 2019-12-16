@@ -30,10 +30,7 @@ proof {
   auto
 }
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB, NS, NSS, NK, NSK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -166,17 +163,17 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c7, (pkA, pkB, pkS));
-	((! i <= N processA(pkA, skA, pkS)) |
-	 (! i <= N processB(pkB, skB, pkS)) |
-	 (! i <= N processS(skS)) |
-	 (! i <= N processSS(skS)) |
-	 (! i <= N2 processK(pkB)) |
-	 (! i <= N2 processSK(pkA)))
+	((! i <= NA processA(pkA, skA, pkS)) |
+	 (! i <= NB processB(pkB, skB, pkS)) |
+	 (! i <= NS processS(skS)) |
+	 (! i <= NSS processSS(skS)) |
+	 (! i <= NK processK(pkB)) |
+	 (! i <= NSK processSK(pkA)))
 
 
 (* EXPECTED
 RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
-0.620s (user 0.612s + system 0.008s), max rss 78848K
+0.920s (user 0.896s + system 0.024s), max rss 69724K
 END *)
 
 (* EXPECTPV
@@ -186,5 +183,5 @@ RESULT (query encoded as inj-event(fullB(A,k_2,x_1)) ==> inj-event(fullA(B,k_2,x
 RESULT (even event(fullB(A,k_2,x_1)) ==> event(fullA(B,k_2,x_1)) is false.)
 RESULT event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) public_vars keyA is false.
 RESULT event(fullB(A,k_3,x_2)) && event(fullA(B,k',x_2)) ==> k_3 = k' public_vars keyA is true.
-0.292s (user 0.264s + system 0.028s), max rss 14988K
+0.196s (user 0.188s + system 0.008s), max rss 16084K
 END *)

@@ -98,5 +98,5 @@ out(c0, y_1);
 
 (* EXPECTED
 All queries proved.
-0.080s (user 0.056s + system 0.024s), max rss 42384K
+0.076s (user 0.076s + system 0.000s), max rss 12168K
 END *)

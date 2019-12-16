@@ -66,5 +66,5 @@ out(hret, ());
 
 (* EXPECTED
 Error: Variable a defined several times in the same find
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

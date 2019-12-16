@@ -533,5 +533,5 @@ out(c_gen2, (CApkey, Upkey, Us_certif, UX, Uka_certif, VX, Vka_certif));
 
 (* EXPECTED
 Error: Cryptographic transformation failed
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

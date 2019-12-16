@@ -68,5 +68,5 @@ out(c, h(concat2(concat2(r1_6, r1_6), concat2(two, concat2(r2_6, concat2(one, co
 
 (* EXPECTED
 All queries proved.
-0.040s (user 0.040s + system 0.000s), max rss 35552K
+0.024s (user 0.016s + system 0.008s), max rss 10744K
 END *)

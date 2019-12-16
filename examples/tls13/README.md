@@ -1,11 +1,5 @@
 # TLS 1.3: Computational Verification with CryptoVerif
 
-[Download CryptoVerif from the CryptoVerif website](http://cryptoverif.inria.fr).
-
-The `.cv` files corresponding to the lemmas on the key schedule and to the protocol should be run by the command:
-
-    cryptoverif -lib ../../default <filename>
-
 ## Lemmas on the key schedule (Section 6.3)
 
 * KeySchedule1.cv

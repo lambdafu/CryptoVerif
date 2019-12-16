@@ -65,5 +65,5 @@ return();
 
 (* EXPECTED
 All queries proved.
-0.008s (user 0.004s + system 0.004s), max rss 37856K
+0.016s (user 0.016s + system 0.000s), max rss 10368K
 END *)

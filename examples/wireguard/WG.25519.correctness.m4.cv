@@ -751,13 +751,13 @@ process
    including sessions with swapped initiator and responder, by itself. *)
 
 ifdef(`m4_replay_prot',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/wireguard/WG.25519.correctness.m4.cv TAG: 1
 All queries proved.
-3.012s (user 2.984s + system 0.028s), max rss 29208K
+4.328s (user 4.288s + system 0.040s), max rss 81968K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/wireguard/WG.25519.correctness.m4.cv TAG: 2
 All queries proved.
-2.484s (user 2.456s + system 0.028s), max rss 29328K
+3.944s (user 3.900s + system 0.044s), max rss 82204K
 END *)
 ')

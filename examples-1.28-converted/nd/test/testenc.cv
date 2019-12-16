@@ -221,5 +221,5 @@ out(c9, pk);
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of menc.
-0.032s (user 0.020s + system 0.012s), max rss 36720K
+0.020s (user 0.020s + system 0.000s), max rss 10580K
 END *)

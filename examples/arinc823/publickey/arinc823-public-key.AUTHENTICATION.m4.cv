@@ -777,13 +777,13 @@ process
 	 KDF256_128_oracle(hk1))
 
 ifdef(`REPLAY_PROT',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.m4.cv TAG: 1
 All queries proved.
-222.322s (user 222.090s + system 0.232s), max rss 1796240K
+410.340s (user 410.032s + system 0.308s), max rss 523972K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.m4.cv TAG: 2
 All queries proved.
-335.321s (user 335.129s + system 0.192s), max rss 2443520K
+535.972s (user 535.612s + system 0.360s), max rss 691568K
 END *)
 ')

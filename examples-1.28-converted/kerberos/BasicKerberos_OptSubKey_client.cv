@@ -336,5 +336,5 @@ out(c25, ());
 
 (* EXPECTED
 RESULT Could not prove secrecy of OPkeyS.
-1.884s (user 1.860s + system 0.024s), max rss 110672K
+2.036s (user 2.032s + system 0.004s), max rss 29324K
 END *)

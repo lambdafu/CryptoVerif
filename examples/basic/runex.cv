@@ -1,9 +1,7 @@
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
 (* Trivial running example for conference paper. *)
-param N.
-param N2.
-param N3.
+param NA, NB.
 
 type mkey [bounded].
 type mkeyseed [fixed].
@@ -63,10 +61,10 @@ process
 	new rmKab: mkeyseed;
 	let mKab = mkgen(rmKab) in
 	out(c, ());
-	((! N processA(Kab,mKab)) |
-	 (! N processB(Kab,mKab)))
+	((! NA processA(Kab,mKab)) |
+	 (! NB processB(Kab,mKab)))
 
 (* EXPECTED
 RESULT Could not prove secrecy of k3.
-0.036s (user 0.020s + system 0.016s), max rss 46176K
+0.164s (user 0.140s + system 0.024s), max rss 44640K
 END *)

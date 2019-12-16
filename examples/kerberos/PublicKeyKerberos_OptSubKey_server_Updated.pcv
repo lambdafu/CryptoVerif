@@ -74,11 +74,7 @@ instead.)
 
  *)
 
-param N.
-param N2.
-param N3.
-param N4.
-param N5.
+param NC, NC2, NC3, NK, NT, NS, NCC, NKC, NTK, NSK.
 
 type nonce [fixed,large].
 type client [bounded].
@@ -296,7 +292,7 @@ let processC(collkey: collisionkey, pkC: pkey, skC: skey, spkC: spkey, sskC: ssk
 	event fullCK(hostZ, hostT, n1,  m21, TGT, m24);
 	out(c18, acceptC1(hostZ,hostT));
 
-	! i3 <= N3
+	! i3 <= NC2
     	in(c17, (hosT':tgs, hostS:server));		(* request service ticket for hostS from hostT *)
 	if hosT' = hostT then
 	new n3:nonce;
@@ -309,7 +305,7 @@ let processC(collkey: collisionkey, pkC: pkey, skC: skey, spkC: spkey, sskC: ssk
 	event fullCT(hostZ, hostT, hostS, n3, TGT, e5, m7);	      	  (* m7 = {SK, n2, t_T, S}_AK if hostS = S and n3 = n2 *)
 	out(c19, acceptC2(hostT, hostS));
 
-	! i4 <= N4
+	! i4 <= NC3
     	in(c20, hostS':server);				(* request service from hostS *)
 	if hostS' = hostS then
 	new tc':timest;
@@ -444,20 +440,20 @@ process
     let certC = sign(concat1(C, pkC, spkC), skCA) in
     let certK = sign(concat7(K, pkK, spkK), skCA) in  (* Note: certK actually only needs to bind K's name to a public key for signing,  not for encryption. We just want certK and certC to have the same structure  *)
     out(c25,(pkC, spkC, spkK, pkCA));
-    ((! iC <= N processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
-     (! iK <= N processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
-     (! iT <= N processT(Kt)) |
-     (! iS <= N processS(Ks)) | 
-     (! iCC <= N5 processCCERT(skCA, certC))|
-     (! iKC <= N5 processKCERT(skCA, certK))|
-     (! iTK <= N2 processTKEY(Kt)) |
-     (! iSK <= N2 processSKEY(Ks)) |
+    ((! iC <= NC processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
+     (! iK <= NK processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
+     (! iT <= NT processT(Kt)) |
+     (! iS <= NS processS(Ks)) | 
+     (! iCC <= NCC processCCERT(skCA, certC))|
+     (! iKC <= NKC processKCERT(skCA, certK))|
+     (! iTK <= NTK processTKEY(Kt)) |
+     (! iSK <= NSK processSKEY(Ks)) |
      hashoracle(collkey))
 
 
 (* EXPECTED
 RESULT Could not prove secrecy of OPkeyC.
-24.448s (user 24.132s + system 0.316s), max rss 324320K
+45.244s (user 45.152s + system 0.092s), max rss 155528K
 END *)
 
 (* EXPECTPV
@@ -469,5 +465,5 @@ RESULT event(fullCS(S,T,K,z_4,y_4,w)) ==> event(fullSC(C,x_5,y'_1,w)) public_var
 RESULT secret OPkeyC is true.
 RESULT secret OPkeyC is true.
 RESULT secret OPkeyS is true.
-959.852s (user 955.248s + system 4.604s), max rss 6602920K
+947.608s (user 944.120s + system 3.488s), max rss 6304520K
 END *)

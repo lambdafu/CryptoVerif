@@ -140,5 +140,5 @@ process
 
 (* EXPECTED
 Error: Only restrictions are allowed to take arguments as indices
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

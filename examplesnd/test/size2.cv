@@ -4,5 +4,5 @@ process 0
 
 (* EXPECTED
 Error: For uniform distributions, the estimate for size of the type and probability of collision should be equal
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

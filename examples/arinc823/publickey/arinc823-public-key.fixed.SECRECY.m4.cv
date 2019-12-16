@@ -739,7 +739,7 @@ process
 	 SHA256_oracle(hk) |
 	 KDF256_128_oracle(hk1) | compromise(dU0, dV0, sCA))
 
-(* EXPECTED
+(* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.SECRECY.m4.cv TAG: 1
 All queries proved.
-3305.887s (user 3305.119s + system 0.768s), max rss 4957968K
+3721.652s (user 3721.164s + system 0.488s), max rss 1045196K
 END *)

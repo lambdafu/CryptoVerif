@@ -543,5 +543,5 @@ RESULT Could not prove one-session secrecy of keyB, one-session secrecy of keyA,
 
 EXPECTED
 All queries proved.
-2.568s (user 2.552s + system 0.016s), max rss 106032K
+3.016s (user 3.008s + system 0.008s), max rss 29212K
 END *)

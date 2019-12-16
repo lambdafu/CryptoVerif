@@ -134,5 +134,5 @@ out(c1[i_1], p)
 
 (* EXPECTED
 All queries proved.
-0.024s (user 0.016s + system 0.008s), max rss 34256K
+0.016s (user 0.016s + system 0.000s), max rss 10296K
 END *)

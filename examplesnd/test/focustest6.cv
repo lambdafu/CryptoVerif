@@ -13,5 +13,5 @@ process in(c, ()); event e1
 
 (* EXPECTED
 Error: Focus: useless command since all queries remain active
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

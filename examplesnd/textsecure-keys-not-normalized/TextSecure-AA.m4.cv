@@ -8,33 +8,33 @@ set useKnownEqualitiesWithFunctionsInMatching = true.
 proof {
 ifdef(`FS',`
 crypto uf_cma_corrupt(sign);
-out_game "g1.cv" occ;
+out_game "g1.out.cv" occ;
 (* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
 insert ifdef(`REPLAY_PROT',`284',`261') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubA) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
 insert 67 "if pow8(x_pubA_1) = pow8(pubA) then";
 crypto rom(H5);
-out_game "g2.cv" occ;
+out_game "g2.out.cv" occ;
 (* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
 insert ifdef(`REPLAY_PROT',`3782',`3759') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubA) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
 insert 1020 "if pow8(x_pubA_2) = pow8(pubA) then";
 ',`
 crypto uf_cma(sign);
-out_game "g1.cv" occ;
+out_game "g1.out.cv" occ;
 (* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
 insert ifdef(`REPLAY_PROT',`330',`307') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubA) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
 insert 66 "if pow8(x_pubA_1) = pow8(pubA) then";
 crypto rom(H5);
-out_game "g2.cv" occ;
+out_game "g2.out.cv" occ;
 (* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
 insert ifdef(`REPLAY_PROT',`4088',`4065') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubA) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
 insert 1187 "if pow8(x_pubA_2) = pow8(pubA) then";
 ')
 crypto rom(H4);
-out_game "g3.cv";
+out_game "g3.out.cv";
 crypto use_subgroup(gexp) secA0 sephSecAB1 ephSecAB1 ephSecBA1_2 ephSecBA1'_2 ephSecBA2_2 ephSecBA2'_2;
 crypto gdh(gexp) [variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1_2 -> a, ephSecBA1'_2 -> a, ephSecBA2_2 -> a, ephSecBA2'_2 -> a .];
 crypto int_ctxt(enc) *;
@@ -329,26 +329,26 @@ ifdef(`FS',`
 
 ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 1
 All queries proved.
-31.196s (user 30.940s + system 0.256s), max rss 1053776K
+87.504s (user 87.360s + system 0.144s), max rss 304048K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 2
 All queries proved.
-73.888s (user 73.444s + system 0.444s), max rss 2430016K
+92.236s (user 92.132s + system 0.104s), max rss 264848K
 END *)
 ')
 ',`
 ifdef(`STD',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 3
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
-39.424s (user 39.080s + system 0.344s), max rss 1387136K
+85.120s (user 84.972s + system 0.148s), max rss 304060K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 4
 All queries proved.
-75.108s (user 74.624s + system 0.484s), max rss 2466208K
+89.540s (user 89.452s + system 0.088s), max rss 264756K
 END *)
 ')
 ')

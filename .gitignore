@@ -1,11 +1,13 @@
 /cryptoverif
-/xtime
 /convert
+/analyze
+/addexpectedtags
 
+/cryptoverif.pvl
+/default.cvl
+/default.ocvl
 
-cryptoverif.pvl
-default.cvl
-default.ocvl
+results
 
 tests/*
 
@@ -15,6 +17,7 @@ tests/*
 *.o
 *~
 *.out
+*.out.cv
 *.result
 *.exe
 
@@ -47,7 +50,9 @@ docs/manual.pdf
 docs/manual.ps
 docs/manual.out
 
-examples/arinc823/arinc823.cvl
+examples-1.28-converted/mylib.cvl
+examples-1.28-converted/mylib.ocvl
+examples/arinc823/mylib.cvl
 examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.NOREPLAY_PROT.cv
 examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.REPLAY_PROT.cv
 examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.NOREPLAY_PROT.cv
@@ -123,7 +128,7 @@ examples/wireguard/*.cvres
 examples/wireguard/*replay_prot.cv
 examples/wireguard/hashgen
 examples/wireguard/hashoracles.cvl
-examples/wireguard/wireguard.cvl
+examples/wireguard/mylib.cvl
 implementation/nspk/A
 implementation/nspk/Akeygen
 implementation/nspk/B
@@ -166,7 +171,7 @@ implementation/ssh*/add_key
 implementation/ssh*/client
 implementation/ssh*/keygen
 implementation/ssh*/server
-examplesnd/textsecure-keys-not-normalized/textsecure.cvl
+examplesnd/textsecure-keys-not-normalized/mylib.cvl
 
 tests
 

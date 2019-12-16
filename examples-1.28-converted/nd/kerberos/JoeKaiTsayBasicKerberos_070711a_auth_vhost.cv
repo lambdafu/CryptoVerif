@@ -355,5 +355,5 @@ out(c20, ());
 
 (* EXPECTED
 All queries proved.
-3.916s (user 3.840s + system 0.076s), max rss 137376K
+4.228s (user 4.208s + system 0.020s), max rss 35888K
 END *)

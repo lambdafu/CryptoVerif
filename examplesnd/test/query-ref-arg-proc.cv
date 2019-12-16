@@ -140,5 +140,5 @@ process
 
 (* EXPECTED
 Error: Kas is referenced in a secrecy query and is defined as an argument of a parametric input process
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

@@ -183,5 +183,5 @@ out(start, ());
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of keyA; secrecy of keyA; event(fullA(B, k, x)) && event(fullB(A, k', x)) ==> (k = k') with public variables keyA.
-4.752s (user 4.712s + system 0.040s), max rss 107472K
+5.244s (user 5.224s + system 0.020s), max rss 32404K
 END *)

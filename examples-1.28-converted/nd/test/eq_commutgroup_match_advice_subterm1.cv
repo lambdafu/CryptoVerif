@@ -43,5 +43,5 @@ out(c, (mult(t, one) = inv(zero)))
 
 (* EXPECTED
 All queries proved.
-0.028s (user 0.028s + system 0.000s), max rss 41904K
+0.020s (user 0.020s + system 0.000s), max rss 10464K
 END *)

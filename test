@@ -1,156 +1,168 @@
 #!/bin/bash
 
-if [ -x ./xtime ]
+set -e
+cvdir=$PWD
+
+if [ ! -x ./analyze ]
 then
-    PROG=./xtime
-else
-    PROG=
+    echo ERROR analyze not found
+    exit 2
 fi
 
 if [ -d /local/bblanche/tmp ]
 then
-    TMP=/local/bblanche/tmp/tmp
+    TMPPARENT=/local/bblanche/tmp
 else
-    TMP=tmp
+    TMPPARENT=.
 fi
 
-# The arguments of analyze are
-# $1 = protocol name
-# $2 = CryptoVerif options
-# $3 = input filename (wrt the CryptoVerif directory)
-# $4 = output filename (wrt the CryptoVerif directory)
+TMPDIR="$(mktemp -d -p $TMPPARENT)"
+TMP=$TMPDIR/tmp
 
-function analyze()
+# usage message, in case of bad arguments
+
+function usage()
 {
-	echo -n PROTOCOL $1 " "
-	$PROG ./cryptoverif $2 $3 > $TMP.out 2>&1 
-	echo PROTOCOL $1 >> $4
-	cat $TMP.out >> $4
-	egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) $TMP.out > $TMP.res 
-	awk '/EXPECTED/, /END/ { print $0; }' $3 | grep -v EXPECTED | grep -v END > $TMP.expected
-	grep -v user $TMP.expected > $TMP.expectedres
-	grep -v user $TMP.res > $TMP.actualres
-	if diff -q -b $TMP.expectedres $TMP.actualres >/dev/null
-	then 
-	    echo OK
-	else
-	    echo
-	    echo RESULTS DIFFER! Expected:
-	    cat  $TMP.expectedres
-	    echo Actual:
-	    cat $TMP.actualres
-	fi
-	(echo -n "EXPECTED: "; grep user $TMP.expected ; echo -n "ACTUAL: "; grep user $TMP.res) | awk '/^EXPECTED:/ { expectedtime = substr($2, 0, length($2)-1); } /^ACTUAL:/ { actualtime = substr($2, 0, length($2)-1); } END { if (actualtime != "") { if (actualtime + 0 > expectedtime * 1.2 + 0.2) { print "Slower: old=" expectedtime " new=" actualtime}; if (actualtime + 0 < expectedtime * 0.8 - 0.2) { print "Faster: old=" expectedtime " new=" actualtime; } } }'
+    cat <<'EOF' 
+Usage: test <mode> <test_set>
+where <mode> can be:
+- test: test the mentioned scripts
+- test_add: test the mentioned scripts and add the 
+expected result in the script when it is missing
+- add: add the expected result in the script when it is missing, 
+do not test scripts that already have an expected result
+- update: test the mentioned scripts and update the expected
+result in the script
+and <test_set> can be: basic, proverif, converted, big, all, or
+dir <prefix> <list_of_directories>
+- proverif runs ProVerif on tests suitable for it
+- converted runs CryptoVerif on examples converted from CryptoVerif 1.28
+- all runs all tests included in basic, proverif, converted, and big
+- dir <prefix> <list_of_directories> analyzes the mentioned directories
+using CryptoVerif, using <prefix> as prefix for the output files.
+EOF
+    exit 2
 }
 
-function analyzepv()
+
+# analyzedirlist <prefix> <list of directories>
+# analyzes the CryptoVerif scripts in the given list of directories,
+# and outputs the results in tests/<prefix>`date`
+# with summary in tests/sum-<prefix>`date`
+# and comparison with expected results on the standard output and in tests/res-<prefix>`date`
+
+function analyzedirlist()
 {
-	echo -n PROTOCOL $1 " "
-	$PROG $HOME/proverif/proverif/proverif $2 $3 > $TMP.out 2>&1 
-	echo PROTOCOL $1 >> $4
-	cat $TMP.out >> $4
-	egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) $TMP.out > $TMP.res 
-	awk '/EXPECTPV/, /END/ { print $0; }' $3 | grep -v EXPECTPV | grep -v END > $TMP.expected
-	grep -v user $TMP.expected > $TMP.expectedres
-	grep -v user $TMP.res > $TMP.actualres
-	if diff -q -b $TMP.expectedres $TMP.actualres >/dev/null
-	then 
-	    echo OK
-	else
-	    echo
-	    echo RESULTS DIFFER! Expected:
-	    cat  $TMP.expectedres
-	    echo Actual:
-	    cat $TMP.actualres
+    prefix=$1
+    shift
+    for dir in "$@"
+    do
+	if [ -d "$dir" ]
+	then
+	    if [ -x "$dir/prepare" ]
+	    then
+		cd "$dir"
+		./prepare
+		cd "$cvdir"
+	    fi
 	fi
-	(echo -n "EXPECTED: "; grep user $TMP.expected ; echo -n "ACTUAL: "; grep user $TMP.res) | awk '/^EXPECTED:/ { expectedtime = substr($2, 0, length($2)-1); } /^ACTUAL:/ { actualtime = substr($2, 0, length($2)-1); } END { if (actualtime != "") { if (actualtime + 0 > expectedtime * 1.2 + 0.2) { print "Slower: old=" expectedtime " new=" actualtime}; if (actualtime + 0 < expectedtime * 0.8 - 0.2) { print "Faster: old=" expectedtime " new=" actualtime; } } }'
+    done
+    ./analyze CV "$mode" "$TMPDIR" "$prefix" dirs "$@"
 }
+
+# The functions basic, proverif, converted, and big run the various
+# available tests.
+
+function basic()
+{
+    analyzedirlist test examples/basic examples/obasic examples/kerberos implementation/wlsk implementation/nspk
+
+    if [ -d examplesnd ]
+    then
+	analyzedirlist ndtest examplesnd/test examplesnd/proverif examplesnd/otest
+    fi
+}
+
+function proverif()
+{
+    echo
+    echo PROVERIF
+    echo
+    ./analyze PV "$mode" "$TMPDIR" pv dirs examples examplesnd/proverif
+}
+
+function converted()
+{
+    if [ -d examples-1.28-converted ]
+    then
+	analyzedirlist conv examples-1.28-converted
+    fi
+}
+
+function big()
+{
+    analyzedirlist textsecure examples/textsecure examplesnd/textsecure examplesnd/textsecure-keys-not-normalized examplesnd/textsecure-X448 examplesnd/textsecure-single_coord_ladder
+
+    # The TLS conference version is tested only as a converted example.
+    analyzedirlist tlsx examples/tls13
+
+    analyzedirlist arinc examples/arinc823
+    
+    if [ -d ../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational ]
+    then
+	dir=../dev/projects/2014ANRAirbus/ICAO9880-May2017/computational
+    else
+	dir=$HOME/dev/projects/2014ANRAirbus/ICAO9880-May2017/computational
+    fi
+    if [ -d "$dir" ]
+    then
+	analyzedirlist icao9880-May17- "$dir"
+    fi
+
+    analyzedirlist ssh implementation/ssh
+
+    analyzedirlist WG examples/wireguard
+}
+
 
 mkdir -p tests
 
-for k in key_AK key_SK
-do
-    for loc in loc1 loc2 loc3
-    do
-	m4 -D$k -D$loc examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv > examples/kerberos/BasicKerberos_keyuse.$k.$loc.cv
-	m4 -D$k -D$loc examples/kerberos/PublicKeyKerberos_keyuse_Updated.m4.cv > examples/kerberos/PublicKeyKerberos_keyuse.$k.$loc.cv
-    done
-done
+case X$1 in
+    X)  mode=test;;
+    Xtest|Xtest_add|Xadd|Xupdate)
+	mode=$1
+	shift;;
+    *)  echo "Error: unknown mode $1."
+	usage;;
+esac
 
-for key in IVCC IVSC EKCC EKSC MKCC MKSC
-do
-    m4 -DONEKEY=$key implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key-$key.ocv
-done
-m4 implementation/ssh/ssh-secrecy-key.m4.ocv > implementation/ssh/ssh-secrecy-key.ocv
+case X$1 in
+    X|Xbasic)
+	# test
+	basic;;
+    Xproverif)
+	# test proverif
+	proverif;;
+    Xconverted)
+	# test converted
+	converted;;
+    Xbig)
+	# test big
+	big;;
+    Xall)
+	# test all  (runs all tests)
+	basic
+	proverif
+	converted
+	big;;
+    Xdir)
+	# test dir <prefix> <list of directories>
+	# analyzes the CryptoVerif scripts in the given list of directories,
+	# and outputs the results in tests/<prefix>`date`
+	shift
+	analyzedirlist "$@";;
+    *)  echo "Unknown analysis set $1"
+	usage
+esac
 
-
-echo
-echo TEST
-echo
-output=test`date '+%Y.%m.%d-%H_%M_%S'`
-(
-for i in examples/basic/*.pcv examples/basic/*.cv examples/obasic/*.ocv examples/kerberos/*.pcv examples/kerberos/*.cv
-do
-    if [ -f $i ]
-    then
-	case $i in
-	    *.m4.cv) ;;
-	    *)       analyze $i "" $i tests/$output;;
-	esac
-    fi
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-
-
-if [ -d examplesnd ]
-then
-echo
-echo NDTEST
-echo
-output=ndtest`date '+%Y.%m.%d-%H_%M_%S'`
-rm examplesnd/*/*~ 
-(
-echo
-echo CHANNELS FRONTEND
-echo
-
-for i in examplesnd/test/* examplesnd/proverif/*.pcv implementation/wlsk/woolamskcorr_tbl.cv
-do
-    if [ -f $i ]
-    then
-	analyze $i "" $i tests/$output
-    fi
-done
-
-echo
-echo ORACLES FRONTEND
-echo
-
-for i in examplesnd/otest/* implementation/nspk/nspk3tbl.ocv implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key-*.ocv
-do
-    if [ -f $i ]
-    then
-	analyze $i "-in oracles" $i tests/$output
-    fi
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|'RESULT Could not prove'\|'All queries proved'\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-fi
-
-echo
-echo PROVERIF
-echo
-output=pv`date '+%Y.%m.%d-%H_%M_%S'`
-(
-for i in examples/*/*.pcv examplesnd/proverif/*.pv examplesnd/proverif/*.pcv
-do
-    if [ -f $i ]
-    then
-	    analyzepv $i "-lib cryptoverif.pvl" $i tests/$output
-    fi
-done
-) | tee tests/res-$output
-egrep \(PROTOCOL\|RESULT\|xtime\|Error\|user\) tests/$output > tests/sum-$output
-
-rm $TMP.*
+rm -r "$TMPDIR"

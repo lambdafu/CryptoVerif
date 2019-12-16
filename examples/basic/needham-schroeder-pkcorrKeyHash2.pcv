@@ -15,10 +15,7 @@ success;
 auto
 }
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -173,20 +170,20 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c15, (pkA, pkB, pkS));
-	((! iA <= N processA(skA,pkS,hk)) |
-	 (! iB <= N processB(skB,pkS,hk)) |
-	 (! iS <= N processS(skS)) |
-	 (! iK <= N2 processK(pkA,pkB)) | hashoracle(hk))
+	((! iA <= NA processA(skA,pkS,hk)) |
+	 (! iB <= NB processB(skB,pkS,hk)) |
+	 (! iS <= NS processS(skS)) |
+	 (! iK <= NK processK(pkA,pkB)) | hashoracle(hk))
 
 
 (* EXPECTED
 All queries proved.
-4.616s (user 4.604s + system 0.012s), max rss 141280K
+6.900s (user 6.868s + system 0.032s), max rss 92540K
 END *)
 
 (* EXPECTPV
 RESULT secret keyA is true.
 RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
 RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) public_vars keyA is true.
-0.124s (user 0.100s + system 0.024s), max rss 12456K
+0.072s (user 0.072s + system 0.000s), max rss 12980K
 END *)

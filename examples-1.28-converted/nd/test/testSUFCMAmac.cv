@@ -80,5 +80,5 @@ out(c, ());
 
 (* EXPECTED
 RESULT Could not prove secrecy of k3.
-0.024s (user 0.016s + system 0.008s), max rss 39104K
+0.024s (user 0.016s + system 0.008s), max rss 10632K
 END *)

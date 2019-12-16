@@ -145,5 +145,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)).
-0.116s (user 0.112s + system 0.004s), max rss 47600K
+0.112s (user 0.104s + system 0.008s), max rss 12276K
 END *)

@@ -25,10 +25,7 @@ only.)
 
 *)
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -114,18 +111,18 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c13, (pkA, pkB, pkS));
-	((! iA <= N processA(skA)) |
-	 (! iB <= N processB(pkS)) | 
-	 (! iS <= N processS(skS)) |
-	 (! iK <= N2 processK(pkA,pkB)))
+	((! iA <= NA processA(skA)) |
+	 (! iB <= NB processB(pkS)) | 
+	 (! iS <= NS processS(skS)) |
+	 (! iK <= NK processK(pkA,pkB)))
 
 
 (* EXPECTED
 All queries proved.
-0.064s (user 0.064s + system 0.000s), max rss 56112K
+0.260s (user 0.244s + system 0.016s), max rss 47628K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is true.
-0.032s (user 0.028s + system 0.004s), max rss 10572K
+0.028s (user 0.024s + system 0.004s), max rss 10584K
 END *)

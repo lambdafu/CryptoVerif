@@ -176,5 +176,5 @@ process
 
 (* EXPECTED
 Error: Variable reference not allowed
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

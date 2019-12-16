@@ -518,5 +518,5 @@ out(c25, (pkC, spkC, spkK, pkCA));
 
 (* EXPECTED
 RESULT Could not prove secrecy of OPkeyC.
-29.272s (user 29.160s + system 0.112s), max rss 248672K
+32.604s (user 32.568s + system 0.036s), max rss 63636K
 END *)

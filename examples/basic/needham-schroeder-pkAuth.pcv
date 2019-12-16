@@ -13,10 +13,7 @@ success;
 auto
 }
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB, NS, NK.
 
 type nonce [fixed,large].
 type host [bounded].
@@ -140,20 +137,20 @@ process
 	let pkS = spkgen(rkS) in
 	let skS = sskgen(rkS) in
 	out(c15, (pkA, pkB, pkS));
-	((! iA <= N processA(skA,pkS)) |
-	 (! iB <= N processB(skB,pkS)) |
-	 (! iS <= N processS(skS)) |
-	 (! iK <= N2 processK(pkA,pkB)))
+	((! iA <= NA processA(skA,pkS)) |
+	 (! iB <= NB processB(skB,pkS)) |
+	 (! iS <= NS processS(skS)) |
+	 (! iK <= NK processK(pkA,pkB)))
 
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
-2.744s (user 2.736s + system 0.008s), max rss 114784K
+3.760s (user 3.716s + system 0.044s), max rss 92512K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
 RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is false.
 RESULT (even event(fullB(A,x_1)) ==> event(fullA(B,x_1)) is false.)
-0.164s (user 0.140s + system 0.024s), max rss 14236K
+0.120s (user 0.116s + system 0.004s), max rss 14204K
 END *)

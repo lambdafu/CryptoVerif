@@ -62,5 +62,5 @@ out(c, j(concat(concat(empty, one), concat(two, concat(one, empty)))))
 
 (* EXPECTED
 All queries proved.
-0.012s (user 0.012s + system 0.000s), max rss 36816K
+0.020s (user 0.016s + system 0.004s), max rss 10320K
 END *)

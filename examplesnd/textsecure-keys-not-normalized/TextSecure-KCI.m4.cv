@@ -8,24 +8,24 @@ set useKnownEqualitiesWithFunctionsInMatching = true.
 set autoMergeBranches = false.
 
 proof {
-out_game "g1.cv" occ;
+out_game "g1.out.cv" occ;
 (* Case distinction inserted after "in(ch9" in RecvAKE_Alice *)
 insert ifdef(`REPLAY_PROT',`346',`323') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
 insert 86 "if pow8(x_pubA_2) = pow8(pubA) then";
 crypto rom(H5);
-out_game "g2.cv" occ;
+out_game "g2.out.cv" occ;
 (* Case distinction inserted after "in(ch11" in RecvAKE_Alice_3DH *)
 insert ifdef(`REPLAY_PROT',`2883',`2860') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
 insert 1389 "if pow8(x_pubA_3) = pow8(pubA) then";
 crypto rom(H4);
-out_game "g3.cv";
+out_game "g3.out.cv";
 crypto use_subgroup(gexp) secA0 secB0 sephSecAB1 ephSecAB1 ephSecBA1_2 ephSecBA1'_2 ephSecBA2_2 ephSecBA2'_2;
 crypto gdh(gexp) [variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1_2 -> a, ephSecBA1'_2 -> a, ephSecBA2_2 -> a, ephSecBA2'_2 -> a  .];
 crypto int_ctxt(enc) *;
 success;
-out_game "g4.cv"
+out_game "g4.out.cv"
 }
 
 
@@ -311,13 +311,13 @@ process
 
 
 ifdef(`REPLAY_PROT',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-KCI.m4.cv TAG: 1
 All queries proved.
-118.996s (user 118.588s + system 0.408s), max rss 2329392K
+63.360s (user 63.232s + system 0.128s), max rss 264740K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-KCI.m4.cv TAG: 2
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(sb) = pow8(sb2)) && (pow8(a1) = pow8(a12)))).
-159.836s (user 159.296s + system 0.540s), max rss 3167280K
+60.872s (user 60.776s + system 0.096s), max rss 264832K
 END *)
 ')

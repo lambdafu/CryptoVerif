@@ -38,5 +38,5 @@ new s: hash
 
 (* EXPECTED
 Error: Variables in right member of equivalences should have as indexes the indexes defined by find
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

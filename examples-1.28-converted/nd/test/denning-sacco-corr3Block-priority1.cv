@@ -262,5 +262,5 @@ out(c7, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, k)) ==> inj-event(beginA(x, y, k)) with public variables keyA, keyB; secrecy of keyB; secrecy of keyA; one-session secrecy of keyB; one-session secrecy of keyA.
-0.320s (user 0.308s + system 0.012s), max rss 58304K
+0.232s (user 0.228s + system 0.004s), max rss 15256K
 END *)

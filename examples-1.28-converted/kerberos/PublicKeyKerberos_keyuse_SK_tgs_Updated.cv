@@ -558,5 +558,5 @@ out(c25, (pkC, spkC, spkK, pkCA, collkey));
 
 (* EXPECTED
 All queries proved.
-16.436s (user 16.244s + system 0.192s), max rss 320352K
+29.512s (user 29.468s + system 0.044s), max rss 81552K
 END *)

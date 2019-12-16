@@ -60,5 +60,5 @@ return(pk);
 
 (* EXPECTED
 Error: Several branches of a process have incompatible return types
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

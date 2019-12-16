@@ -99,5 +99,5 @@ out(c9, ());
 
 (* EXPECTED
 All queries proved.
-0.028s (user 0.024s + system 0.004s), max rss 35584K
+0.020s (user 0.016s + system 0.004s), max rss 10624K
 END *)

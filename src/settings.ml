@@ -7,12 +7,12 @@ type frontend =
 
 let get_implementation = ref false
 
-let out_dir = ref "."
+let out_dir = ref Filename.current_dir_name 
 let proof_output = ref ""
     
 let front_end = ref Channels
 
-let lib_name = ref "default"
+let lib_name = ref None
 
 (* memory saving *)
 let forget_old_games = ref false

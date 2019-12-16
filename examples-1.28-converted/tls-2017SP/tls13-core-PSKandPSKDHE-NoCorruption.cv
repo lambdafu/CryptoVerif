@@ -581,5 +581,5 @@ out(io21, ());
 
 (* EXPECTED
 All queries proved.
-137.352s (user 137.004s + system 0.348s), max rss 1053280K
+192.768s (user 192.580s + system 0.188s), max rss 304108K
 END *)

@@ -24,5 +24,5 @@ process
 
 (* EXPECTED
 Error: Random values in collisions in "move array" should have the same type as the variable(s) we move
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

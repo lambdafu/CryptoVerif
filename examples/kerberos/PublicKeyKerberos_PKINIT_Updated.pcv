@@ -79,11 +79,7 @@ instead.)
 
  *)
 
-param N.
-param N2.
-param N3.
-param N4.
-param N5.
+param NC, NC2, NC3, NK, NT, NS, NCC, NKC, NTK, NSK.
 
 (* types for public-key cryptography *)
 
@@ -398,11 +394,11 @@ process
 	let certC = sign(concat1(C, pkC, spkC), skCA) in
 	let certK = sign(concat7(K, pkK, spkK), skCA) in  (* Note: certK actually only needs to bind K's name to a public key for signing,  not for encryption. We just want certK and certC to have the same structure  *)
 	out(c25,(pkC, spkC, spkK, pkCA));
-    	((! iC <= N processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
-     	 (! iK <= N processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
-     	 (! iCC <= N5 processCCERT(skCA, certC))|
-     	 (! iKC <= N5 processKCERT(skCA, certK))|
-     	 (! iTK <= N2 processTKEY(Kt)) |
+    	((! iC <= NC processC(collkey, pkC, skC, spkC, sskC, certC, pkCA)) |
+     	 (! iK <= NK processK(collkey, pkK, spkK, sskK, certK, pkCA)) |
+     	 (! iCC <= NCC processCCERT(skCA, certC))|
+     	 (! iKC <= NKC processKCERT(skCA, certK))|
+     	 (! iTK <= NTK processTKEY(Kt)) |
      	 hashoracle(collkey))
 
 
@@ -410,12 +406,12 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(fullCK(K, T, N, k, w, x, y)) && event(fullKC(C, T, N, k', w, z, y)) ==> (k = k') with public variables keyAK.
-6.048s (user 5.956s + system 0.092s), max rss 198896K
+7.828s (user 7.780s + system 0.048s), max rss 105136K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullCK(K,T,N,k_1,w,x_4,y_4)) ==> inj-event(fullKC(C,T,N,k_1,w,z_4,y_4)) public_vars keyAK is true.
 RESULT event(fullCK(K,T,N,k_1,w,x_4,y_4)) && event(fullKC(C,T,N,k',w,z_4,y_4)) ==> k_1 = k' public_vars keyAK is true.
 RESULT secret keyAK is true.
-4.780s (user 4.728s + system 0.052s), max rss 135520K
+4.688s (user 4.640s + system 0.048s), max rss 135508K
 END *)

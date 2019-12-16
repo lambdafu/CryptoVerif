@@ -61,5 +61,5 @@ return();
 
 (* EXPECTED
 RESULT Could not prove secrecy of k3.
-0.032s (user 0.024s + system 0.008s), max rss 37744K
+0.032s (user 0.024s + system 0.008s), max rss 10388K
 END *)

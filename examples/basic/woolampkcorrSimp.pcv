@@ -7,10 +7,7 @@ A -> B: { pkA, B, N }_skA
 
 *)
 
-param N.
-param N2.
-param N3.
-param N4.
+param NA, NB.
 
 type nonce [large,fixed].
 type host [bounded].
@@ -63,17 +60,17 @@ process
 	let pkA = pkgen(rkA) in
 	let skA = skgen(rkA) in
 	out(c1, pkA);
-	((! iA <= N processA(pkA, skA)) |
-	 (! iB <= N processB(pkA)))
+	((! iA <= NA processA(pkA, skA)) |
+	 (! iB <= NB processB(pkA)))
 
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.016s + system 0.004s), max rss 46512K
+0.196s (user 0.176s + system 0.020s), max rss 44624K
 END *)
 
 (* EXPECTPV
 RESULT event(eB(x,y,z)) ==> event(eA(x,y,z)) is true.
 RESULT inj-event(eB(x,y,z)) ==> inj-event(eA(x,y,z)) is true.
-0.028s (user 0.020s + system 0.008s), max rss 10392K
+0.020s (user 0.020s + system 0.000s), max rss 10340K
 END *)

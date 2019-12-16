@@ -2,7 +2,7 @@
 
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
-param N, N2.
+param NA, NB, NK.
 
 type host [bounded].
 type keyseed [large,fixed].
@@ -100,7 +100,7 @@ let processB(hk:hashkey, skB:skey) =
    out(cB4, kB).
 
 let processK(pkA:pkey, pkB:pkey) =
-  !iK <= N2
+  !iK <= NK
   in(cK, (Khost: host, Kkey: pkey));
   if Khost = B then insert keys(B, pkB) else
   if Khost = A then insert keys(A, pkA) else
@@ -116,12 +116,15 @@ process
 	let skB = skgen(rkB) in
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
-   ((!iA <= N processA(hk,skA)) | (!iA <= N processB(hk,skB)) | hashoracle(hk) | processK(pkA,pkB))
+   	((!iA <= NA processA(hk,skA)) |
+	 (!iA <= NB processB(hk,skB)) |
+	 hashoracle(hk) |
+	 processK(pkA,pkB))
 
 
 (* EXPECTED
 All queries proved.
-29.652s (user 29.644s + system 0.008s), max rss 126816K
+6.124s (user 6.072s + system 0.052s), max rss 92496K
 END *)
 
 (* EXPECTPV
@@ -129,5 +132,5 @@ RESULT secret keyA is true.
 RESULT secret keyB is true.
 RESULT inj-event(endA(A,B,x,y)) ==> inj-event(beginB(A,B,x,y)) public_vars keyA,keyB is true.
 RESULT inj-event(endB(A,B,x,y)) ==> inj-event(endA(A,B,x,y)) public_vars keyA,keyB is true.
-0.180s (user 0.164s + system 0.016s), max rss 12152K
+0.120s (user 0.116s + system 0.004s), max rss 12060K
 END *)

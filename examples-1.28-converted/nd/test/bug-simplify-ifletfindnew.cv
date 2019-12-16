@@ -74,5 +74,5 @@ out(c0, pk);
 
 (* EXPECTED
 RESULT Could not prove event(bad) ==> false.
-0.020s (user 0.016s + system 0.004s), max rss 33760K
+0.012s (user 0.008s + system 0.004s), max rss 10256K
 END *)

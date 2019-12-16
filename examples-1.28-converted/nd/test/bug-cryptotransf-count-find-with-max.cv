@@ -74,5 +74,5 @@ out(c9, N_11);
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of N_11.
-0.024s (user 0.012s + system 0.012s), max rss 41376K
+0.012s (user 0.012s + system 0.000s), max rss 10376K
 END *)

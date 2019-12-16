@@ -310,13 +310,13 @@ process
         ((foreach iA <= N do run processS(hk0,pkS0,skS0)) | (foreach iB <= N do run processC(hk0)) | run hashoracle(hk0))
 
 ifdef(`ONEKEY',`
-(* EXPECTED
+(* EXPECTED FILENAME: implementation/ssh/ssh-secrecy-key.m4.ocv TAG: 1
 All queries proved.
-0.568s (user 0.552s + system 0.016s), max rss 101664K
+1.340s (user 1.284s + system 0.056s), max rss 72216K
 END *)
 ',`
-(* EXPECTED
+(* EXPECTED FILENAME: implementation/ssh/ssh-secrecy-key.m4.ocv TAG: 2
 All queries proved.
-574.392s (user 573.904s + system 0.488s), max rss 1168128K
+1434.768s (user 1434.612s + system 0.156s), max rss 305276K
 END *)
 ')

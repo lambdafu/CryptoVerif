@@ -17,38 +17,38 @@ set forgetOldGames = true.
 proof {
   set useKnownEqualitiesWithFunctionsInMatching = true;
   set elsefindFactsInSimplify = true;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.1.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.1.out.cv" occ;
   insert after_nth 1 "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_4[i]) && pow8(E_i_pub_rcvd_4) = pow8(E_i_pub_4[i]) then";
   insert after_nth 2 "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_5[i]) && pow8(E_i_pub_rcvd_5) = pow8(E_i_pub_5[i]) then";
   insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub_2[j]) && pow8(E_r_pub_rcvd_2) = pow8(E_r_pub_2[j]) then";
   insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub_3[j]) && pow8(E_r_pub_rcvd_3) = pow8(E_r_pub_3[j]) then";
   simplify;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.2.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.2.out.cv" occ;
   insert after_nth 1 "in(ch1_rom3" "let rom3_input(x1_rom3_2, G8_to_G(x2_rom3_2), G8_to_G(x3_rom3_2), x4_rom3_2, G8_to_G(x5_rom3_2), G8_to_G(x6_rom3_2), v_psk) = x_rom3_2 in";
   insert after_nth 2 "in(ch1_rom3" "let rom3_input(x1_rom3_3, G8_to_G(x2_rom3_3), G8_to_G(x3_rom3_3), x4_rom3_3, G8_to_G(x5_rom3_3), G8_to_G(x6_rom3_3), v_psk) = x_rom3_3 in";
   crypto rom(rom3_intermediate);
   crypto rom(rom3_intermediate);
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.3.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.3.out.cv" occ;
   insert after_nth 1 "in(ch1_rom2" "let rom2_input(x1_rom2_2, G8_to_G(x2_rom2_2), G8_to_G(x3_rom2_2)) = x_rom2_2 in";
   insert after_nth 2 "in(ch1_rom2" "let rom2_input(x1_rom2_3, G8_to_G(x2_rom2_3), G8_to_G(x3_rom2_3)) = x_rom2_3 in";
   crypto rom(rom2_intermediate);
   crypto rom(rom2_intermediate);
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.4.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.4.out.cv" occ;
   insert after_nth 1 "in(ch1_rom1" "let rom1_input(x1_rom1_2, G8_to_G(x2_rom1_2)) = x_rom1_2 in";
   insert after_nth 2 "in(ch1_rom1" "let rom1_input(x1_rom1_3, G8_to_G(x2_rom1_3)) = x_rom1_3 in";
   crypto rom(rom1_intermediate);
   crypto rom(rom1_intermediate);
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.5.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.5.out.cv" occ;
   crypto gdh(exp_div8) S_A1_priv S_A2_priv E_i_priv_6 E_i_priv_4 S_B1_priv S_B2_priv E_r_priv_6 E_r_priv_4;
   set useKnownEqualitiesWithFunctionsInMatching = false;
   set elsefindFactsInSimplify = false;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.6.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.6.out.cv" occ;
   crypto splitter(concat_four_keys) *;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.7.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.7.out.cv" occ;
   crypto int_ctxt(enc) *;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.8.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.8.out.cv" occ;
   crypto inddollar_cpa(enc) *;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.9.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.9.out.cv" occ;
   (* Simplify code of the following form:
 
                 if S_i_pub_rcvd_4 = S_A1_pub then
@@ -107,22 +107,22 @@ with "let r_rom1_6 = cst_key_t". To be able to merge, we add "let y = cst_key_t 
 in the two other branches of the find, and execute merge_branches.
 
 *)
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.10.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.10.out.cv" occ;
   move array r_rom1_6;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.11.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.11.out.cv" occ;
   merge_arrays r_rom1_8 Y;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.12.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.12.out.cv" occ;
 
   insert after "find \\[unique\\] u_158" "let y = cst_key_t in";
   insert after "orfind u_160" "let y = cst_key_t in";
 
   merge_branches;
 
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.13.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.13.out.cv" occ;
   move array r_rom1_1;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.14.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.14.out.cv" occ;
   merge_arrays r_rom1_3 Y_2;
-  out_game "examples/wireguard/WG.25519.AB.identityhiding.no_replay_prot.15.out.cv" occ;
+  out_game "WG.25519.AB.identityhiding.no_replay_prot.15.out.cv" occ;
 
   insert after "find \\[unique\\] u_133" "let y = cst_key_t in";
   insert after "orfind u_135" "let y = cst_key_t in";
@@ -911,6 +911,6 @@ else
 
 (* EXPECTED
 All queries proved.
-93.172s (user 93.000s + system 0.172s), max rss 138284K
+138.220s (user 137.896s + system 0.324s), max rss 205128K
 END *)
 

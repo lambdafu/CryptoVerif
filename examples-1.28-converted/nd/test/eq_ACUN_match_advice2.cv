@@ -30,5 +30,5 @@ process in(c, ()); out(c, h(xor(xor(zero, one), xor(two, zero'))));
 
 (* EXPECTED
 Error: After simplification, variable x is not used in this term
-xtime: error in child process (status : 512)
+xtime: error in child process (status : 2)
 END *)

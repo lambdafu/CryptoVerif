@@ -412,5 +412,5 @@ out(c_gen2, (CApkey, Upkey, Us_certif, UX, Uka_certif, VX, Vka_certif));
 
 (* EXPECTED
 All queries proved.
-73.060s (user 72.724s + system 0.336s), max rss 704272K
+114.300s (user 114.224s + system 0.076s), max rss 155580K
 END *)
