@@ -227,6 +227,15 @@ and string = parse
       }
 | '\\' _
       { raise (Error("Illegal escape", extent lexbuf)) }
+| "\010" | "\013" 
+     { Lexing.new_line lexbuf; 
+       add_char (Lexing.lexeme_char lexbuf 0);
+       string lexbuf }
+| "\013\010"
+     { Lexing.new_line lexbuf;
+       add_char (Lexing.lexeme_char lexbuf 0);
+       add_char (Lexing.lexeme_char lexbuf 1);
+       string lexbuf  }
 | eof 
       { raise (Error("Unterminated string", extent lexbuf)) }
 | _ 

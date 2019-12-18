@@ -1,21 +1,5 @@
 TO DO next
 
-- check that all needed files are in the distrib
-- make SSH work under Cygwin?
-- opam packages?
-   depends on ocaml >= 4.03, ocamlfind, cryptokit, conf-m4
-   [cryptokit depends on conf-m4, so adding conf-m4 should not change the situation for CV,
-   let's add it]
-   
-Dependencies:
-- OCaml >= 4.03 (to compile the sources + to compile produced implementations)
-- m4 (for preprocessing .pcv files + for several test scripts)
-- bash (for build and test scripts)
-- cryptokit (for implementations)
-- ocamlfind (to find cryptokit)
-- grep (for scripts build.sh in implementations)
-- cat (in the build script)
-
 1) Extend "equiv".
 
 New keyword: special
@@ -5137,3 +5121,18 @@ search for the library of primitives in the directory
 in which cryptoverif is.
 Filename.concat (Filename.dirname Sys.executable_name) "default.[o]cvl"
 DONE 10/12/2019
+
+- opam packages?
+   depends on ocaml >= 4.03, ocamlfind, cryptokit, conf-m4
+   [cryptokit depends on conf-m4, so adding conf-m4 should not change the situation for CV,
+   let's add it]
+   
+Dependencies:
+- OCaml >= 4.03 (to compile the sources + to compile produced implementations)
+- m4 (for preprocessing .pcv files + for several test scripts)
+- bash (for build and test scripts)
+- cryptokit (for implementations)
+- ocamlfind (to find cryptokit)
+- grep (for scripts build.sh in implementations)
+- cat (in the build script)
+DONE 16/12/2019

@@ -786,7 +786,7 @@ let find_assoc restr funlist b' bopt' funlist' =
       let def_check = List.fold_left2 (check_corresp_uses b b') [] funlist funlist' in
       (b, def_check)
     with NotCorresp ->
-      Parsing_helper.user_error (b.sname ^ " in the left-hand side does not correspond to " ^ b'.sname ^ " in the right-hand side, because there is an array access in the right-hand side that does not match the one in the left-hand side")
+      Parsing_helper.user_error (b.sname ^ " in the left-hand side does not correspond to " ^ b'.sname ^ " in the right-hand side, because there is an array access in the right-hand side that does not match the one in the left-hand side.\n")
   with Not_found -> 
     let rec find_min_def_check = function
 	[] -> Parsing_helper.internal_error "should have at least one restriction in Check.find_assoc"
@@ -795,7 +795,7 @@ let find_assoc restr funlist b' bopt' funlist' =
 	    try 
 	      (b, List.fold_left2 (check_corresp_uses b b') [] funlist funlist')
 	    with NotCorresp ->
-	      Parsing_helper.user_error (b'.sname ^ " in the right-hand side corresponds to no variable in the left-hand side, because there is an array access in the right-hand side that does not match one in the left-hand side")
+	      Parsing_helper.user_error (b'.sname ^ " in the right-hand side corresponds to no variable in the left-hand side, because there is an array access in the right-hand side that does not match one in the left-hand side.\n")
 	  end
       |	((b,_)::l) ->
 	  try

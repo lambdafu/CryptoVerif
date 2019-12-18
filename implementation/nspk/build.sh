@@ -13,13 +13,20 @@ function file_exists_or_abort()
 
 file_exists_or_abort nspk3tbl.ocv
 
+if [ -x ../../cryptoverif ]
+then
+    CV=../../cryptoverif
+else
+    CV=cryptoverif
+fi
+
 CRYPTOKIT="-linkpkg -package cryptokit"
 
 echo Proving the protocol...
-../../cryptoverif nspk3tbl.ocv > nspk3tbl.out
+"$CV" nspk3tbl.ocv > nspk3tbl.out
 grep -E '(RESULT|All)' nspk3tbl.out | grep -v "RESULT time"
 echo Generating implementation...
-../../cryptoverif -impl nspk3tbl.ocv 
+"$CV" -impl nspk3tbl.ocv 
 
 set +e
 rm idA idB idS pkA pkB pkS skA skB skS keytbl t tl

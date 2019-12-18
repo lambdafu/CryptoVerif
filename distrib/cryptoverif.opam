@@ -22,7 +22,7 @@ homepage: "https://cryptoverif.inria.fr"
 bug-reports: "Bruno.Blanchet@inria.fr"
 depends: [ "ocaml" { >= "4.03" } "ocamlfind" "cryptokit" "conf-m4" ]
 build: [
-       [ "./build" "byte" ] { !ocaml-native }
-       [ "./build" ] { ocaml-native }
+       [ "./build" "byte" ] { !ocaml:native }
+       [ "./build" ] { ocaml:native }
 ]
 install: [ "./build" "install" "%{prefix}%" ]

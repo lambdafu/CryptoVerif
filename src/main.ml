@@ -146,11 +146,11 @@ let call_m4 input_file output_file =
   Unix.close output_file_descr;
   match status with
   | Unix.WEXITED 0 -> ()
-  | _ -> Parsing_helper.user_error ("Preprocessing of " ^ input_file ^ " by m4 failed.")
+  | _ -> Parsing_helper.user_error ("Preprocessing of " ^ input_file ^ " by m4 failed.\n")
     
 let anal_file s0 =
   if not (!first_file) then
-    Parsing_helper.user_error "You can analyze a single CryptoVerif file for each run of CryptoVerif.\nPlease rerun CryptoVerif with your second file.";
+    Parsing_helper.user_error "You can analyze a single CryptoVerif file for each run of CryptoVerif.\nPlease rerun CryptoVerif with your second file.\n";
   first_file := false;
   let s =
     (* Preprocess .pcv files with m4 *)
@@ -252,10 +252,10 @@ let _ =
       "-o", Arg.String (fun s -> 
                           try 
                             if (Sys.is_directory s) then Settings.out_dir := s
-                            else Parsing_helper.user_error "Command-line option -o expects a directory"
-                          with
-                              Sys_error _ -> Parsing_helper.user_error "Command-line option -o expects a directory"
+                            else Parsing_helper.user_error "Command-line option -o expects a directory.\n"
+                          with Sys_error _ ->
+			    Parsing_helper.user_error "Command-line option -o expects a directory.\n"
                        ),
           "<directory> \tthe generated files will be placed in this directory, for -impl, out_game, out_state, and out_facts (Default: .)";
     ]
-    anal_file ("Cryptoverif " ^ Version.version ^ ". Cryptographic protocol verifier, by Bruno Blanchet\nCopyright ENS-CNRS, distributed under the CeCILL-B license")
+    anal_file ("Cryptoverif " ^ Version.version ^ ". Cryptographic protocol verifier, by Bruno Blanchet and David Cadé\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  cryptoverif [options] <file_to_analyze>\nwhere the options are listed below:")

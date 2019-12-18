@@ -9,10 +9,13 @@ export PATH=/usr/bin:$PATH
 
 Run a session
 =============
-(The key in ~/.ssh/id_rsa has a passphrase => it is not supported
+The key in ~/.ssh/id_rsa has a passphrase => it is not supported
 by our implementation of ssh. I have a key without passphrase
-in the local directory implementation/ssh.)
-
+in the local directory implementation/ssh.
+Generate it by:
+ssh-keygen -m PEM -t rsa
+Give as output file ./id_rsa
+and an empty passphrase
 
 create a listening server on port 4000:
 on unix: nc -l 127.0.0.1 4000

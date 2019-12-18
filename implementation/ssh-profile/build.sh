@@ -14,22 +14,29 @@ function file_exists_or_abort()
 file_exists_or_abort ssh-secrecy-key.m4.ocv
 file_exists_or_abort ssh.ocv
 
+if [ -x ../../cryptoverif ]
+then
+    CV=../../cryptoverif
+else
+    CV=cryptoverif
+fi
+
 CRYPTOKIT="-linkpkg -package cryptokit"
 
 echo Proving the protocol...
 echo First, proving authentication
-../../cryptoverif ssh.ocv > ssh.out
+"$CV" ssh.ocv > ssh.out
 grep -E '(RESULT|All)' ssh.out | grep -v "RESULT time"
 echo "Second, proving secrecy of the exchanged keys: IVs, encryption keys, MAC keys"
 for key in IVCC IVSC EKCC EKSC MKCC MKSC
 do
     m4 -DONEKEY=$key ssh-secrecy-key.m4.ocv > ssh-secrecy-key-$key.ocv
-    ../../cryptoverif ssh-secrecy-key-$key.ocv > ssh-secrecy-key-$key.out
+    "$CV" ssh-secrecy-key-$key.ocv > ssh-secrecy-key-$key.out
     grep -E '(RESULT|All)' ssh-secrecy-key-$key.out | grep -v "RESULT time"
 done
 
 echo Generating implementation...
-../../cryptoverif -impl ssh.ocv
+"$CV" -impl ssh.ocv
 
 # rm hk pkS skS trusted_hosts
 

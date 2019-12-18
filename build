@@ -25,13 +25,13 @@ case X$1 in
 	cp default.cvl default.ocvl $2/bin
 	mkdir -p $2/doc/cryptoverif 
 	mkdir -p $2/share/cryptoverif
-	cp -r examples $2/doc/cryptoverif/examples
-	cp -r implementation $2/doc/cryptoverif/implementation
-	cp docs/manual.pdf README LICENSE test cryptoverif.pvl analyze$EXEC addexpectedtags$EXEC $2/doc/cryptoverif
+	cp -r examples $2/doc/cryptoverif/
+	cp -r implementation $2/doc/cryptoverif/
+	cp docs/manual.pdf README LICENSE test default.cvl default.ocvl cryptoverif.pvl analyze$EXEC addexpectedtags$EXEC $2/doc/cryptoverif
 	chmod +x $2/doc/cryptoverif/test
 	chmod +x $2/doc/cryptoverif/analyze$EXEC
 	chmod +x $2/doc/cryptoverif/addexpectedtags$EXEC
-	cp -r emacs $2/share/cryptoverif/emacs
+	cp -r emacs $2/share/cryptoverif/
 	cp cryptoverif.pvl $2/share/cryptoverif/cryptoverif.pvl;;
     *)
 	cd src

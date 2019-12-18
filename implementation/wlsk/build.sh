@@ -13,13 +13,20 @@ function file_exists_or_abort()
 
 file_exists_or_abort woolamskcorr_tbl.cv
 
+if [ -x ../../cryptoverif ]
+then
+    CV=../../cryptoverif
+else
+    CV=cryptoverif
+fi
+
 CRYPTOKIT="-linkpkg -package cryptokit"
 
 echo Proving the protocol...
-../../cryptoverif woolamskcorr_tbl.cv > woolamskcorr_tbl.out
+"$CV" woolamskcorr_tbl.cv > woolamskcorr_tbl.out
 grep -E '(RESULT|All)' woolamskcorr_tbl.out | grep -v "RESULT time"
 echo Generating implementation...
-../../cryptoverif -impl woolamskcorr_tbl.cv
+"$CV" -impl woolamskcorr_tbl.cv
 
 set +e
 rm keytbl wlsk_enc_key wlsk_mac_key wlsk_id
