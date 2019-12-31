@@ -17,12 +17,11 @@ This software is under development; please use it at your own risk. Comments and
 """
 maintainer: "Bruno Blanchet <Bruno.Blanchet@inria.fr>"
 authors: "Bruno Blanchet <Bruno.Blanchet@inria.fr> and David Cadé <David.Cade@normalesup.org>"
-license: "CeCILL-B"
+license: "CECILL-B"
 homepage: "https://cryptoverif.inria.fr"
 bug-reports: "Bruno.Blanchet@inria.fr"
-depends: [ "ocaml" { >= "4.03" } "ocamlfind" "cryptokit" "conf-m4" ]
+depends: [ "ocaml" { >= "4.03" } "ocamlfind" { post } "cryptokit" { post } "conf-m4" { post } ]
 build: [
-       [ "./build" "byte" ] { !ocaml:native }
-       [ "./build" ] { ocaml:native }
+       [ "./build" "byte" { !ocaml:native } ] 
 ]
 install: [ "./build" "install" "%{prefix}%" ]

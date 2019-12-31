@@ -289,6 +289,11 @@ found (especially when they are found in the PATH).
       simplify_oprocess cur_array dep_info true_facts ptest
 The "let"s created by Terms.put_lets do not have a proper occurrence.
 
+   0ter) opam distribution: try to install "ocamlfind" "cryptokit" "conf-m4"
+   but do not require them. In case their installation fails, most
+   features of cryptoverif still work. I do not know how to do that
+   properly with the current version of opam.
+
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
    correspondences. In contrast, we can apply collision statements
