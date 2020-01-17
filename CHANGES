@@ -1,6 +1,11 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version
+
+- Fixed bug in transformation of find[unique] inside a branch of
+  find[unique]: required "defined" conditions were sometimes missing.
+
 Version 2.02
 
 - Revised the conditions for eliminating collisions:

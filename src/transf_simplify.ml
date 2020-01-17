@@ -790,6 +790,11 @@ let sort_fun br1 br2 = size_br br1 - size_br br2
    Var/FunApp, so I do not need to rewrite that term to update args_at_creation
    of variables defined inside it. (There are no such variables.) *)
 
+let rec add_def def_list l =
+  let accu = ref def_list in
+  List.iter (Terms.get_deflist_subterms accu) l;
+  !accu
+    
 let rec generate_branches_rec ((bl, _, _, _) as ext_branch) (bl3, def_list3, t3, p4) = function
     [] -> (* no array accesses to variables in bl in def_list3 *)
       (* Replace references to variables in bl with the corresponding 
@@ -806,7 +811,7 @@ let rec generate_branches_rec ((bl, _, _, _) as ext_branch) (bl3, def_list3, t3,
 	 indices => I replace br with the corresponding replication index *)
       let subst = Terms.OneSubstArgs(br, Terms.term_from_repl_index (List.assq b bl)) in
       (List.map (fun (bl', def_list', t', p') -> 
-	(bl', Terms.copy_def_list subst def_list', 
+	(bl', add_def (Terms.copy_def_list subst def_list') l,
 	 make_and_find_cond (Terms.copy_term subst t') 
 	   (Terms.make_and_list (List.map2 (fun t ri -> Terms.make_equal t (Terms.term_from_repl_index ri)) l b.args_at_creation)), p')) branches_rest)
       (* Case the array access to br is done with indices different from the current 
