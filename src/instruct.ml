@@ -548,13 +548,19 @@ let rec execute_crypto_list continue = function
 
 let rec execute_any_crypto_rec continue state = function
     [] -> continue (CFailure [])
-  | (((_,_,_,_,opt,_),_) as equiv::equivs) ->
-      match opt with
+  | equiv::equivs ->
+      match equiv.eq_exec with
 	ManualEqopt -> 
           (* This equivalence should be applied only manually, and we are in automatic mode, so skip it *) 
 	  execute_any_crypto_rec continue state equivs
       |	_ ->
-      match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([],false)) state with
+	  let equiv =
+	    try
+	      Special_equiv.generate equiv Ptree.AutoCall
+	    with Error(mess, extent) ->
+	      Parsing_helper.input_error mess extent
+	  in
+      match crypto_transform (!Settings.no_advice_crypto) (Terms.get_actual_equiv equiv) (VarList([],false)) state with
 	CSuccess state' -> 
 	  begin
 	    try
@@ -564,9 +570,9 @@ let rec execute_any_crypto_rec continue state = function
 		begin
 		  (*
 		  print_string "Just tried equivalence\n";
-		  Display.display_equiv equiv;
+		  Display.display_equiv_gen equiv;
 		  print_string "\nContinuing with equivalences:\n";
-		  List.iter Display.display_equiv equivs;
+		  List.iter Display.display_equiv_gen equivs;
 		  print_string "End of list\n";
 		  *)
 		  execute_any_crypto_rec continue state equivs
@@ -695,8 +701,8 @@ let rec display_short_state state =
 (* Insertion sort; used to sort the equivalences according to their priority.
    The elements of same priority are grouped in a list *)
 
-let get_prio ((_,_,_,_,opt,_),_) =
-  match opt with
+let get_prio equiv =
+  match equiv.eq_exec with
     StdEqopt | ManualEqopt -> 0
   | PrioEqopt n -> n
     
@@ -1132,14 +1138,17 @@ let rec find_proba f = function
   | Add(x,y) | Sub(x,y) | Mul(x,y) | Div(x,y) -> (find_proba f x) || (find_proba f y)
   | Max(l) | Length(_,l) -> List.exists (find_proba f) l
 
-let find_equiv f ((n,lm,_,set,_,_),_) =
-  (List.exists (fun (fg, _) -> find_funsymb_fg f fg) lm) ||
-  (List.exists (function 
-      SetProba r -> find_proba f r
-    | SetEvent(e,_,_,_) -> f = e.f_name) set)
+let find_equiv f equiv =
+  match equiv.eq_fixed_equiv with
+  | None -> false
+  | Some (lm, _, set, _) ->
+      (List.exists (fun (fg, _) -> find_funsymb_fg f fg) lm) ||
+      (List.exists (function 
+	  SetProba r -> find_proba f r
+	| SetEvent(e,_,_,_) -> f = e.f_name) set)
 
-let find_equiv_by_name f ((n,_,_,_,_,_),_) =
-  match n with
+let find_equiv_by_name f equiv =
+  match equiv.eq_name with
     NoName -> false
   | CstName (s,_) -> f = s
   | ParName ((s1,_),(s2,_)) -> f = (s1 ^ "(" ^ s2 ^ ")")
@@ -1182,22 +1191,111 @@ let get_equiv_info () =
   let s = read_line() in
   Syntax.parse_from_string Parser.cryptotransfinfo (s, dummy_ext)
 
-let do_equiv ext equiv parsed_user_info state = 
+let get_special_args equiv =
+  match equiv.eq_special with
+  | None -> []
+  | Some _ ->
+      print_string "Please enter the option for this \"special\" equivalence: ";
+      let s = read_line() in
+      Syntax.parse_from_string Parser.special_args (s, dummy_ext)
+
+exception NthFailed
+	
+let nth l n =
+  try
+    List.nth l n
+  with _ ->
+    raise NthFailed
+
+let get_equiv interactive eqname special_args info ext =
+  let (possible_equivs, ext_equiv) =
+    match eqname with
+      PNoName -> (!Settings.equivs, ext)
+    | PParName((n1, ext1), (n2,ext2)) -> 
+	let s = n1 ^ "(" ^ n2 ^ ")" in
+	let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
+	(eq_list, Parsing_helper.merge_ext ext1 ext2)
+    | PN(n, s_ext) ->
+	begin
+	  try
+	    ([nth (!Settings.equivs) (n - 1)], s_ext)
+	  with NthFailed ->
+	    raise (Error("Equivalence number " ^ (string_of_int n) ^ " does not exist", s_ext))
+	end
+    | PCstName(s, s_ext) ->
+	let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
+	if eq_list = [] then
+		        (* if the equivalence is not found by its name, try the old way of finding it,
+		           by function symbol or probability name *)
+	  let eq_list' = List.filter (find_equiv s) (!Settings.equivs) in
+	  (eq_list', s_ext)
+	else
+	  (eq_list, s_ext)
+  in
+  let (equiv, special_args, info) = 
+    match possible_equivs with
+    | [] -> raise (Error("No equivalence corresponds to the one you mention", ext_equiv))
+    | [equiv] -> 
+	begin
+	  match eqname with
+	  | PNoName when interactive -> 
+	      print_string "Applying ";
+	      Display.display_equiv_gen equiv; print_newline();
+	      let special_args = get_special_args equiv in
+	      let info = get_equiv_info() in
+	      (equiv, special_args, info)
+	  | _ -> (equiv, special_args, info)
+	end
+    | _ -> 
+	if interactive then
+	  begin
+	    let n = ref 0 in
+	    List.iter (fun equiv -> incr n; print_int (!n); print_string ". "; Display.display_equiv_gen equiv; print_newline()) possible_equivs;
+	    print_string "Please enter number of equivalence to consider: ";
+	    let s = read_line() in
+	    try
+	      let equiv = List.nth possible_equivs (int_of_string s - 1) in
+	      match eqname with
+	      | PNoName ->
+		  let special_args = get_special_args equiv in
+		  let info = get_equiv_info() in
+		  (equiv, special_args, info)
+	      | _ -> (equiv, special_args, info)
+	    with Failure _ -> 
+	      raise (Error("Incorrect number", dummy_ext))
+	  end
+	else
+	  raise (Error("Several equivalences correspond to what you mention", ext_equiv))
+    in
+  if equiv.eq_special == None && special_args <> [] then
+    raise (Error("Only special equivalences support special arguments in the crypto/show_equiv/out_equiv command", ext));
+  let info' = 
+    match info with
+    | Ptree.PRepeat _ -> PVarList([],false) 
+    | _ -> info
+  in
+  let equiv1 = Special_equiv.generate equiv (ManualCall(special_args, info')) in
+  let equiv2 = Terms.get_actual_equiv equiv1 in
+  (equiv2, info)
+
+	
+let do_equiv ext equiv2 parsed_user_info state =
   match parsed_user_info with
     Ptree.PRepeat(fast) ->
-      let rec repeat_crypto equiv state = 
-	match crypto_transform (!Settings.no_advice_crypto) equiv (VarList([],false)) state with
+      let empty_user_info = VarList([],false) in
+      let rec repeat_crypto state = 
+	match crypto_transform (!Settings.no_advice_crypto) equiv2 empty_user_info state with
 	  CSuccess state' ->
 	    let state' = if fast then state' else crypto_simplify state' in
-	    repeat_crypto equiv state'
+	    repeat_crypto state'
 	| CFailure l -> 
 	    execute_crypto_list (function 
 		CSuccess state'' ->
 		  let state'' = if fast then state'' else crypto_simplify state'' in
-		  repeat_crypto equiv state''
+		  repeat_crypto state''
 	      | CFailure _ -> print_string "Done all possible transformations with this equivalence.\n"; flush stdout; state) (List.map (fun x -> (x, state, false)) l) 
       in
-      let state1 = repeat_crypto equiv state in
+      let state1 = repeat_crypto state in
       (* In fast mode, we do not simplify between each crypto transformation,
          but we simplify in the end *)
       if fast then crypto_simplify state1 else state1
@@ -1224,7 +1322,7 @@ let do_equiv ext equiv parsed_user_info state =
 		  in
 		  var_mapping := Some (List.fold_right (fun (id_g,id_equiv) accu ->
 		    let v_g_l = find_binder_list_one_id binders id_g in
-		    let v_equiv = find_restr id_equiv equiv in
+		    let v_equiv = find_restr id_equiv equiv2 in
 		    List.iter (fun v_g ->
 		      if v_g.btype != v_equiv.btype then
 			raise (Error ("Variable " ^ (Display.binder_to_string v_g) ^ 
@@ -1243,12 +1341,12 @@ let do_equiv ext equiv parsed_user_info state =
 		    | Some(l, old_stop) -> l, old_stop
 		  in
 		  term_mapping := Some ((List.map (fun (occ,id_oracle) ->
-		    (interpret_occ state occ, find_oracle id_oracle equiv)) map) @ old_term_mapping,
+		    (interpret_occ state occ, find_oracle id_oracle equiv2)) map) @ old_term_mapping,
 					stop || old_stop)
 		       ) l;
 	    Detailed (!var_mapping, !term_mapping)
       in
-      match crypto_transform (!Settings.no_advice_crypto) equiv user_info state with
+      match crypto_transform (!Settings.no_advice_crypto) equiv2 user_info state with
 	CSuccess state' -> crypto_simplify state'
       | CFailure l -> 
 	  if !Settings.auto_advice then
@@ -1299,14 +1397,6 @@ let interpret_coll_elim state = function
   | PCollTypes l -> CollTypes(List.map fst l)
   | PCollTerms l -> CollTerms(List.map (interpret_occ state) l)
     
-exception NthFailed
-	
-let nth l n =
-  try
-    List.nth l n
-  with _ ->
-    raise NthFailed
-
 let help() =
   print_string (
   "List of available commands\n" ^
@@ -1331,7 +1421,7 @@ let help() =
   "move array <ident>           : move the generation of the random <ident> to its first usage\n" ^
   "SArename <ident>    : rename several definitions of <ident> to distinct names\n" ^
   "global_dep_anal <ident>      : global dependency analysis on <ident>\n" ^
-  "crypto                       : apply a cryptographic transformation\n" ^
+  "crypto ...                   : apply a cryptographic transformation\n" ^
   "(can be used alone or with a specifier of the transformation; see the manual)\n" ^
   "simplify                     : simplify the game\n" ^
   "simplify coll_elim <locations> : simplify the game, allowing collision elimination at <locations> (variables, types, occurrences)\n" ^
@@ -1347,10 +1437,12 @@ let help() =
   "show_game occ                : show the current game with occurrences\n" ^
   "show_state                   : show the sequence of games up to now\n" ^
   "show_facts <occ>             : show the facts that hold at program point <occ>\n" ^
+  "show_equiv ...               : display the equivalence used by a cryptographic transformation\n" ^
   "out_game <filename>          : output the current game to <filename>\n" ^
   "out_game <filename> occ      : output the current game with occurrences to <filename>\n" ^
   "out_state <filename>         : output the sequence of games up to now to <filename>\n" ^
   "out_facts <filename> <occ>   : output the facts that hold at program point <occ> to <filename>\n" ^
+  "out_equiv <filename> ...     : output the equivalence used by a cryptographic transformation to <filename>\n" ^
   "auto                         : try to terminate the proof automatically\n" ^
   "set <param> = <value>        : set the value of various parameters\n" ^
   "allowed_collisions <formulas>: determine when to eliminate collisions\n" ^
@@ -1532,7 +1624,7 @@ let rec interpret_command interactive state = function
 	    begin
 	      let binders = find_binders state.game in	      
 	      let bl = find_binder_list_one_id binders id in
-	      let equiv = Transf_move_array.move_array_equiv ext2 bl collisions in 
+	      let equiv = Terms.get_actual_equiv (Special_equiv.move_array_equiv ext2 bl collisions) in 
 	      match crypto_transform (!Settings.no_advice_crypto) equiv (VarList(bl,true)) state with
 		CSuccess state' -> crypto_simplify state'
 	      | CFailure l -> 
@@ -1591,67 +1683,18 @@ let rec interpret_command interactive state = function
       execute_display_advise Expand state
   | CAll_simplify ->
       simplify state
-  | CCrypto(eqname, info, ext) ->
-      begin
-	let (possible_equivs, ext_equiv) =
-	  match eqname with
-	    PNoName -> (!Settings.equivs, ext)
-	  | PParName((n1, ext1), (n2,ext2)) -> 
-	      let s = n1 ^ "(" ^ n2 ^ ")" in
-	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
-	      (eq_list, Parsing_helper.merge_ext ext1 ext2)
-	  | PN(n, s_ext) ->
-	      begin
-		try
-		  ([nth (!Settings.equivs) (n - 1)], s_ext)
-		with 
-		  NthFailed ->
-		    raise (Error("Equivalence number " ^ (string_of_int n) ^ " does not exist", s_ext))
-	      end
-	  | PCstName(s, s_ext) ->
-	      let eq_list = List.filter (find_equiv_by_name s) (!Settings.equivs) in
-	      if eq_list = [] then
-		        (* if the equivalence is not found by its name, try the old way of finding it,
-		           by function symbol or probability name *)
-		let eq_list' = List.filter (find_equiv s) (!Settings.equivs) in
-		(eq_list', s_ext)
-	      else
-		(eq_list, s_ext)
-	in
-	match possible_equivs with
-	  [] -> raise (Error("No equivalence corresponds to the one you mention", ext_equiv))
-	| [equiv] -> 
-	    begin
-	      match eqname with
-		PNoName -> 
-		  if interactive then
-		    begin
-		      print_string "Applying ";
-		      Display.display_equiv equiv; print_newline();
-		      do_equiv ext equiv (get_equiv_info()) state
-		    end
-		  else
-		    do_equiv ext equiv info state
-	      | _ -> do_equiv ext equiv info state
-	    end
-	| _ -> 
-	    if interactive then
-	      begin
-		let n = ref 0 in
-		List.iter (fun equiv -> incr n; print_int (!n); print_string ". "; Display.display_equiv equiv; print_newline()) possible_equivs;
-		print_string "Please enter number of equivalence to consider: ";
-		let s = read_line() in
-		try
-		  let equiv = List.nth possible_equivs (int_of_string s - 1) in
-		  match eqname with
-		    PNoName -> do_equiv ext equiv (get_equiv_info ()) state
-		  | _ -> do_equiv ext equiv info state
-		with Failure _ -> 
-		  raise (Error("Incorrect number", dummy_ext))
-	      end
-	    else
-	      raise (Error("Several equivalences correspond to what you mention", ext_equiv))
-      end
+  | CCrypto(eqname, special_args, info, ext) ->
+      let (equiv, info) = get_equiv interactive eqname special_args info ext in
+      do_equiv ext equiv info state
+  | CShow_equiv(eqname, special_args, info, ext) ->
+      let (equiv, info) = get_equiv interactive eqname special_args info ext in
+      Display.display_equiv equiv ;
+      state
+  | COut_equiv((s,ext),eqname, special_args, info, ext2) ->
+      let (equiv, info) = get_equiv interactive eqname special_args info ext2 in
+      default_file_out s ext (fun () ->
+	Display.display_equiv equiv);
+      state
   | CStart_from_other_end(ext) ->
       let rec remove_eq_query state =
         state.game.current_queries <-

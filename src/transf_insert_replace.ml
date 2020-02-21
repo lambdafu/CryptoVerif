@@ -564,10 +564,10 @@ let rec check_find_cond defined_refs cur_array env = function
   | x -> check_term (Some defined_refs) cur_array env x
 
 
-let rec insert_ins_now occ (p', def) (ins, ext) env cur_array =
+let rec insert_ins_now occ p (p', def) (ins, ext) env cur_array =
   let defined_refs = 
     try 
-      Facts.get_def_vars_at (DProcess p')
+      Facts.get_def_vars_at (DProcess p)
     with Contradiction ->
       raise (Error("The occurrence " ^ (string_of_int occ) ^ " at which you are inserting an instruction is in fact unreachable", ext))
   in
@@ -675,7 +675,7 @@ let rec insert_ins count occ ins env cur_array p =
       check_noninter def def2;
       (Input((c,tl),pat,p'), def @ def2)
   in
-  (Terms.iproc_from_desc_at p p_desc', def)
+  (Terms.iproc_from_desc_loc p p_desc', def)
 
 and insert_inso count occ ins env cur_array p =
   let (p_desc', def) =
@@ -737,11 +737,11 @@ and insert_inso count occ ins env cur_array p =
 	(Output((c,tl),t,p'), def)
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
-  let r = (Terms.oproc_from_desc_at p p_desc', def) in
+  let r = (Terms.oproc_from_desc_loc p p_desc', def) in
   if p.p_occ == occ then
     begin
       incr count;
-      insert_ins_now occ r ins env cur_array
+      insert_ins_now occ p r ins env cur_array
     end
   else
     r
@@ -768,13 +768,13 @@ let prove_unique1 pp l0 find_info ext =
 let rec prove_uniquefc t =
   match t.t_desc with
     ResE(b,p) ->
-      Terms.build_term2 t (ResE(b, prove_uniquefc p))
+      Terms.build_term t (ResE(b, prove_uniquefc p))
   | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "event, event_abort, get, insert should not occur as term"
   | TestE(t1,t2,t3) ->
       let t2' = prove_uniquefc t2 in
       let t3' = prove_uniquefc t3 in
-      Terms.build_term2 t (TestE(t1,t2',t3'))
+      Terms.build_term t (TestE(t1,t2',t3'))
   | LetE(pat,t1,t2,topt) ->
       let t2' = prove_uniquefc t2 in
       let topt' = 
@@ -782,7 +782,7 @@ let rec prove_uniquefc t =
 	  None -> None
 	| Some t3 -> Some (prove_uniquefc t3)
       in
-      Terms.build_term2 t (LetE(pat,t1,t2',topt'))
+      Terms.build_term t (LetE(pat,t1,t2',topt'))
   | FindE(l0,t3, find_info) ->
       let find_info' = prove_unique1 (DTerm t) l0 find_info t.t_loc in
       let t3' = prove_uniquefc t3 in
@@ -792,11 +792,11 @@ let rec prove_uniquefc t =
 	(bl, def_list, tc', p')
 	  ) l0 
       in
-      Terms.build_term2 t (FindE(l0',t3',find_info'))
+      Terms.build_term t (FindE(l0',t3',find_info'))
   | Var _ | FunApp _ | ReplIndex _ -> t 
 
 let rec prove_uniquei p =
-    Terms.iproc_from_desc_at p (
+    Terms.iproc_from_desc_loc p (
     match p.i_desc with
       Nil -> Nil
     | Par(p1,p2) -> 
@@ -808,7 +808,7 @@ let rec prove_uniquei p =
 	Input(c, pat, prove_uniqueo p))
 
 and prove_uniqueo p =
-  Terms.oproc_from_desc_at p (
+  Terms.oproc_from_desc_loc p (
     match p.p_desc with
       Yield -> Yield
     | EventAbort f -> EventAbort f
@@ -944,7 +944,7 @@ let rec replace_tt count env facts cur_array t =
       if not (may_be_inside count t.t_occ t.t_max_occ) then
 	t
       else
-      Terms.build_term2 t 
+      Terms.build_term t 
 	(match t.t_desc with
 	  Var(b,l) -> Var(b, List.map (replace_tt count env facts cur_array) l)
 	| (ReplIndex _ | EventAbortE _) as x -> x
@@ -1051,7 +1051,7 @@ let rec replace_t count env cur_array p =
       let tl' = List.map (replace_tt count env [] cur_array) tl in
       Input((c,tl'),pat',p')
   in
-  Terms.iproc_from_desc_at p p_desc'
+  Terms.iproc_from_desc_loc p p_desc'
 
 and replace_to count env cur_array p =
   if not (may_be_inside count p.p_occ p.p_max_occ) then
@@ -1120,7 +1120,7 @@ and replace_to count env cur_array p =
 	Output((c,tl'),t',p')
     | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
-  Terms.oproc_from_desc_at p p_desc'
+  Terms.oproc_from_desc_loc p p_desc'
 
 let replace_term occ ext_o s ext_s g =
   let g_proc = Terms.get_process g in

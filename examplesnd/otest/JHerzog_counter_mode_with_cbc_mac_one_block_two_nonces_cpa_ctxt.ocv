@@ -1,0 +1,142 @@
+(**********************************************************************
+*
+* Chosen ciphertext  security for a CCM-variant: Counter mode with
+* CBC-mac applied to the ciphertext
+*
+*  * modified from a script by Jonathan Herzog
+*  * Blocks: 1
+*  * Result: not proved
+*
+*
+***********************************************************************)
+
+
+type block [fixed, large].
+type aes_key [fixed, large].
+proba Paes.
+expand PRP_cipher(aes_key, block, aes_enc, aes_dec, Paes).
+
+
+type cm_ciphertext [bounded].
+fun cm_join(block, block): cm_ciphertext [data].
+
+type maced_ciphertext [bounded].
+fun mac_join(cm_ciphertext, block): maced_ciphertext [data].
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zero_block).
+
+
+(* Useful helper function. Dunno why. *)
+fun test(bool, block, block):block.
+equation forall x:block,y:block; test(true,x,y) = x.
+equation forall x:block,y:block; test(false,x,y) = y.
+
+(* axiomatize incr *)
+fun incr(block): block [data, uniform].
+equation forall x:block; incr(x) <> x.
+
+
+(* Parameters *)
+
+param N_enc. (* the number of times the adversary gets to call the encryption oracle *)
+param N_dec. (* the number of times the adversary gets to call the decryption oracle *)
+param C. (* the number of challenge ciphertexts available to the adversary *)
+
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+event bad.
+query event(bad) ==> false.
+
+(* There is an attack: the encryption leaks
+   aes_enc(counter_nonce +1, aesk) = xor(b1, cipherblock1)
+   with known counter_nonce, b1, cipherblock1.
+
+   Suppose that you know aes_enc(counter_nonce1, aesk)
+   and aes_enc(counter_nonce2, aesk) using the leak above.
+
+   Take
+       t1 = aes_enc(counter_nonce1, aesk);
+       cipherblock1 = xor(counter_nonce2, t1)
+       mac_tag = aes_enc(counter_nonce2, aesk)
+       cm_ctext = cm_join(counter_nonce1, cipherblock1)
+       maced_ctext = mac_join(cm_ctext, mac_tag)
+   then the decryption of maced_ctext succeeds because
+       mac_tag = aes_enc( xor(t1, cipherblock1), aesk)
+   So INT-CTXT is broken.
+
+   Then decryption computes
+	counter1 <- counter_nonce1+1;
+	pad1 <- aes_enc(counter1, aesk);
+	plaintext1 <- xor(pad1, cipherblock1) = xor(aes_enc(counter_nonce1+1, aesk), cipherblock1);
+	return(plaintext1).
+   hence we can compute aes_enc(counter_nonce1+1, aesk) = xor(cipherblock1, plaintext1)
+
+*)
+
+
+letfun enc(aesk: aes_key, b1 : block) =
+       (* Counter mode *)
+       counter_nonce <-R block;
+       
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       this_cm_ciphertext <- cm_join(counter_nonce, cipherblock1);    
+
+
+       (* CBC mac *)       
+       t1 <- aes_enc(counter_nonce, aesk);
+       tag <- aes_enc( xor(t1, cipherblock1), aesk);
+
+       ciphertext <- mac_join(this_cm_ciphertext, tag);
+       ciphertext.
+
+
+let dec_oracle(aesk: aes_key) = 
+   Odec(maced_ctext: maced_ciphertext) :=
+   find 
+       u <= C suchthat defined(challenge[u]) && (maced_ctext = challenge[u])
+   then
+       yield
+   else
+       let mac_join(cm_ctext, mac_tag) = maced_ctext in      
+       let cm_join(counter_nonce, cipherblock1) = cm_ctext in
+       t1 <- aes_enc(counter_nonce, aesk);
+       if mac_tag = aes_enc( xor(t1, cipherblock1), aesk)
+           then event bad.
+
+
+
+let challenge_oracle(aesk: aes_key, secret_bit1: bool) =
+       
+       Ochallenge(b11: block, b21: block ) :=
+       b1 <- test(secret_bit1, b11, b21);
+       challenge : maced_ciphertext <- enc(aesk, b1);
+       return(challenge).
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+        aesk <-R aes_key;
+        secret_bit <-R bool;
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+	(foreach i <= N_dec do run dec_oracle(aesk)) |
+	(foreach i <= C do run challenge_oracle(aesk, secret_bit))
+
+(* EXPECTED
+RESULT Could not prove event(bad) ==> false; secrecy of secret_bit.
+1.028s (user 1.008s + system 0.020s), max rss 89184K
+END *)

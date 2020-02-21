@@ -28,7 +28,7 @@ let new_binder b =
     b
 
 let rec auto_sa_rename_fc t =
-  Terms.build_term2 t 
+  Terms.build_term t 
      (match t.t_desc with
 	Var(b,l) ->
           let (b', l') = auto_sa_rename_fc_binder (b,l) in
@@ -80,7 +80,7 @@ and auto_sa_rename_fc_pat = function
   | PatEqual t -> PatEqual (auto_sa_rename_fc t)
 
 let rec auto_sa_rename_term t =
-  Terms.build_term2 t 
+  Terms.build_term t 
      (match t.t_desc with
 	Var(b,l) -> Var(b, List.map (auto_sa_rename_term) l)
       | ReplIndex(b) -> ReplIndex(b)
@@ -92,9 +92,10 @@ let rec auto_sa_rename_term t =
 		auto_sa_rename_term t3)
       | FindE(l0,t3,find_info) ->
           FindE(List.map (fun (bl, def_list, t1,t2) ->
-	    (bl, List.map Terms.move_occ_br def_list (* def_list contains only Var/FunApp/ReplIndex so no change
-							I still need to copy the def_list to make sure that all
-							terms are physically distinct, for a correct computation of facts. *),
+	    (bl, List.map Terms.delete_info_br def_list
+                (* def_list contains only Var/FunApp/ReplIndex so no change
+		   I still need to copy the def_list to make sure that all
+		   terms are physically distinct, for a correct computation of facts. *),
 	     auto_sa_rename_fc t1,
 	     auto_sa_rename_term t2)) l0,
 		auto_sa_rename_term t3, find_info)
@@ -124,7 +125,7 @@ and auto_sa_rename_pat = function
   | PatEqual t -> PatEqual (auto_sa_rename_term t)
 
 let rec auto_sa_rename_process p = 
-  Terms.iproc_from_desc_at p (
+  Terms.iproc_from_desc_loc p (
   match p.i_desc with
     Nil -> Nil
   | Par(p1,p2) -> Par(auto_sa_rename_process p1, 
@@ -138,7 +139,7 @@ let rec auto_sa_rename_process p =
       Input((c, tl'), pat', p'))
 
 and auto_sa_rename_oprocess p = 
-  Terms.oproc_from_desc_at p (
+  Terms.oproc_from_desc_loc p (
   match p.p_desc with
     Yield -> Yield
   | EventAbort f -> EventAbort f
@@ -150,7 +151,7 @@ and auto_sa_rename_oprocess p =
 	   auto_sa_rename_oprocess p2)
   | Find(l0, p2, find_info) ->
       Find(List.map (fun (bl, def_list, t, p1) ->
-	  (bl, List.map Terms.move_occ_br def_list(* def_list contains only Var/FunApp/ReplIndex so no change *),
+	  (bl, List.map Terms.delete_info_br def_list(* def_list contains only Var/FunApp/ReplIndex so no change *),
 	   auto_sa_rename_fc t,
 	   auto_sa_rename_oprocess p1)) l0,
 	   auto_sa_rename_oprocess p2, find_info)

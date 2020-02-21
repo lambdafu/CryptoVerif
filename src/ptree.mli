@@ -119,7 +119,13 @@ type fungroup =
 type eqmember = (fungroup * ident option * Parsing_helper.extent) list * Parsing_helper.extent
 
 
-type eqstatement = Types.eqname * eqmember * eqmember * probabilityf_e * (int * ident list(*options*))
+type special_args_e = Types.special_args_e
+      
+type equiv_t =
+  | EquivNormal of eqmember * eqmember * probabilityf_e
+  | EquivSpecial of ident * special_args_e list
+	
+type eqstatement = Types.eqname * equiv_t * (int * ident list(*options*))
 
 (* Collisions *)
 
@@ -213,14 +219,16 @@ type command =
   | COut_facts of ident * pocc
   | COut_state of ident
   | COut_game of ident * bool(*true when "occ"*)
+  | COut_equiv of ident * peqname * special_args_e list * crypto_transf_user_info * Parsing_helper.extent
   | CShow_facts of pocc
   | CShow_state
   | CShow_game of bool(*true when "occ"*)
+  | CShow_equiv of peqname * special_args_e list * crypto_transf_user_info * Parsing_helper.extent
   | CSuccesscom
   | CSuccessSimplify of pcoll_elim_t list
   | CQuit
   | CStart_from_other_end of Parsing_helper.extent
-  | CCrypto of peqname * crypto_transf_user_info * Parsing_helper.extent
+  | CCrypto of peqname * special_args_e list * crypto_transf_user_info * Parsing_helper.extent
   | CExpand
   | CAll_simplify
   | CGlobal_dep_anal of ident * pcoll_elim_t list
@@ -268,7 +276,18 @@ type final_process =
   | PEquivalence of process_e * process_e * ident list(*public variables*)
   | PQueryEquiv of eqstatement
 	
-type move_array_coll_t =
+type special_equiv_coll_t =
     (ident * ident(*type*)) list(*bound variables*) *
-      (ident * ident(*type*))(*random variable*) *
-      term_e 
+      (ident * ident(*type*)) list(*random variables*) *
+      term_e
+
+type random_fun_coll_t =
+  | CollIndepNew of special_equiv_coll_t
+  | CollNewDep of special_equiv_coll_t
+      
+(* Information passed when generating an equivalence
+   declared with "special" *)
+
+type equiv_call_t =
+  | AutoCall
+  | ManualCall of special_args_e list * crypto_transf_user_info

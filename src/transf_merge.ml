@@ -70,7 +70,7 @@ let merge_var next_f map b b' =
 	    next_f map
           end
       end
-    else if (!Settings.merge_arrays) then
+    else if !Settings.merge_arrays then
       begin
 	if ar_b then var_no_array_ref := b :: (!var_no_array_ref);
 	if ar_b' then var_no_array_ref := b' :: (!var_no_array_ref);
@@ -646,9 +646,9 @@ let rec apply_subst1 t tsubst =
            else
              match t.t_desc with
                Var(b,l) ->
-	         Terms.build_term2 t (Var(b, List.map (fun t' -> apply_subst1 t' tsubst) l))
+	         Terms.build_term t (Var(b, List.map (fun t' -> apply_subst1 t' tsubst) l))
              | FunApp(f,l) when f.f_cat != LetEqual ->
-	         Terms.build_term2 t (FunApp(f, List.map (fun t' -> apply_subst1 t' tsubst) l))
+	         Terms.build_term t (FunApp(f, List.map (fun t' -> apply_subst1 t' tsubst) l))
              | _ -> t
          end
      | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
@@ -741,7 +741,7 @@ and add_fact ((subst2, facts, elsefind) as simp_facts) fact =
       begin
 	match t1.t_desc with
 	  Var(b,l) -> 
-	    let t1' = Terms.build_term2 t1 (Var(b, List.map (reduce simp_facts) l))
+	    let t1' = Terms.build_term t1 (Var(b, List.map (reduce simp_facts) l))
 	    in
 	    let t2' = reduce simp_facts t2 in
 	    let rec try_red_t1 = function
@@ -814,8 +814,7 @@ and subst_simplify2 (subst2, facts, elsefind) link =
 	  | _ -> Parsing_helper.internal_error "If/let/find/new not allowed in subst_simplify2"
 	in
 	if reduced then
-	  not_subst2_facts := Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t1']))
-	     :: (!not_subst2_facts)
+	  not_subst2_facts := (Terms.app f [t1; t1']) :: (!not_subst2_facts)
 	else
 	  subst2'' := t0 :: (!subst2'')
     | _ -> Parsing_helper.internal_error "substitutions should be Equal or LetEqual terms"
@@ -920,7 +919,7 @@ let store_arrays_to_normal f =
    (b,l) and defined conditions of find respectively. *)
 
 let rec rename map t =
-  Terms.build_term2 t (
+  Terms.build_term t (
   match t.t_desc with
     Var(b,l) -> 
       let b' =
@@ -1117,10 +1116,10 @@ let add_def_var_proc rename_instr p b =
 let rec merge_term rename_instr t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term2 t (Var(rename_var rename_instr b,
+      Terms.build_term t (Var(rename_var rename_instr b,
 			       List.map (merge_term rename_instr) l))
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map (merge_term rename_instr) l))
+      Terms.build_term t (FunApp(f, List.map (merge_term rename_instr) l))
   | ReplIndex _ -> t
   | ResE _ | EventAbortE _ | TestE _ | LetE _ | FindE _ | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "new/event/event_abort/if/let/find/get/insert unexpected in terms"
@@ -1390,7 +1389,7 @@ let rec merge_find_cond rename_instr t =
   let t' = 
   match t.t_desc with
     ResE(b,p) ->
-      Terms.build_term2 t (ResE(rename_var rename_instr b, 
+      Terms.build_term t (ResE(rename_var rename_instr b, 
 				add_def_var_find_cond rename_instr (merge_find_cond rename_instr p) b))
   | EventAbortE _ | EventE _ ->
       Parsing_helper.internal_error "events should not occur in find conditions in merge_find_cond"
@@ -1400,7 +1399,7 @@ let rec merge_find_cond rename_instr t =
       let t1' = merge_term rename_instr t1 in
       let t2' = merge_find_cond rename_instr t2 in
       let t3' = merge_find_cond rename_instr t3 in
-      Terms.build_term2 t (TestE(t1',t2',t3'))
+      Terms.build_term t (TestE(t1',t2',t3'))
   | LetE(pat,t1,t2,topt) ->
       let pat' = merge_pat rename_instr pat in
       let t1' = merge_term rename_instr t1 in      
@@ -1411,7 +1410,7 @@ let rec merge_find_cond rename_instr t =
 	| Some t3 -> Some (merge_find_cond rename_instr t3)
       in
       let pat_vars = Terms.vars_from_pat [] pat in
-      Terms.build_term2 t (LetE(pat',t1', List.fold_left (add_def_var_find_cond rename_instr) t2' pat_vars,topt'))
+      Terms.build_term t (LetE(pat',t1', List.fold_left (add_def_var_find_cond rename_instr) t2' pat_vars,topt'))
   | FindE(l0,t3, find_info) ->
       begin
 	try
@@ -1419,7 +1418,7 @@ let rec merge_find_cond rename_instr t =
 	      Terms.subst3 Terms.copy_term (equal_find_cond None)
 	      merge_find_cond add_def_var_find_cond merge_find_cond (DTerm t) rename_instr l0 t3
 	  in
-	  Terms.build_term2 t (FindE(l0',t3',find_info))
+	  Terms.build_term t (FindE(l0',t3',find_info))
 	with Contradiction ->
 	  (* When there is a contradiction here, the Find is in fact unreachable *)
 	  t3
@@ -1462,7 +1461,7 @@ let rec merge_i rename_instr p =
       let p'' = List.fold_left (add_def_var_proc rename_instr) p' pat_vars in
       Input((c,tl'),pat',p'')
   in
-  Terms.iproc_from_desc_at p p_desc'
+  Terms.iproc_from_desc_loc p p_desc'
 
 and merge_o rename_instr p =
   let p_desc' =
@@ -1507,7 +1506,7 @@ and merge_o rename_instr p =
 	Output((c,tl'),t',p')
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   in
-  let p' = Terms.oproc_from_desc_at p p_desc' in
+  let p' = Terms.oproc_from_desc_loc p p_desc' in
   let (_, br_vars) = rename_instr in
   match br_vars with
     CreateBranchVarAtProc(pl,bl) ->
@@ -2047,7 +2046,7 @@ let rec do_merges_find_cond t =
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.collect_merges_find_cond"
   | ResE(b,t1) ->
       let t1' = do_merges_find_cond t1 in
-      Terms.build_term2 t (ResE(b,t1'))
+      Terms.build_term t (ResE(b,t1'))
   | TestE(t1,t2,t3) ->
       if List.exists (function
 	  (MergeFindCond(t',_),_,_,_,_) -> t' == t
@@ -2058,13 +2057,13 @@ let rec do_merges_find_cond t =
       else
 	let t2' = do_merges_find_cond t2 in
 	let t3' = do_merges_find_cond t3 in
-	Terms.build_term2 t (TestE(t1,t2',t3'))
+	Terms.build_term t (TestE(t1,t2',t3'))
   | LetE(pat,t1,t2,topt) ->
       begin
 	match topt with
 	  None ->
 	    let t2' = do_merges_find_cond t2 in
-	    Terms.build_term2 t (LetE(pat,t1,t2',None))
+	    Terms.build_term t (LetE(pat,t1,t2',None))
 	| Some t3 ->
 	    if List.exists (function
 		(MergeFindCond(t',_),_,_,_,_) -> t' == t
@@ -2075,7 +2074,7 @@ let rec do_merges_find_cond t =
 	    else
 	      let t2' = do_merges_find_cond t2 in
 	      let t3' = do_merges_find_cond t3 in
-	      Terms.build_term2 t (LetE(pat,t1,t2',Some t3'))
+	      Terms.build_term t (LetE(pat,t1,t2',Some t3'))
       end
   | FindE(l0,t3, find_info) ->
       let t3' = do_merges_find_cond t3 in
@@ -2098,7 +2097,7 @@ let rec do_merges_find_cond t =
 	else
 	  let l0'' = List.map (fun (bl, def_list, t1, t2) ->
 	    (bl, def_list, do_merges_find_cond t1, do_merges_find_cond t2)) l0' in
-	  Terms.build_term2 t (FindE(l0'',t3',find_info))
+	  Terms.build_term t (FindE(l0'',t3',find_info))
 
 let rec do_merges_i p =
   let p_desc' =
@@ -2112,15 +2111,15 @@ let rec do_merges_i p =
   | Input(ch,pat, p) ->
       Input(ch,pat,do_merges_o p)
   in
-  Terms.iproc_from_desc_at p p_desc'
+  Terms.iproc_from_desc_loc p p_desc'
 
 and do_merges_o p =
   match p.p_desc with
     Yield | EventAbort _ -> p
   | Restr(b,p1) ->    
-      Terms.oproc_from_desc_at p (Restr(b, do_merges_o p1))
+      Terms.oproc_from_desc_loc p (Restr(b, do_merges_o p1))
   | EventP(t,p1) ->
-      Terms.oproc_from_desc_at p (EventP(t, do_merges_o p1))
+      Terms.oproc_from_desc_loc p (EventP(t, do_merges_o p1))
   | Test(t,p1,p2) ->
       if List.exists (function
 	  (MergeProcess(p',_),_,_,_,_) -> p' == p
@@ -2131,7 +2130,7 @@ and do_merges_o p =
       else
 	let p1' = do_merges_o p1 in
 	let p2' = do_merges_o p2 in
-	Terms.oproc_from_desc_at p (Test(t,p1',p2'))
+	Terms.oproc_from_desc_loc p (Test(t,p1',p2'))
   | Let(pat,t,p1,p2) ->
       if List.exists (function
 	  (MergeProcess(p',_),_,_,_,_) -> p' == p
@@ -2142,7 +2141,7 @@ and do_merges_o p =
       else
 	let p1' = do_merges_o p1 in
 	let p2' = do_merges_o p2 in
-	Terms.oproc_from_desc_at p (Let(pat, t,p1',p2'))
+	Terms.oproc_from_desc_loc p (Let(pat, t,p1',p2'))
   | Find(l0,p3,find_info) ->
       let p3' = do_merges_o p3 in
       if List.exists (function
@@ -2164,9 +2163,9 @@ and do_merges_o p =
 	else
 	  let l0'' = List.map (fun (bl, def_list, t1, p2) ->
 	    (bl, def_list, do_merges_find_cond t1, do_merges_o p2)) l0' in
-	  Terms.oproc_from_desc_at p (Find(l0'',p3',find_info))
+	  Terms.oproc_from_desc_loc p (Find(l0'',p3',find_info))
   | Output(ch,t,p1) ->
-      Terms.oproc_from_desc_at p (Output(ch, t, do_merges_i p1))
+      Terms.oproc_from_desc_loc p (Output(ch, t, do_merges_i p1))
   | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let display_merge = function

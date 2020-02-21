@@ -1,0 +1,23 @@
+proba Phash.
+type input1.
+type output.
+type key [fixed].
+
+fun f(key, input1):output.
+
+collision k <-R key; forall x1:input1, y1:input1;
+	return(f(k, x1) = f(k, y1)) <=(Phash(time, inf, -inf))=> return((x1 = y1)).
+
+channel ch1, ch2.
+
+let f_oracle(k: key) =
+    in(ch1, ());
+    out(ch2, k).
+
+
+process 0
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

@@ -30,9 +30,13 @@ let rec get_vars accu t =
       List.iter (get_vars accu) l
   | _ -> Parsing_helper.internal_error "statement terms should contain only Var and FunApp\n"
 
-let record_statement ((_, _, t1, _,t2, _, _, _) as statement) =
+let record_statement (vl, t1, t2, side_cond) =
   match t1.t_desc with
-    FunApp(f, l) -> 
+    FunApp(f, l) ->
+      let statement =
+	{ c_restr = []; c_forall = vl; c_redl = t1; c_proba = Zero; c_redr = t2;
+	  c_indep_cond = IC_True; c_side_cond = side_cond; c_restr_may_be_equal = false }
+      in
       f.f_statements <- statement :: f.f_statements
   | _ -> 
       print_string "Statement ";
@@ -104,7 +108,7 @@ let simplify_statement (vl, t, side_cond) =
 	      display_statement t' side_cond';
 	      Parsing_helper.user_error ": all variables of the right-hand side and of the side condition should occur in the left-hand side.\n"
 	    end;	  
-	  record_statement ([], vl, t1, Zero, t2, IC_True, side_cond', false)
+	  record_statement (vl, t1, t2, side_cond') 
       | _ ->
 	  let vars = ref [] in
 	  get_vars vars side_cond';
@@ -116,23 +120,23 @@ let simplify_statement (vl, t, side_cond) =
 	      display_statement t' side_cond';
 	      Parsing_helper.user_error ": all variables of the side condition should occur in the term.\n"
 	    end;	  
-	  record_statement ([], vl, t', Zero, Terms.make_true(), IC_True, side_cond', false);
+	  record_statement (vl, t', Terms.make_true(), side_cond');
           match t'.t_desc with
           | FunApp(f, [t1;t2]) when f.f_cat == Diff ->
-	     record_statement ([], vl, Terms.make_equal t1 t2, Zero, Terms.make_false(), IC_True, side_cond', false)
+	     record_statement (vl, Terms.make_equal t1 t2, Terms.make_false(), side_cond')
           | _ -> 
 	     ()
     end
 	  
-let record_collision ((_, _, t1, _,t2, _, _, _) as collision) =
-  match t1.t_desc with
+let record_collision collision =
+  match collision.c_redl.t_desc with
     FunApp(f, l) -> 
       f.f_collisions <- collision :: f.f_collisions
   | _ -> 
       print_string "Collision ";
-      Display.display_term t1;
+      Display.display_term collision.c_redl;
       print_string " <=(...)=> ";
-      Display.display_term t2;
+      Display.display_term collision.c_redr;
       print_string " ignored: the left-hand side should start with a function symbol.\n"
 
 let first_file = ref true
@@ -174,43 +178,45 @@ let anal_file s0 =
       match final_p with
       | SingleProcess p' -> (p', queries)
       | Equivalence(p1,p2,pub_vars) ->
-         Check.check_def_process_main p2;
-	 let final_game =
-	   { proc = RealProcess (Terms.move_occ_process p2);
-	     expanded = false;
-	     game_number = -1;
-	     current_queries = [] }
-	 in
-	 let final_state =
-	   { game = final_game;
-	     prev_state = None;
-	     tag = None }
-	 in
-         let final_state_after_minimal_transfos =
-           Instruct.initial_expand_simplify final_state
-         in
-	 (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
+	  let p2 = Terms.move_occ_process p2 in
+          Check.check_def_process_main p2;
+	  let final_game =
+	    { proc = RealProcess p2;
+	      expanded = false;
+	      game_number = -1;
+	      current_queries = [] }
+	  in
+	  let final_state =
+	    { game = final_game;
+	      prev_state = None;
+	      tag = None }
+	  in
+          let final_state_after_minimal_transfos =
+            Instruct.initial_expand_simplify final_state
+          in
+	  (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
     in
+    let p = Terms.move_occ_process p in
     Check.check_def_process_main p;
     let _ = 
-      if (!Settings.get_implementation) then
+      if !Settings.get_implementation then
         do_implementation impl
       else
         begin
-          let g = { proc = RealProcess (Terms.move_occ_process p);
+          let g = { proc = RealProcess p;
 		    expanded = false;
 		    game_number = 1;
 		    current_queries = [] } in
-            let queries =
-              if queries == [] then 
-	        [(AbsentQuery,g), ref ToProve]
-              else
-	        List.map (fun q -> ((q,g), ref ToProve)) queries in
-	    g.current_queries <- queries;
-            List.iter simplify_statement statements;
-            List.iter record_collision collisions;
-            Settings.equivs := equivs;
-            
+          let queries =
+            if queries == [] then 
+	      [(AbsentQuery,g), ref ToProve]
+            else
+	      List.map (fun q -> ((q,g), ref ToProve)) queries in
+	  g.current_queries <- queries;
+          List.iter simplify_statement statements;
+          List.iter record_collision collisions;
+          Settings.equivs := equivs;
+          
             (*
               List.iter Display.display_statement statements;
               print_newline();
@@ -218,10 +224,10 @@ let anal_file s0 =
               print_newline();
               Display.display_process p;
             *)
-            Instruct.do_proof proof 
-	      { game = g; 
-	        prev_state = None;
-	        tag = None } 
+          Instruct.do_proof proof 
+	    { game = g; 
+	      prev_state = None;
+	      tag = None } 
         end
     in
     (* Remove the preprocessed temporary file when everything went well *)
@@ -243,6 +249,8 @@ let _ =
       "<filename> \tchoose TeX output file";
       "-oproof", Arg.String (fun s -> Settings.proof_output := s),
       "<filename> \toutput the proof in this file";
+      "-oequiv", Arg.String (fun s -> Settings.equiv_output := s),
+      "<filename> \tappend the generated special equivalences to this file";
       "-in", Arg.String (function 
 	  "channels" -> Settings.front_end := Settings.Channels
 	| "oracles" -> Settings.front_end := Settings.Oracles

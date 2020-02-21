@@ -30,12 +30,16 @@ val display_repl_index : repl_index -> unit
 val display_var : binder -> term list -> unit
 val display_term : term -> unit
 val display_statement : statement -> unit
+val display_collision : collision -> unit
 val display_pattern : pattern -> unit
 val display_proba : int -> probaf -> unit
 val display_polynom : polynom -> unit
 val display_set : setf list -> unit
 val display_equiv : equiv_nm -> unit
 val display_equiv_with_name : equiv_nm -> unit
+val display_call : Ptree.equiv_call_t -> unit
+val display_special_equiv : equiv_gen -> unit
+val display_equiv_gen : equiv_gen -> unit
 val display_oprocess : string -> process -> unit
 val display_process : inputprocess -> unit
 val display_game_process : game -> unit

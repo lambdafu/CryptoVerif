@@ -29,7 +29,7 @@ type signature [bounded].
 type blocksize [fixed].
 type blocksizebot [bounded].
 type sblocksize [bounded].
-type shkey [fixed].
+type shkey [large,fixed].
 
 (* Concatenation and Padding functions *)
 fun concat1(nonce, host):blocksize [data].

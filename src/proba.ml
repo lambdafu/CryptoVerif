@@ -265,31 +265,31 @@ let rec is_1_over_card_t ty = function
   | Div(Cst 1.0, Card ty') -> ty == ty'
   | _ -> false
 		
-let is_small_enough_coll_elim (proba_l, proba_t, dep_types, full_type, opt_indep_types) =
+let is_small_enough_coll_elim p =
   (* The probability is
-     \prod_{ri \in proba_l} |ri.ri_type| * proba_t * \prod_{T \in dep_types} T *)
+     \prod_{ri \in p.p_ri_list} |ri.ri_type| * p.p_proba * \prod_{T \in p.p_dep_types} T *)
   if !Settings.trust_size_estimates then
-    let prod_proba_l = Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) proba_l in
-    (Terms.plus (order_of_magnitude proba_t)
-       (Terms.plus (Terms.sum_list Terms.get_size_high dep_types) prod_proba_l)
+    let prod_ri_list = Terms.sum_list (fun ri -> Terms.get_size_high ri.ri_type) p.p_ri_list in
+    (Terms.plus (order_of_magnitude p.p_proba)
+       (Terms.plus (Terms.sum_list Terms.get_size_high p.p_dep_types) prod_ri_list)
        <= - (!Settings.tysize_MIN_Coll_Elim))
     ||
-      ((is_1_over_card_t full_type proba_t) &&
-       (match opt_indep_types with
+      ((is_1_over_card_t p.p_full_type p.p_proba) &&
+       (match p.p_indep_types_option with
        | Some indep_types ->
-	   (* proba_t = 1/|full_type| and \prod_{T \in dep_types} T <= |full_type| / \prod_{T \in indep_types} |T|
-	      so the probability is <= \prod_{ri \in proba_l} |ri.ri_type| / \prod_{T \in indep_types} |T| *)
+	   (* proba_t = 1/|p.p_full_type| and \prod_{T \in p.p_dep_types} T <= |p.p_full_type| / \prod_{T \in indep_types} |T|
+	      so the probability is <= \prod_{ri \in p.p_ri_list} |ri.ri_type| / \prod_{T \in indep_types} |T| *)
 	   Terms.plus (order_of_magnitude (Div(Cst 1.0, Polynom.p_prod (List.map (fun ty -> Card ty) indep_types))))
-	     prod_proba_l
+	     prod_ri_list
 	     <= - (!Settings.tysize_MIN_Coll_Elim)
        | None -> false))
   else
     try
       let size_proba =
-	if dep_types == [] then
-	  order_of_magnitude proba_t
-	else if is_1_over_card_t full_type proba_t then
-	  match opt_indep_types with
+	if p.p_dep_types == [] then
+	  order_of_magnitude p.p_proba
+	else if is_1_over_card_t p.p_full_type p.p_proba then
+	  match p.p_indep_types_option with
 	  | Some indep_types -> - (Terms.max_list Terms.get_size_low indep_types)
 	  | None -> raise Not_found
 	else
@@ -297,16 +297,16 @@ let is_small_enough_coll_elim (proba_l, proba_t, dep_types, full_type, opt_indep
       in
       List.exists (fun (factor_bound, type_bound) ->
 	(size_proba <= - type_bound) && 
-	(is_smaller proba_l factor_bound)
+	(is_smaller p.p_ri_list factor_bound)
 	  ) (!Settings.allowed_collisions)
     with Not_found ->
       false
 	
-let is_small_enough_collision ((proba_l, proba_t, dep_types, _, _) as probaf_mul_types) =
+let is_small_enough_collision p =
   if !Settings.trust_size_estimates then
-    is_small_enough_coll_elim probaf_mul_types
+    is_small_enough_coll_elim p
   else
-    (dep_types == []) && (List.exists (is_smaller proba_l) (!Settings.allowed_collisions_collision))
+    (p.p_dep_types == []) && (List.exists (is_smaller p.p_ri_list) (!Settings.allowed_collisions_collision))
   
 
 let whole_game = ref Terms.empty_game
@@ -355,7 +355,12 @@ let add_elim_collisions b1 b2 =
   let new_coll = (b1, b2) in
   if not (List.exists (equal_coll new_coll) (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim (b1.args_at_creation @ b2.args_at_creation, pcoll2rand b1.btype, [], b1.btype, None) then
+      if is_small_enough_coll_elim
+	  { p_ri_list = b1.args_at_creation @ b2.args_at_creation;
+	    p_proba = pcoll2rand b1.btype;
+	    p_dep_types = [];
+	    p_full_type = b1.btype;
+	    p_indep_types_option = None } then
 	begin
 	  eliminated_collisions := new_coll :: (!eliminated_collisions);
 	  true
@@ -387,17 +392,9 @@ let proba_for_collision b1 b2 =
   print_newline();
   p
 
-(* An element (t1,t2,proba,tl) in red_proba means that t1 has been reduced
-to t2 using a probabilistic reduction rule, and that the restrictions
-in this rule are mapped according to list tl
-
-I have a small doubt here on when exactly we can avoid counting several times
-the same elimination of collisions in different games. I do it when the
-probability does not depend on the runtime of the game. Would that be ok
-even if it depends on it? *)
 
 let red_proba = ref ([]: red_proba_t list)
-
+    
 let get_time() =
   match !time_for_whole_game with
   | Some t -> t
@@ -406,21 +403,6 @@ let get_time() =
       time_for_whole_game := Some t;
       t
     
-let rec instan_time = function
-    AttTime -> Add(AttTime, get_time())
-  | Time _ -> Parsing_helper.internal_error "unexpected time"
-  | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
-  | Proba(p,l) -> Proba(p, List.map instan_time l)
-  | ActTime(f,l) -> ActTime(f, List.map instan_time l)
-  | Maxlength(_,t) -> Maxlength(!whole_game, Terms.copy_term Terms.Links_Vars t) (* When add_proba_red is called, the variables in the reduction rule are linked to their corresponding term *)
-  | Length(f,l) -> Length(f, List.map instan_time l)
-  | Mul(x,y) -> Mul(instan_time x, instan_time y)
-  | Add(x,y) -> Add(instan_time x, instan_time y)
-  | Sub(x,y) -> Sub(instan_time x, instan_time y)
-  | Div(x,y) -> Div(instan_time x, instan_time y)
-  | Max(l) -> Max(List.map instan_time l)
-	
 let rec collect_array_indexes accu t =
   match t.t_desc with
     ReplIndex(b) ->
@@ -430,65 +412,453 @@ let rec collect_array_indexes accu t =
   | FunApp(f,l) -> List.iter (collect_array_indexes accu) l
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_array_indexes"
 
-let equal_probaf_mul_types (indices, probaf, dep_types, full_type, indep_types)
-    (indices', probaf', dep_types', full_type', indep_types') =
-  (Terms.equal_lists_sets_q indices indices') &&
-  (Terms.equal_probaf probaf probaf') &&
-  (Terms.equal_lists (==) dep_types dep_types') &&
-  (match indep_types, indep_types' with
+(* [match_term_any_var any_vars_opt next_f t t' ()] calls [next_f()] when [t']
+   is an instance of [t], with
+   any value for the [?] variables when [any_vars_opt == None],
+   values stored in links for variables in the list [any_vars] 
+   when [any_vars_opt = Some any_vars],
+   and values stored in links for replication indices.
+   It raises [NoMatch] when [t'] is not an instance of [t]. *)
+
+let any_term_name = "?"
+
+let match_term_any_var any_vars_opt = 
+  (* [get_var_link] function associated to [match_term_any_var].
+     See the interface of [Terms.match_funapp] for the 
+     specification of [get_var_link]. *)
+  let get_var_link t () =
+    match t.t_desc, any_vars_opt with
+      Var (v,[]), None when v.sname==any_term_name -> Some(v.link, true)
+    | Var (v,[]), Some any_vars when List.memq v any_vars -> Some(v.link, true)
+    | ReplIndex (v), _ -> Some(v.ri_link, false)
+    | _ -> None
+  in
+  let cleanup =
+    if any_vars_opt == None then
+      Terms.ri_auto_cleanup_failure
+    else
+      fun f -> Terms.auto_cleanup (fun () ->
+       Terms.ri_auto_cleanup f)
+  in
+  let rec aux next_f t t' () =
+    cleanup (fun () ->
+      match t.t_desc, t'.t_desc, any_vars_opt with
+      | Var(v,[]), _, None when v.sname==any_term_name -> next_f()
+      | Var(v,[]), _, Some any_vars when List.memq v any_vars -> 
+          (* Check that types match *)
+          if t'.t_type != v.btype then
+            raise NoMatch;
+          begin
+            match v.link with
+            | NoLink -> Terms.link v (TLink t')
+            | TLink t -> if not (Terms.equal_terms t t') then raise NoMatch
+          end;
+          next_f()
+      | ReplIndex(v), _, _ -> 
+          (* Check that types match *)
+	  if t'.t_type != v.ri_type then
+	    raise NoMatch;
+	  begin
+	    match v.ri_link with
+	      NoLink -> Terms.ri_link v (TLink t')
+	    | TLink t -> if not (Terms.equal_terms t t') then raise NoMatch
+	  end;
+	  next_f()
+      | Var(b,l), Var(b',l'), _ when b == b' -> 
+	  Match_eq.match_term_list aux next_f l l' ()
+      | FunApp(f,l), FunApp(f',l'), _ when f == f' ->
+	  Match_eq.match_funapp aux get_var_link Match_eq.default_match_error Terms.simp_facts_id next_f t t' ()
+      | _ -> raise NoMatch
+	    )
+  in
+  aux 
+    
+(* The function [instantiate_ri_list] replace indices with their
+   value stored in links, inside the [p_ri_list] field
+   of [probaf_mul_types].
+   The functions [copy_probaf], [copy_probaf_mul_types],
+   [copy_instantiated_coll_statement], [copy_red_proba] copy 
+   respectively probabilities, probaf_mul_types, instantiated
+   collision statements, and red_proba_t, following links
+   according to [transf] (see [Terms.copy_transf]). 
+   For [copy_probaf_mul_types] and [copy_red_proba], 
+   [transf] must be [Terms.Links_RI] or [Terms.Links_RI_Vars],
+   to be coherent with following links in replication indices
+   in [instantiate_ri_list].
+   *)
+    
+let rec instantiate_ri_list accu = function
+  | [] -> accu
+  | ri::ri_list ->
+      match ri.ri_link with
+      | NoLink -> instantiate_ri_list (ri::accu) ri_list
+      | TLink t ->
+	  let l = ref accu in
+	  collect_array_indexes l t;
+	  instantiate_ri_list (!l) ri_list
+
+let copy_probaf transf p =
+  let rec aux = function
+  | Time(g,x) -> Time(g, aux x)
+  | (AttTime | Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
+     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
+  | Proba(p,l) -> Proba(p, List.map aux l)
+  | ActTime(f,l) -> ActTime(f, List.map aux l)
+  | Maxlength(g,t) -> Maxlength(g, Terms.copy_term transf t)
+  | Length(f,l) -> Length(f, List.map aux l)
+  | Mul(x,y) -> Mul(aux x, aux y)
+  | Add(x,y) -> Add(aux x, aux y)
+  | Sub(x,y) -> Sub(aux x, aux y)
+  | Div(x,y) -> Div(aux x, aux y)
+  | Max(l) -> Max(List.map aux l)
+  in
+  aux p
+    
+let copy_probaf_mul_types transf p =
+  (* Note: in case probaf refers to terms (via maxlength), we
+     might need to instantiate probaf as well. That is not
+     common for collisions, but I do it for safety. *)
+  { p with
+    p_ri_list = instantiate_ri_list [] p.p_ri_list;
+    p_proba = copy_probaf transf p.p_proba }
+	
+let copy_instantiated_coll_statement transf ic =
+  { ic_restr = List.map (Terms.copy_term transf) ic.ic_restr;
+    ic_redl = Terms.copy_term transf ic.ic_redl;
+    ic_proba = copy_probaf transf ic.ic_proba;
+    ic_redr = Terms.copy_term transf ic.ic_redr;
+    ic_indep_cond = Terms.copy_term transf ic.ic_indep_cond;
+    ic_side_cond = Terms.copy_term transf ic.ic_side_cond;
+    ic_restr_may_be_equal = ic.ic_restr_may_be_equal }
+    
+let copy_red_proba transf r =
+  let instan_binding (b,t) = (b, Terms.copy_term transf t) in
+  { r_coll_statement = r.r_coll_statement;
+    r_restr_indep_map = List.map instan_binding r.r_restr_indep_map;
+    r_any_var_map_list = { source = r.r_any_var_map_list.source;
+			   images = List.map (List.map (Terms.copy_term transf))
+			     r.r_any_var_map_list.images };
+    r_i_coll_statement = copy_instantiated_coll_statement transf r.r_i_coll_statement;
+    r_proba = copy_probaf_mul_types transf r.r_proba }
+
+(* [equal_probaf_mul_types p p'] returns true when the
+   [probaf_mul_types] elements [p] and [p'] represent
+   the same probability *)
+    
+let equal_probaf_mul_types p p' =
+  (Terms.equal_lists_sets_q p.p_ri_list p'.p_ri_list) &&
+  (Terms.equal_probaf p.p_proba p'.p_proba) &&
+  (Terms.equal_lists (==) p.p_dep_types p'.p_dep_types) &&
+  (match p.p_indep_types_option, p'.p_indep_types_option with
   | None, None -> true
   | Some l, Some l' -> (* full_type does not matter when indep_types = None *)
-      (full_type == full_type') && (Terms.equal_lists (==) l l')
+      (p.p_full_type == p'.p_full_type) && (Terms.equal_lists (==) l l')
   | _ -> false)
 
-let equal_red
-    (t1,t2,side_cond,probaf_mul_types)
-    (t1',t2',side_cond',probaf_mul_types') =
-  (Terms.equal_terms t1 t1') && (Terms.equal_terms t2 t2') &&
-  (Terms.equal_terms side_cond side_cond') &&
-  (equal_probaf_mul_types probaf_mul_types probaf_mul_types')
+(* [match_instantiated_coll_statement any_vars next_f ic ic'] 
+   performs matching on instantiated collision statements. 
+   It calls [next_f()] when [ic'] is an instance of [ic], 
+   with replication indices and variables in [any_vars] (in [ic]) linked
+   to the values that transform [ic] into [ic'].
+   It raises [NoMatch] when [ic'] is not an instance of [ic].
+
+   [match_red r r'] returns [Some r''] when the [red_proba_t] element
+   [r'] is a particular case [r]. Then [r''] is a modified version of
+   [r] with added elements in [r_any_var_map_list], so that [r'']
+   includes both [r] and [r']. 
+   Otherwise, it returns [None]. *)
     
-let add_proba_red_inside ((t1, t2, side_cond, probaf_mul_types) as new_red) =
-  if not (List.exists (equal_red new_red) (!red_proba)) then
+let match_instantiated_coll_statement any_vars next_f ic ic' =
+  if ic.ic_restr_may_be_equal != ic'.ic_restr_may_be_equal then raise NoMatch;
+  let match_term = match_term_any_var (Some any_vars) in
+  (* All variables are instantiated by matching [redl] with [redl'] *)
+  match_term (fun () ->
+    let proba_i = copy_probaf Terms.Links_RI_Vars ic.ic_proba in
+    if not (Terms.equal_probaf proba_i ic'.ic_proba) then raise NoMatch;
+    let redr_i = Terms.copy_term Terms.Links_RI_Vars ic.ic_redr in
+    if not (Terms.equal_terms redr_i ic'.ic_redr) then raise NoMatch;
+    let indep_cond_i = Terms.copy_term Terms.Links_RI_Vars ic.ic_indep_cond in
+    if not (Terms.equal_terms indep_cond_i ic'.ic_indep_cond) then raise NoMatch;
+    let side_cond_i = Terms.copy_term Terms.Links_RI_Vars ic.ic_side_cond in
+    if not (Terms.equal_terms side_cond_i ic'.ic_side_cond) then raise NoMatch;
+    let restr_i = List.map (Terms.copy_term Terms.Links_RI_Vars) ic.ic_restr in
+    if not (Terms.equal_lists_sets Terms.equal_terms restr_i ic'.ic_restr) then raise NoMatch;
+    next_f ()
+      ) ic.ic_redl ic'.ic_redl ()
+
+let instantiate_any_var_image any_vars any_vars' any_vars_image' =
+  List.iter2 (fun b t -> b.link <- TLink t) any_vars' any_vars_image';
+  let any_var_image'' =
+    List.map (fun b ->
+      Terms.copy_term Terms.Links_Vars (Terms.get_tlink b)) any_vars
+  in
+  List.iter (fun b -> b.link <- NoLink) any_vars';
+  any_var_image''
+    
+let matches_red r r' =
+  try 
+    match_instantiated_coll_statement r.r_any_var_map_list.source
+      (fun () -> 
+	let proba_inst = copy_probaf_mul_types Terms.Links_RI_Vars r.r_proba in
+	if equal_probaf_mul_types proba_inst r'.r_proba then
+          (* matches *)
+	  let any_var_map_list'' =
+	    { source = r.r_any_var_map_list.source;
+	      images = 
+	      List.fold_left (fun accu elem ->
+		let elem_i = instantiate_any_var_image r.r_any_var_map_list.source r'.r_any_var_map_list.source elem in
+		if List.exists (Terms.equal_term_lists elem_i) accu then accu else elem_i::accu
+			      ) r.r_any_var_map_list.images r'.r_any_var_map_list.images
+	    }
+	  in
+	  Some { r with r_any_var_map_list = any_var_map_list'' }
+	else
+	  None
+	(* For speed, we do not reconsider other ways to match the 3 terms
+	   when the probabilities differ, so we return None instead of 
+	   raising NoMatch  *)
+	      ) r.r_i_coll_statement r'.r_i_coll_statement
+  with NoMatch ->
+    None
+
+(* [includes_red red1 red2] is true when the [red_proba_t] element
+   [red1] includes [red2] *)
+      
+let includes_red red1 red2 =
+  match matches_red red1 red2 with
+  | None -> false
+  | Some red1' ->
+      (* Check that [red1' = red1]. The only change is that elements may be added to [r_any_var_map_list] *)
+      List.length red1.r_any_var_map_list.images = List.length red1'.r_any_var_map_list.images
+
+(* [equal_red red1 red2] is true when the [red_proba_t] elements
+   [red1] and [red2] are equal *)
+	
+let equal_red red1 red2 =
+  (includes_red red1 red2) && (includes_red red2 red1)
+
+(* [add_proba_red_inside new_red] adds an element [new_red: red_proba_t] to
+   [red_proba]. It tries to merge with existing elements in [red_proba_t]
+   if possible. *)
+    
+let add_proba_red_inside new_red =
+  if is_small_enough_collision new_red.r_proba then
     begin
-      if is_small_enough_collision probaf_mul_types then
-	begin
-	  red_proba := new_red :: (!red_proba);
-	  true
-	end
-      else
-	false
+      let rec find_more_general_coll = function
+	  [] -> raise Not_found
+	| (red :: rest) ->
+	    match matches_red red new_red with
+	      Some red'' -> red'' :: rest
+	    | None -> red :: (find_more_general_coll rest)
+      in
+      begin
+	try
+	  red_proba := find_more_general_coll (!red_proba)
+	with Not_found ->
+	  let new_red_ref = ref new_red in
+	  let red_proba' = List.filter (fun red -> 
+	    match matches_red (!new_red_ref) red with
+	      None -> true
+	    | Some red'' -> new_red_ref := red''; false) (!red_proba)
+	  in
+	  red_proba := (!new_red_ref) :: red_proba'
+      end;
+      true
     end
   else
-    true
+    false
 
-let add_proba_red t1 t2 side_cond proba tl =
-  let proba = instan_time proba in
+(**** Registering an application of a collision statement in [red_proba] *)
+
+(* [occurs_proba any_var_map p] is true when a variable in [any_var_map]
+   occurs in the probability [p]. *)
+      
+let occurs_proba any_var_map p =
+  let rec aux = function
+    | Maxlength(_,t) ->
+	List.exists (fun (b,_) -> Terms.refers_to b t) any_var_map
+    | Zero | Cst _ | Count _ | OCount _ | Card _ | EpsFind | EpsRand _
+    | PColl2Rand _ | PColl1Rand _ | AttTime | TypeMaxlength _ | Time _ -> false
+    | Proba(_,l) | Max(l) | ActTime(_,l) | Length(_,l) ->
+	List.exists aux l
+    | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->
+	(aux p1) || (aux p2)
+  in
+  aux p
+
+(* [forget_array_args t] returns the term obtained by removing
+   array indices from all variables in [t]. Used for the 
+   terms [t] in the probability formula [Maxlength(g,t)] *)
+    
+let rec forget_array_args t =
+  match t.t_desc with
+  | Var(b,_) -> Terms.term_from_binder b
+  | FunApp(f,l) ->
+      Terms.build_term t (FunApp(f, List.map forget_array_args l))
+  | _ -> assert false
+
+(* special function symbol to encode independence conditions 
+   as terms *)
+	
+let indep_fun = { f_name = "independent-of";
+		  f_type = [Settings.t_any; Settings.t_any], Settings.t_bool;
+		  f_cat = Std;
+		  f_options = 0;
+		  f_statements = [];
+		  f_collisions = [];
+		  f_eq_theories = NoEq;
+		  f_impl = No_impl;
+		  f_impl_inv = None;
+		}
+
+(* [copy_indep_cond transf ic] copies the independence condition [ic]
+   following links according to [transf], and transforming the result
+   into a term *)
+    
+let rec copy_indep_cond transf = function
+  | IC_True -> Terms.make_true()
+  | IC_Or(c1, c2) -> Terms.make_or (copy_indep_cond transf c1) (copy_indep_cond transf c2)
+  | IC_And(c1, c2) -> Terms.make_and (copy_indep_cond transf c1) (copy_indep_cond transf c2)
+  | IC_Indep(b1, b2) ->
+      Terms.app indep_fun [ Terms.copy_term transf (Terms.term_from_binder b1);
+			    Terms.copy_term transf (Terms.term_from_binder b2) ]
+
+(* [instantiate_coll_statement c restr_indep_map] instantiate the
+   collision statement [c] by replacing variables according to
+   [restr_indep_map]. The result is an instantiated collision
+   statement, of type [instantiated_collision].
+   The change of type is because restrictions become
+   variables potentially with array indices, so they are represented
+   as [term] rather than [binder], and instantiated
+   independence conditions are represented as [term] instead of
+   [indep_cond] because variables inside the condition become
+   terms, and because that makes easier to program matching
+   on instantiated independence conditions, using functions on terms. *)
+	
+let instantiate_coll_statement c restr_indep_map =
+  List.iter (fun (b,t) -> b.link <- TLink t) restr_indep_map;
+  let c' =
+    { ic_restr = List.map Terms.get_tlink c.c_restr;
+      ic_redl = Terms.copy_term Terms.Links_Vars c.c_redl;
+      ic_proba = copy_probaf Terms.Links_Vars c.c_proba;
+      ic_redr = Terms.copy_term Terms.Links_Vars c.c_redr;
+      ic_indep_cond = copy_indep_cond Terms.Links_Vars c.c_indep_cond;
+      ic_side_cond = Terms.copy_term Terms.Links_Vars c.c_side_cond;
+      ic_restr_may_be_equal = c.c_restr_may_be_equal }
+  in
+  List.iter (fun (b,t) -> b.link <- NoLink) restr_indep_map;
+  c' 
+
+(* [add_proba_red coll_statement restr_indep_map any_var_map]
+   adds the probability information for applying the collision
+   statement [coll_statement] with variables instantiated
+   as specified by [restr_indep_map] and [any_var_map]. *)
+    
+let add_proba_red coll_statement restr_indep_map any_var_map =
   let accu = ref [] in
-  List.iter (fun (_,t) -> collect_array_indexes accu t) tl;
+  List.iter (fun (_,t) -> collect_array_indexes accu t) restr_indep_map;
   let indices = !accu in
-  add_proba_red_inside (t1, t2, side_cond, (indices, proba, [], t1.t_type, None))
+  let any_var_map_list =
+    { source = List.map fst any_var_map;
+      images = 
+        if occurs_proba any_var_map coll_statement.c_proba then
+	  [List.map (fun (b, t) -> forget_array_args t) any_var_map]
+	else
+	  []
+    }
+  in
+  let instantiated_coll_statement = instantiate_coll_statement coll_statement restr_indep_map in
+  add_proba_red_inside { r_coll_statement = coll_statement;
+			 r_restr_indep_map = restr_indep_map;
+			 r_any_var_map_list = any_var_map_list;
+			 r_i_coll_statement = instantiated_coll_statement;
+			 r_proba = { p_ri_list = indices;
+				     p_proba = coll_statement.c_proba;
+				     p_dep_types = [];
+				     p_full_type = coll_statement.c_redl.t_type;
+				     p_indep_types_option = None }}
 
-let proba_for (indices, probaf, dep_types, _, _) =
-  let lindex = List.map (fun array_idx -> card array_idx.ri_type) indices in
-  let ltypes = List.map (fun ty -> Card ty) dep_types in
-  let p = Polynom.p_prod (probaf :: ltypes @ lindex) in
+(* [proba_for probaf_mul_types] returns the probability equal
+   to the probability multiplied by cardinals of types in
+   [probaf_mul_types]. It also displays this probability. *)
+
+let proba_for p =
+  let lindex = List.map (fun array_idx -> card array_idx.ri_type) p.p_ri_list in
+  let ltypes = List.map (fun ty -> Card ty) p.p_dep_types in
+  let p = Polynom.p_prod (p.p_proba :: ltypes @ lindex) in
   print_string " Probability: ";  
   Display.display_proba 0 p;
   print_newline();
   p
+
+(* [instan_time restr_indep_map any_var_map_list p] instantiates
+   the runtime of the adversary, using the runtime of the current
+   game, in the probability [p] and instantiates variables in
+   [Maxlength(g,t)] inside [p] according to [restr_indep_map]
+   and [any_var_map_list] *)
     
-let proba_for_red_proba (t1, t2, side_cond, probaf_mul_types) =
-  print_string "Reduced ";
-  Display.display_term t1;
-  print_string " to ";
-  Display.display_term t2;
-  if not (Terms.is_true side_cond) then
+let rec instan_time restr_indep_map any_var_map_list p =
+  let rec aux = function
+    | AttTime -> Add(AttTime, get_time())
+    | Time _ -> Parsing_helper.internal_error "unexpected time"
+    | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
+      | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
+    | Proba(p,l) -> Proba(p, List.map aux l)
+    | ActTime(f,l) -> ActTime(f, List.map aux l)
+    | (Max _ | Maxlength _) as y ->
+	let accu = ref Polynom.empty_max_accu in
+	let rec add_max = function
+	  | Max(l) -> List.iter add_max l
+	  | Maxlength(g,t) ->
+	      List.iter (fun (b,t) ->
+		b.link <- TLink t) restr_indep_map;
+	      begin
+		match any_var_map_list.images with
+		| [] -> 
+		    Computeruntime.make_length_term accu (!whole_game)
+		      (Terms.copy_term Terms.Links_Vars t);
+		| _ ->
+		    List.iter (fun any_var_map ->
+		      List.iter2 (fun b t ->
+			b.link <- TLink t) any_var_map_list.source any_var_map;
+		      Computeruntime.make_length_term accu (!whole_game)
+			(Terms.copy_term Terms.Links_Vars t)
+			) any_var_map_list.images;
+		    List.iter (fun b ->
+		      b.link <- NoLink) any_var_map_list.source
+	      end;
+	      List.iter (fun (b,t) ->
+		b.link <- NoLink) restr_indep_map
+	  | x -> Polynom.add_max accu (aux x)
+	in
+	add_max y;
+	Polynom.p_max (!accu)
+    | Length(f,l) -> Length(f, List.map aux l)
+    | Mul(x,y) -> Mul(aux x, aux y)
+    | Add(x,y) -> Add(aux x, aux y)
+    | Sub(x,y) -> Sub(aux x, aux y)
+    | Div(x,y) -> Div(aux x, aux y)
+  in
+  aux p
+    
+(* [proba_for_red_proba r] displays and records the probability
+   for applying a collision statement as specified by
+   [r: red_proba_t] *)
+    
+let proba_for_red_proba r =
+  print_string "Applied ";
+  Display.display_collision r.r_coll_statement;
+  if r.r_restr_indep_map != [] then
     begin
-      print_string " where ";
-      Display.display_term side_cond
+      print_string " with ";
+      Display.display_list (fun (b, t) ->
+	Display.display_binder b;
+	print_string " -> ";
+	Display.display_term t
+	  ) (List.rev r.r_restr_indep_map)
     end;
-  proba_for probaf_mul_types
+  let proba = instan_time r.r_restr_indep_map r.r_any_var_map_list r.r_proba.p_proba in
+  proba_for { r.r_proba with p_proba = proba }
 
 
 (* Initialization *)

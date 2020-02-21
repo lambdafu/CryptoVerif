@@ -15,7 +15,7 @@ val advise : instruct list ref
    [init_proba_state] contains collisions eliminated by before the dependency analysis,
    in previous passes of simplification.
    [g] is the full game to analyze. *)
-val check_all_deps : binder -> simplify_internal_info_t * collision_state -> 
+val check_all_deps : binder -> simplify_internal_info_t * term_coll_t list -> 
   game -> game option
 
 (* [main b0 coll_elim g] is the entry point for calling

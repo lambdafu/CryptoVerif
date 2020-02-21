@@ -9,6 +9,7 @@ let get_implementation = ref false
 
 let out_dir = ref Filename.current_dir_name 
 let proof_output = ref ""
+let equiv_output = ref ""
     
 let front_end = ref Channels
 
@@ -517,6 +518,8 @@ let get_tuple_fun tl =
     TypeListHashtbl.add tuple_fun_table tl f;
     f
 
+let empty_tuple = get_tuple_fun []
+
 (*For precise computation of the runtime only*)
 
 let t_interv = { tname ="[1,*]";
@@ -637,7 +640,7 @@ let event_occurs_in_queries f q =
 
 (***************************************************************************)
 
-let equivs = ref []
+let equivs = ref ([]: equiv_gen list)
 
 (****************************************************************************)
 

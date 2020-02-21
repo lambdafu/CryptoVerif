@@ -1,0 +1,102 @@
+(**********************************************************************
+*
+* Chosen plaintext security for a CCM-variant: Counter mode with
+* CBC-mac applied to the ciphertext
+*
+*  * modified from a script by Jonathan Herzog
+*  * Blocks: 1
+*  * Result: success
+*
+*
+***********************************************************************)
+
+
+type block [fixed, large].
+type aes_key [fixed, large].
+proba Paes.
+expand PRP_cipher(aes_key, block, aes_enc, aes_dec, Paes).
+
+
+type cm_ciphertext [bounded].
+fun cm_join(block, block): cm_ciphertext [data].
+
+type maced_ciphertext [bounded].
+fun mac_join(cm_ciphertext, block): maced_ciphertext [data].
+
+
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zero_block).
+
+
+(* Useful helper function. Dunno why. *)
+fun test(bool, block, block):block.
+equation forall x:block,y:block; test(true,x,y) = x.
+equation forall x:block,y:block; test(false,x,y) = y.
+
+(* axiomatize incr *)
+fun incr(block): block [data, uniform].
+equation forall x:block; incr(x) <> x.
+
+
+(* Parameters *)
+
+param N_enc. (* the number of times the adversary gets to call the encryption oracle *)
+param N_dec. (* the number of times the adversary gets to call the decryption oracle *)
+param C. (* the number of challenge ciphertexts available to the adversary *)
+
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+letfun enc(aesk: aes_key, b1 : block) =
+       (* Counter mode *)
+       counter_nonce <-R block;
+       
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       this_cm_ciphertext <- cm_join(counter_nonce, cipherblock1);    
+
+
+       (* CBC mac *)       
+       t1 <- aes_enc(counter_nonce, aesk);
+       tag <- aes_enc( xor(t1, cipherblock1), aesk);
+
+       ciphertext <- mac_join(this_cm_ciphertext, tag);
+       ciphertext.
+
+let enc_oracle(aesk: aes_key) = 
+    Oenc(b1 : block):=
+    return(enc(aesk, b1)).
+
+
+let challenge_oracle(aesk: aes_key, secret_bit1: bool) =
+       
+       Ochallenge(b11: block, b21: block ) :=
+       b1 <- test(secret_bit1, b11, b21);
+       return(enc(aesk, b1)).
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+        aesk <-R aes_key;
+        secret_bit <-R bool;
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+        (foreach i <= N_enc do run enc_oracle(aesk)) |
+	(foreach i <= C do run challenge_oracle(aesk, secret_bit))
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

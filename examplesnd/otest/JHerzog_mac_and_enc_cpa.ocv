@@ -1,0 +1,88 @@
+(**********************************************************************
+*
+* Prove the chosen-plaintext security of MAC-and-counter-mode.
+*
+*  * Cryptoverif version: 1.18
+*  * Blocks: 1
+*  * Result: failure, as expected-- as implemented below, this is insecure.
+*    In particualr, the MAC tag could leak information about the plaintext.
+*
+***********************************************************************)
+
+
+
+
+type block [fixed, large].
+
+type aes_key [fixed].
+proba Paes.
+expand PRP_cipher(aes_key, block, aes_enc, aes_dec, Paes).
+
+
+type mac_key [fixed].
+proba Pmac.
+expand SUF_CMA_det_mac(mac_key, block, block, mac, mac_check, Pmac).
+
+
+
+(* Useful helper function. Dunno why. *)
+
+fun test(bool, block, block):block.
+equation forall x:block,y:block; test(true,x,y) = x.
+equation forall x:block,y:block; test(false,x,y) = y.
+
+
+
+(* define xor to exist over blocks *)
+
+expand Xor(block, xor, zero_block).
+
+
+(* Parameters *)
+
+param N. (* the number of times the adversary gets to call the encryption oracle *)
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+letfun enc(mack: mac_key, aesk: aes_key, b1: block) = 
+       mac_tag <- mac(b1, mack);
+
+       nonce <-R block;
+       pad <- aes_enc(nonce, aesk);
+       ciphertext <- xor(b1, pad);
+       
+       (nonce, ciphertext, mac_tag).
+
+let enc_oracle(mack: mac_key, aesk: aes_key) = 
+    Oenc(b1 : block):= return(enc(mack, aesk, b1)).
+
+
+let challenge_oracle(mack: mac_key, aesk: aes_key) =
+       
+       Ochallenge(b11: block, b21: block) :=
+       secret_bit <-R bool;
+       b1 <- test(secret_bit, b11, b21);
+       return(enc(mack, aesk, b1)).
+
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+        aesk <-R aes_key;
+	mack <-R mac_key;
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+	return;
+
+        (foreach i <= N do run enc_oracle(mack, aesk)) | run challenge_oracle(mack, aesk)
+
+(* EXPECTED
+RESULT Could not prove secrecy of secret_bit.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

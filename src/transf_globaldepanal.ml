@@ -224,7 +224,8 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	  | Fixed probaf_mul_types -> Proba.is_small_enough_coll_elim probaf_mul_types
 	  | ProbaIndepCollOfVar _ -> Parsing_helper.internal_error "ProbaIndepCollOfVar should have been instantiated by expand_probaf")
 	   proba_term_collisions') &&
-	(List.for_all (fun (_,_,_,probaf_mul_types) -> Proba.is_small_enough_coll_elim probaf_mul_types)
+	(List.for_all (fun red ->
+	  Proba.is_small_enough_coll_elim red.r_proba)
 	   proba_collision')
       then
 	[]
@@ -232,7 +233,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	true_facts @ (Facts.get_facts_at facts_info) 
     in
     let proba_info = (probaf', dep_types,full_type,indep_types) in
-    Depanal.add_term_collisions (cur_array, true_facts', [], Terms.make_true()) t1 t2 (!main_var) None proba_info
+    Depanal.add_term_collisions (cur_array, true_facts', Terms.make_true()) t1 t2 (!main_var) None proba_info
   with Contradiction ->
     true
 
@@ -262,7 +263,7 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  Depanal.add_term_collisions (cur_array, true_facts, [], side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,Some [t2.t_type])
+  Depanal.add_term_collisions (cur_array, true_facts, side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,Some [t2.t_type])
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -532,7 +533,7 @@ let dependency_anal cur_array =
       end
     in
     if result = None then
-      Facts.default_indep_test Facts.nodepinfo simp_facts t (b,l)
+      Facts.indep_test_noinfo simp_facts t (b,l)
     else
       result
   in
@@ -727,7 +728,7 @@ let almost_indep_test cur_array t =
 	BothDepB
       end*)
     else
-      BothIndepB (Terms.move_occ_term t')
+      BothIndepB (Terms.delete_info_term t')
   with Contradiction ->
     (* The term [t] is in fact unreachable *)
     Unreachable
@@ -1044,12 +1045,12 @@ let rec almost_indep_fc cur_array t0 =
 	    else
 	      begin
 		if not (Terms.is_false p2) then local_changed := true;
-		BothIndepB (Terms.build_term2 t0 (FindE(List.rev (!l0'), Terms.make_false(), find_info)))
+		BothIndepB (Terms.build_term t0 (FindE(List.rev (!l0'), Terms.make_false(), find_info)))
 	      end
 	  end
 	else
 	  match almost_indep_fc cur_array p2 with
-	    BothIndepB p2' -> BothIndepB (Terms.build_term2 t0 (FindE(List.rev (!l0'), p2', find_info)))
+	    BothIndepB p2' -> BothIndepB (Terms.build_term t0 (FindE(List.rev (!l0'), p2', find_info)))
 	  | OnlyThen ->
 	      if List.for_all (fun (_,_,_,p1') -> Terms.is_true p1') (!l0') then
 		begin
@@ -1057,7 +1058,7 @@ let rec almost_indep_fc cur_array t0 =
 		  OnlyThen
 		end
 	      else
-		BothIndepB (Terms.build_term2 t0 (FindE(List.rev (!l0'), Terms.make_true(), find_info)))
+		BothIndepB (Terms.build_term t0 (FindE(List.rev (!l0'), Terms.make_true(), find_info)))
 	  | OnlyElse | Unreachable ->
 	      if List.for_all (fun (_,_,_,p1') -> Terms.is_false p1') (!l0') then
 		begin
@@ -1065,7 +1066,7 @@ let rec almost_indep_fc cur_array t0 =
 		  OnlyElse
 		end
 	      else
-		BothIndepB (Terms.build_term2 t0 (FindE(List.rev (!l0'), Terms.make_false(), find_info)))
+		BothIndepB (Terms.build_term t0 (FindE(List.rev (!l0'), Terms.make_false(), find_info)))
 	  | BothDepB -> BothDepB
       with BadDep -> BothDepB
       end
@@ -1122,7 +1123,7 @@ let rec almost_indep_fc cur_array t0 =
 		  local_changed := true;
 		  OnlyElse
 	      | BothDepB, _ | _, BothDepB -> BothDepB
-	      | _, _ -> BothIndepB (Terms.build_term2 t0 (TestE(t'', to_term p1', to_term p2')))
+	      | _, _ -> BothIndepB (Terms.build_term t0 (TestE(t'', to_term p1', to_term p2')))
 	    end
 	| OnlyThen ->
 	    local_changed := true;
@@ -1155,7 +1156,7 @@ let rec almost_indep_fc cur_array t0 =
 	      | BothDepB -> BothDepB
 	      | BothIndepB p1' -> 
 		  if Terms.refers_to b p1' then
-		    BothIndepB (Terms.build_term2 t0 (LetE(pat,t1, p1', None)))
+		    BothIndepB (Terms.build_term t0 (LetE(pat,t1, p1', None)))
 		  else
 		    BothIndepB p1'
 	      | Unreachable -> Unreachable
@@ -1210,7 +1211,7 @@ let rec almost_indep_fc cur_array t0 =
 			    local_changed := true;
 			    OnlyElse
 			| BothDepB, _ | _, BothDepB -> BothDepB
-			| _, _ -> BothIndepB (Terms.build_term2 t0 (LetE(pat,t1, to_term p1', Some (to_term p2'))))
+			| _, _ -> BothIndepB (Terms.build_term t0 (LetE(pat,t1, to_term p1', Some (to_term p2'))))
 		      end
 	    with BothDep ->
 	      (* Both branches may be taken, and the choice may depend on [b0]
@@ -1569,7 +1570,11 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
 
 let init_find_compos_probaf b0 = 
   let ri = Depanal.fresh_repl_index() in
-  (ri, ([Fixed(ri::b0.args_at_creation,Proba.pcoll1rand b0.btype,[],b0.btype,None)],[],[]))
+  (ri, ([Fixed { p_ri_list = ri::b0.args_at_creation;
+		 p_proba = Proba.pcoll1rand b0.btype;
+		 p_dep_types = [];
+		 p_full_type = b0.btype;
+		 p_indep_types_option = None }],[],[]))
     
 let check_all_deps b0 init_proba_state g =
   whole_game := g;

@@ -1,0 +1,28 @@
+type hashkey1 [large, fixed].
+type input1.
+type output1 [large, fixed].
+
+
+expand ROM_hash(hashkey1, input1, output1, H1, hashoracle1, qH1').
+
+proof {
+      show_game occ;
+      crypto rom(H1) special(("Ocoll: new r1: output1; new r2: output1; r1 = r2"));
+      success
+      }
+
+channel start, c.
+
+event bad.
+query event(bad) ==> false.
+
+process
+	in(start, ());
+	new hk: hashkey1;
+	out(c, ());
+	(hashoracle1(hk) | in(c, (x: input1, y:input1)); if H1(hk, x) = H1(hk, y) && x <> y then event bad)
+
+(* EXPECTED
+All queries proved.
+0.036s (user 0.028s + system 0.008s), max rss 63808K
+END *)

@@ -196,6 +196,16 @@ let rec map_union eqtest f = function
     [] -> []
   | (a::l) -> union eqtest (f a) (map_union eqtest f l)
 
+(* [get_actual_equiv] converts an equivalence of type [equiv_gen]
+   into one of type [equiv_nm] *)
+
+let get_actual_equiv equiv =
+  match equiv.eq_fixed_equiv, equiv.eq_name_mapping with
+  | Some(lm,rm,p,opt2), Some nm ->
+      (equiv.eq_name, lm, rm, p, equiv.eq_exec, opt2), nm
+  | _ ->
+      Parsing_helper.internal_error "get_actual_equiv"
+	
 (* Iterators *)
 
 (* Exists *)
@@ -357,16 +367,26 @@ let build_term_type_occ ty occ desc =
     t_incompatible = Occ_map.empty;
     t_facts = None }
 
-let build_term_type ty desc =
-  build_term_type_occ ty (-1) desc
+let new_term ty ext desc =
+  { t_desc = desc;
+    t_type = ty;
+    t_occ = -1;
+    t_max_occ = 0;
+    t_loc = ext;
+    t_incompatible = Occ_map.empty;
+    t_facts = None }  
+    
+let build_term t desc = new_term t.t_type t.t_loc desc
 
-let build_term t desc =
-  build_term_type t.t_type desc
+let build_term_type ty desc =
+  new_term ty Parsing_helper.dummy_ext desc
 
 (* build_term2 is the same as build_term, except that it keeps the
-   occurrence and location of t. This is useful in particular so that occurrences
-   are kept in term manipulations by simplification, to be able to
-   designate a term by occurrence *)
+   occurrence of t. This is useful in particular so that occurrences
+   are kept in fact manipulations, to preserve the occurrence of
+   "begin" events during the proof of correspondences and to keep
+   occurrences of terms to apply the [terms: ...] indication
+   of the crypto command. *)
 
 let build_term2 t desc =
   { t_desc = desc;
@@ -376,15 +396,6 @@ let build_term2 t desc =
     t_loc = t.t_loc;
     t_incompatible = Occ_map.empty;
     t_facts = None }
-
-let new_term ty ext desc =
-  { t_desc = desc;
-    t_type = ty;
-    t_occ = -1;
-    t_max_occ = 0;
-    t_loc = ext;
-    t_incompatible = Occ_map.empty;
-    t_facts = None }  
     
 let term_from_repl_index b =
   build_term_type b.ri_type (ReplIndex b)
@@ -415,11 +426,13 @@ let new_iproc d ext = { i_desc = d; i_occ = -1; i_max_occ = 0; i_loc = ext;
 let new_oproc d ext = { p_desc = d; p_occ = -1; p_max_occ = 0; p_loc = ext;
 			p_incompatible = Occ_map.empty; p_facts = None }
 
-let iproc_from_desc d = { i_desc = d; i_occ = -1; i_max_occ = 0; i_loc = Parsing_helper.dummy_ext;
-			  i_incompatible = Occ_map.empty; i_facts = None }
+let iproc_from_desc d = new_iproc d Parsing_helper.dummy_ext
 
-let oproc_from_desc d = { p_desc = d; p_occ = -1; p_max_occ = 0; p_loc = Parsing_helper.dummy_ext;
-			  p_incompatible = Occ_map.empty; p_facts = None }
+let oproc_from_desc d = new_oproc d Parsing_helper.dummy_ext
+
+let iproc_from_desc_loc p d = new_iproc d p.i_loc
+
+let oproc_from_desc_loc p d = new_oproc d p.p_loc
 
 let iproc_from_desc_at p d = { i_desc = d; i_occ = p.i_occ; i_max_occ = p.i_max_occ; i_loc = p.i_loc;
 			     i_incompatible = p.i_incompatible; 
@@ -434,6 +447,7 @@ let empty_game = { proc = RealProcess (iproc_from_desc Nil); expanded = true; ga
 (* Used the designate the LHS and RHS of an equivalence *)
 let lhs_game = { proc = RealProcess (iproc_from_desc Nil); expanded = true; game_number = -2; current_queries = [] }
 let rhs_game = { proc = RealProcess (iproc_from_desc Nil); expanded = true; game_number = -3; current_queries = [] }
+let lhs_game_nodisplay = { proc = RealProcess (iproc_from_desc Nil); expanded = true; game_number = -4; current_queries = [] }
     
 let get_process g =
   match g.proc with
@@ -488,6 +502,11 @@ let link v l =
   current_bound_vars := v :: (!current_bound_vars);
   v.link <- l
 
+let get_tlink v =
+  match v.link with
+  | TLink t -> t
+  | NoLink -> assert false
+       
 let cleanup () =
   List.iter (fun v -> v.link <- NoLink) (!current_bound_vars);
   current_bound_vars := []
@@ -720,13 +739,13 @@ let rec compute_inv try_no_var reduced (f, inv, n) t =
   | FunApp(f', [t1;t2]) when f' == f ->
       (* inv(x.y) = inv(y).inv(x) *)
       reduced := true;
-      build_term t (FunApp(f, [compute_inv try_no_var reduced (f,inv,n) t2; compute_inv try_no_var reduced (f,inv,n) t1]))
+      app f [compute_inv try_no_var reduced (f,inv,n) t2; compute_inv try_no_var reduced (f,inv,n) t1]
   | FunApp(n', []) when n' == n ->
       (* inv(n) = n *)
       reduced := true;
       t_no_var
   | _ ->
-      build_term t (FunApp(inv, [t]))
+      app inv [t]
 
 (* Simplification function:
    [simp_main_fun try_no_var reduced f t] simplifies term [t].
@@ -828,10 +847,13 @@ let equal_up_to_roll sub_eq l1 l2 =
    theory of the function symbol [f]. *)
 
 let get_neutral f =
-  match f.f_eq_theories with
-    ACUN(_,n) | Group(_,_,n) | CommutGroup(_,_,n) | AssocN(_,n) | AssocCommutN(_,n) -> n
-  | _ -> Parsing_helper.internal_error "equational theory has no neutral element in Terms.get_neutral"
-
+  let neut = 
+    match f.f_eq_theories with
+      ACUN(_,n) | Group(_,_,n) | CommutGroup(_,_,n) | AssocN(_,n) | AssocCommutN(_,n) -> n
+    | _ -> Parsing_helper.internal_error "equational theory has no neutral element in Terms.get_neutral"
+  in
+  app neut []
+    
 (* [get_prod try_no_var t] returns the equational theory of the root
    function symbol of term [t], when it is a product
    in a group or xor. *)
@@ -1111,7 +1133,7 @@ and simp_equal_terms1 simp_facts normalize_root t1 t2 =
             let l2 = simp_prod_root simp_facts normalize_root (ref false) f2 t2 in
             begin
 	      match l2 with
-	        [] -> simp_equal_terms simp_facts true t1 (build_term t2 (FunApp(get_neutral f2, [])))
+	        [] -> simp_equal_terms simp_facts true t1 (get_neutral f2)
 	      | [t] -> simp_equal_terms simp_facts true t1 t
 	      | _ -> (* t2 is a product and t1 is not (it is an inverse), so they cannot be equal *)
 	         false
@@ -1124,7 +1146,7 @@ and simp_equal_terms1 simp_facts normalize_root t1 t2 =
       let l1 = simp_prod_root simp_facts normalize_root (ref false) f1 t1 in
       begin
 	match l1 with
-	  [] -> simp_equal_terms simp_facts true (build_term t1 (FunApp(get_neutral f1, []))) t2
+	  [] -> simp_equal_terms simp_facts true (get_neutral f1) t2
 	| [t] -> simp_equal_terms simp_facts true t t2
 	| _ -> 
 	    let l2 = simp_prod_root simp_facts normalize_root (ref false) f1 t2 in
@@ -1152,7 +1174,7 @@ and simp_equal_terms1 simp_facts normalize_root t1 t2 =
       let l2 = simp_prod_root simp_facts normalize_root (ref false) f2 t2 in
       begin
 	match l2 with
-	  [] -> simp_equal_terms simp_facts true t1 (build_term t2 (FunApp(get_neutral f2, [])))
+	  [] -> simp_equal_terms simp_facts true t1 (get_neutral f2)
 	| [t] -> simp_equal_terms simp_facts true t1 t
 	| _ -> (* t2 is a product and t1 is not (otherwise the previous case
 		  would have been triggered), so they cannot be equal *)
@@ -1416,12 +1438,12 @@ let rec make_prod prod = function
 	match prod.f_eq_theories with
 	  Group(_,_,n) | CommutGroup(_,_,n) | AssocN(_,n) 
 	| AssocCommutN(_,n) | ACUN(_,n) -> 
-	    build_term_type (snd n.f_type) (FunApp(n, []))
+	    app n []
 	| _ -> 
 	    Parsing_helper.internal_error "Empty product impossible without a neutral element"
       end
   | [t] -> t
-  | t::l -> build_term_type t.t_type (FunApp(prod, [t; make_prod prod l]))
+  | t::l -> app prod [t; make_prod prod l]
   
 (* [make_inv_prod eq_th l1 t l2] computes the product 
    inv (product (List.rev l1)) * t * inv(product l2) *)
@@ -1472,7 +1494,7 @@ let len_common_suffix l1 l2 =
 let rec term_from_pat = function
     PatVar b -> term_from_binder b
   | PatTuple (f,l) -> 
-      build_term_type (snd f.f_type) (FunApp(f, List.map term_from_pat l))
+      app f (List.map term_from_pat l)
   | PatEqual t -> t
 
 (* Type of a pattern *)
@@ -1689,6 +1711,22 @@ let create_repl_index s t =
     ri_type = t;
     ri_link = NoLink }
 
+(* Set the definition point of binders, with no other information;
+   returns the definition node *)
+
+let set_def binders pp pp_success above_node_opt =
+  let node =
+    { above_node = above_node_opt;
+      binders = binders;
+      true_facts_at_def = [];
+      def_vars_at_def = [];
+      elsefind_facts_at_def = [];
+      future_binders = []; future_true_facts = []; 
+      definition = pp; definition_success = pp_success }
+  in
+  List.iter (fun b -> b.def <- node :: b.def) binders;
+  node
+    
 (* Event *)
 
 let create_event s tyl =
@@ -1721,16 +1759,7 @@ let gvar_name = "?x"
 
 let create_gvar b = 
   let b' = create_binder gvar_name b.btype [] in
-  let rec st_node = { above_node = st_node; 
-		      binders = []; 
-		      true_facts_at_def = []; 
-		      def_vars_at_def = []; 
-		      elsefind_facts_at_def = [];
-		      future_binders = []; future_true_facts = []; 
-		      definition = DGenVar;
-		      definition_success = DGenVar} 
-  in
-  b'.def <- [st_node];
+  ignore (set_def [b'] DGenVar DNone None);
   b'
 
 let gen_term_from_pat pat = 
@@ -1742,7 +1771,7 @@ let gen_term_from_pat pat =
 	link b (TLink bt);
 	bt
     | PatTuple (f,l) -> 
-	build_term_type (snd f.f_type) (FunApp(f, List.map gterm_from_pat l))
+	app f (List.map gterm_from_pat l)
     | PatEqual t -> t
   in
   auto_cleanup (fun () -> gterm_from_pat pat)
@@ -1878,7 +1907,7 @@ let rec move_occ_term t =
     t_type = t.t_type;
     t_occ = x_occ;
     t_max_occ = !occ;
-    t_loc = Parsing_helper.dummy_ext;
+    t_loc = t.t_loc;
     t_incompatible = Occ_map.empty;
     t_facts = None }
 
@@ -1980,6 +2009,72 @@ let move_occ_game g =
      g.proc <- RealProcess (move_occ_process p)
   | Forgotten _ -> ()
 
+(* Does not change the term, but removes any information stored
+   in it (known facts, occurrence, incompatible program points),
+   to make sure that information that is no longer valid is not used,
+   and creates a distinct physical copy for each term.
+   (needed for [build_def_process]). *)
+
+let rec delete_info_term t = 
+  let desc = 
+    match t.t_desc with
+	Var(b,l) -> Var(b, List.map delete_info_term l)
+      |	ReplIndex i -> ReplIndex i
+      |	FunApp(f,l) -> FunApp(f, List.map delete_info_term l)
+      |	TestE(t1,t2,t3) -> 
+	  let t1' = delete_info_term t1 in
+	  let t2' = delete_info_term t2 in
+	  let t3' = delete_info_term t3 in 
+	  TestE(t1', t2', t3')
+      |	FindE(l0,t3, find_info) -> 
+	  let l0' = List.map (fun (bl,def_list,t1,t2) ->
+	    let def_list' = List.map delete_info_br def_list in
+	    let t1' = delete_info_term t1 in
+	    let t2' = delete_info_term t2 in
+	    (bl, def_list', t1', t2')) l0
+	  in
+	  let t3' = delete_info_term t3 in
+	  FindE(l0', t3', find_info)
+      |	LetE(pat, t1, t2, topt) ->
+	  let pat' = delete_info_pat pat in
+	  let t1' = delete_info_term t1 in
+	  let t2' = delete_info_term t2 in
+	  let topt' = match topt with
+		 None -> None
+	       | Some t3 -> Some (delete_info_term t3)
+	  in
+	  LetE(pat', t1', t2', topt')
+      |	ResE(b,t) ->
+	  ResE(b, delete_info_term t)
+      |	EventAbortE f -> EventAbortE f 
+      | EventE(t,p) ->
+	  let t' = delete_info_term t in
+	  let p' = delete_info_term p in
+	  EventE(t', p')
+      | GetE(tbl,patl,topt,p1,p2) -> 
+	  let patl' = List.map delete_info_pat patl in
+	  let topt' = 
+	    match topt with 
+	      Some t -> Some (delete_info_term t) 
+	    | None -> None
+	  in
+	  let p1' = delete_info_term p1 in
+	  let p2' = delete_info_term p2 in	  
+          GetE(tbl,patl',topt',p1', p2')
+      | InsertE (tbl,tl,p) -> 
+	  let tl' = List.map delete_info_term tl in
+	  let p' = delete_info_term p in
+          InsertE(tbl, tl', p')
+  in
+  build_term t desc
+
+and delete_info_pat = function
+    PatVar b -> PatVar b
+  | PatTuple (f,l) -> PatTuple(f,List.map delete_info_pat l)
+  | PatEqual t -> PatEqual(delete_info_term t)
+
+and delete_info_br (b,l) = (b, List.map delete_info_term l)
+
 (* Copy a term
    Preserves occurrences of the original term. This is useful so that
    we can designate variables by occurrences in simplify coll_elim;
@@ -1989,11 +2084,14 @@ let move_occ_game g =
  *)
 
 type copy_transf =
-    Links_RI (* Substitutes replication indices that are linked *)
+  | DeleteFacts
+  | Links_RI (* Substitutes replication indices that are linked *)
   | Links_Vars 
      (* Substitutes variables that are linked, when their arguments are args_at_creation
 	The linked variables are supposed to be defined above the copied terms/processes *)
   | Links_RI_Vars (* Combines Links_RI and Links_Vars *)
+  | Links_Vars_then_RI (* Same as Links_Vars, but then applies Links_RI to the
+         substituted terms *)
   | OneSubst of binder * term * bool ref 
      (* OneSubst(b,t,changed) substitutes t for b[b.args_at_creation].
 	Sets changed to true when such a substitution has been done.
@@ -2043,11 +2141,12 @@ and copy_term transf t =
     ReplIndex b -> 
       begin
 	match transf with
-	  Links_Vars | OneSubst _ | OneSubstArgs _ | Rename _ | Links_Vars_Args _ -> t
+	| DeleteFacts -> build_term2 t t.t_desc
+	| Links_Vars | Links_Vars_then_RI | OneSubst _ | OneSubstArgs _ | Rename _ | Links_Vars_Args _ -> t
 	| Links_RI | Links_RI_Vars -> 
 	    match b.ri_link with
 	      NoLink -> t
-	    | TLink t' -> move_occ_term t' (* Same comment as in case OneSubst *)
+	    | TLink t' -> delete_info_term t' (* Delete information stored in [t'] *)
       end
   | Var(b,l) ->
       begin
@@ -2056,16 +2155,13 @@ and copy_term transf t =
             if (b == b') && (is_args_at_creation b l) then
 	      begin
 		changed := true;
-                move_occ_term t' (* This just makes a copy of the same term -- This is needed
-				    to make sure that all terms are physically distinct,
-				    which is needed to store facts correctly in
-				    [Terms.build_def_process]. *)
+                delete_info_term t' (* Delete information stored in [t'] *)
 	      end
             else
 	      build_term2 t (Var(b,List.map (copy_term transf) l))
 	| OneSubstArgs((b',l'), t') ->
 	    if (b == b') && (List.for_all2 equal_terms l l') then
-	      move_occ_term t' (* Same comment as in case OneSubst *)
+	      delete_info_term t' (* Delete information stored in [t'] *)
 	    else
 	      build_term2 t (Var(b,List.map (copy_term transf) l))
 	| Rename _ ->
@@ -2081,10 +2177,17 @@ and copy_term transf t =
                   (* Rename array indices *)
 		  subst b.args_at_creation l' t
 	    end
-	| Links_RI ->  build_term2 t (Var(b,List.map (copy_term transf) l))
+	| DeleteFacts | Links_RI ->  build_term2 t (Var(b,List.map (copy_term transf) l))
+	| Links_Vars_then_RI ->
+	    begin
+	      match b.link with
+		TLink t' when is_args_at_creation b l -> copy_term Links_RI t'
+	      | _ -> build_term2 t (Var(b,List.map (copy_term transf) l))
+	    end
 	| Links_Vars | Links_RI_Vars ->
 	    match b.link with
-	      TLink t' when is_args_at_creation b l -> move_occ_term t' (* Same comment as in case OneSubst *)
+	      TLink t' when is_args_at_creation b l ->
+		delete_info_term t' (* Delete information stored in [t'] *)
 	    | _ -> build_term2 t (Var(b,List.map (copy_term transf) l))
       end
   | FunApp(f,l) ->
@@ -2178,8 +2281,8 @@ and copy_def_list transf def_list =
 	  (List.assq b replacement_def_list, l)
 	with Not_found ->
 	  (b,l)) (!accu)
-  | Links_RI -> List.map (fun (b,l) -> (b, List.map (copy_term transf) l)) def_list
-  | Links_Vars | Links_RI_Vars ->
+  | DeleteFacts | Links_RI -> List.map (fun (b,l) -> (b, List.map (copy_term transf) l)) def_list
+  | Links_Vars | Links_RI_Vars | Links_Vars_then_RI ->
       (* When we substitute b (b.link != NoLink), we know that b is in scope, so
 	 we can remove the condition that b is defined. *)
       List.map (fun (b,l) ->
@@ -2439,10 +2542,10 @@ let is_false t =
 (* Applying boolean functions *)
 
 let make_true () =
-  build_term_type Settings.t_bool (FunApp(Settings.c_true, []))
+  app Settings.c_true []
   
 let make_false () =
-  build_term_type Settings.t_bool (FunApp(Settings.c_false, []))
+  app Settings.c_false []
 
 let make_and_ext ext t t' =
   if (is_true t) || (is_false t') then t' else
@@ -2497,7 +2600,7 @@ let make_or_list l =
   make_or_list l'
 
 let make_not t =
-  build_term_type Settings.t_bool (FunApp(Settings.f_not, [t]))
+  app Settings.f_not [t]
   
 let make_equal_ext ext t t' =
   new_term Settings.t_bool ext
@@ -2511,7 +2614,7 @@ let make_let_equal t t' =
       Var _ -> ()
     | _ -> Parsing_helper.internal_error "make_let_equal:  LetEqual terms should have a variable in the left-hand side"
   end;
-  build_term_type Settings.t_bool (FunApp(Settings.f_comp LetEqual t.t_type t'.t_type, [t;t']))
+  app (Settings.f_comp LetEqual t.t_type t'.t_type) [t;t']
 
 let make_diff_ext ext t t' =
   new_term Settings.t_bool ext
@@ -2520,7 +2623,7 @@ let make_diff_ext ext t t' =
 let make_diff t t' = make_diff_ext Parsing_helper.dummy_ext t t'
 
 let make_for_all_diff t t' =
-  build_term_type Settings.t_bool (FunApp(Settings.f_comp ForAllDiff t.t_type t'.t_type, [t;t']))
+  app (Settings.f_comp ForAllDiff t.t_type t'.t_type) [t;t']
 
 let build_term_at t desc =
   { t_desc = desc;
@@ -2706,7 +2809,7 @@ let simplify_let_tuple get_tuple pat t =
 let build_event_query f pub_vars =
   let b = create_binder "!l" Settings.t_bitstring [] in
   let idx = term_from_binder b in
-  let t = build_term_type Settings.t_bool (FunApp(f, [idx])) in
+  let t = app f [idx] in
   QEventQ([false, t], QTerm (make_false()), pub_vars)
     
 (* Functions used for updating elsefind facts when a new variable
@@ -2812,10 +2915,9 @@ let rec unionq l1 = function
 
 let rec add_def_vars_node accu n =
   let accu' = n.binders @ accu in
-  if n.above_node != n then
-    add_def_vars_node accu' n.above_node
-  else
-    accu'
+  match n.above_node with
+  | None -> accu'
+  | Some n' -> add_def_vars_node accu' n'
 
 
 (* Update args_at_creation: since variables in conditions of find have

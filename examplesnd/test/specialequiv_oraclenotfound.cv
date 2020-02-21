@@ -1,0 +1,24 @@
+type hashkey1 [large, fixed].
+type input1.
+type output1 [large, fixed].
+
+
+expand ROM_hash_large(hashkey1, input1, output1, H1, hashoracle1, qH1').
+
+proof {
+      show_game occ;
+      crypto rom_partial(H1) [terms: 18 -> Ocoll_1]
+      }
+
+channel start, c.
+
+process
+	in(start, ());
+	new hk: hashkey1;
+	out(c, ());
+	(hashoracle1(hk) | in(c, (x: input1, y:input1)); out(c, H1(hk, x) = H1(hk, y)))
+
+(* EXPECTED
+Error: Special equivalence rom_partial: oracle name Ocoll_1 not found. It should start with O_ or with the name of a collision "<name>: forall ...; new x:T; M" followed by _, or be exactly the name of the collision for other collisions. The allowed oracles are then: O_*, Oeq_*, Ocoll where * stands for any non-empty identifier.
+xtime: error in child process (status : 2)
+END *)

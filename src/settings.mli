@@ -7,6 +7,7 @@ type frontend =
 val get_implementation : bool ref
 val out_dir : string ref
 val proof_output : string ref
+val equiv_output : string ref
     
 val front_end : frontend ref
 
@@ -165,7 +166,8 @@ val f_and : funsymb
 val f_not : funsymb
 
 val get_tuple_fun : typet list -> funsymb
-
+val empty_tuple : funsymb
+    
 (*For precise computation of the runtime only*)
 val t_interv : typet
 val f_plus : funsymb
@@ -173,7 +175,7 @@ val f_mul : funsymb
 val get_inverse : funsymb -> int -> funsymb
 
 (* Assumptions given in the input file *)
-val equivs : equiv_nm list ref
+val equivs : equiv_gen list ref
 
 val get_query_status : ((query * game) * proof_t ref) -> proof_t
 val get_public_vars : cur_queries_t -> binder list

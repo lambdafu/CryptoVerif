@@ -1,0 +1,121 @@
+(**********************************************************************
+*
+* Prove the chosen-plaintext security of AES counter mode.
+*
+*  * modified from a script by Jonathan Herzog
+*  * Blocks: 3 
+*  * Result: security proved
+*
+*
+***********************************************************************)
+
+
+
+(* AES as a symmetric deterministic block cipher:
+
+Must define:
+
+* keyseed: set of key seeds, must be bounded, typically fixed and large.
+* key: type of keys, must be bounded.
+* blocksize: type of cleartexts and ciphertexts. Must be fixed and large.
+* Penc(t, N): the probability of breaking the PRP in time t with N encryption queries.
+
+Will get:
+
+* kgen: keyseed -> key,
+* enc: blockzise * key -> blocksize,
+* dec: blocksize * key -> block
+
+*)
+
+type key [fixed].
+type block [fixed, large].
+proba Paes.
+
+expand PRP_cipher(key, block, aes_enc, aes_dec, Paes).
+
+
+
+
+(* define xor to exist over blocks *)
+
+expand Xor(block, xor, zero_block).
+
+
+(* Useful helper function. Dunno why. *)
+
+fun test(bool, block, block):block.
+equation forall x:block,y:block; test(true,x,y) = x.
+equation forall x:block,y:block; test(false,x,y) = y.
+
+
+(* Axiomitize 'increment' *)
+
+fun incr(block):block [data, uniform].
+equation forall x:block; incr(x) <> x.
+equation forall x:block; incr(incr(x)) <> x.
+equation forall x:block; incr(incr(incr(x))) <> x.
+
+(* Parameters *)
+
+param N. (* the number of times the adversary gets to call the encryption oracle *)
+
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+letfun enc(k: key, b1 : block, b2: block, b3:block) =
+       nonce <-R block;
+
+       counter0 <- nonce;
+
+       counter1 <- incr(counter0);
+       pad1 <- aes_enc(counter1, k);
+       ciphertext1 <- xor(b1, pad1);
+
+       counter2 <- incr(counter1);
+       pad2 <- aes_enc(counter2, k);
+       ciphertext2 <- xor(b2, pad2);
+
+       counter3 <- incr(counter2);
+       pad3 <- aes_enc(counter3, k);
+       ciphertext3 <- xor(b3, pad3);
+
+       (nonce, ciphertext1, ciphertext2, ciphertext3).
+
+let enc_oracle(k: key) = 
+    Oenc(b1 : block, b2: block, b3:block):=
+    return(enc(k, b1, b2, b3)).
+
+let challenge_oracle(k: key) =
+    (* Oracle representing the non-oracle part of the game. 
+       When the adversary calls this with two messages, 
+       choose one to encrypt. *)
+       
+       Ochallenge(b11: block, b12: block, b13: block, 
+       		  b21: block, b22: block, b23: block) :=
+       secret_bit <-R bool;
+       b1 <- test(secret_bit, b11, b21);
+       b2 <- test(secret_bit, b12, b22);
+       b3 <- test(secret_bit, b13, b23);
+       return(enc(k, b1, b2, b3)).
+
+
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+        k <-R key;
+	return;
+
+	(* Make encryption oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+        (foreach i <= N do run enc_oracle(k)) | run challenge_oracle(k)
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

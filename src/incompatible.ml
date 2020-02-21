@@ -456,13 +456,14 @@ let not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n' =
    contains node [n]. *)
 	  
 let rec get_start_block_pp n =
-  if n.above_node == n then
+  match n.above_node with
+  | None -> 
     (* n is the initial node *)
-    n.definition
-  else
-    match n.definition with
-      DInputProcess({ i_desc = Input _}) as pp -> pp
-    | _ -> get_start_block_pp n.above_node
+      n.definition
+  | Some n' -> 
+      match n.definition with
+	DInputProcess({ i_desc = Input _}) as pp -> pp
+      | _ -> get_start_block_pp n'
 
 (* [get_facts pp] returns the fact_info at program point [pp] *)
 

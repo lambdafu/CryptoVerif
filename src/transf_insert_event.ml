@@ -29,7 +29,7 @@ and insert_eventt state t =
     (* We are sure that [occ] is not inside [t] *) 
     t
   else
-    Terms.build_term2 t (
+    Terms.build_term t (
     match t.t_desc with
     | Var(b,l) -> Var(b, List.map (insert_eventt state) l)
     | (ReplIndex _ | EventAbortE _) as x -> x

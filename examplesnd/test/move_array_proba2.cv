@@ -1,0 +1,27 @@
+type T [fixed].
+
+fun f(T,T):T.
+fun g(T):T.
+
+proba P.
+
+
+collision new x: T; forall y: T; return(f(x,y)) <=(P(time))=> return(g(y))
+	  if y independent-of x.
+
+
+proof {
+      move array a "forall y:T; new x:T; f(x,y)"
+}
+
+channel c.
+
+process
+	in(c, y:T);
+	new a: T;
+	out(c, f(a,y))
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

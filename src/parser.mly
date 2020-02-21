@@ -106,6 +106,7 @@ let return_channel = (dummy_channel, None)
 %token INDEPOF
 %token EQUIVALENCE
 %token QUERY_EQUIV
+%token SPECIAL
   
   /* tokens for proofs */
 %token AT
@@ -144,9 +145,11 @@ let return_channel = (dummy_channel, None)
 %token OCC
 %token SHOW_STATE
 %token SHOW_FACTS
+%token SHOW_EQUIV
 %token OUT_GAME
 %token OUT_STATE
 %token OUT_FACTS
+%token OUT_EQUIV
 %token AUTO
 %token ALLOWED_COLLISIONS
 %token UNDO
@@ -197,13 +200,25 @@ let return_channel = (dummy_channel, None)
     %type <(Ptree.ident * Ptree.ty(*type*)) list * Ptree.query list> focusquery
 
     %start move_array_coll
-    %type <Ptree.move_array_coll_t> move_array_coll
+    %type <Ptree.special_equiv_coll_t> move_array_coll
 
+    %start random_fun_coll
+    %type <Ptree.ident * Ptree.random_fun_coll_t> random_fun_coll
+
+    %start random_bij_coll
+    %type <Ptree.ident * Ptree.special_equiv_coll_t> random_bij_coll
+    
     %start cequiv
     %type <Ptree.eqstatement> cequiv
     
     %start oequiv
     %type <Ptree.eqstatement> oequiv
+
+    %start special_args
+    %type <Ptree.special_args_e list> special_args
+
+    %start collision_matrix
+    %type <(Ptree.ident list * Ptree.ident list) list> collision_matrix
     
 %%
 
@@ -246,10 +261,31 @@ commonlibelem:
         { [LetFun($2,$4,$7)] }
 |       EXPAND IDENT LPAREN identlist RPAREN DOT
         { [Expand($2, $4)] }
+|       EQUIV eqname SPECIAL IDENT LPAREN special_args RPAREN optpriority DOT
+        { [EqStatement($2, EquivSpecial($4, $6), $8)] }
 
+special_args:
+    { [] }
+|   ne_special_args
+    { $1 }
+
+ne_special_args:
+    special_arg
+    { [$1] }
+|   special_arg COMMA ne_special_args
+    { $1 :: $3 }
+
+special_arg:
+    IDENT
+    { SpecialArgId $1, parse_extent() }
+|   STRING
+    { SpecialArgString $1, parse_extent() }
+|   LPAREN special_args RPAREN
+    { SpecialArgTuple $2, parse_extent() }
+    
 cequiv:
     EQUIV eqname eqmember EQUIVLEFT probaf EQUIVRIGHT optpriority eqmember DOT
-    { ($2, $3, $8, $5, $7) }
+    { ($2, EquivNormal($3, $8, $5), $7) }
     
 lib:
         commonlibelem lib
@@ -400,6 +436,10 @@ proofcommand:
     { COut_game($2, false) }
 |   OUT_GAME idst OCC
     { COut_game($2, true) }
+|   OUT_EQUIV idst
+    { COut_equiv($2, PNoName, [], PVarList([], false), parse_extent()) }
+|   OUT_EQUIV idst equiv special_args_opt cryptotransfinfo
+    { COut_equiv($2, $3, $4, $5, parse_extent()) }
 |   SHOW_FACTS occ
     { CShow_facts($2) }
 |   SHOW_STATE
@@ -408,6 +448,10 @@ proofcommand:
     { CShow_game(false) }
 |   SHOW_GAME OCC
     { CShow_game(true) }
+|   SHOW_EQUIV
+    { CShow_equiv(PNoName, [], PVarList([], false), parse_extent()) }
+|   SHOW_EQUIV equiv special_args_opt cryptotransfinfo
+    { CShow_equiv($2, $3, $4, parse_extent()) }
 |   SUCCESS
     { CSuccesscom }
 |   SUCCESS SIMPLIFY optcollelim
@@ -417,9 +461,9 @@ proofcommand:
 |   START_FROM_OTHER_END
     { CStart_from_other_end(parse_extent()) }
 |   CRYPTO
-    { CCrypto(PNoName, PVarList([], false), parse_extent()) }
-|   CRYPTO equiv cryptotransfinfo
-    { CCrypto($2, $3, parse_extent()) }
+    { CCrypto(PNoName, [], PVarList([], false), parse_extent()) }
+|   CRYPTO equiv special_args_opt cryptotransfinfo
+    { CCrypto($2, $3, $4, parse_extent()) }
 |   EXPAND
     { CExpand }
 |   ALL_SIMPLIFY
@@ -448,6 +492,12 @@ proofcommand:
     { CFocus($2) }
 |   UNDO FOCUS
     { CUndoFocus(parse_extent()) }
+
+special_args_opt:
+    SPECIAL LPAREN special_args RPAREN
+    { $3 }
+|
+    { [] }
     
 rem_opt:
     USELESS
@@ -547,7 +597,7 @@ all:
 |       lib EQUIVALENCE process process optpublicvars EOF
         { $1, PEquivalence($3, $4, $5) }
 |       lib QUERY_EQUIV eqname eqmember EQUIVLEFT HELP EQUIVRIGHT optpriority eqmember EOF
-        { $1, PQueryEquiv($3, $4, $9, (PPZero,parse_extent()), $8) }
+        { $1, PQueryEquiv($3, EquivNormal($4, $9, (PPZero,parse_extent())), $8) }
     
 identlist:
         
@@ -575,11 +625,15 @@ nevartypelist:
 |       IDENT COLON IDENT COMMA nevartypelist
         { ($1, $3) :: $5 }
 
+neforallvartype:
+    FORALL nevartypelist SEMI
+    { $2 }
+
 forallvartype:
-        FORALL nevartypelist SEMI
-        { $2 }
+    neforallvartype
+    { $1 }
 |
-        { [] }
+    { [] }
 
 /* Equations */
 
@@ -1252,8 +1306,37 @@ cryptotransfinfo:
 
 move_array_coll:
     forallvartype restr SEMI term
-    { ($1, $2, $4) }
+    { ($1, [$2], $4) }
 
+random_collisions:
+    neforallvartype restr SEMI term
+    { CollIndepNew($1,[$2],$4) }
+|   restr SEMI restr SEMI neforallvartype term
+    { CollNewDep($5,[$1;$3],$6) }
+|   restr SEMI neforallvartype term
+    { CollNewDep($3,[$1],$4) }
+|   term
+    /* Solve the shift/reduce conflict that appears when
+       the forallvartype part is empty in the two rules above.
+       The restrictions may then be included in the term,
+       because restrictions are allowed in the grammar of "term".
+       However, restrictions are forbidden inside this particular term
+       during a later pass, so we can disambiguate.
+    */
+    { match $1 with
+    | PResE(b1,ty1,(PResE(b2,ty2, t), _)), _ -> CollNewDep([],[(b1,ty1);(b2,ty2)],t)
+    | PResE(b,ty,t), _ -> CollNewDep([],[(b,ty)],t)
+    | _ -> raise Parsing.Parse_error }
+    
+    
+random_fun_coll:
+    IDENT COLON random_collisions
+    { $1, $3 }
+
+random_bij_coll:
+    IDENT COLON move_array_coll
+    { $1, $3 }
+  
 /* Oracle front-end */
 
 oprocess:
@@ -1430,7 +1513,7 @@ oprobaflist:
 
 oequiv:
     EQUIV eqname eqmember EQUIVLEFT oprobaf EQUIVRIGHT optpriority eqmember DOT
-    { ($2, $3, $8, $5, $7) }
+    { ($2, EquivNormal($3, $8, $5), $7) }
     
 olib:
         commonlibelem olib
@@ -1454,4 +1537,31 @@ oall:
 |       olib EQUIVALENCE oprocess oprocess optpublicvars EOF
         { $1, PEquivalence($3, $4, $5) }
 |       olib QUERY_EQUIV eqname eqmember EQUIVLEFT HELP EQUIVRIGHT optpriority eqmember EOF
-        { $1, PQueryEquiv($3, $4, $9, (PPZero,parse_extent()), $8) }
+        { $1, PQueryEquiv($3, EquivNormal($4, $9, (PPZero,parse_extent())), $8) }
+
+/* Collision matrix, for special equivalences */
+
+collision_matrix:
+    necollision_matrix
+    { $1 }
+|   IDENT IDENT EOF
+    { match $1, $2 with
+    | ("no",_), ("collisions",_) -> []
+    | _ -> raise Parsing.Parse_error }
+  
+necollision_matrix:
+    one_coll EOF
+    { [ $1 ] }
+|   one_coll SEMI necollision_matrix
+    { $1 :: $3 }
+
+one_coll:
+    /* make explicit the first IDENT COMMA to avoid a shift reduce conflict */
+    IDENT COMMA neidentlist IDENT IDENT IDENT IDENT neidentlist
+    { match $4, $5, $6, $7 with
+    | ("may",_), ("collide",_), ("with",_), ("previous",_) -> ($1::$3, $8)
+    | _ -> raise Parsing.Parse_error }
+|   IDENT IDENT IDENT IDENT IDENT neidentlist
+    { match $2, $3, $4, $5 with
+    | ("may",_), ("collide",_), ("with",_), ("previous",_) -> ([$1], $6)
+    | _ -> raise Parsing.Parse_error }

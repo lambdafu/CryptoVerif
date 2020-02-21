@@ -32,32 +32,32 @@ let check_no_get t =
 let rec trf_insert_term accu cur_array t =
   match t.t_desc with
     Var(b, tl) ->
-      Terms.build_term2 t (Var(b, List.map (trf_insert_term accu cur_array) tl))
+      Terms.build_term t (Var(b, List.map (trf_insert_term accu cur_array) tl))
   | FunApp(f, tl) ->
-      Terms.build_term2 t (FunApp(f, List.map (trf_insert_term accu cur_array) tl))
+      Terms.build_term t (FunApp(f, List.map (trf_insert_term accu cur_array) tl))
   | ReplIndex _ -> t
   | TestE(t1, t2, t3) ->
-      Terms.build_term2 t (TestE(trf_insert_term accu cur_array t1,
+      Terms.build_term t (TestE(trf_insert_term accu cur_array t1,
 				 trf_insert_term accu cur_array t2,
 				 trf_insert_term accu cur_array t3))
   | FindE(l,t3,find_info) ->
-      Terms.build_term2 t (FindE(List.map (fun (bl,def_list,t1,t2) ->
+      Terms.build_term t (FindE(List.map (fun (bl,def_list,t1,t2) ->
         check_no_insert t1;
 	(bl, def_list, t1, trf_insert_term accu cur_array t2)) l,
 				 trf_insert_term accu cur_array t3,
 				 find_info))
   | LetE(pat, t1, t2, topt) ->
-      Terms.build_term2 t (LetE(trf_insert_pat accu cur_array pat,
+      Terms.build_term t (LetE(trf_insert_pat accu cur_array pat,
 				trf_insert_term accu cur_array t1,
 				trf_insert_term accu cur_array t2,
 				match topt with
 				  None -> None
 				| Some t3 -> Some (trf_insert_term accu cur_array t3)))
   | ResE(b,t1) ->
-      Terms.build_term2 t (ResE(b, trf_insert_term accu cur_array t1))
+      Terms.build_term t (ResE(b, trf_insert_term accu cur_array t1))
   | EventAbortE _ -> t
   | EventE(t1,p) ->
-      Terms.build_term2 t (EventE(trf_insert_term accu cur_array t1,
+      Terms.build_term t (EventE(trf_insert_term accu cur_array t1,
 				  trf_insert_term accu cur_array p))
   | InsertE(tbl, tl, p) ->
       Settings.changed := true;
@@ -76,7 +76,7 @@ let rec trf_insert_term accu cur_array t =
 	| Some t -> check_no_insert t
       end;
       accu := (tbl,None)::(!accu);
-      Terms.build_term2 t 
+      Terms.build_term t 
 	(GetE(tbl,List.map (trf_insert_pat accu cur_array) patl,
 	      topt,trf_insert_term accu cur_array p1,
 	      trf_insert_term accu cur_array p2))
@@ -268,12 +268,12 @@ let rec trf_expand_pat accu cur_array = function
 let rec trf_get_term l cur_array t =
   match t.t_desc with
     Var(b, tl) ->
-      Terms.build_term2 t (Var(b, List.map (trf_get_term l cur_array) tl))
+      Terms.build_term t (Var(b, List.map (trf_get_term l cur_array) tl))
   | FunApp(f, tl) ->
-      Terms.build_term2 t (FunApp(f, List.map (trf_get_term l cur_array) tl))
+      Terms.build_term t (FunApp(f, List.map (trf_get_term l cur_array) tl))
   | ReplIndex _ -> t
   | TestE(t1, t2, t3) ->
-      Terms.build_term2 t (TestE(trf_get_term l cur_array t1,
+      Terms.build_term t (TestE(trf_get_term l cur_array t1,
 				 trf_get_term l cur_array t2,
 				 trf_get_term l cur_array t3))
   | FindE(l0,t3,find_info) ->
@@ -284,19 +284,19 @@ let rec trf_get_term l cur_array t =
 	   trf_get_term l cur_array t2)
 	    ) l0
       in
-      Terms.build_term2 t (FindE(l0', trf_get_term l cur_array t3, find_info))
+      Terms.build_term t (FindE(l0', trf_get_term l cur_array t3, find_info))
   | LetE(pat, t1, t2, topt) ->
-      Terms.build_term2 t (LetE(trf_get_pat l cur_array pat,
+      Terms.build_term t (LetE(trf_get_pat l cur_array pat,
 				trf_get_term l cur_array t1,
 				trf_get_term l cur_array t2,
 				match topt with
 				  None -> None
 				| Some t3 -> Some (trf_get_term l cur_array t3)))
   | ResE(b,t1) ->
-      Terms.build_term2 t (ResE(b, trf_get_term l cur_array t1))
+      Terms.build_term t (ResE(b, trf_get_term l cur_array t1))
   | EventAbortE _ -> t
   | EventE(t1,p) ->
-      Terms.build_term2 t (EventE(trf_get_term l cur_array t1,
+      Terms.build_term t (EventE(trf_get_term l cur_array t1,
 				  trf_get_term l cur_array p))
   | InsertE _ ->
       Parsing_helper.internal_error "Insert should have been removed by previous transformation"
@@ -315,7 +315,7 @@ let rec trf_get_term l cur_array t =
       let p1'=trf_get_term l cur_array p1 in
       let p2'=trf_get_term l cur_array p2 in
       Terms.put_lets_term let_bindings
-	(Terms.build_term2 t (FindE (List.map (get_find_branch get_find_branch_then_term patl' topt' p1' cur_array) (get_info_for tbl l), p2', Nothing))) None
+	(Terms.build_term t (FindE (List.map (get_find_branch get_find_branch_then_term patl' topt' p1' cur_array) (get_info_for tbl l), p2', Nothing))) None
 
 and trf_get_pat l cur_array = function
     PatVar b -> PatVar b

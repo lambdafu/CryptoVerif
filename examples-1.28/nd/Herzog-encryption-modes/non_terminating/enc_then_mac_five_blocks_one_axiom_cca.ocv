@@ -10,7 +10,10 @@
 *
 ***********************************************************************)
 
-
+(* PROBLEM in this file: The axiom
+collision x <-R block; return(incr(x)) <=( 0 )=> return(x).
+is not correct. In this axiom, x may be used elsewhere, so
+you cannot always replace incr(x) with x. *)
 
 type block [fixed, large].
 type aes_keyseed [fixed, large, bounded].

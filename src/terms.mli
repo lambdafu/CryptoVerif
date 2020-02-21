@@ -108,6 +108,10 @@ val union : ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
    elements. *)
 val map_union : ('b -> 'b -> bool) -> ('a -> 'b list) -> 'a list -> 'b list
 
+(* [get_actual_equiv] converts an equivalence of type [equiv_gen]
+   into one of type [equiv_nm] *)   
+val get_actual_equiv : equiv_gen -> equiv_nm
+    
 (* Iterators *)
 
     (* Exists *)
@@ -155,6 +159,12 @@ val new_iproc : inputprocess_desc -> Parsing_helper.extent -> inputprocess
 val new_oproc : process_desc -> Parsing_helper.extent -> process
 val iproc_from_desc : inputprocess_desc -> inputprocess
 val oproc_from_desc : process_desc -> process
+val iproc_from_desc_loc : inputprocess -> inputprocess_desc -> inputprocess
+val oproc_from_desc_loc : process -> process_desc -> process
+(* The next functions create a process, copying all information
+   (facts, occurrences, ...) from a given process. That should be used
+   only at specific places where it is clear that the information 
+   remains correct. *)
 val iproc_from_desc_at : inputprocess -> inputprocess_desc -> inputprocess
 val oproc_from_desc_at : process -> process_desc -> process
 
@@ -162,6 +172,9 @@ val empty_game : game
 (* Used the designate the LHS and RHS of an equivalence *)
 val lhs_game : game
 val rhs_game : game
+val lhs_game_nodisplay : game (* Used to designate the LHS when we print the probability
+				 and parse it afterwards. Since the parser expects
+				 maxlength(t) without game indication, this game is not displayed. *)
 val get_process : game -> inputprocess
 val build_transformed_game : ?expanded: bool -> inputprocess -> game -> game
                    
@@ -176,6 +189,7 @@ val def_kind : program_point -> def_kind_t
 val current_bound_vars : binder list ref
 val cleanup : unit -> unit
 val link : binder -> linktype -> unit
+val get_tlink : binder -> term
 val auto_cleanup : (unit -> 'a) -> 'a
 
 val current_bound_ri : repl_index list ref
@@ -198,6 +212,7 @@ type var_num_state
 val get_var_num_state : unit -> var_num_state
 val set_var_num_state : var_num_state -> unit
 
+val get_id_n : string -> string * int
 val new_var_name : string -> string * int
 val record_id : string -> Parsing_helper.extent -> unit
 val fresh_id : string -> string
@@ -208,6 +223,11 @@ val create_binder : string -> typet -> repl_index list -> binder
 val create_binder0 : string -> typet -> repl_index list -> binder
 val create_repl_index : string -> typet -> repl_index
 
+(* Set the definition point of binders, with no other information;
+   returns the definition node *)
+val set_def : binder list -> program_point -> program_point ->
+  def_node option -> def_node
+    
 val create_event : string -> typet list -> funsymb
 val e_adv_loses : unit -> funsymb
 val build_event_query : funsymb -> binder list -> query
@@ -216,11 +236,14 @@ val build_event_query : funsymb -> binder list -> query
    The substitution is performed in different ways, depending on
    the value of the argument [copy_transf]. *)
 type copy_transf =
-    Links_RI (* Substitutes replication indices that are linked *)
+  | DeleteFacts (* Removes facts and incompatible info, but keeps the occurrence *)
+  | Links_RI (* Substitutes replication indices that are linked *)
   | Links_Vars 
      (* Substitutes variables that are linked, when their arguments are args_at_creation
 	The linked variables are supposed to be defined above the copied terms/processes *)
   | Links_RI_Vars (* Combines Links_RI and Links_Vars *)
+  | Links_Vars_then_RI (* Same as Links_Vars, but then applies Links_RI to the
+         substituted terms *)
   | OneSubst of binder * term * bool ref 
      (* [OneSubst(b,t,changed)] substitutes b[b.args_at_creation] with t.
 	It sets [changed] to true when such a substitution has been done.
@@ -434,6 +457,10 @@ val make_for_all_diff : term -> term -> term
 val make_true : unit -> term
 val make_false : unit -> term
 
+(* The next functions create a term, copying all information
+   (facts, occurrences, ...) from a given term. That should be used
+   only at specific places where it is clear that the information 
+   remains correct. *)
 val build_term_at : term -> term_desc -> term
 val make_true_at : term -> term
 val make_false_at : term -> term
@@ -464,15 +491,21 @@ val put_lets_term : (pattern * term) list -> term -> term option -> term
 exception Impossible
 val simplify_let_tuple : (term -> term) -> pattern -> term -> let_transfo * term * (pattern * term) list
 
-val move_occ_term : term -> term
-val move_occ_br : binderref -> binderref
 (* [move_occ_process] renumbers the occurrences in the process given
    as argument. Additionally, it makes sure that all terms and processes
    inside the returned process are physically distinct, which is a 
    requirement for calling [Terms.build_def_process]. *)
 val move_occ_process : inputprocess -> inputprocess
 val move_occ_game : game -> unit
-                                         
+
+(* Does not change the term, but removes any information stored
+   in it (known facts, occurrence, incompatible program points),
+   to make sure that information that is no longer valid is not used,
+   and creates a distinct physical copy for each term.
+   (needed for [build_def_process]). *)
+val delete_info_term : term -> term
+val delete_info_br : binderref -> binderref
+    
 val term_from_pat : pattern -> term
 val get_type_for_pattern : pattern -> typet
 
@@ -480,9 +513,8 @@ val count_var : term -> int
 val size : term -> int
 
 exception NonLinearPattern
-val gvar_name : string
+
 val gen_term_from_pat : pattern -> term
-val single_occ_gvar : binder list ref -> term -> bool
 
 val update_elsefind_with_def : binder list -> elsefind_fact -> elsefind_fact
 

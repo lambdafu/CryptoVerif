@@ -5,7 +5,7 @@ param qS.
 type pkey [bounded].
 type skey [bounded].
 type seed [large,fixed].
-type D [fixed].
+type D [large,fixed].
 
 (* One-way trapdoor permutation *)
 

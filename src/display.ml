@@ -186,6 +186,32 @@ and display_repl_index_with_type b =
   print_string " <= ";
   print_string (Terms.param_from_type b.ri_type).pname
 
+and display_repl i =
+  if (!Settings.front_end) == Settings.Oracles then
+    begin
+      print_string "foreach ";
+      display_repl_index_with_type i;
+      print_string " do"
+    end
+  else
+    begin
+      print_string "! ";
+      display_repl_index_with_type i
+    end
+
+and display_restr b =
+  if (!Settings.front_end) == Settings.Oracles then
+    begin
+      display_binder_with_array b;
+      print_string " <-R ";
+      print_string b.btype.tname
+    end
+  else
+    begin
+      print_string "new ";
+      display_binder_with_type b
+    end
+   
 and display_findcond (def_list, t1) =
   let cond_printed = ref false in
   if def_list != [] then
@@ -290,17 +316,7 @@ and display_term t =
 	    display_term_paren AllInfix NoProcess t3      
       end
   | ResE(b,t) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  display_binder_with_array b;
-	  print_string " <-R ";
-	  print_string b.btype.tname
-	end
-      else
-	begin
-	  print_string "new ";
-	  display_binder_with_type b
-	end;
+      display_restr b;
       print_string "; ";
       display_term_paren AllInfix NoProcess t
   | EventAbortE(f) ->
@@ -563,7 +579,9 @@ let rec display_proba level = function
 	print_string "LHS: "
       else if g == Terms.rhs_game then
 	print_string "RHS: "
-      else 
+      else if g == Terms.lhs_game_nodisplay then
+	()
+      else
 	begin
 	  print_string "game ";
 	  print_string (get_game_id g);
@@ -702,17 +720,7 @@ let rec display_procasterm t =
 	    display_procasterm t3      
       end
   | ResE(b,t) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  display_binder_with_array b;
-	  print_string " <-R ";
-	  print_string b.btype.tname;
-	end
-      else
-	begin
-	  print_string "new ";
-	  display_binder_with_type b
-	end;
+      display_restr b;
       print_string "; ";
       display_procasterm t
   | EventAbortE(f) ->
@@ -734,41 +742,16 @@ and display_procasterm_paren t =
 
 let rec display_fungroup indent = function
     ReplRestr(repl_opt, restr, funlist) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  begin
-	    match repl_opt with
-	    | Some repl -> 
-		print_string "foreach ";
-		display_repl_index_with_type repl;
-		print_string " do "
-	    | None -> ()
-	  end;
-	  List.iter (fun (b,opt) -> 
-	    display_binder_with_array b;
-	    print_string " <-R ";
-	    print_string b.btype.tname;
-	    if opt == Unchanged then
-	      print_string " [unchanged]";
-	    print_string "; ") restr
-	end
-      else
-	begin
-	  begin
-	    match repl_opt with
-	    | Some repl -> 
-		print_string "! ";
-		display_repl_index_with_type repl;
-		print_string " ";
-	    | None -> ()
-	  end;
-	  List.iter (fun (b,opt) -> 
-	    print_string "new ";
-	    display_binder_with_type b;
-	    if opt == Unchanged then
-	      print_string " [unchanged]";
-	    print_string "; ") restr
-	end;
+      begin
+	match repl_opt with
+	| Some repl -> display_repl repl; print_string " "
+	| None -> ()
+      end;
+      List.iter (fun (b,opt) ->
+	display_restr b;
+	if opt == Unchanged then
+	  print_string " [unchanged]";
+	print_string "; ") restr;
       begin
 	match funlist with 
 	  [f] -> 
@@ -812,6 +795,11 @@ let display_eqname = function
   | CstName(s,_) -> print_string s
   | ParName((s,_),(p,_)) -> print_string (s ^ "(" ^ p ^ ")")
 
+let rec display_special_arg = function
+  | SpecialArgId (s,_),_ -> print_string s
+  | SpecialArgString (s,_),_ -> print_string "\""; print_string s; print_string "\""
+  | SpecialArgTuple l,_ -> print_string "("; display_list display_special_arg l; print_string ")"
+	
 let display_equiv ((n,m1,m2,set,opt,opt2),_) =
   print_string "equiv";
   begin
@@ -842,6 +830,124 @@ let display_equiv_with_name (((n,_,_,_,_,_),_) as eq) =
   match n with
     NoName -> display_equiv eq
   | _ -> display_eqname n
+
+let display_special_equiv equiv = 
+  match equiv.eq_special with
+  | Some(special_name, args) ->
+      print_string "equiv";
+      begin
+	match equiv.eq_name with
+	  NoName -> ()
+	| _ ->  print_string "("; display_eqname equiv.eq_name; print_string ")"
+      end;
+      print_string " special ";
+      print_string (fst special_name);
+      print_string "("; display_list display_special_arg args; print_string ")";
+      print_newline()
+  | None ->
+      Parsing_helper.internal_error "either the fixed or special equiv should be present"
+	
+let display_equiv_gen equiv =
+  match equiv.eq_fixed_equiv with
+  | Some(lm,rm,p,opt2) ->
+      display_equiv ((equiv.eq_name, lm, rm, p, equiv.eq_exec, opt2), None)
+  | None ->
+      display_special_equiv equiv
+
+let display_pocc = function
+  | Ptree.POccInt(n) -> print_int n
+  | POccBefore(s,_) -> print_string "before "; print_string s
+  | POccAfter(s,_) -> print_string "after "; print_string s
+  | POccBeforeNth(n,(s,_)) -> print_string "before_nth "; print_int n; print_string " "; print_string s
+  | POccAfterNth(n,(s,_)) -> print_string "after_nth "; print_int n; print_string " "; print_string s
+  | POccAt(n,(s,_)) -> print_string "at "; print_int n; print_string " "; print_string s
+  | POccAtNth(n,n',(s,_)) -> print_string "at_nth "; print_int n; print_string " "; print_int n'; print_string " "; print_string s
+
+let display_parsed_user_info = function
+  | Ptree.PRepeat(fast) ->
+      if fast then print_string "**" else print_string "*"
+  | Ptree.PVarList(l,stop) ->
+      display_list (fun (s,_) -> print_string s) l;
+      if stop then print_string "."
+  | Ptree.PDetailed(l) ->
+      display_list_sep "; " (function
+	| Ptree.PVarMapping(vm,stop) -> 
+	    print_string "variables: ";
+	    display_list (fun ((b1,_),(b2,_)) -> print_string b1; print_string " -> "; print_string b2) vm;
+	    if stop then print_string ".";
+	| Ptree.PTermMapping(tm,stop) ->
+	    print_string "terms: ";
+	    display_list (fun (occ,(t,_)) -> display_pocc occ; print_string " -> "; print_string t) tm;
+	    if stop then print_string "."
+		) l
+	      
+let display_with_parsed_user_info user_info =
+  match user_info with
+  | Ptree.PRepeat _ | Ptree.PVarList([],_) | Ptree.PDetailed([]) -> ()
+  | _ ->
+      print_string " with ";
+      display_parsed_user_info user_info
+
+let display_call = function
+  | Ptree.AutoCall -> print_string "automatic call"
+  | Ptree.ManualCall(args, info) ->
+      print_string "manual call ";
+      if args != [] then
+	begin
+	  print_string "special(";
+	  display_list display_special_arg args;
+	  print_string ")";
+	end;
+      display_with_parsed_user_info info
+	
+(* Collision statements *)
+
+let rec display_indep_cond level = function
+  | IC_True -> print_string "true"
+  | IC_And(c1,c2) ->
+      if level != 0 then print_string "(";
+      display_indep_cond 0 c1;
+      print_string " && ";
+      display_indep_cond 0 c2;
+      if level != 0 then print_string ")"
+  | IC_Or(c1,c2) ->
+      if level != 1 then print_string "(";
+      display_indep_cond 1 c1;
+      print_string " || ";
+      display_indep_cond 1 c2;
+      if level != 1 then print_string ")"
+  | IC_Indep(b1,b2) ->
+      display_binder b1;
+      print_string " independent-of ";
+      display_binder b2
+	
+let display_collision c =
+  print_string "collision ";
+  List.iter (fun b -> display_restr b; print_string "; ") c.c_restr;
+  if c.c_restr_may_be_equal then
+    print_string " [random_choices_may_be_equal] ";
+  if c.c_forall != [] then
+    begin
+      print_string "forall ";
+      display_list display_binder_with_type c.c_forall;
+      print_string "; "
+    end;
+  print_string "return(";
+  display_term c.c_redl;
+  print_string ") <=(";
+  display_proba 0 c.c_proba;
+  print_string ")=> return(";
+  display_term c.c_redr;
+  print_string ")";
+  let ic = (c.c_indep_cond != IC_True) in
+  let sc = not (Terms.is_true c.c_side_cond) in
+  if ic || sc then
+    begin
+      print_string " if ";
+      if ic then display_indep_cond 0 c.c_indep_cond;
+      if ic && sc then print_string " && ";
+      if sc then display_term c.c_side_cond
+    end
 
 (* Processes *)
 
@@ -923,17 +1029,8 @@ let rec display_process indent p =
       in
       display_par_list l
   | Repl(b,p) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  print_string (indent ^ "foreach ");
-	  display_repl_index_with_type b;
-	  print_string " do"
-	end
-      else
-	begin
-	  print_string (indent ^ "! ");
-	  display_repl_index_with_type b
-	end;
+      print_string indent;
+      display_repl b;
       print_newline();
       display_process indent p
   | Input((c,tl),pat,p) ->
@@ -976,18 +1073,8 @@ and display_oprocess indent p =
   | EventAbort f -> 
       print_string (indent ^ "event_abort " ^ f.f_name ^ "\n")
   | Restr(b,p) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  print_string indent;
-	  display_binder_with_array b;
-	  print_string " <-R ";
-	  print_string b.btype.tname
-	end
-      else
-	begin
-	  print_string (indent ^ "new ");
-	  display_binder_with_type b
-	end;
+      print_string indent;
+      display_restr b;
       display_optoprocess indent p
   | Test(t,p1,p2) ->
       print_string (indent ^ "if ");

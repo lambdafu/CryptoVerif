@@ -56,7 +56,7 @@ type Z [large, bounded].
 type G [large, bounded].
 type passwd [password, bounded].
 
-type hash0 [fixed].
+type hash0 [fixed,large].
 type hash1 [fixed,large].
 type host [bounded].
 

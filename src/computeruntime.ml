@@ -2,30 +2,31 @@ open Types
 
 (* Compute the runtime of the context *)
 
-let rec make_length_term g t =
+let rec make_length_term accu g t =
   match t.t_desc with
     FunApp(f,l) -> 
-      Length(f, make_length g l)
+      Polynom.add_max accu (Length(f, make_length g l))
   | Var(b,l) ->
-      Maxlength(g, Terms.term_from_binder b)
+      Polynom.add_max accu (Maxlength(g, Terms.term_from_binder b))
   | ReplIndex b ->
-      Maxlength(g, Terms.term_from_repl_index b)
+      Polynom.add_max accu (Maxlength(g, Terms.term_from_repl_index b))
   | LetE(_,_,t2,t3opt) ->
       begin
 	match t3opt with 
-	  None -> make_length_term g t2
-	| Some t3 -> Max([make_length_term g t2; make_length_term g t3])
+	  None -> make_length_term accu g t2
+	| Some t3 -> make_length_term accu g t2; make_length_term accu g t3
       end
   | TestE(_, t2, t3) ->
-      Max([make_length_term g t2; make_length_term g t3])
+      make_length_term accu g t2; make_length_term accu g t3
   | FindE(l,t,_) ->
-      Max((make_length_term g t) :: (List.map (fun (bl, def_list, t, t1) -> make_length_term g t1) l))
+      make_length_term accu g t;
+      List.iter (fun (bl, def_list, t, t1) -> make_length_term accu g t1) l
   | ResE(_, t) ->
-      make_length_term g t
+      make_length_term accu g t
   | EventAbortE _ ->
-      Zero
+      ()
   | EventE(_,p) ->
-      make_length_term g p
+      make_length_term accu g p
   | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear in make_length_term"
 
 and make_length g = function
@@ -35,7 +36,9 @@ and make_length g = function
       if t.t_type.toptions land Settings.tyopt_BOUNDED != 0 then
 	l'
       else
-	(make_length_term g t)::l'   (*Maxlength(g, t)::l'*)
+	let accu = ref Polynom.empty_max_accu in
+	make_length_term accu g t;
+	(Polynom.p_max (!accu))::l'   (*Maxlength(g, t)::l'*)
 	  
 (* (!Settings.ignore_small_times)>0 when many details should be ignored.*)
 
@@ -54,7 +57,7 @@ let rec time_for_term_in_context t (args, il, ik, repl_lhs, indices_exp) =
   else
     let eqindexty = List.map (fun brepl -> Settings.t_interv(*brepl.btype*)) repl_lhs in
     let tupleargs = 
-      Terms.build_term_type Settings.t_bitstring (FunApp(Settings.get_tuple_fun (List.map (fun t -> t.t_type) args), args))
+      Terms.app (Settings.get_tuple_fun (List.map (fun t -> t.t_type) args)) args
     in
     let t_context = 
       if (!Settings.front_end) == Settings.Oracles then
@@ -99,7 +102,7 @@ and time_term t =
       let tl = time_list time_term l in
       if (!Settings.ignore_small_times)>1 && 
 	((f==Settings.f_and) || (f==Settings.f_or) || (f==Settings.f_not) ||
-	(f==Settings.get_tuple_fun []) ||
+	(f==Settings.empty_tuple) ||
 	(f.f_cat == Event) ||
 	 ((l == []) && (Terms.equal_terms t (Stringmap.cst_for_type (snd f.f_type)))))
       then
@@ -205,7 +208,7 @@ and time_pat = function
   | PatTuple(f,l) ->
       let tl = time_list time_pat l in
       if (!Settings.ignore_small_times)>1 && 
-	(f == Settings.get_tuple_fun []) then
+	(f == Settings.empty_tuple) then
 	(* Ignore let () when (!Settings.ignore_small_times)>1 *)
 	tl
       else
@@ -406,11 +409,18 @@ let rec time_fungroup = function
 	 
 let compute_runtime_for_fungroup g fg =
   whole_game := g; (* The game does not matter here,
-				     it will be instantiated when we 
-				     apply the crypto transformation *)
+		      it will be instantiated when we 
+		      apply the crypto transformation *)
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
   let res = Polynom.polynom_to_probaf (time_fungroup fg) in
   whole_game := Terms.empty_game;
   res
 
+let compute_runtime_for_term g t =
+  whole_game := g;
+  get_time_map := (fun t -> raise Not_found);
+  names_to_discharge := [];
+  let res = Polynom.polynom_to_probaf (time_term t) in
+  whole_game := Terms.empty_game;
+  res

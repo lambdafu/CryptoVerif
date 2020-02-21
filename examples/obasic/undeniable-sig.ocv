@@ -7,9 +7,9 @@ proof {
   crypto group_to_exp_strict(exp) *;
   SArename s;
   show_game occ;
-  replace 60 "exp(y, x_6)";
-  replace 45 "exp(y, x_5[u_4])";
-  replace 24 "exp(y, x_6[u_5])";
+  replace 60 "exp(y, x_4)";
+  replace 45 "exp(y, x_3[u_4])";
+  replace 24 "exp(y, x_4[u_5])";
   crypto gdh(exp);
   success
 }
@@ -22,13 +22,10 @@ type G [large,bounded].
 
 (* Gap Diffie-Hellman problem *)
 
-expand DH_basic(G, Z, g, exp, exp', mult).
+expand DH_good_group(G, Z, g, exp, exp', mult).
 
 proba pGDH.
 expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH).
-
-proba PDist.
-expand DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist).
 
 (* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
 
@@ -40,17 +37,28 @@ param Nh, N, Neq.
 
 fun hash(key, hashinput):G.
 
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
-         foreach ieq <= Neq do Oeq(x':hashinput, e:Z, r':G) := return(exp(hash(k,x'),e) = r'))
-       <=(#Oeq / |G|)=> [computational]
-      foreach ih <= Nh do 
-        (foreach i <= N do OH(x:hashinput) := 
-	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R G; return(r) |
-         foreach ieq <= Neq do Oeq(x':hashinput, e:Z, r':G) := 
-           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(exp(r[u], e) = r') else
-	   return(false)).
+equiv(rom(hash)) special rom("key_first", hash, (k, r, x, y, z, u), ("Oeq: forall R:G, e:Z; new X:G; exp(X,e) = R")).
+(*
+
+Eliminated collisions between exp(X, e) and R Probability: 1 / |G|
+(exp(X, e) collides with a value independent of X with probability at most 1 / |G|;
+ R does not depend on X)
+
+Generates:
+
+equiv
+k <-R hashkey; 
+(!N_O O(x_O: bitstring) := return(H(k, x_O)) | 
+ !N_Oeq Oeq(x_Oeq: bitstring, R_Oeq: G, e_Oeq: Z) := return((exp(H(k, x_Oeq), e_Oeq) = R_Oeq)))
+<=(N_Oeq / |G|)=>
+ !N_O O(x_O: bitstring) := 
+     find[unique] u_O <= N_O suchthat defined(x_O[u_O], r[u_O]) && x_O = x_O[u_O] then return(r[u_O]) else
+     r <-R G; return(r) | 
+ !N_Oeq Oeq(x_Oeq: bitstring, R_Oeq: G, e_Oeq: Z) := 
+     find[unique] u_O <= N_O suchthat defined(x_O[u_O], r[u_O]) && x_Oeq = x_O[u_O] then return((exp(r[u_O], e_Oeq) = R_Oeq)) else
+     return(false).
+
+*)
 
 param qH [noninteractive].
 

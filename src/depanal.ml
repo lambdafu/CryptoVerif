@@ -1,19 +1,15 @@
 open Types
 
 (* Generate a fresh variable, independent of [b0] *)
-    
-let any_term_name = "?"
-let any_term_from_type t = 
-  let b' = Terms.create_binder0 any_term_name t [] in
-  let rec node = { above_node = node;
-		   binders = [b'];
-		   true_facts_at_def = [];
-		   def_vars_at_def = [];
-		   elsefind_facts_at_def = [];
-		   future_binders = []; future_true_facts = []; 
-		   definition = DNone; definition_success = DNone }
-  in
-  b'.def <- [node];
+
+let any_term_name = Proba.any_term_name
+let any_term_from_type t =
+  (* It is important to make sure that [b'.sname] is physically 
+     equal to [any_term_name], as this is tested by matching in
+     [Proba.match_term_any_var]. That works with 
+     [create_binder_internal] or [create_binder0]. *)
+  let b' = Terms.create_binder_internal any_term_name 0 t [] in
+  ignore (Terms.set_def [b'] DNone DNone None);
   Terms.term_from_binder b'
 
 let any_term t = any_term_from_type t.t_type
@@ -26,11 +22,9 @@ let fresh_indep_term t =
   | BitString -> (any_term t, [t.t_type], Some [])
   | Interv _ -> (Terms.term_from_repl_index (Facts.new_repl_index_term t), [], Some [t.t_type])
 
-(* An element (order_assumptions, side_cond, true_facts, used_indices, 
-initial_indices, t1, t2, b, lopt, probaf_mul_types) in term_collisions means that
-the equality [t1 = t2] was considered impossible, assuming that
-[order_assumptions] are satisfied: 
-For each (br1, br2) in [order_assumptions], br2 is defined before br1,
+(* An element (side_cond, true_facts, used_indices, 
+initial_indices, t1, t2, b, lopt, probaf_mul_types) in term_collisions 
+means that the equality [t1 = t2] was considered impossible: 
 [side_cond] is true, and the facts in [true_facts] hold; it has
 negligible probability because t1 depends on b[lopt] by 
 [decompos]/[projection] functions followed
@@ -39,98 +33,26 @@ by [compos]/[data] functions and t2 does not depend on b[lopt].
 [used_indices] are indices that occur in [t1] and [t2].
 [initial_indices] are the indices at the program point of the collision. *)
 
-let term_collisions = ref ([]: collision_state)
+let term_collisions = ref ([]: term_coll_t list)
 
 let reset coll_elim g =
   Proba.reset coll_elim g;
   term_collisions := [];
   Facts.reset_repl_index_list()
 
-(* [get_var_link] function associated to [match_term3].
-   See the interface of [Terms.match_funapp] for the 
-   specification of [get_var_link]. *)
-
-let get_var_link t () =
-  match t.t_desc with
-    Var (v,[]) when v.sname==any_term_name -> Some(v.link, true)
-  | ReplIndex (v) -> Some(v.ri_link, false)
-  | _ -> None
-
-(* [match_term3 next_f t t' ()] Calls [next_f()] when [t']
-   is an instance of [t], with any value for the [?] variables,
-   and values stored in links for replication indices.
-   It raises [NoMatch] when [t'] is not an instance of [t]. *)
-	
-let rec match_term3 next_f t t' () = 
-  Terms.ri_auto_cleanup_failure (fun () ->
-    match t.t_desc, t'.t_desc with
-      Var (v,[]), _ when v.sname==any_term_name -> next_f()
-    | ReplIndex (v), _ -> 
-      (* Check that types match *)
-	if t'.t_type != v.ri_type then
-	  raise NoMatch;
-	begin
-	  match v.ri_link with
-	    NoLink -> Terms.ri_link v (TLink t')
-	  | TLink t -> if not (Terms.equal_terms t t') then raise NoMatch;
-	end;
-	next_f()
-    | Var(b,l), Var(b',l') when b == b' -> 
-	Match_eq.match_term_list match_term3 next_f l l' ()
-    | FunApp(f,l), FunApp(f',l') when f == f' ->
-	Match_eq.match_funapp match_term3 get_var_link Match_eq.default_match_error Terms.simp_facts_id next_f t t' ()
-    | _ -> raise NoMatch
-	  )
-
 (* The functions [instantiate_*] replace indices with their
    value stored in links, inside probabilities *)
     
-let rec instantiate_ri_list accu = function
-  | [] -> accu
-  | ri::ri_list ->
-      match ri.ri_link with
-      | NoLink -> instantiate_ri_list (ri::accu) ri_list
-      | TLink t ->
-	  let l = ref accu in
-	  Proba.collect_array_indexes l t;
-	  instantiate_ri_list (!l) ri_list
-
-let rec instantiate_probaf = function
-  | Time(g,x) -> Time(g, instantiate_probaf x)
-  | (AttTime | Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
-  | Proba(p,l) -> Proba(p, List.map instantiate_probaf l)
-  | ActTime(f,l) -> ActTime(f, List.map instantiate_probaf l)
-  | Maxlength(g,t) -> Maxlength(g, Terms.copy_term Terms.Links_RI t)
-  | Length(f,l) -> Length(f, List.map instantiate_probaf l)
-  | Mul(x,y) -> Mul(instantiate_probaf x, instantiate_probaf y)
-  | Add(x,y) -> Add(instantiate_probaf x, instantiate_probaf y)
-  | Sub(x,y) -> Sub(instantiate_probaf x, instantiate_probaf y)
-  | Div(x,y) -> Div(instantiate_probaf x, instantiate_probaf y)
-  | Max(l) -> Max(List.map instantiate_probaf l)
-	    
-let instantiate_probaf_mul_types (ri_list, probaf, dep_types, full_type, opt_indep_types) =
-  (* Note: in case probaf refers to terms (via maxlength), we
-     might need to instantiate probaf as well. That is not
-     common for collisions, but I do it for safety. *)
-  (instantiate_ri_list [] ri_list, instantiate_probaf probaf, dep_types, full_type, opt_indep_types)
-
-let instantiate_term_coll = function
+let instantiate_term_coll_proba = function
   | Fixed probaf_mul_types ->
-      Fixed (instantiate_probaf_mul_types probaf_mul_types)
+      Fixed (Proba.copy_probaf_mul_types Terms.Links_RI  probaf_mul_types)
   | ProbaIndepCollOfVar(b,args,ri_list) ->
       ProbaIndepCollOfVar(b, List.map (Terms.copy_term Terms.Links_RI) args,
-			  instantiate_ri_list [] ri_list)
+			  Proba.instantiate_ri_list [] ri_list)
 
-let instantiate_red_proba (t1,t2,side_cond,probaf_mul_types) =
-  (Terms.copy_term Terms.Links_RI t1,
-   Terms.copy_term Terms.Links_RI t2,
-   Terms.copy_term Terms.Links_RI side_cond,
-   instantiate_probaf_mul_types probaf_mul_types)
-
-let instantiate_find_compos_probaf (ri_arg, (term_coll, var_coll, red_proba)) =
-  (ri_arg, (List.map instantiate_term_coll term_coll, var_coll,
-	    List.map instantiate_red_proba red_proba))
+let instantiate_find_compos_probaf (ri_arg, (term_coll_proba, var_coll, red_proba)) =
+  (ri_arg, (List.map instantiate_term_coll_proba term_coll_proba, var_coll,
+	    List.map (Proba.copy_red_proba Terms.Links_RI) red_proba))
 
 (* [addq_list accu l] adds [l] to [accu], removing duplicate elements *)
     
@@ -162,12 +84,15 @@ let rec subst_idx idx ri_list' = function
       else
 	idx1::(subst_idx idx ri_list' ri_list)
     
-let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types')
-    (ri_list,probaf,dep_types, full_type, indep_types) =
-  assert (dep_types == []);
-  (subst_idx idx ri_list' ri_list,probaf,dep_types', full_type', indep_types')
+let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types') p =
+  assert (p.p_dep_types == []);
+  { p_ri_list = subst_idx idx ri_list' p.p_ri_list;
+    p_proba = p.p_proba;
+    p_dep_types = dep_types';
+    p_full_type = full_type';
+    p_indep_types_option = indep_types' }
 
-let subst_idx_term_coll_entry idx image = function
+let subst_idx_term_coll_proba_entry idx image = function
   | Fixed probaf_mul_types -> Fixed (subst_idx_entry idx image probaf_mul_types)
   | ProbaIndepCollOfVar(b, args, ri_list) ->
       let (ri_list',dep_types', full_type', indep_types') = image in
@@ -175,23 +100,21 @@ let subst_idx_term_coll_entry idx image = function
       let ri_list'' = subst_idx idx ri_list' ri_list in
       ProbaIndepCollOfVar(b, args, ri_list'')
     
-let subst_idx_red_proba_entry idx image
-    (t1,t2,side_cond,probaf_mul_types) =
-  let probaf_mul_types' = subst_idx_entry idx image probaf_mul_types in
-  (t1,t2,side_cond,probaf_mul_types')
+let subst_idx_red_proba_entry idx image r =
+  { r with r_proba = subst_idx_entry idx image r.r_proba }
 
-let subst_idx_proba idx image (ac_term_coll, ac_coll, ac_red_proba) =
+let subst_idx_proba idx image (ac_term_coll_proba, ac_coll, ac_red_proba) =
   List.iter (check_no_index idx) ac_coll;
-  let ac_term_coll' = List.map (subst_idx_term_coll_entry idx image) ac_term_coll in
+  let ac_term_coll_proba' = List.map (subst_idx_term_coll_proba_entry idx image) ac_term_coll_proba in
   let ac_red_proba' = List.map (subst_idx_red_proba_entry idx image) ac_red_proba in
-  (ac_term_coll', ac_coll, ac_red_proba')
+  (ac_term_coll_proba', ac_coll, ac_red_proba')
 
 (* [equal_find_compos_probaf probaf1 probaf2] returns true when 
    [probaf1] is equal to [probaf2] (of type [find_compos_probaf]).
-   [equal_term_coll] helps by computing equality on type [term_coll_t]. *)
+   [equal_term_coll_proba] helps by computing equality on type [term_coll_proba_t]. *)
     
-let equal_term_coll term_coll1 term_coll2 =
-  match term_coll1, term_coll2 with
+let equal_term_coll_proba term_coll_proba1 term_coll_proba2 =
+  match term_coll_proba1, term_coll_proba2 with
   | Fixed probaf_mul_types1, Fixed probaf_mul_types2 ->
       Proba.equal_probaf_mul_types probaf_mul_types1 probaf_mul_types2
   | ProbaIndepCollOfVar(b1, args1, ri_list1), ProbaIndepCollOfVar(b2, args2, ri_list2) ->
@@ -201,14 +124,14 @@ let equal_term_coll term_coll1 term_coll2 =
   | _ -> false
       	
 let equal_find_compos_probaf
-    (idx1, (ac_term_coll1, ac_coll1, ac_red_proba1))
+    (idx1, (ac_term_coll_proba1, ac_coll1, ac_red_proba1))
     (idx2, all_coll2) =
   let image_idx2 = ([idx1], [], Settings.t_bitstring (*dummy type*), None) in
-  let (ac_term_coll2', ac_coll2', ac_red_proba2') =
+  let (ac_term_coll_proba2', ac_coll2', ac_red_proba2') =
     subst_idx_proba idx2 image_idx2 all_coll2
   in
   (Terms.equal_lists_sets Proba.equal_coll ac_coll1 ac_coll2') &&
-  (Terms.equal_lists_sets equal_term_coll ac_term_coll1 ac_term_coll2') &&
+  (Terms.equal_lists_sets equal_term_coll_proba ac_term_coll_proba1 ac_term_coll_proba2') &&
   (Terms.equal_lists_sets Proba.equal_red ac_red_proba1 ac_red_proba2')
 
 (* [matches_proba_info (t1, t2, probaf) (t1', t2', probaf')]
@@ -217,7 +140,9 @@ let equal_find_compos_probaf
    need to be added if [(t1, t2, probaf)] is already present.
    Used for various definitions of a variable with their
    find_compos probability in Transf.global_dep_anal. *)
-	
+
+let match_term3 next_f t t' () = Proba.match_term_any_var None next_f t t' ()
+    
 let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
   try
     let probaf_inst = 
@@ -267,35 +192,27 @@ let rec find_common next_f accu l1 l2 =
 	  ) t l2
 	
       
-let matches_term_coll
-    (order_assumptions, side_condition, true_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
-    (order_assumptions', side_condition', true_facts', used_indices', initial_indices', t1', t2', b', lopt', probaf_mul_types') =
+let matches_term_coll c c' = 
   try 
-    if (order_assumptions != []) && (order_assumptions' == []) then
+    if c.t_var != c'.t_var then
       raise Not_found
     else
       begin
-	match_term3 (match_term3 (match_term3 (fun () -> 
-	  let order_assumptions_instance = List.map (fun (br1,br2) ->
-	    (Terms.copy_term Terms.Links_RI (Terms.term_from_binderref br1),
-	     Terms.copy_term Terms.Links_RI (Terms.term_from_binderref br2))) order_assumptions
-	  in
-	  let order_assumptions' = List.map (fun (br1, br2) ->
-	    (Terms.term_from_binderref br1,
-	     Terms.term_from_binderref br2)) order_assumptions'
-	  in
-	  if not 
-	      (List.for_all (fun (br1,br2) ->
-		List.exists (fun (br1',br2') ->
-		  (Terms.equal_terms br1 br1') && (Terms.equal_terms br2 br2')) order_assumptions') order_assumptions_instance)
-	  then raise NoMatch;
-	  let probaf_mul_types_inst = instantiate_probaf_mul_types probaf_mul_types in
-	  if not (Proba.equal_probaf_mul_types probaf_mul_types_inst probaf_mul_types') then
+	let match_lopt next_f () =
+	  match c.t_lopt,c'.t_lopt with
+	  | None, None -> next_f ()
+	  | Some l, Some l' ->
+	      Match_eq.match_term_list match_term3 next_f l l' ()
+	  | _ -> raise NoMatch
+	in
+	match_lopt (match_term3 (match_term3 (match_term3 (fun () -> 
+	  let proba_inst = Proba.copy_probaf_mul_types Terms.Links_RI c.t_proba in
+	  if not (Proba.equal_probaf_mul_types proba_inst c'.t_proba) then
 	    (* For speed, we do not reconsider other ways to match the 3 terms,
 	       so we raise Not_found rather than NoMatch *)
 	    raise Not_found;
-	  find_common (fun common_facts -> common_facts) [] true_facts true_facts'
-	      ) side_condition side_condition') t2 t2') t1 t1' ();
+	  find_common (fun common_facts -> common_facts) [] c.t_true_facts c'.t_true_facts
+	      ) c.t_side_cond c'.t_side_cond) c.t_indep c'.t_indep) c.t_charac c'.t_charac) ();
       end
   with NoMatch -> raise Not_found
 
@@ -414,59 +331,55 @@ I compare the probabilities by [equal_probaf_mul_types]
 and avoid merging in case they are different.
    *)
 
-let matches 
-    ((order_assumptions, side_condition, true_facts,
-      used_indices, initial_indices, t1, t2, b, lopt,
-      ((really_used_indices, _,_,_,_) as probaf_mul_types)) as coll)
-    coll' =
+let matches coll coll' =
   Terms.ri_auto_cleanup (fun () ->
     try 
       let common_facts = matches_term_coll coll coll' in
       Terms.ri_cleanup();
       (* Check that we can remove the same indices using common_facts as with all facts *)
-      if initial_indices == really_used_indices then
+      if coll.t_initial_indices == coll.t_proba.p_ri_list then
 	(* If we removed no index, this is certainly true *)
-	Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
+	Some { coll with t_true_facts = common_facts }
       else
-	let really_used_indices'' = filter_indices_coll common_facts used_indices initial_indices in
-	if Terms.equal_lists (==) really_used_indices really_used_indices'' then
+	let really_used_indices'' = filter_indices_coll common_facts coll.t_used_indices coll.t_initial_indices in
+	if Terms.equal_lists (==) coll.t_proba.p_ri_list really_used_indices'' then
 	  begin
 	  (*
 	  print_string "Simplify.matches ";
-	  Display.display_term t1;
+	  Display.display_term coll.t_charac;
 	  print_string " with ";
-	  Display.display_term t2;
+	  Display.display_term coll.t_indep;
 	  print_string " succeeds\n";
 	  print_string "Common facts:\n";
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts; *)
-	    Some(order_assumptions, side_condition, common_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types)
+	    Some { coll with t_true_facts = common_facts }
 	  end
 	else
 	  begin
 	  (*
 	  print_string "Simplify.matches ";
-	  Display.display_term t1;
+	  Display.display_term coll.t_charac;
 	  print_string " with ";
-	  Display.display_term t2;
+	  Display.display_term coll.t_indep;
 	  print_string " fails\n";
 	  print_string "True facts:\n";
 	  List.iter (fun t ->
-	    Display.display_term t; print_newline()) true_facts;
+	    Display.display_term t; print_newline()) coll.t_true_facts;
 	  print_string "True facts':\n";
 	  List.iter (fun t ->
-	    Display.display_term t; print_newline()) true_facts';
+	    Display.display_term t; print_newline()) coll'.t_true_facts;
 	  print_string "Common facts:\n";
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts;
 	  print_string "used_indices\n";
-	  Display.display_list Display.display_binder used_indices;
+	  Display.display_list Display.display_binder coll.t_used_indices;
 	  print_newline();
 	  print_string "initial_indices\n";
-	  Display.display_list Display.display_binder initial_indices;
+	  Display.display_list Display.display_binder coll.t_initial_indices;
 	  print_newline();
 	  print_string "really_used_indices\n";
-	  Display.display_list Display.display_binder really_used_indices;
+	  Display.display_list Display.display_binder coll.t_proba.t_ri_list;
 	  print_newline();
 	  print_string "really_used_indices''\n";
 	  Display.display_list Display.display_binder really_used_indices'';
@@ -475,8 +388,9 @@ let matches
 	  end
   with Not_found -> None)
 
-let add_term_collision (cur_array, true_facts, order_assumptions, side_condition) t1 t2 b lopt ((used_indices, probaf, dep_types, full_type, indep_types_opt) as probaf_mul_types) =
-  (* Add the indices of t1,t2 to all_indices; some of them may be missing
+let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt probaf_mul_types =
+  let used_indices = probaf_mul_types.p_ri_list in
+  (* Add the indices of t1,t2 (in used_indices) to all_indices; some of them may be missing
      initially because array indices in t1,t2 that depend on "bad" variables
      are replaced with fresh indices, and these indices are not included in
      cur_array initially (cur_array contains the replication and find
@@ -487,7 +401,9 @@ let add_term_collision (cur_array, true_facts, order_assumptions, side_condition
     (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
     if Proba.is_small_enough_coll_elim probaf_mul_types then 
-      (order_assumptions, side_condition, [], used_indices, used_indices, t1, t2, b, lopt, probaf_mul_types)
+      { t_side_cond = side_condition; t_true_facts = [];
+	t_used_indices = used_indices; t_initial_indices = used_indices;
+	t_charac = t1; t_indep = t2; t_var = b; t_lopt = lopt; t_proba = probaf_mul_types }
     else
       (* Try to reduce the list of used indices. 
 	 The initial list of indices is a reordering of the list of all indices.
@@ -513,9 +429,11 @@ let add_term_collision (cur_array, true_facts, order_assumptions, side_condition
       (* OLD: I can forget the facts without losing precision when I removed no index
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
-      let probaf_mul_types' = (really_used_indices, probaf, dep_types, full_type, indep_types_opt) in
+      let probaf_mul_types' = { probaf_mul_types with p_ri_list = really_used_indices } in
       if Proba.is_small_enough_coll_elim probaf_mul_types' then 
-	(order_assumptions, side_condition, true_facts, used_indices, initial_indices, t1, t2, b, lopt, probaf_mul_types') 
+	{ t_side_cond = side_condition; t_true_facts = true_facts;
+	  t_used_indices = used_indices; t_initial_indices = initial_indices;
+	  t_charac = t1; t_indep = t2; t_var = b; t_lopt = lopt; t_proba = probaf_mul_types' }
       else
 	(* Raises NoMatch when the probability is too large to be accepted *)
 	raise NoMatch
@@ -571,50 +489,40 @@ let add_term_collisions current_state t1 t2 b lopt ((idx, all_coll), dep_types, 
 	  false
 	end
 
-let proba_for_term_collision (order_assumptions, side_condition, _, _, _, t1, t2, b, lopt, ((really_used_indices, probaf, dep_types, _, _) as probaf_mul_types)) =
+let proba_for_term_collision tcoll =
   print_string "Eliminated collisions between ";
-  Display.display_term t1;
+  Display.display_term tcoll.t_charac;
   print_string " and ";
-  Display.display_term t2;
-  let p = Proba.proba_for probaf_mul_types in
+  Display.display_term tcoll.t_indep;
+  let p = Proba.proba_for tcoll.t_proba in
   print_string "(";
-  if order_assumptions != [] then
+  if not (Terms.is_true tcoll.t_side_cond) then
     begin
       print_string "assuming ";
-      Display.display_list (fun ((b1, l1), (b2, l2)) ->
-	Display.display_var b2 l2;
-	print_string " is defined before ";
-	Display.display_var b1 l1
-	  ) order_assumptions;
+      Display.display_term tcoll.t_side_cond;
       print_string ", "
     end;
-  if not (Terms.is_true side_condition) then
-    begin
-      if order_assumptions != [] then print_string "and " else print_string "assuming ";
-      Display.display_term side_condition;
-      print_string ", "
-    end;
-  Display.display_term t1;
+  Display.display_term tcoll.t_charac;
   print_string " collides with a value independent of ";
   begin
-    match lopt with
-      None ->   Display.display_binder b; print_string "[...]"
-    | Some l -> Display.display_var b l 
+    match tcoll.t_lopt with
+      None ->   Display.display_binder tcoll.t_var; print_string "[...]"
+    | Some l -> Display.display_var tcoll.t_var l 
   end;
   print_string " with probability at most ";
-  Display.display_proba 0 probaf;
+  Display.display_proba 0 tcoll.t_proba.p_proba;
   print_string ";\n ";
-  Display.display_term t2;
+  Display.display_term tcoll.t_indep;
   print_string " does not depend on ";
   begin
-  match lopt with
-    None ->   Display.display_binder b; print_string "[...]"
-  | Some l -> Display.display_var b l 
+    match tcoll.t_lopt with
+      None ->   Display.display_binder tcoll.t_var; print_string "[...]"
+    | Some l -> Display.display_var tcoll.t_var l 
   end;
-  if dep_types != [] then
+  if tcoll.t_proba.p_dep_types != [] then
     begin
       print_string " but takes at most ";
-      Display.display_proba 0 (Polynom.p_prod (List.map (fun ty -> Card ty) dep_types));
+      Display.display_proba 0 (Polynom.p_prod (List.map (fun ty -> Card ty) tcoll.t_proba.p_dep_types));
       print_string " values"
     end;
   print_string ")\n";
@@ -699,7 +607,7 @@ let rec is_indep_pat simp_facts bdepinfo = function
   | PatEqual t -> is_indep simp_facts bdepinfo t
   | PatTuple(f,l) ->
       let (l_indep, l_dep_types, l_indep_types) = is_indep_pat_list simp_facts bdepinfo l in
-      Terms.build_term_type (snd f.f_type) (FunApp(f, l_indep)), l_dep_types,
+      Terms.app f l_indep, l_dep_types,
       (if l_dep_types = [] then Some [snd f.f_type] else l_indep_types)
 	
 and is_indep_pat_list simp_facts bdepinfo = function
@@ -727,19 +635,6 @@ let rec remove_dep_array_index ((b0, depinfo) as bdepinfo) t =
 	  else
 	    t') l))
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in remove_dep_array_index"
-
-let rec remove_array_index t =
-  Terms.build_term2 t 
-     (match t.t_desc with
-	FunApp(f,l) -> FunApp(f, List.map remove_array_index l)
-      | ReplIndex(b) -> t.t_desc
-      |	Var(b,l) ->
-	  Var(b, List.map (fun t' ->
-	    match t'.t_desc with
-	      ReplIndex(b') -> t'
-	    | _ -> Terms.term_from_repl_index (Facts.new_repl_index_term t')
-		  ) l)
-      | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in remove_dep_array_index")
 
 (* [is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t] 
    returns a quadruple [(t_indep, t_eq, dep_types, indep_types)]:
@@ -836,7 +731,8 @@ let find_compos_probaf_from_term t =
   let ri = fresh_repl_index() in
   let t_idx = ref [] in
   Proba.collect_array_indexes t_idx t;
-  (ri, ([Fixed(ri::(!t_idx),Proba.pcoll1rand t.t_type,[],t.t_type,None)],[],[]))
+  (ri, ([Fixed { p_ri_list = ri::(!t_idx); p_proba = Proba.pcoll1rand t.t_type;
+		 p_dep_types = []; p_full_type = t.t_type; p_indep_types_option = None }],[],[]))
     
 let extract_from_status t = function
   | Any -> None
@@ -848,15 +744,7 @@ let indep_counter = ref 0
 let indep_term t b idx =
   let b' = Terms.create_binder_internal (b.sname ^ "-indep") (!indep_counter) b.btype [idx] in
   incr indep_counter;
-  let rec node = { above_node = node;
-		   binders = [b'];
-		   true_facts_at_def = [];
-		   def_vars_at_def = [];
-		   elsefind_facts_at_def = [];
-		   future_binders = []; future_true_facts = []; 
-		   definition = DNone; definition_success = DNone }
-  in
-  b'.def <- [node];
+  ignore (Terms.set_def [b'] DNone DNone None);
   Terms.build_term2 t (Var(b', [Terms.term_from_repl_index idx]))
 
 let rec assoc_eq t = function
@@ -915,8 +803,8 @@ let subst_args_ri_list b l ri_list =
     subst_idx idx (!ri_list') ri_list
       ) ri_list b.args_at_creation l 
 	
-let subst_args_probaf_mul_types b l (ri_list, probaf, dep_types, full_type, indep_types_opt) =
-  (subst_args_ri_list b l ri_list, probaf, dep_types, full_type, indep_types_opt)
+let subst_args_probaf_mul_types b l p =
+  { p with p_ri_list = subst_args_ri_list b l p.p_ri_list }
 
 let subst_args_term_coll b l = function
   | Fixed probaf_mul_types ->
@@ -925,8 +813,8 @@ let subst_args_term_coll b l = function
       ProbaIndepCollOfVar(b',List.map (Terms.subst b.args_at_creation l) args,
 			  subst_args_ri_list b l ri_list)
   
-let subst_args_red_proba b l (t1,t2,side_cond,probaf_mul_types) =
-  (t1,t2,side_cond,subst_args_probaf_mul_types b l probaf_mul_types)
+let subst_args_red_proba b l red_proba =
+  { red_proba with r_proba = subst_args_probaf_mul_types b l red_proba.r_proba }
 	
 let subst_args_proba b l (ri_arg, (term_coll, var_coll, red_proba)) =
   let term_coll' = List.map (subst_args_term_coll b l) term_coll in
@@ -934,7 +822,7 @@ let subst_args_proba b l (ri_arg, (term_coll, var_coll, red_proba)) =
   (ri_arg, (term_coll', var_coll, red_proba'))
 	
 let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depinfo) simp_facts l0opt t =
-  if (!Settings.debug_simplif_add_facts) then
+  if !Settings.debug_simplif_add_facts then
     begin
       print_string "find_compos:t=";
       Display.display_term t;
@@ -1007,7 +895,7 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	{ depinfo with
           nodep = (!new_indep_terms) }
       in
-      if (!Settings.debug_simplif_add_facts) then
+      if !Settings.debug_simplif_add_facts then
         begin
           print_string "_->t'=";
           Display.display_term t';
@@ -1018,21 +906,18 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
       Proba.collect_array_indexes idx_t' t';
       let old_proba_state = Proba.get_and_empty_state() in
       let old_reduced = !Facts.reduced in
+      let get_dep_info (b,l) =
+	if (b == main_var) &&
+	  (match l0opt with
+	  | None -> true
+	  | Some l0 -> Terms.equal_term_lists l0 l)
+	then
+	  new_depinfo
+	else
+	  Facts.nodepinfo
+      in
       let dependency_anal =
-	let indep_test simp_facts t (b,l) =
-	  let dep_info =
-	    if (b == main_var) &&
-	      (match l0opt with
-	      | None -> true
-	      | Some l0 -> Terms.equal_term_lists l0 l)
-	    then
-	      new_depinfo
-	    else
-	      Facts.nodepinfo
-	  in
-	  Facts.default_indep_test dep_info simp_facts t (b,l)
-	in
-	(indep_test, Facts.no_collision_test)
+	(Facts.default_indep_test get_dep_info, Facts.no_collision_test)
       in
       let f1 = Facts.apply_reds dependency_anal simp_facts (Terms.make_equal t t') in
       let (ac_coll, ac_red_proba) = Proba.get_current_state() in
@@ -1107,31 +992,50 @@ and find_compos_pat_list f_find_compos f seen = function
 	  find_compos_pat_list f_find_compos f (a::seen) l 
       |	Some(probaf, a', l0opt) ->
 	  let l' = List.rev_append (List.map any_term_pat seen) (a'::(List.map any_term_pat l)) in
-	  let t' = Terms.build_term_type (snd f.f_type) (FunApp(f,l')) in
+	  let t' = Terms.app f l' in
 	  Some(probaf, t', l0opt)
 
     
-let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
-  let t_simp_ind = remove_array_index t in
-  match t_simp_ind.t_desc, t.t_desc with
-    Var(b,l_simp_ind), Var(b',l) when (Terms.is_restr b) && (Proba.is_large_term t) ->
-      assert (b == b');
+let rec dependency_collision_rec cur_array simp_facts get_dep_info t1 t2 t =
+  match t.t_desc with
+    Var(b,l) when (Terms.is_restr b) && (Proba.is_large_term t) ->
       begin
-	let t1_simp_ind = remove_array_index t1 in
-	match extract_from_status t1_simp_ind (find_compos simp_facts (b,Facts.nodepinfo) (Some l_simp_ind) t1_simp_ind) with
+	let depinfo = get_dep_info (b,l) in
+	let bdepinfo = (b,depinfo) in
+	let t_simp_ind = remove_dep_array_index bdepinfo t in
+	let l_simp_ind =
+	  match t_simp_ind.t_desc with
+	  | Var(b',l_simp_ind) when b == b' -> l_simp_ind
+	  | _ -> assert false
+	in
+	let t1_simp_ind = remove_dep_array_index bdepinfo t1 in
+	match extract_from_status t1_simp_ind (find_compos simp_facts bdepinfo (Some l_simp_ind) t1_simp_ind) with
 	  Some(probaf, t1', _) -> 
 	    begin
 	      try 
 		let collect_bargs = ref [] in
 		let collect_bargs_sc = ref [] in
-		let (t2', t2_eq, dep_types, indep_types) = is_indep_collect_args simp_facts (b,l,Facts.nodepinfo,collect_bargs,collect_bargs_sc) t2 in
+		let (t2', t2_eq, dep_types, indep_types) = is_indep_collect_args simp_facts (b,l,depinfo,collect_bargs,collect_bargs_sc) t2 in
+	      (* We eliminate collisions because t1 characterizes b[l] and t2 does not depend on b[l],
+                 In case b occurs in t2, we reason as follows:
+                    1/ When the indices of b in t2 are all different from l, t2 does not depend on b[l].
+                       We eliminate collisions under that additional condition, hence the equality 
+                       t1 = t2 is false in this case.
+                       We collect in collect_bargs the indices l_i of b in t2. Hence the additional
+                       condition is &&_(l_i in collect_bargs) l <> l_i. This condition is added
+                       as side_condition below.
+                    2/ Therefore, we can replace t1 = t2 with 
+	               (t1 = t2) && (||_(l_i in collect_bargs) l = l_i),
+	               which we rewrite
+                       ||_(l_i in collect_bargs) (l = l_i && t1 = t2 { l/l_i }) 
+		 *)
 		let side_condition = 
 		  Terms.make_and_list (List.map (fun l' ->
 		    Terms.make_or_list (List.map2 Terms.make_diff l l')
 		      ) (!collect_bargs_sc))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, Facts.true_facts_from_simp_facts simp_facts, [], side_condition) t1' t2' b (Some l) (probaf, dep_types, t2.t_type, indep_types) then
+		if add_term_collisions (cur_array, Facts.true_facts_from_simp_facts simp_facts, side_condition) t1' t2' b (Some l_simp_ind) (probaf, dep_types, t2.t_type, indep_types) then
 		  Some (Terms.make_or_list (List.map (fun l' ->   
 		    let t2'' = Terms.replace l' l t2_eq in
 		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')
@@ -1143,8 +1047,8 @@ let rec dependency_collision_rec3 cur_array simp_facts t1 t2 t =
 	    end
        | _ -> None
       end 
-  | _, FunApp(f,l) ->
-      Terms.find_some (dependency_collision_rec3 cur_array simp_facts t1 t2) l
+  | FunApp(f,l) ->
+      Terms.find_some (dependency_collision_rec cur_array simp_facts get_dep_info t1 t2) l
   | _ -> None
 
 (* [try_two_directions f t1 t2] *)

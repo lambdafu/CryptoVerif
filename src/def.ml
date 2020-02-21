@@ -248,7 +248,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 		(List.rev_append (Terms.subst_def_list repl_indices vars_terms def_list_subterms)
 		   def_vars)
             in
-	    let above_node' = { above_node = above_node; binders = vars; 
+	    let above_node' = { above_node = Some above_node; binders = vars; 
 				true_facts_at_def = true_facts'; 
 				def_vars_at_def = def_vars';
 				elsefind_facts_at_def = elsefind_facts;
@@ -270,7 +270,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       let accu = ref [] in
       let (above_node'', elsefind_facts'') = def_pattern_ef accu event_accu cur_array above_node' true_facts def_vars elsefind_facts' pat in
       let true_facts' = ((match pat with PatVar _ -> Terms.make_let_equal | _ -> Terms.make_equal) (Terms.term_from_pat pat) t1) :: true_facts in
-      let above_node''' = { above_node = above_node''; binders = !accu; 
+      let above_node''' = { above_node = Some above_node''; binders = !accu; 
 			    true_facts_at_def = true_facts'; 
 			    def_vars_at_def = def_vars;
 			    elsefind_facts_at_def = elsefind_facts'';
@@ -295,7 +295,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       above_node'
   | ResE(b, t') ->
       let elsefind_facts' = List.map (Terms.update_elsefind_with_def [b]) elsefind_facts in
-      let above_node' = { above_node = above_node; binders = [b]; 
+      let above_node' = { above_node = Some above_node; binders = [b]; 
 			  true_facts_at_def = true_facts; 
 			  def_vars_at_def = def_vars;
 			  elsefind_facts_at_def = elsefind_facts;
@@ -311,8 +311,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	  None -> ()
 	| Some accu ->
 	    let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	    let idx = Terms.build_term_type Settings.t_bitstring
-		(FunApp(tupf, List.map Terms.term_from_repl_index cur_array)) in
+	    let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
 	    let t' = Terms.build_term_type_occ Settings.t_bool t.t_occ (FunApp(f, [idx])) in
 	    accu := (t', DTerm t) :: (!accu)
       end;
@@ -407,7 +406,7 @@ let rec def_process event_accu cur_array above_node true_facts def_vars p' =
       (* A node is needed here, even if the replication defines no
 	 binders, because I rely on the node to locate the
 	 replication in Simplify.CompatibleDefs.check_compatible *)
-      let above_node' = { above_node = above_node; binders = [];
+      let above_node' = { above_node = Some above_node; binders = [];
                           true_facts_at_def = true_facts;
                           def_vars_at_def = def_vars;
                           elsefind_facts_at_def = [];
@@ -423,7 +422,7 @@ let rec def_process event_accu cur_array above_node true_facts def_vars p' =
       (* is_find_unique uses this node to test whether two variables are defined
 	 in the same input/output block, so it's important to generate this
 	 node even if the pattern pat defines no variable. *)
-      let above_node''' = { above_node = above_node''; binders = !accu; 
+      let above_node''' = { above_node = Some above_node''; binders = !accu; 
 			    true_facts_at_def = true_facts; 
 			    def_vars_at_def = def_vars;
 			    elsefind_facts_at_def = [];
@@ -453,15 +452,14 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	  None -> ()
 	| Some accu -> 
 	    let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	    let idx = Terms.build_term_type Settings.t_bitstring
-		(FunApp(tupf, List.map Terms.term_from_repl_index cur_array)) in
+	    let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
 	    let t = Terms.build_term_type_occ Settings.t_bool p'.p_occ (FunApp(f, [idx])) in
 	    accu := (t, DProcess p') :: (!accu)
       end;
       ([],[])
   | Restr(b,p) ->
       let elsefind_facts' = List.map (Terms.update_elsefind_with_def [b]) elsefind_facts in
-      let above_node' = { above_node = above_node; binders = [b]; 
+      let above_node' = { above_node = Some above_node; binders = [b]; 
 			  true_facts_at_def = true_facts; 
 			  def_vars_at_def = def_vars;
 			  elsefind_facts_at_def = elsefind_facts;
@@ -527,7 +525,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
                 (List.rev_append (Terms.subst_def_list repl_indices vars_terms def_list_subterms)
                    def_vars)
             in
-	    let above_node' = { above_node = above_node; binders = vars; 
+	    let above_node' = { above_node = Some above_node; binders = vars; 
 				true_facts_at_def = true_facts'; 
 				def_vars_at_def = def_vars';
 				elsefind_facts_at_def = elsefind_facts;
@@ -560,7 +558,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       let new_fact = (match pat with PatVar _ -> Terms.make_let_equal | _ -> Terms.make_equal) (Terms.term_from_pat pat) t in
       let true_facts' = new_fact :: true_facts in
       let elsefind_facts''' = List.map (Terms.update_elsefind_with_def (!accu)) elsefind_facts'' in
-      let above_node''' = { above_node = above_node''; binders = !accu; 
+      let above_node''' = { above_node = Some above_node''; binders = !accu; 
 			    true_facts_at_def = true_facts'; 
 			    def_vars_at_def = def_vars;
 			    elsefind_facts_at_def = elsefind_facts'';
@@ -633,13 +631,13 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 
 let build_def_process event_accu p =
   empty_def_process p;
-  let rec st_node = { above_node = st_node; 
-		      binders = []; 
-		      true_facts_at_def = []; 
-		      def_vars_at_def = []; 
-		      elsefind_facts_at_def = [];
-		      future_binders = []; future_true_facts = []; 
-		      definition = DNone;
-		      definition_success = DNone } 
+  let st_node = { above_node = None; 
+		  binders = []; 
+		  true_facts_at_def = []; 
+		  def_vars_at_def = []; 
+		  elsefind_facts_at_def = [];
+		  future_binders = []; future_true_facts = []; 
+		  definition = DNone;
+		  definition_success = DNone } 
   in
   def_process event_accu [] st_node [] [] p

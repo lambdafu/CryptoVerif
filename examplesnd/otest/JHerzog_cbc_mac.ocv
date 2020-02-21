@@ -1,0 +1,82 @@
+(**********************************************************************
+*
+* Security of the CBC mac, modified from a script by Jonathan Herzog
+*
+*  * Blocks: 2
+*  * Result: success
+*
+*
+***********************************************************************)
+
+proof {
+      remove_assign binder tag2_ver;
+      show_game occ;
+      crypto prp_partial(aes_enc) [ terms: 10 -> O_1, 15 -> O_2, 43 -> O_1, 48 -> Oeq_2 ];
+      success
+}
+
+type block [fixed, large].
+type aes_key [fixed, large].
+proba Paes.
+expand PRP_cipher(aes_key, block, aes_enc, aes_dec, Paes).
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zero_block).
+
+
+
+(* Parameters *)
+
+param N_tag. (* the number of times the adversary gets to call the encryption oracle *)
+param N_ver. (* the number of times adversary is allowed to submit a forgery *)
+
+
+
+(* what do we want? If the verification oracle accepts a message, the message was
+   previously submitted to the tag oracle. *)
+
+event compute_mac(block, block, block).
+event accept_mac(block, block, block).
+query b1 : block, b2:block, tag: block;
+      event(accept_mac(b1, b2, tag)) ==> event(compute_mac(b1, b2, tag)).
+
+
+
+
+let tag_oracle(aesk: aes_key) = 
+    Otag(b1 : block, b2 : block):=
+       
+       tag1 <- aes_enc(b1, aesk);
+       tag2 <- aes_enc( xor(tag1, b2), aesk);
+       event compute_mac(b1, b2, tag2);
+
+       return (tag2).
+
+
+let ver_oracle(aesk: aes_key) = 
+    Over(b1 : block, b2 : block, tag: block):=
+       
+       tag1_ver <- aes_enc(b1, aesk);
+       tag2_ver <- aes_enc( xor(tag1_ver, b2), aesk);
+
+       if tag2_ver = tag
+       then
+          event accept_mac(b1, b2, tag).
+
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+        aesk <-R aes_key;
+	return;
+	(* Make tag and verification oracles available now IN PARALLEL 
+ 	   with the rest of the game. *)
+
+        (foreach i <= N_tag do run tag_oracle(aesk)) |
+	(foreach i <= N_ver do run ver_oracle(aesk)) 
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

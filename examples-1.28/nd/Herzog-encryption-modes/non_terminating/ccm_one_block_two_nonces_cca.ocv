@@ -11,24 +11,35 @@
 ***********************************************************************)
 
 
-(*
+(* I believe that this example is subject to an attack:
 
-set debugInstruct = true.
-set debugFindUnique = true.
-set debugCryptotransf = 1.
-set debugElsefindFacts = true.
-set debugSimplify = true.
+the decryption oracle can be turned into an AES oracle:
+if one gives a ciphertext mac_join(cm_join(x-1,x-1),x,0) to the
+decryption oracle, we have
+   counter_nonce = x-1
+   cipherblock1 = x-1
+   tag_nonce = x
+   mac_tag = 0
+so
+   counter1 = x
+   pad1 = aes(x, aesk)
+   plaintext1 = xor(aes(x, aesk), x-1)
+   b0 = x
+   t1 = aes_enc(x, aesk)
+   t2 = aes_enc(x-1, aesk)
+   s0 = aes_enc(x-1, aesk)
+   recomputed_tag = 0
+so the test recomputed_tag = mac_tag succeeds, and
+Odec(mac_join(cm_join(x-1,x-1),x,0)) returns xor(aes(x, aesk), x-1)
+so aes(x, aesk) = xor(Odec(mac_join(cm_join(x-1,x-1),x,0)), x-1).
 
+From that, it is easy to break the scheme: given a challenge ciphertext
+mac_join(cm_join(counter_nonce,cipherblock1),tag_nonce,mac_tag),
+one can decrypt it by computing pad1 = aes(counter_nonce+1, aesk)
+using the previous oracle with x = counter_nonce+1. Then
+the plaintext is xor(cipherblock1, pad1).
 
-set autoAdvice = false.
-set noAdviceCrypto = true.
-set noAdviceGlobalDepAnal = true.
-set simplifyAfterSARename = false.
-set maxIterSimplif = 1.
-
-set interactiveMode = true.
 *)
-
 
 type block [fixed, large].
 type aes_keyseed [fixed, large, bounded].
@@ -116,7 +127,7 @@ let dec_oracle =
 
 
 	    	counter1 <- incr(counter_nonce);
-		pad1 <- aes_enc(counter_nonce, aesk);
+		pad1 <- aes_enc(counter1 (* WAS: counter_nonce (typo) *), aesk);
 		plaintext1 <- xor(pad1, cipherblock1);
 
 		b0 <- tag_nonce;

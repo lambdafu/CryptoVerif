@@ -351,16 +351,16 @@ let several_def b =
 let rec remove_assignments_term in_find_cond remove_set above_vars t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term2 t (Var(b, List.map (remove_assignments_term in_find_cond remove_set above_vars) l))
-  | ReplIndex i -> Terms.build_term2 t (ReplIndex i)
+      Terms.build_term t (Var(b, List.map (remove_assignments_term in_find_cond remove_set above_vars) l))
+  | ReplIndex i -> Terms.build_term t (ReplIndex i)
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map (remove_assignments_term in_find_cond remove_set above_vars) l))
+      Terms.build_term t (FunApp(f, List.map (remove_assignments_term in_find_cond remove_set above_vars) l))
   | TestE(t1,t2,t3) ->
-      Terms.build_term2 t (TestE(remove_assignments_term in_find_cond remove_set above_vars t1,
+      Terms.build_term t (TestE(remove_assignments_term in_find_cond remove_set above_vars t1,
 		                 remove_assignments_term in_find_cond remove_set [] t2,
 		                 remove_assignments_term in_find_cond remove_set [] t3))
   | FindE(l0, t3, find_info) ->
-      Terms.build_term2 t (FindE(List.map (fun (bl, def_list, t1, t2) ->
+      Terms.build_term t (FindE(List.map (fun (bl, def_list, t1, t2) ->
 	                             (bl, def_list,
 			              remove_assignments_term true remove_set [] t1,
 			              remove_assignments_term in_find_cond remove_set [] t2)) l0,
@@ -381,14 +381,14 @@ let rec remove_assignments_term in_find_cond remove_set above_vars t =
           (* Allow using b' for testing whether a variable is defined *) 
           b'.count_def <- 1;
           let above_vars' = b' :: above_vars in
-	  Terms.build_term2 t' (ResE(b', remove_assignments_term in_find_cond remove_set above_vars' t'))
+	  Terms.build_term t' (ResE(b', remove_assignments_term in_find_cond remove_set above_vars' t'))
 	end
       else
-	Terms.build_term2 t (ResE(b, remove_assignments_term in_find_cond remove_set (b::above_vars) t))
+	Terms.build_term t (ResE(b, remove_assignments_term in_find_cond remove_set (b::above_vars) t))
   | EventAbortE f ->
      t
   | EventE(t1,p) ->
-     Terms.build_term2 t (EventE(remove_assignments_term in_find_cond remove_set above_vars t1,
+     Terms.build_term t (EventE(remove_assignments_term in_find_cond remove_set above_vars t1,
 		                 remove_assignments_term in_find_cond remove_set above_vars p))
   | GetE _ | InsertE _ ->      
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_remove_assign.remove_assignments_term"

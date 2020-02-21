@@ -6,6 +6,13 @@
 
 type ident = string * Parsing_helper.extent
 
+type special_args_t =
+  | SpecialArgId of ident
+  | SpecialArgString of ident
+  | SpecialArgTuple of special_args_e list
+
+and special_args_e = special_args_t * Parsing_helper.extent
+	
 (* Collision elimination options *)
       
 type coll_elim_t =
@@ -135,7 +142,7 @@ type binder = { sname : string;
 and binderref = binder * term list
 
 (* Definition graph *)
-and def_node = { above_node : def_node;
+and def_node = { above_node : def_node option;
 		 binders : binder list; (* The variables defined at this node *)
 		 mutable true_facts_at_def : term list; 
                     (* The facts that are guaranteed to be true at this node *)
@@ -443,6 +450,13 @@ and setf =
     SetProba of probaf
   | SetEvent of funsymb * game * binder list(*public variables*) * proof_t ref
 
+and equiv_gen =
+    { eq_name : eqname;
+      mutable eq_fixed_equiv : (eqmember * eqmember * setf list * eqopt2) option;
+      mutable eq_name_mapping : (binder * binder * def_check) list option;
+      eq_special : (ident * special_args_e list) option;
+      eq_exec : eqopt }
+	
 and equiv = eqname * eqmember * eqmember * setf list * eqopt * eqopt2
 
 and def_check = term list
@@ -461,9 +475,15 @@ and indep_cond =
   | IC_True
   | IC_Indep of binder * binder
       
-and collision = binder list(*restrictions*) * binder list(*forall*) *
-      term * probaf * term * indep_cond(*independence conditions*)
-      * term(*side condition*) * bool(*restrictions may be equal?*)
+and collision =
+    { c_restr : binder list; (*restrictions*)
+      c_forall : binder list; (*forall*)
+      c_redl : term;
+      c_proba : probaf;
+      c_redr : term;
+      c_indep_cond : indep_cond; (*independence conditions*)
+      c_side_cond : term; (*side condition*)
+      c_restr_may_be_equal : bool }(*restrictions may be equal?*)
 
 (* Queries *)
 
@@ -745,11 +765,11 @@ type final_process =
       
     
 type probaf_mul_types =
-    repl_index list (* List of replication indices *) *
-      probaf (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *) *
-      typet list (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *) *
-      typet (* The type of t2 *) *
-      typet list option (* indep_types_option: 
+  { p_ri_list : repl_index list; (* List of replication indices *)
+    p_proba : probaf; (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *)
+    p_dep_types : typet list; (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *)
+    p_full_type : typet; (* The type of t2 *)
+    p_indep_types_option : typet list option } (* indep_types_option: 
 	 indep_types_option = Some indep_types, where indep_types is 
 	 The list of types of subterms of t2 
 	 not replaced with variables [?].  This list is valid only
@@ -758,37 +778,65 @@ type probaf_mul_types =
 	 |type(t2)|/product of |T| for T \in indep_types.  When it is
 	 not valid, indep_types_option = None. *) 
 
- (* [(ri_list, probaf, dep_types, full_type, indep_types_option)] 
-    represents
-    \prod_{ri \in ri_list} |ri.ri_type| * probaf * \prod_{T \in dep_types} |T|.
-    When indep_types_option = Some indep_types, 
-    \prod_{T \in dep_types} |T| <= |full_type|/\prod{T \in indep_types} |T|. *)
+ (* a record [p: probaf_mul_types] represents
+    \prod_{ri \in p.p_ri_list} |ri.ri_type| * p.p_proba * \prod_{T \in p.p_dep_types} |T|.
+    When p.p_indep_types_option = Some indep_types, 
+    \prod_{T \in p.p_dep_types} |T| <= |p.p_full_type|/\prod{T \in indep_types} |T|. *)
       
-type collision_state = 
-  ((binderref * binderref) list * (* For each br1, br2 in this list, the collisions are eliminated only when br2 is defined before br1 *)
-   term * (* The collisions are eliminated only when this term is true *)
-   term list * (* Facts that are known to hold when the collision is eliminated *)
-   repl_index list * (* Indices that occur in colliding terms *) 
-   repl_index list * (* Indices at the program point of the collision *)
-   term * term * (* The two colliding terms, t1 and t2 *)
-   binder * term list option (* The random variable that is (partly) characterized by t1 and from which t2 is independent *) * 
-   probaf_mul_types (* see above *)) list
+type term_coll_t = 
+  { t_side_cond : term; (* The collisions are eliminated only when this term is true *)
+    t_true_facts : term list; (* Facts that are known to hold when the collision is eliminated *)
+    t_used_indices : repl_index list; (* Indices that occur in colliding terms *) 
+    t_initial_indices : repl_index list; (* Indices at the program point of the collision *)
+    t_charac : term; (* The two colliding terms, t1 and t2 *)
+    t_indep : term; 
+    t_var : binder; (* The random variable that is (partly) characterized by t1 and from which t2 is independent, with its indices *)
+    t_lopt : term list option;
+    t_proba : probaf_mul_types } (* see above *)
 
 type binder_coll_t = binder * binder 
       (* [(b1,b2)] means that we eliminated collisions
 	 between the random variables [b1] and [b2] *)
+
+type instantiated_collision =
+    { ic_restr : term list; (*restrictions*)
+      ic_redl : term; (*lhs*)
+      ic_proba : probaf;
+      ic_redr : term; (*rhs*)
+      ic_indep_cond : term; (*indep cond*)
+      ic_side_cond : term; (*side cond*)
+      ic_restr_may_be_equal : bool } (*restr_may_be_equal*)
+
+type any_var_map_list_t =
+    { source : binder list;
+      images : term list list }
       
-type red_proba_t = term * term * term * probaf_mul_types
-      (* [(t1,t2,side_cond,ri_list, probaf_mul_types)]
-	 means that we rewrote [t1] into [t2] provided [side_cond] holds,
-	 using a collision statement. [probaf_mul_types] represents
-	 the probability of collision (see that type for details) *)
+type red_proba_t =
+    { r_coll_statement : collision;
+      r_restr_indep_map : (binder * term) list;
+      r_any_var_map_list : any_var_map_list_t;
+      r_i_coll_statement : instantiated_collision;
+      r_proba : probaf_mul_types }
+      (* a record [r: red_proba_t]
+	 means that we applied the collision statement [r.r_coll_statement]
+	 with variables bound as defined by [r.r_restr_indep_map]
+	 and [r.r_any_var_map list]. [r.r_restr_indep_map] binds variables
+	 defined by "new" and those with independence conditions.
+	 [any_var_map] binds other variables (universally quantified).
+	 There can be several applications with different values of 
+	 [any_var_map]; all those applications are collected in 
+	 [r.r_any_var_map_list]; the images are omitted when those
+	 variables do not occur in the probability.
+	 [r.r_i_coll_statement] is the collision statement instantiated
+	 following [r.r_restr_indep_map].
+	 [r.r_proba] represents the probability of collision 
+	 (see type [probaf_mul_types] for details) *)
 
 type simplify_internal_info_t = binder_coll_t list * red_proba_t list
       
 (* For the dependency analyses *)
 
-type term_coll_t =
+type term_coll_proba_t =
   | Fixed of probaf_mul_types
   | ProbaIndepCollOfVar of binder * term list * repl_index list
      (* [ProbaIndepOfVar (b, args, ri_list)] represents a probability p such that
@@ -803,7 +851,7 @@ type term_coll_t =
 	which tells us b[args_at_creation] depends on b0[l0'].
 	Then l is such that l0 = l0'{l/b.args_at_creation}. *)
       
-type all_coll_t = term_coll_t list * binder_coll_t list * red_proba_t list
+type all_coll_t = term_coll_proba_t list * binder_coll_t list * red_proba_t list
       
 type find_compos_probaf = repl_index * all_coll_t
       (* (ri_arg, all_coll) 
@@ -866,6 +914,13 @@ type def_kind_t =
   | RestrDef
   | OtherDef
 
-(* Collision used in the "move array" command *)
+(* Collision used special equivalences and in the "move array" command *)
 
-type move_array_collision = binder list * binder * term
+type special_equiv_collision = binder list * binder list * term
+
+(* Expected type or variable in the collisions in special equivalences
+   and in the "move array" command *)
+
+type expect_t =
+  | ExpectType of typet
+  | ExpectVar of binder

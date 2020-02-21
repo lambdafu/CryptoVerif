@@ -151,25 +151,16 @@ let add_cur_array repl_opt cur_array =
     
 let rec build_def_fungroup cur_array above_node = function
     ReplRestr(repl_opt, restr, funlist) ->
-      let above_node2 = { above_node = above_node; 
-			  binders = List.map fst restr; 
-			  true_facts_at_def = []; def_vars_at_def = [];
-			  elsefind_facts_at_def = [];
-			  future_binders = []; future_true_facts = []; 
-			  definition = DFunRestr; definition_success = DFunRestr } 
+      let above_node2 =
+	Terms.set_def (List.map fst restr) DFunRestr DNone (Some above_node)
       in
-      List.iter (fun (b,_) -> b.def <- above_node2 :: b.def) restr;
       let cur_array' = add_cur_array repl_opt cur_array in
       List.iter (build_def_fungroup cur_array' above_node2) funlist
   | Fun(ch, args, res, priority) ->
-    let above_node1 = { above_node = above_node; binders = args; 
-			true_facts_at_def = []; def_vars_at_def = [];
-			elsefind_facts_at_def = [];
-			future_binders = []; future_true_facts = []; 
-			definition = DFunArgs; definition_success = DFunArgs } 
-    in
-    List.iter (fun b -> b.def <- above_node1 :: b.def) args;
-    ignore(Def.def_term None cur_array above_node1 [] [] [] res)
+      let above_node1 =
+	Terms.set_def args DFunArgs DNone (Some above_node)
+      in
+      ignore(Def.def_term None cur_array above_node1 [] [] [] res)
 
 let array_index_args args =
   List.filter (fun b -> match b.btype.tcat with
@@ -354,18 +345,9 @@ let rec check_def_fungroup def_refs = function
       check_def_funterm ((List.map Terms.binderref_from_binder args) @ (!array_ref_args) @ def_refs) res
 
 let check_def_member l =
-  let rec st_node = { above_node = st_node; binders = []; 
-		      true_facts_at_def = []; def_vars_at_def = [];
-		      elsefind_facts_at_def = [];
-		      future_binders = []; future_true_facts = []; 
-		      definition = DNone; definition_success = DNone } 
-  in
+  let rec st_node = Terms.set_def [] DNone DNone None in
   List.iter (fun (fg, mode) -> build_def_fungroup [] st_node fg) l;
   List.iter (fun (fg, mode) -> check_def_fungroup [] fg) l
-
-let check_def_eqstatement (_,lm,rm,_,_,_) =
-  check_def_member lm;
-  check_def_member rm
 
 
 (* Check and simplify the left member of equivalence statements *)
@@ -385,7 +367,7 @@ let rec check_lm_term t =
   | ReplIndex _ ->
       Parsing_helper.internal_error "Subterms of variable accesses are not considered in check_lm_term, so the case ReplIndex should never happen"
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map check_lm_term l))
+      Terms.build_term t (FunApp(f, List.map check_lm_term l))
   | LetE(PatVar b,t,t1,_) ->
       if Terms.refers_to b t then
 	Parsing_helper.input_error "Cyclic assignment in left member of equivalence" t.t_loc;
@@ -427,9 +409,10 @@ let rec close_node accu n l =
   List.iter (fun b' ->
     let l' = Terms.skip ((List.length l) - (List.length b'.args_at_creation)) l in
     accu := ((b',l'))::(!accu)
-      ) n.binders;
-  if n.above_node != n then
-    close_node accu n.above_node l
+			  ) n.binders;
+  match n.above_node with
+  | None -> ()
+  | Some n' -> close_node accu n' l
 
 let close_def accu (b,l) =
   match b.def with
@@ -447,13 +430,13 @@ let same_binders l1 l2 =
 let rec check_rm_term allowed_index_seq t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term2 t (Var(b, List.map (check_rm_term allowed_index_seq) l))
+      Terms.build_term t (Var(b, List.map (check_rm_term allowed_index_seq) l))
   | ReplIndex b -> 
-      Terms.build_term2 t (ReplIndex b)
+      Terms.build_term t (ReplIndex b)
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map (check_rm_term allowed_index_seq) l))
+      Terms.build_term t (FunApp(f, List.map (check_rm_term allowed_index_seq) l))
   | LetE(pat,t1,t2,topt) ->
-      Terms.build_term2 t (LetE(check_rm_pat allowed_index_seq pat,
+      Terms.build_term t (LetE(check_rm_pat allowed_index_seq pat,
 		      check_rm_term allowed_index_seq t1,
 		      check_rm_term allowed_index_seq t2,
 		      begin
@@ -462,13 +445,13 @@ let rec check_rm_term allowed_index_seq t =
 			| Some t3 -> Some(check_rm_term allowed_index_seq t3)
 		      end))
   | ResE(b,t') ->
-      Terms.build_term2 t (ResE(b, check_rm_term allowed_index_seq t'))
+      Terms.build_term t (ResE(b, check_rm_term allowed_index_seq t'))
   | TestE(t1,t2,t3) ->
-      Terms.build_term2 t (TestE(check_rm_term allowed_index_seq t1,
+      Terms.build_term t (TestE(check_rm_term allowed_index_seq t1,
 		       check_rm_term allowed_index_seq t2,
 		       check_rm_term allowed_index_seq t3))
   | FindE(l0, t3, find_info) ->
-      Terms.build_term2 t (FindE(
+      Terms.build_term t (FindE(
 	List.map (function 
 	   (* ([], _, _, _, _) -> Parsing_helper.user_error "Find in right member of equivalences should bind at least one index\n"
 	  | *) (lindex, def_list, t1, t2) ->
@@ -521,7 +504,7 @@ let rec check_rm_term allowed_index_seq t =
 		) l0,
 	check_rm_term allowed_index_seq t3, find_info))
   | EventAbortE(f) ->
-      Terms.build_term2 t (EventAbortE(f))
+      Terms.build_term t (EventAbortE(f))
   | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
 
@@ -566,22 +549,22 @@ let rec check_rm_fungroup normalize cur_array = function
 let rec move_names_term add_names corresp_list t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term2 t (Var(b, List.map (move_names_term add_names corresp_list) l))
+      Terms.build_term t (Var(b, List.map (move_names_term add_names corresp_list) l))
   | ReplIndex b ->
-      Terms.build_term2 t (ReplIndex b)
+      Terms.build_term t (ReplIndex b)
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map (move_names_term add_names corresp_list) l))
+      Terms.build_term t (FunApp(f, List.map (move_names_term add_names corresp_list) l))
   | ResE(b,t1) ->
       let t' = move_names_term add_names corresp_list t1 in
       add_names := b::(!add_names);
       if b.root_def_std_ref || b.root_def_array_ref then
 	let b' = Terms.new_binder b in
 	corresp_list := (b,b')::(!corresp_list);
-	Terms.build_term2 t (LetE(PatVar b', Stringmap.cst_for_type b.btype  , t', None))
+	Terms.build_term t (LetE(PatVar b', Stringmap.cst_for_type b.btype  , t', None))
       else
 	t'
   | LetE(pat, t1, t2, topt) ->
-      Terms.build_term2 t (LetE(move_names_pat add_names corresp_list pat,
+      Terms.build_term t (LetE(move_names_pat add_names corresp_list pat,
 		      move_names_term add_names corresp_list t1,
 		      move_names_term add_names corresp_list t2,
 		      match topt with
@@ -589,18 +572,18 @@ let rec move_names_term add_names corresp_list t =
 		      |	Some t3 -> Some (move_names_term add_names corresp_list t3)))
   | FindE(l0, t3, find_info) ->
       let move_br (b,l) = (b, List.map (move_names_term add_names corresp_list) l) in
-      Terms.build_term2 t (FindE(List.map (fun (bl, def_list, t1, t2) ->
+      Terms.build_term t (FindE(List.map (fun (bl, def_list, t1, t2) ->
 	(bl, 
 	 List.map move_br def_list, 
 	 move_names_term add_names corresp_list t1, 
 	 move_names_term add_names corresp_list t2)) l0, 
 		       move_names_term add_names corresp_list t3, find_info))
   | TestE(t1,t2,t3) ->
-      Terms.build_term2 t (TestE(move_names_term add_names corresp_list t1,
+      Terms.build_term t (TestE(move_names_term add_names corresp_list t1,
 		       move_names_term add_names corresp_list t2,
 		       move_names_term add_names corresp_list t3))
   | EventAbortE(f) ->
-      Terms.build_term2 t (EventAbortE(f))
+      Terms.build_term t (EventAbortE(f))
   | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
 
@@ -633,7 +616,7 @@ and move_names_list corresp_list lm_name_above lm rm =
   | _ -> Parsing_helper.internal_error "Structures of left- and right-hand sides of an equivalence must be the same"
 
 let rec update_def_list_term corresp_list t =
-  Terms.build_term2 t 
+  Terms.build_term t 
      (match t.t_desc with
 	Var(b,l) ->
 	  Var(b, List.map (update_def_list_term corresp_list) l)
@@ -852,18 +835,18 @@ let add_index_binder idx b =
 let rec add_index idx t =
   match t.t_desc with
   | Var(b,l) ->
-      Terms.build_term2 t (Var(add_index_binder idx b,
+      Terms.build_term t (Var(add_index_binder idx b,
 			       (List.map (add_index idx) l) @
 			       (List.map Terms.term_from_repl_index idx)))
-  | ReplIndex b -> Terms.build_term2 t t.t_desc (* Must not be physically the same, for computation of facts *)
-  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map (add_index idx) l))
+  | ReplIndex b -> Terms.build_term t t.t_desc (* Must not be physically the same, for computation of facts *)
+  | FunApp(f,l) -> Terms.build_term t (FunApp(f, List.map (add_index idx) l))
   | ResE(b,t1) ->
-      Terms.build_term2 t (ResE(add_index_binder idx b, add_index idx t1))
-  | EventAbortE _ -> Terms.build_term2 t t.t_desc (* Must not be physically the same, for computation of facts *)
+      Terms.build_term t (ResE(add_index_binder idx b, add_index idx t1))
+  | EventAbortE _ -> Terms.build_term t t.t_desc (* Must not be physically the same, for computation of facts *)
   | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "event/get/insert should not occur equivalences" 
   | TestE(t1,t2,t3) ->
-      Terms.build_term2 t (TestE(add_index idx t1,
+      Terms.build_term t (TestE(add_index idx t1,
 				 add_index idx t2,
 				 add_index idx t3))
   | FindE(l0,t3,find_info) ->
@@ -878,7 +861,7 @@ let rec add_index idx t =
 	  (bl', def_list', t1', t2')
 	  ) l0
       in
-      Terms.build_term2 t (FindE(l0',
+      Terms.build_term t (FindE(l0',
 				 add_index idx t3,
 				 find_info))
   | LetE(pat, t1, t2, topt) ->
@@ -890,7 +873,7 @@ let rec add_index idx t =
 	  None -> None
 	| Some t3 -> Some (add_index idx t3)
       in
-      Terms.build_term2 t (LetE(pat', t1', t2', topt'))
+      Terms.build_term t (LetE(pat', t1', t2', topt'))
 
 and add_index_br idx (b,l) =
   (add_index_binder idx b,
@@ -968,69 +951,77 @@ let instan_time add_time p =
     
 let add_repl normalize equiv =
   if normalize then
-    let (n,lm,rm,p,opt,opt2) = equiv in
-    match lm,rm with
-    | [ReplRestr(None,lrestr_list,lfun_list),lmode], [ReplRestr(None,rrestr_list,rfun_list),rmode] ->
-	let name, counter = Terms.new_var_name "N" in
-	let param = { pname = name ^ (if counter != 0 then "_" ^ (string_of_int counter) else "");
-		      psize = Settings.psize_DEFAULT }
-	in
-	let t = Terms.type_for_param param in
-	(* The probability [p] may refer to variables in the LHS of the equivalence
-           (in arguments of maxlength). We add indices to these variables as well. *)
-	let (lrepl_opt, lrestr_list',lfun_list',p') = add_index_top t (lrestr_list,lfun_list,p) in
-	let (rrepl_opt, rrestr_list',rfun_list',_) = add_index_top t (rrestr_list,rfun_list, []) in
-	let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
-	let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
-	let time_add1 =
-	  match opt2 with
-	  | Decisional ->
-	      let lhs_time = Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list')) in
-	      let rhs_time = Computeruntime.compute_runtime_for_fungroup Terms.rhs_game (ReplRestr(None, rrestr_list',rfun_list')) in
-	      begin
-		match lhs_time, rhs_time with
-		| Zero, _ -> rhs_time
-		| _, Zero -> lhs_time
-		| _ -> Max [ lhs_time; rhs_time ]
-	      end
-	  | Computational -> Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'))
-	in
-	let time_add =
-	  Polynom.p_mul((Sub(Count(param),Cst 1.0)), time_add1)
-	in
-	let p'' = List.map (function
-	  | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
-	  | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula"
-		) p'
-	in
-	let equiv' = (n,lm',rm',p'',opt,opt2) in
-	(* print_string "Obtained "; Display.display_equiv (equiv', []); *)
-	equiv'
-    | _ ->
-	let missing_repl = function
-	  | ReplRestr(None,restr_list,fun_list),mode -> true
-	  | _ -> false
-	in
-	if (List.exists missing_repl lm) || (List.exists missing_repl rm) then
-	  Parsing_helper.internal_error "Bad missing replications; should have been detected in syntax.ml";
-	equiv
+    match equiv.eq_fixed_equiv with
+    | None -> equiv
+    | Some(lm,rm,p,opt2) ->
+	match lm,rm with
+	| [ReplRestr(None,lrestr_list,lfun_list),lmode], [ReplRestr(None,rrestr_list,rfun_list),rmode] ->
+	    let name, counter = Terms.new_var_name "N" in
+	    let param = { pname = name ^ (if counter != 0 then "_" ^ (string_of_int counter) else "");
+			  psize = Settings.psize_DEFAULT }
+	    in
+	    let t = Terms.type_for_param param in
+	    (* The probability [p] may refer to variables in the LHS of the equivalence
+              (in arguments of maxlength). We add indices to these variables as well. *)
+	    let (lrepl_opt, lrestr_list',lfun_list',p') = add_index_top t (lrestr_list,lfun_list,p) in
+	    let (rrepl_opt, rrestr_list',rfun_list',_) = add_index_top t (rrestr_list,rfun_list, []) in
+	    let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
+	    let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
+	    let time_add1 =
+	      match opt2 with
+	      | Decisional ->
+		  let lhs_time = Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list')) in
+		  let rhs_time = Computeruntime.compute_runtime_for_fungroup Terms.rhs_game (ReplRestr(None, rrestr_list',rfun_list')) in
+		  begin
+		    match lhs_time, rhs_time with
+		    | Zero, _ -> rhs_time
+		    | _, Zero -> lhs_time
+		    | _ -> Max [ lhs_time; rhs_time ]
+		  end
+	      | Computational -> Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'))
+	    in
+	    let time_add =
+	      Polynom.p_mul((Sub(Count(param),Cst 1.0)), time_add1)
+	    in
+	    let p'' = List.map (function
+	      | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
+	      | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula"
+		    ) p'
+	    in
+	    let equiv' = { equiv with eq_fixed_equiv = Some(lm',rm',p'',opt2) } in
+	    (* print_string "Obtained "; Display.display_equiv_gen (equiv', []); *)
+	    equiv'
+	| _ ->
+	    let missing_repl = function
+	      | ReplRestr(None,restr_list,fun_list),mode -> true
+	      | _ -> false
+	    in
+	    if (List.exists missing_repl lm) || (List.exists missing_repl rm) then
+	      Parsing_helper.internal_error "Bad missing replications; should have been detected in syntax.ml";
+	    equiv
   else
     equiv
     
 let check_equiv normalize equiv =
-  let (n,lm,rm,p,opt,opt2) as equiv' = add_repl normalize equiv in
-  (* we must call [check_def_eqstatement] before using [close_def] *)
-  check_def_eqstatement equiv'; 
-  let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in
-  (* Require that each function has a different number of repetitions.
-     Then the typing guarantees that when several variables are referenced
-     with the same array indexes, then these variables come from the same function. *)
-  Array_ref.array_ref_eqside rm;
-  let rm' = List.map (fun (fg, mode) ->
-    (check_rm_fungroup normalize [] fg, mode)) rm
-  in
-  let rm'' = if normalize then move_names_all lm' rm' else rm' in
-  Array_ref.cleanup_array_ref();
-  let restr_mapping = ref [] in
-  build_restr_mapping restr_mapping lm' rm'';
-  ((n,lm', rm'', p, opt,opt2), !restr_mapping)
+  let equiv' = add_repl normalize equiv in
+  match equiv'.eq_fixed_equiv with
+  | None -> equiv'
+  | Some(lm,rm,p,opt2) ->
+      (* we must call [check_def_member] before using [close_def] *)
+      check_def_member lm;
+      check_def_member rm;
+      let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in
+      (* Require that each function has a different number of repetitions.
+	 Then the typing guarantees that when several variables are referenced
+	 with the same array indexes, then these variables come from the same function. *)
+      Array_ref.array_ref_eqside rm;
+      let rm' = List.map (fun (fg, mode) ->
+	(check_rm_fungroup normalize [] fg, mode)) rm
+      in
+      let rm'' = if normalize then move_names_all lm' rm' else rm' in
+      Array_ref.cleanup_array_ref();
+      let restr_mapping = ref [] in
+      build_restr_mapping restr_mapping lm' rm'';
+      { equiv' with
+        eq_fixed_equiv = Some(lm', rm'', p, opt2);
+        eq_name_mapping = Some(!restr_mapping) }

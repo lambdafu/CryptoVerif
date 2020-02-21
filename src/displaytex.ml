@@ -132,6 +132,37 @@ and display_repl_index_with_type b =
   display_repl_index b;
   print_id " \\leq \\kwp{" (Terms.param_from_type b.ri_type).pname "}"
 
+and display_repl i =
+  if (!Settings.front_end) == Settings.Oracles then
+    begin
+      print_string "\\kw{foreach}\\ ";
+      display_repl_index_with_type i;
+      print_string "\\ \\kw{do}"
+    end
+  else if !nice_tex then
+    begin
+      print_string "!^{";
+      display_repl_index_with_type i;
+      print_string "}"
+    end
+  else
+    begin
+      print_string "!\\ ";
+      display_repl_index_with_type i
+    end
+    
+and display_restr b =
+  if (!Settings.front_end) == Settings.Oracles then
+    begin
+      display_binder_with_array b;
+      print_id " \\getR \\kwt{" b.btype.tname "}"
+    end
+  else
+    begin
+      print_string "\\kw{new}\\ ";
+      display_binder_with_type b
+    end
+    
 and display_findcond (def_list, t1) =
   let cond_printed = ref false in
   if def_list != [] then
@@ -253,16 +284,7 @@ and display_term t =
 	    display_term_paren AllInfix NoProcess t3      
       end
   | ResE(b,t) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  display_binder_with_array b;
-	  print_id " \\getR \\kwt{" b.btype.tname "}"
-	end
-      else
-	begin
-	  print_string "\\kw{new}\\ ";
-	  display_binder_with_type b
-	end;
+      display_restr b;
       print_string ";\\ ";
       display_term_paren AllInfix NoProcess t
   | EventAbortE(f) ->
@@ -505,6 +527,8 @@ let rec display_proba level = function
 	print_string "\\mathit{LHS}: "
       else if g == Terms.rhs_game then
 	print_string "\\mathit{RHS}: "
+      else if g == Terms.lhs_game_nodisplay then
+	()
       else
 	print_string ("\\mathit{game}\\ " ^ (Display.get_game_id g) ^ ": ");
       display_term t;
@@ -642,16 +666,7 @@ let rec display_procasterm t =
 	    display_procasterm t3      
       end
   | ResE(b,t) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  display_binder_with_array b;
-	  print_id " \\getR \\kwt{" b.btype.tname "}"
-	end
-      else
-	begin
-	  print_string "\\kw{new}\\ ";
-	  display_binder_with_type b
-	end;
+      display_restr b;
       print_string ";\\ ";
       display_procasterm t
   | EventAbortE(f) -> 
@@ -663,60 +678,18 @@ let rec display_procasterm t =
 
 let rec display_fungroup indent = function
     ReplRestr(repl_opt, restr, funlist) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  begin
-	    match repl_opt with
-	    | Some repl ->
-		print_string "\\kw{foreach}\\ ";
-		display_repl_index_with_type repl;
-		print_string "\\ \\kw{do}\\ "
-	    | None -> ()
-	  end;
-	  List.iter (fun (b,opt) -> 
-	    display_binder_with_array b;
-	    print_id " \\getR \\kwt{" b.btype.tname "}"; 
-	    if opt = Unchanged then
-	      print_string "\\ [unchanged]"; 
-	    print_string ";\\ ") restr
-	end
-      else if !nice_tex then
-	begin
-	  begin
-	    match repl_opt with
-	    | Some repl ->
-		begin
-		match repl.ri_type.tcat with
-		| Interv n -> 
-		    print_id "!^{\\kwp{" n.pname "}}\\ ";
-		| _ -> Parsing_helper.internal_error "Interval type expected"
-		end
-	    | None -> ()
-	  end;
-	  List.iter (fun (b,opt) -> 
-	    print_string "\\kw{new}\\ ";
-	    display_binder_with_type b;
-	    if opt = Unchanged then
-	      print_string "\\ [unchanged]"; 
-	    print_string ";\\ ") restr
-	end
-      else
-	begin
-	  begin
-	    match repl_opt with
-	    | Some repl ->
-		print_string "!\\ ";
-		display_repl_index_with_type repl;
-		print_string "\\ "
-	    | None -> ()
-	  end;
-	  List.iter (fun (b,opt) -> 
-	    print_string "\\kw{new}\\ ";
-	    display_binder_with_type b;
-	    if opt = Unchanged then
-	      print_string "\\ [unchanged]"; 
-	    print_string ";\\ ") restr
-	end;
+      begin
+	match repl_opt with
+	| Some repl ->
+	    display_repl repl; 
+	    print_string "\\ "
+	| None -> ()
+      end;
+      List.iter (fun (b,opt) ->
+	display_restr b;
+	if opt = Unchanged then
+	  print_string "\\ [unchanged]"; 
+	print_string ";\\ ") restr;
       begin
 	match funlist with 
 	  [f] -> 
@@ -847,24 +820,9 @@ let rec display_process indent p =
       occ_space();
       print_string (indent ^ ")$\\\\\n")	  
   | Repl(b,p) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  print_string (indent ^ "\\kw{foreach}\\ ");
-	  display_repl_index_with_type b;
-	  print_string "\\ \\kw{do}$\\\\\n"
-	end
-      else if !nice_tex then
-	begin
-	  print_string (indent ^ "!^{");
-	  display_repl_index_with_type b;
-	  print_string "}$\\\\\n"
-	end
-      else
-	begin
-	  print_string (indent ^ "!\\ ");
-	  display_repl_index_with_type b;
-	  print_string "$\\\\\n"
-	end;
+      print_string indent;
+      display_repl b;
+      print_string "$\\\\\n";
       display_process indent p
   | Input((c,tl),pat,p) ->
       if (!Settings.front_end) == Settings.Oracles then
@@ -926,17 +884,8 @@ and display_oprocess indent p =
       print_id "\\kwf{" f.f_name "}";
       print_string "$\\\\\n"
   | Restr(b,p) ->
-      if (!Settings.front_end) == Settings.Oracles then
-	begin
-	  print_string indent;
-	  display_binder_with_array b;
-	  print_id " \\getR \\kwt{" b.btype.tname "}"
-	end
-      else
-	begin
-	  print_string (indent ^ "\\kw{new}\\ ");
-	  display_binder_with_type b
-	end;
+      print_string indent;
+      display_restr b;
       display_optoprocess indent p
   | Test(t,p1,p2) ->
       print_string (indent ^ "\\kw{if}\\ ");

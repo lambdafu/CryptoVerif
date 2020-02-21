@@ -1,0 +1,27 @@
+type T [fixed].
+
+fun f(T,bitstring):bitstring.
+fun g(bitstring):bitstring.
+
+proba P.
+
+
+collision new x: T; forall y: bitstring; return(f(x,y)) <=(P(time, maxlength(y)))=> return(g(y))
+	  if y independent-of x.
+
+
+proof {
+      move array a "forall y:bitstring; new x:T; f(x,y)"
+}
+
+channel c.
+
+process
+	in(c, z:bitstring);
+	new a: T;
+	out(c, f(a,z))
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

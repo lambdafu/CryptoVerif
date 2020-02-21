@@ -552,7 +552,7 @@ let special_neut_symb =
     f_impl_inv = None }
 
 let special_neut_term = 
-  Terms.build_term_type Settings.t_any (FunApp(special_neut_symb, []))
+  Terms.app special_neut_symb []
 
 let match_assoc_advice match_term explicit_value get_var_link is_var_inst fresh_vars_init next_f simp_facts prod l1 l2 state =
   (* [has_neut] is true iff there is a neutral element for the product [prod]. *)

@@ -53,19 +53,21 @@ val add_elim_collisions : binder -> binder -> bool
    collision between [b1] and [b2], and displays it. *)
 val proba_for_collision : binder -> binder -> probaf
     
-(* [add_proba_red t1 t2 side_cond proba tl] adds the probability change that
-   happens when reducing [t1] into [t2] using a "collision" statement.
-   [side_cond] is a side condition that must hold to be able to 
-   apply the "collision" statement.
-   [proba] is the probability formula in that collision statement.
-   [tl] is the correspondence between the "new" and variables with
+(* [add_proba_red coll_statement restr_indep_map any_var_map] 
+   adds the probability change that happens when applying the
+   collision statement [coll_statement] with variables
+   bound as defined by [restr_indep_map] and [any_var_map].
+   [restr_indep_map] is the correspondence between the "new" and variables with
    independence conditions in the collision statement
    and their value in the process. 
+   [any_var_map]  is the correspondence between other variables 
+   in the collision statement and their value in the process. 
    Returns true when the probability is considered small enough to
    eliminate collisions, and false otherwise. (In the latter case,
    the probability is obviously not counted, and the collisions must
    not be eliminated by the caller.) *)
-val add_proba_red : term -> term -> term -> probaf -> (binder * term) list -> bool
+val add_proba_red : collision -> (binder * term) list ->
+  (binder * term) list -> bool
 
 (* [add_proba_red_inside (t1, t2, side_cond, probaf_mul_types)] 
    also adds the probability change that happens when reducing 
@@ -85,6 +87,33 @@ val add_proba_red_inside : red_proba_t -> bool
    using a "collision" statement, assuming [side_cond] holds,
    as stored in [probaf_mul_types], and displays it. *)
 val proba_for_red_proba : red_proba_t -> probaf
+
+(* Name for joker variables, which may contain anything *)
+val any_term_name : string
+    
+(* [match_term_any_var any_vars_opt next_f t t' ()] calls [next_f()] when [t']
+   is an instance of [t], with
+   any value for the [?] variables when [any_vars_opt == None],
+   values stored in links for variables in the list [any_vars] 
+   when [any_vars_opt = Some any_vars],
+   and values stored in links for replication indices.
+   It raises [NoMatch] when [t'] is not an instance of [t]. *)
+val match_term_any_var : binder list option ->
+  (unit -> 'a) -> term -> term -> unit -> 'a
+
+(* The function [instantiate_ri_list] replace indices with their
+   value stored in links, inside the [p_ri_list] field
+   of [probaf_mul_types].
+   The functions [copy_probaf_mul_types] and [copy_red_proba] copy 
+   respectively probaf_mul_types and red_proba_t, following links
+   according to [transf] (see [Terms.copy_transf]). 
+   [transf] must be [Terms.Links_RI] or [Terms.Links_RI_Vars],
+   to be coherent with following links in replication indices
+   in [instantiate_ri_list].
+   *)
+val instantiate_ri_list : repl_index list -> repl_index list -> repl_index list
+val copy_probaf_mul_types : Terms.copy_transf -> probaf_mul_types -> probaf_mul_types
+val copy_red_proba : Terms.copy_transf -> red_proba_t -> red_proba_t
     
 (* [equal_probaf_mul_types probaf_mul_types probaf_mul_types'] tests
    equality between values of type [probaf_mul_types] *)
@@ -92,6 +121,8 @@ val equal_probaf_mul_types : probaf_mul_types -> probaf_mul_types -> bool
 
 val equal_coll : binder_coll_t -> binder_coll_t -> bool
 
+(* [equal_red red1 red2] is true when the [red_proba_t] elements
+   [red1] and [red2] are equal *)
 val equal_red : red_proba_t -> red_proba_t -> bool
     
 (* [proba_for probaf_mul_types] returns the probability equal

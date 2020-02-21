@@ -59,7 +59,9 @@ let common_keywords =
   "table", TABLE;
   "letfun", LETFUN;
   "equivalence", EQUIVALENCE;
-  "query_equiv", QUERY_EQUIV
+  "query_equiv", QUERY_EQUIV;
+  "special", SPECIAL;
+  "inf", FLOAT infinity
 ]  
     
 let keyword_table_channel =
@@ -114,9 +116,11 @@ let keyword_table_proof =
       "occ", OCC;
       "show_state", SHOW_STATE;
       "show_facts", SHOW_FACTS;
+      "show_equiv", SHOW_EQUIV;
       "out_game", OUT_GAME;
       "out_state", OUT_STATE;
       "out_facts", OUT_FACTS;
+      "out_equiv", OUT_EQUIV;
       "auto", AUTO;
       "allowed_collisions", ALLOWED_COLLISIONS;
       "undo", UNDO;
@@ -126,7 +130,8 @@ let keyword_table_proof =
       "interactive", INTERACTIVE;
       "types", TYPES;
       "focus", FOCUS;
-      "tag", TAG
+      "tag", TAG;
+      "special", SPECIAL
     ]
     
 }
@@ -243,3 +248,19 @@ and string = parse
         add_char (Lexing.lexeme_char lexbuf 0);
         string lexbuf 
       }
+
+and collision_matrix = parse
+  "\010" | "\013" | "\013\010"
+     { Lexing.new_line lexbuf; collision_matrix lexbuf }
+| [ ' ' '\009' '\012' ] +
+     { collision_matrix lexbuf }
+| (( [ 'a'-'z' 'A'-'Z' '_' '\192'-'\214' '\216'-'\246' '\248'-'\255' '\'' '0'-'9' ] )*)
+     { IDENT(Lexing.lexeme lexbuf, extent lexbuf) }
+| ',' { COMMA }
+| ';' { SEMI }
+| "(*" {
+         comment lexbuf;
+         collision_matrix lexbuf
+       }
+| eof { EOF }	
+| _ { raise (Error("Illegal character", extent lexbuf)) }

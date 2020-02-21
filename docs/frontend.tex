@@ -30,7 +30,7 @@
 Comments can be included in input files. Comments are surrounded by
 {\tt (*} and {\tt *)}. Nested comments are not supported.
 
-Identifiers begin with a letter (uppercase or lowercase) and contain
+Identifiers ($\nonterm{ident}$) begin with a letter (uppercase or lowercase) and contain
 any number of letters, digits, the underscore character (\_),
 the quote character ('), as well as accented letters of the ISO Latin 1
 character set. Case is significant. 
@@ -41,14 +41,27 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt eps\_rand}, {\tt equation}, {\tt equiv}, {\tt equivalence}, 
 {\tt event}, {\tt event\string_abort}, {\tt expand}, {\tt find}, 
 {\tt forall}, {\tt foreach}, {\tt fun}, 
-{\tt get}, {\tt if}, {\tt implementation}, {\tt in}, {\tt inj-event}, 
+{\tt get}, {\tt if}, {\tt implementation}, {\tt in}, 
+{\tt inf}, %used for float infinity
+{\tt inj-event}, 
 {\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
 {\tt new}, {\tt newChannel}, {\tt orfind}, 
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
 {\tt proof}, {\tt public\_vars}, {\tt query}, {\tt query\_equiv}, {\tt return},
-{\tt secret}, {\tt set}, {\tt suchthat}, {\tt table}, 
+{\tt secret}, {\tt set}, {\tt special}, {\tt suchthat}, {\tt table}, 
 {\tt then}, {\tt time}, {\tt type}, {\tt yield}%
+
+\newcommand{\bs}{\textbackslash}
+
+Strings ($\nonterm{string}$) start and end with \texttt{"}. 
+Inside the string, \texttt{\bs "} stands for \texttt{"},
+\texttt{\bs '} stands for \texttt{'},
+\texttt{\bs n} for linefeed, \texttt{\bs t} for tab,
+\texttt{\bs b} for backspace, \texttt{\bs r} for carriage return, and 
+\texttt{\bs \bs} for \texttt{\bs}.
+Other combinations with \texttt{\bs} are not allowed.
+Characters other than \texttt{"} and \texttt{\bs} stand for themselves.
 
 In case of syntax error, the system indicates the character position
 of the error (line and column numbers). Please use your text editor to
@@ -133,6 +146,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \def\phfm{\phantom{\funmode = }\mid}
 \def\phpr{\phantom{\nonterm{proba} = }\mid}
 \def\phfb{\phantom{\funbody = }\mid}
+\def\phsa{\phantom{\nonterm{specialarg} = }\mid}
 \begin{xxalignat}{2}
 &\nonterm{proba} ::= \texttt{(} \nonterm{proba} \texttt{)}
 &&\mid \texttt{time(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
@@ -195,7 +209,10 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phf [\nonterm{repl}]\ \nonterm{res}^*\ 
 \texttt{(}\fungroup \texttt{ | }\ldots\texttt{ | }\fungroup\texttt{)}\\
 &\funmode ::= \fungroup\ [\texttt{[exist]}]\\
-&\phfm \fungroup \texttt{ [all]}
+&\phfm \fungroup \texttt{ [all]}\\
+&\nonterm{specialarg} ::= \nonterm{ident}\\
+&\phsa \nonterm{string}\\
+&\phsa \texttt{(} \seq{specialarg} \texttt{)}
 \end{align*}
 \caption{Grammar for probabilities and equivalences}
 \label{fig:syntax2}
@@ -2042,6 +2059,199 @@ This is the key declaration for defining the security properties of
 cryptographic primitives. Since such declarations are delicate to
 design, we recommend using predefined primitives listed in
 Section~\ref{sect:prim}, or copy-pasting declarations from examples.
+
+\item $\texttt{equiv}[\texttt{(}\nonterm{ident}[\texttt{(}\nonterm{ident}\texttt{)}]\texttt{)}]\texttt{ special }\nonterm{ident}\texttt{(}\seq{specialarg}\texttt{)}\ [\texttt{[manual]} \mid \texttt{[}n\texttt{]}]\texttt{.}$
+
+  $\texttt{equiv(}\mathit{name}\texttt{) special
+  }\mathit{specialname}\texttt{(}a_1, \dots a_n\texttt{)}$
+  declares an equivalence (that is, indistinguishability) between two
+  games, like the previous version of \texttt{equiv}. However, instead
+  of using games given explicitly, CryptoVerif generates the games
+  from $\mathit{specialname}\texttt{(}a_1, \dots a_n\texttt{)}$.
+
+  The following values of $\mathit{specialname}$ are supported:
+  \texttt{rom} and \texttt{rom\_partial} for random oracles,
+  \texttt{prf} and \texttt{prf\_partial} for pseudo-random functions, 
+  \texttt{prp} and \texttt{prp\_partial} for pseudo-random permutations.
+
+  They take the following arguments $\seq{specialarg} = a_1, \dots a_n$:
+  \begin{enumerate}
+
+\item A string $\mathit{key\_pos}$, which can be $\texttt{"key\_first"}$
+when the key is the first argument of the considered function or
+$\texttt{"key\_last"}$ when it is the last argument.
+
+\item An identifier $f$, the considered function. The function $f$
+must be declared before the $\texttt{equiv}$
+declaration. For \texttt{prp} and \texttt{prp\_partial}, the function
+$f$ must take one argument in addition to the key, the type $T$ of
+this argument must be the same as the type of the result of $f$, and
+it must be large enough so that collisions between a random element of
+the domain and an independent value can be eliminated (because we
+model a PRF and apply the PRF/PRP switching lemma), that is,
+$\texttt{Pcoll1rand}(T) \leq 2^{-n'}$, that is, $T$ has
+option \texttt{pcoll$n$} with $n \geq n'$ where $n'$ is set by
+$\texttt{set minAutoCollElim} = \texttt{pest}n'$; the default is $n' =
+80$.  For other values of $\mathit{specialname}$, the function $f$
+must take at least one argument in addition to the key.  In all cases,
+we must be able to choose an element randomly in the type of the key
+and in the type of the result of $f$, that is, these types must be
+declared \texttt{fixed}, \texttt{bounded}, or \texttt{nonuniform}.
+
+\item When $\mathit{specialname}$ is
+  not \texttt{rom} nor \texttt{rom\_partial}, an identifier
+  $\mathit{p}$ such that $\mathit{p}(t, N, l)$ is the probability that
+  an adversary breaks the PRF (resp. PRP) assumption in time $t$, with
+  at most $N$ queries to the function $f$, of length at most $l$. The
+  identifier $\mathit{p}$ must be declared with $\texttt{proba}\
+  p$. This argument is omitted for random oracles because the
+  probability is always 0.
+
+\item A tuple of identifiers $(k, r, x, y, z, u)$, which are used to
+determine identifiers of variables in the generated equivalence:
+\begin{itemize}
+\item $k$ is the identifier of the key;
+\item $r$ is the identifier of the random result of $f$ after game transformation;
+\item $x$ is the identifier used for arguments of $f$ in most oracles;
+\item $y$ and $z$ are the identifiers used for arguments of the two calls to $f$
+in oracles generated by the collision LHS
+$\texttt{"}\mathit{Ocoll}: \Resa{r_1}{T}; \Resa{r_2}{T}; \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; M\texttt{"}$
+(see the next argument);
+\item $u$ is the identifier used for indices of {\tt find}.
+\end{itemize}
+The identifiers $x$, $y$, $z$, $u$ are suffixed by \texttt{\_} and the name of the oracle
+in which they are used. The identifier $r$ is suffixed by \texttt{\_} and the suffix of
+the name of the oracle in which it is used.
+Moreover, if needed to avoid name clashes or to generate several variables,
+a suffix $\_n$ may be added to these identifiers or modified if they
+already have one. Using identifiers not used elsewhere allows
+the user to have stable identifiers in the generated equivalence.
+
+\item A tuple of strings $\mathit{collisions\_LHS}$, which can be either \texttt{("large")} or a tuple of strings of the following forms:
+  \begin{itemize}
+  \item $\texttt{"}\mathit{Ocoll}: \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; \Resa{r_1}{T}; M\texttt{"}$
+    where $T$ is the type of the result of $f$ and the simple term $M$ that uses the variables $a_1, \dots a_n, r_1$. In this case, CryptoVerif tries
+    to simplify $M$ assuming $r_1$ is a random value and $a_1, \dots, a_n$ do not depend on $r_1$. If it
+    rewrites $M$ into a term $N$ that does not contain $r_1$, then it uses this information to transform
+    terms $M\{f(\dots)/r_1\}$ into $N$ when the result of $f(\dots)$ is a fresh random value, in the generated
+    cryptographic transformation. (See files \nolinkurl{examples/obasic/undeniable-sig.ocv} and
+    \nolinkurl{examples/obasic/undeniable-sig2.ocv} for examples.)
+  \item $\texttt{"}\mathit{Ocoll}: \Resa{r_1}{T}; \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; M\texttt{"}$
+    where $T$ is the type of the result of $f$ and the simple term $M$ that uses the variables $a_1, \dots a_n, r_1$. In this case, CryptoVerif tries
+    to simplify $M$ assuming $r_1$ is a random value ($a_1, \dots, a_n$ may depend on $r_1$). 
+    If it rewrites $M$ into a term $N$ that does not contain $r_1$, then it uses this information to transform
+    terms $M\{f(\dots)/r_1\}$ into $N$, in the generated cryptographic transformation.
+  \item $\texttt{"}\mathit{Ocoll}: \Resa{r_1}{T}; \Resa{r_2}{T}; \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; M\texttt{"}$
+    where $T$ is the type of the result of $f$ and the simple term $M$ that uses the variables $a_1, \dots a_n, r_1, r_2$. In this case, CryptoVerif tries
+to rewrite $M$ assuming $r_1$ and $r_2$ are independent random values into a term $N_2$ that does not contain $r_1$ nor $r_2$,
+and to rewrite $M$ assuming $r_1 = r_2$ is a random value into a term $N_1$ that does not contain $r_1$ nor $r_2$.
+If it succeeds, then it uses this information to transform terms $M\{f(args_1)/r_1, f(args_2)/r_2\}$ into
+$\texttt{if }args_1 = args_2 \texttt{ then }N_1\texttt{ else }N_2$, in the generated cryptographic transformation.
+  \end{itemize}
+  Obviously, when $n = 0$, $\texttt{forall}\ a_1:T_1, \dots, a_n:T_n; $ is omitted.
+  The identifiers $\mathit{Ocoll}$ are used to form the oracle names in the generated equivalence (see below); they must not contan \texttt{\_}, and must be different from \texttt{O} and pairwise distinct.
+  Only the first form is allowed for \texttt{prp} and \texttt{prp\_partial}.
+  Even when a single string is present, the argument must be a tuple of strings,
+  so this string must be between parentheses.
+
+  When $\mathit{collisions\_LHS}$ is \texttt{("large")}, the type $T$ of the result of $f$
+must be large enough so that collisions between a random element of
+the domain and an independent value can be eliminated (because we
+model a PRF and apply the PRF/PRP switching lemma), that is,
+$\texttt{Pcoll1rand}(T) \leq 2^{-n'}$, that is, $T$ has
+option \texttt{pcoll$n$} with $n \geq n'$ where $n'$ is set by
+$\texttt{set minAutoCollElim} = \texttt{pest}n'$; the default is $n' =
+80$. In this case, this is equivalent to $\mathit{collisions\_LHS}$ containing:
+\begin{itemize}
+\item
+  $\texttt{"Oeq:}\ \texttt{forall}\ a_1:T; \Resa{r_1}{T}; r_1 = a_1\texttt{"}$.
+  Assuming $a_1$ does not depend on $r_1$, $r_1 = a_1$ simplifies into
+  $\texttt{false}$, so $f(\dots) = a_1$ is transformed into
+  $\texttt{false}$ in the generated cryptographic transformation, when
+  the result of $f(\dots)$ is a fresh random value.
+
+\item When $\mathit{specialname}$ is not \texttt{prp} nor
+  \texttt{prp\_partial},
+  $\texttt{"Ocoll:}\ \Resa{r_1}{T}; \Resa{r_2}{T}; r_1 = r_2\texttt{"}$.
+  The term $r_1 = r_2$ simplifies into $\texttt{false}$ when $r_1$ and
+  $r_2$ are independent random values and into $\texttt{true}$ when
+  $r_1 = r_2$, so $f(args_1) = f(args_2)$ is transformed into
+  $args_1 = args_2$ in the generated cryptographic transformation.
+
+\end{itemize}
+The argument $\mathit{collisions\_LHS}$ can be overriden when the 
+equivalence is used in a \texttt{crypto} command, by passing
+the desired $\mathit{collisions\_LHS}$ as special argument to the 
+\texttt{crypto} command. 
+
+\end{enumerate}
+The last or the last two arguments may be omitted.
+
+When $\mathit{specialname}$ is \texttt{rom}, \texttt{prf}, or \texttt{prp},
+the generated equivalence provides the following oracles:
+\begin{itemize}
+\item Oracle \texttt{O} evaluates $f$ on its arguments in the
+  left-hand side, and performs a lookup into previous arguments of
+  \texttt{O} in the right-hand side: it returns the previous result
+  when the current arguments are equal to previous arguments and
+  otherwise it returns a fresh random value.
+
+\item For each element of $\mathit{collisions\_LHS}$, oracle
+  $\mathit{Ocoll}$ evaluates $M$ with $r_i$ replaced with a call to
+  $f$ in left-hand side and uses the simplified form of $M$ in the
+  right-hand side.
+
+\end{itemize}
+When $\mathit{specialname}$ is \texttt{rom\_partial}, \texttt{prf\_partial}, or \texttt{prp\_partial},
+the generated equivalence provides oracles named $\mathit{Ocoll}$ for each
+element $\texttt{"}\mathit{Ocoll}: \Resa{r_1}{T}; \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; M\texttt{"}$
+or $\texttt{"}\mathit{Ocoll}: \Resa{r_1}{T}; \Resa{r_2}{T}; \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; M\texttt{"}$
+of $\mathit{collisions\_LHS}$.
+These oracles act like the oracle of the same name when $\mathit{specialname}$ is \texttt{rom} (resp. \texttt{prf}---there are no such oracles for \texttt{prp\_partial}).
+
+It also provides oracles named $\mathit{prefix}\texttt{\_}\mathit{suffix}$
+where $\mathit{prefix}$ is \texttt{O} or an identifier $\mathit{Ocoll}$ from a collision $\texttt{"}\mathit{Ocoll}: \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; \Resa{r_1}{T}; M\texttt{"}$ in $\mathit{collisions\_LHS}$
+and $\mathit{suffix}$ is arbitrary. These oracles act like the oracle $\mathit{prefix}$ when $\mathit{specialname}$ is \texttt{rom} (resp. \texttt{prf} or \texttt{prp}), except that:
+\begin{itemize}
+\item When $\mathit{suffix}$ starts with \texttt{leave}, 
+  the right-hand side still uses calls to $f$; it does not replace them
+  with fresh random values. However, it still performs look ups as needed
+  to make sure that the returned result is coherent with results
+  previously returned by other oracles.
+\item It uses a collision matrix to determine whether arguments
+  of oracles with various suffixes are allowed to collide with non-negligible
+  probability. By default, this collision matrix says that 
+  the arguments of two oracles are allowed to collide when they have the same suffix
+  or when one of the suffixes starts with \texttt{leave}.
+  A different collision matrix can be specified by passing
+  a string as a special argument to the \texttt{crypto} command, which can be
+either \texttt{"no collisions"} or statements $\neseq{suffix}$ {\tt may collide with previous} $\neseq{suffix}$
+separated by semi-colons (\texttt{;}). \texttt{"no collisions"} says that the arguments of two oracle calls are never allowed to collide.
+$\mathit{suffix}_1, \dots, \mathit{suffix}_n$ {\tt may collide with previous} $\mathit{suffix}'_1, \dots, \mathit{suffix}'_{n'}$ says that the arguments of oracles with suffix $\mathit{suffix}_i$ ($i \in \{1, \dots, n\}$) are allowed to collide with arguments of previous calls to oracles with suffix $\mathit{suffix}'_j$ ($j \in \{1, \dots, n'\}$).
+In the right-hand side, the oracles execute \texttt{event\_abort ev\_coll} when a disallowed collision happens. That avoids generating further code in this case, and thus may considerably reduce the size of the generated game after applying the cryptographic transformation. However, in case a disallowed collision actually happens with non-negligible probability, CryptoVerif will be unable to prove that event \texttt{ev\_coll} does not happen, so the proof will fail.
+
+\end{itemize}
+The oracles $\mathit{prefix}\texttt{\_leave}$ are generated
+by default. The other oracles are generated on demand when
+they are present in the \texttt{terms:} information of the
+\texttt{crypto} command. Therefore, you must explicitly
+mention in the \texttt{terms:} information all occurrences
+of terms that should be transformed by an oracle different
+from $\mathit{prefix}\texttt{\_leave}$.
+(See file \nolinkurl{examples/arinc823/sharedkey/lemmaEnc_equiv_v2_optim.ocv}
+for an example with \texttt{prf\_partial}.)
+
+The \texttt{[manual]} option, when it is present in the declaration,
+prevents the automatic application of the transformation. The transformation
+is then applied only using the manual \texttt{crypto} command.
+Alternatively, an integer between brackets $\texttt{[}n\texttt{]}$ ($n \geq 0$)
+can also be added to the declaration.
+This integer does not change the semantics of the equivalence, but is
+used for the proof strategy: CryptoVerif uses preferably the equivalences
+with the smallest integers $n$ when several equivalences can be used.
+When no integer is mentioned,
+$n = 0$ is assumed, so the equivalence has the highest priority.
+
 
 \item $\texttt{query }[\seq{vartypeb}\texttt{;}]\nonterm{query}(\texttt{;}\nonterm{query})^* \texttt{.}$
 

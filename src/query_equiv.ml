@@ -47,10 +47,9 @@ let put_repl_in_restr_out_par cur_array' idx_opt c restr plist =
     else
       (dummy_channel, [])
   in
-  let empty_tuple = Settings.get_tuple_fun [] in
-  let out_p = Terms.oproc_from_desc (Output(out_ch, Terms.app empty_tuple [], p)) in
+  let out_p = Terms.oproc_from_desc (Output(out_ch, Terms.app Settings.empty_tuple [], p)) in
   let restr_p = put_restr out_p restr in
-  let in_p = Terms.iproc_from_desc (Input(in_ch, PatTuple(empty_tuple, []), restr_p)) in      
+  let in_p = Terms.iproc_from_desc (Input(in_ch, PatTuple(Settings.empty_tuple, []), restr_p)) in      
   begin
     match idx_opt with
     | None -> in_p
@@ -151,12 +150,12 @@ let rename_var b =
 let rec rename_vars t = 
   match t.t_desc with
   | ReplIndex i ->
-      Terms.build_term2 t (ReplIndex(rename_idx i))
+      Terms.build_term t (ReplIndex(rename_idx i))
   | Var(b,l) ->
-      Terms.build_term2 t (Var(rename_var b,
+      Terms.build_term t (Var(rename_var b,
 			       List.map rename_vars l))
   | FunApp(f,l) ->
-      Terms.build_term2 t (FunApp(f, List.map rename_vars l))
+      Terms.build_term t (FunApp(f, List.map rename_vars l))
   | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _
   | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "Only indices, var, fun app should occur in LHS of equivalences"
@@ -209,21 +208,25 @@ let eqmembers_to_process bad_event lhs rhs =
   make_par (List.map2 (fun (fg_lhs,_) (fg_rhs,_) ->
     eqfungroup_to_process bad_event [] fg_lhs fg_rhs) lhs rhs)
     
-let equiv_to_process ((_, lhs, rhs, _, _, opt), _) =
-  member_record_channels lhs;
-  match opt with
-  | Decisional ->
-      let ch_struct = member_build_ch_struct lhs in
-      ([], Equivalence(eqmember_to_process ch_struct lhs,
-		       eqmember_to_process ch_struct rhs, []))
-  | Computational ->
-      let bad_event = Terms.create_event (Terms.fresh_id "distinguish") [] in
-      let query = Terms.build_event_query bad_event [] in
-      build_mapping lhs rhs;
-      let lhs' =
-	Terms.ri_auto_cleanup (fun () ->
-	  Terms.auto_cleanup (fun () ->
-	    build_mapping lhs rhs;
-	    rename_vars_member lhs))
-      in
-      ([query], SingleProcess(eqmembers_to_process bad_event lhs' rhs))
+let equiv_to_process equiv =
+  match equiv.eq_fixed_equiv with
+  | None ->
+      Parsing_helper.internal_error "query_equiv should always provide an explicit equivalence"
+  | Some(lhs, rhs, _, opt) ->
+      member_record_channels lhs;
+      match opt with
+      | Decisional ->
+	  let ch_struct = member_build_ch_struct lhs in
+	  ([], Equivalence(eqmember_to_process ch_struct lhs,
+			   eqmember_to_process ch_struct rhs, []))
+      | Computational ->
+	  let bad_event = Terms.create_event (Terms.fresh_id "distinguish") [] in
+	  let query = Terms.build_event_query bad_event [] in
+	  build_mapping lhs rhs;
+	  let lhs' =
+	    Terms.ri_auto_cleanup (fun () ->
+	      Terms.auto_cleanup (fun () ->
+		build_mapping lhs rhs;
+		rename_vars_member lhs))
+	  in
+	  ([query], SingleProcess(eqmembers_to_process bad_event lhs' rhs))

@@ -49,14 +49,13 @@ let reset coll_elim g =
    See type [dep_anal] in types.ml *)
 
 let dependency_anal cur_array =
-  let indep_test = Facts.default_indep_test Facts.nodepinfo in
   let collision_test simp_facts t1 t2 =
     let t1' = Terms.try_no_var_rec simp_facts t1 in
     let t2' = Terms.try_no_var_rec simp_facts t2 in
     Facts.reset_repl_index_list();
-    Depanal.try_two_directions (Depanal.dependency_collision_rec3 cur_array simp_facts) t1' t2'
+    Depanal.try_two_directions (Depanal.dependency_collision_rec cur_array simp_facts (fun _ -> Facts.nodepinfo)) t1' t2'
   in
-  (indep_test, collision_test)
+  (Facts.indep_test_noinfo, collision_test)
     
 (* Note on the elimination of collisions in find conditions:
    The find indices are replaced with fresh replication indices,
@@ -115,12 +114,12 @@ let count_branches test bind =
    The simplifications are very similar to those performed
    on processes below. *)
 
-let simplify_term_restr rec_simplif cur_array true_facts b p =
+let simplify_term_restr p0 rec_simplif cur_array true_facts b p =
   let true_facts = Facts.update_elsefind_with_def [b] true_facts in
   let p' = rec_simplif cur_array true_facts p in
-  Terms.build_term p' (ResE(b, p'))
+  Terms.build_term p0 (ResE(b, p'))
 
-let simplify_term_if rec_simplif pp cur_array true_facts t p1 p2 =
+let simplify_term_if p0 rec_simplif pp cur_array true_facts t p1 p2 =
   try
     (* The facts that are true in the "else" branch *)
     let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_not t) in
@@ -131,7 +130,7 @@ let simplify_term_if rec_simplif pp cur_array true_facts t p1 p2 =
       let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts t in
       (* Simplify the "then" branch *)
       let p1' =  rec_simplif cur_array true_facts' p1 in
-      Terms.build_term p1' (TestE(t, p1', p2'))
+      Terms.build_term p0 (TestE(t, p1', p2'))
     with Contradiction ->
       Settings.changed := true;
       current_pass_transfos := (STestFalse(pp)) :: (!current_pass_transfos);
@@ -141,7 +140,7 @@ let simplify_term_if rec_simplif pp cur_array true_facts t p1 p2 =
     current_pass_transfos := (STestTrue(pp)) :: (!current_pass_transfos);
     rec_simplif cur_array true_facts p1
 
-let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
+let simplify_term_let p0 rec_simplif pp cur_array true_facts pat t p1 p2 =
   let true_facts' = Facts.update_elsefind_with_def (Terms.vars_from_pat [] pat) true_facts in
   try
     let (transfos, test, bind) = Terms.simplify_let_tuple (get_tuple cur_array true_facts) pat t in
@@ -220,7 +219,7 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
       else
 	try
 	  let _ = Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_not test) in
-	  Terms.build_term plet (TestE(test, plet, Terms.get_else p2'))
+	  Terms.build_term p0 (TestE(test, plet, Terms.get_else p2'))
 	with Contradiction ->
 	  plet
   with
@@ -233,7 +232,7 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
     
 exception OneBranchTerm of term findbranch
 
-let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
+let simplify_term_find p0 rec_simplif pp cur_array true_facts l0 t3 find_info =
   match l0 with
     [] ->
       rec_simplif cur_array true_facts t3
@@ -242,7 +241,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
     (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
-      simplify_term_if rec_simplif pp cur_array true_facts t1 t2 t3
+      simplify_term_if p0 rec_simplif pp cur_array true_facts t1 t2 t3
   | _ ->
     try
       let def_vars = Facts.get_def_vars_at pp in
@@ -437,7 +436,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	  end
 	else
 	  let find_info = Unique.is_unique l0' find_info in
-	  Terms.build_term t3' (FindE(l0', t3',find_info))
+	  Terms.build_term p0 (FindE(l0', t3',find_info))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
 	  ([],[],t1,t2) -> 
@@ -462,7 +461,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		Settings.changed := true;
 		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
 	      end;
-	    Terms.build_term t3'' (FindE([find_branch], t3'',find_info))
+	    Terms.build_term p0 (FindE([find_branch], t3'',find_info))
     with Contradiction ->
       (* The whole Find will never be executed.
          We just use the else branch as a simplification *)
@@ -527,13 +526,13 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
 	(fun cur_array true_facts t1i ->
 	  (* Equivalent to TestE(t1i,  t2, t3) with simplification
 	     and expansion of t2 and t3 *)
-	  simplify_term_if pseudo_expand_term_rec (DTerm t) cur_array true_facts t1i t2 t3)
+	  simplify_term_if t pseudo_expand_term_rec (DTerm t) cur_array true_facts t1i t2 t3)
   | LetE(pat, t1, t2, topt) ->
       pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1i ->
 	pseudo_expand_pat cur_array true_facts pat (fun cur_array true_facts pati ->
 	  (* Equivalent to LetE(pati, t1i, t2, topt) with simplification
 	     and expansion of t2 and topt *)
-	  simplify_term_let pseudo_expand_term_rec (DTerm t) cur_array true_facts
+	  simplify_term_let t pseudo_expand_term_rec (DTerm t) cur_array true_facts
 	    pati t1i t2 topt))
   | FindE(l0, t3, find_info) ->
       let rec expand_cond_find_list cur_array true_facts l context =
@@ -561,12 +560,12 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
       expand_cond_find_list cur_array true_facts l0 (fun cur_array true_facts l1i ->
 	(* Equivalent to FindE(l1i, t3, find_info) after expansion
 	   of the results in l1i and of t3 *)
-	simplify_term_find pseudo_expand_term_rec (DTerm t) cur_array true_facts
+	simplify_term_find t pseudo_expand_term_rec (DTerm t) cur_array true_facts
 	   l1i t3 find_info)
-  | ResE(b, t) ->
-      (* Equivalent to ResE(b, t) after simplification and expansion
-	 of t *)
-      simplify_term_restr pseudo_expand_term_rec cur_array true_facts b t
+  | ResE(b, t1) ->
+      (* Equivalent to ResE(b, t1) after simplification and expansion
+	 of t1 *)
+      simplify_term_restr t pseudo_expand_term_rec cur_array true_facts b t1
   | EventAbortE _ | EventE _ ->
       Parsing_helper.internal_error "Events should not occur in conditions of find before expansion"
   | GetE _ | InsertE _ ->

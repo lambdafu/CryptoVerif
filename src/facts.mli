@@ -70,14 +70,17 @@ val new_repl_index : repl_index -> repl_index
    Other dependency analyses are defined in [simplify1.ml], 
    [transf_simplify.ml], etc.
    *)
+val indep_test_noinfo : dep_anal_indep_test
 val no_collision_test : dep_anal_collision_test
 val no_dependency_anal : dep_anal
 
-(* [default_indep_test depinfo] builds an independence test 
-   based on the dependency information provided by [depinfo]. 
-   (see type ['a depinfo] in types.ml)
+(* [default_indep_test get_depinfo] builds an independence test 
+   based on the dependency information provided by [get_depinfo].
+   [get_depinfo: binderref -> 'a depinfo] is a function that returns
+   the dependency information (see type ['a depinfo] in types.ml)
+   for each binder reference.
 
-[default_indep_test depinfo simp_facts t (b,l)] 
+[default_indep_test get_depinfo simp_facts t (b,l)] 
 returns [Some (t', side_condition_proba, side_condition_term)] 
 when [t'] is a term obtained from [t] by replacing array indices that 
 depend on [b[l]] with fresh indices.
@@ -91,7 +94,7 @@ The side condition is present in 2 forms:
 Returns [None] if that is not possible.
 
 [simp_facts] contains facts that are known to hold.  *)
-val default_indep_test : 'a depinfo -> dep_anal_indep_test
+val default_indep_test : (binderref -> 'a depinfo) -> dep_anal_indep_test
 
 (* Empty dependency information *)
 val nodepinfo : 'a depinfo

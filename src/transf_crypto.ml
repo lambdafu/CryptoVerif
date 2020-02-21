@@ -696,8 +696,8 @@ let rec check_instance_of_rec next_f term t state =
 			      raise NoMatch
 			    end;
 
-			  (* See comment containing Terms.move_occ_term: elsewhere in this file *)
-			  let state' = { state with lhs_array_ref_map = ((b,l), Terms.move_occ_term t):: state.lhs_array_ref_map } in
+			  (* See comment containing Terms.copy_term DeleteFacts: elsewhere in this file *)
+			  let state' = { state with lhs_array_ref_map = ((b,l), Terms.copy_term DeleteFacts t):: state.lhs_array_ref_map } in
                           (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  let bopt = List.assq b name_group_opt in
 			  let state'' = 
@@ -763,16 +763,17 @@ let rec check_instance_of_rec next_f term t state =
 			end;
 		      raise NoMatch
 		    end;
-		  (* Terms.move_occ_term: When [Settings.use_known_equalities_crypto] is true,
+		  (* Terms.copy_term DeleteFacts: When [Settings.use_known_equalities_crypto] is true,
 		     a term that occurs elsewhere in the game may end up occurring inside the
 		     term [t] due to term copies made by [try_no_var]. 
-		     We use [Terms.move_occ_term] to make sure that it is not physically equal
-		     to the term that appears elsewhere in the game.
+		     We use [Terms.copy_term DeleteFacts] to make sure that it is not physically equal
+		     to the term that appears elsewhere in the game, and we remove the facts.
 		     Otherwise, CryptoVerif might use the information collected at the other
 		     occurrence of that term to transform it, and that may not be correct.
-		     Other occurrences of Terms.move_occ_term in this file come from the same
+		     However, we keep the occurrence so that the term can be designated in the [terms: ...] indication. 
+		     Other occurrences of Terms.copy_term DeleteFacts in this file come from the same
 		     reason. *)
-		  next_f { state with lhs_array_ref_map = ((b,l), Terms.move_occ_term t):: state.lhs_array_ref_map }
+		  next_f { state with lhs_array_ref_map = ((b,l), Terms.copy_term DeleteFacts t):: state.lhs_array_ref_map }
                 end
             end
       end
@@ -825,8 +826,8 @@ let rec check_instance_of_rec next_f term t state =
 			      raise NoMatch
 			    end;
 
-			  (* See comment containing Terms.move_occ_term: elsewhere in this file *)
-			  let state' = { state with lhs_array_ref_map = ((b,l), Terms.move_occ_term t)::state.lhs_array_ref_map } in
+			  (* See comment containing Terms.copy_term DeleteFacts: elsewhere in this file *)
+			  let state' = { state with lhs_array_ref_map = ((b,l), Terms.copy_term DeleteFacts t)::state.lhs_array_ref_map } in
                           (* Note: when I catch NoMatch, backtrack on names_to_discharge *)
 			  try
 			    let name_group_opt = List.find (List.exists (fun (b',_) -> b' == b)) state.all_names_exp_opt in
@@ -893,8 +894,8 @@ let rec check_instance_of_rec next_f term t state =
 let list_to_term_opt f = function
     [] -> None
   | l ->
-      (* See comment containing Terms.move_occ_term: elsewhere in this file *)
-      Some (Terms.make_prod f (List.map Terms.move_occ_term l))
+      (* See comment containing Terms.copy_term DeleteFacts: elsewhere in this file *)
+      Some (Terms.make_prod f (List.map (Terms.copy_term DeleteFacts) l))
 
 (* [comp_neut] is a comparison to the neutral element (of the equational
    theory of the root function symbol of [t]), which should be added
@@ -1180,7 +1181,7 @@ let rec reverse_subst indexes cur_array t =
   let rec find l1 l2 = match (l1, l2) with
     t1::r1, t2::r2 -> if Terms.equal_terms t1 t then t2 else find r1 r2 
   | [], [] -> 
-      Terms.build_term2 t 
+      Terms.build_term t 
 	(match t.t_desc with
 	  Var(b,l) -> Var(b, reverse_subst_index indexes cur_array l)
 	| ReplIndex _ -> 
@@ -1287,7 +1288,8 @@ let display_mapping () =
   print_string "Mapping:\n";
   List.iter (fun mapping ->
     print_string "Exp:\n";
-    List.iter (fun exp -> 
+    List.iter (fun exp ->
+      print_string "  At "; print_int exp.source_exp_instance.t_occ; print_string ", ";
       Display.display_term exp.source_exp_instance; print_newline();
       if exp.before_transfo_array_ref_map != [] then
 	begin
@@ -1296,7 +1298,46 @@ let display_mapping () =
 	    print_string " -> ";
 	    Display.display_var b' l') exp.before_transfo_array_ref_map;
 	  print_newline()
-	end
+	end;
+      print_string "  Arguments: ";
+      Display.display_list (fun (b,t) -> Display.display_binder b;
+	print_string " -> ";
+	Display.display_term t) exp.before_transfo_input_vars_exp;
+      print_newline();
+      match exp.product_rest with
+      | None -> ()
+      | Some(prod, left_rest, right_rest, comp_neut) ->
+	  print_string "Exp is inside product: ";
+	  let disp_right_rest() =
+	    match right_rest with
+	    | None -> print_string "..."
+	    | Some right_t ->
+		print_string prod.f_name;
+		print_string "(..., ";
+		Display.display_term right_t;
+		print_string ")"
+	  in
+	  begin
+	    match left_rest with
+	    | None -> disp_right_rest()
+	    | Some left_t -> 
+		print_string prod.f_name;
+		print_string "(";
+		Display.display_term left_t;
+		print_string ", ";
+		disp_right_rest();
+		print_string ")"
+	  end;
+	  begin
+	    match comp_neut with
+	    | None -> ()
+	    | Some(eq_diff, neut) ->
+		print_string " "; 
+		print_string eq_diff.f_name;
+		print_string " "; 
+		Display.display_term neut
+	  end;
+	  print_newline()
 	    ) mapping.expressions;
     print_string "Source exp: ";
     Display.display_term mapping.source_exp;
@@ -2992,7 +3033,7 @@ let rec transform_term t =
 	  restr_to_put := (List.map snd (List.hd mapping.after_transfo_name_table)) @ (!restr_to_put)
       | _ -> ()
     end;
-    let instance = Terms.move_occ_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp) in
+    let instance = Terms.delete_info_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp) in
     let result = 
     match one_exp.product_rest with
       None -> instance
@@ -3018,7 +3059,7 @@ let rec transform_term t =
     result
   with Not_found ->
     (* Mapping not found, the term is unchanged. Visit subterms *)
-    Terms.build_term2 t 
+    Terms.build_term t 
       (match t.t_desc with
 	Var(b,l) -> Var(b, List.map transform_term l)
       | FunApp(f,l) -> FunApp(f, List.map transform_term l)
@@ -3365,7 +3406,7 @@ let rec update_def_list suppl_def_list (b,l) =
   | Some l' -> 
       (* Do not add a condition that is already present *)
       let l' = List.filter (fun b' -> b' != b) l' in
-      suppl_def_list := (List.map (fun b' -> (b',List.map Terms.move_occ_term l)) l') @ (!suppl_def_list)
+      suppl_def_list := (List.map (fun b' -> (b',List.map (Terms.delete_info_term) l)) l') @ (!suppl_def_list)
   end;
   List.iter check_not_touched l
   (*List.iter (update_def_list_term suppl_def_list) l
@@ -3393,40 +3434,40 @@ let rec transform_any_term t =
 and transform_any_term_norestr t =
   match t.t_desc with
   | Var(b,l) ->
-     Terms.build_term2 t (Var(b, List.map transform_any_term l))
-  | ReplIndex i -> Terms.build_term2 t (ReplIndex i)
+     Terms.build_term t (Var(b, List.map transform_any_term l))
+  | ReplIndex i -> Terms.build_term t (ReplIndex i)
   | FunApp(f,l) ->
-     Terms.build_term2 t (FunApp(f, List.map transform_any_term l))
+     Terms.build_term t (FunApp(f, List.map transform_any_term l))
   | ResE(b,t') ->
      (* Remove restriction when it is now useless *)
      let t'' = transform_any_term t' in
      begin
        match find_b_rec b (!map) with
-       | None -> Terms.build_term2 t (ResE(b,t''))
+       | None -> Terms.build_term t (ResE(b,t''))
        | Some l ->
 	   put_restr_term l 
 	      (if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
-		 Terms.build_term2 t (LetE(PatVar b, Stringmap.cst_for_type b.btype, t'', None))
+		 Terms.build_term t (LetE(PatVar b, Stringmap.cst_for_type b.btype, t'', None))
               else
 		t'')
      end
   | TestE(t0, t1, t2) ->
-     Terms.build_term2 t (TestE(transform_any_term t0, 
+     Terms.build_term t (TestE(transform_any_term t0, 
 	                        transform_any_term t1,
                                 transform_any_term t2))
   | FindE(l0, p2, find_info) ->
-     Terms.build_term2 t (FindE(List.map transform_term_find_branch l0, 
+     Terms.build_term t (FindE(List.map transform_term_find_branch l0, 
 	                        transform_any_term p2, find_info))
   | LetE(pat,t0,t1,topt) ->
-     Terms.build_term2 t (LetE(transform_pat pat, transform_any_term t0, 
+     Terms.build_term t (LetE(transform_pat pat, transform_any_term t0, 
 	                       transform_any_term t1,
                                match topt with
                                | None -> None
                                | Some t2 -> Some (transform_any_term t2)))
   | EventE(t0,t1) ->
-     Terms.build_term2 t (EventE(transform_any_term t0,
+     Terms.build_term t (EventE(transform_any_term t0,
 	                         transform_any_term t1))
-  | EventAbortE f -> Terms.build_term2 t (EventAbortE f)
+  | EventAbortE f -> Terms.build_term t (EventAbortE f)
   | GetE _ | InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 and transform_term_find_branch (bl, def_list, t, p1) = 
@@ -4086,11 +4127,6 @@ let rec rename_term before map one_exp t =
 	   passing t to rename_term; it is called after.
 	   Proba.instan_time only deals with collisions. *)
 
-let rec make_max = function
-    [] -> Zero
-  | [a] -> a
-  | l -> Max(l)
-
 let rec map_probaf env = function
     (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ ) as x -> Polynom.probaf_to_polynom x
   | Proba(p,l) -> Polynom.probaf_to_polynom (Proba(p, List.map (fun prob -> 
@@ -4098,27 +4134,33 @@ let rec map_probaf env = function
   | ActTime(f, l) -> 
       Polynom.probaf_to_polynom (ActTime(f, List.map (fun prob -> 
       Polynom.polynom_to_probaf (map_probaf env prob)) l))
-  | Maxlength(g,t) ->
-      let accu = ref [] in
-      List.iter (fun map -> 
-	List.iter (fun one_exp -> 
-	  try
-	    let (game, before) =
-	      if g == Terms.lhs_game then
-		!whole_game, true
-	      else if g == Terms.rhs_game then
-		!whole_game_middle, false
-	      else
-		Parsing_helper.internal_error "Maxlength should refer to the LHS or the RHS of the equivalence"
-	    in
-	    let lt = Computeruntime.make_length_term game (rename_term before map one_exp t) in
-	    if not (List.exists (Terms.equal_probaf lt) (!accu)) then
-	      accu := lt :: (!accu) 
-	  with Not_found -> 
-	    ()
-	    ) map.expressions
-	  ) (!map);
-      Polynom.probaf_to_polynom (make_max (!accu))
+  | (Max _ | Maxlength _) as y ->
+      let accu = ref Polynom.empty_max_accu in
+      let rec add_max = function
+	| Max(l) -> List.iter add_max l
+	| Maxlength(g,t) ->
+	    List.iter (fun map -> 
+	      List.iter (fun one_exp -> 
+		try
+		  let (game, before) =
+		    if g == Terms.lhs_game then
+		      !whole_game, true
+		    else if g == Terms.rhs_game then
+		      !whole_game_middle, false
+		    else
+		      Parsing_helper.internal_error "Maxlength should refer to the LHS or the RHS of the equivalence"
+		  in
+		  Computeruntime.make_length_term accu game (rename_term before map one_exp t)
+		with Not_found -> 
+		  ()
+		    ) map.expressions
+		) (!map)
+	| x ->
+	    Polynom.add_max accu
+	      (Polynom.polynom_to_probaf (map_probaf env x))
+      in
+      add_max y;
+      Polynom.probaf_to_polynom (Polynom.p_max (!accu))
   | Length(f,l) ->
       Polynom.probaf_to_polynom (Length(f, List.map (fun prob -> 
 	Polynom.polynom_to_probaf (map_probaf env prob)) l))
@@ -4160,16 +4202,6 @@ let rec map_probaf env = function
   | Div(x,y) -> Polynom.probaf_to_polynom 
 	(Polynom.p_div(Polynom.polynom_to_probaf (map_probaf env x), 
 	     Polynom.polynom_to_probaf (map_probaf env y)))
-  | Max(l) -> 
-      let l' = List.map (fun x -> Polynom.polynom_to_probaf (map_probaf env x)) l in
-      let rec simplify_max accu = function
-	  [] -> accu
-	| Zero::l -> simplify_max accu l
-	| Max(l')::l -> simplify_max (simplify_max accu l') l
-	| a::l -> simplify_max (a::accu) l
-      in
-      let l'' = simplify_max [] l' in
-      Polynom.probaf_to_polynom (make_max l'')
   | Zero -> Polynom.zero
   | AttTime -> 
       Polynom.sum (Polynom.probaf_to_polynom (Time (!whole_game, compute_runtime()))) (Polynom.probaf_to_polynom (AttTime))
@@ -4393,29 +4425,36 @@ let rec update_max_length_probaf ins = function
   | Add(x,y) -> Add(update_max_length_probaf ins x, update_max_length_probaf ins y)
   | Sub(x,y) -> Sub(update_max_length_probaf ins x, update_max_length_probaf ins y)
   | Div(x,y) -> Div(update_max_length_probaf ins x, update_max_length_probaf ins y)
-  | Max(l) -> Max(List.map (update_max_length_probaf ins) l)
-  | (Maxlength(g,t)) as x ->
-      if g == !whole_game_middle then
-	match t.t_desc with
-	| Var(b,_) ->
-	    begin
-	      try 
-		let rename_ins =
-		  List.find (function
-		    | DSArenaming(b0, targets) -> b == b0
-		    | _ -> false) ins
-		in
-		match rename_ins with
-		| DSArenaming(_, targets) ->
-		    make_max (List.map (fun b -> Maxlength(!whole_game_next, Terms.term_from_binder b)) targets)
-		| _ -> assert false
-	      with Not_found -> 
-		Maxlength(!whole_game_next, t)
-	    end
-	| ReplIndex _ -> Maxlength(!whole_game_next, t)
-	| _ -> Parsing_helper.internal_error "update_term: term in argument of maxlength should be a variable or a replication index"
-      else
-	x
+  | (Max _ | Maxlength _) as y ->
+      let accu = ref Polynom.empty_max_accu in
+      let rec add_max = function
+	| Max(l) -> List.iter add_max l
+	| (Maxlength(g,t)) as x ->
+	    if g == !whole_game_middle then
+	      match t.t_desc with
+	      | Var(b,_) ->
+		  begin
+		    try 
+		      let rename_ins =
+			List.find (function
+			  | DSArenaming(b0, targets) -> b == b0
+			  | _ -> false) ins
+		      in
+		      match rename_ins with
+		      | DSArenaming(_, targets) ->
+			  List.iter (fun b -> Polynom.add_max accu (Maxlength(!whole_game_next, Terms.term_from_binder b))) targets
+		      | _ -> assert false
+		    with Not_found -> 
+		      Polynom.add_max accu (Maxlength(!whole_game_next, t))
+		  end
+	      | ReplIndex _ -> Polynom.add_max accu (Maxlength(!whole_game_next, t))
+	      | _ -> Parsing_helper.internal_error "update_term: term in argument of maxlength should be a variable or a replication index"
+	    else
+	      Polynom.add_max accu x
+	| x -> Polynom.add_max accu (update_max_length_probaf ins x)
+      in
+      add_max y;
+      Polynom.p_max (!accu)
 
 let update_maxlength ins proba =
   List.map (function
@@ -4494,6 +4533,7 @@ let rec try_with_restr_list apply_equiv = function
 			print_newline()
 		      end;
 		    print_string "Transf. OK "; flush stdout;
+		    if (!Settings.debug_cryptotransf) > 1 then display_mapping(); 
 		    let (g',proba',ins') = transfo_finish apply_equiv (Terms.get_process (!whole_game)) (!whole_game).current_queries in
 		    TSuccessPrio (proba', ins', g')
 		  end
@@ -4723,6 +4763,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 		    print_newline()
 		  end;
 		print_string "Transf. OK "; flush stdout;
+		if (!Settings.debug_cryptotransf) > 1 then display_mapping(); 
 		let (g',proba',ins') = transfo_finish apply_equiv p g.current_queries in
 		let (ev_proba, ev_q) = events_proba_queries (!introduced_events) in
 		if ev_q != [] then

@@ -9,11 +9,11 @@ let raise_error s ext =
 let user_error s =
   raise (Error(s,dummy_ext))
   
-let parse_from_string f (s, ext_s) =
+let parse_from_string parse ?(lex = Lexer.token) (s, ext_s) =
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
   try 
-    f Lexer.token lexbuf
+    parse lex lexbuf
   with
     Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
 
@@ -128,7 +128,7 @@ type macro_elem =
     
 let statements = ref ([]: statement list)
 let collisions = ref ([]: collision list)
-let equivalences = ref ([]: equiv_nm list)
+let equivalences = ref ([]: equiv_gen list)
 let queries_parse = ref ([]: Ptree.query list)
 let proof = ref (None : Ptree.command list option)
 
@@ -896,7 +896,7 @@ let check_process2 p =
      as follows. However, in this case, we should also have a warning
      for other errors that happen at implementation time (e.g. type errors) 
   let error_function =
-    if (!Settings.get_implementation) then
+    if !Settings.get_implementation then
       raise_error
     else
       input_warning
@@ -2489,79 +2489,104 @@ let check_mode right = function
       raise_error "Only modes all and exist can be specified" ext
   | None -> ExistEquiv
 
-let check_eqstatement normalize (name, (mem1, ext1), (mem2, ext2), proba, (priority, options)) =
-  current_location := InEquivalence;
-  let mem2 =
-    match mem1, mem2 with
-    | [PReplRestr(None, _,_),_,_], _ ->
-	if List.for_all (fun (fg, mode, ext) ->
-	  mode == None (* The mode can only be specified in the LHS; I check that for safety *) &&
-	  match fg with
-	  | PReplRestr(None,_,_) -> false
-	  | _ -> true) mem2
-	then
-	  (* We have an implicit replication in the LHS but not in the RHS.
-             This cannot be correct, let's add an implicit replication with no "new" in the RHS.
-	     This is useful because the parser never considers implicit replications without "new".
-	     In the LHS, implicit replications must have a "new" so this is no problem. *)
-	  [PReplRestr(None, [], List.map (fun (fg, mode, ext) -> fg) mem2), None(*no mode specified*), ext2]
+let check_eqstatement normalize (name, equiv, (priority, options)) =
+  match equiv with
+  | EquivSpecial(special_name,args) ->
+      let options' = ref StdEqopt in
+      if priority != 0 then options' := PrioEqopt priority;
+      List.iter (fun (s,ext) ->
+	if s = "manual" then
+	  if !options' == StdEqopt then 
+	    options' := ManualEqopt 
+	  else
+	    raise_error ("Conflicting options : you cannot specify both a priority and \"manual\"") ext 
 	else
-	  (* In all other cases, leave the equivalence unchanged *)
-	  mem2
-    | _ -> mem2
-  in
-  let var_num_state = Terms.get_var_num_state() in
-  let options' = ref StdEqopt in
-  let options2' = ref Decisional in
-  if priority != 0 then options' := PrioEqopt priority;
-  List.iter (fun (s,ext) ->
-    if s = "manual" then
-      if !options' == StdEqopt then 
-	options' := ManualEqopt 
-      else
-	raise_error ("Conflicting options : you cannot specify both a priority and \"manual\"") ext 
-    else if s = "computational" then 
-      options2' := Computational 
-    else
-      raise_error ("Unrecognized option " ^ s ^ ". Only \"manual\" is allowed.") ext
-      ) options;
-  let seen_repl = ref [] in
-  let seen_ch = ref [] in
-  set_binder_env 
-    (List.fold_left (fun binder_env (fg, _, _) -> check_fungroup1 [] (!env) binder_env fg) empty_binder_env mem1); (* Builds binder_env *)
-  let mem1' = List.map (fun (fg, mode, ext) ->
-    let res = (check_lm_fungroup2 [] [] (!env) seen_ch seen_repl fg,
-	       check_mode false mode)
-    in
-    match res with
-    | (ReplRestr(_,[],_), ExistEquiv) ->
-	raise_error "In equivalences, a function without any random variable should always be in mode [all]" ext
-    | (ReplRestr(None,_,_),_) when List.length mem1 > 1 ->
-	raise_error "One cannot write an equivalence with omitted replication at the root when it has several function groups" ext
-    | _ -> res
-    ) mem1
-  in
-  (* The probability formula must be checked in the binder_env for the
-     left-hand side of the equivalence. Arguments of Maxlength may use
-     variables of the left-hand side of the equivalence. *)
-  let proba' = check_probability_formula2 (!seen_ch) seen_repl (!env) proba in
-  if List.length mem1 <> List.length mem2 then
-    raise_error "Both sides of this equivalence should have the same number of function groups" ext2;
-  set_binder_env
-    (check_rm_funmode_list empty_binder_env mem1 mem1' mem2); (* Builds binder_env *)
-  let mem2' = List.map2 (fun (fg0, _) (fg, mode, _) -> 
-    check_rm_fungroup2 (!options2') [] (!env) fg0 fg, check_mode true mode) mem1' mem2 
-  in
-  let equiv = (name, mem1',mem2', (if proba' = Zero then [] else [SetProba proba' ]), !options', !options2') in
-  (* Check.check_equiv creates new variables (in make_let).
-     They should not collide with variables in the equivalence,
-     so we do Check.check_equiv before resetting var_num_state *)
-  let equiv' = Check.check_equiv normalize equiv in
-  (* The variables defined in the equivalence are local,
-     we can reuse the same numbers in other equivalences or
-     in the process. *)
-  Terms.set_var_num_state var_num_state;
-  equiv' 
+	  raise_error ("Unrecognized option " ^ s ^ ". Only \"manual\" is allowed.") ext
+	    ) options;
+      { eq_name = name;
+	eq_fixed_equiv = None;
+	eq_name_mapping = None;
+	eq_special = Some(special_name,args);
+	eq_exec = !options' }
+  | EquivNormal((mem1, ext1), (mem2, ext2), proba) ->
+      current_location := InEquivalence;
+      let mem2 =
+	match mem1, mem2 with
+	| [PReplRestr(None, _,_),_,_], _ ->
+	    if List.for_all (fun (fg, mode, ext) ->
+	      mode == None (* The mode can only be specified in the LHS; I check that for safety *) &&
+	      match fg with
+	      | PReplRestr(None,_,_) -> false
+	      | _ -> true) mem2
+	    then
+	      (* We have an implicit replication in the LHS but not in the RHS.
+		 This cannot be correct, let's add an implicit replication with no "new" in the RHS.
+		 This is useful because the parser never considers implicit replications without "new".
+		 In the LHS, implicit replications must have a "new" so this is no problem. *)
+	      [PReplRestr(None, [], List.map (fun (fg, mode, ext) -> fg) mem2), None(*no mode specified*), ext2]
+	    else
+	      (* In all other cases, leave the equivalence unchanged *)
+	      mem2
+	| _ -> mem2
+      in
+      let var_num_state = Terms.get_var_num_state() in
+      let options' = ref StdEqopt in
+      let options2' = ref Decisional in
+      if priority != 0 then options' := PrioEqopt priority;
+      List.iter (fun (s,ext) ->
+	if s = "manual" then
+	  if !options' == StdEqopt then 
+	    options' := ManualEqopt 
+	  else
+	    raise_error ("Conflicting options : you cannot specify both a priority and \"manual\"") ext 
+	else if s = "computational" then 
+	  options2' := Computational 
+	else
+	  raise_error ("Unrecognized option " ^ s ^ ". Only \"manual\" and \"computational\" are allowed.") ext
+	    ) options;
+      let seen_repl = ref [] in
+      let seen_ch = ref [] in
+      set_binder_env 
+	(List.fold_left (fun binder_env (fg, _, _) -> check_fungroup1 [] (!env) binder_env fg) empty_binder_env mem1); (* Builds binder_env *)
+      let mem1' = List.map (fun (fg, mode, ext) ->
+	let res = (check_lm_fungroup2 [] [] (!env) seen_ch seen_repl fg,
+		   check_mode false mode)
+	in
+	match res with
+	| (ReplRestr(_,[],_), ExistEquiv) ->
+	    raise_error "In equivalences, a function without any random variable should always be in mode [all]" ext
+	| (ReplRestr(None,_,_),_) when List.length mem1 > 1 ->
+	    raise_error "One cannot write an equivalence with omitted replication at the root when it has several function groups" ext
+	| _ -> res
+	      ) mem1
+      in
+      (* The probability formula must be checked in the binder_env for the
+	 left-hand side of the equivalence. Arguments of Maxlength may use
+	 variables of the left-hand side of the equivalence. *)
+      let proba' = check_probability_formula2 (!seen_ch) seen_repl (!env) proba in
+      if List.length mem1 <> List.length mem2 then
+	raise_error "Both sides of this equivalence should have the same number of function groups" ext2;
+      set_binder_env
+	(check_rm_funmode_list empty_binder_env mem1 mem1' mem2); (* Builds binder_env *)
+      let mem2' = List.map2 (fun (fg0, _) (fg, mode, _) -> 
+	check_rm_fungroup2 (!options2') [] (!env) fg0 fg, check_mode true mode) mem1' mem2 
+      in
+      let equiv =
+	{ eq_name = name;
+	  eq_fixed_equiv = Some(mem1',mem2', (if proba' = Zero then [] else [SetProba proba' ]), !options2');
+	  eq_name_mapping = None;
+	  eq_special = None;
+	  eq_exec = !options' }
+      in
+      (* Check.check_equiv creates new variables (in make_let).
+	 They should not collide with variables in the equivalence,
+	 so we do Check.check_equiv before resetting var_num_state *)
+      let equiv' = Check.check_equiv normalize equiv in
+      (* The variables defined in the equivalence are local,
+         we can reuse the same numbers in other equivalences or
+         in the process. *)
+      Terms.set_var_num_state var_num_state;
+      equiv' 
 
 (* Check collision statement *)
 
@@ -2640,20 +2665,39 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
   if t1'.t_type != t2'.t_type then 
     raise_error "Both sides of a collision statement should have the same type" (snd t2);
   let (indep_cond', side_cond') = check_side_cond (!restr_may_be_equal) forall' restr' env'' side_cond in
-  collisions := (restr', forall', t1', proba', t2', indep_cond', side_cond', !restr_may_be_equal) :: (!collisions)
+  collisions := { c_restr = restr'; c_forall = forall'; c_redl = t1'; c_proba = proba'; c_redr = t2';
+		  c_indep_cond = indep_cond'; c_side_cond = side_cond';
+		  c_restr_may_be_equal = !restr_may_be_equal } :: (!collisions)
 
 
 (* For collision information in "move array" 
    Be careful to always create fresh identifiers, so that the
    identifiers in the printed equivalence are distinct. *)
 												       
-let check_binder_expect env b ((s,ext),(s2,ext2)) =
+let check_binder_expect env expect ((s,ext),(s2,ext2)) =
   let t = get_type env s2 ext2 in
-  if b.btype != t then raise (Error("Random values in collisions in \"move array\" should have the same type as the variable(s) we move", ext2));
+  let b = 
+    match expect with
+    | ExpectType ty ->
+	if ty != t then raise (Error("Random values in collisions should have the same type as the result of the random function", ext2));
+	Terms.create_binder s t []
+    | ExpectVar b -> 
+	if b.btype != t then raise (Error("Random values in collisions in \"move array\" should have the same type as the variable(s) we move", ext2));
+	b
+  in
+  if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
+    raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
   if (StringMap.mem s env) then
     input_warning ("identifier " ^ s ^ " rebound") ext;
   (StringMap.add s (EVar b) env, b)
-      
+
+let rec check_binder_expect_list env expect = function
+  | [] -> (env,[])
+  | id_ty::l ->
+      let (env',b) = check_binder_expect env expect id_ty in
+      let (env'',l') = check_binder_expect_list env' expect l in
+      (env'', b::l')
+    
 let check_binder_moc env ((s,ext),(s2,ext2)) =
   let t = get_type env s2 ext2 in
   let b = Terms.create_binder s t [] in
@@ -2668,15 +2712,13 @@ let rec check_binder_list_moc env = function
       let (env'',l') = check_binder_list_moc env' l in
       (env'', b::l')
 
-let check_move_array_coll env restr0 (forall, ((_,(_,ext_restr_ty)) as restr), t) =
+let check_special_equiv_coll env expect (forall, restr, t) =
   set_binder_env empty_binder_env;
   let (env',forall') = check_binder_list_moc env forall in
-  let (env'',restr') = check_binder_expect env' restr0 restr in
-  if restr'.btype.toptions land Settings.tyopt_CHOOSABLE == 0 then
-    raise_error ("Cannot choose randomly a bitstring from " ^ restr'.btype.tname) ext_restr_ty;
+  let (env'',restr') = check_binder_expect_list env' expect restr in
   let t' = check_term_nobe env'' t in
   check_bit_string_type (snd t) t'.t_type;
-  if not (List.for_all (fun b -> Terms.refers_to b t') (restr' :: forall')) then
+  if not (List.for_all (fun b -> Terms.refers_to b t') (restr' @ forall')) then
     raise_error "In collision statements, all bound variables should occur in the left-hand side" (snd t);
   (forall', restr', t')
   
@@ -3183,6 +3225,17 @@ let rename_impl = function
   | ImplTable(tbl,file) ->
       ImplTable(rename_ie tbl,file (* TO DO I might want to rename the file to have a different file for each expansion of the macro. Then the file should probably not be between quotes in the input file *))
 
+let rec rename_spec_args = function
+  | SpecialArgId i, ext -> SpecialArgId(rename_ie i), ext
+  | (SpecialArgString _) as x,ext -> x, ext
+  | SpecialArgTuple l, ext -> SpecialArgTuple(List.map rename_spec_args l), ext
+	
+let rename_equiv = function
+  | EquivNormal(l,r,p) ->
+      EquivNormal(rename_eqmember l, rename_eqmember r, rename_probaf p)
+  | EquivSpecial(n,args) ->
+      EquivSpecial(n,List.map rename_spec_args args)
+	
 let rename_decl = function
     ParamDecl(s, options) -> ParamDecl(rename_ie s, options)
   | ProbabilityDecl (s, options) -> ProbabilityDecl(rename_ie s, options)
@@ -3208,13 +3261,13 @@ let rename_decl = function
       renamed_statement
   | BuiltinEquation(eq_categ, l_fun_symb) ->
       BuiltinEquation(eq_categ, List.map rename_ie l_fun_symb)
-  | EqStatement(n, l,r,p,options) ->
+  | EqStatement(n,equiv,options) ->
       let n' = rename_eqname n in
       (* Variables created in the statement are local, 
          I can reuse their names later *)
       let rename_state = get_rename_state() in
       let renamed_eq_statement =
-	EqStatement(n', rename_eqmember l, rename_eqmember r, rename_probaf p, options)
+	EqStatement(n', rename_equiv equiv, options)
       in
       set_rename_state rename_state;
       renamed_eq_statement
@@ -3782,7 +3835,7 @@ let rec check_all (l,p) =
   | PEquivalence(p1,p2,pub_vars) ->
       if (!queries_parse) != [] then
 	user_error "Queries are incompatible with equivalence";
-      if (!Settings.get_implementation) then
+      if !Settings.get_implementation then
 	user_error "Implementation is incompatible with equivalence";
       let p1' = check_process_full p1 in
       let p2' = check_process_full p2 in
@@ -3793,7 +3846,7 @@ let rec check_all (l,p) =
   | PQueryEquiv equiv_statement ->
       if (!queries_parse) != [] then
 	user_error "Queries are incompatible with query_equiv";
-      if (!Settings.get_implementation) then
+      if !Settings.get_implementation then
 	user_error "Implementation is incompatible with query_equiv";
       let equiv_statement' = check_eqstatement false equiv_statement in
       let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
@@ -4162,6 +4215,11 @@ let collect_id_impl accu = function
   | ImplTable(i,file) ->
       add_id accu i; add_id accu file
 
+let rec collect_id_spec_arg accu = function
+  | SpecialArgId i,_ -> add_id accu i
+  | SpecialArgString _,_ -> ()
+  | SpecialArgTuple l,_ -> List.iter (collect_id_spec_arg accu) l
+	
 let collect_id_decl accu = function
   | ParamDecl(i,_) | ProbabilityDecl (i,_) | TypeDecl(i,_) | ChannelDecl i ->
       add_id accu i
@@ -4182,11 +4240,17 @@ let collect_id_decl accu = function
       collect_id_term accu side_cond
   | BuiltinEquation(eq_categ, l_fun_symb) ->
       List.iter (add_id accu) l_fun_symb
-  | EqStatement(n, l,r,p,options) ->
+  | EqStatement(n, equiv,options) ->
       collect_id_eqname accu n;
-      collect_id_eqmember accu l;
-      collect_id_eqmember accu r;
-      collect_id_probaf accu p
+      begin
+	match equiv with
+	| EquivNormal(l,r,p) ->
+	    collect_id_eqmember accu l;
+	    collect_id_eqmember accu r;
+	    collect_id_probaf accu p
+	| EquivSpecial(_,spec_args) ->
+	    List.iter (collect_id_spec_arg accu) spec_args
+      end
   | Collision(restr, forall,  t1, p, t2, side_cond, options) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
@@ -4222,11 +4286,15 @@ let record_all_ids (l,p) =
 	collect_id_proc accu p1;
 	collect_id_proc accu p2;
 	List.iter (add_id accu) pub_vars
-    | PQueryEquiv(n, l,r,p,options) ->
+    | PQueryEquiv(n, equiv,options) ->
 	collect_id_eqname accu n;
-	collect_id_eqmember accu l;
-	collect_id_eqmember accu r;
-	collect_id_probaf accu p
+	match equiv with
+	| EquivNormal(l,r,p) ->
+	    collect_id_eqmember accu l;
+	    collect_id_eqmember accu r;
+	    collect_id_probaf accu p
+	| EquivSpecial _ ->
+	    Parsing_helper.internal_error "query_equiv ... special ... should not occur"
   end;
   List.iter (fun i -> Terms.record_id i dummy_ext) (!accu)
 

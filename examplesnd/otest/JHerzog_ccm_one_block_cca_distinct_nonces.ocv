@@ -1,0 +1,151 @@
+(**********************************************************************
+*
+* Prove the chosen-plaintext security of CCM mode. Counter-mode and MAC 
+* nonces are derived from master nonce via separate functions, and these
+* functions have some axioms.
+*
+*  * modified from a script by Jonathan Herzog
+*  * Blocks: 1
+*  * Result: failure for now, the desired result is success
+*    (file examplesnd/otest/JHerzog_ccm_one_block_cca_distinct_nonces2.ocv is successful for the 
+*     same example)
+*
+***********************************************************************)
+
+proof {
+show_game occ;
+replace 69 "xor(s0, mac_tag) = aes_enc(xor(t1, plaintext1), aesk_3)";
+remove_assign useless;
+show_game occ;
+crypto prp_partial(aes_enc) special("1 may collide with previous 5; 5 may collide with previous 1,5; 2 may collide with previous 6; 6 may collide with previous 2,6; 3 may collide with previous 7; 7 may collide with previous 3,7; 4 may collide with previous 8; 8 may collide with previous 4,8") [ terms: 106 -> O_1, 118 -> O_2, 130 -> O_3, 139 -> O_4, 34 -> O_8, 45 -> O_5, 50 -> O_7, 55 -> Oeq_6 . ];
+success;
+simplify;
+remove_assign binder X_Oeq;
+move array re_2;
+merge_branches;
+remove_assign binder plaintext1;
+move array re;
+simplify;
+(* interactive; TO DO We need a stronger merging of branches *)
+auto
+}
+
+type block [fixed, large].
+type aes_key [large, bounded].
+proba Paes.
+expand PRP_cipher(aes_key, block, aes_enc, aes_dec, Paes).
+
+type nonces [fixed, large].
+type maced_ciphertext [bounded].
+fun join(nonces, block, block): maced_ciphertext [data].
+
+fun injbot(block): bitstringbot [data].
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zeroblock).
+
+(* Useful helper function. Dunno why. *)
+fun test(bool, block, block):block.
+equation forall x:block,y:block; test(true,x,y) = x.
+equation forall x:block,y:block; test(false,x,y) = y.
+
+(* axiomitize incr *)
+fun incr(block): block [data].
+equation forall x:block; incr(x) <> x.
+
+(****** derive counter-mode and mac-tag nonces from master nonce *******)
+
+
+fun make_counter_mode_nonce(nonces) : block [data].
+fun make_mac_nonce(nonces) : block [data].
+equation forall x:nonces, y: nonces; make_counter_mode_nonce(x) <> make_mac_nonce(y).
+equation forall x:nonces, y: nonces; incr(make_counter_mode_nonce(x)) <> make_mac_nonce(y).
+equation forall x:nonces, y: nonces; incr(make_counter_mode_nonce(x)) <> make_counter_mode_nonce(y).
+
+(* Parameters *)
+
+param N_enc. (* the number of times the adversary gets to call the encryption oracle *)
+param N_dec. (* the number of times the adversary gets to call the decryption oracle *)
+param C. (* the number of challenge ciphertexts available to the adversary *)
+
+(* what do we want? That the adversary does not know which plaintext 
+   was encrypted *)
+
+query secret secret_bit.
+
+letfun enc(aesk: aes_key, b1: block, nonce: nonces) =
+       tag_nonce <- make_mac_nonce(nonce);
+       b0 <- tag_nonce;
+
+       t1 <- aes_enc(b0, aesk);
+       t2 <- aes_enc( xor(t1, b1), aesk);
+
+       counter_nonce <- make_counter_mode_nonce(nonce);
+       s0 <- aes_enc(counter_nonce, aesk);
+
+       counter1 <- incr(counter_nonce);
+       pad1 <- aes_enc(counter1, aesk);
+       cipherblock1 <- xor(b1, pad1);
+
+       tag <- xor(t2, s0);
+
+       ciphertext <- join(nonce, cipherblock1, tag);
+       ciphertext.
+
+letfun dec(aesk: aes_key, maced_ctext: maced_ciphertext) =
+       let join(nonce, cipherblock1, mac_tag) = maced_ctext in      
+       	   tag_nonce <- make_mac_nonce(nonce);
+       	   counter_nonce <- make_counter_mode_nonce(nonce);
+
+       	   counter1 <- incr(counter_nonce);
+       	   pad1 <- aes_enc(counter1, aesk);
+       	   plaintext1 <- xor(pad1, cipherblock1);
+
+       	   b0 <- tag_nonce;
+       	   t1 <- aes_enc(b0, aesk);
+       	   t2 <- aes_enc( xor(t1, plaintext1), aesk);
+	   s0 <- aes_enc(counter_nonce, aesk);
+	   recomputed_tag <- xor(t2, s0);
+       	   if recomputed_tag = mac_tag
+               then injbot(plaintext1) else bottom
+       else bottom.
+
+table noncetable(nonces).
+
+let enc_oracle(aesk: aes_key) = 
+    Oenc(b1 : block, nonce: nonces):=
+    get noncetable(=nonce) in yield else
+    insert noncetable(nonce);
+    return(enc(aesk, b1, nonce)).
+
+let challenge_oracle(aesk: aes_key, secret_bit0: bool) =
+    Ochallenge(b11: block, b21: block, nonce: nonces) :=
+    b1 <- test(secret_bit0, b11, b21);
+    get noncetable(=nonce) in yield else
+    insert noncetable(nonce);
+    challenge : maced_ciphertext <- enc(aesk, b1, nonce);
+    return(challenge).
+
+let dec_oracle(aesk: aes_key) = 
+   Odec(maced_ctext: maced_ciphertext) :=
+   find 
+       u <= C suchthat defined(challenge[u]) && (maced_ctext = challenge[u])
+   then
+       yield
+   else
+       return(dec(aesk, maced_ctext)).
+
+process 
+	Ostart() :=
+	(* Choose the key *)
+        aesk <-R aes_key;
+        secret_bit <-R bool;
+	return;
+	(* (foreach i <= N_enc do run enc_oracle(aesk)) | *)
+	(foreach i <= N_dec do run dec_oracle(aesk)) |
+        (foreach i <= C do run challenge_oracle(aesk, secret_bit))
+
+(* EXPECTED
+RESULT Could not prove secrecy of secret_bit.
+15.348s (user 15.332s + system 0.016s), max rss 117968K
+END *)

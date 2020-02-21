@@ -129,16 +129,17 @@ let new_repl_index_term t =
 let new_repl_index b = new_repl_index_term (Terms.term_from_repl_index b)
 
 let replace_term_repl_index t =
-  (* When t is already a replication index, leave it unchanged. 
+  (* When t is already a replication index, leave it unchanged.
      This is important because we obtain the initial term
      before replacement with replication indices by following
      ri_link once. If we performed the replacement several times
      for the same term, that would not work. *)
   match t.t_desc with
   | ReplIndex _ -> t
-  | _ -> 
-      let ri = new_repl_index_term t in
-      ri.ri_link <- TLink t;
+  | _ ->
+      let tinit = Terms.copy_term Links_RI t in
+      let ri = new_repl_index_term tinit in
+      Terms.ri_link ri (TLink tinit);
       Terms.term_from_repl_index ri
                  
 let rec make_indep simp_facts ((b0,l0,depinfo,side_condition_needed) as bdepinfo) t =
@@ -187,8 +188,9 @@ let rec make_indep simp_facts ((b0,l0,depinfo,side_condition_needed) as bdepinfo
           make_indep simp_facts bdepinfo t'
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in make_indep"
 
-let default_indep_test dep_info simp_facts t (b,l) =
+let default_indep_test get_dep_info simp_facts t ((b,l) as br) =
   try
+    let dep_info = get_dep_info br in
     let side_condition_needed = ref false in
     let t' = make_indep simp_facts (b,l,dep_info,side_condition_needed) t in
     Some (t', if !side_condition_needed then SideCondToCompute else NoSideCond)
@@ -204,9 +206,11 @@ let nodepinfo =
     other_variables = true;
     nodep = [] }
 
+let indep_test_noinfo = default_indep_test (fun _ -> nodepinfo)
+    
 let no_collision_test simp_facts t1 t2 = None
     
-let no_dependency_anal = ((default_indep_test nodepinfo), no_collision_test)
+let no_dependency_anal = (indep_test_noinfo, no_collision_test)
 
 (* [indep_test] and [collision_test] extract the 2 functions
    provided by a dependency analysis *)
@@ -419,17 +423,17 @@ let make_indep_args dep_info simp_facts l brdep =
       Some(t', NoSideCond) -> t'
     | _ -> replace_term_repl_index t) l
 
+(* Variables bound by "new" in the collision must always 
+   be linked to variables. This function returns the variable
+   in question. *)
+let get_restrlink b1 =
+  match b1.link with
+  | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
+  | _ -> assert false
+  
 let check_indep_restr dep_info simp_facts restr_may_be_equal b1 b2 =
-  let (((b1',l1) as br1), t1) =
-    match b1.link with
-    | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
-    | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (1)"
-  in
-  let (((b2',l2) as br2), t2) =
-    match b2.link with
-    | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
-    | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (2)"
-  in
+  let (((b1',l1) as br1), t1) = get_restrlink b1 in
+  let (((b2',l2) as br2), t2) = get_restrlink b2 in
   if (not restr_may_be_equal) && (b1' == b2') then
     begin
       let l1init = List.map (Terms.copy_term Terms.Links_RI) l1 in
@@ -451,12 +455,8 @@ let check_indep_restr dep_info simp_facts restr_may_be_equal b1 b2 =
     SC_True
 
 let indices_indep_self dep_info simp_facts b =
-  let (((b',l) as br), t) =
-    match b.link with
-    | TLink ({ t_desc = Var(b,l) } as t) -> ((b,l),t)
-    | _ -> Parsing_helper.internal_error "unexpected link in check_indep_restr (1)"
-  in
-  (* Make sure that the arguments of the restrictions b'
+  let (((b',l) as br), t) = get_restrlink b in
+  (* Make sure that the arguments of the restriction b'
      are independent of b'[l] itself *)
   let l' = make_indep_args dep_info simp_facts l br in
   b.link <- TLink(Terms.build_term2 t (Var(b', l')))
@@ -478,33 +478,25 @@ let rec check_indep_cond dep_info simp_facts = function
   | IC_Indep(b1, b2) ->
       begin
         (* b1 must be independent of b2 *)
-	let t1 = 
-	  match b1.link with
-	    TLink t -> t
-	  | _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
-	in
-	let (b,l) as br2 =
-	  match b2.link with
-	    TLink { t_desc = Var(b,l) } -> (b,l)
-	  | _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
-	in
+	let t1 = Terms.get_tlink b1 in
+	let ((b,l) as br2,_) = get_restrlink b2 in
 	match indep_test dep_info simp_facts t1 br2 with
 	| None ->
             (* Display.display_term t1; print_string " depends on "; Display.display_var b l;
 	       print_newline(); *)
             SC_False (* t1 may depend on br2; cannot apply the collision *)
 	| Some (t1', side_condition) ->
-                (* t1 may be transformed into a term t1' that is independent of br2
-		   Store it in the link for b1
-		   Note that in case there are several independence conditions
-		   on the same variable [b1], the linked term may be rewritten several
-		   times. This is why we compute the side conditions after all calls
-		   to [indep_test]. *)
-		b1.link <- TLink t1';
-		match side_condition with
-		  NoSideCond -> SC_True
-		| SideCondToCompute -> SC_ToCompute(b1, b2)
-		| SideCondFixed(l, ll) -> SC_Fixed(l, ll)
+            (* t1 may be transformed into a term t1' that is independent of br2
+	       Store it in the link for b1
+	       Note that in case there are several independence conditions
+	       on the same variable [b1], the linked term may be rewritten several
+	       times. This is why we compute the side conditions after all calls
+	       to [indep_test]. *)
+	    b1.link <- TLink t1';
+	    match side_condition with
+	      NoSideCond -> SC_True
+	    | SideCondToCompute -> SC_ToCompute(b1, b2)
+	    | SideCondFixed(l, ll) -> SC_Fixed(l, ll)
       end
   | IC_True ->
       SC_True
@@ -531,97 +523,67 @@ let rec collect_bargs b accu t =
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_bargs"
 							 
 let rec make_side_cond = function
-    SC_True -> ([], Terms.make_true())
+    SC_True -> []
   | SC_False ->
       Parsing_helper.internal_error "false side condition should have been removed"
   | SC_And(c1, c2) ->
-      let c1t, c1p = make_side_cond c1 in
-      let c2t, c2p = make_side_cond c2 in
-      (c1t @ c2t, Terms.make_and c1p c2p)
+      (make_side_cond c1) @ (make_side_cond c2)
   | SC_Or(c1, c2) ->
-      let c1t, c1p = make_side_cond c1 in
-      let c2t, c2p = make_side_cond c2 in
-      (compute_and c1t c2t, Terms.make_or c1p c2p)
+      compute_and (make_side_cond c1) (make_side_cond c2)
   | SC_Fixed(l, bargs) ->
-      let side_condition_proba = 
-	Terms.make_and_list (List.map (fun l' ->
-	  Terms.make_or_list (List.map2 Terms.make_diff l l')
-	    ) bargs)
-      in
-      let side_condition_term = List.map (fun l' -> 
+      List.map (fun l' -> 
 	Terms.make_and_list (List.map2 Terms.make_equal l l')
 	  ) bargs
-      in
-      (side_condition_term, side_condition_proba)
   | SC_ToCompute(b1, b2) ->
-      let t1 = 
-	match b1.link with
-	  TLink t -> t
-	| _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
-      in
-      let (b,l) as br2 =
-	match b2.link with
-	  TLink { t_desc = Var(b,l) } -> (b,l)
-	| _ -> Parsing_helper.internal_error "unexpected link in apply_red (3)"
-      in
+      let t1 = Terms.get_tlink b1 in
+      let ((b,l) as br2,_) = get_restrlink b2 in
       let args = ref [] in
       collect_bargs b args t1;
       let bargs = !args in
-      let side_condition_proba = 
-	Terms.make_and_list (List.map (fun l' ->
-	  Terms.make_or_list (List.map2 Terms.make_diff l l')
-	    ) bargs)
-      in
       let init_l = List.map (Terms.copy_term Terms.Links_RI) l in
-      let side_condition_term = List.map (fun l' ->
+      List.map (fun l' ->
 	let init_l' = List.map (Terms.copy_term Terms.Links_RI) l' in
 	Terms.make_and_list (List.map2 Terms.make_equal init_l init_l')
 	  ) bargs
-      in
-      (side_condition_term, side_condition_proba)
       
-let rec build_indep_map = function
+let rec build_indep_map accu = function
     IC_Indep(b1,b2) ->
-      begin
-	match b1.link with
-	  TLink t -> [(b1,t)]
-	| _ -> Parsing_helper.internal_error "unexpected link in apply_red (2)"
-      end
+      if b1.array_ref then
+	(* When [b1.array_ref] is true, [b1] is already
+	   included in the list [accu], we need not add it again *)
+	accu
+      else
+	begin
+	  b1.array_ref <- true;
+	  (b1,Terms.get_tlink b1)::accu
+	end
   | IC_And(c1, c2) | IC_Or(c1, c2) ->
-      (build_indep_map c1) @ (build_indep_map c2)
-  | IC_True -> []
+      build_indep_map (build_indep_map accu c1) c2
+  | IC_True -> accu
 
-let restore_all_links state =
-  match !state with
-  | None -> ()
-  | Some (links, old_current_bound_vars) ->
-      assert (!Terms.current_bound_vars == []);
-      Terms.current_bound_vars := old_current_bound_vars;
-      List.iter (fun (b, t) ->
-	b.link <- TLink t) links;
-      (* We will not restore the same state again *)
-      state := None
       
 let cleanup_store_all_links vars next_f =
   let links = List.map (fun b ->
-    match b.link with
-    | NoLink -> Parsing_helper.internal_error "all variables should be linked in cleanup_store_all_links"
-    | TLink t -> b.link <- NoLink; (b, t)) vars
+    let t = Terms.get_tlink b in
+    b.link <- NoLink; (b, t)) vars
   in
   let old_current_bound_vars = !Terms.current_bound_vars in
   Terms.current_bound_vars := [];
-  let state = ref (Some (links, old_current_bound_vars)) in
   try
-    next_f state
+    next_f ()
   with NoMatch ->
-    restore_all_links state;
+    assert (!Terms.current_bound_vars == []);
+    Terms.current_bound_vars := old_current_bound_vars;
+    List.iter (fun (b, t) -> b.link <- TLink t) links;
     raise NoMatch
-	
+
 let reduce_rec_impossible t = assert false
 
 let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = function
     [] -> raise NoMatch
-  | (restr, forall, redl, proba, redr, indep_cond, side_cond, restr_may_be_equal)::other_coll ->
+  | coll_statement::other_coll ->
+      let { c_restr = restr; c_forall = forall; c_redl = redl; c_proba = proba; c_redr = redr;
+	    c_indep_cond = indep_cond; c_side_cond = side_cond; c_restr_may_be_equal = restr_may_be_equal } = coll_statement in
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
 	  (* Compute the side condition that guarantees that all restrictions are independent,
@@ -629,11 +591,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     independent of all restrictions *)
 	  List.iter (indices_indep_self dep_info simp_facts) restr;
 	  let sc_indep_restr = indep_sc_restr_list dep_info simp_facts restr_may_be_equal restr in
-	  let (side_condition_term, side_condition_proba) =
-	    make_side_cond sc_indep_restr
-	  in
-	  let sc_term = ref side_condition_term in
-	  let sc_proba = ref side_condition_proba in
+	  let sc_term = ref (make_side_cond sc_indep_restr) in
           (* print_string "apply_collisions_at_root_once match succeeded\n";
           print_string "at "; print_int t.t_occ; print_string ", ";
           Display.display_term t; print_string " matches ";
@@ -644,6 +602,14 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	  print_string " instantiated ";
 	  Display.display_term t';
 	  print_newline(); *)
+	  (* Check independence conditions *)
+	  begin
+	    match check_indep_cond dep_info simp_facts indep_cond with
+	      SC_False ->
+		raise NoMatch (* independence conditions not satisfied *)
+	    | sc ->
+		sc_term := (make_side_cond sc) @ (!sc_term)
+	  end;
 	  (* There is one instance of the collision problem for each value of
 	     the variables in [restr_indep_map] i.e. restrictions and 
 	     variables with independence conditions. The number of values
@@ -652,37 +618,27 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     that [redl <> redr and side_cond]. it can make as many attempts
 	     as he wishes and can test by himself whether his attempt succeeds.
 	     *)
-	  let restr_indep_map =
-	    (build_indep_map indep_cond) @
-	    (List.map (fun restr1 ->
-	      match restr1.link with
-		TLink trestr -> (restr1,trestr)
-	      | _ -> Parsing_helper.internal_error "unexpected link in apply_red (1)"
-		    ) restr)
+	  (* Locally, we use the boolean field [array_ref] to indicate
+             that the variable is included in the list [restr_indep_map],
+	     i.e. it is a restriction or appears in the side condition.
+	     For safety, we check that [array_ref] is not already set before. *)
+	  List.iter (fun b -> assert (b.array_ref == false)) restr;
+	  List.iter (fun b -> assert (b.array_ref == false)) forall;
+	  let restr_map =
+	    List.map (fun restr1 ->
+	      restr1.array_ref <- true;
+	      (restr1, Terms.get_tlink restr1)
+		) restr
 	  in
-	  (* Check independence conditions *)
-	  begin
-	    match check_indep_cond dep_info simp_facts indep_cond with
-	      SC_False ->
-		raise NoMatch (* independence conditions not satisfied *)
-	    | sc ->
-		let (side_condition_term, side_condition_proba) =
-		  make_side_cond sc
-		in
-		sc_term := side_condition_term @ (!sc_term);
-		sc_proba := Terms.make_and side_condition_proba (!sc_proba)
-	  end;
-	  (* [redl'] is the instantiated version of [redl], using terms
-	     made independent as needed to apply the collision.
-	     Same for [redr']. That allows taking the replication indices
-	     introduced by [indep_test dep_info] into account in the probability
-	     computation. *)
-	  let redl' = Terms.copy_term Terms.Links_Vars redl in
-	  let redr' = Terms.copy_term Terms.Links_Vars redr in
-	  let side_cond' = Terms.copy_term Terms.Links_Vars side_cond in
+	  let restr_indep_map = build_indep_map restr_map indep_cond in
+	  let any_var_map = List.fold_left (fun accu b ->
+	    if b.array_ref then accu else (b,Terms.get_tlink b)::accu) [] forall
+	  in
+	  (* Unset the [array_ref] field *)
+	  List.iter (fun (b,_) -> b.array_ref <- false) restr_indep_map;
 	  (* Reduced term and side condition *)
-	  let t' = Terms.copy_term Terms.Links_RI redr' in
-	  let side_cond'' = Terms.copy_term Terms.Links_RI side_cond' in
+	  let t' = Terms.copy_term Terms.Links_Vars_then_RI redr in
+	  let side_cond'' = Terms.copy_term Terms.Links_Vars_then_RI side_cond in
           (* Cleanup early enough, so that the links that we create in this 
 	     collision do not risk to interfere with a later application of 
 	     the same collision in reduce_rec.
@@ -691,10 +647,9 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	     set above a [Terms.auto_cleanup] in [match_term], so it is
 	     not enough to cleanup using [Terms.cleanup()].
 	     Store the links to be able to restore them in case of subsequent
-	     failure (exception [NoMatch]) and before calling
-	     [Proba.add_proba_red] so that the lengths are correctly 
-	     instantiated in that function. *)
-	  cleanup_store_all_links (restr @ forall) (fun link_state ->
+	     failure (exception [NoMatch]). *)
+	  Terms.ri_cleanup();
+	  cleanup_store_all_links (restr @ forall) (fun () ->
 	    let is_false t =
 	      (* Test if the term [t] is equal to false *)
 	      if reduce_rec == reduce_rec_impossible then
@@ -712,8 +667,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    if not (Terms.is_true side_cond) then
 	      begin
 		if not (is_false (Terms.make_not side_cond'')) then
-		  raise NoMatch;
-		sc_proba := Terms.make_and side_cond' (!sc_proba)
+		  raise NoMatch
 	      end;
 	    let t'' =
 	      if (!sc_term) == [] then
@@ -759,8 +713,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 		   We pass the side condition [sc_proba] for probability
 		   counting. Several collisions with different [sc_proba]
 		   need to be counted several times.  *)
-		restore_all_links link_state;
-		if not (Proba.add_proba_red redl' redr' (!sc_proba) proba restr_indep_map) then
+		if not (Proba.add_proba_red coll_statement restr_indep_map any_var_map) then
                   begin
                     (* print_string "Proba too large"; *)
 		    raise NoMatch
@@ -770,6 +723,7 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
 	    ) redl t
       with NoMatch ->
 	Terms.cleanup();
+	Terms.ri_cleanup();
 	apply_collisions_at_root_once reduce_rec dep_info simp_facts final t other_coll
 
 let apply_statements_at_root_once simp_facts t =
@@ -1112,8 +1066,8 @@ and apply_eq_st_coll1 depth dep_info simp_facts t =
    At most one reduction is done. When the reduction succeeds,
    it returns (true, reduced_term); otherwise, it returns (false, t).
 
-   It is applied only to equalities [t] in [subst_simplify2], so we do not need to check 
-   that [t] in [FunApp...]. 
+   It is applied only to equalities [t] in [subst_simplify2], 
+   so we do not need to check that [t] is [FunApp...]. 
    TO DO For now, we do not use [Terms.apply_eq_reds] because this function
    does not reduce only the root. It may be good to have a function for reducing
    only the root. *)
@@ -1205,7 +1159,7 @@ and add_fact depth dep_info simp_facts fact =
     end
   else
     begin
-  if (!Settings.debug_simplif_add_facts) then
+  if !Settings.debug_simplif_add_facts then
     begin
       print_string "Adding "; Display.display_term fact; print_newline()
     end;
@@ -1317,20 +1271,6 @@ and add_fact depth dep_info simp_facts fact =
 	    end
 	| _ -> Parsing_helper.internal_error "Expecting a group or xor theory in Facts.add_fact"
       end
-(*  | FunApp(f,[t1;t2]) when f.f_cat == ForAllDiff ->
-      let t1' = try_no_var simp_facts t1 in
-      let t2' = try_no_var simp_facts t2 in
-      begin
-      match (t1'.t_desc, t2'.t_desc) with
-	(FunApp(f1,l1), FunApp(f2,l2)) when
-	(f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
-	  let vars = ref [] in
-	  if List.for_all (Terms.single_occ_gvar vars) l1 && List.for_all (Terms.single_occ_gvar vars) l2 then
-	    simplif_add (depth+1) dep_info simp_facts (Terms.make_or_list (List.map2 Terms.make_for_all_diff l1 l2))
-	  else
-	    (subst2, fact'::facts, elsefind)
-      | _ -> (subst2, fact'::facts, elsefind)
-      end *)
   | FunApp(f,[t1;t2]) when f == Settings.f_and ->
      simplif_add (depth+1) dep_info (add_fact (depth+1) dep_info simp_facts t1) t2
   | Var _ ->
@@ -1419,7 +1359,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
                    back and forth *) 
 	        || (Terms.is_true t) || (Terms.is_false t)
 	        || (Terms.is_true t') || (Terms.is_false t') then
-		  (reduced_root_or_lhs, Terms.build_term_type Settings.t_bool (FunApp(f,[t1; t'])))
+		  (reduced_root_or_lhs, Terms.app f [t1; t'])
 		else
 		  apply_root_st_coll1 depth dep_info simp_facts_tmp2 t0
 	      in
@@ -1450,7 +1390,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		    apply_sub_list simp_facts_tmp2 t' subst_tmp
 		in
 		if reduced_rhs then
-		  let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
+		  let fact' = Terms.app f [t; t1'] in
 		  rhs_reduced := fact' :: (!rhs_reduced) 
 		else
                   (* if t = t', I can ignore it *) 
@@ -1467,7 +1407,7 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
   simplif_add_list depth dep_info (subst2_added_rhs_reduced,[], elsefind) facts_to_add
 
 and simplif_add depth dep_info simp_facts fact =
-  if (!Settings.debug_simplif_add_facts) then
+  if !Settings.debug_simplif_add_facts then
     begin
       print_string "simplif_add "; Display.display_term fact; 
       print_string " knowing\n"; display_facts simp_facts; print_newline();
@@ -1487,7 +1427,7 @@ and simplif_add_list depth dep_info simp_facts = function
 and specialized_add_fact depth dep_info simp_facts fact =
   if (!Settings.max_depth_add_fact > 0) && (depth > !Settings.max_depth_add_fact) then 
     begin
-      (*if (!Settings.debug_simplif_add_facts) then*)
+      (*if !Settings.debug_simplif_add_facts then*)
 	begin
 	  print_string "Adding "; Display.display_term fact; print_string " (specialized) stopped because too deep."; print_newline()
 	end;
@@ -1495,7 +1435,7 @@ and specialized_add_fact depth dep_info simp_facts fact =
     end
   else
     begin
-  if (!Settings.debug_simplif_add_facts) then
+  if !Settings.debug_simplif_add_facts then
     begin
       print_string "specialized_add_fact "; Display.display_term fact; print_newline()
     end;
@@ -1572,7 +1512,7 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
               (*if red && (Terms.equal_terms t' t1') then
                 print_string "Equal (3)\n";*)
 	      if red then
-		let fact' = Terms.build_term_type Settings.t_bool (FunApp(f,[t; t1'])) in
+		let fact' = Terms.app f [t; t1'] in
 		rhs_reduced := fact' :: (!rhs_reduced)
 	      else
                 (* if t = t', I can ignore it *) 
@@ -1596,7 +1536,7 @@ and specialized_subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
   simplif_add_list depth dep_info (subst2_added_rhs_reduced,[], elsefind) facts_to_add *)
 
 and specialized_simplif_add depth dep_info simp_facts fact =
-  if (!Settings.debug_simplif_add_facts) then
+  if !Settings.debug_simplif_add_facts then
     begin
       print_string "specialized_simplif_add "; Display.display_term fact; 
       print_string " knowing\n"; display_facts simp_facts; print_newline();
@@ -1608,7 +1548,7 @@ and specialized_simplif_add depth dep_info simp_facts fact =
       if Terms.simp_equal_terms simp_facts true t t'' then
 	simp_facts
       else
-	let fact' = Terms.build_term_type Settings.t_bool (FunApp(f, [t;t''])) in
+	let fact' = Terms.app f [t;t''] in
 	specialized_add_fact depth dep_info simp_facts fact'
   | _ ->
       Parsing_helper.internal_error "specialized_add_fact: t = t' expected"
@@ -1700,13 +1640,13 @@ let get_initial_history pp =
    defined at [n'] and within the same input...output block. *)
 let rec is_reachable_same_block n n' =
   if n == n' then true else
-  if n'.above_node == n' || 
-     (match n'.definition with 
-       DInputProcess({ i_desc = Input _}) -> true 
-     | _ -> false) then 
-    false 
-  else
-    is_reachable_same_block n n'.above_node
+  match n'.above_node with
+  | None -> false
+  | Some n'' -> 
+      (match n'.definition with 
+	DInputProcess({ i_desc = Input _}) -> false
+      | _ -> true) &&
+      (is_reachable_same_block n n'')
 
       (* [is_before_same_block pp pp'] is true when the program point [pp]
    may be before [pp'] and in the same input...output block. *)
@@ -2173,23 +2113,23 @@ let rec put_defined_cond_i def_list p =
   | Par(p1,p2) ->
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
       let (def_list2, p2') = put_defined_cond_i def_list p2 in
-      (Terms.union_binderref def_list1 def_list2, Terms.iproc_from_desc_at p (Par(p1',p2')))
+      (Terms.union_binderref def_list1 def_list2, Terms.iproc_from_desc_loc p (Par(p1',p2')))
   | Repl(b,p1) ->
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
-      (def_list1, Terms.iproc_from_desc_at p (Repl(b,p1')))
+      (def_list1, Terms.iproc_from_desc_loc p (Repl(b,p1')))
   | Input((c,tl), pat, p1) ->
       let def_listl = (List.map (put_defined_cond_t def_list) tl) in
       let def_list_pat = put_defined_cond_pat def_list pat in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let p1'' = add_def_cond_o def_list1 p1' in
-      (union_list (def_list_pat::def_listl), Terms.iproc_from_desc_at p (Input((c,tl), pat, p1'')))
+      (union_list (def_list_pat::def_listl), Terms.iproc_from_desc_loc p (Input((c,tl), pat, p1'')))
 
 and put_defined_cond_o def_list p =
   match p.p_desc with
     Yield | EventAbort _ -> ([], p)
   | Restr(b,p1) ->
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (def_list1, Terms.oproc_from_desc_at p (Restr(b, p1')))
+      (def_list1, Terms.oproc_from_desc_loc p (Restr(b, p1')))
   | Test(t, p1, p2) ->
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let (def_list2, p2') = put_defined_cond_o def_list p2 in
@@ -2201,9 +2141,9 @@ and put_defined_cond_o def_list p =
       let p2'' = add_def_cond_o def_list_else p2' in
       let p' =
 	if def_list_then != [] then
-	  Terms.oproc_from_desc_at p (Find([([], def_list_then, t, p1')], p2'', Nothing))
+	  Terms.oproc_from_desc_loc p (Find([([], def_list_then, t, p1')], p2'', Nothing))
 	else
-	  Terms.oproc_from_desc_at p (Test(t, p1', p2''))
+	  Terms.oproc_from_desc_loc p (Test(t, p1', p2''))
       in
       (def_list_common, p')
   | Find(l0, p2, find_info) ->
@@ -2215,16 +2155,16 @@ and put_defined_cond_o def_list p =
 	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list_t def_list1), t', p1')
 	  ) l0
       in
-      ([], Terms.oproc_from_desc_at p (Find(l0', p2'', find_info)))
+      ([], Terms.oproc_from_desc_loc p (Find(l0', p2'', find_info)))
   | Output((c,tl), t, p1) ->
       let def_listl = (List.map (put_defined_cond_t def_list) tl) in
       let def_listt = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
-      (union_list (def_list1::def_listt::def_listl), Terms.oproc_from_desc_at p (Output((c,tl), t, p1')))
+      (union_list (def_list1::def_listt::def_listl), Terms.oproc_from_desc_loc p (Output((c,tl), t, p1')))
   | Let(PatVar b, t, p1, p2) ->
       let def_list_t = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (Terms.union_binderref def_list_t def_list1, Terms.oproc_from_desc_at p (Let(PatVar b, t, p1', Terms.oproc_from_desc_at p2 Yield)))
+      (Terms.union_binderref def_list_t def_list1, Terms.oproc_from_desc_loc p (Let(PatVar b, t, p1', Terms.oproc_from_desc_loc p2 Yield)))
   | Let(pat, t, p1, p2) ->
       let def_list_pat = put_defined_cond_pat def_list pat in
       let def_list_t = put_defined_cond_t def_list t in
@@ -2238,11 +2178,11 @@ and put_defined_cond_o def_list p =
       let def_list_else = Terms.setminus_binderref def_list2 def_list_common in
       let p1'' = add_def_cond_o def_list_in p1' in
       let p2'' = add_def_cond_o def_list_else p2' in
-      (def_list_common, Terms.oproc_from_desc_at p (Let(pat, t, p1'', p2'')))
+      (def_list_common, Terms.oproc_from_desc_loc p (Let(pat, t, p1'', p2'')))
   | EventP(t,p1) ->
       let def_listt = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (Terms.union_binderref def_listt def_list1, Terms.oproc_from_desc_at p (EventP(t,p1')))
+      (Terms.union_binderref def_listt def_list1, Terms.oproc_from_desc_loc p (EventP(t,p1')))
   | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should have been expanded in Facts.put_defined_cond_o"
       
 (* [update_def_list_term already_defined newly_defined bl def_list tc' p'] 

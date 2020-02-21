@@ -11,7 +11,7 @@ val fresh_repl_index : unit -> repl_index
 (*** Computation of probabilities of collision between terms ***)
 
 (* Recorded term collisions *)
-val term_collisions : collision_state ref
+val term_collisions : term_coll_t list ref
 
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
@@ -40,7 +40,7 @@ val subst_args_proba : binder -> term list -> find_compos_probaf -> find_compos_
 	
 (* Adds a term collision *)
 val add_term_collisions :
-  repl_index list * term list * (binderref * binderref) list * term -> term -> term ->
+  repl_index list * term list * term -> term -> term ->
   binder -> term list option -> (find_compos_probaf * typet list * typet * typet list option) -> bool
 
 (* Computes the probability of term collisions *)
@@ -87,11 +87,6 @@ val is_indep_pat : simp_facts -> (binder * 'a depinfo) -> pattern -> term * type
    are replaced with fresh indices.
    [depinfo] is the dependency information for variable [b].*)
 val remove_dep_array_index : (binder * 'a depinfo) -> term -> term
-
-(* [remove_array_index t] returns a modified version of [t] in which
-   the array indices that are not replication indices are replaced
-   with fresh indices. *) 
-val remove_array_index : term -> term
 
 (* [is_indep_collect_args simp_facts ((b0,l0,depinfo,collect_bargs,collect_bargs_sc) as bdepinfo) t] 
    returns a quadruple [(t_indep, t_eq, dep_types, indep_types_option)]:
@@ -145,7 +140,8 @@ val is_indep_collect_args : simp_facts ->
   val extract_from_status : term -> depend_status -> extracted_depend_status
 
 
-(* [dependency_collision_rec3 cur_array true_facts t1 t2 t] aims 
+(* [dependency_collision_rec cur_array true_facts
+   get_dep_info t1 t2 t] aims 
    to simplify [t1 = t2] by eliminating collisions
    using that randomly chosen values do not depend on other variables.
    Basically, the collision is eliminated when [t1] characterizes
@@ -159,9 +155,10 @@ val is_indep_collect_args : simp_facts ->
    succeeds in simplifying [t1=t2] into [t'].
 
    [cur_array] is the list of current replication indices.
-   [true_facts] is a list of facts that are known to hold. *)
-val dependency_collision_rec3 :
-  repl_index list -> simp_facts -> term -> term -> term -> term option
+   [true_facts] is a list of facts that are known to hold.
+   [get_dep_info (b,l)] returns the dependency information for [(b,l)] *)
+val dependency_collision_rec :
+  repl_index list -> simp_facts -> (binderref -> 'a depinfo) -> term -> term -> term -> term option
 
 (* [try_two_directions f t1 t2] tries a dependency analysis [f]
    on both sides of [t1 = t2] *)

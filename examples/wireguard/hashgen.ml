@@ -84,22 +84,7 @@ param Nh, N, Neq, Ncoll.
 
 fun hash(key, $hashinput%$, $):hashoutput.
 
-equiv(rom(hash))
-      foreach ih <= Nh do k <-R key;
-        (foreach i <= N do OH($x%: hashinput%$, $) := return(hash(k, $x%$, $)) |
-         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := return(r' = hash(k, $x%'$, $)) |
-         foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
-                 return(hash(k, $y%$, $) = hash(k, $z%$, $)))
-       <=(#Oeq * Pcoll1rand(hashoutput) + #Ocoll * Pcoll2rand(hashoutput))=>
-      foreach ih <= Nh do 
-        (foreach i <= N do OH($x%: hashinput%$, $) := 
-	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
-           r <-R hashoutput; return(r) |
-         foreach ieq <= Neq do Oeq($x%': hashinput%$, $, r': hashoutput) := 
-           find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x%' = x%[u]$ && $ then return(r' = r[u]) else
-	   return(false) |
-         foreach icoll <= Ncoll do Ocoll($y%: hashinput%$, $, $z%: hashinput%$, $) := 
-                 return($y% = z%$ && $)).
+equiv(rom(hash)) special rom(\"key_first\", hash, (hk, r, x, y, z, u), (\"large\")).
 
 param qH [noninteractive].
 

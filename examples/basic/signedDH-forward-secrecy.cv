@@ -15,7 +15,7 @@ type signature [bounded].
 
 type Z [large,bounded].
 type G [large,bounded].
-type D [fixed].
+type D [large,fixed].
 
 proof {
 success; (* prove query x:G, y:G, k:D, k':D; event endB(A, B, x, y, k) && endA(A, B, x, y, k') ==> k = k'. *)

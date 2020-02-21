@@ -8,21 +8,6 @@ let front_end = ref Channels
 let start = ref 1
 let final = ref 1
 
-(* [copy f] returns the concatenation of
-   [f n (string_of_int n)] for [n] from 1 to
-   [!max_copy] *) 
-    
-let max_copy = ref 5
-    
-let copy f =
-  let rec aux n =
-    if n = !max_copy then
-      f n (string_of_int n)
-    else
-      (f n (string_of_int n)) ^ (aux (n+1))
-  in 
-  aux 1
-    
 (* Inside [macro], % is replaced with n
    and [$format$sep$] is replaced with
    [format_1 sep ... sep format_n] where 
@@ -76,181 +61,12 @@ let var_arg_macro prefix macro suffix =
     
 (* Random oracles *)
 
-let equiv_random_fun name proba is_large =
-  
-    (* Separator between oracle definitions *)
-    let osep = " |\n         " in
-    (* Oracle declaration for oracle name [ocur] *)
-    let odecl ocur is_eq =
-      "foreach i <= N"^ocur^" do O"^ocur^"($x"^ocur^"_%: input%$, $"^(if is_eq then ", r"^ocur^": output" else "") ^") := "
-    in
-    (* Find prefix *)
-    let find_pref k' =
-      if k' = 1 then "find[unique]" else "orfind"
-    in
-    (* Conditions of find: collision between the current call to [ocur] and a call to [other],
-       the found call is indexed by [u] 
-       First, when the oracle [other] chooses a fresh random r[other]. *)
-    let collision ocur other =
-      " u <= N"^other^" suchthat defined($x"^other^"_%[u]$, $, r"^other^"[u]) && $x"^ocur^"_% = x"^other^"_%[u]$ && $ then "
-    in
-    (* Second, when the oracle [other] makes no choice *)
-    let collision_no_r ocur other =
-      " u <= N"^other^" suchthat defined($x"^other^"_%[u]$, $) && $x"^ocur^"_% = x"^other^"_%[u]$ && $ then "
-    in
-    (* Possible oracle results *)
-    (* f of the current argument *)
-    let f_ret ocur =
-      "return(f(k, $x"^ocur^"_%$, $))"
-    in
-    (* Image by f returned by a previous call to [other] *)
-    let found_f_ret other =
-      "return(f(k, $x"^other^"_%[u]$, $))"
-    in
-    (* Fresh random value *)
-    let rand_ret ocur =
-      "r"^ocur^" <-R output; return(r"^ocur^")"
-    in
-    (* Random value returned by a previous call to [other] *)
-    let found_rand_ret other =
-      "return(r"^other^"[u])"
-    in
-    (* Equality between the output argument and f of the input argument *)
-    let eq_f_ret ocur =
-      "return(r"^ocur^" = f(k, $x"^ocur^"_%$, $))"
-    in
-    (* Equality between the output argument and the image by f returned by a previous call to [other] *)
-    let eq_found_f_ret ocur other =
-      "return(r"^ocur^" = f(k, $x"^other^"_%[u]$, $))"
-    in
-    (* Equality between the output argument and the random value returned by a previous call to [other] *)
-    let eq_out_ret ocur other =
-      "return(r"^ocur^" = r"^other^"[u])" 
-    in
-    let ev_ret = "event_abort ev_coll" in
-    let sum s1 s2 =
-      match s1,s2 with
-      | "","" -> "0"
-      | "",_ -> s2
-      | _,"" -> s1
-      | _ -> s1^" + "^s2
-    in
-    let ncalls =
-      if is_large then
-	"N + Neq + 2 * Ncoll"
-      else
-	"N"
-    in
-    let maxlength =
-      if is_large then
-	"$max(maxlength(x%), maxlength(xeq%), maxlength(y%), maxlength(z%))$, $"
-      else
-	"$maxlength(x%)$, $"
-    in
-    let proba_coll =
-      if is_large then "Neq * Pcoll1rand(output) + Ncoll * Pcoll2rand(output)" else ""
-    in
-    let ncalls_partial =
-      if is_large then
-	"N + Ncut + Neq + Neqcut"^
-	(copy (fun k sk -> " + N"^sk^" + Neq"^sk))^
-	" + 2 * Ncoll"
-      else
-	"N + Ncut "^(copy (fun k sk -> " + N"^sk))
-    in
-    let maxlength_partial =
-      if is_large then
-	"$max(maxlength(x_%), maxlength(xcut_%), maxlength(xeq_%), maxlength(xeqcut_%)"^
-	(copy (fun k sk -> ", maxlength(x"^sk^"_%), maxlength(xeq"^sk^"_%)"))^
-	", maxlength(y%), maxlength(z%))$, $"
-      else
-	"$max(maxlength(x_%), maxlength(xcut_%)"^
-	(copy (fun k sk -> ", maxlength(x"^sk^"_%)"))^")$, $"
-    in
-    let proba_coll_partial =
-      if is_large then
-	"("^(copy (fun k sk -> (if k > 1 then " + " else "") ^ ("Neq"^sk)))^") * Pcoll1rand(output) + Ncoll * Pcoll2rand(output)"
-      else
-	""
-    in
-    "param N, Ncut"^(copy (fun k sk -> ", N"^sk))^".\n"^
-    (if is_large then
-      "param Neq, Neqcut"^(copy (fun k sk -> ", Neq"^sk))^", Ncoll.\n"
-    else "")^
-    "\nfun f(key, $input%$, $):output.\n\n"^
-    (if (!front_end) = ProVerif then "" else 
-"equiv("^name^"(f))
-      k <-R key;
-        (foreach i <= N do O($x%: input%$, $) := return(f(k, $x%$, $))"^(if is_large then " |
-         foreach ieq <= Neq do Oeq($xeq%: input%$, $, req: output) := return(req = f(k, $xeq%$, $)) |
-         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return(f(k, $y%$, $) = f(k, $z%$, $))" else "")^")
-       <=("^(sum (proba ncalls maxlength) proba_coll)^")=>
-         foreach i <= N do O($x%: input%$, $) := 
-	   find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $x% = x%[u]$ && $ then return(r[u]) else
-           r <-R output; return(r)"^(if is_large then " |
-         foreach ieq <= Neq do Oeq($xeq%: input%$, $, req: output) := 
-           find[unique] u <= N suchthat defined($x%[u]$, $, r[u]) && $xeq% = x%[u]$ && $ then return(req = r[u]) else
-	   return(false) |
-         foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return($y% = z%$ && $)" else "")^".
+let equiv_random_fun name opt_proba_arg is_large =  
+  "fun f(key, $input%$, $):output.\n\n"^
+  (if (!front_end) = ProVerif then "" else 
+"equiv("^name^"(f)) special "^name^"(\"key_first\", f"^opt_proba_arg^(if is_large then ", (\"large\")" else "")^ ").
 
-event ev_coll.
-
-equiv("^name^"_partial(f))
-      k <-R key;\n        ("
-			  ^(odecl "" false)^(f_ret "")
-			  ^osep^(odecl "cut" false)^(f_ret "cut")
-			  ^(copy (fun k ocur -> 
-			      osep^(odecl ocur false)^(f_ret ocur))) 
-			  ^(if is_large then
-			    osep^(odecl "eq" true)^(eq_f_ret "eq")
-			    ^osep^(odecl "eqcut" true)^(eq_f_ret "eqcut")
-			    ^(copy (fun k sk -> let ocur = "eq"^sk in
-			    osep^(odecl ocur true)^(eq_f_ret ocur)))
-^osep^"foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return(f(k, $y%$, $) = f(k, $z%$, $))" else "")^")
-       <=("^(sum (proba ncalls_partial maxlength_partial) proba_coll_partial)^")=> [manual]
-      k <-R key;\n        ("
-			  ^(odecl "" false)
-			  ^ (copy (fun k' other -> 
-			  "\n          "^(find_pref k') ^ (collision "" other) ^(found_rand_ret other)))^
-			  "\n          else "^(f_ret "")
-
-			  ^osep^(odecl "cut" false)
-			  ^(copy (fun k' other -> 
-			  "\n          "^(find_pref k') ^ (collision "cut" other) ^ ev_ret))^
-			  "\n          else "^(f_ret "cut")
-
-			  ^(copy (fun k ocur -> 
-			  osep^(odecl ocur false)
-			  ^ (copy (fun k' other -> 
-			  "\n          "^(find_pref k') ^ (collision ocur other) ^ (if k = k' then found_rand_ret other else ev_ret)))^
-			  "\n          else find"^(collision_no_r ocur "cut")^ev_ret^
-                          "\n          else find"^(collision_no_r ocur "")^(found_f_ret "")^
-			  "\n          else "^(rand_ret ocur)))
-			      
-			  ^(if is_large then
-			    osep^(odecl "eq" true)
-			  ^(copy (fun k' other -> 
-			  "\n          "^(find_pref k') ^ (collision "eq" other) ^ (eq_out_ret "eq" other)))^
-			  "\n          else "^(eq_f_ret "eq")
-
-			  ^osep^(odecl "eqcut" true)
-			  ^(copy (fun k' other ->
-			  "\n          "^(find_pref k') ^ (collision "eqcut" other) ^ev_ret))^
-			  "\n          else "^(eq_f_ret "eqcut")
-								       
-			  ^ (copy (fun k sk -> let ocur = "eq"^sk in
-			  osep^(odecl ocur true)
-			  ^ (copy (fun k' other -> 
-			  "\n          "^(find_pref k') ^ (collision ocur other) ^ (if k = k' then eq_out_ret ocur other else ev_ret)))^
-			  "\n          else find"^(collision_no_r ocur "cut")^ev_ret^
-			  "\n          else find"^(collision_no_r ocur "")^(eq_found_f_ret ocur "")^
-			  "\n          else return(false)"))
-
-^osep^"foreach icoll <= Ncoll do Ocoll($y%: input%$, $, $z%: input%$, $) := 
-                 return($y% = z%$ && $)" else "")^").\n\n")
+equiv("^name^"_partial(f)) special "^name^"_partial(\"key_first\", f"^opt_proba_arg^(if is_large then ", (\"large\")" else "")^ ") [manual].\n\n")
 
 
 let call_f_oracle() =
@@ -312,7 +128,7 @@ let rom_hash_large_prefix =
 let rom_hash_macro is_large =
   let large_st = if is_large then "_large" else "" in
   "def ROM_hash"^large_st^"_%(key, $input%$, $, output, f, f_oracle, qH) {\n\n"^
-  (equiv_random_fun "rom" (fun _ _ -> "") is_large)^
+  (equiv_random_fun "rom" ", (hk, r, x, y, z, u)" is_large)^
   (call_f_oracle())^"\n\n}\n\n"
 
 
@@ -691,7 +507,7 @@ let prf_large_prefix =
 let prf_macro is_large  =
   let large_st = if is_large then "_large" else "" in
   "def PRF"^large_st^"_%(key, $input%$, $, output, f, Pprf) {\n\n"^
-  (equiv_random_fun "prf" (fun ncalls maxlength -> "Pprf(time, "^ncalls^", "^maxlength^")") is_large)^
+  (equiv_random_fun "prf" ", Pprf, (k, r, x, y, z, u)" is_large)^
   "\n\n}\n\n"
 
 let prf_suffix is_large =
@@ -932,14 +748,6 @@ let _ =
           prerr_string "Command-line option -out expects argument either \"channels\", \"oracles\", or \"proverif\".\n";
           exit 2),
       "channels / -out oracles / -out proverif \tchoose the front-end";
-      "-dist_oracles", Arg.Int (fun n ->
-	if n < 2 || n > 100 then
-	  begin
-	    prerr_string "Argument of -dist_oracles should be between 2 and 100.\n";
-	    exit 2
-	  end;
-	max_copy := n),
-      "<n>\tset the number of distinct oracles in ROM, PRF, ...";
       "-args", Arg.Int (fun n ->
 	if n < 0 || n > 100 then
 	  begin

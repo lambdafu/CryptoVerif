@@ -1,0 +1,84 @@
+(**********************************************************************
+*
+* Security of the CBC mac
+*
+*  * Blocks: 2
+*  * Result: unknown
+*
+*
+***********************************************************************)
+
+set interactiveMode = true.
+
+proof {
+      insert after "Otag" "find u <= N_tag suchthat defined(b1[u],b2[u],tag2[u]) && b1 = b1[u] && b2 = b2[u] then";
+      (* TODO we would like to insert a variable definition "else_br <- true"
+      	 in the else branch of the find that we insert, and add "else_br[u]"
+	 to the defined condition, so that the then branch is taken only
+	 with the index u corresponding to the *first* time tag2[u] is set. 
+	 We should generalize the insert transformation to allow that. *)
+      show_game occ;
+      replace 29 "tag2[u]";
+      remove_assign useless;
+      show_game occ;
+      crypto prp_partial(aes_enc) [ terms: 34 -> O_1, 39 -> O_2 ];
+      insert before "re_3 <-R block" "re' <-R block"; 
+      merge_branches;
+      simplify(*;
+      insert after "Otag" "find j <= N_tag suchthat defined(b1[j],b2[j],re_2[j]) && b1 = b1[j] && b2 = b2[j] then";
+      simplify;
+      insert_event bad before_nth 2 "tag2:";
+      SArename tag2;
+      remove_assign useless;
+      insert after "Otag" "find[unique] j <= N_tag suchthat defined(b1[j],b2[j],re_2[j]) && b1 = b1[j] && b2 = b2[j] then";
+      simplify;
+      remove_assign useless;
+      interactive*)
+}
+
+type block [fixed, large].
+type aes_key [large, bounded].
+proba Paes.
+expand PRP_cipher(aes_key, block, aes_enc, aes_dec, Paes).
+
+
+(* define xor to exist over blocks *)
+expand Xor(block, xor, zero_block).
+
+
+
+(* Parameters *)
+
+param N_tag. (* the number of times the adversary gets to call the encryption oracle *)
+
+
+let tag_oracle(aesk: aes_key) = 
+    Otag(b1 : block, b2 : block):=
+       
+       tag1 <- aes_enc(b1, aesk);
+       tag2 <- aes_enc( xor(tag1, b2), aesk);
+       return (tag2).
+
+equivalence
+	Ostart() :=
+	(* Choose the key *)
+        aesk <-R aes_key;
+	return;
+        (foreach i <= N_tag do run tag_oracle(aesk)) 
+
+	
+	Ostart() :=
+	return;
+ 	(foreach i <= N_tag do
+	Otag(b1 : block, b2 : block):=
+	(* ideal PRF *)
+	find j <= N_tag suchthat defined(b1[j],b2[j],res[j]) && b1 = b1[j] && b2 = b2[j]
+	then return(res[j])
+	else res <-R block; return(res))
+
+(* DESIRED
+All queries proved
+EXPECTED
+RESULT Could not prove indistinguishability between game 1 and game 2.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

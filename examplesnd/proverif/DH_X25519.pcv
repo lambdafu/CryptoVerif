@@ -29,7 +29,7 @@ type signature [bounded].
 
 type Z [large,bounded].
 type G [large,bounded].
-type D [fixed].
+type D [large, fixed].
 
 (* Let's use curve 25519 *)
 type subG [large,bounded].

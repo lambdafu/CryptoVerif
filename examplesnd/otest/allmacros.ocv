@@ -250,7 +250,7 @@ expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen10, skgen10, f
 expand set_PD_OW_trapdoor_perm_all_args(seed, pkey, skey, D, Dow, Dr, pkgen10', pkgen10'', skgen10', f10', f10'', invf10', concat10', P_PD_OW).
 
 type input.
-type output [bounded].
+type output [large, bounded].
 proba Pprf.
 expand PRF(key, input, output, f, Pprf).
 type input1.

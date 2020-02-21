@@ -27,9 +27,9 @@ proof {
       start_from_other_end;
       crypto rom(H2);
       show_game;
-      (* remove assignements x1_3 = H1(..), to make tests H1(..) = ..
+      (* remove assignements x_O_7 = H1(..), to make tests H1(..) = ..
          appear explicit. These tests are nicely simplified by rom(H1). *)
-      remove_assign binder x1_3;
+      remove_assign binder x_O_7;
       crypto rom(H1);
       show_game occ;
       (* At the beginning of OH2, insert this "find", to distinguish

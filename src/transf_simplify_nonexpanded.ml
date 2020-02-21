@@ -57,9 +57,9 @@ let rec filter_find tfind = function
 let rec simplify_cterm t =
   let pp = DTerm t in
   match t.t_desc with
-    Var(b,l) -> Terms.build_term2 t (Var(b, List.map simplify_cterm l))
-  | ReplIndex i -> Terms.build_term2 t (ReplIndex i)
-  | FunApp(f,l) -> Terms.build_term2 t (FunApp(f, List.map simplify_cterm l))
+    Var(b,l) -> Terms.build_term t (Var(b, List.map simplify_cterm l))
+  | ReplIndex i -> Terms.build_term t (ReplIndex i)
+  | FunApp(f,l) -> Terms.build_term t (FunApp(f, List.map simplify_cterm l))
   | TestE(t1,t2,t3) -> 
       (* Some trivial simplifications *)
       let t1' = simplify_term t1 in
@@ -76,7 +76,7 @@ let rec simplify_cterm t =
 	  simplify_cterm t3
 	end
       else
-      Terms.build_term2 t (TestE(simplify_cterm t1', simplify_cterm t2, simplify_cterm t3))
+      Terms.build_term t (TestE(simplify_cterm t1', simplify_cterm t2, simplify_cterm t3))
   | FindE(l0,t3, find_info) -> 
       (* Remove useless branches if possible *)
       let l0 = filter_find t l0 in
@@ -93,7 +93,7 @@ let rec simplify_cterm t =
 	(bl, def_list, t1', t2')) l0
       in
       let t3' = simplify_cterm t3 in
-      Terms.build_term2 t (FindE(l0', t3', find_info))
+      Terms.build_term t (FindE(l0', t3', find_info))
   | LetE(pat, t1, t2, topt) ->
       let pat' = simplify_pat pat in
       let t1' = simplify_cterm t1 in
@@ -102,15 +102,15 @@ let rec simplify_cterm t =
 	None -> None
       | Some t3 -> Some (simplify_cterm t3)
       in
-      Terms.build_term2 t (LetE(pat', t1', t2', topt'))
+      Terms.build_term t (LetE(pat', t1', t2', topt'))
   | ResE(b,t1) ->
-      Terms.build_term2 t (ResE(b, simplify_cterm t1))
+      Terms.build_term t (ResE(b, simplify_cterm t1))
   | EventAbortE(f) ->
-      Terms.build_term2 t (EventAbortE(f))
+      Terms.build_term t (EventAbortE(f))
   | EventE(t1,p) ->
       let t1' = simplify_cterm t1 in
       let p' = simplify_cterm p in
-      Terms.build_term2 t (EventE(t1', p'))
+      Terms.build_term t (EventE(t1', p'))
   | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_expand.simplify_cterm"
 

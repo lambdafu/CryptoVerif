@@ -1667,28 +1667,17 @@ param N, Ncoll, Nk.
 fun enc(blocksize, key): blocksize.
 fun dec(blocksize, key): blocksize.
 
-equation forall m:blocksize, k:key; 
-	dec(enc(m, k), k) = m.
-equation forall m:blocksize, k:key; 
-	enc(dec(m, k), k) = m.
-equation forall m1:blocksize, m2:blocksize, k:key; 
-	(dec(m1, k) = dec(m2, k)) = (m1 = m2).
+equation forall c:blocksize, k:key; 
+	enc(dec(c, k), k) = c.
+equation forall m:blocksize, c:blocksize, k:key; 
+	(dec(c, k) = m) = (enc(m, k) = c).
 equation forall m1:blocksize, m2:blocksize, k:key; 
 	(enc(m1, k) = enc(m2, k)) = (m1 = m2).
 
-equiv(prp(enc))
-       k <-R key; 
-       	       (foreach i <= N do Oenc(x:blocksize) := return(enc(x, k)) |
-	        foreach icoll <= Ncoll do Oenccoll(x':blocksize, re':blocksize) := return(enc(x', k) = re'))
-     <=(Penc(time, N+Ncoll) +
-        N * (N-1) * Pcoll2rand(blocksize) +
-	Ncoll * Pcoll1rand(blocksize))=>
-       	       foreach i <= N do Oenc(x:blocksize) := 
-		find[unique] j<=N suchthat defined(x[j],re[j]) && x = x[j] then return(re[j])
-		else re <-R blocksize; return(re) |
-               foreach icoll <= Ncoll do Oenccoll(x':blocksize, re':blocksize) := 
-		find[unique] j<=N suchthat defined(x[j],re[j]) && x' = x[j] then return(re[j] = re')
-		else return(false).
+equiv(prp(enc)) special prp("key_last", enc, Penc, (k, re, x, y, z, u), ("large")).
+
+equiv(prp_partial(enc)) special prp_partial("key_last", enc, Penc, (k, re, x, y, z, u), ("large")) [manual].
+
 }
 
 

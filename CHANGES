@@ -3,6 +3,17 @@ of the cryptographic protocol verifier.
 
 Version
 
+- The game equivalences used in crypto transformations for
+  ROM, PRF, and PRP are now generated on-demand by CryptoVerif.
+  That allows more flexibility to optimize these equivalences.
+  (See the documentation for equiv...special and the cryptographic
+  library macros ROM_hash*, PRF*, and PRP_cipher in the manual.)
+- Added command-line option -oequiv <filename> which appends
+  the generated special equivalences to <filename>.
+- Added interactive commands show_equiv <crypto_args> to display
+  the game equivalence corresponding to <crypto_args>, and
+  out_equiv <filename> <crypto_args> to output it to <filename>.
+- Fixed bug in computation of probabilities for collision statements.
 - Fixed bug in transformation of find[unique] inside a branch of
   find[unique]: required "defined" conditions were sometimes missing.
 

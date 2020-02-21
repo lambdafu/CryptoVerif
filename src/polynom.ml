@@ -102,9 +102,48 @@ let p_add(x,y) =
   | _ -> Add(x,y)
   
 let rec p_sum = function
-  [] -> Zero
-| [a] -> a
-| (a::l) -> p_add(a, p_sum l)
+  | [] -> Zero
+  | [a] -> a
+  | (a::l) -> p_add(a, p_sum l)
+
+type max_val =
+  | MNone
+  | MCst of float
+
+type max_accu = max_val * probaf list
+
+      (* max_accu = (MNone, l) -> take the maximum of l
+                    (MCst x, l) -> take max(x, maximum of l) *)
+      
+
+let empty_max_accu = (MNone, [])
+      
+let p_max = function
+  | MNone, [] -> Cst neg_infinity
+  | MCst 0.0, [] -> Zero
+  | MCst x, [] -> Cst x
+  | MNone, [a] -> a
+  | MCst 0.0, l -> Max(Zero :: l)
+  | MCst x, l -> Max((Cst x)::l)
+  | _, l -> Max(l)
+
+let maxmval mv1 mv2 =
+  match mv1,mv2 with
+  | MNone, _ -> mv2
+  | _, MNone -> mv1
+  | MCst x, MCst y -> 
+      if x >= y then mv1 else mv2
+	
+let rec add_max accu = function
+  | Max(l) -> List.iter (add_max accu) l
+  | x ->
+      let (mval, l) = !accu in
+      match x with
+      | Cst y -> accu := (maxmval (MCst y) mval, l)
+      | Zero -> accu := (maxmval (MCst 0.0) mval, l)
+      | _ -> 
+	  if not (List.exists (Terms.equal_probaf x) l) then
+	    accu := (mval, x :: l)
 
 (* 3.1 Conversion probaf_to_polynom *)
 
