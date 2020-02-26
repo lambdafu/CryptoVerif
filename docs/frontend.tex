@@ -2072,14 +2072,22 @@ Section~\ref{sect:prim}, or copy-pasting declarations from examples.
   The following values of $\mathit{specialname}$ are supported:
   \texttt{rom} and \texttt{rom\_partial} for random oracles,
   \texttt{prf} and \texttt{prf\_partial} for pseudo-random functions, 
-  \texttt{prp} and \texttt{prp\_partial} for pseudo-random permutations.
+  \texttt{prp} and \texttt{prp\_partial} for pseudo-random permutations,
+  \texttt{sprp} and \texttt{sprp\_partial} for super pseudo-random permutations (pseudo-random permutations whose inverse is also a pseudo-random permutations),
+  \texttt{icm} and \texttt{icm\_partial} for the ideal cipher model.
 
+  Let us first explain the cases
+  \texttt{rom}, \texttt{rom\_partial},
+  \texttt{prf}, \texttt{prf\_partial}, 
+  \texttt{prp}, and \texttt{prp\_partial}.
   They take the following arguments $\seq{specialarg} = a_1, \dots a_n$:
   \begin{enumerate}
 
-\item A string $\mathit{key\_pos}$, which can be $\texttt{"key\_first"}$
-when the key is the first argument of the considered function or
-$\texttt{"key\_last"}$ when it is the last argument.
+\item A string $\mathit{key\_pos}$, which can be \texttt{"key\_first"}
+when the key is the first argument of the considered function,
+\texttt{"key\_last"} when it is the last argument, or
+\texttt{"key $n$"} when it is its $n$-th argument. ($n$ is an integer
+between 1 and the number of arguments of $f$.)
 
 \item An identifier $f$, the considered function. The function $f$
 must be declared before the $\texttt{equiv}$
@@ -2098,16 +2106,18 @@ we must be able to choose an element randomly in the type of the key
 and in the type of the result of $f$, that is, these types must be
 declared \texttt{fixed}, \texttt{bounded}, or \texttt{nonuniform}.
 
-\item When $\mathit{specialname}$ is
-  not \texttt{rom} nor \texttt{rom\_partial}, an identifier
-  $\mathit{p}$ such that $\mathit{p}(t, N, l)$ is the probability that
-  an adversary breaks the PRF (resp. PRP) assumption in time $t$, with
-  at most $N$ queries to the function $f$, of length at most $l$. The
-  identifier $\mathit{p}$ must be declared with $\texttt{proba}\
-  p$. This argument is omitted for random oracles because the
-  probability is always 0.
+\item When $\mathit{specialname}$ is not \texttt{rom} nor
+  \texttt{rom\_partial}, an identifier $\mathit{p}$ such that
+  $\mathit{p}(t, N, l_1, \dots, l_m)$ is the probability that an
+  adversary breaks the PRF (resp. PRP) assumption in time $t$, with at
+  most $N$ queries to the function $f$, with arguments of lengths at
+  most $l_1, \dots, l_m$. The length is omitted when the corresponding
+  type is bounded. The identifier $\mathit{p}$ must be declared with
+  $\texttt{proba}\ p$. This argument is omitted for random oracles
+  because the probability is always 0.
 
-\item A tuple of identifiers $(k, r, x, y, z, u)$, which are used to
+\item A tuple of identifiers $(k, r, x, y, z, u)$ for ROM and PRF,
+$(k, r, x, u)$ for PRP, which are used to
 determine identifiers of variables in the generated equivalence:
 \begin{itemize}
 \item $k$ is the identifier of the key;
@@ -2130,7 +2140,7 @@ the user to have stable identifiers in the generated equivalence.
 \item A tuple of strings $\mathit{collisions\_LHS}$, which can be either \texttt{("large")} or a tuple of strings of the following forms:
   \begin{itemize}
   \item $\texttt{"}\mathit{Ocoll}: \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; \Resa{r_1}{T}; M\texttt{"}$
-    where $T$ is the type of the result of $f$ and the simple term $M$ that uses the variables $a_1, \dots a_n, r_1$. In this case, CryptoVerif tries
+    where $T$ is the type of the result of $f$ and the simple term $M$ uses the variables $a_1, \dots a_n, r_1$. In this case, CryptoVerif tries
     to simplify $M$ assuming $r_1$ is a random value and $a_1, \dots, a_n$ do not depend on $r_1$. If it
     rewrites $M$ into a term $N$ that does not contain $r_1$, then it uses this information to transform
     terms $M\{f(\dots)/r_1\}$ into $N$ when the result of $f(\dots)$ is a fresh random value, in the generated
@@ -2149,15 +2159,14 @@ If it succeeds, then it uses this information to transform terms $M\{f(args_1)/r
 $\texttt{if }args_1 = args_2 \texttt{ then }N_1\texttt{ else }N_2$, in the generated cryptographic transformation.
   \end{itemize}
   Obviously, when $n = 0$, $\texttt{forall}\ a_1:T_1, \dots, a_n:T_n; $ is omitted.
-  The identifiers $\mathit{Ocoll}$ are used to form the oracle names in the generated equivalence (see below); they must not contan \texttt{\_}, and must be different from \texttt{O} and pairwise distinct.
+  The identifiers $\mathit{Ocoll}$ are used to form the oracle names in the generated equivalence (see below); they must not contain \texttt{\_}, and must be different from \texttt{O} and pairwise distinct.
   Only the first form is allowed for \texttt{prp} and \texttt{prp\_partial}.
   Even when a single string is present, the argument must be a tuple of strings,
   so this string must be between parentheses.
 
   When $\mathit{collisions\_LHS}$ is \texttt{("large")}, the type $T$ of the result of $f$
 must be large enough so that collisions between a random element of
-the domain and an independent value can be eliminated (because we
-model a PRF and apply the PRF/PRP switching lemma), that is,
+the domain and an independent value can be eliminated, that is,
 $\texttt{Pcoll1rand}(T) \leq 2^{-n'}$, that is, $T$ has
 option \texttt{pcoll$n$} with $n \geq n'$ where $n'$ is set by
 $\texttt{set minAutoCollElim} = \texttt{pest}n'$; the default is $n' =
@@ -2240,6 +2249,134 @@ of terms that should be transformed by an oracle different
 from $\mathit{prefix}\texttt{\_leave}$.
 (See file \nolinkurl{examples/arinc823/sharedkey/lemmaEnc_equiv_v2_optim.ocv}
 for an example with \texttt{prf\_partial}.)
+
+Let us now explain the cases \texttt{sprp}, \texttt{sprp\_partial},
+  \texttt{icm}, and \texttt{icm\_partial}.
+  They take the following arguments $\seq{specialarg} = a_1, \dots a_n$:
+\begin{enumerate}
+
+\item A tuple of strings $\mathit{arg\_order}$, which contains the strings
+\texttt{"msg"}, \texttt{"key"}, and for \texttt{icm} and \texttt{icm\_partial}, \texttt{"local\_key"}, in the order in which the encryption and decryption functions take their arguments. (For the ideal cipher model, the \texttt{"key"} is the key that models the choice of the encryption scheme, and the \texttt{"local\_key"} is the key passed to each encryption and decryption.)
+
+\item A identifier $\mathit{enc}$ and an identifier $\mathit{dec}$, which are respectively the encryption and decryption functions. These functions must have the same type, and take arguments as specified by $\mathit{arg\_order}$.
+We must be able to choose an element randomly in the type of the argument \texttt{"key"}
+and in the type of the result of $\mathit{enc}$ and $\mathit{dec}$, that is, these types must be
+declared \texttt{fixed}, \texttt{bounded}, or \texttt{nonuniform}.
+The type of the argument \texttt{"msg"} must be the same as the type of the result of $\mathit{enc}$ and $\mathit{dec}$. ($\mathit{enc}$ and $\mathit{dec}$ are permutations of this type.)
+This type $T$ must be large enough so that collisions between a random element of
+this type and an independent value can be eliminated (because we
+model a PRF and apply the PRF/PRP switching lemma), that is,
+$\texttt{Pcoll1rand}(T) \leq 2^{-n'}$, that is, $T$ has
+option \texttt{pcoll$n$} with $n \geq n'$ where $n'$ is set by
+$\texttt{set minAutoCollElim} = \texttt{pest}n'$; the default is $n' =
+80$.
+
+\item When $\mathit{specialname}$ is \texttt{sprp} or
+  \texttt{sprp\_partial}, an identifier $\mathit{p}$ such that
+  $\mathit{p}(t, N, N', l, l')$ is the probability that an adversary
+  breaks the SPRP assumption in time $t$, with at most $N$ queries to
+  the function $\mathit{enc}$, with messages of length at most $l$,
+  and at most $N'$ queries to the function $\mathit{dec}$, with
+  ciphertexts of length at most $l'$. The lengths are omitted when the
+  type is bounded. The identifier $\mathit{p}$ must be declared with
+  $\texttt{proba}\ p$. This argument is omitted for the ideal cipher
+  model because the probability is always 0.
+
+\item A tuple of identifiers $(k, lk, m, c, u)$ for ICM,
+$(k, m, c, u)$ for SPRP, which are used to
+determine identifiers of variables in the generated equivalence:
+\begin{itemize}
+\item $k$ is the identifier of the key;
+\item $lk$ is the identifier of the local key;
+\item $m$ is the identifier of cleartext messages;
+\item $c$ is the identifier of ciphertexts;
+\item $u$ is the identifier used for indices of {\tt find}.
+\end{itemize}
+The identifiers $lk$, $m$, $c$, $u$ are suffixed by \texttt{\_} and the
+name of the oracle in which they are used. 
+Moreover, if needed to avoid name clashes or to generate several variables,
+a suffix $\_n$ may be added to these identifiers or modified if they
+already have one. Using identifiers not used elsewhere allows
+the user to have stable identifiers in the generated equivalence.
+
+\item A tuple of strings $\mathit{collisions\_LHS}$, which can be either \texttt{("large")} or a tuple of strings of the following form:
+\[\texttt{"}\mathit{Ocoll}: \texttt{forall}\ a_1:T_1, \dots, a_n:T_n; \Resa{r_1}{T}; M\texttt{"}\]
+    where $T$ is the type of the result of $\mathit{enc}$ and the simple term $M$ uses the variables $a_1, \dots a_n, r_1$. In this case, CryptoVerif tries
+    to simplify $M$ assuming $r_1$ is a random value and $a_1, \dots, a_n$ do not depend on $r_1$. If it
+    rewrites $M$ into a term $N$ that does not contain $r_1$, then it uses this information to transform
+    terms $M\{f(\dots)/r_1\}$ into $N$ when the result of $f(\dots)$ is a fresh random value, in the generated
+    cryptographic transformation.
+  Obviously, when $n = 0$, $\texttt{forall}\ a_1:T_1, \dots, a_n:T_n; $ is omitted.
+  The identifiers $\mathit{Ocoll}$ are used to form the oracle names in the generated equivalence (see below); they must not contain \texttt{\_}, and must be different from \texttt{O} and pairwise distinct.
+  Even when a single string is present, the argument must be a tuple of strings,
+  so this string must be between parentheses.
+
+  When $\mathit{collisions\_LHS}$ is \texttt{("large")}, this is equivalent to $\mathit{collisions\_LHS}$ containing:
+  \[\texttt{"Oeq:}\ \texttt{forall}\ a_1:T; \Resa{r_1}{T}; r_1 = a_1\texttt{"}\]
+  Assuming $a_1$ does not depend on $r_1$, $r_1 = a_1$ simplifies into
+  $\texttt{false}$, so $f(\dots) = a_1$ is transformed into
+  $\texttt{false}$ in the generated cryptographic transformation, when
+  the result of $f(\dots)$ is a fresh random value.
+
+The argument $\mathit{collisions\_LHS}$ can be overriden when the 
+equivalence is used in a \texttt{crypto} command, by passing
+the desired $\mathit{collisions\_LHS}$ as special argument to the 
+\texttt{crypto} command. 
+
+\end{enumerate}
+The last or the last two arguments may be omitted.
+
+When $\mathit{specialname}$ is \texttt{icm} or \texttt{sprp},
+the generated equivalence provides the following oracles:
+\begin{itemize}
+\item Oracle \texttt{O\_enc} evaluates $\mathit{enc}$ on its arguments in the
+  left-hand side, and performs a lookup into previous cleartexts (and
+  local keys for \texttt{icm}) of calls to \texttt{O\_enc}
+  and \texttt{O\_dec} in the right-hand side: it returns the previous
+  ciphertext when the current arguments are equal to previous cleartexts
+  (and local keys for \texttt{icm}) and otherwise it returns a fresh
+  random value.
+
+\item Oracle \texttt{O\_dec} evaluates $\mathit{dec}$ on its arguments in the
+  left-hand side, and performs a lookup into previous ciphertexts (and
+  local keys for \texttt{icm}) of calls to \texttt{O\_enc}
+  and \texttt{O\_dec} in the right-hand side: it returns the previous
+  cleartext when the current arguments are equal to previous ciphertexts
+  (and local keys for \texttt{icm}) and otherwise it returns a fresh
+  random value.
+
+\item For each element of $\mathit{collisions\_LHS}$, oracles
+  $\mathit{Ocoll\_enc}$ and $\mathit{Ocoll\_dec}$ evaluate $M$ with
+  $r_i$ replaced with a call to $\mathit{enc}$ (resp. $\mathit{dec}$)
+  in left-hand side and uses the simplified form of $M$ in the
+  right-hand side.
+
+\end{itemize}
+When $\mathit{specialname}$ is \texttt{icm\_partial} or \texttt{sprp\_partial},
+the generated equivalence provides oracles named
+$\mathit{prefix}\texttt{\_}\mathit{middle}\texttt{\_}\mathit{suffix}$
+where $\mathit{prefix}$ is \texttt{O} or an identifier $\mathit{Ocoll}$ from a collision in $\mathit{collisions\_LHS}$,
+$\mathit{middle}$ is \texttt{enc} or \texttt{dec},
+and $\mathit{suffix}$ is arbitrary. These oracles act like the oracle $\mathit{prefix}\texttt{\_}\mathit{middle}$ when $\mathit{specialname}$ is \texttt{icm} (resp. \texttt{sprp}), except that it uses a collision matrix to determine whether arguments
+  of oracles with various suffixes are allowed to collide with non-negligible
+  probability. By default, this collision matrix says that 
+  the arguments of two oracles are allowed to collide when they have the same suffix
+  or when one of the suffixes is \texttt{default}.
+  A different collision matrix can be specified by passing
+  a string as a special argument to the \texttt{crypto} command, which can be
+either \texttt{"no collisions"} or statements $\neseq{suffix}$ {\tt may collide with previous} $\neseq{suffix}$
+separated by semi-colons (\texttt{;}). \texttt{"no collisions"} says that the arguments of two oracle calls are never allowed to collide.
+$\mathit{suffix}_1, \dots, \mathit{suffix}_n$ {\tt may collide with previous} $\mathit{suffix}'_1, \dots, \mathit{suffix}'_{n'}$ says that the arguments of oracles with suffix $\mathit{suffix}_i$ ($i \in \{1, \dots, n\}$) are allowed to collide with arguments of previous calls to oracles with suffix $\mathit{suffix}'_j$ ($j \in \{1, \dots, n'\}$).
+In the right-hand side, the oracles execute \texttt{event\_abort ev\_coll} when a disallowed collision happens. That avoids generating further code in this case, and thus may considerably reduce the size of the generated game after applying the cryptographic transformation. However, in case a disallowed collision actually happens with non-negligible probability, CryptoVerif will be unable to prove that event \texttt{ev\_coll} does not happen, so the proof will fail.
+
+The oracles with suffix \texttt{default} are generated
+by default. The other oracles are generated on demand when
+they are present in the \texttt{terms:} information of the
+\texttt{crypto} command. Therefore, you must explicitly
+mention in the \texttt{terms:} information all occurrences
+of terms that should be transformed by an oracle with a suffix different
+from \texttt{default}.
+
 
 The \texttt{[manual]} option, when it is present in the declaration,
 prevents the automatic application of the transformation. The transformation

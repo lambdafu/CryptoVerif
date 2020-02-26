@@ -4,10 +4,11 @@ of the cryptographic protocol verifier.
 Version
 
 - The game equivalences used in crypto transformations for
-  ROM, PRF, and PRP are now generated on-demand by CryptoVerif.
+  ROM, PRF, PRP, SPRP, and ICM are now generated on-demand by CryptoVerif.
   That allows more flexibility to optimize these equivalences.
   (See the documentation for equiv...special and the cryptographic
-  library macros ROM_hash*, PRF*, and PRP_cipher in the manual.)
+  library macros ROM_hash*, PRF*, PRP_cipher, SPRP_cipher, ICM_cipher
+  in the manual.)
 - Added command-line option -oequiv <filename> which appends
   the generated special equivalences to <filename>.
 - Added interactive commands show_equiv <crypto_args> to display

@@ -576,44 +576,23 @@ let enc_dec_oracle(ck: cipherkey) =
 
 def ICM_cipher(cipherkey, key, blocksize, enc, dec, enc_dec_oracle, qE, qD) {
 
-param Ne, Nd, Necoll, Ndcoll, Nck.
-
 fun enc(cipherkey, blocksize, key): blocksize.
 fun dec(cipherkey, blocksize, key): blocksize.
 
-equation forall ck:cipherkey, m:blocksize, k:key; 
-	dec(ck, enc(ck, m, k), k) = m.
+equation forall ck:cipherkey, m:blocksize, k:key;
+        dec(ck, enc(ck, m, k), k) = m.
 equation forall ck:cipherkey, m:blocksize, k:key; 
 	enc(ck, dec(ck, m, k), k) = m.
-equation forall ck:cipherkey, m1:blocksize, m2:blocksize, k:key; 
-	(dec(ck, m1, k) = dec(ck, m2, k)) = (m1 = m2).
+equation forall ck:cipherkey, m1:blocksize, m2:blocksize, k:key;
+        (dec(ck, m1, k) = dec(ck, m2, k)) = (m1 = m2).
 equation forall ck:cipherkey, m1:blocksize, m2:blocksize, k:key; 
 	(enc(ck, m1, k) = enc(ck, m2, k)) = (m1 = m2).
 
-equiv(icm(enc))
-       foreach ick <= Nck do ck <-R cipherkey;
-         (foreach ie <= Ne do Oenc(me:blocksize, ke:key) := return(enc(ck, me, ke)) |
-          foreach id <= Nd do Odec(md:blocksize, kd:key) := return(dec(ck, md, kd)) |
-	  foreach iecoll <= Necoll do Oenccoll(me':blocksize, ke':key, re': blocksize) := return(enc(ck, me', ke') = re') |
-	  foreach idcoll <= Ndcoll do Odeccoll(md':blocksize, kd':key, rd': blocksize) := return(dec(ck, md', kd') = rd'))
-     <=((#Oenc+#Odec)*(#Oenc+#Odec-1)*Pcoll2rand(blocksize) + (#Oenccoll + #Odeccoll) * Pcoll1rand(blocksize))=>
-       foreach ick <= Nck do 
-         (foreach ie <= Ne do Oenc(me:blocksize, ke:key) :=
-		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && me = me[j] && ke = ke[j] then return(re[j]) 
-		orfind k<=Nd suchthat defined(rd[k],md[k],kd[k]) && me = rd[k] && ke = kd[k] then return(md[k]) 
-		else re <-R blocksize; return(re) |
-          foreach id <= Nd do Odec(md:blocksize, kd:key) :=
-		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && md = re[j] && kd = ke[j] then return(me[j]) 
-		orfind k<=Nd suchthat defined(rd[k],md[k],kd[k]) && md = md[k] && kd = kd[k] then return(rd[k]) 
-		else rd <-R blocksize; return(rd) |
-	  foreach iecoll <= Necoll do Oenccoll(me':blocksize, ke':key, re': blocksize) :=
-		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && me' = me[j] && ke' = ke[j] then return(re' = re[j]) 
-		orfind k<=Nd suchthat defined(rd[k],md[k],kd[k]) && me' = rd[k] && ke' = kd[k] then return(re' = md[k]) 
-		else return(false) |
-          foreach idcoll <= Ndcoll do Odeccoll(md':blocksize, kd':key, rd': blocksize) :=
-		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && md' = re[j] && kd' = ke[j] then return(rd' = me[j]) 
-		orfind k<=Nd suchthat defined(rd[k],md[k],kd[k]) && md' = md[k] && kd' = kd[k] then return(rd' = rd[k]) 
-		else return(false)).
+equiv(icm(enc)) special icm((\"key\", \"msg\", \"local_key\"), enc, dec,
+       (ck, k, me, md, u), (\"large\")).
+
+equiv(icm_partial(enc)) special icm_partial((\"key\", \"msg\", \"local_key\"), 
+       enc, dec, (ck, k, me, md, u), (\"large\")) [manual].
 
 (* The difference of probability is the probability of collision between two
 random numbers in blocksize among the N+N2 chosen random numbers. *)

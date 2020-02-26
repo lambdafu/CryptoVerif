@@ -15,11 +15,10 @@ insert 305 "find jh <= qH1 suchthat defined(x11[jh], x12[jh], x13[jh], x14[jh], 
 show_game occ;
 insert_event Auth 338; (* "then" branch of the just inserted find *)
 simplify;
-crypto icm(enc);
 show_game occ;
-insert_event Encrypt 550; (* beginning of the branch "find ... && (pw = ke[..]) then .." in OC2 *)
+crypto icm_partial(enc) special("3 may collide with previous 5,4,3,2,1; 4 may collide with previous 5,4,2,1; 5 may collide with previous 5,4,3,2,1") [terms: 30 -> O_dec_4, 407 -> O_dec_5, 156 -> O_enc_1, 368 -> O_enc_2, 395 -> O_enc_3];
 show_game occ;
-insert 1037 "let concat(x01,x02,x03,x04,x05) = x1 in"; (* just after OH(..) := *)
+insert 1036 "let concat(x01,x02,x03,x04,x05) = x1 in"; (* just after OH(..) := *)
 crypto rom(h0);
 SArename Y_u;
 auto;

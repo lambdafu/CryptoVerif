@@ -1,0 +1,25 @@
+type T1.
+type T2 [bounded].
+type T3.
+type key [fixed].
+type R [fixed, large].
+
+proba Pprf.
+
+expand PRF_3(key, T1, T2, T3, R, f, Pprf).
+
+event bad.
+query event(bad) ==> false.
+
+channel c.
+
+process
+in(c, (x:T1, y:T2, z:T3, r: R));
+new k:key;
+if f(k,x,y,z) = r then
+event bad
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

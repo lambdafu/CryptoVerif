@@ -1,0 +1,34 @@
+type T1.
+type T2 [bounded].
+type T3.
+type key [fixed].
+type R [fixed, large].
+
+proba Pprf.
+
+fun f(T1, key, T2, T3):R.
+
+equiv(prf(f)) special prf("key 2", f, Pprf, (k, r, x, y, z, u)).
+equiv(prf_partial(f)) special prf_partial("key 2", f, Pprf, (k, r, x, y, z, u)) [manual].
+
+proof {
+      show_game occ;
+      crypto prf_partial(f) special(("large")) [terms: 4 -> "Oeq_1"];
+      success
+}
+
+event bad.
+query event(bad) ==> false.
+
+channel c.
+
+process
+in(c, (x:T1, y:T2, z:T3, r: R));
+new k:key;
+if f(x,k,y,z) = r then
+event bad
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

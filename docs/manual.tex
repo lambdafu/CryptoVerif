@@ -866,9 +866,12 @@ $  \vn{blocksize}$, $\vn{enc}$, $\vn{dec}$, $\vn{Penc}\texttt{).}$
   declared by this macro. They must not be declared elsewhere, and
   they can be used only after expanding the macro.
 
-   This macro defines the equivalence named $\texttt{sprp}(\vn{enc})$
+   This macro defines equivalences named $\texttt{sprp}(\vn{enc})$ and $\texttt{sprp\_partial}(\vn{enc})$
    for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}).
+   (see Section~\ref{sec:interact}). These equivalences are generated via \texttt{equiv} \dots \texttt{special};
+   the \texttt{crypto} command therefore supports special arguments $\mathit{collisions\_LHS}$ and, 
+   for $\texttt{sprp\_partial}(\vn{enc})$, collision matrix. See the explanation of the $\mathit{collisions\_LHS}$
+   argument, the collision matrix, and the oracles present in these equivalences in the documentation of \texttt{equiv} \dots \texttt{special}.
 
 \item $\texttt{expand PRP\_cipher(}\vn{key}$,
 $  \vn{blocksize}$, $\vn{enc}$, $\vn{dec}$, $\vn{Penc}\texttt{).}$
@@ -949,9 +952,12 @@ $   \vn{dec}$, $\vn{enc\_dec\_oracle}$, $\vn{qE}$, $\vn{qD}\texttt{).}$
    $\vn{qE}$ and $\vn{qD}$ are declared by this macro. They must not be declared
    elsewhere, and they can be used only after expanding the macro.
 
-   This macro defines the equivalence named $\texttt{icm}(\vn{enc})$
+   This macro defines equivalences named $\texttt{icm}(\vn{enc})$ and $\texttt{icm\_partial}(\vn{enc})$
    for use in the \texttt{crypto} command 
-   (see Section~\ref{sec:interact}).
+   (see Section~\ref{sec:interact}). These equivalences are generated via \texttt{equiv} \dots \texttt{special};
+   the \texttt{crypto} command therefore supports special arguments $\mathit{collisions\_LHS}$ and, 
+   for $\texttt{icm\_partial}(\vn{enc})$, collision matrix. See the explanation of the $\mathit{collisions\_LHS}$
+   argument, the collision matrix, and the oracles present in these equivalences in the documentation of \texttt{equiv} \dots \texttt{special}.
 
 \item $\texttt{expand SUF\_CMA\_det\_mac(}\vn{mkey}$,
 $  \vn{macinput}$, $\vn{macres}$, $\vn{mac}$, $\vn{check}$,
@@ -2482,10 +2488,11 @@ passes the given special arguments to the generation of the chosen equivalence,
 which must be defined by $\texttt{equiv} \dots \texttt{special}$. The exact meaning
 of the arguments depend on the considered special equivalence.
 \begin{enumerate}
-\item For the special equivalences \texttt{rom}, \texttt{prf}, and \texttt{prp}, 
+\item For the special equivalences \texttt{rom}, \texttt{prf}, \texttt{prp},
+  \texttt{sprp}, and \texttt{icm}
 there must be at most one special argument, and when one argument is present, it
 overrides the $\mathit{collisions\_LHS}$ argument of the special equivalence.
-\item For the special equivalences \texttt{rom\_partial}, \texttt{prf\_partial}, and \texttt{prp\_partial}, 
+\item For the special equivalences \texttt{rom\_partial}, \texttt{prf\_partial}, \texttt{prp\_partial}, \texttt{sprp\_partial}, and \texttt{icm\_partial}
 there must be at most two special arguments, and when such arguments are present, 
 one of them overrides the $\mathit{collisions\_LHS}$ argument of the special equivalence,
 and the other one determines the collision matrix between oracles.
