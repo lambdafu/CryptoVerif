@@ -1169,31 +1169,32 @@ focusquery:
 /* Instructions, for manual insertion of an instruction in a game */
 
 instruct:
-    restr 
-    { let (b,t) = $1 in PRestr(b, t, (PYield, parse_extent())), parse_extent() }
-|   IF findcond THEN
+
+    { (PYield, parse_extent()) }
+|   LPAREN instruct RPAREN
+    { $2 }
+|   restr optsemiinstruct
+    { let (b,t) = $1 in PRestr(b, t, $2), parse_extent() }
+|   IF findcond THEN instruct optelseinstruct
     { 
-      let yield = (PYield, parse_extent()) in
       match $2 with
-	([], t) -> PTest(t, yield, yield), parse_extent()
+	([], t) -> PTest(t, $4, $5), parse_extent()
       | (def_list, t) -> 
-	  PFind([(ref [], [], def_list, t, yield)], yield, []), parse_extent()
+	  PFind([(ref [], [], def_list, t, $4)], $5, []), parse_extent()
     }
-|   FIND options findlistins
-    { PFind($3, (PYield, parse_extent()), $2), parse_extent() }
-|   EVENT IDENT
-    { PEvent((PFunApp($2, []), parse_extent()), (PYield, parse_extent())), parse_extent() }
-|   EVENT IDENT LPAREN termseq RPAREN 
-    { PEvent((PFunApp($2, $4), parse_extent()), (PYield, parse_extent())), parse_extent() }
-|   basicpattern LEFTARROW term 
+|   FIND options findlistins optelseinstruct
+    { PFind($3, $4, $2), parse_extent() }
+|   EVENT_ABORT IDENT
+    { PEventAbort($2), parse_extent() }
+|   basicpattern LEFTARROW term optsemiinstruct
     { PLet($1,$3,(PYield, parse_extent()),(PYield, parse_extent())), parse_extent() }
-|   LET pattern EQUAL term IN
-    { PLet($2,$4,(PYield, parse_extent()),(PYield, parse_extent())), parse_extent() }
+|   LET pattern EQUAL term IN instruct optelseinstruct
+    { PLet($2,$4,$6,$7), parse_extent() }
 
 findoneins:
-    tidentseq SUCHTHAT findcond THEN 
+    tidentseq SUCHTHAT findcond THEN instruct
     { let (def_list, t) = $3 in
-      (ref [], $1, def_list, t, (PYield, parse_extent())) }
+      (ref [], $1, def_list, t, $5) }
 
 findlistins:
     findoneins
@@ -1201,6 +1202,17 @@ findlistins:
 |   findoneins ORFIND findlistins
     { $1 :: $3 }
 
+optelseinstruct:
+
+    { (PYield, parse_extent()) }
+|   ELSE instruct
+    { $2 }
+
+optsemiinstruct:
+    
+    { (PYield, parse_extent()) }
+|   SEMI instruct
+    { $2 }
     
 /* Limits on elimination of collisions */
 

@@ -69,7 +69,7 @@ do
     cp "$i" "$DESTD/$i"
 done
 
-for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key.m4.ocv implementation/ssh/ssh-secrecy-key-indiff.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv* cryptolib/commonlib.cvl cryptolib/crypto.pvl cryptolib/*.ocv
+for i in src/*.ml src/*.mli src/*.mll implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key.m4.ocv implementation/ssh/ssh-secrecy-key-indiff.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/textsecure/*.ocv examples/tls13/*.cv* cryptolib/commonlib.cvl cryptolib/crypto.pvl cryptolib/*.ocv
 do
     if [ -f "$i" ]
     then
@@ -121,7 +121,7 @@ then
 	cp "$i" "$DESTD/$i"
     done
 
-    for i in implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key.m4.ocv implementation/ssh/ssh-secrecy-key-indiff.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/tls13/*.cv*
+    for i in implementation/base.ml* implementation/crypto*.ml* implementation/nspk/A*.ml implementation/nspk/B*.ml implementation/nspk/S*.ml  implementation/nspk/test.ml implementation/nspk/nspk3tbl.ocv implementation/wlsk/init.ml implementation/wlsk/keygen.ml implementation/wlsk/resp.ml implementation/wlsk/server.ml implementation/wlsk/test_wlsk.ml implementation/wlsk/woolamskcorr_tbl.cv implementation/ssh/ssh*.ml* implementation/ssh/add_key.ml implementation/ssh/ssh.ocv implementation/ssh/ssh-secrecy-key.m4.ocv implementation/ssh/ssh-secrecy-key-indiff.ocv examples/basic/* examples/obasic/* examples/arinc823/arinc823prim.cvl examples/arinc823/*/*.m4.cv examples/arinc823/*/*.ocv examples/textsecure/*.m4.cv examples/textsecure/*.ocv examples/tls13/*.cv*
     do
 	if [ -f "$i" ]
 	then

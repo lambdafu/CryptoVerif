@@ -5,7 +5,7 @@ open Parsing_helper
 open Lexing
 
 let whole_game = ref Terms.empty_game
-
+let new_queries = ref []
 let has_unique_to_prove = ref false
     
 (*
@@ -21,8 +21,9 @@ Also indicate whether there is an array ref. on the other variables.
 *)
 
 type hash_elem =
-    FindCond (* Defined in a find condition *)
+  | FindCond (* Defined in a find condition *)
   | Std of binder
+  | NoType
   | NoDef (* Occurs in a defined condition but is never defined; the defined condition will always be wrong *)
 
 let hash_binders = Hashtbl.create 7
@@ -137,6 +138,205 @@ and find_binders_reco p =
       find_binders_reco p
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
+(* Add variables defined in the inserted code to [hash_binders] *)
+
+let add_var find_cond (s_b, ext_b) ty_opt cur_array =
+  if find_cond then
+    begin
+      if Hashtbl.mem hash_binders s_b then
+	raise (Error(s_b ^ " already defined, so cannot be redefined in a find condition", ext_b));
+      (* Variable not already defined *)
+      match ty_opt with
+      | None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
+      | Some ty ->
+	  Hashtbl.add hash_binders s_b FindCond
+    end
+  else
+    begin
+      try
+	match Hashtbl.find hash_binders s_b with
+	| FindCond -> raise (Error(s_b ^ " already defined in a find condition, so cannot have several definitions", ext_b))
+	| NoDef -> raise (Error(s_b ^ " already exists and the fact that it is defined is tested", ext_b))
+	| NoType ->
+	    (* Variable defined in the inserted code, without a type.
+	       Array accesses with be forbidden *)
+	    ()
+	| Std b ->
+	    if Array_ref.has_array_ref_q b (!whole_game).current_queries then
+	      raise (Error(s_b ^ " already defined and has array references or is used in queries", ext_b));
+	    begin
+	      match ty_opt with
+		None -> ()
+	      | Some ty ->
+		  if ty != b.btype then
+		    raise (Error(s_b ^ " already defined with type " ^ b.btype.tname ^ ", so cannot be redefined with type " ^ ty.tname, ext_b))
+	    end;
+	    if not (Terms.equal_lists (==) b.args_at_creation cur_array) then
+	      raise (Error(s_b ^ " already defined, but under different replications", ext_b))
+      with Not_found ->
+        (* Variable not already defined *)
+	match ty_opt with
+	| None ->
+	    Hashtbl.add hash_binders s_b NoType
+	| Some ty ->
+	    let b = Terms.create_binder s_b ty cur_array in
+	    Hashtbl.add hash_binders s_b (Std b)
+    end
+	
+let rec check_pattern1 find_cond cur_array env tyoptres = function
+    PPatVar ((s1,ext1), tyopt), _ ->
+      begin
+	let tyopt =
+	  match tyopt, tyoptres with
+	    None, None -> None
+	  | None, Some ty -> Some ty
+	  | Some tyb, None -> 
+	      let (ty',ext2) = get_ty env tyb in
+	      begin
+		match ty'.tcat with
+		  Interv _ -> raise (Error("Cannot input a term of interval type", ext2))
+	        (* This condition simplifies greatly the theory:
+	           otherwise, one needs to compute which channels the adversary
+	           knows... *)
+		|	_ -> ()
+	      end;
+	      Some ty'
+	  | Some tyb, Some ty ->
+	      let (ty',ext2) = get_ty env tyb in
+	      if ty != ty' then
+		raise (Error("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname, ext2));
+	      Some ty
+	in
+	add_var find_cond (s1, ext1) tyopt cur_array 
+      end
+  | PPatTuple l, ext ->
+      begin
+	match tyoptres with
+	  None -> ()
+	| Some ty ->
+	    if ty != Settings.t_bitstring then
+	      raise (Error("A tuple pattern has type bitstring but is here used with type " ^ ty.tname, ext))
+      end;
+      let tl = List.map (fun _ -> None) l in
+      List.iter2 (check_pattern1 find_cond cur_array env) tl l
+  | PPatFunApp((s,ext),l), ext2 -> 
+      begin
+      try 
+	match StringMap.find s env with
+	  EFunc(f) ->
+	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
+	      raise (Error("Only [data] functions are allowed in patterns", ext));
+	    begin
+	      match tyoptres with
+		None -> ()
+	      |	Some ty ->
+		  if ty != snd f.f_type then
+		    raise (Error("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname, ext2))
+	    end;
+	    if List.length (fst f.f_type) != List.length l then
+	      raise (Error("Function " ^ f.f_name ^ " expects " ^ 
+			   (string_of_int (List.length (fst f.f_type))) ^ 
+			   " arguments but is here applied to " ^  
+			   (string_of_int (List.length l)) ^ "arguments", ext));
+	    List.iter2 (check_pattern1 find_cond cur_array env) (List.map (fun t -> Some t) (fst f.f_type)) l
+	| _ -> raise (Error(s ^ " should be a function", ext))
+      with Not_found ->
+	raise (Error(s ^ " not defined", ext))
+      end
+  | PPatEqual t, ext ->
+      ()
+
+
+	
+let rec check_find_cond1 cur_array env = function
+    PTestE(t1, t2, t3), ext ->
+      check_find_cond1 cur_array env t2;
+      check_find_cond1 cur_array env t3
+  | PLetE(pat, t1, t2, topt), ext ->
+      check_pattern1 true cur_array env None pat;
+      check_find_cond1 cur_array env t2;
+      begin
+	match topt, pat with
+	  Some t3, _ -> check_find_cond1 cur_array env t3
+	| None, (PPatVar _, _) -> ()
+	| None, _ -> raise (Error("When a let in an expression has no else part, it must be of the form let x = M in M'", ext))
+      end
+  | PResE((s1,ext1),(s2,ext2),t), ext ->
+      raise (Error("new should not appear as term", ext))
+(*
+      let ty = get_type env s2 ext2 in
+      if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
+	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext2));
+      let b = get_var true env (s1, ext1) (Some ty) cur_array in
+      let env' = StringMap.add s1 (EVar b) env in
+      let t' = check_find_cond defined_refs cur_array env' t in
+      Terms.new_term t'.t_type ext (ResE(b, t'))
+*)
+  | PEventAbortE _, ext ->
+      raise (Error("event_abort should not appear as term", ext))
+  | PEventE _, ext ->
+      raise (Error("event should not appear as term", ext))
+  | PInsertE _, ext ->
+      raise (Error("insert should not appear as term", ext))
+  | PGetE _, ext ->
+      raise (Error("get should not appear as term", ext))
+  | PFindE(l0,t3,opt), ext ->
+      check_find_cond1 cur_array env t3;
+      let add env l =
+	List.map (fun ((s0,ext0),(s1,ext1),(s2,ext2)) ->
+	  let p = get_param env s2 ext2 in
+	  let t = Terms.type_for_param p in
+	  add_var true (s0,ext0) (Some t) cur_array;
+	  (* Create a replication index *)
+	  Terms.create_repl_index s1 t
+	    ) l
+      in
+      List.iter (fun (bl_ref,bl,def_list,t1,t2) ->
+	let bl'' = add env bl in
+	bl_ref := bl'';
+	check_find_cond1 (bl'' @ cur_array) env t1;
+	check_find_cond1 cur_array env t2 
+	  ) l0 
+  | x -> ()
+
+
+let rec check_ins1 cur_array env (ins, ext) =
+  match ins with
+  | PYield ->
+      ()
+  | PRestr((s_b, ext_b), (s_ty, ext_ty), rest) ->
+      check_ins1 cur_array env rest;
+      let ty = get_type env s_ty ext_ty in
+      if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
+	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext_ty));
+      add_var false (s_b, ext_b) (Some ty) cur_array 
+  | PEventAbort _ -> ()
+  | PTest(t, rest1, rest2) ->
+      check_ins1 cur_array env rest1;
+      check_ins1 cur_array env rest2
+  | PLet(pat, t, rest1, rest2) ->
+      check_ins1 cur_array env rest1;
+      check_ins1 cur_array env rest2;
+      check_pattern1 false cur_array env None pat
+  | PFind(l0, rest, opt) ->
+      check_ins1 cur_array env rest;
+      let add env l =
+	List.map (fun ((s0,ext0),(s1,ext1),(s2,ext2)) ->
+	  let p = get_param env s2 ext2 in
+	  let t = Terms.type_for_param p in
+	  add_var false (s0,ext0) (Some t) cur_array;
+	  (* Create a replication index *)
+	  Terms.create_repl_index s1 t
+	    ) l
+      in
+      List.iter (fun (bl_ref,bl,def_list,t1,rest) ->
+	let bl'' = add env bl in
+	bl_ref := bl'';
+	check_find_cond1 (bl'' @ cur_array) env t1;
+	check_ins1 cur_array env rest
+	  ) l0 
+  | _ ->
+      Parsing_helper.internal_error "Unexpected inserted instruction"
 
 (*
 One pass on the initial game up to the program point occ to
@@ -183,15 +383,15 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
       _ -> 
 	raise (Error(s_b ^ " already defined, so cannot be redefined in a find condition", ext_b))
   with Not_found ->
-    if Hashtbl.mem hash_binders s_b then
-      raise (Error(s_b ^ " already defined, so cannot be redefined in a find condition", ext_b));
-      (* Variable not already defined *)
-    match ty_opt with
-      None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
-    | Some ty ->
-	let b = Terms.create_binder s_b ty cur_array in
-	Hashtbl.add hash_binders s_b FindCond;
-	b
+    try
+      (* The variable is inserted in hash_binders in the first pass *)
+      assert (Hashtbl.find hash_binders s_b = FindCond);
+      match ty_opt with
+	None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
+      | Some ty ->
+	  Terms.create_binder s_b ty cur_array
+    with Not_found ->
+      assert false
 
   else
 
@@ -216,6 +416,16 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
       match Hashtbl.find hash_binders s_b with
 	FindCond -> raise (Error(s_b ^ " already defined in a find condition, so cannot have several definitions", ext_b))
       | NoDef -> raise (Error(s_b ^ " already exists and the fact that it is defined is tested", ext_b))
+      | NoType ->
+	  begin
+            (* Variable defined without type *)
+	    match ty_opt with
+	      None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
+	    |	Some ty ->
+		let b = Terms.create_binder s_b ty cur_array in
+		Hashtbl.add hash_binders s_b (Std b);
+		b
+	  end
       | Std b ->
 	  if Array_ref.has_array_ref_q b (!whole_game).current_queries then
 	    raise (Error(s_b ^ " already defined and has array references or is used in queries", ext_b));
@@ -230,14 +440,9 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
 	    raise (Error(s_b ^ " already defined, but under different replications", ext_b));
 	  b
     with Not_found ->
-      (* Variable not already defined *)
-      match ty_opt with
-	None -> raise (Error("type needed for the declaration of " ^ s_b, ext_b));
-      |	Some ty ->
-	  let b = Terms.create_binder s_b ty cur_array in
-	  Hashtbl.add hash_binders s_b (Std b);
-	  b
-
+      (* Should have been added to hash_binders in the first pass *)
+      assert false
+	
 let check_type ext e t =
   if e.t_type != t then
     raise (Error("This expression has type " ^ e.t_type.tname ^ " but expects type " ^ t.tname, ext))
@@ -305,8 +510,8 @@ let rec check_term defined_refs cur_array env = function
 		    raise (Error("The definition of an out of scope reference should be guaranteed by a defined condition", ext));
 	    end;
 	    Terms.new_term b.btype ext2 (Var(b,tl''))
-	| NoDef | FindCond ->
-	    raise (Error(s ^ " is referenced outside its scope and is either\ndefined in a condition of find or never defined", ext))
+	| NoType | NoDef | FindCond ->
+	    raise (Error(s ^ " is referenced outside its scope and is either\ndefined in a condition of find, without type, or never defined", ext))
       with Not_found ->
 	raise (Error(s ^ " not defined", ext))
       end
@@ -386,8 +591,8 @@ and check_br defined_refs cur_array env ((s,ext), tl) =
 		raise (Error("The definition of an array reference should be guaranteed by a defined condition", ext));
 	end;
 	(b,tl'')
-    | NoDef | FindCond ->
-	raise (Error(s ^ " is referenced in an array reference and is either\ndefined in a condition of find or never defined", ext))
+    | NoType | NoDef | FindCond ->
+	raise (Error(s ^ " is referenced in an array reference and is either\ndefined in a condition of find, or defined without type, or never defined", ext))
   with Not_found ->
     raise (Error(s ^ " not defined", ext))
 
@@ -516,8 +721,6 @@ let rec check_find_cond defined_refs cur_array env = function
       let t' = check_find_cond defined_refs cur_array env' t in
       Terms.new_term t'.t_type ext (ResE(b, t'))
 *)
-  | PEventAbortE _, ext ->
-      raise (Error("event_abort should not appear as term", ext))
   | PFindE(l0,t3,opt), ext ->
       let find_info =
 	match opt with
@@ -537,19 +740,19 @@ let rec check_find_cond defined_refs cur_array env = function
 	      raise (Error("Variable " ^ (Display.binder_to_string b) ^ " defined several times in the same find", ext1));
 	    (env'',b::bl')
       in
-      let rec add_ri env = function
-	  [] -> (env,[])
-	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
-	    let p = get_param env s2 ext2 in
-	    let b = Terms.create_repl_index s1 (Terms.type_for_param p) in
-	    let env' = StringMap.add s1 (EReplIndex b) env in
-	    let (env'',bl') = add_ri env' bl in
-	    (env'',b::bl')
+      let rec add_ri env bl ril =
+	match bl, ril with
+	  [],[] -> env
+	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl, ri::ril ->
+	    let env' = StringMap.add s1 (EReplIndex ri) env in
+	    add_ri env' bl ril
+	| _ -> assert false
       in
       let t3' = check_find_cond defined_refs cur_array env t3 in
-      let l0' = List.map (fun (_,bl,def_list,t1,t2) ->
+      let l0' = List.map (fun (bl_ref,bl,def_list,t1,t2) ->
 	let (env', bl') = add env bl in
-	let (env'', bl'') = add_ri env bl in
+	let bl'' = !bl_ref in
+	let env'' = add_ri env bl bl'' in
 	let def_list' = List.map (check_br None (bl'' @ cur_array) env'') def_list in
 	let bl_comb = List.combine bl' bl'' in
 	let (defined_refs_t1, defined_refs_t2) = Terms.defined_refs_find bl_comb def_list' defined_refs in
@@ -564,46 +767,49 @@ let rec check_find_cond defined_refs cur_array env = function
   | x -> check_term (Some defined_refs) cur_array env x
 
 
-let rec insert_ins_now occ p (p', def) (ins, ext) env cur_array =
-  let defined_refs = 
-    try 
-      Facts.get_def_vars_at (DProcess p)
-    with Contradiction ->
-      raise (Error("The occurrence " ^ (string_of_int occ) ^ " at which you are inserting an instruction is in fact unreachable", ext))
-  in
+let rec insert_rec ((p', def) as r) (ins, ext) env defined_refs cur_array =
   match ins with
-    PRestr((s_b, ext_b), (s_ty, ext_ty), rest) ->
-      is_yield rest;
+  | PYield ->
+      r
+  | PRestr((s_b, ext_b), (s_ty, ext_ty), rest) ->
       let ty = get_type env s_ty ext_ty in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext_ty));
       let b = get_var false env (s_b, ext_b) (Some ty) cur_array in
-      check_noninter def [b];
-      (Terms.new_oproc (Restr(b, p')) ext, b::def)
-  | PEvent(t, rest) ->
-      is_yield rest;
-      let t' = check_term (Some defined_refs) cur_array env t in
-      (Terms.new_oproc (EventP(t', p')) ext, def)
+      let env' = StringMap.add s_b (EVar b) env in
+      let (rest', def') = insert_rec (p', def) rest env' ((Terms.binderref_from_binder b)::defined_refs) cur_array in
+      check_noninter def' [b];
+      (Terms.new_oproc (Restr(b, rest')) ext, b::def')
+  | PEventAbort (s,_) ->
+      let s' = Terms.fresh_id s in
+      if s' <> s then
+	print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
+      let f = Terms.create_event s' [] in
+      (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
+      Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
+      new_queries := f :: (!new_queries);
+      (Terms.new_oproc (EventAbort(f)) ext, [])
   | PTest(t, rest1, rest2) ->
-      is_yield rest1;
-      is_yield rest2;
+      let (rest1', def1') = insert_rec (p', def) rest1 env defined_refs cur_array in
+      let (rest2', def2') = insert_rec (p', def) rest2 env defined_refs cur_array in
       let t' = check_term (Some defined_refs) cur_array env t in
-      (Terms.new_oproc (Test(t', p', p')) ext, def)
+      (Terms.new_oproc (Test(t', rest1', rest2')) ext, Terms.unionq def1' def2')
   | PLet(pat, t, rest1, rest2) ->
-      is_yield rest1;
-      is_yield rest2;
       let t' = check_term (Some defined_refs) cur_array env t in
       let (env', pat') = check_pattern false defined_refs cur_array env (Some t'.t_type) pat in
-      let def2 = Terms.vars_from_pat [] pat' in
-      check_single_var def2 (snd pat);
-      check_noninter def def2;
-      let def' = def2 @ def in
+      let def_pat = Terms.vars_from_pat [] pat' in
+      check_single_var def_pat (snd pat);
+      let defined_refs' = (List.map Terms.binderref_from_binder def_pat) @ defined_refs in
+      let (rest1', def1') = insert_rec (p', def) rest1 env' defined_refs' cur_array in
+      let (rest2', def2') = insert_rec (p', def) rest2 env defined_refs cur_array in
+      check_noninter def1' def_pat;
+      let def' = def_pat @ def1' in
       begin
       match pat' with
 	PatVar b ->
-	  (Terms.new_oproc (Let(pat', t', p', Terms.oproc_from_desc Yield)) ext, def')
+	  (Terms.new_oproc (Let(pat', t', rest1', Terms.oproc_from_desc Yield)) ext, def')
       |	_ ->
-	  (Terms.new_oproc (Let(pat', t', p', p')) ext, def')
+	  (Terms.new_oproc (Let(pat', t', rest1', rest2')) ext, Terms.unionq def' def2')
       end
   | PFind(l0, rest, opt) ->
       let find_info =
@@ -613,48 +819,50 @@ let rec insert_ins_now occ p (p', def) (ins, ext) env cur_array =
 	| _ ->
 	    raise (Error("The only option allowed for find is unique", ext))
       in
-      is_yield rest;
-      let def_accu = ref def in
+      let (rest', def') = insert_rec (p', def) rest env defined_refs cur_array in
+      let def_accu = ref def' in
       let rec add env = function
 	  [] -> (env,[])
 	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
 	    let p = get_param env s2 ext2 in
-	    let b = get_var false env (s0,ext1) (Some (Terms.type_for_param p)) cur_array in
+	    let b = get_var false env (s0,ext0) (Some (Terms.type_for_param p)) cur_array in
 	    let env' = StringMap.add s0 (EVar b) env in
 	    let (env'',bl') = add env' bl in
 	    if List.memq b bl' then
 	      raise (Error("Variable " ^ (Display.binder_to_string b) ^ " defined several times in the same find", ext1));
 	    (env'',b::bl')
       in
-      let rec add_ri env = function
-	  [] -> (env,[])
-	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
-	    let p = get_param env s2 ext2 in
-	    let b = Terms.create_repl_index s1 (Terms.type_for_param p) in
-	    let env' = StringMap.add s1 (EReplIndex b) env in
-	    let (env'',bl') = add_ri env' bl in
-	    (env'',b::bl')
+      let rec add_ri env bl ril =
+	match bl, ril with
+	  [],[] -> env
+	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl, ri::ril ->
+	    let env' = StringMap.add s1 (EReplIndex ri) env in
+	    add_ri env' bl ril
+	| _ -> assert false
       in
-      let l0' = List.map (fun (_,bl,def_list,t1,rest) ->
-	is_yield rest;
+      let l0' = List.map (fun (bl_ref,bl,def_list,t1,rest) ->
 	let (env', bl') = add env bl in
-	let (env'', bl'') = add_ri env bl in
+	let bl'' = !bl_ref in
+	let env'' = add_ri env bl bl'' in
+	let bl_vars = List.combine bl' bl'' in 
 	let def_list' = List.map (check_br None (bl'' @ cur_array) env'') def_list in
-	(* Compute the defined references in the condition t1 *)
-	let accu = ref defined_refs in
-	List.iter (Terms.close_def_subterm accu) def_list';
-	let defined_refs_t1 = !accu in
+	(* Compute the defined references in the condition t1 and in rest *)
+	let (defined_refs_t1, defined_refs_rest) =
+	  Terms.defined_refs_find bl_vars def_list' defined_refs
+	in
 	let t1' = check_find_cond defined_refs_t1 (bl'' @ cur_array) env'' t1 in
 	check_type (snd t1) t1' Settings.t_bool;
-	check_noninter bl' def;
-	def_accu := Terms.unionq bl' (!def_accu);
-	(List.combine bl' bl'', def_list', t1', p')) l0 
+	let (rest', def') = insert_rec (p', def) rest env' defined_refs_rest cur_array in
+	check_noninter bl' def';
+	def_accu := Terms.unionq def' (Terms.unionq bl' (!def_accu));
+	(List.combine bl' bl'', def_list', t1', rest')) l0 
       in
-      (Terms.new_oproc (Find(l0', p', find_info)) ext, !def_accu)
+      (Terms.new_oproc (Find(l0', rest', find_info)) ext, !def_accu)
   | _ ->
       Parsing_helper.internal_error "Unexpected inserted instruction"
 
-
+  
+	
 
 let rec insert_ins count occ ins env cur_array p =
   let (p_desc', def) = 
@@ -741,7 +949,14 @@ and insert_inso count occ ins env cur_array p =
   if p.p_occ == occ then
     begin
       incr count;
-      insert_ins_now occ p r ins env cur_array
+      let defined_refs = 
+	try 
+	  Facts.get_def_vars_at (DProcess p)
+	with Contradiction ->
+	  raise (Error("The occurrence " ^ (string_of_int occ) ^ " at which you are inserting an instruction is in fact unreachable", snd ins))
+      in
+      check_ins1 cur_array env ins;
+      insert_rec r ins env defined_refs cur_array
     end
   else
     r
@@ -848,6 +1063,7 @@ let insert_instruct occ ext_o s ext_s g =
     raise (Error ("insert does not support non-expanded games", ext_s));
   let g_proc = Terms.get_process g in
   whole_game := g;
+  new_queries := [];
   has_unique_to_prove := false; 
   let ins = Syntax.parse_from_string Parser.instruct (s,ext_s) in
   Array_ref.array_ref_process g_proc;
@@ -863,9 +1079,11 @@ let insert_instruct occ ext_o s ext_s g =
       Hashtbl.clear hash_binders;
       raise (Error(mess, extent))
   in
+  let queries_to_add = !new_queries in
   Array_ref.cleanup_array_ref();
   Improved_def.empty_improved_def_game false g;
   whole_game := Terms.empty_game;
+  new_queries := [];
   Hashtbl.clear hash_binders;
   if (!count) = 0 then 
     raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
@@ -874,15 +1092,27 @@ let insert_instruct occ ext_o s ext_s g =
   else
     begin
       Settings.changed := true;
-      let (g', proba, done_transfos) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p' g) in
+      let g' = Terms.build_transformed_game p' g in
+      (* Add the queries for the inserted event_abort *)
+      let q_new, proba = List.split
+	  (List.map (fun f ->
+	    let pub_vars = Settings.get_public_vars g.current_queries in
+	    let query = Terms.build_event_query f pub_vars in
+	    let q_proof = ref ToProve in
+	    ((query, g'), q_proof), (SetEvent(f, g', pub_vars, q_proof))
+	      ) queries_to_add)
+      in
+      g'.current_queries <- q_new @
+	 (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
+      let (g'', proba', done_transfos') = Transf_auto_sa_rename.auto_sa_rename g' in
       if !has_unique_to_prove then
 	begin
-	  Terms.move_occ_game g';
-	  let (g'', proba', done_transfos') = prove_unique g' in
-	  (g'', proba' @ proba, done_transfos' @ done_transfos @  [DInsertInstruct(s, occ)])
+	  Terms.move_occ_game g'';
+	  let (g''', proba'', done_transfos'') = prove_unique g'' in
+	  (g''', proba'' @ proba' @ proba, done_transfos'' @ done_transfos' @  [DInsertInstruct(s, occ)])
 	end
       else
-	(g', proba, done_transfos @ [DInsertInstruct(s, occ)])
+	(g'', proba' @ proba, done_transfos' @ [DInsertInstruct(s, occ)])
     end
      
 (**** Replace a term with an equal term ****)

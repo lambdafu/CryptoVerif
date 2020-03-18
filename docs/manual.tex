@@ -2580,10 +2580,10 @@ omitted as well. It is also possible to reorder or repeat the
 \end{enumerate}
 \end{itemize}
 
-
+\sloppy
 
 \item $\texttt{insert\string_event }e\ occ$ replaces the subprocess or term at
-program point $occ$ with the event $\texttt{event }e$. The games may
+program point $occ$ with the event $\texttt{event\_abort }e$. The games may
 be distinguished if and only if the event $e$ is executed, and CryptoVerif
 then tries to find a bound for the probability of executing that event.
 See above for how to specify the program point $occ$.
@@ -2591,35 +2591,64 @@ The program point $occ$ must correspond to an output process
 (resp. oracle body in the oracles front-end) or to a term not in a
 condition of {\tt find} nor in the channel of an input.
 
+\fussy
+
 When the setting {\tt autoExpand} is true and the occurrence $occ$
 corresponds to a term, the game is automatically expanded after
 inserting the event, so that after expansion the event occurs in a
 process, not in a term.
 
-\item $\texttt{insert}\ occ\ \texttt{"}ins\texttt{"}$ inserts instruction $ins$ at
-program point $occ$. The instruction $ins$ can be 
+\item $\texttt{insert}\ occ\ \texttt{"}\nonterm{ins}\texttt{"}$ inserts instruction $\nonterm{ins}$ at
+program point $occ$. The instruction $\nonterm{ins}$ can be 
 \begin{align*}
-&\texttt{new\ }\nonterm{vartype}\\
-&\texttt{if }\nonterm{cond}\texttt{ then}\\
-&\texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
-&\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\\
-&\texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
+&\texttt{new\ }\nonterm{vartype}[\texttt{;}\nonterm{ins}]\\
+  &\nonterm{ident}\texttt{ <-R }\nonterm{ident}[\texttt{;}\nonterm{ins}]\\
+  &\texttt{event\_abort}\ \nonterm{ident}\\
+&\texttt{if }\nonterm{cond}\texttt{ then }\nonterm{ins}\ [\texttt{else }\nonterm{ins}]\\
+&\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\ \nonterm{ins}\ [\texttt{else }\nonterm{ins}]\\
+&\nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}[\texttt{;}\nonterm{ins}]\\
+  &\texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*\ [\texttt{else }\nonterm{ins}]\\
+  &\texttt{(}\nonterm{ins}\texttt{)}\\
+  &\tag{empty}
 \end{align*}
-or in the oracles front-end
-\begin{align*}
-&\nonterm{ident}\texttt{ <-R }\nonterm{ident}\\
-&\texttt{if }\nonterm{cond}\texttt{ then}\\
-&\texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
-&\nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}\\
-&\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\\
-&\texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^*
-\end{align*}
-where $\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then}$
+where $\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\nonterm{ins}$
 
-In contrast to the initial game, the terms {\tt new}, {\tt if}, {\tt
-  find}, or {\tt let} are not expanded, so {\tt if}, {\tt find}, {\tt
-  let} can occur only in conditions of {\tt find} and {\tt new} must
-not occur as a term.
+The empty instruction is replaced by the code that follows the insertion point.
+In all cases except $\texttt{event\_abort}\ e$, the code that follows the insertion point
+is executed after the inserted instruction.
+The probability of distinguishing the game before insertion from
+the game after insertion is then at most of the probability
+of the events $\texttt{event\_abort}\ e$ in the inserted instruction.
+CryptoVerif then tries to bound this probability.
+This is similar to $\texttt{insert\string_event }e\ occ$.
+However, the \texttt{insert} command does not subsume \texttt{insert\string_event},
+because \texttt{insert} allows inserting only at process
+points while \texttt{insert\string_event} allows inserting events at term
+points as well.
+
+The instruction $\texttt{(}\nonterm{ins}\texttt{)}$ is equivalent
+to $\nonterm{ins}$. The parentheses just help resolving ambiguities
+of the grammar, for instance to specify to which process \texttt{else}
+branches are attached.
+
+The main practical usage of this command is to introduce case
+distinctions ({\tt if}, {\tt find}, or {\tt let} with a pattern that
+is not a variable). In this situation, the process that follows the
+insertion point is duplicated in each branch of {\tt if}, {\tt find},
+or {\tt let}, and can subsequently be transformed in different ways in
+each branch. 
+%
+It may be useful to disable the merging of branches in simplification
+by \texttt{set autoMergeBranches = false} when a case distinction is
+inserted, so that the operation is not immediately undone at the next
+simplification.
+
+In contrast to the initial game, the terms {\tt event}, {\tt
+  event\_abort}, {\tt get}, {\tt insert}, {\tt new}, {\tt if}, {\tt
+  find}, or {\tt let} are not expanded, so terms {\tt if}, {\tt find},
+{\tt let} and its synonym \texttt{<-} can occur only in conditions of
+{\tt find}; {\tt event}, {\tt event\_abort}, {\tt get}, {\tt insert},
+{\tt new} and its synonym \texttt{<-R} must not occur as a term.
 %
 The variables of the inserted instruction are not renamed, so one must
 be careful when redefining variables with the same name. In
@@ -2636,19 +2665,6 @@ as a subterm).
 %
 In case the inserted instruction is not appropriate, an error
 message explaining the problem is displayed.
-
-The obtained game is indistinguishable from the initial game.
-The main practical usage of this command is to introduce case
-distinctions ({\tt if}, {\tt find}, or {\tt let} with a pattern that
-is not a variable). In this situation, the process that follows the
-insertion point is duplicated in each branch of {\tt if}, {\tt find},
-or {\tt let}, and can subsequently be transformed in different ways in
-each branch. 
-%
-It may be useful to disable the merging of branches in simplification
-by \texttt{set autoMergeBranches = false} when a case distinction is
-inserted, so that the operation is not immediately undone at the next
-simplification.
 
 See above for how to specify the program point $occ$. 
 The program point $occ$ must

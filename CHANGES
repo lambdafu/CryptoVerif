@@ -3,6 +3,11 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Extended the "insert" command to insert several tests, assignments
+  as well as event_abort in a single command. Inserting
+     find ... then/else let x = ...
+  allows to test in the defined condition of find whether x is defined,
+  and thus which branch of the inserted find was taken. 
 - The game equivalences used in crypto transformations for
   ROM, PRF, PRP, SPRP, and ICM are now generated on-demand by CryptoVerif.
   That allows more flexibility to optimize these equivalences.
@@ -14,6 +19,8 @@ Version
 - Added interactive commands show_equiv <crypto_args> to display
   the game equivalence corresponding to <crypto_args>, and
   out_equiv <filename> <crypto_args> to output it to <filename>.
+- Improvements in case distinctions used in the treatment of elsefind
+  facts.
 - Fixed bug in computation of probabilities for collision statements.
 - Fixed bug in transformation of find[unique] inside a branch of
   find[unique]: required "defined" conditions were sometimes missing.

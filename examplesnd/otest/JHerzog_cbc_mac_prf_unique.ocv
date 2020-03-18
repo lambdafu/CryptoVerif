@@ -8,8 +8,10 @@
 *
 ***********************************************************************)
 
+(* set debugElsefindFacts = true. *)
+
 proof {
-      insert after "Otag" "find u <= N_tag suchthat defined(b1[u],b2[u],tag2[u],else_br[u]) && b1 = b1[u] && b2 = b2[u] then else else_br <- true";
+      insert after "Otag" "find[unique] u <= N_tag suchthat defined(b1[u],b2[u],tag2[u],else_br[u]) && b1 = b1[u] && b2 = b2[u] then else else_br <- true";
       show_game occ;
       replace 30 "tag2[u]";
       SArename tag2;
@@ -58,7 +60,7 @@ equivalence
  	(foreach i <= N_tag do
 	Otag(b1 : block, b2 : block):=
 	(* ideal PRF *)
-	find j <= N_tag suchthat defined(b1[j],b2[j],res[j]) && b1 = b1[j] && b2 = b2[j]
+	find[unique] j <= N_tag suchthat defined(b1[j],b2[j],res[j]) && b1 = b1[j] && b2 = b2[j]
 	then return(res[j])
 	else res <-R block; return(res))
 

@@ -1,0 +1,22 @@
+(* You cannot insert an event; you can insert event_abort *)
+
+event A.
+event B.
+
+query event(A) ==> event(B).
+
+channel c.
+
+proof {
+      show_game occ;
+      insert 2 "event B"
+      }
+
+process
+	in(c, ());
+	event A
+
+(* EXPECTED
+Error: Syntax error
+xtime: error in child process (status : 2)
+END *)

@@ -121,6 +121,11 @@ val simplif_add_list : dep_anal -> simp_facts -> term list -> simp_facts
 (* 2. Compute the facts that hold and the variables that are defined
    at certain program points. *)
 
+(* [is_reachable_same_block n n'] is true when the variable defined 
+   at [n] is defined above the one defined at [n'] and within the 
+   same input...output block. *)
+val is_reachable_same_block : def_node -> def_node -> bool
+    
 (* [is_before_same_block pp pp'] is true when the program point [pp]
    may be before [pp'] and in the same input...output block. *)
 val is_before_same_block : program_point -> program_point -> bool

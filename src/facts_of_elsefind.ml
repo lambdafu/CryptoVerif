@@ -25,7 +25,7 @@ let rec above_input_node n =
 (* Dependency analysis taking into account the order of definition of the variables. 
    Here dep_info is a list of array ref defined after and a list of array ref defined before *)
 
-let dependency_anal_order_hyp cur_array order_assumptions dep_info =
+let dependency_anal_order_hyp cur_array dep_info =
   let (defl_after, defl_before) = dep_info in
   let depinfo =
     { args_at_creation_only = false;
@@ -196,10 +196,37 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
   List.iter (Terms.close_def_subterm def_list_subterms) def_list;
   let def_list = !def_list_subterms in
 
-  (* Optimization: if we know that an element br1 is defined before br2 = (b2,tl2) in deflist', 
-     we can remove br1. Indeed, assuming that br2 is defined before (b,tl) implies that
-     br1 is defined before (b,tl), so that is enough to apply the elsefind fact. 
+  (* transform the elsefind fact such that the variable (b,b.args_at_creation) 
+     for the original fact corresponds to our variable (b,tl):
+     substitute b.args_at_creation with tl. *)
+  let b_index = b.args_at_creation in
+  let (bl, def_list, t1) = Terms.subst_else_find b_index tl (bl, def_list, t1) in
+
+  (* Variables defined before or at the same time as (b,tl) *)
+  let def_vars_before = 
+    try 
+      Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [Terms.binderref_from_binder b])
+    with Contradiction -> 
+      (* Contradiction may be raised when b can in fact not be defined. *)
+      []
+  in
+  if !Settings.debug_elsefind_facts then
+    begin
+      print_string "Elsefind_fact_vars_before:\n";
+      Display.display_list Display.display_term (List.map Terms.term_from_binderref def_vars_before);
+      print_newline ()
+    end;
+  
+  let vars_at_b = List.concat (List.map (fun n -> n.binders) b.def) in
+  (* Variables defined strictly before (b,tl) *)  
+  let def_vars_strictly_before = Terms.setminus_binderref def_vars_before (List.map (fun b' -> (b',tl)) vars_at_b) in
+  
+  (* Optimization: if br1 and br2=(b2,tl2) are in def_list and
+     br2 defined strictly before (b,tl) implies that
+     br1 defined strictly before (b,tl), then we can remove br1 from def_list,
+     since knowing that br2 is defined strictly before (b,tl) is enough to apply the elsefind fact. 
      This optimization does not seem to affect much the speed of the system. *)
+  let def_list = Terms.setminus_binderref def_list def_vars_strictly_before in
   let rec filter_def_list already_seen = function
     | [] -> List.rev already_seen
     | ((b2,tl2)::l) ->
@@ -210,17 +237,31 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	    (* Contradiction may be raised when b2 can in fact not be defined. *)
 	    []	
 	in
-	let already_seen' = Terms.setminus_binderref already_seen before_br2 in
-	let l' = Terms.setminus_binderref l before_br2 in
+	(* When br2 = (b2,tl2) is defined strictly before (b,tl), 
+	   the variables in [strictly_before_b_tl] are also defined strictly before (b,tl).
+	   We can then remove them from [def_list]. *)
+	let strictly_before_b_tl =
+	  if not (List.exists (fun b2_n -> List.exists (fun b_n ->
+	    (b2_n != b_n) && (Facts.is_reachable_same_block b2_n b_n)
+	      ) b.def) b2.def) then
+	    (* When br2 = (b2,tl2) is defined strictly before (b,tl), 
+               the block that defines (b2,tl2) has been entirely executed before defining (b,tl) *)
+	    let same_block_after_b2 =
+	      try 
+		(Terms.intersect_list (==)  (List.map (fun n -> n.binders @ n.future_binders) b2.def))
+	      with Contradiction ->
+		(* Happens when b2 is never defined *)
+		[]
+	    in
+	    (List.map (fun b' -> (b', tl2)) same_block_after_b2) @ before_br2
+	  else
+	    before_br2
+	in
+	let already_seen' = Terms.setminus_binderref already_seen strictly_before_b_tl in
+	let l' = Terms.setminus_binderref l strictly_before_b_tl in
 	filter_def_list ((b2,tl2)::already_seen') l'
   in
   let def_list = filter_def_list [] def_list in
-
-  (* transform the elsefind fact such that the variable (b,b.args_at_creation) 
-     for the original fact corresponds to our variable (b,tl):
-     substitute b.args_at_creation with tl. *)
-  let b_index = b.args_at_creation in
-  let (bl, def_list, t1) = Terms.subst_else_find b_index tl (bl, def_list, t1) in
 
   if !Settings.debug_elsefind_facts then
     begin
@@ -257,25 +298,10 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
        In the other case, we must prove that \forall br \in def_list', 
        if br is defined after or at (b,tl), t' => Contradiction. *)
 
-    (* Variables defined before or at the same time as (b,tl) *)
-    let def_vars_before = 
-      try 
-        Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [Terms.binderref_from_binder b])
-      with Contradiction -> 
-	(* Contradiction may be raised when b can in fact not be defined. *)
-	[]
-    in
-
     (* [additional_disjuncts] stores additional disjuncts: 
        we actually prove (!additional_disjuncts) || (not t') *)
     let additional_disjuncts = ref [] in
     
-    if !Settings.debug_elsefind_facts then
-      begin
-        print_string "Elsefind_fact_vars_before:\n";
-        Display.display_list Display.display_term (List.map Terms.term_from_binderref def_vars_before);
-        print_newline ()
-      end;
     if (
       List.for_all (fun br ->
         (* Let us suppose that br has been defined after or at (b,tl) *)
@@ -299,14 +325,15 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
                   Hence, we actually prove [not((snd br) = tl) => not(t')],
                   that is, [((snd br) = tl) || not(t')], so we 
                   add [(snd br) = tl] to [additional_disjuncts].
-                  [assumed_distinct_block] is true when we make this assumption. *)
-	let vars_at_b = List.concat (List.map (fun n -> n.binders) b.def) in
-	let (def_vars_before, assumed_distinct_block) = 
+                  [assumed_distinct_block] is true when we make this assumption.
+	     [br_future_or_at_b] contains [(b,tl)] as well as all binderrefs in 
+	     [def_vars_before] that are defined after [(b,tl)]. *)
+	let (def_vars_before, assumed_distinct_block, br_future_or_at_b) = 
 	  if List.memq (fst br) vars_at_b then
             if (List.for_all2 Terms.equal_terms (snd br) tl) ||
             (not (!Settings.else_find_additional_disjunct))
             then
-	      (Terms.setminus_binderref def_vars_before (List.map (fun b' -> (b', tl)) vars_at_b), false)
+	      (def_vars_strictly_before, false, [(b,tl)])
             else
               begin
                 let disjunct = Terms.make_and_list (List.map2 Terms.make_equal (snd br) tl) in
@@ -317,47 +344,69 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
                     Display.display_term disjunct;
                     print_string ") so that ";
 	            Display.display_term (Terms.term_from_binderref br);
-	            print_string " is defined strictly after ";
+	            print_string " is defined strictly after the input...output block defining ";
 	            Display.display_term (Terms.term_from_binderref (b,tl));
                     print_newline ()
                   end;
-                (def_vars_before, true)
+		(* Add variables defined in the same block as (b,tl) to def_vars_before *)
+		let future_or_at_b =
+		  try
+		    Terms.intersect_list (==) (List.map (fun n -> n.binders @ n.future_binders) b.def)
+		  with Contradiction ->
+		    (* Happens when b is never defined *)
+		    []
+		in
+		let br_future_or_at_b = List.map (fun b' -> (b', tl)) future_or_at_b in
+                (br_future_or_at_b @ def_vars_before, true, br_future_or_at_b)
               end
 	  else
-	    (def_vars_before, false)
+	    (def_vars_before, false, [(b,tl)])
 	in
 
-	(* If br is in def_vars_before, br is defined before (b,tl), so the assumption 
-	   that br is defined after (b,tl) never holds. 
+	if !Settings.debug_elsefind_facts then
+	  begin
+            print_string "Elsefind_fact_vars_before extended:\n";
+            Display.display_list Display.display_term (List.map Terms.term_from_binderref def_vars_before);
+            print_newline ()
+	  end;
+
+	(* Under the assumption that br has been defined after or at (b,tl),
+	   all variables in def_vars_before are defined strictly before br.
+	   If br is in def_vars_before, that's a contradiction, so the assumption 
+	   that br is defined after or at the same time as (b,tl) never holds. 
 	   (due to the modification of def_vars_before above, br is never defined
 	   at the same time as (b,tl) when it is in def_vars_before) *)
 	(Terms.mem_binderref br def_vars_before) || (
         let order_assumptions = [br,(b,tl)] in
         List.for_all (fun n -> (* for each definition def_node of br *)
           try
-                (* Compute variables that are defined after (b,tl):
-		   add to the future variables of br the variables defined between the previous input 
-		   point and the definition of br and after another definition of (b,_). *)
+            (* The elements of future_vars are defined after those of def_vars_before. 
+	       Compute variables that are defined 
+	       - after (b,tl) if not assumed_distinct_block,
+	       - after the end of the block that defines (b,tl) if assumed_distinct_block. *)
             let future_binders =
               if assumed_distinct_block then
-                  (* we assumed that the indices of br are different from those of b[tl]
-                     and br is defined after b[l], so all variables from the input point before br
-                     to the definition of br and variables certainly defined after the definition of br
-                     are defined after b[tl] *)
+                (* We assumed that the indices of br are different from those of b[tl]
+                   and br is defined after b[l], so all variables from the input point before br
+                   to the definition of br and variables certainly defined after the definition of br
+                   are defined after the end of the block that defines b[tl] *)
                 add_vars_until_binder_or_node n [] (above_input_node n) n.future_binders
               else
+		(* We compute variables defined after (b,tl).
+		   Add to the future variables of br the variables defined between the previous input 
+		   point and the definition of br and after another definition of (b,_) *)
                 add_vars_until_binder_or_node n [b] (above_input_node n) n.future_binders
             in
 	    let future_vars = Terms.subst_def_list (fst br).args_at_creation (snd br) (List.map Terms.binderref_from_binder future_binders) in
 
 	      (* Variables in [def_vars] are known to be defined.
-                 If they cannot be defined before or at the same time as [(b,tl)] or a binderref 
-		 already in [future_vars], then they
-	         are certainly defined after [(b,tl)], so we can add them
+                 If they cannot be defined before or at the same time as a binderref in [br_future_or_at_b], 
+		 or they cannot be defined before or at the same time as a binderref already in [future_vars], then they
+	         are certainly defined after [def_vars_before], so we can add them
 	         to [future_vars] *)
 	    let future_vars = 
 	      List.fold_left (fun future_vars br' ->
-		if (not (Incompatible.may_def_before br' (b,tl) &&
+		if (not (List.exists (Incompatible.may_def_before br') br_future_or_at_b &&
 			 List.for_all (Incompatible.may_def_before br') future_vars)) &&
 		  (not (Terms.mem_binderref br' future_vars)) 
 		then
@@ -378,9 +427,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	    if List.exists (fun future_br -> Terms.mem_binderref future_br def_vars_before) future_vars then
 	      raise Contradiction;
 	    
-	    (* Since br is defined after (b,tl), all elements of future_vars are defined after (b,tl).
-	       The elements of def_vars_before are defined before (b,tl), so before the elements
-	       of future_vars. 
+	    (* Elements of future_vars are defined after those of def_vars_before.
 	       Therefore, the elements of def_vars_before are independent of the elements of future_vars
 	       that are randomly chosen. *)
             let dep_info = (future_vars, List.map Terms.term_from_binderref def_vars_before) in
@@ -422,7 +469,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	      (* The "elsefind" fact (bl, def_list, t1) holds
 		 at the definition of b', and I know that b'[tl'] is defined *)
 
-	      (* Rename indices b'.args_at_creation -> tl *)
+	      (* Rename indices b'.args_at_creation -> tl' *)
 	      let def_list = Terms.subst_def_list b'.args_at_creation tl' def_list in
 	      let t1 = Terms.subst b'.args_at_creation tl' t1 in
 
@@ -443,7 +490,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 		 We add [t'] last, so that we can already exploit 
 		 the values of variables known previously when using
 		 the dependency analysis on [t']. *)
-	    let dep_anal = dependency_anal_order_hyp cur_array order_assumptions dep_info in
+	    let dep_anal = dependency_anal_order_hyp cur_array dep_info in
             let simp_facts1 = Facts.simplif_add_list dep_anal ([],[],[]) subst in
 	    let simp_facts2 = Facts.simplif_add_list dep_anal simp_facts1 facts in
 	    let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts2 (!fact_accu) in

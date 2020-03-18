@@ -1,0 +1,329 @@
+(* 
+Version that uses the new insert instruction to create the
+find for a PRF.
+
+This file shows that HMAC-SHA256, KDF256, and KDF128 are independent
+pseudo-random functions even when they use the same key, assuming that
+the compression function of SHA256 is a PRFs and a related PRF-like
+assumption.
+
+KDF256(k, (X,U,V)) = KDF(k; 256; SharedInfoMAC(X,U,V))
+KDF128(k, (X,U,V)) = KDF(k; 128; SharedInfoENC(X,U,V))
+
+As shown in http://cseweb.ucsd.edu/~mihir/papers/hmac-new.pdf, Lemma 3.1,
+when the compression function comp is a PRF, its iteration comp_star
+is computationally almost universal.
+
+The obtained result is that the probability of distinguishing
+HMAC-SHA256, KDF256, and KDF128 from independent pseudo-random functions
+is
+qKDF256 * P_SHA256_comp_prf(time(context for game 33) + time + (qKDF256^2-1) * time(SHA256_comp), 1 + qKDF256) + 
+qKDF128 * P_SHA256_comp_prf(time(context for game 14) + time + (qKDF128^2-1) * time(SHA256_comp), 1 + qKDF128) + 
+qMAC^2 / |t_SHA256_out| + 
+qMAC^2 * (2 length(padsha256, maxlength(game 11: m)) / maxlength(t_SHA256_block)-1) * P_SHA256_comp_prf(max(length(padsha256, maxlength(game 11: m)), length(padsha256, maxlength(game 11: m))) * time(SHA256_comp) / maxlength(t_SHA256_block), 2.) + 
+P_SHA256_comp_prf(time(context for game 8) + time, qMAC) + 
+P_SHA256_joint(time(context for game 5) + time, 1, qKDF128 + qKDF256)
+
+where
+
+RESULT time(context for game 5) = (qMAC + qKDF256 + qKDF128) * time(SHA256_comp) + qMAC * time(padsha256_2) + qMAC * time(SHA256_comp_star, length(padsha256, maxlength(game 5: m))) + qMAC * time(padsha256, maxlength(game 5: m)) + (qKDF256 + qKDF128) * time(concatSHA256_pad) + (qKDF256 + qKDF128) * time(second_part) + (qKDF256 + qKDF128) * time(concatSHA256_2) + (qKDF256 + qKDF128) * time(first_part) + qKDF128 * time(truncate128)
+RESULT time(context for game 8) = qMAC * time(padsha256_2) + qMAC * time(SHA256_comp_star, length(padsha256, maxlength(game 8: m))) + qMAC * time(padsha256, maxlength(game 8: m)) + (2. * qKDF256 * qKDF256 + 2. * qKDF128 * qKDF128) * time(first_part) + (qKDF256 + qKDF128) * time(SHA256_comp) + (qKDF256 + qKDF128) * time(concatSHA256_pad) + (qKDF256 + qKDF128) * time(second_part) + qKDF128 * time(truncate128)
+RESULT time(context for game 14) = qMAC * qMAC * time(= bitstring, maxlength(game 14: m), maxlength(game 14: m)) + (2. * qKDF256 * qKDF256 + 2. * qKDF128 * qKDF128) * time(first_part) + qKDF256 * time(SHA256_comp) + (qKDF256 + qKDF128) * time(concatSHA256_pad) + (qKDF256 + qKDF128) * time(second_part) + qKDF128 * time(truncate128)
+RESULT time(context for game 33) = qMAC * qMAC * time(= bitstring, maxlength(game 33: m), maxlength(game 33: m)) + 2. * qKDF256 * qKDF256 * time(first_part) + qKDF256 * time(concatSHA256_pad) + qKDF256 * time(second_part)
+
+
+Ignoring small times
+time(context for game 5) = (qMAC + qKDF256 + qKDF128) * time(SHA256_comp) + qMAC * time(SHA256_comp_star, length(padsha256, maxlength(game 5: m))) 
+time(context for game 8) = qMAC * time(SHA256_comp_star, length(padsha256, maxlength(game 8: m))) + (qKDF256 + qKDF128) * time(SHA256_comp) 
+time(context for game 14) = qKDF256 * time(SHA256_comp)
+time(context for game 33) = 0
+
+The probability can then be simplified into:
+qKDF256 * P_SHA256_comp_prf(time + (qKDF256^2-1) * time(SHA256_comp), 1 + qKDF256) + 
+qKDF128 * P_SHA256_comp_prf(qKDF256 * time(SHA256_comp) + time + (qKDF128^2-1) * time(SHA256_comp), 1 + qKDF128) + 
+qMAC^2 / |t_SHA256_out| + 
+qMAC^2 * (2 length(padsha256, maxlength(game 11: m)) / maxlength(t_SHA256_block)-1) * P_SHA256_comp_prf(length(padsha256, maxlength(game 11: m)) * time(SHA256_comp) / maxlength(t_SHA256_block), 2.) + 
+P_SHA256_comp_prf(qMAC * time(SHA256_comp_star, length(padsha256, maxlength(game 8: m))) + (qKDF256 + qKDF128) * time(SHA256_comp) + time, qMAC) + 
+P_SHA256_joint((qMAC + qKDF256 + qKDF128) * time(SHA256_comp) + qMAC * time(SHA256_comp_star, length(padsha256, maxlength(game 5: m))) + time, 1, qKDF128 + qKDF256)
+
+*)
+
+(* Do not assume by default that all constants are 
+   different. We shall say it explicitly when they are different *)
+
+set diffConstants = false.
+
+(**** Manual indications for the proof ****)
+
+proof {
+(* MAC: transform into 
+   "find[unique] j1 <= qMAC suchthat defined(r[j1], m[j1], else_MAC[j1]) && (m = m[j1]) then return(r[j1]) else r <- ...; return(r)"
+*)
+insert after "K0:" "r <- SHA256_comp(SHA256_comp(SHA256_init, xor(K0, opad)), padsha256_2(SHA256_comp_star(SHA256_comp(SHA256_init, xor(K0, ipad)), padsha256(m))))";
+replace 34 "r";
+insert after "O_MAC" "find[unique] j1 <= qMAC suchthat defined(r[j1], m[j1], else_MAC[j1]) && (m = m[j1]) then else else_MAC <- true";
+replace 23 "r[j1_2]";
+SArename "r";
+(* KDF256 similarly *)
+insert after "O_KDF256" "find [unique] j2 <= qKDF256 suchthat defined(Hash1[j2], U2[j2], V2[j2], X2[j2], else_256[j2]) && (X2 = X2[j2]) && (V2 = V2[j2]) && (U2 = U2[j2]) then else else_256 <- true";
+replace 80 "Hash1[j2_2]";
+SArename "Hash1";
+(* KDF128 similarly *)
+insert after "Hash1_1:" "r3 <- truncate128(Hash1_1)";
+replace 143 "r3_1";
+insert after "O_KDF128" "find [unique] j3 <= qKDF128 suchthat defined(r3_1[j3], U3[j3], V3[j3], X3[j3], else_128[j3]) && (X3 = X3[j3]) && (V3 = V3[j3]) && (U3 = U3[j3]) then else else_128 <- true";
+replace 161 "r3_1[j3_2]";
+SArename "r3_1";
+
+      (* Prove that HMAC_SHA256 is a PRF *) 
+      crypto SHA256_joint;
+      out_game "g1.out";
+      crypto SHA256_comp_prf r1_1;
+      crypto SHA256_comp_star_cAU;
+      (* Prove that KDF128 is a PRF *)
+      crypto SHA256_comp_prf r3_5;
+      simplify;
+      show_game occ;
+      replace 153 "first_part(X3[ri_7])";
+      simplify; 
+      merge_branches; 
+      crypto truncate128;
+      (* Prove that KDF256 is a PRF *)
+      crypto SHA256_comp_prf r3_4;
+      simplify;
+      show_game occ;
+      replace 72 "first_part(X2[ri_11])";
+      simplify;
+      merge_branches;
+      remove_assign useless;
+      auto
+}
+
+(**** Declarations of types, constants, and functions
+      with the associated assumptions ****)
+
+type mac_key [large, fixed]. (* 256 bits HMAC-SHA256 key *)
+type enc_key [large, fixed]. (* 128 bits AES key *)
+
+(* Hash function SHA256 *)
+
+type t_SHA256_out [fixed, large]. (* 256 bits bitstrings *)
+type t_SHA256_block [large, fixed]. (* 512 bits SHA256 block *)
+type t_SHA256_blocks. (* multiple of 512 bits *)
+type t_SHA256_KDF_in [fixed, large]. (* 680 bits bitstrings, in KDF *)
+
+(* padsha256(m) pads the bitstring m to a multiple of 512 bits,
+   assuming there is one 512-bits block before m in the computation
+   of SHA256 *)
+fun padsha256(bitstring): t_SHA256_blocks [data].
+(* padsha256_2(m) pads the 256-bits bitstring m to 512 bits,
+   assuming there is one 512-bits block before m in the computation
+   of SHA256 *)
+fun padsha256_2(t_SHA256_out): t_SHA256_block [data].
+
+const SHA256_init: t_SHA256_out.
+
+(* SHA256 compression function *)
+fun SHA256_comp(t_SHA256_out, t_SHA256_block): t_SHA256_out.
+
+(* SHA256 iterated compression function *)
+fun SHA256_comp_star(t_SHA256_out, t_SHA256_blocks): t_SHA256_out.
+
+fun first_block(t_SHA256_KDF_in): t_SHA256_block.
+fun second_block(t_SHA256_KDF_in): t_SHA256_block.
+
+letfun SHA256_KDF(x: t_SHA256_KDF_in) = 
+       SHA256_comp(SHA256_comp(SHA256_init, first_block(x)), second_block(x)).
+
+(* SHA256_comp is a PRF *)
+
+proba P_SHA256_comp_prf.
+param N, N2, N3.
+
+equiv(SHA256_comp_prf)
+       foreach i3 <= N3 do k <-R t_SHA256_out; foreach i <= N do Of(x:t_SHA256_block) := 
+       	        return(SHA256_comp(k, x))
+     <=(N3 * P_SHA256_comp_prf(time + (N3-1)* N * time(SHA256_comp), N))=>
+       foreach i3 <= N3 do k <-R t_SHA256_out; foreach i <= N do Of(x:t_SHA256_block) :=
+		find[unique] j<=N suchthat defined(x[j],r2[j]) && x = x[j] then return(r2[j])
+		else r2 <-R t_SHA256_out; return(r2).
+
+(* SHA256_comp_star is computationally almost universal (because SHA256_comp is a PRF) *)
+
+equiv(SHA256_comp_star_cAU)
+       foreach i3 <= N3 do k <-R t_SHA256_out; foreach i <= N do Of(m1: t_SHA256_blocks, m2: t_SHA256_blocks) :=
+       	       return(SHA256_comp_star(k, m1) = SHA256_comp_star(k, m2))
+     <=(N3 * N * (((maxlength(m1) + maxlength(m2))/length(t_SHA256_block) - 1) * P_SHA256_comp_prf(max(maxlength(m1), maxlength(m2))/length(t_SHA256_block) * time(SHA256_comp), 2) + 1/|t_SHA256_out|))=>
+       foreach i3 <= N3 do foreach i <= N do Of(m1: t_SHA256_blocks, m2: t_SHA256_blocks) :=
+       	       return(m1 = m2).
+
+(* KDF helper functions *)
+
+type t_id [fixed]. (* 8 bytes = 64 bits entity type, AMS_EntityType *)
+type byte [fixed]. (* 8 bits bitstrings *)
+const MACcst: byte. (* 0x01, in SharedInfoMAC *)
+const ENCcst: byte. (* 0x02, in SharedInfoENC *)
+const AES128keylength: byte.  (* 128 *)
+const AES128num: byte.        (* 0x01 *)
+const HMAC256keylength: byte. (* 256 *)
+const HMAC_SHA256num: byte.   (* 0xF1 *)
+
+equation MACcst <> ENCcst.
+
+
+type t_shared_info [fixed]. (* 408 bits SharedInfoMAC and SharedInfoENC *)
+
+(* concatSI builds the SharedInfoMAC and SharedInfoENC 
+   from the components by concatenation. *)
+fun concatSI(byte, byte, t_SHA256_out, t_id, t_id, byte): t_shared_info [data].
+(* The result of concatSI is
+   8 + 8 + 256 + 2*64 + 8 = 408 bits *)
+
+type t_count [fixed]. (* 16 bits integer counter *)
+const count1 (* constant 1 *), count2 (* constant 2 *): t_count. 
+equation count1 <> count2.
+fun concatKDF(mac_key, t_count, t_shared_info): t_SHA256_KDF_in [data].
+(* The result of concatKDF is 256 + 16 + 408 = 680 bits long.
+   That will be padded to two 512-bits blocks when computing SHA256. *)
+
+type tXfirst [fixed].
+type tXsecond [fixed].
+fun concatSHA256(mac_key, mac_key): t_SHA256_block [data].
+fun concatSHA256_2(t_count, byte, byte, tXfirst): mac_key [data].
+fun first_part(t_SHA256_out): tXfirst.
+fun second_part(t_SHA256_out): tXsecond.
+fun concat_parts(tXfirst, tXsecond): t_SHA256_out [data].
+fun concatSHA256_pad(tXsecond, t_id, t_id, byte): t_SHA256_block [data].
+
+equation forall k: mac_key, count: t_count, algo_cst: byte, algo_num: byte, 
+       X: t_SHA256_out, U: t_id, V: t_id, keylength:byte;  
+       first_block(concatKDF(k, count, concatSI(algo_cst, algo_num, X, U, V, keylength))) =
+       concatSHA256(k, concatSHA256_2(count, algo_cst, algo_num, first_part(X))).
+
+equation forall k: mac_key, count: t_count, algo_cst: byte, algo_num: byte, 
+       X: t_SHA256_out, U: t_id, V: t_id, keylength:byte;  
+       second_block(concatKDF(k, count, concatSI(algo_cst, algo_num, X, U, V, keylength))) =
+       concatSHA256_pad(second_part(X), U, V, keylength).
+
+equation forall X1: t_SHA256_out, X2: t_SHA256_out;
+       (first_part(X1) = first_part(X2) && second_part(X1) = second_part(X2)) = (X1 = X2).
+
+equation forall X: t_SHA256_out;
+       concat_parts(first_part(X), second_part(X)) = X.
+equation forall X1: tXfirst, X2: tXsecond;
+       first_part(concat_parts(X1,X2)) = X1.
+equation forall X1: tXfirst, X2: tXsecond;
+       second_part(concat_parts(X1,X2)) = X2.
+
+
+(* truncate128 truncates its 256 bits argument to 128 bits
+   to obtain a 128-bits AES key. *)
+fun truncate128(t_SHA256_out): enc_key.
+
+(* If we truncate a uniformly distributed random value, 
+   we obtain a uniformly distributed random value *)
+equiv foreach i<=N do h1 <-R t_SHA256_out; 
+      O_K128() := return(truncate128(h1))
+<=(0)=>
+      foreach i<=N do k <-R enc_key; 
+      O_K128() := return(k).
+
+
+(* HMAC helper functions *)
+
+const opad, ipad: t_SHA256_block.
+equation opad <> ipad.
+
+fun padkey(mac_key): t_SHA256_block [data].
+
+expand Xor(t_SHA256_block, xor, zero).
+
+(* Joint PRF assumption about the SHA256 compression function *)
+
+proba P_SHA256_joint.
+
+equiv(SHA256_joint)
+       foreach i3 <= N2 do k <-R mac_key;
+       	       (O1() := return(SHA256_comp(SHA256_init, xor(padkey(k), opad))) |
+	        O2() := return(SHA256_comp(SHA256_init, xor(padkey(k), ipad))) |
+		foreach i<= N do O3(x: mac_key) := return(SHA256_comp(SHA256_init, concatSHA256(k, x))))
+     <=(P_SHA256_joint(time + (N2-1)*((2+N)*time(SHA256_comp) + 2*time(xor) + 2*time(padkey)), N2, N))=>
+       foreach i3 <= N2 do 
+       	       (O1() := r1 <-R t_SHA256_out; return(r1) |
+	        O2() := r2 <-R t_SHA256_out; return(r2) |
+		foreach i<= N do O3(x: mac_key) := 
+			find[unique] j <= N suchthat defined(x[j],r3[j]) && x = x[j] then
+			     return(r3[j])
+			else
+			     r3 <-R t_SHA256_out;
+			     return(r3)).
+
+(**** Initial game ****)
+
+param qMAC, qKDF256, qKDF128.
+
+(* HMAC-SHA256 oracle *)
+
+let PMAC(k: mac_key) =
+    foreach i <= qMAC do
+    O_MAC(m: bitstring) :=
+    let K0 = padkey(k) in
+    return(SHA256_comp(SHA256_comp(SHA256_init, xor(K0, opad)),
+    	   padsha256_2(SHA256_comp_star(SHA256_comp(SHA256_init, xor(K0, ipad)), padsha256(m))))).
+
+(* KDF256 oracle: KDF(k; 256; SharedInfoMAC) *)
+
+let PKDF256(k: mac_key) =
+    foreach i <= qKDF256 do
+    O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) :=
+    let SharedInfoMAC = concatSI(MACcst, HMAC_SHA256num, X2, U2, V2, HMAC256keylength) in
+    let Hash1 = SHA256_KDF(concatKDF(k, count1,  SharedInfoMAC)) in
+    return(Hash1).
+
+(* KDF128 oracle: KDF(k; 128; SharedInfoENC) *)
+
+let PKDF128(k: mac_key) = 
+    foreach i <= qKDF128 do
+    O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) :=
+    let SharedInfoENC = concatSI(ENCcst, AES128num, X3, U3, V3, AES128keylength) in
+    let Hash1 = SHA256_KDF(concatKDF(k, count1,  SharedInfoENC)) in
+    return(truncate128(Hash1)).
+
+equivalence
+	Ogen() :=
+	k <-R mac_key;
+	return();
+	(run PMAC(k) | run PKDF256(k) | run PKDF128(k))
+
+       Ogen() :=
+       return();
+       ((
+         foreach i <= qMAC do
+         O_MAC(m: bitstring) :=
+         find [unique] j1 <= qMAC suchthat defined(r1[j1], m[j1]) && (m = m[j1]) then
+           return(r1[j1])
+         else
+           r1 <-R t_SHA256_out;
+           return(r1)
+       ) | (
+         foreach i <= qKDF256 do
+         O_KDF256(X2: t_SHA256_out, U2: t_id, V2: t_id) :=
+         find [unique] j2 <= qKDF256 suchthat defined(r2[j2], U2[j2], V2[j2], X2[j2]) && (X2 = X2[j2]) && (V2 = V2[j2]) && (U2 = U2[j2]) then
+           return(r2[j2])
+         else
+           r2 <-R t_SHA256_out;
+           return(r2)
+       ) | (
+         foreach i <= qKDF128 do
+         O_KDF128(X3: t_SHA256_out, U3: t_id, V3: t_id) :=
+         find [unique] j3 <= qKDF128 suchthat defined(r3[j3], U3[j3], V3[j3], X3[j3]) && (X3 = X3[j3]) && (V3 = V3[j3]) && (U3 = U3[j3]) then
+           return(r3[j3])
+         else
+           r3 <-R enc_key;
+           return(r3)
+       ))
+
+(* EXPECTED
+All queries proved.
+0.272s (user 0.260s + system 0.012s), max rss 47896K
+END *)

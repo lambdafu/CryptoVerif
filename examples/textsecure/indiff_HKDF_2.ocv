@@ -6,7 +6,12 @@
    That is, it shows indistinguishability between
    (H1, H2, x -> H2(H1(x), x)) and
    (H1, H2', H3)
-   where H2' simulates H2 using calls to H1 and H3. *) 
+   where H2' simulates H2 using calls to H1 and H3.
+
+Expected result as stated in the Wireguard paper:
+RESULT Proved indistinguishability between game 27 and game 1 up to probability (qH2 + 2. * qH2 * qH1 + qH2 * qH3) / |output1|
+The probability has now been improved a bit: the factor 2. above no longer appears.
+ *) 
 
 type hashkey1 [large, fixed].
 type input1.
