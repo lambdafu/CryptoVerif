@@ -1,6 +1,6 @@
 TO DO next
 
-Use the improved computation of probabilities for Shoup's lemma
+1) Use the improved computation of probabilities for Shoup's lemma
 to show that we can count the elimination of collisions once
 for the whole sequence of games?
 
@@ -163,16 +163,12 @@ Document the "cryptogen" program
 6) Extend the "move" instruction to allow precisely moving
    "let"/"new" from one point to another (when correct).
    (see point 7 in HIGH PRIORITY)
-7) When x is defined by let x = M, have an instruction
-   that allows to replace M with x everywhere (including
-   with indices when we are sure that x is defined).
-   (see point 8 in HIGH PRIORITY)
-8) Improved merging of branches, by substituting
+7) Improved merging of branches, by substituting
    assignments and new without array accesses,
    or delaying those with array accesses, and
    merging several nested finds at once.
    (see point 9 in HIGH PRIORITY)
-9) Tech report, tutorial
+8) Tech report, tutorial
    (see points 11, 12 in HIGH PRIORITY)
 
 HIGH PRIORITY
@@ -616,17 +612,6 @@ also for merging of branches until we do some auto reordering),
 - decide to expand "if x then m1 else m2" or to keep it as "test(x,m1,m2)",
 - perhaps decide to merge or not each if/let/find when the branches execute
 the same code, ...
-
-8) common subexpression elimination
-examples-1.28/nd/notest/JoeKaiTsayBasicKerberos_071122_INT-CTXT:
-Kerberos: to handle "keyderivation" for all keys, use some common
-subexpression elimination to avoid recomputing several times the same
-key. (This transfo is the contrary to "move_new". Choose when to apply
-each transformation. Perhaps use common subexpression elimination when
-the considered expression does not depend on the replication index.)
-==> Simpler and better: rely on user guidance. Have an instruction
-that allows replacing all terms equal to the definition of x
-with x. (Apply it also with indices.)
 
 9) improved merging of find branches
 auto-reorder the instructions in the branches to merge,
@@ -5297,3 +5282,18 @@ Done: insert event_abort like other insertions (but then add probabilities)
       However, it does not subsume "insert_event" because the latter
       also allows inserting an event_abort at a term position.
 DONE 18/03/2020
+
+When x is defined by let x = M, have an instruction
+that allows to replace M with x everywhere (including
+with indices when we are sure that x is defined).
+  Replaces common subexpression elimination
+  examples-1.28/nd/notest/JoeKaiTsayBasicKerberos_071122_INT-CTXT:
+  Kerberos: to handle "keyderivation" for all keys, use some common
+  subexpression elimination to avoid recomputing several times the same
+  key. (This transfo is the contrary to "move_new". Choose when to apply
+  each transformation. Perhaps use common subexpression elimination when
+  the considered expression does not depend on the replication index.)
+  ==> Simpler and better: rely on user guidance. Have an instruction
+  that allows replacing all terms equal to the definition of x
+  with x. (Apply it also with indices.)
+DONE 24/03/2020

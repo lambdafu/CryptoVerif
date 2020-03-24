@@ -60,7 +60,7 @@ proof {
    "find[unique] j1 <= qMAC suchthat defined(r[j1], m[j1], else_MAC[j1]) && (m = m[j1]) then return(r[j1]) else r <- ...; return(r)"
 *)
 insert after "K0:" "r <- SHA256_comp(SHA256_comp(SHA256_init, xor(K0, opad)), padsha256_2(SHA256_comp_star(SHA256_comp(SHA256_init, xor(K0, ipad)), padsha256(m))))";
-replace 34 "r";
+use_variable "r";
 insert after "O_MAC" "find[unique] j1 <= qMAC suchthat defined(r[j1], m[j1], else_MAC[j1]) && (m = m[j1]) then else else_MAC <- true";
 replace 23 "r[j1_2]";
 SArename "r";
@@ -70,7 +70,7 @@ replace 80 "Hash1[j2_2]";
 SArename "Hash1";
 (* KDF128 similarly *)
 insert after "Hash1_1:" "r3 <- truncate128(Hash1_1)";
-replace 143 "r3_1";
+use_variable "r3_1";
 insert after "O_KDF128" "find [unique] j3 <= qKDF128 suchthat defined(r3_1[j3], U3[j3], V3[j3], X3[j3], else_128[j3]) && (X3 = X3[j3]) && (V3 = V3[j3]) && (U3 = U3[j3]) then else else_128 <- true";
 replace 161 "r3_1[j3_2]";
 SArename "r3_1";

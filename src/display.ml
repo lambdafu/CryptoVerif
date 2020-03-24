@@ -1423,6 +1423,7 @@ let display_instruct = function
 	end
   | MoveNewLet s -> print_string "move "; display_move_set s
   | RemoveAssign r -> print_string "remove assignments of "; display_rem_set r
+  | UseVariable l -> print_string "use variable(s) "; display_list display_binder l
   | SArenaming b -> 
       print_string "SA rename ";
       display_binder b
@@ -2004,6 +2005,19 @@ let display_detailed_ins = function
         match usage_ch with
 	  DRemoveAll -> "all usages removed)\n"
 	| DRemoveNonArray -> "array references kept)\n")
+  | DUseVariable(b, rep_list) ->
+      print_string "  - Use variable ";
+      display_binder b;
+      print_newline();
+      List.iter (fun (t1,t2) ->
+	print_string "    - ";
+	display_term t1;
+	print_string " replaced with ";
+	display_term t2;
+	print_string " at ";
+	print_occ t1.t_occ;
+	print_newline()
+	  ) rep_list
   | DSArenaming(b, bl) ->
       print_string "  - Rename variable ";
       display_binder b;
@@ -2095,6 +2109,8 @@ let mark_occs1 f_p f_t = function
   | DCryptoTransf _ | DMergeArrays _ -> ()
   | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->
       useful_occs := occ :: (!useful_occs)
+  | DUseVariable(_,l) ->
+      List.iter (fun (t1,t2) -> f_t t1) l
   | DExpandIfFind(l) | DSimplify(l) ->
       List.iter (mark_occs_simplif_step f_t) l
   | DLetSimplifyPattern(let_p, _) -> mark_useful_occ_pp let_p

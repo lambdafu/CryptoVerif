@@ -118,6 +118,7 @@ let return_channel = (dummy_channel, None)
 %token TERMS
 %token VARIABLES
 %token REMOVE_ASSIGN
+%token USE_VARIABLE
 %token USELESS
 %token FINDCOND
 %token ALL
@@ -488,6 +489,8 @@ proofcommand:
     { CMove($2) }
 |   REMOVE_ASSIGN rem_opt
     { CRemove_assign($2) }
+|   USE_VARIABLE neidentlistnosep
+    { CUse_variable($2) }
 |   FOCUS stringlistne
     { CFocus($2) }
 |   UNDO FOCUS

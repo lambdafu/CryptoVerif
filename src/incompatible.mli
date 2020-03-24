@@ -63,6 +63,10 @@ val def_at_pp_add_fact : term list -> program_point -> term list -> binderref ->
    (Typically, that some indices in [args] are different
    from some indices of variables in [def_list].) *)
 val def_list_at_pp_facts : term list -> program_point -> term list -> binderref list -> term list
+(* [both_pp (args, pp) (args', pp')] returns true when
+   program point [pp] with indices [args] and 
+   program point [pp'] with indices [args'] can both be executed. *)
+val both_pp :  term list * program_point -> term list * program_point -> bool
 (* [both_pp_add_fact fact_accu (lidxa, ppa) (lidxb, ppb)]returns [fact_accu] 
    after adding a fact inferred from the execution of both
    program point [ppa] with indices [lidxa] and 

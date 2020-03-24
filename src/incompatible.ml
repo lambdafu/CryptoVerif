@@ -267,6 +267,19 @@ let incompatible_suffix_length_pp pp pp' =
   with Not_found ->
     Occ_map.find occ' occ_map 
 
+(* [both_pp (args, pp) (args', pp')] returns true when
+   program point [pp] with indices [args] and 
+   program point [pp'] with indices [args'] can both be executed. *)
+
+let both_pp (args, pp) (args', pp') =
+  try
+    let suffix_l = incompatible_suffix_length_pp pp pp' in
+    let args_skip = Terms.lsuffix suffix_l args in
+    let args_skip' = Terms.lsuffix suffix_l args' in
+    not (List.for_all2 Terms.equal_terms args_skip args_skip')
+  with Not_found -> 
+    true
+     
 (* [both_pp_add_fact fact_accu (args, pp) (args', pp')] 
    adds to [fact_accu] a fact inferred from the execution of both
    program point [pp] with indices [args] and 

@@ -1367,7 +1367,7 @@ let replace_term occ ext_o s ext_s g =
     with Error(mess, extent) ->
       Array_ref.cleanup_array_ref();
       Hashtbl.clear hash_binders;
-      Incompatible.empty_comp_process g_proc;
+      Improved_def.empty_improved_def_game true g;
       raise (Error(mess, extent))
   in
   Array_ref.cleanup_array_ref();

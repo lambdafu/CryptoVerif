@@ -543,6 +543,7 @@ and instruct =
   | SimplifyNonexpanded
   | GlobalDepAnal of binder * coll_elim_t list (* same as for Simplify *)
   | RemoveAssign of rem_set
+  | UseVariable of binder list
   | SArenaming of binder
   | MoveNewLet of move_set
   | CryptoTransf of equiv_nm * crypto_transf_user_info
@@ -610,6 +611,7 @@ and detailed_instruct =
   | DGlobalDepAnal of binder * coll_elim_t list
   | DLetSimplifyPattern of program_point * let_transfo
   | DRemoveAssign of binder * def_change * usage_change
+  | DUseVariable of binder * (term * term) list
   | DSArenaming of binder * binder list
   | DMoveNew of binder
   | DMoveLet of binder

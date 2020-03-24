@@ -1255,6 +1255,7 @@ let display_instruct = function
 	end
   | MoveNewLet s -> print_string "move\\ "; display_move_set s
   | RemoveAssign r -> print_string "remove assignments of "; display_rem_set r
+  | UseVariable l -> print_string "use variable(s) $"; display_list display_binder l; print_string "$"
   | SArenaming b -> 
       print_string "SA rename $";
       display_binder b;
@@ -1673,6 +1674,19 @@ let display_detailed_ins = function
         match usage_ch with
 	  DRemoveAll -> "all usages removed)\\\\\n"
 	| DRemoveNonArray -> "array references kept)\\\\\n")
+  | DUseVariable(b, rep_list) ->
+      print_string "\\quad  -- Use variable $";
+      display_binder b;
+      print_string "$\\\\\n";
+       List.iter (fun (t1,t2) ->
+	print_string "\\qquad    -- $";
+	display_term t1;
+	print_string "$ replaced with $";
+	display_term t2;
+	print_string "$ at ";
+	print_occ t1.t_occ;
+	print_newline()
+	  ) rep_list
   | DSArenaming(b, bl) ->
       print_string "\\quad -- Rename variable $";
       display_binder b;

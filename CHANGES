@@ -3,6 +3,7 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Added the command "use_variable x1 ... xn".
 - Extended the "insert" command to insert several tests, assignments
   as well as event_abort in a single command. Inserting
      find ... then/else let x = ...

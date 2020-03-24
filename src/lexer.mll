@@ -88,6 +88,7 @@ let keyword_table_proof =
       "terms", TERMS;
       "variables", VARIABLES;
       "remove_assign", REMOVE_ASSIGN;
+      "use_variable", USE_VARIABLE;
       "useless", USELESS;
       "findcond", FINDCOND;
       "all", ALL;

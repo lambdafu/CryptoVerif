@@ -10,6 +10,7 @@
             colorlinks=false]{hyperref}
 
 \newcommand{\tttimes}{\mathop{\texttt{*}}}
+\newcommand{\tup}[1]{\widetilde{#1}}
 
 \newcommand{\nonterm}[1]{\langle\textrm{#1}\rangle}
 \newcommand{\seq}[1]{\textrm{seq}\nonterm{#1}}
@@ -2312,6 +2313,17 @@ from the same initial name but have different numbers:
 need to be put between quotes because they use characters that do
 not belong to ordinary identifiers. Blackslash ($\backslash$) must then be escaped 
 as $\backslash\backslash$, as in OCaml string literals.
+
+\item $\texttt{use\string_variable}\ x_1\ \dots\ x_n$: when $x_i$ is defined
+  by an assignment $\texttt{let }x_i = M_i$, replace all occurrences of term
+  $M_i$ at which $x_i$ is guaranteed to be defined by $x_i$. The replacement
+  is also performed with array accesses, that is, $M_i\{\tup{M}/\tup{i}\}$
+  is replaced with $x_i[\tup{M}]$, when $x_i[\tup{M}]$ is guaranteed to be
+  defined, where $\tup{i}$ are the current replication indices at the
+  definition of $x_i$.
+  As in the command $\texttt{remove\string_assign binder}\ x_1\ \dots\ x_n$,
+  the variables $x_i$ may also be regular expressions, designating
+  all variables that match the regular expression.
 
 \item $\texttt{move }m$: Try to move instructions as follows:
 \begin{itemize}

@@ -95,6 +95,8 @@ let sa_rename_ins_updater b bl = function
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) | IFocus _) as x -> [x]
   | RemoveAssign (Binders l) ->
       [RemoveAssign (Binders (replace_list b bl l))]
+  | UseVariable l ->
+      [UseVariable (replace_list b bl l)]
   | SArenaming b' -> 
       if b' == b then
 	 (* If b' == b, useless after SArenaming b *)
@@ -162,6 +164,7 @@ let execute g ins =
     | GlobalDepAnal (b,l) -> Transf_globaldepanal.main b l g
     | MoveNewLet s -> Transf_move.move_new_let s g
     | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
+    | UseVariable l -> Transf_use_variable.use_variable l g
     | SArenaming b -> Transf_sarename.sa_rename b g
     | InsertEvent(s,occ,ext_o) -> Transf_insert_event.insert_event occ ext_o s g
     | InsertInstruct(s,ext_s,occ,ext_o) -> 
@@ -1404,6 +1407,7 @@ let help() =
   "remove_assign findcond       : remove useless assignments and assignments in conditions of \"find\"\n" ^
   "remove_assign binder <ident> : remove assignments on variable <ident>\n" ^
   "remove_assign all            : remove all assignments (not recommended)\n" ^
+  "use_variable <ident>         : replace terms equal to <ident> with <ident>\n" ^
  (if (!Settings.front_end) == Settings.Channels then
   "move all                     : move all \"new\" and \"let\" down in the game\n" ^
   "move noarrayref              : move \"new\" and \"let\" without array references down in the game\n" ^
@@ -1610,9 +1614,12 @@ let rec interpret_command interactive state = function
 	match arg with
 	| RemCst x -> execute_display_advise (RemoveAssign x) state 
 	| RemBinders l ->
-		let binders = find_binders state.game in
-		execute_display_advise (RemoveAssign (Binders (find_binder_list binders l))) state 
+	    let binders = find_binders state.game in
+	    execute_display_advise (RemoveAssign (Binders (find_binder_list binders l))) state 
       end
+  | CUse_variable(l) ->
+      let binders = find_binders state.game in
+      execute_display_advise (UseVariable(find_binder_list binders l)) state 
   | CMove(arg) ->
       begin
 	match arg with

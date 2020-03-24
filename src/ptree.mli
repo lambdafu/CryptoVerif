@@ -241,6 +241,7 @@ type command =
   | CSimplify of pcoll_elim_t list
   | CMove of move_opt_t
   | CRemove_assign of rem_opt_t
+  | CUse_variable of ident list
   | CFocus of ident list
   | CUndoFocus of Parsing_helper.extent
   | CTag of ident
