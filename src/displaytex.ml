@@ -257,7 +257,9 @@ and display_term t =
 	display_findcond (def_list, t1);
 	print_string "\\ \\kw{then}\\ ";
 	display_term_paren AllInfix ProcessMayHaveElseBranch  t2;
-	print_string "$\\\\\n$"  (* Should align somehow... *)) l0;
+	(* print_string "$\\\\\n$"  Commented out because going to the next line inside a term 
+	   causes a bug, for instance when the term is in \coutput. However, the drawback is that
+	   we may get very long lines. If I go to the next line, I should align somehow... *)) l0;
       print_string "\\ \\kw{else}\\ ";
       display_term_paren AllInfix NoProcess t3      
   | LetE(pat, t1, t2, topt) ->
@@ -593,7 +595,7 @@ let rec display_set = function
       display_set l
   
 
-(* Only for the oracles front-end *)
+(* Result of an oracle in an equivalence *)
 
 let rec display_procasterm t = 
   if (!display_occurrences) || (List.memq t.t_occ (!Display.useful_occs)) then
