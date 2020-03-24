@@ -1,0 +1,290 @@
+(* 3 rounds of Basic Kerberos, consider only authentication properties *)
+
+(* version with keyderivation used for each encryption.
+   This version currently leads to using too much resources.
+   We need common subexpression elimination to solve this problem *)
+
+proof {
+      SArename Rkey;
+      SArename Qkey;
+      SArename Pkey;
+      insert after "new Kc_1" "Kc_der <- keyderivation(Kc_1, un3)";
+      use_variable Kc_der;
+      insert after "new Kt_1" "Kt_der <- keyderivation(Kt_1, un2)";
+      use_variable Kt_der;
+      insert after "new Ks_1" "Ks_der <- keyderivation(Ks_1, un2)";
+      use_variable Ks_der;
+      crypto prf(keyderivation) Kc_1;
+      crypto prf(keyderivation) Kt_1;
+      crypto prf(keyderivation) Ks_1;
+      crypto int_ctxt(enc) r_30;
+      crypto ind_cpa(enc) r_30;
+      crypto int_ctxt(enc) r_31;
+      crypto ind_cpa(enc) r_31;
+      crypto int_ctxt(enc) r_32;
+      crypto ind_cpa(enc) r_32;
+      insert after "new AK_9" "AK_9der4 <- keyderivation(AK_9, un4)";
+      use_variable AK_9der4;
+      insert after "new AK_9" "AK_9der8 <- keyderivation(AK_9, un8)";
+      use_variable AK_9der8;
+      crypto prf(keyderivation) AK_9;
+      auto
+}
+
+param N.
+param N2.
+param N3.
+param N4.
+
+type nonce [large,fixed].
+type kas [bounded].
+type client [bounded].
+type tgs [bounded].
+type server [bounded].
+type key [fixed].
+type protkey [fixed].
+type usenum [fixed].
+type seed [fixed].
+type maxenc [bounded].
+type timest [fixed].							
+
+(* following functions are needed to set the type of a list of elements to `bitstring', so that the list can be encrypted: *)
+fun concat1(protkey, nonce, timest, tgs):maxenc [data]. 		(* needed for {AK, n1, t_K, T}_Kc*)
+fun concat2(protkey, timest, client):maxenc [data].  		(* needed for TGT and ST *)
+fun concat3(protkey, nonce, timest, server):maxenc [data].       	(* neededfor {SK, n2, t_T, S}_AK *)
+fun pad(client, timest):maxenc [data].
+fun padts(timest): maxenc [data].
+
+equation forall y:protkey, x:timest, z:client, t2:protkey, y2:nonce, x2:timest, z2:tgs;		concat2(y,x,z) <> concat1(t2,y2,x2,z2).
+equation forall t:protkey, y:nonce, x:timest, z:server, t2:protkey, y2:nonce, x2:timest, z2:tgs; concat3(t,y,x,z) <> concat1(t2,y2,x2,z2).
+equation forall z:client, t:timest, t2:protkey, y2:nonce, x2:timest, z2:tgs;  	   pad(z,t) <> concat1(t2,y2,x2,z2).
+equation forall t:timest, t2:protkey, y2:nonce, x2:timest, z2:tgs;   		   padts(t) <> concat1(t2,y2,x2,z2).
+equation forall y:protkey, x:timest, z:client, t2:protkey, y2:nonce, x2:timest, z2:server; concat2(y,x,z) <> concat3(t2,y2,x2,z2).
+equation forall y:protkey, x:timest, z:client, t2:timest, z2:client;    		   concat2(y,x,z) <> pad(z2,t2). 
+equation forall y:protkey, x:timest, z:client, t2:timest;    			   concat2(y,x,z) <> padts(t2). 
+equation forall t:protkey, y:nonce, x:timest, z:server, t2:timest, z2:client;  	   concat3(t,y,x,z) <> pad(z2,t2).
+equation forall t:protkey, y:nonce, x:timest, z:server, t2:timest;  			   concat3(t,y,x,z) <> padts( t2).
+equation forall t:timest, z:client, t2:timest;  					   pad(z,t)<> padts(t2).
+
+
+(* Shared-key encryption (IND-CPA & INT-CTXT) *)
+
+proba Penc.
+proba Pencctxt.
+
+expand IND_CPA_INT_CTXT_sym_enc(key, maxenc, bitstring, enc, dec, injbot, Z, Penc, Pencctxt).
+
+(* The function Z returns for each bitstring, a bitstring of the same length, consisting only of zeroes. *)
+const  Zconcat1:maxenc.
+const  Zconcat2:maxenc.
+const  Zconcat3: maxenc.
+const  Zpad:maxenc.
+const  Zpadts: maxenc.
+
+equation forall y:nonce, x:timest, z:tgs, t:protkey;
+	Z(concat1(t,y,x,z)) = Zconcat1.
+equation forall y:protkey, x:timest, z:client; 
+	Z(concat2(y,x,z)) = Zconcat2.
+equation forall  y:nonce, x:timest, z:server, t:protkey;
+	Z(concat3(t,y,x,z)) = Zconcat3.
+equation forall z:client, t:timest;
+        Z(pad(z,t)) = Zpad.
+equation forall t: timest;
+        Z(padts(t)) = Zpadts.
+					    
+
+(* Pseudorandom function for key derivation *)
+proba pPRF.
+
+expand PRF(protkey, usenum, key, keyderivation, pPRF).
+
+(* Key usage numbers
+   IMPORTANT NOTE: by default, CryptoVerif considers that if you declare 
+   several constants, then these constants are different.
+   If you like, it would also be possible to change this setting
+   and say explicitly that un1 <> un2.
+ *)
+
+const un1: usenum.
+const un2: usenum.
+const un3: usenum.
+const un4: usenum.
+const un5: usenum.
+const un6: usenum.
+const un7: usenum.
+const un8: usenum.
+const un9: usenum.
+const un10: usenum.
+const un11: usenum.
+const un12: usenum.
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, start, finish, cC, cT.
+const C : client.
+const K : kas.
+const T : tgs.
+const S : server.						
+
+fun acceptC1(kas): bitstring.
+fun acceptC2(tgs,server): bitstring.
+fun acceptC3(server): bitstring.
+fun acceptT(client,server): bitstring.
+fun acceptS(client): bitstring.
+
+event fullKC(client, tgs, nonce, bitstring, bitstring).
+event fullCK(tgs, nonce, bitstring, bitstring).		
+
+event partCT(tgs, bitstring, bitstring).
+event fullCT(tgs, server, nonce, bitstring, bitstring, bitstring). 			
+event partTC(client, bitstring, bitstring).    		
+event fullTC(client, server, nonce, bitstring, bitstring, bitstring, bitstring).
+			
+event partCS(server, tgs, bitstring, bitstring).
+event fullCS(server, tgs, bitstring, bitstring, bitstring).
+event partSC(client, bitstring, bitstring).
+event fullSC(client, bitstring, bitstring, bitstring).      		
+
+
+(* authentication queries : *)
+
+query x:bitstring, y:bitstring, z:bitstring, N:nonce;
+       inj-event(fullCK(T,N,x,y)) ==> inj-event(fullKC(C,T,N,z,y)).
+		 
+query x:bitstring, x':bitstring, y:bitstring, y':bitstring, N:nonce;
+        event(partTC(C,x,y)) ==> event(partCT(T,x',y)) && event(fullKC(C,T,N,x,y')).
+						  	
+query z:bitstring, z':bitstring, y:bitstring, x:bitstring, x':bitstring, v:bitstring, N:nonce;
+      	inj-event(fullCT(T,S,N,x,z,y)) ==> inj-event(fullTC(C,S,N,x',z',v,y)).
+
+query z:bitstring, y:bitstring, x:bitstring, w:bitstring, v:bitstring, v':bitstring, N:nonce ;
+	event(partSC(C,z,y)) ==> event(partCS(S,T,x,y)) && event(fullTC(C,S,N,v,v',z,w)).
+
+query z:bitstring, x:bitstring, y:bitstring, y':bitstring, w:bitstring;
+       event(fullCS(S,T,z,y,w)) ==> event(fullSC(C,x,y',w)).
+	 
+
+(* processC,C2,C3 use channels c1, c2, c3, c4, c6, c9, c10, c17, c18, c19, c20 *)
+let processC(Kc: protkey) = 
+	in(c1, hostT:tgs);						(* hostT = T  *) 
+	new n1:nonce;
+	out(c2, (C, hostT, n1));
+	in(c3, (=C, m:bitstring, m2:bitstring));			(* m = Ticket Granting Ticket *)
+        let Kc3 = keyderivation(Kc, un3) in
+	let injbot(concat1(AK, =n1, tk, =hostT)) = dec(m2, Kc3 (*Kc*)) in 
+	event fullCK(hostT, n1, m, m2);
+	out(c18, acceptC1(K));
+
+ 	! N3 
+    	in(c17, (hostT':tgs, hostS:server));				(* hostS = S *)
+	if hostT' = hostT then
+	new n3:nonce;
+	new tc:timest;
+	let AK4 = keyderivation(AK, un4) in
+	let e5 = enc(pad(C, tc), AK4) in				(* e5 = {C, t_C}_AK *)
+	event partCT(hostT, m, e5);	
+	out(c4, (m, e5, hostS, n3));
+	in(c5, (=C, m6:bitstring, m7:bitstring));
+	let AK8 = keyderivation(AK, un8) in
+	let injbot(concat3(SK, =n3, tt, =hostS))= dec(m7, AK8) in	(* m7 = {SK, n2, t_T, S}_AK   *)
+	event fullCT(hostT, hostS, n3, m, e5, m7);
+	out(c19, acceptC2(hostT, hostS));
+
+	! N4
+    	in(c20, hostS':server);
+	if hostS' = hostS then      
+	new tc':timest;
+	let SK11 = keyderivation(SK, un11) in
+	let e12 = enc(pad(C, tc'), SK11) in				(* e12 = {C, t'_C}_SK *)
+	event partCS(hostS, hostT, m7, e12);				(* m7 = {SK, n2, t_T S}_AK *)
+	out(c6, (m6, e12));
+	in(c9, (m13:bitstring));
+	let SK12 = keyderivation(SK, un12) in
+	if injbot(padts(tc'))= dec(m13, SK12) then
+	event fullCS(hostS, hostT, m7, e12, m13);			(* m13 = {t}_SK *)
+	out(c10, acceptC3(hostS)).
+		
+(* processCKEY,TKEY,SKEY use channels c13, c16, c21 *)
+let processCKEY(Kc: protkey) =
+	in(c13, (Khost:client, Kkey:protkey));
+	let Rkey:protkey = 
+		if Khost = C then Kc else
+		Kkey.
+
+let processTKEY(Kt: protkey) =
+	in(c21, (Lhost:tgs, Lkey:protkey)); 
+	let Qkey:protkey =
+	    	  if Lhost = T then Kt else
+		  Lkey.
+
+let processSKEY(Ks: protkey) = 
+	in(c16,(Mhost1:tgs, Mhost2:server, Mkey:protkey));
+	let Pkey:protkey = 
+	    	 if Mhost1 = T && Mhost2 = S then Ks else
+		 Mkey.
+
+					
+(* processK uses channels c14, c15 *)
+let processK = 
+	in(c14, (hostY:client, hostW:tgs, n:nonce));
+	find j1 <= N2 suchthat defined(Khost[j1],Rkey[j1]) && (Khost[j1] = hostY) then        (* shared key KC *)
+	find j2 <= N2 suchthat defined(Lhost[j2],Qkey[j2]) && (Lhost[j2] = hostW) then        (* shared key KT *)
+	new AK: protkey;
+	new tk:timest;
+	let kQ = keyderivation(Qkey[j2], un2) in
+	let e3 = enc(concat2(AK, tk, hostY), kQ (*Qkey[j2]*)) in					(* e3 = TGT *)
+	let kR = keyderivation(Rkey[j1], un3) in
+	let e4 = enc(concat1(AK, n, tk, hostW), kR (*Rkey[j1]*)) in
+	event fullKC(hostY, hostW, n, e3, e4);
+	out(c15, (hostY, e3, e4)).
+
+(* processT uses channels c7, c8 *)
+let processT(Kt: protkey) =
+    	in(c7, (m8:bitstring, m9:bitstring, hostW:server, n': nonce));				(* hostW = S *)
+	let Kt2 = keyderivation(Kt, un2) in
+	let injbot(concat2(AK, tk, hostY)) = dec(m8, Kt2) in					(* hostY = C *)
+	let AK4 = keyderivation(AK, un4) in
+	let injbot(pad(=hostY, ts)) = dec(m9, AK4) in
+	event partTC(hostY, m8, m9);								(* m8 = TGT={AK, C}_Kt and m9 = {C,t}_AK  *)
+	find j3 <= N2 suchthat defined(Mhost1[j3],Mhost2[j3],Pkey[j3]) && (Mhost1[j3] = T && Mhost2[j3] = hostW) then        (* shared key Ks *)	
+	new SK: protkey;
+	new tt:timest;
+	let kP = keyderivation(Pkey[j3], un2) in
+	let e10 = enc(concat2(SK, tt, hostY), kP (*Pkey[j3]*)) in   
+	let AK8 = keyderivation(AK, un8) in
+	let e11 = enc(concat3(SK, n', tt, hostW), AK8) in
+	event fullTC(hostY, hostW, n', m8, m9, e10, e11);    (* e10 = ST = {SK, C}_Ks, e11 = {SK, n2, S}_AK *)
+	out(c8, (hostY, e10, e11, acceptT(hostY,hostW))).	
+
+(*channels c11, c12*)	
+let processS(Ks: protkey) =
+	in(c11, (m14: bitstring, m15:bitstring));
+	let Ks2 = keyderivation(Ks, un2) in
+	let injbot(concat2(SK, tt, hostC)) = dec(m14, Ks2) in		(*hostC = C *)
+	let SK11 = keyderivation(SK, un11) in
+	let injbot(pad(=hostC, tc')) = dec(m15, SK11) in
+	let SK12 = keyderivation(SK, un12) in
+	let e16 = enc(padts(tc'), SK12) in
+	event partSC(hostC, m14, m15);					(*m14 = {SK,C}_Ks, m15 = {C, t}_SK *)
+	event fullSC(hostC, m14, m15, e16);
+	out(c12, (e16, acceptS(hostC))).
+
+
+process
+	in(start, ());
+	new Kc: protkey;					(* enc key between client C and KAS K *)
+	new Kt: protkey;					(* enc key between TGS T and KAS K *)
+	new Ks: protkey;
+	out(c25, ());
+	((! N processC(Kc)) | 
+	 (! N processK) |
+	 (! N processT(Kt)) |
+	 (! N processS(Ks))	|
+	 (! N2 processCKEY(Kc))|
+	 (! N2 processTKEY(Kt))|
+	 (! N2 processSKEY(Ks)))
+
+(* EXPECTED
+All queries proved.
+31.670s (user 31.662s + system 0.008s), max rss 42736K
+END *)
