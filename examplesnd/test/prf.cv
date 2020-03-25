@@ -1,0 +1,235 @@
+channel c_start, c_out.
+
+type psk_t [large,fixed].
+const default_psk: psk_t.
+fun psk_to_bitstring(psk_t): bitstring [data].
+
+const default_pskID: bitstring.
+const default_pskID_hash: bitstring.
+(* We believe an equation like
+equation Hash(default_pskID) = default_pskID_hash.
+is not necessary, because the default psk is only used in modes where
+the psk in not used and thus a formal link between default_psk and
+default_pskID is not necessary. *)
+const default_pkSm: bitstring.
+
+type expand_t [large,fixed].
+  (* This covers the maximum length of HKDF-Expand's output. For
+     RFC 5869, this is 255*Nh. *)
+type key_t [large,fixed].
+type nonce_t [large,fixed].
+
+(* Application constants *)
+const app_info: bitstring.
+
+expand Xor(
+  nonce_t,
+  xor,
+  nonce_zero (* also used for seq that starts at zero *)
+).
+
+
+
+(* Key Derivation Function *)
+
+type hash_key_t [fixed].
+type hash_output_t [large,fixed].
+fun hash_output_to_bitstring(hash_output_t): bitstring [data].
+
+
+expand ROM_hash_1(
+  (* types *)
+  hash_key_t,
+  bitstring, (* hashinput1: pskID and info are both bitstrings *)
+  hash_output_t,
+  (* functions *)
+  Hash_inner,
+  (* processes *)
+  Hash_oracle,
+  (* parameters *)
+  N_qHash  (* number of queries to the oracle by the adversary *)
+).
+
+
+letfun Hash(key_hash: hash_key_t, input: bitstring) =
+  hash_output_to_bitstring(Hash_inner(key_hash, input)).
+
+(*
+  Extract(salt, IKM):
+    Extract a pseudorandom key of fixed length from
+    input keying material IKM and an optional octet string salt.
+
+    Extract(salt, IKM) is HMAC-Hash(salt, IKM)
+*)
+
+type extract_input_t.
+fun extract_input(psk_t, bitstring): extract_input_t [data].
+type extract_auth_input_t.
+fun extract_auth_input(psk_t, bitstring): extract_auth_input_t [data].
+type extract_output_t [large,fixed]. (* size: Nh bytes *)
+
+expand ROM_hash_1(
+  (* types *)
+  hash_key_t,
+  extract_input_t,
+  extract_output_t,
+  (* functions *)
+  Extract_inner,
+  (* processes *)
+  Extract_oracle,
+  (* parameters *)
+  N_qExtract  (* number of queries to the oracle by the adversary *)
+).
+expand ROM_hash_1(
+  (* types *)
+  hash_key_t,
+  extract_auth_input_t,
+  extract_output_t,
+  (* functions *)
+  ExtractAuth_inner,
+  (* processes *)
+  ExtractAuth_oracle,
+  (* parameters *)
+  N_qExtractAuth  (* number of queries to the oracle by the adversary *)
+).
+
+letfun Extract(key_extract: hash_key_t, psk: psk_t, zz: bitstring) =
+   Extract_inner(key_extract, extract_input(psk, zz)).
+letfun ExtractAuth(key_extract_auth: hash_key_t, psk: psk_t, zz: bitstring) =
+   ExtractAuth_inner(key_extract_auth, extract_auth_input(psk, zz)).
+
+
+(*
+  Expand(PRK, info, L):
+    Expand a pseudorandom key PRK using optional string info into L bytes
+    of output keying material.
+*)
+
+proba P_PRF.
+expand PRF_large(
+  extract_output_t,
+  bitstring,
+  expand_t,
+  Expand,
+  P_PRF
+).
+
+
+def truncate(input_t, output_t, truncate_f) {
+
+  param N.
+
+  fun truncate_f(input_t): output_t.
+
+  (* If we truncate a uniformly distributed random value, 
+     we obtain a uniformly distributed random value *)
+  equiv(truncate(truncate_f))
+    foreach i<=N do h <-R input_t;
+      O_trunc() := return(truncate_f(h))
+    <=(0)=>
+    foreach i<=N do k <-R output_t;
+      O_trunc() := return(k).
+}
+
+expand truncate(
+  expand_t,
+  nonce_t,
+  truncate_to_Nn
+).
+expand truncate(
+  expand_t,
+  key_t,
+  truncate_to_Nk
+).
+(* Nh: The output size of the Hash and Extract functions *)
+expand truncate(
+  expand_t,
+  extract_output_t,
+  truncate_to_Nh
+).
+
+letfun Expand_Nk(key: extract_output_t, input: bitstring) =
+  truncate_to_Nk(Expand(key, input)).
+letfun Expand_Nn(key: extract_output_t, input: bitstring) =
+  truncate_to_Nn(Expand(key, input)).
+letfun Expand_Nh(key: extract_output_t, input: bitstring) =
+  truncate_to_Nh(Expand(key, input)).
+
+
+
+
+
+(* Encryption Context *)
+
+type mode_t [fixed].
+const mode_base: mode_t.
+const mode_psk: mode_t.
+const mode_auth: mode_t.
+const mode_auth_psk: mode_t.
+
+type two_bytes [fixed].
+const kem_id: two_bytes.
+const kdf_id: two_bytes.
+const aead_id: two_bytes.
+
+fun concat2bitstring(bitstring, bitstring): bitstring [data].
+fun concat3(two_bytes, two_bytes, two_bytes): bitstring [data].
+fun concat7(mode_t, bitstring, bitstring, bitstring,
+            bitstring, bitstring, bitstring): bitstring [data].
+
+const hpke_key: bitstring.
+const hpke_nonce: bitstring.
+const hpke_exp: bitstring.
+
+type context_t [large,fixed].
+(* key, nonce, seq, exporter_secret *)
+fun Context(key_t, nonce_t, nonce_t, extract_output_t): context_t [data].
+
+
+const exp_ctx_1: bitstring.
+const exp_ctx_2: bitstring.
+
+type keys_t [fixed].
+fun concat(key_t, nonce_t, expand_t, expand_t): keys_t [data].
+
+equiv
+      new k1: key_t;
+      new k2: nonce_t;
+      new k3: expand_t;
+      new k4: expand_t;
+      Oconcat() := return(concat(k1,k2,k3,k4))
+      <=(0)=>
+      new k: keys_t;
+      Oconcat() := return(k).
+
+letfun keys(secrett: extract_output_t, context: bitstring) =
+  let key: key_t = Expand_Nk(secrett, concat2bitstring(hpke_key, context)) in
+  let nonce: nonce_t = Expand_Nn(secrett, concat2bitstring(hpke_nonce, context)) in
+  let exporter_secret: extract_output_t = Expand_Nh(secrett, concat2bitstring(hpke_exp, context)) in
+  let export_1: expand_t = Expand(exporter_secret, exp_ctx_1) in
+  let export_2: expand_t = Expand(exporter_secret, exp_ctx_2) in
+  concat(key, nonce, export_1, export_2).
+
+proof {
+      insert after "in(Oprf" "find[unique] j <= N suchthat defined(else_br[j],context_1[j]) && context_1 = context_1[j] then else else_br <- true";
+      insert after "let else_br" "r <- concat(truncate_to_Nk(Expand(k, concat2bitstring(hpke_key, context_1))), truncate_to_Nn(Expand(k, concat2bitstring(hpke_nonce, context_1))), Expand(truncate_to_Nh(Expand(k, concat2bitstring(hpke_exp, context_1))), exp_ctx_1), Expand(truncate_to_Nh(Expand(k, concat2bitstring(hpke_exp, context_1))), exp_ctx_2))";
+      use_variable "r";
+      replace 23 "r[j]";
+      auto
+}
+
+param N.
+
+query_equiv
+  new k: extract_output_t; !N Oprf(context: bitstring) := return(keys(k, context))
+  <=(?)=>
+  !N Oprf(context: bitstring) :=
+      find[unique] j <= N suchthat defined(context[j],r[j]) && context[j] = context then
+         return(r[j])
+      else
+         new r: keys_t; return(r)
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

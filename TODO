@@ -441,7 +441,7 @@ in that session. Some difficulties:
    Forall i_tested, Pr[attack & i = i_tested] <= p
    Pr[attack] = \sum_{i_tested \in [1,N]} Pr[attack & i = i_tested] <= N * p 
    For query secret, use the link between Find_Then_Guess and
-   Real_Or_Random.
+   Real_Or_Random. https://www.di.ens.fr/~fouque/pub/2006_iee.pdf
 
    The reasoning seems different from the one in Pointcheval's course,
    using a non-negligible event independent of the output of the game.
@@ -454,7 +454,8 @@ in that session. Some difficulties:
    under replication.
    y_tested is a constant.
    BE CAREFUL: same as above.
-   P', P'', and queries as above.
+   P', P'', and queries as above, except that ALL events
+   before the arrow ==> can be replaced by their duplicate version.
    The probability of attack must be multiplied by the cardinal
    of the type of y (which must be small enough).
    NOTE: we could do the same when the definition of y is
