@@ -414,6 +414,55 @@ in that session. Some difficulties:
    Still only those above the "required step" [defined below].
    Or allow the user to choose which replications will be guessed?)
 
+   BETTER: When I guess replication index i, replace
+   ! i <= N Q with ! i <= N Qtest
+   where Qtest is obtained by replacing the process P
+   under the first input with if i = i_tested then P' else P''.
+   i_tested is a constant.
+   BE CAREFUL: in case diff_constants = true, the constant
+   i_tested must not be considered different from other constants
+   of the same type.
+   P' is obtained from P by
+      - duplicating all events: event e(M) is replaced with
+      event e(M); event e'(M)
+      - duplicating variable definitions used in "query secret"
+      and "query secret [cv_onesession]": let x = M in
+      is replaced with let x = M in let x' = x in
+   P'' is obtained from P by
+      - outputting variable definitions used in "query secret"
+      (without [cv_onesession]) to the adversary.
+   In queries, replace ONE event before the arrow ==>
+   with its duplicated version;
+   replace "query secret" and "query secret [cv_onesession]"
+   with its duplicated version.
+   The probability of attack must be multiplied by N.
+
+   The bound found in the new game shows that
+   Forall i_tested, Pr[attack & i = i_tested] <= p
+   Pr[attack] = \sum_{i_tested \in [1,N]} Pr[attack & i = i_tested] <= N * p 
+   For query secret, use the link between Find_Then_Guess and
+   Real_Or_Random.
+
+   The reasoning seems different from the one in Pointcheval's course,
+   using a non-negligible event independent of the output of the game.
+   (Here, the event would be i <> i_tested; it's not necessarily
+   independent of the output of the game.)
+
+   When I guess a value y, add a test
+      if y = y_tested then P' else P''
+   after the definition of y. The definition of y must not be
+   under replication.
+   y_tested is a constant.
+   BE CAREFUL: same as above.
+   P', P'', and queries as above.
+   The probability of attack must be multiplied by the cardinal
+   of the type of y (which must be small enough).
+   NOTE: we could do the same when the definition of y is
+   under a replication, but the probability would be multiplied
+   by |T|^{N1...Nn} where T is the type of y and N1...Nn are
+   the bounds of replication indices of y. That's not negligible
+   even for |T|=2.
+
    => Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
 
