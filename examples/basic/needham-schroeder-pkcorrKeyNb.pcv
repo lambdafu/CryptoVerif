@@ -163,5 +163,5 @@ RESULT inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)) public_vars keyA 
 RESULT (query encoded as inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)))
 RESULT (even event(fullB(A,k,x_1)) ==> event(fullA(B,k,x_1)) is false.)
 RESULT event(fullB(A,k_1,x_2)) && event(fullA(B,k',x_2)) ==> k_1 = k' public_vars keyA is true.
-0.104s (user 0.100s + system 0.004s), max rss 13384K
+0.173s (elapsed: user + system + other processes)
 END *)

@@ -4,6 +4,12 @@
    properties. The secrecy is wrong, because of key confirmation messages.
  *)
 
+ifdef(`ProVerif',`
+(* Parameters required to prove the first query. *)
+set preciseActions = true.
+set nounifIgnoreOnce = auto.
+')
+
 proof {
 crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' *)
 auto;
@@ -174,14 +180,12 @@ RESULT Could not prove one-session secrecy of keyA; secrecy of keyA; inj-event(f
 END *)
 
 (* EXPECTPV
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA cannot be proved.
-RESULT (query encoded as inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)))
-RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) cannot be proved.)
-RESULT inj-event(fullB(A,k_3,x_2)) ==> inj-event(fullA(B,k_3,x_2)) public_vars keyA cannot be proved.
-RESULT (query encoded as inj-event(fullB(A,k_3,x_2)) ==> inj-event(fullA(B,k_3,x_2)))
-RESULT (even event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) cannot be proved.)
-RESULT event(fullA(B,k_4,x_3)) && event(fullB(A,k',x_3)) ==> k_4 = k' public_vars keyA is true.
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
+RESULT inj-event(fullB(A,k_3,x_1)) ==> inj-event(fullA(B,k_3,x_1)) public_vars keyA is false.
+RESULT (query encoded as inj-event(fullB(A,k_3,x_1)) ==> inj-event(fullA(B,k_3,x_1)))
+RESULT (even event(fullB(A,k_3,x_1)) ==> event(fullA(B,k_3,x_1)) is false.)
+RESULT event(fullA(B,k_4,x_2)) && event(fullB(A,k',x_2)) ==> k_4 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.156s (user 0.148s + system 0.008s), max rss 14136K
+0.299s (elapsed: user + system + other processes)
 END *)

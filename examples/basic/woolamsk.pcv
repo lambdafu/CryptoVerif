@@ -135,5 +135,5 @@ END *)
 (* EXPECTPV
 RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is false.
 RESULT (even event(fullB(A,y)) ==> event(fullA(B,y)) is false.)
-0.024s (user 0.016s + system 0.008s), max rss 10756K
+0.140s (elapsed: user + system + other processes)
 END *)

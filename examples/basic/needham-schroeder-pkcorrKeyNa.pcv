@@ -1,5 +1,10 @@
 (* Needham Schroeder public key protocol. *)
 
+ifdef(`ProVerif',`
+(* Parameter required to prove the second and third queries. *)
+set preciseActions = true.
+')
+
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
 (* In order to determine the proof, use interactive mode:
@@ -157,12 +162,8 @@ END *)
 
 (* EXPECTPV
 RESULT secret keyA is true.
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA cannot be proved.
-RESULT (query encoded as inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)))
-RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) cannot be proved.)
-RESULT inj-event(fullB(A,k,x_2)) ==> inj-event(fullA(B,k,x_2)) public_vars keyA cannot be proved.
-RESULT (query encoded as inj-event(fullB(A,k,x_2)) ==> inj-event(fullA(B,k,x_2)))
-RESULT (even event(fullB(A,k,x_2)) ==> event(fullA(B,k,x_2)) cannot be proved.)
-RESULT event(fullB(A,k_1,x_3)) && event(fullA(B,k',x_3)) ==> k_1 = k' public_vars keyA is true.
-0.180s (user 0.176s + system 0.004s), max rss 16180K
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
+RESULT inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)) public_vars keyA is true.
+RESULT event(fullB(A,k,x_1)) && event(fullA(B,k',x_1)) ==> k = k' public_vars keyA is true.
+0.230s (elapsed: user + system + other processes)
 END *)

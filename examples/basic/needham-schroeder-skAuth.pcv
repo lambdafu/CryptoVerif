@@ -3,6 +3,12 @@
    properties.
  *)
 
+ifdef(`ProVerif',`
+(* Parameters required to prove the first query. *)
+set preciseActions = true.
+set nounifIgnoreOnce = auto.
+')
+
 param NA, NB, NS, NK.
 
 type nonce [large,fixed].
@@ -134,8 +140,7 @@ All queries proved.
 END *)
 
 (* EXPECTPV
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) cannot be proved.
-RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) cannot be proved.)
-RESULT inj-event(fullB(A,x_2)) ==> inj-event(fullA(B,x_2)) is true.
-0.060s (user 0.048s + system 0.012s), max rss 12208K
+RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
+RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is true.
+0.169s (elapsed: user + system + other processes)
 END *)

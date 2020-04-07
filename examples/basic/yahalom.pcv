@@ -123,5 +123,5 @@ END *)
 (* EXPECTPV
 RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) is true.
 RESULT inj-event(fullB(A,x)) ==> inj-event(fullA(B,x)) is true.
-0.036s (user 0.036s + system 0.000s), max rss 11384K
+0.147s (elapsed: user + system + other processes)
 END *)

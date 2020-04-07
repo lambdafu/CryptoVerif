@@ -3,6 +3,11 @@
    of the same cryptographic rule.
 *)
 
+ifdef(`ProVerif',`
+(* Setting needed to prove query secret keyB [real_or_random]. *)
+set preciseActions = true.
+')
+
 param NA, NB, NS, NK.
 
 type nonce [large,fixed].
@@ -139,8 +144,7 @@ RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = 
 END *)
 
 (* EXPECTPV
-RESULT Query secret keyB [real_or_random] encoded as equivalence cannot be proved.
-RESULT Query secret keyB [real_or_random] encoded as equivalence cannot be proved.
+RESULT Query secret keyB [real_or_random] encoded as equivalence is true.
 RESULT Query secret keyA [real_or_random] encoded as equivalence is true.
 RESULT event(partB(A,x)) ==> event(partA(B,x)) public_vars keyA,keyB is true.
 RESULT inj-event(partB(A,x)) ==> inj-event(partA(B,x)) public_vars keyA,keyB is false.
@@ -154,5 +158,5 @@ RESULT inj-event(fullA(B,k_4,x_2)) ==> inj-event(partB(A,x_2)) public_vars keyA,
 RESULT (query encoded as inj-event(fullA(B,k_4,x_2)) ==> inj-event(partB(A,x_2)))
 RESULT (even event(fullA(B,k_4,x_2)) ==> event(partB(A,x_2)) is false.)
 RESULT event(fullB(A,k_5,x_3)) && event(fullA(B,k',x_3)) ==> k_5 = k' public_vars keyA,keyB is false.
-11.076s (user 11.056s + system 0.020s), max rss 24052K
+4.423s (elapsed: user + system + other processes)
 END *)
