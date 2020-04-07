@@ -152,5 +152,5 @@ END *)
 RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
 RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is false.
 RESULT (even event(fullB(A,x_1)) ==> event(fullA(B,x_1)) is false.)
-0.195s (elapsed: user + system + other processes)
+0.120s (user 0.116s + system 0.004s), max rss 13860K
 END *)

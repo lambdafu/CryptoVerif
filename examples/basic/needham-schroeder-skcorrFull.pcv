@@ -187,5 +187,5 @@ RESULT (even event(fullB(A,k_3,x_1)) ==> event(fullA(B,k_3,x_1)) is false.)
 RESULT event(fullA(B,k_4,x_2)) && event(fullB(A,k',x_2)) ==> k_4 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.299s (elapsed: user + system + other processes)
+0.268s (user 0.256s + system 0.012s), max rss 15172K
 END *)

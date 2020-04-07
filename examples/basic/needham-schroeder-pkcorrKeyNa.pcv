@@ -165,5 +165,5 @@ RESULT secret keyA is true.
 RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
 RESULT inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)) public_vars keyA is true.
 RESULT event(fullB(A,k,x_1)) && event(fullA(B,k',x_1)) ==> k = k' public_vars keyA is true.
-0.230s (elapsed: user + system + other processes)
+0.144s (user 0.140s + system 0.004s), max rss 13428K
 END *)
