@@ -25,6 +25,7 @@ Version
 - Fixed bug in computation of probabilities for collision statements.
 - Fixed bug in transformation of find[unique] inside a branch of
   find[unique]: required "defined" conditions were sometimes missing.
+- Fixed bugs in command focus, which could cause an internal error.
 
 Version 2.02
 

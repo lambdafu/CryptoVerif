@@ -50,6 +50,7 @@ val empty_binder_env : binder_env_type
 val add_in_env1 : binder_env_type -> string -> typet -> repl_index list -> binder_env_type
 val add_in_env1reusename : binder_env_type -> string -> binder -> typet -> repl_index list -> binder_env_type
 val add_in_env1error : binder_env_type -> err_mess -> string -> binder_env_type
+val add_in_env1existing : binder_env_type -> string -> binder -> binder_env_type
 val union_both : binder_env_type -> binder_env_type -> binder_env_type
 val union_exclude : binder_env_type -> binder_env_type -> binder_env_type
 

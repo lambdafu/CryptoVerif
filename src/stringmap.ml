@@ -147,6 +147,12 @@ let add_in_env1error env mess s =
   else
     StringMap.add s (Error mess) env
 
+let add_in_env1existing env s b =
+  if StringMap.mem s env then
+    failwith "duplicate variable"
+  else
+    StringMap.add s (Uniq b) env
+
 (* Union *)
 
 (* [union_both] computes the union of environments that are obtained

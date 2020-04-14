@@ -1832,7 +1832,17 @@ let rec interpret_command interactive state = function
 	      ) ql
 	  ) l)
       in
-      let lq = List.map (fun (q, ext) -> (Syntax.check_query q, ext)) lparsed in
+      let query_vars = Settings.get_public_vars state.game.current_queries in
+      Stringmap.set_binder_env
+	(List.fold_left (fun env b ->
+	  Stringmap.add_in_env1existing env (Display.binder_to_string b) b  
+	    ) Stringmap.empty_binder_env query_vars);
+      let lq =
+	try
+	  List.map (fun (q, ext) -> (Syntax.check_query q, ext)) lparsed
+	with Stringmap.Undefined(i,ext) ->
+	  raise (Error (i ^ " not defined in a query", ext))
+      in
       let lqentries = map_queries [] lq state.game.current_queries in
       let made_inactive = ref false in
       let queries' = List.map (fun (((q, g) as qg, poptref) as qentry) ->
