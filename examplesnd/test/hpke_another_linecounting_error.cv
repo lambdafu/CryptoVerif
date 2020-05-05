@@ -1,0 +1,1008 @@
+(* Mechanised cryptographic proofs for HPKE using CryptoVerif.
+
+  Following as close as possible the notation of the specification at
+  https://cfrg.github.io/draft-irtf-cfrg-hpke/draft-irtf-cfrg-hpke.html
+
+  Run with:
+  cryptoverif -lib default.cvl hpke.cv
+   
+  2019, Benjamin Lipp, INRIA Paris, Prosecco
+  benjamin.lipp@inria.fr
+*)
+
+
+proof {
+  simplify;
+  out_game "g01.out.cv";
+  insert after "Marshal(pkE_3"
+    "find j <= N_initiators suchthat
+       defined(pkE_2[j]) && pkE_3 = pkE_2[j] then";
+  simplify;
+  crypto rom(Extract_intermediate);
+  simplify;
+  out_game "g02.out.cv";
+  simplify;
+  set useKnownEqualitiesWithFunctionsInMatching = true;
+  out_game "g03.out.cv";
+  crypto gdh(exp) z_4;
+  simplify;
+  out_game "g04.out.cv";
+  crypto prf(Expand);
+  simplify;
+  out_game "g05.out.cv";
+  crypto int_ctxt(Seal_inner);
+  simplify;
+  out_game "g06.out.cv";
+  crypto ind_cpa(Seal_inner);
+  success
+}
+
+
+channel c_start, c_setup, c_config_initiator, c_init, c_resp.
+
+type psk_t [large,fixed].
+const default_psk: psk_t.
+fun psk_to_bitstring(psk_t): bitstring [data].
+
+const default_pskID: bitstring.
+const default_pkIm: bitstring.
+
+type key_t [large,fixed].
+type nonce_t [large,fixed].
+
+(* Application constants *)
+const app_info: bitstring.
+
+expand Xor(
+  nonce_t,
+  xor,
+  nonce_zero (* also used for seq that starts at zero *)
+).
+
+(* Notation
+    Initiator (I): Sender of an encrypted message.
+    Responder (R): Receiver of an encrypted message.
+    Ephemeral (E): A fresh random value meant for one-time use.
+    (skX, pkX): A KEM key pair used in role X; skX is the private key and pkX is the public key
+    pk(skX): The public key corresponding to private key skX
+    len(x): The length of the octet string x, expressed as a two-octet unsigned integer in network (big-endian) byte order
+    encode_big_endian(x, n): An octet string encoding the integer value x as an n-byte big-endian value
+    concat(x0, ..., xN): Concatenation of octet strings. concat(0x01, 0x0203, 0x040506) = 0x010203040506
+    zero(n): An all-zero octet string of length n. zero(4) = 0x00000000
+    xor(a,b): XOR of octet strings; xor(0xF0F0, 0x1234) = 0xE2C4. It is an error to call this function with two arguments of unequal length. *)
+
+
+
+
+(* A Key Encapsulation Mechanism (KEM):
+     GenerateKeyPair(): Generate a key pair (sk, pk)
+     Marshal(pk): Produce a fixed-length octet string encoding the public key pk
+     Unmarshal(enc): Parse a fixed-length octet string to recover a public key
+     Encap(pk): Generate an ephemeral, fixed-length symmetric key and a fixed-length encapsulation of that key that can be decapsulated by the holder of the private key corresponding to pk
+       TODO(spec) It's fixed-length, but there are two possible lengths:
+         one for mode_base and mode_psk, and another one with twice
+         the size for mode_auth and mode_auth_psk. That's ok because
+         the application is supposed to make a choice; it's not
+         negotiated inside the protocol.
+     Decap(enc, sk): Use the private key sk to recover the ephemeral symmetric key from its encapsulated representation enc
+     AuthEncap(pkR, skI) (optional): Same as Encap(), but the outputs encode an assurance that the ephemeral shared key is known only to the holder of the private key skI
+     AuthDecap(skR, pkI) (optional): Same as Decap(), but the holder of the private key skR is assured that the ephemeral shared key is known only to the holder of the private key corresponding to pkI
+     Nenc: The length in octets of an encapsulated key from this KEM
+     Npk: The length in octets of a public key for this KEM *)
+
+(* DH-based KEM
+     GenerateKeyPair(): Generate an ephemeral key pair (sk, pk) for the DH group in use
+     DH(sk, pk): Perform a non-interactive DH exchange using the private key sk and public key pk to produce a fixed-length shared secret
+     Marshal(pk): Produce a fixed-length octet string encoding the public key pk
+     Unmarshal(enc): Parse a fixed-length octet string to recover a public key
+*)
+
+(* TODO Use m4 to switch between the three curve variants. *)
+
+(* For P-256 and P-521
+- to model Unmarshal(), use a left-hand-side pattern matching of Marshal
+- TODO figure out if Marshal and G_to_bitstring are actually the same
+*)
+type G_t [bounded,large].
+fun Marshal(G_t): bitstring [data].
+fun G_to_bitstring(G_t): bitstring [data].
+type Z_t [bounded,large].
+expand DH_good_group(
+  G_t,
+  Z_t,
+  g,
+  exp,
+  exp',
+  mult
+).
+
+proba P_GDH.
+(* TODO(spec) directly cite? also it's called Gap-DH in there, and
+   not Gap-CDH.
+   T. Okamoto and D. Pointcheval. The gap-problems: a new class of
+   problems for the security of cryptographic schemes. *)
+expand GDH(
+  (* types *)
+  G_t,  (* Group elements *)
+  Z_t,  (* Exponents *)
+  (* variables *)
+  g,    (* a generator of the group *)
+  exp,  (* exponentiation function *)
+  exp', (* a symbol that replaces exp after game transformation *)
+  mult, (* multiplication function for exponents *)
+  (* probabilities *)
+  P_GDH (* probability of breaking the GDH assumption *)
+).
+
+(* For Curve25519
+- to model Unmarshal(), use a left-hand-side pattern matching of Marshal
+*)
+(*
+type G_t [bounded,large].
+type G8_t [bounded,large].
+fun Marshal(G_t): bitstring [data].
+fun G_to_bitstring(G_t): bitstring [data].
+type Z_t [bounded,large,nonuniform].
+expand DH_X25519(
+  G_t,
+  Z_t,
+  g,
+  exp,
+  mult,
+  G8_t,
+  g8,
+  exp_div8,
+  exp_div8',
+  pow8,
+  G8_to_G,
+  zero,
+  zero8
+).
+
+proba P_GDH.
+expand GDH(
+  G8_t,
+  Z_t,
+  g8,
+  exp_div8,
+  exp_div8',
+  mult,
+  P_GDH
+).
+*)
+
+(* For Curve448
+- to model Unmarshal(), use a left-hand-side pattern matching of Marshal
+- Znw_t are the exponents without weak keys
+*)
+(*
+type G_t [bounded,large].
+type G8_t [bounded,large].
+fun Marshal(G_t): bitstring [data].
+fun G_to_bitstring(G_t): bitstring [data].
+type Z_t [bounded,large,nonuniform].
+type Znw_t [bounded,large,nonuniform].
+expand DH_X448(
+  G_t,
+  Z_t,
+  g,
+  exp,
+  mult,
+  G8_t,
+  Znw_t,
+  Znw_to_Z,
+  g8,
+  exp_div8,
+  exp_div8',
+  pow8,
+  G8_to_G,
+  zero,
+  zero8
+).
+
+proba P_GDH.
+expand GDH(
+  G8_t,
+  Znw_t,
+  g8,
+  exp_div8,
+  exp_div8',
+  mult,
+  P_GDH
+).
+*)
+
+letfun DH(exponent: Z_t, group_element: G_t) =
+  exp(group_element, exponent).
+letfun pk(exponent: Z_t) =
+  exp(g, exponent).
+letfun GenerateKeyPair() =
+  new z: Z_t;
+  (z, exp(g, z)).
+
+
+(*
+A Key Derivation Function:
+
+  Hash(m):
+    Compute the cryptographic hash of input message m
+
+    For Hash(), collision resistance should be enough, because
+    it is only used inside the context to hash the pskID and
+    info. Hash(pskID) is used only inside HKDF, so it should
+    be safe to protect the psk in case pskID=Hash(psk).
+    TODO think about that again
+
+    TODO(spec): Should the spec say which assumption they make on Hash()?
+
+    TODO(spec): Implicitely it's clear that HKDF-$HASH means
+      that $HASH is the hash function for Hash().
+      Should this be made clearer?
+
+      0x0001 HKDF-SHA256 32 [RFC5869]
+      0x0002 HKDF-SHA512 64 [RFC5869]
+*)
+
+type hashkey_t [fixed].
+type hashoutput_t [large,fixed].
+fun hashoutput_to_bitstring(hashoutput_t): bitstring [data].
+proba P_hash. (* probability of breaking collision resistance *)
+expand CollisionResistant_hash_1(
+  (* types *)
+  hashkey_t,    (* key *)
+  bitstring,    (* hashinput1: pskID and info are both bitstrings *)
+  hashoutput_t,
+  (* functions *)
+  Hash_inner, (* hash: name of the hash function *)
+  (* processes *)
+  Hash_oracle,
+  (* parameters *)
+  P_hash
+).
+letfun Hash(key_hash: hashkey_t, input: bitstring) =
+  hashoutput_to_bitstring(Hash_inner(key_hash, input)).
+
+(*
+  Extract(salt, IKM):
+    Extract a pseudorandom key of fixed length from
+    input keying material IKM and an optional octet string salt.
+
+    Extract(salt, IKM) is HMAC-Hash(salt, IKM)
+*)
+
+type extract_input_t.
+fun extract_input(psk_t, bitstring): extract_input_t [data].
+type extract_output_t [large,fixed].
+
+expand ROM_hash_1(
+  (* types *)
+  hashkey_t,
+  extract_input_t,
+  extract_output_t,
+  (* functions *)
+  Extract_intermediate,
+  (* processes *)
+  Extract_oracle,
+  (* parameters *)
+  N_qExtract  (* number of queries to the oracle by the adversary *)
+).
+
+letfun Extract(key_extract: hashkey_t, psk: psk_t, zz: bitstring) =
+   Extract_intermediate(key_extract, extract_input(psk, zz)).
+
+
+(*
+  Expand(PRK, info, L):
+    Expand a pseudorandom key PRK using optional string info into L bytes
+    of output keying material.
+
+    Nk and Nn are <= 32 bytes for the AEAD schemes allowed in the
+    spec. The hash functions allowed in the spec have Nh >= 32 bytes.
+    This means Expand will use one HMAC call only, internally.
+    This is interesting because we can then use some Lemmas from LBB19
+    to show easily that, if HMAC is a random oracle, that the Expand +
+    Extract + Extract construction is a random oracle. *)
+
+proba P_PRF.
+expand PRF_large(
+  extract_output_t,
+  bitstring,
+  key_t,
+  Expand,
+  P_PRF
+).
+fun truncate_to_Nn(key_t): nonce_t [data].
+letfun Expand_Nk(key: extract_output_t, input: bitstring) =
+  Expand(key, input).
+letfun Expand_Nn(key: extract_output_t, input: bitstring) =
+  truncate_to_Nn(Expand(key, input)).
+
+(*
+  Nh:
+    The output size of the Hash and Extract functions
+
+  General remarks:
+  - “We don't want to open the HKDF box [in the spec]“ (Karthik)
+
+  Comments on the assumptions:
+  - At least on the application level, the protocol will very likely
+    expose a DDH oracle to the adversary. This means we need a Gap DH
+    assumption. In the proof we thus need to make statements about
+    comparisions between DH terms. These comparisions only appear when
+    using Gap DH with ROM. That's why we'll need to use ROM for the
+    Extract part: The second argument of Extract is zz, which is the
+    result of a DH operation. For the two Expand calls we can use the
+    PRF assumption: the fresh key is the result from Extract.
+    - TODO Include a reference that justifies ROM for HMAC
+        (for BLAKE2S we have it in LBB19)
+    - TODO Include a reference that justifies PRF for HMAC
+        (look for that in Hugo Krawczyk's HKDF paper)
+        - In Expand, the key is PRK, and in the HKDF paper, it is
+          stated that it's a PRF. More precisely, Expand is an iteration
+          of HMAC in feedback mode.
+        - That seems to be based on the assumption that the compression
+          function of SHA-2 is a PRF.
+    - TODO Justify why we can use two different assumptions for the same
+        primitive (different domains)
+  - An alternative to Gap DH + ROM for DH and Extract is the PRFODH
+    assumption. We would use PRFODH2 in CryptoVerif in this case.
+    TODO Understand why PRFODH is seen as not much different than
+      ROM by some people.
+
+  - TODO make sure that this part from Krawczyk's HKDF paper, page 25,
+      Appendix B doesn't affect the protocol (this should become clear
+      from the proof I do):
+	In particular, an attacker should not be able to force
+        dependencies between DH values exchanged between honest parties.
+        This is the case in a (well designed) DH protocol with explicit
+        authentication.
+	TODO In protocols with implicit authentication or those that
+        authenticate the protocol via the output of a KDF, one may not
+        obtain the independence guarantee. This is yet another case where
+	stronger extractors are required (see more in Section 5).
+
+	We end by commenting that one good property for the use of
+        extractors in Diffie-Hellman applications is that the parties to
+        the protocol can provide the necessary “salt” to key the
+        extractor. Indeed, such value can be obtained from random nonces
+        chosen by the parties and exchanged authenticated but in the
+        clear.
+        TODO This is the approach we took in the design of IKE [34, 43, 48].
+
+  Some open minor details for general understanding:
+  - TODO in Extract, the key material is the second argument, so it's
+      not the key for HMAC. I assume that's because IKM is not in all
+      cases uniformly random. That's why HMAC is used as a randomness
+      extractor. Read Hugo Krawczyk's HKDF paper to understand what
+      the assumption is for this primitive.
+      - What would be the security game for a computational extractor?
+  - We cannot use the randomness extractor assumption together with
+    Gap DH because that assumption does not introduce comparisions
+    between DH terms. If however, the protocol would not expose a DDH
+    oracle, we could use
+    - CDH for DH and ROM for Extract, or
+    - DDH for DH and PRF_G for Extract, or
+    - DDH for DH and randomness extractor for Extract
+      Interesting side note: XTR may be deterministic or keyed via an
+      optional “salt value” (i.e., a non-secret random value) that we
+      denote by XTS (for extractor salt).
+    Which would all lead to a weaker assumption
+    - PRFODH1 together for DH and Extract
+    In all these cases, we have the choice of ROM or PRF for Expand.
+
+*)
+
+(* An AEAD encryption algorithm [RFC5116]:
+     Seal(key, nonce, aad, pt): Encrypt and authenticate plaintext pt with associated data aad using secret key key and nonce nonce, yielding ciphertext and tag ct
+     Open(key, nonce, aad, ct): Decrypt ciphertext ct using associated data aad with secret key key and nonce nonce, returning plaintext message pt or the error value OpenError
+     Nk: The length in octets of a key for this algorithm
+     Nn: The length in octets of a nonce for this algorithm *)
+
+proba P_cpa.
+proba P_ctxt.
+expand AEAD_nonce(
+  (* types *)
+  key_t,
+  bitstring, (* plaintext *)
+  bitstring, (* ciphertext *)
+  bitstring, (* additional data *)
+  nonce_t,
+  (* functions *)
+  Seal_inner,
+  Open_inner,
+  injbot, (* injection from plaintext to bitstringbot:
+          (* injbot(plaintext): bitstringbot *)
+  Zero,   (* returns a plaintext of same length, consisting of zeros:
+          (* Zero(plaintext): plaintext *)
+  (* probabilities *)
+  P_cpa,
+  P_ctxt
+).
+letfun Seal(key: key_t, nonce: nonce_t, aad: bitstring, pt: bitstring) =
+  Seal_inner(pt, aad, key, nonce).
+letfun Open(key: key_t, nonce: nonce_t, aad: bitstring, ct: bitstring) =
+  Open_inner(ct, aad, key, nonce).
+
+(***********************************************************************
+  The following is part of boolean_choice.cvl
+  inspired by some CryptoVerif examples and Bruno Blanchet
+***********************************************************************)
+
+def boolean_choice(value_t, test) {
+
+fun test(bool, value_t, value_t) : value_t.
+
+equation forall x:value_t, y:value_t; test(true, x, y) = x.
+equation forall x:value_t, y:value_t; test(false, x, y) = y.
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, b:bool; test(b,x,x) = x.
+
+}
+
+(* Zero needs to be defined already, typically by the AEAD scheme that's
+ * expanded somewhere before.
+ *)
+def boolean_choice_for_encryption(value_t, Zero, test) {
+
+expand boolean_choice(value_t, test).
+
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, y:value_t, b:bool; Zero(test(b,x,y)) = test (b,Zero(x),Zero(y)).
+
+}
+
+(* Define a function for choosing from two attacker-provided plaintexts based
+   on a bit. Also, defines some equations on it so CryptoVerif is able
+   to reason about it. *)
+expand boolean_choice_for_encryption(
+  (* types *)
+  bitstring,  (* type of the values *)
+  (* functions *)
+  Zero,       (* the Zero function provided by the encryption scheme. *)
+              (* Needed for some equations about the function. *)
+  test	      (* Name of the choice function: *)
+              (* test(bool, bitstring, bitstring): bitstring *)
+).
+
+
+(*  5.1. DH-Based KEM *)
+
+type Encap_res_t.
+fun Encap_success(bitstring, bitstring): Encap_res_t [data].
+const Encap_fail: Encap_res_t.
+equation forall zz: bitstring, enc: bitstring;
+  Encap_success(zz, enc) <> Encap_fail.
+
+letfun Encap(pkR: G_t) =
+  let (skE: Z_t, pkE: G_t) = GenerateKeyPair() in
+  (
+    let zz: bitstring = G_to_bitstring(DH(skE, pkR)) in
+    (* TODO check for zero? *)
+    (* TODO(spec) enc usually means encryption. How about encap? *)
+    let enc: bitstring = Marshal(pkE) in
+    Encap_success(zz, enc)
+  ) else (
+    Encap_fail
+  ).
+
+type Decap_res_t.
+fun Decap_success(bitstring): Decap_res_t [data].
+const Decap_fail: Decap_res_t.
+equation forall zz: bitstring; Decap_success(zz) <> Decap_fail.
+
+letfun Decap(enc: bitstring, skR: Z_t) =
+  let Marshal(pkE: G_t) = enc in
+  (
+    (* TODO check for zero? *)
+    Decap_success(G_to_bitstring(DH(skR, pkE)))
+  ) else (
+    Decap_fail
+  ).
+
+
+fun concat2(G_t, G_t): bitstring [data].
+
+type AuthEncap_res_t.
+fun AuthEncap_success(bitstring, bitstring): AuthEncap_res_t [data].
+const AuthEncap_fail: AuthEncap_res_t.
+equation forall zz: bitstring, enc: bitstring;
+  AuthEncap_success(zz, enc) <> AuthEncap_fail.
+
+letfun AuthEncap(pkR: G_t, skI: G_t) =
+  let (skE: Z_t, pkE: G_t) = GenerateKeyPair() in
+  (
+    let zz: bitstring = concat2(DH(skE, pkR), DH(skI, pkR)) in
+    (* TODO check for zero? *)
+    let enc: bitstring = Marshal(pkE) in
+    AuthEncap_success(zz, enc)
+  ) else (
+    AuthEncap_fail
+  ).
+
+type AuthDecap_res_t.
+fun AuthDecap_success(bitstring): AuthDecap_res_t [data].
+const AuthDecap_fail: AuthDecap_res_t.
+equation forall zz: bitstring; AuthDecap_success(zz) <> AuthDecap_fail.
+
+letfun AuthDecap(enc: bitstring, skR: Z_t, pkI: G_t) =
+  let Marshal(pkE: G_t) = enc in
+  (
+    (* TODO check for zero? *)
+    AuthDecap_success(concat2(DH(skR, pkE), DH(skR, pkI)))
+  ) else (
+    AuthDecap_fail
+  ).
+
+
+(* Encryption Context
+
+pkR - The receiver’s public key
+zz - A shared secret generated via the KEM for this transaction
+enc - An encapsulated key produced by the KEM for the receiver
+info - Application-supplied information (optional; default value “”)
+psk - A pre-shared secret held by both the initiator and the receiver (optional; default value zero(Nh)).
+pskID - An identifier for the PSK (optional; default value "" = zero(0)
+pkI - The initiator’s public key (optional; default value zero(Npk))
+
+def VerifyMode(mode, psk, pskID, pkIm):
+  got_psk = (psk != default_psk and pskID != default_pskID)
+  no_psk = (psk == default_psk and pskID == default_pskID)
+  got_pkIm = (pkIm != default_pkIm)
+  no_pkIm = (pkIm == default_pkIm)
+
+  if mode == mode_base and (got_psk or got_pkIm):
+    raise Exception("Invalid configuration for mode_base")
+  if mode == mode_psk and (no_psk or got_pkIm):
+    raise Exception("Invalid configuration for mode_psk")
+  if mode == mode_auth and (got_psk or no_pkIm):
+    raise Exception("Invalid configuration for mode_auth")
+  if mode == mode_psk_auth and (no_psk or no_pkIm):
+    raise Exception("Invalid configuration for mode_psk_auth")
+
+*)
+
+type mode_t [fixed].
+const mode_base: mode_t.
+const mode_psk: mode_t.
+const mode_auth: mode_t.
+const mode_psk_auth: mode_t.
+
+type two_bytes [fixed].
+const kem_id: two_bytes.
+const kdf_id: two_bytes.
+const aead_id: two_bytes.
+
+fun concat3(two_bytes, two_bytes, two_bytes): bitstring [data].
+fun concat7(mode_t, bitstring, bitstring, bitstring,
+            bitstring, bitstring, bitstring): bitstring [data].
+
+const hpke_key: bitstring.
+const hpke_nonce: bitstring.
+
+type context_t [large,fixed].
+(* key, nonce, seq *)
+fun Context(key_t, nonce_t, nonce_t): context_t [data].
+
+letfun KeySchedule(key_hash: hashkey_t, key_extract: hashkey_t,
+                   mode: mode_t, pkR: G_t,
+                   zz: bitstring, enc: bitstring, info: bitstring,
+                   psk: psk_t, pskID: bitstring, pkIm: bitstring) =
+  (* TODO Do we want to model VerifyMode? *)
+  let pkRm: bitstring = Marshal(pkR) in
+  let ciphersuite: bitstring = concat3(kem_id, kdf_id, aead_id) in
+  let pskID_hash: bitstring = Hash(key_hash, pskID) in
+  let info_hash: bitstring = Hash(key_hash, info) in
+  let context: bitstring = concat7(mode, ciphersuite, enc, pkRm, pkIm,
+                                   pskID_hash, info_hash) in
+
+  (* secret is a reserved keyword in CryptoVerif *)
+  let secrett: extract_output_t = Extract(key_extract, psk, zz) in
+  let key = Expand_Nk(secrett, concat2(hpke_key, context)) in
+  let nonce = Expand_Nn(secrett, concat2(hpke_nonce, context)) in
+  Context(key, nonce, nonce_zero).
+
+
+(* Encryption to a public key *)
+
+type SetupBaseI_res_t.
+fun SetupBaseI_success(bitstring, context_t): SetupBaseI_res_t [data].
+const SetupBaseI_fail: SetupBaseI_res_t.
+equation forall enc: bitstring, ctx: context_t;
+  SetupBaseI_success(enc, ctx) <> SetupBaseI_fail.
+
+letfun SetupBaseI(key_hash: hashkey_t, key_extract: hashkey_t,
+                  pkR: G_t, info: bitstring) =
+  let Encap_success(zz: bitstring, enc: bitstring) = Encap(pkR) in
+  (
+    SetupBaseI_success(
+      enc,
+      KeySchedule(key_hash, key_extract, mode_base, pkR, zz, enc, info,
+                  default_psk, default_pskID, default_pkIm))
+  ) else (
+    SetupBaseI_fail
+  ).
+
+type SetupBaseR_res_t.
+fun SetupBaseR_success(context_t): SetupBaseR_res_t [data].
+const SetupBaseR_fail: SetupBaseR_res_t.
+equation forall ctx: context_t;
+  SetupBaseR_success(ctx) <> SetupBaseR_fail.
+
+letfun SetupBaseR(key_hash: hashkey_t, key_extract: hashkey_t,
+                  enc: bitstring, skR: Z_t, info: bitstring) =
+  let Decap_success(zz: bitstring) = Decap(enc, skR) in
+  (
+    SetupBaseR_success(
+      KeySchedule(key_hash, key_extract, mode_base, pk(skR), zz, enc,
+                  info, default_psk, default_pskID, default_pkIm))
+  ) else (
+    SetupBaseR_fail
+  ).
+
+
+(* Authentication using a Pre-Shared Key *)
+
+type SetupPSKI_res_t.
+fun SetupPSKI_success(bitstring, context_t): SetupPSKI_res_t [data].
+const SetupPSKI_fail: SetupPSKI_res_t.
+equation forall enc: bitstring, ctx: context_t;
+  SetupPSKI_success(enc, ctx) <> SetupPSKI_fail.
+
+letfun SetupPSKI(key_hash: hashkey_t, key_extract: hashkey_t,
+                 pkR: G_t, info: bitstring,
+                 psk: psk_t, pskID: bitstring) =
+  let Encap_success(zz: bitstring, enc: bitstring) = Encap(pkR) in
+  (
+    SetupPSKI_success(
+      enc,
+      KeySchedule(key_hash, key_extract, mode_psk, pkR, zz, enc, info,
+                  psk, pskID, default_pkIm))
+  ) else (
+    SetupPSKI_fail
+  ).
+
+type SetupPSKR_res_t.
+fun SetupPSKR_success(context_t): SetupPSKR_res_t [data].
+const SetupPSKR_fail: SetupPSKR_res_t.
+equation forall ctx: context_t;
+  SetupPSKR_success(ctx) <> SetupPSKR_fail.
+
+letfun SetupPSKR(key_hash: hashkey_t, key_extract: hashkey_t,
+                 enc: bitstring, skR: Z_t, info: bitstring,
+                 psk: psk_t, pskID: bitstring) =
+  let Decap_success(zz: bitstring) = Decap(enc, skR) in
+  (
+    SetupPSKR_success(
+      KeySchedule(key_hash, key_extract, mode_psk, pk(skR), zz, enc,
+                  info, psk, pskID, default_pkIm))
+  ) else (
+    SetupPSKR_fail
+  ).
+
+
+(* Authentication using an Asymmetric Key *)
+
+type SetupAuthI_res_t.
+fun SetupAuthI_success(bitstring, context_t): SetupAuthI_res_t [data].
+const SetupAuthI_fail: SetupAuthI_res_t.
+equation forall enc: bitstring, ctx: context_t;
+  SetupAuthI_success(enc, ctx) <> SetupAuthI_fail.
+
+letfun SetupAuthI(key_hash: hashkey_t, key_extract: hashkey_t,
+                  pkR: G_t, info: bitstring, skI: Z_t) =
+  let AuthEncap_success(
+        zz: bitstring, enc: bitstring) = AuthEncap(pkR, skI) in
+  (
+    let pkIm: bitstring = Marshal(pk(skI)) in
+    SetupAuthI_success(
+      enc,
+      KeySchedule(key_hash, key_extract, mode_auth, pkR, zz, enc, info,
+                  default_psk, default_pskID, pkIm))
+  ) else (
+    SetupAuthI_fail
+  ).
+
+type SetupAuthR_res_t.
+fun SetupAuthR_success(context_t): SetupAuthR_res_t [data].
+const SetupAuthR_fail: SetupAuthR_res_t.
+equation forall ctx: context_t;
+  SetupAuthR_success(ctx) <> SetupAuthR_fail.
+
+letfun SetupAuthR(key_hash: hashkey_t, key_extract: hashkey_t,
+                  enc: bitstring, skR: Z_t, info: bitstring, pkI: G_t) =
+  let AuthDecap_success(zz: bitstring) = AuthDecap(enc, skR, pkI) in
+  (
+    let pkIm: bitstring = Marshal(pkI) in
+    SetupAuthR_success(
+      KeySchedule(key_hash, key_extract, mode_auth, pk(skR), zz, enc,
+                  info, default_psk, default_pskID, pkIm))
+  ) else (
+    SetupAuthR_fail
+  ).
+
+
+(* Authentication using both a PSK and an Asymmetric Key *)
+
+type SetupAuthPSKI_res_t.
+fun SetupAuthPSKI_success(bitstring, context_t): SetupAuthPSKI_res_t [data].
+const SetupAuthPSKI_fail: SetupAuthPSKI_res_t.
+equation forall enc: bitstring, ctx: context_t;
+  SetupAuthPSKI_success(enc, ctx) <> SetupAuthPSKI_fail.
+
+letfun SetupAuthPSKI(key_hash: hashkey_t, key_extract: hashkey_t,
+                     pkR: G_t, info: bitstring,
+                     psk: psk_t, pskID: bitstring, skI: Z_t) =
+  let AuthEncap_success(
+        zz: bitstring, enc: bitstring) = AuthEncap(pkR, skI) in
+  (
+    let pkIm: bitstring = Marshal(pk(skI)) in
+    SetupAuthPSKI_success(
+      enc,
+      KeySchedule(key_hash, key_extract, mode_psk_auth, pkR, zz, enc,
+                  info, psk, pskID, pkIm))
+  ) else (
+    SetupAuthPSKI_fail
+  ).
+
+type SetupAuthPSKR_res_t.
+fun SetupAuthPSKR_success(context_t): SetupAuthPSKR_res_t [data].
+const SetupAuthPSKR_fail: SetupAuthPSKR_res_t.
+equation forall ctx: context_t;
+  SetupAuthPSKR_success(ctx) <> SetupAuthPSKR_fail.
+
+letfun SetupAuthPSKR(key_hash: hashkey_t, key_extract: hashkey_t,
+                     enc: bitstring, skR: Z_t, info: bitstring,
+                     psk: psk_t, pskID: bitstring, pkI: G_t) =
+  let AuthDecap_success(zz: bitstring) = AuthDecap(enc, skR, pkI) in
+  (
+    let pkIm: bitstring = Marshal(pkI) in
+    SetupAuthPSKR_success(
+      KeySchedule(key_hash, key_extract, mode_psk_auth, pk(skR), zz, enc,
+                  info, psk, pskID, pkIm))
+  ) else (
+    SetupAuthPSKR_fail
+  ).
+
+
+(* Encryption and Decryption *)
+
+letfun Context_Nonce(nonce: nonce_t, seq: nonce_t) =
+  (* We suppose that seq has already the length of the nonce, by
+     assigning it the type nonce_t. *)
+  xor(nonce, seq).
+
+type Context_Seal_res_t.
+fun Context_Seal_success(bitstring): Context_Seal_res_t [data].
+const Context_Seal_fail: Context_Seal_res_t.
+equation forall ct: bitstring;
+  Context_Seal_success(ct) <> Context_Seal_fail.
+
+letfun Context_Seal(context: context_t, aad: bitstring,
+                    pt: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t) = context in
+  (
+    let ct: bitstring = Seal(key, Context_Nonce(nonce, seq), aad, pt) in
+    (* TODO model increment seq (probably outside of this function)
+         self.seq += 1 *)
+    Context_Seal_success(ct)
+  ) else (
+    Context_Seal_fail
+  ).
+
+type Context_Open_res_t.
+fun Context_Open_success(bitstring): Context_Open_res_t [data].
+const Context_Open_fail: Context_Open_res_t.
+equation forall pt: bitstring;
+  Context_Open_success(pt) <> Context_Open_fail.
+
+letfun Context_Open(context: context_t, aad: bitstring,
+                    ct: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t) = context in
+  (
+    let injbot(pt: bitstring) = Open(key, Context_Nonce(nonce, seq),
+                                     aad, ct) in
+    (
+      (* TODO model increment seq (probably outside of this function)
+           self.seq += 1 *)
+      Context_Open_success(pt)
+    ) else (
+      Context_Open_fail
+    )
+  ) else (
+    Context_Open_fail
+  ).
+
+
+(* Single-Shot APIs *)
+
+type SealBase_res_t.
+fun SealBase_success(bitstring, bitstring): SealBase_res_t [data].
+const SealBase_fail: SealBase_res_t.
+equation forall enc: bitstring, ct: bitstring;
+  SealBase_success(enc, ct) <> SealBase_fail.
+
+letfun SealBase(key_hash: hashkey_t, key_extract: hashkey_t,
+                pkR: G_t, info: bitstring, aad: bitstring,
+                pt: bitstring) =
+  let SetupBaseI_success(enc: bitstring, ctx: context_t) =
+    SetupBaseI(key_hash, key_extract, pkR, info) in
+  (
+    let Context_Seal_success(ct: bitstring) =
+      Context_Seal(ctx, aad, pt) in
+    (
+      SealBase_success(enc, ct)
+    ) else (
+      SealBase_fail
+    )
+  ) else (
+    SealBase_fail
+  ).
+
+type OpenBase_res_t.
+fun OpenBase_success(Context_Open_res_t): OpenBase_res_t [data].
+const OpenBase_fail: OpenBase_res_t.
+equation forall ctx_open: Context_Open_res_t;
+  OpenBase_success(ctx_open) <> OpenBase_fail.
+
+letfun OpenBase(key_hash: hashkey_t, key_extract: hashkey_t,
+                enc: bitstring, skR: Z_t, info: bitstring,
+                aad: bitstring, ct: bitstring) =
+  let SetupBaseR_success(ctx: context_t) =
+    SetupBaseR(key_hash, key_extract, enc, skR, info) in
+  (
+    OpenBase_success(Context_Open(ctx, aad, ct))
+  ) else (
+    OpenBase_fail
+  ).
+
+
+type SealPSK_res_t.
+fun SealPSK_success(bitstring, bitstring): SealPSK_res_t [data].
+const SealPSK_fail: SealPSK_res_t.
+equation forall enc: bitstring, ct: bitstring;
+  SealPSK_success(enc, ct) <> SealPSK_fail.
+
+letfun SealPSK(key_hash: hashkey_t, key_extract: hashkey_t,
+               pkR: Z_t, info: bitstring, aad: bitstring, pt: bitstring,
+               psk: psk_t, pskID: bitstring) =
+  let SetupPSKI_success(enc: bitstring, ctx: context_t) =
+    SetupPSKI(key_hash, key_extract, pkR, info, psk, pskID) in
+  let Context_Seal_success(ct: bitstring) = Context_Seal(ctx, aad, pt) in
+  (
+    SealPSK_success(enc, ct)
+  ) else (
+    SealPSK_fail
+  ).
+
+letfun OpenPSK(key_hash: hashkey_t, key_extract: hashkey_t,
+               enc: bitstring, skR: Z_t, info: bitstring,
+               aad: bitstring, ct: bitstring,
+               psk: psk_t, pskID: bitstring) =
+  let SetupPSKR_success(ctx: context_t) =
+    SetupPSKR(key_hash, key_extract, enc, skR, info, psk, pskID) in
+  Context_Open(ctx, aad, ct).
+
+
+type SealAuth_res_t.
+fun SealAuth_success(bitstring, bitstring): SealAuth_res_t [data].
+const SealAuth_fail: SealAuth_res_t.
+equation forall enc: bitstring, ct: bitstring;
+  SealAuth_success(enc, ct) <> SealAuth_fail.
+
+letfun SealAuth(key_hash: hashkey_t, key_extract: hashkey_t,
+                pkR: G_t, info: bitstring, aad: bitstring,
+                pt: bitstring, skI: Z_t) =
+  let SetupAuthI_success(enc: bitstring, ctx: context_t) =
+    SetupAuthI(key_hash, key_extract, pkR, info, skI) in
+  let Context_Seal_success(ct: bitstring) = Context_Seal(ctx, aad, pt) in
+  (
+    SealAuth_success(enc, ct)
+  ) else (
+    SealAuth_fail
+  ).
+
+letfun OpenAuth(key_hash: hashkey_t, key_extract: hashkey_t,
+                enc: bitstring, skR: Z_t, info: bitstring,
+                aad: bitstring, ct: bitstring, pkI: G_t) =
+  let SetupAuthR_success(ctx: context_t) =
+    SetupAuthR(key_hash, key_extract, enc, skR, info, pkI) in
+  Context_Open(ctx, aad, ct).
+
+
+type SealAuthPSK_res_t.
+fun SealAuthPSK_success(bitstring, bitstring): SealAuthPSK_res_t [data].
+const SealAuthPSK_fail: SealAuthPSK_res_t.
+equation forall enc: bitstring, ct: bitstring;
+  SealAuthPSK_success(enc, ct) <> SealAuthPSK_fail.
+
+letfun SealAuthPSK(key_hash: hashkey_t, key_extract: hashkey_t,
+                   pkR: G_t, info: bitstring, aad: bitstring,
+                   pt: bitstring, psk: psk_t, pskID: bitstring,
+                   skI: Z_t) =
+  let SetupAuthPSKI_success(enc: bitstring, ctx: context_t) =
+    SetupAuthPSKI(key_hash, key_extract,pkR, info, psk, pskID, skI) in
+  let Context_Seal_success(ct: bitstring) = Context_Seal(ctx, aad, pt) in
+  (
+    SealAuthPSK_success(enc, ct)
+  ) else (
+    SealAuthPSK_fail
+  ).
+
+letfun OpenAuthPSK(key_hash: hashkey_t, key_extract: hashkey_t,
+                   enc: bitstring, skR: Z_t, info: bitstring,
+                   aad: bitstring, ct: bitstring,
+                   psk: psk_t, pskID: bitstring, pkI: G_t) =
+  let SetupAuthPSKR_success(ctx: context_t) =
+    SetupAuthPSKR(key_hash, key_extract,
+                  enc, skR, info, psk, pskID, pkI) in
+  Context_Open(ctx, aad, ct).
+
+
+param N_initiators.
+param N_responders.
+
+let InitiatorBase(key_hash: hashkey_t, key_extract: hashkey_t,
+                  secret_bit_I: bool, pkR: G_t) =
+  ! i_N_initiators <= N_initiators
+  in(c_config_initiator, (pkX: G_t, pt1: bitstring, pt2: bitstring,
+                          aad: bitstring));
+  let bit: bool = if pkX = pkR && Zero(pt1) = Zero(pt2) then
+                    secret_bit_I else false in
+  let pt: bitstring = test(bit, pt1, pt2) in
+  let SealBase_success(enc: bitstring, ct: bitstring) =
+    SealBase(key_hash, key_extract, pkX, app_info, aad, pt) in
+  out(c_init, (enc, ct, aad))
+  .
+
+let ResponderBase(key_hash: hashkey_t, key_extract: hashkey_t,
+                  skR: Z_t) =
+  ! i_N_responders <= N_responders
+  in(c_resp, (enc: bitstring, ct: bitstring, aad: bitstring));
+  let OpenBase_success(Context_Open_success(pt: bitstring)) =
+    OpenBase(key_hash, key_extract, enc, skR, app_info, aad, ct) in
+  (* TODO event(pt) for authenticated schemes *)
+  out(c_resp, ())
+  .
+
+query secret secret_bit.
+(* TODO add a correctness query (same message contents => same key) *)
+
+process
+  in(c_start, ());
+  new key_hash: hashkey_t;
+  new key_extract: hashkey_t;
+  let (skI: Z_t, pkI: G_t) = GenerateKeyPair() in
+  let (skR: Z_t, pkR: G_t) = GenerateKeyPair() in
+  new secret_bit: bool;
+  out(c_setup, (pkI, pkR));
+  ( InitiatorBase(key_hash, key_extract, secret_bit, pkR)
+  | ResponderBase(key_hash, key_extract, skR)
+  | Hash_oracle(key_hash)
+  | Extract_oracle(key_extract)
+  )
+
+(*
+
+Next steps:
+- change ROM to have only one argument
+- make the proof run again
+- mode_basic:
+  - add multiple messages with sequence numbers
+  - let responder talk to initiator as well
+
+- sequence numbers:
+  - let the adversary give it
+  - use a table to prevent nonce re-use
+
+- mode_auth
+- mode_psk
+- mode_auth_psk
+
+- in mode_auth, mode_psk, mode_auth_psk, compromise gets interesting
+
+(* EXPECTED
+Error: This expression has type bitstring but expects type G_t
+xtime: error in child process (status : 2)
+END *)

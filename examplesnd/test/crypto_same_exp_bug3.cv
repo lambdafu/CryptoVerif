@@ -1,0 +1,36 @@
+type T [fixed].
+
+fun f(T,T):T.
+
+fun mult(T,T):T.
+
+equation builtin AC(mult).
+
+const a: T.
+const b: T.
+const c: T.
+const d: T.
+
+equiv(e)
+   k <-R T; Om(x: T) := return(mult(f(k,x),c))
+   <=(0)=>
+   Om(x: T) := return(d).
+
+proof {
+     crypto e
+     }
+
+
+param N, N'.
+
+
+channel ch.
+
+process
+     (!N in(ch, (x1:T)); k1 <-R T; out(ch, mult(mult(f(k1,x1), a), c))) |
+     (!N' in(ch, (x2:T)); find j <= N suchthat defined(k1[j], x1[j]) then out(ch, mult(mult(f(k1[j],x2), b), c)))
+
+(* EXPECTED
+Error: Cryptographic transformation failed
+xtime: error in child process (status : 2)
+END *)

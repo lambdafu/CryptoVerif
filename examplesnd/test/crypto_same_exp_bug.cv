@@ -1,0 +1,34 @@
+type T [fixed].
+
+fun mult(T,T):T.
+
+equation builtin AC(mult).
+
+const a: T.
+const b: T.
+const c: T.
+const d: T.
+
+equiv(e)
+   k <-R T; Om() := return(mult(k,c))
+   <=(0)=>
+   Om() := return(d).
+
+proof {
+     crypto e
+     }
+
+
+param N, N'.
+
+
+channel ch.
+
+process
+     (!N in(ch, ()); k1 <-R T; out(ch, mult(mult(k1, a), c))) |
+     (!N' in(ch, ()); find j <= N suchthat defined(k1[j]) then out(ch, mult(mult(k1[j], b), c)))
+
+(* EXPECTED
+All queries proved.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

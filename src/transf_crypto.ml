@@ -2334,7 +2334,9 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		   Terms.create_repl_index "tmpcur" e.t_type) down_indexes 
 		 in
 		 let cur_array_terms' = List.map Terms.term_from_repl_index cur_array' in
-		 let t' = reverse_subst down_indexes cur_array_terms' torg in
+		 let rev_subst_fun = reverse_subst down_indexes cur_array_terms' in
+		 let args_rev_subst = List.map (fun (b, t) -> (b, rev_subst_fun t)) exp.before_transfo_input_vars_exp in
+		 let array_ref_rev_subst = List.map (fun (br, br') -> (br, rev_subst_fun (Terms.term_from_binderref br'))) exp.before_transfo_array_ref_map in
 		 (* NOTE If we are in a find condition, the
 		    find indices are included in cur_array, so that we
 		    make sure that the term can be expressed as a
@@ -2374,8 +2376,34 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 			   (* if a name in the down-most sequence of restrictions is common, the result expressions
                               must be equal up to change of indexes (checked using reverse substitutions) *)
 			   let exp' = List.hd mapping.expressions in
-			   if not (Terms.equal_terms exp'.source_exp_instance 
-				     (Terms.subst cur_array' (snd (List.hd exp'.name_indexes_exp)) t')) then
+			   let exp'_instantiate_indices = Terms.subst cur_array' (snd (List.hd exp'.name_indexes_exp)) in
+			   (* Since one name the down-most sequence of restrictions is in common, 
+		              we have already checked that all names are in common, and 
+			      that the function that computes the indexes of above names from 
+			      the indexes of the lowest common name is the same.
+			      We check that the arguments are the same and that the indices
+			      of array references are also the same, modulo substitution of
+			      array indices. 
+			      Then the result expression is the same modulo substitution of 
+			      array indices. *)
+			   if not ((List.for_all2 (fun (b, t) (b', t') ->
+			             assert (b == b');
+			             Terms.equal_terms (exp'_instantiate_indices t) t'
+			               ) args_rev_subst exp'.before_transfo_input_vars_exp)
+				     &&
+				   (List.for_all2 (fun (br, t) (br', br_im') ->
+				     assert (Terms.equal_binderref br br');
+				     Terms.equal_terms (exp'_instantiate_indices t) (Terms.term_from_binderref br_im')
+				       ) array_ref_rev_subst exp'.before_transfo_array_ref_map))
+                           (* The previous test (shown below) was incorrect in case source_exp_instance 
+			      contains a product that is only partly matched by source_exp.
+			      Furthermore, it did not take into account equalities between
+			      terms that could have been exploited to match the source expression.
+
+			      let t' = reverse_subst down_indexes cur_array_terms' torg in
+			      (Terms.equal_terms exp'.source_exp_instance 
+			      (Terms.subst cur_array' (snd (List.hd exp'.name_indexes_exp)) t')) *)
+			   then
 			     begin
 			       if (!Settings.debug_cryptotransf) > 4 then
 				 print_string "There is no replication under the last restriction in the LHS of the equivalence, and the expression needs to be evaluated several times in the game for the same restriction and with different arguments.\n";
