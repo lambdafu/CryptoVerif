@@ -6,8 +6,8 @@
 *
 *  * modified from a script by Jonathan Herzog
 *  * Blocks: 1
-*  * Result: failure for now, the desired result is success
-*    (file examplesnd/otest/JHerzog_ccm_one_block_cca_distinct_nonces2.ocv is successful for the 
+*  * Result: success
+*    (file examplesnd/otest/JHerzog_ccm_one_block_cca_distinct_nonces2.ocv is successful and faster for the 
 *     same example)
 *
 ***********************************************************************)
@@ -26,7 +26,6 @@ merge_branches;
 remove_assign binder plaintext1;
 move array re;
 simplify;
-(* interactive; TO DO We need a stronger merging of branches *)
 auto
 }
 
@@ -146,6 +145,6 @@ process
         (foreach i <= C do run challenge_oracle(aesk, secret_bit))
 
 (* EXPECTED
-RESULT Could not prove secrecy of secret_bit.
+All queries proved.
 15.348s (user 15.332s + system 0.016s), max rss 117968K
 END *)
