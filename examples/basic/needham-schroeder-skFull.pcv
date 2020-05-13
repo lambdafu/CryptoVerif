@@ -6,7 +6,7 @@
 ifdef(`ProVerif',`
 (* Parameters required to prove the first query and disprove the second query. *)
 set preciseActions = true.
-set nounifIgnoreOnce = auto.
+set nounifIgnoreAFewTimes = auto.
 ')
 
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)

@@ -7,7 +7,7 @@
 ifdef(`ProVerif',`
 (* Parameters required to prove the first query. *)
 set preciseActions = true.
-set nounifIgnoreOnce = auto.
+set nounifIgnoreAFewTimes = auto.
 ')
 
 param NA, NB, NS, NK.
