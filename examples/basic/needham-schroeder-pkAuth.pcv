@@ -149,8 +149,8 @@ RESULT Could not prove inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
 END *)
 
 (* EXPECTPV
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
-RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is false.
-RESULT (even event(fullB(A,x_1)) ==> event(fullA(B,x_1)) is false.)
-0.120s (user 0.116s + system 0.004s), max rss 13860K
+RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) is true.
+RESULT inj-event(fullB(A,x)) ==> inj-event(fullA(B,x)) is false.
+RESULT (even event(fullB(A,x)) ==> event(fullA(B,x)) is false.)
+0.164s (user 0.164s + system 0.000s), max rss 15284K
 END *)

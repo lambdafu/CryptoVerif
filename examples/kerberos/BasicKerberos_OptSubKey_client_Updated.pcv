@@ -317,13 +317,13 @@ RESULT Could not prove secrecy of OPkeyS.
 END *)
 
 (* EXPECTPV
-RESULT inj-event(fullCK(T,N,x_3,y_3)) ==> inj-event(fullKC(C,T,N,z_5,y_3)) public_vars OPkeyC,OPkeyS is true.
-RESULT event(partTC(C,x_3,y_3)) ==> event(partCT(T,x',y_3)) && event(fullKC(C,T,N,x_3,y')) public_vars OPkeyC,OPkeyS is true.
-RESULT inj-event(fullCT(T,S,N,x_3,z_5,y_3)) ==> inj-event(fullTC(C,S,N,x',z',v,y_3)) public_vars OPkeyC,OPkeyS is true.
-RESULT event(partSC(C,z_5,y_3)) ==> event(partCS(S,T,x_3,y_3)) && event(fullTC(C,S,N,v,v',z_5,w)) public_vars OPkeyC,OPkeyS is true.
-RESULT event(fullCS(S,T,z_5,y_3,w)) ==> event(fullSC(C,x_3,y',w)) public_vars OPkeyC,OPkeyS is true.
+RESULT inj-event(fullCK(T,N,x,y)) ==> inj-event(fullKC(C,T,N,z,y)) public_vars OPkeyC,OPkeyS is true.
+RESULT event(partTC(C,x,y)) ==> event(partCT(T,x',y)) && event(fullKC(C,T,N,x,y')) public_vars OPkeyC,OPkeyS is true.
+RESULT inj-event(fullCT(T,S,N,x,z,y)) ==> inj-event(fullTC(C,S,N,x',z',v,y)) public_vars OPkeyC,OPkeyS is true.
+RESULT event(partSC(C,z,y)) ==> event(partCS(S,T,x,y)) && event(fullTC(C,S,N,v,v',z,w)) public_vars OPkeyC,OPkeyS is true.
+RESULT event(fullCS(S,T,z,y,w)) ==> event(fullSC(C,x,y',w)) public_vars OPkeyC,OPkeyS is true.
 RESULT secret OPkeyC is true.
 RESULT secret OPkeyS is true.
 RESULT secret OPkeyS is true.
-1.412s (user 1.392s + system 0.020s), max rss 44552K
+1.080s (user 1.056s + system 0.024s), max rss 35936K
 END *)

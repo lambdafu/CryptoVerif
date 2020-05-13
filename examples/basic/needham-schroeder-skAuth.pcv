@@ -140,7 +140,7 @@ All queries proved.
 END *)
 
 (* EXPECTPV
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) is true.
-RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) is true.
-0.120s (user 0.116s + system 0.004s), max rss 12128K
+RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) is true.
+RESULT inj-event(fullB(A,x)) ==> inj-event(fullA(B,x)) is true.
+0.124s (user 0.116s + system 0.008s), max rss 13632K
 END *)

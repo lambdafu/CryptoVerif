@@ -20,5 +20,5 @@ END *)
 
 (* EXPECTPV
 RESULT not event(bad) is true.
-0.012s (user 0.008s + system 0.004s), max rss 10236K
+0.028s (user 0.020s + system 0.008s), max rss 10436K
 END *)

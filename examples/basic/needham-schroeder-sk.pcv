@@ -143,16 +143,16 @@ RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) w
 END *)
 
 (* EXPECTPV
-RESULT event(partA(B,x_1)) ==> event(partB(A,x_1)) public_vars keyA is false.
-RESULT event(fullB(A,k_3,x_1)) ==> event(fullA(B,k_3,x_1)) public_vars keyA is true.
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is false.
-RESULT (query encoded as inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)))
-RESULT (even event(partA(B,x_1)) ==> event(partB(A,x_1)) is false.)
-RESULT inj-event(fullB(A,k_3,x_2)) ==> inj-event(fullA(B,k_3,x_2)) public_vars keyA is false.
-RESULT (query encoded as inj-event(fullB(A,k_3,x_2)) ==> inj-event(fullA(B,k_3,x_2)))
-RESULT (but event(fullB(A,k_3,x_2)) ==> event(fullA(B,k_3,x_2)) is true.)
-RESULT event(fullA(B,k_4,x_3)) && event(fullB(A,k',x_3)) ==> k_4 = k' public_vars keyA is true.
+RESULT event(partA(B,x)) ==> event(partB(A,x)) public_vars keyA is false.
+RESULT event(fullB(A,k_3,x)) ==> event(fullA(B,k_3,x)) public_vars keyA is true.
+RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA is false.
+RESULT (query encoded as inj-event(partA(B,x)) ==> inj-event(partB(A,x)))
+RESULT (even event(partA(B,x)) ==> event(partB(A,x)) is false.)
+RESULT inj-event(fullB(A,k_3,x)) ==> inj-event(fullA(B,k_3,x)) public_vars keyA is false.
+RESULT (query encoded as inj-event(fullB(A,k_3,x)) ==> inj-event(fullA(B,k_3,x)))
+RESULT (but event(fullB(A,k_3,x)) ==> event(fullA(B,k_3,x)) is true.)
+RESULT event(fullA(B,k_3,x)) && event(fullB(A,k',x)) ==> k_3 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.132s (user 0.108s + system 0.024s), max rss 11304K
+0.060s (user 0.060s + system 0.000s), max rss 12392K
 END *)

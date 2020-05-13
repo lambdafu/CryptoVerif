@@ -277,11 +277,11 @@ RESULT Could not prove event(fullTC(C, S, N, k', x', z', v, y)) && event(fullCT(
 END *)
 
 (* EXPECTPV
-RESULT inj-event(fullCK(T,N,x_3,y_3)) ==> inj-event(fullKC(C,T,N,z_4,y_3)) public_vars keySK,keyTSK is true.
-RESULT event(partTC(C,x_3,y_3)) ==> event(partCT(T,x',y_3)) && event(fullKC(C,T,N,x_3,y')) public_vars keySK,keyTSK is true.
-RESULT inj-event(fullCT(T,S,N,k,x_3,z_4,y_3)) ==> inj-event(fullTC(C,S,N,k,x',z',v,y_3)) public_vars keySK,keyTSK is true.
-RESULT event(fullTC(C,S,N,k',x',z',v,y_3)) && event(fullCT(T,S,N,k,x_3,z_4,y_3)) ==> k = k' public_vars keySK,keyTSK is true.
+RESULT inj-event(fullCK(T,N,x,y)) ==> inj-event(fullKC(C,T,N,z,y)) public_vars keySK,keyTSK is true.
+RESULT event(partTC(C,x,y)) ==> event(partCT(T,x',y)) && event(fullKC(C,T,N,x,y')) public_vars keySK,keyTSK is true.
+RESULT inj-event(fullCT(T,S,N,k,x,z,y)) ==> inj-event(fullTC(C,S,N,k,x',z',v,y)) public_vars keySK,keyTSK is true.
+RESULT event(fullTC(C,S,N,k',x',z',v,y)) && event(fullCT(T,S,N,k,x,z,y)) ==> k = k' public_vars keySK,keyTSK is true.
 RESULT secret keySK is true.
 RESULT secret keyTSK is true.
-0.596s (user 0.576s + system 0.020s), max rss 35588K
+0.548s (user 0.544s + system 0.004s), max rss 29380K
 END *)

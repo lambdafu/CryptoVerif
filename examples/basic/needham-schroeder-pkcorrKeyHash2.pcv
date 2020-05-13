@@ -183,7 +183,7 @@ END *)
 
 (* EXPECTPV
 RESULT secret keyA is true.
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
-RESULT inj-event(fullB(A,x_1)) ==> inj-event(fullA(B,x_1)) public_vars keyA is true.
-0.112s (user 0.100s + system 0.012s), max rss 12604K
+RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA is true.
+RESULT inj-event(fullB(A,x)) ==> inj-event(fullA(B,x)) public_vars keyA is true.
+0.132s (user 0.112s + system 0.020s), max rss 13644K
 END *)

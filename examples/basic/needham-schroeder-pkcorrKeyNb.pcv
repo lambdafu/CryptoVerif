@@ -158,10 +158,10 @@ END *)
 
 (* EXPECTPV
 RESULT secret keyA is true.
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
-RESULT inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)) public_vars keyA is false.
-RESULT (query encoded as inj-event(fullB(A,k,x_1)) ==> inj-event(fullA(B,k,x_1)))
-RESULT (even event(fullB(A,k,x_1)) ==> event(fullA(B,k,x_1)) is false.)
-RESULT event(fullB(A,k_1,x_2)) && event(fullA(B,k',x_2)) ==> k_1 = k' public_vars keyA is true.
-0.128s (user 0.124s + system 0.004s), max rss 13440K
+RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA is true.
+RESULT inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)) public_vars keyA is false.
+RESULT (query encoded as inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)))
+RESULT (even event(fullB(A,k,x)) ==> event(fullA(B,k,x)) is false.)
+RESULT event(fullB(A,k,x)) && event(fullA(B,k',x)) ==> k = k' public_vars keyA is true.
+0.084s (user 0.076s + system 0.008s), max rss 13652K
 END *)

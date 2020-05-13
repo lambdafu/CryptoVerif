@@ -410,8 +410,8 @@ RESULT Could not prove event(fullCK(K, T, N, k, w, x, y)) && event(fullKC(C, T, 
 END *)
 
 (* EXPECTPV
-RESULT inj-event(fullCK(K,T,N,k_1,w,x_4,y_4)) ==> inj-event(fullKC(C,T,N,k_1,w,z_4,y_4)) public_vars keyAK is true.
-RESULT event(fullCK(K,T,N,k_1,w,x_4,y_4)) && event(fullKC(C,T,N,k',w,z_4,y_4)) ==> k_1 = k' public_vars keyAK is true.
+RESULT inj-event(fullCK(K,T,N,k,w,x,y_1)) ==> inj-event(fullKC(C,T,N,k,w,z,y_1)) public_vars keyAK is true.
+RESULT event(fullCK(K,T,N,k,w,x,y_1)) && event(fullKC(C,T,N,k',w,z,y_1)) ==> k = k' public_vars keyAK is true.
 RESULT secret keyAK is true.
-4.688s (user 4.640s + system 0.048s), max rss 135508K
+2.372s (user 2.324s + system 0.048s), max rss 138256K
 END *)

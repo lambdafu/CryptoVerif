@@ -210,8 +210,8 @@ All queries proved.
 END *)
 
 (* EXPECTPV
-RESULT inj-event(fullCK(K,T,N,k,x_3,y_3)) ==> inj-event(fullKC(C,T,N,k,z_4,y_3)) public_vars keyAK is true.
-RESULT event(fullCK(K,T,N,k,x_3,y_3)) && event(fullKC(C,T,N,k',x_3,y_3)) ==> k = k' public_vars keyAK is true.
+RESULT inj-event(fullCK(K,T,N,k,x,y)) ==> inj-event(fullKC(C,T,N,k,z,y)) public_vars keyAK is true.
+RESULT event(fullCK(K,T,N,k,x,y)) && event(fullKC(C,T,N,k',x,y)) ==> k = k' public_vars keyAK is true.
 RESULT secret keyAK is true.
-0.044s (user 0.044s + system 0.000s), max rss 11508K
+0.076s (user 0.072s + system 0.004s), max rss 11364K
 END *)

@@ -289,5 +289,5 @@ All queries proved.
 END *)
 
 (* EXPECTPV
-0.024s (user 0.024s + system 0.000s), max rss 11920K
+0.056s (user 0.048s + system 0.008s), max rss 12164K
 END *)

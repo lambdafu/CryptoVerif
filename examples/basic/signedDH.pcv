@@ -132,5 +132,5 @@ RESULT secret keyA is true.
 RESULT secret keyB is true.
 RESULT inj-event(endA(A,B,x,y)) ==> inj-event(beginB(A,B,x,y)) public_vars keyA,keyB is true.
 RESULT inj-event(endB(A,B,x,y)) ==> inj-event(endA(A,B,x,y)) public_vars keyA,keyB is true.
-0.072s (user 0.072s + system 0.000s), max rss 12160K
+0.168s (user 0.164s + system 0.004s), max rss 13656K
 END *)

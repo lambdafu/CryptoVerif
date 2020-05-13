@@ -117,6 +117,6 @@ All queries proved.
 END *)
 
 (* EXPECTPV
-RESULT inj-event(fullB(A,y_1)) ==> inj-event(fullA(B,y_1)) is true.
-0.020s (user 0.008s + system 0.012s), max rss 10532K
+RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is true.
+0.040s (user 0.040s + system 0.000s), max rss 10964K
 END *)

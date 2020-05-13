@@ -299,10 +299,10 @@ All queries proved.
 END *)
 
 (* EXPECTPV
-RESULT inj-event(fullCK(T,N,x_3,y_3)) ==> inj-event(fullKC(C,T,N,z_4,y_3)) is true.
-RESULT event(partTC(C,x_3,y_3)) ==> event(partCT(T,x',y_3)) && event(fullKC(C,T,N,x_3,y')) is true.
-RESULT inj-event(fullCT(T,S,N,x_3,z_4,y_3)) ==> inj-event(fullTC(C,S,N,x',z',v,y_3)) is true.
-RESULT event(partSC(C,z_4,y_3)) ==> event(partCS(S,T,x_3,y_3)) && event(fullTC(C,S,N,v,v',z_4,w)) is true.
-RESULT event(fullCS(S,T,z_4,y_3,w)) ==> event(fullSC(C,x_3,y',w)) is true.
-2.004s (user 1.972s + system 0.032s), max rss 81412K
+RESULT inj-event(fullCK(T,N,x,y)) ==> inj-event(fullKC(C,T,N,z,y)) is true.
+RESULT event(partTC(C,x,y)) ==> event(partCT(T,x',y)) && event(fullKC(C,T,N,x,y')) is true.
+RESULT inj-event(fullCT(T,S,N,x,z,y)) ==> inj-event(fullTC(C,S,N,x',z',v,y)) is true.
+RESULT event(partSC(C,z,y)) ==> event(partCS(S,T,x,y)) && event(fullTC(C,S,N,v,v',z,w)) is true.
+RESULT event(fullCS(S,T,z,y,w)) ==> event(fullSC(C,x,y',w)) is true.
+1.348s (user 1.320s + system 0.028s), max rss 72912K
 END *)

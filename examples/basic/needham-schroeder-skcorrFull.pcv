@@ -180,12 +180,12 @@ RESULT Could not prove one-session secrecy of keyA; secrecy of keyA; inj-event(f
 END *)
 
 (* EXPECTPV
-RESULT inj-event(partA(B,x_1)) ==> inj-event(partB(A,x_1)) public_vars keyA is true.
-RESULT inj-event(fullB(A,k_3,x_1)) ==> inj-event(fullA(B,k_3,x_1)) public_vars keyA is false.
-RESULT (query encoded as inj-event(fullB(A,k_3,x_1)) ==> inj-event(fullA(B,k_3,x_1)))
-RESULT (even event(fullB(A,k_3,x_1)) ==> event(fullA(B,k_3,x_1)) is false.)
-RESULT event(fullA(B,k_4,x_2)) && event(fullB(A,k',x_2)) ==> k_4 = k' public_vars keyA is true.
+RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA is true.
+RESULT inj-event(fullB(A,k_3,x)) ==> inj-event(fullA(B,k_3,x)) public_vars keyA is false.
+RESULT (query encoded as inj-event(fullB(A,k_3,x)) ==> inj-event(fullA(B,k_3,x)))
+RESULT (even event(fullB(A,k_3,x)) ==> event(fullA(B,k_3,x)) is false.)
+RESULT event(fullA(B,k_3,x)) && event(fullB(A,k',x)) ==> k_3 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.268s (user 0.256s + system 0.012s), max rss 15172K
+0.256s (user 0.244s + system 0.012s), max rss 15292K
 END *)
