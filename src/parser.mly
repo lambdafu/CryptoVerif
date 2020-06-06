@@ -898,8 +898,10 @@ basicpattern:
         IDENT
         { PPatVar($1,None), parse_extent() }
 |       IDENT COLON IDENT
-        { PPatVar($1, Some $3), parse_extent() }
-
+        { PPatVar($1, Some (Tid $3)), parse_extent() }
+|       IDENT LEQ IDENT
+        { PPatVar($1, Some (TBound $3)), parse_extent() }
+    
 pattern:
   basicpattern
     { $1 }
@@ -1059,7 +1061,7 @@ nevartypeilist:
 
 vartypei:
  /* We need to make explicit the first IDENT to avoid
-    a shift/reduce conflict on COLON between
+    2 shift/reduce conflicts on COLON and LEQ between
     QUERY vartypeilist SEMI queryseq DOT
     QUERY queryseq DOT
     (queryseq can be term ... which can be x:T <- M ...

@@ -92,11 +92,19 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 \def\phpat{\phantom{\nonterm{pattern} = }\mid}
 \def\phq{\phantom{\nonterm{query} = }\mid}
 \def\phqt{\phantom{\nonterm{queryterm} = }\mid}
+\begin{minipage}{8.5cm}
 \begin{align*}
 &\nonterm{identbound} ::= [\nonterm{ident}\texttt{ =}]\ \nonterm{ident} \texttt{ <= }\nonterm{ident}\\
 &\nonterm{vartype} ::= \neseq{ident} \texttt{:}\nonterm{ident}\\
 &\nonterm{vartypeb} ::= \neseq{ident} \texttt{:}\nonterm{ident}\\
 &\phantom{\nonterm{vartypeb} =}\mid \neseq{ident} \texttt{ <= }\nonterm{ident}\\
+&\nonterm{basicpat} ::= \nonterm{ident}\\
+&\phantom{\nonterm{basicpat} =}\mid \nonterm{ident}\texttt{:}\nonterm{ident}\\
+&\phantom{\nonterm{basicpat} =}\mid \nonterm{ident}\texttt{ <= }\nonterm{ident}\\[-1mm]
+\end{align*}
+\end{minipage}
+\begin{minipage}{7cm}
+\begin{align*}
 &\nonterm{simpleterm} ::= \nonterm{ident}\\
 &\phst \nonterm{ident}\texttt{(}\seq{simpleterm}\texttt{)}\\
 &\phst \texttt{(}\seq{simpleterm}\texttt{)}\\
@@ -104,12 +112,15 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 &\phst \nonterm{simpleterm} \texttt{ = } \nonterm{simpleterm} \\
 &\phst \nonterm{simpleterm} \texttt{ <> } \nonterm{simpleterm} \\
 &\phst \nonterm{simpleterm} \texttt{ || } \nonterm{simpleterm} \\
-&\phst \nonterm{simpleterm} \texttt{ \&\& } \nonterm{simpleterm} \\
+&\phst \nonterm{simpleterm} \texttt{ \&\& } \nonterm{simpleterm} 
+\end{align*}
+\end{minipage}\\
+\begin{align*}
 &\nonterm{term} ::= \ldots \text{(as in $\nonterm{simpleterm}$ with 
 $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\pht \Resavt\texttt{;}\nonterm{term}\\
 &\pht \Resbvt\texttt{;}\nonterm{term}\\
-&\pht \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- } \nonterm{term}\\
+&\pht \nonterm{basicpat} \texttt{ <- } \nonterm{term}\\
 &\pht \texttt{let } \nonterm{pattern} \texttt{ = }\nonterm{term}\texttt{ in }\nonterm{term}\ [\texttt{else }\nonterm{term}]\\
 &\pht \texttt{if }\nonterm{cond}\texttt{ then } \nonterm{term} \texttt{ else }\nonterm{term}\\
 &\pht \texttt{find}[\texttt{[unique]}]\ \nonterm{tfindbranch}\ (\texttt{orfind }\nonterm{tfindbranch})^*\texttt{ else }\nonterm{term}\\
@@ -122,7 +133,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\nonterm{cond} ::= \texttt{defined(} \neseq{varref} \texttt{) }\ [\texttt{\&\& }\nonterm{term}]\\
 &\phantom{\nonterm{cond} = }\mid \nonterm{term}\\
 &\nonterm{tfindbranch} ::= \seq{identbound} \texttt{ suchthat } \nonterm{cond} \texttt{ then }\nonterm{term}\\
-&\nonterm{pattern} ::= \nonterm{ident}[:\nonterm{ident}]\\
+&\nonterm{pattern} ::= \nonterm{basicpat}\\
 &\phpat \nonterm{ident}\texttt{(} \seq{pattern}\texttt{)}\\
 &\phpat \texttt{(} \seq{pattern}\texttt{)}\\
 &\phpat \texttt{=} \nonterm{term}\\
@@ -194,7 +205,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phfb \texttt{event\string_abort }\nonterm{ident}\\
 &\phfb \Resavt\texttt{; }\funbody\\
 &\phfb \Resbvt\texttt{; }\funbody\\
-&\phfb \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}\texttt{; }\funbody\\
+&\phfb \nonterm{basicpat} \texttt{ <- }\nonterm{term}\texttt{; }\funbody\\
 &\phfb \texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ 
 \texttt{in }\funbody\ \texttt{else }\funbody\\
 &\phfb \texttt{if }\nonterm{cond}\texttt{ then }\funbody\ \texttt{else }\funbody\\
@@ -229,7 +240,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phop \texttt{event\string_abort }\nonterm{ident}\\
 &\phop \Resavt[\texttt{; }\oprocess]\\
 &\phop \Resbvt[\texttt{; }\oprocess]\\
-&\phop \nonterm{ident}[\texttt{:}\nonterm{ident}] \texttt{ <- }\nonterm{term}[\texttt{; }\oprocess]\\
+&\phop \nonterm{basicpat} \texttt{ <- }\nonterm{term}[\texttt{; }\oprocess]\\
 &\phop \texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ 
 [\texttt{in }\oprocess\ [\texttt{else }\oprocess]]\\
 &\phop \texttt{if }\nonterm{cond}\texttt{ then }\oprocess\ [\texttt{else }\oprocess]\\
