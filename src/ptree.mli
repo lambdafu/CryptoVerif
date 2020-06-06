@@ -27,7 +27,7 @@ type term = PIdent of ident
 
 and term_e = term * Parsing_helper.extent
 
-and pattern = PPatVar of ident * ty option(*optional type*)
+and pattern = PPatVar of ident * ident option(*optional type*)
   | PPatTuple of pattern_e list
   | PPatFunApp of ident * pattern_e list
   | PPatEqual of term_e

@@ -2613,8 +2613,8 @@ process, not in a term.
 \item $\texttt{insert}\ occ\ \texttt{"}\nonterm{ins}\texttt{"}$ inserts instruction $\nonterm{ins}$ at
 program point $occ$. The instruction $\nonterm{ins}$ can be 
 \begin{align*}
-&\texttt{new\ }\nonterm{vartype}[\texttt{;}\nonterm{ins}]\\
-  &\nonterm{ident}\texttt{ <-R }\nonterm{ident}[\texttt{;}\nonterm{ins}]\\
+&\Resavt[\texttt{;}\nonterm{ins}]\\
+  &\Resbvt[\texttt{;}\nonterm{ins}]\\
   &\texttt{event\_abort}\ \nonterm{ident}\\
 &\texttt{if }\nonterm{cond}\texttt{ then }\nonterm{ins}\ [\texttt{else }\nonterm{ins}]\\
 &\texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ \texttt{in}\ \nonterm{ins}\ [\texttt{else }\nonterm{ins}]\\

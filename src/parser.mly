@@ -622,11 +622,15 @@ newarg: /* For compatibility with ProVerif; ignored by CryptoVerif */
 | LBRACKET neidentlist RBRACKET
     { Some ($2) }
 
+vartype:
+    neidentlist COLON IDENT
+    { List.map (fun x -> (x,$3)) $1 }
+    
 nevartypelist:
-        IDENT COLON IDENT
-        { [($1, $3)] }
-|       IDENT COLON IDENT COMMA nevartypelist
-        { ($1, $3) :: $5 }
+        vartype
+        { $1 }
+|       vartype COMMA nevartypelist
+        { $1 @ $3 }
 
 neforallvartype:
     FORALL nevartypelist SEMI
@@ -891,10 +895,10 @@ optelse:
         { PYield, parse_extent() }
 
 basicpattern:
-  IDENT
-    { PPatVar($1,None), parse_extent() }
-| vartypei
-    { let (id, ty) = $1 in PPatVar(id,Some ty), parse_extent() }
+        IDENT
+        { PPatVar($1,None), parse_extent() }
+|       IDENT COLON IDENT
+        { PPatVar($1, Some $3), parse_extent() }
 
 pattern:
   basicpattern
@@ -1049,15 +1053,29 @@ vartypeilist:
 
 nevartypeilist:
         vartypei
-        { [$1] }
+        { $1 }
 |       vartypei COMMA nevartypeilist
-        { $1 :: $3 }
+        { $1 @ $3 }
 
 vartypei:
+ /* We need to make explicit the first IDENT to avoid
+    a shift/reduce conflict on COLON between
+    QUERY vartypeilist SEMI queryseq DOT
+    QUERY queryseq DOT
+    (queryseq can be term ... which can be x:T <- M ...
+    so when we have "query x:T", it can be the beginning
+    of both cases: it is the first case when it is followed
+    by SEMI or COMMA, the second case when it is followed by LEFTARROW.
+    We must not reduce neidentlist during the parsing of "query x:T".)
+    */
         IDENT COLON IDENT
-        { ($1, Tid $3) }
+        { [$1, Tid $3] }
 |       IDENT LEQ IDENT
-        { ($1, TBound $3) }
+        { [$1, TBound $3] }
+|       IDENT COMMA neidentlist COLON IDENT
+        { List.map (fun x -> (x, Tid $5)) ($1::$3) }
+|       IDENT COMMA neidentlist LEQ IDENT
+        { List.map (fun x -> (x, TBound $5)) ($1::$3) }
     
 fungroup:
 |   IDENT LPAREN vartypeilist RPAREN optpriority DEF procasterm 

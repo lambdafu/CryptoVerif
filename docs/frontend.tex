@@ -15,7 +15,7 @@
 \def\fungroup{\nonterm{ogroup}}
 \def\funmode{\nonterm{omode}}
 \def\funbody{\nonterm{obody\_equiv}}
-\def\Resavt{\texttt{new\ }\nonterm{vartype}}
+\def\Resavt{\texttt{new\ }\nonterm{ident} \texttt{:}\nonterm{ident}}
 \def\Resa#1#2{\texttt{new\ }{#1}\texttt{:}{#2}}
 \def\Resbvt{\nonterm{ident}\texttt{ <-R }\nonterm{ident}}
 \def\Resb#1#2{{#1}\texttt{ <-R }{#2}}
@@ -94,9 +94,9 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 \def\phqt{\phantom{\nonterm{queryterm} = }\mid}
 \begin{align*}
 &\nonterm{identbound} ::= [\nonterm{ident}\texttt{ =}]\ \nonterm{ident} \texttt{ <= }\nonterm{ident}\\
-&\nonterm{vartype} ::= \nonterm{ident} \texttt{:}\nonterm{ident}\\
-&\nonterm{vartypeb} ::= \nonterm{ident} \texttt{:}\nonterm{ident}\\
-&\phantom{\nonterm{vartypeb} =}\mid \nonterm{ident} \texttt{ <= }\nonterm{ident}\\
+&\nonterm{vartype} ::= \neseq{ident} \texttt{:}\nonterm{ident}\\
+&\nonterm{vartypeb} ::= \neseq{ident} \texttt{:}\nonterm{ident}\\
+&\phantom{\nonterm{vartypeb} =}\mid \neseq{ident} \texttt{ <= }\nonterm{ident}\\
 &\nonterm{simpleterm} ::= \nonterm{ident}\\
 &\phst \nonterm{ident}\texttt{(}\seq{simpleterm}\texttt{)}\\
 &\phst \texttt{(}\seq{simpleterm}\texttt{)}\\
@@ -122,8 +122,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\nonterm{cond} ::= \texttt{defined(} \neseq{varref} \texttt{) }\ [\texttt{\&\& }\nonterm{term}]\\
 &\phantom{\nonterm{cond} = }\mid \nonterm{term}\\
 &\nonterm{tfindbranch} ::= \seq{identbound} \texttt{ suchthat } \nonterm{cond} \texttt{ then }\nonterm{term}\\
-&\nonterm{pattern} ::= \nonterm{ident}\\
-&\phpat \nonterm{vartypeb}\\
+&\nonterm{pattern} ::= \nonterm{ident}[:\nonterm{ident}]\\
 &\phpat \nonterm{ident}\texttt{(} \seq{pattern}\texttt{)}\\
 &\phpat \texttt{(} \seq{pattern}\texttt{)}\\
 &\phpat \texttt{=} \nonterm{term}\\

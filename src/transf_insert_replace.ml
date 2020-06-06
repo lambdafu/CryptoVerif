@@ -190,9 +190,10 @@ let rec check_pattern1 find_cond cur_array env tyoptres = function
 	  match tyopt, tyoptres with
 	    None, None -> None
 	  | None, Some ty -> Some ty
-	  | Some tyb, None -> 
-	      let (ty',ext2) = get_ty env tyb in
+	  | Some (tyb, ext2), None -> 
+	      let ty' = get_type env tyb ext2 in
 	      begin
+	        (* In fact, the syntax also prevents declaring interval types here *)
 		match ty'.tcat with
 		  Interv _ -> raise (Error("Cannot input a term of interval type", ext2))
 	        (* This condition simplifies greatly the theory:
@@ -201,8 +202,8 @@ let rec check_pattern1 find_cond cur_array env tyoptres = function
 		|	_ -> ()
 	      end;
 	      Some ty'
-	  | Some tyb, Some ty ->
-	      let (ty',ext2) = get_ty env tyb in
+	  | Some (tyb, ext2), Some ty ->
+	      let ty' = get_type env tyb ext2 in
 	      if ty != ty' then
 		raise (Error("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname, ext2));
 	      Some ty
@@ -603,9 +604,10 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 	  match tyopt, tyoptres with
 	    None, None -> None
 	  | None, Some ty -> Some ty
-	  | Some tyb, None -> 
-	      let (ty',ext2) = get_ty env tyb in
+	  | Some (tyb, ext2), None -> 
+	      let ty' = get_type env tyb ext2 in
 	      begin
+	        (* In fact, the syntax also prevents declaring interval types here *)
 		match ty'.tcat with
 		  Interv _ -> raise (Error("Cannot input a term of interval type", ext2))
 	        (* This condition simplifies greatly the theory:
@@ -614,8 +616,8 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 		|	_ -> ()
 	      end;
 	      Some ty'
-	  | Some tyb, Some ty ->
-	      let (ty',ext2) = get_ty env tyb in
+	  | Some (tyb, ext2), Some ty ->
+	      let ty' = get_type env tyb ext2 in
 	      if ty != ty' then
 		raise (Error("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname, ext2));
 	      Some ty

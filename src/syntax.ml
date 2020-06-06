@@ -428,8 +428,8 @@ and check_pattern1 binder_env in_find_cond cur_array env needtype = function
 	      raise_error "type needed for this variable" ext1
 	    else
 	      (binder_env, env', [s1, None])
-	| Some ty ->
-	    let (ty',_) = get_ty env ty in
+	| Some (ty,ext) ->
+	    let ty' = get_type env ty ext in
 	    (binder_env, env', [s1, Some ty'])
       end
   | PPatTuple l, _ ->
@@ -1456,9 +1456,10 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	| None, Some ty -> 
 	    let (env',b) = add_in_env env s1 ext1 ty cur_array in
 	    (env', PatVar b)
-	| Some tyb, None -> 
-	    let (ty',ext2) = get_ty env tyb in
+	| Some (tyb, ext2), None -> 
+	    let ty' = get_type env tyb ext2 in
 	    begin
+	      (* In fact, the syntax also prevents declaring interval types here *)
 	      match ty'.tcat with
 		Interv _ -> raise_error "Cannot input a term of interval type or extract one from a tuple" ext2
 	        (* This condition simplifies greatly the theory:
@@ -1470,8 +1471,8 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	    end;
 	    let (env',b) = add_in_env env s1 ext1 ty' cur_array in
 	    (env', PatVar b)	    
-	| Some tyb, Some ty ->
-	    let (ty',ext2) = get_ty env tyb in
+	| Some (tyb,ext2), Some ty ->
+	    let ty' = get_type env tyb ext2 in
 	    if ty != ty' then
 	      raise_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
 	    let (env',b) = add_in_env env s1 ext1 ty' cur_array in
@@ -1632,9 +1633,10 @@ and check_pattern_letfun env tyoptres = function
            raise_error "type needed for this variable" ext1
        | None, Some ty ->
            add_in_env_letfun env s1 ext1 ty 
-       | Some tyb, None ->
-           let (ty',ext2) = get_ty env tyb in
+       | Some (tyb, ext2), None ->
+           let ty' = get_type env tyb ext2 in
            begin
+	     (* In fact, the syntax also prevents declaring interval types here *)
              match ty'.tcat with
                Interv _ -> raise_error "Cannot input a term of interval type or extract one from a tuple" ext2
                (* This condition simplifies greatly the theory:
@@ -1645,8 +1647,8 @@ and check_pattern_letfun env tyoptres = function
              | _ -> ()
            end;
            add_in_env_letfun env s1 ext1 ty' 
-       | Some tyb, Some ty ->
-           let (ty',ext2) = get_ty env tyb in
+       | Some (tyb, ext2), Some ty ->
+           let ty' = get_type env tyb ext2 in
            if ty != ty' then
              raise_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
            add_in_env_letfun env s1 ext1 ty' 
@@ -3107,7 +3109,7 @@ let rec rename_term (t,ext) =
 and rename_pat = function
     PPatVar(i,topt), ext -> PPatVar(rename_ie i, match topt with
       None -> None
-    | Some t -> Some (rename_ty t)), ext
+    | Some t -> Some (rename_ie t)), ext
   | PPatTuple(l), ext -> PPatTuple(List.map rename_pat l), ext
   | PPatFunApp(f,l), ext -> PPatFunApp(rename_ie f, List.map rename_pat l), ext
   | PPatEqual t, ext -> PPatEqual(rename_term t), ext
@@ -4044,7 +4046,7 @@ and collect_id_pat accu (pat,ext) =
       begin
 	match tyopt with
 	  None -> ()
-	| Some ty -> collect_id_ty accu ty
+	| Some ty -> add_id accu ty
       end
   | PPatTuple(patl) ->
       List.iter (collect_id_pat accu) patl

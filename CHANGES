@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow x1, ..., xn:T instead of x1:T, ..., xn:T to lighten type declarations
+  of variables when they have the same type.
 - Added the command "use_variable x1 ... xn".
 - Extended the "insert" command to insert several tests, assignments
   as well as event_abort in a single command. Inserting
