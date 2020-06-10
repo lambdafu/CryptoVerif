@@ -360,7 +360,7 @@ let rec update_expected_result config expected_line_opt filename actual_result t
       | WaitEXPECTED, None ->	  
 	  (* expected result not found, add it *)
 	  output_line f_new "";
-	  output_line f_new "(* EXPECTED";
+	  output_line f_new ("(* "^config.expected_result_marker);
           List.iter (output_line f_new) actual_result;
           output_string f_new time_string;
           output_line f_new "END *)"
