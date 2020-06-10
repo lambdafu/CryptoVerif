@@ -3038,7 +3038,7 @@ installed. On Windows, the best is to install Cygwin and run \texttt{test}
 from a Cygwin terminal.
 
 The script \texttt{test} must be run in the CryptoVerif main directory;
-the programs \texttt{analyze}, \texttt{xtime}, and \texttt{cryptoverif}
+the programs \texttt{analyze} and \texttt{cryptoverif}
 must be present in that directory.
 
 For CryptoVerif tests, the programs first runs the script {\tt prepare}
@@ -3086,7 +3086,7 @@ using that library of primitives for ProVerif. Otherwise, the library \texttt{cr
 
 The result of running each script is compared to the expected result. The expected result is found in the script itself
 in a comment that starts with \texttt{EXPECTED} for CryptoVerif and \texttt{EXPECTPV} for ProVerif, and ends with \texttt{END}. (The entire lines that contain \texttt{EXPECTED}, resp.~\texttt{EXPECTPV} and \texttt{END} do not belong to the expected result.)
-For CryptoVerif, the expected result consists of the line \texttt{RESULT Could not be proved} \ldots or \texttt{All queries proved} in the output of CryptoVerif. For ProVerif, it consists of the lines that start with \texttt{RESULT} in the output of ProVerif. It also includes a runtime of the script or an error message \texttt{xtime: \dots} if the execution terminates with an error.
+For CryptoVerif, the expected result consists of the line \texttt{RESULT Could not prove} \ldots{} or \texttt{All queries proved} in the output of CryptoVerif. For ProVerif, it consists of the lines that start with \texttt{RESULT} in the output of ProVerif. It also includes a runtime of the script or an error message \texttt{xtime: \dots} if the execution terminates with an error.
 
 In the modes \texttt{update} (resp.~\texttt{test\_add} or \texttt{add}), the expected result is updated (resp. added if it is absent or empty). To deal with generated files, the \texttt{EXPECTED}, resp.~\texttt{EXPECTPV} line may contain the indications
 \[\texttt{FILENAME: }\textit{name of the file}\texttt{ TAG: }\textit{distinct tag}\]
