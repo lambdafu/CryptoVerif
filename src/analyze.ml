@@ -549,7 +549,7 @@ let analyze_file config mode options filename files =
       | InfoNotFound -> if mode == Test then res_out "ERROR: expected result missing in script file\n"
       | EmptyInfo -> if mode == Test then res_out "ERROR: empty expected result in script file\n"
       | UnfinishedInfo -> res_out "ERROR: END marker missing in script file\n"
-      | TimeNotFound -> res_out "ERROR: Expected runtime not found in script file\n"
+      | TimeNotFound -> res_out "Expected runtime not found in script file\n"
       | IncorrectTime -> res_out "ERROR: Incorrectly formatted runtime in script file\n" 
       | IncorrectRSS -> res_out "ERROR: Incorrectly formatted max rss in script file\n"
 	    ) file_info_errors;
@@ -736,7 +736,7 @@ let _ =
     | "dirs" ->
 	let files = open_files prefix in
 	for i = 6 to Array.length Sys.argv-1 do
-	  if Sys.is_directory Sys.argv.(i) then
+	  if (try Sys.is_directory Sys.argv.(i) with Sys_error _ -> false) then
 	    analyze_dir config mode Sys.argv.(i) files None
 	done;
 	close_files files
