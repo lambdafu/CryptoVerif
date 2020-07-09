@@ -1377,6 +1377,11 @@ let rec check_term defined_refs_opt cur_array env = function
       raise_error "events should be function applications" ext2
   | PGetE((id,ext),patl,topt,p1,p2),ext2 -> 
       let tbl = get_table env id ext in
+      if List.length patl != List.length tbl.tbltype then
+	raise_error ("Table "^id^" expects "^
+		     (string_of_int (List.length tbl.tbltype))^
+		     " argument(s), but is here given "^
+		     (string_of_int (List.length patl))^" argument(s)") ext;
       let p2' = check_term defined_refs_opt cur_array env p2 in
       let (env', patl') = check_pattern_list defined_refs_opt cur_array env (List.map (fun x->Some x) tbl.tbltype) patl in
       let topt' = 
@@ -1564,9 +1569,16 @@ let rec get_type_letfun env = function
   | PGetE((id,ext),patl,_,t2,t3), ext2 ->
       let t = get_type_letfun env t3 in
       if t == Settings.t_any then
-	let tbl = get_table env id ext in
-	let env' = check_pattern_list_letfun env (List.map (fun x->Some x) tbl.tbltype) patl in
-	get_type_letfun env' t2
+	begin
+	  let tbl = get_table env id ext in
+	  if List.length patl != List.length tbl.tbltype then
+	    raise_error ("Table "^id^" expects "^
+			 (string_of_int (List.length tbl.tbltype))^
+			 " argument(s), but is here given "^
+			 (string_of_int (List.length patl))^" argument(s)") ext;
+	  let env' = check_pattern_list_letfun env (List.map (fun x->Some x) tbl.tbltype) patl in
+	  get_type_letfun env' t2
+	end
       else
 	t
   | PLetE(pat, t1, t2, topt), ext ->
@@ -3013,6 +3025,11 @@ and check_oprocess defined_refs cur_array env prog = function
       end
   | PGet((id,ext),patl,topt,p1,p2), ext' -> 
       let tbl = get_table env id ext in
+      if List.length patl != List.length tbl.tbltype then
+	raise_error ("Table "^id^" expects "^
+		     (string_of_int (List.length tbl.tbltype))^
+		     " argument(s), but is here given "^
+		     (string_of_int (List.length patl))^" argument(s)") ext;
       let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
       let (env', patl') = check_pattern_list (Some defined_refs) cur_array env (List.map (fun x->Some x) tbl.tbltype) patl in
       let topt' = 
