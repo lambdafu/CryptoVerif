@@ -278,6 +278,11 @@ let rec check_indices occ all_args args l =
     [],[] -> ()
   | _::rargs, i::rl -> 
       begin
+	(* Do not check that, if a variable access refers to a replication index, 
+	   all the rest of the indices must be the indices at creation.
+	   This property is not always true: e.g., if the indices at creation of
+	   b are i1,i2, and we know that i2 = x[i], then b[i1,i2] may also be written
+	   b[i1,x[i]] and that breaks the property.
 	match i.t_desc with
 	  ReplIndex i' when List.memq i' all_args ->
 	    List.iter2 (fun arg i -> 
@@ -285,7 +290,7 @@ let rec check_indices occ all_args args l =
 		ReplIndex i' when i' == arg -> ()
 	      |	_ -> error i.t_occ "If a variable access refers to a replication index, all the rest of the indices must be the indices at creation"
 		    ) args l
-	| _ -> 
+	| _ -> *)
 	    check_indices occ all_args rargs rl
       end
   | _ -> error occ "Variable indices have length different from args_at_creation"
