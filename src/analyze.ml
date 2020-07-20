@@ -675,14 +675,20 @@ let analyze_dir config mode dirname files filename_opt =
     Array.sort compare file_array;
     Array.iter (fun filename ->
       let full_filename = Filename.concat dirname filename in
-      if Sys.is_directory full_filename then
-	aux full_filename
-      else if StringPlus.case_insensitive_contains filename ".m4." ||
-              StringPlus.case_insensitive_contains filename ".out." then
-	()
-      else
-	analyze_one_file full_filename filename
-	  ) file_array
+      try 
+	if Sys.is_directory full_filename then
+	  aux full_filename
+	else if StringPlus.case_insensitive_contains filename ".m4." ||
+                StringPlus.case_insensitive_contains filename ".out." then
+	  ()
+	else
+	  try 
+	    analyze_one_file full_filename filename
+	  with Sys_error s ->
+	    error ("Error: "^s^"\n")
+      with Sys_error _ ->
+	res_out ("Warning: File "^full_filename^" was probably removed.\n")
+	    ) file_array
   in
   match filename_opt with
   | None -> aux dirname
