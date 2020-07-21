@@ -95,6 +95,9 @@ I warmly thank David Pointcheval for his advice and explanations
 of the computational proofs of protocols. This project would not have
 been possible without him.
 
+I also thank Benjamin Beurdouche and Benjamin Lipp for their help
+(updates of examples, bug reports and fixes).
+
 This project was partly supported by ARA SSIA Formacrypt and is partly
 supported by the ANR project ProSe (decision ANR-2010-VERS-004-01).
 
