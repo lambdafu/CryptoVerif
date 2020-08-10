@@ -161,6 +161,7 @@ let return_channel = (dummy_channel, None)
 %token TYPES      
 %token FOCUS
 %token TAG
+%token ASSUME
       
 /* Precedence (from low to high) and associativities */
 %left BAR
@@ -478,7 +479,9 @@ proofcommand:
 |   MERGE_ARRAYS varlistlist
     { CMerge_arrays($2, parse_extent()) }
 |   REPLACE occext STRING
-    { CReplace($2, $3) }
+    { CReplace($2, $3, Check) }
+|   ASSUME REPLACE occext STRING
+    { CReplace($3, $4, Assume) }
 |   INSERT occext STRING
     { CInsert($2, $3) }
 |   INSERT_EVENT idst occext

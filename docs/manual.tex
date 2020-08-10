@@ -2692,6 +2692,8 @@ See above for how to specify the program point $occ$.
 The program point $occ$ must correspond to a term not containing \texttt{if}, \texttt{let},
   \texttt{find}, \texttt{new}, \texttt{event}, \texttt{event\_abort}, \texttt{insert}, \texttt{get}.
 
+\item $\texttt{assume replace}\ occ\ \texttt{"}term\texttt{"}$ does the same thing as $\texttt{replace}\ occ\ \texttt{"}term\texttt{"}$, but does not check that the term at program point $occ$ is equal the term $term$, hence the replacement may not be correct. This command is present only to allow testing whether a proof would succeed if some replacement could be done. If you make a proof by relying on this command, CryptoVerif still considers that the query is not proved.
+
 \item \texttt{merge\_branches} merges the branches of {\tt if}, {\tt
     find}, and {\tt let} when they execute equivalent code. Such a
   merging is already done in simplification, but

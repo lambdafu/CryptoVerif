@@ -635,6 +635,8 @@ let display_pub_vars pub_vars =
       display_list display_binder pub_vars
     end
 	
+let has_assume = List.exists (function SetAssume -> true | _ -> false)
+      
 let display_one_set = function
     SetProba p ->
       display_proba 0 p;
@@ -645,6 +647,8 @@ let display_one_set = function
       print_string (get_game_id g);
       display_pub_vars pub_vars;
       print_string "]"
+  | SetAssume ->
+      print_string "Pr[COMMAND NOT CHECKED]"
 
 let rec display_set = function
     [] -> print_string "0"
@@ -1435,8 +1439,13 @@ let display_instruct = function
       print_string ("insert event " ^ s ^ " at occurrence " ^ (string_of_int occ))
   | InsertInstruct(s,ext_s,occ,ext_o) ->
       print_string ("insert instruction " ^ s ^ " at occurrence " ^ (string_of_int occ))
-  | ReplaceTerm(s,ext_s,occ,ext_o) ->
-      print_string ("replace term at occurrence " ^ (string_of_int occ) ^ " with " ^ s)
+  | ReplaceTerm(s,ext_s,occ,ext_o, check_opt) ->
+      print_string ("replace term at occurrence " ^ (string_of_int occ) ^ " with " ^ s);
+      begin
+	match check_opt with
+	| Check -> ()
+	| Assume -> print_string " (WARNING: equality not checked)"
+      end
   | MergeArrays(bll, m) ->
       print_string "merge variables ";
       display_list (fun bl -> 
@@ -1586,7 +1595,7 @@ let build_proof_tree ((q0,g0) as q) p s =
       |	Some(i,p,_,s) ->
 	  build_pt_rec [(i,p,pt_cur, ref [q])] q s;
 	  List.iter (function 
-	      SetProba _ -> ()
+	      SetProba _ | SetAssume -> ()
 	    | SetEvent(f,g, pub_vars, popt') ->
 		(* Get the proof of the property "Event f is not executed in game g" *)
                 match !popt' with
@@ -1658,19 +1667,41 @@ let double_if_needed ql p =
 let rec poly_from_set = function
     [] -> Polynom.zero
   | (SetProba r)::l -> Polynom.sum (Polynom.probaf_to_polynom r) (poly_from_set l)
+  | SetAssume :: l -> poly_from_set l
   | _ -> Parsing_helper.internal_error "SetEvent should have been evaluated"
 
-let proba_from_set s =
-  Polynom.polynom_to_probaf (poly_from_set s)
+let id p = p
 
-let proba_from_set_may_double (q,g) s =
+let may_double (q,g) p =
   match q with
     QSecret _ ->
       (* For secrecy, we need to double the probability *)
-      let p = poly_from_set s in
-      Polynom.polynom_to_probaf (Polynom.sum p p)
+      Polynom.sum p p
   | _ ->
-      Polynom.polynom_to_probaf (poly_from_set s)
+      p
+
+let proba_from_set_m modify s =
+  Polynom.polynom_to_probaf (modify (poly_from_set s))
+	
+let display_proba_set_m modify s =
+  let proba = proba_from_set_m modify s in
+  if has_assume s then
+    begin
+      print_string "Pr[COMMAND NOT CHECKED]";
+      match proba with
+      | Zero | Cst 0.0 -> ()
+      | _ ->
+	  print_string " + ";
+	  display_proba 0 proba
+    end
+  else
+    display_proba 0 proba
+  
+let display_proba_set s =
+  display_proba_set_m id s
+
+let display_proba_set_may_double q s =
+  display_proba_set_m (may_double q) s
 
 let rec evaluate_proba start_queries start_game above_proba ql pt =
   (* Sanity check: all elements of ql must occur in some edge in pt *)
@@ -1698,7 +1729,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
      each son proves *)
   match pt.pt_sons with
     [(i,p,pt_son,ql_ref)] when (match i with Proof _ -> false | _ -> true) &&
-       (List.for_all (function SetProba _ -> true | SetEvent _ -> false) p) ->
+       (List.for_all (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p) ->
 	 evaluate_proba start_queries start_game ((double_if_needed ql p) @ above_proba) ql pt_son
   | _ -> 
       let ql_list = 
@@ -1707,7 +1738,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
       in
       display_adv start_queries start_game;
       print_string " <= ";
-      display_proba 0 (proba_from_set above_proba);
+      display_proba_set above_proba;
       List.iter (fun ql_i ->
 	print_string " + ";
 	display_adv ql_i pt.pt_game) ql_list;
@@ -1717,7 +1748,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
     let ql' = List.filter (fun qs -> List.exists (equal_qs qs) ql) (!ql_ref) in
     let rec compute_full_query_list = function
 	[] -> ql'
-      |	(SetProba _)::l -> compute_full_query_list l
+      |	(SetProba _ | SetAssume)::l -> compute_full_query_list l
       |	(SetEvent(f,g,pub_vars,_))::l -> (QEvent f, g) :: (compute_full_query_list l)
     in
     (* One transformation can consist of an arbitrary syntactic or cryptographic
@@ -1728,7 +1759,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
          The event insertion is indeed done before DDH.
        - or a transformation without event insertion. *)
     let ql'' = compute_full_query_list p in
-    let proba_p = List.filter (function SetProba _ -> true | SetEvent _ -> false) p in
+    let proba_p = List.filter (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p in
     match i with
       Proof pl ->
 	(* The desired property is proved *)
@@ -1738,7 +1769,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
 	      let p = double_if_needed ql' proba_p in
 	      display_adv ql' pt.pt_game;
 	      print_string " <= ";
-	      display_proba 0 (proba_from_set p);
+	      display_proba_set p;
 	      print_newline();
 	      p
 	  | _ -> Parsing_helper.internal_error "unexpected Proof element in proof tree"
@@ -1755,7 +1786,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
 	    (* An event has been introduced, display its probability separately *)
 	    display_adv ql' pt.pt_game;
 	    print_string " <= ";
-	    display_proba 0 (proba_from_set p);
+	    display_proba_set p;
 	    print_string " + ";
 	    display_adv ql'' pt_son.pt_game;
 	    print_newline();
@@ -1776,7 +1807,7 @@ let compute_proba ((q0,g) as q) p s =
      if p <> [] then
        begin
          print_string " up to probability ";
-         display_proba 0 (proba_from_set p)
+         display_proba_set p
        end;
      print_string ".\n";
      let g' = get_initial_game state in
@@ -2191,21 +2222,15 @@ let rec display_state ins_next s =
 	  display_state ins_next s';
 	  print_newline();
 	  List.iter (fun ((q,g), p') -> 
+	    print_string "Proved ";
+	    display_query (q, s'.game);
 	    if p' != [] then
 	      begin
-		print_string "Proved ";
-		display_query (q, s'.game);
 		print_string " up to probability ";
-		display_proba 0 (proba_from_set_may_double (q, s'.game) p');
-		print_newline()
-	      end
-	    else
-	      begin
-		print_string "Proved ";
-		display_query (q, s'.game);
-		print_newline()
-	      end
-		) ql;
+		display_proba_set_may_double (q, s'.game) p'
+	      end;
+	    print_newline()
+	      ) ql;
 	  if p != [] then
 	    Parsing_helper.internal_error "Proof step should have empty set of excluded traces"
       | Some (i,p,ins,s') ->
@@ -2258,7 +2283,7 @@ and add_sequence accu s' =
 	
 and get_all_states_from_proba accu = function
     [] -> accu
-  | (SetProba _)::r -> get_all_states_from_proba accu r
+  | (SetProba _ | SetAssume)::r -> get_all_states_from_proba accu r
   | (SetEvent(f,g,pub_vars,poptref)) :: r  ->
       let accu' = get_all_states_from_proba accu r in
       match !poptref with
@@ -2323,12 +2348,18 @@ let display_state s =
     | ToProve | Inactive -> ()
     | Proved(p,s') -> 
         let p'' = compute_proba q p s' in
-        print_string "RESULT Proved ";
+	if has_assume p'' then
+	  begin
+	    print_string "RESULT Using unchecked commands, shown ";
+	    poptref := ToProve
+	  end
+	else
+          print_string "RESULT Proved ";
         display_query q;
 	if p'' != [] then
 	  begin
             print_string " up to probability ";
-            display_proba 0 (proba_from_set p'')
+            display_proba_set p''
 	  end;
 	print_newline()
     ) initial_queries;

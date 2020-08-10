@@ -918,7 +918,7 @@ let rec add_index_proba idx = function
 let add_index_setf_proba idx =
   List.map (function
     | SetProba p1 -> SetProba(add_index_proba idx p1)
-    | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula")
+    | SetEvent _ | SetAssume -> Parsing_helper.internal_error "Event/assume should not occur in probability formula")
 		
 let add_index_top t (restr_list,fun_list,proba) =
   let idx = Terms.create_repl_index "i" t in
@@ -985,7 +985,7 @@ let add_repl normalize equiv =
 	    in
 	    let p'' = List.map (function
 	      | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
-	      | SetEvent _ -> Parsing_helper.internal_error "Event should not occur in probability formula"
+	      | SetEvent _ | SetAssume -> Parsing_helper.internal_error "Event/assume should not occur in probability formula"
 		    ) p'
 	    in
 	    let equiv' = { equiv with eq_fixed_equiv = Some(lm',rm',p'',opt2) } in

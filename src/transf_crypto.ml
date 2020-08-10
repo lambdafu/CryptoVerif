@@ -4244,8 +4244,8 @@ let compute_proba ((_,_,_,set,_,_),_) =
 	  SetProba r ->
 	    let probaf' =  map_probaf (ref [], ref []) r in
 	    SetProba (Polynom.polynom_to_probaf probaf')
-	| SetEvent _ -> 
-	    Parsing_helper.internal_error "Event should not occur in probability formula") set)
+	| SetEvent _ | SetAssume -> 
+	    Parsing_helper.internal_error "Event/assume should not occur in probability formula") set)
   in
   (* Add the probabilities of the collisions eliminated to optimize the counts *)
   let proba_coll = Depanal.final_add_proba() in
@@ -4487,8 +4487,8 @@ let rec update_max_length_probaf ins = function
 let update_maxlength ins proba =
   List.map (function
     | SetProba r -> SetProba (update_max_length_probaf ins r)
-    | SetEvent _ -> 
-	Parsing_helper.internal_error "Event should not occur in probability formula") proba
+    | SetEvent _ | SetAssume -> 
+	Parsing_helper.internal_error "Event/assume should not occur in probability formula") proba
 
     
 type trans_res =

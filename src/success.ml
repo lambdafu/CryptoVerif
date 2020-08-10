@@ -652,7 +652,7 @@ let rec check_query_list collector event_accu state = function
    of these events has also been bounded. *)
 
 let is_full_proba = function
-    SetProba _ -> true
+  | SetProba _ | SetAssume -> true
   | SetEvent(f,g,pub_vars, poptref) ->
       match !poptref with
       | Proved _ -> true

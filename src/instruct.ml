@@ -169,8 +169,8 @@ let execute g ins =
     | InsertEvent(s,occ,ext_o) -> Transf_insert_event.insert_event occ ext_o s g
     | InsertInstruct(s,ext_s,occ,ext_o) -> 
 	Transf_insert_replace.insert_instruct occ ext_o s ext_s g
-    | ReplaceTerm(s,ext_s,occ,ext_o) ->
-	Transf_insert_replace.replace_term occ ext_o s ext_s g 
+    | ReplaceTerm(s,ext_s,occ,ext_o,check_opt) ->
+	Transf_insert_replace.replace_term occ ext_o s ext_s check_opt g 
     | MergeArrays(bll, m) ->
 	Transf_merge.merge_arrays bll m g
     | MergeBranches ->
@@ -1148,7 +1148,8 @@ let find_equiv f equiv =
       (List.exists (fun (fg, _) -> find_funsymb_fg f fg) lm) ||
       (List.exists (function 
 	  SetProba r -> find_proba f r
-	| SetEvent(e,_,_,_) -> f = e.f_name) set)
+	| SetEvent(e,_,_,_) -> f = e.f_name
+	| SetAssume -> Parsing_helper.internal_error "Assume proba should not occur") set)
 
 let find_equiv_by_name f equiv =
   match equiv.eq_name with
@@ -1657,9 +1658,9 @@ let rec interpret_command interactive state = function
   | CInsert((occ_cmd, ext_o), (ins_s, ext_s)) ->
       let occ = interpret_occ state occ_cmd in
       execute_display_advise (InsertInstruct(ins_s,ext_s,occ,ext_o)) state 
-  | CReplace((occ_cmd, ext_o), (ins_s, ext_s)) ->
+  | CReplace((occ_cmd, ext_o), (ins_s, ext_s), check_opt) ->
       let occ = interpret_occ state occ_cmd in
-      execute_display_advise (ReplaceTerm(ins_s,ext_s,occ,ext_o)) state 
+      execute_display_advise (ReplaceTerm(ins_s,ext_s,occ,ext_o,check_opt)) state 
   | CMerge_arrays(args, ext) ->
       begin
 	let binders = find_binders state.game in

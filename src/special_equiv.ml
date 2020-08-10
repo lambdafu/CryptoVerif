@@ -39,7 +39,7 @@ let rec instan_time get_time p =
   in
   Polynom.p_sum (List.map (function
     | SetProba p -> aux p
-    | SetEvent _ -> assert false) p)
+    | SetEvent _ | SetAssume -> assert false) p)
 
 (* Generate the equivalence for the command "move array" *)
   

@@ -708,8 +708,8 @@ let equal_instruct i1 i2 =
       (s1 = s2) && (n1 == n2)
   | (InsertInstruct(s1,_,n1,_), InsertInstruct(s2,_,n2,_)) ->
       (s1 = s2) && (n1 == n2)
-  | (ReplaceTerm(s1,_,n1,_), ReplaceTerm(s2,_,n2,_)) ->
-      (s1 = s2) && (n1 == n2)
+  | (ReplaceTerm(s1,_,n1,_,check_opt1), ReplaceTerm(s2,_,n2,_,check_opt2)) ->
+      (s1 = s2) && (n1 == n2) && (check_opt1 = check_opt2)
   | (MergeArrays(bl1,m1), MergeArrays(bl2,m2)) ->
       (equal_lists (equal_lists (fun (b1,ext1) (b2, ext2) -> (b1 == b2) && (ext1 = ext2))) bl1 bl2) &&
       (equal_merge_mode m1 m2)

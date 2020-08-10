@@ -1,0 +1,22 @@
+proof {
+assume replace 5 "false";
+simplify;
+success
+}
+
+channel c.
+
+param N.
+
+event e.
+
+query event(e) ==> false.
+
+process
+	(in(c, x: bitstring); find i <= N suchthat defined(y[i]) && x = y[i] then event e) |
+	(! N in(c, y: bitstring); yield)
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.032s (user 0.032s + system 0.000s), max rss 16004K
+END *)

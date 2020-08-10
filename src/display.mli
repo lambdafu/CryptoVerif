@@ -74,9 +74,10 @@ val double_if_needed : (query_specif * game) list -> setf list -> setf list
 a [setf list] into a probability represented as a [probaf].
 [p] must not contain [SetEvent]. *)
 
-val proba_from_set : setf list -> probaf
-val proba_from_set_may_double : query * game -> setf list -> probaf
-
+val id : polynom -> polynom
+val may_double : query * game -> polynom -> polynom
+val proba_from_set_m : (polynom -> polynom) -> setf list -> probaf
+    
 val get_initial_game : state -> game
 val get_initial_queries : state -> cur_queries_t
 

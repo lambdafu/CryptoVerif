@@ -10,4 +10,4 @@ game_transformer
 
    The terms and processes in the input game must be physically
    distinct, since [Terms.build_def_process] is called. *)
-val replace_term : int -> Parsing_helper.extent -> string -> Parsing_helper.extent -> game_transformer
+val replace_term : int -> Parsing_helper.extent -> string -> Parsing_helper.extent -> replace_check_opt_t -> game_transformer

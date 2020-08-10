@@ -235,7 +235,7 @@ type command =
   | CSArename of ident
   | CMerge_branches
   | CMerge_arrays of ident list list * Parsing_helper.extent
-  | CReplace of poccext * ident
+  | CReplace of poccext * ident * Types.replace_check_opt_t
   | CInsert of poccext * ident
   | CInsert_event of ident * poccext
   | CSimplify of pcoll_elim_t list

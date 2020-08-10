@@ -13,6 +13,12 @@ type special_args_t =
 
 and special_args_e = special_args_t * Parsing_helper.extent
 	
+(* For the "replace" command: check or assume the equality *)
+
+type replace_check_opt_t =
+  | Check
+  | Assume
+
 (* Collision elimination options *)
       
 type coll_elim_t =
@@ -449,6 +455,7 @@ and probaf =
 and setf =
     SetProba of probaf
   | SetEvent of funsymb * game * binder list(*public variables*) * proof_t ref
+  | SetAssume (* A command that may not be correct has been used *)
 
 and equiv_gen =
     { eq_name : eqname;
@@ -549,7 +556,7 @@ and instruct =
   | CryptoTransf of equiv_nm * crypto_transf_user_info
   | InsertEvent of string(*event name*) * int(*occurrence of insertion*) * Parsing_helper.extent
   | InsertInstruct of string(*instruction*) * Parsing_helper.extent * int (*occurrence of insertion*) * Parsing_helper.extent
-  | ReplaceTerm of string(*term*) * Parsing_helper.extent * int (*occurrence of replacement*) * Parsing_helper.extent
+  | ReplaceTerm of string(*term*) * Parsing_helper.extent * int (*occurrence of replacement*) * Parsing_helper.extent * replace_check_opt_t
   | MergeArrays of (binder * Parsing_helper.extent) list list * merge_mode
   | MergeBranches
   | Proof of ((query * game) * setf list) list

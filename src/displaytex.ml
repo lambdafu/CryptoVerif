@@ -576,6 +576,8 @@ let display_pub_vars_math_mode pub_vars =
       print_string "\\textrm{ with public variables }";
       display_list display_binder pub_vars
     end
+
+let has_assume = List.exists (function SetAssume -> true | _ -> false)
       
 let display_one_set = function
     SetProba r ->
@@ -585,7 +587,9 @@ let display_one_set = function
       print_string (Display.get_game_id g);
       display_pub_vars_math_mode pub_vars;
       print_string "]"
-
+  | SetAssume ->
+      print_string "Pr[COMMAND NOT CHECKED]"
+	
 let rec display_set = function
     [] -> print_string "0"
   | [a] -> display_one_set a
@@ -594,6 +598,25 @@ let rec display_set = function
       print_string " + ";
       display_set l
   
+let display_proba_set_m modify s =
+  let proba = Display.proba_from_set_m modify s in
+  if has_assume s then
+    begin
+      print_string "Pr[COMMAND NOT CHECKED]";
+      match proba with
+      | Zero | Cst 0.0 -> ()
+      | _ ->
+	  print_string " + ";
+	  display_proba 0 proba
+    end
+  else
+    display_proba 0 proba
+  
+let display_proba_set s =
+  display_proba_set_m Display.id s
+
+let display_proba_set_may_double q s =
+  display_proba_set_m (Display.may_double q) s
 
 (* Result of an oracle in an equivalence *)
 
@@ -1273,9 +1296,14 @@ let display_instruct = function
       print_string "insert instruction ";
       display_string s; 
       print_string (" at occurrence " ^ (string_of_int occ))
-  | ReplaceTerm(s,ext_s,occ,ext_o) ->
+  | ReplaceTerm(s,ext_s,occ,ext_o,check_opt) ->
       print_string ("replace term at occurrence " ^ (string_of_int occ) ^ " with ");
-      display_string s
+      display_string s;
+      begin
+	match check_opt with
+	| Check -> ()
+	| Assume -> print_string " (WARNING: equality not checked)"
+      end
   | MergeArrays(bll, m) ->
       print_string "merge variables $";
       display_list (fun bl -> 
@@ -1367,7 +1395,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
      each son proves *)
   match pt.Display.pt_sons with
     [(i,p,pt_son,ql_ref)] when (match i with Proof _ -> false | _ -> true) &&
-       (List.for_all (function SetProba _ -> true | SetEvent _ -> false) p) ->
+       (List.for_all (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p) ->
 	 evaluate_proba start_queries start_game ((Display.double_if_needed ql p) @ above_proba) ql pt_son
   | _ -> 
       let ql_list = 
@@ -1377,7 +1405,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
       print_string "$";
       display_adv start_queries start_game;
       print_string " \\leq ";
-      display_proba 0 (Display.proba_from_set above_proba);
+      display_proba_set above_proba;
       List.iter (fun ql_i ->
 	print_string " + ";
 	display_adv ql_i pt.Display.pt_game) ql_list;
@@ -1387,7 +1415,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
     let ql' = List.filter (fun qs -> List.exists (Display.equal_qs qs) ql) (!ql_ref) in
     let rec compute_full_query_list = function
 	[] -> ql'
-      |	(SetProba _)::l -> compute_full_query_list l
+      |	(SetProba _ | SetAssume)::l -> compute_full_query_list l
       |	(SetEvent(f,g,pub_vars,_))::l -> (Display.QEvent f, g) :: (compute_full_query_list l)
     in
     (* One transformation can consist of an arbitrary syntactic or cryptographic
@@ -1398,7 +1426,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
          The event insertion is indeed done before DDH.
        - or a transformation without event insertion. *)
     let ql'' = compute_full_query_list p in
-    let proba_p = List.filter (function SetProba _ -> true | SetEvent _ -> false) p in
+    let proba_p = List.filter (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p in
     match i with
       Proof pl ->
 	(* The desired property is proved *)
@@ -1409,7 +1437,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
 	      print_string "$";
 	      display_adv ql' pt.Display.pt_game;
 	      print_string " \\leq ";
-	      display_proba 0 (Display.proba_from_set p);
+	      display_proba_set p;
 	      print_string "$\\\\\n";
 	      p
 	  | _ -> Parsing_helper.internal_error "unexpected Proof element in proof tree"
@@ -1427,7 +1455,7 @@ let rec evaluate_proba start_queries start_game above_proba ql pt =
 	    print_string "$";
 	    display_adv ql' pt.Display.pt_game;
 	    print_string " \\leq ";
-	    display_proba 0 (Display.proba_from_set p);
+	    display_proba_set p;
 	    print_string " + ";
 	    display_adv ql'' pt_son.Display.pt_game;
 	    print_string "$\\\\\n";
@@ -1806,21 +1834,16 @@ let rec display_state ins_next s =
 	  display_state ins_next s';
 	  print_string "\\\\\n";
 	  List.iter (fun ((q,g), p') -> 
+	    print_string "Proved ";
+	    display_query (q, s'.game);
 	    if p' != [] then
 	      begin
-		print_string "Proved ";
-		display_query (q, s'.game);
 		print_string " up to probability $";
-		display_proba 0 (Display.proba_from_set_may_double (q, s'.game) p');
-		print_string "$\\\\\n"
-	      end
-	    else
-	      begin
-		print_string "Proved ";
-		display_query (q, s'.game);
-		print_string "\\\\\n"
-	      end
-		) ql;
+		display_proba_set_may_double (q, s'.game) p';
+		print_string "$"
+	      end;
+	    print_string "\\\\\n"
+	      ) ql;
 	  if p != [] then
 	    Parsing_helper.internal_error "Proof step should have empty set of excluded traces"
       | Some (i,p,ins,s') ->
@@ -1868,12 +1891,18 @@ let display_state s =
     | ToProve | Inactive -> ()
     | Proved(p,s') -> 
         let p'' = compute_proba q p s' in
-        print_string "RESULT Proved ";
+	if has_assume p'' then
+	  begin
+	    print_string "RESULT Using unchecked commands, shown ";
+	    poptref := ToProve
+	  end
+	else
+          print_string "RESULT Proved ";
         display_query q;
 	if p'' != [] then
 	  begin
-            print_string " up to probability $";
-            display_proba 0 (Display.proba_from_set p'');
+	    print_string " up to probability $";
+	    display_proba_set p'';
 	    print_string "$"
 	  end;
 	print_string "\\\\\n"

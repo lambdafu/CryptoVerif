@@ -1118,12 +1118,12 @@ let insert_instruct occ ext_o s ext_s g =
 (**** Replace a term with an equal term ****)
 
 type state_ty =
-    RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent 
-  | RepDone of setf list * int * term * term * Parsing_helper.extent 
+    RepToDo of int * Parsing_helper.extent * Ptree.term_e * Parsing_helper.extent * replace_check_opt_t
+  | RepDone of setf list * int * term * term * Parsing_helper.extent
 
 let may_be_inside count min_occ max_occ =
   match !count with
-  | RepToDo(occ,_,_,_) ->
+  | RepToDo(occ,_,_,_,_) ->
       (min_occ <= occ) && (occ <= max_occ)
   | RepDone(_,occ,_,_,_) ->
       if (min_occ <= occ) && (occ <= max_occ) then
@@ -1132,7 +1132,7 @@ let may_be_inside count min_occ max_occ =
 
 let rec replace_tt count env facts cur_array t =
   match !count with
-    RepToDo (occ, ext_o, ins, ext_s) when occ == t.t_occ ->
+    RepToDo (occ, ext_o, ins, ext_s,check_opt) when occ == t.t_occ ->
       if not (Terms.check_simple_term t) then
 	raise (Error("The term at " ^ (string_of_int occ) ^ "contains if, let, find, new, or event; you cannot replace it", ext_o));
       let defined_refs = 
@@ -1144,30 +1144,37 @@ let rec replace_tt count env facts cur_array t =
       let t' = check_term (Some defined_refs) cur_array env ins in
       if t'.t_type != t.t_type then
 	raise (Error("You are trying to replace a term of type " ^ t.t_type.tname ^ " with a term of type " ^ t'.t_type.tname, ext_s));
-      Depanal.reset [] (!whole_game);
-      let r = 
-	try 
-	  let facts' = Facts.get_facts_at (DTerm t) in
-	  let simp_facts = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (facts'@facts)) in
-	  let facts'' = 
-	    if !Settings.elsefind_facts_in_replace then
-	      Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array simp_facts defined_refs 
-	    else
-	      []
-	  in
-	  let simp_facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts'') in
-	  Facts.check_equal t t' simp_facts' 
-	with Contradiction ->
+      begin
+	match check_opt with
+	| Check ->
+	    Depanal.reset [] (!whole_game);
+	    let r = 
+	      try 
+		let facts' = Facts.get_facts_at (DTerm t) in
+		let simp_facts = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (facts'@facts)) in
+		let facts'' = 
+		  if !Settings.elsefind_facts_in_replace then
+		    Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array simp_facts defined_refs 
+		  else
+		    []
+		in
+		let simp_facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts'') in
+		Facts.check_equal t t' simp_facts' 
+	      with Contradiction ->
           (*   print_string "Got contradiction";
 	       print_newline ();*)
           (* May happen when the program point of t is in fact unreachable
 	     I say true anyway because the program point is unreachable. *)
-	  true
-      in
-      if not r then
-	raise (Error("I cannot prove that the term you want to put is equal to the term at " ^ (string_of_int occ), ext_s));
-      count := RepDone(Depanal.final_add_proba(), occ, t, t', ext_o);
-      t'
+		true
+	    in
+	    if not r then
+	      raise (Error("I cannot prove that the term you want to put is equal to the term at " ^ (string_of_int occ), ext_s));
+	    count := RepDone(Depanal.final_add_proba(), occ, t, t', ext_o);
+	    t'
+	| Assume ->
+	    count := RepDone([SetAssume], occ, t, t', ext_o);
+	    t'
+      end
   | RepDone(_,occ,_,_,ext_o) when occ == t.t_occ -> 
       Parsing_helper.internal_error ("Occurrence " ^ (string_of_int occ) ^ " ambiguous. That should never happen")
   | _ ->
@@ -1352,7 +1359,7 @@ and replace_to count env cur_array p =
   in
   Terms.oproc_from_desc_loc p p_desc'
 
-let replace_term occ ext_o s ext_s g =
+let replace_term occ ext_o s ext_s check_opt g =
   let g_proc = Terms.get_process g in
   let rep_term = Syntax.parse_from_string Parser.term (s,ext_s) in
   Array_ref.array_ref_process g_proc;
@@ -1360,7 +1367,7 @@ let replace_term occ ext_o s ext_s g =
   Hashtbl.clear hash_binders;
   find_binders_rec g_proc;
   whole_game := g;
-  let count = ref (RepToDo (occ, ext_o, rep_term, ext_s)) in
+  let count = ref (RepToDo (occ, ext_o, rep_term, ext_s, check_opt)) in
   let p' = 
     try
       replace_t count (!Stringmap.env) [] g_proc 

@@ -132,7 +132,8 @@ let keyword_table_proof =
       "types", TYPES;
       "focus", FOCUS;
       "tag", TAG;
-      "special", SPECIAL
+      "special", SPECIAL;
+      "assume", ASSUME
     ]
     
 }
