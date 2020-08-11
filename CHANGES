@@ -24,6 +24,9 @@ Version
 - Added interactive commands show_equiv <crypto_args> to display
   the game equivalence corresponding to <crypto_args>, and
   out_equiv <filename> <crypto_args> to output it to <filename>.
+- Added equation
+  equation forall x,y,z:bool; ((x || y) && z) = ((x && z) || (y && z)).
+  to improve the precision of the treatment of disjunctions.
 - Improvements in case distinctions used in the treatment of elsefind
   facts.
 - Fixed bug in computation of probabilities for collision statements.

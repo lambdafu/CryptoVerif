@@ -7,6 +7,7 @@ equation forall x:bool; (x = true) = x.
 equation forall x:bool; (x <> false) = x.
 equation forall x:bool; (x <> true) = not(x).
 equation forall x:bool; (x = false) = not(x).
+equation forall x,y,z:bool; ((x || y) && z) = ((x && z) || (y && z)).
 
 const bottom:bitstringbot.
 

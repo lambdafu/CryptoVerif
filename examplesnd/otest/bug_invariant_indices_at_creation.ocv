@@ -206,7 +206,7 @@ proof {
   out_game "r.out.cv";
 
   start_from_other_end;
-  insert after "Odecap(pk_S" "find ienc1 <= Nenc, i1 <= N suchthat defined(r_9[ienc1, i1], enc_7[ienc1, i1], sk[i1], pk_R[ienc1, i1]) && (exp(g, sk) = pk_R[ienc1, i1]) && (exp(g, sk[i1]) = pk_S) && (enc_7[ienc1, i1] = enc_2) then orfind idec1 <= Ndec suchthat defined(r_7[idec1], enc_2[idec1], pk_S[idec1]) && (pk_S[idec1] = pk_S) && (enc_2[idec1] = enc_2) then";
+  insert after "Odecap(pk_S" "find ienc1 <= Nenc, i1 <= N suchthat defined(r_8[ienc1, i1], enc_7[ienc1, i1], sk[i1], pk_R[ienc1, i1]) && (exp(g, sk) = pk_R[ienc1, i1]) && (exp(g, sk[i1]) = pk_S) && (enc_7[ienc1, i1] = enc_2) then orfind idec1 <= Ndec suchthat defined(r_6[idec1], enc_2[idec1], pk_S[idec1]) && (pk_S[idec1] = pk_S) && (enc_2[idec1] = enc_2) then";
   out_game "bug.1.out.cv";
   out_game "bug.1.outocc.cv" occ;  
   simplify; (* This is when the bug hits *)
