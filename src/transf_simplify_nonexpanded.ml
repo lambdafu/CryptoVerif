@@ -185,7 +185,5 @@ let main g =
   in
   current_pass_transfos := [];
   let proba = Proba.final_add_proba [] in
-  (* Cannot cleanup here because it may delete information
-     in the initial game, needed to compute the probabilities.
-     Terms.empty_def_process g.proc; *)
+  Def.empty_def_process g_proc;
   (Terms.build_transformed_game p' g, proba, simplif_transfos)

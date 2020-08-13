@@ -1585,36 +1585,48 @@ let merge_arrays bll mode g =
   let old_merge_arrays = !Settings.merge_arrays in
   Settings.merge_arrays := false;
   has_done_merge := false;
-  List.iter (fun bl ->
-    match bl with
-      [] -> Parsing_helper.internal_error "List of binder to merge should not be empty"
-    | ((b1,ext1)::br) ->
-	List.iter (fun (b,ext) -> 
-	  if b.btype != b1.btype then
-	    raise(Error("For merging arrays, variable " ^
-			(Display.binder_to_string b) ^ 
-			" should have the same type as " ^
-			(Display.binder_to_string b1), ext));
-	  if not (Terms.equal_lists (==) b.args_at_creation b1.args_at_creation) then
-	    raise(Error("For merging arrays, variable " ^
-			(Display.binder_to_string b) ^ 
-			" should have the same indices as " ^
-			(Display.binder_to_string b1), ext))
-	      ) br;
-	List.iter (fun (b, ext) -> 
-	  if Settings.occurs_in_queries b (!whole_game).current_queries then
-	    raise(Error("For merging arrays, variable " ^
-			(Display.binder_to_string b) ^ 
-			" should not occur in queries", ext));
-	  if b.count_def > 1 then
-	    raise(Error("For merging arrays, variable " ^
-			(Display.binder_to_string b) ^ 
-			" should have a single definition", ext));
-	  if b.count_def = 0 then
-	    raise(Error("Variable " ^ (Display.binder_to_string b) ^ 
-			" should be defined", ext))
-	      ) bl;
-	) bll;
+  let cleanup() =
+    Array_ref.cleanup_array_ref();
+    Improved_def.empty_improved_def_game true g;
+    Settings.merge_arrays := old_merge_arrays;
+    whole_game := Terms.empty_game
+  in
+  begin
+    try 
+      List.iter (fun bl ->
+	match bl with
+	  [] -> Parsing_helper.internal_error "List of binder to merge should not be empty"
+	| ((b1,ext1)::br) ->
+	    List.iter (fun (b,ext) -> 
+	      if b.btype != b1.btype then
+		raise(Error("For merging arrays, variable " ^
+			    (Display.binder_to_string b) ^ 
+			    " should have the same type as " ^
+			    (Display.binder_to_string b1), ext));
+	      if not (Terms.equal_lists (==) b.args_at_creation b1.args_at_creation) then
+		raise(Error("For merging arrays, variable " ^
+			    (Display.binder_to_string b) ^ 
+			    " should have the same indices as " ^
+			    (Display.binder_to_string b1), ext))
+		  ) br;
+	    List.iter (fun (b, ext) -> 
+	      if Settings.occurs_in_queries b (!whole_game).current_queries then
+		raise(Error("For merging arrays, variable " ^
+			    (Display.binder_to_string b) ^ 
+			    " should not occur in queries", ext));
+	      if b.count_def > 1 then
+		raise(Error("For merging arrays, variable " ^
+			    (Display.binder_to_string b) ^ 
+			    " should have a single definition", ext));
+	      if b.count_def = 0 then
+		raise(Error("Variable " ^ (Display.binder_to_string b) ^ 
+			    " should be defined", ext))
+		  ) bl;
+	    ) bll
+    with (Error(mess, extent)) ->
+      cleanup();
+      raise (Error(mess, extent))
+  end;
   let bll_br = swap_rows_columns bll in
   let rec check_pairwise_distinct_branches = function
       [] -> ()
@@ -1657,29 +1669,22 @@ let merge_arrays bll mode g =
 	    ) bll) then
 	  begin
 	    Settings.changed := true;
-	    Incompatible.empty_comp_process g_proc;
-	    Settings.merge_arrays := old_merge_arrays;
 	    (* Display.display_process p'; *)
 	    let proba = Proba.final_add_proba [] in
+	    cleanup();
 	    (Terms.build_transformed_game p' g, proba, [DMergeArrays(bll,mode)])
 	  end
 	else
 	  begin
-	    Improved_def.empty_improved_def_game true g;
-	    Settings.merge_arrays := old_merge_arrays;
-	    whole_game := Terms.empty_game;
+	    cleanup();
 	    (g, [], [])
 	  end
       with 
 	Failed ->
-	  Improved_def.empty_improved_def_game true g;
-	  Settings.merge_arrays := old_merge_arrays;
-	  whole_game := Terms.empty_game;
+	  cleanup();
 	  (g, [], [])
       | Error(mess,ext) ->
-	  Improved_def.empty_improved_def_game true g;
-	  Settings.merge_arrays := old_merge_arrays;
-	  whole_game := Terms.empty_game;
+	  cleanup();
 	  raise (Error(mess,ext))
     end
       
@@ -2234,6 +2239,7 @@ let merge_branches g =
 	      end
 	  end
       in
+      Array_ref.cleanup_array_ref();
       Improved_def.empty_improved_def_game false g;
       whole_game := Terms.empty_game;
       result
@@ -2267,5 +2273,6 @@ let equal_games g1 g2 =
   in
   let proba = Depanal.final_add_proba () in
   Depanal.term_collisions := [];
+  Array_ref.cleanup_array_ref();
   whole_game := Terms.empty_game;
   (r, proba)

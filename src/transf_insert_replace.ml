@@ -1051,11 +1051,20 @@ let prove_unique g =
   Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_game None true g;
   Depanal.reset [] g;
-  let p' = prove_uniquei g_proc in
+  let cleanup() =
+    Array_ref.cleanup_array_ref();
+    Improved_def.empty_improved_def_game true g;
+    whole_game := Terms.empty_game
+  in
+  let p' =
+    try
+      prove_uniquei g_proc
+    with Error(mess, extent) ->
+      cleanup();
+      raise (Error(mess, extent))
+  in
   let g' = Terms.build_transformed_game p' g in
-  Array_ref.cleanup_array_ref();
-  Improved_def.empty_improved_def_game true g;
-  whole_game := Terms.empty_game;
+  cleanup();
   (g', Depanal.final_add_proba(), [])
 
 let insert_instruct occ ext_o s ext_s g =
@@ -1071,20 +1080,22 @@ let insert_instruct occ ext_o s ext_s g =
   Hashtbl.clear hash_binders;
   find_binders_rec g_proc;
   let count = ref 0 in
+  let cleanup() =
+    Array_ref.cleanup_array_ref();
+    Improved_def.empty_improved_def_game false g;
+    whole_game := Terms.empty_game;
+    new_queries := [];
+    Hashtbl.clear hash_binders
+  in
   let (p',_) = 
     try
       insert_ins count occ ins (!Stringmap.env) [] g_proc 
     with Error(mess, extent) ->
-      Array_ref.cleanup_array_ref();
-      Hashtbl.clear hash_binders;
+      cleanup();
       raise (Error(mess, extent))
   in
   let queries_to_add = !new_queries in
-  Array_ref.cleanup_array_ref();
-  Improved_def.empty_improved_def_game false g;
-  whole_game := Terms.empty_game;
-  new_queries := [];
-  Hashtbl.clear hash_binders;
+  cleanup();
   if (!count) = 0 then 
     raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
   else if (!count > 1) then
@@ -1368,19 +1379,20 @@ let replace_term occ ext_o s ext_s check_opt g =
   find_binders_rec g_proc;
   whole_game := g;
   let count = ref (RepToDo (occ, ext_o, rep_term, ext_s, check_opt)) in
+  let cleanup() =
+    Array_ref.cleanup_array_ref();
+    Hashtbl.clear hash_binders;
+    Improved_def.empty_improved_def_game true g;
+    whole_game := Terms.empty_game
+  in
   let p' = 
     try
       replace_t count (!Stringmap.env) [] g_proc 
     with Error(mess, extent) ->
-      Array_ref.cleanup_array_ref();
-      Hashtbl.clear hash_binders;
-      Improved_def.empty_improved_def_game true g;
+      cleanup();
       raise (Error(mess, extent))
   in
-  Array_ref.cleanup_array_ref();
-  Hashtbl.clear hash_binders;
-  Improved_def.empty_improved_def_game true g;
-  whole_game := Terms.empty_game;
+  cleanup();
   match !count with
     RepToDo _ ->
       raise (Error("Occurrence " ^ (string_of_int occ) ^ " not found. You should use the command show_game occ to determine the desired occurrence.", ext_o))
