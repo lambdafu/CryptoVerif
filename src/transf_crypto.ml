@@ -1420,6 +1420,10 @@ let rec collect_all_names accu lm rm =
   | Fun _, Fun _ -> ()
   | _ -> Parsing_helper.internal_error "left and right members of equivalence do not match"
 
+let add_var accu b =
+  if not (List.memq b (!accu)) then
+    accu := b :: (!accu)
+	
 let rec letvars_from_term accu t =
   match t.t_desc with
     Var(_,l) | FunApp(_,l) -> 
@@ -1446,7 +1450,7 @@ let rec letvars_from_term accu t =
 	      ) l0;
       letvars_from_term accu t3      
   | ResE(b,t) ->
-      accu := b :: (!accu);
+      add_var accu b;
       letvars_from_term accu t
   | EventAbortE(f) -> ()
   | EventE(t,p) ->
@@ -1456,7 +1460,7 @@ let rec letvars_from_term accu t =
       Parsing_helper.internal_error "get and insert should not occur in Transf_crypto.letvars_from_term"
 	
 and vars_from_pat accu = function
-    PatVar b -> accu := b :: (!accu)
+    PatVar b -> add_var accu b
   | PatTuple (f,l) -> List.iter (vars_from_pat accu) l
   | PatEqual t -> letvars_from_term accu t
 

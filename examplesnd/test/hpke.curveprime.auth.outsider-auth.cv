@@ -1,0 +1,839 @@
+proof {
+  remove_assign binder the_sk1;
+  remove_assign binder the_sk2;
+  remove_assign binder the_pk1;
+  remove_assign binder the_pk2;
+  out_game "g00.out.cv";
+  crypto outsider_cca_auth(AuthEncap) [variables: s_2->s, s_3->s];
+  out_game "g01.out.cv";
+  SArename k';
+  SArename k'_1;
+  out_game "g02.out.cv";
+  insert after "in(ch1" "let concat3(protocol: label_protocol_t, label: label_secret_t, kemkey2bitstr(kemkey: kemkey_t)) = x2 in";
+  crypto rom(Extract);
+  out_game "g03.out.cv";
+  crypto prf(Expand) **;
+  simplify;
+  out_game "g04.out.cv";
+  crypto truncate(truncate_to_Nk) **;
+  out_game "g05.out.cv";
+  crypto int_ctxt(Seal_inner) **;
+  out_game "g06.out.cv";
+  success
+
+  (* We do not need a case distinction within the Extract oracle,
+     because Extract is used with info, psk, pskID, shared_secret, which are,
+     at our level of abstraction, all bitstrings.
+     TODO: understand this old comment again. *)
+
+}
+
+
+(* TODO make sure the channel names are all unique *)
+channel c_start, c_setup, c_config_init, c_init, c_resp.
+channel c_config_init_sw, c_init_sw.
+channel c_init_send, c_init_send_config.
+channel c_resp_mult.
+channel c_resp_send_config.
+channel c_msgs_send_config, c_msgs_send, c_msgs_recv, c_msgs_recv_finish.
+channel c_corrupt_skS, c_corrupt_skR, c_corrupt_psk, c_corrupt_skS_psk.
+
+(* TODO make sure the params used are all unique *)
+param N_initiators_base, N_initiators_base_sw.
+param N_initiators_auth, N_initiators_auth_sw.
+param N_initiators_psk, N_initiators_psk_sw.
+param N_initiators_auth_psk, N_initiators_auth_psk_sw.
+param N_initiators_mult.
+param N_initiators_mult_send.
+param N_responders_base, N_responders_base_sw.
+param N_responders_auth, N_responders_auth_sw.
+param N_responders_psk, N_responders_psk_sw.
+param N_responders_auth_psk, N_responders_auth_psk_sw.
+param N_initiators_psk_adv, N_responders_psk_adv.
+param N_initiators_auth_psk_adv, N_responders_auth_psk_adv.
+param N_responders_mult.
+param N_responders_mult_recv.
+param N_responders_mult_send.
+param N_msgs_send, N_msgs_recv.
+
+
+type length_t [fixed].
+const Nsecret: length_t.
+const Nk: length_t.
+const Nn: length_t.
+const Nh: length_t.
+
+const label_pskID: bitstring.
+const label_info: bitstring.
+const label_psk: bitstring.
+
+type psk_t [large,fixed].
+const default_psk: psk_t.
+fun psk_to_bitstring(psk_t): bitstring [data].
+const default_psk_hash: bitstring.
+
+const default_pskID: bitstring.
+const default_pskID_hash: bitstring.
+  (* We believe an equation like
+  equation Hash(default_pskID) = default_pskID_hash.
+  is not necessary, because the default psk is only used in modes where
+  the psk is not used and thus a formal link between default_psk and
+  default_pskID is not necessary. *)
+
+type key_t [large,fixed].
+type nonce_t [large,fixed].
+
+(* Application constants *)
+const app_info_hash: bitstring.
+
+expand Xor(
+  nonce_t,
+  xor,
+  nonce_zero (* also used for seq that starts at zero *)
+).
+
+(* including kem.cvl *)
+(******************************* Key Encapsulation Mechanism ******************************)
+
+(* TODO adapt the following comment, currently it is still a copy-paste from public key encryption *)
+(* IND-CCA2 probabilistic key encapsulation mechanism
+   keypairseed: type of key seeds, must be "bounded" (to be able to generate random numbers from it, and to talk about the runtime of pkgen without mentioning the length of the keypairseed), typically "fixed" and "large".
+   pkey: type of public keys, must be "bounded"
+   skey: type of secret keys, must be "bounded"
+   cleartext: type of cleartexts
+   ciphertext: type of ciphertexts
+   enc_seed: type of random coins for encryption (must be "bounded"; omitted in the second version of the macro).
+
+   pkgen: public-key generation function 
+   skgen: secret-key generation function
+   enc: encryption function that generates coins internally
+   enc_r: encryption function that takes coins as argument (omitted in the second version of the macro).
+   dec: decryption function
+   pkgen2, skgen2, enc_r2, dec2: symbols that replace pkgen, skgen, enc_r, and dec respectively after game transformation
+   injbot: natural injection from cleartext to bitstringbot
+   Z: function that returns for each cleartext a cleartext of the same length consisting only of zeroes.
+
+   Penc(t, N): probability of breaking the IND-CCA2 property
+   in time t for one key and N decryption queries.
+   Penccoll: probability of collision between independently generated keys
+
+   The types keypairseed, pkey, skey, cleartext, ciphertext, enc_seed and the
+   probabilities Penc, Penccoll must be declared before this macro is
+   expanded. The functions pkgen, skgen, enc, enc_r, dec, pkgen2, 
+   skgen2, enc_r2, dec2, injbot, and Z
+   are declared by this macro. They must not be declared
+   elsewhere, and they can be used only after expanding the macro. 
+*)
+
+(* TODO ok, I need to separate type and function names *)
+def IND_CCA2_kem_all_args(keypairseed, pkey, skey, keyseed, aencap_res, adecap_res, key, ciphertext, aencap_seed, skgen, skgen2, pkgen, pkgen2, keypairgen, aencap, aencap_r, aencap_r2, aencap_key, aencap_enc, aencap_Some, aencap_None, adecap, adecap2, adecap_Some, adecap_None, Penc, Penccoll, Paencap_min_entropy) {
+
+  fun skgen(keypairseed): skey.
+  fun pkgen(keypairseed): pkey.
+  letfun keypairgen() =
+    s <-R keypairseed; (skgen(s), pkgen(s)).
+
+  fun aencap_key(aencap_res): key [projection].
+  fun aencap_enc(aencap_res): ciphertext [projection].
+  fun aencap_Some(key, ciphertext): aencap_res [data].
+  const aencap_None: aencap_res.
+  equation forall k: key, enc: ciphertext; aencap_Some(k, enc) <> aencap_None.
+  equation forall r: aencap_res; (* TODO: is this tautologic with the fun definitions above? *)
+    aencap_Some(aencap_key(r), aencap_enc(r)) = r.
+
+  fun aencap_r(keyseed, aencap_seed, pkey, skey): aencap_res.
+  fun adecap(ciphertext, skey, pkey): adecap_res.
+
+  letfun aencap(pk: pkey, sk: skey) =
+    k <-R keyseed; r <-R aencap_seed; aencap_r(k, r, pk, sk).
+
+  fun skgen2(keypairseed): skey.
+  fun pkgen2(keypairseed): pkey.
+  fun aencap_r2(keyseed, aencap_seed, pkey, skey): aencap_res.
+  fun adecap2(ciphertext, skey, pkey): adecap_res.
+
+  (* TODO Suggestion by Bruno.
+     This says that aencap never returns aencap_None, i.e. does never fail.
+     Use _r2 such that it can only be applied after having applied the transformation. *)
+  (* equation forall k:keyseed, r:aencap_seed, pk:pkey, sk:skey;
+    aencap_r2(k, r, pk, sk) = aencap_Some(aencap_key_r2(k, r, pk, sk), aencap_enc_r2(k, r, pk, sk)). *)
+
+  fun adecap_Some(key): adecap_res [data].
+  const adecap_None: adecap_res.
+  equation forall k: key; adecap_Some(k) <> adecap_None.
+  
+  equation forall k: keyseed, s1: keypairseed, s2: keypairseed, r: aencap_seed;
+    adecap(aencap_enc(aencap_r(k, r, pkgen(s1), skgen(s2))), skgen(s1), pkgen(s2)) = adecap_Some(aencap_key(aencap_r(k, r, pkgen(s1), skgen(s2)))).
+  equation forall k: keyseed, s1: keypairseed, s2: keypairseed, r: aencap_seed;
+    adecap2(aencap_enc(aencap_r2(k, r, pkgen(s1), skgen(s2))), skgen(s1), pkgen(s2)) = adecap_Some(aencap_key(aencap_r2(k, r, pkgen(s1), skgen(s2)))).
+
+  param N, Nenc, Ndec.
+
+  equiv(outsider_auth(aencap))
+    foreach i <= N do s <-R keypairseed; (
+      foreach ienc <= Nenc do ks <-R keyseed; e <-R aencap_seed; (
+        Oencap(pk_R: pkey) :=
+          return(aencap_r(ks, e, pk_R, skgen(s)))) |
+      foreach idec <= Ndec do ( Odecap(pk_S: pkey, enc: ciphertext) :=
+        return(adecap(enc, skgen(s), pk_S))) |
+      Opk() := return(pkgen(s))
+    )
+  (* TODO probability *)
+  <=(0)=> [manual,computational]
+    foreach i <= N do s <-R keypairseed [unchanged]; (
+      foreach ienc <= Nenc do ks <-R keyseed [unchanged]; e <-R aencap_seed [unchanged]; (
+        Oencap(pk_R: pkey) :=
+          let aencap_Some(k: key, c_enc: ciphertext) = aencap_r(ks, e, pk_R, skgen(s)) in (
+            return(aencap_Some(k, c_enc))
+          ) else (
+            return(aencap_None)
+          )) |
+        foreach idec <= Ndec do ( Odecap(pk_S: pkey, c_dec: ciphertext) :=
+          find ienc1 <= Nenc, i1 <= N suchthat
+              defined(s[i1], pk_R[ienc1, i1], k[ienc1, i1], c_enc[ienc1, i1]) &&
+              pkgen(s) = pk_R[ienc1, i1] && pkgen(s[i1]) = pk_S && c_enc[ienc1, i1] = c_dec then (
+            return(adecap_Some(k[ienc1, i1]))
+          ) orfind idec1 <= Ndec, i1 <= N suchthat (* TODO why is there no “one variable needs to define all the others”? *)
+              defined(s[i1], pk_S[idec1, i1], k'[idec1, i1], c_dec[idec1, i1]) &&
+              s = s[i1] && pk_S[idec1, i1] = pk_S && c_dec[idec1, i1] = c_dec then (
+            return(adecap_Some(k'[idec1, i1]))
+          ) else (
+              find i1 <= N suchthat defined(s[i1]) && pk_S = pkgen(s[i1]) then (
+                let adecap_Some(k0) = adecap(c_dec, skgen(s), pk_S) in (
+                  k' <-R key;
+                  return(adecap_Some(k'))
+                ) else (
+                  return(adecap_None)
+                )
+              ) else (
+                return(adecap(c_dec, skgen(s), pk_S))
+              )
+          )) |
+      Opk() := return(pkgen(s))
+    ).
+
+  equiv(outsider_cca_auth(aencap))
+    foreach i <= N do s <-R keypairseed; (
+      foreach ienc <= Nenc do ks <-R keyseed; e <-R aencap_seed; (
+        Oencap(pk_R: pkey) :=
+          return(aencap_r(ks, e, pk_R, skgen(s)))) |
+      foreach idec <= Ndec do ( Odecap(pk_S: pkey, enc: ciphertext) :=
+        return(adecap(enc, skgen(s), pk_S))) |
+      Opk() := return(pkgen(s))
+    )
+  (* TODO probability *)
+  <=(0)=> [manual,computational]
+    foreach i <= N do s <-R keypairseed [unchanged]; (
+      foreach ienc <= Nenc do ks <-R keyseed [unchanged]; e <-R aencap_seed [unchanged]; (
+        Oencap(pk_R: pkey) :=
+          find i2 <= N suchthat defined(s[i2]) && pk_R = pkgen(s[i2]) then (
+            let aencap_Some(k_throw: key, c_enc: ciphertext) = aencap_r(ks, e, pk_R, skgen(s)) in (
+              k <-R key;
+              return(aencap_Some(k, c_enc))
+            ) else (
+              return(aencap_None)
+            )
+          ) else (
+            let aencap_Some(k_dishonest: key, c_enc: ciphertext) = aencap_r(ks, e, pk_R, skgen(s)) in (
+              return(aencap_Some(k_dishonest, c_enc))
+            ) else (
+              return(aencap_None)
+            )
+          )) |
+        foreach idec <= Ndec do ( Odecap(pk_S: pkey, c_dec: ciphertext) :=
+          find ienc1 <= Nenc, i1 <= N suchthat
+              defined(s[i1], pk_R[ienc1, i1], k[ienc1, i1], c_enc[ienc1, i1]) &&
+              pkgen(s) = pk_R[ienc1, i1] && pkgen(s[i1]) = pk_S && c_enc[ienc1, i1] = c_dec then (
+            return(adecap_Some(k[ienc1, i1]))
+          ) orfind idec1 <= Ndec, i1 <= N suchthat (* TODO why is there no “one variable needs to define all the others”? *)
+              defined(s[i1], pk_S[idec1, i1], k'[idec1, i1], c_dec[idec1, i1]) &&
+              s = s[i1] && pk_S[idec1, i1] = pk_S && c_dec[idec1, i1] = c_dec then (
+            return(adecap_Some(k'[idec1, i1]))
+          ) else (
+              find i1 <= N suchthat defined(s[i1]) && pk_S = pkgen(s[i1]) then (
+                let adecap_Some(k0) = adecap(c_dec, skgen(s), pk_S) in (
+                  k' <-R key;
+                  return(adecap_Some(k'))
+                ) else (
+                  return(adecap_None)
+                )
+              ) else (
+                return(adecap(c_dec, skgen(s), pk_S))
+              )
+          )) |
+      Opk() := return(pkgen(s))
+    ).
+
+  collision r1 <-R keypairseed; r2 <-R keypairseed; 
+    return(pkgen(r1) = pkgen(r2)) <=(Penccoll)=> return(false).
+  collision r1 <-R keypairseed; r2 <-R keypairseed; 
+    return(pkgen(r1) = pkgen2(r2)) <=(Penccoll)=> return(false).
+  collision r1 <-R keypairseed; r2 <-R keypairseed; 
+    return(pkgen2(r1) = pkgen2(r2)) <=(Penccoll)=> return(false).
+  collision r1 <-R keypairseed; r2 <-R keypairseed; 
+    return(skgen(r1) = skgen(r2)) <=(Penccoll)=> return(false).
+  collision r1 <-R keypairseed; r2 <-R keypairseed; 
+    return(skgen(r1) = skgen2(r2)) <=(Penccoll)=> return(false).
+  collision r1 <-R keypairseed; r2 <-R keypairseed; 
+    return(skgen2(r1) = skgen2(r2)) <=(Penccoll)=> return(false).
+
+  collision s1 <-R keypairseed; s2 <-R keypairseed; k1 <-R keyseed; r1 <-R aencap_seed; k2 <-R keyseed; r2 <-R aencap_seed;
+    return(aencap_key(aencap_r(k1, r1, pkgen(s1), skgen(s2))) = aencap_key(aencap_r(k2, r2, pkgen(s1), skgen(s2)))) <=(Paencap_min_entropy)=> return(false).
+
+  collision s1 <-R keypairseed; s2 <-R keypairseed; k1 <-R keyseed; r1 <-R aencap_seed; k2 <-R keyseed; r2 <-R aencap_seed;
+    return(aencap_key(aencap_r(k1, r1, pkgen(s1), skgen(s2))) = aencap_key(aencap_r(k2, r2, pkgen(s2), skgen(s1)))) <=(Paencap_min_entropy)=> return(false).
+
+  collision s1 <-R keypairseed; s2 <-R keypairseed; s3 <-R keypairseed; s4 <-R keypairseed; k1 <-R keyseed; r1 <-R aencap_seed; k2 <-R keyseed; r2 <-R aencap_seed;
+    return(aencap_key(aencap_r(k1, r1, pkgen(s1), skgen(s2))) = aencap_key(aencap_r(k2, r2, pkgen(s3), skgen(s4)))) <=(Paencap_min_entropy)=> return(false).
+
+collision s1 <-R keypairseed; s2 <-R keypairseed; s3 <-R keypairseed; k1 <-R keyseed; r1 <-R aencap_seed; k2 <-R keyseed; r2 <-R aencap_seed;
+    return(aencap_r(k1, r1, pkgen(s1), skgen(s2)) = aencap_r(k2, r2, pkgen(s1), skgen(s3))) <=(Paencap_min_entropy)=> return(false).
+
+collision s1 <-R keypairseed; s2 <-R keypairseed; k1 <-R keyseed; r1 <-R aencap_seed; k2 <-R keyseed; r2 <-R aencap_seed;
+    return(aencap_r(k1, r1, pkgen(s1), skgen(s2)) = aencap_r(k2, r2, pkgen(s1), skgen(s2))) <=(Paencap_min_entropy)=> return(false).
+
+proba Pkeyspace.
+  collision s1 <-R keypairseed; s2 <-R keypairseed; k1 <-R keyseed; r1 <-R aencap_seed; k <-R key;
+    return(aencap_key(aencap_r(k1, r1, pkgen(s1), skgen(s2))) = k) <=(Pkeyspace)=> return(false).
+
+}
+
+(*def IND_CCA2_kem(keypairseed, pkey, skey, keyseed, adecap_res, key, ciphertext, skgen, pkgen, keypairgen, aencap, aencap_key_r, aencap_ciph_r, adecap, adecap_Some, adecap_None, Penc, Penccoll) {*)
+def IND_CCA2_kem(keypairseed, pkey, skey, keyseed, aencap_res, adecap_res, key, ciphertext, skgen, pkgen, keypairgen, aencap, aencap_r, aencap_key, aencap_enc, aencap_Some, aencap_None, adecap, adecap_Some, adecap_None, Penc, Penccoll, Paencap_min_entropy) {
+
+  type aencap_seed [bounded].
+
+  expand IND_CCA2_kem_all_args(keypairseed, pkey, skey, keyseed, aencap_res, adecap_res, key, ciphertext, aencap_seed, skgen, skgen2, pkgen, pkgen2, keypairgen, aencap, aencap_r, aencap_r2, aencap_key, aencap_enc, aencap_Some, aencap_None, adecap, adecap2, adecap_Some, adecap_None, Penc, Penccoll, Paencap_min_entropy).
+
+}
+
+
+
+
+
+(* end of kem.cvl *)
+
+(* TODO revisit those type properties (bounded, large, fixed) *)
+type keypairseed_t [bounded,large].
+type keyseed_t [bounded,large].
+type skey_t [bounded,large].
+type pkey_t [bounded,large].
+type adecap_res_t [bounded,large].
+type kemkey_t [fixed,large].
+type kemciph_t [fixed,large].
+type aencap_res_t [fixed,large].
+proba Penc.
+proba Penccoll.
+proba Paencap_min_entropy.
+fun kemkey2bitstr(kemkey_t): bitstring [data].
+fun kemciph2bitstr(kemciph_t): bitstring [data].
+expand IND_CCA2_kem(keypairseed_t, pkey_t, skey_t, keyseed_t, aencap_res_t, adecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key, AuthEncap_enc, AuthEncap_Some, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, Penc, Penccoll, Paencap_min_entropy).
+
+(*
+ *type enc_seed [large, fixed].
+ *expand IND_CCA2_public_key_kem_enc_all_args(keyseed_t, pkey_t, skey_t, key_t, bitstring, enc_seed, skgentest, skgentest2, pkgentest, pkgentest2, enctest, enctest_r, enctest_r2, dectest, dectest2, injbottest, Z, Penc, Penccoll) {
+ *)
+(* some key type, and a function to convert to bitstring *)
+
+
+(* KDF *)
+
+type hash_key_t [fixed].
+
+type extract_t [fixed,large].
+fun e2b(extract_t): bitstring.
+const zeroNh_e: extract_t.
+const zeroNh: bitstring.
+equation e2b(zeroNh_e) = zeroNh.
+
+expand ROM_hash_2(
+  (* types *)
+  hash_key_t,
+  bitstring,
+  bitstring,
+  extract_t,
+  (* functions *)
+  Extract,
+  (* processes *)
+  Extract_orcl,
+  (* parameters *)
+  N_qExtr  (* number of queries to the oracle by the adversary *)
+).
+
+proba P_PRF.
+type expand_t [fixed,large].
+  (* This covers the maximum length of HKDF-Expand's output. For
+     RFC 5869, this is 255*Nh. *)
+expand PRF_1(
+  extract_t,
+  bitstring,
+  expand_t,
+  Expand,
+  P_PRF
+).
+
+type label_protocol_t [fixed].
+const RFCXXXX: label_protocol_t.
+type label_secret_t [fixed].
+const label_secret: label_secret_t.
+type label_expand_t [fixed].
+const label_key: label_expand_t.
+const label_nonce: label_expand_t.
+const label_exp: label_expand_t.
+
+  (* This can be data because we only use it with fixed-length parameters *)
+fun concat3(label_protocol_t, label_secret_t, bitstring): bitstring [data].
+  (* This can be data because we only use it with a few known constants
+     for the two first parameters, or with fixed-length parameters. *)
+fun concat4(length_t, label_protocol_t, label_expand_t, bitstring): bitstring [data].
+  (* The three labels for key, nonce, exp might have different lengths, but
+     the combination length L and length of the label is unique. *)
+
+letfun LabeledExtract(key_extr: hash_key_t, salt: bitstring, label: label_secret_t, IKM: bitstring) =
+  let labeledIKM = concat3(RFCXXXX, label, IKM) in
+  Extract(key_extr, salt, labeledIKM).
+
+letfun LabeledExpand(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  let labeledInfo = concat4(L, RFCXXXX, label, info) in
+  Expand(PRK, labeledInfo).
+
+(* including truncate.cvl *)
+def truncate(input_t, output_t, truncate_f) {
+
+  param N.
+
+  fun truncate_f(input_t): output_t.
+
+  (* If we truncate a uniformly distributed random value, 
+     we obtain a uniformly distributed random value *)
+  equiv(truncate(truncate_f))
+    foreach i<=N do h <-R input_t;
+      O_trunc() := return(truncate_f(h))
+    <=(0)=>
+    foreach i<=N do k <-R output_t;
+      O_trunc() := return(k).
+}
+
+(* end of truncate.cvl *)
+
+def truncate_two(input_t, output1_t, output2_t, truncate_f1, truncate_f2) {
+
+  param N.
+
+  fun truncate_f1(input_t): output1_t.
+  fun truncate_f2(input_t): output2_t.
+
+  (* If we truncate a uniformly distributed random value, 
+     we obtain a uniformly distributed random value *)
+  equiv(truncate(truncate_f1))
+    foreach i<=N do h <-R input_t; (
+      O_trunc1() := return(truncate_f1(h)) |
+      O_trunc2() := return(truncate_f2(h)))
+    <=(0)=>
+    foreach i<=N do k1 <-R output1_t; k2 <-R output2_t; (
+      O_trunc1() := return(k1) |
+      O_trunc2() := return(k2)).
+}
+
+expand truncate_two(
+  expand_t,
+  key_t, nonce_t,
+  truncate_to_Nk, truncate_to_Nn
+).
+
+(*
+expand truncate(
+  expand_t,
+  nonce_t,
+  truncate_to_Nn
+).
+expand truncate(
+  expand_t,
+  key_t,
+  truncate_to_Nk
+).*)
+expand truncate(
+  expand_t,
+  extract_t,
+  truncate_to_Nh
+).
+
+letfun LabeledExpand_Nk(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  truncate_to_Nk(LabeledExpand(PRK, label, info, L)).
+letfun LabeledExpand_Nn(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  truncate_to_Nn(LabeledExpand(PRK, label, info, L)).
+letfun LabeledExpand_Nh(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  truncate_to_Nh(LabeledExpand(PRK, label, info, L)).
+
+
+(* An AEAD encryption algorithm *)
+
+proba P_cpa.
+proba P_ctxt.
+expand AEAD_nonce(
+  (* types *)
+  key_t,
+  bitstring, (* plaintext *)
+  bitstring, (* ciphertext *)
+  bitstring, (* additional data *)
+  nonce_t,
+  (* functions *)
+  Seal_inner,
+  Open_inner,
+  injbot, (* injection from plaintext to bitstringbot:
+          (* injbot(plaintext): bitstringbot *)
+  Length,   (* returns a plaintext of same length, consisting of zeros:
+          (* Length(plaintext): plaintext *)
+  (* probabilities *)
+  P_cpa,
+  P_ctxt
+).
+letfun Seal(key: key_t, nonce: nonce_t, aad: bitstring, pt: bitstring) =
+  Seal_inner(pt, aad, key, nonce).
+letfun Open(key: key_t, nonce: nonce_t, aad: bitstring, ct: bitstring) =
+  Open_inner(ct, aad, key, nonce).
+
+(* including boolean_choice.cvl *)
+(***********************************************************************
+  The following is part of boolean_choice.cvl
+  inspired by some CryptoVerif examples and Bruno Blanchet
+***********************************************************************)
+
+def boolean_choice(value_t, test) {
+
+fun test(bool, value_t, value_t) : value_t.
+
+equation forall x:value_t, y:value_t; test(true, x, y) = x.
+equation forall x:value_t, y:value_t; test(false, x, y) = y.
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, b:bool; test(b,x,x) = x.
+
+}
+
+(* Length needs to be defined already, typically by the AEAD scheme that's
+ * expanded somewhere before.
+ *)
+def boolean_choice_for_encryption(value_t, Length, test) {
+
+  expand boolean_choice(value_t, test).
+
+  (* Knowing the equations defined above, this can be deduced, but
+     CryptoVerif can't do this on its own. *)
+  equation forall x:value_t, y:value_t, b:bool; Length(test(b,x,y)) = test (b,Length(x),Length(y)).
+
+}
+
+(* end of boolean_choice.cvl *)
+
+(* Define a function for choosing from two attacker-provided plaintexts based
+   on a bit. Also, defines some equations on it so CryptoVerif is able
+   to reason about it. *)
+expand boolean_choice_for_encryption(
+  (* types *)
+  bitstring,  (* type of the values *)
+  (* functions *)
+  Length,       (* the Length function provided by the encryption scheme. *)
+              (* Needed for some equations about the function. *)
+  test	      (* Name of the choice function: *)
+              (* test(bool, bitstring, bitstring): bitstring *)
+).
+
+
+(* Encryption Context *)
+
+type mode_t [fixed].
+const mode_base: mode_t.
+const mode_psk: mode_t.
+const mode_auth: mode_t.
+const mode_auth_psk: mode_t.
+
+type two_bytes [fixed].
+const kem_id: two_bytes.
+const kdf_id: two_bytes.
+const aead_id: two_bytes.
+
+  (* This is [data] because lengths of all inputs are fixed *)
+fun concat3bytes(two_bytes, two_bytes, two_bytes): bitstring [data].
+  (* This is [data] because lengths of all inputs are fixed *)
+fun concat3keysched(mode_t, bitstring, bitstring): bitstring [data].
+
+type context_t [large,fixed].
+(* key, nonce, seq, exporter_secret *)
+fun Context(key_t, nonce_t, nonce_t, extract_t): context_t [data].
+
+type Context_new_seq_res_t.
+fun Context_new_seq_Some(context_t): Context_new_seq_res_t [data].
+const Context_new_seq_None: Context_new_seq_res_t.
+equation forall ctx: context_t;
+  Context_new_seq_Some(ctx) <> Context_new_seq_None.
+
+letfun Context_new_seq(ctx: context_t, seq: nonce_t) =
+  let Context(key: key_t, nonce: nonce_t, seq_old: nonce_t, exporter_secret_old: extract_t) = ctx in
+  (
+    Context_new_seq_Some(Context(key, nonce, seq, exporter_secret_old))
+  ) else (
+    Context_new_seq_None
+  ).
+
+letfun VerifyMode(mode: mode_t, psk: psk_t, pskID: bitstring) =
+  let got_psk: bool = not(psk = default_psk) && not(pskID = default_pskID) in
+  let no_psk: bool = (psk = default_psk) && (pskID = default_pskID) in
+
+  if (mode = mode_base     && got_psk) then (false) else (
+  if (mode = mode_psk      && no_psk)  then (false) else (
+  if (mode = mode_auth     && got_psk) then (false) else (
+  if (mode = mode_auth_psk && no_psk)  then (false) else (
+  true)))).
+
+(* We provide pskID_hash and info_hash as parameters to simplify
+   the model. They are either way the same for all protocol
+   executions in this model, and then the random oracle doesn't
+   blow up inside KeySchedule. *)
+
+type KeySchedule_res_t.
+fun KeySchedule_Some(context_t): KeySchedule_res_t [data].
+const KeySchedule_None: KeySchedule_res_t.
+equation forall ctx: context_t;
+  KeySchedule_Some(ctx) <> KeySchedule_None.
+
+letfun KeySchedule(key_extr_secret: hash_key_t,
+                   mode: mode_t, shared_secret: kemkey_t, info_hash: bitstring,
+                   psk: psk_t, psk_hash: bitstring, pskID: bitstring, pskID_hash: bitstring) =
+  if VerifyMode(mode, psk, pskID) then
+  (
+    let key_schedule_context: bitstring = concat3keysched(mode, pskID_hash, info_hash) in
+
+    (* secret is a reserved keyword in CryptoVerif *)
+    let secrett: extract_t = LabeledExtract(key_extr_secret, psk_hash, label_secret, kemkey2bitstr(shared_secret)) in
+    let key: key_t = LabeledExpand_Nk(secrett, label_key, key_schedule_context, Nk) in
+    let nonce: nonce_t = LabeledExpand_Nn(secrett, label_nonce, key_schedule_context, Nn) in
+    let exporter_secret: extract_t = LabeledExpand_Nh(secrett, label_exp, key_schedule_context, Nh) in
+    KeySchedule_Some(Context(key, nonce, nonce_zero, exporter_secret))
+  ) else (
+    KeySchedule_None
+  ).
+
+
+(* Authentication using an Asymmetric Key *)
+
+type SetupAuthS_res_t.
+fun SetupAuthS_Some(kemciph_t, context_t): SetupAuthS_res_t [data].
+const SetupAuthS_None: SetupAuthS_res_t.
+equation forall enc: kemciph_t, ctx: context_t;
+  SetupAuthS_Some(enc, ctx) <> SetupAuthS_None.
+
+letfun SetupAuthS(key_extr_secret: hash_key_t,
+                  pkR: pkey_t, info_hash: bitstring, skS: skey_t) =
+  let AuthEncap_Some(shared_secret: kemkey_t, enc: kemciph_t) = AuthEncap(pkR, skS) in
+  (
+    let KeySchedule_Some(ctx: context_t) = KeySchedule(key_extr_secret, mode_auth, shared_secret, info_hash, default_psk, default_psk_hash, default_pskID, default_pskID_hash) in
+    (
+      SetupAuthS_Some(enc, ctx)
+    ) else (
+      SetupAuthS_None
+    )
+  ) else (
+    SetupAuthS_None
+  ).
+
+type SetupAuthR_res_t.
+fun SetupAuthR_Some(context_t): SetupAuthR_res_t [data].
+const SetupAuthR_None: SetupAuthR_res_t.
+equation forall ctx: context_t;
+  SetupAuthR_Some(ctx) <> SetupAuthR_None.
+
+letfun SetupAuthR(key_extr_secret: hash_key_t,
+                  enc: kemciph_t, skR: skey_t, info_hash: bitstring, pkS: pkey_t) =
+  let AuthDecap_Some(shared_secret: kemkey_t) = AuthDecap(enc, skR, pkS) in
+  (
+    let KeySchedule_Some(ctx: context_t) = KeySchedule(key_extr_secret, mode_auth, shared_secret, info_hash, default_psk, default_psk_hash, default_pskID, default_pskID_hash) in
+    (
+      SetupAuthR_Some(ctx)
+    ) else (
+      SetupAuthR_None
+    )
+  ) else (
+    SetupAuthR_None
+  ).
+
+
+
+
+
+(* Encryption and Decryption *)
+
+letfun Context_Nonce(nonce: nonce_t, seq: nonce_t) =
+  (* We suppose that seq has already the length of the nonce, by
+     assigning it the type nonce_t. *)
+  xor(nonce, seq).
+
+type Context_Seal_res_t.
+fun Context_Seal_Some(bitstring): Context_Seal_res_t [data].
+const Context_Seal_None: Context_Seal_res_t.
+equation forall ct: bitstring;
+  Context_Seal_Some(ct) <> Context_Seal_None.
+
+letfun Context_Seal(context: context_t, aad: bitstring,
+                    pt: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t, exporter_secret_unused: extract_t) = context in
+  (
+    let ct: bitstring = Seal(key, Context_Nonce(nonce, seq), aad, pt) in
+    (* TODO model increment seq (probably outside of this function)
+         self.seq += 1 *)
+    Context_Seal_Some(ct)
+  ) else (
+    Context_Seal_None
+  ).
+
+type Context_Open_res_t.
+fun Context_Open_Some(bitstring): Context_Open_res_t [data].
+const Context_Open_None: Context_Open_res_t.
+equation forall pt: bitstring;
+  Context_Open_Some(pt) <> Context_Open_None.
+
+letfun Context_Open(context: context_t, aad: bitstring,
+                    ct: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t, exporter_secret_unused: extract_t) = context in
+  (
+    let injbot(pt: bitstring) = Open(key, Context_Nonce(nonce, seq),
+                                     aad, ct) in
+    (
+      (* TODO model increment seq (probably outside of this function)
+           self.seq += 1 *)
+      Context_Open_Some(pt)
+    ) else (
+      Context_Open_None
+    )
+  ) else (
+    Context_Open_None
+  ).
+
+
+type Context_Export_res_t.
+fun Context_Export_Some(expand_t): Context_Export_res_t [data].
+const Context_Export_None: Context_Export_res_t.
+equation forall exported: expand_t;
+  Context_Export_Some(exported) <> Context_Export_None.
+
+(* Context_Export directly outputs the maximum length (for HKDF it is
+   255*Hashlen) and the truncation is left to the user.
+   This simplifies the model, as we can re-use the same Expand function. *)
+
+letfun Context_Export(context: context_t, exporter_context: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t, exporter_secret_here: extract_t) = context in
+  (
+    let exported: expand_t = Expand(exporter_secret_here, exporter_context) in
+    Context_Export_Some(exported)
+  ) else (
+    Context_Export_None
+  ).
+
+(* Single-Shot APIs *)
+
+type SealAuth_res_t.
+fun SealAuth_Some(kemciph_t, bitstring): SealAuth_res_t [data].
+const SealAuth_None: SealAuth_res_t.
+equation forall enc: kemciph_t, ct: bitstring;
+  SealAuth_Some(enc, ct) <> SealAuth_None.
+
+letfun SealAuth(key_extr_secret: hash_key_t,
+                pkR: pkey_t, info_hash: bitstring, aad: bitstring,
+                pt: bitstring, skS: skey_t) =
+  let SetupAuthS_Some(enc: kemciph_t, ctx: context_t) =
+    SetupAuthS(key_extr_secret, pkR, info_hash, skS) in
+  (
+    let Context_Seal_Some(ct: bitstring) = Context_Seal(ctx, aad, pt) in
+    (
+      SealAuth_Some(enc, ct)
+    ) else (
+      SealAuth_None
+    )
+  ) else (
+    SealAuth_None
+  ).
+
+type OpenAuth_res_t.
+fun OpenAuth_Some(Context_Open_res_t): OpenAuth_res_t [data].
+const OpenAuth_None: OpenAuth_res_t.
+equation forall ctx_open: Context_Open_res_t;
+  OpenAuth_Some(ctx_open) <> OpenAuth_None.
+
+letfun OpenAuth(key_extr_secret: hash_key_t,
+                enc: kemciph_t, skR: skey_t, info_hash: bitstring,
+                aad: bitstring, ct: bitstring, pkS: pkey_t) =
+  let SetupAuthR_Some(ctx: context_t) =
+    SetupAuthR(key_extr_secret, enc, skR, info_hash, pkS) in
+  (
+    OpenAuth_Some(Context_Open(ctx, aad, ct))
+  ) else (
+    OpenAuth_None
+  ).
+
+
+table E(bool, pkey_t, kemciph_t, bitstring). (* bitstring is a ciphertext *)
+
+param Naenc, Nadec.
+channel c_aenc, c_adec, c_adv.
+
+event adv_wins.
+query event(adv_wins).
+
+process
+
+  in(c_start, ());
+
+  new key_extr_secret: hash_key_t;
+
+  let (the_sk1: skey_t, the_pk1: pkey_t) = GenerateKeyPair() in
+  let (the_sk2: skey_t, the_pk2: pkey_t) = GenerateKeyPair() in
+  out(c_setup, (the_pk1, the_pk2));
+
+  (
+    Extract_orcl(key_extr_secret)
+
+  |(
+    ! iaenc <= Naenc
+    in(c_aenc, (use_sk1: bool, pk: pkey_t, m: bitstring, aad: bitstring));
+    if use_sk1 then (
+      let SealAuth_Some(enc: kemciph_t, ct: bitstring) = SealAuth(key_extr_secret, pk, app_info_hash, aad, m, the_sk1) in (
+        insert E(use_sk1, pk, enc, ct);
+        out(c_aenc, SealAuth_Some(enc, ct))
+      ) else (
+        out(c_aenc, SealAuth_None)
+      )
+    ) else (
+      let SealAuth_Some(enc: kemciph_t, ct: bitstring) = SealAuth(key_extr_secret, pk, app_info_hash, aad, m, the_sk2) in (
+        insert E(use_sk1, pk, enc, ct);
+        out(c_aenc, SealAuth_Some(enc, ct))
+      ) else (
+        out(c_aenc, SealAuth_None)
+      )
+    )
+  )|(
+    ! iadec <= Nadec
+    in(c_adec, (use_sk1: bool, pk: pkey_t, enc: kemciph_t, c: bitstring, aad: bitstring));
+    if use_sk1 then (
+      out(c_adec, OpenAuth(key_extr_secret, enc, the_sk1, app_info_hash, aad, c, pk))
+    ) else (
+      out(c_adec, OpenAuth(key_extr_secret, enc, the_sk2, app_info_hash, aad, c, pk))
+    )
+  )|(
+    in(c_adv, (enc_star: kemciph_t, ciph_star: bitstring, aad: bitstring));
+    get E(=false, =the_pk1, =enc_star, =ciph_star) in (
+      out(c_adv, ())
+    ) else (
+      let OpenAuth_Some(Context_Open_Some(pt: bitstring)) = OpenAuth(key_extr_secret, enc_star, the_sk1, app_info_hash, aad, ciph_star, the_pk2) in (
+        event_abort adv_wins
+      ) else (
+        out(c_adv, ())
+      )
+    )
+  )
+
+  )
+
+(* EXPECTED 
+All queries proved.
+23.008s (user 22.960s + system 0.048s), max rss 121692K
+END *)

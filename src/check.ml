@@ -405,19 +405,29 @@ let rec check_lm_fungroup = function
    on this equivalence, so that the definition nodes of variables
    have been computed. *)
 
-let rec close_node accu n l =
+let rec close_node_rec accu n l =
   List.iter (fun b' ->
     let l' = Terms.skip ((List.length l) - (List.length b'.args_at_creation)) l in
     accu := ((b',l'))::(!accu)
 			  ) n.binders;
   match n.above_node with
   | None -> ()
-  | Some n' -> close_node accu n' l
+  | Some n' -> close_node_rec accu n' l
 
-let close_def accu (b,l) =
-  match b.def with
-    [n] -> close_node accu n l
-  | _ -> Parsing_helper.internal_error "close_def: binder has several definitions"
+let close_node n l =
+  let accu = ref [] in
+  close_node_rec accu n l;
+  !accu
+
+let rec close_node_list nlist l =
+  match nlist with
+  | [] -> Parsing_helper.internal_error "close_def: binder has no definition"
+  | [n] -> close_node n l
+  | n::rest ->
+      Terms.inter_binderref (close_node n l) (close_node_list rest l)
+       
+let close_def (b,l) =
+  close_node_list b.def l
 
 (*
 let same_binders l1 l2 =
@@ -465,9 +475,8 @@ let rec check_rm_term allowed_index_seq t =
 	       *)
 	      let max_sequence = ref [] in
 	      List.iter (fun ((_,l) as def) ->
-		let def_closure = ref [] in
-		close_def def_closure def;
-		if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') (!def_closure)) def_list then
+		let def_closure = close_def def in
+		if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') def_closure) def_list then
 		  max_sequence := l
 			 ) def_list;
 	      if !max_sequence == [] then

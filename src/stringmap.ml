@@ -166,7 +166,7 @@ let union_both env1 env2 =
     | Some _, Some _ -> Some (Error error_ambiguous)
       ) env1 env2
 
-(* [union_both] computes the union of environments that are obtained
+(* [union_exclude] computes the union of environments that are obtained
    in different branches of if/find/let/get. *)
 
 let union_exclude env1 env2 =
