@@ -1213,7 +1213,7 @@ instruct:
 |   EVENT_ABORT IDENT
     { PEventAbort($2), parse_extent() }
 |   basicpattern LEFTARROW term optsemiinstruct
-    { PLet($1,$3,(PYield, parse_extent()),(PYield, parse_extent())), parse_extent() }
+    { PLet($1,$3,$4,(PYield, parse_extent())), parse_extent() }
 |   LET pattern EQUAL term IN instruct optelseinstruct
     { PLet($2,$4,$6,$7), parse_extent() }
 
