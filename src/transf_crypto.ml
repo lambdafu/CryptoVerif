@@ -1967,20 +1967,44 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
        This point is implied by the final checks performed in
        check_lhs_array_ref, but performing it earlier allows to backtrack
        and choose other expressions *)
-    
+
+    let name_compat b b' b1 b1' =
+      if b1' == b' && b1 != b then 
+	begin
+	  if (!Settings.debug_cryptotransf) > 4 then 
+	    print_string ("Variable " ^ (Display.binder_to_string b') ^ 
+			  " of the game, associated to both " ^ (Display.binder_to_string b) ^ 
+			  " and " ^ (Display.binder_to_string b1) ^ " in the LHS of the equivalence.\n");
+	  raise NoMatch
+	end
+    in
+
     List.iter (fun ((b,_),(b',_)) ->
       List.iter (fun (b1, b1') ->
-	if b1' == b' && b1 != b then 
-	  begin
-	    if (!Settings.debug_cryptotransf) > 4 then 
-	      print_string ("Variable " ^ (Display.binder_to_string b') ^ 
-			    " of the game, associated to both " ^ (Display.binder_to_string b) ^ 
-			    " and " ^ (Display.binder_to_string b1) ^ " in the LHS of the equivalence.\n");
-	    raise NoMatch
-	  end
+	name_compat b b' b1 b1'
 	    ) before_transfo_restr
       ) before_transfo_array_ref_map;
 
+    let rec name_compat_restr = function
+	[] -> ()
+      | (b,b') :: rest ->
+	  List.iter (fun (b1, b1') ->
+	    name_compat b b' b1 b1'
+	      ) rest;
+	  name_compat_restr rest
+    in
+    name_compat_restr before_transfo_restr;
+
+    let rec name_compat_array_ref_map = function
+	[] -> ()
+      | ((b,_),(b',_)) :: rest ->
+	  List.iter (fun ((b1,_),(b1',_)) ->
+	    name_compat b b' b1 b1'
+	      ) rest;
+	  name_compat_array_ref_map rest
+    in
+    name_compat_array_ref_map before_transfo_array_ref_map;
+    
     (* Common names with other expressions
        When two expressions use a common name, 
        - the common names must occur at the same positions in the equivalence

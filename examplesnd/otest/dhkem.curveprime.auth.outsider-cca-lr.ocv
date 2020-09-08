@@ -1,0 +1,313 @@
+proof {
+  out_game "l0.out.cv";
+  insert after "Oencap(pk_R" "find i1 <= N suchthat defined(sk[i1]) && pk_R = exp(g, sk[i1]) then";
+  SArename z;
+  SArename enc_1;
+  SArename zz_2;
+  insert after "Odecap(pk_S" "find ienc1 <= Nenc, i1 <= N suchthat defined(sk[i1], pk_R[ienc1, i1], zz_10[ienc1, i1], z_5[ienc1, i1], enc_8[ienc1, i1]) && exp(g, sk) = pk_R[ienc1, i1] && pk_S = exp(g, sk[i1]) && enc_8[ienc1, i1] = enc_2 then";
+  out_game "l1.out.cv";
+
+  start_from_other_end;
+  insert after "OH(x1" "let concatExtract(protocol: label_protocol_t, suite: suite_id_t, label: label_extract_t, concatDH(dh1: G_t, dh2: G_t)) = x2_1 in";
+  out_game "r0.out.cv";
+
+  start_from_other_end;
+  out_game "l2.out.cv";
+  out_game "l2occ.out.cv" occ;
+  replace 389 "zz_10[ienc1_2, i1_8]"; (* Use correctness of the KEM *)
+  all_simplify;
+  insert after "OH(x1" "let concatExtract(protocol: label_protocol_t, suite: suite_id_t, label: label_extract_t, concatDH(dh1: G_t, dh2: G_t)) = x2 in";
+  out_game "l3.out.cv";
+  crypto rom(Extract);
+  out_game "l3.5.out.cv";
+  crypto gdh(exp);
+  out_game "l4.out.cv";
+  crypto switch_exp(exp);
+  crypto prf(Expand) **;
+  out_game "l5.out.cv";
+
+  start_from_other_end;
+  out_game "r1.out.cv";
+  crypto rom(Extract);
+  out_game "r2.out.cv";
+
+start_from_other_end;
+  SArename salt_2;
+  SArename label_4;
+  SArename salt_3;
+  SArename label_6;
+  out_game "l6.out.cv";
+
+  start_from_other_end;
+  crypto switch_exp(exp);
+  remove_assign binder x_5 x_2 x_3 x_6 x_18;
+  out_game "r3.out.cv";
+  success
+
+}
+
+param N_aenc, N_adec, N_aorcl.
+
+
+
+(* DH-based KEM *)
+
+
+
+(* For P-256 and P-521
+se a left-hand-side pattern matching of Serialize
+*)
+type G_t [bounded,large].
+type serialized_point_t [fixed,large]. (* TODO is this type still used? *)
+fun Serialize(G_t): bitstring [data].
+type Z_t [bounded,large].
+const dummy_Zt: Z_t.
+expand DH_good_group(
+  G_t,
+  Z_t,
+  g,
+  exp,
+  exp_1,
+  mult
+).
+
+proba P_GDH.
+expand GDH_RSR(
+  (* types *)
+  G_t,  (* Group elements *)
+  Z_t,  (* Exponents *)
+  (* variables *)
+  g,    (* a generator of the group *)
+  exp,  (* exponentiation function *)
+  exp_1, (* a symbol that replaces exp after game transformation *)
+  mult, (* multiplication function for exponents *)
+  (* probabilities *)
+  P_GDH (* probability of breaking the GDH assumption *)
+).
+
+def switch_exp(G, Z, exp, exp') {
+  param nexp.
+  equiv(switch_exp(exp))
+     foreach i <= nexp do Oexp(x:G,c:Z) := return(exp(x, c)) [all]
+<=(0)=> [manual,computational]
+     foreach i <= nexp do Oexp(x:G,c:Z) :=  return(exp'(x, c)).
+}
+
+expand switch_exp(
+  (* types *)
+  G_t,  (* Group elements *)
+  Z_t,  (* Exponents *)
+  (* functions *)
+  exp,  (* exponentiation function *)
+  exp_1 (* a symbol that replaces exp after game transformation *)
+).
+
+
+
+
+letfun DH(exponent: Z_t, group_element: G_t) =
+  exp(group_element, exponent).
+letfun pk(exponent: Z_t) =
+  exp(g, exponent).
+letfun GenerateKeyPair() =
+  new z: Z_t;
+  (z, exp(g, z)).
+
+
+(* KDF *)
+
+type hash_key_t [fixed].
+
+type extract_t [fixed,large].
+fun e2b(extract_t): bitstring.
+const lbytes_empty_e: extract_t.
+const lbytes_empty: bitstring.
+equation e2b(lbytes_empty_e) = lbytes_empty.
+
+expand ROM_hash_2(
+  (* types *)
+  hash_key_t,
+  bitstring,
+  bitstring,
+  extract_t,
+  (* functions *)
+  Extract,
+  (* processes *)
+  Extract_orcl,
+  (* parameters *)
+  N_qExtr  (* number of queries to the oracle by the adversary *)
+).
+
+proba P_PRF.
+type expand_t [fixed,large].
+expand PRF_1(
+  extract_t,
+  bitstring,
+  expand_t,
+  Expand,
+  P_PRF
+).
+
+
+type length_t [fixed].
+type two_byte_t [fixed].
+fun I2OSP2(length_t): two_byte_t [data].
+const Nzz: length_t.
+
+type label_protocol_t [fixed].
+const RFCXXXX: label_protocol_t.
+
+type label_extract_t [fixed].
+const label_eae_prk: label_extract_t.
+
+type label_expand_t [fixed].
+const label_zz: label_expand_t.
+
+type suite_id_t [fixed].
+const suite_id: suite_id_t.
+
+type GG_t [fixed].
+type GGG_t [fixed].
+
+fun concatDH(G_t, G_t): GG_t [data].
+fun concatContext(G_t, G_t, G_t): GGG_t [data].
+fun concatExtract(label_protocol_t, suite_id_t, label_extract_t, GG_t): bitstring [data].
+  (* This can be data because we only use it with a few known constants
+     for the two first parameters, or with fixed-length parameters. *)
+fun concatExpand(two_byte_t, label_protocol_t, suite_id_t, label_expand_t, GGG_t): bitstring [data].
+  (* concatExpand is only used in LabeledExpand, which is only used
+     in ExtractAndExpand in the KEM:
+       LabeledExpand(eae_prk, label_zz, kemContext, Nzz)
+     with the following call:
+       concatExpand(I2OSP2(L), RFCXXXX, suite_id, label, info).
+     I2OSP2 is fixed-length (two bytes),
+     RFCXXXX is fixed-length (7 bytes),
+     suite_id is fixed-length,
+     label_zz is fixed-length;
+     info is almost arbitrary length, but as it is the only variable-length
+     input and the last input, the reverse of concatExpand can be
+     computed. *)
+
+
+
+letfun LabeledExtract(key_extr: hash_key_t, salt: bitstring, label: label_extract_t, IKM: GG_t) =
+  let labeledIKM = concatExtract(RFCXXXX, suite_id, label, IKM) in
+  Extract(key_extr, salt, labeledIKM).
+
+letfun LabeledExpand(PRK: extract_t, label: label_expand_t, info: GGG_t, L: length_t) =
+  let labeledInfo = concatExpand(I2OSP2(L), RFCXXXX, suite_id, label, info) in
+  Expand(PRK, labeledInfo).
+
+letfun ExtractAndExpand(key_extr: hash_key_t, dh: GG_t, kemContext: GGG_t) =
+  let eae_prk = LabeledExtract(key_extr, lbytes_empty, label_eae_prk, dh) in
+  LabeledExpand(eae_prk, label_zz, kemContext, Nzz).
+
+
+
+
+
+type AuthEncap_res_t.
+fun AuthEncap_Some(expand_t, bitstring): AuthEncap_res_t [data].
+const AuthEncap_None: AuthEncap_res_t.
+equation forall zz: expand_t, enc: bitstring;
+  AuthEncap_Some(zz, enc) <> AuthEncap_None.
+
+letfun AuthEncap(key_extr: hash_key_t, pkR: G_t, skS: Z_t) =
+  let (skE: Z_t, pkE: G_t) = GenerateKeyPair() in
+  (
+    let dh: GG_t = concatDH(DH(skE, pkR), DH(skS, pkR)) in
+    let enc: bitstring = Serialize(pkE) in
+    let pkS = pk(skS) in
+    let kemContext: GGG_t = concatContext(pkE, pkR, pkS) in
+    let zz: expand_t = ExtractAndExpand(key_extr, dh, kemContext) in
+    AuthEncap_Some(zz, enc)
+  ) else (
+    AuthEncap_None
+  ).
+
+type AuthDecap_res_t.
+fun AuthDecap_Some(expand_t): AuthDecap_res_t [data].
+const AuthDecap_None: AuthDecap_res_t.
+equation forall zz: expand_t; AuthDecap_Some(zz) <> AuthDecap_None.
+
+letfun AuthDecap(key_extr: hash_key_t, enc: bitstring, skR: Z_t, pkS: G_t) =
+  let Serialize(pkE: G_t) = enc in
+  (
+    let dh: GG_t = concatDH(DH(skR, pkE), DH(skR, pkS)) in
+    let pkR = pk(skR) in
+    let kemContext: GGG_t = concatContext(pkE, pkR, pkS) in
+    let zz: expand_t = ExtractAndExpand(key_extr, dh, kemContext) in
+    AuthDecap_Some(zz)
+  ) else (
+    AuthDecap_None
+  ).
+
+
+implementation
+  type length_t = 8; (* one byte *)
+  fun I2OSP2 = "i2osp2";
+
+  const RFCXXXX = "RFCXXXX ";
+  const label_eae_prk = "eae_prk";
+  const label_zz = "zz";
+
+  fun concatDH = "concatDH";
+  fun concatExtract = "concatExtract";
+  fun concatContext = "concatContext";
+  fun concatExpand = "concatExpand";
+
+  (* for DHKEM(X25519, HKDF-SHA256) because P256
+     is not in the OCaml bindings of HACL* *)
+  const Nzz = "32";
+  type G_t = "Bytes.t";
+  (*type serialized_point_t*)
+  type Z_t = "Bytes.t".
+
+
+param N, Nenc, Ndec.
+
+equivalence
+  Ostart() :=
+    key_extr <-R hash_key_t;
+    return();
+    (
+      foreach i <= N do Osetup() := sk <-R Z_t; return(); (
+        foreach ienc <= Nenc do ( Oencap(pk_R: G_t) :=
+          return(AuthEncap(key_extr, pk_R, sk))) |
+        foreach idec <= Ndec do ( Odecap(pk_S: G_t, enc: bitstring) :=
+          return(AuthDecap(key_extr, enc, sk, pk_S))) |
+        Opk() := return(exp(g, sk))
+      ) |
+      run Extract_orcl(key_extr)
+    )
+
+  Ostart() :=
+    key_extr <-R hash_key_t;
+    return();
+    (
+      foreach i <= N do Osetup() := sk <-R Z_t; return(); (
+        foreach ienc <= Nenc do ( Oencap(pk_R: G_t) :=
+          find i1 <= N suchthat defined(sk[i1]) && pk_R = pk(sk[i1]) then (
+            let AuthEncap_Some(k: expand_t, c_enc: bitstring) = AuthEncap(key_extr, pk_R, sk) in
+            k' <-R expand_t;
+            return(AuthEncap_Some(k', c_enc))
+          ) else (
+            return(AuthEncap(key_extr, pk_R, sk))
+          )) |
+        foreach idec <= Ndec do ( Odecap(pk_S: G_t, c_dec: bitstring) :=
+          find ienc1 <= Nenc, i1 <= N suchthat
+              defined(sk[i1], pk_R[ienc1, i1], k'[ienc1, i1], c_enc[ienc1, i1]) &&
+              pk(sk) = pk_R[ienc1, i1] && pk(sk[i1]) = pk_S && c_enc[ienc1, i1] = c_dec then (
+            return(AuthDecap_Some(k'[ienc1, i1]))
+          ) else (
+            return(AuthDecap(key_extr, c_dec, sk, pk_S))
+          )) |
+        Opk() := return(pk(sk))
+      ) |
+      run Extract_orcl(key_extr)
+    )
+
+(* EXPECTED
+Error: Cryptographic transformation failed
+xtime: error in child process (status : 2)
+END *)
