@@ -7,6 +7,7 @@ let display_occurrences = ref false
 let display_arrays = ref false
 
 let times_to_display = ref []
+let context_times_to_display = ref []
 
 let file = ref stdout
 
@@ -461,46 +462,58 @@ let display_action = function
 	Parsing_helper.internal_error "in action should not occur in oracles front-end";
       print_string ("\\kw{in}\\ " ^ (string_of_int n))
 
-let rec display_proba level = function
+let rec display_sep_time ?(separate_time = false) level p =
+  if (not separate_time) || (not (Display.is_complex_time p)) then
+    display_proba ~separate_time level p
+  else
+    try 
+      let (tid, _) = List.find (fun (_,p') -> p == p') (!times_to_display) in
+      print_id "\\var{" tid "}"
+    with Not_found ->
+      let tid = Terms.fresh_id "time" in
+      times_to_display := (tid, p) ::(!times_to_display);
+      print_id "\\var{" tid "}"
+
+and display_proba ?separate_time level = function
     Proba (p,l) -> 
       print_id "\\var{" p.prname "}";
       if l != [] then
 	begin
 	  print_string "(";
-	  display_list_break (display_proba 0) l;
+	  display_list_break (display_sep_time ?separate_time 0) l;
 	  print_string ")"
 	end
   | Count p -> print_id "\\kwp{" p.pname "}"
   | OCount c -> print_id "\\#\\kwc{" c.cname "}"
   | Add(x,y) -> 
       if level > 1 then print_string "(";
-      display_proba 1 x;
+      display_proba ?separate_time 1 x;
       print_string " + ";
-      display_proba 1 y;
+      display_proba ?separate_time 1 y;
       if level > 1 then print_string ")"
   | Sub(x,y) -> 
       if level > 1 then print_string "(";
-      display_proba 1 x;
+      display_proba ?separate_time 1 x;
       print_string " - ";
-      display_proba 2 y;
+      display_proba ?separate_time 2 y;
       if level > 1 then print_string ")"
   | Max(l) -> 
       print_string "\\kw{max}(";
-      display_list_break (display_proba 0) l;
+      display_list_break (display_proba ?separate_time 0) l;
       print_string ")"
   | Mul(x,y) ->
       if level > 3 then print_string "(";
-      display_proba 3 x;
+      display_proba ?separate_time 3 x;
       print_string " \\times ";
-      display_proba 3 y;
+      display_proba ?separate_time 3 y;
       if level > 3 then print_string ")"
   | Zero -> print_string "0"      
   | Cst n -> print_string (Printf.sprintf "%g" n)
   | Div(x,y) ->
       if level > 3 then print_string "(";
-      display_proba 3 x;
+      display_proba ?separate_time 3 x;
       print_string " / ";
-      display_proba 4 y;
+      display_proba ?separate_time 4 y;
       if level > 3 then print_string ")"
   | Card t ->
       print_id "|\\kwt{" t.tname "}|"
@@ -510,9 +523,9 @@ let rec display_proba level = function
       print_string ("\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (Display.get_game_id g) ^ ")");
       begin
 	try
-	  ignore (List.assq g (!times_to_display))
+	  ignore (List.assq g (!context_times_to_display))
 	with Not_found -> 
-	  times_to_display := (g,t)::(!times_to_display)
+	  context_times_to_display := (g,t)::(!context_times_to_display)
       end
   | ActTime(act, pl) ->
       print_string "\\kw{time}(";
@@ -520,7 +533,7 @@ let rec display_proba level = function
       if pl != [] then
 	begin
 	  print_string ", ";
-	  display_list_break (display_proba 0) pl
+	  display_list_break (display_proba ?separate_time 0) pl
 	end;
       print_string ")"
   | Maxlength(g,t) ->
@@ -558,7 +571,7 @@ let rec display_proba level = function
       if pl != [] then
 	begin
 	  print_string ", \\allowbreak ";
-	  display_list_break (display_proba 0) pl
+	  display_list_break (display_proba ?separate_time 0) pl
 	end;
       print_string ")"
 
@@ -607,10 +620,10 @@ let display_proba_set_m modify s =
       | Zero | Cst 0.0 -> ()
       | _ ->
 	  print_string " + ";
-	  display_proba 0 proba
+	  display_proba ~separate_time:true 0 proba
     end
   else
-    display_proba 0 proba
+    display_proba ~separate_time:true 0 proba
   
 let display_proba_set s =
   display_proba_set_m Display.id s
@@ -1352,7 +1365,7 @@ let display_adv ql game =
     [Display.InitQuery q0,g0] ->
       print_string "\\mathsf{Adv}[\\mathrm{Game}\\ ";
       print_string (Display.get_game_id game);
-      print_string ": $";
+      print_string "$: ";
       display_query (q0,g0);
       print_string "$";
       if ql_no_initq != [] then
@@ -1364,7 +1377,7 @@ let display_adv ql game =
   | [] ->
       print_string "\\Pr[\\mathrm{Game}\\ ";
       print_string (Display.get_game_id game);
-      print_string ": ";
+      print_string "\text{: }";
       display_or_list ql_no_initq;
       print_string "]"
   | _ -> Parsing_helper.internal_error "Bad query list in display_adv"
@@ -1874,6 +1887,7 @@ let rec display_state ins_next s =
 let display_state s =
   (* Display the proof tree *)
   times_to_display := [];
+  context_times_to_display := [];
   already_displayed := [];
   let initial_queries = Display.get_initial_queries s in
   let states_needed_in_queries = Display.get_all_states_from_queries initial_queries in
@@ -1909,12 +1923,20 @@ let display_state s =
     ) initial_queries;
 
   (* Display the runtimes *)
+  List.iter (fun (tid,t) ->
+    print_string "RESULT $";
+    print_id "\\var{" tid "}";
+    print_string " = ";
+    display_proba 0 t;
+    print_string "$\\\\\n"
+      ) (List.rev (!times_to_display));
   List.iter (fun (g,t) ->
     print_string ("RESULT $\\kw{time}(\\mathit{context\\ for\\ game}\\ " ^ (Display.get_game_id g) ^ ") = ");
     display_proba 0 t;
     print_string "$\\\\\n"
-    ) (List.rev (!times_to_display));
+    ) (List.rev (!context_times_to_display));
   times_to_display := [];
+  context_times_to_display := [];
 
   (* List the unproved queries *)
   let rest = List.filter (function (q, poptref) -> (!poptref) == ToProve || (!poptref) == Inactive) initial_queries in

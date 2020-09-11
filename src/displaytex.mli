@@ -8,7 +8,7 @@ val display_binder : binder -> unit
 val display_term : term -> unit
 val display_statement : statement -> unit
 val display_pattern : pattern -> unit
-val display_proba : int -> probaf -> unit
+val display_proba : ?separate_time:bool -> int -> probaf -> unit
 val display_equiv : equiv_nm -> unit
 val display_process : inputprocess -> unit
 

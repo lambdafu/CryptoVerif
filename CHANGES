@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Display times separately to lighten the display of probability
+  formulas.
 - Allow x1, ..., xn:T instead of x1:T, ..., xn:T to lighten type declarations
   of variables when they have the same type.
 - Added the command "use_variable x1 ... xn".
