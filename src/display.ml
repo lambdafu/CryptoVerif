@@ -53,8 +53,8 @@ let fun_out out_f f =
     dest := old_dest;
     raise x
   
-      
-let display_occurrences = ref false
+type display_occ_t = NoOcc | AllOccs | ProcessOccs      
+let display_occurrences = ref NoOcc
 let useful_occs = ref []
 
 let display_arrays = ref false
@@ -354,7 +354,7 @@ and display_term t =
 	
 and display_term_paren infix_paren process_paren t =
   let infix_paren' = 
-    if (!display_occurrences) || (List.memq t.t_occ (!useful_occs)) then
+    if (!display_occurrences == AllOccs) || (List.memq t.t_occ (!useful_occs)) then
       begin
 	print_string "{";
 	print_int t.t_occ;
@@ -693,7 +693,7 @@ let rec display_set = function
 (* Only for the oracles front-end *)
 
 let rec display_procasterm t = 
-  if (!display_occurrences) || (List.memq t.t_occ (!useful_occs)) then
+  if (!display_occurrences == AllOccs) || (List.memq t.t_occ (!useful_occs)) then
     begin
       print_string "{";
       print_int t.t_occ;
@@ -1030,7 +1030,7 @@ let occ_space() =
   print_string (String.make (len_num (!Terms.max_occ) + 2) ' ')
 
 let rec display_process indent p = 
-  if (!display_occurrences) || (List.memq p.i_occ (!useful_occs)) then
+  if (!display_occurrences != NoOcc) || (List.memq p.i_occ (!useful_occs)) then
     begin
       print_string (String.make ((len_num (!Terms.max_occ)) - (len_num p.i_occ)) ' ');
       print_string "{";
@@ -1093,7 +1093,7 @@ let rec display_process indent p =
 	end
 
 and display_oprocess indent p =
-  if (!display_occurrences) || (List.memq p.p_occ (!useful_occs)) then
+  if (!display_occurrences != NoOcc) || (List.memq p.p_occ (!useful_occs)) then
     begin
       print_string (String.make ((len_num (!Terms.max_occ)) - (len_num p.p_occ)) ' ');
       print_string "{";

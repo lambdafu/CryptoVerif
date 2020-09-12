@@ -6,13 +6,13 @@ proof {
 insert before "let concatm" "if second(mz) = zero then";
 crypto rom(G);
 show_game occ;
-insert_event bad1 before "return{[0-9]*}({[0-9]*}r_6";
+insert_event bad1 before "return(r_6";
 remove_assign binder mz;
 crypto move_array_xorDow r_6;
 crypto rom(H);
 SArename r';
 remove_assign binder r'_4;
-insert_event bad2 before "return{[0-9]*}({[0-9]*}r_9";
+insert_event bad2 before "return(r_9";
 set debugCryptotransf = 6;
 out_game g1;
 move array r_9

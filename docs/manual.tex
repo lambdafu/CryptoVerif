@@ -2271,6 +2271,17 @@ The program points can then be specified as follows:
   several times, it counts as several matches.)
 
 \end{itemize}
+With \texttt{before}, \texttt{after}, \texttt{before\_nth}, and \texttt{after\_nth},
+the match is performed on a game in which only occurrences of processes are
+displayed, at the beginning of lines. Therefore, the occurrence numbers typically
+do not appear in the regular expression given by the user, provided the
+regular expression does not require explicitly matching at the beginning of the line
+(i.e., the regular expression should not use \texttt{\^}).
+In contrast, with \texttt{at} and \texttt{at\_nth}, the match is performed
+on a game in which all occurrence numbers are displayed. The regular expression needs to match
+at least one occurrence number. Any occurrence number can be matched by
+the regular expression \texttt{\{[0-9]+\}}.
+
 Using an explicit integer to designate a program point is very unstable:
 it changes if the verified protocol is slightly modified, or
 if a new version of CryptoVerif itself is used, which may transform

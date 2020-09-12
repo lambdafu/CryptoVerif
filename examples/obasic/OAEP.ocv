@@ -14,7 +14,7 @@ crypto rom(G);
    or in OD is equal to the argument of G in OT (that is, r_3)
    in fact happen with negligible probability. We will prove that later.
    We insert events to remove that code. *)
-insert_event bad1 before "return{[0-9]*}({[0-9]*}r_5";
+insert_event bad1 before "return(r_5";
 insert_event bad3 164;
 (* After inserting these events, the result of G in OT (that is, r_5)
    is only used in xorDow(concatm(menc, zeroDz), r_5). We can replace 
@@ -61,7 +61,7 @@ crypto rom(H);
    In OH, the argument of H has a negligible probability of being
    equal to the argument of H in OT (r_7). We will prove that later.
    We insert an event [bad2] to remove the code in this case, which returns r_10. *)
-insert_event bad2 before "return{[0-9]*}({[0-9]*}r_10";
+insert_event bad2 before "return(r_10";
 (* After that, r_10 is only used in xorDr(r_3, r_10).
    We can replace this xor with just a random value.
    That allows to perform a global dependency analysis on r_3 (argument of G in OT),

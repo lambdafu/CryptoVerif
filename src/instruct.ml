@@ -937,14 +937,17 @@ let get_occ_of_line p ((regexp_str, ext) as regexp_id) occ_loc n is_max =
       string_handler rest
     with Not_found -> ()
   in
-  Display.display_occurrences := true;
+  Display.display_occurrences :=
+     (match occ_loc with
+     | Before | After -> ProcessOccs
+     | At _ -> AllOccs);
   begin
     try 
       Display.fun_out string_handler (fun () ->
 	Display.display_process p)
     with Stop -> ()
   end;
-  Display.display_occurrences := false;
+  Display.display_occurrences := NoOcc;
   match !state with
   | Looking _ | After ->
       raise(Error("Not enough matches for the regular expression you specified.", ext))
@@ -1743,9 +1746,9 @@ let rec interpret_command interactive state = function
   | CSuccessSimplify(coll_elim) ->
       success_command (Some (List.map (interpret_coll_elim state) coll_elim)) state
   | CShow_game(occ) ->
-      Display.display_occurrences := occ;
+      Display.display_occurrences := if occ then AllOccs else NoOcc;
       Display.display_game_process state.game;
-      Display.display_occurrences := false;
+      Display.display_occurrences := NoOcc;
       state
   | CShow_state ->
       display_state false state;
@@ -1755,9 +1758,9 @@ let rec interpret_command interactive state = function
       state
   | COut_game((s,ext), occ) ->
       default_file_out s ext (fun () ->
-	Display.display_occurrences := occ;
+	Display.display_occurrences := if occ then AllOccs else NoOcc;
 	Display.display_game_process state.game;
-	Display.display_occurrences := false);
+	Display.display_occurrences := NoOcc);
       state
   | COut_state(s,ext) ->
       default_file_out s ext (fun () ->

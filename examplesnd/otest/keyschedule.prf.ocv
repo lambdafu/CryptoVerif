@@ -1,0 +1,272 @@
+type length_t [fixed].
+const Nk: length_t.
+const Nn: length_t.
+const Nh: length_t.
+
+(* Application constants *)
+const app_info_hash: bitstring.
+
+type psk_t [large,fixed].
+const default_psk: psk_t.
+fun psk_to_bitstring(psk_t): bitstring [data].
+const default_psk_hash: bitstring.
+
+const default_pskID: bitstring.
+const default_pskID_hash: bitstring.
+  (* We believe an equation like
+       equation Hash(default_pskID) = default_pskID_hash.
+     is not necessary, because the default psk is only used in modes where
+     the psk is not used and thus a formal link between default_psk and
+     default_pskID is not necessary. *)
+
+type key_t [large,fixed].
+
+type nonce_t [large,fixed].
+expand Xor(
+  nonce_t,   (* the space on which xor operates *)
+  xor,       (* name of the xor function *)
+  nonce_zero (* the bitstring consisting only of zeroes in nonce_t; also used for seq that starts at zero *)
+).
+
+(* TODO revisit those type properties (bounded, large, fixed) *)
+type keypairseed_t [bounded,large].
+type keyseed_t [bounded,large].
+type skey_t [bounded,large].
+type pkey_t [bounded,large].
+type adecap_res_t [bounded,large].
+type kemkey_t [fixed,large]. (* TODO Maybe try the proof with nonuniform. *)
+type kemciph_t [fixed,large].
+type aencap_res_t [fixed,large].
+proba P_outsider_cca.
+proba P_outsider_auth.
+proba P_pk_coll.
+fun kemkey2bitstr(kemkey_t): bitstring [data].
+fun kemciph2bitstr(kemciph_t): bitstring [data].
+
+(** KDF **)
+
+type label_extract_t [fixed].
+const label_psk_id_hash: label_extract_t.
+const label_info_hash: label_extract_t.
+const label_psk_hash: label_extract_t.
+
+type cr_key_t [fixed].
+type cr_output_t [fixed].
+proba P_hashcoll.
+expand CollisionResistant_hash_2(
+  cr_key_t,
+  label_extract_t,
+  bitstring,
+  cr_output_t,
+  ExtractCR,
+  ExtractCR_oracle,
+  P_hashcoll
+).
+
+letfun LabeledExtractCR(cr_key: cr_key_t, label: label_extract_t, input: bitstring) =
+  ExtractCR(cr_key, label, input).
+
+
+type extract_t [fixed,large].
+proba P_PRF_Extract.
+expand PRF_1(
+  kemkey_t,
+  cr_output_t,
+  extract_t,
+  Extract,
+  P_PRF_Extract
+).
+
+letfun LabeledExtractPRF(salt: cr_output_t, IKM: kemkey_t) =
+  (* TODO This swaps the order of parameters compared to the RFC,
+     so we should make sure that HKDF-Extract satisfies Dual-PRF. *)
+  Extract(IKM, salt).
+
+
+proba P_PRF_Expand.
+type expand_t [fixed,large].
+  (* This covers the maximum length of HKDF-Expand's output. For
+     RFC 5869, this is 255*Nh. *)
+expand PRF_1(
+  extract_t,
+  bitstring,
+  expand_t,
+  Expand,
+  P_PRF_Expand
+).
+
+type label_protocol_t [fixed].
+const RFCXXXX: label_protocol_t.
+type label_expand_t [fixed].
+const label_key: label_expand_t.
+const label_nonce: label_expand_t.
+const label_exp: label_expand_t.
+
+(** truncate **)
+def truncate(input_t, output_t, truncate_f) {
+
+  param N.
+
+  fun truncate_f(input_t): output_t.
+
+  (* If we truncate a uniformly distributed random value, 
+     we obtain a uniformly distributed random value *)
+  equiv(truncate(truncate_f))
+    foreach i<=N do h <-R input_t;
+      O_trunc() := return(truncate_f(h))
+    <=(0)=>
+    foreach i<=N do k <-R output_t;
+      O_trunc() := return(k).
+}
+
+(** end of truncate **)
+
+expand truncate(
+  expand_t,
+  nonce_t,
+  truncate_to_Nn
+).
+expand truncate(
+  expand_t,
+  key_t,
+  truncate_to_Nk
+).
+expand truncate(
+  expand_t,
+  extract_t,
+  truncate_to_Nh
+).
+
+fun concat4(length_t, label_protocol_t, label_expand_t, bitstring): bitstring [data].
+  (* The three labels for key, nonce, exp might have different lengths, but
+     the combination length L and length of the label is unique. *)
+
+letfun LabeledExpand(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  let labeledInfo = concat4(L, RFCXXXX, label, info) in
+  Expand(PRK, labeledInfo).
+
+letfun LabeledExpand_Nk(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  truncate_to_Nk(LabeledExpand(PRK, label, info, L)).
+letfun LabeledExpand_Nn(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  truncate_to_Nn(LabeledExpand(PRK, label, info, L)).
+letfun LabeledExpand_Nh(PRK: extract_t, label: label_expand_t, info: bitstring, L: length_t) =
+  truncate_to_Nh(LabeledExpand(PRK, label, info, L)).
+
+(* Encryption Context *)
+
+type mode_t [fixed].
+const mode_base: mode_t.
+const mode_psk: mode_t.
+const mode_auth: mode_t.
+const mode_auth_psk: mode_t.
+
+type two_bytes [fixed].
+const kem_id: two_bytes.
+const kdf_id: two_bytes.
+const aead_id: two_bytes.
+
+fun concat3bytes(two_bytes, two_bytes, two_bytes): bitstring [data].
+fun concat3keysched(mode_t, cr_output_t, cr_output_t): bitstring [data].
+
+
+type keys_t [fixed].
+fun concat(key_t, nonce_t, extract_t): keys_t [data].
+
+equiv
+      new k1: key_t;
+      new k2: nonce_t;
+      new k3: extract_t;
+      Oconcat() := return(concat(k1,k2,k3))
+      <=(0)=>
+      new k: keys_t;
+      Oconcat() := return(k).
+
+letfun KeySchedule(
+    cr_key: cr_key_t,
+    mode: mode_t,
+    shared_secret: kemkey_t,
+    info: bitstring,
+    psk: bitstring,
+    psk_id: bitstring
+  ) =
+
+  let psk_id_hash = LabeledExtractCR(cr_key, label_psk_id_hash, psk_id) in
+  let info_hash = LabeledExtractCR(cr_key, label_info_hash, info) in
+  let key_schedule_context = concat3keysched(mode, psk_id_hash, info_hash) in
+
+  let psk_hash = LabeledExtractCR(cr_key, label_psk_hash, psk) in
+
+  (* label_secret is a constant the protocol uses to separate input domains,
+     and we use LabeledExtractPRF only once.
+     If we already use different functions in this CV model,
+     we can omit the label as the analysis here cannot do anything
+     interesting with it. The same applies to the RFCXXXX label:
+     The protocol uses it everywhere to distinguish itself from
+     _other_ protocols. As we only model this one protocol here,
+     adding RFCXXXX does not anything useful to _this_ analysis. *)
+  (* secret is a reserved keyword in CryptoVerif *)
+  let secrett: extract_t = LabeledExtractPRF(psk_hash, shared_secret) in
+  let key: key_t = LabeledExpand_Nk(secrett, label_key, key_schedule_context, Nk) in
+  let nonce: nonce_t = LabeledExpand_Nn(secrett, label_nonce, key_schedule_context, Nn) in
+  let exporter_secret: extract_t = LabeledExpand_Nh(secrett, label_exp, key_schedule_context, Nh) in
+  concat(key, nonce, exporter_secret).
+
+
+proof {
+  out_game "l01.out.cv";
+  start_from_other_end;
+  out_game "r01.out.cv";
+  start_from_other_end;
+  
+  insert after "Oprf(" "find [unique] l_1 = l <= N suchthat defined(else_br[l], mode_1[l], info_4[l], psk_1[l], pskID[l]) && (mode_1[l] = mode_1) && (info_4[l] = info_4) && (psk_1[l] = psk_1) && (pskID[l] = pskID) then else else_br <- true";
+  out_game "l02.out.cv" occ;
+  insert before_nth 2 "return(concat(" "r_1 <- concat(key, nonce, exporter_secret)";
+(*  insert after_nth 2 "exporter_secret:" "r_1 <- concat(key, nonce, exporter_secret)";*)
+  use_variable "r_1";
+  replace 141 "r_1[l_1]"; (* TODO replace occ number by regex *)
+  all_simplify;
+  crypto prf(Extract);
+  crypto prf(Expand) **;
+  crypto truncate(truncate_to_Nk);
+  crypto truncate(truncate_to_Nn);
+  crypto truncate(truncate_to_Nh);
+  auto
+  (* TODO manually apply the equivalence on concat for more transparency *)
+}
+
+param N.
+
+equivalence
+  Ostart() :=
+    k <-R kemkey_t;
+    cr_key <-R cr_key_t;
+    return(cr_key);
+    (
+      foreach i <= N do (
+        Oprf(mode: mode_t, info: bitstring, psk: bitstring, pskID: bitstring) :=
+          return(KeySchedule(cr_key, mode, k, info, psk, pskID))
+      )
+    )
+
+  Ostart() :=
+    cr_key <-R cr_key_t;
+    return(cr_key);
+    (
+      foreach i <= N do (
+        Oprf(mode: mode_t, info: bitstring, psk: bitstring, pskID: bitstring) :=
+          find[unique] j <= N suchthat
+              defined(mode[j], info[j], psk[j], pskID[j], r[j])
+              && mode[j] = mode
+              && info[j] = info
+              && psk[j] = psk
+              && pskID[j] = pskID then
+            return(r[j])
+          else
+            new r: keys_t; return(r)
+      )
+    )
+
+(* EXPECTED
+All queries proved.
+1.708s (user 1.696s + system 0.012s), max rss 24732K
+END *)

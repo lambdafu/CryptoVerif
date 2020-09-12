@@ -8,9 +8,9 @@ let whole_game = ref Terms.empty_game
 let error occ m =
   let s = Filename.temp_file "error" "out.occ.cv" in
   Display.file_out s Parsing_helper.dummy_ext (fun () ->
-    Display.display_occurrences := true;
+    Display.display_occurrences := AllOccs;
     Display.display_game_process (!whole_game);
-    Display.display_occurrences := false);
+    Display.display_occurrences := NoOcc);
   Parsing_helper.internal_error ("At occurrence "^(string_of_int occ)^", "^m^"\n(Erroneous game output in "^s^")")
 
 (* Invariant 1: single definition; two definitions of the same variable

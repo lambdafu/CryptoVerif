@@ -3,6 +3,12 @@ of the cryptographic protocol verifier.
 
 Version
 
+- When a program point is designated by "before ...", "before_nth ...",
+  "after ...", "after_nth ...", the regular expression is now matched
+  on a process in which only process occurrences are displayed (not
+  term occurrences), so that the regular expression does not contain
+  occurrence numbers. (This change may require that you revise some
+  of these regular expressions.)
 - Display times separately to lighten the display of probability
   formulas.
 - Allow x1, ..., xn:T instead of x1:T, ..., xn:T to lighten type declarations
