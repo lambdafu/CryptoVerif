@@ -3,7 +3,7 @@
 The final round of key confirmation uses authenticated encryption
 (like the other messages). The correspondence property:
 query x:bitstring;
-	event inj:fullB(A, x) ==> inj:fullA(B, x).
+	event inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
 holds.
 *)
 

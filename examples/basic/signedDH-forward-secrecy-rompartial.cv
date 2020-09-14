@@ -20,9 +20,9 @@ type D [large,fixed].
 proof {
 success; (* prove query x:G, y:G, k:D, k':D; event endB(A, B, x, y, k) && endA(A, B, x, y, k') ==> k = k'. *)
 crypto uf_cma_corrupt(sign) rkA;
-success; (* prove query x:G, y:G, k:D; event inj:endB(A, B, x, y, k) ==> inj:endA(A, B, x, y, k) || evAcorrupted. *)
+success; (* prove query x:G, y:G, k:D; event inj-event(endB(A, B, x, y, k)) ==> inj-event(endA(A, B, x, y, k)) || evAcorrupted. *)
 crypto uf_cma_corrupt(sign) rkB;
-success; (* prove query x:G, y:G, k:D; event inj:endA(A, B, x, y, k) ==> inj:beginB(A, B, x, y) || evBcorrupted. *)
+success; (* prove query x:G, y:G, k:D; event inj-event(endA(A, B, x, y, k)) ==> inj-event(beginB(A, B, x, y)) || evBcorrupted. *)
 crypto rom_partial(h) [terms: 516 -> O_1];
 SArename gab;
 remove_assign binder gab_7;

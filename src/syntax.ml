@@ -3820,9 +3820,9 @@ let check_query = function
       let has_inj_before_impl = List.exists (fun (b,_) -> b) t1' in
       let has_inj_after_impl = find_inj t2' in
       if has_inj_before_impl && not has_inj_after_impl then
-	raise_error "In this query, inj: is present before ==> but not after ==>.\ninj: should be present either both before and after ==> or not at all." (snd t1);
+	raise_error "In this query, inj-event is present before ==> but not after ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t1);
       if (not has_inj_before_impl) && has_inj_after_impl then
-	raise_error "In this query, inj: is present after ==> but not before ==>.\ninj: should be present either both before and after ==> or not at all." (snd t2);
+	raise_error "In this query, inj-event is present after ==> but not before ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t2);
       QEventQ(t1',t2', get_qpubvars pub_vars)
 
 let get_impl ()=
