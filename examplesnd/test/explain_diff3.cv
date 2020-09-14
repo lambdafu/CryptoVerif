@@ -1,0 +1,17 @@
+proof {
+success
+}
+
+channel c.
+
+param N.
+
+equivalence
+	!i <= N in(c[], x: bitstring); out(c, x)
+
+	!i <= N in(c, y: bitstring); out(c, y)
+
+(* EXPECTED
+Error: The indices of a channel should be the current replication indices
+xtime: error in child process (status : 2)
+END *)

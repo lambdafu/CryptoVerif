@@ -38,6 +38,12 @@ let ok_arrays_second_branch = ref []
 let has_array_ref b =
   Array_ref.has_array_ref_non_exclude b || Settings.occurs_in_queries b (!whole_game).current_queries
 
+let diff_message ?(show_diff_reason = false) occ1 occ2 msg =
+  if show_diff_reason then
+    print_string ("At "^(string_of_int occ1)^
+		  " in this process and at "^(string_of_int occ2)^
+		  " on the other end, "^msg^".\n")
+    
 (* [merge_var next_f map b b'] records that variable [b] in the first branch to merge
    corresponds to variable [b'] in the second branch. 
    This may be done by adding (b,b') to [map] (for variables without array accesses after merge) 
@@ -45,10 +51,17 @@ let has_array_ref b =
    In case of success, it calls [next_f] with the updated [map].
    In case of failure, it returns false. *)
 
-let merge_var next_f map b b' =
+let merge_var ?show_diff_reason occ occ' next_f map b b' =
   if b == b' then
     next_f map
-  else if (b.btype != b'.btype) || (Settings.occurs_in_queries b (!whole_game).current_queries) || (Settings.occurs_in_queries b' (!whole_game).current_queries) then
+  else if (b.btype != b'.btype) then
+    begin
+      diff_message ?show_diff_reason occ occ'
+	("variables "^(Display.binder_to_string b)^" in this process and "^(Display.binder_to_string b')^" on the other end have different types");
+      false
+    end
+  else if (Settings.occurs_in_queries b (!whole_game).current_queries) || (Settings.occurs_in_queries b' (!whole_game).current_queries) then
+    (* Never happens when show_diff_reason = true *)
     false
   else 
     let ar_b = Array_ref.has_array_ref_non_exclude b in
@@ -59,8 +72,13 @@ let merge_var next_f map b b' =
             (List.memq b' (!ok_arrays_second_branch)) then
       begin
 	(* check no previous entry with b or b' but not both in global_map *)
-        if List.exists (fun (b1, b1') -> (b == b1 && b' != b1') ||
-                                         (b != b1 && b' == b1')) (!global_map) then
+        if List.exists (fun (b1, b1') ->
+	  let result = (b == b1 && b' != b1') || (b != b1 && b' == b1') in
+	  if result then
+	    diff_message ?show_diff_reason occ occ'
+	      ("incoherent renaming: variables "^(Display.binder_to_string b)^" in this process is mapped "^(Display.binder_to_string b')^" on the other end, but "^(Display.binder_to_string b1)^" was already mapped to "^(Display.binder_to_string b1'));
+	  result
+	    ) (!global_map) then
            false
         else
           begin
@@ -81,16 +99,24 @@ let merge_var next_f map b b' =
 	next_f ((Terms.term_from_binder b,Terms.term_from_binder b')::map)
       end
     else 
-      false
+      begin
+	diff_message ?show_diff_reason occ occ'
+	  ("variables "^(Display.binder_to_string b)^" in this process and "^(Display.binder_to_string b')^" on the other end have array references that prevent renaming");
+	false
+      end
 
 (* [merge_var_list] is the same as [merge_var] but for lists of variables *)
 
-let rec merge_var_list next_f map bl bl' =
+let rec merge_var_list ?show_diff_reason occ occ' next_f map bl bl' =
   match bl,bl' with
     [], [] -> next_f map
-  | [], _ | _, [] -> false
+  | [], _ | _, [] ->
+      diff_message ?show_diff_reason occ occ'
+	"find with different number of indices";
+      false
   | ((b,_)::bl, (b',_)::bl') ->
-      merge_var (fun map' -> merge_var_list next_f map' bl bl') map b b'
+      merge_var ?show_diff_reason occ occ'
+	(fun map' -> merge_var_list ?show_diff_reason occ occ' next_f map' bl bl') map b b'
       
 (* [equal_terms_ren map t t'] records in [eq_oblig] the constraint
    that the image by [map] and [global_map] of the term [t] must be 
@@ -102,36 +128,42 @@ let rec merge_var_list next_f map bl bl' =
    [equal_store_arrays].
    [equal_terms_ren] always returns true. *)
 
-let equal_terms_ren map t t' = 
-  if t.t_type != t'.t_type then false else
-  begin
-    List.iter (fun (t1,t1') ->
-      match t1.t_desc with
-	Var(b,_) -> b.link <- TLink t1'
-      | ReplIndex b -> b.ri_link <- TLink t1'
-      | _ -> Parsing_helper.internal_error "Mergebranches.equal_terms_ren: map should contain only Var/ReplIndex") map;
-    let mapped_t = Terms.copy_term Terms.Links_RI_Vars t in
-    List.iter (fun (t1,t1') ->
-      match t1.t_desc with
-	Var(b,_) -> b.link <- NoLink
-      | ReplIndex b -> b.ri_link <- NoLink
-      | _ -> Parsing_helper.internal_error "Mergebranches.equal_terms_ren: map should contain only Var/ReplIndex") map;
-  (* We test the equality of processes by first testing that
-     they have the same structure, and collecting all needed 
-     equalities of terms in eq_oblig. When the processes have
-     the same structure, we will later verify that the terms are
-     indeed equal. This is because testing equality of terms
-     is more costly. *)
-    eq_oblig := (mapped_t, t') :: (!eq_oblig);
-    true
-  end
+let equal_terms_ren ?show_diff_reason map t t' = 
+  if t.t_type != t'.t_type then
+    begin
+      diff_message ?show_diff_reason t.t_occ t'.t_occ
+	"terms have different types";
+      false
+    end
+  else
+    begin
+      List.iter (fun (t1,t1') ->
+	match t1.t_desc with
+	  Var(b,_) -> b.link <- TLink t1'
+	| ReplIndex b -> b.ri_link <- TLink t1'
+	| _ -> Parsing_helper.internal_error "Mergebranches.equal_terms_ren: map should contain only Var/ReplIndex") map;
+      let mapped_t = Terms.copy_term Terms.Links_RI_Vars t in
+      List.iter (fun (t1,t1') ->
+	match t1.t_desc with
+	  Var(b,_) -> b.link <- NoLink
+	| ReplIndex b -> b.ri_link <- NoLink
+	| _ -> Parsing_helper.internal_error "Mergebranches.equal_terms_ren: map should contain only Var/ReplIndex") map;
+      (* We test the equality of processes by first testing that
+	 they have the same structure, and collecting all needed 
+	 equalities of terms in eq_oblig. When the processes have
+	 the same structure, we will later verify that the terms are
+	 indeed equal. This is because testing equality of terms
+	 is more costly. *)
+      eq_oblig := (t.t_occ, mapped_t, t'.t_occ, t') :: (!eq_oblig);
+      true
+    end
 
 
 (* [eq_deflist map dl dl'] records in [eq_oblig_def_list] the constraint
    that the image by [map] and [global_map] of the defined condition [dl] must be 
    equal to [dl'], similarly to [equal_terms_ren] above.  *)
 
-let eq_deflist map dl dl' = 
+let eq_deflist map occ dl occ' dl' = 
   begin
     List.iter (fun (t1,t1') ->
       match t1.t_desc with
@@ -150,7 +182,7 @@ let eq_deflist map dl dl' =
      the same structure, we will later verify that the def lists are
      indeed equal. This is because testing equality of terms
      is more costly. *)
-    eq_oblig_def_list := (mapped_dl, dl') :: (!eq_oblig_def_list);
+    eq_oblig_def_list := (occ, mapped_dl, occ', dl') :: (!eq_oblig_def_list);
     true
   end
 
@@ -165,15 +197,23 @@ let eq_deflist map dl dl' =
    equal to [pat']. The constraints needed to have equality
    are collected in [eq_oblig] and [eq_oblig_def_list]. *)
 
-let rec equal_pat_ren map map_ref pat pat' =
+let rec equal_pat_ren ?show_diff_reason occ occ' map map_ref pat pat' =
   match pat, pat' with
     PatVar b, PatVar b' ->
-      merge_var (fun map' -> map_ref := map'; true) (!map_ref) b b'
+      merge_var ?show_diff_reason occ occ' (fun map' -> map_ref := map'; true) (!map_ref) b b'
   | PatTuple(f,l), PatTuple(f',l') ->
-      (f == f') && (List.for_all2 (equal_pat_ren map map_ref) l l')
+      if f != f' then
+	begin
+	  diff_message ?show_diff_reason occ occ' "patterns have different function symbols";
+	  false
+	end
+      else
+	List.for_all2 (equal_pat_ren ?show_diff_reason occ occ' map map_ref) l l'
   | PatEqual t, PatEqual t' -> 
-      equal_terms_ren map t t' 
-  | _ -> false
+      equal_terms_ren ?show_diff_reason map t t' 
+  | _ ->
+      diff_message ?show_diff_reason occ occ' "patterns do not match";
+      false
 
 (* [equal_find_cond map t t'] records that the image by
    by [map] and [global_map] of the term [t] must be equal to
@@ -184,101 +224,170 @@ let rec equal_pat_ren map map_ref pat pat' =
    [equal_process] and [equal_oprocess] are similar, for
    input and output processes respectively. *)
 
-let rec equal_find_cond map t t' =
+let same_nb_branch ?show_diff_reason occ occ' l0 l0' =
+  if List.length l0 == List.length l0' then
+    true
+  else
+    begin
+      diff_message ?show_diff_reason occ occ' "finds have different numbers of branches";
+      false
+    end
+
+let same_unique ?show_diff_reason occ occ' l0 find_info l0' find_info' =
+  if (Unique.is_unique l0 find_info = Unique.is_unique l0' find_info')
+     (* TO DO change this test if find_info structure becomes richer *)
+  then true
+  else
+    begin
+      diff_message ?show_diff_reason occ occ' "find is unique on one side only";
+      false
+    end
+
+let same_nb_index ?show_diff_reason occ occ' bl bl' =
+  if List.length bl == List.length bl' then
+    true
+  else
+    begin
+      diff_message ?show_diff_reason occ occ' "some find branches have different numbers of indices";
+      false
+    end
+      
+let rec equal_find_cond ?show_diff_reason map t t' =
   match t.t_desc, t'.t_desc with
     (Var _ | FunApp _ | ReplIndex _), (Var _ | FunApp _ | ReplIndex _) -> 
-      equal_terms_ren map t t'
+      equal_terms_ren ?show_diff_reason map t t'
   | TestE(t1,t2,t3), TestE(t1',t2',t3') ->
-      (equal_terms_ren map t1 t1') &&
-      (equal_find_cond map t2 t2') &&
-      (equal_find_cond map t3 t3')
+      (equal_terms_ren ?show_diff_reason map t1 t1') &&
+      (equal_find_cond ?show_diff_reason map t2 t2') &&
+      (equal_find_cond ?show_diff_reason map t3 t3')
   | FindE(l0,t3,find_info), FindE(l0',t3',find_info') ->
-      (equal_find_cond map t3 t3') && (List.length l0 == List.length l0') &&
-      (Unique.is_unique l0 find_info = Unique.is_unique l0' find_info') (* TO DO change this test if find_info structure becomes richer *) &&
+      (equal_find_cond ?show_diff_reason map t3 t3') &&
+      (same_nb_branch ?show_diff_reason t.t_occ t'.t_occ l0 l0') &&
+      (same_unique ?show_diff_reason t.t_occ t'.t_occ l0 find_info l0' find_info') &&
       (List.for_all2 (fun (bl, def_list, t, t1)
 	  (bl', def_list', t', t1') ->
 	    (* I don't check here that the types of the indices are the same, but
 	       this is checked by merge_var_list below. *)
-	    (List.length bl == List.length bl') &&
+	    (same_nb_index ?show_diff_reason t.t_occ t'.t_occ bl bl') &&
 	    let map' = (List.map2 (fun (_, b) (_,b') -> (Terms.term_from_repl_index b, Terms.term_from_repl_index b')) bl bl') @ map in
-	    (eq_deflist map' def_list def_list') &&
-	    (equal_find_cond map' t t') &&
-	    (merge_var_list (fun map'' -> equal_find_cond map'' t1 t1') map bl bl')
+	    (eq_deflist map' t.t_occ def_list t'.t_occ def_list') &&
+	    (equal_find_cond ?show_diff_reason map' t t') &&
+	    (merge_var_list ?show_diff_reason t.t_occ t'.t_occ
+	       (fun map'' -> equal_find_cond ?show_diff_reason map'' t1 t1') map bl bl')
 	      ) l0 l0')
   | LetE(pat,t1,t2,topt),LetE(pat',t1',t2',topt') ->
-      (equal_terms_ren map t1 t1') &&
+      (equal_terms_ren ?show_diff_reason map t1 t1') &&
       (match topt, topt' with
 	None, None -> true
-      |	Some t3, Some t3' -> equal_find_cond map t3 t3'
-      |	_ -> false) &&
+      |	Some t3, Some t3' -> equal_find_cond map ?show_diff_reason t3 t3'
+      |	_ ->
+	  diff_message ?show_diff_reason t.t_occ t'.t_occ "else branch of let present on one side only";
+	  false) &&
       (let map_ref = ref map in
-      let eq_pat = equal_pat_ren map map_ref pat pat' in
-      eq_pat && (equal_find_cond (!map_ref) t2 t2'))
+      let eq_pat = equal_pat_ren ?show_diff_reason t.t_occ t'.t_occ map map_ref pat pat' in
+      eq_pat && (equal_find_cond ?show_diff_reason (!map_ref) t2 t2'))
   | ResE(b,t), ResE(b',t') ->
-      merge_var (fun map' -> equal_find_cond map' t t') map b b'
+      merge_var ?show_diff_reason t.t_occ t'.t_occ
+	(fun map' -> equal_find_cond ?show_diff_reason map' t t') map b b'
   | (EventAbortE _, EventAbortE _) | (EventE _, EventE _) ->
       Parsing_helper.internal_error "Events should not occur in find conditions"
   | (GetE _, GetE _) | (InsertE _, InsertE _) ->
       Parsing_helper.internal_error "Get/Insert should not occur in Transf_merge.equal_find_cond"
-  | _ -> false
+  | _ ->
+      diff_message ?show_diff_reason t.t_occ t'.t_occ "terms differ";
+      false
 
-let rec equal_process map p p' =
+let same_channel ?show_diff_reason occ occ' map (c,tl) (c',tl') =
+  if c != c' then
+    begin
+      diff_message ?show_diff_reason occ occ' "channels differ";
+      false
+    end
+  else if (List.length tl != List.length tl') then
+    begin
+      diff_message ?show_diff_reason occ occ' "channels with different numbers of indices";
+      false
+    end
+  else
+    List.for_all2 (equal_terms_ren ?show_diff_reason map) tl tl'
+	
+let rec equal_process ?show_diff_reason map p p' =
   match p.i_desc, p'.i_desc with
     Nil, Nil -> true
   | Par(p1,p2), Par(p1',p2') -> 
-      (equal_process map p1 p1') && (equal_process map p2 p2')
-  | Repl(b,p), Repl(b',p') -> 
+      (equal_process ?show_diff_reason map p1 p1') &&
+      (equal_process ?show_diff_reason map p2 p2')
+  | Repl(b,p1), Repl(b',p1') -> 
       if b == b' then
-	equal_process map p p'
+	equal_process ?show_diff_reason map p1 p1'
+      else if b.ri_type != b'.ri_type then
+	begin
+	  diff_message ?show_diff_reason p.i_occ p'.i_occ "replications with different bounds";
+	  false
+	end
       else
-	(b.ri_type == b'.ri_type) && (equal_process ((Terms.term_from_repl_index b, Terms.term_from_repl_index b')::map) p p')
-  | Input((c,tl), pat, p), Input((c',tl'), pat', p') ->
-      (c == c') && 
-      (Terms.equal_lists (equal_terms_ren map) tl tl') &&
+	equal_process ?show_diff_reason ((Terms.term_from_repl_index b, Terms.term_from_repl_index b')::map) p1 p1'
+  | Input(ch, pat, p1), Input(ch', pat', p1') ->
+      (same_channel ?show_diff_reason p.i_occ p'.i_occ map ch ch') &&
       (let map_ref = ref map in
-      let eq_pat = equal_pat_ren map map_ref pat pat' in
-      eq_pat && (equal_oprocess (!map_ref) p p'))
-  | _ -> false
+      let eq_pat = equal_pat_ren ?show_diff_reason p.i_occ p'.i_occ map map_ref pat pat' in
+      eq_pat && (equal_oprocess ?show_diff_reason (!map_ref) p1 p1'))
+  | _ ->
+      diff_message ?show_diff_reason p.i_occ p'.i_occ "processes differ";
+      false
 
-and equal_oprocess map p p' =
+and equal_oprocess ?show_diff_reason map p p' =
   match p.p_desc, p'.p_desc with
     Yield, Yield -> true
-  | EventAbort f, EventAbort f' -> f == f'
-  | Restr(b,p), Restr(b',p') ->
-      merge_var (fun map' -> equal_oprocess map' p p') map b b'
+  | EventAbort f, EventAbort f' ->
+      if f != f' then
+	begin
+	  diff_message ?show_diff_reason p.p_occ p'.p_occ "events with different names";
+	  false
+	end
+      else
+	true
+  | Restr(b,p1), Restr(b',p1') ->
+      merge_var ?show_diff_reason p.p_occ p'.p_occ
+	(fun map' -> equal_oprocess ?show_diff_reason map' p1 p1') map b b'
   | Test(t,p1,p2), Test(t',p1',p2') ->
-      (equal_terms_ren map t t') &&
-      (equal_oprocess map p1 p1') &&
-      (equal_oprocess map p2 p2')
+      (equal_terms_ren ?show_diff_reason map t t') &&
+      (equal_oprocess ?show_diff_reason map p1 p1') &&
+      (equal_oprocess ?show_diff_reason map p2 p2')
   | Let(pat, t, p1, p2), Let(pat', t', p1', p2') ->
-      (equal_terms_ren map t t') &&
-      (equal_oprocess map p2 p2') &&
+      (equal_terms_ren ?show_diff_reason map t t') &&
+      (equal_oprocess ?show_diff_reason map p2 p2') &&
       (let map_ref = ref map in
-      let eq_pat = equal_pat_ren map map_ref pat pat' in
-       eq_pat && (equal_oprocess (!map_ref) p1 p1'))
-  | Output((c,tl),t2,p), Output((c',tl'),t2',p') ->
-      (c == c') && 
-      (Terms.equal_lists (equal_terms_ren map) tl tl') &&
-      (equal_terms_ren map t2 t2') &&
-      (equal_process map p p')
+      let eq_pat = equal_pat_ren ?show_diff_reason p.p_occ p'.p_occ map map_ref pat pat' in
+       eq_pat && (equal_oprocess ?show_diff_reason (!map_ref) p1 p1'))
+  | Output(ch,t2,p1), Output(ch',t2',p1') ->
+      (same_channel ?show_diff_reason p.p_occ p'.p_occ map ch ch') &&
+      (equal_terms_ren ?show_diff_reason map t2 t2') &&
+      (equal_process ?show_diff_reason map p1 p1')
   | EventP(t,p), EventP(t',p') ->
-      (equal_terms_ren map t t') &&
-      (equal_oprocess map p p')
-  | Find(l,p, find_info), Find(l',p', find_info') ->
-      (equal_oprocess map p p') && (List.length l == List.length l') &&
-      (Unique.is_unique l find_info = Unique.is_unique l find_info') (* TO DO change this test if find_info structure becomes richer *) &&
+      (equal_terms_ren ?show_diff_reason map t t') &&
+      (equal_oprocess ?show_diff_reason map p p')
+  | Find(l,p1, find_info), Find(l',p1', find_info') ->
+      (equal_oprocess ?show_diff_reason map p1 p1') &&
+      (same_nb_branch ?show_diff_reason p.p_occ p'.p_occ l l') &&
+      (same_unique ?show_diff_reason p.p_occ p'.p_occ l find_info l' find_info') &&
       (List.for_all2 (fun 
 	(bl, def_list, t, p1)
 	  (bl', def_list', t', p1') ->
 	    (* I don't check here that the types of the indices are the same, but
 	       this is checked by merge_var_list below. *)
-	    (List.length bl == List.length bl') &&
+	    (same_nb_index ?show_diff_reason p.p_occ p'.p_occ bl bl') &&
 	    let map' = (List.map2 (fun (_, b) (_,b') -> (Terms.term_from_repl_index b, Terms.term_from_repl_index b')) bl bl') @ map in
-	    (eq_deflist map' def_list def_list') &&
-	    (equal_find_cond map' t t') &&
-	    (merge_var_list (fun map'' -> equal_oprocess map'' p1 p1') map bl bl')
+	    (eq_deflist map' p.p_occ def_list p'.p_occ def_list') &&
+	    (equal_find_cond ?show_diff_reason map' t t') &&
+	    (merge_var_list ?show_diff_reason p.p_occ p'.p_occ
+	       (fun map'' -> equal_oprocess ?show_diff_reason map'' p1 p1') map bl bl')
 	      ) l l')
-  | _ -> false
+  | (Get _, Get _) | (Insert _, Insert _) ->
+      Parsing_helper.internal_error "Get/Insert should not occur in Transf_merge.equal_oprocess"
+  | _ ->
+      diff_message ?show_diff_reason p.p_occ p'.p_occ "processes differ";
+      false
 
 
 (* [collect_def_vars_term def_vars t] collects variables defined in a term [t]
@@ -948,7 +1057,7 @@ let rename_def_list map def_list =
 
 
 
-let equal_store_arrays eq_test true_facts p p' =
+let equal_store_arrays ?show_diff_reason eq_test true_facts p p' =
   eq_oblig := [];
   eq_oblig_def_list := [];
   global_map := [];
@@ -969,8 +1078,22 @@ let equal_store_arrays eq_test true_facts p p' =
 	let (subst, facts, elsefind) = true_facts in
 	let true_facts' = simplif_add_list (subst, [], []) facts in
 	let r = 
-	  List.for_all (fun (t,t') -> simp_equal_terms true_facts' (rename (!global_map) t) t') (!eq_oblig) &&
-	  List.for_all (fun (dl,dl') -> simp_equal_def_list true_facts' (rename_def_list (!global_map) dl) dl') (!eq_oblig_def_list) 
+	  List.for_all (fun (occ,t,occ',t') ->
+	    if simp_equal_terms true_facts' (rename (!global_map) t) t' then
+	      true
+	    else
+	      begin
+		diff_message ?show_diff_reason occ occ' "terms cannot be proved equal";
+		false
+	      end) (!eq_oblig) &&
+	  List.for_all (fun (occ,dl,occ',dl') ->
+	    if simp_equal_def_list true_facts' (rename_def_list (!global_map) dl) dl' then
+	      true
+	    else
+	      begin
+		diff_message ?show_diff_reason occ occ' "defined conditions differ in a branch of find";
+		false
+	      end) (!eq_oblig_def_list) 
 	in
 	all_branches_var_list := (!cur_branch_var_list) :: (!all_branches_var_list);
 	cur_branch_var_list := [];
@@ -2266,10 +2389,10 @@ let equal_games g1 g2 =
   Proba.reset [] g1;
   Depanal.term_collisions := [];
   let r = 
-    equal_store_arrays (fun p p' ->
+    equal_store_arrays ~show_diff_reason:true (fun p p' ->
         ok_arrays_first_branch := collect_good_vars_fullprocess p;
         ok_arrays_second_branch := collect_good_vars_fullprocess p';
-        equal_process [] p p') Terms.simp_facts_id g1_proc g2_proc
+        equal_process ~show_diff_reason:true [] p p') Terms.simp_facts_id g1_proc g2_proc
   in
   let proba = Depanal.final_add_proba () in
   Depanal.term_collisions := [];

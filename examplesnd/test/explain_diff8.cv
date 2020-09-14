@@ -1,0 +1,21 @@
+proof {
+show_game occ;
+success
+}
+
+fun f(bitstring): bitstring.
+
+channel c.
+
+param N, N2.
+
+equivalence
+	!i <= N in(c, x: bitstring); out(c, ()); !N2 in(c, z: bitstring); find j <= N suchthat defined(x[j]) && z = x[j] then out(c, x)
+
+	!i <= N in(c, y: bitstring); out(c, ()); !N2 in(c, z: bitstring); find j <= N2 suchthat defined(z[j]) && y = z[j] then out(c, y)
+
+
+(* EXPECTED
+RESULT Could not prove indistinguishability between game 1 and game 2.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)

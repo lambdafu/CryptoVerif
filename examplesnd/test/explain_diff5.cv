@@ -1,0 +1,20 @@
+proof {
+show_game occ;
+success
+}
+
+fun f(bitstring): bitstring.
+
+channel c.
+
+param N.
+
+equivalence
+	!i <= N in(c, x: bitstring); let x = f(f(x)) in out(c, x)
+
+	!i <= N in(c, y: bitstring); let y = f(y) in out(c, y)
+
+(* EXPECTED
+RESULT Could not prove indistinguishability between game 1 and game 2.
+0.160s (user 0.152s + system 0.008s), max rss 42736K
+END *)
