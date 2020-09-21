@@ -896,8 +896,9 @@ let get_occ_of_line p ((regexp_str, ext) as regexp_id) occ_loc n is_max =
 		| After ->
 		    state := After
 		| At _ ->
+		    let matched_string = Str.matched_string line in
 		    check_no_further_match is_max (match_pos+1) line;
-		    state := Found (Str.matched_string line);
+		    state := Found matched_string;
 		    if not is_max then raise Stop
 	      end
 	    else
