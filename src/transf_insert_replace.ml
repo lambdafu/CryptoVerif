@@ -1104,26 +1104,28 @@ let insert_instruct occ ext_o s ext_s g =
     begin
       Settings.changed := true;
       let g' = Terms.build_transformed_game p' g in
+      let (g'', proba', done_transfos') = Transf_auto_sa_rename.auto_sa_rename g' in
+      let (g''', proba'', done_transfos'') = 
+	if !has_unique_to_prove then
+	  begin
+	    Terms.move_occ_game g'';
+	    prove_unique g'' 
+	  end
+	else
+	  (g'', [], [])
+      in
       (* Add the queries for the inserted event_abort *)
       let q_new, proba = List.split
 	  (List.map (fun f ->
 	    let pub_vars = Settings.get_public_vars g.current_queries in
 	    let query = Terms.build_event_query f pub_vars in
 	    let q_proof = ref ToProve in
-	    ((query, g'), q_proof), (SetEvent(f, g', pub_vars, q_proof))
+	    ((query, g'''), q_proof), (SetEvent(f, g''', pub_vars, q_proof))
 	      ) queries_to_add)
       in
-      g'.current_queries <- q_new @
+      g'''.current_queries <- q_new @
 	 (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
-      let (g'', proba', done_transfos') = Transf_auto_sa_rename.auto_sa_rename g' in
-      if !has_unique_to_prove then
-	begin
-	  Terms.move_occ_game g'';
-	  let (g''', proba'', done_transfos'') = prove_unique g'' in
-	  (g''', proba'' @ proba' @ proba, done_transfos'' @ done_transfos' @  [DInsertInstruct(s, occ)])
-	end
-      else
-	(g'', proba' @ proba, done_transfos' @ [DInsertInstruct(s, occ)])
+      (g''', proba'' @ proba' @ proba, done_transfos'' @ done_transfos' @  [DInsertInstruct(s, occ)])
     end
      
 (**** Replace a term with an equal term ****)
