@@ -169,13 +169,13 @@ let eq_deflist map occ dl occ' dl' =
       match t1.t_desc with
 	Var(b,_) -> b.link <- TLink t1'
       | ReplIndex b -> b.ri_link <- TLink t1'
-      | _ -> Parsing_helper.internal_error "Mergebranches.equal_terms_ren: map should contain only Var/ReplIndex") map;
+      | _ -> Parsing_helper.internal_error "Mergebranches.eq_deflist: map should contain only Var/ReplIndex") map;
     let mapped_dl = Terms.copy_def_list Terms.Links_RI_Vars dl in
     List.iter (fun (t1,t1') ->
       match t1.t_desc with
 	Var(b,_) -> b.link <- NoLink
       | ReplIndex b -> b.ri_link <- NoLink
-      | _ -> Parsing_helper.internal_error "Mergebranches.equal_terms_ren: map should contain only Var/ReplIndex") map;
+      | _ -> Parsing_helper.internal_error "Mergebranches.eq_deflist: map should contain only Var/ReplIndex") map;
   (* We test the equality of processes by first testing that
      they have the same structure, and collecting all needed 
      equalities of def lists in eq_oblig_def_list. When the processes have

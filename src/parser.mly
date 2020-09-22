@@ -162,6 +162,7 @@ let return_channel = (dummy_channel, None)
 %token FOCUS
 %token TAG
 %token ASSUME
+%token GUESS
       
 /* Precedence (from low to high) and associativities */
 %left BAR
@@ -498,7 +499,11 @@ proofcommand:
     { CFocus($2) }
 |   UNDO FOCUS
     { CUndoFocus(parse_extent()) }
-
+|   GUESS idst
+    { CGuess(CGuessId $2) }
+|   GUESS occ
+    { CGuess(CGuessOcc($2, parse_extent())) }
+    
 special_args_opt:
     SPECIAL LPAREN special_args RPAREN
     { $3 }

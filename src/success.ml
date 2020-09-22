@@ -631,7 +631,7 @@ let rec check_query_list collector event_accu state = function
 	  if res then
 	    begin
 	      (* The query is proved *)
-              poptref := Proved(proba, state);
+              poptref := Proved(CstProba proba, state);
 	      ((a,proba)::l', b)
 	    end
 	  else 
@@ -651,28 +651,20 @@ let rec check_query_list collector event_accu state = function
    [update_full_proof] sets [poptref] to [proba] when the probability
    of these events has also been bounded. *)
 
-let is_full_proba = function
-  | SetProba _ | SetAssume -> true
-  | SetEvent(f,g,pub_vars, poptref) ->
-      match !poptref with
-      | Proved _ -> true
-      |	Inactive | ToProve -> false
-
 let rec update_full_proof state =
   match state.prev_state with
     None -> ()
   | Some(_, proba, _, s') ->
-      if List.for_all is_full_proba proba then
+      if List.for_all Display.is_full_proba proba then
 	begin
 	  (* Transfer proved queries from [state] to the previous state [s'] *)
 	  List.iter (fun (q, poptref) ->
 	    if !poptref = ToProve then
 	      let poptref' = List.assq q state.game.current_queries in
 	      match !poptref' with
-	      | Proved(proba, state') ->
-		  if not (List.for_all is_full_proba proba) then
-		    Parsing_helper.internal_error "Final success proba should not contain events";
-		  poptref := !poptref'
+	      | Proved(proba_info, state') ->
+		  if Display.is_full_proba_info proba_info then
+		    poptref := !poptref'
 	      | _ -> ()
 		  ) s'.game.current_queries;
 	  update_full_proof s'

@@ -206,6 +206,10 @@ type peqname =
 type allowed_coll_t = 
   | Allowed_Coll_Asympt of ((ident * int) list * ident option) list
   | Allowed_Coll_Exact of ident
+
+type guess_arg_t =
+  | CGuessId of ident
+  | CGuessOcc of pocc * Parsing_helper.extent
 	
 type command =
     CInteractive of Parsing_helper.extent
@@ -246,6 +250,7 @@ type command =
   | CUndoFocus of Parsing_helper.extent
   | CTag of ident
   | CUndoTag of ident
+  | CGuess of guess_arg_t
 	
 (* Declarations *)
 

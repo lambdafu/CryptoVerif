@@ -396,23 +396,33 @@ and game =
       mutable game_number : int;
       mutable current_queries : cur_queries_t
 	(* [current_queries] contains, for each query:
-	   [(query, game), proof_ref, proof] where
+	   [(query, game), ref proof] where
 	   the query [query] should be proved in game [game],
 	   [proof = ToProve] when it is not proved yet;
 	   [proof = Inactive] when a [focus] command indicated not 
 	   to focus on this query (it is left to proof in another branch).
-	   [proof = Proved(proba, state)] when it is proved up to probability [proba]
-	   using the sequence of games [state].
-	   However, the probability [proba] may depend on the probability of events
-	   introduced during the proof. 
-	   [proof_ref] is set to [proof] when the probability of all these events
-	   has been bounded. Otherwise, [!proof_ref = ToProve]. *)
+	   [proof = Proved(proba_info, state)] when it is proved using the sequence of games [state],
+	   and [proba_info] defines the probability that query is broken in the last game of [state].
+	   Hence, the probability of breaking the initial query [query] is the sum of all 
+	   probability differences on the sequence from [game] to the final game of [state]
+	   plus [proba_info].
+	   However, this probability may depend on the probability of events
+	   introduced during the proof (which may not be bounded yet).
+	   [proba_info] can be either a constant probability [CstProba proba]
+	   or [MulQueryProba(N, (q,g), proof_ref)], which means [N] times the probability
+	   of breaking [q] in game [g]; [proof_ref] is the proof information for
+	   query [q]. This case is used by the transformation "guess", which guesses 
+	   the tested session. *)
     }
 
 and cur_queries_t = ((query * game) * proof_t ref) list
+
+and proba_info =
+  | CstProba of setf list
+  | MulQueryProba of param * (query * game) * proof_t ref
       
 and proof_t =
-  | Proved of setf list * state
+  | Proved of proba_info * state
   | ToProve
   | Inactive
 
@@ -542,6 +552,10 @@ and crypto_transf_user_info =
     VarList of binder list * bool (* bool is true when the list ends with "."
 				    no other variable should be added by the transformation in this case *)
   | Detailed of var_mapping option * term_mapping option
+
+and guess_arg_t =
+  | GuessRepl of repl_index * Parsing_helper.extent
+  | GuessOcc of int * Parsing_helper.extent
 	
 and instruct =
   | ExpandGetInsert
@@ -561,6 +575,7 @@ and instruct =
   | MergeBranches
   | Proof of ((query * game) * setf list) list
   | IFocus of query list
+  | Guess of guess_arg_t
 	
 and ins_updater = (instruct -> instruct list) option
 
@@ -629,6 +644,7 @@ and detailed_instruct =
   | DMergeArrays of (binder * Parsing_helper.extent) list list * merge_mode
   | DMergeBranches of process * process list
   | DMergeBranchesE of term * term list
+  | DGuess of guess_arg_t
 
 (* The type of game transformations: they take as input a game
 and return a triple (transformed game, probability difference,

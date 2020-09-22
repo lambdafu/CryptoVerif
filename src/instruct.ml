@@ -92,7 +92,7 @@ let sa_rename_ins_updater b bl = function
      RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
-     MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) | IFocus _) as x -> [x]
+     MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) | IFocus _ | Guess _) as x -> [x]
   | RemoveAssign (Binders l) ->
       [RemoveAssign (Binders (replace_list b bl l))]
   | UseVariable l ->
@@ -150,7 +150,8 @@ let compos_transf f (g, proba, done_ins) =
   let (g', proba', done_ins') = f g in
   (g', proba' @ proba, done_ins' @ done_ins)
 
-let execute g ins =
+let execute state ins =
+  let g = state.game in
   let (g', proba, done_ins) = 
     match ins with
       ExpandGetInsert -> 
@@ -175,6 +176,8 @@ let execute g ins =
 	Transf_merge.merge_arrays bll m g
     | MergeBranches ->
 	Transf_merge.merge_branches g
+    | Guess(arg) ->
+	Transf_guess.guess_session arg state g
     | CryptoTransf _ | Proof _ | IFocus _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
@@ -187,7 +190,7 @@ let execute_state_basic state i =
   print_string "Doing ";
   Display.display_instruct i;
   print_string "... "; flush stdout;
-  let (g', proba, done_ins, ins_update) = execute state.game i in
+  let (g', proba, done_ins, ins_update) = execute state i in
   if !Settings.changed then
     begin
       print_string "Done.";
@@ -251,7 +254,7 @@ let rec execute_state state = function
       Display.display_instruct i;
       print_string "... "; flush stdout;
       let rec iterate i iter state =
-	let (g', proba, done_ins, ins_updater) = execute state.game i in
+	let (g', proba, done_ins, ins_updater) = execute state i in
 	if !Settings.debug_instruct then
 	  begin
 	    print_string " Resulting game after one simplification pass:\n";
@@ -660,7 +663,7 @@ let display_state final state =
       begin
 	List.iter (function 
 	  | (AbsentQuery, g), poptref -> 
-	      poptref := Proved([], state)
+	      poptref := Proved(CstProba [], state)
 	  | q -> ()) eq_queries;
 	Success.update_full_proof state;
 	{ game = state.game;
@@ -1125,7 +1128,58 @@ let find_binder binders ((s,ext) as id) =
   match found_ids with
   | [b] -> b
   | _ -> raise (Error("Regular expression " ^ s ^ " matches several identifiers", ext))
-      
+
+let add_ri accu b =
+  let s = Display.repl_index_to_string b in
+  if not (Hashtbl.mem accu s) then
+    Hashtbl.add accu s b
+
+let rec find_repl_indices_rec accu p =
+  match p.i_desc with
+    Nil -> ()
+  | Par(p1,p2) -> 
+      find_repl_indices_rec accu p1;
+      find_repl_indices_rec accu p2
+  | Repl(b,p) ->
+      add_ri accu b; 
+      find_repl_indices_rec accu p
+  | Input((c, tl),pat,p) ->
+      find_repl_indices_reco accu p
+
+and find_repl_indices_reco accu p =
+  match p.p_desc with
+    Yield | EventAbort _ -> ()
+  | Restr(b,p) -> 
+      find_repl_indices_reco accu p
+  | Test(t,p1,p2) ->
+      find_repl_indices_reco accu p1;
+      find_repl_indices_reco accu p2
+  | Find(l0,p2,_) ->
+      List.iter (fun (bl,def_list,t,p1) ->
+	find_repl_indices_reco accu p1) l0;
+      find_repl_indices_reco accu p2
+  | Output((c, tl),t2,p) ->
+      find_repl_indices_rec accu p
+  | Let(pat, t, p1, p2) ->
+      find_repl_indices_reco accu p1;
+      find_repl_indices_reco accu p2
+  | EventP(t,p) ->
+      find_repl_indices_reco accu p
+  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+
+let find_repl_indices game =
+  let p = Terms.get_process game in
+  let accu = Hashtbl.create 7 in
+  find_repl_indices_rec accu p;
+  accu 
+
+let find_repl_index repl_indices (id,ext) =
+  try
+    Hashtbl.find repl_indices id
+  with Not_found ->
+    raise (Error("Replication index "^id^" not found", ext))
+    
+	
 let rec find_funsymb f t =
   match t.t_desc with
     Var(b,l) -> List.exists (find_funsymb f) l
@@ -1583,11 +1637,11 @@ let success_command do_simplify state =
   else
     begin
       print_string "Sorry, the following queries remain unproved:\n";
-      List.iter (fun ((a, _) as q) ->
+      List.iter (fun (((a,_), _) as q) ->
 	if Settings.get_query_status q == ToProve then
 	  begin
 	    print_string "- ";
-	    Display.display_query a;
+	    Display.display_query3 a;
 	    print_newline()
 	  end
 	    ) state'.game.current_queries;
@@ -1881,6 +1935,17 @@ let rec interpret_command interactive state = function
       state
   | CUndoTag(s,ext) ->
       undo_tag s ext state
+  | CGuess(arg) ->
+      let interpreted_arg =
+	match arg with
+	| CGuessId(id) ->
+	    let repl_indices = find_repl_indices state.game in
+	    GuessRepl(find_repl_index repl_indices id, snd id)
+	| CGuessOcc(occ_cmd, ext_o) ->
+	    let occ = interpret_occ state occ_cmd in
+	    GuessOcc(occ, ext_o)
+      in
+      execute_display_advise (Guess interpreted_arg) state
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with

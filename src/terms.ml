@@ -1038,9 +1038,10 @@ and normalize_var subst2 t =
   | ReplIndex _ -> 
       apply_subst_list t subst2
   | FunApp _ ->
-      (* This property requires variables not to contain functions.
-	 This is true now, but may change in the future. *)
-      Parsing_helper.internal_error "FunApp should not occur in normalize_var"
+      (* This case may happen with constant replication
+         indices introduced by the "guess" transformation.
+	 Subterms of variables may contain these constants. *)
+      t
   | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "If, find, let, and new should not occur in normalize_var"
 

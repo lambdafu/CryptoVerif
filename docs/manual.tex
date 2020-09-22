@@ -2744,6 +2744,28 @@ The program point $occ$ must correspond to a term not containing \texttt{if}, \t
   which are used only for testing that branch $j$ has been executed.
   This allows the merge to succeed more often.
 
+\item $\texttt{guess }i$ guesses the tested session, where the identifier $i$ is the
+replication index to be guessed; there must be a single
+replication with index $i$ in the game. Alternatively, the form $\texttt{guess }occ$ can also be used,
+where $occ$ is the occurrence of the replication whose index $i$ is to be guessed. 
+CryptoVerif distinguishes whether the replication index $i$ 
+is equal to a constant value $i_{\mathit{tested}}$ by introducing a test 
+under the considered replication, and tries to prove the
+security properties for the session in which $i = i_{\mathit{tested}}$.
+The queries are adjusted accordingly. The probability of breaking
+the initial query is typically $N$ times the probability of
+breaking the query for session $i = i_{\mathit{tested}}$, where
+the replication index $i$ is in $[1,N]$.
+
+This transformation cannot apply to injective correspondences.
+If injective correspondences are present, they are left unchanged
+and proved on all sessions. If all queries are injective
+correspondences, the transformation fails.
+
+This transformation does not apply to $\texttt{equivalence}$
+and $\texttt{query\_equiv}$ proofs either. The transformation fails
+if such a proof is still required.
+
 \item \texttt{start\_from\_other\_end}: for proofs of indistinguishability
   only (\texttt{equivalence}), instruct CryptoVerif to start transforming
   from the other game. When your input file contains

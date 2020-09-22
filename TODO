@@ -1,5 +1,59 @@
 TO DO next
 
+fct display_query: the display of game numbers is not very logical.
+
+implementation.ml:
+      | ReplIndex _ ->
+	  if !inside_event then
+	    " () "
+	  else
+	    Parsing_helper.input_error "Replication indices should occur only inside variables and events (implementation)" t.t_loc
+Is that true now that I allow replication indices as arguments of
+tuples? Perhaps code that uses that is just unimplementable.
+
+For cv2fstar
+- generate letfun as separate functions [also in cv2ml]
+- generate implementation from "equivalence" proofs
+(be able to generate both games) [also in cv2ml]
+- for secrecy queries, generate both the real game and the ideal
+one (in which the secret is a random value)
+When several secrets are independent of each other
+(thanks to "public_variables"), we can output a single pair
+of games: one game with all the real secrets, one game
+in which the secrets are replaced with random values.
+Give the secrets to the fstar external code, perhaps by returning
+them together with messages output at the next output.
+The same games can be generated both for correspondences and
+secrecy only when the correspondences have the secrets as "public_variables".
+- for events, generate an fstar event
+- generate an fstar interface for the correspondence properties
+- use a database instead of files? (to store keys and tables)
+- allow using choice in the initial game to express equivalence proofs
+like in ProVerif. In this case, also generate two games, one
+for the left process, one for the right one. [also in cv2ml]
+- make sure that the structure of programs in the CryptoVerif input
+is enforced in fstar: just above the start of a module that is
+under some other code, require a replication
+(so that the module can be executed several times) and
+require that the previous module is executed once and
+stores a variable in a file that
+is read by the current module (to enforce that the previous module
+really is executed).
+Modules not under replication must not insert elements in tables
+(because in reality, they can be executed several times, resulting
+in several elements inserted in the table). That will require a change
+in the SSH example.
+Perhaps it is simpler to allow only the structure
+!N1 prog1 {...} | ... | !Nn progn {...} 
+Then I do not need to save variables; tables are enough.
+(That's still a bit strange for SSH for instance: the server saves
+its own key in a table instead of a file containing a single key.)
+[also in cv2ml]
+- obviously, check that the way code is generated is also ok
+in fstar.
+- avoid concatenation of strings in the generation of code,
+to avoid being quadratic [also in cv2ml]
+
 1) Use the improved computation of probabilities for Shoup's lemma
 to show that we can count the elimination of collisions once
 for the whole sequence of games?
@@ -160,6 +214,8 @@ Document the "cryptogen" program
 4) Implement the "diff" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
 5) Guess the tested session (see point 4 in HIGH PRIORITY)
+   DONE, still to use on more examples and extend to injective
+   correspondences.   
 6) Extend the "move" instruction to allow precisely moving
    "let"/"new" from one point to another (when correct).
    (see point 7 in HIGH PRIORITY)
@@ -358,11 +414,15 @@ while B outputs N_A. Nothing else depends on N_A.
 If B did not run, the global dependency analysis
 would show that the test N_A' = N_A fails, therefore
 A is assured that B did run.
-That might be implemented by allowing the dependency analysis
-to return facts that it inferred, in addition to the
-simplified form of a term.
-==> Probably useful for TLS, to prove forward secrecy for the
-PSKDHE mode.
+==> Done in file examples/basic/pkauth-guess.cv
+for non-injective authentication. To do it for injective authentication,
+I would need the "guess" transformation to support injective
+correspondences (for that, I should probably separate
+a) proof that the non-injective correspondence implies the injective
+correspondence, e.g. because a nonce appears in the arguments on both sides;
+b) then work on the non-injective correspondence and use the guess
+transformation).
+
 More generally, it is sometimes useful to apply crypto transformations
 to "partial" games, e.g., to prove the suf_cma_corrupt equivalence
 from the suf_cma one (same for signatures), or in the proof of OTR.
@@ -376,6 +436,8 @@ If the only property we want to prove is that "advwins"
 is unreachable, then we can insert an event "advloses"
 just after the definitions of x, and thus remove the
 part of the game that follows the definition of x.
+==> Probably useful for TLS, to prove forward secrecy for the
+PSKDHE mode.
 
 More generally, if the only property we want to prove is that "advwins"
 is unreachable and we can prove that x is not defined when "advwins" is
@@ -395,67 +457,12 @@ in that session. Some difficulties:
    to reveal keys of other sessions to the adversary. If the key
    of the tested session is still secret, it proves independence.
 
-   When I guess the tested session, replace:
-   ! i <= N Q with ! i <= N Qtest
-   where Qtest is obtained by replacing the process P
-   under the first input with if i = i_tested then P else P'.
-   SArenaming will rename variables of P to two different names
-   if needed.
-   i_tested is a constant.
-   P' is obtained from P by
-      - removing end events of correspondences
-      - removing (or renaming if they are used otherwise) definitions
-        of variables with query "secret1".
-      - replacing (and renaming if they are used otherwise) definitions
-        of variables with query "secret" with an output of their value
-        to the adversary.
-   The probability of attack must be multiplied by N.
-   (If there are several replications, guess values for all of them?
-   Still only those above the "required step" [defined below].
-   Or allow the user to choose which replications will be guessed?)
-
-   BETTER: When I guess replication index i, replace
-   ! i <= N Q with ! i <= N Qtest
-   where Qtest is obtained by replacing the process P
-   under the first input with if i = i_tested then P' else P''.
-   i_tested is a constant.
-   BE CAREFUL: in case diff_constants = true, the constant
-   i_tested must not be considered different from other constants
-   of the same type.
-   P' is obtained from P by
-      - duplicating all events: event e(M) is replaced with
-      event e(M); event e'(M)
-      - duplicating variable definitions used in "query secret"
-      and "query secret [cv_onesession]": let x = M in
-      is replaced with let x = M in let x' = x in
-   P'' is obtained from P by
-      - outputting variable definitions used in "query secret"
-      (without [cv_onesession]) to the adversary.
-   In queries, replace ONE event before the arrow ==>
-   with its duplicated version;
-   replace "query secret" and "query secret [cv_onesession]"
-   with its duplicated version.
-   The probability of attack must be multiplied by N.
-
-   The bound found in the new game shows that
-   Forall i_tested, Pr[attack & i = i_tested] <= p
-   Pr[attack] = \sum_{i_tested \in [1,N]} Pr[attack & i = i_tested] <= N * p 
-   For query secret, use the link between Find_Then_Guess and
-   Real_Or_Random. https://www.di.ens.fr/~fouque/pub/2006_iee.pdf
-
-   The reasoning seems different from the one in Pointcheval's course,
-   using a non-negligible event independent of the output of the game.
-   (Here, the event would be i <> i_tested; it's not necessarily
-   independent of the output of the game.)
-
    When I guess a value y, add a test
-      if y = y_tested then P' else P''
+      if y = y_tested then P else event_abort adv_loses
    after the definition of y. The definition of y must not be
    under replication.
    y_tested is a constant.
    BE CAREFUL: same as above.
-   P', P'', and queries as above, except that ALL events
-   before the arrow ==> can be replaced by their duplicate version.
    The probability of attack must be multiplied by the cardinal
    of the type of y (which must be small enough).
    NOTE: we could do the same when the definition of y is
@@ -463,6 +470,17 @@ in that session. Some difficulties:
    by |T|^{N1...Nn} where T is the type of y and N1...Nn are
    the bounds of replication indices of y. That's not negligible
    even for |T|=2.
+   BETTER: If there is a conditional not under a replication:
+      if C then P else P'
+   we create two games, replacing the conditional with
+      if C then P else event_abort Adv_loses
+      if C then event_abort Adv_loses else P'
+   the probability of attack in the initial game is at most the sum
+   of the probabilities of attack in the two generated games.
+   ("at most" because there may be attacks in which the condition
+   is not tested. Does it really work for secrecy?)
+   In particular, the condition C can test each possible value of
+   a variable y.
 
    => Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
@@ -475,6 +493,8 @@ in that session. Some difficulties:
   get his message)
   That should allow to prove (inj-)event(fullB(A, k, x)) ==>
   (inj-)event(fullA(B, k, x))
+  ==> tried in file examplesnd/notest/needham-schroeder-skcorr-guess.pcv
+      but does not work yet.
   Similar remark for file examples/basic/needham-schroeder-sk.pcv and
   query event(fullB(A, k, x)) ==> event(fullA(B, k, x))
 
@@ -5347,3 +5367,93 @@ with indices when we are sure that x is defined).
   that allows replacing all terms equal to the definition of x
   with x. (Apply it also with indices.)
 DONE 24/03/2020
+
+   When I guess the tested session, replace:
+   ! i <= N Q with ! i <= N Qtest
+   where Qtest is obtained by replacing the process P
+   under the first input with if i = i_tested then P else P'.
+   SArenaming will rename variables of P to two different names
+   if needed.
+   i_tested is a constant.
+   P' is obtained from P by
+      - removing end events of correspondences
+      - removing (or renaming if they are used otherwise) definitions
+        of variables with query "secret1".
+      - replacing (and renaming if they are used otherwise) definitions
+        of variables with query "secret" with an output of their value
+        to the adversary.
+   The probability of attack must be multiplied by N.
+   (If there are several replications, guess values for all of them?
+   Still only those above the "required step" [defined below].
+   Or allow the user to choose which replications will be guessed?)
+
+   BETTER: When I guess replication index i, replace
+   ! i <= N Q with ! i <= N Qtest
+   where Qtest is obtained by replacing the process P
+   under the first input with if i = i_tested then P' else P''.
+   i_tested is a constant.
+   BE CAREFUL: in case diff_constants = true, the constant
+   i_tested must not be considered different from other constants
+   of the same type.
+         WARNING: the constant replication index i_tested may now
+         appear inside variables. That breaks the invariant that
+         functions do not appear inside variables.
+         I fixed that in the function Terms.normalize_var.
+         I am a bit concerned that other fixes may be required:
+         - Facts.match_term2: can FunApp occur? yes, see
+           examplesnd/test/guess5.cv, fixed.
+	 - Transf_crypto: map_list => I think it's ok because the
+            variable considered here comes from the LHS of an
+            equivalence, so it will not contain constant replication
+            indices introduced by guess.            
+            
+            Checked: terms.ml, facts.ml, def.ml, improved_def.ml,
+            array_ref.ml, check.ml, check_corresp.ml,
+            check_distinct.ml, computeruntime.ml, depanal.ml,
+            display.ml, displaytex.ml, facts_of_elsefind.ml,
+            implementation.ml, incompatible.ml, info_from_term.ml,
+            instruct.ml, invariants.ml, lexer.mll, main.ml,
+	    match_eq.ml, occ_map.ml, parser.mly, parsing_helper.ml,
+	    polynom.ml, proba.ml, query_equiv.ml, settings.ml,
+	    special_equiv.ml, stringPlus.ml, stringmap.ml,
+            success.ml, syntax.ml, types.ml, unique.ml, version.ml
+	    transf_auto_sa_rename.ml, transf_crypto.ml, transf_expand.ml,
+	    transf_globaldepanal.ml, transf_guess.ml, transf_insert_event.ml,
+	    transf_insert_replace.ml, transf_merge.ml, transf_move.ml,
+	    transf_remove_assign.ml, transf_sarename.ml, transf_simplify.ml,
+	    transf_simplify_nonexpanded.ml, transf_tables.ml,
+	    transf_use_variable.ml
+
+         I am also concerned that it might break other invariants,
+         like "accessed variables either have the current replication
+         indices or are in a defined condition", in case
+         a replication index is replaced with i_tested.
+         That does not seem to happen too often, because "orient"
+         does not allow the replacement i -> i_tested.
+         
+   P' is obtained from P by
+      - duplicating all events: event e(M) is replaced with
+      event e(M); event e'(M)
+      - duplicating variable definitions used in "query secret"
+      and "query secret [cv_onesession]": let x = M in
+      is replaced with let x = M in let x' = x in
+   P'' is obtained from P by
+      - outputting variable definitions used in "query secret"
+      (without [cv_onesession]) to the adversary.
+   In queries, replace ONE event before the arrow ==>
+   with its duplicated version;
+   replace "query secret" and "query secret [cv_onesession]"
+   with its duplicated version.
+   The probability of attack must be multiplied by N.
+
+   The bound found in the new game shows that
+   Forall i_tested, Pr[attack & i = i_tested] <= p
+   Pr[attack] = \sum_{i_tested \in [1,N]} Pr[attack & i = i_tested] <= N * p 
+   For query secret, use the link between Find_Then_Guess and
+   Real_Or_Random. https://www.di.ens.fr/~fouque/pub/2006_iee.pdf
+
+   The reasoning seems different from the one in Pointcheval's course,
+   using a non-negligible event independent of the output of the game.
+   (Here, the event would be i <> i_tested; it's not necessarily
+   independent of the output of the game.)
+DONE 18/8/2020

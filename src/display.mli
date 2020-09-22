@@ -53,41 +53,64 @@ val display_query3 : query -> unit
 val display_query : query * game -> unit
 val display_instruct : instruct -> unit
 
-(* The next functions are made public so that displaytex can call them *)
+(*** The next functions are made public so that displaytex can call them ***)
 
 val is_complex_time : probaf -> bool
+
+(* [proba_from_set_m modifier p] converts the probability [p] represented as
+a [setf list] into a probability represented as a [probaf].
+[p] must not contain [SetEvent].
+The modifier [modifier] is either [id] or [may_double]. It doubles the
+probability [p] when the considered query is a secrecy query. *)
+val id : polynom -> polynom
+val may_double : query * game -> polynom -> polynom
+val proba_from_set_m : (polynom -> polynom) -> setf list -> probaf
+
+(* [is_full_*] returns [true] when the probability of its argument
+   is fully determined (that is, it does not refer to a query that
+   has not been proved yet. *)
+val is_full_poptref : proof_t ref -> bool
+val is_full_proba_info : proba_info -> bool
+val is_full_proba : setf -> bool
+
+(* [get_proved poptref] returns [p,s] when [!poptref = Proved(p,s)].
+   Otherwise, it causes an internal error. *)
+val get_proved : proof_t ref -> proba_info * state
 
 type query_specif =
     InitQuery of query
   | QEvent of funsymb
 
-val equal_qs : query_specif * game -> query_specif * game -> bool
+type proba_bound =
+  | SumBound of (query_specif * game) list * game * setf list * (query_specif * game) list list * game
+  | MulBound of query_specif * game * param * query_specif * game
 
-type proof_tree =
-    { pt_game : game;
-      mutable pt_sons : (instruct * setf list * proof_tree * (query_specif * game) list ref) list }
+(* [compute_proba_internal2 bounds (q,g) p s] computes the probability of
+   breaking query [q] in game [g], knowing that the probability of breaking [q]
+   is [p] in the last game of the sequence [s].
+   All intermediate events and queries needed to prove [q] must be proved,
+   otherwise it causes an internal error.
+   Intermediate results are stored in [bounds] to be displayed after the function 
+   returns. *)
+val compute_proba_internal2 :
+    proba_bound list ref -> query * game -> setf list -> state -> setf list
 
-exception NotBoundEvent of funsymb * game
+(* [proba_from_proba_info (q0,g0) bounds proba_info] computes the probability
+   corresponding to [proba_info] (which may refer to a query).
+   [proba_info] is the probability of breaking [q0] in game [g0].
+   All intermediate queries and events needed to evaluate [proba_info] must be proved,
+   otherwise it causes an internal error.
+   Intermediate results are stored in [bounds] to be displayed after the function 
+   returns. *)
+val proba_from_proba_info :
+  query * game -> proba_bound list ref -> proba_info -> setf list
 
-val build_proof_tree : query * game -> setf list -> state -> proof_tree
-
-val double_if_needed : (query_specif * game) list -> setf list -> setf list
-
-(* [proba_from_set q p] converts the probability [p] represented as
-a [setf list] into a probability represented as a [probaf].
-[p] must not contain [SetEvent]. *)
-
-val id : polynom -> polynom
-val may_double : query * game -> polynom -> polynom
-val proba_from_set_m : (polynom -> polynom) -> setf list -> probaf
     
 val get_initial_game : state -> game
 val get_initial_queries : state -> cur_queries_t
-
 val get_all_states_from_queries : cur_queries_t -> state list
-
 val remove_duplicate_states : state list -> state list -> state list
 
-
+(*** Display the result ***)
 val display_state : state -> unit
 val display_conclusion : state -> unit
