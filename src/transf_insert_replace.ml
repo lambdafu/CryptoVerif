@@ -912,23 +912,23 @@ and insert_inso count occ ins env cur_array p =
     | Find(l0,p3,find_info) ->
 	let (p3', def3) = insert_inso count occ ins env cur_array p3 in
 	let accu = ref def3 in
-	let l0' = List.fold_right (fun (bl, def_list, t, p) laccu ->
+	let l0' = List.fold_right (fun (bl, def_list, t, p1) laccu ->
 	  let vars = List.map fst bl in
 	  let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
 	  (* I will check that the newly added definitions do not concern 
 	     variables defined in the condition of find, so I do not need
 	     to add the variables defined in t to def *)
 	  let count_before = !count in
-	  let (p', def) = insert_inso count occ ins env' cur_array p in
+	  let (p1', def) = insert_inso count occ ins env' cur_array p1 in
 	  let count_after = !count in
 	  try
 	    let find_branch' = 
 	      if (count_before == 0) && (count_after == 1) then
 		let already_defined = Facts.get_def_vars_at (DProcess p) in
 		let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-		Facts.update_def_list_process already_defined newly_defined bl def_list t p'
+		Facts.update_def_list_process already_defined newly_defined bl def_list t p1'
 	      else
-		(bl, def_list, t, p')
+		(bl, def_list, t, p1')
 	    in
 	    check_noninter def vars;
 	    accu := Terms.unionq (vars @ def) (!accu);
