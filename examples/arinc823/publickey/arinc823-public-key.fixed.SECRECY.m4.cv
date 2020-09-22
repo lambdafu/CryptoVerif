@@ -64,7 +64,9 @@ proba PCollKey2.
 expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
 
 proba pGDH.
-expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH).
+proba pZero. (* Probability of distinguishing a rerandomized key from an honestly
+      	     	generated. 0 for prime order groups. *)
+expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH, pZero).
 
 (* AMS Message elements *)
 

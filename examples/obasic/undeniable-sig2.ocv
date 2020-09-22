@@ -46,7 +46,8 @@ type G [large,bounded].
 expand DH_good_group(G, Z, g, exp, exp', mult).
 
 proba pGDH.
-expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH).
+proba pZero.
+expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH, pZero).
 
 (* Random oracle model *)
 

@@ -72,6 +72,8 @@ expand DH_good_group(
 ).
 
 proba P_GDH.
+proba P_Zero. (* 0: rerandomization is indistinguishable from honestly generated key 
+      	      	 in a prime order group. *)
 expand GDH_RSR(
   (* types *)
   G_t,  (* Group elements *)
@@ -82,7 +84,8 @@ expand GDH_RSR(
   exp_1, (* a symbol that replaces exp after game transformation *)
   mult, (* multiplication function for exponents *)
   (* probabilities *)
-  P_GDH (* probability of breaking the GDH assumption *)
+  P_GDH, (* probability of breaking the GDH assumption *)
+  P_Zero
 ).
 
 def switch_exp(G, Z, exp, exp') {
@@ -308,6 +311,6 @@ equivalence
     )
 
 (* EXPECTED
-Error: Cryptographic transformation failed
-xtime: error in child process (status : 2)
+All queries proved.
+0.778s (user 0.770s + system 0.008s), max rss 42736K
 END *)

@@ -1469,6 +1469,8 @@ optoelse:
 oprobaf:
         LPAREN oprobaf RPAREN
         { $2 }
+|       SUB oprobaf  %prec UNARYMINUS
+        { PSub((PPZero, parse_extent()), $2), parse_extent() }
 |       oprobaf ADD oprobaf
         { PAdd($1,$3), parse_extent() }
 |       oprobaf SUB oprobaf

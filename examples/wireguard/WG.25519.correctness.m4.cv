@@ -45,6 +45,7 @@ type Z_t [bounded,large,nonuniform].   (* type of exponents (must be "bounded" a
                                "large", is the set of multiples of k prime to qq' modulo kqq'.) *)
 const dummy_z: Z_t.      (* placeholder when we do not compromise the ephemerals *)
 proba P_GDH.            (* probability of breaking the GDH assumption *)
+proba P_DistRerandom.
 (* Page 7 in the Noise paper, rev 33:
    The public_key either encodes some value in a large prime-order group
    (which may have multiple equivalent encodings), or is an invalid
@@ -68,7 +69,7 @@ expand DH_X25519(
   zero8
 ).
 
-expand GDH(
+expand GDH_RSR(
   (* types *)
   G8_t,  (* Group elements *)
   Z_t,  (* Exponents *)
@@ -78,7 +79,9 @@ expand GDH(
   exp_div8', (* a symbol that replaces exp_div8 after game transformation *)
   mult, (* multiplication function for exponents *)
   (* probabilities *)
-  P_GDH (* probability of breaking the GDH assumption *)
+  P_GDH, (* probability of breaking the GDH assumption *)
+  P_DistRerandom (* probability of distinguishing a rerandomized key from 
+  		    an honest generated key, 2^{-125} for Curve25519 *)
 ).
 letfun DH(group_element: G_t, exponent: Z_t) =
   exp(group_element, exponent).

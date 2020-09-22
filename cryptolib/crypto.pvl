@@ -679,15 +679,15 @@ expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_di
 
 (* The DH assumptions say nothing *)
 def CDH(G, Z, g, exp, exp', mult, pCDH) {}
-def CDH_RSR(G, Z, g, exp, exp', mult, pCDH) {}
+def CDH_RSR(G, Z, g, exp, exp', mult, pCDH, pDistRerandom) {}
 def DDH(G, Z, g, exp, exp', mult, pDDH) {}
 def GDH(G, Z, g, exp, exp', mult, pGDH) {}
-def GDH_RSR(G, Z, g, exp, exp', mult, pGDH) {}
+def GDH_RSR(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {}
 def square_CDH(G, Z, g, exp, exp', mult, pCDH, pSQCDH) {}
-def square_CDH_RSR(G, Z, g, exp, exp', mult, pSQCDH) {}
+def square_CDH_RSR(G, Z, g, exp, exp', mult, pSQCDH, pDistRerandom) {}
 def square_DDH(G, Z, g, exp, exp', mult, pDDH, pSQDDH) {}
 def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH) {}
-def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH) {}
+def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH, pDistRerandom) {}
 
 def PRF_ODH1(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
 fun prf(G, prf_in): prf_out.

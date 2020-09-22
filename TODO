@@ -1,5 +1,12 @@
 TO DO next
 
+write a GDH assumption that uses a single set of exponents
+a_i, but leaves m = g^{a_i a_i} unchanged?
+(for that, ideally, I should be able to test equality between
+indices i = j; currently, I encode that by testing a_i = a_j
+for random a_i and eliminating collisions, but that leads to
+a small loss in probability).
+
 fct display_query: the display of game numbers is not very logical.
 
 implementation.ml:

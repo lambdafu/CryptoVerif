@@ -23,7 +23,11 @@ Version
   as well as event_abort in a single command. Inserting
      find ... then/else let x = ...
   allows to test in the defined condition of find whether x is defined,
-  and thus which branch of the inserted find was taken. 
+  and thus which branch of the inserted find was taken.
+- Improved probabilities for Diffie-Hellman assumptions that use
+  random self reducibility. Introduced a probability of distinguishing
+  a rerandomized key from an honestly generated key, so that the
+  transformations can also be applied to Curve25519 and Curve448.
 - The game equivalences used in crypto transformations for
   ROM, PRF, PRP, SPRP, and ICM are now generated on-demand by CryptoVerif.
   That allows more flexibility to optimize these equivalences.

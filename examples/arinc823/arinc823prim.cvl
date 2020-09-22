@@ -75,10 +75,9 @@ equiv(gdh(exp))
     (* This probability formula uses random self reducibility.
        So we assume that the secret keys are chosen uniformly in Z/qZ, 
        where q is the order of g. *)
-<=((#ODDHa + #ODDHb) * 
-	   pGDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp),
-	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
-	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
+<=(pGDH(time + (na + nb) * time(exp),
+   #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
+   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
     OA() := return(exp(g,a)) |
     ! naDDH2 ODDHa2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',a)) |
@@ -233,10 +232,9 @@ equiv(gdh(exp))
     (* This probability formula uses random self reducibility.
        So we assume that the secret keys are chosen uniformly in Z/qZ, 
        where q is the order of g. *)
-<=((#ODDHa + #ODDHb) * 
-	   pGDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp),
-	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
-	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
+<=(pGDH(time + (na + nb) * time(exp),
+   #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
+   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
     OA() := return(exp(g,a)) |
     ! naDDH2 ODDHa2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',a)) |

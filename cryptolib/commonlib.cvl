@@ -3419,12 +3419,23 @@ equiv(cdh(exp))
 
 }
 
-(* Variant of CDH with random self reducibility. 
-   It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in (Z/qZ)^* or Z/qZ, where q is the order of g, 
-   so it is not correct for curve25519 for instance. *)
+(* Variant of CDH with random self reducibility.
+   It may yield lower probabilities but requires the rerandomization to be feasible.
 
-def CDH_RSR(G, Z, g, exp, exp', mult, pCDH) {
+   pCDH(t): the probability of breaking the CDH assumption in time t
+   pDistRerandom: the probability that rerandomization can be distinguished from the
+   original distribution
+          It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
+	  2^-125 for curve25519
+	  2^-220 for curve448
+   (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
+   for curve25519 and curve448).
+
+   Other arguments as in DH_basic.
+
+   All arguments must be declared before this macro. *)
+
+def CDH_RSR(G, Z, g, exp, exp', mult, pCDH, pDistRerandom) {
 
 (* the CDH assumption *) 
 
@@ -3443,7 +3454,7 @@ equiv(cdh(exp))
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
     )
-<=((#ODDHa + #ODDHb) * max(1, 4*#Oa) * max(1, 4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)) + (na + na) / |Z|)=> [computational]
+<=((#ODDHa + #ODDHb) * max(1, 4*#Oa) * max(1, 4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)) + (na + nb) * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -3675,11 +3686,24 @@ equiv(gdh(exp))
 }
 
 (* Variant of GDH with random self reducibility. 
-   It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in (Z/qZ)^* or Z/qZ, where q is the order of g, 
-   so it is not correct for curve25519 for instance. *)
+   It may yield lower probabilities but requires the rerandomization to be feasible.
 
-def GDH_RSR(G, Z, g, exp, exp', mult, pGDH) {
+   pGDH(t,n): the probability of breaking the GDH assumption in time t,
+   with at most n calls to the DDH oracle.
+   pDistRerandom: the probability that rerandomization can be distinguished from the
+   original distribution
+          It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
+	  2^-125 for curve25519
+	  2^-220 for curve448
+   (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
+   for curve25519 and curve448).
+
+   Other arguments as in DH_basic.
+
+   All arguments must be declared before this macro. 
+ *)
+
+def GDH_RSR(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {
 
 (* the GDH assumption 
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -3697,7 +3721,8 @@ equiv(gdh(exp))
       Oa() [10] := return(a) |
       foreach iaDDH2 <= naDDH2 do ODDHa2(m:G, m':G,j<=nb) := return(exp(m,b[j]) = exp(m', a)) |
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
-      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) := return(exp(m,a) = exp(g, mult(b[j'], a[j]))) |
+      foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) := return(exp(m,b[j]) = exp(g, mult(b[j'], a))) |
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) := return(exp(m,a[j]) = exp(g, mult(b[j'], a))) |
       foreach iaDDH6 <= naDDH6 do ODDHa6(m:G, j'<=na,j<=nb) := return(exp(m,b[j]) = exp(g, mult(a[j'], a))) |
       foreach iaDDH7 <= naDDH7 do ODDHa7(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
@@ -3712,16 +3737,18 @@ equiv(gdh(exp))
       foreach ibDDH3 <= nbDDH3 do ODDHb3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', b)) |
       foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp(m,b[j]) = exp(g, mult(b[j'], b))) |
       foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp(m,a[j]) = exp(g, mult(b[j'], b))) |
-      foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) := return(exp(m,b) = exp(g, mult(a[j'], b[j]))) |
+      foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) := return(exp(m,b[j]) = exp(g, mult(a[j'], b))) |
+      foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) := return(exp(m,a[j]) = exp(g, mult(a[j'], b))) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := return(m = exp(m', b)) |
       foreach ibDDH  <= nbDDH  do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
     )
-<=((#ODDHa + #ODDHb + na * naDDH5 + nb * nbDDH6) * max(1, 4*#Oa) * max(1, 4*#Ob) *
-	   pGDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp),
-	   #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
-	   #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb8) + (na + nb) / |Z|)=> [computational]
+<=(max(1, 4*(#Oa-max(-1,-(#ODDHa5+#ODDHb7)))) * max(1, 4*(#Ob-max(-1,-(#ODDHa4+#ODDHb6)))) *
+	   pGDH(time + (na + nb) * time(exp),
+	   #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
+	   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8)
+      + (na + nb) * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -3736,11 +3763,27 @@ equiv(gdh(exp))
       		= (m^b[j] = m'^a). *)
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
       	    (* Similar to ODDHa2 *)
+      foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) :=
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
+	      if defined(ka) then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
+	      return(b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a))) |
+	    (* GDH always allows to compute exp(m, b[j]) = exp(g,mult(b[j'],a))
+	       as a particular case of ODDHa2.
+	       When a or b[j'] is leaked, that is all we use and we keep the value
+	       that occurs in the left-hand side exp'(m, b[j]) = exp'(g,mult(b[j'],a)).
+	       Otherwise, we distinguish two cases:
+	       - When b[j] = b[j'], we also keep the value of the left-hand side.
+	       - Otherwise, we apply the CDH assumption considering an adversary
+	         that knows b[j] and computes exp(m, b[j]). This adversary cannot
+	         compute exp(g,mult(b[j'],a)) by CDH, so the equality 
+	         exp(m, b[j]) = exp(g,mult(b[j'],a)) is false in this case.
+	       Hence, the equality exp(m, b[j]) = exp(g,mult(b[j'],a))
+	       reduces to b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a)). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) :=
-      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,a) = exp'(g, mult(b[j'], a[j]))) else
-	      find u<=na suchthat defined(ka[u],a[u]) && a[j]  = a[u] then return(exp'(m,a) = exp'(g, mult(b[j'], a[j]))) else
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
+	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
 	      return (a[j] = a && exp'(m,a) = exp'(g, mult(b[j'], a))) |
-	      (* This case is similar to ODDHb6. *)	      
+	      (* This case is similar to ODDHa4. *)	      
       foreach iaDDH6 <= naDDH6 do ODDHa6(m:G, j'<=na,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(a[j'], a))) |
       foreach iaDDH7 <= naDDH7 do ODDHa7(m:G, j'<=na,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
             (* ODDHa4..7 are particular cases of ODDHa2 or ODDHa3, with m' = exp(g, b[j'])
@@ -3770,21 +3813,13 @@ equiv(gdh(exp))
       foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) :=
-      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,b) = exp'(g, mult(a[j'], b[j]))) else
-	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(exp'(m,b) = exp'(g, mult(a[j'], b[j]))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
+	      if defined(kb) then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
 	      return(b[j] = b && exp'(m,b) = exp'(g, mult(a[j'], b))) |
-	    (* GDH always allows to compute exp(m, b) = exp(g,mult(a[j'],b[j]))
-	       as a particular case of ODDHb2.
-	       When a[j'] or b[j] is leaked, that is all we use and we keep the value
-	       that occurs in the left-hand side exp'(m, b) = exp'(g,mult(a[j'],b[j])).
-	       Otherwise, we distinguish two cases:
-	       - When b = b[j], we also keep the value of the left-hand side.
-	       - Otherwise, we apply the CDH assumption considering an adversary
-	         that knows b and computes exp(m, b). This adversary cannot
-	         compute exp(g,mult(a[j'],b[j])) by CDH, so the equality 
-	         exp(m, b) = exp(g,mult(a[j'],b[j])) is false in this case.
-	       Hence, the equality exp(m, b) = exp(g,mult(a[j'],b[j]))
-	       reduces to b[j] = b && exp'(m,b) = exp'(g, mult(a[j], b[j])). *)
+      foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) :=
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
+	      if defined(kb) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
+	      return(a[j] = a[j'] && exp'(m,a[j']) = exp'(g, mult(a[j'], b))) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
 	      return(m = exp'(m', b))
 		(* GDH allows to compute m = exp(m',b) for any m and m', without leaking b *) |
@@ -3845,17 +3880,23 @@ equiv(cdh(exp))
 }
 
 (* Variant of square CDH with random self reducibility. 
-   It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in (Z/qZ)* or Z/qZ, where q is the order of g, 
-   so it is not correct for curve25519 for instance.
+   It may yield lower probabilities but requires the rerandomization to be feasible.
 
    pSQCDH(t): the probability of breaking the square CDH assumption in time t
+   pDistRerandom: the probability that rerandomization can be distinguished from the
+   original distribution
+          It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
+	  2^-125 for curve25519
+	  2^-220 for curve448
+   (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
+   for curve25519 and curve448).
+
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
  *)
 
-def square_CDH_RSR(G, Z, g, exp, exp', mult, pSQCDH) {
+def square_CDH_RSR(G, Z, g, exp, exp', mult, pSQCDH, pDistRerandom) {
 
 (* the (square) CDH assumption *) 
 
@@ -3869,7 +3910,7 @@ equiv(cdh(exp))
       	      return(m = exp(g, mult(a[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     )
-<=(#ODDHa * max(1, 27/4*#Oa*#Oa) * pSQCDH(time + (na + #ODDHa) * time(exp)) + na / |Z|)=> [computational]
+<=(#ODDHa * max(1, 27/4*#Oa*#Oa) * pSQCDH(time + (na + #ODDHa) * time(exp)) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -4015,18 +4056,24 @@ equiv(gdh(exp))
 }
 
 (* Variant of square GDH with random self reducibility. 
-   It may yield lower probabilities but requires the exponents 
-   to be chosen uniformly in (Z/qZ)* or Z/qZ, where q is the order of g, 
-   so it is not correct for curve25519 for instance.
+   It may yield lower probabilities but requires the rerandomization to be feasible.
 
    pSQGDH(t,n): the probability of breaking the square GDH assumption in time t,
    with at most n calls to the DDH oracle.
+   pDistRerandom: the probability that rerandomization can be distinguished from the
+   original distribution
+          It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
+	  2^-125 for curve25519
+	  2^-220 for curve448
+   (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
+   for curve25519 and curve448).
+
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
  *)
 
-def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH) {
+def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH, pDistRerandom) {
 
 (* the GDH assumption 
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -4042,14 +4089,14 @@ equiv(gdh(exp))
       OA() := return(exp(g,a)) | 
       Oa() [10] := return(a) |
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp(m,a[j]) = exp(m', a)) |
-      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) [useful_change] := return(exp(m,a) = exp(g, mult(a[j'], a[j]))) |
+      foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) [useful_change] := return(exp(m,a[j]) = exp(g, mult(a[j'], a))) |
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
       foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) 
-<=((#ODDHa + na * naDDH5) * max(1, 27/4*#Oa*#Oa) * 
-	   pSQGDH(time + (na + #ODDHa) * time(exp),
-	   #ODDHa1 + #ODDHa3 + #ODDHa5) + na / |Z|)=> [computational]
+<=(max(1, 27/4*(#Oa-max(-1,-#ODDHa5))*(#Oa-max(-1,-#ODDHa5))) * 
+	   pSQGDH(time + na * time(exp),
+	   #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -4063,22 +4110,22 @@ equiv(gdh(exp))
       		= (a[j] * log_g(m) = a log_g(m'))
       		= (m^a[j] = m'^a). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) :=
-      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a) = exp'(g, mult(a[j'], a[j]))) else
-	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a) = exp'(g, mult(a[j'], a[j]))) else
-	      return ((a = a[j] || a = a[j']) && exp'(m,a) = exp'(g, mult(a[j'], a[j]))) |
-	    (* GDH always allows to compute exp(m, a) = exp(g,mult(a[j'],a[j]))
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
+	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
+	      return ((a[j] = a || a[j] = a[j']) && exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
+	    (* GDH always allows to compute exp(m, a[j]) = exp(g,mult(a[j'],a))
 	       as a particular case of ODDHa2.
-	       When a[j] or a[j'] is leaked, that is all we use and we keep the value
-	       that occurs in the left-hand side exp'(m, a) = exp'(g,mult(a[j'],a[j])).
+	       When a or a[j'] is leaked, that is all we use and we keep the value
+	       that occurs in the left-hand side exp'(m, a[j]) = exp'(g,mult(a[j'],a)).
 	       Otherwise, we distinguish two cases:
-	       - When a = a[j] or a = a[j'], we keep the value
-	       that occurs in the left-hand side exp'(m, a) = exp'(g,mult(a[j'],a[j])).
+	       - When a[j] = a[j'] or a[j] = a[j'], we keep the value
+	       that occurs in the left-hand side exp'(m, a[j]) = exp'(g,mult(a[j'],a)).
 	       - Otherwise, we apply the CDH assumption considering an adversary
-	         that knows a and computes exp(m, a). This adversary cannot
-	         compute exp(g,mult(a[j'],a[j])) by CDH, so the equality 
-	         exp(m, a) = exp(g,mult(a[j'],a[j])) is false in this case.
-	       Hence, the equality exp(m, a) = exp(g,mult(a[j'],a[j]))
-	       reduces to (a = a[j] || a = a[j']) && exp'(m, a) = exp'(g,mult(a[j'],a[j])). *)
+	         that knows a[j] and computes exp(m, a[j]). This adversary cannot
+	         compute exp(g,mult(a[j'],a)) by CDH, so the equality 
+	         exp(m, a[j]) = exp(g,mult(a[j'],a)) is false in this case.
+	       Hence, the equality exp(m, a[j]) = exp(g,mult(a[j'],a))
+	       reduces to (a[j] = a || a[j] = a[j']) && exp'(m, a[j]) = exp'(g,mult(a[j'],a)). *)
       foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := 
 	      return(m = exp'(m', a))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,

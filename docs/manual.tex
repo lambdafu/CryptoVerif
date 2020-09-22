@@ -1805,10 +1805,13 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
    This macro defines the equivalence $\texttt{cdh}(\vn{exp})$, whichs corresponds to the CDH property, for use in the
    \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-     \item $\texttt{expand\ CDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$ 
-       is similar to \texttt{CDH}, but uses random self reducibility. It may yield lower probabilities but requires the exponents 
-       to be chosen uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order of $g$, 
-       so it is not correct for usual implementations of Curve25519 for instance. (The proof is done using uniform choices in $\mathbb{Z}/q\mathbb{Z}$; we add the probability of distinguishing these choices from choices in $(\mathbb{Z}/q\mathbb{Z})^*$ so that the result also applies to choices in $(\mathbb{Z}/q\mathbb{Z})^*$, as assumed in \texttt{DH\_good\_group} and as often done in Diffie-Hellman implementations. Indeed, 0 is a bad secret key, since with a 0 secret key, the Diffie-Hellman shared secret is always the neutral element of the group, independently of the other public key.)
+     \item $\texttt{expand\ CDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$ 
+       is similar to \texttt{CDH}, but uses random self reducibility.
+       $p_d$ is the probability of distinguishing a key that comes from rerandomization from
+       an honestly chosen key. We have $p_d = 0$ when the exponents 
+       are chosen uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ in a group of prime order $q$
+       (as assumed by the macro \texttt{DH\_good\_group}),
+       $p_d = 2^{-125}$ for Curve25519, and $p_d = 2^{-220}$ for Curve448.
 
      \item $\texttt{expand\ DDH(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$
        says that the group $G$ satisfies the decisional Diffie-Hellman
@@ -1825,10 +1828,10 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
        the equivalence $\texttt{gdh}(\vn{exp})$, whichs corresponds to the GDH property, for use in the
        \texttt{crypto} command (see Section~\ref{sec:interact}).
 
-     \item $\texttt{expand\ GDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$ 
-       is similar to \texttt{GDH}, but uses random self reducibility. It may yield lower probabilities but requires the exponents 
-       to be chosen uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order of $g$, 
-       so it is not correct for usual implementations of Curve25519 for instance.
+     \item $\texttt{expand\ GDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$ 
+       is similar to \texttt{GDH}, but uses random self reducibility.
+       $p_d$ is the probability of distinguishing a key that comes from rerandomization from
+       an honestly chosen key (see \texttt{CDH\_RSR}).
 
      \item
        $\texttt{expand\ square\_CDH(}G, Z, g, \vn{exp}, \vn{exp}',
@@ -1849,18 +1852,17 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
 
      \item
        $\texttt{expand\ square\_CDH\_RSR(}G, Z, g, \vn{exp},
-       \vn{exp}', \vn{mult}, \vn{sqp}\texttt{).}$
-       says that the group $G$ satisfies the square computational
-       Diffie-Hellman assumption; $\vn{sqp}(t)$ is the probability of
-       breaking the square CDH assumption, for one pair of exponents,
-       in time $t$.  This macro defines the equivalence
+       \vn{exp}', \vn{mult}, \vn{sqp}\texttt{).}$ says that the group
+       $G$ satisfies the square computational Diffie-Hellman
+       assumption; $\vn{sqp}(t)$ is the probability of breaking the
+       square CDH assumption, for one pair of exponents, in time $t$;
+       this macro uses random self reducibility, and $p_d$ is the
+       probability of distinguishing a key that comes from
+       rerandomization from an honestly chosen key (see
+       \texttt{CDH\_RSR}). This macro defines the equivalence
        $\texttt{cdh}(\vn{exp})$, whichs corresponds to the square CDH
        property, for use in the \texttt{crypto} command (see
-       Section~\ref{sec:interact}). It uses random self
-       reducibility. It may yield lower probabilities than
-       $\texttt{square\_CDH}$ but requires the exponents to be chosen
-       uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
-       of $g$, so it is not correct for usual implementations of Curve25519 for instance.
+       Section~\ref{sec:interact}).
 
      \item
        $\texttt{expand\ square\_DDH(}G, Z, g, \vn{exp}, \vn{exp}',
@@ -1890,20 +1892,18 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
        GDH property, for use in the \texttt{crypto} command (see
        Section~\ref{sec:interact}).
 
-     \item $\texttt{expand\ square\_GDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}',
-       \vn{mult}, \vn{sqp}\texttt{).}$
-       says that the group $G$ satisfies the square gap Diffie-Hellman assumption;
-       $\vn{sqp}(t,n)$ is the
-       probability of breaking the square GDH assumption, for one pair
-       of exponents, in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle.  This macro defines the equivalence
-       $\texttt{gdh}(\vn{exp})$, whichs corresponds to the square
-       GDH property, for use in the \texttt{crypto} command (see
-       Section~\ref{sec:interact}). It uses random self
-       reducibility. It may yield lower probabilities than
-       $\texttt{square\_GDH}$ but requires the exponents to be chosen
-       uniformly in $(\mathbb{Z}/q\mathbb{Z})^*$ or in $\mathbb{Z}/q\mathbb{Z}$, where $q$ is the order
-       of $g$, so it is not correct for usual implementations of Curve25519 for instance.
+     \item $\texttt{expand\ square\_GDH\_RSR(}G, Z, g, \vn{exp},
+       \vn{exp}', \vn{mult}, \vn{sqp}\texttt{).}$ says that the group
+       $G$ satisfies the square gap Diffie-Hellman assumption;
+       $\vn{sqp}(t,n)$ is the probability of breaking the square GDH
+       assumption, for one pair of exponents, in time $t$ with at most
+       $n$ calls to the decisional Diffie-Hellman oracle; this macro
+       uses random self reducibility, and $p_d$ is the probability of
+       distinguishing a key that comes from rerandomization from an
+       honestly chosen key (see \texttt{CDH\_RSR}).  This macro
+       defines the equivalence $\texttt{gdh}(\vn{exp})$, whichs
+       corresponds to the square GDH property, for use in the
+       \texttt{crypto} command (see Section~\ref{sec:interact}).
 
      \item $\texttt{expand\ PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH1 (pseudo-random function oracle Diffie-Hellman) assumption, which corresponds to PRF-ODHnn in~\cite{eprint2017:517}.
        %
