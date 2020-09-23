@@ -1241,19 +1241,22 @@ let display_query3 = function
 let display_query (q,g) = 
   match q with 
     AbsentQuery -> 
-      print_string "indistinguishability from the final game"
+      if g.game_number <> 1 then
+	print_string ("indistinguishability between game "^(Display.get_game_id g)^" and the final game")
+      else
+	print_string "indistinguishability between the input game and the final game"
   | QEquivalence (state, pub_vars) ->
       let g' = Display.get_initial_game state in
-      if g.game_number = -1 || g'.game_number = -1 then
-	print_string "indistinguishability between two input games"
-      else
-	print_string ("indistinguishability between game " ^
-		      (string_of_int g.game_number) ^
-		      " and game " ^
-		      (string_of_int g'.game_number));
+      print_string ("indistinguishability between game " ^
+		    (Display.get_game_id g) ^
+		    " and game " ^
+		    (Display.get_game_id g'));
       display_pub_vars pub_vars
   | QEquivalenceFinal(g', pub_vars) ->
-      print_string ("indistinguishability from game " ^ (Display.get_game_id g')); 
+      print_string ("indistinguishability between game " ^
+		    (Display.get_game_id g) ^
+		    " and game " ^
+		    (Display.get_game_id g')); 
       display_pub_vars pub_vars
   | _ ->
       display_query3 q;

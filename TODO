@@ -1,7 +1,5 @@
 TO DO next
 
-fct display_query: the display of game numbers is not very logical.
-
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
 2) Extend macros (see point 5 in HIGH PRIORITY)
