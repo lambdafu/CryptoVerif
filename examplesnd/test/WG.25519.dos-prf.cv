@@ -63,5 +63,5 @@ process
 All queries proved.
 EXPECTED
 RESULT Could not prove event(accepted_cookie(Am, tau, msgbeta, mac2)) ==> event(generated_cookie(Am, tau)).
-0.208s (user 0.200s + system 0.008s), max rss 44780K
+0.088s (user 0.076s + system 0.012s), max rss 16692K
 END *)

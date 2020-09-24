@@ -562,12 +562,12 @@ process
 ifdef(`key_AK',`
 (* EXPECTED FILENAME: examples/kerberos/PublicKeyKerberos_keyuse_Updated.m4.cv TAG: 1
 RESULT Could not prove event(fullCS(S, T, K, z, y, w)) ==> event(fullSC(C, x, y2, w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v2, z, w))) with public variables b1.
-32.320s (user 32.268s + system 0.052s), max rss 155548K
+32.304s (user 32.228s + system 0.076s), max rss 94184K
 END *)
 ')
 ifdef(`key_SK',`
 (* EXPECTED FILENAME: examples/kerberos/PublicKeyKerberos_keyuse_Updated.m4.cv TAG: 2
 All queries proved.
-31.780s (user 31.712s + system 0.068s), max rss 155560K
+32.064s (user 32.012s + system 0.052s), max rss 94284K
 END *)
 ')

@@ -566,5 +566,5 @@ out(ch2, ());
 
 (* EXPECTED
 All queries proved.
-198.836s (user 198.632s + system 0.204s), max rss 603264K
+189.612s (user 189.416s + system 0.196s), max rss 565920K
 END *)

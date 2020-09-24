@@ -178,5 +178,5 @@ out(start, ());
 
 (* EXPECTED
 RESULT Could not prove event(endA(x, y, k)) ==> event(beginBkey(x, y, k)).
-1.708s (user 1.708s + system 0.000s), max rss 22076K
+1.708s (user 1.692s + system 0.016s), max rss 22600K
 END *)

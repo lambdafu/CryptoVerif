@@ -443,7 +443,7 @@ ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
 (* EXPECTED FILENAME: examplesnd/textsecure-single_coord_ladder/TextSecure-AB-BA.m4.cv TAG: 1
 All queries proved.
-64.960s (user 64.904s + system 0.056s), max rss 202632K
+67.280s (user 67.216s + system 0.064s), max rss 121548K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure-single_coord_ladder/TextSecure-AB-BA.m4.cv TAG: 2
@@ -455,7 +455,7 @@ END *)
 ifdef(`STD',`
 (* EXPECTED FILENAME: examplesnd/textsecure-single_coord_ladder/TextSecure-AB-BA.m4.cv TAG: 3
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
-63.636s (user 63.552s + system 0.084s), max rss 202512K
+63.612s (user 63.560s + system 0.052s), max rss 121576K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure-single_coord_ladder/TextSecure-AB-BA.m4.cv TAG: 4

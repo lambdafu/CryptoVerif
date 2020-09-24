@@ -170,5 +170,5 @@ out(c12, ());
 
 (* EXPECTED
 RESULT Could not prove inj-event(endA(x, y, k)) ==> inj-event(beginBkey(x, y, k)); event(endA(x, y, k)) ==> event(beginBkey(x, y, k)).
-1.720s (user 1.704s + system 0.016s), max rss 24240K
+1.752s (user 1.744s + system 0.008s), max rss 22644K
 END *)

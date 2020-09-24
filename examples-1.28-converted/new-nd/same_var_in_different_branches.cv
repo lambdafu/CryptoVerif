@@ -167,5 +167,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB_1; secrecy of keyB_1; one-session secrecy of keyB_1.
-0.940s (user 0.932s + system 0.008s), max rss 18756K
+0.864s (user 0.852s + system 0.012s), max rss 19208K
 END *)

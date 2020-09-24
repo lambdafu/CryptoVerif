@@ -1527,21 +1527,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 1
 All queries proved.
-1.456s (user 1.428s + system 0.028s), max rss 75164K
+1.400s (user 1.372s + system 0.028s), max rss 27504K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.keysecrecy.AB.only_psk.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 2
 All queries proved.
-4.652s (user 4.596s + system 0.056s), max rss 93984K
+4.508s (user 4.464s + system 0.044s), max rss 37868K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.keysecrecy.AB.1st_msg.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 3
 All queries proved.
-14.352s (user 14.240s + system 0.112s), max rss 106756K
+15.912s (user 15.816s + system 0.096s), max rss 52872K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1549,13 +1549,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 4
 All queries proved.
-598.600s (user 598.044s + system 0.556s), max rss 306116K
+554.532s (user 554.020s + system 0.512s), max rss 236888K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 5
 All queries proved.
-236.512s (user 236.260s + system 0.252s), max rss 179268K
+246.792s (user 246.612s + system 0.180s), max rss 96096K
 END *)
 ')
 ',`
@@ -1563,13 +1563,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 6
 All queries proved.
-225.444s (user 225.148s + system 0.296s), max rss 233456K
+216.824s (user 216.576s + system 0.248s), max rss 140324K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 7
 All queries proved.
-15.172s (user 15.072s + system 0.100s), max rss 120836K
+15.884s (user 15.804s + system 0.080s), max rss 53204K
 END *)
 ')
 ')
@@ -1581,21 +1581,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 8
 All queries proved.
-1.392s (user 1.356s + system 0.036s), max rss 72340K
+1.276s (user 1.252s + system 0.024s), max rss 27232K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.keysecrecy.AB.only_psk.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 9
 All queries proved.
-3.580s (user 3.532s + system 0.048s), max rss 93916K
+3.452s (user 3.408s + system 0.044s), max rss 38176K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.keysecrecy.AB.1st_msg.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 10
 All queries proved.
-10.900s (user 10.816s + system 0.084s), max rss 107004K
+11.740s (user 11.672s + system 0.068s), max rss 47636K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1603,13 +1603,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 11
 All queries proved.
-352.244s (user 351.736s + system 0.508s), max rss 305908K
+339.028s (user 338.596s + system 0.432s), max rss 207204K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 12
 All queries proved.
-129.268s (user 129.084s + system 0.184s), max rss 179452K
+143.232s (user 143.076s + system 0.156s), max rss 84876K
 END *)
 ')
 ',`
@@ -1617,13 +1617,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 13
 All queries proved.
-135.508s (user 135.160s + system 0.348s), max rss 204340K
+130.728s (user 130.484s + system 0.244s), max rss 140200K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 14
 All queries proved.
-11.524s (user 11.440s + system 0.084s), max rss 106860K
+11.948s (user 11.888s + system 0.060s), max rss 52784K
 END *)
 ')
 ')
@@ -1637,21 +1637,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 15
 All queries proved.
-2.508s (user 2.464s + system 0.044s), max rss 82068K
+2.496s (user 2.488s + system 0.008s), max rss 30312K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.keysecrecy.AB-BA.only_psk.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 16
 All queries proved.
-11.760s (user 11.648s + system 0.112s), max rss 121144K
+11.768s (user 11.692s + system 0.076s), max rss 59028K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.keysecrecy.AB-BA.1st_msg.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 17
 All queries proved.
-76.464s (user 76.248s + system 0.216s), max rss 179768K
+78.684s (user 78.544s + system 0.140s), max rss 109212K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1659,13 +1659,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 18
 All queries proved.
-1030.884s (user 1029.992s + system 0.892s), max rss 460160K
+973.300s (user 972.536s + system 0.764s), max rss 356728K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 19
 All queries proved.
-821.172s (user 820.596s + system 0.576s), max rss 350348K
+818.836s (user 818.348s + system 0.488s), max rss 208216K
 END *)
 ')
 ',`
@@ -1673,13 +1673,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 20
 All queries proved.
-311.368s (user 310.900s + system 0.468s), max rss 266552K
+299.164s (user 298.836s + system 0.328s), max rss 207824K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 21
 All queries proved.
-37.980s (user 37.820s + system 0.160s), max rss 157188K
+39.068s (user 38.940s + system 0.128s), max rss 84948K
 END *)
 ')
 ')
@@ -1691,21 +1691,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 22
 All queries proved.
-2.312s (user 2.280s + system 0.032s), max rss 82156K
+2.332s (user 2.316s + system 0.016s), max rss 33500K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.keysecrecy.AB-BA.only_psk.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 23
 All queries proved.
-8.988s (user 8.872s + system 0.116s), max rss 121144K
+8.668s (user 8.584s + system 0.084s), max rss 59668K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.keysecrecy.AB-BA.1st_msg.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 24
 All queries proved.
-45.352s (user 45.120s + system 0.232s), max rss 179236K
+48.352s (user 48.180s + system 0.172s), max rss 96360K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1713,13 +1713,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 25
 All queries proved.
-556.228s (user 555.408s + system 0.820s), max rss 459648K
+543.572s (user 542.812s + system 0.760s), max rss 356428K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 26
 All queries proved.
-303.700s (user 303.264s + system 0.436s), max rss 350216K
+323.428s (user 323.040s + system 0.388s), max rss 182436K
 END *)
 ')
 ',`
@@ -1727,13 +1727,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 27
 All queries proved.
-165.012s (user 164.664s + system 0.348s), max rss 266580K
+158.380s (user 158.028s + system 0.352s), max rss 182108K
 END *)
 ',`
 (* WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 28
 All queries proved.
-27.812s (user 27.680s + system 0.132s), max rss 157212K
+28.192s (user 28.096s + system 0.096s), max rss 84768K
 END *)
 ')
 ')

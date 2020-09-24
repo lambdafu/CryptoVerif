@@ -144,11 +144,11 @@ process
 
 (* EXPECTED
 All queries proved.
-2.476s (user 2.456s + system 0.020s), max rss 81632K
+2.400s (user 2.372s + system 0.028s), max rss 34956K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) is true.
 RESULT inj-event(fullB(A,x)) ==> inj-event(fullA(B,x)) is true.
-0.104s (user 0.092s + system 0.012s), max rss 12224K
+0.048s (user 0.048s + system 0.000s), max rss 12172K
 END *)

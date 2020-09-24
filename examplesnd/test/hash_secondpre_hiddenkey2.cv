@@ -19,5 +19,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(bad) ==> false.
-0.196s (user 0.196s + system 0.000s), max rss 44228K
+0.052s (user 0.052s + system 0.000s), max rss 15904K
 END *)

@@ -287,5 +287,5 @@ out(c20, ());
 
 (* EXPECTED
 RESULT Could not prove event(fullTC(C, S, k, N, x, z, y)) && event(fullTC(C, S, k', N, x', z', y)) ==> (k = k') with public variables keySK, keyTSK; event(fullTC(C, S, k, N, x, z, y)) && event(fullCT(T, S, k', N, x, z, y)) ==> (k = k') with public variables keySK, keyTSK.
-1.912s (user 1.892s + system 0.020s), max rss 29264K
+1.916s (user 1.908s + system 0.008s), max rss 27596K
 END *)

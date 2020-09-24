@@ -27,5 +27,5 @@ event finish(g(x'))
 (* Works when x is input *)
 (* EXPECTED
 All queries proved.
-0.024s (user 0.012s + system 0.012s), max rss 10264K
+0.020s (user 0.016s + system 0.004s), max rss 10400K
 END *)

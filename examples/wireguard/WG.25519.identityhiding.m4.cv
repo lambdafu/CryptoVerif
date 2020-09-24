@@ -962,11 +962,11 @@ else
 ifdef(`m4_replay_prot',`
 (* EXPECTED FILENAME: examples/wireguard/WG.25519.identityhiding.m4.cv TAG: 1
 All queries proved.
-1385.188s (user 1384.752s + system 0.436s), max rss 205168K
+1472.632s (user 1472.272s + system 0.360s), max rss 109256K
 END *)
 ',`
 (* EXPECTED FILENAME: examples/wireguard/WG.25519.identityhiding.m4.cv TAG: 2
 All queries proved.
-134.872s (user 134.604s + system 0.268s), max rss 205240K
+138.484s (user 138.188s + system 0.296s), max rss 109308K
 END *)
 ')

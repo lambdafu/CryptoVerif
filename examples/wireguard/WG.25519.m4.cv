@@ -1580,21 +1580,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.AB.uniquesession_chbinding_weakUKS.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 1
 All queries proved.
-2.640s (user 2.592s + system 0.048s), max rss 81812K
+2.704s (user 2.672s + system 0.032s), max rss 27640K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.AB.only_psk.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 2
 All queries proved.
-21.248s (user 21.100s + system 0.148s), max rss 157332K
+21.104s (user 20.976s + system 0.128s), max rss 84896K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.AB.1st_msg.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 3
 All queries proved.
-23.980s (user 23.864s + system 0.116s), max rss 121336K
+25.104s (user 25.028s + system 0.076s), max rss 59632K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1602,13 +1602,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB.S_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 4
 All queries proved.
-640.352s (user 639.496s + system 0.856s), max rss 461556K
+625.852s (user 624.996s + system 0.856s), max rss 354696K
 END *)
 ',`
 (* WG.25519.AB.S_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 5
 All queries proved.
-440.716s (user 440.348s + system 0.368s), max rss 266932K
+444.660s (user 444.280s + system 0.380s), max rss 182792K
 END *)
 ')
 ',`
@@ -1616,13 +1616,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB.E_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 6
 All queries proved.
-402.536s (user 401.744s + system 0.792s), max rss 606572K
+390.116s (user 389.420s + system 0.696s), max rss 355976K
 END *)
 ',`
 (* WG.25519.AB.E_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 7
 All queries proved.
-34.332s (user 34.164s + system 0.168s), max rss 157396K
+35.540s (user 35.396s + system 0.144s), max rss 84688K
 END *)
 ')
 ')
@@ -1634,21 +1634,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.AB.uniquesession_chbinding_weakUKS.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 8
 All queries proved.
-2.216s (user 2.180s + system 0.036s), max rss 81804K
+2.264s (user 2.244s + system 0.020s), max rss 30388K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.AB.only_psk.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 9
 All queries proved.
-17.696s (user 17.540s + system 0.156s), max rss 157260K
+17.696s (user 17.568s + system 0.128s), max rss 84868K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.AB.1st_msg.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 10
 All queries proved.
-17.296s (user 17.208s + system 0.088s), max rss 121428K
+17.984s (user 17.912s + system 0.072s), max rss 59232K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1656,13 +1656,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 11
 All queries proved.
-382.508s (user 381.564s + system 0.944s), max rss 461264K
+378.660s (user 377.812s + system 0.848s), max rss 309804K
 END *)
 ',`
 (* WG.25519.AB.S_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 12
 All queries proved.
-212.104s (user 211.692s + system 0.412s), max rss 266860K
+232.264s (user 231.832s + system 0.432s), max rss 160296K
 END *)
 ')
 ',`
@@ -1670,13 +1670,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB.E_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 13
 All queries proved.
-254.444s (user 253.732s + system 0.712s), max rss 527196K
+251.900s (user 251.248s + system 0.652s), max rss 355704K
 END *)
 ',`
 (* WG.25519.AB.E_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 14
 All queries proved.
-26.624s (user 26.468s + system 0.156s), max rss 157024K
+27.488s (user 27.360s + system 0.128s), max rss 84984K
 END *)
 ')
 ')
@@ -1690,21 +1690,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 15
 All queries proved.
-3.864s (user 3.800s + system 0.064s), max rss 82236K
+3.680s (user 3.656s + system 0.024s), max rss 33444K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.AB-BA.only_psk.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 16
 All queries proved.
-40.568s (user 40.300s + system 0.268s), max rss 233400K
+37.648s (user 37.408s + system 0.240s), max rss 140564K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.AB-BA.1st_msg.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 17
 All queries proved.
-91.156s (user 90.892s + system 0.264s), max rss 233420K
+94.892s (user 94.640s + system 0.252s), max rss 123552K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1712,13 +1712,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 18
 All queries proved.
-835.040s (user 834.060s + system 0.980s), max rss 608732K
+812.876s (user 811.680s + system 1.196s), max rss 407692K
 END *)
 ',`
 (* WG.25519.AB-BA.S_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 19
 All queries proved.
-649.504s (user 648.924s + system 0.580s), max rss 401312K
+626.964s (user 626.408s + system 0.556s), max rss 237952K
 END *)
 ')
 ',`
@@ -1726,13 +1726,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB-BA.E_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 20
 All queries proved.
-549.736s (user 548.588s + system 1.148s), max rss 798220K
+528.464s (user 527.424s + system 1.040s), max rss 536224K
 END *)
 ',`
 (* WG.25519.AB-BA.E_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 21
 All queries proved.
-66.540s (user 66.256s + system 0.284s), max rss 233060K
+68.532s (user 68.324s + system 0.208s), max rss 122928K
 END *)
 ')
 ')
@@ -1744,21 +1744,21 @@ ifdef(`m4_uniquesession_chbinding_weakUKS',`
 (* WG.25519.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 22
 All queries proved.
-3.176s (user 3.148s + system 0.028s), max rss 82092K
+3.060s (user 3.044s + system 0.016s), max rss 33576K
 END *)
 ',`
 ifdef(`m4_only_psk',`
 (* WG.25519.AB-BA.only_psk.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 23
 All queries proved.
-32.548s (user 32.312s + system 0.236s), max rss 204468K
+30.712s (user 30.504s + system 0.208s), max rss 123572K
 END *)
 ',`
 ifdef(`m4_first_msg_auth',`
 (* WG.25519.AB-BA.1st_msg.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 24
 All queries proved.
-54.536s (user 54.256s + system 0.280s), max rss 204676K
+59.084s (user 58.864s + system 0.220s), max rss 123636K
 END *)
 ',`
 ifdef(`m4_S_i_compr',`
@@ -1766,13 +1766,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB-BA.S_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 25
 All queries proved.
-429.160s (user 428.048s + system 1.112s), max rss 529132K
+431.900s (user 430.876s + system 1.024s), max rss 412924K
 END *)
 ',`
 (* WG.25519.AB-BA.S_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 26
 All queries proved.
-257.224s (user 256.700s + system 0.524s), max rss 350552K
+275.924s (user 275.488s + system 0.436s), max rss 237892K
 END *)
 ')
 ',`
@@ -1780,13 +1780,13 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.AB-BA.E_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 27
 All queries proved.
-312.148s (user 311.104s + system 1.044s), max rss 797656K
+307.652s (user 306.756s + system 0.896s), max rss 467444K
 END *)
 ',`
 (* WG.25519.AB-BA.E_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.m4.cv TAG: 28
 All queries proved.
-48.348s (user 48.124s + system 0.224s), max rss 204216K
+48.592s (user 48.384s + system 0.208s), max rss 123028K
 END *)
 ')
 ')

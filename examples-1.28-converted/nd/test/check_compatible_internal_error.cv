@@ -205,5 +205,5 @@ out(c8, ());
 
 (* EXPECTED
 RESULT Could not prove secrecy of sk_p; secrecy of sk_s; secrecy of sk_u.
-4.024s (user 4.012s + system 0.012s), max rss 45008K
+4.336s (user 4.336s + system 0.000s), max rss 37108K
 END *)

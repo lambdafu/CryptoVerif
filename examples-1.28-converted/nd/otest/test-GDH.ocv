@@ -126,5 +126,5 @@ return(pkA, pkB);
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB; secrecy of keyA.
-0.864s (user 0.860s + system 0.004s), max rss 22004K
+0.956s (user 0.940s + system 0.016s), max rss 20736K
 END *)

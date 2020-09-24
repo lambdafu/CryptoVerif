@@ -123,5 +123,5 @@ out(c13, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
-0.104s (user 0.100s + system 0.004s), max rss 12216K
+0.080s (user 0.080s + system 0.000s), max rss 12408K
 END *)

@@ -52,5 +52,5 @@ out(c3[i_1], menc)
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.020s + system 0.000s), max rss 10216K
+0.008s (user 0.008s + system 0.000s), max rss 10496K
 END *)

@@ -133,7 +133,7 @@ process
 
 (* EXPECTED
 All queries proved.
-0.884s (user 0.860s + system 0.024s), max rss 72180K
+0.816s (user 0.808s + system 0.008s), max rss 29960K
 END *)
 
 (* EXPECTPV
@@ -141,5 +141,5 @@ RESULT secret keyA is true.
 RESULT secret keyB is true.
 RESULT inj-event(endA(A,B,x,y)) ==> inj-event(beginB(A,B,x,y)) public_vars keyA,keyB is true.
 RESULT inj-event(endB(A,B,x,y)) ==> inj-event(endA(A,B,x,y)) public_vars keyA,keyB is true.
-0.220s (user 0.208s + system 0.012s), max rss 15896K
+0.284s (user 0.280s + system 0.004s), max rss 14304K
 END *)

@@ -166,5 +166,5 @@ out(cstart, (k_1, pkA, pkB));
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB; secrecy of keyA.
-0.064s (user 0.056s + system 0.008s), max rss 12220K
+0.080s (user 0.064s + system 0.016s), max rss 11112K
 END *)

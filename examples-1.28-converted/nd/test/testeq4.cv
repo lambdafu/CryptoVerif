@@ -34,5 +34,5 @@ out(dummy[i_1], f(b, x))
 
 (* EXPECTED
 RESULT Could not prove secrecy of test.
-0.016s (user 0.016s + system 0.000s), max rss 10296K
+0.028s (user 0.016s + system 0.012s), max rss 10532K
 END *)

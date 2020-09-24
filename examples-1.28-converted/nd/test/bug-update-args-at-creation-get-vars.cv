@@ -97,5 +97,5 @@ out(c13, ());
 
 (* EXPECTED
 RESULT Could not prove event(endB) ==> false.
-0.024s (user 0.020s + system 0.004s), max rss 10532K
+0.016s (user 0.012s + system 0.004s), max rss 10684K
 END *)

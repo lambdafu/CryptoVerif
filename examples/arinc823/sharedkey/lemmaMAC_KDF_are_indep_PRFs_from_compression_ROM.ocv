@@ -110,5 +110,5 @@ equivalence
 
 (* EXPECTED
 All queries proved.
-0.244s (user 0.228s + system 0.016s), max rss 46096K
+0.116s (user 0.116s + system 0.000s), max rss 17100K
 END *)

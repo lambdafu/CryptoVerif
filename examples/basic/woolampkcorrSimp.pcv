@@ -66,11 +66,11 @@ process
 
 (* EXPECTED
 All queries proved.
-0.196s (user 0.176s + system 0.020s), max rss 44624K
+0.044s (user 0.040s + system 0.004s), max rss 16892K
 END *)
 
 (* EXPECTPV
 RESULT event(eB(x,y,z)) ==> event(eA(x,y,z)) is true.
 RESULT inj-event(eB(x,y,z)) ==> inj-event(eA(x,y,z)) is true.
-0.024s (user 0.020s + system 0.004s), max rss 10772K
+0.028s (user 0.020s + system 0.008s), max rss 9720K
 END *)

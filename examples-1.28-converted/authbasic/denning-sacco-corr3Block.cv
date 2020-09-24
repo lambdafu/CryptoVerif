@@ -175,5 +175,5 @@ out(c7, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
-0.204s (user 0.200s + system 0.004s), max rss 15212K
+0.224s (user 0.220s + system 0.004s), max rss 15452K
 END *)

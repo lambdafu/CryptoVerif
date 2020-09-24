@@ -844,5 +844,5 @@ The commented version is the one we use for the composition results.
 
 (* EXPECTED
 All queries proved.
-522.072s (user 521.828s + system 0.244s), max rss 456892K
+546.448s (user 546.252s + system 0.196s), max rss 405432K
 END *)

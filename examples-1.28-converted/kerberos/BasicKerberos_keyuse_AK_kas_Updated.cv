@@ -368,5 +368,5 @@ out(c25, ());
 
 (* EXPECTED
 RESULT Could not prove event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-1.312s (user 1.308s + system 0.004s), max rss 26576K
+1.340s (user 1.324s + system 0.016s), max rss 27108K
 END *)

@@ -162,5 +162,5 @@ out(cstart, (pkA, pkB));
 
 (* EXPECTED
 All queries proved.
-0.076s (user 0.076s + system 0.000s), max rss 12860K
+0.128s (user 0.128s + system 0.000s), max rss 13292K
 END *)

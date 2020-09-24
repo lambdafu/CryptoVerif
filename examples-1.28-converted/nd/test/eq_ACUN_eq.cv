@@ -36,5 +36,5 @@ out(c, (xor(zero', xor(one', two')) = xor(zero, xor(one, two))))
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.012s + system 0.008s), max rss 10296K
+0.016s (user 0.016s + system 0.000s), max rss 10504K
 END *)

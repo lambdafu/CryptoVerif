@@ -146,7 +146,7 @@ Target game after rom(H3):
 
 EXPECTED
 All queries proved.
-0.248s (user 0.236s + system 0.012s), max rss 50308K
+0.112s (user 0.100s + system 0.012s), max rss 18168K
 END
 
 *)

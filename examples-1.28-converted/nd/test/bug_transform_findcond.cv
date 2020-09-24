@@ -65,5 +65,5 @@ out(hret, ());
 
 (* EXPECTED
 RESULT Could not prove secrecy of s.
-0.012s (user 0.012s + system 0.000s), max rss 10308K
+0.008s (user 0.008s + system 0.000s), max rss 10564K
 END *)

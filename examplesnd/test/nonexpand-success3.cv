@@ -19,5 +19,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(e2(x)) ==> event(e1(x)).
-0.164s (user 0.160s + system 0.004s), max rss 44036K
+0.084s (user 0.084s + system 0.000s), max rss 15868K
 END *)

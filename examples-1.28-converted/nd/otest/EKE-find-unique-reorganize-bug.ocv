@@ -205,7 +205,7 @@ return();
 
 (* EXPECTED
 RESULT Could not prove event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') with public variables sk_u, sk_s; inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) with public variables sk_u, sk_s; secrecy of sk_s; secrecy of sk_u.
-4.972s (user 4.956s + system 0.016s), max rss 44832K
+5.272s (user 5.252s + system 0.020s), max rss 40984K
 END
 
 Note: event(Auth) ==> false in game 13 is proved using elsefind facts. *)

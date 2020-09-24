@@ -153,5 +153,5 @@ out(c13, ());
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, z)) ==> inj-event(beginA(x)); inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)); event(endB(x, y, z)) ==> event(beginA(x)); event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
-0.328s (user 0.324s + system 0.004s), max rss 14244K
+0.316s (user 0.316s + system 0.000s), max rss 14988K
 END *)

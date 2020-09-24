@@ -176,5 +176,5 @@ out(start, ());
 
 (* EXPECTED
 RESULT Could not prove event(endB(x, y, k)) ==> event(beginA(x, y, k)) with public variables keyA, keyB; event(endA(x, y, k)) ==> event(beginBkey(x, y, k)) with public variables keyA, keyB; secrecy of keyB; secrecy of keyA.
-0.420s (user 0.408s + system 0.012s), max rss 16248K
+0.456s (user 0.452s + system 0.004s), max rss 16636K
 END *)

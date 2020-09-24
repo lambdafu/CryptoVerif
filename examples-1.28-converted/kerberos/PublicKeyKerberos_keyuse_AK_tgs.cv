@@ -499,5 +499,5 @@ out(c25, (pkC, spkC, spkK, pkCA));
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of b1; event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-7.960s (user 7.944s + system 0.016s), max rss 44836K
+8.068s (user 8.040s + system 0.028s), max rss 40932K
 END *)

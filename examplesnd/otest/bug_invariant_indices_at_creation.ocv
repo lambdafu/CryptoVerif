@@ -478,5 +478,5 @@ equivalence
 
 (* EXPECTED
 RESULT Could not prove indistinguishability between game 1 and game 2.
-8.028s (user 7.988s + system 0.040s), max rss 92512K
+3.296s (user 3.280s + system 0.016s), max rss 36700K
 END *)

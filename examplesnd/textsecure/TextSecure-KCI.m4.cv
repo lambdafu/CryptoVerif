@@ -468,11 +468,11 @@ process
 ifdef(`REPLAY_PROT',`
 (* EXPECTED FILENAME: examplesnd/textsecure/TextSecure-KCI.m4.cv TAG: 1
 All queries proved.
-87.564s (user 87.400s + system 0.164s), max rss 398776K
+89.604s (user 89.492s + system 0.112s), max rss 269272K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure/TextSecure-KCI.m4.cv TAG: 2
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)).
-101.776s (user 101.624s + system 0.152s), max rss 456876K
+104.760s (user 104.608s + system 0.152s), max rss 309340K
 END *)
 ')

@@ -364,5 +364,5 @@ out(c10, (pkC, spkC, pkK, spkK, pkCA));
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyAK; one-session secrecy of keyAK; event(fullC(K, k, x)) ==> event(fullK(C, k, x)) with public variables keyAK; inj-event(fullC(K, k, x)) ==> inj-event(fullK(C, k, x)) with public variables keyAK.
-4.908s (user 4.896s + system 0.012s), max rss 29188K
+4.968s (user 4.960s + system 0.008s), max rss 29860K
 END *)

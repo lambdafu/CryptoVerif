@@ -331,24 +331,24 @@ ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 1
 All queries proved.
-87.504s (user 87.360s + system 0.144s), max rss 304048K
+86.776s (user 86.696s + system 0.080s), max rss 235504K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 2
 All queries proved.
-92.236s (user 92.132s + system 0.104s), max rss 264848K
+91.028s (user 90.944s + system 0.084s), max rss 206044K
 END *)
 ')
 ',`
 ifdef(`STD',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 3
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
-85.120s (user 84.972s + system 0.148s), max rss 304060K
+82.760s (user 82.680s + system 0.080s), max rss 206272K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-AA.m4.cv TAG: 4
 All queries proved.
-89.540s (user 89.452s + system 0.088s), max rss 264756K
+86.256s (user 86.136s + system 0.120s), max rss 206036K
 END *)
 ')
 ')

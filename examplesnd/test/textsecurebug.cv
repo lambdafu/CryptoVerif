@@ -496,7 +496,7 @@ process
 
 (* EXPECTED
 RESULT Could not prove inj-event(Recv(a0, as, b0, bs, sb, ob, a1, a2, m)) ==> (inj-event(Send(a0, as, b0, bs, sb, ob2, a12, a2, m)) && ((pow8(ob) = pow8(ob2)) && (pow8(a1) = pow8(a12)))) with public variables secb.
-12.208s (user 12.180s + system 0.028s), max rss 119432K
+12.092s (user 12.068s + system 0.024s), max rss 64928K
 END *)
 
 

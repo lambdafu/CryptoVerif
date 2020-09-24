@@ -155,5 +155,5 @@ out(c9, ());
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
-0.228s (user 0.220s + system 0.008s), max rss 12932K
+0.164s (user 0.156s + system 0.008s), max rss 13280K
 END *)

@@ -22,5 +22,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(done) ==> event(sends).
-0.164s (user 0.152s + system 0.012s), max rss 44228K
+0.060s (user 0.056s + system 0.004s), max rss 15920K
 END *)

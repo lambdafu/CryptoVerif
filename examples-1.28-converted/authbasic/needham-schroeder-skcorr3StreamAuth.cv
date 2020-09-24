@@ -165,5 +165,5 @@ out(start, ());
 
 (* EXPECTED
 All queries proved.
-3.552s (user 3.544s + system 0.008s), max rss 24252K
+3.312s (user 3.296s + system 0.016s), max rss 24656K
 END *)

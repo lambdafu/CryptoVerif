@@ -406,12 +406,12 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(fullCK(K, T, N, k, w, x, y)) && event(fullKC(C, T, N, k', w, z, y)) ==> (k = k') with public variables keyAK.
-7.828s (user 7.780s + system 0.048s), max rss 105136K
+7.572s (user 7.552s + system 0.020s), max rss 57632K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullCK(K,T,N,k,w,x,y_1)) ==> inj-event(fullKC(C,T,N,k,w,z,y_1)) public_vars keyAK is true.
 RESULT event(fullCK(K,T,N,k,w,x,y_1)) && event(fullKC(C,T,N,k',w,z,y_1)) ==> k = k' public_vars keyAK is true.
 RESULT secret keyAK is true.
-2.372s (user 2.324s + system 0.048s), max rss 138256K
+2.356s (user 2.312s + system 0.044s), max rss 118460K
 END *)

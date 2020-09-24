@@ -129,11 +129,11 @@ process
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
-0.364s (user 0.340s + system 0.024s), max rss 51692K
+0.184s (user 0.180s + system 0.004s), max rss 22416K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(fullB(A,y)) ==> inj-event(fullA(B,y)) is false.
 RESULT (even event(fullB(A,y)) ==> event(fullA(B,y)) is false.)
-0.048s (user 0.044s + system 0.004s), max rss 11372K
+0.036s (user 0.032s + system 0.004s), max rss 10760K
 END *)

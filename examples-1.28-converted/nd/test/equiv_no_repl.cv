@@ -49,5 +49,5 @@ out(c2[i_1], hash(x))
 
 (* EXPECTED
 RESULT Could not prove secrecy of s.
-0.012s (user 0.012s + system 0.000s), max rss 10268K
+0.024s (user 0.020s + system 0.004s), max rss 10484K
 END *)

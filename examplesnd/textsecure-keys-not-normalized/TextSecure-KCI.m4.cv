@@ -313,11 +313,11 @@ process
 ifdef(`REPLAY_PROT',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-KCI.m4.cv TAG: 1
 All queries proved.
-63.360s (user 63.232s + system 0.128s), max rss 264740K
+62.348s (user 62.260s + system 0.088s), max rss 206064K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-KCI.m4.cv TAG: 2
 RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(sb) = pow8(sb2)) && (pow8(a1) = pow8(a12)))).
-60.872s (user 60.776s + system 0.096s), max rss 264832K
+60.928s (user 60.872s + system 0.056s), max rss 180496K
 END *)
 ')

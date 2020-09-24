@@ -60,5 +60,5 @@ query_equiv
 
 (* EXPECTED
 All queries proved.
-0.224s (user 0.200s + system 0.024s), max rss 44652K
+0.084s (user 0.076s + system 0.008s), max rss 16524K
 END *)

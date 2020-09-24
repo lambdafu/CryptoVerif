@@ -756,11 +756,11 @@ process
 ifdef(`m4_replay_prot',`
 (* EXPECTED FILENAME: examples/wireguard/WG.25519.correctness.m4.cv TAG: 1
 All queries proved.
-4.328s (user 4.288s + system 0.040s), max rss 81968K
+4.172s (user 4.148s + system 0.024s), max rss 30508K
 END *)
 ',`
 (* EXPECTED FILENAME: examples/wireguard/WG.25519.correctness.m4.cv TAG: 2
 All queries proved.
-3.944s (user 3.900s + system 0.044s), max rss 82204K
+3.688s (user 3.676s + system 0.012s), max rss 30232K
 END *)
 ')

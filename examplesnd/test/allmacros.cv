@@ -292,5 +292,5 @@ process in(c1, ()); out(c2, ())
 
 (* EXPECTED
 All queries proved.
-0.660s (user 0.648s + system 0.012s), max rss 99124K
+0.340s (user 0.332s + system 0.008s), max rss 36712K
 END *)

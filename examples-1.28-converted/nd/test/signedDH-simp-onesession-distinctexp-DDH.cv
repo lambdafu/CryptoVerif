@@ -196,5 +196,5 @@ All queries proved.
 END
 EXPECTED
 RESULT Could not prove secrecy of keyB; secrecy of keyA.
-0.040s (user 0.040s + system 0.000s), max rss 11820K
+0.072s (user 0.072s + system 0.000s), max rss 11108K
 END *)

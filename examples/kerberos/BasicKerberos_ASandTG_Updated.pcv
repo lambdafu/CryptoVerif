@@ -273,7 +273,7 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(fullTC(C, S, N, k', x', z', v, y)) && event(fullCT(T, S, N, k, x, z, y)) ==> (k = k') with public variables keySK, keyTSK.
-0.904s (user 0.896s + system 0.008s), max rss 72152K
+0.808s (user 0.808s + system 0.000s), max rss 30240K
 END *)
 
 (* EXPECTPV
@@ -283,5 +283,5 @@ RESULT inj-event(fullCT(T,S,N,k,x,z,y)) ==> inj-event(fullTC(C,S,N,k,x',z',v,y))
 RESULT event(fullTC(C,S,N,k',x',z',v,y)) && event(fullCT(T,S,N,k,x,z,y)) ==> k = k' public_vars keySK,keyTSK is true.
 RESULT secret keySK is true.
 RESULT secret keyTSK is true.
-0.548s (user 0.544s + system 0.004s), max rss 29380K
+0.564s (user 0.540s + system 0.024s), max rss 28144K
 END *)

@@ -537,5 +537,5 @@ out(io21, (pkS, pkC));
 
 (* EXPECTED
 All queries proved.
-57.852s (user 57.768s + system 0.084s), max rss 265104K
+55.736s (user 55.648s + system 0.088s), max rss 235736K
 END *)

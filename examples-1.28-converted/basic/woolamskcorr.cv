@@ -140,5 +140,5 @@ out(c13, ());
 
 (* EXPECTED
 All queries proved.
-0.196s (user 0.196s + system 0.000s), max rss 12860K
+0.236s (user 0.232s + system 0.004s), max rss 13240K
 END *)

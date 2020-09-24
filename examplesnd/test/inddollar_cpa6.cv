@@ -60,5 +60,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove secrecy of k3.
-0.172s (user 0.168s + system 0.004s), max rss 44632K
+0.100s (user 0.096s + system 0.004s), max rss 16864K
 END *)

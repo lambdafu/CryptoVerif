@@ -123,5 +123,5 @@ out(c13, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove inj-event(endB(x, y, z)) ==> inj-event(beginA(y)); inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)); event(endB(x, y, z)) ==> event(beginA(y)); event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
-0.064s (user 0.056s + system 0.008s), max rss 12356K
+0.068s (user 0.068s + system 0.000s), max rss 11704K
 END *)

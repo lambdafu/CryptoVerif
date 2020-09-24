@@ -139,7 +139,7 @@ process
 
 (* EXPECTED
 RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) with public variables keyA; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; event(partA(B, x)) ==> event(partB(A, x)) with public variables keyA.
-0.316s (user 0.304s + system 0.012s), max rss 55376K
+0.316s (user 0.296s + system 0.020s), max rss 24816K
 END *)
 
 (* EXPECTPV
@@ -154,5 +154,5 @@ RESULT (but event(fullB(A,k_3,x)) ==> event(fullA(B,k_3,x)) is true.)
 RESULT event(fullA(B,k_3,x)) && event(fullB(A,k',x)) ==> k_3 = k' public_vars keyA is true.
 RESULT secret keyA is true.
 RESULT secret keyA is true.
-0.060s (user 0.060s + system 0.000s), max rss 12392K
+0.104s (user 0.104s + system 0.000s), max rss 11392K
 END *)
