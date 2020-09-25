@@ -3983,9 +3983,9 @@ equiv(ddh(exp))
 
 def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH) {
 
-(* the GDH assumption 
-    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
-    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+(* the square GDH assumption 
+    This equivalence says that, when exp(g,a[i]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], a[j])) only with
     negligible probability, even in the presence of a DDH oracle
     DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
     that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *)
@@ -4075,9 +4075,9 @@ equiv(gdh(exp))
 
 def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH, pDistRerandom) {
 
-(* the GDH assumption 
-    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
-    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+(* the square GDH assumption 
+    This equivalence says that, when exp(g,a[i]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], a[j])) only with
     negligible probability, even in the presence of a DDH oracle
     DDH(G,A,B,C) tells whether A = G^a, B = G^b, and C = G^{ab} for some a,b,
     that is DDH(G,A,B,C) is (log_G(A) * log_G(B) = log_G(C)). *)
