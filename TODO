@@ -2,6 +2,11 @@ TO DO next
 
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
+   allow giving the RHS of equiv using tables instead of find.
+   tables are then expanded into find for usage by CryptoVerif
+   but could be left as tables for translating to EasyCrypt.
+   Already done: allow declaring equiv for one key, extended
+   to several keys by CryptoVerif.
 2) Extend macros (see point 5 in HIGH PRIORITY)
 3) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
