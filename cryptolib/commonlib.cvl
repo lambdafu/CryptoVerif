@@ -3454,7 +3454,7 @@ equiv(cdh(exp))
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
     )
-<=((#ODDHa + #ODDHb) * max(1, 4*#Oa) * max(1, 4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)) + (na + nb) * pDistRerandom)=> [computational]
+<=((#ODDHa + #ODDHb) * max(1, 4*#Oa) * max(1, 4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb + 1) * time(exp)) + (na + nb) * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -3745,7 +3745,7 @@ equiv(gdh(exp))
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
     )
 <=(max(1, 4*(#Oa-max(-1,-(#ODDHa5+#ODDHb7)))) * max(1, 4*(#Ob-max(-1,-(#ODDHa4+#ODDHb6)))) *
-	   pGDH(time + (na + nb) * time(exp),
+	   pGDH(time + (na + nb + 1) * time(exp),
 	   #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8)
       + (na + nb) * pDistRerandom)=> [computational]
@@ -3910,7 +3910,7 @@ equiv(cdh(exp))
       	      return(m = exp(g, mult(a[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     )
-<=(#ODDHa * max(1, 27/4*#Oa*#Oa) * pSQCDH(time + (na + #ODDHa) * time(exp)) + na * pDistRerandom)=> [computational]
+<=(#ODDHa * max(1, 27/4*#Oa*#Oa) * pSQCDH(time + (na + #ODDHa + 1) * time(exp)) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -4095,7 +4095,7 @@ equiv(gdh(exp))
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) 
 <=(max(1, 27/4*(#Oa-max(-1,-#ODDHa5))*(#Oa-max(-1,-#ODDHa5))) * 
-	   pSQGDH(time + na * time(exp),
+	   pSQGDH(time + (na+1) * time(exp),
 	   #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
