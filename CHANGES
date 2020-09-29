@@ -1,7 +1,7 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
-Version
+Version 2.03
 
 - When a proof of equivalence fails, CryptoVerif explains where the
   two games differ.
