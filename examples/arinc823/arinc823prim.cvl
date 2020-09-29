@@ -73,9 +73,9 @@ equiv(gdh(exp))
     ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
     ! nbSign2 new r: seed; OSignb2(m: bitstring) := return(sign'(b, m, r)))
     (* This probability formula uses random self reducibility.
-       So we assume that the secret keys are chosen uniformly in Z/qZ, 
+       We assume that the secret keys are chosen uniformly in Z/qZ*, 
        where q is the order of g. *)
-<=(pGDH(time + (na + nb) * time(exp),
+<=(pGDH(time + (na + nb + 1) * time(exp),
    #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
    #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
@@ -230,9 +230,9 @@ equiv(gdh(exp))
     ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
     ! nbSign2 new r: seed; OSignb2(m: bitstring) := return(sign'(b, m, r)))
     (* This probability formula uses random self reducibility.
-       So we assume that the secret keys are chosen uniformly in Z/qZ, 
+       We assume that the secret keys are chosen uniformly in Z/qZ*, 
        where q is the order of g. *)
-<=(pGDH(time + (na + nb) * time(exp),
+<=(pGDH(time + (na + nb + 1) * time(exp),
    #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
    #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
