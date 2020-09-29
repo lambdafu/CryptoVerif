@@ -194,8 +194,8 @@ expand IND_CPA_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce, enc, en
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries, with
    cleartexts of length at most l and ciphertexts of length at most l'.
 
    The types key, cleartext, ciphertext, enc_seed and the
@@ -243,20 +243,24 @@ equiv(ind_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x)) + N3 * time(dec, maxlength(y))), N, maxlength(x), maxlength(y)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x)) + N3 * time(dec, maxlength(y))), N, maxlength(x), maxlength(y)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) :=
@@ -292,8 +296,8 @@ expand IND_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, e
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l'.
 
    The types key, cleartext, ciphertext, nonce and the
@@ -344,12 +348,14 @@ equiv(ind_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
 	              return(enc(x, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_n: nonce) [useful_change] :=
 	              return(dec(y,k,c_n)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_n))), N, maxlength(x), maxlength(y)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],n[u],r[u]) && n = n[u] && x <> x[u] then
@@ -365,13 +371,15 @@ equiv(int_ctxt(enc))
 		          return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
 	              return(enc(x, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_n: nonce) [useful_change] :=
 	              return(dec(y, k,c_n)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_n))), N, maxlength(x), maxlength(y)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],n[u],r[u]) && n = n[u] && x <> x[u] then
@@ -416,8 +424,8 @@ expand IND_CPA_INT_CTXT_sym_enc_nonce_all_args(key, cleartext, ciphertext, nonce
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l',
    additional data for encryption of length at most ld, and 
    additional data for decryption of length at most ld'.
@@ -466,20 +474,24 @@ equiv(ind_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x), maxlength(d)) + N3 * time(dec, maxlength(y), maxlength(c_d))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) := find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x), maxlength(d)) + N3 * time(dec, maxlength(y), maxlength(c_d))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) :=
@@ -517,8 +529,8 @@ expand AEAD_all_args(key, cleartext, ciphertext, add_data, enc_seed, enc, enc_r,
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l',
    additional data for encryption of length at most ld, and 
    additional data for decryption of length at most ld'.
@@ -571,12 +583,14 @@ equiv(ind_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
 	              return(enc(x, d, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
 	              return(dec(y,c_d,k,c_n)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_d), maxlength(c_n))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
@@ -592,13 +606,15 @@ equiv(int_ctxt(enc))
 		          return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
 	              return(enc(x, d, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
 	              return(dec(y,c_d,k,c_n)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_d), maxlength(c_n))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
@@ -789,8 +805,8 @@ equiv(inddollar_cpa(enc))
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l'.
 
    The types key, cleartext, ciphertext, enc_seed, cipher_stream and the
@@ -844,20 +860,24 @@ equiv(inddollar_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x)) + N3 * time(dec, maxlength(y))), N, maxlength(x), maxlength(y)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x)) + N3 * time(dec, maxlength(y))), N, maxlength(x), maxlength(y)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) :=
@@ -896,8 +916,8 @@ expand INDdollar_CPA_INT_CTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_s
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l'.
 
    The types key, cleartext, ciphertext, nonce, cipher_stream and the
@@ -954,12 +974,14 @@ equiv(inddollar_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
 	              return(enc(x, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_n: nonce) [useful_change] :=
 	              return(dec(y,k,c_n)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_n))), N, maxlength(x), maxlength(y)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],n[u],r[u]) && n = n[u] && x <> x[u] then
@@ -975,13 +997,15 @@ equiv(int_ctxt(enc))
 		          return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
 	              return(enc(x, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_n: nonce) [useful_change] :=
 	              return(dec(y, k,c_n)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_n))), N, maxlength(x), maxlength(y)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],n[u],r[u]) && n = n[u] && x <> x[u] then
@@ -1022,8 +1046,8 @@ equiv(int_ctxt_corrupt(enc))
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l',
    additional data for encryption of length at most ld, and 
    additional data for decryption of length at most ld'.
@@ -1078,20 +1102,24 @@ equiv(inddollar_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x), maxlength(d)) + N3 * time(dec, maxlength(y), maxlength(c_d))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) := find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc_r, maxlength(x), maxlength(d)) + N3 * time(dec, maxlength(y), maxlength(c_d))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) :=
@@ -1132,8 +1160,8 @@ expand AEAD_INDdollar_CPA_all_args(key, cleartext, ciphertext, add_data, enc_see
    Penc(t, N, l): probability of breaking the IND-CPA property in time
    t for one key and N encryption queries with cleartexts of length at
    most l
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the INT-CTXT property
-   in time t for one key, N encryption queries, N' decryption queries with
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the INT-CTXT property
+   in time t for one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most l',
    additional data for encryption of length at most ld, and 
    additional data for decryption of length at most ld'.
@@ -1192,12 +1220,14 @@ equiv(inddollar_cpa(enc))
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
 	              return(enc(x, d, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
 	              return(dec(y,c_d,k,c_n)))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_d), maxlength(c_n))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
@@ -1213,13 +1243,15 @@ equiv(int_ctxt(enc))
 		          return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
+      foreach i2 <= N2 do
       k <-R key; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
 	              return(enc(x, d, k, n)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
 	              return(dec(y,c_d,k,c_n)) |
 	      Ocorrupt() [10] := return(k))
-     <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+     <=(#Odec * Pencctxt(time + (N2-1) * (N * time(enc, maxlength(x), maxlength(d), maxlength(n)) + N3 * time(dec, maxlength(y), maxlength(c_d), maxlength(c_n))), N, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
+      foreach i2 <= N2 do
       k <-R key [unchanged]; (
       	      foreach i <= N do Oenc(x:cleartext, d: add_data, n: nonce) :=
       	       	       find u <= N suchthat defined(x[u],d[u],n[u],r[u]) && n = n[u] && (x <> x[u] || d <> d[u]) then
@@ -1439,7 +1471,7 @@ expand INT_PTXT_sym_enc_all_args(key, cleartext, ciphertext, enc_seed, enc, enc_
    cleartexts of length at most l and ciphertexts of length at most l'.
 
    The types key, cleartext, ciphertext, enc_seed and the
-   probabilities Penc, Pencctxt must be declared before this macro is
+   probabilities Penc, Pencptxt must be declared before this macro is
    expanded. The functions enc, enc_r, enc_r', dec, dec', injbot, and Z are declared
    by this macro. They must not be declared elsewhere, and they can be
    used only after expanding the macro.
@@ -4922,9 +4954,9 @@ letfun dec(e_MAC: ciphertext, k: emkey) =
    Penc(t, N, l): probability of breaking the IND-CPA property of the
    underlying encryption scheme in time t for one key and N encryption
    queries with cleartexts of length at most l.
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the
    INT-CTXT property of the underlying encryption scheme in time t for
-   one key, N encryption queries, N' decryption queries with
+   one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most
    l', additional data for encryption of length at most ld, and
    additional data for decryption of length at most ld'.
@@ -4964,9 +4996,9 @@ letfun dec(e: ciphertext, k: key) =
    Penc(t, N, l): probability of breaking the IND-CPA property of the
    underlying encryption scheme in time t for one key and N encryption
    queries with cleartexts of length at most l.
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the
    INT-CTXT property of the underlying encryption scheme in time t for
-   one key, N encryption queries, N' decryption queries with
+   one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most
    l', additional data for encryption of length at most ld, and
    additional data for decryption of length at most ld'.
@@ -5102,9 +5134,9 @@ letfun dec(e_MAC: ciphertext, d: add_data, k: emkey) =
    Penc(t, N, l): probability of breaking the IND-CPA property of the
    underlying encryption scheme in time t for one key and N encryption
    queries with cleartexts of length at most l.
-   Pencctxt(t, N, N', l, l', ld, ld'): probability of breaking the
+   Pencctxt(t, N, l, l', ld, ld'): probability of breaking the
    INT-CTXT property of the underlying encryption scheme in time t for
-   one key, N encryption queries, N' decryption queries with
+   one key, N encryption queries with
    cleartexts of length at most l and ciphertexts of length at most
    l', additional data for encryption of length at most ld, and
    additional data for decryption of length at most ld'.
