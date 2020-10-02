@@ -334,9 +334,9 @@ and modifying them as desired. Here is a list of the predefined primitives.
   property in time $t$ for one key and $N$ encryption queries with
   cleartexts of length at most $l$.
 
-  $\vn{Pencctxt}(t, N, l, l')$ is the probability of breaking the
+  $\vn{Pencctxt}(t, N, N', l, l')$ is the probability of breaking the
   INT-CTXT property in time $t$ for one key, $N$ encryption queries,
-  with cleartexts of length at most $l$ and
+  $N'$ decryption queries with cleartexts of length at most $l$ and
   ciphertexts of length at most $l'$.
 
    The types $\vn{key}$, $\vn{cleartext}$,
@@ -402,9 +402,9 @@ $  \vn{dec}$, $\vn{injbot}$, $\vn{Z}$, $\vn{Penc}$, $\vn{Pencctxt}\texttt{).}$  
   property in time $t$ for one key and $N$ encryption queries with
   cleartexts of length at most $l$.
 
-  $\vn{Pencctxt}(t, N, l, l')$ is the probability of breaking the
+  $\vn{Pencctxt}(t, N, N', l, l')$ is the probability of breaking the
   INT-CTXT property in time $t$ for one key, $N$ encryption queries,
-  with cleartexts of length at most $l$ and
+  $N'$ decryption queries with cleartexts of length at most $l$ and
   ciphertexts of length at most $l'$.
 
    The types $\vn{key}$, $\vn{cleartext}$,
@@ -461,9 +461,9 @@ authenticated encryption scheme with additional data.
   property in time $t$ for one key and $N$ encryption queries with
   cleartexts of length at most $l$.
 
-  $\vn{Pencctxt}(t, N, l, l', \vn{ld}, \vn{ld}')$ is the probability of
+  $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the probability of
   breaking the INT-CTXT property in time $t$ for one key, $N$
-  encryption queries with cleartexts of
+  encryption queries, $N'$ decryption queries with cleartexts of
   length at most $l$ and ciphertexts of length at most $l'$,
   additional data for encryption of length at most $\vn{ld}$, and
   additional data for decryption of length at most $\vn{ld}'$.
@@ -532,9 +532,9 @@ value in each call to encryption. A typical example is AES-GCM.
   property in time $t$ for one key and $N$ encryption queries with
   cleartexts of length at most $l$.
 
-  $\vn{Pencctxt}(t, N, l, l', \vn{ld}, \vn{ld}')$ is the probability of
+  $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the probability of
   breaking the INT-CTXT property in time $t$ for one key, $N$
-  encryption queries with cleartexts of
+  encryption queries, $N'$ decryption queries with cleartexts of
   length at most $l$ and ciphertexts of length at most $l'$,
   additional data for encryption of length at most $\vn{ld}$, and
   additional data for decryption of length at most $\vn{ld}'$.
@@ -2112,10 +2112,10 @@ This macro defines the equivalence named $\texttt{keygen}(\vn{kgen})$
    l)$ is the probability of breaking the IND-CPA property of the
    underlying AEAD scheme in time $t$ for one key and $N$ encryption
    queries with cleartexts of length at most $l$, and
-   $\vn{Pencctxt}(t, N, l, l', \vn{ld}, \vn{ld}')$ is the
+   $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the
    probability of breaking the INT-CTXT property of the underlying
-   AEAD scheme in time $t$ for one key, $N$ encryption queries
-   with cleartexts of length at most $l$ and
+   AEAD scheme in time $t$ for one key, $N$ encryption queries, $N'$
+   decryption queries with cleartexts of length at most $l$ and
    ciphertexts of length at most $l'$, additional data for encryption
    of length at most $\vn{ld}$, and additional data for decryption of
    length at most $\vn{ld}'$.
@@ -2133,10 +2133,10 @@ This macro defines the equivalence named $\texttt{keygen}(\vn{kgen})$
    l)$ is the probability of breaking the IND-CPA property of the
    underlying AEAD scheme in time $t$ for one key and $N$ encryption
    queries with cleartexts of length at most $l$, and
-   $\vn{Pencctxt}(t, N, l, l', \vn{ld}, \vn{ld}')$ is the
+   $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the
    probability of breaking the INT-CTXT property of the underlying
-   AEAD scheme in time $t$ for one key, $N$ encryption queries
-   with cleartexts of length at most $l$ and
+   AEAD scheme in time $t$ for one key, $N$ encryption queries, $N'$
+   decryption queries with cleartexts of length at most $l$ and
    ciphertexts of length at most $l'$, additional data for encryption
    of length at most $\vn{ld}$, and additional data for decryption of
    length at most $\vn{ld}'$.
@@ -2166,10 +2166,10 @@ The arguments are the same as for \texttt{AEAD} except that $\vn{Penc}(t, N, l)$
    l)$ is the probability of breaking the IND-CPA property of the
    underlying AEAD scheme in time $t$ for one key and $N$ encryption
    queries with cleartexts of length at most $l$, and
-   $\vn{Pencctxt}(t, N, l, l', \vn{ld}, \vn{ld}')$ is the
+   $\vn{Pencctxt}(t, N, N', l, l', \vn{ld}, \vn{ld}')$ is the
    probability of breaking the INT-CTXT property of the underlying
-   AEAD scheme in time $t$ for one key, $N$ encryption queries
-   with cleartexts of length at most $l$ and
+   AEAD scheme in time $t$ for one key, $N$ encryption queries, $N'$
+   decryption queries with cleartexts of length at most $l$ and
    ciphertexts of length at most $l'$, additional data for encryption
    of length at most $\vn{ld}$, and additional data for decryption of
    length at most $\vn{ld}'$.

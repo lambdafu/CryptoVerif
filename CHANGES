@@ -28,9 +28,6 @@ Version 2.03
   random self reducibility. Introduced a probability of distinguishing
   a rerandomized key from an honestly generated key, so that the
   transformations can also be applied to Curve25519 and Curve448.
-- Starting from a definition of ciphertext integrity with a single forgery
-  instead of several decryption queries; that improves the counting of
-  probabilities.
 - The game equivalences used in crypto transformations for
   ROM, PRF, PRP, SPRP, and ICM are now generated on-demand by CryptoVerif.
   That allows more flexibility to optimize these equivalences.
