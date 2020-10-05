@@ -10,5 +10,17 @@ val compute_runtime_for_context : game -> equiv_nm ->
 
 val compute_runtime_for : game -> probaf
 
-val compute_runtime_for_fungroup : game -> fungroup -> probaf
+(* Two version of the function that computes the time to add when 
+   we add a replication on top of an equiv statement
+   [compute_add_time lhs rhs param opt2] computes
+   an upper bound of 
+     max(time(lhs),time(rhs)) * (param-1) when opt2 = Decisional
+     time(lhs) when opt2 = Computational
+   [compute_add_time_totcount] is similar, but uses #O counts
+   to count the number of executions of oracles, which avoids
+   having to multiply afterwards and gives better results when param >> 1.
+   *)
+val compute_add_time : fungroup -> fungroup -> param -> eqopt2 -> probaf
+val compute_add_time_totcount : fungroup -> fungroup -> param -> eqopt2 -> probaf
+    
 val compute_runtime_for_term : game -> term -> probaf

@@ -976,21 +976,10 @@ let add_repl normalize equiv =
 	    let (rrepl_opt, rrestr_list',rfun_list',_) = add_index_top t (rrestr_list,rfun_list, []) in
 	    let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
 	    let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
-	    let time_add1 =
-	      match opt2 with
-	      | Decisional ->
-		  let lhs_time = Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list')) in
-		  let rhs_time = Computeruntime.compute_runtime_for_fungroup Terms.rhs_game (ReplRestr(None, rrestr_list',rfun_list')) in
-		  begin
-		    match lhs_time, rhs_time with
-		    | Zero, _ -> rhs_time
-		    | _, Zero -> lhs_time
-		    | _ -> Max [ lhs_time; rhs_time ]
-		  end
-	      | Computational -> Computeruntime.compute_runtime_for_fungroup Terms.lhs_game (ReplRestr(None, lrestr_list',lfun_list'))
-	    in
+	    let lhs_for_time = ReplRestr(None, lrestr_list',lfun_list') in
+	    let rhs_for_time = ReplRestr(None, rrestr_list',rfun_list') in
 	    let time_add =
-	      Polynom.p_mul((Sub(Count(param),Cst 1.0)), time_add1)
+	      Computeruntime.compute_add_time_totcount lhs_for_time rhs_for_time param opt2
 	    in
 	    let p'' = List.map (function
 	      | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))

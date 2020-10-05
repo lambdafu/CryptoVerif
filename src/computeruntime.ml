@@ -417,6 +417,82 @@ let compute_runtime_for_fungroup g fg =
   whole_game := Terms.empty_game;
   res
 
+let max t t' = 
+  match t, t' with
+  | Zero, _ -> t'
+  | _, Zero -> t
+  | _ -> Max [ t; t' ]
+    
+let compute_add_time lhs rhs mul_param opt2 =
+  let time_add1 =
+    match opt2 with
+    | Decisional ->
+	let lhs_time = compute_runtime_for_fungroup Terms.lhs_game lhs in
+	let rhs_time = compute_runtime_for_fungroup Terms.rhs_game rhs in
+	max lhs_time rhs_time
+    | Computational -> compute_runtime_for_fungroup Terms.lhs_game lhs
+  in
+  Polynom.p_mul((Sub(Count(mul_param),Cst 1.0)), time_add1)
+
+(* Second version of compute_runtime_for_fungroup using #O *)
+
+let rec time_list2 f = function
+    [] -> (Polynom.zero, Polynom.zero)
+  | (a::l) ->
+      let (t1,t2) = f a in
+      let (t1',t2') = time_list2 f l in
+      (Polynom.sum t1 t1',
+       Polynom.sum t2 t2')
+
+let rec time_fungroup = function
+  | Fun(oname,_,t,_) ->
+      (Polynom.product (time_term t) (Polynom.probaf_to_polynom (OCount oname)),
+       Polynom.zero)
+  | ReplRestr(repl_opt, restr_list, fun_list) ->
+      let (tfun, totherrestr) = time_list2 time_fungroup fun_list in
+      let t_restr =
+	if (!Settings.ignore_small_times)>0 then
+	  totherrestr
+	else
+	  Polynom.sum totherrestr
+	    (time_list (fun (b,_) ->
+	      Polynom.probaf_to_polynom 
+		(Add(ActTime(AArrayAccess (List.length b.args_at_creation), []),
+		     ActTime(ANew b.btype, [])))) restr_list)
+      in
+      let t_restr_tot = 
+	match repl_opt with
+	| None -> t_restr
+	| Some b ->
+	    Polynom.product t_restr (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
+      in
+      (tfun, t_restr_tot)
+	
+let compute_runtime_for_fungroup_totcount g fg =
+  whole_game := g; (* The game does not matter here,
+		      it will be instantiated when we 
+		      apply the crypto transformation *)
+  get_time_map := (fun t -> raise Not_found);
+  names_to_discharge := [];
+  let (tfun, trestr) = time_fungroup fg in
+  let res = Polynom.polynom_to_probaf tfun, Polynom.polynom_to_probaf trestr in
+  whole_game := Terms.empty_game;
+  res
+
+let max2 (t1,t2) (t1',t2') =
+  (max t1 t1', max t2 t2')
+    
+let compute_add_time_totcount lhs rhs mul_param opt2 =
+  let fun_time_add1, restr_time_add1 =
+    match opt2 with
+    | Decisional ->
+	let lhs_time = compute_runtime_for_fungroup_totcount Terms.lhs_game lhs in
+	let rhs_time = compute_runtime_for_fungroup_totcount Terms.rhs_game rhs in
+	max2 lhs_time rhs_time
+    | Computational -> compute_runtime_for_fungroup_totcount Terms.lhs_game lhs
+  in
+  Polynom.p_add (fun_time_add1, Polynom.p_mul((Sub(Count(mul_param),Cst 1.0)), restr_time_add1))
+    
 let compute_runtime_for_term g t =
   whole_game := g;
   get_time_map := (fun t -> raise Not_found);

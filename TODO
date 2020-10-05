@@ -138,6 +138,16 @@ in fstar.
 - avoid concatenation of strings in the generation of code,
 to avoid being quadratic [also in cv2ml]
 
+0.8) When we automatically add a replication on top of an equiv
+statement, automatically choose the best time to add to the adversary
+between compute_add_time and compute_add_time_totcount,
+e.g. via a "min" construct in proba formulas, possibly with
+a hint on when to choose which term in the minimum.
+
+0.9) Display a lighter runtime, of the form (polynom in parameters) *
+O(1) where O(1) is a time that does not depend on parameters
+(constant or may depend on length of bitstrings).
+
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
    correspondences. In contrast, we can apply collision statements
