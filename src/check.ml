@@ -979,7 +979,7 @@ let add_repl normalize equiv =
 	    let lhs_for_time = ReplRestr(None, lrestr_list',lfun_list') in
 	    let rhs_for_time = ReplRestr(None, rrestr_list',rfun_list') in
 	    let time_add =
-	      Computeruntime.compute_add_time_totcount lhs_for_time rhs_for_time param opt2
+	      Computeruntime.compute_add_time(*_totcount*) lhs_for_time rhs_for_time param opt2
 	    in
 	    let p'' = List.map (function
 	      | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
