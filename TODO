@@ -1,5 +1,8 @@
 TO DO next
 
+fix internal error in file examplesnd/otest/hpke.internalerror.ocv
+point 0.10?
+
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
    allow giving the RHS of equiv using tables instead of find.
@@ -147,6 +150,9 @@ a hint on when to choose which term in the minimum.
 0.9) Display a lighter runtime, of the form (polynom in parameters) *
 O(1) where O(1) is a time that does not depend on parameters
 (constant or may depend on length of bitstrings).
+
+0.10) Be able to express probability results using #O instead of
+just parameters of replications, to get more precise bounds.
 
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of

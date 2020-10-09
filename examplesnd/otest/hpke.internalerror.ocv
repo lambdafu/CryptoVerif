@@ -1,0 +1,899 @@
+def OptionType_1(option, option_Some, option_None, input) {
+  type option.
+  fun option_Some(input): option [data].
+  const option_None: option.
+  equation forall x: input;
+    option_Some(x) <> option_None.
+}
+
+def OptionType_2(option, option_Some, option_None, input1, input2) {
+  type option.
+  fun option_Some(input1, input2): option [data].
+  const option_None: option.
+  equation forall x1: input1, x2: input2;
+    option_Some(x1, x2) <> option_None.
+}
+
+(* AEAD (authenticated encryption with additional data) with a random nonce.
+   A typical example is AES-GCM.
+
+   In this macro, we model a multikey security notion.
+
+   key: type of keys, must be "bounded" (to be able to generate random numbers from it, and to talk about the runtime of enc without mentioning the length of the key), typically "fixed" and "large".
+   cleartext: type of cleartexts
+   ciphertext: type of ciphertexts
+   add_data: type of additional data that is just authenticated
+   nonce: type of the nonce
+
+   enc: encryption function
+   enc': symbol that replaces enc after game transformation
+   dec: decryption function
+   injbot: natural injection from cleartext to bitstringbot
+   Z: function that returns for each cleartext a cleartext of the same length consisting only of zeroes.
+
+   Penc(t, Nk, Ne, l): probability of breaking the IND-CPA property in time
+   t for Nk keys and Ne encryption queries per key with cleartexts of length at
+   most l
+   Pencctxt(t, Nk, Ne, Ndtot, l, l', ld, ld'): 
+   probability of breaking the INT-CTXT property
+   in time t for Nk keys, Ne encryption queries per key, 
+   Ndtot decryption queries in total with
+   cleartexts of length at most l and ciphertexts of length at most l',
+   additional data for encryption of length at most ld, and 
+   additional data for decryption of length at most ld'.
+
+   The types key, cleartext, ciphertext, add_data, nonce and the
+   probabilities Penc, Pencctxt must be declared before this macro is
+   expanded. The functions enc, dec, injbot, and Z are declared
+   by this macro. They must not be declared elsewhere, and they can be
+   used only after expanding the macro.
+*)
+
+def multikey_AEAD(key, cleartext, ciphertext, add_data, nonce, enc, dec, injbot, Z, Penc, Pencctxt) { 
+
+param Nk, Ne, Nd.
+
+fun enc(cleartext, add_data, key, nonce): ciphertext.
+fun dec(ciphertext, add_data, key, nonce): bitstringbot.
+
+fun enc'(cleartext, add_data, key, nonce): ciphertext.
+
+fun injbot(cleartext):bitstringbot [data].
+equation forall x:cleartext; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+equation forall m:cleartext, d: add_data, k:key, n: nonce; 
+	dec(enc(m, d, k, n), d, k, n) = injbot(m).
+
+(* IND-CPA *)
+
+equiv(ind_cpa(enc))
+       foreach ik <= Nk do
+       k <-R key; n <-R nonce; ( 
+       	       Oenc(x:cleartext, d: add_data) :=
+	       	       return(enc(x, d, k, n)) |
+	       On() := return(n))
+     <=(Penc(time, Nk))=> 
+       foreach ik <= Nk do
+       k <-R key; n <-R nonce; (
+       	       Oenc(x:cleartext, d: add_data) := 
+		       let r: ciphertext = enc'(Z(x), d, k, n) in
+		       return(r) |
+	       On() := return(n)).
+
+(* INT-CTXT *)
+
+equiv(int_ctxt(enc))
+      foreach ik <= Nk do
+      k <-R key; n <-R nonce; (
+      	      Oenc(x:cleartext, d: add_data) :=
+	              return(enc(x, d, k, n)) |
+              On() := return(n) |
+	      foreach id <= Nd do Odec(y:ciphertext, c_d: add_data, c_n: nonce) [useful_change] :=
+	              return(dec(y,c_d,k, c_n)))
+     <=(Pencctxt(time, Nk, #Odec))=> [computational] 
+      foreach ik <= Nk do
+      k <-R key [unchanged]; n <-R nonce [unchanged]; (
+      	      Oenc(x:cleartext, d: add_data) :=
+		      let r: ciphertext = enc(x, d, k, n) in
+		      return(r) |
+              On() := return(n) |
+	      foreach id <= Nd do Odec(y:ciphertext, c_d: add_data, c_n: nonce) :=
+	              if defined(x,d,r,n) && r = y && d = c_d && n = c_n then
+		          return(injbot(x))
+	              else
+		          return(bottom)).
+
+}
+(* The following macros define security properties of AKEM, which
+   we use as assumptions in the proof of HPKE.
+
+   They take the following arguments:
+   keypairseed: type of the randomness used to generate key pairs
+   pkey: type of public keys
+   skey: type of secret keys
+   kemseed: type of the randomness used in AuthEncap
+   AuthEncap_res: type of the result of AuthEncap
+   AuthDecap_res: type of the result of AuthDecap
+   key: type of encapsulated keys (cleartexts)
+   ciphertext: type of ciphertexts
+
+   skgen(keypairseed): skey. function that generates secret keys from randomness
+   pkgen(keypairseed): pkey. function that generates public keys from randomness
+   GenerateKeyPair: function that generates a key pair (it generates randomness internally)
+
+   AuthEncap(pkey, skey): AuthEncap_res: encapsulation function; AuthEncap(pk,sk) generates
+   a key k, encrypts it for pk, authenticates it using sk, and returns k and the ciphertext.
+   It generates randomness internally.
+   AuthEncap_r(kemseed, pkey, skey): AuthEncap_res: same as AuthEncap but takes randomness as
+   argument (of type kemseed).
+   AuthEncap_key_r(kemseed, pkey, skey): key: returns only the key component of AuthEncap_r
+   AuthEncap_enc_r(kemseed, pkey, skey): ciphertext: returns only the ciphertext component
+   of AuthEncap_r.
+   AuthEncap_tuple(key, ciphertext): AuthEncap_res builds a pair of key and ciphertext,
+   used as result of AuthEncap and AuthEncap_r. Hence
+     AuthEncap_r(r,pk,sk) = AuthEncap_tuple(AuthEncap_key_r(r,pk,sk), AuthEncap_enc_r(r,pk,sk))
+   AuthEncap_None: AuthEncap_res. Constant that corresponds to a failure of AuthEncap. 
+     In fact not used.
+
+   AuthDecap(ciphertext, skey, pkey): AuthDecap_res. Decapsulation function.
+     AuthDecap(c, sk, pk) verifies that the ciphertext c is authenticated using 
+     public key pk and decrypts it using secret key sk.
+   AuthDecap_Some(key): AuthDecap_res: result of AuthDecap in case of success.
+   AuthDecap_None: AuthDecap_res: result of AuthDecap in case of failure.
+
+   P_pk_coll: maximum probability over pk that pkgen(r) = pk when r is random (pk independent of r).
+
+   The types keypairseed, pkey, skey, kemseed, AuthEncap_res, key, ciphertext
+   and the probability P_pk_coll must be defined before calling these macros.
+   The other arguments are defined by the macro.
+ *)
+
+def Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll) {
+
+  fun skgen(keypairseed): skey.
+  fun pkgen(keypairseed): pkey.
+  letfun GenerateKeyPair() =
+    s <-R keypairseed; (skgen(s), pkgen(s)).
+
+  fun AuthEncap_r(kemseed, pkey, skey): AuthEncap_res.
+  fun AuthEncap_tuple(key, ciphertext): AuthEncap_res [data].
+  const AuthEncap_None: AuthEncap_res.
+  fun AuthEncap_key_r(kemseed, pkey, skey): key.
+  fun AuthEncap_enc_r(kemseed, pkey, skey): ciphertext.
+
+  letfun AuthEncap(pk: pkey, sk: skey) =
+    k <-R kemseed; AuthEncap_r(k, pk, sk).
+
+  expand OptionType_1(AuthDecap_res, AuthDecap_Some, AuthDecap_None, key).
+  fun AuthDecap(ciphertext, skey, pkey): AuthDecap_res.
+
+  param nAuthEncap.
+  equiv(eliminate_failing(AuthEncap))
+    foreach i <= nAuthEncap do
+      OAuthEncap(k: kemseed, pk: pkey, sk: skey) :=
+        return(AuthEncap_r(k, pk, sk)) [all]
+  <=(0)=> [manual,computational]
+    foreach i <= nAuthEncap do
+      OAuthEncap(k: kemseed, pk: pkey, sk: skey) :=
+        return(AuthEncap_tuple(AuthEncap_key_r(k, pk, sk), AuthEncap_enc_r(k, pk, sk))).
+
+  (* Correctness. *)
+  equation forall k: kemseed, s1: keypairseed, s2: keypairseed;
+    AuthDecap(
+      AuthEncap_enc_r(k, pkgen(s1), skgen(s2)),
+      skgen(s1),
+      pkgen(s2)
+    ) = AuthDecap_Some(AuthEncap_key_r(k, pkgen(s1), skgen(s2))).
+
+  (* Collisions of KEM private and public keys. *)
+  collision r1 <-R keypairseed; forall pk2: pkey;
+    return(pkgen(r1) = pk2) <=(P_pk_coll)=> return(false) if pk2 independent-of r1.
+
+}
+
+(* Macro Outsider_CCA_Secure_Authenticated_KEM defines an Outsider-CCA secure AKEM.
+   In addition to the previous arguments, it takes the advantage of the adversary
+   over the Outsider-CCA property, Adv_Outsider_CCA(time, N, Qe, Qd),
+   where time is the runtime of the adversary, N the number of users, and Qe, Qd
+   the number of queries to the Encap and Decap oracles, respectively, per user. *)
+
+def Outsider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll, Adv_Outsider_CCA) {
+
+  expand Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll).
+
+  param N, Qe, Qd.
+
+  (* In this security notion, the sender keypair is honest, which means the
+     private key is not known to the adversary. *)
+  equiv(outsider_cca(AuthEncap))
+    foreach i <= N do s <-R keypairseed; (
+      foreach ie <= Qe do ks <-R kemseed; (
+        OAEncap(pk_R: pkey) :=
+          return(AuthEncap_r(ks, pk_R, skgen(s)))) |
+      foreach id <= Qd do (
+        OADecap(pk_S: pkey, enc: ciphertext) :=
+          return(AuthDecap(enc, skgen(s), pk_S))) |
+      (* The next oracle gives the public key to the adversary *)
+      Opk() := return(pkgen(s))
+    )
+  <=(Adv_Outsider_CCA(time, N, Qe, Qd))=> [manual,computational]
+    foreach i <= N do s <-R keypairseed [unchanged]; (
+      foreach ie <= Qe do ks <-R kemseed [unchanged]; (
+        OAEncap(pk_R: pkey) :=
+          find i2 <= N suchthat defined(s[i2]) && pk_R = pkgen(s[i2]) then (
+            let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks, pk_R, skgen(s)) in (
+              k' <-R key;
+              return(AuthEncap_tuple(k', ce))
+            ) else (
+              (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
+              return(AuthEncap_None)
+            )
+          ) else (
+            return(AuthEncap_r(ks, pk_R, skgen(s)))
+          )) |
+      foreach id <= Qd do (
+        OADecap(pk_S: pkey, cd: ciphertext) :=
+	  (* This "find" implements a lookup in the set E of the paper.
+             The set is not built explicitly; we look for values in
+             encryption queries using arrays -- all variables are implicitly
+             stored in arrays indexed by replication indices above their
+             definition. *)
+          find ie1 <= Qe, i1 <= N suchthat
+            defined(s[i1], pk_R[ie1, i1], k'[ie1, i1], ce[ie1, i1]) &&
+              pkgen(s) = pk_R[ie1, i1] && pkgen(s[i1]) = pk_S && ce[ie1, i1] = cd then (
+            return(AuthDecap_Some(k'[ie1, i1]))
+          ) else (
+            return(AuthDecap(cd, skgen(s), pk_S))
+          )) |
+      Opk() := return(pkgen(s))
+    ).
+}
+
+(* Macro Outsider_Secure_Authenticated_KEM defines an Outsider-CCA and Outsider-Auth AKEM.
+   In addition to the arguments mentioned at the top of the file, it takes the advantage 
+   of the adversary over the Outsider-CCA property, Adv_Outsider_CCA(time, N, Qe, Qd), and 
+   over the Outsider-Auth property, Adv_Outsider_Auth(time, N, Qe, Qd),
+   where time is the runtime of the adversary, N the number of users, and Qe, Qd
+   the number of queries to the Encap and Decap oracles, respectively, per user. *)    
+
+def Outsider_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll, Adv_Outsider_CCA, Adv_Outsider_Auth) {
+
+  expand Outsider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll, Adv_Outsider_CCA).
+
+  param N, Qe, Qd.
+
+  equiv(outsider_auth(AuthEncap))
+    foreach i <= N do s <-R keypairseed; (
+      foreach ie <= Qe do ks <-R kemseed; (
+        OAEncap(pk_R: pkey) :=
+          return(AuthEncap_r(ks, pk_R, skgen(s)))) |
+      foreach id <= Qd do (
+        OADecap(pk_S: pkey, enc: ciphertext) :=
+          return(AuthDecap(enc, skgen(s), pk_S))) |
+      (* The next oracle gives the public key to the adversary *)
+      Opk() := return(pkgen(s))
+    )
+  <=(Adv_Outsider_Auth(time, N, Qe, Qd))=> [manual,computational]
+    foreach i <= N do s <-R keypairseed [unchanged]; (
+      foreach ie <= Qe do ks <-R kemseed [unchanged]; (
+        OAEncap(pk_R: pkey) :=
+          let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks, pk_R, skgen(s)) in (
+            return(AuthEncap_tuple(k, ce))
+          ) else (
+	   (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
+            return(AuthEncap_None)
+          )) |
+      foreach id <= Qd do (
+        OADecap(pk_S: pkey, cd: ciphertext) :=
+	  (* This "find" implements a lookup in the set E of the paper.
+             The set is not built explicitly; we look for values in
+             Oencap and previous Odecap queries using arrays.
+	     The first branch looks into Oencap queries, and in case of
+	     success, the oracle returns the key k computed there.
+	     The second branch (after "orfind") looks into previous
+	     Odecap queries, and in case of success, the oracle returns 
+	     the previously computed key k'. *)
+          find ie1 <= Qe, i1 <= N suchthat
+              defined(s[i1], pk_R[ie1, i1], k[ie1, i1], ce[ie1, i1]) &&
+              pkgen(s) = pk_R[ie1, i1] && pkgen(s[i1]) = pk_S && ce[ie1, i1] = cd then (
+            return(AuthDecap_Some(k[ie1, i1]))
+          ) orfind id1 <= Qd, i1 <= N suchthat
+              defined(s[i1], pk_S[id1, i1], k'[id1, i1], cd[id1, i1]) &&
+              pkgen(s) = pkgen(s[i1]) && pk_S[id1, i1] = pk_S && cd[id1, i1] = cd then (
+            return(AuthDecap_Some(k'[id1, i1]))
+          ) else (
+	      (* This "find" checks whether pk_S is among the honest public keys pk_i *)
+              find i1 <= N suchthat defined(s[i1]) && pk_S = pkgen(s[i1]) then (
+                let AuthDecap_Some(k0) = AuthDecap(cd, skgen(s), pk_S) in (
+                  k' <-R key;
+                  return(AuthDecap_Some(k'))
+                ) else (
+                  return(AuthDecap_None)
+                )
+              ) else (
+                return(AuthDecap(cd, skgen(s), pk_S))
+              )
+          )) |
+      Opk() := return(pkgen(s))
+    ).
+
+}
+
+(* Macro Insider_CCA_Secure_Authenticated_KEM defines an Insider-CCA AKEM.
+   In addition to the arguments mentioned at the top of the file, it takes the advantage 
+   of the adversary over the Insider-CCA property, Adv_Insider_CCA(time, N, Qe, Qc, Qd),
+   where time is the runtime of the adversary, N the number of users, and Qe, Qc, Qd
+   the number of queries to the Encap, Decap, and Challenge oracles, respectively, per user. *)    
+
+def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll, Adv_Insider_CCA) {
+
+  expand Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthEncap_res, AuthDecap_res, key, ciphertext, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll).
+
+  param N, Qe, Qd, Qc.
+
+  equiv(insider_cca(AuthEncap))
+    foreach i <= N do s <-R keypairseed; (
+      foreach ic <= Qc do ks' <-R kemseed; (
+        Ochall(s': keypairseed) :=
+          return(AuthEncap_r(ks', pkgen(s), skgen(s')))) |
+      foreach ie <= Qe do ks <-R kemseed; (
+        OAEncap(pk_R: pkey) :=
+          return(AuthEncap_r(ks, pk_R, skgen(s)))) |
+      foreach id <= Qd do (
+        OADecap(pk_S: pkey, enc: ciphertext) :=
+          return(AuthDecap(enc, skgen(s), pk_S))) |
+      (* The next oracle gives the public key to the adversary *)
+      Opk() := return(pkgen(s))
+    )
+  <=(Adv_Insider_CCA(time, N, Qe, Qc, Qd))=> [manual,computational]
+    foreach i <= N do s <-R keypairseed [unchanged]; (
+      foreach ic <= Qc do ks' <-R kemseed; (
+        Ochall(s': keypairseed) :=
+          let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks', pkgen(s), skgen(s')) in (
+            k' <-R key;
+            return(AuthEncap_tuple(k', ce))
+          ) else (
+	    (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
+            return(AuthEncap_None)
+          )) |
+      foreach ie <= Qe do ks <-R kemseed; (
+        OAEncap(pk_R: pkey) :=
+          return(AuthEncap_r(ks, pk_R, skgen(s)))) |
+      foreach id <= Qd do (
+        OADecap(pk_S: pkey, cd: ciphertext) :=
+	  (* This "find" implements a lookup in the set E of the paper.
+             The set is not built explicitly; we look for values in
+             Ochall queries using arrays -- all variables are implicitly
+             stored in arrays indexed by replication indices above their
+             definition. *)	  
+          find ic1 <= Qc, i1 <= N suchthat
+              defined(ce[ic1, i1], k'[ic1, i1], s[i1], s'[ic1, i1])
+              && ce[ic1, i1] = cd
+              && pkgen(s'[ic1, i1]) = pk_S
+              && pkgen(s[i1]) = pkgen(s) then (
+            return(AuthDecap_Some(k'[ic1, i1]))
+          ) else (
+            return(AuthDecap(cd, skgen(s), pk_S))
+          )
+      ) |
+      Opk() := return(pkgen(s))
+    ).
+
+}
+def boolean_choice(value_t, test) {
+
+  fun test(bool, value_t, value_t) : value_t.
+
+  equation forall x:value_t, y:value_t; test(true, x, y) = x.
+  equation forall x:value_t, y:value_t; test(false, x, y) = y.
+  (* Knowing the equations defined above, this can be deduced, but
+     CryptoVerif can't do this on its own. *)
+  equation forall x:value_t, b:bool; test(b,x,x) = x.
+}
+
+(* Length needs to be defined already, typically by the AEAD scheme that's
+ * expanded somewhere before.
+ *)
+def boolean_choice_for_encryption(value_t, Length, test) {
+
+  expand boolean_choice(value_t, test).
+
+  (* Knowing the equations defined above, this can be deduced, but
+     CryptoVerif can't do this on its own. *)
+  equation forall x:value_t, y:value_t, b:bool; Length(test(b,x,y)) = test (b,Length(x),Length(y)).
+
+}
+(* DH_proba_collision_minimal says that 
+   the probability that exp(g, x) = Y for random x and Y independent of x 
+   is at most PCollKey *)
+
+def DH_proba_collision_minimal(G, Z, g, exp, mult, PCollKey) {
+
+expand DH_basic(G, Z, g, exp, exp', mult).
+   (* In some game transformations, exp is rewritten into exp'
+      to avoid loops. We do not do that here, so exp' is not used. *)
+
+collision x <-R Z; forall Y: G;
+  return(exp(g, x) = Y) <=(PCollKey)=> return(false) if Y independent-of x.
+
+}
+
+
+
+def GDH_RSR_minimal(G, Z, g, exp, mult, pGDH, pDistRerandom) {
+
+(* the GDH assumption
+    This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], b[j])) only with
+    negligible probability, even in the presence of a decision DH oracle
+    DH(A,B,C) tells whether A = g^a, C = B^a for some a. *)
+
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naDH9,
+      nb, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbDH9.
+
+(* In the code below:
+   - oracles OA and OB give the public Diffie-Hellman keys to the adversary
+   - oracles ODHa9 and ODHb9 are particular cases of OA and OB, respectively:
+     exp(g, mult(a,x)) = exp(exp(g,a), x). They appear explicitly because
+     CryptoVerif would not detect that exp(g, mult(a,x)) can be computed
+     using exp(g,a), since exp(g,a) is not a subterm of exp(g, mult(a,x)). 
+   - Oracles ODDHa1, ODDHa, ODDHa8, ODDHb1, ODDHb, ODDHb8 are instances
+     of the decision DH oracle.
+     ODDHa1(m,m') = DH(exp(g,a), m', m)
+     ODDHa(m,j) = DH(exp(g,a), exp(g,b[j]), m)
+     		and in this case we can apply the CDH assumption
+		and replace the result with "false" in the right-hand side
+     ODDHa8(m,j) = DH(exp(g,a), exp(g,a[j]), m)
+     ODDHb1(m,m') = DH(exp(g,b), m', m)
+     ODDHb(m,j) = DH(exp(g,b), exp(g,a[j]), m)
+     		and in this case we can apply the CDH assumption
+		and replace the result with "false" in the right-hand side
+     ODDHb8(m,j) = DH(exp(g,b), exp(g,b[j]), m)
+  *)
+
+equiv(gdh(exp))
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
+      foreach iaDDH8 <= naDDH8 do ODDHa8(m:G,j<=na) [3] := return(m = exp(g,mult(a[j], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := return(m = exp(m', b)) |
+      foreach ibDDH  <= nbDDH  do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
+      foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b))) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
+    )
+<=(pGDH(time + (na + nb + 1) * time(exp),
+         #ODDHa + #ODDHa1 + #ODDHa8 +
+         #ODDHb + #ODDHb1 + #ODDHb8)
+      + (na + nb) * pDistRerandom)=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp(g,a)) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := return(false) |
+      foreach iaDDH8 <= naDDH8 do ODDHa8(m:G,j<=na) [3] := return(m = exp(g,mult(a[j], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp(g,b)) |
+      foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := return(m = exp(m', b)) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(false) |
+      foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b))) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp(g, mult(b, x)))
+    ).
+
+}
+
+
+def square_GDH_RSR_minimal(G, Z, g, exp, mult, pSQGDH, pDistRerandom) {
+
+(* the square GDH assumption
+    This equivalence says that, when exp(g,a[i]) are known to the
+    adversary, the adversary can compute exp(g, mult(a[i], a[j])) only with
+    negligible probability, even in the presence of a decision DH oracle
+    DH(A,B,C) tells whether A = g^a, C = B^a for some a. *)
+
+param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDH9.
+
+(* In the code below:
+   - oracle OA gives the public Diffie-Hellman keys to the adversary
+   - oracle ODHa9 is a particular case of OA:
+     exp(g, mult(a,x)) = exp(exp(g,a), x). It appears explicitly because
+     CryptoVerif would not detect that exp(g, mult(a,x)) can be computed
+     using exp(g,a), since exp(g,a) is not a subterm of exp(g, mult(a,x)). 
+   - Oracles ODDHa1 and ODDHa are instances of the decision DH oracle.
+     ODDHa1(m,m') = DH(exp(g,a), m', m)
+     ODDHa(m,j) = DH(exp(g,a), exp(g,a[j]), m)
+     		and in this case we can apply the CDH assumption
+		and replace the result with "false" in the right-hand side
+  *)
+
+equiv(gdh(exp))
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
+    )
+<=(pSQGDH(time + (na+1) * time(exp), #ODDHa + #ODDHa1) + na * pDistRerandom)=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp(g,a)) |
+      foreach iaDDH1 <= naDDH1 do ODDHa1(m:G, m':G) := return(m = exp(m', a)) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := return(false) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp(g, mult(a, x)))
+    ).
+
+}
+
+(* Pseudo random function (PRF) 
+   key: type of keys, must be "bounded" (to be able to generate random numbers from it, and to talk about the runtime of f without mentioned the length of the key), typically "fixed" and "large".
+   input1: type of the input of the PRF.
+   output: type of the output of the PRF, must be "bounded" or "nonuniform", typically "fixed".
+
+   f: PRF function
+
+   Pprf(t, Nk, N, l): probability of breaking the PRF property
+   in time t, for Nk keys, N queries to the PRF per key of length at most l.
+
+   The types key, input1, output and the probability Pprf must
+   be declared before this macro is expanded. The function f
+   is declared by this macro. It must not be declared elsewhere,
+   and it can be used only after expanding the macro.
+
+      *)
+
+def multikey_PRF(key, input1, output, f, Pprf) {
+
+fun f(key, input1):output.
+
+param Nk, N.
+
+equiv(prf(f))
+  foreach ik <= Nk do
+    k <-R key; (
+    foreach i <= N do O(x: input1) := return(f(k, x)))
+<=(Pprf(time, Nk, N))=>
+  foreach ik <= Nk do
+     foreach i <= N do O(x: input1) :=
+        find[unique] u <= N suchthat defined(x[u], r[u]) && x = x[u] then
+	  return(r[u])
+        else
+          r <-R output; return(r).
+
+}
+
+(* The types input_t and output_t MUST be fixed. *)
+def truncate(input_t, output_t, truncate_f) {
+
+  param N.
+
+  fun truncate_f(input_t): output_t.
+
+  (* If we truncate a uniformly distributed random value, 
+     we obtain a uniformly distributed random value *)
+  equiv(truncate(truncate_f))
+    foreach i<=N do h <-R input_t;
+      O_trunc() := return(truncate_f(h))
+    <=(0)=>
+    foreach i<=N do k <-R output_t;
+      O_trunc() := return(k).
+}
+
+
+proof {
+  out_game "g00.out.cv";
+  remove_assign binder the_sk;
+  remove_assign binder the_pk;
+  crypto outsider_cca(AuthEncap) [variables: s->s_1];
+  out_game "g01.out.cv";
+  crypto eliminate_failing(AuthEncap) **;
+  out_game "g02.out.cv";
+  SArename k'_1;
+  out_game "g03.out.cv";
+  crypto prf(KeySchedule_auth) k'_3;
+  out_game "g04.out.cv";
+  crypto splitter(split) **;
+  out_game "g05.out.cv";
+  crypto int_ctxt(Seal_inner) part1;
+  simplify;
+  crypto ind_cpa(Seal_inner) **;
+  out_game "g06.out.cv";
+  success
+}
+
+(** Key Encapsulation Mechanism **)
+type keypairseed_t [bounded,large].
+type kemseed_t [fixed,large].
+type skey_t [bounded,large].
+type pkey_t [bounded,large].
+type kemkey_t [fixed,large].
+type kemciph_t [fixed,large].
+type AuthEncap_res_t [fixed,large].
+proba P_pk_coll.
+proba Adv_Outsider_CCA.
+fun kemkey2bitstr(kemkey_t): bitstring [data].
+fun kemciph2bitstr(kemciph_t): bitstring [data].
+expand Outsider_CCA_Secure_Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key, AuthEncap_enc, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll, Adv_Outsider_CCA).
+
+
+type key_t [large,fixed].
+
+type nonce_t [large,fixed].
+expand Xor(
+  nonce_t,   (* the space on which xor operates *)
+  xor,       (* name of the xor function *)
+  nonce_zero (* the bitstring consisting only of zeroes in nonce_t; also used for seq that starts at zero *)
+).
+
+
+(** KDF **)
+
+type extract_t [fixed,large].
+type keys_t [fixed,large].
+type tuple_t [fixed,large].
+expand random_split_2(
+  keys_t,
+  key_t,
+  nonce_t,
+  tuple_t,
+  concat,
+  split
+).
+
+proba Adv_PRF_KeySchedule.
+expand multikey_PRF(
+  kemkey_t,
+  bitstring, (* info *)
+  keys_t,
+  KeySchedule_auth,
+  Adv_PRF_KeySchedule
+).
+
+
+(* An AEAD encryption algorithm *)
+
+proba Adv_cpa.
+proba Adv_ctxt.
+expand multikey_AEAD(
+  (* types *)
+  key_t,
+  bitstring, (* plaintext *)
+  bitstring, (* ciphertext *)
+  bitstring, (* additional data *)
+  nonce_t,
+  (* functions *)
+  Seal_inner,
+  Open_inner,
+  injbot, (* injection from plaintext to bitstringbot:
+          (* injbot(plaintext): bitstringbot *)
+  Length,   (* returns a plaintext of same length, consisting of zeros:
+          (* Length(plaintext): plaintext *)
+  (* probabilities *)
+  Adv_cpa,
+  Adv_ctxt
+).
+letfun Seal(key: key_t, nonce: nonce_t, aad: bitstring, pt: bitstring) =
+  Seal_inner(pt, aad, key, nonce).
+letfun Open(key: key_t, nonce: nonce_t, aad: bitstring, ct: bitstring) =
+  Open_inner(ct, aad, key, nonce).
+
+
+
+(* Encryption Context *)
+
+type context_t [large,fixed].
+(* key, nonce, seq *)
+fun Context(key_t, nonce_t, nonce_t): context_t [data].
+
+
+expand OptionType_1(KeySchedule_res_t, KeySchedule_Some, KeySchedule_None, context_t).
+
+letfun KeySchedule(shared_secret: kemkey_t, info: bitstring) =
+  let concat(key: key_t, nonce: nonce_t) =
+        split(KeySchedule_auth(shared_secret, info)) in (
+    KeySchedule_Some(Context(key, nonce, nonce_zero))
+  ) else (
+    KeySchedule_None
+  ).
+
+
+(* Authentication using an Asymmetric Key *)
+
+expand OptionType_2(SetupAuthS_res_t, SetupAuthS_Some, SetupAuthS_None, kemciph_t, context_t).
+
+letfun SetupAuthS(pkR: pkey_t, info: bitstring, skS: skey_t) =
+  let AuthEncap_tuple(shared_secret: kemkey_t, enc: kemciph_t) = AuthEncap(pkR, skS) in
+  (
+    let KeySchedule_Some(ctx: context_t) = KeySchedule(shared_secret, info) in
+    (
+      SetupAuthS_Some(enc, ctx)
+    ) else (
+      SetupAuthS_None
+    )
+  ) else (
+    SetupAuthS_None
+  ).
+
+expand OptionType_1(SetupAuthR_res_t, SetupAuthR_Some, SetupAuthR_None, context_t).
+
+letfun SetupAuthR(enc: kemciph_t, skR: skey_t, info: bitstring, pkS: pkey_t) =
+  let AuthDecap_Some(shared_secret: kemkey_t) = AuthDecap(enc, skR, pkS) in
+  (
+    let KeySchedule_Some(ctx: context_t) = KeySchedule(shared_secret, info) in
+    (
+      SetupAuthR_Some(ctx)
+    ) else (
+      SetupAuthR_None
+    )
+  ) else (
+    SetupAuthR_None
+  ).
+
+
+(* Encryption and Decryption *)
+
+letfun Context_Nonce(nonce: nonce_t, seq: nonce_t) =
+  (* We suppose that seq has already the length of the nonce, by
+     assigning it the type nonce_t. *)
+  xor(nonce, seq).
+
+
+expand OptionType_1(Context_Seal_res_t, Context_Seal_Some, Context_Seal_None, bitstring).
+
+letfun Context_Seal(context: context_t, aad: bitstring,
+                    pt: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t) = context in
+  (
+    let ct: bitstring = Seal(key, Context_Nonce(nonce, seq), aad, pt) in
+    (* We consider a single message, so we do not need to model the increment of seq *)
+    Context_Seal_Some(ct)
+  ) else (
+    Context_Seal_None
+  ).
+
+expand OptionType_1(Context_Open_res_t, Context_Open_Some, Context_Open_None, bitstring).
+
+letfun Context_Open(context: context_t, aad: bitstring,
+                    ct: bitstring) =
+  let Context(key: key_t, nonce: nonce_t, seq: nonce_t) = context in
+  (
+    let injbot(pt: bitstring) = Open(key, Context_Nonce(nonce, seq),
+                                     aad, ct) in
+    (
+      (* We consider a single message, so we do not need to model the increment of seq *)
+      Context_Open_Some(pt)
+    ) else (
+      Context_Open_None
+    )
+  ) else (
+    Context_Open_None
+  ).
+
+(* Single-Shot APIs *)
+
+expand OptionType_2(SealAuth_res_t, SealAuth_Some, SealAuth_None, kemciph_t, bitstring).
+
+letfun SealAuth(pkR: pkey_t, info: bitstring, aad: bitstring,
+                pt: bitstring, skS: skey_t) =
+  let SetupAuthS_Some(enc: kemciph_t, ctx: context_t) =
+    SetupAuthS(pkR, info, skS) in
+  (
+    let Context_Seal_Some(ct: bitstring) = Context_Seal(ctx, aad, pt) in
+    (
+      SealAuth_Some(enc, ct)
+    ) else (
+      SealAuth_None
+    )
+  ) else (
+    SealAuth_None
+  ).
+
+expand OptionType_1(OpenAuth_res_t, OpenAuth_Some, OpenAuth_None, Context_Open_res_t).
+
+letfun OpenAuth(enc: kemciph_t, skR: skey_t, info_hash: bitstring,
+                aad: bitstring, ct: bitstring, pkS: pkey_t) =
+  let SetupAuthR_Some(ctx: context_t) =
+    SetupAuthR(enc, skR, info_hash, pkS) in
+  (
+    OpenAuth_Some(Context_Open(ctx, aad, ct))
+  ) else (
+    OpenAuth_None
+  ).
+
+
+
+
+(* Define a function for choosing from two attacker-provided plaintexts based
+   on a bit. Also, defines some equations on it so CryptoVerif is able
+   to reason about it. *)
+expand boolean_choice_for_encryption(
+  (* types *)
+  bitstring,  (* type of the values *)
+  (* functions *)
+  Length,       (* the Length function provided by the encryption scheme. *)
+              (* Needed for some equations about the function. *)
+  test	      (* Name of the choice function: *)
+              (* test(bool, bitstring, bitstring): bitstring *)
+).
+
+(* a set E used within the proof,
+   containing 6-tuples of the following type: *)
+table E(
+  pkey_t,    (* sender's public key *)
+  pkey_t,    (* receiver's public key *)
+  kemciph_t, (* KEM ciphertext *)
+  bitstring, (* AEAD ciphertext *)
+  bitstring, (* AEAD additional authenticated data *)
+  bitstring  (* application info string *)
+).
+
+param N.   (* number of honest keypairs/users *)
+param Qae. (* number of calls to the Oaenc() oracle per keypair *)
+param Qad. (* number of calls to the Oadec() oracle per keypair *)
+param Qc.  (* number of calls to the Ochall() oracle per keypair *)
+
+(* This is the proof goal: prove that the adversary cannot guess
+   the boolean b with probability better than 1/2.
+   b is defined as a fresh random boolean inside the Ostart() oracle. *)
+query secret b.
+
+process
+  Ostart() := b <-R bool; return();
+
+  (* The adversary can generate up to N honest keypairs/users by calling
+  (* the Osetup() oracle. The nested oracles Oaenc(), Oadec(), Ochall()
+  (* will be available for each keypair. *)
+  (foreach i <= N do
+   Osetup() :=
+     let (the_sk: skey_t, the_pk: pkey_t) = GenerateKeyPair() in
+     (* The public key of each honest keypair is made available
+     (* to the adversary. *)
+     return(the_pk);
+
+     (
+       (* This defines the Oaenc() oracle with up to Qae calls per keypair *)
+       (foreach iae <= Qae do
+        Oaenc(pk: pkey_t, m: bitstring, aad: bitstring, info: bitstring) :=
+          return(SealAuth(pk, info, aad, m, the_sk))
+       ) |
+ 
+       (* This defines the Oadec() oracle with up to Qad calls per keypair *)
+       (foreach iad <= Qad do
+        Oadec(pk: pkey_t, enc: kemciph_t, c: bitstring, aad: bitstring, info: bitstring) :=
+          get E(=pk, =the_pk, =enc, =c, =aad, =info) in (
+            return(OpenAuth_None)
+          ) else (
+            return(OpenAuth(enc, the_sk, info, aad, c, pk))
+          )
+       ) |
+ 
+       (* This defines the Ochall() oracle with up to Qc calls per keypair *)
+       (foreach ic <= Qc do
+        Ochall(pk: pkey_t, m0: bitstring, m1: bitstring, aad: bitstring, info: bitstring) :=
+          (* only accept challenge queries for honest public keys *)
+          find i' <= N suchthat defined(the_pk[i']) && the_pk[i'] = pk then (
+            (* only accept challenge queries for m0 and m1 of same length *)
+            if Length(m0) = Length(m1) then (
+              let SealAuth_Some(enc_star: kemciph_t, c_star: bitstring) =
+                  SealAuth(pk, info, aad, test(b, m0, m1), the_sk) in (
+                insert E(the_pk, pk, enc_star, c_star, aad, info);
+                return((enc_star, c_star))
+              (* SealAuth does not fail, but CryptoVerif's language
+              (* requires we indicate the else branch. It will be
+              (* removed with the eliminate_failing step. *)
+              ) else return(bottom)
+            ) else return(bottom) (* ends the condition on m0 and m1 lengths *)
+          ) else return(bottom) (* ends the find inside Ochall() *)
+       ) (* This ends the definition of the Ochall() oracle *)
+
+     ) (* This ends the block of oracles that are defined for each keypair *)
+
+  ) (* This ends the definition of the Osetup() oracle and its nested oracles *)
+
