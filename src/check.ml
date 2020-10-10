@@ -704,7 +704,15 @@ let rec uses b0 t =
   | ResE(b,t) -> uses b0 t
   | FindE(l0,t3, _) -> 
       (List.exists (fun (bl,def_list,t1,t2) ->
-	(uses b0 t1) || (uses b0 t2)) l0) || 
+	((uses b0 t1) || (uses b0 t2)) &&
+	(* When [b0] occurs in [def_list], its definition
+           will be dynamically checked, so [b0] does not
+           need to be syntactically defined above the transformed
+	   term in the game. Therefore, we do not consider that
+	   as a usage of [b0]. *)
+	(not (List.exists (fun (b,l) ->
+	  (b == b0) && (Terms.is_args_at_creation b l)) def_list))
+	  ) l0) || 
       (uses b0 t3)
   | LetE(pat, t1, t2, topt) ->
       (uses_pat b0 pat) ||

@@ -897,3 +897,7 @@ process
 
   ) (* This ends the definition of the Osetup() oracle and its nested oracles *)
 
+(* EXPECTED
+All queries proved.
+1.080s (user 1.080s + system 0.000s), max rss 15876K
+END *)
