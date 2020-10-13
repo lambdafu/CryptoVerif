@@ -1,0 +1,30 @@
+How to make an opam package for CryptoVerif with opam-publish
+
+a. install opam:
+
+sudo apt-get install opam
+opam init
+
+Modify the script files as instructed by opam init.
+
+b. install opam-publish:
+
+opam install opam-publish
+
+Put a SSH key in github. See
+https://help.github.com/articles/connecting-to-github-with-ssh/
+
+c. publish the package:
+
+cd distrib
+
+update the version number in cryptoverif.opam
+
+opam publish "http://cryptoverif.inria.fr/cryptoverif$VERSION.tar.gz" cryptoverif.opam
+
+
+Follow pull-request on Github; modify the opam file and repeat
+opam-publish if needed.
+
+
+
