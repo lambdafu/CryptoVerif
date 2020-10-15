@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-function file_exists_or_abort()
+file_exists_or_abort()
 {
     filename=$1
     if [ ! -f $filename ]
