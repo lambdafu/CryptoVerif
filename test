@@ -21,7 +21,7 @@ TMP=$TMPDIR/tmp
 
 # usage message, in case of bad arguments
 
-function usage()
+usage()
 {
     cat <<'EOF' 
 Usage: test <mode> <test_set>
@@ -51,7 +51,7 @@ EOF
 # with summary in tests/sum-<prefix>`date`
 # and comparison with expected results on the standard output and in tests/res-<prefix>`date`
 
-function analyzedirlist()
+analyzedirlist()
 {
     prefix=$1
     shift
@@ -73,7 +73,7 @@ function analyzedirlist()
 # The functions basic, proverif, converted, and big run the various
 # available tests.
 
-function basic()
+basic()
 {
     analyzedirlist test examples/basic examples/obasic examples/kerberos implementation/wlsk implementation/nspk
 
@@ -83,7 +83,7 @@ function basic()
     fi
 }
 
-function proverif()
+proverif()
 {
     echo
     echo PROVERIF
@@ -91,7 +91,7 @@ function proverif()
     ./analyze PV "$mode" "$TMPDIR" pv dirs examples examplesnd/proverif
 }
 
-function converted()
+converted()
 {
     if [ -d examples-1.28-converted ]
     then
@@ -99,7 +99,7 @@ function converted()
     fi
 }
 
-function big()
+big()
 {
     analyzedirlist textsecure examples/textsecure examplesnd/textsecure examplesnd/textsecure-keys-not-normalized examplesnd/textsecure-X448 examplesnd/textsecure-single_coord_ladder
 
