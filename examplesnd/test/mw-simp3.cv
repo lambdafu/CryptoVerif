@@ -1,0 +1,68 @@
+(* MW - simplified version ** with ** the last check of the tag *)
+(* unlinkability property 
+   by Solene Moreau, Stephanie Delaune, David Baelde
+   simplified by B. Blanchet 
+
+   There is a bug in CV: it should not be able to remove event e *)
+
+proof {
+      crypto prf(hash);
+      success
+      }
+
+param NT, NR, NK.
+
+type nonce [large,fixed].
+type key [large,fixed].
+type message [large,fixed].
+
+const tag0,tag1:nonce.
+
+proba Pprf.
+
+expand PRF_large(key, bitstring, message, hash, Pprf).
+expand Xor(message, xor , zero).
+
+channel c0, c1, c2, c3, c4, c5, c6, c7,c8, c9, startid, finishid, startsess, finishsess.
+
+event e.
+query event(e) ==> false.
+
+let processT(idT:message, kT:key) =
+  in(c2, nR:nonce);
+  new nT: nonce;
+  out(c3, (nT, xor(idT,hash(kT,(tag0,(nR,nT))))));
+  in(c7,m3:message);
+  if m3 = xor(idT,hash(kT,(tag1,(nR,nT)))) then 
+     event e
+  else out(c9,()). 
+
+
+process
+   ( ! iK <= NK
+   ! iT <= NT
+   in(startsess, ());
+   new kTn:key;
+   new idTn:message;
+   out(finishsess, ());
+   processT(idTn,kTn)
+ )|(
+   ! iR <= NR
+    in(c0,());
+    new nR: nonce;
+    out(c1, nR);
+    in(c4, (nT:nonce,m2:message));
+    find u = i <= NT, v = j <= NK suchthat
+      defined(kTn[i,j],idTn[i,j]) && xor(m2,hash(kTn[i,j],(tag0,(nR,nT)))) = idTn[i,j]
+    then
+        out(c5, xor(idTn[u,v],hash(kTn[u,v],(tag1,(nR,nT))))) 
+    else
+      out(c6, ())
+ )
+
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.096s (user 0.080s + system 0.016s), max rss 16844K
+END *)
+
