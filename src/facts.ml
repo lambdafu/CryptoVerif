@@ -3175,9 +3175,13 @@ let check_equal t t' simp_facts  =
       The other functions look for the occurrence [occ] inside the
       process [p]. ***)
 
-let display_fact_pp pp = 
-  List.iter (fun f -> Display.display_term f; Display.print_newline()) 
-    (get_facts_at pp)
+let display_fact_pp pp =
+  try
+    List.iter (fun f -> Display.display_term f; Display.print_newline()) 
+      (get_facts_at pp)
+  with Contradiction ->
+    Display.print_string ("Program point at "^(string_of_int (Incompatible.occ_from_pp pp))^" is unreachable.");
+    Display.print_newline()
   
 let rec display_facts_at p occ =
   if p.i_occ = occ then

@@ -1,6 +1,11 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version
+
+- Fixed a bug that could cause an internal error in command show_facts
+when the considered program point is unreachable.
+
 Version 2.03p11
 
 - Fixed a bug that could cause an internal error.
