@@ -1,0 +1,67 @@
+(* MW - simplified version ** with ** the last check of the tag *)
+(* unlinkability property 
+   by Solene Moreau, Stephanie Delaune, David Baelde
+   simplified by B. Blanchet 
+
+   There is a bug in CV: it should not be able to remove event e *)
+
+proof {
+      success
+      }
+
+param NT, NR, NK.
+
+type nonce [large,fixed].
+type key [large,fixed].
+type message [large,fixed].
+
+const tag0,tag1:nonce.
+
+proba Pprf.
+
+expand PRF_large(key, bitstring, message, hash, Pprf).
+expand Xor(message, xor , zero).
+
+channel c0, c1, c2, c3, c4, c5, c6, c7,c8, c9, startid, finishid, startsess, finishsess.
+
+event e.
+query event(e) ==> false.
+
+
+process
+     ((
+       ! iK <= NK
+       ! iT <= NT
+       in(startsess[iT, iK], ());
+       new idTn: message;
+       out(finishsess[iT, iK], ());
+       in(c2[iT, iK], nR_1: nonce);
+       new nT_1: nonce;
+       let x_O: bitstring = (tag0, (nR_1, nT_1)) in
+       new r: message; 
+       out(c3[iT, iK], (nT_1, xor(idTn, r)));
+       in(c7[iT, iK], m3: message);
+       if (let x_Oeq: bitstring = (tag1, (nR_1, nT_1)) in (let X_Oeq: message = xor(m3, idTn) in find [unique] u_3 = ri_6 <= NR suchthat defined(v[ri_6], u[ri_6], x_O_1[ri_6], r_1[ri_6]) && (u[ri_6] = iT) && (v[ri_6] = iK) && (x_Oeq = x_O_1[ri_6]) then (X_Oeq = r_1[u_3]) else false)) then
+         event e
+       else
+         out(c9[iT, iK], ())
+     ) | (
+       ! iR <= NR
+       in(c0[iR], ());
+       new nR_2: nonce;
+       out(c1[iR], nR_2);
+       in(c4[iR], (nT_2: nonce, m2: message));
+       find u = i <= NT, v = j <= NK suchthat defined(idTn[i, j]) && (if defined(x_O[i, j], r[i, j]) && ((tag0, (nR_2, nT_2)) = x_O[i, j]) then (xor(m2, idTn[i, j]) = r[i, j]) else false) then
+         (let x_O_1: bitstring = (tag1, (nR_2, nT_2)) in
+	 new r_1: message; 
+         out(c5[iR], xor(idTn[u, v], r_1)))
+       else
+         out(c6[iR], ())
+     ))
+
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.096s (user 0.080s + system 0.016s), max rss 16844K
+END *)
+
