@@ -223,8 +223,11 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let vars_terms = List.map Terms.term_from_binder vars in
-	    let t1' = Terms.subst repl_indices vars_terms t1 in
-            let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term t1' in
+            let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term t1 in
+	    let sure_facts_t1 = List.map (Terms.subst repl_indices vars_terms) sure_facts_t1 in
+	    let sure_def_list_t1 = Terms.subst_def_list repl_indices vars_terms sure_def_list_t1 in
+	    let elsefind_t1 = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t1 in
+
 	    let (true_facts', elsefind_facts_then) =
 	      if find_info == Unique then
 		(* When the find is Unique, I know that the other branches fail,
@@ -500,8 +503,11 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let vars_terms = List.map Terms.term_from_binder vars in
-	    let t' = Terms.subst repl_indices vars_terms t in
-            let (sure_facts_t, sure_def_list_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term t' in
+            let (sure_facts_t, sure_def_list_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term t in
+	    let sure_facts_t = List.map (Terms.subst repl_indices vars_terms) sure_facts_t in
+	    let sure_def_list_t = Terms.subst_def_list repl_indices vars_terms sure_def_list_t in
+	    let elsefind_t = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t in
+	    
 	    let (true_facts', elsefind_facts_then) =
 	      if find_info == Unique then
 		(* When the find is Unique, I know that the other branches fail,

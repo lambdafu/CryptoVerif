@@ -521,7 +521,7 @@ let incompatible_nodelist_different_block_suffix_length (nl, args) n =
     let pp = get_start_block_pp n1 in
     not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n) nl
 
-(* [incompatible_nodelist_different_block_suffix_length (nl, args) n]
+(* [incompatible_nodelist_same_block_suffix_length (nl, args) n]
    returns the shortest length [l] such that a node in [nl] cannot be
    executed with indices [args] after the node [n] with indices
    [args'] when [args] and [args'] have a common suffix of length [l].
