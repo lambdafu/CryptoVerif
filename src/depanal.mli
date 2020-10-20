@@ -174,7 +174,7 @@ type compat_info_elem = term * term list *
       repl_index list(* used indices *) * 
       repl_index list(* really used indices *)
 
-val filter_indices : term -> term list -> repl_index list -> term list -> 
+val filter_indices : term -> term -> term list -> repl_index list -> term list -> 
   term list * compat_info_elem 
 val is_compatible_indices : compat_info_elem -> compat_info_elem -> bool
 val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem option

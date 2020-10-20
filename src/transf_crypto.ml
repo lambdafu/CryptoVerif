@@ -1230,17 +1230,22 @@ type one_exp =
      all_indices : repl_index list;
         (* The list of array and find indices at the program point of the 
 	   transformed expression *)
+     before_exp_instance : term option;
      product_rest : (funsymb * term option * term option * (funsymb * term) option) option
        (* In case the source_exp_instance is a product, and source_exp
-	  matches only a subproduct, this field contains 
+	  matches only a subproduct, before_exp_instance is the instance of
+	  source_exp and product_rest contains 
 	  Some(prod, left_rest, right_rest, comp_neut) such that
 	  - When comp_neut = None,
-	  source_exp_instance = prod(left_rest, prod(instance of source_exp, right_rest)).
+	  source_exp_instance = prod(left_rest, prod(before_exp_instance, right_rest)).
 	  When left_rest/right_rest are None, they are considered as empty.
 	  (This is useful when the product has no neutral element.)
 	  - When comp_neut = Some(eqdiff, neut),
-	  source_exp_instance = (prod(left_rest, prod(instance of source_exp, right_rest)) eqdiff neut)
-	  where eqdiff is either = or <> and neut is the neutral element of the product. 
+	  source_exp_instance = (prod(left_rest, prod(before_exp_instance, right_rest)) eqdiff neut)
+	  where eqdiff is either = or <> and neut is the neutral element of the product.
+	  When source_exp matches the whole source_exp_instance,
+	  product_rest = None and before_exp_instance is equal to source_exp_instance (modulo known equalities).
+	  before_exp_instance is set only when no advice is needed to apply the transformation
 	  *)
    }
 
@@ -1808,6 +1813,23 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
   let (restr_env, input_env, array_ref_env) =
     separate_env [] [] [] state.lhs_array_ref_map
   in
+
+  let rec instantiate t =
+    match t.t_desc with
+    | FunApp(f,l) -> Terms.app f (List.map instantiate l)
+    | Var(b,l) ->
+	assq_binderref (b,l) state.lhs_array_ref_map
+    | _ -> Parsing_helper.internal_error "if, find, defined, replication indices should have been excluded from left member of equivalences"
+  in
+  let before_exp_instance =
+    try
+      Some (instantiate res_term)
+    with Not_found ->
+      (* It may happen that not all variables are set, in case some advice is needed,
+         or we match a subterm of [res_term]. In this case, the transformation will
+	 not succeed; we do not set [before_exp_instance] *)
+      None
+  in
   
   let args_ins = 
     and_ins1 (state.advised_ins, state.priority + priority, state.names_to_discharge) (* Take into account the priority *)
@@ -2081,6 +2103,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	before_transfo_input_vars_exp = input_env;
 	after_transfo_input_vars_exp = after_transfo_input_vars_exp;
 	all_indices = cur_array;
+	before_exp_instance = before_exp_instance;	
 	product_rest = product_rest
 	  }
     in
@@ -3810,8 +3833,11 @@ let get_repl_from_map true_facts b_repl exp =
   in
   match ntopt with
     None -> 
-      let (v', compat_info_elem) = 
-	Depanal.filter_indices exp true_facts one_exp.all_indices v
+      let (v', compat_info_elem) =
+	match one_exp.before_exp_instance with
+	| None -> Parsing_helper.internal_error "before_exp_instance should be set when the crypto transformation completes"
+	| Some before_exp_instance ->
+	    Depanal.filter_indices exp before_exp_instance true_facts one_exp.all_indices v
       in
       let rec find_same_calls = function
 	  [] -> (* Not_found, add it *)

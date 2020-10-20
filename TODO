@@ -153,6 +153,42 @@ O(1) where O(1) is a time that does not depend on parameters
 0.10) Be able to express probability results using #O instead of
 just parameters of replications, to get more precise bounds.
 
+runtime:
+* when computing the runtime of code under an oracle def O,
+multiply by #O instead of all replications above O.
+* in conditions of find, if the find has several indices, and
+its defined condition contains defined(u[i1...in]),
+where i1...in are all indices of u (there is no implicit "current index")
+and are indices of the find, and u is defined in oracle O,
+replace the product of bounds on i1...in by #O.
+
+collisions:
+* in Proba.add_elim_collisions, replace the product of
+bound of b1.args_at_creation @ b2.args_at_creation
+by #O1 * #O2, where b1 is defined in O1 and b2 is defined in O2
+(when the oracles O1, resp. O2, are defined under several
+replications).
+* if the expression on which we eliminate collisions contains
+u[i1...in] and u is defined in oracle O, then i1..in occur in
+the indices collected by Proba.collect_array_indexes; replace the
+product of the bounds on i1...in by #O. For that, select a
+variable u that has as many indices as possible and that are
+replication indices. That can be repeated in case some
+indices remain. (May happen in case the expression on which
+we eliminate collisions occurs in a condition of find.)
+
+crypto transform:
+* if a variable in the transformed expression is
+u[M1...Mn], u is defined in oracle O, and M1...Mn
+are the indices obtained as result of Transf_crypto.get_repl_from_map,
+replace the product of the bounds of M1...Mn (computed by
+Transf_crypto.make_prod) with #O.
+
+The oracle in which a variable is defined can be found by
+looking at the node in the variable is defined, and following
+the above nodes until we find an oracle definition
+(assuming build_def_process has been called).
+
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
    correspondences. In contrast, we can apply collision statements

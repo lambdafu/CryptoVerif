@@ -1080,9 +1080,14 @@ type compat_info_elem = term * term list *
    (3) the "interactive" indices that occur in the initial indices
    and try to eliminate the indices in order. At each step, we check that all
    indices in the initial useful indices are uniquely determined. 
+
+   [t] is the term as found in the game before transformation.
+   [lhs_instance] is the instance of the LHS of the equivalence used in the transformation.
+   When t is a product, it can happen that [lhs_instance] is not equal to [t]
+   but to a subproduct of [t].
    *)
 
-let filter_indices t true_facts0 all_indices used_indices =
+let filter_indices t lhs_instance true_facts0 all_indices used_indices =
   let proba_state = Proba.get_current_state() in
   (* Collect all facts that are known to be true *)
   let true_facts = 
@@ -1118,11 +1123,11 @@ let filter_indices t true_facts0 all_indices used_indices =
     begin
       (* I removed no index, I can just leave things as they were *)
       Proba.restore_state proba_state;
-      (used_indices, (t, true_facts, all_indices, initial_indices, used_indices', used_indices'))
+      (used_indices, (lhs_instance, true_facts, all_indices, initial_indices, used_indices', used_indices'))
     end
   else
     (List.map Terms.term_from_repl_index really_used_indices, 
-     (t, true_facts, all_indices, initial_indices, used_indices', really_used_indices))
+     (lhs_instance, true_facts, all_indices, initial_indices, used_indices', really_used_indices))
 
 (***** Test if two expressions can be evaluated with the same value of *****
        certain indices. 
