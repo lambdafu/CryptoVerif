@@ -72,7 +72,14 @@ let put_out cur_array c t =
       (dummy_channel, [])
   in
   let nil_p = Terms.iproc_from_desc Nil in
-  Terms.oproc_from_desc (Output(out_ch, t, nil_p))
+  let t' =
+    if !Settings.front_end = Settings.Channels then
+      t
+    else
+      let f = Settings.get_tuple_fun [t.t_type] in
+      Terms.app f [t]
+  in
+  Terms.oproc_from_desc (Output(out_ch, t', nil_p))
     
 let rec fungroup_to_process cur_array ch_struct fg =
   match (ch_struct, fg) with
