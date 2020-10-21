@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- query_equiv: optimize the translation to avoid creating oracles
+that just generate random values before a single oracle.
 - Fixed a counting bug, which could lead to counting several times
 the same oracle call occurring at several places in a game, in the
 presence of equational theories.
