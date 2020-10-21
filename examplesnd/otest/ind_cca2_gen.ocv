@@ -1,0 +1,60 @@
+(* Proving ind_cca2(enc) from ind_cca2_partial(enc)
+   Note: there is a minor change in ind_cca2(enc) that we prove: the finds in Odec 
+   are grouped in a single find with 2 branches, and the branches are reordered. *)
+
+
+proof{
+	insert after "Oenc2" "find k <= N3 suchthat defined(r[k]) && y = pkgen(r[k]) then";
+	replace 64 "pkgen(r[k])";
+	crypto ind_cca2_partial(enc);
+	replace 113 "y";
+	start_from_other_end;
+	simplify;
+	success
+}
+
+type keyseed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type cleartext.
+type ciphertext.
+type enc_seed [bounded].
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc_all_args(keyseed, pkey, skey, cleartext, ciphertext, enc_seed, skgen, skgen2, pkgen, pkgen2, enc, enc_r, enc_r2, dec, dec2, injbot, Z, Penc, Penccoll).
+
+equation forall x: keyseed; pkgen2(x) = pkgen(x).
+equation forall x: keyseed; skgen2(x) = skgen(x).
+equation forall x: ciphertext, k: skey; dec2(x,k) = dec(x,k).
+
+param N, N2, N3, N4.
+
+query_equiv
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() [2] := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
+           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r),r1))) |
+       foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
+     <=(?)=> 
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() := return(pkgen2(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) :=
+                find j <= N4 suchthat defined(m2[j],y[j],x[j]) && y[j] = pkgen2(r) && m = m2[j] then return(injbot(x[j])) 
+		orfind j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j]))
+		else return(dec2(m, skgen2(r))) |
+	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+			m1:ciphertext <- enc_r2(Z(x1), pkgen2(r), r1);
+			return(m1)) |
+       foreach i4 <= N4 do Oenc2(x:cleartext, y:pkey) :=
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+			(r2 <-R enc_seed; 
+			m2:ciphertext <- enc_r2(Z(x), y, r2);
+			return(m2))
+		else r3 <-R enc_seed; return(enc_r(x,y,r3))
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)
