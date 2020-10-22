@@ -7,6 +7,9 @@ point 0.10?
    allow giving the RHS of equiv using tables instead of find.
    tables are then expanded into find for usage by CryptoVerif
    but could be left as tables for translating to EasyCrypt.
+   it would be nice to be able to use indices as fields in these
+   tables; that's related to the point of allowing comparisons
+   between indices in the RHS of equiv (also mentioned in point 0.1).
    Already done: allow declaring equiv for one key, extended
    to several keys by CryptoVerif.
 2) Extend macros (see point 5 in HIGH PRIORITY)
@@ -823,6 +826,11 @@ by inserting
   orfind ...C2... then
 and simplifying, then add x' <- cst_T to the first two branches,
 then merge.)
+
+Also allow reordering of branches of find inside merge and
+equality tests of processes. Or if that is too complicated,
+have a game transformation that allows the user to reorder
+branches of find.
 
 10) Add more comments, e.g. in terms.mli
 
