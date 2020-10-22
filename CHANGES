@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- use "orfind" instead of "else find" in the standard library of
+cryptographic primitives, when appropriate.
 - query_equiv: optimize the translation to avoid creating oracles
 that just generate random values before a single oracle.
 - query_equiv: fixed a bug in the oracle front-end, return

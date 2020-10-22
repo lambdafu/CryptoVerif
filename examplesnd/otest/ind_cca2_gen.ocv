@@ -1,6 +1,8 @@
 (* Proving ind_cca2(enc) from ind_cca2_partial(enc)
    Note: there is a minor change in ind_cca2(enc) that we prove: the finds in Odec 
-   are grouped in a single find with 2 branches, and the branches are reordered. *)
+   are grouped in a single find with 2 branches, and the branches are reordered. 
+   22/10/2020: I now use a single find with 2 branches in the standard library,
+   so now the only change is the reordering of the branches. *)
 
 
 proof{
