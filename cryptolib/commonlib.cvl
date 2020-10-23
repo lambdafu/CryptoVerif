@@ -2021,7 +2021,7 @@ equiv(ind_cca2(enc))
 	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
            foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r),r1))) |
        foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
-     <=((N3 * N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2))=> 
+     <=(N3 * (N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2) + 0.5 * N3 * (N3-1) * Penccoll)=> 
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() := return(pkgen2(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) :=
