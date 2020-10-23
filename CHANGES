@@ -20,6 +20,7 @@ presence of equational theories.
 of find, CryptoVerif though that the inner find required the definition of
 the index variables of the outer find, which caused a bug in case the outer
 had several index variables.
+- Fixed a typing bug in expansion of games.
 - Fixed a bug that could cause an internal error in command show_facts
 when the considered program point is unreachable.
 

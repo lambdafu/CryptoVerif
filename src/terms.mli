@@ -179,7 +179,8 @@ val get_process : game -> inputprocess
 val build_transformed_game : ?expanded: bool -> inputprocess -> game -> game
                    
 val app : funsymb -> term list -> term
-
+val merge_types : typet -> typet -> typet
+    
 val is_args_at_creation : binder -> term list -> bool
 
 val is_restr : binder -> bool

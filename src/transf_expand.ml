@@ -117,7 +117,7 @@ let count_branches test bind =
 let simplify_term_restr p0 rec_simplif cur_array true_facts b p =
   let true_facts = Facts.update_elsefind_with_def [b] true_facts in
   let p' = rec_simplif cur_array true_facts p in
-  Terms.build_term p0 (ResE(b, p'))
+  Terms.build_term_type p'.t_type (ResE(b, p'))
 
 let simplify_term_if p0 rec_simplif pp cur_array true_facts t p1 p2 =
   try
@@ -130,7 +130,7 @@ let simplify_term_if p0 rec_simplif pp cur_array true_facts t p1 p2 =
       let true_facts' = Facts.simplif_add (dependency_anal cur_array) true_facts t in
       (* Simplify the "then" branch *)
       let p1' =  rec_simplif cur_array true_facts' p1 in
-      Terms.build_term p0 (TestE(t, p1', p2'))
+      Terms.build_term_type (Terms.merge_types p1'.t_type p2'.t_type) (TestE(t, p1', p2'))
     with Contradiction ->
       Settings.changed := true;
       current_pass_transfos := (STestFalse(pp)) :: (!current_pass_transfos);
@@ -219,7 +219,8 @@ let simplify_term_let p0 rec_simplif pp cur_array true_facts pat t p1 p2 =
       else
 	try
 	  let _ = Facts.simplif_add (dependency_anal cur_array) true_facts (Terms.make_not test) in
-	  Terms.build_term p0 (TestE(test, plet, Terms.get_else p2'))
+	  let p2'' = Terms.get_else p2' in
+	  Terms.build_term_type (Terms.merge_types plet.t_type p2''.t_type) (TestE(test, plet, p2''))
 	with Contradiction ->
 	  plet
   with
@@ -436,7 +437,12 @@ let simplify_term_find p0 rec_simplif pp cur_array true_facts l0 t3 find_info =
 	  end
 	else
 	  let find_info = Unique.is_unique l0' find_info in
-	  Terms.build_term p0 (FindE(l0', t3',find_info))
+	  let rec get_type = function
+	      [] -> t3'.t_type
+	    | (_,_,_,t2')::rest ->
+		Terms.merge_types t2'.t_type (get_type rest)
+	  in
+	  Terms.build_term_type (get_type l0') (FindE(l0', t3',find_info))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
 	  ([],[],t1,t2) -> 
@@ -461,7 +467,7 @@ let simplify_term_find p0 rec_simplif pp cur_array true_facts l0 t3 find_info =
 		Settings.changed := true;
 		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
 	      end;
-	    Terms.build_term p0 (FindE([find_branch], t3'',find_info))
+	    Terms.build_term_type (Terms.merge_types t2.t_type t3''.t_type) (FindE([find_branch], t3'',find_info))
     with Contradiction ->
       (* The whole Find will never be executed.
          We just use the else branch as a simplification *)

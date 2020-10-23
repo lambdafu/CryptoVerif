@@ -418,6 +418,15 @@ let is_args_at_creation b l =
 let app f l =
   build_term_type (snd f.f_type) (FunApp(f,l)) 
 
+let merge_types t1 t2 =
+  if t1 == Settings.t_any then t2 else
+  if t2 == Settings.t_any then t1 else
+  begin
+    if not (t1 == t2) then
+      Parsing_helper.internal_error (t1.tname^" should be compatible with "^t2.tname);
+    t1
+  end
+
 (* Process from desc *)
 
 let new_iproc d ext = { i_desc = d; i_occ = -1; i_max_occ = 0; i_loc = ext;
