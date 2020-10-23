@@ -473,16 +473,19 @@ let rec check_rm_term allowed_index_seq t =
 	       variables defined in different functions under the same replication
 	       (which simplifies the code of cryptotransf.ml).
 	       *)
-	      let max_sequence = ref [] in
+	      let max_sequence = ref None in
 	      List.iter (fun ((_,l) as def) ->
 		let def_closure = close_def def in
 		if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') def_closure) def_list then
-		  max_sequence := l
+		  max_sequence := Some l
 			 ) def_list;
-	      if !max_sequence == [] then
-		Parsing_helper.input_error "In equivalences, in find, one \"defined\" variable reference should imply all others" t.t_loc;
-	      
-	      let l1 = !max_sequence in
+
+	      let l1 =
+		match !max_sequence with
+		| None ->
+		    Parsing_helper.input_error "In equivalences, in find, one \"defined\" variable reference should imply all others" t.t_loc;
+		| Some l1 -> l1
+	      in
 	      let l1_binders = List.map (function
 		  { t_desc = ReplIndex(b) } -> b
 		| _ -> Parsing_helper.input_error "In equivalences, find ... suchthat defined(x[l],...): terms in l should be replication indices." t.t_loc) l1

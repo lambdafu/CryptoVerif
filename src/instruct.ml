@@ -167,7 +167,7 @@ let execute state ins =
     | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
     | UseVariable l -> Transf_use_variable.use_variable l g
     | SArenaming b -> Transf_sarename.sa_rename b g
-    | InsertEvent(s,occ,ext_o) -> Transf_insert_event.insert_event occ ext_o s g
+    | InsertEvent(s,ext_s,occ,ext_o) -> Transf_insert_event.insert_event occ ext_o s ext_s g
     | InsertInstruct(s,ext_s,occ,ext_o) -> 
 	Transf_insert_replace.insert_instruct occ ext_o s ext_s g
     | ReplaceTerm(s,ext_s,occ,ext_o,check_opt) ->
@@ -1525,7 +1525,7 @@ let help() =
 let empty_pubvars = function
   | QSecret(_,[],_)
   | QEventQ(_,_,[])
-  | QEquivalence(_,[])
+  | QEquivalence(_,[],_)
   | QEquivalenceFinal(_,[]) -> true
   | _ -> false
   
@@ -1708,7 +1708,7 @@ let rec interpret_command interactive state = function
 	    if s.[i] <> '\'' && s.[i] <> '_' && (s.[i] < 'A' || s.[i] >'Z') && (s.[i] < 'a' || s.[0] > 'z') && (s.[i] < '\192' || s.[i] > '\214') && (s.[i] < '\216' || s.[i] > '\246') && (s.[i] < '\248') && (s.[i] < '0' && s.[i] > '9') then raise Not_found;
 	  done;
 	  let occ = interpret_occ state occ_cmd in
-	  expand (execute_display_advise (InsertEvent(s,occ,ext)) state)
+	  expand (execute_display_advise (InsertEvent(s,ext1,occ,ext)) state)
 	with 
 	  Not_found ->
 	    raise (Error(s ^ " should be a valid identifier: start with a letter, followed with letters, accented letters, digits, underscores, quotes", ext1))
@@ -1783,11 +1783,11 @@ let rec interpret_command interactive state = function
         match equivalence_q with
         | [] ->
             raise (Error("start_from_other_end applies only when there is an equivalence query to prove", ext))
-        | [(QEquivalence(state_other_end, pub_vars), g), _] ->
+        | [(QEquivalence(state_other_end, pub_vars, current_is_lhs), g), _] ->
             remove_eq_query state;
             let init_game_other_end = Display.get_initial_game state_other_end in
             let new_equivalence_q =
-              (QEquivalence(state, pub_vars), init_game_other_end), ref ToProve
+              (QEquivalence(state, pub_vars, not current_is_lhs), init_game_other_end), ref ToProve
             in
             add_query new_equivalence_q state_other_end;
             state_other_end

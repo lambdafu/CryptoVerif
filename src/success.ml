@@ -591,7 +591,7 @@ let check_query collector event_accu = function
 	match query with
 	| QEventQ(t1,t2,pub_vars) ->
 	    Check_corresp.check_corresp collector event_accu (t1,t2,pub_vars) (!whole_game)
-	| QEquivalence(state,pub_vars) ->
+	| QEquivalence(state,pub_vars,_) ->
 	    check_equivalence collector state (!whole_game)
 	| QEquivalenceFinal _ | AbsentQuery | QSecret _ ->
 	    (* AbsentQuery | QSecret _ handled above;

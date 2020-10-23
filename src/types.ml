@@ -513,7 +513,7 @@ and qterm =
 and query = 
   | QSecret of binder * binder list(*public variables*) * bool(*true when onesession*) 
   | QEventQ of (bool(*true when injective*) * term) list * qterm * binder list(*public variables*)
-  | QEquivalence of state(*sequence of games transformations from final game*) * binder list(*public variables*)
+  | QEquivalence of state(*sequence of games transformations from final game*) * binder list(*public variables*) * bool(*current game comes from LHS*)
   | QEquivalenceFinal of game * binder list(*public variables*)
   | AbsentQuery
   
@@ -568,7 +568,7 @@ and instruct =
   | SArenaming of binder
   | MoveNewLet of move_set
   | CryptoTransf of equiv_nm * crypto_transf_user_info
-  | InsertEvent of string(*event name*) * int(*occurrence of insertion*) * Parsing_helper.extent
+  | InsertEvent of string(*event name*)  * Parsing_helper.extent * int(*occurrence of insertion*) * Parsing_helper.extent
   | InsertInstruct of string(*instruction*) * Parsing_helper.extent * int (*occurrence of insertion*) * Parsing_helper.extent
   | ReplaceTerm of string(*term*) * Parsing_helper.extent * int (*occurrence of replacement*) * Parsing_helper.extent * replace_check_opt_t
   | MergeArrays of (binder * Parsing_helper.extent) list list * merge_mode

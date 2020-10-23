@@ -245,6 +245,55 @@ let rec eqfungroup_to_process bad_event cur_array lhs rhs =
 let eqmembers_to_process bad_event lhs rhs =
   make_par (List.map2 (fun (fg_lhs,_) (fg_rhs,_) ->
     eqfungroup_to_process bad_event [] fg_lhs fg_rhs) lhs rhs)
+
+
+let rec get_events_term accu t =
+  match t.t_desc with
+  | Var(_,l) | FunApp(_,l) ->
+      List.iter (get_events_term accu) l
+  | ReplIndex _ -> ()
+  | EventAbortE f ->
+      if not (List.memq f (!accu)) then
+	accu := f :: (!accu)
+  | TestE(t1,t2,t3) ->
+      get_events_term accu t1;
+      get_events_term accu t2;
+      get_events_term accu t3
+  | FindE(l0,t,_) ->
+      get_events_term accu t;
+      List.iter (fun (_,_,t1,t2) ->
+	get_events_term accu t1;
+	get_events_term accu t2
+	  ) l0
+  | LetE(pat,t1,t2,topt) ->
+      get_events_pat accu pat;
+      get_events_term accu t1;
+      get_events_term accu t2;
+      begin
+	match topt with
+	| None -> ()
+	| Some t3 -> get_events_term accu t3
+      end
+  | ResE(_,t) ->
+      get_events_term accu t
+  | EventE _ | InsertE _ | GetE _ ->
+      assert false
+
+and get_events_pat accu = function
+  | PatVar _ -> ()
+  | PatTuple(_,l) ->
+      List.iter (get_events_pat accu) l
+  | PatEqual t ->
+      get_events_term accu t
+	
+let rec get_events_fungroup accu = function
+  | Fun(_,_,t,_) -> get_events_term accu t
+  | ReplRestr(_,_,fglist) ->
+      List.iter (get_events_fungroup accu) fglist
+    
+let rec get_events_member accu m =
+  List.iter (fun (fg,_) -> get_events_fungroup accu fg) m
+
     
 let equiv_to_process equiv =
   match equiv.eq_fixed_equiv with
@@ -254,6 +303,9 @@ let equiv_to_process equiv =
       member_record_channels lhs;
       match opt with
       | Decisional ->
+	  let events = ref [] in
+	  get_events_member events rhs;
+	  Settings.events_to_ignore_lhs := (!events);
 	  let ch_struct = member_build_ch_struct lhs in
 	  ([], Equivalence(eqmember_to_process ch_struct lhs,
 			   eqmember_to_process ch_struct rhs, []))

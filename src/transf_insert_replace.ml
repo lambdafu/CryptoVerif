@@ -780,15 +780,30 @@ let rec insert_rec ((p', def) as r) (ins, ext) env defined_refs cur_array =
       let (rest', def') = insert_rec (p', def) rest env' ((Terms.binderref_from_binder b)::defined_refs) cur_array in
       check_noninter def' [b];
       (Terms.new_oproc (Restr(b, rest')) ext, b::def')
-  | PEventAbort (s,_) ->
-      let s' = Terms.fresh_id s in
-      if s' <> s then
-	print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
-      let f = Terms.create_event s' [] in
-      (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
-      Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
-      new_queries := f :: (!new_queries);
-      (Terms.new_oproc (EventAbort(f)) ext, [])
+  | PEventAbort (s,ext_s) ->
+      begin
+	try
+	  let f = List.find (fun f -> f.f_name = s) (!Settings.events_to_ignore_lhs) in
+	  (* [f] is an event that occurs in the RHS of an equivalence we want to prove
+             using [query_equiv]. *)
+	  match (!whole_game).current_queries with
+	  | [((QEquivalence(_,_,current_is_lhs),_),proof_opt)] when !proof_opt = ToProve ->
+	      if current_is_lhs then
+		(Terms.new_oproc (EventAbort(f)) ext, [])
+	      else
+		raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, one should be working on the left-hand side", ext_s))
+	  | _ ->
+	      raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, the only query to prove should be the equivalence", ext_s))
+	with Not_found -> 
+	  let s' = Terms.fresh_id s in
+	  if s' <> s then
+	    print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
+	  let f = Terms.create_event s' [] in
+          (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
+	  Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
+	  new_queries := f :: (!new_queries);
+	  (Terms.new_oproc (EventAbort(f)) ext, [])
+      end
   | PTest(t, rest1, rest2) ->
       let (rest1', def1') = insert_rec (p', def) rest1 env defined_refs cur_array in
       let (rest2', def2') = insert_rec (p', def) rest2 env defined_refs cur_array in

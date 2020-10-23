@@ -15,6 +15,12 @@ let front_end = ref Channels
 
 let lib_name = ref None
 
+(* When handling "query_equiv", [events_to_ignore_lhs] contains events 
+   that occur in the RHS of the equivalence to prove. The probability 
+   is implicitly added to the probability of distinguishing the LHS
+   from the RHS, without trying to prove that it is negligible. *)
+let events_to_ignore_lhs = ref []
+    
 (* memory saving *)
 let forget_old_games = ref false
                    
@@ -606,7 +612,7 @@ let get_public_vars queries =
     | (QSecret (b',pub_vars,onesession),_),_ ->
 	add_pub_vars (b'::pub_vars)
     | (QEventQ (_,_,pub_vars),_),_
-    | (QEquivalence(_,pub_vars),_),_ 
+    | (QEquivalence(_,pub_vars,_),_),_ 
     | (QEquivalenceFinal(_,pub_vars),_),_ ->
 	add_pub_vars pub_vars
     | (AbsentQuery,_),_ -> ()) queries;

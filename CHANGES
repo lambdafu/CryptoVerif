@@ -7,6 +7,9 @@ Version
 cryptographic primitives, when appropriate.
 - query_equiv: optimize the translation to avoid creating oracles
 that just generate random values before a single oracle.
+- query_equiv: correctly deal with events in the right-hand side
+of the equivalence to prove, in coherence with the semantics
+of equiv assumptions in CryptoVerif.
 - query_equiv: fixed a bug in the oracle front-end, return
 instructions should return a unary tuple.
 - Fixed a counting bug, which could lead to counting several times

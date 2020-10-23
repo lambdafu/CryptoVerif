@@ -118,13 +118,27 @@ and insert_evento state p =
 	       insert_evento state p)
     | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
 
-let insert_event occ ext_o s g =
-  let s' = Terms.fresh_id s in
-  if s' <> s then
-    print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
-  let f = Terms.create_event s' [] in
-  let pub_vars = Settings.get_public_vars g.current_queries in
-  let query = Terms.build_event_query f pub_vars in
+let insert_event occ ext_o s ext_s g =
+  let f, add_query =
+    try
+      let f = List.find (fun f -> f.f_name = s) (!Settings.events_to_ignore_lhs) in
+      (* [f] is an event that occurs in the RHS of an equivalence we want to prove
+         using [query_equiv]. *)
+      match g.current_queries with
+      | [((QEquivalence(_,_,current_is_lhs),_),proof_opt)] when !proof_opt = ToProve ->
+	  if current_is_lhs then
+	    (f, false)
+	  else
+	    raise (Parsing_helper.Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, one should be working on the left-hand side", ext_s))
+      | _ ->
+	  raise (Parsing_helper.Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, the only query to prove should be the equivalence", ext_s))
+    with Not_found -> 
+      let s' = Terms.fresh_id s in
+      if s' <> s then
+	print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
+      let f = Terms.create_event s' [] in
+      (f, true)
+  in
   let state =
     { need_expand = false;
       count = 0;
@@ -143,8 +157,16 @@ let insert_event occ ext_o s g =
       Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
       Settings.changed := true;
       let g' = Terms.build_transformed_game ~expanded:(g.expanded && (not state.need_expand)) p' g in
-      let q_proof = ref ToProve in
-      g'.current_queries <- ((query, g'), q_proof) ::
-	 (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
-      (g', [SetEvent(f, g', pub_vars, q_proof)], [DInsertEvent(f,occ)])
+      let new_queries =
+	if add_query then
+	  let pub_vars = Settings.get_public_vars g.current_queries in
+	  let query = Terms.build_event_query f pub_vars in
+	  let q_proof = ref ToProve in
+	  g'.current_queries <- ((query, g'), q_proof) ::
+	     (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
+	  [SetEvent(f, g', pub_vars, q_proof)]
+	else
+	  []
+      in
+      (g', new_queries, [DInsertEvent(f,occ)])
     end

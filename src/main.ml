@@ -194,7 +194,7 @@ let anal_file s0 =
           let final_state_after_minimal_transfos =
             Instruct.initial_expand_simplify final_state
           in
-	  (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars)])
+	  (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars, true)])
     in
     let p = Terms.move_occ_process p in
     Check.check_def_process_main p;

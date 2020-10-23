@@ -660,7 +660,7 @@ let equal_pubvars q1 q2 =
   match q1, q2 with
   | QSecret(_,pub_vars1,_), QSecret(_,pub_vars2,_) 
   | QEventQ(_,_, pub_vars1), QEventQ(_,_, pub_vars2) 
-  | QEquivalence(_, pub_vars1), QEquivalence(_, pub_vars2) 
+  | QEquivalence(_, pub_vars1, _), QEquivalence(_, pub_vars2, _) 
   | QEquivalenceFinal(_, pub_vars1), QEquivalenceFinal(_, pub_vars2) ->
       equal_lists_sets_q pub_vars1 pub_vars2
   | AbsentQuery, AbsentQuery -> true
@@ -704,7 +704,7 @@ let equal_instruct i1 i2 =
   | (MoveNewLet mset1, MoveNewLet mset2) -> equal_mset mset1 mset2
   | (CryptoTransf (eq1, bl1), CryptoTransf (eq2, bl2)) -> 
       (eq1 == eq2) && (equal_user_info bl1 bl2)
-  | (InsertEvent(s1,n1,_), InsertEvent(s2,n2,_)) ->
+  | (InsertEvent(s1,_,n1,_), InsertEvent(s2,_,n2,_)) ->
       (s1 = s2) && (n1 == n2)
   | (InsertInstruct(s1,_,n1,_), InsertInstruct(s2,_,n2,_)) ->
       (s1 = s2) && (n1 == n2)

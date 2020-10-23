@@ -13,6 +13,8 @@ val front_end : frontend ref
 
 val lib_name : string option ref
 
+val events_to_ignore_lhs : funsymb list ref
+    
 (* memory saving *)
 val forget_old_games : bool ref
                       

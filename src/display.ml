@@ -1394,7 +1394,7 @@ let display_query3 = function
   | QEquivalenceFinal(g', pub_vars) ->
       print_string ("indistinguishability from game " ^ (get_game_id g')); 
       display_pub_vars pub_vars
-  | QEquivalence(state,pub_vars) ->
+  | QEquivalence(state,pub_vars,_) ->
       let g' = get_initial_game state in
       if g'.game_number = -1 then
 	print_string "indistinguishability from other input game"
@@ -1415,7 +1415,7 @@ let display_query (q,g) =
 	print_string ("indistinguishability between game "^(get_game_id g)^" and the final game")
       else
 	print_string "indistinguishability between the input game and the final game"
-  | QEquivalence (state, pub_vars) ->
+  | QEquivalence (state, pub_vars, _) ->
       let g' = get_initial_game state in
       print_string ("indistinguishability between game " ^
 		    (get_game_id g) ^
@@ -1470,7 +1470,7 @@ let display_instruct = function
       print_string "equivalence ";
       display_equiv_with_name e;
       display_with_user_info user_info
-  | InsertEvent(s,occ,_) ->
+  | InsertEvent(s,_,occ,_) ->
       print_string ("insert event " ^ s ^ " at occurrence " ^ (string_of_int occ))
   | InsertInstruct(s,ext_s,occ,ext_o) ->
       print_string ("insert instruction " ^ s ^ " at occurrence " ^ (string_of_int occ))
@@ -1885,7 +1885,7 @@ and proba_from_proba_info (q0,g0) bounds = function
 
 let compute_proba_internal2 bounds ((q0,g) as q) p s =
   match q0 with
-  | QEquivalence(state,pub_vars) ->
+  | QEquivalence(state,pub_vars,_) ->
       let g' = get_initial_game state in
       (compute_proba_internal bounds (QEquivalenceFinal(s.game, pub_vars),g) [] s) @ p @
       (compute_proba_internal bounds (QEquivalenceFinal(state.game, pub_vars),g') [] state)
@@ -1900,7 +1900,7 @@ let compute_proba ((q0,g) as q) proba_info s =
   List.iter display_proba_bound (List.rev (!bounds));
   begin
     match q0 with
-    | QEquivalence(state,pub_vars) ->
+    | QEquivalence(state,pub_vars,_) ->
 	print_string ("Game "^(get_game_id s.game)^" is the same as game "^(get_game_id state.game));
 	if p <> [] then
 	  begin
@@ -2406,7 +2406,7 @@ let rec get_all_states_from_queries = function
       let accu = get_all_states_from_queries r in
       let accu' =
 	match q with
-	| QEquivalence(s',_) ->
+	| QEquivalence(s',_,_) ->
 	    add_sequence accu s'
 	| _ -> accu
       in
