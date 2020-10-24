@@ -22,7 +22,7 @@ proof {
   start_from_other_end;
   (* When the arguments of Odecap match a previous call to Oencap_ins, 
      the result of Odecap is the key generated in Oencap_ins *)
-  insert after "Odecap(pk_S" "find ienc_ins_1 = ienc_ins <= Nenc_ins, i_1 = i <= N suchthat defined(zz_3[ienc_ins, i], sk'[ienc_ins, i], sk[i], enc_2[ienc_ins, i]) && (enc_2[ienc_ins, i] = enc_4) && (exp(g, sk'[ienc_ins, i]) = pk_S) && sk[i] = sk then";
+  insert after "Odecap(pk_S" "find ienc_ins <= Nenc_ins, i2 <= N suchthat defined(zz_3[ienc_ins, i2], sk'[ienc_ins, i2], sk[i2], enc_2[ienc_ins, i2]) && (enc_2[ienc_ins, i2] = enc_4) && (exp(g, sk'[ienc_ins, i2]) = pk_S) && sk[i2] = sk then";
   simplify;
   out_game "l1.out.cv";
   out_game "l1occ.out.cv" occ;
@@ -73,7 +73,7 @@ proof {
 
   start_from_other_end;
   (* Now we work on the right-hand side *)
-  insert after "Oencap(pk_R_1" "find i_1 <= N suchthat defined(sk_1[i_1]) && pk_R_1 = exp(g, sk_1[i_1]) then";
+  insert after "Oencap(pk_R_1" "find i_4 <= N suchthat defined(sk_1[i_4]) && pk_R_1 = exp(g, sk_1[i_4]) then";
   SArename z_5;
   SArename enc_9;
   out_game "r1.out.cv";
