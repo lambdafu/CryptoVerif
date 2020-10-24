@@ -889,7 +889,8 @@ let rec insert_ins count occ ins env cur_array p =
       check_noninter def1 def2;
       (Par(p1',p2'), def1 @ def2)
   | Repl(b,p) ->
-      let (p', def) = insert_ins count occ ins env (b::cur_array) p in
+      let env' = StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env in
+      let (p', def) = insert_ins count occ ins env' (b::cur_array) p in
       (Repl(b,p'), def)
   | Input((c,tl),pat, p) ->
       let def2 = Terms.vars_from_pat [] pat in

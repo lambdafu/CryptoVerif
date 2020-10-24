@@ -12,6 +12,7 @@ of the equivalence to prove, in coherence with the semantics
 of equiv assumptions in CryptoVerif.
 - query_equiv: fixed a bug in the oracle front-end, return
 instructions should return a unary tuple.
+- insert: allow referring to replication indices.
 - Fixed probability for IND-CCA2 public-key encryption.
 - Fixed a counting bug, which could lead to counting several times
 the same oracle call occurring at several places in a game, in the
