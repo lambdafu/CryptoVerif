@@ -82,7 +82,7 @@ let rec subst_idx idx ri_list' = function
 	  addq_list ri_list ri_list'
 	end
       else
-	idx1::(subst_idx idx ri_list' ri_list)
+	Terms.addq (subst_idx idx ri_list' ri_list) idx1
     
 let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types') p =
   assert (p.p_dep_types == []);
