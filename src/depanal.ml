@@ -86,12 +86,15 @@ let rec subst_idx idx ri_list' = function
     
 let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types') p =
   assert (p.p_dep_types == []);
-  { p_ri_list = subst_idx idx ri_list' p.p_ri_list;
-    p_proba = p.p_proba;
-    p_dep_types = dep_types';
-    p_full_type = full_type';
-    p_indep_types_option = indep_types' }
-
+  if List.memq idx p.p_ri_list then
+    { p_ri_list = subst_idx idx ri_list' p.p_ri_list;
+      p_proba = p.p_proba;
+      p_dep_types = dep_types';
+      p_full_type = full_type';
+      p_indep_types_option = indep_types' }
+  else
+    p
+      
 let subst_idx_term_coll_proba_entry idx image = function
   | Fixed probaf_mul_types -> Fixed (subst_idx_entry idx image probaf_mul_types)
   | ProbaIndepCollOfVar(b, args, ri_list) ->
