@@ -246,9 +246,9 @@ let filter_indices_coll true_facts used_indices initial_indices =
   (*print_string "Filter_indices_coll\nKnowing\n";
   List.iter (fun f -> Display.display_term f; print_newline()) true_facts;
   print_string "used_indices: ";
-  Display.display_list Display.display_binder used_indices;
+  Display.display_list Display.display_repl_index used_indices;
   print_string "\ninitial_indices: ";
-  Display.display_list Display.display_binder initial_indices;
+  Display.display_list Display.display_repl_index initial_indices;
   print_string "\n";*)
   let useful_indices = ref [] in
   let useless_indices = ref [] in
@@ -281,7 +281,7 @@ let filter_indices_coll true_facts used_indices initial_indices =
 	let diff_fact = Terms.make_or_list (List.map2 Terms.make_diff used_indices_term used_indices_term') in
 	let facts = diff_fact :: (true_facts' @ true_facts) in
 	try
-	  (*print_string "index: "; Display.display_binder first_index; *)
+	  (*print_string "index: "; Display.display_repl_index first_index; *)
 	  ignore (Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts));
 	  (* The index cannot be removed *)
 	  (*print_string " kept\n";*)
@@ -294,7 +294,7 @@ let filter_indices_coll true_facts used_indices initial_indices =
 	  filter_indices_rec rest_indices
   in
   filter_indices_rec initial_indices';
-  (*print_string "Result: "; Display.display_list Display.display_binder (!useful_indices); print_newline();*)
+  (*print_string "Result: "; Display.display_list Display.display_repl_index (!useful_indices); print_newline();*)
   if (!useless_indices) == [] then
     (* Removed no index, return the initial list physically, to facilitate
        testing that the list of indices was unchanged *)
