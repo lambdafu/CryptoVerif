@@ -191,7 +191,7 @@ and display_term t =
   | FunApp(f,l) ->
       begin
 	match f.f_cat with
-	  Std | Tuple | Event -> 
+	  Std | SepLetFun | Tuple | Event -> 
 	    print_id "\\kwf{" f.f_name "}";
 	    (* Event functions have replication indexes added at first argument
                Do not display it *)
@@ -342,7 +342,7 @@ and display_term_paren infix_paren process_paren t =
   let put_paren =
     match t.t_desc with
       Var _ | ReplIndex _ 
-    | FunApp({ f_cat = Std | Tuple | Event },_) -> false
+    | FunApp({ f_cat = Std | SepLetFun | Tuple | Event },_) -> false
     | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
 	begin
 	  match infix_paren' with

@@ -2,23 +2,6 @@ open Types
 
 let front_end_set = ref false
 
-let do_implementation impl =
-  let impl = 
-    Implementation.impl_check impl
-  in
-    List.iter (fun (x,opt,p)->
-      print_string ("Generating implementation for module "^x^"...\n");
-      let (impl,intf)=Implementation.impl_translate p opt in
-      let f=open_out (Filename.concat (!Settings.out_dir) (x^".ml")) in
-      output_string f impl;
-      close_out f;
-      let f'=open_out (Filename.concat (!Settings.out_dir) (x^".mli")) in
-      output_string f' intf;
-      close_out f';
-      print_string ("Done.\n")
-	) impl
-
-
 (* Prepare the equation statements given by the user *)
 
 let rec get_vars accu t =
@@ -200,7 +183,7 @@ let anal_file s0 =
     Check.check_def_process_main p;
     let _ = 
       if !Settings.get_implementation then
-        do_implementation impl
+        Implementation.do_implementation impl
       else
         begin
           let g = { proc = RealProcess p;

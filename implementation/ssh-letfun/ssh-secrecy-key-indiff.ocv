@@ -1,0 +1,231 @@
+(* We exploit indifferentiability lemmas to speed up the proof.
+   1/ The call to h with concat8 has a domain disjoint from the ones with concat4,
+   and each of the 6 calls with concat4 uses a different tag, so these calls also
+   have pairwise disjoint domains. 
+   We can then consider them as independent random oracles.
+   2/ The truncations of the 6 calls with concat4 to obtain IVs and keys
+   remains a random oracle.
+   3/ The concatenation of the truncations of the 6 calls to h with concat4 
+   can then be considered as a single random oracle *)
+
+proof {
+      success;
+      (*prove authentication*)
+      show_game occ;
+      insert 379 "let concat8(a1, a2, a3, a4, a5, a6, a7, a8) = x1 in"; (* in OH, at the beginning *)
+      crypto rom(h1);
+      crypto rom(h2);
+      crypto uf_cma(sign);
+      success;
+
+      (*secrecy of the key*)
+      show_game occ;
+      (* inserted just before the definition of KC *)
+      insert 219 "find w <= N suchthat defined(idCS[w], idSS[w], cookieCS[w], nsCS[w], cookieSS[w], eS[w], fS[w], r_19[w]) && ((idCC = idCS[w]) && ((idSC = idSS[w]) && (((cookieCC = cookieCS[w]) && (negotiation_string = nsCS[w])) && (((cookieSC = cookieSS[w]) && (nsSC = negotiation_string)) && ((eC = eS[w]) && ((fC = fS[w]))))))) then";
+      (* inserted just before the definition of KS *)
+      insert 54 "find v <= N suchthat defined (eC[v]) && eC[v]=eS then";
+      simplify;
+      set elsefindFactsInSimplify = true; (* Reminder: elsefindFactsInSimplify is already true; it is needed in the proof. *)
+      crypto cdh(exp);
+      crypto splitter(split);  
+      success
+}
+
+
+param N.
+
+type pad_rand [fixed]. (*size 255 bytes or less depending on how the padding is done*)
+type cookie [fixed, large]. (* 16 bytes *)
+type tag [bounded]. (* 1 byte *)
+type uint32 [bounded]. (* 4 bytes *)
+type D [fixed].
+type hashkey [bounded].
+type hash [fixed, large].
+type signature [bounded].
+type block [fixed].
+type skeyseed [large, fixed].
+type sskey [bounded, large].
+type spkey [bounded, large].
+type mkey [bounded, large].
+type macinput [bounded].
+type macres [large].
+type iv [fixed, large].
+type symkey [fixed, large].
+
+fun skp(spkey,sskey): bitstring [data].
+
+type Z [large, bounded]. (*mpint = ssh string (size+string payload). MSB. 8 bits per byte. where 0=empty string, >0=first bit=0, <0=first bit=1,at beginning no useless 00 or FF. *)
+type G [large, bounded]. (*mpint*)
+
+fun bitstring_of_G(G): bitstring [data].
+
+fun padr(bitstring,pad_rand): bitstring.
+letfun pad(m:bitstring) = r <-R pad_rand; padr(m, r).
+fun unpad(bitstring): bitstringbot.
+
+fun injbot(bitstring): bitstringbot [data].
+equation forall x: bitstring; injbot (x) <> bottom.
+equation forall x: bitstring, r: pad_rand;
+       unpad(padr(x, r)) = injbot(x).
+
+(* utils *)
+
+fun get_size(bitstring): uint32.
+
+fun concatm(tag, bitstring): bitstring [data].
+fun concatKEXINIT(cookie, bitstring): bitstring [data].
+fun concat8(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G): bitstring [data].
+fun concatKEXDHREPLY(spkey, G, signature): bitstring [data].
+fun concat(bitstring, bitstring): bitstring.
+fun check_algorithms(bitstring): bool.
+fun block_of_hash(hash): block [data].
+
+const negotiation_string: bitstring.
+const tag_kexdh_init: tag.
+const tag_kexdh_reply: tag.
+const tag_kex_init: tag.
+const tag_newkeys: tag.
+const uint32_zero: uint32.
+const null_string: bitstring. (*the string of length 0 *)
+
+(*CDH*)
+
+proba pCollKey1.
+proba pCollKey2.
+expand DH_proba_collision(G, Z, g, exp, exp', mult, pCollKey1, pCollKey2).
+
+proba pCDH.
+expand CDH(G, Z, g, exp, exp', mult, pCDH).
+
+letfun message(x: Z) = exp(g, x).
+
+(*hash function *)
+
+expand ROM_hash_large(hashkey, bitstring, hash, h1, hashoracle1, qH1).
+
+type keys [large, fixed].
+expand ROM_hash_large_3(hashkey, G, hash, hash, keys, h2, hashoracle2, qH2).
+
+(* signature *)
+
+proba Psign.
+proba Psigncoll.
+
+expand UF_CMA_proba_signature(skeyseed, spkey, sskey, block, signature, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+letfun kgen_s () = r <-R skeyseed; skp(spkgen(r), sskgen(r)).
+
+(* utils *)
+
+type keys_tuple_t.
+expand random_split_6(keys, iv, iv, symkey, symkey, mkey, mkey, keys_tuple_t, keys_tuple, split). 
+
+(* key table *)
+
+table trusted_hosts(spkey).
+
+(* Secret *)
+
+query secret IVCC public_vars IVSC, EKCC, EKSC, MKCC, MKSC.
+query secret IVSC public_vars IVCC, EKCC, EKSC, MKCC, MKSC.
+query secret EKCC public_vars IVCC, IVSC, EKSC, MKCC, MKSC.
+query secret EKSC public_vars IVCC, IVSC, EKCC, MKCC, MKSC.
+query secret MKCC public_vars IVCC, IVSC, EKCC, EKSC, MKSC.
+query secret MKSC public_vars IVCC, IVSC, EKCC, EKSC, MKCC.
+
+(* Authentication property *)
+
+event endC(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
+event endS(bitstring, bitstring, bitstring, bitstring, spkey, G, G, G, hash).
+
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash;
+      inj-event(endC(idC, idS, initC, initS, pk, x, y, K, H)) ==> inj-event(endS(idC, idS, initC, initS, pk, x, y, K, H))
+      public_vars IVCC, IVSC, EKCC, EKSC, MKCC, MKSC.
+
+query idC: bitstring, idS: bitstring, initC: bitstring, initS: bitstring, pk: spkey, x: G, y: G, K: G, H: hash, K2: G, H2: hash;
+      event(endC(idC, idS, initC, initS, pk, x, y, K, H)) && event(endS(idC, idS, initC, initS, pk, x, y, K2, H2)) ==> K = K2 && H = H2
+      public_vars IVCC, IVSC, EKCC, EKSC, MKCC, MKSC.
+
+(* Server *)
+
+let processS(hk1: hashkey, hk2: hashkey, pkS: spkey, skS: sskey) =
+      negotiationS() :=
+	  (* Returning KEX_INIT to client *)
+          cookieSS <-R cookie;
+          initSS <- concatm(tag_kex_init, concatKEXINIT(cookieSS, negotiation_string));
+          return (pad(initSS));
+
+          key_exchange2S(idCS: bitstring, idSS: bitstring, m1: bitstring, m2: bitstring) :=
+	  (* Expecting KEX_INIT and KEXDH_INIT from client, returning KEXDH_REPLY *)
+          let injbot(initCS) = unpad(m1) in
+          let concatm(=tag_kex_init, concatKEXINIT(cookieCS, nsCS)) = initCS in
+          if (check_algorithms(nsCS)) then
+          let injbot(concatm(=tag_kexdh_init, bitstring_of_G(eS))) = unpad(m2) in
+          yS <-R Z;
+          fS <- message(yS);
+          KS: G <- exp(eS, yS);
+          HS <- h1(hk1, concat8(idCS, idSS, initCS, initSS, pkS, eS, fS, KS));
+	  event endS(idCS, idSS, initCS, initSS, pkS, eS, fS, KS, HS);
+          sS <- sign(block_of_hash(HS), skS);
+          return (pad(concatm(tag_kexdh_reply, concatKEXDHREPLY(pkS, fS, sS))));
+
+	 key_exchange4S(m: bitstring) :=
+	   (* Expecting NEW_KEYS from client, returning NEW_KEYS *)
+	   let injbot(nkCS) = unpad(m) in
+	   let concatm(=tag_newkeys, =null_string) = nkCS in
+	   return (pad(concatm(tag_newkeys, null_string)));
+
+         get_keysS() :=
+	   let keys_tuple(IVCS: iv, IVSS: iv, EKCS: symkey, EKSS: symkey, MKCS: mkey, MKSS: mkey) = split(h2(hk2, KS, HS, HS)).
+
+(* Client *)
+
+let processC(hk1: hashkey, hk2: hashkey) =
+        negotiationC() :=
+	     (* Returning KEX_INIT to the server *)
+             cookieCC <-R cookie;
+             initCC <- concatm(tag_kex_init, concatKEXINIT (cookieCC, negotiation_string));
+             return (pad(initCC));
+        
+        key_exchange1C(m: bitstring) :=
+             (* Expecting KEX_INIT from the server, returning KEXDH_INIT *)
+             let injbot(initSC) = unpad(m) in
+             let concatm(=tag_kex_init, concatKEXINIT(cookieSC, nsSC)) = initSC in
+             if (check_algorithms(initSC)) then
+             xC <-R Z;
+             eC <- message(xC);
+             return (pad(concatm(tag_kexdh_init, bitstring_of_G(eC))));
+
+        key_exchange3C(idCC: bitstring, idSC: bitstring, m: bitstring) :=
+	     (* Expecting KEYDH_REPLY from the server, returning NEW_KEYS *)
+             let injbot(concatm(=tag_kexdh_reply, concatKEXDHREPLY(pkSC, fC, sC))) = unpad(m) in
+             get trusted_hosts(=pkSC) in
+             KC:G <- exp(fC,xC);
+             HC <- h1(hk1,concat8(idCC, idSC, initCC, initSC, pkSC, eC, fC, KC));
+             if check(block_of_hash(HC),pkSC,sC) then
+             event endC(idCC, idSC, initCC, initSC, pkSC, eC, fC, KC, HC);
+	     return (pad(concatm(tag_newkeys, null_string)));
+	
+	get_keysC(m: bitstring) :=
+	  (* Expecting NEW_KEYS from the server, then start the tunnel *)
+  	  let injbot(nkSC) = unpad(m) in
+	  let concatm(=tag_newkeys, =null_string) = nkSC in
+	  let keys_tuple(IVCC: iv, IVSC: iv, EKCC: symkey, EKSC: symkey, MKCC: mkey, MKSC: mkey) = split(h2(hk2, KC, HC, HC)).
+
+(* Key generation *)
+
+process 
+	Ostart() :=
+	hk01 <-R hashkey;
+	hk02 <-R hashkey;
+        let skp(pkS0: spkey,skS0: sskey) = kgen_s() in
+        insert trusted_hosts(pkS0);
+        return (pkS0);
+        ((foreach iA <= N do run processS(hk01,hk02,pkS0,skS0)) |
+	 (foreach iB <= N do run processC(hk01,hk02)) |
+	 run hashoracle1(hk01) | run hashoracle2(hk02))
+
+(* EXPECTED
+All queries proved.
+1.408s (user 1.384s + system 0.024s), max rss 29996K
+END *)

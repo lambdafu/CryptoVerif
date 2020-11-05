@@ -200,10 +200,17 @@ and funcats =
   | Or
   | And
   | Event (* Function symbols for events *)
+  | SepLetFun (* Function symbols defined by letfun, and that can 
+		 be implemented as a separate functon (no find, array access,
+		 out of scope access) *)
 
 and impl_name =
     Func of string
   | Const of string
+  | SepFun (* Function symbol defined by letfun and implemented 
+              as a separate function (corresponds to f_cat = SepLetFun
+              and the function is used in the part translated to 
+	      implementation) *)
   | No_impl
 
 and funsymb = { f_name : string;
@@ -783,6 +790,10 @@ type impl_opt = Read of binder * string | Write of binder * string
 
 type impl_process = string * impl_opt list * inputprocess
 
+type impl_letfun = funsymb * binder list * term
+
+type impl_info = impl_letfun list * impl_process list
+      
 type final_process =
     SingleProcess of inputprocess
   | Equivalence of inputprocess * inputprocess * binder list(*public variables*)

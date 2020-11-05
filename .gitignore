@@ -171,6 +171,8 @@ implementation/ssh*/add_key
 implementation/ssh*/client
 implementation/ssh*/keygen
 implementation/ssh*/server
+implementation/ssh-letfun/Letfun.ml
+implementation/ssh-letfun/Letfun.mli
 examplesnd/textsecure-keys-not-normalized/mylib.cvl
 
 tests

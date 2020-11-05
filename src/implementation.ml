@@ -9,6 +9,10 @@ module BinderSet = Set.Make(String)
 let info mess = print_string ("Information: "^ mess^" (implementation)\n")
 let error mess = Parsing_helper.user_error ("Error: "^mess^" (implementation)\n")
 
+let letfun_module = "Letfun"
+
+let letfun_prefix = ref ""
+    
 let string_list_sep = String.concat
 
 let string_list_sep_ignore_empty sep t=
@@ -37,6 +41,9 @@ let get_oracle_name name =
 let get_binder_name b =
   "var_"^(alphabetize_string b.sname)^"_"^(string_of_int b.vname)
 
+let get_fun_name f =
+  "fun_"^(alphabetize_string f.f_name)
+					     
 
 (*returns set of free and set of bound variables
   get_iprocess_bv returns the set of variables bound not under a replication
@@ -454,8 +461,8 @@ let get_oracles_types process =
   
 
 let prefix=
-  ref ("open Base\n"^
-       "open Crypto\n\n")
+  "open Base\n"^
+  "open Crypto\n\n"
 
 let get_type_predicate t =
   match t.tpredicate with
@@ -569,7 +576,7 @@ and translate_get opt tbl patl topt p1 p2 ind =
       )^"\n"^ind^
       "        end\n"^ind^
       "      | _ -> raise (Bad_file \""^tfile^"\")) in\n"^ind^
-      "if "^list^" = [] then begin"^
+      "if "^list^" = [] then begin "^
       (p2 (ind^"  "))^
       "\n"^ind^"end else begin\n"^ind^
       "  let ("^(string_list_sep "," tvars)^") = rand_list "^list^" in"^
@@ -605,9 +612,10 @@ and translate_term t ind =
             "])"
           else
             (match f.f_impl with 
-                 Func x -> "("^x^" "^(termlist " " tl)^")"
-               | Const x -> x
-               | No_impl -> error ("Function not registered:" ^ f.f_name)
+            | Func x -> "("^x^" "^(termlist " " tl)^")"
+            | Const x -> x
+	    | SepFun -> "("^(!letfun_prefix)^(get_fun_name f)^" "^(termlist " " tl)^")"
+            | No_impl -> error ("Function not registered:" ^ f.f_name)
             )
       | TestE(t1,t2,t3) -> "(if "^(translate_term t1 ind)^" then "^(translate_term t2 ind)^" else "^(translate_term t3 ind)^" )"
       | ReplIndex _ ->
@@ -707,7 +715,7 @@ and match_pattern_complex opt pat s p1 p2 in_term ind =
       )^
           (*tests*)
       "\n"^ind^"  if "^(andlist (List.map (fun (n,s)-> n^"="^s) tests))^
-      " then begin"^
+      " then begin "^
       (if not in_term then
          (string_list_sep_ignore_empty "" 
             (
@@ -724,7 +732,7 @@ and match_pattern opt (pat:Types.pattern) (var:string) (p1:string -> string) (p2
     | PatVar(b) -> 
         "let "^(get_binder_name b)^" = "^var^" in "^(if (not in_term) then write_file opt b (ind^"  ") else "")^(p1 ind)
     | PatEqual(t) -> 
-        "if "^(translate_term t ind)^" = "^var^" then\n"^ind^"begin"^
+        "if "^(translate_term t ind)^" = "^var^" then\n"^ind^"begin "^
           (p1 (ind^"  "))^
           "\n"^ind^"end else begin "^
           (p2 (ind^"  "))^
@@ -798,15 +806,92 @@ let impl_init opt p =
     
 let get_interface opt p = 
   let o = List.map (fun (b,n,_,_) -> (b,n)) (get_next_oracles true p) in
-  "open Base\n"^
-    "open Crypto\n\n"^
+  prefix^
   (get_oracles_types p)^"\n"^
     "val init : unit -> "^(get_oracles_type_string o)^"\n"
 
 let get_implementation opt p =
-  (!prefix)^
+  prefix^
   (get_oracles_types p)^"\n\n"^
     (impl_init opt p)
 
-let impl_translate process opt =
-  (get_implementation opt process, get_interface opt process)
+let get_letfun_interface letfuns =
+  prefix^
+  (string_list_sep "\n" (List.map (fun (f,bl,res) ->
+    "val "^(get_fun_name f)^" : "^
+    (if bl = [] then
+      "unit"
+    else
+      (string_list_sep " -> " (List.map (fun b -> get_type_name b.btype) bl)))^
+    " -> "^(get_type_name res.t_type)^"\n"
+	      ) letfuns))
+
+let get_letfun_implementation letfuns =
+  prefix^
+  (string_list_sep "\n" (List.map (fun (f,bl,res) ->
+    "let "^(get_fun_name f)^" "^
+    (if bl = [] then
+      "()"
+    else
+      (string_list_sep " " (List.map (fun b ->
+	("("^(get_binder_name b)^" : "^(get_type_name b.btype)^")")
+	  ) bl)))^
+    " = "^(translate_term res "  ")^"\n"
+	      ) letfuns))
+
+let check_no_module_name_clash (impl_letfuns,impl_processes) =
+  let basic_modules = ["Base"; "Crypto"] in
+  let reserved_modules =
+    if impl_letfuns <> [] then
+      letfun_module :: basic_modules
+    else
+      basic_modules
+  in
+  let rec check_clash = function
+    | [] -> ()
+    | (x,_,_)::rest ->
+	List.iter (fun m ->
+	  if x = m then
+	    error ("Module "^x^" clashes with reserved module");
+	  if String.uppercase_ascii x = String.uppercase_ascii m then
+	    error ("Module "^x^" clashes with reserved module "^m^" (filenames are case-insensitive on Windows)")
+	      ) reserved_modules;
+	List.iter (fun (x',_,_) ->
+	  if String.uppercase_ascii x = String.uppercase_ascii x' then
+	    error ("Module "^x^" clashes with module "^x'^" (filenames are case-insensitive on Windows)")
+	      ) rest;
+	check_clash rest
+  in
+  check_clash impl_processes
+    
+    
+let do_implementation (impl_letfuns,impl_processes) =
+  let impl = 
+    impl_check impl_processes
+  in
+  check_no_module_name_clash (impl_letfuns,impl);
+  if impl_letfuns <> [] then
+    begin
+      print_string ("Generating implementation for letfuns...\n");
+      letfun_prefix := "";
+      let f=open_out (Filename.concat (!Settings.out_dir) (letfun_module^".ml")) in
+      output_string f (get_letfun_implementation impl_letfuns);
+      close_out f;
+      let f'=open_out (Filename.concat (!Settings.out_dir) (letfun_module^".mli")) in
+      output_string f' (get_letfun_interface impl_letfuns);
+      close_out f';
+      print_string ("Done.\n")
+    end;
+  letfun_prefix := letfun_module^".";
+  List.iter (fun (x,opt,p)->
+    print_string ("Generating implementation for module "^x^"...\n");
+    let f=open_out (Filename.concat (!Settings.out_dir) (x^".ml")) in
+    output_string f (get_implementation opt p);
+    close_out f;
+    let f'=open_out (Filename.concat (!Settings.out_dir) (x^".mli")) in
+    output_string f' (get_interface opt p);
+    close_out f';
+    print_string ("Done.\n")
+      ) impl
+
+    

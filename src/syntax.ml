@@ -118,9 +118,15 @@ let init_env () =
 type location_type =
     InProcess
   | InEquivalence
-
+  | InLetFun
+      
 let current_location = ref InProcess
 
+let in_impl_process() = 
+  (!Settings.get_implementation) && (!current_location) <> InEquivalence
+
+exception CannotSeparateLetFun
+    
 (* Declarations *)
 
 type macro_elem =
@@ -134,7 +140,19 @@ let proof = ref (None : Ptree.command list option)
 
 let implementation = ref ([]: Ptree.impl list)
 let impl_roles = ref StringMap.empty
+let impl_letfuns = ref []
 
+let unused_type = { tname = "error: this type should not be used";
+		    tcat = BitString;
+		    toptions = 0;
+		    tsize = None;
+		    tpcoll = None;
+                    timplsize = None;
+                    tpredicate = None;
+                    timplname = None;
+                    tserial = None;
+                    trandom = None }
+    
 (* Check types *)
 
 let check_type ext e t =
@@ -249,11 +267,12 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
 	      if fst (f.f_type) = [] then
 		begin
 		  assert (vardecl == []);
-                (*expand letfun functions*)
-		  if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
-		    binder_env
-		  else
-                    check_term1 binder_env in_find_cond cur_array env' t
+                  (*expand letfun functions: we always inline letfuns here, 
+		    even when we generate an implementation, so that [binder_env]
+		    is correctly set. This is useful in case a find (in the part 
+		    of code that is not translated into an implementation) 
+		    references variables defined in the letfun. *)
+                  check_term1 binder_env in_find_cond cur_array env' t
 		end
 	      else
 		raise_error (s ^ " has no arguments but expects some") ext
@@ -269,22 +288,21 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
 	match StringMap.find s env with
 	  EFunc(f) -> env_args
 	| ELetFun(f, env', vardecl, t) ->
-            (*expand letfun functions*)
-            if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
-	      env_args
-            else
-	      begin
-		if List.length vardecl != List.length tl then
-		  raise_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
-		let env'' = check_args1 env' vardecl in
-		let env_args_vars =
-		  List.fold_left (fun binder_env ((s1,ext1), ty) ->
-		    let (ty',_) = get_ty env' ty in
-		    add_in_env1 binder_env s1 ty' cur_array
-		      ) env_args vardecl
-		in
-		check_term1 env_args_vars in_find_cond cur_array env'' t 
-	      end
+            (*expand letfun functions: we always inline letfuns here, 
+	      even when we generate an implementation, so that [binder_env]
+	      is correctly set. This is useful in case a find (in the part 
+	      of code that is not translated into an implementation) 
+	      references variables defined in the letfun. *)
+	    if List.length vardecl != List.length tl then
+	      raise_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
+	    let env'' = check_args1 env' vardecl in
+	    let env_args_vars =
+	      List.fold_left (fun binder_env ((s1,ext1), ty) ->
+		let (ty',_) = get_ty env' ty in
+		add_in_env1 binder_env s1 ty' cur_array
+		  ) env_args vardecl
+	    in
+	    check_term1 env_args_vars in_find_cond cur_array env'' t 
 	| _ -> raise_error (s ^ " should be a function") ext
       with Not_found ->
 	raise_error (s ^ " not defined") ext
@@ -296,6 +314,8 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
 	   (check_term1 empty_binder_env in_find_cond cur_array env t2)
 	   (check_term1 empty_binder_env in_find_cond cur_array env t3))
   | PFindE(l0,t3,_), ext ->
+      if !current_location = InLetFun then
+	raise CannotSeparateLetFun;
       let env_branches = ref (check_term1 empty_binder_env in_find_cond cur_array env t3) in
       let env_common = ref binder_env in
       List.iter (fun (bl_ref, bl,def_list,t1,t2) ->
@@ -1043,11 +1063,11 @@ let add_in_env env s ext t cur_array =
 	
 (* Add a binder in the environment of a letfun. These binders are to be replaced by new binders when used *)
 
-let add_in_env_letfun env s ext t =
+let add_in_env_letfun (tl,bl,env) s ext t =
   if (StringMap.mem s env) then
     input_warning ("identifier " ^ s ^ " rebound") ext;
   let b = Terms.create_binder0 s t [] in
-  StringMap.add s (EVar b) env
+  (t::tl,b::bl,StringMap.add s (EVar b) env)
 
 (* Check that t does not contain if/find/let/new/event/get/insert *)
 
@@ -1178,7 +1198,7 @@ let rec check_args cur_array env vardecl args =
 
 exception RemoveFindBranch
     
-let rec check_term defined_refs_opt cur_array env = function
+let rec check_term defined_refs_opt cur_array env prog = function
     PIdent (s, ext), ext2 ->
       begin
       try 
@@ -1197,15 +1217,27 @@ let rec check_term defined_refs_opt cur_array env = function
 	      begin
 		assert (vardecl == []);
                 (*expand letfun functions*)
-		if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
-                  Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
+		if in_impl_process() && (f.f_cat = SepLetFun || f.f_impl <> No_impl) then
+		  begin
+		    if (prog <> None) && (f.f_impl = No_impl) then
+		      begin
+			(* Mark the function as used, and all the functions it references as well *)
+			f.f_impl <- SepFun;
+			ignore (check_term (Some []) cur_array env' prog t)
+		      end;
+                    Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
+		  end
 		else
-                  check_term (Some []) cur_array env' t
+                  check_term (Some []) cur_array env' prog t
 	      end
 	    else
 	      raise_error (s ^ " has no arguments but expects some") ext
 	| _ -> raise_error (s ^ " should be a variable or a function") ext
-      with Not_found -> 
+      with Not_found ->
+	if in_impl_process() && prog <> None then
+	  raise_error "Implementation does not support out-of-scope references" ext;
+	if !current_location = InLetFun then
+	  raise CannotSeparateLetFun;
 	let b = get_global_binder "outside its scope" (s, ext) in
 	let tl'' = check_array_type_list ext2 [] [] cur_array b.args_at_creation in
 	if (!current_location) <> InEquivalence then
@@ -1219,7 +1251,11 @@ let rec check_term defined_refs_opt cur_array env = function
 	Terms.new_term b.btype ext2 (Var(b,tl''))
       end
   | PArray(id, tl), ext2 ->
-      let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
+      if in_impl_process() && prog <> None then
+	raise_error "Implementation does not support array references" ext2;
+      if !current_location = InLetFun then
+	raise CannotSeparateLetFun;
+      let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
       let b = get_global_binder "in an array reference" id in
       let tl'' = check_array_type_list ext2 tl tl' cur_array b.args_at_creation in
       if (!current_location) <> InEquivalence then
@@ -1232,7 +1268,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	end;
       Terms.new_term b.btype ext2 (Var(b,tl''))
   | PFunApp((s,ext), tl),ext2 ->
-      let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
+      let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
       begin
       try 
 	match StringMap.find s env with
@@ -1242,14 +1278,22 @@ let rec check_term defined_refs_opt cur_array env = function
 	| ELetFun(f, env', vardecl, t) ->
 	    check_type_list ext2 tl tl' (fst f.f_type);
             (*expand letfun functions*)
-            if !Settings.get_implementation && f.f_impl <> No_impl && (!current_location) <> InEquivalence then
-              Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
+            if in_impl_process() && (f.f_cat = SepLetFun || f.f_impl <> No_impl) then
+	      begin
+		if (prog <> None) && (f.f_impl = No_impl) then
+		  begin
+		    (* Mark the function as used, and all the functions it references as well *)
+		    f.f_impl <- SepFun;
+		    let (env'', lets) = check_args cur_array env' vardecl tl' in
+		    ignore (check_term (Some []) cur_array env'' prog t)
+		  end;
+		Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
+	      end
             else
 	      begin
-		if List.length vardecl != List.length tl then
-		  raise_error ("Letfun "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length tl))^" argument(s)") ext;
+		(* Arity already checked by [check_type_list] *)
 		let (env'', lets) = check_args cur_array env' vardecl tl' in
-		let t' = check_term (Some []) cur_array env'' t in
+		let t' = check_term (Some []) cur_array env'' prog t in
 		Terms.put_lets_term lets t' None
 	      end
 	| _ -> raise_error (s ^ " should be a function") ext
@@ -1257,24 +1301,24 @@ let rec check_term defined_refs_opt cur_array env = function
 	raise_error (s ^ " not defined") ext
       end
   | PTuple(tl), ext2 ->
-      let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
+      let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTestE(t1, t2, t3), ext ->
-      let t1' = check_term defined_refs_opt cur_array env t1 in
-      let t2' = check_term defined_refs_opt cur_array env t2 in
-      let t3' = check_term defined_refs_opt cur_array env t3 in
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let t2' = check_term defined_refs_opt cur_array env prog t2 in
+      let t3' = check_term defined_refs_opt cur_array env prog t3 in
       check_type (snd t1) t1' Settings.t_bool;
       let t_common = merge_types t2'.t_type t3'.t_type ext in
       Terms.new_term t_common ext (TestE(t1', t2', t3'))
   | PLetE(pat, t1, t2, topt), ext ->
-      let t1' = check_term defined_refs_opt cur_array env t1 in
-      let (env', pat') = check_pattern defined_refs_opt cur_array env (Some t1'.t_type) pat in
-      let t2' = check_term defined_refs_opt cur_array env' t2 in
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let (env', pat') = check_pattern defined_refs_opt cur_array env prog (Some t1'.t_type) pat in
+      let t2' = check_term defined_refs_opt cur_array env' prog t2 in
       let topt' = 
 	match topt, pat with
-	  Some t3, _ -> Some (check_term defined_refs_opt cur_array env t3)
+	  Some t3, _ -> Some (check_term defined_refs_opt cur_array env prog t3)
 	| None, (PPatVar _, _) -> None
 	| None, _ -> raise_error "When a let in an expression has no else part, it must be of the form let x = M in M'" ext
       in
@@ -1289,9 +1333,13 @@ let rec check_term defined_refs_opt cur_array env = function
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	raise_error ("Cannot choose randomly a bitstring from " ^ ty.tname) ext2;
       let (env',b) = add_in_env env s1 ext1 ty cur_array in
-      let t' = check_term defined_refs_opt cur_array env' t in
+      let t' = check_term defined_refs_opt cur_array env' prog t in
       Terms.new_term t'.t_type ext (ResE(b, t'))
   | PFindE(l0,t3,opt), ext ->
+      if in_impl_process() && prog <> None then
+	raise_error "Implementation does not support find" ext;
+      if !current_location = InLetFun then
+	raise CannotSeparateLetFun;
       let find_info = ref Nothing in
       List.iter (fun (s,ext_s) ->
         if s = "unique" then
@@ -1303,7 +1351,7 @@ let rec check_term defined_refs_opt cur_array env = function
         else
           raise_error "The only option allowed for find is unique" ext_s
         ) opt;
-      let t3' = check_term defined_refs_opt cur_array env t3 in
+      let t3' = check_term defined_refs_opt cur_array env prog t3 in
       let rec add env = function
 	  [] -> (env,[])
 	| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
@@ -1320,7 +1368,7 @@ let rec check_term defined_refs_opt cur_array env = function
 	  let env'' = List.fold_left2 (fun env (_,(s1, ext1),_) b -> StringMap.add s1 (EReplIndex b) env) env bl bl'' in
 	  let bl_bin = List.combine bl' bl'' in
 	  let cur_array' = bl'' @ cur_array in
-	  let def_list' = List.map (check_br cur_array' env'') def_list in
+	  let def_list' = List.map (check_br cur_array' env'' prog) def_list in
 	  let (defined_refs_opt_t1, defined_refs_opt_t2) =
 	    match defined_refs_opt with
 	      None -> (None, None)
@@ -1330,9 +1378,9 @@ let rec check_term defined_refs_opt cur_array env = function
 		in
 		(Some defined_refs_t1, Some defined_refs_t2)
 	  in
-	  let t1' = check_term defined_refs_opt_t1 cur_array' env'' t1 in
+	  let t1' = check_term defined_refs_opt_t1 cur_array' env'' prog t1 in
 	  check_no_new_event_insert (snd t1) false t1';
-	  let t2' = check_term defined_refs_opt_t2 cur_array env' t2 in
+	  let t2' = check_term defined_refs_opt_t2 cur_array env' prog t2 in
 	  check_type (snd t1) t1' Settings.t_bool;
 	  t_common := merge_types (!t_common) t2'.t_type ext;
 	  (bl_bin, def_list', t1', t2')::accu
@@ -1357,14 +1405,14 @@ let rec check_term defined_refs_opt cur_array env = function
         try 
 	  match StringMap.find s env with
 	      EEvent(f) ->
-	        let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
+	        let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
 	        check_type_list ext tl tl' (List.tl (fst f.f_type));
 	        let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
 	        let tcur_array =
 		  Terms.new_term Settings.t_bitstring ext2
 		    (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
 	        in
-	        let p' = check_term defined_refs_opt cur_array env p in
+	        let p' = check_term defined_refs_opt cur_array env prog p in
                 let event =
 		  Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
 		in
@@ -1382,49 +1430,49 @@ let rec check_term defined_refs_opt cur_array env = function
 		     (string_of_int (List.length tbl.tbltype))^
 		     " argument(s), but is here given "^
 		     (string_of_int (List.length patl))^" argument(s)") ext;
-      let p2' = check_term defined_refs_opt cur_array env p2 in
-      let (env', patl') = check_pattern_list defined_refs_opt cur_array env (List.map (fun x->Some x) tbl.tbltype) patl in
+      let p2' = check_term defined_refs_opt cur_array env prog p2 in
+      let (env', patl') = check_pattern_list defined_refs_opt cur_array env prog (List.map (fun x->Some x) tbl.tbltype) patl in
       let topt' = 
 	match topt with 
 	  None -> None 
 	| Some t -> 
-	    let t' = check_term defined_refs_opt cur_array env' t in
+	    let t' = check_term defined_refs_opt cur_array env' prog t in
 	    check_no_new_event_insert (snd t) true t';
 	    check_type (snd t) t' Settings.t_bool;
 	    Some t'
       in
-      let p1' = check_term defined_refs_opt cur_array env' p1 in
+      let p1' = check_term defined_refs_opt cur_array env' prog p1 in
       let t_common = merge_types p1'.t_type p2'.t_type ext2 in
       Terms.new_term t_common ext2 (GetE(tbl, patl',topt',p1', p2'))
           
   | PInsertE((id,ext),tl,p),ext2 ->
       let tbl = get_table env id ext in
-      let tl' = List.map (check_term defined_refs_opt cur_array env) tl in
+      let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
       check_type_list ext2 tl tl' tbl.tbltype;
-      let p' = check_term defined_refs_opt cur_array env p in
+      let p' = check_term defined_refs_opt cur_array env prog p in
       Terms.new_term p'.t_type ext2 (InsertE(tbl, tl', p'))
             
   | PEqual(t1,t2), ext ->
-      let t1' = check_term defined_refs_opt cur_array env t1 in
-      let t2' = check_term defined_refs_opt cur_array env t2 in
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let t2' = check_term defined_refs_opt cur_array env prog t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
 	raise_error "= expects expressions of the same type" ext;
       Terms.make_equal_ext ext t1' t2'
   | PDiff(t1,t2), ext ->
-      let t1' = check_term defined_refs_opt cur_array env t1 in
-      let t2' = check_term defined_refs_opt cur_array env t2 in
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let t2' = check_term defined_refs_opt cur_array env prog t2 in
       if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
 	raise_error "<> expects expressions of the same type" ext;
       Terms.make_diff_ext ext t1' t2'
   | PAnd(t1,t2), ext ->
-      let t1' = check_term defined_refs_opt cur_array env t1 in
-      let t2' = check_term defined_refs_opt cur_array env t2 in
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let t2' = check_term defined_refs_opt cur_array env prog t2 in
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_and_ext ext t1' t2'
   | POr(t1,t2), ext ->
-      let t1' = check_term defined_refs_opt cur_array env t1 in
-      let t2' = check_term defined_refs_opt cur_array env t2 in
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let t2' = check_term defined_refs_opt cur_array env prog t2 in
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
@@ -1433,9 +1481,9 @@ let rec check_term defined_refs_opt cur_array env = function
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 
-and check_br cur_array env ((_,ext) as id, tl) =
+and check_br cur_array env prog ((_,ext) as id, tl) =
   try 
-    let tl' = List.map (check_term None cur_array env) tl in
+    let tl' = List.map (check_term None cur_array env prog) tl in
     List.iter2 (fun t t' -> check_no_iffindletnewevent "defined condition" (snd t) t') tl tl';
     let b = get_global_binder "in an array reference" id in
     let tl'' = check_array_type_list ext tl tl' cur_array b.args_at_creation in
@@ -1452,7 +1500,7 @@ and check_br cur_array env ((_,ext) as id, tl) =
 
 (* Check pattern *)
 
-and check_pattern defined_refs_opt cur_array env tyoptres = function
+and check_pattern defined_refs_opt cur_array env prog tyoptres = function
     PPatVar ((s1,ext1), tyopt), _ ->
       begin
 	match tyopt, tyoptres with
@@ -1491,7 +1539,7 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 	      raise_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
       end;
       let tl = List.map (fun _ -> None) l in
-      let (env', l') = check_pattern_list defined_refs_opt cur_array env tl l in
+      let (env', l') = check_pattern_list defined_refs_opt cur_array env prog tl l in
       let tl' = List.map get_type_for_pattern l' in
       (env', PatTuple(Settings.get_tuple_fun tl', l'))
   | PPatFunApp((s,ext),l), ext2 ->
@@ -1510,10 +1558,10 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
 		     (string_of_int (List.length (fst f.f_type))) ^ 
 		     " arguments but is here applied to " ^  
 		     (string_of_int (List.length l)) ^ " arguments") ext;
-      let (env', l') = check_pattern_list defined_refs_opt cur_array env (List.map (fun t -> Some t) (fst f.f_type)) l in
+      let (env', l') = check_pattern_list defined_refs_opt cur_array env prog (List.map (fun t -> Some t) (fst f.f_type)) l in
       (env', PatTuple(f, l'))
   | PPatEqual t, ext ->
-      let t' = check_term defined_refs_opt cur_array env t in
+      let t' = check_term defined_refs_opt cur_array env prog t in
       begin
 	match tyoptres with
 	  None -> ()
@@ -1523,190 +1571,13 @@ and check_pattern defined_refs_opt cur_array env tyoptres = function
       end;
       (env, PatEqual t')
 
-and check_pattern_list defined_refs_opt cur_array env lty l = 
+and check_pattern_list defined_refs_opt cur_array env prog lty l = 
   match lty, l with
     [], [] -> (env,[])
   | (ty::lty),(a::l) ->
-      let env', l' = check_pattern_list defined_refs_opt cur_array env lty l in
-      let env'', a' = check_pattern defined_refs_opt cur_array env' ty a in
+      let env', l' = check_pattern_list defined_refs_opt cur_array env prog lty l in
+      let env'', a' = check_pattern defined_refs_opt cur_array env' prog ty a in
       (env'', a'::l')
-  | _ -> Parsing_helper.internal_error "Lists have different length in check_pattern_list"
-
-
-
-(* Check letfun terms *)
-
-let rec get_type_letfun env = function
-    PIdent (s, ext), ext2 ->
-      begin
-      try 
-	match StringMap.find s env with
-	  EVar(b) -> 
-	    b.btype
-	| EReplIndex(b) ->
-	    b.ri_type
-	| EFunc(f) | ELetFun(f,_,_,_) -> 
-	    if fst (f.f_type) = [] then
-	      snd f.f_type
-	    else
-	      raise_error (s ^ " has no arguments but expects some") ext
-	| _ -> raise_error (s ^ " should be a variable or a function") ext
-      with Not_found ->
-	(* Can be an array reference. I cannot determine its type *)
-	Settings.t_any
-      end
-  | PFunApp((s,ext), tl),ext2 ->
-      let f = get_function_or_letfun env s ext in
-      snd f.f_type
-  | PTuple(tl), ext2 ->
-      Settings.t_bitstring
-  | PTestE(_, t2, t3), ext ->
-      let t = get_type_letfun env t3 in
-      if t == Settings.t_any then
-	get_type_letfun env t2
-      else
-	t
-  | PGetE((id,ext),patl,_,t2,t3), ext2 ->
-      let t = get_type_letfun env t3 in
-      if t == Settings.t_any then
-	begin
-	  let tbl = get_table env id ext in
-	  if List.length patl != List.length tbl.tbltype then
-	    raise_error ("Table "^id^" expects "^
-			 (string_of_int (List.length tbl.tbltype))^
-			 " argument(s), but is here given "^
-			 (string_of_int (List.length patl))^" argument(s)") ext;
-	  let env' = check_pattern_list_letfun env (List.map (fun x->Some x) tbl.tbltype) patl in
-	  get_type_letfun env' t2
-	end
-      else
-	t
-  | PLetE(pat, t1, t2, topt), ext ->
-      let ty_t1 = get_type_letfun env t1 in
-      let env' = check_pattern_letfun env (Some ty_t1) pat in
-      let t = get_type_letfun env' t2 in
-      if t == Settings.t_any then
-	begin
-	  match topt with
-	    None -> t
-	  | Some t3 -> get_type_letfun env t3
-	end
-      else
-	t
-  | PResE((s1,ext1),(s2,ext2),t), ext ->
-      let ty = get_type env s2 ext2 in
-      let env' = add_in_env_letfun env s1 ext1 ty in
-      get_type_letfun env' t
-  | PFindE (l0,t3,_ ), ext ->
-      let t = get_type_letfun env t3 in
-      if t == Settings.t_any then
-	let rec aux = function
-	    [] -> Settings.t_any
-	  | (_,bl,_,_,t2)::r ->
-	      let rec add env = function
-		  [] -> env
-		| ((s0,ext0),(s1,ext1),(s2,ext2))::bl ->
-		    let p = get_param env s2 ext2 in
-		    let env' = add_in_env_letfun env s0 ext0 (type_for_param p) in
-		    add env' bl 
-	      in
-	      let env' = add env bl in
-	      let t = get_type_letfun env' t2 in
-	      if t == Settings.t_any then
-		aux r
-	      else
-		t
-	in
-	aux l0
-      else
-	t
-  | PArray _, ext ->
-      (* I cannot determine the type of an array reference here. 
-	 It is not too serious, I'll give a warning in case
-	 I cannot determine the type of the whole letfun. *)
-      Settings.t_any
-  | PEventAbortE(s,ext2), ext ->
-      Settings.t_any
-  | (PEventE(_, p) | PInsertE(_,_,p)), ext2 ->
-      get_type_letfun env p
-  | (PEqual _ | PDiff _ | PAnd _ | POr _), ext ->
-      Settings.t_bool
-  | PQEvent _,ext -> 
-      raise_error "event(...) and inj-event(...) allowed only in queries" ext
-  | PIndepOf _, ext ->
-      raise_error "independent-of allowed only in side-conditions of collisions" ext
-
-and check_pattern_letfun env tyoptres = function
-    PPatVar ((s1,ext1), tyopt), _ ->
-      begin
-       match tyopt, tyoptres with
-         None, None ->
-           raise_error "type needed for this variable" ext1
-       | None, Some ty ->
-           add_in_env_letfun env s1 ext1 ty 
-       | Some tyb, None ->
-           let (ty',ext2) = get_ty env tyb in
-           begin
-             match ty'.tcat with
-               Interv _ -> raise_error "Cannot input a term of interval type or extract one from a tuple" ext2
-               (* This condition simplifies greatly the theory:
-                  otherwise, one needs to compute which channels the adversary
-                  knows...
-                  8/12/2017: I no longer understand this comment, and I am
-                  wondering if I could relax this condition. *)
-             | _ -> ()
-           end;
-           add_in_env_letfun env s1 ext1 ty' 
-       | Some tyb, Some ty ->
-           let (ty',ext2) = get_ty env tyb in
-           if ty != ty' then
-             raise_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
-           add_in_env_letfun env s1 ext1 ty' 
-      end
-  | PPatTuple l, ext ->
-      begin
-       match tyoptres with
-         None -> ()
-       | Some ty ->
-           if ty != Settings.t_bitstring then
-             raise_error ("A tuple pattern has type bitstring but is here used with type " ^ ty.tname) ext
-      end;
-      let tl = List.map (fun _ -> None) l in
-      check_pattern_list_letfun env tl l 
-  | PPatFunApp((s,ext),l), ext2 ->
-      let f = get_function_no_letfun env s ext in
-      if (f.f_options land Settings.fopt_COMPOS) == 0 then
-        raise_error "Only [data] functions are allowed in patterns" ext;
-      begin
-        match tyoptres with
-          None -> ()
-        | Some ty ->
-            if ty != snd f.f_type then
-              raise_error ("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname) ext2
-      end;
-      if List.length (fst f.f_type) != List.length l then
-        raise_error ("Function " ^ f.f_name ^ " expects " ^
-                     (string_of_int (List.length (fst f.f_type))) ^
-                     " arguments but is here applied to " ^
-                     (string_of_int (List.length l)) ^ " arguments") ext;
-      check_pattern_list_letfun env (List.map (fun t -> Some t) (fst f.f_type)) l 
-  | PPatEqual t, ext ->
-      let ty_t = get_type_letfun env t in
-      begin
-       match tyoptres with
-         None -> ()
-       | Some ty ->
-           if (ty_t != ty)  && (ty_t != Settings.t_any) && (ty != Settings.t_any) then
-             raise_error ("Pattern has type " ^ ty_t.tname ^ " and should be of type " ^ ty.tname) ext
-      end;
-      env
-
-and check_pattern_list_letfun env lty l =
-  match lty, l with
-    [], [] -> env
-  | (ty::lty),(a::l) ->
-      let env' = check_pattern_list_letfun env lty l in
-      check_pattern_letfun env' ty a 
   | _ -> Parsing_helper.internal_error "Lists have different length in check_pattern_list"
 
  
@@ -2395,7 +2266,7 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	raise_error ("Oracle name " ^ s ^ " already used in this equivalence") ext;
       seen_ch := ch' :: (!seen_ch);
       let (env', arglist') = check_binder_list2 cur_array env arglist in
-      let tres' = check_term (Some []) cur_array env' tres in
+      let tres' = check_term (Some []) cur_array env' None tres in
       (* Note: restriction. Could be lifted, but simplifies cryptotransf.ml greatly 
 	 Restriction partly lifted, by completing sequences of names with names already in the map.
       if not (List.for_all (List.for_all (fun b -> Terms.refers_to b tres')) cur_restr) then
@@ -2473,7 +2344,7 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
 	if b.btype != b'.btype then
 	  raise_error "Incompatible types of arguments between left and right members of equivalence" (snd tres)
 	    ) arglist' arglist0;
-      let tres' = check_term (Some []) cur_array env' tres in
+      let tres' = check_term (Some []) cur_array env' None tres in
       (* Check that the type of the right member is the same as
 	 the type of the corresponding left member. This is required
 	 so that after transformation, the process remains well-typed. *)
@@ -2842,7 +2713,7 @@ let rec check_process defined_refs cur_array env prog = function
       (new_iproc (Repl(b', p')) ext, oracle, new_iproc (Repl(b',ip)) ext)
   | PInput(t, pat, p), ext ->
       let ((c, _) as t') = check_process_channel cur_array env t in
-      let (env', pat') = check_pattern (Some defined_refs) cur_array env None pat in
+      let (env', pat') = check_pattern (Some defined_refs) cur_array env prog None pat in
       let (p', tres, oracle,ip) = check_oprocess defined_refs cur_array env' prog p in
         if (!Settings.front_end) == Settings.Channels then
 	  (new_iproc (Input(t', pat', p')) ext, oracle, new_iproc (Input(t',pat',ip)) ext)
@@ -2863,7 +2734,7 @@ let rec check_process defined_refs cur_array env prog = function
       let (env', vardecl, p) = get_process env s ext in
       if List.length vardecl != List.length args then
 	raise_error ("Process "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length args))^" argument(s)") ext;
-      let args' = List.map (check_term (Some defined_refs) cur_array env) args in
+      let args' = List.map (check_term (Some defined_refs) cur_array env prog) args in
       (* Only simple terms (variables, replication indices, and function 
 	 applications) are allowed in arguments. *)
       List.iter (fun t ->
@@ -2911,13 +2782,13 @@ and check_oprocess defined_refs cur_array env prog = function
       let (env', vardecl, p) = get_process env s ext in
       if List.length vardecl != List.length args then
 	raise_error ("Process "^s^" expects "^(string_of_int (List.length vardecl))^" argument(s), but is here given "^(string_of_int (List.length args))^" argument(s)") ext;
-      let args' = List.map (check_term (Some defined_refs) cur_array env) args in
+      let args' = List.map (check_term (Some defined_refs) cur_array env prog) args in
       let (env'', lets) = check_args cur_array env' vardecl args' in
       let (p', tres, oracle, ip')  = check_oprocess [] cur_array env'' prog p in
       (Terms.put_lets lets p' (Terms.oproc_from_desc Yield), tres, oracle,
        Terms.put_lets lets ip' (Terms.oproc_from_desc Yield))
   | PTest(t,p1,p2), ext ->
-      let t' = check_term (Some defined_refs) cur_array env t in
+      let t' = check_term (Some defined_refs) cur_array env prog t in
         check_type (snd t) t' Settings.t_bool;
         let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env prog p1 in
         let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
@@ -2925,6 +2796,8 @@ and check_oprocess defined_refs cur_array env prog = function
            mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
            new_oproc (Test(t', ip1', ip2')) ext)
   | PFind(l0,p2,opt), ext ->
+      if in_impl_process() && prog <> None then
+	raise_error "Implementation does not support find" ext;
       let find_info = ref Nothing in
       List.iter (fun (s,ext_s) ->
 	if s = "unique" then
@@ -2954,9 +2827,9 @@ and check_oprocess defined_refs cur_array env prog = function
 	  let env'' = List.fold_left2 (fun env (_,(s1, ext1),_) b -> StringMap.add s1 (EReplIndex b) env) env bl bl'' in
 	  let cur_array' = bl'' @ cur_array in
 	  let bl_bin = List.combine bl' bl'' in
-	  let def_list' = List.map (check_br cur_array' env'') def_list in
+	  let def_list' = List.map (check_br cur_array' env'' prog) def_list in
 	  let (defined_refs_t, defined_refs_p1) = Terms.defined_refs_find bl_bin def_list' defined_refs in
-	  let t' = check_term (Some defined_refs_t) cur_array' env'' t in
+	  let t' = check_term (Some defined_refs_t) cur_array' env'' prog t in
 	  check_no_new_event_insert (snd t) false t';
 	  check_type (snd t) t' Settings.t_bool;
 	  let (p1', tres1, oracle1,ip1') = check_oprocess defined_refs_p1 cur_array env' prog p1 in
@@ -2970,7 +2843,7 @@ and check_oprocess defined_refs cur_array env prog = function
       (new_oproc (Find(List.rev l0', p2',!find_info)) ext, (!trescur), (!oraclecur),
        new_oproc (Find(List.rev il0',ip2', !find_info)) ext)
   | POutput(rt,t1,t2,p), ext ->
-      let t2' = check_term (Some defined_refs) cur_array env t2 in
+      let t2' = check_term (Some defined_refs) cur_array env prog t2 in
       begin
         match t2'.t_type.tcat with
 	  Interv _ -> raise_error "Cannot output a term of interval type" (snd t2)
@@ -2994,8 +2867,8 @@ and check_oprocess defined_refs cur_array env prog = function
 	      internal_error "One can only return a tuple"
 	end
   | PLet(pat, t, p1, p2), ext ->
-      let t' = check_term (Some defined_refs) cur_array env t in
-      let (env', pat') = check_pattern (Some defined_refs) cur_array env (Some t'.t_type) pat in
+      let t' = check_term (Some defined_refs) cur_array env prog t in
+      let (env', pat') = check_pattern (Some defined_refs) cur_array env prog (Some t'.t_type) pat in
       let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env' prog p1 in
       let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
         (new_oproc (Let(pat', t', p1', p2')) ext, 
@@ -3006,7 +2879,7 @@ and check_oprocess defined_refs cur_array env prog = function
         try 
 	  match StringMap.find s env with
 	      EEvent(f) ->
-	        let tl' = List.map (check_term (Some defined_refs) cur_array env) tl in
+	        let tl' = List.map (check_term (Some defined_refs) cur_array env prog) tl in
 	          check_type_list ext tl tl' (List.tl (fst f.f_type));
 	          let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
 	          let tcur_array =
@@ -3031,12 +2904,12 @@ and check_oprocess defined_refs cur_array env prog = function
 		     " argument(s), but is here given "^
 		     (string_of_int (List.length patl))^" argument(s)") ext;
       let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
-      let (env', patl') = check_pattern_list (Some defined_refs) cur_array env (List.map (fun x->Some x) tbl.tbltype) patl in
+      let (env', patl') = check_pattern_list (Some defined_refs) cur_array env prog (List.map (fun x->Some x) tbl.tbltype) patl in
       let topt' = 
 	match topt with 
 	  None -> None 
 	| Some t -> 
-	    let t' = check_term (Some defined_refs) cur_array env' t in
+	    let t' = check_term (Some defined_refs) cur_array env' prog t in
 	    check_no_new_event_insert (snd t) true t';
 	    check_type (snd t) t' Settings.t_bool;
 	    Some t'
@@ -3048,7 +2921,7 @@ and check_oprocess defined_refs cur_array env prog = function
           
   | PInsert((id,ext),tl,p),ext2 ->
       let tbl = get_table env id ext in
-      let t' = List.map (check_term (Some defined_refs) cur_array env) tl in
+      let t' = List.map (check_term (Some defined_refs) cur_array env prog) tl in
         check_type_list ext2 tl t' tbl.tbltype;
         let (p',tres,oracle,ip') = check_oprocess defined_refs cur_array env prog p in
           (new_oproc (Insert(tbl, t', p')) ext2, tres, oracle,
@@ -3571,27 +3444,65 @@ let rec check_one = function
                                     f_impl = No_impl;
                                     f_impl_inv = None })
   | LetFun((s1,ext1), l, s2) ->
-      let (tl,env')=
-        List.fold_right (fun ((s1, ext1), tyb) (tl,env') ->
+      let (tl,bl,env')=
+        List.fold_right (fun ((s1, ext1), tyb) ((_,_,env') as accu) ->
           if (StringMap.mem s1 env') then
             raise_error ("The name "^s1^" already defined before cannot be used here") ext1
           else
             let (t,_) = get_ty env' tyb in
-            let env'' = add_in_env_letfun env' s1 ext1 t in
-            (t::tl,env'')) l ([],!env)
+            add_in_env_letfun accu s1 ext1 t
+	      ) l ([],[],!env)
       in
-      let ty = get_type_letfun env' s2 in
-      if (!Settings.get_implementation) && (ty == Settings.t_any) then
-	input_warning "Could not determine the result type of letfun. I may generate an implementation for a script that does not typecheck. Please run CryptoVerif without generating an implementation to typecheck the script." ext1;
-      add_not_found s1 ext1 (ELetFun({ f_name = s1;
-                                       f_type = tl, ty;
-                                       f_cat  = Std;
-				       f_options = 0;
-				       f_statements = [];
-				       f_collisions = [];
-				       f_eq_theories = NoEq;
-                                       f_impl = No_impl;
-                                       f_impl_inv = None }, !env, l, s2))
+      let f = 
+	if (!Settings.get_implementation) then
+	  begin
+	    (* Implementation does not support array accesses and find;
+	       it is not a problem if I do not have all variables of processes in binder_env.
+	       In case the letfun makes an array access or out of scope access or uses find,
+	       the exception [CannotSeparateLetFun] will be raised. In this case, the letfun
+	       will be inlined (by setting the category [Std] instead of [SepLetFun]).
+	       An error will occur in the generation of the implementation in case 
+	       this letfun is used in the part of the code that is translated into an 
+	       implementation. *)
+            current_location := InLetFun;
+            try
+	      set_binder_env (check_term1 empty_binder_env false [] env' s2); (* Builds binder_env *)
+	      let tres = check_term (Some []) [] env' None s2 in
+	      let f = { f_name = s1;
+			f_type = tl, tres.t_type;
+			f_cat  = SepLetFun;
+			f_options = 0;
+			f_statements = [];
+			f_collisions = [];
+			f_eq_theories = NoEq;
+			f_impl = No_impl;
+			f_impl_inv = None }
+	      in
+	      impl_letfuns := (f, bl, tres) :: (!impl_letfuns);
+	      f
+	    with CannotSeparateLetFun ->
+	      { f_name = s1;
+		f_type = tl, unused_type;
+		f_cat  = Std;
+		f_options = 0;
+		f_statements = [];
+		f_collisions = [];
+		f_eq_theories = NoEq;
+		f_impl = No_impl;
+		f_impl_inv = None }
+	  end
+	else
+	  { f_name = s1;
+	    f_type = tl, unused_type;
+	    f_cat  = Std;
+	    f_options = 0;
+	    f_statements = [];
+	    f_collisions = [];
+	    f_eq_theories = NoEq;
+	    f_impl = No_impl;
+	    f_impl_inv = None }
+      in
+      add_not_found s1 ext1 (ELetFun(f, !env, l, s2))
           
   | EventDecl((s1,ext1), l) ->
       let l' = List.map (fun (s,ext) ->
@@ -3826,7 +3737,11 @@ let check_query = function
       QEventQ(t1',t2', get_qpubvars pub_vars)
 
 let get_impl ()=
-  StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles []
+  (* Return the used letfuns, in the order in which they have been declared *)
+  let letfuns = List.rev (List.filter (fun (f,vardecl,res) -> f.f_impl = SepFun) (!impl_letfuns)) in
+  (* Return the roles *)
+  let roles = StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles [] in
+  (letfuns, roles)
 
 let rec check_all (l,p) = 
   List.iter check_one l;
@@ -3859,7 +3774,7 @@ let rec check_all (l,p) =
       let pub_vars' =  get_qpubvars pub_vars in
       let final_p = Equivalence(p1', p2', pub_vars') in
       (!statements, !collisions, !equivalences,
-       [], !proof, [], final_p)
+       [], !proof, ([],[]), final_p)
   | PQueryEquiv equiv_statement ->
       if (!queries_parse) != [] then
 	user_error "Queries are incompatible with query_equiv";
@@ -3868,7 +3783,7 @@ let rec check_all (l,p) =
       let equiv_statement' = check_eqstatement false equiv_statement in
       let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
       (!statements, !collisions, !equivalences,
-       queries, !proof, [], final_p)
+       queries, !proof, ([],[]), final_p)
 
 let declares = function
   | ParamDecl(id, _)

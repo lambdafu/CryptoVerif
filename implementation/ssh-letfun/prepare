@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+file_exists_or_abort ssh-secrecy-key.m4.ocv
+
+for key in IVCC IVSC EKCC EKSC MKCC MKSC
+do
+    m4 -DONEKEY=$key ssh-secrecy-key.m4.ocv > ssh-secrecy-key-$key.ocv
+done
+m4 ssh-secrecy-key.m4.ocv > ssh-secrecy-key.ocv

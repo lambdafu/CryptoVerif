@@ -101,7 +101,7 @@ The "let"s created by Terms.put_lets do not have a proper occurrence.
 
 0.7) 
 For cv2fstar
-- generate letfun as separate functions [also in cv2ml]
+- generate letfun as separate functions [DONE]
 - generate implementation from "equivalence" proofs
 (be able to generate both games) [also in cv2ml]
 - for secrecy queries, generate both the real game and the ideal
@@ -142,6 +142,16 @@ its own key in a table instead of a file containing a single key.)
 in fstar.
 - avoid concatenation of strings in the generation of code,
 to avoid being quadratic [also in cv2ml]
+
+cv2ml: improve generated code
+- get: optimize when no variable is bound by the get.
+In this case, it is enough to test whether the list is empty or not.
+- get: the pattern matching done on the selected element of the list
+just needs to bind variables; it does not need to check equalities =M
+(since they have been checked when filtering the list).
+- get: optimize the case (=M,...) by structuring the file as a key-value
+table. (perhaps not)
+
 
 0.8) When we automatically add a replication on top of an equiv
 statement, automatically choose the best time to add to the adversary
