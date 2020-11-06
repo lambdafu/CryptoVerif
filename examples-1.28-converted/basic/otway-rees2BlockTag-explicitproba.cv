@@ -16,7 +16,7 @@ type blocksizeltag [size510,fixed].
 type tag [bounded,size2].
 type nonce [fixed, size200].
 type host [bounded,size32].
-type key [large,fixed].
+type key [fixed,size200].
 type keyseed [fixed].
 
 const tag1: tag.

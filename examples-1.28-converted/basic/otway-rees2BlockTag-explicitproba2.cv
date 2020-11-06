@@ -17,7 +17,7 @@ type tag [bounded,size2].
 type nonce [fixed, size187]. (* Nonces need to be at least 188 bits to eliminate collisions N^2/|nonce| 
      	   	   	        => many properties are not proved with nonces of 187 bits *)
 type host [bounded,size32].
-type key [large,fixed].
+type key [fixed,size200].
 type keyseed [fixed].
 
 const tag1: tag.
