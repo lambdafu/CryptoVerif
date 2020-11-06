@@ -33,8 +33,8 @@ rm keytbl wlsk_enc_key wlsk_mac_key wlsk_id
 set -e
 
 ocamlfind ocamlopt $CRYPTOKIT -I .. -o keygen ../base.mli ../base.ml ../crypto.mli ../crypto.ml WLSK_keygen.mli WLSK_keygen.ml keygen.ml
-ocamlfind ocamlopt $CRYPTOKIT -I .. -o server ../base.mli ../base.ml ../crypto.mli ../crypto.ml WLSK_S.mli WLSK_S.ml server.ml
-ocamlfind ocamlopt $CRYPTOKIT -I .. -o init ../base.mli ../base.ml ../crypto.mli ../crypto.ml WLSK_Init.mli WLSK_Init.ml init.ml
+ocamlfind ocamlopt $CRYPTOKIT -I .. -o server ../base.mli ../base.ml ../crypto.mli ../crypto.ml Letfun.mli Letfun.ml WLSK_S.mli WLSK_S.ml server.ml
+ocamlfind ocamlopt $CRYPTOKIT -I .. -o init ../base.mli ../base.ml ../crypto.mli ../crypto.ml Letfun.mli Letfun.ml WLSK_Init.mli WLSK_Init.ml init.ml
 ocamlfind ocamlopt $CRYPTOKIT -I .. -o resp ../base.mli ../base.ml ../crypto.mli ../crypto.ml WLSK_Resp.mli WLSK_Resp.ml resp.ml
 
-ocamlfind ocamlopt $CRYPTOKIT -I .. -o test_wlsk ../base.mli ../base.ml ../crypto.mli ../crypto.ml WLSK_Init.mli WLSK_Init.ml WLSK_Resp.mli WLSK_Resp.ml WLSK_S.mli WLSK_S.ml WLSK_keygen.mli WLSK_keygen.ml test_wlsk.ml
+ocamlfind ocamlopt $CRYPTOKIT -I .. -o test_wlsk ../base.mli ../base.ml ../crypto.mli ../crypto.ml Letfun.mli Letfun.ml WLSK_Init.mli WLSK_Init.ml WLSK_Resp.mli WLSK_Resp.ml WLSK_S.mli WLSK_S.ml WLSK_keygen.mli WLSK_keygen.ml test_wlsk.ml

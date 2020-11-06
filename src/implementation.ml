@@ -545,7 +545,7 @@ let rec translate_oprocess opt p ind =
     | Find(_,_,_) -> 
         error "Find not supported"
     | Get(tbl,patl,topt,p1,p2) ->
-        translate_get opt tbl patl topt (translate_oprocess opt p1) (translate_oprocess opt p2) ind
+        translate_get (fun b -> Terms.refers_to_oprocess b p1) opt tbl patl topt (translate_oprocess opt p1) (translate_oprocess opt p2) ind
     | Insert(tbl,tl,p) ->
         let tfile=get_table_file tbl in
           "\n"^ind^"insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^
@@ -553,34 +553,45 @@ let rec translate_oprocess opt p ind =
 
 
 (* p1 and p2 are functions that take the indentation level and returns the string corresponding to the program *)
-and translate_get opt tbl patl topt p1 p2 ind =
+and translate_get used opt tbl patl topt p1 p2 ind =
+  let pat_vars = Terms.vars_from_pat_list [] patl in
+  let used_vars = List.filter used pat_vars in
+  let match_res = "("^(string_list_sep "," (List.map get_binder_name used_vars))^")" in
   let tfile = get_table_file tbl in
   let list=create_fresh_name "list_" in
   let tvars1 = create_fresh_names "tvar_" (List.length tbl.tbltype) in
-  let tvars = create_fresh_names "tvar_" (List.length tbl.tbltype) in
-    "\n"^ind^"let "^list^" = get_from_table \""^tfile^"\"\n"^ind^
-      "  (function\n"^ind^
-      "      | ["^(string_list_sep "; " tvars1)^"] -> begin\n"^ind^
-      "        let ("^(string_list_sep "," tvars)^")=("^(string_list_sep "," (List.map2 (fun v t -> "(exc_bad_file \""^tfile^"\" "^(get_read_serial t)^" "^v^")") tvars1 tbl.tbltype))^") in"^
-      (
-        match_pattern_list 
-          opt patl tvars 
-          (fun ind ->
-             match topt with 
-               Some t -> "\n"^ind^"if ("^(translate_term t ind)^") then ("^
-		 (string_list_sep "," tvars)^") else raise Match_fail"
-             | None -> "("^(string_list_sep "," tvars)^")")
-          (fun ind -> "raise Match_fail")
-          false
-          (ind^"        ")
+  let tvars = List.map2 (fun v t -> "(exc_bad_file \""^tfile^"\" "^(get_read_serial t)^" "^v^")") tvars1 tbl.tbltype in
+  let filterfun =
+    ind^ "  (function\n"^ind^
+    "      | ["^(string_list_sep "; " tvars1)^"] -> begin\n"^ind^
+    (
+    match_pattern_list 
+      opt patl tvars 
+      (fun ind ->
+        match topt with 
+        | Some t -> "\n"^ind^"if ("^(translate_term t ind)^") then "^match_res^" else raise Match_fail"
+        | None -> match_res)
+      (fun ind -> "raise Match_fail")
+      false
+      (ind^"        ")
       )^"\n"^ind^
-      "        end\n"^ind^
-      "      | _ -> raise (Bad_file \""^tfile^"\")) in\n"^ind^
+    "        end\n"^ind^
+    "      | _ -> raise (Bad_file \""^tfile^"\"))"
+  in
+  if used_vars = [] then
+    "\n"^ind^"if exists_in_table \""^tfile^"\"\n"^
+      filterfun^" then begin "^
+      (p1 (ind^"  "))^
+      "\n"^ind^"end else begin "^
+      (p2 (ind^"  "))^"\n"^ind^"end"
+  else
+    "\n"^ind^"let "^list^" = get_from_table \""^tfile^"\"\n"^
+      filterfun^" in\n"^ind^
       "if "^list^" = [] then begin "^
       (p2 (ind^"  "))^
       "\n"^ind^"end else begin\n"^ind^
-      "  let ("^(string_list_sep "," tvars)^") = rand_list "^list^" in"^
-      (match_pattern_list opt patl tvars p1 yield_transl false (ind^"  "))^"\n"^ind^"end"
+      "  let "^match_res^" = rand_list "^list^" in"^
+      (p1 (ind^"  "))^"\n"^ind^"end"
 
 and translate_event t ind =
   match t.t_desc with
@@ -628,7 +639,7 @@ and translate_term t ind =
           "("^(translate_event t ind)^
 	  (translate_term p ind)^")"
       | GetE(tbl,patl,topt,p1,p2) ->
-          translate_get [] tbl patl topt (translate_term p1) (translate_term p2) ind
+          translate_get (fun b -> Terms.refers_to b p1) [] tbl patl topt (translate_term p1) (translate_term p2) ind
       | InsertE(tbl,tl,p) ->
           let tfile=get_table_file tbl in
           "(insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^

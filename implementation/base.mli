@@ -57,14 +57,22 @@ val compos : string list -> string
 val decompos : string -> string list
 
 (* Read from and write to a table
-   [get_from_table] is used for implementing "get"
+   [get_from_table] and [exists_in_table] are used for implementing "get"
+   ([exists_in_table] optimizes the case in which "get" is used only to
+   test for the existence of an element in the table satisfying certain
+   conditions)
    [insert_in_table] is used for implementing "insert"
 
    [get_from_table file filter] reads the table in file [file]
    and returns the image of entries by [filter]. Entries
-   [e] such that [filter e] raises [Match_fail] are removed. *)
+   [e] such that [filter e] raises [Match_fail] are removed.
+
+   [exists_in_table file filter] reads the table in file [file]
+   and returns true if there exists an entry in the table for which
+   [filter] does not raise [Match_fail] *)
 
 val get_from_table : string -> (string list -> 'a) -> 'a list
+val exists_in_table : string -> (string list -> 'a) -> bool
 val insert_in_table : string -> string list -> unit
 
 (* Predicates, to test whether a value belongs to a type.

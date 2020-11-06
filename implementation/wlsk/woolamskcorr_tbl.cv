@@ -85,6 +85,7 @@ implementation table keytbl = "keytbl";
 	       type hname = "string";
                type host = "string" [serial = "id", "id" ];
                type maxmac = "string";
+	       type maxenc = "string";
                type macs = "string";
                type seed = 128;
 	       type nonce = 64;
