@@ -144,11 +144,6 @@ in fstar.
 to avoid being quadratic [also in cv2ml]
 
 cv2ml: improve generated code
-- get: optimize when no variable is bound by the get.
-In this case, it is enough to test whether the list is empty or not.
-- get: the pattern matching done on the selected element of the list
-just needs to bind variables; it does not need to check equalities =M
-(since they have been checked when filtering the list).
 - get: optimize the case (=M,...) by structuring the file as a key-value
 table. (perhaps not)
 
@@ -5538,3 +5533,7 @@ DONE 18/8/2020
 Is that true now that I allow replication indices as arguments of
 tuples? Code that uses that is just unimplementable.
 
+- get: optimize when no variable is bound by the get.
+In this case, it is enough to test whether the list is empty or not.
+- get: avoid redoing the pattern matching on the selected element of the list
+DONE 6/11/2020

@@ -811,9 +811,12 @@ and translate_process opt p ind =
 
 
 let impl_init opt p = 
-  "let init () ="^
-    (file_loading opt ("  "))^
-    (translate_process opt p ("  "))
+  "let token = ref false\n\n"^
+  "let init () =\n"^
+  "  if !token then raise Bad_call;\n"^
+  "  token := true;\n"^
+  (file_loading opt ("  "))^
+  (translate_process opt p ("  "))
     
 let get_interface opt p = 
   let o = List.map (fun (b,n,_,_) -> (b,n)) (get_next_oracles true p) in

@@ -16,6 +16,8 @@ instructions should return a unary tuple.
 - implementation: generate separate OCaml functions for letfun
 declarations.
 - implementation: optimized treatment of get.
+- implementation: make sure the init function of each module
+is called at most once.
 - implementation: fixed a missing space after begin.
 - Fixed probability for IND-CCA2 public-key encryption.
 - Fixed bug in probability computation that could lead to a useless
