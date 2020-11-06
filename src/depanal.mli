@@ -46,6 +46,9 @@ val add_term_collisions :
 (* Computes the probability of term collisions *)
 val final_add_proba : unit -> setf list
 
+(* For debugging *)
+val display_depinfo : 'a depinfo -> unit
+    
 (* [depends (b, depinfo) t] returns [true] when the term [t]
    may depend on the variable [b]. 
    [depinfo] is the dependency information for variable [b]. *)

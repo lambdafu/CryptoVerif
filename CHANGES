@@ -22,6 +22,7 @@ repetition of replication bounds in products.
 - Fixed a counting bug, which could lead to counting several times
 the same oracle call occurring at several places in a game, in the
 presence of equational theories.
+- Fixed bug in dependency analysis (case let).
 - Fixed a game transformation bug: in the presence of a find inside a condition
 of find, CryptoVerif though that the inner find required the definition of
 the index variables of the outer find, which caused a bug in case the outer

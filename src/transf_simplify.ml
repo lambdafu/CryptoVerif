@@ -53,13 +53,16 @@ sig
    for expressions defined before the first output that follows the choice
    of b *)
 
-  type dep_info 
+  type dep_info
   type elem_dep_info = unit Types.depinfo
   (* The dependency information [dep_info] contains a list of
      [(b, depinfo)] that associates to each variable [b]
      its dependency information [depinfo] of type [elem_dep_info]. 
      See type ['a depinfo] in types.ml for an explanation of this type. *)
 
+  (* For debugging *)
+  val display_depinfo : dep_info -> unit
+	
   (* [init] is the empty dependency information *)
   val init : dep_info
 
@@ -95,6 +98,13 @@ struct
   type elem_dep_info = unit Types.depinfo
   type dep_info = (binder * elem_dep_info) list
 
+  let display_depinfo depinfo =
+    List.iter (fun (b,dep_info) ->
+      Display.display_binder b; print_string ": ";
+      Depanal.display_depinfo dep_info;
+      print_newline()
+	) depinfo
+      
   let init = []
 
   let depends = Depanal.depends
@@ -283,7 +293,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	   in
 	   List.iter (fun (bl, def_list, t, p1) ->
 	     List.iter check_br def_list;
-	     if depends bdepinfo t then tmp_bad_dep := true;
+	     if depends bdepinfo t then tmp_bad_dep := true
 		  ) l0';
            !tmp_bad_dep) dep_info 
 	 in
@@ -350,7 +360,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 		      else
 			(b, { depinfo with dep = (b', (Any,None,())) :: depinfo.dep })
 		  | st ->
-		      (b, { depinfo with dep = (b, (st,None,())) :: depinfo.dep })
+		      (b, { depinfo with dep = (b', (st,None,())) :: depinfo.dep })
 		else
 		  (b, { depinfo with nodep = (Terms.term_from_binder b')::depinfo.nodep })
                  ) dep_info 

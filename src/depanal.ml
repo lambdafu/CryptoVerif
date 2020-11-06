@@ -537,7 +537,13 @@ let proba_for_term_collision tcoll =
 let final_add_proba() =
   Proba.final_add_proba (List.map proba_for_term_collision (!term_collisions))
 
-    
+(* For debugging *)
+let display_depinfo depinfo =
+  if depinfo.args_at_creation_only then print_string "args_at_creation_only ";
+  print_string "indep = "; Display.display_list Display.display_term depinfo.nodep; print_string "; ";
+  print_string "dep = "; Display.display_list (fun (b,_) -> Display.display_binder b) depinfo.dep;
+  if depinfo.other_variables then print_string " + other variables"
+  
 let rec depends ((b, depinfo) as bdepinfo) t = 
   match t.t_desc with
   | FunApp(f,l) -> List.exists (depends bdepinfo) l
