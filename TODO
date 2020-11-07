@@ -93,6 +93,9 @@ found (especially when they are found in the PATH).
       let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
       simplify_oprocess cur_array dep_info true_facts ptest
 The "let"s created by Terms.put_lets do not have a proper occurrence.
+- When I remove branches of find in DepAnal2, the numbers of branches
+of find in the subsequent simplifications may not be correct
+(they refer to the find after DepAnal2 instead of the initial find).
 
 0.6) opam distribution: try to install "ocamlfind" "cryptokit" "conf-m4"
    but do not require them. In case their installation fails, most

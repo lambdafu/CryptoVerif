@@ -257,6 +257,8 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
             if Terms.is_false t' then 
 	      begin
 		Settings.changed := true;
+		if not (Terms.equal_terms t t') then
+		  current_pass_transfos := (SReplaceTerm(t,t')) :: (!current_pass_transfos);
 		current_pass_transfos := (SFindBranchRemoved(pp, (bl, def_list, t, DProcess p1))) :: (!current_pass_transfos);
 		l'
 	      end 
@@ -278,6 +280,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	 match l0' with
 	   [] -> 
 	     Settings.changed := true;
+	     current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
              update_dep_infoo cur_array dep_info true_facts p2
 	 | [([],[],t, p1)] when Terms.is_true t ->
 	     Settings.changed := true;
