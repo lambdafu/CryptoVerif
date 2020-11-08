@@ -4,7 +4,7 @@ open Parsing_helper
 (* For backtracking *)
 exception Backtrack
 
-let rec forget_games final_game state =
+let rec forget_games final_game ins_next state =
   let g = state.game in
   match g.proc with
   | Forgotten _ -> ()
@@ -13,13 +13,17 @@ let rec forget_games final_game state =
        begin
          let s = Filename.temp_file "game" ".cv" in
          Display.file_out s dummy_ext (fun () ->
-           Display.display_process p);
+	   Display.mark_occs ins_next;
+           Display.display_process p;
+	   Display.useful_occs := []);
 	 at_exit (fun () -> Unix.unlink s);
          let tex_s = 
            if (!Settings.tex_output) <> "" then
              let s = Filename.temp_file "game" ".tex" in
              Displaytex.file_out s dummy_ext (fun () ->
-               Displaytex.display_process p);
+	       Display.mark_occs ins_next;
+               Displaytex.display_process p;
+	       Display.useful_occs := []);
 	     at_exit (fun () -> Unix.unlink s);
              Some s
            else
@@ -29,15 +33,15 @@ let rec forget_games final_game state =
        end;
      match state.prev_state with
      | None -> ()
-     | Some (IFocus _,_,_,s') ->
+     | Some (IFocus _,_,ins,s') ->
 	 (* Do not forget the game just before a [focus] instruction *)
-	 forget_games s'.game s'
-     | Some (_,_,_,s') -> forget_games final_game s'           
+	 forget_games s'.game ins s'
+     | Some (_,_,ins,s') -> forget_games final_game ins s'           
        
 let forget_old_games state =
   match state.prev_state with
     None -> ()
-  | Some (_,_,_,s') -> forget_games state.game s'
+  | Some (_,_,ins,s') -> forget_games state.game ins s'
 
 
 let rec undo_focus ext state =

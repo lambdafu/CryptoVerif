@@ -68,7 +68,8 @@ been tested).
 the directories in which ProVerif and/or CryptoVerif have been
 found (especially when they are found in the PATH).
 
-0.5) Track all remaining [occ not set] to avoid them.
+0.5) Track all remaining [occ not set] to avoid them +
+other minor display problems.
 - "Transformed test at ... into a logical formula"
    case STestEElim in transf_simplify.ml
    creates new terms with occurrence not set, which are then simplified.
@@ -93,9 +94,16 @@ found (especially when they are found in the PATH).
       let ptest = Terms.oproc_from_desc_at let_p (Test(test, plet, pfalse)) in
       simplify_oprocess cur_array dep_info true_facts ptest
 The "let"s created by Terms.put_lets do not have a proper occurrence.
+
 - When I remove branches of find in DepAnal2, the numbers of branches
 of find in the subsequent simplifications may not be correct
 (they refer to the find after DepAnal2 instead of the initial find).
+- When the structure of the proof is a tree (e.g. due to undo commands
+in which some queries have been proved in the undone part),
+if one branches at game <n>, in game <n> in the final display of the proof,
+the occurrences of transformations made on game <n> are partly shown:
+only occurrences of transformations made to obtain one of the games
+following game <n> are shown.
 
 0.6) opam distribution: try to install "ocamlfind" "cryptokit" "conf-m4"
    but do not require them. In case their installation fails, most
