@@ -1712,7 +1712,7 @@ equation forall m:macinput, k:mkey, m':macres;
 equiv(suf_cma(mac))
       k <-R mkey;(
 	 foreach i <= N do Omac(x: macinput) := return(mac(x, k)) |
-	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
+	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)))
      <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
       k <-R mkey [unchanged];(
 	 foreach i <= N do Omac(x: macinput) := let ma2:macres = mac'(x, k) in return(ma2) |
@@ -1721,7 +1721,7 @@ equiv(suf_cma(mac))
 
 equiv(suf_cma_corrupt(mac))
       k <-R mkey;(
-	 foreach i <= N do Omac(x: macinput) [useful_change] := return(mac(x, k)) |
+	 foreach i <= N do Omac(x: macinput) := return(mac(x, k)) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
      <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [manual,computational]
@@ -1741,7 +1741,7 @@ equiv(suf_cma_corrupt(mac))
 
 equiv(suf_cma_corrupt_partial(mac))
       k <-R mkey;(
-	 foreach i <= N do Omac(x: macinput) [useful_change] := return(mac(x, k)) |
+	 foreach i <= N do Omac(x: macinput) := return(mac(x, k)) |
 	 foreach i2 <= N2' do Ocheck_unchanged(m': macinput, ma': macres) := return(check(m', k, ma')) |
 	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)) |
 	 Ocorrupt() [10] := return(k))
@@ -1808,7 +1808,7 @@ equation forall m:macinput, k:mkey, r:mac_seed;
 equiv(uf_cma(mac))
       k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput):= return(mac_r(x, k, r)) |
-	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
+	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)))
      <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
       k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := return(mac_r'(x, k, r)) |
@@ -1905,7 +1905,7 @@ equation forall m:macinput, k:mkey, r:mac_seed;
 equiv(suf_cma(mac))
       k <-R mkey;(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput):= return(mac_r(x, k, r)) |
-	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) := return(check(m, k, ma)))
+	 foreach i2 <= N2 do Ocheck(m: macinput, ma: macres) [useful_change] := return(check(m, k, ma)))
      <=(Pmac(time, N, N2, 0, max(maxlength(x), maxlength(m))))=> [computational]
       k <-R mkey [unchanged];(
 	 foreach i <= N do r <-R mac_seed; Omac(x: macinput) := let ma2:macres = mac_r'(x, k, r) in return(ma2) |
