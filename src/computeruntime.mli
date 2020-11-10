@@ -24,3 +24,14 @@ val compute_add_time : fungroup -> fungroup -> param -> eqopt2 -> probaf
 val compute_add_time_totcount : fungroup -> fungroup -> param -> eqopt2 -> probaf
     
 val compute_runtime_for_term : game -> term -> probaf
+
+(* [get_oracle b] returns the oracle in which [b] is defined.
+   Raises [Not_found] in case of failure.
+   [Def.build_def_process] must have been called on the current game
+   for it to succeed. *)
+val get_oracle : binder -> channel
+
+(* [get_ri_mul ri_list tl] returns an optimized version of the
+   product of the bounds of [ri_list], assuming that the terms in
+   [tl] are defined. *)
+val get_ri_mul : repl_index list -> term list -> ri_mul_t 

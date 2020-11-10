@@ -37,6 +37,15 @@ match t.tcat with
 let card_index b =
   Polynom.p_prod (List.map (fun ri -> card ri.ri_type) b.args_at_creation)
 
+let nb_def_var b =
+  if (not (!Settings.use_oracle_count_in_result)) || (List.length b.args_at_creation <= 1) then
+    card_index b
+  else
+    try
+      OCount (Computeruntime.get_oracle b)
+    with Not_found ->
+      card_index b
+
 (* 3. Computation of probabilities of collisions *)
 
 (* Tests if proba_l/proba is considered small enough to eliminate collisions *)
@@ -258,11 +267,16 @@ let order_of_magnitude probaf =
   | 0 | -1 -> Settings.min_exp
   | _ -> Parsing_helper.internal_error "unexpected sign"
 
-(* [is_1_over_card_t ty probaf] returns true when [probaf = 1/|ty|]
-   (up to probability eps_rand) *)
-let rec is_1_over_card_t ty = function
-  | Add(p, EpsRand _) -> is_1_over_card_t ty p
-  | Div(Cst 1.0, Card ty') -> ty == ty'
+(* [is_less_1_over_card_t ty probaf] returns true when [probaf = x/|ty|]
+   for 0 < x <= 1 (up to probability eps_rand) *)
+let rec is_less_1_over_card_t ty = function
+  | Add(p, EpsRand _) -> is_less_1_over_card_t ty p
+  | Add(EpsRand _, p) -> is_less_1_over_card_t ty p
+  | Div(Cst x, Card ty') -> 0.0 < x && x <= 1.0 && ty == ty'
+  | Mul(Cst x, p) when 0.0 < x && x <= 1.0 ->
+      is_less_1_over_card_t ty p
+  | Mul(p, Cst x) when 0.0 < x && x <= 1.0 ->
+      is_less_1_over_card_t ty p
   | _ -> false
 		
 let is_small_enough_coll_elim p =
@@ -274,10 +288,10 @@ let is_small_enough_coll_elim p =
        (Terms.plus (Terms.sum_list Terms.get_size_high p.p_dep_types) prod_ri_list)
        <= - (!Settings.tysize_MIN_Coll_Elim))
     ||
-      ((is_1_over_card_t p.p_full_type p.p_proba) &&
+      ((is_less_1_over_card_t p.p_full_type p.p_proba) &&
        (match p.p_indep_types_option with
        | Some indep_types ->
-	   (* proba_t = 1/|p.p_full_type| and \prod_{T \in p.p_dep_types} T <= |p.p_full_type| / \prod_{T \in indep_types} |T|
+	   (* proba_t <= 1/|p.p_full_type| and \prod_{T \in p.p_dep_types} T <= |p.p_full_type| / \prod_{T \in indep_types} |T|
 	      so the probability is <= \prod_{ri \in p.p_ri_list} |ri.ri_type| / \prod_{T \in indep_types} |T| *)
 	   Terms.plus (order_of_magnitude (Div(Cst 1.0, Polynom.p_prod (List.map (fun ty -> Card ty) indep_types))))
 	     prod_ri_list
@@ -288,7 +302,7 @@ let is_small_enough_coll_elim p =
       let size_proba =
 	if p.p_dep_types == [] then
 	  order_of_magnitude p.p_proba
-	else if is_1_over_card_t p.p_full_type p.p_proba then
+	else if is_less_1_over_card_t p.p_full_type p.p_proba then
 	  match p.p_indep_types_option with
 	  | Some indep_types -> - (Terms.max_list Terms.get_size_low indep_types)
 	  | None -> raise Not_found
@@ -347,20 +361,14 @@ that collisions between b1 and b2 have negligible probability. *)
 
 let eliminated_collisions = ref ([] : binder_coll_t list)
 
-let equal_coll (b1, b2) (b1',b2') =
+let equal_coll (b1, b2, _) (b1',b2', _) =
   ((b1 == b1') && (b2 == b2')) ||
   ((b1 == b2') && (b2 == b1'))
-  
-let add_elim_collisions b1 b2 =
-  let new_coll = (b1, b2) in
+
+let add_elim_collisions_inside ((_,_, proba_info) as new_coll) =
   if not (List.exists (equal_coll new_coll) (!eliminated_collisions)) then
     begin
-      if is_small_enough_coll_elim
-	  { p_ri_list = b1.args_at_creation @ b2.args_at_creation;
-	    p_proba = pcoll2rand b1.btype;
-	    p_dep_types = [];
-	    p_full_type = b1.btype;
-	    p_indep_types_option = None } then
+      if is_small_enough_coll_elim proba_info then
 	begin
 	  eliminated_collisions := new_coll :: (!eliminated_collisions);
 	  true
@@ -371,27 +379,45 @@ let add_elim_collisions b1 b2 =
   else
     true
 
-let proba_for_collision b1 b2 =
-  print_string "Eliminated collisions between ";
-  Display.display_binder b1;
-  print_string " and ";
-  Display.display_binder b2;
-  print_string " Probability: ";
-  let p1 = pcoll2rand b1.btype in
-  let p = 
-    if b1 == b2 then
-      Polynom.p_mul(Polynom.p_mul(Cst 0.5,Polynom.p_mul(card_index b1, card_index b1)),p1)
-    else
-      begin
-        if b1.btype != b2.btype then
-          Parsing_helper.internal_error "Collision between different types";
-        Polynom.p_mul(Polynom.p_mul(card_index b1, card_index b2),p1)
-      end
+let add_elim_collisions b1 b2 =
+  if b1.btype != b2.btype then
+    Parsing_helper.internal_error "Collision between different types";
+  let proba_info =
+    { p_ri_list = b1.args_at_creation @ b2.args_at_creation;
+      p_ri_mul = [], Some([], Polynom.p_mul(nb_def_var b1, nb_def_var b2));
+      p_proba = if b1 == b2 then Polynom.p_mul(Cst 0.5,pcoll2rand b1.btype) else pcoll2rand b1.btype;
+      p_dep_types = [];
+      p_full_type = b1.btype;
+      p_indep_types_option = None }
   in
+  let new_coll = (b1, b2, proba_info) in
+  add_elim_collisions_inside new_coll
+
+(* [proba_for probaf_mul_types] returns the probability equal
+   to the probability multiplied by cardinals of types in
+   [probaf_mul_types]. It also displays this probability. *)
+
+let proba_for p =
+  let lindex =
+    match p.p_ri_mul with
+    | _, None ->
+	List.map (fun array_idx -> card array_idx.ri_type) p.p_ri_list
+    | _, Some(ri_list, p_nb) -> 
+	p_nb :: (List.map (fun array_idx -> card array_idx.ri_type) ri_list)
+  in
+  let ltypes = List.map (fun ty -> Card ty) p.p_dep_types in
+  let p = Polynom.p_prod (p.p_proba :: ltypes @ lindex) in
+  print_string " Probability: ";  
   Display.display_proba 0 p;
   print_newline();
   p
 
+let proba_for_collision (b1, b2, proba_info) =
+  print_string "Eliminated collisions between ";
+  Display.display_binder b1;
+  print_string " and ";
+  Display.display_binder b2;
+  proba_for proba_info
 
 let red_proba = ref ([]: red_proba_t list)
     
@@ -412,6 +438,15 @@ let rec collect_array_indexes accu t =
   | FunApp(f,l) -> List.iter (collect_array_indexes accu) l
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_array_indexes"
 
+
+(* Optimize a probability formula using #O when possible *)
+      
+let optim_probaf p =
+  match p.p_ri_mul with
+  | _, Some _ -> p
+  | known_def, None -> 
+     { p with p_ri_mul = Computeruntime.get_ri_mul p.p_ri_list known_def }
+    
 (* [match_term_any_var any_vars_opt next_f t t' ()] calls [next_f()] when [t']
    is an instance of [t], with
    any value for the [?] variables when [any_vars_opt == None],
@@ -518,8 +553,10 @@ let copy_probaf_mul_types transf p =
   (* Note: in case probaf refers to terms (via maxlength), we
      might need to instantiate probaf as well. That is not
      common for collisions, but I do it for safety. *)
+  let ri_list = instantiate_ri_list [] p.p_ri_list in
   { p with
-    p_ri_list = instantiate_ri_list [] p.p_ri_list;
+    p_ri_list = ri_list;
+    p_ri_mul = [], None;
     p_proba = copy_probaf transf p.p_proba }
 	
 let copy_instantiated_coll_statement transf ic =
@@ -644,6 +681,7 @@ let equal_red red1 red2 =
 let add_proba_red_inside new_red =
   if is_small_enough_collision new_red.r_proba then
     begin
+      let new_red = { new_red with r_proba = optim_probaf new_red.r_proba } in
       let rec find_more_general_coll = function
 	  [] -> raise Not_found
 	| (red :: rest) ->
@@ -755,8 +793,9 @@ let instantiate_coll_statement c restr_indep_map =
    as specified by [restr_indep_map] and [any_var_map]. *)
     
 let add_proba_red coll_statement restr_indep_map any_var_map =
+  let tl = (List.map snd restr_indep_map) in
   let accu = ref [] in
-  List.iter (fun (_,t) -> collect_array_indexes accu t) restr_indep_map;
+  List.iter (collect_array_indexes accu) tl;
   let indices = !accu in
   let any_var_map_list =
     { source = List.map fst any_var_map;
@@ -773,23 +812,11 @@ let add_proba_red coll_statement restr_indep_map any_var_map =
 			 r_any_var_map_list = any_var_map_list;
 			 r_i_coll_statement = instantiated_coll_statement;
 			 r_proba = { p_ri_list = indices;
+				     p_ri_mul = tl, None;
 				     p_proba = coll_statement.c_proba;
 				     p_dep_types = [];
 				     p_full_type = coll_statement.c_redl.t_type;
 				     p_indep_types_option = None }}
-
-(* [proba_for probaf_mul_types] returns the probability equal
-   to the probability multiplied by cardinals of types in
-   [probaf_mul_types]. It also displays this probability. *)
-
-let proba_for p =
-  let lindex = List.map (fun array_idx -> card array_idx.ri_type) p.p_ri_list in
-  let ltypes = List.map (fun ty -> Card ty) p.p_dep_types in
-  let p = Polynom.p_prod (p.p_proba :: ltypes @ lindex) in
-  print_string " Probability: ";  
-  Display.display_proba 0 p;
-  print_newline();
-  p
 
 (* [instan_time restr_indep_map any_var_map_list p] instantiates
    the runtime of the adversary, using the runtime of the current
@@ -877,7 +904,7 @@ let final_add_proba coll_list =
   let add_proba p =
     if !proba == Zero then proba := p else proba := Polynom.p_add(!proba, p)
   in
-  List.iter (fun (b1,b2) -> add_proba (proba_for_collision b1 b2))
+  List.iter (fun coll -> add_proba (proba_for_collision coll))
     (!eliminated_collisions);
   List.iter (fun red_proba_info -> add_proba (proba_for_red_proba red_proba_info))
     (!red_proba);

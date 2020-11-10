@@ -25,13 +25,13 @@ val reset : coll_elim_t list -> game -> unit
 val matches_proba_info : term * term * find_compos_probaf -> term * term * find_compos_probaf -> bool
 
 (* [subst_idx_proba idx image collision_proba] replaces
-   [idx] with its image [image = (ri_list,dep_types, full_type, indep_types_opt)]
+   [idx] with its image [image = (ri_list,known_def,dep_types, full_type, indep_types_opt)]
    corresponding to all indices [ri_list] and types of [?] variables [dep_types] in a term,
    inside a probability [collision_proba].
    When [indep_types_opt = Some indep_types], 
    \prod_{T \in dep_types} |T| <= |full_type|/\prod{T \in indep_types} |T|. *)
 val subst_idx_proba : repl_index ->
-  repl_index list * typet list * typet * typet list option ->
+  repl_index list * term list * typet list * typet * typet list option ->
     all_coll_t -> all_coll_t
 
 (* [subst_args_proba b l probaf] replaces [b.args_at_creation]

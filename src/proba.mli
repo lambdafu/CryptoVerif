@@ -22,9 +22,12 @@ val is_large_term : term -> bool
 
 val card : typet -> probaf
 val card_index : binder -> probaf
-
+    
 (* 3. Computation of probabilities of collisions *)
 
+(* Optimize a probability formula using #O when possible *)
+val optim_probaf : probaf_mul_types -> probaf_mul_types
+    
 (* [is_small_enough_coll_elim proba] tests if 
    [proba] is considered small enough to eliminate collisions *)
 val is_small_enough_coll_elim : probaf_mul_types -> bool
@@ -48,10 +51,11 @@ val collect_array_indexes : repl_index list ref -> term -> unit
    the probability is obviously not counted, and the collisions must
    not be eliminated by the caller.) *)
 val add_elim_collisions : binder -> binder -> bool
-
-(* [proba_for_collision b1 b2] returns the probability of
+val add_elim_collisions_inside : binder_coll_t -> bool
+    
+(* [proba_for_collision (b1, b2, _)] returns the probability of
    collision between [b1] and [b2], and displays it. *)
-val proba_for_collision : binder -> binder -> probaf
+val proba_for_collision : binder_coll_t -> probaf
     
 (* [add_proba_red coll_statement restr_indep_map any_var_map] 
    adds the probability change that happens when applying the

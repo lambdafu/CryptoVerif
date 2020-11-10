@@ -1,7 +1,5 @@
 TO DO next
 
-point 0.10?
-
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
    allow giving the RHS of equiv using tables instead of find.
@@ -157,7 +155,18 @@ to avoid being quadratic [also in cv2ml]
 cv2ml: improve generated code
 - get: optimize the case (=M,...) by structuring the file as a key-value
 table. (perhaps not)
-
+- instead of putting the next oracles in a tuple, put them in
+a record. When some oracles are omitted, use fun _ -> raise BadCall
+for them. (However, it creates a mismatch with the semantics:
+the caller can do something after a call to a non-existing oracle
+by catching exception BadCall. In the semantics of the paper, a call to a
+non-existing oracle blocks. Perhaps the semantics should be changed.)
+Then the constraints checked on oracles in syntax.ml are sufficient.
+(In the channels front-end, in syntax.ml, these constraints lead to
+warnings, so an error may still happen at the implementation level.
+On the other hand, we can have a warning in syntax.ml without an
+error when we generate the implementation, in case the warning comes
+from a part of the model that is not in a module.)
 
 0.8) When we automatically add a replication on top of an equiv
 statement, automatically choose the best time to add to the adversary
@@ -168,45 +177,6 @@ a hint on when to choose which term in the minimum.
 0.9) Display a lighter runtime, of the form (polynom in parameters) *
 O(1) where O(1) is a time that does not depend on parameters
 (constant or may depend on length of bitstrings).
-
-0.10) Be able to express probability results using #O instead of
-just parameters of replications, to get more precise bounds.
-
-runtime:
-* when computing the runtime of code under an oracle def O,
-multiply by #O instead of all replications above O.
-* in conditions of find, if the find has several indices, and
-its defined condition contains defined(u[i1...in]),
-where i1...in are all indices of u (there is no implicit "current index")
-and are indices of the find, and u is defined in oracle O,
-replace the product of bounds on i1...in by #O.
-
-collisions:
-* in Proba.add_elim_collisions, replace the product of
-bound of b1.args_at_creation @ b2.args_at_creation
-by #O1 * #O2, where b1 is defined in O1 and b2 is defined in O2
-(when the oracles O1, resp. O2, are defined under several
-replications).
-* if the expression on which we eliminate collisions contains
-u[i1...in] and u is defined in oracle O, then i1..in occur in
-the indices collected by Proba.collect_array_indexes; replace the
-product of the bounds on i1...in by #O. For that, select a
-variable u that has as many indices as possible and that are
-replication indices. That can be repeated in case some
-indices remain. (May happen in case the expression on which
-we eliminate collisions occurs in a condition of find.)
-
-crypto transform:
-* if a variable in the transformed expression is
-u[M1...Mn], u is defined in oracle O, and M1...Mn
-are the indices obtained as result of Transf_crypto.get_repl_from_map,
-replace the product of the bounds of M1...Mn (computed by
-Transf_crypto.make_prod) with #O.
-
-The oracle in which a variable is defined can be found by
-looking at the node in the variable is defined, and following
-the above nodes until we find an oracle definition
-(assuming build_def_process has been called).
 
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
@@ -5544,7 +5514,50 @@ DONE 18/8/2020
 Is that true now that I allow replication indices as arguments of
 tuples? Code that uses that is just unimplementable.
 
+Be able to express probability results using #O instead of
+just parameters of replications, to get more precise bounds.
+
+runtime:
+* when computing the runtime of code under an oracle def O,
+multiply by #O instead of all replications above O.
+* in conditions of find, if the find has several indices, and
+its defined condition contains defined(u[i1...in]),
+where i1...in are all indices of u (there is no implicit "current index")
+and are indices of the find, and u is defined in oracle O,
+replace the product of bounds on i1...in by #O.
+=> Done.
+
+collisions:
+* in Proba.add_elim_collisions, replace the product of
+bound of b1.args_at_creation @ b2.args_at_creation
+by #O1 * #O2, where b1 is defined in O1 and b2 is defined in O2
+(when the oracles O1, resp. O2, are defined under several
+replications).
+* if the expression on which we eliminate collisions contains
+u[i1...in] and u is defined in oracle O, then i1..in occur in
+the indices collected by Proba.collect_array_indexes; replace the
+product of the bounds on i1...in by #O. For that, select a
+variable u that has as many indices as possible and that are
+replication indices. That can be repeated in case some
+indices remain. (May happen in case the expression on which
+we eliminate collisions occurs in a condition of find.)
+=> Done.
+
+crypto transform:
+* if a variable in the transformed expression is
+u[M1...Mn], u is defined in oracle O, and M1...Mn
+are the indices obtained as result of Transf_crypto.get_repl_from_map,
+replace the product of the bounds of M1...Mn (computed by
+Transf_crypto.make_prod) with #O.
+
+The oracle in which a variable is defined can be found by
+looking at the node in the variable is defined, and following
+the above nodes until we find an oracle definition
+(assuming build_def_process has been called).
+DONE 26/10/2020
+
 - get: optimize when no variable is bound by the get.
 In this case, it is enough to test whether the list is empty or not.
 - get: avoid redoing the pattern matching on the selected element of the list
 DONE 6/11/2020
+

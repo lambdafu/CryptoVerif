@@ -59,6 +59,6 @@ return(pk);
 
 
 (* EXPECTED
-Error: Duplicate definitions of oracle OS
+Error: Duplicate definitions of oracle OS in parallel
 xtime: error in child process (status : 2)
 END *)

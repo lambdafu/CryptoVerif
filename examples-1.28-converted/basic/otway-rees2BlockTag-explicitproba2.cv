@@ -14,8 +14,8 @@ type blocksize [size512,fixed].
 type blocksizeltag [size510,fixed].
 
 type tag [bounded,size2].
-type nonce [fixed, size187]. (* Nonces need to be at least 188 bits to eliminate collisions N^2/|nonce| 
-     	   	   	        => many properties are not proved with nonces of 187 bits *)
+type nonce [fixed, size186]. (* Nonces need to be at least 187 bits to eliminate collisions 0.5 N^2/|nonce| 
+     	   	   	        => many properties are not proved with nonces of 186 bits *)
 type host [bounded,size32].
 type key [fixed,size200].
 type keyseed [fixed].

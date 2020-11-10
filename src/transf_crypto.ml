@@ -3817,7 +3817,7 @@ type compat_info =
   | NoCompatInfo
 
 type formula =
-    FElem of (compat_info ref * term list)
+    FElem of (compat_info ref * term list * probaf)
   | FZero
   | FPlus of formula * formula
   | FDiffBranch of repl_index list * formula * formula
@@ -3881,10 +3881,73 @@ let add_diff_branch cur_array f1 f2 =
   | _, FZero -> f1
   | _ -> FDiffBranch(cur_array, f1, f2)
 
+
+(* Optimize the number of calls to oracles using #O *)
+
+type optim_proba_state_t =
+    { remaining_indices: term list;
+      found_oracles: channel list;
+      mutable current_candidate: (channel * term list) option }
+
+let rec find_oracles state t =
+  match t.t_desc with
+  | ReplIndex _ -> ()
+  | Var(b,l) -> find_oracles_br state (b,l)
+  | FunApp(_,l) -> List.iter (find_oracles state) l
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in find_oracles"
+
+and find_oracles_br state (b,l) =
+  let can_improve_current_candidate =
+    match state.current_candidate with
+    | None -> List.length l > 1
+    | Some (_,l') ->
+	(List.length l > List.length l') &&
+	(List.for_all2 Terms.equal_terms (Terms.lsuffix (List.length l') l) l')
+  in
+  if can_improve_current_candidate &&
+    (List.for_all (fun t -> List.exists (Terms.equal_terms t) state.remaining_indices) l)
+  then
+    try
+      state.current_candidate <- Some (Computeruntime.get_oracle b, l)
+    with Not_found ->
+      List.iter (find_oracles state) l
+  else
+    List.iter (find_oracles state) l
+
+let rec find_all_oracles state ttransf =
+  if List.length state.remaining_indices <= 1 then state else
+  begin
+    find_oracles state ttransf;
+    match state.current_candidate with
+    | None -> state
+    | Some (ch, l) ->
+	let new_state =
+	  { remaining_indices = List.filter (fun t ->
+	      not (List.exists (Terms.equal_terms t) l)) state.remaining_indices;
+	    found_oracles = ch :: state.found_oracles;
+	    current_candidate = None }
+	in
+	find_all_oracles new_state ttransf
+  end
+	
+let get_opt_probaf indices ttransf =
+  if (not (!Settings.use_oracle_count_in_result)) || (List.length indices <= 1) then
+    make_prod indices
+  else
+    let state =
+      { remaining_indices = indices;
+	found_oracles = [];
+	current_candidate = None }
+    in
+    let state' = find_all_oracles state ttransf in
+    Polynom.p_prod ((List.map (fun t -> Count (Terms.param_from_type t.t_type)) state'.remaining_indices) @
+		    (List.map (fun ch -> OCount ch) state'.found_oracles))
+	
 let rec repl_count_term cur_array true_facts b_repl t =
   let accu' = 
-    try 
-      FElem (get_repl_from_map true_facts b_repl t)
+    try
+      let (compat_info, v) = get_repl_from_map true_facts b_repl t in
+      FElem (compat_info, v, get_opt_probaf v t)
     with Not_found -> 
       FZero
   in
@@ -4028,7 +4091,7 @@ let equal_ntl la1 la2 =
   (List.for_all2 equal_nt1 la1 la2)
 
 let filter_compat1 compat_info known_res lsum =
-  List.filter (fun (compat_info_ref, _) ->
+  List.filter (fun (compat_info_ref, _, _) ->
     match !compat_info_ref with
       CompatFacts (compat_info2, known_res2) -> 
 	begin
@@ -4044,10 +4107,10 @@ let filter_compat1 compat_info known_res lsum =
 	end
     | _ -> true) lsum
 
-let add_repl_count ((compat_info_ref, _) as elem) lsum = 
+let add_repl_count ((compat_info_ref, _, _) as elem) lsum = 
   match !compat_info_ref with
     NameTable n1 ->
-      if List.exists (fun (compat_info_ref2,_) -> 
+      if List.exists (fun (compat_info_ref2,_,_) -> 
 	match !compat_info_ref2 with
 	  NameTable n2 -> equal_ntl n1 n2
 	| _ -> false) lsum then
@@ -4055,7 +4118,7 @@ let add_repl_count ((compat_info_ref, _) as elem) lsum =
       else
 	[elem::lsum]
   | CompatFacts (compat_info,known_res) ->
-      if List.exists (fun (compat_info_ref2, _) ->
+      if List.exists (fun (compat_info_ref2, _, _) ->
 	compat_info_ref == compat_info_ref2) lsum then
 	(* The same oracle call already appears in lsum *)
 	[lsum]
@@ -4069,7 +4132,7 @@ let add_repl_count ((compat_info_ref, _) as elem) lsum =
   | _ ->
     [elem::lsum]
 
-let eq (compat_info_ref1,_) (compat_info_ref2,_) =
+let eq (compat_info_ref1,_,_) (compat_info_ref2,_,_) =
   compat_info_ref1 == compat_info_ref2
 
 let inc a b =
@@ -4129,7 +4192,7 @@ let rec filter_compat_aux accu cur_array = function
     [] -> accu
   | (lsum::rest) ->
       let accu' = 
-	let lsum' = List.filter (fun (nt,tl) -> not (is_included cur_array tl)) lsum in
+	let lsum' = List.filter (fun (nt,tl,_) -> not (is_included cur_array tl)) lsum in
 	if accu != [] && lsum' == [] then accu else lsum'::accu
       in
       filter_compat_aux accu' cur_array rest 
@@ -4164,7 +4227,7 @@ let rec formula_to_listlist = function
 
 let rec count_to_poly_aux accu = function
     [] -> accu
-  | ((_,v)::l) -> count_to_poly_aux (Polynom.sum (Polynom.probaf_to_polynom (make_prod v)) accu) l
+  | ((_,_,v)::l) -> count_to_poly_aux (Polynom.sum (Polynom.probaf_to_polynom v) accu) l
 
 let count_to_poly l = count_to_poly_aux Polynom.zero l
 

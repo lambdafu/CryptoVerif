@@ -2633,34 +2633,92 @@ let mergeres ext topt1 topt2 =
     mergetypesopt topt1 topt2
   with IncompatibleTypes ->
     raise_error "Several branches of a process have incompatible return types" ext
+      (* In the channel front-end, the return type is always None, so this 
+	 error never happens *)
 
-let rec check_distinct ext l1 = function
-    [] -> ()
-  | (ch,_,_,_)::l -> 
-      if List.exists (fun (ch',_,_,_) -> ch == ch') l1 then
-	raise_error ("Duplicate definitions of oracle " ^ ch.cname) ext
+let ostructure_elem() =
+  if !Settings.front_end == Settings.Channels then
+    "inputs on channel"
+  else
+    "definitions of oracle"
+      
+let ostructure_error mess ext =
+  if !Settings.front_end == Settings.Channels then
+    begin
+      (* We display a single warning in case channels are not well named.
+	 Otherwise, some warnings may be uselessly repeated. *)
+      if !Settings.use_oracle_count_in_result then
+	begin
+	  input_warning ("To use the number of inputs on channels in probability results, we require channel names to be distinct as if they were oracle names.\n"^mess) ext;
+	  Settings.use_oracle_count_in_result := false
+	end
+    end
+  else
+    raise_error mess ext
+	
+
+let rec get_oracle_names accu oracle =
+  oracle.oname ::(List.fold_left get_oracle_names accu oracle.onext)
+
+let check_distinct ext l1 l2 =
+  let o1 = List.fold_left get_oracle_names [] l1 in
+  let o2 = List.fold_left get_oracle_names [] l2 in
+  List.iter (fun ch ->
+    if List.memq ch o1 then
+      ostructure_error ("Duplicate "^(ostructure_elem())^" " ^ ch.cname ^" in parallel") ext
+	) o2
+
+let rec merge_list l1 l2 =
+  match l1,l2 with
+  | [], l2 -> l2
+  | l1, [] -> l1
+  | a1::l1r,a2::l2r ->
+      if a1.oname.cname < a2.oname.cname then
+	a1 :: (merge_list l1r l2)
       else
-	check_distinct ext l1 l
+	a2 :: (merge_list l1 l2r)
+    
+let rec merge_struct ext l1 l2 =
+  match l1,l2 with
+  | [], l2 -> l2
+  | l1, [] -> l1
+  | a1::l1r, a2::l2r ->
+      if a1.oname == a2.oname then
+	begin
+	  let ch = a1.oname in
+	  let (tindex, targs, tres) = a1.otype in
+	  let (tindex',targs', tres') = a2.otype in
+	  if not (eqtypes tindex tindex') then
+	    ostructure_error ((String.capitalize_ascii (ostructure_elem()))^" " ^ ch.cname ^ " with different replication indexes types") ext;
+	  if not (eqtypes targs targs') then
+	    ostructure_error ((String.capitalize_ascii (ostructure_elem()))^" " ^ ch.cname ^ " with different argument types") ext;
+	  let tres'' =
+	    try
+	      mergetypesopt tres tres'
+	    with IncompatibleTypes ->
+	      ostructure_error ((String.capitalize_ascii (ostructure_elem()))^" " ^ ch.cname ^ " with different result types") ext;
+	      None
+	  in
+	  { oname = a1.oname;
+	    otype = (tindex,targs,tres'');
+	    onext = merge_struct ext a1.onext a2.onext }::
+	  (merge_struct ext l1r l2r) 
+	end
+      else if a1.oname.cname < a2.oname.cname then
+	a1 :: (merge_struct ext l1r l2)
+      else
+	a2 :: (merge_struct ext l1 l2r)
+	  
 
-let rec check_compatible ext l1 = function
-    [] -> l1
-  | (ch,tindex,targs,tres)::l ->
-      let l1' = check_compatible ext l1 l in
-      begin
-      try
-	let (ch',tindex',targs',tres') = List.find (fun (ch',_,_,_) -> ch == ch') l1 in
-	if not (eqtypes tindex tindex') then
-	  raise_error ("Definitions of oracle " ^ ch.cname ^ " with different replication indexes types") ext;
-	if not (eqtypes targs targs') then
-	  raise_error ("Definitions of oracle " ^ ch.cname ^ " with different argument types") ext;
-	try
-	  let tres'' = mergetypesopt tres tres' in
-	  (ch,tindex,targs,tres'') :: (List.filter (fun (ch',_,_,_) -> ch != ch') l1')
-	with IncompatibleTypes ->
-	  raise_error ("Definitions of oracle " ^ ch.cname ^ " with different result types") ext
-      with Not_found -> 
-	(ch,tindex,targs,tres)::l1'
-      end
+let rec check_unique ext accu oracle =
+  if List.memq oracle.oname accu then
+    ostructure_error ("Duplicate "^(ostructure_elem())^" " ^ oracle.oname.cname ^ " at different positions in the structure of calls") ext;    
+  List.fold_left (check_unique ext) (oracle.oname::accu) oracle.onext
+		    
+let check_compatible ext l1 l2 =
+  let l = merge_struct ext l1 l2 in
+  ignore (List.fold_left (check_unique ext) [] l);
+  l
 
 let dummy_channel = { cname = "dummy_channel" }
 
@@ -2697,7 +2755,7 @@ let rec check_process defined_refs cur_array env prog = function
       let (p1',oracle1,ip1) = check_process defined_refs cur_array env prog p1 in
       let (p2',oracle2,ip2) = check_process defined_refs cur_array env prog p2 in
         check_distinct ext oracle1 oracle2;
-        (new_iproc (Par(p1',p2')) ext, oracle1 @ oracle2, new_iproc (Par(ip1,ip2)) ext)
+        (new_iproc (Par(p1',p2')) ext, merge_list oracle1 oracle2, new_iproc (Par(ip1,ip2)) ext)
   | PRepl(repl_index_ref,idopt,(s2,ext2),p), ext ->
       let b' = 
 	match !repl_index_ref with
@@ -2715,21 +2773,27 @@ let rec check_process defined_refs cur_array env prog = function
       let ((c, _) as t') = check_process_channel cur_array env t in
       let (env', pat') = check_pattern (Some defined_refs) cur_array env prog None pat in
       let (p', tres, oracle,ip) = check_oprocess defined_refs cur_array env' prog p in
+      let ol = List.fold_left get_oracle_names [] oracle in
+      if List.memq c ol then
+	ostructure_error ("Duplicate "^(ostructure_elem())^" " ^ c.cname ^ 
+			  "\n(The second one is located under the return of the first one.)") ext;
+      let input_type =
         if (!Settings.front_end) == Settings.Channels then
-	  (new_iproc (Input(t', pat', p')) ext, oracle, new_iproc (Input(t',pat',ip)) ext)
-        else
-	  begin
-	    if List.exists (fun (c',_,_,_) -> c' == c) oracle then
-	      raise_error ("Duplicate definitions of oracle " ^ c.cname ^ 
-			   "\n(The second definition is located under the return of the first one.)") ext;
-	    match pat' with
-	        PatTuple(_,patl) ->
-	          (new_iproc (Input(t', pat', p')) ext, 
-	           (c, List.map (fun ri -> ri.ri_type) cur_array, 
-		    List.map get_type_for_pattern patl, tres)::oracle,
-                   new_iproc (Input(t',pat',ip)) ext)
-	      | _ -> internal_error "One can only have a tuple as argument"
-	  end
+	  [get_type_for_pattern pat']
+	else
+	  match pat' with
+	  | PatTuple(_,patl) -> List.map get_type_for_pattern patl
+	  | _ -> internal_error "One can only have a tuple as argument"
+      in
+      let new_oracle =
+	{ oname = c;
+	  otype = (List.map (fun ri -> ri.ri_type) cur_array,
+		   input_type, tres);
+	  onext = oracle }
+      in
+      (new_iproc (Input(t', pat', p')) ext,
+       [new_oracle],
+       new_iproc (Input(t',pat',ip)) ext)
   | PLetDef((s,ext),args), _ ->
       let (env', vardecl, p) = get_process env s ext in
       if List.length vardecl != List.length args then

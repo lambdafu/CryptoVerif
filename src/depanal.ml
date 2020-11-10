@@ -46,9 +46,9 @@ let reset coll_elim g =
 let instantiate_term_coll_proba = function
   | Fixed probaf_mul_types ->
       Fixed (Proba.copy_probaf_mul_types Terms.Links_RI  probaf_mul_types)
-  | ProbaIndepCollOfVar(b,args,ri_list) ->
+  | ProbaIndepCollOfVar(b,args,ri_list,known_def) ->
       ProbaIndepCollOfVar(b, List.map (Terms.copy_term Terms.Links_RI) args,
-			  Proba.instantiate_ri_list [] ri_list)
+			  Proba.instantiate_ri_list [] ri_list, [])
 
 let instantiate_find_compos_probaf (ri_arg, (term_coll_proba, var_coll, red_proba)) =
   (ri_arg, (List.map instantiate_term_coll_proba term_coll_proba, var_coll,
@@ -62,7 +62,7 @@ let addq_list accu l =
 (* [check_no_index idx (b1,b2)] verifies that [idx]
    is not a replication index at creation of [b1] or [b2]. *)
     
-let check_no_index idx (b1,b2) =
+let check_no_index idx (b1,b2,_) =
   assert (not (List.memq idx b1.args_at_creation ||
                List.memq idx b2.args_at_creation))
 
@@ -83,25 +83,30 @@ let rec subst_idx idx ri_list' = function
 	end
       else
 	Terms.addq (subst_idx idx ri_list' ri_list) idx1
-    
-let subst_idx_entry idx (ri_list',dep_types', full_type', indep_types') p =
+
+let subst_idx_entry idx (ri_list',known_def', dep_types', full_type', indep_types') p =
   assert (p.p_dep_types == []);
   if List.memq idx p.p_ri_list then
+    let (known_def, _) = p.p_ri_mul in
     { p_ri_list = subst_idx idx ri_list' p.p_ri_list;
+      p_ri_mul = known_def' @ known_def, None;
       p_proba = p.p_proba;
       p_dep_types = dep_types';
       p_full_type = full_type';
       p_indep_types_option = indep_types' }
   else
     p
-      
+
 let subst_idx_term_coll_proba_entry idx image = function
   | Fixed probaf_mul_types -> Fixed (subst_idx_entry idx image probaf_mul_types)
-  | ProbaIndepCollOfVar(b, args, ri_list) ->
-      let (ri_list',dep_types', full_type', indep_types') = image in
-      assert(dep_types' == []);
-      let ri_list'' = subst_idx idx ri_list' ri_list in
-      ProbaIndepCollOfVar(b, args, ri_list'')
+  | ProbaIndepCollOfVar(b, args, ri_list, known_def) as x ->
+      if List.memq idx ri_list then
+	let (ri_list', known_def', dep_types', full_type', indep_types') = image in
+	assert(dep_types' == []);
+	let ri_list'' = subst_idx idx ri_list' ri_list in
+	ProbaIndepCollOfVar(b, args, ri_list'', known_def' @ known_def)
+      else
+	x
     
 let subst_idx_red_proba_entry idx image r =
   { r with r_proba = subst_idx_entry idx image r.r_proba }
@@ -120,7 +125,7 @@ let equal_term_coll_proba term_coll_proba1 term_coll_proba2 =
   match term_coll_proba1, term_coll_proba2 with
   | Fixed probaf_mul_types1, Fixed probaf_mul_types2 ->
       Proba.equal_probaf_mul_types probaf_mul_types1 probaf_mul_types2
-  | ProbaIndepCollOfVar(b1, args1, ri_list1), ProbaIndepCollOfVar(b2, args2, ri_list2) ->
+  | ProbaIndepCollOfVar(b1, args1, ri_list1, _), ProbaIndepCollOfVar(b2, args2, ri_list2, _) ->
       (b1 == b2) &&
       (Terms.equal_term_lists args1 args2) &&
       (Terms.equal_lists_sets_q ri_list1 ri_list2)
@@ -129,7 +134,7 @@ let equal_term_coll_proba term_coll_proba1 term_coll_proba2 =
 let equal_find_compos_probaf
     (idx1, (ac_term_coll_proba1, ac_coll1, ac_red_proba1))
     (idx2, all_coll2) =
-  let image_idx2 = ([idx1], [], Settings.t_bitstring (*dummy type*), None) in
+  let image_idx2 = ([idx1], [], [], Settings.t_bitstring (*dummy type*), None) in
   let (ac_term_coll_proba2', ac_coll2', ac_red_proba2') =
     subst_idx_proba idx2 image_idx2 all_coll2
   in
@@ -403,10 +408,11 @@ let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt prob
   let collision_info = 
     (* If the probability used_indices * probaf is small enough to eliminate collisions, return that probability.
        Otherwise, try to optimize to reduce the factor used_indices *)
-    if Proba.is_small_enough_coll_elim probaf_mul_types then 
+    if Proba.is_small_enough_coll_elim probaf_mul_types then
       { t_side_cond = side_condition; t_true_facts = [];
 	t_used_indices = used_indices; t_initial_indices = used_indices;
-	t_charac = t1; t_indep = t2; t_var = b; t_lopt = lopt; t_proba = probaf_mul_types }
+	t_charac = t1; t_indep = t2; t_var = b; t_lopt = lopt;
+	t_proba = Proba.optim_probaf probaf_mul_types }
     else
       (* Try to reduce the list of used indices. 
 	 The initial list of indices is a reordering of the list of all indices.
@@ -432,7 +438,11 @@ let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt prob
       (* OLD: I can forget the facts without losing precision when I removed no index
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
-      let probaf_mul_types' = { probaf_mul_types with p_ri_list = really_used_indices } in
+      let probaf_mul_types' =
+	{ probaf_mul_types with
+          p_ri_list = really_used_indices;
+          p_ri_mul = Computeruntime.get_ri_mul really_used_indices (fst probaf_mul_types.p_ri_mul) }
+      in
       if Proba.is_small_enough_coll_elim probaf_mul_types' then 
 	{ t_side_cond = side_condition; t_true_facts = true_facts;
 	  t_used_indices = used_indices; t_initial_indices = initial_indices;
@@ -473,12 +483,12 @@ let add_term_collisions current_state t1 t2 b lopt ((idx, all_coll), dep_types, 
   | _ ->
       let idx_t2 = ref [] in
       Proba.collect_array_indexes idx_t2 t2;
-      let image_idx = (!idx_t2, dep_types, full_type, indep_types) in
+      let image_idx = (!idx_t2, [t2], dep_types, full_type, indep_types) in
       let (proba_term_collisions', proba_var_coll', proba_collision') =
 	subst_idx_proba idx image_idx all_coll
       in
       let old_proba_state = (!term_collisions, Proba.get_current_state()) in
-      if List.for_all (fun (b1,b2) -> Proba.add_elim_collisions b1 b2) proba_var_coll' &&
+      if List.for_all Proba.add_elim_collisions_inside proba_var_coll' &&
 	List.for_all Proba.add_proba_red_inside proba_collision' &&
 	List.for_all (function
 	  | Fixed probaf_mul_types -> add_term_collision current_state t1 t2 b lopt probaf_mul_types
@@ -740,8 +750,12 @@ let find_compos_probaf_from_term t =
   let ri = fresh_repl_index() in
   let t_idx = ref [] in
   Proba.collect_array_indexes t_idx t;
-  (ri, ([Fixed { p_ri_list = ri::(!t_idx); p_proba = Proba.pcoll1rand t.t_type;
-		 p_dep_types = []; p_full_type = t.t_type; p_indep_types_option = None }],[],[]))
+  (ri, ([Fixed { p_ri_list = ri::(!t_idx);
+		 p_ri_mul = [t], None;
+		 p_proba = Proba.pcoll1rand t.t_type;
+		 p_dep_types = [];
+		 p_full_type = t.t_type;
+		 p_indep_types_option = None }],[],[]))
     
 let extract_from_status t = function
   | Any -> None
@@ -805,22 +819,28 @@ let subst_l0opt b l l0opt =
 
 (* The functions [subst_args_* b l ...] replace b.args_at_creation with l (or indices in l) in a probability *)
 
-let subst_args_ri_list b l ri_list =
-  List.fold_left2 (fun ri_list idx t ->
-    let ri_list' = ref [] in
-    Proba.collect_array_indexes ri_list' t;
-    subst_idx idx (!ri_list') ri_list
-      ) ri_list b.args_at_creation l 
-	
+let subst_args_ri_list b l ri_list_known_def =
+  List.fold_left2 (fun (ri_list, known_def) idx t ->
+    if List.memq idx ri_list then
+      let ri_list' = ref [] in
+      Proba.collect_array_indexes ri_list' t;
+      (subst_idx idx (!ri_list') ri_list, t::known_def)
+    else
+      (ri_list, known_def)
+	) ri_list_known_def b.args_at_creation l
+    
 let subst_args_probaf_mul_types b l p =
-  { p with p_ri_list = subst_args_ri_list b l p.p_ri_list }
+  let (ri_list', known_def') = subst_args_ri_list b l (p.p_ri_list, fst p.p_ri_mul) in
+  { p with p_ri_list = ri_list'; p_ri_mul = known_def', None }
 
 let subst_args_term_coll b l = function
   | Fixed probaf_mul_types ->
       Fixed(subst_args_probaf_mul_types b l probaf_mul_types)
-  | ProbaIndepCollOfVar(b',args,ri_list) ->
-      ProbaIndepCollOfVar(b',List.map (Terms.subst b.args_at_creation l) args,
-			  subst_args_ri_list b l ri_list)
+  | ProbaIndepCollOfVar(b',args,ri_list,known_def) ->
+      let known_def = List.map (Terms.subst b.args_at_creation l) known_def in
+      let (ri_list', known_def') = subst_args_ri_list b l (ri_list, known_def) in
+      ProbaIndepCollOfVar(b', List.map (Terms.subst b.args_at_creation l) args,
+                          ri_list', known_def')
   
 let subst_args_red_proba b l red_proba =
   { red_proba with r_proba = subst_args_probaf_mul_types b l red_proba.r_proba }
@@ -939,7 +959,7 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	match find_compos_bin (main_var, new_depinfo) simp_facts l0opt f1 with
 	  None -> Any
 	| Some((idx', (proba', ac_coll', ac_red_proba')), _, l0opt') ->
-	    let image_idx' = (!idx_t', [], t.t_type, None) in
+	    let image_idx' = (!idx_t', [t'], [], t.t_type, None) in
 	    let (proba'', ac_coll'', ac_red_proba'') = 
 	      subst_idx_proba idx' image_idx'
 		(proba', ac_coll', ac_red_proba')

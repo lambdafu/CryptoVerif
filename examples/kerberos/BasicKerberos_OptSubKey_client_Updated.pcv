@@ -120,7 +120,7 @@ equation forall t: timest;
 					    
 (* Channel declarations *)
 
-channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, start, finish, cC, cS.
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19,c20, c21, c22, c23, c24, c25, start, finishC, finishS, cC, cS.
 
 (* Host names for honest hosts *)
 
@@ -219,7 +219,7 @@ let processC(Kc: key) =
 	event fullCS(hostS, hostT, m7, e12, m13);			
 	out(c10, acceptC3(hostS));
 	(* OK *)
-	in(finish, ());
+	in(finishC, ());
 	if hostS' = S && hostT=T then
 	(
 	let OPkeyC:key = opk1	
@@ -285,7 +285,7 @@ let processS(Ks: key) =
 	event fullSC(hostC, m14, m15, e16);
 	out(c12, (e16, acceptS(hostC)));
 	(* OK *)
-	in(finish, ());
+	in(finishS, ());
 	if hostC = C  then
 	(
 	let  OPkeyS:key = opk	

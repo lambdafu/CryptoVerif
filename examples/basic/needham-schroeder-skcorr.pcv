@@ -121,7 +121,7 @@ let processB(Kbs: key) =
 table keys(host, key).
 
 let processK(Kas:key, Kbs:key) =
-   in(c6, (Khost: host, Kkey: key));
+   in(c9, (Khost: host, Kkey: key));
    if Khost = A then
       insert keys(A,Kas)
    else if Khost = B then

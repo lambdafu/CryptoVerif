@@ -49,6 +49,138 @@ let names_to_discharge = ref []
 let rec time_list f = function
     [] -> Polynom.zero
   | (a::l) -> Polynom.sum (f a) (time_list f l)
+
+let poly1 = Polynom.probaf_to_polynom (Cst 1.0)
+	
+let rec get_same f = function
+  | [] -> raise Not_found
+  | [a] -> f a
+  | a::l ->
+      let x = get_same f l in
+      if f a == x then 
+	x
+      else
+	raise Not_found
+      
+let rec get_oracle_for_node b n =
+  match n.definition with
+  | DInputProcess({ i_desc = Input((c,tl),_,_) }) ->
+       (* Check that the indices of [o] are the same as the indices of [b].
+	 That is useful in case [b] is defined in a condition of find. *)
+      if (List.length tl == List.length b.args_at_creation) &&
+	(Terms.is_args_at_creation b tl) then
+	c
+      else
+	raise Not_found
+  | _ ->
+      match n.above_node with
+      | None -> raise Not_found
+      | Some n' -> get_oracle_for_node b n'
+
+let get_oracle b =
+  get_same (get_oracle_for_node b) b.def
+
+type state_t =
+    { remaining_indices: repl_index list;
+      found_oracles: channel list;
+      mutable current_candidate: (channel * repl_index list) option }
+
+let rec find_oracles state t =
+  match t.t_desc with
+  | ReplIndex _ -> ()
+  | Var(b,l) -> find_oracles_br state (b,l)
+  | FunApp(_,l) -> List.iter (find_oracles state) l
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in find_oracles"
+
+and find_oracles_br state (b,l) =
+  if List.for_all (fun t ->
+    match t.t_desc with
+    | ReplIndex _ ->  true
+    | _ -> false) l then
+    begin
+      let li = List.map Terms.repl_index_from_term l in
+      let can_improve_current_candidate =
+	match state.current_candidate with
+	| None -> List.length li > 1
+	| Some (_,li') ->
+	    (List.length li > List.length li') &&
+	    (List.for_all2 (==) (Terms.lsuffix (List.length li') li) li')
+      in
+      if can_improve_current_candidate &&
+	(List.for_all (fun ri -> List.memq ri state.remaining_indices) li)
+      then
+	try
+	  state.current_candidate <- Some (get_oracle b, li)
+	with Not_found -> ()
+    end
+  else
+    List.iter (find_oracles state) l
+
+let rec remove_one idx = function
+  | [] -> assert false
+  | a::l ->
+      if a == idx then l else
+      a::(remove_one idx l)
+      
+let rec find_all_oracles state tl =
+  if List.length state.remaining_indices <= 1 then state else
+  begin
+    List.iter (find_oracles state) tl;
+    match state.current_candidate with
+    | None -> state
+    | Some (ch, li) ->
+	let new_state =
+	  { remaining_indices = List.fold_left (fun accu i -> remove_one i accu) state.remaining_indices li;
+	    found_oracles = ch :: state.found_oracles;
+	    current_candidate = None }
+	in
+	find_all_oracles new_state tl
+  end
+
+let get_ri_mul indices tl =
+  if (not (!Settings.use_oracle_count_in_result)) || (List.length indices <= 1) then
+    [], None
+  else
+    let state =
+      { remaining_indices = indices;
+	found_oracles = [];
+	current_candidate = None }
+    in
+    let state' = find_all_oracles state tl in
+    tl, Some(state'.remaining_indices, Polynom.p_prod (List.map (fun ch -> OCount ch) state'.found_oracles))
+
+
+let rec find_all_oracles_def_list state def_list =
+  if List.length state.remaining_indices <= 1 then state else
+  begin
+    List.iter (find_oracles_br state) def_list;
+    match state.current_candidate with
+    | None -> state
+    | Some (ch, li) ->
+	let new_state =
+	  { remaining_indices = List.fold_left (fun accu i -> remove_one i accu) state.remaining_indices li;
+	    found_oracles = ch :: state.found_oracles;
+	    current_candidate = None }
+	in
+	find_all_oracles_def_list new_state def_list
+  end
+
+let count_find_index bl def_list =
+  let indices = List.map snd bl in
+  if (not (!Settings.use_oracle_count_in_result)) || (List.length bl <= 1) then
+    Polynom.probaf_to_polynom
+      (Polynom.p_prod (List.map (fun ri -> Count (Terms.param_from_type ri.ri_type)) indices))
+  else
+    let state =
+      { remaining_indices = indices;
+	found_oracles = [];
+	current_candidate = None }
+    in
+    let state' = find_all_oracles_def_list state def_list in
+    Polynom.probaf_to_polynom
+      (Polynom.p_prod ((List.map (fun ch -> OCount ch) state'.found_oracles) @
+		       (List.map (fun ri -> Count (Terms.param_from_type ri.ri_type)) state'.remaining_indices)))
+    
 	
 let rec time_for_term_in_context t (args, il, ik, repl_lhs, indices_exp) =
   let targs = time_list time_term args in
@@ -153,10 +285,6 @@ and time_term t =
 	| (_,_,_,t2)::l -> Polynom.max (time_term t2) (t_proc l)
       in
       let tp = t_proc l0 in
-      let rec prod_count r = function
-	  [] -> r
-	| ((b,_)::bl) -> Polynom.product (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.btype))) (prod_count r bl)
-      in
       let max_blen = ref 0 in
       let args_at_creation = ref 0 in
       let rec t_test = function
@@ -182,7 +310,7 @@ and time_term t =
 		   ActTime(AFind blen, [])
 		     )))
 	    in
-	    Polynom.sum (t_test l) (prod_count t_test1 bl)
+	    Polynom.sum (t_test l) (Polynom.product t_test1 (count_find_index bl def_list))
       in
       let tt = t_test l0 in
       if (!Settings.ignore_small_times)>0 then 
@@ -250,66 +378,78 @@ let time_pat_ignore_top_tuple = function
       time_list time_pat l
   | pat -> time_pat pat
 
-let rec time_process p =
+let rec time_process multiplier p =
   match p.i_desc with
     Nil -> Polynom.zero
-  | Par(p1,p2) -> Polynom.sum (time_process p1) (time_process p2)
-  | Repl(b,p) -> Polynom.product (time_process p) (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
+  | Par(p1,p2) -> Polynom.sum (time_process multiplier p1) (time_process multiplier p2)
+  | Repl(b,p) -> time_process (Polynom.product multiplier (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))) p
   | Input((c,tl),pat,p) ->
-      let ttl = Polynom.sum (Polynom.sum (time_list time_term tl) 
+      let ttl = Polynom.sum (time_list time_term tl) 
 	 ((if (!Settings.ignore_small_times)>1 then time_pat_ignore_tuple else 
-	   if (!Settings.front_end) == Settings.Oracles then time_pat_ignore_top_tuple else time_pat) pat)) (time_oprocess p) in
-      if ((!Settings.ignore_small_times)>0) || 
-         ((!Settings.front_end) == Settings.Oracles) then
-	ttl
-      else
-	Polynom.sum ttl (Polynom.probaf_to_polynom (ActTime(AIn(List.length tl), [])))
-      
-and time_oprocess p = 
+	 if (!Settings.front_end) == Settings.Oracles then time_pat_ignore_top_tuple else time_pat) pat) in
+      let tt = 
+	if ((!Settings.ignore_small_times)>0) || 
+        ((!Settings.front_end) == Settings.Oracles) then
+	  ttl
+	else
+	  Polynom.sum ttl (Polynom.probaf_to_polynom (ActTime(AIn(List.length tl), [])))
+      in
+      let multiplier =
+	if (!Settings.use_oracle_count_in_result) &&
+	  (match Polynom.polynom_to_probaf multiplier with
+	  | Cst _ | Count _ -> false (* constant or single parameter: leave as it is *)
+	  | _ -> true (* other, ie product of parameters: use the #c instead *)) then
+	  Polynom.probaf_to_polynom (OCount c)
+	else
+	  multiplier
+      in
+      Polynom.sum (Polynom.product multiplier tt) (time_oprocess multiplier p)
+	
+and time_oprocess multiplier p = 
   match p.p_desc with
     Yield -> 
       if ((!Settings.ignore_small_times)>0) || 
          ((!Settings.front_end) == Settings.Oracles) then
 	Polynom.zero
       else
-	Polynom.probaf_to_polynom (ActTime(AOut([], Settings.t_unit), []))
+	Polynom.product multiplier (Polynom.probaf_to_polynom (ActTime(AOut([], Settings.t_unit), [])))
   | EventAbort _ -> Polynom.zero
   | Restr(b,p) ->
-      let tp = time_oprocess p in
+      let tp = time_oprocess multiplier p in
       if (!Settings.ignore_small_times)>0 then
 	tp
       else
-	begin
+	let tres = 
 	  (* When b is in names_to_discharge, "new b" is replaced with
 	     "let b = cst" in the context *)
 	  if List.memq b (!names_to_discharge) then
-	    Polynom.sum tp (Polynom.sum 
+	    Polynom.sum 
 	      (Polynom.probaf_to_polynom (ActTime(AArrayAccess (List.length b.args_at_creation), [])))
-              (time_term (Stringmap.cst_for_type b.btype)))
+              (time_term (Stringmap.cst_for_type b.btype))
 	  else
-	    Polynom.sum tp (Polynom.probaf_to_polynom 
-	      (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []), ActTime(ANew b.btype, []))))
-	end
+	    Polynom.probaf_to_polynom 
+			      (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []), ActTime(ANew b.btype, [])))
+	in
+	Polynom.sum tp (Polynom.product multiplier tres)
   | Test(t,p1,p2) ->
-      let tp = Polynom.sum (time_term t) (Polynom.max (time_oprocess p1) (time_oprocess p2)) in
-      if (!Settings.ignore_small_times)>0 then
-	tp
-      else
-	Polynom.sum tp (Polynom.probaf_to_polynom (ActTime(AIf, [])))
+      let ttest = 
+	if (!Settings.ignore_small_times)>0 then
+	  time_term t
+	else
+	  Polynom.sum (time_term t) (Polynom.probaf_to_polynom (ActTime(AIf, [])))
+      in
+      Polynom.sum (Polynom.product multiplier ttest)
+	(Polynom.max (time_oprocess multiplier p1) (time_oprocess multiplier p2))
   | Find(l0,p2, _) ->
       let rec t_proc = function
-	  [] -> time_oprocess p2
-	| (_,_,_,p1)::l -> Polynom.max (time_oprocess p1) (t_proc l)
+	  [] -> time_oprocess multiplier p2
+	| (_,_,_,p1)::l -> Polynom.max (time_oprocess multiplier p1) (t_proc l)
       in
       let tp = t_proc l0 in
-      let rec prod_count r = function
-	  [] -> r
-	| ((b,_)::bl) -> Polynom.product (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.btype))) (prod_count r bl)
-      in
       let max_blen = ref 0 in
       let args_at_creation = ref 0 in
       let rec t_test = function
-	  [] -> tp
+	  [] -> Polynom.zero
 	| (bl, def_list, t, _)::l ->
 	    let t_test1 = 
 	      Polynom.sum (time_list time_binderref def_list)
@@ -331,34 +471,42 @@ and time_oprocess p =
 		   ActTime(AFind blen, [])
 		     )))
 	    in
-	    Polynom.sum (t_test l) (prod_count t_test1 bl)
+	    Polynom.sum (t_test l) (Polynom.product t_test1 (count_find_index bl def_list))
       in
       let tt = t_test l0 in
-      if (!Settings.ignore_small_times)>0 then 
-	tt
-      else
-	Polynom.sum tt (Polynom.probaf_to_polynom (Mul (Cst(float_of_int (!max_blen)), ActTime(AArrayAccess (!args_at_creation), []))))
+      let tt2 = 
+	if (!Settings.ignore_small_times)>0 then 
+	  tt
+	else
+	  Polynom.sum tt (Polynom.probaf_to_polynom (Mul (Cst(float_of_int (!max_blen)), ActTime(AArrayAccess (!args_at_creation), []))))
+      in
+      Polynom.sum (Polynom.product multiplier tt2) tp
   | Output((c,tl),t2,p) ->
       let tp = Polynom.sum (time_list time_term tl) 
-	  (Polynom.sum ((if (!Settings.ignore_small_times)>1 then time_term_ignore_tuple else
-	                 if (!Settings.front_end) == Settings.Oracles then time_term_ignore_top_tuple else time_term) t2) (time_process p)) in
-      if ((!Settings.ignore_small_times)>0) ||
-         ((!Settings.front_end) == Settings.Oracles) then
-	tp
-      else
-	Polynom.sum tp (Polynom.probaf_to_polynom (ActTime(AOut(List.map (fun t -> t.t_type) tl, t2.t_type), make_length (!whole_game) (tl @ [t2]))))
+	  ((if (!Settings.ignore_small_times)>1 then time_term_ignore_tuple else
+	  if (!Settings.front_end) == Settings.Oracles then time_term_ignore_top_tuple else time_term) t2)
+      in
+      let tout = 
+	if ((!Settings.ignore_small_times)>0) ||
+        ((!Settings.front_end) == Settings.Oracles) then
+	  tp
+	else
+	  Polynom.sum tp (Polynom.probaf_to_polynom (ActTime(AOut(List.map (fun t -> t.t_type) tl, t2.t_type), make_length (!whole_game) (tl @ [t2]))))
+      in
+      Polynom.sum (Polynom.product multiplier tout) (time_process multiplier p)
   | Let(pat, t, p1, p2) ->
-      Polynom.sum (time_pat pat) (Polynom.sum (time_term t) 
-	(Polynom.max (time_oprocess p1) (time_oprocess p2)))
+      Polynom.sum 
+	(Polynom.product multiplier (Polynom.sum (time_pat pat) (time_term t)))
+	(Polynom.max (time_oprocess multiplier p1) (time_oprocess multiplier p2))
   | EventP(t,p) ->
-      Polynom.sum (time_term t) (time_oprocess p)
+      Polynom.sum (Polynom.product multiplier (time_term t)) (time_oprocess multiplier p)
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let compute_runtime_for_context g equiv map_fun names_discharge =
   whole_game := g;
   get_time_map := map_fun;
   names_to_discharge := names_discharge;
-  let tp = time_process (Terms.get_process g) in
+  let tp = time_process poly1 (Terms.get_process g) in
   let t = 
     if (!Settings.ignore_small_times)>0 then
       tp
@@ -384,7 +532,7 @@ let compute_runtime_for g =
   whole_game := g;
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
-  let r = Polynom.polynom_to_probaf (time_process (Terms.get_process g)) in
+  let r = Polynom.polynom_to_probaf (time_process poly1 (Terms.get_process g)) in
   whole_game := Terms.empty_game;
   r
 

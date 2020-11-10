@@ -105,10 +105,10 @@ let expand_probaf f (ri_arg, (ac_term_coll0, ac_var_coll0, ac_red_proba0)) =
     List.fold_left (fun (ac_term_coll, ac_var_coll, ac_red_proba) term_coll ->
       match term_coll with
       | Fixed _ -> (term_coll ::  ac_term_coll, ac_var_coll, ac_red_proba)
-      | ProbaIndepCollOfVar(b, args, ri_list) ->
+      | ProbaIndepCollOfVar(b, args, ri_list, known_def) ->
 	  let probaf_b = f b in
 	  let (ri_arg', all_coll1) = Depanal.subst_args_proba b args probaf_b in
-	  let image = (ri_list,[], Settings.t_bitstring (*dummy type*), None) in
+	  let image = (ri_list,known_def,[], Settings.t_bitstring (*dummy type*), None) in
 	  let (ac_term_coll1, ac_var_coll1, ac_red_proba1) =
 	    Depanal.subst_idx_proba ri_arg' image all_coll1
 	  in
@@ -123,7 +123,7 @@ let expand_probaf f (ri_arg, (ac_term_coll0, ac_var_coll0, ac_red_proba0)) =
     
 let find_compos_probaf_sum l =
   let ri_arg = Depanal.fresh_repl_index() in
-  let image = ([ri_arg],[], Settings.t_bitstring (*dummy type*), None) in 
+  let image = ([ri_arg],[],[], Settings.t_bitstring (*dummy type*), None) in 
   let all_coll' = 
     List.fold_left (fun (ac_term_coll, ac_var_coll, ac_red_proba) (ri_arg1, all_coll1) ->
       let (ac_term_coll1, ac_var_coll1, ac_red_proba1) =
@@ -208,7 +208,7 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
   (* Compute the used indices *)
   let idx_t2 = ref [] in
   Proba.collect_array_indexes idx_t2 t2;
-  let image_idx = (!idx_t2, dep_types, full_type, indep_types) in
+  let image_idx = (!idx_t2, [t2], dep_types, full_type, indep_types) in
   let (proba_term_collisions', proba_var_coll', proba_collision') =
     Depanal.subst_idx_proba idx image_idx all_coll
   in
@@ -824,16 +824,16 @@ let display_find_compos_probaf (ri_arg, (ac_term_coll, ac_var_coll, ac_red_proba
   print_string "Term collisions:\n";
   List.iter (function
     | Fixed probaf_mul_types -> ignore (Proba.proba_for probaf_mul_types)
-    | ProbaIndepCollOfVar(b, args, ri) ->
+    | ProbaIndepCollOfVar(b, args, ri, _) ->
 	print_string "Indep. coll of ";
 	Display.display_var b args;
 	print_string " ";
 	Display.display_list Display.display_repl_index ri;
 	print_newline()) ac_term_coll;
   print_string "Variable collisions:\n";
-  List.iter (fun (b1,b2) ->
+  List.iter (fun coll ->
     print_string " ";
-    ignore (Proba.proba_for_collision b1 b2)
+    ignore (Proba.proba_for_collision coll)
       ) ac_var_coll;
   print_string "Application of collision statements:\n";
   List.iter (fun red_proba ->
@@ -876,7 +876,7 @@ let add_proba_info proba_info proba_info_list =
 
 let find_compos_proba_of_coll_var b = 
   let ri = Depanal.fresh_repl_index() in
-  (ri, ([ProbaIndepCollOfVar(b, List.map Terms.term_from_repl_index b.args_at_creation, [ri])],[],[]))
+  (ri, ([ProbaIndepCollOfVar(b, List.map Terms.term_from_repl_index b.args_at_creation, [ri], [])],[],[]))
       
 let add_depend b t =
   match find_compos Terms.simp_facts_id t with
@@ -1571,6 +1571,7 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
 let init_find_compos_probaf b0 = 
   let ri = Depanal.fresh_repl_index() in
   (ri, ([Fixed { p_ri_list = ri::b0.args_at_creation;
+		 p_ri_mul = [Terms.term_from_binder b0], None;
 		 p_proba = Proba.pcoll1rand b0.btype;
 		 p_dep_types = [];
 		 p_full_type = b0.btype;

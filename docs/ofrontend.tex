@@ -115,6 +115,11 @@ it must be of the same type for all its definitions. Furthermore,
 definitions of the same oracle $O$ must not occur on both sides
 of a parallel composition $Q \texttt{|} Q'$ (so that several definitions
 of the same oracle cannot be simultaneously available).
+An oracle $O$ must not occur under a definition of the same oracle $O$
+in the syntax tree, and oracles defined in different branches
+of \texttt{if}, \texttt{find}, \texttt{let}, \texttt{get} must have
+compatible structures (oracles with the same name must occur at the
+same place in the sequence of possible oracle calls).
 %
 The other constructs are typed as in the \texttt{channels} front-end.
 

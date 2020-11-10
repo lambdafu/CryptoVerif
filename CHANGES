@@ -3,7 +3,11 @@ of the cryptographic protocol verifier.
 
 Version
 
-- use "orfind" instead of "else find" in the standard library of
+- Allow using #O for the total number of calls to oracle O
+(for the oracles front-end), resp. #c for the for total number
+of inputs on channel c (for the channels front-end)
+in probability formulas computed by CryptoVerif.
+- Use "orfind" instead of "else find" in the standard library of
 cryptographic primitives, when appropriate.
 - query_equiv: optimize the translation to avoid creating oracles
 that just generate random values before a single oracle.
@@ -13,6 +17,7 @@ of equiv assumptions in CryptoVerif.
 - query_equiv: fixed a bug in the oracle front-end, return
 instructions should return a unary tuple.
 - insert: allow referring to replication indices.
+- improved verification of the structure of oracle calls.
 - implementation: generate separate OCaml functions for letfun
 declarations.
 - implementation: optimized treatment of get.

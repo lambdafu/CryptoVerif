@@ -2992,8 +2992,26 @@ next games.
 Lines that begin with \texttt{RESULT} give the proved results.
 They may indicate that a property is proved and give 
 an upper bound of the probability that the adversary breaks
-the property. 
-%
+the property. These probabilities use the same notations
+are probabilities given as input for CryptoVerif,
+with the following addition: in the channel front-end,
+\texttt{\#$c$} designates the total number of inputs performed on
+channel $c$. 
+This notation mimics the notation \texttt{\#$O$} for the
+number of oracles calls in the oracle front-end.
+The notation \texttt{\#$c$} is used only when the channel names
+satisfy the same constraints as those required for oracle names:
+inputs on the same channel $c$ must not occur on both sides
+of a parallel composition $Q \texttt{|} Q'$;
+an input on channel $c$ must not occur under an input on the same channel $c$
+in the syntax tree; and inputs in different branches
+of \texttt{if}, \texttt{find}, \texttt{let}, \texttt{get} must have
+compatible structures (inputs on the same channel must occur at the
+same place in the sequence of possible inputs). These constraints
+make sure that the usage of \texttt{\#$c$} does not mix unrelated
+inputs. When they are not satisfied, a warning is displayed and
+CryptoVerif uses only replication bounds for counting inputs.
+
 In the end, they may also list the properties that could not be
 proved, if any.
 

@@ -47,7 +47,7 @@ equation forall y:host,z:nonce,t:nonce;
 
 (* Queries *)
 
-channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, start, finish.
+channel c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, start, finish.
 const A : host.
 const B : host.
 fun acceptA(host):bitstring.
@@ -64,7 +64,7 @@ query x:bitstring;
 	inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
 
 let processA(Kas: key) =
-	in(start, ());
+	in(c0, ());
         new Na: nonce;
         out(c1, (A, Na));
         in(c2, (cert1: ciphertext, cert2:ciphertext)); (* From server *)

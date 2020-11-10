@@ -33,6 +33,8 @@ set this variable to true: such games may contain
 "defined" conditions on variables that are never defined. *)
 val allow_undefined_var : bool ref
 
+val use_oracle_count_in_result : bool ref
+
 val max_depth_add_fact : int ref
 val max_depth_try_no_var_rec : int ref
 val max_replace_depth : int ref

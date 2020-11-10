@@ -798,10 +798,18 @@ type final_process =
     SingleProcess of inputprocess
   | Equivalence of inputprocess * inputprocess * binder list(*public variables*)
   
+type ri_mul_t =
+  term list * (repl_index list * probaf) option
       
-    
 type probaf_mul_types =
   { p_ri_list : repl_index list; (* List of replication indices *)
+    p_ri_mul  : ri_mul_t; (* Probability formula that represents the number of repetitions of the collision
+			   p_ri_mul = known_def, Some(ri_list, p) corresponds to  \prod_{ri \in ri_list} |ri.ri_type| * p
+			   It may be a better formula than \prod_{ri \in p.p_ri_list} |ri.ri_type| using #O for some oracles O.
+			   p_ri_mul = known_def, None means that the terms in [known_def] are known to be defined.
+			   This information is later exploited to replace some factors
+			   in prod_{ri \in p.p_ri_list} |ri.ri_type| with #O,
+			   in order to replace None with Some(ri_list,p). *)
     p_proba : probaf; (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *)
     p_dep_types : typet list; (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *)
     p_full_type : typet; (* The type of t2 *)
@@ -815,7 +823,8 @@ type probaf_mul_types =
 	 not valid, indep_types_option = None. *) 
 
  (* a record [p: probaf_mul_types] represents
-    \prod_{ri \in p.p_ri_list} |ri.ri_type| * p.p_proba * \prod_{T \in p.p_dep_types} |T|.
+    When p.p_ri_mul = (ri_list, p_nb)
+       \prod_{ri \in ri_list} |ri.ri_type| * p_nb * p.p_proba * \prod_{T \in p.p_dep_types} |T|.
     When p.p_indep_types_option = Some indep_types, 
     \prod_{T \in p.p_dep_types} |T| <= |p.p_full_type|/\prod{T \in indep_types} |T|. *)
       
@@ -830,8 +839,8 @@ type term_coll_t =
     t_lopt : term list option;
     t_proba : probaf_mul_types } (* see above *)
 
-type binder_coll_t = binder * binder 
-      (* [(b1,b2)] means that we eliminated collisions
+type binder_coll_t = binder * binder * probaf_mul_types
+      (* [(b1,b2,_)] means that we eliminated collisions
 	 between the random variables [b1] and [b2] *)
 
 type instantiated_collision =
@@ -874,10 +883,13 @@ type simplify_internal_info_t = binder_coll_t list * red_proba_t list
 
 type term_coll_proba_t =
   | Fixed of probaf_mul_types
-  | ProbaIndepCollOfVar of binder * term list * repl_index list
-     (* [ProbaIndepOfVar (b, args, ri_list)] represents a probability p such that
+  | ProbaIndepCollOfVar of binder * term list * repl_index list * term list
+     (* [ProbaIndepOfVar (b, args, ri_list, known_def)] represents a probability p such that
 	for all M independent of b0[l0], Pr[b[args] = M] <= p,
 	where the indices of M are [ri_list].
+	[known_def] is a list of terms that are known to be defined
+	when this property is proved. It is useful to optimize the
+	probability by replacing some indices by #O.
 	It is used only in global dependency analysis, where b0 is the main
 	variable on which we perform the analysis.
 	This element is used in a status Compos(proba, term, l0opt).
@@ -960,3 +972,11 @@ type special_equiv_collision = binder list * binder list * term
 type expect_t =
   | ExpectType of typet
   | ExpectVar of binder
+
+(* Structure of oracles *)
+
+type oracle_struct =
+    { oname: channel;
+      otype: typet list(*types of indices*) * typet list(*types of arguments*) * typet list option(*type of result*);
+      onext: oracle_struct list }
+      
