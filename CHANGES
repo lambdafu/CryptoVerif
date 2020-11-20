@@ -25,7 +25,8 @@ declarations.
 is called at most once.
 - implementation: fixed a missing space after begin.
 - Display occurrences of changes even when old games are forgotten.
-- Fixed probability for IND-CCA2 public-key encryption.
+- Fixed probabilities for IND-CCA2 public-key encryption,
+  GDH and square GDH without random-self reducibility.
 - Fixed [useful_change] annotations in the definitions of MACs.
 - Fixed bug in probability computation that could lead to a useless
 repetition of replication bounds in products.
