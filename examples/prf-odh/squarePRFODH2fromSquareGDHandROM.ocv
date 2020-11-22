@@ -16,7 +16,7 @@ equation forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')
 equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp'(g,x')).
 
 type hashkey [fixed].
-type T.
+type T. 
 type T' [bounded,large].
 expand ROM_hash_large_2(hashkey, G, T, T', F, hashoracle, qF).
 
@@ -28,7 +28,7 @@ proof {
     start_from_other_end;
     auto;
     show_game;
-    remove_assign binder "x1_8";
+    remove_assign binder "x_O_[0-9]*";
     simplify;
     remove_assign useless;
     success }
@@ -58,3 +58,8 @@ equivalence
 	else
 	  return(F(hk, exp'(Y,a), x))) |
      run hashoracle(hk))
+
+(* EXPECTED
+All queries proved.
+0.108s (user 0.100s + system 0.008s), max rss 17908K
+END *)

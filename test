@@ -75,7 +75,7 @@ analyzedirlist()
 
 basic()
 {
-    analyzedirlist test examples/basic examples/obasic examples/kerberos implementation/wlsk implementation/nspk
+    analyzedirlist test examples/basic examples/obasic examples/prf-odh examples/kerberos implementation/wlsk implementation/nspk
 
     if [ -d examplesnd ]
     then

@@ -40,3 +40,8 @@ equivalence
         find[unique] j <= N suchthat defined(x[j],r[j]) && x = x[j] then return(r[j])
 	else r <-R T'; return(r)) |
      run hashoracle(hk))
+
+(* EXPECTED
+All queries proved.
+0.104s (user 0.100s + system 0.004s), max rss 16948K
+END *)

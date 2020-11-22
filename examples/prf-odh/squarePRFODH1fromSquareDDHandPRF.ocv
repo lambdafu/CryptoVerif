@@ -32,3 +32,8 @@ equivalence
      (foreach i <= N do OPRFDH(x : T) :=
         find[unique] j <= N suchthat defined(x[j],r[j]) && x = x[j] then return(r[j])
 	else r <-R T'; return(r)))
+
+(* EXPECTED
+All queries proved.
+0.084s (user 0.076s + system 0.008s), max rss 16596K
+END *)

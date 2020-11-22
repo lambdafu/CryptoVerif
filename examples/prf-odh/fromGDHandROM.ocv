@@ -25,8 +25,7 @@ proof {
     auto;
     start_from_other_end;
     auto;
-    remove_assign binder "x1_9";
-    remove_assign binder "x1_10";
+    remove_assign binder "x_O_[0-9]*";
     simplify;
     remove_assign useless;
     success }
@@ -68,3 +67,8 @@ equivalence
 	else
 	  return(F(hk, exp'(X,b), x))) |
      run hashoracle(hk))
+
+(* EXPECTED
+All queries proved.
+0.188s (user 0.180s + system 0.008s), max rss 19256K
+END *)
