@@ -2329,7 +2329,7 @@ let copy_elsefind (bl, def_vars, t) =
   res
 
 let rec copy_process transf p = 
-  iproc_from_desc (
+  iproc_from_desc_loc p (
   match p.i_desc with
     Nil -> Nil
   | Par(p1,p2) ->
@@ -2343,7 +2343,7 @@ let rec copy_process transf p =
 	    copy_oprocess transf p))
 
 and copy_oprocess transf p =
-  oproc_from_desc (
+  oproc_from_desc_loc p (
   match p.p_desc with
     Yield -> Yield
   | EventAbort f -> EventAbort f

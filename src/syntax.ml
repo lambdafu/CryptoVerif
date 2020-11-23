@@ -929,57 +929,12 @@ let check_process2 p =
 (* Check the form of process p to signal inefficiencies.
 
    The check is done on the parse tree instead of processes in order to
-   get locations for warnings. *)
+   get locations for warnings, including location of replication bounds. *)
 
-let warn_replication_same_name p =
-  let param_tbl = Hashtbl.create 20 in
-  let repl, repl', repl'' = match !Settings.front_end with
-    | Settings.Channels -> "Replication", "replication", "replications"
-    | Settings.Oracles -> "Foreach", "foreach", "foreach"
-  in
-  let add_and_warn param loc =
-    begin
-      try
-        let witness = Hashtbl.find param_tbl param in
-        Parsing_helper.input_warning
-          (Printf.sprintf "%s uses the same parameter %s as %s at %s. \
-          Avoid reusing parameters for multiple %s to avoid losing precision \
-          in the probability bound." repl param repl' (in_file_position loc witness) repl'')
-          loc
-      with Not_found -> ()
-    end;
-    Hashtbl.add param_tbl param loc
-  in
-  let rec gather_replication_params = function
-    | PRepl(_, _, (bound, loc), p), _ ->
-      add_and_warn bound loc;
-      gather_replication_params p
-
-    | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
-    | PPar(p1, p2), _
-    | PTest(_, p1, p2), _ | PLet (_, _, p1, p2), _
-    | PGet(_, _, _, p1, p2), _ ->
-      gather_replication_params p1;
-      gather_replication_params p2
-    | PInput (_, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
-    | PInsert(_, _, p),_ | PBeginModule (_, p),_ 
-    | POutput(_, _, _, p), _ ->
-      gather_replication_params p
-    | PLetDef((s,ext),_), _ ->
-      let (env', vardecl, p) = get_process (!env) s ext in
-      gather_replication_params p
-    | PFind(l, p, _), _ ->
-      gather_replication_params p;
-      List.iter
-        (fun (_, _, _, _, p) -> gather_replication_params p)
-        l
-  in
-  gather_replication_params p
-
-let warn_parallel_or_replication_after_replication i =
-  let repl = match !Settings.front_end with
-    | Settings.Channels -> "replication"
-    | Settings.Oracles -> "foreach"
+let warn_process_form i =
+  let repl, repl', repl'', oname = match !Settings.front_end with
+    | Settings.Channels -> "Replication", "replication", "replications", "channel" 
+    | Settings.Oracles -> "Foreach", "foreach", "foreach", "oracle"
   in
   let warn_parallel_after_replication locp locr =
     Parsing_helper.input_warning
@@ -988,38 +943,58 @@ let warn_parallel_or_replication_after_replication i =
          rather put a distinct replication above each component \
          of the parallel composition."
          (in_file_position locr locp)
-         repl)
+         repl')
       locr
   in
   let warn_replication_after_replication locr1 locr2 =
     Parsing_helper.input_warning
       (Printf.sprintf "Useless %s at %s after %s. Avoid this to \
          avoid losing precision in the probability bound."
-         repl
+         repl'
          (in_file_position locr2 locr1)
-         repl)
+         repl')
       locr2
   in
+  let param_tbl = Hashtbl.create 20 in
+  let add_and_warn param ch loc =
+    begin
+      try
+        let (ch', loc') = Hashtbl.find param_tbl param in
+	if ch <> ch' then
+          Parsing_helper.input_warning
+            (Printf.sprintf "%s uses the same parameter %s with %s %s as %s at %s with %s %s. \
+               Avoid reusing parameters for multiple %s with different %ss to avoid losing precision \
+               in the probability bound." repl param oname ch repl' (in_file_position loc loc') oname ch' repl'' oname)
+          loc
+      with Not_found -> ()
+    end;
+    Hashtbl.add param_tbl param (ch,loc)
+  in
   let rec aux after_repl = function
-    | PRepl(_, _, _, p), loc ->
+    | PRepl(_, _, bound_loc, p), loc ->
       begin
         match after_repl with
-          | Some r -> warn_replication_after_replication loc r
+          | Some (_,r) -> warn_replication_after_replication loc r
           | None -> ()
       end;
-      aux (Some loc) p
+      aux (Some (bound_loc,loc)) p
 
     | PPar(p1, p2), loc ->
       begin
         match after_repl with
-          | Some r -> warn_parallel_after_replication loc r
+          | Some (_,r) -> warn_parallel_after_replication loc r
           | None -> ()
       end;
       aux after_repl p1;
       aux after_repl p2
 
-    | PInput (_, _, p), _ ->
-      aux None p
+    | PInput (((ch,_),_), _, p), loc ->
+	begin
+	  match after_repl with
+	  | Some ((bound, loc),_) -> add_and_warn bound ch loc
+	  | None -> ()
+	end;
+	aux None p
 
     | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
     | PTest(_, p1, p2), _ | PLet (_, _, p1, p2), _
@@ -1041,9 +1016,6 @@ let warn_parallel_or_replication_after_replication i =
   in
   aux None i
 
-let warn_process_form p =
-  warn_replication_same_name p;
-  warn_parallel_or_replication_after_replication p
 
 
 
@@ -2649,7 +2621,7 @@ let ostructure_error mess ext =
 	 Otherwise, some warnings may be uselessly repeated. *)
       if !Settings.use_oracle_count_in_result then
 	begin
-	  input_warning ("To use the number of inputs on channels in probability results, we require channel names to be distinct as if they were oracle names.\n"^mess) ext;
+	  input_warning (mess^".\nThis is an example (possibly among others) that contradicts the following recommendation:\nDifferent inputs should use different channel names, except matching inputs in different branches of if, find, or get.\n - That guarantees that the adversary knows precisely to which input it sends messages.\n - That allows using the number of inputs on channels in probability results.\nFurthermore, for the best precision, you should also make sure that replications use different bounds when they are above different inputs, except matching inputs in different branches of if, find, or get.") ext;
 	  Settings.use_oracle_count_in_result := false
 	end
     end

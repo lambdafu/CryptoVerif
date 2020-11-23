@@ -24,6 +24,8 @@ declarations.
 - implementation: make sure the init function of each module
 is called at most once.
 - implementation: fixed a missing space after begin.
+- Do not warn when it is legitimate the reuse the same replication
+  bound (that is, before the same oracle).
 - Display occurrences of changes even when old games are forgotten.
 - Fixed probabilities for IND-CCA2 public-key encryption,
   GDH and square GDH without random-self reducibility.
