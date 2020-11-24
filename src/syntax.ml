@@ -2621,7 +2621,7 @@ let ostructure_error mess ext =
 	 Otherwise, some warnings may be uselessly repeated. *)
       if !Settings.use_oracle_count_in_result then
 	begin
-	  input_warning (mess^".\nThis is an example (possibly among others) that contradicts the following recommendation:\nDifferent inputs should use different channel names, except matching inputs in different branches of if, find, or get.\n - That guarantees that the adversary knows precisely to which input it sends messages.\n - That allows using the number of inputs on channels in probability results.\nFurthermore, for the best precision, you should also make sure that replications use different bounds when they are above different inputs, except matching inputs in different branches of if, find, or get.") ext;
+	  input_warning (mess^".\nThis is an example (possibly among others) that contradicts the following recommendation:\nDifferent inputs should use different channel names, except matching inputs in different branches of if, find, let, or get.\n - That guarantees that the adversary knows precisely to which input it sends messages.\n - That allows using the number of inputs on channels in probability results.\nFurthermore, for the best precision, you should also make sure that replications use different bounds when they are above different inputs, except matching inputs in different branches of if, find, let, or get.") ext;
 	  Settings.use_oracle_count_in_result := false
 	end
     end

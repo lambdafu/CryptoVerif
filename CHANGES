@@ -1,7 +1,7 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
-Version
+Version 2.04
 
 - Allow using #O for the total number of calls to oracle O
 (for the oracles front-end), resp. #c for the for total number
