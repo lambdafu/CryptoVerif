@@ -2223,15 +2223,18 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       in
       let (env',restrlist') = check_lm_restrlist cur_array' env restrlist in
       let funlist' = List.map (check_lm_fungroup2 cur_array' (restrlist'::cur_restr) env' seen_ch seen_repl) funlist in
-      (* Remove useless new *)
-      let restrlist'' = List.filter (fun (b,_) -> List.exists (Terms.refers_to_fungroup b) funlist') restrlist' in
-      if restrlist'' == [] then
+      (* Check that all new are used *)
+      List.iter2 (fun ((bname, ext),_,_) (b,_) ->
+	if not (List.exists (Terms.refers_to_fungroup b) funlist') then
+	  Parsing_helper.input_error ("Random variable "^bname^" is not used") ext
+	    ) restrlist restrlist';
+      if restrlist' == [] then
 	begin
 	  match funlist' with
 	  | [Fun _] -> ()
 	  | _ -> raise_error "In equivalences, under a replication without new, there should be a single function" (get_fungroup_ext fg)
 	end;
-      ReplRestr(repl_opt', restrlist'', funlist')
+      ReplRestr(repl_opt', restrlist', funlist')
   | PFun(((s, ext) as ch), arglist, tres, (priority, options)) ->
       let ch' = check_channel_id ch in
       if List.memq ch' (!seen_ch) then
