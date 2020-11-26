@@ -1252,10 +1252,13 @@ let find_restr (s,ext) ((_,lm,_,_,_,_),_) =
   with Not_found ->
     raise (Error("Random variable " ^ s ^ " not found in equivalence", ext))
     
-let get_equiv_info () =
-  print_string "Please enter variable and/or term mapping for this equivalence: ";
-  let s = read_line() in
-  Syntax.parse_from_string Parser.cryptotransfinfo (s, dummy_ext)
+let get_equiv_info need_info equiv =
+  match equiv.eq_special with
+  | None when not need_info -> PVarList([],false) 
+  | _ ->
+      print_string "Please enter variable and/or term mapping for this equivalence: ";
+      let s = read_line() in
+      Syntax.parse_from_string Parser.cryptotransfinfo (s, dummy_ext)
 
 let get_special_args equiv =
   match equiv.eq_special with
@@ -1273,7 +1276,7 @@ let nth l n =
   with _ ->
     raise NthFailed
 
-let get_equiv interactive eqname special_args info ext =
+let get_equiv need_info interactive eqname special_args info ext =
   let (possible_equivs, ext_equiv) =
     match eqname with
       PNoName -> (!Settings.equivs, ext)
@@ -1305,10 +1308,10 @@ let get_equiv interactive eqname special_args info ext =
 	begin
 	  match eqname with
 	  | PNoName when interactive -> 
-	      print_string "Applying ";
+	      print_string "Using ";
 	      Display.display_equiv_gen equiv; print_newline();
 	      let special_args = get_special_args equiv in
-	      let info = get_equiv_info() in
+	      let info = get_equiv_info need_info equiv in
 	      (equiv, special_args, info)
 	  | _ -> (equiv, special_args, info)
 	end
@@ -1324,7 +1327,7 @@ let get_equiv interactive eqname special_args info ext =
 	      match eqname with
 	      | PNoName ->
 		  let special_args = get_special_args equiv in
-		  let info = get_equiv_info() in
+		  let info = get_equiv_info need_info equiv in
 		  (equiv, special_args, info)
 	      | _ -> (equiv, special_args, info)
 	    with Failure _ -> 
@@ -1754,14 +1757,14 @@ let rec interpret_command interactive state = function
   | CAll_simplify ->
       simplify state
   | CCrypto(eqname, special_args, info, ext) ->
-      let (equiv, info) = get_equiv interactive eqname special_args info ext in
+      let (equiv, info) = get_equiv true interactive eqname special_args info ext in
       do_equiv ext equiv info state
   | CShow_equiv(eqname, special_args, info, ext) ->
-      let (equiv, info) = get_equiv interactive eqname special_args info ext in
+      let (equiv, _) = get_equiv false interactive eqname special_args info ext in
       Display.display_equiv equiv ;
       state
   | COut_equiv((s,ext),eqname, special_args, info, ext2) ->
-      let (equiv, info) = get_equiv interactive eqname special_args info ext2 in
+      let (equiv, _) = get_equiv false interactive eqname special_args info ext2 in
       default_file_out s ext (fun () ->
 	Display.display_equiv equiv);
       state

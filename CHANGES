@@ -30,6 +30,8 @@ is called at most once.
 - Fixed probabilities for IND-CCA2 public-key encryption,
   GDH and square GDH without random-self reducibility.
 - Fixed [useful_change] annotations in the definitions of MACs.
+- Do not ask for variable/term mapping for ordinary equivalences
+in show_equiv and out_equiv.
 - Fixed bug in probability computation that could lead to a useless
 repetition of replication bounds in products.
 - Fixed a counting bug, which could lead to counting several times
