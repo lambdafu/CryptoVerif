@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "cryptoverif"
-version: "2.03pl1"
+version: "2.04"
 synopsis: "CryptoVerif: Cryptographic protocol verifier in the computational model"
 description: """
 CryptoVerif is an automatic protocol prover sound in the computational model. It can prove
