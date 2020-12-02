@@ -226,7 +226,7 @@ let anal_file s0 =
 
 let _ =
   Arg.parse
-    [ "-lib", Arg.String (fun s -> Settings.lib_name := Some s),
+    [ "-lib", Arg.String (fun s -> Settings.lib_name := s :: (!Settings.lib_name)),
       "<filename> \tchoose library file";
       "-tex", Arg.String (fun s -> Settings.tex_output := s),
       "<filename> \tchoose TeX output file";

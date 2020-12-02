@@ -39,36 +39,22 @@ let parse filename =
   with Sys_error s ->
     user_error s
 
-let parse_lib filename_opt =
+let parse_lib filename =
   let filename =
-    match filename_opt with
-    | Some filename ->
-	if StringPlus.case_insensitive_ends_with filename ".cvl" then
-	  begin
-	    if (!Settings.front_end) != Settings.Channels then
-	      user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
-	    filename
-	  end
-	else if StringPlus.case_insensitive_ends_with filename ".ocvl" then
-	  begin
-	    if (!Settings.front_end) == Settings.Channels then
-	      user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
-	    filename
-	  end
-	else
-	  filename ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl")
-    | None ->
-	(* Use the default library *)
-	let filename = "default" ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl") in
-	if Sys.file_exists filename then
-	  filename
-	else
-	  (* Look for the default library also in the CryptoVerif directory *)
-	  let filename' = Filename.concat (Filename.dirname Sys.executable_name) filename in
-	  if Sys.file_exists filename' then
-	    filename'
-	  else
-	    user_error ("Could not find default library of primitives "^filename)
+    if StringPlus.case_insensitive_ends_with filename ".cvl" then
+      begin
+	if (!Settings.front_end) != Settings.Channels then
+	  user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
+	filename
+      end
+    else if StringPlus.case_insensitive_ends_with filename ".ocvl" then
+      begin
+	if (!Settings.front_end) == Settings.Channels then
+	  user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
+	filename
+      end
+    else
+      filename ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl")
   in
   try
     let ic = open_in filename in
@@ -90,9 +76,33 @@ let parse_lib filename_opt =
     user_error s 
 
 let parse_with_lib filename =
-  let l1 = parse_lib (!Settings.lib_name) in
-  let (l,p) = parse filename in
-  (l1 @ l, p)
+  let libs =
+    match !Settings.lib_name with
+    | [] ->
+	(* Use default library *)
+	let filename = "default" ^ (if (!Settings.front_end) == Settings.Channels then ".cvl" else ".ocvl") in
+	if Sys.file_exists filename then
+	  [filename]
+	else
+	  (* Look for the default library also in the CryptoVerif directory *)
+	  let filename' = Filename.concat (Filename.dirname Sys.executable_name) filename in
+	  if Sys.file_exists filename' then
+	    [filename']
+	  else
+	    user_error ("Could not find default library of primitives "^filename)
+    | l ->
+        (* In [Settings.lib_name], the librairies are in the reverse order
+	   in which they should be included *)
+	List.rev l
+  in
+  let rec parse_all_lib = function
+    | [] -> parse filename
+    | lib::q ->
+	let decl_lib = parse_lib lib in
+	let (decl_other,p) = parse_all_lib q in
+	(decl_lib @ decl_other, p)
+  in
+  parse_all_lib libs
 
 (* Environment.
    May contain function symbols, variables, ...

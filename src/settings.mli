@@ -11,7 +11,7 @@ val equiv_output : string ref
     
 val front_end : frontend ref
 
-val lib_name : string option ref
+val lib_name : string list ref
 
 val events_to_ignore_lhs : funsymb list ref
     

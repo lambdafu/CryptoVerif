@@ -13,7 +13,7 @@ let equiv_output = ref ""
     
 let front_end = ref Channels
 
-let lib_name = ref None
+let lib_name = ref []
 
 (* When handling "query_equiv", [events_to_ignore_lhs] contains events 
    that occur in the RHS of the equivalence to prove. The probability 

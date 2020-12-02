@@ -92,20 +92,25 @@ By default, CryptoVerif uses the \texttt{oracles} frontend when the input
 $\nonterm{filename}$ ends with \texttt{.ocv}, and otherwise it uses the
 \texttt{channels} frontend.
 
-\item $\texttt{-lib }\nonterm{filename}$: Sets the name of the library
-  file which is loaded by the system
+\item $\texttt{-lib }\nonterm{filename}$: Specifies a library
+  file to be loaded by the system
   before reading the input file. In the \texttt{channels} front-end,
   the loaded file is $\nonterm{filename}\texttt{.cvl}$; in the
   \texttt{oracles} front-end, it is
   $\nonterm{filename}\texttt{.ocvl}$. (The extension \texttt{.cvl}
   or \texttt{.ocvl} may also be included in $\nonterm{filename}$.)
-  The library file typically contains default declarations useful for all protocols.
-  When the \texttt{-lib} option is absent, CryptoVerif loads the
+  Library files typically contain default declarations useful for several
+  protocols.
+  
+  When no \texttt{-lib} option appears, CryptoVerif loads the
   default library, \texttt{default.cvl} in the \texttt{channels} front-end,
-  \texttt{default.ocvl} in the \texttt{oracles} front-en.
+  \texttt{default.ocvl} in the \texttt{oracles} front-end.
   The default library is searched in the current directory, then
   in the directory that contains the executable \texttt{cryptoverif}.
 
+  Multiple libraries can be specified by using \texttt{-lib} for each library.
+  The libraries are loaded in the same order as they appear on the command line.
+  
 \item $\texttt{-oproof }\nonterm{filename}$: Output the proof
 in the given file name, instead of displaying it on the standard output.
 
