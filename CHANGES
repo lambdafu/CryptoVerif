@@ -4,6 +4,7 @@ of the cryptographic protocol verifier.
 Version
 
 - Allow multiple command-line options "-lib <file>"
+- Fixed bug in computation of indices in crypto transformation
 
 Version 2.04
 

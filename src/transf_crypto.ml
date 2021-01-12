@@ -1551,22 +1551,23 @@ let rec common_names_rev l1 l2 =
 
 (* Compute the formula for upper indexes from current indexes *)
 
-let rec rev_subst_indexes current_indexes name_table indexes =
+let rec rev_subst_indexes current_rev_subst name_table indexes =
   match name_table, indexes with
     [],[] -> []
   | name_table1::rest_name_table, ((names, index)::rest_indexes) ->
       begin
       if names == [] && index == [] then
-	([],[])::(rev_subst_indexes current_indexes rest_name_table rest_indexes)
+	([],[])::(rev_subst_indexes current_rev_subst rest_name_table rest_indexes)
       else
 	let args_at_creation = List.map Terms.term_from_repl_index (snd (List.hd name_table1)).args_at_creation in
-	match current_indexes with
-	  None -> 
-	    (names, index)::
-	    (rev_subst_indexes (Some (args_at_creation, args_at_creation)) rest_name_table rest_indexes)
-	| Some (cur_idx, cur_args_at_creation) -> 
-	    (names, reverse_subst_index cur_idx cur_args_at_creation index)::
-	    (rev_subst_indexes (Some (index, args_at_creation)) rest_name_table rest_indexes)
+	let subst_idx = 
+	  match current_rev_subst with
+	  | None -> index
+	  | Some (cur_idx, cur_args_at_creation) ->
+	      reverse_subst_index cur_idx cur_args_at_creation index
+	in
+	(names, subst_idx)::
+	(rev_subst_indexes (Some (index, args_at_creation)) rest_name_table rest_indexes)
       end
   | _ -> Parsing_helper.internal_error "rev_subst_indexes"
 
