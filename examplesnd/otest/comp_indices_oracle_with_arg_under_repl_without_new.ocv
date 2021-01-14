@@ -1,0 +1,143 @@
+
+(* OAEP scheme, proof of CCA2 security *)
+
+proof {
+(* We arrange so that the test in OD uses [second(mz) = zeroDz]
+   instead of [let concatm(m, =zeroDz) = mz in]. This is useful
+   because we cannot write [let concatm(m, =zeroDz) = mz in] in
+   the LHS of an equivalence, and we need it internally to delay
+   the choice of [r_6] below. After the change, we can use:
+   [move array r_6 "forall X': Dz; X <-R Dow; second(X) = X'"]. *)
+insert before "let concatm" "if second(mz) = zeroDz then";
+(* Apply random oracle on G *)
+crypto rom(G);
+(* The cases in which the argument of G in Goracle
+   or in OD is equal to the argument of G in OT (that is, r_3)
+   in fact happen with negligible probability. We will prove that later.
+   We insert events to remove that code. *)
+insert_event bad1 before "return(r_5";
+insert_event bad3 164;
+(* After inserting these events, the result of G in OT (that is, r_5)
+   is only used in xorDow(concatm(menc, zeroDz), r_5). We can replace 
+   this xor with just a random value, thus removing the dependency
+   on menc. *)
+crypto remove_xor(xorDow) r_5;
+(* We can then prove secrecy of [b1], but we still need to prove
+   that the events [bad1] and [bad3] introduced above have a negligible
+   probability. *)
+success; (* secrecy of b1 *)
+(* We delay the choice of the random result of G in OD (r_6)
+   which is not used immediately.
+   Mentioning the collision 
+   "forall X': Dz; X <-R Dow; second(X) = X'" allows CryptoVerif
+   to show that, when X is a fresh random value, [second(X) = X']
+   reduces to [false], so we do not need to choose [r_6] when
+   it appears in an expression of the form [second(r_6) = ...]. *)
+(* move array r_6 "forall X': Dz; X <-R Dow; second(X) = X'"; *)
+crypto move_array_XX(Dow) r_6;
+simplify
+}
+
+
+param qD.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed,large].
+type Dow [fixed,large].
+type Dr [fixed,large].
+
+(* Set partial-domain one-way trapdoor permutation *)
+
+proba P_PD_OW.
+
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW).
+
+(* Hash functions, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash(hashkey, Dr, Dow, G, Goracle, qG).
+
+expand ROM_hash(hashkey, Dow, Dr, H, Horacle, qH).
+
+(* concatenation *)
+type Dm [fixed].
+type Dz [fixed,large].
+
+fun concatm(Dm,Dz):Dow [data].
+
+fun second(Dow):Dz [uniform].
+equation forall x:Dm, y:Dz; second(concatm(x,y)) = y.
+
+(* Xor *)
+
+expand Xor(Dow, xorDow, zeroDow).
+expand Xor(Dr, xorDr, zeroDr).
+expand Xor(Dz, xorDz, zeroDz).
+
+equation forall x: Dow, y: Dow;
+     second(xorDow(x,y)) = xorDz(second(x),second(y)).
+
+param NX, Neq.
+
+(* Implementing a test as a function.
+   Useful to avoid expanding if, which is necessary for this proof. *)
+
+fun test(bool, Dm, Dm):Dm.
+equation forall x:Dm,y:Dm; test(true,x,y) = x.
+equation forall x:Dm,y:Dm; test(false,x,y) = y.
+
+param N, NX_1, Neq_1.
+
+equiv(move_array_XX(Dow))
+      foreach i <= N do X <-R Dow;
+         (foreach i1 <= NX_1 do OX() := return(X) |
+          foreach i2 <= Neq_1 do Oeq(X': Dz) := return((second(X) = X')))
+<=(#Oeq / |Dz|)=>
+      foreach i <= N do
+         (foreach i1 <= NX_1 do OX() := find[unique] j<=NX_1 suchthat defined(Y[j]) && (j,i) = (i1,i) (* Added to test comparisons of indices *) then return(Y[j]) else Y <-R Dow; return(Y) |
+          foreach i2 <= Neq_1 do Oeq(X': Dz) := find[unique] j<=NX_1 suchthat defined(Y[j]) then return((second(Y[j]) = X')) else return(false)).
+
+
+(* Queries *)
+
+query secret b1 [cv_onesession].
+
+process 
+Ogen() :=
+hkh <-R hashkey;
+hkg <-R hashkey;
+r <-R seed;
+pk <- pkgen(r);
+sk <- skgen(r);
+return(pk);
+( run Goracle(hkg)
+| run Horacle(hkh)
+| (
+  OT(m1: Dm, m2: Dm) :=
+  b1 <-R bool;
+  menc <- test(b1, m1, m2);
+  r <-R Dr;
+  s <- xorDow(concatm(menc, zeroDz), G(hkg, r));
+  t <- xorDr(r, H(hkh, s));
+  cT: D <- f(pk, concat(s, t));
+  return(cT)
+) | (
+  foreach iD <= qD do
+  OD(c: D) :=
+  if defined(cT) && (c = cT) then
+    yield
+  else
+    let concat(s': Dow, t': Dr) = invf(sk, c) in
+    r' <- xorDr(t', H(hkh, s'));
+    mz <- xorDow(s', G(hkg, r'));
+    let concatm(m, =zeroDz) = mz in
+    return(m)
+))
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of b1.
+0.444s (user 0.432s + system 0.012s), max rss 22736K
+END *)

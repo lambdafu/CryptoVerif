@@ -2,6 +2,8 @@ TO DO next
 
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
+     - changes in build not pushed
+     - conflicts in .gitignore
    allow giving the RHS of equiv using tables instead of find.
    tables are then expanded into find for usage by CryptoVerif
    but could be left as tables for translating to EasyCrypt.
@@ -36,14 +38,24 @@ write a GDH assumption that uses a single set of exponents
 a_i, but leaves m = g^{a_i a_i} unchanged.
 For the proof with rerandomization, we need to guess whether
 we rerandomize to X or Y; that leads to a factor 2 in the probability.
-(for that, ideally, I should be able to test equality between
-indices i = j; currently, I encode that by testing a_i = a_j
-for random a_i and eliminating collisions, but that leads to
-a small loss in probability).
 Same for CDH, but execute event bad or corrupt a_i when one
 computes m = g^{a_i a_i}.
-Same for DDH, but we do not rerandomize so the proof is simpler;
-execute event bad or corrupt a_i when one computes g^{a_i a_i}.
+Same for DDH, but execute event bad or corrupt a_i when one
+computes g^{a_i a_i}.
+For CDH and DDH, this is currently not supported by CryptoVerif because the query m = g^{a_i a_j} (resp. g^{a_i a_j}) would either create variable on which it makes a find or execute event_abort, and this is not allowed when the query is in a condition of find, a typical situation in which we want to apply CDH. (That's less critical for DDH.) The simplest solution would be to have the query execute an event bad for m = g^{a_i a_i} (resp. g^{a_i a_i}) and modify CryptoVerif to allow event_abort in conditions of find. This problem does not occur for GDH.
+
+==> Encoding of indices implemented.
+Finish testing, then merge into master.
+
+Allow insert/get in equiv, by translating them to find.
+
+Allow event_abort in branches of find. With which semantics?
+  When a test in a branch executes event_abort e, the whole find executes event_abort e.
+  A problem is when the find contains different event_abort e_i in the conditions of its branches, we do not know which one to execute. We could choose one among the executed event_abort e_i at random. That's probably equivalent to executing the branch conditions in a random order. [Check that.]
+  Another solution is to require that all occurrences of "event_abort e" in conditions of each find use the same e. To do that, in the crypto transformation, we should allow using an oracle that has an "event_abort e" in its RHS in the condition of a find only when the conditions of that find contain no "event_abort". The crypto transformation should introduce a single event, used for all event_abort that occur in the RHS.
+Allow new in branches of find (the semantics already allows
+probabilistic constructs in branches of find, because find if probabilistic).
+
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
@@ -1339,6 +1351,11 @@ Would require changes in ProVerif to make that compatible with ProVerif.
 33) finish two "TO DO" in cryptotransf.ml, check_lhs_array_ref
 (not that urgent, now that I have modified check.ml so that it
 rejects equivalences not supported by cryptotransf.ml)
+The easiest part of this extension may be to support
+a[j] in the RHS when b[k,j] is used in the LHS, k,j are indices received
+as arguments of the oracle, and a is defined above b.
+Similarly, we could allow comparisons on j in this situation,
+instead of allowing comparisons on k,j only.
 
 34) try to reduce code duplication: 
 try to reduce the number of calls to build_def_process, by using
@@ -5561,3 +5578,94 @@ In this case, it is enough to test whether the list is empty or not.
 - get: avoid redoing the pattern matching on the selected element of the list
 DONE 6/11/2020
 
+To support comparisons of indices, define functions that
+encode indices into bitstrings.
+At the declaration of the equivalence, define
+type encoded_Nn_t (it is a bitstring type)
+for the encoding of indices corresponding to !N1 ... !Nn
+define function encode_Nn(<=N1,...,<=Nn):encoded_Nn_t [data].
+Allow applying these functions to indices. One can then compare
+the results of these functions, and that's all we can do because
+no other function takes these types as arguments. (Do not allow
+tuples to take these types as argument.)
+These functions are supported when fresh random values are
+chosen under !N1...!Nn or when !N1...!Nn is followed by an
+oracle definition with at least one argument.
+Encode
+* u = u' as encode_N1(u) = encode_N1(u').
+encodable index term EIT
+EIT ::=
+| i where i is a replication index or a variable of type <= N,
+    received as input or defined by find.
+    (array accesses on variables received as input or defined by find
+    are removed by introducing lets)
+| (i1,...,in) with i1..in as i above.
+| b[...] where b is defined by "let b = EIT in ..."
+| if ... then EIT else EIT
+| let ... in EIT else EIT
+| find (several branches) ... then EIT else EIT
+| new x:T; EIT
+| event_abort e (when it is inside a term that is an EIT for
+                 some other reason)
+
+EIT are allowed in the following contexts:
+EIT = EIT
+EIT <> EIT
+let b = EIT in ...
+
+Transformation of EIT, defined as a function F:
+each variable defined by "let b = EIT in ..." has an associated variable
+b' of type encoded_N_t
+
+F(i) = encode_N(i)
+F((i1,...,in)) = encode_N(i1,...,in)
+   provided there is a variable [random variable or argument to oracle
+   defined under replication !N] defined with indices
+   i1...in (resp. i), that is, i1...in is 
+   - a suffix of cur_array
+   - a suffix of max_sequence coming from a find above the considered EIT
+   - received index variables, such that there is a variable with those indices
+     (currently, using a suffix of a sequence of received index variables is not supported)
+   In the crypto transformation, that variable will be recovered, say it is x.
+   (It is either a random variable or an argument of oracle defined just
+   under !N in the equivalence.)
+   x[i1...in] is mapped by the crypto transform to y[idx].
+   encode_N(i1...in) will be mapped to
+   equiv_[this_transfo_num]_encode_N_[var_id](idx).  (see below)
+F(b[...]) = b'[...]
+F is applied homomorphically to the other cases.
+
+EIT = EIT becomes F(EIT) = F(EIT) and the type of = is adjusted
+EIT <> EIT becomes F(EIT) <> F(EIT) and the type of <> is adjusted
+let b = EIT in ... becomes let b' = F(EIT) in ...
+
+* if defined(k[j]) then (where j is received) as find u <= N suchthat defined(k[u]) && encode_N(u) = encode_N(j) then
+* a find on u defined by "find u <= N suchthat" by "find u <= N suchthat ... then let u' = encode_N(u) in "
+and doing a find on u'
+Rather: replace 
+find u <= N suchthat ... then M, with an array access to u.
+with
+find u' <= N suchthat ... then let u = u' in M{u'/u}
+
+When instantiating such an equivalence,
+define distinct types and encode functions for each application of an
+equivalence, yielding type equiv_i_encoded_Nn_t and
+functions equiv_i_encode_Nn_[var_id] where [var_id] can be either
+- r1...rk when the variables re1...rek chosen under !N1...!Nn in the equivalence
+  are mapped to r1...rk in the game
+- an integer exp_id different for each mapping entry when !Nn is above
+  an oracle definition
+The function equiv_i_encode_Nn_r1...rk takes as argument the indices of r1...rk
+and converts them to a bitstring.
+the functions equiv_i_encode_Nn_r1...rk for different r1...rk
+yield different results for all values of their arguments.
+Similarly, the function equiv_i_encode_Nn_exp_id takes as argument the indices
+of a variable used a argument of the oracle and converts them to a bitstring.
+the functions equiv_i_encode_Nn_exp_id for different exp_id
+yield different results for all values of their arguments.
+(These functions define the mapping from indices in the game to
+indices in the equivalence as used in the proof of the crypto transformation.)
+Simplification can quickly eliminate the functions equiv_i_encode_Nn_[var_id],
+transforming comparisons between the results of these functions
+into comparisons between their arguments (or into false).
+DONE 13/1/2021

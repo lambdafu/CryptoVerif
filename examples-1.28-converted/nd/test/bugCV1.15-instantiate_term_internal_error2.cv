@@ -175,6 +175,6 @@ process
 	 (! N processS(Kas, mKas, Kbs, mKbs)))
 
 (* EXPECTED
-Error: Variable reference not allowed
+Error: These indices j_1 are not allowed. The allowed indices are:
 xtime: error in child process (status : 2)
 END *)

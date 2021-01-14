@@ -52,7 +52,12 @@ let fun_out out_f f =
   with x ->
     dest := old_dest;
     raise x
-  
+
+let string_out f =
+  let b = Buffer.create 80 in
+  fun_out (Buffer.add_string b) f;
+  Buffer.contents b
+      
 type display_occ_t = NoOcc | AllOccs | ProcessOccs      
 let display_occurrences = ref NoOcc
 let useful_occs = ref []

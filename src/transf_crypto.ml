@@ -326,6 +326,14 @@ let rec assq_binder_binderref b = function
       else
 	assq_binder_binderref b l
 
+let rec assq_idx l = function
+  | [] -> raise Not_found
+  | (l', t')::rest ->
+      if Terms.equal_term_lists l l' then
+	t'
+      else
+	assq_idx l rest
+	  
 
 let check_distinct_links lhs_array_ref_map bl =
   let seen_binders = ref [] in
@@ -1221,6 +1229,13 @@ type one_exp =
         b' = the corresponding binder in the process
         l' = its indices in the process
      *)
+     mutable after_transfo_input_index_map : (term list * (binder * term list)) list;
+        (* List of (l, (b', l')) where l is a sequence of indices using
+	   indices passed as input in the RHS of equivalence, l' is the corresponding
+	   sequence of indices in the process, and b' is the random variable in
+	   the process corresponding to the first restriction in the list
+	   of restrictions that use index l. (We use b' as identifier for the
+	   encode function used for encoding l'.) *)
      before_transfo_input_vars_exp : (binder * term) list;
         (* List of (b,t) where b is a binder defined by an input in the 
            left member of the equivalence and the term t is its image in the process *)        
@@ -1264,6 +1279,7 @@ type mapping =
            The indexes at creation of b' are name_list_i_indexes *)
      rev_subst_name_indexes : (binder list * term list) list; 
         (* List of binders at creation of names in name_list_i in the process *)
+     target_cur_array : repl_index list; (* cur_array in the right member of the equivalence *)
      target_exp : term; (* Right-member expression in the equivalence *)
      target_args : binder list; (* Input arguments in right-hand side of equivalence *)
      count : (repl_index * (binder * binder) list list option * term list) list;
@@ -1273,10 +1289,11 @@ type mapping =
            should be counted only once.
 	   The number of repetitions is the product of the bounds
 	   of the indices stored in the "term list" component. *)
-     count_calls : channel * (binder * binder) list list option * term list
+     count_calls : channel * (binder * binder) list list option * term list;
         (* Oracle name and number of calls to this oracle, with associated name
 	   table: when several repl. binders have the same name table, they
            should be counted only once. *)
+     mutable encode_fun_for_indices : funsymb option
    }
 
 (* expression to insert for replacing source_exp_instance 
@@ -2099,6 +2116,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	name_indexes_exp = indexes_ordered';
 	before_transfo_array_ref_map = before_transfo_array_ref_map;
 	after_transfo_array_ref_map = [];
+	after_transfo_input_index_map = [];
 	after_transfo_let_vars = after_transfo_let_vars;
 	cur_array_exp = cur_array;
 	before_transfo_input_vars_exp = input_env;
@@ -2412,10 +2430,12 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 			   source_args = args;
 			   after_transfo_restr = after_transfo_restr;
 			   rev_subst_name_indexes = rev_subst_name_indexes;
+			   target_cur_array = repl';
 			   target_exp = res_term';
 			   target_args = args';
 			   count = count;
-			   count_calls = count_calls
+			   count_calls = count_calls;
+			   encode_fun_for_indices = None
 		         } 
 		       in
 		       map := new_mapping :: (!map)
@@ -2499,10 +2519,12 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		       source_args = args;
 		       after_transfo_restr = after_transfo_restr;
 		       rev_subst_name_indexes = rev_subst_name_indexes;
+		       target_cur_array = repl';
 		       target_exp = res_term';
 		       target_args = args';
 		       count = count;
-		       count_calls = count_calls
+		       count_calls = count_calls;
+		       encode_fun_for_indices = None
 		       (* TO DO (to reduce probability difference)
 			  When I have several times the same expression, possibly with different
 			  indexes, I should count the probability difference only once.
@@ -2987,7 +3009,7 @@ let check_lhs_array_ref() =
       (*  map_list maps arguments of the LHS to arguments of the RHS
 	  and replication indices of the LHS to replication indices of the RHS *)
       let args_assq = List.combine mapping.source_args mapping.target_args in
-      let rec map_list b_after = function
+      let rec map_list args_at_creation = function
 	  t :: r ->
 	    begin
 	      match t.t_desc with
@@ -2995,13 +3017,13 @@ let check_lhs_array_ref() =
 		  begin
 		    try
 		      (* Argument of the LHS -> argument of the RHS *)
-		      (Terms.term_from_binder (List.assq b args_assq))::(map_list b_after r)
+		      (Terms.term_from_binder (List.assq b args_assq))::(map_list args_at_creation r)
 		    with Not_found -> 
 		      Parsing_helper.internal_error "Variables used as array index should occur in the arguments"
 		  end
 	      |	ReplIndex b ->
 		  (* Replication index *)
-		  List.map Terms.term_from_repl_index (Terms.lsuffix (1+List.length r) b_after.args_at_creation)
+		  List.map Terms.term_from_repl_index (Terms.lsuffix (1+List.length r) args_at_creation)
 	      | _ ->  Parsing_helper.internal_error "Variable or replication index expected as index in array reference"
 	    end
 	| [] -> []
@@ -3011,7 +3033,7 @@ let check_lhs_array_ref() =
 	let l_b = List.filter (fun ((b,_),_,_) -> b == b_before) bf_array_ref_map in
 	List.iter (fun ((_,l),(_,l'),mapping') ->
 	  let b_after' = List.assq b_after mapping'.after_transfo_restr in
-	  let l = map_list b_after l in
+	  let l = map_list b_after.args_at_creation l in
 	  (* print_string "Mapping ";
 	  Display.display_var b_after l;
 	  print_string " to ";
@@ -3019,8 +3041,29 @@ let check_lhs_array_ref() =
 	  print_newline(); *)
 	  one_exp.after_transfo_array_ref_map <- ((b_after, l), (b_after', l')) :: one_exp.after_transfo_array_ref_map
 	    ) l_b
-	  ) name_mapping
+	  ) name_mapping;
 
+      (* Build the correspondence table from sequences of indices that
+	 use indices passed as arguments to the oracle.
+	 The indices [l] in the LHS of equiv correspond to [l'] in the process,
+	 according to [bf_array_ref_map].
+	 They also correspond to [l_rhs] in the RHS of equiv.
+	 The encoding function for [l'] is bijectively associated to the
+	 first variable in the list of restrictions that associates [b] to [b'],
+	 this variable is [b'']. *)
+      one_exp.after_transfo_input_index_map <-
+	 List.map (fun ((b, l), (b', l'), mapping') ->
+	   let l_rhs = map_list mapping'.target_cur_array l in
+	   (* Find the restriction list that contains (b,b') *)
+	   let lrestr = List.find (fun lrestr ->
+	     List.exists (fun (b1,b1') -> (b1 == b) && (b1' == b')) lrestr
+	       ) mapping'.before_transfo_name_table
+	   in
+	   (* [b''] the first variable in the restriction list that contains [b'] *)
+	   let (_,b'') = List.hd lrestr in
+	   (l_rhs, (b'', l')) 
+	     ) bf_array_ref_map
+	
 	) mapping.expressions
       ) (!map)
 
@@ -3072,6 +3115,74 @@ let rename_def_list loc_rename def_list =
 let introduced_events = ref []
 let restr_to_put = ref []
 
+(* Functions for encoding indices *)
+
+let build_encode_fun name arg_types result_type =
+  { f_name = Terms.fresh_id name;
+    f_type = arg_types, result_type;
+    f_cat = Tuple; (* Category Tuple implies that distinct functions yield distinct results (for any arguments *)
+    f_options = Settings.fopt_COMPOS;
+    f_statements = [];
+    f_collisions = [];
+    f_eq_theories = NoEq;
+    f_impl = No_impl;
+    f_impl_inv = None }
+    
+let encode_funs_for_binders = ref []
+
+let encode_fun_for result_type b =
+  let encode_funs_for_type = 
+    try
+      List.assq result_type (!encode_funs_for_binders)
+    with Not_found ->
+      let encode_funs_for_type = ref [] in
+      encode_funs_for_binders := (result_type, encode_funs_for_type) :: (!encode_funs_for_binders);
+      encode_funs_for_type
+  in
+  try
+    List.assq b (!encode_funs_for_type)
+  with Not_found ->
+    let f = build_encode_fun
+	("encode_idx_"^b.sname)
+	(List.map (fun ri -> ri.ri_type) b.args_at_creation)
+	result_type
+    in
+    encode_funs_for_type := (b, f) :: (!encode_funs_for_type);
+    f
+  
+let encode_funs_for_exps = ref []
+
+let encode_fun_for_exp result_type arg_types mapping =
+  match mapping.encode_fun_for_indices with
+  | Some f -> f
+  | None ->
+      let f = build_encode_fun "encode_idx_exp" arg_types result_type in
+      mapping.encode_fun_for_indices <- Some f;
+      begin
+	try
+	  let l = List.assq result_type (!encode_funs_for_exps) in
+	  l := f :: (!l)
+	with Not_found ->
+	  encode_funs_for_exps := (result_type, ref [f]) :: (!encode_funs_for_exps)
+      end;
+      f
+
+(* The encoding functions for indices are bijectively associated 
+- either to the variable in the process corresponding to the first restriction 
+of the list of restrictions that creates variables with the considered 
+indices in the LHS of equiv.
+- or to the expression itself in the process when the indices correspond to all
+indices of the oracle, and there is no restriction under the replication
+just above the definition of the oracle in the LHS of equiv.
+(In this case, the [mapping] element contains a single [one_exp] element,
+so we can associate the encoding function to the [mapping] element.)
+
+The next type specifies these two cases. *)
+
+type encode_fun_spec =
+  | EncodeFunBinder of binder
+  | EncodeFunExp of mapping
+	
 let rec transform_term t =
   try
     let (mapping, one_exp) = find_map t in
@@ -3113,7 +3224,7 @@ let rec transform_term t =
 	  restr_to_put := (List.map snd (List.hd mapping.after_transfo_name_table)) @ (!restr_to_put)
       | _ -> ()
     end;
-    let instance = Terms.delete_info_term (instantiate_term one_exp.cur_array_exp false [] mapping one_exp mapping.target_exp) in
+    let instance = Terms.delete_info_term (instantiate_term one_exp.cur_array_exp false [] [] mapping one_exp mapping.target_exp) in
     let result = 
     match one_exp.product_rest with
       None -> instance
@@ -3147,7 +3258,7 @@ let rec transform_term t =
       | TestE _ | LetE _ | FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
 	  Parsing_helper.internal_error "If, find, let, new, event, event_abort get, and insert should have been expanded (Cryptotransf.transform_term)")
 
-and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
+and instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t =
   match t.t_desc with
     Var(b,l) ->
       begin
@@ -3189,11 +3300,101 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	 checks that only expected variable references occur, and in 
 	 particular replication indices do not occur. *)
   | FunApp(f,l) ->
-      Terms.build_term t (FunApp(f, List.map (instantiate_term cur_array in_find_cond loc_rename mapping one_exp) l))
+      if List.exists (fun t -> t.t_type.tcat != BitString) l then
+	begin
+	  (* f must be an "encode_..." function *)
+	  assert (f.f_cat == Tuple);
+	(* Encoding of indices 
+	   possible cases:
+           - suffix of cur_array
+	   - indices passed as argument
+	   - indices of find
+	   *)
+	let l_len = List.length l in
+	(* l = suffix of mapping.target_cur_array:
+	   if l = mapping.target_cur_array with the n first elements omitted, then
+	   - the variables in the n-th (starting from 0) list of restrictions of 
+	   mapping.after_transfo_name_table use indices l
+	   - the variables in the n-th (starting from 0) list of restrictions of 
+	   mapping.before_transfo_name_table use indices that correspond to l with a renaming.
+	   - in the process, these indices correspond to the n-th (starting from 0)
+	   element of one_exp.name_indexes_exp
+	   - the encoding function is bijectively associated to the first variable 
+	   in the n-th (starting from 0) list of restrictions of 
+	   mapping.before_transfo_name_table, named b'.
+	   - however, when n = 0, it is possible that there is no such b':
+	   there is no restriction just under the oracle definition.
+	   In this case, the encoding function is bijectively associated to the
+	   mapping element (and there is a single one_exp element in the mapping).
+	   *)
+	let find_index_seq_cur_array_suffix() = 
+	  let cur_array_len = List.length mapping.target_cur_array in
+          if cur_array_len >= l_len then
+	    let cur_array_suffix = Terms.lsuffix l_len mapping.target_cur_array in
+	    if List.for_all2 (fun t ri ->
+	      match t.t_desc with
+	      | ReplIndex ri' -> ri == ri'
+	      | _ -> false) l cur_array_suffix then
+	      (* Found: l is a suffix of mapping.target_cur_array *)
+	      let (_,index1) = List.nth one_exp.name_indexes_exp (cur_array_len - l_len) in
+	      let lrestr = List.nth mapping.before_transfo_name_table (cur_array_len - l_len) in
+	      let fencode = 
+		match lrestr with
+		| [] ->
+		(* Empty list of restrictions is allowed just before an input *)
+		    assert (cur_array_len = l_len);
+		    EncodeFunExp mapping
+		| (b,b')::_ ->
+		    EncodeFunBinder b'
+	      in
+	      (fencode, index1)
+	    else
+	      raise Not_found
+	  else
+	    raise Not_found
+	in
+	(* l = indices passed as argument.
+	   Use the correpondence table built in one_exp.after_transfo_input_index_map *)
+	let rec find_index_seq_input_indices = function
+	  | [] -> raise Not_found
+	  | (l0,(b',l'))::rest ->
+	      if Terms.equal_term_lists l0 l then
+		(* Found *)
+		(EncodeFunBinder b', l')
+	      else
+		find_index_seq_input_indices rest
+	in
+	let (encode_fun_spec, l') = 
+	  try
+	    find_index_seq_cur_array_suffix()
+	  with Not_found ->
+	    try
+	      find_index_seq_input_indices one_exp.after_transfo_input_index_map
+	    with Not_found ->
+	      try
+	      (* l = indices of find
+		 Use the correspondence table [loc_rename_idx] *)
+		assq_idx l loc_rename_idx 
+	      with Not_found -> 
+		Display.display_term t;
+		Parsing_helper.internal_error ("Sequence of indices not found in instantiate_term")
+	in
+	let fencode = 
+	  match encode_fun_spec with
+	  | EncodeFunExp mapping' ->
+	      encode_fun_for_exp (snd f.f_type) (List.map (fun t -> t.t_type) l') mapping'
+	  | EncodeFunBinder b' ->
+	      encode_fun_for (snd f.f_type) b'
+	in
+	Terms.build_term t (FunApp(fencode, l'))
+	end
+      else
+	Terms.build_term t (FunApp(f, List.map (instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp) l))
   | TestE(t1,t2,t3) ->
-      Terms.build_term t (TestE(instantiate_term cur_array in_find_cond loc_rename mapping one_exp t1,
-				instantiate_term cur_array in_find_cond loc_rename mapping one_exp t2,
-				instantiate_term cur_array in_find_cond loc_rename mapping one_exp t3))
+      Terms.build_term t
+	(TestE(instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t1,
+	       instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t2,
+	       instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t3))
   | FindE(l0, t3, find_info) -> 
       (* - a variable in def_list cannot refer to an index of 
 	 another find; this is forbidden in syntax.ml. *)
@@ -3202,10 +3403,11 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	let bl_vars = List.map fst bl in
 	let bl_vars_terms = List.map Terms.term_from_binder bl_vars in
 	let bl_indices = List.map snd bl in
-	let add_find (indexes, constra, var_map) =
+	let add_find (indexes, constra, var_map, idx_map) =
 	  let vars = List.map (fun ri -> new_binder3 ri cur_array) indexes in
 	  let vars_terms = List.map Terms.term_from_binder vars in
 	  let loc_rename' = var_map @ loc_rename in
+	  let loc_rename_idx' = idx_map @ loc_rename_idx in
 	  (* replace replication indices with the corresponding variables in var_map *)
 	  let var_map'' = List.map (function ((b,l),(b',l')) ->
 	    ((b, List.map (Terms.subst bl_indices bl_vars_terms) l), 
@@ -3213,24 +3415,32 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	      ) var_map 
 	  in
 	  let loc_rename'' = var_map'' @ loc_rename in
+	  let idx_map'' = List.map (function (l, (encode_fun_spec, l')) ->
+	    (List.map (Terms.subst bl_indices bl_vars_terms) l,
+	     (encode_fun_spec, List.map (Terms.subst indexes vars_terms) l'))
+	      ) idx_map
+	  in
+	  let loc_rename_idx'' = idx_map'' @ loc_rename_idx in
 	  find_exp :=
 	     (List.combine vars indexes, 
 	      begin
+		let def_list' = rename_def_list var_map def_list in 
 		match constra with
-		  None -> rename_def_list var_map def_list
+		  None -> def_list'
 		| Some t -> 
 		    (* when constra = Some t, I need to add in the def_list the array accesses that occur in t *)
-		    let accu = ref (rename_def_list var_map def_list) in
+		    let accu = ref def_list' in
 		    Terms.get_deflist_subterms accu t;
 		    !accu
 	      end, 
 	      begin
 		let cur_array_cond = indexes @ cur_array in
+		let t1' = instantiate_term cur_array_cond true loc_rename' loc_rename_idx' mapping one_exp t1 in
 		match constra with
-		  None -> instantiate_term cur_array_cond true loc_rename' mapping one_exp t1
-		| Some t -> Terms.make_and t (instantiate_term cur_array_cond true loc_rename' mapping one_exp t1)
+		  None -> t1' 
+		| Some t -> Terms.make_and t t1'
 	      end,
-	      instantiate_term cur_array in_find_cond loc_rename'' mapping one_exp t2) :: (!find_exp)
+	      instantiate_term cur_array in_find_cond loc_rename'' loc_rename_idx'' mapping one_exp t2) :: (!find_exp)
 	in
 	match def_list with
 	  (_,(({ t_desc = ReplIndex(b0) }::_) as l1))::_ ->
@@ -3248,6 +3458,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 	    let cur_array_suffix = Terms.lsuffix l_cur_array_suffix cur_array in*)
 	    List.iter (fun mapping' ->
 	      let cur_var_map = ref [] in
+	      let cur_idx_map = ref [] in
 	      let var_not_found = ref [] in
 	      let depth_mapping = List.length mapping'.before_transfo_name_table in
 	      if depth_mapping >= l_index + l_cur_array_suffix then
@@ -3296,11 +3507,43 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		  let b' = List.assq b mapping'.after_transfo_restr in
 		  let indexes = snd (List.nth one_exp0.name_indexes_exp (depth_mapping - List.length l)) in
 		  cur_var_map := ((b,l),(b',reverse_subst_index max_indexes map_indexes indexes))::(!cur_var_map)
-		with Not_found ->
-		  var_not_found := (b,l) :: (!var_not_found)
+		with
+		| Not_found ->
+		    var_not_found := (b,l) :: (!var_not_found)
 		| NoMatch ->
-		      Parsing_helper.internal_error "reverse_subst_index failed in instantiate_term (2)"
-					      ) def_list;
+		    Parsing_helper.internal_error "reverse_subst_index failed in instantiate_term (2)"
+		      ) def_list;
+	      (* Compute cur_idx_map *)
+	      let cur_array_suffix = Terms.lsuffix l_cur_array_suffix l1 in
+	      (* We map indices [(suffix of bl_indices) @ cur_array_suffix]
+		 We start with the longest list, [bl_indices @ cur_array_suffix] *)
+	      let l_max = l_index + l_cur_array_suffix in
+	      let max_l = (List.map Terms.term_from_repl_index bl_indices) @ cur_array_suffix in
+	      let indexes_l = Terms.skip (depth_mapping - l_max) one_exp0.name_indexes_exp in
+	      let before_name_table_l = Terms.skip (depth_mapping - l_max) mapping'.before_transfo_name_table in
+	      let rec build_cur_idx_map indexes_l before_name_table_l l =
+		(* We stop when l == cur_array_suffix *)
+		if l == cur_array_suffix then () else 
+		match indexes_l, before_name_table_l, l with
+		| [], [], [] -> ()
+		| (_,indexes)::indexes_rest, lrestr::before_name_table_rest, _::rest ->
+		    let l' = reverse_subst_index max_indexes map_indexes indexes in
+		    let encode_fun = 
+		      match lrestr with
+		      | [] -> 
+		          (* Empty list of restrictions is allowed just before an input *)
+			  assert (depth_mapping == l_max && l == max_l);
+			  EncodeFunExp mapping'
+		      | (_,b')::_ ->
+			  EncodeFunBinder b'
+		    in
+		    cur_idx_map := (l, (encode_fun, l')) ::(!cur_idx_map);
+		    build_cur_idx_map indexes_rest before_name_table_rest rest
+		| _ ->
+		    Parsing_helper.internal_error "build_cur_idx_map: lists should have same length"
+	      in
+	      build_cur_idx_map indexes_l before_name_table_l max_l;
+	      
 	      if (!var_not_found) == [] then
 		begin
 	          (* when several mappings have as common names all names referenced in the find
@@ -3325,7 +3568,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 		  if find_previous_mapping (!map) then
 		    Terms.set_var_num_state vcounter (* Forget index variables, since no find branch will be generated for this mapping *)
 		  else
-		    add_find (find_indexes, constra, !cur_var_map)
+		    add_find (find_indexes, constra, !cur_var_map, !cur_idx_map)
 		end
 	      else if depth_mapping = l_index + l_cur_array_suffix then
 	        (* Some variable was not found in after_transfo_restr;
@@ -3349,9 +3592,9 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 			  if List.length b'.args_at_creation != List.length map_indexes then
 			    Parsing_helper.internal_error "Bad length for indexes (1)";
 			  exp_cur_var_map := ((b,l),(b',map_indexes)) :: (!exp_cur_var_map)
-													   ) (!var_not_found);
+				      ) (!var_not_found);
 			seen_let_vars := one_exp'.after_transfo_let_vars :: (!seen_let_vars);
-			add_find (find_indexes, constra, !exp_cur_var_map)
+			add_find (find_indexes, constra, !exp_cur_var_map, !cur_idx_map)
 		      end
 		    else
 		      begin
@@ -3368,9 +3611,9 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
 			  if List.length b'.args_at_creation != List.length exp_map_indexes then
 			    Parsing_helper.internal_error "Bad length for indexes (2)";
 			  exp_cur_var_map := ((b,l),(b',List.map Terms.term_from_repl_index exp_map_indexes)) :: (!exp_cur_var_map)
-													       ) (!var_not_found);
+				  ) (!var_not_found);
 			seen_let_vars := one_exp'.after_transfo_let_vars :: (!seen_let_vars);
-			add_find (find_indexes @ exp_map_indexes, and_constra constra constra2, !exp_cur_var_map)
+			add_find (find_indexes @ exp_map_indexes, and_constra constra constra2, !exp_cur_var_map, !cur_idx_map)
 		      end
 			) mapping'.expressions
 		with Not_found ->
@@ -3382,25 +3625,25 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
               end
 		    ) (!map)
 	| _ -> Parsing_helper.internal_error "Bad index for find variable") l0;
-      Terms.build_term t (FindE(!find_exp, instantiate_term cur_array in_find_cond loc_rename mapping one_exp t3, find_info))
+      Terms.build_term t (FindE(!find_exp, instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t3, find_info))
   | LetE(pat,t1,t2,topt) ->
       let loc_rename_ref = ref loc_rename in
-      let pat' = instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp pat in
+      let pat' = instantiate_pattern cur_array in_find_cond loc_rename_ref loc_rename_idx mapping one_exp pat in
       let loc_rename' = !loc_rename_ref in
       Terms.build_term t 
 	(LetE(pat',
-	      instantiate_term cur_array in_find_cond loc_rename' mapping one_exp t1,
-	      instantiate_term cur_array in_find_cond loc_rename' mapping one_exp t2,
+	      instantiate_term cur_array in_find_cond loc_rename' loc_rename_idx mapping one_exp t1,
+	      instantiate_term cur_array in_find_cond loc_rename' loc_rename_idx mapping one_exp t2,
 	      match topt with
 		None -> None
-	      |	Some t3 -> Some (instantiate_term cur_array in_find_cond loc_rename mapping one_exp t3)))
+	      |	Some t3 -> Some (instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t3)))
   | ResE(b,t') ->
       Terms.build_term t 
 	(ResE((try
 	  List.assq b one_exp.after_transfo_let_vars
         with Not_found ->
 	  Parsing_helper.internal_error "Variable not found (ResE)"), 
-	      instantiate_term cur_array in_find_cond loc_rename mapping one_exp t'))
+	      instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t'))
   | EventAbortE(f) ->
       (* Create a fresh function symbol, in case the same equivalence has already been applied before *)
       let f' = { f_name = Terms.fresh_id f.f_name;
@@ -3421,7 +3664,7 @@ and instantiate_term cur_array in_find_cond loc_rename mapping one_exp t =
       Parsing_helper.internal_error "event, get, insert should not occur in the RHS of equivalences"
 	
 
-and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = function
+and instantiate_pattern cur_array in_find_cond loc_rename_ref loc_rename_idx mapping one_exp = function
     PatVar b ->
       if in_find_cond then
 	let b' = new_binder2 b cur_array in
@@ -3432,8 +3675,8 @@ and instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp = 
 	  List.assq b one_exp.after_transfo_let_vars
 	with Not_found ->
 	  Parsing_helper.internal_error "Variable not found")
-  | PatTuple (f,l) -> PatTuple (f,List.map (instantiate_pattern cur_array in_find_cond loc_rename_ref mapping one_exp) l)
-  | PatEqual t -> PatEqual (instantiate_term cur_array in_find_cond (!loc_rename_ref) mapping one_exp t)
+  | PatTuple (f,l) -> PatTuple (f,List.map (instantiate_pattern cur_array in_find_cond loc_rename_ref loc_rename_idx mapping one_exp) l)
+  | PatEqual t -> PatEqual (instantiate_term cur_array in_find_cond (!loc_rename_ref) loc_rename_idx mapping one_exp t)
 
 
 let rec put_restr l p =
@@ -4868,6 +5111,8 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   introduced_events := [];
   time_computed := None;
   symbols_to_discharge := [];
+  encode_funs_for_binders := [];
+  encode_funs_for_exps := [];
   let vcounter = Terms.get_var_num_state() in
   List.iter (fun (fg, mode) ->
     if mode == AllEquiv then build_symbols_to_discharge fg) lm;
@@ -4947,5 +5192,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   symbols_to_discharge := [];
   map := [];
   introduced_events := [];
+  encode_funs_for_binders := [];
+  encode_funs_for_exps := [];
   restr_to_put := [];
   result

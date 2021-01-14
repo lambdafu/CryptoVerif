@@ -1,0 +1,118 @@
+(* Proving ind_cca2(enc) from ind_cca2_partial(enc)
+   Note: there is a minor change in ind_cca2(enc) that we prove: the finds in Odec 
+   are grouped in a single find with 2 branches, and the branches are reordered. 
+   22/10/2020: I now use a single find with 2 branches in the standard library,
+   so now the only change is the reordering of the branches.
+   17/12/2020: Version that uses comparisons on indices. 
+   Avoids the Penccoll term in probabilities. *)
+
+
+proof{
+	insert after "Oenc2" "find k <= N3 suchthat defined(r[k]) && y = pkgen(r[k]) then";
+	(* replace y with pkgen(r[k]) *)
+	replace at_nth 1 2 "enc_r({[0-9]+}x, {[0-9]+}y, {[0-9]+}r2)" "pkgen(r[k])";
+	crypto ind_cca2_partial(enc);
+	(* replace pkgen(r[k]) with y *)
+	replace at 3 "enc_r2({[0-9]+}Z({[0-9]+}x), {[0-9]+}pkgen({[0-9]+}r[{[0-9]+}k]), {[0-9]+}r2)" "y";
+	start_from_other_end;
+	simplify;
+	success
+}
+
+type keyseed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type cleartext.
+type ciphertext.
+type enc_seed [bounded].
+
+proba Penc.
+proba Penccoll.
+
+(* Copy of part of the macro IND_CCA2_public_key_enc_all_args *)
+
+param N, N2, N3, N4.
+
+fun enc_r(cleartext, pkey, enc_seed): ciphertext.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+fun dec(ciphertext, skey): bitstringbot.
+
+fun enc_r2(cleartext, pkey, enc_seed): ciphertext.
+fun skgen2(keyseed):skey.
+fun pkgen2(keyseed):pkey.
+fun dec2(ciphertext, skey): bitstringbot.
+
+letfun enc(m: cleartext, pk: pkey) =
+       r <-R enc_seed; enc_r(m,pk,r).
+
+fun injbot(cleartext):bitstringbot [data].
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+equation forall m:cleartext, r:keyseed, r2:enc_seed; 
+	dec(enc_r(m, pkgen(r), r2), skgen(r)) = injbot(m).
+equation forall m:cleartext, r:keyseed, r2:enc_seed; 
+	dec2(enc_r2(m, pkgen2(r), r2), skgen2(r)) = injbot(m).
+
+(* Manual version, which can transform only some occurrences of encryption:
+   just use oracle Opk to discharge the public key in occurrences of encryption
+   that you do not want to transform.
+   It renames only the encryption function symbol for the occurrences that are transformed,
+   so it can be applied again to other occurrences. *)
+
+equiv(ind_cca2_partial(enc))
+       r <-R keyseed; (
+           Opk() := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
+           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) [useful_change] := return(enc_r(x1, pkgen(r),r1)))
+     <=(N * Penc(time + (N-1) * time(enc_r, maxlength(x1)), N2))=> [manual]
+       r <-R keyseed; (
+           Opk() := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) :=
+                find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) else
+		return(dec(m, skgen(r))) |
+	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+			m1:ciphertext <- enc_r2(Z(x1), pkgen(r), r1);
+			return(m1)).
+
+collision r1 <-R keyseed; r2 <-R keyseed; 
+	return(pkgen(r1) = pkgen(r2)) <=(Penccoll)=> return(false).
+
+(* End of the copy *)
+
+
+equation forall x: keyseed; pkgen2(x) = pkgen(x).
+equation forall x: keyseed; skgen2(x) = skgen(x).
+equation forall x: ciphertext, k: skey; dec2(x,k) = dec(x,k).
+
+
+query_equiv
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() [2] := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
+           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r),r1))) |
+       foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
+     <=(?)=> 
+       foreach i3 <= N3 do r <-R keyseed; (
+           Opk() := return(pkgen2(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) :=
+                find j <= N4 suchthat defined(k[j],m2[j],x[j]) && k[j] = i3 && m = m2[j] then return(injbot(x[j]))
+		orfind j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j]))
+		else return(dec2(m, skgen2(r))) |
+	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+			m1:ciphertext <- enc_r2(Z(x1), pkgen2(r), r1);
+			return(m1)) |
+       foreach i4 <= N4 do Oenc2(x:cleartext, y:pkey) :=
+		find k <= N3 suchthat defined(r[k]) && y = pkgen2(r[k]) then
+			(r2 <-R enc_seed; 
+			m2:ciphertext <- enc_r2(Z(x), y, r2);
+			return(m2))
+		else r3 <-R enc_seed; return(enc_r(x,y,r3))
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

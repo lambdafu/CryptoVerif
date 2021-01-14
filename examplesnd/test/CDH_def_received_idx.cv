@@ -1,5 +1,44 @@
 (* Signed Diffie-Hellman protocol *)
 
+def CDH_XX(G, Z, g, exp, exp', mult, pCDH) {
+
+(* the CDH assumption *) 
+
+param na, naDDH, nb, nbDDH, naDH9, nbDH9.
+
+equiv(cdh(exp))
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) | 
+      Oa() [10] := return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      Ob() [10] := return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
+    )
+<=((naDDH + nbDDH) * na * nb * pCDH(time + (na + nb + #ODDHa + #ODDHb - 3) * time(exp)))=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp'(g,a)) |
+      Oa() := let ka:bool = true in return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
+      	      if defined(kb[j]) then return(m = exp'(g, mult(b[j], a))) else 
+              if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp'(g,b)) |
+      Ob() := let kb:bool = true in return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
+      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], b))) else 
+              if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
+    ).
+
+}
+
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
 param NA, NB, NK.
@@ -24,7 +63,7 @@ expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
 
 (* CDH assumption *)
 proba pCDH.
-expand CDH(G, Z, g, exp, exp', mult, pCDH).
+expand CDH_XX(G, Z, g, exp, exp', mult, pCDH).
 
 
 (* Hash in the random oracle model *)
@@ -117,7 +156,7 @@ process
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
    	((!iA <= NA processA(hk,skA)) |
-	 (!iB <= NB processB(hk,skB)) |
+	 (!iA <= NB processB(hk,skB)) |
 	 hashoracle(hk) |
 	 processK(pkA,pkB))
 

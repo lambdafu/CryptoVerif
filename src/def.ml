@@ -114,6 +114,18 @@ and empty_def_oprocess p =
       List.iter empty_def_term tl;
       empty_def_oprocess p
 
+let rec empty_def_fungroup = function
+    ReplRestr(repl_opt, restr, funlist) ->
+      List.iter (fun (b,_) -> b.def <- []) restr;
+      List.iter empty_def_fungroup funlist
+  | Fun(ch, args, res, priority) ->
+      List.iter (fun b -> b.def <- []) args;
+      empty_def_term res
+
+let empty_def_member l =
+  List.iter (fun (fg, mode) -> empty_def_fungroup fg) l
+
+
 (* Build tree of definition dependences
    The treatment of TestE/FindE/LetE/ResE is necessary: build_def_process
    is called in check.ml.
@@ -647,3 +659,20 @@ let build_def_process event_accu p =
 		  definition_success = DNone } 
   in
   def_process event_accu [] st_node [] [] p
+
+let rec build_def_fungroup cur_array above_node = function
+  | ReplRestr(repl_opt, restr, funlist) ->
+      let above_node2 =
+	Terms.set_def (List.map fst restr) DFunRestr DNone (Some above_node)
+      in
+      let cur_array' = Terms.add_cur_array repl_opt cur_array in
+      List.iter (build_def_fungroup cur_array' above_node2) funlist
+  | Fun(ch, args, res, priority) ->
+      let above_node1 =
+	Terms.set_def args DFunArgs DNone (Some above_node)
+      in
+      ignore(def_term None cur_array above_node1 [] [] [] res)
+
+let build_def_member l = 
+  let rec st_node = Terms.set_def [] DNone DNone None in
+  List.iter (fun (fg, mode) -> build_def_fungroup [] st_node fg) l

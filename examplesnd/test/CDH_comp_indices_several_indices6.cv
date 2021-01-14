@@ -1,0 +1,212 @@
+(* Signed Diffie-Hellman protocol *)
+
+def DH_proba_collision_XX(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
+
+expand DH_basic(G, Z, g, exp, exp', mult).
+
+collision g <-R G; x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
+collision g <-R G; x <-R Z; forall Y: G;
+	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
+
+collision g <-R G; x <-R Z; y <-R Z; forall Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
+collision g <-R G; x <-R Z; y <-R Z; forall Y: G;
+	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
+
+}
+
+def CDH_XX(G, Z, g, exp, exp', mult, pCDH) {
+
+(* the CDH assumption *) 
+
+param na, naDDH, nb, nbDDH, naDH9, nbDH9, nc.
+
+event bad.
+
+equiv(cdh(exp))
+  foreach ic <= nc do g <-R G; (
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) | 
+      Oa() [10] := return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb, k<=nc) [useful_change] := return(m = exp(g, mult(b[j,k], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      Ob() [10] := return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na, k<=nc) := return(m = exp(g, mult(a[j,k], b))) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
+    ))
+<=((naDDH + nbDDH) * na * nb * pCDH(time + (na + nb + #ODDHa + #ODDHb - 3) * time(exp)))=> [computational]
+  foreach ic <= nc do g <-R G; (
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp'(g,a)) |
+      Oa() := let ka:bool = true in return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb, k<=nc) :=
+      	      if k = ic then
+      	          find u<=nb, v<=nc suchthat defined(kb[u,v]) && (j,k) = (u,v) then return(m = exp'(g, mult(b[j,k], a))) else 
+                  if defined(ka) then return(m = exp'(g, mult(b[j,k], a))) else return(false)
+              else
+	          event_abort bad |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp'(g,b)) |
+      Ob() := let kb:bool = true in return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na, k<=nc) :=
+              if k = ic then
+      	          find u<=na, v<=nc suchthat defined(ka[u,v]) && (j,k) = (u,v) then return(m = exp'(g, mult(a[j,k], b))) else 
+                  if defined(kb) then return(m = exp'(g, mult(a[j,k], b))) else return(false)
+              else
+	          event_abort bad |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
+    )).
+
+}
+
+(*
+proof {
+      crypto uf_cma(sign) rkA;
+      crypto uf_cma(sign) rkB;
+      success;
+      crypto rom(h);
+      success;
+      SArename gab;
+      SArename gab_1;
+      remove_assign binder gab_2;
+      remove_assign binder gab_4;
+      crypto cdh(exp) [variables: g_2 -> g_1, a -> a_1, b -> b_1];
+      auto
+}
+*)
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
+param NA, NB, NK, NG.
+
+type host [bounded].
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize [bounded].
+type signature [bounded].
+
+type Z [large,bounded].
+type G [large,bounded].
+type D [fixed].
+
+(* This collision assumption is needed to prove an injective
+   correspondence, because we use ephemerals to distinguish sessions. *)
+proba PCollKey1.
+proba PCollKey2.
+expand DH_proba_collision_XX(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+(* CDH assumption *)
+proba pCDH.
+expand CDH_XX(G, Z, g, exp, exp', mult, pCDH).
+
+
+(* Hash in the random oracle model *)
+type hashkey [fixed].
+expand ROM_hash(hashkey, G, D, h, hashoracle, qH).
+
+(* Concatenation helper functions *)
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+
+equation forall x:host, y:host, z:G, t:G, x2:host, y2:host, z2:G, t2:G;
+   concatA(x,y,z,t) <> concatB(x2,y2,z2,t2).
+
+(* Signatures *)
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_proba_signature(keyseed, pkey, skey, blocksize, signature, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+table keys(G, host, pkey).
+
+(* Peers *)
+const A,B:host.
+
+(* Queries and Events *)
+query secret keyA.
+query secret keyB.
+
+event endA(host, host, G, G).
+event beginB(host, host, G, G).
+event endB(host, host, G, G).
+
+query y: G, x: G; inj-event(endA(A, B, x, y)) ==> inj-event(beginB(A, B, x, y)) public_vars keyA, keyB.
+query y: G, x: G; inj-event(endB(A, B, x, y)) ==> inj-event(endA(A, B, x, y)) public_vars keyA, keyB.
+
+(* Channels and Processes *)
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK, cI1, cI2.
+
+let processA(hk:hashkey, skA:skey, g:G) =
+  in(cA1, (hostB: host));
+  new a:Z;
+  let ga = exp(g,a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb:G, s:signature));
+  get keys(=g, =hostB, pkhostB) in
+  if check(concatB(A, hostB, ga, gb), pkhostB, s) then
+  let gab = exp(gb, a) in
+  let kA = h(hk, gab) in
+  event endA(A, hostB, ga, gb);
+  out(cA4, sign(concatA(A, hostB, ga, gb), skA));
+  (* OK *)
+  in(cA5, ());
+  if hostB = B then
+  (let keyA:D = kA)
+  else
+   out(cA6, kA).
+
+let processB(hk:hashkey, skB:skey, g:G) =
+  in(cB1, (hostA:host, =B, ga:G));
+  new b:Z;
+  let gb = exp(g,b) in
+  event beginB(hostA, B, ga, gb);
+  out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB)));
+  in(cB3, s:signature);
+  get keys(=g, =hostA, pkhostA) in
+  if check(concatA(hostA, B, ga, gb), pkhostA, s) then
+  let gab = exp(ga, b) in
+  let kB = h(hk, gab) in
+  event endB(hostA, B, ga, gb);
+  (* OK *)
+  if hostA = A then
+  (let keyB:D = kB)
+  else
+   out(cB4, kB).
+
+let processK(pkA:pkey, pkB:pkey, g: G) =
+  !iK <= NK
+  in(cK, (Khost: host, Kkey: pkey));
+  if Khost = B then insert keys(g, B, pkB) else
+  if Khost = A then insert keys(g, A, pkA) else
+  insert keys(g, Khost, Kkey).
+
+process
+	in(start, ());
+	new hk: hashkey;
+	out(cI1, ());
+	(hashoracle(hk) |
+	foreach iG <= NG do
+	in(cI2, ());
+	new g: G;
+	new rkA : keyseed;
+	let skA = skgen(rkA) in
+	let pkA = pkgen(rkA) in
+	new rkB : keyseed;
+	let skB = skgen(rkB) in
+	let pkB = pkgen(rkB) in
+	out(cstart, (pkA, pkB));
+   	((!iA <= NA processA(hk,skA,g)) |
+	 (!iB <= NB processB(hk,skB,g)) |
+	 processK(pkA,pkB,g)))
+
+
+(* EXPECTED
+Error: These indices k_5 are not allowed. The allowed indices are:
+xtime: error in child process (status : 2)
+END *)

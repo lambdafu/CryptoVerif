@@ -1,0 +1,249 @@
+(* Needham Schroeder public key protocol. *)
+
+def IND_CCA2_public_key_enc_all_args_XX(keyseed, keyseed2, pkey, skey, cleartext, ciphertext, enc_seed, skgen, skgen2, pkgen, pkgen2, enc, enc_r, enc_r2, dec, dec2, injbot, Z, Penc, Penccoll) {
+
+param N, N', N2, N3, N4, NK.
+
+fun enc_r(cleartext, pkey, enc_seed): ciphertext.
+fun skgen(keyseed, keyseed2):skey.
+fun pkgen(keyseed, keyseed2):pkey.
+fun dec(ciphertext, skey): bitstringbot.
+
+fun enc_r2(cleartext, pkey, enc_seed): ciphertext.
+fun skgen2(keyseed, keyseed2):skey.
+fun pkgen2(keyseed, keyseed2):pkey.
+fun dec2(ciphertext, skey): bitstringbot.
+
+letfun enc(m: cleartext, pk: pkey) =
+       r <-R enc_seed; enc_r(m,pk,r).
+
+fun injbot(cleartext):bitstringbot [data].
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+equation forall m:cleartext, r:keyseed, r2:keyseed2, r3:enc_seed; 
+	dec(enc_r(m, pkgen(r, r2), r3), skgen(r, r2)) = injbot(m).
+equation forall m:cleartext, r:keyseed, r2:keyseed2, r3:enc_seed; 
+	dec2(enc_r2(m, pkgen2(r, r2), r3), skgen2(r, r2)) = injbot(m).
+
+equiv(ind_cca2(enc))
+       foreach i3 <= N3 do r <-R keyseed; (
+         foreach iK <= NK do r' <-R keyseed2; (
+           Opk() [2] := return(pkgen(r, r')) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r, r'))) |
+           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r, r'),r1)))) |
+       foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
+     <=(N3 * (N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2))=> 
+       foreach i3 <= N3 do r <-R keyseed; (
+         foreach iK <= NK do r' <-R keyseed2; (
+           Opk() := return(pkgen2(r, r')) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) :=
+                find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) 
+		orfind j <= N4 suchthat defined(key_idx[j],m2[j],x[j]) &&
+		key_idx[j] = (iK,i3) && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r, r'))) |
+	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+			m1:ciphertext <- enc_r2(Z(x1), pkgen2(r, r'), r1);
+			return(m1))) |
+       foreach i4 <= N4 do Oenc2(x:cleartext, y:pkey) :=
+		find k' <= NK, k <= N3 suchthat defined(r[k],r'[k',k]) && y = pkgen2(r[k], r'[k',k]) then
+			(let key_idx : bitstring = (k', k) in
+			r2 <-R enc_seed; 
+			m2:ciphertext <- enc_r2(Z(x), y, r2);
+			return(m2))
+		else r3 <-R enc_seed; return(enc_r(x,y,r3)).
+
+(* Manual version, which can transform only some occurrences of encryption:
+   just use oracle Opk to discharge the public key in occurrences of encryption
+   that you do not want to transform.
+   It renames only the encryption function symbol for the occurrences that are transformed,
+   so it can be applied again to other occurrences. *)
+(*
+equiv(ind_cca2_partial(enc))
+       r <-R keyseed; (
+           Opk() := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
+           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) [useful_change] := return(enc_r(x1, pkgen(r),r1)))
+     <=(N * Penc(time + (N-1) * time(enc_r, maxlength(x1)), N2))=> [manual]
+       r <-R keyseed; (
+           Opk() := return(pkgen(r)) |
+	   foreach i2 <= N2 do Odec(m:ciphertext) :=
+                find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) else
+		return(dec(m, skgen(r))) |
+	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+			m1:ciphertext <- enc_r2(Z(x1), pkgen(r), r1);
+			return(m1)).
+*)
+collision r1 <-R keyseed; r1' <-R keyseed2; r2 <-R keyseed; r2' <-R keyseed2; 
+	return(pkgen(r1, r1') = pkgen(r2, r2')) <=(Penccoll)=> return(false).
+collision r1 <-R keyseed; r1' <-R keyseed2; r2 <-R keyseed; r2' <-R keyseed2; 
+	return(pkgen(r1, r1') = pkgen2(r2, r2')) <=(Penccoll)=> return(false).
+collision r1 <-R keyseed; r1' <-R keyseed2; r2 <-R keyseed; r2' <-R keyseed2; 
+	return(pkgen2(r1, r1') = pkgen2(r2, r2')) <=(Penccoll)=> return(false).
+collision r1 <-R keyseed; r1' <-R keyseed2; r2 <-R keyseed; r2' <-R keyseed2; 
+	return(skgen(r1, r1') = skgen(r2, r2')) <=(Penccoll)=> return(false).
+collision r1 <-R keyseed; r1' <-R keyseed2; r2 <-R keyseed; r2' <-R keyseed2; 
+	return(skgen(r1, r1') = skgen2(r2, r2')) <=(Penccoll)=> return(false).
+collision r1 <-R keyseed; r1' <-R keyseed2; r2 <-R keyseed; r2' <-R keyseed2; 
+	return(skgen2(r1, r1') = skgen2(r2, r2')) <=(Penccoll)=> return(false).
+
+}
+
+def IND_CCA2_public_key_enc_XX(keyseed, keyseed2, pkey, skey, cleartext, ciphertext, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll) {
+
+type enc_seed [bounded].
+expand IND_CCA2_public_key_enc_all_args_XX(keyseed, keyseed2, pkey, skey, cleartext, ciphertext, enc_seed, skgen, skgen2, pkgen,pkgen2,  enc, enc_r, enc_r2, dec, dec2, injbot, Z, Penc, Penccoll).
+
+}
+
+(* Example updated from CV 1.28 by Benjamin Beurdouche *)
+
+(* In order to determine the proof, use interactive mode:
+   set interactiveMode = true.
+The proof is as follows: *)
+
+proof {
+crypto uf_cma(sign) rkS;
+crypto ind_cca2(enc);
+success;
+auto
+}
+
+param NA, NB, NS, NK, NK2.
+
+type nonce [large,fixed].
+type host [bounded].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [large,fixed].
+type keyseed2 [large,fixed].
+type spkey [bounded].
+type sskey [bounded].
+type skeyseed [large,fixed].
+type signature [bounded].
+type blocksize [fixed].
+type blocksizebot [bounded].
+type sblocksize [bounded].
+
+(* Concatenation functions *)
+fun concat1(nonce, host):blocksize [data].
+fun concat2(nonce, nonce, host):blocksize [data].
+fun concat3(pkey, host):sblocksize [data].
+fun pad(nonce):blocksize [data].
+
+equation forall z,t,y2:nonce,u:host,z2:host;
+	concat2(z,t,u) <> concat1(y2,z2).
+equation forall y,y2:nonce,z2:host;
+	pad(y) <> concat1(y2,z2).
+equation forall z,t,y2:nonce,u:host;
+	concat2(z,t,u) <> pad(y2).
+
+(* Public-key encryption (CCA2) *)
+proba Penc.
+proba Penccoll.
+expand IND_CCA2_public_key_enc_XX(keyseed, keyseed2, pkey, skey, blocksize, bitstring, skgen, pkgen, enc, dec, injbot, Z, Penc, Penccoll).
+
+const Zblocksize: blocksize.
+equation forall x: blocksize; Z(x) = Zblocksize.
+
+(* Signatures *)
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_proba_signature(skeyseed, spkey, sskey, sblocksize, signature, sskgen, spkgen, sign, check, Psign, Psigncoll).
+
+table keys(host, pkey).
+
+(* Peers *)
+const A : host.
+const B : host.
+fun acceptA(host):bitstring.
+fun acceptB(host):bitstring.
+
+(* Queries and Events *)
+event fullA(host, bitstring).
+event partA(host, bitstring).
+event fullB(host, bitstring).
+event partB(host, bitstring).
+
+query x:bitstring; inj-event(partA(B, x)) ==> inj-event(partB(A, x)).
+query x:bitstring; inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
+
+(* Channels and Processes *)
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14,
+	c15, c16, c17, start, finish, cI1, cI2.
+
+let processA(skA:skey, pkS:spkey) =
+	in(c1, hostX: host);
+	out(c2, (A, hostX));
+	in(c3, (pkX: pkey, =hostX, ms: signature));
+	if check(concat3(pkX, hostX), pkS, ms) then
+	(* Message 3 *)
+        new Na: nonce;
+	let m1 = enc(concat1(Na, A), pkX) in
+        out(c4, m1);
+	(* Message 6 *)
+        in(c5, m: bitstring);
+	let injbot(concat2(=Na, Nb, =hostX)) = dec(m, skA) in
+	(* Message 7 *)
+	let m3 = enc(pad(Nb), pkX) in
+	event partA(hostX, (m1, m));
+	event fullA(hostX, (m1, m, m3));
+	out(c6, (m3, acceptA(hostX))).
+
+let processB(skB:skey, pkS:spkey) =
+	(* Message 3 *)
+	in(c7, m:bitstring);
+	let injbot(concat1(Na, hostY)) = dec(m, skB) in
+	out(c8, (B, hostY));
+	in(c9, (pkY: pkey, =hostY, ms: signature));
+	if check(concat3(pkY, hostY), pkS, ms) then
+	(* Message 6 *)
+	new Nb: nonce;
+	let m2 = enc(concat2(Na, Nb, B), pkY) in
+	event partB(hostY, (m, m2));
+	out(c10, m2);
+	(* Message 7 *)
+	in(c11, m3: bitstring);
+	let injbot(pad(=Nb)) = dec(m3, skB) in
+	(* OK *)
+	event fullB(hostY, (m, m2, m3));
+	out(c17, acceptB(hostY)).
+
+let processK(pkA:pkey, pkB:pkey) =
+	in(c12, (Khost: host, Kkey: pkey));
+	if Khost = A then insert keys(A, pkA) else
+	if Khost = B then insert keys(B, pkB) else
+	insert keys(Khost, Kkey).
+
+let processS(skS:sskey) =
+	in(c13, (h1: host, h2: host));
+	get keys(=h2, pk2) in
+	out(c14, (pk2, h2, sign(concat3(pk2, h2), skS))).
+
+process
+	in(cI1, ());
+	new rk: keyseed;
+	out(cI2, ());
+	foreach iK2 <= NK2 do
+	in(start, ());
+	new rkA': keyseed2;
+	let pkA = pkgen(rk, rkA') in
+	let skA = skgen(rk, rkA') in
+	new rkB': keyseed2;
+	let pkB = pkgen(rk, rkB') in
+	let skB = skgen(rk, rkB') in
+	new rkS: skeyseed;
+	let pkS = spkgen(rkS) in
+	let skS = sskgen(rkS) in
+	out(c15, (pkA, pkB, pkS));
+	((! iA <= NA processA(skA,pkS)) |
+	 (! iB <= NB processB(skB,pkS)) |
+	 (! iS <= NS processS(skS)) |
+	 (! iK <= NK processK(pkA,pkB)))
+
+
+(* EXPECTED
+All queries proved.
+2.400s (user 2.372s + system 0.028s), max rss 34956K
+END *)

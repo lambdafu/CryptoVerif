@@ -37,6 +37,6 @@ in(c1, x: hash);
 new s: hash
 
 (* EXPECTED
-Error: Variables in right member of equivalences should have as indexes the indexes defined by find
+Error: Variables in right member of equivalences should have as indexes the indexes defined by find, plus possibly index variables
 xtime: error in child process (status : 2)
 END *)

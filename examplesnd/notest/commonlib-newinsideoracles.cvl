@@ -31,9 +31,9 @@ def keygen(keyseed, key, kgen) {
 fun kgen(keyseed): key.
 
 equiv(keygen(kgen))
-    r <-R keyseed; Okey() := return(kgen(r))
+    Okey() := r <-R keyseed; return(kgen(r))
     <=(0)=>
-    k <-R key; Okey() := return(k).
+    Okey() := k <-R key; return(k).
 
 }
 
@@ -88,12 +88,12 @@ equation forall m:cleartext, k:key, r:enc_seed;
 
 equiv(ind_cpa(enc))
        k <-R key; 
-       	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
-	       	       return(enc_r(x, k, r)) 
+       	       foreach i <= N do Oenc(x:cleartext) := 
+	       	       return(enc(x, k)) 
      <=(Penc(time, N, maxlength(x)))=> 
        k <-R key; 
-       	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
-	       	       return(enc_r'(Z(x), k, r)).
+       	       foreach i <= N do Oenc(x:cleartext) := 
+	       	       r <-R enc_seed; return(enc_r'(Z(x), k, r)).
 
 }
 
@@ -233,32 +233,32 @@ equation forall m:cleartext, k:key, r:enc_seed;
 
 equiv(ind_cpa(enc))
        k <-R key; 
-       	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
-	       	       return(enc_r(x, k, r))
+       	       foreach i <= N do Oenc(x:cleartext) := 
+	       	       return(enc(x, k))
      <=(Penc(time, N, maxlength(x)))=> 
        k <-R key; 
-       	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := 
-	       	       return(enc_r'(Z(x), k, r)).
+       	       foreach i <= N do Oenc(x:cleartext) := 
+	       	       r <-R enc_seed; return(enc_r'(Z(x), k, r)).
 
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
       k <-R key; (
-      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
+      	      foreach i <= N do Oenc(x:cleartext) := return(enc(x, k)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)))
      <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [computational] 
       k <-R key [unchanged]; (
-      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
+      	      foreach i <= N do Oenc(x:cleartext) := z:ciphertext <- enc(x, k); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
       k <-R key; (
-      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
+      	      foreach i <= N do Oenc(x:cleartext) := return(enc(x, k)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
 	      Ocorrupt() [10] := return(k))
      <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y)))=> [manual,computational] 
       k <-R key [unchanged]; (
-      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
+      	      foreach i <= N do Oenc(x:cleartext) := z:ciphertext <- enc(x, k); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext) :=
 	      	      if defined(corrupt) then return(dec(y,k)) else
 		      find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom) |
@@ -446,8 +446,8 @@ equation forall x:cleartext; injbot(x) <> bottom.
 fun Z(cleartext):cleartext.
 
 (* The encryption function is probabilistic *)
-letfun enc(m: cleartext, d: add_data, k: key) =
-       r <-R enc_seed; enc_r(m, d, k, r).
+letfun enc(m: cleartext, ad: add_data, k: key) =
+       r <-R enc_seed; enc_r(m, ad, k, r).
 
 equation forall m:cleartext, d: add_data, k:key, r:enc_seed; 
 	dec(enc_r(m, d, k, r), d, k) = injbot(m).
@@ -456,32 +456,32 @@ equation forall m:cleartext, d: add_data, k:key, r:enc_seed;
 
 equiv(ind_cpa(enc))
        k <-R key; 
-       	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := 
-	       	       return(enc_r(x, d, k, r))
+       	       foreach i <= N do Oenc(x:cleartext, d: add_data) := 
+	       	       return(enc(x, d, k))
      <=(Penc(time, N, maxlength(x)))=> 
        k <-R key; 
-       	       foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := 
-	       	       return(enc_r'(Z(x), d, k, r)).
+       	       foreach i <= N do Oenc(x:cleartext, d: add_data) := 
+	       	       r <-R enc_seed; return(enc_r'(Z(x), d, k, r)).
 
 	(* INT-CTXT *)
 
 equiv(int_ctxt(enc))
       k <-R key; (
-      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
+      	      foreach i <= N do Oenc(x:cleartext, d: add_data) := return(enc(x, d, k)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)))
      <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [computational] 
       k <-R key [unchanged]; (
-      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
+      	      foreach i <= N do Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc(x, d, k); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) := find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom)).
 
 equiv(int_ctxt_corrupt(enc))
       k <-R key; (
-      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext, d: add_data) := return(enc_r(x, d, k, r)) |
+      	      foreach i <= N do Oenc(x:cleartext, d: add_data) := return(enc(x, d, k)) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) [useful_change] := return(dec(y,c_d,k)) |
 	      Ocorrupt() [10] := return(k))
      <=(Pencctxt(time, N, N3, maxlength(x), maxlength(y), maxlength(d), maxlength(c_d)))=> [manual,computational] 
       k <-R key [unchanged]; (
-      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc_r(x, d, k, r); return(z) |
+      	      foreach i <= N do Oenc(x:cleartext, d: add_data) := z:ciphertext <- enc(x, d, k); return(z) |
 	      foreach i3 <= N3 do Odec(y:ciphertext, c_d: add_data) :=
 	      	      if defined(corrupt) then return(dec(y,c_d,k)) else
 	      	      find j <= N suchthat defined(x[j],d[j],z[j]) && z[j] = y && d[j] = c_d then return(injbot(x[j])) else return(bottom) |
@@ -2001,8 +2001,8 @@ fun skgen2(keyseed):skey.
 fun pkgen2(keyseed):pkey.
 fun dec2(ciphertext, skey): bitstringbot.
 
-letfun enc(m: cleartext, pk: pkey) =
-       r <-R enc_seed; enc_r(m,pk,r).
+letfun enc(ct: cleartext, pk: pkey) =
+       r <-R enc_seed; enc_r(ct,pk,r).
 
 fun injbot(cleartext):bitstringbot [data].
 
@@ -2019,16 +2019,17 @@ equiv(ind_cca2(enc))
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() [2] := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
-           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) := return(enc_r(x1, pkgen(r),r1))) |
-       foreach i4 <= N4 do r2 <-R enc_seed; Oenc2(x:cleartext, y:pkey) [3] := return(enc_r(x,y,r2)) [all]
-     <=(N3 * (N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2))=> 
+           foreach i <= N do Oenc(x1:cleartext) := return(enc(x1, pkgen(r)))) |
+       foreach i4 <= N4 do Oenc2(x:cleartext, y:pkey) [3] := return(enc(x,y)) [all]
+     <=(N3 * (N + N4) * Penc(time + (N4+N-1) * time(enc_r, max(maxlength(x),maxlength(x1))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(dec, maxlength(m)) + N * time(enc_r, max(maxlength(x),maxlength(x1)))), N2) + 0.5 * N3 * (N3-1) * Penccoll)=> 
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() := return(pkgen2(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) :=
                 find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) 
-		orfind j <= N4 suchthat defined(k[j],m2[j],x[j]) &&
-		k[j] = i3 && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r))) |
-	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+		orfind j <= N4 suchthat defined(m2[j],y[j],x[j]) &&
+		y[j] = pkgen2(r) && m = m2[j] then return(injbot(x[j])) else return(dec2(m, skgen2(r))) |
+	   foreach i <= N do Oenc(x1:cleartext) :=
+	   	        r1 <-R enc_seed; 
 			m1:ciphertext <- enc_r2(Z(x1), pkgen2(r), r1);
 			return(m1)) |
        foreach i4 <= N4 do Oenc2(x:cleartext, y:pkey) :=
@@ -2048,14 +2049,15 @@ equiv(ind_cca2_partial(enc))
        r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) := return(dec(m, skgen(r))) |
-           foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) [useful_change] := return(enc_r(x1, pkgen(r),r1)))
+           foreach i <= N do Oenc(x1:cleartext) [useful_change] := return(enc(x1, pkgen(r))))
      <=(N * Penc(time + (N-1) * time(enc_r, maxlength(x1)), N2))=> [manual]
        r <-R keyseed; (
            Opk() := return(pkgen(r)) |
 	   foreach i2 <= N2 do Odec(m:ciphertext) :=
                 find j <= N suchthat defined(m1[j],x1[j]) && m = m1[j] then return(injbot(x1[j])) else
 		return(dec(m, skgen(r))) |
-	   foreach i <= N do r1 <-R enc_seed; Oenc(x1:cleartext) :=
+	   foreach i <= N do Oenc(x1:cleartext) :=
+	   	        r1 <-R enc_seed; 
 			m1:ciphertext <- enc_r2(Z(x1), pkgen(r), r1);
 			return(m1)).
 
@@ -2375,8 +2377,8 @@ fun skgen2(keyseed):skey.
 fun pkgen2(keyseed):pkey.
 fun check2(signinput, pkey, signature): bool.
 
-letfun sign(m: signinput, sk: skey) =
-       r <-R sign_seed; sign_r(m,sk,r).
+letfun sign(mess: signinput, sk: skey) =
+       r <-R sign_seed; sign_r(mess,sk,r).
 
 equation forall m:signinput, r:keyseed, r2:sign_seed; 
 	check(m, pkgen(r), sign_r(m, skgen(r), r2)) = true.
@@ -2386,13 +2388,13 @@ equation forall m:signinput, r:keyseed, r2:sign_seed;
 equiv(uf_cma(sign))
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() [2] := return(pkgen(r)) |
-	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
+	   foreach i2 <= N2 do Osign(x: signinput) := return(sign(x, skgen(r))) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := return(check(m1, pkgen(r), si1))) |
        foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) [3] := return(check(m, y, si)) [all]
      <=(N3 * Psign(time + (N4+N-1) * time(check, max(maxlength(m1), maxlength(m)), max(maxlength(si1), maxlength(si))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign_r, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [computational]
        foreach i3 <= N3 do r <-R keyseed [unchanged]; (
            Opk() := return(pkgen2(r)) |
-	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := return(sign_r2(x, skgen2(r), r2)) |
+	   foreach i2 <= N2 do Osign(x: signinput) := r2 <-R sign_seed; return(sign_r2(x, skgen2(r), r2)) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
                 find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, pkgen2(r), si1) then return(true) else return(false)) |
        foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) :=
@@ -2403,14 +2405,14 @@ equiv(uf_cma(sign))
 equiv(uf_cma_corrupt(sign))
        foreach i3 <= N3 do r <-R keyseed; (
            Opk() [useful_change] [2] := return(pkgen(r)) |
-	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) [useful_change] := return(sign_r(x, skgen(r), r2)) |
+	   foreach i2 <= N2 do Osign(x: signinput) [useful_change] := return(sign(x, skgen(r))) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
 	   Ocorrupt() [10] := return(r)) |
        foreach i4 <= N4 do Ocheck2(m: signinput, y: pkey, si: signature) [3] := return(check(m, y, si)) [all]
      <=(N3 * Psign(time + (N4+N-1) * time(check, max(maxlength(m1), maxlength(m)), max(maxlength(si1), maxlength(si))) + (N3-1)*(time(pkgen) + time(skgen) + N2 * time(sign_r, maxlength(x)) + N * time(check, maxlength(m1), maxlength(si1))), N2, maxlength(x)))=> [manual,computational]
        foreach i3 <= N3 do r <-R keyseed [unchanged]; (
            Opk() := return(pkgen2(r)) |
-	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := return(sign_r2(x, skgen2(r), r2)) |
+	   foreach i2 <= N2 do Osign(x: signinput) := r2 <-R sign_seed; return(sign_r2(x, skgen2(r), r2)) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
 	        if defined(corrupt) then return(check2(m1, pkgen2(r), si1)) else
                 find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, pkgen2(r), si1) then return(true) else return(false) |
@@ -2430,13 +2432,13 @@ equiv(uf_cma_corrupt(sign))
 equiv(uf_cma_corrupt_partial(sign))
        r <-R keyseed; (
            Opk() := return(pkgen(r)) |
-	   foreach i2 <= N2 do r2 <-R sign_seed; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
+	   foreach i2 <= N2 do Osign(x: signinput) := return(sign(x, skgen(r))) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) [useful_change] := return(check(m1, pkgen(r), si1)) |
 	   Ocorrupt() [10] := return(r))
      <=(Psign(time + (N-1) * time(check, maxlength(m1), maxlength(si1)), N2, maxlength(x)))=> [manual,computational]
        r <-R keyseed [unchanged]; (
            Opk() := return(pkgen(r)) |
-	   foreach i2 <= N2 do r2 <-R sign_seed [unchanged]; Osign(x: signinput) := return(sign_r(x, skgen(r), r2)) |
+	   foreach i2 <= N2 do Osign(x: signinput) := r2 <-R sign_seed; return(sign_r(x, skgen(r), r2)) |
 	   foreach i <= N do Ocheck(m1: signinput, si1:signature) := 
 	        if defined(corrupt) then return(check2(m1, pkgen(r), si1)) else
                 find j <= N2 suchthat defined(x[j]) && m1 = x[j] && check2(m1, pkgen(r), si1) then return(true) else return(false) |
@@ -3404,7 +3406,7 @@ equiv(cdh(exp))
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
-      	      if defined(kb[j]) then return(m = exp'(g, mult(b[j], a))) else 
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(m = exp'(g, mult(b[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
     ) |
@@ -3412,7 +3414,7 @@ equiv(cdh(exp))
       OB() := return(exp'(g,b)) |
       Ob() := let kb:bool = true in return(b) |
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], b))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
               if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
     ).
@@ -3459,7 +3461,7 @@ equiv(cdh(exp))
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
-      	      if defined(kb[j]) then return(m = exp'(g, mult(b[j], a))) else 
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(m = exp'(g, mult(b[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
     ) |
@@ -3467,7 +3469,7 @@ equiv(cdh(exp))
       OB() := return(exp'(g,b)) |
       Ob() := let kb:bool = true in return(b) |
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], b))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
               if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
     ).
@@ -3494,41 +3496,45 @@ equiv(ddh(exp))
     foreach ia <= na do a <-R Z; (
       OA() := return(exp(g,a)) | 
       Oa() [10] := return (a) |
-      foreach iaDH <= naDH do ODHa(jb<=nb) [useful_change] := return (exp(g, mult(b[jb], a))) |
+      foreach iaDH <= naDH do ODHa(j<=nb) [useful_change] := return (exp(g, mult(b[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) |
     foreach ib <= nb do b <-R Z; (
       OB() := return (exp(g,b)) |
       Ob() [10] := return(b) |
-      foreach ibDH <= nbDH do ODHb(ja<=na) := return(exp(g, mult(a[ja], b))) |
+      foreach ibDH <= nbDH do ODHb(j<=na) := return(exp(g, mult(a[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
     )
 <=(na * nb * pDDH(time + (na + nb + #ODHa + #ODHb - 3) * time(exp)))=>
     foreach ia <= na do a <-R Z; (
       OA() := return(exp'(g,a)) |
       Oa() := 
-         find uaDH <= naDH suchthat defined(ca[uaDH]) then event_abort ev_abort 
-	 orfind ubDH <= nbDH, ub <= nb suchthat defined(cb[ubDH, ub], ja[ubDH, ub]) && ja[ubDH, ub] = ia then event_abort ev_abort else
+         find uaDH <= naDH suchthat defined(ka'[uaDH]) then event_abort ev_abort 
+	 orfind ubDH <= nbDH, ub <= nb suchthat defined(kb'[ubDH, ub], a'[ubDH, ub]) && a'[ubDH, ub] = a then event_abort ev_abort else
          let ka:bool = true in return(a) |
-      foreach iaDH <= naDH do ODHa(jb<=nb) := 
-	 if defined(kb[jb]) then return(exp'(g, mult(b[jb], a))) else 
-         if defined(ka) then return(exp'(g, mult(b[jb], a))) else 
-         find vaDH <= naDH suchthat defined(jb[vaDH],ca[vaDH]) && jb = jb[vaDH] then return(ca[vaDH]) 
-         orfind vbDH <= nbDH, vb <= nb suchthat defined(b[vb], ja[vbDH, vb], cb[vbDH, vb]) && jb = vb && ia = ja[vbDH, vb] then return(cb[vbDH, vb]) else
+      foreach iaDH <= naDH do ODHa(j<=nb) := 
+      	 let b':Z = b[j] in
+	 find u<=nb suchthat defined(kb[u],b[u]) && b' = b[u] then return(exp'(g, mult(b', a))) else 
+         if defined(ka) then return(exp'(g, mult(b', a))) else 
+	 let ka':bool = true in
+         find vaDH <= naDH suchthat defined(b'[vaDH],ca[vaDH]) && b' = b'[vaDH] then return(ca[vaDH]) 
+         orfind vbDH <= nbDH, vb <= nb suchthat defined(b[vb], a'[vbDH, vb], cb[vbDH, vb]) && b' = b[vb] && a = a'[vbDH, vb] then return(cb[vbDH, vb]) else
 	 ca <-R G; return(ca) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
     ) |
     foreach ib <= nb do b <-R Z; (
       OB() := return(exp'(g,b)) |
       Ob() := 
-         find ubDH <= nbDH suchthat defined(cb[ubDH]) then event_abort ev_abort 
-	 orfind uaDH <= naDH, ua <= na suchthat defined(ca[uaDH, ua], jb[uaDH, ua]) && jb[uaDH, ua] = ib then event_abort ev_abort else
+         find ubDH <= nbDH suchthat defined(kb'[ubDH]) then event_abort ev_abort 
+	 orfind uaDH <= naDH, ua <= na suchthat defined(ka'[uaDH, ua], b'[uaDH, ua]) && b'[uaDH, ua] = b then event_abort ev_abort else
          let kb:bool = true in return(b) |
-      foreach ibDH <= nbDH do ODHb(ja<=na) := 
-	 if defined(ka[ja]) then return(exp'(g, mult(a[ja], b))) else 
-         if defined(kb) then return(exp'(g, mult(a[ja], b))) else 
-         find vbDH <= nbDH suchthat defined(ja[vbDH],cb[vbDH]) && ja = ja[vbDH] then return(cb[vbDH]) 
-         orfind vaDH <= naDH, va <= na suchthat defined(a[va], jb[vaDH, va], ca[vaDH, va]) && ja = va && ib = jb[vaDH, va] then return(ca[vaDH, va]) else
+      foreach ibDH <= nbDH do ODHb(j<=na) := 
+         let a':Z = a[j] in
+	 find u<=na suchthat defined(ka[u],a[u]) && a' = a[u] then return(exp'(g, mult(a', b))) else 
+         if defined(kb) then return(exp'(g, mult(a', b))) else 
+	 let kb':bool = true in
+         find vbDH <= nbDH suchthat defined(a'[vbDH],cb[vbDH]) && a' = a'[vbDH] then return(cb[vbDH]) 
+         orfind vaDH <= naDH, va <= na suchthat defined(a[va], b'[vaDH, va], ca[vaDH, va]) && a' = a[va] && b = b'[vaDH, va] then return(ca[vaDH, va]) else
 	 cb <-R G; return(cb) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
     ).
@@ -3607,7 +3613,7 @@ equiv(gdh(exp))
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
       	    (* Similar to ODDHa2 *)
       foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) :=
-      	      if defined(kb[j']) then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
 	      if defined(ka) then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
 	      return(b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a))) |
 	    (* GDH always allows to compute exp(m, b[j]) = exp(g,mult(b[j'],a))
@@ -3623,7 +3629,7 @@ equiv(gdh(exp))
 	       Hence, the equality exp(m, b[j]) = exp(g,mult(b[j'],a))
 	       reduces to b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a)). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) :=
-      	      if defined(kb[j']) then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
 	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
 	      return (a[j] = a && exp'(m,a) = exp'(g, mult(b[j'], a))) |
 	      (* This case is similar to ODDHa4. *)	      
@@ -3639,7 +3645,7 @@ equiv(gdh(exp))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
 		   as it is DDH(g, exp(g,a), m', m) *) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
-      	      if defined(kb[j]) then return(m = exp'(g, mult(b[j], a))) else 
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(m = exp'(g, mult(b[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
             (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption,
 	       provided a and b[j] are not leaked. *)
@@ -3656,18 +3662,18 @@ equiv(gdh(exp))
       foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) :=
-      	      if defined(ka[j']) then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
 	      if defined(kb) then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
 	      return(b[j] = b && exp'(m,b) = exp'(g, mult(a[j'], b))) |
       foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) :=
-      	      if defined(ka[j']) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
 	      if defined(kb) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
 	      return(a[j] = a[j'] && exp'(m,a[j']) = exp'(g, mult(a[j'], b))) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
 	      return(m = exp'(m', b))
 		(* GDH allows to compute m = exp(m',b) for any m and m', without leaking b *) |
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], b))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
               if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp'(g,mult(b[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
@@ -3760,7 +3766,7 @@ equiv(gdh(exp))
       foreach iaDDH3 <= naDDH3 do ODDHa3(m:G, m':G,j<=na) := return(exp'(m,a[j]) = exp'(m', a)) |
       	    (* Similar to ODDHa2 *)
       foreach iaDDH4 <= naDDH4 do ODDHa4(m:G, j'<=nb,j<=nb) :=
-      	      if defined(kb[j']) then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
 	      if defined(ka) then return(exp'(m,b[j]) = exp'(g, mult(b[j'], a))) else
 	      return(b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a))) |
 	    (* GDH always allows to compute exp(m, b[j]) = exp(g,mult(b[j'],a))
@@ -3776,7 +3782,7 @@ equiv(gdh(exp))
 	       Hence, the equality exp(m, b[j]) = exp(g,mult(b[j'],a))
 	       reduces to b[j] = b[j'] && exp'(m,b[j']) = exp'(g, mult(b[j'], a)). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=nb,j<=na) :=
-      	      if defined(kb[j']) then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j'] = b[u] then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
 	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(b[j'], a))) else
 	      return (a[j] = a && exp'(m,a) = exp'(g, mult(b[j'], a))) |
 	      (* This case is similar to ODDHa4. *)	      
@@ -3792,7 +3798,7 @@ equiv(gdh(exp))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
 		   as it is DDH(g, exp(g,a), m', m) *) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
-      	      if defined(kb[j]) then return(m = exp'(g, mult(b[j], a))) else 
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(m = exp'(g, mult(b[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
             (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption,
 	       provided a and b[j] are not leaked. *)
@@ -3809,18 +3815,18 @@ equiv(gdh(exp))
       foreach ibDDH4 <= nbDDH4 do ODDHb4(m:G, j'<=nb,j<=nb) := return(exp'(m,b[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH5 <= nbDDH5 do ODDHb5(m:G, j'<=nb,j<=na) := return(exp'(m,a[j]) = exp'(g, mult(b[j'], b))) |
       foreach ibDDH6 <= nbDDH6 do ODDHb6(m:G, j'<=na,j<=nb) :=
-      	      if defined(ka[j']) then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
 	      if defined(kb) then return(exp'(m,b[j]) = exp'(g, mult(a[j'], b))) else
 	      return(b[j] = b && exp'(m,b) = exp'(g, mult(a[j'], b))) |
       foreach ibDDH7 <= nbDDH7 do ODDHb7(m:G, j'<=na,j<=na) :=
-      	      if defined(ka[j']) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
 	      if defined(kb) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], b))) else
 	      return(a[j] = a[j'] && exp'(m,a[j']) = exp'(g, mult(a[j'], b))) |
       foreach ibDDH1 <= nbDDH1 do ODDHb1(m:G, m':G) := 
 	      return(m = exp'(m', b))
 		(* GDH allows to compute m = exp(m',b) for any m and m', without leaking b *) |
       foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], b))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
               if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp'(g,mult(b[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
@@ -3868,7 +3874,7 @@ equiv(cdh(exp))
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], a))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
     ).
@@ -3911,7 +3917,7 @@ equiv(cdh(exp))
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], a))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
     ).
@@ -4013,7 +4019,7 @@ equiv(gdh(exp))
       		= (a[j] * log_g(m) = a log_g(m'))
       		= (m^a[j] = m'^a). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) :=
-      	      if defined(ka[j']) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
 	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
 	      return ((a[j] = a || a[j] = a[j']) && exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
 	    (* GDH always allows to compute exp(m, a[j]) = exp(g,mult(a[j'],a))
@@ -4034,7 +4040,7 @@ equiv(gdh(exp))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
 		   as it is DDH(g, exp(g,a), m', m) *) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], a))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false) |
             (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption,
 	       provided a and a[j] are not leaked. *)
@@ -4104,7 +4110,7 @@ equiv(gdh(exp))
       		= (a[j] * log_g(m) = a log_g(m'))
       		= (m^a[j] = m'^a). *)
       foreach iaDDH5 <= naDDH5 do ODDHa5(m:G, j'<=na,j<=na) :=
-      	      if defined(ka[j']) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j'] = a[u] then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
 	      if defined(ka) then return(exp'(m,a[j]) = exp'(g, mult(a[j'], a))) else
 	      return ((a[j] = a || a[j] = a[j']) && exp'(m,a[j]) = exp'(g, mult(a[j'], a))) |
 	    (* GDH always allows to compute exp(m, a[j]) = exp(g,mult(a[j'],a))
@@ -4125,7 +4131,7 @@ equiv(gdh(exp))
 		(* GDH allows to compute m = exp(m',a) for any m and m', without leaking a,
 		   as it is DDH(g, exp(g,a), m', m) *) |
       foreach iaDDH <= naDDH do ODDHa(m:G, j<=na) := 
-      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], a))) else 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], a))) else 
               if defined(ka) then return(m = exp'(g, mult(a[j], a))) else return(false) | 
             (* ODDHa is a particular case of ODDHa1 in which can apply the CDH assumption,
 	       provided a and a[j] are not leaked. *)
@@ -4806,9 +4812,9 @@ equation builtin ACUN(xor,zero).
 (* Xor is a one-time pad *)
 
 equiv(remove_xor(xor))
-      foreach ix <= nx do a <-R D; Oxor(x:D) := return(xor(a,x))
+      Oxor(x:D) := a <-R D; return(xor(a,x))
       <=(0)=>
-      foreach ix <= nx do a <-R D; Oxor(x:D) := return(a).
+      Oxor(x:D) := a <-R D; return(a).
 
 }
 

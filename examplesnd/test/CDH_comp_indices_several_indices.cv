@@ -1,5 +1,73 @@
 (* Signed Diffie-Hellman protocol *)
 
+def DH_proba_collision_XX(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
+
+expand DH_basic(G, Z, g, exp, exp', mult).
+
+collision g <-R G; x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
+collision g <-R G; x <-R Z; forall Y: G;
+	  return(exp'(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
+
+collision g <-R G; x <-R Z; y <-R Z; forall Y: G;
+	  return(exp(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
+collision g <-R G; x <-R Z; y <-R Z; forall Y: G;
+	  return(exp'(g, mult(x,y)) = Y) <=(PCollKey2)=> return(false) if Y independent-of x || Y independent-of y.
+
+}
+
+def CDH_XX(G, Z, g, exp, exp', mult, pCDH) {
+
+(* the CDH assumption *) 
+
+param na, naDDH, nb, nbDDH, naDH9, nbDH9, nc.
+
+equiv(cdh(exp))
+  foreach ic <= nc do g <-R G; (
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) | 
+      Oa() [10] := return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb, k<=nc) [useful_change] := return(m = exp(g, mult(b[j,k], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      Ob() [10] := return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na, k<=nc) := return(m = exp(g, mult(a[j,k], b))) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
+    ))
+<=((naDDH + nbDDH) * na * nb * pCDH(time + (na + nb + #ODDHa + #ODDHb - 3) * time(exp)))=> [computational]
+  foreach ic <= nc do g <-R G; (
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp'(g,a)) |
+      Oa() := let ka:bool = true in return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb, k<=nc) := 
+      	      find u<=nb, v<=nc suchthat defined(kb[u,v]) && (j,k) = (u,v) then return(m = exp'(g, mult(b[j,k], a))) else 
+              if defined(ka) then return(m = exp'(g, mult(b[j,k], a))) else return(false) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp'(g,b)) |
+      Ob() := let kb:bool = true in return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na, k<=nc) := 
+      	      find u<=na, v<=nc suchthat defined(ka[u,v]) && (j,k) = (u,v) then return(m = exp'(g, mult(a[j,k], b))) else 
+              if defined(kb) then return(m = exp'(g, mult(a[j,k], b))) else return(false) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
+    )).
+
+}
+
+(*
+proof {
+      crypto uf_cma(sign) rkA;
+      crypto uf_cma(sign) rkB;
+      success;
+      crypto rom(h);
+      success;
+      crypto cdh(exp);
+      auto
+}
+*)
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
 param NA, NB, NK.
@@ -20,11 +88,11 @@ type D [fixed].
    correspondence, because we use ephemerals to distinguish sessions. *)
 proba PCollKey1.
 proba PCollKey2.
-expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision_XX(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
 
 (* CDH assumption *)
 proba pCDH.
-expand CDH(G, Z, g, exp, exp', mult, pCDH).
+expand CDH_XX(G, Z, g, exp, exp', mult, pCDH).
 
 
 (* Hash in the random oracle model *)
@@ -62,7 +130,7 @@ query y: G, x: G; inj-event(endB(A, B, x, y)) ==> inj-event(endA(A, B, x, y)) pu
 (* Channels and Processes *)
 channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
 
-let processA(hk:hashkey, skA:skey) =
+let processA(hk:hashkey, skA:skey, g:G) =
   in(cA1, (hostB: host));
   new a:Z;
   let ga = exp(g,a) in
@@ -81,7 +149,7 @@ let processA(hk:hashkey, skA:skey) =
   else
    out(cA6, kA).
 
-let processB(hk:hashkey, skB:skey) =
+let processB(hk:hashkey, skB:skey, g:G) =
   in(cB1, (hostA:host, =B, ga:G));
   new b:Z;
   let gb = exp(g,b) in
@@ -109,6 +177,7 @@ let processK(pkA:pkey, pkB:pkey) =
 process
 	in(start, ());
 	new hk: hashkey;
+	new g: G;
 	new rkA : keyseed;
 	let skA = skgen(rkA) in
 	let pkA = pkgen(rkA) in
@@ -116,8 +185,8 @@ process
 	let skB = skgen(rkB) in
 	let pkB = pkgen(rkB) in
 	out(cstart, (pkA, pkB));
-   	((!iA <= NA processA(hk,skA)) |
-	 (!iB <= NB processB(hk,skB)) |
+   	((!iA <= NA processA(hk,skA,g)) |
+	 (!iB <= NB processB(hk,skB,g)) |
 	 hashoracle(hk) |
 	 processK(pkA,pkB))
 
@@ -125,12 +194,4 @@ process
 (* EXPECTED
 All queries proved.
 6.228s (user 6.204s + system 0.024s), max rss 36672K
-END *)
-
-(* EXPECTPV
-RESULT secret keyA is true.
-RESULT secret keyB is true.
-RESULT inj-event(endA(A,B,x,y)) ==> inj-event(beginB(A,B,x,y)) public_vars keyA,keyB is true.
-RESULT inj-event(endB(A,B,x,y)) ==> inj-event(endA(A,B,x,y)) public_vars keyA,keyB is true.
-0.164s (user 0.160s + system 0.004s), max rss 12644K
 END *)

@@ -1920,9 +1920,9 @@ Finds in $R$ are of the form
 &\ldots \texttt{ else }\mathit{FP}'
 \end{split}\]
 where $\tup{u_k}$ is a non-empty
-prefix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
-k \leq l$ is the whole sequence $u_1, \ldots, u_m$,
-and the implicit prefix of the current array indices is the same
+suffix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
+k \leq l$ is the whole sequence $u_1, \ldots, u_m$ optionally followed by a sequence of indices $\tup{u_0}$,
+and the implicit suffix of the current array indices is the same
 for all $z_1, \ldots, z_l$.
 %
 (When $z$ is defined under replications $\texttt{!}N_1$, \ldots,
@@ -1935,10 +1935,52 @@ indices to be the same for all variables $z_1, \ldots, z_l$.)
 %TO DO is that clear?
 Furthermore, there must exist $k \in \{ 1, \ldots, l_j\}$ such that
 for all $k' \neq k$, $z_{k'}$ is defined syntactically above all
-definitions of $z_k$ and $\tup{u_{k'}}$ is a prefix of $\tup{u_k}$. 
-%
-Finally, variables $z_k$ must not be defined by a $\texttt{find}$ in $R$.
+definitions of $z_k$ and $\tup{u_{k'}}$ is a suffix of $\tup{u_k}$.
 
+When $\tup{u_0}$ is not empty, the $\texttt{find}$ is automatically
+transformed into
+\[\begin{split}
+&\texttt{find}[\texttt{[unique]}]\ \ldots\\
+&\texttt{orfind }u_1 \texttt{ <= } N_1, \ldots, u_m \texttt{ <= }N_m, \tup{u'_0}\texttt{ <= }\tup{N'_0}
+\texttt{ suchthat defined(}z_1[\tup{u'_1}], \ldots, z_l[\tup{u'_l}]\texttt{) \&\&}\\
+&\qquad\qquad (\tup{u'_0},\tup{i}) = (\tup{u_0},\tup{i})\texttt{ \&\& }M'\texttt{ then }\mathit{FP}''\\
+&\ldots \texttt{ else }\mathit{FP}'
+\end{split}\]
+where $\tup{u'_0}$ are fresh variables of the same type as $\tup{u_0}$ and $\tup{N'_0}$ are their bounds
+($\tup{u'_0}\texttt{ <= }\tup{N'_0}$ abbreviates a sequence of possibly several inequalities),
+$u'_k = u_k \{\tup{u'_0}/\tup{u_0}\}$,
+$M' = M\{\tup{u'_0}/\tup{u_0}\}$,
+$\mathit{FP}'' = \mathit{FP}\{\tup{u'_0}/\tup{u_0}\}$,
+and $\tup{i}$ is the implicit suffix of the current array indices.
+After this transformation, we are in the situation above with an
+empty $\tup{u_0}$.
+
+In case a variable $z_k$ is defined by a $\texttt{find}$ in $R$,
+$z_k$ is automatically renamed into a fresh variable $z'_k$ at its definition,
+and $z_k$ is defined by $\texttt{let}\ z_k = z'_k$ in the $\texttt{then}$
+branch of the $\texttt{find}$ that defines $z'_k$. The array accesses
+to $z_k$ are left unchanged. After this transformation, the
+variables $z_k$ on which array accesses are performed are never
+defined by a $\texttt{find}$ in $R$.
+
+\item In addition to making array accesses, a limited usage of indices is allowed in $R$.
+Precisely, the following sequences of indices are allowed:
+\begin{enumerate}
+\item the current array indices, and any suffix thereof;
+\item the sequence of indices $u_1, \ldots, u_m$ defined by a $\texttt{find}$ followed by the associated
+implicit suffix of the current array indices (see above), and any suffix thereof;
+\item indices received as argument by the oracle, when a variable in $L$ has these indices.
+\end{enumerate}
+When such a sequence of indices contains a single element, it is represented
+by the index itself. When it contains several elements, it is represented
+as a tuple $\texttt{(}\dots\texttt{)}$ containing the indices.
+Such sequences of indices can be stored in variables (using $\texttt{let}$),
+and the sequences or variables containing them can be compared using
+equality \texttt{=} or disequality \texttt{<>}. In such comparisons,
+the types of the indices inside the sequences must be the same on
+both sides of the comparison.
+No other operation on indices is allowed, to make sure that the result is
+independent of the numbering of the oracle calls.
 
 \end{itemize}
 \else
@@ -2038,9 +2080,9 @@ Finds in $R$ are of the form
 &\ldots \texttt{ else }\mathit{FP}'
 \end{split}\]
 where $\tup{u_k}$ is a non-empty
-prefix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
+suffix of $u_1, \ldots, u_m$, at least one $\tup{u_k}$ for $1 \leq
 k \leq l$ is the whole sequence $u_1, \ldots, u_m$,
-and the implicit prefix of the current array indices is the same
+and the implicit suffix of the current array indices is the same
 for all $z_1, \ldots, z_l$.
 %
 (When $z$ is defined under replications $\texttt{!}N_1$, \ldots,
@@ -2053,7 +2095,7 @@ indices to be the same for all variables $z_1, \ldots, z_l$.)
 %TO DO is that clear?
 Furthermore, there must exist $k \in \{ 1, \ldots, l_j\}$ such that
 for all $k' \neq k$, $z_{k'}$ is defined syntactically above all
-definitions of $z_k$ and $\tup{u_{k'}}$ is a prefix of $\tup{u_k}$. 
+definitions of $z_k$ and $\tup{u_{k'}}$ is a suffix of $\tup{u_k}$. 
 %
 Finally, variables $z_k$ must not be defined by a $\texttt{find}$ in $R$.
 

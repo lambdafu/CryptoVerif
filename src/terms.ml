@@ -89,6 +89,13 @@ let assq_rest x l =
   in
   aux [] x l 
 
+(* [add_cur_array repl_opt cur_array] adds [repl_opt] to [cur_array] *) 
+    
+let add_cur_array repl_opt cur_array =
+  match repl_opt with
+  | Some repl -> repl::cur_array
+  | None -> cur_array
+    
 (* [equiv_same_vars b b'] returns true when [b] and [b'] are
    considered matching variables in the left and right-hand sides
    of an equiv (same string name, same number, same type). *)
@@ -2110,6 +2117,8 @@ type copy_transf =
      (* OneSubstArgs(br,t) substitutes t for the accesses br.
 	It is assumed that br and t are already guaranteed to be defined,
 	so br is removed from defined conditions if it occurs. *)
+  | SubstArgs of (binderref * term) list
+     (* Same as OneSubstArgs but performs several substitutions *)
   | Rename of term list * binder * binder
      (* Rename(args, b, b') replaces array accesses b[args] with b'[args] *)
   | Links_Vars_Args of (binder * binder) list
@@ -2152,7 +2161,8 @@ and copy_term transf t =
       begin
 	match transf with
 	| DeleteFacts -> build_term2 t t.t_desc
-	| Links_Vars | Links_Vars_then_RI | OneSubst _ | OneSubstArgs _ | Rename _ | Links_Vars_Args _ -> t
+	| Links_Vars | Links_Vars_then_RI | OneSubst _ | OneSubstArgs _
+	| SubstArgs _ | Rename _ | Links_Vars_Args _ -> t
 	| Links_RI | Links_RI_Vars -> 
 	    match b.ri_link with
 	      NoLink -> t
@@ -2174,6 +2184,18 @@ and copy_term transf t =
 	      delete_info_term t' (* Delete information stored in [t'] *)
 	    else
 	      build_term2 t (Var(b,List.map (copy_term transf) l))
+	| SubstArgs(lsubst) ->
+	    begin
+	      try
+		let (_, t') =
+		  List.find (fun ((b',l'), t') ->
+		    (b == b') && (List.for_all2 equal_terms l l')
+		      ) lsubst
+		in
+		delete_info_term t' (* Delete information stored in [t'] *)
+	      with Not_found ->
+		build_term2 t (Var(b,List.map (copy_term transf) l))
+	    end
 	| Rename _ ->
 	    let (b',l') = copy_binder transf (b,l) in
 	    build_term2 t (Var(b',l'))
@@ -2255,11 +2277,17 @@ and copy_def_list transf def_list =
         (b, List.map (copy_term transf) l)) 
        (List.filter (fun (b,l) ->
           not ((b == b') && (is_args_at_creation b l))) def_list)
-  | OneSubstArgs((b',l'), t') ->
+  | OneSubstArgs(br', t') ->
       List.map (fun (b,l) ->
         (b, List.map (copy_term transf) l)) 
-       (List.filter (fun (b,l) ->
-          not ((b == b') && (List.for_all2 equal_terms l l'))) def_list)
+       (List.filter (fun br ->
+         not (equal_binderref br br')) def_list)
+  | SubstArgs(lsubst) ->
+      List.map (fun (b,l) ->
+        (b, List.map (copy_term transf) l)) 
+	(List.filter
+	   (fun br -> not (List.exists (fun (br', t') -> equal_binderref br br') lsubst))
+	   def_list)
   | Rename _ ->
       List.map (copy_binder transf) def_list
   | Links_Vars_Args(replacement_def_list) ->

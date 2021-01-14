@@ -219,11 +219,6 @@ let merge_types t1 t2 ext =
 
 (* Check terms *)
 
-(* Should the indexes bound by find be added in the environment
-   for future array references? Yes for normal terms,
-   no in terms of equivalences. *)
-let add_find = ref true
-
 let pinstruct_name = function
     PIdent _ -> "ident"
   | PArray _ -> "array reference"
@@ -362,10 +357,8 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
 	       let t = ri.ri_type in
 	       if in_find_cond then
 		 add_in_env1error env error_find_cond s0
-	       else if !add_find then
-		 add_in_env1 env s0 t cur_array
 	       else 
-		 add_in_env1error env error_find_index_in_equiv s0
+		 add_in_env1 env s0 t cur_array
 		   ) (check_term1 empty_binder_env in_find_cond cur_array env_then t2) bl_repl_index bl)
 	     ) l0;
       union_both (!env_common) (!env_branches)
@@ -486,7 +479,7 @@ let check_binderi1 cur_array binder_env ((s1,ext1),tyb) =
   let (ty, _) = get_ty (!env) tyb in
   add_in_env1 binder_env s1 ty cur_array
 
-let rec check_fungroup1 cur_array env binder_env = function
+let rec check_lm_fungroup1 cur_array env binder_env = function
     PReplRestr(repl_opt, restrlist, funlist) ->
       let (cur_array', env') =
 	match repl_opt with
@@ -512,17 +505,14 @@ let rec check_fungroup1 cur_array env binder_env = function
       let env'' = List.fold_left (fun env ((s1,ext1),(s2,ext2),opt) ->
 	StringMap.add s1 (EVar dummy_var) env) env' restrlist
       in
-      let env_funlist = List.fold_left (check_fungroup1 cur_array' env'') binder_env funlist in
+      let env_funlist = List.fold_left (check_lm_fungroup1 cur_array' env'') binder_env funlist in
       List.fold_left (check_binder1 cur_array') env_funlist restrlist
   | PFun(_, arglist, tres, _) ->
       let env' = List.fold_left (fun env ((s1,ext1),tyb) ->
 	StringMap.add s1 (EVar dummy_var) env) env arglist
       in
       List.fold_left (check_binderi1 cur_array) 
-	(add_find := false;
-	 let env_res = check_term1 binder_env false cur_array env' tres in
-	 add_find := true;
-	 env_res) arglist
+	(check_term1 binder_env false cur_array env' tres) arglist
 
 let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
   let t = get_type (!env) s2 ext2 in
@@ -542,20 +532,18 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
 	s1' = s1 && b0.btype == t) restrlist0
     in
     add_in_env1reusename binder_env s1 b0 t cur_array
-  with
-    Not_found ->
-      (* List.find failed *)
-      if unchanged then 
-	raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
-      else
-	add_in_env1 binder_env s1 t cur_array
-  | Failure _ ->
-      (* add_in_env1reusename failed *)
-      if unchanged then 
-	raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a single variable with that name" ext
-      else
-	add_in_env1 binder_env s1 t cur_array
+  with Not_found ->
+    (* List.find failed *)
+    if unchanged then 
+      raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
+    else
+      add_in_env1 binder_env s1 t cur_array
 
+let rec combine_first l1 l2 =
+  match l1,l2 with
+  | [],_ | _,[] -> []
+  | a1::r1, a2::r2 -> (a1,a2)::(combine_first r1 r2)
+	  
 let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
   match (plm_fg, lm_fg, rm_fg) with
     PReplRestr(repl_opt0, prestrlist0, pfunlist0),
@@ -591,17 +579,14 @@ let rec check_rm_fungroup1 cur_array env binder_env plm_fg lm_fg rm_fg =
       let env'' = List.fold_left (fun env ((s1,ext1),(s2,ext2),opt) ->
 	StringMap.add s1 (EVar dummy_var) env) env' restrlist
       in
-      List.fold_left (check_rm_restr1 cur_array' (List.combine prestrlist0 restrlist0)) 
+      List.fold_left (check_rm_restr1 cur_array' (combine_first prestrlist0 restrlist0)) 
 	(check_rm_fungroup_list1 cur_array' env'' binder_env pfunlist0 funlist0 funlist) restrlist
   | _, _, PFun(_, arglist, tres, _) ->
       let env' = List.fold_left (fun env ((s1,ext1),tyb) ->
 	StringMap.add s1 (EVar dummy_var) env) env arglist
       in
       List.fold_left (check_binderi1 cur_array) 
-	(add_find := false;
-	 let env_res = check_term1 binder_env false cur_array env' tres in
-	 add_find := true;
-	 env_res) arglist
+	(check_term1 binder_env false cur_array env' tres) arglist
   | _, _, PReplRestr(Some(_, _, (_,ext)), _,_) ->
       raise_error "Left member is a function, right member is a replication" ext
   | _, _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
@@ -2213,11 +2198,60 @@ let rec get_fungroup_ext = function
   | PReplRestr(None, [], []) -> Parsing_helper.internal_error "empty fungroup"
   | PFun((_,ext),_,_,_) -> ext
 	
+(* Check and simplify the left member of equivalence statements *)
+
+let rec check_lm_term t = 
+  match t.t_desc with
+    Var(b, l) -> 
+      (* Now, array references are allowed, with indices given as argument to the oracle
+      if not (Terms.is_args_at_creation b l) then
+	Parsing_helper.input_error "Array references forbidden in left member of equivalences" t.t_loc;
+      *)
+      begin
+      match b.link with
+	TLink t ->
+	  (* Adding the following test for safety. Should never be
+	     triggered because only restrictions are allowed to take 
+	     arguments as indices *)
+	  if not (Terms.is_args_at_creation b l) then
+	    Parsing_helper.input_error "Array references to variables defined by let or <- forbidden in left member of equivalences" t.t_loc;
+	  check_lm_term t
+      |	NoLink -> ([],t)
+      end 
+  | ReplIndex _ ->
+      Parsing_helper.input_error "One cannot refer to replication indices in the left-hand side of equivalences" t.t_loc
+  | FunApp(f,l) ->
+      let (lres, lt) = List.split (List.map check_lm_term l) in
+      (List.concat lres, Terms.build_term t (FunApp(f, lt)))
+  | LetE(PatVar b,t,t1,_) ->
+      if Terms.refers_to b t then
+	Parsing_helper.input_error "Cyclic assignment in left member of equivalence" t.t_loc;
+      Terms.link b (TLink t);
+      check_lm_term t1
+  | LetE _ ->
+      Parsing_helper.input_error "let with non-variable patterns forbidden in left member of equivalences" t.t_loc
+  | ResE(b,t1) ->
+      let (lres, t1') = check_lm_term t1 in
+      (* Remove useless new; move it outside the oracle when it is useful *)
+      if Terms.refers_to b t1' then
+	((b, t.t_loc)::lres, t1')
+      else
+	(lres, t1')
+  | (TestE _ | FindE _ | EventAbortE _ | GetE _ | InsertE _ | EventE _) ->
+      Parsing_helper.input_error "if, find, get, insert, event, and event_abort forbidden in left member of equivalences" t.t_loc
+
+let rec reduce_rec t =
+  let reduced = ref false in
+  let t' = Terms.apply_eq_reds Terms.simp_facts_id reduced t in
+  if !reduced then 
+    reduce_rec t'
+  else t
+      
 let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
     PReplRestr(repl_opt, restrlist, funlist) as fg ->
-      let (cur_array', repl_opt'  ) =
+      let (cur_array', repl_opt', env) =
 	match repl_opt with
-	| Some(repl_index_ref, _, (rep,ext)) ->
+	| Some(repl_index_ref, idopt, (rep,ext)) ->
 	    let repl_count' = 
 	      match !repl_index_ref with
 		Some b -> b
@@ -2227,24 +2261,32 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	    if List.memq repl_count'.ri_type (!seen_repl) then
 	      raise_error "In an equivalence, different functions must have a different number of repetitions" ext;
 	    seen_repl := repl_count'.ri_type :: (!seen_repl);
-	    (cur_array', Some repl_count')
+	    let env' =
+	      match idopt with
+	      | None -> env
+	      | Some (id,ext) -> StringMap.add id (EReplIndex repl_count') env
+	    in
+	    (cur_array', Some repl_count', env')
 	| None ->
-	    (cur_array, None)
+	    (cur_array, None, env)
       in
       let (env',restrlist') = check_lm_restrlist cur_array' env restrlist in
-      let funlist' = List.map (check_lm_fungroup2 cur_array' (restrlist'::cur_restr) env' seen_ch seen_repl) funlist in
-      (* Check that all new are used *)
+      let (lrestr, funlist') = List.split (List.map (check_lm_fungroup2 cur_array' (restrlist'::cur_restr) env' seen_ch seen_repl) funlist) in
+      (* Check that all new from [restrlist'] are used *)
       List.iter2 (fun ((bname, ext),_,_) (b,_) ->
 	if not (List.exists (Terms.refers_to_fungroup b) funlist') then
 	  Parsing_helper.input_error ("Random variable "^bname^" is not used") ext
 	    ) restrlist restrlist';
-      if restrlist' == [] then
+      (* It is important that the "new" originally present in PReplRestr [restrlist']
+	 are put first, so that they are used by combine_first later in the code *)
+      let restrlist'' = restrlist' @ (List.map (fun (b,_) -> (b, NoOpt)) (List.concat lrestr)) in
+      if restrlist'' == [] then
 	begin
 	  match funlist' with
 	  | [Fun _] -> ()
 	  | _ -> raise_error "In equivalences, under a replication without new, there should be a single function" (get_fungroup_ext fg)
 	end;
-      ReplRestr(repl_opt', restrlist', funlist')
+      ([], ReplRestr(repl_opt', restrlist'', funlist'))
   | PFun(((s, ext) as ch), arglist, tres, (priority, options)) ->
       let ch' = check_channel_id ch in
       if List.memq ch' (!seen_ch) then
@@ -2266,11 +2308,20 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
 	  else
 	    raise_error ("Variable " ^ argname ^ " is not used in the result of the oracle") ext
 	      ) arglist arglist';
+      let (restr, tres2) = check_lm_term tres' in
+      Terms.cleanup();
+      let tres3 = reduce_rec tres2 in
+      List.iter2 (fun ((argname,ext),_) arg' ->
+	if not (Terms.refers_to arg' tres3) then
+	  Parsing_helper.input_error ("After simplification, variable " ^ argname ^ " is not used in this term") tres'.t_loc
+	    ) arglist arglist';
+      (* Remove new that are unused after simplification *)
+      let restr = List.filter (fun (b,_) -> Terms.refers_to b tres3) restr in
       let options' = ref StdOpt in
       List.iter (fun (s,ext) ->
 	if s = "useful_change" then options' := UsefulChange else
 	raise_error ("Unrecognized option " ^ s ^ ". Only \"useful_change\" is allowed.") ext) options;
-      Fun(ch', arglist', tres', (priority, !options'))
+      (restr, Fun(ch', arglist', tres3, (priority, !options')))
 
 
 let rec check_rm_restrlist options2 cur_array env restrlist0 = function
@@ -2279,30 +2330,53 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
       let t = get_type env s2 ext2 in
       if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	raise_error ("Cannot choose randomly a bitstring from " ^ t.tname) ext2;
-      let (env',b) = add_in_env env s1 ext1 t cur_array in
       let opt' = ref NoOpt in
       List.iter (fun (s,ext) ->
 	if s = "unchanged" then 
 	  if options2 = Computational then
-	    if List.exists (fun (b',_) -> Terms.equiv_same_vars b b') restrlist0 then
-	      opt' := Unchanged 
-	    else
-	      raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext
+	    opt' := Unchanged
 	  else
 	    raise_error "The option [unchanged] is allowed only for computational equivalences" ext
 	else
 	  raise_error "The only allowed option for random choices is [unchanged]" ext
-	  ) opt;
+	    ) opt;
+      let opt'' = !opt' in
+      let (env',b) =
+	if opt'' = Unchanged then
+	  let b =
+	    try 
+	      match get_global_binder_if_possible s1 with
+	      | Some b ->
+		  if not (List.exists (fun (_,(b',_)) -> Terms.equiv_same_vars b b') restrlist0) then
+		    raise Not_found;
+		  b
+	      | None ->
+                  (* Look for a variable in the left-hand side with the same name and type *)
+		  let (_,(b0,_)) =
+		    List.find (fun (((s1',_),_,_), (b0,_)) ->
+		      s1' = s1 && b0.btype == t) restrlist0
+		  in
+		  Terms.create_binder_internal b0.sname b0.vname t cur_array 
+	    with Not_found ->
+	      (* A non-matching variable has been returned by [get_global_binder_if_possible s1]
+		 or [List.find] failed. *)
+	      raise_error "When a random choice is marked [unchanged] in the right-hand side,\nthere should exist a corresponding random choice of the same name in the\nleft-hand side" ext1
+	  in
+	  (StringMap.add s1 (EVar b) env, b)
+	else
+	  add_in_env env s1 ext1 t cur_array
+      in
       let (env'',bl) = check_rm_restrlist options2 cur_array env' restrlist0 l in
-      (env'', (b, !opt')::bl)
+      (env'', (b, opt'')::bl)
 
-let rec check_rm_fungroup2 options2 cur_array env fg0 fg = 
-  match (fg0, fg) with
+let rec check_rm_fungroup2 options2 cur_array env pfg0 fg0 fg = 
+  match (pfg0, fg0, fg) with
+    PReplRestr(_, prestrlist0, pfunlist0),
     ReplRestr(repl_opt0, restrlist0, funlist0),
     PReplRestr(repl_opt, restrlist, funlist) ->
-      let (cur_array', repl_opt') =
+      let (cur_array', repl_opt', env) =
 	match repl_opt0, repl_opt with
-	| Some repl_count0, Some (repl_index_ref, _, (rep,ext)) ->
+	| Some repl_count0, Some (repl_index_ref, idopt, (rep,ext)) ->
 	    let repl_count' = 
 	      match !repl_index_ref with
 		Some b -> b
@@ -2311,17 +2385,22 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
 	    if repl_count'.ri_type != repl_count0.ri_type then
 	      raise_error "Different number of repetitions in left and right members of equivalence" ext;
 	    let cur_array' = repl_count' :: cur_array in
-	    (cur_array', Some repl_count')
+	    let env' =
+	      match idopt with
+	      | None -> env
+	      | Some (id,ext) -> StringMap.add id (EReplIndex repl_count') env
+	    in
+	    (cur_array', Some repl_count', env')
 	| None, None ->
-	    (cur_array, None)
+	    (cur_array, None, env)
 	| _ ->
 	    Parsing_helper.internal_error "Replication present on one side only, should have been detected earlier"
       in
-      let (env',restrlist') = check_rm_restrlist options2 cur_array' env restrlist0 restrlist in
+      let (env',restrlist') = check_rm_restrlist options2 cur_array' env (combine_first prestrlist0 restrlist0) restrlist in
       if List.length funlist != List.length funlist0 then
 	raise_error "Different number of functions in left and right sides of equivalence" (get_fungroup_ext fg);
-      ReplRestr(repl_opt', restrlist', List.map2 (check_rm_fungroup2 options2 cur_array' env') funlist0 funlist)
-  | Fun(ch0, arglist0, tres0, priority0), PFun((ch, ext), arglist, tres, _) ->
+      ReplRestr(repl_opt', restrlist', check_rm_fungroup_list2 options2 cur_array' env' pfunlist0 funlist0 funlist)
+  | _, Fun(ch0, arglist0, tres0, priority0), PFun((ch, ext), arglist, tres, _) ->
       let (env', arglist') = check_binder_list2 cur_array env arglist in
       if List.length arglist' != List.length arglist0 then
 	raise_error "Argument lists have different lengths in left and right members of equivalence" (snd tres);
@@ -2339,15 +2418,23 @@ let rec check_rm_fungroup2 options2 cur_array env fg0 fg =
       (* The priority is ignored in the right-hand side; one takes
          the priority of the left-hand side *)
       Fun(ch0, arglist', tres', priority0)
-  | _, PReplRestr(Some(_, _, (_,ext)), _,_) ->
+  | _, _, PReplRestr(Some(_, _, (_,ext)), _,_) ->
       raise_error "Left member is a function, right member is a replication" ext
-  | _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
+  | _, _, PReplRestr(None, (((s1,ext1),_,_)::_),_) ->
       raise_error "Left member is a function, right member is a random number generation" ext1
-  | _, PReplRestr(None, [],_) ->
+  | _, _, PReplRestr(None, [],_) ->
       Parsing_helper.internal_error "Left member is a function, right member is PReplRestr with no replication and no new"
-  | _, PFun(ch, arglist, tres, _) ->
+  | _, _, PFun(ch, arglist, tres, _) ->
       raise_error "Left member is a replication, right member is a function" (snd tres)
 
+and check_rm_fungroup_list2 options2 cur_array env lpfg0 lfg0 lpfg =
+  match lpfg0, lfg0, lpfg with
+  | [], [], [] -> []
+  | pfg0::rpfg0, fg0::rfg0, pfg::rpfg ->
+      (check_rm_fungroup2 options2 cur_array env pfg0 fg0 pfg) ::
+      (check_rm_fungroup_list2 options2 cur_array env rpfg0 rfg0 rpfg)
+  | _ -> Parsing_helper.internal_error "Lists should have same length in check_rm_fungroup_list2"
+	
 let check_mode right = function
     Some (modes, ext) -> 
       if right then
@@ -2357,6 +2444,14 @@ let check_mode right = function
       raise_error "Only modes all and exist can be specified" ext
   | None -> ExistEquiv
 
+let rec check_rm_funmode_list2 options2 env plm lm prm =
+  match plm, lm, prm with
+  | [], [], [] -> []
+  | (pfg0, _, _)::rplm, (fg0, _)::rlm, (pfg, mode, _)::rprm ->
+      (check_rm_fungroup2 options2 [] env pfg0 fg0 pfg, check_mode true mode) ::
+      (check_rm_funmode_list2 options2 env rplm rlm rprm)
+  | _ -> Parsing_helper.internal_error "check_rm_funmode_list2: lists of different lengths"
+	
 let check_eqstatement normalize (name, equiv, (priority, options)) =
   match equiv with
   | EquivSpecial(special_name,args) ->
@@ -2378,6 +2473,15 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
 	eq_exec = !options' }
   | EquivNormal((mem1, ext1), (mem2, ext2), proba) ->
       current_location := InEquivalence;
+      let mem1 =
+	match mem1 with
+	| [(PFun _) as f, mode, ext] ->
+	    (* When there is no replication at all in the LHS,
+               add an implicit replication with no new.
+	       This is useful because the parser never considers implicit replications without "new". *)
+	    [PReplRestr(None, [], [f]), mode, ext]
+	| _ -> mem1
+      in
       let mem2 =
 	match mem1, mem2 with
 	| [PReplRestr(None, _,_),_,_], _ ->
@@ -2389,8 +2493,7 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
 	    then
 	      (* We have an implicit replication in the LHS but not in the RHS.
 		 This cannot be correct, let's add an implicit replication with no "new" in the RHS.
-		 This is useful because the parser never considers implicit replications without "new".
-		 In the LHS, implicit replications must have a "new" so this is no problem. *)
+		 This is useful because the parser never considers implicit replications without "new". *)
 	      [PReplRestr(None, [], List.map (fun (fg, mode, ext) -> fg) mem2), None(*no mode specified*), ext2]
 	    else
 	      (* In all other cases, leave the equivalence unchanged *)
@@ -2415,11 +2518,16 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
       let seen_repl = ref [] in
       let seen_ch = ref [] in
       set_binder_env 
-	(List.fold_left (fun binder_env (fg, _, _) -> check_fungroup1 [] (!env) binder_env fg) empty_binder_env mem1); (* Builds binder_env *)
+	(List.fold_left (fun binder_env (fg, _, _) -> check_lm_fungroup1 [] (!env) binder_env fg) empty_binder_env mem1); (* Builds binder_env *)
       let mem1' = List.map (fun (fg, mode, ext) ->
-	let res = (check_lm_fungroup2 [] [] (!env) seen_ch seen_repl fg,
-		   check_mode false mode)
-	in
+	let (lrestr, fg') = check_lm_fungroup2 [] [] (!env) seen_ch seen_repl fg in
+	begin
+	  match lrestr with
+	  | [] -> ()
+	  | (r1,ext)::_ ->
+	      Parsing_helper.input_error "when a new or <-R is inside the result of an oracle in the left-hand side of equiv, the oracle should occur under a replication or a new or <-R" ext
+	end;	
+	let res = (fg', check_mode false mode) in
 	match res with
 	| (ReplRestr(_,[],_), ExistEquiv) ->
 	    raise_error "In equivalences, a function without any random variable should always be in mode [all]" ext
@@ -2436,9 +2544,7 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
 	raise_error "Both sides of this equivalence should have the same number of function groups" ext2;
       set_binder_env
 	(check_rm_funmode_list empty_binder_env mem1 mem1' mem2); (* Builds binder_env *)
-      let mem2' = List.map2 (fun (fg0, _) (fg, mode, _) -> 
-	check_rm_fungroup2 (!options2') [] (!env) fg0 fg, check_mode true mode) mem1' mem2 
-      in
+      let mem2' = check_rm_funmode_list2 (!options2') (!env) mem1 mem1' mem2 in
       let equiv =
 	{ eq_name = name;
 	  eq_fixed_equiv = Some(mem1',mem2', (if proba' = Zero then [] else [SetProba proba' ]), !options2');

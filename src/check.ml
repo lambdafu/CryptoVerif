@@ -14,10 +14,11 @@ let rec check_def_term defined_refs t =
     Var(b,l) ->
       if not (List.exists (Terms.equal_binderref (b,l)) defined_refs) then
 	begin
-	  print_string "Subterm ";
-	  Display.display_term t;
-	  print_newline();
-	  Parsing_helper.input_error "Variable reference not defined" t.t_loc
+	  let t_string =
+	    Display.string_out (fun () -> 
+	      Display.display_term t)
+	  in
+	  Parsing_helper.input_error ("Variable reference "^t_string^" not defined") t.t_loc
 	end;
       List.iter (check_def_term defined_refs) l
   | ReplIndex b -> ()
@@ -143,30 +144,12 @@ let check_def_process_main p =
   Def.empty_def_process p
 
 (* - Main checking function for equivalence statements *)
-
-let add_cur_array repl_opt cur_array =
-  match repl_opt with
-  | Some repl -> repl::cur_array
-  | None -> cur_array
-    
-let rec build_def_fungroup cur_array above_node = function
-    ReplRestr(repl_opt, restr, funlist) ->
-      let above_node2 =
-	Terms.set_def (List.map fst restr) DFunRestr DNone (Some above_node)
-      in
-      let cur_array' = add_cur_array repl_opt cur_array in
-      List.iter (build_def_fungroup cur_array' above_node2) funlist
-  | Fun(ch, args, res, priority) ->
-      let above_node1 =
-	Terms.set_def args DFunArgs DNone (Some above_node)
-      in
-      ignore(Def.def_term None cur_array above_node1 [] [] [] res)
+  
 
 let array_index_args args =
   List.filter (fun b -> match b.btype.tcat with
     Interv _ -> true
   | BitString -> false) args
-
 
 (* Check that, when there is a common index, all following indices 
    are common too. Note that, since each replication has a different
@@ -279,62 +262,6 @@ and get_arg_array_ref_pat index_args accu = function
   | PatEqual t -> get_arg_array_ref index_args accu t
     
 
-(* Version of check_def_term for equivalences
-   This function is stricter: references to find and replication indices
-   are forbidden. *)
-
-let rec check_def_funterm defined_refs t =
-  match t.t_desc with
-    Var(b,l) ->
-      if not (List.exists (Terms.equal_binderref (b,l)) defined_refs) then
-	begin
-	  print_string "Subterm ";
-	  Display.display_term t;
-	  print_newline();
-	  Parsing_helper.input_error "Variable reference not allowed" t.t_loc
-	end
-  | ReplIndex b -> 
-      Parsing_helper.input_error "References to replication indices not as array indices are forbidden\nin equivalences." t.t_loc
-  | FunApp(f,l) ->
-      List.iter (check_def_funterm defined_refs) l
-  | TestE(t1,t2,t3) ->
-      check_def_funterm defined_refs t1;
-      check_def_funterm defined_refs t2;
-      check_def_funterm defined_refs t3
-  | LetE(pat, t1, t2, topt) ->
-      check_def_funterm defined_refs t1;
-      let accu = ref defined_refs in
-      check_def_pat accu defined_refs pat;
-      check_def_funterm (!accu) t2;
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> check_def_funterm defined_refs t3
-      end
-  | FindE(l0,t3,_) ->
-      List.iter (fun (bl,def_list,t1,t2) ->
-        (* Compute the defined references in the condition *)
-	let defined_refs_t1 = def_list @ defined_refs in
-        (* Compute the defined references in the then branch *)
-	let vars = List.map fst bl in
-	let repl_indices = List.map snd bl in
-	let def_list' = Terms.subst_def_list repl_indices (List.map Terms.term_from_binder vars) def_list in
-	let defined_refs_t2 = def_list' @ defined_refs in
-	check_def_funterm defined_refs_t1 t1;
-	check_def_funterm defined_refs_t2 t2) l0;
-      check_def_funterm defined_refs t3
-  | ResE(b,t) ->
-      check_def_funterm ((Terms.binderref_from_binder b)::defined_refs) t
-  | EventAbortE(f) -> ()
-  | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
-
-and check_def_pat accu defined_refs = function
-    PatVar b -> accu := (Terms.binderref_from_binder b) :: (!accu)
-  | PatTuple (f,l) ->
-      List.iter (check_def_pat accu defined_refs) l
-  | PatEqual t -> check_def_funterm defined_refs t
-
 let rec check_def_fungroup def_refs = function
     ReplRestr(repl, restr, funlist) ->
       List.iter (check_def_fungroup ((List.map (fun (b,_) -> Terms.binderref_from_binder b) restr) @ def_refs)) funlist
@@ -342,63 +269,57 @@ let rec check_def_fungroup def_refs = function
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
       get_arg_array_ref index_args array_ref_args res;
-      check_def_funterm ((List.map Terms.binderref_from_binder args) @ (!array_ref_args) @ def_refs) res
+      check_def_term ((List.map Terms.binderref_from_binder args) @ (!array_ref_args) @ def_refs) res
 
 let check_def_member l =
-  let rec st_node = Terms.set_def [] DNone DNone None in
-  List.iter (fun (fg, mode) -> build_def_fungroup [] st_node fg) l;
   List.iter (fun (fg, mode) -> check_def_fungroup [] fg) l
 
 
-(* Check and simplify the left member of equivalence statements *)
+(* Build types and functions for encoding indices *)
 
-let rec check_lm_term t = 
-  match t.t_desc with
-    Var(b, l) -> 
-      (* Now, array references are allowed, with indices given as argument to the oracle
-      if not (List.for_all2 Terms.equal_terms l b.args_at_creation) then
-	Parsing_helper.input_error "Array references forbidden in left member of equivalences" t.t_loc;
-      *)
+let encode_idx_types_funs = ref []
+
+let rec build_encode_idx_types_funs_fg cur_array = function
+  | ReplRestr(repl_opt, restr, funlist) ->
       begin
-      match b.link with
-	TLink t -> check_lm_term t
-      |	NoLink -> t
-      end 
-  | ReplIndex _ ->
-      Parsing_helper.internal_error "Subterms of variable accesses are not considered in check_lm_term, so the case ReplIndex should never happen"
-  | FunApp(f,l) ->
-      Terms.build_term t (FunApp(f, List.map check_lm_term l))
-  | LetE(PatVar b,t,t1,_) ->
-      if Terms.refers_to b t then
-	Parsing_helper.input_error "Cyclic assignment in left member of equivalence" t.t_loc;
-      Terms.link b (TLink t);
-      check_lm_term t1
-  | LetE _ ->
-      Parsing_helper.input_error "let with non-variable patterns forbidden in left member of equivalences" t.t_loc
-  | (TestE _ | FindE _ | ResE _ | EventAbortE _ | GetE _ | InsertE _ | EventE _) ->
-      Parsing_helper.input_error "if, find, new, get, insert, event, and event_abort forbidden in left member of equivalences" t.t_loc
+	match repl_opt with
+	| None -> List.iter (build_encode_idx_types_funs_fg cur_array) funlist
+	| Some repl ->
+	    let cur_array' = repl::cur_array in
+	    let repl_type = repl.ri_type in
+	    let repl_param = Terms.param_from_type repl_type in
+	    let encoded_type =
+	      { tname = Terms.fresh_id ("encoded_"^repl_param.pname^"_t");
+		tcat = BitString;
+		toptions = 0;
+		tsize = None;
+		tpcoll = None;
+		timplsize = None;
+		tpredicate = None;
+		timplname = None;
+		tserial = None;
+		trandom = None }
+	    in
+	    let encode_fun =
+	      { f_name = Terms.fresh_id ("encode_"^repl_param.pname);
+		f_type = List.map (fun ri -> ri.ri_type) cur_array, encoded_type;
+		f_cat = Tuple;
+		f_options = Settings.fopt_COMPOS;
+		f_statements = [];
+		f_collisions = [];
+		f_eq_theories = NoEq;
+		f_impl = No_impl;
+		f_impl_inv = None }
+	    in
+	    encode_idx_types_funs := (repl_type, (encoded_type, encode_fun)) :: (!encode_idx_types_funs);
+	    List.iter (build_encode_idx_types_funs_fg cur_array') funlist
+      end
+  | Fun _ -> ()
 
-let rec reduce_rec t =
-  let reduced = ref false in
-  let t' = Terms.apply_eq_reds Terms.simp_facts_id reduced t in
-  if !reduced then 
-    reduce_rec t'
-  else t
-      
-let rec check_lm_fungroup = function
-    ReplRestr(repl, restr, funlist) ->
-      let funlist' = List.map check_lm_fungroup funlist in
-      ReplRestr(repl, restr, funlist')
-  | Fun(ch, args, res, priority) ->
-      let res' = check_lm_term res in
-      Terms.cleanup();
-      let res'' = reduce_rec res' in
-      List.iter (fun arg ->
-	if not (Terms.refers_to arg res'') then
-	  Parsing_helper.input_error ("After simplification, variable " ^ arg.sname ^ " is not used in this term") res.t_loc
-	  ) args;
-      Fun(ch, args, res'', priority)
-
+let build_encode_idx_types_funs l =
+  encode_idx_types_funs := [];
+  List.iter (fun (fg, mode) -> build_encode_idx_types_funs_fg [] fg) l
+    
 
 (* Check and simplify the right member of equivalences 
    NOTE: It is important that is called after check_def_eqstatement 
@@ -437,119 +358,571 @@ let same_binders l1 l2 =
     | _ -> false) l1 l2
 *)
 
-let rec check_rm_term allowed_index_seq t =
+
+(* The rest of the code does not allow making array accesses on indices of find
+   in the RHS of an equivalence. To allow it for the user, we replace 
+     find u <= N suchthat ... then M, with an array access to u.
+   with
+     find u' <= N suchthat ... then let u = u' in M{u'/u} *)
+    
+let remove_array_access_find_idx ext has_more_indices lindex t2 =
+  (* Raises [Not_found] when no index of find has an array access.
+     In this case, the find is unchanged. *)
+  let rec check_lindex = function
+    | [] -> raise Not_found
+    | [(b,ri)] ->
+	if Array_ref.has_array_ref b then
+	  if has_more_indices then
+	    (* Do not create an index variable that cannot later be encoded.
+               Only full sequence of indices of a variable can be encoded. *)
+	    Parsing_helper.input_error ((Display.binder_to_string b)^" has an array access. It should correspond to the whole sequence of indices of a variable. Please store a tuple containing this index as well as associated current replication indices in a variable in the then branch, and make array accesses to this variable") ext
+	  else
+	    let b' = Terms.new_binder b in
+	    [(b', ri)], (b,b')
+	else
+	  raise Not_found
+    | ((b,ri) as b_ri) :: rest ->
+	if Array_ref.has_array_ref b then
+	  (* Do not create an index variable that cannot later be encoded.
+             Only full sequence of indices of a variable can be encoded. *)
+	  Parsing_helper.input_error ((Display.binder_to_string b)^" has an array access. Only the last index of a find is allowed to have an array access. For other cases, please store a tuple containing the indices of find "^(if has_more_indices then "as well as associated current replication indices " else "")^"in a variable in the then branch, and make array accesses to this variable") ext;
+	let (rest', subst) = check_lindex rest in
+	(b_ri :: rest', subst)
+  in
+  try 
+    let (lindex', (b,b')) = check_lindex lindex in
+    let b'_term = Terms.term_from_binder b' in
+    let t2_subst = Terms.copy_term (OneSubst(b, b'_term, ref false)) t2 in
+    let t2' = Terms.build_term t2 (LetE(PatVar b, b'_term, t2_subst, None)) in
+    (lindex', t2')
+  with Not_found ->
+    (lindex, t2)
+
+      
+let rec remove_common_prefix l1 l2 = 
+  match (l1,l2) with
+  | ri::r1, {t_desc = ReplIndex ri'}::r2 when ri == ri' -> 
+      remove_common_prefix r1 r2
+  | _ ->
+      (l1,l2)
+
+let remove_common_suffix l1 l2 = 
+  let l1rev = List.rev l1 in
+  let l2rev = List.rev l2 in
+  let (l1rev',l2rev') = remove_common_prefix l1rev l2rev in
+  (List.rev l1rev', List.rev l2rev')
+
+(* [replace_suffix old_suffix new_suffix l] checks that
+   [l] ends with [old_suffix] and replaces the suffix [old_suffix] with
+   [new_suffix] in [l] *)
+let replace_suffix old_suffix new_suffix l =
+  let lprefix = List.length l - List.length old_suffix in
+  let (prefix, suffix) = Terms.split lprefix l in
+  if not (List.for_all2 Terms.equal_terms suffix old_suffix) then
+    Parsing_helper.internal_error "replace_suffix: old suffix not found";
+  prefix @ new_suffix
+
+let rec check_rm_term cur_array t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term t (Var(b, List.map (check_rm_term allowed_index_seq) l))
-  | ReplIndex b -> 
+      Terms.build_term t (Var(b, List.map (check_rm_term cur_array) l))
+  | ReplIndex b ->
       Terms.build_term t (ReplIndex b)
   | FunApp(f,l) ->
-      Terms.build_term t (FunApp(f, List.map (check_rm_term allowed_index_seq) l))
+      Terms.build_term t (FunApp(f, List.map (check_rm_term cur_array) l))
   | LetE(pat,t1,t2,topt) ->
-      Terms.build_term t (LetE(check_rm_pat allowed_index_seq pat,
-		      check_rm_term allowed_index_seq t1,
-		      check_rm_term allowed_index_seq t2,
-		      begin
-			match topt with
-			  None -> None
-			| Some t3 -> Some(check_rm_term allowed_index_seq t3)
-		      end))
+      let topt' =
+	match topt with
+	| None -> None
+	| Some t3 -> Some (check_rm_term cur_array t3)
+      in
+      Terms.build_term t
+	(LetE(check_rm_pat cur_array pat,
+	      check_rm_term cur_array t1,
+	      check_rm_term cur_array t2, topt'))
   | ResE(b,t') ->
-      Terms.build_term t (ResE(b, check_rm_term allowed_index_seq t'))
+      Terms.build_term t (ResE(b, check_rm_term cur_array t'))
   | TestE(t1,t2,t3) ->
-      Terms.build_term t (TestE(check_rm_term allowed_index_seq t1,
-		       check_rm_term allowed_index_seq t2,
-		       check_rm_term allowed_index_seq t3))
+      Terms.build_term t
+	(TestE(check_rm_term cur_array t1,
+	       check_rm_term cur_array t2,
+	       check_rm_term cur_array t3))
   | FindE(l0, t3, find_info) ->
-      Terms.build_term t (FindE(
-	List.map (function 
-	   (* ([], _, _, _, _) -> Parsing_helper.user_error "Find in right member of equivalences should bind at least one index\n"
-	  | *) (lindex, def_list, t1, t2) ->
+      let t3' = check_rm_term cur_array t3 in
+      let l0' = 
+	List.map (fun (lindex, def_list, t1, t2) ->
 	    (* Variables in def_list should have a particular form of indexes: 
-	         a suffix of lindex + the same suffix of a sequence in allowed_index_seq
+	         a suffix of lindex + the same suffix of cur_array
 	       At least one of these variables should use the full lindex.
 	       Furthermore, a single reference in def_list should imply that all other
 	       references are defined. This implies that the same find cannot reference
 	       variables defined in different functions under the same replication
 	       (which simplifies the code of cryptotransf.ml).
-	       *)
-	      let max_sequence = ref None in
-	      List.iter (fun ((_,l) as def) ->
-		let def_closure = close_def def in
-		if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') def_closure) def_list then
-		  max_sequence := Some l
-			 ) def_list;
 
-	      let l1 =
-		match !max_sequence with
-		| None ->
-		    Parsing_helper.input_error "In equivalences, in find, one \"defined\" variable reference should imply all others" t.t_loc;
-		| Some l1 -> l1
-	      in
-	      let l1_binders = List.map (function
-		  { t_desc = ReplIndex(b) } -> b
-		| _ -> Parsing_helper.input_error "In equivalences, find ... suchthat defined(x[l],...): terms in l should be replication indices." t.t_loc) l1
-	      in
-	      let l_index = List.length lindex in
-	      let l_other_seq_suffix = List.length l1 - l_index in
-	      if List.length l1_binders < l_index then
-		Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find" t.t_loc;
-	      let (lindex_maxseq, other_seq_suffix) = Terms.split l_index l1_binders in
-	      if not (List.for_all2 (==) (List.map snd lindex) lindex_maxseq) then
-		Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find" t.t_loc;
-	      if not (List.exists (fun seq ->
-		let suffix = Terms.skip (List.length seq - l_other_seq_suffix) seq in
-		List.for_all2 (==) suffix other_seq_suffix) allowed_index_seq) then
-		Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find" t.t_loc;
-	      (*Commented out to simplify the indexes: allowed_index_seq is now only [cur_array]. 
-		This makes the transformation simpler, but a bit less powerful.
-		With the indices of Find separated into replication indices and standard variables,
-		it is not clear that adding l1_binders would be correct anyway.
-	      let allowed_index_seq' = l1_binders :: allowed_index_seq in *)
-	      List.iter (fun (b',l) ->
-		if List.length l < l_other_seq_suffix then
-		  Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find" t.t_loc
-		    ) def_list;
-	      let t1' = check_rm_term allowed_index_seq t1 in
-	      let t2' = check_rm_term allowed_index_seq t2 in
-	      (lindex, def_list, t1', t2')
-		) l0,
-	check_rm_term allowed_index_seq t3, find_info))
+	       We allow in fact 
+	        suffix of lindex + other variables (names [other_seq_middle]) + the same suffix of cur_array
+	       and transform it into the previous form by adding one index in lindex for
+	       each element of other variables, and checking that these indices are equal to
+	       the other variables in the condition of find.
+	       *)
+	  let max_sequence = ref None in
+	  List.iter (fun ((_,l) as def) ->
+	    let def_closure = close_def def in
+	    if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') def_closure) def_list then
+	      max_sequence := Some l
+		   ) def_list;
+	  
+	  let max_seq =
+	    match !max_sequence with
+	    | None ->
+		Parsing_helper.input_error "In equivalences, in find, one \"defined\" variable reference should imply all others" t.t_loc;
+	    | Some max_seq -> max_seq
+	  in
+	  let l_index = List.length lindex in
+	  let l_max_seq_suffix = List.length max_seq - l_index in
+	  List.iter (fun (b',l) ->
+	    if List.length l < l_max_seq_suffix then
+	      Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find, plus possibly index variables" t.t_loc
+		) def_list;
+	  if List.length max_seq < l_index then
+	    Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find, plus possibly index variables" t.t_loc;
+	  let (lindex_maxseq, max_seq_suffix) = Terms.split l_index max_seq in
+	  if not (List.for_all2 (fun (_,ri) t ->
+	    match t.t_desc with
+	    | ReplIndex ri' -> ri == ri'
+	    | _ -> false) lindex lindex_maxseq) then
+	    Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find, plus possibly index variables" t.t_loc;
+	  let suffix = Terms.skip (List.length cur_array - l_max_seq_suffix) cur_array in
+	  let (_, other_seq_middle) = remove_common_suffix suffix max_seq_suffix in
+	  let cur_array_suffix_terms =
+	    List.map Terms.term_from_repl_index (Terms.skip (List.length other_seq_middle) suffix)
+	  in
+	  let (lindex, def_list, t1, t2) =
+	    match other_seq_middle with
+	    | [] -> (lindex, def_list, t1, t2)
+	    | _ ->
+		(* When the variables in [def_list] use indices not defined by [find] and not in [curarray],
+                   we reorganize the [find], by replacing these indices with indices defined by the [find]
+                   and verifying equality between the new and old indices. For instance:
+                     find u = j <= N suchthat defined(x[j,k]) && M(x[j,k]) then M'(x[u,k]) else ...
+                   becomes
+                     find u = j <= N, u' = j' <= N' suchthat defined(x[j,j']) && j' = k && M(x[j,j']) then M'(x[u,u']) else ...
+                   The index k is replaced with the new index j' defined by [find], and we verify that j' = k 
+                   in the condition of [find] so that the new code is equivalent to the old one. *)
+
+		(* We implicitly check that [other_seq_middle] is already defined without the need
+		   to put it in the defined condition, by verifying that the equality test
+                   [lindex_addition = other_seq_middle] is ok (hence included in the [allowed_index_seq] *)
+		let lindex_addition =
+		  List.map (fun t ->
+		    match t.t_desc with
+		    | Var(b, _) ->
+			let b' = Terms.new_binder b in
+			let ri' = Terms.create_repl_index b.sname b.btype in
+			(b', ri')
+		    | _ ->
+			Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find, plus possibly index variables" t.t_loc
+			  ) other_seq_middle
+		in
+		let lindex' = lindex @ lindex_addition in
+	        (* Replace the sequence of indices [max_seq_suffix] with [new_seq_suffix = (List.map snd lindex_addition) @ removed common suffix]
+                   in [def_list], yielding [def_list']. *)
+		let new_seq_suffix =
+		  (List.map (fun (_, ri) -> Terms.term_from_repl_index ri) lindex_addition) @
+		  cur_array_suffix_terms
+		in
+		let def_list' = List.map (fun (b, l) -> (b, replace_suffix max_seq_suffix new_seq_suffix l)) def_list in
+                (* Replace the array refs [def_list] with [def_list'] in [t1] *)
+		let lsubst = List.map2 (fun br br' -> (br, Terms.term_from_binderref br')) def_list def_list' in
+		let t1' = Terms.copy_term (SubstArgs lsubst) t1 in
+		(* Add test [(max_seq_suffix) = ((List.map snd lindex_addition) @ removed common suffix)] in [t1] *)
+		let test =
+		  match max_seq_suffix, new_seq_suffix with
+		  | [old_t], [new_t] -> Terms.make_equal new_t old_t 
+		  | _ ->
+		      let type_l = List.map (fun t -> t.t_type) max_seq_suffix in
+		      let tuple_fun = Settings.get_tuple_fun type_l in
+		      Terms.make_equal (Terms.app tuple_fun new_seq_suffix) (Terms.app tuple_fun max_seq_suffix) 
+		in
+		let t1'' = Terms.make_and test t1' in
+                (* Replace the array refs [def_list{var/ri}] with [def_list'{var/ri}] in [t2] *)
+		let subst_idx bl def_list =
+		  let vars = List.map fst bl in
+		  let repl_indices = List.map snd bl in
+		  Terms.subst_def_list repl_indices (List.map Terms.term_from_binder vars) def_list 
+		in
+		let def_list_then = subst_idx lindex def_list in
+		let def_list_then' = subst_idx lindex' def_list' in
+		let lsubst' = List.map2 (fun br br' -> (br, Terms.term_from_binderref br')) def_list_then def_list_then' in
+		let t2' = Terms.copy_term (SubstArgs lsubst') t2 in
+		(lindex', def_list', t1'', t2')
+	  in
+	      (* if not (List.for_all2 (==) suffix max_seq_suffix) then
+		 Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find" t.t_loc; *)
+          let (lindex, t2) = remove_array_access_find_idx t.t_loc (cur_array_suffix_terms != []) lindex t2 in
+	  let t1' = check_rm_term cur_array t1 in
+	  let t2' = check_rm_term cur_array t2 in
+	  (lindex, def_list, t1', t2')
+	    ) l0
+      in
+      Terms.build_term t (FindE(l0', t3', find_info))
+  | EventAbortE(f) -> Terms.build_term t (EventAbortE f)
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
+
+and check_rm_pat cur_array = function
+    PatVar b -> PatVar b
+  | PatTuple (f,l) -> PatTuple (f,List.map (check_rm_pat cur_array) l)
+  | PatEqual t -> PatEqual (check_rm_term cur_array t)
+
+let rec check_rm_fungroup cur_array = function
+    ReplRestr(repl_opt, restr, funlist) ->
+      let cur_array' = Terms.add_cur_array repl_opt cur_array in
+      ReplRestr(repl_opt, restr, List.map (check_rm_fungroup cur_array') funlist)
+  | Fun(ch, args, res, priority) ->
+      let index_args = array_index_args args in
+      let array_ref_args = ref [] in
+      get_arg_array_ref index_args array_ref_args res;
+      let allowed_index_seq_args = List.map (fun (b,l) -> l) (!array_ref_args) in
+      let res = check_rm_term cur_array res in
+      let rec make_lets body = function
+	  [] -> ([], body)
+	| (b::l) -> 
+	    let (b_inputs', body') = make_lets body l in
+	    if (b.btype.tcat <> BitString) && (Array_ref.has_array_ref b) then
+	      if not (List.exists (Terms.equal_term_lists [Terms.term_from_binder b]) allowed_index_seq_args) then
+		Parsing_helper.input_error ((Display.binder_to_string b)^" has an array access. It should correspond to the full sequence of indices of a variable. For other cases, please store the full sequence of indices in a tuple, and make array accesses to this tuple.") body.t_loc
+	      else
+		let b' = Terms.new_binder b in
+		let b'_term = Terms.term_from_binder b' in
+		let body'_subst = Terms.copy_term (OneSubst(b, b'_term, ref false)) body' in
+		(b'::b_inputs', 
+		 Terms.build_term_type body'.t_type
+		   (LetE(PatVar b, b'_term, body'_subst, None)))
+	    else
+	      (b::b_inputs', body')
+      in
+      let (args', res') = make_lets res args in
+      Fun(ch, args', res', priority)
+
+(* [add_suffixes accu common_suffix l] adds to [accu]
+   all suffixes of [l @ common_suffix] strictly containing [common_suffix] *)
+let rec add_suffixes accu common_suffix = function
+  | [] -> accu
+  | (_::l) as l0 ->
+      add_suffixes ((l0 @ common_suffix)::accu) common_suffix l
+	     
+let merge_types t1 t2 ext =
+  if t1 == Settings.t_any then
+    t2
+  else if t2 == Settings.t_any then
+    t1
+  else 
+    begin
+      if t1 != t2 then
+	Parsing_helper.input_error "All branches of if/let/find/get should yield the same type, even after encoding indices" ext;
+      t1
+    end
+
+(* [renamed_vars] is a list of pairs of variables (b,b') such that
+   b is a variable in the RHS of the equivalence, and b' is the variable
+   used instead of b after encoding indices. *)
+let renamed_vars = ref []
+
+exception Not_idx
+
+(* [get_assoc_var b] returns that variable that should be used instead of [b]
+   after encoding indices. When [b] does not contain an index, it returns [b]
+   itself. 
+   This function does not check that indices are correctly used. The 
+   full check is done in [encode_idx_term]. *)
+let rec get_assoc_var b =
+  try
+    List.assq b (!renamed_vars)
+  with Not_found ->
+    if List.for_all (fun n ->
+      match n.definition with
+      | DTerm { t_desc = LetE(PatVar _,_,_,_) } ->
+	  true
+      | _ -> false
+	    ) b.def then
+      match b.def with
+      | [] -> b
+      | n::_ ->
+	  match n.definition with
+	  | DTerm { t_desc = LetE(PatVar _,t,_,_) } ->
+	      begin
+		try 
+		  let encoded_ty =
+		    if t.t_type.tcat != BitString then
+		      let (encoded_ty,_) = List.assq t.t_type (!encode_idx_types_funs) in
+		      encoded_ty
+		    else if t.t_type == Settings.t_bitstring then
+		      (* May be indices contained in a tuple *)
+		      get_idx_type t
+		    else
+		      raise Not_idx
+		  in
+		  let b' = Terms.create_binder ("encoded_"^(Display.binder_to_string b)) encoded_ty b.args_at_creation in
+		  renamed_vars := (b,b') :: (!renamed_vars);
+		  b'
+		with Not_idx ->
+		  b
+	      end
+	  | _ -> assert false
+    else
+      b
+
+and get_idx_type t =
+  (* Get the encoded index type when [t] is a tuple containing indices.
+     Raises [Not_idx] otherwise. *)
+  match t.t_desc with
+  | Var(b,l) ->
+      let b' = get_assoc_var b in
+      if b' == b then
+	raise Not_idx
+      else
+        b'.btype	
+  | ReplIndex _ -> assert false
+  | FunApp(f,l) ->
+      begin
+	match l with
+	| t1::_ -> 
+	    if t1.t_type.tcat != BitString then
+	      begin
+		if f.f_cat != Tuple || f.f_name <> "" then
+		  Parsing_helper.input_error "In the right-hand of equiv, only standard tuples can take indices as arguments" t.t_loc;
+		let (encoded_ty,_) = List.assq t1.t_type (!encode_idx_types_funs) in
+		encoded_ty
+	      end
+	    else
+	      raise Not_idx
+	| _ -> raise Not_idx
+      end
+  | LetE(pat,t1,t2,topt) ->
+      begin
+	match topt with
+	| Some t3 when t3.t_type != Settings.t_any ->
+            get_idx_type t3
+	| _ -> get_idx_type t2
+      end
+  | ResE(b,t') ->
+      get_idx_type t' 
+  | TestE(t1,t2,t3) ->
+      if t2.t_type != Settings.t_any then
+	get_idx_type t2
+      else
+	get_idx_type t3
+  | FindE(l0, t3, find_info) ->
+      if t3.t_type != Settings.t_any then
+	get_idx_type t3
+      else
+	let rec find_idx_type = function
+	  | [] -> raise Not_idx
+	  | (_,_,_,t2)::rest ->
+	      if t2.t_type != Settings.t_any then
+		get_idx_type t2
+	      else
+		find_idx_type rest
+	in
+	find_idx_type l0
+  | EventAbortE(f) ->
+      raise Not_idx
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
+
+(* [encode_idx ext allowed_index_seq idx_l] transforms 
+   the list of indices [idx_l = [i1;...;in]] into
+   [encode_N(i1,...,in)] which is the encoding the
+   [idx_l], provided the sequence [i1,...,in] is in
+   the allowed index sequences [allowed_index_seq]. *)
+let encode_idx ext allowed_index_seq idx_l =
+  let first_idx = List.hd idx_l in
+  try 
+    let seq =
+      List.find (fun seq -> Terms.equal_terms first_idx (List.hd seq)) allowed_index_seq
+    in
+    if not (Terms.equal_term_lists seq idx_l) then
+      raise Not_found;
+    let (_, encode_fun) = List.assq first_idx.t_type (!encode_idx_types_funs) in
+    Terms.app encode_fun seq
+  with Not_found ->
+    let idxl_to_string idxl =
+      match idxl with
+      | [idx] -> Display.string_out (fun () -> Display.display_term idx)
+      | _ -> "(" ^ (Display.string_out (fun () -> Display.display_list Display.display_term idxl)) ^ ")"
+    in
+    let allowed_idx = String.concat "\n  " (List.map idxl_to_string allowed_index_seq) in
+    Parsing_helper.input_error ("These indices "^(idxl_to_string idx_l)^" are not allowed. The allowed indices are:\n - the current replication indices, and any suffix thereof;\n - the indices of a find concatenated with the associated current replication indices to build a full sequence of indices, and any suffix thereof;\n - indices received as argument by the oracle, when there is a variable that has these indices.\nHence the indices allowed here are\n  "^allowed_idx) ext
+    
+let rec encode_idx_term cur_array allowed_index_seq t =
+  match t.t_desc with
+    Var(b,l) ->
+      (* if b defined by "let b = EIT in", then replace b with associated variable b' *)
+      let b' = get_assoc_var b in
+      if b' == b && t.t_type.tcat != BitString then
+	(* case b = find index or received index -> encode it *)
+	encode_idx t.t_loc allowed_index_seq [t]
+      else
+	Terms.new_term b'.btype t.t_loc (Var(get_assoc_var b, l))
+  | ReplIndex b ->
+      encode_idx t.t_loc allowed_index_seq [t]
+  | FunApp({ f_cat = Equal}, [t1; t2]) ->
+      (* Allow comparison of indices, by encoding them *)
+      let t1' = encode_idx_term cur_array allowed_index_seq t1 in
+      let t2' = encode_idx_term cur_array allowed_index_seq t2 in
+      if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
+	Parsing_helper.input_error "= should have two arguments of the same type, even after encoding of indices" t.t_loc;
+      Terms.make_equal_ext t.t_loc t1' t2'
+  | FunApp({ f_cat = Diff}, [t1; t2]) ->
+      (* Allow comparison of indices, by encoding them *)
+      let t1' = encode_idx_term cur_array allowed_index_seq t1 in
+      let t2' = encode_idx_term cur_array allowed_index_seq t2 in
+      if (t1'.t_type != t2'.t_type) && (t1'.t_type != Settings.t_any) && (t2'.t_type != Settings.t_any) then
+	Parsing_helper.input_error "<> should have two arguments of the same type, even after encoding of indices" t.t_loc;
+      Terms.make_diff_ext t.t_loc t1' t2'
+  | FunApp(f,l) ->
+      if List.exists (fun t -> t.t_type.tcat != BitString) l then
+	begin
+        (* case (i1,...,in) -> encode it *)
+	  if f.f_cat != Tuple || f.f_name <> "" then
+	    Parsing_helper.input_error "In the right-hand of equiv, only standard tuples can take indices as arguments" t.t_loc;
+	  encode_idx t.t_loc allowed_index_seq l
+	end
+      else
+	Terms.build_term t (FunApp(f, List.map (encode_idx_term_keep_type cur_array allowed_index_seq) l))
+  | LetE(pat,t1,t2,topt) ->
+      let t1' = encode_idx_term cur_array allowed_index_seq t1 in
+      let t2' = encode_idx_term cur_array allowed_index_seq t2 in
+      let topt', new_type =
+	match topt with
+	| None -> None, t2'.t_type
+	| Some t3 ->
+	    let t3' = encode_idx_term cur_array allowed_index_seq t3 in
+	    Some t3', merge_types t2'.t_type t3'.t_type t.t_loc
+      in
+      if t1'.t_type != t1.t_type then
+	(* [t1] is an index that got encoded into [t1'] *)
+	begin
+	  match pat with
+	  | PatVar b ->
+	      let b' = get_assoc_var b in
+	      if b'.btype != t1'.t_type then
+		Parsing_helper.input_error ("Variable "^(Display.binder_to_string b)^" assigned indices of different types, or not always assigned indices") t.t_loc;
+	      Terms.new_term new_type t.t_loc
+		(LetE(PatVar b', t1', t2', topt'))
+	  | _ ->
+	      Parsing_helper.input_error "an index to be encoded is matched with a non-variable pattern" t.t_loc
+	end
+      else
+	Terms.new_term new_type t.t_loc
+	  (LetE(encode_idx_pat cur_array allowed_index_seq t.t_loc pat,
+		t1', t2', topt'))
+  | ResE(b,t') ->
+      let t'' = encode_idx_term cur_array allowed_index_seq t' in
+      Terms.new_term t''.t_type t.t_loc (ResE(b, t''))
+  | TestE(t1,t2,t3) ->
+      let t2' = encode_idx_term cur_array allowed_index_seq t2 in
+      let t3' = encode_idx_term cur_array allowed_index_seq t3 in
+      let new_type = merge_types t2'.t_type t3'.t_type t.t_loc in
+      Terms.new_term new_type t.t_loc
+	(TestE(encode_idx_term_keep_type cur_array allowed_index_seq t1,
+	       t2', t3'))
+  | FindE(l0, t3, find_info) ->
+      let t3' = encode_idx_term cur_array allowed_index_seq t3 in
+      let t_common = ref t3'.t_type in
+      let l0' = 
+	List.map (fun (lindex, def_list, t1, t2) ->
+	    (* Variables in def_list should have a particular form of indexes: 
+	         a suffix of lindex + the same suffix of a sequence in cur_array
+	       At least one of these variables should use the full lindex.
+	       Furthermore, a single reference in def_list should imply that all other
+	       references are defined. This implies that the same find cannot reference
+	       variables defined in different functions under the same replication
+	       (which simplifies the code of cryptotransf.ml).
+
+	       This form has already been checked in [check_rm_term].
+	       Here, we just recover the considered suffix of cur_array,
+	       because we need it to compute the allowed index sequences.
+	       *)
+	  let max_sequence = ref None in
+	  List.iter (fun ((_,l) as def) ->
+	    let def_closure = close_def def in
+	    if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') def_closure) def_list then
+	      max_sequence := Some l
+		   ) def_list;
+	  
+	  let max_seq =
+	    match !max_sequence with
+	    | None ->
+		Parsing_helper.input_error "In equivalences, in find, one \"defined\" variable reference should imply all others" t.t_loc;
+	    | Some max_seq -> max_seq
+	  in
+	  let l_index = List.length lindex in
+	  let l_max_seq_suffix = List.length max_seq - l_index in
+	  let suffix = Terms.skip (List.length cur_array - l_max_seq_suffix) cur_array in
+	  let cur_array_suffix_terms = List.map Terms.term_from_repl_index suffix in
+          let def_list' = List.map (fun(b,l) -> (get_assoc_var b,l)) def_list in
+	  let allowed_index_seq_t1 =
+	    add_suffixes allowed_index_seq cur_array_suffix_terms
+	      (List.map (fun (_, ri) -> Terms.term_from_repl_index ri) lindex)
+	  in
+	  let t1' = encode_idx_term_keep_type cur_array allowed_index_seq_t1 t1 in
+	  let allowed_index_seq_t2 =
+	    add_suffixes allowed_index_seq cur_array_suffix_terms
+	      (List.map (fun (b, _) -> Terms.term_from_binder b) lindex)
+	  in
+	  let t2' = encode_idx_term cur_array allowed_index_seq_t2 t2 in
+	  t_common := merge_types (!t_common) t2'.t_type t.t_loc;	  
+	  (lindex, def_list', t1', t2')
+	    ) l0
+      in
+      Terms.new_term (!t_common) t.t_loc (FindE(l0', t3', find_info))
   | EventAbortE(f) ->
       Terms.build_term t (EventAbortE(f))
   | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
 
-and check_rm_pat allowed_index_seq = function
-    PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple (f,List.map (check_rm_pat allowed_index_seq) l)
-  | PatEqual t -> PatEqual (check_rm_term allowed_index_seq t)
+and encode_idx_pat cur_array allowed_index_seq ext = function
+    PatVar b ->
+      if get_assoc_var b != b then
+	Parsing_helper.input_error ("Variable "^(Display.binder_to_string b)^" sometimes contains an index to be encoded, sometimes not") ext;
+      PatVar b
+  | PatTuple (f,l) -> PatTuple (f,List.map (encode_idx_pat cur_array allowed_index_seq ext) l)
+  | PatEqual t -> PatEqual (encode_idx_term_keep_type cur_array allowed_index_seq t)
 
-let rec check_rm_fungroup normalize cur_array = function
+and encode_idx_term_keep_type cur_array allowed_index_seq t =
+  let t' = encode_idx_term cur_array allowed_index_seq t in
+  if t'.t_type != t.t_type then
+    Parsing_helper.input_error "index to be encoded is not allowed here" t.t_loc;
+  t'
+
+let rec encode_idx_fungroup cur_array = function
     ReplRestr(repl_opt, restr, funlist) ->
-      let cur_array' = add_cur_array repl_opt cur_array in
-      ReplRestr(repl_opt, restr, List.map (check_rm_fungroup normalize cur_array') funlist)
+      let cur_array' = Terms.add_cur_array repl_opt cur_array in
+      ReplRestr(repl_opt, restr, List.map (encode_idx_fungroup cur_array') funlist)
   | Fun(ch, args, res, priority) ->
-      let res = check_rm_term [cur_array] res in
+      let index_args = array_index_args args in
+      let array_ref_args = ref [] in
+      get_arg_array_ref index_args array_ref_args res;
+      let allowed_index_seq_args = List.map (fun (b,l) -> l) (!array_ref_args) in
+      let allowed_index_seq = add_suffixes allowed_index_seq_args [] (List.map Terms.term_from_repl_index cur_array) in
+      let res = encode_idx_term_keep_type cur_array allowed_index_seq res in
       let rec make_lets body = function
 	  [] -> ([], body)
 	| (b::l) -> 
 	    let (b_inputs', body') = make_lets body l in
-	    if (*Terms.has_array_ref b*) (match b.btype.tcat with BitString -> true | Interv _ -> Array_ref.has_array_ref b) then
+	    (* let already introduced for index arguments with array references in 
+	       [check_rm_fungroup] *)
+	    if b.btype.tcat == BitString then
 	      let b' = Terms.new_binder b in
 	      (b'::b_inputs', 
-	       Terms.build_term_type body'.t_type (LetE(PatVar b, 
-			       Terms.term_from_binderref (b',List.map Terms.term_from_repl_index cur_array),
-			       body', None)))
+	       Terms.build_term_type body'.t_type
+		 (LetE(PatVar b, Terms.term_from_binder b', body', None)))
 	    else
 	      (b::b_inputs', body')
       in
-      let (args', res') =
-	if normalize then
-          make_lets res args
-	else
-          (args, res)
-      in
+      let (args', res') = make_lets res args in
       Fun(ch, args', res', priority)
 
 (* When there is a name just above a function in the left-hand side,
@@ -969,68 +1342,84 @@ let instan_time add_time p =
   instan_time p
 
     
-let add_repl normalize equiv =
-  if normalize then
-    match equiv.eq_fixed_equiv with
-    | None -> equiv
-    | Some(lm,rm,p,opt2) ->
-	match lm,rm with
-	| [ReplRestr(None,lrestr_list,lfun_list),lmode], [ReplRestr(None,rrestr_list,rfun_list),rmode] ->
-	    let name, counter = Terms.new_var_name "N" in
-	    let param = { pname = name ^ (if counter != 0 then "_" ^ (string_of_int counter) else "");
-			  psize = Settings.psize_DEFAULT }
-	    in
-	    let t = Terms.type_for_param param in
+let add_repl equiv =
+  match equiv.eq_fixed_equiv with
+  | None -> equiv
+  | Some(lm,rm,p,opt2) ->
+      match lm,rm with
+      | [ReplRestr(None,lrestr_list,lfun_list),lmode], [ReplRestr(None,rrestr_list,rfun_list),rmode] ->
+	  let name, counter = Terms.new_var_name "N" in
+	  let param = { pname = name ^ (if counter != 0 then "_" ^ (string_of_int counter) else "");
+			psize = Settings.psize_DEFAULT }
+	  in
+	  let t = Terms.type_for_param param in
 	    (* The probability [p] may refer to variables in the LHS of the equivalence
-              (in arguments of maxlength). We add indices to these variables as well. *)
-	    let (lrepl_opt, lrestr_list',lfun_list',p') = add_index_top t (lrestr_list,lfun_list,p) in
-	    let (rrepl_opt, rrestr_list',rfun_list',_) = add_index_top t (rrestr_list,rfun_list, []) in
-	    let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
-	    let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
-	    let lhs_for_time = ReplRestr(None, lrestr_list',lfun_list') in
-	    let rhs_for_time = ReplRestr(None, rrestr_list',rfun_list') in
-	    let time_add =
+               (in arguments of maxlength). We add indices to these variables as well. *)
+	  let (lrepl_opt, lrestr_list',lfun_list',p') = add_index_top t (lrestr_list,lfun_list,p) in
+	  let (rrepl_opt, rrestr_list',rfun_list',_) = add_index_top t (rrestr_list,rfun_list, []) in
+	  let lm' = [ReplRestr(lrepl_opt, lrestr_list',lfun_list'),lmode] in
+	  let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
+	  let lhs_for_time = ReplRestr(None, lrestr_list',lfun_list') in
+	  let rhs_for_time = ReplRestr(None, rrestr_list',rfun_list') in
+	  let time_add =
 	      Computeruntime.compute_add_time(*_totcount*) lhs_for_time rhs_for_time param opt2
-	    in
-	    let p'' = List.map (function
-	      | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
-	      | SetEvent _ | SetAssume -> Parsing_helper.internal_error "Event/assume should not occur in probability formula"
-		    ) p'
-	    in
-	    let equiv' = { equiv with eq_fixed_equiv = Some(lm',rm',p'',opt2) } in
-	    (* print_string "Obtained "; Display.display_equiv_gen (equiv', []); *)
-	    equiv'
-	| _ ->
-	    let missing_repl = function
-	      | ReplRestr(None,restr_list,fun_list),mode -> true
-	      | _ -> false
-	    in
-	    if (List.exists missing_repl lm) || (List.exists missing_repl rm) then
-	      Parsing_helper.internal_error "Bad missing replications; should have been detected in syntax.ml";
-	    equiv
-  else
-    equiv
-    
+	  in
+	  let p'' = List.map (function
+	    | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))
+	    | SetEvent _ | SetAssume -> Parsing_helper.internal_error "Event/assume should not occur in probability formula"
+		  ) p'
+	  in
+	  let equiv' = { equiv with eq_fixed_equiv = Some(lm',rm',p'',opt2) } in
+	    (* print_string "Obtained "; Display.display_equiv_gen equiv'; *)
+	  equiv'
+      | _ ->
+	  let missing_repl = function
+	    | ReplRestr(None,restr_list,fun_list),mode -> true
+	    | _ -> false
+	  in
+	  if (List.exists missing_repl lm) || (List.exists missing_repl rm) then
+	    Parsing_helper.internal_error "Bad missing replications; should have been detected in syntax.ml";
+	  equiv
+
 let check_equiv normalize equiv =
-  let equiv' = add_repl normalize equiv in
+  let equiv' = add_repl equiv in
   match equiv'.eq_fixed_equiv with
   | None -> equiv'
   | Some(lm,rm,p,opt2) ->
       (* we must call [check_def_member] before using [close_def] *)
+      Def.build_def_member lm;
       check_def_member lm;
+      Def.build_def_member rm;
       check_def_member rm;
-      let lm' = List.map (fun (fg, mode) -> (check_lm_fungroup fg, mode)) lm in
       (* Require that each function has a different number of repetitions.
 	 Then the typing guarantees that when several variables are referenced
 	 with the same array indexes, then these variables come from the same function. *)
       Array_ref.array_ref_eqside rm;
-      let rm' = List.map (fun (fg, mode) ->
-	(check_rm_fungroup normalize [] fg, mode)) rm
+      renamed_vars := [];
+      let rm1 = List.map (fun (fg, mode) ->
+	(check_rm_fungroup [] fg, mode)) rm
       in
-      let rm'' = if normalize then move_names_all lm' rm' else rm' in
+      Def.empty_def_member rm;
+      
+      Def.build_def_member rm1;
+      Array_ref.array_ref_eqside rm1;
+      build_encode_idx_types_funs rm1;
+      let rm2 = List.map (fun (fg, mode) ->
+	(encode_idx_fungroup [] fg, mode)) rm1
+      in
+ 
+      let rm3 = move_names_all lm rm2 in
       Array_ref.cleanup_array_ref();
       let restr_mapping = ref [] in
-      build_restr_mapping restr_mapping lm' rm'';
-      { equiv' with
-        eq_fixed_equiv = Some(lm', rm'', p, opt2);
-        eq_name_mapping = Some(!restr_mapping) }
+      build_restr_mapping restr_mapping lm rm3;
+      renamed_vars := [];
+      let equiv'' =
+	{ equiv' with
+          eq_fixed_equiv = Some(lm, rm3, p, opt2);
+          eq_name_mapping = Some(!restr_mapping) }
+      in
+      (* print_string "After encoding "; Display.display_equiv_gen equiv''; *)
+      if normalize then
+	equiv''
+      else
+	equiv

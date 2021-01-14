@@ -100,7 +100,6 @@ let error_ambiguous = "several times in incompatible ways"
 let error_no_type = "without type"
 let error_find_cond = "in a condition of find or get"
 let error_in_input_process = "as an argument of a parametric input process"
-let error_find_index_in_equiv = "as an index of find in an equivalence"
     
 type binder_env_content = 
     Uniq of binder
@@ -136,7 +135,7 @@ let add_in_env1 env s t cur_array =
 
 let add_in_env1reusename env s b0 t cur_array =
   if StringMap.mem s env then
-    failwith "duplicate variable"
+    StringMap.add s (Error error_ambiguous) env
   else
     let b = Terms.create_binder_internal b0.sname b0.vname t cur_array in
     StringMap.add s (Uniq b) env

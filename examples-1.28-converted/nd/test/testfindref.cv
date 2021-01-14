@@ -202,6 +202,6 @@ process
 	 (! N2 processK(Kas, mKas, Kbs, mKbs)))
 
 (* EXPECTED
-Error: j is referenced in an array reference and is defined as an index of find in an equivalence
+Error: This expression has type [1,N] but expects type [1,N3]
 xtime: error in child process (status : 2)
 END *)

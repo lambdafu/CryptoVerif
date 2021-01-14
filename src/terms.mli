@@ -42,6 +42,9 @@ val remove_suffix : int -> 'a list -> 'a list
    list [l]. Uses physical equality to compare keys. *)
 val assq_rest : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
 
+(* [add_cur_array repl_opt cur_array] adds [repl_opt] to [cur_array] *) 
+val add_cur_array : repl_index option -> repl_index list -> repl_index list
+    
 (* [equiv_same_vars b b'] returns true when [b] and [b'] are
    considered matching variables in the left and right-hand sides
    of an equiv (same string name, same number, same type). *)
@@ -253,6 +256,8 @@ type copy_transf =
      (* [OneSubstArgs(br,t)] substitutes [t] for the accesses [br].
 	It is assumed that [br] and [t] are already guaranteed to be defined,
 	so [br] is removed from defined conditions if it occurs. *)
+  | SubstArgs of (binderref * term) list
+     (* Same as OneSubstArgs but performs several substitutions *)
   | Rename of term list * binder * binder
      (* Rename(args, b, b') replaces array accesses b[args] with b'[args] *)
   | Links_Vars_Args of (binder * binder) list

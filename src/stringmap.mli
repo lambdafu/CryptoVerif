@@ -41,7 +41,6 @@ val error_ambiguous : err_mess
 val error_no_type : err_mess
 val error_find_cond : err_mess
 val error_in_input_process : err_mess
-val error_find_index_in_equiv : err_mess
 
 type binder_env_type
 

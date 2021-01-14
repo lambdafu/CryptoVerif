@@ -9,6 +9,6 @@ process
    out(c, x)
 
 (* EXPECTED
-Error: Variable reference not defined
+Error: Variable reference x not defined
 xtime: error in child process (status : 2)
 END *)
