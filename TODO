@@ -44,11 +44,6 @@ Same for DDH, but execute event bad or corrupt a_i when one
 computes g^{a_i a_i}.
 For CDH and DDH, this is currently not supported by CryptoVerif because the query m = g^{a_i a_j} (resp. g^{a_i a_j}) would either create variable on which it makes a find or execute event_abort, and this is not allowed when the query is in a condition of find, a typical situation in which we want to apply CDH. (That's less critical for DDH.) The simplest solution would be to have the query execute an event bad for m = g^{a_i a_i} (resp. g^{a_i a_i}) and modify CryptoVerif to allow event_abort in conditions of find. This problem does not occur for GDH.
 
-==> Encoding of indices implemented.
-Finish testing, then merge into master.
-
-Allow insert/get in equiv, by translating them to find.
-
 Allow event_abort in branches of find. With which semantics?
   When a test in a branch executes event_abort e, the whole find executes event_abort e.
   A problem is when the find contains different event_abort e_i in the conditions of its branches, we do not know which one to execute. We could choose one among the executed event_abort e_i at random. That's probably equivalent to executing the branch conditions in a random order. [Check that.]
@@ -5669,3 +5664,7 @@ Simplification can quickly eliminate the functions equiv_i_encode_Nn_[var_id],
 transforming comparisons between the results of these functions
 into comparisons between their arguments (or into false).
 DONE 13/1/2021
+
+Allow insert/get in equiv, by translating them to find.
+Optimize by removing useless assignments
+DONE 18/1/2021

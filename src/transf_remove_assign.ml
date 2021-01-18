@@ -4,7 +4,7 @@ open Types
 Supports If/let/find/new/event in terms.
 Be careful of variables defined at several places!  *)
 
-let whole_game = ref Terms.empty_game
+let queries = ref []
 
 let replacement_def_list = ref []
 (* List of correspondences (b,b'), b = old binder, b' = new binder,
@@ -55,13 +55,20 @@ let candidate_for_rem_assign refers in_find_cond remove_set b t p =
        (Terms.refers_to b t)
   then DontRemove
   else
-    if not (refers b p || b.array_ref || Settings.occurs_in_queries b (!whole_game).current_queries) then
+    if not (refers b p || b.array_ref || Settings.occurs_in_queries b (!queries)) then
       VariableUseless
     else
       match remove_set with
       | All ->  Remove true
       | FindCond when in_find_cond -> Remove true
       | Binders l when List.memq b l -> Remove true
+      | EqSide ->
+	  begin
+	    match t.t_desc with
+	    | Var(b, l) when Terms.is_args_at_creation b l -> Remove false
+	    | ReplIndex _ -> Remove false
+            | _ -> DontRemove
+	  end
       | _ -> 
          match t.t_desc with
 	 | Var _ | ReplIndex _ when !Settings.expand_letxy -> Remove false
@@ -177,7 +184,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
        | Remove do_advise ->
 	  match b.def with
 	    [] -> Parsing_helper.internal_error "Should have at least one definition"
-	  | [d] -> (* There is a single definition *)
+	  | [_] -> (* There is a single definition *)
 	      begin
 		(* All references to binder b will be removed *)
 		Terms.link b (TLink t);
@@ -187,7 +194,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                 let p1' = copy (Terms.OneSubst(b,t,copy_changed)) p1 in
                 let subst_def = !copy_changed in (* Set to true if an occurrence of b has really been substituted *)
                 Settings.changed := (!Settings.changed) || subst_def;
-		if Settings.occurs_in_queries b (!whole_game).current_queries then
+		if Settings.occurs_in_queries b (!queries) then
 		  begin
 		    (* if b occurs in queries then leave as it is *)
                     if subst_def then
@@ -271,7 +278,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 			make_assign pat t p1''
 		      end
 		  end
-		else if Settings.occurs_in_queries b (!whole_game).current_queries then
+		else if Settings.occurs_in_queries b (!queries) then
                   begin
                     let p1'' = rec_simplif (b::above_vars) p1' in
 		    (* Cannot change definition if b occurs in queries *)
@@ -372,7 +379,7 @@ let rec remove_assignments_term in_find_cond remove_set above_vars t =
        (remove_assignments_term in_find_cond remove_set)
        pat t1 t2 topt
   | ResE(b,t) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!whole_game).current_queries)) then
+      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
@@ -417,7 +424,7 @@ and remove_assignments_reco remove_set above_vars p =
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!whole_game).current_queries)) then
+      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let p' = Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) p in
@@ -476,7 +483,7 @@ let rec do_sa_rename = function
 
 let remove_assignments remove_set g =
   let p = Terms.get_process g in
-  whole_game := g;
+  queries := g.current_queries;
   done_sa_rename := [];
   done_transfos := [];
   Def.build_def_process None p;
@@ -493,7 +500,7 @@ let remove_assignments remove_set g =
   Array_ref.cleanup_array_ref();
   Def.empty_def_process p;
   replacement_def_list := [];
-  whole_game := Terms.empty_game;
+  queries := [];
   let sa_rename = !done_sa_rename in
   let transfos = !done_transfos in
   done_transfos := [];
@@ -519,4 +526,55 @@ let remove_assignments remove_set g =
     remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g
   else
     remove_assignments remove_set g
+
+(* - Main function for assignment removal for sides of equiv *)
+
+let rec remove_assignments_fungroup = function
+  | ReplRestr(repl_opt, restr, funlist) ->
+      ReplRestr(repl_opt, restr, List.map remove_assignments_fungroup funlist)
+  | Fun(ch, args, res, priority) ->
+      Fun(ch, args, remove_assignments_term false EqSide [] res, priority)
+      
+let remove_assignments_rec_eqside rm =
+  List.map (fun (fg, mode) ->
+    (remove_assignments_fungroup fg, mode)
+      ) rm
+      
+let remove_assignments_eqside rm =
+  queries := [];
+  done_sa_rename := [];
+  done_transfos := [];
+  Def.build_def_member rm;
+  if !Terms.current_bound_vars != [] then
+    Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
+  Array_ref.array_ref_eqside rm;
+  replacement_def_list := [];
+  (* - First pass: put links; split assignments of tuples if possible *)
+  let rm' = remove_assignments_rec_eqside rm in
+  (* - Second pass: copy the process following the links or replacing just one variable.
+       Be careful for array references: update the indexes properly  *)
+  let rm'' = Terms.copy_eqside (Terms.Links_Vars_Args(!replacement_def_list)) rm' in
+  Terms.cleanup();
+  Array_ref.cleanup_array_ref();
+  Def.empty_def_member rm;
+  replacement_def_list := [];
+  done_transfos := [];
+  done_sa_rename := [];
+  Transf_auto_sa_rename.auto_sa_rename_eqside rm''
+
+let rec remove_assignments_repeat_eqside n rm =
+  let tmp_changed = !Settings.changed in
+  Settings.changed := false;
+  let rm' = remove_assignments_eqside rm in
+  if n != 1 && !Settings.changed then
+    remove_assignments_repeat_eqside (n-1) rm'
+  else
+    begin
+      Settings.changed := tmp_changed;
+      rm'
+    end
+
+let remove_assignments_eqside rm =
+  remove_assignments_repeat_eqside (!Settings.max_iter_removeuselessassign) rm
+
 

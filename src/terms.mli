@@ -273,6 +273,7 @@ val copy_pat : copy_transf -> pattern -> pattern
 val copy_def_list : copy_transf -> binderref list -> binderref list
 val copy_oprocess : copy_transf -> process -> process
 val copy_process : copy_transf -> inputprocess -> inputprocess
+val copy_eqside : copy_transf -> eqmember -> eqmember
     
     (* The links define a substitution. 
      We want to apply this substitution to the elsefind fact (bl, def_vars, t) as argument.

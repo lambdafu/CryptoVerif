@@ -11,12 +11,12 @@ open Types
    inside terms (not only in find conditions).
 *)
 
-let whole_game = ref Terms.empty_game
+let queries = ref []
 
 let done_sa_rename = ref []
       
 let new_binder b =
-  if Array_ref.has_array_ref_q b (!whole_game).current_queries then
+  if Array_ref.has_array_ref_q b (!queries) then
     Parsing_helper.internal_error ("Variable " ^ (Display.binder_to_string b) ^ " is defined in a condition of find; it should have no array reference.");
   if b.count_def > 1 then
     let b' = Terms.new_binder b in
@@ -185,7 +185,7 @@ let rec do_sa_rename accu = function
       do_sa_rename (b_rename::accu) list_not_b
 
 let auto_sa_rename g =
-  whole_game := g;
+  queries := g.current_queries;
   let g_proc = Terms.get_process g in
   Array_ref.array_ref_process g_proc;
   let p' = auto_sa_rename_process g_proc in
@@ -193,6 +193,25 @@ let auto_sa_rename g =
   let sa_rename = !done_sa_rename in
   done_sa_rename := [];
   let res = (Terms.build_transformed_game p' g, [], do_sa_rename [] sa_rename) in
-  whole_game := Terms.empty_game;
+  queries := [];
   res
 
+
+let rec auto_sa_rename_fungroup = function
+  | ReplRestr(repl_opt, restr, funlist) ->
+      ReplRestr(repl_opt, restr, List.map auto_sa_rename_fungroup funlist)
+  | Fun(ch, args, res, priority) ->
+      Fun(ch, args, auto_sa_rename_term res, priority)
+ 
+let auto_sa_rename_eqside_aux rm =
+  List.map (fun (fg, mode) ->
+    (auto_sa_rename_fungroup fg, mode)
+      ) rm
+    
+let auto_sa_rename_eqside rm =
+  queries := [];
+  Array_ref.array_ref_eqside rm;
+  let rm' = auto_sa_rename_eqside_aux rm in
+  Array_ref.cleanup_array_ref();
+  done_sa_rename := [];
+  rm'

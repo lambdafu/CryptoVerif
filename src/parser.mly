@@ -980,6 +980,12 @@ procasterm:
 	{ let (b, t) = $1 in PResE(b, t, $3), parse_extent() }
 |       EVENT_ABORT IDENT
         { PEventAbortE($2), parse_extent() }
+|       INSERT IDENT LPAREN termseq RPAREN SEMI procasterm
+        { PInsertE($2,$4,$7), parse_extent() }
+|       GET IDENT LPAREN patternseq RPAREN SUCHTHAT term IN procasterm ELSE procasterm
+        { PGetE($2,$4,Some $7,$9,$11), parse_extent() }
+|       GET IDENT LPAREN patternseq RPAREN IN procasterm ELSE procasterm
+        { PGetE($2,$4,None,$7,$9), parse_extent() }
 
 findoneprocasterm:
     tidentseq SUCHTHAT findcond THEN procasterm

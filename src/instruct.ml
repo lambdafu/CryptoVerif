@@ -93,7 +93,7 @@ let default_file_out s ext f =
 		
 let sa_rename_ins_updater b bl = function
     (ExpandGetInsert | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
-     RemoveAssign(Minimal) | RemoveAssign(FindCond) | 
+     RemoveAssign(Minimal | FindCond | EqSide) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) | IFocus _ | Guess _) as x -> [x]

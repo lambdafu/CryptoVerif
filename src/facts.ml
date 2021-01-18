@@ -1990,38 +1990,6 @@ let eq_deflists dl dl' =
   (List.for_all (fun br' -> Terms.mem_binderref br' dl) dl') &&
   (List.for_all (fun br -> Terms.mem_binderref br dl') dl) 
 
-(* [union_list l] returns the union of the lists of binder references
-   contained in the list of lists [l] *)
-
-let union_list l =
-  let accu = ref [] in
-  List.iter (List.iter (fun br -> Terms.add_binderref br accu)) l;
-  !accu
-
-(* [put_defined_cond_t def_list t]  returns the binder references
-   of [def_list] that occur in [t] *)
-    
-let rec put_defined_cond_t def_list t =
-  match t.t_desc with
-    FunApp(f, l) ->
-      union_list (List.map (put_defined_cond_t def_list) l)
-  | Var(b,l) ->
-      let def_list' = union_list (List.map (put_defined_cond_t def_list) l) in
-      if Terms.mem_binderref (b,l) def_list then
-	(b,l)::def_list'
-      else
-	def_list'
-  | ReplIndex _ -> []
-  | _ -> Parsing_helper.internal_error "Term should be expanded in Facts.put_defined_cond_t"
-
-(* [put_defined_cond_pat def_list pat]  returns the binder references
-   of [def_list] that occur in [pat] *)
-
-let rec put_defined_cond_pat def_list = function
-    PatVar _ -> []
-  | PatTuple (_,l) -> union_list (List.map (put_defined_cond_pat def_list) l)
-  | PatEqual t -> put_defined_cond_t def_list t
-
 (* [add_def_cond_fc def_list t] adds on of top [t] a test
    that verifies that all variables in [def_list] are defined.
    [add_def_cond_o] is similar for processes. *)
@@ -2038,7 +2006,7 @@ let add_def_cond_o def_list p =
   else
     p
 
-(* [put_defined_cond_fc def_list t] returns [def_list', t']
+(* [put_defined_cond_t def_list t] returns [def_list', t']
    where [t'] is [t] modified to add defined conditions 
    for binder references in [def_list].
    [def_list'] are the binder references of [def_list]
@@ -2055,15 +2023,28 @@ let add_def_cond_o def_list p =
    for processes.
 *)
       
-let rec put_defined_cond_fc def_list t =
+let rec put_defined_cond_t def_list t =
   match t.t_desc with
-    FunApp _ | Var _ | ReplIndex _ ->
-      let def_list' = put_defined_cond_t def_list t in
-      (def_list', t)
+  | FunApp(f, l) ->
+      let (def_list', l') = put_defined_cond_t_list def_list l in
+      (def_list', Terms.build_term_at t (FunApp(f,l')))
+  | Var(b,l) ->
+      (* [l] must be simple terms, because they occur in some [def_list] above [t].
+         Hence, we always have [l' = l]. *)
+      let (def_list', l') = put_defined_cond_t_list def_list l in
+      let def_list'' =
+	if Terms.mem_binderref (b,l) def_list then
+	  (b,l)::def_list'
+	else
+	  def_list'
+      in
+      (def_list'',  Terms.build_term_at t (Var(b,l')))
+  | ReplIndex _ -> ([], t)
   | TestE(t1, t2, t3) ->
-      let (def_list2, t2') = put_defined_cond_fc def_list t2 in
-      let (def_list3, t3') = put_defined_cond_fc def_list t3 in
-      let def_list_common = Terms.union_binderref (put_defined_cond_t def_list t1)
+      let (def_list1, t1') = put_defined_cond_t def_list t1 in
+      let (def_list2, t2') = put_defined_cond_t def_list t2 in
+      let (def_list3, t3') = put_defined_cond_t def_list t3 in
+      let def_list_common = Terms.union_binderref def_list1
 	  (Terms.inter_binderref def_list2 def_list3)
       in
       let def_list_then = Terms.setminus_binderref def_list2 def_list_common in
@@ -2071,30 +2052,30 @@ let rec put_defined_cond_fc def_list t =
       let t3'' = add_def_cond_fc def_list_else t3' in
       let t' =
 	if def_list_then != [] then
-	  Terms.build_term_at t (FindE([([], def_list_then, t1, t2')], t3'', Nothing))
+	  Terms.build_term_at t (FindE([([], def_list_then, t1', t2')], t3'', Nothing))
 	else
-	  Terms.build_term_at t (TestE(t1, t2', t3''))
+	  Terms.build_term_at t (TestE(t1', t2', t3''))
       in
       (def_list_common, t')
   | FindE(l0, t3, find_info) ->
-      let (def_list3, t3') = put_defined_cond_fc def_list t3 in
+      let (def_list3, t3') = put_defined_cond_t def_list t3 in
       let t3'' = add_def_cond_fc def_list3 t3' in
       let l0' = List.map (fun (bl, def_list0, t1, t2) ->
-	let (def_list1, t1') = put_defined_cond_fc def_list t1 in
-	let (def_list2, t2') = put_defined_cond_fc def_list t2 in
+	let (def_list1, t1') = put_defined_cond_t def_list t1 in
+	let (def_list2, t2') = put_defined_cond_t def_list t2 in
 	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list1 def_list2), t1', t2')
 	  ) l0
       in
       ([], Terms.build_term_at t (FindE(l0', t3'', find_info)))
   | LetE(PatVar b, t1, t2, None) ->
-      let def_list1 = put_defined_cond_t def_list t1 in
-      let (def_list2, t2') = put_defined_cond_fc def_list t2 in
-      (Terms.union_binderref def_list1 def_list2, Terms.build_term_at t (LetE(PatVar b, t1, t2', None)))
+      let (def_list1, t1') = put_defined_cond_t def_list t1 in
+      let (def_list2, t2') = put_defined_cond_t def_list t2 in
+      (Terms.union_binderref def_list1 def_list2, Terms.build_term_at t (LetE(PatVar b, t1', t2', None)))
   | LetE(pat, t1, t2, Some t3) ->
-      let def_list_pat = put_defined_cond_pat def_list pat in
-      let def_list1 = put_defined_cond_t def_list t1 in
-      let (def_list2, t2') = put_defined_cond_fc def_list t2 in
-      let (def_list3, t3') = put_defined_cond_fc def_list t3 in
+      let (def_list_pat, pat') = put_defined_cond_pat def_list pat in
+      let (def_list1, t1') = put_defined_cond_t def_list t1 in
+      let (def_list2, t2') = put_defined_cond_t def_list t2 in
+      let (def_list3, t3') = put_defined_cond_t def_list t3 in
       let def_list_common = Terms.union_binderref
 	  (Terms.union_binderref def_list_pat def_list1)
 	  (Terms.inter_binderref def_list2 def_list3)
@@ -2103,15 +2084,43 @@ let rec put_defined_cond_fc def_list t =
       let def_list_else = Terms.setminus_binderref def_list3 def_list_common in
       let t2'' = add_def_cond_fc def_list_in t2' in
       let t3'' = add_def_cond_fc def_list_else t3' in
-      (def_list_common, Terms.build_term_at t (LetE(pat, t1, t2'', Some t3'')))
+      (def_list_common, Terms.build_term_at t (LetE(pat', t1', t2'', Some t3'')))
   | LetE _ -> 
       Parsing_helper.internal_error "When the pattern is not a variable, let should always have an else branch"
   | ResE(b, t1) ->
-      let (def_list', t1') = put_defined_cond_fc def_list t1 in
+      let (def_list', t1') = put_defined_cond_t def_list t1 in
       (def_list', Terms.build_term_at t (ResE(b, t1')))
   | EventAbortE _ -> ([], t)
-  | EventE _ | GetE _ | InsertE _ -> Parsing_helper.internal_error "Event/Get/Insert not occur in Facts.put_defined_cond_fc"
+  | EventE(t1,t2) ->
+      let (def_list1, t1') = put_defined_cond_t def_list t1 in
+      let (def_list2, t2') = put_defined_cond_t def_list t2 in
+      (Terms.union_binderref def_list1 def_list2, Terms.build_term_at t (EventE(t1',t2')))
+  | GetE _ | InsertE _ -> Parsing_helper.internal_error "Get/Insert not occur in Facts.put_defined_cond_t"
 
+and put_defined_cond_t_list def_list = function
+  | [] -> ([], [])
+  | t::tl ->
+      let (def_list1, t') = put_defined_cond_t def_list t in
+      let (def_list2, tl') = put_defined_cond_t_list def_list tl in
+      (Terms.union_binderref def_list1 def_list2, t'::tl')
+
+and put_defined_cond_pat def_list = function
+  | (PatVar _) as pat -> ([], pat)
+  | PatTuple (f,l) ->
+      let (def_list', l') = put_defined_cond_pat_list def_list l in
+      (def_list', PatTuple(f,l'))
+  | PatEqual t ->
+      let (def_list', t') = put_defined_cond_t def_list t in
+      (def_list', PatEqual t')
+
+and put_defined_cond_pat_list def_list = function
+  | [] -> ([], [])
+  | pat::patl ->
+      let (def_list1, pat') = put_defined_cond_pat def_list pat in
+      let (def_list2, patl') = put_defined_cond_pat_list def_list patl in
+      (Terms.union_binderref def_list1 def_list2, pat'::patl')
+
+	
 let rec put_defined_cond_i def_list p =
   match p.i_desc with
     Nil -> ([], p)
@@ -2123,11 +2132,11 @@ let rec put_defined_cond_i def_list p =
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
       (def_list1, Terms.iproc_from_desc_loc p (Repl(b,p1')))
   | Input((c,tl), pat, p1) ->
-      let def_listl = (List.map (put_defined_cond_t def_list) tl) in
-      let def_list_pat = put_defined_cond_pat def_list pat in
+      let (def_listl, tl') = put_defined_cond_t_list def_list tl in
+      let (def_list_pat, pat') = put_defined_cond_pat def_list pat in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let p1'' = add_def_cond_o def_list1 p1' in
-      (union_list (def_list_pat::def_listl), Terms.iproc_from_desc_loc p (Input((c,tl), pat, p1'')))
+      (Terms.union_binderref def_list_pat def_listl, Terms.iproc_from_desc_loc p (Input((c,tl'), pat', p1'')))
 
 and put_defined_cond_o def_list p =
   match p.p_desc with
@@ -2136,9 +2145,10 @@ and put_defined_cond_o def_list p =
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       (def_list1, Terms.oproc_from_desc_loc p (Restr(b, p1')))
   | Test(t, p1, p2) ->
+      let (def_list0, t') = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let (def_list2, p2') = put_defined_cond_o def_list p2 in
-      let def_list_common = Terms.union_binderref (put_defined_cond_t def_list t)
+      let def_list_common = Terms.union_binderref def_list0
 	  (Terms.inter_binderref def_list1 def_list2)
       in
       let def_list_then = Terms.setminus_binderref def_list1 def_list_common in
@@ -2146,33 +2156,35 @@ and put_defined_cond_o def_list p =
       let p2'' = add_def_cond_o def_list_else p2' in
       let p' =
 	if def_list_then != [] then
-	  Terms.oproc_from_desc_loc p (Find([([], def_list_then, t, p1')], p2'', Nothing))
+	  Terms.oproc_from_desc_loc p (Find([([], def_list_then, t', p1')], p2'', Nothing))
 	else
-	  Terms.oproc_from_desc_loc p (Test(t, p1', p2''))
+	  Terms.oproc_from_desc_loc p (Test(t', p1', p2''))
       in
       (def_list_common, p')
   | Find(l0, p2, find_info) ->
       let (def_list2, p2') = put_defined_cond_o def_list p2 in
       let p2'' = add_def_cond_o def_list2 p2' in
       let l0' = List.map (fun (bl, def_list0, t, p1) ->
-	let (def_list_t, t') = put_defined_cond_fc def_list t in
+	let (def_list_t, t') = put_defined_cond_t def_list t in
 	let (def_list1, p1') = put_defined_cond_o def_list p1 in
 	(bl, Terms.union_binderref def_list0 (Terms.union_binderref def_list_t def_list1), t', p1')
 	  ) l0
       in
       ([], Terms.oproc_from_desc_loc p (Find(l0', p2'', find_info)))
   | Output((c,tl), t, p1) ->
-      let def_listl = (List.map (put_defined_cond_t def_list) tl) in
-      let def_listt = put_defined_cond_t def_list t in
+      let (def_listl, tl') = put_defined_cond_t_list def_list tl in
+      let (def_listt, t') = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_i def_list p1 in
-      (union_list (def_list1::def_listt::def_listl), Terms.oproc_from_desc_loc p (Output((c,tl), t, p1')))
+      (Terms.union_binderref def_list1 (Terms.union_binderref def_listt def_listl),
+       Terms.oproc_from_desc_loc p (Output((c,tl'), t', p1')))
   | Let(PatVar b, t, p1, p2) ->
-      let def_list_t = put_defined_cond_t def_list t in
+      let (def_list_t, t') = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (Terms.union_binderref def_list_t def_list1, Terms.oproc_from_desc_loc p (Let(PatVar b, t, p1', Terms.oproc_from_desc_loc p2 Yield)))
+      (Terms.union_binderref def_list_t def_list1,
+       Terms.oproc_from_desc_loc p (Let(PatVar b, t', p1', Terms.oproc_from_desc_loc p2 Yield)))
   | Let(pat, t, p1, p2) ->
-      let def_list_pat = put_defined_cond_pat def_list pat in
-      let def_list_t = put_defined_cond_t def_list t in
+      let (def_list_pat, pat') = put_defined_cond_pat def_list pat in
+      let (def_list_t, t') = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
       let (def_list2, p2') = put_defined_cond_o def_list p2 in
       let def_list_common = Terms.union_binderref
@@ -2183,11 +2195,11 @@ and put_defined_cond_o def_list p =
       let def_list_else = Terms.setminus_binderref def_list2 def_list_common in
       let p1'' = add_def_cond_o def_list_in p1' in
       let p2'' = add_def_cond_o def_list_else p2' in
-      (def_list_common, Terms.oproc_from_desc_loc p (Let(pat, t, p1'', p2'')))
+      (def_list_common, Terms.oproc_from_desc_loc p (Let(pat', t', p1'', p2'')))
   | EventP(t,p1) ->
-      let def_listt = put_defined_cond_t def_list t in
+      let (def_listt, t') = put_defined_cond_t def_list t in
       let (def_list1, p1') = put_defined_cond_o def_list p1 in
-      (Terms.union_binderref def_listt def_list1, Terms.oproc_from_desc_loc p (EventP(t,p1')))
+      (Terms.union_binderref def_listt def_list1, Terms.oproc_from_desc_loc p (EventP(t',p1')))
   | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should have been expanded in Facts.put_defined_cond_o"
       
 (* [update_def_list_term already_defined newly_defined bl def_list tc' p'] 
@@ -2230,9 +2242,9 @@ let update_def_list_term already_defined newly_defined bl def_list tc' p' =
     if def_list_inside_tc'_p' == [] then
       (needed_occur, tc', p')
     else
-      let (def_list_tc'', tc'') = put_defined_cond_fc def_list_inside_tc'_p' tc' in
+      let (def_list_tc'', tc'') = put_defined_cond_t def_list_inside_tc'_p' tc' in
       let def_list_inside_p' = Terms.subst_def_list (List.map snd bl) (List.map (fun (b,_) -> Terms.term_from_binder b) bl) def_list_inside_tc'_p' in
-      let (def_list_p'', p'') = put_defined_cond_fc def_list_inside_p' p' in
+      let (def_list_p'', p'') = put_defined_cond_t def_list_inside_p' p' in
       let rest_def_list_p' = Terms.subst_def_list3 bl_rev_subst def_list_p'' in
       (Terms.union_binderref (Terms.inter_binderref needed_occur newly_defined)
 	 (Terms.union_binderref def_list_tc'' rest_def_list_p'), tc'', p'')
@@ -2311,7 +2323,7 @@ let update_def_list_process already_defined newly_defined bl def_list t' p1' =
     if def_list_inside_t'_p1' == [] then
       (needed_occur, t', p1')
     else
-      let (def_list_t'', t'') = put_defined_cond_fc def_list_inside_t'_p1' t' in
+      let (def_list_t'', t'') = put_defined_cond_t def_list_inside_t'_p1' t' in
       let def_list_inside_p1' = Terms.subst_def_list (List.map snd bl) (List.map (fun (b,_) -> Terms.term_from_binder b) bl) def_list_inside_t'_p1' in
       let (def_list_p1'', p1'') = put_defined_cond_o def_list_inside_p1' p1' in
       let rest_def_list_p1' = Terms.subst_def_list3 bl_rev_subst def_list_p1'' in

@@ -1128,6 +1128,8 @@ let display_rem_set = function
       print_string "useless"
   | FindCond -> 
       print_string "findcond"
+  | EqSide ->
+      print_string "right-hand side of equiv"
 
 let display_move_set = function
     MAll -> print_string "all\\ binders"

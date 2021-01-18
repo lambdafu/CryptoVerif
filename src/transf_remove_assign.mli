@@ -10,3 +10,4 @@ open Types
 
 val remove_assignments : rem_set -> game_transformer
 
+val remove_assignments_eqside : eqmember -> eqmember

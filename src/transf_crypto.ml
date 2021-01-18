@@ -3443,7 +3443,10 @@ and instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping on
 	      instantiate_term cur_array in_find_cond loc_rename'' loc_rename_idx'' mapping one_exp t2) :: (!find_exp)
 	in
 	match def_list with
-	  (_,(({ t_desc = ReplIndex(b0) }::_) as l1))::_ ->
+	| [] ->
+	    assert (bl == []);
+	    add_find ([], None, [], [])
+	| (_,(({ t_desc = ReplIndex(b0) }::_) as l1))::_ ->
 	    let l_index = List.length bl in
 	    let n = 
 	      try
@@ -3879,6 +3882,54 @@ and transform_oprocess cur_array p =
   restr_to_put := [];
   p''
 
+let rec update_def_list_simplif_t t =
+  Terms.build_term_at t (
+  match t.t_desc with
+  | Var(b,l) -> Var(b, List.map update_def_list_simplif_t l)
+  | FunApp(f,l) -> FunApp(f, List.map update_def_list_simplif_t l)
+  | (ReplIndex _ | EventAbortE _) as d -> d
+  | TestE(t1,t2,t3) -> TestE(update_def_list_simplif_t t1,
+			     update_def_list_simplif_t t2,
+			     update_def_list_simplif_t t3)
+  | FindE(l0, p2, find_info) ->
+      let l0' =
+	List.fold_right (fun (bl, def_list, t1, p1) laccu ->
+	  try
+	    let find_branch' =
+	      let t1' = update_def_list_simplif_t t1 in
+	      let p1' = update_def_list_simplif_t p1 in
+	      let already_defined = Facts.get_def_vars_at (DTerm t) in
+	      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t)) def_list in
+	      Facts.update_def_list_term already_defined newly_defined bl def_list t1' p1'
+	    in
+	    find_branch' :: laccu
+	  with Contradiction ->
+	    (* The variables in the defined condition cannot be defined,
+	       I can just remove the branch *)
+	    laccu
+	  ) l0 []
+      in
+      FindE(l0', update_def_list_simplif_t p2, find_info)
+  | LetE(pat, t1, t2, topt) ->
+      LetE(update_def_list_simplif_pat pat,
+	   update_def_list_simplif_t t1,
+	   update_def_list_simplif_t t2,
+	   match topt with
+	   | None -> None
+	   | Some t3 -> Some (update_def_list_simplif_t t3))
+  | ResE(b,t) ->
+      ResE(b, update_def_list_simplif_t t)
+  | EventE(t1,p) ->
+      EventE(update_def_list_simplif_t t1,
+	     update_def_list_simplif_t p)
+  | InsertE _ | GetE _ -> 
+      Parsing_helper.internal_error "Get/Insert should not appear here")
+
+and update_def_list_simplif_pat = function
+  | (PatVar _) as pat -> pat
+  | PatTuple(f,l) -> PatTuple(f, List.map update_def_list_simplif_pat l)
+  | PatEqual t -> PatEqual (update_def_list_simplif_t t)
+    
 let rec update_def_list_simplif p =
   Terms.iproc_from_desc (
   match p.i_desc with
@@ -3889,26 +3940,30 @@ let rec update_def_list_simplif p =
   | Repl(b,p) ->
       Repl(b, update_def_list_simplif p)
   | Input((c,tl),pat,p) ->
-      Input((c,tl),pat, update_def_list_simplifo p))
+      Input((c,List.map update_def_list_simplif_t tl),
+	    update_def_list_simplif_pat pat,
+	    update_def_list_simplifo p))
 
 and update_def_list_simplifo p = 
+  Terms.oproc_from_desc (
   match p.p_desc with
-    Yield -> Terms.oproc_from_desc Yield
-  | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
-  | Restr(b,p) -> Terms.oproc_from_desc (Restr(b, update_def_list_simplifo p))
+    Yield -> Yield
+  | EventAbort f -> EventAbort f
+  | Restr(b,p) -> Restr(b, update_def_list_simplifo p)
   | Test(t,p1,p2) ->
-      Terms.oproc_from_desc (Test(t, 
+      Test(update_def_list_simplif_t t, 
 	   update_def_list_simplifo p1, 
-	   update_def_list_simplifo p2))
+	   update_def_list_simplifo p2)
   | Find(l0, p2, find_info) ->
       let l0' =
 	List.fold_right (fun (bl, def_list, t, p1) laccu ->
 	  try
-	    let find_branch' = 
+	    let find_branch' =
+	      let t' = update_def_list_simplif_t t in
 	      let p1' = update_def_list_simplifo p1 in
 	      let already_defined = Facts.get_def_vars_at (DProcess p) in
 	      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-	      Facts.update_def_list_process already_defined newly_defined bl def_list t p1'
+	      Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
 	    in
 	    find_branch' :: laccu
 	  with Contradiction ->
@@ -3917,19 +3972,20 @@ and update_def_list_simplifo p =
 	    laccu
 	  ) l0 []
       in
-      Terms.oproc_from_desc (Find(l0', 
-	   update_def_list_simplifo p2, find_info))
+      Find(l0', update_def_list_simplifo p2, find_info)
   | Let(pat,t,p1,p2) ->
-      Terms.oproc_from_desc (Let(pat, t, 
+      Let(update_def_list_simplif_pat pat,
+	  update_def_list_simplif_t t, 
 	  update_def_list_simplifo p1, 
-	  update_def_list_simplifo p2))
+	  update_def_list_simplifo p2)
   | Output((c,tl),t2,p) ->
-      Terms.oproc_from_desc (Output((c, tl), t2, 
-	     update_def_list_simplif p))
+      Output((c, List.map update_def_list_simplif_t tl),
+	     update_def_list_simplif_t t2, 
+	     update_def_list_simplif p)
   | EventP(t,p) ->
-      Terms.oproc_from_desc (EventP(t,
-	     update_def_list_simplifo p))
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+      EventP(update_def_list_simplif_t t,
+	     update_def_list_simplifo p)
+  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
 	
 let do_crypto_transform p = 
   Array_ref.array_ref_process p;

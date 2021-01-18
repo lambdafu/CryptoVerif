@@ -203,13 +203,14 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 %
 &\funbody ::= \texttt{(} \funbody \texttt{)}\\
 &\phfb \texttt{event\string_abort }\nonterm{ident}\\
-&\phfb \Resavt\texttt{; }\funbody\\
-&\phfb \Resbvt\texttt{; }\funbody\\
+&\phfb \nonterm{res}\ \funbody\\
 &\phfb \nonterm{basicpat} \texttt{ <- }\nonterm{term}\texttt{; }\funbody\\
 &\phfb \texttt{let }\nonterm{pattern} \texttt{ = }\nonterm{term}\ 
-\texttt{in }\funbody\ \texttt{else }\funbody\\
+\texttt{in }\funbody\ [\texttt{else }\funbody]\\
 &\phfb \texttt{if }\nonterm{cond}\texttt{ then }\funbody\ \texttt{else }\funbody\\
 &\phfb \texttt{find}[\texttt{[unique]}]\ \nonterm{ffindbranch}\ (\texttt{orfind }\nonterm{ffindbranch})^* \ \texttt{else }\funbody\\
+&\phfb \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\texttt{; }\funbody\\
+&\phfb \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\funbody\texttt{ else }\funbody\\
 &\phfb \texttt{return(}\nonterm{term}\texttt{)}\\
 &\nonterm{ffindbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\funbody\\
 %

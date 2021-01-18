@@ -2267,24 +2267,22 @@ and copy_term transf t =
 			     copy_term transf p))
 
 and copy_def_list transf def_list =
+  let copy_br (b,l) = (b, List.map (copy_term transf) l) in
   match transf with
     OneSubst(b',t',changed) ->
       (* When removing assignments in_scope_only, and I am removing
          assignments on b, I know that b is in scope, so
          b[b.args_at_creation] is always defined, and I can remove that
          defined condition *)
-      List.map (fun (b,l) ->
-        (b, List.map (copy_term transf) l)) 
+      List.map copy_br
        (List.filter (fun (b,l) ->
           not ((b == b') && (is_args_at_creation b l))) def_list)
   | OneSubstArgs(br', t') ->
-      List.map (fun (b,l) ->
-        (b, List.map (copy_term transf) l)) 
+      List.map copy_br
        (List.filter (fun br ->
          not (equal_binderref br br')) def_list)
   | SubstArgs(lsubst) ->
-      List.map (fun (b,l) ->
-        (b, List.map (copy_term transf) l)) 
+      List.map copy_br
 	(List.filter
 	   (fun br -> not (List.exists (fun (br', t') -> equal_binderref br br') lsubst))
 	   def_list)
@@ -2307,24 +2305,26 @@ and copy_def_list transf def_list =
       in
       (* 3: compute the new def_list *)
       let accu = ref 
-	  (List.map (fun (b,l) -> (b, List.map (copy_term transf) l)) 
-	     ((!root_remassign) @ not_root_remassign))
+	  (List.map copy_br ((!root_remassign) @ not_root_remassign))
       in
       List.iter (fun br -> get_deflist_subterms accu
 	(copy_term transf (term_from_binderref br))) (!root_remassign);
       (* 4: replace defined(b) with defined(b') when b was used
-	 only in defined conditions and it is defined when b' is defined *)
-      List.map (fun (b,l) ->
-	try 
-	  (List.assq b replacement_def_list, l)
-	with Not_found ->
-	  (b,l)) (!accu)
-  | DeleteFacts | Links_RI -> List.map (fun (b,l) -> (b, List.map (copy_term transf) l)) def_list
+	 only in defined conditions and it is defined when b' is defined.
+	 Remove duplicate elements. *)
+      List.fold_right (fun (b,l) accu' ->
+	let br' = 
+	  try 
+	    (List.assq b replacement_def_list, l)
+	  with Not_found ->
+	    (b,l)
+	in
+	if mem_binderref br' accu' then accu' else br'::accu') (!accu) [];
+  | DeleteFacts | Links_RI -> List.map copy_br def_list
   | Links_Vars | Links_RI_Vars | Links_Vars_then_RI ->
       (* When we substitute b (b.link != NoLink), we know that b is in scope, so
 	 we can remove the condition that b is defined. *)
-      List.map (fun (b,l) ->
-        (b, List.map (copy_term transf) l)) 
+      List.map copy_br
        (List.filter (fun (b,l) ->
           not ((b.link != NoLink) && (is_args_at_creation b l))) def_list)
       
@@ -2415,6 +2415,17 @@ and copy_oprocess transf p =
 	     copy_oprocess transf p)
   )
 
+let rec copy_fungroup transf = function
+  | ReplRestr(repl_opt, restr, funlist) ->
+      ReplRestr(repl_opt, restr, List.map (copy_fungroup transf) funlist)
+  | Fun(ch, args, res, priority) ->
+      Fun(ch, args, copy_term transf res, priority)
+
+let copy_eqside transf rm = 
+  List.map (fun (fg, mode) ->
+    (copy_fungroup transf fg, mode)
+      ) rm
+    
 (* Compute element{l/cur_array}, where element is def_list, simp_facts
    Similar to what subst does for terms. *)
 

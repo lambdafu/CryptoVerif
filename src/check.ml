@@ -252,8 +252,20 @@ let rec get_arg_array_ref index_args accu t =
   | ResE(b,t) ->
       get_arg_array_ref index_args accu t
   | EventAbortE(f) -> ()
-  | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
+  | EventE _ ->
+      Parsing_helper.input_error "event is not allowed in equivalences" t.t_loc
+  | GetE (tbl, patl, topt, p1, p2) ->
+      List.iter (get_arg_array_ref_pat index_args accu) patl;
+      begin
+	match topt with
+	  None -> ()
+	| Some t -> get_arg_array_ref index_args accu t
+      end;
+      get_arg_array_ref index_args accu p1;
+      get_arg_array_ref index_args accu p2
+  | InsertE(tbl, tl, p) ->
+      List.iter (get_arg_array_ref index_args accu) tl;
+      get_arg_array_ref index_args accu p
 
 and get_arg_array_ref_pat index_args accu = function
     PatVar b -> ()
@@ -348,6 +360,8 @@ let rec close_node_list nlist l =
       Terms.inter_binderref (close_node n l) (close_node_list rest l)
        
 let close_def (b,l) =
+  if b.def == [] then
+    Parsing_helper.internal_error ("close_def: binder "^(Display.binder_to_string b)^" has no definition");
   close_node_list b.def l
 
 (*
@@ -450,7 +464,13 @@ let rec check_rm_term cur_array t =
   | FindE(l0, t3, find_info) ->
       let t3' = check_rm_term cur_array t3 in
       let l0' = 
-	List.map (fun (lindex, def_list, t1, t2) ->
+	List.map (function
+	  | ([], [], t1, t2) ->
+	      let t1' = check_rm_term cur_array t1 in
+	      let t2' = check_rm_term cur_array t2 in
+	      ([], [], t1', t2')
+	      
+	  | (lindex, def_list, t1, t2) ->
 	    (* Variables in def_list should have a particular form of indexes: 
 	         a suffix of lindex + the same suffix of cur_array
 	       At least one of these variables should use the full lindex.
@@ -460,7 +480,7 @@ let rec check_rm_term cur_array t =
 	       (which simplifies the code of cryptotransf.ml).
 
 	       We allow in fact 
-	        suffix of lindex + other variables (names [other_seq_middle]) + the same suffix of cur_array
+	        suffix of lindex + other variables (named [other_seq_middle]) + the same suffix of cur_array
 	       and transform it into the previous form by adding one index in lindex for
 	       each element of other variables, and checking that these indices are equal to
 	       the other variables in the condition of find.
@@ -832,7 +852,14 @@ let rec encode_idx_term cur_array allowed_index_seq t =
       let t3' = encode_idx_term cur_array allowed_index_seq t3 in
       let t_common = ref t3'.t_type in
       let l0' = 
-	List.map (fun (lindex, def_list, t1, t2) ->
+	List.map (function
+	  | ([], [], t1, t2) ->
+	      let t1' = encode_idx_term_keep_type cur_array allowed_index_seq t1 in
+	      let t2' = encode_idx_term cur_array allowed_index_seq t2 in
+	      t_common := merge_types (!t_common) t2'.t_type t.t_loc;	  
+	      ([], [], t1', t2')
+	      
+	  | (lindex, def_list, t1, t2) ->
 	    (* Variables in def_list should have a particular form of indexes: 
 	         a suffix of lindex + the same suffix of a sequence in cur_array
 	       At least one of these variables should use the full lindex.
@@ -1382,7 +1409,30 @@ let add_repl equiv =
 	  equiv
 
 let check_equiv normalize equiv =
+  let equiv =
+    match equiv.eq_fixed_equiv with
+    | None -> equiv
+    | Some(lm,rm,p,opt2) ->
+        (* 1. Check that all variables are correctly defined *)
+	Def.build_def_member rm;
+	check_def_member rm;
+	Def.empty_def_member rm;
+
+	(* 2. Convert insert/get into find in the RHS *)
+	let rm' = Transf_tables.reduce_tables_eqside rm in
+
+	(* 3. Optimize by removing useless assignments *)
+	let rm'' = Transf_remove_assign.remove_assignments_eqside rm' in
+	Settings.changed := false;
+	{ equiv with
+          eq_fixed_equiv = Some(lm, rm'', p, opt2) }	
+  in
+
+  (* 4. Add a replication in case there is no replication at the top.
+     It is important to convert insert/get into find before adding a replication.
+     Otherwise, we would need to add the replication index to the table(s). *)
   let equiv' = add_repl equiv in
+
   match equiv'.eq_fixed_equiv with
   | None -> equiv'
   | Some(lm,rm,p,opt2) ->
@@ -1395,21 +1445,27 @@ let check_equiv normalize equiv =
 	 Then the typing guarantees that when several variables are referenced
 	 with the same array indexes, then these variables come from the same function. *)
       Array_ref.array_ref_eqside rm;
-      renamed_vars := [];
+      (* 5. Check the "find" constructs, and modify them if needed. 
+         Avoid array accesses on variables defined by "find" and on
+	 indices received as arguments. *) 
       let rm1 = List.map (fun (fg, mode) ->
 	(check_rm_fungroup [] fg, mode)) rm
       in
       Def.empty_def_member rm;
-      
+
+      (* 6. Encode comparisons on indices *)
       Def.build_def_member rm1;
       Array_ref.array_ref_eqside rm1;
+      renamed_vars := [];
       build_encode_idx_types_funs rm1;
       let rm2 = List.map (fun (fg, mode) ->
 	(encode_idx_fungroup [] fg, mode)) rm1
       in
- 
+
+      (* 7. Move creations of fresh random variables in the RHS *)
       let rm3 = move_names_all lm rm2 in
       Array_ref.cleanup_array_ref();
+      
       let restr_mapping = ref [] in
       build_restr_mapping restr_mapping lm rm3;
       renamed_vars := [];

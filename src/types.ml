@@ -532,6 +532,8 @@ and rem_set =
   | Binders of binder list
   | FindCond
   | Minimal
+  | EqSide (* Specific for the RHS of equiv statements. 
+	      Removes useless assignments let x = y; does not remove let x = y[...] *)
 
 and move_set =
     MAll

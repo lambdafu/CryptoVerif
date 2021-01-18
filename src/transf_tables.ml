@@ -413,4 +413,35 @@ let reduce_tables g =
   let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename g1 in
   (g', proba, renames @ (List.map (fun tbl -> DExpandGetInsert tbl) (!tables)))
 
+let rec trf_insert_fungroup accu cur_array = function
+  | ReplRestr(repl_opt, restr, funlist) ->
+      let cur_array' = Terms.add_cur_array repl_opt cur_array in
+      ReplRestr(repl_opt, restr, List.map (trf_insert_fungroup accu cur_array') funlist)
+  | Fun(ch, args, res, priority) ->
+      Fun(ch, args, trf_insert_term accu cur_array res, priority)
+      
+let transform_insert_eqside rm =
+  let accu = ref [] in
+  let rm' = 
+    List.map (fun (fg, mode) ->
+      (trf_insert_fungroup accu [] fg, mode)) rm
+  in
+  (rm', !accu)
 
+let rec trf_get_fungroup l cur_array = function
+  | ReplRestr(repl_opt, restr, funlist) ->
+      let cur_array' = Terms.add_cur_array repl_opt cur_array in
+      ReplRestr(repl_opt, restr, List.map (trf_get_fungroup l cur_array') funlist)
+  | Fun(ch, args, res, priority) ->
+      Fun(ch, args, trf_get_term l cur_array res, priority)
+    
+let transform_get_eqside rm l =
+  List.map (fun (fg, mode) ->
+    (trf_get_fungroup l [] fg, mode)) rm
+
+let reduce_tables_eqside rm =
+  Array_ref.array_ref_eqside rm;
+  let (rm1, l) = transform_insert_eqside rm in
+  let rm2 = transform_get_eqside rm1 l in
+  Array_ref.cleanup_array_ref();
+  Transf_auto_sa_rename.auto_sa_rename_eqside rm2

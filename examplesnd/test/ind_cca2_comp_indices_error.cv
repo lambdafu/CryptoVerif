@@ -238,6 +238,6 @@ process
 
 
 (* EXPECTED
-Error: These indices (i2_1, key_idx[j_2]) are not allowed. The allowed indices are:
+Error: These indices (i2_1, k_1[j_2]) are not allowed. The allowed indices are:
 xtime: error in child process (status : 2)
 END *)

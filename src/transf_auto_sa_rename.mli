@@ -7,3 +7,5 @@ open Types
    precondition to [Terms.build_def_process]. *)
 
 val auto_sa_rename : game_transformer
+
+val auto_sa_rename_eqside : eqmember -> eqmember

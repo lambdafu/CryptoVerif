@@ -71,7 +71,7 @@ equiv(uf_cma(mac))
       ! N3 new r: mkeyseed [unchanged];(
 	 !N Omac(x: macinput) := return(mac2(x, mkgen2(r))) |
 	 !N2 Ocheck(m: macinput, ma: macres) := 
-	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then (let u = j (* The reference to j here causes an internal error *)in return(true)) else return(false)).
+	    find j <= N suchthat defined(x[j]) && (m = x[j]) && check2(x[j], mkgen2(r), ma) then (let u = j (* The reference to j here causes an internal error. From 16/1/2021, this reference is removed by removal of useless assignments. *)in return(true)) else return(false)).
 
 equiv(uf_cma_corrupt(mac))
       ! N3 new r: mkeyseed;(
@@ -175,6 +175,6 @@ process
 	 (! N processS(Kas, mKas, Kbs, mKbs)))
 
 (* EXPECTED
-Error: These indices j_1 are not allowed. The allowed indices are:
-xtime: error in child process (status : 2)
+RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)).
+0.200s (user 0.200s + system 0.000s), max rss 14324K
 END *)
