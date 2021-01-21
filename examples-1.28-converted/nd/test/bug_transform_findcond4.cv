@@ -20,11 +20,12 @@ type hr [fixed].
 param N', N'', qH.
 
 fun h(hashinput, hr):hash.
+fun h'(hashinput, hr):hash.
 
 equiv
   ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := return(h(x,y))
 <=(0)=>
-  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := find j <= N' suchthat defined(y[j]) && (y= y[j]) then return(h(x,y)) else new r: hash; return(r).
+  ! N' new y: hr; ! N'' gen_Oracle(x: hashinput) := find j <= N' suchthat defined(y[j]) && (y= y[j]) then return(h'(x,y)) else new r: hash; return(r).
 
 channel c5, c6.
 

@@ -1,12 +1,13 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
-Version
+Version 2.05
 
 - Allow comparisons between indices and tables (insert, get)
 in the right-hand side of equiv declarations.
 - Optimize the right-hand side of equiv declarations by removing
 useless assignments.
+- Allow new and event_abort in conditions of find and get.
 - Allow multiple command-line options "-lib <file>".
 - Minor improvement of some error messages.
 - Avoid creating duplicate defined conditions in transformation
@@ -15,6 +16,7 @@ remove_assign.
 - Fixed bug in update of defined conditions following other
 rewritings of the game: it supported only expanded games, but
 was sometimes called on non-expanded games.
+- Fixed probabilities in square GDH and PRF-ODH.
 
 Version 2.04
 

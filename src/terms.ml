@@ -292,6 +292,40 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
       (List.exists f_term tl) || (f p)
 
 	
+(* Check if a term may abort *)
+
+let rec may_abort t =
+  match t.t_desc with
+  | EventAbortE _ -> true
+  | _ -> exists_subterm may_abort (fun br -> false) may_abort_pat t
+
+and may_abort_pat pat =
+  exists_subpat may_abort may_abort_pat pat
+
+(* [is_unique_no_abort l0 find_info] returns true when the find is unique 
+   and its conditions do not abort *)
+
+let is_unique_no_abort l0 find_info =
+  (match l0 with
+  | [([],_,_,_)] -> true
+  | _ -> find_info == Unique) &&
+  not (List.exists (fun (bl, def_list, t1, _) ->
+    may_abort t1) l0)
+
+(* Check if a term may abort by an event other than [f] *)
+
+let other_abort f t =
+  let rec aux t =
+    match t.t_desc with
+    | EventAbortE f' -> f' != f
+    | _ -> exists_subterm aux (fun br -> false) aux_pat t
+
+  and aux_pat pat =
+    exists_subpat aux aux_pat pat
+
+  in
+  aux t
+    
 (* Create an interval type from a parameter *)
 
 module ParamHash =
@@ -2990,7 +3024,12 @@ let rec update_args_at_creation cur_array t =
       end
   | ReplIndex b -> t
   | FunApp(f,l) -> build_term2 t (FunApp(f, List.map (update_args_at_creation cur_array) l))
-  | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+  | ResE(b,t1) ->
+      let b' = create_binder b.sname b.btype cur_array in
+      link b (TLink (term_from_binder b'));
+      build_term2 t (ResE(b', update_args_at_creation cur_array t1))
+  | EventAbortE _ -> t
+  | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "new/event/event_abort/get/insert should not occur as term in find condition" 
   | TestE(t1,t2,t3) ->
        build_term2 t (TestE(update_args_at_creation cur_array t1,

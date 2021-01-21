@@ -2,7 +2,7 @@ open Types
 
 (* Empty tree of definition dependances 
    The treatment of TestE/FindE/LetE/ResE is necessary: build_def_process
-   is called in check.ml.
+   is called in check.ml (and on other non-expanded games).
 *)
 
 
@@ -228,6 +228,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       let (true_facts_else, elsefind_facts_else) = 
 	find_list_to_elsefind (true_facts, elsefind_facts) l0
       in
+      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
       let rec find_l seen = function
 	  [] -> ()
 	| ((bl,def_list,t1,t2) as cur_branch)::l ->
@@ -241,7 +242,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let elsefind_t1 = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t1 in
 
 	    let (true_facts', elsefind_facts_then) =
-	      if find_info == Unique then
+	      if unique_no_abort then
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
 		find_list_to_elsefind (true_facts, elsefind_t1 @ elsefind_facts) (List.rev_append seen l)
@@ -508,6 +509,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu cur_array above_node true_facts' def_vars elsefind_facts' p2
       in
+      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
       let rec find_l seen = function
 	  [] -> (fut_binders2, fut_true_facts2)
 	| ((bl,def_list,t,p1) as cur_branch)::l ->
@@ -521,7 +523,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let elsefind_t = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t in
 	    
 	    let (true_facts', elsefind_facts_then) =
-	      if find_info == Unique then
+	      if unique_no_abort then
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
 		find_list_to_elsefind (true_facts, elsefind_t @ elsefind_facts) (List.rev_append seen l)

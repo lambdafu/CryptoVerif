@@ -208,7 +208,7 @@ and sa_oprocess b0 p =
 
 let proba_accu = ref []
 
-let add_proba_sarename bl find_info =
+let add_proba_sarename bl l0 find_info =
   (* If find_info = Unique or bl = [], there is a single possible
      choice in the current branch, so SArename will not change the
      order of the elements in the list of successful find choices.
@@ -217,7 +217,7 @@ let add_proba_sarename bl find_info =
      distribution is not exactly uniform, this may lead to a change
      of probability EpsFind of these choices, for each execution
      of the find. *)
-  if find_info != Unique then
+  if not (Terms.is_unique_no_abort l0 find_info) then
     begin
       match bl with
 	[] -> ()
@@ -300,7 +300,7 @@ let rec ren_out_find_cond b0 t =
 	      (bl, def_list, t', p1')::l1'
 	    else
 	      begin
-		add_proba_sarename bl find_info;
+		add_proba_sarename bl l0 find_info;
 		rename_finds Terms.copy_term b0 (!image_name_list) to_rename l1' (bl, def_list, t', p1')
 	      end
       in
@@ -370,7 +370,7 @@ and ren_out_oprocess b0 p =
 	      (bl, def_list, t', p1')::l1'
 	    else
 	      begin
-		add_proba_sarename bl find_info;
+		add_proba_sarename bl l0 find_info;
 		rename_finds Terms.copy_oprocess b0 (!image_name_list) to_rename l1' (bl, def_list, t', p1')
 	      end
       in

@@ -62,8 +62,15 @@ let rec auto_sa_rename_fc t =
           let t2' = auto_sa_rename_fc t2 in
           List.iter (fun b -> b.link <- NoLink) (Terms.vars_from_pat [] pat);
 	  LetE(pat', t1', t2', topt')
-      |	ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
-	  Parsing_helper.internal_error "New, get, insert, event, and event_abort should not occur in find condition")
+      |	ResE (b, t) ->
+	  let b' = new_binder b in
+	  let t' = auto_sa_rename_fc t in
+	  b.link <- NoLink;
+	  ResE(b', t')
+      | EventAbortE f ->
+	  EventAbortE f
+      | EventE _ | GetE _ | InsertE _ -> 
+	  Parsing_helper.internal_error "get, insert, and event should not occur in find condition")
 
 and auto_sa_rename_fc_binder (b,l) =
   let b' =

@@ -968,7 +968,7 @@ let rec almost_indep_fc cur_array t0 =
   | FindE(l0,p2,find_info) ->
       begin
       try
-	let always_then = ref false in
+	let never_else = ref false in
 	let check_br (b,l) = 
 	  List.iter (fun t -> if depends t then raise BadDep) l
 	in
@@ -988,7 +988,7 @@ let rec almost_indep_fc cur_array t0 =
               match almost_indep_fc (bl' @ cur_array) t with
 		BothDepB -> raise BadDep
 	      | OnlyThen ->
-		  if def_list == [] then always_then := true;
+		  if def_list == [] then never_else := true;
 		  begin
 		    try
 		      let p1' = to_term (almost_indep_fc cur_array p1) in
@@ -1030,7 +1030,7 @@ let rec almost_indep_fc cur_array t0 =
 	      | OnlyElse | Unreachable -> 
 		  local_changed := true
 	  end) l0;
-	if !always_then then
+	if !never_else then
 	  begin
 	    if List.for_all (fun (_,_,_,p1') -> Terms.is_true p1') (!l0') then
 	      begin
@@ -1257,6 +1257,21 @@ let rec almost_indep_fc cur_array t0 =
 		| _ -> BothDepB
 	      end
       end
+  | ResE(b,t) ->
+      begin
+	match almost_indep_fc cur_array t with
+	| (OnlyThen | OnlyElse | BothDepB | Unreachable) as x -> x
+	| BothIndepB t' ->
+	    if Terms.refers_to b t' then
+	      BothIndepB (Terms.build_term t0 (ResE(b,t')))
+	    else
+	      (* [b] cannot have array references, since it is defined
+		 in a condition of [find]. Hence, we can remove it
+		 if [t'] does not use it. *)
+	      BothIndepB t'
+      end
+  | EventAbortE _ ->
+      BothIndepB t0
   | _ -> almost_indep_test cur_array t0
 
 (* Add a display of the explanation of why the dependency analysis fails,
@@ -1371,7 +1386,7 @@ and check_depend_oprocess cur_array p =
 	    Terms.oproc_from_desc Yield
       end
   | Find(l0,p2,find_info) ->
-      let always_then = ref false in
+      let never_else = ref false in
       let check_br (b,l) = 
 	List.iter (fun t -> 
 	  if depends t then
@@ -1395,7 +1410,7 @@ and check_depend_oprocess cur_array p =
 	      BothDepB -> raise BadDep
 	    | OnlyThen ->
 		List.iter (fun (b,_) -> add_defined b) bl;
-		if def_list == [] then always_then := true;
+		if def_list == [] then never_else := true;
 		let defined_condition_update_needed_tmp = !defined_condition_update_needed in
 		defined_condition_update_needed := false;
 		let p1' = check_depend_oprocess cur_array p1 in
@@ -1446,7 +1461,7 @@ and check_depend_oprocess cur_array p =
 	    | OnlyElse | Unreachable -> 
 		local_changed := true
 	  end) l0;
-      if !always_then then
+      if !never_else then
 	begin
 	  local_changed := true;
 	  Terms.oproc_from_desc (Find(List.rev (!l0'), Terms.oproc_from_desc Yield, find_info))

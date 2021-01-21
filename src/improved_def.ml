@@ -45,6 +45,8 @@ let rec infer_facts_pat true_facts = function
   | PatTuple(_,l) -> List.iter (infer_facts_pat true_facts) l
   | PatEqual t -> infer_facts_t true_facts t
 
+let improved_def_game event_accu compatible_needed g =
+  
 let rec infer_facts_fc cur_array true_facts t =
   match t.t_facts with
     None -> Parsing_helper.internal_error "t_facts should have been set"
@@ -125,11 +127,25 @@ let rec infer_facts_fc cur_array true_facts t =
 		in
 		infer_facts_fc cur_array true_facts' t3
 	  end
-      |	ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> 
-	  Parsing_helper.internal_error "new, get, insert, event, event_abort should have been expanded in infer_facts_fc"
+      |	ResE(b,t1) ->
+	  let node = get_node t.t_facts in
+	  node.true_facts_at_def <- true_facts;
+	  infer_facts_fc cur_array true_facts t1
+      | EventAbortE f ->
+	  begin
+	    match event_accu with
+	      None -> ()
+	    | Some accu -> 
+		let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
+		let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
+		let t_ev = Terms.build_term_type_occ Settings.t_bool t.t_occ (FunApp(f, [idx])) in
+		accu := (t_ev, DTerm t) :: (!accu)
+	  end
+       | EventE _ | GetE _ | InsertE _ -> 
+	  Parsing_helper.internal_error "get, insert, event should have been expanded in infer_facts_fc"
 
-let improved_def_game event_accu compatible_needed g =
-  
+in
+
 let rec infer_facts_i cur_array true_facts p' =
   (* print_string "infer_facts_i occ "; print_int p'.i_occ; print_newline(); *)
   begin

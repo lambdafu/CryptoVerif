@@ -11,7 +11,10 @@ type state =
       
 let no_insert_eventt state t =
   if (state.occ >= t.t_occ) && (state.occ <= t.t_max_occ) then
-    raise (Parsing_helper.Error("Cannot insert an event in a condition of find or in a channel of input", state.ext_o))
+    raise (Parsing_helper.Error("Cannot insert an event in a defined condition or in a channel of input", state.ext_o))
+  
+let no_insert_eventbr state (b,l) =
+  List.iter (no_insert_eventt state) l
   
 let rec insert_eventpat state = function
     PatVar b -> PatVar b
@@ -56,8 +59,8 @@ and insert_eventt state t =
     | FindE(l0,t3, find_info) ->
 	let t3' = insert_eventt state t3 in
 	let l0' = List.map (fun (bl, def_list, tc, p)  ->
-	  no_insert_eventt state tc;
-	  (bl, def_list, tc, insert_eventt state p)
+	  List.iter (no_insert_eventbr state) def_list;
+	  (bl, def_list, insert_eventt state tc, insert_eventt state p)
 	    ) l0 
 	in
 	FindE(l0',t3',find_info))
@@ -100,8 +103,8 @@ and insert_evento state p =
 			    insert_evento state p2)
     | Find(l0,p2,find_info) ->
 	Find(List.map (fun (bl,def_list,t,p1) ->
-	  no_insert_eventt state t;
-	  (bl,def_list,t,
+	  List.iter (no_insert_eventbr state) def_list;
+	  (bl,def_list,insert_eventt state t,
 	   insert_evento state p1)) l0,
 	     insert_evento state p2, find_info)
     | Output((c,tl),t,p) ->

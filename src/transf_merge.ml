@@ -289,7 +289,11 @@ let rec equal_find_cond ?show_diff_reason map t t' =
   | ResE(b,t), ResE(b',t') ->
       merge_var ?show_diff_reason t.t_occ t'.t_occ
 	(fun map' -> equal_find_cond ?show_diff_reason map' t t') map b b'
-  | (EventAbortE _, EventAbortE _) | (EventE _, EventE _) ->
+  | (EventAbortE f, EventAbortE f') ->
+      if f != f' then
+	diff_message ?show_diff_reason t.t_occ t'.t_occ "events with different names";
+      f == f'
+  | (EventE _, EventE _) ->
       Parsing_helper.internal_error "Events should not occur in find conditions"
   | (GetE _, GetE _) | (InsertE _, InsertE _) ->
       Parsing_helper.internal_error "Get/Insert should not occur in Transf_merge.equal_find_cond"
@@ -1514,7 +1518,9 @@ let rec merge_find_cond rename_instr t =
     ResE(b,p) ->
       Terms.build_term t (ResE(rename_var rename_instr b, 
 				add_def_var_find_cond rename_instr (merge_find_cond rename_instr p) b))
-  | EventAbortE _ | EventE _ ->
+  | EventAbortE f ->
+      Terms.build_term t (EventAbortE f)
+  | EventE _ ->
       Parsing_helper.internal_error "events should not occur in find conditions in merge_find_cond"
   | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.merge_find_cond"
@@ -1887,9 +1893,11 @@ let get_curarray_suffix cur_array curarray_suffix i =
 
 let rec get_curarray_suffix_t cur_array curarray_suffix t =
   match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> List.iter (get_curarray_suffix_t cur_array curarray_suffix) l
+    Var(_,l) | FunApp(_,l) ->
+      List.iter (get_curarray_suffix_t cur_array curarray_suffix) l
   | ReplIndex i -> get_curarray_suffix cur_array curarray_suffix i
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ -> Parsing_helper.internal_error "EventAbortE, EventE, GetE, InsertE should have been expanded"
+  | EventAbortE _ -> ()
+  | EventE _ | GetE _ | InsertE _ -> Parsing_helper.internal_error "EventE, GetE, InsertE should have been expanded"
   | ResE(_,t) -> get_curarray_suffix_t cur_array curarray_suffix t
   | TestE(t1,t2,t3) -> 
       get_curarray_suffix_t cur_array curarray_suffix t1;
@@ -1922,8 +1930,8 @@ let get_curarray_suffix_pat_term cur_array pat t =
   
 let rec collect_merges_find_cond cur_array t =
   match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> ()
-  | EventAbortE _ | EventE _ ->
+    Var _ | FunApp _ | ReplIndex _ | EventAbortE _ -> ()
+  | EventE _ ->
       Parsing_helper.internal_error "events should not occur in find conditions in collect_merges_find_cond"
   | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.collect_merges_find_cond"
@@ -1984,7 +1992,7 @@ let rec collect_merges_find_cond cur_array t =
       collect_merges_find_cond cur_array t3;
       let true_facts = Facts.get_facts_at (DTerm t) in
       let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
-      if find_info == Unique then
+      if Terms.is_unique_no_abort l0 find_info then
 	begin
 	  try
 	    List.iter (fun ((bl, def_list, t1, t2) as br) ->
@@ -2090,7 +2098,7 @@ and collect_merges_o cur_array p =
       collect_merges_o cur_array p3;
       let true_facts = Facts.get_facts_at (DProcess p) in
       let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
-      if find_info == Unique then
+      if Terms.is_unique_no_abort l0 find_info then
 	begin
 	  try
 	    List.iter (fun ((bl, def_list, t1, p2) as br) ->
@@ -2167,8 +2175,8 @@ let rec remove_impossible_merges() =
 
 let rec do_merges_find_cond t =
   match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> t
-  | EventAbortE _ | EventE _ ->
+    Var _ | FunApp _ | ReplIndex _ | EventAbortE _ -> t
+  | EventE _ ->
       Parsing_helper.internal_error "events should not occur in find conditions in collect_merges_find_cond"
   | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_merge.collect_merges_find_cond"

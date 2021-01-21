@@ -5,6 +5,8 @@ while I compare N pw with N*N2 y -> should be N*N*N2/|passwd|
 Choosing random numbers in conditions of find is a bit strange
 anyway, should I forbid that?
 FIXED by forbidding new in find conditions
+20/1/2021: now, new is allowed in find conditions. 
+The probability is computed correctly.
  *)
 
 param N.
@@ -31,6 +33,6 @@ process
 	(! N processA) | (!N2 in(c3, m:passwd))
 
 (* EXPECTED
-Error: new at line 27, characters 41-61 should not occur in condition of find
-xtime: error in child process (status : 2)
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15916K
 END *)

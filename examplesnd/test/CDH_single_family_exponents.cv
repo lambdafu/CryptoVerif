@@ -27,7 +27,9 @@ equiv(cdh(exp))
 		 To succeed, we should be able to prove that j = ia never
 		 happens while we do the transformation (and modify transf_crypto so that
 		 it takes it into account in order to simplify the RHS and apply the transformation),
-		 or extend the language to allow event_abort in conditions of find. *)
+		 or extend the language to allow event_abort in conditions of find.
+
+		 20/1/2021:  event_abort allowed in conditions of find; now works. *)
                if j = ia then event_abort square else
       	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], a))) else
               if defined(ka) then return(m = exp'(g, mult(a[j], a))) else
@@ -160,7 +162,7 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove secrecy of keyB; secrecy of keyA.
+All queries proved.
 6.228s (user 6.204s + system 0.024s), max rss 36672K
 END *)
 

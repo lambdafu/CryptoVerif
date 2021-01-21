@@ -1,0 +1,132 @@
+(*******************************************************************************
+FELDHOFER
+
+[B] Martin Feldhofer, Sandra Dominikus, and Johannes Wolkerstorfer.
+Strong authentication for RFID systems using the AES algorithm. In
+Marc Joye and Jean-Jacques Quisquater, editors, Cryptographic Hard-
+ware and Embedded Systems - CHES 2004: 6th International Workshop
+Cambridge, MA, USA, August 11-13, 2004. Proceedings, volume 3156
+of Lecture Notes in Computer Science, pages 357–370. Springer, 2004.
+
+R --> T : nr
+T --> R : enc(<nr,nt>,k)
+R --> T : enc(<nt,nr>,k)
+
+*******************************************************************************)
+
+proof{
+   crypto sprp(enc) special(("Ocoll: forall nr: nonce; new x: blocksize; fst(x) = nr"));
+   SArename m_O_enc_1;
+   insert before "find \\[unique\\]" "find ri_8 <= NR suchthat defined(c_O_enc_1[ri_8], v[ri_8], u[ri_8]) && (u[ri_8] = iT) && (v[ri_8] = iK) && (xt = c_O_enc_1[ri_8]) then";
+   simplify;
+   remove_assign useless;
+   merge_branches;
+   simplify;
+   remove_assign useless;
+   insert before "find u " "find i <= NT, j <= NK suchthat defined(xnr[i, j], c_O_enc[i, j]) && (c_O_enc[i, j] = xr) && (nr = xnr[i, j]) then";
+   simplify;
+   remove_assign useless;
+   simplify;
+   
+   start_from_other_end;
+   crypto sprp(enc) special(("Ocoll: forall nr: nonce; new x: blocksize; fst(x) = nr"));
+   SArename m_O_enc_5;
+   insert before "find \\[unique\\]" "find ri <= NR suchthat defined(u_36[ri], c_O_enc_3[ri], v_1[ri]) && (v_1[ri] = iK_1) && (xt_1 = c_O_enc_3[ri]) && iT_1 = u_36[ri] then"; 
+   simplify;
+   remove_assign useless;
+   insert before_nth 1 "out(cko" "let x1 = cst_blocksize in";
+   insert before_nth 2 "out(cko" "let x2 = cst_blocksize in";
+   insert before_nth 3 "out(cko" "let x3 = cst_blocksize in";
+   merge_branches;
+   simplify;
+   remove_assign useless;
+   insert before "find u_1 " "find  ri <= NT, j <= NK suchthat defined(xnr_1[ri, j], c_O_enc_2[ri, j]) && c_O_enc_2[ri, j] = xr_1 && nr_1 = xnr_1[ri, j] then";
+   simplify;
+   remove_assign useless;
+   simplify;
+   success
+   }
+
+
+param NT, NR, NK.
+
+type nonce [large,fixed].
+type key [fixed].
+type blocksize[large,fixed].
+
+fun concat1(nonce, nonce):blocksize [data].
+
+fun fst(blocksize): nonce [uniform].
+
+equation forall x,y:nonce; fst(concat1(x,y)) = x.
+
+(* Shared-key encryption (AES: SPRP) *)
+
+proba Penc.
+
+expand SPRP_cipher(key, blocksize, enc, dec, Penc).
+
+channel c0, c1, c2, c3, c4, c5, c6, c7, cok, cko, startid, finishid, startsess, finishsess.
+
+
+let processT(k:key) = 
+    in(c0, xnr:nonce); 
+    new nt:nonce;
+    let et = enc(concat1(xnr,nt),k) in
+    out(c1, et);
+    in(c2,xt:blocksize);
+    let concat1(=nt,=xnr) = dec(xt,k) in out(cok,()) else out(cko,()).
+
+let multiple = 
+    ( ! iK <= NK
+      in(startid, ());
+      new kTn:key;
+      let kTm:key = kTn in
+      out(finishid, ());
+      ! iT <= NT
+      in(startsess, ());
+      out(finishsess, ());
+      processT(kTm)
+      )| (
+      !iR <= NR
+      in(c3,());
+      new nr: nonce;
+      out(c4, nr);
+      in(c5, xr:blocksize);
+      find u = i <= NT, v = j <= NK suchthat
+      defined(kTm[j]) && fst(dec(xr, kTm[j])) = nr
+      then
+      (let concat1(=nr, xnt:nonce) = dec(xr, kTm[v]) in 
+      let er = enc(concat1(xnt,nr),kTm[v]) in
+      out(c6, er) else out(c7,())) else out(c7,())).
+
+
+let single = 
+    ( ! iK <= NK
+      in(startid, ());
+      out(finishid, ());
+      ! iT <= NT
+      in(startsess, ());
+      new kTn:key;      
+      let kTs:key = kTn  in  
+      out(finishsess, ());
+      processT(kTs)
+      )| (
+      !iR <= NR
+      in(c3,());
+      new nr: nonce;
+      out(c4, nr);
+      in(c5, xr:blocksize);
+      find u = i <= NT, v = j <= NK suchthat
+      defined(kTs[i,j]) && fst(dec(xr, kTs[i,j])) = nr
+      then
+      (let concat1(=nr,xnt:nonce) = dec(xr,kTs[u,v]) in
+      let er = enc(concat1(xnt,nr),kTs[u,v]) in
+      out(c6, er) else out(c7,())) else out(c7,())).
+
+equivalence single multiple
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

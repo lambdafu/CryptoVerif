@@ -19,9 +19,9 @@ proof {
       insert_event e4 105;
       simplify;
       show_game occ;
-      replace 36 "x_1[u_3]";
+      replace 37 "x_1[u_3]";
       show_game occ;
-      replace 40 "y_40[u_3]";
+      replace 41 "y_40[u_3]";
       auto;
       show_game;
       remove_assign binder x_1;

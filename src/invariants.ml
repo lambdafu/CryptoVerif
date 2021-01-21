@@ -64,15 +64,11 @@ let rec inv1t_fc expect_expanded in_find_cond cur_array t =
           check_noninter def0 def12;
           def0 @ def12
        | ResE(b,p) ->
-          if in_find_cond then
-            error t.t_occ "new should not appear in condition of find";
           let def = inv1t_fc false in_find_cond cur_array p in
           check_noninter def [b];
           ok_cur_array t.t_occ cur_array b;
           b :: def
        | EventAbortE f ->
-          if in_find_cond then
-            error t.t_occ "event_abort should not appear in condition of find";
           []
        | EventE(t1,p) ->
           if in_find_cond then
@@ -82,7 +78,7 @@ let rec inv1t_fc expect_expanded in_find_cond cur_array t =
           check_noninter deft defp;
           deft @ defp
        | GetE _ | InsertE _ ->
-          error t.t_occ "event, event_abort, get, insert should not appear as term"
+          error t.t_occ "get, insert should not appear as term"
        | LetE(pat,t1,p1,topt) ->
           let deft = inv1t_fc true in_find_cond cur_array t1 in
           let defpat = inv1pat in_find_cond cur_array pat in
@@ -358,8 +354,6 @@ let rec invt_fc in_find_cond defined_refs t =
 	end;
       List.iter (invt_fc in_find_cond defined_refs) l
   | ResE(b,t') ->
-      if in_find_cond then
-	error t.t_occ "new should not appear in a condition of find";
       let ty = b.btype in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	error t.t_occ ("Cannot choose randomly a bitstring from " ^ ty.tname ^ "\n");
@@ -367,8 +361,6 @@ let rec invt_fc in_find_cond defined_refs t =
       assert_subtype t.t_occ t.t_type t'.t_type;
       invt_fc in_find_cond ((Terms.binderref_from_binder b)::defined_refs) t'
   | EventAbortE f ->
-      if in_find_cond then
-	error t.t_occ "event_abort should not appear in a condition of find";
       begin
 	match f.f_type with
 	  [t], t' when t == Settings.t_bitstring && t' == Settings.t_bool -> ()

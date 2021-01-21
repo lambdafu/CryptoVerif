@@ -221,42 +221,6 @@ exception NoMatch, like when matching fails. This facilitates the
 interaction with the matching functions, which are used as part of the
 test to see whether we can apply the transformation. *)
 
-(* Check that [t] does not contain new or event *)
-
-let rec check_no_new_event t =
-  match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> List.iter check_no_new_event l
-  | ReplIndex _ -> ()
-  | TestE(t1,t2,t3) -> 
-      check_no_new_event t1;
-      check_no_new_event t2;
-      check_no_new_event t3
-  | LetE(pat,t1,t2,topt) ->
-      check_no_new_event_pat pat;
-      check_no_new_event t1;
-      check_no_new_event t2;
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> check_no_new_event t3
-      end
-  | FindE(l0,t3,_) ->
-      check_no_new_event t3;
-      List.iter (fun (_,_,t1,t2) ->
-	check_no_new_event t1;
-	check_no_new_event t2) l0
-  | ResE _ | EventAbortE _ ->
-      if (!Settings.debug_cryptotransf) > 4 then 
-	print_string "The transformed expression occurs in a condition of find, and the transformation may introduce new or event.\n";
-      raise NoMatch
-  | EventE _ | GetE _ | InsertE _ -> 
-      Parsing_helper.internal_error "insert, get, and event are not allowed in equivalences"
-      
-and check_no_new_event_pat = function
-    PatVar _ -> ()
-  | PatTuple(_,l) -> List.iter check_no_new_event_pat l
-  | PatEqual t -> check_no_new_event t
-
 (* Check if [t] is an instance of [term].
    Variables of term may be substituted by any term, except 
    - variables in name_list_g which must be kept, but may be indexed 
@@ -2145,22 +2109,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	      print_string "The transformed term occurs in a condition of find, and the transformation may create finds on variables defined in the condition of find.\n";
 	    raise NoMatch
 	  end;
-	Array_ref.cleanup_array_ref();
-	check_no_new_event res_term';
-        (* When restrictions in the image have no corresponding
-	   restriction in the source process, we would like to put them
-           immediately before the transformed term. However, this
-           is not possible inside a condition of find, so we exclude 
-           this case. *)
-        match before_transfo_name_table with
-        | []::_ ->
-           if (List.hd after_transfo_name_table) != [] then
-             begin
-	       if (!Settings.debug_cryptotransf) > 4 then 
-	         print_string "The transformed term occurs in a condition of find, and the transformation may create restrictions just above the term, which is impossible inside a condition of find.\n";
-	       raise NoMatch
-             end
-        | _ -> ()
+	Array_ref.cleanup_array_ref()
       end;
     
     match to_do with
@@ -3113,7 +3062,6 @@ let rename_def_list loc_rename def_list =
   List.map (rename_br loc_rename) def_list
 
 let introduced_events = ref []
-let restr_to_put = ref []
 
 (* Functions for encoding indices *)
 
@@ -3183,6 +3131,16 @@ type encode_fun_spec =
   | EncodeFunBinder of binder
   | EncodeFunExp of mapping
 	
+let rec put_restr l p =
+  match l with
+    [] -> p
+  | (a::l) -> Terms.oproc_from_desc (Restr(a, put_restr l p))
+
+let rec put_restr_term l t =
+  match l with
+  | [] -> t
+  | a::l -> Terms.build_term t (ResE(a, put_restr_term l t))
+                                    
 let rec transform_term t =
   try
     let (mapping, one_exp) = find_map t in
@@ -3215,15 +3173,14 @@ let rec transform_term t =
 	      | Some t_right ->  print_string "Right complement: "; Display.display_term t_right; print_newline()
 	    end
       end;
-    begin
+    let restr_to_put = 
       (* When restrictions in the image have no corresponding
 	 restriction in the source process, just put them
          immediately before the transformed term *)
       match mapping.before_transfo_name_table with
-	[]::_ ->
-	  restr_to_put := (List.map snd (List.hd mapping.after_transfo_name_table)) @ (!restr_to_put)
-      | _ -> ()
-    end;
+	[]::_ -> List.map snd (List.hd mapping.after_transfo_name_table)
+      | _ -> []
+    in
     let instance = Terms.delete_info_term (instantiate_term one_exp.cur_array_exp false [] [] mapping one_exp mapping.target_exp) in
     let result = 
     match one_exp.product_rest with
@@ -3243,6 +3200,7 @@ let rec transform_term t =
 	  None -> instance_with_both_sides
 	| Some(eqdiff, neut) -> Terms.app eqdiff [instance_with_both_sides; neut]
     in
+    let result = put_restr_term restr_to_put result in
     if (!Settings.debug_cryptotransf) > 5 then
       begin
 	print_string "yields "; Display.display_term result; print_newline()
@@ -3682,16 +3640,6 @@ and instantiate_pattern cur_array in_find_cond loc_rename_ref loc_rename_idx map
   | PatEqual t -> PatEqual (instantiate_term cur_array in_find_cond (!loc_rename_ref) loc_rename_idx mapping one_exp t)
 
 
-let rec put_restr l p =
-  match l with
-    [] -> p
-  | (a::l) -> Terms.oproc_from_desc (Restr(a, put_restr l p))
-
-let rec put_restr_term l t =
-  match l with
-  | [] -> t
-  | a::l -> Terms.build_term t (ResE(a, put_restr_term l t))
-                                    
 (*
 None: b is not a name to discharge
 Some l: b found as first element of a sequence of variables.
@@ -3746,55 +3694,45 @@ and update_def_list_term suppl_def_list t =
 
 let rec transform_any_term t =
   if Terms.check_simple_term t then
-    transform_term t
+    transform_term t 
   else
-    begin
-      if (!restr_to_put) != [] then
-        Parsing_helper.internal_error "restr_to_put should have been cleaned up";
-      let t' = transform_any_term_norestr t in
-      let t'' = put_restr_term (!restr_to_put) t' in
-      restr_to_put := [];
-      t''
-    end
-
-and transform_any_term_norestr t =
-  match t.t_desc with
-  | Var(b,l) ->
-     Terms.build_term t (Var(b, List.map transform_any_term l))
-  | ReplIndex i -> Terms.build_term t (ReplIndex i)
-  | FunApp(f,l) ->
-     Terms.build_term t (FunApp(f, List.map transform_any_term l))
-  | ResE(b,t') ->
+    match t.t_desc with
+    | Var(b,l) ->
+	Terms.build_term t (Var(b, List.map transform_any_term l))
+    | ReplIndex i -> Terms.build_term t (ReplIndex i)
+    | FunApp(f,l) ->
+	Terms.build_term t (FunApp(f, List.map transform_any_term l))
+    | ResE(b,t') ->
      (* Remove restriction when it is now useless *)
-     let t'' = transform_any_term t' in
-     begin
-       match find_b_rec b (!map) with
-       | None -> Terms.build_term t (ResE(b,t''))
-       | Some l ->
-	   put_restr_term l 
-	      (if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
-		 Terms.build_term t (LetE(PatVar b, Stringmap.cst_for_type b.btype, t'', None))
-              else
-		t'')
-     end
-  | TestE(t0, t1, t2) ->
-     Terms.build_term t (TestE(transform_any_term t0, 
-	                        transform_any_term t1,
-                                transform_any_term t2))
-  | FindE(l0, p2, find_info) ->
-     Terms.build_term t (FindE(List.map transform_term_find_branch l0, 
-	                        transform_any_term p2, find_info))
-  | LetE(pat,t0,t1,topt) ->
-     Terms.build_term t (LetE(transform_pat pat, transform_any_term t0, 
-	                       transform_any_term t1,
-                               match topt with
-                               | None -> None
-                               | Some t2 -> Some (transform_any_term t2)))
-  | EventE(t0,t1) ->
-     Terms.build_term t (EventE(transform_any_term t0,
-	                         transform_any_term t1))
-  | EventAbortE f -> Terms.build_term t (EventAbortE f)
-  | GetE _ | InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+	let t'' = transform_any_term t' in
+	begin
+	  match find_b_rec b (!map) with
+	  | None -> Terms.build_term t (ResE(b,t''))
+	  | Some l ->
+	      put_restr_term l 
+		(if (not (List.memq b l)) && (b.root_def_std_ref || b.root_def_array_ref) then
+		  Terms.build_term t (LetE(PatVar b, Stringmap.cst_for_type b.btype, t'', None))
+		else
+		  t'')
+	end
+    | TestE(t0, t1, t2) ->
+	Terms.build_term t (TestE(transform_any_term t0, 
+	                          transform_any_term t1,
+                                  transform_any_term t2))
+    | FindE(l0, p2, find_info) ->
+	Terms.build_term t (FindE(List.map transform_term_find_branch l0, 
+	                          transform_any_term p2, find_info))
+    | LetE(pat,t0,t1,topt) ->
+	Terms.build_term t (LetE(transform_pat pat, transform_any_term t0, 
+				 transform_any_term t1,
+				 match topt with
+				 | None -> None
+				 | Some t2 -> Some (transform_any_term t2)))
+    | EventE(t0,t1) ->
+	Terms.build_term t (EventE(transform_any_term t0,
+	                           transform_any_term t1))
+    | EventAbortE f -> Terms.build_term t (EventAbortE f)
+    | GetE _ | InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 and transform_term_find_branch (bl, def_list, t, p1) = 
   let new_def_list = ref def_list in
@@ -3817,23 +3755,10 @@ let rec transform_process cur_array p =
       Repl(b, (transform_process (b::cur_array) p))
   | Input((c,tl),pat,p) ->
       let p' = transform_oprocess cur_array p in
-      if (!restr_to_put) != [] then
-	Parsing_helper.internal_error "restr_to_put should have been cleaned up (input)";
       let pat' = transform_pat pat in
-      if (!restr_to_put) = [] then
-	Input((c, tl), pat', p')
-      else
-        (* put restrictions that come from transform_pat *)
-	let b = Terms.create_binder "patv" 
-	    (Terms.get_type_for_pattern pat') cur_array
-	in
-	let p'' = Input((c, tl), PatVar b, put_restr (!restr_to_put) 
-			  (Terms.oproc_from_desc (Let(pat', Terms.term_from_binder b, p', Terms.oproc_from_desc Yield))))
-	in
-	restr_to_put := [];
-	p'')
+      Input((c, tl), pat', p'))
 	
-and transform_oprocess_norestr cur_array p = 
+and transform_oprocess cur_array p = 
   match p.p_desc with
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
@@ -3874,13 +3799,6 @@ and transform_find_branch cur_array (bl, def_list, t, p1) =
   List.iter (update_def_list new_def_list) def_list;
   (bl, !new_def_list, transform_any_term t, transform_oprocess cur_array p1) 
 
-and transform_oprocess cur_array p =
-  if (!restr_to_put) != [] then
-    Parsing_helper.internal_error "restr_to_put should have been cleaned up";
-  let p' = transform_oprocess_norestr cur_array p in
-  let p'' = put_restr (!restr_to_put) p' in
-  restr_to_put := [];
-  p''
 
 let rec update_def_list_simplif_t t =
   Terms.build_term_at t (
@@ -5250,5 +5168,4 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   introduced_events := [];
   encode_funs_for_binders := [];
   encode_funs_for_exps := [];
-  restr_to_put := [];
   result

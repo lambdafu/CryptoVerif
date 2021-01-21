@@ -42,15 +42,22 @@ Same for CDH, but execute event bad or corrupt a_i when one
 computes m = g^{a_i a_i}.
 Same for DDH, but execute event bad or corrupt a_i when one
 computes g^{a_i a_i}.
-For CDH and DDH, this is currently not supported by CryptoVerif because the query m = g^{a_i a_j} (resp. g^{a_i a_j}) would either create variable on which it makes a find or execute event_abort, and this is not allowed when the query is in a condition of find, a typical situation in which we want to apply CDH. (That's less critical for DDH.) The simplest solution would be to have the query execute an event bad for m = g^{a_i a_i} (resp. g^{a_i a_i}) and modify CryptoVerif to allow event_abort in conditions of find. This problem does not occur for GDH.
 
-Allow event_abort in branches of find. With which semantics?
-  When a test in a branch executes event_abort e, the whole find executes event_abort e.
-  A problem is when the find contains different event_abort e_i in the conditions of its branches, we do not know which one to execute. We could choose one among the executed event_abort e_i at random. That's probably equivalent to executing the branch conditions in a random order. [Check that.]
-  Another solution is to require that all occurrences of "event_abort e" in conditions of each find use the same e. To do that, in the crypto transformation, we should allow using an oracle that has an "event_abort e" in its RHS in the condition of a find only when the conditions of that find contain no "event_abort". The crypto transformation should introduce a single event, used for all event_abort that occur in the RHS.
-Allow new in branches of find (the semantics already allows
-probabilistic constructs in branches of find, because find if probabilistic).
+prove some macros in additional.cvl, and test them, then integrate in commonlib.cvl and document in the manual.
 
+transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
+
+Allow get[unique], translated into find[unique]
+
+Is [unique] really handled correctly, especially when I am proving an equivalence property?
+(especially, risk of transforming a RHS containing find or get[unique] that often fails,
+because of non-unicity, into one without option [unique], then shown indistinguishable from
+the LHS, but the LHS is not indistinguishable from the RHS.)
+=> When there are [unique] in the input games, try to prove them. It is an error if I do
+not manage, or a warning in case a particular setting "allowUnprovedUniqueInInput" is set.
+
+DDH with random self reducibility.
+What about PRF-ODH with random self reducibility?
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
@@ -5668,3 +5675,18 @@ DONE 13/1/2021
 Allow insert/get in equiv, by translating them to find.
 Optimize by removing useless assignments
 DONE 18/1/2021
+
+For CDH and DDH, this is currently not supported by CryptoVerif because the query m = g^{a_i a_j} (resp. g^{a_i a_j}) would either create variable on which it makes a find or execute event_abort, and this is not allowed when the query is in a condition of find, a typical situation in which we want to apply CDH. (That's less critical for DDH.) The simplest solution would be to have the query execute an event bad for m = g^{a_i a_i} (resp. g^{a_i a_i}) and modify CryptoVerif to allow event_abort in conditions of find. This problem does not occur for GDH.
+
+Allow event_abort in branches of find. With which semantics?
+  When a test in a branch executes event_abort e, the whole find executes event_abort e.
+  A problem is when the find contains different event_abort e_i in the conditions of its branches, we do not know which one to execute. We could choose one among the executed event_abort e_i at random. That's probably equivalent to executing the branch conditions in a random order. [Check that.]
+  Another solution is to require that all occurrences of "event_abort e" in conditions of each find use the same e. To do that, in the crypto transformation, we should allow using an oracle that has an "event_abort e" in its RHS in the condition of a find only when the conditions of that find contain no "event_abort". The crypto transformation should introduce a single event, used for all event_abort that occur in the RHS.
+  ==> Chosen to choose randomly among the executed event_abort e_i.
+Allow new in branches of find (the semantics already allows
+probabilistic constructs in branches of find, because find if probabilistic).
+
+changed files: syntax.ml terms.ml info_from_term.ml invariants.ml transf_auto_sa_rename.ml improved_def.ml transf_expand.ml transf_insert_event.ml transf_globaldepanal.ml transf_merge.ml transf_simplify.ml transf_insert_replace.ml transf_crypto.ml
+
+info_from_term.ml: I consider EventAbort as giving no information in extract_dnf. Considering it as false would be ok for def.ml, improved_def.ml (shows that the "then" branch is never executed), but not in transf_expand.ml and transf_simplify.ml (because it leads to removing the branch, including the condition).
+DONE 21/1/2021

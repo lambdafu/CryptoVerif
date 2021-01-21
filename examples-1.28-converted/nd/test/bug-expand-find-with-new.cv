@@ -10,6 +10,10 @@ the find has indices (here j); that would be incorrect because when it
 is in the "find" condition, the "new" is repeated for each index,
 while it would not be repeated after expansion. Anyway, no expansion
 is done when the find has indices.
+
+20/1/2021: now, new is allowed in find conditions. 
+The probability is computed correctly.
+
  *)
 
 param N.
@@ -19,9 +23,6 @@ param N3.
 type nonce [large,fixed].
 type passwd [large,fixed].
 
-proof {
-show_state
-}
 
 (* Queries *)
 
@@ -40,6 +41,6 @@ process
 	(! N processA) | (!N2 in(c3, m:passwd))
 
 (* EXPECTED
-Error: new at line 36, characters 24-44 should not occur in condition of find
-xtime: error in child process (status : 2)
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15916K
 END *)

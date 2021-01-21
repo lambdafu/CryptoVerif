@@ -131,8 +131,15 @@ val exists_suboproc :
   (process -> bool) -> (term -> bool) -> (binderref -> bool) ->
   (pattern -> bool) -> (inputprocess -> bool) -> process -> bool
 
+val may_abort : term -> bool
 
+(* [is_unique_no_abort l0 find_info] returns true when the find is unique 
+   and its conditions do not abort 
+   [l0] contains the branches of the considered [find]. *)
+val is_unique_no_abort : 'a findbranch list -> find_info -> bool
 
+val other_abort : funsymb -> term -> bool
+    
 val equal_lists : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 val equal_lists_sets : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 val equal_lists_sets_q : 'a list -> 'a list -> bool

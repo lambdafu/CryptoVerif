@@ -1,5 +1,7 @@
 (* This file should be rejected by syntax.ml:
-   "new" is forbidden in conditions of "find", and f() contains a "new". *)
+   "new" is forbidden in conditions of "find", and f() contains a "new".
+
+20/1/2021: "new" is now allowed in conditions of "find" *)
 
 channel c.
 
@@ -14,6 +16,6 @@ process
       in(c, y: bitstring); find u <= n suchthat defined(x[u]) && x[u] = y && f() then out(c, y)
 
 (* EXPECTED
-Error: new at line 9, characters 8-22 should not occur in condition of find
-xtime: error in child process (status : 2)
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15916K
 END *)

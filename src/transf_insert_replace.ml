@@ -73,7 +73,7 @@ and find_binders_term_def_list t =
 
 let rec find_binders_find_cond t =
   match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ -> ()
+    Var _ | FunApp _ | ReplIndex _ | EventAbortE _ -> ()
   | TestE(t1,t2,t3) ->
       find_binders_find_cond t2;
       find_binders_find_cond t3
@@ -87,7 +87,7 @@ let rec find_binders_find_cond t =
   | ResE(b,t) ->
       add_find_cond b;
       find_binders_find_cond t
-  | InsertE _ | GetE _ | EventE _ | EventAbortE _ ->
+  | InsertE _ | GetE _ | EventE _ ->
       Parsing_helper.internal_error "insert/get/event/event_abort should not occur as term"
   | LetE(pat, t1, t2, topt) ->
       let pat_vars = Terms.vars_from_pat [] pat in
@@ -261,19 +261,14 @@ let rec check_find_cond1 cur_array env = function
 	| None, (PPatVar _, _) -> ()
 	| None, _ -> raise (Error("When a let in an expression has no else part, it must be of the form let x = M in M'", ext))
       end
-  | PResE((s1,ext1),(s2,ext2),t), ext ->
-      raise (Error("new should not appear as term", ext))
-(*
-      let ty = get_type env s2 ext2 in
+  | PResE((s_b,ext_b),(s_ty,ext_ty),t), ext ->
+      check_find_cond1 cur_array env t;
+      let ty = get_type env s_ty ext_ty in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
-	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext2));
-      let b = get_var true env (s1, ext1) (Some ty) cur_array in
-      let env' = StringMap.add s1 (EVar b) env in
-      let t' = check_find_cond defined_refs cur_array env' t in
-      Terms.new_term t'.t_type ext (ResE(b, t'))
-*)
+	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext_ty));
+      add_var true (s_b, ext_b) (Some ty) cur_array 
   | PEventAbortE _, ext ->
-      raise (Error("event_abort should not appear as term", ext))
+      ()
   | PEventE _, ext ->
       raise (Error("event should not appear as term", ext))
   | PInsertE _, ext ->
@@ -442,6 +437,30 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
     with Not_found ->
       (* Should have been added to hash_binders in the first pass *)
       assert false
+
+let get_event (s, ext_s) =
+  try
+    let f = List.find (fun f -> f.f_name = s) (!Settings.events_to_ignore_lhs) in
+    (* [f] is an event that occurs in the RHS of an equivalence we want to prove
+       using [query_equiv]. *)
+    match (!whole_game).current_queries with
+    | [((QEquivalence(_,_,current_is_lhs),_),proof_opt)] when !proof_opt = ToProve ->
+	if current_is_lhs then
+	  f
+	else
+	  raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, one should be working on the left-hand side", ext_s))
+    | _ ->
+	raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, the only query to prove should be the equivalence", ext_s))
+  with Not_found -> 
+    let s' = Terms.fresh_id s in
+    if s' <> s then
+      print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
+    let f = Terms.create_event s' [] in
+    (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
+    Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
+    new_queries := f :: (!new_queries);
+    f
+
 	
 let check_type ext e t =
   if e.t_type != t then
@@ -535,18 +554,14 @@ let rec check_term defined_refs cur_array env = function
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
-  | (PTestE _ | PLetE _ | PFindE _), ext ->
-      raise (Error("if/let/find should appear as terms only in conditions of find", ext))
+  | (PTestE _ | PLetE _ | PFindE _ | PResE _ | PEventAbortE _), ext ->
+      raise (Error("if/let/find/new/event_abort should appear as terms only in conditions of find", ext))
   | PInsertE _, ext ->
       raise (Error("insert should not appear as term", ext))
   | PGetE _, ext ->
       raise (Error("get should not appear as term", ext))
-  | PResE _, ext ->
-      raise (Error("new should not appear as term", ext))
   | PEventE _, ext ->
       raise (Error("event should not appear as term", ext))
-  | PEventAbortE _, ext ->
-      raise (Error("event_abort should not appear as term", ext))
   | PEqual(t1,t2), ext ->
       let t1' = check_term defined_refs cur_array env t1 in
       let t2' = check_term defined_refs cur_array env t2 in
@@ -711,8 +726,6 @@ let rec check_find_cond defined_refs cur_array env = function
       end;
       Terms.new_term t2'.t_type ext (LetE(pat', t1', t2', topt'))
   | PResE((s1,ext1),(s2,ext2),t), ext ->
-      raise (Error("new should not appear as term", ext))
-(*
       let ty = get_type env s2 ext2 in
       if ty.toptions land Settings.tyopt_CHOOSABLE == 0 then
 	raise (Error("Cannot choose randomly a bitstring from " ^ ty.tname ^ " with uniform distribution", ext2));
@@ -720,7 +733,9 @@ let rec check_find_cond defined_refs cur_array env = function
       let env' = StringMap.add s1 (EVar b) env in
       let t' = check_find_cond defined_refs cur_array env' t in
       Terms.new_term t'.t_type ext (ResE(b, t'))
-*)
+  | PEventAbortE id, ext ->
+      let f = get_event id in
+      Terms.new_term Settings.t_any ext (EventAbortE f)
   | PFindE(l0,t3,opt), ext ->
       let find_info =
 	match opt with
@@ -780,30 +795,9 @@ let rec insert_rec ((p', def) as r) (ins, ext) env defined_refs cur_array =
       let (rest', def') = insert_rec (p', def) rest env' ((Terms.binderref_from_binder b)::defined_refs) cur_array in
       check_noninter def' [b];
       (Terms.new_oproc (Restr(b, rest')) ext, b::def')
-  | PEventAbort (s,ext_s) ->
-      begin
-	try
-	  let f = List.find (fun f -> f.f_name = s) (!Settings.events_to_ignore_lhs) in
-	  (* [f] is an event that occurs in the RHS of an equivalence we want to prove
-             using [query_equiv]. *)
-	  match (!whole_game).current_queries with
-	  | [((QEquivalence(_,_,current_is_lhs),_),proof_opt)] when !proof_opt = ToProve ->
-	      if current_is_lhs then
-		(Terms.new_oproc (EventAbort(f)) ext, [])
-	      else
-		raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, one should be working on the left-hand side", ext_s))
-	  | _ ->
-	      raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, the only query to prove should be the equivalence", ext_s))
-	with Not_found -> 
-	  let s' = Terms.fresh_id s in
-	  if s' <> s then
-	    print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
-	  let f = Terms.create_event s' [] in
-          (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
-	  Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
-	  new_queries := f :: (!new_queries);
-	  (Terms.new_oproc (EventAbort(f)) ext, [])
-      end
+  | PEventAbort id ->
+      let f = get_event id in
+      (Terms.new_oproc (EventAbort(f)) ext, [])
   | PTest(t, rest1, rest2) ->
       let (rest1', def1') = insert_rec (p', def) rest1 env defined_refs cur_array in
       let (rest2', def2') = insert_rec (p', def) rest2 env defined_refs cur_array in
@@ -1000,8 +994,8 @@ let rec prove_uniquefc t =
   match t.t_desc with
     ResE(b,p) ->
       Terms.build_term t (ResE(b, prove_uniquefc p))
-  | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "event, event_abort, get, insert should not occur as term"
+  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "event, get, insert should not occur as term"
   | TestE(t1,t2,t3) ->
       let t2' = prove_uniquefc t2 in
       let t3' = prove_uniquefc t3 in
@@ -1024,7 +1018,7 @@ let rec prove_uniquefc t =
 	  ) l0 
       in
       Terms.build_term t (FindE(l0',t3',find_info'))
-  | Var _ | FunApp _ | ReplIndex _ -> t 
+  | Var _ | FunApp _ | ReplIndex _ | EventAbortE _ -> t 
 
 let rec prove_uniquei p =
     Terms.iproc_from_desc_loc p (

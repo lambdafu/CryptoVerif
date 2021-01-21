@@ -1061,25 +1061,25 @@ let rec check_no_iffindletnewevent ref ext t =
       raise_error ((instruct_name t) ^ " at " ^ (in_file_position ext t.t_loc) ^
 				  " should not occur in "^ref) ext
 
-(* Check that t does not contain new, event, insert *)
+(* Check that t does not contain event nor insert *)
 
-let rec check_no_new_event_insert ext is_get t =
+let rec check_no_event_insert ext is_get t =
   match t.t_desc with
   | Var (_,l) | FunApp(_,l) ->
-      List.iter (check_no_new_event_insert ext is_get) l
+      List.iter (check_no_event_insert ext is_get) l
   | ReplIndex _ -> ()
   | TestE(t1,t2,t3) ->
-      check_no_new_event_insert ext is_get t1;
-      check_no_new_event_insert ext is_get t2;
-      check_no_new_event_insert ext is_get t3
+      check_no_event_insert ext is_get t1;
+      check_no_event_insert ext is_get t2;
+      check_no_event_insert ext is_get t3
   | LetE(pat,t1,t2,topt) ->
-      check_no_new_event_insert_pat ext is_get pat;
-      check_no_new_event_insert ext is_get t1;
-      check_no_new_event_insert ext is_get t2;
+      check_no_event_insert_pat ext is_get pat;
+      check_no_event_insert ext is_get t1;
+      check_no_event_insert ext is_get t2;
       begin
 	match topt with
 	  None -> ()
-	| Some t3 -> check_no_new_event_insert ext is_get t3
+	| Some t3 -> check_no_event_insert ext is_get t3
       end
   | FindE(l0,t3,_) ->
    (*   if is_get then
@@ -1094,27 +1094,29 @@ let rec check_no_new_event_insert ext is_get t =
       List.iter (fun (bl,def_list,t1,t2) ->
 	(* def_list will be checked by check_no_iffindletnew
 	   when translating this find *)
-	check_no_new_event_insert ext is_get t1;
-	check_no_new_event_insert ext is_get t2) l0;
-      check_no_new_event_insert ext is_get t3
+	check_no_event_insert ext is_get t1;
+	check_no_event_insert ext is_get t2) l0;
+      check_no_event_insert ext is_get t3
   | GetE(table, patl, topt, t1,t2) ->
-      List.iter (check_no_new_event_insert_pat ext is_get) patl;
+      List.iter (check_no_event_insert_pat ext is_get) patl;
       begin
 	match topt with
 	  None -> ()
-	| Some t -> check_no_new_event_insert ext is_get t
+	| Some t -> check_no_event_insert ext is_get t
       end;
-      check_no_new_event_insert ext is_get t1;
-      check_no_new_event_insert ext is_get t2
-  | ResE _ | EventAbortE _ | EventE _ | InsertE _ -> 
+      check_no_event_insert ext is_get t1;
+      check_no_event_insert ext is_get t2
+  | ResE(b,t) -> check_no_event_insert ext is_get t
+  | EventAbortE _ -> ()
+  | EventE _ | InsertE _ -> 
       raise_error ((instruct_name t) ^ " at " ^ (in_file_position ext t.t_loc) ^
 				  " should not occur in condition of " ^
 				  (if is_get then "get" else "find")) ext
 
-and check_no_new_event_insert_pat ext is_get = function
+and check_no_event_insert_pat ext is_get = function
     PatVar _ -> ()
-  | PatTuple(_,l) -> List.iter (check_no_new_event_insert_pat ext is_get) l
-  | PatEqual t -> check_no_new_event_insert ext is_get t
+  | PatTuple(_,l) -> List.iter (check_no_event_insert_pat ext is_get) l
+  | PatEqual t -> check_no_event_insert ext is_get t
 
 (* Check terms *)
 
@@ -1346,7 +1348,7 @@ let rec check_term defined_refs_opt cur_array env prog = function
 		(Some defined_refs_t1, Some defined_refs_t2)
 	  in
 	  let t1' = check_term defined_refs_opt_t1 cur_array' env'' prog t1 in
-	  check_no_new_event_insert (snd t1) false t1';
+	  check_no_event_insert (snd t1) false t1';
 	  let t2' = check_term defined_refs_opt_t2 cur_array env' prog t2 in
 	  check_type (snd t1) t1' Settings.t_bool;
 	  t_common := merge_types (!t_common) t2'.t_type ext;
@@ -1404,7 +1406,7 @@ let rec check_term defined_refs_opt cur_array env prog = function
 	  None -> None 
 	| Some t -> 
 	    let t' = check_term defined_refs_opt cur_array env' prog t in
-	    check_no_new_event_insert (snd t) true t';
+	    check_no_event_insert (snd t) true t';
 	    check_type (snd t) t' Settings.t_bool;
 	    Some t'
       in
@@ -2985,7 +2987,7 @@ and check_oprocess defined_refs cur_array env prog = function
 	  let def_list' = List.map (check_br cur_array' env'' prog) def_list in
 	  let (defined_refs_t, defined_refs_p1) = Terms.defined_refs_find bl_bin def_list' defined_refs in
 	  let t' = check_term (Some defined_refs_t) cur_array' env'' prog t in
-	  check_no_new_event_insert (snd t) false t';
+	  check_no_event_insert (snd t) false t';
 	  check_type (snd t) t' Settings.t_bool;
 	  let (p1', tres1, oracle1,ip1') = check_oprocess defined_refs_p1 cur_array env' prog p1 in
 	  trescur := mergeres ext tres1 (!trescur);
@@ -3065,7 +3067,7 @@ and check_oprocess defined_refs cur_array env prog = function
 	  None -> None 
 	| Some t -> 
 	    let t' = check_term (Some defined_refs) cur_array env' prog t in
-	    check_no_new_event_insert (snd t) true t';
+	    check_no_event_insert (snd t) true t';
 	    check_type (snd t) t' Settings.t_bool;
 	    Some t'
       in

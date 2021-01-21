@@ -195,7 +195,7 @@ and extract_dnf t =
      in
      make_or_dnf f0 f3
   | LetE(pat, t1, t2, topt) ->
-      let vars = Terms.vars_from_pat [] pat in
+     let vars = Terms.vars_from_pat [] pat in
      let assign_dnf = filter_dnf vars [[FTerm (Terms.make_equal (Terms.term_from_pat pat) t1)]] in
      let f2 = filter_dnf vars (extract_dnf t2) in
      let in_branch_dnf = make_and_dnf assign_dnf f2 in
@@ -207,8 +207,20 @@ and extract_dnf t =
             Some t3 -> make_or_dnf in_branch_dnf (extract_dnf t3)
           | None -> Parsing_helper.internal_error "else branch of let missing"
      end
-  | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+  | ResE (b,t) ->
+     filter_dnf [b] (extract_dnf t)
+  | EventAbortE _ | GetE _ ->
+     (* Considering that [EventAbort e] implies false would not be correct
+	in transf_expand.ml and transf_simplify.ml, because it leads to 
+	removing the branch, including the condition, while evaluating
+	the condition is needed for executing [EventAbort e].
+
+	[get] may appear because this function is called before the first 
+	transformation of get/insert into find. Since it is removed 
+	quickly, extracting information from [get] is not essential. *)
      [[]]
+  | EventE _ | InsertE _ ->
+     Parsing_helper.internal_error "extract_dnf: event, insert should not occur in conditions of find"
 
 (* [def_vars_and_facts_from_term t] extracts a list of defined variables and a
    list of facts implied by [t]

@@ -10,6 +10,9 @@ Internal error: Bad args_at_creation for y
 Please report bug to Bruno.Blanchet@inria.fr, including input file and output
 
    Fixed by forbidding the transformation in this case.
+
+   20/1/2021: Now, new is allowed in conditions of find. 
+   Fixed so that the new is included in the condition itself.
   *)
 
 param N.

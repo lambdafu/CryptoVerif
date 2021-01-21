@@ -6,6 +6,8 @@ This example causes an internal error:
 in CryptoVerif 1.15. This is because there is a new
 in the condition of get. This should be forbidden in syntax.ml.
 
+20/1/2021: Now, new is allowed in conditions of get.
+
 WooLam shared-key auth protocol (1992, computer)
 Corrections of Gordon, Jeffrey CSFW'01
 
@@ -142,6 +144,6 @@ process
 	 (! N2 processK))
 
 (* EXPECTED
-Error: new at line 117, characters 50-67 should not occur in condition of get
-xtime: error in child process (status : 2)
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15916K
 END *)
