@@ -85,7 +85,7 @@ equiv(ddh(exp))
 	 if defined(ka[j]) then return(exp'(g, mult(a[j], a))) else 
          if defined(ka) then return(exp'(g, mult(a[j], a))) else
          if j = ia then event_abort square else
-	 get dhval(=ia, =j, c) in return(c) else
+	 get[unique] dhval(=ia, =j, c) in return(c) else
 	 ca <-R G;
 	 insert dhval(ia, j, ca);
 	 insert dhval(j, ia, ca);
@@ -275,7 +275,7 @@ equiv(prf_odh(prf))
          if defined(ka) then (* a compromised *) return(prf(exp'(g, mult(a[ja], a)), xa2)) else
 	 if ja = ia then event_abort square else
 	 (* At this point, a and a[ja] are not compromised, and must never be compromised in the future *)
-	 get prf_dh_val(=ia, =ja, =xa2, c) in return(c) else
+	 get[unique] prf_dh_val(=ia, =ja, =xa2, c) in return(c) else
          ca2 <-R prf_out;
 	 insert prf_dh_val(ia, ja, xa2, ca2);
 	 insert prf_dh_val(ja, ia, xa2, ca2);
@@ -322,7 +322,7 @@ equiv(prf_odh(prf))
             if defined(ka) then (* a compromised *) return(prf(exp'(ma1, a), xa1)) else
 	    if j' = ia then (* square *) return(prf(exp'(ma1, a), xa1)) else
 	    (* At this point, a and a[j'] are not compromised, and must never be compromised in the future *)
-	    get prf_dh_val(=ia, =j', =xa1, c) in return(c) else
+	    get[unique] prf_dh_val(=ia, =j', =xa1, c) in return(c) else
 	    ca1 <-R prf_out;
 	    insert prf_dh_val(ia, j', xa1, ca1);
 	    insert prf_dh_val(j', ia, xa1, ca1);
@@ -335,7 +335,7 @@ equiv(prf_odh(prf))
          if defined(ka) then (* a compromised *) return(prf(exp'(g, mult(a[ja], a)), xa2)) else
 	 if ja = ia then return(prf(exp'(g, mult(a[ja], a)), xa2)) else
 	 (* At this point, a and a[ja] are not compromised, and must never be compromised in the future *)
-	 get prf_dh_val(=ia, =ja, =xa2, c) in return(c) else
+	 get[unique] prf_dh_val(=ia, =ja, =xa2, c) in return(c) else
          ca2 <-R prf_out;
 	 insert prf_dh_val(ia, ja, xa2, ca2);
 	 insert prf_dh_val(ja, ia, xa2, ca2);

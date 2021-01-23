@@ -710,10 +710,10 @@ term:
         { PEventE($2, $5), parse_extent() }
 |       INSERT IDENT LPAREN termseq RPAREN SEMI term
         { PInsertE($2,$4,$7), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN SUCHTHAT term IN term ELSE term
-        { PGetE($2,$4,Some $7,$9,$11), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN IN term ELSE term
-        { PGetE($2,$4,None,$7,$9), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN SUCHTHAT term IN term ELSE term
+        { PGetE($3,$5,Some $8,$10,$12,$2), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN IN term ELSE term
+        { PGetE($3,$5,None,$8,$10,$2), parse_extent() }
 |       term EQUAL term
         { PEqual($1, $3), parse_extent() }
 |       term DIFF term
@@ -844,10 +844,10 @@ process:
         { PFind($3,$4,$2), parse_extent() }
 |       INSERT IDENT LPAREN termseq RPAREN optprocess
         { PInsert($2,$4,$6), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN SUCHTHAT term IN process optelse
-        { PGet($2,$4,Some $7,$9,$10), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN IN process optelse
-        { PGet($2,$4,None,$7,$8), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN SUCHTHAT term IN process optelse
+        { PGet($3,$5,Some $8,$10,$11,$2), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN IN process optelse
+        { PGet($3,$5,None,$8,$9,$2), parse_extent() }
 |       EVENT funapp newarg optprocess
         { PEvent($2, $4), parse_extent() }
 |       basicpattern LEFTARROW term optprocess
@@ -982,10 +982,10 @@ procasterm:
         { PEventAbortE($2), parse_extent() }
 |       INSERT IDENT LPAREN termseq RPAREN SEMI procasterm
         { PInsertE($2,$4,$7), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN SUCHTHAT term IN procasterm ELSE procasterm
-        { PGetE($2,$4,Some $7,$9,$11), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN IN procasterm ELSE procasterm
-        { PGetE($2,$4,None,$7,$9), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN SUCHTHAT term IN procasterm ELSE procasterm
+        { PGetE($3,$5,Some $8,$10,$12,$2), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN IN procasterm ELSE procasterm
+        { PGetE($3,$5,None,$8,$10,$2), parse_extent() }
 
 findoneprocasterm:
     tidentseq SUCHTHAT findcond THEN procasterm
@@ -1414,10 +1414,10 @@ oprocess:
         { PFind($3,$4,$2), parse_extent() }
 |       INSERT IDENT LPAREN termseq RPAREN optoprocess
         { PInsert($2,$4,$6), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN SUCHTHAT term IN oprocess optoelse
-        { PGet($2,$4,Some $7,$9,$10), parse_extent() }
-|       GET IDENT LPAREN patternseq RPAREN IN oprocess optoelse
-        { PGet($2,$4,None,$7,$8), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN SUCHTHAT term IN oprocess optoelse
+        { PGet($3,$5,Some $8,$10,$11,$2), parse_extent() }
+|       GET options IDENT LPAREN patternseq RPAREN IN oprocess optoelse
+        { PGet($3,$5,None,$8,$9,$2), parse_extent() }
 |       EVENT IDENT optoprocess
         { PEvent((PFunApp($2, []), parse_extent()), $3), parse_extent() }
 |       EVENT IDENT LPAREN termseq RPAREN optoprocess

@@ -176,6 +176,46 @@ let get_from_table file filter =
   end;
   r
 
+let get_one_from_table file filter =
+  let f=
+    try
+      open_in_bin file
+    with _ -> raise (Bad_file file)
+  in
+  let rec read() =
+    try 
+      let ncomp = input_binary_int f in
+      if ncomp < 0 then raise (Bad_file file);
+      let rec read_rec n =
+	if n = 0 then 
+	  []
+	else
+	  let len = input_binary_int f in
+	  let s = really_input_string f len in
+	  s :: (read_rec (n-1))
+      in
+      let record = 
+	try
+	  read_rec ncomp
+	with Invalid_argument _ -> raise (Bad_file file)
+      in
+      try
+	Some (filter record)
+      with Match_fail -> 
+	read()
+    with End_of_file -> None (* Accept End_of_file in the middle of a record, just ignoring that record.
+			       The goal is to support insertion of elements in the table while 
+			       the table is being read. *)
+  in
+  let r = read() in
+  begin
+    try
+      close_in f
+    with _ -> raise (Bad_file file)
+  end;
+  r
+
+    
 let exists_in_table file filter =
   let f=
     try

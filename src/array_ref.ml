@@ -72,7 +72,7 @@ let rec array_ref_term in_scope t =
   | EventE(t,p) ->
       array_ref_term in_scope t;
       array_ref_term in_scope p
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,_) ->
       List.iter (array_ref_pattern in_scope) patl;
       let in_scope' = Terms.vars_from_pat_list in_scope patl in
       (match topt with 
@@ -148,7 +148,7 @@ and array_ref_oprocess in_scope p =
   | EventP(t,p) ->
       array_ref_term in_scope t;      
       array_ref_oprocess in_scope p
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       List.iter (array_ref_pattern in_scope) patl;
       let in_scope' = Terms.vars_from_pat_list in_scope patl in
       (match topt with 
@@ -246,7 +246,7 @@ let rec exclude_array_ref_term in_scope t =
   | EventE(t,p) ->
       exclude_array_ref_term in_scope t;
       exclude_array_ref_term in_scope p
-  | GetE(tbl,patl,topt,p1,p2) -> 
+  | GetE(tbl,patl,topt,p1,p2,_) -> 
       List.iter (exclude_array_ref_pattern in_scope) patl;
       let in_scope' = Terms.vars_from_pat_list in_scope patl in
       begin

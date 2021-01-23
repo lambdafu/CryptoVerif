@@ -3219,7 +3219,7 @@ and display_facts_at_op p occ =
       | Output ((_,tl),t,q) -> List.iter (fun t -> display_facts_at_t t occ) tl;display_facts_at_t t occ;display_facts_at q occ
       | Let (pat,t,p,p') -> display_facts_at_pat pat occ;display_facts_at_t t occ;display_facts_at_op p occ;display_facts_at_op p' occ
       | EventP (t,p) -> display_facts_at_t t occ;display_facts_at_op p occ
-      | Insert (_,_,_) | Get (_,_,_,_,_) -> Parsing_helper.internal_error "Get/Insert should not appear at this point"
+      | Insert _ | Get _ -> Parsing_helper.internal_error "Get/Insert should not appear at this point"
 
 and display_facts_at_t t occ =
   if t.t_occ = occ then
@@ -3237,7 +3237,7 @@ and display_facts_at_t t occ =
       | ResE (_,t) -> display_facts_at_t t occ
       | EventAbortE f -> ()
       | EventE (t,p) -> display_facts_at_t t occ;display_facts_at_t p occ
-      | InsertE (_,_,_) | GetE (_,_,_,_,_) -> Parsing_helper.internal_error "Get/Insert should not appear at this point"
+      | InsertE _ | GetE _ -> Parsing_helper.internal_error "Get/Insert should not appear at this point"
 
 and display_facts_at_pat pat occ =
   match pat with

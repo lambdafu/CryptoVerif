@@ -17,7 +17,7 @@ type term = PIdent of ident
 	  | PResE of ident * ident * term_e
 	  | PEventAbortE of ident
 	  | PEventE of term_e * term_e
-	  | PGetE of ident * (pattern_e list) * term_e option * term_e * term_e
+	  | PGetE of ident * (pattern_e list) * term_e option * term_e * term_e * ident list(*options [unique]*)
 	  | PInsertE of ident * term_e list * term_e
 	  | PEqual of term_e * term_e
 	  | PDiff of term_e * term_e
@@ -54,7 +54,7 @@ and process =  PNil
              | PInput of channel * pattern_e * process_e
              | POutput of bool * channel * term_e * process_e
 	     | PLet of pattern_e * term_e * process_e * process_e
-             | PGet of ident * (pattern_e list) * term_e option * process_e * process_e
+             | PGet of ident * (pattern_e list) * term_e option * process_e * process_e * ident list(*options [unique]*)
              | PInsert of ident * term_e list * process_e
              | PBeginModule of ((ident * progopt list) * process_e)
 (*

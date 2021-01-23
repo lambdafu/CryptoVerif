@@ -40,7 +40,7 @@ let rec empty_def_term t =
   | EventE(t,p) ->
       empty_def_term t;
       empty_def_term p
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,_) ->
       List.iter empty_def_pattern patl;
       (match topt with None -> () | Some t -> empty_def_term t);
       empty_def_term p1;
@@ -105,7 +105,7 @@ and empty_def_oprocess p =
   | EventP(t,p) ->
       empty_def_term t;
       empty_def_oprocess p
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       List.iter empty_def_pattern patl;
       (match topt with None -> () | Some t -> empty_def_term t);
       empty_def_oprocess p1;
@@ -179,7 +179,7 @@ let rec def_vars_term accu t =
   | EventAbortE _ -> accu
   | EventE(t,p) ->
       def_vars_term (def_vars_term accu p) t
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,_) ->
       let accu' = match topt with
 	None -> accu
       |	Some t -> def_vars_term accu t
@@ -341,7 +341,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       let (above_node', elsefind_facts') = def_term_ef event_accu cur_array above_node true_facts def_vars elsefind_facts t1 in
       def_term event_accu cur_array above_node' (t1 :: true_facts) def_vars elsefind_facts' p
 
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,_) ->
       let accu = ref [] in
       let above_node' = def_pattern_list accu event_accu cur_array above_node true_facts def_vars elsefind_facts patl in
       let above_node'' = 
@@ -619,7 +619,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	def_oprocess event_accu cur_array above_node' (t :: true_facts) def_vars elsefind_facts' p
       in
       (fut_binders, t::fut_true_facts)
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       let accu = ref [] in
       let above_node' = def_pattern_list accu event_accu cur_array above_node true_facts def_vars elsefind_facts patl in
       let above_node'' = 

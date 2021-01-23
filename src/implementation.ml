@@ -119,7 +119,7 @@ and get_term_bv t = match t.t_desc with
   | EventE(t,p) ->
       add_bv (get_term_bv t) (get_term_bv p) 
   | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,_) ->
       (List.fold_right add_bv (List.map get_pattern_bv patl)
          (add_bv 
             (match topt with Some t -> get_term_bv t | None -> empty_bv)
@@ -152,7 +152,7 @@ and get_oprocess_bv p =
         get_oprocess_bv p
     | Find(fl,ep,_) -> 
         error "Find not supported"
-    | Get(tbl,patl,topt,p1,p2) ->
+    | Get(tbl,patl,topt,p1,p2,_) ->
 	begin
 	  match topt with
 	    Some t -> add_bv_term (get_term_bv t)
@@ -399,7 +399,7 @@ let rec get_oracle_types_oprocess name args_types p =
         get_oracle_types_oprocess name args_types p
     | Find(_,_,_) -> 
         error "Find not supported"
-    | Get(tbl,patl,topt,p1,p2) ->
+    | Get(tbl,patl,topt,p1,p2,_) ->
         type_append (get_oracle_types_oprocess name args_types p1) (get_oracle_types_oprocess name args_types p2)
     | Insert(tbl,tl,p) ->
         get_oracle_types_oprocess name args_types p
@@ -544,8 +544,8 @@ let rec translate_oprocess opt p ind =
 	(translate_oprocess opt p ind)
     | Find(_,_,_) -> 
         error "Find not supported"
-    | Get(tbl,patl,topt,p1,p2) ->
-        translate_get (fun b -> Terms.refers_to_oprocess b p1) opt tbl patl topt (translate_oprocess opt p1) (translate_oprocess opt p2) ind
+    | Get(tbl,patl,topt,p1,p2,find_info) ->
+        translate_get (fun b -> Terms.refers_to_oprocess b p1) opt tbl patl topt (translate_oprocess opt p1) (translate_oprocess opt p2) find_info ind
     | Insert(tbl,tl,p) ->
         let tfile=get_table_file tbl in
           "\n"^ind^"insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^
@@ -553,7 +553,7 @@ let rec translate_oprocess opt p ind =
 
 
 (* p1 and p2 are functions that take the indentation level and returns the string corresponding to the program *)
-and translate_get used opt tbl patl topt p1 p2 ind =
+and translate_get used opt tbl patl topt p1 p2 find_info ind =
   let pat_vars = Terms.vars_from_pat_list [] patl in
   let used_vars = List.filter used pat_vars in
   let match_res = "("^(string_list_sep "," (List.map get_binder_name used_vars))^")" in
@@ -584,7 +584,18 @@ and translate_get used opt tbl patl topt p1 p2 ind =
       (p1 (ind^"  "))^
       "\n"^ind^"end else begin "^
       (p2 (ind^"  "))^"\n"^ind^"end"
-  else
+  else if find_info = Unique then
+    "\n"^
+    ind^"begin\n"^
+    ind^"match get_one_from_table \""^tfile^"\"\n"^ filterfun^" with\n"^
+    ind^"| None ->\n"^
+    ind^"  begin "^(p2 (ind^"  "))^"\n"^
+    ind^"  end\n"^
+    ind^"| Some "^match_res^" ->\n"^
+    ind^"  begin "^(p1 (ind^"  "))^"\n"^
+    ind^"  end\n"^
+    ind^"end"
+  else    
     "\n"^ind^"let "^list^" = get_from_table \""^tfile^"\"\n"^
       filterfun^" in\n"^ind^
       "if "^list^" = [] then begin "^
@@ -638,8 +649,8 @@ and translate_term t ind =
       | EventE(t,p)->
           "("^(translate_event t ind)^
 	  (translate_term p ind)^")"
-      | GetE(tbl,patl,topt,p1,p2) ->
-          translate_get (fun b -> Terms.refers_to b p1) [] tbl patl topt (translate_term p1) (translate_term p2) ind
+      | GetE(tbl,patl,topt,p1,p2, find_info) ->
+          translate_get (fun b -> Terms.refers_to b p1) [] tbl patl topt (translate_term p1) (translate_term p2) find_info ind
       | InsertE(tbl,tl,p) ->
           let tfile=get_table_file tbl in
           "(insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^

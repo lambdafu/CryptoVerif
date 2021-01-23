@@ -496,7 +496,7 @@ and collect_def_vars_oprocess def_vars p =
   | EventP(t,p) ->
       collect_def_vars_term def_vars t;      
       collect_def_vars_oprocess def_vars p
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       List.iter (collect_def_vars_pattern def_vars) patl;
       (match topt with 
          | Some t -> collect_def_vars_term def_vars t
@@ -644,7 +644,7 @@ and check_array_ref_oprocess in_scope curarray_suffix ok_vars p =
   | EventP(t,p) ->
       check_array_ref_term in_scope curarray_suffix ok_vars t;      
       check_array_ref_oprocess in_scope curarray_suffix ok_vars p
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       List.iter (check_array_ref_pattern in_scope curarray_suffix ok_vars) patl;
       let in_scope' = Terms.vars_from_pat_list in_scope patl in
       (match topt with 

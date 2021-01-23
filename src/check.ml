@@ -50,7 +50,7 @@ let rec check_def_term defined_refs t =
   | EventE(t,p) ->
       check_def_term defined_refs t;
       check_def_term defined_refs p
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,_) ->
       let accu = ref defined_refs in
       check_def_pat_list accu defined_refs patl;
       (match topt with 
@@ -123,7 +123,7 @@ and check_def_oprocess defined_refs p =
   | EventP(t,p) ->
       check_def_term defined_refs t;
       check_def_oprocess defined_refs p
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       let accu = ref defined_refs in
       check_def_pat_list accu defined_refs patl;
       (match topt with 
@@ -254,7 +254,7 @@ let rec get_arg_array_ref index_args accu t =
   | EventAbortE(f) -> ()
   | EventE _ ->
       Parsing_helper.input_error "event is not allowed in equivalences" t.t_loc
-  | GetE (tbl, patl, topt, p1, p2) ->
+  | GetE (tbl, patl, topt, p1, p2,_) ->
       List.iter (get_arg_array_ref_pat index_args accu) patl;
       begin
 	match topt with

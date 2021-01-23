@@ -332,8 +332,9 @@ and display_term t =
       display_term t1;
       print_string "; ";
       display_term_paren AllInfix NoProcess p
-  | GetE(tbl, patl, topt, p1, p2) ->
+  | GetE(tbl, patl, topt, p1, p2, find_info) ->
       print_string "get ";
+      if find_info = Unique then print_string "[unique] ";
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;
@@ -1004,7 +1005,7 @@ let display_channel c tl =
 let rec may_have_elseo p = 
   match p.p_desc with
     Yield | EventAbort _ -> false
-  | Test(_,_,pelse) | Find(_,pelse,_) | Get(_,_,_,_,pelse) ->
+  | Test(_,_,pelse) | Find(_,pelse,_) | Get(_,_,_,_,pelse,_) ->
       (pelse.p_desc = Yield) || (may_have_elseo pelse)
   | Let(pat,t,p1,p2) ->
       if ((!Settings.front_end) = Settings.Oracles) &&
@@ -1221,8 +1222,9 @@ and display_oprocess indent p =
       print_string (indent ^ "event ");
       display_term t;
       display_optoprocess indent p
-  | Get (tbl,patl,topt,p1,p2) ->
+  | Get (tbl,patl,topt,p1,p2, find_info) ->
       print_string (indent ^ "get ");
+      if find_info = Unique then print_string "[unique] ";
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;

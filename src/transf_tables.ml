@@ -69,7 +69,7 @@ let rec trf_insert_term accu cur_array t =
           ) bl tl' p' in
       accu := (tbl,Some bl) :: (!accu);
       p''
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,find_info) ->
       begin
 	match topt with
 	  None -> ()
@@ -79,7 +79,7 @@ let rec trf_insert_term accu cur_array t =
       Terms.build_term t 
 	(GetE(tbl,List.map (trf_insert_pat accu cur_array) patl,
 	      topt,trf_insert_term accu cur_array p1,
-	      trf_insert_term accu cur_array p2))
+	      trf_insert_term accu cur_array p2, find_info))
 
 and trf_insert_pat accu cur_array = function
     PatVar b -> PatVar b
@@ -152,7 +152,7 @@ and trf_insert_oprocess accu cur_array p =
             ) bl tl' p' in
 	accu := (tbl,Some bl) :: (!accu);
         p''
-    | Get(tbl,patl,topt,p1,p2) ->
+    | Get(tbl,patl,topt,p1,p2,find_info) ->
 	begin
 	  match topt with
 	    None -> ()
@@ -162,7 +162,7 @@ and trf_insert_oprocess accu cur_array p =
         Terms.oproc_from_desc
 	  (Get(tbl,List.map (trf_insert_pat accu cur_array) patl,
 	       topt,trf_insert_oprocess accu cur_array p1,
-	       trf_insert_oprocess accu cur_array p2))
+	       trf_insert_oprocess accu cur_array p2, find_info))
 
 let transform_insert p =
   let accu = ref [] in
@@ -300,7 +300,7 @@ let rec trf_get_term l cur_array t =
 				  trf_get_term l cur_array p))
   | InsertE _ ->
       Parsing_helper.internal_error "Insert should have been removed by previous transformation"
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2,find_info) ->
       Settings.changed := true;
       let accu = ref [] in
       let patl' = List.map (trf_expand_pat accu cur_array) patl in
@@ -315,7 +315,7 @@ let rec trf_get_term l cur_array t =
       let p1'=trf_get_term l cur_array p1 in
       let p2'=trf_get_term l cur_array p2 in
       Terms.put_lets_term let_bindings
-	(Terms.build_term t (FindE (List.map (get_find_branch get_find_branch_then_term patl' topt' p1' cur_array) (get_info_for tbl l), p2', Nothing))) None
+	(Terms.build_term t (FindE (List.map (get_find_branch get_find_branch_then_term patl' topt' p1' cur_array) (get_info_for tbl l), p2', find_info))) None
 
 and trf_get_pat l cur_array = function
     PatVar b -> PatVar b
@@ -380,7 +380,7 @@ and trf_get_oprocess l cur_array p =
 		trf_get_oprocess l cur_array p))
   | Insert _ ->
       Parsing_helper.internal_error "Insert should have been removed by previous transformation"
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,find_info) ->
       Settings.changed := true;
       let accu = ref [] in
       let patl' = List.map (trf_expand_pat accu cur_array) patl in
@@ -395,7 +395,7 @@ and trf_get_oprocess l cur_array p =
       let p1'=trf_get_oprocess l cur_array p1 in
       let p2'=trf_get_oprocess l cur_array p2 in
       Terms.put_lets let_bindings
-        (Terms.oproc_from_desc (Find (List.map (get_find_branch get_find_branch_then_process patl' topt' p1' cur_array) (get_info_for tbl l), p2', Nothing)))
+        (Terms.oproc_from_desc (Find (List.map (get_find_branch get_find_branch_then_process patl' topt' p1' cur_array) (get_info_for tbl l), p2', find_info)))
 	(Terms.oproc_from_desc Yield)
           
 let transform_get p l =

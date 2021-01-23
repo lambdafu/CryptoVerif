@@ -298,8 +298,9 @@ and display_term t =
       display_term t;
       print_string ";\\ ";
       display_term_paren AllInfix NoProcess t
-  | GetE(tbl, patl, topt, p1, p2) ->
+  | GetE(tbl, patl, topt, p1, p2, find_info) ->
       print_string "\\kw{get}\\ ";
+      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;
@@ -1045,8 +1046,9 @@ and display_oprocess indent p =
       print_string (indent ^ "\\kw{event}\\ ");
       display_term t;
       display_optoprocess indent p
-  | Get (tbl,patl,topt,p1,p2) ->
+  | Get (tbl,patl,topt,p1,p2,find_info) ->
       print_string (indent ^ "\\kw{get}\\ ");
+      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;

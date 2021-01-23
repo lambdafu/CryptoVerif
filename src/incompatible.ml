@@ -45,7 +45,7 @@ and empty_comp_term t =
   | EventE(t,p) ->
       empty_comp_term t;
       empty_comp_term p
-  | GetE(tbl,patl,topt,p1,p2) -> 
+  | GetE(tbl,patl,topt,p1,p2,_) -> 
       List.iter empty_comp_pattern patl;
       begin
 	match topt with
@@ -100,7 +100,7 @@ and empty_comp_oprocess p =
   | EventP(t,p) ->
       empty_comp_term t;
       empty_comp_oprocess p
-  | Get(tbl,patl,topt,p1,p2) -> 
+  | Get(tbl,patl,topt,p1,p2,_) -> 
       List.iter empty_comp_pattern patl;
       begin
 	match topt with
@@ -156,7 +156,7 @@ let rec compatible_def_term cur_array_length current_incompatible t =
   | EventE(t,p) ->
       compatible_def_term cur_array_length current_incompatible t;
       compatible_def_term cur_array_length current_incompatible p
-  | GetE(_,_,_,_,_) | InsertE (_,_,_) -> 
+  | GetE _ | InsertE _ -> 
       Parsing_helper.internal_error "Get/Insert should have been reduced at this point"
 
 and compatible_def_pat cur_array_length current_incompatible = function
@@ -213,7 +213,7 @@ and compatible_def_oprocess cur_array_length current_incompatible p =
   | EventP(t,p) ->
       compatible_def_term cur_array_length current_incompatible t;
       compatible_def_oprocess cur_array_length current_incompatible p
-  | Get(_,_,_,_,_) | Insert (_,_,_) -> 
+  | Get _ | Insert _ -> 
       Parsing_helper.internal_error "Get/Insert should have been reduced at this point"
 
 

@@ -245,7 +245,7 @@ let rec exists_subterm f f_br f_pat t =
   | InsertE(_,tl,p) ->
       (List.exists f tl) ||
       (f p)
-  | GetE(_, patl, topt, p1, p2) ->
+  | GetE(_, patl, topt, p1, p2, _) ->
       (List.exists f_pat patl) ||
       (match topt with
 	  None -> false
@@ -284,7 +284,7 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
   | Let(pat,t,p1,p2) ->
       (f_term t) || (f_pat pat) || 
       (f p1) ||(f p2)
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,_) ->
       (List.exists f_pat patl) || 
       (match topt with None -> false | Some t -> f_term t) || 
       (f p1) ||(f p2)
@@ -1939,7 +1939,7 @@ let rec move_occ_term t =
 	  let t' = move_occ_term t in
 	  let p' = move_occ_term p in
 	  EventE(t', p')
-      | GetE(tbl,patl,topt,p1,p2) -> 
+      | GetE(tbl,patl,topt,p1,p2,find_info) -> 
 	  let patl' = List.map move_occ_pat patl in
 	  let topt' = 
 	    match topt with 
@@ -1948,7 +1948,7 @@ let rec move_occ_term t =
 	  in
 	  let p1' = move_occ_term p1 in
 	  let p2' = move_occ_term p2 in	  
-          GetE(tbl,patl',topt',p1', p2')
+          GetE(tbl,patl',topt',p1', p2',find_info)
       | InsertE (tbl,tl,p) -> 
 	  let tl' = List.map move_occ_term tl in
 	  let p' = move_occ_term p in
@@ -2028,7 +2028,7 @@ and move_occ_oprocess p =
 	  let t' = move_occ_term t in
 	  let p' = move_occ_oprocess p in
 	  EventP(t', p')
-      | Get(tbl,patl,topt,p1,p2) -> 
+      | Get(tbl,patl,topt,p1,p2,find_info) -> 
 	  let patl' = List.map move_occ_pat patl in
 	  let topt' = 
 	    match topt with 
@@ -2037,7 +2037,7 @@ and move_occ_oprocess p =
 	  in
 	  let p1' = move_occ_oprocess p1 in
 	  let p2' = move_occ_oprocess p2 in	  
-          Get(tbl,patl',topt',p1', p2')
+          Get(tbl,patl',topt',p1', p2', find_info)
       | Insert (tbl,tl,p) -> 
 	  let tl' = List.map move_occ_term tl in
 	  let p' = move_occ_oprocess p in
@@ -2102,7 +2102,7 @@ let rec delete_info_term t =
 	  let t' = delete_info_term t in
 	  let p' = delete_info_term p in
 	  EventE(t', p')
-      | GetE(tbl,patl,topt,p1,p2) -> 
+      | GetE(tbl,patl,topt,p1,p2,find_info) -> 
 	  let patl' = List.map delete_info_pat patl in
 	  let topt' = 
 	    match topt with 
@@ -2111,7 +2111,7 @@ let rec delete_info_term t =
 	  in
 	  let p1' = delete_info_term p1 in
 	  let p2' = delete_info_term p2 in	  
-          GetE(tbl,patl',topt',p1', p2')
+          GetE(tbl,patl',topt',p1', p2',find_info)
       | InsertE (tbl,tl,p) -> 
 	  let tl' = List.map delete_info_term tl in
 	  let p' = delete_info_term p in
@@ -2286,7 +2286,7 @@ and copy_term transf t =
   | EventE(t1,p) ->
       build_term2 t (EventE(copy_term transf t1, 
 			    copy_term transf p))
-  | GetE(tbl, patl, topt, p1, p2) ->
+  | GetE(tbl, patl, topt, p1, p2,find_info) ->
       let topt' =
 	match topt with
 	  None -> None
@@ -2295,7 +2295,7 @@ and copy_term transf t =
       build_term2 t (GetE(tbl, List.map (copy_pat transf) patl,
 			  topt',
 			  copy_term transf p1,
-			  copy_term transf p2))
+			  copy_term transf p2, find_info))
   | InsertE(tbl,tl,p) ->
       build_term2 t (InsertE(tbl, List.map (copy_term transf) tl,
 			     copy_term transf p))
@@ -2434,7 +2434,7 @@ and copy_oprocess transf p =
   | EventP(t,p) ->
       EventP(copy_term transf t, 
 	     copy_oprocess transf p)
-  | Get(tbl, patl, topt, p1, p2) ->
+  | Get(tbl, patl, topt, p1, p2, find_info) ->
       let topt' =
 	match topt with
 	  None -> None
@@ -2443,7 +2443,7 @@ and copy_oprocess transf p =
       Get(tbl, List.map (copy_pat transf) patl,
 	  topt',
 	  copy_oprocess transf p1,
-	  copy_oprocess transf p2)
+	  copy_oprocess transf p2, find_info)
   | Insert(tbl,tl,p) ->
       Insert(tbl, List.map (copy_term transf) tl,
 	     copy_oprocess transf p)
@@ -3127,7 +3127,7 @@ let rec get_needed_deflist_term defined accu t =
   | EventE(t,p) ->
       get_needed_deflist_term defined accu t;
       get_needed_deflist_term defined accu p
-  | GetE(tbl,patl,topt,p1,p2) ->
+  | GetE(tbl,patl,topt,p1,p2, find_info) ->
       List.iter (get_needed_deflist_pat defined accu) patl;
       let bpat = List.fold_left vars_from_pat [] patl in
       let defs = (List.map binderref_from_binder bpat) @ defined in
@@ -3185,7 +3185,7 @@ and get_needed_deflist_oprocess defined accu p =
   | EventP(t,p) ->
       get_needed_deflist_term defined accu t;
       get_needed_deflist_oprocess defined accu p
-  | Get(tbl,patl,topt,p1,p2) ->
+  | Get(tbl,patl,topt,p1,p2,find_info) ->
       List.iter (get_needed_deflist_pat defined accu) patl;
       let bpat = List.fold_left vars_from_pat [] patl in
       let defs = (List.map binderref_from_binder bpat) @ defined in

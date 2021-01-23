@@ -261,7 +261,7 @@ and term_desc =
   | EventAbortE of funsymb
   | EventE of term * term
   | InsertE of table * term list * term
-  | GetE of table * pattern list * term option * term * term
+  | GetE of table * pattern list * term option * term * term * find_info
 	
 and 'a findbranch = (binder(*the variable defined when the find succeeds*) * repl_index(*the corresponding replication index used for searching in the arrays*)) list * binderref list(*guaranteed defined array references*) * term(*condition*) * 'a(*then branch*)
 
@@ -334,7 +334,7 @@ and process_desc =
   | Let of pattern * term * process * process
   | EventP of term * process
   | Insert of table * term list * process
-  | Get of table * pattern list * term option * process * process
+  | Get of table * pattern list * term option * process * process * find_info
 
 and process =
     { p_desc : process_desc;

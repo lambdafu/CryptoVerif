@@ -8,6 +8,7 @@ in the right-hand side of equiv declarations.
 - Optimize the right-hand side of equiv declarations by removing
 useless assignments.
 - Allow new and event_abort in conditions of find and get.
+- Allow get[unique] (which is transformed into find[unique]).
 - Allow multiple command-line options "-lib <file>".
 - Minor improvement of some error messages.
 - Avoid creating duplicate defined conditions in transformation

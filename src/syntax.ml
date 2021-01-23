@@ -391,7 +391,7 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
       check_term1 binder_env_tl in_find_cond cur_array env p
   | PEventE _, ext2 ->
       raise_error "events should be function applications" ext2
-  | PGetE(tbl, patlist, topt, p1, p2), _ ->
+  | PGetE(tbl, patlist, topt, p1, p2,_), _ ->
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
 	 We must appropriately forbid array accesses to the variables they define,
@@ -734,7 +734,7 @@ and check_oprocess1 binder_env cur_array env = function
       check_oprocess1 env_tl cur_array env p
   | PEvent _, ext2 ->
       raise_error "events should be function applications" ext2
-  | PGet(tbl, patlist, topt, p1, p2), _ ->
+  | PGet(tbl, patlist, topt, p1, p2, _), _ ->
       (* After conversion of get into find, patlist and topt will
 	 appear in conditions of find. 
 	 We must appropriately forbid array accesses to the variables they define,
@@ -769,7 +769,7 @@ and check_oprocess1 binder_env cur_array env = function
 let rec build_return_list_aux h name = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2), _ ->
+  | PGet(_, _, _, p1, p2, _), _ ->
     build_return_list_aux h name p1;
     build_return_list_aux h name p2
   | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
@@ -808,7 +808,7 @@ let build_return_list p =
 let rec check_role_aux error h name = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2), _ ->
+  | PGet(_, _, _, p1, p2, _), _ ->
     check_role_aux error h name p1;
     check_role_aux error h name p2
   | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
@@ -862,7 +862,7 @@ let rec check_role_continuity_aux error role_possible = function
     check_role_continuity_aux error role_possible p1;
     check_role_continuity_aux error role_possible p2;
   | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2), _ ->
+  | PGet(_, _, _, p1, p2, _), _ ->
     check_role_continuity_aux error false p1;
     check_role_continuity_aux error false p2
   | PRepl (_, _, _, p), _ ->
@@ -993,7 +993,7 @@ let warn_process_form i =
 
     | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
     | PTest(_, p1, p2), _ | PLet (_, _, p1, p2), _
-    | PGet(_, _, _, p1, p2), _ ->
+    | PGet(_, _, _, p1, p2, _), _ ->
       aux after_repl p1;
       aux after_repl p2
     | PRestr (_, _, p), _ | PEvent(_, p), _
@@ -1097,7 +1097,7 @@ let rec check_no_event_insert ext is_get t =
 	check_no_event_insert ext is_get t1;
 	check_no_event_insert ext is_get t2) l0;
       check_no_event_insert ext is_get t3
-  | GetE(table, patl, topt, t1,t2) ->
+  | GetE(table, patl, topt, t1,t2, _) ->
       List.iter (check_no_event_insert_pat ext is_get) patl;
       begin
 	match topt with
@@ -1166,6 +1166,21 @@ let rec check_args cur_array env vardecl args =
       (env'', letopt @ rlets)
 
 exception RemoveFindBranch
+
+let parse_unique construct opt =
+  let find_info = ref Nothing in
+  List.iter (fun (s,ext_s) ->
+    if s = "unique" then
+      begin
+        find_info := Unique;
+        if !current_location = InProcess then
+          Parsing_helper.input_warning "The [unique] option is primarily intended for use in declarations of primitives. If you use it in processes, you must guarantee yourself that this find will have a unique successful branch/index." ext_s
+      end
+    else
+      raise_error ("The only option allowed for "^construct^" is unique") ext_s
+        ) opt;
+  !find_info
+
     
 let rec check_term defined_refs_opt cur_array env prog = function
     PIdent (s, ext), ext2 ->
@@ -1309,17 +1324,7 @@ let rec check_term defined_refs_opt cur_array env prog = function
 	raise_error "Implementation does not support find" ext;
       if !current_location = InLetFun then
 	raise CannotSeparateLetFun;
-      let find_info = ref Nothing in
-      List.iter (fun (s,ext_s) ->
-        if s = "unique" then
-	  begin
-            find_info := Unique;
-            if !current_location = InProcess then
-              Parsing_helper.input_warning "The [unique] option is primarily intended for use in declarations of primitives. If you use it in processes, you must guarantee yourself that this find will have a unique successful branch/index." ext_s
-	  end
-        else
-          raise_error "The only option allowed for find is unique" ext_s
-        ) opt;
+      let find_info = parse_unique "find" opt in
       let t3' = check_term defined_refs_opt cur_array env prog t3 in
       let rec add env = function
 	  [] -> (env,[])
@@ -1357,7 +1362,7 @@ let rec check_term defined_refs_opt cur_array env prog = function
 	  accu
 	    ) [] l0 
       in
-      Terms.new_term (!t_common) ext (FindE(List.rev l0', t3', !find_info))
+      Terms.new_term (!t_common) ext (FindE(List.rev l0', t3', find_info))
   | PEventAbortE(s,ext2), ext ->
       begin
       try 
@@ -1392,7 +1397,8 @@ let rec check_term defined_refs_opt cur_array env prog = function
       end
   | PEventE _, ext2 ->
       raise_error "events should be function applications" ext2
-  | PGetE((id,ext),patl,topt,p1,p2),ext2 -> 
+  | PGetE((id,ext),patl,topt,p1,p2,opt),ext2 ->
+      let find_info = parse_unique "get" opt in
       let tbl = get_table env id ext in
       if List.length patl != List.length tbl.tbltype then
 	raise_error ("Table "^id^" expects "^
@@ -1412,7 +1418,7 @@ let rec check_term defined_refs_opt cur_array env prog = function
       in
       let p1' = check_term defined_refs_opt cur_array env' prog p1 in
       let t_common = merge_types p1'.t_type p2'.t_type ext2 in
-      Terms.new_term t_common ext2 (GetE(tbl, patl',topt',p1', p2'))
+      Terms.new_term t_common ext2 (GetE(tbl, patl',topt',p1', p2', find_info))
           
   | PInsertE((id,ext),tl,p),ext2 ->
       let tbl = get_table env id ext in
@@ -2955,17 +2961,7 @@ and check_oprocess defined_refs cur_array env prog = function
   | PFind(l0,p2,opt), ext ->
       if in_impl_process() && prog <> None then
 	raise_error "Implementation does not support find" ext;
-      let find_info = ref Nothing in
-      List.iter (fun (s,ext_s) ->
-	if s = "unique" then
-          begin
-            find_info := Unique;
-            if !current_location = InProcess then
-              Parsing_helper.input_warning "The [unique] option is primarily intended for use in declarations of primitives. If you use it in processes, you must guarantee yourself that this find will have a unique successful branch/index." ext_s
-          end
-	else
-          raise_error "The only option allowed for find is unique" ext_s
-	    ) opt;
+      let find_info = parse_unique "find" opt in
       let (p2', tres2, oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
       let trescur = ref tres2 in
       let oraclecur = ref oracle2 in
@@ -2997,8 +2993,8 @@ and check_oprocess defined_refs cur_array env prog = function
 	  accu, iaccu
 	    ) ([],[]) l0
       in
-      (new_oproc (Find(List.rev l0', p2',!find_info)) ext, (!trescur), (!oraclecur),
-       new_oproc (Find(List.rev il0',ip2', !find_info)) ext)
+      (new_oproc (Find(List.rev l0', p2', find_info)) ext, (!trescur), (!oraclecur),
+       new_oproc (Find(List.rev il0',ip2', find_info)) ext)
   | POutput(rt,t1,t2,p), ext ->
       let t2' = check_term (Some defined_refs) cur_array env prog t2 in
       begin
@@ -3053,7 +3049,8 @@ and check_oprocess defined_refs cur_array env prog = function
         with Not_found ->
 	  raise_error (s ^ " not defined") ext0
       end
-  | PGet((id,ext),patl,topt,p1,p2), ext' -> 
+  | PGet((id,ext),patl,topt,p1,p2,opt), ext' ->
+      let find_info = parse_unique "get" opt in
       let tbl = get_table env id ext in
       if List.length patl != List.length tbl.tbltype then
 	raise_error ("Table "^id^" expects "^
@@ -3072,9 +3069,9 @@ and check_oprocess defined_refs cur_array env prog = function
 	    Some t'
       in
       let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env' prog p1 in
-        (new_oproc (Get(tbl, patl',topt',p1', p2')) ext',
+        (new_oproc (Get(tbl, patl',topt',p1', p2', find_info)) ext',
          mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
-         new_oproc (Get(tbl, patl',topt',ip1', ip2')) ext')
+         new_oproc (Get(tbl, patl',topt',ip1', ip2', find_info)) ext')
           
   | PInsert((id,ext),tl,p),ext2 ->
       let tbl = get_table env id ext in
@@ -3139,8 +3136,8 @@ let rec rename_term (t,ext) =
   | PResE(i,ty,t) -> PResE(rename_ie i, rename_ie ty, rename_term t)
   | PEventAbortE(i) -> PEventAbortE(rename_ie i)
   | PEventE(t,p) -> PEventE(rename_term t, rename_term p)
-  | PGetE(id, patlist, topt, p1, p2) ->
-      PGetE(rename_ie id, List.map rename_pat patlist, (match topt with None -> None|Some t -> Some (rename_term t)), rename_term p1, rename_term p2)
+  | PGetE(id, patlist, topt, p1, p2, opt) ->
+      PGetE(rename_ie id, List.map rename_pat patlist, (match topt with None -> None|Some t -> Some (rename_term t)), rename_term p1, rename_term p2, opt)
   | PInsertE(id, tlist, p) ->
       PInsertE(rename_ie id, List.map rename_term tlist, rename_term p)
   | PEqual(t1,t2) -> PEqual(rename_term t1, rename_term t2)
@@ -3187,7 +3184,7 @@ let rec rename_proc (p, ext) =
   | PInput(c,tpat,p) -> PInput(rename_channel c, rename_pat tpat, rename_proc p)
   | POutput(b,c,t2,p) -> POutput(b,rename_channel c, rename_term t2, rename_proc p)
   | PLet(pat, t, p1, p2) -> PLet(rename_pat pat, rename_term t, rename_proc p1, rename_proc p2)
-  | PGet(id, patlist, sto, p1,p2) -> PGet(rename_ie id, List.map rename_pat patlist, (match sto with None -> None|Some t -> Some (rename_term t)), rename_proc p1, rename_proc p2)
+  | PGet(id, patlist, sto, p1,p2, opt) -> PGet(rename_ie id, List.map rename_pat patlist, (match sto with None -> None|Some t -> Some (rename_term t)), rename_proc p1, rename_proc p2, opt)
   | PInsert(id, tlist, p) -> PInsert(rename_ie id, List.map rename_term tlist, rename_proc p)
   | PBeginModule ((id,opt),p) -> PBeginModule ((rename_ie id,List.map rename_beginmodule_opt opt),rename_proc p)
   in
@@ -4105,7 +4102,7 @@ let rec collect_id_term accu (t,ext) =
   | PEventE(t,p) ->
       collect_id_term accu t;
       collect_id_term accu p
-  | PGetE(tbl, pat_list, topt, t1, t2) ->
+  | PGetE(tbl, pat_list, topt, t1, t2, _) ->
       add_id accu tbl;
       List.iter (collect_id_pat accu) pat_list;
       begin
@@ -4212,7 +4209,7 @@ let rec collect_id_proc accu (proc,ext) =
       collect_id_term accu t;
       collect_id_proc accu p1;
       collect_id_proc accu p2
-  | PGet(tbl, pat_list, topt, p1, p2) ->
+  | PGet(tbl, pat_list, topt, p1, p2, _) ->
       add_id accu tbl;
       List.iter (collect_id_pat accu) pat_list;
       begin

@@ -127,7 +127,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\pht \texttt{event }\nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\texttt{; }\nonterm{term}\\
 &\pht \texttt{event\string_abort }\nonterm{ident}\\
 &\pht \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\texttt{; }\nonterm{term}\\
-&\pht \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\nonterm{term}\texttt{ else }\nonterm{term}\\
+&\pht \texttt{get}[\texttt{[unique]}]\ \nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\nonterm{term}\texttt{ else }\nonterm{term}\\
 &\nonterm{varref} ::= \nonterm{ident}\texttt{[}\seq{simpleterm}\texttt{]}\\
 &\phantom{\nonterm{varref} =}\mid \nonterm{ident}\\
 &\nonterm{cond} ::= \texttt{defined(} \neseq{varref} \texttt{) }\ [\texttt{\&\& }\nonterm{term}]\\
@@ -210,7 +210,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phfb \texttt{if }\nonterm{cond}\texttt{ then }\funbody\ \texttt{else }\funbody\\
 &\phfb \texttt{find}[\texttt{[unique]}]\ \nonterm{ffindbranch}\ (\texttt{orfind }\nonterm{ffindbranch})^* \ \texttt{else }\funbody\\
 &\phfb \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\texttt{; }\funbody\\
-&\phfb \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\funbody\texttt{ else }\funbody\\
+&\phfb \texttt{get}[\texttt{[unique]}]\ \nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\funbody\texttt{ else }\funbody\\
 &\phfb \texttt{return(}\nonterm{term}\texttt{)}\\
 &\nonterm{ffindbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\funbody\\
 %
@@ -247,7 +247,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phop \texttt{if }\nonterm{cond}\texttt{ then }\oprocess\ [\texttt{else }\oprocess]\\
 &\phop \texttt{find}[\texttt{[unique]}]\ \nonterm{findbranch}\ (\texttt{orfind }\nonterm{findbranch})^* \ [\texttt{else }\oprocess]\\
 &\phop \texttt{insert }\nonterm{ident}\texttt{(}\seq{term}\texttt{)}\ [\texttt{; }\oprocess]\\
-&\phop \texttt{get }\nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\oprocess\ [\texttt{else }\oprocess]\\
+&\phop \texttt{get}[\texttt{[unique]}]\ \nonterm{ident}\texttt{(}\seq{pattern}\texttt{)}\ [\texttt{suchthat}\ \nonterm{term}]\texttt{ in }\oprocess\ [\texttt{else }\oprocess]\\
 &\phop \ifchannels\texttt{out(}\nonterm{channel}\texttt{, }\nonterm{term}\texttt{)}\else \texttt{return(}\seq{term}\texttt{)}\fi[\texttt{; }\iprocess]\\
 &\nonterm{findbranch} ::= \seq{identbound} \texttt{ suchthat }\nonterm{cond}\texttt{ then }\oprocess\\
 &\iprocess ::= \nonterm{ident}[\texttt{(}\seq{term}\texttt{)}]\\
@@ -445,7 +445,11 @@ types using the $\texttt{table}$ declaration.
 
 \item \texttt{get} $\mathit{tbl}\texttt{(}p_1, \ldots, p_n\texttt{)}$ \texttt{suchthat} $M$ \texttt{in} $M'$ \texttt{else} $M''$ tries to find an element of the table $\mathit{tbl}$ that matches the patterns $p_1, \ldots, p_n$ and such that $M$ is true. If it succeeds, it returns the result of $M'$ with the variables of $p_1, \ldots, p_n$ bound to that element of the table. If several elements match, one of them is chosen randomly with (almost) uniform probability. If no element matches, it returns the result of $M''$. 
 
-When \texttt{suchthat} $M$ is omitted, it is equivalent to \texttt{suchthat} $\mathit{true}$. Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
+When \texttt{suchthat} $M$ is omitted, it is equivalent to \texttt{suchthat} $\mathit{true}$. 
+
+A variant of {\tt get} is {\tt get[unique]}, which guarantees that at most one element of the table satisfies the condition, except in cases of negligible probability.
+
+Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
 
 \end{itemize}
 
@@ -720,7 +724,11 @@ types using the $\texttt{table}$ declaration.
 
 \item \texttt{get} $\mathit{tbl}\texttt{(}p_1, \ldots, p_n\texttt{)}$ \texttt{suchthat} $M$ \texttt{in} $P$ \texttt{else} $P'$ tries to find an element of the table $\mathit{tbl}$ that matches the patterns $p_1, \ldots, p_n$ and such that $M$ is true. If it succeeds, it executes $P$ with the variables of $p_1, \ldots, p_n$ bound to that element of the table. If several elements match, one of them is chosen randomly with (almost) uniform probability. If no element matches, it executes $P'$. 
 
-When \texttt{else} $P'$ is omitted, it is equivalent to \texttt{else} \yield. When \texttt{suchthat} $M$ is omitted, it is equivalent to \texttt{suchthat} $\mathit{true}$. Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
+When \texttt{else} $P'$ is omitted, it is equivalent to \texttt{else} \yield. When \texttt{suchthat} $M$ is omitted, it is equivalent to \texttt{suchthat} $\mathit{true}$. 
+
+A variant of {\tt get} is {\tt get[unique]}, which guarantees that at most one element of the table satisfies the condition, except in cases of negligible probability.
+
+Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
 
 \ifchannels
 \item

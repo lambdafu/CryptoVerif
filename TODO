@@ -47,8 +47,6 @@ prove some macros in additional.cvl, and test them, then integrate in commonlib.
 
 transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
 
-Allow get[unique], translated into find[unique]
-
 Is [unique] really handled correctly, especially when I am proving an equivalence property?
 (especially, risk of transforming a RHS containing find or get[unique] that often fails,
 because of non-unicity, into one without option [unique], then shown indistinguishable from
@@ -57,7 +55,7 @@ the LHS, but the LHS is not indistinguishable from the RHS.)
 not manage, or a warning in case a particular setting "allowUnprovedUniqueInInput" is set.
 
 DDH with random self reducibility.
-What about PRF-ODH with random self reducibility?
+What about PRF-ODH with random self reducibility? Seems impossible, but I could consider a multikey PRF-ODH
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
@@ -5690,3 +5688,7 @@ changed files: syntax.ml terms.ml info_from_term.ml invariants.ml transf_auto_sa
 
 info_from_term.ml: I consider EventAbort as giving no information in extract_dnf. Considering it as false would be ok for def.ml, improved_def.ml (shows that the "then" branch is never executed), but not in transf_expand.ml and transf_simplify.ml (because it leads to removing the branch, including the condition).
 DONE 21/1/2021
+
+Allow get[unique], translated into find[unique]
+=> For square properties, use a single insert and duplicate get, to able to use get[unique].
+DONE 22/1/2021
