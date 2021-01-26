@@ -102,6 +102,8 @@ let max_iter_removeuselessassign = ref 10
 
 let detect_incompatible_defined_cond = ref true
 
+let allow_unproved_unique = ref false
+    
 let psize_NONINTERACTIVE = 80 (* Eg. an attacker can make at most 2^80 hash computations *)
 let psize_PASSIVE = 30
 let psize_DEFAULT = psize_PASSIVE
@@ -280,6 +282,7 @@ let do_set p v =
   | "debugCorresp", _ -> parse_bool v debug_corresp
   | "debugAdvLoses", _ -> parse_bool v debug_event_adv_loses
   | "forgetOldGames", _ -> parse_bool v forget_old_games
+  | "allowUnprovedUnique", _ -> parse_bool v allow_unproved_unique
   | _ -> raise Not_found
 
 

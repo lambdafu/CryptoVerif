@@ -741,7 +741,7 @@ let equal_user_info i1 i2 =
 	
 let equal_instruct i1 i2 =
   match i1,i2 with
-  | (ExpandGetInsert, ExpandGetInsert) -> true
+  | (ExpandGetInsert_ProveUnique, ExpandGetInsert_ProveUnique) -> true
   | (Expand, Expand) -> true
 	(* We overapproximate by saying that simplify instructions
 	   are not equal when they contain known_when_adv_wins.
@@ -3298,6 +3298,10 @@ let rec apply_eq_reds simp_facts reduced t =
 	begin
 	  reduced := true; t1'
 	end
+      else if equal_terms t1' t2' then
+	begin
+	  reduced := true; t1'
+	end
       else
 	build_term2 t (FunApp(f, [t1';t2']))
   | FunApp(f,[t1;t2]) when f == Settings.f_or ->
@@ -3308,6 +3312,10 @@ let rec apply_eq_reds simp_facts reduced t =
 	  reduced := true; t2'
 	end
       else if (is_false t2') || (is_true t1') then
+	begin
+	  reduced := true; t1'
+	end
+      else if equal_terms t1' t2' then
 	begin
 	  reduced := true; t1'
 	end

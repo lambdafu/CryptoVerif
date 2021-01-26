@@ -154,6 +154,11 @@ let rec may_have_elset t =
   | ResE(_,t') | InsertE(_,_,t') | EventE(_,t') -> may_have_elset t'
   | EventAbortE _ -> false
 
+let display_find_info = function
+  | Nothing -> ()
+  | Unique -> print_string "[unique] "
+  | UniqueToProve -> print_string "[unique?] "
+	
 let rec display_var b tl =
   let tl = 
     if !display_arrays then tl else 
@@ -288,7 +293,7 @@ and display_term t =
       display_term_paren AllInfix NoProcess t3
   | FindE(l0, t3, find_info) ->
       print_string "find ";
-      if find_info = Unique then print_string "[unique] ";
+      display_find_info find_info;
       display_list_sep " orfind " (fun (bl, def_list, t1, t2) ->
 	display_list (fun (b,b') -> display_binder_with_array b; print_string " = "; display_repl_index_with_type b') bl;
 	print_string " suchthat ";
@@ -334,7 +339,7 @@ and display_term t =
       display_term_paren AllInfix NoProcess p
   | GetE(tbl, patl, topt, p1, p2, find_info) ->
       print_string "get ";
-      if find_info = Unique then print_string "[unique] ";
+      display_find_info find_info;
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;
@@ -728,7 +733,7 @@ let rec display_procasterm t =
       display_procasterm t3
   | FindE(l0, t3, find_info) ->
       print_string "find ";
-      if find_info = Unique then print_string "[unique] ";
+      display_find_info find_info;
       display_list_sep " orfind " (fun (bl, def_list, t1, t2) ->
 	display_list (fun (b, b') -> display_binder_with_array b; print_string " = "; display_repl_index_with_type b') bl;
 	print_string " suchthat ";
@@ -1147,7 +1152,7 @@ and display_oprocess indent p =
       let first = ref true in
       let single_branch = (p2.p_desc = Yield) && (List.length l0 = 1) in
       print_string (indent ^ "find ");
-      if find_info = Unique then print_string "[unique] ";
+      display_find_info find_info;
       List.iter (fun (bl,def_list,t,p1) ->
 	if !first then
 	  first := false
@@ -1224,7 +1229,7 @@ and display_oprocess indent p =
       display_optoprocess indent p
   | Get (tbl,patl,topt,p1,p2, find_info) ->
       print_string (indent ^ "get ");
-      if find_info = Unique then print_string "[unique] ";
+      display_find_info find_info;
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;
@@ -1448,7 +1453,7 @@ let display_coll_elim = function
   | CollTerms l -> print_string "terms: "; display_list print_int l
     
 let display_instruct = function
-    ExpandGetInsert -> print_string "expand get, insert"
+    ExpandGetInsert_ProveUnique -> print_string "expand get, insert and prove unique annotations"
   | Expand -> print_string "expand"
   | Simplify(collector, l) ->
       print_string "simplify";
@@ -2110,6 +2115,10 @@ let display_detailed_ins = function
       print_string "  - Expand get/insert for table ";
       display_table t;
       print_newline()
+  | DProveUnique ->
+      print_string "  - Proved that [unique] annotations are correct\n";
+  | DProveUniqueFailed ->
+      print_string "  - Failed to prove that [unique] annotations are correct\n";
   | DExpandIfFind(l) ->
       print_string "  - Expand if/find/let\n";
       List.iter display_simplif_step (List.rev l)
@@ -2242,7 +2251,7 @@ let mark_occs_simplif_step f_t = function
   | SFindinFindBranch(p,p') -> mark_useful_occ_pp p; mark_useful_occ_pp p'
 
 let mark_occs1 f_p f_t = function
-    DExpandGetInsert(_) | DGlobalDepAnal _ 
+    DExpandGetInsert(_) | DProveUnique | DProveUniqueFailed | DGlobalDepAnal _ 
   | DRemoveAssign _ | DSArenaming _ | DMoveNew(_) | DMoveLet(_) 
   | DCryptoTransf _ | DMergeArrays _ -> ()
   | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->

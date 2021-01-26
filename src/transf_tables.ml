@@ -27,7 +27,7 @@ and has_get_pat pat =
 
 let check_no_get t =
   if has_get t then
-    Parsing_helper.internal_error "Insert must not occur in conditions of get or find" 
+    Parsing_helper.internal_error "Get must not occur in channels" 
 
 let rec trf_insert_term accu cur_array t =
   match t.t_desc with
@@ -87,14 +87,14 @@ and trf_insert_pat accu cur_array = function
   | PatEqual t -> PatEqual (trf_insert_term accu cur_array t)
       
   
-let rec trf_insert_iprocess accu cur_array p =
-  match p.i_desc with
-    | Nil -> Terms.iproc_from_desc Nil
+let rec trf_insert_iprocess accu cur_array p0 =
+  match p0.i_desc with
+    | Nil -> Terms.iproc_from_desc_loc p0 Nil
     | Par(p1,p2) -> 
-        Terms.iproc_from_desc (Par(trf_insert_iprocess accu cur_array p1,
+        Terms.iproc_from_desc_loc p0 (Par(trf_insert_iprocess accu cur_array p1,
 				   trf_insert_iprocess accu cur_array p2))
     | Repl(b,p) ->
-        Terms.iproc_from_desc
+        Terms.iproc_from_desc_loc p0
 	  (Repl(b,trf_insert_iprocess accu (b::cur_array) p))
     | Input((c,tl),pat,p) ->
 	List.iter check_no_insert tl;
@@ -106,22 +106,24 @@ let rec trf_insert_iprocess accu cur_array p =
 	  let p' = Terms.oproc_from_desc (Let(pat, bterm, p,
 					      Terms.oproc_from_desc Yield))
 	  in
-	  Terms.iproc_from_desc
+	  Terms.iproc_from_desc_loc p0
 	    (Input((c,tl),PatVar b, trf_insert_oprocess accu cur_array p'))
 	else
-          Terms.iproc_from_desc
+          Terms.iproc_from_desc_loc p0
 	    (Input((c,tl),pat,trf_insert_oprocess accu cur_array p))
 
-and trf_insert_oprocess accu cur_array p =
-  match p.p_desc with
-    | Yield -> Terms.oproc_from_desc Yield
-    | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
+and trf_insert_oprocess accu cur_array p0 =
+  match p0.p_desc with
+    | Yield -> Terms.oproc_from_desc_loc p0 Yield
+    | EventAbort f -> Terms.oproc_from_desc_loc p0 (EventAbort f)
     | Restr(b,p) ->
-        Terms.oproc_from_desc (Restr(b,trf_insert_oprocess accu cur_array p))
+        Terms.oproc_from_desc_loc p0
+	  (Restr(b,trf_insert_oprocess accu cur_array p))
     | Test(t,p1,p2) ->
-        Terms.oproc_from_desc (Test(trf_insert_term accu cur_array t,
-				    trf_insert_oprocess accu cur_array p1,
-				    trf_insert_oprocess accu cur_array p2))
+        Terms.oproc_from_desc_loc p0
+	  (Test(trf_insert_term accu cur_array t,
+		trf_insert_oprocess accu cur_array p1,
+		trf_insert_oprocess accu cur_array p2))
     | Find(bl,p,fi) ->
         let bl' = List.map 
 	    (fun (bl,d,t,p)->
@@ -129,26 +131,31 @@ and trf_insert_oprocess accu cur_array p =
               (bl,d,t,trf_insert_oprocess accu cur_array p)
 		) bl
 	in
-        Terms.oproc_from_desc (Find(bl',trf_insert_oprocess accu cur_array p,fi))
+        Terms.oproc_from_desc_loc p0
+	  (Find(bl',trf_insert_oprocess accu cur_array p,fi))
     | Output((c,tl),t,p) ->
 	List.iter check_no_insert tl;
-        Terms.oproc_from_desc (Output((c,tl),trf_insert_term accu cur_array t,
-				      trf_insert_iprocess accu cur_array p))
+        Terms.oproc_from_desc_loc p0
+	  (Output((c,tl),trf_insert_term accu cur_array t,
+		  trf_insert_iprocess accu cur_array p))
     | Let(pat,t,p1,p2) ->
-        Terms.oproc_from_desc (Let(trf_insert_pat accu cur_array pat,
-				   trf_insert_term accu cur_array t,
-				   trf_insert_oprocess accu cur_array p1,
-				   trf_insert_oprocess accu cur_array p2))
+        Terms.oproc_from_desc_loc p0
+	  (Let(trf_insert_pat accu cur_array pat,
+	       trf_insert_term accu cur_array t,
+	       trf_insert_oprocess accu cur_array p1,
+	       trf_insert_oprocess accu cur_array p2))
     | EventP(t,p) ->
-        Terms.oproc_from_desc (EventP(trf_insert_term accu cur_array t,
-				      trf_insert_oprocess accu cur_array p))
+        Terms.oproc_from_desc_loc p0
+	  (EventP(trf_insert_term accu cur_array t,
+		  trf_insert_oprocess accu cur_array p))
     | Insert(tbl,tl,p) ->
         Settings.changed := true;
 	let tl' = List.map (trf_insert_term accu cur_array) tl in 
         let p' = trf_insert_oprocess accu cur_array p in
         let bl = List.map (fun ty -> Terms.create_binder tbl.tblname ty cur_array) tbl.tbltype in
         let p'' = List.fold_right2 (fun b t p ->
-          Terms.oproc_from_desc (Let(PatVar(b),t,p,Terms.oproc_from_desc Yield))
+          Terms.oproc_from_desc_loc p0
+	    (Let(PatVar(b),t,p,Terms.oproc_from_desc Yield))
             ) bl tl' p' in
 	accu := (tbl,Some bl) :: (!accu);
         p''
@@ -159,7 +166,7 @@ and trf_insert_oprocess accu cur_array p =
 	  | Some t -> check_no_insert t
 	end;
 	accu := (tbl,None)::(!accu);
-        Terms.oproc_from_desc
+        Terms.oproc_from_desc_loc p0
 	  (Get(tbl,List.map (trf_insert_pat accu cur_array) patl,
 	       topt,trf_insert_oprocess accu cur_array p1,
 	       trf_insert_oprocess accu cur_array p2, find_info))
@@ -324,7 +331,7 @@ and trf_get_pat l cur_array = function
 
 
 let rec trf_get_iprocess l cur_array p =
-  Terms.iproc_from_desc (
+  Terms.iproc_from_desc_loc p (
     match p.i_desc with
       | Nil -> Nil
       | Par(p1,p2) -> 
@@ -346,13 +353,13 @@ let rec trf_get_iprocess l cur_array p =
 	  else
             Input((c,tl),pat,trf_get_oprocess l cur_array p))
 
-and trf_get_oprocess l cur_array p =
-  match p.p_desc with
-  | Yield | EventAbort _ -> p
+and trf_get_oprocess l cur_array p0 =
+  match p0.p_desc with
+  | Yield | EventAbort _ -> p0
   | Restr(b,p) ->
-      Terms.oproc_from_desc (Restr(b,trf_get_oprocess l cur_array p))
+      Terms.oproc_from_desc_loc p0 (Restr(b,trf_get_oprocess l cur_array p))
   | Test(t,p1,p2) ->
-      Terms.oproc_from_desc
+      Terms.oproc_from_desc_loc p0
 	(Test(trf_get_term l cur_array t,
 	      trf_get_oprocess l cur_array p1,
 	      trf_get_oprocess l cur_array p2))
@@ -362,20 +369,21 @@ and trf_get_oprocess l cur_array p =
 	    let cur_array' = (List.map snd bl) @ cur_array in
             (bl,d,trf_get_term l cur_array' t,
 	     trf_get_oprocess l cur_array p)) l0 in
-      Terms.oproc_from_desc (Find(l0',trf_get_oprocess l cur_array p,fi))
+      Terms.oproc_from_desc_loc p0
+	(Find(l0',trf_get_oprocess l cur_array p,fi))
   | Output((c, tl),t,p) ->
       List.iter check_no_get tl;
-      Terms.oproc_from_desc
+      Terms.oproc_from_desc_loc p0
 	(Output((c, tl),trf_get_term l cur_array t,
 		trf_get_iprocess l cur_array p))
   | Let(pat,t,p1,p2) ->
-      Terms.oproc_from_desc
+      Terms.oproc_from_desc_loc p0
 	(Let(trf_get_pat l cur_array pat,
 	     trf_get_term l cur_array t,
 	     trf_get_oprocess l cur_array p1,
 	     trf_get_oprocess l cur_array p2))
   | EventP(t,p) ->
-      Terms.oproc_from_desc
+      Terms.oproc_from_desc_loc p0
 	(EventP(trf_get_term l cur_array t,
 		trf_get_oprocess l cur_array p))
   | Insert _ ->
@@ -395,7 +403,7 @@ and trf_get_oprocess l cur_array p =
       let p1'=trf_get_oprocess l cur_array p1 in
       let p2'=trf_get_oprocess l cur_array p2 in
       Terms.put_lets let_bindings
-        (Terms.oproc_from_desc (Find (List.map (get_find_branch get_find_branch_then_process patl' topt' p1' cur_array) (get_info_for tbl l), p2', find_info)))
+        (Terms.oproc_from_desc_loc p0 (Find (List.map (get_find_branch get_find_branch_then_process patl' topt' p1' cur_array) (get_info_for tbl l), p2', find_info)))
 	(Terms.oproc_from_desc Yield)
           
 let transform_get p l =

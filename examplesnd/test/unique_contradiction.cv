@@ -1,0 +1,25 @@
+param N.
+
+channel c.
+
+process
+	(
+	! i <= N
+	in(c, (b: bool, x: bitstring));
+	if b then
+	    (let y: bitstring = x)
+	else
+	    (let z: bitstring = x)
+	)
+	|
+	(
+	in(c, t: bitstring);
+	find u <= N suchthat defined(y[u],z[u]) then
+	find[unique] v <= N suchthat defined(x[v]) && x[v] = t then
+	out(c, x[v])
+	)
+
+(* EXPECTED
+All queries proved.
+0.020s (user 0.012s + system 0.008s), max rss 23916K
+END *)

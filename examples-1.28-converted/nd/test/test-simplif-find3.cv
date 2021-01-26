@@ -30,6 +30,6 @@ process
 
 
 (* EXPECTED
-All queries proved.
-0.020s (user 0.008s + system 0.012s), max rss 10548K
+Error: The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique
+xtime: error in child process (status : 2)
 END *)

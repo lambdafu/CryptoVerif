@@ -3,6 +3,8 @@ type 'a occ_map = (int * int * 'a) list
 let empty = []
 
 let add map min_occ max_occ image =
+  if min_occ < 0 || max_occ < 0 then
+    Parsing_helper.internal_error "Occ_map.add: occ not set";
   if max_occ < min_occ then
     Parsing_helper.internal_error "max_occ not set properly";
   (min_occ, max_occ, image) :: map

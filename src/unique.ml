@@ -1,4 +1,5 @@
 open Types
+open Parsing_helper
 
 (* [is_unique l0' find_info] returns Unique when a [find] is unique,
    that is, at runtime, there is always a single possible branch 
@@ -76,6 +77,168 @@ let prove_unique g cur_array simp_facts def_vars dep_info node l0' =
   in
   incompatible_branches l0')
 
+(* Prove that the inserted find[unique] are really unique *)
+
+let whole_game = ref Terms.empty_game
+let initial = ref false
+let transfo_done = ref None
+    
+let prove_unique1 pp l0 find_info ext =
+  if find_info = UniqueToProve then
+    let proved() =
+      begin
+	match !transfo_done with
+	| None -> transfo_done := Some DProveUnique
+	| _ -> ()
+      end;
+      Unique
+    in
+    try 
+      let cur_array =
+	match Incompatible.get_facts pp with
+	| Some(cur_array,_,_,_,_,_,_) -> cur_array
+	| None -> failwith "(missing information, should not happen)"
+      in
+      let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id (Facts.get_facts_at pp) in
+      let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
+      if prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
+	proved()
+      else
+	failwith ""
+    with
+    | Failure comment -> 
+	if !initial then
+	  if !Settings.allow_unproved_unique then
+	    begin
+	      input_warning ("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment^". It is your responsability to make sure that it is really unique.") ext;
+	      transfo_done := Some DProveUniqueFailed;
+	      Unique
+	    end
+	  else
+	    input_error ("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment) ext
+	else
+	  raise (Error("You inserted a find[unique] but I could not prove that it is really unique"^comment, ext))
+    | Contradiction ->
+	(* The find[unique] is unreachable, I can consider it unique without problem *)
+	proved()
+  else
+    find_info
+	
+let rec prove_uniquet t =
+  match t.t_desc with
+    ResE(b,p) ->
+      Terms.build_term t (ResE(b, prove_uniquet p))
+  | EventE(t1,p) ->
+      Terms.build_term t (EventE(prove_uniquet t1, prove_uniquet p))
+  | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "get, insert should not occur as term"
+  | TestE(t1,t2,t3) ->
+      let t1' = prove_uniquet t1 in
+      let t2' = prove_uniquet t2 in
+      let t3' = prove_uniquet t3 in
+      Terms.build_term t (TestE(t1',t2',t3'))
+  | LetE(pat,t1,t2,topt) ->
+      let pat' = prove_uniquepat pat in
+      let t1' = prove_uniquet t1 in
+      let t2' = prove_uniquet t2 in
+      let topt' = 
+	match topt with
+	  None -> None
+	| Some t3 -> Some (prove_uniquet t3)
+      in
+      Terms.build_term t (LetE(pat',t1',t2',topt'))
+  | FindE(l0,t3, find_info) ->
+      let find_info' = prove_unique1 (DTerm t) l0 find_info t.t_loc in
+      let t3' = prove_uniquet t3 in
+      let l0' = List.map (fun (bl, def_list, tc, p) ->
+	let p' = prove_uniquet p in
+	let tc' = prove_uniquet tc in
+	(bl, def_list, tc', p')
+	  ) l0 
+      in
+      Terms.build_term t (FindE(l0',t3',find_info'))
+  | Var(b,l) ->
+      Terms.build_term t (Var(b, List.map prove_uniquet l))
+  | FunApp(f,l) ->
+      Terms.build_term t (FunApp(f, List.map prove_uniquet l))      
+  | ReplIndex _ | EventAbortE _ -> t 
+
+and prove_uniquepat = function
+  | PatVar b -> PatVar b
+  | PatTuple(f,l) -> PatTuple(f, List.map prove_uniquepat l)
+  | PatEqual t -> PatEqual (prove_uniquet t)
+	
+let rec prove_uniquei p =
+    Terms.iproc_from_desc_loc p (
+    match p.i_desc with
+      Nil -> Nil
+    | Par(p1,p2) -> 
+	Par(prove_uniquei p1,
+	    prove_uniquei p2)
+    | Repl(b,p) ->
+	Repl(b, prove_uniquei p)
+    | Input((c, tl), pat, p) ->
+	Input((c, List.map prove_uniquet tl),
+	      prove_uniquepat pat, prove_uniqueo p))
+
+and prove_uniqueo p =
+  Terms.oproc_from_desc_loc p (
+    match p.p_desc with
+      Yield -> Yield
+    | EventAbort f -> EventAbort f
+    | Restr(b,p) -> Restr(b, prove_uniqueo p)
+    | Test(t,p1,p2) -> Test(prove_uniquet t,
+			    prove_uniqueo p1,
+			    prove_uniqueo p2)
+    | Find(l0,p2,find_info) ->
+	let find_info' = prove_unique1 (DProcess p) l0 find_info p.p_loc in
+	Find(List.map (fun (bl,def_list,t,p1) ->
+	       (bl,def_list,prove_uniquet t,
+	        prove_uniqueo p1)) l0,
+	     prove_uniqueo p2, find_info')
+    | Output((c, tl),t,p) ->
+	Output((c, List.map prove_uniquet tl),
+	       prove_uniquet t,prove_uniquei p)
+    | Let(pat,t,p1,p2) ->
+	Let(prove_uniquepat pat,
+	    prove_uniquet t,prove_uniqueo p1,
+	    prove_uniqueo p2)
+    | EventP(t,p) ->
+	EventP(prove_uniquet t, prove_uniqueo p)
+    | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
+
+let prove_unique_game initial_game g =
+  Terms.move_occ_game g;
+  let g_proc = Terms.get_process g in
+  whole_game := g;
+  initial := initial_game;
+  transfo_done := None;
+  Array_ref.array_ref_process g_proc;
+  Improved_def.improved_def_game None true g;
+  Depanal.reset [] g;
+  let cleanup() =
+    Array_ref.cleanup_array_ref();
+    Improved_def.empty_improved_def_game true g;
+    whole_game := Terms.empty_game;
+    transfo_done := None
+  in
+  let p' =
+    try
+      prove_uniquei g_proc
+    with Error(mess, extent) ->
+      cleanup();
+      raise (Error(mess, extent))
+  in
+  let g' = Terms.build_transformed_game p' g in
+  let transfos = !transfo_done in
+  cleanup();
+  match transfos with
+  | None -> (g, [], [])
+  | Some t ->
+      Settings.changed := true;
+      (g', Depanal.final_add_proba(), if initial_game then [t] else [])
+    
 let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
   if not (!Settings.infer_unique) then
     (is_unique l0' find_info, false)

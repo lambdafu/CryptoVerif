@@ -567,7 +567,7 @@ and guess_arg_t =
   | GuessOcc of int * Parsing_helper.extent
 	
 and instruct =
-  | ExpandGetInsert
+  | ExpandGetInsert_ProveUnique
   | Expand
   | Simplify of known_when_adv_wins option * coll_elim_t list(*occurrences, variables, or types for collision elimination of password types*)
   | SimplifyNonexpanded
@@ -637,6 +637,8 @@ and usage_change =
 
 and detailed_instruct =
     DExpandGetInsert of table
+  | DProveUnique
+  | DProveUniqueFailed
   | DExpandIfFind of simplify_ins list
   | DSimplify of simplify_ins list
   | DGlobalDepAnal of binder * coll_elim_t list

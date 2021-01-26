@@ -62,17 +62,17 @@ proof {
 insert after "K0:" "r <- SHA256_comp(SHA256_comp(SHA256_init, xor(K0, opad)), padsha256_2(SHA256_comp_star(SHA256_comp(SHA256_init, xor(K0, ipad)), padsha256(m))))";
 use_variable "r";
 insert after "O_MAC" "find[unique] j1 <= qMAC suchthat defined(r[j1], m[j1], else_MAC[j1]) && (m = m[j1]) then else else_MAC <- true";
-replace 23 "r[j1_2]";
+replace 23 "r[j1_3]";
 SArename "r";
 (* KDF256 similarly *)
 insert after "O_KDF256" "find [unique] j2 <= qKDF256 suchthat defined(Hash1[j2], U2[j2], V2[j2], X2[j2], else_256[j2]) && (X2 = X2[j2]) && (V2 = V2[j2]) && (U2 = U2[j2]) then else else_256 <- true";
-replace 80 "Hash1[j2_2]";
+replace 80 "Hash1[j2_3]";
 SArename "Hash1";
 (* KDF128 similarly *)
 insert after "Hash1_1:" "r3 <- truncate128(Hash1_1)";
 use_variable "r3_1";
 insert after "O_KDF128" "find [unique] j3 <= qKDF128 suchthat defined(r3_1[j3], U3[j3], V3[j3], X3[j3], else_128[j3]) && (X3 = X3[j3]) && (V3 = V3[j3]) && (U3 = U3[j3]) then else else_128 <- true";
-replace 161 "r3_1[j3_2]";
+replace 161 "r3_1[j3_3]";
 SArename "r3_1";
 
       (* Prove that HMAC_SHA256 is a PRF *) 

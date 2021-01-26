@@ -99,6 +99,11 @@ type process_paren =
   | AllProcess
   | ProcessMayHaveElseBranch
 
+let display_find_info = function
+  | Nothing -> ()
+  | Unique -> print_string "[\\kwf{unique}]\\ "
+  | UniqueToProve -> print_string "[\\kwf{unique?}]\\ "
+	
 let rec display_var b tl =
       let tl = 
 	if !display_arrays then tl else 
@@ -245,7 +250,7 @@ and display_term t =
   | FindE(l0, t3, find_info) ->
       let first = ref true in
       print_string "\\kw{find}\\ ";
-      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
+      display_find_info find_info;
       List.iter (fun (bl, def_list, t1, t2) ->
 	if !first then
 	  first := false
@@ -300,7 +305,7 @@ and display_term t =
       display_term_paren AllInfix NoProcess t
   | GetE(tbl, patl, topt, p1, p2, find_info) ->
       print_string "\\kw{get}\\ ";
-      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
+      display_find_info find_info;
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;
@@ -665,7 +670,7 @@ let rec display_procasterm t =
   | FindE(l0, t3, find_info) ->
       let first = ref true in
       print_string "\\kw{find}\\ ";
-      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
+      display_find_info find_info;
       List.iter (fun (bl, def_list, t1, t2) ->
 	if !first then
 	  first := false
@@ -956,7 +961,7 @@ and display_oprocess indent p =
       let first = ref true in
       let single_branch = (p2.p_desc = Yield) && (List.length l0 = 1) in
       print_string (indent ^ "\\kw{find}\\ ");
-      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
+      display_find_info find_info;
       List.iter (fun (bl,def_list,t,p1) ->
 	if !first then
 	  first := false
@@ -1048,7 +1053,7 @@ and display_oprocess indent p =
       display_optoprocess indent p
   | Get (tbl,patl,topt,p1,p2,find_info) ->
       print_string (indent ^ "\\kw{get}\\ ");
-      if find_info = Unique then print_string "[\\kwf{unique}]\\ ";
+      display_find_info find_info;
       display_table tbl;
       print_string "(";
       display_list display_pattern patl;
@@ -1277,7 +1282,7 @@ let display_coll_elim = function
   | CollTerms l -> print_string "terms: "; display_list_break print_int l
     
 let display_instruct = function
-    ExpandGetInsert -> print_string "expand get, insert"
+    ExpandGetInsert_ProveUnique -> print_string "expand get, insert and prove unique annotations"
   | Expand -> print_string "expand"
   | Simplify(collector, l) ->
       print_string "simplify";
@@ -1630,6 +1635,10 @@ let display_detailed_ins = function
       print_string "\\quad -- Expand get/insert for table $";
       display_table t;
       print_string "$\\\\\n"
+  | DProveUnique ->
+      print_string "\\quad -- Proved that [unique] annotations are correct\\\\\n";
+  | DProveUniqueFailed ->
+      print_string "\\quad -- Failed to prove that [unique] annotations are correct\\\\\n";
   | DExpandIfFind(l) ->
       print_string "\\quad -- Expand if/find/let\\\\\n";
       List.iter display_simplif_step (List.rev l)

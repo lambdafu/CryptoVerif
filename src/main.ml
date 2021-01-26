@@ -157,6 +157,8 @@ let anal_file s0 =
   try
     Sys.catch_break true;
     let (statements, collisions, equivs, queries, proof, impl, final_p) = Syntax.read_file s in
+    List.iter simplify_statement statements;
+    List.iter record_collision collisions;
     let (p, queries) = 
       match final_p with
       | SingleProcess p' -> (p', queries)
@@ -196,8 +198,6 @@ let anal_file s0 =
             else
 	      List.map (fun q -> ((q,g), ref ToProve)) queries in
 	  g.current_queries <- queries;
-          List.iter simplify_statement statements;
-          List.iter record_collision collisions;
           Settings.equivs := equivs;
           
             (*

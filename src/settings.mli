@@ -92,6 +92,8 @@ val max_iter_removeuselessassign : int ref
 
 val detect_incompatible_defined_cond : bool ref
 
+val allow_unproved_unique : bool ref
+    
 val do_set : string -> Ptree.pval -> unit
 
 (* Parameter sizes *)

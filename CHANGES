@@ -9,6 +9,8 @@ in the right-hand side of equiv declarations.
 useless assignments.
 - Allow new and event_abort in conditions of find and get.
 - Allow get[unique] (which is transformed into find[unique]).
+- CryptoVerif proves that the get[unique] and find[unique] in the initial
+game are really unique.
 - Allow multiple command-line options "-lib <file>".
 - Minor improvement of some error messages.
 - Avoid creating duplicate defined conditions in transformation

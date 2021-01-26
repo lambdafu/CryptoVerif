@@ -4,14 +4,6 @@ TO DO next
    cv2easycrypt
      - changes in build not pushed
      - conflicts in .gitignore
-   allow giving the RHS of equiv using tables instead of find.
-   tables are then expanded into find for usage by CryptoVerif
-   but could be left as tables for translating to EasyCrypt.
-   it would be nice to be able to use indices as fields in these
-   tables; that's related to the point of allowing comparisons
-   between indices in the RHS of equiv (also mentioned in point 0.1).
-   Already done: allow declaring equiv for one key, extended
-   to several keys by CryptoVerif.
 2) Extend macros (see point 5 in HIGH PRIORITY)
 3) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
@@ -33,7 +25,8 @@ TO DO next
 
 HIGH PRIORITY
 
-0.1)
+0.1) For the next release:
+
 write a GDH assumption that uses a single set of exponents
 a_i, but leaves m = g^{a_i a_i} unchanged.
 For the proof with rerandomization, we need to guess whether
@@ -45,22 +38,28 @@ computes g^{a_i a_i}.
 
 prove some macros in additional.cvl, and test them, then integrate in commonlib.cvl and document in the manual.
 
-transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
-
-Is [unique] really handled correctly, especially when I am proving an equivalence property?
-(especially, risk of transforming a RHS containing find or get[unique] that often fails,
-because of non-unicity, into one without option [unique], then shown indistinguishable from
-the LHS, but the LHS is not indistinguishable from the RHS.)
-=> When there are [unique] in the input games, try to prove them. It is an error if I do
-not manage, or a warning in case a particular setting "allowUnprovedUniqueInInput" is set.
+case of [computational] query_equiv in cryptoverif.tex
 
 DDH with random self reducibility.
+amplification technique for CDH and DDH.
 What about PRF-ODH with random self reducibility? Seems impossible, but I could consider a multikey PRF-ODH
+
+transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
+The same problem may appear for other transformations of find. It is a very minor detail anyway.
+
+Add a min construct in probas; replace -max(-x,-y) with min(x,y).
+
+When we automatically add a replication on top of an equiv
+statement, automatically choose the best time to add to the adversary
+between compute_add_time and compute_add_time_totcount,
+e.g. via a "min" construct in proba formulas, possibly with
+a hint on when to choose which term in the minimum.
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
 to show that we can count the elimination of collisions once
 for the whole sequence of games
+=> That's interesting but not that easy to justify, see later.
 
 0.3)
 In *_partial equivalences, distinguish the number of transformed
@@ -180,13 +179,7 @@ On the other hand, we can have a warning in syntax.ml without an
 error when we generate the implementation, in case the warning comes
 from a part of the model that is not in a module.)
 
-0.8) When we automatically add a replication on top of an equiv
-statement, automatically choose the best time to add to the adversary
-between compute_add_time and compute_add_time_totcount,
-e.g. via a "min" construct in proba formulas, possibly with
-a hint on when to choose which term in the minimum.
-
-0.9) Display a lighter runtime, of the form (polynom in parameters) *
+0.8) Display a lighter runtime, of the form (polynom in parameters) *
 O(1) where O(1) is a time that does not depend on parameters
 (constant or may depend on length of bitstrings).
 
@@ -5692,3 +5685,11 @@ DONE 21/1/2021
 Allow get[unique], translated into find[unique]
 => For square properties, use a single insert and duplicate get, to able to use get[unique].
 DONE 22/1/2021
+
+Is [unique] really handled correctly, especially when I am proving an equivalence property?
+(especially, risk of transforming a RHS containing find or get[unique] that often fails,
+because of non-unicity, into one without option [unique], then shown indistinguishable from
+the LHS, but the LHS is not indistinguishable from the RHS.)
+=> When there are [unique] in the input games, try to prove them. It is an error if I do
+not manage, or a warning in case a particular setting "allowUnprovedUnique" is set.
+DONE 25/1/2021

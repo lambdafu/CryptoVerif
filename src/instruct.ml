@@ -92,7 +92,7 @@ let default_file_out s ext f =
   Display.file_out filename ext f
 		
 let sa_rename_ins_updater b bl = function
-    (ExpandGetInsert | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
+    (ExpandGetInsert_ProveUnique | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
      RemoveAssign(Minimal | FindCond | EqSide) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
@@ -158,8 +158,9 @@ let execute state ins =
   let g = state.game in
   let (g', proba, done_ins) = 
     match ins with
-      ExpandGetInsert -> 
-	Transf_tables.reduce_tables g
+      ExpandGetInsert_ProveUnique -> 
+	let g_done = Transf_tables.reduce_tables g in
+	compos_transf (Unique.prove_unique_game true) g_done
     | Expand ->
 	Transf_expand.expand_process g
     | Simplify(collector, l) ->
@@ -436,7 +437,7 @@ let crypto_simplify state =
     
 let initial_expand_simplify state =
   state
-  |> execute_display_advise ExpandGetInsert
+  |> execute_display_advise ExpandGetInsert_ProveUnique
   |> execute_display_advise SimplifyNonexpanded
   |> expand
   |> simplify
@@ -1447,10 +1448,10 @@ let rec undo ext state n =
   match state.prev_state with
     None -> 
       raise (Error("Could not undo more steps than those already done", ext))
-  | Some (ExpandGetInsert,_,_, { prev_state = None }) ->
+  | Some (ExpandGetInsert_ProveUnique,_,_, { prev_state = None }) ->
       raise (Error("Cannot undo the first expansion", ext))
-  | Some (ExpandGetInsert,_,_,_) ->
-      Parsing_helper.internal_error "ExpandGetInsert should occur only as first instruction"
+  | Some (ExpandGetInsert_ProveUnique,_,_,_) ->
+      Parsing_helper.internal_error "ExpandGetInsert_ProveUnique should occur only as first instruction"
   | Some (_,_,_,state') -> undo ext state' (n-1)
 	
 let display_facts_at state occ_cmd =

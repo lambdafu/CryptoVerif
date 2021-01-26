@@ -1465,6 +1465,7 @@ let check_equiv normalize equiv =
       (* 7. Move creations of fresh random variables in the RHS *)
       let rm3 = move_names_all lm rm2 in
       Array_ref.cleanup_array_ref();
+      Def.empty_def_member rm1;
       
       let restr_mapping = ref [] in
       build_restr_mapping restr_mapping lm rm3;

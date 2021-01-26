@@ -906,9 +906,9 @@ let apply_eq_statements_and_collisions_subterms_once reduce_rec dep_info simp_fa
   if !reduced then t' else 
   apply_simplif_subterms_once (apply_statements_and_collisions_at_root_once reduce_rec dep_info simp_facts) simp_facts t
 
-(* For debugging 
-let apply_eq_statements_and_collisions_subterms_once reduce_rec simp_facts t =
-  let t' = apply_eq_statements_and_collisions_subterms_once reduce_rec simp_facts t in
+(* For debugging
+let apply_eq_statements_and_collisions_subterms_once reduce_rec dep_info simp_facts t =
+  let t' = apply_eq_statements_and_collisions_subterms_once reduce_rec dep_info simp_facts t in
   if !reduced then
     begin
       print_string "apply_eq_statements_and_collisions_subterms_once ";

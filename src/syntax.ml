@@ -132,6 +132,8 @@ type location_type =
       
 let current_location = ref InProcess
 
+let unique_to_prove = ref false
+    
 let in_impl_process() = 
   (!Settings.get_implementation) && (!current_location) <> InEquivalence
 
@@ -1171,11 +1173,11 @@ let parse_unique construct opt =
   let find_info = ref Nothing in
   List.iter (fun (s,ext_s) ->
     if s = "unique" then
-      begin
-        find_info := Unique;
-        if !current_location = InProcess then
-          Parsing_helper.input_warning "The [unique] option is primarily intended for use in declarations of primitives. If you use it in processes, you must guarantee yourself that this find will have a unique successful branch/index." ext_s
-      end
+      find_info :=
+	 if !unique_to_prove then
+	   UniqueToProve
+	 else
+	   Unique
     else
       raise_error ("The only option allowed for "^construct^" is unique") ext_s
         ) opt;
@@ -3900,44 +3902,51 @@ let get_impl ()=
 let rec check_all (l,p) = 
   List.iter check_one l;
   current_location := InProcess;
-  match p with
-    PSingleProcess p1 ->
-      let final_p = SingleProcess(check_process_full p1) in
-      let ql = List.map check_query (!queries_parse) in
+  unique_to_prove := not (!Settings.get_implementation);
+  let result = 
+    match p with
+    | PSingleProcess p1 ->
+	let final_p = SingleProcess(check_process_full p1) in
+	let ql = List.map check_query (!queries_parse) in
       (* Remove duplicate queries. They are useless, take time,
 	 and might cause an internal error with the current
 	 implementation of the command "focus". *)
-      let rec remove_dup = function
-	  q::ql ->
-	    let ql' = remove_dup ql in 
-	    if List.exists (Terms.equal_query q) ql' then
-	      ql'
-	    else
-	      q::ql'
-	| [] -> []
-      in
-      (!statements, !collisions, !equivalences,
-       remove_dup ql, !proof, (get_impl ()), final_p)
-  | PEquivalence(p1,p2,pub_vars) ->
-      if (!queries_parse) != [] then
-	user_error "Queries are incompatible with equivalence";
-      if !Settings.get_implementation then
-	user_error "Implementation is incompatible with equivalence";
-      let p1' = check_process_full p1 in
-      let p2' = check_process_full p2 in
-      let pub_vars' =  get_qpubvars pub_vars in
-      let final_p = Equivalence(p1', p2', pub_vars') in
-      (!statements, !collisions, !equivalences,
-       [], !proof, ([],[]), final_p)
-  | PQueryEquiv equiv_statement ->
-      if (!queries_parse) != [] then
-	user_error "Queries are incompatible with query_equiv";
-      if !Settings.get_implementation then
-	user_error "Implementation is incompatible with query_equiv";
-      let equiv_statement' = check_eqstatement false equiv_statement in
-      let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
-      (!statements, !collisions, !equivalences,
-       queries, !proof, ([],[]), final_p)
+	let rec remove_dup = function
+	    q::ql ->
+	      let ql' = remove_dup ql in 
+	      if List.exists (Terms.equal_query q) ql' then
+		ql'
+	      else
+		q::ql'
+	  | [] -> []
+	in
+	(!statements, !collisions, !equivalences,
+	 remove_dup ql, !proof, (get_impl ()), final_p)
+    | PEquivalence(p1,p2,pub_vars) ->
+	if (!queries_parse) != [] then
+	  user_error "Queries are incompatible with equivalence";
+	if !Settings.get_implementation then
+	  user_error "Implementation is incompatible with equivalence";
+	let p1' = check_process_full p1 in
+	let p2' = check_process_full p2 in
+	let pub_vars' =  get_qpubvars pub_vars in
+	let final_p = Equivalence(p1', p2', pub_vars') in
+	(!statements, !collisions, !equivalences,
+	 [], !proof, ([],[]), final_p)
+    | PQueryEquiv equiv_statement ->
+	if (!queries_parse) != [] then
+	  user_error "Queries are incompatible with query_equiv";
+	if !Settings.get_implementation then
+	  user_error "Implementation is incompatible with query_equiv";
+	let equiv_statement' = check_eqstatement false equiv_statement in
+	let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
+	(!statements, !collisions, !equivalences,
+	 queries, !proof, ([],[]), final_p)
+  in
+  (* Reset unique_to_prove so that it is false when we parse special equivalences
+     generated later *)
+  unique_to_prove := false;
+  result
 
 let declares = function
   | ParamDecl(id, _)
@@ -4386,7 +4395,8 @@ let record_all_ids (l,p) =
 
 	
 let read_file f =
-  try 
+  try
+    unique_to_prove := false;
     let (l,p) = parse_with_lib f in
     env := init_env();
     let rename_state = Terms.get_var_num_state() in
