@@ -1,32 +1,37 @@
-(* Sessions Alice-Bob, Key Compromise Impersonation:
-long-term secret key of Bob is compromised.
-Proves message authenticity, including absence of replays
-for 4DH or with a replay cache.
+(* Sessions Alice-Bob.
+Proves secrecy, forward secrecy, and message authenticity, including
+absence of replays for 4DH, or with a replay cache.
 *)
 
 set useKnownEqualitiesWithFunctionsInMatching = true.
-set autoMergeBranches = false.
 
 proof {
+
+crypto uf_cma(sign) signBseed;
+
 out_game "g1.cv" occ;
-(* Case distinction inserted after "in(ch9" in RecvAKE_Alice *)
-insert after "in(ch9" "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
+(* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
+insert before "new ephSecBA1: Z" "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubB) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
+
 insert after "in(ch5" "if pow8(x_pubA_2) = pow8(pubA) then";
+
 insert after "in(ch1_1" "let (subGtoG(x1'), subGtoG(x2'), subGtoG(x3'), subGtoG(x4'), subGtoG(x5')) = (x1,x2,x3,x4,x5) in"; 
 crypto rom(H5);
 out_game "g2.cv" occ;
-(* Case distinction inserted after "in(ch11" in RecvAKE_Alice_3DH *)
-insert after "in(ch11" "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
+(* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
+insert before "new ephSecBA2: Z" "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubB) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
+
 insert after "in(ch7" "if pow8(x_pubA_3) = pow8(pubA) then";
+
 insert after "in(ch1_2" "let (subGtoG(x1_1'), subGtoG(x2_1'), subGtoG(x3_1'), subGtoG(x4_1')) = (x1_1,x2_1,x3_1,x4_1) in"; 
 crypto rom(H4);
 out_game "g3.cv";
-crypto gdh(gexp_div_8) [variables: secA0 -> a, secB0 -> b, sephSecAB1 -> b, ephSecAB1 -> b, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a  .];
+crypto gdh(gexp_div_8) [variables: secA0 -> a, secB0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a  .];
 crypto int_ctxt(enc) *;
-success;
-out_game "g4.cv"
+crypto ind_cpa(enc) *;
+success
 }
 
 
@@ -54,7 +59,7 @@ https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb
 expand DH_X25519(G, Z, g, gexp, mult, subG, g_8, gexp_div_8, gexp_div_8', pow8, subGtoG, zero, sub_zero).
 proba pGDH.
 proba pDistRerandom.
-expand GDH_RSR(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, pGDH, pDistRerandom).
+expand GDH_single(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, pGDH).
 
 (* Generate enc key - 4DH *)
 
@@ -99,7 +104,7 @@ fun concat5(G,pkey,G,pkey,G):t_data [data].
 
 
 param Nsend, Nrecv, Nsend2, Nrecv2, Nrecv3, Nrecv4, Nrecv5, Nrecv6, Nsignedprekey, Nsignedprekey2.
-channel start, ch0, recprin, outprin, chprin, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13, ch14, ch15, ch16, ch17, ch18, ch19, ch20, ch21, ch22, ch23, ch24, ch25, ch26, ch27, ch28, ch29, cCorrupt.
+channel start, ch0, recprin, outprin, chprin, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13, ch14, ch15, ch16, ch17, ch18, ch19, ch20, ch21, ch22, ch23, ch24, ch25, ch26, ch27, ch28, ch29, ch30, cCorrupt.
 
 (* Replay cache *)
 
@@ -121,26 +126,24 @@ event Recv3(G, pkey, G, pkey, G, G, G, bitstring).
    - sent message
 *)
 
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,ob:G,a1:G,ob2:G,a12:G,a2:G,m:bitstring;
-      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb2,ob2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12).
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,a1:G,a12:G,a2:G,m:bitstring;
-      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(a1) = pow8(a12).
+
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,ob:G,a1:G,ob2:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv(a0,as,b0,bs,sb,ob,a1,a2,m)) ==> inj-event(Send(a0,as,b0,bs,sb,ob2,a12,a2,m)) && pow8(ob) = pow8(ob2) && pow8(a1) = pow8(a12)
+      public_vars secb.
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
+      event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> event(Send3(a0,as,b0,bs,sb,a12,a2,m)) && pow8(a1) = pow8(a12)
+      public_vars secb.
 
 (* Without the anti-replay countermeasure, CryptoVerif should not
    prove the following query, because there is a replay attack.
    With the countermeasure, the replay attack disappears,
    so CryptoVerif should prove this query *)
-query a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,a1:G,a12:G,a2:G,m:bitstring;
-      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb2,a12,a2,m)) && pow8(sb) = pow8(sb2) && pow8(a1) = pow8(a12).
+query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
+      inj-event(Recv3(a0,as,b0,bs,sb,a1,a2,m)) ==> inj-event(Send3(a0,as,b0,bs,sb,a12,a2,m)) && pow8(a1) = pow8(a12) 
+      public_vars secb.
 
-(* In this file, we cannot prove that sb = sb2. This is because Bob's
-   signature key is compromised. The adversary can then forge a signature
-   of the signed ephemeral sb. The Diffie-Hellman key exchange just
-   guarantees that pow8(sb) = pow8(sb2). *)
 
-(* Since Bob's long-term keys are compromised, there is no
-   hope of proving secrecy of a message sent by Alice to Bob:
-   the adversary can impersonate Bob and receive the message *)
+query secret secb.
 
 (* Bob generating prekeys and running the protocol, with Alice
    or with any other participant *)
@@ -177,7 +180,7 @@ let SendAKE_Bob(hk2: hashkey2, hk3: hashkey3, pubA: G, secB: Z, pubB: G, secBsig
    ! Nsignedprekey2
    (* Version without the optional one-time prekey *)
    in(ch7, (x_pubA: G,x_pubAsign: pkey, ephPubBA: G, ephPubBA2: G, msgenc: bitstring));
-ifdef(`REPLAY_PROT',`
+
    (* Protection against replays 
      	It is important to use the ephemeral ephPubBA2 in the replay cache,
 	and not ephPubBA. 
@@ -189,7 +192,7 @@ ifdef(`REPLAY_PROT',`
 	is rejected. *)
    get replaycache(=x_pubA, =ephPubBA2) in yield else
    insert replaycache(x_pubA, ephPubBA2);
-')
+
 
    let g1n3 = gexp(x_pubA,sephSecAB1) in
    let g2n3 = gexp(ephPubBA, secB) in
@@ -206,47 +209,85 @@ ifdef(`REPLAY_PROT',`
 (* Alice using prekeys and sending a message to a participant (Bob or other).
    The received arguments x_pubB:G, x_pubBsign:pkey choose Alice's interlocutor. *)
 
-let RecvAKE_Alice(hk2: hashkey2, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey) =
-   (* Key exchange + send message msg *)
-   in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,msg:bitstring));
-   new ephSecBA1: Z;
-   let ephPubBA = gexp(g, ephSecBA1) in
-   let g1n5 = gexp(sephPubAB, secA) in
-   let g2n5 = gexp(x_pubB, ephSecBA1) in
-   let g3n5 = gexp(sephPubAB, ephSecBA1) in
-   let g4n5 = gexp(ephPubAB, ephSecBA1) in
-   new ephSecBA1': Z;
-   let ephPubBA' = gexp(g, ephSecBA1') in
-   let sharedn5 = gexp(sephPubAB, ephSecBA1') in
-   let kENC = H5(hk2, g1n5, g2n5, g3n5, g4n5, sharedn5) in
-      
-   if checksign(sephPubAB, x_pubBsign, signature) then
-   let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
-   event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
-   out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher)).
+let RecvAKE_Alice(hk2: hashkey2, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
+   (* Key exchange + send message m1 or m2 *)
+   in(ch9,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G,(m1: bitstring, m2:bitstring)));
 
-let RecvAKE_Alice_3DH(hk3: hashkey3, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey) =
-   (* Key exchange + send message msg *)
-   in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,msg: bitstring));
-   new ephSecBA2: Z;
-   let ephPubBA = gexp(g, ephSecBA2) in
-   let g1n6 = gexp(sephPubAB, secA) in
-   let g2n6 = gexp(x_pubB, ephSecBA2) in
-   let g3n6 = gexp(sephPubAB, ephSecBA2) in
-   new ephSecBA2': Z;
-   let ephPubBA' = gexp(g, ephSecBA2') in
-   let sharedn6 = gexp(sephPubAB, ephSecBA2') in
-   let kENC = H4(hk3, g1n6, g2n6, g3n6, sharedn6) in
+          new ephSecBA1: Z;
+      	  let ephPubBA = gexp(g, ephSecBA1) in
+      	  let g1n5 = gexp(sephPubAB, secA) in
+      	  let g2n5 = gexp(x_pubB, ephSecBA1) in
+      	  let g3n5 = gexp(sephPubAB, ephSecBA1) in
+      	  let g4n5 = gexp(ephPubAB, ephSecBA1) in
+	  new ephSecBA1': Z;
+      	  let ephPubBA' = gexp(g, ephSecBA1') in
+      	  let sharedn5 = gexp(sephPubAB, ephSecBA1') in
+      	  let kENC = H5(hk2, g1n5, g2n5, g3n5, g4n5, sharedn5) in
       
-   if checksign(sephPubAB, x_pubBsign, signature) then
-   let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
-   event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
-   out(ch12,(pubA, ephPubBA, ephPubBA', cipher)).
+          if x_pubB = pubB && x_pubBsign = pubBsign then
+      	  (
+	      (* Alice talks to Bob *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+              (* Check that m1 and m2 have the same length *)
+              if Zero(m1) = Zero(m2) then
+              (* Send either m1 or m2 depending on the value of b *)
+              let msg = test(secb1, m1, m2) in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+              event Send(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubAB,ephPubBA,ephPubBA',msg);
+              out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
+          )
+          else
+          (
+              (* Alice talks to a dishonest participant (or to Alice herself) *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+	      if m1 = m2 then
+	      let msg = m1 in
+              let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+              out(ch10,(pubA, pubAsign, ephPubBA, ephPubBA', cipher))
+          ).
+
+
+let RecvAKE_Alice_3DH(hk3: hashkey3, secA: Z, pubA: G, pubAsign: pkey, pubB: G, pubBsign: pkey, secb1: bool) =
+   (* Key exchange + send message m1 or m2 *)
+   in(ch11,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,(m1: bitstring, m2:bitstring)));
+
+          new ephSecBA2: Z;
+      	  let ephPubBA = gexp(g, ephSecBA2) in
+      	  let g1n6 = gexp(sephPubAB, secA) in
+      	  let g2n6 = gexp(x_pubB, ephSecBA2) in
+      	  let g3n6 = gexp(sephPubAB, ephSecBA2) in
+	  new ephSecBA2': Z;
+      	  let ephPubBA' = gexp(g, ephSecBA2') in
+      	  let sharedn6 = gexp(sephPubAB, ephSecBA2') in
+      	  let kENC = H4(hk3, g1n6, g2n6, g3n6, sharedn6) in
+      
+          if x_pubB = pubB && x_pubBsign = pubBsign then
+      	  (
+	      (* Alice talks to Bob *)
+      	      if checksign(sephPubAB, x_pubBsign, signature) then
+              (* Check that m1 and m2 have the same length *)
+      	      if Zero(m1) = Zero(m2) then
+      	      (* Send either m1 or m2 depending on the value of b *)
+      	      let msg = test(secb1, m1, m2) in
+	      let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+	      event Send3(pubA,pubAsign,x_pubB,x_pubBsign,sephPubAB,ephPubBA,ephPubBA',msg);
+      	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
+          )
+          else
+          (
+              (* Alice talks to a dishonest participant (or to Alice herself) *)
+              if checksign(sephPubAB, x_pubBsign, signature) then
+	      if m1 = m2 then
+	      let msg = m1 in
+	      let cipher = enc(msg, concat5(pubA, pubAsign, x_pubB, x_pubBsign, ephPubBA'), kENC) in
+      	      out(ch12,(pubA, ephPubBA, ephPubBA', cipher))
+          ).
 
 (* Alice generating prekeys and running the protocol, with any participant.
    I am not proving security properties for these sessions. *)
 
 let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, secA: Z, secAsign: skey) =
+
    (* Signed prekey *)
    in(ch17, ());
    new sephSecAB: Z;
@@ -285,14 +326,60 @@ let SendAKE_Alice(hk2: hashkey2, hk3: hashkey3, secA: Z, secAsign: skey) =
      (* The adversary can continue the protocol *)
    )).
 
+
 (* Bob using prekeys and sending a message to any participant.
-   I am not proving security properties for these sessions.
-   The adversary can play that since secB is compromised,
-   so I remove this code. *)
+   I am not proving security properties for these sessions. *)
+
+let RecvAKE_Bob(hk2: hashkey2, secB: Z) =
+   (* Key exchange *)
+   in(ch27,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign,ephPubAB:G));
+
+   (* The adversary can verify the signature 
+      if checksign(sephPubAB, x_pubBsign, signature) then
+    *)
+      new ephSecBA: Z;
+      let ephPubBA = gexp(g, ephSecBA) in
+      let g1n11 = gexp(sephPubAB, secB) in
+      let g2n11 = gexp(x_pubB, ephSecBA) in
+      let g3n11 = gexp(sephPubAB, ephSecBA) in
+      let g4n11 = gexp(ephPubAB, ephSecBA) in
+      new ephSecBA': Z;
+      let ephPubBA' = gexp(g, ephSecBA') in
+      let sharedn11 = gexp(sephPubAB, ephSecBA') in
+      let kENC = H5(hk2, g1n11, g2n11, g3n11, g4n11, sharedn11) in
+      out(ch28,(ephSecBA, ephSecBA', kENC)).
+   (* The adversary can perform the message exchange *)
+
+let RecvAKE_Bob_3DH(hk3: hashkey3, secB: Z) =
+   (* Key exchange *)
+   in(ch29,(x_pubB:G, x_pubBsign:pkey, sephPubAB:G,signature:t_sign));
+
+   (* The adversary can verify the signature 
+      if checksign(sephPubAB, x_pubBsign, signature) then
+    *)
+      new ephSecBA: Z;
+      let ephPubBA = gexp(g, ephSecBA) in
+      let g1n12 = gexp(sephPubAB, secB) in
+      let g2n12 = gexp(x_pubB, ephSecBA) in
+      let g3n12 = gexp(sephPubAB, ephSecBA) in
+      new ephSecBA': Z;
+      let ephPubBA' = gexp(g, ephSecBA') in
+      let sharedn12 = gexp(sephPubAB, ephSecBA') in
+      let kENC = H4(hk3, g1n12, g2n12, g3n12, sharedn12) in
+      out(ch30,(ephSecBA, ephSecBA', kENC)).
+   (* The adversary can perform the message exchange *)
+
+(* Corruption for forward secrecy *)
+
+let corrupt(secB: Z, secBsign: skey) =
+  in(cCorrupt, ()); 
+  let Bcorrupted:bool = true in
+  out(cCorrupt, (secB, secBsign)).
 
  
 process
     in(start, ());
+    new secb: bool;
     new hk2: hashkey2;
     new hk3: hashkey3;
     new secA0:Z;
@@ -305,23 +392,23 @@ process
     new signBseed: keyseed;
     let secBsign = skgen(signBseed) in
     let pubBsign = pkgen(signBseed) in
-    out(outprin,(pubA, pubAsign, pubB, pubBsign, secB0, secBsign));
+    out(outprin,(pubA, pubAsign, pubB, pubBsign ));
     (
       (!Nsend SendAKE_Bob(hk2, hk3, pubA, secB0, pubB, secBsign, pubBsign))
-    | (!Nrecv RecvAKE_Alice(hk2, secA0, pubA, pubAsign, pubB, pubBsign))
-    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, secA0, pubA, pubAsign, pubB, pubBsign))
-    | (!Nsend2 SendAKE_Alice(hk2, hk3, secA0, secAsign)) 
+    | (!Nrecv RecvAKE_Alice(hk2, secA0, pubA, pubAsign, pubB, pubBsign, secb))
+    | (!Nrecv3 RecvAKE_Alice_3DH(hk3, secA0, pubA, pubAsign, pubB, pubBsign, secb))
+    | (!Nsend2 SendAKE_Alice(hk2, hk3, secA0, secAsign))
+    | (!Nrecv5 RecvAKE_Bob(hk2, secB0))
+    | (!Nrecv6 RecvAKE_Bob_3DH(hk3, secB0)) 
+
     | hashoracle2(hk2) | hashoracle3(hk3))
 
 
-ifdef(`REPLAY_PROT',`
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-KCI.m4.cv TAG: 1
+
+
+(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 1
 All queries proved.
-29.524s (user 29.496s + system 0.028s), max rss 73508K
+64.836s (user 64.784s + system 0.052s), max rss 121584K
 END *)
-',`
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-KCI.m4.cv TAG: 2
-RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(sb) = pow8(sb2)) && (pow8(a1) = pow8(a12)))).
-29.128s (user 29.108s + system 0.020s), max rss 73480K
-END *)
-')
+
+

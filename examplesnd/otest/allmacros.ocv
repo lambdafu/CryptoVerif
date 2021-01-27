@@ -202,12 +202,17 @@ expand DH_dist_random_group_element_vs_exponent(G, tZ, g, exp, exp', mult, PDist
 proba pCDH.
 proba pDistRerandom.
 expand CDH(G, tZ, g, exp, exp', mult, pCDH).
+expand CDH_single(G, tZ, g, exp, exp', mult, pCDH).
 expand CDH_RSR(G, tZ, g, exp, exp', mult, pCDH, pDistRerandom).
+expand CDH_RSR_single(G, tZ, g, exp, exp', mult, pCDH, pDistRerandom).
 proba pDDH.
 expand DDH(G, tZ, g, exp, exp', mult, pDDH).
+expand DDH_single(G, tZ, g, exp, exp', mult, pDDH).
 proba pGDH.
 expand GDH(G, tZ, g, exp, exp', mult, pGDH).
+expand GDH_single(G, tZ, g, exp, exp', mult, pGDH).
 expand GDH_RSR(G, tZ, g, exp, exp', mult, pGDH, pDistRerandom).
+expand GDH_RSR_single(G, tZ, g, exp, exp', mult, pGDH, pDistRerandom).
 
 proba pSQCDH.
 expand square_CDH(G, tZ, g, exp, exp', mult, pCDH, pSQCDH).
@@ -223,7 +228,9 @@ proba pSQPRF_ODH.
 type prf_in.
 type prf_out [bounded].
 expand PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8, pPRF_ODH).
+expand PRF_ODH1_single(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8s, pPRF_ODH).
 expand PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9, pPRF_ODH).
+expand PRF_ODH2_single(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9s, pPRF_ODH).
 expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf10, pPRF_ODH, pSQPRF_ODH).
 expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf11, pPRF_ODH, pSQPRF_ODH).
 

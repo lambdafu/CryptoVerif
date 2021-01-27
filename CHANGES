@@ -11,6 +11,8 @@ useless assignments.
 - Allow get[unique] (which is transformed into find[unique]).
 - CryptoVerif proves that the get[unique] and find[unique] in the initial
 game are really unique.
+- Added definitions of Diffie-Hellman properties with a single
+family of exponents, in the standard library of cryptographic primitives.
 - Allow multiple command-line options "-lib <file>".
 - Minor improvement of some error messages.
 - Avoid creating duplicate defined conditions in transformation

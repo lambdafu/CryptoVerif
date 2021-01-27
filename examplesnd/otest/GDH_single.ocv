@@ -1,0 +1,110 @@
+(* Undeniable signature scheme of 
+   http://www.di.ens.fr/~pointche/Documents/Papers/2001_pkc.pdf
+   Section 4.2 *)
+
+proof {
+  crypto rom(H);
+  crypto group_to_exp_strict(exp) *;
+  SArename s;
+  show_game occ;
+  replace 60 "exp(y, x_4)";
+  replace 45 "exp(y, x_3[u_4])";
+  replace 24 "exp(y, x_4[u_5])";
+  crypto gdh(exp);
+  success
+}
+
+param NS, NC.
+
+type Z [large,bounded].
+type G [large,bounded].
+
+
+(* Gap Diffie-Hellman problem *)
+
+expand DH_good_group(G, Z, g, exp, exp', mult).
+
+proba pGDH.
+expand GDH_single(G, Z, g, exp, exp', mult, pGDH).
+
+(* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
+
+type hashkey [large,fixed].
+
+def ROM_hash_large_exp(key, hashinput, hash, hashoracle, qH) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):G.
+
+equiv(rom(hash)) special rom("key_first", hash, (k, r, x, y, z, u), ("Oeq: forall R:G, e:Z; new X:G; exp(X,e) = R")).
+(*
+
+Eliminated collisions between exp(X, e) and R Probability: 1 / |G|
+(exp(X, e) collides with a value independent of X with probability at most 1 / |G|;
+ R does not depend on X)
+
+Generates:
+
+equiv
+k <-R hashkey; 
+(!N_O O(x_O: bitstring) := return(H(k, x_O)) | 
+ !N_Oeq Oeq(x_Oeq: bitstring, R_Oeq: G, e_Oeq: Z) := return((exp(H(k, x_Oeq), e_Oeq) = R_Oeq)))
+<=(N_Oeq / |G|)=>
+ !N_O O(x_O: bitstring) := 
+     find[unique] u_O <= N_O suchthat defined(x_O[u_O], r[u_O]) && x_O = x_O[u_O] then return(r[u_O]) else
+     r <-R G; return(r) | 
+ !N_Oeq Oeq(x_Oeq: bitstring, R_Oeq: G, e_Oeq: Z) := 
+     find[unique] u_O <= N_O suchthat defined(x_O[u_O], r[u_O]) && x_Oeq = x_O[u_O] then return((exp(r[u_O], e_Oeq) = R_Oeq)) else
+     return(false).
+
+*)
+
+param qH [noninteractive].
+
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	OH(x:hashinput) :=
+	return(hash(k,x)).
+
+}
+
+expand ROM_hash_large_exp(hashkey, bitstring, H, hashoracle, NH).
+
+(* Query *)
+
+event forgery.
+
+query event(forgery) ==> false.
+
+let Psign(hk: hashkey, x: Z) =
+        OS(m:bitstring) :=
+	h <- H(hk, m);
+	s: G <- exp(h, x);
+	return(s).
+
+let Pconfirm(hk: hashkey, x: Z) =
+        OC(m': bitstring, s': G) :=
+	if (exp(H(hk, m'), x) = s') then
+	       (find j <= NS suchthat defined(m[j],s[j]) && m' = m[j] && s' = s[j] then 
+	          return(true)
+		else 
+		  event forgery;
+		  return(true)
+               )
+	else 
+		return(false).
+		(* The zero-knowledge proof is omitted *)
+
+process
+	Ostart() :=
+	hk <-R hashkey;
+        x <-R Z;
+       	let y = exp(g, x) in
+	return(y);
+	(foreach iS <= NS do run Psign(hk, x) | foreach iC <= NS do run Pconfirm(hk, x) | run hashoracle(hk))
+
+(* EXPECTED
+All queries proved.
+0.124s (user 0.124s + system 0.000s), max rss 18032K
+END *)

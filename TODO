@@ -27,16 +27,7 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-write a GDH assumption that uses a single set of exponents
-a_i, but leaves m = g^{a_i a_i} unchanged.
-For the proof with rerandomization, we need to guess whether
-we rerandomize to X or Y; that leads to a factor 2 in the probability.
-Same for CDH, but execute event bad or corrupt a_i when one
-computes m = g^{a_i a_i}.
-Same for DDH, but execute event bad or corrupt a_i when one
-computes g^{a_i a_i}.
-
-prove some macros in additional.cvl, and test them, then integrate in commonlib.cvl and document in the manual.
+TextSecure with single family of exponents (square DH) and a single file
 
 case of [computational] query_equiv in cryptoverif.tex
 
@@ -5693,3 +5684,14 @@ the LHS, but the LHS is not indistinguishable from the RHS.)
 => When there are [unique] in the input games, try to prove them. It is an error if I do
 not manage, or a warning in case a particular setting "allowUnprovedUnique" is set.
 DONE 25/1/2021
+
+write a GDH assumption that uses a single set of exponents
+a_i, but leaves m = g^{a_i a_i} unchanged.
+For the proof with rerandomization, we need to guess whether
+we rerandomize to X or Y; that leads to a factor 2 in the probability.
+Same for CDH, but execute event bad or corrupt a_i when one
+computes m = g^{a_i a_i}.
+Same for DDH, but execute event bad or corrupt a_i when one
+computes g^{a_i a_i}.
+=> macros DH_single
+DONE 26/1/2021

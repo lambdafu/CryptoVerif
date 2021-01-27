@@ -1963,6 +1963,15 @@ Section~\ref{sec:interact}).
      only after expanding the macro.  All other arguments of these
      macros must be defined before expanding the macro.
      
+     \item $\texttt{expand\ CDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$\\
+       $\texttt{expand\ CDH\_RSR\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
+       $\texttt{expand\ DDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$\\
+       $\texttt{expand\ GDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$\\
+       $\texttt{expand\ GDH\_RSR\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
+       $\texttt{expand\ PRF\_ODH1\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$\\
+       $\texttt{expand\ PRF\_ODH2\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$\\
+       are similar to macros with the same name without \texttt{\_single}, except that they use a single family of exponents, $a_i$, instead of two, $a_i$ and $b_j$. Obviously, they make no security claims on Diffie-Hellman between $a_i$ and itself (because that is the square Diffie-Hellman property), but they guarantee security for Diffie-Hellman between $a_i$ and $a_j$ for any $i \neq j$. That is more powerful than the properties without \texttt{\_single}, because it allows proving protocols that rely on Diffie-Hellman computations between exponents in a single family, but may lead to larger probability bounds.
+       
    \end{itemize}
 
 \iffalse
