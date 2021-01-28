@@ -1,0 +1,31 @@
+#!/bin/sh
+set -e
+
+file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+
+for prot in NO_REPLAY_PROT REPLAY_PROT
+do
+
+    for sessions in AB-BA AA
+    do
+	for prop in STD FS
+	do
+	    sourcefile=TextSecure-$sessions.m4.cv
+	    file_exists_or_abort $sourcefile
+	    m4 -D$prop -D$prot $sourcefile > TextSecure-$sessions.$prop.$prot.cv
+	done
+    done
+
+    sourcefile=TextSecure-KCI.m4.cv
+    file_exists_or_abort $sourcefile
+    m4 -D$prot $sourcefile > TextSecure-KCI.$prot.cv
+done

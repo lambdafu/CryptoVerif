@@ -101,7 +101,7 @@ converted()
 
 big()
 {
-    analyzedirlist textsecure examples/textsecure examplesnd/textsecure examplesnd/textsecure-keys-not-normalized examplesnd/textsecure-X448 examplesnd/textsecure-single_coord_ladder
+    analyzedirlist textsecure examples/textsecure examplesnd/textsecure-2 examplesnd/textsecure examplesnd/textsecure-keys-not-normalized examplesnd/textsecure-X448 examplesnd/textsecure-single_coord_ladder
 
     # The TLS conference version is tested only as a converted example.
     analyzedirlist tlsx examples/tls13

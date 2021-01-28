@@ -12,21 +12,10 @@ file_exists_or_abort()
 }
 
 
+sourcefile=TextSecure.m4.cv
+file_exists_or_abort $sourcefile
+
 for prot in NO_REPLAY_PROT REPLAY_PROT
 do
-
-    for sessions in AB-BA AA
-    do
-	for prop in STD FS
-	do
-	    sourcefile=TextSecure-$sessions.m4.cv
-	    file_exists_or_abort $sourcefile
-	    m4 -D$prop -D$prot $sourcefile > TextSecure-$sessions.$prop.$prot.cv
-	done
-    done
-
-    sourcefile=TextSecure-KCI.m4.cv
-    file_exists_or_abort $sourcefile
-    m4 -D$prot $sourcefile > TextSecure-KCI.$prot.cv
-
+    m4 -D$prot $sourcefile > TextSecure.$prot.cv
 done

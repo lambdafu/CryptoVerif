@@ -12,5 +12,5 @@ function file_exists_or_abort()
 }
 
 
-file_exists_or_abort ../../examples/textsecure/prepare
-. ../../examples/textsecure/prepare
+file_exists_or_abort ../textsecure-2/prepare
+. ../textsecure-2/prepare

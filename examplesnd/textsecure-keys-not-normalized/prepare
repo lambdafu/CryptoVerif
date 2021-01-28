@@ -16,5 +16,5 @@ file_exists_or_abort ../../default.cvl
 file_exists_or_abort DH_EC_prime_subgroup.cvl
 cat ../../default.cvl DH_EC_prime_subgroup.cvl > mylib.cvl
 
-file_exists_or_abort ../../examples/textsecure/prepare
-. ../../examples/textsecure/prepare
+file_exists_or_abort ../textsecure-2/prepare
+. ../textsecure-2/prepare

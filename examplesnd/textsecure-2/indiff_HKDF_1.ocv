@@ -1,0 +1,152 @@
+(* This file shows the indifferentiability between
+   (x,y) -> H2(H1(x),y) and H3, where H1, H2, H3 are independent random oracles.
+
+   That is, it shows indistinguishability between
+   (H1, H2,  (x,y) -> H2(H1(x),y)) and
+   (H1', H2', H3)
+   where H1' and H2' simulate H1 and H2 respectively, using calls to H3.
+
+Expected result as stated in the Wireguard paper:
+RESULT Proved indistinguishability between game 28 and game 1 up to probability (2. * qH2 * qH1 + qH1 * qH1 + qH3 * qH3 + qH2 * qH3) / |output1|
+The probability has now been improved a bit: the factor 2. above no longer appears.
+ *)
+
+type hashkey1 [large, fixed].
+type input1.
+type output1 [large, fixed].
+
+type hashkey2 [large, fixed].
+type input2.
+type output2 [large, fixed].
+
+expand ROM_hash_large(hashkey1, input1, output1, H1, hashoracle1, qH1).
+expand ROM_hash_large_2(hashkey2, output1, input2, output2, H2, hashoracle2, qH2).
+
+type hashkey3 [large, fixed].
+expand ROM_hash_large_2(hashkey3, input1, input2, output2, H3, hashoracle3, qH3).
+
+proof {
+      start_from_other_end;
+      crypto rom(H3);
+      show_game;
+      start_from_other_end;
+      crypto rom(H2);
+      show_game;
+      (* remove assignements x_O_7 = H1(..), to make tests H1(..) = ..
+         appear explicit. These tests are nicely simplified by rom(H1). *)
+      remove_assign binder x_O_7;
+      crypto rom(H1);
+      show_game occ;
+      (* At the beginning of OH2, insert this "find", to distinguish
+       	 whether the first argument of H2 is a result of a previous call to H1 or not *)
+      insert 32 "find k <= qH1 suchthat defined(x[k], r_5[k]) && (r_5[k] = x2) then";
+      simplify;
+      show_game;
+      (* SArename r_3, the random result of H2, to use a different
+      	 name in the two branches of the find above. *)
+      SArename r_3;
+      show_game occ;
+      (* Rewrite the "find" in OH1 to remove [unique], to match the other game *) 
+      insert 9 "find u10 = ri10 <= qH1 suchthat defined(r_5[ri10], x[ri10]) && (x = x[ri10]) then";
+      simplify;
+      remove_assign useless;
+      show_game occ;
+      (* Rewrite the last "find" in OH2 to remove [unique], to match the other game *) 
+      insert 88 "find u7 = ri7 <= qH2 suchthat defined(r_9[ri7], y2[ri7], x2[ri7]) && (x2 = x2[ri7]) && (y2 = y2[ri7]) then";
+      simplify;
+      remove_assign useless;
+      start_from_other_end;
+      show_game occ;
+      (* In the "then" branch of the first "find" of OH2,
+         rewrite "find" to replace x_1[k_1] = x_1[k_1[ri_3]] with k_1 = k_1[ri_3].
+	 (We can insert "find[unique]": CryptoVerif proves uniqueness.) *)
+      insert 40 "find[unique] ri3 <= qH2 suchthat defined(r_1[ri3], y2_1[ri3], x_1[k_1[ri3]]) && (k_1 = k_1[ri3]) && (y2_1 = y2_1[ri3]) then orfind ri2 <= qH3 suchthat defined(r_2[ri2], y3_1[ri2], x3_1[ri2]) && (x_1[k_1] = x3_1[ri2]) && (y2_1 = y3_1[ri2]) then ";
+      simplify;
+      remove_assign useless;
+      show_game;
+      success
+ } 
+
+equivalence
+    Ostart() :=
+    hk1 <-R hashkey1;
+    hk2 <-R hashkey2;
+    return();
+    ((foreach i <= qH1 do OH1(x: input1) := return(H1(hk1, x))) |
+     (foreach i <= qH2 do OH2(x2: output1, y2: input2) := return(H2(hk2, x2,y2))) |
+     (foreach i <= qH3 do
+      HComb(x3: input1, y3: input2) := return(H2(hk2, H1(hk1, x3), y3))))
+
+    Ostart() :=
+    hk3 <-R hashkey3;
+    return();
+    ((foreach i <= qH1 do OH1(x: input1) :=
+    	     find j <= qH1 suchthat defined(x[j],r[j]) && x = x[j] then
+	         return(r[j])
+             else
+	         r <-R output1;
+		 return(r)) |
+     (foreach i <= qH2 do OH2(x2: output1, y2: input2) :=
+     	     find k <= qH1 suchthat defined(x[k],r[k]) && r[k] = x2 then
+	         return(H3(hk3, x[k], y2))
+	     else
+		 find l <= qH2 suchthat defined(x2[l],y2[l],r2[l]) && x2 = x2[l] && y2 = y2[l] then
+		     return(r2[l])
+		 else
+		     r2 <-R output2;
+		     return(r2)) |
+     (foreach i <= qH3 do
+      HComb(x3: input1, y3: input2) := return(H3(hk3, x3, y3))))
+
+
+(*
+
+Target game after rom(H3):
+
+      Ostart() :=
+      return();
+      ((
+        foreach i_3 <= qH1 do
+        OH1(x_1: input1) :=
+        find j_1 = j <= qH1 suchthat defined(x_1[j], r[j]) && (x_1 = x_1[j]) then
+          return(r[j_1])
+        else
+          r <-R output1;
+          return(r)
+      ) | (
+        foreach i_4 <= qH2 do
+        OH2(x2_1: output1, y2_1: input2) :=
+        find k_1 = k <= qH1 suchthat defined(x_1[k], r[k]) && (r[k] = x2_1) then
+          find [unique] u_3 = ri_3 <= qH2 suchthat defined(r_1[ri_3], y2_1[ri_3], x_1[k_1[ri_3]]) && (x_1[k_1] = x_1[k_1[ri_3]]) && (y2_1 = y2_1[ri_3]) then
+            return(r_1[u_3])
+          orfind u_2 = ri_2 <= qH3 suchthat defined(r_2[ri_2], y3_1[ri_2], x3_1[ri_2]) && (x_1[k_1] = x3_1[ri_2]) && (y2_1 = y3_1[ri_2]) then
+            return(r_2[u_2])
+          else
+            r_1 <-R output2;
+            return(r_1)
+        else
+          find l_1 = l <= qH2 suchthat defined(x2_1[l], y2_1[l], r2[l]) && (x2_1 = x2_1[l]) && (y2_1 = y2_1[l]) then
+            return(r2[l_1])
+          else
+            r2 <-R output2;
+            return(r2)
+      ) | (
+        foreach i_5 <= qH3 do
+        HComb(x3_1: input1, y3_1: input2) :=
+        find [unique] u_1 = ri_1 <= qH2 suchthat defined(r_1[ri_1], y2_1[ri_1], x_1[k_1[ri_1]]) && (x3_1 = x_1[k_1[ri_1]]) && (y3_1 = y2_1[ri_1]) then
+          return(r_1[u_1])
+        orfind u = ri <= qH3 suchthat defined(r_2[ri], y3_1[ri], x3_1[ri]) && (x3_1 = x3_1[ri]) && (y3_1 = y3_1[ri]) then
+          return(r_2[u])
+        else
+          r_2 <-R output2;
+          return(r_2)
+      ))
+
+
+
+EXPECTED
+All queries proved.
+0.112s (user 0.100s + system 0.012s), max rss 18168K
+END
+
+*)

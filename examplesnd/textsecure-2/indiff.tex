@@ -1,0 +1,547 @@
+\documentclass[compsoc, conference, letterpaper, 10pt, times]{IEEEtran} 
+\usepackage{
+	color, url, amssymb, amsmath, amsthm, amsfonts, enumitem,
+}
+
+\newif\ifapproxproba
+
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Zp}{\mathbb{Z}_p}
+\newcommand{\M}{\mathbb{M}}
+\newcommand{\SIGN}{\mathsf{SIGN}}
+\newcommand{\HMAC}{\mathsf{HMAC}}
+\newcommand{\HKDF}{\mathsf{HKDF}}
+\newcommand{\ENC}{\mathsf{ENC}}
+\newcommand{\DEC}{\mathsf{DEC}}
+\newcommand{\sk}[1]{\mathit{sk}_{#1}}
+\newcommand{\vk}[1]{\mathit{vk}_{#1}}
+\newcommand{\shared}{\mathit{shared}}
+\newcommand{\const}{\mathit{const}}
+\newcommand{\e}{\mathit{enc}}
+\newcommand{\m}{\mathit{mac}}
+\newcommand{\rk}{\mathit{rk}}
+\newcommand{\ck}{\mathit{ck}}
+\newcommand{\tg}{\mathit{tag}}
+  
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\makeatletter
+\newcommand{\pname}[1]{\item[#1.]\def\@currentlabel{#1}}
+\makeatother
+
+
+\newcommand{\hkdftwo}{\HKDF_2}
+\newcommand{\salt}{\mathit{salt}}
+\newcommand{\key}{\mathit{key}}
+\newcommand{\info}{\mathit{info}}
+\newcommand{\prk}{\mathit{prk}}
+\newcommand{\hmac}{\mathsf{HMAC}}
+\newcommand{\Ssalt}{\mathcal{S}}
+\newcommand{\Skey}{\mathcal{K}}
+\newcommand{\Sinfo}{\mathcal{I}}
+\newcommand{\Smac}{\mathcal{M}}
+\newcommand{\truncate}{\mathsf{truncate}}
+
+\newcommand{\ab}{\allowbreak}
+
+\begin{document}
+\title{Indifferentiability results for TextSecure}
+\author{
+{\rm Bruno Blanchet}\\
+INRIA Paris
+}
+
+\maketitle
+\thispagestyle{plain}
+\pagestyle{plain}
+
+\section{Definition}
+
+Indifferentiabillity can be defined as follows (extension of~\cite{Coron05}
+to several independent oracles).
+
+\begin{definition}[Indifferentiability]
+Functions $(F_i)_{1 \leq i \leq n}$ with oracle access to independent random oracles $(H_j)_{1 \leq j \leq m}$ are $(t_D, t_S, (q_{H_j})_{1 \leq j \leq m}, (q_{F_i})_{1 \leq i \leq n}, (q_{H'_i})_{1 \leq i \leq n}, \epsilon)$-indifferentiable from independent random oracles $(H'_i)_{1 \leq i \leq n}$ if there exists a simulator $S$ such that for any distinguisher $D$ 
+\[|\Pr[D^{(F_i)_{1 \leq i \leq n},(H_j)_{1 \leq j \leq m}} =1] - \Pr[D^{(H'_i)_{1 \leq i \leq n},S}=1]| \leq \epsilon\]
+The simulator $S$ has oracle access to
+$(H'_i)_{1 \leq i \leq n}$, makes at most $q_{H'_i}$ queries to $H'_i$,
+and runs in time $t_S$. 
+The distinguisher $D$ runs in time $t_D$ and makes at most $q_{H_j}$ queries
+to $H_j$ for $1 \leq j \leq m$ and $q_{F_i}$ queries to $F_i$ for
+$1 \leq i \leq n$.
+\end{definition}
+
+In the game $G_0 = D^{(F_i)_{1 \leq i \leq n},(H_j)_{1 \leq j \leq m}}$,
+the distinguisher interacts with the real functions $F_i$ and
+the random oracles $H_j$ from which the functions $F_i$ are defined.
+In the game $G_1 = D^{(H'_i)_{1 \leq i \leq n},S}$,
+the distinguisher interacts with independent random oracles $H'_i$ instead of $F_i$, and with a simulator $S$, which simulates the behavior of the random oracles $H_j$ using calls to $H'_i$. (We may also present $S$ as $m$ simulators $S_j$ that each simulate a single random oracle $H_j$ using calls to $H'_i$, $1 \leq i \leq n$; these simulators share a common state.) Indifferentiability means that these two games are indistinguishable.
+
+\section{Indifferentiability Lemmas}
+
+\begin{lemma}\label{lem:disjdomain}
+If $H$ is a random oracle, then the functions $H_1, \dots, H_n$ defined 
+as $H$ on disjoint subsets $D_1, \dots, D_n$ of the domain $D$ of $H$ are $(t_D, \ab t_S, \ab q_H, \ab (q_{H_i})_{1 \leq i \leq n}, \ab (q'_{H_i})_{1 \leq i \leq n}, 0)$-indifferentiable
+from independent random oracles, where $t_S = {\cal O}(q_H)$ assuming one can determine in constant time to which subset $D_i$ an element belongs, and $q'_{H_i}$ is the number of requests to $H$ in domain $D_i$ made by the distinguisher. Hence $q'_{H_1} + \dots + q'_{H_n} \leq q_H$, so in the worst case $q'_{H_i}$ is bounded by $q_H$. 
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H$ is a random oracle, and $H_i(x) = H(x)$
+for each $x \in D_i$ and $i \leq n$, and 
+\item the game $G_1$ in which $H_1$, \dots $H_n$ 
+are independent random oracles defined on $D_1, \dots, D_n$ respectively, and
+$H(x) = H_i(x)$ if $x \in D_i$ for some $i \leq n$, and $H(x) = H_0(x)$ otherwise,
+where $H_0$ is a random oracle of domain $D \setminus (D_1 \cup \dots \cup D_n)$.
+\end{itemize}
+It is easy to see that these two games are perfectly indistinguishable,
+which proves indifferentiability.
+\end{proof}
+
+\begin{lemma}\label{lem:concatenation}
+If $H_1$ and $H_2$ are independent random oracles with the same domain that return bitstrings of length $l_1$ and $l_2$ respectively, then 
+the concatenation $H'$ of $H_1$ and $H_2$ is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H'}, q_{H_1} + q_{H_2}, 0)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} + q_{H_2})$.
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H_1$ and $H_2$ are independent random oracles,
+  and $H'(x) = H_1(x) \| H_2(x)$, and
+\item the game $G_1$ in which $H'$ is a random oracle that returns bitstrings
+  of length $l_1 + l_2$, $H_1(x)$ is the $l_1$ first bits of $H'(x)$
+  and $H_2(x)$ is the $l_2$ last bits of $H'(x)$.
+\end{itemize}
+It is easy to see that these two games are perfectly indistinguishable,
+which proves indifferentiability.
+\end{proof}
+
+\begin{lemma}\label{lem:splitting}
+If $H$ is a random oracle that returns bitstrings of length $l$, then 
+the function $H'_1$ returning the first $l_1$ bits of $H$
+and the function $H'_2$ returning the last $l-l_1$ bits of $H$
+are $(t_D, t_S, q_H, (q_{H'_1}, q_{H'_2}), (q_H, q_H), 0)$-indifferentiable from independent
+random oracles, where $t_S = {\cal O}(q_H)$.
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H$ is a random oracle,
+  $H'_1(x)$ is the first $l_1$ bits of $H(x)$, and
+  $H'_2(x)$ is the last $l - l_1$ bits of $H(x)$, and
+\item the game $G_1$ in which $H'_1$ and $H'_2$ are independent random oracles that return bitstrings
+  of length $l_1$ and $l - l_1$ respectively,
+  and $H(x) = H'_1(x) \| H'_2(x)$.
+\end{itemize}
+It is easy to see that these two games are perfectly indistinguishable,
+which proves indifferentiability. (It is the same indistinguishability
+result as in Lemma~\ref{lem:concatenation}, swapping $G_0$ and $G_1$.)
+\end{proof}
+
+
+\begin{lemma}\label{lem:truncation}
+If $H$ is a random oracle that returns bitstrings of length $l$, then 
+the truncation $H'$ of $H$ to length $l' < l$ is $(t_D, t_S, q_H, q_{H'}, q_H, 0)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_H)$.
+\end{lemma}
+\begin{proof}
+  This is a consequence of Lemma~\ref{lem:splitting}, by not giving
+  access to oracle $H'_2$ to the distinguisher (so $q_{H'_2} = 0$).
+  $H'_2$ is then included in the simulator. We assume that random
+  oracles answer in constant time.
+%% Consider
+%% \begin{itemize}[leftmargin=*]
+%% \item  the game $G_0$ in which $H$ is a random oracle, and $H'(x)$ is $H(x)$
+%% truncated to length $l'$, and
+%% \item the game $G_1$ in which $H'$ is a random oracle that returns bitstrings
+%% of length $l'$ and $H(x) = H'(x) \| H''(x)$ where $H''$ is a random oracle that
+%% returns bitstrings of length $l-l'$.
+%% \end{itemize}
+%% It is easy to see that these two games are perfectly indistinguishable,
+%% which proves indifferentiability.
+\end{proof}
+
+\begin{lemma}\label{lem:hcomp1}
+If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_2 \rightarrow S'_2$ 
+are independent random oracles, then $H_3$ defined by $H_3(x,y) = H_2(H_1(x),y)$
+is $(t_D, t_S, (q_{H_1}, q_{H_2}), q_{H_3}, q_{H_2}, \epsilon)$-indifferentiable from a random oracle, where $t_S = {\cal O}(q_{H_1} q_{H_2})$ and
+\ifapproxproba
+$\epsilon = {\cal O}((q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|)$ and ${\cal O}$ just hides small constants.
+\else
+$\epsilon = (2q_{H_2}q_{H_1} + q_{H_1}^2 + q_{H_2}q_{H_3} + q_{H_3}^2)/|S'_1|$.
+\fi
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H_1$ and $H_2$ are independent random oracles,
+  and $H_3(x,y) = H_2(H_1(x),y)$, and
+\item the game $G_1$ in which 
+  $H_3$ is a random oracle;
+  two lists $L_1$ and $L_2$ are initially empty;
+  $H_1(x)$ returns $y$ if $(x,y) \in L_1$ for some $y$, 
+  and otherwise chooses a fresh random $r$ in $S'_1$,
+  adds $(x,r)$ to $L$ and returns $r$;
+  $H_2(y,z)$ returns $H_3(x,z)$ if $(x,y) \in L_1$ for some $x$,
+  otherwise returns $u$ if $((y,z),u) \in L_2$ for some $u$,
+  and otherwise chooses a fresh random $r$ in $S'_2$,
+  adds $((y,z),r)$ to $L_2$ and returns $r$.
+\end{itemize}
+CryptoVerif shows that these two games are indistinguishable,
+up to probability $\epsilon$ (file \texttt{indiff\_HKDF\_1.ocv}).
+\end{proof}
+
+\begin{lemma}\label{lem:hcomp2}
+If $H_1 : S_1 \rightarrow S'_1$ and $H_2 : S'_1 \times S_1 \rightarrow S'_2$ 
+are independent random oracles, then $H_1' = H_1$ and $H'_2$ defined by 
+$H'_2(x) = H_2(H_1(x),x)$ are $(t_D, t_S, (q_{H_1}, q_{H_2}), (q_{H'_1}, q_{H'_2}), (q_{H_1} + q_{H_2}, q_{H_2}), \epsilon)$-indifferentiable from independent random oracles, where $t_S = {\cal O}(q_{H_2})$ and
+\ifapproxproba
+$\epsilon = {\cal O}(q_{H_2}(q_{H_1}+q_{H'_1} + q_{H'_2})/|S'_1|)$ and ${\cal O}$ just hides small constants.
+\else
+$\epsilon = q_{H_2}(2q_{H_1}+2q_{H'_1} + q_{H'_2}+1)/|S'_1|$.
+\fi
+\end{lemma}
+\begin{proof}
+Consider
+\begin{itemize}[leftmargin=*]
+\item  the game $G_0$ in which $H_1$ and $H_2$ are independent random oracles,
+  $H'_1(x) = H_1(x)$, and $H'_2(x) = H_2(H_1(x),x)$, and
+\item the game $G_1$ in which 
+  $H'_1$ and $H'_2$ are independent random oracles;
+  $H_1(x) = H'_1(x)$;
+  $H_2(y,z)$ returns $H'_2(z)$ if $y = H'_1(z)$ and $H_3(y,z)$ otherwise,
+  where $H_3$ is a random oracle (independent of $H'_1$ and $H'_2$).
+\end{itemize}
+CryptoVerif shows that these two games are indistinguishable,
+up to probability $\epsilon$ (file \texttt{indiff\_HKDF\_2.ocv};
+the oracles $H_1$ and $H'_1$ are considered as a single oracle,
+which receives $q_{H_1}+q_{H'_1}$ queries in total).
+\end{proof}
+
+\section{Indifferentiability of HKDF}
+
+We suppose that $\hmac$ is a random oracle and we define
+\begin{align*}
+\begin{split}
+&\HKDF_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = \hmac(\salt,\key)\\
+&\quad K_1 = \hmac(\prk, \info \| 0x00)\\
+&\quad K_{i+1} = \hmac(\prk, K_i \| \info \| i) \text{ for }1 \leq i < n
+\end{split}
+\end{align*}
+where $i$ is a byte.
+
+Much like for HMAC in~\cite{Dodis12}, this function is not indifferentiable from a random oracle in general. Intuitively, the problem comes from a confusion between the first and the second (or third) call to $\hmac$, which makes it possible to generate $\prk$ by calling $\hkdftwo$ rather than $\hmac$. In more detail, let
+\begin{align*}
+&\prk \|\_ = \hkdftwo(s,k,\info)\\
+&\salt = \hmac(s,k)\\
+&x = \hmac(\prk,\info'\|0x00)\\
+&x' \|\_ = \hkdftwo(\salt,\info\|0x00,\info')
+\end{align*}
+where the notation $x_1 \|x_2 = \hkdftwo(s,k,\info)$
+denotes that $x_1$ consists of the first 256 bits of $\hkdftwo(s,k,\info)$ 
+and $x_2$ its last 256 bits.
+
+When $\hkdftwo$ is defined from $\hmac$ as above, we have 
+$\prk = \hmac(\prk', \info\|0x00)$ where $\prk' = \hmac(s,k) = \salt$,
+so $\prk = \hmac(\salt,\info\|0x00)$. Hence, $x' = \hmac(\prk,\info'\|0) = x$.
+However, when $\hkdftwo$ is a random oracle and $\hmac$ is defined
+from $\hkdftwo$, the simulator that computes $\hmac$ sees what seems
+to be two unrelated calls to $\hmac$. (It is unable to see that $\prk$
+is in fact related to the previous call $\salt = \hmac(s,k)$: we have 
+$\prk \|\_ = \hkdftwo(s,k,\info)$ but the simulator does not know which value
+of $\info$ it should use.) Therefore, the simulator can only return fresh random
+values for $\salt$ and $x$, and $x \neq x'$ in general.
+
+We can however recover the indifferentiability of $\hkdftwo$ under the 
+additional assumption that the three calls to $\hmac$ use disjoint domains.
+Let $\Ssalt$, $\Skey$, and $\Sinfo$ be the sets of possible values of $\salt$, 
+$\key$, and $\info$ respectively, and $\Smac$ the output of $\hmac$.
+
+\begin{lemma}\label{lem:hkdfindif}
+If $\Skey \cap (\Sinfo \| 0x00 \cup \bigcup_{i = 1}^{n-1}\Smac \| \Sinfo \| i) = \emptyset$
+then $\HKDF_n$ with domain $\Ssalt \times \Skey \times \Sinfo$ is
+$(t_D, \ab t_S, \ab q_{\hmac}, \ab q_{\HKDF_n}, \ab 2q_{\hmac}, \ab \epsilon)$-indifferentiable from a random oracle,
+where $t_S = {\cal O}(q_{\hmac}^2)$ and
+\ifapproxproba
+$\epsilon = {\cal O}((q_{\hmac} + q_{\HKDF_n})^2/|\Smac|)$,
+and ${\cal O}$ just hides small constants.
+\else
+$\epsilon = (2q_{\hmac} + q_{\HKDF_n})^2/|\Smac|$,
+\fi
+\end{lemma}
+\begin{proof}
+Consider the game $G_0$ in which $\hmac$ is a random oracle and $\HKDF_n$
+is defined as above.
+
+By hypothesis, the different calls to $\hmac$ in the definition of 
+$\HKDF_n$ use disjoint domains (the last byte differs among the last
+$n$ calls to $\hmac$), so by Lemma~\ref{lem:disjdomain}, there exists
+a simulator $S_1$ for $\hmac$ such that $G_0$ is
+perfectly indistinguishable from $G_1$ in which
+$\hmac = S_1[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^1_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_1 = H_1(\prk, \info )\\
+&\quad K_{i+1} = H_{i+1}(\prk, K_i \| \info) \text{ for }1 \leq i < n
+\end{split}
+\end{align*}
+where $H_0, \dots, H_n$ are independent random oracles
+and the simulator $S_1$ calls $H_i$ at most $q_{H_i}$ times, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac})$.
+
+Slightly reorganizing the arguments of $H_i$, there exists a simulator $S_2$
+for $\hmac$ such that $G_1$ is
+perfectly indistinguishable from $G_2$ in which
+$\hmac = S_2[H_0, \ldots, H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^2_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_1 = H_1(\prk, \info )\\
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }1 \leq i < n
+\end{split}
+\end{align*}
+where $H_0, \dots, H_n$ are independent random oracles
+and the simulator $S_2$ calls $H_i$ at most $q_{H_i}$ times, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac})$.
+
+By Lemma~\ref{lem:hcomp2}, there exists a simulator $S_{3,2}$ for $H_2$
+($H_1$ is simulated by $H'_1 = H_1$ itself)
+such that $G_2 = G_{3,1}$ is
+indistinguishable up to probability $\epsilon_2$ from $G_{3,2}$ in which
+$\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab H_3, \ab \ldots, \ab H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^{3,2}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_1 = H'_1(\prk, \info )\\
+&\quad K_2 = H'_2(\prk, \info )\\
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }2 \leq i < n
+\end{split}
+\end{align*}
+where $H_0, H'_1, H'_2, H_3, \dots, H_n$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ at most $q_{H_0}$ times,
+$H'_1$ at most $q_{H_1} + q_{H_2}$ times,
+$H'_2$ at most $q_{H_2}$ times,
+$H_i$ at most $q_{H_i}$ times for $i \geq 3$, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac} + q_{H_2})$; and
+\ifapproxproba
+$\epsilon_2 = {\cal O}(q_{H_2}(q_{H_1} + 2 q_{\HKDF_n})/|\Smac|)$.
+\else
+$\epsilon_2 = q_{H_2}(2q_{H_1} + 3 q_{\HKDF_n} + 1)/|\Smac|$.
+%$\epsilon_2 = q_{H_2}(2q_{H_1} + 2 q_{\HKDF_n} + q_{\HKDF_n} + 1)/|\Smac|$.
+\fi
+
+Repeating the same reasoning inductively, there exists a simulator $S_{3,j}$ 
+for $H_j$ such that $G_{3,j-1}$ is
+indistinguishable up to probability $\epsilon_{j}$ from $G_{3,j}$ in which
+$\hmac = S_2[H_0, \ab H'_1, \ab S_{3,2}[H'_1, H'_2], \ab \dots, \ab S_{3,j}[H'_{j-1}, H'_{j}], \ab H_{j+1}, \ab \ldots, \ab H_n]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^{3,j}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_i = H'_i(\prk, \info )\text{ for }1 \leq i \leq j\\
+&\quad K_{i+1} = H_{i+1}(K_i, \prk, \info) \text{ for }j \leq i < n
+\end{split}
+\end{align*}
+where $H_0, H'_1, \dots, H'_{j}, H_{j+1}, \dots, H_n$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ at most $q_{H_0}$ times,
+$H'_i$ at most $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < j$,
+$H'_{j}$ at most $q_{H_{j}}$ times,
+$H_i$ at most $q_{H_i}$ times for $i > j$, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{j}})$; and
+\ifapproxproba
+$\epsilon_{j} = {\cal O}(q_{H_{j}}(q_{H_{j-1}} + 2 q_{\HKDF_n})/|\Smac|)$.
+\else
+$\epsilon_{j} = q_{H_{j}}(2q_{H_{j-1}} + 3q_{\HKDF_n}+1)/|\Smac|$.
+%$\epsilon_{j} = (q_{H_{j}}(2q_{H_{j-1}} + 2q_{\HKDF_n}+q_{\HKDF_n}+1)/|\Smac|)$.
+\fi
+
+For $j=n$, we obtain a game $G_{3,n}$  in which
+$\hmac = S_2[H_0, H'_1, S_{3,2}[H'_1, H'_2], \dots, S_{3,n}[H'_{n-1}, H'_{n}]]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^{3,n}_n(\salt,\key,\info) = K_1 \| \dots \| K_n \text{ where}\\
+&\quad \prk = H_0(\salt,\key)\\
+&\quad K_i = H'_i(\prk, \info )\text{ for }1 \leq i \leq n
+\end{split}
+\end{align*}
+where $H_0, H'_1, \dots, H'_{n}$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ at most $q_{H_0}$ times,
+$H'_i$ at most $q_{H_i} + q_{H_{i+1}}$ times for $1 \leq i < n$,
+$H'_{n}$ at most $q_{H_{n}}$ times, with
+$q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac} + q_{H_2} + \dots + q_{H_{n}}) = {\cal O}(q_{\hmac})$.
+
+By Lemma~\ref{lem:concatenation}, there exist simulators $S_{4,j}$ ($1 \leq j \leq n$) for $H'_j$ such that $G_{3,n}$ is perfectly indistinguishable
+from $G_4$ in which
+$\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ and $\HKDF_n$ is defined by
+\begin{align*}
+\begin{split}
+&\HKDF^4_n(\salt,\key,\info) = H(\prk, \info) \text{ where}\\
+&\quad \prk = H_0(\salt,\key)
+\end{split}
+\end{align*}
+where $H_0$ and $H$ are independent random oracles;
+the simulator for $\hmac$ calls 
+$H_0$ at most $q_{H_0}$ times,
+$H$ at most $q_H = \sum_{i = 1}^{n-1} (q_{H_i} + q_{H_{i+1}}) + q_{H_n} \leq 2 q_{\hmac}$ times,
+with $q_{H_0} + \dots + q_{H_n} \leq q_{\hmac}$, and runs in time 
+${\cal O}(q_{\hmac})$.
+
+By Lemma~\ref{lem:hcomp1}, there exist simulators $S_{5,1}$ for $H_0$
+and $S_{5,2}$ for $H$ such that
+$G_4$ is indistinguishable up to probability $\epsilon'$
+from $G_5$ in which
+$\hmac = S_2[H_0, \ab S_{4,1}[H], \ab S_{3,2}[S_{4,1}[H], S_{4,2}[H]], \ab \dots, \ab S_{3,n}[S_{4,n-1}[H], S_{4,n}[H]]]$ with $H_0 = S_{5,1}[\HKDF^5_n]$ and $H = S_{5,2}[\HKDF^5_n]$
+and $\HKDF_n = \HKDF^5_n$  is a random oracle, where
+the simulator for $\hmac$ calls $\HKDF_n$ at most $q_H \leq 2 q_{\hmac}$
+times\footnote{The factor 2 here is spurious: the same call to $\HKDF_n$
+  provides the results of $H_j$ and $H_{j+1}$ that are needed to simulate
+  one call to $\hmac$. So in fact, the simulator for $\hmac$ calls
+  $\HKDF_n$ at most $q_{\hmac}$ times.},
+runs in time ${\cal O}(q_{\hmac} + q_{H_0} q_H) = {\cal O}(q_{\hmac}^2)$,
+and
+\ifapproxproba
+\begin{align*}
+\epsilon' &= {\cal O}((q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|)\\
+& = {\cal O}((q_{\hmac}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|) \\
+&= {\cal O}((q_{\hmac} + q_{\HKDF_n})^2)/|\Smac|)\,.
+\end{align*}
+\else
+\begin{align*}
+\epsilon' &= (2q_H q_{H_0} + q_{H_0}^2 + q_H q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac|\\
+& = (2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)/|\Smac| 
+\end{align*}
+\fi
+
+The probability of distinguishing $G_0$ from $G_5$ is then
+at most 
+\ifapproxproba
+\begin{align*}
+\epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
+&= {\cal O}\left(\left(\sum_{j=2}^n \frac{q_{H_{j}}(q_{H_{j-1}} + 2q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\left(\sum_{j=2}^n \frac{q_{H_{j}}(q_{\hmac} + 2q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\left(\frac{(\sum_{j=2}^nq_{H_{j}})(q_{\hmac} + 2 q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\left(\frac{q_{\hmac}(q_{\hmac} + 2 q_{\HKDF_n})}{|\Smac|} \right) + \frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+&= {\cal O}\left(\frac{(q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|}\right)\\
+\end{align*}
+\else
+%MORE DETAILED PROBA WITHOUT O:
+\begin{align*}
+\epsilon &= \sum_{j=2}^n \epsilon_j + \epsilon' \\
+&= \left(\sum_{j=2}^n \frac{q_{H_{j}}(2q_{H_{j-1}} + 3q_{\HKDF_n}+1)}{|\Smac|} \right) + {}\\
+&\qquad \frac{2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2}{|\Smac|}\\
+&= \frac{1}{|\Smac|}((\sum_{j=2}^n q_{H_{j}})(2q_{\hmac} + 3q_{\HKDF_n}+1) + {}\\[-1mm]
+&\qquad \qquad 2q_{\hmac}q_{H_0} + q_{H_0}^2 + q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)\\
+&= \frac{1}{|\Smac|}((q_{H_0} + \sum_{j=2}^n q_{H_{j}})\times 2q_{\hmac} + {}\\[-3mm]
+&\qquad\qquad (\sum_{j=2}^n q_{H_{j}})(3q_{\HKDF_n}+1) + q_{H_0}^2 + {}\\[-2mm]
+&\qquad\qquad q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)\\
+&= \frac{1}{|\Smac|}(2q_{\hmac}^2 + 3q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\hmac}^2 + {}\\[-3mm]
+&\qquad\qquad q_{\hmac}q_{\HKDF_n} + q_{\HKDF_n}^2)\\
+%because \sum_{j=2}^n q_{H_{j}} + q_{H_0} \leq q_{\hmac}
+&= \frac{3q_{\hmac}^2 + 4q_{\hmac}q_{\HKDF_n} + q_{\hmac} + q_{\HKDF_n}^2}{|\Smac|}\\
+&\leq \frac{(2q_{\hmac} + q_{\HKDF_n})^2}{|\Smac|} 
+\end{align*}
+\fi
+\end{proof}
+
+
+\section{Application to TextSecure}
+
+When there is a one-time prekey, the encryption key for 
+the first message is derived as follows:
+\[H_1(x_1, x_2, x_3, x_4, x_5) = F(c_0 \| x_1 \| x_2 \| x_3 \| x_4, x_5)\]
+When there is no one-time prekey, $x_4$ is omitted, thus the key
+is derived as follows:
+\[H_2(x_1, x_2, x_3, x_5) = F(c_0 \| x_1 \| x_2 \| x_3, x_5)\]
+where
+\begin{align*}
+&F(S, x_5) = k_{\e}\text{ where}\\
+&\quad  (\rk_{ba}, \ck_{ba}) \Leftarrow \HKDF_2(c_1, S, c_2)\\
+&\quad  (\rk_{ab}, \ck_{ab}) \Leftarrow \HKDF_2(\rk_{ba}, x_5, c_2)\\
+&\quad  k_{\e} \Leftarrow \truncate_l(\HKDF_2(c_1, \HMAC(\ck_{ab}, c_3), c_1, c_4))
+\end{align*}
+$c_0$ is a bitstring of 256 bits set to 1,
+%$0xff$ repeated 32 times,
+%https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb5e93b899a63de2dea9670e10/src/SessionBuilder.js lines 140--142
+$c_1 = 0$ (256 bits), $c_2 = \text{"WhisperRatchet"}$,
+$c_3 = 0x01$, and $c_4 = \text{"WhisperMessageKeys"}$.
+
+We start from the assumption that the compression function underlying
+SHA256 is a random oracle, and show that the functions $H_1$ and $H_2$
+are indifferentiable from independent random oracles. In this proof,
+we use a lighter style than in the proof of Lemma~\ref{lem:hkdfindif}:
+we do not explicitly compute the runtime and probabilities.
+
+
+Theorem~4.4 in~\cite{Dodis12} shows that HMAC-SHA256 is then indifferentiable from a random oracle, provided the MAC keys are less than the block size of the hash function minus one, which is true here: the block size of SHA256 is 512 bits and the MAC keys are 256-bit long.
+
+The call $\HMAC(\ck_{ab}, c_3)$ uses a domain disjoint from the 
+calls to $\HMAC$ inside $\HKDF_2$ because $c_3$ is one byte, while
+$\key$ and $\info$ ($c_2$ or $c_4$) have greater length.
+By Lemma~\ref{lem:disjdomain}, we can consider $\HMAC$ in $\HMAC(\ck_{ab}, c_3)$
+as a random oracle independent of $\HMAC$ inside $\HKDF_2$. 
+
+The hypothesis of Lemma~\ref{lem:hkdfindif} is satisfied in our case
+because $\Skey$ consists of bitstrings of length 256 bits = 32 bytes or $3 \times 32 = 96$ bytes,
+$\Sinfo \| 0x00$ consists of bitstrings of length at most 31 bytes
+and $\Smac \| \Sinfo \| 0x01$ consists of bitstrings of length between 33 and 63 bytes. Hence, $\HKDF_2$ is indifferentiable from a random oracle.
+
+By Lemma~\ref{lem:disjdomain}, we obtain that
+\begin{align*}
+&S \mapsto \hkdftwo(c_1, S, c_2)\\
+&x,y \mapsto \hkdftwo(x,y,c_2)\\
+&x \mapsto \hkdftwo(c_1,x,c_4)
+\end{align*}
+are indifferentiable from independent random oracles.
+The domains are disjoint 
+because different constants $c_2$ and $c_4$ are used and furthermore, the two cases that use $c_2$ differ by the length of their second argument (4 or 5 times 256 bits for
+$S \mapsto \hkdftwo(c_1, S, c_2)$, and 256 bits for $x,y \mapsto \hkdftwo(x,y,c_2)$).
+Hence, we can replace $F$ with:
+\begin{align*}
+&F(S, x_5) = k_{\e}\text{ where}\\
+&\quad  (\rk_{ba}, \ck_{ba}) \Leftarrow H_3(S)\\
+&\quad  (\rk_{ab}, \ck_{ab}) \Leftarrow H_4(\rk_{ba}, x_5)\\
+&\quad  k_{\e} \Leftarrow \truncate_l(H_5(H_6(\ck_{ab})))
+\end{align*}
+where $H_3, H_4, H_5, H_6$ are independent random oracles.
+
+By Lemmas~\ref{lem:splitting} and~\ref{lem:truncation},
+we can replace it with
+\begin{align*}
+&F(S, x_5) = k_{\e}\text{ where}\\
+&\quad  \rk_{ba} \Leftarrow H'_3(S)\\
+&\quad  \ck_{ab} \Leftarrow H'_4(\rk_{ba}, x_5)\\
+&\quad  k_{\e} \Leftarrow H'_5(H_6(\ck_{ab}))
+\end{align*}
+where $H'_3, H'_4, H'_5, H_6$ are independent random oracles.
+that is,
+\[F(S, x_5) = H'_5(H_6(H'_4(H'_3(S),x_5)))\]
+By Lemma~\ref{lem:hcomp1} applied 3 times (in the last two applications,
+the set $S_2$ consists of the empty bitstring), $F$ is indifferentiable
+from a random oracle.
+
+The calls to $F$ in $H_1$ and $H_2$ use disjoint domains 
+(the length of $S$ is different: respectively, 5 and 4 times 256 bits),
+so by Lemma~\ref{lem:disjdomain}, $H_1$ and $H_1$ are indifferentiable
+from independent random oracles.
+
+\bibliographystyle{IEEEtran}
+\bibliography{biblio}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

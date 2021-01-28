@@ -27,11 +27,9 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-TextSecure with single family of exponents (square DH) and a single file
-
 case of [computational] query_equiv in cryptoverif.tex
 
-DDH with random self reducibility.
+DDH with random self reducibility. https://courses.cs.ut.ee/MTAT.07.003/2014_fall/uploads/Main/0106-random-self-reducibility-of-ddh.pdf
 amplification technique for CDH and DDH.
 What about PRF-ODH with random self reducibility? Seems impossible, but I could consider a multikey PRF-ODH
 

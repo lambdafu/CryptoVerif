@@ -2514,25 +2514,21 @@ let rec match_term2 next_f simp_facts bl t t' =
 	  ReplIndex(v') when v == v' -> next_f()
 	| _ -> if not (Terms.simp_equal_terms simp_facts true t t') then raise NoMatch else next_f()
       end
-  | Var(v,l) ->
-      begin
-	match t'.t_desc with
-	  Var(v',l') when v == v' ->
-	    match_term_list2 next_f simp_facts bl l l'
-	| _ ->
-	    let tinst = copy_term t in
-	    if not (Terms.simp_equal_terms simp_facts true tinst t') then raise NoMatch else next_f()
-      end
-  | FunApp(f,l) ->
-      begin
-	match t'.t_desc with
-	  FunApp(f',l') when f == f' ->
-	    match_term_list2 next_f simp_facts bl l l'
-	| _ ->
-	    let tinst = copy_term t in
-	    if not (Terms.simp_equal_terms simp_facts true tinst t') then raise NoMatch else next_f()
-      end
-  | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in match_term2"
+  | _ ->
+      match copy_term t with
+      | tinst ->
+	  (* term [t] is fully instantiated, just test equality;
+	     we can be more precise using [simp_facts] *)
+	  if not (Terms.simp_equal_terms simp_facts true tinst t') then raise NoMatch else next_f()
+      | exception NoMatch ->
+	  (* term [t] is not fully instantiated, try to instantiate it *)
+	  match t.t_desc, t'.t_desc with
+	  | Var(v,l), Var(v',l') when v == v' ->
+	      match_term_list2 next_f simp_facts bl l l'
+	  | FunApp(f,l), FunApp(f',l') when f == f' ->
+	      match_term_list2 next_f simp_facts bl l l'
+	  | _ ->
+	      raise NoMatch
 
 and match_term_list2 next_f simp_facts bl l l' = 
   match l,l' with
