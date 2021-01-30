@@ -27,8 +27,6 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-case of [computational] query_equiv in cryptoverif.tex
-
 DDH with random self reducibility. https://courses.cs.ut.ee/MTAT.07.003/2014_fall/uploads/Main/0106-random-self-reducibility-of-ddh.pdf
 amplification technique for CDH and DDH.
 What about PRF-ODH with random self reducibility? Seems impossible, but I could consider a multikey PRF-ODH
@@ -36,13 +34,19 @@ What about PRF-ODH with random self reducibility? Seems impossible, but I could 
 transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
 The same problem may appear for other transformations of find. It is a very minor detail anyway.
 
-Add a min construct in probas; replace -max(-x,-y) with min(x,y).
-
 When we automatically add a replication on top of an equiv
 statement, automatically choose the best time to add to the adversary
 between compute_add_time and compute_add_time_totcount,
 e.g. via a "min" construct in proba formulas, possibly with
 a hint on when to choose which term in the minimum.
+  optim-if <cond> then <...> else <...>
+  where <cond> can be <proba> = <cst>
+  or                  is-constant(<proba>)
+  The else branch must always be sound. When the condition <cond> is guaranteed to be true,
+  the then branch is also sound, and better.
+  min(1, #O) becomes optim_if #O = 0 then 0 else 1
+
+Add scripts for HPKE?
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
@@ -5693,3 +5697,6 @@ Same for DDH, but execute event bad or corrupt a_i when one
 computes g^{a_i a_i}.
 => macros DH_single
 DONE 26/1/2021
+
+Add a min construct in probas; replace -max(-x,-y) with min(x,y).
+DONE 29/1/2021

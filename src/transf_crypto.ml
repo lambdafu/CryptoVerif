@@ -4498,7 +4498,7 @@ let rec map_probaf env = function
       Polynom.probaf_to_polynom (ActTime(f, List.map (fun prob -> 
       Polynom.polynom_to_probaf (map_probaf env prob)) l))
   | (Max _ | Maxlength _) as y ->
-      let accu = ref Polynom.empty_max_accu in
+      let accu = ref Polynom.empty_minmax_accu in
       let rec add_max = function
 	| Max(l) -> List.iter add_max l
 	| Maxlength(g,t) ->
@@ -4524,6 +4524,16 @@ let rec map_probaf env = function
       in
       add_max y;
       Polynom.probaf_to_polynom (Polynom.p_max (!accu))
+  | Min(l) -> 
+      let accu = ref Polynom.empty_minmax_accu in
+      let rec add_min = function
+	| Min(l) -> List.iter add_min l
+	| x ->
+	    Polynom.add_min accu
+	      (Polynom.polynom_to_probaf (map_probaf env x))
+      in
+      List.iter add_min l;
+      Polynom.probaf_to_polynom (Polynom.p_min (!accu))
   | Length(f,l) ->
       Polynom.probaf_to_polynom (Length(f, List.map (fun prob -> 
 	Polynom.polynom_to_probaf (map_probaf env prob)) l))
@@ -4788,8 +4798,9 @@ let rec update_max_length_probaf ins = function
   | Add(x,y) -> Add(update_max_length_probaf ins x, update_max_length_probaf ins y)
   | Sub(x,y) -> Sub(update_max_length_probaf ins x, update_max_length_probaf ins y)
   | Div(x,y) -> Div(update_max_length_probaf ins x, update_max_length_probaf ins y)
+  | Min(l) -> Min(List.map (update_max_length_probaf ins) l)
   | (Max _ | Maxlength _) as y ->
-      let accu = ref Polynom.empty_max_accu in
+      let accu = ref Polynom.empty_minmax_accu in
       let rec add_max = function
 	| Max(l) -> List.iter add_max l
 	| (Maxlength(g,t)) as x ->

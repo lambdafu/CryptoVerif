@@ -36,7 +36,7 @@ and make_length g = function
       if t.t_type.toptions land Settings.tyopt_BOUNDED != 0 then
 	l'
       else
-	let accu = ref Polynom.empty_max_accu in
+	let accu = ref Polynom.empty_minmax_accu in
 	make_length_term accu g t;
 	(Polynom.p_max (!accu))::l'   (*Maxlength(g, t)::l'*)
 	  

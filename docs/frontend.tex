@@ -45,7 +45,7 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt inf}, %used for float infinity
 {\tt inj-event}, 
 {\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
-{\tt new}, {\tt newChannel}, {\tt orfind}, 
+{\tt min}, {\tt new}, {\tt newChannel}, {\tt orfind}, 
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
 {\tt proof}, {\tt public\_vars}, {\tt query}, {\tt query\_equiv}, {\tt return},
@@ -159,16 +159,18 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \def\phsa{\phantom{\nonterm{specialarg} = }\mid}
 \begin{xxalignat}{2}
 &\nonterm{proba} ::= \texttt{(} \nonterm{proba} \texttt{)}
-&&\mid \texttt{time(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&&\mid \phpr \texttt{time}\\
 &\phpr \nonterm{proba} \texttt{ + } \nonterm{proba}
-&&\mid\texttt{time(let }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&&\mid\texttt{time(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
 &\phpr \nonterm{proba} \texttt{ - } \nonterm{proba}
-&&\mid \texttt{time((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&&\mid \texttt{time(let }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
 &\phpr \nonterm{proba} \texttt{ * } \nonterm{proba}
-&&\mid \texttt{time(let (}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&&\mid \texttt{time((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
 &\phpr \nonterm{proba} \texttt{ / } \nonterm{proba}
-&&\mid \texttt{time(= }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&&\mid \texttt{time(let (}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
 &\phpr \texttt{max(}\neseq{proba}\texttt{)}
+&&\mid \texttt{time(= }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
+&\phpr \texttt{min(}\neseq{proba}\texttt{)}
 &&\mid \texttt{time(!)}\\
 &\phpr \nonterm{ident}[\texttt{(}\seq{proba}\texttt{)}]
 &&\mid \texttt{time(foreach)}\\
@@ -191,8 +193,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phpr \texttt{Pcoll1rand(}T\texttt{)}
 &&\ifchannels\mid \texttt{time(out }[\texttt{[}\neseq{ident}\texttt{]}]\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\fi\\
 &\phpr \texttt{Pcoll2rand(}T\texttt{)}
-&&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi\\
-&\phpr \texttt{time}
+&&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi
 \end{xxalignat}\vspace*{-8mm}%
 \begin{align*}
 &\nonterm{repl} ::= \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident}\\
@@ -2597,7 +2598,8 @@ The syntax of probability formulas allows parenthesing and the usual
 algebraic operations \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}.
 (\texttt{*} and \texttt{/} have higher priority than \texttt{+} and
 \texttt{-}, as usual.), as well as the maximum, denoted 
-$\texttt{max(}p_1\texttt{,}\ldots\texttt{,}p_n\texttt{)}$. 
+$\texttt{max(}p_1\texttt{,}\ldots\texttt{,}p_n\texttt{)}$, and
+minimum, denoted $\texttt{min(}p_1\texttt{,}\ldots\texttt{,}p_n\texttt{)}$. 
 They may also contain 
 \begin{itemize}
 

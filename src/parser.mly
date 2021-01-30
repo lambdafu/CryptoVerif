@@ -82,6 +82,7 @@ let return_channel = (dummy_channel, None)
 %token MAXLENGTH
 %token LENGTH
 %token MAX
+%token MIN
 %token COUNT
 %token EPSFIND
 %token EPSRAND
@@ -1115,6 +1116,8 @@ probaf:
         { PDiv($1,$3), parse_extent() }
 |       MAX LPAREN probaflist RPAREN
         { PMax($3), parse_extent() }
+|       MIN LPAREN probaflist RPAREN
+        { PMin($3), parse_extent() }
 |       IDENT
         { (PPIdent $1), parse_extent() }
 |       COUNT IDENT
@@ -1487,6 +1490,8 @@ oprobaf:
         { PDiv($1,$3), parse_extent() }
 |       MAX LPAREN oprobaflist RPAREN
         { PMax($3), parse_extent() }
+|       MIN LPAREN oprobaflist RPAREN
+        { PMin($3), parse_extent() }
 |       IDENT
         { (PPIdent $1), parse_extent() }
 |       COUNT IDENT

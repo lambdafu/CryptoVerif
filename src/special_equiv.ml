@@ -21,7 +21,7 @@ let rec instan_time get_time p =
     | Proba(p,l) -> Proba(p, List.map aux l)
     | ActTime(f,l) -> ActTime(f, List.map aux l)
     | (Max _ | Maxlength _) as y ->
-	let accu = ref Polynom.empty_max_accu in
+	let accu = ref Polynom.empty_minmax_accu in
 	let rec add_max = function
 	  | Max(l) -> List.iter add_max l
 	  | Maxlength(g,t) ->
@@ -31,6 +31,14 @@ let rec instan_time get_time p =
 	in
 	add_max y;
 	Polynom.p_max (!accu)
+    | Min(l) -> 
+	let accu = ref Polynom.empty_minmax_accu in
+	let rec add_min = function
+	  | Min(l) -> List.iter add_min l
+	  | x -> Polynom.add_min accu (aux x)
+	in
+	List.iter add_min l;
+	Polynom.p_min (!accu)
     | Length(f,l) -> Length(f, List.map aux l)
     | Mul(x,y) -> Mul(aux x, aux y)
     | Add(x,y) -> Add(aux x, aux y)
@@ -650,7 +658,7 @@ let make_random_fun_equiv f key_pos ((id_k, ext_k), id_r, id_x, id_y, id_z, id_u
     print ")\n<=(";
     (* Probability: count the number of calls and maximum length *)
     let all_calls = ref [] in
-    let all_maxlength_accu = List.map (fun _ -> ref Polynom.empty_max_accu) tyargs in
+    let all_maxlength_accu = List.map (fun _ -> ref Polynom.empty_minmax_accu) tyargs in
     let proba_coll = ref [] in
     let add_call f_args =
       List.iter2 (fun arg prev_maxlength ->
@@ -1398,8 +1406,8 @@ let make_random_bij_equiv enc dec arg_order ((id_k, ext_k), id_lk, id_m, id_c, i
     (* Probability: count the number of calls and maximum length *)
     let enc_calls = ref [] in
     let dec_calls = ref [] in
-    let max_length_msg = ref Polynom.empty_max_accu in
-    let max_length_ctx = ref Polynom.empty_max_accu in
+    let max_length_msg = ref Polynom.empty_minmax_accu in
+    let max_length_ctx = ref Polynom.empty_minmax_accu in
     let proba_coll = ref [] in
     let add_max accu v =
       Polynom.add_max accu (Maxlength(Terms.lhs_game_nodisplay, Terms.term_from_binder (get_some v)))

@@ -106,17 +106,17 @@ let rec p_sum = function
   | [a] -> a
   | (a::l) -> p_add(a, p_sum l)
 
-type max_val =
+type minmax_val =
   | MNone
   | MCst of float
 
-type max_accu = max_val * probaf list
+type minmax_accu = minmax_val * probaf list
 
       (* max_accu = (MNone, l) -> take the maximum of l
                     (MCst x, l) -> take max(x, maximum of l) *)
       
 
-let empty_max_accu = (MNone, [])
+let empty_minmax_accu = (MNone, [])
       
 let p_max = function
   | MNone, [] -> Cst neg_infinity
@@ -125,7 +125,7 @@ let p_max = function
   | MNone, [a] -> a
   | MCst 0.0, l -> Max(Zero :: l)
   | MCst x, l -> Max((Cst x)::l)
-  | _, l -> Max(l)
+  | MNone, l -> Max(l)
 
 let maxmval mv1 mv2 =
   match mv1,mv2 with
@@ -141,6 +141,38 @@ let rec add_max accu = function
       match x with
       | Cst y -> accu := (maxmval (MCst y) mval, l)
       | Zero -> accu := (maxmval (MCst 0.0) mval, l)
+      | _ -> 
+	  if not (List.exists (Terms.equal_probaf x) l) then
+	    accu := (mval, x :: l)
+
+
+      (* min_accu = (MNone, l) -> take the minimum of l
+                    (MCst x, l) -> take min(x, minimum of l) *)
+      
+
+let p_min = function
+  | MNone, [] -> Cst infinity
+  | MCst 0.0, [] -> Zero
+  | MCst x, [] -> Cst x
+  | MNone, [a] -> a
+  | MCst 0.0, l -> Min(Zero :: l)
+  | MCst x, l -> Min((Cst x)::l)
+  | MNone, l -> Min(l)
+
+let minmval mv1 mv2 =
+  match mv1,mv2 with
+  | MNone, _ -> mv2
+  | _, MNone -> mv1
+  | MCst x, MCst y -> 
+      if x >= y then mv2 else mv1
+	
+let rec add_min accu = function
+  | Min(l) -> List.iter (add_min accu) l
+  | x ->
+      let (mval, l) = !accu in
+      match x with
+      | Cst y -> accu := (minmval (MCst y) mval, l)
+      | Zero -> accu := (minmval (MCst 0.0) mval, l)
       | _ -> 
 	  if not (List.exists (Terms.equal_probaf x) l) then
 	    accu := (mval, x :: l)

@@ -507,6 +507,10 @@ and display_proba ?separate_time level = function
       print_string "\\kw{max}(";
       display_list_break (display_proba ?separate_time 0) l;
       print_string ")"
+  | Min(l) -> 
+      print_string "\\kw{min}(";
+      display_list_break (display_proba ?separate_time 0) l;
+      print_string ")"
   | Mul(x,y) ->
       if level > 3 then print_string "(";
       display_proba ?separate_time 3 x;

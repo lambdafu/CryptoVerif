@@ -160,6 +160,13 @@ let rec max_list f = function
       let (minl, maxl) = max_list f l in
       (max_v mina minl, max_v maxa maxl)
 
+let rec min_list f = function
+  | [] -> (1, max_f), (1, max_f)
+  | a::l ->
+      let (mina, maxa) = f a in
+      let (minl, maxl) = min_list f l in
+      (min_v mina minl, min_v maxa maxl)
+
 (* [add_v dir v1 v2] returns the interval bound corresponding to [v1 + v2],
    when [v1], [v2] are bounds represented as pairs (sign,exp) meaning
    sign * 2^exp.
@@ -221,6 +228,8 @@ let rec order_of_magnitude_aux probaf =
   | EpsRand _ | EpsFind -> let v = (1, min_f) in (v,v)
   | Max(l) ->
       max_list order_of_magnitude_aux l 
+  | Min(l) ->
+      min_list order_of_magnitude_aux l 
   | Cst x ->
       if x = 0.0 then zero_interv else
       if x < 0.0 then
@@ -546,6 +555,7 @@ let copy_probaf transf p =
   | Sub(x,y) -> Sub(aux x, aux y)
   | Div(x,y) -> Div(aux x, aux y)
   | Max(l) -> Max(List.map aux l)
+  | Min(l) -> Min(List.map aux l)
   in
   aux p
     
@@ -717,7 +727,7 @@ let occurs_proba any_var_map p =
 	List.exists (fun (b,_) -> Terms.refers_to b t) any_var_map
     | Zero | Cst _ | Count _ | OCount _ | Card _ | EpsFind | EpsRand _
     | PColl2Rand _ | PColl1Rand _ | AttTime | TypeMaxlength _ | Time _ -> false
-    | Proba(_,l) | Max(l) | ActTime(_,l) | Length(_,l) ->
+    | Proba(_,l) | Max(l) | Min(l) | ActTime(_,l) | Length(_,l) ->
 	List.exists aux l
     | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->
 	(aux p1) || (aux p2)
@@ -833,7 +843,7 @@ let rec instan_time restr_indep_map any_var_map_list p =
     | Proba(p,l) -> Proba(p, List.map aux l)
     | ActTime(f,l) -> ActTime(f, List.map aux l)
     | (Max _ | Maxlength _) as y ->
-	let accu = ref Polynom.empty_max_accu in
+	let accu = ref Polynom.empty_minmax_accu in
 	let rec add_max = function
 	  | Max(l) -> List.iter add_max l
 	  | Maxlength(g,t) ->
@@ -860,6 +870,14 @@ let rec instan_time restr_indep_map any_var_map_list p =
 	in
 	add_max y;
 	Polynom.p_max (!accu)
+    | Min(l) -> 
+	let accu = ref Polynom.empty_minmax_accu in
+	let rec add_min = function
+	  | Min(l) -> List.iter add_min l
+	  | x -> Polynom.add_min accu (aux x)
+	in
+	List.iter add_min l;
+	Polynom.p_min (!accu)
     | Length(f,l) -> Length(f, List.map aux l)
     | Mul(x,y) -> Mul(aux x, aux y)
     | Add(x,y) -> Add(aux x, aux y)

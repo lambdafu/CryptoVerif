@@ -43,6 +43,7 @@ let common_keywords =
   "maxlength", MAXLENGTH;
   "length", LENGTH;
   "max", MAX;
+  "min", MIN;
   "eps_find", EPSFIND;
   "eps_rand", EPSRAND;
   "Pcoll1rand", PCOLL1RAND;

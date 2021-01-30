@@ -532,6 +532,7 @@ let rec is_time = function
   | Div(x,y) ->
       is_time x
   | Max l -> List.exists is_time l
+  | Min l -> List.exists is_time l
 
 let is_complex_time = function
   | AttTime | Time _ | ActTime(_,[]) -> false
@@ -574,6 +575,10 @@ and display_proba ?separate_time level = function
       if level > 1 then print_string ")"
   | Max(l) -> 
       print_string "max(";
+      display_list (display_proba ?separate_time 0) l;
+      print_string ")"
+  | Min(l) ->
+      print_string "min(";
       display_list (display_proba ?separate_time 0) l;
       print_string ")"
   | Mul(x,y) ->

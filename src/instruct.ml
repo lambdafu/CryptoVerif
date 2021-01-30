@@ -1202,7 +1202,7 @@ let rec find_proba f = function
   | ActTime _ | Maxlength _ |  TypeMaxlength _ | EpsFind | EpsRand _ 
   | PColl1Rand _ | PColl2Rand _ -> false
   | Add(x,y) | Sub(x,y) | Mul(x,y) | Div(x,y) -> (find_proba f x) || (find_proba f y)
-  | Max(l) | Length(_,l) -> List.exists (find_proba f) l
+  | Max(l) | Min(l) | Length(_,l) -> List.exists (find_proba f) l
 
 let find_equiv f equiv =
   match equiv.eq_fixed_equiv with

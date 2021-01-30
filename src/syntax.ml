@@ -1967,7 +1967,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
       let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
       let (p2', d2) = check_probability_formula seen_ch seen_repl env p2 in
       (Sub(p1',p2'), get_compatible ext d1 d2)
-  | PMax(pl), ext ->
+  | (PMax(pl) | PMin(pl)) as proba, ext ->
       let rec check_comp = function
 	  [] -> ([], None)
 	| (p::l) -> 
@@ -1982,9 +1982,11 @@ let rec check_probability_formula seen_ch seen_repl env = function
       let (pl', d) = check_comp pl in
       begin
 	(* The "max" is removed when the list contains a single element *)
-	match pl' with
-	  [p] -> (p, d)
-	| _ -> (Max(pl'), d)
+	match proba, pl' with
+	  _, [p] -> (p, d)
+	| PMax _, _ -> (Max(pl'), d)
+	| PMin _, _ -> (Min(pl'), d)
+	| _ -> assert false
       end
   | PTime, ext ->
       (AttTime, Some(0, 1, 0))
@@ -2157,7 +2159,7 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	with Not_found ->
 	  raise_error (s ^ " is not defined") ext'
       end
-
+	
 let check_probability_formula2 seen_ch seen_repl env p =
   let (p', d) = check_probability_formula seen_ch seen_repl env p in
   begin
@@ -3210,6 +3212,7 @@ let rec rename_probaf (p,ext) =
   | PProd(p1,p2) -> PProd(rename_probaf p1, rename_probaf p2)
   | PDiv(p1,p2) -> PDiv(rename_probaf p1, rename_probaf p2)
   | PMax l -> PMax (List.map rename_probaf l)
+  | PMin l -> PMin (List.map rename_probaf l)
   | PPIdent i -> PPIdent (rename_ie i)
   | PCount i -> PCount (rename_ie i)
   | PPFun(i,l) -> PPFun(rename_ie i, List.map rename_probaf l)
@@ -4249,7 +4252,7 @@ let rec collect_id_probaf accu (p,ext) =
   | PAdd(p1,p2) | PSub(p1,p2) | PProd(p1,p2) | PDiv(p1,p2) ->
       collect_id_probaf accu p1;
       collect_id_probaf accu p2
-  | PMax l ->
+  | PMax l | PMin l ->
       List.iter (collect_id_probaf accu) l
   | PPIdent i | PCount i | PCard i | PEpsRand i
   | PPColl1Rand i | PPColl2Rand i ->
