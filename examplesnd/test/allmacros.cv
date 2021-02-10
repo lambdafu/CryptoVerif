@@ -210,6 +210,7 @@ expand CDH_RSR_single(G, tZ, g, exp, exp', mult, pCDH, pDistRerandom).
 proba pDDH.
 expand DDH(G, tZ, g, exp, exp', mult, pDDH).
 expand DDH_single(G, tZ, g, exp, exp', mult, pDDH).
+expand DDH_RSR(G, tZ, g, exp, exp', mult, pDDH, pDistRerandom).
 proba pGDH.
 expand GDH(G, tZ, g, exp, exp', mult, pGDH).
 expand GDH_single(G, tZ, g, exp, exp', mult, pGDH).

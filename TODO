@@ -27,10 +27,6 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-DDH with random self reducibility. https://courses.cs.ut.ee/MTAT.07.003/2014_fall/uploads/Main/0106-random-self-reducibility-of-ddh.pdf
-amplification technique for CDH and DDH.
-What about PRF-ODH with random self reducibility? Seems impossible, but I could consider a multikey PRF-ODH
-
 transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
 The same problem may appear for other transformations of find. It is a very minor detail anyway.
 
@@ -47,6 +43,19 @@ a hint on when to choose which term in the minimum.
   min(1, #O) becomes optim_if #O = 0 then 0 else 1
 
 Add scripts for HPKE?
+
+Improve probability declarations:
+proba P(dim1, ..., dimn). where dim can be time, length, num, and more generally time^n.length^n'
+(it gives the dimension of the argument, num = time^0.length^0).
+When P is applied, one checks that it receives arguments of the correct dimension.
+For compatibility, continue to allow proba P, which can receive any arguments;
+otherwise, I would need to revise all examples.
+Allow explicit probability functions, like
+letproba P(x1:dim1,..., xn:dimn) = <probability function>.
+When P is applied, it is replaced with the given probability function.
+When checking dimensions in probability formulas, emit a warning instead of an error
+when the "probability" dimension does not match (in fact, it has no real
+meaning, but it allows to catch bugs).
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
@@ -5700,3 +5709,10 @@ DONE 26/1/2021
 
 Add a min construct in probas; replace -max(-x,-y) with min(x,y).
 DONE 29/1/2021
+
+DDH with random self reducibility. https://courses.cs.ut.ee/MTAT.07.003/2014_fall/uploads/Main/0106-random-self-reducibility-of-ddh.pdf
+DONE 10/2/2021
+amplification technique for CDH and DDH. 
+-> I abandon that; it seems to have a high computational cost.
+What about PRF-ODH with random self reducibility? 
+Seems impossible, but I could consider a multikey PRF-ODH

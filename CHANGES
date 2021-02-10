@@ -14,6 +14,9 @@ game are really unique.
 - Added definitions of Diffie-Hellman properties with a single
 family of exponents, in the standard library of cryptographic primitives.
 - Allow "min" in probability formulas.
+- Added a macro for DDH with random self reducibility in the standard
+library of cryptographic primitives (it is more limited than other DDH
+macros).
 - Allow multiple command-line options "-lib <file>".
 - Minor improvement of some error messages.
 - Avoid creating duplicate defined conditions in transformation

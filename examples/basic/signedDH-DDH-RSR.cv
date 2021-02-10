@@ -1,0 +1,144 @@
+(* Signed Diffie-Hellman protocol
+   This version uses DDH with random self reducibility.
+   The macro DDH_RSR is more limited than DDH (no corruption,
+   single query for each a_i) so it requires a more careful guidance. *)
+
+(* Based on an example updated from CV 1.28 by Benjamin Beurdouche *)
+
+proof {
+crypto uf_cma(sign) rkA;
+crypto uf_cma(sign) rkB;
+insert after "in(cA1" "if hostB = B then";
+SArename a;
+insert after "in(cB1" "if hostA = A then";
+SArename b;
+replace at_nth 1 1 "let gab_1: G = {[0-9]+}" "gab[u_3]";
+crypto ddh(exp);
+auto
+}
+
+param N, NA, NB, NK.
+
+type host.
+type keyseed [large,fixed].
+type seed [fixed].
+type pkey [bounded].
+type skey [bounded].
+type blocksize.
+type signature.
+
+type Z [large,bounded].
+type G [large,bounded].
+type D [fixed].
+
+(* This collision assumption is needed to prove an injective
+   correspondence, because we use ephemerals to distinguish sessions. *)
+proba PCollKey1.
+proba PCollKey2.
+expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).
+
+(* DDH assumption with random self reducibility *)
+proba pDDH.
+proba pDistRerandom. 
+expand DDH_RSR(G, Z, g, exp, exp', mult, pDDH, pDistRerandom).
+
+(* Hash entropy extractor *)
+proba pH.
+fun h(G):D.
+
+equiv
+  ! N new x: G; OH() := return(h(x))
+<=(N * pH(time + (N-1)*time(h)))=>
+  ! N new X: D; OH() := return(X).
+
+(* Concatenation helper functions *)
+fun concatA(host, host, G, G):blocksize [data].
+fun concatB(host, host, G, G):blocksize [data].
+equation forall x:host, y:host, z:G, t:G, x':host, y':host, z':G, t':G;
+   concatA(x,y,z,t) <> concatB(x',y',z',t').
+
+(* Signatures *)
+proba Psign.
+proba Psigncoll.
+expand UF_CMA_proba_signature(keyseed, pkey, skey, blocksize, signature, skgen, pkgen, sign, check, Psign, Psigncoll).
+
+(* Peers *)
+const A,B:host.
+
+(* Queries and Events *)
+query secret keyA.
+query secret keyB.
+
+event endA(host, host, G, G).
+event beginB(host, host, G, G).
+event endB(host, host, G, G).
+
+query x: G, y: G; inj-event(endA(A, B, x, y)) ==> inj-event(beginB(A, B, x, y)) public_vars keyA, keyB.
+query x: G, y: G; inj-event(endB(A, B, x, y)) ==> inj-event(endA(A, B, x, y)) public_vars keyA, keyB.
+
+(* Channels and Processes *)
+channel start, cstart, cA1, cA2, cA3, cA4, cA5, cA6, cB1, cB2, cB3, cB4, cB5, cH, cHret, cK.
+
+let processA(skA:skey) =
+  in(cA1, (hostB: host));
+  new a:Z;
+  let ga = exp(g,a) in
+  out(cA2, (A, hostB, ga));
+  in(cA3, (=A, =hostB, gb:G, s:signature));
+  find j2 <= NK suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostB) then
+  let pkhostB = Rkey[j2] in
+  if check(concatB(A, hostB, ga, gb), pkhostB, s) then
+  let gab = exp(gb, a) in
+  let kA = h(gab) in
+  event endA(A, hostB, ga, gb);
+  out(cA4, sign(concatA(A, hostB, ga, gb), skA));
+  (* OK *)
+  in(cA5, ());
+  if hostB = B then
+  (let keyA:D = kA)
+  else
+   out(cA6, kA).
+
+let processB(skB:skey) =
+  in(cB1, (hostA:host, =B, ga:G));
+  new b:Z;
+  let gb = exp(g,b) in
+  event beginB(hostA, B, ga, gb);
+  out(cB2, (hostA, B, gb, sign(concatB(hostA, B, ga, gb), skB)));
+  in(cB3, s:signature);
+  find j2 <= NK suchthat defined(Khost[j2],Rkey[j2]) && (Khost[j2] = hostA) then
+  let pkhostA = Rkey[j2] in
+  if check(concatA(hostA, B, ga, gb), pkhostA, s) then
+  let gab = exp(ga, b) in
+  let kB = h(gab) in
+  event endB(hostA, B, ga, gb);
+  (* OK *)
+  if hostA = A then
+  (let keyB:D = kB)
+  else
+   out(cB4, kB).
+
+let processK(pkA:pkey, pkB:pkey) =
+  !NK
+  in(cK, (Khost: host, Kkey: pkey));
+  let Rkey:pkey =
+		if Khost = B then pkB else
+		if Khost = A then pkA else
+		Kkey.
+
+process
+	in(start, ());
+	new rkA : keyseed;
+	let skA = skgen(rkA) in
+	let pkA = pkgen(rkA) in
+	new rkB : keyseed;
+	let skB = skgen(rkB) in
+	let pkB = pkgen(rkB) in
+	out(cstart, (pkA, pkB));
+	((!NA processA(skA)) | (!NB processB(skB)) | processK(pkA,pkB))
+
+
+(* EXPECTED
+All queries proved.
+0.220s (user 0.212s + system 0.008s), max rss 22868K
+END *)
