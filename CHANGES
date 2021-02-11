@@ -23,6 +23,9 @@ macros).
 remove_assign.
 - Minor improvement of the precision of the treatment of else
 conditions of find.
+- Fixed bug in generation of OCaml implementations: serialization
+and deserialization functions were swapped for types bool and bitstringbot
+(fixed by Benjamin Lipp).
 - Fixed bug in computation of indices in crypto transformation.
 - Fixed bug in update of defined conditions following other
 rewritings of the game: it supported only expanded games, but

@@ -333,7 +333,7 @@ let t_bitstringbot = { tname = "bitstringbot";
                        timplsize = None;
                        tpredicate = Some "always_true";
                        timplname = Some "string option"; 
-                       tserial = Some ("stringbot_from","stringbot_to");
+                       tserial = Some ("stringbot_to","stringbot_from");
                        trandom = None }
 
 let t_bool = { tname = "bool";
@@ -344,7 +344,7 @@ let t_bool = { tname = "bool";
                timplsize = Some(1);
                tpredicate = Some "always_true";
                timplname = Some "bool";
-               tserial = Some ("bool_from","bool_to");
+               tserial = Some ("bool_to","bool_from");
                trandom = Some ("rand_bool") }
 
 
