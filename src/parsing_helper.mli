@@ -2,6 +2,9 @@ type extent
 
 exception Error of string * extent
 
+val raise_error : string -> extent -> 'a
+val raise_user_error : string -> 'a    
+  
 val dummy_ext : extent
 val merge_ext : extent -> extent -> extent
 val extent : Lexing.lexbuf -> extent

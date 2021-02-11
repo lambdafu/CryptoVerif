@@ -1,0 +1,16 @@
+type G [bounded].
+type Z [bounded].
+
+expand DH_basic(G, Z, g, exp, exp', mult).
+
+proba PCollKey1.
+
+collision x <-R Z; forall Y: G;
+	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if erro independent-of x.
+
+process 0
+
+(* EXPECTED
+Error: erro not defined. Expected a variable.
+xtime: error in child process (status : 2)
+END *)

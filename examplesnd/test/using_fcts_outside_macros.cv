@@ -19,6 +19,6 @@ process
 	new r: enc_seed; out(c, enc_r(x, k, r))
 
 (* EXPECTED
-Error: enc_seed not defined.
+Error: enc_seed not defined. Expected a type.
 xtime: error in child process (status : 2)
 END *)

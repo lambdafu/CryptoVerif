@@ -2,12 +2,7 @@ open Ptree
 open Parsing_helper
 open Types
 open Terms
-
-let raise_error s ext =
-  raise (Error(s,ext))
-
-let user_error s =
-  raise (Error(s,dummy_ext))
+open Stringmap
   
 let parse_from_string parse ?(lex = Lexer.token) (s, ext_s) =
   let lexbuf = Lexing.from_string s in
@@ -37,20 +32,20 @@ let parse filename =
     close_in ic;
     ptree
   with Sys_error s ->
-    user_error s
+    raise_user_error s
 
 let parse_lib filename =
   let filename =
     if StringPlus.case_insensitive_ends_with filename ".cvl" then
       begin
 	if (!Settings.front_end) != Settings.Channels then
-	  user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
+	  raise_user_error "You are mixing a library for channel front-end with a file for the oracle front-end";
 	filename
       end
     else if StringPlus.case_insensitive_ends_with filename ".ocvl" then
       begin
 	if (!Settings.front_end) == Settings.Channels then
-	  user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
+	  raise_user_error "You are mixing a library for oracle front-end with a file for the channel front-end";
 	filename
       end
     else
@@ -73,7 +68,7 @@ let parse_lib filename =
     close_in ic;
     ptree
   with Sys_error s ->
-    user_error s 
+    raise_user_error s 
 
 let parse_with_lib filename =
   let libs =
@@ -89,7 +84,7 @@ let parse_with_lib filename =
 	  if Sys.file_exists filename' then
 	    [filename']
 	  else
-	    user_error ("Could not find default library of primitives "^filename)
+	    raise_user_error ("Could not find default library of primitives "^filename)
     | l ->
         (* In [Settings.lib_name], the librairies are in the reverse order
 	   in which they should be included *)
@@ -108,8 +103,6 @@ let parse_with_lib filename =
    May contain function symbols, variables, ...
    Is a map from strings to the description of the ident *)
 
-open Stringmap
-  
 let init_env () =
   Terms.record_id "true" dummy_ext;
   Terms.record_id "false" dummy_ext;
@@ -183,7 +176,7 @@ let rec check_type_list ext pel el tl =
       check_type (snd pe) e t;
       check_type_list ext pel el tl
   | _ ->
-      raise_error ("Unexpected number of arguments") ext
+      raise_error "Unexpected number of arguments" ext
 
 let rec check_array_type_list ext pel el cur_array creation_array =
   match (pel, el, creation_array) with
@@ -310,9 +303,9 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
 		  ) env_args vardecl
 	    in
 	    check_term1 env_args_vars in_find_cond cur_array env'' t 
-	| _ -> raise_error (s ^ " should be a function") ext
+	| d -> raise_error (s ^ " was previously declared as a "^ (decl_name d)^". Expected a function.") ext
       with Not_found ->
-	raise_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined. Expected a function.") ext
       end
   | PTestE(t1, t2, t3), ext ->
       union_both
@@ -1218,7 +1211,7 @@ let rec check_term defined_refs_opt cur_array env prog = function
 	      end
 	    else
 	      raise_error (s ^ " has no arguments but expects some") ext
-	| _ -> raise_error (s ^ " should be a variable or a function") ext
+	| d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a variable, a replication index, or a function") ext
       with Not_found ->
 	if in_impl_process() && prog <> None then
 	  raise_error "Implementation does not support out-of-scope references" ext;
@@ -1282,9 +1275,9 @@ let rec check_term defined_refs_opt cur_array env prog = function
 		let t' = check_term (Some []) cur_array env'' prog t in
 		Terms.put_lets_term lets t' None
 	      end
-	| _ -> raise_error (s ^ " should be a function") ext
+	| d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a function.") ext
       with Not_found ->
-	raise_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined. Expected a function.") ext
       end
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
@@ -1366,37 +1359,23 @@ let rec check_term defined_refs_opt cur_array env prog = function
       in
       Terms.new_term (!t_common) ext (FindE(List.rev l0', t3', find_info))
   | PEventAbortE(s,ext2), ext ->
-      begin
-      try 
-	match StringMap.find s env with
-	  EEvent(f) ->
-	    check_type_list ext2 [] [] (List.tl (fst f.f_type));
-	    Terms.new_term Settings.t_any ext (EventAbortE(f))
-	| _ -> raise_error (s ^ " should be an event") ext
-      with Not_found ->
-	raise_error (s ^ " not defined") ext
-      end
+      let f = get_event env s ext2 in
+      check_type_list ext2 [] [] (List.tl (fst f.f_type));
+      Terms.new_term Settings.t_any ext (EventAbortE(f))
   | PEventE((PFunApp((s,ext0),tl), ext), p), ext2 ->
-      begin
-        try 
-	  match StringMap.find s env with
-	      EEvent(f) ->
-	        let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
-	        check_type_list ext tl tl' (List.tl (fst f.f_type));
-	        let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	        let tcur_array =
-		  Terms.new_term Settings.t_bitstring ext2
-		    (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
-	        in
-	        let p' = check_term defined_refs_opt cur_array env prog p in
-                let event =
-		  Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
-		in
-	        Terms.new_term p'.t_type ext2 (EventE(event, p'))
-	    | _ -> raise_error (s ^ " should be an event") ext0
-        with Not_found ->
-	  raise_error (s ^ " not defined") ext0
-      end
+      let f = get_event env s ext0 in
+      let tl' = List.map (check_term defined_refs_opt cur_array env prog) tl in
+      check_type_list ext tl tl' (List.tl (fst f.f_type));
+      let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
+      let tcur_array =
+	Terms.new_term Settings.t_bitstring ext2
+	  (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
+      in
+      let p' = check_term defined_refs_opt cur_array env prog p in
+      let event =
+	Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
+      in
+      Terms.new_term p'.t_type ext2 (EventE(event, p'))
   | PEventE _, ext2 ->
       raise_error "events should be function applications" ext2
   | PGetE((id,ext),patl,topt,p1,p2,opt),ext2 ->
@@ -1585,18 +1564,18 @@ let check_process_channel cur_array env (((s, ext) as id), idx_opt) =
 		  EReplIndex ri' ->
 		    if ri != ri' then
 		      raise_error "The indices of a channel should be the current replication indices in the right order" ext
-		| _ ->
-		    raise_error (id ^ " should be a current replication index") ext
+		| d ->
+		    raise_error (id ^ " was previously declared as a "^(decl_name d)^". Expected a current replication index") ext
 	      with Not_found ->
-		raise_error (id ^ " not defined") ext
+		raise_error (id ^ " not defined. Expected a current replication index.") ext
 	      ) l cur_array
       end;
       try 
 	match StringMap.find s env with
 	  EChannel(b) -> (b,List.map Terms.term_from_repl_index cur_array)
-	| _ -> raise_error (s ^ " should be a channel") ext
+	| d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a channel.") ext
       with Not_found -> 
-	raise_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined. Expected a channel.") ext
     end
   else
     (check_channel_id id, List.map Terms.term_from_repl_index cur_array)
@@ -1630,8 +1609,8 @@ let rec check_term_nobe env = function
 	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	    else
 	      raise_error (s ^ " has no arguments but expects some") ext
-	| _ -> raise_error (s ^ " should be a variable or a function (letfun forbidden)") ext
-      with Not_found -> raise_error (s ^ " not defined") ext
+	| d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a variable or a function (letfun forbidden).") ext
+      with Not_found -> raise_error (s ^ " not defined. Expected a variable or a function (letfun forbidden).") ext
       end
   | PFunApp((s,ext), tl),ext2 ->
       let tl' = List.map (check_term_nobe env) tl in
@@ -1804,7 +1783,7 @@ let rec check_term_proba env = function
 	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	    else
 	      raise_error (s ^ " has no arguments but expects some") ext
-	| _ -> raise_error (s ^ " should be a variable or a function (letfun forbidden)") ext
+	| d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a variable or a function (letfun forbidden).") ext
       with Not_found -> 
 	let b = get_global_binder "outside its scope" (s,ext) in
 	let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in
@@ -1933,9 +1912,9 @@ let rec check_probability_formula seen_ch seen_repl env = function
 		raise_error ("The parameter " ^s^ " should occur in each member of the equivalence") ext;
 	      Count p, Some(0, 0, 0)
 	  | EProba p -> Proba(p,[]), Some(1, 0, 0)
-	  | _ -> raise_error (s ^ " should be a probability or a parameter") ext
+	  | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a probability or a parameter.") ext
 	with Not_found ->
-	  raise_error (s ^ " is not defined") ext
+	  raise_error (s ^ " is not defined. Expected a probability or a parameter.") ext
       end
   | PCount(s,ext), ext2 ->
       begin
@@ -1955,9 +1934,9 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	try 
 	  match StringMap.find s env with
 	  | EProba p -> Proba(p,l'), Some(1, 0, 0)
-	  | _ -> raise_error (s ^ " should be a probability") ext
+	  | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a probability.") ext
 	with Not_found ->
-	  raise_error (s ^ " is not defined") ext
+	  raise_error (s ^ " is not defined. Expected a probability.") ext
       end
   | PAdd(p1,p2), ext ->
       let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
@@ -2079,9 +2058,9 @@ let rec check_probability_formula seen_ch seen_repl env = function
 		(TypeMaxlength t, Some(0,0,1))
 	      else
 		raise_error "the length of a type is allowed only when the type is bounded" ext'
-	  | _ -> raise_error (s ^ " should be a function symbol (letfun forbidden) or a type") ext'
+	  | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a function symbol (letfun forbidden) or a type.") ext'
 	with Not_found ->
-	  raise_error (s ^ " is not defined") ext'
+	  raise_error (s ^ " is not defined. Expected a function symbol (letfun forbidden) or a type.") ext'
       end
   | PLengthTuple(tl,pl), ext ->
       let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in
@@ -2098,67 +2077,39 @@ let rec check_probability_formula seen_ch seen_repl env = function
       let (p2', d2) = check_probability_formula seen_ch seen_repl env p2 in
       (Div(p1',p2'), compose_dim (-) d1 d2)
   | PPZero, ext -> Zero, None
-  | PCard (s,ext'), ext -> 
-      begin
-	try 
-	  match StringMap.find s env with
-	  | EType t -> 
-	      if t.toptions land Settings.tyopt_BOUNDED != 0 then
-		Card t, Some(-1, 0, 0)
-	      else
-		raise_error (s ^ " should be bounded") ext'
-	  | _ -> raise_error (s ^ " should be a type") ext'
-	with Not_found ->
-	  raise_error (s ^ " is not defined") ext'
-      end
+  | PCard (s,ext'), ext ->
+      let t = get_type env s ext' in
+      if t.toptions land Settings.tyopt_BOUNDED != 0 then
+	Card t, Some(-1, 0, 0)
+      else
+	raise_error (s ^ " should be bounded") ext'
   | PCst i, ext ->
       Cst (float_of_int i), Some(0, 0, 0)
   | PFloatCst f, ext ->
       Cst f, Some(0, 0, 0)
   | PEpsFind, ext -> (if (!Settings.ignore_small_times) > 0 then Zero else EpsFind), Some(1, 0, 0)
   | PEpsRand(s,ext'), ext ->
-      begin
-	try 
-	  match StringMap.find s env with
-	  | EType t -> 
-	      if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
-		raise_error (s ^ " should be bounded or fixed, it should not be nonuniform") ext'
-	      else if t.toptions land Settings.tyopt_FIXED != 0 then
-		Zero, Some(1, 0, 0)
-	      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
-		(if (!Settings.ignore_small_times) > 0 then Zero else EpsRand t), Some(1, 0, 0)
-	      else
-		raise_error (s ^ " should be bounded or fixed") ext'
-	  | _ -> raise_error (s ^ " should be a type") ext'
-	with Not_found ->
-	  raise_error (s ^ " is not defined") ext'
-      end
+      let t = get_type env s ext' in
+      if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
+	raise_error (s ^ " should be bounded or fixed, it should not be nonuniform") ext'
+      else if t.toptions land Settings.tyopt_FIXED != 0 then
+	Zero, Some(1, 0, 0)
+      else if t.toptions land Settings.tyopt_BOUNDED != 0 then
+	(if (!Settings.ignore_small_times) > 0 then Zero else EpsRand t), Some(1, 0, 0)
+      else
+	raise_error (s ^ " should be bounded or fixed") ext'
   | PPColl1Rand(s,ext'), ext ->
-      begin
-	try 
-	  match StringMap.find s env with
-	  | EType t -> 
-	      if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
-		Proba.pcoll1rand t, Some(1, 0, 0)
-	      else 
-		raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
-	  | _ -> raise_error (s ^ " should be a type") ext'
-	with Not_found ->
-	  raise_error (s ^ " is not defined") ext'
-      end
+      let t = get_type env s ext' in
+      if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
+	Proba.pcoll1rand t, Some(1, 0, 0)
+      else 
+	raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
   | PPColl2Rand(s,ext'), ext ->
-      begin
-	try 
-	  match StringMap.find s env with
-	  | EType t -> 
-	      if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
-		Proba.pcoll2rand t, Some(1, 0, 0)
-	      else 
-		raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
-	  | _ -> raise_error (s ^ " should be a type") ext'
-	with Not_found ->
-	  raise_error (s ^ " is not defined") ext'
-      end
+      let t = get_type env s ext' in
+      if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
+	Proba.pcoll2rand t, Some(1, 0, 0)
+      else 
+	raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
 	
 let check_probability_formula2 seen_ch seen_repl env p =
   let (p', d) = check_probability_formula seen_ch seen_repl env p in
@@ -2217,7 +2168,7 @@ let rec check_lm_term t =
     Var(b, l) -> 
       (* Now, array references are allowed, with indices given as argument to the oracle
       if not (Terms.is_args_at_creation b l) then
-	Parsing_helper.input_error "Array references forbidden in left member of equivalences" t.t_loc;
+	raise_error "Array references forbidden in left member of equivalences" t.t_loc;
       *)
       begin
       match b.link with
@@ -2226,22 +2177,22 @@ let rec check_lm_term t =
 	     triggered because only restrictions are allowed to take 
 	     arguments as indices *)
 	  if not (Terms.is_args_at_creation b l) then
-	    Parsing_helper.input_error "Array references to variables defined by let or <- forbidden in left member of equivalences" t.t_loc;
+	    raise_error "Array references to variables defined by let or <- forbidden in left member of equivalences" t.t_loc;
 	  check_lm_term t
       |	NoLink -> ([],t)
       end 
   | ReplIndex _ ->
-      Parsing_helper.input_error "One cannot refer to replication indices in the left-hand side of equivalences" t.t_loc
+      raise_error "One cannot refer to replication indices in the left-hand side of equivalences" t.t_loc
   | FunApp(f,l) ->
       let (lres, lt) = List.split (List.map check_lm_term l) in
       (List.concat lres, Terms.build_term t (FunApp(f, lt)))
   | LetE(PatVar b,t,t1,_) ->
       if Terms.refers_to b t then
-	Parsing_helper.input_error "Cyclic assignment in left member of equivalence" t.t_loc;
+	raise_error "Cyclic assignment in left member of equivalence" t.t_loc;
       Terms.link b (TLink t);
       check_lm_term t1
   | LetE _ ->
-      Parsing_helper.input_error "let with non-variable patterns forbidden in left member of equivalences" t.t_loc
+      raise_error "let with non-variable patterns forbidden in left member of equivalences" t.t_loc
   | ResE(b,t1) ->
       let (lres, t1') = check_lm_term t1 in
       (* Remove useless new; move it outside the oracle when it is useful *)
@@ -2250,7 +2201,7 @@ let rec check_lm_term t =
       else
 	(lres, t1')
   | (TestE _ | FindE _ | EventAbortE _ | GetE _ | InsertE _ | EventE _) ->
-      Parsing_helper.input_error "if, find, get, insert, event, and event_abort forbidden in left member of equivalences" t.t_loc
+      raise_error "if, find, get, insert, event, and event_abort forbidden in left member of equivalences" t.t_loc
 
 let rec reduce_rec t =
   let reduced = ref false in
@@ -2287,7 +2238,7 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       (* Check that all new from [restrlist'] are used *)
       List.iter2 (fun ((bname, ext),_,_) (b,_) ->
 	if not (List.exists (Terms.refers_to_fungroup b) funlist') then
-	  Parsing_helper.input_error ("Random variable "^bname^" is not used") ext
+	  raise_error ("Random variable "^bname^" is not used") ext
 	    ) restrlist restrlist';
       (* It is important that the "new" originally present in PReplRestr [restrlist']
 	 are put first, so that they are used by combine_first later in the code *)
@@ -2325,7 +2276,7 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       let tres3 = reduce_rec tres2 in
       List.iter2 (fun ((argname,ext),_) arg' ->
 	if not (Terms.refers_to arg' tres3) then
-	  Parsing_helper.input_error ("After simplification, variable " ^ argname ^ " is not used in this term") tres'.t_loc
+	  raise_error ("After simplification, variable " ^ argname ^ " is not used in this term") tres'.t_loc
 	    ) arglist arglist';
       (* Remove new that are unused after simplification *)
       let restr = List.filter (fun (b,_) -> Terms.refers_to b tres3) restr in
@@ -2537,7 +2488,7 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
 	  match lrestr with
 	  | [] -> ()
 	  | (r1,ext)::_ ->
-	      Parsing_helper.input_error "when a new or <-R is inside the result of an oracle in the left-hand side of equiv, the oracle should occur under a replication or a new or <-R" ext
+	      raise_error "when a new or <-R is inside the result of an oracle in the left-hand side of equiv, the oracle should occur under a replication or a new or <-R" ext
 	end;	
 	let res = (fg', check_mode false mode) in
 	match res with
@@ -2577,9 +2528,12 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
 (* Check collision statement *)
 
 let check_collision_var env (s, ext) =
-  match StringMap.find s env with
-    EVar(v) -> v
-  | _ -> raise_error (s ^ " should be a variable") ext
+  try 
+    match StringMap.find s env with
+      EVar(v) -> v
+    | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a variable.") ext
+  with Not_found ->
+    raise_error (s ^ " not defined. Expected a variable.") ext
 
 let make_and_indep_cond c1 c2 =
   match c1, c2 with
@@ -2925,18 +2879,11 @@ let rec check_process defined_refs cur_array env prog = function
 
 and check_oprocess defined_refs cur_array env prog = function
     PYield, ext -> (new_oproc Yield ext, None, [], new_oproc Yield ext)
-  | PEventAbort(s,ext), ext' -> 
-      begin
-      try 
-	match StringMap.find s env with
-	  EEvent(f) ->
-	    check_type_list ext [] [] (List.tl (fst f.f_type));
-	    let p_desc = EventAbort(f) in
-	    (new_oproc p_desc ext', None, [], new_oproc p_desc ext')
-	| _ -> raise_error (s ^ " should be an event") ext
-      with Not_found ->
-	raise_error (s ^ " not defined") ext
-      end
+  | PEventAbort(s,ext), ext' ->
+      let f = get_event env s ext in
+      check_type_list ext [] [] (List.tl (fst f.f_type));
+      let p_desc = EventAbort(f) in
+      (new_oproc p_desc ext', None, [], new_oproc p_desc ext')
   | PRestr((s1,ext1),(s2,ext2),p), ext ->
       let t = get_type env s2 ext2 in
         if t.toptions land Settings.tyopt_CHOOSABLE == 0 then
@@ -3032,27 +2979,20 @@ and check_oprocess defined_refs cur_array env prog = function
          mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
          new_oproc (Let(pat', t', ip1', ip2')) ext)
   | PEvent((PFunApp((s,ext0),tl), ext), p), ext2 ->
-      begin
-        try 
-	  match StringMap.find s env with
-	      EEvent(f) ->
-	        let tl' = List.map (check_term (Some defined_refs) cur_array env prog) tl in
-	          check_type_list ext tl tl' (List.tl (fst f.f_type));
-	          let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	          let tcur_array =
-		    Terms.new_term Settings.t_bitstring ext2
-		     (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
-	          in
-	          let (p', tres, oracle,ip') = check_oprocess defined_refs cur_array env prog p in
-                  let event =
-		    Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
-		  in
-	          (new_oproc (EventP(event, p')) ext2, tres, oracle,
-                   new_oproc (EventP(event, ip')) ext2)
-	    | _ -> raise_error (s ^ " should be an event") ext0
-        with Not_found ->
-	  raise_error (s ^ " not defined") ext0
-      end
+      let f = get_event env s ext0 in
+      let tl' = List.map (check_term (Some defined_refs) cur_array env prog) tl in
+      check_type_list ext tl tl' (List.tl (fst f.f_type));
+      let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
+      let tcur_array =
+	Terms.new_term Settings.t_bitstring ext2
+	  (FunApp(tupf, List.map Terms.term_from_repl_index cur_array))
+      in
+      let (p', tres, oracle,ip') = check_oprocess defined_refs cur_array env prog p in
+      let event =
+	Terms.new_term Settings.t_bool ext2 (FunApp(f, tcur_array::tl'))
+      in
+      (new_oproc (EventP(event, p')) ext2, tres, oracle,
+       new_oproc (EventP(event, ip')) ext2)
   | PGet((id,ext),patl,topt,p1,p2,opt), ext' ->
       let find_info = parse_unique "get" opt in
       let tbl = get_table env id ext in
@@ -3778,16 +3718,9 @@ let new_bitstring_binder() =
 let rec check_term_query1 env = function
   | PQEvent(inj, (PFunApp((s,ext), tl), ext2)),ext3 ->
       let tl' = List.map (check_term_nobe env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	  EEvent(f) ->
-	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
-	    [inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl'))]
-	| _ -> raise_error (s ^ " should be an event") ext
-      with Not_found ->
-	raise_error (s ^ " not defined") ext
-      end
+      let f = get_event env s ext in
+      check_type_list ext2 tl tl' (List.tl (fst f.f_type));
+      [inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl'))]
   | PQEvent _, ext ->
       raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
@@ -3813,9 +3746,9 @@ let rec check_term_query2 env = function
 	      QTerm x'
 	    else
 	      raise_error (s ^ " has no arguments but expects some") ext
-	| _ -> raise_error (s ^ " should be a variable or a function (letfun forbidden)") ext
+	| d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a variable or a function (letfun forbidden).") ext
       with Not_found -> 
-	raise_error (s ^ " not defined") ext
+	raise_error (s ^ " not defined. Expected a variable or a function (letfun forbidden).") ext
       end
   | (PFunApp((s,ext), tl),ext2) as x ->
       let tl' = List.map (check_term_nobe env) tl in
@@ -3826,16 +3759,9 @@ let rec check_term_query2 env = function
       QTerm x'
   | PQEvent(inj, (PFunApp((s,ext), tl), ext2)),ext3 ->
       let tl' = List.map (check_term_nobe env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	  EEvent(f) ->
-	    check_type_list ext2 tl tl' (List.tl (fst f.f_type));
-	    QEvent (inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl')))
-	| _ -> raise_error (s ^ " should be a an event") ext
-      with Not_found ->
-	raise_error (s ^ " not defined") ext
-      end
+      let f = get_event env s ext in
+      check_type_list ext2 tl tl' (List.tl (fst f.f_type));
+      QEvent (inj, Terms.new_term (snd f.f_type) ext2 (FunApp(f, (new_bitstring_binder()) :: tl')))
   | PQEvent _, ext ->
       raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
@@ -3927,9 +3853,9 @@ let rec check_all (l,p) =
 	 remove_dup ql, !proof, (get_impl ()), final_p)
     | PEquivalence(p1,p2,pub_vars) ->
 	if (!queries_parse) != [] then
-	  user_error "Queries are incompatible with equivalence";
+	  raise_user_error "Queries are incompatible with equivalence";
 	if !Settings.get_implementation then
-	  user_error "Implementation is incompatible with equivalence";
+	  raise_user_error "Implementation is incompatible with equivalence";
 	let p1' = check_process_full p1 in
 	let p2' = check_process_full p2 in
 	let pub_vars' =  get_qpubvars pub_vars in
@@ -3938,9 +3864,9 @@ let rec check_all (l,p) =
 	 [], !proof, ([],[]), final_p)
     | PQueryEquiv equiv_statement ->
 	if (!queries_parse) != [] then
-	  user_error "Queries are incompatible with query_equiv";
+	  raise_user_error "Queries are incompatible with query_equiv";
 	if !Settings.get_implementation then
-	  user_error "Implementation is incompatible with query_equiv";
+	  raise_user_error "Implementation is incompatible with query_equiv";
 	let equiv_statement' = check_eqstatement false equiv_statement in
 	let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
 	(!statements, !collisions, !equivalences,

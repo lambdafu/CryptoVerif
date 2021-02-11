@@ -221,6 +221,8 @@ let anal_file s0 =
       print_string "End of file.\n"
   | Sys.Break ->
       print_string "Stopped.\n"
+  | Parsing_helper.Error(s, ext) ->
+      Parsing_helper.input_error s ext
   | e ->
       Parsing_helper.internal_error (Printexc.to_string e)
 

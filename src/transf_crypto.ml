@@ -2916,7 +2916,7 @@ let check_lhs_array_ref() =
 	      both arguments and replication indices. Also modify
 	      check.ml accordingly to allow such references 
 	      (see TO DO in check.ml, function get_arg_array_ref) *)
-	      Parsing_helper.user_error "Error: array references that use both arguments and replication indices are not supported yet in the LHS of equivalences\n"
+	      Parsing_helper.internal_error "Error: array references that use both arguments and replication indices are not supported yet in the LHS of equivalences\n"
 	    end;
 	  ((b,l),(b',l'),mapping')
 	    ) one_exp.before_transfo_array_ref_map
@@ -2946,7 +2946,7 @@ let check_lhs_array_ref() =
 		     arguments. Also modify check.ml accordingly to allow such 
 		     references 
 		     (see TO DO in check.ml, function check_common_index) *)
-		  Parsing_helper.user_error "Error: array references that share arguments are not supported yet in the LHS of equivalences\n"
+		  Parsing_helper.internal_error "Error: array references that share arguments are not supported yet in the LHS of equivalences\n"
 		end
 	      ) r
 	| [] -> ()

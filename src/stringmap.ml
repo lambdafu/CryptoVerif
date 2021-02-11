@@ -35,34 +35,54 @@ let env = ref (StringMap.empty : env_type)
 
 (* Read environment *)
 
+let decl_name = function
+  | EFunc _ -> "function"
+  | EEvent _ -> "event"
+  | EParam _ -> "parameter"
+  | EProba _ -> "probability"
+  | EType _ -> "type"
+  | EVar _ -> "variable"
+  | EReplIndex _ -> "replication index"
+  | EChannel _ -> "channel"
+  | ELetFun _ -> "function declared by letfun"
+  | EProcess _ -> "process"
+  | ETable _ -> "table"
+    
 let get_param env s ext =
   try
   match StringMap.find s env with
     EParam p -> p
-  | _ -> input_error (s ^ " should be a parameter.") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a parameter.") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a parameter.") ext
 
+let get_event env s ext =
+  try 
+    match StringMap.find s env with
+    | EEvent(f) -> f
+    | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected an event.") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected an event.") ext
+      
 let get_type env s ext =
   try
   match StringMap.find s env with
     EType t -> t
-  | _ -> input_error (s ^ " should be a type.") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a type.") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a type.") ext
 
 let get_table env s ext =
   try
   match StringMap.find s env with
     ETable t -> t
-  | _ -> input_error (s ^ " should be a table.") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a table.") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a table.") ext
 
 let get_type_or_param env s ext =
   try
   match StringMap.find s env with
     EType t -> t
   | EParam p -> Terms.type_for_param p
-  | _ -> input_error (s ^ " should be a type or a parameter.") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a type or a parameter.") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a type or a parameter.") ext
 
 let get_ty env = function
     Ptree.Tid (s2, ext2) -> (get_type env s2 ext2, ext2)
@@ -74,23 +94,23 @@ let get_process env s ext =
   try
   match StringMap.find s env with
     EProcess(env', args, p) -> (env', args, p)
-  | _ -> input_error (s ^ " should be a process.") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a process.") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a process.") ext
 
 let get_function_no_letfun env s ext =
   try
   match StringMap.find s env with
     EFunc f -> f
-  | _ -> input_error (s ^ " should be a function (letfun forbidden).") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a function (letfun forbidden).") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a function (letfun forbidden).") ext
 
 let get_function_or_letfun env s ext =
   try
   match StringMap.find s env with
     EFunc f -> f
   | ELetFun(f, _, _, _) -> f
-  | _ -> input_error (s ^ " should be a function (letfun allowed).") ext
-  with Not_found -> input_error (s ^ " not defined.") ext
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a function (letfun allowed).") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a function (letfun allowed).") ext
 
 (* Global binder environment *)
 
@@ -196,7 +216,7 @@ let get_global_binder ref (i,ext) =
     match StringMap.find i (!binder_env) with
       Uniq b -> b
     | Error mess ->
-	input_error (i ^ " is referenced " ^ ref ^ " and is defined "^ mess) ext
+	raise_error (i ^ " is referenced " ^ ref ^ " and is defined "^ mess) ext
   with Not_found ->
     raise (Undefined(i,ext))
 

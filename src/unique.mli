@@ -27,7 +27,7 @@ val infer_unique : game -> repl_index list -> simp_facts -> binderref list ->
 
 (* [prove_unique_game initial g] proves that find[unique?], that is, 
    with find_info = UniqueToProve, in [g] are really unique. 
-   - When [initial = true], a failure is an error (calls [input_error]), except when 
+   - When [initial = true], a failure is an error (raises [Error]), except when 
    [Settings.allow_unproved_unique = true], in which case it is a warning.
    The performed transformation is recorded in the result as [DProveUnique]
    or [DProveUniqueFailed] in case of failure. This case is for use on the 

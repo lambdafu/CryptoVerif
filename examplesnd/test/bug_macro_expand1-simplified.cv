@@ -40,6 +40,6 @@ process
 	out(c_gen2, ())
 
 (* EXPECTED
-Error: sign_r2_1 not defined.
+Error: sign_r2_1 not defined. Expected a function (letfun forbidden).
 xtime: error in child process (status : 2)
 END *)

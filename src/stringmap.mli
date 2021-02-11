@@ -23,7 +23,10 @@ and env_type = env_entry StringMap.t
 
 val env : env_type ref
 
+val decl_name : env_entry -> string
+    
 val get_param : env_type -> string -> Parsing_helper.extent -> param
+val get_event : env_type -> string -> Parsing_helper.extent -> funsymb
 val get_type : env_type -> string -> Parsing_helper.extent -> typet
 val get_type_or_param : env_type -> string -> Parsing_helper.extent -> typet
 val get_ty : env_type -> Ptree.ty(*type*) -> typet * Parsing_helper.extent

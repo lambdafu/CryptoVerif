@@ -860,9 +860,9 @@ The arguments (k, r, x, "^ (if f_type == PRP then "" else "y, z, ")^"u) and coll
 	  try
 	    match Stringmap.StringMap.find f_id (!Stringmap.env) with
 	    | EFunc f -> f, ext, rest
-	    | _ -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" must be a function", ext))
+	    | d -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" was previously declared as a " ^ (decl_name d) ^". Expected a function", ext))
 	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; it must be a function", ext))
+	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; expected a function", ext))
 	end
     | (_, ext)::rest ->
 	raise (Error(expected_args(), ext))
@@ -925,10 +925,10 @@ The arguments (k, r, x, "^ (if f_type == PRP then "" else "y, z, ")^"u) and coll
 		  else
 		    Add(proba_f, Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand ty_res)))
 		    ), rest
-	    | _ ->
-		raise (Error("Special equivalence "^equiv_name^": "^proba_f^" must be a probability", ext))
+	    | d ->
+		raise (Error("Special equivalence "^equiv_name^": "^proba_f^" was previously declared as a " ^ (decl_name d) ^". Expected a probability", ext))
 	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^proba_f^" not declared; it must be a probability", ext))
+	    raise (Error("Special equivalence "^equiv_name^": "^proba_f^" not declared; expected a probability", ext))
 	end
     | (_, ext)::rest, _ ->
 	raise (Error(expected_args(), ext))	  
@@ -1583,9 +1583,9 @@ The arguments (k, "^(if bij_type == ICM then "lk, " else "") ^"m, c, u) and coll
 	  try
 	    match Stringmap.StringMap.find f_id (!Stringmap.env) with
 	    | EFunc f -> f, ext, rest
-	    | _ -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" must be a function", ext))
+	    | d -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" was previously declared as a " ^ (decl_name d) ^". Expected a function", ext))
 	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; it must be a function", ext))
+	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; expected a function", ext))
 	end
     | (_, ext)::rest ->
 	raise (Error(expected_args(), ext))
@@ -1599,9 +1599,9 @@ The arguments (k, "^(if bij_type == ICM then "lk, " else "") ^"m, c, u) and coll
 	  try
 	    match Stringmap.StringMap.find f_id (!Stringmap.env) with
 	    | EFunc f -> f, ext, rest
-	    | _ -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" must be a function", ext))
+	    | d -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" was previously declared as a " ^ (decl_name d) ^". Expected a function", ext))
 	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; it must be a function", ext))
+	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; expected a function", ext))
 	end
     | (_, ext)::rest ->
 	raise (Error(expected_args(), ext))
@@ -1649,10 +1649,10 @@ The arguments (k, "^(if bij_type == ICM then "lk, " else "") ^"m, c, u) and coll
 		  let all_calls = Polynom.p_add(enc_calls, dec_calls) in
 		  Add(proba_f, Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand enc_ty_res)))
 		    ), rest
-	    | _ ->
-		raise (Error("Special equivalence "^equiv_name^": "^proba_f^" must be a probability", ext))
+	    | d ->
+		raise (Error("Special equivalence "^equiv_name^": "^proba_f^" was previously declared as a " ^ (decl_name d) ^". Expected a probability", ext))
 	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^proba_f^" not declared; it must be a probability", ext))
+	    raise (Error("Special equivalence "^equiv_name^": "^proba_f^" not declared; expected a probability", ext))
 	end
     | (_, ext)::rest, _ ->
 	raise (Error(expected_args(), ext))	  

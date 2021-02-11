@@ -116,7 +116,7 @@ let prove_unique1 pp l0 find_info ext =
 	      Unique
 	    end
 	  else
-	    input_error ("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment) ext
+	    raise (Error("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment, ext))
 	else
 	  raise (Error("You inserted a find[unique] but I could not prove that it is really unique"^comment, ext))
     | Contradiction ->

@@ -219,30 +219,23 @@ let rec check_pattern1 find_cond cur_array env tyoptres = function
       end;
       let tl = List.map (fun _ -> None) l in
       List.iter2 (check_pattern1 find_cond cur_array env) tl l
-  | PPatFunApp((s,ext),l), ext2 -> 
+  | PPatFunApp((s,ext),l), ext2 ->
+      let f = get_function_no_letfun env s ext in
+      if (f.f_options land Settings.fopt_COMPOS) == 0 then
+	raise (Error("Only [data] functions are allowed in patterns", ext));
       begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	      raise (Error("Only [data] functions are allowed in patterns", ext));
-	    begin
-	      match tyoptres with
-		None -> ()
-	      |	Some ty ->
-		  if ty != snd f.f_type then
-		    raise (Error("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname, ext2))
-	    end;
-	    if List.length (fst f.f_type) != List.length l then
-	      raise (Error("Function " ^ f.f_name ^ " expects " ^ 
-			   (string_of_int (List.length (fst f.f_type))) ^ 
-			   " arguments but is here applied to " ^  
-			   (string_of_int (List.length l)) ^ "arguments", ext));
-	    List.iter2 (check_pattern1 find_cond cur_array env) (List.map (fun t -> Some t) (fst f.f_type)) l
-	| _ -> raise (Error(s ^ " should be a function", ext))
-      with Not_found ->
-	raise (Error(s ^ " not defined", ext))
-      end
+	match tyoptres with
+	  None -> ()
+	| Some ty ->
+	    if ty != snd f.f_type then
+	      raise (Error("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname, ext2))
+      end;
+      if List.length (fst f.f_type) != List.length l then
+	raise (Error("Function " ^ f.f_name ^ " expects " ^ 
+		     (string_of_int (List.length (fst f.f_type))) ^ 
+		     " arguments but is here applied to " ^  
+		     (string_of_int (List.length l)) ^ "arguments", ext));
+      List.iter2 (check_pattern1 find_cond cur_array env) (List.map (fun t -> Some t) (fst f.f_type)) l
   | PPatEqual t, ext ->
       ()
 
@@ -515,7 +508,7 @@ let rec check_term defined_refs cur_array env = function
 	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
 	    else
 	      raise (Error(s ^ " has no arguments but expects some", ext))
-	| _ -> raise (Error(s ^ " should be a variable or a function", ext))
+	| d -> raise (Error(s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a variable, a replication index, or a function", ext))
       with Not_found -> try
 	match Hashtbl.find hash_binders s with
 	  Std b -> 
@@ -539,16 +532,9 @@ let rec check_term defined_refs cur_array env = function
       Terms.new_term b.btype ext2 (Var(b,tl''))
   | PFunApp((s,ext), tl),ext2 ->
       let tl' = List.map (check_term defined_refs cur_array env) tl in
-      begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-	    check_type_list ext2 tl tl' (fst f.f_type);
-	    Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
-	| _ -> raise (Error(s ^ " should be a function", ext))
-      with Not_found ->
-	raise (Error(s ^ " not defined", ext))
-      end
+      let f = get_function_no_letfun env s ext in
+      check_type_list ext2 tl tl' (fst f.f_type);
+      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term defined_refs cur_array env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
@@ -651,31 +637,24 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
       let (env', l') = check_pattern_list find_cond defined_refs cur_array env tl l in
       let tl' = List.map Terms.get_type_for_pattern l' in
       (env', PatTuple(Settings.get_tuple_fun tl', l'))
-  | PPatFunApp((s,ext),l), ext2 -> 
+  | PPatFunApp((s,ext),l), ext2 ->
+      let f = get_function_no_letfun env s ext in
+      if (f.f_options land Settings.fopt_COMPOS) == 0 then
+	raise (Error("Only [data] functions are allowed in patterns", ext));
       begin
-      try 
-	match StringMap.find s env with
-	  EFunc(f) ->
-	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
-	      raise (Error("Only [data] functions are allowed in patterns", ext));
-	    begin
-	      match tyoptres with
-		None -> ()
-	      |	Some ty ->
-		  if ty != snd f.f_type then
-		    raise (Error("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname, ext2))
-	    end;
-	    if List.length (fst f.f_type) != List.length l then
-	      raise (Error("Function " ^ f.f_name ^ " expects " ^ 
-			   (string_of_int (List.length (fst f.f_type))) ^ 
-			   " arguments but is here applied to " ^  
-			   (string_of_int (List.length l)) ^ "arguments", ext));
-	    let (env', l') = check_pattern_list find_cond defined_refs cur_array env (List.map (fun t -> Some t) (fst f.f_type)) l in
-	    (env', PatTuple(f, l'))
-	| _ -> raise (Error(s ^ " should be a function", ext))
-      with Not_found ->
-	raise (Error(s ^ " not defined", ext))
-      end
+	match tyoptres with
+	  None -> ()
+	| Some ty ->
+	    if ty != snd f.f_type then
+	      raise (Error("Pattern returns type " ^ (snd f.f_type).tname ^ " and should be of type " ^ ty.tname, ext2))
+      end;
+      if List.length (fst f.f_type) != List.length l then
+	raise (Error("Function " ^ f.f_name ^ " expects " ^ 
+		     (string_of_int (List.length (fst f.f_type))) ^ 
+		     " arguments but is here applied to " ^  
+		     (string_of_int (List.length l)) ^ "arguments", ext));
+      let (env', l') = check_pattern_list find_cond defined_refs cur_array env (List.map (fun t -> Some t) (fst f.f_type)) l in
+      (env', PatTuple(f, l'))
   | PPatEqual t, ext ->
       let t' = check_term (Some defined_refs) cur_array env t in
       begin
