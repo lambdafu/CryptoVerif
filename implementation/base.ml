@@ -138,6 +138,8 @@ let decompos b =
    [insert_in_table] is used for implementing "insert" *)
 
 let get_from_table file filter =
+  (* Consider a non-existing file as an empty table *)
+  if not (Sys.file_exists file) then [] else
   let f=
     try
       open_in_bin file
@@ -177,6 +179,8 @@ let get_from_table file filter =
   r
 
 let get_one_from_table file filter =
+  (* Consider a non-existing file as an empty table *)
+  if not (Sys.file_exists file) then None else
   let f=
     try
       open_in_bin file
@@ -217,6 +221,8 @@ let get_one_from_table file filter =
 
     
 let exists_in_table file filter =
+  (* Consider a non-existing file as an empty table *)
+  if not (Sys.file_exists file) then false else
   let f=
     try
       open_in_bin file
