@@ -2,4 +2,4 @@ open Types
 
 val reduce_tables : game_transformer
 
-val reduce_tables_eqside : eqmember -> eqmember
+val reduce_tables_eqside : eqmember -> eqmember * setf list

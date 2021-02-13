@@ -44,6 +44,14 @@ val pcoll2rand : typet -> probaf
    occur in the term [t]. *)
 val collect_array_indexes : repl_index list ref -> term -> unit
 
+(* [add_proba_find cur_array l0 find_info] adds the probability coming from
+   reorganization of branches of a find with branches [l0] and options [find_info].
+   [cur_array] are the current replication indices at that find. 
+   This extremely small probability comes from the fact that the distribution
+   used to select the find branch and indices when there are several choices
+   is not exactly uniform. It is ignored by default. *)
+val add_proba_find : repl_index list -> 'a findbranch list -> find_info -> unit
+    
 (* [add_elim_collisions b1 b2] add the probability of collision between
    [b1] and [b2]
    Returns true when the probability is considered small enough to
@@ -153,3 +161,4 @@ val final_add_proba : probaf list -> setf list
 val get_current_state : unit -> simplify_internal_info_t
 val get_and_empty_state : unit -> simplify_internal_info_t
 val restore_state : simplify_internal_info_t -> unit
+val empty_proba_state : simplify_internal_info_t

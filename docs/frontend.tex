@@ -690,7 +690,7 @@ If none of these conditions is \texttt{true}, it executes $P$.
 Otherwise, it chooses randomly with almost uniform 
 probability\footnote{Precisely, the distance between the distribution actually
 used for choosing $j, i_{j1}, \ldots, i_{jm_j}$ and the uniform
-distribution is at most \texttt{eps\_find}. See the explanation of $\Resa{x}{T}$
+distribution is at most $\texttt{eps\_find}/2$. See the explanation of $\Resa{x}{T}$
 for details on how to achieve this.}
 one $j$ and one value of $i_{j1}, \ldots, i_{jm_j}$
 such that the corresponding condition is \texttt{true},
@@ -2642,7 +2642,7 @@ length of the non-bounded arguments of this function.
 
 \item $n$ is an integer constant.
 
-\item \texttt{eps\_find} is the maximum distance between the uniform probability
+\item \texttt{eps\_find} is 2 times the maximum distance between the uniform probability
 distribution and the probability distribution used for choosing elements
 in {\tt find}.
 

@@ -1252,7 +1252,7 @@ let rec merge_term rename_instr t =
       Parsing_helper.internal_error "new/event/event_abort/if/let/find/get/insert unexpected in terms"
 
 let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merge proc_add_def_var merge_find_cond pp 
-    rename_instr l0 p3 =
+    rename_instr l0 p3 find_info =
   let (source_to_target_list, br_vars) = rename_instr in
   let already_defined = 
     match Incompatible.get_facts pp with
@@ -1484,7 +1484,16 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
 	      ) branches_to_merge_remain';
 	  
 	  has_done_merge := true;
-	  target_branch :: (!branches_to_leave_unchanged)
+	  let l0' = target_branch :: (!branches_to_leave_unchanged) in
+	  (* This transformation may reorder elements in the list of successful
+	     branches and indices of find, hence we need to add eps_find. *)
+	  let cur_array = 
+	    match Incompatible.get_facts pp with
+	      Some (cur_array, _, _, _, _, _, _) -> cur_array
+	    | None -> Parsing_helper.internal_error "p_facts should have been defined"
+	  in
+	  Proba.add_proba_find cur_array l0' find_info;
+	  l0'
 	with Failed ->
 	  match br_vars with
 	    NoBranchVar -> raise Failed
@@ -1545,7 +1554,7 @@ let rec merge_find_cond rename_instr t =
 	try
 	  let (l0', t3') = merge_find_branches Display.display_term 
 	      Terms.subst3 Terms.copy_term (equal_find_cond None)
-	      merge_find_cond add_def_var_find_cond merge_find_cond (DTerm t) rename_instr l0 t3
+	      merge_find_cond add_def_var_find_cond merge_find_cond (DTerm t) rename_instr l0 t3 find_info
 	  in
 	  Terms.build_term t (FindE(l0',t3',find_info))
 	with Contradiction ->
@@ -1621,7 +1630,7 @@ and merge_o rename_instr p =
 	  try
 	    let (l0', p3') = merge_find_branches (Display.display_oprocess "  ") 
 		Terms.subst_oprocess3 Terms.copy_oprocess (equal_oprocess None)
-		merge_o add_def_var_proc merge_find_cond (DProcess p) rename_instr l0 p3
+		merge_o add_def_var_proc merge_find_cond (DProcess p) rename_instr l0 p3 find_info
 	    in
 	    Find(l0',p3',find_info)
 	  with Contradiction ->

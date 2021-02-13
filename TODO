@@ -27,8 +27,7 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
-The same problem may appear for other transformations of find. It is a very minor detail anyway.
+cryptoprim.tex: continue updating with the new def of nominal groups.
 
 When we automatically add a replication on top of an equiv
 statement, automatically choose the best time to add to the adversary
@@ -5716,3 +5715,8 @@ amplification technique for CDH and DDH.
 -> I abandon that; it seems to have a high computational cost.
 What about PRF-ODH with random self reducibility? 
 Seems impossible, but I could consider a multikey PRF-ODH
+
+transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should add EpsFind since the distribution for find may negligeably differ from the one for get. For the RHS of equiv, that implies modifying the proba of the equiv.
+DONE 11/2/2021
+The same problem may appear for other transformations of find. It is a very minor detail anyway.
+DONE in merge_array and simplify, 12/2/2021

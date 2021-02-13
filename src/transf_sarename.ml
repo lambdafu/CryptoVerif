@@ -206,8 +206,6 @@ and sa_oprocess b0 p =
    branch.  
 *)
 
-let proba_accu = ref []
-
 let add_proba_sarename bl l0 find_info =
   (* If find_info = Unique or bl = [], there is a single possible
      choice in the current branch, so SArename will not change the
@@ -217,16 +215,10 @@ let add_proba_sarename bl l0 find_info =
      distribution is not exactly uniform, this may lead to a change
      of probability EpsFind of these choices, for each execution
      of the find. *)
-  if not (Terms.is_unique_no_abort l0 find_info) then
-    begin
-      match bl with
-	[] -> ()
-      |	((b,_)::_) ->
-	  if (!Settings.ignore_small_times) <= 0 then
-	    proba_accu := 
-	       (SetProba (Polynom.p_mul ((Proba.card_index b), EpsFind)))
-	       :: (!proba_accu)
-    end
+  match bl with
+    [] -> ()
+  | ((b,_)::_) ->
+      Proba.add_proba_find b.args_at_creation l0 find_info
 
 let rec implies_def_subterm b0 accu (b,l) =
   if (b == b0) && 
@@ -396,19 +388,18 @@ let sa_rename b0 g =
   if Settings.occurs_in_queries b0 g.current_queries then (g, [], []) else
   begin
     image_name_list := [];
-    proba_accu := [];
     let p' = sa_process b0 p in
     if List.length (!image_name_list) >= 2 then
       begin
+	Proba.reset [] g;
 	Settings.changed := true;
 	let p' = Terms.move_occ_process p' in 
 	Def.build_def_process None p';
 	Incompatible.build_compatible_defs p';
 	let p'' = ren_out_process b0 p' in
 	let new_names = !image_name_list in
-	let probaSArename = !proba_accu in
+	let probaSArename = Proba.final_add_proba [] in
 	image_name_list := [];
-	proba_accu := [];
 	Incompatible.empty_comp_process p';
 	Def.empty_def_process p';
 	let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p'' g) in      
@@ -417,7 +408,6 @@ let sa_rename b0 g =
     else
       begin
 	image_name_list := [];
-	proba_accu := [];
 	(g, [], [])
       end
   end

@@ -364,6 +364,19 @@ let pcoll2rand t =
   else 
     pcoll1rand t
 
+(* Probabilities coming from reorganizations of find *)
+
+let find_proba = ref Zero
+
+let add_proba_find cur_array l0 find_info =
+  if (!Settings.ignore_small_times) <= 0 &&
+    not (Terms.is_unique_no_abort l0 find_info) then
+    begin
+      find_proba := Polynom.p_add
+	   (Polynom.p_mul (Polynom.p_prod (List.map (fun ri -> card ri.ri_type) cur_array), EpsFind),
+	    !find_proba)
+    end
+
 (* An element (b1,b2) in eliminated_collisions means that we 
 have used the fact
 that collisions between b1 and b2 have negligible probability. *)
@@ -911,6 +924,7 @@ let proba_for_red_proba r =
 let reset coll_elim g =
   whole_game := g;
   time_for_whole_game := None;
+  find_proba := Zero;
   elim_collisions_on_password_occ := coll_elim;
   eliminated_collisions := [];
   red_proba := []
@@ -918,7 +932,7 @@ let reset coll_elim g =
 (* Final addition of probabilities *)
 
 let final_add_proba coll_list =
-  let proba = ref Zero in
+  let proba = ref (!find_proba) in
   let add_proba p =
     if !proba == Zero then proba := p else proba := Polynom.p_add(!proba, p)
   in
@@ -928,6 +942,7 @@ let final_add_proba coll_list =
     (!red_proba);
   List.iter add_proba coll_list;
   let r = Polynom.polynom_to_probaf (Polynom.probaf_to_polynom (!proba)) in
+  find_proba := Zero;
   eliminated_collisions := [];
   red_proba := [];
   elim_collisions_on_password_occ := [];
@@ -936,14 +951,18 @@ let final_add_proba coll_list =
   if r == Zero then [] else [ SetProba r ]
 
 let get_current_state() =
-  (!eliminated_collisions, !red_proba)
+  (!find_proba, !eliminated_collisions, !red_proba)
 
-let restore_state (ac_coll, ac_red_proba) =
+let restore_state (find_prob, ac_coll, ac_red_proba) =
+  find_proba := find_prob;
   eliminated_collisions := ac_coll;
   red_proba := ac_red_proba
 
 let get_and_empty_state() =
-  let res = (!eliminated_collisions, !red_proba) in
+  let res = (!find_proba, !eliminated_collisions, !red_proba) in
+  find_proba := Zero;
   eliminated_collisions := [];
   red_proba := [];
   res
+
+let empty_proba_state = (Zero, [], [])

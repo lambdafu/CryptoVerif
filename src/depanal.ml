@@ -949,7 +949,8 @@ let rec find_compos_gen decompos_only allow_bin ((main_var, depinfo) as var_depi
 	(Facts.default_indep_test get_dep_info, Facts.no_collision_test)
       in
       let f1 = Facts.apply_reds dependency_anal simp_facts (Terms.make_equal t t') in
-      let (ac_coll, ac_red_proba) = Proba.get_current_state() in
+      let (find_proba, ac_coll, ac_red_proba) = Proba.get_current_state() in
+      assert (find_proba = Zero);
       Proba.restore_state old_proba_state;
       Facts.reduced := old_reduced;
       let r =

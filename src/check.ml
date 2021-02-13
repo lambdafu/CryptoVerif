@@ -1421,13 +1421,13 @@ let check_equiv normalize equiv =
 	Def.empty_def_member rm;
 
 	(* 2. Convert insert/get into find in the RHS *)
-	let rm' = Transf_tables.reduce_tables_eqside rm in
+	let (rm', proba) = Transf_tables.reduce_tables_eqside rm in
 
 	(* 3. Optimize by removing useless assignments *)
 	let rm'' = Transf_remove_assign.remove_assignments_eqside rm' in
 	Settings.changed := false;
 	{ equiv with
-          eq_fixed_equiv = Some(lm, rm'', p, opt2) }	
+          eq_fixed_equiv = Some(lm, rm'', proba @ p, opt2) }	
   in
 
   (* 4. Add a replication in case there is no replication at the top.

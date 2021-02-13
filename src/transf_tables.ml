@@ -321,8 +321,10 @@ let rec trf_get_term l cur_array t =
       in
       let p1'=trf_get_term l cur_array p1 in
       let p2'=trf_get_term l cur_array p2 in
+      let l0 = List.map (get_find_branch get_find_branch_then_term patl' topt' p1' cur_array) (get_info_for tbl l) in
+      Proba.add_proba_find cur_array l0 find_info;
       Terms.put_lets_term let_bindings
-	(Terms.build_term t (FindE (List.map (get_find_branch get_find_branch_then_term patl' topt' p1' cur_array) (get_info_for tbl l), p2', find_info))) None
+	(Terms.build_term t (FindE (l0, p2', find_info))) None
 
 and trf_get_pat l cur_array = function
     PatVar b -> PatVar b
@@ -402,8 +404,10 @@ and trf_get_oprocess l cur_array p0 =
       in
       let p1'=trf_get_oprocess l cur_array p1 in
       let p2'=trf_get_oprocess l cur_array p2 in
+      let l0 = List.map (get_find_branch get_find_branch_then_process patl' topt' p1' cur_array) (get_info_for tbl l) in
+      Proba.add_proba_find cur_array l0 find_info;
       Terms.put_lets let_bindings
-        (Terms.oproc_from_desc_loc p0 (Find (List.map (get_find_branch get_find_branch_then_process patl' topt' p1' cur_array) (get_info_for tbl l), p2', find_info)))
+        (Terms.oproc_from_desc_loc p0 (Find (l0, p2', find_info)))
 	(Terms.oproc_from_desc Yield)
           
 let transform_get p l =
@@ -413,13 +417,15 @@ let reduce_tables g =
   let g_proc = Terms.get_process g in
   Array_ref.array_ref_process g_proc;
   let (p,l) = transform_insert g_proc in
+  Proba.reset [] g;
   let tables = ref [] in
   List.iter (fun (tbl,_) ->
     if not (List.memq tbl (!tables)) then tables := tbl :: (!tables)) l;
   let g1 = Terms.build_transformed_game (transform_get p l) g in
+  let proba_transf_tables = Proba.final_add_proba [] in
   Array_ref.cleanup_array_ref();
   let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename g1 in
-  (g', proba, renames @ (List.map (fun tbl -> DExpandGetInsert tbl) (!tables)))
+  (g', proba @ proba_transf_tables, renames @ (List.map (fun tbl -> DExpandGetInsert tbl) (!tables)))
 
 let rec trf_insert_fungroup accu cur_array = function
   | ReplRestr(repl_opt, restr, funlist) ->
@@ -449,7 +455,9 @@ let transform_get_eqside rm l =
 
 let reduce_tables_eqside rm =
   Array_ref.array_ref_eqside rm;
+  Proba.reset [] Terms.empty_game;
   let (rm1, l) = transform_insert_eqside rm in
   let rm2 = transform_get_eqside rm1 l in
+  let proba_transf_tables = Proba.final_add_proba [] in
   Array_ref.cleanup_array_ref();
-  Transf_auto_sa_rename.auto_sa_rename_eqside rm2
+  (Transf_auto_sa_rename.auto_sa_rename_eqside rm2, proba_transf_tables)

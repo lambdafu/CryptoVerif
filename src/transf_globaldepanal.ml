@@ -1648,7 +1648,7 @@ let main b0 coll_elim g =
 	else
 	  begin
 	    advise := [];
-	    let res = check_all_deps b0 (([],[]),[]) g in
+	    let res = check_all_deps b0 (Proba.empty_proba_state,[]) g in
     (* Transfer the local advice to the global advice in Settings.advise *)
 	    List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!advise);
 	    advise := [];

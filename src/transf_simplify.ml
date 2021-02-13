@@ -10,7 +10,7 @@ let known_when_adv_wins = ref (None : known_when_adv_wins option)
 let current_max_priority = Facts.current_max_priority
 let priority_list = Facts.priority_list
 
-let proba_state_at_beginning_iteration = ref (([],[]), [])
+let proba_state_at_beginning_iteration = ref (Proba.empty_proba_state, [])
 let failure_check_all_deps = ref []
 
 (* Initialization of probability counting *)  
@@ -36,7 +36,7 @@ let final_reset g =
   priority_list := [];
   failure_check_all_deps := [];
   known_when_adv_wins := None;
-  proba_state_at_beginning_iteration := (([],[]), [])
+  proba_state_at_beginning_iteration := (Proba.empty_proba_state, [])
 
 (* Dependency analysis
    When M1 characterizes a part of x of a large type T
@@ -889,6 +889,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 	begin
 	  Settings.changed := true;
 	  let find_info = Unique.is_unique l0' find_info in
+	  (* This transformation may reorder elements in the list of successful
+	     branches and indices of find, hence we need to add eps_find. *)
+	  Proba.add_proba_find cur_array l0' find_info;
 	  Terms.build_term t (FindE(l0', t3, find_info))
 	end
       else
@@ -1069,6 +1072,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 		if (!subst) != [] then
 		  begin
 		    Settings.changed := true;
+	            (* This transformation may reorder elements in the list of successful
+		       branches and indices of find, hence we need to add eps_find. *)
+		    Proba.add_proba_find cur_array l0 find_info;
 		    current_pass_transfos := (SFindIndexKnown(pp, (bl, def_list, t1, DTerm t2), !subst)) :: (!current_pass_transfos);
 		    let bl' = !keep_bl in
 		    let subst_repl_indices_source = List.map (fun (b,_) -> List.assq b bl) (!subst) in
@@ -1487,6 +1493,9 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	begin
 	  Settings.changed := true;
 	  let find_info = Unique.is_unique l0' find_info in
+	  (* This transformation may reorder elements in the list of successful
+	     branches and indices of find, hence we need to add eps_find. *)
+	  Proba.add_proba_find cur_array l0' find_info;
 	  Terms.oproc_from_desc (Find(l0', p2, find_info))
 	end
       else
@@ -1664,6 +1673,9 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		if (!subst) != [] then 
 		  begin
 		    Settings.changed := true;
+	            (* This transformation may reorder elements in the list of successful
+		       branches and indices of find, hence we need to add eps_find. *)
+		    Proba.add_proba_find cur_array l0 find_info;
 		    current_pass_transfos := (SFindIndexKnown(pp, (bl, def_list, t, DProcess p1), !subst)) :: (!current_pass_transfos);
 		    let bl' = !keep_bl in
 		    let subst_repl_indices_source = List.map (fun (b,_) -> List.assq b bl) (!subst) in
