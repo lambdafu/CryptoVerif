@@ -43,22 +43,22 @@ case X$1 in
 	    Xnative | X )
 		ocamlopt -o ../cryptoverif$EXEC unix.cmxa str.cmxa $SRC
 		ocamlopt -o ../cryptogen$EXEC $SRCGEN
-		ocamlopt -o ../analyze$EXEC unix.cmxa $SRCANAL
+		ocamlopt -I +threads -o ../analyze$EXEC unix.cmxa threads.cmxa $SRCANAL
 		ocamlopt -o ../addexpectedtags$EXEC $SRCADDTAGS;;
 	    Xbyte )
 		ocamlc -o ../cryptoverif$EXEC unix.cma str.cma $SRC
 		ocamlc -o ../cryptogen$EXEC $SRCGEN
-		ocamlc -o ../analyze$EXEC -custom unix.cma $SRCANAL
+		ocamlc -I +threads -o ../analyze$EXEC -custom unix.cma threads.cma  $SRCANAL
 		ocamlc -o ../addexpectedtags$EXEC $SRCADDTAGS;;	
 	    Xdebug )
 		ocamlc -g -o ../cryptoverif$EXEC unix.cma str.cma $SRC
 		ocamlc -g -o ../cryptogen$EXEC $SRCGEN
-		ocamlc -g -o ../analyze$EXEC -custom unix.cma $SRCANAL
+		ocamlc -g -I +threads -o ../analyze$EXEC -custom unix.cma threads.cms $SRCANAL
 		ocamlc -g -o ../addexpectedtags$EXEC $SRCADDTAGS;;
 	    Xprofile )
 		ocamlopt -I /usr/include -o ../cryptoverif$EXEC str.cmxa unix.cmxa profileprim.c profile.mli profile.ml $SRC
 		ocamlopt -o ../cryptogen$EXEC $SRCGEN
-		ocamlopt -o ../analyze$EXEC unix.cmxa $SRCANAL
+		ocamlopt -I +threads -o ../analyze$EXEC unix.cmxa threads.cmxa $SRCANAL
 		ocamlopt -o ../addexpectedtags$EXEC $SRCADDTAGS;;
 	    *)
 		echo Unknown option

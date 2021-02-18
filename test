@@ -18,14 +18,17 @@ fi
 
 TMPDIR="$(mktemp -d -p $TMPPARENT)"
 TMP=$TMPDIR/tmp
+timeoutopt=""
 
 # usage message, in case of bad arguments
 
 usage()
 {
     cat <<'EOF' 
-Usage: test <mode> <test_set>
-where <mode> can be:
+Usage: test [-timeout <n>] <mode> <test_set>
+where 
+-timeout <n>: sets the time out to <n> seconds
+<mode> can be:
 - test: test the mentioned scripts
 - test_add: test the mentioned scripts and add the 
 expected result in the script when it is missing
@@ -67,7 +70,7 @@ analyzedirlist()
 	    fi
 	fi
     done
-    ./analyze CV "$mode" "$TMPDIR" "$prefix" dirs "$@"
+    ./analyze $timeoutopt CV "$mode" "$TMPDIR" "$prefix" dirs "$@"
 }
 
 # The functions basic, proverif, converted, and big run the various
@@ -126,6 +129,13 @@ big()
 
 
 mkdir -p tests
+
+case X$1 in
+    X-timeout) timeoutopt="-timeout $2";
+               shift
+               shift;;
+    *)  ;;
+esac
 
 case X$1 in
     X)  mode=test;;

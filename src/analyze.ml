@@ -4,6 +4,10 @@ open Unix
 
 let tmpdir = ref ""
 
+let timeout = ref 0
+
+let additional_options = ref []
+    
 let error s =
   print_string s;
   exit 2
@@ -15,6 +19,7 @@ type error_t =
   | TimeNotFound
   | IncorrectTime
   | IncorrectRSS
+  | TimeOut
       
 type time_res_t =
   | NoTime
@@ -167,10 +172,10 @@ let pv_config() =
    followed by a newline otherwise. *)
     
 let interpret_time_line errors reversed_result time_line =
- (* if StringPlus.starts_with time_line "xtime: error in child process" then
-    (!errors, List.rev ("xtime: error in child process" :: reversed_result), Error, None, "")
-  else *) if StringPlus.starts_with time_line "xtime:" then
-    (!errors, List.rev (time_line :: reversed_result), Error, None, "")
+  if StringPlus.starts_with time_line "xtime: timeout" then
+    (TimeOut :: (!errors), None, NoTime, None, time_line ^"\n")
+  else if StringPlus.starts_with time_line "xtime:" then
+    (!errors, Some (List.rev (time_line :: reversed_result)), Error, None, "")
   else if StringPlus.contains time_line "user" && StringPlus.contains time_line "system" then
     begin
       let time = 
@@ -194,10 +199,10 @@ let interpret_time_line errors reversed_result time_line =
 	      errors := IncorrectRSS :: (!errors);
 	      None
       in
-      (!errors, List.rev reversed_result, time, max_rss, time_line ^"\n")
+      (!errors, Some (List.rev reversed_result), time, max_rss, time_line ^"\n")
     end
   else
-    (TimeNotFound :: (!errors), List.rev (time_line::reversed_result), NoTime, None, "")
+    (TimeNotFound :: (!errors), Some (List.rev (time_line::reversed_result)), NoTime, None, "")
       
 
 (* [get_info_from_script config script] gets the "expected result"
@@ -250,7 +255,7 @@ let get_info_from_script config script =
       let (errors, result, time_opt, rss, _) =
 	interpret_time_line errors l a
       in
-      (errors, Some result, time_opt, rss )
+      (errors, result, time_opt, rss )
 
 (* [update_expected_result config expected_line_opt filename actual_result time_string]
    updates the expected result included in the script file [filename: string].
@@ -454,29 +459,72 @@ let analyze_file config mode options filename files =
     args.(0) <- config.executable;
     List.iteri (fun n s -> args.(n+1) <- s) options;
 
-    let (actual_errors, actual_result, actual_time_opt, actual_rss_opt, time_string, time_line) =
+    let (actual_errors, actual_result_opt, actual_time_opt, actual_rss_opt, time_string, time_line) =
       if Sys.os_type <> "Unix" then
+	let normal_result start_time end_time status =
+	  seek_in files.output_in_channel output_length;
+	  let reversed_result = extract_result config files.output_in_channel in
+	  match status with
+	  | WEXITED 0 ->
+	      let time = end_time -. start_time in
+	      let time_line = Printf.sprintf "%.3fs (elapsed: user + system + other processes)" time in
+	      ([], Some (List.rev reversed_result), Time(time), None, time_line^"\n", time_line)
+	  | _ -> 
+	      let error_line =
+		match status with
+		| WEXITED status -> Printf.sprintf "xtime: error in child process (status : %i)" status
+		| WSIGNALED _ -> "xtime: killed by a signal"
+		| WSTOPPED _ -> "xtime: stopped"
+	      in
+	      ([], Some (List.rev (error_line::reversed_result)), Error, None, "", error_line)
+	in	  
 	let start_time = Unix.gettimeofday() in
-	let (_, status) = Unix.waitpid []
-	    (Unix.create_process config.executable args
-	       files.null_input_file_descr files.output_file_descr files.output_file_descr)
-	in
-	let end_time = Unix.gettimeofday() in
-	seek_in files.output_in_channel output_length;
-	let reversed_result = extract_result config files.output_in_channel in
-	match status with
-	| WEXITED 0 ->
-	    let time = end_time -. start_time in
-	    let time_line = Printf.sprintf "%.3fs (elapsed: user + system + other processes)" time in
-	    ([], List.rev reversed_result, Time(time), None, time_line^"\n", time_line)
-	| _ -> 
-	    let error_line =
-	      match status with
-	      | WEXITED status -> Printf.sprintf "xtime: error in child process (status : %i)" status
-	      | WSIGNALED _ -> "xtime: killed by a signal"
-	      | WSTOPPED _ -> "xtime: stopped"
+	let child_pid = Unix.create_process config.executable args
+	    files.null_input_file_descr files.output_file_descr files.output_file_descr in
+	if (!timeout) > 0 then
+	  begin
+	    let timeout_reached = ref false in
+	    let (pipe_read, pipe_write) = Unix.pipe() in
+	    let _ = Thread.create (fun () ->
+	      let (read_ready, _, _) = Unix.select [pipe_read] [] [] (float_of_int (!timeout)) in
+	      match read_ready with
+	      | [] ->
+		  timeout_reached := true;
+		  begin
+		    try
+		      Unix.kill child_pid Sys.sigkill
+		    with _ -> ()
+		  end;
+		  Unix.close pipe_read
+	      | _ ->
+		  Unix.close pipe_read
+		    ) ()
 	    in
-	    ([], List.rev (error_line::reversed_result), Error, None, "", error_line)
+	    let (_, status) = Unix.waitpid [] child_pid in
+	    let end_time = Unix.gettimeofday() in
+	    if (!timeout_reached) then
+	      begin
+		Unix.close pipe_write;
+		let time_line = "xtime: timeout ("^(string_of_int (!timeout))^" s)" in
+		([TimeOut], None, NoTime, None, time_line ^"\n", time_line)
+	      end
+	    else
+	      begin
+		begin
+		  try
+		    ignore (Unix.single_write_substring pipe_write "f" 0 1)
+		  with _ -> ()
+		end;
+		Unix.close pipe_write;		
+		normal_result start_time end_time status
+	      end
+	  end
+	else
+	  begin
+	    let (_, status) = Unix.waitpid [] child_pid in
+	    let end_time = Unix.gettimeofday() in
+	    normal_result start_time end_time status
+	  end
       else
 	let time_record = { total = -1.; user = -1.; system = -1. } in
 	let time_filename = Filename.concat (!tmpdir) "time" in
@@ -487,28 +535,73 @@ let analyze_file config mode options filename files =
 	if fork_res = 0 then
 	  begin
 	  (* Child process *)
-	  try 
-	    let (_, status) = Unix.waitpid []
-		(Unix.create_process config.executable args
-		   files.null_input_file_descr files.output_file_descr files.output_file_descr)
+	  try
+	    let child_pid = Unix.create_process config.executable args
+		files.null_input_file_descr files.output_file_descr files.output_file_descr
 	    in
-	    begin
-	    match status with
-	    | WEXITED 0 ->
-		let max_rss = get_resources(time_record) in
-		Printf.fprintf time_out_channel "%.3fs (user %.3fs + system %.3fs), max rss %iK\n" time_record.total time_record.user time_record.system max_rss
-	    | WEXITED 127 ->
+	    let normal_result status =
+	      begin
+		match status with
+		| WEXITED 0 ->
+		    let max_rss = get_resources(time_record) in
+		    Printf.fprintf time_out_channel "%.3fs (user %.3fs + system %.3fs), max rss %iK\n" time_record.total time_record.user time_record.system max_rss
+		| WEXITED 127 ->
 		(* Could not execute the program *)
-		exit 3
-	    | WEXITED status ->
-		Printf.fprintf time_out_channel "xtime: error in child process (status : %i)\n" status
-	    | WSIGNALED _ ->
-		output_string time_out_channel "xtime: killed by a signal\n"
-	    | WSTOPPED _ ->
-		output_string time_out_channel "xtime: stopped\n"
-	    end;
-	    flush time_out_channel;
-	    exit 0
+		    exit 3
+		| WEXITED status ->
+		    Printf.fprintf time_out_channel "xtime: error in child process (status : %i)\n" status
+		| WSIGNALED _ ->
+		    output_string time_out_channel "xtime: killed by a signal\n"
+		| WSTOPPED _ ->
+		    output_string time_out_channel "xtime: stopped\n"
+	      end;
+	      flush time_out_channel;
+	      exit 0
+	    in
+	    if (!timeout) > 0 then
+	      begin
+		let fork_res_sleep = Unix.fork() in
+		if fork_res_sleep = 0 then
+                  begin
+		    (* Child process *)
+		    Unix.sleep (!timeout);
+		    exit 0
+		  end
+		else
+		  begin
+		    (* Parent process *)
+      		    let (pid_finished, status) = Unix.waitpid [] (-1) in
+		    if pid_finished == fork_res_sleep then
+		      begin
+		        (* Timeout *)
+			begin
+			  try
+			    Unix.kill child_pid Sys.sigkill
+			  with _ -> ()
+			end;
+			let _ = Unix.waitpid [] child_pid in
+			output_string time_out_channel ("xtime: timeout ("^(string_of_int (!timeout))^" s)\n");
+			flush time_out_channel;
+			exit 0
+		      end
+		    else
+		      begin
+			assert (pid_finished == child_pid);
+			begin
+			  try 
+			    Unix.kill fork_res_sleep Sys.sigkill
+			  with _ -> ()
+			end;
+			let _ = Unix.waitpid [] fork_res_sleep in
+			normal_result status
+		      end
+		  end
+	      end
+	    else
+	      begin
+		let (_, status) = Unix.waitpid [] child_pid in
+		normal_result status
+	      end
 	  with _ -> exit 2
 	  end
 	else
@@ -527,21 +620,23 @@ let analyze_file config mode options filename files =
 	    close_in time_in_channel;
 	    seek_in files.output_in_channel output_length;
 	    let reversed_result = extract_result config files.output_in_channel in
-	    let (actual_errors, actual_result, actual_time_opt, actual_rss_opt, time_string) =	
+	    let (actual_errors, actual_result_opt, actual_time_opt, actual_rss_opt, time_string) =	
 	      interpret_time_line (ref []) reversed_result time_line
 	    in
-	    (actual_errors, actual_result, actual_time_opt, actual_rss_opt, time_string, time_line)
+	    (actual_errors, actual_result_opt, actual_time_opt, actual_rss_opt, time_string, time_line)
 	  end
     in
     let equal_result =
-      match expected_result_opt with
-      | None -> false
-      | Some expected_result ->
+      match expected_result_opt, actual_result_opt with
+      | None, _ | _, None -> false
+      | Some expected_result, Some actual_result ->
 	  equal_lists actual_result expected_result
     in
     begin
       if equal_result then
 	res_out "OK\n"
+      else if List.mem TimeOut actual_errors then
+	res_out "TIMEOUT\n"
       else
 	res_out "\n"
     end;
@@ -552,34 +647,41 @@ let analyze_file config mode options filename files =
       | TimeNotFound -> res_out "Expected runtime not found in script file\n"
       | IncorrectTime -> res_out "ERROR: Incorrectly formatted runtime in script file\n" 
       | IncorrectRSS -> res_out "ERROR: Incorrectly formatted max rss in script file\n"
+      | TimeOut -> assert false
 	    ) file_info_errors;
     List.iter (function
       | TimeNotFound -> res_out "ERROR: Expected runtime not found in output of xtime\n"
       | IncorrectTime -> res_out "ERROR: Incorrectly formatted runtime in output of xtime\n" 
       | IncorrectRSS -> res_out "ERROR: Incorrectly formatted max rss in output of xtime\n"
+      | TimeOut -> ()
       | _ -> assert false
 	    ) actual_errors;
     begin
-      match expected_result_opt with
-      | None ->
-	  if mode <> Test then
-	    res_out "Adding result to script. ";
-	  res_out "Actual result:\n";
-	  List.iter (fun s -> res_out s; res_out "\n") actual_result
-      | Some expected_result ->
-	  if not equal_result then
-	    begin
-	      if mode == Update then
-		res_out "Updating expected result. Old:\n"
-	      else
-		res_out "RESULTS DIFFER! Expected:\n";
-	      List.iter (fun s -> res_out s; res_out "\n") expected_result;
-	      res_out "Actual:\n";
-	      List.iter (fun s -> res_out s; res_out "\n") actual_result
-	    end
+      match actual_result_opt with
+      | Some actual_result ->
+	  begin
+	    match expected_result_opt with
+	    | None ->
+		if mode <> Test then
+		  res_out "Adding result to script. ";
+		res_out "Actual result:\n";
+		List.iter (fun s -> res_out s; res_out "\n") actual_result
+	    | Some expected_result ->
+		if not equal_result then
+		  begin
+		    if mode == Update then
+		      res_out "Updating expected result. Old:\n"
+		    else
+		      res_out "RESULTS DIFFER! Expected:\n";
+		    List.iter (fun s -> res_out s; res_out "\n") expected_result;
+		    res_out "Actual:\n";
+		    List.iter (fun s -> res_out s; res_out "\n") actual_result
+		  end
+	  end;
+	  if (mode == Update) || (mode <> Test && expected_result_opt == None) then
+	    update_expected_result config None filename actual_result time_string
+      | None -> ()
     end;
-    if (mode == Update) || (mode <> Test && expected_result_opt == None) then
-      update_expected_result config None filename actual_result time_string;
     begin
       match actual_time_opt, expected_time_opt with
       | Time time, Time expected_time ->
@@ -605,7 +707,11 @@ let analyze_file config mode options filename files =
     sum_out "PROTOCOL ";
     sum_out filename;
     sum_out "\n";
-    List.iter (fun s -> sum_out s; sum_out "\n") actual_result;
+    begin
+      match actual_result_opt with
+      | Some actual_result -> List.iter (fun s -> sum_out s; sum_out "\n") actual_result
+      | None -> ()
+    end;
     sum_out time_string;
     flush files.sum_out_channel;
     flush files.res_out_channel
@@ -664,7 +770,7 @@ let analyze_dir config mode dirname files filename_opt =
 	[] -> ()
       | (ext, options)::rest -> 
 	  if StringPlus.case_insensitive_ends_with filename ext then
-	    analyze_file config mode options full_filename files
+	    analyze_file config mode ((!additional_options) @ options) full_filename files
 	  else
 	    find_options rest
     in
@@ -703,54 +809,87 @@ let usage() =
   print_string
     "Incorrect arguments
 Usage: 
-  analyze <prog> <mode> <tmp_directory> <prefix for output files> dirs <directories>
-  analyze <prog> <mode> <tmp_directory> <prefix for output files> file <directory> <filename>
-where <prog> is either CV for CryptoVerif or PV for ProVerif
-and <mode> can be
-- test: test the mentioned scripts
-- test_add: test the mentioned scripts and add the 
-expected result in the script when it is missing
-- add: add the expected result in the script when it is missing, 
-do not test scripts that already have an expected result
-- update: test the mentioned scripts and update the expected
-result in the script.";
+  analyze [options] <prog> <mode> <tmp_directory> <prefix for output files> dirs <directories>
+  analyze [options] <prog> <mode> <tmp_directory> <prefix for output files> file <directory> <filename>
+where 
+* [options] can be 
+  - -timeout <n>: sets the time out to <n> seconds.
+  - -progopt <arguments to pass to the tested program> -endprogopt
+* <prog> is either CV for CryptoVerif or PV for ProVerif
+* and <mode> can be
+  - test: test the mentioned scripts
+  - test_add: test the mentioned scripts and add the 
+    expected result in the script when it is missing
+  - add: add the expected result in the script when it is missing, 
+    do not test scripts that already have an expected result
+  - update: test the mentioned scripts and update the expected
+    result in the script.";
   exit 0
 
 (* Main function. Parses command-line arguments. *)
     
 let _ =
+  let rec parse_options n =
+    if Array.length Sys.argv < (n+1) then
+      usage();
+    match Sys.argv.(n) with
+    | "-timeout" ->
+	if Array.length Sys.argv < (n+2) then
+	  usage();
+	begin
+	  try
+	    timeout := int_of_string (Sys.argv.(n+1))
+	  with Failure _ ->
+	    usage()
+	end;
+	parse_options (n+2)
+    | "-progopt" ->
+	let rec aux accu n =
+	  if Array.length Sys.argv < (n+1) then
+	    usage();
+	  match Sys.argv.(n) with
+	  | "-endprogopt" ->
+	      additional_options := List.rev accu;
+	      parse_options (n+1)
+	  | s -> aux (s::accu) (n+1)
+	in
+	aux [] (n+1)
+    | _ -> n
+  in
+  let n = parse_options 1 in
   try 
-    if Array.length Sys.argv < 7 then
+    if Array.length Sys.argv < (n+6) then
       usage();
     let config =
-      match Sys.argv.(1) with
+      match Sys.argv.(n) with
       | "CV" -> cv_config()
       | "PV" -> pv_config()
       | _ -> usage()
     in
     let mode =
-      match Sys.argv.(2) with
+      match Sys.argv.(n+1) with
       | "test" -> Test
       | "test_add" -> TestAdd
       | "add" -> Add
       | "update" -> Update
       | _ -> usage()
     in
-    tmpdir := Sys.argv.(3);
-    let prefix = Sys.argv.(4) in
-    match Sys.argv.(5) with
+    tmpdir := Sys.argv.(n+2);
+    let prefix = Sys.argv.(n+3) in
+    match Sys.argv.(n+4) with
     | "dirs" ->
 	let files = open_files prefix in
-	for i = 6 to Array.length Sys.argv-1 do
-	  if (try Sys.is_directory Sys.argv.(i) with Sys_error _ -> false) then
-	    analyze_dir config mode Sys.argv.(i) files None
+	for i = n+5 to Array.length Sys.argv-1 do
+	  let s = Sys.argv.(i) in
+	  if (try Sys.is_directory s with Sys_error _ -> false) then
+	    analyze_dir config mode s files None
 	done;
 	close_files files
     | "file" ->
-	if Array.length Sys.argv <> 8 then
+	if Array.length Sys.argv <> n+7 then
 	  usage();
 	let files = open_files prefix in
-	analyze_dir config mode Sys.argv.(6) files (Some (Sys.argv.(7)));
+	analyze_dir config mode Sys.argv.(n+5) files (Some (Sys.argv.(n+6)));
 	close_files files
     | _ ->
 	usage()

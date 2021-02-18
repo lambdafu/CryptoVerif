@@ -11,8 +11,8 @@
 
 /* time is a record
   { total : float;
-    user : float; 
-    system : float } 
+    user : float;
+    system : float }
 */
 
 CAMLprim value get_resources(value time)
@@ -22,6 +22,13 @@ CAMLprim value get_resources(value time)
 #ifdef __WINDOWS__
   result = Val_long(-1);
 #else
+  long unit_mem;
+  /* MacOS measures maxrss in bytes, Linux measures it in kilobytes */
+  #ifdef __APPLE__
+    unit_mem = 1024;
+  #else
+    unit_mem = 1;
+  #endif
   struct rusage rusage;
   double user, system;
   getrusage(RUSAGE_CHILDREN, &rusage);
@@ -30,7 +37,7 @@ CAMLprim value get_resources(value time)
   Store_double_field(time, 0, user + system);
   Store_double_field(time, 1, user);
   Store_double_field(time, 2, system);
-  result = Val_long(rusage.ru_maxrss);
+  result = Val_long(rusage.ru_maxrss / unit_mem);
 #endif
   CAMLreturn(result);
 }
