@@ -23,6 +23,7 @@ macros).
 remove_assign.
 - Minor improvement of the precision of the treatment of else
 conditions of find.
+- Improved test infrastructure: allow setting a timeout on tests.
 - Fixed bug in generation of OCaml implementations: a non-existing
 file is now considered as an empty table (reported by Benjamin Lipp).
 - Fixed bug in generation of OCaml implementations: serialization

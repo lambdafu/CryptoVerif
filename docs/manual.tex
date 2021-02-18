@@ -3097,8 +3097,11 @@ $\texttt{!}N$&$!^N$\\
 \subsection{\ttfamily test}
 
 Usage: 
-\[\mathtt{test}\ \nonterm{mode}\ \nonterm{test\_set}\]
-where $\nonterm{mode}$ can be:
+\[\mathtt{test}\ [\texttt{-timeout }\nonterm{n}]\ \nonterm{mode}\ \nonterm{test\_set}\]
+where
+$\texttt{-timeout }\nonterm{n}$ sets the timeout for each execution of the tested
+program to $n$ seconds (by default, there is no timeout),
+$\nonterm{mode}$ can be:
 \begin{itemize}
 \item \texttt{test}: test the mentioned scripts
 \item \texttt{test\_add}: test the mentioned scripts and add the 
@@ -3142,12 +3145,21 @@ but it can also be called directly.
 
 Usage: 
 \begin{align*}
-&\texttt{analyze}\ \nonterm{prog}\ \nonterm{mode}\ \nonterm{tmp\_directory}\ \nonterm{prefix\_for\_output\_files}\ \texttt{dirs}\ \nonterm{directories}\\
-&\texttt{analyze}\ \nonterm{prog}\ \nonterm{mode}\ \nonterm{tmp\_directory}\ \nonterm{prefix\_for\_output\_files}\ \texttt{file}\ \nonterm{directory}\ \nonterm{filename}
+&\texttt{analyze}\ [\nonterm{options}]\ \nonterm{prog}\ \nonterm{mode}\ \nonterm{tmp\_directory}\ \nonterm{prefix\_for\_output\_files}\ \texttt{dirs}\ \nonterm{directories}\\
+&\texttt{analyze}\ [\nonterm{options}]\ \nonterm{prog}\ \nonterm{mode}\ \nonterm{tmp\_directory}\ \nonterm{prefix\_for\_output\_files}\ \texttt{file}\ \nonterm{directory}\ \nonterm{filename}
 \end{align*}
-where $\nonterm{prog}$ is either \texttt{CV} for CryptoVerif or
+where $\nonterm{options}$ can be
+\begin{itemize}
+\item $\texttt{-timeout }\nonterm{n}$ sets the timeout for each execution of the tested
+program to $n$ seconds (by default, there is no timeout);
+\item $\texttt{-progopt }\nonterm{command-line\ options}\texttt{ -endprogopt}$ passes the
+additional $\nonterm{command-line\ options}$ to the tested program (ProVerif or CryptoVerif);
+\end{itemize}
+$\nonterm{prog}$ is either \texttt{CV} for CryptoVerif or
 \texttt{PV} for ProVerif and $\nonterm{mode}$ is as for the
 \texttt{test} program above.
+Temporary files are stored in directory $\nonterm{tmp\_directory}$,
+and the full output of the test is stored in $\texttt{tests/}\nonterm{prefix\_for\_output\_files}\nonterm{date}$, a summary of the results in $\texttt{tests/sum-}\nonterm{prefix\_for\_output\_files}\nonterm{date}$, and a comparison with expected results in $\texttt{tests/res-}\nonterm{prefix\_for\_output\_files}\nonterm{date}$.
 
 This program analyzes a series of scripts using the program specified by $\nonterm{prog}$.
 \begin{itemize}
