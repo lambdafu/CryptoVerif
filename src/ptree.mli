@@ -255,10 +255,12 @@ type command =
 	
 (* Declarations *)
 
+type dim_e = (int * int) * Parsing_helper.extent
+	
 type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list(* options *)
           | EventDecl of ident * ident list(*types*) 
           | ParamDecl of ident * ident list(*options*)
-	  | ProbabilityDecl of ident * ident list (*options*)
+	  | ProbabilityDecl of ident * dim_e list option(*dimensions of args*) * ident list (*options*)
 	  | ConstDecl of ident * ident(*type*)
 	  | ChannelDecl of ident
 	  | TypeDecl of ident * ident list(*options*)
@@ -275,6 +277,7 @@ type decl = FunDecl of ident * ident list(*types*) * ident (*type*) * ident list
           | Implementation of impl list
           | TableDecl of ident * ident list
           | LetFun of ident * (ident * ty) list * term_e
+	  | LetProba of ident * (ident * dim_e) list * probabilityf_e
 
 type pall = decl list
 

@@ -31,9 +31,16 @@ type coll_elim_t =
 type param = { pname : string;
 	       psize : int }
 
+(* A dimension is represented as a pair (t,l) corresponding to time^t * length^l *)
+
+type dim = (int * int) option
+
+type computed_dim = (int option * int * int) option
+
 (* probability *)
 
 type proba = { prname : string;
+	       mutable pargs : dim list option;
 	       pestimate : int }
 
 (* channel *)
@@ -463,6 +470,11 @@ and probaf =
   | Maxlength of game * term
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
+
+and var_proba =
+    { vp_name : string;
+      vp_dim : computed_dim;
+      vp_val : probaf }
 
 (* An element of type [setf list] represents a probability
    computed as the sum of the probabilities [proba] 

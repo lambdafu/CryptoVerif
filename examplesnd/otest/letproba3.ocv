@@ -1,0 +1,113 @@
+(* This file shows that AES128-CFB128 is IND-CPA, when the IV is
+computed as IV = E(k, 0; IVdata) provided the IVdata arguments are
+pairwise distinct. 
+It shows that the encryption of the messages is indistinguishable
+from the encryption of zero-messages of the same length,
+for 3 messages of 1, 2, 3 blocks respectively.
+*)
+
+proof {
+show_equiv prf(AES);
+      insert after "k_1 <-R" "let IV0 = AES(k_1, Zero) in";
+      use_variable IV0;
+      insert after "Oenc2" "let c21 = xor(AES(k_1, xor(IV0, IVdata2)), m21_1) in";
+      use_variable c21;
+      insert after "Oenc3" "let c31 = xor(AES(k_1, xor(IV0, IVdata3)), m31_1) in 
+         let c32 = xor(AES(k_1, c31), m32_1) in";
+      use_variable c31;
+      use_variable c32;
+      insert after "Oenc1" "if defined(IVdata2) && IVdata1 = IVdata2 then  else 
+         if defined(IVdata3) && IVdata1 = IVdata3 then  ";
+      insert after "Oenc2" "if defined(IVdata1) && IVdata2 = IVdata1 then  else 
+    	 if defined(IVdata3) && IVdata2 = IVdata3 then  ";
+      insert after "Oenc3" "if defined(IVdata1) && IVdata3 = IVdata1 then  else 
+    	 if defined(IVdata2) && IVdata3 = IVdata2 then  ";
+      insert_event repeatedIV after_nth 1 "then";
+      insert_event repeatedIV after_nth 2 "then";
+      insert_event repeatedIV after_nth 3 "then";
+      insert_event repeatedIV after_nth 4 "then";
+      insert_event repeatedIV after_nth 5 "then";
+      insert_event repeatedIV after_nth 6 "then";
+      auto;
+      start_from_other_end;
+      insert after "k_5 <-R" "let IV0' = AES(k_5, Zero) in";
+      use_variable IV0';
+      auto;
+      simplify;
+      success
+}
+
+(* Do not assume by default that all constants are 
+   different. We shall say it explicitly when they are different *)
+
+set diffConstants = false.
+
+type enc_key [fixed]. (* 128 bits AES key *)
+type blocksize [fixed, large]. (* 128 bits AES block *)
+
+(* AES is a pseuso-random permutation.
+   We model it as a PRF. *)
+proba P0(time).
+letproba P_AES(t:time, N:number) =
+    P0(t) + N*N/|blocksize|.
+expand PRF(enc_key, blocksize, blocksize, AES, P_AES).
+
+(* Properties of XOR *)
+expand Xor(blocksize, xor, Zero).
+
+type len. (* len is the type of the length of the last block *)
+fun truncate(blocksize, len): bitstring.
+
+fun concat2(blocksize, bitstring): bitstring.
+fun concat3(blocksize, blocksize, bitstring): bitstring.
+
+event repeatedIV.
+
+letfun enc1(k: enc_key, IVdata: blocksize, m1: blocksize, l: len) =
+   let IV0 = AES(k, Zero) in
+   let IV1 = xor(IV0, IVdata) in
+   let c1 = xor(AES(k, IV1), m1) in
+   truncate(c1, l).
+
+letfun enc2(k: enc_key, IVdata: blocksize, m21: blocksize, m22: blocksize, l: len) =
+   let IV0 = AES(k, Zero) in
+   let IV2 = xor(IV0, IVdata) in
+   let c21 = xor(AES(k, IV2), m21) in
+   let c22 = xor(AES(k, c21), m22) in
+   concat2(c21, truncate(c22, l)).
+
+letfun enc3(k: enc_key, IVdata: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l: len) =
+   let IV0 = AES(k, Zero) in
+   let IV3 = xor(IV0, IVdata) in
+   let c31 = xor(AES(k, IV3), m31) in
+   let c32 = xor(AES(k, c31), m32) in
+   let c33 = xor(AES(k, c32), m33) in
+   concat3(c31, c32, truncate(c33, l)).
+
+query_equiv
+	k <-R enc_key;
+	(Oenc1(IVdata1: blocksize, m1: blocksize, l:len) :=
+	 return(enc1(k, IVdata1, m1, l)) |
+         Oenc2(IVdata2: blocksize, m21: blocksize, m22: blocksize, l:len) :=
+    	 return(enc2(k, IVdata2, m21, m22, l)) |
+         Oenc3(IVdata3: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l:len) :=
+    	 return(enc3(k, IVdata3, m31, m32, m33, l)))
+<=(?)=>
+	k <-R enc_key;
+	(Oenc1(IVdata1: blocksize, m1: blocksize, l:len) :=
+         if defined(IVdata2) && IVdata1 = IVdata2 then event_abort repeatedIV else 
+         if defined(IVdata3) && IVdata1 = IVdata3 then event_abort repeatedIV else 
+	 return(enc1(k, IVdata1, Zero, l)) |
+         Oenc2(IVdata2: blocksize, m21: blocksize, m22: blocksize, l:len) :=
+    	 if defined(IVdata1) && IVdata2 = IVdata1 then event_abort repeatedIV else 
+    	 if defined(IVdata3) && IVdata2 = IVdata3 then event_abort repeatedIV else 
+    	 return(enc2(k, IVdata2, Zero, Zero, l)) |
+         Oenc3(IVdata3: blocksize, m31: blocksize, m32: blocksize, m33: blocksize, l:len) :=
+    	 if defined(IVdata1) && IVdata3 = IVdata1 then event_abort repeatedIV else 
+    	 if defined(IVdata2) && IVdata3 = IVdata2 then event_abort repeatedIV else 
+    	 return(enc3(k, IVdata3, Zero, Zero, Zero, l)))
+
+(* EXPECTED
+All queries proved.
+9.440s (user 9.416s + system 0.024s), max rss 41052K
+END *)

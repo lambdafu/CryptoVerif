@@ -44,8 +44,8 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt get}, {\tt if}, {\tt implementation}, {\tt in}, 
 {\tt inf}, %used for float infinity
 {\tt inj-event}, 
-{\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt max}, {\tt maxlength},
-{\tt min}, {\tt new}, {\tt newChannel}, {\tt orfind}, 
+{\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt letproba}, {\tt max}, {\tt maxlength},
+{\tt min}, {\tt new}, {\tt newChannel}, {\tt number}, {\tt orfind}, 
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
 {\tt proof}, {\tt public\_vars}, {\tt query}, {\tt query\_equiv}, {\tt return},
@@ -159,7 +159,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \def\phsa{\phantom{\nonterm{specialarg} = }\mid}
 \begin{xxalignat}{2}
 &\nonterm{proba} ::= \texttt{(} \nonterm{proba} \texttt{)}
-&&\mid \phpr \texttt{time}\\
+&&\mid \texttt{time}\\
 &\phpr \nonterm{proba} \texttt{ + } \nonterm{proba}
 &&\mid\texttt{time(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
 &\phpr \nonterm{proba} \texttt{ - } \nonterm{proba}
@@ -228,6 +228,20 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \end{align*}
 \caption{Grammar for probabilities and equivalences}
 \label{fig:syntax2}
+\end{figure}
+
+\begin{figure}[tp]
+\def\phd{\phantom{\nonterm{dim} = }\mid}
+\begin{align*}
+&\nonterm{dim} ::= \texttt{time}[\texttt{\^{ }}\nonterm{int}]\\
+&\phd \texttt{length}[\texttt{\^{ }}\nonterm{int}]\\
+&\phd \texttt{number}\\
+&\phd \nonterm{dim}\texttt{ * }\nonterm{dim}\\
+&\phd \nonterm{dim}\texttt{ / }\nonterm{dim}\\[2mm]
+&\nonterm{vardim} ::= \neseq{ident}\texttt{:}\nonterm{dim}
+\end{align*}
+\caption{Grammar for dimensions}
+\label{fig:syntaxdim}
 \end{figure}
 
 \begin{figure}[tp]
@@ -1483,11 +1497,13 @@ number of failed attempts (e.g. credit cards are blocked after 3 incorrect
 PINs).
 \texttt{[small]} is equivalent to \texttt{[size2]}.
 
-\item $\texttt{proba}\ \nonterm{ident}\ [\texttt{[$\nonterm{pest}$]}].$
+\item $\texttt{proba}\ \nonterm{ident}[\texttt{(}\seq{dim}\texttt{)}]\ [\texttt{[$\nonterm{pest}$]}].$
 
-$\texttt{proba}\ p\texttt{.}$ declares a probability $p$.
-(Probabilities may be used as functions of other arguments,
-without explicit checking of these arguments.)
+$\texttt{proba}\ p\texttt{(}d_1, \dots, d_n\texttt{).}$ declares a probability function $p$
+taking $n$ arguments of dimensions $d_1, \dots, d_n$ respectively. The syntax of dimensions is given in Figure~\ref{fig:syntaxdim}, where \texttt{*}, \texttt{/}, and \texttt{\^{ }} are the usual product, division, and exponentiation. After reduction, dimensions are of the form $\texttt{time}^t \times \texttt{length}^l$, where $t$ and $l$ are integers. The dimension \texttt{number} corresponds to $\texttt{time}^0 \times \texttt{length}^0$.
+
+$\texttt{proba}\ p\texttt{.}$ declares a probability function $p$ taking any arguments. In this case, CryptoVerif checks that the number and dimensions of the arguments of $p$ are compatible across calls to $p$.
+
 When \texttt{[$\nonterm{pest}$]} ({\sc p}robability {\sc est}imate) is present, 
 it gives an estimate of the value of the probability:
 \texttt{pest$n$}, where $n$ is an integer, means that the probability is at most $2^{-n}$;
@@ -1505,6 +1521,10 @@ The probability formula output by CryptoVerif at the end of the proof
 remains correct even if the estimates are incorrect. However,
 incorrect estimates may have the consequence that, when evaluating
 this probability, its value is larger than desired.
+
+\item $\texttt{letproba}\ \nonterm{ident}[\texttt{(}\neseq{vardim}\texttt{)}] \texttt{ = }\nonterm{proba}\texttt{.}$
+
+$\texttt{letproba}\ p\texttt{(}x_1:d_1, \dots, x_n:d_n\texttt{) = }\mathit{prob}\texttt{.}$ declares a probability function $p$ with $n$ arguments $x_i$ of dimention $d_i$, equal to the probability formula $\mathit{prob}$. See \texttt{proba} above for an explanation of dimensions. The formula $\mathit{prob}$ must represent a probability. It may refer to $x_1, \dots, x_n$. It is instantiated with the appropriate values of $x_1, \dots, x_n$ every time the probability function $p$ is applied.
 
 \item $\texttt{type}\ \nonterm{ident}\ [\texttt{[}\neseq{option}\texttt{]}]\texttt{.}$
 

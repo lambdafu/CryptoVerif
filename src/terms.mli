@@ -81,7 +81,7 @@ val get_pcoll1_high : typet -> int
    2 random elements of the type [ty] is at least (resp. at most) 2^n (n <= 0) *)
 val get_pcoll2_low : typet -> int    
 val get_pcoll2_high : typet -> int    
-    
+
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)
 val addq : 'a list -> 'a -> 'a list

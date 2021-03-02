@@ -209,8 +209,9 @@ proba PCollKey1.
 proba PCollKey2.
 expand DH_proba_collision(G, Z, g, exp, exp2, mult, PCollKey1, PCollKey2).
 
-proba pZero. (* Probability of distinguishing a rerandomized key from an honestly
-      	     	generated. 0 for prime order groups. *)
+letproba pZero = 0.
+     (* Probability of distinguishing a rerandomized key from an honestly
+        generated key. 0 for prime order groups. *)
 
 ifdef(`COMPROMISE_V',`
 proba pGDH.

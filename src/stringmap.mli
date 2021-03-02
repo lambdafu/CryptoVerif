@@ -18,6 +18,8 @@ type env_entry =
   | ELetFun of funsymb * env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.term_e
   | EProcess of env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
   | ETable of table
+  | EVarProba of var_proba
+  | ELetProba of proba * env_type * (Ptree.ident * Ptree.dim_e(*dimension*)) list * (env_type -> probaf)
 
 and env_type = env_entry StringMap.t
 
@@ -36,6 +38,18 @@ val get_table : env_type -> string -> Parsing_helper.extent -> table
 val get_function_no_letfun : env_type -> string -> Parsing_helper.extent -> funsymb
 val get_function_or_letfun : env_type -> string -> Parsing_helper.extent -> funsymb
 
+(* Functions for dimensions *)
+
+val dim_list_to_string : dim list -> string
+val proba_dim_list_to_string : ('a * computed_dim) list -> string
+    
+val time_dim : computed_dim
+val length_dim : computed_dim
+val proba_dim : computed_dim
+val num_dim : computed_dim
+
+val apply_proba : ident -> env_type -> (probaf * computed_dim) list -> probaf
+    
 (* Global binder environment *)
 
 type err_mess
@@ -57,6 +71,7 @@ val union_both : binder_env_type -> binder_env_type -> binder_env_type
 val union_exclude : binder_env_type -> binder_env_type -> binder_env_type
 
 val set_binder_env : binder_env_type -> unit
+val set_and_get_old_binder_env : binder_env_type -> binder_env_type
 exception Undefined of ident
 val get_global_binder : string -> ident -> binder
 val get_global_binder_if_possible : string -> binder option

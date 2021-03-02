@@ -11,6 +11,7 @@ let cst_false = (PIdent ("false", dummy_ext), dummy_ext)
 let dummy_channel = ("@dummy_channel", dummy_ext)
 
 let return_channel = (dummy_channel, None)
+
 %}
 
 %token COMMA
@@ -103,11 +104,13 @@ let return_channel = (dummy_channel, None)
 %token INSERT
 %token TABLE
 %token LETFUN
+%token LETPROBA
 %token RUN
 %token INDEPOF
 %token EQUIVALENCE
 %token QUERY_EQUIV
 %token SPECIAL
+%token NUMBER
   
   /* tokens for proofs */
 %token AT
@@ -247,8 +250,8 @@ commonlibelem:
         { [Query([], $2)] }
 |       PARAM neidentlist options DOT
         { List.map (fun x -> (ParamDecl(x, $3))) $2 }
-|       PROBA IDENT options DOT 
-        { [ProbabilityDecl($2, $3)] }
+|       PROBA IDENT probaargs options DOT 
+        { [ProbabilityDecl($2, $3, $4)] }
 |       CONST neidentlist COLON IDENT DOT 
         { List.map (fun x -> (ConstDecl(x,$4))) $2 }
 |       TYPE IDENT options DOT 
@@ -268,6 +271,74 @@ commonlibelem:
 |       EQUIV eqname SPECIAL IDENT LPAREN special_args RPAREN optpriority DOT
         { [EqStatement($2, EquivSpecial($4, $6), $8)] }
 
+probaargs:
+    { None }
+|   LPAREN dimlist RPAREN
+    { Some $2 }
+
+dimlist:
+    { [] }
+|   nedimlist
+    { $1 }
+
+nedimlist:
+    dimext
+    { [$1] }
+|   dimext COMMA nedimlist
+    { $1 :: $3 }
+
+dimext:
+    dim
+    { $1, parse_extent() }
+
+/* A dimension is represented as a pair (t,l) corresponding to time^t * length^l */
+dim:
+    TIME poweropt
+    { ($2, 0) }
+|   LENGTH poweropt
+    { (0,$2) }
+|   NUMBER
+    { (0,0) }
+|   dim MUL dim
+    { let ext = parse_extent() in
+      let (t1,l1) = $1 in
+      let (t2,l2) = $3 in
+      (add_check_overflow ext t1 t2,
+       add_check_overflow ext l1 l2) }
+|   dim DIV dim
+    { let ext = parse_extent() in
+      let (t1,l1) = $1 in
+      let (t2,l2) = $3 in
+      (sub_check_overflow ext t1 t2,
+       sub_check_overflow ext l1 l2) }
+    
+poweropt:
+    { 1 }
+|   POWER INT
+    { $2 }
+|   POWER SUB INT
+    { -$3 }
+
+letprobaargs:
+    { [] }
+|   LPAREN probaarglist RPAREN
+    { $2 }
+
+probaarglist:
+    { [] }
+|   neprobaarglist
+    { $1 }
+
+neprobaarglist:
+    vardim
+    { $1 }
+|   vardim COMMA neprobaarglist
+    { $1 @ $3 }
+
+vardim:
+    neidentlist COLON dimext
+    { List.map (fun i -> (i,$3)) $1 }
+    
 special_args:
     { [] }
 |   ne_special_args
@@ -294,6 +365,8 @@ cequiv:
 lib:
         commonlibelem lib
         { $1 @ $2 }
+|       LETPROBA IDENT letprobaargs EQUAL probaf DOT lib
+        { (LetProba($2, $3, $5)):: $7 }
 |	LET IDENT EQUAL process DOT lib
 	{ (PDef($2,[],$4)) :: $6 }
 |	LET IDENT LPAREN vartypeilist RPAREN EQUAL process DOT lib
@@ -1574,6 +1647,8 @@ oequiv:
 olib:
         commonlibelem olib
         { $1 @ $2 }
+|       LETPROBA IDENT letprobaargs EQUAL oprobaf DOT olib
+        { (LetProba($2, $3, $5)):: $7 }
 |	LET IDENT EQUAL oprocess DOT olib
 	{ (PDef($2,[],$4)) :: $6 }
 |	LET IDENT LPAREN vartypeilist RPAREN EQUAL oprocess DOT olib

@@ -43,20 +43,28 @@ a hint on when to choose which term in the minimum.
 
 Add scripts for HPKE?
 
-Improve probability declarations:
-proba P(dim1, ..., dimn). where dim can be time, length, num, and more generally time^n.length^n'
-(it gives the dimension of the argument, num = time^0.length^0).
-When P is applied, one checks that it receives arguments of the correct dimension.
-For compatibility, continue to allow proba P, which can receive any arguments;
-otherwise, I would need to revise all examples.
-Allow explicit probability functions, like
-letproba P(x1:dim1,..., xn:dimn) = <probability function>.
-When P is applied, it is replaced with the given probability function.
-When checking dimensions in probability formulas, emit a warning instead of an error
-when the "probability" dimension does not match (in fact, it has no real
-meaning, but it allows to catch bugs).
-Add these constructs to ProVerif as well for compatibility (but ignore them).
+Add the constructs
+proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
+to ProVerif as well for compatibility (but ignore them).
 
+I could also check that probabilities are negligible assuming parameters
+and lengths are polynomial, cardinals of large types are exponential,
+and probas are negligible.
+(Somewhat related to the probability dimension check, but has a better
+semantics.)
+
+Use multikey probability by default for special equiv (SPRP, PRF, PRP);
+the probability based on a single key can be defined using letproba.
+Advantage:
+- possible to use a more precise multikey probability when we want
+Drawbacks:
+- I no longer use the automatic addition of replication on top of equiv
+- The runtime of the context in the derivation single-key -> multi-key
+will be less precise (but is it really a drawback?)
+
+Allow power in probability formulas? p^n where n is an integer
+
+Allow using "letfun"s f in time(f,...) and in terms M in maxlength(M)?
 
 0.2)
 Use the improved computation of probabilities for Shoup's lemma
@@ -169,7 +177,7 @@ to avoid being quadratic [also in cv2ml]
 cv2ml: improve generated code
 - get: optimize the case (=M,...) by structuring the file as a key-value
 table. (perhaps not)
-- instead of putting the next oracles in a tuple, put them in
+- ABANDONED instead of putting the next oracles in a tuple, put them in
 a record. When some oracles are omitted, use fun _ -> raise BadCall
 for them. (However, it creates a mismatch with the semantics:
 the caller can do something after a call to a non-existing oracle
@@ -181,6 +189,88 @@ warnings, so an error may still happen at the implementation level.
 On the other hand, we can have a warning in syntax.ml without an
 error when we generate the implementation, in case the warning comes
 from a part of the model that is not in a module.)
+
+syntax.ml:
+check the structure
+!N1 prog1 {...} | ... | !Nn progn {...}
+
+val initialize_state: Lib.RandomSequence.entropy -> state
+- entropy initialized
+- tables read from files
+- empty sessions
+
+Oracles are the top of the module:
+state -> oracle input -> state * option (oracle output * session_id).
+(They can always be called several times because of the replication
+above the module start.)
+The returned state contains a new entry
+returned session_id ->
+   After_oracle_name_nth_return(free variables of following oracles)
+considered valid for session state "After_oracle_name"
+
+Other oracles under replication
+state -> session_id -> oracle input ->
+   state * option (oracle output * session_id').
+The oracle gets the session state using session_id.
+The entry session_id remains in the state.
+A new entry session_id' is created:
+session_id' ->
+   After_oracle_name_nth_return(free variables of following oracles)
+considered valid for session state "After_oracle_name"
+
+Other oracles not under replication
+state -> session_id -> oracle input ->
+   state * option oracle output.
+The oracle gets the session state using session_id.
+The entry session_id is modified to be
+session_id ->
+   After_oracle_name_nth_return(free variables of following oracles)
+considered valid for session state "After_oracle_name"
+In case the oracle yields, the entry session_id is removed from the state.
+To do that, remove the session_id entry at the beginning
+of the oracle (after reading it), and add an entry session_id
+at the end of the oracle when it succeeds.
+
+However, when an oracle is not followed by any oracle after return,
+no need to add an entry for a session id in the state and return a session id.
+
+Oracle begin (input):
+-> at the top of the module:
+    - create a fresh session_id, which is the current_session_id
+-> when under replication:
+    - read the entry for the received session_id of the state
+    - create a fresh session_id, which is the current_session_id
+-> when not under replication:
+    - read and remove the entry for the received session_id of the state
+    - the current_session_id is the received session_id
+
+Yield: return(state, None)
+Return(output value):
+-> if there are following oracles:
+   add in the state the entry
+     current_session_id ->
+       After_oracle_name_nth_return(free variables of following oracles)
+   -> if current oracle is under replication or at the top of the module:
+      return(state, Some(output_value, current_session_id))
+   -> if current oracle is not under replication:
+      return(state, Some(output_value))
+      (the current_session_id is the received session_id)
+-> if there are no following oracles:
+   return(state, Some(output_value))
+
+(We require the oracles to be the same after all returns of the same
+oracle, and we should continue to do that.)
+
+Start with letfun and the translation of terms (translate_term).
+random: uses entropy, taken from the state
+calls to letfun functions: use state
+event_abort: do not translate, it is an error if the input script contains it.
+event: add an fstar event (not done now in your NSL implementation)
+       may need one more component in the state.
+insert/get use the state (tables + entropy for get when it is not unique
+       and the content of the found entry is used)
+replindex: for a first step, you can just not translate them;
+      later we may want to associate a session id to each repl.index.
 
 0.8) Display a lighter runtime, of the form (polynom in parameters) *
 O(1) where O(1) is a time that does not depend on parameters
@@ -5724,3 +5814,17 @@ transf_tables: in principle, when (!Settings.ignore_small_times) <= 0, I should 
 DONE 11/2/2021
 The same problem may appear for other transformations of find. It is a very minor detail anyway.
 DONE in merge_array and simplify, 12/2/2021
+
+Improve probability declarations:
+proba P(dim1, ..., dimn). where dim can be time, length, number, and more generally time^n.length^n'
+(it gives the dimension of the argument, number = time^0.length^0).
+When P is applied, one checks that it receives arguments of the correct dimension.
+For compatibility, continue to allow proba P, which can receive any arguments;
+otherwise, I would need to revise all examples.
+Allow explicit probability functions, like
+letproba P(x1:dim1,..., xn:dimn) = <probability function>.
+When P is applied, it is replaced with the given probability function.
+When checking dimensions in probability formulas, emit a warning instead of an error
+when the "probability" dimension does not match (in fact, it has no real
+meaning, but it allows to catch bugs).
+DONE 2/3/2021

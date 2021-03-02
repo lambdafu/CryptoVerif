@@ -137,6 +137,7 @@ equiv(prf_partial(f))
 *)
 
 proof {
+show_equiv sprp(AES);
       out_game g1occ occ;
       crypto sprp_partial(AES) special("no collisions") [terms: 4 -> O_enc_1, 28 -> O_enc_2, 57 -> O_enc_3, 63 -> O_enc_4, 94 -> O_enc_5, 100 -> O_enc_6, 106 -> O_enc_7];
       auto;
@@ -157,8 +158,10 @@ type enc_key [fixed]. (* 128 bits AES key *)
 type blocksize [fixed, large]. (* 128 bits AES block *)
 
 (* AES is a super pseuso-random permutation. *)
-proba P_AES(time, number, number).
-expand SPRP_cipher(enc_key, blocksize, AES, AES_dec, P_AES).
+proba P_AES(time, number).
+letproba P_AES_internal(t: time, N1, N2: number) =
+    P_AES(t, N1 + N2).
+expand SPRP_cipher(enc_key, blocksize, AES, AES_dec, P_AES_internal).
 
 (* Properties of XOR *)
 expand Xor(blocksize, xor, Zero).

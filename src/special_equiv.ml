@@ -413,16 +413,12 @@ let get_suffix_ o_name =
   with Not_found ->
     ""
 
-let rec filter_unbounded tyargs all_maxlength =
-  match tyargs, all_maxlength with
-  | [], [] -> []
-  | ty::tyr, ml::mlr ->
-      let mlr' = filter_unbounded tyr mlr in
-      if ty.toptions land Settings.tyopt_BOUNDED != 0 then
-	mlr'
-      else
-	ml::mlr'
-  | _ -> assert false
+let typemaxl_when_bounded ty accu =
+  if ty.toptions land Settings.tyopt_BOUNDED != 0 then
+    TypeMaxlength ty
+  else
+    Polynom.p_max (!accu)
+
 
 let nth_rest n l =
   assert (n >= 0);
@@ -710,8 +706,7 @@ let make_random_fun_equiv f key_pos ((id_k, ext_k), id_r, id_x, id_y, id_z, id_u
 	     :: (!proba_coll) 
 	    ) oracles_with_args;
     let all_maxlength = 
-	(filter_unbounded tyargs
-	   (List.map (fun accu -> Polynom.p_max (!accu)) all_maxlength_accu))
+	List.map2 typemaxl_when_bounded tyargs all_maxlength_accu
     in
     let all_calls = Polynom.p_sum (!all_calls) in
     let proba_coll = Polynom.p_sum (!proba_coll) in
@@ -915,20 +910,18 @@ The arguments (k, r, x, "^ (if f_type == PRP then "" else "y, z, ")^"u) and coll
 	(fun _ _ -> Zero),  r_args_at_equiv
     | (SpecialArgId (proba_f, ext), _)::rest, (PRF | PRP) ->
 	begin
-	  try
-	    match Stringmap.StringMap.find proba_f (!Stringmap.env) with
-	    | EProba p ->
-		(fun all_calls all_maxlength ->
-		  let proba_f = Proba(p, AttTime :: all_calls :: all_maxlength) in
-		  if f_type == PRF then
-		    proba_f
-		  else
-		    Add(proba_f, Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand ty_res)))
-		    ), rest
-	    | d ->
-		raise (Error("Special equivalence "^equiv_name^": "^proba_f^" was previously declared as a " ^ (decl_name d) ^". Expected a probability", ext))
-	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^proba_f^" not declared; expected a probability", ext))
+	  (fun all_calls all_maxlength ->
+	    let args_with_dim =
+	      (AttTime, Stringmap.time_dim) :: (all_calls, Stringmap.num_dim) :: (List.map (fun l -> (l, Stringmap.length_dim)) all_maxlength)
+	    in
+	    let proba_f =
+	      Stringmap.apply_proba (proba_f, ext) (!Stringmap.env) args_with_dim
+	    in
+	    if f_type == PRF then
+	      proba_f
+	    else
+	      Add(proba_f, Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand ty_res)))
+		), rest
 	end
     | (_, ext)::rest, _ ->
 	raise (Error(expected_args(), ext))	  
@@ -1636,23 +1629,21 @@ The arguments (k, "^(if bij_type == ICM then "lk, " else "") ^"m, c, u) and coll
 	  Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand enc_ty_res))),  r_args_at_equiv
     | (SpecialArgId (proba_f, ext), _)::rest, SPRP ->
 	begin
-	  try
-	    match Stringmap.StringMap.find proba_f (!Stringmap.env) with
-	    | EProba p ->
-		(fun enc_calls dec_calls max_length_msg max_length_ctx ->
-		  let proba_f =
-		    if enc_ty_res.toptions land Settings.tyopt_BOUNDED != 0 then
-		      Proba(p, [AttTime; enc_calls; dec_calls])
-		    else
-		      Proba(p, [AttTime; enc_calls; dec_calls; max_length_msg; max_length_ctx])
-		  in
-		  let all_calls = Polynom.p_add(enc_calls, dec_calls) in
-		  Add(proba_f, Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand enc_ty_res)))
-		    ), rest
-	    | d ->
-		raise (Error("Special equivalence "^equiv_name^": "^proba_f^" was previously declared as a " ^ (decl_name d) ^". Expected a probability", ext))
-	  with Not_found ->
-	    raise (Error("Special equivalence "^equiv_name^": "^proba_f^" not declared; expected a probability", ext))
+	  (fun enc_calls dec_calls max_length_msg max_length_ctx ->
+	    let max_l_msg, max_l_ctx =
+	      if enc_ty_res.toptions land Settings.tyopt_BOUNDED != 0 then
+		TypeMaxlength(enc_ty_res), TypeMaxlength(enc_ty_res)
+	      else
+		max_length_msg, max_length_ctx
+	    in
+	    let args_with_dim =
+	      [ AttTime, Stringmap.time_dim; enc_calls, Stringmap.num_dim; dec_calls, Stringmap.num_dim;
+		max_l_msg, Stringmap.length_dim; max_l_ctx, Stringmap.length_dim ]
+	    in
+	    let proba_f = Stringmap.apply_proba (proba_f, ext) (!Stringmap.env) args_with_dim in
+	    let all_calls = Polynom.p_add(enc_calls, dec_calls) in
+	    Add(proba_f, Mul(all_calls, Mul(Sub(all_calls, Cst 1.0), Proba.pcoll2rand enc_ty_res)))
+	      ), rest
 	end
     | (_, ext)::rest, _ ->
 	raise (Error(expected_args(), ext))	  

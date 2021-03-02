@@ -48,6 +48,7 @@ let common_keywords =
   "eps_rand", EPSRAND;
   "Pcoll1rand", PCOLL1RAND;
   "Pcoll2rand", PCOLL2RAND;
+  "number", NUMBER;
   "foreach", FOREACH;
   "do", DO;
   "return", RETURN;
@@ -59,6 +60,7 @@ let common_keywords =
   "insert", INSERT;
   "table", TABLE;
   "letfun", LETFUN;
+  "letproba", LETPROBA;
   "equivalence", EQUIVALENCE;
   "query_equiv", QUERY_EQUIV;
   "special", SPECIAL;

@@ -60,7 +60,7 @@ type host [bounded].
 
 expand DH_good_group(G, Z, g, exp, exp', mult).
 proba pCDH.
-proba pZero.
+letproba pZero = 0.
 expand CDH_RSR(G, Z, g, exp, exp', mult, pCDH, pZero).
 
 (* Ideal cipher model *)

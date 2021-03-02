@@ -28,6 +28,8 @@ type env_entry =
   | ELetFun of funsymb * env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.term_e
   | EProcess of env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
   | ETable of table
+  | EVarProba of var_proba
+  | ELetProba of proba * env_type * (Ptree.ident * Ptree.dim_e(*dimension*)) list * (env_type -> probaf)
 
 and env_type = env_entry StringMap.t
 
@@ -47,6 +49,8 @@ let decl_name = function
   | ELetFun _ -> "function declared by letfun"
   | EProcess _ -> "process"
   | ETable _ -> "table"
+  | EVarProba _ -> "probability variable"
+  | ELetProba _ -> "probability function declared by letproba"
     
 let get_param env s ext =
   try
@@ -112,6 +116,123 @@ let get_function_or_letfun env s ext =
   | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a function (letfun allowed).") ext
   with Not_found -> raise_error (s ^ " not defined. Expected a function (letfun allowed).") ext
 
+(* Functions for dimensions *)	
+
+let power_opt n =
+  if n = 1 then "" else "^"^(string_of_int n)
+    
+let dim_to_string = function
+  | (0,0) -> "number"
+  | (n,0) -> "time"^(power_opt n)
+  | (0,l) -> "length"^(power_opt l)
+  | (n,l) -> "time"^(power_opt n)^" * length"^(power_opt l)
+
+let dim_list_to_string l =
+  let dim_to_string d =
+    match d with
+    | None -> "any"
+    | Some d0 -> dim_to_string d0
+  in
+  let rec aux = function
+    | [] -> ""
+    | [a] -> dim_to_string a
+    | a::l ->
+	(dim_to_string a)^", "^(aux l)
+  in
+  (string_of_int (List.length l)) ^" argument(s)"^
+    (if l = [] then "" else " of dimension(s) "^(aux l))
+						 
+let proba_dim_list_to_string l =
+  let dim_to_string (_,d) =
+    match d with
+    | None -> "any"
+    | Some (p,t,l) ->
+	dim_to_string (t,l)
+  in
+  let rec aux = function
+    | [] -> ""
+    | [a] -> dim_to_string a
+    | a::l ->
+	(dim_to_string a)^", "^(aux l)
+  in
+  (string_of_int (List.length l)) ^" argument(s)"^
+    (if l = [] then "" else " of dimension(s) "^(aux l))
+
+let time_dim = Some (Some 0, 1, 0)
+let length_dim = Some (Some 0, 0, 1)
+let proba_dim = Some(Some 1, 0, 0)
+let num_dim = Some(Some 0, 0, 0)
+
+let computed_dim_to_dim = function
+  | None -> None
+  | Some(_,t,l) -> Some (t,l)
+    
+let rec merge_dim dl tdl =
+  match dl, tdl with
+  | [], [] -> []
+  | _, [] | [], _ -> raise Not_found
+  | d::dr, (_, d')::tdr ->
+      (match d, d' with
+      | None, _ -> computed_dim_to_dim d'
+      | _, None -> d
+      | Some(t,l), Some (_,t',l') ->
+	  if t == t' && l == l' then d else raise Not_found) ::
+       (merge_dim dr tdr)
+
+let apply_proba (s, ext) env args_with_dim =
+  (* Remove "TypeMaxlength" arguments for simplicity; they are constants.
+     TO DO This removing is perhaps questionable *)
+  let args_notypemaxl = List.filter (function 
+    | (TypeMaxlength _,_) -> false
+    | _ -> true) args_with_dim
+  in
+  let adapt_args p =
+    match p.pargs with
+    | None ->
+	p.pargs <- Some (List.map (fun (_,d) -> computed_dim_to_dim d) args_notypemaxl);
+	args_notypemaxl
+    | Some dimlist ->
+	try 
+	  p.pargs <- Some (merge_dim dimlist args_with_dim);
+	  args_with_dim
+	with Not_found ->
+	  try 
+	    p.pargs <- Some (merge_dim dimlist args_notypemaxl);
+	    args_notypemaxl
+	  with Not_found -> 
+	    raise_error ("Probability function "^s^
+			 " expects "^(dim_list_to_string dimlist)^
+			 " but is here given "^(proba_dim_list_to_string args_with_dim)^
+			 (if List.length args_with_dim > List.length args_notypemaxl then
+			   " (or "^(proba_dim_list_to_string args_notypemaxl)^" after removing constant lengths)"
+			 else "")) ext
+  in
+  let rec check_args env' vardecl args =
+    match (vardecl, args) with
+    | [], [] -> env'
+    | [], _ | _, [] ->
+	Parsing_helper.internal_error "Stringmap.check_args vardecl and args should have the same length"
+    | ((s1,ext1),_)::rvardecl, (p,dim)::rargs ->
+	let vproba = { vp_name = s1;
+		       vp_dim = dim;
+		       vp_val = p }
+	in
+	let env'' = StringMap.add s1 (EVarProba vproba) env' in
+	check_args env'' rvardecl rargs
+  in
+  try 
+    match StringMap.find s env with
+    | EProba p ->
+	let args' = adapt_args p in
+	Proba(p, List.map fst args')
+    | ELetProba(p, env', vardecl, p') ->
+	let args' = adapt_args p in
+	let env'' = check_args env' vardecl args' in
+	p' env''
+    | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a probability.") ext
+  with Not_found ->
+    raise_error (s ^ " is not defined. Expected a probability.") ext
+	  
 (* Global binder environment *)
 
 type err_mess = string
@@ -207,6 +328,11 @@ let union_exclude env1 env2 =
 let set_binder_env env =
    binder_env := env
 
+let set_and_get_old_binder_env env =
+  let old_env = !binder_env in
+  set_binder_env env;
+  old_env
+	
 (* Get a global binder *)
 
 exception Undefined of ident

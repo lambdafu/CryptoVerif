@@ -170,7 +170,6 @@ let get_pcoll2_low ty =
                        = 1/|ty| + 2/|ty|sum_{a \in ty} p_a + \sum_{a \in ty} p_a^2
                        = 1/|ty| + \sum_{a \in ty} p_a^2 >= 1/|ty|     *)
 	
-	
 (* Adds an element if it is not already in (for physical equality) *)
 
 let addq accu b =

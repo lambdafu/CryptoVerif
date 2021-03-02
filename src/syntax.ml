@@ -1844,18 +1844,31 @@ let get_compatible ext d1 d2 =
     None, _ -> d2
   | _, None -> d1
   | Some(dp1,dt1,dl1),Some(dp2,dt2,dl2) -> 
-      if (dp1 != dp2) || (dt1 != dt2) || (dl1 != dl2) then
+      if (dt1 != dt2) || (dl1 != dl2) then
 	raise_error "values of incompatible dimensions" ext
       else
-	d1
+	match dp1, dp2 with
+	| None, _ -> d1
+	| _, None -> d2
+	| Some n1, Some n2 ->
+	    if n1 = n2 then d1 else
+	    begin
+	      input_warning "values with different 'probability' dimension; that is strange, please check the formula" ext;
+	      Some(None, dt1,dl1)
+	    end
 
 let compose_dim f d1 d2 =
   match (d1,d2) with
     None, _ -> None
   | _, None -> None
-  | Some(dp1,dt1,dl1),Some(dp2,dt2,dl2) -> 
-      Some (f dp1 dp2, f dt1 dt2, f dl1 dl2)
-
+  | Some(dp1,dt1,dl1),Some(dp2,dt2,dl2) ->
+      let dp = 
+	match dp1, dp2 with
+	| None, _  | _, None -> None
+	| Some n1, Some n2 -> Some (f n1 n2)
+      in
+      Some (dp, f dt1 dt2, f dl1 dl2)
+	
 let rec check_types ext pl0 pl tl = 
   match (pl0, pl, tl) with
     [],[],[] -> []
@@ -1900,18 +1913,32 @@ let rec check_types ext pl0 pl tl =
 		   "where p1...pn are probabilities pi ::= maxlength(ti) | length(fi, ...) | max(pi,pi)\n" ^
 		   "for terms ti or result of fi of types the non-bounded arguments of f.\n" ^ 
 		   "Unexpected number of arguments.") ext
-
-
-let rec check_probability_formula seen_ch seen_repl env = function
+    
+let rec check_probability_formula seen_vals env = function
     PPIdent(s,ext), ext2 ->
       begin
 	try 
 	  match StringMap.find s env with
-	    EParam p -> 
-	      if not (List.exists (fun b -> p == Terms.param_from_type b) (!seen_repl)) then
+	    EParam p ->
+	      let (seen_ch, seen_repl, adv_time) = seen_vals in
+	      if not (List.exists (fun b -> p == Terms.param_from_type b) seen_repl) then
 		raise_error ("The parameter " ^s^ " should occur in each member of the equivalence") ext;
-	      Count p, Some(0, 0, 0)
-	  | EProba p -> Proba(p,[]), Some(1, 0, 0)
+	      Count p, num_dim
+	  | EProba p ->
+	      begin
+		match p.pargs with
+		| None | Some [] -> ()
+		| Some _ -> 
+		    raise_error ("Probability function "^s^" has no arguments but expects some") ext
+	      end;
+	      Proba(p,[]), proba_dim
+	  | EVarProba v ->
+	      (v.vp_val, v.vp_dim)
+	  | ELetProba(p,env',args,p') ->
+	      if args != [] then
+		raise_error ("Probability function "^s^" has no arguments but expects some") ext;
+	      let p'' = p' env' in
+	      (p'', proba_dim)
 	  | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a probability or a parameter.") ext
 	with Not_found ->
 	  raise_error (s ^ " is not defined. Expected a probability or a parameter.") ext
@@ -1919,38 +1946,27 @@ let rec check_probability_formula seen_ch seen_repl env = function
   | PCount(s,ext), ext2 ->
       begin
 	try
-	  OCount(List.find (fun ch -> ch.cname = s) seen_ch), Some(0, 0, 0)
+	  let (seen_ch, seen_repl, adv_time) = seen_vals in
+	  OCount(List.find (fun ch -> ch.cname = s) seen_ch), num_dim
 	with Not_found -> 
 	  raise_error ("The oracle name " ^ s ^ " is not defined") ext
       end
   | PPFun((s,ext), l), ext2 ->
-      let l' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p )) l in
-      (* Remove "TypeMaxlength" arguments for simplicity; they are constants.
-	 TO DO This removing is perhaps questionable *)
-      let l' = List.filter (function 
-	  TypeMaxlength _ -> false
-	| _ -> true) l' in
-      begin
-	try 
-	  match StringMap.find s env with
-	  | EProba p -> Proba(p,l'), Some(1, 0, 0)
-	  | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a probability.") ext
-	with Not_found ->
-	  raise_error (s ^ " is not defined. Expected a probability.") ext
-      end
+      let l'_full = List.map (check_probability_formula seen_vals env) l in
+      Stringmap.apply_proba (s,ext) env l'_full, proba_dim 
   | PAdd(p1,p2), ext ->
-      let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
-      let (p2', d2) = check_probability_formula seen_ch seen_repl env p2 in
+      let (p1', d1) = check_probability_formula seen_vals env p1 in
+      let (p2', d2) = check_probability_formula seen_vals env p2 in
       (Add(p1',p2'), get_compatible ext d1 d2)
   | PSub(p1,p2), ext ->
-      let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
-      let (p2', d2) = check_probability_formula seen_ch seen_repl env p2 in
+      let (p1', d1) = check_probability_formula seen_vals env p1 in
+      let (p2', d2) = check_probability_formula seen_vals env p2 in
       (Sub(p1',p2'), get_compatible ext d1 d2)
   | (PMax(pl) | PMin(pl)) as proba, ext ->
       let rec check_comp = function
 	  [] -> ([], None)
 	| (p::l) -> 
-	    let (p', d) = check_probability_formula seen_ch seen_repl env p in
+	    let (p', d) = check_probability_formula seen_vals env p in
 	    let (l', dl) = check_comp l in
 	    if List.exists (Terms.equal_probaf p') l' then
 	      (* remove duplicate elements for simplifying *)
@@ -1968,47 +1984,50 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	| _ -> assert false
       end
   | PTime, ext ->
-      (AttTime, Some(0, 1, 0))
+      let (seen_ch, seen_repl, adv_time) = seen_vals in
+      if not adv_time then
+	raise_error "Cannot refer to the runtime of the adversary in letproba" ext;
+      (AttTime, time_dim)
   | PActTime(action, pl), ext ->
       begin
-	let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in
+	let pl' = List.map (fun p -> fst (check_probability_formula seen_vals env p)) pl in
 	match action with
 	  PAFunApp(s,ext') ->
 	    let f = get_function_no_letfun env s ext' in
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
-	    (ActTime(AFunApp f, pl'), Some(0, 1, 0))
+	    (ActTime(AFunApp f, pl'), time_dim)
 	| PAPatFunApp(s,ext') ->
 	    let f = get_function_no_letfun env s ext' in
 	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
 	      raise_error "Only [data] functions are allowed in patterns" ext';
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
-	    (ActTime(APatFunApp f, pl'), Some(0, 1, 0))
+	    (ActTime(APatFunApp f, pl'), time_dim)
 	| PACompare(s,ext') ->
 	    let t = get_type_or_param env s ext' in
 	    let pl' = check_types ext pl pl' [t] in
-	    (ActTime(AFunApp(Settings.f_comp Equal t t), pl'), Some(0, 1, 0))
+	    (ActTime(AFunApp(Settings.f_comp Equal t t), pl'), time_dim)
 	| PANew(s,ext') ->
 	    let t = get_type env s ext' in
 	    if pl != [] then 
 	      internal_error "No length arguments for time(new)";
-	    (ActTime(ANew t, pl'), Some(0, 1, 0))
+	    (ActTime(ANew t, pl'), time_dim)
 	| PAAppTuple(tl) ->
 	    let tl' = List.map (fun (s,ext') -> get_type env s ext') tl in
 	    let f = Settings.get_tuple_fun tl' in
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
-	    (ActTime(AFunApp f, pl'), Some(0, 1, 0))
+	    (ActTime(AFunApp f, pl'), time_dim)
 	| PAPatTuple(tl) ->
 	    let tl' = List.map (fun (s,ext') -> get_type env s ext') tl in
 	    let f = Settings.get_tuple_fun tl' in
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
-	    (ActTime(APatFunApp f, pl'), Some(0, 1, 0))
+	    (ActTime(APatFunApp f, pl'), time_dim)
 	| PAOut(l1,(s,ext')) ->
 	    if (!Settings.front_end) == Settings.Channels then
 	      begin
 		let l1' = List.map (fun (s,ext') -> get_type_or_param env s ext') l1 in
 		let t = get_type env s ext' in
 		let pl' = check_types ext pl pl' (l1' @ [t]) in
-		(ActTime(AOut(l1',t), pl'), Some(0, 1, 0))
+		(ActTime(AOut(l1',t), pl'), time_dim)
 	      end
 	    else
 	      internal_error "out action not allowed in oracles front-end"
@@ -2031,31 +2050,46 @@ let rec check_probability_formula seen_ch seen_repl env = function
 		    internal_error "in action not allowed in oracles front-end"
 	      |	_ -> internal_error "Unexpected action (syntax.ml)"
 	      in
-	      (ActTime(action', pl'), Some(0, 1, 0))
+	      (ActTime(action', pl'), time_dim)
 	    end
       end
   | PMaxlength(t), ext ->
-      let t' = check_term_proba env t in
-      if t'.t_type.toptions land Settings.tyopt_BOUNDED != 0 then
-	(TypeMaxlength(t'.t_type), Some (0,0,1))
-      else
-	(Maxlength(Terms.lhs_game, t'), Some (0,0,1))
+      begin
+	try
+	  (* Allow [t] to be a type. If that possibility does not work, 
+	     we raise Not_found and we consider [t] as a term. *)
+	  match t with 
+	  | PIdent (s, ext), ext2 ->
+	      begin
+		match StringMap.find s env with
+		| EType ty -> 
+		    (TypeMaxlength(ty), length_dim)
+		| _ -> raise Not_found
+	      end
+	  | _ -> raise Not_found
+	with Not_found -> 
+	  let t' = check_term_proba env t in
+	  if t'.t_type.toptions land Settings.tyopt_BOUNDED != 0 then
+	    (TypeMaxlength(t'.t_type), length_dim)
+	  else
+	    (Maxlength(Terms.lhs_game, t'), length_dim)
+      end
   | PLength((s,ext'), pl), ext ->
       begin
-	let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in
+	let pl' = List.map (fun p -> fst (check_probability_formula seen_vals env p)) pl in
 	try 
 	  match StringMap.find s env with
 	  | EFunc f -> 
 	      let pl' = check_types ext pl pl' (fst f.f_type) in
 	      if (snd f.f_type).toptions land Settings.tyopt_BOUNDED != 0 then
-		(TypeMaxlength (snd f.f_type), Some(0,0,1))
+		(TypeMaxlength (snd f.f_type), length_dim)
 	      else
-		(Length(f, pl'), Some(0,0,1))
+		(Length(f, pl'), length_dim)
 	  | EType t ->
 	      if pl != [] then
 		raise_error "the length of a type should have no additional argument" ext';
 	      if t.toptions land Settings.tyopt_BOUNDED != 0 then
-		(TypeMaxlength t, Some(0,0,1))
+		(TypeMaxlength t, length_dim)
 	      else
 		raise_error "the length of a type is allowed only when the type is bounded" ext'
 	  | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a function symbol (letfun forbidden) or a type.") ext'
@@ -2063,62 +2097,66 @@ let rec check_probability_formula seen_ch seen_repl env = function
 	  raise_error (s ^ " is not defined. Expected a function symbol (letfun forbidden) or a type.") ext'
       end
   | PLengthTuple(tl,pl), ext ->
-      let pl' = List.map (fun p -> fst (check_probability_formula seen_ch seen_repl env p)) pl in
+      let pl' = List.map (fun p -> fst (check_probability_formula seen_vals env p)) pl in
       let tl' = List.map (fun (s,ext') -> get_type env s ext') tl in
       let f = Settings.get_tuple_fun tl' in
       let pl' = check_types ext pl pl' (fst f.f_type) in
-      (Length(f, pl'), Some(0,0,1))
+      (Length(f, pl'), length_dim)
   | PProd(p1,p2), ext ->
-      let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
-      let (p2', d2) = check_probability_formula seen_ch seen_repl env p2 in
-      (Mul(p1',p2'), compose_dim (+) d1 d2)
+      let (p1', d1) = check_probability_formula seen_vals env p1 in
+      let (p2', d2) = check_probability_formula seen_vals env p2 in
+      (Mul(p1',p2'), compose_dim (add_check_overflow ext) d1 d2)
   | PDiv(p1,p2), ext ->
-      let (p1', d1) = check_probability_formula seen_ch seen_repl env p1 in
-      let (p2', d2) = check_probability_formula seen_ch seen_repl env p2 in
-      (Div(p1',p2'), compose_dim (-) d1 d2)
+      let (p1', d1) = check_probability_formula seen_vals env p1 in
+      let (p2', d2) = check_probability_formula seen_vals env p2 in
+      (Div(p1',p2'), compose_dim (sub_check_overflow ext) d1 d2)
   | PPZero, ext -> Zero, None
   | PCard (s,ext'), ext ->
       let t = get_type env s ext' in
       if t.toptions land Settings.tyopt_BOUNDED != 0 then
-	Card t, Some(-1, 0, 0)
+	Card t, Some(Some (-1), 0, 0)
       else
 	raise_error (s ^ " should be bounded") ext'
   | PCst i, ext ->
-      Cst (float_of_int i), Some(0, 0, 0)
+      Cst (float_of_int i), num_dim
   | PFloatCst f, ext ->
-      Cst f, Some(0, 0, 0)
-  | PEpsFind, ext -> (if (!Settings.ignore_small_times) > 0 then Zero else EpsFind), Some(1, 0, 0)
+      Cst f, num_dim
+  | PEpsFind, ext -> (if (!Settings.ignore_small_times) > 0 then Zero else EpsFind), proba_dim
   | PEpsRand(s,ext'), ext ->
       let t = get_type env s ext' in
       if t.toptions land Settings.tyopt_NONUNIFORM != 0 then
 	raise_error (s ^ " should be bounded or fixed, it should not be nonuniform") ext'
       else if t.toptions land Settings.tyopt_FIXED != 0 then
-	Zero, Some(1, 0, 0)
+	Zero, proba_dim
       else if t.toptions land Settings.tyopt_BOUNDED != 0 then
-	(if (!Settings.ignore_small_times) > 0 then Zero else EpsRand t), Some(1, 0, 0)
+	(if (!Settings.ignore_small_times) > 0 then Zero else EpsRand t), proba_dim
       else
 	raise_error (s ^ " should be bounded or fixed") ext'
   | PPColl1Rand(s,ext'), ext ->
       let t = get_type env s ext' in
       if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
-	Proba.pcoll1rand t, Some(1, 0, 0)
+	Proba.pcoll1rand t, proba_dim
       else 
 	raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
   | PPColl2Rand(s,ext'), ext ->
       let t = get_type env s ext' in
       if t.toptions land Settings.tyopt_CHOOSABLE != 0 then
-	Proba.pcoll2rand t, Some(1, 0, 0)
+	Proba.pcoll2rand t, proba_dim
       else 
 	raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
 	
-let check_probability_formula2 seen_ch seen_repl env p =
-  let (p', d) = check_probability_formula seen_ch seen_repl env p in
+and check_probability_formula2 seen_vals env p =
+  let (p', d) = check_probability_formula seen_vals env p in
   begin
     match d with
       None -> ()
     | Some(dp,dt,dl) ->
-	if (dp != 1) || (dt != 0) || (dl != 0) then 
-	  raise_error "The result of this formula is not a probability" (snd p)
+	if (dt != 0) || (dl != 0) then 
+	  raise_error "The result of this formula is not a probability" (snd p);
+	match dp with
+	| None | Some 1 -> ()
+	| Some n ->
+	    input_warning "This formula may not be a probability; please check" (snd p)
   end;
   p'
 
@@ -2502,7 +2540,7 @@ let check_eqstatement normalize (name, equiv, (priority, options)) =
       (* The probability formula must be checked in the binder_env for the
 	 left-hand side of the equivalence. Arguments of Maxlength may use
 	 variables of the left-hand side of the equivalence. *)
-      let proba' = check_probability_formula2 (!seen_ch) seen_repl (!env) proba in
+      let proba' = check_probability_formula2 (!seen_ch, !seen_repl, true) (!env) proba in
       if List.length mem1 <> List.length mem2 then
 	raise_error "Both sides of this equivalence should have the same number of function groups" ext2;
       set_binder_env
@@ -2596,7 +2634,7 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
       raise_error ("Cannot choose randomly a bitstring from " ^ b.btype.tname) ext
       ) restr' restr;
   let (env'',forall') = check_binder_list env' forall in
-  let proba' = check_probability_formula2 [] (ref []) env'' proba in
+  let proba' = check_probability_formula2 ([], [], true) env'' proba in
   let t1' = check_term_nobe env'' t1 in
   if not (List.for_all (fun b -> Terms.refers_to b t1') (restr' @ forall')) then
     raise_error "In collision statements, all bound variables should occur in the left-hand side" (snd t1);
@@ -3227,7 +3265,7 @@ let rename_equiv = function
 	
 let rename_decl = function
     ParamDecl(s, options) -> ParamDecl(rename_ie s, options)
-  | ProbabilityDecl (s, options) -> ProbabilityDecl(rename_ie s, options)
+  | ProbabilityDecl (s, args, options) -> ProbabilityDecl(rename_ie s, args, options)
   | TypeDecl(s,options) -> TypeDecl(rename_ie s, options)
   | ConstDecl(s1,s2) -> ConstDecl(rename_ie s1, rename_ie s2)
   | ChannelDecl(s) -> ChannelDecl(rename_ie s)
@@ -3305,7 +3343,11 @@ let rename_decl = function
       LetFun(name',
 	     List.map (fun (b,t) -> (rename_ie b,rename_ty t)) l,
 	     rename_term t)
-
+  | LetProba(name, l, p) ->
+      LetProba(rename_ie name,
+	       List.map (fun (b,t) -> (rename_ie b,t)) l,
+	       rename_probaf p)
+	
 (* Check declarations *)
 
 let add_not_found s ext v =
@@ -3375,14 +3417,19 @@ let rec check_one = function
 	| _::_::_ -> raise_error "Parameters accept a single size option" ext
       in
       add_not_found s ext (EParam{ pname = s; psize = size })
-  | ProbabilityDecl((s,ext), options) ->
+  | ProbabilityDecl((s,ext), args, options) ->
       let est =
 	match options with
 	  [] -> Settings.tysize_LARGE
 	| [opt_ext] -> Settings.parse_pest opt_ext
 	| _ ::_::_ -> raise_error "Probabilities accept a single estimate option" ext
       in
-      add_not_found s ext (EProba{ prname = s; pestimate = est })
+      let args' =
+	match args with
+	| None -> None
+	| Some l -> Some (List.map (fun (d,ext) -> Some d) l)
+      in
+      add_not_found s ext (EProba{ prname = s; pargs = args'; pestimate = est })
   | TableDecl((s,ext),st) ->
       add_not_found s ext (ETable ({ tblname = s;
 				     tbltype = List.map (fun (s,ext) -> get_type_or_param (!env) s ext) st;
@@ -3602,7 +3649,28 @@ let rec check_one = function
 	    f_impl_inv = None }
       in
       add_not_found s1 ext1 (ELetFun(f, !env, l, s2))
-          
+
+  | LetProba((s,ext), args, p) ->
+      let rec check_distinct = function
+	| [] | [_] -> ()
+	| ((s1,ext1),_)::l ->
+	    if List.exists (fun ((s',_),_) -> s' = s1) l then
+	      raise_error ("The name "^s1^" has already been used as argument of the same letproba function") ext1;
+	    check_distinct l
+      in
+      check_distinct (List.rev args);
+      let args' =
+	Some (List.map (fun (_,(d,ext)) -> Some d) args)
+      in
+      let proba = { prname = s; pargs = args'; pestimate = 0 } in
+      add_not_found s ext
+	(ELetProba(proba, !env, args,
+		   (fun env' ->
+		     let old_env = set_and_get_old_binder_env empty_binder_env in
+		     let p' = check_probability_formula2 ([], [], false) env' p in
+		     set_binder_env old_env;
+		     p')))
+	
   | EventDecl((s1,ext1), l) ->
       let l' = List.map (fun (s,ext) ->
 	get_type_or_param (!env) s ext) l 
@@ -3879,13 +3947,14 @@ let rec check_all (l,p) =
 
 let declares = function
   | ParamDecl(id, _)
-  | ProbabilityDecl(id, _)
+  | ProbabilityDecl(id, _, _)
   | TableDecl(id,_)
   | TypeDecl(id,_)
   | ConstDecl(id,_)
   | ChannelDecl id
   | FunDecl(id,_,_,_)
   | LetFun(id,_,_)
+  | LetProba(id,_,_)
   | EventDecl(id, _)
   | PDef(id,_,_) ->
       Some id
@@ -4245,7 +4314,7 @@ let rec collect_id_spec_arg accu = function
   | SpecialArgTuple l,_ -> List.iter (collect_id_spec_arg accu) l
 	
 let collect_id_decl accu = function
-  | ParamDecl(i,_) | ProbabilityDecl (i,_) | TypeDecl(i,_) | ChannelDecl i ->
+  | ParamDecl(i,_) | ProbabilityDecl (i,_,_) | TypeDecl(i,_) | ChannelDecl i ->
       add_id accu i
   | ConstDecl(i1,i2) ->
       add_id accu i1;
@@ -4298,6 +4367,11 @@ let collect_id_decl accu = function
       add_id accu name;
       List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) l;
       collect_id_term accu t
+  | LetProba(name,l,p) ->
+      add_id accu name;
+      List.iter (fun (x,dim) ->  add_id accu x) l;
+      collect_id_probaf accu p
+      
 
 let record_all_ids (l,p) =
   let accu = ref [] in

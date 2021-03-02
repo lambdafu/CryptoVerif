@@ -31,7 +31,7 @@ Will get:
 
 type key [fixed].
 type block [fixed, large].
-proba Penc.
+proba Penc(time, number).
 
 expand PRP_cipher(key, block, enc, dec, Penc).
 

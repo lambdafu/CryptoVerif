@@ -121,7 +121,7 @@ equiv(prf3 )
   ! N3 new k: extracted; (
     ! N O1(log: bitstring) := return(Derive_Secret_cs_ats_exp(k, log)) |
     ! N' O2(log': bitstring) := return(Derive_Secret_rms(k, log')))
-<=(N3 * Pprf2(time + (N3-1)*(N' * time(Derive_Secret_rms, maxlength(log')) + N * time(Derive_Secret_cs_ats_exp, maxlength(log))), N, N'))=>
+<=(N3 * Pprf3(time + (N3-1)*(N' * time(Derive_Secret_rms, maxlength(log')) + N * time(Derive_Secret_cs_ats_exp, maxlength(log))), N, N'))=>
   ! N3 (
     ! N O1(log: bitstring) := find [unique] j <= N suchthat defined(log[j], r[j]) && (log = log[j]) then return(r[j]) else new r: three_keys; return(r) |
     ! N' O2(log': bitstring) := find [unique] j' <= N' suchthat defined(log'[j'], r'[j']) && (log' = log'[j']) then return(r'[j']) else new r': key; return(r')).      

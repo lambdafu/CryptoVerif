@@ -3159,7 +3159,12 @@ $\nonterm{prog}$ is either \texttt{CV} for CryptoVerif or
 \texttt{PV} for ProVerif and $\nonterm{mode}$ is as for the
 \texttt{test} program above.
 Temporary files are stored in directory $\nonterm{tmp\_directory}$,
-and the full output of the test is stored in $\texttt{tests/}\nonterm{prefix\_for\_output\_files}\nonterm{date}$, a summary of the results in $\texttt{tests/sum-}\nonterm{prefix\_for\_output\_files}\nonterm{date}$, and a comparison with expected results in $\texttt{tests/res-}\nonterm{prefix\_for\_output\_files}\nonterm{date}$.
+and the output files are:
+\begin{itemize}
+\item full output of the test: $\texttt{tests/}\nonterm{prefix\_for\_output\_files}\nonterm{date}$,
+\item summary of the results: $\texttt{tests/sum-}\nonterm{prefix\_for\_output\_files}\nonterm{date}$,
+\item comparison with expected results: $\texttt{tests/res-}\nonterm{prefix\_for\_output\_files}\nonterm{date}$.
+\end{itemize}
 
 This program analyzes a series of scripts using the program specified by $\nonterm{prog}$.
 \begin{itemize}

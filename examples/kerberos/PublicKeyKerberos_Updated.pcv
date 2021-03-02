@@ -230,7 +230,7 @@ equation forall m:maxmac, k:key, collkey:collisionkey;
 
 (* Pseudorandom function (PRF) for key derivation *)
 
-proba pPRF.
+proba pPRF(time, number).
 
 expand PRF(protkey, usenum, key, keyderivation, pPRF).
 

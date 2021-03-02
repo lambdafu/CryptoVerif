@@ -21,8 +21,8 @@ equation forall y:nonce,z:nonce,t:host,u:host, y2:nonce,z2:key; concat1(y,z,t,u)
 
 (* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
 
-proba Penc.
-proba Pencctxt.
+proba Penc(time, number).
+proba Pencctxt(time, number, number, length).
 
 expand IND_CPA_INT_CTXT_sym_enc(key, maxenc, bitstring, enc, dec, injbot, Z, Penc, Pencctxt).
 

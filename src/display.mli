@@ -8,7 +8,7 @@ val print_string : string -> unit
 val print_newline : unit -> unit  
 
 val get_game_id : game -> string
-    
+
 type display_occ_t = NoOcc | AllOccs | ProcessOccs      
 val display_occurrences : display_occ_t ref
 val display_arrays : bool ref

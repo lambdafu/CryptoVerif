@@ -1,0 +1,5 @@
+letfun f(x:bitstring,x:bitstring) = x.
+
+
+process
+	in(c,x: bitstring); out(c,f(x))

@@ -1,0 +1,7 @@
+proba P.
+
+letproba p(x:time,x:time) = P(x).
+
+
+process
+	0
