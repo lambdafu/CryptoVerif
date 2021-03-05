@@ -1333,6 +1333,7 @@ let rec add_index_proba idx = function
   | Add(x,y) -> Add(add_index_proba idx x, add_index_proba idx y)
   | Sub(x,y) -> Sub(add_index_proba idx x, add_index_proba idx y)
   | Div(x,y) -> Div(add_index_proba idx x, add_index_proba idx y)
+  | Power(x,n) -> Power(add_index_proba idx x, n)
   | Max(l) -> Max(List.map (add_index_proba idx) l)
   | Min(l) -> Min(List.map (add_index_proba idx) l)
 
@@ -1365,6 +1366,7 @@ let instan_time add_time p =
   | Add(x,y) -> Add(instan_time x, instan_time y)
   | Sub(x,y) -> Sub(instan_time x, instan_time y)
   | Div(x,y) -> Div(instan_time x, instan_time y)
+  | Power(x,n) -> Power(instan_time x,n)
   | Max(l) -> Max(List.map instan_time l)
   | Min(l) -> Min(List.map instan_time l)
   in

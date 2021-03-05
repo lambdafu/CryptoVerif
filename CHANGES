@@ -13,7 +13,7 @@ useless assignments.
 game are really unique.
 - Added definitions of Diffie-Hellman properties with a single
 family of exponents, in the standard library of cryptographic primitives.
-- Allow "min" in probability formulas.
+- Allow "min" and "probability^n" for integers n in probability formulas.
 - In a "proba" declaration, allow the user to specify the dimensions of
 the arguments of the probability function.
 - CryptoVerif now checks that calls to the same probability function

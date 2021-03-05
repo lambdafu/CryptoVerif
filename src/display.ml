@@ -524,7 +524,7 @@ let get_game_id g =
 let rec is_time = function
   | Proba _ | Count _ | OCount _ | Card _ | Maxlength _ | TypeMaxlength _
   | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Length _
-  | Zero | Cst _ ->
+  | Zero | Cst _ | Power _ ->
       false
   | AttTime | Time _ | ActTime _ -> true	
   | Add(x,y) | Sub(x,y) | Mul(x,y) -> 
@@ -587,6 +587,10 @@ and display_proba ?separate_time level = function
       print_string " * ";
       display_proba ?separate_time 3 y;
       if level > 3 then print_string ")"
+  | Power(x,n) ->
+      display_proba ?separate_time 5 x;
+      print_string " ^ ";
+      print_int n
   | Zero -> print_string "0"      
   | Cst n -> print_float n
   | Div(x,y) ->

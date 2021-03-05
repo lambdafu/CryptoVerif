@@ -214,6 +214,67 @@ let mult_interv (min1,max1) (min2,max2) =
   let max = max_v (max_v v1max v2max) (max_v v3max v4max) in
   (min, max)
 
+let mult_e e n =
+  assert (n <> 0);
+  (* For this code to be correct, we must have min_f = - max_f *)
+  let tentative_res = e *. float_of_int n in
+  if tentative_res > max_f then max_f else
+  if tentative_res < min_f then min_f else
+  tentative_res
+
+let max_e e1 e2 =
+  if e1 > e2 then e1 else e2
+    
+let power_interv ((signmin, emin), (signmax, emax)) n =
+  if n = 0 then
+    (* The result is the constant 1 = 1 * 2^0 *)
+    (1, 0.0), (1, 0.0)
+  else if n > 0 then
+    begin
+      if signmin < 0 && n mod 2 = 0 then
+	if signmax < 0 then
+	  (* all values negative, x -> x^n decreases *)
+	  (1, mult_e emax n), (1, mult_e emin n)
+	else if signmax = 0 then
+	  (0, 0.0), (1, mult_e emin n)
+	else (* signmax > 0 *)
+	  (0, 0.0), (1, mult_e (max_e emin emax) n)
+      else
+	(* x -> x^n increases *)
+	(signmin, mult_e emin n), (signmax, mult_e emax n)
+    end
+  else (* n<0 *)
+    begin
+      if signmax < 0 then
+	(* all values negative *)
+	if n mod 2 = 0 then
+	  (* all values are negative, exponent negative and even, x -> x^n increases *)
+	  (1, mult_e emin n), (1, mult_e emax n)
+	else
+  	  (* all values are negative, exponent negative and odd, x -> x^n decreases *)
+	  (signmax, mult_e emax n), (signmin, mult_e emin n)
+      else if signmin > 0 then
+	(* all values positive, exponent negative, x -> x^n decreases *)
+	(signmax, mult_e emax n), (signmin, mult_e emin n)
+      else
+	(* values close to 0 *)
+	if n mod 2 = 0 then
+	  (* values close to 0, exponent negative and even, we can go to +inf *)
+	  if signmin = 0 && signmax = 0 then
+	    (* Division by 0, result positive -> +inf *)
+	    (1, max_f), (1, max_f)
+	  else if signmin = 0 then
+	    (1, mult_e emax n), (1, max_f)
+	  else if signmax = 0 then
+	    (1, mult_e emin n), (1, max_f)
+	  else
+	    (1, mult_e (max_e emin emax) n), (1, max_f)
+	else
+	  (* values close to 0, exponent negative and odd, we can go to -inf or to +inf *)
+	  (-1, max_f), (1, max_f)
+    end
+      
+    
 (* [order_of_magnitude_aux probaf] returns an interval
    containing for sure the value of [probaf], given the estimates
    provided by the user *)
@@ -259,6 +320,8 @@ let rec order_of_magnitude_aux probaf =
 	   s*2^-e2max <= 1/p2 <= s*2^-e2min *)
   | Mul(p1, p2) ->
       mult_interv (order_of_magnitude_aux p1) (order_of_magnitude_aux p2)
+  | Power(p,n) ->
+      power_interv (order_of_magnitude_aux p) n
   | Proba (p,_) ->
       if !Settings.trust_size_estimates then
         (1, min_f), (1, float_of_int (- p.pestimate))
@@ -567,6 +630,7 @@ let copy_probaf transf p =
   | Add(x,y) -> Add(aux x, aux y)
   | Sub(x,y) -> Sub(aux x, aux y)
   | Div(x,y) -> Div(aux x, aux y)
+  | Power(x,n) -> Power(aux x, n)
   | Max(l) -> Max(List.map aux l)
   | Min(l) -> Min(List.map aux l)
   in
@@ -744,6 +808,7 @@ let occurs_proba any_var_map p =
 	List.exists aux l
     | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->
 	(aux p1) || (aux p2)
+    | Power(p,n) -> aux p
   in
   aux p
 
@@ -896,6 +961,7 @@ let rec instan_time restr_indep_map any_var_map_list p =
     | Add(x,y) -> Add(aux x, aux y)
     | Sub(x,y) -> Sub(aux x, aux y)
     | Div(x,y) -> Div(aux x, aux y)
+    | Power(x,n) -> Power(aux x, n)
   in
   aux p
     

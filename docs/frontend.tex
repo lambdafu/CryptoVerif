@@ -168,32 +168,34 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &&\mid \texttt{time((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
 &\phpr \nonterm{proba} \texttt{ / } \nonterm{proba}
 &&\mid \texttt{time(let (}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}\\
-&\phpr \texttt{max(}\neseq{proba}\texttt{)}
+&\phpr \nonterm{proba} \texttt{\^{ }}\nonterm{int}
 &&\mid \texttt{time(= }\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\\
-&\phpr \texttt{min(}\neseq{proba}\texttt{)}
+&\phpr \texttt{max(}\neseq{proba}\texttt{)}
 &&\mid \texttt{time(!)}\\
-&\phpr \nonterm{ident}[\texttt{(}\seq{proba}\texttt{)}]
+&\phpr \texttt{min(}\neseq{proba}\texttt{)}
 &&\mid \texttt{time(foreach)}\\
-&\phpr \texttt{|}\nonterm{ident}\texttt{|}
+&\phpr \nonterm{ident}[\texttt{(}\seq{proba}\texttt{)}]
 &&\mid \texttt{time([}n\texttt{])}\\
-&\phpr \texttt{maxlength(}\nonterm{simpleterm}\texttt{)}
+&\phpr \texttt{|}\nonterm{ident}\texttt{|}
 &&\mid \texttt{time(\&\&)}\\
-&\phpr \texttt{length(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}
+&\phpr \texttt{maxlength(}\nonterm{simpleterm}\texttt{)}
 &&\mid \texttt{time(\string|\string|)}\\
-&\phpr \texttt{length((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}
+&\phpr \texttt{length(}\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}
 &&\mid \texttt{time(new }\nonterm{ident}\texttt{)}\\
-&\phpr n
+&\phpr \texttt{length((}\seq{ident}\texttt{)}[\texttt{, }\neseq{proba}]\texttt{)}
 &&\mid \texttt{time(<-R }\nonterm{ident}\texttt{)}\\
-&\phpr \#\nonterm{ident}
+&\phpr n
 &&\mid  \ifchannels\texttt{time(newChannel)}\else\texttt{time(newOracle)}\fi\qquad\qquad\qquad\qquad\\
-&\phpr \texttt{eps\_find}
+&\phpr \#\nonterm{ident}
 &&\mid  \texttt{time(if)}\\
-&\phpr \texttt{eps\_rand(}T\texttt{)}
+&\phpr \texttt{eps\_find}
 &&\mid \texttt{time(find }n\texttt{)}\\
-&\phpr \texttt{Pcoll1rand(}T\texttt{)}
+&\phpr \texttt{eps\_rand(}T\texttt{)}
 &&\ifchannels\mid \texttt{time(out }[\texttt{[}\neseq{ident}\texttt{]}]\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\fi\\
+&\phpr \texttt{Pcoll1rand(}T\texttt{)}
+&&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi\\
 &\phpr \texttt{Pcoll2rand(}T\texttt{)}
-&&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi
+&&
 \end{xxalignat}\vspace*{-8mm}%
 \begin{align*}
 &\nonterm{repl} ::= \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident}\\
@@ -2615,9 +2617,11 @@ element of {\tt bitstringbot} that is not a bitstring.)
 \end{itemize}
 
 The syntax of probability formulas allows parenthesing and the usual
-algebraic operations \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}.
-(\texttt{*} and \texttt{/} have higher priority than \texttt{+} and
-\texttt{-}, as usual.), as well as the maximum, denoted 
+algebraic operations \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{\^{ }}.
+(\texttt{\^{ }} is the power, its second argument must be an integer; 
+\texttt{\^{ }} has higher priority than \texttt{*} and \texttt{/}, 
+which have higher priority than \texttt{+} and
+\texttt{-}, as usual), as well as the maximum, denoted 
 $\texttt{max(}p_1\texttt{,}\ldots\texttt{,}p_n\texttt{)}$, and
 minimum, denoted $\texttt{min(}p_1\texttt{,}\ldots\texttt{,}p_n\texttt{)}$. 
 They may also contain 

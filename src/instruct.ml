@@ -1201,7 +1201,9 @@ let rec find_proba f = function
   | Count _ | OCount _ | Cst _ | Zero | Card _ | AttTime | Time _ 
   | ActTime _ | Maxlength _ |  TypeMaxlength _ | EpsFind | EpsRand _ 
   | PColl1Rand _ | PColl2Rand _ -> false
-  | Add(x,y) | Sub(x,y) | Mul(x,y) | Div(x,y) -> (find_proba f x) || (find_proba f y)
+  | Add(x,y) | Sub(x,y) | Mul(x,y) | Div(x,y) ->
+      (find_proba f x) || (find_proba f y)
+  | Power(x,n) -> find_proba f x
   | Max(l) | Min(l) | Length(_,l) -> List.exists (find_proba f) l
 
 let find_equiv f equiv =

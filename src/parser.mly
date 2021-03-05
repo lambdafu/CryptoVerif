@@ -178,6 +178,7 @@ let return_channel = (dummy_channel, None)
 %nonassoc DIFF
 %nonassoc REPL
 %nonassoc UNARYMINUS
+%nonassoc POWER
     
 %start all
 %type <Ptree.decl list * Ptree.final_process> all
@@ -303,14 +304,14 @@ dim:
     { let ext = parse_extent() in
       let (t1,l1) = $1 in
       let (t2,l2) = $3 in
-      (add_check_overflow ext t1 t2,
-       add_check_overflow ext l1 l2) }
+      (add_check_overflow ovf_dim ext t1 t2,
+       add_check_overflow ovf_dim ext l1 l2) }
 |   dim DIV dim
     { let ext = parse_extent() in
       let (t1,l1) = $1 in
       let (t2,l2) = $3 in
-      (sub_check_overflow ext t1 t2,
-       sub_check_overflow ext l1 l2) }
+      (sub_check_overflow ovf_dim ext t1 t2,
+       sub_check_overflow ovf_dim ext l1 l2) }
     
 poweropt:
     { 1 }
@@ -1173,6 +1174,53 @@ fungroup:
 |   repl newlistfunlist 
     { let (i,n) = $1 in let (news,r) = $2 in
       PReplRestr(Some(ref None, i, n), news, r) }
+
+commonprobaf:
+|       IDENT
+        { (PPIdent $1), parse_extent() }
+|       COUNT IDENT
+        { (PCount $2), parse_extent() }
+|       BAR IDENT BAR
+        { PCard($2), parse_extent() }
+|       TIME
+        { PTime, parse_extent() }
+|       TIME LPAREN REPL RPAREN
+        { PActTime(PAReplIndex, []), parse_extent() }
+|       TIME LPAREN FOREACH RPAREN
+        { PActTime(PAReplIndex, []), parse_extent() }
+|       TIME LPAREN LBRACKET INT RBRACKET RPAREN
+        { PActTime(PAArrayAccess $4, []), parse_extent() }
+|       TIME LPAREN AND RPAREN
+        { PActTime(PAAnd, []), parse_extent() }
+|       TIME LPAREN OR RPAREN
+        { PActTime(PAOr, []), parse_extent() }
+|       TIME LPAREN NEW IDENT RPAREN
+        { PActTime(PANew $4, []), parse_extent() }
+|       TIME LPAREN RANDOM IDENT RPAREN
+        { PActTime(PANew $4, []), parse_extent() }
+|       TIME LPAREN IF RPAREN
+        { PActTime(PAIf, []), parse_extent() }
+|       TIME LPAREN FIND INT RPAREN
+        { PActTime(PAFind $4, []), parse_extent() }
+|       INT
+        { let x = $1 in
+	  if x = 0 then (PPZero,parse_extent())  else 
+          (PCst x,parse_extent())  }
+|       FLOAT
+        { let x = $1 in
+	  if x = 0.0 then (PPZero,parse_extent())  else 
+	  (PFloatCst x,parse_extent())  }
+|       MAXLENGTH LPAREN term RPAREN
+        { PMaxlength($3), parse_extent() }
+|       EPSFIND
+        { PEpsFind, parse_extent() }
+|       EPSRAND LPAREN IDENT RPAREN
+        { PEpsRand($3), parse_extent() }
+|       PCOLL1RAND LPAREN IDENT RPAREN
+        { PPColl1Rand($3), parse_extent() }
+|       PCOLL2RAND LPAREN IDENT RPAREN
+        { PPColl2Rand($3), parse_extent() }
+    
     
 probaf:
         LPAREN probaf RPAREN
@@ -1187,79 +1235,41 @@ probaf:
         { PProd($1,$3), parse_extent() }
 |       probaf DIV probaf
         { PDiv($1,$3), parse_extent() }
+|       probaf POWER INT
+        { PPower($1,$3), parse_extent() }
+|       probaf POWER SUB INT
+        { PPower($1,-$4), parse_extent() }
 |       MAX LPAREN probaflist RPAREN
         { PMax($3), parse_extent() }
 |       MIN LPAREN probaflist RPAREN
         { PMin($3), parse_extent() }
-|       IDENT
-        { (PPIdent $1), parse_extent() }
-|       COUNT IDENT
-        { (PCount $2), parse_extent() }
 |       IDENT LPAREN probaflist RPAREN
         { (PPFun($1,$3)), parse_extent() }
-|       BAR IDENT BAR
-        { PCard($2), parse_extent() }
-|       TIME
-        { PTime, parse_extent() }
 |       TIME LPAREN IDENT probaflistopt RPAREN
         { PActTime(PAFunApp $3, $4), parse_extent() }
 |       TIME LPAREN LET IDENT probaflistopt RPAREN
         { PActTime(PAPatFunApp $4, $5), parse_extent() }
-|       TIME LPAREN REPL RPAREN
-        { PActTime(PAReplIndex, []), parse_extent() }
-|       TIME LPAREN FOREACH RPAREN
-        { PActTime(PAReplIndex, []), parse_extent() }
-|       TIME LPAREN LBRACKET INT RBRACKET RPAREN
-        { PActTime(PAArrayAccess $4, []), parse_extent() }
 |       TIME LPAREN EQUAL IDENT probaflistopt RPAREN
         { PActTime(PACompare $4, $5), parse_extent() }
 |       TIME LPAREN LPAREN identlist RPAREN probaflistopt RPAREN
         { PActTime(PAAppTuple $4, $6), parse_extent() }
 |       TIME LPAREN LET LPAREN identlist RPAREN probaflistopt RPAREN
         { PActTime(PAPatTuple $5, $7), parse_extent() }
-|       TIME LPAREN AND RPAREN
-        { PActTime(PAAnd, []), parse_extent() }
-|       TIME LPAREN OR RPAREN
-        { PActTime(PAOr, []), parse_extent() }
-|       TIME LPAREN NEW IDENT RPAREN
-        { PActTime(PANew $4, []), parse_extent() }
-|       TIME LPAREN RANDOM IDENT RPAREN
-        { PActTime(PANew $4, []), parse_extent() }
 |       TIME LPAREN NEWCHANNEL RPAREN
         { PActTime(PANewChannel, []), parse_extent() }
-|       TIME LPAREN IF RPAREN
-        { PActTime(PAIf, []), parse_extent() }
-|       TIME LPAREN FIND INT RPAREN
-        { PActTime(PAFind $4, []), parse_extent() }
 |       TIME LPAREN OUT IDENT probaflistopt RPAREN
         { PActTime(PAOut([], $4), $5), parse_extent() }
 |       TIME LPAREN OUT LBRACKET neidentlist RBRACKET IDENT probaflistopt RPAREN
         { PActTime(PAOut($5, $7), $8), parse_extent() }
 |       TIME LPAREN IN INT RPAREN
         { PActTime(PAIn $4, []), parse_extent() }
-|       INT
-        { let x = $1 in
-	  if x = 0 then (PPZero,parse_extent())  else 
-          (PCst x,parse_extent())  }
-|       FLOAT
-        { let x = $1 in
-	  if x = 0.0 then (PPZero,parse_extent())  else 
-	  (PFloatCst x,parse_extent())  }
-|       MAXLENGTH LPAREN term RPAREN
-        { PMaxlength($3), parse_extent() }
 |       LENGTH LPAREN IDENT probaflistopt RPAREN
         { PLength($3, $4), parse_extent() }
 |       LENGTH LPAREN LPAREN identlist RPAREN probaflistopt RPAREN
         { PLengthTuple($4, $6), parse_extent() }
-|       EPSFIND
-        { PEpsFind, parse_extent() }
-|       EPSRAND LPAREN IDENT RPAREN
-        { PEpsRand($3), parse_extent() }
-|       PCOLL1RAND LPAREN IDENT RPAREN
-        { PPColl1Rand($3), parse_extent() }
-|       PCOLL2RAND LPAREN IDENT RPAREN
-        { PPColl2Rand($3), parse_extent() }
-
+|       commonprobaf
+        { $1 }
+    
 probaflistopt:
        COMMA probaflist 
        { $2 }
@@ -1561,72 +1571,34 @@ oprobaf:
         { PProd($1,$3), parse_extent() }
 |       oprobaf DIV oprobaf
         { PDiv($1,$3), parse_extent() }
+|       oprobaf POWER INT
+        { PPower($1,$3), parse_extent() }
+|       oprobaf POWER SUB INT
+        { PPower($1,-$4), parse_extent() }
 |       MAX LPAREN oprobaflist RPAREN
         { PMax($3), parse_extent() }
 |       MIN LPAREN oprobaflist RPAREN
         { PMin($3), parse_extent() }
-|       IDENT
-        { (PPIdent $1), parse_extent() }
-|       COUNT IDENT
-        { (PCount $2), parse_extent() }
 |       IDENT LPAREN oprobaflist RPAREN
         { (PPFun($1,$3)), parse_extent() }
-|       BAR IDENT BAR
-        { PCard($2), parse_extent() }
-|       TIME
-        { PTime, parse_extent() }
 |       TIME LPAREN IDENT oprobaflistopt RPAREN
         { PActTime(PAFunApp $3, $4), parse_extent() }
 |       TIME LPAREN LET IDENT oprobaflistopt RPAREN
         { PActTime(PAPatFunApp $4, $5), parse_extent() }
-|       TIME LPAREN REPL RPAREN
-        { PActTime(PAReplIndex, []), parse_extent() }
-|       TIME LPAREN FOREACH RPAREN
-        { PActTime(PAReplIndex, []), parse_extent() }
-|       TIME LPAREN LBRACKET INT RBRACKET RPAREN
-        { PActTime(PAArrayAccess $4, []), parse_extent() }
 |       TIME LPAREN EQUAL IDENT oprobaflistopt RPAREN
         { PActTime(PACompare $4, $5), parse_extent() }
 |       TIME LPAREN LPAREN identlist RPAREN oprobaflistopt RPAREN
         { PActTime(PAAppTuple $4, $6), parse_extent() }
 |       TIME LPAREN LET LPAREN identlist RPAREN oprobaflistopt RPAREN
         { PActTime(PAPatTuple $5, $7), parse_extent() }
-|       TIME LPAREN AND RPAREN
-        { PActTime(PAAnd, []), parse_extent() }
-|       TIME LPAREN OR RPAREN
-        { PActTime(PAOr, []), parse_extent() }
-|       TIME LPAREN NEW IDENT RPAREN
-        { PActTime(PANew $4, []), parse_extent() }
-|       TIME LPAREN RANDOM IDENT RPAREN
-        { PActTime(PANew $4, []), parse_extent() }
 |       TIME LPAREN NEWORACLE RPAREN
         { PActTime(PANewChannel, []), parse_extent() }
-|       TIME LPAREN IF RPAREN
-        { PActTime(PAIf, []), parse_extent() }
-|       TIME LPAREN FIND INT RPAREN
-        { PActTime(PAFind $4, []), parse_extent() }
-|       INT
-        { let x = $1 in
-	  if x = 0 then (PPZero,parse_extent())  else 
-          (PCst x,parse_extent())  }
-|       FLOAT
-        { let x = $1 in
-	  if x = 0.0 then (PPZero,parse_extent())  else 
-	  (PFloatCst x,parse_extent())  }
-|       MAXLENGTH LPAREN term RPAREN
-        { PMaxlength($3), parse_extent() }
 |       LENGTH LPAREN IDENT oprobaflistopt RPAREN
         { PLength($3, $4), parse_extent() }
 |       LENGTH LPAREN LPAREN identlist RPAREN oprobaflistopt RPAREN
         { PLengthTuple($4, $6), parse_extent() }
-|       EPSFIND
-        { PEpsFind, parse_extent() }
-|       EPSRAND LPAREN IDENT RPAREN
-        { PEpsRand($3), parse_extent() }
-|       PCOLL1RAND LPAREN IDENT RPAREN
-        { PPColl1Rand($3), parse_extent() }
-|       PCOLL2RAND LPAREN IDENT RPAREN
-        { PPColl2Rand($3), parse_extent() }
+|       commonprobaf
+        { $1 }
 
 oprobaflistopt:
        COMMA oprobaflist 

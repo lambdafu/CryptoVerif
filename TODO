@@ -47,12 +47,16 @@ Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
 to ProVerif as well for compatibility (but ignore them).
 
+LATER:
+   
 I could also check that probabilities are negligible assuming parameters
 and lengths are polynomial, cardinals of large types are exponential,
 and probas are negligible.
 (Somewhat related to the probability dimension check, but has a better
 semantics.)
-
+Problematic when we give explicit constants (e.g. 2^{-250}) for
+probabilities. When should it be considered negligible?
+   
 Use multikey probability by default for special equiv (SPRP, PRF, PRP);
 the probability based on a single key can be defined using letproba.
 Advantage:
@@ -62,8 +66,15 @@ Drawbacks:
 - The runtime of the context in the derivation single-key -> multi-key
 will be less precise (but is it really a drawback?)
 
-Allow power in probability formulas? p^n where n is an integer
-
+   There is a difficulty when I want to define a macro using multikey
+   probability, and then define the multikey probability from the
+   single key probability using letproba: I need to add the runtime
+   of the context, which refers to functions defined inside the macro
+   so I cannot refer to them in letproba before expanding the macro...
+   As a workaround, I can define another function before the macro
+   and use its time in the letproba, but that's not nice.
+   I am not sure how to solve this issue.
+   
 Allow using "letfun"s f in time(f,...) and in terms M in maxlength(M)?
 
 0.2)
@@ -5828,3 +5839,6 @@ When checking dimensions in probability formulas, emit a warning instead of an e
 when the "probability" dimension does not match (in fact, it has no real
 meaning, but it allows to catch bugs).
 DONE 2/3/2021
+
+Allow power in probability formulas. p^n where n is an integer
+DONE 4/3/2021

@@ -517,6 +517,11 @@ and display_proba ?separate_time level = function
       print_string " \\times ";
       display_proba ?separate_time 3 y;
       if level > 3 then print_string ")"
+  | Power(x,n) ->
+      display_proba ?separate_time 5 x;
+      print_string "^{";
+      print_int n;
+      print_string "}"
   | Zero -> print_string "0"      
   | Cst n -> print_string (Printf.sprintf "%g" n)
   | Div(x,y) ->

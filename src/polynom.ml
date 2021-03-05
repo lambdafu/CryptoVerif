@@ -2,6 +2,8 @@ open Types
 
 (* 1. Operations on polynoms *)
 
+let ovf_exp = "Overflow in exponent"
+  
 let zero = []
     
 let equal_factor (p,n) (p',n') = (n==n') && (Terms.equal_probaf p p')
@@ -24,6 +26,8 @@ let rec find_monomial m = function
       let (coef',l') = find_monomial m l in
       (coef',x::l')
 
+(* [sum p1 p2] is the polynom [p1 + p2], where [p1] and [p2] are polynoms *)
+	
 let rec sum p1 = function
     [] -> p1
   | ((coef,a)::l) ->
@@ -33,6 +37,9 @@ let rec sum p1 = function
       with Not_found ->
 	(coef,a)::(sum p1 l)
 
+(* [max p1 p2] is a polynom upper bound of the maximum of two polynoms 
+   [p1] and [p2], assuming all variables are positive or zero *)
+		     
 let max_float a b =
   if a > b then a else b
 
@@ -45,6 +52,8 @@ let rec max p1 = function
       with Not_found ->
 	(coef,a)::(max p1 l)
 
+(* [sub p1 p2] is the polynom [p1 - p2], where [p1] and [p2] are polynoms *)
+		     
 let rec sub p1 = function
     [] -> p1
   | ((coef,a)::l) ->
@@ -54,25 +63,98 @@ let rec sub p1 = function
       with Not_found ->
 	(0.-.coef,a)::(sub p1 l)
 
+(* [product p1 p2] is the polynom [p1 * p2], where [p1] and [p2] are polynoms *)
+
 let rec product_monomial m1 = function
     [] -> m1
   | (e,n)::l -> 
       try
 	let n' = List.assoc e m1 in
-	(e,n + n')::(product_monomial (remove_factor (e,n') m1) l)
+	(e,Parsing_helper.add_check_overflow ovf_exp Parsing_helper.dummy_ext n n')::
+	(product_monomial (remove_factor (e,n') m1) l)
       with Not_found ->
 	(e,n)::(product_monomial m1 l)
 
 let rec product_pol_monomial (coef,a) = function
     [] -> []
-  | ((coef',a')::l) -> 
+  | (coef',a')::l -> 
       sum [coef *. coef', product_monomial a a'] (product_pol_monomial (coef,a) l)
 
 let rec product p1 = function
     [] -> []
-  | (a::l) -> sum (product_pol_monomial a p1) (product p1 l)
+  | a::l -> sum (product_pol_monomial a p1) (product p1 l)
 
+(* [power_to_polynom to_polynom to_proba p n] is the polynom
+   [to_polynom (p^n)] where [p] is a probability formula, and
+   [to_polynom] maps probability formulas to polynoms and maps
+   product, division, and power to product, division, and power
+   respectively.
 
+   [to_proba] is a function that takes a probability formula [f]
+   and its conversion [p = to_polynom f], and returns a 
+   probability formula equal to [p].
+   Two cases can happen:
+   1/ [to_polynom] maps each probability formula to a polynom
+   representing the same value, i.e. [to_polynom = probaf_to_polynom]. 
+   In this case, we can use [to_proba = fun f p -> f]: 
+   [to_proba] reuses the original probability formula [f] as conversion
+   of [p]. This is what happen in [probaf_to_polynom] below.
+   2/ [to_polynom] modifies the probability formula.
+   In this case, we should use [to_proba = fun f p -> polynom_to_probaf p].
+   This is what happens in the exported function [power_to_polynom_map]. *)
+	
+let power_monomial a n =
+  List.map (fun (p,n') ->
+    (p, Parsing_helper.mul_check_overflow ovf_exp Parsing_helper.dummy_ext n' n)) a
+	
+let p_inv = function
+  | Div(Cst 1.0, x) -> x
+  | Div(x,y) -> Div(y,x)
+  | y -> Div(Cst 1.0, y)
+	
+let power_inv_monomial a n =
+  List.map (fun (p,n') ->
+    (p_inv p, Parsing_helper.mul_check_overflow ovf_exp Parsing_helper.dummy_ext n' n)) a
+
+let power (coef,a) n =
+  if n = 0 then
+    [1.0, []]
+  else if n > 0 then
+    [coef ** (float_of_int n), power_monomial a n]
+  else (* n < 0 *)
+    [coef ** (float_of_int n), power_inv_monomial a (-n)]
+    
+let power_to_polynom to_polynom to_proba p n =
+  let rec aux f n = 
+    match n with
+    | 0 -> [1.0, []]
+    | 1 -> to_polynom f
+    | 2 ->
+	let p = to_polynom f in
+	product p p
+    | _ ->
+	match f with
+	| Mul(x,y) -> product (aux x n) (aux y n)
+	| Div(x,y) ->
+	    if n = min_int then
+	      Parsing_helper.raise_user_error "overflow in exponent";
+	    product (aux x n) (aux y (-n))
+	| Power(x,n') ->
+	    aux x
+	      (Parsing_helper.mul_check_overflow ovf_exp Parsing_helper.dummy_ext n' n)
+	| _ ->
+	    match to_polynom f with
+	    | [] -> []
+	    | [monomial] -> power monomial n
+	    | p ->
+		let f' = to_proba f p in 
+		if n > 0 then
+		  [1.0,[f',n]]
+		else
+		  [1.0,[p_inv f',-n]]
+  in
+  aux p n
+      
 (* 2. Basic operations on probabilities, with simple simplifications *) 
 
 let p_div(x,y) =
@@ -181,13 +263,16 @@ let rec add_min accu = function
 
 let rec probaf_to_polynom = function
     Zero -> []
-  | Cst n -> [n,[]]
+  | Cst n -> if n = 0.0 then [] else [n,[]]
   | Mul(f1,f2) -> product (probaf_to_polynom f1) (probaf_to_polynom f2)
   | Add(f1,f2) -> sum (probaf_to_polynom f1) (probaf_to_polynom f2)
   | Sub(f1,f2) -> sub (probaf_to_polynom f1) (probaf_to_polynom f2)
-  | Div(Cst 1.0, Mul(x,y)) -> probaf_to_polynom (Mul(Div(Cst 1.0, x), Div(Cst 1.0, y)))
+  | Power(f,n) ->
+      power_to_polynom probaf_to_polynom (fun f p -> f) f n
+  | Div(Cst 1.0, Mul(x,y)) ->
+      probaf_to_polynom (Mul(p_inv x, p_inv y))
   | Div(Cst 1.0, _) as prob -> [1.0,[prob,1]]
-  | Div(f1,f2) -> probaf_to_polynom (Mul(f1, Div(Cst 1.0, f2)))
+  | Div(f1,f2) -> probaf_to_polynom (Mul(f1, p_inv f2))
   | prob -> [1.0,[prob,1]]
 
 
@@ -199,15 +284,10 @@ let rec factor_to_probaf (a,n) =
   else if n = 1 then
     a 
   else 
-    Mul(a,factor_to_probaf (a,n-1))
+    Power(a,n)
 
-let rec factor_to_list (a,n) =
-  if n < 1 then
-    Parsing_helper.internal_error "not a polynomial in factor_to_probaf" 
-  else if n = 1 then
-    [a] 
-  else 
-    a :: (factor_to_list (a,n-1))
+let rec factor_to_list f =
+  [factor_to_probaf f]
 
 type monomial_decomp =
     { small_factors : probaf;
@@ -227,8 +307,6 @@ let rec split_monomial = function
       |	Div(Cst 1.0, x) -> 
 	  let l = factor_to_list (x,n) in
 	  { r' with denominator = l @ r'.denominator }
-      |	Add _ | Mul _ | Sub _ | Div _ | Zero | Cst _ ->
-	  Parsing_helper.internal_error "Should have been removed when generating polynoms"
       |	_ ->
 	  let l = factor_to_list f in
 	  { r' with large_factors = l @ r'.large_factors }
@@ -276,3 +354,12 @@ let monomial_decomp_to_probaf l =
 
 let polynom_to_probaf x =
   monomial_decomp_to_probaf (polynom_to_monomial_decomp x)
+
+
+(* [power_to_polynom_map f x n] is the polynom [f (x^n)] where [x] is
+   a probability formula, and [f] maps probability formulas to
+   polynoms and maps product, division, and power to product,
+   division, and power respectively. *)
+
+let power_to_polynom_map f x n =
+  power_to_polynom f (fun f p -> polynom_to_probaf p) x n

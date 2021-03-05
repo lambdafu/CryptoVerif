@@ -44,6 +44,7 @@ let rec instan_time get_time p =
     | Add(x,y) -> Add(aux x, aux y)
     | Sub(x,y) -> Sub(aux x, aux y)
     | Div(x,y) -> Div(aux x, aux y)
+    | Power(x,n) -> Power(aux x, n)
   in
   Polynom.p_sum (List.map (function
     | SetProba p -> aux p

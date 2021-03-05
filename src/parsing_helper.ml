@@ -17,16 +17,27 @@ let raise_error s ext =
 
 let raise_user_error s =
   raise (Error(s,dummy_ext))
-  
-let add_check_overflow ext n1 n2 =
+
+let ovf_dim = "Overflow in exponent while computing a dimension"
+    
+let add_check_overflow msg ext n1 n2 =
   if (n2 > 0 && n1 > max_int-n2) || (n2 < 0 && n1 < min_int-n2) then
-    raise_error "Overflow in dimension" ext;
+    raise_error msg ext;
   n1 + n2
 
-let sub_check_overflow ext n1 n2 =
+let sub_check_overflow msg ext n1 n2 =
   if (n2 > 0 && n1 < min_int + n2) || (n2 < 0 && n1 > max_int+n2) then
-    raise_error "Overflow in dimension" ext;
+    raise_error msg ext;
   n1 - n2
+
+let mul_check_overflow msg ext n1 n2 =
+  if (n1 > 0 && n2 > 0 && n1 > max_int/n2) ||
+     (n1 < 0 && n2 > 0 && n1 < min_int/n2) ||
+     (n1 > 0 && n2 < 0 && n2 < min_int/n1) ||
+     (n1 < 0 && n2 < 0 && n1 < max_int/n2)
+  then
+    raise_error msg ext;
+  n1 * n2
     
 let merge_ext (p1,_) (_,p2) = (p1,p2)
 

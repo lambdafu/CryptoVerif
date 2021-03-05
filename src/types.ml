@@ -446,6 +446,7 @@ and probaf =
   | OCount of channel
   | Add of probaf * probaf
   | Mul of probaf * probaf
+  | Power of probaf * int
   | Cst of float
   | Zero
   | Sub of probaf * probaf

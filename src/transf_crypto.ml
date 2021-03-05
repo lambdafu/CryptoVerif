@@ -4574,7 +4574,8 @@ let rec map_probaf env = function
   | Sub(x,y) -> Polynom.sub (map_probaf env x) (map_probaf env y)
   | Div(x,y) -> Polynom.probaf_to_polynom 
 	(Polynom.p_div(Polynom.polynom_to_probaf (map_probaf env x), 
-	     Polynom.polynom_to_probaf (map_probaf env y)))
+		       Polynom.polynom_to_probaf (map_probaf env y)))
+  | Power(x,n) -> Polynom.power_to_polynom_map (map_probaf env) x n
   | Zero -> Polynom.zero
   | AttTime -> 
       Polynom.sum (Polynom.probaf_to_polynom (Time (!whole_game, compute_runtime()))) (Polynom.probaf_to_polynom (AttTime))
@@ -4798,6 +4799,7 @@ let rec update_max_length_probaf ins = function
   | Add(x,y) -> Add(update_max_length_probaf ins x, update_max_length_probaf ins y)
   | Sub(x,y) -> Sub(update_max_length_probaf ins x, update_max_length_probaf ins y)
   | Div(x,y) -> Div(update_max_length_probaf ins x, update_max_length_probaf ins y)
+  | Power(x,n) -> Power(update_max_length_probaf ins x, n)
   | Min(l) -> Min(List.map (update_max_length_probaf ins) l)
   | (Max _ | Maxlength _) as y ->
       let accu = ref Polynom.empty_minmax_accu in

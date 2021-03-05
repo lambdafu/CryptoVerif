@@ -5,8 +5,16 @@ exception Error of string * extent
 val raise_error : string -> extent -> 'a
 val raise_user_error : string -> 'a    
 
-val add_check_overflow : extent -> int -> int -> int
-val sub_check_overflow : extent -> int -> int -> int
+(* Integer operations that check overflow 
+   [ovf_dim] is the error message in case the overflow happens
+   when computing a dimension.
+   [<op>_check_overflow msg ext n1 n2] computes [n1 <op> n2]
+   and raises [Error(msg,ext)] in case of overflow. *)
+    
+val ovf_dim : string
+val add_check_overflow : string -> extent -> int -> int -> int
+val sub_check_overflow : string -> extent -> int -> int -> int
+val mul_check_overflow : string -> extent -> int -> int -> int
     
 val dummy_ext : extent
 val merge_ext : extent -> extent -> extent

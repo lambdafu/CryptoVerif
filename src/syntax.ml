@@ -1868,6 +1868,19 @@ let compose_dim f d1 d2 =
 	| Some n1, Some n2 -> Some (f n1 n2)
       in
       Some (dp, f dt1 dt2, f dl1 dl2)
+
+let mul_dim ext d n =
+  match d with
+  | None -> None
+  | Some(dp1,dt1,dl1) ->
+      let dp1' =
+	match dp1 with
+	| None -> None
+	| Some dp -> Some (mul_check_overflow ovf_dim ext dp n)
+      in
+      Some(dp1',
+	   mul_check_overflow ovf_dim ext dt1 n,
+	   mul_check_overflow ovf_dim ext dl1 n)
 	
 let rec check_types ext pl0 pl tl = 
   match (pl0, pl, tl) with
@@ -2105,11 +2118,25 @@ let rec check_probability_formula seen_vals env = function
   | PProd(p1,p2), ext ->
       let (p1', d1) = check_probability_formula seen_vals env p1 in
       let (p2', d2) = check_probability_formula seen_vals env p2 in
-      (Mul(p1',p2'), compose_dim (add_check_overflow ext) d1 d2)
+      (Mul(p1',p2'), compose_dim (add_check_overflow ovf_dim ext) d1 d2)
   | PDiv(p1,p2), ext ->
       let (p1', d1) = check_probability_formula seen_vals env p1 in
       let (p2', d2) = check_probability_formula seen_vals env p2 in
-      (Div(p1',p2'), compose_dim (sub_check_overflow ext) d1 d2)
+      (Div(p1',p2'), compose_dim (sub_check_overflow ovf_dim ext) d1 d2)
+  | PPower(p1,n), ext ->
+      let (p1', d1) = check_probability_formula seen_vals env p1 in
+      if n = 0 then
+	begin
+	  Parsing_helper.input_warning "probability^0 simplified into 1" ext;
+	  (Cst 1.0, num_dim)
+	end
+      else if n = 1 then
+	begin
+	  Parsing_helper.input_warning "probability^1 simplified into probability" ext;
+	  (p1', d1)
+	end
+      else
+	(Power(p1',n), mul_dim ext d1 n)
   | PPZero, ext -> Zero, None
   | PCard (s,ext'), ext ->
       let t = get_type env s ext' in
@@ -3189,6 +3216,7 @@ let rec rename_probaf (p,ext) =
   | PSub(p1,p2) -> PSub(rename_probaf p1, rename_probaf p2)
   | PProd(p1,p2) -> PProd(rename_probaf p1, rename_probaf p2)
   | PDiv(p1,p2) -> PDiv(rename_probaf p1, rename_probaf p2)
+  | PPower(p,n) -> PPower(rename_probaf p,n)
   | PMax l -> PMax (List.map rename_probaf l)
   | PMin l -> PMin (List.map rename_probaf l)
   | PPIdent i -> PPIdent (rename_ie i)
@@ -4247,6 +4275,8 @@ let rec collect_id_probaf accu (p,ext) =
   | PAdd(p1,p2) | PSub(p1,p2) | PProd(p1,p2) | PDiv(p1,p2) ->
       collect_id_probaf accu p1;
       collect_id_probaf accu p2
+  | PPower(p,n) ->
+      collect_id_probaf accu p
   | PMax l | PMin l ->
       List.iter (collect_id_probaf accu) l
   | PPIdent i | PCount i | PCard i | PEpsRand i

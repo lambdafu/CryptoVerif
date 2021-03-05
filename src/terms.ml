@@ -1390,6 +1390,7 @@ let rec equal_probaf p1 p2 =
   | Mul(p1,p2), Mul(p1',p2') -> (equal_probaf p1 p1') && (equal_probaf p2 p2')
   | Sub(p1,p2), Sub(p1',p2') -> (equal_probaf p1 p1') && (equal_probaf p2 p2')
   | Div(p1,p2), Div(p1',p2') -> (equal_probaf p1 p1') && (equal_probaf p2 p2')
+  | Power(p,n), Power(p', n') -> (equal_probaf p p') && (n == n')
   | Max l, Max l' -> equal_lists equal_probaf l l'
   | Min l, Min l' -> equal_lists equal_probaf l l'
   | Maxlength(n,t),Maxlength(n',t') -> (n == n') && (equal_terms t t')

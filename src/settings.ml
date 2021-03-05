@@ -120,6 +120,8 @@ let tysize_MIN_Coll_Elim = ref tysize_PASSWORD_min
 let tysize_MIN_Auto_Coll_Elim = ref 80
 
 let max_exp = 1000000000
+(* min_exp = -max_exp is needed for the code in proba.ml
+   to evaluate orders of magnitude to be correct *)
 let min_exp = -max_exp
     
 (* Determines the probabilities that are considered small enough to 

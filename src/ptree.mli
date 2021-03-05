@@ -91,6 +91,7 @@ type probabilityf =
   | PSub of probabilityf_e * probabilityf_e
   | PProd of probabilityf_e * probabilityf_e
   | PDiv of probabilityf_e * probabilityf_e
+  | PPower of probabilityf_e * int
   | PMax of probabilityf_e list
   | PMin of probabilityf_e list
   | PPIdent of ident
